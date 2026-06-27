@@ -60,7 +60,12 @@ For any Quarto-document fixtures the doc-build equivalent is `quarto render`.
 
 ### Project-specific Learnings
 
-(none)
+| # | Learning | When to apply |
+|---|----------|---------------|
+| 1 | **Posit's official Quarto VS Code extension is AGPL-3.0** (extension, LSP, Visual Editor, Panmirror — confirmed twice against the live `quarto-dev/quarto` repo). It is **look-but-don't-copy** reference only. Build on MIT upstreams instead: `microsoft/vscode-markdown-tm-grammar`, `wooorm/markdown-tm-language`, `microsoft/vscode-markdown-languageservice`, and the MIT Quarto **CLI** (shelled out at runtime). | Before reusing/adapting any Quarto-extension code, or choosing a grammar/LSP base. The MIT boundary in CONTEXT.md is non-negotiable. |
+| 2 | **Language-support architecture is resolved: ship Tier A (TextMate grammar) → build to Tier B (in-process `register*Provider`) → defer Tier C (out-of-process LSP).** The guardrail that makes this safe: the intelligence core is a **`vscode`-free pure-TS library**; the extension is a thin adapter. This makes B→C migration cheap AND makes the core unit-testable headlessly. See `docs/planning/2026-06-27-extension-architecture-plan.md` §3. | Any language-feature work. Keep parsing/analysis logic out of `vscode.*` imports. |
+| 3 | **No `code` CLI on PATH in this environment.** Runtime verification of the extension is a manual **F5** (Extension Development Host) step — it can't be driven headlessly. Pure-`core/` logic is unit-tested with `npm test` (no VS Code); `@vscode/test-electron` downloads its own VS Code for integration tests (no `code` CLI needed — verify in Phase 1). | Phase 3E close-out for any implementation session: state F5 results explicitly; never claim build-clean == runtime-clean. |
+| 4 | **Verified Quarto CLI behaviors (trust these):** `quarto preview <f>` prints `Browse at http://localhost:<port>/` (parse this for the preview webview); `--timeout` does NOT reliably self-exit (only on no active clients → own the process lifecycle, kill on close); code-cell render needs Jupyter (`nbformat`) in the active Python env. | Phases 3–5 (render/preview/execution). Re-verify the `Browse at` line on Quarto CLI upgrades. |
 
 ### Project-specific Failure Modes
 
