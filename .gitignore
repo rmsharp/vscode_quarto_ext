@@ -1,0 +1,13 @@
+# Methodology generated artifact
+dashboard.html
+
+# Node / VS Code extension build
+node_modules/
+out/
+dist/
+*.vsix
+.vscode-test/
+
+# Logs & OS cruft
+*.log
+.DS_Store

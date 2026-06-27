@@ -1,0 +1,1 @@
+{"timestamp": "2026-06-27T13:00:15.308220", "portfolio": {"health_score": 30, "project_count": 1, "total_commits": 0, "risk_counts": {"high": 1}}, "projects": {"vscode_quarto_ext": {"health": 30, "risk": "high", "activity": "dead", "commits": 0, "test_files": 0, "vulns": 0}}}
