@@ -1,0 +1,35 @@
+# Keep the .vsix lean: ship only the bundled extension + metadata.
+.vscode/**
+.vscode-test/**
+src/**
+test/**
+out/**
+docs/**
+node_modules/**
+
+# Source maps and build inputs
+**/*.map
+**/*.ts
+esbuild.js
+tsconfig.json
+tsconfig.test.json
+vitest.config.ts
+.gitignore
+
+# Methodology / project-management artifacts (not part of the extension)
+SESSION_RUNNER.md
+SAFEGUARDS.md
+SESSION_NOTES.md
+BOOTSTRAP.md
+RECOMMENDED_SKILLS.md
+CLAUDE.md
+CLAUDE_TEMPLATE.md
+CONTEXT.md
+CONTEXT_TEMPLATE.md
+BACKLOG.md
+CHANGELOG.md
+ROADMAP.md
+methodology_dashboard.py
+dashboard.html
+dashboard_history.jsonl
+**/.DS_Store

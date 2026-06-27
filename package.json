@@ -1,0 +1,58 @@
+{
+  "name": "vscode-quarto-ext",
+  "displayName": "Quarto (MIT)",
+  "description": "MIT-licensed Quarto authoring support for VS Code: render, live preview, .qmd language support, and editor intelligence.",
+  "version": "0.0.1",
+  "publisher": "vscode-quarto-ext",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "quarto.verifyInstallation",
+        "title": "Verify Installation",
+        "category": "Quarto"
+      }
+    ],
+    "configuration": {
+      "title": "Quarto",
+      "properties": {
+        "quarto.path": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Absolute path to the `quarto` executable. When empty, the extension resolves `quarto` from the `PATH`."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "bundle": "node esbuild.js",
+    "compile": "npm run check-types && npm run bundle",
+    "watch": "node esbuild.js --watch",
+    "compile-tests": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:integration": "npm run compile && npm run compile-tests && node ./out/test/integration/runTest.js",
+    "package": "npm run compile && vsce package",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.2",
+    "mocha": "^10.8.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
