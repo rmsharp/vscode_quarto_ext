@@ -8,6 +8,7 @@
 
 import * as vscode from "vscode";
 import { meetsMinimum, MINIMUM_QUARTO_VERSION } from "./core/version";
+import { disposeAllPreviews, registerPreviewFeature } from "./features/preview";
 import { registerRenderFeature } from "./features/render";
 import { QuartoNotFound, resolveBinary } from "./quarto/cli";
 
@@ -19,6 +20,7 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
   );
   registerRenderFeature(context);
+  registerPreviewFeature(context);
 }
 
 /**
@@ -60,5 +62,9 @@ async function verifyInstallation(): Promise<void> {
 }
 
 export function deactivate(): void {
-  // No-op for Phase 1. Later phases (e.g. Preview) own process lifecycle here.
+  // Own the preview process lifecycle: reap every live `quarto preview` server
+  // (and its deno worker) so none orphan when the extension unloads. The
+  // PreviewManager is also a registered subscription, so this is belt-and-
+  // suspenders against the host disposing subscriptions in a different order.
+  disposeAllPreviews();
 }

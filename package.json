@@ -54,6 +54,11 @@
         "command": "quarto.render",
         "title": "Render",
         "category": "Quarto"
+      },
+      {
+        "command": "quarto.preview",
+        "title": "Preview",
+        "category": "Quarto"
       }
     ],
     "configuration": {
