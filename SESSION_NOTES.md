@@ -37,6 +37,11 @@ The user rates every session's handoff. Your handoff will be scored on:
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 5 Did — 2026-06-27
+**Deliverable:** Implement **Phase 4** of the architecture plan — `Quarto: Preview` (spawn `quarto preview <file> --no-browser`, parse `Browse at <url>` stderr, embed in a webview beside the editor, reload on save, own the process lifecycle — no orphans). (IN PROGRESS)
+**Started:** 2026-06-27
+**Status:** Session claimed. Orientation done (Phase 0 reported, working tree clean, Phases 1–3 verified). Work beginning — reading plan §6 Phase 4 + §8 and the Development workstream.
+
 ### What Session 4 Did — 2026-06-27
 **Deliverable:** Implement **Phase 3** of the architecture plan — `Quarto: Render`. **COMPLETE + verified.**
 
