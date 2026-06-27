@@ -1,6 +1,8 @@
 # Keep the .vsix lean: ship only the bundled extension + metadata.
 .vscode/**
 .vscode-test/**
+.claude/**
+.git/**
 src/**
 test/**
 out/**

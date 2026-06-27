@@ -41,7 +41,7 @@
     "compile-tests": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:integration": "npm run compile && npm run compile-tests && node ./out/test/integration/runTest.js",
-    "package": "npm run compile && vsce package",
+    "package": "npm run compile && vsce package --allow-missing-repository",
     "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
