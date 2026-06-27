@@ -18,8 +18,15 @@
     "languages": [
       {
         "id": "quarto",
-        "aliases": ["Quarto", "quarto"],
-        "extensions": [".qmd", ".rmd", ".Rmd"],
+        "aliases": [
+          "Quarto",
+          "quarto"
+        ],
+        "extensions": [
+          ".qmd",
+          ".rmd",
+          ".Rmd"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
@@ -75,6 +82,8 @@
     "esbuild": "^0.24.2",
     "mocha": "^10.8.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   }
 }
