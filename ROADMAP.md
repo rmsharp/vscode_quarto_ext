@@ -10,9 +10,11 @@
 - **Tier C (deferred until a driver appears):** out-of-process LSP for cross-file project indexing or multi-editor reuse — cheap to reach because the intelligence core is kept `vscode`-free.
 
 ## What's Built
-- **Phase 1 — walking skeleton (Session 2).** Installable `.vsix` builds from a TypeScript/esbuild scaffold; the `core/`-vs-adapter boundary is established (`vscode`-free `core/`); the `Quarto: Verify Installation` command resolves the CLI and reports its version; unit (vitest) + integration (`@vscode/test-electron`) test harnesses both run green headlessly. Phases 2–6c remain.
+- **Phase 2 — `.qmd` highlighting (Session 3).** `.qmd`/`.rmd` register as the `quarto` language; an original `text.html.quarto` grammar highlights prose (via the built-in markdown grammar by reference), YAML front matter, and `{python}/{r}/{julia}/{ojs}` cells, with bracket/comment/folding config. Verified headlessly via `vscode-textmate` tokenization + a real-host registration test. Phases 3–6c remain.
+- **Phase 1 — walking skeleton (Session 2).** Installable `.vsix` builds from a TypeScript/esbuild scaffold; the `core/`-vs-adapter boundary is established (`vscode`-free `core/`); the `Quarto: Verify Installation` command resolves the CLI and reports its version; unit (vitest) + integration (`@vscode/test-electron`) test harnesses both run green headlessly.
 
 ## Completed Milestones
 - **Methodology bootstrap** (Session 0) — installed the Iterative Session Methodology and instantiated project docs.
 - **Architecture planning** (Session 1) — resolved the load-bearing language-support decision and produced the phased implementation plan.
 - **Phase 1 walking skeleton** (Session 2) — scaffold + `Quarto: Verify Installation` + test harness; confirmed headless integration testing works.
+- **Phase 2 `.qmd` highlighting** (Session 3) — language registration + TextMate grammar + config; resolved the base-grammar decision (include-by-reference, no fork); added headless grammar tokenization tests.
