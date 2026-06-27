@@ -15,6 +15,28 @@
   "main": "./dist/extension.js",
   "activationEvents": [],
   "contributes": {
+    "languages": [
+      {
+        "id": "quarto",
+        "aliases": ["Quarto", "quarto"],
+        "extensions": [".qmd", ".rmd", ".Rmd"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "quarto",
+        "scopeName": "text.html.quarto",
+        "path": "./syntaxes/quarto.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.frontmatter": "yaml",
+          "meta.embedded.block.python": "python",
+          "meta.embedded.block.r": "r",
+          "meta.embedded.block.julia": "julia",
+          "meta.embedded.block.ojs": "javascript"
+        }
+      }
+    ],
     "commands": [
       {
         "command": "quarto.verifyInstallation",

@@ -1,0 +1,46 @@
+vscode-quarto-ext
+Copyright (c) 2026 R. Mark Sharp and contributors
+Licensed under the MIT License (see LICENSE).
+
+This product is an independent, clean-room reimplementation. It does NOT copy
+source from Posit's official Quarto VS Code extension, its language server, the
+Visual Editor, or Panmirror — all of which are AGPL-3.0 and are used only as
+look-but-don't-copy reference.
+
+================================================================================
+Third-party references
+================================================================================
+
+TextMate grammar (syntaxes/quarto.tmLanguage.json)
+--------------------------------------------------
+This grammar is original work written for this project. It does not embed or
+copy any third-party grammar. For prose and plain fenced code blocks it
+delegates *by reference* to grammars that ship with Visual Studio Code, by
+TextMate scope name only (no source is copied):
+
+  - text.html.markdown   (VS Code built-in Markdown grammar)
+  - source.yaml          (YAML, for the front matter)
+  - source.python, source.r, source.julia, source.js
+                         (embedded code-cell languages; highlighting of r/julia
+                          requires the user to have those language grammars
+                          installed — they are not bundled with VS Code)
+
+The fenced-block begin/end idiom and the embedded-language injection technique
+used here are inspired by the public, MIT-licensed example:
+
+  mjbvz/vscode-fenced-code-block-grammar-injection-example
+  https://github.com/mjbvz/vscode-fenced-code-block-grammar-injection-example
+  License: MIT
+
+Clean MIT building blocks evaluated while authoring this grammar (not copied):
+
+  - microsoft/vscode-markdown-tm-grammar   (MIT)
+  - wooorm/markdown-tm-language            (MIT)
+
+Quarto CLI (runtime dependency, invoked via the shell)
+------------------------------------------------------
+  https://github.com/quarto-dev/quarto-cli
+  License: MIT
+
+On upgrade of any referenced grammar or tool, re-verify the license still holds
+at the pinned version and update this file (architecture plan §9, §14).

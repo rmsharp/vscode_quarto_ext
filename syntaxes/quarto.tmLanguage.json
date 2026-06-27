@@ -1,0 +1,117 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "information_for_contributors": [
+    "Original grammar for vscode-quarto-ext (MIT). NOT a fork of any markdown grammar.",
+    "Prose and plain fenced code blocks are delegated to VS Code's built-in markdown",
+    "grammar by reference ('include': 'text.html.markdown') — its source is never copied.",
+    "Quarto-specific rules added here: YAML front matter and brace-wrapped {lang} code",
+    "cells (```{python} / ```{r} / ```{julia} / ```{ojs}), which the stock markdown",
+    "fenced-block rule does not match. The fenced begin/end idiom and the embedded-",
+    "language injection pattern are inspired by the public MIT example",
+    "mjbvz/vscode-fenced-code-block-grammar-injection-example. See ../NOTICE."
+  ],
+  "name": "Quarto",
+  "scopeName": "text.html.quarto",
+  "patterns": [
+    { "include": "#frontmatter" },
+    { "include": "#cell-python" },
+    { "include": "#cell-r" },
+    { "include": "#cell-julia" },
+    { "include": "#cell-ojs" },
+    { "include": "#cell-generic" },
+    { "include": "text.html.markdown" }
+  ],
+  "repository": {
+    "frontmatter": {
+      "begin": "\\A(-{3})\\s*$",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.frontmatter.begin.quarto" }
+      },
+      "end": "^(-{3}|\\.{3})\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.frontmatter.end.quarto" }
+      },
+      "contentName": "meta.embedded.block.frontmatter",
+      "patterns": [{ "include": "source.yaml" }]
+    },
+    "cell-python": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(python)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.python",
+      "patterns": [{ "include": "source.python" }]
+    },
+    "cell-r": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(r)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.r",
+      "patterns": [{ "include": "source.r" }]
+    },
+    "cell-julia": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(julia)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.julia",
+      "patterns": [{ "include": "source.julia" }]
+    },
+    "cell-ojs": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(ojs)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.ojs",
+      "patterns": [{ "include": "source.js" }]
+    },
+    "cell-generic": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?([^},\\s]+).*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.quarto"
+    }
+  }
+}
