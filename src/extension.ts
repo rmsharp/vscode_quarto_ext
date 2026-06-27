@@ -8,6 +8,7 @@
 
 import * as vscode from "vscode";
 import { meetsMinimum, MINIMUM_QUARTO_VERSION } from "./core/version";
+import { registerRenderFeature } from "./features/render";
 import { QuartoNotFound, resolveBinary } from "./quarto/cli";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -17,6 +18,7 @@ export function activate(context: vscode.ExtensionContext): void {
       verifyInstallation,
     ),
   );
+  registerRenderFeature(context);
 }
 
 /**
