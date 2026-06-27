@@ -1,0 +1,24 @@
+---
+title: "Render Failure Fixture (requires Jupyter)"
+author: "vscode-quarto-ext"
+format: html
+---
+
+# Executable Python cell
+
+This fixture documents the real-world Phase 3 **degradation path**: it has an
+executable `{python}` cell with **no** `#| eval: false`, so `quarto render`
+must start a Jupyter kernel. In an environment without Jupyter (`nbformat`),
+the render fails (exit 1, `ModuleNotFoundError: No module named 'nbformat'` on
+stderr — verified live via the CLI) and the extension surfaces that error
+verbatim, not crash.
+
+NOTE: this case is **environment-dependent** — the integration-test host
+resolves a different, Jupyter-capable Python, so this doc renders *successfully*
+there. The automated failure test therefore uses `render-error.qmd`, which
+fails deterministically in any environment. Use this fixture for manual / CLI
+verification of the missing-Jupyter message.
+
+```{python}
+print("If you can read this in the output, Jupyter rendered the cell.")
+```

@@ -1,0 +1,16 @@
+---
+format: nonexistent-format-xyz
+---
+
+# Deterministic render failure
+
+This fixture makes `quarto render` fail (exit 1, "Validation of YAML front
+matter failed") in **any** environment — it names an output format that does
+not exist, so the failure needs no kernel and does not depend on which Python
+or Jupyter the host resolves. The integration test uses it to exercise the
+extension's non-zero-exit path (error surfaced in the Output channel, command
+resolves without crashing) deterministically.
+
+(For the real-world missing-Jupyter degradation case, see `needs-jupyter.qmd` —
+that one is environment-dependent and verified live via the CLI, not in the
+host integration test, because the test host resolves a Jupyter-capable Python.)
