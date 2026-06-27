@@ -1,0 +1,81 @@
+---
+title: "Quarto Grammar Fixture"
+author: "vscode-quarto-ext"
+date: 2026-06-27
+format:
+  html:
+    toc: true
+keywords: [quarto, textmate, grammar]
+---
+
+# Heading One
+
+This fixture exercises the Phase 2 TextMate grammar. It contains **bold**,
+*italic*, `inline code`, a [link](https://quarto.org), and inline math
+$E = mc^2$.
+
+> A blockquote, to confirm prose scopes still resolve through the included
+> markdown grammar.
+
+- A bullet list item
+- Another item with `code`
+- A third item
+
+1. An ordered list item
+2. Another ordered item
+
+## Embedded code cells
+
+A Python cell (highlights from the built-in `source.python` grammar):
+
+```{python}
+#| eval: false
+#| echo: true
+import math
+
+
+def area(r: float) -> float:
+    """Return the area of a circle."""
+    return math.pi * r**2
+
+
+print(area(2.0))
+```
+
+An R cell (highlights only if an R language grammar is installed):
+
+```{r}
+#| eval: false
+square <- function(x) {
+  x^2
+}
+square(4)
+```
+
+A Julia cell (highlights only if a Julia language grammar is installed):
+
+```{julia}
+#| eval: false
+function fib(n)
+    n < 2 ? n : fib(n - 1) + fib(n - 2)
+end
+fib(10)
+```
+
+An Observable JS cell (client-side; highlights from `source.js`):
+
+```{ojs}
+//| eval: false
+data = [1, 2, 3, 4, 5]
+sum = data.reduce((a, b) => a + b, 0)
+```
+
+A plain (non-Quarto) fenced block, handled by the included markdown grammar:
+
+```python
+x = "this is a plain fenced block, not an executable cell"
+```
+
+## Done
+
+Closing prose, after the cells, to confirm the grammar returns to markdown.

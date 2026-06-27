@@ -8,6 +8,10 @@ dist/
 *.vsix
 .vscode-test/
 
+# Quarto render artifacts (from rendering test fixtures)
+test/fixtures/*.html
+test/fixtures/*_files/
+
 # Logs & OS cruft
 *.log
 .DS_Store
