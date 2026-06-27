@@ -5,26 +5,26 @@
 ---
 
 ## ACTIVE TASK
-**Task:** Implement **Phase 3** of the architecture plan — `Quarto: Render`: a command that shells `quarto render <active.qmd>`, streams stdout/stderr to a dedicated Output channel, and surfaces the output path on success or stderr verbatim on failure — degrading gracefully when the CLI or a render dependency (Jupyter) is missing.
-**Status:** NOT STARTED. Phases 1 (skeleton) + 2 (highlighting) are **COMPLETE + verified** (Sessions 2, 3). The plan is ratified. Phase 3 is a Tier-B slice — the first feature with real runtime behavior since Phase 1.
-**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 3" (lines ~260–274) → implement **Phase 3 ONLY**, then close out (FM #18: do not bundle Phase 4 preview).
+**Task:** Implement **Phase 4** of the architecture plan — `Quarto: Preview`: spawn `quarto preview <file> --no-browser`, parse the `Browse at http://localhost:<port>/` stderr line, embed that URL in a webview panel beside the editor, reload on save, and **own the preview process lifecycle** (kill it on panel dispose / document close / extension deactivate — no orphans).
+**Status:** NOT STARTED. Phases 1 (skeleton) + 2 (highlighting) + 3 (render) are **COMPLETE + verified** (Sessions 2, 3, 4). The plan is ratified. Phase 4 is the plan's **LARGEST single phase** (🐉 process lifecycle + webview CSP).
+**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 4" (lines ~278–296) + §8 (the `preview(file, opts)` contract, line ~367) → implement **Phase 4 ONLY**, then close out (FM #18: do not bundle Phase 5 run-cell).
 **Priority:** HIGH
 
 ### What You Must Do
-This is an **implementation** session (Development workstream). Deliverable: from an open `.qmd`, run `Quarto: Render` → the rendered output is produced and its path shown; on a `{python}` doc with no Jupyter, the real `nbformat` error appears verbatim in an Output channel (not swallowed, not a crash).
-1. Read plan §6 Phase 3 (lines ~260–274) and §8 (the `render(file, opts)` interface contract). 🐉 is **minor** here — render is a thin CLI wrapper; the risk is process/error handling, not grammar.
-2. **Reuse `src/quarto/cli.ts`** — `resolveBinary()` (`:60`) already resolves the binary + handles `QuartoNotFound` (`:22`). Add a `render()` to that adapter (or a `src/features/render.ts`) that spawns `quarto render <file>` and pipes output to a `vscode.OutputChannel`.
-3. **Keep the arg-construction a pure `core/` function** (e.g. `core/render-args.ts`: `(file, opts) → string[]`) so it's unit-tested with vitest **without spawning a process** — this is the §3.3 guardrail and the main unit-test target for the phase.
-4. Register the `quarto.render` command in `package.json` (`contributes.commands`) + wire it in the thin `src/extension.ts:13` `activate()`. Consider `onCommand`/`onLanguage:quarto` activation (currently `activationEvents: []` — command activation is auto-inferred, but a render command on a `.qmd` is fine to leave inferred).
-5. Verify: `npm run compile` · `npm test` (the pure arg-builder) · `npm run test:integration` (assert the command registers + executes; you can render `test/fixtures/sample.qmd` — note it has `#| eval: false` cells so it renders to HTML **without Jupyter**, exit 0 — a clean success fixture) · manual F5 for the Output-channel UX. To exercise the degradation path, render a `{python}` doc **without** `#| eval: false` (Jupyter is absent here → `nbformat` error — verify it's surfaced, not crashed).
-6. Close out after Phase 3. Do NOT start Phase 4 (FM #2, FM #18).
+This is an **implementation** session (Development workstream). Deliverable: run `Quarto: Preview` on `sample.qmd` → a webview pane opens showing the rendered doc; edit+save → it reloads; close the pane → no orphaned `quarto preview` process (`pgrep -fl "quarto preview"` is empty). One preview per document; re-running focuses the existing pane.
+1. Read plan §6 Phase 4 (lines ~278–296) — note the **4 dragons**: (a) `--timeout` does NOT reliably self-exit, so YOU must track the child and kill it on dispose/close/deactivate; (b) URL parsing depends on the exact `Browse at http://localhost:<port>/` stderr line — pin a fixture; (c) webview CSP / `localResourceRoots` / cross-origin for embedding a localhost server in an iframe; (d) port/host (pass `--port` deterministically if needed).
+2. **Reuse `src/quarto/cli.ts`** (`resolveBinary()` `:60`, `configuredBinary()` `:46`, `QuartoNotFound` `:22`) and the Phase 3 pattern in **`src/features/render.ts`** (spawn + stream + fail-soft) — preview is render's sibling but with a long-lived process + webview instead of an Output channel. Mirror the `registerRenderFeature(context)` wiring shape (`src/features/render.ts:24`).
+3. **Keep the `Browse at <url>` parser a pure `core/` function** (e.g. add to `core/render-args.ts` or a new `core/preview-url.ts`: `parseBrowseUrl(stderr) → string | null`) — exactly like Phase 3's `parseOutputPath` (`src/core/render-args.ts:52`). Unit-test it against a captured-live stderr fixture. ⚠ **VERIFY the exact `Browse at` line live before coding** (`quarto preview test/fixtures/sample.qmd --no-browser` then Ctrl-C) — Learning #8: like render, preview emits to STDERR and may carry ANSI escapes.
+4. Register `quarto.preview` in `package.json` (`contributes.commands`, after the `quarto.render` block at `:53-57`) + wire it in `src/extension.ts:14` `activate()`. Add a `deactivate()` body (`src/extension.ts:62` is currently a no-op) that kills any live preview — this is where lifecycle ownership lands.
+5. Verify: `npm run compile` · `npm test` (the pure URL parser) · `npm run test:integration` (assert the command registers; an integration test CAN spawn preview but MUST kill the process in an `afterEach`/`after` to avoid an orphan in the test run) · manual F5 for the webview visual + the `pgrep -fl "quarto preview"` orphan check (this is the one check automation can't fully cover — record it in notes).
+6. Close out after Phase 4. Do NOT start Phase 5 (FM #2, FM #18).
 
 ### Useful starting context
-- **Phases 1–2 are done — reuse them.** Scaffold, `core/`-vs-adapter boundary, both test harnesses, and `npm run compile`/`test`/`test:integration`/`package` all work. The grammar/`.qmd` language is live. Don't re-scaffold or touch the grammar.
-- **`test/fixtures/sample.qmd` renders clean (exit 0)** because its code cells carry `#| eval: false` — it's a ready-made success fixture for render. For the *failure* path you need a fixture with an executable `{python}` cell (no `eval: false`) so the missing-Jupyter error fires.
-- **Automated runtime verification works** — `npm run test:integration` downloads VS Code and runs headlessly (no `code` CLI). For render, an integration test can execute `quarto.render` on the fixture and assert no throw / the output file appears. F5 remains for the Output-channel *visual* UX.
-- Quarto CLI: `quarto 1.7.33` (`quarto --version` prints the bare semver; `quarto render <f>` → `Output created: <path>` on success). Node `v22.21.1`, npm `11.10.0`. **Jupyter/`nbformat` is ABSENT** here → executable `{python}` cells fail to render (the degradation case to handle).
-- **Licensing (hard):** Posit's official extension/LSP/visual-editor are **AGPL-3.0** — look-but-don't-copy. Build on MIT upstreams + the MIT Quarto CLI.
+- **Phases 1–3 are done — reuse them.** Scaffold, `core/`-vs-adapter boundary, both test harnesses, `npm run compile`/`test`/`test:integration`/`package` all green (38 unit + 7 integration). The render feature is the closest template for preview — read `src/features/render.ts` first.
+- **`test/fixtures/sample.qmd`** is a render-clean fixture (`#| eval: false` cells → no Jupyter needed); reuse it as the preview target.
+- **CLI behavior (Learning #4, partly verified live):** `quarto preview <f>` prints `Browse at http://localhost:<port>/` to **stderr** (parse it); `--timeout N` exits only on no active clients (does NOT reliably self-terminate → own the lifecycle). **Re-verify the exact line live this session** before pinning the parser fixture.
+- **Faithful-verification trap (Learning #9):** the test-electron host resolves a different (Jupyter-capable) Python than this shell. Preview doesn't need a kernel for `sample.qmd`, but keep the lesson in mind if any preview test depends on render-of-code behavior — prefer environment-independent fixtures and verify env-dependent behavior live.
+- **Licensing (hard):** Posit's official extension/LSP/visual-editor are **AGPL-3.0** — look-but-don't-copy. Build on MIT upstreams + the MIT Quarto CLI. The webview is original code.
 
 ### How You Will Be Evaluated
 The user rates every session's handoff. Your handoff will be scored on:
@@ -36,6 +36,52 @@ The user rates every session's handoff. Your handoff will be scored on:
 ---
 
 *Session history accumulates below this line. Newest session at the top.*
+
+### What Session 4 Did — 2026-06-27
+**Deliverable:** Implement **Phase 3** of the architecture plan — `Quarto: Render`. **COMPLETE + verified.**
+
+**What was done (3 commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `996d157` feat: Phase 3 **core** — `src/core/render-args.ts` (pure, `vscode`-free): `buildRenderArgs(file, opts)→argv` + `parseOutputPath(output)→path` (ANSI-tolerant, returns last match) + `test/unit/render-args.test.ts` (9 cases).
+2. `9b3461c` feat: Phase 3 **feature** — `src/features/render.ts` (`registerRenderFeature(context)` + spawn/stream adapter) + wired in `src/extension.ts` + `quarto.render` command in `package.json`.
+3. `92de193` test: Phase 3 **integration** — `test/integration/suite/render.test.ts` (3 cases) + `test/fixtures/render-error.qmd` (deterministic failure) + `test/fixtures/needs-jupyter.qmd` (documented missing-Jupyter case).
+(+ this close-out commit: SESSION_NOTES, CLAUDE.md Learnings #8/#9, BACKLOG/CHANGELOG/ROADMAP, dashboard.)
+
+**Verification (all green):**
+- `npm run compile` → tsc clean + esbuild (bundle 4.8 KB → 8.5 KB).
+- `npm test` → **38/38** vitest (9 new render-args cases).
+- `npm run test:integration` → **7/7** in real downloaded VS Code (v1.126.0): registers `quarto.render`; **success path actually renders `sample.qmd`→`sample.html`** (asserted via `existsSync`, ~4 s); **failure path** runs `render-error.qmd` (exit 1) and confirms no host crash (<1 s).
+- `npm run package` → clean **9-file** `.vsix` (no test/fixture/`.claude` leak — verified via `vsce ls`).
+- **Live CLI verification (observed, not assumed):** `quarto render sample.qmd` → exit 0, `Output created: sample.html` **on stderr**; `quarto render needs-jupyter.qmd` → exit 1, `ModuleNotFoundError: No module named 'nbformat'` verbatim on stderr.
+
+**🔑 Two load-bearing findings (now CLAUDE.md Learnings #8, #9):**
+- **#8 — `quarto render` writes progress + the `Output created:` success marker AND errors all to STDERR (stdout empty).** You CANNOT key success off stream routing — **use the exit code**. Output path is relative to the input dir; the line carries ANSI escapes (strip before parsing). Same shape will hit Phase 4's `Browse at` parsing.
+- **#9 — faithful-verification trap (gate d / FM #24):** the test-electron host resolves a **different, Jupyter-capable Python** than this shell, so an executable-`{python}` fixture **renders SUCCESSFULLY in the host** — a missing-Jupyter "does-not-throw" test passes *trivially*. Caught it because the host left a rendered `needs-jupyter.html` (cell output present) and the test ran 7 s (success) not <1 s (failure). Fixed by using an **environment-independent** deterministic-failure fixture (`render-error.qmd`, invalid `format:`); the real missing-Jupyter case is verified live via the CLI instead.
+
+**Key files (with anchors):**
+- `src/core/render-args.ts` — `buildRenderArgs` (`:25`), `parseOutputPath` (`:52`, strips `ANSI_PATTERN` at `:38`, returns LAST `Output created:` match). Pure — no `vscode`. The template for Phase 4's `Browse at` parser.
+- `src/features/render.ts` — `registerRenderFeature(context)` (`:24`, creates the "Quarto Render" channel + registers the command, both via `context.subscriptions`); `renderActiveDocument` (`:41`, requires active `quarto` doc, saves if dirty, fail-soft on `QuartoNotFound`); `runRender` (`:90`, `spawn` + stream both streams, key off exit code on `close`); `showSuccess` (`:144`, Open-button → `openExternal`).
+- `src/extension.ts:21` — `registerRenderFeature(context)` call in `activate`.
+- `package.json:53-57` — `quarto.render` command contribution (activation auto-inferred; `activationEvents: []` unchanged).
+- `test/integration/suite/render.test.ts` — success (`existsSync(SAMPLE_HTML)`) + deterministic failure (`assert.doesNotReject`); `afterEach` cleans render artifacts.
+- `test/fixtures/render-error.qmd` (deterministic fail, used by the test) · `test/fixtures/needs-jupyter.qmd` (real missing-Jupyter case, manual/CLI only — header explains why it's not host-test-reliable).
+
+**Gotchas for the next session (Phase 4):**
+1. **Learnings #8 + #9 apply directly to Phase 4.** Preview also emits `Browse at` to **stderr** (re-verify the exact line live before pinning a parser fixture); and if any preview test touches code-cell rendering, remember the host has Jupyter (env-dependent — use deterministic fixtures, verify env-dependent behavior via CLI).
+2. **Process lifecycle is the Phase 4 dragon, not parsing.** `--timeout` does NOT self-exit reliably — track the child and kill on panel dispose / doc close / `deactivate()` (currently `src/extension.ts:62` is a no-op; that's where the kill goes). An integration test that spawns preview MUST kill it in `after`/`afterEach` or it orphans.
+3. **`showInformationMessage(..., "Open")` does NOT block in the headless host** — it resolves `undefined`; `showSuccess` is fire-and-forget (`void`) so the render promise resolves on child `close`, independent of the notification. Rely on the same pattern for preview.
+4. **F5 still owns the visual gap:** the Output-channel text and the success/error **notification wording** were NOT visually confirmed (no `code` CLI → no headless F5). The *behavior* is proven by integration tests; only the cosmetic UI text is unverified. For Phase 4 the webview render + the `pgrep` orphan check are genuinely F5-only — plan for a manual pass.
+5. **`npm audit`** still 7 dev-only vulns (unchanged; none ship in the `.vsix`). No git remote yet → `vsce package` still needs `--allow-missing-repository` (baked into `npm run package`).
+
+**Self-assessment (Session 4): 9/10.**
+- **+** Delivered exactly Phase 3's scope, no bundling (FM #18 held — stopped before Phase 4). Three recoverable commits, all ≤5 files. **Kept the §3.3 guardrail** (pure `core/render-args.ts`, the feature is a thin adapter). Verified BOTH render paths **live via the CLI first** (observed, not assumed) before coding the parser — which is how I found that the success marker is on stderr (would have produced a silently-broken success/failure split otherwise). **Caught a faithful-verification trap myself** (FM #24/gate d): the missing-Jupyter integration test was passing trivially because the host renders it successfully — I noticed the leftover rendered artifact + the 7 s-vs-<1 s timing, root-caused it to PATH/Python divergence, and replaced it with a deterministic env-independent failure fixture rather than shipping a green-but-hollow test. Recorded both findings as Learnings #8/#9 for Phases 4–5.
+- **−** First draft of the degradation test was the hollow one — I should have predicted the host/shell environment divergence up front (Learning #4 already flagged Jupyter as environment-specific), rather than discovering it from a leftover artifact. Cost one extra integration-test iteration. The genuine residual gap: the **Output-channel text + notification wording** are not visually confirmed (no headless F5) — stated honestly, behavior is integration-proven, only cosmetics are unverified (not a skipped Phase 3E).
+
+#### Session 3 Handoff Evaluation (by Session 4) — Phase 3A
+**Score: 9.5/10.** An excellent, precise handoff — I was building within minutes of orientation.
+- **What helped:** The ACTIVE TASK block named the deliverable (Phase 3 only), the exact plan lines (§6 ~260–274, §8), and the §3.3 guardrail with the concrete suggestion `core/render-args.ts: (file,opts)→string[]` — I followed it almost verbatim. The pointers to `resolveBinary()` (`:60`) / `QuartoNotFound` (`:22`) were accurate and saved lookup. The two flagged tricks were both load-bearing and correct: **`#| eval: false` ⇒ render-clean fixture** (reused `sample.qmd` directly as the success fixture) and **"for the failure path you need an executable `{python}` cell (no eval:false)"** (which is exactly the fixture I built — and which surfaced the deeper host/shell trap). The "Jupyter/`nbformat` is ABSENT here" note (Gotcha #4 / Learning #4) was the seed that let me recognize the faithful-verification problem.
+- **What was missing:** Two things the handoff couldn't have known, now Learnings #8/#9: (a) `quarto render` writes the success marker + errors to **stderr**, not stdout (so success/failure is exit-code-keyed); (b) the test-electron **host resolves a different, Jupyter-capable Python** than this shell, so the missing-Jupyter degradation can't be tested in the host. Both are mine to pass forward — done.
+- **What was wrong:** Nothing. Every claim held — versions, file anchors, the reuse targets, the render-clean trick, the activation-inference note.
+- **ROI:** Strongly positive — the handoff + plan let me spend the session on engineering and the faithful-verification fix, not archaeology.
 
 ### What Session 3 Did — 2026-06-27
 **Deliverable:** Implement **Phase 2** of the architecture plan — `.qmd` syntax highlighting. **COMPLETE + verified.**
