@@ -5,23 +5,26 @@
 ---
 
 ## ACTIVE TASK
-**Task:** Implement **Phase 2** of the architecture plan — `.qmd` highlighting: `contributes.languages` (`.qmd`/`.rmd` → `quarto`) + `syntaxes/quarto.tmLanguage.json` + `language-configuration.json` + a `test/fixtures/sample.qmd`.
-**Status:** NOT STARTED. Phase 1 (walking skeleton) is **COMPLETE + verified** (Session 2). The plan is ratified (§12 settled — see Session 2 notes). Phase 2 is a Tier-A, zero-runtime-code slice.
-**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 2" (lines ~242–256) → implement **Phase 2 ONLY**, then close out (FM #18: do not bundle Phase 3).
+**Task:** Implement **Phase 3** of the architecture plan — `Quarto: Render`: a command that shells `quarto render <active.qmd>`, streams stdout/stderr to a dedicated Output channel, and surfaces the output path on success or stderr verbatim on failure — degrading gracefully when the CLI or a render dependency (Jupyter) is missing.
+**Status:** NOT STARTED. Phases 1 (skeleton) + 2 (highlighting) are **COMPLETE + verified** (Sessions 2, 3). The plan is ratified. Phase 3 is a Tier-B slice — the first feature with real runtime behavior since Phase 1.
+**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 3" (lines ~260–274) → implement **Phase 3 ONLY**, then close out (FM #18: do not bundle Phase 4 preview).
 **Priority:** HIGH
 
 ### What You Must Do
-This is an **implementation** session (Development workstream). The deliverable is syntax highlighting — open a `.qmd` and prose + YAML front matter + `{python}/{r}/{julia}/{ojs}` cells are correctly colored; brackets match; ⌘/ toggles comments.
-1. Read plan §6 Phase 2 (the 🐉 dragons) and §3.1 (Tier A). Base grammar decision was **deferred to this phase** — operator default is `wooorm/markdown-tm-language` (richer YAML/TOML front-matter + math); evaluate it against `microsoft/vscode-markdown-tm-grammar`. **Both are MIT — record the upstream origin + your modifications in a `NOTICE` / grammar header (licensing is a hard gate).**
-2. 🐉 **The load-bearing trap:** Quarto cells use **brace-wrapped** identifiers (```` ```{python} ````). The stock markdown fenced-block rule does NOT match them — you need a custom injection keying on `{lang}` that maps to `source.python`/`source.r`/`source.julia`/`source.js`. Wrap embedded regions in `meta.embedded.*` or embedded features disable inside string/comment scopes.
-3. Verify with: `npm run compile`, `npm run package`, manual F5 + **"Developer: Inspect Editor Tokens and Scopes"** on `sample.qmd`, and `quarto render test/fixtures/sample.qmd` (confirms the fixture is a valid Quarto doc). Phase 2 is grammar-only (no providers yet) so there's little for vitest — most verification is token-scope inspection.
-4. Close out after Phase 2. Do NOT start Phase 3 (FM #2, FM #18).
+This is an **implementation** session (Development workstream). Deliverable: from an open `.qmd`, run `Quarto: Render` → the rendered output is produced and its path shown; on a `{python}` doc with no Jupyter, the real `nbformat` error appears verbatim in an Output channel (not swallowed, not a crash).
+1. Read plan §6 Phase 3 (lines ~260–274) and §8 (the `render(file, opts)` interface contract). 🐉 is **minor** here — render is a thin CLI wrapper; the risk is process/error handling, not grammar.
+2. **Reuse `src/quarto/cli.ts`** — `resolveBinary()` (`:60`) already resolves the binary + handles `QuartoNotFound` (`:22`). Add a `render()` to that adapter (or a `src/features/render.ts`) that spawns `quarto render <file>` and pipes output to a `vscode.OutputChannel`.
+3. **Keep the arg-construction a pure `core/` function** (e.g. `core/render-args.ts`: `(file, opts) → string[]`) so it's unit-tested with vitest **without spawning a process** — this is the §3.3 guardrail and the main unit-test target for the phase.
+4. Register the `quarto.render` command in `package.json` (`contributes.commands`) + wire it in the thin `src/extension.ts:13` `activate()`. Consider `onCommand`/`onLanguage:quarto` activation (currently `activationEvents: []` — command activation is auto-inferred, but a render command on a `.qmd` is fine to leave inferred).
+5. Verify: `npm run compile` · `npm test` (the pure arg-builder) · `npm run test:integration` (assert the command registers + executes; you can render `test/fixtures/sample.qmd` — note it has `#| eval: false` cells so it renders to HTML **without Jupyter**, exit 0 — a clean success fixture) · manual F5 for the Output-channel UX. To exercise the degradation path, render a `{python}` doc **without** `#| eval: false` (Jupyter is absent here → `nbformat` error — verify it's surfaced, not crashed).
+6. Close out after Phase 3. Do NOT start Phase 4 (FM #2, FM #18).
 
 ### Useful starting context
-- **Phase 1 is done — reuse it.** The scaffold, `core/`-vs-adapter boundary, both test harnesses, and `npm run compile`/`test`/`test:integration`/`package` scripts all work (Session 2). `src/quarto/cli.ts` resolves the CLI for later phases. Don't re-scaffold.
-- **Automated runtime verification works here** (Session 2 proved it): `npm run test:integration` downloads VS Code and runs headlessly — no `code` CLI needed. Phase 2 still wants manual F5 for the *visual* token-color check (the integration host can't eyeball colors), but consider an integration test asserting the `quarto` language registers for `.qmd`.
-- Quarto CLI: `quarto 1.7.33` (`quarto --version` prints the bare semver). Node `v22.21.1`, npm `11.10.0`.
-- **Licensing (hard):** Posit's official extension/LSP/visual-editor are **AGPL-3.0** — look-but-don't-copy. Build on MIT upstreams (plan §2.4). Quarto CLI is MIT.
+- **Phases 1–2 are done — reuse them.** Scaffold, `core/`-vs-adapter boundary, both test harnesses, and `npm run compile`/`test`/`test:integration`/`package` all work. The grammar/`.qmd` language is live. Don't re-scaffold or touch the grammar.
+- **`test/fixtures/sample.qmd` renders clean (exit 0)** because its code cells carry `#| eval: false` — it's a ready-made success fixture for render. For the *failure* path you need a fixture with an executable `{python}` cell (no `eval: false`) so the missing-Jupyter error fires.
+- **Automated runtime verification works** — `npm run test:integration` downloads VS Code and runs headlessly (no `code` CLI). For render, an integration test can execute `quarto.render` on the fixture and assert no throw / the output file appears. F5 remains for the Output-channel *visual* UX.
+- Quarto CLI: `quarto 1.7.33` (`quarto --version` prints the bare semver; `quarto render <f>` → `Output created: <path>` on success). Node `v22.21.1`, npm `11.10.0`. **Jupyter/`nbformat` is ABSENT** here → executable `{python}` cells fail to render (the degradation case to handle).
+- **Licensing (hard):** Posit's official extension/LSP/visual-editor are **AGPL-3.0** — look-but-don't-copy. Build on MIT upstreams + the MIT Quarto CLI.
 
 ### How You Will Be Evaluated
 The user rates every session's handoff. Your handoff will be scored on:
@@ -33,6 +36,52 @@ The user rates every session's handoff. Your handoff will be scored on:
 ---
 
 *Session history accumulates below this line. Newest session at the top.*
+
+### What Session 3 Did — 2026-06-27
+**Deliverable:** Implement **Phase 2** of the architecture plan — `.qmd` syntax highlighting. **COMPLETE + verified.**
+
+**Grammar-approach decision (this session resolves the operator's deferred "base grammar" question — by NOT forking):** rather than fork `wooorm/markdown-tm-language` or `microsoft/vscode-markdown-tm-grammar`, I authored an **original** `text.html.quarto` grammar that `include`s VS Code's built-in `text.html.markdown` **by scope-name reference** (no source copied) for prose/plain fences, and adds only Quarto-specific rules. Cleaner (nothing large to copy/attribute; markdown stays current), license-clean (the canonical `mjbvz` MIT injection pattern), reversible. Recorded in `/NOTICE`, `CONTEXT.md` (decision pointer), `CLAUDE.md` Learning #6.
+
+**What was done (3 commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `d8bc4b8` feat: grammar + `language-configuration.json` + `NOTICE` + `package.json` wiring
+2. `63ab34f` test: `test/fixtures/sample.qmd` + structural guard (`test/unit/grammar.test.ts`) + real-host registration test (`test/integration/suite/language.test.ts`) + `.gitignore` render-artifact guard
+3. `46763a9` test: headless tokenization (`test/unit/tokenize.test.ts`) + `vscode-textmate`/`vscode-oniguruma` devDeps
+
+**Verification (all green):**
+- `npm run compile` → tsc clean + esbuild.
+- `npm test` → **29/29** vitest (12 version + 10 structural grammar + 7 tokenization).
+- `npm run test:integration` → **4/4** in real downloaded VS Code (v1.126.0): `.qmd` opens as `languageId 'quarto'` end-to-end. Exit 0.
+- `npm run package` → clean **9-file** `.vsix` (adds `syntaxes/quarto.tmLanguage.json`, `language-configuration.json`, `NOTICE`; **no** test/fixture/`.claude` leak — verified via `vsce ls`).
+- `quarto render test/fixtures/sample.qmd` → exit 0, `sample.html` created (cells use `#| eval: false` so no Jupyter needed). Render artifacts cleaned + gitignored.
+
+**🔑 Headless grammar verification (stronger than the plan's manual-F5 budget):** `test/unit/tokenize.test.ts` loads the grammar into the SAME engines VS Code uses (`vscode-textmate`+`vscode-oniguruma`) and asserts the actual token scopes — front matter, all four `meta.embedded.block.*`, fence punctuation, AND the discriminating cases (a plain ` ```python ` block and post-cell prose are NOT in a cell). This proves the regexes work (back-referenced closing fence, `\A` anchor, `\b` boundaries), not just that the JSON is well-formed. See CLAUDE.md Learning #7.
+
+**Key files (with anchors):**
+- `syntaxes/quarto.tmLanguage.json` — the grammar. `patterns` order is load-bearing: `frontmatter` → `cell-python/r/julia/ojs` → `cell-generic` (catch-all) → `text.html.markdown` (include). Each cell rule: `begin` matches ` ```{lang} `, `end` is `^\s*(\2)\s*$` (back-references the opening fence), `contentName: meta.embedded.block.<lang>`.
+- `language-configuration.json` — block comment `<!-- -->`, brackets, autoclose, folding markers.
+- `package.json:18-32` — `contributes.languages` (`.qmd`/`.rmd`/`.Rmd` → `quarto`); `:33-50` — `contributes.grammars` incl. `embeddedLanguages` (the map that enables bracket/comment inside cells — NOT the grammar itself).
+- `NOTICE` — MIT attribution (licensing hard gate).
+- `test/unit/tokenize.test.ts` — headless scope verification (the high-value test). `test/unit/grammar.test.ts` — structural/manifest guard. `test/integration/suite/language.test.ts` — real-host registration.
+- `test/fixtures/sample.qmd` — front matter + prose + 4 cells + a plain fence; `#| eval: false` makes it render-clean.
+
+**Gotchas for the next session:**
+1. **DON'T touch the grammar for Phase 3** — render is a CLI/command feature, orthogonal to highlighting.
+2. **vscode-textmate test gotcha (cost most of my debug time):** in `tokenize.test.ts`, `loadGrammar` returns an empty **stub** `{scopeName, patterns: []}` for unresolved external includes — returning **`null` corrupts vscode-textmate's pattern compilation** (sibling rules silently stop matching). Real VS Code always has those grammars, so the extension is fine. If you write more grammar tests, stub, don't null.
+3. **`source.r`/`source.julia` aren't bundled with VS Code** → `{r}`/`{julia}` cells get the embedded scope but only colorize if the user installs those extensions (python/js always colorize). Expected, not a bug.
+4. **`#| eval: false` ⇒ render without a kernel.** Reuse for any render-clean fixture; for the Phase 3 *failure* path, you need an executable `{python}` cell (no `eval: false`).
+5. **`npm audit`** still reports 7 dev-only vulns (now incl. vscode-textmate/oniguruma transitively — count unchanged); none ship in the `.vsix`. Not chased.
+6. **No git remote yet** → `vsce package` still needs `--allow-missing-repository` (baked into `npm run package`); README still avoids relative links. When a remote is added: add `repository`, drop the flag.
+
+**Self-assessment (Session 3): 9/10.**
+- **+** Delivered exactly Phase 2's scope, no bundling (FM #18 held — stopped before Phase 3). Three recoverable commits, all ≤5 files. **Resolved the operator's deferred base-grammar decision** with a cleaner-than-asked approach (include-by-reference vs fork) and documented the rationale + attribution. Went beyond the plan's manual-F5 budget: built **headless tokenization verification** that actually proves the grammar works (per Learning #3's "prefer automated runtime verification"), including discriminating negative cases. Caught and root-caused a non-obvious vscode-textmate behavior (null-include corruption) rather than working around it blindly. Updated CLAUDE.md (Learnings #6/#7), CONTEXT.md (decision + 2 pitfalls), BACKLOG/CHANGELOG/ROADMAP.
+- **−** Spent significant debug time on the null-include false alarm — my first `tokenize.test.ts` reported failures that looked like grammar bugs but were harness bugs; I should have suspected the harness sooner given the regexes passed in isolation. The one genuine gap: **theme COLOR** (scope→color mapping) is not verified headlessly — that's the operator's F5 check. The scopes ARE proven, so this is cosmetic and honestly stated (not a skipped Phase 3E). Minor: didn't add `quarto`/`onLanguage` activation events, but Phase 2 has zero runtime code so none are needed (correct, but worth noting for Phase 3).
+
+#### Session 2 Handoff Evaluation (by Session 3) — Phase 3A
+**Score: 9.5/10.** An excellent, accurate handoff — I started building within minutes of orientation.
+- **What helped:** The ACTIVE TASK block was precise — named the deliverable (Phase 2 only), the exact plan lines (§6 ~242–256), and the 🐉 load-bearing trap (brace-wrapped `{python}` cells need a custom rule; wrap in `meta.embedded.*` to dodge the string/comment trap) — that callout pointed me straight at the core design. The "reuse Phase 1, don't re-scaffold" note and the working-scripts list saved real time. The suggestion to "consider an integration test asserting the `quarto` language registers" was spot-on and I implemented it. Verified facts (Quarto 1.7.33, no `code` CLI, Node/npm versions) all held.
+- **What was missing:** Almost nothing. Two things the handoff couldn't have known but a heads-up would've saved time: (a) the `vscode-textmate` null-include corruption gotcha (now Learning #7); (b) that `#| eval: false` is the trick to render a cell fixture without Jupyter (now documented). Both are mine to pass forward, now done.
+- **What was wrong:** Nothing. Every claim held. The "base grammar default `wooorm/markdown-tm-language`" was framed as a default to evaluate, which correctly left me room to choose include-by-reference instead.
+- **ROI:** Strongly positive — the handoff + plan let me spend the session on engineering and verification, not archaeology.
 
 ### What Session 2 Did — 2026-06-27
 **Deliverable:** Implement **Phase 1** of the architecture plan — the walking skeleton. **COMPLETE + verified.**

@@ -42,6 +42,7 @@ Project-specific / Quarto-specific terms a new reader needs. General industry te
 
 - **Decision:** Language support strategy (TextMate grammar only vs. full Language Server) — **Status:** RESOLVED (Session 1, awaiting operator ratification) → ship **Tier A** (TextMate grammar) + build to **Tier B** (in-process `register*Provider`s); **defer Tier C** (out-of-process LSP). Guardrail: `vscode`-free intelligence core. — **Where:** `docs/planning/2026-06-27-extension-architecture-plan.md` §3.
 - **Decision:** Reuse boundary under the MIT mandate — **Status:** RESOLVED (Session 1) → Posit's official extension/LSP/visual-editor are **AGPL-3.0** (look-but-don't-copy); build on MIT `vscode-markdown-tm-grammar` / `markdown-tm-language` / `vscode-markdown-languageservice` and the MIT Quarto CLI. — **Where:** plan §2.4.
+- **Decision:** Base grammar for `.qmd` highlighting — **Status:** RESOLVED (Session 3, Phase 2) → do **not** fork either MIT base; author an original `text.html.quarto` grammar that `include`s VS Code's built-in `text.html.markdown` **by reference** and adds Quarto front-matter + brace-cell rules. — **Where:** `syntaxes/quarto.tmLanguage.json`, `/NOTICE`, `CLAUDE.md` Learning #6.
 
 ---
 
@@ -52,7 +53,8 @@ Project-specific / Quarto-specific terms a new reader needs. General industry te
 - **Pitfall:** Assuming `quarto` is on `PATH` for every user — **Why it happens:** dev machine has it globally — **Recovery:** resolve the binary via a configurable setting and validate at activation.
 - **Pitfall:** Relying on `quarto preview --timeout` to clean up the preview server — **Why it happens:** the flag *sounds* like an idle-exit, but it only exits on **no active clients**; with a webview attached it keeps running — **Recovery:** the extension owns the child-process lifecycle and kills it on panel dispose / document close / deactivate (verified Session 1).
 - **Pitfall:** Assuming code cells "just run" — **Why it happens:** they render fine as prose — **Recovery:** CLI render of code cells needs **Jupyter** (`nbformat`) in the active Python env; the delegated run-cell path needs the user's kernel/extension. Surface the real error; degrade gracefully (verified Session 1).
-- **Pitfall:** Treating "build clean" as runtime-verified for the extension — **Why it happens:** `npm run compile` passes — **Recovery:** there is **no `code` CLI on PATH** here; runtime checks are a manual **F5**; keep logic in the `vscode`-free `core/` so it's unit-testable headlessly.
+- **Pitfall:** Treating "build clean" as runtime-verified for the extension — **Why it happens:** `npm run compile` passes — **Recovery:** there is **no `code` CLI on PATH** here; runtime checks are a manual **F5**; keep logic in the `vscode`-free `core/` so it's unit-testable headlessly. For grammars, the scope assignment IS automatable headlessly via `vscode-textmate` + `vscode-oniguruma` (`test/unit/tokenize.test.ts`) — only theme COLOR needs F5.
+- **Pitfall:** Testing a grammar with `vscode-textmate` and returning `null` from `loadGrammar` for unresolved external includes (`text.html.markdown`, `source.*`) — **Why it happens:** the standalone test registry has only your grammar, so null seems natural — **Recovery:** return an **empty stub grammar** `{ scopeName, patterns: [] }` instead; null silently corrupts pattern compilation so sibling rules stop matching (cost most of Phase 2's debugging — `CLAUDE.md` Learning #7).
 
 ---
 
