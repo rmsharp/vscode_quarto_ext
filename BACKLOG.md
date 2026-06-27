@@ -4,13 +4,12 @@
 
 ## Active
 
-- [ ] **Implement Phase 1 (walking skeleton)** of `docs/planning/2026-06-27-extension-architecture-plan.md` — scaffold (TypeScript + esbuild + `package.json` + MIT `LICENSE`) + `Quarto: Verify Installation` command + `quarto/cli.ts` resolution infra + `core/`-vs-adapter boundary + test harness. **Gated on operator ratification of plan §12.** One session, then close out (FM #18).
+- [ ] **Implement Phase 2 (`.qmd` highlighting)** of `docs/planning/2026-06-27-extension-architecture-plan.md` §6 — `contributes.languages` (`.qmd`/`.rmd` → `quarto`) + `syntaxes/quarto.tmLanguage.json` (forked from MIT base, extended with YAML front-matter injection + brace-identifier `{lang}` cell injections) + `language-configuration.json` + `test/fixtures/sample.qmd`. **Base grammar deferred to this phase — default `wooorm/markdown-tm-language` (richer front-matter/math); evaluate against `microsoft/vscode-markdown-tm-grammar`.** 🐉 brace-wrapped `{python}` cells need a custom injection; wrap embedded regions in `meta.embedded.*` to avoid the string/comment trap. One session, then close out (FM #18).
 
 ## Up Next
 
 *(Phases from the plan — implement one per session, in order. See the plan for DONE gates + verification.)*
 
-- [ ] Phase 2 — `.qmd` language contribution: file association + TextMate grammar (highlighting of prose, YAML front matter, `{lang}` cells) + `language-configuration.json`.
 - [ ] Phase 3 — `Quarto: Render` (shell `quarto render`, Output channel, graceful degradation).
 - [ ] Phase 4 — `Quarto: Preview` (live webview; parse `Browse at <url>`; own the process lifecycle).
 - [ ] Phase 5 — Run-cell family (delegate to Jupyter/Python/R).

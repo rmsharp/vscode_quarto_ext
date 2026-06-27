@@ -5,22 +5,22 @@
 ---
 
 ## ACTIVE TASK
-**Task:** Implement **Phase 1** of the architecture plan — the walking skeleton: scaffold (TypeScript + esbuild + `package.json` + MIT `LICENSE`) + `Quarto: Verify Installation` command + `quarto/cli.ts` resolution infra + the `core/`-vs-adapter boundary + the test harness.
-**Status:** NOT STARTED. **The plan is COMPLETE** (Session 1) but is a **DRAFT awaiting operator ratification** of the four decisions in plan §12 (v1 scope, Tier B not Tier C, tech stack, base grammar). Confirm those with the operator before writing code.
-**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` → implement **Phase 1 ONLY**, then close out (FM #18: do not bundle Phase 2).
+**Task:** Implement **Phase 2** of the architecture plan — `.qmd` highlighting: `contributes.languages` (`.qmd`/`.rmd` → `quarto`) + `syntaxes/quarto.tmLanguage.json` + `language-configuration.json` + a `test/fixtures/sample.qmd`.
+**Status:** NOT STARTED. Phase 1 (walking skeleton) is **COMPLETE + verified** (Session 2). The plan is ratified (§12 settled — see Session 2 notes). Phase 2 is a Tier-A, zero-runtime-code slice.
+**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 2" (lines ~242–256) → implement **Phase 2 ONLY**, then close out (FM #18: do not bundle Phase 3).
 **Priority:** HIGH
 
 ### What You Must Do
-This is an **implementation** session (Development workstream). The deliverable is Phase 1's walking skeleton — an installable `.vsix` whose one command verifies the Quarto install.
-1. Confirm §12 ratification with the operator first (the plan is a draft until they approve scope + stack).
-2. Read `docs/planning/2026-06-27-extension-architecture-plan.md` §3.3 (the `core/`-vs-adapter boundary — load-bearing), §6 Phase 1, §10 (testing), §13 (quick ref).
-3. Build exactly Phase 1's scope. Verify with: `npm run compile`, `npm test`, `npx @vscode/vsce package`, manual F5 (`Quarto: Verify Installation` shows `quarto 1.7.33`). Record the F5 result per Phase 3E.
-4. **Load-bearing check in Phase 1:** confirm `@vscode/test-electron` can download VS Code in this environment (no `code` CLI on PATH). If it cannot, document the gap — do not pretend integration tests run.
-5. Close out after Phase 1. Do NOT start Phase 2 (FM #2 keep-going, FM #18 bleed).
+This is an **implementation** session (Development workstream). The deliverable is syntax highlighting — open a `.qmd` and prose + YAML front matter + `{python}/{r}/{julia}/{ojs}` cells are correctly colored; brackets match; ⌘/ toggles comments.
+1. Read plan §6 Phase 2 (the 🐉 dragons) and §3.1 (Tier A). Base grammar decision was **deferred to this phase** — operator default is `wooorm/markdown-tm-language` (richer YAML/TOML front-matter + math); evaluate it against `microsoft/vscode-markdown-tm-grammar`. **Both are MIT — record the upstream origin + your modifications in a `NOTICE` / grammar header (licensing is a hard gate).**
+2. 🐉 **The load-bearing trap:** Quarto cells use **brace-wrapped** identifiers (```` ```{python} ````). The stock markdown fenced-block rule does NOT match them — you need a custom injection keying on `{lang}` that maps to `source.python`/`source.r`/`source.julia`/`source.js`. Wrap embedded regions in `meta.embedded.*` or embedded features disable inside string/comment scopes.
+3. Verify with: `npm run compile`, `npm run package`, manual F5 + **"Developer: Inspect Editor Tokens and Scopes"** on `sample.qmd`, and `quarto render test/fixtures/sample.qmd` (confirms the fixture is a valid Quarto doc). Phase 2 is grammar-only (no providers yet) so there's little for vitest — most verification is token-scope inspection.
+4. Close out after Phase 2. Do NOT start Phase 3 (FM #2, FM #18).
 
 ### Useful starting context
-- Quarto CLI installed: `quarto 1.7.33`. Node `v22.21.1`, npm `11.10.0`. **No `code` CLI on PATH** → runtime verification is manual F5; pure-core tests run headlessly.
-- The load-bearing TextMate-vs-LSP decision is **RESOLVED** in the plan §3: ship Tier A (grammar), build to Tier B (in-process providers), defer Tier C (out-of-process LSP). Guardrail: the intelligence core is `vscode`-free.
+- **Phase 1 is done — reuse it.** The scaffold, `core/`-vs-adapter boundary, both test harnesses, and `npm run compile`/`test`/`test:integration`/`package` scripts all work (Session 2). `src/quarto/cli.ts` resolves the CLI for later phases. Don't re-scaffold.
+- **Automated runtime verification works here** (Session 2 proved it): `npm run test:integration` downloads VS Code and runs headlessly — no `code` CLI needed. Phase 2 still wants manual F5 for the *visual* token-color check (the integration host can't eyeball colors), but consider an integration test asserting the `quarto` language registers for `.qmd`.
+- Quarto CLI: `quarto 1.7.33` (`quarto --version` prints the bare semver). Node `v22.21.1`, npm `11.10.0`.
 - **Licensing (hard):** Posit's official extension/LSP/visual-editor are **AGPL-3.0** — look-but-don't-copy. Build on MIT upstreams (plan §2.4). Quarto CLI is MIT.
 
 ### How You Will Be Evaluated
@@ -33,6 +33,54 @@ The user rates every session's handoff. Your handoff will be scored on:
 ---
 
 *Session history accumulates below this line. Newest session at the top.*
+
+### What Session 2 Did — 2026-06-27
+**Deliverable:** Implement **Phase 1** of the architecture plan — the walking skeleton. **COMPLETE + verified.**
+
+**§12 ratification (operator, this session):** v1 scope = Phases 1–5 + 6a–6c (confirmed as proposed) · Tier B in-process providers + `vscode`-free core (confirmed) · stack TS+esbuild+vsce+vitest+test-electron, `engines.vscode ^1.90.0` (confirmed) · base grammar **deferred to Phase 2**, default `wooorm/markdown-tm-language`.
+
+**What was done (6 commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `3bf9e96` scaffold build config (package.json, tsconfig, esbuild.js, LICENSE, .vscodeignore)
+2. `52b1144` package-lock.json (pinned dep tree)
+3. `fc621d6` source: `core/version.ts` (pure) + `quarto/cli.ts` (adapter) + `extension.ts` (thin) + README
+4. `2aa3ce5` unit harness (vitest, 12 tests) + F5 launch/tasks config
+5. `913ad7d` integration harness (@vscode/test-electron, 2 tests)
+6. `eb8df12` packaging fixes (.vscodeignore excludes `.claude`/`.git`; `--allow-missing-repository`; README relative-link removed)
+
+**Verification (all green):**
+- `npm run compile` → tsc `--noEmit` clean + esbuild → `dist/extension.js` (4.8 KB).
+- `npm test` → **12/12** vitest unit tests (pure-core, headless).
+- `npm run test:integration` → **2/2** in a real downloaded VS Code (v1.126.0): activates the extension AND executes `quarto.verifyInstallation` end-to-end against the real CLI. Exit 0.
+- `npm run package` → clean **6-file** `.vsix` (LICENSE, package.json, readme, dist/extension.js only).
+
+**🔑 RESOLVED the plan's #1 load-bearing assumption (§14, FM #19/§9):** `@vscode/test-electron` **CAN** download + run VS Code headlessly here (no `code` CLI). Automated runtime verification is available for all future phases — see CLAUDE.md Learning #3 (updated). This is *stronger* than the manual-F5 fallback the plan budgeted for.
+
+**Key files (with anchors):**
+- `src/core/version.ts` — pure semver parsing; `parseQuartoVersion`/`toSemVer`/`meetsMinimum`. **No `vscode` import** (the §3.3 guardrail; keep it that way).
+- `src/quarto/cli.ts:60` — `resolveBinary()` (`QuartoNotFound` at `:22`); reads `quarto.path`→PATH, runs `<bin> --version`. The one external integration point (plan §8); every later phase reuses it.
+- `src/extension.ts:13` — thin `activate()`; `:26` the `verifyInstallation` handler (info/warn/actionable-error paths).
+- `esbuild.js` — bundles src → dist, `vscode` external. `tsconfig.test.json` — compiles `test/integration/**` → `out/` (separate from esbuild; test-electron runs the JS).
+- `test/integration/suite/extension.test.ts` — the runtime-verification tests. `test/unit/version.test.ts` — the 12 unit tests.
+- `package.json:36-45` — the scripts (`compile`/`test`/`test:integration`/`package`).
+
+**Gotchas for the next session:**
+1. **Two compilers by design** — esbuild bundles the extension; `tsc -p tsconfig.test.json` compiles integration tests to `out/`. Don't try to make esbuild do the tests or vice-versa. vitest is scoped to `test/unit/**` (won't run the mocha integration tests).
+2. **`.vscodeignore` must keep excluding `.claude/**` and `.git/**`** — they leaked into the first `.vsix` until fixed. Re-check the `vsce package` file list whenever you add top-level files.
+3. **No git remote yet** → `vsce package` needs `--allow-missing-repository` (baked into `npm run package`) and README must avoid relative links (`./LICENSE` was rejected). When a remote is added: add `repository` to package.json, drop the flag, restore the link.
+4. **Integration tests download ~261 MB** the first time (into `.vscode-test/`, gitignored) and take ~30–40 s on first run; fast thereafter (cached).
+5. **`npm audit`** reports 7 vulns (4 moderate/2 high/1 critical) — all in **dev-only transitive deps** (test/build tooling); none ship in the `.vsix` (node_modules is excluded). Not chased in Phase 1; revisit if a fix lands without breaking changes.
+6. Phase 2 dragon (carried from the plan): brace-wrapped `{python}` cells need a **custom grammar injection** — the stock markdown rule won't match them. See the ACTIVE TASK block above.
+
+**Self-assessment (Session 2): 9/10.**
+- **+** Delivered exactly Phase 1's scope, no bundling (FM #18 held — stopped before Phase 2). Six recoverable commits, all ≤5 files. **Resolved the project's biggest open risk** (headless integration testing) rather than just documenting it as unknown. Went one step beyond build-clean: the integration test *executes* the command against the real CLI, so this is genuine runtime verification (not FM #24). Caught two real packaging defects (`.claude` leak, README link) at the release gate and fixed them. Updated CLAUDE.md learnings (#3 resolved, #5 added), BACKLOG/CHANGELOG/ROADMAP.
+- **−** First `vsce package` failed (README relative link) — a known vsce behavior I should have pre-empted given there's no remote; cost one extra iteration. The `.claude/` leak likewise should have been in `.vscodeignore` from the first draft. Both caught + fixed in-session, but reflect not anticipating vsce's stricter packaging rules up front. Could not visually confirm the notification *text* via F5 (no `code` CLI / headless) — but the integration test covers the behavioral path, so this is a cosmetic gap, stated honestly, not a skipped Phase 3E.
+
+#### Session 1 Handoff Evaluation (by Session 2) — Phase 3A
+**Score: 9.5/10.** Among the best handoffs I could ask for.
+- **What helped:** The ACTIVE TASK block was exact — named the deliverable (Phase 1 only), the §12 ratification gate, the precise plan sections to read (§3.3/§6/§10/§13) with line anchors, and the verification commands. The "load-bearing check" callout (confirm test-electron downloads VS Code, or document the gap) pointed me straight at the session's highest-value experiment. The verified-facts list (`quarto 1.7.33`, `Browse at` line, no `code` CLI) was accurate and saved re-derivation. FM #18/#19 reminders were correctly emphasized and kept me disciplined.
+- **What was missing:** Two minor things the plan couldn't have known but a heads-up would've saved an iteration each: (a) `vsce` rejects README relative links / missing `repository` when there's no remote; (b) `.vscodeignore` needs `.claude/`. Both are now Learning #5.
+- **What was wrong:** Nothing. Every claim (versions, file layout, the test-electron hypothesis, the boundary design) held up — and the test-electron question resolved *positively*, better than the plan's hedge.
+- **ROI:** Strongly positive. The handoff + plan let me start building within minutes of orientation; I spent the session on engineering, not archaeology.
 
 ### What Session 1 Did — 2026-06-27
 **Deliverable:** Planning session (Architecture workstream) — feature inventory + phased architecture/implementation plan for the Quarto VS Code extension. **COMPLETE.**

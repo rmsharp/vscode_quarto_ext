@@ -10,8 +10,9 @@
 - **Tier C (deferred until a driver appears):** out-of-process LSP for cross-file project indexing or multi-editor reuse — cheap to reach because the intelligence core is kept `vscode`-free.
 
 ## What's Built
-*Nothing shipped yet — pre-scaffold.* The repo holds the methodology harness and the architecture plan; no extension code exists until Phase 1.
+- **Phase 1 — walking skeleton (Session 2).** Installable `.vsix` builds from a TypeScript/esbuild scaffold; the `core/`-vs-adapter boundary is established (`vscode`-free `core/`); the `Quarto: Verify Installation` command resolves the CLI and reports its version; unit (vitest) + integration (`@vscode/test-electron`) test harnesses both run green headlessly. Phases 2–6c remain.
 
 ## Completed Milestones
 - **Methodology bootstrap** (Session 0) — installed the Iterative Session Methodology and instantiated project docs.
 - **Architecture planning** (Session 1) — resolved the load-bearing language-support decision and produced the phased implementation plan.
+- **Phase 1 walking skeleton** (Session 2) — scaffold + `Quarto: Verify Installation` + test harness; confirmed headless integration testing works.
