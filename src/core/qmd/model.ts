@@ -117,9 +117,12 @@ const COMMENT_CLOSE = /-->/;
  * nor a heading — excluded from body lines so a `{#fig-…}` inside it is not
  * indexed as a cross-ref (the block-comment case is already handled by the
  * `inComment` state; this closes the single-line gap). A line that mixes content
- * with a trailing comment is left as body (the content half is real).
+ * with a trailing comment is left as body (the content half is real). The
+ * tempered `(?:(?!-->)…)*` makes the closer the FIRST `-->`, so a line that
+ * merely starts and ends with comments but has real prose between them (which
+ * Pandoc renders) is NOT treated as a whole-line comment.
  */
-const COMMENT_FULL_LINE = /^[ \t]*<!--.*-->[ \t]*$/;
+const COMMENT_FULL_LINE = /^[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
 /**
  * A brace info string for an *executable* cell: `{` then a language identifier
  * (a letter-led token), optionally followed by knitr-style options, then `}`.

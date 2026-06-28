@@ -236,6 +236,17 @@ describe("findBodyLines — content lines outside skip-regions", () => {
       { line: 12, text: "after" },
     ]);
   });
+
+  it("keeps a line with real content between two same-line comments (review J)", () => {
+    // Only a WHOLE-line comment is excluded; a line that merely starts and ends
+    // with comments but has prose between renders that prose, so it stays body.
+    const text = "<!-- a --> mid prose <!-- b -->";
+    expect(findBodyLines(text)).toEqual([{ line: 0, text }]);
+  });
+
+  it("still excludes a genuine whole-line single comment", () => {
+    expect(findBodyLines("  <!-- just a comment -->  ")).toEqual([]);
+  });
 });
 
 describe("buildOutline — nested symbol tree", () => {
