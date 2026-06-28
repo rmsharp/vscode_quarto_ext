@@ -27,6 +27,11 @@ export interface Citation {
  * throwing (a malformed bib must never break completion).
  */
 export function parseCitations(content: string): Citation[] {
+  // Strip a leading UTF-8 BOM: `JSON.parse` rejects it (CSL-JSON would silently
+  // fail to load), and it is meaningless for BibTeX.
+  if (content.charCodeAt(0) === 0xfeff) {
+    content = content.slice(1);
+  }
   // CSL-JSON is a JSON array; a `.bib` never starts with `[`.
   if (content.trimStart().startsWith("[")) {
     return parseCslJson(content);
@@ -112,7 +117,12 @@ function cslAuthors(author: unknown): string {
 function cslYear(issued: CslItem["issued"]): string {
   const parts = issued?.["date-parts"];
   if (Array.isArray(parts) && Array.isArray(parts[0]) && parts[0].length > 0) {
-    return String(parts[0][0]);
+    const year = parts[0][0];
+    // Only a number or non-empty string is a real year; a null/object leaf in a
+    // malformed date-parts must not become the string "null"/"[object Object]".
+    if (typeof year === "number" || (typeof year === "string" && year !== "")) {
+      return String(year);
+    }
   }
   return "";
 }
@@ -139,11 +149,14 @@ function parseBibtex(content: string): Citation[] {
     while (j < content.length && /\s/.test(content[j])) {
       j++;
     }
-    if (content[j] !== "{") {
+    // BibTeX entries are delimited by `{ … }` or, less commonly, `( … )`.
+    const opener = content[j];
+    if (opener !== "{" && opener !== "(") {
       i = at + 1;
       continue;
     }
-    const close = matchBrace(content, j);
+    const close =
+      opener === "{" ? matchBrace(content, j) : matchParen(content, j);
     if (close === -1) {
       break;
     }
@@ -158,17 +171,55 @@ function parseBibtex(content: string): Citation[] {
   return citations;
 }
 
-/** The index of the `}` matching the `{` at `open`, or -1 if unbalanced. */
+/**
+ * The index of the `}` matching the entry-opening `{` at `open`, or -1 if
+ * unbalanced. Quote-aware: a `"…"` quoted field value sits at brace depth 1, and
+ * braces inside it are literal (e.g. `note = "open { brace"`), so they must not
+ * count toward depth — otherwise one stray brace in a quoted value swallows or
+ * discards the rest of the file.
+ */
 function matchBrace(s: string, open: number): number {
   let depth = 0;
+  let inQuote = false;
   for (let k = open; k < s.length; k++) {
-    if (s[k] === "{") {
+    const c = s[k];
+    if (c === '"' && depth === 1) {
+      inQuote = !inQuote;
+    } else if (inQuote) {
+      continue;
+    } else if (c === "{") {
       depth++;
-    } else if (s[k] === "}") {
+    } else if (c === "}") {
       depth--;
       if (depth === 0) {
         return k;
       }
+    }
+  }
+  return -1;
+}
+
+/**
+ * The index of the `)` closing a parenthesis-delimited entry opened at `open`,
+ * or -1 if unbalanced. The entry ends at the first `)` that is at brace depth 0
+ * and outside a quoted value, so a `)` inside a `{…}` field value (e.g.
+ * `title = {Foo (bar)}`) does not end the entry early.
+ */
+function matchParen(s: string, open: number): number {
+  let depth = 0;
+  let inQuote = false;
+  for (let k = open + 1; k < s.length; k++) {
+    const c = s[k];
+    if (c === '"' && depth === 0) {
+      inQuote = !inQuote;
+    } else if (inQuote) {
+      continue;
+    } else if (c === "{") {
+      depth++;
+    } else if (c === "}") {
+      depth--;
+    } else if (c === ")" && depth === 0) {
+      return k;
     }
   }
   return -1;

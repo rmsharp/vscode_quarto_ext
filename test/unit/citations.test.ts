@@ -120,3 +120,43 @@ describe("parseCitations — robustness", () => {
     expect(parseCitations("[ {not valid json } ]")).toEqual([]);
   });
 });
+
+describe("parseCitations — hardening (adversarial review)", () => {
+  it("B: parses CSL-JSON saved with a leading UTF-8 BOM", () => {
+    expect(parseCitations('﻿[{"id":"k","title":"T"}]')).toEqual([
+      { key: "k", title: "T" },
+    ]);
+  });
+
+  it("B: parses BibTeX saved with a leading UTF-8 BOM", () => {
+    expect(parseCitations("﻿@article{k, title = {T}}")).toEqual([
+      { key: "k", title: "T" },
+    ]);
+  });
+
+  it("F: an unbalanced brace inside a quoted value does not drop later entries", () => {
+    const bib = [
+      '@article{a1, note = "open { brace"}',
+      "@article{a2, title = {Survivor}}",
+    ].join("\n");
+    expect(parseCitations(bib).map((c) => c.key)).toEqual(["a1", "a2"]);
+  });
+
+  it("G: parses a parenthesis-delimited entry", () => {
+    expect(parseCitations("@article(parenKey, title = {Paren Form})")).toEqual([
+      { key: "parenKey", title: "Paren Form" },
+    ]);
+  });
+
+  it("G: a ')' inside a brace value does not end a paren entry early", () => {
+    expect(parseCitations("@misc(k, title = {Foo (bar) baz})")).toEqual([
+      { key: "k", title: "Foo (bar) baz" },
+    ]);
+  });
+
+  it("H: ignores a non-numeric date-parts leaf (no bogus year)", () => {
+    expect(
+      parseCitations('[{"id":"d","issued":{"date-parts":[[null]]}}]'),
+    ).toEqual([{ key: "d" }]);
+  });
+});
