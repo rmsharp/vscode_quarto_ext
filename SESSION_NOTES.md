@@ -33,6 +33,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 10 Did — 2026-06-28
+**Deliverable:** v1 release-prep **item 1** — add git remote (`rmsharp/vscode_quarto_ext`) + downstream packaging changes (`repository` in `package.json`, drop `--allow-missing-repository`, lift README relative-link restriction). (IN PROGRESS)
+**Started:** 2026-06-28
+**Status:** Session claimed. Work beginning.
+
 ### What Session 9 Did — 2026-06-28
 **Deliverable:** Implement **Phase 6c** — Citation completion. **COMPLETE + verified + adversarially hardened. v1 IS NOW FEATURE-COMPLETE.**
 
