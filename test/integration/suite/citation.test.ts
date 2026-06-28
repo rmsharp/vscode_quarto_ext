@@ -7,11 +7,29 @@ const EXTENSION_ID = "vscode-quarto-ext.vscode-quarto-ext";
 // out/test/integration/suite -> project root
 const ROOT = path.resolve(__dirname, "../../../..");
 const FIXTURE = path.resolve(ROOT, "test/fixtures/citations.qmd");
+const NOBIB = path.resolve(ROOT, "test/fixtures/citations-nobib.qmd");
+const MISSINGBIB = path.resolve(ROOT, "test/fixtures/citations-missingbib.qmd");
 
-async function openFixture(): Promise<vscode.TextDocument> {
-  const doc = await vscode.workspace.openTextDocument(FIXTURE);
+async function openFile(file: string): Promise<vscode.TextDocument> {
+  const doc = await vscode.workspace.openTextDocument(file);
   await vscode.window.showTextDocument(doc);
   return doc;
+}
+
+async function openFixture(): Promise<vscode.TextDocument> {
+  return openFile(FIXTURE);
+}
+
+/** The @-prefixed completion labels offered at the first '@' on the line containing `needle`. */
+async function atLabelsForLineWith(
+  doc: vscode.TextDocument,
+  needle: string,
+): Promise<string[]> {
+  const line = lineWith(doc, needle);
+  assert.ok(line >= 0, `fixture should contain ${needle}`);
+  const at = doc.lineAt(line).text.indexOf("@");
+  const items = await completionsAt(doc, new vscode.Position(line, at + 1));
+  return items.map(labelText).filter((l) => l.startsWith("@"));
 }
 
 /** A position just past the first '@' on a given 0-based line (the completion site). */
@@ -129,6 +147,41 @@ describe("Quarto: Citation completion", () => {
       range.end.character,
       at + "@Knuth:1984".length,
       "replace range spans the whole colon token (no ':1984' duplication on accept)",
+    );
+  });
+
+  // Degradation / safety branches (review I): a broken or absent bibliography
+  // must never offer bogus citekeys or break completion. Paired with the
+  // positive tests above (a present bib DOES offer citekeys), these are
+  // discriminating, not trivially green.
+  it("I: offers no citekeys when the document declares no bibliography", async () => {
+    const doc = await openFile(NOBIB);
+    assert.deepStrictEqual(
+      await atLabelsForLineWith(doc, "@smith2020"),
+      [],
+      "no @ items without a bibliography",
+    );
+  });
+
+  it("I: a bibliography pointing at a missing file yields no citekeys (and does not throw)", async () => {
+    const doc = await openFile(MISSINGBIB);
+    assert.deepStrictEqual(
+      await atLabelsForLineWith(doc, "@smith2020"),
+      [],
+      "a missing bib file must not break completion",
+    );
+  });
+
+  it("I: offers no citekeys in an untitled (non-file) quarto document", async () => {
+    const doc = await vscode.workspace.openTextDocument({
+      language: "quarto",
+      content: "---\nbibliography: refs.bib\n---\n\nSee @knuth1984 here.\n",
+    });
+    await vscode.window.showTextDocument(doc);
+    assert.deepStrictEqual(
+      await atLabelsForLineWith(doc, "@knuth1984"),
+      [],
+      "an untitled doc has no directory to resolve the bib against",
     );
   });
 });

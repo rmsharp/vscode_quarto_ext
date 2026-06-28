@@ -1,0 +1,19 @@
+---
+title: "Missing bibliography file"
+bibliography: does-not-exist.bib
+execute:
+  enabled: false
+---
+
+# Heading
+
+Some prose citing @smith2020 referencing a bibliography file that is absent.
+
+<!--
+This fixture intentionally names a `bibliography:` file that does not exist, so
+`quarto render` fails (exit 1) — that is expected and fine. The citation
+integration test never renders it; it only opens it and queries the completion
+provider (environment-independent, no CLI), to verify that a missing bib yields
+no citekeys and does not break completion. Analogous to `render-error.qmd`.
+-->
+

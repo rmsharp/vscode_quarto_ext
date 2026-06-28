@@ -1,0 +1,9 @@
+---
+title: "No bibliography configured"
+execute:
+  enabled: false
+---
+
+# Heading
+
+Some prose citing @smith2020 with no bibliography configured.
