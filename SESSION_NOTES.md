@@ -5,8 +5,8 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **v1 release prep is AGENT-COMPLETE.** v1 is feature-complete (Phases 1–5 + 6a–6c). **All four release-prep items are DONE: 1 git remote (S10), 2 marketplace metadata + README (S11), 3 F5 visual pass + screenshots (S12), and the `npm audit` posture decision (S13).** The ONLY remaining step is the **operator-only `vsce publish`** (not an agent task — needs a registered Marketplace publisher `rmsharp` + a PAT).
-**Status:** Release prep done. `npm audit` reports 7 vulns (4 mod / 2 high / 1 critical) — **all dev-only, none ship**, accepted + documented in `docs/SECURITY-AUDIT.md`. No code/dependency/`package.json` change this session (pure docs). Baselines unchanged: **190 unit + 42 integration** green (Sessions 11/12); clean **10-file** `.vsix` (29.09 KB, ships only `dist/extension.js` + static assets — no `node_modules`) reconfirmed via `npm run package`. Repo is PUBLIC; `origin` → `rmsharp/vscode_quarto_ext` (branch `master`); `preview: true` set.
+**Task:** **Session 14 (IN PROGRESS) — Phase 7 (v2): formatting toggles.** `Quarto: Toggle Bold` / `Toggle Italic` / `Toggle Code` — wrap/unwrap the selection (or word at cursor) in `**…**` / `*…*` / `` `…` ``. Pure `core/format-toggle.ts` (§3.3 guardrail) + thin `src/features/formatting.ts` adapter; strict TDD. *Background: v1 is feature-complete + release prep is AGENT-COMPLETE (Sessions 1–13); the only remaining release step is the operator-only `vsce publish`.*
+**Status:** Session 14 claimed; implementing under strict TDD (red→green→refactor, one test at a time). Pre-session baselines (Sessions 11/12, unchanged at start): **190 unit + 42 integration** green; clean **10-file** `.vsix` (29.09 KB); `npm audit` = 7 dev-only vulns (accepted, `docs/SECURITY-AUDIT.md`). Repo PUBLIC; `origin` → `rmsharp/vscode_quarto_ext` (branch `master`).
 **Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §7 (v1 DoD). Release-prep tracking in `BACKLOG.md` (now `[x]`).
 **Priority:** v1 release prep done → next is operator publish, then **v2** (`BACKLOG.md` "Up Next": Phase 6d/6e, 7) or a **Polish / deferred** item.
 **⚠ STRICT TDD IS MANDATORY** for any code/bugfix (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15, #16). Pure packaging/metadata/doc edits with no logic are exempt but still need their normal verification (compile, package, render, AND — per **Learning #18** — `npm run test:integration` after any `publisher`/`name`/activation change; the 8 suites hard-code the extension ID).
@@ -30,6 +30,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 ---
 
 *Session history accumulates below this line. Newest session at the top.*
+
+### What Session 14 Did — 2026-06-28
+**Deliverable:** Phase 7 (v2) — formatting toggles (`Quarto: Toggle Bold/Italic/Code`). **(IN PROGRESS)**
+**Started:** 2026-06-28
+**Status:** Session claimed. Work beginning under strict TDD.
 
 ### What Session 13 Did — 2026-06-28
 **Deliverable:** v1 release-prep — the **`npm audit` posture decision** (the last agent-actionable release-prep item). **COMPLETE + documented + release gate re-verified. v1 release prep is now AGENT-COMPLETE; only the operator-only `vsce publish` remains.**
