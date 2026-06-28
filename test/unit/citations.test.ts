@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCitations } from "../../src/core/citations";
+import { citationCompletionContext, parseCitations } from "../../src/core/citations";
 
 describe("parseCitations — BibTeX single entry", () => {
   it("parses key, title, author, and year from a brace-delimited entry", () => {
@@ -158,5 +158,58 @@ describe("parseCitations — hardening (adversarial review)", () => {
     expect(
       parseCitations('[{"id":"d","issued":{"date-parts":[[null]]}}]'),
     ).toEqual([{ key: "d" }]);
+  });
+});
+
+describe("citationCompletionContext — citekey-aware @ detection (review C)", () => {
+  it("detects a bare @ with empty typed text", () => {
+    expect(citationCompletionContext("see @", 5)).toEqual({
+      start: 4,
+      typed: "",
+      end: 5,
+    });
+  });
+
+  it("spans a whole colon citekey so a mid-token accept does not duplicate the suffix", () => {
+    //               0123456789(10)
+    //               @Knuth:1984   — cursor at col 4 (mid-token)
+    expect(citationCompletionContext("@Knuth:1984", 4)).toEqual({
+      start: 0,
+      typed: "Knu",
+      end: 11,
+    });
+  });
+
+  it("still fires after a ':' has been typed (narrowing a colon key)", () => {
+    expect(citationCompletionContext("@Knuth:", 7)).toEqual({
+      start: 0,
+      typed: "Knuth:",
+      end: 7,
+    });
+  });
+
+  it("spans a dotted citekey", () => {
+    expect(citationCompletionContext("@einstein.1905", 14)).toEqual({
+      start: 0,
+      typed: "einstein.1905",
+      end: 14,
+    });
+  });
+
+  it("does not include trailing sentence punctuation in the replace range", () => {
+    //               @knuth1984.  — cursor at col 6 (mid-token); the '.' is sentence punctuation
+    expect(citationCompletionContext("@knuth1984.", 6)).toEqual({
+      start: 0,
+      typed: "knuth",
+      end: 10,
+    });
+  });
+
+  it("returns null for an email-style @ (preceded by a word character)", () => {
+    expect(citationCompletionContext("mail@knuth1984", 9)).toBeNull();
+  });
+
+  it("returns null when the cursor is not in an @ token", () => {
+    expect(citationCompletionContext("plain prose", 5)).toBeNull();
   });
 });

@@ -39,6 +39,67 @@ export function parseCitations(content: string): Citation[] {
   return parseBibtex(content);
 }
 
+// ── Completion context ──────────────────────────────────────────────────────
+
+/** Where an in-progress `@key` citation begins, and what has been typed so far. */
+export interface CitationCompletionContext {
+  /** 0-based column of the `@` that starts the citation being typed. */
+  start: number;
+  /** The key text typed between the `@` and the cursor (may be `""`). */
+  typed: string;
+  /** 0-based column just past the end of the key token (for the replace range). */
+  end: number;
+}
+
+/**
+ * A character allowed inside a citekey for completion token-scanning. Pandoc
+ * citekeys are alphanumerics, `_`, and internal punctuation; this uses the
+ * practical subset that real keys use (`:` `.` `+` `/` `-`, e.g. biblatex
+ * `Knuth:1984`, DBLP `DBLP:journals/...`, dotted `einstein.1905`) and excludes
+ * the exotic Pandoc chars (`#$%&?<>~`) to avoid over-matching prose. This is
+ * deliberately WIDER than the cross-ref `ID_CHAR` (`core/refs`), which only
+ * needs `[A-Za-z0-9_-]` — reusing that class truncated colon/dot keys, breaking
+ * completion after a `:` and duplicating the suffix on a mid-token accept.
+ */
+const CITEKEY_CHAR = /[A-Za-z0-9_:.+/-]/;
+/** Punctuation a citekey may not END in (Pandoc) — trimmed from the replace range. */
+const CITEKEY_TRAILING_PUNCT = /[:.+/-]/;
+/** A word character that, immediately before an `@`, marks it as an email — not a citation. */
+const WORD_CHAR = /[A-Za-z0-9_]/;
+
+/**
+ * If 0-based `column` on `lineText` sits inside an in-progress `@key` citation
+ * (a bare `@`, or `@` followed by citekey characters), return where the `@` is,
+ * the key typed so far, and the end of the whole key token; otherwise `null`.
+ * An `@` preceded by a word character is an email, not a citation. The `end`
+ * spans the full key (including any `:`/`.` past the cursor) so accepting a
+ * completion mid-token replaces the whole token, but stops before trailing
+ * sentence punctuation so an `@key.` does not eat the period.
+ */
+export function citationCompletionContext(
+  lineText: string,
+  column: number,
+): CitationCompletionContext | null {
+  let i = column - 1;
+  while (i >= 0 && CITEKEY_CHAR.test(lineText[i])) {
+    i--;
+  }
+  if (i < 0 || lineText[i] !== "@") {
+    return null;
+  }
+  if (i > 0 && WORD_CHAR.test(lineText[i - 1])) {
+    return null;
+  }
+  let end = column;
+  while (end < lineText.length && CITEKEY_CHAR.test(lineText[end])) {
+    end++;
+  }
+  while (end > column && CITEKEY_TRAILING_PUNCT.test(lineText[end - 1])) {
+    end--;
+  }
+  return { start: i, typed: lineText.slice(i + 1, column), end };
+}
+
 // ── CSL-JSON ────────────────────────────────────────────────────────────────
 
 /** One author object in CSL-JSON: a structured name or a `literal` string. */
