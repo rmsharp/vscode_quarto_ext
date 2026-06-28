@@ -6,7 +6,7 @@
 
 ## ACTIVE TASK
 **Task:** Implement **Phase 5** of the architecture plan — `Quarto: Run Cell` family: `Quarto: Run Cell` (+ Run Above / Run All / advance to next / insert-cell). Detect the active cell's boundaries and **delegate** execution to the user's installed Jupyter/Python/R extension; degrade gracefully (a clear "install the Python/Jupyter extension" message, not a crash) when none is present.
-**Status:** NOT STARTED. Phases 1 (skeleton) + 2 (highlighting) + 3 (render) + 4 (preview) are **COMPLETE + verified** (Sessions 2–5). The plan is ratified.
+**Status:** IN PROGRESS (Session 6, started 2026-06-27 19:44 CDT). Phases 1 (skeleton) + 2 (highlighting) + 3 (render) + 4 (preview) are **COMPLETE + verified** (Sessions 2–5). The plan is ratified.
 **Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 5" (lines ~300–314) → implement **Phase 5 ONLY**, then close out (FM #18: do not bundle Phase 6a outline).
 **Priority:** HIGH
 **⚠ STRICT TDD IS MANDATORY** (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learning #10). Invoke `/tdd`; write the failing test before the code; red → green → refactor, one behavior at a time. Do NOT lead with implementation (Session 5 was corrected for exactly that).
@@ -37,6 +37,11 @@ The user rates every session's handoff. Your handoff will be scored on:
 ---
 
 *Session history accumulates below this line. Newest session at the top.*
+
+### What Session 6 Did
+**Deliverable:** Implement **Phase 5** — `Quarto: Run Cell` family (Run Cell / Run Cell and Advance / Run Cells Above / Run All Cells / Insert Cell): pure `core/` cell-boundary finder + delegate-selection logic, thin `src/features/execution.ts` adapter delegating to the user's Jupyter/Python/R extension, graceful when none present. **(IN PROGRESS)**
+**Started:** 2026-06-27 19:44 CDT
+**Status:** Session claimed. Work beginning — strict TDD (operator directive / Learning #10).
 
 ### What Session 5 Did — 2026-06-27
 **Deliverable:** Implement **Phase 4** of the architecture plan — `Quarto: Preview`. **COMPLETE + verified.** (Plus two operator directives handled mid-session: enshrining strict TDD, and fixing the stale README.)
