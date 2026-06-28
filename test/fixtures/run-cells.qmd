@@ -1,0 +1,17 @@
+---
+title: "Run-cell fixture"
+---
+
+Intro prose (line 4, not in a cell).
+
+```{python}
+a = 1
+```
+
+Middle prose.
+
+```{python}
+b = 2
+```
+
+End prose.
