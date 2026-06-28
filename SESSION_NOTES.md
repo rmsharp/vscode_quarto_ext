@@ -5,25 +5,23 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **v1 release prep (continuing).** v1 is feature-complete (Phases 1–5 + 6a–6c). **Item 1 — git remote + packaging metadata — is DONE (Session 10).** Remaining: **item 2** marketplace metadata + listing README, **item 3** the F5 visual pass + screenshots, and the `npm audit` posture decision.
-**Status:** Remote wired (`origin` → `rmsharp/vscode_quarto_ext`, branch `master`, pushed). `repository` in `package.json`; `package` script flag-free; clean 9-file `.vsix` (19 KB). **190 unit + 42 integration** green; §3.3 guardrail held (no `vscode` import in `core/`).
+**Task:** **v1 release prep (continuing).** v1 is feature-complete (Phases 1–5 + 6a–6c). **Items 1 (git remote + packaging metadata) and 2 (marketplace metadata + listing README) are DONE (Sessions 10, 11).** Remaining: **item 3** the F5 visual pass + screenshots, and the `npm audit` posture decision.
+**Status:** Remote wired (`origin` → `rmsharp/vscode_quarto_ext`, branch `master`, pushed). `package.json` carries full marketplace metadata (`publisher` `rmsharp`, `icon` `media/icon.png`, `keywords`/`bugs`/`homepage`/`galleryBanner`/`preview`, polished `description`, categories Programming Languages + Data Science). `README.md` rewritten for the Marketplace (stale status line fixed). Clean **10-file** `.vsix` (28.82 KB) with the icon embedded; **190 unit + 42 integration** green; §3.3 guardrail held (no `vscode` import in `core/`).
 **Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §7 (v1 DoD). Release-prep items in `BACKLOG.md` "Active".
 **Priority:** HIGH
-**⚠ STRICT TDD IS MANDATORY** for any code/bugfix (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15, #16). Pure packaging/metadata/doc edits with no logic are exempt but still need their normal verification (compile, package, render).
+**⚠ STRICT TDD IS MANDATORY** for any code/bugfix (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15, #16). Pure packaging/metadata/doc edits with no logic are exempt but still need their normal verification (compile, package, render, AND — per **Learning #18** — `npm run test:integration` after any `publisher`/`name`/activation change; the 8 suites hard-code the extension ID).
 
-### What You Must Do (v1 release prep — item 2/3, mostly non-code)
-This is largely a metadata/docs pass, not feature work (FM #18: ONE deliverable — don't also start the deferred polish items). **Item 1 is done (Session 10)** — the remote is wired and `package.json` carries `repository`.
-1. **Marketplace metadata (item 2):** a real `publisher` id (the current `vscode-quarto-ext` is a placeholder), an `icon` (PNG ≥128×128), `keywords`, `bugs`/`homepage`; polished `displayName`/`description`. (`repository` is already set.)
-2. **Listing `README.md` (item 2):** rewrite it for the marketplace — the current status line is STALE (it says editor intelligence is "still to come", but outline + cross-ref + citation completion all shipped). Add a features section + screenshots/GIFs from an F5 session. Relative links now work (Learnings #5/#17).
-3. **F5 visual pass (item 3 — the standing residue across ALL phases):** no `code` CLI here, so popups/outline/preview-webview/notification **visuals** are integration-proven but never eyeballed. One manual F5 pass to confirm the citation + cross-ref completion popups, the Outline view, the preview webview, and the run-cell keybindings look right; capture screenshots for the README.
-4. Decide the `npm audit` posture (7 dev-only vulns, none ship — document as accepted, or bump if clean).
-5. The deferred polish items (`BACKLOG.md` "Polish / deferred": indented-code-block phantom, setext headings) are **separate future sessions**, not part of release prep.
+### What You Must Do (v1 release prep — item 3 + audit, mostly non-code)
+This is the last of release prep (FM #18: ONE deliverable — don't also start the deferred polish items). **Items 1 & 2 are done (Sessions 10, 11).**
+1. **F5 visual pass (item 3 — the standing residue across ALL phases):** no `code` CLI here, so popups/outline/preview-webview/notification **visuals** are integration-proven but never eyeballed. One manual F5 pass to confirm the citation + cross-ref completion popups, the Outline view, the preview webview, and the run-cell keybindings look right; **capture screenshots and drop them into `README.md` at the `<!-- SCREENSHOTS: placeholder -->` comment** (put images under `media/`).
+2. Decide the `npm audit` posture (7 dev-only vulns, none ship — document as accepted, or bump if clean).
+3. The deferred polish items (`BACKLOG.md` "Polish / deferred": **the duplicated `EXTENSION_ID` test constant**, indented-code-block phantom, setext headings) are **separate future sessions**, not part of release prep.
 
 ### Useful starting context
 - **All v1 features done — reuse the patterns.** Pure `core/` (`frontmatter`, `citations`, `refs`, `qmd/model`, `render-args`, `preview-*`, `version`, `execution-delegate`) is `vscode`-free; adapters live in `features/` + `providers/`; both harnesses (vitest unit + `@vscode/test-electron` integration) are established. `extension.ts:18-30` wires everything.
-- **Item 1 done (Session 10):** remote is `origin` → `https://github.com/rmsharp/vscode_quarto_ext.git` (default branch `master`, force-pushed over GitHub's auto-init). `package.json` now has `repository`; `npm run package` no longer needs `--allow-missing-repository`. See **Learning #17** for the wiring traps (auto-init on an unrelated history → reconciled with `--force-with-lease`; vsce renames `LICENSE`→`LICENSE.txt` inside the `.vsix`, so the README relative link targets `LICENSE`).
-- **Phase 6c reference:** `core/frontmatter.ts` `bibliographyPaths(text)`; `core/citations.ts` `parseCitations` + `citationCompletionContext`; `src/providers/citation.ts` adapter (gated on `isReferenceableLine`). See **Learning #16** for those traps.
-- **`microsoft/vscode-markdown-languageservice` (MIT)** is reference only; never copy Posit's AGPL code (licensing hard gate).
+- **Item 2 done (Session 11):** full marketplace metadata is in `package.json` (top block, ~lines 1-45). The runtime extension ID is now **`rmsharp.vscode-quarto-ext`** — the 8 integration suites' `EXTENSION_ID` constants were updated to match (**Learning #18: re-run `test:integration` after ANY publisher/name change** — package + 190 unit stayed green while integration RED'd). The icon is `media/icon.png` (regenerate from `scratchpad/icon.svg` via `rsvg-convert` if needed — Learning #18b). `README.md` is the marketplace listing (relative links work; screenshots pending item 3).
+- **Marketplace publish itself needs a Marketplace publisher account + PAT** (operator step) — `publisher: rmsharp` must be registered before `vsce publish`. `preview: true` is set as the honest 0.0.1 first-listing state (flip when you decide it's stable).
+- **`microsoft/vscode-markdown-languageservice` (MIT)** is reference only; never copy Posit's AGPL code (licensing hard gate). **Original art only** for icons/branding (Learning #18b).
 
 ### How You Will Be Evaluated
 The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to orient? (2) key files with line numbers? (3) gotchas/traps flagged? (4) "what's next" actionable and specific?
@@ -31,6 +29,55 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 ---
 
 *Session history accumulates below this line. Newest session at the top.*
+
+### What Session 11 Did — 2026-06-28
+**Deliverable:** v1 release-prep **item 2** — marketplace metadata (`package.json`) + listing README rewrite. **COMPLETE + verified (incl. a coupling bug caught and fixed).**
+
+**What was done (commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `c18b847` chore: item 2 — marketplace metadata + listing README. `package.json`: `publisher` → `rmsharp`, original `icon` `media/icon.png`, `keywords`/`bugs`/`homepage`/`galleryBanner`/`preview:true`, polished `description`, categories Programming Languages + Data Science. `media/icon.png`: original 256×256 (document card + `</>` + "MIT" badge, from an SVG via `rsvg-convert` — not Quarto's logo). `README.md`: rewritten for the Marketplace, stale status line fixed (drafted via a judge-panel + accuracy-critic workflow against a fixed factual brief).
+2. `dcab15e` fix(test): update integration `EXTENSION_ID` for new publisher (1/2) — 5 suites.
+3. `98e15aa` fix(test): update integration `EXTENSION_ID` for new publisher (2/2) — 3 suites.
+(+ this close-out commit: SESSION_NOTES, CLAUDE.md Learning #18, BACKLOG/CHANGELOG/ROADMAP; + a separate dashboard-refresh commit.)
+
+**Verification (all green):**
+- `npm run package` → clean **10-file** `.vsix` (28.82 KB) with **`media/icon.png` embedded** (confirmed via `vsce ls`); no missing-publisher/icon/repository warnings.
+- `npm test` → **190/190** vitest (unchanged — no test reads the changed metadata fields; grep confirmed the only `package.json` reads are `contributes.languages`/`grammars`/`activationEvents`).
+- `npm run test:integration` → **42/42** in the real downloaded VS Code host (after the `EXTENSION_ID` fix; see below).
+- §3.3 guardrail: no `src/` change at all, so untouched.
+- **Phase 3E:** no extension/runtime behavior changed (pure metadata/docs/asset); the relevant gate is the clean package with the icon embedded + the integration suite still activating — both done. Not a silent skip — there is no new runtime code path to launch-verify, but the integration run IS the activation smoke test and it passes 42/42.
+
+**🔑 Load-bearing finding (→ CLAUDE.md Learning #18): the publisher→extension-ID coupling.**
+- Changing `publisher` `vscode-quarto-ext` → `rmsharp` changed the runtime extension ID `<publisher>.<name>` to `rmsharp.vscode-quarto-ext`. The integration suite **hard-codes** `const EXTENSION_ID = "vscode-quarto-ext.vscode-quarto-ext"` in **all 8** `test/integration/suite/*.test.ts` files (it resolves the extension by ID in each file's `before all` hook).
+- `npm run compile`, `npm run package` (clean `.vsix`), AND `npm test` (190/190) ALL passed — only the **full `test:integration` run RED'd 8 "should be discoverable" failures**. Fixed by updating the constant in all 8 suites (commits `dcab15e`, `98e15aa`), then re-ran → 42/42.
+- **Lesson (now Learning #18): metadata that is also an identity (publisher/name) is runtime-coupled — re-run the integration suite after such a change; package + unit green is NOT sufficient.** The constant is duplicated across 8 files → added a BACKLOG "Polish" item to extract/derive it from `package.json`.
+
+**README workflow (multi-agent, ultracode):** 3 independent drafts (feature-tour / quick-start / positioning) from a FIXED factual brief (drafters told NOT to read the repo → no stale-content bleed) → judge panel (picked the positioning draft) → accuracy critic (refute-by-default; flagged only 2 low-severity `quarto.org` link items — kept, it's the legitimate CLI download site). Final README = winner + grafted grouped feature subheadings + the colorize `> Note:` callout + the CLI download link. Zero fabricated/overreaching claims (the critic confirmed no NOT-IN-v1 capability leaked in).
+
+**Key files:**
+- `package.json` — top metadata block (lines ~1-45): `publisher` `rmsharp`, `icon`, `keywords`, `bugs`, `homepage`, `galleryBanner`, `preview`, `description`, `categories`.
+- `media/icon.png` — the shipped icon (256×256). Source SVG is in the session scratchpad (`scratchpad/icon.svg`) — re-author there + `rsvg-convert -w 256 -h 256` if it needs changing; it is NOT checked in.
+- `README.md` — the full marketplace listing. `<!-- SCREENSHOTS: placeholder -->` marks where item-3 screenshots go.
+- `test/integration/suite/*.test.ts` (×8) — `EXTENSION_ID` now `"rmsharp.vscode-quarto-ext"`.
+- `CLAUDE.md` — Learning #18 (the coupling trap + icon/README method).
+
+**Gotchas for the next session (item 3 + audit):**
+1. **Re-run `npm run test:integration` after ANY `publisher`/`name`/activation change** — package + unit will lie to you (Learning #18). The 8 `EXTENSION_ID` constants are the tripwire.
+2. **`.vsix` is gitignored** (`*.vsix`) — don't commit it. `media/icon.png` IS tracked (not gitignored — verified).
+3. **`dashboard_history.jsonl` changes whenever you run the dashboard** — fold it into the close-out dashboard-refresh commit.
+4. **`npm audit`** still 7 dev-only vulns (none ship). Decide the posture.
+5. **F5 visual pass** remains the only way to eyeball UI (no `code` CLI) — capture screenshots there for the README's placeholder slot.
+6. **Actual `vsce publish` is an operator step** — needs a registered Marketplace publisher `rmsharp` + a PAT. `preview: true` is set; flip it when the listing is deemed stable.
+
+**Self-assessment (Session 11): 9/10.**
+- **+** Delivered exactly item 2, no bundling into item 3 (FM #18 held — the README leaves a screenshot placeholder rather than starting the F5 pass). Verification was faithful and it MATTERED: I ran the full integration suite even though the change was "just metadata," which caught the publisher→ID coupling that package + 190 unit missed — the failing run was a genuine RED, the fix a clean GREEN, re-verified 42/42 (gate d / Learning #13 discipline applied). Honored the 5-file blast-radius cap (split the 8-file test fix into two commits). Used a judge+critic workflow to keep the outward-facing README free of fabricated/stale claims (the whole point of item 2). Generated original icon art (clean-room posture extends to branding). Asked the operator only the two genuinely-owned decisions (publisher, icon) up front, then proceeded.
+- **−** I introduced the coupling bug in the first place by committing the metadata (`c18b847`) before running the integration suite — had I sequenced integration before the deliverable commit, the RED would have preceded the commit. It was caught and fixed in-session with no lasting damage, but the cleaner order is: change identity → integration → commit. Also the duplicated `EXTENSION_ID` constant is a pre-existing smell I had to touch 8 times; I logged it for extraction rather than fixing it now (correctly scoped, but it's debt the project carried).
+
+#### Session 10 Handoff Evaluation (by Session 11) — Phase 3A
+**Score: 9/10.** A precise, accurate handoff that made item 2 fast and correctly scoped.
+- **What helped:** The ACTIVE TASK enumerated item 2 exactly — "real `publisher` id (the current `vscode-quarto-ext` is a placeholder), an `icon` (PNG ≥128×128), `keywords`, `bugs`/`homepage`; polished `displayName`/`description`" and the README rewrite with the **specific stale-line callout** ("says editor intelligence is 'still to come', but outline + cross-ref + citation completion all shipped") — I knew precisely what to fix and didn't have to rediscover it. The FM #18 scoping ("don't also start item 3") was right and I held to it. Learning #17's note that relative links now work (because `repository` is set) was directly load-bearing for the README's `LICENSE`/`NOTICE` links. The verification baselines (190 unit / 42 integration, clean `.vsix`) all matched reality.
+- **What was missing:** It couldn't have known about the publisher→extension-ID coupling (now Learning #18) — that was a live discovery this session. Minor: it said the icon should be "PNG ≥128×128" but didn't flag that no `media/` dir existed yet (trivial — I created it).
+- **What was wrong:** Nothing material. Every claim held; the 9-file `.vsix` / flag-free `package` script / `repository`-set state were all exactly as described.
+- **ROI:** Strongly positive — turned item 2 into a focused execution pass, not archaeology.
 
 ### What Session 10 Did — 2026-06-28
 **Deliverable:** v1 release-prep **item 1** — wire the git remote + downstream packaging metadata. **COMPLETE + verified + pushed.**
