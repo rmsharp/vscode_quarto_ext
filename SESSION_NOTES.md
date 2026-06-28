@@ -5,22 +5,23 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **v1 release prep (continuing).** v1 is feature-complete (Phases 1–5 + 6a–6c). **Items 1 (git remote), 2 (marketplace metadata + README), and 3 (F5 visual pass + screenshots) are DONE (Sessions 10, 11, 12).** Remaining before publish: the **`npm audit` posture decision** (one small item), then the operator-only `vsce publish`.
-**Status:** All release-prep items 1–3 done. README now has a `## Screenshots` gallery with 5 faithful screenshots (highlighting, outline, `@` completion, preview, render), captured in an Extension Development Host isolated with `--disable-extensions` (the user has Posit's `quarto.quarto` installed — it otherwise merges with ours; Learning #19). Screenshots committed under `media/screenshots/` and pushed (Marketplace fetches them via repo raw URLs); excluded from the `.vsix`. Clean **10-file** `.vsix` (29.09 KB, `media/` ships only `icon.png`); **190 unit + 42 integration** green (unchanged — no `src/` change this session). This session closed the "F5-only visual residue" every prior phase carried. **The repo is now PUBLIC** — required for the screenshots to render (vsce rewrites README image paths to repo raw URLs, which 404 anonymously on a private repo; all 5 verified HTTP 200 once public).
-**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §7 (v1 DoD). Release-prep items in `BACKLOG.md` "Active".
-**Priority:** HIGH
+**Task:** **v1 release prep is AGENT-COMPLETE.** v1 is feature-complete (Phases 1–5 + 6a–6c). **All four release-prep items are DONE: 1 git remote (S10), 2 marketplace metadata + README (S11), 3 F5 visual pass + screenshots (S12), and the `npm audit` posture decision (S13).** The ONLY remaining step is the **operator-only `vsce publish`** (not an agent task — needs a registered Marketplace publisher `rmsharp` + a PAT).
+**Status:** Release prep done. `npm audit` reports 7 vulns (4 mod / 2 high / 1 critical) — **all dev-only, none ship**, accepted + documented in `docs/SECURITY-AUDIT.md`. No code/dependency/`package.json` change this session (pure docs). Baselines unchanged: **190 unit + 42 integration** green (Sessions 11/12); clean **10-file** `.vsix` (29.09 KB, ships only `dist/extension.js` + static assets — no `node_modules`) reconfirmed via `npm run package`. Repo is PUBLIC; `origin` → `rmsharp/vscode_quarto_ext` (branch `master`); `preview: true` set.
+**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §7 (v1 DoD). Release-prep tracking in `BACKLOG.md` (now `[x]`).
+**Priority:** v1 release prep done → next is operator publish, then **v2** (`BACKLOG.md` "Up Next": Phase 6d/6e, 7) or a **Polish / deferred** item.
 **⚠ STRICT TDD IS MANDATORY** for any code/bugfix (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15, #16). Pure packaging/metadata/doc edits with no logic are exempt but still need their normal verification (compile, package, render, AND — per **Learning #18** — `npm run test:integration` after any `publisher`/`name`/activation change; the 8 suites hard-code the extension ID).
 
-### What You Must Do (v1 release prep — only the `npm audit` decision remains)
-Items 1–3 are done (Sessions 10, 11, 12). FM #18: ONE deliverable — don't also start the deferred polish items.
-1. **`npm audit` posture decision** (the last release-prep item before publish): 7 dev-only vulns, none ship. Run `npm audit`, then either (a) document them as accepted (dev-only `devDependencies`, not in the bundled `dist/extension.js`) in a short note, or (b) `npm audit fix` if it's clean + non-breaking, then re-verify (190 unit / 42 integration / clean `.vsix`). This is a TINY deliverable — confirm scope with the operator (it may be paired with v2/polish work only if they explicitly expand scope).
-2. **Operator-only (not an agent task):** actual `vsce publish` needs a registered Marketplace publisher `rmsharp` + a PAT. `preview: true` is set; flip it when the listing is deemed stable.
-3. The deferred polish items (`BACKLOG.md` "Polish / deferred": **the duplicated `EXTENSION_ID` test constant**, indented-code-block phantom, setext headings) are **separate future sessions**, not part of release prep.
+### What You Must Do (there is no forced next deliverable — WAIT for the operator to pick)
+v1 release prep is finished. **Do not invent work.** The operator chooses from:
+1. **Operator-only (not an agent task):** actual `vsce publish` — needs a registered Marketplace publisher `rmsharp` + a PAT. `preview: true` is set; flip it when the listing is deemed stable. (You can't do this; it's listed so you don't try.)
+2. **v2 features** (`BACKLOG.md` "Up Next"): Phase 6d/6e (YAML/cell-option completion, embedded-cell language completion) + Phase 7 (authoring aids). These are real implementation work → **strict TDD applies** (`/tdd`), with the §3.3 pure-`core/` guardrail and the established vitest + `@vscode/test-electron` harnesses.
+3. **Polish / deferred** (`BACKLOG.md` "Polish / deferred", each its own session): the **deliberate dev-toolchain upgrade** (clear the `npm audit` advisories the RIGHT way — bump esbuild/vitest, resolve mocha's serialize-javascript, re-run the full matrix; NOT `npm audit fix --force`, which downgrades mocha — Learning #20); de-duplicate the 8-copy `EXTENSION_ID` test constant (Learning #18); the indented-code-block phantom; setext headings.
+   FM #18: ONE deliverable per session — pick one, close out.
 
 ### Useful starting context
+- **`npm audit` posture (Session 13, → Learning #20):** all 7 vulns are dev-only because **what ships is the esbuild bundle (`dist/extension.js`) + static assets, never `node_modules`**, and `package.json` `"dependencies": {}` is empty (the bundled extension imports zero vulnerable packages — verified 4 ways). `npm audit` **exits 0 regardless of findings** (parse `npm audit --json`, don't trust the exit code). `npm audit fix --force` is net-negative here (downgrades mocha 10→8.1.3, major-bumps esbuild/vitest). Decision recorded in `docs/SECURITY-AUDIT.md`. **The one trigger to re-evaluate: if a runtime `dependency` is ever added.**
 - **All v1 features done — reuse the patterns.** Pure `core/` (`frontmatter`, `citations`, `refs`, `qmd/model`, `render-args`, `preview-*`, `version`, `execution-delegate`) is `vscode`-free; adapters live in `features/` + `providers/`; both harnesses (vitest unit + `@vscode/test-electron` integration) are established. `extension.ts:18-30` wires everything.
-- **Item 2 done (Session 11):** full marketplace metadata is in `package.json` (top block, ~lines 1-45). The runtime extension ID is now **`rmsharp.vscode-quarto-ext`** — the 8 integration suites' `EXTENSION_ID` constants were updated to match (**Learning #18: re-run `test:integration` after ANY publisher/name change** — package + 190 unit stayed green while integration RED'd). The icon is `media/icon.png` (regenerate from `scratchpad/icon.svg` via `rsvg-convert` if needed — Learning #18b). `README.md` is the marketplace listing (relative links work; screenshots pending item 3).
-- **Marketplace publish itself needs a Marketplace publisher account + PAT** (operator step) — `publisher: rmsharp` must be registered before `vsce publish`. `preview: true` is set as the honest 0.0.1 first-listing state (flip when you decide it's stable).
+- **Marketplace state (Sessions 11/12):** full metadata is in `package.json` (top block, ~lines 1-45). Runtime extension ID is **`rmsharp.vscode-quarto-ext`** — the 8 integration suites' `EXTENSION_ID` constants hard-code it (**Learning #18: re-run `test:integration` after ANY publisher/name change**). Icon `media/icon.png` (regenerate from `scratchpad/icon.svg` via `rsvg-convert` if needed). `README.md` is the marketplace listing with a `## Screenshots` gallery (5 shots under `media/screenshots/`, excluded from the `.vsix`; render only while the repo is PUBLIC — Learning #19).
 - **`microsoft/vscode-markdown-languageservice` (MIT)** is reference only; never copy Posit's AGPL code (licensing hard gate). **Original art only** for icons/branding (Learning #18b).
 
 ### How You Will Be Evaluated
@@ -31,9 +32,55 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 *Session history accumulates below this line. Newest session at the top.*
 
 ### What Session 13 Did — 2026-06-28
-**Deliverable:** v1 release-prep — the **`npm audit` posture decision** (the last agent-actionable item before the operator-only `vsce publish`). (IN PROGRESS)
-**Started:** 2026-06-28
-**Status:** Session claimed. Work beginning.
+**Deliverable:** v1 release-prep — the **`npm audit` posture decision** (the last agent-actionable release-prep item). **COMPLETE + documented + release gate re-verified. v1 release prep is now AGENT-COMPLETE; only the operator-only `vsce publish` remains.**
+
+**Decision: accept all 7 vulnerabilities as dev-only** (none ship), documented in a new `docs/SECURITY-AUDIT.md`. **No code/dependency/`package.json` change** — no fix was applied because none is clean + non-breaking, and `--force` is net-negative.
+
+**What was done (commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `621a281` chore: claim Session 13 (WIP stub).
+2. (this close-out commit: `docs/SECURITY-AUDIT.md` + BACKLOG/CHANGELOG/ROADMAP + SESSION_NOTES + CLAUDE.md Learning #20; + a separate dashboard-refresh commit.)
+
+**The investigation (read-only) and its evidence:**
+- `npm audit --json`: **7 vulns** = `esbuild`≤0.24.2 (mod, direct devDep — the bundler), `vite`≤6.4.2 (high, transitive via vitest), `vitest`≤3.2.5 (**critical**, direct devDep — unit runner), `@vitest/mocker` + `vite-node` (mod, transitive), `serialize-javascript`≤7.0.4 (high, transitive via mocha), `mocha` (mod, direct devDep — integration runner).
+- **"None ship" verified FOUR ways (gate d — faithfulness, not assertion):** (1) `package.json` `"dependencies": {}` is empty — zero runtime deps; (2) `grep -rnE "esbuild|vite|vitest|mocha|serialize-javascript" src/` → no matches; (3) the shipped bundle `dist/extension.js` (45.23 KB) contains none of their names; (4) `vsce ls` / `npm run package` show the `.vsix` ships only `dist/extension.js` + 7 static files (LICENSE/NOTICE/README/package.json/language-configuration.json/grammar/icon) — **no `node_modules`**.
+- **No clean fix exists:** `npm audit fix --dry-run` (semver-safe) fixes **0 of 7**; every remediation is gated behind `--force`, which is breaking AND net-negative — it would major-bump esbuild (0.24→0.28) & vitest (2→3) and **DOWNGRADE mocha (10.8.2→8.1.3)**. That risks the verified 190-unit/42-integration/clean-`.vsix` pipeline to silence advisories on surfaces this project never uses (esbuild/vite **dev server**, **Vitest UI server**, serialize-javascript via crafted input — we run headless one-shot builds/tests).
+
+**Verification (release gate green; nothing else changed):**
+- `npm run package` → clean **10-file** `.vsix` (29.09 KB): `[Content_Types].xml` + `extension.vsixmanifest` + 8 content files; `LICENSE`→`LICENSE.txt`, `README.md`→`readme.md` (Learning #17). No test/fixture/`node_modules`/`.claude` leak.
+- **Unit/integration baselines unchanged at 190/42** — definitionally, because zero code/dependency/`package.json` changed (only markdown docs added/edited). Not re-run (no surface they cover changed); stated, not silently skipped.
+- **Phase 3E (runtime smoke test):** N/A by design — pure documentation, **no runtime/extension behavior changed**, so there is nothing to launch-verify; the relevant release gate is the clean package, which passed. (Explicit, not a silent skip — FM #24.)
+- §3.3 guardrail: untouched (no `src/` change).
+
+**🔑 Load-bearing findings (→ CLAUDE.md Learning #20):**
+- **What `npm audit` scans ≠ what ships.** It scans the whole 487-dep dev tree; the extension ships the **esbuild bundle + static assets, never `node_modules`**. A vuln is user-facing only if it's a **runtime `dependency` that gets bundled** — and `dependencies:{}` here means none are.
+- **`npm audit` exits 0 regardless of findings** (the exit code keys off flags, not vuln presence) — never gate a script on it; parse `--json`.
+- **`npm audit fix --force` can be net-negative** — here it *downgrades* mocha. Treat it as suspect; do real toolchain upgrades as their own verified pass.
+
+**Key files:**
+- `docs/SECURITY-AUDIT.md` — the posture note (decision, four-way "none ship" evidence, per-advisory table, why-not-fix, when-to-revisit). **NEW.**
+- `package.json` — `"dependencies": {}` (the load-bearing fact); the 7 vulns are all under `devDependencies`. (Read-only this session.)
+- `CLAUDE.md` — Learning #20.
+- `BACKLOG.md` — `npm audit` item `[x]`; v1-release-prep parent `[x]`; new Polish item "deliberate dev-toolchain upgrade".
+- `CHANGELOG.md` / `ROADMAP.md` — release-prep-complete entries.
+
+**Gotchas for the next session:**
+1. **There is no forced next deliverable — WAIT for the operator to pick** (v2 feature, a Polish item, or they do the operator-only `vsce publish`). Don't invent work (FM #2 keep-going / FM #13).
+2. **`vsce publish` is an OPERATOR step** — needs a registered Marketplace publisher `rmsharp` + a PAT. You cannot do it; don't try.
+3. **The `npm audit` set will reappear on every `npm install`/audit** — it is *accepted*, not fixed. `docs/SECURITY-AUDIT.md` is the record; re-check with `npm audit --json` and confirm the set is unchanged + still all `devDependencies`. **Re-evaluate the instant a runtime `dependency` is added** (it WOULD ship).
+4. **If you clear the advisories for real** (the new Polish item), do bump + full-matrix re-verify, **NOT `npm audit fix --force`** (it downgrades mocha) — Learning #20.
+5. **`dashboard_history.jsonl` changes whenever you run the dashboard** — fold it into the close-out dashboard-refresh commit. **The dashboard's "critical" risk flag was driven by these 7 dev-only vulns** — it will likely stay flagged until a real toolchain upgrade clears them; that's cosmetic, the posture is documented.
+6. **`.vsix` is gitignored** (`*.vsix`) — the `vscode-quarto-ext-0.0.1.vsix` produced by the release-gate check is not committed.
+
+**Self-assessment (Session 13): 9/10.**
+- **+** Delivered exactly the one item, no bundling (FM #18 held — did NOT start any Polish/v2 work; surfaced them as options for the operator instead). **Faithfulness was the crux and I held gate d:** I did not take the handoff's "7 dev-only vulns, none ship" on faith — I proved "none ship" four independent ways (empty `dependencies`, `src/` grep, the shipped-bundle grep, `vsce ls`), which is the difference between a documented decision and a hopeful one. Caught the **`npm audit fix --force` mocha *downgrade*** via `--dry-run` before recommending against it (a wrong "fix" that a naive `audit fix --force` would have silently applied). Reconciled the "8-file vs 10-file `.vsix`" terminology by running the actual `npm run package` rather than guessing (the `vsce ls` content count is 8; the packaged count is 10 incl. the 2 manifest files) — and corrected the CHANGELOG accordingly. Documented the decision durably (`docs/SECURITY-AUDIT.md`) with a clear re-evaluation trigger, and distilled the reusable lesson into Learning #20. Treated Phase 3E honestly (N/A-by-design with the reason, not a silent skip).
+- **−** The Phase 1B stub edit FAILED on the first attempt (the harness didn't count my earlier *partial* read of SESSION_NOTES.md as a read) — I had to re-read the section and retry; minor friction, the stub still landed before any technical work (the protocol order held). I also initially wrote "8-file `.vsix`" in the CHANGELOG from the `vsce ls` count before running the authoritative `npm run package` — caught and corrected in-session, but the cleaner order is to package first, then write the count.
+
+#### Session 12 Handoff Evaluation (by Session 13) — Phase 3A
+**Score: 9/10.** Accurate, well-scoped, and it correctly framed the `npm audit` item as the last small thing — turning this into a focused decision pass, not archaeology.
+- **What helped:** The ACTIVE TASK named the exact remaining item and pre-stated the shape of the answer — *"7 dev-only vulns, none ship... document as accepted (dev-only `devDependencies`, not in the bundled `dist/extension.js`), or `npm audit fix` if clean + non-breaking"* — which is precisely the decision tree I executed. The FM #18 scoping ("don't also start the deferred polish") was right and I held to it. The baselines (10-file `.vsix` 29.09 KB, 190/42) all matched reality (I reconfirmed the package). The Session 12 gotcha list (push+public invariants, `--disable-extensions`, image-cache) wasn't needed for this item but was accurate.
+- **What was slightly off / discovered this session (now Learning #20 — not Session 12's fault):** the handoff said "7 dev-only vulns, none ship" as an established fact; it was *correct*, but it hadn't been *proven* — I had to establish the four-way evidence myself, and along the way found two things no prior note mentioned: `npm audit` **exits 0 regardless of findings**, and `npm audit fix --force` **downgrades mocha**. Neither is a defect in the handoff (no prior session ran the audit decision); they're genuine discoveries now captured.
+- **What was wrong:** Nothing material. The vuln count (7), the dev-only framing, the baselines, and the "operator-only publish" caveat all held.
+- **ROI:** Strongly positive — the pre-stated decision tree + accurate baselines meant the session was investigation + documentation, not rediscovery.
 
 ### What Session 12 Did — 2026-06-28
 **Deliverable:** v1 release-prep **item 3** — F5 visual pass + README screenshots. **COMPLETE + verified. Release prep is now down to one item (the `npm audit` decision) + the operator publish.**
