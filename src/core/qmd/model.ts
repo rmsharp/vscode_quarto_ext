@@ -22,6 +22,13 @@ export interface Heading {
   text: string;
   /** 0-based line index of the heading. */
   line: number;
+  /**
+   * The explicit identifier from a trailing Pandoc attribute block
+   * (`## Methods {#sec-methods}` → `"sec-methods"`), or `undefined` if the
+   * heading has none. Captured structurally (kind-agnostic) so the cross-ref
+   * layer (`core/refs.ts`) can consume `sec-` section labels without re-parsing.
+   */
+  id?: string;
 }
 
 /**
@@ -80,6 +87,12 @@ const ATX_CLOSING = /(?:^|[ \t]+)#+[ \t]*$/;
  */
 const ATX_ATTRIBUTE = /(?:^|[ \t]+)\{[^}]*\}[ \t]*$/;
 /**
+ * The `#identifier` inside a Pandoc attribute block. Pandoc separates id, classes
+ * (`.x`), and key=val pairs by whitespace, so the id runs from `#` to the next
+ * whitespace or closing brace: `{#sec-intro .unnumbered}` → `sec-intro`.
+ */
+const ATTR_ID = /#([^\s}]+)/;
+/**
  * A fence opener: up to 3 spaces of indentation (CommonMark §4.5 — 4+ spaces is
  * indented code, not a fence), then ≥3 of ONE fence char (backtick or tilde),
  * then anything. Capturing the char lets the scanner require the closer to use
@@ -119,10 +132,19 @@ interface OpenCellFence extends OpenFence {
   readonly startLine: number;
 }
 
+/** A document line that is live content — outside front matter, comments, and code fences. */
+export interface BodyLine {
+  /** 0-based line index. */
+  line: number;
+  /** The raw line text. */
+  text: string;
+}
+
 /** The parsed structural regions of a document. */
 interface Regions {
   headings: Heading[];
   cells: Cell[];
+  bodyLines: BodyLine[];
 }
 
 /**
@@ -143,6 +165,7 @@ function scanRegions(text: string): Regions {
   const lines = text.split(/\r?\n/);
   const headings: Heading[] = [];
   const cells: Cell[] = [];
+  const bodyLines: BodyLine[] = [];
   let inFrontmatter = false;
   let inComment = false;
   let open: OpenCellFence | null = null;
@@ -201,6 +224,9 @@ function scanRegions(text: string): Regions {
       continue;
     }
 
+    // A live content line (prose or a heading) — outside every skip-region.
+    bodyLines.push({ line: i, text: line });
+
     // An ATX heading.
     const m = ATX_HEADING.exec(line);
     if (m) {
@@ -217,7 +243,7 @@ function scanRegions(text: string): Regions {
     cells.push(makeCell(open, lines.length - 1, lines, false));
   }
 
-  return { headings, cells };
+  return { headings, cells, bodyLines };
 }
 
 /** Find every ATX heading in `text`, in document order. */
@@ -228,6 +254,16 @@ export function findHeadings(text: string): Heading[] {
 /** Find every executable `{lang}` code cell in `text`, in document order. */
 export function findAllCells(text: string): Cell[] {
   return scanRegions(text).cells;
+}
+
+/**
+ * Every live content line — prose and heading lines that are outside YAML front
+ * matter, block HTML comments, and code fences. The cross-ref layer scans these
+ * for inline `{#fig-…}`/`{#tbl-…}` attribute blocks without re-deriving the
+ * skip-regions (the shared-scanner guarantee — see Learning #14).
+ */
+export function findBodyLines(text: string): BodyLine[] {
+  return scanRegions(text).bodyLines;
 }
 
 /** True if `line` closes the given open fence (same char, length ≥ opener). */
@@ -344,9 +380,16 @@ function sectionEndOf(headings: Heading[], k: number, lastLine: number): number 
  * `## ##` → dropped.
  */
 function parseHeadingLine(m: RegExpExecArray, line: number): Heading | null {
+  const attribute = ATX_ATTRIBUTE.exec(m[2]);
+  const id = attribute ? ATTR_ID.exec(attribute[0])?.[1] : undefined;
   const text = m[2]
     .replace(ATX_ATTRIBUTE, "")
     .replace(ATX_CLOSING, "")
     .trim();
-  return text ? { level: m[1].length, text, line } : null;
+  if (!text) {
+    return null;
+  }
+  return id
+    ? { level: m[1].length, text, line, id }
+    : { level: m[1].length, text, line };
 }

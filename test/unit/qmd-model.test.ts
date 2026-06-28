@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildOutline,
   findAllCells,
+  findBodyLines,
   findCellAtPosition,
   findHeadings,
 } from "../../src/core/qmd/model";
@@ -164,15 +165,21 @@ describe("findHeadings — YAML front matter", () => {
 });
 
 describe("findHeadings — Pandoc/Quarto heading attributes (review #8)", () => {
-  it("strips a trailing {#sec-id} section identifier from the display text", () => {
+  it("strips a trailing {#sec-id} section identifier but keeps it structurally", () => {
     expect(findHeadings("## Methods {#sec-methods}")).toEqual([
-      { level: 2, text: "Methods", line: 0 },
+      { level: 2, text: "Methods", line: 0, id: "sec-methods" },
     ]);
   });
 
-  it("strips a {#id .class} attribute block with classes/options", () => {
+  it("strips a {#id .class} attribute block but keeps the id structurally", () => {
     expect(findHeadings("# Introduction {#sec-intro .unnumbered}")).toEqual([
-      { level: 1, text: "Introduction", line: 0 },
+      { level: 1, text: "Introduction", line: 0, id: "sec-intro" },
+    ]);
+  });
+
+  it("captures a non-cross-ref {#id} structurally (kind-agnostic at the model layer)", () => {
+    expect(findHeadings("## Background {#my-background}")).toEqual([
+      { level: 2, text: "Background", line: 0, id: "my-background" },
     ]);
   });
 
@@ -201,6 +208,32 @@ describe("findHeadings — empty closing-hash headings (review #4)", () => {
   it("still keeps real text before a closing hash run", () => {
     expect(findHeadings("## Centered ##")).toEqual([
       { level: 2, text: "Centered", line: 0 },
+    ]);
+  });
+});
+
+describe("findBodyLines — content lines outside skip-regions", () => {
+  it("excludes front matter, HTML comments, and code-fence lines; keeps prose and headings", () => {
+    const text = [
+      "---", // 0  front matter open
+      "title: T", // 1  front matter
+      "---", // 2  front matter close
+      "# Heading", // 3  body (heading line)
+      "", // 4  body (blank prose)
+      "<!--", // 5  comment open
+      "hidden", // 6  comment body
+      "-->", // 7  comment close
+      "prose line", // 8  body
+      "```{python}", // 9  fence open (excluded)
+      "x = 1", // 10 fence content (excluded)
+      "```", // 11 fence close (excluded)
+      "after", // 12 body
+    ].join("\n");
+    expect(findBodyLines(text)).toEqual([
+      { line: 3, text: "# Heading" },
+      { line: 4, text: "" },
+      { line: 8, text: "prose line" },
+      { line: 12, text: "after" },
     ]);
   });
 });
