@@ -156,13 +156,28 @@ describe("refIdAt — the cross-ref id under the cursor", () => {
 
 describe("crossrefCompletionContext — detecting an in-progress @ref", () => {
   it("returns the @ position and empty typed right after a bare @", () => {
-    expect(crossrefCompletionContext("See @", 5)).toEqual({ start: 4, typed: "" });
+    expect(crossrefCompletionContext("See @", 5)).toEqual({
+      start: 4,
+      typed: "",
+      end: 5,
+    });
   });
 
   it("returns the partial text typed after @fig-", () => {
     expect(crossrefCompletionContext("See @fig-pl", 11)).toEqual({
       start: 4,
       typed: "fig-pl",
+      end: 11,
+    });
+  });
+
+  it("E: reports the token end past the cursor so the whole @id can be replaced", () => {
+    // Cursor right after the '@' (col 5) but 'fig-plot' already follows; end is
+    // the column after the existing token, before the trailing '.'.
+    expect(crossrefCompletionContext("See @fig-plot.", 5)).toEqual({
+      start: 4,
+      typed: "",
+      end: 13,
     });
   });
 
@@ -192,5 +207,57 @@ describe("findLabel — locate a label definition by id", () => {
 
   it("returns null for an unknown id", () => {
     expect(findLabel("## Methods {#sec-m}", "fig-nope")).toBeNull();
+  });
+});
+
+describe("indexLabels — review fixes (adversarial, Session 8)", () => {
+  it("A: heading id column points at the trailing {#sec-id}, not an earlier mention", () => {
+    // The id text also appears in an inline code span earlier on the line.
+    const text = "## Use `#sec-intro` here {#sec-intro}";
+    expect(indexLabels(text)).toEqual([
+      { id: "sec-intro", kind: "sec", line: 0, column: 27 },
+    ]);
+  });
+});
+
+describe("indexLabels — cell label value robustness (review C)", () => {
+  it("C1: indexes a YAML-quoted cell label value", () => {
+    const text = ['```{python}', '#| label: "fig-quoted"', "x=1", "```"].join(
+      "\n",
+    );
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-quoted", kind: "fig", line: 1, column: 11 },
+    ]);
+  });
+
+  it("C2: stops the id at trailing punctuation so it matches @ref usage", () => {
+    const text = ["```{python}", "#| label: fig-plot.", "x=1", "```"].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-plot", kind: "fig", line: 1, column: 10 },
+    ]);
+  });
+});
+
+describe("indexLabels — headings define only sections (review I)", () => {
+  it("I: does NOT index a non-sec id carried on a heading line", () => {
+    // A heading with a {#fig-…} id is not a figure; @fig-overview won't resolve
+    // in a real Quarto render, so it must not be indexed.
+    expect(indexLabels("## Figures {#fig-overview}")).toEqual([]);
+  });
+
+  it("I: still indexes a real inline fig on a non-heading prose line", () => {
+    const text = ["## Figures {#sec-figs}", "![p](p.png){#fig-real}"].join("\n");
+    expect(indexLabels(text).map((l) => l.id)).toEqual(["sec-figs", "fig-real"]);
+  });
+});
+
+describe("indexLabels — inline code spans are not labels (review H)", () => {
+  it("H: ignores a {#fig-…} inside an inline backtick code span", () => {
+    expect(indexLabels("Add `{#fig-myplot}` after the image.")).toEqual([]);
+  });
+
+  it("H: still indexes a real label outside the code span on the same line", () => {
+    const text = "Syntax `{#fig-demo}`: ![p](p.png){#fig-real}";
+    expect(indexLabels(text).map((l) => l.id)).toEqual(["fig-real"]);
   });
 });

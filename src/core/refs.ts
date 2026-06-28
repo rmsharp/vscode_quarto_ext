@@ -27,6 +27,12 @@ export interface RefCompletionContext {
   start: number;
   /** The id text typed between the `@` and the cursor (may be `""`). */
   typed: string;
+  /**
+   * 0-based column just past the end of the id token (id characters continue
+   * past the cursor when editing mid-token). The provider replaces `[start, end)`
+   * so accepting a completion does not duplicate a trailing suffix.
+   */
+  end: number;
 }
 
 /** A cross-reference label definition found in the document. */
@@ -45,10 +51,14 @@ export interface RefLabel {
 const KIND_PREFIX = /^(fig|tbl|sec|eq|lst)-/;
 /**
  * A Quarto cell-option line declaring a label: `#| label: fig-plot` (or `//|`
- * for ojs/js cells). Group 1 is the label value; because the pattern is anchored
- * at `^`, the value's column is `match[0].length - value.length`.
+ * for ojs/js cells), with an optional surrounding YAML quote. Group 1 is the id,
+ * matched with the same character class as inline labels so it stops at quotes
+ * and trailing punctuation (an over-greedy `\S+` kept a stray `.` in the id, or
+ * dropped a quoted value whole). Because the pattern is anchored at `^`, the id's
+ * column is `match[0].length - id.length`.
  */
-const CELL_LABEL_OPTION = /^\s*(?:#|\/\/)\|\s*label:\s*(\S+)/;
+const CELL_LABEL_OPTION =
+  /^\s*(?:#|\/\/)\|\s*label:\s*["']?([A-Za-z0-9_][A-Za-z0-9_-]*)/;
 /**
  * An inline Pandoc attribute block declaring a cross-ref id on an image, div, or
  * display equation: `…){#fig-plot}`, `::: {#tbl-x}`, `$$ … $$ {#eq-y}`. Group 1
@@ -57,6 +67,12 @@ const CELL_LABEL_OPTION = /^\s*(?:#|\/\/)\|\s*label:\s*(\S+)/;
  * inline `{#sec-…}` is not double-counted.
  */
 const INLINE_LABEL = /\{#((?:fig|tbl|eq|lst)-[A-Za-z0-9_][A-Za-z0-9_-]*)/g;
+/**
+ * An inline code span — a run of N backticks closed by the next run of exactly N
+ * (CommonMark). Its content is rendered literally, so a `{#fig-…}` shown inside
+ * backticks is documentation, not a label; it is masked out before scanning.
+ */
+const INLINE_CODE_SPAN = /(`+)(?:(?!\1)[\s\S])*?\1/g;
 /**
  * A cross-reference *usage* — `@fig-plot`, `@sec-intro`. The negative lookbehind
  * rejects an `@` preceded by a word character (so `user@fig-x.org` is an email,
@@ -77,9 +93,11 @@ function kindOf(id: string): RefKind | null {
  */
 export function indexLabels(text: string): RefLabel[] {
   const labels: RefLabel[] = [];
+  const headingLines = new Set<number>();
 
   // Source 1 — `sec-` ids on headings. (Headings only ever define sections.)
   for (const heading of findHeadings(text)) {
+    headingLines.add(heading.line);
     if (!heading.id || kindOf(heading.id) !== "sec") {
       continue;
     }
@@ -114,8 +132,16 @@ export function indexLabels(text: string): RefLabel[] {
   }
 
   // Source 3 — inline `{#fig-…}`/`{#tbl-…}`/`{#eq-…}`/`{#lst-…}` attribute
-  // blocks on prose body lines (images, divs, display equations).
-  for (const { line, text: lineText } of findBodyLines(text)) {
+  // blocks on prose body lines (images, divs, display equations). Heading lines
+  // are body lines too, but a non-sec id on a heading is not a figure/table —
+  // headings contribute labels only through Source 1, so skip them here.
+  for (const { line, text: rawText } of findBodyLines(text)) {
+    if (headingLines.has(line)) {
+      continue;
+    }
+    // Mask inline code spans (length-preserving) so a `{#fig-…}` shown literally
+    // in backticks is not indexed; column offsets stay valid.
+    const lineText = maskInlineCode(rawText);
     INLINE_LABEL.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = INLINE_LABEL.exec(lineText)) !== null) {
@@ -183,7 +209,18 @@ export function crossrefCompletionContext(
   if (i > 0 && WORD_CHAR.test(lineText[i - 1])) {
     return null;
   }
-  return { start: i, typed: lineText.slice(i + 1, column) };
+  // Walk forward over any id characters the cursor is sitting inside, so the
+  // whole `@id` token (not just up to the cursor) can be replaced on accept.
+  let end = column;
+  while (end < lineText.length && ID_CHAR.test(lineText[end])) {
+    end++;
+  }
+  return { start: i, typed: lineText.slice(i + 1, column), end };
+}
+
+/** Replace inline code spans with equal-length blanks so their content is not scanned. */
+function maskInlineCode(line: string): string {
+  return line.replace(INLINE_CODE_SPAN, (span) => " ".repeat(span.length));
 }
 
 /** Keep only the first `RefLabel` for each id, preserving order. */
@@ -201,9 +238,12 @@ function dedupeById(labels: RefLabel[]): RefLabel[] {
 /**
  * The 0-based column where `#<id>` resolves to the start of `<id>` on `line`, or
  * 0 if it cannot be located (defensive — go-to-definition still lands on the line).
+ * Uses the LAST occurrence: the `{#id}` attribute block is trailing, so an
+ * identical `#id` substring appearing earlier on the line (e.g. inside an inline
+ * code span or quoted in the heading text) must not win.
  */
 function idColumn(text: string, line: number, id: string): number {
   const lineText = text.split(/\r?\n/)[line] ?? "";
-  const hashIndex = lineText.indexOf(`#${id}`);
+  const hashIndex = lineText.lastIndexOf(`#${id}`);
   return hashIndex >= 0 ? hashIndex + 1 : 0;
 }
