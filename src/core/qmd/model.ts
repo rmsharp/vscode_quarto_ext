@@ -8,10 +8,16 @@
  * consumes it for the document outline; Phases 6b–6e (cross-refs, citations)
  * build their indexes on top of the same parse.
  *
- * Known limitation (intentional v1 scope): only ATX headings (`#`..`######`) are
- * recognized. Setext headings (a line underlined with `===` or `---`) are not —
- * disambiguating a setext `---` from a thematic break and the front-matter fence
- * needs its own pass; tracked in the backlog.
+ * Known limitations (intentional v1 scope; tracked in the backlog):
+ *  - Only ATX headings (`#`..`######`) are recognized. Setext headings (a line
+ *    underlined with `===` or `---`) are not — disambiguating a setext `---`
+ *    from a thematic break and the front-matter fence needs its own pass.
+ *  - CommonMark §4.4 *indented* code blocks (a line indented ≥4 spaces after a
+ *    blank line) are NOT modelled as a skip-region, so `findBodyLines` emits
+ *    them and the cross-ref index (`core/refs`) may pick up a `{#fig-…}` shown
+ *    inside one as a phantom label. A faithful fix must avoid false-skipping
+ *    4-space list-item continuation content (the model tracks no list context),
+ *    so it needs its own list-aware TDD pass. Fenced code (```/~~~) IS skipped.
  */
 
 /** An ATX (`#`..`######`) markdown heading outside any code fence / front matter. */
