@@ -5,29 +5,25 @@
 ---
 
 ## ACTIVE TASK
-**Task:** Implement **Phase 6c** of the architecture plan — **Citation completion**. Parse the `.bib` / CSL-JSON file(s) named in the YAML `bibliography:` key → citekeys; complete a **bare `@key`** (e.g. `@smith2020`) on the `@` trigger. **This is the last v1 phase — v1 ships when 6c is done** (Phases 1–5 + 6a–6c complete).
-**Status:** NOT STARTED. Phases 1 (skeleton) + 2 (highlighting) + 3 (render) + 4 (preview) + 5 (run-cell) + 6a (outline) + **6b (cross-refs)** are **COMPLETE + verified + adversarially hardened** (Sessions 2–8). Plan ratified.
-**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 6c" → implement **6c ONLY**, then close out (FM #18). v1 DoD is plan §7.
+**Task:** **v1 release prep.** Phase 6c (citation completion) is **DONE** — **v1 is now feature-complete**: Phases 1–5 + 6a–6c are all complete, verified, and adversarially hardened (Sessions 2–9). No v1 code feature remains. The next milestone is a packaging / README / marketplace-metadata pass to ship the `.vsix`.
+**Status:** v1 FEATURES COMPLETE. **190 unit + 42 integration** green; clean 9-file `.vsix` (bundle 43.3 KB). §3.3 guardrail held (no `vscode` import in `core/`).
+**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §7 (v1 DoD). Release-prep items in `BACKLOG.md` "Up Next".
 **Priority:** HIGH
-**⚠ STRICT TDD IS MANDATORY** (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15). Invoke `/tdd`; lead with the failing test; red → green → refactor, one behavior at a time.
+**⚠ STRICT TDD IS MANDATORY** for any code/bugfix (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15, #16). Pure packaging/metadata/doc edits with no logic are exempt but still need their normal verification (compile, package, render).
 
-### What You Must Do
-This is an **implementation** session (Development workstream). Deliverable: in a `.qmd` whose front matter has `bibliography: refs.bib`, typing `@` offers the citekeys from that bib (with title/author detail), inserting `@key`.
-1. Read plan §6 Phase 6c + §3.3 (pure-core guardrail). Skim `src/providers/crossref.ts` and `src/core/refs.ts` (Phase 6b) — **6c mirrors that shape**.
-2. **Two new pure-core pieces** (`vscode`-free, §3.3):
-   - **Read the `bibliography:` value from the YAML front matter.** The region model SKIPS front matter, so you need to read it. Options: a tiny focused parser for the `bibliography:` key (string or list form), OR add a YAML devDep. **No YAML lib is in the project yet** — decide and flag at the top of the session (a minimal `bibliography:`-only reader is likely enough for v1; full YAML is overkill). It can live in `core/` (pure, takes the doc text).
-   - **A `.bib` / CSL-JSON parser → citekeys** (`core/citations.ts` or `core/bib.ts`): `@article{key, title={…}, author={…}, year={…}}` → `{ key, title, author, year }`. CSL-JSON is a JSON array with `id`/`title`/`author`. TDD both headlessly.
-3. **Adapter** `providers/citation.ts` + `registerCitationProviders(context)`: a `CompletionItemProvider` (trigger `@`) that reads the bib path from the doc, resolves it relative to `dirname(doc.uri)`, reads the file (fs — adapter only), parses (core), and offers citekeys. **Reuse `crossrefCompletionContext` + `isReferenceableLine` from `core/refs.ts`** (a bare `@key` is detected the same way; gate to prose like 6b). Wire in `src/extension.ts` `activate()` after `registerCrossrefProviders(context)` (`:28`).
-4. **Coexistence with 6b:** both the cross-ref and citation completion providers fire on `@`; VS Code MERGES them. Cross-refs return `@fig-/@sec-…` items; citations return `@key` items. The editor filters by typed text, so `@fig-` shows cross-refs and `@smith` shows citations. No conflict — just register both. (Go-to-definition for citekeys is optional/v2.)
-5. Verify (TDD): `npm run compile` · `npm test` (the bib parser is the bulk) · `npm run test:integration` via `vscode.executeCompletionItemProvider(uri, pos, "@")` over a fixture `.qmd` + fixture `.bib` (env-independent, faithful — mirror `test/integration/suite/crossref.test.ts`). Make the fixture render-clean (see gotcha #2 below). F5 only for the popup's visual feel.
-6. Close out after 6c. **v1 is then feature-complete** — note that in the handoff (a packaging/README/marketplace-prep pass may be the next milestone).
+### What You Must Do (v1 release prep — a packaging session, mostly non-code)
+This is largely a metadata/docs pass, not feature work (FM #18: ONE deliverable — don't also start the deferred polish items).
+1. Read plan §7 (v1 DoD) + `BACKLOG.md` "Up Next".
+2. **Add a git remote** (the operator creates the GitHub repo). Then: add `repository` to `package.json`, DROP `--allow-missing-repository` from the `package` script, and lift the README relative-link restriction (Learning #5).
+3. **Marketplace metadata:** a real `publisher` id, an `icon`, `keywords`, `repository`/`bugs`/`homepage`, polished `displayName`/`description`; a proper `README.md` (features + screenshots/GIFs captured from an F5 session) for the listing.
+4. **F5 visual pass (the standing residue across ALL phases):** no `code` CLI here, so popups/outline/preview-webview/notification **visuals** are integration-proven but never eyeballed. Do one manual F5 pass to confirm the citation + cross-ref completion popups, the Outline view, the preview webview, and the run-cell keybindings look right; capture screenshots for the README.
+5. Decide the `npm audit` posture (7 dev-only vulns, none ship — document as accepted, or bump if clean).
+6. The deferred polish items (`BACKLOG.md` "Polish / deferred": indented-code-block phantom, setext headings) are **separate future sessions**, not part of release prep.
 
 ### Useful starting context
-- **Phases 1–6b are done — reuse them.** All green: **150 unit + 34 integration**, clean 9-file `.vsix` (bundle 36.3 KB). `core/`-vs-adapter boundary + both harnesses established.
-- **`core/qmd/model.ts` is the shared region model (Learning #14) — consume it, don't duplicate it.** `scanRegions(text)` → `{headings, cells, bodyLines}` is the single line pass; `findHeadings`/`findAllCells`/`findCellAtPosition`/`findBodyLines`/`buildOutline` are thin views. `core/cells.ts` is a re-export shim.
-- **`core/refs.ts` (Phase 6b) is the template for 6c** and exposes reusable helpers: `crossrefCompletionContext(lineText, col)` (detects the `@…` context, returns `{start, typed, end}`) and `isReferenceableLine(text, line)` (true only on prose/heading lines — gate citations to these too). `refIdAt`/`indexLabels`/`findLabel` are cross-ref-specific.
-- **`src/providers/crossref.ts` is the adapter template** — completion builds an `{inserting, replacing}` range from the context; gates on `isReferenceableLine`. Mirror this for citations.
-- **Provider-via-`executeCompletionItemProvider` is the faithful, env-independent test** (Learnings #3/#9/#14) — runs in the real downloaded host, no CLI/Jupyter. `test/integration/suite/crossref.test.ts` is the template (note the in-cell guard tests + the `replaceRange` helper).
+- **All v1 features done — reuse the patterns.** Pure `core/` (`frontmatter`, `citations`, `refs`, `qmd/model`, `render-args`, `preview-*`, `version`, `execution-delegate`) is `vscode`-free; adapters live in `features/` + `providers/`; both harnesses (vitest unit + `@vscode/test-electron` integration) are established. `extension.ts:18-30` wires everything.
+- **Phase 6c (this session):** `core/frontmatter.ts` `bibliographyPaths(text)` (scalar/flow/block forms, comment-aware); `core/citations.ts` `parseCitations(content)` (BibTeX + CSL-JSON) and `citationCompletionContext(line,col)` (citekey-aware `@`-token — `:`/`.` keys); `src/providers/citation.ts` adapter (reads bib relative to `dirname(doc)`, gates on `isReferenceableLine`). See **Learning #16** for the load-bearing traps.
+- **No git remote yet** → `vsce package` needs `--allow-missing-repository` (baked into `npm run package`); README must avoid relative links. Both lift once a remote + `repository` exist.
 - **`microsoft/vscode-markdown-languageservice` (MIT)** is reference only; never copy Posit's AGPL code (licensing hard gate).
 
 ### How You Will Be Evaluated
@@ -38,9 +34,63 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 *Session history accumulates below this line. Newest session at the top.*
 
 ### What Session 9 Did — 2026-06-28
-**Deliverable:** Implement **Phase 6c** — Citation completion (last v1 phase). (IN PROGRESS)
-**Started:** 2026-06-28
-**Status:** Session claimed. Work beginning — strict TDD.
+**Deliverable:** Implement **Phase 6c** — Citation completion. **COMPLETE + verified + adversarially hardened. v1 IS NOW FEATURE-COMPLETE.**
+
+**What was done (9 commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `983bea7` chore: claim Session 9 (WIP stub).
+2. `9359bdc` feat: Phase 6c **core front-matter reader** — `src/core/frontmatter.ts` `bibliographyPaths(text)` (the region model skips front matter, so this reads the one key); scalar / flow-list / block-list forms, no YAML lib (decided up front — a focused reader is enough for v1). 8 TDD cycles.
+3. `14b413b` feat: Phase 6c **core citation parser** — `src/core/citations.ts` `parseCitations(content)`: BibTeX (brace/quote-aware scanner, skips `@string`/`@comment`/`@preamble`) + CSL-JSON, → `{key,title?,author?,year?}`; never throws on malformed input. 12 TDD cycles.
+4. `986f378` feat: Phase 6c **adapter + wiring** — `src/providers/citation.ts` (`registerCitationProviders`, CompletionItemProvider trigger `@`) reads bib paths relative to `dirname(doc)`, parses (core), offers citekeys with title detail; gated on `isReferenceableLine`; wired in `src/extension.ts:30`. Faithful integration tests via `executeCompletionItemProvider` over `citations.qmd` + `refs.bib`.
+5. `82af496` fix: review **A/D/E** (frontmatter) — zero-indent block list; trailing YAML comment; empty quoted scalar. TDD.
+6. `f7e8509` fix: review **B/F/G/H** (parser) — CSL BOM strip; quote-aware brace matching; paren-delimited entries; CSL year leaf type-guard. TDD.
+7. `bbde8a3` fix: review **C** (core) — `citationCompletionContext` with a citekey char class (`:`/`.` keys). TDD.
+8. `f793623` fix: review **C** (provider) — use `citationCompletionContext`; colon-key fixture + faithful integration test.
+9. `e19a939` test: review **I** — adapter degradation coverage (missing bib / no bib / non-file), discrimination established by break-revert.
+(+ this close-out commit: SESSION_NOTES, CLAUDE.md Learning #16, BACKLOG/CHANGELOG/ROADMAP; + a dashboard refresh.)
+
+**Verification (all green):**
+- `npm run compile` → tsc clean + esbuild (bundle 36.3 KB → **43.3 KB**, +frontmatter+citations+provider).
+- `npm test` → **190/190** vitest (+40: frontmatter 15, citations 25 incl. the context).
+- `npm run test:integration` → **42/42** in real downloaded VS Code: citation completion offers citekeys, attaches title detail, **coexists with cross-refs on `@`** (both `@knuth1984` and `@sec-intro` in one list), is **gated out of code cells**, completes a **colon citekey with a whole-token replace range** (no `:1984` dup), and the three degradation paths (no bib / missing bib / untitled) offer nothing without crashing.
+- `npm run package` → clean **9-file** `.vsix` (no test/fixture/`.claude` leak — verified via `vsce ls`).
+- Fixtures render **exit 0** (`citations.qmd`, `citations-nobib.qmd` via doc-level `execute: enabled: false`); `citations-missingbib.qmd` intentionally fails render (the condition under test; never rendered by the suite — documented like `render-error.qmd`).
+- §3.3 guardrail: `grep vscode src/core/` → only doc-comment matches; no import.
+
+**🔑 Load-bearing findings (→ CLAUDE.md Learning #16):**
+- **The region model skips front matter**, so reading `bibliography:` needs its own reader. A minimal no-YAML-lib reader is right for v1, but real front matter is messy — the review caught a **zero-indent block list**, a **trailing `# comment`**, and an **empty quoted scalar** the happy path missed.
+- **THE BIG TRAP — don't reuse a token-scanner across token grammars.** Reusing the cross-ref `crossrefCompletionContext`/`ID_CHAR` (`[A-Za-z0-9_-]`) for citekeys silently reintroduced the **finding-E class** (Learning #15(b)): citekeys contain `:`/`.` (biblatex/DBLP), so completion **stopped firing after a `:`** and **duplicated the suffix on a mid-token accept**. Fix: a citation-specific `citationCompletionContext` with a citekey char class.
+- **Parser robustness the happy path misses:** quote-aware brace matching (a stray `{` in a quoted value else discards the rest of the file); **strip a UTF-8 BOM before `JSON.parse`** (BOM-saved CSL-JSON otherwise loads zero citations, silently — CSL-only, BibTeX is BOM-immune via `indexOf`); paren-delimited entries; CSL date-parts leaf type-guard.
+- **Faithful tests for layered-defense adapter branches (gate d):** no single behavior test isolates one guard (defense in depth), so discrimination was established by **breaking each guard and observing the targeted test go RED, then reverting**.
+
+**Adversarial review outcome (5 lenses, 3 refute-by-default verifiers each; 13 raised → 12 confirmed / 1 refuted):**
+- **Fixed all 12 confirmed** (9 unique, commits `82af496`–`e19a939`), each TDD'd (RED before GREEN). A=zero-indent block list, B=CSL BOM, C=citekey charset (×2 findings), D=trailing YAML comment (×2), E=empty quoted scalar, F=quote-aware brace match, G=paren entries, H=CSL year leaf, I=adapter degradation tests.
+- **Refuted 1** (correctly, 3/3): a leading BOM defeating `.qmd` front-matter detection — verifiers confirmed it's not reachable in the real provider path.
+- **Resync-on-match-failure** (review F secondary suggestion) was **considered and NOT added** — no discriminating test exists (a missing brace balances against a later entry rather than returning −1), and strict TDD forbids untested code.
+
+**Key files (with anchors):**
+- `src/core/frontmatter.ts` — `bibliographyPaths` (`:54`), `frontMatterLines` (`:22`), `stripComment` (`:54`-ish, quote-aware), `unquote`. Pure.
+- `src/core/citations.ts` — `parseCitations` (`:29`, BOM strip + format detect), `citationCompletionContext` (`:~60`, `CITEKEY_CHAR`), `parseBibtex`/`matchBrace`/`matchParen` (quote-aware), `parseCslJson`/`cslAuthors`/`cslYear`. Pure.
+- `src/providers/citation.ts` — `registerCitationProviders` (`:27`); completion uses `citationCompletionContext` + `isReferenceableLine`, builds `{inserting,replacing}` range; `loadCitations` (`:94`, reads bib relative to `dirname(doc)`, scheme guard, try/catch). Adapter.
+- `src/extension.ts:30` — `registerCitationProviders(context)`.
+- `test/unit/frontmatter.test.ts` (15) · `test/unit/citations.test.ts` (25) · `test/integration/suite/citation.test.ts` (8). Fixtures: `citations.qmd`, `refs.bib` (+colon key `Knuth:1984`), `citations-nobib.qmd`, `citations-missingbib.qmd`.
+
+**Gotchas for the next session (v1 release prep):**
+1. **v1 is feature-complete — the next milestone is packaging, NOT a feature.** See the ACTIVE TASK above. Don't start the deferred polish items (separate sessions).
+2. **No git remote yet** → `vsce package` needs `--allow-missing-repository` (baked into `npm run package`); README avoids relative links. Adding a remote lifts both (Learning #5) and is the first release-prep step.
+3. **F5 visual residue is now cross-cutting** — every phase's UI visuals (popups, outline, preview webview, notifications, keybinding feel) are integration-proven but never eyeballed (no `code` CLI). Release prep is the natural time for one F5 pass + screenshots.
+4. **`citations-missingbib.qmd` is intentionally not render-clean** (it names an absent bib — the condition under test). Don't "fix" it; it's documented in its body like `render-error.qmd`.
+5. **`npm audit`** still 7 dev-only vulns (none ship). Decide the posture during release prep.
+
+**Self-assessment (Session 9): 9/10.**
+- **+** Delivered exactly Phase 6c's scope — no bundling (FM #18 held: stopped at v1-feature-complete, did NOT start release prep or the deferred polish). **Strict TDD held throughout** — RED observed before every GREEN across 20 core cycles (8 frontmatter + 12 citations) + every review fix; flagged the no-YAML-lib decision up front per the handoff. Kept §3.3 (three pure modules; thin adapter; grep-verified). **Reused the shared scanner** (`isReferenceableLine`) and the faithful `executeCompletionItemProvider` test pattern. Ran a **5-lens / 3-verifier refute-by-default adversarial review** (44 agents) that found **12 confirmed defects the happy-path suite missed** — including the citekey-charset bug, which is the **finding-E class Learning #15 claimed eliminated, silently reintroduced by reusing the cross-ref scanner** (exactly the kind of regression the review exists to catch). Fixed all 12 with TDD, and **established gate-d discrimination for the degradation tests by break-revert** rather than shipping green-but-hollow guards. Honest discipline: declined the untestable resync tweak; documented the non-render-clean fixture.
+- **−** I **shipped the citekey-charset bug in the first adapter pass** by following the handoff's "reuse `crossrefCompletionContext`" advice literally without checking that citekeys have a wider character grammar than cross-ref ids — a moment's thought about "do `:`/`.` keys fit `[A-Za-z0-9_-]`?" would have pre-empted it before the review (it's the precise trap Learning #15 had already flagged once). Likewise the YAML-edge defects (zero-indent list, trailing comment) were foreseeable from "real front matter is messier than the fixture." Both caught and fixed in-session, but they cost review cycles. Residual: the completion **popup's visual feel** is F5-unverified (no `code` CLI) — behavior is fully integration-proven; only pixels are unverified (stated honestly, not a skipped Phase 3E).
+
+#### Session 8 Handoff Evaluation (by Session 9) — Phase 3A
+**Score: 9/10.** An excellent, precise handoff — I was building the front-matter reader within minutes and nearly every pointer held.
+- **What helped:** The ACTIVE TASK named the deliverable, the plan line, the §3.3 guardrail, and a clean 6-step recipe. The single most valuable items: **"the region model SKIPS front matter, so you need to read it — a minimal `bibliography:`-only reader is likely enough; decide and flag up front"** (I did exactly that, commit 2) and **"make the fixture render-clean — doc-level `execute: enabled: false`"** (Learning #15 gotcha #2 — saved a debugging detour; `citations.qmd` rendered exit 0 first try). The "mirror `crossref.test.ts`, faithful via `executeCompletionItemProvider`" pointer was exactly right, and the coexistence note (both providers on `@`, editor filters) held precisely — the coexistence integration test passed first try. Test-count baselines (150 unit / 34 integration, 9-file `.vsix`) all matched reality.
+- **What was slightly off (a 6c-specific discovery, now Learning #16 — not Session 8's fault):** the handoff's step 3 said **"reuse `crossrefCompletionContext` … a bare `@key` is detected the same way."** It is detected the same way *for the happy path*, but citekeys have a **wider character grammar** (`:`/`.`) than cross-ref ids, so verbatim reuse broke completion for biblatex/DBLP keys (review finding C). The advice was reasonable and worked for the demo; the charset mismatch is a genuine discovery. I followed it literally and paid a review cycle — my lapse as much as the handoff's.
+- **What was wrong:** Nothing material. Every file anchor (`crossref.ts`, `refs.ts` helpers, `extension.ts:28`), the verification approach, and the counts held.
+- **ROI:** Strongly positive — the handoff + plan turned the session into engineering + review, not archaeology.
 
 ### What Session 8 Did — 2026-06-27
 **Deliverable:** Implement **Phase 6b** — Cross-reference completion + go-to-definition. **COMPLETE + verified + adversarially hardened.**

@@ -4,13 +4,10 @@
 
 ## Active
 
-- [ ] **Implement Phase 6c (Citation completion)** of `docs/planning/2026-06-27-extension-architecture-plan.md` §6 — parse the `.bib`/CSL-JSON named in the YAML `bibliography:` key → citekeys; complete a bare `@key` on the `@` trigger (with title/author detail). **This is the last v1 phase — v1 ships when 6c is done.** Build on Phase 6b: reuse `core/refs.ts` `crossrefCompletionContext` + `isReferenceableLine`; mirror `src/providers/crossref.ts`. New pure pieces: read the `bibliography:` value from front matter (the region model skips front matter — needs a small reader; no YAML lib in the project, decide up front) + a `.bib`/CSL-JSON parser (`core/citations.ts`). Adapter `providers/citation.ts` reads the file (fs) relative to the doc and offers citekeys; 6b + 6c completion providers coexist on `@` (editor merges/filters). Verify: unit-test the bib parser + a `@vscode/test-electron` test via `vscode.executeCompletionItemProvider`; render-clean fixtures need doc-level `execute: enabled: false` (Learning #15). One session, then close out (FM #18). **Strict TDD is mandatory (CLAUDE.md §Mandatory development practice / Learnings #10, #14, #15).**
+- [ ] **v1 release prep** — **v1 is now feature-complete** (Phases 1–5 + 6a–6c done, Session 9). A packaging / README / marketplace-metadata pass to ship the `.vsix`: **add a git remote** (then add `repository` to `package.json`, drop `--allow-missing-repository` from the `package` script, lift the README relative-link restriction — Learning #5), real marketplace metadata (`publisher`, `icon`, `keywords`, `repository`/`bugs`/`homepage`, polished `displayName`/`description`), a listing `README.md` with screenshots/GIFs from an **F5 visual pass** (the standing residue: popups/outline/preview/keybindings are integration-proven but never eyeballed — no `code` CLI), and an `npm audit` posture decision (7 dev-only vulns, none ship). Mostly non-code (FM #18: one deliverable; don't also do the deferred polish). See plan §7 (v1 DoD).
 
 ## Up Next
 
-*(Phases from the plan — implement one per session, in order. See the plan for DONE gates + verification.)*
-
-- [ ] **v1 release prep** (after 6c — v1 is then feature-complete: Phases 1–5 + 6a–6c). Packaging/README/marketplace metadata pass; add a git remote (drop `--allow-missing-repository`, add `repository` to `package.json`, lift the README relative-link restriction — Learning #5).
 - [ ] Phase 6d/6e, 7 — YAML/cell-option + embedded-cell completion + authoring aids. (v2)
 
 ## Polish / deferred
