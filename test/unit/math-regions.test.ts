@@ -67,6 +67,29 @@ describe("findMathRegions", () => {
     expect(findMathRegions("<!-- $x$ -->\nprose\n")).toEqual([]);
   });
 
+  it("ignores $...$ inside an inline backtick code span", () => {
+    // CommonMark: a code span binds tighter than tex_math_dollars, so the
+    // dollars here are literal code, not math.
+    expect(findMathRegions("Use the `$x$` macro to print a dollar.")).toEqual(
+      [],
+    );
+    expect(findMathRegions("See `$$E=mc^2$$` rendered.")).toEqual([]);
+  });
+
+  it("still detects real math on a line that also has a code span", () => {
+    expect(findMathRegions("`code` then $x+y$ end")).toEqual([
+      { type: "inline", content: "x+y", startLine: 0, endLine: 0 },
+    ]);
+  });
+
+  it("preserves real backticks inside math content (content sliced unmasked)", () => {
+    // Masking is only for delimiter detection; the returned content must be the
+    // original text, so a (rare) backtick pair inside real math is not blanked.
+    expect(findMathRegions("$$ a `b` c $$")).toEqual([
+      { type: "display", content: " a `b` c ", startLine: 0, endLine: 0 },
+    ]);
+  });
+
   it("resumes detecting math in prose after a code cell", () => {
     const text = "```{python}\na = 1\n```\n\n$y$ after";
     expect(findMathRegions(text)).toEqual([

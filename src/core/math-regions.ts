@@ -8,11 +8,23 @@
  *
  * Math is only recognized in body prose. The set of body lines comes from the
  * shared `scanRegions` model (`core/qmd/model`), so a `$` inside YAML front
- * matter, an HTML comment, or a code cell is never mistaken for math — and there
- * is no second line-classifier to drift out of agreement with it (Learning #14).
+ * matter, a (line-oriented) HTML comment, or a code cell is never mistaken for
+ * math — and there is no second line-classifier to drift out of agreement with
+ * it (Learning #14). Inline backtick code spans are masked per line (a `$x$`
+ * shown literally in `` `code` `` is documentation, not math).
+ *
+ * Known limitations (shared with every `scanRegions` consumer, tracked in the
+ * backlog — these are model-level gaps, not specific to math):
+ *  - HTML comments are classified per WHOLE line, so a comment that OPENS
+ *    mid-line (`text <!--`) or CLOSES mid-line (`--> $x$`) is not handled at the
+ *    character level: math inside a mid-line-opened comment is still reported,
+ *    and real math after a mid-line `-->` can be missed. A faithful fix needs
+ *    character-level comment tracking in `scanRegions` (its own TDD pass).
+ *  - Indented (≥4-space) code blocks are likewise not skip-regions (see
+ *    `core/qmd/model`), so a `$…$` inside one is reported.
  */
 
-import { type BodyLine, findBodyLines } from "./qmd/model";
+import { type BodyLine, findBodyLines, maskInlineCode } from "./qmd/model";
 
 /** A located LaTeX math region. Line indices are 0-based. */
 export interface MathRegion {
@@ -34,8 +46,13 @@ export function findMathRegions(text: string): MathRegion[] {
   // numbers, and a skip-region (front matter / comment / fence) between two runs
   // is a hard boundary — display math cannot span it.
   for (const run of contiguousRuns(findBodyLines(text))) {
-    const s = run.map((b) => b.text).join("\n");
-    scan(s, run[0].line, out);
+    const source = run.map((b) => b.text).join("\n");
+    // Detect delimiters on a copy with inline code spans masked out (a `$x$`
+    // shown inside `` `…` `` is literal code, not math). Masking is
+    // length-preserving, so offsets into `masked` index `source` 1:1 — region
+    // content is sliced from `source` to preserve any real backticks in math.
+    const masked = run.map((b) => maskInlineCode(b.text)).join("\n");
+    scan(masked, source, run[0].line, out);
   }
   return out;
 }
@@ -55,11 +72,19 @@ function contiguousRuns(body: BodyLine[]): BodyLine[][] {
 }
 
 /**
- * Scan `s` (whose first line is document line `baseLine`) for math regions,
- * appending each to `out`. A `$$` always opens display math (it wins over
- * inline); a lone `$` opens inline math that closes at the next `$` on the line.
+ * Scan `detect` (whose first line is document line `baseLine`) for math regions,
+ * appending each to `out`. `detect` has inline code spans masked; `source` is
+ * the unmasked text the same length, from which region content is sliced. A
+ * `$$` always opens display math (it wins over inline); a lone `$` opens inline
+ * math that closes at the next `$` on the line.
  */
-function scan(s: string, baseLine: number, out: MathRegion[]): void {
+function scan(
+  detect: string,
+  source: string,
+  baseLine: number,
+  out: MathRegion[],
+): void {
+  const s = detect;
   const charLine = buildCharLine(s, baseLine);
   let p = 0;
   while (p < s.length) {
@@ -71,7 +96,7 @@ function scan(s: string, baseLine: number, out: MathRegion[]): void {
         }
         out.push({
           type: "display",
-          content: s.slice(p + 2, q),
+          content: source.slice(p + 2, q),
           startLine: charLine[p],
           endLine: charLine[q],
         });
@@ -84,7 +109,7 @@ function scan(s: string, baseLine: number, out: MathRegion[]): void {
         if (q !== -1) {
           out.push({
             type: "inline",
-            content: s.slice(p + 1, q),
+            content: source.slice(p + 1, q),
             startLine: charLine[p],
             endLine: charLine[p],
           });

@@ -136,6 +136,13 @@ const COMMENT_FULL_LINE = /^[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
  * form) and `{.python}` (a Pandoc class) — both non-executable.
  */
 const CELL_INFO = /^\{([A-Za-z][A-Za-z0-9_-]*)[^}]*\}$/;
+/**
+ * An inline code span — a run of N backticks closed by the next run of exactly
+ * N (CommonMark §6.3). Its content is rendered literally, so any markup shown
+ * inside it (a `{#fig-…}` label, a `$x$` math delimiter) is documentation, not a
+ * live construct. Consumers mask it out before scanning a body line.
+ */
+const INLINE_CODE_SPAN = /(`+)(?:(?!\1)[\s\S])*?\1/g;
 
 /** An open fence the scanner is currently inside. */
 interface OpenFence {
@@ -286,6 +293,17 @@ export function findAllCells(text: string): Cell[] {
  */
 export function findBodyLines(text: string): BodyLine[] {
   return scanRegions(text).bodyLines;
+}
+
+/**
+ * Replace inline code spans in a single line with equal-length runs of spaces,
+ * so their literal content is not scanned for live markup. Length-preserving, so
+ * character offsets/line lengths are unchanged. Shared by the cross-ref index
+ * (`core/refs`) and the math detector (`core/math-regions`) — one implementation
+ * so the two cannot drift on what counts as a code span (Learning #14).
+ */
+export function maskInlineCode(line: string): string {
+  return line.replace(INLINE_CODE_SPAN, (span) => " ".repeat(span.length));
 }
 
 /** True if `line` closes the given open fence (same char, length ≥ opener). */

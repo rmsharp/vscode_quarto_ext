@@ -16,7 +16,12 @@
  *      images, divs, and display equations in prose (model body lines).
  */
 
-import { findAllCells, findBodyLines, findHeadings } from "./qmd/model";
+import {
+  findAllCells,
+  findBodyLines,
+  findHeadings,
+  maskInlineCode,
+} from "./qmd/model";
 
 /** The cross-reference kinds Quarto recognizes that this index supports. */
 export type RefKind = "fig" | "tbl" | "sec" | "eq" | "lst";
@@ -67,12 +72,6 @@ const CELL_LABEL_OPTION =
  * inline `{#sec-…}` is not double-counted.
  */
 const INLINE_LABEL = /\{#((?:fig|tbl|eq|lst)-[A-Za-z0-9_][A-Za-z0-9_-]*)/g;
-/**
- * An inline code span — a run of N backticks closed by the next run of exactly N
- * (CommonMark). Its content is rendered literally, so a `{#fig-…}` shown inside
- * backticks is documentation, not a label; it is masked out before scanning.
- */
-const INLINE_CODE_SPAN = /(`+)(?:(?!\1)[\s\S])*?\1/g;
 /**
  * A cross-reference *usage* — `@fig-plot`, `@sec-intro`. The negative lookbehind
  * rejects an `@` preceded by a word character (so `user@fig-x.org` is an email,
@@ -226,11 +225,6 @@ export function crossrefCompletionContext(
     end++;
   }
   return { start: i, typed: lineText.slice(i + 1, column), end };
-}
-
-/** Replace inline code spans with equal-length blanks so their content is not scanned. */
-function maskInlineCode(line: string): string {
-  return line.replace(INLINE_CODE_SPAN, (span) => " ".repeat(span.length));
 }
 
 /** Keep only the first `RefLabel` for each id, preserving order. */
