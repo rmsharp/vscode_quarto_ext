@@ -59,5 +59,32 @@ the webview's Chromium picks it; the woff/ttf faces are omitted to keep the
 package lean). To refresh, re-copy `katex.min.js`, `katex.min.css`, and
 `fonts/*.woff2` from the pinned dist and re-verify the MIT license still holds.
 
+Mermaid (bundled webview asset — media/mermaid/)
+------------------------------------------------
+The diagram-preview webview renders Mermaid (```` ```{mermaid} ````) diagrams
+with the Mermaid library. A single, self-contained distribution file
+(`mermaid.min.js`) is vendored verbatim under `media/mermaid/` and shipped inside
+the `.vsix`; it is loaded only inside the preview webview, never into the
+extension host.
+
+  https://github.com/mermaid-js/mermaid
+  License: MIT (Copyright (c) 2014 - 2022 Knut Sveidqvist)
+  Pinned: mermaid 11.16.0
+  File: dist/mermaid.min.js (sha256
+        74d7c46dabca328c2294733910a8aa1ed0c37451776e8d5295da38a2b758fb9b)
+
+Vendored copy provenance: extracted from the npm registry tarball
+https://registry.npmjs.org/mermaid/-/mermaid-11.16.0.tgz (`package/dist/
+mermaid.min.js`). Unlike KaTeX, Mermaid is NOT added as a devDependency: the
+distribution file is a single self-contained UMD bundle (it exposes
+`globalThis.mermaid`, performs no runtime `import()`, and needs no
+`'unsafe-eval'`), so only this one file ships and pulling Mermaid's large
+transitive dev-dependency tree into `node_modules` solely to copy it is
+unnecessary. To refresh, re-download the pinned (or newer) tarball, verify the
+MIT license still holds, copy `dist/mermaid.min.js`, and update the version +
+sha256 above. Graphviz (`{dot}`) cells are detected but not yet rendered (their
+source is shown) — rendering them needs a separate WASM renderer, vendored in a
+future slice.
+
 On upgrade of any referenced grammar or tool, re-verify the license still holds
 at the pinned version and update this file (architecture plan §9, §14).
