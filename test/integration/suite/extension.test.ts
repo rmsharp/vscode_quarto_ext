@@ -1,7 +1,7 @@
 import * as assert from "node:assert";
 import * as vscode from "vscode";
 
-const EXTENSION_ID = "vscode-quarto-ext.vscode-quarto-ext";
+const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
 describe("Extension activation", () => {
   before(async () => {
