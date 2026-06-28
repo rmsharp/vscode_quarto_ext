@@ -45,6 +45,33 @@ function unquote(value: string): string {
 }
 
 /**
+ * Remove a trailing YAML end-of-line comment from a raw value. A `#` starts a
+ * comment only when it is outside any quotes and preceded by whitespace (or
+ * begins the value) — so `refs.bib # main` loses the comment while a `#` inside
+ * `"a#b.bib"` survives. The remaining text is returned untrimmed (callers trim).
+ */
+function stripComment(raw: string): string {
+  let inSingle = false;
+  let inDouble = false;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (c === "'" && !inDouble) {
+      inSingle = !inSingle;
+    } else if (c === '"' && !inSingle) {
+      inDouble = !inDouble;
+    } else if (
+      c === "#" &&
+      !inSingle &&
+      !inDouble &&
+      (i === 0 || /\s/.test(raw[i - 1]))
+    ) {
+      return raw.slice(0, i);
+    }
+  }
+  return raw;
+}
+
+/**
  * The bibliography file path(s) declared in the document's YAML front matter, in
  * order, or `[]` if none. Handles the three forms Quarto accepts:
  *   - a scalar:      `bibliography: refs.bib`
@@ -60,18 +87,20 @@ export function bibliographyPaths(text: string): string[] {
   if (keyIndex === -1) {
     return [];
   }
-  const value = lines[keyIndex].replace(/^bibliography:/, "").trim();
+  const value = stripComment(lines[keyIndex].replace(/^bibliography:/, "")).trim();
 
   // Block-list form: the key has no inline value; the paths are `- item` lines
-  // indented beneath it.
+  // beneath it. YAML allows the sequence dashes at the key's own indentation, so
+  // zero leading whitespace is accepted; the loop stops at the first non-item
+  // line (a sibling key, a blank line, or end of front matter).
   if (value === "") {
     const items: string[] = [];
     for (let i = keyIndex + 1; i < lines.length; i++) {
-      const m = /^\s+-\s+(.*)$/.exec(lines[i]);
+      const m = /^\s*-\s+(.*)$/.exec(lines[i]);
       if (!m) {
         break;
       }
-      const item = unquote(m[1]);
+      const item = unquote(stripComment(m[1]).trim());
       if (item !== "") {
         items.push(item);
       }
@@ -88,6 +117,7 @@ export function bibliographyPaths(text: string): string[] {
       .filter((p) => p !== "");
   }
 
-  // Scalar form: `bibliography: refs.bib`.
-  return [unquote(value)];
+  // Scalar form: `bibliography: refs.bib`. An explicitly empty value is no bib.
+  const scalar = unquote(value);
+  return scalar === "" ? [] : [scalar];
 }

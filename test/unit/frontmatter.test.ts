@@ -59,3 +59,52 @@ describe("bibliographyPaths — quoting and absence", () => {
     expect(bibliographyPaths(text)).toEqual([]);
   });
 });
+
+describe("bibliographyPaths — hardening (adversarial review)", () => {
+  it("A: reads a zero-indent block list (items flush-left under the key)", () => {
+    const text = ["---", "bibliography:", "- a.bib", "- b.bib", "---"].join("\n");
+    expect(bibliographyPaths(text)).toEqual(["a.bib", "b.bib"]);
+  });
+
+  it("A: a zero-indent block list stops at the next top-level key", () => {
+    const text = [
+      "---",
+      "bibliography:",
+      "- a.bib",
+      "title: Doc",
+      "---",
+    ].join("\n");
+    expect(bibliographyPaths(text)).toEqual(["a.bib"]);
+  });
+
+  it("D: strips a trailing YAML comment from a scalar value", () => {
+    const text = ["---", "bibliography: refs.bib # main", "---"].join("\n");
+    expect(bibliographyPaths(text)).toEqual(["refs.bib"]);
+  });
+
+  it("D: strips a trailing comment from a flow list (still recognized as a list)", () => {
+    const text = ["---", "bibliography: [a.bib, b.bib] # refs", "---"].join("\n");
+    expect(bibliographyPaths(text)).toEqual(["a.bib", "b.bib"]);
+  });
+
+  it("D: strips a trailing comment from a block-list item", () => {
+    const text = [
+      "---",
+      "bibliography:",
+      "  - a.bib # x",
+      "  - b.bib",
+      "---",
+    ].join("\n");
+    expect(bibliographyPaths(text)).toEqual(["a.bib", "b.bib"]);
+  });
+
+  it("D: preserves a '#' inside a quoted value", () => {
+    const text = ["---", 'bibliography: "a#b.bib"', "---"].join("\n");
+    expect(bibliographyPaths(text)).toEqual(["a#b.bib"]);
+  });
+
+  it("E: returns [] for an explicitly empty quoted scalar", () => {
+    const text = ["---", 'bibliography: ""', "---"].join("\n");
+    expect(bibliographyPaths(text)).toEqual([]);
+  });
+});
