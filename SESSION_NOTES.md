@@ -30,6 +30,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 13 Did — 2026-06-28
+**Deliverable:** v1 release-prep — the **`npm audit` posture decision** (the last agent-actionable item before the operator-only `vsce publish`). (IN PROGRESS)
+**Started:** 2026-06-28
+**Status:** Session claimed. Work beginning.
+
 ### What Session 12 Did — 2026-06-28
 **Deliverable:** v1 release-prep **item 3** — F5 visual pass + README screenshots. **COMPLETE + verified. Release prep is now down to one item (the `npm audit` decision) + the operator publish.**
 
