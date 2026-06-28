@@ -90,12 +90,12 @@ describe("Quarto: Preview Diagram command", () => {
     );
   });
 
-  it("re-renders the tracked document on edit (debounced) without stacking panels", async () => {
+  it("editing the tracked document keeps one panel (no stacking; edit->debounce path runs)", async () => {
     const editor = await open("intro prose\n", "quarto");
     await vscode.commands.executeCommand("quarto.previewDiagram");
     assert.ok(await waitFor(() => diagramPreviewTabs().length === 1, 5000));
 
-    // Append a mermaid cell to the tracked doc — the debounced handler re-renders.
+    // Append a mermaid cell to the tracked doc — exercises the edit->debounce path.
     const edit = new vscode.WorkspaceEdit();
     const lastLine = editor.document.lineCount - 1;
     const end = new vscode.Position(
@@ -108,6 +108,11 @@ describe("Quarto: Preview Diagram command", () => {
       "the edit should apply to the tracked document",
     );
 
+    // Wait past the debounce window. This proves the edit -> onDidChangeTextDocument
+    // -> debounce -> render path runs without stacking a second panel or crashing;
+    // the actual re-rendered webview CONTENT is F5-only residue (no API reads
+    // another panel's HTML) and is covered by the pure findDiagramRegions/builder
+    // unit tests.
     await new Promise((r) => setTimeout(r, 500));
     assert.strictEqual(
       diagramPreviewTabs().length,

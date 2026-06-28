@@ -55,6 +55,11 @@ describe("buildDiagramPreviewHtml", () => {
     // origin; it uses system font names so font-src is the origin only.
     expect(csp["style-src"]).toBe("vscode-webview://abc 'unsafe-inline'");
     expect(csp["font-src"]).toBe("vscode-webview://abc");
+    // C4 / architecture-beta diagrams embed their icons as inert
+    // data:image/png;base64 URIs (applied via SVG <image>); without an img-src
+    // these fall through to default-src 'none' and the icons silently break.
+    // data: images cannot execute, so this is a safe, minimal broadening.
+    expect(csp["img-src"]).toBe("vscode-webview://abc data:");
   });
 
   // Coverage / regression locks on the same pure builder (CSP above is the
@@ -91,12 +96,15 @@ describe("buildDiagramPreviewHtml", () => {
     expect(html).toMatch(/no diagrams/i);
   });
 
-  it("renders mermaid but shows dot source with a not-yet-rendered note", () => {
+  it("emits both the mermaid-render and dot-placeholder code paths in the template", () => {
+    // The per-engine branch (mermaid -> mermaid.render; dot -> source + note) runs
+    // CLIENT-SIDE in the webview, so a build-time test can only confirm both code
+    // paths are present — which engine actually draws for a given region is
+    // F5-only residue. This is NOT a mermaid-vs-dot discrimination assertion.
     const html = buildDiagramPreviewHtml({
       ...BASE,
       regions: [mermaid("A-->B"), dot("digraph {}")],
     });
-    // The mermaid render path and the dot placeholder path both exist.
     expect(html).toContain("mermaid.render");
     expect(html).toMatch(/Graphviz \(dot\) preview is not yet rendered/);
   });

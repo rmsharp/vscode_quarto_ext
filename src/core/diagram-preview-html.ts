@@ -50,6 +50,10 @@ export function buildDiagramPreviewHtml(
   const { regions, mermaidJsUri, cspSource, nonce } = options;
   const csp = [
     "default-src 'none'",
+    // C4 / architecture-beta diagrams embed icons as inert data:image URIs
+    // (SVG <image>); allow them (and same-origin images) without weakening the
+    // strict nonce-only script policy — data: images cannot execute.
+    `img-src ${cspSource} data:`,
     `style-src ${cspSource} 'unsafe-inline'`,
     `font-src ${cspSource}`,
     `script-src 'nonce-${nonce}'`,

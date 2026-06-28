@@ -14,6 +14,20 @@
  * — a plain ```` ```mermaid ```` fence, the ```` ```{{mermaid}} ```` display
  * form, a ```` ```{.dot} ```` Pandoc class block — are excluded automatically,
  * exactly as Quarto excludes them from diagram rendering.
+ *
+ * Known limitation (shared-model gap, tracked in the backlog): the shared
+ * `CELL_INFO` regex captures the first letter-led token greedily and then accepts
+ * any trailing characters, so a MALFORMED info string that glues the engine name
+ * to `=`/`#`/`.` — ```` ```{mermaid=x} ````, ```` ```{dot=1} ````,
+ * ```` ```{mermaid#id} ````, ```` ```{mermaid.foo} ```` — is reported as a diagram
+ * even though Quarto renders none of them as one (they become a plain code block
+ * with a `data-…` attribute, a literal `<pre>`, or inline `<code>`). A faithful
+ * fix tightens `CELL_INFO` to require the engine token to end at whitespace, a
+ * comma, or `}`; that scanner also feeds the outline, run-cell, math, and refs and
+ * must keep the legitimate knitr comma forms (`{r,echo=FALSE}`), so it is
+ * cross-cutting and needs its own TDD pass (SAFEGUARDS: no cross-module refactor
+ * without plan mode). Low severity — only non-idiomatic / malformed info strings
+ * are affected.
  */
 
 import { findAllCells } from "./qmd/model";
