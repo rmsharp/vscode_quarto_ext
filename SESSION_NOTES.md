@@ -33,6 +33,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 16 Did — 2026-06-28
+**Deliverable:** Phase 7 (v2) — diagram preview (`Quarto: Preview Diagram` / `quarto.previewDiagram`): detect mermaid/graphviz (`{mermaid}`/`{dot}`) diagram cells and render them in a webview beside the editor, reusing the Session 15 math-preview shape (pure detection + pure HTML/CSP builder + thin adapter, vendored MIT renderer). (IN PROGRESS)
+**Started:** 2026-06-28
+**Status:** Session claimed. Work beginning — strict TDD (RED→GREEN→refactor, one test at a time).
+
 ### What Session 15 Did — 2026-06-28
 **Deliverable:** **Phase 7 (v2) — math preview webview** (`Quarto: Preview Math` / `quarto.previewMath`). **COMPLETE + adversarial-review-hardened.** The second v2 feature. Detects inline `$…$` and display `$$…$$` LaTeX in a `.qmd` and renders every region in a webview (beside the editor) with vendored KaTeX (MIT), re-rendering live as the tracked document changes.
 
