@@ -92,4 +92,36 @@ describe("Quarto: Preview command", () => {
       "the preview server must be killed when the pane closes (no orphan)",
     );
   });
+
+  it("does not orphan a server when invoked twice concurrently (TOCTOU)", async function () {
+    this.timeout(90000);
+    assert.strictEqual(
+      previewProcessCount(),
+      0,
+      "no preview server should be running before the test",
+    );
+
+    await openActive(SAMPLE);
+    // Fire twice within one event-loop tick. Both invocations pass the
+    // synchronous one-preview guard before either reaches its first await
+    // (save/resolveBinary) UNLESS the in-flight slot is reserved synchronously.
+    // Without that reservation the second spawn's session overwrites the first
+    // in the map, so the first server is tracked by nothing and survives the
+    // pane close — a permanent orphan. This asserts the absence of that orphan.
+    await Promise.all([
+      vscode.commands.executeCommand("quarto.preview"),
+      vscode.commands.executeCommand("quarto.preview"),
+    ]);
+    assert.ok(
+      await waitFor(() => previewProcessCount() > 0, 30000),
+      "a preview server should be running after the command",
+    );
+
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    const reaped = await waitFor(() => previewProcessCount() === 0, 20000);
+    assert.ok(
+      reaped,
+      "a second concurrent invocation must not orphan a preview server",
+    );
+  });
 });

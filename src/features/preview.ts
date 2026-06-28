@@ -47,6 +47,14 @@ interface PreviewSession {
  */
 class PreviewManager implements vscode.Disposable {
   private readonly sessions = new Map<string, PreviewSession>();
+  /**
+   * fsPaths whose preview is mid-startup. A session is only added to `sessions`
+   * after `spawnPreview` runs (past the save/resolveBinary awaits), so this set
+   * reserves the slot synchronously, before the first await, to close the
+   * check-then-spawn race (two rapid invocations would otherwise both spawn,
+   * and the second's session would orphan the first's server).
+   */
+  private readonly starting = new Set<string>();
 
   constructor(private readonly channel: vscode.OutputChannel) {}
 
@@ -64,24 +72,37 @@ class PreviewManager implements vscode.Disposable {
       existing.panel.reveal(vscode.ViewColumn.Beside);
       return;
     }
-
-    // Preview reads from disk; persist unsaved edits first (like render).
-    if (doc.isDirty) {
-      await doc.save();
+    // A spawn is already in flight for this document (its session is not in the
+    // map yet because save()/resolveBinary() are still awaiting). Claiming the
+    // slot synchronously — before any await — makes check-and-spawn atomic, so
+    // a concurrent second invocation returns instead of spawning a second,
+    // orphaning server.
+    if (this.starting.has(fsPath)) {
+      return;
     }
+    this.starting.add(fsPath);
 
-    let bin: string;
     try {
-      ({ path: bin } = await resolveBinary());
-    } catch (err) {
-      if (err instanceof QuartoNotFound) {
-        await showQuartoNotFound();
-        return;
+      // Preview reads from disk; persist unsaved edits first (like render).
+      if (doc.isDirty) {
+        await doc.save();
       }
-      throw err;
-    }
 
-    await this.spawnPreview(bin, fsPath);
+      let bin: string;
+      try {
+        ({ path: bin } = await resolveBinary());
+      } catch (err) {
+        if (err instanceof QuartoNotFound) {
+          await showQuartoNotFound();
+          return;
+        }
+        throw err;
+      }
+
+      await this.spawnPreview(bin, fsPath);
+    } finally {
+      this.starting.delete(fsPath);
+    }
   }
 
   private spawnPreview(bin: string, fsPath: string): Promise<void> {
@@ -122,6 +143,7 @@ class PreviewManager implements vscode.Disposable {
             `\nQuarto preview did not report a URL within ` +
               `${START_TIMEOUT_MS / 1000}s.`,
           );
+          this.channel.show(true);
           void vscode.window.showErrorMessage(
             `Quarto preview failed to start. See the "${CHANNEL_NAME}" output.`,
           );
@@ -131,13 +153,20 @@ class PreviewManager implements vscode.Disposable {
       }, START_TIMEOUT_MS);
 
       let stderr = "";
+      // `settled` only flips after showPreview's async asExternalUri resolves;
+      // `urlShown` flips synchronously the instant a URL is matched, so further
+      // stderr chunks during that await don't re-dispatch showPreview. It MUST
+      // be separate from `settled` — flipping `settled` early would make the
+      // post-await settle() a no-op and leave the promise (and timeout) hanging.
+      let urlShown = false;
       child.stderr?.on("data", (buf: Buffer) => {
         const text = buf.toString();
         stderr += text;
         this.channel.append(text);
-        if (!settled) {
+        if (!urlShown) {
           const url = parseBrowseUrl(stderr);
           if (url) {
+            urlShown = true;
             void this.showPreview(session, url).then(settle, (err: unknown) => {
               this.channel.appendLine(`\nFailed to show preview: ${String(err)}`);
               settle();
@@ -151,6 +180,7 @@ class PreviewManager implements vscode.Disposable {
 
       child.on("error", (err) => {
         this.channel.appendLine(`\nQuarto preview failed to start: ${String(err)}`);
+        this.channel.show(true);
         void vscode.window.showErrorMessage(
           `Quarto preview failed to start: ${err.message}`,
         );
@@ -159,16 +189,23 @@ class PreviewManager implements vscode.Disposable {
       });
 
       child.on("close", (code) => {
-        // The server exited. If it died before reporting a URL it failed to
-        // start; either way clean up so a re-preview spawns fresh.
+        // disposeSession deletes the session BEFORE killing the group, so a
+        // session still present here means the server died on its own — a real
+        // failure. If it's already gone, this close is the result of an
+        // intentional teardown (pane/doc close) and must not raise an error.
+        const unexpected = this.sessions.has(fsPath);
         if (!settled) {
           this.channel.appendLine(
             `\nQuarto preview exited (code ${code ?? "unknown"}) before it was ready.`,
           );
-          void vscode.window.showErrorMessage(
-            "Quarto preview exited before it was ready.",
-          );
-        } else {
+          if (unexpected) {
+            this.channel.show(true);
+            void vscode.window.showErrorMessage(
+              "Quarto preview exited before it was ready. " +
+                `See the "${CHANNEL_NAME}" output.`,
+            );
+          }
+        } else if (unexpected) {
           this.channel.appendLine(
             `\nQuarto preview server stopped (code ${code ?? "unknown"}).`,
           );
@@ -232,28 +269,40 @@ function killProcessGroup(
     return;
   }
 
-  let exited = false;
-  child.once("close", () => {
-    exited = true;
-  });
-
-  const signalGroup = (sig: NodeJS.Signals): void => {
+  // On win32 there are no POSIX process groups; a direct kill is the best we can
+  // do (Windows is out of v1 scope — degrade, don't crash).
+  if (process.platform === "win32") {
     try {
-      // Negative pid → the whole process group (POSIX). On win32, where there
-      // are no POSIX groups, fall back to a direct kill.
-      if (process.platform === "win32") {
-        child.kill(sig);
-      } else {
-        process.kill(-pid, sig);
-      }
+      child.kill();
     } catch {
-      // ESRCH = already gone; ignore.
+      // already gone
+    }
+    return;
+  }
+
+  // Negative pid → the whole process group (the detached child leads it).
+  // Signal 0 delivers nothing but throws ESRCH if the group is gone, so it
+  // doubles as a liveness probe. A group outlives its leader as long as any
+  // member (e.g. the deno worker) is alive.
+  const signalGroup = (sig: NodeJS.Signals | 0): boolean => {
+    try {
+      process.kill(-pid, sig);
+      return true;
+    } catch {
+      return false; // ESRCH — nothing left in the group
     }
   };
 
-  signalGroup("SIGTERM");
+  // SIGTERM first for a clean port release. If the group is already gone (the
+  // server self-exited), there is nothing to reap and nothing to escalate —
+  // returning here avoids a misleading SIGKILL log and never signals a PID that
+  // may since have been recycled.
+  if (!signalGroup("SIGTERM")) {
+    return;
+  }
   const escalate = setTimeout(() => {
-    if (!exited) {
+    // Only escalate if something in the group is genuinely still alive.
+    if (signalGroup(0)) {
       channel.appendLine("\nPreview did not exit on SIGTERM; sending SIGKILL.");
       signalGroup("SIGKILL");
     }
