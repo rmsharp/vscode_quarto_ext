@@ -28,8 +28,13 @@ export interface Cell {
   code: string;
 }
 
-/** A backtick fence opener: leading indent, ≥3 backticks, then the info string. */
-const FENCE_OPEN = /^[ \t]*(`{3,})(.*)$/;
+/**
+ * A fence opener: leading indent, then ≥3 of ONE fence char (backtick or
+ * tilde), then the info string. Capturing the char lets the scanner require the
+ * closer to use the same char (CommonMark), so a backtick run can't close a
+ * tilde block and vice versa.
+ */
+const FENCE_OPEN = /^[ \t]*(([`~])\2{2,})(.*)$/;
 /**
  * A brace info string for an *executable* cell: `{` then a language identifier
  * (a letter-led token), optionally followed by knitr-style options, then `}`.
@@ -37,10 +42,11 @@ const FENCE_OPEN = /^[ \t]*(`{3,})(.*)$/;
  * display form) and `{.python}` (a Pandoc class) — both non-executable.
  */
 const CELL_INFO = /^\{([A-Za-z][A-Za-z0-9_-]*)[^}]*\}$/;
-/** A closing fence: leading indent, only backticks, optional trailing space. */
-const FENCE_CLOSE = /^[ \t]*(`{3,})[ \t]*$/;
+/** A closing fence: leading indent, ≥3 of one fence char only, optional trailing space. */
+const FENCE_CLOSE = /^[ \t]*(([`~])\2{2,})[ \t]*$/;
 
 interface OpenFence {
+  readonly char: string;
   readonly len: number;
   readonly isCell: boolean;
   readonly lang: string;
@@ -58,15 +64,18 @@ export function findAllCells(text: string): Cell[] {
     if (open === null) {
       const m = FENCE_OPEN.exec(line);
       if (m) {
-        const info = CELL_INFO.exec(m[2].trim());
+        const char = m[2];
+        // Only backtick fences are executable cells; tilde fences are literal.
+        const info = char === "`" ? CELL_INFO.exec(m[3].trim()) : null;
         open = {
+          char,
           len: m[1].length,
           isCell: info !== null,
           lang: info ? info[1] : "",
           startLine: i,
         };
       }
-    } else if (isCloser(line, open.len)) {
+    } else if (isCloser(line, open.char, open.len)) {
       if (open.isCell) {
         cells.push({
           startLine: open.startLine,
@@ -108,7 +117,7 @@ export function findCellAtPosition(text: string, line: number): Cell | null {
   return null;
 }
 
-function isCloser(line: string, openLen: number): boolean {
+function isCloser(line: string, openChar: string, openLen: number): boolean {
   const m = FENCE_CLOSE.exec(line);
-  return m !== null && m[1].length >= openLen;
+  return m !== null && m[2] === openChar && m[1].length >= openLen;
 }

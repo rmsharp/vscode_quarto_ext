@@ -83,6 +83,20 @@ describe("findAllCells", () => {
     ]);
   });
 
+  it("ignores a {lang} fence nested inside a ~~~ (tilde) literal block", () => {
+    // `~~~` is a CommonMark fenced block used in Quarto docs to show a backtick
+    // code cell *literally* — its contents are not executable.
+    const text = [
+      "~~~", // 0 outer tilde fence opens
+      "```{python}", // 1 literal content, not a real cell
+      "x = 1", // 2
+      "```", // 3 a backtick run cannot close a tilde fence
+      "~~~", // 4 closes the tilde fence
+      "After.", // 5
+    ].join("\n");
+    expect(findAllCells(text)).toEqual([]);
+  });
+
   it("treats an unterminated cell as running to the end of the document", () => {
     // A user mid-typing: the opening fence has no matching close yet.
     const text = ["Intro.", "```{python}", "x = 1", "y = 2"].join("\n");
