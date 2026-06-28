@@ -5,16 +5,16 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **v1 release prep (continuing).** v1 is feature-complete (Phases 1–5 + 6a–6c). **Items 1 (git remote + packaging metadata) and 2 (marketplace metadata + listing README) are DONE (Sessions 10, 11).** Remaining: **item 3** the F5 visual pass + screenshots, and the `npm audit` posture decision.
-**Status:** Remote wired (`origin` → `rmsharp/vscode_quarto_ext`, branch `master`, pushed). `package.json` carries full marketplace metadata (`publisher` `rmsharp`, `icon` `media/icon.png`, `keywords`/`bugs`/`homepage`/`galleryBanner`/`preview`, polished `description`, categories Programming Languages + Data Science). `README.md` rewritten for the Marketplace (stale status line fixed). Clean **10-file** `.vsix` (28.82 KB) with the icon embedded; **190 unit + 42 integration** green; §3.3 guardrail held (no `vscode` import in `core/`).
+**Task:** **v1 release prep (continuing).** v1 is feature-complete (Phases 1–5 + 6a–6c). **Items 1 (git remote), 2 (marketplace metadata + README), and 3 (F5 visual pass + screenshots) are DONE (Sessions 10, 11, 12).** Remaining before publish: the **`npm audit` posture decision** (one small item), then the operator-only `vsce publish`.
+**Status:** All release-prep items 1–3 done. README now has a `## Screenshots` gallery with 5 faithful screenshots (highlighting, outline, `@` completion, preview, render), captured in an Extension Development Host isolated with `--disable-extensions` (the user has Posit's `quarto.quarto` installed — it otherwise merges with ours; Learning #19). Screenshots committed under `media/screenshots/` and pushed (Marketplace fetches them via repo raw URLs); excluded from the `.vsix`. Clean **10-file** `.vsix` (29.09 KB, `media/` ships only `icon.png`); **190 unit + 42 integration** green (unchanged — no `src/` change this session). This session closed the "F5-only visual residue" every prior phase carried.
 **Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §7 (v1 DoD). Release-prep items in `BACKLOG.md` "Active".
 **Priority:** HIGH
 **⚠ STRICT TDD IS MANDATORY** for any code/bugfix (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15, #16). Pure packaging/metadata/doc edits with no logic are exempt but still need their normal verification (compile, package, render, AND — per **Learning #18** — `npm run test:integration` after any `publisher`/`name`/activation change; the 8 suites hard-code the extension ID).
 
-### What You Must Do (v1 release prep — item 3 + audit, mostly non-code)
-This is the last of release prep (FM #18: ONE deliverable — don't also start the deferred polish items). **Items 1 & 2 are done (Sessions 10, 11).**
-1. **F5 visual pass (item 3 — the standing residue across ALL phases):** no `code` CLI here, so popups/outline/preview-webview/notification **visuals** are integration-proven but never eyeballed. One manual F5 pass to confirm the citation + cross-ref completion popups, the Outline view, the preview webview, and the run-cell keybindings look right; **capture screenshots and drop them into `README.md` at the `<!-- SCREENSHOTS: placeholder -->` comment** (put images under `media/`).
-2. Decide the `npm audit` posture (7 dev-only vulns, none ship — document as accepted, or bump if clean).
+### What You Must Do (v1 release prep — only the `npm audit` decision remains)
+Items 1–3 are done (Sessions 10, 11, 12). FM #18: ONE deliverable — don't also start the deferred polish items.
+1. **`npm audit` posture decision** (the last release-prep item before publish): 7 dev-only vulns, none ship. Run `npm audit`, then either (a) document them as accepted (dev-only `devDependencies`, not in the bundled `dist/extension.js`) in a short note, or (b) `npm audit fix` if it's clean + non-breaking, then re-verify (190 unit / 42 integration / clean `.vsix`). This is a TINY deliverable — confirm scope with the operator (it may be paired with v2/polish work only if they explicitly expand scope).
+2. **Operator-only (not an agent task):** actual `vsce publish` needs a registered Marketplace publisher `rmsharp` + a PAT. `preview: true` is set; flip it when the listing is deemed stable.
 3. The deferred polish items (`BACKLOG.md` "Polish / deferred": **the duplicated `EXTENSION_ID` test constant**, indented-code-block phantom, setext headings) are **separate future sessions**, not part of release prep.
 
 ### Useful starting context
@@ -29,6 +29,57 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 ---
 
 *Session history accumulates below this line. Newest session at the top.*
+
+### What Session 12 Did — 2026-06-28
+**Deliverable:** v1 release-prep **item 3** — F5 visual pass + README screenshots. **COMPLETE + verified. Release prep is now down to one item (the `npm audit` decision) + the operator publish.**
+
+**What was done (commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `cdf9320` chore: Session 12 prep — `test/fixtures/showcase.qmd` (one render-clean doc exercising every feature; doc-level `execute: enabled: false` so it needs no kernel), `docs/F5-VISUAL-CHECKLIST.md` (repeatable runbook), `.vscodeignore` (`media/screenshots/**` excluded from the `.vsix`), SESSION_NOTES claim stub.
+2. `8aacc0a` feat: the 5 screenshots → `media/screenshots/0{1..5}-*.png`.
+3. `05ef0f5` docs: README `## Screenshots` gallery (replaced the placeholder; one captioned + alt-texted image per feature).
+4. (this close-out commit: SESSION_NOTES, CLAUDE.md Learning #19, BACKLOG/CHANGELOG/ROADMAP; + a separate dashboard-refresh commit.)
+Plus a **temporary** `--disable-extensions` tweak to `.vscode/launch.json` during capture, **reverted before commit** (verified clean diff).
+
+**The pass was live + interactive** (operator chose "live together, now"): the operator drove the dev host and pasted each screenshot into chat; I QA'd framing live and copied each from Claude's image-cache into the repo.
+
+**Verification (all green):**
+- `npm run package` → clean **10-file** `.vsix` (29.09 KB); `vsce ls` confirms `media/` ships **only `icon.png`** (screenshots excluded).
+- All 5 README image links resolve to real files; vsce rewrites the relative paths to `https://github.com/rmsharp/vscode_quarto_ext/raw/HEAD/media/screenshots/...` (verified by unzipping the packaged `readme.md`) — so they render on the Marketplace **once pushed**.
+- `showcase.qmd` renders **exit 0** (`Output created: showcase.html`); `git diff` shows it matches committed (the operator's in-editor edits were undone).
+- No `src/` change → **190 unit / 42 integration** baselines unchanged (nothing they cover changed).
+- **Phase 3E (runtime smoke test) — SATISFIED, definitively:** the F5 visual pass IS the strongest possible runtime verification — every feature's UI was eyeballed live in a real Extension Development Host running ONLY our extension: highlighting (status bar `Quarto`), Outline populated, `@` completion firing (cross-refs + citekeys in one list), live preview rendering, render succeeding. **This closes the "F5-only visual residue" every prior phase (5 / 6a–6c) logged as un-eyeballed.**
+
+**🔑 Load-bearing findings (→ CLAUDE.md Learning #19):**
+- **THE FAITHFULNESS TRAP: Posit's official Quarto extension (`quarto.quarto`) is installed in the user's VS Code and runs in the dev host alongside ours, MERGING providers** (grammar / outline / `@`-completion / `Preview`+`Render`). The first screenshots showed its UI (the tell: a `▷ Run Cell | Run Next Cell` CodeLens — we register none; `grep -ri codelens src/` is empty). **Fix: `--disable-extensions` on the dev host** (keeps the `--extensionDevelopmentPath` extension, disables installed ones). Without this the whole pass is non-faithful.
+- **Two-windows trap:** the dev host is a SEPARATE window from the project window; disabling Posit in the *normal* window did nothing. Act only where the file is colorized / status bar reads `Quarto` (title contains `[Extension Development Host]`).
+- **Capture: pasted images live at `~/.claude/image-cache/<session-uuid>/<N>.png`** (path printed in chat) — copy from there; macOS clipboard captures don't hit the Desktop.
+- **Packaging: screenshots OUT of the `.vsix` but committed + PUSHED** (Marketplace fetches them via the rewritten repo raw URLs).
+
+**Key files:**
+- `media/screenshots/01-syntax-highlighting.png` (2000×1951), `02-outline.png` (2000×399), `03-completion.png` (1540×560), `04-preview.png` (1972×2000), `05-render.png` (2000×1366).
+- `README.md` — the `## Screenshots` section (after the Status blockquote, before `## Features`).
+- `test/fixtures/showcase.qmd` — the render-clean showcase doc (reuses `test/fixtures/refs.bib` for citation completion).
+- `docs/F5-VISUAL-CHECKLIST.md` — the repeatable F5 runbook.
+- `.vscodeignore` — `media/screenshots/**` exclusion (icon still ships).
+- `CLAUDE.md` — Learning #19.
+
+**Gotchas for the next session (the `npm audit` decision):**
+1. **Item 3 was the last visual/feature work — what remains is the `npm audit` decision + the operator publish.** Don't re-open the screenshots. (FM #18.)
+2. **Push matters:** the README's screenshot URLs point at `origin/master` raw — they only render once pushed. This session pushed; preserve that invariant for any future screenshot change.
+3. **If you re-run an F5 pass, re-apply `--disable-extensions`** (the user has Posit's `quarto.quarto` installed) — it is reverted in `launch.json` now.
+4. **`npm audit`** = 7 dev-only vulns (`devDependencies`, not in the bundled `dist/extension.js`) — the honest posture is "accepted (dev-only)" unless `npm audit fix` is clean + non-breaking.
+5. **Operator cleanup (courtesy):** the operator disabled Posit's Quarto in their *normal* VS Code window during this session; they may want to re-enable it.
+
+**Self-assessment (Session 12): 9/10.**
+- **+** Delivered exactly item 3, no bundling (FM #18 held — did NOT touch the `npm audit` decision or any polish item). **The crux was faithfulness, and I held the line:** I refused the first screenshots the moment I saw the `Run Cell` CodeLens (not ours), diagnosed Posit's extension merging in the dev host, and isolated it with `--disable-extensions` so every shipped screenshot is unambiguously our extension (gate-d discipline applied to a *visual* pass, not just tests). Adapted the capture pipeline when the Desktop assumption failed (pivoted to the image-cache — the better mechanism). Recoverable commits, ≤5 files each (split images and README to honor the per-commit cap). Verified the packaging invariants that matter (screenshots excluded, icon ships, vsce URL rewrite confirmed by unzip) instead of assuming; reverted the temporary `launch.json` change and confirmed a clean diff. Retired the standing cross-cutting "F5-only visual residue."
+- **−** The Phase 1B claim stub silently FAILED on the first attempt (I tried to edit from a truncated read) and I did real technical work (showcase + the prep commit) before noticing and re-writing the stub — a protocol slip (the stub must land before technical work); caught and corrected in-session. I also burned a step assuming macOS screenshots land on the Desktop and copied a stale (April) file before switching to the image-cache. Both minor, no lasting damage.
+
+#### Session 11 Handoff Evaluation (by Session 12) — Phase 3A
+**Score: 9/10.** Accurate, well-scoped, and load-bearing on exactly the points item 3 needed.
+- **What helped:** The ACTIVE TASK named item 3 precisely and pointed at the `<!-- SCREENSHOTS: placeholder -->` slot with "put images under `media/`" — I knew exactly where the output goes. The FM #18 scoping ("don't also do the `npm audit` / deferred polish") was right and I held to it. The baselines (10-file `.vsix`, 190/42) and the Learning #18 icon / `.vscodeignore` notes were accurate and let me reason about the packaging (screenshot exclusion, icon inclusion) confidently.
+- **What was missing (genuinely undiscoverable beforehand — now Learning #19):** the handoff (and every prior session) framed the F5 pass as "just eyeball the UI," with no warning that **the user has Posit's `quarto.quarto` installed and it merges with ours in the dev host** — the single biggest issue this session and the thing that makes a naive visual pass non-faithful. No prior session had run an F5 pass, so this couldn't have been known — not Session 11's fault. It also didn't mention the dev-host-vs-normal-window distinction or the image-cache capture path.
+- **What was wrong:** Nothing material. Every claim (placeholder location, `media/` convention, baselines, the operator-publish caveat) held.
+- **ROI:** Strongly positive — turned the prep into focused execution + a faithfulness-hardening pass, not archaeology.
 
 ### What Session 11 Did — 2026-06-28
 **Deliverable:** v1 release-prep **item 2** — marketplace metadata (`package.json`) + listing README rewrite. **COMPLETE + verified (incl. a coupling bug caught and fixed).**
