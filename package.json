@@ -13,7 +13,9 @@
     "Other"
   ],
   "main": "./dist/extension.js",
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:quarto"
+  ],
   "contributes": {
     "languages": [
       {

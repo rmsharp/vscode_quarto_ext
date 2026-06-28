@@ -50,6 +50,14 @@ export function registerExecutionFeature(
     vscode.window.onDidChangeActiveTextEditor((editor) =>
       updateCellContext(editor),
     ),
+    // An edit can change whether the cursor sits in a cell without moving the
+    // selection (a formatter, a programmatic edit) — keep the key fresh.
+    vscode.workspace.onDidChangeTextDocument((e) => {
+      const active = vscode.window.activeTextEditor;
+      if (active && e.document === active.document) {
+        updateCellContext(active);
+      }
+    }),
   );
   updateCellContext(vscode.window.activeTextEditor);
 }
@@ -79,8 +87,10 @@ async function runCellAtCursor(advance: boolean): Promise<void> {
     );
     return;
   }
-  const ranAny = await runCells(editor, [cell]);
-  if (ranAny && advance) {
+  await runCells(editor, [cell]);
+  // Advance whenever requested — a cell was found, so move on even if it was
+  // empty or had no delegate (Jupyter-style "run and advance" never stalls).
+  if (advance) {
     advanceToNextCell(editor, text, cell);
   }
 }
@@ -129,11 +139,14 @@ async function runCells(
 ): Promise<boolean> {
   const available = await vscode.commands.getCommands(true);
   let ranAny = false;
+  const skipped = new Set<string>();
   for (const cell of cells) {
     const delegate = pickDelegate(cell.lang, available);
     if (!delegate) {
-      showNoDelegate(cell.lang);
-      return ranAny;
+      // Run everything we can; report the languages we couldn't once at the end
+      // rather than aborting the batch at the first unsupported cell.
+      skipped.add(cell.lang);
+      continue;
     }
     const range = cellCodeRange(cell);
     if (!range) {
@@ -143,6 +156,9 @@ async function runCells(
     editor.revealRange(range);
     await vscode.commands.executeCommand(delegate);
     ranAny = true;
+  }
+  if (skipped.size > 0) {
+    showNoDelegate([...skipped]);
   }
   return ranAny;
 }
@@ -196,16 +212,28 @@ async function insertCell(): Promise<void> {
   }
 }
 
-function showNoDelegate(lang: string): void {
-  const hasKnown = delegateCommandsFor(lang).length > 0;
-  const message = hasKnown
-    ? `Quarto: no extension is installed to run ${lang} cells. ` +
-      `Install the Python/Jupyter (or R/Julia) extension.`
-    : `Quarto: running ${lang} cells is not supported (no known execution extension).`;
-  void vscode.window.showWarningMessage(message);
+function showNoDelegate(langs: readonly string[]): void {
+  const known = langs.filter((l) => delegateCommandsFor(l).length > 0);
+  const unknown = langs.filter((l) => delegateCommandsFor(l).length === 0);
+  const parts: string[] = [];
+  if (known.length > 0) {
+    parts.push(
+      `no extension is installed to run ${known.join("/")} cells — ` +
+        `install the Python/Jupyter (or R/Julia) extension.`,
+    );
+  }
+  if (unknown.length > 0) {
+    parts.push(`running ${unknown.join("/")} cells is not supported.`);
+  }
+  void vscode.window.showWarningMessage(`Quarto: ${parts.join(" ")}`);
 }
 
 function updateCellContext(editor: vscode.TextEditor | undefined): void {
+  // Only the active editor drives the global context key; ignore selection
+  // events from background editors, which would otherwise clobber it.
+  if (editor !== undefined && editor !== vscode.window.activeTextEditor) {
+    return;
+  }
   const inCell =
     editor !== undefined &&
     editor.document.languageId === "quarto" &&
