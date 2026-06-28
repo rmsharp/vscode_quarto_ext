@@ -37,6 +37,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 9 Did — 2026-06-28
+**Deliverable:** Implement **Phase 6c** — Citation completion (last v1 phase). (IN PROGRESS)
+**Started:** 2026-06-28
+**Status:** Session claimed. Work beginning — strict TDD.
+
 ### What Session 8 Did — 2026-06-27
 **Deliverable:** Implement **Phase 6b** — Cross-reference completion + go-to-definition. **COMPLETE + verified + adversarially hardened.**
 
