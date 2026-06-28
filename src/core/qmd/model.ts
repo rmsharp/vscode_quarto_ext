@@ -61,21 +61,38 @@ export interface OutlineSymbol {
  * after the hashes is what rejects `#hashtag`; capping at 6 rejects `#######`.
  */
 const ATX_HEADING = /^ {0,3}(#{1,6})[ \t]+(.+)$/;
-/** An optional closing sequence: spaces, then a run of `#`, to end of line. */
-const ATX_CLOSING = /[ \t]+#+[ \t]*$/;
 /**
- * A fence opener: leading indent, then ≥3 of ONE fence char (backtick or
- * tilde), then anything. Capturing the char lets the scanner require the closer
- * to use the same char (CommonMark), so a backtick run can't close a tilde
- * block and vice versa. Shared with cell detection below.
+ * An optional closing sequence: a run of `#` at end of line, preceded by
+ * whitespace OR the start of the (already separator-stripped) text. Anchoring to
+ * `^` as well lets an all-hash heading body (`## ##`) collapse to empty so it is
+ * dropped, while a `#` that is part of a word (`C#`) is preserved.
  */
-const FENCE_OPEN = /^[ \t]*(([`~])\2{2,})(.*)$/;
-/** A closing fence: leading indent, ≥3 of one fence char only, optional trailing space. */
-const FENCE_CLOSE = /^[ \t]*(([`~])\2{2,})[ \t]*$/;
+const ATX_CLOSING = /(?:^|[ \t]+)#+[ \t]*$/;
+/**
+ * A trailing Pandoc/Quarto heading attribute block — `{#sec-id .class key=val}`.
+ * Quarto renders the heading text without it (and the `#sec-` id drives Phase 6b
+ * cross-references), so it is stripped from the outline display name here.
+ */
+const ATX_ATTRIBUTE = /(?:^|[ \t]+)\{[^}]*\}[ \t]*$/;
+/**
+ * A fence opener: up to 3 spaces of indentation (CommonMark §4.5 — 4+ spaces is
+ * indented code, not a fence), then ≥3 of ONE fence char (backtick or tilde),
+ * then anything. Capturing the char lets the scanner require the closer to use
+ * the same char, so a backtick run can't close a tilde block and vice versa.
+ * The 0–3 cap matches the ATX heading rule so the two never disagree on what
+ * counts as indented code. Shared with cell detection below.
+ */
+const FENCE_OPEN = /^ {0,3}(([`~])\2{2,})(.*)$/;
+/** A closing fence: 0–3 spaces, ≥3 of one fence char only, optional trailing space. */
+const FENCE_CLOSE = /^ {0,3}(([`~])\2{2,})[ \t]*$/;
 /** The `---` line that opens a YAML front-matter block — only valid at line 0. */
 const FRONTMATTER_OPEN = /^---[ \t]*$/;
 /** A YAML front-matter terminator: `---` or `...` (YAML's document-end marker). */
 const FRONTMATTER_CLOSE = /^(?:---|\.\.\.)[ \t]*$/;
+/** A line that opens a (block-form) HTML comment — Pandoc renders nothing inside. */
+const COMMENT_OPEN = /^[ \t]*<!--/;
+/** Any line containing an HTML-comment terminator. */
+const COMMENT_CLOSE = /-->/;
 /**
  * A brace info string for an *executable* cell: `{` then a language identifier
  * (a letter-led token), optionally followed by knitr-style options, then `}`.
@@ -97,18 +114,39 @@ interface OpenCellFence extends OpenFence {
   readonly startLine: number;
 }
 
-/** Find every ATX heading in `text`, in document order. */
-export function findHeadings(text: string): Heading[] {
+/** The parsed structural regions of a document. */
+interface Regions {
+  headings: Heading[];
+  cells: Cell[];
+}
+
+/**
+ * Walk the document once, classifying each line by region so that heading and
+ * cell detection AGREE on what to skip: YAML front matter (a leading
+ * `---`…`---`/`...`), block HTML comments (`<!-- … -->`, which Pandoc does not
+ * render), and code fences. This single pass is the model's source of truth;
+ * `findHeadings`, `findAllCells`, and `buildOutline` are thin views over it.
+ *
+ * Cell rules (CommonMark + Quarto): a fence opened with N of a char closes on a
+ * line of ≥N of that char with no info string. Only a backtick fence whose info
+ * string is a brace-wrapped language (```` ```{python} ````) is an executable
+ * cell — this excludes plain ```` ```python ````, the ```` ```{{python}} ````
+ * display form, ```` ```{.python} ```` Pandoc class blocks, and any `{lang}`
+ * fence nested inside an outer (longer or tilde) fence.
+ */
+function scanRegions(text: string): Regions {
   const lines = text.split(/\r?\n/);
   const headings: Heading[] = [];
-  let open: OpenFence | null = null;
+  const cells: Cell[] = [];
   let inFrontmatter = false;
+  let inComment = false;
+  let open: OpenCellFence | null = null;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+
+    // YAML front matter — only a `---` on the very first line opens it.
     if (i === 0 && FRONTMATTER_OPEN.test(line)) {
-      // A leading `---` opens YAML front matter (Quarto requires it at the very
-      // start). Its `#` lines are YAML comments, never headings.
       inFrontmatter = true;
       continue;
     }
@@ -118,19 +156,47 @@ export function findHeadings(text: string): Heading[] {
       }
       continue;
     }
+
+    // Inside a code fence, only the matching closer matters — a `#`, `-->`, or
+    // nested fence here is literal. Emit the cell when the fence closes.
     if (open !== null) {
-      // Inside a code fence: nothing here is a heading. CommonMark closes a
-      // fence with ≥N of the SAME char and no info string.
       if (isCloser(line, open)) {
+        if (open.isCell) {
+          cells.push(makeCell(open, i, lines, true));
+        }
         open = null;
       }
       continue;
     }
-    const fence = FENCE_OPEN.exec(line);
-    if (fence) {
-      open = { char: fence[2], len: fence[1].length };
+
+    // Inside a block HTML comment: skip until it terminates.
+    if (inComment) {
+      if (COMMENT_CLOSE.test(line)) {
+        inComment = false;
+      }
       continue;
     }
+    if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line)) {
+      inComment = true;
+      continue;
+    }
+
+    // A fence opener (captures cell metadata so the closer can emit the cell).
+    const fence = FENCE_OPEN.exec(line);
+    if (fence) {
+      const char = fence[2];
+      const info = char === "`" ? CELL_INFO.exec(fence[3].trim()) : null;
+      open = {
+        char,
+        len: fence[1].length,
+        isCell: info !== null,
+        lang: info ? info[1] : "",
+        startLine: i,
+      };
+      continue;
+    }
+
+    // An ATX heading.
     const m = ATX_HEADING.exec(line);
     if (m) {
       const heading = parseHeadingLine(m, i);
@@ -139,7 +205,24 @@ export function findHeadings(text: string): Heading[] {
       }
     }
   }
-  return headings;
+
+  // CommonMark: an unclosed fence runs to end of document — its last line IS
+  // body. Keep such a cell runnable (e.g. while still being typed).
+  if (open !== null && open.isCell) {
+    cells.push(makeCell(open, lines.length - 1, lines, false));
+  }
+
+  return { headings, cells };
+}
+
+/** Find every ATX heading in `text`, in document order. */
+export function findHeadings(text: string): Heading[] {
+  return scanRegions(text).headings;
+}
+
+/** Find every executable `{lang}` code cell in `text`, in document order. */
+export function findAllCells(text: string): Cell[] {
+  return scanRegions(text).cells;
 }
 
 /** True if `line` closes the given open fence (same char, length ≥ opener). */
@@ -149,60 +232,20 @@ function isCloser(line: string, open: OpenFence): boolean {
 }
 
 /**
- * Find every executable `{lang}` code cell in `text`, in document order. A
- * single linear pass tracks fence open/close (CommonMark: a fence opened with N
- * of a char is closed by a line of ≥N of that char with no info string), so it
- * correctly excludes plain ```` ```python ```` fences, the ```` ```{{python}} ````
- * display form, ```` ```{.python} ```` Pandoc class blocks, and any `{lang}`
- * fence nested inside an outer (longer or tilde) fence.
+ * Build a `Cell` from its open fence. When `terminated`, `endLine` is the
+ * closing-fence line (excluded from the body); otherwise the cell is
+ * unterminated and `endLine` is the document's last line (which IS body).
  */
-export function findAllCells(text: string): Cell[] {
-  const lines = text.split(/\r?\n/);
-  const cells: Cell[] = [];
-  let open: OpenCellFence | null = null;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (open === null) {
-      const m = FENCE_OPEN.exec(line);
-      if (m) {
-        const char = m[2];
-        // Only backtick fences are executable cells; tilde fences are literal.
-        const info = char === "`" ? CELL_INFO.exec(m[3].trim()) : null;
-        open = {
-          char,
-          len: m[1].length,
-          isCell: info !== null,
-          lang: info ? info[1] : "",
-          startLine: i,
-        };
-      }
-    } else if (isCloser(line, open)) {
-      if (open.isCell) {
-        // The closing fence (line `i`) is not part of the body.
-        cells.push({
-          startLine: open.startLine,
-          endLine: i,
-          lang: open.lang,
-          code: lines.slice(open.startLine + 1, i).join("\n"),
-        });
-      }
-      open = null;
-    }
-  }
-
-  // CommonMark: an unclosed fence runs to the end of the document — its last
-  // line IS body. Keep such a cell runnable (e.g. while still being typed).
-  if (open !== null && open.isCell) {
-    cells.push({
-      startLine: open.startLine,
-      endLine: lines.length - 1,
-      lang: open.lang,
-      code: lines.slice(open.startLine + 1).join("\n"),
-    });
-  }
-
-  return cells;
+function makeCell(
+  open: OpenCellFence,
+  endLine: number,
+  lines: string[],
+  terminated: boolean,
+): Cell {
+  const body = terminated
+    ? lines.slice(open.startLine + 1, endLine)
+    : lines.slice(open.startLine + 1);
+  return { startLine: open.startLine, endLine, lang: open.lang, code: body.join("\n") };
 }
 
 /**
@@ -227,7 +270,7 @@ export function findCellAtPosition(text: string, line: number): Cell | null {
  */
 export function buildOutline(text: string): OutlineSymbol[] {
   const lastLine = Math.max(0, text.split(/\r?\n/).length - 1);
-  const headings = findHeadings(text);
+  const { headings, cells } = scanRegions(text);
   const sectionEnds = headings.map((_, k) => sectionEndOf(headings, k, lastLine));
 
   // One ordered stream of heading and cell events (they never share a line).
@@ -244,7 +287,7 @@ export function buildOutline(text: string): OutlineSymbol[] {
         children: [],
       },
     })),
-    ...findAllCells(text).map((c) => ({
+    ...cells.map((c) => ({
       line: c.startLine,
       node: {
         kind: "cell" as const,
@@ -289,8 +332,16 @@ function sectionEndOf(headings: Heading[], k: number, lastLine: number): number 
   return lastLine;
 }
 
-/** Build a `Heading` from a matched ATX line, or `null` if the text is empty. */
+/**
+ * Build a `Heading` from a matched ATX line, or `null` if nothing displayable
+ * remains. The display text drops a trailing Pandoc attribute block and any ATX
+ * closing-hash run, so `## Methods {#sec-methods}` → "Methods" and an all-hash
+ * `## ##` → dropped.
+ */
 function parseHeadingLine(m: RegExpExecArray, line: number): Heading | null {
-  const text = m[2].replace(ATX_CLOSING, "").trim();
+  const text = m[2]
+    .replace(ATX_ATTRIBUTE, "")
+    .replace(ATX_CLOSING, "")
+    .trim();
   return text ? { level: m[1].length, text, line } : null;
 }

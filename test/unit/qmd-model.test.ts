@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildOutline, findHeadings } from "../../src/core/qmd/model";
+import {
+  buildOutline,
+  findAllCells,
+  findCellAtPosition,
+  findHeadings,
+} from "../../src/core/qmd/model";
 
 describe("findHeadings — basic ATX parsing", () => {
   it("returns no headings for plain prose", () => {
@@ -158,6 +163,48 @@ describe("findHeadings — YAML front matter", () => {
   });
 });
 
+describe("findHeadings — Pandoc/Quarto heading attributes (review #8)", () => {
+  it("strips a trailing {#sec-id} section identifier from the display text", () => {
+    expect(findHeadings("## Methods {#sec-methods}")).toEqual([
+      { level: 2, text: "Methods", line: 0 },
+    ]);
+  });
+
+  it("strips a {#id .class} attribute block with classes/options", () => {
+    expect(findHeadings("# Introduction {#sec-intro .unnumbered}")).toEqual([
+      { level: 1, text: "Introduction", line: 0 },
+    ]);
+  });
+
+  it("strips a class-only {.tabset} attribute block", () => {
+    expect(findHeadings("## Results {.tabset}")).toEqual([
+      { level: 2, text: "Results", line: 0 },
+    ]);
+  });
+
+  it("drops a heading that is nothing but an attribute block", () => {
+    expect(findHeadings("## {#sec-only}")).toEqual([]);
+  });
+
+  it("keeps a brace group that is not a trailing attribute block", () => {
+    expect(findHeadings("# Use {braces} mid-title here")).toEqual([
+      { level: 1, text: "Use {braces} mid-title here", line: 0 },
+    ]);
+  });
+});
+
+describe("findHeadings — empty closing-hash headings (review #4)", () => {
+  it("drops a heading whose content is only a closing hash run", () => {
+    expect(findHeadings(["## ##", "### ###", "#### #"].join("\n"))).toEqual([]);
+  });
+
+  it("still keeps real text before a closing hash run", () => {
+    expect(findHeadings("## Centered ##")).toEqual([
+      { level: 2, text: "Centered", line: 0 },
+    ]);
+  });
+});
+
 describe("buildOutline — nested symbol tree", () => {
   it("returns no symbols for plain prose", () => {
     expect(buildOutline("Just prose.\n\nMore prose.")).toEqual([]);
@@ -233,6 +280,87 @@ describe("buildOutline — nested symbol tree", () => {
       ["cell", "```{r}"],
       ["heading", "H"],
     ]);
+  });
+});
+
+describe("region consistency — cells & headings agree on skip regions", () => {
+  // review #1/#2/#5: findAllCells must honor YAML front matter, just like
+  // findHeadings, or a fenced example inside a block scalar becomes a phantom
+  // cell (wrong outline AND a phantom runnable cell for Phase 5).
+  const frontMatterWithFence = [
+    "---", // 0
+    "title: Doc", // 1
+    "description: |", // 2
+    "  ```{python}", // 3  inside a YAML block scalar — NOT a cell
+    "  not really a cell", // 4
+    "  ```", // 5
+    "---", // 6
+    "# H", // 7
+    "```{python}", // 8  a real cell
+    "y = 1", // 9
+    "```", // 10
+  ].join("\n");
+
+  it("findAllCells ignores a fence inside YAML front matter", () => {
+    expect(findAllCells(frontMatterWithFence)).toEqual([
+      { startLine: 8, endLine: 10, lang: "python", code: "y = 1" },
+    ]);
+  });
+
+  it("findCellAtPosition returns null for a cursor inside front matter", () => {
+    expect(findCellAtPosition(frontMatterWithFence, 4)).toBeNull();
+  });
+
+  it("buildOutline emits no phantom cell from front matter", () => {
+    const roots = buildOutline(frontMatterWithFence);
+    expect(roots.map((r) => [r.kind, r.name])).toEqual([["heading", "H"]]);
+    expect(roots[0].children.map((c) => c.name)).toEqual(["```{python}"]);
+  });
+
+  // review #1: an HTML comment hides both headings and cells from the render.
+  const withComment = [
+    "# Real heading", // 0
+    "", // 1
+    "<!--", // 2
+    "## Commented-out section", // 3
+    "```{python}", // 4  also commented out — not a cell
+    "x = 1", // 5
+    "```", // 6
+    "-->", // 7
+    "", // 8
+    "## After the comment", // 9
+  ].join("\n");
+
+  it("findHeadings ignores a heading inside an HTML comment block", () => {
+    expect(findHeadings(withComment).map((h) => h.text)).toEqual([
+      "Real heading",
+      "After the comment",
+    ]);
+  });
+
+  it("findAllCells ignores a fence inside an HTML comment block", () => {
+    expect(findAllCells(withComment)).toEqual([]);
+  });
+
+  // review #3/#6: a 4-space-indented fence is indented code per CommonMark, not
+  // a fence — it must not swallow following headings nor become a cell.
+  const indentedFence = [
+    "Para.", // 0
+    "", // 1
+    "    ```{python}", // 2  4 spaces → indented code, NOT a fence
+    "    x = 1", // 3
+    "", // 4
+    "# A Real Heading", // 5
+  ].join("\n");
+
+  it("does not treat a 4-space-indented fence as a fence (heading still found)", () => {
+    expect(findHeadings(indentedFence).map((h) => h.text)).toEqual([
+      "A Real Heading",
+    ]);
+  });
+
+  it("does not treat a 4-space-indented ```{python} as an executable cell", () => {
+    expect(findAllCells(indentedFence)).toEqual([]);
   });
 });
 
