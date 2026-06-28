@@ -9,6 +9,11 @@ out/**
 docs/**
 node_modules/**
 
+# Screenshots are referenced by the README (the Marketplace rewrites the
+# relative paths to repo raw URLs) — they don't need to ship inside the package.
+# The extension icon (media/icon.png) is NOT excluded and still ships.
+media/screenshots/**
+
 # Source maps and build inputs
 **/*.map
 **/*.ts

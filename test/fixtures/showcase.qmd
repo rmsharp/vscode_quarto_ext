@@ -1,0 +1,73 @@
+---
+title: "Analysis of Widget Performance"
+author: "Your Name"
+date: 2026-06-28
+format:
+  html:
+    toc: true
+bibliography: refs.bib
+execute:
+  enabled: false
+---
+
+# Introduction {#sec-intro}
+
+This document showcases the **Quarto (MIT)** VS Code extension. The prose is
+highlighted as Markdown — **bold**, *italic*, `inline code`, a
+[link](https://quarto.org), and inline math $E = mc^2$ — while the YAML front
+matter above and the embedded code cells below colorize in their own languages.
+
+The literate-programming approach of @knuth1984 motivates this work. As detailed
+in @sec-methods, our results (@tbl-results) follow from the area relation in
+@eq-area.
+
+## Background
+
+Cross-references and citations both complete from a single `@` list: heading IDs
+like @sec-results, labels like @tbl-results, and citekeys like @lamport1994.
+
+# Methods {#sec-methods}
+
+A Python cell — type `@` in the prose above to see `fig-plot` offered as a
+cross-reference completion (drawn from this cell's `label:` option):
+
+```{python}
+#| label: fig-plot
+#| fig-cap: "Widget throughput over time."
+import matplotlib.pyplot as plt
+
+plt.plot([1, 2, 3], [4, 5, 6])
+plt.show()
+```
+
+An R cell (colorizes only with the R extension installed):
+
+```{r}
+#| label: tbl-summary
+#| tbl-cap: "Summary statistics."
+summary(cars)
+```
+
+The area of a circle is given in @eq-area:
+
+$$
+A = \pi r^2
+$$ {#eq-area}
+
+# Results {#sec-results}
+
+Benchmark scores are reported in @tbl-results; the typesetting lineage traces to
+@lamport1994.
+
+| Widget | Score |
+|--------|-------|
+| A      | 9.1   |
+| B      | 8.7   |
+
+: Benchmark results {#tbl-results}
+
+# Conclusion {#sec-conclusion}
+
+Place the cursor inside any code cell and press `Ctrl+Enter` to run it (execution
+is delegated to your Jupyter / R / Julia extension). Use **Quarto: Preview** for
+a live, auto-reloading preview of this document.
