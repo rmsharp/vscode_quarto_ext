@@ -1,21 +1,43 @@
 {
   "name": "vscode-quarto-ext",
   "displayName": "Quarto (MIT)",
-  "description": "MIT-licensed Quarto authoring support for VS Code: render, live preview, .qmd language support, and editor intelligence.",
+  "description": "MIT-licensed Quarto authoring for VS Code: .qmd highlighting, render, live preview, run code cells, outline, and cross-reference & citation completion.",
   "version": "0.0.1",
-  "publisher": "vscode-quarto-ext",
+  "publisher": "rmsharp",
+  "preview": true,
   "license": "MIT",
+  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rmsharp/vscode_quarto_ext.git"
   },
+  "bugs": {
+    "url": "https://github.com/rmsharp/vscode_quarto_ext/issues"
+  },
+  "homepage": "https://github.com/rmsharp/vscode_quarto_ext#readme",
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
     "Programming Languages",
-    "Other"
+    "Data Science"
   ],
+  "keywords": [
+    "quarto",
+    "qmd",
+    "rmarkdown",
+    "markdown",
+    "pandoc",
+    "preview",
+    "render",
+    "notebook",
+    "jupyter",
+    "citations"
+  ],
+  "galleryBanner": {
+    "color": "#4338CA",
+    "theme": "dark"
+  },
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:quarto"
