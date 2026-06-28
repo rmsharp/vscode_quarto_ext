@@ -7,6 +7,11 @@
  * headings, and executable code cells — and is unit-tested headlessly. Phase 6a
  * consumes it for the document outline; Phases 6b–6e (cross-refs, citations)
  * build their indexes on top of the same parse.
+ *
+ * Known limitation (intentional v1 scope): only ATX headings (`#`..`######`) are
+ * recognized. Setext headings (a line underlined with `===` or `---`) are not —
+ * disambiguating a setext `---` from a thematic break and the front-matter fence
+ * needs its own pass; tracked in the backlog.
  */
 
 /** An ATX (`#`..`######`) markdown heading outside any code fence / front matter. */
