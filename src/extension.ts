@@ -11,6 +11,7 @@ import { meetsMinimum, MINIMUM_QUARTO_VERSION } from "./core/version";
 import { registerExecutionFeature } from "./features/execution";
 import { disposeAllPreviews, registerPreviewFeature } from "./features/preview";
 import { registerRenderFeature } from "./features/render";
+import { registerOutlineProvider } from "./providers/outline";
 import { QuartoNotFound, resolveBinary } from "./quarto/cli";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -23,6 +24,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerRenderFeature(context);
   registerPreviewFeature(context);
   registerExecutionFeature(context);
+  registerOutlineProvider(context);
 }
 
 /**
