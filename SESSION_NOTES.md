@@ -5,22 +5,23 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 14 (IN PROGRESS) — Phase 7 (v2): formatting toggles.** `Quarto: Toggle Bold` / `Toggle Italic` / `Toggle Code` — wrap/unwrap the selection (or word at cursor) in `**…**` / `*…*` / `` `…` ``. Pure `core/format-toggle.ts` (§3.3 guardrail) + thin `src/features/formatting.ts` adapter; strict TDD. *Background: v1 is feature-complete + release prep is AGENT-COMPLETE (Sessions 1–13); the only remaining release step is the operator-only `vsce publish`.*
-**Status:** Session 14 claimed; implementing under strict TDD (red→green→refactor, one test at a time). Pre-session baselines (Sessions 11/12, unchanged at start): **190 unit + 42 integration** green; clean **10-file** `.vsix` (29.09 KB); `npm audit` = 7 dev-only vulns (accepted, `docs/SECURITY-AUDIT.md`). Repo PUBLIC; `origin` → `rmsharp/vscode_quarto_ext` (branch `master`).
-**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §7 (v1 DoD). Release-prep tracking in `BACKLOG.md` (now `[x]`).
-**Priority:** v1 release prep done → next is operator publish, then **v2** (`BACKLOG.md` "Up Next": Phase 6d/6e, 7) or a **Polish / deferred** item.
-**⚠ STRICT TDD IS MANDATORY** for any code/bugfix (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15, #16). Pure packaging/metadata/doc edits with no logic are exempt but still need their normal verification (compile, package, render, AND — per **Learning #18** — `npm run test:integration` after any `publisher`/`name`/activation change; the 8 suites hard-code the extension ID).
+**Task:** **Session 14 DONE — Phase 7 (v2): formatting toggles** (`Quarto: Toggle Bold/Italic/Code`). First v2 feature shipped. There is NO forced next deliverable — **WAIT for the operator to pick** (more Phase 7 slices, Phase 6d/6e, a Polish item, or the operator-only `vsce publish`). *Background: v1 is feature-complete + release prep is AGENT-COMPLETE (Sessions 1–13); the only remaining release step is the operator-only `vsce publish`.*
+**Status:** Formatting toggles complete + adversarial-review-hardened. Baselines now **202 unit + 51 integration** green (was 190/42); clean **10-file** `.vsix` (29.82 KB, bundle 47.75 KB). `npm audit` unchanged = 7 dev-only vulns (accepted, `docs/SECURITY-AUDIT.md`). Repo PUBLIC; `origin` → `rmsharp/vscode_quarto_ext` (branch `master`). **Local `master` is ahead of `origin` — Session 13's 3 commits + this session's commits are unpushed** (operator pushes; see gotchas).
+**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §5.5 / §6 Phase 7 (authoring aids) and §5.3 / §6 Phase 6d/6e govern v2. No separate per-phase plan — v2 phases are implemented directly from that plan (the v1 precedent), strict TDD.
+**Priority:** v2 is now in progress. Next operator pick from `BACKLOG.md` "Up Next" (Phase 6d/6e; remaining Phase 7 slices: snippets, math-preview, diagram preview, image paste) or "Polish / deferred".
+**⚠ STRICT TDD IS MANDATORY** for any code/bugfix (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15, #16, **#21**). Pure config/grammar/doc edits with no logic are exempt but still need their normal verification (compile, package, AND — per **Learning #18** — `npm run test:integration` after any `publisher`/`name`/activation change; the 8 suites hard-code the extension ID).
 
 ### What You Must Do (there is no forced next deliverable — WAIT for the operator to pick)
-v1 release prep is finished. **Do not invent work.** The operator chooses from:
+**Do not invent work** (FM #2 keep-going / FM #13). The operator chooses from:
 1. **Operator-only (not an agent task):** actual `vsce publish` — needs a registered Marketplace publisher `rmsharp` + a PAT. `preview: true` is set; flip it when the listing is deemed stable. (You can't do this; it's listed so you don't try.)
-2. **v2 features** (`BACKLOG.md` "Up Next"): Phase 6d/6e (YAML/cell-option completion, embedded-cell language completion) + Phase 7 (authoring aids). These are real implementation work → **strict TDD applies** (`/tdd`), with the §3.3 pure-`core/` guardrail and the established vitest + `@vscode/test-electron` harnesses.
-3. **Polish / deferred** (`BACKLOG.md` "Polish / deferred", each its own session): the **deliberate dev-toolchain upgrade** (clear the `npm audit` advisories the RIGHT way — bump esbuild/vitest, resolve mocha's serialize-javascript, re-run the full matrix; NOT `npm audit fix --force`, which downgrades mocha — Learning #20); de-duplicate the 8-copy `EXTENSION_ID` test constant (Learning #18); the indented-code-block phantom; setext headings.
+2. **v2 features** (`BACKLOG.md` "Up Next"): Phase 6d/6e (YAML/cell-option completion 🐉needs a YAML-schema-source decision — likely a spike/plan first; embedded-cell language completion 🐉offset-mapping risk) + the remaining **Phase 7** authoring-aid slices (snippets, math-preview webview, diagram preview, image paste). Real implementation → **strict TDD** (`/tdd`), §3.3 pure-`core/` guardrail, vitest + `@vscode/test-electron`. **Reuse the formatting-toggle pattern** (Learning #21): pure-core + thin adapter, POST-edit offset contract, faithful real-editor integration tests.
+3. **Polish / deferred** (`BACKLOG.md` "Polish / deferred", each its own session): **multi-cursor formatting** (new this session); the dev-toolchain upgrade (Learning #20); de-dup the 8-copy `EXTENSION_ID` constant (Learning #18); indented-code-block phantom; setext headings.
    FM #18: ONE deliverable per session — pick one, close out.
 
 ### Useful starting context
-- **`npm audit` posture (Session 13, → Learning #20):** all 7 vulns are dev-only because **what ships is the esbuild bundle (`dist/extension.js`) + static assets, never `node_modules`**, and `package.json` `"dependencies": {}` is empty (the bundled extension imports zero vulnerable packages — verified 4 ways). `npm audit` **exits 0 regardless of findings** (parse `npm audit --json`, don't trust the exit code). `npm audit fix --force` is net-negative here (downgrades mocha 10→8.1.3, major-bumps esbuild/vitest). Decision recorded in `docs/SECURITY-AUDIT.md`. **The one trigger to re-evaluate: if a runtime `dependency` is ever added.**
-- **All v1 features done — reuse the patterns.** Pure `core/` (`frontmatter`, `citations`, `refs`, `qmd/model`, `render-args`, `preview-*`, `version`, `execution-delegate`) is `vscode`-free; adapters live in `features/` + `providers/`; both harnesses (vitest unit + `@vscode/test-electron` integration) are established. `extension.ts:18-30` wires everything.
+- **Phase 7 formatting toggles (Session 14, → Learning #21):** `core/format-toggle.ts` `toggleFormat(text, selStart, selEnd, marker)` is pure; `features/formatting.ts` is the adapter (wired in `extension.ts`; commands+keybindings in `package.json`). The load-bearing subtlety is the `*`-vs-`**` disambiguation (don't strip a `*` that's part of a `**` run) — guard BOTH outer and inner neighbours. Reuse this pure-core+thin-adapter shape for any new editor-mutation command.
+- **`npm audit` posture (Session 13, → Learning #20):** all 7 vulns are dev-only — `dependencies:{}` empty, what ships is the esbuild bundle + static assets, never `node_modules`. Re-evaluate only if a runtime `dependency` is added.
+- **All features done — reuse the patterns.** Pure `core/` (`format-toggle`, `frontmatter`, `citations`, `refs`, `qmd/model`, `render-args`, `preview-*`, `version`, `execution-delegate`) is `vscode`-free; adapters live in `features/` + `providers/`; both harnesses (vitest unit + `@vscode/test-electron` integration) are established. `extension.ts` `activate()` wires everything (now incl. `registerFormattingFeature`).
 - **Marketplace state (Sessions 11/12):** full metadata is in `package.json` (top block, ~lines 1-45). Runtime extension ID is **`rmsharp.vscode-quarto-ext`** — the 8 integration suites' `EXTENSION_ID` constants hard-code it (**Learning #18: re-run `test:integration` after ANY publisher/name change**). Icon `media/icon.png` (regenerate from `scratchpad/icon.svg` via `rsvg-convert` if needed). `README.md` is the marketplace listing with a `## Screenshots` gallery (5 shots under `media/screenshots/`, excluded from the `.vsix`; render only while the repo is PUBLIC — Learning #19).
 - **`microsoft/vscode-markdown-languageservice` (MIT)** is reference only; never copy Posit's AGPL code (licensing hard gate). **Original art only** for icons/branding (Learning #18b).
 
@@ -32,9 +33,64 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 *Session history accumulates below this line. Newest session at the top.*
 
 ### What Session 14 Did — 2026-06-28
-**Deliverable:** Phase 7 (v2) — formatting toggles (`Quarto: Toggle Bold/Italic/Code`). **(IN PROGRESS)**
-**Started:** 2026-06-28
-**Status:** Session claimed. Work beginning under strict TDD.
+**Deliverable:** **Phase 7 (v2) — formatting toggles** (`Quarto: Toggle Bold` / `Toggle Italic` / `Toggle Code`). **COMPLETE + adversarial-review-hardened.** The first v2 feature. Wrap/unwrap the selection — or the word at a bare cursor — in `**` / `*` / `` ` `` markers; second invocation round-trips; bare cursor not in a word inserts an empty pair with the cursor between.
+
+**What was done (commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `9644ddd` chore: claim Session 14 (WIP stub).
+2. `2acd9c1` feat: pure `core/format-toggle.ts` + 10 vitest behaviors (TDD red→green each).
+3. `d435f85` feat: `features/formatting.ts` adapter + 3 commands + `ctrl/cmd+b`/`ctrl/cmd+i` keybindings, wired in `extension.ts`; 9 `@vscode/test-electron` tests.
+4. `103636b` fix: the 3 confirmed adversarial-review findings (each TDD'd).
+5. (this close-out docs commit: SESSION_NOTES + CLAUDE.md Learning #21 + BACKLOG/CHANGELOG/ROADMAP; + a separate dashboard-refresh commit.)
+
+**How it was built (strict TDD — operator directive held):** ONE failing test → minimal code → green, repeated. RED shown before GREEN for every behavior that added logic (10 core behaviors: wrap; outer-marker unwrap; inner-marker unwrap; word-at-cursor wrap; insert-empty; the `*`-vs-`**` disambiguation for cursor and explicit selection; code marker; round-trip). Pure-core `toggleFormat(text, selStart, selEnd, marker) → {start,end,replacement,selectionStart,selectionEnd}` where the returned `selection*` offsets are POST-edit; `features/formatting.ts` translates `offsetAt`→core→`editor.edit(replace)`→restore selection via `doc.positionAt` against the LIVE post-edit doc.
+
+**Adversarial review (the project's per-phase hardening step — Learnings #12/#14/#15/#16):** a 5-lens / 3-refuter refute-by-default Workflow raised **11**, confirmed **3** (≥2/3 verifiers traced a real repro), refuted 8. All 3 fixed, each via a failing-first test:
+- **(core, silent data loss) empty-`**` disambiguation hole:** `toggleFormat("a**b",2,2,"*")` (bare cursor between the two asterisks, toggle italic) **deleted** the `**` → `"ab"`. The `*`-vs-`**` guard only checked OUTER neighbours; on an empty selection the two candidate markers are mutually adjacent. Fix: inner-neighbour guards (`text[s] !== marker[0]` && `text[e-1] !== marker[0]`) → inserts an empty pair instead.
+- **(core, malformed output) ASCII-only word expansion:** `isWordChar = /[A-Za-z0-9_]/` split accented prose (`café` + bare-cursor bold → `**caf**é`), diverging from `language-configuration.json` `wordPattern`. Fix: `/[\p{L}\p{N}_]/u`.
+- **(test faithfulness, gate d) substring keybinding-scope check:** `binding.when?.includes("editorLangId == quarto")` stays green even if broadened to `… || markdown`. Fix: `strictEqual(binding.when, "editorTextFocus && editorLangId == quarto")`.
+- Refuted (left as-is, by ≥2/3 verifiers): "fires inside code cells/YAML" (intended — user-invoked, no silent corruption), reversed-selection normalization, re-entrancy/TOCTOU on key-repeat, the 5-adapter guard duplication, and three weaker test-faithfulness nits.
+
+**Verification (full matrix green at every layer boundary — vertical-slice gate c):**
+- `npm run compile` clean (tsc + esbuild).
+- **`npm test` → 202 unit** (was 190; +12 format-toggle).
+- **`npm run test:integration` → 51 integration** (was 42; +9 formatting), all in a real `@vscode/test-electron` host — faithful (gate d): they drive the editor, set selections by offset, run the commands, and assert document text + resulting selection, pinning the offset mapping end to end. No Quarto CLI / kernel needed (env-independent).
+- `npm run package` → clean **10-file** `.vsix` (29.82 KB; bundle 47.75 KB); no test/fixture/`node_modules`/`.claude` leak.
+- **Phase 3E (runtime smoke test) — SATISFIED via test-electron** (Learning #3: stronger than manual F5 for wiring/dispatch). The integration suite activates the extension in a real host and exercises the commands end to end. **F5-only residue:** the keybindings physically firing (`cmd+b`) and the visual marker insertion are not headlessly verifiable; behavior is fully integration-proven (consistent with every prior phase's residue note).
+- §3.3 guardrail held: `core/format-toggle.ts` imports no `vscode`.
+
+**🔑 Load-bearing findings (→ CLAUDE.md Learning #21):**
+- The `*`-vs-`**` disambiguation is the crux: a `*` adjacent to another `*` is part of a `**` run — guard BOTH outer AND inner neighbours, or an empty-selection toggle silently deletes a `**`.
+- Cursor-to-word expansion must be Unicode-aware (`\p{L}`/`\p{N}`) and aligned with the editor's `wordPattern`.
+- A contributed-`when`/scope test must assert EXACT equality, not a substring (a broadened clause is a real regression that a substring check misses).
+- No Learning-#13a activation trap here: the keybinding gates on the BUILT-IN `editorLangId` (not an extension-set context key), and `onLanguage:quarto` registers the commands on `.qmd` open.
+
+**Key files:**
+- `src/core/format-toggle.ts` — pure `toggleFormat` (NEW). The branch order is word-expand → outer-unwrap → inner-unwrap → wrap; the disambiguation guards live on the two unwrap branches.
+- `src/features/formatting.ts` — the `vscode` adapter (NEW): `registerFormattingFeature`, gated to `languageId === "quarto"`, primary selection only.
+- `src/extension.ts` — `registerFormattingFeature(context)` added to `activate()` (import + call).
+- `package.json` — 3 commands (`quarto.toggleBold/Italic/Code`) + 2 keybindings (`ctrl/cmd+b`, `ctrl/cmd+i`, `when: editorTextFocus && editorLangId == quarto`).
+- `test/unit/format-toggle.test.ts` (12 cases) / `test/integration/suite/formatting.test.ts` (9 cases) — NEW.
+- `CLAUDE.md` — Learning #21. `BACKLOG.md`/`CHANGELOG.md`/`ROADMAP.md` — updated.
+
+**Gotchas for the next session:**
+1. **No forced next deliverable — WAIT for the operator to pick** (FM #2/#13). Don't auto-start another Phase 7 slice or 6d/6e.
+2. **`master` is ahead of `origin` and UNPUSHED** (Session 13's 3 + this session's ~5 commits). Pushing is the operator's call (prior sessions left pushing to the operator); offer it, don't assume.
+3. **`vsce publish` is an OPERATOR step** (Marketplace publisher `rmsharp` + PAT). You can't do it.
+4. **Multi-cursor formatting is deferred** (BACKLOG Polish, new this session) — `features/formatting.ts` toggles only `editor.selection` (primary). If you add it, it's its own TDD slice (N replacements + N shifting-offset selections).
+5. **`dashboard_history.jsonl` changes whenever you run the dashboard** — fold it into the close-out dashboard-refresh commit. The "critical" risk flag is still the 7 dev-only `npm audit` vulns (cosmetic, documented — Learning #20), not this feature.
+6. **`.vsix` is gitignored** (`*.vsix`) — the release-gate artifact is not committed.
+7. **Phase 6d (YAML/`#|` completion) likely needs a planning/spike first** — the plan (§6 dragon) says the license-clean YAML-schema source is undecided ("investigate before committing to an approach"). Don't start it as a pure implementation session without resolving that.
+
+**Self-assessment (Session 14): 9/10.**
+- **+** Held strict TDD faithfully — RED shown before GREEN for all 10 core behaviors and for all 3 review fixes (the operator directive's enforcement clause is satisfiable from this log). Kept the §3.3 guardrail (pure core, zero `vscode` import) and the pure-core+thin-adapter split, so the bulk is headlessly unit-tested and the adapter is faithfully integration-tested through the real editor (gate d — not a force-activating happy-path suite). Ran the project's per-phase adversarial review and it earned its keep: it caught a **silent character-deletion** bug (empty-`**` italic) and a malformed-output bug (accented words) that all 21 of my own happy-path tests missed — exactly the Learning-#12/#14/#15/#16 pattern — and I fixed each test-first, not patch-first. Checkpoint-committed at each layer boundary (core → adapter → fixes), each ≤5 files, full matrix green at each. One deliverable, no bundling (FM #18) — surfaced the remaining Phase 7 slices and 6d/6e as operator options rather than continuing.
+- **−** The two coverage-only behaviors (5/6) and the code-marker/round-trip cases (8/9) were added GREEN-on-first-run (the general logic already satisfied them) rather than RED-first — defensible (they add no logic, only lock regressions) but I flagged it transparently rather than manufacturing artificial REDs. I also could have written the empty-`**` and accented-word cases proactively (the review found them); a sharper pre-review edge-case pass on the disambiguation + word-class would have caught both before spending a review cycle. Net: the safety nets (TDD + adversarial review) worked exactly as designed, but the first-pass edge coverage could be tighter.
+
+#### Session 13 Handoff Evaluation (by Session 14) — Phase 3A
+**Score: 9/10.** Accurate, honest, and it correctly framed this as a clean fork: v1 release prep is agent-complete, so there is no forced next deliverable — pick one v2/polish item and close out. That framing is exactly what let me scope to a single capability without archaeology.
+- **What helped:** The ACTIVE TASK's "WAIT for the operator to pick" + the explicit option list (operator publish / v2 features / polish) made the FM #18 boundary obvious and pre-empted FM #2 keep-going. The "reuse the patterns" pointer (pure `core/` is `vscode`-free; adapters in `features/`+`providers/`; vitest + test-electron harnesses established; strict TDD mandatory with `/tdd`) was precisely the orientation I needed to build a new feature in-idiom — it pointed me straight at the right files to mirror (`features/execution.ts`, `render-args.ts` + its test) without hunting. Baselines (190 unit / 42 integration, 10-file `.vsix`) all matched reality at start.
+- **What was missing / discovered (not Session 13's fault — this work didn't exist yet):** nothing about formatting toggles specifically (it was one option among many), so the per-feature design (the `*`-vs-`**` disambiguation, the POST-edit offset contract, Unicode word class) was mine to derive — now captured in Learning #21 for the next authoring-aid slice. The handoff also didn't flag the unpushed-commits state (Session 13's own 3 commits were ahead of origin); minor, but I inherited a `master`-ahead-of-`origin` repo and now call it out explicitly for my successor.
+- **What was wrong:** Nothing material. Vuln posture, baselines, the operator-only-publish caveat, and the "don't invent work" guidance all held.
+- **ROI:** Strongly positive — the accurate baselines + the reuse pointers turned this into "build one well-scoped feature in the established idiom," not rediscovery.
 
 ### What Session 13 Did — 2026-06-28
 **Deliverable:** v1 release-prep — the **`npm audit` posture decision** (the last agent-actionable release-prep item). **COMPLETE + documented + release gate re-verified. v1 release prep is now AGENT-COMPLETE; only the operator-only `vsce publish` remains.**

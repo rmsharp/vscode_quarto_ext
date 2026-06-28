@@ -14,9 +14,12 @@
 
 ## Up Next
 
-- [ ] Phase 6d/6e, 7 — YAML/cell-option + embedded-cell completion + authoring aids. (v2)
+- [ ] Phase 6d/6e — YAML/cell-option `#|` completion + embedded-cell language completion. (v2)
+- [ ] Phase 7 authoring aids — **remaining slices**: snippets (`contributes.snippets`), math-preview webview, diagram preview, image paste. (v2). **Formatting toggles (`Quarto: Toggle Bold/Italic/Code`) shipped Session 14** (`core/format-toggle.ts` + `features/formatting.ts`; CLAUDE.md Learning #21).
 
 ## Polish / deferred
+
+- [ ] **Multi-cursor / multi-selection formatting** (deferred from Phase 7 formatting toggles, Session 14). `features/formatting.ts` toggles only the PRIMARY selection (`editor.selection`); a multi-cursor edit would need to apply N replacements and recompute N resulting selections across shifting offsets. Low priority, its own TDD slice.
 
 - [ ] **Deliberate dev-toolchain upgrade to clear the `npm audit` advisories the right way** (surfaced Session 13). The 7 advisories are all dev-only and accepted (`docs/SECURITY-AUDIT.md`), but a future maintenance session could clear them properly — bump `esbuild` 0.24→0.28, `vitest` 2→3 (pulls patched `vite`/`vite-node`/`@vitest/mocker`), and resolve mocha's `serialize-javascript` (without the `npm audit fix --force` downgrade to mocha 8) — then re-run the full matrix (190 unit / 42 integration / clean `.vsix`). These are major bumps to the build/test pillars, so they get their own verified pass, NOT `--force`. Re-check posture with `npm audit --json`. (Learning #20.)
 - [ ] **De-duplicate the integration `EXTENSION_ID` constant** (surfaced Session 11). `const EXTENSION_ID = "rmsharp.vscode-quarto-ext"` is copy-pasted into all 8 `test/integration/suite/*.test.ts` files. When the `publisher` changed this session, every copy went stale at once and RED'd 8 "should be discoverable" failures. Extract to one shared module (ideally derived from `package.json`'s `publisher`+`name`) so an identity change can't silently break discoverability again. Low risk, pure test refactor — its own TDD-exempt pass. (Learning #18.)
