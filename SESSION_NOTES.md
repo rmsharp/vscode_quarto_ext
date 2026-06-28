@@ -5,27 +5,26 @@
 ---
 
 ## ACTIVE TASK
-**Task:** Implement **Phase 5** of the architecture plan — `Quarto: Run Cell` family: `Quarto: Run Cell` (+ Run Above / Run All / advance to next / insert-cell). Detect the active cell's boundaries and **delegate** execution to the user's installed Jupyter/Python/R extension; degrade gracefully (a clear "install the Python/Jupyter extension" message, not a crash) when none is present.
-**Status:** IN PROGRESS (Session 6, started 2026-06-27 19:44 CDT). Phases 1 (skeleton) + 2 (highlighting) + 3 (render) + 4 (preview) are **COMPLETE + verified** (Sessions 2–5). The plan is ratified.
-**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 5" (lines ~300–314) → implement **Phase 5 ONLY**, then close out (FM #18: do not bundle Phase 6a outline).
+**Task:** Implement **Phase 6a** of the architecture plan — Document outline / symbols: a `DocumentSymbolProvider` that populates the Outline view + breadcrumbs for a `.qmd` (markdown headings nested by level, plus code cells). This phase **establishes the shared `core/qmd/model.ts` region parser** (frontmatter | heading | cell | prose) that Phases 6b–6e consume, and should **fold in / subsume Phase 5's `core/cells.ts`** cell-finder rather than duplicate it.
+**Status:** NOT STARTED. Phases 1 (skeleton) + 2 (highlighting) + 3 (render) + 4 (preview) + 5 (run-cell) are **COMPLETE + verified** (Sessions 2–6). The plan is ratified.
+**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 6a" (line ~322) → implement **Phase 6a ONLY**, then close out (FM #18: do not bundle 6b cross-ref / 6c citation).
 **Priority:** HIGH
-**⚠ STRICT TDD IS MANDATORY** (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learning #10). Invoke `/tdd`; write the failing test before the code; red → green → refactor, one behavior at a time. Do NOT lead with implementation (Session 5 was corrected for exactly that).
+**⚠ STRICT TDD IS MANDATORY** (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learning #10). Invoke `/tdd`; write the failing test before the code; red → green → refactor, one behavior at a time. Lead with the failing test (Sessions 5–6 confirm this is the expectation).
 
 ### What You Must Do
-This is an **implementation** session (Development workstream). Deliverable: cursor in a `{python}` cell → `Quarto: Run Cell` executes it in the Jupyter interactive window (with the Jupyter ext installed); with no execution extension → a clear install-this message, no crash.
-1. Read plan §6 Phase 5 (lines ~300–314). **4 dragons:** (a) execution is **delegated**, so behaviour depends on the user's extensions and their **command IDs** (e.g. `jupyter.execSelectionInteractive`) — feature-detect with `vscode.commands.getCommands(true)` / `vscode.extensions.getExtension(...)` and fail soft; (b) cell-boundary detection must handle **nested fences** and the **`{{python}}` non-executable display form** (do NOT run those); (c) the CLI-needs-Jupyter finding (Learning #4/#9) is about the *render* path — the *delegated* run-cell path needs the user's **kernel**, a different dependency; (d) `core/`-vs-adapter split (§3.3) — keep cell detection pure.
-2. **Keep cell-boundary detection a pure `core/` function** — e.g. `core/cells.ts: findCellAtPosition(text, line) → { startLine, endLine, lang, code } | null` (and `findAllCells`). TDD it headlessly (this is most of the correctness; mirror `core/preview-url.ts`/`core/render-args.ts`). Phase 6a will later establish a fuller `core/qmd/model.ts` region parser that can subsume this — a minimal cell finder now is fine (plan §6 Phase 5 says so).
-3. **Adapter** `src/features/execution.ts` + `registerExecutionFeature(context)` — mirror the wiring shape of `src/features/preview.ts:343` (`registerPreviewFeature`) / `src/features/render.ts:24`. It resolves the active `quarto` editor (guard `languageId==='quarto'` like render/preview), finds the cell at the cursor via the core fn, then dispatches to the detected delegate command. No long-lived process here, so **no lifecycle/process-group concerns** (Phase 4's hard part does not recur).
-4. Register the commands in `package.json` (`contributes.commands`, after the `quarto.preview` block); add keybindings in `contributes.keybindings` (e.g. `ctrl+enter` / `shift+enter` when `editorLangId == quarto`) if you implement run/advance. Wire `registerExecutionFeature(context)` in `src/extension.ts` `activate()` (after the `registerPreviewFeature(context)` call at `:23`). **Note:** now that the Phase 4 TOCTOU is fixed, adding keybindings is safe (a keybinding is what makes a double-fire reachable — see Learning #12).
-5. Verify (TDD throughout): `npm run compile` · `npm test` (the pure cell-finder — the bulk) · `npm run test:integration` (assert the commands register; a delegated-run test is **env-dependent** on the Jupyter ext being present in the host — prefer asserting registration + the graceful no-delegate message via an env-independent path, per Learning #9; verify real delegated execution via manual F5). Manual F5 owns the real run-in-interactive-window visual.
-6. Close out after Phase 5. Do NOT start Phase 6 (FM #2, FM #18).
+This is an **implementation** session (Development workstream). Deliverable: open `sample.qmd` → the Outline view + breadcrumbs show its headings (nested by level) and code cells.
+1. Read plan §6 Phase 6a (line ~322) + §3.3 (the pure-core guardrail). 6a is the **shared-parser** phase: its `core/qmd/model.ts` is load-bearing for 6b–6e, so design the region model deliberately (it's higher-stakes than a leaf feature).
+2. **Build `core/qmd/model.ts`** — a pure (`vscode`-free) region parser returning **headings** (text, level 1–6, line range) and **cells**. **Reuse `core/cells.ts`** (`findAllCells` — already pure, fence-aware, 17 tests) for the cell regions; add ATX-heading parsing (`#`..`######`) that is **fence-aware** so a `#` *inside* a `{python}`/`{r}` cell (a comment) or a `#|` cell-option line is NOT treated as a heading. TDD headlessly (mirror `test/unit/cells.test.ts`); ground against `sample.qmd` (`# Heading One` L11, `## Embedded code cells` L27, `## Done` L79).
+3. **Adapter** `providers/outline.ts` (new `providers/` dir — plan §3.3 reserves it) + `registerOutlineProvider(context)` wrapping the model in `vscode.languages.registerDocumentSymbolProvider({ language: "quarto" }, …)` → `DocumentSymbol[]` (translate core regions → vscode types; nest headings by level; cells as leaf symbols, e.g. "```{python}"). Wire it in `src/extension.ts` `activate()` after `registerExecutionFeature(context)` (`:24`).
+4. Verify (TDD throughout): `npm run compile` · `npm test` (the parser — the bulk) · `npm run test:integration` — assert symbols via `await vscode.commands.executeCommand("vscode.executeDocumentSymbolProvider", uri)` returns the expected headings + cells for `sample.qmd`. **This is env-independent and faithful** (no Jupyter/CLI dependency) — prefer it over F5 for the symbol structure; F5 only for the Outline view's visual.
+5. Close out after Phase 6a. Do NOT start 6b (FM #2, FM #18).
 
 ### Useful starting context
-- **Phases 1–4 are done — reuse them.** `core/`-vs-adapter boundary, both test harnesses, all green: **45 unit + 10 integration**, clean 9-file `.vsix`. Read `src/features/preview.ts` and `src/features/render.ts` as adapter templates (run-cell is simpler — no process to own).
-- **`test/fixtures/sample.qmd`** has `{python}`, `{r}`, `{julia}`, `{ojs}` cells (all `#| eval: false`) AND a plain ```` ```python ```` fence — perfect for testing the cell-finder's discrimination (executable `{lang}` cell vs plain fence vs `{{lang}}` display form). The grammar's tokenizer test (`test/unit/tokenize.test.ts`) already encodes where cell boundaries are — cross-check against it.
-- **`src/quarto/cli.ts`** (`resolveBinary()` `:60`, `QuartoNotFound` `:22`) is available but run-cell **delegates to other extensions**, so it likely does NOT need the Quarto CLI at all (the CLI render-path Jupyter dependency is NOT the delegated-path dependency — Learning #4/#9). Don't shell out unless a terminal-fallback path needs it.
-- **Faithful-verification trap (Learning #9):** the test-electron host's installed extensions/kernels differ from a user's. A "did the cell run" assertion that depends on the Jupyter ext being in the host can pass/fail for host-env reasons — keep automated tests env-independent (registration, cell-finder units, graceful-degradation message) and verify real delegated execution via F5/CLI.
-- **Licensing (hard):** Posit's official extension/LSP/visual-editor are **AGPL-3.0** — look-but-don't-copy. Build on MIT upstreams + the MIT Quarto CLI. All new code is original.
+- **Phases 1–5 are done — reuse them.** `core/`-vs-adapter boundary + both test harnesses established, all green: **73 unit + 24 integration**, clean 9-file `.vsix`.
+- **`core/cells.ts`** (`findAllCells` `:55`, `findCellAtPosition`) is the **cell half of 6a's model** — fence-char-aware (backtick **and** tilde), excludes plain ` ```python `, `{{python}}`, `{.python}`, and nested fences. **Fold it into `core/qmd/model.ts`** (call it, or move it under `core/qmd/`); do NOT re-implement cell finding. `test/unit/cells.test.ts` (17) shows every discrimination case.
+- **Heading-in-cell trap:** a `#` inside a cell is a comment and `#|` is a cell option — use the same fence-awareness `cells.ts` already has so cell bodies aren't scanned for headings. The grammar tokenizer test (`test/unit/tokenize.test.ts`) corroborates where cells start/end in `sample.qmd`.
+- **Provider, not command:** 6a registers a `DocumentSymbolProvider` (no command/keybinding). `vscode.executeDocumentSymbolProvider` makes the output faithfully + headlessly testable — the strongest verification here (extends Learning #3/#9). `src/features/render.ts:24` shows the registration/subscription shape to mirror.
+- **`microsoft/vscode-markdown-languageservice` (MIT)** is a *reference* for markdown symbol logic if useful — but write original code; do not copy Posit's AGPL extension/LSP. All new code is original (licensing hard gate).
 
 ### How You Will Be Evaluated
 The user rates every session's handoff. Your handoff will be scored on:
@@ -38,10 +37,57 @@ The user rates every session's handoff. Your handoff will be scored on:
 
 *Session history accumulates below this line. Newest session at the top.*
 
-### What Session 6 Did
-**Deliverable:** Implement **Phase 5** — `Quarto: Run Cell` family (Run Cell / Run Cell and Advance / Run Cells Above / Run All Cells / Insert Cell): pure `core/` cell-boundary finder + delegate-selection logic, thin `src/features/execution.ts` adapter delegating to the user's Jupyter/Python/R extension, graceful when none present. **(IN PROGRESS)**
-**Started:** 2026-06-27 19:44 CDT
-**Status:** Session claimed. Work beginning — strict TDD (operator directive / Learning #10).
+### What Session 6 Did — 2026-06-27
+**Deliverable:** Implement **Phase 5** — `Quarto: Run Cell` family. **COMPLETE + verified.**
+
+**What was done (8 commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `0590d73` chore: claim Session 6 (WIP stub).
+2. `8048dbc` feat: Phase 5 **core cell-finder** — `src/core/cells.ts` (`findAllCells`/`findCellAtPosition`) + `test/unit/cells.test.ts`. Strict-TDD (RED→GREEN per behavior).
+3. `1200a09` feat: Phase 5 **core delegate logic** — `src/core/execution-delegate.ts` (`delegateCommandsFor`/`pickDelegate`/`buildCellSnippet`) + test.
+4. `8953482` feat: Phase 5 **adapter + wiring + contributions** — `src/features/execution.ts` + `src/extension.ts` + `package.json` (5 commands + keybindings).
+5. `95b020d` test: Phase 5 **integration** — `test/integration/suite/execution.test.ts` (registration + faithful stand-in dispatch) + `test/fixtures/run-cells.qmd`.
+6. `6defa26` fix: Phase 5 **core** — track `~~~` tilde fences (review #1).
+7. `a9d481d` fix: Phase 5 **hardening** from an adversarial review — 4 confirmed (#4 activation, #3 skip-and-continue, #5 advance-past-empty, #6 context-key staleness).
+8. `0f8380b` test: Phase 5 — faithful coverage for the fixes (+6 tests) + `test/fixtures/run-cells-mixed.qmd`.
+(+ this close-out commit: SESSION_NOTES, CLAUDE.md Learning #13, CHANGELOG/BACKLOG/ROADMAP; + a dashboard-refresh commit.)
+
+**Verification (all green):**
+- `npm run compile` → tsc clean + esbuild (bundle 16.5 KB → **24.6 KB**, +execution).
+- `npm test` → **73/73** vitest (17 `cells` + 11 `execution-delegate` new).
+- `npm run test:integration` → **24/24** in real downloaded VS Code (v1.126.0): registers all 5 commands; **faithfully dispatches via a stand-in `jupyter.execSelectionInteractive`** (clean host has no Jupyter) asserting find-cell→select-code→invoke and the exact **selected text**; skip-and-continue across the mixed fixture; advance-past-empty; graceful in non-quarto / no-active-editor; `onLanguage:quarto` contribution guard.
+- `npm run package` → clean **9-file** `.vsix` (no test/fixture/`.claude` leak).
+
+**🔑 Three load-bearing findings (→ CLAUDE.md Learning #13):**
+- **Dead-on-arrival keybindings (review #4).** `activationEvents: []` does NOT activate the extension when a `.qmd` opens (language/grammar contributions don't trigger activation — only the auto-`onCommand` does), so the `quarto.inCodeCell` context key gating ctrl/shift+enter was never set → keybindings dead until a palette command ran. The integration suite **masked** this (it force-`activate()`s in `before()`). Fixed: `onLanguage:quarto`. Caught only by the adversarial review.
+- **Faithful delegated-dispatch via a STAND-IN command.** The clean test-electron host has no Jupyter, so registering a stand-in `jupyter.execSelectionInteractive` that captures the **selected text** proves the whole dispatch chain env-independently (gate d; extends Learning #9).
+- **Run-cell runs the IN-EDITOR buffer (no `doc.save()`)** — unlike render/preview (which save because the CLI reads disk). The delegated path depends on the user's **kernel + language extension**, not the Quarto CLI.
+
+**Key files (with anchors):**
+- `src/core/cells.ts` — `findAllCells` (`:55`), `findCellAtPosition` (`:~100`): fence-char-aware (backtick+tilde) linear scanner; `CELL_INFO` (`:39`) excludes `{{}}`/`{.}`; nested + tilde fences tracked as opaque non-cells. Pure.
+- `src/core/execution-delegate.ts` — `pickDelegate(lang, available)` (`:~22`), `delegateCommandsFor` (`:~46`: python→`jupyter.execSelectionInteractive` / r→`r.runSelection` / julia→`language-julia.executeCodeBlockOrSelection`), `buildCellSnippet`. Pure.
+- `src/features/execution.ts` — `registerExecutionFeature` (`:~30`, 5 commands + selection/active-editor/doc-change listeners), `runCells` (`:~120`, **skip-and-continue** + one end-of-batch summary warning), `cellCodeRange` (`:~155`, selection math), `advanceToNextCell`, `insertCell`, `updateCellContext` (`:~215`, active-editor-only guard). Adapter.
+- `src/extension.ts:24` — `registerExecutionFeature(context)`.
+- `package.json` — `activationEvents:["onLanguage:quarto"]` (`:16`); 5 `quarto.run*`/`insertCell` commands; `contributes.keybindings` (ctrl/shift+enter, `when: "… && quarto.inCodeCell"`).
+- `test/integration/suite/execution.test.ts` — `registerStandInDelegate()` (`:~32`, the faithful technique; captures selected text), 14 tests. Fixtures: `run-cells.qmd` (2 python cells), `run-cells-mixed.qmd` (python multi-line / r / empty / python).
+
+**Gotchas for the next session (Phase 6a):**
+1. **`core/cells.ts` is the cell half of 6a's region model — FOLD IT IN, don't duplicate.** It's pure, fence-aware, 17 tests. 6a adds heading parsing on top of the same fence-awareness.
+2. **Heading-in-cell trap:** a `#` inside a cell is a comment, `#|` is a cell option — scan for headings only OUTSIDE cells (reuse `cells.ts`'s fence tracking).
+3. **6a is a provider, not a command** — `registerDocumentSymbolProvider`; test faithfully + env-independently via `vscode.executeDocumentSymbolProvider` (no Jupyter/CLI). Strongest verification here.
+4. **Strict TDD held this session** (RED shown before every GREEN, incl. re-deriving RED on the integration behavior-changes). Keep it.
+5. **F5-only residue (NOT a skipped 3E — automation-impossible):** the **keybinding feel** (ctrl/shift+enter inside a cell) and **real run-in-interactive-window with Jupyter installed** are not headlessly verifiable (no `code` CLI; clean host has no Jupyter). The *behavior* is integration-proven via the stand-in; only the real-extension hop + key feel are F5. **Recommend the operator F5-check** ctrl+enter inside a `{python}` cell with the Jupyter extension installed.
+6. **`npm audit`** still 7 dev-only vulns (unchanged; none ship in the `.vsix`). No git remote → `vsce package` still needs `--allow-missing-repository` (baked into `npm run package`).
+
+**Self-assessment (Session 6): 9/10.**
+- **+** Delivered exactly Phase 5's pre-declared family scope (5 commands), no bundling — stopped before 6a (FM #18 held). **Strict TDD held throughout** — RED observed before every GREEN, including deliberately removing my own over-anticipated unterminated-cell branch to drive it back via a failing test (a direct correction of Session 5's impl-first lapse). Kept §3.3 (two pure `core/` modules; thin adapter). **Faithful verification:** invented the stand-in-delegate technique so dispatch is proven env-independently (gate d), and captured the selected **text** (not just "something happened") to pin the selection math. Ran an adversarial multi-agent review whose verification was discriminating (23 findings → **10 confirmed / 13 rejected**); fixed **8** of the confirmed (incl. the dead-on-arrival keybinding bug the happy-path suite masked — exactly the class Learning #12 warned about) and **declined 2** borderline with documented rationale, each fix TDD'd (re-ran the integration suite to observe RED on the 3 behavior changes).
+- **−** I set a **lenient confirmation threshold** in the review (a single "real" vote among two confirmed a finding), so "10 confirmed" included borderline splits I then triaged by hand — a strict-majority gate would have pre-filtered #2. The **activation gap (#4) I should have foreseen** (I knew `activationEvents` was `[]`); it took the review to surface it. Context-key staleness (#6) and the real-delegation hop remain **F5-verified only** (automation-impossible here) — stated honestly, not a skipped 3E.
+
+#### Session 5 Handoff Evaluation (by Session 6) — Phase 3A
+**Score: 9.5/10.** An outstanding, precise handoff — I was implementing within minutes, and nearly every pointer held.
+- **What helped:** The ACTIVE TASK named the exact deliverable (the Phase 5 family) and plan lines, and the **4 dragons** were all real and correctly prioritized. The single most valuable item: *"keep cell detection a pure `core/` fn and TDD it — the bulk of correctness is there"* — exactly right; `core/cells.ts` is where the session's value concentrated. Reuse pointers were accurate and load-bearing: `render.ts`/`preview.ts` were the right adapter templates, `sample.qmd`'s discrimination cases (`{python}` vs plain ` ```python ` vs `{{}}`) were precisely the cases to test, and the **Learning #9 faithful-verification warning** (host extensions differ) directly shaped the stand-in-delegate technique. The *"STRICT TDD, lead with the failing test, Session 5 was corrected for impl-first"* note was heeded — RED led every cycle.
+- **What was missing / worth correcting:** The handoff noted keybindings were "safe now the TOCTOU is fixed" (true for lifecycle) but did NOT flag the **activation-event gap** — a keybinding gated on a context key set in `activate()` is dead until the extension activates, and `activationEvents:[]` doesn't activate on `.qmd` open. Not Session 5's fault (a Phase-5-specific discovery), but it cost a review cycle; now Learning #13(a). It also under-specified that run-cell should NOT save the buffer (a real design point vs render/preview) — minor, I derived it.
+- **What was wrong:** Nothing material. Every file anchor (`render.ts:24`, `preview.ts:343`, `cli.ts:60/:22`), test count, and reuse target held.
+- **ROI:** Strongly positive — the handoff + plan turned the session into engineering + review, not archaeology.
 
 ### What Session 5 Did — 2026-06-27
 **Deliverable:** Implement **Phase 4** of the architecture plan — `Quarto: Preview`. **COMPLETE + verified.** (Plus two operator directives handled mid-session: enshrining strict TDD, and fixing the stale README.)
