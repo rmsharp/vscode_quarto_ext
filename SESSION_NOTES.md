@@ -37,6 +37,11 @@ The user rates every session's handoff. Your handoff will be scored on:
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 7 Did
+**Deliverable:** Implement **Phase 6a** — Document outline / symbols: a `DocumentSymbolProvider` over a shared pure `core/qmd/model.ts` region parser (headings nested by level + code cells), folding in Phase 5's `core/cells.ts`. (IN PROGRESS)
+**Started:** 2026-06-27 21:38 CDT
+**Status:** Session claimed. Work beginning (strict TDD).
+
 ### What Session 6 Did — 2026-06-27
 **Deliverable:** Implement **Phase 5** — `Quarto: Run Cell` family. **COMPLETE + verified.**
 
