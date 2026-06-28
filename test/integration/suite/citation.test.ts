@@ -2,7 +2,7 @@ import * as assert from "node:assert";
 import * as path from "node:path";
 import * as vscode from "vscode";
 
-const EXTENSION_ID = "vscode-quarto-ext.vscode-quarto-ext";
+const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
 // out/test/integration/suite -> project root
 const ROOT = path.resolve(__dirname, "../../../..");
