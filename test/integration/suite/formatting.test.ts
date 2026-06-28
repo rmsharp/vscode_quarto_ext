@@ -143,9 +143,14 @@ describe("Quarto: formatting toggles", () => {
     for (const command of ["quarto.toggleBold", "quarto.toggleItalic"]) {
       const binding = keybindings.find((k) => k.command === command);
       assert.ok(binding, `${command} should contribute a keybinding`);
-      assert.ok(
-        binding.when?.includes("editorLangId == quarto"),
-        `${command} keybinding must be scoped to quarto`,
+      // Exact-equality (not a substring check): a broadened clause such as
+      // "... || editorLangId == markdown" would still contain the substring but
+      // would hijack cmd+b/cmd+i outside Quarto — assert the binding is RESTRICTED
+      // to quarto, not merely that it mentions quarto.
+      assert.strictEqual(
+        binding.when,
+        "editorTextFocus && editorLangId == quarto",
+        `${command} keybinding must be scoped to exactly quarto`,
       );
     }
   });

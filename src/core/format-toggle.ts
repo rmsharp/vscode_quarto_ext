@@ -63,11 +63,17 @@ export function toggleFormat(
   // The `!== marker[0]` guards disambiguate `*` (italic) from `**` (bold): a `*`
   // adjacent to another `*` is part of a `**` run, not a lone italic marker, so
   // toggling italic over bold WRAPS (-> bold+italic) instead of corrupting it.
+  // The inner-neighbour checks (`text[s]` / `text[e - 1]`) close the same gap on
+  // the INWARD side: on an empty selection the two candidate markers are mutually
+  // adjacent (e.g. a bare cursor inside a literal `**`), so without this an italic
+  // toggle would strip the `**` run — silently deleting the user's characters.
   if (
     text.slice(s - m, s) === marker &&
     text[s - m - 1] !== marker[0] &&
+    text[s] !== marker[0] &&
     text.slice(e, e + m) === marker &&
-    text[e + m] !== marker[0]
+    text[e + m] !== marker[0] &&
+    text[e - 1] !== marker[0]
   ) {
     return {
       start: s - m,
@@ -110,7 +116,12 @@ export function toggleFormat(
   };
 }
 
-/** Word characters for cursor-to-word expansion: letters, digits, underscore. */
+/**
+ * Word characters for cursor-to-word expansion: any Unicode letter or number,
+ * plus underscore. Unicode-aware (`\p{L}`/`\p{N}`) so accented and non-Latin
+ * prose words (`café`, `naïve`, …) expand whole rather than splitting at the
+ * first non-ASCII letter, matching the editor's own word notion.
+ */
 function isWordChar(ch: string): boolean {
-  return /[A-Za-z0-9_]/.test(ch);
+  return /[\p{L}\p{N}_]/u.test(ch);
 }

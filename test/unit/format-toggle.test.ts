@@ -91,6 +91,28 @@ describe("toggleFormat", () => {
     expect(r.selectionEnd).toBe(4);
   });
 
+  it("expands a bare cursor across non-ASCII (accented) word characters", () => {
+    // "café", cursor at offset 2 — bold must wrap the WHOLE word, not split at "é"
+    const r = toggleFormat("café", 2, 2, "**");
+    expect(r.start).toBe(0);
+    expect(r.end).toBe(4);
+    expect(r.replacement).toBe("**café**");
+    expect(r.selectionStart).toBe(2);
+    expect(r.selectionEnd).toBe(6);
+  });
+
+  it("does not delete a literal ** when toggling italic with a bare cursor inside it", () => {
+    // "a**b", cursor between the two asterisks (offset 2), italic. The `**` is a
+    // bold run, not two italic markers wrapping empty content — so DON'T strip it;
+    // insert an empty italic pair instead (the insert-empty behavior).
+    const r = toggleFormat("a**b", 2, 2, "*");
+    expect(r.start).toBe(2);
+    expect(r.end).toBe(2);
+    expect(r.replacement).toBe("**");
+    expect(r.selectionStart).toBe(3);
+    expect(r.selectionEnd).toBe(3);
+  });
+
   it("works for the inline-code marker (`)", () => {
     const r = toggleFormat("word", 0, 4, "`");
     expect(r.replacement).toBe("`word`");
