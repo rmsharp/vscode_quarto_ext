@@ -21,7 +21,31 @@ licensed authoring toolset inside VS Code.
 > **Status:** v1, feature-complete. This is an early (preview) release — the
 > features listed below are its full scope.
 
-<!-- SCREENSHOTS: placeholder — real screenshots will be added in a later release. -->
+## Screenshots
+
+**Syntax highlighting** — YAML front matter, Markdown prose, and embedded
+`{python}` / `{r}` code cells, each colorized in its own language.
+
+![Quarto syntax highlighting in a .qmd document, with colorized YAML front matter, prose, and code cells](media/screenshots/01-syntax-highlighting.png)
+
+**Document outline** — headings nested by level, with code cells shown under
+their sections.
+
+![The VS Code Outline view showing a .qmd document's headings nested with its code cells](media/screenshots/02-outline.png)
+
+**`@` completion** — cross-reference labels (`@sec-`, `@fig-`, `@tbl-`, `@eq-`)
+and bibliography citekeys complete together in a single list.
+
+![An @ completion popup listing cross-reference labels and bibliography citekeys together](media/screenshots/03-completion.png)
+
+**Live preview** — an auto-reloading preview pane beside the editor.
+
+![A live Quarto preview pane rendering the document beside the editor](media/screenshots/04-preview.png)
+
+**Render** — `quarto render` streamed to an Output channel, with the produced
+artifact offered on success.
+
+![The Quarto Render output channel showing a successful render](media/screenshots/05-render.png)
 
 ## Features
 
