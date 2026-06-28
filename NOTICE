@@ -42,5 +42,22 @@ Quarto CLI (runtime dependency, invoked via the shell)
   https://github.com/quarto-dev/quarto-cli
   License: MIT
 
+KaTeX (bundled webview assets — media/katex/)
+---------------------------------------------
+The math-preview webview renders LaTeX with KaTeX. Its distribution files
+(`katex.min.js`, `katex.min.css`, and the `KaTeX_*` woff2 web fonts) are
+vendored verbatim under `media/katex/` and shipped inside the `.vsix`; they are
+loaded only inside the preview webview, never into the extension host.
+
+  https://github.com/KaTeX/KaTeX
+  License: MIT
+  Pinned: katex 0.16.x (see the `katex` devDependency in package.json)
+
+Vendored copy provenance: copied from `node_modules/katex/dist/` after
+`npm install`. Only the woff2 fonts are shipped (the CSS lists woff2 first and
+the webview's Chromium picks it; the woff/ttf faces are omitted to keep the
+package lean). To refresh, re-copy `katex.min.js`, `katex.min.css`, and
+`fonts/*.woff2` from the pinned dist and re-verify the MIT license still holds.
+
 On upgrade of any referenced grammar or tool, re-verify the license still holds
 at the pinned version and update this file (architecture plan §9, §14).
