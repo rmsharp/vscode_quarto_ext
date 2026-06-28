@@ -59,6 +59,43 @@
         "command": "quarto.preview",
         "title": "Preview",
         "category": "Quarto"
+      },
+      {
+        "command": "quarto.runCell",
+        "title": "Run Cell",
+        "category": "Quarto"
+      },
+      {
+        "command": "quarto.runCellAndAdvance",
+        "title": "Run Cell and Advance",
+        "category": "Quarto"
+      },
+      {
+        "command": "quarto.runCellsAbove",
+        "title": "Run Cells Above",
+        "category": "Quarto"
+      },
+      {
+        "command": "quarto.runAllCells",
+        "title": "Run All Cells",
+        "category": "Quarto"
+      },
+      {
+        "command": "quarto.insertCell",
+        "title": "Insert Cell",
+        "category": "Quarto"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "quarto.runCell",
+        "key": "ctrl+enter",
+        "when": "editorTextFocus && editorLangId == quarto && quarto.inCodeCell"
+      },
+      {
+        "command": "quarto.runCellAndAdvance",
+        "key": "shift+enter",
+        "when": "editorTextFocus && editorLangId == quarto && quarto.inCodeCell"
       }
     ],
     "configuration": {
