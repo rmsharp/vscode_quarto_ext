@@ -1,0 +1,14 @@
+---
+title: "In-cell cross-ref guard fixture"
+execute:
+  enabled: false
+---
+
+# Methods {#sec-methods}
+
+A reference in prose: see @sec-methods.
+
+```{python}
+# see @fig-plot and @sec-methods written inside code
+x = 1
+```

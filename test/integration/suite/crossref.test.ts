@@ -7,11 +7,24 @@ const EXTENSION_ID = "vscode-quarto-ext.vscode-quarto-ext";
 // out/test/integration/suite -> project root
 const ROOT = path.resolve(__dirname, "../../../..");
 const FIXTURE = path.resolve(ROOT, "test/fixtures/crossrefs.qmd");
+const IN_CELL = path.resolve(ROOT, "test/fixtures/crossrefs-incell.qmd");
 
-async function openFixture(): Promise<vscode.TextDocument> {
-  const doc = await vscode.workspace.openTextDocument(FIXTURE);
+async function openFixture(file: string = FIXTURE): Promise<vscode.TextDocument> {
+  const doc = await vscode.workspace.openTextDocument(file);
   await vscode.window.showTextDocument(doc);
   return doc;
+}
+
+/** The range a completion item replaces (handles both the single-Range and insert/replace forms). */
+function replaceRange(item: vscode.CompletionItem): vscode.Range | undefined {
+  const r = item.range as
+    | vscode.Range
+    | { inserting: vscode.Range; replacing: vscode.Range }
+    | undefined;
+  if (!r) {
+    return undefined;
+  }
+  return "replacing" in r ? r.replacing : r;
 }
 
 function labelText(item: vscode.CompletionItem): string {
@@ -115,5 +128,65 @@ describe("Quarto: Cross-reference completion + definition", () => {
       new vscode.Position(8, 0),
     );
     assert.ok(!locs || locs.length === 0, "no definition off a reference");
+  });
+
+  it("E: completion replace range covers the whole @id token, not just up to the cursor", async () => {
+    const doc = await openFixture();
+    // Line 8 "See @sec-methods …": cursor right after '@' (col 5); the token
+    // '@sec-methods' spans [4,16). Accepting must replace the whole token.
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(8, 5),
+      "@",
+    );
+    const item = (list?.items ?? [])[0];
+    assert.ok(item, "at least one completion item");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.start.character, 4, "replaces from the '@'");
+    assert.strictEqual(
+      range.end.character,
+      16,
+      "replaces through the end of the existing '@sec-methods' token",
+    );
+  });
+
+  it("F/G: offers no cross-ref completions inside a code cell", async () => {
+    const doc = await openFixture(IN_CELL);
+    // Line 11 is inside the {python} cell; col 7 is right after an '@'.
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(11, 7),
+      "@",
+    );
+    const ours = (list?.items ?? [])
+      .map(labelText)
+      .filter((l) => l.startsWith("@"));
+    assert.deepStrictEqual(ours, [], "no @-labels offered inside a code cell");
+  });
+
+  it("F/G: go-to-definition does not fire on an @ref written inside a code cell", async () => {
+    const doc = await openFixture(IN_CELL);
+    // Line 11 col 23 sits inside '@sec-methods' written in a python comment.
+    const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+      "vscode.executeDefinitionProvider",
+      doc.uri,
+      new vscode.Position(11, 23),
+    );
+    assert.ok(!locs || locs.length === 0, "no definition from inside a cell");
+  });
+
+  it("F/G: go-to-definition still works on the same @ref in prose (control)", async () => {
+    const doc = await openFixture(IN_CELL);
+    // Line 8 col 29 sits inside '@sec-methods' in prose.
+    const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+      "vscode.executeDefinitionProvider",
+      doc.uri,
+      new vscode.Position(8, 29),
+    );
+    assert.ok(locs && locs.length > 0, "prose reference resolves");
+    assert.strictEqual(locs[0].range.start.line, 6, "jumps to the heading");
   });
 });

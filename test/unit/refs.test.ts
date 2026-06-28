@@ -3,6 +3,7 @@ import {
   crossrefCompletionContext,
   findLabel,
   indexLabels,
+  isReferenceableLine,
   refIdAt,
 } from "../../src/core/refs";
 
@@ -259,5 +260,26 @@ describe("indexLabels — inline code spans are not labels (review H)", () => {
   it("H: still indexes a real label outside the code span on the same line", () => {
     const text = "Syntax `{#fig-demo}`: ![p](p.png){#fig-real}";
     expect(indexLabels(text).map((l) => l.id)).toEqual(["fig-real"]);
+  });
+});
+
+describe("isReferenceableLine — cross-refs apply only to prose/heading lines (review F/G)", () => {
+  it("is true for prose and heading lines, false inside cells / front matter / comments", () => {
+    const text = [
+      "---", // 0 front matter
+      "title: T", // 1 front matter
+      "---", // 2
+      "# Heading {#sec-x}", // 3 heading — referenceable
+      "prose @sec-x", // 4 prose — referenceable
+      "```{python}", // 5 cell fence
+      "x = 1  # @sec-x", // 6 cell body — not
+      "```", // 7
+      "<!-- @sec-x -->", // 8 whole-line comment — not
+    ].join("\n");
+    expect(isReferenceableLine(text, 3)).toBe(true);
+    expect(isReferenceableLine(text, 4)).toBe(true);
+    expect(isReferenceableLine(text, 1)).toBe(false);
+    expect(isReferenceableLine(text, 6)).toBe(false);
+    expect(isReferenceableLine(text, 8)).toBe(false);
   });
 });

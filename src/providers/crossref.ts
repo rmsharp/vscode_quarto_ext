@@ -14,6 +14,7 @@ import {
   crossrefCompletionContext,
   findLabel,
   indexLabels,
+  isReferenceableLine,
   type RefLabel,
   refIdAt,
 } from "../core/refs";
@@ -41,28 +42,41 @@ class CrossrefCompletionProvider implements vscode.CompletionItemProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
   ): vscode.CompletionItem[] | undefined {
+    const text = document.getText();
+    // Cross-refs apply only in prose/headings — not inside code cells, front
+    // matter, or comments (where `@` is a decorator/macro/email).
+    if (!isReferenceableLine(text, position.line)) {
+      return undefined;
+    }
     const lineText = document.lineAt(position.line).text;
     const context = crossrefCompletionContext(lineText, position.character);
     if (context === null) {
       return undefined;
     }
-    // Replace from the `@` to the cursor so the inserted `@id` doesn't duplicate it.
-    const range = new vscode.Range(
-      position.line,
-      context.start,
-      position.line,
-      position.character,
-    );
-    return indexLabels(document.getText()).map((label) =>
-      toCompletionItem(label, range),
-    );
+    // Insert replaces `@`→cursor; replace covers the whole `@id` token (through
+    // `end`) so accepting mid-token does not duplicate the trailing suffix.
+    const range = {
+      inserting: new vscode.Range(
+        position.line,
+        context.start,
+        position.line,
+        position.character,
+      ),
+      replacing: new vscode.Range(
+        position.line,
+        context.start,
+        position.line,
+        context.end,
+      ),
+    };
+    return indexLabels(text).map((label) => toCompletionItem(label, range));
   }
 }
 
 /** Translate one core `RefLabel` into a `vscode.CompletionItem`. */
 function toCompletionItem(
   label: RefLabel,
-  range: vscode.Range,
+  range: { inserting: vscode.Range; replacing: vscode.Range },
 ): vscode.CompletionItem {
   const insert = `@${label.id}`;
   const item = new vscode.CompletionItem(
@@ -85,12 +99,18 @@ class CrossrefDefinitionProvider implements vscode.DefinitionProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
   ): vscode.Location | undefined {
+    const text = document.getText();
+    // Only resolve references written in prose/headings, not inside code cells,
+    // front matter, or comments (a `@fig-…`-shaped token there is not a ref).
+    if (!isReferenceableLine(text, position.line)) {
+      return undefined;
+    }
     const lineText = document.lineAt(position.line).text;
     const id = refIdAt(lineText, position.character);
     if (id === null) {
       return undefined;
     }
-    const label = findLabel(document.getText(), id);
+    const label = findLabel(text, id);
     if (label === null) {
       return undefined;
     }

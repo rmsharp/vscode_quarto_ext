@@ -165,6 +165,16 @@ export function findLabel(text: string, id: string): RefLabel | null {
 }
 
 /**
+ * Whether 0-based `line` is a prose or heading line — where cross-references
+ * apply. False inside code cells, YAML front matter, and HTML comments, where an
+ * `@` is a decorator/macro/email and a `{#…}` is literal. Gates the providers so
+ * completion does not pop and go-to-definition does not fire in non-prose regions.
+ */
+export function isReferenceableLine(text: string, line: number): boolean {
+  return findBodyLines(text).some((body) => body.line === line);
+}
+
+/**
  * The cross-reference id of the `@ref` token at 0-based `column` on `lineText`,
  * or `null` if the cursor is not within one. The cursor counts as inside the
  * token from its `@` through one past its last character (so it resolves whether
