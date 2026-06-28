@@ -1,0 +1,16 @@
+---
+title: "Citation fixture"
+bibliography: refs.bib
+execute:
+  enabled: false
+---
+
+# Introduction {#sec-intro}
+
+As shown by @knuth1984 and @lamport1994, see @sec-intro too.
+
+```{python}
+#| label: setup
+# see @knuth1984
+x = 1
+```
