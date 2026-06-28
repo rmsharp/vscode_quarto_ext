@@ -5,26 +5,29 @@
 ---
 
 ## ACTIVE TASK
-**Task:** Implement **Phase 6a** of the architecture plan — Document outline / symbols: a `DocumentSymbolProvider` that populates the Outline view + breadcrumbs for a `.qmd` (markdown headings nested by level, plus code cells). This phase **establishes the shared `core/qmd/model.ts` region parser** (frontmatter | heading | cell | prose) that Phases 6b–6e consume, and should **fold in / subsume Phase 5's `core/cells.ts`** cell-finder rather than duplicate it.
-**Status:** NOT STARTED. Phases 1 (skeleton) + 2 (highlighting) + 3 (render) + 4 (preview) + 5 (run-cell) are **COMPLETE + verified** (Sessions 2–6). The plan is ratified.
-**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 6a" (line ~322) → implement **Phase 6a ONLY**, then close out (FM #18: do not bundle 6b cross-ref / 6c citation).
+**Task:** Implement **Phase 6b** of the architecture plan — Cross-reference completion + go-to-definition: index `@fig-/@tbl-/@sec-/@eq-` labels in the open `.qmd`, a `CompletionItemProvider` on `@` to list them, and a `DefinitionProvider` to jump from a `@ref` to its label. **Build on the Phase 6a region model** (`core/qmd/model.ts`) — do NOT write a third scanner.
+**Status:** NOT STARTED. Phases 1 (skeleton) + 2 (highlighting) + 3 (render) + 4 (preview) + 5 (run-cell) + 6a (outline/symbols) are **COMPLETE + verified** (Sessions 2–7). The plan is ratified.
+**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 6b" (line ~323) → implement **Phase 6b ONLY**, then close out (FM #18: do not bundle 6c citation).
 **Priority:** HIGH
-**⚠ STRICT TDD IS MANDATORY** (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learning #10). Invoke `/tdd`; write the failing test before the code; red → green → refactor, one behavior at a time. Lead with the failing test (Sessions 5–6 confirm this is the expectation).
+**⚠ STRICT TDD IS MANDATORY** (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14). Invoke `/tdd`; write the failing test before the code; red → green → refactor, one behavior at a time. Lead with the failing test (Sessions 5–7 confirm this is the expectation).
 
 ### What You Must Do
-This is an **implementation** session (Development workstream). Deliverable: open `sample.qmd` → the Outline view + breadcrumbs show its headings (nested by level) and code cells.
-1. Read plan §6 Phase 6a (line ~322) + §3.3 (the pure-core guardrail). 6a is the **shared-parser** phase: its `core/qmd/model.ts` is load-bearing for 6b–6e, so design the region model deliberately (it's higher-stakes than a leaf feature).
-2. **Build `core/qmd/model.ts`** — a pure (`vscode`-free) region parser returning **headings** (text, level 1–6, line range) and **cells**. **Reuse `core/cells.ts`** (`findAllCells` — already pure, fence-aware, 17 tests) for the cell regions; add ATX-heading parsing (`#`..`######`) that is **fence-aware** so a `#` *inside* a `{python}`/`{r}` cell (a comment) or a `#|` cell-option line is NOT treated as a heading. TDD headlessly (mirror `test/unit/cells.test.ts`); ground against `sample.qmd` (`# Heading One` L11, `## Embedded code cells` L27, `## Done` L79).
-3. **Adapter** `providers/outline.ts` (new `providers/` dir — plan §3.3 reserves it) + `registerOutlineProvider(context)` wrapping the model in `vscode.languages.registerDocumentSymbolProvider({ language: "quarto" }, …)` → `DocumentSymbol[]` (translate core regions → vscode types; nest headings by level; cells as leaf symbols, e.g. "```{python}"). Wire it in `src/extension.ts` `activate()` after `registerExecutionFeature(context)` (`:24`).
-4. Verify (TDD throughout): `npm run compile` · `npm test` (the parser — the bulk) · `npm run test:integration` — assert symbols via `await vscode.commands.executeCommand("vscode.executeDocumentSymbolProvider", uri)` returns the expected headings + cells for `sample.qmd`. **This is env-independent and faithful** (no Jupyter/CLI dependency) — prefer it over F5 for the symbol structure; F5 only for the Outline view's visual.
-5. Close out after Phase 6a. Do NOT start 6b (FM #2, FM #18).
+This is an **implementation** session (Development workstream). Deliverable: in a `.qmd`, typing `@fig-` lists the figure labels defined in the doc, and go-to-definition on a `@ref` jumps to where the label is defined.
+1. Read plan §6 Phase 6b (line ~323) + §3.3 (the pure-core guardrail). Read `src/core/qmd/model.ts` IN FULL — you are extending it.
+2. **Where labels come from — two sources:**
+   - **Section ids** from the Pandoc heading-attribute block `{#sec-id}`. **Phase 6a strips this from the outline display name but does NOT store it structurally yet** (see `parseHeadingLine` / `ATX_ATTRIBUTE` in `model.ts`). **First step: add an `id`/attrs field to the `Heading` interface** and capture it in `parseHeadingLine` (TDD it), so 6b consumes the parsed id instead of re-parsing the name. The matching test to update: `test/unit/qmd-model.test.ts` "Pandoc/Quarto heading attributes".
+   - **`#| label: fig-foo` / `#| label: tbl-bar` cell options** inside `{python}/{r}` cells (figures/tables produced by code), and `{#fig-... }`/`{#tbl-...}` on fenced divs/images. Scan cell bodies (you have `findAllCells` → `cell.code`) for the `label:` option.
+3. **Build a pure `core/refs.ts`** (`vscode`-free, §3.3) that indexes labels (id, kind fig/tbl/sec/eq, defining line) by consuming `scanRegions`/`findHeadings`/`findAllCells` from `model.ts` — **do NOT write a third line scanner** (Learning #14: parsers that overlap must agree on skip-regions; reuse the shared one). TDD headlessly; add a fixture or extend `sample.qmd`.
+4. **Adapter** `providers/crossref.ts` + `registerCrossrefProviders(context)`: a `CompletionItemProvider` (trigger char `@`) and a `DefinitionProvider`, both for `{ language: "quarto" }`, wrapping `core/refs.ts`. Wire in `src/extension.ts` `activate()` after `registerOutlineProvider(context)` (`:26`).
+5. Verify (TDD throughout): `npm run compile` · `npm test` (the indexer — the bulk) · `npm run test:integration` via `vscode.executeCompletionItemProvider` / `vscode.executeDefinitionProvider` (env-independent, faithful — the strongest verification; mirror `test/integration/suite/outline.test.ts`). F5 only for the completion popup's visual feel.
+6. Close out after Phase 6b. Do NOT start 6c (FM #2, FM #18).
 
 ### Useful starting context
-- **Phases 1–5 are done — reuse them.** `core/`-vs-adapter boundary + both test harnesses established, all green: **73 unit + 24 integration**, clean 9-file `.vsix`.
-- **`core/cells.ts`** (`findAllCells` `:55`, `findCellAtPosition`) is the **cell half of 6a's model** — fence-char-aware (backtick **and** tilde), excludes plain ` ```python `, `{{python}}`, `{.python}`, and nested fences. **Fold it into `core/qmd/model.ts`** (call it, or move it under `core/qmd/`); do NOT re-implement cell finding. `test/unit/cells.test.ts` (17) shows every discrimination case.
-- **Heading-in-cell trap:** a `#` inside a cell is a comment and `#|` is a cell option — use the same fence-awareness `cells.ts` already has so cell bodies aren't scanned for headings. The grammar tokenizer test (`test/unit/tokenize.test.ts`) corroborates where cells start/end in `sample.qmd`.
-- **Provider, not command:** 6a registers a `DocumentSymbolProvider` (no command/keybinding). `vscode.executeDocumentSymbolProvider` makes the output faithfully + headlessly testable — the strongest verification here (extends Learning #3/#9). `src/features/render.ts:24` shows the registration/subscription shape to mirror.
-- **`microsoft/vscode-markdown-languageservice` (MIT)** is a *reference* for markdown symbol logic if useful — but write original code; do not copy Posit's AGPL extension/LSP. All new code is original (licensing hard gate).
+- **Phases 1–6a are done — reuse them.** `core/`-vs-adapter boundary + both harnesses established, all green: **111 unit + 25 integration**, clean 9-file `.vsix`.
+- **`core/qmd/model.ts` is the shared region model (Learning #14) — consume it, don't duplicate it.** `scanRegions(text)` → `{headings, cells}` is the single line-classifying pass (front matter, HTML comments, fences, ATX headings); `findHeadings`/`findAllCells`/`findCellAtPosition`/`buildOutline` are thin views. `core/cells.ts` is a re-export shim (Phase 5 still imports it). The 17 cell tests + 38 model tests are your regression net.
+- **The `{#sec-id}` id is already PARSED-AND-DISCARDED** in `parseHeadingLine` (it strips `ATX_ATTRIBUTE` from the display text). 6b's first job is to *keep* it. This is flagged in the BACKLOG "Active" item.
+- **Provider-via-`execute*Provider` is the faithful test** (Learnings #3/#9/#14): `vscode.executeCompletionItemProvider(uri, position, "@")` and `vscode.executeDefinitionProvider(uri, position)` run in the real downloaded host with no CLI/Jupyter. `test/integration/suite/outline.test.ts` is the template.
+- **`microsoft/vscode-markdown-languageservice` (MIT)** is a *reference* for link/definition logic — write original code; never copy Posit's AGPL extension/LSP (licensing hard gate).
 
 ### How You Will Be Evaluated
 The user rates every session's handoff. Your handoff will be scored on:
@@ -37,10 +40,59 @@ The user rates every session's handoff. Your handoff will be scored on:
 
 *Session history accumulates below this line. Newest session at the top.*
 
-### What Session 7 Did
-**Deliverable:** Implement **Phase 6a** — Document outline / symbols: a `DocumentSymbolProvider` over a shared pure `core/qmd/model.ts` region parser (headings nested by level + code cells), folding in Phase 5's `core/cells.ts`. (IN PROGRESS)
-**Started:** 2026-06-27 21:38 CDT
-**Status:** Session claimed. Work beginning (strict TDD).
+### What Session 7 Did — 2026-06-27
+**Deliverable:** Implement **Phase 6a** — Document outline / symbols. **COMPLETE + verified + adversarially hardened.**
+
+**What was done (4 commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `b4b9a24` chore: claim Session 7 (WIP stub).
+2. `d7f9b55` feat: Phase 6a **core** — new pure `src/core/qmd/model.ts` (`findHeadings`, `buildOutline`); **folded in** Phase 5's `core/cells.ts` (now a re-export shim) so heading + cell detection share one fence scanner. Strict-TDD (6 red→green cycles).
+3. `74794ed` feat: Phase 6a **adapter + wiring** — `src/providers/outline.ts` (`registerOutlineProvider`, maps core→`vscode.DocumentSymbol`) + `src/extension.ts:27`; `test/integration/suite/outline.test.ts` (faithful via `executeDocumentSymbolProvider`).
+4. `dc2e868` fix: Phase 6a **hardening** from a 5-lens adversarial review — unified the two scanners into one `scanRegions` pass (6 confirmed findings fixed).
+(+ this close-out commit: SESSION_NOTES, CLAUDE.md Learning #14, model.ts setext note, BACKLOG/CHANGELOG/ROADMAP; + a dashboard refresh.)
+
+**Verification (all green):**
+- `npm run compile` → tsc clean + esbuild (bundle 24.6 KB → **29.3 KB**, +model+provider).
+- `npm test` → **111/111** vitest (38 new in `qmd-model.test.ts`; the 17 `cells` tests stayed green throughout the consolidation = regression net).
+- `npm run test:integration` → **25/25** in real downloaded VS Code (v1.126.0): the new outline test asserts the **full `sample.qmd` symbol tree** via `vscode.executeDocumentSymbolProvider` (Heading One › {Embedded code cells › 4 cells, Done}) — env-independent, no CLI/Jupyter. All Phase 5 run-cell tests still pass (the shared-model hardening did not regress them).
+- `npm run package` → clean **9-file** `.vsix` (no test/fixture/`.claude` leak).
+- §3.3 guardrail: `grep vscode src/core/` → only doc-comment matches; no import. The provider imports core, never the reverse.
+
+**🔑 Load-bearing findings (→ CLAUDE.md Learning #14):**
+- **One region scanner, many views.** `scanRegions()` classifies every line once (front matter | HTML comment | fence | ATX heading); `findHeadings`/`findAllCells`/`findCellAtPosition`/`buildOutline` are thin views. This is what makes the "single source of truth" docstring TRUE.
+- **The "two scanners disagree" trap** (the review's core catch). 6a first shipped `findHeadings` (front-matter+fence aware) and a SEPARATE `findAllCells` (fence-aware only). They disagreed on skip-regions → `findAllCells` found phantom cells inside YAML front matter / HTML comments / 4-space-indented fences, corrupting both the outline AND Phase 5 run-cell. **97/25 happy-path tests all missed it.** The 5-lens adversarial review (refute-by-default verification) found 8 confirmed; unifying the scanner fixed 6.
+- **Provider-via-`executeDocumentSymbolProvider` is the faithful, env-independent test** (extends #3/#9). Registering a provider needs no `package.json` contribution and isn't context-key-gated → the Learning #13a dead-on-arrival activation trap does NOT recur here.
+
+**Adversarial review outcome (5 lenses, refute-by-default verify, 10 findings → 8 confirmed / 2 refuted):**
+- **Fixed 6** (commit `dc2e868`): front-matter skip now shared with cells (#1/#2/#5); HTML-comment skip (#1); 0–3-space fence-indent cap matching ATX, CommonMark §4.5 (#3/#6); strip Pandoc `{#sec-id .class}` from the display name (#8); drop empty closing-hash heading `## ##` (#4).
+- **Deferred 1** (documented, not a defect in handled input): **setext headings** `===`/`---` (#7) — needs `---` disambiguation vs thematic break / front matter; own TDD pass. In BACKLOG "Polish / deferred" + a `model.ts` docstring note.
+- **Refuted 2** (no action — correctly): lone-`\r` classic-Mac EOL (a verifier opened such a file in the real host and confirmed VS Code normalizes EOL, so `getText()` never yields lone `\r` — my `lineSpan` clamp is sound); and a duplicate setext vote.
+
+**Key files (with anchors):**
+- `src/core/qmd/model.ts` — `scanRegions` (`:~165`, the single pass: front matter `:~180`, fence/cell `:~195`, HTML comment `:~210`, ATX heading `:~228`); `findHeadings`/`findAllCells` (thin wrappers `:~240`); `buildOutline` (`:~260`, nest-by-level stack + `sectionEndOf`); `parseHeadingLine` (`:~320`, strips `ATX_ATTRIBUTE` then `ATX_CLOSING` — **the `{#sec-id}` is parsed and currently discarded; Phase 6b must keep it**). Regexes `:58–95`. Pure.
+- `src/core/cells.ts` — now a 1-line re-export shim over `./qmd/model` (Phase 5 + `cells.test.ts` import it unchanged).
+- `src/providers/outline.ts` — `registerOutlineProvider` (`:16`), `QmdDocumentSymbolProvider` (`:25`), `toDocumentSymbol` (`:~37`, heading→`SymbolKind.String` / cell→`Function`), `lineSpan` (`:~62`, clamps to `document.lineCount`). Adapter.
+- `src/extension.ts:27` — `registerOutlineProvider(context)`.
+- `test/unit/qmd-model.test.ts` (38) — heading parsing, ATX edge rules, fence/front-matter/comment awareness, attribute strip, `buildOutline` nesting + sample.qmd ground-truth, region-consistency (cells & headings agree).
+- `test/integration/suite/outline.test.ts` — `symbolsFor()` via `executeDocumentSymbolProvider`; asserts the sample.qmd tree.
+
+**Gotchas for the next session (Phase 6b):**
+1. **`core/qmd/model.ts` is the shared model — consume it, don't write a third scanner** (Learning #14). 6b's `core/refs.ts` should call `findHeadings`/`findAllCells`/`scanRegions`.
+2. **The `{#sec-id}` id is parsed-and-discarded** in `parseHeadingLine`. 6b's FIRST step: add an `id`/attrs field to `Heading` and keep it (update the "Pandoc/Quarto heading attributes" test). The section-id label source for `@sec-`.
+3. **Labels also live in `#| label: fig-foo` cell options** (figures/tables from code) — scan `cell.code`. And `{#fig-...}` on images/divs.
+4. **Provider test via `vscode.executeCompletionItemProvider`/`executeDefinitionProvider`** in the host (faithful, env-independent) — mirror `outline.test.ts`. Completion trigger char is `@`.
+5. **Setext headings are NOT parsed** (deferred) — if a 6b test doc uses a setext-underlined section as a `@sec-` target, it won't be found. Use ATX `{#sec-id}` headings in fixtures.
+6. **`npm audit`** still 7 dev-only vulns (unchanged; none ship). No git remote → `vsce package` still needs `--allow-missing-repository` (baked into `npm run package`).
+
+**Self-assessment (Session 7): 9/10.**
+- **+** Delivered exactly Phase 6a's scope, no bundling (FM #18 held — stopped before 6b). Four recoverable commits, ≤5 files each, full verification at each layer boundary (vertical-slice gate c). **Strict TDD held throughout** — RED observed before every GREEN across 9 cycles (6 core + 3 hardening), and the consolidation refactor kept the 17 Phase-5 cell tests green as a deliberate regression net (FM #20: re-read model.ts before each edit). Kept §3.3 (pure `core/qmd/model.ts`; thin adapter; grep-verified no `vscode` import). **Faithful verification:** the integration test exercises the REAL registered provider via `executeDocumentSymbolProvider` (not a stand-in), asserting the full tree env-independently. Ran a 5-lens adversarial review whose verification was discriminating (10 findings → 8 confirmed / 2 refuted, incl. a verifier that opened a lone-`\r` file in the real host to refute a plausible-but-wrong EOL finding); **unified the two scanners** to fix the root cause (not symptom-patch each producer) — which also improved Phase 5 run-cell — and re-ran the full unit+integration suite to confirm no regression. Honest scope discipline: deferred setext with documentation rather than gold-plating at close-out.
+- **−** **I shipped the "two scanners disagree" defect in the first two commits** — `findAllCells` not honoring front matter was a latent Phase-5 gap I carried forward by consolidating cell logic without re-checking it against the new front-matter awareness I'd just added to `findHeadings`. A moment's thought at the consolidation step ("do both producers now agree on skip-regions?") would have caught it before the review. Caught and fixed in-session (root-cause unification), but it cost a review cycle. Genuine residual gap: the **Outline view's visual rendering** is F5-unverified (no `code` CLI) — the symbol *structure* is fully integration-proven, so this is cosmetic, stated honestly (not a skipped Phase 3E).
+
+#### Session 6 Handoff Evaluation (by Session 7) — Phase 3A
+**Score: 9.5/10.** An excellent, precise handoff — I was implementing within minutes and nearly every pointer held exactly.
+- **What helped:** The ACTIVE TASK named the deliverable, the plan line, and the §3.3 guardrail, and the gotchas were all real and load-bearing. The single most valuable item: *"`core/cells.ts` is the cell half of 6a's model — FOLD IT IN, don't duplicate"* with the explicit "call it, or move it under `core/qmd/`" latitude — that shaped the whole core design (I made `cells.ts` a shim over the new model). The **"heading-in-cell trap"** gotcha (a `#` inside a cell is a comment, `#|` is an option) pointed me straight at fence-awareness as the core requirement. The **"provider, not command → `executeDocumentSymbolProvider` is the strongest verification"** note was exactly right and became the faithful integration test. File anchors (`render.ts:24` for the registration shape, `extension.ts:24` for wiring) all resolved. The "73 unit + 24 integration, clean 9-file `.vsix`" baseline matched reality.
+- **What was missing / worth correcting:** The handoff framed `core/cells.ts` as something to "reuse for the cell regions" alongside new heading parsing — which subtly invited the **two-scanners-disagree** architecture I initially built (separate cell + heading scans). It did not flag that the two producers must agree on ALL skip-regions (front matter, comments, indented code), which the adversarial review then surfaced. Not Session 6's fault (a 6a-specific discovery), but it's now Learning #14 and the §"Gotchas" above. Minor: the handoff's `findAllCells :55` anchor was pre-consolidation (the line moved when I folded it into `model.ts`).
+- **What was wrong:** Nothing material. Every factual claim (test counts, the fold-in latitude, the verification approach, anchors) held.
+- **ROI:** Strongly positive — the handoff + plan turned the session into engineering + review, not archaeology.
 
 ### What Session 6 Did — 2026-06-27
 **Deliverable:** Implement **Phase 5** — `Quarto: Run Cell` family. **COMPLETE + verified.**
