@@ -25,6 +25,28 @@ function labelText(item: vscode.CompletionItem): string {
   return typeof item.label === "string" ? item.label : item.label.label;
 }
 
+/** The range a completion item replaces (handles the single-Range and insert/replace forms). */
+function replaceRange(item: vscode.CompletionItem): vscode.Range | undefined {
+  const r = item.range as
+    | vscode.Range
+    | { inserting: vscode.Range; replacing: vscode.Range }
+    | undefined;
+  if (!r) {
+    return undefined;
+  }
+  return "replacing" in r ? r.replacing : r;
+}
+
+/** The 0-based line index containing `needle`, or -1. */
+function lineWith(doc: vscode.TextDocument, needle: string): number {
+  for (let i = 0; i < doc.lineCount; i++) {
+    if (doc.lineAt(i).text.includes(needle)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 async function completionsAt(
   doc: vscode.TextDocument,
   pos: vscode.Position,
@@ -89,5 +111,24 @@ describe("Quarto: Citation completion", () => {
     const labels = (await completionsAt(doc, afterAt(doc, 13))).map(labelText);
     const ours = labels.filter((l) => l === "@knuth1984" || l === "@lamport1994");
     assert.deepStrictEqual(ours, [], "no citekeys offered inside a code cell");
+  });
+
+  it("C: completes a colon citekey and replaces the whole token (no suffix dup)", async () => {
+    const doc = await openFixture();
+    const line = lineWith(doc, "@Knuth:1984");
+    assert.ok(line >= 0, "fixture should contain an @Knuth:1984 reference");
+    const at = doc.lineAt(line).text.indexOf("@");
+    // Cursor mid-token, right after '@Knu'.
+    const list = await completionsAt(doc, new vscode.Position(line, at + 4));
+    const item = list.find((i) => labelText(i) === "@Knuth:1984");
+    assert.ok(item, `colon citekey should be offered; got ${JSON.stringify(list.map(labelText))}`);
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.start.character, at, "replaces from the '@'");
+    assert.strictEqual(
+      range.end.character,
+      at + "@Knuth:1984".length,
+      "replace range spans the whole colon token (no ':1984' duplication on accept)",
+    );
   });
 });

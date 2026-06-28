@@ -14,3 +14,5 @@ As shown by @knuth1984 and @lamport1994, see @sec-intro too.
 # see @knuth1984
 x = 1
 ```
+
+Per @Knuth:1984 the method is revisited.

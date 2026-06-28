@@ -17,9 +17,13 @@
 import { promises as fs } from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { type Citation, parseCitations } from "../core/citations";
+import {
+  type Citation,
+  citationCompletionContext,
+  parseCitations,
+} from "../core/citations";
 import { bibliographyPaths } from "../core/frontmatter";
-import { crossrefCompletionContext, isReferenceableLine } from "../core/refs";
+import { isReferenceableLine } from "../core/refs";
 
 const QMD: vscode.DocumentSelector = { language: "quarto" };
 
@@ -49,7 +53,11 @@ class CitationCompletionProvider implements vscode.CompletionItemProvider {
       return undefined;
     }
     const lineText = document.lineAt(position.line).text;
-    const context = crossrefCompletionContext(lineText, position.character);
+    // A citekey-aware context (not the cross-ref one): citekeys routinely
+    // contain ':' / '.' (biblatex/DBLP/dotted), which the cross-ref ID_CHAR
+    // scanner would truncate — breaking completion after a ':' and duplicating
+    // the suffix on a mid-token accept.
+    const context = citationCompletionContext(lineText, position.character);
     if (context === null) {
       return undefined;
     }
