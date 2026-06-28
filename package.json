@@ -112,6 +112,21 @@
         "command": "quarto.insertCell",
         "title": "Insert Cell",
         "category": "Quarto"
+      },
+      {
+        "command": "quarto.toggleBold",
+        "title": "Toggle Bold",
+        "category": "Quarto"
+      },
+      {
+        "command": "quarto.toggleItalic",
+        "title": "Toggle Italic",
+        "category": "Quarto"
+      },
+      {
+        "command": "quarto.toggleCode",
+        "title": "Toggle Code",
+        "category": "Quarto"
       }
     ],
     "keybindings": [
@@ -124,6 +139,18 @@
         "command": "quarto.runCellAndAdvance",
         "key": "shift+enter",
         "when": "editorTextFocus && editorLangId == quarto && quarto.inCodeCell"
+      },
+      {
+        "command": "quarto.toggleBold",
+        "key": "ctrl+b",
+        "mac": "cmd+b",
+        "when": "editorTextFocus && editorLangId == quarto"
+      },
+      {
+        "command": "quarto.toggleItalic",
+        "key": "ctrl+i",
+        "mac": "cmd+i",
+        "when": "editorTextFocus && editorLangId == quarto"
       }
     ],
     "configuration": {

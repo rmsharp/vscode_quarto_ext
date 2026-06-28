@@ -9,6 +9,7 @@
 import * as vscode from "vscode";
 import { meetsMinimum, MINIMUM_QUARTO_VERSION } from "./core/version";
 import { registerExecutionFeature } from "./features/execution";
+import { registerFormattingFeature } from "./features/formatting";
 import { disposeAllPreviews, registerPreviewFeature } from "./features/preview";
 import { registerRenderFeature } from "./features/render";
 import { registerCitationProviders } from "./providers/citation";
@@ -26,6 +27,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerRenderFeature(context);
   registerPreviewFeature(context);
   registerExecutionFeature(context);
+  registerFormattingFeature(context);
   registerOutlineProvider(context);
   registerCrossrefProviders(context);
   registerCitationProviders(context);
