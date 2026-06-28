@@ -1,0 +1,20 @@
+---
+title: "Mixed run-cell fixture"
+---
+
+```{python}
+x = 1
+y = 2
+z = x + y
+```
+
+```{r}
+plot(1)
+```
+
+```{python}
+```
+
+```{python}
+w = 9
+```

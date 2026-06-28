@@ -7,6 +7,7 @@ const EXTENSION_ID = "vscode-quarto-ext.vscode-quarto-ext";
 // out/test/integration/suite -> project root
 const ROOT = path.resolve(__dirname, "../../../..");
 const RUN_CELLS = path.resolve(ROOT, "test/fixtures/run-cells.qmd");
+const RUN_MIXED = path.resolve(ROOT, "test/fixtures/run-cells-mixed.qmd");
 
 // The delegate command Jupyter would register. It is NOT present in the clean
 // test host, so we can register a stand-in to faithfully observe dispatch
@@ -16,6 +17,8 @@ const JUPYTER_CMD = "jupyter.execSelectionInteractive";
 interface DelegateCall {
   selectionEmpty: boolean;
   startLine: number;
+  /** The exact text selected when the delegate fired (faithfully pins cellCodeRange). */
+  text: string;
 }
 
 let calls: DelegateCall[] = [];
@@ -29,6 +32,7 @@ function registerStandInDelegate(): void {
       calls.push({
         selectionEmpty: ed ? ed.selection.isEmpty : true,
         startLine: ed ? ed.selection.start.line : -1,
+        text: ed ? ed.document.getText(ed.selection) : "",
       });
     }),
   );
@@ -161,5 +165,86 @@ describe("Quarto: Run Cell family", () => {
       .split("\n")
       .filter((l) => l.trim() === "```{python}").length;
     assert.strictEqual(fences, 3, "a third {python} cell should be inserted");
+  });
+
+  it("faithfully selects a multi-line cell body (no fences) before delegating", async () => {
+    registerStandInDelegate();
+    await openAt(RUN_MIXED, 6); // inside the 3-line python cell (cell 1)
+
+    await vscode.commands.executeCommand("quarto.runCell");
+
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(
+      calls[0].text,
+      "x = 1\ny = 2\nz = x + y",
+      "the whole cell body must be selected, no more, no less",
+    );
+  });
+
+  it("Run All runs every runnable cell and skips (does not abort on) ones with no delegate", async () => {
+    // Only the python stand-in is registered. The fixture is python / r / empty
+    // python / python. Run All must run BOTH python code cells (skipping the r
+    // cell and the empty one), not abort at the first cell it cannot run.
+    registerStandInDelegate();
+    await openAt(RUN_MIXED, 0);
+
+    await vscode.commands.executeCommand("quarto.runAllCells");
+
+    assert.strictEqual(calls.length, 2, "both python code cells should run");
+    assert.deepStrictEqual(
+      calls.map((c) => c.text),
+      ["x = 1\ny = 2\nz = x + y", "w = 9"],
+      "the r cell and the empty cell are skipped, the python cells run",
+    );
+  });
+
+  it("Run Cell and Advance moves past an empty cell even though nothing ran", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_MIXED, 14); // the empty python cell (cell 3)
+
+    await vscode.commands.executeCommand("quarto.runCellAndAdvance");
+
+    assert.strictEqual(calls.length, 0, "an empty cell has no code to run");
+    assert.strictEqual(
+      editor.selection.active.line,
+      18,
+      "the cursor should still advance into the next cell's body",
+    );
+  });
+
+  it("does not crash or dispatch in a non-Quarto editor", async () => {
+    registerStandInDelegate();
+    const doc = await vscode.workspace.openTextDocument({
+      content: "# just markdown\n\n```{python}\nx = 1\n```\n",
+      language: "markdown",
+    });
+    await vscode.window.showTextDocument(doc);
+
+    await assert.doesNotReject(
+      () => Promise.resolve(vscode.commands.executeCommand("quarto.runCell")),
+      "running in a non-quarto editor must not crash",
+    );
+    assert.strictEqual(calls.length, 0, "no dispatch outside a quarto document");
+  });
+
+  it("does not crash when there is no active editor", async () => {
+    registerStandInDelegate();
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+
+    await assert.doesNotReject(
+      () => Promise.resolve(vscode.commands.executeCommand("quarto.runCell")),
+      "running with no active editor must not crash",
+    );
+    assert.strictEqual(calls.length, 0);
+  });
+
+  it("activates when a .qmd is opened (onLanguage:quarto) so keybindings work without a prior command", () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    const events: string[] = ext.packageJSON.activationEvents ?? [];
+    assert.ok(
+      events.includes("onLanguage:quarto"),
+      "onLanguage:quarto is required so the cell context key syncs on open",
+    );
   });
 });
