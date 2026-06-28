@@ -5,7 +5,7 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 14 DONE — Phase 7 (v2): formatting toggles** (`Quarto: Toggle Bold/Italic/Code`). First v2 feature shipped. There is NO forced next deliverable — **WAIT for the operator to pick** (more Phase 7 slices, Phase 6d/6e, a Polish item, or the operator-only `vsce publish`). *Background: v1 is feature-complete + release prep is AGENT-COMPLETE (Sessions 1–13); the only remaining release step is the operator-only `vsce publish`.*
+**Task:** **Session 15 IN PROGRESS — Phase 7 (v2): math preview webview** (`Quarto: Preview Math` / `quarto.previewMath`). Operator picked this from the v2 "Up Next" list. Detect inline `$…$` / display `$$…$$` math (pure `core/math-regions.ts`, skip-region-aware) → render in a webview with vendored KaTeX (MIT). *Background: v1 is feature-complete + release prep is AGENT-COMPLETE (Sessions 1–13, only operator-only `vsce publish` remains); Session 14 shipped formatting toggles, the first v2 feature.*
 **Status:** Formatting toggles complete + adversarial-review-hardened. Baselines now **202 unit + 51 integration** green (was 190/42); clean **10-file** `.vsix` (29.82 KB, bundle 47.75 KB). `npm audit` unchanged = 7 dev-only vulns (accepted, `docs/SECURITY-AUDIT.md`). Repo PUBLIC; `origin` → `rmsharp/vscode_quarto_ext` (branch `master`). **Local `master` is ahead of `origin` — Session 13's 3 commits + this session's commits are unpushed** (operator pushes; see gotchas).
 **Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §5.5 / §6 Phase 7 (authoring aids) and §5.3 / §6 Phase 6d/6e govern v2. No separate per-phase plan — v2 phases are implemented directly from that plan (the v1 precedent), strict TDD.
 **Priority:** v2 is now in progress. Next operator pick from `BACKLOG.md` "Up Next" (Phase 6d/6e; remaining Phase 7 slices: snippets, math-preview, diagram preview, image paste) or "Polish / deferred".
@@ -31,6 +31,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 ---
 
 *Session history accumulates below this line. Newest session at the top.*
+
+### What Session 15 Did
+**Deliverable:** **Phase 7 (v2) — math preview webview** (`Quarto: Preview Math` / `quarto.previewMath`). Detect inline `$…$` and display `$$…$$` LaTeX in a `.qmd` (pure `core/`, skip-region-aware via `scanRegions`) and render it in a webview with vendored KaTeX (MIT). (IN PROGRESS)
+**Started:** 2026-06-28 16:46 CDT
+**Status:** Session claimed (Phase 1B). Work beginning — strict TDD, pure-core detection first.
 
 ### What Session 14 Did — 2026-06-28
 **Deliverable:** **Phase 7 (v2) — formatting toggles** (`Quarto: Toggle Bold` / `Toggle Italic` / `Toggle Code`). **COMPLETE + adversarial-review-hardened.** The first v2 feature. Wrap/unwrap the selection — or the word at a bare cursor — in `**` / `*` / `` ` `` markers; second invocation round-trips; bare cursor not in a word inserts an empty pair with the cursor between.
