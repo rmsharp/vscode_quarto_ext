@@ -5,25 +5,24 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **v1 release prep.** Phase 6c (citation completion) is **DONE** — **v1 is now feature-complete**: Phases 1–5 + 6a–6c are all complete, verified, and adversarially hardened (Sessions 2–9). No v1 code feature remains. The next milestone is a packaging / README / marketplace-metadata pass to ship the `.vsix`.
-**Status:** v1 FEATURES COMPLETE. **190 unit + 42 integration** green; clean 9-file `.vsix` (bundle 43.3 KB). §3.3 guardrail held (no `vscode` import in `core/`).
-**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §7 (v1 DoD). Release-prep items in `BACKLOG.md` "Up Next".
+**Task:** **v1 release prep (continuing).** v1 is feature-complete (Phases 1–5 + 6a–6c). **Item 1 — git remote + packaging metadata — is DONE (Session 10).** Remaining: **item 2** marketplace metadata + listing README, **item 3** the F5 visual pass + screenshots, and the `npm audit` posture decision.
+**Status:** Remote wired (`origin` → `rmsharp/vscode_quarto_ext`, branch `master`, pushed). `repository` in `package.json`; `package` script flag-free; clean 9-file `.vsix` (19 KB). **190 unit + 42 integration** green; §3.3 guardrail held (no `vscode` import in `core/`).
+**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §7 (v1 DoD). Release-prep items in `BACKLOG.md` "Active".
 **Priority:** HIGH
 **⚠ STRICT TDD IS MANDATORY** for any code/bugfix (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15, #16). Pure packaging/metadata/doc edits with no logic are exempt but still need their normal verification (compile, package, render).
 
-### What You Must Do (v1 release prep — a packaging session, mostly non-code)
-This is largely a metadata/docs pass, not feature work (FM #18: ONE deliverable — don't also start the deferred polish items).
-1. Read plan §7 (v1 DoD) + `BACKLOG.md` "Up Next".
-2. **Add a git remote** (the operator creates the GitHub repo). Then: add `repository` to `package.json`, DROP `--allow-missing-repository` from the `package` script, and lift the README relative-link restriction (Learning #5).
-3. **Marketplace metadata:** a real `publisher` id, an `icon`, `keywords`, `repository`/`bugs`/`homepage`, polished `displayName`/`description`; a proper `README.md` (features + screenshots/GIFs captured from an F5 session) for the listing.
-4. **F5 visual pass (the standing residue across ALL phases):** no `code` CLI here, so popups/outline/preview-webview/notification **visuals** are integration-proven but never eyeballed. Do one manual F5 pass to confirm the citation + cross-ref completion popups, the Outline view, the preview webview, and the run-cell keybindings look right; capture screenshots for the README.
-5. Decide the `npm audit` posture (7 dev-only vulns, none ship — document as accepted, or bump if clean).
-6. The deferred polish items (`BACKLOG.md` "Polish / deferred": indented-code-block phantom, setext headings) are **separate future sessions**, not part of release prep.
+### What You Must Do (v1 release prep — item 2/3, mostly non-code)
+This is largely a metadata/docs pass, not feature work (FM #18: ONE deliverable — don't also start the deferred polish items). **Item 1 is done (Session 10)** — the remote is wired and `package.json` carries `repository`.
+1. **Marketplace metadata (item 2):** a real `publisher` id (the current `vscode-quarto-ext` is a placeholder), an `icon` (PNG ≥128×128), `keywords`, `bugs`/`homepage`; polished `displayName`/`description`. (`repository` is already set.)
+2. **Listing `README.md` (item 2):** rewrite it for the marketplace — the current status line is STALE (it says editor intelligence is "still to come", but outline + cross-ref + citation completion all shipped). Add a features section + screenshots/GIFs from an F5 session. Relative links now work (Learnings #5/#17).
+3. **F5 visual pass (item 3 — the standing residue across ALL phases):** no `code` CLI here, so popups/outline/preview-webview/notification **visuals** are integration-proven but never eyeballed. One manual F5 pass to confirm the citation + cross-ref completion popups, the Outline view, the preview webview, and the run-cell keybindings look right; capture screenshots for the README.
+4. Decide the `npm audit` posture (7 dev-only vulns, none ship — document as accepted, or bump if clean).
+5. The deferred polish items (`BACKLOG.md` "Polish / deferred": indented-code-block phantom, setext headings) are **separate future sessions**, not part of release prep.
 
 ### Useful starting context
 - **All v1 features done — reuse the patterns.** Pure `core/` (`frontmatter`, `citations`, `refs`, `qmd/model`, `render-args`, `preview-*`, `version`, `execution-delegate`) is `vscode`-free; adapters live in `features/` + `providers/`; both harnesses (vitest unit + `@vscode/test-electron` integration) are established. `extension.ts:18-30` wires everything.
-- **Phase 6c (this session):** `core/frontmatter.ts` `bibliographyPaths(text)` (scalar/flow/block forms, comment-aware); `core/citations.ts` `parseCitations(content)` (BibTeX + CSL-JSON) and `citationCompletionContext(line,col)` (citekey-aware `@`-token — `:`/`.` keys); `src/providers/citation.ts` adapter (reads bib relative to `dirname(doc)`, gates on `isReferenceableLine`). See **Learning #16** for the load-bearing traps.
-- **No git remote yet** → `vsce package` needs `--allow-missing-repository` (baked into `npm run package`); README must avoid relative links. Both lift once a remote + `repository` exist.
+- **Item 1 done (Session 10):** remote is `origin` → `https://github.com/rmsharp/vscode_quarto_ext.git` (default branch `master`, force-pushed over GitHub's auto-init). `package.json` now has `repository`; `npm run package` no longer needs `--allow-missing-repository`. See **Learning #17** for the wiring traps (auto-init on an unrelated history → reconciled with `--force-with-lease`; vsce renames `LICENSE`→`LICENSE.txt` inside the `.vsix`, so the README relative link targets `LICENSE`).
+- **Phase 6c reference:** `core/frontmatter.ts` `bibliographyPaths(text)`; `core/citations.ts` `parseCitations` + `citationCompletionContext`; `src/providers/citation.ts` adapter (gated on `isReferenceableLine`). See **Learning #16** for those traps.
 - **`microsoft/vscode-markdown-languageservice` (MIT)** is reference only; never copy Posit's AGPL code (licensing hard gate).
 
 ### How You Will Be Evaluated
@@ -34,9 +33,49 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 *Session history accumulates below this line. Newest session at the top.*
 
 ### What Session 10 Did — 2026-06-28
-**Deliverable:** v1 release-prep **item 1** — add git remote (`rmsharp/vscode_quarto_ext`) + downstream packaging changes (`repository` in `package.json`, drop `--allow-missing-repository`, lift README relative-link restriction). (IN PROGRESS)
-**Started:** 2026-06-28
-**Status:** Session claimed. Work beginning.
+**Deliverable:** v1 release-prep **item 1** — wire the git remote + downstream packaging metadata. **COMPLETE + verified + pushed.**
+
+**What was done (3 commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `cdb030b` chore: claim Session 10 (WIP stub).
+2. `3fc953d` chore: release-prep item 1 — wired `origin` (`rmsharp/vscode_quarto_ext`), added the `repository` field to `package.json`, dropped `--allow-missing-repository` from the `package` script, made the README `LICENSE` reference a relative link.
+3. (this close-out commit: SESSION_NOTES, CLAUDE.md Learning #17, BACKLOG/CHANGELOG/ROADMAP; + a separate dashboard-refresh commit.)
+Plus a git operation (not a file commit): renamed local `main`→`master` and **force-pushed** (`--force-with-lease`) over GitHub's auto-init commit, so `origin/master` is now at the project HEAD.
+
+**Verification (all green):**
+- `npm run package` → clean **9-file** `.vsix` (19 KB) **without** `--allow-missing-repository` (the `repository` field now satisfies vsce; no missing-repo warning).
+- `npm test` → **190/190** vitest (unchanged — confirms nothing asserts on the changed `package.json` fields).
+- `git ls-remote origin master` → `3fc953d…` (push succeeded; remote default branch is already `master`).
+- **Phase 3E N/A by design:** this is pure packaging metadata — **no extension/runtime behavior changed**, so there's nothing to launch-verify; the relevant gate is the clean package, which is done (stated explicitly, not a silent skip).
+
+**🔑 Load-bearing findings (→ CLAUDE.md Learning #17):**
+- The repo `rmsharp/vscode_quarto_ext` **pre-existed with GitHub auto-init** (throwaway `LICENSE` + 1-line `README.md`) on an **UNRELATED history**, default branch **`master`** (operator's choice, corrected mid-session). Reconciled by renaming local `main`→`master` and **force-pushing with `--force-with-lease`**. Inspect any remote first (`git ls-remote`, `git show origin/<b>`, `git merge-base`) before pushing.
+- **vsce normalizes the repo's `LICENSE` (no extension) to `LICENSE.txt` inside the `.vsix`**, but the working-tree file is `LICENSE` — so the README relative link must target `LICENSE` (verified the local filename before linking).
+- **Dropping `--allow-missing-repository` needs only the `repository` field in `package.json`** (vsce reads package.json, not the remote) — packaging needs no push.
+
+**Key files:**
+- `package.json` — `repository` field added after `"license"`; `scripts.package` is now `npm run compile && vsce package` (flag dropped).
+- `README.md` — the License paragraph now uses `[`LICENSE`](LICENSE)` (relative link).
+- `CLAUDE.md` — Learning #17 (release-prep item 1 traps).
+- Git: `origin` → `https://github.com/rmsharp/vscode_quarto_ext.git`, branch `master` (tracks `origin/master`).
+
+**Gotchas for the next session (release prep item 2/3):**
+1. **The README status line is STALE** — it claims editor intelligence (outline/completion) is "still to come", but all of it shipped (Phases 6a–6c). The item-2 README rewrite must fix this.
+2. **`publisher` is still the placeholder `vscode-quarto-ext`** — item 2 needs a real Marketplace publisher id (and actually publishing needs a Marketplace account/PAT — an operator step).
+3. **Relative links now work** in the README (the `repository` field is set) — safe to use for LICENSE/NOTICE etc.
+4. **`.vsix` is gitignored** — don't commit it. `dashboard_history.jsonl` changes whenever you run the dashboard — fold it into the close-out dashboard-refresh commit.
+5. **`npm audit`** still 7 dev-only vulns (none ship). Decide the posture.
+6. **F5 visual pass** remains the only way to eyeball UI (no `code` CLI) — capture screenshots there for the README.
+
+**Self-assessment (Session 10): 9/10.**
+- **+** Delivered exactly item 1, no bundling (FM #18 held — did NOT start item 2's publisher/icon/keywords or the README rewrite). Config/metadata is TDD-exempt, and verification was faithful: `npm run package` *without the flag* directly exercises the claim (the `repository` field is what makes it pass), and 190/190 unit green confirms nothing read the changed fields. Handled two operator corrections cleanly — branch name (`master`) and the force-push reconciliation — and **confirmed the destructive force-push before doing it** (surfaced the auto-init/unrelated-history situation, used `--force-with-lease`, rather than blindly overwriting a commit I didn't create). Caught the `LICENSE` vs `LICENSE.txt` correctness detail (verified the actual local filename before linking). Recorded the wiring traps as Learning #17.
+- **−** I proposed the README relative link before verifying the license filename (checked it immediately after — it was correct, but the check should have come first). I also asked the push question before discovering the repo had auto-init, so reconciliation needed a second question — inspecting the remote's contents up front would have folded both into one decision. Both minor, resolved in-session.
+
+#### Session 9 Handoff Evaluation (by Session 10) — Phase 3A
+**Score: 9/10.** A precise, well-structured handoff that made item 1 fast.
+- **What helped:** The ACTIVE TASK named the exact recipe — *"Add a git remote … add `repository` to `package.json`, DROP `--allow-missing-repository`, lift the README relative-link restriction (Learning #5)"* — verbatim what item 1 required; I was wiring the remote within minutes. The "No git remote yet → vsce needs the flag; README avoids relative links; both lift once a remote + `repository` exist" gotcha was exactly right and told me precisely what to change and why. The verification baselines (190 unit / 42 integration, clean 9-file `.vsix`) all matched reality. The FM #18 reminder correctly scoped me to item 1 only.
+- **What was missing (operator-dependent, not Session 9's fault):** it couldn't know the operator would create the repo with **auto-init on a `master` default branch**, so the unrelated-history force-push (now Learning #17) was a live discovery. It also didn't flag that the **README content itself is stale** — a separate item-2 concern I've now surfaced.
+- **What was wrong:** Nothing material. Every claim held.
+- **ROI:** Strongly positive — turned item 1 into a short mechanical pass, not archaeology.
 
 ### What Session 9 Did — 2026-06-28
 **Deliverable:** Implement **Phase 6c** — Citation completion. **COMPLETE + verified + adversarially hardened. v1 IS NOW FEATURE-COMPLETE.**

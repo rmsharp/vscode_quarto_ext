@@ -1,7 +1,7 @@
 # Roadmap
 
 ## Current Milestone
-**v1 — the core authoring loop.** An installable, MIT-licensed `.vsix` that: highlights `.qmd`, renders, live-previews, runs code cells, and completes cross-references + citations — degrading gracefully when the Quarto CLI or a kernel is absent. Defined in `docs/planning/2026-06-27-extension-architecture-plan.md` §7. Architecture: TextMate grammar (Tier A) + in-process providers (Tier B), shelling out to the Quarto CLI. Visual editor / Zotero / Assist / project-wide indexing are out of v1. **Status (Session 9): all v1 features are complete; release/packaging prep is the remaining milestone.**
+**v1 — the core authoring loop.** An installable, MIT-licensed `.vsix` that: highlights `.qmd`, renders, live-previews, runs code cells, and completes cross-references + citations — degrading gracefully when the Quarto CLI or a kernel is absent. Defined in `docs/planning/2026-06-27-extension-architecture-plan.md` §7. Architecture: TextMate grammar (Tier A) + in-process providers (Tier B), shelling out to the Quarto CLI. Visual editor / Zotero / Assist / project-wide indexing are out of v1. **Status (Session 10): all v1 features complete; the GitHub remote is wired (`origin` → `rmsharp/vscode_quarto_ext`, branch `master`) and packaging metadata is started — marketplace listing (real `publisher`/`icon`/`keywords`, README + screenshots) and an `npm audit` decision remain.**
 
 ## Planned
 <!-- The active task list is in BACKLOG.md. This is the higher-level shape. -->
