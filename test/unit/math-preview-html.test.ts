@@ -16,15 +16,36 @@ const inline = (content: string): MathRegion => ({
   endLine: 0,
 });
 
+/** Parse the CSP meta's directives into `{ name: value }` (value sans name). */
+function cspDirectives(html: string): Record<string, string> {
+  const m = html.match(
+    /http-equiv="Content-Security-Policy" content="([^"]*)"/,
+  );
+  if (!m) {
+    throw new Error("no CSP meta found");
+  }
+  return Object.fromEntries(
+    m[1].split(";").map((d) => {
+      const [name, ...rest] = d.trim().split(/\s+/);
+      return [name, rest.join(" ")];
+    }),
+  );
+}
+
 describe("buildMathPreviewHtml", () => {
-  it("locks down the CSP: no default sources, scripts only by nonce", () => {
+  it("locks down the CSP: scripts EXACTLY nonce-only (no unsafe-inline)", () => {
     const html = buildMathPreviewHtml({ ...BASE, regions: [inline("x")] });
-    expect(html).toContain("Content-Security-Policy");
-    expect(html).toContain("default-src 'none'");
-    expect(html).toContain("script-src 'nonce-n0nce123'");
-    // KaTeX needs its stylesheet + the woff2 fonts it references.
-    expect(html).toContain("style-src vscode-webview://abc 'unsafe-inline'");
-    expect(html).toContain("font-src vscode-webview://abc");
+    const csp = cspDirectives(html);
+    expect(csp["default-src"]).toBe("'none'");
+    // Exact equality, not toContain: appending 'unsafe-inline' or '*' to
+    // script-src would re-enable inline-script XSS yet still satisfy a substring
+    // check — assert the directive is the nonce and nothing more (gate d).
+    expect(csp["script-src"]).toBe("'nonce-n0nce123'");
+    expect(csp["script-src"]).not.toMatch(/unsafe-inline|\*/);
+    // KaTeX needs its stylesheet (inline element styles included) + woff2 fonts,
+    // both restricted to the webview's own resource origin.
+    expect(csp["style-src"]).toBe("vscode-webview://abc 'unsafe-inline'");
+    expect(csp["font-src"]).toBe("vscode-webview://abc");
   });
 
   it("links the KaTeX stylesheet and loads the script with the nonce", () => {

@@ -89,6 +89,30 @@ describe("Quarto: Preview Math command", () => {
     );
   });
 
+  it("re-renders the tracked document on edit (debounced) without stacking panels", async () => {
+    const editor = await open("intro prose", "quarto");
+    await vscode.commands.executeCommand("quarto.previewMath");
+    assert.ok(await waitFor(() => mathPreviewTabs().length === 1, 5000));
+
+    // Insert math into the tracked doc — the debounced change handler re-renders.
+    const edit = new vscode.WorkspaceEdit();
+    const end = new vscode.Position(0, editor.document.lineAt(0).text.length);
+    edit.insert(editor.document.uri, end, " $z^2$");
+    assert.ok(
+      await vscode.workspace.applyEdit(edit),
+      "the edit should apply to the tracked document",
+    );
+
+    // Wait past the debounce window; the one panel must persist (and the render
+    // path must not have thrown and torn it down).
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(
+      mathPreviewTabs().length,
+      1,
+      "editing the tracked document must reuse the one panel, not stack panels",
+    );
+  });
+
   it("does nothing (and does not crash) in a non-Quarto editor", async () => {
     await open("$x$ in markdown", "markdown");
 

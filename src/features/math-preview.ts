@@ -23,10 +23,15 @@ import { findMathRegions } from "../core/math-regions";
  * Owns the single math-preview webview: creates it on first use, reuses and
  * re-targets it afterwards, and re-renders it when the tracked document changes.
  */
+/** Idle delay before a document edit triggers a re-render of the preview. */
+const RENDER_DEBOUNCE_MS = 200;
+
 class MathPreviewManager implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
   /** The document the live panel currently mirrors. */
   private trackedUri: vscode.Uri | undefined;
+  /** Pending debounced re-render (from rapid edits), if any. */
+  private renderTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
@@ -47,24 +52,36 @@ class MathPreviewManager implements vscode.Disposable {
       this.panel.onDidDispose(() => {
         this.panel = undefined;
         this.trackedUri = undefined;
+        this.clearTimer();
       });
     } else {
       this.panel.title = titleFor(doc);
       this.panel.reveal(vscode.ViewColumn.Beside, true);
     }
     this.trackedUri = doc.uri;
-    this.render(doc);
+    this.render(doc); // immediate on explicit invocation
   }
 
-  /** Re-render if `doc` is the one the live panel is tracking. */
+  /**
+   * Re-render if `doc` is the one the live panel tracks. Debounced: rapid edits
+   * coalesce into one render after a short idle, so typing stays smooth and the
+   * webview is not reloaded (losing scroll) on every keystroke.
+   */
   onDocumentChanged(doc: vscode.TextDocument): void {
     if (
-      this.panel &&
-      this.trackedUri &&
-      doc.uri.toString() === this.trackedUri.toString()
+      !this.panel ||
+      !this.trackedUri ||
+      doc.uri.toString() !== this.trackedUri.toString()
     ) {
-      this.render(doc);
+      return;
     }
+    if (this.renderTimer) {
+      clearTimeout(this.renderTimer);
+    }
+    this.renderTimer = setTimeout(() => {
+      this.renderTimer = undefined;
+      this.render(doc);
+    }, RENDER_DEBOUNCE_MS);
   }
 
   private render(doc: vscode.TextDocument): void {
@@ -87,7 +104,15 @@ class MathPreviewManager implements vscode.Disposable {
     return vscode.Uri.joinPath(this.extensionUri, "media", "katex");
   }
 
+  private clearTimer(): void {
+    if (this.renderTimer) {
+      clearTimeout(this.renderTimer);
+      this.renderTimer = undefined;
+    }
+  }
+
   dispose(): void {
+    this.clearTimer();
     this.panel?.dispose();
     this.panel = undefined;
   }
