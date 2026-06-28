@@ -112,6 +112,15 @@ const COMMENT_OPEN = /^[ \t]*<!--/;
 /** Any line containing an HTML-comment terminator. */
 const COMMENT_CLOSE = /-->/;
 /**
+ * A line that is ENTIRELY a single-line HTML comment (`<!-- … -->`, optional
+ * surrounding whitespace). Pandoc renders nothing for it, so it is neither prose
+ * nor a heading — excluded from body lines so a `{#fig-…}` inside it is not
+ * indexed as a cross-ref (the block-comment case is already handled by the
+ * `inComment` state; this closes the single-line gap). A line that mixes content
+ * with a trailing comment is left as body (the content half is real).
+ */
+const COMMENT_FULL_LINE = /^[ \t]*<!--.*-->[ \t]*$/;
+/**
  * A brace info string for an *executable* cell: `{` then a language identifier
  * (a letter-led token), optionally followed by knitr-style options, then `}`.
  * Requiring a letter immediately after `{` excludes `{{python}}` (the display
@@ -202,6 +211,10 @@ function scanRegions(text: string): Regions {
       if (COMMENT_CLOSE.test(line)) {
         inComment = false;
       }
+      continue;
+    }
+    // A whole-line single-line comment renders to nothing — skip it entirely.
+    if (COMMENT_FULL_LINE.test(line)) {
       continue;
     }
     if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line)) {
