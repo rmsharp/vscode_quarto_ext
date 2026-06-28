@@ -127,6 +127,11 @@
         "command": "quarto.toggleCode",
         "title": "Toggle Code",
         "category": "Quarto"
+      },
+      {
+        "command": "quarto.previewMath",
+        "title": "Preview Math",
+        "category": "Quarto"
       }
     ],
     "keybindings": [
