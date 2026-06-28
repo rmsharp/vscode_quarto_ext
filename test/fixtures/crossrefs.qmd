@@ -1,0 +1,31 @@
+---
+title: "Cross-reference fixture"
+execute:
+  enabled: false
+---
+
+# Introduction {#sec-intro}
+
+See @sec-methods and @fig-plot below. Also @fig-diagram and @eq-einstein.
+
+## Methods {#sec-methods}
+
+Some prose referencing @tbl-data.
+
+```{python}
+#| label: fig-plot
+import matplotlib.pyplot as plt
+plt.plot([1, 2, 3])
+```
+
+![A hand-drawn diagram](diagram.png){#fig-diagram}
+
+$$
+E = mc^2
+$$ {#eq-einstein}
+
+| A | B |
+|---|---|
+| 1 | 2 |
+
+: A small table {#tbl-data}
