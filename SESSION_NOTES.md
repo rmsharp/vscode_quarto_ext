@@ -40,6 +40,11 @@ The user rates every session's handoff. Your handoff will be scored on:
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 8 Did — 2026-06-27
+**Deliverable:** Implement **Phase 6b** — Cross-reference completion + go-to-definition (IN PROGRESS)
+**Started:** 2026-06-27 22:55 CDT
+**Status:** Session claimed. Work beginning (strict TDD).
+
 ### What Session 7 Did — 2026-06-27
 **Deliverable:** Implement **Phase 6a** — Document outline / symbols. **COMPLETE + verified + adversarially hardened.**
 
