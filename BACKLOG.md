@@ -4,13 +4,13 @@
 
 ## Active
 
-- [ ] **Implement Phase 6b (Cross-reference completion + go-to-definition)** of `docs/planning/2026-06-27-extension-architecture-plan.md` §6 — index `@fig-/@tbl-/@sec-/@eq-` labels in the open `.qmd`; a `CompletionItemProvider` on `@` lists them and a `DefinitionProvider` jumps to the label. **Build on the Phase 6a region model** (`core/qmd/model.ts` `scanRegions`/`findHeadings` — do NOT write a third scanner; consume the shared one). Section ids come from the Pandoc `{#sec-id}` heading attribute — Phase 6a strips it from the outline display name but does NOT yet store it structurally, so **add an `id`/attrs field to `Heading`** (or a labels index) as the first step. Keep logic pure `core/` (§3.3, likely `core/refs.ts`); add a `providers/` adapter. Verify: unit-test the indexer headlessly + a `@vscode/test-electron` test via `vscode.executeCompletionItemProvider` / `executeDefinitionProvider`. One session, then close out (FM #18). **Strict TDD is mandatory (CLAUDE.md §Mandatory development practice / Learnings #10, #14).**
+- [ ] **Implement Phase 6c (Citation completion)** of `docs/planning/2026-06-27-extension-architecture-plan.md` §6 — parse the `.bib`/CSL-JSON named in the YAML `bibliography:` key → citekeys; complete a bare `@key` on the `@` trigger (with title/author detail). **This is the last v1 phase — v1 ships when 6c is done.** Build on Phase 6b: reuse `core/refs.ts` `crossrefCompletionContext` + `isReferenceableLine`; mirror `src/providers/crossref.ts`. New pure pieces: read the `bibliography:` value from front matter (the region model skips front matter — needs a small reader; no YAML lib in the project, decide up front) + a `.bib`/CSL-JSON parser (`core/citations.ts`). Adapter `providers/citation.ts` reads the file (fs) relative to the doc and offers citekeys; 6b + 6c completion providers coexist on `@` (editor merges/filters). Verify: unit-test the bib parser + a `@vscode/test-electron` test via `vscode.executeCompletionItemProvider`; render-clean fixtures need doc-level `execute: enabled: false` (Learning #15). One session, then close out (FM #18). **Strict TDD is mandatory (CLAUDE.md §Mandatory development practice / Learnings #10, #14, #15).**
 
 ## Up Next
 
 *(Phases from the plan — implement one per session, in order. See the plan for DONE gates + verification.)*
 
-- [ ] Phase 6c — Citation completion (`@key` from `.bib`/CSL-JSON). **(v1 ships here.)**
+- [ ] **v1 release prep** (after 6c — v1 is then feature-complete: Phases 1–5 + 6a–6c). Packaging/README/marketplace metadata pass; add a git remote (drop `--allow-missing-repository`, add `repository` to `package.json`, lift the README relative-link restriction — Learning #5).
 - [ ] Phase 6d/6e, 7 — YAML/cell-option + embedded-cell completion + authoring aids. (v2)
 
 ## Polish / deferred

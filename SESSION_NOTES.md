@@ -5,45 +5,94 @@
 ---
 
 ## ACTIVE TASK
-**Task:** Implement **Phase 6b** of the architecture plan — Cross-reference completion + go-to-definition: index `@fig-/@tbl-/@sec-/@eq-` labels in the open `.qmd`, a `CompletionItemProvider` on `@` to list them, and a `DefinitionProvider` to jump from a `@ref` to its label. **Build on the Phase 6a region model** (`core/qmd/model.ts`) — do NOT write a third scanner.
-**Status:** NOT STARTED. Phases 1 (skeleton) + 2 (highlighting) + 3 (render) + 4 (preview) + 5 (run-cell) + 6a (outline/symbols) are **COMPLETE + verified** (Sessions 2–7). The plan is ratified.
-**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 6b" (line ~323) → implement **Phase 6b ONLY**, then close out (FM #18: do not bundle 6c citation).
+**Task:** Implement **Phase 6c** of the architecture plan — **Citation completion**. Parse the `.bib` / CSL-JSON file(s) named in the YAML `bibliography:` key → citekeys; complete a **bare `@key`** (e.g. `@smith2020`) on the `@` trigger. **This is the last v1 phase — v1 ships when 6c is done** (Phases 1–5 + 6a–6c complete).
+**Status:** NOT STARTED. Phases 1 (skeleton) + 2 (highlighting) + 3 (render) + 4 (preview) + 5 (run-cell) + 6a (outline) + **6b (cross-refs)** are **COMPLETE + verified + adversarially hardened** (Sessions 2–8). Plan ratified.
+**Plan:** `docs/planning/2026-06-27-extension-architecture-plan.md` §6 "Phase 6c" → implement **6c ONLY**, then close out (FM #18). v1 DoD is plan §7.
 **Priority:** HIGH
-**⚠ STRICT TDD IS MANDATORY** (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14). Invoke `/tdd`; write the failing test before the code; red → green → refactor, one behavior at a time. Lead with the failing test (Sessions 5–7 confirm this is the expectation).
+**⚠ STRICT TDD IS MANDATORY** (operator directive — `CLAUDE.md` §"Mandatory development practice" + Learnings #10, #14, #15). Invoke `/tdd`; lead with the failing test; red → green → refactor, one behavior at a time.
 
 ### What You Must Do
-This is an **implementation** session (Development workstream). Deliverable: in a `.qmd`, typing `@fig-` lists the figure labels defined in the doc, and go-to-definition on a `@ref` jumps to where the label is defined.
-1. Read plan §6 Phase 6b (line ~323) + §3.3 (the pure-core guardrail). Read `src/core/qmd/model.ts` IN FULL — you are extending it.
-2. **Where labels come from — two sources:**
-   - **Section ids** from the Pandoc heading-attribute block `{#sec-id}`. **Phase 6a strips this from the outline display name but does NOT store it structurally yet** (see `parseHeadingLine` / `ATX_ATTRIBUTE` in `model.ts`). **First step: add an `id`/attrs field to the `Heading` interface** and capture it in `parseHeadingLine` (TDD it), so 6b consumes the parsed id instead of re-parsing the name. The matching test to update: `test/unit/qmd-model.test.ts` "Pandoc/Quarto heading attributes".
-   - **`#| label: fig-foo` / `#| label: tbl-bar` cell options** inside `{python}/{r}` cells (figures/tables produced by code), and `{#fig-... }`/`{#tbl-...}` on fenced divs/images. Scan cell bodies (you have `findAllCells` → `cell.code`) for the `label:` option.
-3. **Build a pure `core/refs.ts`** (`vscode`-free, §3.3) that indexes labels (id, kind fig/tbl/sec/eq, defining line) by consuming `scanRegions`/`findHeadings`/`findAllCells` from `model.ts` — **do NOT write a third line scanner** (Learning #14: parsers that overlap must agree on skip-regions; reuse the shared one). TDD headlessly; add a fixture or extend `sample.qmd`.
-4. **Adapter** `providers/crossref.ts` + `registerCrossrefProviders(context)`: a `CompletionItemProvider` (trigger char `@`) and a `DefinitionProvider`, both for `{ language: "quarto" }`, wrapping `core/refs.ts`. Wire in `src/extension.ts` `activate()` after `registerOutlineProvider(context)` (`:26`).
-5. Verify (TDD throughout): `npm run compile` · `npm test` (the indexer — the bulk) · `npm run test:integration` via `vscode.executeCompletionItemProvider` / `vscode.executeDefinitionProvider` (env-independent, faithful — the strongest verification; mirror `test/integration/suite/outline.test.ts`). F5 only for the completion popup's visual feel.
-6. Close out after Phase 6b. Do NOT start 6c (FM #2, FM #18).
+This is an **implementation** session (Development workstream). Deliverable: in a `.qmd` whose front matter has `bibliography: refs.bib`, typing `@` offers the citekeys from that bib (with title/author detail), inserting `@key`.
+1. Read plan §6 Phase 6c + §3.3 (pure-core guardrail). Skim `src/providers/crossref.ts` and `src/core/refs.ts` (Phase 6b) — **6c mirrors that shape**.
+2. **Two new pure-core pieces** (`vscode`-free, §3.3):
+   - **Read the `bibliography:` value from the YAML front matter.** The region model SKIPS front matter, so you need to read it. Options: a tiny focused parser for the `bibliography:` key (string or list form), OR add a YAML devDep. **No YAML lib is in the project yet** — decide and flag at the top of the session (a minimal `bibliography:`-only reader is likely enough for v1; full YAML is overkill). It can live in `core/` (pure, takes the doc text).
+   - **A `.bib` / CSL-JSON parser → citekeys** (`core/citations.ts` or `core/bib.ts`): `@article{key, title={…}, author={…}, year={…}}` → `{ key, title, author, year }`. CSL-JSON is a JSON array with `id`/`title`/`author`. TDD both headlessly.
+3. **Adapter** `providers/citation.ts` + `registerCitationProviders(context)`: a `CompletionItemProvider` (trigger `@`) that reads the bib path from the doc, resolves it relative to `dirname(doc.uri)`, reads the file (fs — adapter only), parses (core), and offers citekeys. **Reuse `crossrefCompletionContext` + `isReferenceableLine` from `core/refs.ts`** (a bare `@key` is detected the same way; gate to prose like 6b). Wire in `src/extension.ts` `activate()` after `registerCrossrefProviders(context)` (`:28`).
+4. **Coexistence with 6b:** both the cross-ref and citation completion providers fire on `@`; VS Code MERGES them. Cross-refs return `@fig-/@sec-…` items; citations return `@key` items. The editor filters by typed text, so `@fig-` shows cross-refs and `@smith` shows citations. No conflict — just register both. (Go-to-definition for citekeys is optional/v2.)
+5. Verify (TDD): `npm run compile` · `npm test` (the bib parser is the bulk) · `npm run test:integration` via `vscode.executeCompletionItemProvider(uri, pos, "@")` over a fixture `.qmd` + fixture `.bib` (env-independent, faithful — mirror `test/integration/suite/crossref.test.ts`). Make the fixture render-clean (see gotcha #2 below). F5 only for the popup's visual feel.
+6. Close out after 6c. **v1 is then feature-complete** — note that in the handoff (a packaging/README/marketplace-prep pass may be the next milestone).
 
 ### Useful starting context
-- **Phases 1–6a are done — reuse them.** `core/`-vs-adapter boundary + both harnesses established, all green: **111 unit + 25 integration**, clean 9-file `.vsix`.
-- **`core/qmd/model.ts` is the shared region model (Learning #14) — consume it, don't duplicate it.** `scanRegions(text)` → `{headings, cells}` is the single line-classifying pass (front matter, HTML comments, fences, ATX headings); `findHeadings`/`findAllCells`/`findCellAtPosition`/`buildOutline` are thin views. `core/cells.ts` is a re-export shim (Phase 5 still imports it). The 17 cell tests + 38 model tests are your regression net.
-- **The `{#sec-id}` id is already PARSED-AND-DISCARDED** in `parseHeadingLine` (it strips `ATX_ATTRIBUTE` from the display text). 6b's first job is to *keep* it. This is flagged in the BACKLOG "Active" item.
-- **Provider-via-`execute*Provider` is the faithful test** (Learnings #3/#9/#14): `vscode.executeCompletionItemProvider(uri, position, "@")` and `vscode.executeDefinitionProvider(uri, position)` run in the real downloaded host with no CLI/Jupyter. `test/integration/suite/outline.test.ts` is the template.
-- **`microsoft/vscode-markdown-languageservice` (MIT)** is a *reference* for link/definition logic — write original code; never copy Posit's AGPL extension/LSP (licensing hard gate).
+- **Phases 1–6b are done — reuse them.** All green: **150 unit + 34 integration**, clean 9-file `.vsix` (bundle 36.3 KB). `core/`-vs-adapter boundary + both harnesses established.
+- **`core/qmd/model.ts` is the shared region model (Learning #14) — consume it, don't duplicate it.** `scanRegions(text)` → `{headings, cells, bodyLines}` is the single line pass; `findHeadings`/`findAllCells`/`findCellAtPosition`/`findBodyLines`/`buildOutline` are thin views. `core/cells.ts` is a re-export shim.
+- **`core/refs.ts` (Phase 6b) is the template for 6c** and exposes reusable helpers: `crossrefCompletionContext(lineText, col)` (detects the `@…` context, returns `{start, typed, end}`) and `isReferenceableLine(text, line)` (true only on prose/heading lines — gate citations to these too). `refIdAt`/`indexLabels`/`findLabel` are cross-ref-specific.
+- **`src/providers/crossref.ts` is the adapter template** — completion builds an `{inserting, replacing}` range from the context; gates on `isReferenceableLine`. Mirror this for citations.
+- **Provider-via-`executeCompletionItemProvider` is the faithful, env-independent test** (Learnings #3/#9/#14) — runs in the real downloaded host, no CLI/Jupyter. `test/integration/suite/crossref.test.ts` is the template (note the in-cell guard tests + the `replaceRange` helper).
+- **`microsoft/vscode-markdown-languageservice` (MIT)** is reference only; never copy Posit's AGPL code (licensing hard gate).
 
 ### How You Will Be Evaluated
-The user rates every session's handoff. Your handoff will be scored on:
-1. Was the ACTIVE TASK block sufficient to orient the next session?
-2. Were key files listed with line numbers?
-3. Were gotchas and traps flagged?
-4. Was the "what's next" actionable and specific?
+The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to orient? (2) key files with line numbers? (3) gotchas/traps flagged? (4) "what's next" actionable and specific?
 
 ---
 
 *Session history accumulates below this line. Newest session at the top.*
 
 ### What Session 8 Did — 2026-06-27
-**Deliverable:** Implement **Phase 6b** — Cross-reference completion + go-to-definition (IN PROGRESS)
-**Started:** 2026-06-27 22:55 CDT
-**Status:** Session claimed. Work beginning (strict TDD).
+**Deliverable:** Implement **Phase 6b** — Cross-reference completion + go-to-definition. **COMPLETE + verified + adversarially hardened.**
+
+**What was done (8 commits, each ≤5 files per SAFEGUARDS blast-radius):**
+1. `4c9f1e8` chore: claim Session 8 (WIP stub).
+2. `cc77e99` feat: Phase 6b **core model** — `Heading.id` (the `{#sec-id}` previously parsed-and-discarded is now kept structurally) + `findBodyLines()` (live prose/heading lines, for inline-label scanning), both consuming the single `scanRegions` pass (Learning #14). 2 TDD cycles.
+3. `533cb1e` feat: Phase 6b **core refs** — new pure `src/core/refs.ts`: `indexLabels` (3 sources: heading `sec-` ids, `#|`/`//|` cell `label:` options, inline `{#fig-/tbl-/eq-/lst-…}` on body lines), `refIdAt`, `crossrefCompletionContext`, `findLabel`. 8 TDD cycles. **Also fixed a single-line-comment skip-region leak** surfaced by the Learning-#14 agreement test.
+4. `2e9b580` feat: Phase 6b **adapter + wiring** — `src/providers/crossref.ts` (`registerCrossrefProviders`: CompletionItemProvider trigger `@` + DefinitionProvider) + `src/extension.ts:29`; faithful integration test via `executeCompletionItemProvider`/`executeDefinitionProvider` over a new `crossrefs.qmd`.
+5. `5ea7818` fix: review hardening (refs) — A/C/I/H (idColumn lastIndexOf; cell-label id grammar + quotes; skip heading lines in Source 3; mask inline code spans) + E-core (`crossrefCompletionContext.end`).
+6. `4d4fc97` fix: review hardening (model) — J: tempered single-line-comment regex (greedy `.*` was swallowing content between two same-line comments).
+7. `9a1b75b` fix: review hardening (providers) — E (whole-token `{inserting,replacing}` range) + F/G (gate both providers to prose via new `isReferenceableLine`); in-cell fixture + tests.
+8. `95d065f` docs: defer indented-code-block phantom (B/D) as a known limitation (model docstring + backlog).
+(+ this close-out commit: SESSION_NOTES, CLAUDE.md Learning #15, CHANGELOG/ROADMAP/BACKLOG; + a dashboard refresh.)
+
+**Verification (all green):**
+- `npm run compile` → tsc clean + esbuild (bundle 29.3 KB → **36.3 KB**, +refs+providers).
+- `npm test` → **150/150** vitest (+39: 35 in new `refs.test.ts`, +4 model). The 17 cell tests + model tests held throughout (regression net).
+- `npm run test:integration` → **34/34** in the real downloaded VS Code: 9 crossref tests via `executeCompletionItemProvider`/`executeDefinitionProvider` — completes all 6 labels; resolves go-to-def to heading + cell-label; **no completion/definition inside a `{python}` cell** (with a prose control); whole-token replace range — all env-independent (no CLI/Jupyter).
+- `npm run package` → clean **9-file** `.vsix` (no test/fixture/`.claude` leak).
+- Both fixtures (`crossrefs.qmd`, `crossrefs-incell.qmd`) render **exit 0**.
+- §3.3 guardrail: `grep vscode src/core/` → none. Providers import core, never the reverse.
+
+**🔑 Load-bearing findings (→ CLAUDE.md Learning #15):**
+- **Three label sources, one scanner.** `core/refs.ts` builds its index entirely on `findHeadings`/`findAllCells`/`findBodyLines` (all views over `scanRegions`) — no third scanner. The Learning-#14 agreement test (label-like text in front matter / comments / fences must NOT be indexed) is the guard; it immediately caught a **single-line `<!-- … -->` comment leak** (only block comments were skipped before).
+- **The jupyter-engine render trap.** A python-only `.qmd` with per-cell `#| eval: false` STILL fails `quarto render` in this shell (no `nbformat`) — the **jupyter engine ignores per-cell eval:false at kernel-start**. `sample.qmd` only rendered clean because its `{r}` cell selects the **knitr** engine. Fix for python-only fixtures: doc-level **`execute: enabled: false`** in front matter.
+- **The adversarial review earns its keep again.** A 5-lens / refute-by-default workflow found **10 findings, all confirmed by two independent verifiers** (several traced through the real code AND `quarto render`). 7 fixed with TDD; 1 (indented-code-block phantom) deferred with documentation.
+
+**Adversarial review outcome (5 lenses, 2 refute-by-default verifiers each; 10 confirmed):**
+- **Fixed 7** (TDD, commits `5ea7818`/`4d4fc97`/`9a1b75b`): A idColumn `lastIndexOf`; C cell-label id grammar + optional YAML quote; I skip heading lines in inline Source 3; H mask inline backtick code spans; J tempered single-line-comment regex; E whole-`@id`-token replace range; F/G gate both providers out of code cells / front matter / comments (`isReferenceableLine`).
+- **Deferred 1** (documented, BACKLOG + model docstring): B/D inline `{#fig-…}` inside a CommonMark §4.4 *indented* (4-space) code block is a phantom — a faithful fix must not false-skip 4-space list-item continuation content (model tracks no list context), so it needs its own list-aware TDD pass. Low severity.
+
+**Key files (with anchors):**
+- `src/core/refs.ts` — `indexLabels` (`:78`, 3 sources + sort + dedupe), `findLabel` (`:~140`), `isReferenceableLine` (`:~150`, prose/heading gate for the providers), `refIdAt` (`:~165`), `crossrefCompletionContext` (`:~190`, returns `{start, typed, end}`), `maskInlineCode`/`idColumn` (`:~210`/`:~230`). Regexes `:44–66`. Pure.
+- `src/core/qmd/model.ts` — `Heading.id` (`:18`), `findBodyLines` (`:~245`), `scanRegions` adds `bodyLines` + the `COMMENT_FULL_LINE` tempered regex (`:~118`). Known-limitations docstring `:11`.
+- `src/providers/crossref.ts` — `registerCrossrefProviders` (`:24`); completion gates on `isReferenceableLine` + builds `{inserting, replacing}` range (`:40`); definition gates + resolves via `findLabel` (`:~90`). Adapter.
+- `src/extension.ts:29` — `registerCrossrefProviders(context)`.
+- `test/unit/refs.test.ts` (35) · `test/integration/suite/crossref.test.ts` (9, incl. in-cell guard + `replaceRange` helper). Fixtures: `crossrefs.qmd`, `crossrefs-incell.qmd`.
+
+**Gotchas for the next session (Phase 6c):**
+1. **Reuse `crossrefCompletionContext` + `isReferenceableLine`** from `core/refs.ts` — a bare `@key` citation is detected the same way, and citations are prose-only too. Don't re-derive the `@` context.
+2. **Render trap (above):** make any `{python}`-cell fixture render-clean with doc-level **`execute: enabled: false`** (per-cell `eval: false` is NOT enough for the jupyter engine). `sample.qmd` only escapes it via its `{r}` cell (knitr engine).
+3. **Reading `bibliography:` means reading FRONT MATTER** — the region model deliberately skips it, so 6c needs a small front-matter reader. No YAML lib is in the project; a minimal `bibliography:`-only parser is likely enough for v1 (decide and flag up front).
+4. **6b + 6c completion providers coexist on `@`** — VS Code merges them; the editor filters by typed text. Just register both; no conflict.
+5. **Deferred from 6b (NOT bugs in handled input):** indented-code-block phantom (B/D, backlog) and setext headings (Phase 6a, backlog). If a 6c fixture needs them, it won't behave — use ATX headings and fenced/inline constructs.
+6. **`npm audit`** still 7 dev-only vulns (none ship). No git remote → `vsce package` needs `--allow-missing-repository` (baked into `npm run package`).
+
+**Self-assessment (Session 8): 9/10.**
+- **+** Delivered exactly Phase 6b's scope, no bundling (FM #18 held — stopped before 6c). **Strict TDD held throughout** — RED observed before every GREEN across 10 core cycles + every review fix (incl. re-running the integration suite to see the 3 provider-fix failures RED before implementing). Kept §3.3 (pure `core/refs.ts`; thin adapter; grep-verified). **Consumed the shared scanner** (Learning #14) — `core/refs.ts` writes no line logic of its own; the agreement test caught a real single-line-comment leak mid-implementation. **Faithful, env-independent verification** via `execute*Provider` (incl. discriminating negative + control tests: no completion/definition inside a cell, with a prose control that still resolves). Ran an adversarial review whose verification was genuinely discriminating (verifiers reproduced findings against the real code AND `quarto render`); fixed 7 with TDD and deferred 1 with honest documentation rather than risking a list-unaware shared-scanner change. Caught + documented the jupyter-engine render trap.
+- **−** I shipped several real defects in the first adapter pass that the happy-path tests missed — most notably the **providers firing inside code cells** (F/G) and the **mid-token replace-range duplication** (E), both of which a moment's thought about "where does this provider fire / what does accept replace?" would have pre-empted before the review. The **review's confirmation gate was lenient** (≥1 real, ties→confirmed) — it happened that both verifiers voted real on all 10, so no false-confirm slipped through, but I adjudicated each by hand rather than trusting the count (correct, but a strict-majority gate would have been cleaner up front). Residual: the completion **popup's visual feel** is F5-unverified (no `code` CLI) — behavior is fully integration-proven; only the rendered popup is cosmetic-unverified (stated honestly, not a skipped Phase 3E).
+
+#### Session 7 Handoff Evaluation (by Session 8) — Phase 3A
+**Score: 9.5/10.** An outstanding, precise handoff — I was extending the model within minutes and nearly every pointer held exactly.
+- **What helped:** The ACTIVE TASK named the deliverable, the plan line, the §3.3 guardrail, and the **exact first step** — *"the `{#sec-id}` is parsed-and-discarded in `parseHeadingLine`; 6b's first job is to keep it; the matching test to update is 'Pandoc/Quarto heading attributes'"* — which I followed verbatim (Cycle 1). The single most load-bearing item: **Learning #14 "consume `scanRegions`, don't write a third scanner; parsers that overlap must agree on skip-regions"** — that shaped the whole `core/refs.ts` design (three sources, all views over the one scan) and the agreement test it prescribed immediately caught a real single-line-comment leak. The "provider-via-`execute*Provider` is the faithful test, mirror `outline.test.ts`" pointer was exactly right. Test-count baselines (111 unit / 25 integration, 9-file `.vsix`) all matched reality.
+- **What was missing / worth correcting (all 6b-specific discoveries, now Learning #15):** it couldn't have flagged (a) the **jupyter-engine render trap** (per-cell `eval:false` doesn't avoid the kernel for a python-only doc — cost a debugging detour on the fixture), or (b) that the cross-ref **completion/definition providers must be gated out of code cells** (the adversarial review caught it). Neither is Session 7's fault.
+- **What was wrong:** Nothing material. Every file anchor, the parsed-and-discarded claim, the verification approach, and the counts held.
+- **ROI:** Strongly positive — the handoff + plan turned the session into engineering + review, not archaeology.
 
 ### What Session 7 Did — 2026-06-27
 **Deliverable:** Implement **Phase 6a** — Document outline / symbols. **COMPLETE + verified + adversarially hardened.**
