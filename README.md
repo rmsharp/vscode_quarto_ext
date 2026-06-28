@@ -30,6 +30,6 @@ independently on MIT upstreams and the MIT Quarto CLI (shelled out at runtime).
 
 ## License
 
-Licensed under the MIT License (see the bundled `LICENSE` file). This extension
+Licensed under the MIT License (see [`LICENSE`](LICENSE)). This extension
 is an independent reimplementation; it does not fork or copy Posit's
 AGPL-licensed Quarto extension.

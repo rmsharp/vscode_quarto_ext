@@ -5,6 +5,10 @@
   "version": "0.0.1",
   "publisher": "vscode-quarto-ext",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rmsharp/vscode_quarto_ext.git"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -119,7 +123,7 @@
     "compile-tests": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:integration": "npm run compile && npm run compile-tests && node ./out/test/integration/runTest.js",
-    "package": "npm run compile && vsce package --allow-missing-repository",
+    "package": "npm run compile && vsce package",
     "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
