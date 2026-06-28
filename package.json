@@ -132,6 +132,11 @@
         "command": "quarto.previewMath",
         "title": "Preview Math",
         "category": "Quarto"
+      },
+      {
+        "command": "quarto.previewDiagram",
+        "title": "Preview Diagram",
+        "category": "Quarto"
       }
     ],
     "keybindings": [

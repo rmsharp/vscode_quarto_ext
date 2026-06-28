@@ -8,6 +8,7 @@
 
 import * as vscode from "vscode";
 import { meetsMinimum, MINIMUM_QUARTO_VERSION } from "./core/version";
+import { registerDiagramPreviewFeature } from "./features/diagram-preview";
 import { registerExecutionFeature } from "./features/execution";
 import { registerFormattingFeature } from "./features/formatting";
 import { registerMathPreviewFeature } from "./features/math-preview";
@@ -30,6 +31,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerExecutionFeature(context);
   registerFormattingFeature(context);
   registerMathPreviewFeature(context);
+  registerDiagramPreviewFeature(context);
   registerOutlineProvider(context);
   registerCrossrefProviders(context);
   registerCitationProviders(context);
