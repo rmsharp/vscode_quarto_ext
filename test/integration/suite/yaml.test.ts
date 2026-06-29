@@ -835,11 +835,14 @@ describe("Quarto: YAML nested execute-value completion (6d-6 cont.)", () => {
   });
 
   it("offers NO nested values under a non-allow-listed container (`website:`)", async () => {
-    const doc = await openInMemory("---\nwebsite:\n  url: x\n---\n");
+    // Keyed on `cache`, which WOULD offer true/false/refresh under execute: — so a
+    // value-gate leak under a non-allow-listed container would surface those values
+    // and fail this test (Learning #29e: key a negative on enum-bearing data).
+    const doc = await openInMemory("---\nwebsite:\n  cache: x\n---\n");
     const list = await vscode.commands.executeCommand<vscode.CompletionList>(
       "vscode.executeCompletionItemProvider",
       doc.uri,
-      new vscode.Position(2, 7), // value slot under a non-container
+      new vscode.Position(2, 9), // value slot under a non-container
     );
     assert.deepStrictEqual(documentValueLabels(list), [], "no nested values under a non-container");
   });
