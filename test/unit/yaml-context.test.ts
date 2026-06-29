@@ -173,9 +173,15 @@ describe("completionContextAt — front-matter key (6d-4)", () => {
     expect(ctx?.parentPath).toEqual(["title"]);
   });
 
-  it("returns null on an INDENTED (nested) key line — deferred to 6d-6", () => {
+  it("returns a nested frontmatter-key context under the `execute:` container (6d-6)", () => {
     const text = ["---", "execute:", "  enabled: false", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 4))).toBeNull(); // inside "enabled"
+    const ctx = completionContextAt(text, offsetAt(text, 2, 4)); // inside "en|abled"
+    expect(ctx).toEqual({
+      kind: "frontmatter-key",
+      parentPath: ["execute"],
+      token: "en",
+      replaceRange: { line: 2, startCol: 2, endCol: 9 }, // covers all of "enabled"
+    });
   });
 
   it("returns null on a block-sequence item line (`- value`)", () => {
@@ -192,6 +198,67 @@ describe("completionContextAt — front-matter key (6d-4)", () => {
     const text = ["---", "title: x", "---"].join("\n");
     expect(completionContextAt(text, offsetAt(text, 0, 0))).toBeNull();
     expect(completionContextAt(text, offsetAt(text, 2, 0))).toBeNull();
+  });
+});
+
+describe("completionContextAt — nested front-matter key under `execute:` (6d-6)", () => {
+  it("offers all execute keys (empty token) on a blank indented line under execute", () => {
+    const text = ["---", "execute:", "  ", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 2, 2));
+    expect(ctx).toEqual({
+      kind: "frontmatter-key",
+      parentPath: ["execute"],
+      token: "",
+      replaceRange: { line: 2, startCol: 2, endCol: 2 },
+    });
+  });
+
+  it("replaces the WHOLE nested key token on a mid-token cursor", () => {
+    const text = ["---", "execute:", "  freeze: auto", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 2, 4)); // inside "fr|eeze"
+    expect(ctx?.kind).toBe("frontmatter-key");
+    expect(ctx?.parentPath).toEqual(["execute"]);
+    expect(ctx?.token).toBe("fr");
+    expect(ctx?.replaceRange).toEqual({ line: 2, startCol: 2, endCol: 8 });
+  });
+
+  it("finds the real parent past an intervening deeper block", () => {
+    const text = [
+      "---",
+      "execute:",
+      "  julia:",
+      "    exeflags: x",
+      "  enabled: false",
+      "---",
+    ].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 4, 4)); // "en|abled"
+    expect(ctx?.kind).toBe("frontmatter-key");
+    expect(ctx?.parentPath).toEqual(["execute"]);
+  });
+
+  it("bails (null) under a NON-allow-listed container (`website:`)", () => {
+    const text = ["---", "website:", "  title: x", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 4))).toBeNull();
+  });
+
+  it("bails (null) when the container has a scalar value (`execute: false`)", () => {
+    const text = ["---", "execute: false", "  enabled: x", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 4))).toBeNull();
+  });
+
+  it("bails (null) on a block-scalar container (`execute: |`)", () => {
+    const text = ["---", "execute: |", "  enabled: x", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 4))).toBeNull();
+  });
+
+  it("bails (null) on deeper nesting (parent is itself indented)", () => {
+    const text = ["---", "execute:", "  julia:", "    exeflags: x", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 3, 6))).toBeNull(); // in "exeflags"
+  });
+
+  it("bails (null) on a nested block-sequence item under execute", () => {
+    const text = ["---", "execute:", "  - foo", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 4))).toBeNull();
   });
 });
 

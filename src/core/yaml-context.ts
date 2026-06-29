@@ -68,7 +68,7 @@ export function completionContextAt(
     // is the document's front matter (top-level keys — 6d-4); everywhere else
     // (prose, code) yields null, preserving the inverse-gating contract (§4.3).
     return inFrontMatter(text, line)
-      ? frontMatterContextAt(lineText, line, col)
+      ? frontMatterContextAt(text, line, col)
       : null;
   }
   const key = optLine.keySlot;
@@ -102,23 +102,27 @@ export function completionContextAt(
 }
 
 /**
- * The front-matter top-level KEY or VALUE context at column `col` on `lineText`
- * (already known to be a front-matter content line), or `null` if the cursor is
- * not in a completable top-level slot. Only column-0 mappings are completed: the
- * key slot (at or before the `:` — `frontmatter-key`, 6d-4) and the value slot
+ * The front-matter KEY or VALUE context at character `col` on line `line` of
+ * `text` (already known to be a front-matter content line), or `null` if the
+ * cursor is not in a completable slot. A top-level (column-0) mapping completes
+ * its key slot (at or before the `:` — `frontmatter-key`, 6d-4) and value slot
  * (after the `:` — `frontmatter-value`, 6d-5), with `parentPath` carrying the key
- * being valued. The whitespace gap before the value, and a cursor on an
- * indented/sequence/comment line, fall through to `null`. Mirrors the
- * cell-option key/value split in `completionContextAt`.
+ * being valued. An INDENTED line falls through to `nestedKeyContextAt` (6d-6),
+ * which completes a nested key one level under an allow-listed container. A
+ * sequence/comment line, or the whitespace gap before a value, yields `null`.
  */
 function frontMatterContextAt(
-  lineText: string,
+  text: string,
   line: number,
   col: number,
 ): YamlCompletionContext | null {
+  const lines = text.split(/\r?\n/);
+  const lineText = lines[line] ?? "";
   const { keySlot, valueSlot } = topLevelSlots(lineText);
   if (keySlot === null) {
-    return null;
+    // Not a top-level mapping line. The only other completable front-matter
+    // position is a nested key one level under an allow-listed container (6d-6).
+    return nestedKeyContextAt(lines, line, col);
   }
   if (col >= keySlot.startCol && col <= keySlot.endCol) {
     return {
@@ -138,6 +142,108 @@ function frontMatterContextAt(
   }
   return null;
 }
+
+/**
+ * The nested front-matter KEY context for an indented line whose enclosing
+ * container is one of `NESTED_CONTAINERS` (Slice 6d-6, the "cheap one-level
+ * approximation"), or `null`. The detector is deliberately conservative — it
+ * offers nested keys ONLY when nesting is unambiguous, and **bails (`null`) on
+ * anything else** rather than offer wrong keys (plan §7): the line must be an
+ * indented key line (not a `- ` sequence item or a `#` comment); its parent must
+ * be a column-0, allow-listed key (one level only — a deeper or non-allow-listed
+ * parent yields `null`); and the parent must be a *pure mapping container* (no
+ * scalar / block-scalar `|`,`>` / flow `[`,`{` value). Only the key slot completes;
+ * a cursor past the colon (a nested value) yields `null` (deferred to a later slice).
+ */
+function nestedKeyContextAt(
+  lines: string[],
+  line: number,
+  col: number,
+): YamlCompletionContext | null {
+  const lineText = lines[line] ?? "";
+  const indented = /^([ \t]+)(.*)$/.exec(lineText);
+  if (indented === null) {
+    return null; // a column-0 line is handled by the top-level path, not here
+  }
+  const indent = indented[1].length;
+  const rest = indented[2];
+  if (rest.startsWith("-") || rest.startsWith("#")) {
+    return null; // a block-sequence item / comment hosts no nested key
+  }
+  const parent = nearestShallowerLine(lines, line, indent);
+  if (parent === null) {
+    return null;
+  }
+  // One level only: the container must be a column-0 mapping key.
+  if (/^[ \t]/.test(parent) || parent.startsWith("-") || parent.startsWith("#")) {
+    return null;
+  }
+  const pColon = parent.indexOf(":");
+  if (pColon < 0) {
+    return null;
+  }
+  const parentKey = parent.slice(0, pColon).replace(/[ \t]+$/, "");
+  if (!NESTED_CONTAINERS.has(parentKey)) {
+    return null;
+  }
+  // The container must be a pure mapping: nothing but an optional comment after
+  // the colon. A scalar (`execute: false`), block scalar (`|`/`>`), or flow
+  // (`[…]`/`{…}`) value means this is not a one-level mapping we can complete.
+  const parentValue = parent.slice(pColon + 1).replace(/^[ \t]+/, "");
+  if (parentValue !== "" && !parentValue.startsWith("#")) {
+    return null;
+  }
+  const nlColon = lineText.indexOf(":", indent);
+  const keyText = (
+    nlColon >= 0 ? lineText.slice(indent, nlColon) : lineText.slice(indent)
+  ).replace(/[ \t]+$/, "");
+  const keySlot: Slot = { startCol: indent, endCol: indent + keyText.length };
+  if (col < keySlot.startCol || col > keySlot.endCol) {
+    return null; // the gap before / a value position past the colon — nested values deferred
+  }
+  return {
+    kind: "frontmatter-key",
+    parentPath: [parentKey],
+    token: lineText.slice(keySlot.startCol, col),
+    replaceRange: { line, startCol: keySlot.startCol, endCol: keySlot.endCol },
+  };
+}
+
+/**
+ * The text of the nearest line above `line` whose indentation is strictly less
+ * than `indent`, skipping blank and comment lines, or `null` if none — the
+ * enclosing-mapping candidate for `nestedKeyContextAt`. Lines at or deeper than
+ * `indent` (siblings or deeper structure) are skipped so an intervening deeper
+ * block does not hide the real parent.
+ */
+function nearestShallowerLine(
+  lines: string[],
+  line: number,
+  indent: number,
+): string | null {
+  for (let i = line - 1; i >= 0; i--) {
+    const t = lines[i] ?? "";
+    if (t.trim() === "") {
+      continue;
+    }
+    const lead = (/^[ \t]*/.exec(t)?.[0].length) ?? 0;
+    if (t.slice(lead).startsWith("#")) {
+      continue;
+    }
+    if (lead < indent) {
+      return t;
+    }
+  }
+  return null;
+}
+
+/**
+ * Front-matter mapping keys whose children are completed one level deep (Slice
+ * 6d-6). Limited to `execute` for v1: its child set is well-known and stable, so
+ * a curated set is faithful (the live schema assembles it across multiple files —
+ * deferred). `format:` (format names) and deeper nesting are later slices.
+ */
+const NESTED_CONTAINERS = new Set<string>(["execute"]);
 
 type Slot = { startCol: number; endCol: number };
 
