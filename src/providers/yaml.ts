@@ -1,7 +1,8 @@
 /**
  * YAML completion provider for `.qmd` — completes Quarto cell-option *keys* on a
- * `#|` / `//|` line inside an executable cell, and enum/boolean *values* after the
- * key's colon (plan §6 Phase 6d, Slices 6d-1/6d-2).
+ * `#|` / `//|` line inside an executable cell, enum/boolean *values* after the
+ * key's colon (Slices 6d-1/6d-2), and document *keys* at the top level of the YAML
+ * front matter (Slice 6d-4).
  *
  * Thin `vscode` adapter (plan §3.3): all position logic lives in the pure core
  * (`core/yaml-context`), the option data in `core/yaml-schema`. This class only
@@ -77,16 +78,22 @@ class YamlCompletionProvider implements vscode.CompletionItemProvider {
       ),
     };
 
-    // The option set comes from the user's installed Quarto schema (6d-3),
-    // filtered to the cell's engine; it falls back to the curated set when the
-    // schema can't be read. Front-matter kinds are reserved for later slices.
-    const fields = (await this.source.getIndex()).cellOptions(ctx.engine);
+    // The schema comes from the user's installed Quarto (6d-3), falling back to
+    // the curated set when it can't be read. `ctx` is already non-null here, so
+    // the inverse-gating contract is preserved before this await (Learning #27).
+    const index = await this.source.getIndex();
     if (ctx.kind === "cell-option-key") {
-      return fields.map((field) => keyItem(field, range));
+      return index.cellOptions(ctx.engine).map((field) => keyItem(field, range));
     }
     if (ctx.kind === "cell-option-value") {
-      return valueItems(document, fields, ctx.parentPath, range);
+      return valueItems(document, index.cellOptions(ctx.engine), ctx.parentPath, range);
     }
+    if (ctx.kind === "frontmatter-key") {
+      return index
+        .frontMatterKeys(ctx.parentPath)
+        .map((field) => frontMatterKeyItem(field, range));
+    }
+    // `frontmatter-value` is a later slice (6d-5).
     return undefined;
   }
 }
@@ -123,6 +130,25 @@ function keyItem(
   item.filterText = field.name;
   item.range = range;
   item.detail = "Quarto cell option";
+  if (field.description) {
+    item.documentation = new vscode.MarkdownString(field.description);
+  }
+  return item;
+}
+
+/** Translate one front-matter `SchemaField` into a top-level document-key item. */
+function frontMatterKeyItem(
+  field: SchemaField,
+  range: { inserting: vscode.Range; replacing: vscode.Range },
+): vscode.CompletionItem {
+  const item = new vscode.CompletionItem(
+    field.name,
+    vscode.CompletionItemKind.Property,
+  );
+  item.insertText = field.name;
+  item.filterText = field.name;
+  item.range = range;
+  item.detail = "Quarto document option";
   if (field.description) {
     item.documentation = new vscode.MarkdownString(field.description);
   }

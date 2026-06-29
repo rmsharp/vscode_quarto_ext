@@ -32,6 +32,13 @@ function cellValueLabels(list: vscode.CompletionList | undefined): string[] {
     .map(labelText);
 }
 
+/** Front-matter (document) key items contributed by the YAML provider. */
+function documentOptionLabels(list: vscode.CompletionList | undefined): string[] {
+  return (list?.items ?? [])
+    .filter((i) => i.detail === "Quarto document option")
+    .map(labelText);
+}
+
 /** Open an in-memory `.qmd`-language document (no fixture file needed). */
 async function openInMemory(content: string): Promise<vscode.TextDocument> {
   const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
@@ -352,5 +359,123 @@ describe("Quarto: YAML cell-option schema enrichment (6d-3)", () => {
     for (const v of ["scroll", "wrap"]) {
       assert.ok(labels.includes(v), `code-overflow value ${v}; got ${JSON.stringify(labels)}`);
     }
+  });
+});
+
+/**
+ * Slice 6d-4 — front-matter top-level KEY completion. The provider offers document
+ * keys inside the `---` block, and ONLY there: never in prose, code, or a cell-
+ * option line, and the `@` cross-ref provider stays suppressed in front matter
+ * (the complement of the §4.3 gating). `title`/`format`/`bibliography`/`toc` are
+ * in both the curated set and the schema, so the positive cases are environment-
+ * independent; a SCHEMA-ONLY key (`csl`) proves the runtime reader enriched the
+ * front-matter set too (it cannot appear via the curated fallback).
+ */
+describe("Quarto: YAML front-matter key completion (6d-4)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("completes top-level document keys inside the front matter", async () => {
+    const doc = await openFixture();
+    // Line 1 'title: …' — col 0 is the start of the top-level key slot.
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 0),
+    );
+    const labels = documentOptionLabels(list);
+    for (const expected of ["title", "author", "format", "bibliography", "toc"]) {
+      assert.ok(
+        labels.includes(expected),
+        `should offer document key ${expected}; got ${JSON.stringify(labels.slice(0, 10))}…`,
+      );
+    }
+  });
+
+  it("replace range covers the whole key token on a mid-token cursor", async () => {
+    const doc = await openFixture();
+    // Line 1 "title: …": cursor at col 2 (inside "ti|tle"); key spans [0,5).
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 2),
+    );
+    const item = (list?.items ?? []).find((i) => i.detail === "Quarto document option");
+    assert.ok(item, "at least one document-key item");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.start.character, 0, "replaces from the key start");
+    assert.strictEqual(range.end.character, 5, "replaces through the end of 'title'");
+  });
+
+  it("enriches front-matter keys with a schema-only key not in the curated set", async () => {
+    const doc = await openInMemory("---\nti\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 2), // partial top-level key "ti"
+    );
+    const labels = documentOptionLabels(list);
+    assert.ok(
+      labels.includes("csl"),
+      `reader should enrich front-matter keys with csl; got ${labels.length} keys: ${JSON.stringify(labels.slice(0, 8))}…`,
+    );
+  });
+
+  it("offers NO document keys on a prose line", async () => {
+    const doc = await openFixture();
+    // Line 8 prose.
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(8, 4),
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "no document keys in prose");
+  });
+
+  it("offers NO document keys on a cell-option line", async () => {
+    const doc = await openFixture();
+    // Line 11 "#| echo: false" — a cell-option line, not front matter.
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(11, 3),
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "no document keys in a cell");
+  });
+
+  it("offers NO document keys on an indented (nested) front-matter line (6d-4 is top-level)", async () => {
+    const doc = await openFixture();
+    // Line 3 "  enabled: false" — nested under execute:, indented.
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(3, 2),
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "no keys on a nested line");
+  });
+
+  it("keeps @ cross-ref completion SUPPRESSED in front matter (complement gating)", async () => {
+    // `@sec-intro` is defined in the fixture body; the crossref provider must not
+    // fire in front matter (isReferenceableLine excludes it).
+    const doc = await openInMemory("---\ntitle: @\n---\n\n# Intro {#sec-intro}\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 8), // right after the '@' in front matter
+      "@",
+    );
+    const labels = (list?.items ?? []).map(labelText);
+    assert.ok(
+      !labels.includes("@sec-intro"),
+      `@ completion must be suppressed in front matter; got ${JSON.stringify(labels)}`,
+    );
   });
 });
