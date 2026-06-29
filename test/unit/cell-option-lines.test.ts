@@ -15,6 +15,7 @@ describe("findCellOptionLines — detection inside executable cells", () => {
         cellLang: "python",
         prefix: "#|",
         keySlot: { startCol: 3, endCol: 7 }, // "echo"
+        valueSlot: { startCol: 9, endCol: 14 }, // "false"
       },
     ]);
   });
@@ -22,7 +23,13 @@ describe("findCellOptionLines — detection inside executable cells", () => {
   it("detects the `//|` prefix in an {ojs} cell", () => {
     const text = ["```{ojs}", "//| echo: true", "x = 1", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "ojs", prefix: "//|", keySlot: { startCol: 4, endCol: 8 } },
+      {
+        line: 1,
+        cellLang: "ojs",
+        prefix: "//|",
+        keySlot: { startCol: 4, endCol: 8 },
+        valueSlot: { startCol: 10, endCol: 14 }, // "true"
+      },
     ]);
   });
 
@@ -35,7 +42,13 @@ describe("findCellOptionLines — detection inside executable cells", () => {
   it("covers the whole partially-typed key (`#| ec`)", () => {
     const text = ["```{r}", "#| ec", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "r", prefix: "#|", keySlot: { startCol: 3, endCol: 5 } },
+      {
+        line: 1,
+        cellLang: "r",
+        prefix: "#|",
+        keySlot: { startCol: 3, endCol: 5 },
+        valueSlot: null, // no colon yet → no value slot
+      },
     ]);
   });
 
@@ -97,6 +110,51 @@ describe("findCellOptionLines — does NOT detect outside executable cells", () 
   });
 });
 
+describe("findCellOptionLines — value slot (6d-2)", () => {
+  it("spans the value token after `key: ` (`#| echo: false`)", () => {
+    const text = ["```{python}", "#| echo: false", "```"].join("\n");
+    const [opt] = findCellOptionLines(text);
+    expect(opt.valueSlot).toEqual({ startCol: 9, endCol: 14 }); // "false"
+  });
+
+  it("reports an empty value slot after a colon + space (`#| echo: `)", () => {
+    const text = ["```{python}", "#| echo: ", "```"].join("\n");
+    const [opt] = findCellOptionLines(text);
+    expect(opt.valueSlot).toEqual({ startCol: 9, endCol: 9 });
+  });
+
+  it("reports an empty value slot right after the colon (`#| echo:`)", () => {
+    const text = ["```{python}", "#| echo:", "```"].join("\n");
+    const [opt] = findCellOptionLines(text);
+    expect(opt.valueSlot).toEqual({ startCol: 8, endCol: 8 });
+  });
+
+  it("is null when the line has no colon yet (`#| ec`)", () => {
+    const text = ["```{r}", "#| ec", "```"].join("\n");
+    const [opt] = findCellOptionLines(text);
+    expect(opt.valueSlot).toBeNull();
+  });
+
+  it("skips multiple spaces after the colon (`#| echo:   true`)", () => {
+    const text = ["```{python}", "#| echo:   true", "```"].join("\n");
+    const [opt] = findCellOptionLines(text);
+    expect(opt.valueSlot).toEqual({ startCol: 11, endCol: 15 }); // "true"
+  });
+
+  it("excludes trailing whitespace from the value span (`#| echo: false  `)", () => {
+    const text = ["```{python}", "#| echo: false  ", "```"].join("\n");
+    const [opt] = findCellOptionLines(text);
+    expect(opt.valueSlot).toEqual({ startCol: 9, endCol: 14 }); // "false", no trailing ws
+  });
+
+  it("is null for a block-sequence item line (`#|   - a`)", () => {
+    const text = ["```{python}", "#| fig-cap:", "#|   - a", "```"].join("\n");
+    const opts = findCellOptionLines(text);
+    expect(opts[1].keySlot).toBeNull();
+    expect(opts[1].valueSlot).toBeNull();
+  });
+});
+
 describe("findCellOptionLines — Quarto-faithful prefix matching", () => {
   // Quarto's directive pattern is `^#\s*\| ?` (anchored at col 0; whitespace
   // allowed between the comment char and the pipe). Match it exactly.
@@ -113,7 +171,13 @@ describe("findCellOptionLines — Quarto-faithful prefix matching", () => {
   it("DETECTS `# |` with a space between the comment char and the pipe", () => {
     const text = ["```{r}", "# | echo: false", "x <- 1", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "r", prefix: "#|", keySlot: { startCol: 4, endCol: 8 } },
+      {
+        line: 1,
+        cellLang: "r",
+        prefix: "#|",
+        keySlot: { startCol: 4, endCol: 8 },
+        valueSlot: { startCol: 10, endCol: 15 }, // "false"
+      },
     ]);
   });
 

@@ -185,6 +185,14 @@ export interface CellOptionLine {
    * key — a block-sequence item (`- value`) under a key.
    */
   keySlot: { startCol: number; endCol: number } | null;
+  /**
+   * The span `[startCol, endCol)` of the option *value* token (the text after the
+   * `:`, leading whitespace skipped and trailing whitespace excluded), 0-based
+   * columns. An empty span marks `key:`/`key: ` with no value typed yet. `null`
+   * when the line has no `:` (a key still being typed) or cannot host a value (a
+   * block-sequence item). Drives value completion (Slice 6d-2).
+   */
+  valueSlot: { startCol: number; endCol: number } | null;
 }
 
 /** The parsed structural regions of a document. */
@@ -337,33 +345,51 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
       }
       // keyStart = comment chars + inter-pipe ws + the `|` + the gap before the key.
       const keyStart = m[1].length + m[2].length + 1 + m[3].length;
+      const { keySlot, valueSlot } = slotsOf(m[4], keyStart);
       result.push({
         line: cell.startLine + 1 + j,
         cellLang: cell.lang,
         prefix: m[1] === "#" ? "#|" : "//|",
-        keySlot: keySlotOf(m[4], keyStart),
+        keySlot,
+        valueSlot,
       });
     });
   }
   return result;
 }
 
+type Slot = { startCol: number; endCol: number };
+
 /**
- * The `[startCol, endCol)` span of the key token in `rest` (the text after the
- * prefix+gap, starting at column `keyStart`), or `null` if the line is a
- * block-sequence item (`- value`) rather than a mapping key. The key runs up to
- * the first `:`; trailing whitespace before the colon is excluded.
+ * The key and value token spans in `rest` (the text after the prefix+gap,
+ * starting at column `keyStart`). The key runs up to the first `:` (trailing
+ * whitespace before the colon excluded); the value is everything after the `:`
+ * with leading whitespace skipped and trailing whitespace excluded. Both spans
+ * are `null` for a block-sequence item (`- value`); the value span is `null`
+ * when there is no `:` yet (a bare key still being typed).
  */
-function keySlotOf(
+function slotsOf(
   rest: string,
   keyStart: number,
-): { startCol: number; endCol: number } | null {
+): { keySlot: Slot | null; valueSlot: Slot | null } {
   if (/^-(?:\s|$)/.test(rest)) {
-    return null;
+    return { keySlot: null, valueSlot: null };
   }
   const colon = rest.indexOf(":");
   const keyText = (colon >= 0 ? rest.slice(0, colon) : rest).replace(/\s+$/, "");
-  return { startCol: keyStart, endCol: keyStart + keyText.length };
+  const keySlot: Slot = { startCol: keyStart, endCol: keyStart + keyText.length };
+  if (colon < 0) {
+    return { keySlot, valueSlot: null };
+  }
+  const afterColon = colon + 1;
+  const wsLen = (rest.slice(afterColon).match(/^[ \t]*/) ?? [""])[0].length;
+  const valueRel = afterColon + wsLen;
+  const valueText = rest.slice(valueRel).replace(/\s+$/, "");
+  const valueStart = keyStart + valueRel;
+  return {
+    keySlot,
+    valueSlot: { startCol: valueStart, endCol: valueStart + valueText.length },
+  };
 }
 
 /**
