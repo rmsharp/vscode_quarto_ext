@@ -11,13 +11,14 @@
  * items outside its region.
  *
  * Slices 6d-1/6d-2 implement `cell-option-key` (the `#|` / `//|` key slot) and
- * `cell-option-value` (the slot after the `:`). The front-matter kinds are
- * reserved for later slices.
+ * `cell-option-value` (the slot after the `:`); slices 6d-4/6d-5 add the
+ * front-matter complement — `frontmatter-key` (a top-level `---`-block key) and
+ * `frontmatter-value` (the slot after that key's colon).
  */
 
 import { findCellOptionLines, inFrontMatter } from "./qmd/model";
 
-/** Which kind of YAML position the cursor is at (only `cell-option-key` is live in 6d-1). */
+/** Which kind of YAML position the cursor is at. */
 export type YamlContextKind =
   | "cell-option-key"
   | "cell-option-value"
@@ -48,10 +49,11 @@ export interface YamlCompletionContext {
 /**
  * The completion context at 0-based character `offset` in `text`, or `null` if
  * the cursor is not at a YAML position these slices complete. A position is
- * completable when the cursor is on a `#|` / `//|` cell-option line, within
- * either the key slot (after the prefix, at or before the `:` — `cell-option-key`)
- * or the value slot (after the `:` — `cell-option-value`). A prose or code line,
- * a sequence-item line, or the whitespace gap before a value all yield `null`.
+ * completable when the cursor is on a `#|` / `//|` cell-option line — within the
+ * key slot (`cell-option-key`) or the value slot after the `:` (`cell-option-value`)
+ * — or on a top-level front-matter line, within its key slot (`frontmatter-key`)
+ * or value slot (`frontmatter-value`). A prose or code line, an indented/sequence
+ * line, or the whitespace gap before a value all yield `null`.
  */
 export function completionContextAt(
   text: string,
@@ -66,7 +68,7 @@ export function completionContextAt(
     // is the document's front matter (top-level keys — 6d-4); everywhere else
     // (prose, code) yields null, preserving the inverse-gating contract (§4.3).
     return inFrontMatter(text, line)
-      ? frontMatterKeyContextAt(lineText, line, col)
+      ? frontMatterContextAt(lineText, line, col)
       : null;
   }
   const key = optLine.keySlot;
@@ -100,48 +102,91 @@ export function completionContextAt(
 }
 
 /**
- * The front-matter top-level KEY context at column `col` on `lineText` (already
- * known to be a front-matter content line), or `null` if the cursor is not in a
- * top-level key slot. Only column-0 keys are completed in 6d-4; a cursor past the
- * `:` is a value position (deferred to 6d-5), so it falls through to `null`.
+ * The front-matter top-level KEY or VALUE context at column `col` on `lineText`
+ * (already known to be a front-matter content line), or `null` if the cursor is
+ * not in a completable top-level slot. Only column-0 mappings are completed: the
+ * key slot (at or before the `:` — `frontmatter-key`, 6d-4) and the value slot
+ * (after the `:` — `frontmatter-value`, 6d-5), with `parentPath` carrying the key
+ * being valued. The whitespace gap before the value, and a cursor on an
+ * indented/sequence/comment line, fall through to `null`. Mirrors the
+ * cell-option key/value split in `completionContextAt`.
  */
-function frontMatterKeyContextAt(
+function frontMatterContextAt(
   lineText: string,
   line: number,
   col: number,
 ): YamlCompletionContext | null {
-  const slot = topLevelKeySlot(lineText);
-  if (slot === null || col < slot.startCol || col > slot.endCol) {
+  const { keySlot, valueSlot } = topLevelSlots(lineText);
+  if (keySlot === null) {
     return null;
   }
-  return {
-    kind: "frontmatter-key",
-    parentPath: [],
-    token: lineText.slice(slot.startCol, col),
-    replaceRange: { line, startCol: slot.startCol, endCol: slot.endCol },
-  };
+  if (col >= keySlot.startCol && col <= keySlot.endCol) {
+    return {
+      kind: "frontmatter-key",
+      parentPath: [],
+      token: lineText.slice(keySlot.startCol, col),
+      replaceRange: { line, startCol: keySlot.startCol, endCol: keySlot.endCol },
+    };
+  }
+  if (valueSlot !== null && col >= valueSlot.startCol && col <= valueSlot.endCol) {
+    return {
+      kind: "frontmatter-value",
+      parentPath: [lineText.slice(keySlot.startCol, keySlot.endCol)],
+      token: lineText.slice(valueSlot.startCol, col),
+      replaceRange: { line, startCol: valueSlot.startCol, endCol: valueSlot.endCol },
+    };
+  }
+  return null;
 }
 
+type Slot = { startCol: number; endCol: number };
+
 /**
- * The top-level key token span on a front-matter line, or `null` if the line
- * cannot host a top-level key. A top-level key starts at column 0 (no
- * indentation) and runs to the first `:` (trailing whitespace before the colon
- * excluded). An indented line is a nested key (deferred to 6d-6); a `- …` line is
- * a block-sequence item; a `# …` line is a YAML comment — none host a top-level
- * key, so all yield `null`.
+ * The top-level key and value token spans on a front-matter line, or both `null`
+ * if the line cannot host a top-level mapping. A top-level key starts at column 0
+ * (no indentation) and runs to the first `:` (trailing whitespace before the
+ * colon excluded). An indented line is a nested key (deferred to 6d-6); a `- …`
+ * line is a block-sequence item; a `# …` line is a YAML comment — none host a
+ * top-level key, so all yield `{ null, null }`. The value span (when a `:` is
+ * present) starts after the colon with leading whitespace skipped and a trailing
+ * unquoted inline comment / whitespace excluded — the same grammar the
+ * cell-option `slotsOf` (`core/qmd/model`) applies to a `#|` value.
  */
-function topLevelKeySlot(
+function topLevelSlots(
   lineText: string,
-): { startCol: number; endCol: number } | null {
+): { keySlot: Slot | null; valueSlot: Slot | null } {
   if (/^[ \t]/.test(lineText) || lineText.startsWith("-") || lineText.startsWith("#")) {
-    return null;
+    return { keySlot: null, valueSlot: null };
   }
   const colon = lineText.indexOf(":");
   const keyText = (colon >= 0 ? lineText.slice(0, colon) : lineText).replace(
     /[ \t]+$/,
     "",
   );
-  return { startCol: 0, endCol: keyText.length };
+  const keySlot: Slot = { startCol: 0, endCol: keyText.length };
+  if (colon < 0) {
+    return { keySlot, valueSlot: null };
+  }
+  const afterColon = colon + 1;
+  const region = lineText.slice(afterColon);
+  const wsLen = (region.match(/^[ \t]*/) ?? [""])[0].length;
+  let valueRaw = region.slice(wsLen);
+  // Strip an unquoted trailing YAML inline comment (mirrors `slotsOf`): a `#`
+  // begins a comment when at the value start or whitespace-preceded. Quoted
+  // scalars are left intact; enum/boolean values never contain `#`, so this only
+  // narrows the span for the commented case.
+  if (!/^["']/.test(valueRaw)) {
+    const c = valueRaw.startsWith("#") ? 0 : valueRaw.search(/\s#/);
+    if (c >= 0) {
+      valueRaw = valueRaw.slice(0, c);
+    }
+  }
+  const valueText = valueRaw.replace(/\s+$/, "");
+  const valueStart = afterColon + wsLen;
+  return {
+    keySlot,
+    valueSlot: { startCol: valueStart, endCol: valueStart + valueText.length },
+  };
 }
 
 /**

@@ -166,9 +166,11 @@ describe("completionContextAt — front-matter key (6d-4)", () => {
     expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 0, endCol: 6 });
   });
 
-  it("returns null past the colon (a value position — 6d-5, not this slice)", () => {
+  it("hands off to a frontmatter-value context past the colon (6d-5 takes over)", () => {
     const text = ["---", "title: My Doc", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 9))).toBeNull(); // in "My Doc"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 9)); // in "My Doc"
+    expect(ctx?.kind).toBe("frontmatter-value");
+    expect(ctx?.parentPath).toEqual(["title"]);
   });
 
   it("returns null on an INDENTED (nested) key line — deferred to 6d-6", () => {
@@ -190,5 +192,58 @@ describe("completionContextAt — front-matter key (6d-4)", () => {
     const text = ["---", "title: x", "---"].join("\n");
     expect(completionContextAt(text, offsetAt(text, 0, 0))).toBeNull();
     expect(completionContextAt(text, offsetAt(text, 2, 0))).toBeNull();
+  });
+});
+
+describe("completionContextAt — front-matter value (6d-5)", () => {
+  it("returns a frontmatter-value context at an empty value position (`toc: `)", () => {
+    const text = ["---", "toc: ", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 5)); // after "toc: "
+    expect(ctx).toEqual({
+      kind: "frontmatter-value",
+      parentPath: ["toc"], // the key being valued
+      token: "",
+      replaceRange: { line: 1, startCol: 5, endCol: 5 },
+    });
+  });
+
+  it("fires right after the colon with no space yet (`:` trigger, `toc:`)", () => {
+    const text = ["---", "toc:", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 4)); // right after ":"
+    expect(ctx?.kind).toBe("frontmatter-value");
+    expect(ctx?.parentPath).toEqual(["toc"]);
+    expect(ctx?.token).toBe("");
+    expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 4, endCol: 4 });
+  });
+
+  it("replaces the WHOLE value token on a mid-value cursor (`toc: false`)", () => {
+    const text = ["---", "toc: false", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 7)); // inside "fa|lse"
+    expect(ctx?.kind).toBe("frontmatter-value");
+    expect(ctx?.token).toBe("fa");
+    expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 5, endCol: 10 });
+  });
+
+  it("stays a KEY context (not value) when the cursor is at the colon", () => {
+    const text = ["---", "toc: false", "---"].join("\n");
+    // col 3 = end of "toc", at the colon: still the key slot, not a value.
+    expect(completionContextAt(text, offsetAt(text, 1, 3))?.kind).toBe("frontmatter-key");
+  });
+
+  it("returns null in the whitespace gap between the colon and the value", () => {
+    const text = ["---", "toc:   false", "---"].join("\n");
+    // col 5 sits in the run of spaces before "false" (value starts at col 7).
+    expect(completionContextAt(text, offsetAt(text, 1, 5))).toBeNull();
+  });
+
+  it("returns null when the cursor is inside a trailing inline comment", () => {
+    const text = ["---", "toc: false  # comment", "---"].join("\n");
+    // col 13 is inside the comment; the value span ends at "false" (col 10).
+    expect(completionContextAt(text, offsetAt(text, 1, 13))).toBeNull();
+  });
+
+  it("returns null on an INDENTED (nested) value line — deferred to 6d-6", () => {
+    const text = ["---", "execute:", "  enabled: false", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 13))).toBeNull(); // in "false"
   });
 });
