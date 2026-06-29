@@ -73,6 +73,12 @@ const FIXTURE = JSON.stringify({
     { name: "secret", hidden: true, schema: "string", description: "Hidden — excluded." },
   ],
   "schema/definitions.yml": [{ id: "page-column", enum: ["body", "page", "margin"] }],
+  // The flat pandoc output-format list (6d-6 cont. format-name completion). Quarto
+  // hides legacy variants (html4/html5, epub2/epub3, docbook4/docbook5) and concats
+  // a few synthesized formats — mirror that here with one hidden variant of each.
+  "pandoc/formats.yml": [
+    "html", "html5", "epub", "epub3", "docbook", "docbook5", "pdf", "revealjs", "typst",
+  ],
 });
 
 describe("parseSchemaIndex — cell-option extraction", () => {
@@ -148,6 +154,37 @@ describe("parseSchemaIndex — front-matter key extraction (6d-4)", () => {
       index.frontMatterKeys([]).find((f) => f.name === name)?.values;
     expect(valuesOf("toc")).toEqual(["true", "false"]); // schema: "boolean"
     expect(valuesOf("freeze")).toEqual(["auto"]); // schema: { enum: ["auto"] }
+  });
+});
+
+describe("parseSchemaIndex — format-name extraction (6d-6 cont.)", () => {
+  const index = parseSchemaIndex(FIXTURE);
+  const formatNames = index.frontMatterKeys(["format"]).map((f) => f.name);
+
+  it("reads format names from pandoc/formats.yml for the `format` path", () => {
+    for (const n of ["html", "epub", "docbook", "pdf", "revealjs", "typst"]) {
+      expect(formatNames, `should include format ${n}`).toContain(n);
+    }
+  });
+
+  it("concats Quarto's synthesized formats (md/hugo/dashboard/email)", () => {
+    for (const n of ["md", "hugo", "dashboard", "email"]) {
+      expect(formatNames, `should include synthesized ${n}`).toContain(n);
+    }
+  });
+
+  it("hides legacy variants (html5/epub3/docbook5) but keeps the base names", () => {
+    for (const hidden of ["html5", "epub3", "docbook5", "html4", "epub2", "docbook4"]) {
+      expect(formatNames, `${hidden} must be hidden`).not.toContain(hidden);
+    }
+    for (const base of ["html", "epub", "docbook"]) {
+      expect(formatNames, `${base} base name kept`).toContain(base);
+    }
+  });
+
+  it("keeps format names OUT of the top-level and execute paths", () => {
+    expect(index.frontMatterKeys([]).map((f) => f.name)).not.toContain("revealjs");
+    expect(index.frontMatterKeys(["execute"]).map((f) => f.name)).not.toContain("revealjs");
   });
 });
 
@@ -292,7 +329,9 @@ describe("CURATED_SCHEMA_INDEX — the fallback view", () => {
     );
   });
 
-  it("offers no front-matter keys for a nested path", () => {
-    expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["format"])).toEqual([]);
+  it("offers no front-matter keys for an unhandled nested path", () => {
+    // `format` is now an allow-listed nested container (6d-6 cont.); `website` is
+    // not, so it stays the example of a deferred path that yields nothing.
+    expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["website"])).toEqual([]);
   });
 });

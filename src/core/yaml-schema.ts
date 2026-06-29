@@ -229,6 +229,34 @@ export const CURATED_EXECUTE_KEYS: SchemaField[] = [
   { name: "keep-ipynb", description: "Keep the intermediate notebook produced during rendering.", values: BOOL },
 ];
 
+/**
+ * The ~highest-frequency Quarto OUTPUT FORMAT names, the permanent fallback for
+ * nested `format:` completion (Slice 6d-6 continuation) when the runtime schema
+ * reader is unavailable. Format names are uncopyrightable facts (a subset of the
+ * live `pandoc/formats.yml` list); descriptions are our own. Unlike
+ * `CURATED_EXECUTE_KEYS` (whose full set the live schema cannot assemble, so it is
+ * curated-only), the FULL format list IS reader-derivable (`collectFormatNames`),
+ * so this curated set is only a small offline subset — every name here is also in
+ * the reader's output. Format names carry no value enum (a format is a container
+ * for per-format options, a deferred deeper slice) and no cell engine.
+ */
+export const CURATED_FORMAT_NAMES: SchemaField[] = [
+  { name: "html", description: "HTML document." },
+  { name: "pdf", description: "PDF document (via LaTeX or Typst)." },
+  { name: "docx", description: "Microsoft Word (.docx) document." },
+  { name: "odt", description: "OpenDocument Text (.odt) document." },
+  { name: "epub", description: "EPUB e-book." },
+  { name: "revealjs", description: "reveal.js HTML presentation." },
+  { name: "beamer", description: "LaTeX Beamer presentation (PDF)." },
+  { name: "pptx", description: "PowerPoint (.pptx) presentation." },
+  { name: "gfm", description: "GitHub Flavored Markdown." },
+  { name: "commonmark", description: "CommonMark Markdown." },
+  { name: "markdown", description: "Pandoc Markdown." },
+  { name: "typst", description: "Typst document (PDF)." },
+  { name: "latex", description: "LaTeX document." },
+  { name: "dashboard", description: "Quarto dashboard." },
+];
+
 // ── Runtime schema index (Slice 6d-3) ───────────────────────────────────────
 
 /**
@@ -246,10 +274,11 @@ export interface SchemaIndex {
   cellOptions(engine?: "knitr" | "jupyter" | "ojs"): SchemaField[];
   /**
    * The front-matter keys to offer at the given mapping path. Top-level keys are
-   * returned for the document root (`parentPath` empty, 6d-4); the single
-   * allow-listed one-level container `["execute"]` returns the curated execute
-   * children (6d-6). Any other path — a non-allow-listed container or a deeper
-   * nesting — yields `[]` (recursive resolution is deferred to a later slice).
+   * returned for the document root (`parentPath` empty, 6d-4); the allow-listed
+   * one-level containers return their children — `["execute"]` the curated execute
+   * children (6d-6), `["format"]` the output-format names (6d-6 cont., reader-
+   * derived with a curated fallback). Any other path — a non-allow-listed
+   * container or a deeper nesting — yields `[]` (recursive resolution is deferred).
    */
   frontMatterKeys(parentPath: string[]): SchemaField[];
 }
@@ -258,7 +287,11 @@ export interface SchemaIndex {
  * Build a `SchemaIndex` over fixed cell-option and front-matter-key lists (the
  * parser and the curated fallback share this).
  */
-function indexOf(cellFields: SchemaField[], fmFields: SchemaField[]): SchemaIndex {
+function indexOf(
+  cellFields: SchemaField[],
+  fmFields: SchemaField[],
+  formatFields: SchemaField[],
+): SchemaIndex {
   return {
     cellOptions(engine) {
       if (engine === undefined) {
@@ -267,14 +300,18 @@ function indexOf(cellFields: SchemaField[], fmFields: SchemaField[]): SchemaInde
       return cellFields.filter((f) => f.engine === undefined || f.engine === engine);
     },
     frontMatterKeys(parentPath) {
-      // 6d-4 completes top-level keys (document root); 6d-6 completes the curated
-      // children one level under the allow-listed `execute:` container. Any other
-      // nested path is deferred (recursive resolution), so it yields [].
+      // 6d-4 completes top-level keys (document root). 6d-6 completes one level
+      // under an allow-listed container: `execute:` → curated execute children;
+      // `format:` → the output-format names (reader-derived, curated fallback).
+      // Any other nested path is deferred (recursive resolution), so it yields [].
       if (parentPath.length === 0) {
         return fmFields;
       }
       if (parentPath.length === 1 && parentPath[0] === "execute") {
         return CURATED_EXECUTE_KEYS;
+      }
+      if (parentPath.length === 1 && parentPath[0] === "format") {
+        return formatFields;
       }
       return [];
     },
@@ -312,6 +349,7 @@ function engineTag(tags: unknown): "knitr" | "jupyter" | undefined {
 export const CURATED_SCHEMA_INDEX: SchemaIndex = indexOf(
   CURATED_CELL_OPTIONS,
   CURATED_FRONTMATTER_KEYS,
+  CURATED_FORMAT_NAMES,
 );
 
 /** Strip a leading UTF-8 BOM, which `JSON.parse` rejects (Learning #16c). */
@@ -454,10 +492,58 @@ export function parseSchemaIndex(jsonText: string): SchemaIndex {
     // unparseable input — degrade rather than offer nothing.
     return cellFields.length === 0 && fmFields.length === 0
       ? CURATED_SCHEMA_INDEX
-      : indexOf(cellFields, fmFields);
+      : indexOf(cellFields, fmFields, collectFormatNames(data));
   } catch {
     return CURATED_SCHEMA_INDEX;
   }
+}
+
+/**
+ * Quarto's synthesized output formats, concatenated onto `pandoc/formats.yml`
+ * exactly as the CLI's `makeFrontMatterFormatSchema` does: `md` (alias for
+ * commonmark), `hugo` (now hugo-md), `dashboard` (Quarto's own), and `email`
+ * (the HTML email format for Posit Connect).
+ */
+const FORMAT_SYNTHESIZED = ["md", "hugo", "dashboard", "email"];
+
+/**
+ * Format-name prefixes whose longer variants Quarto's `hideFormat` suppresses
+ * from completion: `html4`/`html5`, `epub2`/`epub3`, `docbook4`/`docbook5` are
+ * hidden while the base `html`/`epub`/`docbook` stay.
+ */
+const FORMAT_HIDE_PREFIXES = ["html", "epub", "docbook"];
+
+/** Whether Quarto's `hideFormat` suppresses this format name (a longer variant of a base). */
+function isHiddenFormat(name: string): boolean {
+  return FORMAT_HIDE_PREFIXES.some((h) => name.startsWith(h) && name.length > h.length);
+}
+
+/**
+ * The visible Quarto output-format names from the parsed `pandoc/formats.yml`
+ * list, plus Quarto's synthesized formats, minus the hidden legacy variants —
+ * mirroring the CLI's `makeFrontMatterFormatSchema`. Returns `[]` when the list
+ * is absent/odd (degrade to nothing here; the whole-reader-failure path in
+ * `parseSchemaIndex` serves the curated set instead). De-duplicates, first
+ * occurrence winning. Format names carry no value enum or engine.
+ */
+function collectFormatNames(data: Record<string, unknown>): SchemaField[] {
+  const raw = data["pandoc/formats.yml"];
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const names = raw
+    .filter((n): n is string => typeof n === "string" && n.length > 0)
+    .concat(FORMAT_SYNTHESIZED);
+  const fields: SchemaField[] = [];
+  const seen = new Set<string>();
+  for (const name of names) {
+    if (isHiddenFormat(name) || seen.has(name)) {
+      continue;
+    }
+    seen.add(name);
+    fields.push({ name });
+  }
+  return fields;
 }
 
 /**

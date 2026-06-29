@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CURATED_CELL_OPTIONS,
   CURATED_EXECUTE_KEYS,
+  CURATED_FORMAT_NAMES,
   CURATED_FRONTMATTER_KEYS,
   CURATED_SCHEMA_INDEX,
 } from "../../src/core/yaml-schema";
@@ -240,6 +241,43 @@ describe("CURATED_EXECUTE_KEYS — nested execute children (6d-6)", () => {
   it("offers nothing for a non-allow-listed or deeper nested path", () => {
     expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["website"])).toEqual([]);
     expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["execute", "julia"])).toEqual([]);
+  });
+});
+
+/**
+ * CURATED_FORMAT_NAMES is the offline fallback for nested `format:` completion
+ * (6d-6 cont.). Unlike the execute children, the FULL format list is reader-derived
+ * from the live `pandoc/formats.yml`, so this is a small subset of the common
+ * output formats — every name here is also a real Quarto format (a fact); the
+ * descriptions are our own. Format names carry no value enum (a format is a
+ * container for per-format options, deferred) and no cell engine.
+ */
+describe("CURATED_FORMAT_NAMES — nested format names (6d-6 cont.)", () => {
+  it("is a non-empty set of well-formed fields (name + description)", () => {
+    expect(CURATED_FORMAT_NAMES.length).toBeGreaterThanOrEqual(10);
+    for (const field of CURATED_FORMAT_NAMES) {
+      expect(field.name).toMatch(/^[A-Za-z][A-Za-z0-9_-]*$/);
+      expect(field.description, `${field.name} needs a description`).toBeTruthy();
+    }
+  });
+
+  it("has unique names and includes the common output formats", () => {
+    const names = CURATED_FORMAT_NAMES.map((f) => f.name);
+    expect(new Set(names).size).toBe(names.length);
+    for (const expected of ["html", "pdf", "docx", "revealjs", "beamer", "typst"]) {
+      expect(names, `should include ${expected}`).toContain(expected);
+    }
+  });
+
+  it("carries no value enum (a format is a container) and no cell engine", () => {
+    for (const field of CURATED_FORMAT_NAMES) {
+      expect(field.values, `${field.name} must have no value enum`).toBeUndefined();
+      expect(field.engine, `${field.name} must not be engine-tagged`).toBeUndefined();
+    }
+  });
+
+  it("is what CURATED_SCHEMA_INDEX serves for the `format` path", () => {
+    expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["format"])).toEqual(CURATED_FORMAT_NAMES);
   });
 });
 
