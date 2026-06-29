@@ -1,14 +1,19 @@
 /**
- * Pure, `vscode`-free Quarto YAML schema data (architecture plan §3.3; Phase 6d
- * plan §5.3).
+ * Pure, `vscode`-free Quarto YAML schema data + reader (architecture plan §3.3;
+ * Phase 6d plan §5.3).
  *
- * Slice 6d-1 ships only the curated fallback set of cell options — the `SchemaField`
- * shape plus `CURATED_CELL_OPTIONS`. A later slice (6d-3) adds the runtime reader
- * that enriches this from the user's installed Quarto schema and degrades to this
- * curated set on any failure, so this list is the permanent fallback, never
- * throwaway. Option *names* are uncopyrightable facts (confirmed against the live
- * Quarto 1.7.33 schema); the descriptions here are our own concise wording, so the
- * curated set is independently license-clean (no redistribution of Quarto data).
+ * Two parts:
+ *   1. `CURATED_CELL_OPTIONS` (+ the `SchemaField` shape) — a hand-curated set of
+ *      the highest-frequency cell options, the PERMANENT fallback. Option *names*
+ *      are uncopyrightable facts (confirmed against the live Quarto 1.7.33 schema)
+ *      and the descriptions are our own concise wording, so it is independently
+ *      license-clean (no redistribution of Quarto data).
+ *   2. `parseSchemaIndex` (Slice 6d-3) — the runtime reader that parses the user's
+ *      INSTALLED `yaml-intelligence-resources.json` TEXT into a `SchemaIndex`,
+ *      enriching completion to the full cell-option set with resolved value enums.
+ *      It NEVER throws: any malformed/unexpected input degrades to the curated set
+ *      (`CURATED_SCHEMA_INDEX`). The impure read/spawn lives in the adapter
+ *      (`features/yaml-schema-source.ts`); this module stays `vscode`-free.
  */
 
 /** One completable schema field — a cell option (6d-1) or, later, a front-matter key. */
