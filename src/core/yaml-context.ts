@@ -255,11 +255,20 @@ function nearestShallowerLine(
 
 /**
  * Front-matter mapping keys whose children are completed one level deep (Slice
- * 6d-6). Limited to `execute` for v1: its child set is well-known and stable, so
- * a curated set is faithful (the live schema assembles it across multiple files —
- * deferred). `format:` (format names) and deeper nesting are later slices.
+ * 6d-6). Two containers in v1:
+ *   - `execute` — its child KEYS and their VALUES come from a curated set (the
+ *     live schema assembles the execute object across multiple files — deferred).
+ *   - `format` — its child keys are FORMAT NAMES (`html`, `pdf`, `revealjs`, …),
+ *     which the schema reader derives from the live `pandoc/formats.yml` list
+ *     (with a curated fallback), so format completion tracks the user's Quarto.
+ *     The provider is generic over `parentPath`, so `["format"]` resolves through
+ *     the same `frontMatterKeys` path as `["execute"]`.
+ * Per-format options (the level under a format name, e.g. `format:\n  html:\n    toc:`)
+ * and deeper nesting are later slices — the detector bails on them (parent not at
+ * column 0). A nested VALUE position under `format:` (`format:\n  html: …`) is
+ * detected but a format name carries no value enum, so it benignly offers nothing.
  */
-const NESTED_CONTAINERS = new Set<string>(["execute"]);
+const NESTED_CONTAINERS = new Set<string>(["execute", "format"]);
 
 type Slot = { startCol: number; endCol: number };
 

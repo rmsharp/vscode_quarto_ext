@@ -262,6 +262,50 @@ describe("completionContextAt — nested front-matter key under `execute:` (6d-6
   });
 });
 
+describe("completionContextAt — nested front-matter key under `format:` (6d-6 cont.)", () => {
+  it("returns a nested frontmatter-key context under the `format:` container", () => {
+    const text = ["---", "format:", "  html", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 2, 4)); // inside "ht|ml"
+    expect(ctx).toEqual({
+      kind: "frontmatter-key",
+      parentPath: ["format"],
+      token: "ht",
+      replaceRange: { line: 2, startCol: 2, endCol: 6 }, // covers all of "html"
+    });
+  });
+
+  it("offers all format names (empty token) on a blank indented line under format", () => {
+    const text = ["---", "format:", "  ", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 2, 2));
+    expect(ctx).toEqual({
+      kind: "frontmatter-key",
+      parentPath: ["format"],
+      token: "",
+      replaceRange: { line: 2, startCol: 2, endCol: 2 },
+    });
+  });
+
+  it("returns a nested frontmatter-VALUE context past the colon (`  html: …`)", () => {
+    // A format name carries no value enum, so the provider offers nothing here —
+    // the per-format-options deferral is graceful (parentPath = [container, name]).
+    const text = ["---", "format:", "  html: default", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 2, 10)); // in "de|fault"
+    expect(ctx).toEqual({
+      kind: "frontmatter-value",
+      parentPath: ["format", "html"],
+      token: "de",
+      replaceRange: { line: 2, startCol: 8, endCol: 15 },
+    });
+  });
+
+  it("bails (null) on a per-format option line — deeper nesting under a format name", () => {
+    const text = ["---", "format:", "  html:", "    toc: true", "---"].join("\n");
+    // "    toc" is two levels deep; its parent `  html:` is itself indented, so the
+    // one-level detector bails (per-format options are a deferred deeper slice).
+    expect(completionContextAt(text, offsetAt(text, 3, 6))).toBeNull();
+  });
+});
+
 describe("completionContextAt — front-matter value (6d-5)", () => {
   it("returns a frontmatter-value context at an empty value position (`toc: `)", () => {
     const text = ["---", "toc: ", "---"].join("\n");
