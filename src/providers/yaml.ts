@@ -100,11 +100,14 @@ class YamlCompletionProvider implements vscode.CompletionItemProvider {
         .map((field) => frontMatterKeyItem(field, range));
     }
     if (ctx.kind === "frontmatter-value") {
-      // The key being valued is top-level, so its field is in `frontMatterKeys([])`;
-      // `ctx.parentPath` ([key]) names the key `valueItems` resolves the enum for.
+      // `ctx.parentPath` is [container…, key]: the last element is the key being
+      // valued and the prefix is its container path. Looking the key up in
+      // `frontMatterKeys(parentPath.slice(0,-1))` resolves both a top-level value
+      // (path [key] → `frontMatterKeys([])`) and a nested one (path ["execute",
+      // key] → the curated execute children — 6d-6 continuation).
       return valueItems(
         document,
-        index.frontMatterKeys([]),
+        index.frontMatterKeys(ctx.parentPath.slice(0, -1)),
         ctx.parentPath,
         range,
         "Quarto document option value",

@@ -715,3 +715,132 @@ describe("Quarto: YAML nested execute-key completion (6d-6)", () => {
     assert.deepStrictEqual(documentOptionLabels(list), [], "no execute keys outside front matter");
   });
 });
+
+/**
+ * Slice 6d-6 (continuation) — nested VALUE completion on a `key:` line one level
+ * under the `execute:` container. The provider offers that child's grounded value
+ * enum (the [container, key] path resolves the RIGHT key), with the same colon-
+ * abutting leading-space and whole-token replace-range behavior as a top-level
+ * value, and ONLY there: not under a non-allow-listed container, and the existing
+ * top-level value path is unchanged. Curated-only in v1, so env-independent.
+ */
+describe("Quarto: YAML nested execute-value completion (6d-6 cont.)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("offers values for a cell-shared flag absent from the flat document list (`  echo: ` → true/false/fenced)", async () => {
+    // echo/eval/output/warning/error/include live in schema/cell-*.yml, NOT in any
+    // document-*.yml, so they are absent from frontMatterKeys([]). Their nested
+    // values resolve ONLY via frontMatterKeys(["execute"]) (the curated execute
+    // set) — the faithful discriminator that the [container] lookup runs (a
+    // top-level lookup, as before this slice, would offer nothing here).
+    const doc = await openInMemory("---\nexecute:\n  echo: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 8), // value slot after "  echo: "
+    );
+    const labels = documentValueLabels(list);
+    for (const expected of ["true", "false", "fenced"]) {
+      assert.ok(
+        labels.includes(expected),
+        `should offer echo value ${expected}; got ${JSON.stringify(labels)}`,
+      );
+    }
+  });
+
+  it("offers a nested child's value enum (`  cache: ` → true/false/refresh)", async () => {
+    const doc = await openInMemory("---\nexecute:\n  cache: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 9), // value slot after "  cache: "
+    );
+    const labels = documentValueLabels(list);
+    for (const expected of ["true", "false", "refresh"]) {
+      assert.ok(
+        labels.includes(expected),
+        `should offer cache value ${expected}; got ${JSON.stringify(labels)}`,
+      );
+    }
+  });
+
+  it("resolves the RIGHT key under execute (`freeze` has `auto`, not `refresh`)", async () => {
+    // The [container, key] parentPath must name the key being valued: `freeze`
+    // offers `auto` (its enum) and NOT `refresh` (which belongs to `cache`). This
+    // proves the per-key lookup, not just that some execute value appears.
+    const doc = await openInMemory("---\nexecute:\n  freeze: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 10), // value slot after "  freeze: "
+    );
+    const labels = documentValueLabels(list);
+    assert.ok(labels.includes("auto"), `freeze should offer 'auto'; got ${JSON.stringify(labels)}`);
+    assert.ok(!labels.includes("refresh"), "freeze must NOT offer cache's 'refresh'");
+  });
+
+  it("inserts a leading space when the nested value abuts the colon (`:` trigger)", async () => {
+    const doc = await openInMemory("---\nexecute:\n  cache:\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 8), // right after the colon
+      ":",
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto document option value" && labelText(i) === "true",
+    );
+    assert.ok(item, `the 'true' value item; got ${JSON.stringify(documentValueLabels(list))}`);
+    assert.strictEqual(insertTextOf(item), " true", "leading space added");
+  });
+
+  it("nested value replace range covers the whole value token", async () => {
+    const doc = await openInMemory("---\nexecute:\n  freeze: auto\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 10), // value "auto" spans [10,14)
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto document option value",
+    );
+    assert.ok(item, "at least one document value item");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.start.character, 10, "replaces from the value start");
+    assert.strictEqual(range.end.character, 14, "replaces through the end of 'auto'");
+  });
+
+  it("leaves the top-level value path unchanged (`toc: ` → true/false, no regression)", async () => {
+    // The provider now looks up frontMatterKeys(parentPath.slice(0,-1)); for a
+    // top-level value parentPath=[key] that slice is [], so the top-level path is
+    // preserved. A nested-only value (`refresh`) must not leak up here.
+    const doc = await openInMemory("---\ntoc: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 5), // top-level value slot after "toc: "
+    );
+    const labels = documentValueLabels(list);
+    assert.ok(labels.includes("true") && labels.includes("false"), `toc true/false; got ${JSON.stringify(labels)}`);
+    assert.ok(!labels.includes("refresh"), "a nested-only value must not leak to top level");
+  });
+
+  it("offers NO nested values under a non-allow-listed container (`website:`)", async () => {
+    const doc = await openInMemory("---\nwebsite:\n  url: x\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 7), // value slot under a non-container
+    );
+    assert.deepStrictEqual(documentValueLabels(list), [], "no nested values under a non-container");
+  });
+});
