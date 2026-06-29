@@ -33,6 +33,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 21 Did — 2026-06-29
+**Deliverable:** **Phase 6d Slice 6d-4 — front-matter top-level KEY completion** (IN PROGRESS)
+**Started:** 2026-06-29
+**Status:** Session claimed. Work beginning — strict TDD, vertical slice (model surface → context → schema → provider → integration), checkpoint commit per layer (plan §6 Slice 6d-4). Load-bearing discovery at orientation: the flat `schema/document-*.yml` name list (378 visible) OMITS pure container keys like `execute` (they live in `schema/schema.yml`'s object structure — recursive resolution, deferred to 6d-6); `execute` stays in the curated fallback with a documented limitation.
+
 ### What Session 20 Did — 2026-06-29
 **Deliverable:** **Phase 6d Slice 6d-3 — `#|` cell-option SCHEMA READER (the 🐉 dragon slice)**. **COMPLETE + adversarial-review-hardened.** The third 6d slice and the one the plan flagged as the dragon. Cell-option completion now reads the user's INSTALLED Quarto schema and enriches to the full option set with descriptions and value enums resolved from the live schema, **degrading to the curated `CURATED_CELL_OPTIONS` fallback on any failure**. It SWAPS the data source behind the existing provider — detection, the position discriminator, and the inverted gating are unchanged.
 
