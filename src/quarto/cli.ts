@@ -10,6 +10,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as vscode from "vscode";
+import { parseSharePath } from "../core/quarto-paths";
 import { parseQuartoVersion } from "../core/version";
 
 const execFileAsync = promisify(execFile);
@@ -73,4 +74,32 @@ export async function resolveBinary(): Promise<QuartoInstallation> {
     );
   }
   return { path: bin, version };
+}
+
+/**
+ * Resolve Quarto's share directory by invoking `<bin> --paths` (Phase 6d plan
+ * §2.4 — the YAML schema lives under it). `--paths` is UNDOCUMENTED (absent from
+ * `quarto --help`), so its output is parsed defensively in the pure core
+ * (`parseSharePath`); re-verify it on a Quarto upgrade alongside the `Browse at`
+ * / `Output created` stderr markers (Learnings #4/#8/#11/#25).
+ *
+ * @throws {QuartoNotFound} when the binary cannot be executed, or `--paths`
+ *   yields no resolvable share directory.
+ */
+export async function quartoSharePath(): Promise<string> {
+  const bin = configuredBinary();
+  let stdout: string;
+  try {
+    ({ stdout } = await execFileAsync(bin, ["--paths"]));
+  } catch (err) {
+    throw new QuartoNotFound(bin, err);
+  }
+  const share = parseSharePath(stdout);
+  if (share === null) {
+    throw new QuartoNotFound(
+      bin,
+      new Error(`Unexpected "quarto --paths" output: ${stdout.trim()}`),
+    );
+  }
+  return share;
 }
