@@ -76,4 +76,9 @@ describe("completionContextAt — cell-option key", () => {
     const text = ["```{ojs}", "//| ec", "```"].join("\n");
     expect(completionContextAt(text, offsetAt(text, 1, 6))?.engine).toBe("ojs");
   });
+
+  it("returns null on an INDENTED `#|` line (Quarto treats it as code)", () => {
+    const text = ["```{python}", "  #| ec", "x = 1", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 7))).toBeNull();
+  });
 });

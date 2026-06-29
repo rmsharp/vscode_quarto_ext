@@ -308,12 +308,15 @@ export function findAllCells(text: string): Cell[] {
 }
 
 /**
- * A cell-option line: leading whitespace, the prefix `#|` or `//|`, an optional
- * gap, then the option `key[: value]`. Group 1 is the leading indent, 2 the
- * prefix, 3 the gap before the key, 4 the remainder. Anchored at `^` so column
+ * A cell-option line, matching Quarto's own directive pattern `^#\s*\| ?` (and
+ * `^//\s*\| ?` for ojs/js): the comment char (`#` or `//`) at COLUMN 0 — no
+ * leading indentation, since Quarto treats an indented `#|` as ordinary code —
+ * then optional whitespace, the pipe, an optional gap, and the option
+ * `key[: value]`. Group 1 is the comment char, 2 the whitespace between it and
+ * the pipe, 3 the gap before the key, 4 the remainder. Anchored at `^` so column
  * math is exact.
  */
-const CELL_OPTION_PREFIX = /^(\s*)(#\||\/\/\|)(\s*)(.*)$/;
+const CELL_OPTION_PREFIX = /^(#|\/\/)([ \t]*)\|([ \t]*)(.*)$/;
 
 /**
  * Every `#|` / `//|` cell-option line inside an executable cell, in document
@@ -332,11 +335,12 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
       if (m === null) {
         return;
       }
-      const keyStart = m[1].length + m[2].length + m[3].length;
+      // keyStart = comment chars + inter-pipe ws + the `|` + the gap before the key.
+      const keyStart = m[1].length + m[2].length + 1 + m[3].length;
       result.push({
         line: cell.startLine + 1 + j,
         cellLang: cell.lang,
-        prefix: m[2] as "#|" | "//|",
+        prefix: m[1] === "#" ? "#|" : "//|",
         keySlot: keySlotOf(m[4], keyStart),
       });
     });

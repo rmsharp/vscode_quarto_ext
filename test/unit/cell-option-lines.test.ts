@@ -76,18 +76,51 @@ describe("findCellOptionLines — does NOT detect outside executable cells", () 
     expect(findCellOptionLines(text)).toEqual([]);
   });
 
-  it("ignores `#|`-shaped lines in YAML front matter (skip-region agreement)", () => {
-    const text = ["---", "#| echo: false", "title: t", "---", "prose"].join("\n");
+  // These embed a REAL ```{python} fence INSIDE the skip region: only the shared
+  // scanner's front-matter / comment skipping stops it from opening a cell. If
+  // that skipping regressed, findAllCells would open the cell and the `#|` line
+  // would be detected — so these go RED, faithfully exercising the Learning #14
+  // agreement (a fenceless fixture would pass for the trivial "no cell" reason).
+  it("ignores a {python} cell nested in YAML front matter (skip-region agreement)", () => {
+    const text = ["---", "```{python}", "#| echo: false", "```", "title: t", "---", "prose"].join("\n");
     expect(findCellOptionLines(text)).toEqual([]);
   });
 
-  it("ignores a `#|`-shaped line inside an HTML comment (skip-region agreement)", () => {
-    const text = ["<!--", "#| echo: false", "-->", "prose"].join("\n");
+  it("ignores a {python} cell nested in an HTML comment (skip-region agreement)", () => {
+    const text = ["<!--", "```{python}", "#| echo: false", "```", "-->", "prose"].join("\n");
     expect(findCellOptionLines(text)).toEqual([]);
   });
 
   it("does not report the fence lines themselves", () => {
     const text = ["```{python}", "x = 1", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([]);
+  });
+});
+
+describe("findCellOptionLines — Quarto-faithful prefix matching", () => {
+  // Quarto's directive pattern is `^#\s*\| ?` (anchored at col 0; whitespace
+  // allowed between the comment char and the pipe). Match it exactly.
+  it("does NOT detect an INDENTED `#|` line (Quarto treats it as code)", () => {
+    const text = ["```{python}", "  #| echo: false", "x = 1", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([]);
+  });
+
+  it("does NOT detect an indented `//|` line", () => {
+    const text = ["```{ojs}", "  //| echo: true", "x = 1", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([]);
+  });
+
+  it("DETECTS `# |` with a space between the comment char and the pipe", () => {
+    const text = ["```{r}", "# | echo: false", "x <- 1", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([
+      { line: 1, cellLang: "r", prefix: "#|", keySlot: { startCol: 4, endCol: 8 } },
+    ]);
+  });
+
+  it("DETECTS `#  |` with extra space (and normalizes the prefix)", () => {
+    const text = ["```{python}", "#  | echo: false", "```"].join("\n");
+    const [opt] = findCellOptionLines(text);
+    expect(opt.prefix).toBe("#|");
+    expect(opt.keySlot).toEqual({ startCol: 5, endCol: 9 }); // "echo" after "#  | "
   });
 });
