@@ -32,6 +32,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 19 Did — 2026-06-28
+**Deliverable:** Phase 6d Slice 6d-2 — `#|` cell-option VALUE completion (curated enums/booleans). (IN PROGRESS)
+**Started:** 2026-06-28
+**Status:** Session claimed (Phase 1B stub). Work beginning — strict TDD.
+
 ### What Session 18 Did — 2026-06-28
 **Deliverable:** **Phase 6d Slice 6d-1 — `#|` cell-option KEY completion (curated set)**. **COMPLETE + adversarial-review-hardened.** The first 6d slice. Typing on a `#|` (python/r/julia) or `//|` (ojs/js) option line inside an executable cell now offers cell-option **key** suggestions from a curated set; gated to fire ONLY in a key slot (the inverse of the `@` providers' prose gate). The runtime schema reader is the later 6d-3 — this slice ships the curated fallback that 6d-3 will degrade to.
 
