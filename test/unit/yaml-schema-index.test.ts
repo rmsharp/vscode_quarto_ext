@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CURATED_CELL_OPTIONS,
+  CURATED_EXECUTE_KEYS,
   CURATED_FRONTMATTER_KEYS,
   CURATED_SCHEMA_INDEX,
   parseSchemaIndex,
@@ -125,8 +126,19 @@ describe("parseSchemaIndex — front-matter key extraction (6d-4)", () => {
     expect(toc?.description).toBe("Table of contents.");
   });
 
-  it("offers nothing for a nested parent path (top-level only in 6d-4)", () => {
-    expect(index.frontMatterKeys(["execute"])).toEqual([]);
+  it("serves the curated execute children for the `execute` path (6d-6)", () => {
+    // Nested keys are curated-only in v1 (the live schema cannot assemble the
+    // execute object without the deferred recursive walk), so the parsed index
+    // returns the same curated set as the fallback — independent of the fixture.
+    const names = index.frontMatterKeys(["execute"]).map((f) => f.name);
+    expect(names).toContain("echo"); // a cell-shared flag, NOT a top-level doc key
+    expect(names).toContain("freeze");
+    expect(names).toEqual(CURATED_EXECUTE_KEYS.map((f) => f.name));
+  });
+
+  it("offers nothing for a non-allow-listed or deeper nested path (6d-6)", () => {
+    expect(index.frontMatterKeys(["website"])).toEqual([]);
+    expect(index.frontMatterKeys(["execute", "julia"])).toEqual([]);
   });
 
   // 6d-5 depends on the reader resolving values for document keys exactly as it

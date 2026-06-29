@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   CURATED_CELL_OPTIONS,
+  CURATED_EXECUTE_KEYS,
   CURATED_FRONTMATTER_KEYS,
+  CURATED_SCHEMA_INDEX,
 } from "../../src/core/yaml-schema";
 
 /**
@@ -192,5 +194,51 @@ describe("CURATED_FRONTMATTER_KEYS — value enums (6d-5)", () => {
         expect(v.length).toBeGreaterThan(0);
       }
     }
+  });
+});
+
+/**
+ * CURATED_EXECUTE_KEYS is the curated set of children offered one level under the
+ * `execute:` front-matter container (Slice 6d-6, the cheap one-level approximation).
+ * Names are grounded against the Quarto 1.7.33 schema (`schema/cell-codeoutput`/
+ * `cell-textoutput`/`cell-cache` for the shared execution flags; `document-execute`/
+ * `document-render` for the rest); descriptions are our own. The live schema cannot
+ * assemble this set without the deferred recursive walk, so it is curated-only.
+ */
+describe("CURATED_EXECUTE_KEYS — nested execute children (6d-6)", () => {
+  it("is exactly the curated execute child-key set (grounded, in order)", () => {
+    expect(CURATED_EXECUTE_KEYS.map((f) => f.name)).toEqual([
+      "eval",
+      "echo",
+      "output",
+      "warning",
+      "error",
+      "include",
+      "cache",
+      "freeze",
+      "enabled",
+      "daemon",
+      "daemon-restart",
+      "keep-md",
+      "keep-ipynb",
+    ]);
+  });
+
+  it("gives every execute child a non-empty name and description", () => {
+    for (const field of CURATED_EXECUTE_KEYS) {
+      expect(field.name.length).toBeGreaterThan(0);
+      expect(field.description, `${field.name} description`).toBeTruthy();
+    }
+  });
+
+  it("is what CURATED_SCHEMA_INDEX serves for the `execute` path", () => {
+    expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["execute"])).toEqual(
+      CURATED_EXECUTE_KEYS,
+    );
+  });
+
+  it("offers nothing for a non-allow-listed or deeper nested path", () => {
+    expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["website"])).toEqual([]);
+    expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["execute", "julia"])).toEqual([]);
   });
 });

@@ -189,6 +189,36 @@ export const CURATED_FRONTMATTER_KEYS: SchemaField[] = [
   { name: "jupyter", description: "The Jupyter kernel used to execute the document." },
 ];
 
+/**
+ * The curated children offered one level under the `execute:` front-matter
+ * container (Slice 6d-6, the "cheap one-level approximation" — Phase 6d plan §6).
+ * Names are uncopyrightable facts grounded against the Quarto 1.7.33 schema: the
+ * shared execution flags (`echo`/`eval`/`output`/`warning`/`error`/`include`) live
+ * in `schema/cell-codeoutput.yml` + `schema/cell-textoutput.yml`, `cache` in
+ * `schema/cell-cache.yml`, and `freeze`/`enabled`/`daemon`/`daemon-restart` +
+ * `keep-md`/`keep-ipynb` in `schema/document-execute.yml` + `schema/document-render.yml`.
+ * The live schema assembles the execute object across those files via Quarto's own
+ * grouping logic (no single readable list in `yaml-intelligence-resources.json`), so
+ * surfacing it from the reader is deferred recursive-resolution work — this curated
+ * set is the faithful v1 source for BOTH the parsed and the fallback index. KEY
+ * completion only: value enums for these are the next (nested-value) slice.
+ */
+export const CURATED_EXECUTE_KEYS: SchemaField[] = [
+  { name: "eval", description: "Evaluate code cells (`false` renders the code without running it)." },
+  { name: "echo", description: "Show cell source code in the rendered output." },
+  { name: "output", description: "Include execution output in the rendered document." },
+  { name: "warning", description: "Include warnings in the rendered output." },
+  { name: "error", description: "Include errors in the output instead of halting the render." },
+  { name: "include", description: "Master switch: suppress all cell output (code and results)." },
+  { name: "cache", description: "Cache cell results to skip re-execution when unchanged." },
+  { name: "freeze", description: "Reuse previously rendered results (`auto`, `true`, or `false`)." },
+  { name: "enabled", description: "Master switch for code execution in this document." },
+  { name: "daemon", description: "Keep a Jupyter kernel alive between renders (seconds, or a boolean)." },
+  { name: "daemon-restart", description: "Restart the Jupyter daemon before rendering." },
+  { name: "keep-md", description: "Keep the intermediate Markdown produced during rendering." },
+  { name: "keep-ipynb", description: "Keep the intermediate notebook produced during rendering." },
+];
+
 // ── Runtime schema index (Slice 6d-3) ───────────────────────────────────────
 
 /**
@@ -205,9 +235,11 @@ export interface SchemaIndex {
    */
   cellOptions(engine?: "knitr" | "jupyter" | "ojs"): SchemaField[];
   /**
-   * The front-matter keys to offer at the given mapping path (6d-4). Top-level
-   * keys are returned for the document root (`parentPath` empty); a non-empty
-   * path yields `[]` (nested/format-conditional completion is deferred to 6d-6).
+   * The front-matter keys to offer at the given mapping path. Top-level keys are
+   * returned for the document root (`parentPath` empty, 6d-4); the single
+   * allow-listed one-level container `["execute"]` returns the curated execute
+   * children (6d-6). Any other path — a non-allow-listed container or a deeper
+   * nesting — yields `[]` (recursive resolution is deferred to a later slice).
    */
   frontMatterKeys(parentPath: string[]): SchemaField[];
 }
@@ -225,8 +257,16 @@ function indexOf(cellFields: SchemaField[], fmFields: SchemaField[]): SchemaInde
       return cellFields.filter((f) => f.engine === undefined || f.engine === engine);
     },
     frontMatterKeys(parentPath) {
-      // 6d-4 completes top-level keys only; nested paths are deferred (6d-6).
-      return parentPath.length === 0 ? fmFields : [];
+      // 6d-4 completes top-level keys (document root); 6d-6 completes the curated
+      // children one level under the allow-listed `execute:` container. Any other
+      // nested path is deferred (recursive resolution), so it yields [].
+      if (parentPath.length === 0) {
+        return fmFields;
+      }
+      if (parentPath.length === 1 && parentPath[0] === "execute") {
+        return CURATED_EXECUTE_KEYS;
+      }
+      return [];
     },
   };
 }
