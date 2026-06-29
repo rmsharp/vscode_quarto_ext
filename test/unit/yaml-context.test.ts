@@ -309,8 +309,46 @@ describe("completionContextAt — front-matter value (6d-5)", () => {
     expect(completionContextAt(text, offsetAt(text, 1, 13))).toBeNull();
   });
 
-  it("returns null on an INDENTED (nested) value line — deferred to 6d-6", () => {
+  it("returns a nested frontmatter-value context on an INDENTED execute line (6d-6 cont.)", () => {
     const text = ["---", "execute:", "  enabled: false", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 13))).toBeNull(); // in "false"
+    const ctx = completionContextAt(text, offsetAt(text, 2, 13)); // in "fa|lse"
+    expect(ctx).toEqual({
+      kind: "frontmatter-value",
+      parentPath: ["execute", "enabled"], // [container, key being valued]
+      token: "fa",
+      replaceRange: { line: 2, startCol: 11, endCol: 16 },
+    });
+  });
+
+  it("fires right after the colon with no space on a nested line (`  cache:`)", () => {
+    const text = ["---", "execute:", "  cache:", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 2, 8)); // right after ":"
+    expect(ctx).toEqual({
+      kind: "frontmatter-value",
+      parentPath: ["execute", "cache"],
+      token: "",
+      replaceRange: { line: 2, startCol: 8, endCol: 8 },
+    });
+  });
+
+  it("replaces the WHOLE nested value token on a mid-value cursor (`  freeze: auto`)", () => {
+    const text = ["---", "execute:", "  freeze: auto", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 2, 12)); // inside "au|to"
+    expect(ctx?.kind).toBe("frontmatter-value");
+    expect(ctx?.parentPath).toEqual(["execute", "freeze"]);
+    expect(ctx?.token).toBe("au");
+    expect(ctx?.replaceRange).toEqual({ line: 2, startCol: 10, endCol: 14 });
+  });
+
+  it("returns null in the whitespace gap before a nested value", () => {
+    const text = ["---", "execute:", "  cache:   true", "---"].join("\n");
+    // col 9 sits in the run of spaces before "true" (value starts at col 11).
+    expect(completionContextAt(text, offsetAt(text, 2, 9))).toBeNull();
+  });
+
+  it("returns null inside a trailing inline comment on a nested value line", () => {
+    const text = ["---", "execute:", "  freeze: auto  # c", "---"].join("\n");
+    // col 17 is inside the comment; the value span ends at "auto" (col 14).
+    expect(completionContextAt(text, offsetAt(text, 2, 17))).toBeNull();
   });
 });

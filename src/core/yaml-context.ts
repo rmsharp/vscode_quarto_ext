@@ -152,8 +152,9 @@ function frontMatterContextAt(
  * indented key line (not a `- ` sequence item or a `#` comment); its parent must
  * be a column-0, allow-listed key (one level only — a deeper or non-allow-listed
  * parent yields `null`); and the parent must be a *pure mapping container* (no
- * scalar / block-scalar `|`,`>` / flow `[`,`{` value). Only the key slot completes;
- * a cursor past the colon (a nested value) yields `null` (deferred to a later slice).
+ * scalar / block-scalar `|`,`>` / flow `[`,`{` value). The key slot completes a
+ * nested key (`frontmatter-key`); the value slot past the colon completes that
+ * child key's values (`frontmatter-value`, `parentPath` = [container, key]).
  */
 function nestedKeyContextAt(
   lines: string[],
@@ -198,15 +199,30 @@ function nestedKeyContextAt(
     nlColon >= 0 ? lineText.slice(indent, nlColon) : lineText.slice(indent)
   ).replace(/[ \t]+$/, "");
   const keySlot: Slot = { startCol: indent, endCol: indent + keyText.length };
-  if (col < keySlot.startCol || col > keySlot.endCol) {
-    return null; // the gap before / a value position past the colon — nested values deferred
+  if (col >= keySlot.startCol && col <= keySlot.endCol) {
+    return {
+      kind: "frontmatter-key",
+      parentPath: [parentKey],
+      token: lineText.slice(keySlot.startCol, col),
+      replaceRange: { line, startCol: keySlot.startCol, endCol: keySlot.endCol },
+    };
   }
-  return {
-    kind: "frontmatter-key",
-    parentPath: [parentKey],
-    token: lineText.slice(keySlot.startCol, col),
-    replaceRange: { line, startCol: keySlot.startCol, endCol: keySlot.endCol },
-  };
+  // A nested VALUE position past the colon (6d-6 continuation): complete the
+  // child key's enum/boolean values. `parentPath` is [container, key being
+  // valued] so the provider resolves them from `frontMatterKeys([container])`.
+  // The value slot uses the same grammar as a top-level value (shared helper).
+  if (nlColon >= 0) {
+    const valueSlot = valueSlotAfterColon(lineText, nlColon);
+    if (col >= valueSlot.startCol && col <= valueSlot.endCol) {
+      return {
+        kind: "frontmatter-value",
+        parentPath: [parentKey, keyText],
+        token: lineText.slice(valueSlot.startCol, col),
+        replaceRange: { line, startCol: valueSlot.startCol, endCol: valueSlot.endCol },
+      };
+    }
+  }
+  return null; // the whitespace gap before a value, or anywhere else
 }
 
 /**
@@ -270,17 +286,26 @@ function topLevelSlots(
     "",
   );
   const keySlot: Slot = { startCol: 0, endCol: keyText.length };
-  if (colon < 0) {
-    return { keySlot, valueSlot: null };
-  }
+  return {
+    keySlot,
+    valueSlot: colon < 0 ? null : valueSlotAfterColon(lineText, colon),
+  };
+}
+
+/**
+ * The value token span on `lineText` after the colon at index `colon`. Leading
+ * whitespace after the colon is skipped, and a trailing unquoted inline comment /
+ * whitespace excluded — the YAML value grammar shared by a top-level front-matter
+ * line (`topLevelSlots`), a nested front-matter line (`nestedKeyContextAt`), and
+ * the cell-option `slotsOf` (`core/qmd/model`). A `#` begins a comment when at the
+ * value start or whitespace-preceded; quoted scalars are left intact, and
+ * enum/boolean values never contain `#`, so this only narrows the commented case.
+ */
+function valueSlotAfterColon(lineText: string, colon: number): Slot {
   const afterColon = colon + 1;
   const region = lineText.slice(afterColon);
   const wsLen = (region.match(/^[ \t]*/) ?? [""])[0].length;
   let valueRaw = region.slice(wsLen);
-  // Strip an unquoted trailing YAML inline comment (mirrors `slotsOf`): a `#`
-  // begins a comment when at the value start or whitespace-preceded. Quoted
-  // scalars are left intact; enum/boolean values never contain `#`, so this only
-  // narrows the span for the commented case.
   if (!/^["']/.test(valueRaw)) {
     const c = valueRaw.startsWith("#") ? 0 : valueRaw.search(/\s#/);
     if (c >= 0) {
@@ -289,10 +314,7 @@ function topLevelSlots(
   }
   const valueText = valueRaw.replace(/\s+$/, "");
   const valueStart = afterColon + wsLen;
-  return {
-    keySlot,
-    valueSlot: { startCol: valueStart, endCol: valueStart + valueText.length },
-  };
+  return { startCol: valueStart, endCol: valueStart + valueText.length };
 }
 
 /**
