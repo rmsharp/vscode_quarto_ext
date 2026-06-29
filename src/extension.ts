@@ -17,6 +17,7 @@ import { registerRenderFeature } from "./features/render";
 import { registerCitationProviders } from "./providers/citation";
 import { registerCrossrefProviders } from "./providers/crossref";
 import { registerOutlineProvider } from "./providers/outline";
+import { registerYamlCompletionProvider } from "./providers/yaml";
 import { QuartoNotFound, resolveBinary } from "./quarto/cli";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -35,6 +36,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerOutlineProvider(context);
   registerCrossrefProviders(context);
   registerCitationProviders(context);
+  registerYamlCompletionProvider(context);
 }
 
 /**

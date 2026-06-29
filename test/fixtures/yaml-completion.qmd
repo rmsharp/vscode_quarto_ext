@@ -1,0 +1,14 @@
+---
+title: "YAML completion fixture"
+execute:
+  enabled: false
+---
+
+# Intro {#sec-intro}
+
+Some prose mentioning @sec-intro here.
+
+```{python}
+#| echo: false
+x = 1
+```
