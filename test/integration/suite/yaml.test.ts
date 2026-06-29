@@ -39,6 +39,13 @@ function documentOptionLabels(list: vscode.CompletionList | undefined): string[]
     .map(labelText);
 }
 
+/** Front-matter (document) VALUE items contributed by the YAML provider. */
+function documentValueLabels(list: vscode.CompletionList | undefined): string[] {
+  return (list?.items ?? [])
+    .filter((i) => i.detail === "Quarto document option value")
+    .map(labelText);
+}
+
 /** Open an in-memory `.qmd`-language document (no fixture file needed). */
 async function openInMemory(content: string): Promise<vscode.TextDocument> {
   const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
@@ -477,5 +484,128 @@ describe("Quarto: YAML front-matter key completion (6d-4)", () => {
       !labels.includes("@sec-intro"),
       `@ completion must be suppressed in front matter; got ${JSON.stringify(labels)}`,
     );
+  });
+});
+
+/**
+ * Slice 6d-5 — front-matter top-level VALUE completion. After a known top-level
+ * `key:` the provider offers that key's enum/boolean values, and ONLY there:
+ * never at the key slot, in prose, in a cell-option value, or for a key with no
+ * enum. `toc` is boolean in both the curated set and the schema, so the positive
+ * case is environment-independent; a SCHEMA-ONLY enum (`editor` → source/visual)
+ * proves the runtime reader resolved front-matter values end-to-end (it cannot
+ * appear via the curated fallback).
+ */
+describe("Quarto: YAML front-matter value completion (6d-5)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("completes the value enum after a known boolean key (`toc: `)", async () => {
+    const doc = await openInMemory("---\ntoc: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 5), // the value slot after "toc: "
+    );
+    const labels = documentValueLabels(list);
+    for (const expected of ["true", "false"]) {
+      assert.ok(
+        labels.includes(expected),
+        `should offer toc value ${expected}; got ${JSON.stringify(labels)}`,
+      );
+    }
+  });
+
+  it("value replace range covers the whole value token", async () => {
+    const doc = await openInMemory("---\ntoc: false\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 5), // value "false" spans [5,10)
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto document option value",
+    );
+    assert.ok(item, "at least one document value item");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.start.character, 5, "replaces from the value start");
+    assert.strictEqual(range.end.character, 10, "replaces through the end of 'false'");
+  });
+
+  it("inserts a leading space when the value abuts the colon (`:` trigger)", async () => {
+    const doc = await openInMemory("---\ntoc:\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 4), // right after the colon
+      ":",
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto document option value" && labelText(i) === "true",
+    );
+    assert.ok(item, `the 'true' value item; got ${JSON.stringify(documentValueLabels(list))}`);
+    assert.strictEqual(insertTextOf(item), " true", "leading space added");
+  });
+
+  it("resolves a SCHEMA-ONLY key's value enum (`editor` → source/visual)", async () => {
+    const doc = await openInMemory("---\neditor: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 8), // the value slot after "editor: "
+    );
+    const labels = documentValueLabels(list);
+    for (const v of ["source", "visual"]) {
+      assert.ok(labels.includes(v), `editor value ${v}; got ${JSON.stringify(labels)}`);
+    }
+  });
+
+  it("offers NO value items at the key slot", async () => {
+    const doc = await openInMemory("---\ntoc: false\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 0), // the key slot, not a value position
+    );
+    assert.deepStrictEqual(documentValueLabels(list), [], "no value items at the key");
+  });
+
+  it("offers NO values for a key with no enum (`title: `)", async () => {
+    const doc = await openInMemory("---\ntitle: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 7), // value position after "title: "
+    );
+    assert.deepStrictEqual(documentValueLabels(list), [], "no values for a free-text key");
+  });
+
+  it("offers NO document value items in a cell-option value position (no cross-pollution)", async () => {
+    const doc = await openInMemory("```{python}\n#| echo: false\n```\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 9), // cell-option value position
+    );
+    assert.deepStrictEqual(documentValueLabels(list), [], "no document values in a cell");
+  });
+
+  it("offers NO document value items on a prose line with a colon (`:` must not pop)", async () => {
+    const doc = await openInMemory("Some prose.\n\nA note: here.\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 8), // after "A note: "
+      ":",
+    );
+    assert.deepStrictEqual(documentValueLabels(list), [], "no document values in prose");
   });
 });

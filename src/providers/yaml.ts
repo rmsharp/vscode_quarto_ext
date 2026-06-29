@@ -1,8 +1,8 @@
 /**
  * YAML completion provider for `.qmd` — completes Quarto cell-option *keys* on a
- * `#|` / `//|` line inside an executable cell, enum/boolean *values* after the
- * key's colon (Slices 6d-1/6d-2), and document *keys* at the top level of the YAML
- * front matter (Slice 6d-4).
+ * `#|` / `//|` line inside an executable cell and enum/boolean *values* after the
+ * key's colon (Slices 6d-1/6d-2), plus document *keys* (Slice 6d-4) and their
+ * enum/boolean *values* (Slice 6d-5) at the top level of the YAML front matter.
  *
  * Thin `vscode` adapter (plan §3.3): all position logic lives in the pure core
  * (`core/yaml-context`), the option data in `core/yaml-schema`. This class only
@@ -86,14 +86,30 @@ class YamlCompletionProvider implements vscode.CompletionItemProvider {
       return index.cellOptions(ctx.engine).map((field) => keyItem(field, range));
     }
     if (ctx.kind === "cell-option-value") {
-      return valueItems(document, index.cellOptions(ctx.engine), ctx.parentPath, range);
+      return valueItems(
+        document,
+        index.cellOptions(ctx.engine),
+        ctx.parentPath,
+        range,
+        "Quarto cell option value",
+      );
     }
     if (ctx.kind === "frontmatter-key") {
       return index
         .frontMatterKeys(ctx.parentPath)
         .map((field) => frontMatterKeyItem(field, range));
     }
-    // `frontmatter-value` is a later slice (6d-5).
+    if (ctx.kind === "frontmatter-value") {
+      // The key being valued is top-level, so its field is in `frontMatterKeys([])`;
+      // `ctx.parentPath` ([key]) names the key `valueItems` resolves the enum for.
+      return valueItems(
+        document,
+        index.frontMatterKeys([]),
+        ctx.parentPath,
+        range,
+        "Quarto document option value",
+      );
+    }
     return undefined;
   }
 }
@@ -104,6 +120,7 @@ function valueItems(
   fields: SchemaField[],
   parentPath: string[],
   range: { inserting: vscode.Range; replacing: vscode.Range },
+  detail: string,
 ): vscode.CompletionItem[] | undefined {
   const key = parentPath[parentPath.length - 1];
   const field = fields.find((f) => f.name === key);
@@ -114,7 +131,7 @@ function valueItems(
   // yields valid `key: value` YAML rather than `key:value`.
   const lineText = document.lineAt(range.replacing.start.line).text;
   const needSpace = lineText[range.replacing.start.character - 1] === ":";
-  return field.values.map((value) => valueItem(value, range, needSpace));
+  return field.values.map((value) => valueItem(value, range, needSpace, detail));
 }
 
 /** Translate one cell-option `SchemaField` into a key completion item. */
@@ -155,16 +172,17 @@ function frontMatterKeyItem(
   return item;
 }
 
-/** Translate one curated value into a value completion item. */
+/** Translate one schema value into a value completion item (cell or document). */
 function valueItem(
   value: string,
   range: { inserting: vscode.Range; replacing: vscode.Range },
   needSpace: boolean,
+  detail: string,
 ): vscode.CompletionItem {
   const item = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
   item.insertText = needSpace ? ` ${value}` : value;
   item.filterText = value;
   item.range = range;
-  item.detail = "Quarto cell option value";
+  item.detail = detail;
   return item;
 }
