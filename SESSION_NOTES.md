@@ -34,6 +34,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 22 Did — 2026-06-29
+**Deliverable:** **Phase 6d Slice 6d-5 — front-matter top-level VALUE completion** (IN PROGRESS)
+**Started:** 2026-06-29
+**Status:** Session claimed (Phase 1B stub). Orienting on the plan §6 + grounding against the real schema. Work beginning.
+
 ### What Session 21 Did — 2026-06-29
 **Deliverable:** **Phase 6d Slice 6d-4 — front-matter top-level KEY completion**. **COMPLETE + adversarial-review-hardened.** The fourth 6d slice and the FIRST front-matter slice. Inside the `---`…`---` block, typing a top-level key now offers document-key suggestions from the user's installed Quarto schema, degrading to a curated fallback. It is the COMPLEMENT of the cell-option provider on the shared `{language:"quarto"}` selector, gated so the two never cross-pollute (plan §4.3).
 
