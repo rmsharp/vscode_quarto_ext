@@ -32,6 +32,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 20 Did
+**Deliverable:** Phase 6d Slice 6d-3 — schema reader (runtime-read the installed Quarto YAML schema; enrich cell-option completion to the full option set + descriptions + resolved simple value enums; degrade to the curated `CURATED_CELL_OPTIONS` fallback on any failure, proven by break-revert). (IN PROGRESS)
+**Started:** 2026-06-28
+**Status:** Session claimed. Work beginning.
+
 ### What Session 19 Did — 2026-06-28
 **Deliverable:** **Phase 6d Slice 6d-2 — `#|` cell-option VALUE completion (curated enums/booleans)**. **COMPLETE + adversarial-review-hardened.** The second 6d slice. After a known cell-option key's colon, typing on a `#|` (python/r/julia) or `//|` (ojs/js) line inside an executable cell now offers that option's **value** enum from a curated set, gated to fire ONLY in the value slot (after the colon). The runtime schema reader is the later 6d-3 — this ships the curated value enums 6d-3 will enrich/replace.
 
