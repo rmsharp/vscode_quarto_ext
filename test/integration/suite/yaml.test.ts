@@ -458,15 +458,19 @@ describe("Quarto: YAML front-matter key completion (6d-4)", () => {
     assert.deepStrictEqual(documentOptionLabels(list), [], "no document keys in a cell");
   });
 
-  it("offers NO document keys on an indented (nested) front-matter line (6d-4 is top-level)", async () => {
+  it("does NOT offer top-level-only keys on a nested execute line (gating)", async () => {
     const doc = await openFixture();
-    // Line 3 "  enabled: false" — nested under execute:, indented.
+    // Line 3 "  enabled: false" — nested under execute:. Top-level-only document
+    // keys (`title`, the schema-only `csl`) must NOT appear here; only execute
+    // children do (asserted positively in the 6d-6 block).
     const list = await vscode.commands.executeCommand<vscode.CompletionList>(
       "vscode.executeCompletionItemProvider",
       doc.uri,
       new vscode.Position(3, 2),
     );
-    assert.deepStrictEqual(documentOptionLabels(list), [], "no keys on a nested line");
+    const labels = documentOptionLabels(list);
+    assert.ok(!labels.includes("title"), `top-level 'title' must not leak into a nested slot; got ${JSON.stringify(labels)}`);
+    assert.ok(!labels.includes("csl"), "schema-only top-level 'csl' must not leak into a nested slot");
   });
 
   it("keeps @ cross-ref completion SUPPRESSED in front matter (complement gating)", async () => {
@@ -610,5 +614,104 @@ describe("Quarto: YAML front-matter value completion (6d-5)", () => {
       ":",
     );
     assert.deepStrictEqual(documentValueLabels(list), [], "no document values in prose");
+  });
+});
+
+/**
+ * Slice 6d-6 — nested KEY completion one level under the `execute:` container.
+ * The provider offers the curated execute children there, and ONLY there: not at
+ * the top level (a cell-shared flag like `echo`/`eval`/`warning` is NOT a
+ * `document-*` key, so it is a clean nested-only discriminator), not under a
+ * non-allow-listed container, and not in prose/cells. The set is curated-only in
+ * v1 (the live schema assembles the execute object across files — deferred), so
+ * the positive cases are environment-independent.
+ */
+describe("Quarto: YAML nested execute-key completion (6d-6)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("offers the execute children on an indented line under execute:", async () => {
+    const doc = await openFixture();
+    // Line 3 "  enabled: false" — col 2 is the nested key slot under execute:.
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(3, 2),
+    );
+    const labels = documentOptionLabels(list);
+    for (const expected of ["echo", "eval", "enabled", "freeze", "keep-md"]) {
+      assert.ok(
+        labels.includes(expected),
+        `should offer execute child ${expected}; got ${JSON.stringify(labels)}`,
+      );
+    }
+  });
+
+  it("completes a partially-typed nested key (`ec` → echo/eval)", async () => {
+    const doc = await openInMemory("---\nexecute:\n  ec\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 4), // after the partial nested key "ec"
+    );
+    const labels = documentOptionLabels(list);
+    assert.ok(labels.includes("echo") && labels.includes("eval"), `got ${JSON.stringify(labels)}`);
+  });
+
+  it("nested replace range covers the whole key token", async () => {
+    const doc = await openInMemory("---\nexecute:\n  freeze: auto\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 4), // inside "fr|eeze"; key spans [2,8)
+    );
+    const item = (list?.items ?? []).find((i) => i.detail === "Quarto document option");
+    assert.ok(item, "at least one document-key item");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.start.character, 2, "replaces from the nested key start");
+    assert.strictEqual(range.end.character, 8, "replaces through the end of 'freeze'");
+  });
+
+  it("does NOT offer a nested-only execute child (`echo`) at the top level (no leak)", async () => {
+    // `echo` is a cell-shared execution flag, not a `document-*` key, so it must
+    // appear ONLY under execute: — never at the document root. This pairs with the
+    // positive above to prove the nested path runs without cross-polluting top level.
+    const doc = await openInMemory("---\nti\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 2), // a top-level key slot
+    );
+    const labels = documentOptionLabels(list);
+    assert.ok(!labels.includes("echo"), `'echo' must not appear at top level; got ${JSON.stringify(labels.slice(0, 12))}…`);
+    assert.ok(!labels.includes("eval"), "'eval' must not appear at top level");
+  });
+
+  it("bails under a non-allow-listed container (`website:`)", async () => {
+    const doc = await openInMemory("---\nwebsite:\n  ti\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 4), // nested under website:, not allow-listed
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "no nested keys under a non-container");
+  });
+
+  it("offers NO execute keys on an indented prose line (gating)", async () => {
+    const doc = await openInMemory("Some prose.\n\n  echo\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 4), // an indented line in prose, no front matter
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "no execute keys outside front matter");
   });
 });
