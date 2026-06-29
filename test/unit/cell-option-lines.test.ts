@@ -153,6 +153,24 @@ describe("findCellOptionLines — value slot (6d-2)", () => {
     expect(opts[1].keySlot).toBeNull();
     expect(opts[1].valueSlot).toBeNull();
   });
+
+  it("excludes a trailing YAML inline comment from the value span", () => {
+    const text = ["```{python}", "#| echo: false  # turn off", "```"].join("\n");
+    const [opt] = findCellOptionLines(text);
+    expect(opt.valueSlot).toEqual({ startCol: 9, endCol: 14 }); // "false", not the comment
+  });
+
+  it("treats a comment-only value as empty (`#| echo:  # x`)", () => {
+    const text = ["```{python}", "#| echo:  # x", "```"].join("\n");
+    const [opt] = findCellOptionLines(text);
+    expect(opt.valueSlot).toEqual({ startCol: 10, endCol: 10 }); // empty value before the comment
+  });
+
+  it("keeps a quoted value intact (does not split on a `#` inside quotes)", () => {
+    const text = ["```{python}", '#| label: "a # b"', "```"].join("\n");
+    const [opt] = findCellOptionLines(text);
+    expect(opt.valueSlot).toEqual({ startCol: 10, endCol: 17 }); // the whole "a # b" scalar
+  });
 });
 
 describe("findCellOptionLines — Quarto-faithful prefix matching", () => {

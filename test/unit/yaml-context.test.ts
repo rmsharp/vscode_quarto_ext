@@ -123,4 +123,10 @@ describe("completionContextAt — cell-option value (6d-2)", () => {
     // col 9 sits in the run of spaces before "false" (value starts at col 11).
     expect(completionContextAt(text, offsetAt(text, 1, 9))).toBeNull();
   });
+
+  it("returns null when the cursor is inside a trailing inline comment", () => {
+    const text = ["```{python}", "#| echo: false  # comment", "```"].join("\n");
+    // col 18 is inside the comment; the value span ends at "false" (col 14).
+    expect(completionContextAt(text, offsetAt(text, 1, 18))).toBeNull();
+  });
 });

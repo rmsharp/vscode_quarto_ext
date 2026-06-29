@@ -382,10 +382,21 @@ function slotsOf(
     return { keySlot, valueSlot: null };
   }
   const afterColon = colon + 1;
-  const wsLen = (rest.slice(afterColon).match(/^[ \t]*/) ?? [""])[0].length;
-  const valueRel = afterColon + wsLen;
-  const valueText = rest.slice(valueRel).replace(/\s+$/, "");
-  const valueStart = keyStart + valueRel;
+  const region = rest.slice(afterColon);
+  const wsLen = (region.match(/^[ \t]*/) ?? [""])[0].length;
+  let valueRaw = region.slice(wsLen);
+  // Strip an unquoted trailing YAML inline comment: a `#` begins a comment when
+  // it is at the value start or preceded by whitespace. Quoted scalars are left
+  // intact (quote-aware parsing is deferred); enum/boolean values never contain
+  // quotes or `#`, so this only narrows the span for the commented case.
+  if (!/^["']/.test(valueRaw)) {
+    const c = valueRaw.startsWith("#") ? 0 : valueRaw.search(/\s#/);
+    if (c >= 0) {
+      valueRaw = valueRaw.slice(0, c);
+    }
+  }
+  const valueText = valueRaw.replace(/\s+$/, "");
+  const valueStart = keyStart + afterColon + wsLen;
   return {
     keySlot,
     valueSlot: { startCol: valueStart, endCol: valueStart + valueText.length },

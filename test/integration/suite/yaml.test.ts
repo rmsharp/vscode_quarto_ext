@@ -283,6 +283,16 @@ describe("Quarto: YAML cell-option value completion", () => {
     assert.deepStrictEqual(cellValueLabels(list), [], "no value items in prose");
   });
 
+  it("offers NO value items inside a trailing inline comment", async () => {
+    const doc = await openInMemory("```{python}\n#| echo: false  # note\n```\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 19), // inside "# note"
+    );
+    assert.deepStrictEqual(cellValueLabels(list), [], "no value items in the comment");
+  });
+
   it("offers NO value items in YAML front matter", async () => {
     const doc = await openFixture();
     // Line 3 "  enabled: false" — front matter; col 11 is past its colon.
