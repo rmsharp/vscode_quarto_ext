@@ -35,6 +35,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 23 Did
+**Deliverable:** **Phase 6d Slice 6d-6 (v1) — nested KEY completion under the `execute:` front-matter container** (the plan's "cheap one-level approximation": curated/grounded execute child-keys, one level deep, parent-scan detector that bails on ambiguity; defers `format:`/nested-values/recursive-reader). (IN PROGRESS)
+**Started:** 2026-06-29
+**Status:** Session claimed. Scope grounded against the real 1.7.33 schema (execute children are assembled across 5 files → curated is the faithful v1). Work beginning, strict TDD.
+
 ### What Session 22 Did — 2026-06-29
 **Deliverable:** **Phase 6d Slice 6d-5 — front-matter top-level VALUE completion**. **COMPLETE + adversarial-review-hardened.** The 5th 6d slice and the value-side complement of 6d-4. Inside the `---`…`---` block, after a known top-level `key:`, the provider now offers that key's enum/boolean values from the user's installed Quarto schema, degrading to curated booleans offline. It is the COMPLEMENT of the cell-option value provider on the shared `{language:"quarto"}` selector, gated so the two never cross-pollute (plan §4.3).
 
