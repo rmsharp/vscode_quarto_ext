@@ -195,11 +195,26 @@ export interface CellOptionLine {
   valueSlot: { startCol: number; endCol: number } | null;
 }
 
+/**
+ * The leading YAML front-matter block, captured in the single scan so every
+ * consumer (the region views AND `findFrontMatter`/`inFrontMatter`) agrees on
+ * its bounds — there is no second front-matter scanner (Learning #14). `endLine`
+ * is the closing terminator line for a terminated block, or the document's last
+ * line when the block is unterminated; `terminated` distinguishes the two so the
+ * `inFrontMatter` predicate can decide whether the last line is content.
+ */
+interface FrontMatterSpan {
+  startLine: number;
+  endLine: number;
+  terminated: boolean;
+}
+
 /** The parsed structural regions of a document. */
 interface Regions {
   headings: Heading[];
   cells: Cell[];
   bodyLines: BodyLine[];
+  frontMatter: FrontMatterSpan | null;
 }
 
 /**
@@ -221,6 +236,7 @@ function scanRegions(text: string): Regions {
   const headings: Heading[] = [];
   const cells: Cell[] = [];
   const bodyLines: BodyLine[] = [];
+  let frontMatter: FrontMatterSpan | null = null;
   let inFrontmatter = false;
   let inComment = false;
   let open: OpenCellFence | null = null;
@@ -228,14 +244,18 @@ function scanRegions(text: string): Regions {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // YAML front matter — only a `---` on the very first line opens it.
+    // YAML front matter — only a `---` on the very first line opens it. Record
+    // the span as it opens (provisionally unterminated, ending at EOF) and refine
+    // `endLine`/`terminated` when the terminator is seen.
     if (i === 0 && FRONTMATTER_OPEN.test(line)) {
       inFrontmatter = true;
+      frontMatter = { startLine: 0, endLine: lines.length - 1, terminated: false };
       continue;
     }
     if (inFrontmatter) {
       if (FRONTMATTER_CLOSE.test(line)) {
         inFrontmatter = false;
+        frontMatter = { startLine: 0, endLine: i, terminated: true };
       }
       continue;
     }
@@ -302,12 +322,44 @@ function scanRegions(text: string): Regions {
     cells.push(makeCell(open, lines.length - 1, lines, false));
   }
 
-  return { headings, cells, bodyLines };
+  return { headings, cells, bodyLines, frontMatter };
 }
 
 /** Find every ATX heading in `text`, in document order. */
 export function findHeadings(text: string): Heading[] {
   return scanRegions(text).headings;
+}
+
+/**
+ * The leading YAML front-matter block's line span — `{ startLine, endLine }`,
+ * both 0-based and inclusive of the `---` fence lines — or `null` if the document
+ * has no front matter. `endLine` is the closing `---`/`...` terminator line, or
+ * the document's last line if the block is unterminated. A view over the single
+ * `scanRegions` pass, so it cannot disagree with the heading/cell/body views on
+ * what counts as front matter (Learning #14). The YAML completion provider uses
+ * `inFrontMatter` (below) to gate front-matter key suggestions; this raw span is
+ * exposed for consumers that need the bounds themselves.
+ */
+export function findFrontMatter(
+  text: string,
+): { startLine: number; endLine: number } | null {
+  const fm = scanRegions(text).frontMatter;
+  return fm === null ? null : { startLine: fm.startLine, endLine: fm.endLine };
+}
+
+/**
+ * True if 0-based `line` is an interior content line of the document's front
+ * matter — strictly between the `---` fences (both fence lines excluded). For an
+ * unterminated block (no closing fence) the last line counts as content. The
+ * YAML completion provider gates front-matter key suggestions on this (Phase 6d
+ * plan §4.3), so it deliberately excludes the fence lines, where no key is typed.
+ */
+export function inFrontMatter(text: string, line: number): boolean {
+  const fm = scanRegions(text).frontMatter;
+  if (fm === null || line <= fm.startLine) {
+    return false;
+  }
+  return fm.terminated ? line < fm.endLine : line <= fm.endLine;
 }
 
 /** Find every executable `{lang}` code cell in `text`, in document order. */
