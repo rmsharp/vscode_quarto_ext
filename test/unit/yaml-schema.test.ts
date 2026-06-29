@@ -121,9 +121,11 @@ describe("CURATED_CELL_OPTIONS — value enums (6d-2)", () => {
  * KEY completion (6d-4), served when the runtime schema reader is unavailable.
  * Names are uncopyrightable facts (verified present in the Quarto 1.7.33 schema);
  * descriptions are our own wording. It deliberately includes the common CONTAINER
- * keys (`execute`, `format`) that the flat `schema/document-*.yml` name list omits
- * structurally (they live in `schema/schema.yml`'s object graph — surfacing them
- * from the live schema is the deferred recursive-resolution work, 6d-6).
+ * key `execute`, which the flat `schema/document-*.yml` name list omits
+ * structurally (it lives in `schema/schema.yml`'s object graph — surfacing it from
+ * the live schema is the deferred recursive-resolution work, 6d-6). `format` is
+ * also included for the offline case (a same-named epub-scoped `format` field is
+ * in the flat list, so the live reader surfaces `format` from there).
  */
 describe("CURATED_FRONTMATTER_KEYS — data contract", () => {
   it("is a non-empty set of well-formed fields (name + description)", () => {

@@ -159,11 +159,14 @@ export const CURATED_CELL_OPTIONS: SchemaField[] = [
  * permanent fallback served for front-matter KEY completion (6d-4) when the
  * runtime schema reader is unavailable. Names are uncopyrightable facts (verified
  * present in the Quarto 1.7.33 schema); descriptions are our own wording. Includes
- * the common CONTAINER keys `execute`/`format`, which the flat
- * `schema/document-*.yml` name list omits structurally (they live in
- * `schema/schema.yml`'s object graph; surfacing them from the live schema is the
- * deferred recursive-resolution work — 6d-6). No `values` (6d-4 is keys only;
- * front-matter value enums are 6d-5) and no cell `engine` (document-level).
+ * the common CONTAINER key `execute`, which the flat `schema/document-*.yml` name
+ * list omits structurally (it lives in `schema/schema.yml`'s object graph;
+ * surfacing it from the live schema is deferred recursive-resolution work — 6d-6).
+ * `format` is included too for the offline case; note the flat list DOES carry a
+ * same-named (epub-scoped) `format` string field, so when the live schema reads,
+ * `format` is offered from there (with that field's description) rather than from
+ * this fallback. No `values` (6d-4 is keys only; front-matter value enums are
+ * 6d-5) and no cell `engine` (document-level).
  */
 export const CURATED_FRONTMATTER_KEYS: SchemaField[] = [
   { name: "title", description: "The document's title." },
