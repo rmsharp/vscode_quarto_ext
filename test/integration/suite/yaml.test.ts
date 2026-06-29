@@ -598,12 +598,15 @@ describe("Quarto: YAML front-matter value completion (6d-5)", () => {
     assert.deepStrictEqual(documentValueLabels(list), [], "no document values in a cell");
   });
 
-  it("offers NO document value items on a prose line with a colon (`:` must not pop)", async () => {
-    const doc = await openInMemory("Some prose.\n\nA note: here.\n");
+  it("offers NO document value items on a prose line with an enum key (discriminating)", async () => {
+    // `toc` HAS a value enum, so were front-matter value gating to leak into prose
+    // (a `toc:` line with no `---` block), its true/false WOULD appear — making this
+    // negative able to fail. A non-enum key (`A note:`) would pass trivially.
+    const doc = await openInMemory("Some prose.\n\ntoc: here\n");
     const list = await vscode.commands.executeCommand<vscode.CompletionList>(
       "vscode.executeCompletionItemProvider",
       doc.uri,
-      new vscode.Position(2, 8), // after "A note: "
+      new vscode.Position(2, 5), // value slot after "toc: "
       ":",
     );
     assert.deepStrictEqual(documentValueLabels(list), [], "no document values in prose");
