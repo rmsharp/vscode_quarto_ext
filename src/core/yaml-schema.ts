@@ -192,16 +192,24 @@ export const CURATED_FRONTMATTER_KEYS: SchemaField[] = [
 /**
  * The curated children offered one level under the `execute:` front-matter
  * container (Slice 6d-6, the "cheap one-level approximation" — Phase 6d plan §6).
- * Names are uncopyrightable facts grounded against the Quarto 1.7.33 schema: the
- * shared execution flags (`echo`/`eval`/`output`/`warning`/`error`/`include`) live
- * in `schema/cell-codeoutput.yml` + `schema/cell-textoutput.yml`, `cache` in
- * `schema/cell-cache.yml`, and `freeze`/`enabled`/`daemon`/`daemon-restart` +
- * `keep-md`/`keep-ipynb` in `schema/document-execute.yml` + `schema/document-render.yml`.
- * The live schema assembles the execute object across those files via Quarto's own
- * grouping logic (no single readable list in `yaml-intelligence-resources.json`), so
- * surfacing it from the reader is deferred recursive-resolution work — this curated
- * set is the faithful v1 source for BOTH the parsed and the fallback index. KEY
- * completion only: value enums for these are the next (nested-value) slice.
+ * Names are uncopyrightable facts grounded against the Quarto 1.7.33 schema and its
+ * actual assembly logic (`objectRefSchemaFromContextGlob("document-execute")`): a
+ * field enters the execute object when its file basename is `document-execute` OR
+ * its `tags.contexts` names `document-execute` (verified by probing the installed
+ * schema). So `cache`/`freeze`/`enabled`/`daemon`/`daemon-restart` are the
+ * `schema/document-execute.yml` (`execute-only`) fields and `keep-md`/`keep-ipynb`
+ * the `schema/document-render.yml` ones; the shared execution flags
+ * (`echo`/`eval`/`output`/`warning`/`error`/`include`) are DEFINED in
+ * `schema/cell-codeoutput.yml` + `schema/cell-textoutput.yml` but enter the execute
+ * object via their `document-execute` context tag (NOT the same-named knitr-engine
+ * `cache` in `schema/cell-cache.yml`, which lacks that tag and is excluded). There
+ * is no single readable list in `yaml-intelligence-resources.json`, so reproducing
+ * this assembly from the reader is deferred recursive-resolution work — this curated
+ * set is the faithful v1 source for BOTH the parsed and the fallback index.
+ * `enabled`/`daemon`/`daemon-restart` carry `hidden:true` (Quarto's own completion
+ * suppresses them) but are valid, documented, render-accepted options, included
+ * deliberately — `execute:\n  enabled: false` is this project's canonical render-clean
+ * idiom. KEY completion only: value enums are the next (nested-value) slice.
  */
 export const CURATED_EXECUTE_KEYS: SchemaField[] = [
   { name: "eval", description: "Evaluate code cells (`false` renders the code without running it)." },
