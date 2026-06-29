@@ -25,6 +25,26 @@ function cellOptionLabels(list: vscode.CompletionList | undefined): string[] {
     .map(labelText);
 }
 
+/** Cell-option VALUE items contributed by the YAML provider (tagged by `detail`). */
+function cellValueLabels(list: vscode.CompletionList | undefined): string[] {
+  return (list?.items ?? [])
+    .filter((i) => i.detail === "Quarto cell option value")
+    .map(labelText);
+}
+
+/** Open an in-memory `.qmd`-language document (no fixture file needed). */
+async function openInMemory(content: string): Promise<vscode.TextDocument> {
+  const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+  await vscode.window.showTextDocument(doc);
+  return doc;
+}
+
+/** The string form of a completion item's insertText. */
+function insertTextOf(item: vscode.CompletionItem): string {
+  const t = item.insertText;
+  return typeof t === "string" ? t : (t?.value ?? "");
+}
+
 /** The range a completion item replaces (single-Range or insert/replace form). */
 function replaceRange(item: vscode.CompletionItem): vscode.Range | undefined {
   const r = item.range as
@@ -146,5 +166,132 @@ describe("Quarto: YAML cell-option key completion", () => {
       labels.includes("@sec-intro"),
       `@ completion still works in prose; got ${JSON.stringify(labels)}`,
     );
+  });
+});
+
+/**
+ * Slice 6d-2 — cell-option VALUE completion. The provider offers a known key's
+ * curated value enum after the colon, and only there: never at the key slot, in
+ * prose, in front matter, or for an unknown key. Environment-independent.
+ */
+describe("Quarto: YAML cell-option value completion", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("completes the value enum after a known key (`#| echo: `)", async () => {
+    const doc = await openFixture();
+    // Line 11 "#| echo: false" — col 9 is the start of the value slot.
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(11, 9),
+    );
+    const labels = cellValueLabels(list);
+    for (const expected of ["true", "false", "fenced"]) {
+      assert.ok(
+        labels.includes(expected),
+        `should offer echo value ${expected}; got ${JSON.stringify(labels)}`,
+      );
+    }
+  });
+
+  it("value replace range covers the whole value token", async () => {
+    const doc = await openFixture();
+    // Line 11 "#| echo: false": value "false" spans [9,14).
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(11, 9),
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto cell option value",
+    );
+    assert.ok(item, "at least one value item");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.start.character, 9, "replaces from the value start");
+    assert.strictEqual(range.end.character, 14, "replaces through the end of 'false'");
+  });
+
+  it("inserts a value as-is when a space already follows the colon", async () => {
+    const doc = await openFixture();
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(11, 9),
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto cell option value" && labelText(i) === "true",
+    );
+    assert.ok(item, "the 'true' value item");
+    assert.strictEqual(insertTextOf(item), "true", "no leading space when one exists");
+  });
+
+  it("inserts a leading space when the value abuts the colon (`:` trigger)", async () => {
+    // No space after the colon yet — accepting must produce valid `key: value`.
+    const doc = await openInMemory("```{python}\n#| eval:\n```\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 8), // right after the colon
+      ":",
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto cell option value" && labelText(i) === "true",
+    );
+    assert.ok(item, `the 'true' value item; got ${JSON.stringify(cellValueLabels(list))}`);
+    assert.strictEqual(insertTextOf(item), " true", "leading space added");
+  });
+
+  it("offers NO value items at the key slot", async () => {
+    const doc = await openFixture();
+    // Line 11 col 3 — the key slot, not a value position.
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(11, 3),
+    );
+    assert.deepStrictEqual(cellValueLabels(list), [], "no value items at the key");
+  });
+
+  it("offers NO values for an unknown key", async () => {
+    const doc = await openInMemory("```{python}\n#| bogus:\n```\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 9), // value position after "bogus:"
+      ":",
+    );
+    assert.deepStrictEqual(cellValueLabels(list), [], "no values for an unknown key");
+  });
+
+  it("offers NO value items on a prose line with a colon (`:` must not pop)", async () => {
+    const doc = await openInMemory("Some prose.\n\nA note: here.\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 8), // after "A note: "
+      ":",
+    );
+    assert.deepStrictEqual(cellValueLabels(list), [], "no value items in prose");
+  });
+
+  it("offers NO value items in YAML front matter", async () => {
+    const doc = await openFixture();
+    // Line 3 "  enabled: false" — front matter; col 11 is past its colon.
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(3, 11),
+      ":",
+    );
+    assert.deepStrictEqual(cellValueLabels(list), [], "no value items in front matter");
   });
 });

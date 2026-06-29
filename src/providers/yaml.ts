@@ -1,6 +1,7 @@
 /**
  * YAML completion provider for `.qmd` — completes Quarto cell-option *keys* on a
- * `#|` / `//|` line inside an executable cell (plan §6 Phase 6d, Slice 6d-1).
+ * `#|` / `//|` line inside an executable cell, and enum/boolean *values* after the
+ * key's colon (plan §6 Phase 6d, Slices 6d-1/6d-2).
  *
  * Thin `vscode` adapter (plan §3.3): all position logic lives in the pure core
  * (`core/yaml-context`), the option data in `core/yaml-schema`. This class only
@@ -42,7 +43,7 @@ export function registerYamlCompletionProvider(
   );
 }
 
-/** Offer cell-option keys when the cursor is in a `#|` / `//|` key slot. */
+/** Offer cell-option keys in a `#|` / `//|` key slot, and value enums after the colon. */
 class YamlCompletionProvider implements vscode.CompletionItemProvider {
   provideCompletionItems(
     document: vscode.TextDocument,
@@ -50,12 +51,12 @@ class YamlCompletionProvider implements vscode.CompletionItemProvider {
   ): vscode.CompletionItem[] | undefined {
     const text = document.getText();
     const ctx = completionContextAt(text, document.offsetAt(position));
-    // Slice 6d-1 handles only cell-option keys; every other position (value,
-    // front matter, prose, code) yields no items — the inverse-gating contract.
-    if (ctx === null || ctx.kind !== "cell-option-key") {
+    // Every position outside a cell-option key/value slot (front matter, prose,
+    // code) yields no items — the inverse-gating contract.
+    if (ctx === null) {
       return undefined;
     }
-    // Insert replaces the key start→cursor; replace covers the whole key token
+    // Insert replaces slot start→cursor; replace covers the whole slot token
     // (through endCol) so accepting mid-token does not duplicate the suffix.
     const line = ctx.replaceRange.line;
     const range = {
@@ -72,12 +73,38 @@ class YamlCompletionProvider implements vscode.CompletionItemProvider {
         ctx.replaceRange.endCol,
       ),
     };
-    return CURATED_CELL_OPTIONS.map((field) => toCompletionItem(field, range));
+
+    if (ctx.kind === "cell-option-key") {
+      return CURATED_CELL_OPTIONS.map((field) => keyItem(field, range));
+    }
+    if (ctx.kind === "cell-option-value") {
+      return valueItems(document, ctx.parentPath, range);
+    }
+    // Front-matter kinds are reserved for later slices.
+    return undefined;
   }
 }
 
-/** Translate one core `SchemaField` into a `vscode.CompletionItem`. */
-function toCompletionItem(
+/** The value-enum items for the key being valued, or `undefined` if it has none. */
+function valueItems(
+  document: vscode.TextDocument,
+  parentPath: string[],
+  range: { inserting: vscode.Range; replacing: vscode.Range },
+): vscode.CompletionItem[] | undefined {
+  const key = parentPath[parentPath.length - 1];
+  const field = CURATED_CELL_OPTIONS.find((f) => f.name === key);
+  if (field?.values === undefined || field.values.length === 0) {
+    return undefined;
+  }
+  // If the value slot abuts the colon (no space yet), prepend one so accepting
+  // yields valid `key: value` YAML rather than `key:value`.
+  const lineText = document.lineAt(range.replacing.start.line).text;
+  const needSpace = lineText[range.replacing.start.character - 1] === ":";
+  return field.values.map((value) => valueItem(value, range, needSpace));
+}
+
+/** Translate one cell-option `SchemaField` into a key completion item. */
+function keyItem(
   field: SchemaField,
   range: { inserting: vscode.Range; replacing: vscode.Range },
 ): vscode.CompletionItem {
@@ -92,5 +119,19 @@ function toCompletionItem(
   if (field.description) {
     item.documentation = new vscode.MarkdownString(field.description);
   }
+  return item;
+}
+
+/** Translate one curated value into a value completion item. */
+function valueItem(
+  value: string,
+  range: { inserting: vscode.Range; replacing: vscode.Range },
+  needSpace: boolean,
+): vscode.CompletionItem {
+  const item = new vscode.CompletionItem(value, vscode.CompletionItemKind.Value);
+  item.insertText = needSpace ? ` ${value}` : value;
+  item.filterText = value;
+  item.range = range;
+  item.detail = "Quarto cell option value";
   return item;
 }
