@@ -39,6 +39,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 25 Did
+**Deliverable:** Phase 6d-6+ continuation — `format:` → format-name nested completion (add `"format"` to `NESTED_CONTAINERS` + a format-names source wired to `frontMatterKeys(["format"])`). (IN PROGRESS)
+**Started:** 2026-06-29
+**Status:** Session claimed (Phase 1B stub). Orienting on workstream doc + plan §6/§7, grounding format names against the installed schema before writing any code.
+
 ### What Session 24 Did — 2026-06-29
 **Deliverable:** **Phase 6d Slice 6d-6 (continuation) — nested `execute:` VALUE completion**. **COMPLETE + adversarial-review-hardened.** The 7th 6d slice and the value-side complement of Session 23's nested-KEY slice. On an indented line one level under `execute:` in the `---` block, after a known execute child-key `key:`, the provider now offers that child's grounded enum/boolean values (`echo: ` → true/false/fenced, `cache: ` → true/false/refresh, `freeze: ` → true/false/auto, the rest true/false), gated and degrading like the key side. It deliberately defers `format:`, deeper nesting, and the live-schema assembly (FM #18).
 
