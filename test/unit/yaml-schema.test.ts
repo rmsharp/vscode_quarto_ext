@@ -242,3 +242,45 @@ describe("CURATED_EXECUTE_KEYS — nested execute children (6d-6)", () => {
     expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["execute", "julia"])).toEqual([]);
   });
 });
+
+describe("CURATED_EXECUTE_KEYS — value enums (6d-6 cont.)", () => {
+  function valuesOf(name: string): string[] | undefined {
+    return CURATED_EXECUTE_KEYS.find((f) => f.name === name)?.values;
+  }
+
+  // Grounded against the Quarto 1.7.33 schema: schema/cell-codeoutput.yml
+  // (echo anyOf[boolean,enum:fenced]; eval boolean), schema/cell-textoutput.yml
+  // (output anyOf[boolean,enum:asis,…]; warning/error/include boolean), and
+  // schema/document-execute.yml (cache anyOf[boolean,enum:refresh];
+  // freeze anyOf[boolean,enum:auto]; enabled/daemon/daemon-restart boolean —
+  // daemon's number-timeout form is non-enumerable) + document-render.yml
+  // (keep-md/keep-ipynb boolean). Exact full-set equality, never a spot-check
+  // (Learning #26: a toContain check would miss a dropped/extra value).
+  it("grounds each execute child's value enum exactly", () => {
+    const expected: Record<string, string[]> = {
+      echo: ["true", "false", "fenced"],
+      eval: ["true", "false"],
+      output: ["true", "false", "asis"],
+      warning: ["true", "false"],
+      error: ["true", "false"],
+      include: ["true", "false"],
+      cache: ["true", "false", "refresh"],
+      freeze: ["true", "false", "auto"],
+      enabled: ["true", "false"],
+      daemon: ["true", "false"],
+      "daemon-restart": ["true", "false"],
+      "keep-md": ["true", "false"],
+      "keep-ipynb": ["true", "false"],
+    };
+    for (const [name, values] of Object.entries(expected)) {
+      expect(valuesOf(name), `${name} values`).toEqual(values);
+    }
+  });
+
+  it("gives every execute child a non-empty value enum (all are boolean/enum)", () => {
+    for (const field of CURATED_EXECUTE_KEYS) {
+      expect(field.values, `${field.name} should have a value enum`).toBeDefined();
+      expect(field.values?.length ?? 0).toBeGreaterThan(0);
+    }
+  });
+});

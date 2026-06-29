@@ -209,22 +209,24 @@ export const CURATED_FRONTMATTER_KEYS: SchemaField[] = [
  * `enabled`/`daemon`/`daemon-restart` carry `hidden:true` (Quarto's own completion
  * suppresses them) but are valid, documented, render-accepted options, included
  * deliberately — `execute:\n  enabled: false` is this project's canonical render-clean
- * idiom. KEY completion only: value enums are the next (nested-value) slice.
+ * idiom. Each child's `values` enum is grounded against the same schema files (the
+ * SIMPLE enumerable forms only — `daemon`'s number-timeout form is non-enumerable,
+ * so only its boolean values are offered), for nested VALUE completion (6d-6 cont.).
  */
 export const CURATED_EXECUTE_KEYS: SchemaField[] = [
-  { name: "eval", description: "Evaluate code cells (`false` renders the code without running it)." },
-  { name: "echo", description: "Show cell source code in the rendered output." },
-  { name: "output", description: "Include execution output in the rendered document." },
-  { name: "warning", description: "Include warnings in the rendered output." },
-  { name: "error", description: "Include errors in the output instead of halting the render." },
-  { name: "include", description: "Master switch: suppress all cell output (code and results)." },
-  { name: "cache", description: "Cache cell results to skip re-execution when unchanged." },
-  { name: "freeze", description: "Reuse previously rendered results (`auto`, `true`, or `false`)." },
-  { name: "enabled", description: "Master switch for code execution in this document." },
-  { name: "daemon", description: "Keep a Jupyter kernel alive between renders (seconds, or a boolean)." },
-  { name: "daemon-restart", description: "Restart the Jupyter daemon before rendering." },
-  { name: "keep-md", description: "Keep the intermediate Markdown produced during rendering." },
-  { name: "keep-ipynb", description: "Keep the intermediate notebook produced during rendering." },
+  { name: "eval", description: "Evaluate code cells (`false` renders the code without running it).", values: BOOL },
+  { name: "echo", description: "Show cell source code in the rendered output.", values: ["true", "false", "fenced"] },
+  { name: "output", description: "Include execution output in the rendered document.", values: ["true", "false", "asis"] },
+  { name: "warning", description: "Include warnings in the rendered output.", values: BOOL },
+  { name: "error", description: "Include errors in the output instead of halting the render.", values: BOOL },
+  { name: "include", description: "Master switch: suppress all cell output (code and results).", values: BOOL },
+  { name: "cache", description: "Cache cell results to skip re-execution when unchanged.", values: ["true", "false", "refresh"] },
+  { name: "freeze", description: "Reuse previously rendered results (`auto`, `true`, or `false`).", values: ["true", "false", "auto"] },
+  { name: "enabled", description: "Master switch for code execution in this document.", values: BOOL },
+  { name: "daemon", description: "Keep a Jupyter kernel alive between renders (seconds, or a boolean).", values: BOOL },
+  { name: "daemon-restart", description: "Restart the Jupyter daemon before rendering.", values: BOOL },
+  { name: "keep-md", description: "Keep the intermediate Markdown produced during rendering.", values: BOOL },
+  { name: "keep-ipynb", description: "Keep the intermediate notebook produced during rendering.", values: BOOL },
 ];
 
 // ── Runtime schema index (Slice 6d-3) ───────────────────────────────────────
