@@ -362,6 +362,23 @@ export function inFrontMatter(text: string, line: number): boolean {
   return fm.terminated ? line < fm.endLine : line <= fm.endLine;
 }
 
+/**
+ * The interior content lines of the document's front matter (the `---` fence
+ * lines excluded), or `null` if there is no front matter. For an unterminated
+ * block the last line is content (there is no closing fence). The citation
+ * front-matter reader (`core/frontmatter`) consumes this so the project has a
+ * single front-matter scanner (Learning #14), not a second `---` parser.
+ */
+export function frontMatterContentLines(text: string): string[] | null {
+  const fm = scanRegions(text).frontMatter;
+  if (fm === null) {
+    return null;
+  }
+  const lines = text.split(/\r?\n/);
+  const end = fm.terminated ? fm.endLine : fm.endLine + 1;
+  return lines.slice(fm.startLine + 1, end);
+}
+
 /** Find every executable `{lang}` code cell in `text`, in document order. */
 export function findAllCells(text: string): Cell[] {
   return scanRegions(text).cells;
