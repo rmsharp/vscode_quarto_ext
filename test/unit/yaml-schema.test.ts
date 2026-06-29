@@ -32,3 +32,65 @@ describe("CURATED_CELL_OPTIONS — data contract", () => {
     expect(cache?.engine).toBe("knitr");
   });
 });
+
+/**
+ * The curated value enums for 6d-2 value completion. Grounded against the live
+ * Quarto 1.7.33 schema (`schema/cell-*.yml` + the resolved `page-column` def):
+ * the value *forms* are uncopyrightable facts. Only enum/boolean options carry
+ * `values`; free-text/number options (label, fig-cap, code-summary, layout-ncol)
+ * leave it unset so value completion offers nothing there.
+ */
+describe("CURATED_CELL_OPTIONS — value enums (6d-2)", () => {
+  function valuesOf(name: string): string[] | undefined {
+    return CURATED_CELL_OPTIONS.find((f) => f.name === name)?.values;
+  }
+
+  it("gives boolean options exactly [true, false]", () => {
+    for (const name of ["eval", "warning", "error", "include", "cache"]) {
+      expect(valuesOf(name), `${name} values`).toEqual(["true", "false"]);
+    }
+  });
+
+  it("offers echo's boolean + `fenced`", () => {
+    expect(valuesOf("echo")).toEqual(["true", "false", "fenced"]);
+  });
+
+  it("offers output's boolean + `asis`", () => {
+    expect(valuesOf("output")).toEqual(["true", "false", "asis"]);
+  });
+
+  it("offers code-fold's boolean + `show`", () => {
+    expect(valuesOf("code-fold")).toEqual(["true", "false", "show"]);
+  });
+
+  it("offers fig-align's four alignments", () => {
+    expect(valuesOf("fig-align")).toEqual(["default", "left", "right", "center"]);
+  });
+
+  it("offers the page-column enum for column", () => {
+    const vals = valuesOf("column");
+    expect(vals).toBeDefined();
+    for (const v of ["body", "page", "margin", "screen"]) {
+      expect(vals, `column should include ${v}`).toContain(v);
+    }
+  });
+
+  it("leaves free-text / numeric options without a value enum", () => {
+    for (const name of ["label", "fig-cap", "code-summary", "layout-ncol"]) {
+      expect(valuesOf(name), `${name} should have no enum`).toBeUndefined();
+    }
+  });
+
+  it("has only non-empty string values where present", () => {
+    for (const field of CURATED_CELL_OPTIONS) {
+      if (field.values === undefined) {
+        continue;
+      }
+      expect(field.values.length).toBeGreaterThan(0);
+      for (const v of field.values) {
+        expect(typeof v).toBe("string");
+        expect(v.length).toBeGreaterThan(0);
+      }
+    }
+  });
+});
