@@ -156,3 +156,41 @@ describe("CURATED_FRONTMATTER_KEYS — data contract", () => {
     }
   });
 });
+
+/**
+ * The curated value enums for 6d-5 front-matter VALUE completion. Grounded against
+ * the live Quarto 1.7.33 schema (`schema/document-*.yml`): `toc` and
+ * `number-sections` resolve to a plain boolean there. Exact equality, never a
+ * `toContain` spot-check (Learning #26). Free-text keys (title, author, …) carry
+ * no enum so value completion offers nothing there.
+ */
+describe("CURATED_FRONTMATTER_KEYS — value enums (6d-5)", () => {
+  function valuesOf(name: string): string[] | undefined {
+    return CURATED_FRONTMATTER_KEYS.find((f) => f.name === name)?.values;
+  }
+
+  it("gives boolean document keys exactly [true, false]", () => {
+    for (const name of ["toc", "number-sections"]) {
+      expect(valuesOf(name), `${name} values`).toEqual(["true", "false"]);
+    }
+  });
+
+  it("leaves free-text document keys without a value enum", () => {
+    for (const name of ["title", "author", "date", "format", "bibliography"]) {
+      expect(valuesOf(name), `${name} should have no enum`).toBeUndefined();
+    }
+  });
+
+  it("has only non-empty string values where present", () => {
+    for (const field of CURATED_FRONTMATTER_KEYS) {
+      if (field.values === undefined) {
+        continue;
+      }
+      expect(field.values.length).toBeGreaterThan(0);
+      for (const v of field.values) {
+        expect(typeof v).toBe("string");
+        expect(v.length).toBeGreaterThan(0);
+      }
+    }
+  });
+});

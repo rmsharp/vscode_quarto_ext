@@ -165,8 +165,9 @@ export const CURATED_CELL_OPTIONS: SchemaField[] = [
  * `format` is included too for the offline case; note the flat list DOES carry a
  * same-named (epub-scoped) `format` string field, so when the live schema reads,
  * `format` is offered from there (with that field's description) rather than from
- * this fallback. No `values` (6d-4 is keys only; front-matter value enums are
- * 6d-5) and no cell `engine` (document-level).
+ * this fallback. Boolean keys (`toc`, `number-sections`) carry `values` for 6d-5
+ * value completion (grounded against `schema/document-*.yml`); free-text keys
+ * leave it unset. No cell `engine` (document-level).
  */
 export const CURATED_FRONTMATTER_KEYS: SchemaField[] = [
   { name: "title", description: "The document's title." },
@@ -177,10 +178,11 @@ export const CURATED_FRONTMATTER_KEYS: SchemaField[] = [
   { name: "format", description: "Output format(s) and their options (e.g. `html`, `pdf`)." },
   { name: "execute", description: "Document-wide code execution options (echo, eval, …)." },
   { name: "bibliography", description: "Path(s) to bibliography file(s) for citations." },
-  { name: "toc", description: "Include a table of contents." },
+  { name: "toc", description: "Include a table of contents.", values: BOOL },
   {
     name: "number-sections",
     description: "Number section headings in the rendered output.",
+    values: BOOL,
   },
   { name: "lang", description: "The document's main language (BCP-47, e.g. `en`)." },
   { name: "keywords", description: "Keywords describing the document, for metadata." },

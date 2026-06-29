@@ -128,6 +128,15 @@ describe("parseSchemaIndex — front-matter key extraction (6d-4)", () => {
   it("offers nothing for a nested parent path (top-level only in 6d-4)", () => {
     expect(index.frontMatterKeys(["execute"])).toEqual([]);
   });
+
+  // 6d-5 depends on the reader resolving values for document keys exactly as it
+  // does for cell options (`toField` → `valuesOfSchema`). Lock that contract.
+  it("resolves value enums on front-matter keys (6d-5)", () => {
+    const valuesOf = (name: string): string[] | undefined =>
+      index.frontMatterKeys([]).find((f) => f.name === name)?.values;
+    expect(valuesOf("toc")).toEqual(["true", "false"]); // schema: "boolean"
+    expect(valuesOf("freeze")).toEqual(["auto"]); // schema: { enum: ["auto"] }
+  });
 });
 
 describe("parseSchemaIndex — value resolution (simple cases)", () => {
