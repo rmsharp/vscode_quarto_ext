@@ -40,12 +40,6 @@ describe("completionContextAt — cell-option key", () => {
     expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 3, endCol: 7 });
   });
 
-  it("returns null at a VALUE position (past the colon) — that is Slice 6d-2", () => {
-    const text = ["```{python}", "#| echo: ", "```"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 9)); // after "echo: "
-    expect(ctx).toBeNull();
-  });
-
   it("returns null inside the prefix/gap, before the key slot", () => {
     const text = ["```{python}", "#| echo: false", "```"].join("\n");
     const ctx = completionContextAt(text, offsetAt(text, 1, 1)); // between # and |
@@ -80,5 +74,53 @@ describe("completionContextAt — cell-option key", () => {
   it("returns null on an INDENTED `#|` line (Quarto treats it as code)", () => {
     const text = ["```{python}", "  #| ec", "x = 1", "```"].join("\n");
     expect(completionContextAt(text, offsetAt(text, 1, 7))).toBeNull();
+  });
+});
+
+describe("completionContextAt — cell-option value (6d-2)", () => {
+  it("returns a value context at an empty value position (`#| echo: `)", () => {
+    const text = ["```{python}", "#| echo: ", "```"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 9)); // after "echo: "
+    expect(ctx).toEqual({
+      kind: "cell-option-value",
+      parentPath: ["echo"], // the key being valued
+      token: "",
+      replaceRange: { line: 1, startCol: 9, endCol: 9 },
+      engine: "jupyter",
+    });
+  });
+
+  it("fires right after the colon with no space yet (`:` trigger, `#| echo:`)", () => {
+    const text = ["```{python}", "#| echo:", "```"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 8)); // right after ":"
+    expect(ctx?.kind).toBe("cell-option-value");
+    expect(ctx?.parentPath).toEqual(["echo"]);
+    expect(ctx?.token).toBe("");
+    expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 8, endCol: 8 });
+  });
+
+  it("replaces the WHOLE value token on a mid-value cursor (`#| echo: false`)", () => {
+    const text = ["```{python}", "#| echo: false", "```"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 11)); // inside "fa|lse"
+    expect(ctx?.kind).toBe("cell-option-value");
+    expect(ctx?.token).toBe("fa");
+    expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 9, endCol: 14 });
+  });
+
+  it("maps the engine on a value position: {r} → knitr", () => {
+    const text = ["```{r}", "#| eval: ", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 9))?.engine).toBe("knitr");
+  });
+
+  it("stays a KEY context (not value) when the cursor is at the colon", () => {
+    const text = ["```{python}", "#| echo: false", "```"].join("\n");
+    // col 7 = end of "echo", at the colon: still the key slot, not a value.
+    expect(completionContextAt(text, offsetAt(text, 1, 7))?.kind).toBe("cell-option-key");
+  });
+
+  it("returns null in the whitespace gap between the colon and the value", () => {
+    const text = ["```{python}", "#| echo:   false", "```"].join("\n");
+    // col 9 sits in the run of spaces before "false" (value starts at col 11).
+    expect(completionContextAt(text, offsetAt(text, 1, 9))).toBeNull();
   });
 });

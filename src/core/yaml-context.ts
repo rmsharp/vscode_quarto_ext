@@ -10,8 +10,9 @@
  * code, value positions not yet supported), so the provider naturally yields no
  * items outside its region.
  *
- * Slice 6d-1 implements only `cell-option-key` (the `#|` / `//|` key slot). The
- * other `YamlContextKind`s are reserved for later slices (values, front matter).
+ * Slices 6d-1/6d-2 implement `cell-option-key` (the `#|` / `//|` key slot) and
+ * `cell-option-value` (the slot after the `:`). The front-matter kinds are
+ * reserved for later slices.
  */
 
 import { findCellOptionLines } from "./qmd/model";
@@ -46,10 +47,11 @@ export interface YamlCompletionContext {
 
 /**
  * The completion context at 0-based character `offset` in `text`, or `null` if
- * the cursor is not at a YAML position this slice completes. In 6d-1 that means:
- * the cursor is on a `#|` / `//|` cell-option line, within the key slot (after
- * the prefix, at or before the `:`). A value position (past the `:`), a prose or
- * code line, or a sequence-item line all yield `null`.
+ * the cursor is not at a YAML position these slices complete. A position is
+ * completable when the cursor is on a `#|` / `//|` cell-option line, within
+ * either the key slot (after the prefix, at or before the `:` — `cell-option-key`)
+ * or the value slot (after the `:` — `cell-option-value`). A prose or code line,
+ * a sequence-item line, or the whitespace gap before a value all yield `null`.
  */
 export function completionContextAt(
   text: string,
@@ -57,23 +59,38 @@ export function completionContextAt(
 ): YamlCompletionContext | null {
   const { line, col } = lineColAt(text, offset);
   const optLine = findCellOptionLines(text).find((o) => o.line === line);
-  if (optLine === undefined || optLine.keySlot === null) {
-    return null;
-  }
-  const slot = optLine.keySlot;
-  // Key context only while the cursor is within the key slot (≤ the colon). A
-  // cursor past the colon is a value position (Slice 6d-2), handled later.
-  if (col < slot.startCol || col > slot.endCol) {
+  if (optLine === undefined) {
     return null;
   }
   const lineText = text.split(/\r?\n/)[line] ?? "";
-  return {
-    kind: "cell-option-key",
-    parentPath: [],
-    token: lineText.slice(slot.startCol, col),
-    replaceRange: { line, startCol: slot.startCol, endCol: slot.endCol },
-    engine: engineFor(optLine.cellLang),
-  };
+  const key = optLine.keySlot;
+  const engine = engineFor(optLine.cellLang);
+
+  // Key context while the cursor is within the key slot (≤ the colon).
+  if (key !== null && col >= key.startCol && col <= key.endCol) {
+    return {
+      kind: "cell-option-key",
+      parentPath: [],
+      token: lineText.slice(key.startCol, col),
+      replaceRange: { line, startCol: key.startCol, endCol: key.endCol },
+      engine,
+    };
+  }
+
+  // Value context while the cursor is within the value slot (after the colon).
+  // `parentPath` carries the key being valued (plan §5.2). A cursor in the
+  // whitespace gap before the value (col < value.startCol) falls through to null.
+  const value = optLine.valueSlot;
+  if (key !== null && value !== null && col >= value.startCol && col <= value.endCol) {
+    return {
+      kind: "cell-option-value",
+      parentPath: [lineText.slice(key.startCol, key.endCol)],
+      token: lineText.slice(value.startCol, col),
+      replaceRange: { line, startCol: value.startCol, endCol: value.endCol },
+      engine,
+    };
+  }
+  return null;
 }
 
 /**
