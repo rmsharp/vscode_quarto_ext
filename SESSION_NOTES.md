@@ -31,6 +31,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 18 Did — 2026-06-28
+**Deliverable:** **Phase 6d Slice 6d-1 — `#|` cell-option KEY completion (curated set)** (IN PROGRESS)
+**Started:** 2026-06-28
+**Status:** Session claimed. Plan (`docs/planning/2026-06-28-phase-6d-yaml-completion-plan.md`) read in full. Work beginning — strict TDD, vertical slice. Scope: `findCellOptionLines` (shared model, G2) + `core/yaml-context.ts` `completionContextAt` (cell-option-key only, G3) + curated `CURATED_CELL_OPTIONS` + `providers/yaml.ts` (gated to cell-option lines + no-cross-pollination regression) + wire in `extension.ts`. NOT doing 6d-2/values or 6d-3/reader (FM #18).
+
 ### What Session 17 Did — 2026-06-28
 **Deliverable:** **Phase 6d spike + implementation plan** (YAML/`#|` cell-option completion). **COMPLETE.** A PLANNING session — the operator chose "Spike + plan" over implement-now (the parent plan's 🐉 "flag at planning of that session" gate, line 329, governs). Resolved the schema-source dragon and wrote **`docs/planning/2026-06-28-phase-6d-yaml-completion-plan.md`**. **No code — implementation is later sessions (FM #18/#19).** 6e is out of scope (separate session, parent plan line 334).
 

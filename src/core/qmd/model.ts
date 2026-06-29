@@ -165,6 +165,28 @@ export interface BodyLine {
   text: string;
 }
 
+/**
+ * A Quarto cell-option line — an interior line of an executable cell that begins
+ * with the comment-option prefix `#|` (python/r/julia) or `//|` (ojs/js), e.g.
+ * `#| echo: false`. These carry per-cell execution/figure options in YAML and are
+ * where the YAML completion provider (Phase 6d) offers option-name suggestions.
+ */
+export interface CellOptionLine {
+  /** 0-based line index of the option line in the whole document. */
+  line: number;
+  /** The owning cell's engine/language, e.g. `"python"`, `"r"`, `"ojs"`. */
+  cellLang: string;
+  /** The comment-option prefix actually used on the line. */
+  prefix: "#|" | "//|";
+  /**
+   * The span `[startCol, endCol)` of the option *key* token (the text before the
+   * `:`), 0-based columns. An empty span (`startCol == endCol`) marks a line with
+   * the prefix but no key yet (e.g. `#| `). `null` when the line cannot host a
+   * key — a block-sequence item (`- value`) under a key.
+   */
+  keySlot: { startCol: number; endCol: number } | null;
+}
+
 /** The parsed structural regions of a document. */
 interface Regions {
   headings: Heading[];
@@ -283,6 +305,61 @@ export function findHeadings(text: string): Heading[] {
 /** Find every executable `{lang}` code cell in `text`, in document order. */
 export function findAllCells(text: string): Cell[] {
   return scanRegions(text).cells;
+}
+
+/**
+ * A cell-option line: leading whitespace, the prefix `#|` or `//|`, an optional
+ * gap, then the option `key[: value]`. Group 1 is the leading indent, 2 the
+ * prefix, 3 the gap before the key, 4 the remainder. Anchored at `^` so column
+ * math is exact.
+ */
+const CELL_OPTION_PREFIX = /^(\s*)(#\||\/\/\|)(\s*)(.*)$/;
+
+/**
+ * Every `#|` / `//|` cell-option line inside an executable cell, in document
+ * order. A view over the shared scanner (`findAllCells`) — never a second scanner
+ * (Learning #14): only interior lines of executable `{lang}` cells are examined,
+ * so a `#|` in prose, in a non-executable ```` ```python ```` block, or on a
+ * fence line is never reported. The owning cell supplies the absolute line and
+ * engine.
+ */
+export function findCellOptionLines(text: string): CellOptionLine[] {
+  const result: CellOptionLine[] = [];
+  for (const cell of findAllCells(text)) {
+    const bodyLines = cell.code.length === 0 ? [] : cell.code.split("\n");
+    bodyLines.forEach((lineText, j) => {
+      const m = CELL_OPTION_PREFIX.exec(lineText);
+      if (m === null) {
+        return;
+      }
+      const keyStart = m[1].length + m[2].length + m[3].length;
+      result.push({
+        line: cell.startLine + 1 + j,
+        cellLang: cell.lang,
+        prefix: m[2] as "#|" | "//|",
+        keySlot: keySlotOf(m[4], keyStart),
+      });
+    });
+  }
+  return result;
+}
+
+/**
+ * The `[startCol, endCol)` span of the key token in `rest` (the text after the
+ * prefix+gap, starting at column `keyStart`), or `null` if the line is a
+ * block-sequence item (`- value`) rather than a mapping key. The key runs up to
+ * the first `:`; trailing whitespace before the colon is excluded.
+ */
+function keySlotOf(
+  rest: string,
+  keyStart: number,
+): { startCol: number; endCol: number } | null {
+  if (/^-(?:\s|$)/.test(rest)) {
+    return null;
+  }
+  const colon = rest.indexOf(":");
+  const keyText = (colon >= 0 ? rest.slice(0, colon) : rest).replace(/\s+$/, "");
+  return { startCol: keyStart, endCol: keyStart + keyText.length };
 }
 
 /**
