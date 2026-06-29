@@ -39,6 +39,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 24 Did — 2026-06-29
+**Deliverable:** **Phase 6d Slice 6d-6 (continuation) — nested `execute:` VALUE completion** (the value-side complement of Session 23's nested-key slice). On an indented line one level under `execute:`, after a known execute child-key `key:`, offer that key's values (grounded against the real installed schema first, per Learning #29a) — gated and degrading like the key side, reusing 6d-2/6d-5's value machinery. (IN PROGRESS)
+**Started:** 2026-06-29
+**Status:** Session claimed (Phase 1B stub). Work beginning — grounding the execute children's values against the real schema, then strict TDD.
+
 ### What Session 23 Did — 2026-06-29
 **Deliverable:** **Phase 6d Slice 6d-6 (v1) — nested KEY completion under the `execute:` front-matter container**. **COMPLETE + adversarial-review-hardened.** The FIRST nested slice and the 6th 6d slice. On an indented line one level under `execute:` in the `---` block, the provider now offers the execute child-keys from a curated, grounded set, with a conservative parent-scan detector that bails on any ambiguity. This is the plan's "cheap one-level approximation" (plan §6 Slice 6d-6); it deliberately defers nested VALUES, `format:`, deeper nesting, and the recursive live-schema assembly.
 
