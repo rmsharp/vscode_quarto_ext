@@ -67,12 +67,30 @@ describe("CURATED_CELL_OPTIONS — value enums (6d-2)", () => {
     expect(valuesOf("fig-align")).toEqual(["default", "left", "right", "center"]);
   });
 
-  it("offers the page-column enum for column", () => {
-    const vals = valuesOf("column");
-    expect(vals).toBeDefined();
-    for (const v of ["body", "page", "margin", "screen"]) {
-      expect(vals, `column should include ${v}`).toContain(v);
-    }
+  it("offers the COMPLETE page-column enum for column (all 18, in schema order)", () => {
+    // Exact equality, not a spot-check: the full resolved page-column enum from
+    // Quarto 1.7.33 (schema/definitions.yml). A spot-check `toContain` let an
+    // earlier 17-of-18 transcription (`page-inset` dropped) slip through.
+    expect(valuesOf("column")).toEqual([
+      "body",
+      "body-outset",
+      "body-outset-left",
+      "body-outset-right",
+      "page",
+      "page-left",
+      "page-right",
+      "page-inset",
+      "page-inset-left",
+      "page-inset-right",
+      "screen",
+      "screen-left",
+      "screen-right",
+      "screen-inset",
+      "screen-inset-shaded",
+      "screen-inset-left",
+      "screen-inset-right",
+      "margin",
+    ]);
   });
 
   it("leaves free-text / numeric options without a value enum", () => {

@@ -46,6 +46,7 @@ const PAGE_COLUMNS = [
   "page",
   "page-left",
   "page-right",
+  "page-inset",
   "page-inset-left",
   "page-inset-right",
   "screen",
