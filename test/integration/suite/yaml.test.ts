@@ -305,3 +305,52 @@ describe("Quarto: YAML cell-option value completion", () => {
     assert.deepStrictEqual(cellValueLabels(list), [], "no value items in front matter");
   });
 });
+
+/**
+ * Slice 6d-3 — the runtime schema reader enriches cell-option completion from the
+ * user's INSTALLED Quarto schema. These assert an option that exists ONLY in the
+ * full schema, never in the curated fallback (`code-overflow`), so a green proves
+ * the reader ran end-to-end: it cannot pass via the curated set. The host runs the
+ * real Quarto CLI (Learnings #4/#9/#11). With Quarto absent the provider degrades
+ * to curated — proven by the pure parser's fallback unit tests and a documented
+ * break-revert of `quartoSharePath` (these two tests go RED, `echo` stays green).
+ */
+describe("Quarto: YAML cell-option schema enrichment (6d-3)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("enriches keys with a schema-only option not in the curated set", async () => {
+    const doc = await openInMemory("```{python}\n#| \n```\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 3), // the empty key slot after "#| "
+    );
+    const labels = cellOptionLabels(list);
+    assert.ok(
+      labels.includes("code-overflow"),
+      `reader should enrich keys with code-overflow; got ${labels.length} options: ${JSON.stringify(labels.slice(0, 8))}…`,
+    );
+  });
+
+  it("resolves a schema-only option's value enum (`code-overflow` → scroll/wrap)", async () => {
+    const doc = await openInMemory("```{python}\n#| code-overflow:\n```\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 17), // the empty value slot after the colon
+      ":",
+    );
+    const labels = cellValueLabels(list);
+    for (const v of ["scroll", "wrap"]) {
+      assert.ok(labels.includes(v), `code-overflow value ${v}; got ${JSON.stringify(labels)}`);
+    }
+  });
+});

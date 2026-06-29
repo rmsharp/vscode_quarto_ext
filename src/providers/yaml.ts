@@ -18,7 +18,8 @@
 
 import * as vscode from "vscode";
 import { completionContextAt } from "../core/yaml-context";
-import { CURATED_CELL_OPTIONS, type SchemaField } from "../core/yaml-schema";
+import type { SchemaField } from "../core/yaml-schema";
+import { createSchemaSource, type SchemaSource } from "../features/yaml-schema-source";
 
 const QMD: vscode.DocumentSelector = { language: "quarto" };
 
@@ -37,7 +38,7 @@ export function registerYamlCompletionProvider(
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
       QMD,
-      new YamlCompletionProvider(),
+      new YamlCompletionProvider(createSchemaSource()),
       ...TRIGGERS,
     ),
   );
@@ -45,10 +46,12 @@ export function registerYamlCompletionProvider(
 
 /** Offer cell-option keys in a `#|` / `//|` key slot, and value enums after the colon. */
 class YamlCompletionProvider implements vscode.CompletionItemProvider {
-  provideCompletionItems(
+  constructor(private readonly source: SchemaSource) {}
+
+  async provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): vscode.CompletionItem[] | undefined {
+  ): Promise<vscode.CompletionItem[] | undefined> {
     const text = document.getText();
     const ctx = completionContextAt(text, document.offsetAt(position));
     // Every position outside a cell-option key/value slot (front matter, prose,
@@ -74,13 +77,16 @@ class YamlCompletionProvider implements vscode.CompletionItemProvider {
       ),
     };
 
+    // The option set comes from the user's installed Quarto schema (6d-3),
+    // filtered to the cell's engine; it falls back to the curated set when the
+    // schema can't be read. Front-matter kinds are reserved for later slices.
+    const fields = (await this.source.getIndex()).cellOptions(ctx.engine);
     if (ctx.kind === "cell-option-key") {
-      return CURATED_CELL_OPTIONS.map((field) => keyItem(field, range));
+      return fields.map((field) => keyItem(field, range));
     }
     if (ctx.kind === "cell-option-value") {
-      return valueItems(document, ctx.parentPath, range);
+      return valueItems(document, fields, ctx.parentPath, range);
     }
-    // Front-matter kinds are reserved for later slices.
     return undefined;
   }
 }
@@ -88,11 +94,12 @@ class YamlCompletionProvider implements vscode.CompletionItemProvider {
 /** The value-enum items for the key being valued, or `undefined` if it has none. */
 function valueItems(
   document: vscode.TextDocument,
+  fields: SchemaField[],
   parentPath: string[],
   range: { inserting: vscode.Range; replacing: vscode.Range },
 ): vscode.CompletionItem[] | undefined {
   const key = parentPath[parentPath.length - 1];
-  const field = CURATED_CELL_OPTIONS.find((f) => f.name === key);
+  const field = fields.find((f) => f.name === key);
   if (field?.values === undefined || field.values.length === 0) {
     return undefined;
   }
