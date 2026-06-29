@@ -15,7 +15,7 @@
  * reserved for later slices.
  */
 
-import { findCellOptionLines } from "./qmd/model";
+import { findCellOptionLines, inFrontMatter } from "./qmd/model";
 
 /** Which kind of YAML position the cursor is at (only `cell-option-key` is live in 6d-1). */
 export type YamlContextKind =
@@ -58,11 +58,17 @@ export function completionContextAt(
   offset: number,
 ): YamlCompletionContext | null {
   const { line, col } = lineColAt(text, offset);
+  const lineText = text.split(/\r?\n/)[line] ?? "";
+
   const optLine = findCellOptionLines(text).find((o) => o.line === line);
   if (optLine === undefined) {
-    return null;
+    // Not a `#|` / `//|` cell-option line. The only other completable YAML region
+    // is the document's front matter (top-level keys — 6d-4); everywhere else
+    // (prose, code) yields null, preserving the inverse-gating contract (§4.3).
+    return inFrontMatter(text, line)
+      ? frontMatterKeyContextAt(lineText, line, col)
+      : null;
   }
-  const lineText = text.split(/\r?\n/)[line] ?? "";
   const key = optLine.keySlot;
   const engine = engineFor(optLine.cellLang);
 
@@ -91,6 +97,51 @@ export function completionContextAt(
     };
   }
   return null;
+}
+
+/**
+ * The front-matter top-level KEY context at column `col` on `lineText` (already
+ * known to be a front-matter content line), or `null` if the cursor is not in a
+ * top-level key slot. Only column-0 keys are completed in 6d-4; a cursor past the
+ * `:` is a value position (deferred to 6d-5), so it falls through to `null`.
+ */
+function frontMatterKeyContextAt(
+  lineText: string,
+  line: number,
+  col: number,
+): YamlCompletionContext | null {
+  const slot = topLevelKeySlot(lineText);
+  if (slot === null || col < slot.startCol || col > slot.endCol) {
+    return null;
+  }
+  return {
+    kind: "frontmatter-key",
+    parentPath: [],
+    token: lineText.slice(slot.startCol, col),
+    replaceRange: { line, startCol: slot.startCol, endCol: slot.endCol },
+  };
+}
+
+/**
+ * The top-level key token span on a front-matter line, or `null` if the line
+ * cannot host a top-level key. A top-level key starts at column 0 (no
+ * indentation) and runs to the first `:` (trailing whitespace before the colon
+ * excluded). An indented line is a nested key (deferred to 6d-6); a `- …` line is
+ * a block-sequence item; a `# …` line is a YAML comment — none host a top-level
+ * key, so all yield `null`.
+ */
+function topLevelKeySlot(
+  lineText: string,
+): { startCol: number; endCol: number } | null {
+  if (/^[ \t]/.test(lineText) || lineText.startsWith("-") || lineText.startsWith("#")) {
+    return null;
+  }
+  const colon = lineText.indexOf(":");
+  const keyText = (colon >= 0 ? lineText.slice(0, colon) : lineText).replace(
+    /[ \t]+$/,
+    "",
+  );
+  return { startCol: 0, endCol: keyText.length };
 }
 
 /**

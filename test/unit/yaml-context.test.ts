@@ -130,3 +130,65 @@ describe("completionContextAt — cell-option value (6d-2)", () => {
     expect(completionContextAt(text, offsetAt(text, 1, 18))).toBeNull();
   });
 });
+
+describe("completionContextAt — front-matter key (6d-4)", () => {
+  it("returns a frontmatter-key context for a partially-typed top-level key", () => {
+    const text = ["---", "title: x", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 2)); // inside "ti|tle"
+    expect(ctx).toEqual({
+      kind: "frontmatter-key",
+      parentPath: [],
+      token: "ti",
+      replaceRange: { line: 1, startCol: 0, endCol: 5 }, // covers all of "title"
+    });
+  });
+
+  it("offers all keys (empty token) on a blank front-matter line", () => {
+    const text = ["---", "title: x", "", "format: html", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 2, 0));
+    expect(ctx?.kind).toBe("frontmatter-key");
+    expect(ctx?.token).toBe("");
+    expect(ctx?.replaceRange).toEqual({ line: 2, startCol: 0, endCol: 0 });
+  });
+
+  it("completes a bare key still being typed (no colon yet)", () => {
+    const text = ["---", "titl", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 4));
+    expect(ctx?.kind).toBe("frontmatter-key");
+    expect(ctx?.token).toBe("titl");
+    expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 0, endCol: 4 });
+  });
+
+  it("replaces the WHOLE key token on a mid-token cursor (Learning #15b)", () => {
+    const text = ["---", "format: html", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 3)); // inside "for|mat"
+    expect(ctx?.token).toBe("for");
+    expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 0, endCol: 6 });
+  });
+
+  it("returns null past the colon (a value position — 6d-5, not this slice)", () => {
+    const text = ["---", "title: My Doc", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 9))).toBeNull(); // in "My Doc"
+  });
+
+  it("returns null on an INDENTED (nested) key line — deferred to 6d-6", () => {
+    const text = ["---", "execute:", "  enabled: false", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 4))).toBeNull(); // inside "enabled"
+  });
+
+  it("returns null on a block-sequence item line (`- value`)", () => {
+    const text = ["---", "bibliography:", "- a.bib", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 3))).toBeNull();
+  });
+
+  it("returns null on a YAML comment line in front matter", () => {
+    const text = ["---", "# a comment", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 3))).toBeNull();
+  });
+
+  it("returns null on the `---` fence lines themselves", () => {
+    const text = ["---", "title: x", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 0, 0))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 0))).toBeNull();
+  });
+});
