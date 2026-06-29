@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { CURATED_CELL_OPTIONS } from "../../src/core/yaml-schema";
+import {
+  CURATED_CELL_OPTIONS,
+  CURATED_FRONTMATTER_KEYS,
+} from "../../src/core/yaml-schema";
 
 /**
  * CURATED_CELL_OPTIONS is the permanent fallback set the YAML completion provider
@@ -109,6 +112,45 @@ describe("CURATED_CELL_OPTIONS — value enums (6d-2)", () => {
         expect(typeof v).toBe("string");
         expect(v.length).toBeGreaterThan(0);
       }
+    }
+  });
+});
+
+/**
+ * CURATED_FRONTMATTER_KEYS is the permanent fallback for front-matter top-level
+ * KEY completion (6d-4), served when the runtime schema reader is unavailable.
+ * Names are uncopyrightable facts (verified present in the Quarto 1.7.33 schema);
+ * descriptions are our own wording. It deliberately includes the common CONTAINER
+ * keys (`execute`, `format`) that the flat `schema/document-*.yml` name list omits
+ * structurally (they live in `schema/schema.yml`'s object graph — surfacing them
+ * from the live schema is the deferred recursive-resolution work, 6d-6).
+ */
+describe("CURATED_FRONTMATTER_KEYS — data contract", () => {
+  it("is a non-empty set of well-formed fields (name + description)", () => {
+    expect(CURATED_FRONTMATTER_KEYS.length).toBeGreaterThanOrEqual(10);
+    for (const field of CURATED_FRONTMATTER_KEYS) {
+      expect(field.name).toMatch(/^[A-Za-z][A-Za-z0-9-]*$/);
+      expect(field.description, `${field.name} needs a description`).toBeTruthy();
+    }
+  });
+
+  it("has unique names", () => {
+    const names = CURATED_FRONTMATTER_KEYS.map((f) => f.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("includes the highest-frequency document keys", () => {
+    const names = new Set(CURATED_FRONTMATTER_KEYS.map((f) => f.name));
+    for (const expected of [
+      "title", "author", "format", "execute", "bibliography", "toc",
+    ]) {
+      expect(names.has(expected), `curated set should include ${expected}`).toBe(true);
+    }
+  });
+
+  it("carries no cell engine tag (front-matter keys are document-level)", () => {
+    for (const field of CURATED_FRONTMATTER_KEYS) {
+      expect(field.engine, `${field.name} must not be engine-tagged`).toBeUndefined();
     }
   });
 });

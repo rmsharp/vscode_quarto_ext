@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CURATED_CELL_OPTIONS,
+  CURATED_FRONTMATTER_KEYS,
   CURATED_SCHEMA_INDEX,
   parseSchemaIndex,
 } from "../../src/core/yaml-schema";
@@ -66,6 +67,10 @@ const FIXTURE = JSON.stringify({
   "schema/document-execute.yml": [
     { name: "freeze", schema: { enum: ["auto"] }, description: "Document key, not a cell option." },
   ],
+  "schema/document-options.yml": [
+    { name: "toc", schema: "boolean", description: { short: "Table of contents." } },
+    { name: "secret", hidden: true, schema: "string", description: "Hidden — excluded." },
+  ],
   "schema/definitions.yml": [{ id: "page-column", enum: ["body", "page", "margin"] }],
 });
 
@@ -94,6 +99,34 @@ describe("parseSchemaIndex — cell-option extraction", () => {
     const fields = index.cellOptions();
     expect(fields.find((f) => f.name === "echo")?.description).toBe("Show code.");
     expect(fields.find((f) => f.name === "eval")?.description).toBe("Evaluate the cell.");
+  });
+});
+
+describe("parseSchemaIndex — front-matter key extraction (6d-4)", () => {
+  const index = parseSchemaIndex(FIXTURE);
+  const fmNames = index.frontMatterKeys([]).map((f) => f.name);
+
+  it("collects visible document-* keys as top-level front-matter keys", () => {
+    expect(fmNames).toContain("freeze"); // schema/document-execute.yml
+    expect(fmNames).toContain("toc"); // schema/document-options.yml
+  });
+
+  it("excludes hidden document keys", () => {
+    expect(fmNames).not.toContain("secret");
+  });
+
+  it("keeps cell options OUT of the front-matter key set", () => {
+    expect(fmNames).not.toContain("echo");
+    expect(fmNames).not.toContain("column");
+  });
+
+  it("resolves front-matter key descriptions (short or scalar form)", () => {
+    const toc = index.frontMatterKeys([]).find((f) => f.name === "toc");
+    expect(toc?.description).toBe("Table of contents.");
+  });
+
+  it("offers nothing for a nested parent path (top-level only in 6d-4)", () => {
+    expect(index.frontMatterKeys(["execute"])).toEqual([]);
   });
 });
 
@@ -198,6 +231,14 @@ describe("parseSchemaIndex — robustness & fallback", () => {
     expect(names).toEqual(CURATED_CELL_OPTIONS.map((f) => f.name));
   });
 
+  it("degrades front-matter keys to the curated set on unparseable input", () => {
+    const fmNames = parseSchemaIndex("not json {{{")
+      .frontMatterKeys([])
+      .map((f) => f.name);
+    expect(fmNames).toEqual(CURATED_FRONTMATTER_KEYS.map((f) => f.name));
+    expect(fmNames).not.toContain("freeze"); // schema-only → proves fallback, not a parse
+  });
+
   it("degrades to the curated fallback on a non-object JSON root", () => {
     expect(() => parseSchemaIndex("null")).not.toThrow();
     expect(parseSchemaIndex("null").cellOptions().map((f) => f.name)).toEqual(
@@ -222,5 +263,15 @@ describe("CURATED_SCHEMA_INDEX — the fallback view", () => {
     const jupyter = CURATED_SCHEMA_INDEX.cellOptions("jupyter").map((f) => f.name);
     expect(jupyter).toContain("echo");
     expect(jupyter).not.toContain("cache"); // knitr-only in the curated set
+  });
+
+  it("exposes the curated front-matter keys via frontMatterKeys([])", () => {
+    expect(CURATED_SCHEMA_INDEX.frontMatterKeys([]).map((f) => f.name)).toEqual(
+      CURATED_FRONTMATTER_KEYS.map((f) => f.name),
+    );
+  });
+
+  it("offers no front-matter keys for a nested path", () => {
+    expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["format"])).toEqual([]);
   });
 });

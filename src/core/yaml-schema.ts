@@ -154,6 +154,36 @@ export const CURATED_CELL_OPTIONS: SchemaField[] = [
   },
 ];
 
+/**
+ * The ~highest-frequency Quarto front-matter (document) top-level keys, the
+ * permanent fallback served for front-matter KEY completion (6d-4) when the
+ * runtime schema reader is unavailable. Names are uncopyrightable facts (verified
+ * present in the Quarto 1.7.33 schema); descriptions are our own wording. Includes
+ * the common CONTAINER keys `execute`/`format`, which the flat
+ * `schema/document-*.yml` name list omits structurally (they live in
+ * `schema/schema.yml`'s object graph; surfacing them from the live schema is the
+ * deferred recursive-resolution work — 6d-6). No `values` (6d-4 is keys only;
+ * front-matter value enums are 6d-5) and no cell `engine` (document-level).
+ */
+export const CURATED_FRONTMATTER_KEYS: SchemaField[] = [
+  { name: "title", description: "The document's title." },
+  { name: "subtitle", description: "A secondary title shown beneath the title." },
+  { name: "author", description: "The document's author(s)." },
+  { name: "date", description: "The document date (e.g. `today` or `2024-01-01`)." },
+  { name: "abstract", description: "A summary shown before the document body." },
+  { name: "format", description: "Output format(s) and their options (e.g. `html`, `pdf`)." },
+  { name: "execute", description: "Document-wide code execution options (echo, eval, …)." },
+  { name: "bibliography", description: "Path(s) to bibliography file(s) for citations." },
+  { name: "toc", description: "Include a table of contents." },
+  {
+    name: "number-sections",
+    description: "Number section headings in the rendered output.",
+  },
+  { name: "lang", description: "The document's main language (BCP-47, e.g. `en`)." },
+  { name: "keywords", description: "Keywords describing the document, for metadata." },
+  { name: "jupyter", description: "The Jupyter kernel used to execute the document." },
+];
+
 // ── Runtime schema index (Slice 6d-3) ───────────────────────────────────────
 
 /**
@@ -169,16 +199,29 @@ export interface SchemaIndex {
    * filter what we cannot classify).
    */
   cellOptions(engine?: "knitr" | "jupyter" | "ojs"): SchemaField[];
+  /**
+   * The front-matter keys to offer at the given mapping path (6d-4). Top-level
+   * keys are returned for the document root (`parentPath` empty); a non-empty
+   * path yields `[]` (nested/format-conditional completion is deferred to 6d-6).
+   */
+  frontMatterKeys(parentPath: string[]): SchemaField[];
 }
 
-/** Build a `SchemaIndex` over a fixed list of fields (the parser and the fallback share this). */
-function indexOf(fields: SchemaField[]): SchemaIndex {
+/**
+ * Build a `SchemaIndex` over fixed cell-option and front-matter-key lists (the
+ * parser and the curated fallback share this).
+ */
+function indexOf(cellFields: SchemaField[], fmFields: SchemaField[]): SchemaIndex {
   return {
     cellOptions(engine) {
       if (engine === undefined) {
-        return fields;
+        return cellFields;
       }
-      return fields.filter((f) => f.engine === undefined || f.engine === engine);
+      return cellFields.filter((f) => f.engine === undefined || f.engine === engine);
+    },
+    frontMatterKeys(parentPath) {
+      // 6d-4 completes top-level keys only; nested paths are deferred (6d-6).
+      return parentPath.length === 0 ? fmFields : [];
     },
   };
 }
@@ -211,7 +254,10 @@ function engineTag(tags: unknown): "knitr" | "jupyter" | undefined {
  * runtime reader degrades to whenever the installed schema cannot be read or
  * parsed (Phase 6d plan §2.5). Interchangeable with a parsed index.
  */
-export const CURATED_SCHEMA_INDEX: SchemaIndex = indexOf(CURATED_CELL_OPTIONS);
+export const CURATED_SCHEMA_INDEX: SchemaIndex = indexOf(
+  CURATED_CELL_OPTIONS,
+  CURATED_FRONTMATTER_KEYS,
+);
 
 /** Strip a leading UTF-8 BOM, which `JSON.parse` rejects (Learning #16c). */
 function stripBom(text: string): string {
@@ -339,31 +385,49 @@ function toField(entry: unknown, definitions: Map<string, unknown>): SchemaField
  * `SchemaIndex` of cell options (Phase 6d plan §5.3). Pure and NEVER throws:
  * any malformed or unexpected input degrades to the curated fallback (Learning
  * #16) — completion-only data must never break editing or raise a false
- * "unknown option". Only `schema/cell-*.yml` entries become cell options;
- * `schema/document-*.yml` (front-matter keys) and `hidden` entries are excluded.
+ * "unknown option". `schema/cell-*.yml` entries become cell options and
+ * `schema/document-*.yml` entries become front-matter keys (6d-4); `hidden`
+ * entries are excluded from both.
  */
 export function parseSchemaIndex(jsonText: string): SchemaIndex {
   try {
     const data = JSON.parse(stripBom(jsonText)) as Record<string, unknown>;
     const definitions = indexDefinitions(data["schema/definitions.yml"]);
-    const fields: SchemaField[] = [];
-    const seen = new Set<string>();
-    for (const [key, value] of Object.entries(data)) {
-      if (!key.startsWith("schema/cell-") || !Array.isArray(value)) {
-        continue;
-      }
-      for (const entry of value) {
-        const field = toField(entry, definitions);
-        if (field !== null && !seen.has(field.name)) {
-          seen.add(field.name);
-          fields.push(field);
-        }
-      }
-    }
-    // A valid JSON of an unexpected shape (no cell options found) is as useless
-    // as unparseable input — degrade rather than offer nothing.
-    return fields.length > 0 ? indexOf(fields) : CURATED_SCHEMA_INDEX;
+    const cellFields = collectFields(data, "schema/cell-", definitions);
+    const fmFields = collectFields(data, "schema/document-", definitions);
+    // A valid JSON of an unexpected shape (no options found) is as useless as
+    // unparseable input — degrade rather than offer nothing.
+    return cellFields.length === 0 && fmFields.length === 0
+      ? CURATED_SCHEMA_INDEX
+      : indexOf(cellFields, fmFields);
   } catch {
     return CURATED_SCHEMA_INDEX;
   }
+}
+
+/**
+ * Collect the de-duplicated, visible `SchemaField`s from every `schema/<prefix>…`
+ * file in the parsed resource (e.g. `schema/cell-` for cell options,
+ * `schema/document-` for front-matter keys). First occurrence of a name wins.
+ */
+function collectFields(
+  data: Record<string, unknown>,
+  prefix: string,
+  definitions: Map<string, unknown>,
+): SchemaField[] {
+  const fields: SchemaField[] = [];
+  const seen = new Set<string>();
+  for (const [key, value] of Object.entries(data)) {
+    if (!key.startsWith(prefix) || !Array.isArray(value)) {
+      continue;
+    }
+    for (const entry of value) {
+      const field = toField(entry, definitions);
+      if (field !== null && !seen.has(field.name)) {
+        seen.add(field.name);
+        fields.push(field);
+      }
+    }
+  }
+  return fields;
 }
