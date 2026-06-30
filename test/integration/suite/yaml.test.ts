@@ -969,3 +969,111 @@ describe("Quarto: YAML nested format-name completion (6d-6 cont.)", () => {
     assert.deepStrictEqual(documentValueLabels(list), [], "no values offered for a format name");
   });
 });
+
+/**
+ * Slice 6d-6+ — top-level `format:` SCALAR value completion. After the colon on a
+ * top-level `format:` line (`format: <here>`), the provider offers the same
+ * output-format names it offers as KEYS one level under `format:` — surfaced as
+ * the `format` key's value enum (the flat document-key list models `format` only
+ * as an epub-scoped string with no enum, a name collision). The provider is
+ * UNCHANGED: the generic `frontmatter-value` path resolves them. Reader-derived
+ * (the host has the real Quarto CLI — Learning #9), so a SCHEMA-ONLY format absent
+ * from the curated fallback (`texinfo`) proves the reader ran end-to-end; the
+ * names appear ONLY as the `format:` value (never on another key — no leak).
+ */
+describe("Quarto: YAML top-level format scalar value completion (6d-6+)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("completes output-format names as the top-level `format:` value", async () => {
+    const doc = await openInMemory("---\nformat: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 8), // the value slot after "format: "
+    );
+    const labels = documentValueLabels(list);
+    for (const expected of ["html", "pdf", "docx", "revealjs", "beamer"]) {
+      assert.ok(
+        labels.includes(expected),
+        `should offer format value ${expected}; got ${JSON.stringify(labels.slice(0, 12))}…`,
+      );
+    }
+    // Quarto's hideFormat suppresses the longer html/epub/docbook variants — they
+    // must not be offered as values either.
+    for (const hidden of ["html4", "html5", "epub2", "epub3", "docbook4", "docbook5"]) {
+      assert.ok(!labels.includes(hidden), `legacy variant ${hidden} must be hidden`);
+    }
+  });
+
+  it("enriches with a SCHEMA-ONLY format absent from the curated fallback (`texinfo`)", async () => {
+    // texinfo is in the live pandoc/formats.yml but NOT in CURATED_FORMAT_NAMES, so a
+    // green here can ONLY come from the runtime reader (gate d) — break-revert-provable
+    // by forcing quartoSharePath to throw (texinfo disappears, curated html stays).
+    const doc = await openInMemory("---\nformat: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 8),
+    );
+    const labels = documentValueLabels(list);
+    assert.ok(
+      labels.includes("texinfo"),
+      `reader should enrich format values with texinfo; got ${labels.length} formats: ${JSON.stringify(labels.slice(0, 8))}…`,
+    );
+  });
+
+  it("inserts a leading space when the value abuts the colon (`:` trigger)", async () => {
+    const doc = await openInMemory("---\nformat:\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 7), // right after the colon
+      ":",
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto document option value" && labelText(i) === "html",
+    );
+    assert.ok(item, `the 'html' value item; got ${JSON.stringify(documentValueLabels(list).slice(0, 8))}…`);
+    assert.strictEqual(insertTextOf(item), " html", "leading space added");
+  });
+
+  it("value replace range covers the whole format-name token", async () => {
+    const doc = await openInMemory("---\nformat: html\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 8), // value "html" spans [8,12)
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto document option value",
+    );
+    assert.ok(item, "at least one document value item");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.start.character, 8, "replaces from the value start");
+    assert.strictEqual(range.end.character, 12, "replaces through the end of 'html'");
+  });
+
+  it("does NOT offer a format name (`html`) as another key's value (no leak)", async () => {
+    // `toc` has its own enum (true/false), so were the format-name enrichment to leak
+    // onto every key's values, `html` WOULD appear here — making this negative able to
+    // fail (Learning #29e: key a negative on enum-bearing data).
+    const doc = await openInMemory("---\ntoc: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 5), // the value slot after "toc: "
+    );
+    const labels = documentValueLabels(list);
+    assert.ok(labels.includes("false"), `toc still offers its own enum; got ${JSON.stringify(labels)}`);
+    assert.ok(!labels.includes("html"), `'html' must not leak onto toc's values; got ${JSON.stringify(labels)}`);
+  });
+});
