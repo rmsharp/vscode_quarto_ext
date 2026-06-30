@@ -22,6 +22,7 @@
  */
 
 import * as vscode from "vscode";
+import { needsLanguageExtension } from "../core/embedded/lang-map";
 import {
   buildVirtualContent,
   embeddedCellAt,
@@ -114,6 +115,13 @@ class VirtualDocStore implements vscode.TextDocumentContentProvider {
 class EmbeddedCompletionProvider implements vscode.CompletionItemProvider {
   constructor(private readonly store: VirtualDocStore) {}
 
+  /**
+   * languageIds we have already evaluated for the degradation hint this session —
+   * so the "install the … extension" nudge shows at most once per language and
+   * never nags (plan §2.5 / §9 Q6).
+   */
+  private readonly hintEvaluated = new Set<string>();
+
   async provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
@@ -127,6 +135,10 @@ class EmbeddedCompletionProvider implements vscode.CompletionItemProvider {
     if (hit === null) {
       return undefined;
     }
+    // Graceful degradation (§2.5): if no extension is registered for this cell's
+    // language, the forward below will quietly yield nothing — nudge the user once,
+    // non-blocking. Fire-and-forget so it never delays (or blocks) completion.
+    this.maybeHintMissingExtension(hit.languageId);
     const content = buildVirtualContent(text, hit.languageId);
     const vdocUri = this.store.set(document.uri, hit.ext, hit.languageId, content);
     // Identity mapping (plan §2.3): the position passes straight through, and the
@@ -138,6 +150,30 @@ class EmbeddedCompletionProvider implements vscode.CompletionItemProvider {
       context.triggerCharacter,
     );
     return filterOutOfCellEdits(list, text, hit.languageId);
+  }
+
+  /**
+   * Show a one-time, non-blocking hint when the cell's target language has no
+   * registered extension (so in-cell completion can't work). Keyed on the host's
+   * registered-language set (`getLanguages()`), NEVER on an empty completion
+   * result — an installed extension legitimately returns nothing mid-token, so
+   * keying on emptiness would nag (§9 Q6). The languageId is claimed in
+   * `hintEvaluated` synchronously, so concurrent completions check at most once,
+   * and `javascript`/`python` (built-in) never trip it. Never throws.
+   */
+  private maybeHintMissingExtension(languageId: string): void {
+    if (this.hintEvaluated.has(languageId)) {
+      return;
+    }
+    this.hintEvaluated.add(languageId);
+    void vscode.languages.getLanguages().then((registered) => {
+      if (needsLanguageExtension(languageId, registered)) {
+        void vscode.window.showInformationMessage(
+          `Quarto: no "${languageId}" language extension is installed — in-cell ` +
+            `completion for those code cells is unavailable until you add one.`,
+        );
+      }
+    });
   }
 }
 

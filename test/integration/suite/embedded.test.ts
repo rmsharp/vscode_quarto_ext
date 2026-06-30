@@ -252,6 +252,26 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
     );
   });
 
+  it("degrades cleanly in a {julia} cell with no language provider: no items, no throw", async () => {
+    // Intentionally do NOT register a stand-in → nothing serves the .jl virtual
+    // document (the bare host has no Julia extension). The forward must yield no
+    // items and must not throw (graceful degradation, plan §2.5 / §6 6e-2 DONE).
+    const doc = await openInMemory(
+      ["```{julia}", "j = 1", "j.", "```"].join("\n"),
+    );
+
+    let list: vscode.CompletionList | undefined;
+    await assert.doesNotReject(async () => {
+      list = await complete(doc, 2, 2, ".");
+    }, "forwarding into a cell whose language has no provider must not throw");
+
+    assert.deepStrictEqual(
+      embeddedLabels(list),
+      [],
+      "no embedded items when no provider is registered for the language",
+    );
+  });
+
   it("drops out-of-cell auto-import edits but keeps in-cell ones (front-matter corruption guard, both directions)", async () => {
     registerStandIn();
     // The embedded server returns two secondary edits: an auto-import anchored at

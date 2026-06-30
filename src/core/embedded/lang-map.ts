@@ -44,3 +44,23 @@ const LANGUAGES: Readonly<Record<string, EmbeddedLang>> = {
 export function cellLanguageId(lang: string): EmbeddedLang | null {
   return LANGUAGES[lang] ?? null;
 }
+
+/**
+ * The graceful-degradation signal (plan §2.5 / §9 Q6): whether a one-time "install
+ * the language extension" hint is warranted for `languageId`, given the host's
+ * `registeredLanguages` (`vscode.languages.getLanguages()`). A hint is warranted
+ * iff the target languageId is NOT registered — i.e. no extension can possibly
+ * serve completion for those cells.
+ *
+ * This deliberately keys on the registered-language SET, never on an empty
+ * completion result: `executeCompletionItemProvider` returns nothing both when no
+ * extension is installed AND when an installed extension simply has no suggestion
+ * (the common case while typing), so keying on an empty result would nag installed
+ * users (§9 Q6). `javascript` is always built-in, so `{ojs}` cells never trip this.
+ */
+export function needsLanguageExtension(
+  languageId: string,
+  registeredLanguages: readonly string[],
+): boolean {
+  return !registeredLanguages.includes(languageId);
+}
