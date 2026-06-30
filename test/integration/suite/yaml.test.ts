@@ -847,3 +847,125 @@ describe("Quarto: YAML nested execute-value completion (6d-6 cont.)", () => {
     assert.deepStrictEqual(documentValueLabels(list), [], "no nested values under a non-container");
   });
 });
+
+/**
+ * Slice 6d-6 (continuation) — nested KEY completion under the `format:` container,
+ * where the children are Quarto OUTPUT-FORMAT names (`html`, `pdf`, `revealjs`, …).
+ * Unlike the curated execute children, the format list is reader-derived from the
+ * live `pandoc/formats.yml` (the host has the real Quarto CLI — Learning #9), so a
+ * SCHEMA-ONLY format absent from the curated fallback (`texinfo`) proves the reader
+ * ran end-to-end, and the legacy variants Quarto hides (`html4`/`html5`) prove the
+ * `hideFormat` filter ran. Format names appear ONLY under `format:` — never at the
+ * document root (no cross-pollution) — and a per-format-options position (the value
+ * after a format name) benignly offers nothing (a deferred deeper slice).
+ */
+describe("Quarto: YAML nested format-name completion (6d-6 cont.)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("offers output-format names on an indented line under format:, hiding legacy variants", async () => {
+    const doc = await openInMemory("---\nformat:\n  \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 2), // blank indented key slot under format:
+    );
+    const labels = documentOptionLabels(list);
+    for (const expected of ["html", "pdf", "docx", "revealjs", "beamer"]) {
+      assert.ok(
+        labels.includes(expected),
+        `should offer format ${expected}; got ${JSON.stringify(labels.slice(0, 12))}…`,
+      );
+    }
+    // Quarto's hideFormat suppresses the longer html/epub/docbook variants.
+    for (const hidden of ["html4", "html5", "epub2", "epub3", "docbook4", "docbook5"]) {
+      assert.ok(!labels.includes(hidden), `legacy variant ${hidden} must be hidden`);
+    }
+  });
+
+  it("enriches with a SCHEMA-ONLY format absent from the curated fallback (`texinfo`)", async () => {
+    // texinfo is in the live pandoc/formats.yml but NOT in CURATED_FORMAT_NAMES, so a
+    // green here can ONLY come from the runtime reader (cf. the 6d-3 code-overflow /
+    // 6d-4 csl enrichment proofs).
+    const doc = await openInMemory("---\nformat:\n  \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 2),
+    );
+    const labels = documentOptionLabels(list);
+    assert.ok(
+      labels.includes("texinfo"),
+      `reader should enrich format names with texinfo; got ${labels.length} formats: ${JSON.stringify(labels.slice(0, 8))}…`,
+    );
+  });
+
+  it("nested replace range covers the whole format-name token", async () => {
+    const doc = await openInMemory("---\nformat:\n  revealjs\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 4), // inside "re|vealjs"; token spans [2,10)
+    );
+    const item = (list?.items ?? []).find((i) => i.detail === "Quarto document option");
+    assert.ok(item, "at least one document-key item");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.start.character, 2, "replaces from the nested key start");
+    assert.strictEqual(range.end.character, 10, "replaces through the end of 'revealjs'");
+  });
+
+  it("does NOT offer a format name (`revealjs`) at the top level (no leak)", async () => {
+    // revealjs is a format name, not a `document-*` key, so it must appear ONLY under
+    // format: — never at the document root. Pairs with the positive above to prove the
+    // nested format path runs without cross-polluting the top level.
+    const doc = await openInMemory("---\nre\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 2), // a top-level key slot
+    );
+    const labels = documentOptionLabels(list);
+    assert.ok(!labels.includes("revealjs"), `'revealjs' must not appear at top level; got ${JSON.stringify(labels.slice(0, 12))}…`);
+  });
+
+  it("bails under a non-allow-listed container (`website:`)", async () => {
+    const doc = await openInMemory("---\nwebsite:\n  htm\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 5), // nested under website:, not allow-listed
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "no format names under a non-container");
+  });
+
+  it("offers NO format names on an indented prose line (gating)", async () => {
+    const doc = await openInMemory("Some prose.\n\n  html\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 4), // an indented line in prose, no front matter
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "no format names outside front matter");
+  });
+
+  it("offers NO values for a per-format-options position (`  html: …` is deferred)", async () => {
+    // The value after a format name is where per-format options would nest — a
+    // deferred deeper slice. A format name carries no value enum, so the provider
+    // benignly offers nothing here rather than wrong values.
+    const doc = await openInMemory("---\nformat:\n  html: default\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 10), // value slot after "  html: "
+    );
+    assert.deepStrictEqual(documentValueLabels(list), [], "no values offered for a format name");
+  });
+});
