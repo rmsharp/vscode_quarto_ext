@@ -75,9 +75,13 @@ const FIXTURE = JSON.stringify({
   "schema/definitions.yml": [{ id: "page-column", enum: ["body", "page", "margin"] }],
   // The flat pandoc output-format list (6d-6 cont. format-name completion). Quarto
   // hides legacy variants (html4/html5, epub2/epub3, docbook4/docbook5) and concats
-  // a few synthesized formats — mirror that here with one hidden variant of each.
+  // a few synthesized formats. Include BOTH hidden variants of each base so the
+  // "hides legacy variants" assertions are all discriminating (not trivially absent).
   "pandoc/formats.yml": [
-    "html", "html5", "epub", "epub3", "docbook", "docbook5", "pdf", "revealjs", "typst",
+    "html", "html4", "html5",
+    "epub", "epub2", "epub3",
+    "docbook", "docbook4", "docbook5",
+    "pdf", "revealjs", "typst",
   ],
 });
 
