@@ -43,6 +43,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 29 Did
+**Deliverable:** **Phase 6e Slice 6e-2 — extend embedded-cell completion forwarding to `{r}`/`{julia}`/`{ojs}` + graceful degradation** (IN PROGRESS)
+**Started:** 2026-06-30
+**Status:** Session claimed. Work beginning. Strict TDD; provider + vdoc/scheme/owners-map UNCHANGED — only `core/embedded/lang-map.ts` grows (r/julia/ojs) + a one-time non-blocking degradation hint + multi-language vdoc unit tests.
+
 ### What Session 28 Did — 2026-06-30
 **Deliverable:** **Phase 6e Slice 6e-1 — Python completion forwarding + shared infra (the tracer bullet)**. **COMPLETE + review-clean.** The first 6e implementation slice. Typing inside a `{python}` cell body forwards the cursor — identity-mapped — into the user's installed Python extension via a per-language **virtual document** + `vscode.executeCompletionItemProvider`, returning its completions; nothing leaks onto prose/YAML/fence/`#|`/`{r}` lines; an out-of-cell auto-import edit can never corrupt the front matter.
 
