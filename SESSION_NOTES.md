@@ -45,6 +45,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 30 Did
+**Deliverable:** Phase 6e Slice 6e-3 — embedded-cell **hover** forwarding (`vscode.executeHoverProvider`) into the user's installed language extension, reusing the 6e-1/6e-2 vdoc/scheme/gate (IN PROGRESS)
+**Started:** 2026-06-30
+**Status:** Session claimed (Phase 1B stub). Strict TDD. Operator directive: delay the Posit feature-comparison (option 1) until the 6e plan is complete; do the next 6e slice this session.
+
 ### What Session 29 Did — 2026-06-30
 **Deliverable:** **Phase 6e Slice 6e-2 — `{r}`/`{julia}`/`{ojs}` completion forwarding + graceful degradation.** **COMPLETE + review-clean.** Completion now forwards — identity-mapped via the per-language `quarto-embedded://` virtual document + `vscode.executeCompletionItemProvider` — into the user's installed R / Julia / Observable-JS extension (alongside `{python}` from 6e-1); when no matching extension is registered it degrades cleanly (no crash) with a one-time, non-blocking install hint. 6e-1 + 6e-2 together = a complete, shippable 6e *completion* milestone (all four mapped languages).
 
