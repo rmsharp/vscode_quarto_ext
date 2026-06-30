@@ -52,6 +52,7 @@ export function registerEmbeddedLanguageFeature(
       new EmbeddedCompletionProvider(store),
       ...TRIGGERS,
     ),
+    vscode.languages.registerHoverProvider(QMD, new EmbeddedHoverProvider(store)),
     // The virtual-doc Map must not grow unbounded: drop a document's vdocs when
     // it closes (plan §7).
     vscode.workspace.onDidCloseTextDocument((doc) => store.evict(doc.uri)),
@@ -175,6 +176,55 @@ class EmbeddedCompletionProvider implements vscode.CompletionItemProvider {
       }
     });
   }
+}
+
+/**
+ * Forward a hover request inside a mapped-language cell body to that language's
+ * providers (plan §6 Slice 6e-3). Reuses the same gate, virtual document, and
+ * scheme as completion; `executeHoverProvider` returns hovers whose ranges are
+ * identity-mapped (valid `.qmd` coordinates) and carry no URI, so the result is
+ * returned UNCHANGED — no remap. Off-region (prose, YAML, fence, `#|` line,
+ * unmapped cell) yields `undefined`, the same inverse-gating contract as
+ * completion, enforced BEFORE any `await` (Learning #27).
+ */
+class EmbeddedHoverProvider implements vscode.HoverProvider {
+  constructor(private readonly store: VirtualDocStore) {}
+
+  async provideHover(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+  ): Promise<vscode.Hover | undefined> {
+    const text = document.getText();
+    const hit = embeddedCellAt(text, position.line);
+    if (hit === null) {
+      return undefined;
+    }
+    const content = buildVirtualContent(text, hit.languageId);
+    const vdocUri = this.store.set(document.uri, hit.ext, hit.languageId, content);
+    const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+      "vscode.executeHoverProvider",
+      vdocUri,
+      position,
+    );
+    return mergeHovers(hovers);
+  }
+}
+
+/**
+ * Collapse the forwarded provider(s)' hovers into the single `Hover` VS Code
+ * expects from one provider, preserving every content block and the (identity-
+ * mapped, un-remapped) range. Returns `undefined` when nothing forwarded — a
+ * clean no-op (graceful degradation, plan §2.5; never throws).
+ */
+function mergeHovers(
+  hovers: vscode.Hover[] | undefined,
+): vscode.Hover | undefined {
+  if (hovers === undefined || hovers.length === 0) {
+    return undefined;
+  }
+  const contents = hovers.flatMap((h) => h.contents);
+  const range = hovers.find((h) => h.range !== undefined)?.range;
+  return new vscode.Hover(contents, range);
 }
 
 /**

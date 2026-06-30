@@ -29,6 +29,12 @@ let standInExtraEdits: vscode.TextEdit[] | undefined;
 let standInReturnsNothing = false;
 const disposables: vscode.Disposable[] = [];
 
+/** Hover stand-in state (6e-3), kept separate from the completion stand-in's. */
+let hoverCalls: ForwardCall[] = [];
+const hoverDisposables: vscode.Disposable[] = [];
+/** Marker text the stand-in hover returns, so we can pick it out of a merged hover. */
+const HOVER_MARKER = "EMBEDDED_HOVER_PY";
+
 /**
  * Register a stand-in completion provider for the embedded scheme (Learning #13b):
  * the bare test host has no Python extension, so this faithfully substitutes for it
@@ -352,6 +358,112 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
     assert.ok(
       !calls.at(-1)?.text.includes("import pandas as pd"),
       "the stale body must not persist in the virtual document",
+    );
+  });
+});
+
+/**
+ * Register a stand-in HOVER provider for the embedded scheme (Learning #13b): the
+ * bare test host has no Python extension, so this substitutes for it and records the
+ * URI/languageId/text it was invoked on, proving the hover forward routed THROUGH the
+ * vdoc. Returns a hover with a known marker + a range, so the test can assert the
+ * identity-mapped range is returned unchanged. Keyed by `{scheme}` so it fires
+ * regardless of whether the vdoc's languageId resolves (§9 Q8).
+ */
+function registerHoverStandIn(): void {
+  hoverDisposables.push(
+    vscode.languages.registerHoverProvider(
+      { scheme: SCHEME },
+      {
+        provideHover(document, position) {
+          hoverCalls.push({
+            uri: document.uri.toString(),
+            languageId: document.languageId,
+            text: document.getText(),
+          });
+          return new vscode.Hover(
+            new vscode.MarkdownString(HOVER_MARKER),
+            new vscode.Range(position.line, 0, position.line, 3),
+          );
+        },
+      },
+    ),
+  );
+}
+
+/** The plain text of every hover content (MarkdownString | MarkedString). */
+function hoverTexts(hovers: vscode.Hover[] | undefined): string[] {
+  const out: string[] = [];
+  for (const h of hovers ?? []) {
+    for (const c of h.contents) {
+      out.push(typeof c === "string" ? c : c.value);
+    }
+  }
+  return out;
+}
+
+async function hover(
+  doc: vscode.TextDocument,
+  line: number,
+  character: number,
+): Promise<vscode.Hover[] | undefined> {
+  return vscode.commands.executeCommand<vscode.Hover[]>(
+    "vscode.executeHoverProvider",
+    doc.uri,
+    new vscode.Position(line, character),
+  );
+}
+
+describe("Quarto: embedded-cell hover forwarding (6e-3)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  beforeEach(() => {
+    hoverCalls = [];
+  });
+
+  afterEach(async () => {
+    for (const d of hoverDisposables.splice(0)) {
+      d.dispose();
+    }
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("forwards hover inside a {python} cell body through the virtual document", async () => {
+    registerHoverStandIn();
+    const doc = await openInMemory(DOC);
+
+    const hovers = await hover(doc, 8, 2); // on `import` in the python body
+
+    assert.ok(
+      hoverTexts(hovers).some((t) => t.includes(HOVER_MARKER)),
+      "the embedded (stand-in) hover should appear in the cell body",
+    );
+    assert.strictEqual(
+      hoverCalls.length,
+      1,
+      "the stand-in hover should be invoked once",
+    );
+    assert.strictEqual(
+      vscode.Uri.parse(hoverCalls[0].uri).scheme,
+      SCHEME,
+      "the hover request must route through the quarto-embedded virtual document, not the .qmd directly",
+    );
+    assert.strictEqual(
+      hoverCalls[0].languageId,
+      "python",
+      "the .py virtual document must resolve to languageId python in the bare host (§9 Q8)",
+    );
+    assert.ok(
+      hoverCalls[0].text.includes("import pandas as pd"),
+      "the vdoc should keep the python body verbatim",
+    );
+    assert.ok(
+      !hoverCalls[0].text.includes("title: Demo"),
+      "the vdoc should blank the YAML front matter",
     );
   });
 });
