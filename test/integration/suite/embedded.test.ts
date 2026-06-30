@@ -20,6 +20,13 @@ interface ForwardCall {
 let calls: ForwardCall[] = [];
 /** When set, the stand-in attaches these as `additionalTextEdits` (the auto-import hazard). */
 let standInExtraEdits: vscode.TextEdit[] | undefined;
+/**
+ * When true, the stand-in still RECORDS the call (proving the forward routed
+ * through the vdoc) but returns NO items — modelling a language provider that
+ * yields nothing (the §2.5 degradation case: extension absent, or installed with
+ * no suggestion — indistinguishable to the adapter, §9 Q6).
+ */
+let standInReturnsNothing = false;
 const disposables: vscode.Disposable[] = [];
 
 /**
@@ -40,6 +47,9 @@ function registerStandIn(): void {
             languageId: document.languageId,
             text: document.getText(),
           });
+          if (standInReturnsNothing) {
+            return [];
+          }
           const item = new vscode.CompletionItem(
             "FWD_PY",
             vscode.CompletionItemKind.Field,
@@ -121,6 +131,7 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
   beforeEach(() => {
     calls = [];
     standInExtraEdits = undefined;
+    standInReturnsNothing = false;
   });
 
   afterEach(async () => {
@@ -252,10 +263,14 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
     );
   });
 
-  it("degrades cleanly in a {julia} cell with no language provider: no items, no throw", async () => {
-    // Intentionally do NOT register a stand-in → nothing serves the .jl virtual
-    // document (the bare host has no Julia extension). The forward must yield no
-    // items and must not throw (graceful degradation, plan §2.5 / §6 6e-2 DONE).
+  it("forwards inside a {julia} cell and degrades to no items when the provider yields nothing (no throw)", async () => {
+    // The scheme-keyed stand-in RECORDS the call — so this test FAILS if {julia}
+    // were unmapped/ungated (calls would be empty) — but returns NO items, modelling
+    // the §2.5 degradation case (no Julia extension installed, or installed with no
+    // suggestion; the adapter cannot tell them apart, §9 Q6). The forward must yield
+    // no items and must not throw.
+    standInReturnsNothing = true;
+    registerStandIn();
     const doc = await openInMemory(
       ["```{julia}", "j = 1", "j.", "```"].join("\n"),
     );
@@ -263,12 +278,22 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
     let list: vscode.CompletionList | undefined;
     await assert.doesNotReject(async () => {
       list = await complete(doc, 2, 2, ".");
-    }, "forwarding into a cell whose language has no provider must not throw");
+    }, "forwarding into a cell whose provider yields nothing must not throw");
 
+    assert.strictEqual(
+      calls.length,
+      1,
+      "the {julia} cell must forward through the vdoc (proves julia is mapped + gated)",
+    );
+    assert.strictEqual(
+      vscode.Uri.parse(calls[0].uri).scheme,
+      SCHEME,
+      "the julia request routes through the quarto-embedded virtual document",
+    );
     assert.deepStrictEqual(
       embeddedLabels(list),
       [],
-      "no embedded items when no provider is registered for the language",
+      "an empty upstream result degrades to no items",
     );
   });
 
