@@ -34,6 +34,15 @@ let hoverCalls: ForwardCall[] = [];
 const hoverDisposables: vscode.Disposable[] = [];
 /** Marker text the stand-in hover returns, so we can pick it out of a merged hover. */
 const HOVER_MARKER = "EMBEDDED_HOVER_PY";
+/** A second marker, for the multi-hover MERGE test (two providers → one merged hover). */
+const HOVER_MARKER_2 = "EMBEDDED_HOVER_2";
+/**
+ * When true the hover stand-in still RECORDS the call (proving the forward routed
+ * through the vdoc) but returns NO hover — modelling the §2.5 degradation case (no
+ * language extension installed, or installed with no hover; indistinguishable to the
+ * adapter). The forward must yield no embedded hover and must not throw.
+ */
+let hoverStandInReturnsNothing = false;
 
 /**
  * Register a stand-in completion provider for the embedded scheme (Learning #13b):
@@ -381,9 +390,29 @@ function registerHoverStandIn(): void {
             languageId: document.languageId,
             text: document.getText(),
           });
+          if (hoverStandInReturnsNothing) {
+            return undefined;
+          }
           return new vscode.Hover(
             new vscode.MarkdownString(HOVER_MARKER),
             new vscode.Range(position.line, 0, position.line, 3),
+          );
+        },
+      },
+    ),
+  );
+}
+
+/** A second stand-in hover provider on {scheme}, for the multi-hover MERGE test. */
+function registerSecondHoverStandIn(): void {
+  hoverDisposables.push(
+    vscode.languages.registerHoverProvider(
+      { scheme: SCHEME },
+      {
+        provideHover(_document, position) {
+          return new vscode.Hover(
+            new vscode.MarkdownString(HOVER_MARKER_2),
+            new vscode.Range(position.line, 4, position.line, 7),
           );
         },
       },
@@ -434,6 +463,7 @@ describe("Quarto: embedded-cell hover forwarding (6e-3)", () => {
 
   beforeEach(() => {
     hoverCalls = [];
+    hoverStandInReturnsNothing = false;
   });
 
   afterEach(async () => {
@@ -540,5 +570,51 @@ describe("Quarto: embedded-cell hover forwarding (6e-3)", () => {
       "no embedded hover on a fence line",
     );
     assert.strictEqual(hoverCalls.length, 0);
+  });
+
+  it("degrades to no hover (and does not throw) when the provider yields nothing", async () => {
+    // The scheme-keyed stand-in RECORDS the call (so this fails if the cell were
+    // ungated/unmapped) but returns NO hover — the §2.5 degradation case (no
+    // language extension, or one with no hover; indistinguishable to the adapter).
+    hoverStandInReturnsNothing = true;
+    registerHoverStandIn();
+    const doc = await openInMemory(DOC);
+
+    let hovers: vscode.Hover[] | undefined;
+    await assert.doesNotReject(async () => {
+      hovers = await hover(doc, 8, 2);
+    }, "forwarding a hover whose provider yields nothing must not throw");
+
+    assert.strictEqual(
+      hoverCalls.length,
+      1,
+      "the cell must still forward through the vdoc (proves the forward ran)",
+    );
+    assert.ok(
+      !hoverTexts(hovers).some((t) => t.includes(HOVER_MARKER)),
+      "an empty upstream hover degrades to no embedded hover (mergeHovers → undefined)",
+    );
+  });
+
+  it("merges contents from multiple forwarded hovers into one hover, preserving a range", async () => {
+    registerHoverStandIn();
+    registerSecondHoverStandIn();
+    const doc = await openInMemory(DOC);
+
+    const ours = embeddedHover(await hover(doc, 8, 2));
+
+    assert.ok(ours, "the merged hover should be present");
+    const texts = ours.contents.map((c) => (typeof c === "string" ? c : c.value));
+    assert.ok(
+      texts.some((t) => t.includes(HOVER_MARKER)) &&
+        texts.some((t) => t.includes(HOVER_MARKER_2)),
+      "both providers' contents are merged into a single hover (flatMap across hovers)",
+    );
+    assert.ok(ours.range, "a range survives the merge");
+    assert.strictEqual(
+      ours.range.start.line,
+      8,
+      "the surviving range is identity-mapped to the .qmd line",
+    );
   });
 });
