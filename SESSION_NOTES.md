@@ -46,6 +46,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 31 Did — 2026-06-30
+**Deliverable:** Phase 6e Slice 6e-4 — embedded-cell GO-TO-DEFINITION forwarding (IN PROGRESS)
+**Started:** 2026-06-30
+**Status:** Session claimed (Phase 1B stub). Work beginning — strict TDD. The one residual remap in the 6e plan: forward `vscode.executeDefinitionProvider` into the per-language virtual document, then URI-swap the returned `Location`/`LocationLink` `quarto-embedded://` URIs back to the source `.qmd` (range already identity-mapped). A def into blanked space / another file passes through or drops sensibly.
+
 ### What Session 30 Did — 2026-06-30
 **Deliverable:** **Phase 6e Slice 6e-3 — embedded-cell HOVER forwarding.** **COMPLETE + review-clean (10th consecutive clean review).** Hovering a symbol inside a `{python}`/`{r}`/`{julia}`/`{ojs}` code-cell body now forwards the request — identity-mapped via the per-language `quarto-embedded://` virtual document + `vscode.executeHoverProvider` — to the user's installed language extension, returning its hover UNCHANGED. Off-region (prose, YAML, fence, `#|` line, unmapped cell) yields nothing; an empty upstream result degrades to no hover without throwing. **Operator directive this session:** the Posit feature-comparison (formerly option 1) is DEFERRED until the 6e plan is complete; do the next 6e slice now.
 
