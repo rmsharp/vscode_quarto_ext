@@ -750,4 +750,110 @@ describe("Quarto: embedded-cell go-to-definition forwarding (6e-4)", () => {
       "the returned definition's URI must be swapped back to the source .qmd (not the vdoc URI)",
     );
   });
+
+  it("returns the definition's range unchanged (identity mapping, no remap of the range)", async () => {
+    registerDefStandIn();
+    const doc = await openInMemory(DOC);
+
+    const ours = ourDefs(await definitions(doc, DEF_LINE, 7));
+
+    assert.strictEqual(ours.length, 1, "the definition should be forwarded");
+    const range = defRange(ours[0]);
+    assert.deepStrictEqual(
+      [range.start.line, range.start.character, range.end.line, range.end.character],
+      [DEF_LINE, 0, DEF_LINE, 6],
+      "the identity-mapped range from the embedded provider is returned unchanged (only the URI is swapped)",
+    );
+  });
+
+  it("URI-swaps a LocationLink's targetUri back to the .qmd (handles both result shapes)", async () => {
+    defReturnsLink = true; // the stand-in returns a LocationLink, not a Location
+    registerDefStandIn();
+    const doc = await openInMemory(DOC);
+
+    const ours = ourDefs(await definitions(doc, DEF_LINE, 7));
+
+    assert.strictEqual(ours.length, 1, "the LocationLink definition is forwarded");
+    assert.strictEqual(
+      defUri(ours[0]).toString(),
+      doc.uri.toString(),
+      "a LocationLink's targetUri (not just a Location's uri) must be swapped back to the .qmd",
+    );
+  });
+
+  it("passes a definition into another file through unchanged (does not swap a non-vdoc URI)", async () => {
+    const otherFile = vscode.Uri.file("/tmp/some_library_module.py");
+    defTargetUri = otherFile; // the stand-in resolves to ANOTHER file, not the vdoc
+    registerDefStandIn();
+    const doc = await openInMemory(DOC);
+
+    const ours = ourDefs(await definitions(doc, DEF_LINE, 7));
+
+    assert.strictEqual(ours.length, 1, "the cross-file definition is still forwarded");
+    assert.strictEqual(
+      defUri(ours[0]).toString(),
+      otherFile.toString(),
+      "a definition into another file is passed through UNCHANGED, not swapped to the .qmd",
+    );
+  });
+
+  it("does not forward go-to-definition on a prose line", async () => {
+    registerDefStandIn();
+    const doc = await openInMemory(DOC);
+
+    const results = await definitions(doc, 4, 5); // "Some prose."
+
+    assert.deepStrictEqual(ourDefs(results), [], "no embedded definition in prose");
+    assert.strictEqual(defCalls.length, 0, "the stand-in must not be invoked in prose");
+  });
+
+  it("does not forward go-to-definition on a `#|` cell-option line", async () => {
+    registerDefStandIn();
+    const doc = await openInMemory(DOC);
+
+    const results = await definitions(doc, 7, 3); // inside `echo` on the `#|` line
+
+    assert.deepStrictEqual(
+      ourDefs(results),
+      [],
+      "no embedded definition on a `#|` option line — that region belongs to YAML",
+    );
+    assert.strictEqual(defCalls.length, 0, "the stand-in must not be invoked on a `#|` line");
+  });
+
+  it("does not forward go-to-definition on the opening fence line", async () => {
+    registerDefStandIn();
+    const doc = await openInMemory(DOC);
+
+    const results = await definitions(doc, 6, 0);
+
+    assert.deepStrictEqual(ourDefs(results), [], "no embedded definition on a fence line");
+    assert.strictEqual(defCalls.length, 0);
+  });
+
+  it("degrades to no definition (and does not throw) when the provider yields nothing", async () => {
+    // The scheme-keyed stand-in RECORDS the call (so this fails if the cell were
+    // ungated/unmapped) but returns NO definition — the §2.5 degradation case (no
+    // language extension installed, or installed with no definition). The forward
+    // must yield no definition and must not throw.
+    defStandInReturnsNothing = true;
+    registerDefStandIn();
+    const doc = await openInMemory(DOC);
+
+    let results: (vscode.Location | vscode.LocationLink)[] | undefined;
+    await assert.doesNotReject(async () => {
+      results = await definitions(doc, DEF_LINE, 7);
+    }, "forwarding a definition whose provider yields nothing must not throw");
+
+    assert.strictEqual(
+      defCalls.length,
+      1,
+      "the cell must still forward through the vdoc (proves the forward ran)",
+    );
+    assert.deepStrictEqual(
+      ourDefs(results),
+      [],
+      "an empty upstream result degrades to no definition (remapDefinitions → undefined)",
+    );
+  });
 });
