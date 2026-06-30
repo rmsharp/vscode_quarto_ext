@@ -212,12 +212,14 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
     assert.strictEqual(calls.length, 0);
   });
 
-  it("forwards the embedded item but never lets an out-of-cell auto-import edit through (front-matter corruption guard)", async () => {
+  it("drops out-of-cell auto-import edits but keeps in-cell ones (front-matter corruption guard, both directions)", async () => {
     registerStandIn();
-    // The embedded server returns an auto-import edit anchored at the module top,
-    // which under whole-doc blanking identity-maps to .qmd line 0 = the front matter.
+    // The embedded server returns two secondary edits: an auto-import anchored at
+    // the module top (identity-maps to .qmd line 0 = the front matter — MUST be
+    // dropped) and an in-cell edit on a python body line (line 8 — MUST be kept).
     standInExtraEdits = [
       new vscode.TextEdit(new vscode.Range(0, 0, 0, 0), "import os\n"),
+      new vscode.TextEdit(new vscode.Range(8, 0, 8, 0), "import sys\n"),
     ];
     const doc = await openInMemory(DOC);
 
@@ -225,9 +227,46 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
 
     const item = (list?.items ?? []).find((i) => i.detail === STANDIN_DETAIL);
     assert.ok(item, "the completion itself should still be offered");
+    const edits = item.additionalTextEdits ?? [];
+    assert.strictEqual(
+      edits.length,
+      1,
+      "the front-matter edit is dropped; the in-cell edit is kept",
+    );
+    assert.strictEqual(
+      edits[0].range.start.line,
+      8,
+      "the surviving edit is the in-cell (python body) one, not the front-matter one",
+    );
+  });
+
+  it("reflects an edit to the cell on the next completion (rebuild-per-request, no stale virtual document)", async () => {
+    registerStandIn();
+    const doc = await openInMemory(
+      ["```{python}", "import pandas as pd", "pd.", "```"].join("\n"),
+    );
+    const editor = vscode.window.activeTextEditor;
+    assert.ok(editor);
+
+    await complete(doc, 2, 3, ".");
     assert.ok(
-      !item.additionalTextEdits || item.additionalTextEdits.length === 0,
-      "the out-of-cell (front-matter) additionalTextEdits must be filtered out",
+      calls.at(-1)?.text.includes("import pandas as pd"),
+      "the first forward should see the original body",
+    );
+
+    // Edit the cell body, then complete again on the SAME document (same vdoc URI).
+    await editor.edit((b) =>
+      b.replace(new vscode.Range(1, 0, 1, "import pandas as pd".length), "import numpy as np"),
+    );
+    await complete(doc, 2, 3, ".");
+
+    assert.ok(
+      calls.at(-1)?.text.includes("import numpy as np"),
+      "the second forward must reflect the edit (not serve a stale virtual document)",
+    );
+    assert.ok(
+      !calls.at(-1)?.text.includes("import pandas as pd"),
+      "the stale body must not persist in the virtual document",
     );
   });
 });

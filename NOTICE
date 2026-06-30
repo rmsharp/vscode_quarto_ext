@@ -37,6 +37,22 @@ Clean MIT building blocks evaluated while authoring this grammar (not copied):
   - microsoft/vscode-markdown-tm-grammar   (MIT)
   - wooorm/markdown-tm-language            (MIT)
 
+Embedded-cell completion forwarding (src/core/embedded/, src/providers/embedded.ts)
+----------------------------------------------------------------------------------
+In-cell language completion (Phase 6e) forwards completion requests into the
+user's own already-installed language extensions (Python, …) via a per-language
+virtual document and `vscode.executeCompletionItemProvider` — first-party VS Code
+API. No code is copied and no dependency is bundled (the same posture as run-cell
+delegation). The "request forwarding" technique used here is written independently
+but inspired by the public, MIT-licensed VS Code guidance and sample:
+
+  Embedded Programming Languages guide
+  https://code.visualstudio.com/api/language-extensions/embedded-languages
+
+  microsoft/vscode-extension-samples (lsp-embedded-request-forwarding)
+  https://github.com/microsoft/vscode-extension-samples
+  License: MIT
+
 Quarto CLI (runtime dependency, invoked via the shell)
 ------------------------------------------------------
   https://github.com/quarto-dev/quarto-cli
