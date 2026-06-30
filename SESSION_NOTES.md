@@ -40,6 +40,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 26 Did — 2026-06-29
+**Deliverable:** **Phase 6d-6+ continuation (b, part 1) — top-level `format:` scalar value completion** (IN PROGRESS). When the cursor is in the value slot of the top-level `format:` key inside the `---` front matter (`format: <here>`), offer Quarto output-format names (`html`/`pdf`/`docx`/…) — the small adjacent win the Session 25 handoff flagged (gotcha #4). Reader-derived + curated fallback, reusing Session 25's format-name set. Deferring the per-format-options dragon (deeper nesting) — that is part (b, part 2), the operator did not pick it.
+**Started:** 2026-06-29
+**Status:** Session claimed (Phase 1B stub). Work beginning — strict TDD, pure-core enrichment in `indexOf` (top-level `format` field gets its real value enum = the format names), provider UNCHANGED.
+
 ### What Session 25 Did — 2026-06-29
 **Deliverable:** **Phase 6d-6+ continuation — `format:` → format-name nested completion**. **COMPLETE + adversarial-review-hardened.** The 8th 6d slice. On an indented key line one level under `format:` in the `---` block, the provider now offers Quarto output-format names (`html`/`pdf`/`docx`/`revealjs`/`beamer`/`typst`/… — 65 visible). It deliberately defers per-format options, deeper nesting, and the top-level `format: html` scalar (FM #18).
 
