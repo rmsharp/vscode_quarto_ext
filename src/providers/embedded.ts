@@ -40,6 +40,13 @@ const SCHEME = "quarto-embedded";
  */
 const TRIGGERS = ["."];
 
+/**
+ * Signature-help trigger characters (`(` / `,`) — distinct from completion's `.`
+ * (plan §6 Slice 6e-5). Passed as registration args; the region gate suppresses any
+ * spurious invocation.
+ */
+const SIG_TRIGGERS = ["(", ","];
+
 /** Register the embedded-cell completion forwarding feature, tied to the extension lifetime. */
 export function registerEmbeddedLanguageFeature(
   context: vscode.ExtensionContext,
@@ -56,6 +63,11 @@ export function registerEmbeddedLanguageFeature(
     vscode.languages.registerDefinitionProvider(
       QMD,
       new EmbeddedDefinitionProvider(store),
+    ),
+    vscode.languages.registerSignatureHelpProvider(
+      QMD,
+      new EmbeddedSignatureHelpProvider(store),
+      ...SIG_TRIGGERS,
     ),
     // The virtual-doc Map must not grow unbounded: drop a document's vdocs when
     // it closes (plan §7).
@@ -311,6 +323,45 @@ function isLocationLink(
   result: vscode.Location | vscode.LocationLink,
 ): result is vscode.LocationLink {
   return (result as vscode.LocationLink).targetUri !== undefined;
+}
+
+/**
+ * Forward a signature-help request inside a mapped-language cell body to that
+ * language's providers (plan §6 Slice 6e-5 — the last 6e slice). Reuses the same
+ * gate, virtual document, and scheme as completion/hover/definition.
+ * `executeSignatureHelpProvider` returns a SINGLE `SignatureHelp` whose parameter
+ * ranges are offsets within the signature label (not document coordinates) and which
+ * carries NO URI and NO edits — so the result is returned UNCHANGED: no remap (unlike
+ * 6e-4 definition, whose `Location` carries the vdoc URI) and no merge (unlike 6e-3
+ * hover, which collapses a `Hover[]`; signature help yields one result). Off-region
+ * (prose, YAML, fence, `#|` line, unmapped cell) yields `undefined`, the same
+ * inverse-gating contract, enforced BEFORE any `await` (Learning #27).
+ */
+class EmbeddedSignatureHelpProvider implements vscode.SignatureHelpProvider {
+  constructor(private readonly store: VirtualDocStore) {}
+
+  async provideSignatureHelp(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+    _token: vscode.CancellationToken,
+    context: vscode.SignatureHelpContext,
+  ): Promise<vscode.SignatureHelp | undefined> {
+    const text = document.getText();
+    const hit = embeddedCellAt(text, position.line);
+    if (hit === null) {
+      return undefined;
+    }
+    const content = buildVirtualContent(text, hit.languageId);
+    const vdocUri = this.store.set(document.uri, hit.ext, hit.languageId, content);
+    // Identity mapping (plan §2.3): the position passes straight through, and the
+    // single SignatureHelp (no URI, no edits) is returned unchanged.
+    return vscode.commands.executeCommand<vscode.SignatureHelp>(
+      "vscode.executeSignatureHelpProvider",
+      vdocUri,
+      position,
+      context.triggerCharacter,
+    );
+  }
 }
 
 /**

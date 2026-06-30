@@ -857,3 +857,122 @@ describe("Quarto: embedded-cell go-to-definition forwarding (6e-4)", () => {
     );
   });
 });
+
+/** Signature-help stand-in state (6e-5), kept separate from the others'. */
+let sigCalls: ForwardCall[] = [];
+const sigDisposables: vscode.Disposable[] = [];
+/** The signature label the stand-in returns, so tests can prove it's passed through unchanged. */
+const SIG_LABEL = "embedded_fn(a, b)";
+/**
+ * When true the sig-help stand-in still RECORDS the call (proving the forward routed
+ * through the vdoc) but returns NO signature help — the §2.5 degradation case (no
+ * language extension installed, or installed with no signature help). The forward
+ * must yield no signature help and must not throw.
+ */
+let sigStandInReturnsNothing = false;
+
+/**
+ * Register a stand-in SIGNATURE-HELP provider for the embedded scheme (Learning #13b):
+ * the bare test host has no Python extension, so this substitutes for it and records the
+ * URI/languageId/text it was invoked on, proving the signature-help forward routed THROUGH
+ * the vdoc. Returns a `SignatureHelp` with a known signature label, so a test can assert it
+ * is returned UNCHANGED (signature help carries no URI/range/edits → no remap). Keyed by
+ * `{scheme}` so it fires regardless of whether the vdoc's languageId resolves (§9 Q8).
+ */
+function registerSigStandIn(): void {
+  sigDisposables.push(
+    vscode.languages.registerSignatureHelpProvider(
+      { scheme: SCHEME },
+      {
+        provideSignatureHelp(document) {
+          sigCalls.push({
+            uri: document.uri.toString(),
+            languageId: document.languageId,
+            text: document.getText(),
+          });
+          if (sigStandInReturnsNothing) {
+            return undefined;
+          }
+          const help = new vscode.SignatureHelp();
+          help.signatures = [new vscode.SignatureInformation(SIG_LABEL)];
+          help.activeSignature = 0;
+          help.activeParameter = 0;
+          return help;
+        },
+      },
+      "(",
+      ",",
+    ),
+  );
+}
+
+/** The signature labels in a `SignatureHelp` (empty when none / undefined). */
+function sigLabels(help: vscode.SignatureHelp | undefined): string[] {
+  return (help?.signatures ?? []).map((s) => s.label);
+}
+
+async function signatureHelp(
+  doc: vscode.TextDocument,
+  line: number,
+  character: number,
+  trigger?: string,
+): Promise<vscode.SignatureHelp | undefined> {
+  return vscode.commands.executeCommand<vscode.SignatureHelp>(
+    "vscode.executeSignatureHelpProvider",
+    doc.uri,
+    new vscode.Position(line, character),
+    trigger,
+  );
+}
+
+describe("Quarto: embedded-cell signature-help forwarding (6e-5)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  beforeEach(() => {
+    sigCalls = [];
+    sigStandInReturnsNothing = false;
+  });
+
+  afterEach(async () => {
+    for (const d of sigDisposables.splice(0)) {
+      d.dispose();
+    }
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("forwards signature help inside a {python} cell body through the virtual document", async () => {
+    registerSigStandIn();
+    const doc = await openInMemory(DOC);
+
+    const help = await signatureHelp(doc, 8, 7, "("); // inside the python body
+
+    assert.deepStrictEqual(
+      sigLabels(help),
+      [SIG_LABEL],
+      "the embedded (stand-in) signature help should be returned in the cell body",
+    );
+    assert.strictEqual(sigCalls.length, 1, "the stand-in should be invoked once");
+    assert.strictEqual(
+      vscode.Uri.parse(sigCalls[0].uri).scheme,
+      SCHEME,
+      "the request must route through the quarto-embedded virtual document, not the .qmd directly",
+    );
+    assert.strictEqual(
+      sigCalls[0].languageId,
+      "python",
+      "the .py virtual document must resolve to languageId python in the bare host (§9 Q8)",
+    );
+    assert.ok(
+      sigCalls[0].text.includes("import pandas as pd"),
+      "the vdoc should keep the python body verbatim",
+    );
+    assert.ok(
+      !sigCalls[0].text.includes("title: Demo"),
+      "the vdoc should blank the YAML front matter",
+    );
+  });
+});
