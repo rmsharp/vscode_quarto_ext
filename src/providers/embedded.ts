@@ -53,6 +53,10 @@ export function registerEmbeddedLanguageFeature(
       ...TRIGGERS,
     ),
     vscode.languages.registerHoverProvider(QMD, new EmbeddedHoverProvider(store)),
+    vscode.languages.registerDefinitionProvider(
+      QMD,
+      new EmbeddedDefinitionProvider(store),
+    ),
     // The virtual-doc Map must not grow unbounded: drop a document's vdocs when
     // it closes (plan §7).
     vscode.workspace.onDidCloseTextDocument((doc) => store.evict(doc.uri)),
@@ -225,6 +229,88 @@ function mergeHovers(
   const contents = hovers.flatMap((h) => h.contents);
   const range = hovers.find((h) => h.range !== undefined)?.range;
   return new vscode.Hover(contents, range);
+}
+
+/**
+ * Forward a go-to-definition request inside a mapped-language cell body to that
+ * language's providers (plan §6 Slice 6e-4). Reuses the same gate, virtual document,
+ * and scheme as completion/hover. `executeDefinitionProvider` returns
+ * `(Location | LocationLink)[]` whose ranges are identity-mapped (valid `.qmd`
+ * coordinates) but whose URI is the **virtual document's** — the ONE residual remap:
+ * `remapDefinitions` swaps a vdoc-URI target back to the source `.qmd` (the range is
+ * unchanged). A definition into another file (a library source) is passed through.
+ * Off-region yields `undefined`, the same inverse-gating contract as completion/hover,
+ * enforced BEFORE any `await` (Learning #27).
+ */
+class EmbeddedDefinitionProvider implements vscode.DefinitionProvider {
+  constructor(private readonly store: VirtualDocStore) {}
+
+  async provideDefinition(
+    document: vscode.TextDocument,
+    position: vscode.Position,
+  ): Promise<vscode.Definition | vscode.LocationLink[] | undefined> {
+    const text = document.getText();
+    const hit = embeddedCellAt(text, position.line);
+    if (hit === null) {
+      return undefined;
+    }
+    const content = buildVirtualContent(text, hit.languageId);
+    const vdocUri = this.store.set(document.uri, hit.ext, hit.languageId, content);
+    const results = await vscode.commands.executeCommand<
+      (vscode.Location | vscode.LocationLink)[]
+    >("vscode.executeDefinitionProvider", vdocUri, position);
+    // VS Code resolves each element of a definition array independently at runtime
+    // (this is the exact heterogeneous shape `executeDefinitionProvider` itself
+    // returns), so the cast only appeases the declared union — it changes nothing.
+    return remapDefinitions(results, vdocUri, document.uri) as
+      | vscode.Location[]
+      | vscode.LocationLink[]
+      | undefined;
+  }
+}
+
+/**
+ * The one residual remap (plan §2.3 / §6 6e-4): swap any definition `Location` /
+ * `LocationLink` whose target URI is the virtual document back to the source `.qmd`
+ * URI — the range is identity-mapped, so ONLY the URI changes. A target that points
+ * at any OTHER URI (e.g. a library source file) is passed through unchanged. Returns
+ * `undefined` when nothing forwarded (graceful no-op, never throws).
+ */
+function remapDefinitions(
+  results: (vscode.Location | vscode.LocationLink)[] | undefined,
+  vdocUri: vscode.Uri,
+  sourceUri: vscode.Uri,
+): (vscode.Location | vscode.LocationLink)[] | undefined {
+  if (results === undefined || results.length === 0) {
+    return undefined;
+  }
+  const vdocKey = vdocUri.toString();
+  return results.map((r) => remapDefinition(r, vdocKey, sourceUri));
+}
+
+/** Swap a single result's vdoc URI back to `sourceUri` (range unchanged); else pass through. */
+function remapDefinition(
+  result: vscode.Location | vscode.LocationLink,
+  vdocKey: string,
+  sourceUri: vscode.Uri,
+): vscode.Location | vscode.LocationLink {
+  if (isLocationLink(result)) {
+    if (result.targetUri.toString() !== vdocKey) {
+      return result;
+    }
+    return { ...result, targetUri: sourceUri };
+  }
+  if (result.uri.toString() !== vdocKey) {
+    return result;
+  }
+  return new vscode.Location(sourceUri, result.range);
+}
+
+/** Distinguish a `LocationLink` (has `targetUri`) from a `Location` (has `uri`). */
+function isLocationLink(
+  result: vscode.Location | vscode.LocationLink,
+): result is vscode.LocationLink {
+  return (result as vscode.LocationLink).targetUri !== undefined;
 }
 
 /**

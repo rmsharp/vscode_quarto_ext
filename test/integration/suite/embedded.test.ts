@@ -44,6 +44,26 @@ const HOVER_MARKER_2 = "EMBEDDED_HOVER_2";
  */
 let hoverStandInReturnsNothing = false;
 
+/** Go-to-definition stand-in state (6e-4), kept separate from the others'. */
+let defCalls: ForwardCall[] = [];
+const defDisposables: vscode.Disposable[] = [];
+/** The .qmd line the def stand-in points at, so tests can identify "our" result. */
+const DEF_LINE = 8;
+/**
+ * When set, the def stand-in points at THIS uri instead of the vdoc URI it was
+ * invoked on — modelling a definition that resolves into ANOTHER file (a library
+ * source), which the adapter must pass through UNCHANGED (not swap to the .qmd).
+ */
+let defTargetUri: vscode.Uri | undefined;
+/** When true, the def stand-in returns a `LocationLink` (targetUri) instead of a `Location`. */
+let defReturnsLink = false;
+/**
+ * When true the def stand-in still RECORDS the call (proving the forward routed
+ * through the vdoc) but returns NO definition — the §2.5 degradation case. The
+ * forward must yield no definition and must not throw.
+ */
+let defStandInReturnsNothing = false;
+
 /**
  * Register a stand-in completion provider for the embedded scheme (Learning #13b):
  * the bare test host has no Python extension, so this faithfully substitutes for it
@@ -615,6 +635,119 @@ describe("Quarto: embedded-cell hover forwarding (6e-3)", () => {
       ours.range.start.line,
       8,
       "the surviving range is identity-mapped to the .qmd line",
+    );
+  });
+});
+
+/**
+ * Register a stand-in DEFINITION provider for the embedded scheme (Learning #13b):
+ * the bare test host has no Python extension, so this substitutes for it and records
+ * the URI/languageId/text it was invoked on, proving the def forward routed THROUGH
+ * the vdoc. By default it returns a `Location` pointing at the vdoc URI it was invoked
+ * on (the case the adapter must URI-swap back to the .qmd) at a known range (line
+ * DEF_LINE), so tests can pick out "our" result and assert the swap + identity range.
+ * Keyed by `{scheme}` so it fires regardless of whether the vdoc's languageId resolves.
+ */
+function registerDefStandIn(): void {
+  defDisposables.push(
+    vscode.languages.registerDefinitionProvider(
+      { scheme: SCHEME },
+      {
+        provideDefinition(document) {
+          defCalls.push({
+            uri: document.uri.toString(),
+            languageId: document.languageId,
+            text: document.getText(),
+          });
+          if (defStandInReturnsNothing) {
+            return undefined;
+          }
+          // Default: point into the vdoc itself (must be swapped to the .qmd).
+          const targetUri = defTargetUri ?? document.uri;
+          const range = new vscode.Range(DEF_LINE, 0, DEF_LINE, 6);
+          if (defReturnsLink) {
+            const link: vscode.LocationLink = {
+              targetUri,
+              targetRange: range,
+              targetSelectionRange: range,
+            };
+            return [link];
+          }
+          return new vscode.Location(targetUri, range);
+        },
+      },
+    ),
+  );
+}
+
+/** The effective target URI of a definition result (Location.uri or LocationLink.targetUri). */
+function defUri(r: vscode.Location | vscode.LocationLink): vscode.Uri {
+  return (r as vscode.LocationLink).targetUri ?? (r as vscode.Location).uri;
+}
+
+/** The effective range of a definition result (Location.range or LocationLink.targetRange). */
+function defRange(r: vscode.Location | vscode.LocationLink): vscode.Range {
+  return (r as vscode.LocationLink).targetRange ?? (r as vscode.Location).range;
+}
+
+/** The definitions our forward produced — identified by the stand-in's known line. */
+function ourDefs(
+  results: (vscode.Location | vscode.LocationLink)[] | undefined,
+): (vscode.Location | vscode.LocationLink)[] {
+  return (results ?? []).filter((r) => defRange(r).start.line === DEF_LINE);
+}
+
+async function definitions(
+  doc: vscode.TextDocument,
+  line: number,
+  character: number,
+): Promise<(vscode.Location | vscode.LocationLink)[] | undefined> {
+  return vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>(
+    "vscode.executeDefinitionProvider",
+    doc.uri,
+    new vscode.Position(line, character),
+  );
+}
+
+describe("Quarto: embedded-cell go-to-definition forwarding (6e-4)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  beforeEach(() => {
+    defCalls = [];
+    defTargetUri = undefined;
+    defReturnsLink = false;
+    defStandInReturnsNothing = false;
+  });
+
+  afterEach(async () => {
+    for (const d of defDisposables.splice(0)) {
+      d.dispose();
+    }
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("forwards go-to-definition inside a {python} cell, swapping the vdoc URI back to the .qmd", async () => {
+    registerDefStandIn();
+    const doc = await openInMemory(DOC);
+
+    const results = await definitions(doc, DEF_LINE, 7); // on a symbol in the python body
+
+    const ours = ourDefs(results);
+    assert.strictEqual(ours.length, 1, "the embedded definition should be forwarded");
+    assert.strictEqual(defCalls.length, 1, "the def stand-in should be invoked once");
+    assert.strictEqual(
+      vscode.Uri.parse(defCalls[0].uri).scheme,
+      SCHEME,
+      "the request must route through the quarto-embedded virtual document, not the .qmd directly",
+    );
+    assert.strictEqual(
+      defUri(ours[0]).toString(),
+      doc.uri.toString(),
+      "the returned definition's URI must be swapped back to the source .qmd (not the vdoc URI)",
     );
   });
 });
