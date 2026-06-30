@@ -179,7 +179,11 @@ describe("CURATED_FRONTMATTER_KEYS — value enums (6d-5)", () => {
   });
 
   it("leaves free-text document keys without a value enum", () => {
-    for (const name of ["title", "author", "date", "format", "bibliography"]) {
+    // NB `format` is intentionally absent here: at the RAW curated-key level it
+    // carries no enum, but the SchemaIndex enriches it with the output-format names
+    // (6d-6+ — see the CURATED_FORMAT_NAMES suite), so it is no longer a clean
+    // enum-less example. The genuinely free-text keys stay enum-less.
+    for (const name of ["title", "author", "date", "bibliography"]) {
       expect(valuesOf(name), `${name} should have no enum`).toBeUndefined();
     }
   });
@@ -278,6 +282,16 @@ describe("CURATED_FORMAT_NAMES — nested format names (6d-6 cont.)", () => {
 
   it("is what CURATED_SCHEMA_INDEX serves for the `format` path", () => {
     expect(CURATED_SCHEMA_INDEX.frontMatterKeys(["format"])).toEqual(CURATED_FORMAT_NAMES);
+  });
+
+  it("enriches the top-level `format` key's value enum with the format names (6d-6+)", () => {
+    // The top-level `format:` value is an output-format NAME, but the flat
+    // document-key list models `format` only as an epub-scoped string (a name
+    // collision) with no enum. The SchemaIndex surfaces the format names as that
+    // key's values so a top-level `format: <here>` scalar completes them through
+    // the generic value path (no provider special-case).
+    const format = CURATED_SCHEMA_INDEX.frontMatterKeys([]).find((f) => f.name === "format");
+    expect(format?.values).toEqual(CURATED_FORMAT_NAMES.map((f) => f.name));
   });
 });
 

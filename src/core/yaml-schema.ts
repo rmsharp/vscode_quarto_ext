@@ -274,7 +274,9 @@ export interface SchemaIndex {
   cellOptions(engine?: "knitr" | "jupyter" | "ojs"): SchemaField[];
   /**
    * The front-matter keys to offer at the given mapping path. Top-level keys are
-   * returned for the document root (`parentPath` empty, 6d-4); the allow-listed
+   * returned for the document root (`parentPath` empty, 6d-4) — there the `format`
+   * key additionally carries the output-format names as its value enum, so a
+   * top-level `format: <here>` scalar completes them (6d-6+). The allow-listed
    * one-level containers return their children — `["execute"]` the curated execute
    * children (6d-6), `["format"]` the output-format names (6d-6 cont., reader-
    * derived with a curated fallback). Any other path — a non-allow-listed
@@ -292,6 +294,18 @@ function indexOf(
   fmFields: SchemaField[],
   formatFields: SchemaField[],
 ): SchemaIndex {
+  // The top-level `format:` value is an output-format NAME (`html`, `pdf`, …), but
+  // the flat document-key list models `format` only as a same-named epub-scoped
+  // STRING field with no value enum (a name collision). Surface the format names as
+  // that key's value enum so a top-level `format: <here>` scalar completes them
+  // through the generic value path — no provider special-case (6d-6+). The names are
+  // the same set offered as KEYS one level under `format:` (`frontMatterKeys(["format"])`).
+  // Derived (not mutated) so the raw curated/parsed field lists stay untouched.
+  const formatNames = formatFields.map((f) => f.name);
+  const topLevelFields =
+    formatNames.length === 0
+      ? fmFields
+      : fmFields.map((f) => (f.name === "format" ? { ...f, values: formatNames } : f));
   return {
     cellOptions(engine) {
       if (engine === undefined) {
@@ -300,12 +314,14 @@ function indexOf(
       return cellFields.filter((f) => f.engine === undefined || f.engine === engine);
     },
     frontMatterKeys(parentPath) {
-      // 6d-4 completes top-level keys (document root). 6d-6 completes one level
-      // under an allow-listed container: `execute:` → curated execute children;
-      // `format:` → the output-format names (reader-derived, curated fallback).
-      // Any other nested path is deferred (recursive resolution), so it yields [].
+      // 6d-4 completes top-level keys (document root); the top-level `format` key
+      // also carries the format names as its value enum (6d-6+, above). 6d-6
+      // completes one level under an allow-listed container: `execute:` → curated
+      // execute children; `format:` → the output-format names (reader-derived,
+      // curated fallback). Any other nested path is deferred (recursive
+      // resolution), so it yields [].
       if (parentPath.length === 0) {
-        return fmFields;
+        return topLevelFields;
       }
       if (parentPath.length === 1 && parentPath[0] === "execute") {
         return CURATED_EXECUTE_KEYS;

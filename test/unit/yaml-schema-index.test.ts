@@ -72,6 +72,12 @@ const FIXTURE = JSON.stringify({
     { name: "toc", schema: "boolean", description: { short: "Table of contents." } },
     { name: "secret", hidden: true, schema: "string", description: "Hidden — excluded." },
   ],
+  // Mirrors the real collision: the only `format` field in `document-*.yml` is an
+  // epub-scoped STRING (no value enum). The index enriches it with the format names
+  // so a top-level `format: <here>` scalar completes them (6d-6+).
+  "schema/document-epub.yml": [
+    { name: "format", schema: "string", description: "Text describing the format of this publication." },
+  ],
   "schema/definitions.yml": [{ id: "page-column", enum: ["body", "page", "margin"] }],
   // The flat pandoc output-format list (6d-6 cont. format-name completion). Quarto
   // hides legacy variants (html4/html5, epub2/epub3, docbook4/docbook5) and concats
@@ -189,6 +195,17 @@ describe("parseSchemaIndex — format-name extraction (6d-6 cont.)", () => {
   it("keeps format names OUT of the top-level and execute paths", () => {
     expect(index.frontMatterKeys([]).map((f) => f.name)).not.toContain("revealjs");
     expect(index.frontMatterKeys(["execute"]).map((f) => f.name)).not.toContain("revealjs");
+  });
+
+  it("enriches the top-level `format` key's value enum with the reader's format names (6d-6+)", () => {
+    // The flat `document-*` list models `format` only as an epub-scoped string (no
+    // enum); the index surfaces the reader-derived format names as its values, so a
+    // top-level `format: <here>` scalar completes them. They are exactly the names
+    // offered as KEYS under `format:` — including the reader-only `docbook` (absent
+    // from the curated fallback), proving the enrichment is reader-derived.
+    const fmtValues = index.frontMatterKeys([]).find((f) => f.name === "format")?.values;
+    expect(fmtValues).toEqual(formatNames);
+    expect(fmtValues, "reader-derived (docbook is not in the curated fallback)").toContain("docbook");
   });
 });
 
