@@ -1,0 +1,233 @@
+import * as assert from "node:assert";
+import * as vscode from "vscode";
+
+const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
+
+/** Scheme our embedded provider routes virtual documents through (plan §5). */
+const SCHEME = "quarto-embedded";
+/** Detail tag on the stand-in's items, so we can pick them out of a merged list. */
+const STANDIN_DETAIL = "embedded-stand-in";
+
+interface ForwardCall {
+  /** The URI the stand-in was invoked on — proves the request went through the vdoc. */
+  uri: string;
+  /** The vdoc's resolved languageId — proves §9 Q8 (python resolves in the bare host). */
+  languageId: string;
+  /** The vdoc text — proves the content provider served the blanked document. */
+  text: string;
+}
+
+let calls: ForwardCall[] = [];
+/** When set, the stand-in attaches these as `additionalTextEdits` (the auto-import hazard). */
+let standInExtraEdits: vscode.TextEdit[] | undefined;
+const disposables: vscode.Disposable[] = [];
+
+/**
+ * Register a stand-in completion provider for the embedded scheme (Learning #13b):
+ * the bare test host has no Python extension, so this faithfully substitutes for it
+ * and records the URI/languageId/text it was invoked on, proving the forward routed
+ * THROUGH the vdoc rather than hitting the quarto doc directly. Keyed by `{scheme}`
+ * so it fires regardless of whether the vdoc's languageId resolves (§9 Q8).
+ */
+function registerStandIn(): void {
+  disposables.push(
+    vscode.languages.registerCompletionItemProvider(
+      { scheme: SCHEME },
+      {
+        provideCompletionItems(document) {
+          calls.push({
+            uri: document.uri.toString(),
+            languageId: document.languageId,
+            text: document.getText(),
+          });
+          const item = new vscode.CompletionItem(
+            "FWD_PY",
+            vscode.CompletionItemKind.Field,
+          );
+          item.detail = STANDIN_DETAIL;
+          if (standInExtraEdits) {
+            item.additionalTextEdits = standInExtraEdits;
+          }
+          return [item];
+        },
+      },
+    ),
+  );
+}
+
+function labelText(item: vscode.CompletionItem): string {
+  return typeof item.label === "string" ? item.label : item.label.label;
+}
+
+/** Items the embedded forward surfaced (the stand-in's, tagged by detail). */
+function embeddedLabels(list: vscode.CompletionList | undefined): string[] {
+  return (list?.items ?? [])
+    .filter((i) => i.detail === STANDIN_DETAIL)
+    .map(labelText);
+}
+
+/** YAML cell-option key items (the other `{language:"quarto"}` provider). */
+function cellOptionLabels(list: vscode.CompletionList | undefined): string[] {
+  return (list?.items ?? [])
+    .filter((i) => i.detail === "Quarto cell option")
+    .map(labelText);
+}
+
+async function openInMemory(content: string): Promise<vscode.TextDocument> {
+  const doc = await vscode.workspace.openTextDocument({
+    language: "quarto",
+    content,
+  });
+  await vscode.window.showTextDocument(doc);
+  return doc;
+}
+
+async function complete(
+  doc: vscode.TextDocument,
+  line: number,
+  character: number,
+  trigger?: string,
+): Promise<vscode.CompletionList | undefined> {
+  return vscode.commands.executeCommand<vscode.CompletionList>(
+    "vscode.executeCompletionItemProvider",
+    doc.uri,
+    new vscode.Position(line, character),
+    trigger,
+  );
+}
+
+// A document with front matter, prose, a `#|` option line, and a {python} cell.
+const DOC = [
+  "---", // 0
+  "title: Demo", // 1
+  "---", // 2
+  "", // 3
+  "Some prose.", // 4
+  "", // 5
+  "```{python}", // 6  opening fence
+  "#| echo: false", // 7  cell-option line
+  "import pandas as pd", // 8  python body
+  "pd.", // 9  python body — cursor here
+  "```", // 10 closing fence
+].join("\n");
+
+describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  beforeEach(() => {
+    calls = [];
+    standInExtraEdits = undefined;
+  });
+
+  afterEach(async () => {
+    for (const d of disposables.splice(0)) {
+      d.dispose();
+    }
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("forwards completion inside a {python} cell body through the virtual document", async () => {
+    registerStandIn();
+    const doc = await openInMemory(DOC);
+
+    const list = await complete(doc, 9, 3, ".");
+
+    assert.deepStrictEqual(
+      embeddedLabels(list),
+      ["FWD_PY"],
+      "the embedded (stand-in) completion should appear in the cell body",
+    );
+    assert.strictEqual(calls.length, 1, "the stand-in should be invoked once");
+    assert.strictEqual(
+      vscode.Uri.parse(calls[0].uri).scheme,
+      SCHEME,
+      "the request must route through the quarto-embedded virtual document, not the .qmd directly",
+    );
+    assert.strictEqual(
+      calls[0].languageId,
+      "python",
+      "the .py virtual document must resolve to languageId python in the bare host (§9 Q8)",
+    );
+    // The vdoc keeps the python body and blanks the prose/front matter.
+    assert.ok(
+      calls[0].text.includes("import pandas as pd"),
+      "the vdoc should keep the python body verbatim",
+    );
+    assert.ok(
+      !calls[0].text.includes("title: Demo"),
+      "the vdoc should blank the YAML front matter",
+    );
+  });
+
+  it("does not forward (no embedded items) on a prose line", async () => {
+    registerStandIn();
+    const doc = await openInMemory(DOC);
+
+    const list = await complete(doc, 4, 5);
+
+    assert.deepStrictEqual(embeddedLabels(list), [], "no embedded items in prose");
+    assert.strictEqual(calls.length, 0, "the stand-in must not be invoked in prose");
+  });
+
+  it("does not forward on a `#|` cell-option line, but YAML completion still does (both-directions gating)", async () => {
+    registerStandIn();
+    const doc = await openInMemory(DOC);
+
+    const list = await complete(doc, 7, 3); // inside the `echo` key on the `#|` line
+
+    assert.deepStrictEqual(
+      embeddedLabels(list),
+      [],
+      "no embedded items on a `#|` option line — that region belongs to YAML",
+    );
+    assert.ok(
+      cellOptionLabels(list).length > 0,
+      "the YAML cell-option provider must still fire on the `#|` line (no cross-pollution)",
+    );
+  });
+
+  it("does not forward on the opening fence line", async () => {
+    registerStandIn();
+    const doc = await openInMemory(DOC);
+
+    const list = await complete(doc, 6, 0);
+
+    assert.deepStrictEqual(embeddedLabels(list), [], "no embedded items on a fence line");
+    assert.strictEqual(calls.length, 0);
+  });
+
+  it("does not forward inside an unmapped-language ({r}) cell (deferred to 6e-2)", async () => {
+    registerStandIn();
+    const doc = await openInMemory(
+      ["```{r}", "y <- 2", "y.", "```"].join("\n"),
+    );
+
+    const list = await complete(doc, 2, 2, ".");
+
+    assert.deepStrictEqual(embeddedLabels(list), [], "no forward for r in 6e-1");
+    assert.strictEqual(calls.length, 0);
+  });
+
+  it("forwards the embedded item but never lets an out-of-cell auto-import edit through (front-matter corruption guard)", async () => {
+    registerStandIn();
+    // The embedded server returns an auto-import edit anchored at the module top,
+    // which under whole-doc blanking identity-maps to .qmd line 0 = the front matter.
+    standInExtraEdits = [
+      new vscode.TextEdit(new vscode.Range(0, 0, 0, 0), "import os\n"),
+    ];
+    const doc = await openInMemory(DOC);
+
+    const list = await complete(doc, 9, 3, ".");
+
+    const item = (list?.items ?? []).find((i) => i.detail === STANDIN_DETAIL);
+    assert.ok(item, "the completion itself should still be offered");
+    assert.ok(
+      !item.additionalTextEdits || item.additionalTextEdits.length === 0,
+      "the out-of-cell (front-matter) additionalTextEdits must be filtered out",
+    );
+  });
+});
