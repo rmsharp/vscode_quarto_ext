@@ -42,6 +42,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 28 Did — 2026-06-30 (IN PROGRESS)
+**Deliverable:** **Phase 6e Slice 6e-1 — Python completion forwarding + shared infra (the tracer bullet)** (IN PROGRESS). Implementing the embedded-cell completion virtual-document machinery per `docs/planning/2026-06-29-phase-6e-embedded-cell-completion-plan.md` §6 Slice 6e-1: `core/embedded/lang-map.ts` (`cellLanguageId`, python only), `core/embedded/virtual-doc.ts` (`embeddedCellAt` body-gate + length-preserving `buildVirtualContent`), `providers/embedded.ts` (content provider + completion provider gated to cell BODY + `filterOutOfCellEdits`), wired in `extension.ts`. Strict TDD, vertical, ≥3 checkpoint commits (5-file cap).
+**Started:** 2026-06-30.
+**Status:** Session claimed (Phase 1B stub). Orientation complete; plan + reuse anchors (model.ts, yaml.ts gating template, execution.ts/execution.test.ts stand-in precedent, extension.ts, package.json) read firsthand. Work beginning with the pure core (lang-map → virtual-doc), strict TDD RED→GREEN.
+
 ### What Session 27 Did — 2026-06-29 (plan authored) / 2026-06-30 (verified + closed out)
 **Deliverable:** **Phase 6e PLANNING — embedded-cell language completion (virtual-document request forwarding)** plan document: `docs/planning/2026-06-29-phase-6e-embedded-cell-completion-plan.md`. **COMPLETE — committed + inventory-verified.** Planning-only (the deliverable is the PLAN, not code; mirrors Session 17's 6d planning session). NO code shipped (FM #18: plan ≠ implementation — 6e-1 is a separate session).
 
