@@ -47,6 +47,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 32 Did
+**Deliverable:** Phase 6e Slice 6e-5 — embedded-cell SIGNATURE-HELP forwarding (the LAST 6e slice) (IN PROGRESS)
+**Started:** 2026-06-30
+**Status:** Session claimed (Phase 1B stub). Work beginning — strict TDD.
+
 ### What Session 31 Did — 2026-06-30
 **Deliverable:** **Phase 6e Slice 6e-4 — embedded-cell GO-TO-DEFINITION forwarding.** **COMPLETE + review-clean (11th consecutive clean review).** Go-to-definition on a symbol inside a `{python}`/`{r}`/`{julia}`/`{ojs}` code-cell body now forwards the request — identity-mapped via the per-language `quarto-embedded://` virtual document + `vscode.executeDefinitionProvider` — to the user's installed language extension; the returned `Location`/`LocationLink`'s vdoc URI is **swapped back to the source `.qmd`** (the ONE residual remap the 6e plan flagged — the range is identity-mapped, returned unchanged), while a definition into another file passes through. Off-region (prose, YAML, fence, `#|` line, unmapped cell) yields nothing; an empty upstream result degrades to no definition without throwing.
 
