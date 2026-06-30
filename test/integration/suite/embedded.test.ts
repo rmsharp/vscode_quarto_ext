@@ -402,6 +402,17 @@ function hoverTexts(hovers: vscode.Hover[] | undefined): string[] {
   return out;
 }
 
+/** The hover we forwarded (the one carrying the stand-in's marker), if present. */
+function embeddedHover(
+  hovers: vscode.Hover[] | undefined,
+): vscode.Hover | undefined {
+  return (hovers ?? []).find((h) =>
+    h.contents.some(
+      (c) => (typeof c === "string" ? c : c.value).includes(HOVER_MARKER),
+    ),
+  );
+}
+
 async function hover(
   doc: vscode.TextDocument,
   line: number,
@@ -465,5 +476,69 @@ describe("Quarto: embedded-cell hover forwarding (6e-3)", () => {
       !hoverCalls[0].text.includes("title: Demo"),
       "the vdoc should blank the YAML front matter",
     );
+  });
+
+  it("returns the embedded hover's range unchanged (identity mapping, no remap)", async () => {
+    registerHoverStandIn();
+    const doc = await openInMemory(DOC);
+
+    const ours = embeddedHover(await hover(doc, 8, 2));
+
+    assert.ok(ours, "our forwarded hover should be present");
+    assert.ok(ours.range, "the hover should carry a range");
+    assert.deepStrictEqual(
+      [
+        ours.range.start.line,
+        ours.range.start.character,
+        ours.range.end.line,
+        ours.range.end.character,
+      ],
+      [8, 0, 8, 3],
+      "the identity-mapped range from the embedded provider is returned unchanged (no remap, no drop)",
+    );
+  });
+
+  it("does not forward hover on a prose line", async () => {
+    registerHoverStandIn();
+    const doc = await openInMemory(DOC);
+
+    const hovers = await hover(doc, 4, 5); // "Some prose."
+
+    assert.deepStrictEqual(hoverTexts(hovers), [], "no embedded hover in prose");
+    assert.strictEqual(
+      hoverCalls.length,
+      0,
+      "the stand-in must not be invoked in prose",
+    );
+  });
+
+  it("does not forward hover on a `#|` cell-option line", async () => {
+    registerHoverStandIn();
+    const doc = await openInMemory(DOC);
+
+    const hovers = await hover(doc, 7, 3); // inside `echo` on the `#|` line
+
+    assert.ok(
+      !hoverTexts(hovers).some((t) => t.includes(HOVER_MARKER)),
+      "no embedded hover on a `#|` option line — that region belongs to YAML",
+    );
+    assert.strictEqual(
+      hoverCalls.length,
+      0,
+      "the stand-in must not be invoked on a `#|` line",
+    );
+  });
+
+  it("does not forward hover on the opening fence line", async () => {
+    registerHoverStandIn();
+    const doc = await openInMemory(DOC);
+
+    const hovers = await hover(doc, 6, 0);
+
+    assert.ok(
+      !hoverTexts(hovers).some((t) => t.includes(HOVER_MARKER)),
+      "no embedded hover on a fence line",
+    );
+    assert.strictEqual(hoverCalls.length, 0);
   });
 });
