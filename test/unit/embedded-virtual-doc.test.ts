@@ -76,6 +76,80 @@ describe("buildVirtualContent — length-preserving per-language blanking", () =
   });
 });
 
+describe("buildVirtualContent — multi-language documents (6e-2)", () => {
+  // One cell per mapped language, each body distinct; the {ojs} cell carries a
+  // `//|` option line (ojs/js use `//|`, not `#|`).
+  const MIXED = [
+    "```{python}", // 0
+    "p = 1", // 1  python body
+    "```", // 2
+    "```{r}", // 3
+    "r_v <- 2", // 4  r body
+    "```", // 5
+    "```{julia}", // 6
+    "j = 3", // 7  julia body
+    "```", // 8
+    "```{ojs}", // 9
+    "//| echo: false", // 10 ojs option line
+    "o = 4", // 11 ojs (javascript) body
+    "```", // 12
+  ].join("\n");
+
+  it("the python vdoc keeps only python bodies, blanking r/julia/ojs", () => {
+    const v = buildVirtualContent(MIXED, "python").split("\n");
+    expect(v[1]).toBe("p = 1");
+    expect(v[4]).toBe(" ".repeat("r_v <- 2".length));
+    expect(v[7]).toBe(" ".repeat("j = 3".length));
+    expect(v[11]).toBe(" ".repeat("o = 4".length));
+  });
+
+  it("the r vdoc keeps only r bodies, blanking python/julia/ojs", () => {
+    const v = buildVirtualContent(MIXED, "r").split("\n");
+    expect(v[4]).toBe("r_v <- 2");
+    expect(v[1]).toBe(" ".repeat("p = 1".length));
+    expect(v[7]).toBe(" ".repeat("j = 3".length));
+    expect(v[11]).toBe(" ".repeat("o = 4".length));
+  });
+
+  it("the julia vdoc keeps only julia bodies, blanking the rest", () => {
+    const v = buildVirtualContent(MIXED, "julia").split("\n");
+    expect(v[7]).toBe("j = 3");
+    expect(v[1]).toBe(" ".repeat("p = 1".length));
+    expect(v[4]).toBe(" ".repeat("r_v <- 2".length));
+  });
+
+  it("the javascript vdoc keeps the {ojs} body and blanks its `//|` option line", () => {
+    const v = buildVirtualContent(MIXED, "javascript").split("\n");
+    expect(v[11]).toBe("o = 4");
+    expect(v[10]).toBe(" ".repeat("//| echo: false".length));
+    expect(v[1]).toBe(" ".repeat("p = 1".length));
+  });
+
+  it("keeps cross-cell same-language state: two {python} cells both survive in one python vdoc", () => {
+    const text = [
+      "```{python}", // 0
+      "import numpy as np", // 1
+      "```", // 2
+      "Some prose.", // 3
+      "```{python}", // 4
+      "np.array([1])", // 5  cell 2 — sees cell 1's import in the SAME vdoc
+      "```", // 6
+    ].join("\n");
+    const v = buildVirtualContent(text, "python").split("\n");
+    expect(v[1]).toBe("import numpy as np");
+    expect(v[5]).toBe("np.array([1])");
+    expect(v[3]).toBe(" ".repeat("Some prose.".length));
+  });
+
+  it("is the identity map (length + newline positions) for every languageId of a mixed doc", () => {
+    for (const lang of ["python", "r", "julia", "javascript"]) {
+      const v = buildVirtualContent(MIXED, lang);
+      expect(v.length).toBe(MIXED.length);
+      expect(newlineIndices(v)).toEqual(newlineIndices(MIXED));
+    }
+  });
+});
+
 describe("embeddedCellAt — the cursor body-gate", () => {
   it("returns a python hit on an interior body line", () => {
     expect(embeddedCellAt(DOC, 8)).toEqual({
@@ -100,8 +174,17 @@ describe("embeddedCellAt — the cursor body-gate", () => {
     expect(embeddedCellAt(DOC, 11)).toBeNull(); // blank
   });
 
-  it("returns null inside an unmapped-language ({r}) cell body — deferred to 6e-2", () => {
+  it("returns an r hit inside an {r} cell body (mapped in 6e-2)", () => {
     const text = ["```{r}", "y <- 2", "```"].join("\n");
+    expect(embeddedCellAt(text, 1)).toEqual({
+      lang: "r",
+      languageId: "r",
+      ext: "r",
+    });
+  });
+
+  it("returns null inside a still-unmapped-engine ({bash}) cell body", () => {
+    const text = ["```{bash}", "echo hi", "```"].join("\n");
     expect(embeddedCellAt(text, 1)).toBeNull();
   });
 

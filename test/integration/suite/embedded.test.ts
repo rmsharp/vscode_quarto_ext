@@ -200,7 +200,7 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
     assert.strictEqual(calls.length, 0);
   });
 
-  it("does not forward inside an unmapped-language ({r}) cell (deferred to 6e-2)", async () => {
+  it("forwards completion inside an {r} cell body through the virtual document (6e-2)", async () => {
     registerStandIn();
     const doc = await openInMemory(
       ["```{r}", "y <- 2", "y.", "```"].join("\n"),
@@ -208,8 +208,48 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
 
     const list = await complete(doc, 2, 2, ".");
 
-    assert.deepStrictEqual(embeddedLabels(list), [], "no forward for r in 6e-1");
-    assert.strictEqual(calls.length, 0);
+    assert.deepStrictEqual(
+      embeddedLabels(list),
+      ["FWD_PY"],
+      "the {r} cell body should now forward to the embedded stand-in",
+    );
+    assert.strictEqual(calls.length, 1, "the stand-in should be invoked once for the r cell");
+    assert.strictEqual(
+      vscode.Uri.parse(calls[0].uri).scheme,
+      SCHEME,
+      "the r request must route through the quarto-embedded virtual document",
+    );
+    // The .r vdoc's languageId may NOT resolve in the bare host (no built-in r
+    // language-basics — §9 Q8 / Learning #35b); the scheme-keyed stand-in fires
+    // regardless. We assert the forward routed through the vdoc, not languageId.
+    assert.ok(
+      calls[0].text.includes("y <- 2"),
+      "the vdoc should keep the r body verbatim",
+    );
+  });
+
+  it("forwards inside an {ojs} cell, resolving the .js vdoc to languageId javascript (token ≠ languageId)", async () => {
+    registerStandIn();
+    const doc = await openInMemory(["```{ojs}", "x = 1", "x.", "```"].join("\n"));
+
+    const list = await complete(doc, 2, 2, ".");
+
+    assert.deepStrictEqual(embeddedLabels(list), ["FWD_PY"], "the {ojs} cell forwards");
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(
+      vscode.Uri.parse(calls[0].uri).scheme,
+      SCHEME,
+      "the ojs request routes through the virtual document",
+    );
+    assert.strictEqual(
+      calls[0].languageId,
+      "javascript",
+      "the .js virtual document must resolve to languageId javascript (ojs→javascript, the 6e-2 dragon)",
+    );
+    assert.ok(
+      calls[0].text.includes("x = 1"),
+      "the vdoc keeps the ojs body verbatim",
+    );
   });
 
   it("drops out-of-cell auto-import edits but keeps in-cell ones (front-matter corruption guard, both directions)", async () => {

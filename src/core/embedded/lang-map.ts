@@ -24,9 +24,17 @@ export interface EmbeddedLang {
   ext: string;
 }
 
-/** Engine token → forwarding target. 6e-1: python only. */
+/** Engine token → forwarding target. 6e-1: python. 6e-2: + r/julia/ojs. */
 const LANGUAGES: Readonly<Record<string, EmbeddedLang>> = {
   python: { languageId: "python", ext: "py" },
+  r: { languageId: "r", ext: "r" },
+  julia: { languageId: "julia", ext: "jl" },
+  // OJS (Observable JS) executes as JavaScript: the engine token is `ojs` but the
+  // languageId is `javascript` (R7 / package.json embeddedLanguages) — map it, do
+  // not assume identity. `js` is a defensive alias for the same target (the
+  // project's option-prefix logic already pairs "ojs/js" — model.ts:170).
+  ojs: { languageId: "javascript", ext: "js" },
+  js: { languageId: "javascript", ext: "js" },
 };
 
 /**
