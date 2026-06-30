@@ -975,4 +975,76 @@ describe("Quarto: embedded-cell signature-help forwarding (6e-5)", () => {
       "the vdoc should blank the YAML front matter",
     );
   });
+
+  it("does not forward signature help on a prose line", async () => {
+    registerSigStandIn();
+    const doc = await openInMemory(DOC);
+
+    const help = await signatureHelp(doc, 4, 5, "("); // "Some prose."
+
+    assert.deepStrictEqual(sigLabels(help), [], "no embedded signature help in prose");
+    assert.strictEqual(
+      sigCalls.length,
+      0,
+      "the stand-in must not be invoked in prose",
+    );
+  });
+
+  it("does not forward signature help on a `#|` cell-option line", async () => {
+    registerSigStandIn();
+    const doc = await openInMemory(DOC);
+
+    const help = await signatureHelp(doc, 7, 3, "("); // inside `echo` on the `#|` line
+
+    assert.deepStrictEqual(
+      sigLabels(help),
+      [],
+      "no embedded signature help on a `#|` option line — that region belongs to YAML",
+    );
+    assert.strictEqual(
+      sigCalls.length,
+      0,
+      "the stand-in must not be invoked on a `#|` line",
+    );
+  });
+
+  it("does not forward signature help on the opening fence line", async () => {
+    registerSigStandIn();
+    const doc = await openInMemory(DOC);
+
+    const help = await signatureHelp(doc, 6, 0, "(");
+
+    assert.deepStrictEqual(
+      sigLabels(help),
+      [],
+      "no embedded signature help on a fence line",
+    );
+    assert.strictEqual(sigCalls.length, 0);
+  });
+
+  it("degrades to no signature help (and does not throw) when the provider yields nothing", async () => {
+    // The scheme-keyed stand-in RECORDS the call (so this fails if the cell were
+    // ungated/unmapped) but returns NO signature help — the §2.5 degradation case (no
+    // language extension installed, or installed with no signature help). The forward
+    // must yield no signature help and must not throw.
+    sigStandInReturnsNothing = true;
+    registerSigStandIn();
+    const doc = await openInMemory(DOC);
+
+    let help: vscode.SignatureHelp | undefined;
+    await assert.doesNotReject(async () => {
+      help = await signatureHelp(doc, 8, 7, "(");
+    }, "forwarding signature help whose provider yields nothing must not throw");
+
+    assert.strictEqual(
+      sigCalls.length,
+      1,
+      "the cell must still forward through the vdoc (proves the forward ran)",
+    );
+    assert.deepStrictEqual(
+      sigLabels(help),
+      [],
+      "an empty upstream result degrades to no signature help",
+    );
+  });
 });
