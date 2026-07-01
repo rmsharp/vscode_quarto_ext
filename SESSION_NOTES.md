@@ -47,6 +47,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 33 Did
+**Deliverable:** Phase 6d-6+ (b2) PLAN — per-format options + deeper nesting completion (`format:\n  html:\n    <opt>`) via the recursive `schema/schema.yml` object-graph walk (`resolveRef`/`super`/`anyOf`) + `format-aliases.yml`. Planning session; deliverable is the plan doc in `docs/planning/`, NOT code (FM #18). (IN PROGRESS)
+**Started:** 2026-06-30
+**Status:** Session claimed (Phase 1B stub). Planning workstream. Work beginning.
+
 ### What Session 32 Did — 2026-06-30
 **Deliverable:** **Phase 6e Slice 6e-5 — embedded-cell SIGNATURE-HELP forwarding (the LAST 6e slice).** **COMPLETE + review-clean (12th consecutive clean review).** Typing inside a call in a `{python}`/`{r}`/`{julia}`/`{ojs}` code-cell body now forwards the signature-help request — identity-mapped via the per-language `quarto-embedded://` virtual document + `vscode.executeSignatureHelpProvider` — to the user's installed language extension, returning its `SignatureHelp` UNCHANGED. Off-region (prose, YAML, fence, `#|` line, unmapped cell) yields nothing; an empty upstream result degrades to no signature help without throwing. **With this slice the 6e plan is COMPLETE — all 5 slices (6e-1…6e-5) shipped.**
 
