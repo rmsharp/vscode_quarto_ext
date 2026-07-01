@@ -322,11 +322,33 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
     });
   });
 
-  it("bails (null) THREE levels under `format:` — deep nesting is deferred (b2-iii)", () => {
+  it("returns a deep-nested KEY context THREE levels under `format:` (b2-iii-key)", () => {
     const text = ["---", "format:", "  html:", "    theme:", "      x", "---"].join("\n");
-    // "      x" is three levels deep (under format>html>theme); the 2-level walk
-    // bails rather than offer wrong keys — deep nesting is the deferred residue.
-    expect(completionContextAt(text, offsetAt(text, 4, 7))).toBeNull(); // in "x"
+    // "      x" is a sub-key one object level under the `theme` format option; the
+    // N-level format-rooted walk climbs to the column-0 `format` root and emits the
+    // full ancestor path. The detector is schema-free — it does not know `theme` is
+    // an object; the reader decides whether the option resolves to child keys.
+    const ctx = completionContextAt(text, offsetAt(text, 4, 7)); // in "x"
+    expect(ctx).toEqual({
+      kind: "frontmatter-key",
+      parentPath: ["format", "html", "theme"],
+      token: "x",
+      replaceRange: { line: 4, startCol: 6, endCol: 7 },
+    });
+  });
+
+  it("emits the FULL ancestor path even FOUR levels under `format:` (reader gates depth)", () => {
+    const text = ["---", "format:", "  html:", "    comments:", "      hypothesis:", "        x", "---"].join("\n");
+    // The detector climbs any number of pure-mapping levels to the `format` root —
+    // it is schema-free (position ⊥ data). "Offers nothing at depth 4" is enforced
+    // by the READER returning [] for a length-≥4 path (v1 resolves one object level).
+    const ctx = completionContextAt(text, offsetAt(text, 5, 9)); // in "x"
+    expect(ctx).toEqual({
+      kind: "frontmatter-key",
+      parentPath: ["format", "html", "comments", "hypothesis"],
+      token: "x",
+      replaceRange: { line: 5, startCol: 8, endCol: 9 },
+    });
   });
 
   it("bails (null) two levels under a NON-`format` root (the walk is format-rooted)", () => {

@@ -50,6 +50,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 37 Did — 2026-06-30
+**Deliverable:** **Phase 6d-6+ (b2-iii-key)** — deep-nested per-format option KEY completion (`format:\n  <fmt>:\n    <opt>:\n      <key>`). Under a concrete format, offer an object-valued option's sub-keys. (IN PROGRESS)
+**Started:** 2026-06-30
+**Status:** Session claimed. Work beginning — strict TDD, plan `docs/planning/2026-06-30-phase-6d6b2iii-deep-nesting-plan.md` §6 (b2-iii-key). Will NOT bundle b2-iii-value (FM #18).
+
 ### What Session 36 Did — 2026-06-30
 **Deliverable:** **Phase 6d-6+ (b2-iii) PLAN** — deep-nested per-format option completion (`format:\n  html:\n    <opt>:\n      <sub>`, 3+ levels; object-valued options). PLANNING-ONLY (mirrors Sessions 17/27/33/40). SHIPPED (the plan doc).
 

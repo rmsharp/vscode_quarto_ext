@@ -149,13 +149,15 @@ function frontMatterContextAt(
  * deliberately conservative — it offers nested keys ONLY when nesting is
  * unambiguous, and **bails (`null`) on anything else** rather than offer wrong
  * keys (plan §7): the line must be an indented key line (not a `- ` sequence item
- * or a `#` comment) and its enclosing container(s) must form one of the two
- * shapes `nestedParentPath` allows — one level under an allow-listed container
- * (`execute:`/`format:` → `[container]`) or two levels under `format:`
- * (`format:\n  <fmt>:\n    <key>` → `["format", <fmt>]`, Slice 6d-6+ b2-i).
- * Deeper nesting is the deferred residue (b2-iii). The key slot completes a
- * nested key (`frontmatter-key`); the value slot past the colon completes that
- * child key's values (`frontmatter-value`, `parentPath` = [container…, key]).
+ * or a `#` comment) and its enclosing container(s) must form one of the shapes
+ * `nestedParentPath` allows — one level under an allow-listed container
+ * (`execute:`/`format:` → `[container]`) or any number of levels rooted at a
+ * column-0 `format:` (`format:\n  <fmt>:\n    <opt>:\n      <key>` → `["format",
+ * <fmt>, <opt>]`, Slices 6d-6+ b2-i / b2-iii-key). The detector is schema-free and
+ * emits the full path regardless of depth; the reader gates how deep it resolves.
+ * The key slot completes a nested key (`frontmatter-key`); the value slot past the
+ * colon completes that child key's values (`frontmatter-value`, `parentPath` =
+ * [container…, key]).
  */
 function nestedKeyContextAt(
   lines: string[],
@@ -212,15 +214,20 @@ function nestedKeyContextAt(
 /**
  * The mapping path from the document root to an option line indented at `indent`,
  * or `null` if the enclosing structure is not one this slice completes. A bounded
- * ancestor walk allowing at most two levels:
+ * ancestor walk that climbs pure-mapping levels up to a column-0 root:
  *   - ONE level: the nearest shallower line is a column-0 allow-listed container
  *     (`execute:` / `format:`) → `[container]`;
- *   - TWO levels (`format`-rooted only): the container is itself indented and ITS
- *     parent is a column-0 `format:` mapping → `["format", <fmt>]` (Slice b2-i).
- * Bails (`null`) on anything else — a third indented ancestor, a 2-level root that
- * is not `format`, a scalar / flow / block-scalar intermediate container, or a
- * sequence item — rather than offer wrong keys (plan §7). Deep nesting below the
- * first per-format level is the deferred residue (b2-iii).
+ *   - N levels (`format`-rooted only): the immediate container is itself indented,
+ *     so the walk climbs each pure-mapping ancestor, collecting keys, until it
+ *     reaches a column-0 line — and returns the path ONLY when that root is
+ *     `format:` (`format:\n  <fmt>:\n    <opt>:\n      <key>` → `["format", <fmt>,
+ *     <opt>]`, Slices b2-i / b2-iii-key). The detector is schema-free: it emits the
+ *     full path regardless of depth (position ⊥ data — the reader decides what a
+ *     name resolves to, and gates depth). `execute:` stays one level (its own
+ *     second level is not a format).
+ * Bails (`null`) on anything else — a non-`format` column-0 root, a scalar / flow /
+ * block-scalar intermediate container, or a sequence item — rather than offer wrong
+ * keys (plan §7).
  */
 function nestedParentPath(
   lines: string[],
@@ -240,16 +247,30 @@ function nestedParentPath(
     // One level: a column-0 allow-listed container (`execute:` / `format:`).
     return NESTED_CONTAINERS.has(container) ? [container] : null;
   }
-  // Two levels (format-only): the container is indented; its own parent must be a
-  // column-0 `format:` mapping. A third indented ancestor is deferred (b2-iii).
-  const grandLine = nearestShallowerLine(lines, parentLine, parentIndent);
-  if (grandLine < 0 || leadingWsLen(lines[grandLine] ?? "") !== 0) {
-    return null;
+  // The immediate container is indented — climb each pure-mapping ancestor,
+  // prepending its key, until a column-0 root. Return the collected path only when
+  // that root is `format:` (any non-`format` root, like the `execute:` second level
+  // or a `website:` block, bails). Bounded by the line count.
+  const path = [container];
+  let cur = parentLine;
+  let curIndent = parentIndent;
+  for (;;) {
+    const up = nearestShallowerLine(lines, cur, curIndent);
+    if (up < 0) {
+      return null;
+    }
+    const key = mappingContainerKey(lines[up] ?? "");
+    if (key === null) {
+      return null; // a scalar / flow / block-scalar / sequence intermediate
+    }
+    path.unshift(key);
+    const upIndent = leadingWsLen(lines[up] ?? "");
+    if (upIndent === 0) {
+      return key === "format" ? path : null;
+    }
+    cur = up;
+    curIndent = upIndent;
   }
-  if (mappingContainerKey(lines[grandLine] ?? "") !== "format") {
-    return null;
-  }
-  return ["format", container];
 }
 
 /**
@@ -320,11 +341,13 @@ function nearestShallowerLine(
  *     The provider is generic over `parentPath`, so `["format"]` resolves through
  *     the same `frontMatterKeys` path as `["execute"]`.
  * Per-format options — the level under a format name, `format:\n  html:\n    <key>`
- * — are completed by the bounded 2-level ancestor walk (`nestedParentPath`),
- * rooted at `format` only, yielding `parentPath` `["format", <fmt>]` (Slice 6d-6+
- * b2-i). The `execute:` container stays one level (its own second level is not a
- * format). Deeper nesting still under a format option (three-plus levels) is the
- * deferred residue (b2-iii) — the walk bails on it.
+ * — and their object sub-keys (`format:\n  html:\n    <opt>:\n      <key>`) are
+ * completed by the `format`-rooted ancestor walk (`nestedParentPath`), yielding
+ * `parentPath` `["format", <fmt>, …]` of the corresponding length (Slices 6d-6+
+ * b2-i / b2-iii-key). The `execute:` container stays one level (its own second
+ * level is not a format). The walk is schema-free; the reader (`frontMatterKeys`)
+ * resolves one object level under a format option and returns nothing deeper
+ * (depth-4+ is the deferred residue, b2-iii-deep).
  */
 const NESTED_CONTAINERS = new Set<string>(["execute", "format"]);
 
