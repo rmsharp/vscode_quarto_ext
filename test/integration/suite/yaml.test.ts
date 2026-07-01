@@ -1189,3 +1189,96 @@ describe("Quarto: YAML per-format option key completion (6d-6+ b2-i)", () => {
     );
   });
 });
+
+/**
+ * Slice 6d-6+ (b2-ii) — per-format option VALUE completion. Past the colon on an
+ * option line two levels under `format:` (`format:\n  html:\n    <key>: <here>`),
+ * the provider offers that option's enum, resolved from the same per-format field
+ * set as the KEYS (`frontMatterKeys(["format", fmt]).find(key).values`). The whole
+ * value path — detector value context + provider value branch + reader value
+ * resolution — already existed after b2-i; this slice locks it end-to-end.
+ *
+ * Gate-d (Learning #9): `code-overflow` is a format-scoped ($html-all) option whose
+ * `scroll`/`wrap` enum comes ONLY from the runtime reader (absent from the curated
+ * fallback), so a green proves the reader resolved a per-format value end-to-end
+ * against the user's real installed schema — break-revert-provable by forcing
+ * quartoSharePath to throw (scroll/wrap vanish; universal toc stays). Being
+ * format-scoped, it also offers NO values under gfm (the key is filtered out of the
+ * per-format set) — the per-format VALUE discrimination.
+ */
+describe("Quarto: YAML per-format option value completion (6d-6+ b2-ii)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("offers a format-scoped option's reader-resolved VALUES two levels under format: (gate d)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    code-overflow: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(3, 19), // the empty value slot after "    code-overflow: "
+    );
+    const labels = documentValueLabels(list);
+    for (const expected of ["scroll", "wrap"]) {
+      assert.ok(
+        labels.includes(expected),
+        `code-overflow should offer ${expected} under format>html; got ${JSON.stringify(labels)}`,
+      );
+    }
+  });
+
+  it("DISCRIMINATES by format: an html-only option offers NO values under gfm; a universal one stays", async () => {
+    const htmlList = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      (await openInMemory("---\nformat:\n  html:\n    code-overflow: \n---\n")).uri,
+      new vscode.Position(3, 19),
+    );
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    const gfmList = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      (await openInMemory("---\nformat:\n  gfm:\n    code-overflow: \n---\n")).uri,
+      new vscode.Position(3, 19),
+    );
+    // code-overflow is $html-all — valid under html, filtered out under gfm, so its
+    // values complete under html but NOT under gfm.
+    assert.ok(documentValueLabels(htmlList).includes("scroll"), "code-overflow values under html");
+    assert.ok(
+      !documentValueLabels(gfmList).includes("scroll"),
+      `code-overflow (html-only) must offer no values under gfm; got ${JSON.stringify(documentValueLabels(gfmList))}`,
+    );
+    // A universal option's values DO complete under gfm — gfm isn't merely empty.
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    const tocList = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      (await openInMemory("---\nformat:\n  gfm:\n    toc: \n---\n")).uri,
+      new vscode.Position(3, 9), // value slot after "    toc: "
+    );
+    assert.ok(
+      documentValueLabels(tocList).includes("true"),
+      `universal 'toc' values should complete under gfm; got ${JSON.stringify(documentValueLabels(tocList))}`,
+    );
+  });
+
+  it("prepends a leading space and replaces the whole per-format value token", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    code-overflow:scroll\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(3, 20), // inside "sc|roll"; value abuts the colon at col 17
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto document option value" && labelText(i) === "scroll",
+    );
+    assert.ok(item, `the 'scroll' value item; got ${JSON.stringify(documentValueLabels(list))}`);
+    assert.strictEqual(insertTextOf(item), " scroll", "leading space added when the value abuts the colon");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.end.character, 24, "replaces through the end of 'scroll'");
+  });
+});
