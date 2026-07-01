@@ -24,11 +24,12 @@ const FIXTURE = JSON.stringify({
       description: { short: "Show code.", long: "long form…" },
     },
     { name: "eval", schema: "boolean", description: "Evaluate the cell." },
-    // A FORMAT-SCOPED cell option (tags.formats present): must be folded into the
-    // per-format source (plan §2.3) so `code-fold` isn't under-offered under html.
+    // A DOCUMENT-CONTEXT cell option (tags.contexts names a document-* context):
+    // Quarto's getFormatSchema folds it into the per-format source (plan §2.3), so
+    // it is a genuine per-format document option (kept under a matching format).
     {
       name: "code-fold",
-      tags: { formats: ["$html-all"] },
+      tags: { formats: ["$html-all"], contexts: ["document-code"] },
       schema: { anyOf: ["boolean", { enum: ["show"] }] },
       description: "Collapsible code (HTML only).",
     },
@@ -40,6 +41,16 @@ const FIXTURE = JSON.stringify({
       name: "fig-align",
       schema: { enum: ["default", "left", "right", "center"] },
       description: "Alignment",
+    },
+    // A CELL-ONLY option: it carries a tags.formats but NO document-* context, so
+    // Quarto's getFormatSchema does NOT offer it at document/format level. The
+    // per-format fold-in must EXCLUDE it (predicate is the document context, not
+    // merely tags.formats present) — the review-caught over-offer discriminator.
+    {
+      name: "fig-alt",
+      tags: { formats: ["$html-all"] },
+      schema: "string",
+      description: "Figure alt text (cell-only — no document context).",
     },
   ],
   "schema/cell-pagelayout.yml": [
@@ -261,11 +272,15 @@ describe("parseSchemaIndex — per-format option extraction (6d-6+ b2-i)", () =>
     expect(htmlOpts).not.toContain("keep-tex"); // pdf-only → absent under html
   });
 
-  it("folds in format-scoped cell-* options (`code-fold` under html, plan §2.3)", () => {
-    // code-fold lives in cell-codeoutput.yml with tags.formats ['$html-all']; it
-    // must appear under a matching format (canonical per-format cell option).
-    expect(htmlOpts).toContain("code-fold");
+  it("folds in only DOCUMENT-CONTEXT cell-* options (code-fold in, fig-alt out)", () => {
+    // Quarto's getFormatSchema (objectRefSchemaFromContextGlob('document-*')) folds a
+    // cell-* option into the per-format source ONLY when its tags.contexts names a
+    // document-* context — NOT merely because it has a tags.formats. code-fold has
+    // a document-code context (kept); fig-alt has a tags.formats but no document
+    // context (cell-only → excluded). Grounded firsthand against Quarto 1.7.33.
+    expect(htmlOpts).toContain("code-fold"); // document-code context, $html-all
     expect(gfmOpts).not.toContain("code-fold"); // $html-all excludes gfm
+    expect(htmlOpts).not.toContain("fig-alt"); // cell-only (no document context)
   });
 
   it("does NOT fold execution-only cell options (`echo`, no tags.formats) into a format", () => {

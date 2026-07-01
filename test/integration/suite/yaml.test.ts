@@ -1114,6 +1114,14 @@ describe("Quarto: YAML per-format option key completion (6d-6+ b2-i)", () => {
         `html per-format options should include ${expected}; got ${labels.length}: ${JSON.stringify(labels.slice(0, 12))}…`,
       );
     }
+    // `fig-alt` is a real cell-only figure option ($html-all formats but NO
+    // document context), so Quarto's getFormatSchema does NOT offer it at format
+    // level — the per-format fold-in must exclude it (document-context predicate,
+    // not merely tags.formats present; review-caught fidelity fix).
+    assert.ok(
+      !labels.includes("fig-alt"),
+      `cell-only 'fig-alt' must NOT be offered as a per-format document option; got ${JSON.stringify(labels.slice(0, 16))}…`,
+    );
   });
 
   it("DISCRIMINATES by format: html-only keys are ABSENT under gfm; universals stay (gate d)", async () => {

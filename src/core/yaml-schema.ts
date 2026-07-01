@@ -44,6 +44,15 @@ export interface SchemaField {
    * every format).
    */
   formats?: string[];
+  /**
+   * The raw `tags.contexts` list — the schema "contexts" a cell option also belongs
+   * to (e.g. `document-code`, `document-figures`). A cell-* option is a genuine
+   * per-format DOCUMENT option only when a context matches `document-*`; Quarto's
+   * `getFormatSchema` (`objectRefSchemaFromContextGlob("document-*")`) folds in
+   * exactly those (Slice 6d-6+ b2-i, `perFormatSource`). Unset for `document-*`
+   * fields (already document-level by file) and for pure cell-only options.
+   */
+  contexts?: string[];
 }
 
 /** The two boolean values offered for a plain boolean option, in order. */
@@ -426,6 +435,29 @@ function formatsTag(tags: unknown): string[] | undefined {
 }
 
 /**
+ * The raw `tags.contexts` list (schema contexts an option belongs to, e.g.
+ * `document-code`), or `undefined` when absent. A single string is normalized to
+ * a one-element list; non-string members are dropped defensively. Consumed by the
+ * per-format cell-* fold-in (`hasDocumentContext`).
+ */
+function contextsTag(tags: unknown): string[] | undefined {
+  if (tags === null || typeof tags !== "object") {
+    return undefined;
+  }
+  const contexts = (tags as Record<string, unknown>).contexts;
+  const list = Array.isArray(contexts)
+    ? contexts
+    : typeof contexts === "string"
+      ? [contexts]
+      : undefined;
+  if (list === undefined) {
+    return undefined;
+  }
+  const strings = list.filter((c): c is string => typeof c === "string");
+  return strings.length > 0 ? strings : undefined;
+}
+
+/**
  * The curated cell options as a `SchemaIndex` — the permanent fallback the
  * runtime reader degrades to whenever the installed schema cannot be read or
  * parsed (Phase 6d plan §2.5). Interchangeable with a parsed index.
@@ -560,6 +592,10 @@ function toField(entry: unknown, definitions: Map<string, unknown>): SchemaField
   if (formats !== undefined) {
     field.formats = formats;
   }
+  const contexts = contextsTag(e.tags);
+  if (contexts !== undefined) {
+    field.contexts = contexts;
+  }
   return field;
 }
 
@@ -595,12 +631,18 @@ export function parseSchemaIndex(jsonText: string): SchemaIndex {
 }
 
 /**
- * The per-format option source (Slice 6d-6+ b2-i, plan §2.3): every `document-*`
- * field (tagged or universal) plus the format-scoped `cell-*` fields — those cell
- * options carrying a `tags.formats` (e.g. `code-fold`, `fig-align`, `code-line-numbers`),
- * excluding the pure execution flags (`echo`/`eval`, which have no `formats` tag).
+ * The per-format option source (Slice 6d-6+ b2-i, plan §2.3), mirroring Quarto's
+ * `getFormatSchema` (`objectRefSchemaFromContextGlob("document-*")`): every
+ * `document-*` field (document-level by file) PLUS the `cell-*` options whose
+ * `tags.contexts` names a `document-*` context — the genuine per-format DOCUMENT
+ * options (e.g. `code-fold`→`document-code`, `fig-align`→`document-figures`,
+ * `code-line-numbers`, `tbl-colwidths`→`document-tables`, `cap-location`→`document-layout`).
+ * A cell option that carries a `tags.formats` but NO document context (e.g.
+ * `fig-alt`, `external`, dashboard's `color`/`content`) is CELL-ONLY — Quarto does
+ * not offer it at format level, so it is excluded (the fold-in predicate is the
+ * document context, not merely `tags.formats` present — review-caught fidelity).
  * De-duplicated by name, `document-*` winning. The `["format", fmt]` index branch
- * filters this by `formatMatches`.
+ * then filters this source by `formatMatches`.
  */
 function perFormatSource(
   fmFields: SchemaField[],
@@ -608,9 +650,19 @@ function perFormatSource(
 ): SchemaField[] {
   const seen = new Set(fmFields.map((f) => f.name));
   const scopedCell = cellFields.filter(
-    (f) => f.formats !== undefined && !seen.has(f.name),
+    (f) => hasDocumentContext(f) && !seen.has(f.name),
   );
   return [...fmFields, ...scopedCell];
+}
+
+/**
+ * Whether a `cell-*` option belongs to a `document-*` schema context (its
+ * `tags.contexts` has an entry matching the `document-*` glob), making it a
+ * per-format DOCUMENT option in Quarto's `getFormatSchema` rather than a cell-only
+ * option. The glob `document-*` is a prefix match on `document-`.
+ */
+function hasDocumentContext(field: SchemaField): boolean {
+  return field.contexts?.some((c) => c.startsWith("document-")) === true;
 }
 
 /**
