@@ -1202,7 +1202,7 @@ describe("Quarto: YAML per-format option key completion (6d-6+ b2-i)", () => {
  * `scroll`/`wrap` enum comes ONLY from the runtime reader (absent from the curated
  * fallback), so a green proves the reader resolved a per-format value end-to-end
  * against the user's real installed schema — break-revert-provable by forcing
- * quartoSharePath to throw (scroll/wrap vanish; universal toc stays). Being
+ * quartoSharePath to throw (scroll/wrap vanish; the curated `toc` values stay). Being
  * format-scoped, it also offers NO values under gfm (the key is filtered out of the
  * per-format set) — the per-format VALUE discrimination.
  */
@@ -1233,7 +1233,7 @@ describe("Quarto: YAML per-format option value completion (6d-6+ b2-ii)", () => 
     }
   });
 
-  it("DISCRIMINATES by format: an html-only option offers NO values under gfm; a universal one stays", async () => {
+  it("DISCRIMINATES by format: an html-only option offers NO values under gfm; a gfm-valid one stays", async () => {
     const htmlList = await vscode.commands.executeCommand<vscode.CompletionList>(
       "vscode.executeCompletionItemProvider",
       (await openInMemory("---\nformat:\n  html:\n    code-overflow: \n---\n")).uri,
@@ -1252,7 +1252,8 @@ describe("Quarto: YAML per-format option value completion (6d-6+ b2-ii)", () => 
       !documentValueLabels(gfmList).includes("scroll"),
       `code-overflow (html-only) must offer no values under gfm; got ${JSON.stringify(documentValueLabels(gfmList))}`,
     );
-    // A universal option's values DO complete under gfm — gfm isn't merely empty.
+    // `toc` is valid for gfm (its tags.formats is all-except man/docbook/jats), so
+    // its values still complete there — gfm isn't merely empty.
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
     const tocList = await vscode.commands.executeCommand<vscode.CompletionList>(
       "vscode.executeCompletionItemProvider",
@@ -1261,7 +1262,7 @@ describe("Quarto: YAML per-format option value completion (6d-6+ b2-ii)", () => 
     );
     assert.ok(
       documentValueLabels(tocList).includes("true"),
-      `universal 'toc' values should complete under gfm; got ${JSON.stringify(documentValueLabels(tocList))}`,
+      `gfm-valid 'toc' values should complete under gfm; got ${JSON.stringify(documentValueLabels(tocList))}`,
     );
   });
 
