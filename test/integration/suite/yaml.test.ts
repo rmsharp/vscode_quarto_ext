@@ -1077,3 +1077,107 @@ describe("Quarto: YAML top-level format scalar value completion (6d-6+)", () => 
     assert.ok(!labels.includes("html"), `'html' must not leak onto toc's values; got ${JSON.stringify(labels)}`);
   });
 });
+
+/**
+ * Slice 6d-6+ (b2-i) — per-format option KEY completion. On an option-key line two
+ * levels under `format:` (`format:\n  html:\n    <key>`), the provider offers the
+ * options Quarto considers valid for that concrete format (the `tags.formats`
+ * filter, alias-expanded, negation-aware). The gate-d discriminator (Learning #9):
+ * `theme` (document-*, valid for html/revealjs, INVALID for gfm) and `code-fold`
+ * (a format-scoped cell-* option folded in per plan §2.3, valid for html, INVALID
+ * for gfm) must appear under `format:\n  html:` and be ABSENT under `format:\n  gfm:`
+ * — this fails against a naive document-* union, so a green proves the FILTER ran
+ * end-to-end against the user's real installed schema, not just the reader.
+ */
+describe("Quarto: YAML per-format option key completion (6d-6+ b2-i)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("offers html's valid options two levels under format:, incl. a folded-in cell option", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(3, 4), // blank per-format option slot under format>html
+    );
+    const labels = documentOptionLabels(list);
+    for (const expected of ["theme", "toc", "code-fold"]) {
+      assert.ok(
+        labels.includes(expected),
+        `html per-format options should include ${expected}; got ${labels.length}: ${JSON.stringify(labels.slice(0, 12))}…`,
+      );
+    }
+  });
+
+  it("DISCRIMINATES by format: html-only keys are ABSENT under gfm; universals stay (gate d)", async () => {
+    const html = documentOptionLabels(
+      await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        (await openInMemory("---\nformat:\n  html:\n    \n---\n")).uri,
+        new vscode.Position(3, 4),
+      ),
+    );
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    const gfm = documentOptionLabels(
+      await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        (await openInMemory("---\nformat:\n  gfm:\n    \n---\n")).uri,
+        new vscode.Position(3, 4),
+      ),
+    );
+    // The filter ran: html-scoped options appear under html, NOT under gfm.
+    assert.ok(html.includes("theme"), `theme valid for html; got ${JSON.stringify(html.slice(0, 12))}…`);
+    assert.ok(!gfm.includes("theme"), `theme (html/revealjs-only) must be ABSENT under gfm; got ${JSON.stringify(gfm.slice(0, 12))}…`);
+    assert.ok(html.includes("code-fold"), "code-fold valid for html");
+    assert.ok(!gfm.includes("code-fold"), "code-fold ($html-all) must be ABSENT under gfm");
+    // Universal options survive under both — gfm isn't merely empty.
+    assert.ok(gfm.includes("toc"), `universal 'toc' present under gfm; got ${JSON.stringify(gfm.slice(0, 12))}…`);
+  });
+
+  it("replace range covers the whole per-format key token on a mid-token cursor", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    theme\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(3, 6), // inside "th|eme"; key spans [4,9)
+    );
+    const item = (list?.items ?? []).find((i) => i.detail === "Quarto document option");
+    assert.ok(item, "at least one per-format key item");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.start.character, 4, "replaces from the nested key start");
+    assert.strictEqual(range.end.character, 9, "replaces through the end of 'theme'");
+  });
+
+  it("offers NOTHING three levels under format: (deep nesting deferred, b2-iii)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    theme:\n      \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 6), // three levels deep (under format>html>theme)
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "no per-format keys three levels deep");
+  });
+
+  it("keeps @ cross-ref completion SUPPRESSED under a per-format slot (complement gating)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    @\n---\n\n# Intro {#sec-intro}\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(3, 5), // right after the '@' in a per-format slot
+      "@",
+    );
+    const labels = (list?.items ?? []).map(labelText);
+    assert.ok(
+      !labels.includes("@sec-intro"),
+      `@ completion must be suppressed in front matter; got ${JSON.stringify(labels)}`,
+    );
+  });
+});
