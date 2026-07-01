@@ -52,8 +52,10 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 **Deliverable:** **Phase 6d-6+ (b2) PLAN — per-format options + deeper nesting completion.** A **planning session** (deliverable = the plan doc, NOT code — FM #18). **`docs/planning/2026-06-30-phase-6d6b2-per-format-options-plan.md` (WRITTEN + committed).** Mirrors the Session 17 (6d plan) / Session 27 (6e plan) grounding-then-plan pattern.
 
 **What was done (commits, planning session — doc + docs only):**
-1. `f3c9705`(≈) chore: claim Session 33 (Phase 1B stub).
-2. (this close-out) docs: the b2 plan + SESSION_NOTES + CLAUDE.md Learning #40 + BACKLOG/ROADMAP/CHANGELOG + dashboard refresh.
+1. `ba02dce` chore: claim Session 33 (Phase 1B stub).
+2. `90b59d1` docs: the b2 plan + CLAUDE.md Learning #40 + SESSION_NOTES handoff.
+3. `66fcf7c` docs: BACKLOG/CHANGELOG/ROADMAP records (split for the ≤5-file blast-radius cap).
+4. `c9328ae` chore: refresh methodology dashboard (Session 33 close-out).
 **No code changed** — planning session, so Phase 3E (runtime smoke test) does NOT apply (deliverable changes no runtime behavior). Build unchanged from Session 32 (431 unit / 150 integration; clean 33-file `.vsix`).
 
 **🔑 THE HEADLINE FINDING (→ Learning #40): the "🐉 recursive `schema.yml` object-graph walk" the parent 6d plan (§6 6d-6+) and the Session-32 handoff feared is DISSOLVED by grounding.** Per-format option scoping is NOT a meta-schema walk — `schema/schema.yml` is only the DSL *grammar* (20 records: `schema/scalar`/`schema/enum`/`schema/ref`/`schema/resolve-ref`/…). Quarto's own editor (`getFormatSchema`/`useSchema` in the installed `web-worker.js`) derives per-format options with a **bounded flat filter** over the `document-*`/`cell-*` field lists keyed by each field's **`tags.formats`**, alias-expanded through the closed **14-entry `schema/format-aliases.yml`** table, negation-aware. So (b2) is **~2 implementation sessions**, not a recursive-walk epic.
