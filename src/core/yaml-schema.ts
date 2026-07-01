@@ -16,6 +16,8 @@
  *      (`features/yaml-schema-source.ts`); this module stays `vscode`-free.
  */
 
+import { formatMatches, type FormatAliases } from "./format-aliases";
+
 /** One completable schema field — a cell option (6d-1) or, later, a front-matter key. */
 export interface SchemaField {
   /** The option/key name, e.g. `"echo"`, `"fig-cap"`. */
@@ -34,6 +36,14 @@ export interface SchemaField {
    * option applies to all engines.
    */
   engine?: "knitr" | "jupyter";
+  /**
+   * The raw `tags.formats` list scoping this option to output formats — concrete
+   * names (`revealjs`), `$`-alias-group refs (`$pdf-all`), and `!`-negations
+   * (`!man`). Consumed by per-format completion (`formatMatches`, Slice 6d-6+
+   * b2-i). Unset means the option is format-agnostic (universal — valid for
+   * every format).
+   */
+  formats?: string[];
 }
 
 /** The two boolean values offered for a plain boolean option, in order. */
@@ -257,6 +267,32 @@ export const CURATED_FORMAT_NAMES: SchemaField[] = [
   { name: "dashboard", description: "Quarto dashboard." },
 ];
 
+/**
+ * A small set of UNIVERSAL (format-agnostic) options, the permanent offline
+ * fallback for per-format completion (Slice 6d-6+ b2-i) served for
+ * `frontMatterKeys(["format", fmt])` when the runtime reader is unavailable. A
+ * full per-format set (155+ options for html) is infeasible to curate and the
+ * reader is a hard dependency, so this is only the rare-path approximation: every
+ * option here is valid for every format (no `formats` tag → `formatMatches`
+ * admits it for any `fmt`). Names are uncopyrightable facts; descriptions ours.
+ */
+export const CURATED_FORMAT_OPTIONS: SchemaField[] = [
+  { name: "toc", description: "Include a table of contents.", values: BOOL },
+  { name: "number-sections", description: "Number section headings.", values: BOOL },
+  { name: "fig-width", description: "Default figure width in inches." },
+  { name: "fig-height", description: "Default figure height in inches." },
+  {
+    name: "fig-format",
+    description: "Figure output format.",
+    values: ["retina", "png", "jpeg", "svg", "pdf"],
+  },
+  {
+    name: "df-print",
+    description: "How data frames are printed (`default`, `kable`, `tibble`, `paged`).",
+    values: ["default", "kable", "tibble", "paged"],
+  },
+];
+
 // ── Runtime schema index (Slice 6d-3) ───────────────────────────────────────
 
 /**
@@ -279,8 +315,11 @@ export interface SchemaIndex {
    * top-level `format: <here>` scalar completes them (6d-6+). The allow-listed
    * one-level containers return their children — `["execute"]` the curated execute
    * children (6d-6), `["format"]` the output-format names (6d-6 cont., reader-
-   * derived with a curated fallback). Any other path — a non-allow-listed
-   * container or a deeper nesting — yields `[]` (recursive resolution is deferred).
+   * derived with a curated fallback). A two-level `["format", fmt]` path returns
+   * the per-format options valid for that concrete format (6d-6+ b2-i: the
+   * document-* ∪ format-scoped cell-* fields whose `tags.formats` admit `fmt`).
+   * Any other path — a non-allow-listed container or deeper nesting — yields `[]`
+   * (recursive resolution of deep nesting is deferred, b2-iii).
    */
   frontMatterKeys(parentPath: string[]): SchemaField[];
 }
@@ -293,6 +332,8 @@ function indexOf(
   cellFields: SchemaField[],
   fmFields: SchemaField[],
   formatFields: SchemaField[],
+  perFormatFields: SchemaField[],
+  aliases: FormatAliases,
 ): SchemaIndex {
   // The top-level `format:` value is an output-format NAME (`html`, `pdf`, …), but
   // the flat document-key list models `format` only as a same-named epub-scoped
@@ -329,6 +370,15 @@ function indexOf(
       if (parentPath.length === 1 && parentPath[0] === "format") {
         return formatFields;
       }
+      // Per-format options (6d-6+ b2-i): under `format:\n  <fmt>:`, the document-*
+      // ∪ format-scoped cell-* fields whose `tags.formats` admit the concrete
+      // format `<fmt>`, alias-expanded and negation-aware (Quarto's `useSchema`).
+      // An unknown format keeps only the untagged (universal) fields — safe
+      // degradation, never a wrong key.
+      if (parentPath.length === 2 && parentPath[0] === "format") {
+        const fmt = parentPath[1];
+        return perFormatFields.filter((f) => formatMatches(f.formats, fmt, aliases));
+      }
       return [];
     },
   };
@@ -358,6 +408,24 @@ function engineTag(tags: unknown): "knitr" | "jupyter" | undefined {
 }
 
 /**
+ * The raw `tags.formats` list (concrete names / `$`-alias refs / `!`-negations)
+ * scoping an option to output formats, or `undefined` when it is format-agnostic.
+ * Non-string members are dropped defensively; an empty result is treated as unset
+ * (universal), so a malformed tag never wrongly narrows an option to no formats.
+ */
+function formatsTag(tags: unknown): string[] | undefined {
+  if (tags === null || typeof tags !== "object") {
+    return undefined;
+  }
+  const formats = (tags as Record<string, unknown>).formats;
+  if (!Array.isArray(formats)) {
+    return undefined;
+  }
+  const strings = formats.filter((f): f is string => typeof f === "string");
+  return strings.length > 0 ? strings : undefined;
+}
+
+/**
  * The curated cell options as a `SchemaIndex` — the permanent fallback the
  * runtime reader degrades to whenever the installed schema cannot be read or
  * parsed (Phase 6d plan §2.5). Interchangeable with a parsed index.
@@ -366,6 +434,8 @@ export const CURATED_SCHEMA_INDEX: SchemaIndex = indexOf(
   CURATED_CELL_OPTIONS,
   CURATED_FRONTMATTER_KEYS,
   CURATED_FORMAT_NAMES,
+  CURATED_FORMAT_OPTIONS,
+  new Map(), // no `$`-aliases needed: curated per-format options are all universal
 );
 
 /** Strip a leading UTF-8 BOM, which `JSON.parse` rejects (Learning #16c). */
@@ -486,6 +556,10 @@ function toField(entry: unknown, definitions: Map<string, unknown>): SchemaField
   if (engine !== undefined) {
     field.engine = engine;
   }
+  const formats = formatsTag(e.tags);
+  if (formats !== undefined) {
+    field.formats = formats;
+  }
   return field;
 }
 
@@ -508,10 +582,58 @@ export function parseSchemaIndex(jsonText: string): SchemaIndex {
     // unparseable input — degrade rather than offer nothing.
     return cellFields.length === 0 && fmFields.length === 0
       ? CURATED_SCHEMA_INDEX
-      : indexOf(cellFields, fmFields, collectFormatNames(data));
+      : indexOf(
+          cellFields,
+          fmFields,
+          collectFormatNames(data),
+          perFormatSource(fmFields, cellFields),
+          parseFormatAliases(data["schema/format-aliases.yml"]),
+        );
   } catch {
     return CURATED_SCHEMA_INDEX;
   }
+}
+
+/**
+ * The per-format option source (Slice 6d-6+ b2-i, plan §2.3): every `document-*`
+ * field (tagged or universal) plus the format-scoped `cell-*` fields — those cell
+ * options carrying a `tags.formats` (e.g. `code-fold`, `fig-align`, `code-line-numbers`),
+ * excluding the pure execution flags (`echo`/`eval`, which have no `formats` tag).
+ * De-duplicated by name, `document-*` winning. The `["format", fmt]` index branch
+ * filters this by `formatMatches`.
+ */
+function perFormatSource(
+  fmFields: SchemaField[],
+  cellFields: SchemaField[],
+): SchemaField[] {
+  const seen = new Set(fmFields.map((f) => f.name));
+  const scopedCell = cellFields.filter(
+    (f) => f.formats !== undefined && !seen.has(f.name),
+  );
+  return [...fmFields, ...scopedCell];
+}
+
+/**
+ * The `schema/format-aliases.yml` table (`{aliases: {name: members}}`) as a
+ * `FormatAliases` map for `formatMatches`. Never throws: a missing/odd shape
+ * yields an empty map, and non-string members are dropped — the filter then treats
+ * an unknown `$`-alias as its bare name (a safe degradation, never wrong keys).
+ */
+function parseFormatAliases(raw: unknown): FormatAliases {
+  const map: FormatAliases = new Map();
+  if (raw === null || typeof raw !== "object") {
+    return map;
+  }
+  const aliases = (raw as Record<string, unknown>).aliases;
+  if (aliases === null || typeof aliases !== "object") {
+    return map;
+  }
+  for (const [name, members] of Object.entries(aliases as Record<string, unknown>)) {
+    if (Array.isArray(members)) {
+      map.set(name, members.filter((m): m is string => typeof m === "string"));
+    }
+  }
+  return map;
 }
 
 /**

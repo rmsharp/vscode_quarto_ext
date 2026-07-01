@@ -24,6 +24,14 @@ const FIXTURE = JSON.stringify({
       description: { short: "Show code.", long: "long form…" },
     },
     { name: "eval", schema: "boolean", description: "Evaluate the cell." },
+    // A FORMAT-SCOPED cell option (tags.formats present): must be folded into the
+    // per-format source (plan §2.3) so `code-fold` isn't under-offered under html.
+    {
+      name: "code-fold",
+      tags: { formats: ["$html-all"] },
+      schema: { anyOf: ["boolean", { enum: ["show"] }] },
+      description: "Collapsible code (HTML only).",
+    },
   ],
   "schema/cell-figure.yml": [
     { name: "fig-cap", schema: { maybeArrayOf: "string" }, description: "Figure caption" },
@@ -71,7 +79,32 @@ const FIXTURE = JSON.stringify({
   "schema/document-options.yml": [
     { name: "toc", schema: "boolean", description: { short: "Table of contents." } },
     { name: "secret", hidden: true, schema: "string", description: "Hidden — excluded." },
+    // A format-scoped document key valid for html/revealjs but NOT gfm — the
+    // per-format filter discriminator (b2-i).
+    {
+      name: "theme",
+      tags: { formats: ["$html-doc", "revealjs"] },
+      schema: "string",
+      description: "Visual theme (HTML/revealjs only).",
+    },
+    // A pdf-only document key — must be EXCLUDED under html (proves the filter runs).
+    {
+      name: "keep-tex",
+      tags: { formats: ["$pdf-all"] },
+      schema: "boolean",
+      description: "Keep intermediate TeX (PDF only).",
+    },
   ],
+  // The alias table (`schema/format-aliases.yml`, `{aliases: …}`) the reader
+  // extracts to expand `$`-aliases in `tags.formats`. A small nested subset
+  // mirroring the real 14-entry table's SHAPE (grounded against Quarto 1.7.33).
+  "schema/format-aliases.yml": {
+    aliases: {
+      "html-doc": ["html", "html4", "html5"],
+      "html-all": ["$html-doc", "dashboard"], // nested
+      "pdf-all": ["latex", "pdf", "beamer"],
+    },
+  },
   // Mirrors the real collision: the only `format` field in `document-*.yml` is an
   // epub-scoped STRING (no value enum). The index enriches it with the format names
   // so a top-level `format: <here>` scalar completes them (6d-6+).
@@ -206,6 +239,49 @@ describe("parseSchemaIndex — format-name extraction (6d-6 cont.)", () => {
     const fmtValues = index.frontMatterKeys([]).find((f) => f.name === "format")?.values;
     expect(fmtValues).toEqual(formatNames);
     expect(fmtValues, "reader-derived (docbook is not in the curated fallback)").toContain("docbook");
+  });
+});
+
+describe("parseSchemaIndex — per-format option extraction (6d-6+ b2-i)", () => {
+  const index = parseSchemaIndex(FIXTURE);
+  const htmlOpts = index.frontMatterKeys(["format", "html"]).map((f) => f.name);
+  const gfmOpts = index.frontMatterKeys(["format", "gfm"]).map((f) => f.name);
+
+  it("offers a format-scoped document key valid for that format (`theme` under html)", () => {
+    expect(htmlOpts).toContain("theme"); // tags.formats ['$html-doc', 'revealjs']
+  });
+
+  it("offers UNTAGGED (universal) document keys for every format (`toc`)", () => {
+    expect(htmlOpts).toContain("toc");
+    expect(gfmOpts).toContain("toc");
+  });
+
+  it("EXCLUDES options not valid for the format (the filter discriminates)", () => {
+    expect(gfmOpts).not.toContain("theme"); // html/revealjs-only → absent under gfm
+    expect(htmlOpts).not.toContain("keep-tex"); // pdf-only → absent under html
+  });
+
+  it("folds in format-scoped cell-* options (`code-fold` under html, plan §2.3)", () => {
+    // code-fold lives in cell-codeoutput.yml with tags.formats ['$html-all']; it
+    // must appear under a matching format (canonical per-format cell option).
+    expect(htmlOpts).toContain("code-fold");
+    expect(gfmOpts).not.toContain("code-fold"); // $html-all excludes gfm
+  });
+
+  it("does NOT fold execution-only cell options (`echo`, no tags.formats) into a format", () => {
+    expect(htmlOpts).not.toContain("echo"); // format-agnostic cell flag, not a per-format option
+  });
+
+  it("degrades an unknown format to universal-only (never wrong keys)", () => {
+    const unknown = index.frontMatterKeys(["format", "nosuchformat"]).map((f) => f.name);
+    expect(unknown).toContain("toc"); // universal survives
+    expect(unknown).not.toContain("theme"); // format-scoped excluded
+  });
+
+  it("the curated fallback serves a small universal per-format set", () => {
+    const curated = CURATED_SCHEMA_INDEX.frontMatterKeys(["format", "html"]).map((f) => f.name);
+    expect(curated.length).toBeGreaterThan(0);
+    expect(curated).toContain("toc");
   });
 });
 

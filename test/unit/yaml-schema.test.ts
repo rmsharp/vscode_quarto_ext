@@ -3,6 +3,7 @@ import {
   CURATED_CELL_OPTIONS,
   CURATED_EXECUTE_KEYS,
   CURATED_FORMAT_NAMES,
+  CURATED_FORMAT_OPTIONS,
   CURATED_FRONTMATTER_KEYS,
   CURATED_SCHEMA_INDEX,
 } from "../../src/core/yaml-schema";
@@ -292,6 +293,28 @@ describe("CURATED_FORMAT_NAMES — nested format names (6d-6 cont.)", () => {
     // the generic value path (no provider special-case).
     const format = CURATED_SCHEMA_INDEX.frontMatterKeys([]).find((f) => f.name === "format");
     expect(format?.values).toEqual(CURATED_FORMAT_NAMES.map((f) => f.name));
+  });
+});
+
+describe("CURATED_FORMAT_OPTIONS — offline per-format fallback (6d-6+ b2-i)", () => {
+  it("is a non-empty set of well-formed, UNIVERSAL fields (no format tag)", () => {
+    expect(CURATED_FORMAT_OPTIONS.length).toBeGreaterThan(0);
+    for (const field of CURATED_FORMAT_OPTIONS) {
+      expect(field.name).toMatch(/^[A-Za-z][A-Za-z0-9_-]*$/);
+      expect(field.description, `${field.name} needs a description`).toBeTruthy();
+      // Every curated per-format option is universal so the offline fallback is
+      // valid for any format (the reader supplies real per-format scoping).
+      expect(field.formats, `${field.name} must be universal (no format tag)`).toBeUndefined();
+    }
+  });
+
+  it("is what CURATED_SCHEMA_INDEX serves for any `[format, fmt]` path (universal)", () => {
+    // All curated options are universal, so the offline per-format set is the same
+    // for every format (html and gfm alike) — the whole curated set.
+    const html = CURATED_SCHEMA_INDEX.frontMatterKeys(["format", "html"]);
+    const gfm = CURATED_SCHEMA_INDEX.frontMatterKeys(["format", "gfm"]);
+    expect(html).toEqual(CURATED_FORMAT_OPTIONS);
+    expect(gfm).toEqual(CURATED_FORMAT_OPTIONS);
   });
 });
 
