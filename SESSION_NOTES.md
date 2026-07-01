@@ -48,6 +48,11 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 
 *Session history accumulates below this line. Newest session at the top.*
 
+### What Session 34 Did — 2026-06-30
+**Deliverable:** **Phase 6d-6+ (b2-i) — per-format option KEY completion** (implementation, strict-TDD vertical slice; plan `docs/planning/2026-06-30-phase-6d6b2-per-format-options-plan.md` §6 b2-i). (IN PROGRESS)
+**Started:** 2026-06-30
+**Status:** Session claimed. Work beginning. Contract re-verified at Orient (Session 33 plan approved; state unchanged).
+
 ### What Session 33 Did — 2026-06-30
 **Deliverable:** **Phase 6d-6+ (b2) PLAN — per-format options + deeper nesting completion.** A **planning session** (deliverable = the plan doc, NOT code — FM #18). **`docs/planning/2026-06-30-phase-6d6b2-per-format-options-plan.md` (WRITTEN + committed).** Mirrors the Session 17 (6d plan) / Session 27 (6e plan) grounding-then-plan pattern.
 
