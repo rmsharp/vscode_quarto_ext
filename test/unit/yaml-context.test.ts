@@ -298,10 +298,41 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
     });
   });
 
-  it("bails (null) on a per-format option line — deeper nesting under a format name", () => {
+  it("returns a per-format KEY context two levels under `format:` (6d-6+ b2-i)", () => {
     const text = ["---", "format:", "  html:", "    toc: true", "---"].join("\n");
-    // "    toc" is two levels deep; its parent `  html:` is itself indented, so the
-    // one-level detector bails (per-format options are a deferred deeper slice).
+    // "    toc" is a per-format option key under format>html; the bounded 2-level
+    // ancestor walk (rooted at `format`) yields ["format","html"] (was deferred).
+    const ctx = completionContextAt(text, offsetAt(text, 3, 6)); // in "to|c"
+    expect(ctx).toEqual({
+      kind: "frontmatter-key",
+      parentPath: ["format", "html"],
+      token: "to",
+      replaceRange: { line: 3, startCol: 4, endCol: 7 }, // covers all of "toc"
+    });
+  });
+
+  it("offers all per-format keys (empty token) on a blank line under `format: <fmt>`", () => {
+    const text = ["---", "format:", "  html:", "    ", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 3, 4));
+    expect(ctx).toEqual({
+      kind: "frontmatter-key",
+      parentPath: ["format", "html"],
+      token: "",
+      replaceRange: { line: 3, startCol: 4, endCol: 4 },
+    });
+  });
+
+  it("bails (null) THREE levels under `format:` — deep nesting is deferred (b2-iii)", () => {
+    const text = ["---", "format:", "  html:", "    theme:", "      x", "---"].join("\n");
+    // "      x" is three levels deep (under format>html>theme); the 2-level walk
+    // bails rather than offer wrong keys — deep nesting is the deferred residue.
+    expect(completionContextAt(text, offsetAt(text, 4, 7))).toBeNull(); // in "x"
+  });
+
+  it("bails (null) two levels under a NON-`format` root (the walk is format-rooted)", () => {
+    const text = ["---", "website:", "  html:", "    toc: x", "---"].join("\n");
+    // The 2-level walk is rooted at `format` only; any other 2-level root bails
+    // (mirrors the `execute:\n  julia:\n    exeflags` guard above).
     expect(completionContextAt(text, offsetAt(text, 3, 6))).toBeNull();
   });
 });

@@ -144,17 +144,18 @@ function frontMatterContextAt(
 }
 
 /**
- * The nested front-matter KEY context for an indented line whose enclosing
- * container is one of `NESTED_CONTAINERS` (Slice 6d-6, the "cheap one-level
- * approximation"), or `null`. The detector is deliberately conservative — it
- * offers nested keys ONLY when nesting is unambiguous, and **bails (`null`) on
- * anything else** rather than offer wrong keys (plan §7): the line must be an
- * indented key line (not a `- ` sequence item or a `#` comment); its parent must
- * be a column-0, allow-listed key (one level only — a deeper or non-allow-listed
- * parent yields `null`); and the parent must be a *pure mapping container* (no
- * scalar / block-scalar `|`,`>` / flow `[`,`{` value). The key slot completes a
+ * The nested front-matter KEY or VALUE context for an indented line whose
+ * enclosing structure is one this slice completes, or `null`. The detector is
+ * deliberately conservative — it offers nested keys ONLY when nesting is
+ * unambiguous, and **bails (`null`) on anything else** rather than offer wrong
+ * keys (plan §7): the line must be an indented key line (not a `- ` sequence item
+ * or a `#` comment) and its enclosing container(s) must form one of the two
+ * shapes `nestedParentPath` allows — one level under an allow-listed container
+ * (`execute:`/`format:` → `[container]`) or two levels under `format:`
+ * (`format:\n  <fmt>:\n    <key>` → `["format", <fmt>]`, Slice 6d-6+ b2-i).
+ * Deeper nesting is the deferred residue (b2-iii). The key slot completes a
  * nested key (`frontmatter-key`); the value slot past the colon completes that
- * child key's values (`frontmatter-value`, `parentPath` = [container, key]).
+ * child key's values (`frontmatter-value`, `parentPath` = [container…, key]).
  */
 function nestedKeyContextAt(
   lines: string[],
@@ -171,27 +172,10 @@ function nestedKeyContextAt(
   if (rest.startsWith("-") || rest.startsWith("#")) {
     return null; // a block-sequence item / comment hosts no nested key
   }
-  const parent = nearestShallowerLine(lines, line, indent);
-  if (parent === null) {
-    return null;
-  }
-  // One level only: the container must be a column-0 mapping key.
-  if (/^[ \t]/.test(parent) || parent.startsWith("-") || parent.startsWith("#")) {
-    return null;
-  }
-  const pColon = parent.indexOf(":");
-  if (pColon < 0) {
-    return null;
-  }
-  const parentKey = parent.slice(0, pColon).replace(/[ \t]+$/, "");
-  if (!NESTED_CONTAINERS.has(parentKey)) {
-    return null;
-  }
-  // The container must be a pure mapping: nothing but an optional comment after
-  // the colon. A scalar (`execute: false`), block scalar (`|`/`>`), or flow
-  // (`[…]`/`{…}`) value means this is not a one-level mapping we can complete.
-  const parentValue = parent.slice(pColon + 1).replace(/^[ \t]+/, "");
-  if (parentValue !== "" && !parentValue.startsWith("#")) {
+  // The mapping path from the document root to this line (one or two levels), or
+  // `null` if the enclosing structure is not one this slice completes.
+  const parentPath = nestedParentPath(lines, line, indent);
+  if (parentPath === null) {
     return null;
   }
   const nlColon = lineText.indexOf(":", indent);
@@ -202,21 +186,21 @@ function nestedKeyContextAt(
   if (col >= keySlot.startCol && col <= keySlot.endCol) {
     return {
       kind: "frontmatter-key",
-      parentPath: [parentKey],
+      parentPath,
       token: lineText.slice(keySlot.startCol, col),
       replaceRange: { line, startCol: keySlot.startCol, endCol: keySlot.endCol },
     };
   }
-  // A nested VALUE position past the colon (6d-6 continuation): complete the
-  // child key's enum/boolean values. `parentPath` is [container, key being
-  // valued] so the provider resolves them from `frontMatterKeys([container])`.
-  // The value slot uses the same grammar as a top-level value (shared helper).
+  // A nested VALUE position past the colon: complete the child key's enum/boolean
+  // values. `parentPath` grows to [container…, key being valued] so the provider
+  // resolves them from `frontMatterKeys(parentPath.slice(0,-1))`. The value slot
+  // uses the same grammar as a top-level value (shared helper).
   if (nlColon >= 0) {
     const valueSlot = valueSlotAfterColon(lineText, nlColon);
     if (col >= valueSlot.startCol && col <= valueSlot.endCol) {
       return {
         kind: "frontmatter-value",
-        parentPath: [parentKey, keyText],
+        parentPath: [...parentPath, keyText],
         token: lineText.slice(valueSlot.startCol, col),
         replaceRange: { line, startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       };
@@ -226,31 +210,103 @@ function nestedKeyContextAt(
 }
 
 /**
- * The text of the nearest line above `line` whose indentation is strictly less
- * than `indent`, skipping blank and comment lines, or `null` if none — the
- * enclosing-mapping candidate for `nestedKeyContextAt`. Lines at or deeper than
+ * The mapping path from the document root to an option line indented at `indent`,
+ * or `null` if the enclosing structure is not one this slice completes. A bounded
+ * ancestor walk allowing at most two levels:
+ *   - ONE level: the nearest shallower line is a column-0 allow-listed container
+ *     (`execute:` / `format:`) → `[container]`;
+ *   - TWO levels (`format`-rooted only): the container is itself indented and ITS
+ *     parent is a column-0 `format:` mapping → `["format", <fmt>]` (Slice b2-i).
+ * Bails (`null`) on anything else — a third indented ancestor, a 2-level root that
+ * is not `format`, a scalar / flow / block-scalar intermediate container, or a
+ * sequence item — rather than offer wrong keys (plan §7). Deep nesting below the
+ * first per-format level is the deferred residue (b2-iii).
+ */
+function nestedParentPath(
+  lines: string[],
+  line: number,
+  indent: number,
+): string[] | null {
+  const parentLine = nearestShallowerLine(lines, line, indent);
+  if (parentLine < 0) {
+    return null;
+  }
+  const container = mappingContainerKey(lines[parentLine] ?? "");
+  if (container === null) {
+    return null;
+  }
+  const parentIndent = leadingWsLen(lines[parentLine] ?? "");
+  if (parentIndent === 0) {
+    // One level: a column-0 allow-listed container (`execute:` / `format:`).
+    return NESTED_CONTAINERS.has(container) ? [container] : null;
+  }
+  // Two levels (format-only): the container is indented; its own parent must be a
+  // column-0 `format:` mapping. A third indented ancestor is deferred (b2-iii).
+  const grandLine = nearestShallowerLine(lines, parentLine, parentIndent);
+  if (grandLine < 0 || leadingWsLen(lines[grandLine] ?? "") !== 0) {
+    return null;
+  }
+  if (mappingContainerKey(lines[grandLine] ?? "") !== "format") {
+    return null;
+  }
+  return ["format", container];
+}
+
+/**
+ * The key of a *pure mapping* container line — a `key:` whose value is empty or
+ * only a comment, so its children live on following indented lines — or `null` if
+ * the line is a sequence item, a comment, has no colon, or carries a scalar / flow
+ * / block-scalar value (`key: v`, `key: [..]`, `key: |`). Leading indentation is
+ * ignored; the caller decides how deep the container sits.
+ */
+function mappingContainerKey(text: string): string | null {
+  const trimmed = text.replace(/^[ \t]+/, "");
+  if (trimmed.startsWith("-") || trimmed.startsWith("#")) {
+    return null;
+  }
+  const colon = trimmed.indexOf(":");
+  if (colon < 0) {
+    return null;
+  }
+  const value = trimmed.slice(colon + 1).replace(/^[ \t]+/, "");
+  if (value !== "" && !value.startsWith("#")) {
+    return null; // a scalar / flow / block-scalar value → not a pure mapping
+  }
+  return trimmed.slice(0, colon).replace(/[ \t]+$/, "");
+}
+
+/** The length of the leading whitespace (spaces/tabs) of `text`. */
+function leadingWsLen(text: string): number {
+  return /^[ \t]*/.exec(text)?.[0].length ?? 0;
+}
+
+/**
+ * The INDEX of the nearest line above `line` whose indentation is strictly less
+ * than `indent`, skipping blank and comment lines, or `-1` if none — the
+ * enclosing-mapping candidate for the ancestor walk. Lines at or deeper than
  * `indent` (siblings or deeper structure) are skipped so an intervening deeper
- * block does not hide the real parent.
+ * block does not hide the real parent. Returning the index (not the text) lets
+ * the caller walk a second level up from the parent's own line.
  */
 function nearestShallowerLine(
   lines: string[],
   line: number,
   indent: number,
-): string | null {
+): number {
   for (let i = line - 1; i >= 0; i--) {
     const t = lines[i] ?? "";
     if (t.trim() === "") {
       continue;
     }
-    const lead = (/^[ \t]*/.exec(t)?.[0].length) ?? 0;
+    const lead = leadingWsLen(t);
     if (t.slice(lead).startsWith("#")) {
       continue;
     }
     if (lead < indent) {
-      return t;
+      return i;
     }
   }
-  return null;
+  return -1;
 }
 
 /**
@@ -263,10 +319,12 @@ function nearestShallowerLine(
  *     (with a curated fallback), so format completion tracks the user's Quarto.
  *     The provider is generic over `parentPath`, so `["format"]` resolves through
  *     the same `frontMatterKeys` path as `["execute"]`.
- * Per-format options (the level under a format name, e.g. `format:\n  html:\n    toc:`)
- * and deeper nesting are later slices — the detector bails on them (parent not at
- * column 0). A nested VALUE position under `format:` (`format:\n  html: …`) is
- * detected but a format name carries no value enum, so it benignly offers nothing.
+ * Per-format options — the level under a format name, `format:\n  html:\n    <key>`
+ * — are completed by the bounded 2-level ancestor walk (`nestedParentPath`),
+ * rooted at `format` only, yielding `parentPath` `["format", <fmt>]` (Slice 6d-6+
+ * b2-i). The `execute:` container stays one level (its own second level is not a
+ * format). Deeper nesting still under a format option (three-plus levels) is the
+ * deferred residue (b2-iii) — the walk bails on it.
  */
 const NESTED_CONTAINERS = new Set<string>(["execute", "format"]);
 
