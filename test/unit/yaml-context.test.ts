@@ -335,6 +335,31 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
     // (mirrors the `execute:\n  julia:\n    exeflags` guard above).
     expect(completionContextAt(text, offsetAt(text, 3, 6))).toBeNull();
   });
+
+  it("returns a per-format VALUE context two levels under `format:` (6d-6+ b2-ii)", () => {
+    const text = ["---", "format:", "  html:", "    code-overflow: scroll", "---"].join("\n");
+    // Past the colon on a per-format option line, the value slot completes that
+    // option's enum. `parentPath` grows to [container, fmt, key] so the provider
+    // resolves the values from `frontMatterKeys(["format","html"]).find(key)`.
+    const ctx = completionContextAt(text, offsetAt(text, 3, 21)); // in "sc|roll"
+    expect(ctx).toEqual({
+      kind: "frontmatter-value",
+      parentPath: ["format", "html", "code-overflow"],
+      token: "sc",
+      replaceRange: { line: 3, startCol: 19, endCol: 25 }, // covers all of "scroll"
+    });
+  });
+
+  it("offers per-format values (empty token) on an empty value slot under `format: <fmt>`", () => {
+    const text = ["---", "format:", "  html:", "    code-overflow: ", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 3, 19)); // at the empty value slot
+    expect(ctx).toEqual({
+      kind: "frontmatter-value",
+      parentPath: ["format", "html", "code-overflow"],
+      token: "",
+      replaceRange: { line: 3, startCol: 19, endCol: 19 },
+    });
+  });
 });
 
 describe("completionContextAt — front-matter value (6d-5)", () => {

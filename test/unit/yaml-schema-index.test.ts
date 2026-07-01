@@ -298,6 +298,22 @@ describe("parseSchemaIndex — per-format option extraction (6d-6+ b2-i)", () =>
     expect(curated.length).toBeGreaterThan(0);
     expect(curated).toContain("toc");
   });
+
+  it("resolves per-format option VALUES on the returned fields (6d-6+ b2-ii)", () => {
+    // The per-format field set carries each option's resolved value enum, so value
+    // completion two levels under `format:` works without any provider or reader
+    // change — the whole value path already existed after b2-i (trace-confirmed).
+    const htmlFields = index.frontMatterKeys(["format", "html"]);
+    expect(htmlFields.find((f) => f.name === "code-fold")?.values).toEqual([
+      "true", "false", "show",
+    ]);
+    expect(htmlFields.find((f) => f.name === "toc")?.values).toEqual(["true", "false"]);
+    // An option filtered OUT of a format offers no field there, so its values do not
+    // complete — the per-format VALUE discrimination mirrors the KEY (b2-i).
+    expect(
+      index.frontMatterKeys(["format", "gfm"]).find((f) => f.name === "code-fold"),
+    ).toBeUndefined();
+  });
 });
 
 describe("parseSchemaIndex — value resolution (simple cases)", () => {
