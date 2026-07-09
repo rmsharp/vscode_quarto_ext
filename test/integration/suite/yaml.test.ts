@@ -1322,10 +1322,13 @@ describe("Quarto: YAML deep-nested per-format option key completion (6d-6+ b2-ii
       doc.uri,
       new vscode.Position(4, 6),
     );
-    const labels = documentOptionLabels(list);
-    assert.ok(
-      labels.includes("sidebar-width"),
-      `grid's reader-only sub-keys should include sidebar-width; got ${JSON.stringify(labels)}`,
+    // Exact full-set equality (Learning #26/#41), not a single-item spot-check —
+    // a regression that under-resolved grid's object (e.g. an early-return bug in
+    // the anyOf/ref descent) would leave a weaker assertion green.
+    assert.deepStrictEqual(
+      documentOptionLabels(list).sort(),
+      ["body-width", "content-mode", "gutter-width", "margin-width", "sidebar-width"],
+      "grid's real, full reader-only sub-key set",
     );
   });
 
