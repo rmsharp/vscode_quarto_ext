@@ -210,6 +210,30 @@ const FIXTURE = JSON.stringify({
       description: "Method used to render math in HTML output.",
     },
   ],
+  // The REAL `crossref` option (schema/document-crossref.yml, grounded against
+  // Quarto 1.7.33): `chapters` is an OBJECT-WRAPPED boolean DSL form
+  // (`{boolean: {description, default}}`) — distinct from BOTH a bare "boolean"
+  // (code-tools.toggle, already works) and the `{tags, schema:"boolean"}`
+  // wrapper (editor.render-on-save, gap b) — `valuesOfSchema` only recognizes
+  // the bare literal today (b2-iii-value gap c, found by Session 37's review).
+  "schema/document-crossref.yml": [
+    {
+      name: "crossref",
+      schema: {
+        object: {
+          properties: {
+            chapters: {
+              boolean: {
+                description: "Use top level sections (H1) in this document as chapters.",
+                default: false,
+              },
+            },
+          },
+        },
+      },
+      description: "Configuration for cross-reference labels and prefixes.",
+    },
+  ],
   // A self-referencing ref pair — proves the object resolver TERMINATES on a
   // cyclic definitions graph (never lands on an object) instead of hanging.
   "schema/document-cyclic-test.yml": [
@@ -571,6 +595,15 @@ describe("parseSchemaIndex — deep-nested option VALUE resolution (6d-6+ b2-iii
       .frontMatterKeys(["format", "html", "editor"])
       .find((f) => f.name === "render-on-save");
     expect(renderOnSave?.values).toEqual(["true", "false"]);
+  });
+
+  it("resolves the object-wrapped {boolean:{...}} DSL form", () => {
+    // crossref.chapters — distinct from a bare "boolean" AND the {tags,schema}
+    // wrapper: the type name ITSELF is the wrapper key, sibling to description/default.
+    const chapters = index
+      .frontMatterKeys(["format", "html", "crossref"])
+      .find((f) => f.name === "chapters");
+    expect(chapters?.values).toEqual(["true", "false"]);
   });
 });
 

@@ -584,6 +584,14 @@ function valuesOfSchema(
     return []; // "string" | "number" | "path" | non-object → no enum
   }
   const s = schema as Record<string, unknown>;
+  // The object-wrapped `boolean` DSL form (e.g. `crossref.chapters`:
+  // `{boolean: {description, default}}`) — the type name is itself the wrapper
+  // key, sibling to `description`/`default`; distinct from both the bare
+  // `"boolean"` literal above and the `{tags, schema:"boolean"}` indirection
+  // below (b2-iii-value gap c, found by adversarial review).
+  if (s.boolean !== null && typeof s.boolean === "object") {
+    return ["true", "false"];
+  }
   if (Array.isArray(s.enum)) {
     return dedupe(s.enum.map(scalarToYaml).filter((v): v is string => v !== null));
   }
