@@ -77,6 +77,7 @@ describe("Quarto: Run Cell family", () => {
       "quarto.runSelectedLines",
       "quarto.runNextCell",
       "quarto.runPreviousCell",
+      "quarto.runCellsBelow",
     ]) {
       assert.ok(commands.includes(id), `${id} should be registered`);
     }
@@ -141,6 +142,30 @@ describe("Quarto: Run Cell family", () => {
 
     assert.strictEqual(calls.length, 1, "only the one cell above should run");
     assert.strictEqual(calls[0].startLine, 7, "that cell is cell 1 (a = 1)");
+  });
+
+  it("runs only the cells below the cursor for Run Cells Below", async () => {
+    registerStandInDelegate();
+    await openAt(RUN_CELLS, 7); // inside cell 1; cell 2 is below
+
+    await vscode.commands.executeCommand("quarto.runCellsBelow");
+
+    assert.strictEqual(calls.length, 1, "only the one cell below should run");
+    assert.strictEqual(calls[0].startLine, 13, "that cell is cell 2 (b = 2)");
+  });
+
+  it("shows a message and does not dispatch when there are no cells below the cursor", async () => {
+    registerStandInDelegate();
+    await openAt(RUN_CELLS, 13); // inside cell 2, the last cell
+
+    await assert.doesNotReject(
+      () =>
+        Promise.resolve(
+          vscode.commands.executeCommand("quarto.runCellsBelow"),
+        ),
+      "running with no cells below must not crash",
+    );
+    assert.strictEqual(calls.length, 0, "no delegate should be invoked");
   });
 
   it("runs the cell and moves the cursor into the next cell on Advance", async () => {

@@ -51,6 +51,7 @@ export function registerExecutionFeature(
       "quarto.runPreviousCell",
       runPreviousCell,
     ),
+    vscode.commands.registerCommand("quarto.runCellsBelow", runCellsBelow),
     // Keep the `quarto.inCodeCell` context key in sync so ctrl/shift+enter only
     // bind inside a cell (and fall through to normal newline editing elsewhere).
     vscode.window.onDidChangeTextEditorSelection((e) =>
@@ -120,6 +121,24 @@ async function runCellsAbove(): Promise<void> {
     return;
   }
   await runCells(editor, above);
+}
+
+async function runCellsBelow(): Promise<void> {
+  const editor = activeQuartoEditor();
+  if (!editor) {
+    return;
+  }
+  const line = editor.selection.active.line;
+  const below = findAllCells(editor.document.getText()).filter(
+    (c) => c.startLine > line,
+  );
+  if (below.length === 0) {
+    void vscode.window.showInformationMessage(
+      "Quarto: there are no code cells below the cursor.",
+    );
+    return;
+  }
+  await runCells(editor, below);
 }
 
 async function runAllCells(): Promise<void> {
