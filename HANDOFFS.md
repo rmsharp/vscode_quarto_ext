@@ -73,6 +73,25 @@ session need this block to continue the work without re-reading the whole repo?*
 ---
 
 ```handoff
+session: S43
+date: 2026-07-09
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: Grill-me session to decide which docs/POSIT-COMPARISON.md gap(s) to plan for next. Decisions list is the deliverable, not code or a plan.
+what_was_done: pending
+next_steps: pending
+key_files: docs/POSIT-COMPARISON.md (candidate menu), SESSION_NOTES.md ACTIVE TASK
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+<in progress — will be overwritten at Phase 3D close-out>
+
+---
+
+```handoff
 session: S42
 date: 2026-07-09
 status: complete
