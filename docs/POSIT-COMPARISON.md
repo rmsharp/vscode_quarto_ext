@@ -33,7 +33,7 @@ the **corrected, verified** claims, not the first draft.
 |---|---|---|
 | **Parity** (same capability, comparable depth) | 15 | render, preview, execution delegation, syntax highlighting, most `@`-completion, cell-option completion |
 | **We're ahead** | 2 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them) |
-| **Real gaps** (Posit has, we don't) | 12 | Visual (WYSIWYG) editor, YAML diagnostics/validation, project-level render, notebook `.ipynb` conversion, project/document scaffolding commands, getting-started walkthrough, snippets, Contextual Assist Panel, Graphviz rendering, a fuller run-cell command family, spell checking, Zotero (Visual-Editor-only for them) |
+| **Real gaps** (Posit has, we don't) | 11 | Visual (WYSIWYG) editor, YAML diagnostics/validation, project-level render, notebook `.ipynb` conversion, project/document scaffolding commands, getting-started walkthrough, snippets, Contextual Assist Panel, Graphviz rendering, spell checking, Zotero (Visual-Editor-only for them) — the run-cell command family gap closed, Session 52 |
 | **True parity in absence** (neither has it) | 2 | Image paste for `.qmd`; AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 
 The single largest gap is architectural, not incremental: Posit ships a full **Visual (WYSIWYG) editor**
@@ -88,13 +88,14 @@ their side, so those two rows are narrower deficits than they first appear.
   copy.
 
 **Run cell / run code chunk (command family).**
-- *Ours:* Present — 5 commands (run cell, run+advance, run above, run all, insert cell); only 2
-  (run cell, run+advance) have default keybindings, gated on an in-cell context key.
-- *Posit's:* Present — a larger, 8-command family (current cell, selected line(s), next cell, previous
+- *Ours:* Present — **9 commands, matching Posit's own count** (run cell, run+advance, run selected
+  line(s), run next cell, run previous cell, run above, run below, run all, insert cell), each
+  individually keybound (`ctrl/shift+enter` for the original two, `ctrl+alt+<mnemonic>` for the rest —
+  **Session 52**, `BACKLOG.md` item #4).
+- *Posit's:* Present — an 8-command family (current cell, selected line(s), next cell, previous
   cell, all cells, cells above, cells below, insert new cell), each individually keybound.
-- *Notes:* We're missing 4 discrete commands relative to Posit (Run Selected Line(s), Run Next/Previous
-  Cell, Run Cells Below) — not 2, as an earlier draft undercounted — and 3 of our 5 commands have no
-  keybinding at all.
+- *Notes:* Parity reached (Session 52) — no longer a gap. (Historical: this doc's research, Session 42,
+  originally found us missing 4 discrete commands with only 2 of 5 keybound.)
 
 **Interactive/notebook-like execution UX (output console).**
 - *Ours:* Present, but not uniform across languages — Python delegates to
@@ -360,8 +361,9 @@ In rough priority order, if this project were to close the largest real gaps:
 2. **Snippets** (already tracked in `BACKLOG.md`) and a **getting-started walkthrough** (a new finding
    from this research, not yet in `BACKLOG.md`) — both declarative, TDD-gate-exempt, low-effort.
 3. **Project-level render** (`_quarto.yml` discovery + "render whole project") — a real, bounded gap.
-4. **A fuller run-cell command family** (Run Selected Line(s), Run Next/Previous Cell, Run Cells Below) —
-   mechanical extensions of the existing `core/cells.ts`/`execution-delegate.ts` machinery.
+4. ~~A fuller run-cell command family~~ — **SHIPPED Session 52** (`BACKLOG.md` item #4): Run Selected
+   Line(s), Run Next Cell, Run Previous Cell, and Run Cells Below, plus default keybindings across the
+   resulting 9-command family.
 5. **Graphviz (`{dot}`) diagram rendering** — already tracked in `BACKLOG.md` (needs a vendored WASM
    renderer).
 6. The **Visual (WYSIWYG) editor** is Posit's single largest feature and this project's single largest
