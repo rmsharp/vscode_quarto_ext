@@ -42,6 +42,10 @@ export function registerExecutionFeature(
     vscode.commands.registerCommand("quarto.runCellsAbove", runCellsAbove),
     vscode.commands.registerCommand("quarto.runAllCells", runAllCells),
     vscode.commands.registerCommand("quarto.insertCell", insertCell),
+    vscode.commands.registerCommand(
+      "quarto.runSelectedLines",
+      runSelectedLines,
+    ),
     // Keep the `quarto.inCodeCell` context key in sync so ctrl/shift+enter only
     // bind inside a cell (and fall through to normal newline editing elsewhere).
     vscode.window.onDidChangeTextEditorSelection((e) =>
@@ -161,6 +165,38 @@ async function runCells(
     showNoDelegate([...skipped]);
   }
   return ranAny;
+}
+
+/**
+ * Delegate just the current selection — or, when the selection is empty, just
+ * the current line — rather than the whole cell. Requires the cursor to sit
+ * inside a code cell (to resolve which language extension to delegate to).
+ */
+async function runSelectedLines(): Promise<void> {
+  const editor = activeQuartoEditor();
+  if (!editor) {
+    return;
+  }
+  const text = editor.document.getText();
+  const cell = findCellAtPosition(text, editor.selection.active.line);
+  if (!cell) {
+    void vscode.window.showInformationMessage(
+      "Quarto: place the cursor inside a code cell to run selected line(s).",
+    );
+    return;
+  }
+  const available = await vscode.commands.getCommands(true);
+  const delegate = pickDelegate(cell.lang, available);
+  if (!delegate) {
+    showNoDelegate([cell.lang]);
+    return;
+  }
+  const range = editor.selection.isEmpty
+    ? editor.document.lineAt(editor.selection.active.line).range
+    : new vscode.Range(editor.selection.start, editor.selection.end);
+  editor.selection = new vscode.Selection(range.start, range.end);
+  editor.revealRange(range);
+  await vscode.commands.executeCommand(delegate);
 }
 
 /** The editor range covering a cell's code body, or null when the cell is empty. */

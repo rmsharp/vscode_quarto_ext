@@ -74,6 +74,7 @@ describe("Quarto: Run Cell family", () => {
       "quarto.runCellsAbove",
       "quarto.runAllCells",
       "quarto.insertCell",
+      "quarto.runSelectedLines",
     ]) {
       assert.ok(commands.includes(id), `${id} should be registered`);
     }
@@ -236,6 +237,48 @@ describe("Quarto: Run Cell family", () => {
       "running with no active editor must not crash",
     );
     assert.strictEqual(calls.length, 0);
+  });
+
+  it("runs only the selected text when there is a non-empty selection", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_MIXED, 6); // inside the 3-line python cell, on "y = 2"
+    editor.selection = new vscode.Selection(
+      new vscode.Position(6, 0),
+      new vscode.Position(6, "y = 2".length),
+    );
+
+    await vscode.commands.executeCommand("quarto.runSelectedLines");
+
+    assert.strictEqual(calls.length, 1, "the delegate should run exactly once");
+    assert.strictEqual(
+      calls[0].text,
+      "y = 2",
+      "only the selected line should be sent, not the whole cell",
+    );
+  });
+
+  it("runs just the current line when there is no selection", async () => {
+    registerStandInDelegate();
+    await openAt(RUN_MIXED, 7); // cursor only, on "z = x + y", no selection
+
+    await vscode.commands.executeCommand("quarto.runSelectedLines");
+
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].text, "z = x + y");
+  });
+
+  it("shows a message and does not dispatch selected line(s) when the cursor is not in a cell", async () => {
+    registerStandInDelegate();
+    await openAt(RUN_CELLS, 4); // prose, not a cell
+
+    await assert.doesNotReject(
+      () =>
+        Promise.resolve(
+          vscode.commands.executeCommand("quarto.runSelectedLines"),
+        ),
+      "running with no cell at the cursor must not crash",
+    );
+    assert.strictEqual(calls.length, 0, "no delegate should be invoked in prose");
   });
 
   it("activates when a .qmd is opened (onLanguage:quarto) so keybindings work without a prior command", () => {
