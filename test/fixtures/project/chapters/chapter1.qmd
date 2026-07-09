@@ -1,0 +1,10 @@
+---
+title: "Chapter 1"
+---
+
+# Chapter 1
+
+This file has no `_quarto.yml` of its own — it lives one level below the
+project root (`test/fixtures/project/`), so an integration test can open it
+as the ACTIVE editor and invoke `quarto.renderProject` from a nested
+subdirectory, exactly the scenario the plan's §0 empirical finding covers.

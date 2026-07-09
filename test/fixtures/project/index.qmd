@@ -1,0 +1,13 @@
+---
+title: "Render Project Fixture"
+---
+
+# Index
+
+This is the project's index file. It is rendered whenever the whole project
+is rendered — used by `test/integration/suite/render-project.test.ts` to
+prove that invoking `quarto.renderProject` from the ACTIVE file
+`chapters/chapter1.qmd` still renders this file too (the direct regression
+test for the plan's §0/§7 D2 headline finding: a bare, argument-less
+`quarto render` invoked from a project subdirectory would render only that
+subdirectory's own file(s), never this one).

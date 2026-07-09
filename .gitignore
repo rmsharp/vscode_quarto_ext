@@ -12,6 +12,12 @@ dist/
 test/fixtures/*.html
 test/fixtures/*_files/
 
+# Quarto render artifacts (from rendering the project fixture, incl. its
+# nested chapters/ subdirectory and project-level cache)
+test/fixtures/project/**/*.html
+test/fixtures/project/**/*_files/
+test/fixtures/project/.quarto/
+
 # Quarto render artifacts (from rendering docs/*.md locally, e.g. to preview)
 docs/*.html
 docs/*_files/
