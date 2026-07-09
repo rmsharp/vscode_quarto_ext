@@ -188,7 +188,74 @@
           "markdownDescription": "Absolute path to the `quarto` executable. When empty, the extension resolves `quarto` from the `PATH`."
         }
       }
-    }
+    },
+    "walkthroughs": [
+      {
+        "id": "quartoGettingStarted",
+        "title": "Get Started with Quarto",
+        "description": "Install Quarto, write your first document or project, then render, preview, and run code — all from this extension.",
+        "featuredFor": [
+          "**/*.qmd"
+        ],
+        "steps": [
+          {
+            "id": "installQuarto",
+            "title": "Install & verify Quarto",
+            "description": "This extension needs the Quarto CLI on your `PATH`. Install it from [quarto.org](https://quarto.org/docs/get-started/), then verify the extension can find it.\n[Verify Installation](command:quarto.verifyInstallation)",
+            "media": {
+              "markdown": "media/walkthrough/install-quarto.md"
+            },
+            "completionEvents": [
+              "onCommand:quarto.verifyInstallation"
+            ]
+          },
+          {
+            "id": "createDocument",
+            "title": "Create your first document",
+            "description": "Start writing right away with a blank `.qmd` document — no file needed on disk yet.\n[New Quarto Document](command:quarto.newDocument)",
+            "media": {
+              "markdown": "media/walkthrough/create-document.md"
+            },
+            "completionEvents": [
+              "onCommand:quarto.newDocument"
+            ]
+          },
+          {
+            "id": "createProject",
+            "title": "Create a project",
+            "description": "Multi-file books, websites, and manuscripts start from a Quarto project. Pick a type, a folder, and a name — the extension scaffolds the rest and opens it.\n[Create Project](command:quarto.createProject)",
+            "media": {
+              "markdown": "media/walkthrough/create-project.md"
+            },
+            "completionEvents": [
+              "onCommand:quarto.createProject"
+            ]
+          },
+          {
+            "id": "renderAndPreview",
+            "title": "Render and preview",
+            "description": "Render turns a `.qmd` (or a whole project) into its output format; preview opens a live-updating view alongside your editor.\n[Render](command:quarto.render)\n[Preview](command:quarto.preview)",
+            "media": {
+              "markdown": "media/walkthrough/render-preview.md"
+            },
+            "completionEvents": [
+              "onCommand:quarto.preview"
+            ]
+          },
+          {
+            "id": "runCellAndExplore",
+            "title": "Run a cell, then explore more",
+            "description": "Run the cell under your cursor without leaving the editor.\n[Run Cell](command:quarto.runCell)\n\nKeep exploring: [Preview Math](command:quarto.previewMath) renders LaTeX live, and [Preview Diagram](command:quarto.previewDiagram) renders Mermaid diagrams live.",
+            "media": {
+              "markdown": "media/walkthrough/run-cell.md"
+            },
+            "completionEvents": [
+              "onCommand:quarto.runCell"
+            ]
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "check-types": "tsc --noEmit",
