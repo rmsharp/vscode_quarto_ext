@@ -75,23 +75,49 @@ session need this block to continue the work without re-reading the whole repo?*
 ```handoff
 session: S41
 date: 2026-07-09
-status: pending
-self_score: pending
-predecessor_score: pending
-active_task: Fix the copyright front-matter key name-collision dedup bug in collectFields
-  (src/core/yaml-schema.ts) -- Quarto's TWO same-named copyright document options collide;
-  first-occurrence-wins dedup keeps the bare property-less JATS-scoped one
-  (schema/document-attributes.yml) over the richer {anyOf:[{object:{properties:{year,holder,
-  statement}}}, "string"]} one (schema/document-metadata.yml), discarding the real definition
-  for every format. Session claimed; work beginning.
-what_was_done: pending
-next_steps: pending
-key_files: pending
-gotchas: pending
-runtime_smoke: pending
-changelog_ref: pending
-commit: pending
+status: complete
+self_score: 9
+predecessor_score: 9
+active_task: DONE. Fixed collectFields's name-collision dedup (was first-occurrence-wins, now
+  richest-wins by children.length + values.length). copyright's real year/holder/statement
+  definition (document-metadata.yml) no longer loses to the childless JATS-only one
+  (document-attributes.yml) that happened to iterate first. Grep-verified 3 other duplicated
+  document-key names (logo/subject/footer) tie in richness and don't regress. No forced next
+  deliverable -- operator picks from b2-iii-deep (deferred) / Posit comparison / other BACKLOG
+  items, all unblocked.
+what_was_done: Root-caused via collectFields (src/core/yaml-schema.ts:973): Object.entries
+  iteration order follows the source JSON's file-naming order, not richness. Ground-truthed the
+  real 1.7.33 schema (document-attributes.yml's bare copyright iterates before
+  document-metadata.yml's real one). Grepped for ALL duplicated document-* names before
+  deciding scope: found logo/subject/footer too, all richness-ties (safe no-op). Strict TDD:
+  RED via a fixture reproducing the real collision order, then collectFields switched to a
+  Map<name,SchemaField> keeping the richer entry (fieldRichness = children.length +
+  values.length), ties keeping first-seen position. New integration test against the REAL
+  schema, break-revert-proven (quartoSharePath forced to throw reds the new test + 17 others
+  while the curated code-tools control stays green). One commit b03e705 (fix + both tests).
+  483 unit (+1) / 172 integration (+1); clean 35-file .vsix; compile clean.
+next_steps: No forced next deliverable. Operator picks from BACKLOG.md Up Next /
+  Documentation / Polish sections -- b2-iii-deep (depth-4 + super/allOf, deferred, its own
+  planning session first) and the Posit feature-comparison doc (Session 29 request,
+  unblocked) are the two standing larger options; smaller BACKLOG polish items and the
+  operator-only vsce publish / git push (47 commits unpushed) remain available too.
+key_files: src/core/yaml-schema.ts:973 (collectFields, the fix) and :968 (fieldRichness, new);
+  test/unit/yaml-schema-index.test.ts:260-300ish (collision fixture) and :406-410 (the test);
+  test/integration/suite/yaml.test.ts:1349-1366 (the real-schema integration test).
+gotchas: collectFields feeds BOTH the flat top-level frontMatterKeys([]) list AND
+  perFormatSource's per-format fields (perFormatSource wraps fmFields, which IS collectFields's
+  output) -- a collectFields dedup bug affects every format, not just the format tag the
+  poorer definition happened to carry. Any future collectFields/perFormatSource touch: re-grep
+  for duplicate document-*/cell-* names first, don't assume copyright was the only collision.
+runtime_smoke: Integration suite (@vscode/test-electron, real extension host,
+  vscode.executeCompletionItemProvider against the real installed schema) -- no separate
+  manual F5 check (no visual/UI surface changed, consistent with established precedent for
+  schema-completion-only changes in this project).
+changelog_ref: 2026-07-09 [ad hoc] (copyright dedup fix)
+commit: b03e705
 ```
+
+---
 
 ```handoff
 session: S40
