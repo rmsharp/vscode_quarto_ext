@@ -73,6 +73,25 @@ session need this block to continue the work without re-reading the whole repo?*
 ---
 
 ```handoff
+session: S47
+date: 2026-07-09
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: Implement docs/planning/2026-07-09-yaml-schema-diagnostics-plan.md (BACKLOG.md "Up Next" item #2) as one vertical-slice session, per docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md. Work beginning.
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+<!-- filled at Phase 3D close-out -->
+
+---
+
+```handoff
 session: S46
 date: 2026-07-09
 status: complete
