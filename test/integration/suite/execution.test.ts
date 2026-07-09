@@ -76,6 +76,7 @@ describe("Quarto: Run Cell family", () => {
       "quarto.insertCell",
       "quarto.runSelectedLines",
       "quarto.runNextCell",
+      "quarto.runPreviousCell",
     ]) {
       assert.ok(commands.includes(id), `${id} should be registered`);
     }
@@ -320,6 +321,45 @@ describe("Quarto: Run Cell family", () => {
       () =>
         Promise.resolve(vscode.commands.executeCommand("quarto.runNextCell")),
       "running with no next cell must not crash",
+    );
+    assert.strictEqual(calls.length, 0, "no delegate should be invoked");
+  });
+
+  it("Run Previous Cell runs the cell BEFORE the current one and moves back into it", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_CELLS, 13); // inside cell 2
+
+    await vscode.commands.executeCommand("quarto.runPreviousCell");
+
+    assert.strictEqual(calls.length, 1, "cell 1 should run, not cell 2");
+    assert.strictEqual(calls[0].startLine, 7, "cell 1's code starts at line 7");
+    assert.strictEqual(
+      editor.selection.active.line,
+      7,
+      "the cursor should move back into cell 1's body",
+    );
+  });
+
+  it("Run Previous Cell runs the closest cell before the cursor when in prose after multiple cells", async () => {
+    registerStandInDelegate();
+    await openAt(RUN_CELLS, 16); // prose after cell 2 (End prose.)
+
+    await vscode.commands.executeCommand("quarto.runPreviousCell");
+
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].startLine, 13, "the closest cell above is cell 2");
+  });
+
+  it("Run Previous Cell shows a message and does not dispatch when there is no previous cell", async () => {
+    registerStandInDelegate();
+    await openAt(RUN_CELLS, 7); // inside cell 1, the first cell
+
+    await assert.doesNotReject(
+      () =>
+        Promise.resolve(
+          vscode.commands.executeCommand("quarto.runPreviousCell"),
+        ),
+      "running with no previous cell must not crash",
     );
     assert.strictEqual(calls.length, 0, "no delegate should be invoked");
   });
