@@ -100,6 +100,11 @@
         "category": "Quarto"
       },
       {
+        "command": "quarto.createProject",
+        "title": "Create Project",
+        "category": "Quarto"
+      },
+      {
         "command": "quarto.runCell",
         "title": "Run Cell",
         "category": "Quarto"
