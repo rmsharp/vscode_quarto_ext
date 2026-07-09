@@ -73,6 +73,27 @@ session need this block to continue the work without re-reading the whole repo?*
 ---
 
 ```handoff
+session: S40
+date: 2026-07-09
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: Phase 6d-6+ (b2-iii-value) — deep-nested per-format option VALUE completion. Ground+fix
+  3 valuesOfSchema gaps ({enum:{values:[...]}} definition-enum form, {tags,schema:...} wrapper,
+  object-wrapped {boolean:{description,default}} DSL form) against the real installed schema, trace
+  first for already-working inline sub-values, then wire values through. NOT bundling b2-iii-deep.
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+---
+
+```handoff
 session: S39
 date: 2026-07-09
 status: complete
