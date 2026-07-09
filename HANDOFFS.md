@@ -73,6 +73,27 @@ session need this block to continue the work without re-reading the whole repo?*
 ---
 
 ```handoff
+session: S41
+date: 2026-07-09
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: Fix the copyright front-matter key name-collision dedup bug in collectFields
+  (src/core/yaml-schema.ts) -- Quarto's TWO same-named copyright document options collide;
+  first-occurrence-wins dedup keeps the bare property-less JATS-scoped one
+  (schema/document-attributes.yml) over the richer {anyOf:[{object:{properties:{year,holder,
+  statement}}}, "string"]} one (schema/document-metadata.yml), discarding the real definition
+  for every format. Session claimed; work beginning.
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+```handoff
 session: S40
 date: 2026-07-09
 status: complete
