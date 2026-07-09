@@ -12,6 +12,10 @@ dist/
 test/fixtures/*.html
 test/fixtures/*_files/
 
+# Quarto render artifacts (from rendering docs/*.md locally, e.g. to preview)
+docs/*.html
+docs/*_files/
+
 # Logs & OS cruft
 *.log
 .DS_Store
