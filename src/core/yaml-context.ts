@@ -299,8 +299,12 @@ export function mappingContainerKey(text: string): string | null {
   return trimmed.slice(0, colon).replace(/[ \t]+$/, "");
 }
 
-/** The length of the leading whitespace (spaces/tabs) of `text`. */
-function leadingWsLen(text: string): number {
+/**
+ * The length of the leading whitespace (spaces/tabs) of `text`. Exported for
+ * reuse by `core/project-yaml.ts` (adversarial review, Session 47) — the same
+ * line-local indent measurement, avoiding a byte-for-byte duplicate.
+ */
+export function leadingWsLen(text: string): number {
   return /^[ \t]*/.exec(text)?.[0].length ?? 0;
 }
 

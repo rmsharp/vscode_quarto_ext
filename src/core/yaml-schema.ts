@@ -770,41 +770,44 @@ function resolveObjectProperties(
  * elsewhere in this file), the `{object: {...}}` wrapper, and the `{schema:
  * ...}` indirection a definitions.yml entry itself may use (`book-schema`'s
  * own entry shape, grounded firsthand against the installed 1.7.33 schema).
- * `hops` bounds a single resolution chain generically (mirrors
- * `resolveObjectProperties`'s guard); `seenRefs` is a per-branch snapshot
- * (copied, never mutated in place) so sibling `super` members that happen to
- * share a resolution target (a legitimate DAG diamond, not a cycle) each
- * resolve independently rather than one starving the other — only a TRUE
- * cycle back to an ancestor already on the CURRENT branch is blocked. Never
- * throws: a missing/malformed node anywhere in the chain simply contributes
- * nothing, never a wrong result.
+ * `seenRefs` is a per-branch snapshot (copied, never mutated in place) so
+ * sibling `super` members that happen to share a resolution target (a
+ * legitimate DAG diamond, not a cycle) each resolve independently rather
+ * than one starving the other — only a TRUE cycle back to an ancestor
+ * already on the CURRENT branch is blocked. `seenRefs` alone is a sufficient
+ * termination guarantee here (unlike `resolveObjectProperties`'s generic
+ * `hops` bound): every recursive step either follows a NAMED `ref`/
+ * `resolveRef` (seenRefs-guarded) or descends directly into already-parsed
+ * JSON data (`.object`/`.schema`), which can never itself be circular — a
+ * parsed JSON tree has no back-edges except through a named indirection. A
+ * separate depth cap here would be redundant defense that only adds risk: a
+ * legitimately deep (non-cyclic) chain would silently lose its own branch's
+ * names once the cap fired, while a shallower sibling's `closed:true` still
+ * propagated through the merge — the same "closed:true, incomplete names"
+ * false-positive shape a real cycle would produce, without an actual cycle
+ * (adversarial review, Session 47). Never throws: a missing/malformed node
+ * anywhere in the chain simply contributes nothing, never a wrong result.
  */
 function resolveClosedKeys(
   node: unknown,
   definitions: Map<string, unknown>,
   seenRefs: Set<string>,
-  hops: number,
 ): ClosedKeySet | null {
-  if (hops > 10 || node === null || typeof node !== "object") {
+  if (node === null || typeof node !== "object") {
     return null;
   }
   const n = node as Record<string, unknown>;
   if (typeof n.ref === "string") {
-    return resolveClosedKeysRef(n.ref, definitions, seenRefs, hops + 1);
+    return resolveClosedKeysRef(n.ref, definitions, seenRefs);
   }
   if (typeof n.resolveRef === "string") {
-    return resolveClosedKeysRef(n.resolveRef, definitions, seenRefs, hops + 1);
+    return resolveClosedKeysRef(n.resolveRef, definitions, seenRefs);
   }
   if (n.object !== null && typeof n.object === "object" && !Array.isArray(n.object)) {
-    return resolveClosedKeysObject(
-      n.object as Record<string, unknown>,
-      definitions,
-      seenRefs,
-      hops + 1,
-    );
+    return resolveClosedKeysObject(n.object as Record<string, unknown>, definitions, seenRefs);
   }
   if (n.schema !== undefined) {
-    return resolveClosedKeys(n.schema, definitions, seenRefs, hops + 1);
+    return resolveClosedKeys(n.schema, definitions, seenRefs);
   }
   return null;
 }
@@ -814,7 +817,6 @@ function resolveClosedKeysRef(
   ref: string,
   definitions: Map<string, unknown>,
   seenRefs: Set<string>,
-  hops: number,
 ): ClosedKeySet | null {
   if (seenRefs.has(ref)) {
     return null; // a true cycle within this branch's own ancestor chain
@@ -825,7 +827,7 @@ function resolveClosedKeysRef(
   }
   const nextSeen = new Set(seenRefs);
   nextSeen.add(ref);
-  return resolveClosedKeys(def, definitions, nextSeen, hops);
+  return resolveClosedKeys(def, definitions, nextSeen);
 }
 
 /**
@@ -842,7 +844,6 @@ function resolveClosedKeysObject(
   obj: Record<string, unknown>,
   definitions: Map<string, unknown>,
   seenRefs: Set<string>,
-  hops: number,
 ): ClosedKeySet {
   const names = new Set<string>();
   const properties = obj.properties;
@@ -856,7 +857,7 @@ function resolveClosedKeysObject(
   if (superNode !== undefined) {
     const members = Array.isArray(superNode) ? superNode : [superNode];
     for (const member of members) {
-      const resolved = resolveClosedKeys(member, definitions, seenRefs, hops);
+      const resolved = resolveClosedKeys(member, definitions, seenRefs);
       if (resolved !== null) {
         for (const name of resolved.names) {
           names.add(name);
@@ -896,7 +897,7 @@ function buildProjectConfigKeys(
     const schema = schemaByName.get(container);
     map.set(
       container,
-      schema === undefined ? null : resolveClosedKeys(schema, definitions, new Set(), 0),
+      schema === undefined ? null : resolveClosedKeys(schema, definitions, new Set()),
     );
   }
   return map;

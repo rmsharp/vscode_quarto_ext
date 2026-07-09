@@ -475,6 +475,37 @@ describe("parseSchemaIndex — _quarto.yml project:/website:/book: closed-key re
     );
     expect(cyclic.projectKeys("website")).toBeNull();
   });
+
+  it("resolves a legitimately deep (non-cyclic) super/resolveRef chain in full — a shared hops budget must not silently truncate a real branch (adversarial review, Session 47)", () => {
+    // 20 levels of {object:{super:{resolveRef:"level-N"}}}, only the deepest
+    // closed with its own unique property. seenRefs alone is a sufficient
+    // cycle guard (a parsed-JSON tree can never be circular without a NAMED
+    // ref, which IS seenRefs-guarded) — a hops depth cap is redundant and,
+    // when it fires on a real (non-cyclic) deep chain, silently drops that
+    // branch's names while a shallower sibling's closed:true still
+    // propagates, producing the exact "closed:true, incomplete names" shape
+    // this feature's zero-false-positive promise cannot tolerate.
+    const LEVELS = 20;
+    const definitions = [];
+    for (let i = 0; i < LEVELS; i++) {
+      definitions.push({
+        id: `level-${i}`,
+        object: { super: { resolveRef: `level-${i + 1}` } },
+      });
+    }
+    definitions.push({
+      id: `level-${LEVELS}`,
+      object: { closed: true, properties: { "deep-only-key": "string" } },
+    });
+    const deep = parseSchemaIndex(
+      JSON.stringify({
+        "schema/document-options.yml": [{ name: "toc", schema: "boolean", description: "TOC" }],
+        "schema/project.yml": [{ name: "website", schema: { ref: "level-0" } }],
+        "schema/definitions.yml": definitions,
+      }),
+    );
+    expect(deep.projectKeys("website")).toEqual(new Set(["deep-only-key"]));
+  });
 });
 
 describe("CURATED_SCHEMA_INDEX — _quarto.yml project:/website:/book: closed-key resolution", () => {

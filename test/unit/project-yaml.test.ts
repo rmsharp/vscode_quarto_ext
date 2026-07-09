@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findProjectConfigKeyLines } from "../../src/core/project-yaml";
+import { findProjectConfigKeyLines, isProjectConfigFileName } from "../../src/core/project-yaml";
 
 describe("findProjectConfigKeyLines — direct children of project:/website:/book:", () => {
   it("finds direct children of project:", () => {
@@ -109,5 +109,59 @@ describe("findProjectConfigKeyLines — multiple containers in one document", ()
 
   it("returns an empty array for an empty document", () => {
     expect(findProjectConfigKeyLines("")).toEqual([]);
+  });
+});
+
+describe("findProjectConfigKeyLines — quoted keys (adversarial review, Session 47)", () => {
+  it("unquotes a double-quoted key so it compares equal to its unquoted form", () => {
+    const text = ['project:', '  "output-dir": docs'].join("\n");
+    expect(findProjectConfigKeyLines(text)).toEqual([
+      // keyRange spans the FULL token on screen, quotes included (col 2..14 = `"output-dir"`,
+      // 12 chars); `key` is the unquoted logical name used for schema comparison.
+      { line: 1, container: "project", key: "output-dir", keyRange: { startCol: 2, endCol: 14 } },
+    ]);
+  });
+
+  it("unquotes a single-quoted key the same way", () => {
+    const text = ["project:", "  'output-dir': docs"].join("\n");
+    expect(findProjectConfigKeyLines(text)).toEqual([
+      { line: 1, container: "project", key: "output-dir", keyRange: { startCol: 2, endCol: 14 } },
+    ]);
+  });
+
+  it("real-world case: a quoted UNKNOWN key is still reported (as its unquoted name), not silently swallowed", () => {
+    const text = ["project:", '  "bogus-key": true'].join("\n");
+    expect(findProjectConfigKeyLines(text)).toEqual([
+      { line: 1, container: "project", key: "bogus-key", keyRange: { startCol: 2, endCol: 13 } },
+    ]);
+  });
+});
+
+describe("findProjectConfigKeyLines — a leading UTF-8 BOM does not disable scanning (adversarial review, Session 47)", () => {
+  it("still recognizes project: as a container when the file starts with a BOM", () => {
+    const text = "﻿project:\n  bogus-key: 1";
+    expect(findProjectConfigKeyLines(text)).toEqual([
+      { line: 1, container: "project", key: "bogus-key", keyRange: { startCol: 2, endCol: 11 } },
+    ]);
+  });
+});
+
+describe("isProjectConfigFileName — the filename gate is EXACT, never a suffix match (adversarial review, Session 47)", () => {
+  it("accepts the exact basenames", () => {
+    expect(isProjectConfigFileName("/a/b/_quarto.yml")).toBe(true);
+    expect(isProjectConfigFileName("/a/b/_quarto.yaml")).toBe(true);
+    expect(isProjectConfigFileName("_quarto.yml")).toBe(true);
+  });
+
+  it("rejects a file that merely ENDS WITH the target name (the confirmed false-positive shape)", () => {
+    expect(isProjectConfigFileName("/a/b/not_quarto.yml")).toBe(false);
+    expect(isProjectConfigFileName("/a/b/my_quarto.yml")).toBe(false);
+    expect(isProjectConfigFileName("/a/b/backup_quarto.yaml")).toBe(false);
+    expect(isProjectConfigFileName("/a/b/template_quarto.yml")).toBe(false);
+  });
+
+  it("rejects an unrelated file, and a directory component that happens to match", () => {
+    expect(isProjectConfigFileName("/a/_quarto.yml/b.txt")).toBe(false);
+    expect(isProjectConfigFileName("/a/b/readme.md")).toBe(false);
   });
 });

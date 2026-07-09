@@ -10,10 +10,28 @@
  * forward pass, O(n) in line count.
  */
 
-import { mappingContainerKey } from "./yaml-context";
+import * as path from "node:path";
+import { leadingWsLen, mappingContainerKey } from "./yaml-context";
 
 /** The three `_quarto.yml` blocks with a genuinely closed key set (plan §0). */
 const PROJECT_CONFIG_CONTAINERS = new Set(["project", "website", "book"]);
+
+/** The exact basenames this feature validates — never a suffix match. */
+const PROJECT_CONFIG_FILENAMES = new Set(["_quarto.yml", "_quarto.yaml"]);
+
+/**
+ * Whether `fileName` (a full OS path, or a bare name) is EXACTLY
+ * `_quarto.yml`/`_quarto.yaml` — the filename gate (adversarial review,
+ * Session 47). Compares the basename only, so a directory component that
+ * happens to match (`/a/_quarto.yml/b.txt`) does not — and, critically, this
+ * is exact equality, NOT a suffix test: `document.fileName.endsWith(...)`
+ * (the original shape) would also match `not_quarto.yml`/`backup_quarto.yaml`/
+ * any other file merely ending in those characters, a confirmed false
+ * positive this rewrite eliminates.
+ */
+export function isProjectConfigFileName(fileName: string): boolean {
+  return PROJECT_CONFIG_FILENAMES.has(path.basename(fileName));
+}
 
 /** One key line found directly inside `project:`/`website:`/`book:`. */
 export interface ProjectConfigKeyLine {
@@ -38,7 +56,7 @@ export interface ProjectConfigKeyLine {
  * nothing would have set `containerIndent` yet to rule it out).
  */
 export function findProjectConfigKeyLines(text: string): ProjectConfigKeyLine[] {
-  const lines = text.split(/\r?\n/);
+  const lines = stripBom(text).split(/\r?\n/);
   const result: ProjectConfigKeyLine[] = [];
   let currentContainer: "project" | "website" | "book" | null = null;
   let containerIndent: number | null = null;
@@ -78,15 +96,27 @@ function isProjectConfigContainer(name: string): name is "project" | "website" |
   return PROJECT_CONFIG_CONTAINERS.has(name);
 }
 
-/** The length of the leading whitespace (spaces/tabs) of `text`. */
-function leadingWsLen(text: string): number {
-  return /^[ \t]*/.exec(text)?.[0].length ?? 0;
+/**
+ * Strip a leading UTF-8 BOM, which would otherwise glue itself to the first
+ * line's content and stop `mappingContainerKey` from recognizing a top-level
+ * `project:`/`website:`/`book:` on line 0 (adversarial review, Session 47 —
+ * mirrors `yaml-schema.ts`'s identical `stripBom`, applied to the schema
+ * JSON text rather than `_quarto.yml`'s own content).
+ */
+function stripBom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
 /**
  * The key span of a `key:`/`key: value` mapping line at `indent`, or `null` if
  * the content at that indent is a block-sequence item (`- …`) or has no colon
- * (not a mapping-line shape).
+ * (not a mapping-line shape). `keyRange` spans the FULL token as it appears on
+ * screen (quotes included, if any); `key` is unquoted (adversarial review,
+ * Session 47 — a quoted key like `"output-dir":` is YAML-legal and semantically
+ * identical to its unquoted form, confirmed against the real Quarto CLI, but
+ * was previously compared against the schema's bare names WITH the quote
+ * characters still attached, producing a false "unknown key" positive on every
+ * quoted key, known or not).
  */
 function keySpanAt(
   lineText: string,
@@ -100,9 +130,26 @@ function keySpanAt(
   if (colon < 0) {
     return null;
   }
-  const key = rest.slice(0, colon).replace(/[ \t]+$/, "");
-  if (key.length === 0) {
+  const raw = rest.slice(0, colon).replace(/[ \t]+$/, "");
+  if (raw.length === 0) {
     return null;
   }
-  return { key, keyRange: { startCol: indent, endCol: indent + key.length } };
+  return { key: unquoteKey(raw), keyRange: { startCol: indent, endCol: indent + raw.length } };
+}
+
+/**
+ * Strip one matching layer of YAML key-quoting (`"key"` or `'key'`) to the
+ * logical key name, or return `key` unchanged if it isn't quoted. Does not
+ * attempt escape decoding — no real project:/website:/book: key name
+ * contains a quote character, so this is sufficient for schema comparison.
+ */
+function unquoteKey(key: string): string {
+  if (key.length >= 2) {
+    const first = key[0];
+    const last = key[key.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return key.slice(1, -1);
+    }
+  }
+  return key;
 }
