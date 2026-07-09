@@ -308,6 +308,28 @@ export const CURATED_FORMAT_OPTIONS: SchemaField[] = [
     description: "How data frames are printed (`default`, `kable`, `tibble`, `paged`).",
     values: ["default", "kable", "tibble", "paged"],
   },
+  // A small curated child-key fallback for two of the highest-value
+  // object-valued options (6d-6+ b2-iii-key, plan §9 Q3), grounded against the
+  // installed 1.7.33 schema. Curated as universal (like every other entry here)
+  // even though the real options are format-scoped — the offline fallback
+  // trades that realism for simplicity on this rare-path approximation.
+  {
+    name: "code-tools",
+    description: "Include a code tools menu (`true`/`false`, or customize below).",
+    children: [
+      { name: "source", description: "Show the document source (`true`/`false`, or a URL).", values: BOOL },
+      { name: "toggle", description: "Whether the code tools menu can hide/show code.", values: BOOL },
+      { name: "caption", description: "Caption text for the code tools menu." },
+    ],
+  },
+  {
+    name: "theme",
+    description: "Theme name, theme scss file, or a mix of both.",
+    children: [
+      { name: "light", description: "The light theme name, theme scss file, or a mix of both." },
+      { name: "dark", description: "The dark theme name, theme scss file, or a mix of both." },
+    ],
+  },
 ];
 
 // ── Runtime schema index (Slice 6d-3) ───────────────────────────────────────

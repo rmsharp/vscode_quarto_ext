@@ -318,6 +318,34 @@ describe("CURATED_FORMAT_OPTIONS — offline per-format fallback (6d-6+ b2-i)", 
   });
 });
 
+describe("CURATED_FORMAT_OPTIONS — deep-nested object option children (6d-6+ b2-iii-key)", () => {
+  // A small curated child-key fallback for the highest-value object-valued
+  // options (plan §9 Q3), grounded against the installed 1.7.33 schema. Exact
+  // full-set equality throughout (Learning #26/#41) — a `toContain` spot-check
+  // would hide a dropped/extra value.
+  const childrenOf = (name: string): string[] | undefined =>
+    CURATED_FORMAT_OPTIONS.find((f) => f.name === name)?.children?.map((f) => f.name);
+
+  it("code-tools carries its curated sub-keys, exact set", () => {
+    expect(childrenOf("code-tools")).toEqual(["source", "toggle", "caption"]);
+  });
+
+  it("theme carries its curated sub-keys, exact set", () => {
+    expect(childrenOf("theme")).toEqual(["light", "dark"]);
+  });
+
+  it("is reachable via CURATED_SCHEMA_INDEX.frontMatterKeys at len>=3", () => {
+    const children = CURATED_SCHEMA_INDEX.frontMatterKeys(["format", "html", "code-tools"]).map(
+      (f) => f.name,
+    );
+    expect(children).toEqual(["source", "toggle", "caption"]);
+  });
+
+  it("offers nothing for a non-object curated option (no children)", () => {
+    expect(childrenOf("toc")).toBeUndefined();
+  });
+});
+
 describe("CURATED_EXECUTE_KEYS — value enums (6d-6 cont.)", () => {
   function valuesOf(name: string): string[] | undefined {
     return CURATED_EXECUTE_KEYS.find((f) => f.name === name)?.values;
