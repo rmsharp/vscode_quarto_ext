@@ -1386,6 +1386,26 @@ describe("Quarto: YAML deep-nested per-format option key completion (6d-6+ b2-ii
     assert.deepStrictEqual(documentOptionLabels(list), [], "code-tools is not valid under gfm");
   });
 
+  it("resolves copyright's children after the name-collision dedup fix (real schema)", async () => {
+    // Quarto defines `copyright` in BOTH schema/document-attributes.yml (bare,
+    // property-less, JATS-only — iterates first in the real schema's key order)
+    // and schema/document-metadata.yml (the real object with year/holder/
+    // statement, html-doc + jats-all). Before the dedup fix, first-occurrence-
+    // wins silently kept the childless one, so this offered NOTHING under every
+    // format. Against the REAL installed schema, not a synthetic fixture.
+    const doc = await openInMemory("---\nformat:\n  html:\n    copyright:\n      \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 6),
+    );
+    assert.deepStrictEqual(
+      documentOptionLabels(list).sort(),
+      ["holder", "statement", "year"],
+      "copyright's real children, no longer swallowed by the poorer document-attributes.yml definition",
+    );
+  });
+
   it("STILL offers nothing four levels deep — the one-level cap (deferred, b2-iii-deep)", async () => {
     const doc = await openInMemory("---\nformat:\n  html:\n    code-tools:\n      source:\n        \n---\n");
     const list = await vscode.commands.executeCommand<vscode.CompletionList>(

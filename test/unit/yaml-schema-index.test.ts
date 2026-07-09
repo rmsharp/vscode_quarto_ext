@@ -257,6 +257,47 @@ const FIXTURE = JSON.stringify({
       description: "Additional links to display (a sequence of link objects).",
     },
   ],
+  // The REAL name-collision dedup bug (grounded against Quarto 1.7.33): Quarto
+  // defines TWO same-named `copyright` document options across separate files.
+  // `document-attributes.yml`'s is a bare, property-less JATS-scoped `"object"`
+  // (no completable children) — inserted FIRST here, mirroring its real JSON key
+  // order (alphabetically before `document-metadata.yml`, the source of the bug:
+  // first-occurrence-wins picked this poorer definition). `document-metadata.yml`'s
+  // is the richer, real `anyOf[{object:{properties:{year,holder,statement}}}, "string"]`
+  // form, inserted SECOND, matching real iteration order. `collectFields` must keep
+  // the richer (children-bearing) definition regardless of which occurs first.
+  "schema/document-attributes.yml": [
+    {
+      name: "copyright",
+      tags: { formats: ["$jats-all"] },
+      schema: "object",
+      description: "Licensing and copyright information.",
+    },
+  ],
+  "schema/document-metadata.yml": [
+    {
+      name: "copyright",
+      tags: { formats: ["$html-doc", "$jats-all"] },
+      schema: {
+        anyOf: [
+          {
+            object: {
+              properties: {
+                year: {
+                  maybeArrayOf: { anyOf: ["string", "number"] },
+                  description: "The year for this copyright",
+                },
+                holder: { maybeArrayOf: { string: { description: "The holder of the copyright." } } },
+                statement: { maybeArrayOf: { string: { description: "The text to display for the license." } } },
+              },
+            },
+          },
+          "string",
+        ],
+      },
+      description: "The copyright for this document, if any.",
+    },
+  ],
   "schema/definitions.yml": [
     { id: "page-column", enum: ["body", "page", "margin"] },
     { id: "cyclic-a", ref: "cyclic-b" },
@@ -359,6 +400,13 @@ describe("parseSchemaIndex — front-matter key extraction (6d-4)", () => {
       index.frontMatterKeys([]).find((f) => f.name === name)?.values;
     expect(valuesOf("toc")).toEqual(["true", "false"]); // schema: "boolean"
     expect(valuesOf("freeze")).toEqual(["auto"]); // schema: { enum: ["auto"] }
+  });
+
+  // Name-collision dedup fix: `copyright` is defined in TWO document-*.yml files;
+  // the poorer (childless) one iterates first. Keep the richer one regardless.
+  it("keeps the richer copyright definition on a name collision, not whichever occurs first", () => {
+    const copyright = index.frontMatterKeys([]).find((f) => f.name === "copyright");
+    expect(copyright?.children?.map((c) => c.name).sort()).toEqual(["holder", "statement", "year"]);
   });
 });
 

@@ -966,28 +966,47 @@ function collectFormatNames(data: Record<string, unknown>): SchemaField[] {
 }
 
 /**
+ * How much completable information a `SchemaField` carries — its resolved
+ * object children plus its resolved value enum. Used only to break a
+ * same-name collision between two source entries (see `collectFields`); it is
+ * not a quality ranking beyond that.
+ */
+function fieldRichness(field: SchemaField): number {
+  return (field.children?.length ?? 0) + (field.values?.length ?? 0);
+}
+
+/**
  * Collect the de-duplicated, visible `SchemaField`s from every `schema/<prefix>…`
  * file in the parsed resource (e.g. `schema/cell-` for cell options,
- * `schema/document-` for front-matter keys). First occurrence of a name wins.
+ * `schema/document-` for front-matter keys). Quarto defines the same name more
+ * than once in a handful of cases (e.g. `copyright` in both
+ * `document-attributes.yml` and `document-metadata.yml`, one JATS-scoped and
+ * bare, the other a real object with `year`/`holder`/`statement` children) —
+ * on a collision, the entry with more completable information (`fieldRichness`)
+ * wins, not whichever happens to iterate first (`Object.entries` order follows
+ * the source JSON's own key order, an accident of file naming, not richness).
+ * A tie keeps the first-seen entry, so ordering stays otherwise stable.
  */
 function collectFields(
   data: Record<string, unknown>,
   prefix: string,
   definitions: Map<string, unknown>,
 ): SchemaField[] {
-  const fields: SchemaField[] = [];
-  const seen = new Set<string>();
+  const byName = new Map<string, SchemaField>();
   for (const [key, value] of Object.entries(data)) {
     if (!key.startsWith(prefix) || !Array.isArray(value)) {
       continue;
     }
     for (const entry of value) {
       const field = toField(entry, definitions);
-      if (field !== null && !seen.has(field.name)) {
-        seen.add(field.name);
-        fields.push(field);
+      if (field === null) {
+        continue;
+      }
+      const existing = byName.get(field.name);
+      if (existing === undefined || fieldRichness(field) > fieldRichness(existing)) {
+        byName.set(field.name, field);
       }
     }
   }
-  return fields;
+  return [...byName.values()];
 }
