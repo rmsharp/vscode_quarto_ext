@@ -174,6 +174,33 @@ const FIXTURE = JSON.stringify({
       description: "Editor to use for authoring content.",
     },
   ],
+  // The REAL `html-math-method` option (schema/document-options.yml, grounded
+  // against Quarto 1.7.33): its `anyOf` first arm is a bare `ref` to the
+  // `math-methods` definition (not wrapped in an object), and its second arm's
+  // `method` property is the SAME `ref` one level deeper — a faithful case for
+  // the object-children resolver (b2-iii-key, already shipped) AND the value
+  // resolver's definition-enum-object gap (b2-iii-value gap a).
+  "schema/document-math.yml": [
+    {
+      name: "html-math-method",
+      tags: { formats: ["$html-doc"] },
+      schema: {
+        anyOf: [
+          { ref: "math-methods" },
+          {
+            object: {
+              properties: {
+                method: { ref: "math-methods" },
+                url: "string",
+              },
+              required: ["method"],
+            },
+          },
+        ],
+      },
+      description: "Method used to render math in HTML output.",
+    },
+  ],
   // A self-referencing ref pair — proves the object resolver TERMINATES on a
   // cyclic definitions graph (never lands on an object) instead of hanging.
   "schema/document-cyclic-test.yml": [
@@ -204,6 +231,14 @@ const FIXTURE = JSON.stringify({
     {
       id: "other-links",
       arrayOf: { object: { properties: { text: "string", href: "string" } } },
+    },
+    // The REAL `math-methods` definition (grounded against Quarto 1.7.33): unlike
+    // `page-column` above (a plain array), its enum is wrapped in an OBJECT keyed
+    // by `values` — the definition-enum-object form `valuesOfSchema` must also
+    // handle (6d-6+ b2-iii-value gap a).
+    {
+      id: "math-methods",
+      enum: { values: ["plain", "webtex", "gladtex", "mathml", "mathjax", "katex"] },
     },
   ],
   // The flat pandoc output-format list (6d-6 cont. format-name completion). Quarto
@@ -497,6 +532,27 @@ describe("parseSchemaIndex — deep-nested object option resolution (6d-6+ b2-ii
 
   it("does not attach children to a non-object top-level field", () => {
     expect(index.frontMatterKeys([]).find((f) => f.name === "toc")?.children).toBeUndefined();
+  });
+});
+
+describe("parseSchemaIndex — deep-nested option VALUE resolution (6d-6+ b2-iii-value)", () => {
+  const index = parseSchemaIndex(FIXTURE);
+
+  it("resolves the definition-enum-OBJECT form ({enum:{values:[...]}}) through a ref", () => {
+    // html-math-method's `method` sub-key resolves through TWO hops (ref → the
+    // math-methods definition), whose enum is `{values:[...]}`, not a plain array
+    // — the form `page-column` (plain-array enum) does NOT exercise.
+    const method = index
+      .frontMatterKeys(["format", "html", "html-math-method"])
+      .find((f) => f.name === "method");
+    expect(method?.values).toEqual([
+      "plain",
+      "webtex",
+      "gladtex",
+      "mathml",
+      "mathjax",
+      "katex",
+    ]);
   });
 });
 

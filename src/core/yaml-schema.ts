@@ -587,6 +587,16 @@ function valuesOfSchema(
   if (Array.isArray(s.enum)) {
     return dedupe(s.enum.map(scalarToYaml).filter((v): v is string => v !== null));
   }
+  // The definition-enum-OBJECT form some `definitions.yml` entries use
+  // (`math-methods`: `{enum: {values: [...]}}`) — inconsistent with the plain-array
+  // form above (`page-column`: `{enum: [...]}`); both are real (Learning #41c-style
+  // grounding, b2-iii-value gap a).
+  if (s.enum !== null && typeof s.enum === "object" && !Array.isArray(s.enum)) {
+    const values = (s.enum as Record<string, unknown>).values;
+    if (Array.isArray(values)) {
+      return dedupe(values.map(scalarToYaml).filter((v): v is string => v !== null));
+    }
+  }
   if (Array.isArray(s.anyOf)) {
     return dedupe(s.anyOf.flatMap((member) => valuesOfSchema(member, definitions, depth + 1)));
   }
