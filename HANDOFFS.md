@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S52
+date: 2026-07-09
+status: pending
+self_score:
+predecessor_score:
+active_task: IN PROGRESS. Implement BACKLOG.md "Up Next" item #4: run-cell command family completion -- add the 4 missing commands (Run Selected Line(s), Run Next Cell, Run Previous Cell, Run Cells Below) and bind default keybindings across the resulting 9-command family, in the same session, following DEVELOPMENT_WORKSTREAM.md. Operator picked "Item #1 (BACKLOG item #4), run-cell command family" at Phase 1. Mechanical extension of src/core/cells.ts / src/core/execution-delegate.ts / src/features/execution.ts -- genuine new logic, strict-TDD gate applies in full, RED-first.
+what_was_done:
+next_steps:
+key_files:
+gotchas:
+runtime_smoke:
+changelog_ref:
+commit: pending
+```
+
+```handoff
 session: S51
 date: 2026-07-09
 status: complete
