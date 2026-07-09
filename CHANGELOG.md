@@ -9,6 +9,13 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-09 · [ad hoc] (Session 49 quarto.newDocument implementation — Track A of BACKLOG item #3)
+- **Implemented** Track A (`quarto.newDocument`) of `BACKLOG.md` "Up Next" item #3, per `docs/planning/2026-07-09-onboarding-walkthrough-plan.md` §2 (Session 48's plan). Kickoff Q5 resolved via `AskUserQuestion`: kept the plan's recommended optional title prompt.
+- New command **`Quarto: New Quarto Document`**: `src/core/new-document.ts` `buildNewDocumentContent` (pure — trims the title, falls back to `"Untitled"` on empty/whitespace, double-quote-escapes embedded `"`/`\`) + `src/features/new-document.ts` `registerNewDocumentFeature` (thin adapter: `showInputBox` → build content → open as an untitled `language: "quarto"` buffer; no disk write, no CLI shell-out — `quarto create document` does not exist as a CLI feature, Session 48 Finding 1). Wired in `extension.ts`; one new `package.json` command entry.
+- Strict TDD throughout (RED shown before GREEN for every new behavior); two checkpoint commits — L1 core+unit `a32c54d`, L2 adapter/wiring/integration `fde25d0` — full verify matrix (unit/types/integration/package) run at both boundaries.
+- Confirmed the `showInformationMessage`/`openExternal` monkey-patch stub technique extends cleanly to `showInputBox` (`PROJECT_LEARNINGS.md` Learning #56) — written test-first, RED confirmed as `command 'quarto.newDocument' not found` before any adapter code existed.
+- 528 unit (+5) / 186 integration (+3); clean 35-file `.vsix`; `npm run check-types` clean. `BACKLOG.md` item #3 updated (Track A checked off; Tracks B/C remain).
+
 ### 2026-07-09 · [ad hoc] (Session 48 onboarding-walkthrough plan)
 - **Planned** `BACKLOG.md` "Up Next" item #3 (onboarding: getting-started walkthrough + `quarto.newDocument`/`quarto.createProject` scaffolding commands) — `docs/planning/2026-07-09-onboarding-walkthrough-plan.md`. No implementation this session (FM #18/#19).
 - Grounded via a 4-agent parallel research `Workflow` (~265K subagent tokens, 118 tool calls): firsthand CLI source-read + live invocation of `quarto create`/`quarto create-project` against the installed 1.7.33 binary; VS Code's `contributes.walkthroughs` schema verified against `microsoft/vscode`'s own extension-point source; this repo's own L1→L4 command-adding pattern, `engines.vscode`, reusable media, and test-fixture conventions; Posit's public (AGPL look-but-don't-copy) black-box UX for its equivalent commands + walkthrough.
