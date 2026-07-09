@@ -1164,14 +1164,18 @@ describe("Quarto: YAML per-format option key completion (6d-6+ b2-i)", () => {
     assert.strictEqual(range.end.character, 9, "replaces through the end of 'theme'");
   });
 
-  it("offers NOTHING three levels under format: (deep nesting deferred, b2-iii)", async () => {
+  it("offers an object-valued option's sub-keys three levels under format: (6d-6+ b2-iii-key)", async () => {
     const doc = await openInMemory("---\nformat:\n  html:\n    theme:\n      \n---\n");
     const list = await vscode.commands.executeCommand<vscode.CompletionList>(
       "vscode.executeCompletionItemProvider",
       doc.uri,
       new vscode.Position(4, 6), // three levels deep (under format>html>theme)
     );
-    assert.deepStrictEqual(documentOptionLabels(list), [], "no per-format keys three levels deep");
+    assert.deepStrictEqual(
+      documentOptionLabels(list).sort(),
+      ["dark", "light"],
+      "theme's object sub-keys three levels deep",
+    );
   });
 
   it("keeps @ cross-ref completion SUPPRESSED under a per-format slot (complement gating)", async () => {
@@ -1281,5 +1285,107 @@ describe("Quarto: YAML per-format option value completion (6d-6+ b2-ii)", () => 
     const range = replaceRange(item);
     assert.ok(range, "the item carries a replace range");
     assert.strictEqual(range.end.character, 24, "replaces through the end of 'scroll'");
+  });
+});
+
+/**
+ * Slice 6d-6+ (b2-iii-key) — deep-nested per-format option KEY completion. Under
+ * a concrete format option that is itself object-valued
+ * (`format:\n  <fmt>:\n    <opt>:\n      <here>`), the provider offers that
+ * option's resolved sub-keys — one object level, via `objectChildren`/`toField`
+ * (Slice 6d-3-adjacent) and the `frontMatterKeys(len>=3)` navigation branch. The
+ * provider itself is UNCHANGED (generic over `parentPath`, plan §5.5).
+ *
+ * Gate-d (Learning #9/#31b): `grid` is a real object-valued document option
+ * whose sub-keys (`content-mode`/`sidebar-width`/`margin-width`/`body-width`/
+ * `gutter-width`) are NOT in the curated fallback (only `code-tools`/`theme`
+ * are), so a green `sidebar-width` proves `objectChildren` resolved the real
+ * installed schema end-to-end — break-revert-provable by forcing
+ * `quartoSharePath` to throw (grid's children vanish; the curated `code-tools`
+ * children stay, proving the curated fallback serves too).
+ */
+describe("Quarto: YAML deep-nested per-format option key completion (6d-6+ b2-iii-key)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("offers a reader-only object option's sub-keys, absent from the curated fallback (gate d)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    grid:\n      \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 6),
+    );
+    const labels = documentOptionLabels(list);
+    assert.ok(
+      labels.includes("sidebar-width"),
+      `grid's reader-only sub-keys should include sidebar-width; got ${JSON.stringify(labels)}`,
+    );
+  });
+
+  it("offers a curated object option's sub-keys too (code-tools)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    code-tools:\n      \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 6),
+    );
+    assert.deepStrictEqual(
+      documentOptionLabels(list).sort(),
+      ["caption", "source", "toggle"],
+      "code-tools's real sub-keys",
+    );
+  });
+
+  it("offers NOTHING under a non-object option (no children to descend into)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    toc:\n      \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 6),
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "toc is a boolean, not an object");
+  });
+
+  it("offers NOTHING when the option is filtered out of the concrete format", async () => {
+    // code-tools is $html-doc-only; absent from gfm's per-format set entirely.
+    const doc = await openInMemory("---\nformat:\n  gfm:\n    code-tools:\n      \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 6),
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "code-tools is not valid under gfm");
+  });
+
+  it("STILL offers nothing four levels deep — the one-level cap (deferred, b2-iii-deep)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    code-tools:\n      source:\n        \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(5, 8), // four levels deep (under format>html>code-tools>source)
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "depth-4 is the deferred b2-iii-deep residue");
+  });
+
+  it("keeps @ cross-ref completion SUPPRESSED three levels under format: (complement gating)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    theme:\n      @\n---\n\n# Intro {#sec-intro}\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 7),
+      "@",
+    );
+    const labels = (list?.items ?? []).map(labelText);
+    assert.ok(
+      !labels.includes("@sec-intro"),
+      `@ completion must be suppressed deep in front matter; got ${JSON.stringify(labels)}`,
+    );
   });
 });
