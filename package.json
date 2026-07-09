@@ -234,6 +234,12 @@
         "when": "editorTextFocus && editorLangId == quarto"
       }
     ],
+    "snippets": [
+      {
+        "language": "quarto",
+        "path": "./snippets/quarto.json"
+      }
+    ],
     "configuration": {
       "title": "Quarto",
       "properties": {

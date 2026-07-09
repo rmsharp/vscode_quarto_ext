@@ -1,0 +1,101 @@
+{
+  "Quarto Front Matter": {
+    "prefix": "qfrontmatter",
+    "body": [
+      "---",
+      "title: \"${1:Title}\"",
+      "author: \"${2:Author}\"",
+      "format: ${3:html}",
+      "---",
+      "",
+      "$0"
+    ],
+    "description": "Insert a Quarto YAML front-matter block"
+  },
+  "Python Code Cell": {
+    "prefix": "qpy",
+    "body": ["```{python}", "$0", "```"],
+    "description": "Insert a Python executable code cell"
+  },
+  "R Code Cell": {
+    "prefix": "qr",
+    "body": ["```{r}", "$0", "```"],
+    "description": "Insert an R executable code cell"
+  },
+  "Julia Code Cell": {
+    "prefix": "qjulia",
+    "body": ["```{julia}", "$0", "```"],
+    "description": "Insert a Julia executable code cell"
+  },
+  "Observable JS Code Cell": {
+    "prefix": "qojs",
+    "body": ["```{ojs}", "$0", "```"],
+    "description": "Insert an Observable JS executable code cell"
+  },
+  "Callout": {
+    "prefix": "qcallout",
+    "body": [
+      "::: {.callout-${1|note,tip,warning,caution,important|}}",
+      "$0",
+      ":::"
+    ],
+    "description": "Insert a Quarto callout block"
+  },
+  "Fenced Div": {
+    "prefix": "qdiv",
+    "body": ["::: {${1:.class-name}}", "$0", ":::"],
+    "description": "Insert a Quarto fenced div"
+  },
+  "Figure with Cross-reference": {
+    "prefix": "qfig",
+    "body": ["![${1:Caption}](${2:image.png}){#fig-${3:name}}"],
+    "description": "Insert an image with a figure cross-reference label"
+  },
+  "Table with Cross-reference": {
+    "prefix": "qtable",
+    "body": [
+      "| ${1:A} | ${2:B} |",
+      "|---|---|",
+      "| ${3:1} | ${4:2} |",
+      "",
+      ": ${5:Table caption} {#tbl-${6:name}}"
+    ],
+    "description": "Insert a table with a table cross-reference label"
+  },
+  "Equation with Cross-reference": {
+    "prefix": "qeq",
+    "body": ["$$", "${1:E = mc^2}", "$$ {#eq-${2:name}}"],
+    "description": "Insert a display equation with an equation cross-reference label"
+  },
+  "Cross-referenced Heading": {
+    "prefix": "qsec",
+    "body": ["${1:#} ${2:Heading} {#sec-${3:name}}"],
+    "description": "Insert a heading with a section cross-reference label"
+  },
+  "Listing with Cross-reference": {
+    "prefix": "qlst",
+    "body": [
+      "```{.${1:python}}",
+      "${2:code}",
+      "```",
+      ": ${3:Listing caption} {#lst-${4:name}}"
+    ],
+    "description": "Insert a code listing with a listing cross-reference label"
+  },
+  "Tabset Panel": {
+    "prefix": "qtabset",
+    "body": [
+      "::: {.panel-tabset}",
+      "## ${1:Tab 1}",
+      "",
+      "${2:Content}",
+      "",
+      "## ${3:Tab 2}",
+      "",
+      "${4:Content}",
+      ":::",
+      "$0"
+    ],
+    "description": "Insert a tabset panel"
+  }
+}
