@@ -53,6 +53,14 @@ export interface SchemaField {
    * fields (already document-level by file) and for pure cell-only options.
    */
   contexts?: string[];
+  /**
+   * For an object-valued option: its resolved child fields, one object level deep
+   * (Slice 6d-6+ b2-iii-key). Unset for a scalar/enum/array option, or when the
+   * object has no `properties` to list. A child field never carries its OWN
+   * `children` (the v1 depth cap — a second object level is the deferred
+   * b2-iii-deep residue), so this is always exactly one level.
+   */
+  children?: SchemaField[];
 }
 
 /** The two boolean values offered for a plain boolean option, in order. */
@@ -356,6 +364,12 @@ function indexOf(
     formatNames.length === 0
       ? fmFields
       : fmFields.map((f) => (f.name === "format" ? { ...f, values: formatNames } : f));
+  // The `["format", fmt]` per-format option set (6d-6+ b2-i): document-* ∪
+  // format-scoped cell-* fields whose `tags.formats` admit `fmt`. Shared by the
+  // length===2 (option KEY/VALUE) and length>=3 (object sub-key, b2-iii-key)
+  // branches below.
+  const perFormatOptions = (fmt: string): SchemaField[] =>
+    perFormatFields.filter((f) => formatMatches(f.formats, fmt, aliases));
   return {
     cellOptions(engine) {
       if (engine === undefined) {
@@ -385,8 +399,24 @@ function indexOf(
       // An unknown format keeps only the untagged (universal) fields — safe
       // degradation, never a wrong key.
       if (parentPath.length === 2 && parentPath[0] === "format") {
-        const fmt = parentPath[1];
-        return perFormatFields.filter((f) => formatMatches(f.formats, fmt, aliases));
+        return perFormatOptions(parentPath[1]);
+      }
+      // Deep-nested object-option sub-keys (6d-6+ b2-iii-key): under
+      // `format:\n  <fmt>:\n    <opt>:`, the option's resolved `children` (one
+      // object level — Slice 6d-3's `objectChildren`/`toField`). An unknown
+      // format/option, or an option with no children (non-object, or filtered out
+      // of the format), yields `[]`. `path.slice(3)` descends further for a
+      // depth-4+ position, but `children` is never populated past one level in
+      // v1, so that descent always lands on `undefined` → `[]` (deferred,
+      // shape-locked — b2-iii-deep).
+      if (parentPath.length >= 3 && parentPath[0] === "format") {
+        let node: SchemaField | undefined = perFormatOptions(parentPath[1]).find(
+          (f) => f.name === parentPath[2],
+        );
+        for (const seg of parentPath.slice(3)) {
+          node = node?.children?.find((c) => c.name === seg);
+        }
+        return node?.children ?? [];
       }
       return [];
     },
@@ -553,6 +583,145 @@ function valuesOfSchema(
   return []; // arrayOf, object, and other deferred forms
 }
 
+/**
+ * The `properties` map of the `{object: {properties}}` an option's schema
+ * resolves to, or `null` if it never lands on a non-empty object. Walks `anyOf`
+ * (first arm that lands on an object), `ref` (repeated, `seenRefs`-guarded
+ * against a cyclic definitions graph — e.g. `about → website-about → links →
+ * navigation-item ↔ navigation-item-object`), `maybeArrayOf`, bare `arrayOf`
+ * (an array-of-objects option, e.g. `other-links`), and the `{schema: …}`
+ * indirection some `definitions.yml` entries use (e.g. `code-links-schema`) —
+ * grounded firsthand against the installed 1.7.33 schema (Learning #41c): all
+ * FIVE unwrap forms are load-bearing to reach the real 40 object-valued options
+ * (omitting `arrayOf`/`schema` undercounts to 36/38). `hops` bounds a single
+ * resolution chain generically (mirrors `valuesOfSchema`'s `depth` guard).
+ */
+function resolveObjectProperties(
+  schema: unknown,
+  definitions: Map<string, unknown>,
+  seenRefs: Set<string>,
+  hops: number,
+): Record<string, unknown> | null {
+  if (hops > 10 || schema === null || typeof schema !== "object") {
+    return null;
+  }
+  const s = schema as Record<string, unknown>;
+  if (s.object !== null && typeof s.object === "object") {
+    const properties = (s.object as Record<string, unknown>).properties;
+    return properties !== null && typeof properties === "object" && Object.keys(properties).length > 0
+      ? (properties as Record<string, unknown>)
+      : null;
+  }
+  if (Array.isArray(s.anyOf)) {
+    for (const arm of s.anyOf) {
+      const resolved = resolveObjectProperties(arm, definitions, seenRefs, hops + 1);
+      if (resolved !== null) {
+        return resolved;
+      }
+    }
+    return null;
+  }
+  if (typeof s.ref === "string") {
+    if (seenRefs.has(s.ref)) {
+      return null; // cycle guard — already chasing this ref in this resolution chain
+    }
+    seenRefs.add(s.ref);
+    return resolveObjectProperties(definitions.get(s.ref), definitions, seenRefs, hops + 1);
+  }
+  if (s.maybeArrayOf !== undefined) {
+    return resolveObjectProperties(s.maybeArrayOf, definitions, seenRefs, hops + 1);
+  }
+  if (s.arrayOf !== undefined) {
+    return resolveObjectProperties(s.arrayOf, definitions, seenRefs, hops + 1);
+  }
+  if (s.schema !== undefined) {
+    return resolveObjectProperties(s.schema, definitions, seenRefs, hops + 1);
+  }
+  return null;
+}
+
+/**
+ * The human description of a property's raw schema value, searched up to 3
+ * levels deep through the common scalar-type wrappers (`string`/`boolean`/
+ * `number`/`path`/`object`) and array wrappers (`maybeArrayOf`/`arrayOf`) —
+ * covers the two shapes the real schema mixes (grounded firsthand): a
+ * description as a direct sibling of the type key (`{enum:[…], description}`)
+ * and one nested inside a scalar-type wrapper (`{string: {description}}`).
+ * `undefined` when no description is reachable within the bound (a bare
+ * `"boolean"`/`"string"` token, for instance) — description is a UX nicety,
+ * never load-bearing, so an absence here degrades silently.
+ */
+function childDescription(schema: unknown, depth: number): string | undefined {
+  if (depth > 3 || schema === null || typeof schema !== "object") {
+    return undefined;
+  }
+  const s = schema as Record<string, unknown>;
+  const direct = descriptionOf(s.description);
+  if (direct !== undefined) {
+    return direct;
+  }
+  for (const typeKey of ["string", "boolean", "number", "path", "object"]) {
+    if (s[typeKey] !== null && typeof s[typeKey] === "object") {
+      const nested = childDescription(s[typeKey], depth + 1);
+      if (nested !== undefined) {
+        return nested;
+      }
+    }
+  }
+  for (const wrapKey of ["maybeArrayOf", "arrayOf"]) {
+    if (s[wrapKey] !== undefined) {
+      const nested = childDescription(s[wrapKey], depth + 1);
+      if (nested !== undefined) {
+        return nested;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The child `SchemaField`s of an object-valued schema, one object level deep, or
+ * `[]` — a bounded sibling of `valuesOfSchema` (Phase 6d-6+ b2-iii-key plan §5.2).
+ * `depth` caps recursion at exactly ONE object level (v1 policy, plan §9 Q2): a
+ * child's own `children` are never computed (`depth > 0` bails immediately,
+ * before any resolution), so `objectChildren` never descends into a child
+ * property's own nested structure — deeper nesting is the deferred b2-iii-deep
+ * residue. `seenRefs` is threaded through so a single top-level resolution chain
+ * (anyOf/ref/maybeArrayOf/arrayOf/schema, `resolveObjectProperties`) cannot loop
+ * forever on a cyclic definitions graph. Never throws: a scalar leaf, a bare
+ * object with no properties, or an unresolvable schema all yield `[]`.
+ */
+function objectChildren(
+  schema: unknown,
+  definitions: Map<string, unknown>,
+  depth: number,
+  seenRefs: Set<string>,
+): SchemaField[] {
+  if (depth > 0) {
+    return [];
+  }
+  const properties = resolveObjectProperties(schema, definitions, seenRefs, 0);
+  if (properties === null) {
+    return [];
+  }
+  return Object.entries(properties).map(([name, sub]) => {
+    const field: SchemaField = { name };
+    const description = childDescription(sub, 0);
+    if (description !== undefined) {
+      field.description = description;
+    }
+    const values = valuesOfSchema(sub, definitions, 0);
+    if (values.length > 0) {
+      field.values = values;
+    }
+    const children = objectChildren(sub, definitions, depth + 1, seenRefs);
+    if (children.length > 0) {
+      field.children = children;
+    }
+    return field;
+  });
+}
+
 /** Index `definitions.yml` (a list of `{id, …}`) by id; each value IS its schema. */
 function indexDefinitions(raw: unknown): Map<string, unknown> {
   const map = new Map<string, unknown>();
@@ -595,6 +764,10 @@ function toField(entry: unknown, definitions: Map<string, unknown>): SchemaField
   const contexts = contextsTag(e.tags);
   if (contexts !== undefined) {
     field.contexts = contexts;
+  }
+  const children = objectChildren(e.schema, definitions, 0, new Set());
+  if (children.length > 0) {
+    field.children = children;
   }
   return field;
 }

@@ -122,7 +122,69 @@ const FIXTURE = JSON.stringify({
   "schema/document-epub.yml": [
     { name: "format", schema: "string", description: "Text describing the format of this publication." },
   ],
-  "schema/definitions.yml": [{ id: "page-column", enum: ["body", "page", "margin"] }],
+  // An object-valued per-format option (6d-6+ b2-iii-key) — the EXACT real shape
+  // (anyOf[boolean, {object:{properties:{...}}}]) grounded against Quarto 1.7.33
+  // `schema/document-code.yml`, format-scoped `$html-doc` like the real option.
+  "schema/document-code.yml": [
+    {
+      name: "code-tools",
+      tags: { formats: ["$html-doc"] },
+      schema: {
+        anyOf: [
+          "boolean",
+          {
+            object: {
+              closed: true,
+              properties: {
+                source: { anyOf: ["boolean", "string"] },
+                toggle: "boolean",
+                caption: "string",
+              },
+            },
+          },
+        ],
+      },
+      description: { short: "Include a code tools menu.", long: "Longer form…" },
+    },
+  ],
+  // An object-valued option whose OWN property ("markdown") is ITSELF
+  // object-valued — a minimal faithful subset of the real `document-editor.yml`
+  // shape, for the ONE-object-level depth-cap test (deeper nesting deferred,
+  // b2-iii-deep).
+  "schema/document-editor.yml": [
+    {
+      name: "editor",
+      schema: {
+        anyOf: [
+          { enum: ["source", "visual"] },
+          {
+            object: {
+              hidden: true,
+              properties: {
+                mode: { enum: ["source", "visual"], description: "Default editing mode." },
+                markdown: { object: { properties: { wrap: { anyOf: [{ enum: ["sentence", "none"] }, "number"] } } } },
+              },
+            },
+          },
+        ],
+      },
+      description: "Editor to use for authoring content.",
+    },
+  ],
+  // A self-referencing ref pair — proves the object resolver TERMINATES on a
+  // cyclic definitions graph (never lands on an object) instead of hanging.
+  "schema/document-cyclic-test.yml": [
+    {
+      name: "cyclic-opt",
+      schema: { ref: "cyclic-a" },
+      description: "Resolves through a cyclic ref chain — must terminate, not hang.",
+    },
+  ],
+  "schema/definitions.yml": [
+    { id: "page-column", enum: ["body", "page", "margin"] },
+    { id: "cyclic-a", ref: "cyclic-b" },
+    { id: "cyclic-b", ref: "cyclic-a" },
+  ],
   // The flat pandoc output-format list (6d-6 cont. format-name completion). Quarto
   // hides legacy variants (html4/html5, epub2/epub3, docbook4/docbook5) and concats
   // a few synthesized formats. Include BOTH hidden variants of each base so the
@@ -313,6 +375,59 @@ describe("parseSchemaIndex — per-format option extraction (6d-6+ b2-i)", () =>
     expect(
       index.frontMatterKeys(["format", "gfm"]).find((f) => f.name === "code-fold"),
     ).toBeUndefined();
+  });
+});
+
+describe("parseSchemaIndex — deep-nested object option resolution (6d-6+ b2-iii-key)", () => {
+  const index = parseSchemaIndex(FIXTURE);
+
+  it("resolves an object-valued per-format option's sub-keys via frontMatterKeys(len>=3)", () => {
+    const children = index.frontMatterKeys(["format", "html", "code-tools"]).map((f) => f.name);
+    expect(children).toEqual(["source", "toggle", "caption"]);
+  });
+
+  it("carries each child's resolved value enum for free (existing valuesOfSchema)", () => {
+    const children = index.frontMatterKeys(["format", "html", "code-tools"]);
+    expect(children.find((f) => f.name === "toggle")?.values).toEqual(["true", "false"]);
+    // anyOf[boolean, string] → the boolean arm's enum members are still offered
+    // (a free-text string is also accepted but is not itself enumerable).
+    expect(children.find((f) => f.name === "source")?.values).toEqual(["true", "false"]);
+    expect(children.find((f) => f.name === "caption")?.values).toBeUndefined(); // bare "string" → no enum
+  });
+
+  it("offers nothing for a non-object option (no children to descend into)", () => {
+    expect(index.frontMatterKeys(["format", "html", "toc"])).toEqual([]);
+  });
+
+  it("offers nothing for an unknown option under a known format", () => {
+    expect(index.frontMatterKeys(["format", "html", "no-such-option"])).toEqual([]);
+  });
+
+  it("offers nothing when the option itself is filtered out of the concrete format", () => {
+    // code-tools is $html-doc-only; absent from gfm's per-format set entirely.
+    expect(index.frontMatterKeys(["format", "gfm", "code-tools"])).toEqual([]);
+  });
+
+  it("caps resolution at ONE object level — a depth-4 position offers nothing (deferred, b2-iii-deep)", () => {
+    expect(index.frontMatterKeys(["format", "html", "editor", "markdown"])).toEqual([]);
+  });
+
+  it("a child field does not itself carry populated children (the one-level cap, structurally)", () => {
+    const editorChildren = index.frontMatterKeys(["format", "html", "editor"]);
+    expect(editorChildren.map((f) => f.name)).toEqual(["mode", "markdown"]);
+    const markdown = editorChildren.find((f) => f.name === "markdown");
+    expect(markdown?.children ?? []).toEqual([]);
+    const mode = editorChildren.find((f) => f.name === "mode");
+    expect(mode?.values).toEqual(["source", "visual"]);
+  });
+
+  it("terminates on a cyclic ref chain instead of hanging (never lands on an object)", () => {
+    const cyclic = index.frontMatterKeys([]).find((f) => f.name === "cyclic-opt");
+    expect(cyclic?.children ?? []).toEqual([]);
+  });
+
+  it("does not attach children to a non-object top-level field", () => {
+    expect(index.frontMatterKeys([]).find((f) => f.name === "toc")?.children).toBeUndefined();
   });
 });
 
