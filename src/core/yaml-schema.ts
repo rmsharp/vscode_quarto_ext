@@ -332,6 +332,46 @@ export const CURATED_FORMAT_OPTIONS: SchemaField[] = [
   },
 ];
 
+/**
+ * The complete, exact set of `_quarto.yml` `project:` block keys (Quarto
+ * 1.7.33's `schema/project.yml` `project` entry, `closed: true`, 11
+ * properties) — the ONLY one of `project:`/`website:`/`book:` small enough to
+ * hand-curate EXACTLY, so it is the only one safe to treat as closed offline.
+ * `website:`/`book:`'s real closed sets (36 and ~159 properties respectively,
+ * the latter merged through a `super` chain — YAML schema diagnostics plan
+ * §2.2) are infeasible to hand-curate completely; curating a PARTIAL subset
+ * and marking it closed would risk flagging a genuinely valid key as unknown
+ * whenever Quarto is unreachable — exactly the false positive this feature
+ * exists to avoid. So the curated fallback simply does not validate
+ * `website:`/`book:` offline (plan §9 Q2's "omit" alternative) rather than
+ * ship a partial closed set.
+ */
+export const CURATED_PROJECT_KEYS = new Set([
+  "title",
+  "type",
+  "render",
+  "execute-dir",
+  "output-dir",
+  "lib-dir",
+  "resources",
+  "preview",
+  "pre-render",
+  "post-render",
+  "detect",
+]);
+
+/**
+ * `CURATED_SCHEMA_INDEX`'s `projectKeys` data: `project:` is closed and exact
+ * (above); `website:`/`book:` are `null` (never flagged offline — see
+ * `CURATED_PROJECT_KEYS`'s docstring).
+ */
+const CURATED_PROJECT_CONFIG_KEYS: Map<"project" | "website" | "book", ClosedKeySet | null> =
+  new Map([
+    ["project", { names: CURATED_PROJECT_KEYS, closed: true }],
+    ["website", null],
+    ["book", null],
+  ]);
+
 // ── Runtime schema index (Slice 6d-3) ───────────────────────────────────────
 
 /**
@@ -361,6 +401,23 @@ export interface SchemaIndex {
    * (recursive resolution of deep nesting is deferred, b2-iii).
    */
   frontMatterKeys(parentPath: string[]): SchemaField[];
+
+  /**
+   * The closed set of valid keys directly inside `_quarto.yml`'s `project:`,
+   * `website:`, or `book:` block, or `null` when this container's closed-set
+   * data could not be resolved (safe default: callers must NOT flag anything
+   * for a `null` result — absence of proof is not proof of absence). `book:`
+   * resolves through a `super` merge chain (`book-schema` supers
+   * `base-website`; `book:` itself also supers `csl-item-shared`) — YAML
+   * schema diagnostics plan §2.2. Never throws.
+   */
+  projectKeys(container: "project" | "website" | "book"): Set<string> | null;
+}
+
+/** One resolved container's key set + whether the resolution proved it closed. */
+interface ClosedKeySet {
+  names: Set<string>;
+  closed: boolean;
 }
 
 /**
@@ -373,6 +430,7 @@ function indexOf(
   formatFields: SchemaField[],
   perFormatFields: SchemaField[],
   aliases: FormatAliases,
+  projectConfigKeys: Map<"project" | "website" | "book", ClosedKeySet | null>,
 ): SchemaIndex {
   // The top-level `format:` value is an output-format NAME (`html`, `pdf`, …), but
   // the flat document-key list models `format` only as a same-named epub-scoped
@@ -441,6 +499,13 @@ function indexOf(
         return node?.children ?? [];
       }
       return [];
+    },
+    projectKeys(container) {
+      // Only surface a resolved set when the resolution actually proved the
+      // container closed — an unresolved or not-provably-closed container
+      // returns null (never a wrong flag), matching the interface contract.
+      const resolved = projectConfigKeys.get(container);
+      return resolved?.closed === true ? resolved.names : null;
     },
   };
 }
@@ -520,6 +585,7 @@ export const CURATED_SCHEMA_INDEX: SchemaIndex = indexOf(
   CURATED_FORMAT_NAMES,
   CURATED_FORMAT_OPTIONS,
   new Map(), // no `$`-aliases needed: curated per-format options are all universal
+  CURATED_PROJECT_CONFIG_KEYS,
 );
 
 /** Strip a leading UTF-8 BOM, which `JSON.parse` rejects (Learning #16c). */
@@ -697,6 +763,146 @@ function resolveObjectProperties(
 }
 
 /**
+ * Resolve a `_quarto.yml` `project:`/`website:`/`book:` container's schema
+ * node into its closed key set (YAML schema diagnostics plan §2.2/§5.1).
+ * Walks `ref`/`resolveRef` (definitions.yml indirection — `resolveRef` is the
+ * key name Quarto's own `super` chain uses, distinct from the plain `ref` seen
+ * elsewhere in this file), the `{object: {...}}` wrapper, and the `{schema:
+ * ...}` indirection a definitions.yml entry itself may use (`book-schema`'s
+ * own entry shape, grounded firsthand against the installed 1.7.33 schema).
+ * `hops` bounds a single resolution chain generically (mirrors
+ * `resolveObjectProperties`'s guard); `seenRefs` is a per-branch snapshot
+ * (copied, never mutated in place) so sibling `super` members that happen to
+ * share a resolution target (a legitimate DAG diamond, not a cycle) each
+ * resolve independently rather than one starving the other — only a TRUE
+ * cycle back to an ancestor already on the CURRENT branch is blocked. Never
+ * throws: a missing/malformed node anywhere in the chain simply contributes
+ * nothing, never a wrong result.
+ */
+function resolveClosedKeys(
+  node: unknown,
+  definitions: Map<string, unknown>,
+  seenRefs: Set<string>,
+  hops: number,
+): ClosedKeySet | null {
+  if (hops > 10 || node === null || typeof node !== "object") {
+    return null;
+  }
+  const n = node as Record<string, unknown>;
+  if (typeof n.ref === "string") {
+    return resolveClosedKeysRef(n.ref, definitions, seenRefs, hops + 1);
+  }
+  if (typeof n.resolveRef === "string") {
+    return resolveClosedKeysRef(n.resolveRef, definitions, seenRefs, hops + 1);
+  }
+  if (n.object !== null && typeof n.object === "object" && !Array.isArray(n.object)) {
+    return resolveClosedKeysObject(
+      n.object as Record<string, unknown>,
+      definitions,
+      seenRefs,
+      hops + 1,
+    );
+  }
+  if (n.schema !== undefined) {
+    return resolveClosedKeys(n.schema, definitions, seenRefs, hops + 1);
+  }
+  return null;
+}
+
+/** The `ref`/`resolveRef` indirection branch of `resolveClosedKeys` — cycle-guarded. */
+function resolveClosedKeysRef(
+  ref: string,
+  definitions: Map<string, unknown>,
+  seenRefs: Set<string>,
+  hops: number,
+): ClosedKeySet | null {
+  if (seenRefs.has(ref)) {
+    return null; // a true cycle within this branch's own ancestor chain
+  }
+  const def = definitions.get(ref);
+  if (def === undefined) {
+    return null;
+  }
+  const nextSeen = new Set(seenRefs);
+  nextSeen.add(ref);
+  return resolveClosedKeys(def, definitions, nextSeen, hops);
+}
+
+/**
+ * The `{object: {closed, properties, super}}` branch of `resolveClosedKeys`.
+ * `super` may be a single node or an array (`book-schema`'s own `super` is a
+ * bare object; `book`'s is an array of two) — normalized to a list and merged
+ * by UNION, with `closed` true if EITHER this object's own flag is true OR any
+ * merged `super` member resolved closed (`book`'s own project.yml entry
+ * carries no `closed` flag at all — only `book-schema`, reached through
+ * `super`, does — so closedness must propagate up through the merge, not stop
+ * at the outermost entry's own flag).
+ */
+function resolveClosedKeysObject(
+  obj: Record<string, unknown>,
+  definitions: Map<string, unknown>,
+  seenRefs: Set<string>,
+  hops: number,
+): ClosedKeySet {
+  const names = new Set<string>();
+  const properties = obj.properties;
+  if (properties !== null && typeof properties === "object" && !Array.isArray(properties)) {
+    for (const key of Object.keys(properties as Record<string, unknown>)) {
+      names.add(key);
+    }
+  }
+  let closed = obj.closed === true;
+  const superNode = obj.super;
+  if (superNode !== undefined) {
+    const members = Array.isArray(superNode) ? superNode : [superNode];
+    for (const member of members) {
+      const resolved = resolveClosedKeys(member, definitions, seenRefs, hops);
+      if (resolved !== null) {
+        for (const name of resolved.names) {
+          names.add(name);
+        }
+        if (resolved.closed) {
+          closed = true;
+        }
+      }
+    }
+  }
+  return { names, closed };
+}
+
+/**
+ * The `project:`/`website:`/`book:` closed-key map for `SchemaIndex.
+ * projectKeys` (plan §5.1), read from `data["schema/project.yml"]`'s
+ * `project`/`website`/`book` entries (containers, not leaf `SchemaField`s —
+ * NOT run through `collectFields`/`toField`) and resolved against the SAME
+ * already-built `definitions` map `parseSchemaIndex` uses elsewhere. A
+ * container absent from the array, or `schema/project.yml` itself malformed,
+ * yields `null` for that container (never a wrong flag).
+ */
+function buildProjectConfigKeys(
+  data: Record<string, unknown>,
+  definitions: Map<string, unknown>,
+): Map<"project" | "website" | "book", ClosedKeySet | null> {
+  const raw = data["schema/project.yml"];
+  const entries = Array.isArray(raw) ? raw : [];
+  const schemaByName = new Map<string, unknown>();
+  for (const entry of entries) {
+    if (entry !== null && typeof entry === "object" && typeof (entry as Record<string, unknown>).name === "string") {
+      schemaByName.set((entry as Record<string, unknown>).name as string, (entry as Record<string, unknown>).schema);
+    }
+  }
+  const map = new Map<"project" | "website" | "book", ClosedKeySet | null>();
+  for (const container of ["project", "website", "book"] as const) {
+    const schema = schemaByName.get(container);
+    map.set(
+      container,
+      schema === undefined ? null : resolveClosedKeys(schema, definitions, new Set(), 0),
+    );
+  }
+  return map;
+}
+
+/**
  * The human description of a property's raw schema value, searched up to 3
  * levels deep through the common scalar-type wrappers (`string`/`boolean`/
  * `number`/`path`/`object`) and array wrappers (`maybeArrayOf`/`arrayOf`) —
@@ -853,6 +1059,7 @@ export function parseSchemaIndex(jsonText: string): SchemaIndex {
           collectFormatNames(data),
           perFormatSource(fmFields, cellFields),
           parseFormatAliases(data["schema/format-aliases.yml"]),
+          buildProjectConfigKeys(data, definitions),
         );
   } catch {
     return CURATED_SCHEMA_INDEX;

@@ -327,6 +327,175 @@ const FIXTURE = JSON.stringify({
   ],
 });
 
+/**
+ * A dedicated fixture for `SchemaIndex.projectKeys` (YAML schema diagnostics
+ * plan §5.1/§2.2), mirroring the REAL `schema/project.yml` + `schema/
+ * definitions.yml` shapes probed live against the installed Quarto 1.7.33
+ * schema (grounded firsthand, Session 47): `project`'s entry is a flat closed
+ * object; `website`'s is a one-hop `{ref}` to a closed definition; `book`'s is
+ * an object with NO own properties, only a `super` array of two `{resolveRef}`
+ * members — one of which (`test-book-schema`) is ITSELF closed with its own
+ * inline properties AND a second-hop `super` (a single `{resolveRef}`, not an
+ * array) to the SAME closed definition `website` refs to (proving a shared
+ * target resolves correctly from two different paths), the other
+ * (`test-csl-item-shared`) carrying NO `closed` flag of its own (matching the
+ * real `csl-item-shared`) — its openness must not stop `book`'s merged whole
+ * from being closed (plan §2.2's "merge-then-close" semantic). `chapters` is
+ * `test-book-schema`-only; `announcement` is `test-base-website`-only (present
+ * ONLY by climbing the second super hop) — the gate-d discriminator proving the
+ * full chain resolved, not just `test-book-schema`'s own inline list. `title`
+ * is deliberately duplicated in BOTH `test-book-schema` and
+ * `test-base-website` to prove the union dedupes rather than erroring.
+ */
+const PROJECT_CONFIG_FIXTURE = JSON.stringify({
+  // Without at least one cell-*/document-* field, parseSchemaIndex's
+  // whole-index bail-out ("no options found at all") degrades to
+  // CURATED_SCHEMA_INDEX wholesale, defeating this fixture's purpose.
+  "schema/document-options.yml": [{ name: "toc", schema: "boolean", description: "TOC" }],
+  "schema/project.yml": [
+    {
+      name: "project",
+      schema: {
+        object: {
+          closed: true,
+          properties: { title: "string", "output-dir": "string" },
+        },
+      },
+    },
+    { name: "website", schema: { ref: "test-base-website" } },
+    {
+      name: "book",
+      schema: {
+        object: {
+          super: [{ resolveRef: "test-book-schema" }, { resolveRef: "test-csl-item-shared" }],
+        },
+      },
+    },
+  ],
+  "schema/definitions.yml": [
+    {
+      id: "test-base-website",
+      object: {
+        closed: true,
+        properties: { title: "string", navbar: "string", announcement: "string" },
+      },
+    },
+    {
+      id: "test-book-schema",
+      schema: {
+        object: {
+          closed: true,
+          super: { resolveRef: "test-base-website" },
+          properties: { chapters: "string", title: "string" },
+        },
+      },
+    },
+    {
+      id: "test-csl-item-shared",
+      object: {
+        properties: { DOI: "string", issued: "string" },
+      },
+    },
+    // A self-referencing pair reachable only via `resolveRef`/`super` (not the
+    // `ref` cyclic-a/b pair above, which a different resolver consumes) —
+    // proves `projectKeys` terminates on a cyclic `super` chain instead of
+    // hanging, and that neither side ever resolves `closed:true` (so the
+    // caller-facing result is `null`, never a wrong/partial flag).
+    { id: "cyclic-super-a", object: { super: { resolveRef: "cyclic-super-b" } } },
+    { id: "cyclic-super-b", object: { super: { resolveRef: "cyclic-super-a" } } },
+  ],
+});
+
+/** Same shape as `PROJECT_CONFIG_FIXTURE`'s `project.yml`, minus website/book entirely. */
+const PARTIAL_PROJECT_CONFIG_FIXTURE = JSON.stringify({
+  "schema/document-options.yml": [{ name: "toc", schema: "boolean", description: "TOC" }],
+  "schema/project.yml": [
+    {
+      name: "project",
+      schema: { object: { closed: true, properties: { title: "string" } } },
+    },
+  ],
+});
+
+describe("parseSchemaIndex — _quarto.yml project:/website:/book: closed-key resolution (YAML diagnostics plan §5.1)", () => {
+  const index = parseSchemaIndex(PROJECT_CONFIG_FIXTURE);
+
+  it("resolves project:'s flat closed key set", () => {
+    expect(index.projectKeys("project")).toEqual(new Set(["title", "output-dir"]));
+  });
+
+  it("resolves website:'s one-hop $ref closed key set", () => {
+    expect(index.projectKeys("website")).toEqual(new Set(["title", "navbar", "announcement"]));
+  });
+
+  it("resolves book:'s full super-merge chain, including a base-website-only key reached via the SECOND hop (the gate-d discriminator)", () => {
+    expect(index.projectKeys("book")).toEqual(
+      new Set(["chapters", "title", "navbar", "announcement", "DOI", "issued"]),
+    );
+  });
+
+  it("marks book: closed even though its OWN project.yml entry carries no closed flag directly (closedness propagates up through the super merge)", () => {
+    // A shallower implementation that only checked the outermost entry's own
+    // `closed` (never true here — see the fixture) would wrongly treat book:
+    // as unclosed and return null. This is a direct assertion of that, since
+    // the previous test's non-null exact-set result already implies it, but a
+    // dedicated assertion makes the discriminator explicit and named.
+    expect(index.projectKeys("book")).not.toBeNull();
+  });
+
+  it("returns null for a container absent from schema/project.yml", () => {
+    const partial = parseSchemaIndex(PARTIAL_PROJECT_CONFIG_FIXTURE);
+    expect(partial.projectKeys("website")).toBeNull();
+    expect(partial.projectKeys("book")).toBeNull();
+    expect(partial.projectKeys("project")).toEqual(new Set(["title"]));
+  });
+
+  it("returns null for every container when schema/project.yml is malformed (never throws)", () => {
+    const malformed = parseSchemaIndex(
+      JSON.stringify({
+        "schema/document-options.yml": [{ name: "toc", schema: "boolean", description: "TOC" }],
+        "schema/project.yml": "not-an-array",
+      }),
+    );
+    expect(malformed.projectKeys("project")).toBeNull();
+    expect(malformed.projectKeys("website")).toBeNull();
+    expect(malformed.projectKeys("book")).toBeNull();
+  });
+
+  it("terminates on a cyclic super/resolveRef chain instead of hanging, and never resolves it as closed", () => {
+    const cyclic = parseSchemaIndex(
+      JSON.stringify({
+        "schema/document-options.yml": [{ name: "toc", schema: "boolean", description: "TOC" }],
+        "schema/project.yml": [{ name: "website", schema: { ref: "cyclic-super-a" } }],
+        "schema/definitions.yml": [
+          { id: "cyclic-super-a", object: { super: { resolveRef: "cyclic-super-b" } } },
+          { id: "cyclic-super-b", object: { super: { resolveRef: "cyclic-super-a" } } },
+        ],
+      }),
+    );
+    expect(cyclic.projectKeys("website")).toBeNull();
+  });
+});
+
+describe("CURATED_SCHEMA_INDEX — _quarto.yml project:/website:/book: closed-key resolution", () => {
+  it("exposes the complete, exact project: key set (cheap to hand-curate, safe to flag offline)", () => {
+    expect(CURATED_SCHEMA_INDEX.projectKeys("project")).toEqual(
+      new Set([
+        "title", "type", "render", "execute-dir", "output-dir", "lib-dir",
+        "resources", "preview", "pre-render", "post-render", "detect",
+      ]),
+    );
+  });
+
+  it("never flags website: offline — a partial curated subset would risk a false positive, so it is omitted rather than marked closed", () => {
+    expect(CURATED_SCHEMA_INDEX.projectKeys("website")).toBeNull();
+  });
+
+  it("never flags book: offline for the same reason", () => {
+    expect(CURATED_SCHEMA_INDEX.projectKeys("book")).toBeNull();
+  });
+});
+
 describe("parseSchemaIndex — cell-option extraction", () => {
   const index = parseSchemaIndex(FIXTURE);
   const names = index.cellOptions().map((f) => f.name);

@@ -278,9 +278,12 @@ function nestedParentPath(
  * only a comment, so its children live on following indented lines — or `null` if
  * the line is a sequence item, a comment, has no colon, or carries a scalar / flow
  * / block-scalar value (`key: v`, `key: [..]`, `key: |`). Leading indentation is
- * ignored; the caller decides how deep the container sits.
+ * ignored; the caller decides how deep the container sits. Exported for reuse by
+ * `core/project-yaml.ts`'s whole-document `_quarto.yml` container scan (YAML
+ * schema diagnostics plan §5.2/R5) — the same line-local, position-independent
+ * check, just called in a forward loop instead of a cursor-anchored ancestor walk.
  */
-function mappingContainerKey(text: string): string | null {
+export function mappingContainerKey(text: string): string | null {
   const trimmed = text.replace(/^[ \t]+/, "");
   if (trimmed.startsWith("-") || trimmed.startsWith("#")) {
     return null;
