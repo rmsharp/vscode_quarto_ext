@@ -75,20 +75,64 @@ session need this block to continue the work without re-reading the whole repo?*
 ```handoff
 session: S40
 date: 2026-07-09
-status: pending
-self_score: pending
-predecessor_score: pending
-active_task: Phase 6d-6+ (b2-iii-value) — deep-nested per-format option VALUE completion. Ground+fix
-  3 valuesOfSchema gaps ({enum:{values:[...]}} definition-enum form, {tags,schema:...} wrapper,
-  object-wrapped {boolean:{description,default}} DSL form) against the real installed schema, trace
-  first for already-working inline sub-values, then wire values through. NOT bundling b2-iii-deep.
-what_was_done: pending
-next_steps: pending
-key_files: pending
-gotchas: pending
-runtime_smoke: pending
-changelog_ref: pending
-commit: pending
+status: complete
+self_score: 9
+predecessor_score: 8
+active_task: Phase 6d-6+ (b2-iii-value) DONE. Detector + provider needed zero changes (traced,
+  locked with a break-revert-proven test); all real work was 3 valuesOfSchema extensions in
+  core/yaml-schema.ts, ground-truthed against the real installed schema. b2-iii-deep (depth-4 +
+  super/allOf) remains deferred, its own future session — not touched. 6d/6e are otherwise
+  COMPLETE milestones; operator has no forced next deliverable (Posit comparison / copyright bug /
+  Phase 7 slice / BACKLOG polish / vsce publish, all unblocked).
+what_was_done: Ground-truthed 3 valuesOfSchema gaps against the REAL installed Quarto 1.7.33 schema
+  via throwaway Python probes before coding -- (a) the {enum:{values:[...]}} definition-enum form
+  (math-methods, ref'd by html-math-method.method), (b) the {tags,schema:"boolean"} wrapper
+  (editor.render-on-save), (c) the object-wrapped {boolean:{description,default}} DSL form
+  (crossref.chapters/ref-hyperlink, chalkboard.read-only -- the gap Session 37's review found and
+  deferred here). Strict TDD, one gap at a time: RED shown (undefined, not a wrong value) then the
+  minimal fix, 3 checkpoint commits (2197c2e/45f93df/bd02a71). Added a break-revert-proven detector
+  regression locking the new 4-element frontmatter-value path (ff58059, zero production code). 6
+  new integration tests against the real schema (d144eba): the 3 gate-d fixes, the already-working
+  code-tools.toggle (trace-first control), a grid.sidebar-width free-text no-crash control, and
+  leading-space/replace-range normalization -- gate-d break-revert-proven via a runtime-conditional
+  quartoSharePath throw (reds the 3 gate-d + leading-space tests, controls stay green), cleanly
+  reverted after. Updated BACKLOG.md (b2-iii-value done; closed a Session-20 "refuted as latent"
+  item that turned out load-bearing here; recorded an unrelated .vscodeignore gap found while
+  packaging), CHANGELOG.md, PROJECT_LEARNINGS.md (Learning #47).
+next_steps: No forced next deliverable -- operator picks: (1) the Posit feature-comparison
+  research/doc session (docs/, operator-requested Session 29, unblocked), (2) the copyright
+  front-matter key name-collision dedup bug (BACKLOG.md, small standalone session), (3) a Phase 7
+  slice (snippets/image-paste/graphviz {dot} rendering) or a BACKLOG polish item, or (4) the
+  operator-only vsce publish / git push (Sessions 31-40, 46 commits, unpushed). b2-iii-deep
+  (depth-4 + super/allOf) is available but its own planning session first, per the plan's own
+  slice boundaries -- do not start it casually.
+key_files: src/core/yaml-schema.ts:590-627 (the 3 new valuesOfSchema branches -- object-wrapped
+  boolean, definition-enum-object, .schema wrapper), test/unit/yaml-schema-index.test.ts (new
+  "deep-nested option VALUE resolution (b2-iii-value)" describe block + FIXTURE extensions:
+  math-methods definition, html-math-method field, editor.render-on-save sibling, crossref field),
+  test/unit/yaml-context.test.ts (new 4-element frontmatter-value shape-lock test), test/integration/
+  suite/yaml.test.ts (new "deep-nested per-format option value completion (b2-iii-value)" describe
+  block, 6 tests), docs/planning/2026-06-30-phase-6d6b2iii-deep-nesting-plan.md §5.4/§6 (the slice
+  spec this session executed).
+gotchas: (1) Quarto's schema DSL represents "the same conceptual enum/boolean" in at least 3
+  incompatible JSON shapes depending on WHERE it's defined (inline field vs. a definitions.yml
+  entry vs. a wrapped properties entry) -- never assume one resolver branch covers all forms;
+  ground every variant firsthand. (2) A BACKLOG item marked "refuted as latent/unreachable" is
+  scoped to the call sites checked AT THE TIME -- re-verify before reusing the verdict in a new
+  context (the Session-20 cell-options-only framing missed that a document option's sub-property
+  could reach the same code path). (3) Hand-computing integration-test cursor columns from a
+  join("\n") string literal is error-prone for hyphenated keys -- verify lengths with
+  `python3 -c "print(len(...))"` rather than counting by eye. (4) A test-only detector claim (zero
+  production code) still needs a break-revert to prove it discriminates -- gate the exact code path
+  being claimed unchanged, confirm ONLY the new test reds, then revert.
+runtime_smoke: npm run test:integration (real VS Code extension host, 171 passing incl. the 6 new
+  tests against the REAL installed schema) is this project's runtime-verification equivalent for a
+  headless completion provider (no interactive GUI harness available in this environment) --
+  established pattern from every prior 6d/6e session. Additionally ran `npm run package` to confirm
+  the release-gate .vsix builds clean (35 files).
+changelog_ref: CHANGELOG.md, 2026-07-09 · [ad hoc] (b2-iii-value) entry
+commit: d144eba (HEAD at close-out; full session span 2197c2e..d144eba plus the claim commit
+  add7aff and this receipt's own commit)
 ```
 
 ---
