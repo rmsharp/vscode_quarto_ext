@@ -612,6 +612,13 @@ function valuesOfSchema(
       return dedupe(completions.map(scalarToYaml).filter((v): v is string => v !== null));
     }
   }
+  // The `{tags, schema: ...}` wrapper form some `properties` entries use (e.g.
+  // `editor.render-on-save`) — the actual schema is one hop deeper, under
+  // `.schema` (mirrors `resolveObjectProperties`'s own `.schema` unwrap,
+  // b2-iii-value gap b).
+  if (s.schema !== undefined) {
+    return valuesOfSchema(s.schema, definitions, depth + 1);
+  }
   return []; // arrayOf, object, and other deferred forms
 }
 

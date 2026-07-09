@@ -166,6 +166,15 @@ const FIXTURE = JSON.stringify({
               properties: {
                 mode: { enum: ["source", "visual"], description: "Default editing mode." },
                 markdown: { object: { properties: { wrap: { anyOf: [{ enum: ["sentence", "none"] }, "number"] } } } },
+                // The REAL `render-on-save` sub-property (grounded against Quarto
+                // 1.7.33): a `{tags, schema: "boolean"}` WRAPPER, not a bare
+                // "boolean" or a `{boolean: {...}}` DSL object — the b2-iii-value
+                // gap b `valuesOfSchema` must unwrap via `.schema`.
+                "render-on-save": {
+                  tags: { engine: ["jupyter"] },
+                  schema: "boolean",
+                  description: "Re-render for preview whenever the document is saved.",
+                },
               },
             },
           },
@@ -470,7 +479,7 @@ describe("parseSchemaIndex — deep-nested object option resolution (6d-6+ b2-ii
 
   it("a child field does not itself carry populated children (the one-level cap, structurally)", () => {
     const editorChildren = index.frontMatterKeys(["format", "html", "editor"]);
-    expect(editorChildren.map((f) => f.name)).toEqual(["mode", "markdown"]);
+    expect(editorChildren.map((f) => f.name)).toEqual(["mode", "markdown", "render-on-save"]);
     const markdown = editorChildren.find((f) => f.name === "markdown");
     expect(markdown?.children ?? []).toEqual([]);
     const mode = editorChildren.find((f) => f.name === "mode");
@@ -553,6 +562,15 @@ describe("parseSchemaIndex — deep-nested option VALUE resolution (6d-6+ b2-iii
       "mathjax",
       "katex",
     ]);
+  });
+
+  it("resolves the {tags, schema:...} wrapper form through .schema", () => {
+    // editor.render-on-save is wrapped in {tags, schema:"boolean"} — a bare
+    // "boolean" (like code-tools.toggle, already working) is NOT the same shape.
+    const renderOnSave = index
+      .frontMatterKeys(["format", "html", "editor"])
+      .find((f) => f.name === "render-on-save");
+    expect(renderOnSave?.values).toEqual(["true", "false"]);
   });
 });
 
