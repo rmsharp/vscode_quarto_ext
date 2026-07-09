@@ -20,17 +20,17 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 ```handoff
 session: S51
 date: 2026-07-09
-status: pending
-self_score: 
-predecessor_score: 
-active_task: Implement Track C of BACKLOG.md "Up Next" item #3 (the onboarding walkthrough), per docs/planning/2026-07-09-onboarding-walkthrough-plan.md §4, following DEVELOPMENT_WORKSTREAM.md. Kickoff §7 Q4 (per-step media content) resolved via AskUserQuestion before any edit: minimal per-step markdown panel.
-what_was_done: pending
-next_steps: pending
-key_files: pending
-gotchas: pending
-runtime_smoke: pending
-changelog_ref: pending
-commit: pending
+status: complete
+self_score: 9
+predecessor_score: 9
+active_task: DONE. Implemented Track C of BACKLOG.md "Up Next" item #3 (the onboarding walkthrough), per docs/planning/2026-07-09-onboarding-walkthrough-plan.md §4, following DEVELOPMENT_WORKSTREAM.md. Kickoff §7 Q4 (per-step media content) resolved via AskUserQuestion before any edit: minimal per-step markdown panel. BACKLOG item #3 (all 3 tracks) now fully SHIPPED.
+what_was_done: Commit 82ecf85 -- 5 new media/walkthrough/*.md files (install-quarto, create-document, create-project, render-preview, run-cell), each a short markdown panel restating its step's own guidance. Commit 99609c2 -- package.json contributes.walkthroughs: one walkthrough (id quartoGettingStarted, title "Get Started with Quarto", featuredFor **/*.qmd) with exactly 5 steps matching plan §4.1's topic list, each with a command: action-button link in its description, one completionEvents entry tied to its primary command, and one of the new media panels. Cross-checked every referenced command ID (verifyInstallation/render/preview/renderProject/newDocument/createProject/runCell/previewMath/previewDiagram) against the existing contributes.commands block -- all already registered. Also added test/unit/walkthrough.test.ts (23 tests) in the same commit -- beyond the plan's own "no test required" call -- extending the pre-existing package-activation.test.ts pattern (plain package.json import, no vscode API) to assert exact step count, that every media.markdown path resolves via fs.existsSync, and that every command:/onCommand: reference names a real registered command. Break-revert-proved: deliberately mistyped one media filename, confirmed the exact existsSync assertion failed, reverted, confirmed GREEN.
+next_steps: BACKLOG item #3 is fully complete. Next in the ranked "Up Next" list (BACKLOG.md) is item #4, run-cell command family completion -- add the 4 missing commands (Run Selected Line(s), Run Next Cell, Run Previous Cell, Run Cells Below) AND bind default keybindings across the resulting 9-command family, in the SAME session (deliberately not split -- cheap to do together, same package.json block either way). Mechanical extension of core/cells.ts/execution-delegate.ts -- read those two files first; this is genuine new logic (not declarative), so the strict-TDD gate applies in full, RED-first.
+key_files: package.json (contributes.walkthroughs block, and the pre-existing contributes.commands block at roughly the same region -- cross-reference before adding/renaming any command ID, since walkthrough.test.ts will catch a drift); media/walkthrough/*.md (5 step panels); test/unit/walkthrough.test.ts (the manifest-shape regression guard -- extend this file's pattern, not package-activation.test.ts directly, if a future session adds more contributes.* shape checks); docs/planning/2026-07-09-onboarding-walkthrough-plan.md (the whole plan is now fully executed, all 3 tracks shipped -- archival reference only going forward); core/cells.ts and features/execution-delegate.ts (read first for BACKLOG item #4, the next ranked item).
+gotchas: The walkthrough's DONE criteria (plan §4.2) requires visual confirmation this session could not perform: F5 Extension Development Host, workbench.action.openWalkthrough shows 5 correctly-titled/described steps, each button fires its command, each completionEvents checkmark fires. This agent has no GUI-driving tool in this session (no code CLI on PATH, no screenshot/click capability) -- NOT performed, disclosed per FM #24. Refined framing vs. Sessions 47/49/50's "no interactive display": this session's probe found $DISPLAY set (XQuartz) and a real Apple M2 Max GPU on the host -- the actual constraint is agent tooling, not host capability, so the OPERATOR can and should do this pass (workbench.action.openWalkthrough), unlike a genuinely headless CI host where no one could. PROJECT_LEARNINGS.md Learning #58 covers both this and the new manifest-shape-test pattern.
+runtime_smoke: npm test (557 unit, +23, all green) / npm run check-types (clean) / npm run test:integration (189, unchanged -- no adapter/wiring code touched, so no integration regression risk existed) / npm run package (clean 40-file .vsix, exactly the 35-file Session 50 baseline plus the 5 new media/walkthrough/*.md files, nothing else unexpected). No manual F5 GUI pass performed -- see gotchas -- disclosed explicitly, not silently treated as covered by the new unit test (which verifies manifest shape/cross-references, not that VS Code actually renders and completes the steps).
+changelog_ref: CHANGELOG.md, 2026-07-09 · [ad hoc] (Session 51 onboarding walkthrough implementation -- Track C of BACKLOG item #3, item #3 now fully SHIPPED)
+commit: 99609c2 (package.json + test, most recent substantive commit; media panels 82ecf85; session-claim 11cf81e)
 ```
 
 ```handoff
