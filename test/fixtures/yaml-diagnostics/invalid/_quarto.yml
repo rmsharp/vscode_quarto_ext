@@ -1,0 +1,21 @@
+project:
+  title: "Invalid Project"
+  output-dirr: docs
+
+bibliography: refs.bib
+
+website:
+  title: "Invalid Site"
+  navbarr: {}
+
+book:
+  title: "Invalid Book"
+  chapters:
+    - index.qmd
+  announcement: "Resolves via base-website's super chain, not book-schema's own list -- must not be flagged."
+  bogus-book-key: true
+
+format:
+  html:
+    toc: true
+    output-dirr: ignored

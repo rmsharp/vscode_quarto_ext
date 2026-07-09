@@ -1,0 +1,23 @@
+project:
+  title: "Valid Project"
+  type: website
+  output-dir: docs
+
+website:
+  title: "Valid Site"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+  search: true
+
+book:
+  title: "Valid Book"
+  author: "Jane Doe"
+  chapters:
+    - index.qmd
+    - chapter1.qmd
+
+format:
+  html:
+    toc: true

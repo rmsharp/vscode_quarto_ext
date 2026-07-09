@@ -21,6 +21,11 @@ test/fixtures/project/.quarto/
 # `/.quarto/`) — an artifact of rendering, not authored fixture content.
 test/fixtures/project/.gitignore
 
+# `quarto inspect`/`quarto render` cache from grounding the yaml-diagnostics
+# fixtures against the real CLI (Session 47) — not authored fixture content.
+test/fixtures/yaml-diagnostics/**/.quarto/
+test/fixtures/yaml-diagnostics/**/.gitignore
+
 # Quarto render artifacts (from rendering docs/*.md locally, e.g. to preview)
 docs/*.html
 docs/*_files/
