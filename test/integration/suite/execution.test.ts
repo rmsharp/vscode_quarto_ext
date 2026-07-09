@@ -75,6 +75,7 @@ describe("Quarto: Run Cell family", () => {
       "quarto.runAllCells",
       "quarto.insertCell",
       "quarto.runSelectedLines",
+      "quarto.runNextCell",
     ]) {
       assert.ok(commands.includes(id), `${id} should be registered`);
     }
@@ -279,6 +280,48 @@ describe("Quarto: Run Cell family", () => {
       "running with no cell at the cursor must not crash",
     );
     assert.strictEqual(calls.length, 0, "no delegate should be invoked in prose");
+  });
+
+  it("Run Next Cell runs the next cell (from prose before any cell) and advances into it", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_CELLS, 4); // prose, before cell 1
+
+    await vscode.commands.executeCommand("quarto.runNextCell");
+
+    assert.strictEqual(calls.length, 1, "the next cell (cell 1) should run");
+    assert.strictEqual(calls[0].startLine, 7, "cell 1's code starts at line 7");
+    assert.strictEqual(
+      editor.selection.active.line,
+      7,
+      "the cursor should advance into cell 1's body",
+    );
+  });
+
+  it("Run Next Cell runs the cell AFTER the current one, not the current one", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_CELLS, 7); // inside cell 1
+
+    await vscode.commands.executeCommand("quarto.runNextCell");
+
+    assert.strictEqual(calls.length, 1, "cell 2 should run, not cell 1");
+    assert.strictEqual(calls[0].startLine, 13, "cell 2's code starts at line 13");
+    assert.strictEqual(
+      editor.selection.active.line,
+      13,
+      "the cursor should advance into cell 2's body",
+    );
+  });
+
+  it("Run Next Cell shows a message and does not dispatch when there is no next cell", async () => {
+    registerStandInDelegate();
+    await openAt(RUN_CELLS, 13); // inside cell 2, the last cell
+
+    await assert.doesNotReject(
+      () =>
+        Promise.resolve(vscode.commands.executeCommand("quarto.runNextCell")),
+      "running with no next cell must not crash",
+    );
+    assert.strictEqual(calls.length, 0, "no delegate should be invoked");
   });
 
   it("activates when a .qmd is opened (onLanguage:quarto) so keybindings work without a prior command", () => {

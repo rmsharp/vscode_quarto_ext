@@ -46,6 +46,7 @@ export function registerExecutionFeature(
       "quarto.runSelectedLines",
       runSelectedLines,
     ),
+    vscode.commands.registerCommand("quarto.runNextCell", runNextCell),
     // Keep the `quarto.inCodeCell` context key in sync so ctrl/shift+enter only
     // bind inside a cell (and fall through to normal newline editing elsewhere).
     vscode.window.onDidChangeTextEditorSelection((e) =>
@@ -130,6 +131,31 @@ async function runAllCells(): Promise<void> {
     return;
   }
   await runCells(editor, cells);
+}
+
+/**
+ * Run the first cell after the cursor (regardless of whether the cursor sits
+ * inside a cell or in prose) and advance the cursor into it, so a repeated
+ * invocation steps forward through the document one cell at a time.
+ */
+async function runNextCell(): Promise<void> {
+  const editor = activeQuartoEditor();
+  if (!editor) {
+    return;
+  }
+  const text = editor.document.getText();
+  const line = editor.selection.active.line;
+  const next = findAllCells(text).find((c) => c.startLine > line);
+  if (!next) {
+    void vscode.window.showInformationMessage(
+      "Quarto: there is no next code cell.",
+    );
+    return;
+  }
+  await runCells(editor, [next]);
+  const pos = new vscode.Position(next.startLine + 1, 0);
+  editor.selection = new vscode.Selection(pos, pos);
+  editor.revealRange(new vscode.Range(pos, pos));
 }
 
 /**
