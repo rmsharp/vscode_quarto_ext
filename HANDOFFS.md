@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S51
+date: 2026-07-09
+status: pending
+self_score: 
+predecessor_score: 
+active_task: Implement Track C of BACKLOG.md "Up Next" item #3 (the onboarding walkthrough), per docs/planning/2026-07-09-onboarding-walkthrough-plan.md §4, following DEVELOPMENT_WORKSTREAM.md. Kickoff §7 Q4 (per-step media content) resolved via AskUserQuestion before any edit: minimal per-step markdown panel.
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+```handoff
 session: S50
 date: 2026-07-09
 status: complete
