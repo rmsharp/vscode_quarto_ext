@@ -9,6 +9,12 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-09 · [ad hoc] (Session 53 Quarto code snippets — BACKLOG item #5 now fully SHIPPED)
+- **Implemented** BACKLOG.md "Up Next" item #5: Quarto code snippets. New `snippets/quarto.json` (13 snippets) registered via `package.json` `contributes.snippets`. Genuinely declarative JSON, TDD-exempt per `CLAUDE.md`'s carve-out.
+- Covers front matter, all 4 executable-cell languages (python/r/julia/ojs — deliberately fence-only, since `#|` option entry is already handled by the existing Phase 6d completion feature), callouts (one snippet, a `${1|note,tip,warning,caution,important|}` choice placeholder), fenced divs, tabset panels, and one snippet per cross-reference kind this extension's own `core/refs.ts` recognizes (fig/tbl/eq/sec/lst) — grounded against `test/fixtures/crossrefs.qmd` and `core/refs.ts`'s own `KIND_PREFIX`/`INLINE_LABEL` patterns, not against Posit's AGPL extension (Learning #1).
+- Added a manifest-shape regression-guard unit test (`test/unit/snippets.test.ts`, 30 tests — precedent: Session 51's `walkthrough.test.ts`), break-revert-proven against a deliberately duplicated prefix and a deliberately broken `path`.
+- 587 unit (+30) / 200 integration (unchanged, no adapter code); clean 41-file `.vsix` (+1). `docs/POSIT-COMPARISON.md`'s snippets entry corrected to reflect parity (10 real gaps, down from 11).
+
 ### 2026-07-09 · [ad hoc] (Session 52 run-cell command family completion — BACKLOG item #4 now fully SHIPPED)
 - **Implemented** BACKLOG.md "Up Next" item #4: the 4 missing run-cell family commands (`quarto.runSelectedLines`, `quarto.runNextCell`, `quarto.runPreviousCell`, `quarto.runCellsBelow`) plus default keybindings across the resulting 9-command family. Strict TDD, one command at a time, each shown genuine RED (`command '...' not found`) before implementation, 4 checkpoint commits (`c097574`/`595942b`/`95be370`/`ef79ee3`).
 - All 4 reuse the existing `core/cells.ts`/`core/execution-delegate.ts` primitives — no new `core/` functions needed. `runNextCell`/`runPreviousCell` use a single cursor-line filter that works whether the cursor is inside a cell or in prose, and move the cursor into the cell that ran so repeated invocation steps through the document (Learning #59).

@@ -33,7 +33,7 @@ the **corrected, verified** claims, not the first draft.
 |---|---|---|
 | **Parity** (same capability, comparable depth) | 15 | render, preview, execution delegation, syntax highlighting, most `@`-completion, cell-option completion |
 | **We're ahead** | 2 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them) |
-| **Real gaps** (Posit has, we don't) | 11 | Visual (WYSIWYG) editor, YAML diagnostics/validation, project-level render, notebook `.ipynb` conversion, project/document scaffolding commands, getting-started walkthrough, snippets, Contextual Assist Panel, Graphviz rendering, spell checking, Zotero (Visual-Editor-only for them) — the run-cell command family gap closed, Session 52 |
+| **Real gaps** (Posit has, we don't) | 10 | Visual (WYSIWYG) editor, YAML diagnostics/validation, project-level render, notebook `.ipynb` conversion, project/document scaffolding commands, getting-started walkthrough, Contextual Assist Panel, Graphviz rendering, spell checking, Zotero (Visual-Editor-only for them) — the run-cell command family gap closed, Session 52; snippets gap closed, Session 53 |
 | **True parity in absence** (neither has it) | 2 | Image paste for `.qmd`; AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 
 The single largest gap is architectural, not incremental: Posit ships a full **Visual (WYSIWYG) editor**
@@ -317,12 +317,14 @@ their side, so those two rows are narrower deficits than they first appear.
   `docs/planning/2026-06-27-extension-architecture-plan.md` §7.
 
 **Snippets for common Quarto constructs.**
-- *Ours:* **Not implemented** — no `snippets` contribution point, no `.code-snippets` file.
+- *Ours:* Present — **13 snippets** (`snippets/quarto.json`, `contributes.snippets`): front matter, the
+  4 executable-cell languages, callouts, fenced divs, tabset panels, and one per cross-reference kind
+  this extension itself recognizes (fig/tbl/eq/sec/lst) — **Session 53**, `BACKLOG.md` item #5.
 - *Posit's:* Present — "Code snippets… make it easier to enter repeating code patterns (code blocks,
   callouts, divs, etc.)."
-- *Notes:* A low-effort, high-value gap. VS Code snippets are declarative JSON, exempt from this
-  project's strict-TDD gate — a good low-risk candidate for a future session (already tracked in
-  `BACKLOG.md`).
+- *Notes:* Parity reached (Session 53) — no longer a gap. Independently designed from Quarto's own
+  documented markdown syntax (grounded against this repo's own fixtures/`core/refs.ts`), not from
+  Posit's AGPL extension's actual snippet content (Learning #1 look-but-don't-copy gate).
 
 **Image paste (clipboard paste → auto-save + insert markdown reference).**
 - *Ours:* **Not implemented.**
@@ -358,8 +360,9 @@ In rough priority order, if this project were to close the largest real gaps:
 
 1. **YAML schema diagnostics** (red squiggles for invalid front-matter/cell-option keys) — our largest
    completion-adjacent gap; builds directly on the existing schema reader (`src/core/yaml-schema.ts`).
-2. **Snippets** (already tracked in `BACKLOG.md`) and a **getting-started walkthrough** (a new finding
-   from this research, not yet in `BACKLOG.md`) — both declarative, TDD-gate-exempt, low-effort.
+2. ~~Snippets~~ — **SHIPPED Session 53** (`BACKLOG.md` item #5): `snippets/quarto.json`, 13 snippets,
+   declarative and TDD-gate-exempt, as predicted here. And a **getting-started walkthrough** (a new
+   finding from this research, not yet in `BACKLOG.md`) — both declarative, TDD-gate-exempt, low-effort.
 3. **Project-level render** (`_quarto.yml` discovery + "render whole project") — a real, bounded gap.
 4. ~~A fuller run-cell command family~~ — **SHIPPED Session 52** (`BACKLOG.md` item #4): Run Selected
    Line(s), Run Next Cell, Run Previous Cell, and Run Cells Below, plus default keybindings across the
