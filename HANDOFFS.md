@@ -73,6 +73,23 @@ session need this block to continue the work without re-reading the whole repo?*
 ---
 
 ```handoff
+session: S45
+date: 2026-07-09
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: Implement BACKLOG.md "Up Next" item #1 (Project-level render) per docs/planning/2026-07-09-project-level-render-plan.md, as ONE vertical-slice session (4 layers, operator-ratified).
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+<Phase 1B claim stub — filled at Phase 3D close-out.>
+
+```handoff
 session: S44
 date: 2026-07-09
 status: complete
