@@ -34,6 +34,19 @@ export function buildRenderArgs(
   return args;
 }
 
+/**
+ * Build the argv for `quarto render <projectRoot>` — a whole-project render.
+ * The root is passed as an explicit positional argument (NEVER bare
+ * `quarto render` relying on cwd alone — a bare invocation from a project
+ * SUBdirectory silently renders only that subdirectory's files, not the
+ * whole project, confirmed empirically against Quarto 1.7.33; see
+ * docs/planning/2026-07-09-project-level-render-plan.md §0/§7 D2). Kept as a
+ * sibling of `buildRenderArgs`, not a generalization of it (plan §8).
+ */
+export function buildRenderProjectArgs(projectRoot: string): string[] {
+  return ["render", projectRoot];
+}
+
 /** Matches a single SGR ANSI escape (e.g. `\x1b[31m`), which Quarto emits. */
 const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
 

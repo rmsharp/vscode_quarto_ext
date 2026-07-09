@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildRenderArgs, parseOutputPath } from "../../src/core/render-args";
+import {
+  buildRenderArgs,
+  buildRenderProjectArgs,
+  parseOutputPath,
+} from "../../src/core/render-args";
 
 describe("buildRenderArgs", () => {
   it("renders a file with no options", () => {
@@ -26,6 +30,15 @@ describe("buildRenderArgs", () => {
     expect(buildRenderArgs("/abs/my doc.qmd")).toEqual([
       "render",
       "/abs/my doc.qmd",
+    ]);
+  });
+});
+
+describe("buildRenderProjectArgs", () => {
+  it("renders the project root with no --to (root as an explicit positional arg — plan §0/§7 D2)", () => {
+    expect(buildRenderProjectArgs("/abs/project")).toEqual([
+      "render",
+      "/abs/project",
     ]);
   });
 });

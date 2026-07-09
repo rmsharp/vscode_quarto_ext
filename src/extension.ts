@@ -15,6 +15,7 @@ import { registerFormattingFeature } from "./features/formatting";
 import { registerMathPreviewFeature } from "./features/math-preview";
 import { disposeAllPreviews, registerPreviewFeature } from "./features/preview";
 import { registerRenderFeature } from "./features/render";
+import { registerRenderProjectFeature } from "./features/render-project";
 import { registerCitationProviders } from "./providers/citation";
 import { registerCrossrefProviders } from "./providers/crossref";
 import { registerOutlineProvider } from "./providers/outline";
@@ -29,6 +30,7 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
   );
   registerRenderFeature(context);
+  registerRenderProjectFeature(context);
   registerPreviewFeature(context);
   registerExecutionFeature(context);
   registerFormattingFeature(context);

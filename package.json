@@ -89,6 +89,11 @@
         "category": "Quarto"
       },
       {
+        "command": "quarto.renderProject",
+        "title": "Render Project",
+        "category": "Quarto"
+      },
+      {
         "command": "quarto.runCell",
         "title": "Run Cell",
         "category": "Quarto"
