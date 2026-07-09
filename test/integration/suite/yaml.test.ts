@@ -1411,3 +1411,104 @@ describe("Quarto: YAML deep-nested per-format option key completion (6d-6+ b2-ii
     );
   });
 });
+
+/**
+ * Slice 6d-6+ (b2-iii-value) — deep-nested per-format option VALUE completion.
+ * After a sub-key one object level under a per-format option
+ * (`format:\n  <fmt>:\n    <opt>:\n      <key>: <here>`), the provider offers
+ * that sub-key's resolved enum/boolean values via the SAME `children`/
+ * `valuesOfSchema` machinery b2-iii-key already wired up — no detector or
+ * provider change, only THREE `valuesOfSchema` extensions for schema-DSL forms
+ * that were previously silently dropped (this session).
+ *
+ * Gate-d (Learning #9/#31b): `html-math-method` is a real object-valued document
+ * option ABSENT from the curated fallback, and its `method` sub-key's enum
+ * resolves through a `ref` into a `{enum:{values:[...]}}` DEFINITION — the exact
+ * form the plain-array `page-column` definition does NOT exercise — so a green
+ * 6-value list proves the reader ran this specific code path end-to-end against
+ * the real installed schema, break-revert-provable by forcing `quartoSharePath`
+ * to throw (html-math-method's values vanish; the curated `code-tools.toggle`
+ * values stay, proving the curated fallback still serves).
+ */
+describe("Quarto: YAML deep-nested per-format option value completion (6d-6+ b2-iii-value)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("resolves a definition-enum-OBJECT sub-value absent from the curated fallback (gate d)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    html-math-method:\n      method: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 14), // the empty value slot after "      method: "
+    );
+    assert.deepStrictEqual(
+      documentValueLabels(list).sort(),
+      ["gladtex", "katex", "mathjax", "mathml", "plain", "webtex"].sort(),
+      "html-math-method.method's real, full value set",
+    );
+  });
+
+  it("resolves a {tags, schema:...}-wrapped sub-value (`editor.render-on-save` → true/false)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    editor:\n      render-on-save: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 22), // the empty value slot after "      render-on-save: "
+    );
+    assert.deepStrictEqual(documentValueLabels(list).sort(), ["false", "true"]);
+  });
+
+  it("resolves an object-wrapped {boolean:{...}} sub-value (`crossref.chapters` → true/false)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    crossref:\n      chapters: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 16), // the empty value slot after "      chapters: "
+    );
+    assert.deepStrictEqual(documentValueLabels(list).sort(), ["false", "true"]);
+  });
+
+  it("already resolves a bare-boolean sub-value with zero new code (`code-tools.toggle`, trace-first)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    code-tools:\n      toggle: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 14), // the empty value slot after "      toggle: "
+    );
+    assert.deepStrictEqual(documentValueLabels(list).sort(), ["false", "true"]);
+  });
+
+  it("offers NOTHING for a free-text sub-value (`grid.sidebar-width`, no crash)", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    grid:\n      sidebar-width: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 21), // the empty value slot after "      sidebar-width: "
+    );
+    assert.deepStrictEqual(documentValueLabels(list), [], "sidebar-width is free-text (a string), no enum");
+  });
+
+  it("prepends a leading space and replaces the whole deep-nested sub-value token", async () => {
+    const doc = await openInMemory("---\nformat:\n  html:\n    crossref:\n      chapters:true\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 17), // inside "tr|ue"; the value abuts the colon at col 15
+    );
+    const item = (list?.items ?? []).find(
+      (i) => i.detail === "Quarto document option value" && labelText(i) === "true",
+    );
+    assert.ok(item, `the 'true' value item; got ${JSON.stringify(documentValueLabels(list))}`);
+    assert.strictEqual(insertTextOf(item), " true", "leading space added when the value abuts the colon");
+    const range = replaceRange(item);
+    assert.ok(range, "the item carries a replace range");
+    assert.strictEqual(range.end.character, 19, "replaces through the end of 'true'");
+  });
+});
