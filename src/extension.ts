@@ -13,6 +13,7 @@ import { registerEmbeddedLanguageFeature } from "./providers/embedded";
 import { registerExecutionFeature } from "./features/execution";
 import { registerFormattingFeature } from "./features/formatting";
 import { registerMathPreviewFeature } from "./features/math-preview";
+import { registerNewDocumentFeature } from "./features/new-document";
 import { disposeAllPreviews, registerPreviewFeature } from "./features/preview";
 import { registerRenderFeature } from "./features/render";
 import { registerRenderProjectFeature } from "./features/render-project";
@@ -32,6 +33,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   registerRenderFeature(context);
   registerRenderProjectFeature(context);
+  registerNewDocumentFeature(context);
   registerPreviewFeature(context);
   registerExecutionFeature(context);
   registerFormattingFeature(context);

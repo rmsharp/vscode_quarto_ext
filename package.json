@@ -95,6 +95,11 @@
         "category": "Quarto"
       },
       {
+        "command": "quarto.newDocument",
+        "title": "New Quarto Document",
+        "category": "Quarto"
+      },
+      {
         "command": "quarto.runCell",
         "title": "Run Cell",
         "category": "Quarto"
