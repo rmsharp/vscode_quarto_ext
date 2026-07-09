@@ -75,18 +75,21 @@ session need this block to continue the work without re-reading the whole repo?*
 ```handoff
 session: S44
 date: 2026-07-09
-status: pending
-self_score: pending
-predecessor_score: pending
-active_task: Planning session for BACKLOG.md "Up Next" item #1 — Project-level render. Deliverable: one plan document to docs/planning/ (grep-based evidence inventory + per-phase completion criteria + verification commands), per SESSION_RUNNER.md's Planning Sessions discipline. No implementation this session.
-what_was_done: pending
-next_steps: pending
-key_files: pending
-gotchas: pending
-runtime_smoke: pending
-changelog_ref: pending
-commit: pending
+status: complete
+self_score: 9
+predecessor_score: 9
+active_task: DONE. Wrote docs/planning/2026-07-09-project-level-render-plan.md for BACKLOG.md "Up Next" item #1 (Project-level render) -- a quarto.renderProject command discovering the project root then invoking `quarto render <root>` explicitly. No implementation this session (FM #18/#19).
+what_was_done: Ran a 6-agent Workflow (4 research + 2 adversarial verifiers, ~307K subagent tokens) BEFORE drafting: grep-based code inventory of render.ts/preview.ts/cli.ts/package.json/tests; Quarto docs + quarto-cli GitHub source research; a LIVE empirical test of the installed Quarto 1.7.33 CLI (scaffolded a real project, ran 9 invocation shapes); VS Code workspace-folder API conventions. Headline finding (independently re-verified from scratch by a second agent): bare `quarto render` run from a project subdirectory silently renders ONLY that directory's files while inheriting the ancestor project's config -- a naive cd-and-call-bare-render design would ship a silent under-render bug. Locked the plan's design to explicit-root-argument invocation + cwd pinned to the root (a second, related trap the same test surfaced: Output-path resolution is relative to the target dir, not the spawning cwd). Re-confirmed every file:line citation firsthand (render.ts, render-args.ts, cli.ts, package.json, extension.ts, render.test.ts) before writing them into the plan. Updated BACKLOG.md item #1 with a pointer + summary, appended PROJECT_LEARNINGS.md Learning #51. Also reconciled a Phase 0 HANDOFFS.md gap (commit a7f3910, no receipt) as its own prior "S43.1" block, committed separately (e1adcbe) before claiming this session. Commit: pending (this close-out commit).
+next_steps: Implement the plan (docs/planning/2026-07-09-project-level-render-plan.md). Recommended as ONE vertical-slice session (plan SS1/SS6): L1 core/project.ts (findProjectRoot, pure, DI'd exists) + unit tests -> L2 render-args.ts +buildRenderProjectArgs, new features/render-project.ts (folder/editor resolution + runRenderProject spawn/report), package.json +1 command, extension.ts +1 wire -> L3 new test/fixtures/project/ fixture -> L4 test/integration/suite/render-project.test.ts. Each layer is a checkpoint commit; full build/test matrix at each boundary. The plan's SS9 leaves "one session vs two" as an explicit open question -- ratify at kickoff. Do NOT also start "Preview Project" or YAML diagnostics (BACKLOG item #2) in the same session (FM #2).
+key_files: docs/planning/2026-07-09-project-level-render-plan.md (the deliverable, all 10 sections); BACKLOG.md "Up Next" item #1 (pointer + summary); PROJECT_LEARNINGS.md Learning #51 (the empirical-CLI-grounding pattern); src/features/render.ts:90-141 (runRender, the spawn/report template); src/core/render-args.ts:25-35 (buildRenderArgs, the sibling function's template)
+gotchas: The plan's central design decision (explicit-root-argument invocation, cwd pinned to root) is NOT optional stylistic preference -- it is the fix for an empirically-confirmed silent-under-render bug (plan SS0/SS7 D1-D2). Do not "simplify" the implementation back to cd-and-call-bare-quarto-render; that reintroduces the exact bug the research found. The new command is the FIRST code in this repo to touch vscode.workspace.workspaceFolders/getWorkspaceFolder/showWorkspaceFolderPick -- there is no existing in-repo convention to copy for that part (the plan's SS2.3 designs it from VS Code's own multi-root-workspace guidance instead).
+runtime_smoke: n/a -- planning-only session, no runtime behavior changed (Phase 3E). No source code touched.
+changelog_ref: 2026-07-09 · [ad hoc] (Session 44 project-level-render plan)
+commit: pending -- set by this close-out's commit
 ```
+Deliverable: one implementation plan (`docs/planning/2026-07-09-project-level-render-plan.md`) for the "Render Project" command, produced via a 6-agent research Workflow including a live empirical CLI test, independently adversarially re-verified. Self-score breakdown: **+** grounded the single most load-bearing design decision empirically (ran the actual CLI in a scaffolded scenario) rather than trusting docs or training-data assumptions about Quarto's behavior, catching a real, non-obvious, easy-to-miss silent-failure trap before any code existed; **+** re-verified every file:line citation firsthand rather than trusting sub-agent reports for a durable planning artifact; **+** followed the planning-session discipline exactly — zero implementation, one deliverable, a pre-declared vertical-slice contract for the next session. **−** the empirical-test agent's prompt was more heavily specified (9 steps) than strictly necessary — the payoff justified it here, but a future grounding task should aim for the 2-3 truly load-bearing experiments first. First session in this project to ground a design decision via LIVE CLI EXECUTION rather than static-schema reading (Learning #51) — no prior-session baseline of that specific pattern to compare against.
+
+---
 
 ---
 
