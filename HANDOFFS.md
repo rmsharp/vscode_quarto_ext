@@ -75,19 +75,19 @@ session need this block to continue the work without re-reading the whole repo?*
 ```handoff
 session: S43
 date: 2026-07-09
-status: pending
-self_score: pending
-predecessor_score: pending
-active_task: Grill-me session to decide which docs/POSIT-COMPARISON.md gap(s) to plan for next. Decisions list is the deliverable, not code or a plan.
-what_was_done: pending
-next_steps: pending
-key_files: docs/POSIT-COMPARISON.md (candidate menu), SESSION_NOTES.md ACTIVE TASK
-gotchas: pending
-runtime_smoke: pending
-changelog_ref: pending
-commit: pending
+status: complete
+self_score: 9
+predecessor_score: 9
+active_task: DONE. Ran a /grill-me session to rank docs/POSIT-COMPARISON.md's 12 candidate gaps; promoted the ranked decisions list into BACKLOG.md "Up Next" (top entry). No code, no plan — decisions list only, per SESSION_RUNNER.md's "Grill me" task mapping.
+what_was_done: Grounded candidates against the codebase (grep-verified no diagnostics/DiagnosticCollection, no snippets/walkthroughs contribution points, no _quarto.yml discovery). Grilled the operator through 12 questions resolving scope/priority; WYSIWYG editor excluded (operator directive, pre-grill). Elicited two load-bearing facts (multi-file projects/books are the dominant workflow; new-user adoption matters) that drove the ranking and a mid-grill dependency swap (Project-level render moved to #1 ahead of YAML diagnostics because diagnostics' _quarto.yml scope depends on render's project-root discovery, which doesn't exist yet). Wrote the full decision trail to SESSION_NOTES.md, promoted the ranked list to BACKLOG.md, appended PROJECT_LEARNINGS.md Learning #50 (rank-then-scope pattern), added a CHANGELOG.md entry. Commit: pending (this close-out commit).
+next_steps: Next session should be a PLANNING session (not implementation) for BACKLOG.md "Up Next" item #1, Project-level render — write a plan to docs/planning/ with a grep-based inventory (confirm zero _quarto.yml/project-root discovery code exists, as grep-verified this session) and per-phase completion criteria, per SESSION_RUNNER.md's Planning Sessions discipline. v1 scope is locked: render only (no "Preview Project"), _quarto.yml discovery walks up from the active file/workspace root. Do NOT bundle the plan with implementation (FM #18/#19).
+key_files: BACKLOG.md "Up Next" top entry (the full ranked list + rationale), docs/POSIT-COMPARISON.md (candidate source), SESSION_NOTES.md "What Session 43 Did", PROJECT_LEARNINGS.md Learning #50
+gotchas: The ranking's #1/#2 order (Project-level render, then YAML diagnostics) is NOT the comparison doc's own suggested order (which had diagnostics first) — this was a deliberate operator-approved swap driven by a discovered _quarto.yml-discovery dependency; don't "correct" it back to the doc's order without re-reading the rationale in BACKLOG.md/SESSION_NOTES.md. Also: items #5 (snippets) and #7 (graphviz) were NOT newly added to BACKLOG.md — they already existed under "Phase 7 authoring aids"; this session only fixed their relative priority, so don't be surprised they don't have their own new bullet in the ranked list.
+runtime_smoke: n/a — docs/BACKLOG-only session, no runtime behavior changed (Phase 3E).
+changelog_ref: 2026-07-09 · [ad hoc] (Session 43 grill-me decisions)
+commit: pending — set by this close-out's commit, to be reconciled if this session ends before a further commit
 ```
-<in progress — will be overwritten at Phase 3D close-out>
+Deliverable: a decisions list ranking 9 candidate features + 2 parked + 2 deferred + 1 excluded, produced via a `/grill-me` interview grounded in codebase greps and two operator-elicited usage facts. Self-score breakdown: **+** thorough codebase grounding before each recommendation (zero factual corrections needed from the operator across 12 questions); **+** caught and fixed a real sequencing bug (the `_quarto.yml` dependency) mid-grill rather than after locking the ranking, which is exactly the failure Learning #50 generalizes; **+** promoted the decision durably into `BACKLOG.md` rather than leaving it stranded in conversation, with rationale preserved so the next session doesn't have to re-derive the swap. **−** the dependency-discovery was reactive (surfaced from an operator answer) rather than from a proactive "which candidates share infrastructure?" pass before ranking began — noted in SESSION_NOTES.md as the sharper opening move for next time. First `/grill-me` session in this project's history, so no prior-session baseline to compare against.
 
 ---
 
