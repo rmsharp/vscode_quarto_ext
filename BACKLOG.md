@@ -45,7 +45,7 @@
 
 ## Documentation
 
-- [ ] **Feature comparison vs Posit's official Quarto VS Code extension** (operator-requested, Session 29). A research/documentation deliverable — suggested shape: a `docs/` matrix (*feature · our status · Posit's status · notes*), grounded in (a) OUR inventory from `ROADMAP.md` + `CHANGELOG.md` + the actual `src/providers/` + `src/features/`, and (b) a RESEARCHED Posit feature inventory. **🔑 Posit's extension is AGPL-3.0 — look-but-don't-copy (Learning #1): compare FEATURES only (no code), and refute-check every parity/gap claim so we neither over- nor under-state where we stand.** Its OWN session (a Research/Documentation workstream with its own Phase 0 orientation + close-out); a light grounding/refute pass beats a fire-and-forget draft. Recommended next deliverable per the Session 29 handoff.
+- [x] **Feature comparison vs Posit's official Quarto VS Code extension** (operator-requested, Session 29). — **RESOLVED Session 42.** `docs/POSIT-COMPARISON.md` — 31 feature-parity rows across 7 categories, grounded in OUR inventory (`ROADMAP.md` + `package.json` + `src/`) and a RESEARCHED Posit inventory (marketplace, `quarto.org` docs, the `quarto-dev/quarto` repo's public manifest/README/CHANGELOG — features only, per Learning #1's AGPL-3.0 look-but-don't-copy gate). Every parity/gap claim adversarially refute-checked (31 independent verify agents; 14/31 rows corrected — see Learning #49). The doc's own "What This Suggests for Future Work" section proposes 6 follow-ups (YAML diagnostics, snippets+walkthrough, project-level render, a fuller run-cell family, graphviz rendering, the Visual Editor) — **none promoted into this file yet**, a future session's call.
 
 ## Polish / deferred
 

@@ -75,20 +75,67 @@ session need this block to continue the work without re-reading the whole repo?*
 ```handoff
 session: S42
 date: 2026-07-09
-status: pending
-self_score: pending
-predecessor_score: pending
-active_task: Author the feature comparison vs Posit's official Quarto VS Code extension
-  (BACKLOG.md, operator-requested Session 29; option 2 from Session 41's handoff menu).
-what_was_done: pending
-next_steps: pending
-key_files: pending
-gotchas: pending
-runtime_smoke: pending
-changelog_ref: pending
+status: complete
+self_score: 9
+predecessor_score: 9
+active_task: DONE. Authored docs/POSIT-COMPARISON.md -- 31 feature-parity rows across 7
+  categories vs Posit's official AGPL-3.0 Quarto VS Code extension, plus an "Additional
+  Findings" section and a 6-item prioritized "What This Suggests for Future Work" list (none
+  promoted to BACKLOG.md yet -- deliberate scope boundary). No forced next deliverable --
+  operator picks from b2-iii-deep (deferred) / one of the doc's 6 follow-ups / other BACKLOG
+  items, all unblocked.
+what_was_done: Pre-grounded 30 rows of OUR OWN inventory from ROADMAP.md + package.json +
+  PROJECT_LEARNINGS.md Learning #1 (AGPL boundary + confirmed quarto-dev/quarto repo
+  location) before any research began. Ran a Workflow (task wr2yts3s1, run
+  wf_ac795a78-7ae, 37 agents, ~1.47M subagent tokens): 5 parallel domain-research agents
+  (WebSearch/WebFetch only, public sources -- marketplace, quarto.org docs, the repo's
+  README/CHANGELOG/package.json manifest, never implementation code) returned 41 findings;
+  1 synthesis agent merged into 31 rows; 31 independent adversarial-verify agents (one per
+  row, Bash+Grep to re-check our side, WebFetch to re-check every Posit citation)
+  found 14/31 rows (45%) had a real defect -- stale 2022-era citations presented as
+  current, a fabricated quote, a wrong citation URL for an otherwise-true fact, an
+  overclaim on our own code ("recursive" for a deliberately 1-level-deep resolver), an
+  undercounted gap (2 claimed vs 4 actual missing commands), and one claim that had the
+  competitive direction backwards (Posit removed a keybinding in 2022 and never restored
+  it -- we're actually ahead, not behind). Wrote docs/POSIT-COMPARISON.md using every
+  correctedRow as authoritative. Self-review caught and fixed one more drafting error
+  (a "walkthrough already in BACKLOG.md" claim that grep disproved) before commit.
+  npm run compile clean (docs-only, TDD gate N/A). One commit (pending sha at claim time,
+  reconciled below).
+next_steps: No forced next deliverable. Operator picks from BACKLOG.md, or from
+  docs/POSIT-COMPARISON.md's own "What This Suggests for Future Work" section (6
+  prioritized items, none yet in BACKLOG.md): (1) YAML schema diagnostics/validation --
+  our largest gap; (2) snippets (already BACKLOG-tracked) + a getting-started walkthrough
+  (new finding, not tracked); (3) project-level render / _quarto.yml discovery (new
+  finding); (4) 4 missing run-cell commands (Selected Line(s)/Next/Previous
+  Cell/Cells Below); (5) graphviz {dot} rendering (already BACKLOG-tracked); (6) the
+  Visual (WYSIWYG) editor -- Posit's largest feature, explicitly out of v1 scope, its own
+  future planning session if ever pursued. b2-iii-deep (depth-4 + super/allOf, deferred)
+  remains the other standing option. 48 commits unpushed (operator's call).
+key_files: docs/POSIT-COMPARISON.md (the deliverable, all 31 rows); SESSION_NOTES.md
+  "What Session 42 Did" (full defect-by-defect breakdown of the 14 verify corrections);
+  PROJECT_LEARNINGS.md Learning #49 (the reusable "45% defect rate at verify time"
+  pattern for future competitive-research workflows).
+gotchas: The verify pass corrected 14 rows -- if extending this doc later, treat the
+  correctedRow content (already reflected in the shipped doc) as authoritative, not the
+  first-draft synthesis. Two of the corrections reverse a naive reading: we're AHEAD on
+  format-scoped nested option completion (Posit's own docs admit their top-level
+  suggestions aren't format-filtered) and on default Bold/Italic keybindings (Posit
+  removed theirs in 2022, never restored). Don't re-introduce those as "gaps."
+runtime_smoke: n/a -- docs-only deliverable, zero runtime-behavior surface (no code,
+  activation, or config change). npm run compile confirmed clean as the only applicable
+  check.
+changelog_ref: 2026-07-09 [ad hoc] (Posit feature-comparison doc)
 commit: pending
 ```
-<in progress>
+Self-score breakdown (9/10): +full workstream adherence (claim-source discipline adapted
+to parity/gap claims, methodology section documents the grounding approach transparently);
++the Workflow's adversarial-verify design caught 14 real defects rather than rubber-stamping
+a synthesis draft, which is the single highest-value thing this session did; +caught my own
+drafting error (the walkthrough/BACKLOG claim) before commit via the same discipline I asked
+of the verify agents. -1 for a minor process inefficiency (5 domain-research agents each
+independently re-discovered the same Posit repo location instead of sharing one confirmed
+answer) noted in the self-assessment for future workflow design.
 
 ---
 
