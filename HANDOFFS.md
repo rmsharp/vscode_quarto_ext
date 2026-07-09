@@ -73,6 +73,26 @@ session need this block to continue the work without re-reading the whole repo?*
 ---
 
 ```handoff
+session: S42
+date: 2026-07-09
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: Author the feature comparison vs Posit's official Quarto VS Code extension
+  (BACKLOG.md, operator-requested Session 29; option 2 from Session 41's handoff menu).
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+<in progress>
+
+---
+
+```handoff
 session: S41
 date: 2026-07-09
 status: complete
