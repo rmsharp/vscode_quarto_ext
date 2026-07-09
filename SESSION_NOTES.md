@@ -51,9 +51,9 @@ The user rates every session's handoff on: (1) was the ACTIVE TASK sufficient to
 *Session history accumulates below this line. Newest session at the top.*
 
 ### What Session 37 Did — 2026-06-30
-**Deliverable:** **Phase 6d-6+ (b2-iii-key)** — deep-nested per-format option KEY completion (`format:\n  <fmt>:\n    <opt>:\n      <key>`). Under a concrete format, offer an object-valued option's sub-keys. (IN PROGRESS)
-**Started:** 2026-06-30
-**Status:** Session claimed. Work beginning — strict TDD, plan `docs/planning/2026-06-30-phase-6d6b2iii-deep-nesting-plan.md` §6 (b2-iii-key). Will NOT bundle b2-iii-value (FM #18).
+**Deliverable:** **Phase 6d-6+ (b2-iii-key)** — deep-nested per-format option KEY completion (`format:\n  <fmt>:\n    <opt>:\n      <key>`). Under a concrete format, offer an object-valued option's sub-keys. (IN PROGRESS — implementation + full verification DONE; adversarial review running; close-out not yet written)
+**Started:** 2026-06-30 (this continuation resumed after a prior instance of this session left only the detector-layer commit `3a44d58` with no close-out — a ghost-session gap, now being closed)
+**Status:** All 4 layers implemented + checkpoint-committed strict-TDD: (1) detector N-level format-rooted walk (`3a44d58`, prior instance), (2) `objectChildren`/`resolveObjectProperties`/`childDescription` resolver + `frontMatterKeys(len>=3)` navigation (`0e04a15`), (3) curated fallback for `code-tools`/`theme` (`c548a39`), (4) integration tests incl. gate-d break-revert proofs (`27fae5e`). Full verification green: 473/473 unit, 164/164 integration (all 13 `EXTENSION_ID` suites), compile clean, packaged 33-file `.vsix`. A 5-lens/3-refuter adversarial review Workflow is running now (`wf_9fd3091b-a15`); this note will be replaced with the full Phase 3 close-out once it returns.
 
 ### What Session 36 Did — 2026-06-30
 **Deliverable:** **Phase 6d-6+ (b2-iii) PLAN** — deep-nested per-format option completion (`format:\n  html:\n    <opt>:\n      <sub>`, 3+ levels; object-valued options). PLANNING-ONLY (mirrors Sessions 17/27/33/40). SHIPPED (the plan doc).
