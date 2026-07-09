@@ -73,6 +73,75 @@ session need this block to continue the work without re-reading the whole repo?*
 ---
 
 ```handoff
+session: S39
+date: 2026-07-09
+status: complete
+self_score: 8
+predecessor_score: 7
+active_task: Extraction deliverable complete. Feature-development state UNCHANGED from Session 38's
+  handoff — b2-iii-key still SHIPPED, b2-iii-value still the top open option, operator still has not
+  chosen the next deliverable. This session was an out-of-band ad hoc task, not a step in that
+  thread.
+what_was_done: Measured the target first (wc -c: the Learnings table was 159,412 of CLAUDE.md's
+  164,525 bytes, ~97%). Pinned exact line boundaries (sed/awk), sliced CLAUDE.md with a Python
+  script, and byte-exact `diff`-verified the moved content against the original before overwriting
+  the source. Created PROJECT_LEARNINGS.md (project root, committed) with an intro + the 45-row
+  table + new Learning #46 (this extraction pattern). CLAUDE.md's "Project-specific Learnings"
+  heading kept stable (grepped 4 synced/canonical files that hard-code that heading path) with only
+  its content swapped for a plain-Markdown-link pointer — explicitly not an @-import (operator
+  mid-task correction, applied before the edit landed). Net: CLAUDE.md 164,525 to 5,811 bytes.
+  Verified npm run compile clean, python3 methodology_dashboard.py unchanged 78/100, repo-wide grep
+  for stray @-imports and the old heading text both clean, PROJECT_LEARNINGS.md not gitignored.
+  Documented CHANGELOG.md 2026-07-09 [ad hoc] (later) entry, this receipt. Commit: pending (see
+  below).
+next_steps: Operator picks the next deliverable — unchanged menu from Session 37/38's handoffs: (1)
+  Phase 6d-6+ b2-iii-value (ground+fix 3 valuesOfSchema gaps first, NOT test-only — see
+  SESSION_NOTES.md ACTIVE TASK option 1), (2) the Posit feature-comparison research/doc session, or
+  (3) a smaller item (copyright dedup bug, a Phase 7 slice, BACKLOG polish, or the operator-only
+  `vsce publish`/`git push` — Sessions 31-39 remain unpushed to origin/master, operator's call). No
+  structural gates changed this session (HANDOFFS.md Phase 1B/3D discipline unchanged from Session
+  38); this was the first session to exercise it end-to-end.
+key_files: CLAUDE.md:75-83 (the new pointer paragraph, heading kept stable), PROJECT_LEARNINGS.md
+  (new file, project root — the 45+1 row table lives here now), CHANGELOG.md (2026-07-09 · [ad hoc]
+  (later) entry), SESSION_NOTES.md ACTIVE TASK + "What Session 39 Did" (full narrative + Session 38
+  evaluation), HANDOFFS.md (this receipt).
+gotchas: (1) CLAUDE.md's "Project-specific Learnings" HEADING must stay exactly as-is if this
+  pattern is ever repeated for another section — SESSION_RUNNER.md/BOOTSTRAP.md/CLAUDE_TEMPLATE.md/
+  docs/methodology/HOW_TO_USE.md all hard-code that heading path and are synced/uneditable; only the
+  content under a heading is safe to relocate. (2) A pointer to an externalized file MUST be a plain
+  Markdown link, never an @-import — the harness auto-expands @-imports into context every session,
+  silently reintroducing the exact bloat being removed. (3) PROJECT_LEARNINGS.md is project-owned,
+  never touched by bin/sync — no tooling changes were needed and none should be expected on a future
+  methodology sync. (4) At Phase 3C going forward, new learnings append to PROJECT_LEARNINGS.md, not
+  CLAUDE.md — the next session's close-out should target the new file.
+runtime_smoke: n/a — pure docs/CLAUDE.md-context restructuring, no runtime behavior touched. npm run
+  compile clean; python3 methodology_dashboard.py unchanged at 78/100 (same pre-existing CRITICAL
+  npm-audit flag, Learning #20, unrelated).
+changelog_ref: CHANGELOG.md, 2026-07-09 · [ad hoc] (later) entry
+commit: pending
+```
+This session's task was narrow, mechanical, and operator-specified (extract one file, keep one
+heading, use a plain link not an @-import), so there was little ambiguity to resolve beyond
+confirming the extraction target by measurement and confirming no synced file's instructions would
+break. `self_score: 8` — **+** measured the target rather than assuming (wc -c before touching
+anything), moved 160 KB of content via scripted tooling with an explicit byte-exact diff proof
+rather than a risky manual Edit-tool retype, proactively grepped all four synced/canonical files for
+a hard-coded heading dependency before deciding to keep the heading stable, incorporated the
+operator's mid-task correction immediately and verified compliance afterward, and followed the full
+Phase 1B/HANDOFFS.md discipline end-to-end (the first session to do so since Session 38 introduced
+it). **−** did not proactively specify the pointer's exact syntax (plain link vs. possible
+@-import) before the operator had to raise it — the risk was real (the harness does auto-expand
+@-imports) and should have been preempted rather than corrected. `predecessor_score: 7` — Session
+38's handoff was well-formed, accurate on every re-verified fact (commit hash, unpushed count,
+dashboard score), and its structural documentation of the new HANDOFFS.md/Phase-1B discipline was
+followed successfully by this session with no rediscovery needed; docked to 7 (not higher) only
+because its content (b2-iii-value prep, feature-work options) had zero direct ROI for this session's
+actual unrelated task — the same "content vs. task mismatch" property Session 38 itself noted about
+inheriting Session 37's handoff.
+
+---
+
+```handoff
 session: S38
 date: 2026-07-09
 status: complete
