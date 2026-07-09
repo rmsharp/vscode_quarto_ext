@@ -20,6 +20,7 @@ import { registerCitationProviders } from "./providers/citation";
 import { registerCrossrefProviders } from "./providers/crossref";
 import { registerOutlineProvider } from "./providers/outline";
 import { registerYamlCompletionProvider } from "./providers/yaml";
+import { registerYamlDiagnosticsFeature } from "./features/yaml-diagnostics";
 import { QuartoNotFound, resolveBinary } from "./quarto/cli";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -40,6 +41,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerCrossrefProviders(context);
   registerCitationProviders(context);
   registerYamlCompletionProvider(context);
+  registerYamlDiagnosticsFeature(context);
   registerEmbeddedLanguageFeature(context);
 }
 

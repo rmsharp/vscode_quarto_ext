@@ -40,7 +40,8 @@
   },
   "main": "./dist/extension.js",
   "activationEvents": [
-    "onLanguage:quarto"
+    "onLanguage:quarto",
+    "onLanguage:yaml"
   ],
   "contributes": {
     "languages": [
