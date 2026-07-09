@@ -17,6 +17,9 @@ test/fixtures/*_files/
 test/fixtures/project/**/*.html
 test/fixtures/project/**/*_files/
 test/fixtures/project/.quarto/
+# Quarto auto-generates this on first render if none exists (contains only
+# `/.quarto/`) — an artifact of rendering, not authored fixture content.
+test/fixtures/project/.gitignore
 
 # Quarto render artifacts (from rendering docs/*.md locally, e.g. to preview)
 docs/*.html
