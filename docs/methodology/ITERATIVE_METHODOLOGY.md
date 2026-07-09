@@ -139,24 +139,25 @@ Every session follows these phases in order. Phases are sequential and gated —
 
 ### Phase 1: Pre-Flight
 
-**Purpose:** Verify the workspace is clean, the prior state is understood, and nothing is broken before you touch anything.
+**Purpose:** Verify the workspace is clean, the prior state is understood, and nothing is broken before you touch anything — apart from the append-only ledger backfill in step 4, which records commits that already exist.
 
 **Steps:**
 1. Read all governing documents (safety rules, process docs, style guides) — **in full, not skimmed. Every section.**
 2. Read prior session notes (what was the last session doing? what's in progress?)
 3. Check the current state of the workspace (version control status, recent changes)
-4. **Detect ghost sessions:** Compare session notes against the change history. If there are changes between the last documented session and now that have no corresponding notes, report it. Ghost sessions — sessions that crashed or ended without writing notes — leave the next session blind.
+4. **Detect ghost sessions and reconcile the ledger:** Compare session notes against the change history. If there are changes between the last documented session and now that have no corresponding notes, report it — ghost sessions (crashed or ended without writing notes) leave the next session blind. Then reconcile the authoritative ledger (`CHANGELOG.md`) against the change history: first check whether any commit has ever recorded it (if none, self-provision the ledger from its seed and reconcile from the root — an unrecorded ledger on a repo with real history is a defect, not "current"); otherwise locate its frontier (the newest ledger-touching commit), and treat both the commits since it with no entry **and** any prior Phase 1B stub still marked `CHANGELOG: pending` as unrecorded actions. **Backfill them before new work** — a source-tagged entry marked as a reconcile backfill. Reconcile backstops commit-bearing actions; non-commit actions (releases, tags, PR/issue events, access grants) are the close-out write-gate's responsibility. Also reconcile the close-out receipt (`HANDOFFS.md`) the same way: locate its frontier (`git log -1 --format=%H -- HANDOFFS.md`); a frontier block still `status: pending` (an unfinished Phase 1B stub) or a commit in the undocumented set with no receipt at all is the unrecorded counterpart, reconstructed as a best-effort block from the change history (and `SESSION_NOTES.md` if it survived), marked `status: reconciled`, and noted in the report — this only catches sessions that left a commit or a 1B stub, not a session with no commit and no claim. This is the one write Pre-Flight permits — it records commits that already exist, not new work; the backfill is not this session's deliverable and licenses no work beyond the one assigned task (failure mode #17).
 5. Verify the artifact you will modify exists and is in a known-good state
 6. Spot-check 2-3 ADJACENT artifacts to confirm they are also healthy
 7. **Report findings to the stakeholder before proceeding**
 
-**Gate:** Pre-Flight Pass — workspace is clean, prior work is understood, no broken artifacts. If any artifact is broken, report it and get direction before continuing.
+**Gate:** Pre-Flight Pass — workspace is clean, prior work is understood, the ledger is reconciled with the change history, no broken artifacts. If any artifact is broken, report it and get direction before continuing.
 
 **Anti-patterns to avoid:**
 - Starting work without reading prior session notes
 - Assuming the workspace is clean because it was clean last time
 - Skipping the adjacent artifact check (this is how cross-session damage goes undetected)
 - Skimming governing documents instead of reading them (reading "the gist" misses the specific steps that prevent specific failures)
+- Starting new work while the ledger lags the change history (undocumented commits not yet backfilled)
 
 ### Phase 1B: Claim the Session
 
@@ -165,8 +166,9 @@ Every session follows these phases in order. Phases are sequential and gated —
 **Purpose:** Leave a trace before any work begins, so that even a catastrophic failure (crash, context loss, timeout) produces evidence of what was attempted.
 
 **Steps:**
-1. Write a stub to the session notes file with: session identifier, task description, start time, status "IN PROGRESS"
-2. This stub is overwritten during Phase 6 with the full close-out notes
+1. Write a stub to the session notes file with: session identifier, task description, start time, status "IN PROGRESS", and a `CHANGELOG: pending` ledger marker (the crash breadcrumb the next session's Pre-Flight reconcile reads; cleared when Phase 6 records the entry)
+2. Open a `HANDOFFS.md` close-out receipt stub — a durable receipt block with `status: pending` — and commit it with the claim; unlike the transient session-notes stub it survives a fresh clone, so it is the crash breadcrumb the next session's reconcile greps. Phase 6 completes it to `status: complete`
+3. Both stubs are overwritten/completed during Phase 6 with the full close-out
 
 **Why this phase exists:** In a 1100+ session series, multiple sessions crashed or ended without completing close-out. These "ghost sessions" left zero trace — no notes, no self-assessment, no handoff. The next session had no idea what was attempted, what state was left behind, or what to watch for. By writing a stub FIRST, even total failures leave a breadcrumb.
 
@@ -288,8 +290,8 @@ Every session follows these phases in order. Phases are sequential and gated —
 4. **Self-assess.** Write What Went Right / What Went Wrong. (See Honest Accounting section.) Be specific and honest.
 5. **Update the performance comparison table.** Add this session's metrics.
 6. **Update the pattern library and anti-pattern list.** If you discovered a new pattern or made a new mistake, name it and add it.
-7. **Write handoff notes for the next session.** (See below.) You will be judged on these — the next session will score your handoff just as you scored your predecessor's.
-8. **Commit the work.** Before committing, remove any debug instrumentation added during this session (tagged debug logs per `/diagnose` — see [`RECOMMENDED_SKILLS.md`](../../RECOMMENDED_SKILLS.md) — and ad-hoc prints). Then commit with a structured message referencing the session.
+7. **Write handoff notes for the next session.** (See below.) You will be judged on these — the next session will score your handoff just as you scored your predecessor's. Write them both to `SESSION_NOTES.md` (the transient scratchpad) and as a durable ` ```handoff ` receipt block in `HANDOFFS.md` — set `status: complete` and fill the six minimum requirements (the sixth *is* `self_score`) plus `predecessor_score`. The receipt is the machine-checkable proof the handoff exists (the canonical-only `bin/check-handoff` asserts its structure — copy it in if you want it — never its quality); a skipped receipt is caught at the next Pre-Flight reconcile with no tooling.
+8. **Record every action, then commit.** Before committing: (a) remove any debug instrumentation added during this session (tagged debug logs per `/diagnose` — see [`RECOMMENDED_SKILLS.md`](../../RECOMMENDED_SKILLS.md) — and ad-hoc prints); (b) append a dated, source-tagged entry to the authoritative ledger `CHANGELOG.md` for **each action this session took** — one per commit *and* per non-commit action (release, tag/branch op, PR open, upstream issue close, access grant, decline/grooming decision): `### YYYY-MM-DD · [issue #<N>] | [BL-<N>] | [ad hoc]` + a one-line outcome, newest on top, removing any completed `BACKLOG.md` item in the same commit. If `CHANGELOG.md` is absent, create it from the bootstrap seed; the only exemptions are a project that records "no CHANGELOG" in `CLAUDE.md` and a session whose diff is empty with no action taken. "Too small to log" is failure mode #27, not an exception. Then commit with a structured message referencing the session. (Failure mode #17: the ledger records what the session did; it does not authorize a second deliverable.)
 
 **Minimum handoff requirements (Step 7):** The next session starts with zero context. Your handoff is their only connection to your work. A handoff that doesn't include ALL of the following is incomplete. "Done — pick next task" is not a handoff; it's an abdication that forces the next session to rediscover context you already had.
 
@@ -320,19 +322,21 @@ The 6-phase model assumes a full Research→Create→Present→Implement→Verif
 Follow all 6 phases. The deliverable is working code, a design document, or an artifact.
 
 ### Review/Audit Sessions
-The deliverable is an analysis document — a code review, audit report, or plan. These sessions follow Phases 1-4 (Pre-Flight, Research, Create the analysis, Present) and skip Phase 5 (Implement). Phase 6 still fires in full.
+The deliverable is an analysis document — a code review, audit report, or plan. These sessions follow Phases 1-4 (Pre-Flight, Research, Create the analysis, Present) and skip Phase 5 (Implement). Phase 6 still fires in full — including its handoff receipt (`HANDOFFS.md`) and its step-8 ledger entry: a review or audit that commits its report has taken an action, so `CHANGELOG.md` records it like any other session (failure mode #27).
+
+A review or audit whose subject adds, renames, or removes a concept, artifact, file, step, or numbered-set member owes a whole-corpus completeness sweep in addition to the diff review — not only what changed, but what the change made stale elsewhere (`starter-kit/SESSION_RUNNER.md` Learning #10; `workstreams/AUDIT_WORKSTREAM.md`'s Verification Checklist is the operative step).
 
 **Code review is a distinct deliverable, not overhead.** Reviews that produce actionable plans (exact code snippets, line numbers, implementation order) have higher ROI than vague feedback. A review session's output should be detailed enough that a subsequent implementation session can execute it mechanically.
 
 ### Planning/Preparation Sessions
-The deliverable is a plan or handoff document that sets up a future implementation session. These sessions invest heavily in Phase 2 (Research) and produce a Phase 3 design document that another session will implement. The value is front-loaded: a good plan collapses multi-session implementation work into a single session.
+The deliverable is a plan or handoff document that sets up a future implementation session. These sessions invest heavily in Phase 2 (Research) and produce a Phase 3 design document that another session will implement. The value is front-loaded: a good plan collapses multi-session implementation work into a single session. Close-out is unchanged: the plan is an action, so it earns its `HANDOFFS.md` receipt and its `CHANGELOG.md` ledger entry (Phase 6 step 8, failure mode #27) exactly as committed code does.
 
 **Speed warning:** High-quality plans can make implementation sessions complete very fast. This is the plan's success, not evidence that verification can be skipped. (See Phase 5 anti-patterns: "Treating speed as evidence of quality.")
 
 ### Debugging Sessions
 The deliverable is a closed bug — a regression fixed, a flake stabilized, an incident root-caused. Debugging has a different epistemic structure than the other three types: you are *searching for a hidden cause*, not building toward a known shape. Treating debugging as "implementation with a bug-shaped requirement" hides this distinction and produces predictable failures (instrumentation left in commits, single-hypothesis tunnel vision, feedback loops too slow to be useful, "fixes" that pass without a regression test).
 
-The 6 phases still apply, but Phase 2 (Research) is dominated by building a feedback loop that makes the bug observable on demand, and Phase 6 (Verify) expands to remove the debug instrumentation before commit (the cleanup gate at `SESSION_RUNNER.md` §Phase 3F).
+The 6 phases still apply, but Phase 2 (Research) is dominated by building a feedback loop that makes the bug observable on demand, and Phase 6 (Verify) expands to remove the debug instrumentation, write the `HANDOFFS.md` receipt, *and* record the closed bug in `CHANGELOG.md` before commit (the cleanup, handoff-receipt, and ledger gates at `SESSION_RUNNER.md` §Phase 3D/3F, failure mode #27).
 
 The methodology recommends Pocock's `/diagnose` skill for the actual debugging workflow — see [`RECOMMENDED_SKILLS.md`](../../RECOMMENDED_SKILLS.md). Methodology recognizes debugging as a session type; `/diagnose` runs it. When the skill is unavailable, the operative rules are: build the feedback loop before forming hypotheses, change one variable at a time, write the regression test before the fix, remove all debug instrumentation before commit.
 
@@ -390,7 +394,7 @@ Inline pointers in this document and in the workstream files reference skills by
 
 Cheap, reversible, mechanical work — a one-line fix, a rename the compiler catches, a reversible config tweak — does not need it; a lighter setting is the honest default there. The axis runs both ways.
 
-Methodology owns *when and why* to raise the tier (this rule); your agent owns *how* (the specific effort or model mechanism — see [`RECOMMENDED_SKILLS.md`](../../RECOMMENDED_SKILLS.md) for concrete example settings). And a higher tier is not a license: like a skill, a deeper-reasoning mode sharpens a phase — it never authorizes skipping orientation, the stub, close-out, or any hard gate, nor widening a session beyond its one declared deliverable (failure mode #17, `SESSION_RUNNER.md` Protocol erosion). Reason harder; stop at the same gates.
+Methodology owns *when and why* to raise the tier (this rule); your agent owns *how* (the specific effort or model mechanism — see [`RECOMMENDED_SKILLS.md`](../../RECOMMENDED_SKILLS.md) for concrete example settings). Within a pre-declared vertical slice, that mechanism can vary *by layer* too — see `SESSION_RUNNER.md` §Vertical Slice Sessions, capability-tiered review, for the elective pattern and its guardrails. And a higher tier is not a license: like a skill, a deeper-reasoning mode sharpens a phase — it never authorizes skipping orientation, the stub, close-out, or any hard gate, nor widening a session beyond its one declared deliverable (failure mode #17, `SESSION_RUNNER.md` Protocol erosion). Reason harder; stop at the same gates.
 
 ---
 
@@ -418,7 +422,7 @@ For AI agents, the Session Runner is especially critical because agents face con
 
 | # | Gate | Between | Question It Answers |
 |---|------|---------|---------------------|
-| 1 | Pre-Flight Pass | Start → Research | Is the workspace clean, prior work understood, and ghost sessions detected? |
+| 1 | Pre-Flight Pass | Start → Research | Is the workspace clean, prior work understood, ghost sessions detected, and the ledger reconciled with the change history? |
 | 2 | Session Claimed | After task received → Before work | Will this session leave a trace even if it crashes? |
 | 3 | Previous Handoff Evaluated | Start of Close-Out | Have I scored the previous session's handoff with specific evidence? |
 | 4 | Research Complete | Research → Create | Have I read everything I need to make good decisions? |
@@ -726,6 +730,7 @@ Every session produces a document following this structure. Copy this template a
 - Workspace state: [clean/dirty — if dirty, what and why]
 - Prior session notes: [summary of what the last session did]
 - Ghost session check: [any undocumented sessions detected? changes without notes?]
+- Ledger reconcile: [CHANGELOG current with git log? undocumented commits backfilled? or "no CHANGELOG" opt-out recorded?]
 - Artifact current state: [builds? passes? known issues?]
 - Adjacent artifact check: [which ones checked, their status]
 

@@ -68,7 +68,7 @@ from collections import defaultdict
 # Every other copy (portfolio root + per-project) is a synced copy of the canonical and must
 # carry the same value. A copy whose DASHBOARD_VERSION is older than the canonical is stale —
 # re-sync from the canonical. Bump on any change to the canonical script.
-DASHBOARD_VERSION = "2.6.1"
+DASHBOARD_VERSION = "2.8.0"
 
 ROOT = Path(__file__).parent
 EXCLUDE_DIRS = {"methodology", "BrogueCE-iOS", ".git", "__pycache__", "node_modules", ".venv", "venv"}
@@ -117,6 +117,39 @@ METHODOLOGY_ITEMS = [
     ("docs/methodology", 10, "dir"),
     ("docs/methodology/workstreams", 10, "dir"),
 ]
+
+# Component C — CHANGELOG ledger-freshness thresholds (advisory only; see
+# evaluate_changelog_freshness). This monitor stops rewarding mere presence: a CHANGELOG.md
+# that exists but no longer tracks the work earns the "present" point, not the "fresh" one,
+# and raises an advisory RISK line. It never hard-fails a score — the authoritative ledger
+# gate lives in the session runner (FM #27 close-out + Phase 0 reconcile-on-read), not here.
+LEDGER_UNLOGGED_MAX = 10       # Signal C: non-merge commits since CHANGELOG was last committed
+LEDGER_LAG_DAYS_MAX = 21       # Signal B: days the ledger frontier may trail HEAD on an active repo
+LEDGER_REAL_HISTORY_MIN = 10   # below this commit count a repo gets new-adopter grace (fresh seed)
+SEED_SENTINEL = "METHODOLOGY-SEED-SENTINEL"  # Signal D: an untouched seed still carries this token
+_DATED_ENTRY_RE = re.compile(r'^###\s+\d{4}-\d{2}-\d{2}', re.MULTILINE)
+_BACKLOG_DONE_RE = re.compile(r'^\s*[-*]\s*\[x\]', re.IGNORECASE | re.MULTILINE)
+
+# Doc-only / research-repo scoring reshape (BL-5). A document-only repo (papers, dissertations,
+# technical reports, regulatory analyses — the Research-Documentation workstream population, and
+# partly this framework's own doc corpus) has nothing to unit-test, so the code-centric Testing
+# dimension and its risks are a false penalty. When a repo is detected as doc-only, the second
+# 0-20 score slot (dict key "testing", kept stable for JSON/portfolio/radar) is filled by a
+# Render/Verification score instead, and the no-test-infra / thin-coverage risks are suppressed.
+#
+# The Render/Verification score is an HONEST PROXY: a static git+file scan cannot execute a
+# render, so it measures render/verification *configuration and wiring* (toolchain configs, the
+# v2.5 render-dependency checks like pdffonts/fc-list/kpsewhich, a docs-render / link-check CI
+# pipeline, Research-Documentation verification artifacts) — never render *success*. It is
+# labeled a proxy in the HTML card. Like every dimension here it is advisory; nothing hard-fails.
+#
+# Detection is marker-override -> source-cap -> corpus-disjunction (see detect_doc_only). The
+# source cap keeps a mixed tooling repo (real code that should be tested) from being silently
+# exempted; the bidirectional .methodology-profile marker lets an owner force either classification.
+DOC_ONLY_SOURCE_LOC_MAX = 200            # source LOC at/below this is "essentially no real code"
+DOC_ONLY_DOC_LOC_MIN    = 200            # doc LOC at/above this signals a real doc corpus
+DOC_ONLY_DOC_FILES_MIN  = 3              # this many doc files also signals a real doc corpus
+DOC_ONLY_MARKER         = ".methodology-profile"  # bidirectional opt-in: token "doc-only" | "code"
 
 
 # === HELPERS ===
@@ -608,6 +641,144 @@ def collect_doc_metrics(path, file_metrics):
     return metrics
 
 
+def _find_changelog(path):
+    """Return the Path to a CHANGELOG in the project root or docs/, else None.
+    Mirrors collect_doc_metrics's has_changelog detection (case-insensitive prefix), but
+    restricted to regular files so a CHANGELOG *directory* is not treated as a ledger."""
+    for base in (path, path / "docs"):
+        if not base.is_dir():
+            continue
+        try:
+            for entry in sorted(base.iterdir()):
+                if entry.is_file() and entry.name.upper().startswith("CHANGELOG"):
+                    return entry
+        except OSError:
+            continue
+    return None
+
+
+def _count_backlog_done(path):
+    """Signal F: BACKLOG.md checklist items still marked done (`- [x]`). The methodology
+    removes a backlog item from BACKLOG.md in the same commit that logs it to CHANGELOG, so
+    surviving done-marks are a best-effort proxy for 'completed but never migrated'."""
+    for name in ("BACKLOG.md", "docs/BACKLOG.md", "docs/planning/BACKLOG.md"):
+        bl = path / name
+        if bl.is_file():
+            try:
+                return len(_BACKLOG_DONE_RE.findall(bl.read_text(encoding="utf-8", errors="ignore")))
+            except OSError:
+                return 0
+    return 0
+
+
+def evaluate_changelog_freshness(path, git):
+    """Component C — CHANGELOG ledger-lag / freshness monitor.
+
+    Advisory only: it feeds at most a 1-point documentation nudge (present vs. fresh) plus
+    RISK lines; it never hard-fails a score. The two lag signals are git-only and format-
+    agnostic (they ask *when was the ledger last committed, and how far has HEAD moved since*),
+    so they work for any project that keeps a CHANGELOG; the never-used signal keys on the
+    methodology seed sentinel, and the backlog signal on unmigrated BACKLOG.md done-marks.
+    `git` is the already-collected collect_git_metrics dict.
+    """
+    result = {
+        "present": False,
+        "unlogged_commits": 0,        # Signal C
+        "frontier_lag_days": None,    # Signal B
+        "dated_entry_count": 0,
+        "has_seed_sentinel": False,
+        "never_used": False,          # Signal D
+        "backlog_done_unmigrated": _count_backlog_done(path),  # Signal F
+        "new_adopter_grace": False,
+        "is_fresh": False,
+        "signals": [],                # list of (severity, description) advisory tuples
+    }
+
+    changelog = _find_changelog(path)
+    if changelog is None:
+        # Absence is not judged here — assess_risks decides whether it is a defect (an adopter
+        # with real history) or simply a project that keeps no ledger by design.
+        return result
+    result["present"] = True
+
+    total_commits = git.get("total_commits", 0) or 0
+    real_history = total_commits >= LEDGER_REAL_HISTORY_MIN
+    grace = not real_history  # a young repo's fresh seed has not had a chance to go stale
+    result["new_adopter_grace"] = grace
+
+    # Signals C & B: git-only. A path outside a git repo yields "" and leaves both inert.
+    try:
+        rel = str(changelog.relative_to(path))
+    except ValueError:
+        rel = changelog.name
+    last_touch = git_cmd(path, "log", "-1", "--format=%H", "--", rel)
+    if last_touch:
+        unlogged = git_cmd(path, "rev-list", "--count", "--no-merges", f"{last_touch}..HEAD")
+        result["unlogged_commits"] = int(unlogged) if unlogged.isdigit() else 0
+        ledger_date = git_cmd(path, "log", "-1", "--format=%ai", "--", rel)[:10]
+        head_date = git_cmd(path, "log", "-1", "--format=%ai", "HEAD")[:10]
+        try:
+            d_ledger = datetime.strptime(ledger_date, "%Y-%m-%d")
+            d_head = datetime.strptime(head_date, "%Y-%m-%d")
+            result["frontier_lag_days"] = (d_head - d_ledger).days
+        except ValueError:
+            pass
+
+    # Signal D: an untouched seed still carries the sentinel and has zero real dated entries.
+    try:
+        text = changelog.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        text = ""
+    result["dated_entry_count"] = len(_DATED_ENTRY_RE.findall(text))
+    result["has_seed_sentinel"] = SEED_SENTINEL in text
+    result["never_used"] = (
+        result["has_seed_sentinel"] and result["dated_entry_count"] == 0 and real_history
+    )
+
+    # The time-lag signal only makes sense on a repo that is otherwise active; a repo dormant
+    # everywhere is already flagged by the activity score, so don't double-count it here.
+    days_idle = git.get("days_since_last_commit")
+    active = days_idle is not None and days_idle <= 90
+    lag_days = result["frontier_lag_days"]
+
+    lagging = (
+        result["unlogged_commits"] >= LEDGER_UNLOGGED_MAX
+        or (active and lag_days is not None and lag_days > LEDGER_LAG_DAYS_MAX)
+    )
+    # Fresh (earns the +1 nudge): present, and either under grace or neither lagging nor never-used.
+    result["is_fresh"] = grace or not (lagging or result["never_used"])
+
+    # Advisory RISK descriptions — suppressed under new-adopter grace so a fresh seed is silent.
+    if not grace:
+        if result["unlogged_commits"] >= LEDGER_UNLOGGED_MAX:
+            result["signals"].append((
+                "medium",
+                f"CHANGELOG ledger lag: {result['unlogged_commits']} commits since it was "
+                f"last updated (Component C)",
+            ))
+        if active and lag_days is not None and lag_days > LEDGER_LAG_DAYS_MAX:
+            result["signals"].append((
+                "low", f"CHANGELOG frontier trails HEAD by {lag_days} days",
+            ))
+        if result["never_used"]:
+            result["signals"].append((
+                "medium",
+                "CHANGELOG present but never used — still the untouched seed on a repo with "
+                "real commit history",
+            ))
+    # Signal F is adopter-scoped: only a methodology adopter (root SESSION_RUNNER.md) follows the
+    # "remove from BACKLOG.md in the commit that logs it to CHANGELOG" convention, so surviving
+    # done-marks are a defect only there — not on a non-adopter sibling that keeps a [x] backlog.
+    if result["backlog_done_unmigrated"] > 0 and (path / "SESSION_RUNNER.md").is_file():
+        result["signals"].append((
+            "low",
+            f"{result['backlog_done_unmigrated']} done-marked BACKLOG.md item(s) not migrated "
+            f"to CHANGELOG",
+        ))
+
+    return result
+
+
 def collect_methodology_metrics(path):
     present = 0
     missing = []
@@ -916,6 +1087,173 @@ def collect_coverage_config(path):
 
 # === SCORING ===
 
+# === BL-5: DOC-ONLY / RESEARCH-REPO SCORING ===
+
+_RENDER_DEP_RE = re.compile(r'\b(?:pdffonts|fc-list|fc-match|kpsewhich|fc-cache)\b')
+_DOCS_RENDER_CI_RE = re.compile(
+    r'quarto|sphinx|mkdocs|latexmk|pandoc|mdbook|asciidoctor|typst|gh-pages', re.IGNORECASE)
+_FONT_TOKEN_RE = re.compile(r'\b(?:mainfont|fontspec)\b', re.IGNORECASE)
+_PANDOC_RE = re.compile(r'\bpandoc\b', re.IGNORECASE)
+_QUARTO_RENDER_RE = re.compile(r'quarto\s+render', re.IGNORECASE)
+_LINK_CHECK_RE = re.compile(r'lychee|htmltest|markdown-link-check|linkchecker', re.IGNORECASE)
+
+
+def _read_capped(fpath, cap=200_000):
+    """Read a text file with a size cap; '' on any error or if oversized. Keeps the render scan bounded."""
+    try:
+        if fpath.stat().st_size > cap:
+            return ""
+        return fpath.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+
+def collect_render_metrics(path, files, ci, meth):
+    """BL-5 — Render/Verification signals for a document/research repo.
+
+    HONEST PROXY: a static scan cannot execute a render, so this scores render/verification
+    *configuration and wiring*, never render *success*. Returns a 0-20 score that fills the
+    second health slot (in place of Testing) when detect_doc_only says the repo is doc-only;
+    ``toolchain_present`` also feeds detection. One bounded pass — glob for well-known config
+    files and size-cap-read only a handful of root build files, the CI workflow bodies, and
+    root *.tex / _quarto.yml. No full re-walk (precedent: collect_ci_metrics / collect_coverage_config).
+    """
+    result = {"score": 0, "toolchain_present": False, "render_dep_verified": False, "signals": []}
+
+    def has(*globs):
+        for g in globs:
+            try:
+                if next(path.glob(g), None) is not None:
+                    return True
+            except OSError:
+                pass
+        return False
+
+    # Text corpus we are allowed to scan: root build drivers + CI workflow bodies + quarto/tex config.
+    build_files = ["Makefile", "makefile", "justfile", "Justfile", "build.sh", "render.sh"]
+    driver_present = any((path / b).is_file() for b in build_files)
+    texts = [_read_capped(path / b) for b in build_files if (path / b).is_file()]
+    wf_dir = path / ".github" / "workflows"
+    if wf_dir.is_dir():
+        for wf in sorted(wf_dir.glob("*.yml")) + sorted(wf_dir.glob("*.yaml")):
+            texts.append(_read_capped(wf))
+    for cfg in ("_quarto.yml", "_quarto.yaml"):
+        if (path / cfg).is_file():
+            texts.append(_read_capped(path / cfg))
+    for tex in list(path.glob("*.tex"))[:5]:
+        texts.append(_read_capped(tex))
+    blob = "\n".join(texts)
+    wf_names = " ".join(ci.get("workflow_files", []))
+
+    score = 0
+
+    # A. Render toolchain configured (up to 6).
+    toolchain = has(
+        "_quarto.yml", "_quarto.yaml", "*.qmd", "conf.py", "mkdocs.yml", "mkdocs.yaml",
+        "book.toml", "_bookdown.yml", "latexmkrc", ".latexmkrc", "*.tex", "*.typ", "*.adoc",
+        "antora-playbook.yml",
+    )
+    if not toolchain and (path / "_config.yml").is_file() and (path / "_toc.yml").is_file():
+        toolchain = True  # Jupyter Book
+    if not toolchain and _PANDOC_RE.search(blob):
+        toolchain = True
+    result["toolchain_present"] = toolchain
+    if toolchain:
+        score += 4
+    if driver_present or _QUARTO_RENDER_RE.search(blob):
+        score += 2  # a repeatable render driver, scripted not ad hoc
+    result["signals"].append(("Render toolchain configured", toolchain))
+
+    # B. Render-dependency verification — v2.5 hard rule / anti-pattern #20 (up to 6).
+    dep_checked = bool(_RENDER_DEP_RE.search(blob))
+    result["render_dep_verified"] = dep_checked
+    if dep_checked:
+        score += 4  # strongest signal: post-render embedding check is wired (pdffonts/fc-list/kpsewhich)
+    if has("*.sty", "fonts") or _FONT_TOKEN_RE.search(blob):
+        score += 2
+    result["signals"].append(
+        ("Render-dependency check wired (pdffonts/fc-list/kpsewhich)", dep_checked))
+
+    # C. Render / link-check CI — the CI-equivalent (up to 5).
+    render_ci = bool(_DOCS_RENDER_CI_RE.search(wf_names + "\n" + blob))
+    if render_ci:
+        score += 3
+    link_check = (
+        has(".lycheeignore", "lychee.toml", ".htmltest.yml", ".htmltest.yaml")
+        or (path / "bin" / "check-links").is_file()
+        or bool(_LINK_CHECK_RE.search(blob))
+    )
+    if link_check:
+        score += 2
+    result["signals"].append(("Render / link-check CI pipeline", render_ci or link_check))
+
+    # D. Research-Documentation verification adoption (up to 3).
+    verif_artifact = has(
+        "VERIFICATION*", "*checklist*", "*source-audit*", "CITATION.cff", "references", "*.bib")
+    if verif_artifact:
+        score += 2
+    ws_present = any((path / rel).is_file() for rel in (
+        "docs/methodology/workstreams/RESEARCH_DOCUMENTATION_WORKSTREAM.md",
+        "workstreams/RESEARCH_DOCUMENTATION_WORKSTREAM.md",
+        "RESEARCH_DOCUMENTATION_WORKSTREAM.md",
+    ))
+    if ws_present:
+        score += 1
+    result["signals"].append(
+        ("Research-Documentation verification artifacts", verif_artifact or ws_present))
+
+    result["score"] = min(20, score)
+    return result
+
+
+def detect_doc_only(path, files, render):
+    """BL-5 — classify a repo as document-only / research: marker -> source-cap -> corpus.
+
+    Returns {"is_doc_only": bool, "reason": "marker"|"heuristic"|""}. Advisory only; nothing gates.
+    """
+    # 1. Explicit bidirectional marker wins (force either classification).
+    marker = path / DOC_ONLY_MARKER
+    try:
+        if marker.is_file():
+            tokens = marker.read_text(encoding="utf-8-sig", errors="ignore").strip().split()
+            token = tokens[0].lower() if tokens else ""
+            if token == "doc-only":
+                return {"is_doc_only": True, "reason": "marker"}
+            if token == "code":
+                return {"is_doc_only": False, "reason": "marker"}
+            # empty/unknown -> fall through to the heuristic
+    except OSError:
+        pass
+
+    # 2. Source-cap short-circuit: real code should be tested; never silently exempt it.
+    src = files["by_category"]["source"]["loc"]
+    if src > DOC_ONLY_SOURCE_LOC_MAX:
+        return {"is_doc_only": False, "reason": "heuristic"}
+
+    # 3. Corpus disjunction (only when source is negligible): a real doc corpus OR a render
+    #    toolchain — the latter catches a pure-LaTeX/Quarto repo whose .tex/.qmd are not counted
+    #    as docs (so its doc_loc is ~0), the exact source_loc≈0 research repo that must not be missed.
+    doc_loc = files["by_category"]["docs"]["loc"]
+    doc_files = files["by_category"]["docs"]["count"]
+    corpus = (
+        doc_loc >= DOC_ONLY_DOC_LOC_MIN
+        or doc_files >= DOC_ONLY_DOC_FILES_MIN
+        or render["toolchain_present"]
+    )
+    return {"is_doc_only": bool(corpus), "reason": "heuristic"}
+
+
+def fmt_ratio(value, source_loc, doc_only=False):
+    """Format a *-to-source ratio for display. A bare 0.000 misreads as 'no docs', so a repo with
+    ~no source shows 'n/a' — qualified '(doc-only)' only when the repo was actually classified
+    doc-only, else '(no source)' for a code repo that merely happens to have no source LOC."""
+    if doc_only:
+        return "n/a (doc-only)"
+    if source_loc == 0:
+        return "n/a (no source)"
+    return f"{value:.3f}"
+
+
 def score_health(metrics):
     scores = {}
 
@@ -936,21 +1274,26 @@ def score_health(metrics):
     else:
         scores["activity"] = 0
 
-    # 2. Testing (0-20)
-    ratio = metrics["tests"]["test_to_source_ratio"]
-    test_count = metrics["tests"]["test_file_count"]
-    if ratio >= 0.5:
-        scores["testing"] = 20
-    elif ratio >= 0.3:
-        scores["testing"] = 16
-    elif ratio >= 0.1:
-        scores["testing"] = 12
-    elif test_count > 0:
-        scores["testing"] = 6
+    # 2. Testing (0-20) — for a doc-only repo the Render/Verification proxy fills this slot
+    #    instead (the dict key stays "testing" so JSON export / portfolio aggregation / the radar
+    #    keep keying on it; only the display label swaps).
+    if metrics.get("doc_only", {}).get("is_doc_only"):
+        scores["testing"] = metrics["render"]["score"]
     else:
-        scores["testing"] = 0
-    if metrics.get("coverage_configs"):
-        scores["testing"] = min(20, scores["testing"] + 2)
+        ratio = metrics["tests"]["test_to_source_ratio"]
+        test_count = metrics["tests"]["test_file_count"]
+        if ratio >= 0.5:
+            scores["testing"] = 20
+        elif ratio >= 0.3:
+            scores["testing"] = 16
+        elif ratio >= 0.1:
+            scores["testing"] = 12
+        elif test_count > 0:
+            scores["testing"] = 6
+        else:
+            scores["testing"] = 0
+        if metrics.get("coverage_configs"):
+            scores["testing"] = min(20, scores["testing"] + 2)
 
     # 3. Documentation (0-20)
     doc = metrics["docs"]
@@ -959,7 +1302,12 @@ def score_health(metrics):
     if doc["has_docs_dir"]:
         doc_score += 4
     if doc["has_changelog"]:
-        doc_score += 2
+        # Component C: split the old flat +2 into +1 for presence and +1 for freshness, so a
+        # stale or never-used ledger no longer scores the same as a maintained one. Total cap
+        # is unchanged (a present + fresh ledger still earns 2).
+        doc_score += 1
+        if metrics.get("changelog", {}).get("is_fresh"):
+            doc_score += 1
     if doc["has_license"]:
         doc_score += 2
     if doc["has_roadmap"]:
@@ -986,6 +1334,8 @@ def score_health(metrics):
 
 def assess_risks(metrics):
     risks = []
+    doc_only = metrics.get("doc_only", {}).get("is_doc_only", False)
+    render = metrics.get("render", {})
 
     days = metrics["git"]["days_since_last_commit"]
     if days is not None and days > 90:
@@ -993,10 +1343,21 @@ def assess_risks(metrics):
     elif days is not None and days > 30:
         risks.append({"severity": "high", "description": f"Stale project (no commits in {days} days)"})
 
-    if metrics["tests"]["test_file_count"] == 0:
-        risks.append({"severity": "high", "description": "No test infrastructure"})
-    elif metrics["tests"]["test_to_source_ratio"] < 0.1:
-        risks.append({"severity": "medium", "description": f"Test coverage is very thin (ratio: {metrics['tests']['test_to_source_ratio']:.2f})"})
+    # BL-5: the code-centric test risks are a false penalty on a doc-only repo (nothing to
+    # unit-test); suppress them and surface render/verification advisories (proxies) instead.
+    if not doc_only:
+        if metrics["tests"]["test_file_count"] == 0:
+            risks.append({"severity": "high", "description": "No test infrastructure"})
+        elif metrics["tests"]["test_to_source_ratio"] < 0.1:
+            risks.append({"severity": "medium", "description": f"Test coverage is very thin (ratio: {metrics['tests']['test_to_source_ratio']:.2f})"})
+    else:
+        src = metrics["tests"]["source_loc"]
+        if render.get("score", 0) == 0:
+            risks.append({"severity": "medium", "description": "Documentation repo has no detectable render/verification pipeline (proxy)"})
+        elif render.get("toolchain_present") and not render.get("render_dep_verified"):
+            risks.append({"severity": "low", "description": "Render pipeline present but no post-render dependency check (pdffonts/fc-list/kpsewhich) — v2.5 render-dep discipline not wired (anti-pattern #20)"})
+        if 0 < src <= DOC_ONLY_SOURCE_LOC_MAX:
+            risks.append({"severity": "low", "description": f"Doc-only repo contains {src} LOC of helper source with no tests"})
 
     if not metrics["ci"]["has_ci"]:
         risks.append({"severity": "medium", "description": "No CI/CD pipeline"})
@@ -1013,9 +1374,14 @@ def assess_risks(metrics):
     if not metrics["docs"]["has_license"]:
         risks.append({"severity": "low", "description": "No LICENSE file"})
 
-    largest = metrics["files"]["largest_files"]
-    if largest and largest[0]["loc"] > 2000:
-        risks.append({"severity": "medium", "description": f"Large files detected ({largest[0]['path']}: {largest[0]['loc']:,} lines)"})
+    # BL-5: only a large *source* file is a code-smell; a 2500-line chapter (.md/.tex) is normal for
+    # a document repo. Scan for the largest *source* file over the threshold rather than inspecting
+    # only largest[0], so a non-source #1 (e.g. a big lockfile/JSON) doesn't mask a real large source
+    # file below it (helps mixed repos too — no doc_only branch needed).
+    big_src = next((f for f in metrics["files"]["largest_files"]
+                    if f["loc"] > 2000 and f.get("ext") in SOURCE_EXTS), None)
+    if big_src:
+        risks.append({"severity": "medium", "description": f"Large files detected ({big_src['path']}: {big_src['loc']:,} lines)"})
 
     commits = metrics["git"]["total_commits"]
     age = metrics["git"]["project_age_days"]
@@ -1034,6 +1400,17 @@ def assess_risks(metrics):
             risks.append({"severity": "critical", "description": f"{crit} critical dependency vulnerabilit{'y' if crit == 1 else 'ies'}"})
         if high > 0:
             risks.append({"severity": "high", "description": f"{high} high-severity dependency vulnerabilit{'y' if high == 1 else 'ies'}"})
+
+    # Component C: CHANGELOG ledger freshness (advisory). Decision D3 — a methodology adopter
+    # (SESSION_RUNNER.md present) with real commit history but no ledger is a defect, not a
+    # silent absence. For projects that keep a ledger, surface the ledger-lag signals.
+    cl = metrics.get("changelog", {})
+    adopter = metrics["methodology"]["items"].get("SESSION_RUNNER.md", False)
+    if not cl.get("present") and adopter and metrics["git"]["total_commits"] >= LEDGER_REAL_HISTORY_MIN:
+        risks.append({"severity": "medium",
+                      "description": "Methodology adopter has commit history but no CHANGELOG ledger (Component C)"})
+    for sev, desc in cl.get("signals", []):
+        risks.append({"severity": sev, "description": desc})
 
     # Sort by severity
     severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
@@ -1116,6 +1493,16 @@ def collect_all(path):
         "github": github,
         "vulnerabilities": vulns,
     }
+
+    # Component C: ledger freshness. Wired after the metrics dict is built (so it can read the
+    # already-collected git metrics) and before the scores block (which consumes is_fresh).
+    metrics["changelog"] = evaluate_changelog_freshness(path, git)
+
+    # BL-5: render/verification signals + doc-only classification. Wired after the metrics dict is
+    # built (so collect_render_metrics can read the collected ci/files) and before the scores block
+    # (which consumes doc_only + render). Order matters: render feeds detect_doc_only.
+    metrics["render"] = collect_render_metrics(path, files, ci, meth)
+    metrics["doc_only"] = detect_doc_only(path, files, metrics["render"])
 
     metrics["scores"] = {
         "health": score_health(metrics),
@@ -1346,9 +1733,14 @@ def render_project_card(p):
     for c in git["recent_commits"]:
         commits_html += f'<div class="commit-line"><code>{c["hash"]}</code> <span class="commit-date">{c["date"]}</span> {esc(c["message"])}</div>'
 
-    # Health dimension bars
+    # Health dimension bars. BL-5: a doc-only repo's 2nd slot holds Render/Verification, not Testing.
+    doc_only_info = p.get("doc_only", {})
+    is_doc_only = doc_only_info.get("is_doc_only", False)
+    render = p.get("render", {})
+    src_loc = p["tests"]["source_loc"]
     dims = ["activity", "testing", "documentation", "ci_cd", "methodology"]
-    dim_labels = ["Activity", "Testing", "Documentation", "CI/CD", "Methodology"]
+    dim_labels = ["Activity", "Render/Verify" if is_doc_only else "Testing",
+                  "Documentation", "CI/CD", "Methodology"]
     dim_bars = ""
     for dim, label in zip(dims, dim_labels):
         val = health[dim]
@@ -1359,6 +1751,40 @@ def render_project_card(p):
             <div class="dim-bar-bg"><div class="dim-bar" style="width: {pct}%; background: {c}"></div></div>
             <span class="dim-val">{val}/20</span>
         </div>'''
+    dim_footnote = ""
+    if is_doc_only:
+        reason = doc_only_info.get("reason", "heuristic")
+        # The source_loc <= cap justification holds only on the heuristic path; a marker override
+        # can force doc-only at any source size, so don't print a (possibly false) inequality there.
+        detail = ("marker override" if reason == "marker"
+                  else f"heuristic, source_loc {src_loc} &le; {DOC_ONLY_SOURCE_LOC_MAX}")
+        dim_footnote = (
+            '<div class="dim-footnote" style="font-size:0.8em;opacity:0.7;margin-top:4px">'
+            'Render/Verify is an infrastructure proxy — the scanner cannot execute a render; '
+            f'doc-only repo detected ({esc(detail)}).</div>')
+
+    # Testing / Render-Verification card section (swap the whole block for a doc-only repo).
+    if is_doc_only:
+        sig_rows = "".join(
+            f'<div class="kv">{"&#10003;" if ok else "&#10007;"} {esc(name)}</div>'
+            for name, ok in render.get("signals", []))
+        testing_section = f'''<div class="card-section">
+                        <h4>Render / Verification (proxy)</h4>
+                        {sig_rows}
+                        <div class="kv">Render/Verify: <b>{render.get("score", 0)}/20</b></div>
+                        <div class="kv" style="font-size:0.8em;opacity:0.7">(configuration proxy — scanner cannot execute a render)</div>
+                    </div>'''
+        doc_ratio_kv = f'Doc LOC: <b>{doc["doc_total_loc"]:,}</b>'
+    else:
+        testing_section = f'''<div class="card-section">
+                        <h4>Testing</h4>
+                        <div class="kv">Test Files: <b>{p["tests"]["test_file_count"]}</b></div>
+                        <div class="kv">Test LOC: <b>{p["tests"]["test_loc"]:,}</b></div>
+                        <div class="kv">Source LOC: <b>{p["tests"]["source_loc"]:,}</b></div>
+                        <div class="kv">Test:Source Ratio: <b>{fmt_ratio(p["tests"]["test_to_source_ratio"], src_loc)}</b></div>
+                        <div class="kv">Coverage Config: <b>{cov_html}</b></div>
+                    </div>'''
+        doc_ratio_kv = f'Doc:Source Ratio: <b>{fmt_ratio(doc["doc_to_source_ratio"], src_loc)}</b>'
 
     return f'''
     <div class="project-card" id="card-{esc(p["name"])}">
@@ -1381,6 +1807,7 @@ def render_project_card(p):
             <div class="card-section">
                 <h4>Health Breakdown</h4>
                 {dim_bars}
+                {dim_footnote}
             </div>
 
             <div class="card-section">
@@ -1405,14 +1832,7 @@ def render_project_card(p):
                         {commits_html}
                     </div>
 
-                    <div class="card-section">
-                        <h4>Testing</h4>
-                        <div class="kv">Test Files: <b>{p["tests"]["test_file_count"]}</b></div>
-                        <div class="kv">Test LOC: <b>{p["tests"]["test_loc"]:,}</b></div>
-                        <div class="kv">Source LOC: <b>{p["tests"]["source_loc"]:,}</b></div>
-                        <div class="kv">Test:Source Ratio: <b>{p["tests"]["test_to_source_ratio"]:.3f}</b></div>
-                        <div class="kv">Coverage Config: <b>{cov_html}</b></div>
-                    </div>
+                    {testing_section}
 
                     <div class="card-section">
                         <h4>CI/CD</h4>
@@ -1422,7 +1842,7 @@ def render_project_card(p):
                     <div class="card-section">
                         <h4>Documentation</h4>
                         <div class="kv">{doc_html}</div>
-                        <div class="kv">Doc:Source Ratio: <b>{doc["doc_to_source_ratio"]:.3f}</b></div>
+                        <div class="kv">{doc_ratio_kv}</div>
                     </div>
 
                     <div class="card-section">
