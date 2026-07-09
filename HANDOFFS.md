@@ -73,6 +73,24 @@ session need this block to continue the work without re-reading the whole repo?*
 ---
 
 ```handoff
+session: S48
+date: 2026-07-09
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: Plan BACKLOG.md "Up Next" item #3 (onboarding walkthrough + quarto.newDocument/quarto.createProject scaffolding commands), following ARCHITECTURE_WORKSTREAM.md. Deliverable is ONE plan document in docs/planning/, no implementation this session.
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending -- set by this session's claim commit
+```
+
+---
+
+```handoff
 session: S47
 date: 2026-07-09
 status: complete
