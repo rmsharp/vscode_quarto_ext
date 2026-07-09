@@ -73,6 +73,25 @@ session need this block to continue the work without re-reading the whole repo?*
 ---
 
 ```handoff
+session: S46
+date: 2026-07-09
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: Plan BACKLOG.md "Up Next" item #2 (YAML schema diagnostics, unknown-key-only v1) following docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md. Deliverable is ONE plan document to docs/planning/, mirroring Session 44's item-#1 planning session. No implementation this session (FM #18/#19).
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+<Phase 1B claim stub — filled at Phase 3D close-out.>
+
+---
+
+```handoff
 session: S45
 date: 2026-07-09
 status: complete
@@ -85,7 +104,7 @@ key_files: docs/planning/2026-07-09-project-level-render-plan.md (the plan this 
 gotchas: Quarto auto-generates a .gitignore (containing /.quarto/) inside ANY project root on its first real render if none exists -- already handled here (repo .gitignore + the test's own cleanup), but the NEXT new project fixture this repo adds will trigger it again; gitignore it up front rather than being surprised by an untracked file after the first green integration run. The vscode-namespace monkey-patch technique (reassign vscode.window.showInformationMessage / vscode.env.openExternal for one test, restore in a finally) is new to this repo -- reusable whenever a future adapter's dialog-argument needs direct proof and no read-back API exists, but keep it scoped to the one test (restore immediately) to avoid cross-test pollution. Self-critique: gate (c) (full matrix at EVERY layer boundary) was only partially honored -- npm test+compile ran after L1/L2, but npm run test:integration/package were deferred to a single run after L4. Nothing regressed, but do the full matrix at every boundary next time (test:integration ~18s, package ~15-20s -- cheap enough).
 runtime_smoke: SATISFIED via test-electron (Learning #3) -- the integration suite activates the real extension, dispatches the real quarto.renderProject command, spawns the real Quarto CLI, and asserts real filesystem side effects (index.html + chapters/chapter1.html both produced) end to end. Dragon D4 (activation without any .qmd ever opened) resolved analytically via VS Code's documented implicit-activation-events behavior (1.74+) rather than a manual F5 GUI launch, which this CLI-only agent cannot drive interactively.
 changelog_ref: 2026-07-09 · [ad hoc] (Session 45 project-level-render implementation)
-commit: pending -- set by this close-out's commit
+commit: 3e54bce
 ```
 Deliverable: BACKLOG.md "Up Next" item #1 (Project-level render) implemented end to end as one vertical-slice session, exactly as Session 44's plan pre-declared. Self-score breakdown: **+** strict TDD on the pure core with genuine break-revert proofs for both load-bearing guards, not just green tests; **+** both integration-test discriminators (D1 cwd-pin, D2 whole-project-vs-partial) were ALSO break-revert-proven by temporarily reproducing the exact bug the plan's own research had found, not just asserted; **+** discovered and correctly handled a real gap the plan couldn't have anticipated (Quarto's auto-generated project `.gitignore`) rather than leaving a stray untracked file; **+** resolved a flagged open Dragon (D4, activationEvents) with grounded evidence (a doc search cross-checked against this project's own `engines.vscode` floor) instead of either guessing or blocking on an F5 launch this environment can't drive; **−** gate (c)'s "full matrix at every layer boundary" was only partially honored — `test:integration`/`package` ran once at the end, not at each of the four boundaries, a real (if harmless this time) discipline gap flagged in `PROJECT_LEARNINGS.md` Learning #52d for next time.
 
