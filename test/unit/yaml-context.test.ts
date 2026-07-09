@@ -382,6 +382,24 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
       replaceRange: { line: 3, startCol: 19, endCol: 19 },
     });
   });
+
+  it("returns a deep-nested VALUE context FOUR elements under `format:` (b2-iii-value)", () => {
+    const text = ["---", "format:", "  html:", "    code-tools:", "      toggle: false", "---"].join("\n");
+    // Past the colon on a sub-key one object level under a per-format option, the
+    // value slot completes that sub-key's values. `parentPath` grows to
+    // [container, fmt, opt, key] (now FOUR elements) so the provider resolves via
+    // `frontMatterKeys(["format","html","code-tools"]).find("toggle")` — no
+    // detector or provider change needed (already generic over path length; this
+    // locks the shape in, per the plan's own "confirm parentPath.slice(0,-1)
+    // resolves children, not []" dragon).
+    const ctx = completionContextAt(text, offsetAt(text, 4, 16)); // in "fa|lse"
+    expect(ctx).toEqual({
+      kind: "frontmatter-value",
+      parentPath: ["format", "html", "code-tools", "toggle"],
+      token: "fa",
+      replaceRange: { line: 4, startCol: 14, endCol: 19 }, // covers all of "false"
+    });
+  });
 });
 
 describe("completionContextAt — front-matter value (6d-5)", () => {
