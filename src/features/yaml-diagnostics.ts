@@ -22,7 +22,7 @@
  */
 
 import * as vscode from "vscode";
-import { findProjectConfigKeyLines } from "../core/project-yaml";
+import { findProjectConfigKeyLines, isProjectConfigFileName } from "../core/project-yaml";
 import { createSchemaSource, type SchemaSource } from "./yaml-schema-source";
 
 const COLLECTION_NAME = "quarto-project";
@@ -36,9 +36,16 @@ const DIAGNOSTIC_CODE = "quarto-unknown-project-key";
  */
 const DEBOUNCE_MS = 350;
 
-/** Whether `document` is a `_quarto.yml`/`_quarto.yaml` file — the filename gate. */
+/**
+ * Whether `document` is a `_quarto.yml`/`_quarto.yaml` file — the filename
+ * gate. Delegates to the pure, unit-tested `core/project-yaml.ts`
+ * `isProjectConfigFileName` (adversarial review, Session 47 — the original
+ * inline `document.fileName.endsWith(...)` was a SUFFIX test, not an exact
+ * basename check, so it also matched any file merely ending in those
+ * characters, e.g. `not_quarto.yml`/`backup_quarto.yaml`).
+ */
 function isProjectConfigDocument(document: vscode.TextDocument): boolean {
-  return document.fileName.endsWith("_quarto.yml") || document.fileName.endsWith("_quarto.yaml");
+  return isProjectConfigFileName(document.fileName);
 }
 
 /**
@@ -54,6 +61,15 @@ export function registerYamlDiagnosticsFeature(context: vscode.ExtensionContext)
   // document that closes before it fires must never resurrect a diagnostic on
   // a URI `onDidCloseTextDocument` already cleared.
   const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  // The latest refreshDiagnostics() "generation" per URI (adversarial review,
+  // Session 47) — an in-flight call that resolves AFTER a newer call for the
+  // SAME URI has already started must discard its own now-stale result
+  // rather than overwrite the newer one. This matters beyond the close case
+  // D4 already covers: a slow FIRST schema-index load (the initial `quarto
+  // --paths` spawn + a ~680KB file read/parse) can let an earlier call's
+  // pre-edit diagnostics resolve and land AFTER a later, faster, already-
+  // correct call cleared them for edited-since content.
+  const generations = new Map<string, number>();
 
   const cancelPending = (key: string): void => {
     const timer = pendingTimers.get(key);
@@ -64,7 +80,7 @@ export function registerYamlDiagnosticsFeature(context: vscode.ExtensionContext)
   };
 
   const runNow = (document: vscode.TextDocument): void => {
-    void refreshDiagnostics(collection, source, document);
+    void refreshDiagnostics(collection, source, document, generations);
   };
 
   const scheduleRefresh = (document: vscode.TextDocument): void => {
@@ -119,21 +135,36 @@ export function registerYamlDiagnosticsFeature(context: vscode.ExtensionContext)
  * (that wipes every OTHER open `_quarto.yml`'s diagnostics workspace-wide — a
  * documented footgun the official samples avoid): always `collection.set`,
  * scoped to this one URI.
+ *
+ * Allocates a "generation" number for this call (see `generations`' own
+ * doc comment) and checks it is still current both before the synchronous
+ * fast path and after the async schema-index await — a call superseded by a
+ * newer one for the same URI discards its own result instead of overwriting
+ * the newer, correct one.
  */
 async function refreshDiagnostics(
   collection: vscode.DiagnosticCollection,
   source: SchemaSource,
   document: vscode.TextDocument,
+  generations: Map<string, number>,
 ): Promise<void> {
+  const key = document.uri.toString();
+  const generation = (generations.get(key) ?? 0) + 1;
+  generations.set(key, generation);
+  const isCurrent = (): boolean => generations.get(key) === generation;
+
   const lines = findProjectConfigKeyLines(document.getText());
   if (lines.length === 0) {
-    collection.set(document.uri, []);
+    if (isCurrent()) {
+      collection.set(document.uri, []);
+    }
     return;
   }
   const index = await source.getIndex();
-  if (document.isClosed) {
+  if (document.isClosed || !isCurrent()) {
     // Closed while awaiting the (possibly first-load, CLI-spawning) schema
-    // index — never resurrect diagnostics for a document that is gone.
+    // index, or superseded by a newer call for this URI — never resurrect
+    // or overwrite with a stale result.
     return;
   }
   const diagnostics: vscode.Diagnostic[] = [];

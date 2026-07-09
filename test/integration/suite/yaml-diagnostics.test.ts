@@ -8,6 +8,11 @@ const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 const ROOT = path.resolve(__dirname, "../../../..");
 const VALID = path.resolve(ROOT, "test/fixtures/yaml-diagnostics/valid/_quarto.yml");
 const INVALID = path.resolve(ROOT, "test/fixtures/yaml-diagnostics/invalid/_quarto.yml");
+const NO_TARGET_BLOCKS = path.resolve(
+  ROOT,
+  "test/fixtures/yaml-diagnostics/no-target-blocks/_quarto.yml",
+);
+const QMD_FIXTURE = path.resolve(ROOT, "test/fixtures/sample.qmd");
 
 async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean> {
   const start = Date.now();
@@ -45,14 +50,6 @@ describe("Quarto: _quarto.yml project:/website:/book: schema diagnostics", () =>
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 
-  it("produces ZERO diagnostics for a valid _quarto.yml (project:/website:/book: all present, all valid)", async () => {
-    const doc = await openActive(VALID);
-    // There is no positive event to wait on for "nothing will ever appear";
-    // give the async scan+schema-load a real window before asserting zero.
-    await new Promise((r) => setTimeout(r, 800));
-    assert.strictEqual(quartoDiagnostics(doc.uri).length, 0);
-  });
-
   it("flags exactly the 3 genuine unknown keys (project:/website:/book:), and nothing else in the file", async () => {
     const doc = await openActive(INVALID);
     assert.ok(
@@ -85,6 +82,22 @@ describe("Quarto: _quarto.yml project:/website:/book: schema diagnostics", () =>
       assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Error);
       assert.strictEqual(d.code, "quarto-unknown-project-key");
     }
+  });
+
+  it("produces ZERO diagnostics for a valid _quarto.yml (project:/website:/book: all present, all valid)", async () => {
+    // Deliberately ordered AFTER the "flags exactly 3" test above (adversarial
+    // review, Session 47): that test's own waitFor already warmed this
+    // feature's SchemaSource cache (the first _quarto.yml-related event of
+    // the whole suite spawns `quarto --paths` + reads/parses the ~680KB
+    // schema file — a genuinely slow async gap that a bare fixed sleep here
+    // would otherwise be racing on a cold start). With the cache warm, a
+    // short wait is enough — but assert TWICE, at two different times, to
+    // also catch a diagnostic that appeared late rather than never.
+    const doc = await openActive(VALID);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.strictEqual(quartoDiagnostics(doc.uri).length, 0, "first check");
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(quartoDiagnostics(doc.uri).length, 0, "second check, later");
   });
 
   it("does NOT flag book:'s announcement key — it resolves only via the base-website super-merge hop (the gate-d discriminator, plan §2.2)", async () => {
@@ -156,4 +169,22 @@ describe("Quarto: _quarto.yml project:/website:/book: schema diagnostics", () =>
   // 3E smoke testing for the same reason as the close-clears note above — an
   // automated version would need onDidCloseTextDocument to fire, which this
   // harness cannot produce for a file-backed document.
+
+  it("takes the synchronous zero-lines fast path for a _quarto.yml with none of project:/website:/book: present (never awaits the schema index)", async () => {
+    // Exercises refreshDiagnostics's lines.length===0 early return directly —
+    // distinct from the "valid" fixture test above, which has genuine
+    // project:/website:/book: content and so always takes the async
+    // (schema-aware) path (adversarial review, Session 47).
+    const doc = await openActive(NO_TARGET_BLOCKS);
+    assert.ok(
+      await waitFor(() => vscode.languages.getDiagnostics(doc.uri).length === 0, 2000),
+    );
+    assert.strictEqual(quartoDiagnostics(doc.uri).length, 0);
+  });
+
+  it("never produces a diagnostic on a .qmd document — the filename gate structurally excludes it (plan §6 DONE: 'front matter of a co-located .qmd' is never flagged)", async () => {
+    const doc = await openActive(QMD_FIXTURE);
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(quartoDiagnostics(doc.uri).length, 0);
+  });
 });
