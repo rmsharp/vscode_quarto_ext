@@ -610,13 +610,22 @@ function valuesOfSchema(
  * resolves to, or `null` if it never lands on a non-empty object. Walks `anyOf`
  * (first arm that lands on an object), `ref` (repeated, `seenRefs`-guarded
  * against a cyclic definitions graph — e.g. `about → website-about → links →
- * navigation-item ↔ navigation-item-object`), `maybeArrayOf`, bare `arrayOf`
- * (an array-of-objects option, e.g. `other-links`), and the `{schema: …}`
- * indirection some `definitions.yml` entries use (e.g. `code-links-schema`) —
- * grounded firsthand against the installed 1.7.33 schema (Learning #41c): all
- * FIVE unwrap forms are load-bearing to reach the real 40 object-valued options
- * (omitting `arrayOf`/`schema` undercounts to 36/38). `hops` bounds a single
- * resolution chain generically (mirrors `valuesOfSchema`'s `depth` guard).
+ * navigation-item ↔ navigation-item-object`), `maybeArrayOf` (a value that MAY
+ * be a single object — a bare mapping is valid, so unwrapping it to offer its
+ * properties as keys is correct), and the `{schema: …}` indirection some
+ * `definitions.yml` entries use (e.g. `code-links-schema`) — grounded
+ * firsthand against the installed 1.7.33 schema (Learning #41c). `hops` bounds
+ * a single resolution chain generically (mirrors `valuesOfSchema`'s `depth`
+ * guard).
+ *
+ * Deliberately does NOT unwrap a BARE `arrayOf` (an unconditional array, no
+ * single-object alternative — e.g. `other-links`/`filters`): its only valid
+ * YAML shape is a `-`-prefixed sequence, so the array element's properties are
+ * never valid MAPPING keys for the option itself (adversarial-review-caught:
+ * treating it the same as `maybeArrayOf` produced schema-invalid completions
+ * like `other-links:\n  text: …`). Sequence-item completion is out of scope
+ * for v1 (the detector already bails on a `- ` line) — a bare-`arrayOf` option
+ * correctly offers no children.
  */
 function resolveObjectProperties(
   schema: unknown,
@@ -630,7 +639,10 @@ function resolveObjectProperties(
   const s = schema as Record<string, unknown>;
   if (s.object !== null && typeof s.object === "object") {
     const properties = (s.object as Record<string, unknown>).properties;
-    return properties !== null && typeof properties === "object" && Object.keys(properties).length > 0
+    return properties !== null &&
+      typeof properties === "object" &&
+      !Array.isArray(properties) &&
+      Object.keys(properties).length > 0
       ? (properties as Record<string, unknown>)
       : null;
   }
@@ -652,9 +664,6 @@ function resolveObjectProperties(
   }
   if (s.maybeArrayOf !== undefined) {
     return resolveObjectProperties(s.maybeArrayOf, definitions, seenRefs, hops + 1);
-  }
-  if (s.arrayOf !== undefined) {
-    return resolveObjectProperties(s.arrayOf, definitions, seenRefs, hops + 1);
   }
   if (s.schema !== undefined) {
     return resolveObjectProperties(s.schema, definitions, seenRefs, hops + 1);

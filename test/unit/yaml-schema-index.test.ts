@@ -138,7 +138,10 @@ const FIXTURE = JSON.stringify({
               properties: {
                 source: { anyOf: ["boolean", "string"] },
                 toggle: "boolean",
-                caption: "string",
+                // A description nested ONE level inside the scalar-type wrapper
+                // (the dominant real-schema pattern, not a direct sibling) —
+                // exercises childDescription's nested-search path.
+                caption: { string: { description: "Caption text for the code tools menu." } },
               },
             },
           },
@@ -180,10 +183,28 @@ const FIXTURE = JSON.stringify({
       description: "Resolves through a cyclic ref chain — must terminate, not hang.",
     },
   ],
+  // An option whose value is UNCONDITIONALLY an array of objects (no bare-object
+  // alternative) — the EXACT real shape of `other-links` (schema/document-links.yml
+  // -> definitions `other-links`, grounded against Quarto 1.7.33). Its only valid
+  // YAML shape is a `-`-prefixed sequence, so offering its array element's
+  // properties as MAPPING keys (`other-links:\n  text: …`) would be schema-invalid
+  // — the resolver must NOT unwrap a bare `arrayOf` into flat children.
+  "schema/document-array-only-test.yml": [
+    {
+      name: "other-links",
+      tags: { formats: ["$html-doc"] },
+      schema: { anyOf: [{ enum: [false] }, { ref: "other-links" }] },
+      description: "Additional links to display (a sequence of link objects).",
+    },
+  ],
   "schema/definitions.yml": [
     { id: "page-column", enum: ["body", "page", "margin"] },
     { id: "cyclic-a", ref: "cyclic-b" },
     { id: "cyclic-b", ref: "cyclic-a" },
+    {
+      id: "other-links",
+      arrayOf: { object: { properties: { text: "string", href: "string" } } },
+    },
   ],
   // The flat pandoc output-format list (6d-6 cont. format-name completion). Quarto
   // hides legacy variants (html4/html5, epub2/epub3, docbook4/docbook5) and concats
@@ -421,9 +442,57 @@ describe("parseSchemaIndex — deep-nested object option resolution (6d-6+ b2-ii
     expect(mode?.values).toEqual(["source", "visual"]);
   });
 
+  it("resolves a child's description from a DIRECT sibling of the type key", () => {
+    const mode = index
+      .frontMatterKeys(["format", "html", "editor"])
+      .find((f) => f.name === "mode");
+    expect(mode?.description).toBe("Default editing mode.");
+  });
+
+  it("resolves a child's description NESTED one level inside a scalar-type wrapper", () => {
+    const caption = index
+      .frontMatterKeys(["format", "html", "code-tools"])
+      .find((f) => f.name === "caption");
+    expect(caption?.description).toBe("Caption text for the code tools menu.");
+  });
+
+  it("leaves a bare-scalar child without a description (none reachable within the bound)", () => {
+    const toggle = index
+      .frontMatterKeys(["format", "html", "code-tools"])
+      .find((f) => f.name === "toggle");
+    expect(toggle?.description).toBeUndefined();
+  });
+
   it("terminates on a cyclic ref chain instead of hanging (never lands on an object)", () => {
     const cyclic = index.frontMatterKeys([]).find((f) => f.name === "cyclic-opt");
     expect(cyclic?.children ?? []).toEqual([]);
+  });
+
+  it("offers NOTHING for an UNCONDITIONALLY array-of-object option (a sequence, not a mapping)", () => {
+    // `other-links` is a real Quarto option whose only valid shape is a
+    // `-`-prefixed sequence (no bare-object alternative) — its array element's
+    // properties (text/href) are NOT valid mapping keys for `other-links:` itself,
+    // so the resolver must not unwrap a bare `arrayOf` (review-caught fidelity fix).
+    expect(index.frontMatterKeys(["format", "html", "other-links"])).toEqual([]);
+  });
+
+  it("degrades to no children when `properties` is malformed as a JSON array (never garbage keys)", () => {
+    // `typeof x === "object"` is true for arrays too — a naive check would treat
+    // ["a","b","c"] as a properties map and emit index-named fields ("0","1","2").
+    // Adversarial-review-caught robustness fix: explicitly exclude arrays.
+    const malformed = JSON.stringify({
+      "schema/document-malformed-test.yml": [
+        {
+          name: "malformed-object-opt",
+          schema: { object: { properties: ["a", "b", "c"] } },
+          description: "An option whose properties is wrongly shaped as an array.",
+        },
+      ],
+    });
+    const field = parseSchemaIndex(malformed)
+      .frontMatterKeys([])
+      .find((f) => f.name === "malformed-object-opt");
+    expect(field?.children ?? []).toEqual([]);
   });
 
   it("does not attach children to a non-object top-level field", () => {

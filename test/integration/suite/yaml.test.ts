@@ -1353,6 +1353,25 @@ describe("Quarto: YAML deep-nested per-format option key completion (6d-6+ b2-ii
     assert.deepStrictEqual(documentOptionLabels(list), [], "toc is a boolean, not an object");
   });
 
+  it("offers NOTHING under an UNCONDITIONALLY array-of-object option (real schema, adversarial-review fix)", async () => {
+    // `other-links` (schema/document-links.yml) is a real option whose only valid
+    // shape is a `-`-prefixed sequence — its array element's properties (text/
+    // href/icon/rel/target) are NOT valid mapping keys for `other-links:` itself.
+    // Against the REAL installed schema (not a synthetic fixture), confirms the
+    // resolver's bare-arrayOf exclusion holds end-to-end.
+    const doc = await openInMemory("---\nformat:\n  html:\n    other-links:\n      \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 6),
+    );
+    assert.deepStrictEqual(
+      documentOptionLabels(list),
+      [],
+      "other-links is array-of-object; no mapping sub-keys",
+    );
+  });
+
   it("offers NOTHING when the option is filtered out of the concrete format", async () => {
     // code-tools is $html-doc-only; absent from gfm's per-format set entirely.
     const doc = await openInMemory("---\nformat:\n  gfm:\n    code-tools:\n      \n---\n");
