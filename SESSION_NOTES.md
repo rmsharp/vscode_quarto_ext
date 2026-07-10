@@ -5,7 +5,12 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 56 DONE — Implemented BACKLOG.md "Up Next" item #7: graphviz (`{dot}`) diagram rendering, following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`, per `docs/planning/2026-07-09-graphviz-dot-rendering-plan.md` (Session 55's plan).** Operator resolved the plan's one open question (§9 Q1, EPL-2.0 Graphviz-core disclosure) during Phase 0/1 conversation: explicitly chose "accept & disclose." Full detail in "What Session 56 Did" below.
+**Task:** **Session 57 — Plan BACKLOG.md "Phase 7 authoring aids" remaining slice: image paste, following the Planning workstream (`docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md`).** Operator picked "Image paste (Phase 7)" via `AskUserQuestion` at Phase 1, from a prioritized candidate list (BACKLOG.md's ranked "Up Next" list is fully complete — this is the next real feature gap). No pre-declared layer contract exists for this item, so per `SESSION_RUNNER.md`'s Vertical Slice Sessions Gate (a) this is a planning session first, mirroring Session 55's treatment of Graphviz (BACKLOG item #7). (IN PROGRESS)
+**Started:** 2026-07-09
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
+
+**Prior session (56) — DONE — Implemented BACKLOG.md "Up Next" item #7: graphviz (`{dot}`) diagram rendering, following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`, per `docs/planning/2026-07-09-graphviz-dot-rendering-plan.md` (Session 55's plan).** Operator resolved the plan's one open question (§9 Q1, EPL-2.0 Graphviz-core disclosure) during Phase 0/1 conversation: explicitly chose "accept & disclose." Full detail in "What Session 56 Did" below.
 **Status:** SHIPPED — and **BACKLOG.md item #7 is now fully complete** (the last item in the ranked "Up Next" list). `{dot}` cells render live via vendored `@viz-js/viz` (WASM Graphviz), at parity with Mermaid. `PROJECT_LEARNINGS.md` Learning #64 appended.
 **Ledger:** `CHANGELOG: 2026-07-09 · [ad hoc] (Session 56 graphviz {dot} diagram rendering — BACKLOG item #7 now fully SHIPPED)` entry written.
 

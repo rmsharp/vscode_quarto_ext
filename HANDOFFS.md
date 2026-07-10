@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S57
+date: 2026-07-09
+status: pending
+active_task: Plan BACKLOG.md "Phase 7 authoring aids" remaining slice: image paste, following the Planning workstream (ARCHITECTURE_WORKSTREAM.md). No pre-declared layer contract exists -- planning session first, mirroring Session 55's treatment of Graphviz.
+```
+
+```handoff
 session: S56
 date: 2026-07-09
 status: complete
