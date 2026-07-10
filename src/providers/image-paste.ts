@@ -1,25 +1,29 @@
 /**
- * `DocumentPasteEditProvider` for `.qmd` documents — pastes a clipboard
- * image as a file under `images/` next to the document (plan §3 Q1,
- * operator decision) and inserts a Markdown image reference (BACKLOG
- * "Phase 7 authoring aids" final item). A thin `vscode` adapter: all
- * naming/collision logic lives in the pure `core/image-paste.ts`. No
- * `package.json` contribution is needed — registering a paste-edit provider
- * needs no manifest entry, same class as `providers/workspace-symbols.ts`.
+ * `DocumentPasteEditProvider` + `DocumentDropEditProvider` for `.qmd`
+ * documents — pastes/drops a clipboard or dragged image as a file under
+ * `images/` next to the document (plan §3 Q1, operator decision) and
+ * inserts a Markdown image reference (BACKLOG "Phase 7 authoring aids"
+ * final item; drag-and-drop parity bundled into v1 per plan §3 Q2, operator
+ * decision). A thin `vscode` adapter over one shared core: all naming/
+ * collision logic lives in the pure `core/image-paste.ts`, and both
+ * providers share `buildImageResult` below. No `package.json` contribution
+ * is needed — registering paste/drop-edit providers needs no manifest
+ * entry, same class as `providers/workspace-symbols.ts`.
  *
  * D1 (plan §3, refined this session): no `execute*Provider`-style command
- * exists for paste providers, and `new vscode.DataTransferItem(value)` (the
- * only public constructor) can never produce a file-backed item. BUT
+ * exists for paste/drop providers, and `new vscode.DataTransferItem(value)`
+ * (the only public constructor) can never produce a file-backed item. BUT
  * `vscode.DataTransfer` does not runtime-validate that stored values are
  * genuine `DataTransferItem` instances, and this file's own `findImageFile`
  * only ever calls `.asFile()` duck-typed — so a hand-built object satisfying
  * the (interface, not class-with-hidden-state) `DataTransferFile` shape
- * flows through the REAL registered provider exactly like a real OS-level
- * paste would. `test/integration/suite/image-paste.test.ts` exploits this to
- * exercise the real byte-read + write + collision-avoidance path end-to-end,
- * not just mime-routing — substantially narrower than the plan's original
- * D1 framing. What remains genuinely F5-only is the OS clipboard/drag event
- * itself producing the `DataTransferFile` in the first place.
+ * flows through the REAL registered providers exactly like a real OS-level
+ * paste/drop would. `test/integration/suite/image-paste.test.ts` exploits
+ * this to exercise the real byte-read + write + collision-avoidance path
+ * end-to-end, not just mime-routing — substantially narrower than the
+ * plan's original D1 framing. What remains genuinely F5-only is the OS
+ * clipboard/drag event itself producing the `DataTransferFile` in the first
+ * place.
  */
 
 import * as vscode from "vscode";
@@ -33,6 +37,8 @@ import {
 
 export const IMAGE_PASTE_EDIT_KIND =
   vscode.DocumentDropOrPasteEditKind.Empty.append("image");
+export const IMAGE_DROP_EDIT_KIND =
+  vscode.DocumentDropOrPasteEditKind.Empty.append("image");
 
 export function registerImagePasteFeature(
   context: vscode.ExtensionContext,
@@ -44,6 +50,14 @@ export function registerImagePasteFeature(
       {
         pasteMimeTypes: ["image/*"],
         providedPasteEditKinds: [IMAGE_PASTE_EDIT_KIND],
+      },
+    ),
+    vscode.languages.registerDocumentDropEditProvider(
+      { language: "quarto" },
+      new QmdImageDropEditProvider(),
+      {
+        dropMimeTypes: ["image/*"],
+        providedDropEditKinds: [IMAGE_DROP_EDIT_KIND],
       },
     ),
   );
@@ -59,15 +73,44 @@ export class QmdImagePasteEditProvider
     _context: vscode.DocumentPasteEditContext,
     _token: vscode.CancellationToken,
   ): Promise<vscode.DocumentPasteEdit[] | undefined> {
-    return buildImagePasteEdit(document, dataTransfer);
+    const result = await buildImageResult(document, dataTransfer);
+    if (!result) return undefined;
+    const pasteEdit = new vscode.DocumentPasteEdit(
+      result.insertText,
+      "Insert Pasted Image",
+      IMAGE_PASTE_EDIT_KIND,
+    );
+    pasteEdit.additionalEdit = result.additionalEdit;
+    return [pasteEdit];
+  }
+}
+
+export class QmdImageDropEditProvider
+  implements vscode.DocumentDropEditProvider
+{
+  async provideDocumentDropEdits(
+    document: vscode.TextDocument,
+    _position: vscode.Position,
+    dataTransfer: vscode.DataTransfer,
+    _token: vscode.CancellationToken,
+  ): Promise<vscode.DocumentDropEdit[] | undefined> {
+    const result = await buildImageResult(document, dataTransfer);
+    if (!result) return undefined;
+    const dropEdit = new vscode.DocumentDropEdit(
+      result.insertText,
+      "Insert Dropped Image",
+      IMAGE_DROP_EDIT_KIND,
+    );
+    dropEdit.additionalEdit = result.additionalEdit;
+    return [dropEdit];
   }
 }
 
 /**
  * Find the first `image/*`-mime entry whose `DataTransferItem` is
- * file-backed. A normal text paste (or an image mime entry that isn't
+ * file-backed. A normal text paste/drop (or an image mime entry that isn't
  * file-backed) yields no match here — callers must fall through to VS
- * Code's default paste behavior in that case, never throw.
+ * Code's default paste/drop behavior in that case, never throw.
  */
 export function findImageFile(
   dataTransfer: vscode.DataTransfer,
@@ -90,16 +133,21 @@ async function existingFileNames(dirUri: vscode.Uri): Promise<Set<string>> {
   }
 }
 
+interface ImageResult {
+  readonly insertText: string;
+  readonly additionalEdit: vscode.WorkspaceEdit;
+}
+
 /**
- * Build the paste edit: write the image under `images/` next to `document`
- * and return an edit that inserts the Markdown reference. Returns
- * `undefined` when the paste payload has no file-backed image (never
- * breaks a normal text paste).
+ * Shared core of both providers: write the image under `images/` next to
+ * `document` and return the Markdown insert text + the `WorkspaceEdit` that
+ * creates the file. Returns `undefined` when the payload has no file-backed
+ * image (never breaks a normal text paste/drop).
  */
-export async function buildImagePasteEdit(
+async function buildImageResult(
   document: vscode.TextDocument,
   dataTransfer: vscode.DataTransfer,
-): Promise<vscode.DocumentPasteEdit[] | undefined> {
+): Promise<ImageResult | undefined> {
   const found = findImageFile(dataTransfer);
   if (!found) return undefined;
 
@@ -113,14 +161,8 @@ export async function buildImagePasteEdit(
   const relativePath = buildImageRelativePath(fileName);
   const destUri = vscode.Uri.joinPath(document.uri, "..", relativePath);
 
-  const workspaceEdit = new vscode.WorkspaceEdit();
-  workspaceEdit.createFile(destUri, { contents: bytes });
+  const additionalEdit = new vscode.WorkspaceEdit();
+  additionalEdit.createFile(destUri, { contents: bytes });
 
-  const pasteEdit = new vscode.DocumentPasteEdit(
-    buildImagePasteInsertText(relativePath),
-    "Insert Pasted Image",
-    IMAGE_PASTE_EDIT_KIND,
-  );
-  pasteEdit.additionalEdit = workspaceEdit;
-  return [pasteEdit];
+  return { insertText: buildImagePasteInsertText(relativePath), additionalEdit };
 }

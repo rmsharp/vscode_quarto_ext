@@ -10,7 +10,10 @@ import {
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
-import { QmdImagePasteEditProvider } from "../../../src/providers/image-paste";
+import {
+  QmdImageDropEditProvider,
+  QmdImagePasteEditProvider,
+} from "../../../src/providers/image-paste";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
@@ -57,6 +60,18 @@ async function pasteEditsFor(
     [],
     dataTransfer,
     { only: undefined, triggerKind: vscode.DocumentPasteTriggerKind.Automatic },
+    new vscode.CancellationTokenSource().token,
+  );
+}
+
+async function dropEditsFor(
+  document: vscode.TextDocument,
+  dataTransfer: vscode.DataTransfer,
+): Promise<vscode.DocumentDropEdit[] | undefined> {
+  return new QmdImageDropEditProvider().provideDocumentDropEdits(
+    document,
+    new vscode.Position(0, 0),
+    dataTransfer,
     new vscode.CancellationTokenSource().token,
   );
 }
@@ -151,5 +166,65 @@ describe("Quarto: image paste provider", () => {
     const edits = await pasteEditsFor(document, dataTransfer);
     assert.ok(edits);
     assert.strictEqual(edits[0].insertText, "![](images/image.jpg)");
+  });
+});
+
+/**
+ * `QmdImageDropEditProvider` (plan §3 Q2, operator decision: drag-and-drop
+ * parity bundled into v1) — a near-mirror of the paste provider sharing the
+ * same core, tested here for its OWN registration/signature/wiring, not a
+ * re-proof of naming/collision logic already covered above.
+ */
+describe("Quarto: image drop provider", () => {
+  let dir: string;
+  let document: vscode.TextDocument;
+
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  beforeEach(async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "quarto-ext-imagedrop-"));
+    writeFileSync(path.join(dir, "notes.qmd"), "---\ntitle: Notes\n---\n\nSome text.\n");
+    document = await vscode.workspace.openTextDocument(path.join(dir, "notes.qmd"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("returns undefined for a drop with no image mime type", async () => {
+    const dataTransfer = new vscode.DataTransfer();
+    dataTransfer.set("text/uri-list", new vscode.DataTransferItem("file:///x"));
+
+    assert.strictEqual(await dropEditsFor(document, dataTransfer), undefined);
+  });
+
+  it("returns undefined (falls through, never throws) for a non-file-backed image entry", async () => {
+    const dataTransfer = new vscode.DataTransfer();
+    dataTransfer.set("image/png", new vscode.DataTransferItem("not a real file"));
+
+    assert.strictEqual(await dropEditsFor(document, dataTransfer), undefined);
+  });
+
+  it("writes a real file-backed dropped image under images/ and returns the matching insert text", async () => {
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    const dataTransfer = fileBackedDataTransfer("image/jpeg", {
+      name: "dragged.jpg",
+      bytes,
+    });
+
+    const edits = await dropEditsFor(document, dataTransfer);
+    assert.ok(edits, "should return one drop edit");
+    assert.strictEqual(edits.length, 1);
+    assert.strictEqual(edits[0].insertText, "![](images/dragged.jpg)");
+    assert.ok(edits[0].additionalEdit, "should carry a createFile edit");
+
+    await vscode.workspace.applyEdit(edits[0].additionalEdit!);
+    const writtenPath = path.join(dir, "images", "dragged.jpg");
+    assert.ok(existsSync(writtenPath), "images/dragged.jpg should exist on disk");
+    assert.deepStrictEqual(new Uint8Array(readFileSync(writtenPath)), bytes);
   });
 });
