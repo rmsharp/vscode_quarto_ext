@@ -192,12 +192,13 @@ their side, so those two rows are narrower deficits than they first appear.
 ## Outline & Navigation
 
 **Document outline / symbols (headings + code cells).**
-- *Ours:* Present, document-scope only — a `DocumentSymbolProvider` (Outline view, breadcrumbs, Go to
-  Symbol in Editor); no `WorkspaceSymbolProvider` is registered.
+- *Ours:* Present, both document- and workspace-scope — a `DocumentSymbolProvider` (Outline view,
+  breadcrumbs, Go to Symbol in Editor) **and**, as of Session 54, a `WorkspaceSymbolProvider` (Go to
+  Symbol in Workspace, Ctrl+T/Cmd+T), searching every `.qmd` file in the workspace via
+  `vscode.workspace.findFiles`, not just the active editor.
 - *Posit's:* Present — both document- and workspace-scope symbol providers ("Go to Symbol in Workspace…
   Ctrl+T").
-- *Notes:* We cover the more commonly used in-document navigation but lack cross-file "Go to Symbol in
-  Workspace."
+- *Notes:* Parity. Both in-document and cross-file symbol navigation are covered.
 
 ---
 
