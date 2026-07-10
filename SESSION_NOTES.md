@@ -5,6 +5,12 @@
 ---
 
 ## ACTIVE TASK
+**Task:** Session 64 — plan the spell-checking feature (`BACKLOG.md` "Up Next" item 9: a scoped `cspell` config recipe, ranked Session 61's grill-me decision), following `docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md`. Deliverable is a plan document in `docs/planning/`, not code — settling the delivery mechanism (bundled config file vs. README/settings snippet vs. `extensions.json` recommendation) and verifying the region-boundary regex actually matches `core/qmd/model.ts` `scanRegions`' own prose/code/YAML/comment classification.
+**Started:** 2026-07-10.
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 63 (superseded ACTIVE TASK, preserved below for history)
 **Task:** **Session 63 DONE — Implement the notebook (`.ipynb`) conversion feature (`BACKLOG.md` "Up Next" item 8),** following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`, as a pre-declared vertical slice (`SESSION_RUNNER.md` §Vertical Slice Sessions, gate (a) satisfied by Session 62's plan `docs/planning/2026-07-10-notebook-conversion-plan.md`). Operator resolved plan §8 Q1 directly: **Option B** — two Posit-mirroring commands (`quarto.convertToIpynb`/`quarto.convertToQmd`), this project's first `contributes.menus.commandPalette` section. Full detail in "What Session 63 Did" below.
 **Status:** SHIPPED. `quarto.convertToIpynb`/`quarto.convertToQmd` commands, real-CLI-verified both directions, overwrite-confirm/cancel both exercised. Two genuine bugs caught and fixed by the integration tests during development (Learning #70). `docs/POSIT-COMPARISON.md` notebook row corrected to parity. Runtime GUI (F5) visual pass declined by the operator (live-desktop disruption) — disclosed, not silently skipped.
 **Ledger:** `CHANGELOG: 2026-07-10 · [ad hoc] (Session 63 — notebook .ipynb conversion implementation, BACKLOG item 8)` entry written.

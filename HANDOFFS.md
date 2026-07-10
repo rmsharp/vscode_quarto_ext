@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S64
+date: 2026-07-10
+status: pending
+active_task: Plan the spell-checking feature (BACKLOG.md "Up Next" item 9: a scoped cspell config recipe, ranked Session 61's grill-me decision), following docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md. Deliverable is a plan document in docs/planning/, not code.
+```
+
+```handoff
 session: S63
 date: 2026-07-10
 status: complete
