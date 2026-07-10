@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S58
+date: 2026-07-10
+status: pending
+self_score: TBD
+predecessor_score: TBD
+active_task: Implementing BACKLOG.md "Phase 7 authoring aids" final item: image paste, per Session 57's plan (docs/planning/2026-07-09-image-paste-plan.md). Operator resolved the plan's 3 open questions via AskUserQuestion before code: Q1 destination = images/ subfolder; Q2 drag-and-drop parity bundled into v1 (adds L4); Q3 filename trusts DataTransferFile.name when present/non-empty, generates otherwise.
+what_was_done: TBD (in progress)
+next_steps: TBD (in progress)
+key_files: TBD (in progress)
+gotchas: TBD (in progress)
+runtime_smoke: TBD (in progress)
+changelog_ref: TBD (in progress)
+commit: pending
+```
+
+```handoff
 session: S57
 date: 2026-07-09
 status: complete
