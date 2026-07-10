@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S59
+date: 2026-07-10
+status: pending
+active_task: Fix .vscodeignore's methodology-artifact exclusion gap -- PROJECT_LEARNINGS.md and HANDOFFS.md currently ship inside the .vsix (BACKLOG.md line 72). Add both filenames to the methodology-artifact block, then npm run package and confirm they're gone from the file listing.
+```
+
+```handoff
 session: S58
 date: 2026-07-10
 status: complete
