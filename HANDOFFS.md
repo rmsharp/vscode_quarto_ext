@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S56
+date: 2026-07-09
+status: pending
+self_score: TBD
+predecessor_score: TBD
+active_task: Implementing BACKLOG.md "Up Next" item #7: graphviz ({dot}) diagram rendering, per docs/planning/2026-07-09-graphviz-dot-rendering-plan.md (Session 55's plan), following DEVELOPMENT_WORKSTREAM.md as ONE vertical-slice session (L1 vendor+NOTICE, L2 pure-core CSP+render, L3 adapter wiring, L4 integration test). Operator resolved plan §9 Q1 (EPL-2.0 disclosure) conversationally: accept-and-disclose.
+what_was_done: TBD -- filled at close-out.
+next_steps: TBD -- filled at close-out.
+key_files: TBD -- filled at close-out.
+gotchas: TBD -- filled at close-out.
+runtime_smoke: TBD -- filled at close-out.
+changelog_ref: TBD -- filled at close-out.
+commit: TBD -- filled at close-out.
+```
+
+```handoff
 session: S55
 date: 2026-07-09
 status: complete
