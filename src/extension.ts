@@ -13,6 +13,7 @@ import { registerDiagramPreviewFeature } from "./features/diagram-preview";
 import { registerEmbeddedLanguageFeature } from "./providers/embedded";
 import { registerExecutionFeature } from "./features/execution";
 import { registerFormattingFeature } from "./features/formatting";
+import { registerImagePasteFeature } from "./providers/image-paste";
 import { registerMathPreviewFeature } from "./features/math-preview";
 import { registerNewDocumentFeature } from "./features/new-document";
 import { disposeAllPreviews, registerPreviewFeature } from "./features/preview";
@@ -44,6 +45,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerDiagramPreviewFeature(context);
   registerOutlineProvider(context);
   registerWorkspaceSymbolsProvider(context);
+  registerImagePasteFeature(context);
   registerCrossrefProviders(context);
   registerCitationProviders(context);
   registerYamlCompletionProvider(context);
