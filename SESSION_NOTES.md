@@ -5,9 +5,14 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 67 IN PROGRESS — Refreshed gap analysis against Posit's current official Quarto extension,** updating `docs/POSIT-COMPARISON.md` (last substantively researched Session 42, spot-checked through Session 65) and its "What This Suggests for Future Work" priority list, following `docs/methodology/workstreams/AUDIT_WORKSTREAM.md`. Operator offered a choice between re-prioritizing `BACKLOG.md`'s remaining 16 Polish/deferred items vs. a refreshed Posit gap analysis; argued for the latter (the Polish/deferred list has no new information to re-rank by — every item already self-tags low severity/priority — whereas the comparison doc has a real "unknown unknowns" blind spot: Posit ships a live, actively-maintained extension and may have shipped features since Session 42's original sweep that aren't represented as a row at all). Operator did not object; proceeding.
+**Status:** Started. No deliverable yet.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 66 (superseded ACTIVE TASK, preserved below for history)
 **Task:** **Session 66 DONE — Implement setext heading support in the outline (`BACKLOG.md` "Polish / deferred" item),** following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` (one-off fix, streamlined per that doc's own "not for campaigns" scope note) with strict TDD (`CLAUDE.md` project-wide gate). Operator picked this item via `AskUserQuestion` from 4 self-contained Polish/deferred candidates. Full detail in "What Session 66 Did" below.
 **Status:** SHIPPED. `core/qmd/model.ts` now recognizes a single-line paragraph underlined with `=`/`-` as a level-1/2 heading, alongside ATX. Grounded empirically against the real Quarto CLI (bundled Pandoc + a separate system `pandoc`, cross-checked) rather than assumed from the CommonMark spec — 3 genuinely surprising Pandoc `markdown`-reader rules found and handled (multi-line paragraphs never promote; an ATX-adjacent `---` is deliberately NOT swallowed, matching a pre-existing unrelated test; a lone bullet-list item is deliberately declined rather than mis-titled). `PROJECT_LEARNINGS.md` Learning #73. 13 new unit tests + 1 new integration test (real `vscode.executeDocumentSymbolProvider`) against a new `test/fixtures/setext.qmd`. `BACKLOG.md` item marked shipped. 634 unit / 221 integration; `.vsix` file count unchanged.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Ledger:** `CHANGELOG: 2026-07-10 · [ad hoc] (Session 66 — setext heading support, BACKLOG.md Polish/deferred item, SHIPPED)` entry written.
 
 ## Session 66 Handoff Evaluation (by Session 66, of Session 65)
 

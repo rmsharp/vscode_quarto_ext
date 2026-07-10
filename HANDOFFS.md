@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S67
+date: 2026-07-10
+status: pending
+self_score:
+predecessor_score:
+active_task: Refreshed gap analysis against Posit's current official Quarto extension, updating docs/POSIT-COMPARISON.md and its "What This Suggests for Future Work" priority list, following AUDIT_WORKSTREAM.md. Operator chose this over re-prioritizing BACKLOG.md's remaining 16 Polish/deferred items.
+what_was_done:
+next_steps:
+key_files:
+gotchas:
+runtime_smoke:
+changelog_ref:
+commit: pending
+```
+
+```handoff
 session: S66
 date: 2026-07-10
 status: complete
