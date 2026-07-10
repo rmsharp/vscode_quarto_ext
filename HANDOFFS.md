@@ -18,6 +18,14 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S55
+date: 2026-07-09
+status: pending
+active_task: Plan BACKLOG.md "Up Next" item #7: graphviz ({dot}) diagram rendering. Operator picked "#7" at Phase 1. Deliverable is a plan document in docs/planning/, not code -- no pre-declared contract exists yet for this feature (unlike items #4-#6), and it has a genuine open design decision (WASM Graphviz renderer choice, license, CSP shape), so a planning session precedes implementation per SESSION_RUNNER.md's Vertical Slice Sessions Gate (a).
+commit: pending
+```
+
+```handoff
 session: S54
 date: 2026-07-09
 status: complete
