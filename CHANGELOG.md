@@ -9,6 +9,13 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-10 · [ad hoc] (Session 64 — spell-checking plan, `BACKLOG.md` item 9, PLANNED not shipped)
+- **Planned** (not implemented) `BACKLOG.md` "Up Next" item 9 — spell checking — per the Planning workstream. Deliverable: `docs/planning/2026-07-10-spell-checking-plan.md`. Recommends a documentation-only `cSpell.languageSettings` config recipe for the third-party `streetsidesoftware.code-spell-checker` extension, scoping it to Quarto's prose regions. No `src/` code, no `package.json` contribution.
+- **Firsthand `cspell` CLI verification** (constructed multi-region `.qmd` fixture, `npx cspell@10.0.1`): a naive setup produces 18 false positives (front matter, code cells, cell options, inline code, math, HTML comments, cross-ref labels/citations); the crafted recipe brings it to 0, all 6 genuine typos still caught. Found and fixed a real CRLF-handling bug in the front-matter exclusion pattern.
+- **Corrected a load-bearing claim from Session 61's grill-me**: cspell's PUBLISHED VS Code extension is GPL-3.0-or-later, not MIT (only the underlying `cspell-lib` engine is MIT); the setting Session 61 named (`cSpell.enabledLanguageIds`) is deprecated, and its replacement already defaults to checking any languageId. Both corrected in the plan and in `BACKLOG.md`'s own item-9 text.
+- `PROJECT_LEARNINGS.md` Learning #71 appended (verify third-party license/config-setting claims against primary sources, even ones a prior session already asserted).
+- Leaves 3 open questions for the operator/executor (delivery-mechanism location, cross-ref/citation suppression scope, workspace- vs. user-settings framing), each with a stated recommendation.
+
 ### 2026-07-10 · [ad hoc] (Session 63 — notebook `.ipynb` conversion implementation, `BACKLOG.md` item 8)
 - **Shipped** `BACKLOG.md` "Up Next" item 8 — notebook (`.ipynb`) conversion — implementing Session 62's plan. Operator resolved plan §8 Q1 directly: **Option B**, two Posit-mirroring commands `quarto.convertToIpynb`/`quarto.convertToQmd` (not a single unified command), this project's first `contributes.menus.commandPalette` section.
 - New `src/core/convert-args.ts` (pure, strict TDD — `inferConvertDirection`/`deriveConvertOutputPath`/`buildConvertArgs`) and `src/features/convert-notebook.ts` (thin adapter): resolves the active `.qmd`/`.ipynb` source, saves if dirty, modal-confirms an overwrite (this project's first modal prompt), spawns `quarto convert --output <derived-path>`, opens the result with the API matching its kind (`showTextDocument` vs. `showNotebookDocument`).
