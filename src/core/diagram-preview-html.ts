@@ -5,17 +5,15 @@
  * plan §3.3) and is unit-tested headlessly. It turns a list of detected
  * `DiagramRegion`s (from `core/diagram-regions`) into a self-contained HTML page
  * that draws each Mermaid cell with the vendored, locally-served Mermaid bundle
- * (MIT, `media/mermaid/`).
+ * (MIT, `media/mermaid/`) and each Graphviz (`{dot}`) cell with the vendored
+ * `@viz-js/viz` WASM bundle (`media/graphviz/`; its compiled contents include
+ * EPL-2.0 Graphviz core — see `NOTICE`).
  *
  * The security-relevant `Content-Security-Policy` lives here so it can be
- * asserted in a unit test: scripts run ONLY by nonce — no `'unsafe-inline'` and
- * (verified) no `'unsafe-eval'`: the vendored bundle is self-contained, performs
- * no runtime `import()` and resolves its global via `self` (never the
- * `Function("return this")` fallback), so the strict CSP holds.
- *
- * Scope (this slice): Mermaid cells are rendered; Graphviz (`{dot}`) cells are
- * detected and shown with their source plus a "not yet rendered" note —
- * rendering `dot` needs a separate WASM renderer (its own slice / CSP profile).
+ * asserted in a unit test: scripts run ONLY by nonce, plus the narrow
+ * `'wasm-unsafe-eval'` exception the Graphviz WASM module needs — no
+ * `'unsafe-inline'` and (verified) no broader `'unsafe-eval'`: both vendored
+ * bundles are self-contained and perform no runtime `import()`.
  */
 
 import type { DiagramRegion } from "./diagram-regions";
@@ -25,6 +23,8 @@ export interface DiagramPreviewHtmlOptions {
   regions: DiagramRegion[];
   /** Webview URI of the vendored `mermaid.min.js`. */
   mermaidJsUri: string;
+  /** Webview URI of the vendored Graphviz `viz-global.js`. */
+  vizJsUri: string;
   /** `webview.cspSource` — the origin the webview may load local resources from. */
   cspSource: string;
   /** A per-render random nonce authorizing the page's two script tags. */
@@ -47,7 +47,7 @@ function escapeAttr(value: string): string {
 export function buildDiagramPreviewHtml(
   options: DiagramPreviewHtmlOptions,
 ): string {
-  const { regions, mermaidJsUri, cspSource, nonce } = options;
+  const { regions, mermaidJsUri, vizJsUri, cspSource, nonce } = options;
   const csp = [
     "default-src 'none'",
     // C4 / architecture-beta diagrams embed icons as inert data:image URIs
@@ -56,7 +56,10 @@ export function buildDiagramPreviewHtml(
     `img-src ${cspSource} data:`,
     `style-src ${cspSource} 'unsafe-inline'`,
     `font-src ${cspSource}`,
-    `script-src 'nonce-${nonce}'`,
+    // 'wasm-unsafe-eval' gates WebAssembly.instantiate/compile (CSP Level 3),
+    // needed for the vendored Graphviz WASM renderer — distinct from and much
+    // narrower than 'unsafe-eval', which is NOT added (permits no JS eval()).
+    `script-src 'nonce-${nonce}' 'wasm-unsafe-eval'`,
   ].join("; ");
 
   const head = `  <head>
@@ -117,6 +120,7 @@ ${head}
   <body>
     <div id="diagram-root"></div>
     <script nonce="${nonce}" src="${escapeAttr(mermaidJsUri)}"></script>
+    <script nonce="${nonce}" src="${escapeAttr(vizJsUri)}"></script>
     <script nonce="${nonce}">
       const REGIONS = ${json};
       const root = document.getElementById("diagram-root");
@@ -129,6 +133,11 @@ ${head}
         theme: dark ? "dark" : "default",
       });
       (async () => {
+        // WASM instantiation has real cost (unlike mermaid.initialize()), so
+        // only pay it when at least one dot region actually needs it.
+        const vizInstance = REGIONS.some((r) => r.engine === "dot")
+          ? await Viz.instance()
+          : null;
         for (let i = 0; i < REGIONS.length; i++) {
           const r = REGIONS[i];
           const item = document.createElement("section");
@@ -137,8 +146,8 @@ ${head}
           label.className = "diagram-line";
           label.textContent = "{" + r.engine + "} line " + (r.startLine + 1);
           item.appendChild(label);
+          const target = document.createElement("div");
           if (r.engine === "mermaid") {
-            const target = document.createElement("div");
             try {
               const { svg } = await mermaid.render("quarto-mmd-" + i, r.code);
               target.innerHTML = svg;
@@ -146,18 +155,17 @@ ${head}
               target.className = "diagram-error";
               target.textContent = String(e);
             }
-            item.appendChild(target);
-          } else {
-            const note = document.createElement("div");
-            note.className = "diagram-note";
-            note.textContent =
-              "Graphviz (dot) preview is not yet rendered — source shown below.";
-            const pre = document.createElement("pre");
-            pre.className = "diagram-source";
-            pre.textContent = r.code;
-            item.appendChild(note);
-            item.appendChild(pre);
+          } else if (r.engine === "dot") {
+            try {
+              target.innerHTML = vizInstance.renderString(r.code, {
+                format: "svg",
+              });
+            } catch (e) {
+              target.className = "diagram-error";
+              target.textContent = String(e);
+            }
           }
+          item.appendChild(target);
           root.appendChild(item);
         }
       })();

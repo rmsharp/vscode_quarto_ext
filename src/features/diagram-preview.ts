@@ -2,11 +2,11 @@
  * `Quarto: Preview Diagram` (plan §6 Phase 7 authoring aids).
  *
  * Detects the diagram cells in the active `.qmd` (pure `core/diagram-regions`)
- * and renders every ```` ```{mermaid} ```` cell in a webview beside the editor
- * using the vendored, locally-served Mermaid bundle (`media/mermaid/`). The
+ * and renders every ```` ```{mermaid} ```` cell and every ```` ```{dot} ````
+ * cell in a webview beside the editor, using the vendored, locally-served
+ * Mermaid (`media/mermaid/`) and Graphviz (`media/graphviz/`) bundles. The
  * preview tracks the document it was opened for and re-renders live as that
- * document changes. Graphviz (`{dot}`) cells are detected and shown with their
- * source plus a "not yet rendered" note (rendering them is a future slice).
+ * document changes.
  *
  * All non-`vscode` logic — the diagram detection and the webview HTML/CSP —
  * lives in `core/` (§3.3 guardrail) and is unit-tested headlessly. This module
@@ -46,8 +46,8 @@ class DiagramPreviewManager implements vscode.Disposable {
         {
           enableScripts: true,
           retainContextWhenHidden: true,
-          // Only the vendored Mermaid bundle may be loaded into the webview.
-          localResourceRoots: [this.mermaidRoot()],
+          // Only the vendored Mermaid/Graphviz bundles may load into the webview.
+          localResourceRoots: [this.mermaidRoot(), this.graphvizRoot()],
         },
       );
       this.panel.onDidDispose(() => {
@@ -93,9 +93,13 @@ class DiagramPreviewManager implements vscode.Disposable {
     const mermaidJsUri = webview
       .asWebviewUri(vscode.Uri.joinPath(this.mermaidRoot(), "mermaid.min.js"))
       .toString();
+    const vizJsUri = webview
+      .asWebviewUri(vscode.Uri.joinPath(this.graphvizRoot(), "viz-global.js"))
+      .toString();
     webview.html = buildDiagramPreviewHtml({
       regions: findDiagramRegions(doc.getText()),
       mermaidJsUri,
+      vizJsUri,
       cspSource: webview.cspSource,
       nonce: getNonce(),
     });
@@ -103,6 +107,10 @@ class DiagramPreviewManager implements vscode.Disposable {
 
   private mermaidRoot(): vscode.Uri {
     return vscode.Uri.joinPath(this.extensionUri, "media", "mermaid");
+  }
+
+  private graphvizRoot(): vscode.Uri {
+    return vscode.Uri.joinPath(this.extensionUri, "media", "graphviz");
   }
 
   private clearTimer(): void {
