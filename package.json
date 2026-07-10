@@ -105,6 +105,16 @@
         "category": "Quarto"
       },
       {
+        "command": "quarto.convertToIpynb",
+        "title": "Convert to .ipynb",
+        "category": "Quarto"
+      },
+      {
+        "command": "quarto.convertToQmd",
+        "title": "Convert to .qmd",
+        "category": "Quarto"
+      },
+      {
         "command": "quarto.runCell",
         "title": "Run Cell",
         "category": "Quarto"
@@ -175,6 +185,18 @@
         "category": "Quarto"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "quarto.convertToIpynb",
+          "when": "editorLangId == quarto"
+        },
+        {
+          "command": "quarto.convertToQmd",
+          "when": "resourceExtname == .ipynb"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "quarto.runCell",

@@ -8,6 +8,7 @@
 
 import * as vscode from "vscode";
 import { meetsMinimum, MINIMUM_QUARTO_VERSION } from "./core/version";
+import { registerConvertNotebookFeature } from "./features/convert-notebook";
 import { registerCreateProjectFeature } from "./features/create-project";
 import { registerDiagramPreviewFeature } from "./features/diagram-preview";
 import { registerEmbeddedLanguageFeature } from "./providers/embedded";
@@ -38,6 +39,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerRenderProjectFeature(context);
   registerNewDocumentFeature(context);
   registerCreateProjectFeature(context);
+  registerConvertNotebookFeature(context);
   registerPreviewFeature(context);
   registerExecutionFeature(context);
   registerFormattingFeature(context);
