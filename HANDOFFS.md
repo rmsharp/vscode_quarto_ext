@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S61
+date: 2026-07-10
+status: pending
+active_task: Grill-me decision session ranking docs/POSIT-COMPARISON.md's 5 remaining real gaps (notebook .ipynb conversion, Contextual Assist Panel, spell checking, Zotero integration, YAML front-matter/cell-option diagnostics -- WYSIWYG editor excluded per operator directive, Session 43). Decisions to be recorded on BACKLOG.md, following the Session 43 grill-me precedent.
+```
+
+```handoff
 session: S60
 date: 2026-07-10
 status: complete

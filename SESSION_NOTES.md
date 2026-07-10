@@ -5,6 +5,15 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 61 (IN PROGRESS) — Grill-me decision session ranking `docs/POSIT-COMPARISON.md`'s 5 remaining real gaps** (notebook `.ipynb` conversion, Contextual Assist Panel, spell checking, Zotero integration, YAML front-matter/cell-option diagnostics — WYSIWYG editor excluded per operator directive, Session 43). Operator asked directly (not via `AskUserQuestion` candidate list this time — a direct request) to decide priority for each gap and record the decisions + this session's context on `BACKLOG.md`. Following `docs/methodology/ITERATIVE_METHODOLOGY.md` §Phase 2B (Pre-Create Grill), the `/grill-me` skill, per the Session 43 precedent (`CHANGELOG.md` 2026-07-09, `PROJECT_LEARNINGS.md` Learning #50 — ranking pass + scoping pass on top picks before locking order).
+**Started:** 2026-07-10.
+**Status:** Session claimed. Work beginning — the grill has not yet started.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
+
+---
+
+## Session 60 (superseded ACTIVE TASK, preserved below for history)
+
 **Task:** **Session 60 DONE — Fixed `docs/POSIT-COMPARISON.md` staleness (Polish/deferred, filed Session 52, `BACKLOG.md`).** Operator picked "Docs-accuracy pass" via `AskUserQuestion` at Phase 1, from a 4-candidate list (the others: dev-toolchain upgrade to clear npm audit advisories, pick a different Polish/deferred item, open a new roadmap session) — `BACKLOG.md`'s ranked "Up Next" list and the Phase 6d/6e/7 arcs are all fully shipped, so this session drew from "Polish / deferred." The filed item named exactly 3 stale "Real gaps"/future-work rows (YAML diagnostics, project-level render, walkthrough); independently re-verifying every row against `BACKLOG.md`'s actual shipped-item list (rather than only fixing the 3 named rows) found a **4th, unnamed stale row** the filing missed — "Create project / create Quarto document commands" (shipped Sessions 49–50). Fixed all 4 rows' *Ours*/*Notes* text, the "At a Glance" table counts (Real gaps 9→6, Parity 15→18), and struck through the corresponding "What This Suggests for Future Work" list entries, consistent with the doc's own existing precedent for prior closed-gap rows. Pure documentation edit, TDD-exempt per CLAUDE.md's declarative-content carve-out. `PROJECT_LEARNINGS.md` Learning #67 appended. Full detail in "What Session 60 Did" below.
 **Status:** SHIPPED. `npm run compile` clean, 610/610 unit tests pass (docs-only change — no logic touched, ran as a regression check, not a build-equivalent for content correctness, which was established by re-reading each row against `BACKLOG.md`/`CHANGELOG.md`'s actual session records). `BACKLOG.md`'s Polish/deferred item removed.
 **Ledger:** `CHANGELOG: 2026-07-10 · [ad hoc] (Session 60 — docs/POSIT-COMPARISON.md staleness fixed)` entry written.
