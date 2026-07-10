@@ -32,9 +32,9 @@ the **corrected, verified** claims, not the first draft.
 | | Count | Examples |
 |---|---|---|
 | **Parity** (same capability, comparable depth) | 15 | render, preview, execution delegation, syntax highlighting, most `@`-completion, cell-option completion |
-| **We're ahead** | 2 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them) |
+| **We're ahead** | 3 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image paste/drag-drop for `.qmd` (Posit's own source editor has this as an open, unimplemented feature request — Session 58) |
 | **Real gaps** (Posit has, we don't) | 9 | Visual (WYSIWYG) editor, YAML diagnostics/validation, project-level render, notebook `.ipynb` conversion, project/document scaffolding commands, getting-started walkthrough, Contextual Assist Panel, spell checking, Zotero (Visual-Editor-only for them) — the run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56 |
-| **True parity in absence** (neither has it) | 2 | Image paste for `.qmd`; AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
+| **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 
 The single largest gap is architectural, not incremental: Posit ships a full **Visual (WYSIWYG) editor**
 (rich-text editing of `.qmd` prose without seeing raw markdown). That one gap is also the reason several
@@ -328,10 +328,15 @@ their side, so those two rows are narrower deficits than they first appear.
   Posit's AGPL extension's actual snippet content (Learning #1 look-but-don't-copy gate).
 
 **Image paste (clipboard paste → auto-save + insert markdown reference).**
-- *Ours:* **Not implemented.**
-- *Posit's:* **Also absent** — confirmed by a Quarto maintainer as an open feature request, not
-  implemented; the documented workaround is switching the file's language mode to plain Markdown.
-- *Notes:* True parity, not a competitive gap — neither extension supports this for `.qmd` files.
+- *Ours:* **Present** — `vscode.languages.registerDocumentPasteEditProvider` +
+  `registerDocumentDropEditProvider` for `.qmd` (paste AND drag-drop, bundled into v1): writes the
+  image under `images/` next to the document and inserts `![](images/<file>)`, with collision-avoidance
+  naming — **Session 58**, `BACKLOG.md` "Phase 7 authoring aids."
+- *Posit's:* **Still absent** — confirmed by a Quarto maintainer as an open feature request, not
+  implemented in their source editor; only their excluded AGPL Visual Editor supports it.
+- *Notes:* No longer a gap — **we're now ahead of Posit's own source editor** here, not merely at
+  parity. Independently designed from VS Code's own MIT built-in markdown paste-image implementation
+  (read directly for precedent, not Posit's AGPL extension — Learning #1 look-but-don't-copy gate).
 
 **AI/Copilot authoring assistance.**
 - *Ours:* Not implemented (out of scope by design — no AI feature on this project's roadmap).
