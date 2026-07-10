@@ -20,8 +20,17 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 ```handoff
 session: S59
 date: 2026-07-10
-status: pending
-active_task: Fix .vscodeignore's methodology-artifact exclusion gap -- PROJECT_LEARNINGS.md and HANDOFFS.md currently ship inside the .vsix (BACKLOG.md line 72). Add both filenames to the methodology-artifact block, then npm run package and confirm they're gone from the file listing.
+status: complete
+self_score: 9
+predecessor_score: 9
+active_task: DONE. Fixed .vscodeignore's methodology-artifact exclusion gap -- PROJECT_LEARNINGS.md and HANDOFFS.md were shipping inside the .vsix (BACKLOG.md line 72, filed Session 40). Added both filenames to the existing methodology-artifact block.
+what_was_done: One-line-per-file addition to .vscodeignore's "Methodology / project-management artifacts" block (PROJECT_LEARNINGS.md, HANDOFFS.md), alongside the 12 filenames already excluded there. Pure declarative config edit, TDD-exempt per CLAUDE.md's carve-out -- no logic, no unit test. Verified via npm run package (check-types + bundle + vsce package, all clean): the printed VSIX file tree dropped from the prior 42-file baseline to 40 files, with neither PROJECT_LEARNINGS.md nor HANDOFFS.md present. Followed up with `npx vsce ls --tree | grep -iE "PROJECT_LEARNINGS|HANDOFFS"` (zero matches, exit 1) to confirm absence directly rather than trust the printed tree alone. Local .vsix (gitignored) removed after verification.
+next_steps: BACKLOG.md's remaining open items are all still Polish/deferred (~20 items) -- see BACKLOG.md's "Polish / deferred" section. Two other candidates were offered this session and NOT picked: (a) a dev-toolchain upgrade (esbuild/vitest bumps) to clear the 7 accepted dev-only npm audit advisories properly (BACKLOG.md, Learning #20); (b) fixing docs/POSIT-COMPARISON.md's staleness for 3 already-shipped items (YAML diagnostics, project-level render, walkthrough) still listed as open gaps. Most remaining Polish/deferred items are cross-module grammar-consolidation fixes gated on plan mode (SAFEGUARDS: no cross-module refactor without plan mode) -- each is its own small future session. No ranked feature work remains from the Session 43 post-Posit-comparison arc; a future session could open a NEW grill-me/roadmap session to find fresh feature work beyond that original list, if desired.
+key_files: .vscodeignore (the fix -- lines now include PROJECT_LEARNINGS.md/HANDOFFS.md in the methodology-artifact block); CHANGELOG.md (2026-07-10 Session 59 entry, prepended above the Session 58 entry); BACKLOG.md (the fixed item removed per the file's own header convention -- completed items are removed, not left checked).
+gotchas: (1) This was a pure config fix with no logic -- do not look for a unit test, per CLAUDE.md's declarative/config-edit TDD carve-out. (2) The verification technique here (file-count delta + explicit grep for absence, not just "no build error") is the right pattern for any future .vscodeignore change -- a silent inclusion regression would not fail the build, only bloat the .vsix.
+runtime_smoke: N/A -- this changes packaging manifest content only, no runtime code path, activation, or command registration touched. The packaging verification (npm run package + file-listing diff) IS this change's own build-equivalent per SAFEGUARDS.md, and was run, not skipped.
+changelog_ref: CHANGELOG.md, 2026-07-10 · [ad hoc] (Session 59 — .vscodeignore methodology-artifact packaging leak fixed)
+commit: c40e72a (fix(package): exclude PROJECT_LEARNINGS.md and HANDOFFS.md from the .vsix)
 ```
 
 ```handoff
