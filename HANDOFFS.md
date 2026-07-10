@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S62
+date: 2026-07-10
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: Plan the notebook (.ipynb) conversion feature, BACKLOG.md "Up Next" item 8, following ARCHITECTURE_WORKSTREAM.md. Deliverable is a plan document in docs/planning/, not code.
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+```handoff
 session: S61
 date: 2026-07-10
 status: complete
