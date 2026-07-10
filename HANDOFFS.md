@@ -18,6 +18,14 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S63
+date: 2026-07-10
+status: pending
+active_task: Implement the notebook (.ipynb) conversion feature, BACKLOG.md "Up Next" item 8, following DEVELOPMENT_WORKSTREAM.md, as a pre-declared vertical slice (SESSION_RUNNER.md Vertical Slice Sessions gate (a) satisfied by Session 62's plan docs/planning/2026-07-10-notebook-conversion-plan.md). Operator resolved plan Section 8 Q1 directly: Option B -- two Posit-mirroring commands (quarto.convertToIpynb/quarto.convertToQmd), this project's first contributes.menus.commandPalette section. L1 core/convert-args.ts (strict TDD) -> L2 features/convert-notebook.ts adapter + wiring -> L3 integration tests, checkpoint-committed at each layer boundary.
+commit: pending
+```
+
+```handoff
 session: S62
 date: 2026-07-10
 status: complete

@@ -5,9 +5,10 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 62 DONE — Plan the notebook (`.ipynb`) conversion feature (`BACKLOG.md` "Up Next" item 8),** following `docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md` (Planning task-to-workstream row, `SESSION_RUNNER.md` §Phase 1). Operator directed directly: "Let's plan the notebook conversion feature (item 8)." Deliverable: `docs/planning/2026-07-10-notebook-conversion-plan.md`. Full detail in "What Session 62 Did" below.
-**Status:** SHIPPED (as a plan, not code — FM #18/#19, planning and implementation are separate sessions). Recommends a thin adapter over the existing MIT `quarto convert` CLI subcommand; no vendored asset, no new notebook UI (VS Code's own built-in `ipynb` extension already provides that). One open design question left for the operator/executor (§8 Q1: one unified command vs. two Posit-mirroring commands). `PROJECT_LEARNINGS.md` Learning #69 appended.
-**Ledger:** `CHANGELOG: 2026-07-10 · [ad hoc] (Session 62 — notebook .ipynb conversion plan, BACKLOG item 8)` entry written.
+**Task:** **Session 63 IN PROGRESS — Implement the notebook (`.ipynb`) conversion feature (`BACKLOG.md` "Up Next" item 8),** following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`, as a pre-declared vertical slice (`SESSION_RUNNER.md` §Vertical Slice Sessions, gate (a) satisfied by Session 62's plan `docs/planning/2026-07-10-notebook-conversion-plan.md`). Operator resolved plan §8 Q1 directly: **Option B** — two Posit-mirroring commands (`quarto.convertToIpynb`/`quarto.convertToQmd`), this project's first `contributes.menus.commandPalette` section. L1 `core/convert-args.ts` (strict TDD) → L2 `features/convert-notebook.ts` adapter + wiring → L3 integration tests, checkpoint-committed at each layer boundary per gate (b).
+**Started:** 2026-07-10.
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; recorded in `CHANGELOG.md` at Phase 3F.
 
 ## Session 62 Handoff Evaluation (by Session 62, of Session 61)
 
