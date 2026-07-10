@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S65
+date: 2026-07-10
+status: pending
+self_score:
+predecessor_score:
+active_task: IN PROGRESS. Implement the spell-checking feature, BACKLOG.md "Up Next" item 9, executing Session 64's plan (docs/planning/2026-07-10-spell-checking-plan.md). Documentation-only deliverable. Operator resolved the plan's 3 open questions via AskUserQuestion (all recommended options): Q1 = Option (c), README pointer + new docs/SPELL-CHECK.md; Q2 = ship cross-ref/citation suppression in v1; Q3 = workspace-scoped .vscode/settings.json as the primary documented example.
+what_was_done:
+next_steps:
+key_files:
+gotchas:
+runtime_smoke:
+changelog_ref:
+commit: pending
+```
+
+```handoff
 session: S64
 date: 2026-07-10
 status: complete

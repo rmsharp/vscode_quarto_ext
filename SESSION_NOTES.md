@@ -5,6 +5,12 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 65 IN PROGRESS — Implement the spell-checking feature (`BACKLOG.md` "Up Next" item 9),** executing Session 64's plan (`docs/planning/2026-07-10-spell-checking-plan.md`), following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`. Documentation-only deliverable (no `src/` code, no `package.json` change — TDD-exempt per the plan's own §8). Operator resolved the plan's 3 open questions (§7) via `AskUserQuestion`, all recommended options: **Q1 = Option (c)** (README pointer + new `docs/SPELL-CHECK.md`); **Q2 = ship cross-ref/citation suppression in v1**; **Q3 = workspace-scoped `.vscode/settings.json` as the primary documented example**.
+**Started:** 2026-07-10.
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 64 (superseded ACTIVE TASK, preserved below for history)
 **Task:** **Session 64 DONE — Plan the spell-checking feature (`BACKLOG.md` "Up Next" item 9: a scoped `cspell` config recipe, ranked Session 61's grill-me decision),** following `docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md`. Deliverable: `docs/planning/2026-07-10-spell-checking-plan.md`. Full detail in "What Session 64 Did" below.
 **Status:** SHIPPED (as a plan, not code — FM #18/#19). Recipe empirically validated firsthand against constructed multi-region fixtures (18 false positives → 0, all 6 genuine typos caught), a real CRLF bug found and fixed, and a critical license correction to Session 61's own prior claim (cspell's published extension is GPL-3.0-or-later, not MIT). 3 open questions left for the operator/executor (delivery-mechanism location, cross-ref/citation suppression scope, workspace- vs. user-settings framing), each with a stated recommendation. `BACKLOG.md` item 9 annotated PLANNED with the plan's corrections folded in.
 **Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
