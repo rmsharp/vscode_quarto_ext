@@ -31,9 +31,9 @@ the **corrected, verified** claims, not the first draft.
 
 | | Count | Examples |
 |---|---|---|
-| **Parity** (same capability, comparable depth) | 15 | render, preview, execution delegation, syntax highlighting, most `@`-completion, cell-option completion |
+| **Parity** (same capability, comparable depth) | 18 | render, preview, project-level render, execution delegation, syntax highlighting, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough |
 | **We're ahead** | 3 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image paste/drag-drop for `.qmd` (Posit's own source editor has this as an open, unimplemented feature request — Session 58) |
-| **Real gaps** (Posit has, we don't) | 9 | Visual (WYSIWYG) editor, YAML diagnostics/validation, project-level render, notebook `.ipynb` conversion, project/document scaffolding commands, getting-started walkthrough, Contextual Assist Panel, spell checking, Zotero (Visual-Editor-only for them) — the run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56 |
+| **Real gaps** (Posit has, we don't) | 6 | Visual (WYSIWYG) editor, notebook `.ipynb` conversion, Contextual Assist Panel, spell checking, Zotero (Visual-Editor-only for them), YAML diagnostics (partial — we cover only `_quarto.yml`'s project/website/book blocks; Posit also covers front matter/cell options) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56 |
 | **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 
 The single largest gap is architectural, not incremental: Posit ships a full **Visual (WYSIWYG) editor**
@@ -67,12 +67,17 @@ their side, so those two rows are narrower deficits than they first appear.
 - *Notes:* Functional parity on the embedded preview itself; we haven't bound a keyboard shortcut or
   added a Render-on-Save toggle.
 
-**Project-level render/preview commands ("Render Project").**
-- *Ours:* **Not implemented** — render/preview both operate on the active document only; no project-root
-  (`_quarto.yml`) discovery exists.
+**Project-level render command ("Render Project").**
+- *Ours:* Present — `quarto.renderProject` discovers the project root (`_quarto.yml`/`_quarto.yaml`,
+  ancestor-walk) and spawns `quarto render <root>` with `cwd` pinned to root, rendering the whole project
+  rather than just the active document — **Session 45**, `BACKLOG.md` item #1. (`src/core/project.ts`,
+  `src/features/render-project.ts`.)
 - *Posit's:* Present — a dedicated "Render Project" command (v1.11.2) that renders every document in a
   project.
-- *Notes:* A real gap for multi-file Quarto projects/books.
+- *Notes:* Parity reached (Session 45) — no longer a gap. (Historical: this doc's research, Session 42,
+  originally found this unimplemented.) "Preview Project" remains a deliberate, unshipped follow-up —
+  `features/preview.ts`'s process-group-owning model doesn't trivially generalize to multi-output-file
+  projects (confirmed Session 44).
 
 ---
 
@@ -176,16 +181,22 @@ their side, so those two rows are narrower deficits than they first appear.
   completion as "recursive" — it is capped at one level by design.
 
 **YAML schema validation / diagnostics (red squiggles for invalid/unknown keys).**
-- *Ours:* **Not implemented** — no diagnostic collection exists anywhere in the codebase (only
-  completion providers).
+- *Ours:* Present, narrower in scope — always-on diagnostics flag unknown keys inside the
+  `project:`/`website:`/`book:` blocks of `_quarto.yml`/`_quarto.yaml` only (the one region confirmed
+  "closed" against the live schema); front matter and cell options remain completion-only, no diagnostics
+  — **Session 47**, `BACKLOG.md` item #2. (`src/core/yaml-schema.ts` `SchemaIndex.projectKeys`,
+  `src/core/project-yaml.ts`, `src/features/yaml-diagnostics.ts`.)
 - *Posit's:* Present, with caveats — on-save validation for both the classic editor and (since v1.124.0)
-  the Visual Editor, plus profile-specific `_quarto.yml` (since v1.39.0). Coverage is inconsistent
-  because some internal schemas are "open" (unknown keys silently accepted) vs. "closed" (flagged) — per
-  an unofficial community reference (`quarto-tdg.org/yaml`); Posit's own docs don't state this caveat
-  directly. Implemented as a custom internal LSP diagnostics provider, not the standard VS Code
-  `yamlValidation`/`jsonValidation` manifest points.
-- *Notes:* **Our largest completion-adjacent gap.** We offer zero red-squiggle diagnostics; Posit has
-  shipped (imperfect but real) validation since early versions. A strong candidate for a future phase.
+  the Visual Editor, plus profile-specific `_quarto.yml` (since v1.39.0), and (unlike ours) also covers
+  front matter and cell options. Coverage is inconsistent because some internal schemas are "open"
+  (unknown keys silently accepted) vs. "closed" (flagged) — per an unofficial community reference
+  (`quarto-tdg.org/yaml`); Posit's own docs don't state this caveat directly. Implemented as a custom
+  internal LSP diagnostics provider, not the standard VS Code `yamlValidation`/`jsonValidation` manifest
+  points.
+- *Notes:* Partial parity (Session 47) — narrowed, not closed. We validate only the project-config block
+  (empirically the one region safe to flag without false positives; see `BACKLOG.md`'s "Polish /
+  deferred" for two known false-negative edge cases). Posit's front-matter/cell-option coverage remains a
+  real, smaller gap on our side.
 
 ---
 
@@ -288,9 +299,14 @@ their side, so those two rows are narrower deficits than they first appear.
 ## Additional Findings (surfaced by research, outside our own roadmap)
 
 **Create project / create Quarto document commands.**
-- *Ours:* **Not implemented** — no document/presentation/project scaffolding commands exist.
+- *Ours:* Present — `quarto.newDocument` (title-prompted, opens an untitled `.qmd` buffer from a
+  YAML-safe front-matter template) and `quarto.createProject` (type/parent-folder/name prompts, spawns
+  `quarto create-project`, opens the result as the workspace) — **Sessions 49–50**, `BACKLOG.md` item #3
+  Tracks A/B. (`src/core/new-document.ts`, `src/features/new-document.ts`,
+  `src/core/create-project-args.ts`, `src/features/create-project.ts`.)
 - *Posit's:* Present — `quarto.newDocument`, `quarto.createProject`, `quarto.fileCreateProject`, etc.
-- *Notes:* An onboarding/scaffolding gap; nothing in our roadmap addresses document/project creation yet.
+- *Notes:* Parity reached (Sessions 49–50) — no longer a gap. We don't have Posit's separate
+  `quarto.fileCreateProject` (an Explorer-context-menu variant of the same command).
 
 **Notebook (`.ipynb`) support.**
 - *Ours:* **Not implemented** — the extension only registers `.qmd`/`.rmd`/`.Rmd`; no notebook command,
@@ -346,9 +362,11 @@ their side, so those two rows are narrower deficits than they first appear.
 - *Notes:* True parity — both extensions are AI-feature-free by design.
 
 **Getting-started walkthrough / onboarding UI.**
-- *Ours:* **Not implemented** — no `walkthroughs` contribution point.
+- *Ours:* Present — a `contributes.walkthroughs` entry (`quartoGettingStarted`, 5 steps: install/verify
+  Quarto, create a document, create a project, render/preview, run a cell), each with a command-link
+  action button and a completion event — **Session 51**, `BACKLOG.md` item #3 Track C.
 - *Posit's:* Present — "Getting started with Quarto walkthrough" (v1.17.0).
-- *Notes:* A declarative, TDD-gate-exempt, relatively low-effort onboarding feature we haven't built.
+- *Notes:* Parity reached (Session 51) — no longer a gap.
 
 **Spell checking integration.**
 - *Ours:* **Not implemented.**
@@ -364,12 +382,17 @@ their side, so those two rows are narrower deficits than they first appear.
 
 In rough priority order, if this project were to close the largest real gaps:
 
-1. **YAML schema diagnostics** (red squiggles for invalid front-matter/cell-option keys) — our largest
-   completion-adjacent gap; builds directly on the existing schema reader (`src/core/yaml-schema.ts`).
+1. ~~YAML schema diagnostics~~ (red squiggles for invalid front-matter/cell-option keys) — **PARTIALLY
+   SHIPPED Session 47** (`BACKLOG.md` item #2): covers `_quarto.yml`'s `project:`/`website:`/`book:`
+   blocks only, built on the existing schema reader (`src/core/yaml-schema.ts`). Front-matter and
+   cell-option diagnostics remain unimplemented — a narrower residual gap, not yet re-ranked.
 2. ~~Snippets~~ — **SHIPPED Session 53** (`BACKLOG.md` item #5): `snippets/quarto.json`, 13 snippets,
-   declarative and TDD-gate-exempt, as predicted here. And a **getting-started walkthrough** (a new
-   finding from this research, not yet in `BACKLOG.md`) — both declarative, TDD-gate-exempt, low-effort.
-3. **Project-level render** (`_quarto.yml` discovery + "render whole project") — a real, bounded gap.
+   declarative and TDD-gate-exempt, as predicted here. ~~And a **getting-started walkthrough**~~ —
+   **SHIPPED Session 51** (`BACKLOG.md` item #3 Track C) — both declarative, TDD-gate-exempt,
+   low-effort, as predicted here.
+3. ~~Project-level render~~ (`_quarto.yml` discovery + "render whole project") — **SHIPPED Session 45**
+   (`BACKLOG.md` item #1): `quarto.renderProject` discovers the project root and renders it with `cwd`
+   pinned to root. "Preview Project" remains a deliberate, unshipped follow-up.
 4. ~~A fuller run-cell command family~~ — **SHIPPED Session 52** (`BACKLOG.md` item #4): Run Selected
    Line(s), Run Next Cell, Run Previous Cell, and Run Cells Below, plus default keybindings across the
    resulting 9-command family.
