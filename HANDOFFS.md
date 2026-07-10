@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S66
+date: 2026-07-10
+status: pending
+active_task: Implement setext heading support in the outline (BACKLOG.md Polish/deferred item). core/qmd/model.ts recognizes only ATX (#) headings; a setext-style heading (line underlined with === or ---) vanishes from the Outline view. Following DEVELOPMENT_WORKSTREAM.md (one-off fix) with strict TDD.
+```
+
+```handoff
 session: S65
 date: 2026-07-10
 status: complete

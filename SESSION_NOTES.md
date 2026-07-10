@@ -5,9 +5,14 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 66 IN PROGRESS — Implement setext heading support in the outline (`BACKLOG.md` "Polish / deferred" item),** following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` (one-off fix, streamlined per that doc's own "not for campaigns" scope note) with strict TDD (`CLAUDE.md` project-wide gate). `core/qmd/model.ts` recognizes only ATX (`#`) headings; a setext-style heading (a line underlined with `===`/`---`) vanishes from the Outline view and mis-nests under the previous heading. Operator picked this item via `AskUserQuestion` from 4 self-contained Polish/deferred candidates.
+**Status:** IN PROGRESS. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 65 (superseded ACTIVE TASK, preserved below for history)
 **Task:** **Session 65 DONE — Implement the spell-checking feature (`BACKLOG.md` "Up Next" item 9),** executing Session 64's plan (`docs/planning/2026-07-10-spell-checking-plan.md`), following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`. Documentation-only deliverable (no `src/` code, no `package.json` change — TDD-exempt per the plan's own §8). Full detail in "What Session 65 Did" below.
 **Status:** SHIPPED. New `docs/SPELL-CHECK.md` + a `README.md` pointer section (first `docs/*.md` file ever linked from README). Recipe re-verified against a real `cspell` CLI run (23 baseline issues → 8 with the recipe, zero false positives). `docs/POSIT-COMPARISON.md`'s spell-checking row + "At a Glance" table corrected (spell checking moves to "we're ahead"; also fixed a pre-existing Session 63 miss on the same table — notebook conversion's own row said "Parity reached" but the summary table was never updated). `BACKLOG.md` item 9 marked shipped. A genuine self-inflicted verification bug (a stray scratch config silently auto-discovered by `cspell`'s ancestor config search) was caught and root-caused rather than reported as a false finding — `PROJECT_LEARNINGS.md` Learning #72.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Ledger:** `CHANGELOG: 2026-07-10 · [ad hoc] (Session 65 — spell-checking implementation, BACKLOG item 9, SHIPPED)` entry written.
 
 ## Session 65 Handoff Evaluation (by Session 65, of Session 64)
 
