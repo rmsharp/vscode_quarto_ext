@@ -36,6 +36,8 @@ CONTEXT_TEMPLATE.md
 BACKLOG.md
 CHANGELOG.md
 ROADMAP.md
+PROJECT_LEARNINGS.md
+HANDOFFS.md
 methodology_dashboard.py
 dashboard.html
 dashboard_history.jsonl

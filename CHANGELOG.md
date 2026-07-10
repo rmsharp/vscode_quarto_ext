@@ -9,6 +9,9 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-10 · [ad hoc] (Session 59 — `.vscodeignore` methodology-artifact packaging leak fixed)
+- **Fixed**: `PROJECT_LEARNINGS.md` and `HANDOFFS.md` were never added to `.vscodeignore`'s methodology-artifact exclusion block when introduced (Sessions 39/38) — `npm run package` shipped both inside the `.vsix` (160 KB + 15 KB) despite neither being part of the extension (found incidentally, Session 40; filed `BACKLOG.md`, fixed this session). Added both filenames to the existing block. Verified via `npm run package` + `vsce ls --tree`: file count dropped 42→40, neither file present, `npm run check-types` clean. Declarative config edit, TDD-exempt per `CLAUDE.md`.
+
 ### 2026-07-10 · [ad hoc] (Session 58 image paste implementation — BACKLOG "Phase 7 authoring aids" now fully SHIPPED)
 - **Implemented** BACKLOG.md "Phase 7 authoring aids" final remaining slice — image paste + drag-drop — per Session 57's plan (`docs/planning/2026-07-09-image-paste-plan.md`). Operator resolved the plan's 3 open questions via `AskUserQuestion` before code: Q1 destination = `images/` subfolder; Q2 drag-and-drop parity bundled into v1 (adds L4); Q3 filename trusts `DataTransferFile.name` when present/non-empty, generates otherwise.
 - **L1** (`df3bd8f`): pure `core/image-paste.ts` (`extensionForMimeType`/`deriveImageName`/`resolveNonCollidingName`/`buildImageRelativePath`/`buildImagePasteInsertText`), strict TDD, the collision-avoidance loop break-revert-proven.
