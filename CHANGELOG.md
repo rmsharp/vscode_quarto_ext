@@ -9,6 +9,14 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-09 · [ad hoc] (Session 56 graphviz `{dot}` diagram rendering — BACKLOG item #7 now fully SHIPPED)
+- **Implemented** BACKLOG.md "Up Next" item #7, per Session 55's plan (`docs/planning/2026-07-09-graphviz-dot-rendering-plan.md`), as ONE vertical-slice session. Operator resolved the plan's one open question (§9 Q1, EPL-2.0 Graphviz-core disclosure) via Phase 0/1 conversation: accept-and-disclose.
+- **L1** (`c1a1864`): vendored `@viz-js/viz`'s `dist/viz-global.js` into `media/graphviz/` (re-verified this session, no version/hash drift from the plan's research). `NOTICE` gains a Graphviz section disclosing the EPL-2.0 Graphviz-core + MIT Expat/wrapper provenance — the first non-MIT-only vendored artifact. `CLAUDE.md`/`CONTEXT.md`/`README.md`'s unqualified "MIT-licensed" framing corrected to disclose the vendored component.
+- **L2+L3** (`7e08247`): `core/diagram-preview-html.ts` CSP gains `'wasm-unsafe-eval'` only (exact-equality locked, break-revert-proven); the `dot` branch renders via `Viz.instance().renderString(...)` (lazily instantiated) instead of the old placeholder; `features/diagram-preview.ts` gains `graphvizRoot()` + widened `localResourceRoots` + `vizJsUri` wiring.
+- **L4** (`08bb026`): integration smoke test — a `{dot}` document opens the diagram-preview webview without crashing, parity with the existing Mermaid open-test.
+- **Phase 3E strengthened beyond disclosed "F5-only residue"** (`PROJECT_LEARNINGS.md` Learning #64): executed the real generated `<script>` template plus the real vendored `viz-global.js` in a hand-stubbed Node `vm` DOM, proving a real `{dot}` region produces real Graphviz SVG through the actual shipped code path.
+- 595 unit (+2) / 207 integration (+1); clean 42-file `.vsix` (+1); `npm run check-types` clean. `docs/POSIT-COMPARISON.md` corrected to reflect parity (Real gaps 10→9).
+
 ### 2026-07-09 · [ad hoc] (Session 55 graphviz `{dot}` diagram rendering — plan only, BACKLOG item #7 PLANNED not yet shipped)
 - **Planned** BACKLOG.md "Up Next" item #7: graphviz (`{dot}`) diagram rendering — `docs/planning/2026-07-09-graphviz-dot-rendering-plan.md`. No code changed this session.
 - Empirically verified (downloaded and ran both real candidate npm packages in Node, byte-inspected their shipped bundles, fetched Graphviz's own official license page) what a prior session's untested assumption had only guessed at: recommends vendoring `@viz-js/viz`'s `dist/viz-global.js` with a CSP change adding `'wasm-unsafe-eval'` only (not the broader `'unsafe-eval'`).

@@ -33,7 +33,7 @@ the **corrected, verified** claims, not the first draft.
 |---|---|---|
 | **Parity** (same capability, comparable depth) | 15 | render, preview, execution delegation, syntax highlighting, most `@`-completion, cell-option completion |
 | **We're ahead** | 2 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them) |
-| **Real gaps** (Posit has, we don't) | 10 | Visual (WYSIWYG) editor, YAML diagnostics/validation, project-level render, notebook `.ipynb` conversion, project/document scaffolding commands, getting-started walkthrough, Contextual Assist Panel, Graphviz rendering, spell checking, Zotero (Visual-Editor-only for them) — the run-cell command family gap closed, Session 52; snippets gap closed, Session 53 |
+| **Real gaps** (Posit has, we don't) | 9 | Visual (WYSIWYG) editor, YAML diagnostics/validation, project-level render, notebook `.ipynb` conversion, project/document scaffolding commands, getting-started walkthrough, Contextual Assist Panel, spell checking, Zotero (Visual-Editor-only for them) — the run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56 |
 | **True parity in absence** (neither has it) | 2 | Image paste for `.qmd`; AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 
 The single largest gap is architectural, not incremental: Posit ships a full **Visual (WYSIWYG) editor**
@@ -263,11 +263,11 @@ their side, so those two rows are narrower deficits than they first appear.
   keybinding, no confirmed auto dark/light theming).
 
 **Live preview of diagrams (Mermaid / Graphviz) embedded in the editor.**
-- *Ours:* Partial — Mermaid cells render live via vendored Mermaid; Graphviz (`{dot}`) cells are detected
-  but shown only as source plus a "not yet rendered" note.
+- *Ours:* Present — Mermaid cells render live via vendored Mermaid; Graphviz (`{dot}`) cells render live
+  via a vendored WASM build of Graphviz itself (`@viz-js/viz`, shipped Session 56).
 - *Posit's:* Present — both Mermaid and Graphviz render live.
-- *Notes:* Mermaid is at parity; Graphviz rendering is a known, explicitly-deferred gap (needs a WASM dot
-  renderer — its own future slice, per our own code comments).
+- *Notes:* At parity. Unlike every other vendored asset in this project, the Graphviz WASM module's
+  compiled contents are EPL-2.0 (not MIT) — disclosed in `NOTICE`; see BACKLOG.md item #7.
 
 **Formatting keyboard shortcuts (bold/italic/code).**
 - *Ours:* Present — `toggleBold`/`toggleItalic`/`toggleCode` wrap/unwrap the selection or word-at-cursor
@@ -368,8 +368,11 @@ In rough priority order, if this project were to close the largest real gaps:
 4. ~~A fuller run-cell command family~~ — **SHIPPED Session 52** (`BACKLOG.md` item #4): Run Selected
    Line(s), Run Next Cell, Run Previous Cell, and Run Cells Below, plus default keybindings across the
    resulting 9-command family.
-5. **Graphviz (`{dot}`) diagram rendering** — already tracked in `BACKLOG.md` (needs a vendored WASM
-   renderer).
+5. ~~Graphviz (`{dot}`) diagram rendering~~ — **SHIPPED Session 56** (`BACKLOG.md` item #7): vendored
+   `@viz-js/viz`'s WASM Graphviz build (`media/graphviz/viz-global.js`), a `'wasm-unsafe-eval'` CSP
+   addition, and a `dot` render branch calling `Viz.instance().renderString(...)` — at parity with
+   Mermaid. First vendored asset whose compiled contents are non-MIT (EPL-2.0 Graphviz core), disclosed
+   in `NOTICE` per an explicit operator decision.
 6. The **Visual (WYSIWYG) editor** is Posit's single largest feature and this project's single largest
    gap — but it is a major, multi-session undertaking, explicitly out of v1 scope, and would need to be
    built from an MIT-clean editor foundation (never from Posit's AGPL Panmirror). Any future decision to
