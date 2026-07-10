@@ -7,11 +7,19 @@
  * `package.json` contribution is needed — registering a paste-edit provider
  * needs no manifest entry, same class as `providers/workspace-symbols.ts`.
  *
- * D1 (plan §3, disclosed): no `execute*Provider`-style command exists for
- * paste providers, and `DataTransferItem` cannot be test-synthesized as
- * file-backed — the real byte-read path is F5-only. See
- * `test/integration/suite/image-paste.test.ts` for what IS covered (mime-
- * type routing, the no-file-backed-payload fallback).
+ * D1 (plan §3, refined this session): no `execute*Provider`-style command
+ * exists for paste providers, and `new vscode.DataTransferItem(value)` (the
+ * only public constructor) can never produce a file-backed item. BUT
+ * `vscode.DataTransfer` does not runtime-validate that stored values are
+ * genuine `DataTransferItem` instances, and this file's own `findImageFile`
+ * only ever calls `.asFile()` duck-typed — so a hand-built object satisfying
+ * the (interface, not class-with-hidden-state) `DataTransferFile` shape
+ * flows through the REAL registered provider exactly like a real OS-level
+ * paste would. `test/integration/suite/image-paste.test.ts` exploits this to
+ * exercise the real byte-read + write + collision-avoidance path end-to-end,
+ * not just mime-routing — substantially narrower than the plan's original
+ * D1 framing. What remains genuinely F5-only is the OS clipboard/drag event
+ * itself producing the `DataTransferFile` in the first place.
  */
 
 import * as vscode from "vscode";
