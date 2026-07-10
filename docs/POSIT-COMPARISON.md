@@ -31,15 +31,17 @@ the **corrected, verified** claims, not the first draft.
 
 | | Count | Examples |
 |---|---|---|
-| **Parity** (same capability, comparable depth) | 18 | render, preview, project-level render, execution delegation, syntax highlighting, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough |
-| **We're ahead** | 3 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image paste/drag-drop for `.qmd` (Posit's own source editor has this as an open, unimplemented feature request — Session 58) |
-| **Real gaps** (Posit has, we don't) | 6 | Visual (WYSIWYG) editor, notebook `.ipynb` conversion, Contextual Assist Panel, spell checking, Zotero (Visual-Editor-only for them), YAML diagnostics (partial — we cover only `_quarto.yml`'s project/website/book blocks; Posit also covers front matter/cell options) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56 |
+| **Parity** (same capability, comparable depth) | 19 | render, preview, project-level render, execution delegation, syntax highlighting, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion |
+| **We're ahead** | 4 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image paste/drag-drop for `.qmd` (Posit's own source editor has this as an open, unimplemented feature request — Session 58); spell checking in the plain source editor (a documented `cspell` config recipe — Posit's own spell check is Visual-Editor-only — Session 65) |
+| **Real gaps** (Posit has, we don't) | 4 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial — we cover only `_quarto.yml`'s project/website/book blocks; Posit also covers front matter/cell options) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65 |
 | **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 
 The single largest gap is architectural, not incremental: Posit ships a full **Visual (WYSIWYG) editor**
-(rich-text editing of `.qmd` prose without seeing raw markdown). That one gap is also the reason several
-smaller gaps exist — Posit's Zotero picker and spell checker are both Visual-Editor-only features on
-their side, so those two rows are narrower deficits than they first appear.
+(rich-text editing of `.qmd` prose without seeing raw markdown). That one gap is also the reason a
+related smaller gap exists — Posit's Zotero **live picker** is a Visual-Editor-only feature on their
+side, so that row is a narrower deficit than it first appears. Spell checking was similarly gated on the
+Visual Editor in Posit's own implementation, but plain-source-editor spell checking turned out to be
+independently solvable (Session 65) — see above.
 
 ---
 
@@ -377,12 +379,22 @@ their side, so those two rows are narrower deficits than they first appear.
 - *Notes:* Parity reached (Session 51) — no longer a gap.
 
 **Spell checking integration.**
-- *Ours:* **Not implemented.**
+- *Ours:* **Present** — a documented `cSpell.languageSettings` config recipe
+  ([`docs/SPELL-CHECK.md`](SPELL-CHECK.md)) scoping the third-party `streetsidesoftware.code-spell-checker`
+  ("cspell") extension to Quarto's prose regions — skipping YAML front matter, code cells (and their
+  `#|`/`//|` options), inline code spans, HTML comments, math, and cross-reference/citation tokens — so
+  plain-source-editor spelling works with zero false positives on real content, empirically validated
+  against a multi-region fixture. No spell-check engine, dictionary, or `DiagnosticCollection` of our
+  own — **Session 65**, `BACKLOG.md` item 9.
 - *Posit's:* Partial — native spell checking exists, but only inside the Visual Editor, not in plain
   source/markdown editing; their Visual Editor's spell checker also has a documented single-language-at-
   a-time limitation.
-- *Notes:* Coupled to the Visual Editor gap above rather than an independent deficit, since Posit's own
-  spell check requires its Visual Editor too.
+- *Notes:* No longer a gap — **we're now ahead of Posit's own source editor** here (their spell check is
+  Visual-Editor-only; ours works in plain source `.qmd` editing), via a documented third-party-extension
+  recipe rather than a built-in checker — the same "delegated" pattern this project already uses for
+  code-cell execution (an installed Jupyter/R/Julia extension). cspell's underlying engine library is
+  MIT; its published VS Code extension is GPL-3.0-or-later — recommended only, never vendored or
+  bundled.
 
 ---
 

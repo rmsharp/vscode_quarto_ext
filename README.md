@@ -160,6 +160,14 @@ These are active only when the cursor is inside a code cell.
 |---------|------|---------|-------------|
 | `quarto.path` | string | `""` | Absolute path to the `quarto` executable. When empty, `quarto` is resolved from `PATH`. |
 
+## Spell checking
+
+This extension does not include its own spell checker, but ships a ready-made config recipe that scopes
+the popular [Code Spell Checker](https://marketplace.visualstudio.com/items?itemName=streetsidesoftware.code-spell-checker)
+extension to `.qmd` prose — skipping YAML front matter, code cells, math, and cross-reference/citation
+tokens — so it checks only the text you actually wrote. See
+[`docs/SPELL-CHECK.md`](docs/SPELL-CHECK.md) for the recipe, setup steps, and known limitations.
+
 ## License & attribution
 
 This extension's own source code is released under the **MIT License** (see
