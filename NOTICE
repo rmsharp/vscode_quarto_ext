@@ -98,9 +98,52 @@ distribution file is a single self-contained UMD bundle (it exposes
 transitive dev-dependency tree into `node_modules` solely to copy it is
 unnecessary. To refresh, re-download the pinned (or newer) tarball, verify the
 MIT license still holds, copy `dist/mermaid.min.js`, and update the version +
-sha256 above. Graphviz (`{dot}`) cells are detected but not yet rendered (their
-source is shown) — rendering them needs a separate WASM renderer, vendored in a
-future slice.
+sha256 above.
+
+Graphviz (bundled webview asset — media/graphviz/)
+---------------------------------------------------
+The diagram-preview webview renders Graphviz (```` ```{dot} ````) diagrams with
+`@viz-js/viz`, a WASM compile of the real upstream Graphviz C library. A
+single, self-contained distribution file (`viz-global.js`) is vendored verbatim
+under `media/graphviz/` and shipped inside the `.vsix`; it is loaded only
+inside the preview webview, never into the extension host.
+
+  https://github.com/mdaines/viz-js  (the `@viz-js/viz` npm package)
+  Wrapper license: MIT (Copyright (c) Michael Daines)
+  Pinned: @viz-js/viz 3.28.0
+  File: dist/viz-global.js (sha256
+        050980a2a3721a493ec2fae035a964728f14765212b821d2b994dff03a03c0e2)
+
+**This is the first vendored asset in this project whose bundled contents are
+NOT entirely MIT.** `@viz-js/viz`'s own file header states verbatim: "This
+distribution contains other software in object code form: Graphviz
+https://www.graphviz.org / Expat https://libexpat.github.io" — confirmed by
+its shipped `lib/provenance.json` SLSA build-attestation, which records a real
+compile of upstream Graphviz 15.0.0 (`gitlab.com/graphviz/graphviz`) and
+libexpat 2.8.1 via Emscripten:
+
+  - Graphviz core (compiled into the WASM module): **Eclipse Public License
+    2.0 (EPL-2.0)** — https://www.graphviz.org (license terms:
+    https://www.eclipse.org/legal/epl-2.0/). EPL-2.0 is a weak (file-scoped)
+    copyleft license: it permits redistributing the covered code in
+    object/binary form under different license terms provided the license is
+    disclosed and corresponding source is made available — both satisfied
+    here, by this notice and by Graphviz's own public upstream repository. It
+    does not require this extension's own source (MIT) to relicense.
+  - Expat/libexpat (XML parsing, compiled into the WASM module): **MIT** —
+    https://libexpat.github.io
+
+Vendored copy provenance: extracted from the npm registry tarball
+https://registry.npmjs.org/@viz-js/viz/-/viz-3.28.0.tgz (`package/dist/
+viz-global.js`). Like Mermaid, `@viz-js/viz` is NOT added as a devDependency:
+the distribution file is a single self-contained UMD bundle (exposes
+`globalThis.Viz`, confirmed to call zero `eval()`/`new Function()` — only
+`WebAssembly.instantiate`, which is why the diagram-preview webview's CSP adds
+`'wasm-unsafe-eval'` and nothing broader), so only this one file ships. To
+refresh, re-download the pinned (or newer) tarball, re-verify the Graphviz/
+Expat license chain still holds (re-check `lib/provenance.json` and the
+file's own header comment), copy `dist/viz-global.js`, and update the version
++ sha256 above.
 
 On upgrade of any referenced grammar or tool, re-verify the license still holds
 at the pinned version and update this file (architecture plan §9, §14).

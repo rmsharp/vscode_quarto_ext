@@ -6,7 +6,7 @@
 
 ## What This Project Is
 
-`vscode-quarto-ext` is an MIT-licensed Visual Studio Code extension that brings Quarto authoring features to VS Code: rendering and live preview of `.qmd` documents, syntax highlighting, code-cell execution, and editor intelligence (completions for YAML front matter, citations, and cross-references). It is an *independent reimplementation* targeting feature parity with Posit's official Quarto extension — not a fork of it. The extension shells out to the locally-installed **Quarto CLI** for rendering and preview rather than reimplementing the Quarto engine.
+`vscode-quarto-ext` is an MIT-licensed Visual Studio Code extension (this project's own source code; one vendored webview asset — a compiled Graphviz build used to render `{dot}` diagrams — carries a different OSI-approved license, EPL-2.0, disclosed in `NOTICE`) that brings Quarto authoring features to VS Code: rendering and live preview of `.qmd` documents, syntax highlighting, code-cell execution, and editor intelligence (completions for YAML front matter, citations, and cross-references). It is an *independent reimplementation* targeting feature parity with Posit's official Quarto extension — not a fork of it. The extension shells out to the locally-installed **Quarto CLI** for rendering and preview rather than reimplementing the Quarto engine.
 
 ---
 

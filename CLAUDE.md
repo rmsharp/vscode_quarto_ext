@@ -15,7 +15,7 @@ Read and follow `SESSION_RUNNER.md` step by step. It is your operating procedure
 
 ## Purpose
 
-This is the `vscode-quarto-ext` project: an **MIT-licensed** Visual Studio Code extension that reimplements many — ideally most — of the features of Posit's official Quarto extension for VS Code (render, live preview, `.qmd` language support, code-cell execution, YAML/citation/cross-reference completion, snippets, and related authoring aids). The primary deliverable is a packaged, installable VS Code extension (`.vsix`) plus its source.
+This is the `vscode-quarto-ext` project: an **MIT-licensed** Visual Studio Code extension (this project's own source code; a small number of vendored third-party webview assets carry their own OSI-approved licenses, disclosed in `NOTICE` — see the Graphviz/EPL-2.0 entry) that reimplements many — ideally most — of the features of Posit's official Quarto extension for VS Code (render, live preview, `.qmd` language support, code-cell execution, YAML/citation/cross-reference completion, snippets, and related authoring aids). The primary deliverable is a packaged, installable VS Code extension (`.vsix`) plus its source.
 
 The goal is feature parity *reimplemented independently under MIT licensing*, not a fork.
 

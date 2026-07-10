@@ -8,12 +8,13 @@ execution, document outline, and cross-reference & citation completion.
 
 Quarto (MIT) is an independent reimplementation, under the MIT License, of much
 of the authoring experience offered by Posit's official Quarto extension for
-VS Code. It is built on MIT-licensed upstreams and shells out to the
-MIT-licensed Quarto CLI at runtime. It does **not** fork or copy Posit's
-official Quarto VS Code extension, its language server, the Visual Editor, or
-Panmirror — those components are AGPL-3.0 and were used only as
-look-but-don't-copy reference. See [License & attribution](#license--attribution)
-below.
+VS Code. It is built primarily on MIT-licensed upstreams (one vendored webview
+asset, a compiled Graphviz build used to render `{dot}` diagrams, carries a
+different OSI-approved license — see [License & attribution](#license--attribution)
+below) and shells out to the MIT-licensed Quarto CLI at runtime. It does
+**not** fork or copy Posit's official Quarto VS Code extension, its language
+server, the Visual Editor, or Panmirror — those components are AGPL-3.0 and
+were used only as look-but-don't-copy reference.
 
 It's for anyone who writes `.qmd` / `.rmd` documents and wants a permissively
 licensed authoring toolset inside VS Code.
@@ -161,15 +162,18 @@ These are active only when the cursor is inside a code cell.
 
 ## License & attribution
 
-This extension is released under the **MIT License** (see the [LICENSE](LICENSE)
-file).
+This extension's own source code is released under the **MIT License** (see
+the [LICENSE](LICENSE) file).
 
 It is an **independent reimplementation** and does not fork or copy Posit's
 official Quarto VS Code extension, its language server, the Visual Editor, or
 Panmirror — all of which are licensed under **AGPL-3.0** and were consulted only
-as look-but-don't-copy reference. The extension is built on MIT-licensed
-upstreams and shells out to the MIT-licensed Quarto CLI at runtime. Third-party
-attributions are recorded in the [NOTICE](NOTICE) file.
+as look-but-don't-copy reference. The extension is built primarily on
+MIT-licensed upstreams and shells out to the MIT-licensed Quarto CLI at
+runtime. One vendored webview asset — a compiled Graphviz build used to render
+`{dot}` diagrams — carries a different OSI-approved license, **EPL-2.0**; full
+provenance and license pointers are in the [NOTICE](NOTICE) file, which
+records all third-party attributions.
 
 ## Links
 
