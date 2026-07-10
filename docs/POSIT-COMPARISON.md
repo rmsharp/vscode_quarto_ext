@@ -309,11 +309,19 @@ their side, so those two rows are narrower deficits than they first appear.
   `quarto.fileCreateProject` (an Explorer-context-menu variant of the same command).
 
 **Notebook (`.ipynb`) support.**
-- *Ours:* **Not implemented** — the extension only registers `.qmd`/`.rmd`/`.Rmd`; no notebook command,
-  serializer, or renderer exists.
+- *Ours:* Present — `quarto.convertToIpynb` (`.qmd`→`.ipynb`) and `quarto.convertToQmd`
+  (`.ipynb`→`.qmd`), mirroring Posit's own command IDs and titles — **Session 63**, `BACKLOG.md` item
+  #8. A thin adapter spawns `quarto convert <input> --output <derived-path>`; a modal
+  overwrite-confirmation guards the bare CLI's silent-overwrite default (this project's first modal
+  prompt). No vendored asset and no new notebook UI — VS Code's own built-in `ipynb` extension (MIT,
+  bundled) already renders/edits `.ipynb`. (`src/core/convert-args.ts`, `src/features/convert-notebook.ts`.)
 - *Posit's:* Present — "Convert to `.ipynb`" and "Convert to `.qmd`" commands (v1.132.0).
-- *Notes:* A sizeable capability we don't attempt; would need notebook-renderer/serializer work well
-  beyond our current single-file `.qmd` scope.
+- *Notes:* Parity reached (Session 63) — no longer a gap. (Historical: this doc's research originally
+  claimed this "would need notebook-renderer/serializer work well beyond our current single-file
+  `.qmd` scope" — Session 62's plan found that estimate wrong: VS Code's own built-in `ipynb` extension
+  already supplies the renderer/serializer, so the actual scope was a thin CLI-spawning adapter,
+  comparable in size to `render`/`createProject`.) Notebook cell **execution** remains the user's own
+  `ms-toolsai.jupyter` install, the same boundary already drawn for `.qmd` cell execution.
 
 **Zotero integration.**
 - *Ours:* **Not implemented.**
