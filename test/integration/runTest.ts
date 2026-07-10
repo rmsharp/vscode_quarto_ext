@@ -14,7 +14,25 @@ async function main(): Promise<void> {
     // out/test/integration -> project root
     const extensionDevelopmentPath = path.resolve(__dirname, "../../../");
     const extensionTestsPath = path.resolve(__dirname, "./suite/index");
-    await runTests({ extensionDevelopmentPath, extensionTestsPath });
+    // Opens `test/fixtures/project` (index.qmd + chapters/chapter1.qmd) as the
+    // workspace folder so `vscode.workspace.findFiles` — the workspace symbol
+    // provider's own `**/*.qmd` search — has a real folder to search
+    // (`workspace-symbols.test.ts`). Every other suite opens fixtures by
+    // absolute path and does not read `workspace.workspaceFolders`, except
+    // `render-project.test.ts`'s Tier B `resolveStartAndBoundary`, which is
+    // unaffected: its own active-editor fixtures either sit inside this exact
+    // folder (finding the identical `_quarto.yml` root whether the walk is
+    // bounded here or unbounded) or outside it entirely (`sample.qmd`, where
+    // `getWorkspaceFolder` still returns `undefined`).
+    const workspacePath = path.resolve(
+      extensionDevelopmentPath,
+      "test/fixtures/project",
+    );
+    await runTests({
+      extensionDevelopmentPath,
+      extensionTestsPath,
+      launchArgs: [workspacePath],
+    });
   } catch (err) {
     console.error("Failed to run integration tests:", err);
     process.exit(1);

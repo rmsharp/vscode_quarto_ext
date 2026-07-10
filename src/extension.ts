@@ -23,6 +23,7 @@ import { registerCrossrefProviders } from "./providers/crossref";
 import { registerOutlineProvider } from "./providers/outline";
 import { registerYamlCompletionProvider } from "./providers/yaml";
 import { registerYamlDiagnosticsFeature } from "./features/yaml-diagnostics";
+import { registerWorkspaceSymbolsProvider } from "./providers/workspace-symbols";
 import { QuartoNotFound, resolveBinary } from "./quarto/cli";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -42,6 +43,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerMathPreviewFeature(context);
   registerDiagramPreviewFeature(context);
   registerOutlineProvider(context);
+  registerWorkspaceSymbolsProvider(context);
   registerCrossrefProviders(context);
   registerCitationProviders(context);
   registerYamlCompletionProvider(context);
