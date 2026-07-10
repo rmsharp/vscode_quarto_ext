@@ -5,7 +5,11 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 53 DONE — Implemented BACKLOG.md "Up Next" item #5: Quarto code snippets (`contributes.snippets`), following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`.** Operator picked "#5" at Phase 1. Genuinely declarative JSON — TDD-exempt per `CLAUDE.md`'s carve-out, consistent with `docs/POSIT-COMPARISON.md`'s own framing of this gap ("low-effort, high-value... exempt from this project's strict-TDD gate"). Full detail in "What Session 53 Did" below.
+**Task:** **Session 54 — Implement BACKLOG.md "Up Next" item #6: workspace symbol provider ("Go to Symbol in Workspace"), following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`.** (IN PROGRESS) Operator picked "#6" at Phase 1. Genuine new logic (a provider, likely a workspace-wide index/cache) — strict TDD gate applies in full, RED-first, per `CLAUDE.md`.
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Prior session (53) — DONE — Implemented BACKLOG.md "Up Next" item #5: Quarto code snippets (`contributes.snippets`), following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`.** Operator picked "#5" at Phase 1. Genuinely declarative JSON — TDD-exempt per `CLAUDE.md`'s carve-out, consistent with `docs/POSIT-COMPARISON.md`'s own framing of this gap ("low-effort, high-value... exempt from this project's strict-TDD gate"). Full detail in "What Session 53 Did" below.
 **Status:** SHIPPED — and **BACKLOG.md item #5 is now fully complete.** New `snippets/quarto.json` (13 snippets) registered via `package.json` `contributes.snippets`. 587 unit (+30) / 202 integration (+2); clean 41-file `.vsix` (+1); `npm run check-types` clean. `PROJECT_LEARNINGS.md` Learnings #60 and #61 appended (checked ascending order — 59→60→61, correct). `docs/POSIT-COMPARISON.md`'s snippets entry corrected to reflect parity; the adjacent getting-started-walkthrough staleness in the same doc bullet was deliberately left untouched (predates this session, already filed as its own Polish/deferred `BACKLOG.md` item).
 **Ledger:** `CHANGELOG: 2026-07-09 · [ad hoc] (Session 53 Quarto code snippets)` entry written.
 

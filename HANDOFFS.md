@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S54
+date: 2026-07-09
+status: pending
+active_task: Implement BACKLOG.md "Up Next" item #6 -- workspace symbol provider ("Go to Symbol in Workspace"), extending the existing DocumentSymbolProvider registration to workspace scope. Operator picked "#6" at Phase 1.
+```
+
+```handoff
 session: S53
 date: 2026-07-09
 status: complete
