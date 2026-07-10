@@ -9,6 +9,12 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-09 · [ad hoc] (Session 55 graphviz `{dot}` diagram rendering — plan only, BACKLOG item #7 PLANNED not yet shipped)
+- **Planned** BACKLOG.md "Up Next" item #7: graphviz (`{dot}`) diagram rendering — `docs/planning/2026-07-09-graphviz-dot-rendering-plan.md`. No code changed this session.
+- Empirically verified (downloaded and ran both real candidate npm packages in Node, byte-inspected their shipped bundles, fetched Graphviz's own official license page) what a prior session's untested assumption had only guessed at: recommends vendoring `@viz-js/viz`'s `dist/viz-global.js` with a CSP change adding `'wasm-unsafe-eval'` only (not the broader `'unsafe-eval'`).
+- One operator-facing open question before implementation can start (plan §9 Q1): the vendored asset also contains a compiled copy of Graphviz, which is EPL-2.0 (corrected from an initial EPL-1.0 assumption) — the first non-MIT-only third-party artifact this project would ship inside the `.vsix`.
+- `PROJECT_LEARNINGS.md` Learning #63 appended: carried-forward "needs X" claims across multiple session handoffs are hypotheses, not facts, however many times repeated.
+
 ### 2026-07-09 · [ad hoc] (Session 54 workspace symbol provider — BACKLOG item #6 now fully SHIPPED)
 - **Implemented** BACKLOG.md "Up Next" item #6: a workspace symbol provider ("Go to Symbol in Workspace"). New `src/core/workspace-symbols.ts` (`flattenOutline`, `matchesWorkspaceQuery`) + `src/providers/workspace-symbols.ts` `registerWorkspaceSymbolsProvider`, reusing the existing `core/qmd/model` `buildOutline` tree (the same one the Outline view/breadcrumbs use) across every `**/*.qmd` file via `vscode.workspace.findFiles`. No `package.json` contribution needed.
 - **New testing infrastructure (Learning #62):** no prior integration suite in this project opened a workspace folder in the Extension Development Host — `findFiles` needs one to search. `test/integration/runTest.ts` now opens `test/fixtures/project` (the existing render-project fixture) as the shared workspace folder for the whole integration run; verified safe for `render-project.ts`'s `resolveStartAndBoundary` (the only other `workspace.workspaceFolders` consumer) by re-running the full integration suite, not just the new one.
