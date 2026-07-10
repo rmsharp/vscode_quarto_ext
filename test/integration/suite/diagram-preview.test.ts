@@ -33,6 +33,7 @@ async function waitFor(
 }
 
 const MERMAID_DOC = "```{mermaid}\nflowchart LR\n  A --> B\n```\n";
+const DOT_DOC = "```{dot}\ndigraph { a -> b }\n```\n";
 
 describe("Quarto: Preview Diagram command", () => {
   before(async () => {
@@ -71,6 +72,21 @@ describe("Quarto: Preview Diagram command", () => {
     assert.ok(
       await waitFor(() => diagramPreviewTabs().length === 1, 5000),
       "a Diagram Preview webview should open for a quarto document",
+    );
+  });
+
+  it("opens a diagram-preview webview for a dot (Graphviz) document", async () => {
+    // Parity with the Mermaid open-test above: proves the vendored Graphviz
+    // asset's localResourceRoots/webview wiring doesn't crash the panel open.
+    // The actual rendered SVG is F5-only residue (client-side WASM render) --
+    // covered at the template-generation level by the pure-core unit tests.
+    await open(DOT_DOC, "quarto");
+
+    await vscode.commands.executeCommand("quarto.previewDiagram");
+
+    assert.ok(
+      await waitFor(() => diagramPreviewTabs().length === 1, 5000),
+      "a Diagram Preview webview should open for a dot document",
     );
   });
 
