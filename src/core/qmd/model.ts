@@ -9,9 +9,12 @@
  * build their indexes on top of the same parse.
  *
  * Known limitations (intentional v1 scope; tracked in the backlog):
- *  - Only ATX headings (`#`..`######`) are recognized. Setext headings (a line
- *    underlined with `===` or `---`) are not — disambiguating a setext `---`
- *    from a thematic break and the front-matter fence needs its own pass.
+ *  - ATX (`#`..`######`) and setext (`===`/`---`-underlined) headings are both
+ *    recognized, but the setext scanner tracks no list/blockquote context, so a
+ *    setext heading nested inside a list item or blockquote (Pandoc supports
+ *    this) is not detected — the underline is left as an ordinary, unclassified
+ *    body line (a false negative, the safe direction; mirrors the accepted
+ *    indented-code-block gap below, which has the same root cause).
  *  - CommonMark §4.4 *indented* code blocks (a line indented ≥4 spaces after a
  *    blank line) are NOT modelled as a skip-region, so `findBodyLines` emits
  *    them and the cross-ref index (`core/refs`) may pick up a `{#fig-…}` shown
@@ -89,15 +92,47 @@ const ATX_CLOSING = /(?:^|[ \t]+)#+[ \t]*$/;
 /**
  * A trailing Pandoc/Quarto heading attribute block — `{#sec-id .class key=val}`.
  * Quarto renders the heading text without it (and the `#sec-` id drives Phase 6b
- * cross-references), so it is stripped from the outline display name here.
+ * cross-references), so it is stripped from the outline display name here. Shared
+ * by ATX and setext headings — Pandoc accepts a trailing attribute block on both.
  */
-const ATX_ATTRIBUTE = /(?:^|[ \t]+)\{[^}]*\}[ \t]*$/;
+const HEADING_ATTRIBUTE = /(?:^|[ \t]+)\{[^}]*\}[ \t]*$/;
 /**
  * The `#identifier` inside a Pandoc attribute block. Pandoc separates id, classes
  * (`.x`), and key=val pairs by whitespace, so the id runs from `#` to the next
  * whitespace or closing brace: `{#sec-intro .unnumbered}` → `sec-intro`.
  */
 const ATTR_ID = /#([^\s}]+)/;
+/**
+ * A setext heading underline (CommonMark §4.3): up to 3 spaces of indentation,
+ * then one or more of a SINGLE char (no spaces between, unlike a thematic break),
+ * then optional trailing whitespace. `=` underlines a level-1 heading; `-`
+ * underlines level-2. Recognized only when it immediately follows exactly one
+ * fresh, non-blank paragraph line (`consecutiveBody === 1` in the scanner below)
+ * — empirically confirmed against Quarto's own installed CLI (`pandoc -f
+ * markdown`, not `gfm`/`commonmark`) that a 2+-line paragraph does NOT promote to
+ * a setext heading; it stays a plain paragraph with the underline as literal
+ * trailing text. This also means a setext heading can never claim the line right
+ * after an ATX heading (the ATX line resets the counter to 0, matching Quarto's
+ * `.qmd` reader's actual single-line-only rule, not the surprising ATX-swallowing
+ * behavior a plain `---`-adjacency edge case can otherwise produce in Pandoc).
+ */
+const SETEXT_H1 = /^ {0,3}=+[ \t]*$/;
+/** A setext level-2 underline — see `SETEXT_H1`. */
+const SETEXT_H2 = /^ {0,3}-+[ \t]*$/;
+/** A line with no non-whitespace content. */
+const BLANK_LINE = /^[ \t]*$/;
+/**
+ * A bullet-list item marker (`-`/`*`/`+` then a space/tab) at the start of a
+ * line. Confirmed against the real Quarto CLI: a lone bullet-list item
+ * immediately followed by a setext underline does NOT become a top-level
+ * heading — Pandoc strips the marker and nests the heading INSIDE the `<li>`.
+ * This model tracks no list context, so it must decline (a false negative)
+ * rather than emit a wrong top-level heading whose text includes the literal
+ * marker. An ordered-list marker (`1.`) or a block quote (`>`) does NOT
+ * trigger this — Pandoc keeps those literal with no nesting, so the general
+ * mechanism already matches real behavior for them, unguarded.
+ */
+const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
 /**
  * A fence opener: up to 3 spaces of indentation (CommonMark §4.5 — 4+ spaces is
  * indented code, not a fence), then ≥3 of ONE fence char (backtick or tilde),
@@ -240,6 +275,11 @@ function scanRegions(text: string): Regions {
   let inFrontmatter = false;
   let inComment = false;
   let open: OpenCellFence | null = null;
+  // Count of consecutive fresh, non-blank body lines immediately above the
+  // current line, reset to 0 on any region boundary (front matter, comment,
+  // fence, blank line) or heading (ATX or setext). A setext underline is only
+  // recognized when this is exactly 1 — see `SETEXT_H1`'s docstring.
+  let consecutiveBody = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -281,10 +321,12 @@ function scanRegions(text: string): Regions {
     }
     // A whole-line single-line comment renders to nothing — skip it entirely.
     if (COMMENT_FULL_LINE.test(line)) {
+      consecutiveBody = 0;
       continue;
     }
     if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line)) {
       inComment = true;
+      consecutiveBody = 0;
       continue;
     }
 
@@ -300,6 +342,32 @@ function scanRegions(text: string): Regions {
         lang: info ? info[1] : "",
         startLine: i,
       };
+      consecutiveBody = 0;
+      continue;
+    }
+
+    // A blank line breaks paragraph continuity — a setext underline cannot
+    // follow one (it becomes a thematic break instead, confirmed against the
+    // real Quarto CLI). Still recorded as body, matching existing behavior.
+    if (BLANK_LINE.test(line)) {
+      bodyLines.push({ line: i, text: line });
+      consecutiveBody = 0;
+      continue;
+    }
+
+    // A setext underline (`===`/`---`-only line) immediately following exactly
+    // one fresh paragraph line converts THAT line into a heading — see
+    // `SETEXT_H1`'s docstring for the disambiguation rule.
+    if (consecutiveBody === 1 && (SETEXT_H1.test(line) || SETEXT_H2.test(line))) {
+      const prev = bodyLines[bodyLines.length - 1];
+      if (!BULLET_LIST_MARKER.test(prev.text)) {
+        const heading = parseSetextHeadingLine(SETEXT_H1.test(line) ? 1 : 2, prev.text, prev.line);
+        if (heading) {
+          headings.push(heading);
+        }
+      }
+      bodyLines.push({ line: i, text: line });
+      consecutiveBody = 0;
       continue;
     }
 
@@ -313,6 +381,9 @@ function scanRegions(text: string): Regions {
       if (heading) {
         headings.push(heading);
       }
+      consecutiveBody = 0;
+    } else {
+      consecutiveBody++;
     }
   }
 
@@ -601,22 +672,53 @@ function sectionEndOf(headings: Heading[], k: number, lastLine: number): number 
 }
 
 /**
+ * Build a `Heading` from a raw heading-text line, or `null` if nothing
+ * displayable remains. Strips a trailing Pandoc attribute block (shared by ATX
+ * and setext) and, for ATX only, an optional closing-hash run — setext has no
+ * such convention, so a literal trailing `##` in setext text is kept verbatim
+ * (confirmed against the real Quarto CLI).
+ */
+function buildHeading(
+  level: number,
+  rawText: string,
+  line: number,
+  stripClosingHash: boolean,
+): Heading | null {
+  const attribute = HEADING_ATTRIBUTE.exec(rawText);
+  const id = attribute ? ATTR_ID.exec(attribute[0])?.[1] : undefined;
+  let text = rawText.replace(HEADING_ATTRIBUTE, "");
+  if (stripClosingHash) {
+    text = text.replace(ATX_CLOSING, "");
+  }
+  text = text.trim();
+  if (!text) {
+    return null;
+  }
+  return id ? { level, text, line, id } : { level, text, line };
+}
+
+/**
  * Build a `Heading` from a matched ATX line, or `null` if nothing displayable
  * remains. The display text drops a trailing Pandoc attribute block and any ATX
  * closing-hash run, so `## Methods {#sec-methods}` → "Methods" and an all-hash
  * `## ##` → dropped.
  */
 function parseHeadingLine(m: RegExpExecArray, line: number): Heading | null {
-  const attribute = ATX_ATTRIBUTE.exec(m[2]);
-  const id = attribute ? ATTR_ID.exec(attribute[0])?.[1] : undefined;
-  const text = m[2]
-    .replace(ATX_ATTRIBUTE, "")
-    .replace(ATX_CLOSING, "")
-    .trim();
-  if (!text) {
-    return null;
-  }
-  return id
-    ? { level: m[1].length, text, line, id }
-    : { level: m[1].length, text, line };
+  return buildHeading(m[1].length, m[2], line, true);
+}
+
+/**
+ * Build a `Heading` from a setext content line + its underline's level (1 for
+ * `=`, 2 for `-`), or `null` if nothing displayable remains after stripping a
+ * trailing Pandoc attribute block. `line` is the CONTENT line's index (where
+ * the readable text is), not the underline's — matching how an ATX heading's
+ * own line is its displayed line, and keeping `buildOutline`'s section-span
+ * math (which reads `Heading.line`) uniform across both heading styles.
+ */
+function parseSetextHeadingLine(
+  level: number,
+  rawText: string,
+  line: number,
+): Heading | null {
+  return buildHeading(level, rawText, line, false);
 }

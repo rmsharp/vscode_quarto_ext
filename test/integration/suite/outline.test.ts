@@ -7,6 +7,7 @@ const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 // out/test/integration/suite -> project root
 const ROOT = path.resolve(__dirname, "../../../..");
 const SAMPLE = path.resolve(ROOT, "test/fixtures/sample.qmd");
+const SETEXT = path.resolve(ROOT, "test/fixtures/setext.qmd");
 
 /**
  * Ask the editor for the document symbols the same way the Outline view and
@@ -67,5 +68,25 @@ describe("Quarto: Document outline (symbols)", () => {
 
     // "## Done" has no cells after it.
     assert.strictEqual(h1.children[1].children.length, 0);
+  });
+
+  it("populates the outline for a document mixing setext and ATX headings", async () => {
+    const symbols = await symbolsFor(SETEXT);
+
+    // One top-level setext H1: "Setext Title" (line 4, 0-based).
+    assert.strictEqual(symbols.length, 1, "one top-level symbol");
+    const h1 = symbols[0];
+    assert.strictEqual(h1.name, "Setext Title");
+    assert.strictEqual(h1.kind, vscode.SymbolKind.String);
+    assert.strictEqual(h1.range.start.line, 4);
+    assert.strictEqual(h1.selectionRange.start.line, 4);
+
+    // Two level-2 children, one ATX (line 9) and one setext (line 13) —
+    // both nest identically through the real, registered provider.
+    assert.deepStrictEqual(
+      h1.children.map((c) => c.name),
+      ["ATX Subsection", "Setext Subsection"],
+    );
+    assert.strictEqual(h1.children[1].range.start.line, 13);
   });
 });

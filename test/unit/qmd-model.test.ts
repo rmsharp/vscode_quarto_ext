@@ -75,6 +75,142 @@ describe("findHeadings — ATX edge rules (CommonMark)", () => {
   });
 });
 
+describe("findHeadings — setext headings", () => {
+  it("recognizes a single-line paragraph underlined with `=` as a level-1 heading", () => {
+    const text = ["Title", "====="].join("\n");
+    expect(findHeadings(text)).toEqual([{ level: 1, text: "Title", line: 0 }]);
+  });
+
+  it("recognizes a single-line paragraph underlined with `-` as a level-2 heading", () => {
+    const text = ["Subtitle", "--------"].join("\n");
+    expect(findHeadings(text)).toEqual([{ level: 2, text: "Subtitle", line: 0 }]);
+  });
+
+  it("accepts a single `=`/`-` character as a valid underline (any run length)", () => {
+    const text = ["One dash", "-"].join("\n");
+    expect(findHeadings(text)).toEqual([{ level: 2, text: "One dash", line: 0 }]);
+  });
+
+  it("treats a `---` after a blank line as a thematic break, not a setext underline", () => {
+    // Confirmed against the real Quarto CLI: a blank line breaks paragraph
+    // continuity, so the dashes render as <hr>, not a heading.
+    const text = ["Paragraph.", "", "---", "", "More."].join("\n");
+    expect(findHeadings(text)).toEqual([]);
+  });
+
+  it("does not promote a 2+-line paragraph to a setext heading", () => {
+    // Confirmed against the real Quarto CLI (`pandoc -f markdown`, the reader
+    // .qmd files actually use): unlike gfm/commonmark, a multi-line paragraph
+    // followed by an underline stays a plain paragraph with the underline as
+    // literal trailing text — it does NOT collapse into one heading.
+    const text = ["Line one", "Line two", "========"].join("\n");
+    expect(findHeadings(text)).toEqual([]);
+  });
+
+  it("does not treat a lone underline with no preceding paragraph as a heading", () => {
+    const text = ["First paragraph.", "", "====="].join("\n");
+    expect(findHeadings(text)).toEqual([]);
+  });
+
+  it("does not re-interpret the line after an ATX heading as setext content", () => {
+    // A deliberate, documented divergence from Pandoc's own surprising
+    // behavior here (verified: Pandoc actually swallows "# Heading\n---" into
+    // a level-2 heading with a literal "#" — see PROJECT_LEARNINGS.md). This
+    // model keeps the already-established, tested ATX heading and leaves the
+    // following underline unclassified rather than risk regressing ATX
+    // detection for a rare, arguably malformed adjacency.
+    const text = ["# ATX Heading", "---", "After."].join("\n");
+    expect(findHeadings(text)).toEqual([{ level: 1, text: "ATX Heading", line: 0 }]);
+  });
+
+  it("recognizes a setext heading immediately after front matter closes", () => {
+    const text = ["---", "title: T", "---", "Heading", "---"].join("\n");
+    expect(findHeadings(text)).toEqual([{ level: 2, text: "Heading", line: 3 }]);
+  });
+
+  it("ignores a setext-underline-shaped line inside a code fence", () => {
+    const text = ["```", "not a heading", "---", "```"].join("\n");
+    expect(findHeadings(text)).toEqual([]);
+  });
+
+  it("strips a trailing {#id} attribute block, keeping the id structurally", () => {
+    const text = ["Methods {#sec-methods}", "======="].join("\n");
+    expect(findHeadings(text)).toEqual([
+      { level: 1, text: "Methods", line: 0, id: "sec-methods" },
+    ]);
+  });
+
+  it("does not strip a trailing closing-hash-like run (no ATX convention for setext)", () => {
+    const text = ["Heading ##", "======="].join("\n");
+    expect(findHeadings(text)).toEqual([{ level: 1, text: "Heading ##", line: 0 }]);
+  });
+
+  it("declines to promote a single bullet-list item into a heading", () => {
+    // Confirmed against the real Quarto CLI: `- solo item\n---` renders as
+    // `<li><h2>solo item</h2></li>` — Pandoc strips the "- " marker and nests
+    // the heading INSIDE the list. This model tracks no list context, so
+    // emitting a top-level heading here would be wrong on two counts: the
+    // literal "- " marker would leak into the text, and the heading wouldn't
+    // really be a document-level section. Declining (a false negative) is the
+    // safe direction, consistent with this project's established preference.
+    const text = ["- solo item", "---"].join("\n");
+    expect(findHeadings(text)).toEqual([]);
+  });
+
+  it("declines for `*` and `+` bullet markers too", () => {
+    expect(findHeadings(["* solo item", "---"].join("\n"))).toEqual([]);
+    expect(findHeadings(["+ solo item", "---"].join("\n"))).toEqual([]);
+  });
+
+  it("still promotes an ordered-list-marker-shaped line (Pandoc keeps it literal, no nesting)", () => {
+    // Confirmed: unlike a bullet marker, "1. first\n---" does NOT nest inside
+    // an <ol> — Pandoc keeps "1. first" as literal heading text. No guard
+    // needed; the general mechanism already matches this real behavior.
+    const text = ["1. first", "---"].join("\n");
+    expect(findHeadings(text)).toEqual([{ level: 2, text: "1. first", line: 0 }]);
+  });
+
+  it("still promotes a blockquote-marker-shaped line (Pandoc keeps it literal, no nesting)", () => {
+    // Confirmed: "> quoted\n---" does NOT nest inside a <blockquote> either —
+    // Pandoc keeps "> quoted" as literal heading text.
+    const text = ["> quoted", "---"].join("\n");
+    expect(findHeadings(text)).toEqual([{ level: 2, text: "> quoted", line: 0 }]);
+  });
+});
+
+describe("buildOutline — setext headings", () => {
+  it("nests a setext heading identically to an equivalent ATX heading", () => {
+    const text = ["Title", "=====", "", "prose", "more"].join("\n"); // lastLine = 4
+    const outline = buildOutline(text);
+    expect(outline).toHaveLength(1);
+    expect(outline[0]).toMatchObject({
+      kind: "heading",
+      name: "Title",
+      level: 1,
+      startLine: 0,
+      endLine: 4,
+      selectionLine: 0,
+      children: [],
+    });
+  });
+
+  it("mixes ATX and setext headings in the same nested outline", () => {
+    const text = [
+      "Title", // 0
+      "=====", // 1
+      "## ATX Sub", // 2
+      "Setext Sub", // 3
+      "----------", // 4
+    ].join("\n");
+    const [title] = buildOutline(text);
+    expect(title).toMatchObject({ name: "Title", level: 1, startLine: 0 });
+    expect(title.children.map((c) => [c.name, c.level, c.startLine])).toEqual([
+      ["ATX Sub", 2, 2],
+      ["Setext Sub", 2, 3],
+    ]);
+  });
+});
+
 describe("findHeadings — fence awareness", () => {
   it("ignores a `#` comment inside a {python} executable cell", () => {
     const text = [

@@ -1,0 +1,17 @@
+---
+title: Setext Fixture
+---
+
+Setext Title
+============
+
+Some intro prose.
+
+## ATX Subsection
+
+More prose.
+
+Setext Subsection
+------------------
+
+Even more prose.
