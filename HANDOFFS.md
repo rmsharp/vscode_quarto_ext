@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S70
+date: 2026-07-10
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: Plan BACKLOG.md item 11 (outline granularity — in-cell code-cell symbols + a show/hide toggle), following ARCHITECTURE_WORKSTREAM.md. Deliverable: docs/planning/2026-07-10-outline-granularity-plan.md. In progress.
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+```handoff
 session: S69
 date: 2026-07-10
 status: complete
