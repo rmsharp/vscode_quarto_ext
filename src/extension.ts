@@ -13,6 +13,7 @@ import { registerCreateProjectFeature } from "./features/create-project";
 import { registerDiagramPreviewFeature } from "./features/diagram-preview";
 import { registerEmbeddedLanguageFeature } from "./providers/embedded";
 import { registerExecutionFeature } from "./features/execution";
+import { registerFormatCellFeature } from "./features/format-cell";
 import { registerFormattingFeature } from "./features/formatting";
 import { registerImagePasteFeature } from "./providers/image-paste";
 import { registerMathPreviewFeature } from "./features/math-preview";
@@ -42,6 +43,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerConvertNotebookFeature(context);
   registerPreviewFeature(context);
   registerExecutionFeature(context);
+  registerFormatCellFeature(context);
   registerFormattingFeature(context);
   registerMathPreviewFeature(context);
   registerDiagramPreviewFeature(context);
