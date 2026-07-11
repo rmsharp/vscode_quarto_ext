@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S72
+date: 2026-07-11
+status: pending
+active_task: Finish the pixel-level F5 visual verification for BACKLOG.md item 11 slice 1 (outline show/hide-cells toggle) -- the first BACKLOG.md Active item, filed by Session 71, blocked there on an iTerm2 restart to activate a newly-granted macOS Screen Recording permission. Verification-only, no code changes expected.
+```
+
+```handoff
 session: S71
 date: 2026-07-11
 status: complete
