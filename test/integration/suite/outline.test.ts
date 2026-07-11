@@ -24,6 +24,70 @@ async function symbolsFor(file: string): Promise<vscode.DocumentSymbol[]> {
   return result ?? [];
 }
 
+/** The scheme in-cell symbol forwarding routes through (BACKLOG item 11 slice 2, plan §2.3/§5). */
+const IN_CELL_SYMBOL_SCHEME = "quarto-outline-symbols";
+/** Detail tag on the stand-in's items, so it can be told apart from any other node. */
+const STANDIN_SYMBOL_NAME = "in_cell_fn";
+
+interface SymbolForwardCall {
+  /** The vdoc URI the stand-in was invoked on — proves the request routed through it. */
+  uri: string;
+  /** The vdoc text — proves the content provider served the per-cell-isolated document. */
+  text: string;
+}
+
+let symbolCalls: SymbolForwardCall[] = [];
+/** When true the stand-in still RECORDS the call but returns no symbols (§2.5 degradation case). */
+let symbolStandInReturnsNothing = false;
+const symbolDisposables: vscode.Disposable[] = [];
+
+/**
+ * Register a stand-in DocumentSymbolProvider for the in-cell-symbol-forwarding scheme
+ * (mirrors `embedded.test.ts`'s `registerStandIn` for completion): the bare test host
+ * has no Python/R/Julia extension, so this substitutes for one and records the
+ * URI/text it was invoked on, proving the forward routed THROUGH a per-cell virtual
+ * document. Keyed by `{scheme}` so it fires regardless of whether the vdoc's
+ * languageId resolves in the bare host.
+ */
+function registerSymbolStandIn(): void {
+  symbolDisposables.push(
+    vscode.languages.registerDocumentSymbolProvider(
+      { scheme: IN_CELL_SYMBOL_SCHEME },
+      {
+        provideDocumentSymbols(document) {
+          symbolCalls.push({ uri: document.uri.toString(), text: document.getText() });
+          if (symbolStandInReturnsNothing) {
+            return [];
+          }
+          return [
+            new vscode.DocumentSymbol(
+              STANDIN_SYMBOL_NAME,
+              "",
+              vscode.SymbolKind.Function,
+              new vscode.Range(0, 0, 0, 1),
+              new vscode.Range(0, 0, 0, 1),
+            ),
+          ];
+        },
+      },
+    ),
+  );
+}
+
+async function openInMemory(content: string): Promise<vscode.TextDocument> {
+  const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+  await vscode.window.showTextDocument(doc);
+  return doc;
+}
+
+async function symbolsForDoc(doc: vscode.TextDocument): Promise<vscode.DocumentSymbol[]> {
+  const result = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+    "vscode.executeDocumentSymbolProvider",
+    doc.uri,
+  );
+  return result ?? [];
+}
+
 describe("Quarto: Document outline (symbols)", () => {
   before(async () => {
     const ext = vscode.extensions.getExtension(EXTENSION_ID);
@@ -166,5 +230,151 @@ describe("Quarto: Document outline (symbols)", () => {
       ["ATX Subsection", "Setext Subsection"],
     );
     assert.strictEqual(h1.children[1].range.start.line, 13);
+  });
+});
+
+describe("Quarto: in-cell code symbol forwarding (BACKLOG item 11 slice 2)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  beforeEach(() => {
+    symbolCalls = [];
+    symbolStandInReturnsNothing = false;
+  });
+
+  afterEach(async () => {
+    for (const d of symbolDisposables.splice(0)) {
+      d.dispose();
+    }
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("forwards in-cell python symbols as children of the cell node, through the new scheme", async () => {
+    registerSymbolStandIn();
+    const doc = await openInMemory(["```{python}", "def foo(): pass", "```"].join("\n"));
+
+    const symbols = await symbolsForDoc(doc);
+
+    assert.strictEqual(symbols.length, 1, "one top-level cell node (no headings)");
+    const cellNode = symbols[0];
+    assert.strictEqual(cellNode.name, "```{python}");
+    assert.deepStrictEqual(
+      cellNode.children.map((c) => c.name),
+      [STANDIN_SYMBOL_NAME],
+      "the stand-in's symbol should be forwarded as the cell node's child",
+    );
+    assert.strictEqual(symbolCalls.length, 1, "the stand-in should be invoked once");
+    assert.strictEqual(
+      vscode.Uri.parse(symbolCalls[0].uri).scheme,
+      IN_CELL_SYMBOL_SCHEME,
+      "the request must route through the in-cell-symbol virtual document",
+    );
+  });
+
+  it("isolates a same-language sibling cell (per-cell vdoc, not buildVirtualContent's shared-language one)", async () => {
+    registerSymbolStandIn();
+    const doc = await openInMemory(
+      ["```{python}", "import numpy as np", "```", "```{python}", "np.array([1])", "```"].join(
+        "\n",
+      ),
+    );
+
+    await symbolsForDoc(doc);
+
+    assert.strictEqual(symbolCalls.length, 2, "each cell forwards through its own vdoc");
+    assert.ok(
+      symbolCalls[0].text.includes("import numpy as np") &&
+        !symbolCalls[0].text.includes("np.array([1])"),
+      "the first cell's vdoc keeps only its own body, blanking the sibling cell",
+    );
+    assert.ok(
+      symbolCalls[1].text.includes("np.array([1])") &&
+        !symbolCalls[1].text.includes("import numpy as np"),
+      "the second cell's vdoc keeps only its own body, blanking the sibling cell",
+    );
+  });
+
+  it("does not forward (and does not invoke the stand-in) for an unmapped-language cell", async () => {
+    registerSymbolStandIn();
+    const doc = await openInMemory(["```{bash}", "echo hi", "```"].join("\n"));
+
+    const symbols = await symbolsForDoc(doc);
+
+    assert.deepStrictEqual(symbols[0].children, [], "an unmapped-language cell has no children");
+    assert.strictEqual(symbolCalls.length, 0, "the stand-in must not be invoked for {bash}");
+  });
+
+  it("degrades to zero children (no throw) when the forwarded provider yields nothing", async () => {
+    symbolStandInReturnsNothing = true;
+    registerSymbolStandIn();
+    const doc = await openInMemory(["```{python}", "x = 1", "```"].join("\n"));
+
+    let symbols: vscode.DocumentSymbol[] = [];
+    await assert.doesNotReject(async () => {
+      symbols = await symbolsForDoc(doc);
+    }, "forwarding into a cell whose provider yields nothing must not throw");
+
+    assert.strictEqual(symbolCalls.length, 1, "the cell must still forward through the vdoc");
+    assert.deepStrictEqual(symbols[0].children, [], "an empty upstream result degrades to no children");
+  });
+
+  it("mints a fresh vdoc URI when the cell is edited between outline computations (defeats the per-URI symbol cache, plan §2.3)", async () => {
+    // Calling executeDocumentSymbolProvider twice with NO intervening document
+    // change does NOT re-invoke our provider a second time (VS Code only
+    // recomputes the outline on an actual text change — plan §2.3's Fork 1
+    // finding: "document text changes (keystrokes)" is the one reliably-observed
+    // trigger). So the faithful reproduction of the staleness risk is an EDIT
+    // between two computations — the exact scenario Learning #78 found dangerous
+    // for the top-level provider, now proven for the new in-cell store too.
+    registerSymbolStandIn();
+    const doc = await openInMemory(["```{python}", "x = 1", "```"].join("\n"));
+    const editor = vscode.window.activeTextEditor;
+    assert.ok(editor);
+
+    await symbolsForDoc(doc);
+    assert.ok(
+      symbolCalls[0]?.text.includes("x = 1"),
+      "the first forward should see the original body",
+    );
+
+    await editor.edit((b) =>
+      b.replace(new vscode.Range(1, 0, 1, "x = 1".length), "y = 2"),
+    );
+    await symbolsForDoc(doc);
+
+    assert.strictEqual(symbolCalls.length, 2, "the edit should trigger a fresh outline computation");
+    assert.ok(
+      symbolCalls[1].text.includes("y = 2"),
+      "the second forward must reflect the edit, not serve a stale virtual document",
+    );
+    assert.notStrictEqual(
+      symbolCalls[0].uri,
+      symbolCalls[1].uri,
+      "each computation must mint a DIFFERENT vdoc URI, or a real language server's own " +
+        "internal per-URI cache would serve stale in-cell symbols after the edit (Learning #78)",
+    );
+  });
+
+  it("does not invoke the stand-in at all when quarto.symbols.showCodeCellsInOutline is off", async () => {
+    registerSymbolStandIn();
+    const config = vscode.workspace.getConfiguration("quarto");
+    await config.update("symbols.showCodeCellsInOutline", false, vscode.ConfigurationTarget.Global);
+    try {
+      const doc = await openInMemory(["```{python}", "x = 1", "```"].join("\n"));
+
+      const symbols = await symbolsForDoc(doc);
+
+      assert.strictEqual(symbols.length, 0, "cell nodes are hidden entirely when the toggle is off");
+      assert.strictEqual(
+        symbolCalls.length,
+        0,
+        "no forwarding call should be made for a cell that isn't even shown",
+      );
+    } finally {
+      await config.update("symbols.showCodeCellsInOutline", undefined, vscode.ConfigurationTarget.Global);
+    }
   });
 });
