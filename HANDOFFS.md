@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S69
+date: 2026-07-10
+status: pending
+self_score:
+predecessor_score:
+active_task: IN PROGRESS. Close out BACKLOG.md item 10 (code-cell diagnostics forwarding) under Option A, executing Session 68's plan (docs/planning/2026-07-10-code-cell-diagnostics-plan.md, section 9 Q1). Documentation-only deliverable. Operator resolved the plan's two deferred questions via AskUserQuestion: Q1 = Option A (accept the gap as a permanent, documented limitation, parity with the excluded Visual Editor); Q4 = yes, file the Problems-panel-leakage audit of the existing src/providers/embedded.ts vdocs as a new unranked Polish/deferred BACKLOG.md candidate.
+what_was_done:
+next_steps:
+key_files:
+gotchas:
+runtime_smoke:
+changelog_ref:
+commit: pending
+```
+
+```handoff
 session: S68
 date: 2026-07-10
 status: complete
