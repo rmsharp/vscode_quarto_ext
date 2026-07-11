@@ -57,7 +57,7 @@ see individual rows for what changed and why.
 |---|---|---|
 | **Parity** (same capability, comparable depth) | 17 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion |
 | **We're ahead** | 4 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image *paste* for `.qmd` (Posit's source editor still doesn't support it — drag-drop is a narrower story, see below, Session 67); spell checking in the plain source editor (a documented `cspell` config recipe — Posit's own spell check is Visual-Editor-only — Session 65) |
-| **Real gaps** (Posit has, we don't) | 14 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67, MAJOR), outline granularity (Session 67), Format Cell (Session 67), Reticulate execution (Session 67), cell navigation/cache commands (Session 67), `_quarto.yml` document links + filepath completion (Session 67), standalone diagram/typst language registration (Session 67), cell-background highlighting (Session 67), preview-command-family breadth (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65 |
+| **Real gaps** (Posit has, we don't) | 14 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), outline granularity (Session 67), Format Cell (Session 67), Reticulate execution (Session 67), cell navigation/cache commands (Session 67), `_quarto.yml` document links + filepath completion (Session 67), standalone diagram/typst language registration (Session 67), cell-background highlighting (Session 67), preview-command-family breadth (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65 |
 | **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 | **Soft / ambiguous comparison** (new bucket, Session 67) | 3 | per-key nested/deep YAML completion depth (neither side has an exhaustive inventory); project-wide/multi-file cross-ref & citation intelligence (both largely single-file-scoped, Posit's is conditional); extensibility surfaces — a public CLI-query API and Quarto-Extension/Lua-authoring support (developer-facing, arguably outside this doc's own "what a document author can do" scope) |
 
@@ -69,8 +69,14 @@ Visual Editor in Posit's own implementation, but plain-source-editor spell check
 independently solvable (Session 65) — see above. **Session 67's exhaustive manifest diff found the
 second-largest gap was hiding in plain sight**: Posit now forwards the embedded language server's own
 diagnostics (squiggly underlines from Pylance/Ruff/etc.) directly into `.qmd` code cells (since v1.133.0) —
-this project has zero code-cell diagnostics of any kind, only YAML diagnostics. See "Code-cell language
-embedding" below.
+this project has zero code-cell diagnostics of any kind, only YAML diagnostics. **Session 68/69: unlike
+every other Session 67 finding, this one was investigated (`docs/planning/2026-07-10-code-cell-diagnostics-plan.md`)
+and found to be architecturally hard, not merely unimplemented** — VS Code's request-forwarding API (what
+this project's existing embedded-language forwarding already uses for completion/hover) cannot serve
+diagnostics at all, and closing the gap the way Posit did requires spawning and owning a dedicated external
+language-server process, a new class of dependency this project has never taken on. The operator decided
+(Session 69) to accept this as a permanent, documented gap — the same treatment as the excluded Visual
+Editor — rather than take on that dependency. See "Code-cell language embedding" below.
 
 ---
 
@@ -241,11 +247,22 @@ embedding" below.
   `true`) and `.debounceDelay` (default 500ms), alongside the pre-existing
   `quarto.cells.hoverHelp.enabled`/`quarto.cells.signatureHelp.enabled` toggles.
 - *Notes:* We still match on substance for completion/hover/go-to-def/signature-help across all four
-  languages (more granular and better test-evidenced than what Posit's docs page shows). But diagnostics
-  forwarding is a real, substantive, and recent gap — a Python code cell with a real type error or lint
-  violation shows nothing in this project, where Posit's extension shows the same red squiggle the user
-  would see in a plain `.py` file. This is the single largest *incremental* (non-Visual-Editor) gap this
-  refresh found.
+  languages (more granular and better test-evidenced than what Posit's docs page shows). Diagnostics
+  forwarding is a real, substantive gap — a Python code cell with a real type error or lint violation shows
+  nothing in this project, where Posit's extension shows the same red squiggle the user would see in a
+  plain `.py` file — and was the single largest *incremental* (non-Visual-Editor) gap Session 67's refresh
+  found. **Session 68 investigated it and found it is not a simple extension of the existing forwarding
+  architecture** (contra this row's own original framing): VS Code's own Extension API docs state directly
+  that diagnostics cannot be served by request-forwarding (no `vscode.executeDiagnosticProvider` pull
+  command exists) — confirmed independently three ways (the official docs; five firsthand Extension
+  Development Host tests showing this project's existing vdoc pattern gets zero diagnostics unless the
+  document is a genuinely visible, active editor tab, which cannot coexist with the user editing their real
+  `.qmd` tab; and Posit's own PR prose, which shows they solved it by abandoning delegation to the user's
+  installed extension entirely in favor of spawning and owning their own dedicated language-server
+  connections). **Session 69: the operator decided to accept this as a permanent, documented gap** — the
+  same treatment as the excluded Visual Editor — rather than take on that new class of dependency, closing
+  `BACKLOG.md` item 10 as investigated-not-pursued. Full evidence trail:
+  `docs/planning/2026-07-10-code-cell-diagnostics-plan.md`.
 
 ---
 
@@ -665,12 +682,16 @@ highlighting). Rough priority order, weighing everyday-authoring impact against 
 size (sizes are impressions from this refresh's research, not a planning-session estimate — a future
 planning session should still verify before implementing):
 
-1. **Code-cell diagnostics forwarding** (embedded LSP diagnostics — e.g. Pylance/Ruff squiggly
-   underlines — surfaced inside `.qmd` code cells). The single biggest incremental gap this refresh
-   found: a real, everyday-visible correctness signal (type errors, lint violations) that Posit's users
-   get in code cells and this project's users don't. Builds on the existing `src/providers/embedded.ts`
-   forwarding infrastructure (completion/hover/go-to-def/signature-help already forward the same way);
-   diagnostics would be a new forwarding kind on the same architecture, not a new subsystem.
+1. ~~**Code-cell diagnostics forwarding**~~ — **Investigated and closed as not pursued (Option A, Session
+   68/69, `BACKLOG.md` item 10).** This item's original framing above ("builds on the existing
+   `src/providers/embedded.ts` forwarding infrastructure... a new forwarding kind on the same architecture,
+   not a new subsystem") turned out to be **empirically wrong** — diagnostics cannot be served by that
+   pull-based forwarding mechanism at all (VS Code API limitation, confirmed three independent ways; see
+   the "Code-cell language embedding" row above). Closing this gap the way Posit did requires spawning and
+   owning a dedicated external language-server process — a materially heavier architecture and a new class
+   of dependency this project has never taken on. The operator decided to accept the gap permanently
+   instead, the same treatment as the excluded Visual Editor. Full evidence trail:
+   `docs/planning/2026-07-10-code-cell-diagnostics-plan.md`.
 2. **Outline granularity** (in-cell code symbols, a show/hide-cells toggle). Builds directly on the
    existing `DocumentSymbolProvider` (`src/providers/outline.ts`) this project already has — a natural
    next increment after Session 66's setext-heading work, on the same provider.
