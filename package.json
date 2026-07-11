@@ -183,6 +183,11 @@
         "command": "quarto.previewDiagram",
         "title": "Preview Diagram",
         "category": "Quarto"
+      },
+      {
+        "command": "quarto.toggleCodeCellsInOutline",
+        "title": "Toggle Code Cells in Outline",
+        "category": "Quarto"
       }
     ],
     "menus": {
@@ -269,6 +274,11 @@
           "type": "string",
           "default": "",
           "markdownDescription": "Absolute path to the `quarto` executable. When empty, the extension resolves `quarto` from the `PATH`."
+        },
+        "quarto.symbols.showCodeCellsInOutline": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show code cells in the Outline view and editor breadcrumbs."
         }
       }
     },

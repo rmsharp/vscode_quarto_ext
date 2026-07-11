@@ -7,6 +7,7 @@ import {
   findBodyLines,
   findCellAtPosition,
   findHeadings,
+  hideCellsInOutline,
 } from "../../src/core/qmd/model";
 
 describe("findHeadings — basic ATX parsing", () => {
@@ -460,6 +461,39 @@ describe("buildOutline — nested symbol tree", () => {
       ["cell", "```{r}"],
       ["heading", "H"],
     ]);
+  });
+});
+
+describe("hideCellsInOutline — the show/hide-cells toggle's pure filter", () => {
+  it("removes a top-level cell node, keeping headings", () => {
+    const text = ["```{r}", "y <- 2", "```", "# H"].join("\n");
+    const roots = hideCellsInOutline(buildOutline(text));
+    expect(roots.map((r) => [r.kind, r.name])).toEqual([["heading", "H"]]);
+  });
+
+  it("removes a cell nested under a heading, leaving the heading with no children", () => {
+    const text = ["# H", "```{python}", "x = 1", "```"].join("\n");
+    const [h] = hideCellsInOutline(buildOutline(text));
+    expect(h).toMatchObject({ kind: "heading", name: "H", children: [] });
+  });
+
+  it("removes cells nested at multiple depths, preserving heading nesting", () => {
+    const text = [
+      "# A", // 0
+      "## B", // 1
+      "```{r}", // 2
+      "z <- 3", // 3
+      "```", // 4
+    ].join("\n");
+    const [a] = hideCellsInOutline(buildOutline(text));
+    expect(a.children).toHaveLength(1);
+    expect(a.children[0]).toMatchObject({ name: "B", children: [] });
+  });
+
+  it("is a no-op when there are no cell nodes", () => {
+    const text = ["# A", "## B", "## C"].join("\n");
+    const outline = buildOutline(text);
+    expect(hideCellsInOutline(outline)).toEqual(outline);
   });
 });
 

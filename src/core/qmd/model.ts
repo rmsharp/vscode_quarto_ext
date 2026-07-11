@@ -659,6 +659,18 @@ export function buildOutline(text: string): OutlineSymbol[] {
 }
 
 /**
+ * Recursively drop `cell`-kind nodes from an outline tree, keeping headings
+ * and their remaining structure — the pure half of the show/hide-cells
+ * toggle. The adapter (`providers/outline.ts`) reads the live `vscode`
+ * setting and calls this.
+ */
+export function hideCellsInOutline(symbols: OutlineSymbol[]): OutlineSymbol[] {
+  return symbols
+    .filter((s) => s.kind !== "cell")
+    .map((s) => ({ ...s, children: hideCellsInOutline(s.children) }));
+}
+
+/**
  * The 0-based line where heading `k`'s section ends: one line before the next
  * heading of equal-or-higher level, or the last line of the document if none.
  */

@@ -70,6 +70,84 @@ describe("Quarto: Document outline (symbols)", () => {
     assert.strictEqual(h1.children[1].children.length, 0);
   });
 
+  it("hides code-cell nodes when quarto.symbols.showCodeCellsInOutline is false", async () => {
+    const config = vscode.workspace.getConfiguration("quarto");
+    await config.update(
+      "symbols.showCodeCellsInOutline",
+      false,
+      vscode.ConfigurationTarget.Global,
+    );
+    try {
+      const symbols = await symbolsFor(SAMPLE);
+
+      // Headings are unaffected — only cell nodes are hidden.
+      const h1 = symbols[0];
+      assert.deepStrictEqual(
+        h1.children.map((c) => c.name),
+        ["Embedded code cells", "Done"],
+      );
+      const embedded = h1.children[0];
+      assert.strictEqual(
+        embedded.children.length,
+        0,
+        "cell nodes should be hidden when the toggle is off",
+      );
+    } finally {
+      await config.update(
+        "symbols.showCodeCellsInOutline",
+        undefined,
+        vscode.ConfigurationTarget.Global,
+      );
+    }
+  });
+
+  it("quarto.toggleCodeCellsInOutline flips the setting and the outline reflects it immediately", async () => {
+    const config = vscode.workspace.getConfiguration("quarto");
+    try {
+      assert.strictEqual(
+        config.get<boolean>("symbols.showCodeCellsInOutline"),
+        true,
+        "starts at the declared default",
+      );
+
+      await vscode.commands.executeCommand("quarto.toggleCodeCellsInOutline");
+      assert.strictEqual(
+        vscode.workspace
+          .getConfiguration("quarto")
+          .get<boolean>("symbols.showCodeCellsInOutline"),
+        false,
+        "first toggle turns the setting off",
+      );
+      let symbols = await symbolsFor(SAMPLE);
+      assert.strictEqual(
+        symbols[0].children[0].children.length,
+        0,
+        "outline reflects the off state immediately, no reopen needed",
+      );
+
+      await vscode.commands.executeCommand("quarto.toggleCodeCellsInOutline");
+      assert.strictEqual(
+        vscode.workspace
+          .getConfiguration("quarto")
+          .get<boolean>("symbols.showCodeCellsInOutline"),
+        true,
+        "second toggle turns the setting back on",
+      );
+      symbols = await symbolsFor(SAMPLE);
+      assert.strictEqual(
+        symbols[0].children[0].children.length,
+        4,
+        "outline reflects the on state immediately",
+      );
+    } finally {
+      await config.update(
+        "symbols.showCodeCellsInOutline",
+        undefined,
+        vscode.ConfigurationTarget.Global,
+      );
+    }
+  });
+
   it("populates the outline for a document mixing setext and ATX headings", async () => {
     const symbols = await symbolsFor(SETEXT);
 
