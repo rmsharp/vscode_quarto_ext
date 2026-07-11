@@ -100,3 +100,29 @@ export function buildVirtualContent(text: string, languageId: string): string {
     .map((line, i) => (keep.has(i) ? line : " ".repeat(line.length)))
     .join("\n");
 }
+
+/**
+ * The virtual document for exactly ONE cell (BACKLOG item 11 slice 2, outline
+ * in-cell symbol forwarding, plan §2.1/§2.3). `buildVirtualContent` above keeps
+ * EVERY cell of a given language — correct for cursor-position forwarding
+ * (completion/hover/definition/signature-help only care about one position),
+ * but wrong for document-symbol forwarding: two same-language cells would merge
+ * into one indistinguishable symbol list. This isolates `cell`'s own interior
+ * body lines (excluding its `#|`/`//|` option lines, which are YAML directives,
+ * not language code) and blanks everything else — prose, YAML, fences, and
+ * every OTHER cell, even a same-language sibling — so the forwarded symbols can
+ * be attributed to `cell` alone. Same identity-mapping contract as
+ * `buildVirtualContent` (length- and newline-preserving, built from the RAW
+ * text, so it is CRLF-safe).
+ */
+export function buildCellVirtualContent(text: string, cell: Cell): string {
+  const lines = text.split("\n");
+  const optionLines = new Set(findCellOptionLines(text).map((o) => o.line));
+  const lastBody = cell.startLine + bodyLineCount(cell);
+  return lines
+    .map((line, i) => {
+      const inBody = i > cell.startLine && i <= lastBody && !optionLines.has(i);
+      return inBody ? line : " ".repeat(line.length);
+    })
+    .join("\n");
+}

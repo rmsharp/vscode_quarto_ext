@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { findAllCells } from "../../src/core/qmd/model";
 import {
+  buildCellVirtualContent,
   buildVirtualContent,
   embeddedCellAt,
 } from "../../src/core/embedded/virtual-doc";
@@ -147,6 +149,70 @@ describe("buildVirtualContent — multi-language documents (6e-2)", () => {
       expect(v.length).toBe(MIXED.length);
       expect(newlineIndices(v)).toEqual(newlineIndices(MIXED));
     }
+  });
+});
+
+describe("buildCellVirtualContent — isolates exactly ONE cell (BACKLOG item 11 slice 2)", () => {
+  it("keeps only the target cell's body, blanking a same-language sibling cell", () => {
+    const text = [
+      "```{python}", // 0
+      "import numpy as np", // 1
+      "```", // 2
+      "Some prose.", // 3
+      "```{python}", // 4
+      "np.array([1])", // 5  a DIFFERENT python cell — must be blanked
+      "```", // 6
+    ].join("\n");
+    const [first, second] = findAllCells(text);
+    const v = buildCellVirtualContent(text, first).split("\n");
+    expect(v[1]).toBe("import numpy as np");
+    expect(v[5]).toBe(" ".repeat("np.array([1])".length));
+    // Sanity: the second cell's own vdoc keeps ITS body and blanks the first's.
+    const v2 = buildCellVirtualContent(text, second).split("\n");
+    expect(v2[1]).toBe(" ".repeat("import numpy as np".length));
+    expect(v2[5]).toBe("np.array([1])");
+  });
+
+  it("blanks the cell's own `#|` option line (not passed to the language's symbol parser)", () => {
+    const text = ["```{python}", "#| echo: false", "import pandas as pd", "```"].join("\n");
+    const [cell] = findAllCells(text);
+    const v = buildCellVirtualContent(text, cell).split("\n");
+    expect(v[1]).toBe(" ".repeat("#| echo: false".length));
+    expect(v[2]).toBe("import pandas as pd");
+  });
+
+  it("blanks prose, YAML front matter, and fence lines", () => {
+    const text = [
+      "---",
+      "title: Demo",
+      "---",
+      "Some prose.",
+      "```{python}",
+      "x = 1",
+      "```",
+    ].join("\n");
+    const [cell] = findAllCells(text);
+    const v = buildCellVirtualContent(text, cell).split("\n");
+    expect(v[1]).toBe(" ".repeat("title: Demo".length));
+    expect(v[3]).toBe(" ".repeat("Some prose.".length));
+    expect(v[4]).toBe(" ".repeat("```{python}".length));
+    expect(v[5]).toBe("x = 1");
+    expect(v[6]).toBe(" ".repeat("```".length));
+  });
+
+  it("is the identity map: same length and same newline positions as the source", () => {
+    const v = buildCellVirtualContent(DOC, findAllCells(DOC)[0]);
+    expect(v.length).toBe(DOC.length);
+    expect(newlineIndices(v)).toEqual(newlineIndices(DOC));
+  });
+
+  it("stays length/newline-preserving on a CRLF document (built from raw text)", () => {
+    const crlf = ["```{python}", "x = 1", "```"].join("\r\n");
+    const [cell] = findAllCells(crlf);
+    const v = buildCellVirtualContent(crlf, cell);
+    expect(v.length).toBe(crlf.length);
+    expect(newlineIndices(v)).toEqual(newlineIndices(crlf));
+    expect(v.split("\n")[1]).toBe("x = 1\r");
   });
 });
 
