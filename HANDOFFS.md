@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S76
+date: 2026-07-11
+status: pending
+active_task: IN PROGRESS. BACKLOG.md item 13(a) -- embedded-grammar breadth. Expand syntaxes/quarto.tmLanguage.json's cell-language repository + package.json's embeddedLanguages map for 15 commonly-used languages (bash, c, cpp, csharp, fsharp, rust, go, sql, lua, ruby, php, perl, java, dockerfile, powershell), confirmed against this project's own bundled VS Code install's built-in extensions. Following DEVELOPMENT_WORKSTREAM.md with this project's strict TDD gate, using the existing headless-tokenization harness (test/unit/grammar.test.ts / tokenize.test.ts, vscode-textmate/vscode-oniguruma).
+```
+
+```handoff
 session: S75
 date: 2026-07-11
 status: complete
