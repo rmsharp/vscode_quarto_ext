@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S74
+date: 2026-07-11
+status: pending
+active_task: Pixel-level F5 visual pass for BACKLOG.md item 11 Slice 2 (in-cell code symbol forwarding) -- a real screenshot showing in-cell symbols nested under a cell node in the live Outline panel. Verification-only, no code changes expected.
+```
+
+```handoff
 session: S73
 date: 2026-07-11
 status: complete
