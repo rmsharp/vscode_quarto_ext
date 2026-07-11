@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S75
+date: 2026-07-11
+status: pending
+active_task: Implementing BACKLOG.md item 12 (Format Cell / quarto.formatCell) -- delegate a code cell's body to its embedded language's own formatter (e.g. Black/autopep8 for Python, styler for R) via a virtual document, preserving #|/`//|` cell-option directive lines. Following DEVELOPMENT_WORKSTREAM.md with this project's strict TDD gate.
+```
+
+```handoff
 session: S74
 date: 2026-07-11
 status: complete
