@@ -18,6 +18,21 @@
     { "include": "#cell-r" },
     { "include": "#cell-julia" },
     { "include": "#cell-ojs" },
+    { "include": "#cell-bash" },
+    { "include": "#cell-c" },
+    { "include": "#cell-cpp" },
+    { "include": "#cell-csharp" },
+    { "include": "#cell-fsharp" },
+    { "include": "#cell-rust" },
+    { "include": "#cell-go" },
+    { "include": "#cell-sql" },
+    { "include": "#cell-lua" },
+    { "include": "#cell-ruby" },
+    { "include": "#cell-php" },
+    { "include": "#cell-perl" },
+    { "include": "#cell-java" },
+    { "include": "#cell-dockerfile" },
+    { "include": "#cell-powershell" },
     { "include": "#cell-generic" },
     { "include": "text.html.markdown" }
   ],
@@ -97,6 +112,246 @@
       "name": "markup.fenced_code.block.quarto",
       "contentName": "meta.embedded.block.ojs",
       "patterns": [{ "include": "source.js" }]
+    },
+    "cell-bash": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(bash)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.bash",
+      "patterns": [{ "include": "source.shell" }]
+    },
+    "cell-c": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(c)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.c",
+      "patterns": [{ "include": "source.c" }]
+    },
+    "cell-cpp": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(cpp)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.cpp",
+      "patterns": [{ "include": "source.cpp" }]
+    },
+    "cell-csharp": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(csharp)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.csharp",
+      "patterns": [{ "include": "source.cs" }]
+    },
+    "cell-fsharp": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(fsharp)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.fsharp",
+      "patterns": [{ "include": "source.fsharp" }]
+    },
+    "cell-rust": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(rust)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.rust",
+      "patterns": [{ "include": "source.rust" }]
+    },
+    "cell-go": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(go)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.go",
+      "patterns": [{ "include": "source.go" }]
+    },
+    "cell-sql": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(sql)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.sql",
+      "patterns": [{ "include": "source.sql" }]
+    },
+    "cell-lua": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(lua)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.lua",
+      "patterns": [{ "include": "source.lua" }]
+    },
+    "cell-ruby": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(ruby)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.ruby",
+      "patterns": [{ "include": "source.ruby" }]
+    },
+    "cell-php": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(php)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.php",
+      "patterns": [{ "include": "source.php" }]
+    },
+    "cell-perl": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(perl)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.perl",
+      "patterns": [{ "include": "source.perl" }]
+    },
+    "cell-java": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(java)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.java",
+      "patterns": [{ "include": "source.java" }]
+    },
+    "cell-dockerfile": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(dockerfile)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.dockerfile",
+      "patterns": [{ "include": "source.dockerfile" }]
+    },
+    "cell-powershell": {
+      "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?(powershell)\\b.*$",
+      "beginCaptures": {
+        "2": { "name": "punctuation.definition.fenced_code.begin.quarto" },
+        "3": {
+          "name": "fenced_code.block.language.quarto entity.name.tag.quarto"
+        }
+      },
+      "end": "^\\s*(\\2)\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.fenced_code.end.quarto" }
+      },
+      "name": "markup.fenced_code.block.quarto",
+      "contentName": "meta.embedded.block.powershell",
+      "patterns": [{ "include": "source.powershell" }]
     },
     "cell-generic": {
       "begin": "(?i)^(\\s*)(`{3,}|~{3,})\\s*\\{=?([^},\\s]+).*$",

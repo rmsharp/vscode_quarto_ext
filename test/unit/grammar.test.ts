@@ -86,6 +86,21 @@ describe("quarto.tmLanguage.json", () => {
       ["cell-r", "meta.embedded.block.r", "source.r"],
       ["cell-julia", "meta.embedded.block.julia", "source.julia"],
       ["cell-ojs", "meta.embedded.block.ojs", "source.js"],
+      ["cell-bash", "meta.embedded.block.bash", "source.shell"],
+      ["cell-c", "meta.embedded.block.c", "source.c"],
+      ["cell-cpp", "meta.embedded.block.cpp", "source.cpp"],
+      ["cell-csharp", "meta.embedded.block.csharp", "source.cs"],
+      ["cell-fsharp", "meta.embedded.block.fsharp", "source.fsharp"],
+      ["cell-rust", "meta.embedded.block.rust", "source.rust"],
+      ["cell-go", "meta.embedded.block.go", "source.go"],
+      ["cell-sql", "meta.embedded.block.sql", "source.sql"],
+      ["cell-lua", "meta.embedded.block.lua", "source.lua"],
+      ["cell-ruby", "meta.embedded.block.ruby", "source.ruby"],
+      ["cell-php", "meta.embedded.block.php", "source.php"],
+      ["cell-perl", "meta.embedded.block.perl", "source.perl"],
+      ["cell-java", "meta.embedded.block.java", "source.java"],
+      ["cell-dockerfile", "meta.embedded.block.dockerfile", "source.dockerfile"],
+      ["cell-powershell", "meta.embedded.block.powershell", "source.powershell"],
     ];
     for (const [key, scope, source] of cells) {
       const rule = grammar.repository[key];
