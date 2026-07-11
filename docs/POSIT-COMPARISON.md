@@ -211,9 +211,12 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
 
 ## Editing & Language Support
 
-**Syntax highlighting / language registration for `.qmd`. (Verdict revised — Session 67: Parity → Real gap.)**
+**Syntax highlighting / language registration for `.qmd`. (Verdict revised — Session 67: Parity → Real gap; breadth partially closed Session 76.)**
 - *Ours:* Present — registers a `quarto` language for `.qmd`/`.rmd`/`.Rmd`, TextMate grammar
-  (`text.html.quarto`), 5 embedded scopes (yaml/frontmatter, python, r, julia, javascript/ojs).
+  (`text.html.quarto`), **20 embedded scopes** as of Session 76 (yaml/frontmatter, python, r, julia,
+  javascript/ojs, bash, c, cpp, csharp, fsharp, rust, go, sql, lua, ruby, php, perl, java, dockerfile,
+  powershell — BACKLOG item 13(a), each confirmed against this repo's own bundled `.vscode-test` VS Code
+  install's built-in extensions, not guessed).
 - *Posit's:* Present — "Syntax highlighting for markdown and embedded languages," but **Session 67's
   manifest diff found the grammar's `embeddedLanguages` map currently lists 50 scope keys**, not just
   the 4 languages this doc previously framed the comparison around — bash/shell, C/C++/C#/F#, Rust, Go,
@@ -222,12 +225,15 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   highlighting on top of the static grammar** when the user's installed language extension supplies an
   LSP with semantic-highlighting support (Posit's own documented example: Pylance) — a second, distinct
   highlighting mechanism this project has none of.
-- *Notes:* **No longer "Direct parity."** Two distinct, previously-uncovered gaps: (1) breadth — our
-  5-scope embedded-language map vs. Posit's 50 (two of theirs, `dot`/`mermaid`, are also registered as
-  standalone first-class languages outside `.qmd` entirely — see the new "Standalone diagram/typst
-  language registration" row below, which this breadth gap is distinct from but related to); (2)
-  mechanism — no `SemanticTokensProvider` of any kind in this project, so embedded code never gets
-  LSP-driven semantic coloring, only static TextMate coloring.
+- *Notes:* **No longer "Direct parity."** Two distinct, previously-uncovered gaps: (1) breadth —
+  **narrowed Session 76 from 5 scopes to 20** (our new count) vs. Posit's 50; the residual gap is
+  `dot`/`mermaid`/`typst` (deliberately excluded from item 13(a) — see the new "Standalone diagram/typst
+  language registration" row below, a distinct registration mechanism, not this grammar's
+  `embeddedLanguages` map) and Stan/PRQL/Scala/others from Posit's undisclosed "and more" (no confirmed
+  VS-Code-bundled scope for these; Scala in particular is not bundled, unlike everything else on the
+  list, so a real one needs its own firsthand research, not assumption); (2) mechanism — no
+  `SemanticTokensProvider` of any kind in this project, so embedded code never gets LSP-driven semantic
+  coloring, only static TextMate coloring (item 16, unranked, likely its own planning session).
 
 **Code-cell language embedding — completion/hover/go-to-def/signature-help/diagnostics forwarding.
 (Verdict revised — Session 67: previously ambiguous/unbucketed → Real gap.)**
