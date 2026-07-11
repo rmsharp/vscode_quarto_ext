@@ -66,7 +66,9 @@ For any Quarto-document fixtures the doc-build equivalent is `quarto render`.
 
 ### Additional Phase 0 steps
 
-(none)
+**Present open backlog candidates via `AskUserQuestion` immediately after the Phase 0 report, whenever `BACKLOG.md`'s "Active" section is empty.** Rank the still-open items across `BACKLOG.md`'s "Up Next" list and any relevant "Polish / deferred" items, then hand the top ones to `AskUserQuestion` (max 4 options; recommend the top-ranked one) rather than free-form prose. If more than 4 open candidates exist, surface the top-ranked ones plus a catch-all "something lower-priority" option, and only drill into the remainder with a follow-up question if the operator picks the catch-all. This satisfies Phase 0 step 8's "STOP. Wait for the user to give you a task" — presenting a structured choice and blocking on the answer *is* waiting, not working; it does not license skipping the stop, starting work unprompted, or picking unilaterally.
+
+*Origin: operator directive, Session 75 (2026-07-11) — formalizes a pattern already used ad hoc in Sessions 71/73/74 into a standing procedural step, so it fires automatically at every future Phase 0 rather than being re-derived per session. See also the standing `feedback` memory `candidate-list-selection` (general interaction preference: arrow+enter selection over a typed-digit prose list).*
 
 ### Additional task-to-workstream mappings
 

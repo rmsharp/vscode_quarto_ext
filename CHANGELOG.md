@@ -9,6 +9,10 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-11 · [ad hoc] (Session 75 — codified automatic AskUserQuestion candidate-presentation at Phase 0)
+- Added an "Additional Phase 0 steps" override to `CLAUDE.md` (was `(none)`): whenever `BACKLOG.md`'s "Active" section is empty at Phase 0, present the ranked open candidates via `AskUserQuestion` immediately after the orientation report, rather than a bare stop-and-wait or free-form prose. Formalizes a pattern already used ad hoc in Sessions 71/73/74. No `src/`/`test/` files touched — pure process documentation, TDD-exempt.
+- Confirmed all items surfaced by Session 67's refreshed ("2nd") Posit gap analysis remain accounted for in `BACKLOG.md`: items 12–17 (Up Next, ranked) and item 11's two deferred sub-items (Polish/deferred) are all present; nothing missing.
+
 ### 2026-07-11 · [BL-11] (Session 74 — outline in-cell code symbol forwarding, pixel-level F5 visual confirmation, `BACKLOG.md` item 11 slice 2, SHIPPED)
 - **Verification-only, no code changes.** Closed the gap Session 73 disclosed: a pixel-level F5 visual pass proving in-cell code symbol forwarding actually renders real nested symbols in the live Outline panel, not just at the command/API layer.
 - A scratch `{ojs}` fixture (a `computeSum` function + a `total` variable — `{ojs}` maps to `javascript`, served by VS Code's built-in TS/JS language service with no extra extension needed) was opened in an isolated, `--disable-extensions` Extension Development Host. The resulting screenshot shows the `{ojs}` cell node recursively expanded into `computeSum` (with its own nested `data.reduce() callback` child, proving the language service's real recursive symbol tree forwarded through) and `total`. Both slices of item 11 are now fully verified at both the command/API and pixel layers; `BACKLOG.md` item 11 checked off.
