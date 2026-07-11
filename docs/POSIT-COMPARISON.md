@@ -3,7 +3,8 @@
 **Purpose.** This project (`vscode_quarto_ext`, MIT-licensed) independently reimplements many of the
 authoring features found in Posit's official Quarto extension for VS Code. This document compares the
 two on **features only** — what a user can do — grounded in our own source and in Posit's public
-documentation, changelog, and manifest facts. Requested by the operator (Session 29); authored Session 42.
+documentation, changelog, and manifest facts. Requested by the operator (Session 29); authored Session 42;
+refreshed Session 67 (see "Session 67 refresh" below).
 
 **The licensing boundary (read this first).** Posit's official extension — including its Visual Editor
 (built on a ProseMirror fork called Panmirror) and its language-server components — is licensed
@@ -15,33 +16,61 @@ See `PROJECT_LEARNINGS.md` Learning #1.
 
 **Methodology.** Our own inventory was grounded against this repo's `ROADMAP.md`, `CHANGELOG.md`,
 `package.json`, and `src/`. Posit's inventory was researched via parallel web-research agents against
-`quarto.org` docs, the VS Code Marketplace listing, and the `quarto-dev/quarto` repository's public
-`README.md`/`CHANGELOG.md`/`package.json` manifest (`apps/vscode/`, formerly the archived
-`quarto-dev/quarto-vscode`). **Every one of the 31 rows below was then adversarially refute-checked** by
-an independent agent with repo access (re-grepping our claims) and web access (re-fetching Posit's cited
-sources) — not to rubber-stamp the claim, but to find what was wrong with it. 14 of 31 rows had a real
-defect caught and corrected: stale citations (a 2022 changelog entry cited as current), wrong URLs (a
-quote attributed to a page that didn't contain it), overclaims (calling one-level-deep completion
-"recursive"), and understatements (undercounting a command-family gap by half). The rows below reflect
-the **corrected, verified** claims, not the first draft.
+`quarto.org` docs (currently split across `quarto.org/docs/tools/vscode/index.html` and a separate
+`.../visual-editor.html` page — the old unqualified `vscode.html` URL now just redirects), the VS Code
+Marketplace listing, and the `quarto-dev/quarto` repository's public `README.md`/`CHANGELOG.md`/`package.json`
+manifest (`apps/vscode/`, formerly the archived `quarto-dev/quarto-vscode`). **Every one of the 31 original
+rows was adversarially refute-checked** by an independent agent with repo access (re-grepping our claims)
+and web access (re-fetching Posit's cited sources) — not to rubber-stamp the claim, but to find what was
+wrong with it. 14 of 31 rows had a real defect caught and corrected: stale citations (a 2022 changelog entry
+cited as current), wrong URLs (a quote attributed to a page that didn't contain it), overclaims (calling
+one-level-deep completion "recursive"), and understatements (undercounting a command-family gap by half).
+
+**Session 67 refresh.** The rows above were last comprehensively re-swept against Posit's *current* state
+at Session 42 (with individual rows spot-corrected through Session 65) — the highest Posit version number
+cited anywhere in the pre-refresh document was v1.132.0. As of this refresh, Posit's `apps/vscode` extension
+is at **v1.135.0 shipped (2026-07-08), v1.136.0 open/unreleased** — three full releases past that ceiling.
+Rather than re-verify only the rows already on file, this refresh ran an **exhaustive structural diff**
+against Posit's current manifest (every `contributes.commands`/`configuration`/`languages`/`menus` entry,
+not just the categories the original research happened to think to check) plus a changelog diff for every
+entry since v1.132.0 and a docs/marketplace prose scan — specifically to catch *unknown unknowns*: Posit
+features with no corresponding row in this document at all, not just drift in rows that already exist. That
+produced 28 candidate findings, each adversarially refute-checked by 3 independent agents (mirroring the
+original methodology exactly): 18 survived unchanged, and 10 had a real inaccuracy in their own framing
+caught and corrected by the refuters (e.g. "9 commands" corrected to the true count of 10; "moved to the
+Activity Bar" shown to have been reverted nine days later, in 2022) — every one of those 10 still yielded a
+genuine, corrected finding, none were dropped as pure noise. The corrected findings are folded into the rows
+below (marked "Session 67" where added); **8 new rows** were added for gaps with no prior row at all, and
+the At a Glance table below now carries a 5th bucket (**Soft / ambiguous comparison**) for rows that
+genuinely don't fit "parity / ahead / gap" cleanly — resolving an arithmetic drift the refresh also caught
+(the pre-refresh table's bucket counts summed to 28 against a claimed 31 rows; 3 rows had simply never been
+assigned to a bucket).
 
 ---
 
 ## At a Glance
 
+**39 rows total** (31 original + 8 added Session 67). Counts below reflect the Session 67 refresh —
+see individual rows for what changed and why.
+
 | | Count | Examples |
 |---|---|---|
-| **Parity** (same capability, comparable depth) | 19 | render, preview, project-level render, execution delegation, syntax highlighting, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion |
-| **We're ahead** | 4 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image paste/drag-drop for `.qmd` (Posit's own source editor has this as an open, unimplemented feature request — Session 58); spell checking in the plain source editor (a documented `cspell` config recipe — Posit's own spell check is Visual-Editor-only — Session 65) |
-| **Real gaps** (Posit has, we don't) | 4 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial — we cover only `_quarto.yml`'s project/website/book blocks; Posit also covers front matter/cell options) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65 |
+| **Parity** (same capability, comparable depth) | 17 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion |
+| **We're ahead** | 4 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image *paste* for `.qmd` (Posit's source editor still doesn't support it — drag-drop is a narrower story, see below, Session 67); spell checking in the plain source editor (a documented `cspell` config recipe — Posit's own spell check is Visual-Editor-only — Session 65) |
+| **Real gaps** (Posit has, we don't) | 14 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67, MAJOR), outline granularity (Session 67), Format Cell (Session 67), Reticulate execution (Session 67), cell navigation/cache commands (Session 67), `_quarto.yml` document links + filepath completion (Session 67), standalone diagram/typst language registration (Session 67), cell-background highlighting (Session 67), preview-command-family breadth (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65 |
 | **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
+| **Soft / ambiguous comparison** (new bucket, Session 67) | 3 | per-key nested/deep YAML completion depth (neither side has an exhaustive inventory); project-wide/multi-file cross-ref & citation intelligence (both largely single-file-scoped, Posit's is conditional); extensibility surfaces — a public CLI-query API and Quarto-Extension/Lua-authoring support (developer-facing, arguably outside this doc's own "what a document author can do" scope) |
 
-The single largest gap is architectural, not incremental: Posit ships a full **Visual (WYSIWYG) editor**
-(rich-text editing of `.qmd` prose without seeing raw markdown). That one gap is also the reason a
-related smaller gap exists — Posit's Zotero **live picker** is a Visual-Editor-only feature on their
+The single largest gap is still architectural, not incremental: Posit ships a full **Visual (WYSIWYG)
+editor** (rich-text editing of `.qmd` prose without seeing raw markdown). That one gap is also the reason
+a related smaller gap exists — Posit's Zotero **live picker** is a Visual-Editor-only feature on their
 side, so that row is a narrower deficit than it first appears. Spell checking was similarly gated on the
 Visual Editor in Posit's own implementation, but plain-source-editor spell checking turned out to be
-independently solvable (Session 65) — see above.
+independently solvable (Session 65) — see above. **Session 67's exhaustive manifest diff found the
+second-largest gap was hiding in plain sight**: Posit now forwards the embedded language server's own
+diagnostics (squiggly underlines from Pylance/Ruff/etc.) directly into `.qmd` code cells (since v1.133.0) —
+this project has zero code-cell diagnostics of any kind, only YAML diagnostics. See "Code-cell language
+embedding" below.
 
 ---
 
@@ -67,7 +96,15 @@ independently solvable (Session 65) — see above.
   option. (`quarto.org/docs/tools/vscode` — Preview command; embedded preview supported for HTML/PDF
   formats including revealjs/beamer.)
 - *Notes:* Functional parity on the embedded preview itself; we haven't bound a keyboard shortcut or
-  added a Render-on-Save toggle.
+  added a Render-on-Save toggle. **Session 67:** Render-on-Save is a concrete command,
+  `quarto.toggleRenderOnSave` ("Render on Save"), backed by two settings —
+  `quarto.render.renderOnSave` and a Shiny-document-specific `quarto.render.renderOnSaveShiny`
+  (defaults `true` for `server: shiny` documents). Its toolbar placement
+  (`menus["editor/actions/left"]`) is a **Positron-only** contribution point (Positron is Posit's own
+  VS Code fork, not vanilla VS Code — confirmed via the manifest's `engines.positron` entry and
+  `@posit-dev/positron` devDependency) — in plain VS Code, Posit's own toggle is Command-Palette/
+  settings-only too, no visible toolbar button. So the gap here is genuinely just "no command, no
+  setting" on our side, not "no toolbar button."
 
 **Project-level render command ("Render Project").**
 - *Ours:* Present — `quarto.renderProject` discovers the project root (`_quarto.yml`/`_quarto.yaml`,
@@ -80,6 +117,18 @@ independently solvable (Session 65) — see above.
   originally found this unimplemented.) "Preview Project" remains a deliberate, unshipped follow-up —
   `features/preview.ts`'s process-group-owning model doesn't trivially generalize to multi-output-file
   projects (confirmed Session 44).
+
+**Preview command family breadth (render-script preview, per-format preview picker). (Session 67.)**
+- *Ours:* **Not implemented** — `quarto.preview` is our only preview-launching command.
+- *Posit's:* Present — beyond `quarto.preview`, the manifest declares `quarto.previewScript` (same
+  keybinding as Preview, but active only when previewing a standalone Quarto *render script* rather
+  than a `.qmd` document) and `quarto.previewFormat` ("Preview Format...", a per-format preview
+  QuickPick, no default keybinding). A third command, `quarto.previewContentShortcut` (`Ctrl+Shift+L`),
+  is a general contextual dispatcher across the Visual Editor / plain `.qmd` / Mermaid / Graphviz — that
+  one is substantively the same `Ctrl+Shift+L` capability this doc's "Live preview of LaTeX math" row
+  already covers, just not previously tied to its command ID; it is not counted as a gap here.
+- *Notes:* Genuine, previously-uncovered gap: no support for previewing a standalone render script, and
+  no per-format preview picker when a document targets multiple output formats.
 
 ---
 
@@ -95,14 +144,22 @@ independently solvable (Session 65) — see above.
   copy.
 
 **Run cell / run code chunk (command family).**
-- *Ours:* Present — **9 commands, matching Posit's own count** (run cell, run+advance, run selected
-  line(s), run next cell, run previous cell, run above, run below, run all, insert cell), each
-  individually keybound (`ctrl/shift+enter` for the original two, `ctrl+alt+<mnemonic>` for the rest —
-  **Session 52**, `BACKLOG.md` item #4).
-- *Posit's:* Present — an 8-command family (current cell, selected line(s), next cell, previous
-  cell, all cells, cells above, cells below, insert new cell), each individually keybound.
-- *Notes:* Parity reached (Session 52) — no longer a gap. (Historical: this doc's research, Session 42,
-  originally found us missing 4 discrete commands with only 2 of 5 keybound.)
+- *Ours:* Present — **9 commands** (run cell, run+advance, run selected line(s), run next cell, run
+  previous cell, run above, run below, run all, insert cell), each individually keybound
+  (`ctrl/shift+enter` for the original two, `ctrl+alt+<mnemonic>` for the rest — **Session 52**,
+  `BACKLOG.md` item #4).
+- *Posit's:* Present — **Session 67 recount: 10 commands, not 8.** The manifest declares
+  `quarto.runSelection`, `quarto.runCurrent` ("Run Current Code"), `quarto.runCurrentAdvance`,
+  `quarto.runCurrentCell`, `quarto.runPreviousCell`, `quarto.runNextCell`, `quarto.runCellsAbove`,
+  `quarto.runCellsBelow`, `quarto.runAllCells`, and `quarto.insertCodeCell` — this doc's original
+  8-command enumeration (Session 42) missed both `runCurrent` and `runCurrentAdvance`. A byte-identical
+  diff of Posit's manifest between the v1.132.0 tag and current confirms the family itself hasn't
+  changed since v1.132.0 — this was always a 10-command family, just under-enumerated by the original
+  research.
+- *Notes:* Still parity on 9 of Posit's 10 commands — `runCurrentAdvance` already maps to our
+  `runCellAndAdvance`. **One narrow residual gap surfaces on recount (Session 67):** `quarto.runCurrent`
+  ("Run Current Code") is a generic run-current-line/statement command distinct from Run Cell, with no
+  counterpart in this project.
 
 **Interactive/notebook-like execution UX (output console).**
 - *Ours:* Present, but not uniform across languages — Python delegates to
@@ -115,27 +172,80 @@ independently solvable (Session 65) — see above.
 - *Notes:* Parity by construction, per language — but it's inaccurate to describe all three as riding
   "the Jupyter extension's interactive window"; only Python does, on both sides.
 
+**Format Cell (delegate a code cell's contents to the embedded language's own formatter). (Session 67.)**
+- *Ours:* **Not implemented** — no `DocumentFormattingEditProvider`, no format-cell command anywhere in
+  `src/`.
+- *Posit's:* Present — `quarto.formatCell` ("Format Cell", `Ctrl+K Ctrl+F` / `Cmd+K Cmd+F`) hands a code
+  cell's contents to the embedded language's own installed formatter (e.g. Black/autopep8/styler for
+  Python/R) via a virtual document and writes the result back. A continuous CHANGELOG history from
+  v1.66.0 (2023) through v1.134.0 (2026-06-22, preserving `#|` cell-option directives so formatters
+  can't reflow them) confirms this is real and actively maintained, not a stub.
+- *Notes:* Genuine, previously-uncovered gap — this project has no formatting delegation of any kind for
+  code-cell contents.
+
+**Cell navigation & cache-management commands. (Session 67.)**
+- *Ours:* **Not implemented** — no pure-navigation (non-executing) cell commands, no cache-clearing
+  command.
+- *Posit's:* Present — `quarto.goToNextCell`/`quarto.goToPreviousCell` (`Ctrl+PageDown`/`Ctrl+PageUp`)
+  move the cursor between cells with no execution attached, distinct from the run-cell family above; and
+  `quarto.clearCache` ("Clear Cache...", editor-title-toolbar-placed) clears Quarto's Jupyter/Knitr
+  execution cache — a long-standing command (since v1.14.0, 2022), simply never itemized in this doc.
+- *Notes:* Both are small, previously-uncovered gaps, distinct from the run-cell family (which this
+  project already matches closely — see above).
+
+**Reticulate (R↔Python) execution pathway. (Session 67.)**
+- *Ours:* **Not implemented** — this project has no reticulate-related configuration or code.
+- *Posit's:* Present — `quarto.cells.useReticulate` (boolean, default `true`) lets Python code cells
+  execute via R's `reticulate` bridge specifically within Knitr-engine (R-Markdown-style) documents, as
+  an alternative to native Jupyter-kernel delegation.
+- *Notes:* A narrow, previously-uncovered gap — relevant only to Knitr-engine documents mixing R and
+  Python, which is a smaller audience than this project's primary Jupyter-engine delegation model above.
+
 ---
 
 ## Editing & Language Support
 
-**Syntax highlighting / language registration for `.qmd`.**
+**Syntax highlighting / language registration for `.qmd`. (Verdict revised — Session 67: Parity → Real gap.)**
 - *Ours:* Present — registers a `quarto` language for `.qmd`/`.rmd`/`.Rmd`, TextMate grammar
-  (`text.html.quarto`), embedded YAML/Python/R/Julia/JS regions.
-- *Posit's:* Present — "Syntax highlighting for markdown and embedded languages."
-- *Notes:* Direct parity.
+  (`text.html.quarto`), 5 embedded scopes (yaml/frontmatter, python, r, julia, javascript/ojs).
+- *Posit's:* Present — "Syntax highlighting for markdown and embedded languages," but **Session 67's
+  manifest diff found the grammar's `embeddedLanguages` map currently lists 50 scope keys**, not just
+  the 4 languages this doc previously framed the comparison around — bash/shell, C/C++/C#/F#, Rust, Go,
+  SQL, Stan, PRQL, Lua, Ruby, PHP, Perl, Java, Dockerfile, PowerShell, Scala, `typst`, `dot`, `mermaid`,
+  and more. **Separately, since v1.127.0 (2025-12-17, PR #868), Posit layers real semantic-tokens
+  highlighting on top of the static grammar** when the user's installed language extension supplies an
+  LSP with semantic-highlighting support (Posit's own documented example: Pylance) — a second, distinct
+  highlighting mechanism this project has none of.
+- *Notes:* **No longer "Direct parity."** Two distinct, previously-uncovered gaps: (1) breadth — our
+  5-scope embedded-language map vs. Posit's 50 (two of theirs, `dot`/`mermaid`, are also registered as
+  standalone first-class languages outside `.qmd` entirely — see the new "Standalone diagram/typst
+  language registration" row below, which this breadth gap is distinct from but related to); (2)
+  mechanism — no `SemanticTokensProvider` of any kind in this project, so embedded code never gets
+  LSP-driven semantic coloring, only static TextMate coloring.
 
-**Code-cell language embedding — completion/hover/go-to-def/signature-help forwarding.**
-- *Ours:* Present — embedded grammar regions for python/r/julia/ojs, plus request forwarding
-  (completion, hover, go-to-definition, signature-help) into the user's installed language extension via
-  per-language virtual documents, with graceful degradation. (`src/core/embedded/`, `src/providers/embedded.ts`.)
+**Code-cell language embedding — completion/hover/go-to-def/signature-help/diagnostics forwarding.
+(Verdict revised — Session 67: previously ambiguous/unbucketed → Real gap.)**
+- *Ours:* Present for completion/hover/go-to-definition/signature-help — embedded grammar regions for
+  python/r/julia/ojs, plus request forwarding into the user's installed language extension via
+  per-language virtual documents, with graceful degradation. (`src/core/embedded/`,
+  `src/providers/embedded.ts`.) **Diagnostics forwarding: not implemented** — the only
+  `DiagnosticCollection` anywhere in `src/` is `src/features/yaml-diagnostics.ts`, scoped to
+  `_quarto.yml`'s project/website/book blocks only; `src/providers/embedded.ts` registers no
+  diagnostics.
 - *Posit's:* Present for Python/R/Julia, explicitly documented ("Completion for embedded languages…
   enhanced features… can be enabled by installing the most recent version(s) of these extensions" —
-  Python/Jupyter, R, Julia). Observable JS is not documented on this specific page (though OJS likely
-  gets JS-based tooling "for free," similar to our own `ojs→javascript` mapping).
-- *Notes:* We match on substance for Python/R/Julia; our own coverage of hover/go-to-def/signature-help
-  across all four languages is more granular and better-evidenced (via our own test suite) than what
-  Posit documents on this page.
+  Python/Jupyter, R, Julia). **Session 67, MAJOR finding:** since v1.133.0 (2026-06-03, PR #980,
+  refined in v1.134.0 PR #1013), Posit additionally forwards the embedded language server's own
+  *diagnostics* (e.g. Pylance/Pyrefly/Ruff squiggly underlines) as native VS Code Diagnostics directly
+  inside `.qmd` code cells — independently toggleable via `quarto.cells.diagnostics.enabled` (default
+  `true`) and `.debounceDelay` (default 500ms), alongside the pre-existing
+  `quarto.cells.hoverHelp.enabled`/`quarto.cells.signatureHelp.enabled` toggles.
+- *Notes:* We still match on substance for completion/hover/go-to-def/signature-help across all four
+  languages (more granular and better test-evidenced than what Posit's docs page shows). But diagnostics
+  forwarding is a real, substantive, and recent gap — a Python code cell with a real type error or lint
+  violation shows nothing in this project, where Posit's extension shows the same red squiggle the user
+  would see in a plain `.py` file. This is the single largest *incremental* (non-Visual-Editor) gap this
+  refresh found.
 
 ---
 
@@ -171,7 +281,9 @@ independently solvable (Session 65) — see above.
   current Posit extension before being claimed with full confidence, since no official Posit source
   confirms their own nested-block behavior one way or the other.
 
-**Nested/deep object option completion (e.g. `theme:`, `code-tools:`, `grid:` sub-keys).**
+**Nested/deep object option completion (e.g. `theme:`, `code-tools:`, `grid:` sub-keys). (Bucket resolved
+Session 67: Soft / ambiguous comparison — this row was previously left unassigned to any At-a-Glance
+bucket.)**
 - *Ours:* Present for `execute:` and per-format option sub-keys — **one object level deep only**
   (schema-driven, explicitly **not recursive**: deeper 3+-level nesting is deferred, unimplemented
   `b2-iii-deep` work). No `_brand.yml`-specific handling exists.
@@ -179,8 +291,19 @@ independently solvable (Session 65) — see above.
   "if supported by the Quarto version ≥ 1.6.24"); general nested-key completion is described but not
   itemized for `theme`/`code-tools`/`grid` specifically.
 - *Notes:* Neither side has an exhaustive, confirmed sub-key inventory for the same named keys — a soft
-  comparison. We have zero `_brand.yml` support, which Posit does have. Do not describe our own nested
-  completion as "recursive" — it is capped at one level by design.
+  comparison, not cleanly "parity," "ahead," or "gap." We have zero `_brand.yml` support, which Posit
+  does have. Do not describe our own nested completion as "recursive" — it is capped at one level by
+  design.
+
+**Document links + filepath autocompletion for file-path values in `_quarto.yml`. (Session 67.)**
+- *Ours:* **Not implemented** — no `vscode.DocumentLinkProvider` anywhere in `src/`, and no
+  filepath-completion logic for `_quarto.yml` values.
+- *Posit's:* Present — since v1.132.0 (PR #906): (1) clickable `DocumentLink`-style navigation for
+  file-path values referenced inside `_quarto.yml` that jump directly to the referenced file, and (2)
+  filepath autocompletion suggesting actual project files when editing those YAML values. Shipped and
+  stable for roughly two months as of this refresh.
+- *Notes:* Genuine, previously-uncovered gap in this project's YAML Intelligence coverage — distinct
+  from the key/value completion and diagnostics rows already tracked here.
 
 **YAML schema validation / diagnostics (red squiggles for invalid/unknown keys).**
 - *Ours:* Present, narrower in scope — always-on diagnostics flag unknown keys inside the
@@ -204,14 +327,24 @@ independently solvable (Session 65) — see above.
 
 ## Outline & Navigation
 
-**Document outline / symbols (headings + code cells).**
+**Document outline / symbols (headings + code cells). (Verdict revised — Session 67: Parity → Real gap
+(granularity).)**
 - *Ours:* Present, both document- and workspace-scope — a `DocumentSymbolProvider` (Outline view,
   breadcrumbs, Go to Symbol in Editor) **and**, as of Session 54, a `WorkspaceSymbolProvider` (Go to
   Symbol in Workspace, Ctrl+T/Cmd+T), searching every `.qmd` file in the workspace via
-  `vscode.workspace.findFiles`, not just the active editor.
+  `vscode.workspace.findFiles`, not just the active editor. Setext heading support added Session 66. One
+  `DocumentSymbol` per heading/cell — no symbol extraction from *within* a cell's body.
 - *Posit's:* Present — both document- and workspace-scope symbol providers ("Go to Symbol in Workspace…
-  Ctrl+T").
-- *Notes:* Parity. Both in-document and cross-file symbol navigation are covered.
+  Ctrl+T"). **Session 67:** since v1.133.0 (PRs #972/#974), Posit's outline additionally (a) extracts
+  code symbols from *within* code-cell bodies (not just one node per cell), and (b) offers a
+  setting/command (`quarto.symbols.showCodeCellsInOutline` / `quarto.toggleCodeCellsInOutline`) to
+  show/hide cells in the outline. Separately, since v1.127.0, Posit by default excludes markdown headers
+  from R-package projects (a `DESCRIPTION` file present) from workspace symbols unless
+  `quarto.symbols.exportToWorkspace` is set.
+- *Notes:* Both in-document and cross-file symbol navigation are covered at the top level, but Posit's
+  outline is a deeper tree (in-cell symbols) with more configurability (show/hide, R-project exclusion)
+  than this project's flat one-symbol-per-heading/cell model — this doc's prior "Parity" verdict
+  overstated granularity parity.
 
 ---
 
@@ -246,7 +379,9 @@ independently solvable (Session 65) — see above.
 - *Notes:* Direct parity on the core mechanism; we don't additionally provide Posit's hover/assist detail
   cards.
 
-**Project-wide / multi-file intelligence (cross-ref + citation resolution across files).**
+**Project-wide / multi-file intelligence (cross-ref + citation resolution across files). (Bucket resolved
+Session 67: Soft / ambiguous comparison — this row was previously left unassigned to any At-a-Glance
+bucket.)**
 - *Ours:* **Not implemented** — indexing operates on the single open document/its own bibliography file
   only; no workspace-wide scanning.
 - *Posit's:* Partial — also largely single-file-scoped. Crossrefs inside `{{< include >}}`-ed files are
@@ -260,27 +395,63 @@ independently solvable (Session 65) — see above.
 
 ## Formatting & Live Preview
 
-**Contextual Assist Panel (non-AI help/documentation on cursor context).**
+**Contextual Assist Panel (non-AI help/documentation on cursor context). (Session 67: concrete identifiers
+added.)**
 - *Ours:* Partial — no unified contextual-help sidebar; the narrower equivalent is two separate webview
   commands (Preview Math, Preview Diagram) rather than one cursor-context panel.
 - *Posit's:* Present — one unified sidebar panel showing contextual assistance (code-doc lookup, LaTeX
-  preview, image thumbnails) based on cursor position.
+  preview, image thumbnails) based on cursor position. **Session 67 concrete detail:** commands
+  `quarto.showAssist`/`quarto.codeViewAssist`, pin/unpin (`quarto.assist.pin`/`.unpin`), a dedicated
+  Explorer webview view (id `quarto-assist`), a `quarto.assist.updateMode` setting, and a default
+  `Ctrl+F1`/`Cmd+F1` keybinding (bound to `quarto-assist.focus`). **Correcting a plausible
+  misconception:** the panel lives in the **Explorer** sidebar today, not the Activity Bar — it was
+  briefly moved to the Activity Bar in 2022 (v1.21.0) and moved back nine days later (v1.23.0). All of
+  these facts are 2022–2023-vintage; there has been no assist-panel-related change since.
 - *Notes:* We cover the math/diagram-preview slice of this via separate commands, not the code-doc-lookup
-  or image-thumbnail modes.
+  or image-thumbnail modes. Still a real gap — just with concrete identifiers now on record instead of
+  prose-only.
 
-**Live preview of LaTeX math (`$..$`) embedded in the editor.**
+**Live preview of LaTeX math (`$..$`) embedded in the editor. (Session 67: engine identity added.)**
 - *Ours:* Present — renders inline `$…$` and display `$$…$$` regions in a webview beside the editor with
   vendored KaTeX, live-updating as the document changes.
-- *Posit's:* Present — a Preview button / `Ctrl+Shift+L` shortcut opens a live-updating preview.
+- *Posit's:* Present — a Preview button / `Ctrl+Shift+L` shortcut opens a live-updating preview, using
+  **MathJax** as its rendering engine (previously unnamed in this row), configurable via
+  `quarto.mathjax.scale` (preview scaling) and `quarto.mathjax.extensions` (which MathJax TeX extensions
+  load, beyond the always-on `ams`/`color`/`newcommand`/`noerrors`/`noundefined`).
 - *Notes:* Direct parity on the capability; ours is Command-Palette-only (no inline Preview button or
-  keybinding, no confirmed auto dark/light theming).
+  keybinding, no confirmed auto dark/light theming), and we expose no equivalent scale/extension
+  configurability for our KaTeX renderer.
 
 **Live preview of diagrams (Mermaid / Graphviz) embedded in the editor.**
 - *Ours:* Present — Mermaid cells render live via vendored Mermaid; Graphviz (`{dot}`) cells render live
   via a vendored WASM build of Graphviz itself (`@viz-js/viz`, shipped Session 56).
 - *Posit's:* Present — both Mermaid and Graphviz render live.
-- *Notes:* At parity. Unlike every other vendored asset in this project, the Graphviz WASM module's
-  compiled contents are EPL-2.0 (not MIT) — disclosed in `NOTICE`; see BACKLOG.md item #7.
+- *Notes:* At parity on live rendering. Unlike every other vendored asset in this project, the Graphviz
+  WASM module's compiled contents are EPL-2.0 (not MIT) — disclosed in `NOTICE`; see BACKLOG.md item #7.
+  A related but distinct gap (standalone `.dot`/`.mmd` file-type support, not just live rendering inside
+  `.qmd`) is tracked as its own row below — Session 67.
+
+**Standalone diagram/typst language registration (`.dot`, `.mmd`, `.typst` as first-class file types).
+(Session 67.)**
+- *Ours:* **Not implemented** — this project registers only the single `quarto` language; opening a
+  plain `.dot` or `.mmd` file gets no syntax highlighting or editing support from this extension at all.
+- *Posit's:* Present — `dot` (`.dot`/`.DOT`/`.gv`), `mermaid` (`.mmd`), and `typst` are each registered
+  as standalone, first-class VS Code languages (own `language-configuration.json` each), independent of
+  the embedded-grammar scopes used inside `.qmd` code cells. `dot` additionally ships 4 dedicated
+  snippet files (general/node-attribute/edge-attribute/graph-attribute).
+- *Notes:* Distinct from the live-diagram-preview row above (which is about rendering *inside* `.qmd`,
+  where we're at parity) — this is about editing support for the *standalone* file types themselves,
+  which we don't register at all.
+
+**Cell-execution background highlighting. (Session 67.)**
+- *Ours:* **Not implemented** — no equivalent configuration or visual treatment for executable code
+  cells.
+- *Posit's:* Present — five configuration keys (`quarto.cells.background.enabled` [deprecated, points to
+  `.color`], `.color`, `.lightDefault`, `.darkDefault`, `.delay`) apply a background-color highlight to
+  executable code cells, with separate light/dark defaults and a debounce delay. A long-standing feature
+  (since v1.3.0, 2022), not a recent addition — simply never itemized in this doc before.
+- *Notes:* A cosmetic/visual-affordance gap, not a functional one — genuinely uncovered until this
+  refresh.
 
 **Formatting keyboard shortcuts (bold/italic/code).**
 - *Ours:* Present — `toggleBold`/`toggleItalic`/`toggleCode` wrap/unwrap the selection or word-at-cursor
@@ -307,8 +478,16 @@ independently solvable (Session 65) — see above.
   Tracks A/B. (`src/core/new-document.ts`, `src/features/new-document.ts`,
   `src/core/create-project-args.ts`, `src/features/create-project.ts`.)
 - *Posit's:* Present — `quarto.newDocument`, `quarto.createProject`, `quarto.fileCreateProject`, etc.
-- *Notes:* Parity reached (Sessions 49–50) — no longer a gap. We don't have Posit's separate
-  `quarto.fileCreateProject` (an Explorer-context-menu variant of the same command).
+  **Session 67:** the manifest also declares `quarto.newPresentation` ("New Quarto Presentation (qmd)"),
+  `quarto.newNotebook` ("New Quarto Notebook (ipynb)"), and `quarto.fileNewDocument` (an Explorer "New
+  File..." variant of `newDocument`, via `contributes.menus["file/newFile"]`) — all long-standing
+  (2022), simply never itemized here before.
+- *Notes:* Parity reached (Sessions 49–50) — no longer a gap for the core create-document/create-project
+  capability, which our single flexible `quarto.newDocument` (format/title-prompted) and
+  `quarto.createProject` already cover. We don't have Posit's separate `quarto.fileCreateProject`
+  (Explorer-context-menu project creation) or the format-preset/Explorer-integration commands newly
+  itemized above (`newPresentation`, `newNotebook`, `fileNewDocument`) — a real but narrow
+  discoverability gap, not a capability gap.
 
 **Notebook (`.ipynb`) support.**
 - *Ours:* Present — `quarto.convertToIpynb` (`.qmd`→`.ipynb`) and `quarto.convertToQmd`
@@ -318,12 +497,18 @@ independently solvable (Session 65) — see above.
   prompt). No vendored asset and no new notebook UI — VS Code's own built-in `ipynb` extension (MIT,
   bundled) already renders/edits `.ipynb`. (`src/core/convert-args.ts`, `src/features/convert-notebook.ts`.)
 - *Posit's:* Present — "Convert to `.ipynb`" and "Convert to `.qmd`" commands (v1.132.0).
-- *Notes:* Parity reached (Session 63) — no longer a gap. (Historical: this doc's research originally
-  claimed this "would need notebook-renderer/serializer work well beyond our current single-file
-  `.qmd` scope" — Session 62's plan found that estimate wrong: VS Code's own built-in `ipynb` extension
-  already supplies the renderer/serializer, so the actual scope was a thin CLI-spawning adapter,
-  comparable in size to `render`/`createProject`.) Notebook cell **execution** remains the user's own
-  `ms-toolsai.jupyter` install, the same boundary already drawn for `.qmd` cell execution.
+- *Notes:* Parity reached (Session 63) — no longer a gap for conversion. (Historical: this doc's research
+  originally claimed this "would need notebook-renderer/serializer work well beyond our current
+  single-file `.qmd` scope" — Session 62's plan found that estimate wrong: VS Code's own built-in
+  `ipynb` extension already supplies the renderer/serializer, so the actual scope was a thin
+  CLI-spawning adapter, comparable in size to `render`/`createProject`.) Notebook cell **execution**
+  remains the user's own `ms-toolsai.jupyter` install, the same boundary already drawn for `.qmd` cell
+  execution. **Session 67, one narrower gap surfaced:** Posit also declares a
+  `contributes.notebookRenderer` (id `quarto.markdown-it.qmd-extension`, extending VS Code's built-in
+  `vscode.markdown-it-renderer`) that gives Quarto-flavored markdown Quarto-aware rendering inside
+  markdown *cells* of an open `.ipynb` notebook — a long-standing feature (since ~v1.81.0, 2023), not a
+  recent addition, just never itemized here. This project has no equivalent notebook-renderer
+  contribution.
 
 **Zotero integration.**
 - *Ours:* **Not implemented.**
@@ -331,7 +516,13 @@ independently solvable (Session 65) — see above.
   with auto-`.bib` updates, inside their WYSIWYG editor. Source-mode Zotero support is an unresolved
   community feature request on their side too, worked around only via a third-party fork extension.
 - *Notes:* A softer gap than it first appears — Posit itself only ships Zotero inside its (also-absent
-  for us) Visual Editor, not in plain source-mode editing, which is where we operate.
+  for us) Visual Editor, not in plain source-mode editing, which is where we operate. **Session 67
+  precision:** the library setup commands (`quarto.zoteroConfigureLibrary`/`quarto.zoteroSyncWebLibrary`)
+  are *not* scoped to the Visual Editor in the manifest — they're reachable from the Command Palette
+  regardless of editor mode (unlike sibling commands such as `convertToIpynb`, which do carry editor-mode
+  `when`-clauses). That's a real manifest nuance, but the actual user-facing payoff — the `@`-completion
+  Insert Citation picker over a connected library — remains confirmed Visual-Editor-only per Posit's own
+  maintainers, so this row's "narrower deficit" conclusion still holds.
 
 **Visual (WYSIWYG) editor.**
 - *Ours:* **Not implemented** — no custom-editor/WYSIWYG/ProseMirror-style code anywhere; we ship only
@@ -341,7 +532,13 @@ independently solvable (Session 65) — see above.
 - *Notes:* **Posit's single largest feature we do not attempt.** A major, likely multi-session
   undertaking (custom editor + rich-text engine) if ever pursued. Several other gaps (Zotero-in-editor,
   spell check) are downstream of this one — and are explicitly out of this project's v1 scope per
-  `docs/planning/2026-06-27-extension-architecture-plan.md` §7.
+  `docs/planning/2026-06-27-extension-architecture-plan.md` §7. **Session 67 concrete detail** (for the
+  record, not a scope change): the manifest registers `contributes.customEditors` with viewType
+  `quarto.visualEditor` (`*.{md,qmd}`, priority `option`) and two mode-switch commands,
+  `quarto.editInSourceMode`/`quarto.editInVisualMode` (both bound to `Ctrl+Shift+F4`/`Cmd+Shift+F4` under
+  mutually exclusive `when`-clauses; menu placement is asymmetric — `editInVisualMode` is in
+  `editor/context`+`editor/title`, `editInSourceMode` is in `webview/context`+`editor/title`, both also
+  in the Command Palette).
 
 **Snippets for common Quarto constructs.**
 - *Ours:* Present — **13 snippets** (`snippets/quarto.json`, `contributes.snippets`): front matter, the
@@ -349,20 +546,33 @@ independently solvable (Session 65) — see above.
   this extension itself recognizes (fig/tbl/eq/sec/lst) — **Session 53**, `BACKLOG.md` item #5.
 - *Posit's:* Present — "Code snippets… make it easier to enter repeating code patterns (code blocks,
   callouts, divs, etc.)."
-- *Notes:* Parity reached (Session 53) — no longer a gap. Independently designed from Quarto's own
-  documented markdown syntax (grounded against this repo's own fixtures/`core/refs.ts`), not from
-  Posit's AGPL extension's actual snippet content (Learning #1 look-but-don't-copy gate).
+- *Notes:* Parity reached (Session 53) — no longer a gap for the constructs this project itself
+  recognizes. Independently designed from Quarto's own documented markdown syntax (grounded against this
+  repo's own fixtures/`core/refs.ts`), not from Posit's AGPL extension's actual snippet content
+  (Learning #1 look-but-don't-copy gate). **Session 67:** Posit's snippet set also includes a
+  `list-table` directive snippet (CHANGELOG v1.131.0) and a reveal.js `fragment` snippet (v1.129.0) —
+  both pre-date Session 53 by months (v1.129.0/v1.131.0 shipped Jan/Apr 2026; Session 53 ran 2026-07-09),
+  so this was always a pre-existing granularity gap, not something Posit added afterward. This project
+  has no equivalent for either construct.
 
-**Image paste (clipboard paste → auto-save + insert markdown reference).**
+**Image paste / drag-drop (clipboard paste or file drag-drop → auto-save + insert markdown reference).
+(Session 67: split into two distinct claims — paste stays "we're ahead," drag-drop is parity, not ahead.)**
 - *Ours:* **Present** — `vscode.languages.registerDocumentPasteEditProvider` +
   `registerDocumentDropEditProvider` for `.qmd` (paste AND drag-drop, bundled into v1): writes the
   image under `images/` next to the document and inserts `![](images/<file>)`, with collision-avoidance
   naming — **Session 58**, `BACKLOG.md` "Phase 7 authoring aids."
-- *Posit's:* **Still absent** — confirmed by a Quarto maintainer as an open feature request, not
-  implemented in their source editor; only their excluded AGPL Visual Editor supports it.
-- *Notes:* No longer a gap — **we're now ahead of Posit's own source editor** here, not merely at
-  parity. Independently designed from VS Code's own MIT built-in markdown paste-image implementation
-  (read directly for precedent, not Posit's AGPL extension — Learning #1 look-but-don't-copy gate).
+- *Posit's:* **Split by mechanism (Session 67, from public GitHub issues, not source code):**
+  **clipboard paste** of image data (e.g. a screenshot with no backing file) is confirmed **still not
+  supported** in the plain source editor (quarto-dev/quarto#326, open since 2023, most recent comment
+  2026-03) — the maintainer-endorsed workaround is literally "paste into the file explorer, then
+  drag-drop into the source." **Drag-drop of an existing image file**, however, **does work** and has
+  since v1.76.0 (2023-03-16, "Shift-Drag/Drop of images in markdown source editor") — confirmed by
+  user reports as recently as Aug 2025 (quarto-dev/quarto#330, modulo a mapped-network-drive path bug).
+- *Notes:* **Paste is still a genuine "we're ahead"** — that half of Posit's own source editor remains
+  unimplemented. **Drag-drop is parity, not an advantage** — the doc's prior wording bundled both
+  mechanisms as one undifferentiated "still absent," which overclaimed the drag-drop half.
+  Independently designed from VS Code's own MIT built-in markdown paste-image implementation (read
+  directly for precedent, not Posit's AGPL extension — Learning #1 look-but-don't-copy gate).
 
 **AI/Copilot authoring assistance.**
 - *Ours:* Not implemented (out of scope by design — no AI feature on this project's roadmap).
@@ -396,16 +606,35 @@ independently solvable (Session 65) — see above.
   MIT; its published VS Code extension is GPL-3.0-or-later — recommended only, never vendored or
   bundled.
 
+**Extensibility surfaces: public CLI-query API, Quarto-Extension/Lua authoring support. (Session 67 —
+Soft / ambiguous comparison; developer-facing, arguably outside this doc's own "what a document author
+can do" scope, included for completeness rather than as a strict real-gap claim.)**
+- *Ours:* **Not implemented** — `src/extension.ts`'s `activate()` returns no consumable API object for
+  other extensions to query; no Lua/Quarto-Extension (custom-filter) authoring support of any kind (no
+  `.luarc.json` provisioning, no `_extension.yml`-triggered activation).
+- *Posit's:* Present, both developer/extension-author-facing rather than document-author-facing: (1)
+  since v1.128.0 (2026-01-08, PR #879), a public extension API other VS Code extensions can query for
+  the Quarto CLI's path, version, and availability; (2) a long-standing (since v1.39.0, 2022) Lua/Quarto
+  Extension authoring surface — `quarto.lua.provideTypes` (auto-provisions Pandoc/Quarto Lua types for
+  workspaces with Lua filter scripts) plus an `activationEvents` trigger on
+  `workspaceContains:**/_extension.{yml,yaml}` (the manifest file for a Quarto Extension, typically
+  implemented via Lua filters/shortcodes).
+- *Notes:* Neither maps cleanly to "a document author's feature" the way every other row in this
+  document does — the API is for extension developers, and Lua-filter authoring is for a different user
+  role (Quarto Extension authors, not `.qmd` document authors). Included for completeness per this
+  refresh's own goal of catching "unknown unknowns," not because closing this gap would obviously serve
+  this project's stated document-authoring mission.
+
 ---
 
 ## What This Suggests for Future Work
 
-In rough priority order, if this project were to close the largest real gaps:
+### Historical priority list (Session 42, tracked through Session 65) — mostly shipped
 
 1. ~~YAML schema diagnostics~~ (red squiggles for invalid front-matter/cell-option keys) — **PARTIALLY
    SHIPPED Session 47** (`BACKLOG.md` item #2): covers `_quarto.yml`'s `project:`/`website:`/`book:`
    blocks only, built on the existing schema reader (`src/core/yaml-schema.ts`). Front-matter and
-   cell-option diagnostics remain unimplemented — a narrower residual gap, not yet re-ranked.
+   cell-option diagnostics remain unimplemented — still open, still a narrower residual gap.
 2. ~~Snippets~~ — **SHIPPED Session 53** (`BACKLOG.md` item #5): `snippets/quarto.json`, 13 snippets,
    declarative and TDD-gate-exempt, as predicted here. ~~And a **getting-started walkthrough**~~ —
    **SHIPPED Session 51** (`BACKLOG.md` item #3 Track C) — both declarative, TDD-gate-exempt,
@@ -415,7 +644,8 @@ In rough priority order, if this project were to close the largest real gaps:
    pinned to root. "Preview Project" remains a deliberate, unshipped follow-up.
 4. ~~A fuller run-cell command family~~ — **SHIPPED Session 52** (`BACKLOG.md` item #4): Run Selected
    Line(s), Run Next Cell, Run Previous Cell, and Run Cells Below, plus default keybindings across the
-   resulting 9-command family.
+   resulting 9-command family. (Session 67 recount: the family's true size was 10 on Posit's side, not
+   9 — see the Run-cell row above.)
 5. ~~Graphviz (`{dot}`) diagram rendering~~ — **SHIPPED Session 56** (`BACKLOG.md` item #7): vendored
    `@viz-js/viz`'s WASM Graphviz build (`media/graphviz/viz-global.js`), a `'wasm-unsafe-eval'` CSP
    addition, and a `dot` render branch calling `Viz.instance().renderString(...)` — at parity with
@@ -424,7 +654,59 @@ In rough priority order, if this project were to close the largest real gaps:
 6. The **Visual (WYSIWYG) editor** is Posit's single largest feature and this project's single largest
    gap — but it is a major, multi-session undertaking, explicitly out of v1 scope, and would need to be
    built from an MIT-clean editor foundation (never from Posit's AGPL Panmirror). Any future decision to
-   pursue it belongs in its own planning session.
+   pursue it belongs in its own planning session. Still open.
+
+### Session 67 refresh: newly-found real gaps, priority order
+
+The exhaustive manifest/changelog diff (see "Session 67 refresh" note near the top) surfaced 11 new real
+gaps with no prior row in this document, plus one severity-changing correction to an existing row
+(outline granularity) and one to a "Direct parity" verdict (syntax highlighting breadth + semantic
+highlighting). Rough priority order, weighing everyday-authoring impact against apparent implementation
+size (sizes are impressions from this refresh's research, not a planning-session estimate — a future
+planning session should still verify before implementing):
+
+1. **Code-cell diagnostics forwarding** (embedded LSP diagnostics — e.g. Pylance/Ruff squiggly
+   underlines — surfaced inside `.qmd` code cells). The single biggest incremental gap this refresh
+   found: a real, everyday-visible correctness signal (type errors, lint violations) that Posit's users
+   get in code cells and this project's users don't. Builds on the existing `src/providers/embedded.ts`
+   forwarding infrastructure (completion/hover/go-to-def/signature-help already forward the same way);
+   diagnostics would be a new forwarding kind on the same architecture, not a new subsystem.
+2. **Outline granularity** (in-cell code symbols, a show/hide-cells toggle). Builds directly on the
+   existing `DocumentSymbolProvider` (`src/providers/outline.ts`) this project already has — a natural
+   next increment after Session 66's setext-heading work, on the same provider.
+3. **Format Cell** (delegate a code cell's body to the embedded language's installed formatter). A
+   well-bounded, self-contained feature — conceptually similar in shape to the existing embedded
+   completion/hover forwarding, just for formatting instead.
+4. **Quick, mostly-declarative wins** (bundle together, similar in shape to the Session 51/53
+   walkthrough/snippets work): embedded-grammar breadth (expand the 5-scope map toward Posit's 50, at
+   least for commonly-used languages); standalone `.dot`/`.mmd`/`.typst` language registration (own
+   `contributes.languages` entries + `language-configuration.json`, mirroring Posit's); the 2 residual
+   snippets (`list-table`, `fragment`); cell navigation + cache-clearing commands (`goToNextCell`/
+   `goToPreviousCell`/`clearCache` — small, mostly command+keybinding registration); the single residual
+   run-cell command (`quarto.runCurrent`).
+5. **`_quarto.yml` document links + filepath autocompletion**. A bounded YAML Intelligence feature that
+   reuses existing `core/project-yaml.ts`/`core/yaml-context.ts` infrastructure.
+6. **Preview command family breadth** (`previewScript` for standalone render scripts; `previewFormat` as
+   a per-format preview picker). Moderate scope, narrower audience (multi-format documents; standalone
+   render scripts are a less common workflow).
+7. **Semantic highlighting via the embedded language's LSP** (layered on top of static TextMate grammar).
+   A genuinely bigger feature than the "quick wins" above — a new `SemanticTokensProvider` mechanism, not
+   a registration/config change — likely warrants its own planning session rather than folding into #4.
+8. **Lower priority / narrower audience**: cell-execution background highlighting (cosmetic only);
+   Reticulate (R↔Python via Knitr engine) execution pathway (narrow audience — mixed R/Python Knitr
+   documents); the create-project-family discoverability gap (`newPresentation`/`newNotebook`/
+   `fileNewDocument` — `quarto.newDocument` already covers the underlying capability); the notebook
+   markdown-cell Quarto-aware renderer (niche — only matters when editing `.ipynb` markdown cells
+   directly with Quarto-flavored syntax).
+
+**Not proposed as gaps to close:** the three rows in the new "Soft / ambiguous comparison" bucket
+(nested/deep YAML completion depth, project-wide/multi-file cross-ref intelligence, and the
+developer-facing extensibility surfaces) are included for this refresh's own completeness goal, not
+because they cleanly fit this project's document-authoring mission the way every other row does — a
+future session should treat them as "worth knowing about," not automatically rank them into
+`BACKLOG.md`.
 
 This document does not itself change `BACKLOG.md` — see that file for the project's actual prioritized
-work list; the items above are this research's suggestions for what to feed into it.
+work list; the items above are this research's suggestions for what to feed into it. (Session 67 did
+also add corresponding `BACKLOG.md` entries for the newly-found real gaps, in the same priority order —
+see that file's "Post-Posit-comparison feature roadmap" section.)
