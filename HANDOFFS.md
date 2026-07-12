@@ -18,6 +18,19 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S77
+date: 2026-07-11
+status: pending
+self_score:
+predecessor_score:
+active_task: IN PROGRESS. BACKLOG.md items 13(b)+(c) -- standalone .dot/.mmd/.typst language registration + the 2 residual snippets (list-table, fragment). Following DEVELOPMENT_WORKSTREAM.md. Both purely declarative/config, TDD-exempt per CLAUDE.md's carve-out.
+what_was_done:
+next_steps:
+key_files:
+gotchas:
+```
+
+```handoff
 session: S76
 date: 2026-07-11
 status: complete
