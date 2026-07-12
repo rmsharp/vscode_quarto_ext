@@ -18,6 +18,19 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S79
+date: 2026-07-11
+status: pending
+self_score:
+predecessor_score:
+active_task: BACKLOG.md item 14 -- _quarto.yml document links + filepath autocompletion. Following DEVELOPMENT_WORKSTREAM.md with this project's strict TDD gate (real adapter/core logic, not declarative-exempt).
+what_was_done:
+next_steps:
+key_files:
+gotchas:
+```
+
+```handoff
 session: S78
 date: 2026-07-11
 status: complete
