@@ -55,9 +55,9 @@ see individual rows for what changed and why.
 
 | | Count | Examples |
 |---|---|---|
-| **Parity** (same capability, comparable depth) | 19 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion, outline granularity, Format Cell |
+| **Parity** (same capability, comparable depth) | 20 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion, outline granularity, Format Cell, cell navigation/cache commands |
 | **We're ahead** | 4 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image *paste* for `.qmd` (Posit's source editor still doesn't support it — drag-drop is a narrower story, see below, Session 67); spell checking in the plain source editor (a documented `cspell` config recipe — Posit's own spell check is Visual-Editor-only — Session 65) |
-| **Real gaps** (Posit has, we don't) | 12 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), cell navigation/cache commands (Session 67), `_quarto.yml` document links + filepath completion (Session 67), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67), preview-command-family breadth (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (**both found stale in this list — still counted as open — while updating this table for Session 77's own item 13(b)/(c) closures; corrected here, not a Session 77 finding about its own work**) |
+| **Real gaps** (Posit has, we don't) | 11 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), `_quarto.yml` document links + filepath completion (Session 67), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67), preview-command-family breadth (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52 (residual `runCurrent` sub-gap closed, Session 78, item 13(e)); snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (this row's own detailed-section body text was found still stale — still saying "Not implemented" — while updating this table for Session 78's own item 13(d)/(e) closures; corrected here, not a Session 78 finding about its own work); cell navigation/cache-management commands gap closed, Session 78, item 13(d) |
 | **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 | **Soft / ambiguous comparison** (new bucket, Session 67) | 3 | per-key nested/deep YAML completion depth (neither side has an exhaustive inventory); project-wide/multi-file cross-ref & citation intelligence (both largely single-file-scoped, Posit's is conditional); extensibility surfaces — a public CLI-query API and Quarto-Extension/Lua-authoring support (developer-facing, arguably outside this doc's own "what a document author can do" scope) |
 
@@ -150,10 +150,10 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   copy.
 
 **Run cell / run code chunk (command family).**
-- *Ours:* Present — **9 commands** (run cell, run+advance, run selected line(s), run next cell, run
-  previous cell, run above, run below, run all, insert cell), each individually keybound
-  (`ctrl/shift+enter` for the original two, `ctrl+alt+<mnemonic>` for the rest — **Session 52**,
-  `BACKLOG.md` item #4).
+- *Ours:* Present — **10 commands** (run cell, run+advance, run selected line(s), run current code, run
+  next cell, run previous cell, run above, run below, run all, insert cell), each individually keybound
+  (`ctrl/shift+enter` for the original two, `ctrl+alt+<mnemonic>` for most of the rest — **Session 52**,
+  `BACKLOG.md` item #4 — `ctrl+alt+c` for `runCurrent`, **Session 78**, item 13(e)).
 - *Posit's:* Present — **Session 67 recount: 10 commands, not 8.** The manifest declares
   `quarto.runSelection`, `quarto.runCurrent` ("Run Current Code"), `quarto.runCurrentAdvance`,
   `quarto.runCurrentCell`, `quarto.runPreviousCell`, `quarto.runNextCell`, `quarto.runCellsAbove`,
@@ -162,10 +162,18 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   diff of Posit's manifest between the v1.132.0 tag and current confirms the family itself hasn't
   changed since v1.132.0 — this was always a 10-command family, just under-enumerated by the original
   research.
-- *Notes:* Still parity on 9 of Posit's 10 commands — `runCurrentAdvance` already maps to our
-  `runCellAndAdvance`. **One narrow residual gap surfaces on recount (Session 67):** `quarto.runCurrent`
-  ("Run Current Code") is a generic run-current-line/statement command distinct from Run Cell, with no
-  counterpart in this project.
+- *Notes:* **Parity reached on all 10 of Posit's 10 commands (Session 78, item 13(e))** — no longer a
+  gap. `runCurrentAdvance` already mapped to our `runCellAndAdvance`; the residual gap
+  (`quarto.runCurrent`, "Run Current Code") is now `quarto.runCurrent` here too, registered to the SAME
+  selection-or-current-line handler as `runSelectedLines`. Keybound `Ctrl+Alt+C`/`Cmd+Alt+C`, **not**
+  Posit's own `Ctrl+Enter`/`Cmd+Enter` — this project's pre-existing `quarto.runCell` already claims
+  `Ctrl+Enter` (this project's own keybinding scheme is the reverse of Posit's: `runCell`↔`Ctrl+Enter`/
+  `runSelectedLines`↔`Ctrl+Shift+Enter` here vs. `runCurrentCell`↔`Ctrl+Shift+Enter`/`runCurrent`↔
+  `Ctrl+Enter` on Posit's side), a disclosed keybinding-scheme divergence discovered this session. The
+  exact internal behavioral distinction between Posit's `runCurrent` and `runSelection` is unverifiable
+  without reading their AGPL source; this project's reimplementation is a disclosed, defensible judgment
+  call grounded in cross-validated public facts (VS Code's own built-in Python extension's identical
+  `Ctrl+Enter` convention; a `quarto-cli` GitHub discussion), not a guess at unverifiable internals.
 
 **Interactive/notebook-like execution UX (output console).**
 - *Ours:* Present, but not uniform across languages — Python delegates to
@@ -178,26 +186,35 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
 - *Notes:* Parity by construction, per language — but it's inaccurate to describe all three as riding
   "the Jupyter extension's interactive window"; only Python does, on both sides.
 
-**Format Cell (delegate a code cell's contents to the embedded language's own formatter). (Session 67.)**
-- *Ours:* **Not implemented** — no `DocumentFormattingEditProvider`, no format-cell command anywhere in
-  `src/`.
+**Format Cell (delegate a code cell's contents to the embedded language's own formatter). (Session 67; SHIPPED Session 75.)**
+- *Ours:* Present — `quarto.formatCell` (`src/features/format-cell.ts`), keybound `Ctrl+K Ctrl+F` /
+  `Cmd+K Cmd+F`, gated on `quarto.inCodeCell`. Delegates a cell's contents to the embedded language's own
+  formatter via a virtual document (`vscode.executeFormatDocumentProvider`), preserving `#|`/`//|`
+  cell-option directive lines (reuses item 11 slice 2's `buildCellVirtualContent`).
 - *Posit's:* Present — `quarto.formatCell` ("Format Cell", `Ctrl+K Ctrl+F` / `Cmd+K Cmd+F`) hands a code
   cell's contents to the embedded language's own installed formatter (e.g. Black/autopep8/styler for
   Python/R) via a virtual document and writes the result back. A continuous CHANGELOG history from
   v1.66.0 (2023) through v1.134.0 (2026-06-22, preserving `#|` cell-option directives so formatters
   can't reflow them) confirms this is real and actively maintained, not a stub.
-- *Notes:* Genuine, previously-uncovered gap — this project has no formatting delegation of any kind for
-  code-cell contents.
+- *Notes:* **Parity reached (Session 75)** — no longer a gap. (This row's own body was found still
+  claiming "Not implemented" while updating this document for Session 78's item 13(d)/(e) closures, even
+  though the "At a Glance" summary table had already been corrected to count Format Cell as Parity, Session
+  77 — a genuine, previously-uncovered doc inconsistency, corrected here.)
 
-**Cell navigation & cache-management commands. (Session 67.)**
-- *Ours:* **Not implemented** — no pure-navigation (non-executing) cell commands, no cache-clearing
-  command.
+**Cell navigation & cache-management commands. (Session 67; SHIPPED Session 78.)**
+- *Ours:* Present — `quarto.goToNextCell`/`quarto.goToPreviousCell` (`src/features/execution.ts`), pure
+  cursor-navigation siblings of `runNextCell`/`runPreviousCell` with no delegate dispatch, keybound
+  `Ctrl+PageDown`/`Ctrl+PageUp` (`Cmd+` on macOS), matching Posit's own manifest exactly. `quarto.clearCache`
+  (`src/features/clear-cache.ts`) spawns `quarto render <file> --cache-refresh` — the documented way to
+  force-refresh a document's Jupyter/Knitr execution cache (confirmed against the installed Quarto CLI's
+  own `render --help` and quarto.org's code-execution docs) — editor-title-menu placed, matching Posit's
+  placement.
 - *Posit's:* Present — `quarto.goToNextCell`/`quarto.goToPreviousCell` (`Ctrl+PageDown`/`Ctrl+PageUp`)
   move the cursor between cells with no execution attached, distinct from the run-cell family above; and
   `quarto.clearCache` ("Clear Cache...", editor-title-toolbar-placed) clears Quarto's Jupyter/Knitr
   execution cache — a long-standing command (since v1.14.0, 2022), simply never itemized in this doc.
-- *Notes:* Both are small, previously-uncovered gaps, distinct from the run-cell family (which this
-  project already matches closely — see above).
+- *Notes:* **Parity reached (Session 78)** — no longer a gap. Discovered `--cache-refresh` creates a
+  `<doc>_cache/` directory as a real side effect (gitignored, cleaned up in the integration test).
 
 **Reticulate (R↔Python) execution pathway. (Session 67.)**
 - *Ours:* **Not implemented** — this project has no reticulate-related configuration or code.
@@ -722,10 +739,10 @@ planning session should still verify before implementing):
    ~~standalone `.dot`/`.mmd`/`.typ` language registration~~ — **SHIPPED (Session 77, item 13(b)):** own
    `contributes.languages` entries + `language-configuration.json` (note: the file extension is `.typ`,
    not `.typst` as this row previously said — corrected Session 77, `PROJECT_LEARNINGS.md` Learning #85).
-   ~~the 2 residual snippets (`list-table`, `fragment`)~~ — **SHIPPED (Session 77, item 13(c)).** Still
-   open: cell navigation + cache-clearing commands (`goToNextCell`/`goToPreviousCell`/`clearCache` —
-   small, mostly command+keybinding registration); the single residual run-cell command
-   (`quarto.runCurrent`) — items 13(d)/(e).
+   ~~the 2 residual snippets (`list-table`, `fragment`)~~ — **SHIPPED (Session 77, item 13(c)).**
+   ~~cell navigation + cache-clearing commands (`goToNextCell`/`goToPreviousCell`/`clearCache`)~~ —
+   **SHIPPED (Session 78, item 13(d)).** ~~the single residual run-cell command (`quarto.runCurrent`)~~ —
+   **SHIPPED (Session 78, item 13(e)).** All 5 sub-items of item 13 are now shipped.
 5. **`_quarto.yml` document links + filepath autocompletion**. A bounded YAML Intelligence feature that
    reuses existing `core/project-yaml.ts`/`core/yaml-context.ts` infrastructure.
 6. **Preview command family breadth** (`previewScript` for standalone render scripts; `previewFormat` as
