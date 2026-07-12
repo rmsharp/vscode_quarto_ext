@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S83
+date: 2026-07-12
+status: pending
+active_task: PLANNING — BACKLOG item 15 second half, quarto.previewScript (preview a standalone .py/.jl/.r Quarto render script using the Jupyter percent `# %%` cell format). Deliverable is ONE plan document in docs/planning/ following ARCHITECTURE_WORKSTREAM.md; implementation is a SEPARATE future session (FM #18). Session claimed at Phase 1B; close-out will overwrite this to status: complete.
+```
+
+```handoff
 session: S82
 date: 2026-07-12
 status: complete
