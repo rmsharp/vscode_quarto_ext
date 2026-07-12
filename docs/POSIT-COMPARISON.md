@@ -57,7 +57,7 @@ see individual rows for what changed and why.
 |---|---|---|
 | **Parity** (same capability, comparable depth) | 20 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion, outline granularity, Format Cell, cell navigation/cache commands |
 | **We're ahead** | 4 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image *paste* for `.qmd` (Posit's source editor still doesn't support it — drag-drop is a narrower story, see below, Session 67); spell checking in the plain source editor (a documented `cspell` config recipe — Posit's own spell check is Visual-Editor-only — Session 65) |
-| **Real gaps** (Posit has, we don't) | 11 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), `_quarto.yml` document links + filepath completion (Session 67), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67), preview-command-family breadth (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52 (residual `runCurrent` sub-gap closed, Session 78, item 13(e)); snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (this row's own detailed-section body text was found still stale — still saying "Not implemented" — while updating this table for Session 78's own item 13(d)/(e) closures; corrected here, not a Session 78 finding about its own work); cell navigation/cache-management commands gap closed, Session 78, item 13(d) |
+| **Real gaps** (Posit has, we don't) | 11 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), `_quarto.yml` document links + filepath completion (Session 67 — **partial: document links shipped Session 80, filepath completion pending**), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67), preview-command-family breadth (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52 (residual `runCurrent` sub-gap closed, Session 78, item 13(e)); snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (this row's own detailed-section body text was found still stale — still saying "Not implemented" — while updating this table for Session 78's own item 13(d)/(e) closures; corrected here, not a Session 78 finding about its own work); cell navigation/cache-management commands gap closed, Session 78, item 13(d) |
 | **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 | **Soft / ambiguous comparison** (new bucket, Session 67) | 3 | per-key nested/deep YAML completion depth (neither side has an exhaustive inventory); project-wide/multi-file cross-ref & citation intelligence (both largely single-file-scoped, Posit's is conditional); extensibility surfaces — a public CLI-query API and Quarto-Extension/Lua-authoring support (developer-facing, arguably outside this doc's own "what a document author can do" scope) |
 
@@ -335,15 +335,22 @@ bucket.)**
   does have. Do not describe our own nested completion as "recursive" — it is capped at one level by
   design.
 
-**Document links + filepath autocompletion for file-path values in `_quarto.yml`. (Session 67.)**
-- *Ours:* **Not implemented** — no `vscode.DocumentLinkProvider` anywhere in `src/`, and no
-  filepath-completion logic for `_quarto.yml` values.
+**Document links + filepath autocompletion for file-path values in `_quarto.yml`. (Session 67; Slice 1 SHIPPED Session 80.)**
+- *Ours:* **Partial — (1) document links SHIPPED Session 80 (parity), (2) filepath completion pending.**
+  `src/providers/document-links.ts` registers an existence-checked `vscode.DocumentLinkProvider` on a
+  pattern-based `DocumentSelector` (`{pattern:"**/_quarto.{yml,yaml}"}`): any scalar / sequence /
+  inline-mapping value anywhere in `_quarto.yml`/`_quarto.yaml` that resolves to a real file/directory
+  on disk (relative to the config file's own dir) becomes clickable; a value that resolves to nothing
+  gets no link (whole-document, existence-checked heuristic, matching Posit's own PR #906 approach —
+  plan `docs/planning/2026-07-11-quarto-yml-document-links-plan.md`). Filepath autocompletion (Slice 2)
+  is a planned follow-up session.
 - *Posit's:* Present — since v1.132.0 (PR #906): (1) clickable `DocumentLink`-style navigation for
   file-path values referenced inside `_quarto.yml` that jump directly to the referenced file, and (2)
   filepath autocompletion suggesting actual project files when editing those YAML values. Shipped and
   stable for roughly two months as of this refresh.
-- *Notes:* Genuine, previously-uncovered gap in this project's YAML Intelligence coverage — distinct
-  from the key/value completion and diagnostics rows already tracked here.
+- *Notes:* Document-link navigation is now at parity (Session 80); the filepath-completion half remains
+  the open portion of this gap. Distinct from the key/value completion and diagnostics rows already
+  tracked here.
 
 **YAML schema validation / diagnostics (red squiggles for invalid/unknown keys).**
 - *Ours:* Present, narrower in scope — always-on diagnostics flag unknown keys inside the
