@@ -743,8 +743,13 @@ planning session should still verify before implementing):
    ~~cell navigation + cache-clearing commands (`goToNextCell`/`goToPreviousCell`/`clearCache`)~~ —
    **SHIPPED (Session 78, item 13(d)).** ~~the single residual run-cell command (`quarto.runCurrent`)~~ —
    **SHIPPED (Session 78, item 13(e)).** All 5 sub-items of item 13 are now shipped.
-5. **`_quarto.yml` document links + filepath autocompletion**. A bounded YAML Intelligence feature that
-   reuses existing `core/project-yaml.ts`/`core/yaml-context.ts` infrastructure.
+5. **`_quarto.yml` document links + filepath autocompletion**. **PLANNED Session 79**
+   (`docs/planning/2026-07-11-quarto-yml-document-links-plan.md`) — corrected the framing above:
+   this does NOT meaningfully reuse `core/project-yaml.ts`/`core/yaml-context.ts`'s existing
+   `project:`/`website:`/`book:` closed-schema scan (that infrastructure covers only 15 of 50
+   empirically-confirmed path-typed schema fields; Posit's own shipped PR #906 is itself a
+   non-schema-driven, whole-document, existence-checked heuristic, not scoped to those three
+   blocks). Scoped as a whole-document heuristic, two vertical-slice sessions recommended.
 6. **Preview command family breadth** (`previewScript` for standalone render scripts; `previewFormat` as
    a per-format preview picker). Moderate scope, narrower audience (multi-format documents; standalone
    render scripts are a less common workflow).
