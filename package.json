@@ -194,6 +194,11 @@
         "category": "Quarto"
       },
       {
+        "command": "quarto.runCurrent",
+        "title": "Run Current Code",
+        "category": "Quarto"
+      },
+      {
         "command": "quarto.runNextCell",
         "title": "Run Next Cell",
         "category": "Quarto"
@@ -292,6 +297,12 @@
       {
         "command": "quarto.runSelectedLines",
         "key": "ctrl+shift+enter",
+        "when": "editorTextFocus && editorLangId == quarto && quarto.inCodeCell"
+      },
+      {
+        "command": "quarto.runCurrent",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c",
         "when": "editorTextFocus && editorLangId == quarto && quarto.inCodeCell"
       },
       {

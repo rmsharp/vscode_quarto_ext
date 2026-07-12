@@ -46,6 +46,15 @@ export function registerExecutionFeature(
       "quarto.runSelectedLines",
       runSelectedLines,
     ),
+    // "Run Current Code" — Posit's own manifest declares this as a distinct
+    // command/keybinding (Ctrl+Enter/Cmd+Enter) from "Run Selected Line(s)"
+    // (Alt+Enter), but the exact internal distinction is unverifiable without
+    // reading their AGPL source. Grounded in cross-validated public facts
+    // (VS Code's own Python-extension Ctrl+Enter convention; a GitHub
+    // discussion where a user's own expectation of Ctrl+Enter was "run my
+    // current line") to expose the SAME selection-or-current-line operation
+    // under this second command id, for keybinding parity.
+    vscode.commands.registerCommand("quarto.runCurrent", runSelectedLines),
     vscode.commands.registerCommand("quarto.runNextCell", runNextCell),
     vscode.commands.registerCommand(
       "quarto.runPreviousCell",

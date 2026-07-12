@@ -78,6 +78,7 @@ describe("Quarto: Run Cell family", () => {
       "quarto.runNextCell",
       "quarto.runPreviousCell",
       "quarto.runCellsBelow",
+      "quarto.runCurrent",
     ]) {
       assert.ok(commands.includes(id), `${id} should be registered`);
     }
@@ -303,6 +304,57 @@ describe("Quarto: Run Cell family", () => {
         Promise.resolve(
           vscode.commands.executeCommand("quarto.runSelectedLines"),
         ),
+      "running with no cell at the cursor must not crash",
+    );
+    assert.strictEqual(calls.length, 0, "no delegate should be invoked in prose");
+  });
+
+  // "Run Current Code" (quarto.runCurrent) — Posit's own manifest (title +
+  // Ctrl+Enter/Cmd+Enter keybinding) confirms this is a genuinely separate
+  // command from "Run Selected Line(s)" (quarto.runSelection), but its exact
+  // internal distinction is unverifiable without reading Posit's AGPL source
+  // (out of bounds for this project's clean-room reimplementation policy).
+  // Grounded instead in cross-validated public facts (a GitHub discussion
+  // where a user's own expectation of Ctrl+Enter was "run my current line",
+  // and VS Code's own built-in Python extension convention for the identical
+  // Ctrl+Enter chord) to implement it as the same selection-or-current-line
+  // operation as runSelectedLines — a disclosed, defensible judgment call,
+  // not a guess at unverifiable internals.
+  it("Run Current Code runs only the selected text when there is a non-empty selection", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_MIXED, 6); // inside the 3-line python cell, on "y = 2"
+    editor.selection = new vscode.Selection(
+      new vscode.Position(6, 0),
+      new vscode.Position(6, "y = 2".length),
+    );
+
+    await vscode.commands.executeCommand("quarto.runCurrent");
+
+    assert.strictEqual(calls.length, 1, "the delegate should run exactly once");
+    assert.strictEqual(
+      calls[0].text,
+      "y = 2",
+      "only the selected line should be sent, not the whole cell",
+    );
+  });
+
+  it("Run Current Code runs just the current line when there is no selection", async () => {
+    registerStandInDelegate();
+    await openAt(RUN_MIXED, 7); // cursor only, on "z = x + y", no selection
+
+    await vscode.commands.executeCommand("quarto.runCurrent");
+
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].text, "z = x + y");
+  });
+
+  it("Run Current Code shows a message and does not dispatch when the cursor is not in a cell", async () => {
+    registerStandInDelegate();
+    await openAt(RUN_CELLS, 4); // prose, not a cell
+
+    await assert.doesNotReject(
+      () =>
+        Promise.resolve(vscode.commands.executeCommand("quarto.runCurrent")),
       "running with no cell at the cursor must not crash",
     );
     assert.strictEqual(calls.length, 0, "no delegate should be invoked in prose");
