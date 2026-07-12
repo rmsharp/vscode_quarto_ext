@@ -25,6 +25,7 @@ import * as vscode from "vscode";
 import { buildPreviewHtml } from "../core/preview-html";
 import { buildPreviewArgs, parseDeclaredFormats } from "../core/preview-format";
 import { parseBrowseUrl } from "../core/preview-url";
+import { isRenderScript } from "../core/render-script";
 import { QuartoNotFound, resolveBinary } from "../quarto/cli";
 
 const CHANNEL_NAME = "Quarto Preview";
@@ -393,6 +394,9 @@ export function registerPreviewFeature(
     vscode.commands.registerCommand("quarto.previewFormat", () =>
       previewFormatOfActiveDocument(manager),
     ),
+    vscode.commands.registerCommand("quarto.previewScript", () =>
+      previewActiveScript(manager),
+    ),
     vscode.workspace.onDidCloseTextDocument((doc) =>
       manager.onDocumentClosed(doc),
     ),
@@ -408,6 +412,32 @@ async function previewActiveDocument(manager: PreviewManager): Promise<void> {
     return;
   }
   await manager.openPreview(editor.document);
+}
+
+/**
+ * `Quarto: Preview Script…` — preview a standalone Quarto **render script**
+ * (`BACKLOG.md` item 15; plan `docs/planning/2026-07-12-preview-script-plan.md`).
+ *
+ * The sibling of `previewActiveDocument`: same `PreviewManager.openPreview`, a
+ * different gate. `quarto.preview` gates on `languageId === "quarto"`, which a
+ * `.py`/`.jl`/`.r` script can never satisfy; this one gates on the file actually
+ * having render-script STRUCTURE (`isRenderScript`, which keys on the extension
+ * and the leading percent/spin marker). The two gates are disjoint by
+ * construction — `.qmd`/`.rmd` are not render-script extensions — so no file is
+ * ever claimed by both commands.
+ */
+async function previewActiveScript(manager: PreviewManager): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  const doc = editor?.document;
+  if (!doc || !isRenderScript(doc.uri.fsPath, doc.getText())) {
+    void vscode.window.showErrorMessage(
+      "Quarto: open a Quarto render script to preview — a .py/.jl/.r file " +
+        "starting with a `# %% [markdown]` cell, or a .r file starting with a " +
+        "`#' ---` block.",
+    );
+    return;
+  }
+  await manager.openPreview(doc);
 }
 
 /**

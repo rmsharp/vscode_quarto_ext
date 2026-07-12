@@ -144,6 +144,11 @@
         "category": "Quarto"
       },
       {
+        "command": "quarto.previewScript",
+        "title": "Preview Script...",
+        "category": "Quarto"
+      },
+      {
         "command": "quarto.renderProject",
         "title": "Render Project",
         "category": "Quarto"
