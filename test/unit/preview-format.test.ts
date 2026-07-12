@@ -96,6 +96,35 @@ describe("parseDeclaredFormats", () => {
     const text = ["---", "format:", "  html:", "  pdf:", "---"].join("\r\n");
     expect(parseDeclaredFormats(text)).toEqual(["html", "pdf"]);
   });
+
+  // Flow-collection forms — a valid YAML flow mapping is semantically identical
+  // to the block form Quarto renders (e.g. `{html: default}` == `html:`), so it
+  // must be destructured into real format names, never emitted as one opaque
+  // `{...}` token (which would reach `--to` verbatim and fail). Adversarial
+  // review, Session 82.
+
+  it("destructures a flow-mapping format value", () => {
+    const text = ['---', "format: {html: default}", "---"].join("\n");
+    expect(parseDeclaredFormats(text)).toEqual(["html"]);
+  });
+
+  it("destructures a multi-key flow mapping", () => {
+    const text = ['---', "format: {html: default, pdf: default}", "---"].join(
+      "\n",
+    );
+    expect(parseDeclaredFormats(text)).toEqual(["html", "pdf"]);
+  });
+
+  it("destructures a flow-sequence format value", () => {
+    const text = ['---', "format: [html, pdf]", "---"].join("\n");
+    expect(parseDeclaredFormats(text)).toEqual(["html", "pdf"]);
+  });
+
+  it("returns [] for an empty flow collection (never a bogus token)", () => {
+    expect(parseDeclaredFormats(["---", "format: {}", "---"].join("\n"))).toEqual(
+      [],
+    );
+  });
 });
 
 describe("buildPreviewArgs", () => {

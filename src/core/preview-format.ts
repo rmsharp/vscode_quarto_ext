@@ -42,7 +42,11 @@ export function parseDeclaredFormats(text: string): string[] {
     }
     const scalar = stripComment(m[1]).trim();
     if (scalar.length > 0) {
-      return [unquote(scalar)];
+      // A flow collection (`{html: default}` / `[html, pdf]`) is destructured
+      // into its member format names — never returned as one opaque token,
+      // which would reach `--to` verbatim and fail (adversarial review, S82).
+      const flow = parseFlowCollection(scalar);
+      return flow !== null ? flow : [unquote(scalar)];
     }
     // Empty value after the colon → a block mapping/sequence follows; collect
     // its IMMEDIATE children (the format names), not their nested options.
@@ -81,6 +85,53 @@ function childFormatNames(lines: string[], start: number): string[] {
     const name = childName(line.slice(indent));
     if (name !== null) {
       names.push(name);
+    }
+  }
+  return names;
+}
+
+/**
+ * Destructure a YAML flow collection into its member format names, or return
+ * `null` if `scalar` is not a flow collection (does not start with `{`/`[`):
+ *
+ *  - `{html: default, pdf: default}` → `["html", "pdf"]`  (flow mapping keys)
+ *  - `[html, pdf]`                    → `["html", "pdf"]`  (flow sequence items)
+ *  - `{}` / `[]`                      → `[]`
+ *
+ * A tolerant comma-split — it does NOT handle a flow collection nested inside
+ * another (a comma inside `{a: {x: 1, y: 2}}`), which is astronomically rare in
+ * a `format:` block and, like the block-collection paths, degrades to a MISSING
+ * name, never a wrong `--to` (the caller falls back to Quarto's default).
+ * Documented limitation (Polish/deferred).
+ */
+function parseFlowCollection(scalar: string): string[] | null {
+  const first = scalar[0];
+  if (first !== "{" && first !== "[") {
+    return null;
+  }
+  const isMapping = first === "{";
+  const close = isMapping ? "}" : "]";
+  let inner = scalar.slice(1);
+  if (inner.endsWith(close)) {
+    inner = inner.slice(0, -1);
+  }
+  const names: string[] = [];
+  for (const raw of inner.split(",")) {
+    const part = raw.trim();
+    if (part.length === 0) {
+      continue;
+    }
+    if (isMapping) {
+      const colon = part.indexOf(":");
+      const key = unquote((colon === -1 ? part : part.slice(0, colon)).trim());
+      if (key.length > 0) {
+        names.push(key);
+      }
+    } else {
+      const v = unquote(part);
+      if (v.length > 0) {
+        names.push(v);
+      }
     }
   }
   return names;
