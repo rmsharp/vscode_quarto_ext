@@ -55,9 +55,9 @@ see individual rows for what changed and why.
 
 | | Count | Examples |
 |---|---|---|
-| **Parity** (same capability, comparable depth) | 17 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion |
+| **Parity** (same capability, comparable depth) | 19 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion, outline granularity, Format Cell |
 | **We're ahead** | 4 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image *paste* for `.qmd` (Posit's source editor still doesn't support it — drag-drop is a narrower story, see below, Session 67); spell checking in the plain source editor (a documented `cspell` config recipe — Posit's own spell check is Visual-Editor-only — Session 65) |
-| **Real gaps** (Posit has, we don't) | 14 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), outline granularity (Session 67), Format Cell (Session 67), Reticulate execution (Session 67), cell navigation/cache commands (Session 67), `_quarto.yml` document links + filepath completion (Session 67), standalone diagram/typst language registration (Session 67), cell-background highlighting (Session 67), preview-command-family breadth (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65 |
+| **Real gaps** (Posit has, we don't) | 12 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), cell navigation/cache commands (Session 67), `_quarto.yml` document links + filepath completion (Session 67), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67), preview-command-family breadth (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52; snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (**both found stale in this list — still counted as open — while updating this table for Session 77's own item 13(b)/(c) closures; corrected here, not a Session 77 finding about its own work**) |
 | **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 | **Soft / ambiguous comparison** (new bucket, Session 67) | 3 | per-key nested/deep YAML completion depth (neither side has an exhaustive inventory); project-wide/multi-file cross-ref & citation intelligence (both largely single-file-scoped, Posit's is conditional); extensibility surfaces — a public CLI-query API and Quarto-Extension/Lua-authoring support (developer-facing, arguably outside this doc's own "what a document author can do" scope) |
 
@@ -454,17 +454,29 @@ added.)**
   A related but distinct gap (standalone `.dot`/`.mmd` file-type support, not just live rendering inside
   `.qmd`) is tracked as its own row below — Session 67.
 
-**Standalone diagram/typst language registration (`.dot`, `.mmd`, `.typst` as first-class file types).
-(Session 67.)**
-- *Ours:* **Not implemented** — this project registers only the single `quarto` language; opening a
-  plain `.dot` or `.mmd` file gets no syntax highlighting or editing support from this extension at all.
+**Standalone diagram/typst language registration (`.dot`, `.mmd`, `.typ` as first-class file types).
+(Session 67; SHIPPED Session 76's item 13(b) list corrected below.)**
+- *Ours:* **Present, config-only — SHIPPED Session 77 (`BACKLOG.md` item 13(b)).** `dot` (`.dot`/`.gv`),
+  `mermaid` (`.mmd`), and `typst` (`.typ`) are each registered as standalone, first-class VS Code
+  languages — own `contributes.languages` entry + a dedicated `languages/<id>-language-configuration.json`
+  each (comments, brackets, auto-closing/surrounding pairs) — independent of the embedded-grammar scopes
+  used inside `.qmd` code cells (item 13(a)). Deliberately no TextMate grammar of our own (declarative
+  registration + config only, per item 13(b)'s scope), so these standalone files get correct
+  comment-toggling/bracket-matching from this extension but not our own syntax coloring (coloring depends
+  on the user having a companion extension installed for that language id, same delegated-companion
+  posture as this project's embedded-cell languages).
 - *Posit's:* Present — `dot` (`.dot`/`.DOT`/`.gv`), `mermaid` (`.mmd`), and `typst` are each registered
   as standalone, first-class VS Code languages (own `language-configuration.json` each), independent of
   the embedded-grammar scopes used inside `.qmd` code cells. `dot` additionally ships 4 dedicated
-  snippet files (general/node-attribute/edge-attribute/graph-attribute).
+  snippet files (general/node-attribute/edge-attribute/graph-attribute) — a gap we don't close (not part
+  of item 13(b)'s scope; DOT-specific completion snippets would be their own future item).
 - *Notes:* Distinct from the live-diagram-preview row above (which is about rendering *inside* `.qmd`,
-  where we're at parity) — this is about editing support for the *standalone* file types themselves,
-  which we don't register at all.
+  where we're at parity) — this was about editing support for the *standalone* file types themselves,
+  now closed at the registration/config layer. **Corrected a factual error this row itself previously
+  carried: Typst source files use the `.typ` extension, not `.typst`** (confirmed against the installed
+  Quarto CLI's own bundled `.typ` template files and typst.app's own docs — `PROJECT_LEARNINGS.md`
+  Learning #85). Residual gap vs. Posit: no TextMate grammar (syntax coloring) for these 3 standalone
+  languages, and no DOT-specific snippet family — both unranked, future candidates if picked up.
 
 **Cell-execution background highlighting. (Session 67.)**
 - *Ours:* **Not implemented** — no equivalent configuration or visual treatment for executable code
@@ -564,19 +576,21 @@ added.)**
   in the Command Palette).
 
 **Snippets for common Quarto constructs.**
-- *Ours:* Present — **13 snippets** (`snippets/quarto.json`, `contributes.snippets`): front matter, the
-  4 executable-cell languages, callouts, fenced divs, tabset panels, and one per cross-reference kind
-  this extension itself recognizes (fig/tbl/eq/sec/lst) — **Session 53**, `BACKLOG.md` item #5.
+- *Ours:* Present — **15 snippets** (`snippets/quarto.json`, `contributes.snippets`): front matter, the
+  4 executable-cell languages, callouts, fenced divs, tabset panels, one per cross-reference kind this
+  extension itself recognizes (fig/tbl/eq/sec/lst) — **Session 53**, `BACKLOG.md` item #5 — plus
+  `list-table` and a reveal.js `fragment` snippet — **SHIPPED Session 77, `BACKLOG.md` item 13(c)**.
 - *Posit's:* Present — "Code snippets… make it easier to enter repeating code patterns (code blocks,
   callouts, divs, etc.)."
-- *Notes:* Parity reached (Session 53) — no longer a gap for the constructs this project itself
-  recognizes. Independently designed from Quarto's own documented markdown syntax (grounded against this
-  repo's own fixtures/`core/refs.ts`), not from Posit's AGPL extension's actual snippet content
-  (Learning #1 look-but-don't-copy gate). **Session 67:** Posit's snippet set also includes a
-  `list-table` directive snippet (CHANGELOG v1.131.0) and a reveal.js `fragment` snippet (v1.129.0) —
-  both pre-date Session 53 by months (v1.129.0/v1.131.0 shipped Jan/Apr 2026; Session 53 ran 2026-07-09),
-  so this was always a pre-existing granularity gap, not something Posit added afterward. This project
-  has no equivalent for either construct.
+- *Notes:* **Parity reached (Session 77)** for every construct named in this comparison. Independently
+  designed from Quarto's own documented markdown syntax (grounded against this repo's own
+  fixtures/`core/refs.ts` for the original 13; `list-table`/`fragment` grounded against Quarto's own
+  public docs — the 1.9 release notes and the revealjs Advanced Reveal page), not from Posit's AGPL
+  extension's actual snippet content (Learning #1 look-but-don't-copy gate). **Session 67** had found
+  Posit's snippet set also includes a `list-table` directive snippet (CHANGELOG v1.131.0) and a reveal.js
+  `fragment` snippet (v1.129.0) — both pre-date Session 53 by months (v1.129.0/v1.131.0 shipped Jan/Apr
+  2026; Session 53 ran 2026-07-09), so this was always a pre-existing granularity gap, not something
+  Posit added afterward. Session 77 closes it.
 
 **Image paste / drag-drop (clipboard paste or file drag-drop → auto-save + insert markdown reference).
 (Session 67: split into two distinct claims — paste stays "we're ahead," drag-drop is parity, not ahead.)**
@@ -698,19 +712,20 @@ planning session should still verify before implementing):
    of dependency this project has never taken on. The operator decided to accept the gap permanently
    instead, the same treatment as the excluded Visual Editor. Full evidence trail:
    `docs/planning/2026-07-10-code-cell-diagnostics-plan.md`.
-2. **Outline granularity** (in-cell code symbols, a show/hide-cells toggle). Builds directly on the
-   existing `DocumentSymbolProvider` (`src/providers/outline.ts`) this project already has — a natural
-   next increment after Session 66's setext-heading work, on the same provider.
-3. **Format Cell** (delegate a code cell's body to the embedded language's installed formatter). A
-   well-bounded, self-contained feature — conceptually similar in shape to the existing embedded
-   completion/hover forwarding, just for formatting instead.
-4. **Quick, mostly-declarative wins** (bundle together, similar in shape to the Session 51/53
-   walkthrough/snippets work): embedded-grammar breadth (expand the 5-scope map toward Posit's 50, at
-   least for commonly-used languages); standalone `.dot`/`.mmd`/`.typst` language registration (own
-   `contributes.languages` entries + `language-configuration.json`, mirroring Posit's); the 2 residual
-   snippets (`list-table`, `fragment`); cell navigation + cache-clearing commands (`goToNextCell`/
-   `goToPreviousCell`/`clearCache` — small, mostly command+keybinding registration); the single residual
-   run-cell command (`quarto.runCurrent`).
+2. ~~**Outline granularity**~~ — **SHIPPED, both slices (Sessions 71–74, `BACKLOG.md` item 11).**
+   In-cell code symbols + a show/hide-cells toggle, built on the existing `DocumentSymbolProvider`
+   (`src/providers/outline.ts`), pixel-verified in a live Extension Development Host.
+3. ~~**Format Cell**~~ — **SHIPPED (Session 75, `BACKLOG.md` item 12).** `quarto.formatCell` delegates a
+   code cell's body to the embedded language's installed formatter via a virtual document.
+4. **Quick, mostly-declarative wins** (bundle, similar in shape to the Session 51/53 walkthrough/snippets
+   work): ~~embedded-grammar breadth~~ — **SHIPPED (Session 76, item 13(a)):** 5→20 scopes.
+   ~~standalone `.dot`/`.mmd`/`.typ` language registration~~ — **SHIPPED (Session 77, item 13(b)):** own
+   `contributes.languages` entries + `language-configuration.json` (note: the file extension is `.typ`,
+   not `.typst` as this row previously said — corrected Session 77, `PROJECT_LEARNINGS.md` Learning #85).
+   ~~the 2 residual snippets (`list-table`, `fragment`)~~ — **SHIPPED (Session 77, item 13(c)).** Still
+   open: cell navigation + cache-clearing commands (`goToNextCell`/`goToPreviousCell`/`clearCache` —
+   small, mostly command+keybinding registration); the single residual run-cell command
+   (`quarto.runCurrent`) — items 13(d)/(e).
 5. **`_quarto.yml` document links + filepath autocompletion**. A bounded YAML Intelligence feature that
    reuses existing `core/project-yaml.ts`/`core/yaml-context.ts` infrastructure.
 6. **Preview command family breadth** (`previewScript` for standalone render scripts; `previewFormat` as
