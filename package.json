@@ -139,6 +139,11 @@
         "category": "Quarto"
       },
       {
+        "command": "quarto.previewFormat",
+        "title": "Preview Format...",
+        "category": "Quarto"
+      },
+      {
         "command": "quarto.renderProject",
         "title": "Render Project",
         "category": "Quarto"
@@ -273,11 +278,20 @@
         {
           "command": "quarto.convertToQmd",
           "when": "resourceExtname == .ipynb"
+        },
+        {
+          "command": "quarto.previewFormat",
+          "when": "editorLangId == quarto"
         }
       ],
       "editor/title": [
         {
           "command": "quarto.clearCache",
+          "when": "editorLangId == quarto",
+          "group": "quarto"
+        },
+        {
+          "command": "quarto.previewFormat",
           "when": "editorLangId == quarto",
           "group": "quarto"
         }

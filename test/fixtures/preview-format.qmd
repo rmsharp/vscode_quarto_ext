@@ -1,0 +1,14 @@
+---
+title: "Preview Format Fixture"
+format:
+  html:
+    toc: true
+  docx: default
+---
+
+# Preview Format
+
+A document that declares two output formats (`html` and `docx`) so the
+`quarto.previewFormat` QuickPick has real, enumerable choices.
+
+Some prose so the render produces content.

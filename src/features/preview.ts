@@ -23,6 +23,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { buildPreviewHtml } from "../core/preview-html";
+import { buildPreviewArgs, parseDeclaredFormats } from "../core/preview-format";
 import { parseBrowseUrl } from "../core/preview-url";
 import { QuartoNotFound, resolveBinary } from "../quarto/cli";
 
@@ -39,6 +40,10 @@ interface PreviewSession {
   readonly fsPath: string;
   readonly panel: vscode.WebviewPanel;
   readonly child: ChildProcess;
+  /** The `--to` format this session was started with, or undefined for the
+   * document's own default format. Re-invoking with a DIFFERENT format restarts
+   * the preview (see `openPreview`). */
+  readonly to: string | undefined;
 }
 
 /**
@@ -63,14 +68,24 @@ class PreviewManager implements vscode.Disposable {
    * been parsed and shown in the webview, or after a clear failure — never
    * leaving a spawned process behind.
    */
-  async openPreview(doc: vscode.TextDocument): Promise<void> {
+  async openPreview(
+    doc: vscode.TextDocument,
+    opts: { to?: string } = {},
+  ): Promise<void> {
     const fsPath = doc.uri.fsPath;
+    const to = opts.to?.trim() || undefined;
 
-    // One preview per document — re-running focuses the existing pane.
+    // One preview per document. Re-running with the SAME format focuses the
+    // existing pane; re-running with a DIFFERENT format (e.g. via
+    // `quarto.previewFormat`) tears the current preview down and restarts it in
+    // the requested format below.
     const existing = this.sessions.get(fsPath);
     if (existing) {
-      existing.panel.reveal(vscode.ViewColumn.Beside);
-      return;
+      if (existing.to === to) {
+        existing.panel.reveal(vscode.ViewColumn.Beside);
+        return;
+      }
+      this.disposeSession(fsPath);
     }
     // A spawn is already in flight for this document (its session is not in the
     // map yet because save()/resolveBinary() are still awaiting). Claiming the
@@ -99,29 +114,36 @@ class PreviewManager implements vscode.Disposable {
         throw err;
       }
 
-      await this.spawnPreview(bin, fsPath);
+      await this.spawnPreview(bin, fsPath, to);
     } finally {
       this.starting.delete(fsPath);
     }
   }
 
-  private spawnPreview(bin: string, fsPath: string): Promise<void> {
-    const args = ["preview", fsPath, "--no-browser"];
+  private spawnPreview(
+    bin: string,
+    fsPath: string,
+    to: string | undefined,
+  ): Promise<void> {
+    const args = buildPreviewArgs(fsPath, { to });
     const cwd = path.dirname(fsPath);
 
     this.channel.appendLine(`> ${bin} ${args.join(" ")}`);
     // detached: own a process group so we can reap the deno worker too (🐉).
     const child = spawn(bin, args, { cwd, detached: true });
 
+    const title = to
+      ? `Quarto Preview: ${path.basename(fsPath)} (${to})`
+      : `Quarto Preview: ${path.basename(fsPath)}`;
     const panel = vscode.window.createWebviewPanel(
       "quartoPreview",
-      `Quarto Preview: ${path.basename(fsPath)}`,
+      title,
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
       { enableScripts: true, retainContextWhenHidden: true },
     );
     panel.webview.html = startingHtml();
 
-    const session: PreviewSession = { fsPath, panel, child };
+    const session: PreviewSession = { fsPath, panel, child, to };
     this.sessions.set(fsPath, session);
 
     // The user closing the pane is the primary lifecycle trigger.
@@ -353,6 +375,9 @@ export function registerPreviewFeature(
     vscode.commands.registerCommand("quarto.preview", () =>
       previewActiveDocument(manager),
     ),
+    vscode.commands.registerCommand("quarto.previewFormat", () =>
+      previewFormatOfActiveDocument(manager),
+    ),
     vscode.workspace.onDidCloseTextDocument((doc) =>
       manager.onDocumentClosed(doc),
     ),
@@ -368,6 +393,34 @@ async function previewActiveDocument(manager: PreviewManager): Promise<void> {
     return;
   }
   await manager.openPreview(editor.document);
+}
+
+/**
+ * `Quarto: Preview Format…` — enumerate the active document's declared output
+ * formats, let the user pick one, then preview in that format (`--to <format>`).
+ * When the document declares no `format:`, offer Quarto's implicit default
+ * (`html`) so the command is still usable.
+ */
+async function previewFormatOfActiveDocument(
+  manager: PreviewManager,
+): Promise<void> {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.document.languageId !== "quarto") {
+    void vscode.window.showErrorMessage(
+      "Quarto: open a Quarto (.qmd) document to preview.",
+    );
+    return;
+  }
+
+  const declared = parseDeclaredFormats(editor.document.getText());
+  const formats = declared.length > 0 ? declared : ["html"];
+  const picked = await vscode.window.showQuickPick(formats, {
+    placeHolder: "Select a format to preview",
+  });
+  if (!picked) {
+    return; // user dismissed the picker
+  }
+  await manager.openPreview(editor.document, { to: picked });
 }
 
 /** Reap every live preview — called from the extension's `deactivate`. */
