@@ -252,6 +252,11 @@
         "command": "quarto.goToPreviousCell",
         "title": "Go to Previous Cell",
         "category": "Quarto"
+      },
+      {
+        "command": "quarto.clearCache",
+        "title": "Clear Cache...",
+        "category": "Quarto"
       }
     ],
     "menus": {
@@ -263,6 +268,13 @@
         {
           "command": "quarto.convertToQmd",
           "when": "resourceExtname == .ipynb"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "quarto.clearCache",
+          "when": "editorLangId == quarto",
+          "group": "quarto"
         }
       ]
     },

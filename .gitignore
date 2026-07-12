@@ -11,6 +11,9 @@ dist/
 # Quarto render artifacts (from rendering test fixtures)
 test/fixtures/*.html
 test/fixtures/*_files/
+# `--cache-refresh` (Quarto: Clear Cache command, BACKLOG item 13(d)) creates a
+# Jupyter/Knitr execution-cache directory alongside the rendered output.
+test/fixtures/*_cache/
 
 # Quarto render artifacts (from rendering the project fixture, incl. its
 # nested chapters/ subdirectory and project-level cache)
