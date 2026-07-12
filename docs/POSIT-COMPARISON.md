@@ -57,7 +57,7 @@ see individual rows for what changed and why.
 |---|---|---|
 | **Parity** (same capability, comparable depth) | 21 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion, outline granularity, Format Cell, cell navigation/cache commands, `_quarto.yml` document links + filepath completion (Sessions 80–81) |
 | **We're ahead** | 4 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image *paste* for `.qmd` (Posit's source editor still doesn't support it — drag-drop is a narrower story, see below, Session 67); spell checking in the plain source editor (a documented `cspell` config recipe — Posit's own spell check is Visual-Editor-only — Session 65) |
-| **Real gaps** (Posit has, we don't) | 10 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67), preview-command-family breadth (Session 67 — **partial: per-format preview picker `quarto.previewFormat` shipped Session 82; render-script preview `previewScript` pending**) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52 (residual `runCurrent` sub-gap closed, Session 78, item 13(e)); snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (this row's own detailed-section body text was found still stale — still saying "Not implemented" — while updating this table for Session 78's own item 13(d)/(e) closures; corrected here, not a Session 78 finding about its own work); cell navigation/cache-management commands gap closed, Session 78, item 13(d); `_quarto.yml` document links + filepath completion gap closed, Sessions 80–81, item 14 |
+| **Real gaps** (Posit has, we don't) | 10 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67), preview-command-family breadth (Session 67 — **partial: per-format preview picker `quarto.previewFormat` shipped Session 82 and the render-script preview command `quarto.previewScript` shipped Session 84, so both capabilities exist; the residual is Posit's UX *gating* for the latter — context key, shared `Ctrl+Shift+K`, editor-title button, activation events — item 15 Slice 2**) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52 (residual `runCurrent` sub-gap closed, Session 78, item 13(e)); snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (this row's own detailed-section body text was found still stale — still saying "Not implemented" — while updating this table for Session 78's own item 13(d)/(e) closures; corrected here, not a Session 78 finding about its own work); cell navigation/cache-management commands gap closed, Session 78, item 13(d); `_quarto.yml` document links + filepath completion gap closed, Sessions 80–81, item 14 |
 | **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 | **Soft / ambiguous comparison** (new bucket, Session 67) | 3 | per-key nested/deep YAML completion depth (neither side has an exhaustive inventory); project-wide/multi-file cross-ref & citation intelligence (both largely single-file-scoped, Posit's is conditional); extensibility surfaces — a public CLI-query API and Quarto-Extension/Lua-authoring support (developer-facing, arguably outside this doc's own "what a document author can do" scope) |
 
@@ -124,13 +124,18 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   `features/preview.ts`'s process-group-owning model doesn't trivially generalize to multi-output-file
   projects (confirmed Session 44).
 
-**Preview command family breadth (render-script preview, per-format preview picker). (Session 67; `previewFormat` SHIPPED Session 82.)**
-- *Ours:* **Partial — per-format preview picker shipped, render-script preview pending.** `quarto.previewFormat`
-  ("Preview Format…", Session 82) enumerates a document's declared `format:` outputs and previews the chosen
-  one (`quarto preview … --to <fmt>`); `quarto.previewScript` is not yet implemented (deferred to its own
-  session — it needs a content-driven `quartoRenderScriptActive`-style context key detecting a `# %%`
-  percent-format render script, new infrastructure this codebase has no precedent for). (`src/core/preview-format.ts`,
-  `src/features/preview.ts`.)
+**Preview command family breadth (render-script preview, per-format preview picker). (Session 67; `previewFormat` SHIPPED Session 82; `previewScript` command SHIPPED Session 84.)**
+- *Ours:* **Capability parity — both commands ship; the residual gap is Posit's UX *gating*, not the feature.**
+  `quarto.previewFormat` ("Preview Format...", Session 82) enumerates a document's declared `format:` outputs and
+  previews the chosen one (`quarto preview … --to <fmt>`). `quarto.previewScript` ("Preview Script...", Session 84)
+  previews a standalone render script, gated by a pure `isRenderScript` detector that recognizes **both** kinds
+  Quarto's engines actually claim — jupyter-percent (`.py`/`.jl`/`.r`, opening with a `# %% [markdown]`/`[raw]`
+  cell) **and knitr *spin*** (`.r`, opening with a roxygen `#' ---` block; note Posit's own docs and our earlier
+  notes framed this as percent-only — the spin path is a first-class second kind). Both reuse the existing
+  `PreviewManager` lifecycle unchanged. **Still pending (Session 84 Slice 2):** Posit's *gating* around the
+  command — the `quartoRenderScriptActive` context key, the mutually-exclusive `Ctrl+Shift+K` shared with
+  `quarto.preview`, the editor/title button, and the script-file activation events. Ours is currently reachable
+  from the Command Palette only. (`src/core/render-script.ts`, `src/core/preview-format.ts`, `src/features/preview.ts`.)
 - *Posit's:* Present — beyond `quarto.preview`, the manifest declares `quarto.previewScript` (same
   keybinding as Preview, but active only when previewing a standalone Quarto *render script* rather
   than a `.qmd` document) and `quarto.previewFormat` ("Preview Format...", a per-format preview
@@ -138,8 +143,10 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   is a general contextual dispatcher across the Visual Editor / plain `.qmd` / Mermaid / Graphviz — that
   one is substantively the same `Ctrl+Shift+L` capability this doc's "Live preview of LaTeX math" row
   already covers, just not previously tied to its command ID; it is not counted as a gap here.
-- *Notes:* Per-format preview picker now at parity (Session 82). Remaining gap: previewing a standalone
-  render script (`previewScript`), a less common workflow, pending its own session.
+- *Notes:* Both commands now exist (per-format picker Session 82; render-script preview Session 84), so the
+  *capability* gap is closed. The remaining delta is Posit's discoverability/gating layer for `previewScript`
+  (context key + shared keybinding + editor-title button + activation events) — `BACKLOG.md` item 15, Slice 2.
+  Counted below as a residual **partial**, not a closed gap, until that ships.
 
 ---
 
