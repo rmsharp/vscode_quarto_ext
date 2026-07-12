@@ -5,6 +5,14 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 82 — IMPLEMENTATION: `BACKLOG.md` item 15 — preview command family breadth (`quarto.previewScript` + `quarto.previewFormat`).** Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate.
+**Started:** 2026-07-12
+**Status:** Session claimed. Phase 2 research beginning (existing `src/features/preview.ts` + Posit's public `previewScript`/`previewFormat` facts, clean-room — never their AGPL source). Per the item-14/Session-79 precedent, if research surfaces genuine scope uncertainty (the BACKLOG framing turning out wrong) it will be surfaced to the operator via `AskUserQuestion` before any implementation code.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
+
+---
+
+## Session 81 (superseded ACTIVE TASK, preserved below for history)
 **Task:** **Session 81 — IMPLEMENTATION: `BACKLOG.md` item 14, Slice 2 (filepath completion `CompletionItemProvider` for `_quarto.yml`).** Executed `docs/planning/2026-07-11-quarto-yml-document-links-plan.md` §6 Slice 2, following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. Gate-(a) contract re-verified against current code at Orient — no drift (`valueContextAt`/`filepath-completion.ts` absent, not wired, `onLanguage:yaml` already in `activationEvents` → plan Q2 needs no manifest change, `valueSlotAfterColon`/`leadingWsLen`/`Slot` exported + `mappingColonIndex` present for reuse).
 **Started:** 2026-07-12
 **Status:** SHIPPED. **Item 14 is now fully complete (both slices, Sessions 80–81).** `src/core/project-links.ts` gained `valueContextAt` (pure cursor-position value-slot detector, sibling of Slice 1's `findPathValueCandidates`, reusing `mappingColonIndex`/`valueSlotAfterColon` so the two never disagree on where a value begins) + `src/providers/filepath-completion.ts` (`CompletionItemProvider` on the SAME `{pattern:"**/_quarto.{yml,yaml}"}` selector, triggers `:`/`-`/`/`; splits the value-so-far at the last `/`, `readDirectory`s the resolved prefix, maps entries to `File`/`Folder` items with a trailing `/` on folders; `valueContextAt → null → undefined` inverse-gate) + `extension.ts` wire + a dedicated `test/fixtures/filepath-completion/` + unit/integration tests. A 7-agent adversarial-review `Workflow` (5 finder lenses × 2-skeptic refutation; 4 lenses clean) confirmed ONE real defect — `valueContextAt` lacked the upper bound its sibling `frontMatterContextAt` enforces, so a cursor PAST the value token (in a trailing inline comment) returned a context that would overrun the comment on accept — fixed at the root (`col > slot.endCol → null`; Learning #89). 708 unit (+13) / 276 integration (+5); check-types clean; clean 43-file `.vsix`.

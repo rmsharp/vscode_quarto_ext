@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S82
+date: 2026-07-12
+status: pending
+active_task: BACKLOG item 15 -- preview command family breadth (quarto.previewScript + quarto.previewFormat). IMPLEMENTATION following DEVELOPMENT_WORKSTREAM.md + strict TDD. Session claimed; Phase 2 research (existing preview.ts + Posit's public previewScript/previewFormat facts, clean-room) beginning. If research surfaces genuine scope uncertainty (the item-14 precedent) it will be surfaced to the operator via AskUserQuestion before implementation code.
+```
+
+```handoff
 session: S81
 date: 2026-07-12
 status: complete
