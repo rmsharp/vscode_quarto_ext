@@ -1,0 +1,5 @@
+project:
+  type: book
+bibliography: refs.bib
+resources:
+  - chapters/part1.qmd
