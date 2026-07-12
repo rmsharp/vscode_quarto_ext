@@ -82,6 +82,27 @@
     ],
     "description": "Insert a code listing with a listing cross-reference label"
   },
+  "List Table": {
+    "prefix": "qlisttable",
+    "body": [
+      "::: {.list-table}",
+      "",
+      "- - ${1:A}",
+      "  - ${2:B}",
+      "",
+      "- - ${3:1}",
+      "  - ${4:2}",
+      "",
+      ":::",
+      "$0"
+    ],
+    "description": "Insert a Quarto list-table (bullet-based table for complex cell content)"
+  },
+  "Fragment (RevealJS)": {
+    "prefix": "qfragment",
+    "body": ["::: {.fragment}", "$0", ":::"],
+    "description": "Insert a reveal.js fragment (content revealed incrementally on a slide)"
+  },
   "Tabset Panel": {
     "prefix": "qtabset",
     "body": [
