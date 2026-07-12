@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S86
+date: 2026-07-12
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: PLANNING — BACKLOG item 16, semantic highlighting via the embedded language's LSP. Deliverable is ONE plan document in docs/planning/, following ARCHITECTURE_WORKSTREAM.md. Implementation is a SEPARATE future session (FM #18/#19) — zero src/ code this session. The plan must settle, FIRSTHAND and BEFORE drafting, whether semantic tokens are actually forwardable through this project's existing vdoc architecture: item 10 (diagnostics forwarding) was CLOSED as not-pursuable because that architecture is pull-based and diagnostics are push-only. Semantic tokens are NOMINALLY a pull request (vscode.executeDocumentSemanticTokensProvider) — but that is a hypothesis to test against a real Extension Development Host, not an analogy to trust. If the spike fails, the honest deliverable is a plan recommending Option-A-style closure, exactly as item 10's plan did.
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+```handoff
 session: S85
 date: 2026-07-12
 status: complete
