@@ -11,6 +11,11 @@ dist/
 # Quarto render artifacts (from rendering test fixtures)
 test/fixtures/*.html
 test/fixtures/*_files/
+# Binary output formats a preview/render test may target via `--to` (Quarto:
+# Preview Format, BACKLOG item 15) — e.g. `--to docx`/`pdf`/`pptx`.
+test/fixtures/*.docx
+test/fixtures/*.pdf
+test/fixtures/*.pptx
 # `--cache-refresh` (Quarto: Clear Cache command, BACKLOG item 13(d)) creates a
 # Jupyter/Knitr execution-cache directory alongside the rendered output.
 test/fixtures/*_cache/
