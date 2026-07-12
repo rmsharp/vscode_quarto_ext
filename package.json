@@ -57,6 +57,40 @@
           ".Rmd"
         ],
         "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "dot",
+        "aliases": [
+          "Graphviz DOT",
+          "dot"
+        ],
+        "extensions": [
+          ".dot",
+          ".gv"
+        ],
+        "configuration": "./languages/dot-language-configuration.json"
+      },
+      {
+        "id": "mermaid",
+        "aliases": [
+          "Mermaid",
+          "mermaid"
+        ],
+        "extensions": [
+          ".mmd"
+        ],
+        "configuration": "./languages/mermaid-language-configuration.json"
+      },
+      {
+        "id": "typst",
+        "aliases": [
+          "Typst",
+          "typst"
+        ],
+        "extensions": [
+          ".typ"
+        ],
+        "configuration": "./languages/typst-language-configuration.json"
       }
     ],
     "grammars": [
