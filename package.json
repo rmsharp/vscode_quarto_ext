@@ -43,7 +43,7 @@
     "onLanguage:quarto",
     "onLanguage:yaml",
     "onLanguage:r",
-    "workspaceContains:**/*.{qmd,rmd}",
+    "workspaceContains:**/*.{qmd,rmd,Rmd}",
     "workspaceContains:**/_quarto.{yml,yaml}"
   ],
   "contributes": {
@@ -293,7 +293,7 @@
         },
         {
           "command": "quarto.previewScript",
-          "when": "quartoRenderScriptActive"
+          "when": "resourceExtname == .py || resourceExtname == .jl || resourceExtname == .r || resourceExtname == .R"
         }
       ],
       "editor/title": [

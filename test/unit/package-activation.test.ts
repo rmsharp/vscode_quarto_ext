@@ -35,10 +35,22 @@ describe("package.json activationEvents", () => {
       // one `.qmd`) activates on the second event alone — dropping it was a
       // confirmed defect in the plan's own first draft (its review's finding #6).
       expect(packageJson.activationEvents).toContain(
-        "workspaceContains:**/*.{qmd,rmd}",
-      );
-      expect(packageJson.activationEvents).toContain(
         "workspaceContains:**/_quarto.{yml,yaml}",
+      );
+    });
+
+    it("matches EVERY Quarto extension this extension itself registers, including .Rmd", () => {
+      // workspaceContains globs are matched CASE-SENSITIVELY (VS Code runs ripgrep
+      // with --case-sensitive), so `**/*.{qmd,rmd}` — Posit's glob, which the plan
+      // told us to copy — never matches `report.Rmd`, even though this extension's
+      // own `contributes.languages` registers `.Rmd` as a Quarto file. An .Rmd-only
+      // project therefore would not activate us at startup, so opening a render
+      // script there would leave the context key unset and the gating layer inert.
+      // (Adversarial review, Session 85.)
+      const registered = packageJson.contributes.languages[0].extensions;
+      expect(registered).toContain(".Rmd");
+      expect(packageJson.activationEvents).toContain(
+        "workspaceContains:**/*.{qmd,rmd,Rmd}",
       );
     });
 

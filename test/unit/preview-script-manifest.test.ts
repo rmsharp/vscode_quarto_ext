@@ -78,20 +78,56 @@ describe("quarto.previewScript manifest — Ctrl+Shift+K mutual exclusion", () =
     expect(bindingFor("quarto.preview").when).toContain("editorLangId == quarto");
   });
 
-  it("gates the palette entry and the editor-title button on the context key", () => {
-    const palette = menus.commandPalette.filter(
-      (m) => m.command === "quarto.previewScript",
-    );
-    expect(palette, "previewScript needs a commandPalette entry").toHaveLength(1);
-    // Divergence from Posit (`when: false`, hidden): this project favours palette
-    // discoverability, so the entry is SHOWN, but only for an actual render script
-    // (plan §5.3 palette sub-decision; operator-approved at the S84 kickoff).
-    expect(palette[0].when).toBe(KEY);
-
+  it("gates the editor-title button on the context key", () => {
     const title = menus["editor/title"].filter(
       (m) => m.command === "quarto.previewScript",
     );
     expect(title, "previewScript needs an editor/title entry").toHaveLength(1);
     expect(title[0].when).toBe(KEY);
+  });
+
+  it("must NOT gate the palette entry on the context key — that key is only settable AFTER activation, and the palette is the sole activation path for a lone script", () => {
+    // 🔑 THE REGRESSION GUARD FOR THE ADVERSARIAL REVIEW'S HIGH FINDING.
+    //
+    // Chicken-and-egg, verified firsthand: `quartoRenderScriptActive` is set only
+    // inside registerPreviewFeature, i.e. only once the extension has ACTIVATED.
+    // No activationEvent matches a lone `.py`/`.jl` script (deliberately — we do
+    // not activate for every Python file). VS Code does NOT activate an extension
+    // in order to evaluate a palette `when` clause, so an extension-owned key that
+    // was never `setContext`'d is unset, hence falsy, hence the entry is HIDDEN.
+    //
+    // Gate the palette on that key and ALL THREE invocation paths close at once for
+    // `~/scratch/analysis.py`: the keybinding is false, the title button is hidden,
+    // and the palette entry is hidden. The command becomes unreachable — a strict
+    // regression, since before Slice 2 it had no palette entry at all and was
+    // therefore shown unconditionally, and invoking it auto-activated us (engines
+    // ^1.90.0 >= 1.74) and previewed the script. The plan asserted "the palette
+    // command still works (auto-activates on invoke)" WHILE also prescribing this
+    // gate; the two are mutually exclusive, and shipping both broke the escape hatch.
+    const palette = menus.commandPalette.filter(
+      (m) => m.command === "quarto.previewScript",
+    );
+    expect(palette, "previewScript needs a commandPalette entry").toHaveLength(1);
+    expect(
+      palette[0].when,
+      "the palette entry must not depend on quartoRenderScriptActive",
+    ).not.toContain(KEY);
+  });
+
+  it("gates the palette entry on resourceExtname instead — evaluable with the extension INACTIVE", () => {
+    // `resourceExtname` is a BUILT-IN VS Code context key, so VS Code can evaluate
+    // it without us being active — which is what preserves auto-activation-on-invoke
+    // and keeps the operator's actual intent (don't show the command on a .qmd or a
+    // .txt) intact. Precedent in this very manifest: quarto.convertToQmd uses
+    // `when: "resourceExtname == .ipynb"`.
+    const when = menus.commandPalette.find(
+      (m) => m.command === "quarto.previewScript",
+    )?.when;
+    // Exactly the extensions the detector can ever accept (core/render-script.ts).
+    for (const ext of [".py", ".jl", ".r", ".R"]) {
+      expect(when, `palette must be reachable for ${ext}`).toContain(
+        `resourceExtname == ${ext}`,
+      );
+    }
   });
 });

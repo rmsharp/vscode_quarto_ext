@@ -25,7 +25,10 @@ import * as vscode from "vscode";
 import { buildPreviewHtml } from "../core/preview-html";
 import { buildPreviewArgs, parseDeclaredFormats } from "../core/preview-format";
 import { parseBrowseUrl } from "../core/preview-url";
-import { isRenderScript } from "../core/render-script";
+import {
+  isRenderScript,
+  isRenderScriptExtension,
+} from "../core/render-script";
 import { QuartoNotFound, resolveBinary } from "../quarto/cli";
 
 const CHANNEL_NAME = "Quarto Preview";
@@ -474,6 +477,25 @@ async function previewActiveScript(manager: PreviewManager): Promise<void> {
  * e.g. the built-in Git extension's read-only `git:` diff of a spin script, whose
  * fsPath is the working-tree path — and preview the working-tree file while the
  * user is looking at an old revision.
+ *
+ * ⚠ ORDER IS LOAD-BEARING, and only for COST — every ordering yields the same
+ * boolean. `isRenderScriptExtension` must come BEFORE `doc.getText()`, because
+ * `getText()` builds a string of the entire buffer and this predicate runs on every
+ * keystroke of the active document (`updateRenderScriptContext`). Calling it first
+ * would allocate a whole 20 MB log or .json on each keypress, on VS Code's
+ * single-threaded extension host, only to discover the extension was never
+ * `.py`/`.jl`/`.r`. `updateCellContext` — the precedent this key is modelled on —
+ * short-circuits on `languageId === "quarto"` before its own `getText()` for exactly
+ * this reason; the first cut of this function dropped that prefilter (adversarial
+ * review, Session 85).
+ *
+ * This is a pure performance property with NO behavioural signature: deleting the
+ * prefilter leaves every test green, because the answer is unchanged. It cannot be
+ * pinned by a test — the ext-host `TextDocument.getText` is a frozen, non-configurable
+ * own property, so it cannot be spied on (probed firsthand). It is instead pinned at
+ * the cheap end: `isRenderScriptExtension` is unit-tested exhaustively, including the
+ * superset property that makes putting it first SOUND (it can never veto a file the
+ * full detector would accept).
  */
 function isPreviewableRenderScript(
   doc: vscode.TextDocument | undefined,
@@ -481,6 +503,7 @@ function isPreviewableRenderScript(
   return (
     doc !== undefined &&
     doc.uri.scheme === "file" &&
+    isRenderScriptExtension(doc.uri.fsPath) &&
     isRenderScript(doc.uri.fsPath, doc.getText())
   );
 }

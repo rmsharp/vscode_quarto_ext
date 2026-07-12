@@ -73,6 +73,29 @@ function extensionOf(fileName: string): string {
 }
 
 /**
+ * True iff `fileName`'s extension is one a render script could possibly have —
+ * the CHEAP half of `isRenderScript`, deciding on the name alone.
+ *
+ * Exists so a caller on a hot path can reject a file BEFORE paying to materialize
+ * its text. `isRenderScript(fileName, text)` takes `text` as an eager argument, so
+ * a caller that has only a `vscode.TextDocument` must call `doc.getText()` — which
+ * builds a string of the WHOLE buffer — before this extension check inside it ever
+ * runs. On the per-keystroke context-key path that means every edit to any file
+ * (a 20 MB log, a big .json) would allocate the entire buffer just to discover the
+ * extension was never `.py`/`.jl`/`.r`. `updateCellContext`, the precedent the
+ * context key is modelled on, avoids this by short-circuiting on
+ * `languageId === "quarto"` before its own `getText()`; this is how the render-script
+ * key does the same.
+ *
+ * MUST be a superset of `isRenderScript`'s accept set — a pre-filter that vetoed a
+ * real script would silently turn the key false for it. Locked by a unit test.
+ */
+export function isRenderScriptExtension(fileName: string): boolean {
+  const ext = extensionOf(fileName);
+  return PERCENT_EXTENSIONS.includes(ext) || ext === SPIN_EXTENSION;
+}
+
+/**
  * True iff `(fileName, text)` is a Quarto render script — a Jupyter percent
  * script OR a knitr spin script. Total: no I/O, never throws; an untitled buffer
  * (no extension) is `false`, which is correct — `quarto preview` needs a file on

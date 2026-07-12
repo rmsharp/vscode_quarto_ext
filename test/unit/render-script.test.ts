@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { isRenderScript } from "../../src/core/render-script";
+import {
+  isRenderScript,
+  isRenderScriptExtension,
+} from "../../src/core/render-script";
 
 describe("isRenderScript — Jupyter percent scripts (path A)", () => {
   it("accepts a .py whose first non-blank line is a `# %% [markdown]` cell", () => {
@@ -119,5 +122,55 @@ describe("isRenderScript — cost", () => {
     const started = performance.now();
     expect(isRenderScript("/tmp/analysis.r", text)).toBe(false);
     expect(performance.now() - started).toBeLessThan(100);
+  });
+});
+
+describe("isRenderScriptExtension — the cheap half, for the per-keystroke path", () => {
+  // The context key recomputes on EVERY keystroke of the active document
+  // (`updateRenderScriptContext`). `isRenderScript(fileName, text)` takes the text
+  // as an eager argument, so calling it directly forces the WHOLE buffer to be
+  // materialized (`doc.getText()`) before the extension check inside it can reject
+  // a file that could never be a render script anyway. `updateCellContext` — the
+  // precedent this key was modelled on — avoids exactly that by short-circuiting on
+  // `languageId === "quarto"` BEFORE it calls `getText()`. This exposes the same
+  // cheap pre-filter so the adapter can too. (Adversarial review, Session 85.)
+  it("accepts every extension the detector can ever accept", () => {
+    for (const name of ["a.py", "a.jl", "a.r", "a.R", "a.PY", "/x/y/a.Py"]) {
+      expect(isRenderScriptExtension(name), name).toBe(true);
+    }
+  });
+
+  it("rejects everything else, WITHOUT needing the text", () => {
+    for (const name of [
+      "a.qmd", // quarto.preview's territory, never previewScript's
+      "a.rmd",
+      "a.txt",
+      "a.json",
+      "a.ts",
+      "a", // no extension
+      ".env", // dotfile: not an extension
+      "",
+    ]) {
+      expect(isRenderScriptExtension(name), name).toBe(false);
+    }
+  });
+
+  it("is a strict SUPERSET of isRenderScript — it may never reject a real script", () => {
+    // The pre-filter is only sound if it can never veto a file the full detector
+    // would have accepted. Anything else silently turns the key false for a real
+    // render script.
+    const scripts: Array<[string, string]> = [
+      ["a.py", "# %% [markdown]\n"],
+      ["a.jl", "# %% [raw]\n"],
+      ["a.r", "# %% [markdown]\n"],
+      ["a.R", "#' ---\n#' t: 1\n#' ---\n"],
+      ["a.r", "#' ---\n#' t: 1\n#' ---\n"],
+    ];
+    for (const [name, text] of scripts) {
+      expect(isRenderScript(name, text), `precondition ${name}`).toBe(true);
+      expect(isRenderScriptExtension(name), `pre-filter must not veto ${name}`).toBe(
+        true,
+      );
+    }
   });
 });
