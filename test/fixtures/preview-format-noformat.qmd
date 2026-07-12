@@ -1,0 +1,10 @@
+---
+title: "No Declared Format"
+author: "Test"
+---
+
+# No format key
+
+This document declares no top-level `format:` key, so `quarto.previewFormat`
+must fall back to Quarto's implicit default (`html`) rather than offering an
+empty picker.

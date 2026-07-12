@@ -76,24 +76,25 @@ class PreviewManager implements vscode.Disposable {
     const to = opts.to?.trim() || undefined;
 
     // One preview per document. Re-running with the SAME format focuses the
-    // existing pane; re-running with a DIFFERENT format (e.g. via
-    // `quarto.previewFormat`) tears the current preview down and restarts it in
-    // the requested format below.
+    // existing pane.
     const existing = this.sessions.get(fsPath);
-    if (existing) {
-      if (existing.to === to) {
-        existing.panel.reveal(vscode.ViewColumn.Beside);
-        return;
-      }
-      this.disposeSession(fsPath);
+    if (existing && existing.to === to) {
+      existing.panel.reveal(vscode.ViewColumn.Beside);
+      return;
     }
-    // A spawn is already in flight for this document (its session is not in the
-    // map yet because save()/resolveBinary() are still awaiting). Claiming the
-    // slot synchronously — before any await — makes check-and-spawn atomic, so
-    // a concurrent second invocation returns instead of spawning a second,
-    // orphaning server.
+    // A spawn is already in flight for this document (the slot is held from
+    // before the first await until spawnPreview settles). Drop this request —
+    // including a differing-format one — rather than tearing down the in-flight
+    // preview and racing a second spawn. (Residual: a format switch requested
+    // DURING startup is silently dropped; the user re-runs once the preview is
+    // up. Documented as a low-severity limitation — S82 review finding #6.)
     if (this.starting.has(fsPath)) {
       return;
+    }
+    // Steady state: a DIFFERENT-format request (e.g. via `quarto.previewFormat`)
+    // tears the current preview down and restarts it in the requested format.
+    if (existing) {
+      this.disposeSession(fsPath);
     }
     this.starting.add(fsPath);
 
@@ -159,17 +160,26 @@ class PreviewManager implements vscode.Disposable {
         }
       };
 
+      // This spawn is still the active preview for its document ⟺ its own
+      // session object still occupies the map slot. A stale child (its session
+      // already replaced by a format-restart, or removed by an intentional
+      // teardown) must NOT dispose whatever now holds the slot, nor raise an
+      // error for an exit that was expected (S82 review finding #2).
+      const isCurrent = (): boolean => this.sessions.get(fsPath) === session;
+
       const timer = setTimeout(() => {
         if (!settled) {
           this.channel.appendLine(
             `\nQuarto preview did not report a URL within ` +
               `${START_TIMEOUT_MS / 1000}s.`,
           );
-          this.channel.show(true);
-          void vscode.window.showErrorMessage(
-            `Quarto preview failed to start. See the "${CHANNEL_NAME}" output.`,
-          );
-          this.disposeSession(fsPath);
+          if (isCurrent()) {
+            this.channel.show(true);
+            void vscode.window.showErrorMessage(
+              `Quarto preview failed to start. See the "${CHANNEL_NAME}" output.`,
+            );
+            this.disposeSession(fsPath);
+          }
           settle();
         }
       }, START_TIMEOUT_MS);
@@ -202,20 +212,23 @@ class PreviewManager implements vscode.Disposable {
 
       child.on("error", (err) => {
         this.channel.appendLine(`\nQuarto preview failed to start: ${String(err)}`);
-        this.channel.show(true);
-        void vscode.window.showErrorMessage(
-          `Quarto preview failed to start: ${err.message}`,
-        );
-        this.disposeSession(fsPath);
+        if (isCurrent()) {
+          this.channel.show(true);
+          void vscode.window.showErrorMessage(
+            `Quarto preview failed to start: ${err.message}`,
+          );
+          this.disposeSession(fsPath);
+        }
         settle();
       });
 
       child.on("close", (code) => {
-        // disposeSession deletes the session BEFORE killing the group, so a
-        // session still present here means the server died on its own — a real
-        // failure. If it's already gone, this close is the result of an
-        // intentional teardown (pane/doc close) and must not raise an error.
-        const unexpected = this.sessions.has(fsPath);
+        // This session still occupies the slot ⟺ its server died on its own — a
+        // real failure. If it's already gone (intentional teardown) or has been
+        // replaced by a newer session (a format restart), this is a STALE
+        // child's exit: log it, but do NOT dispose whatever now holds the slot
+        // and do NOT raise an error (S82 review finding #2).
+        const unexpected = isCurrent();
         if (!settled) {
           this.channel.appendLine(
             `\nQuarto preview exited (code ${code ?? "unknown"}) before it was ready.`,
@@ -232,7 +245,9 @@ class PreviewManager implements vscode.Disposable {
             `\nQuarto preview server stopped (code ${code ?? "unknown"}).`,
           );
         }
-        this.disposeSession(fsPath);
+        if (unexpected) {
+          this.disposeSession(fsPath);
+        }
         settle();
       });
     });
