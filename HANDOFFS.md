@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S81
+date: 2026-07-12
+status: pending
+active_task: IN PROGRESS. BACKLOG item 14 Slice 2 -- the _quarto.yml filepath completion CompletionItemProvider. Executing docs/planning/2026-07-11-quarto-yml-document-links-plan.md §6 Slice 2 under DEVELOPMENT_WORKSTREAM.md + strict TDD. This is the Phase 1B claim stub; Phase 3D overwrites it to status: complete.
+```
+
+```handoff
 session: S80
 date: 2026-07-12
 status: complete

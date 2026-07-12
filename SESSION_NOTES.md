@@ -5,6 +5,12 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 81 — IMPLEMENTATION: `BACKLOG.md` item 14, Slice 2 (filepath completion `CompletionItemProvider` for `_quarto.yml`).** (IN PROGRESS) Executing `docs/planning/2026-07-11-quarto-yml-document-links-plan.md` §6 Slice 2, following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. Gate-(a) contract re-verified against current code at Orient — no drift: `valueContextAt`/`filepath-completion.ts` absent, `registerFilepathCompletionFeature` not wired, `onLanguage:yaml` already in `activationEvents` (resolves plan Q2 — no manifest change), `valueSlotAfterColon`/`leadingWsLen`/`Slot` exported from `yaml-context.ts` and `mappingColonIndex` present in `project-links.ts` for reuse.
+**Started:** 2026-07-12
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 80 (superseded ACTIVE TASK, preserved below for history)
 **Task:** **Session 80 — IMPLEMENTATION: `BACKLOG.md` item 14, Slice 1 (`DocumentLinkProvider` for `_quarto.yml` file-path values).** Executing `docs/planning/2026-07-11-quarto-yml-document-links-plan.md` §6 Slice 1, following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. The pre-declared vertical-slice contract (gate (a)) was re-verified against current code at Orient — no drift (G1/G4 zero-hit, `keySpanAt` bails on `-`, `valueSlotAfterColon` unexported at yaml-context.ts:401-415, `onLanguage:yaml` already in activationEvents). Kickoff open questions resolved to the plan's own recommendations: Q2 no manifest change, Q3 OS-absolute leading-`/`, Q4 link directories too, Q5 pre-exclude `true`/`false` not numbers.
 **Started:** 2026-07-11
 **Status:** SHIPPED. `src/core/project-links.ts` (`findPathValueCandidates`, pure) + `src/providers/document-links.ts` (existence-checked `DocumentLinkProvider`, pattern-based `DocumentSelector`) + `extension.ts` wire + fixtures + unit/integration tests. Whole-document scope (gate-d discriminator passes). A 24-agent adversarial-review `Workflow` caught the inline-mapping `- href: page.qmd` shape being unlinked (the plan's §2.5 example showed bare scalars only); fixed via `mappingColonIndex` (Learning #88). 695 unit (+13) / 271 integration (+9); check-types clean; clean 43-file `.vsix`. Slice 2 (filepath completion) NOT started — separate future session.
