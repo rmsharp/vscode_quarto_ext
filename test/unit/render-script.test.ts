@@ -89,4 +89,35 @@ describe("isRenderScript — behavior lock (plan §5.2 battery)", () => {
     expect(isRenderScript("Untitled-1", "# %% [markdown]\n")).toBe(false);
     expect(isRenderScript("", "# %% [markdown]\n")).toBe(false);
   });
+
+  it("rejects an ordinary .r script with neither a spin header nor a percent cell", () => {
+    // Pins the CONTENT half of the spin branch. Without this, `ext === ".r"`
+    // alone satisfies every .r case in the battery (they are all accepts), so a
+    // detector that called EVERY .r file a render script would pass the whole
+    // suite. Break-revert-proven against exactly that mutant.
+    const text = ["# ordinary R", "x <- 1", "summary(cars)", ""].join("\n");
+    expect(isRenderScript("/tmp/analysis.r", text)).toBe(false);
+    expect(isRenderScript("/tmp/ANALYSIS.R", text)).toBe(false);
+  });
+
+  it("rejects a .r whose spin header is opened but never closed", () => {
+    expect(isRenderScript("/tmp/a.r", "#' ---\n#' title: T\nx <- 1\n")).toBe(
+      false,
+    );
+  });
+});
+
+describe("isRenderScript — cost", () => {
+  it("stays linear on an unclosed spin header followed by a long whitespace run", () => {
+    // The spin regex's lazy [\s\S]+? must not be able to backtrack quadratically
+    // against an adjacent \s*. This input is the worst case: the header opens, so
+    // the branch is entered, and never closes, so every expansion is tried.
+    // Shipped-before-fix cost: ~3.7 SECONDS (O(n^2)). This is not academic — the
+    // detector runs on the single-threaded extension host, and Slice 2 will call
+    // it on every keystroke.
+    const text = "#' ---\n" + "\n".repeat(80_000);
+    const started = performance.now();
+    expect(isRenderScript("/tmp/analysis.r", text)).toBe(false);
+    expect(performance.now() - started).toBeLessThan(100);
+  });
 });

@@ -429,11 +429,20 @@ async function previewActiveDocument(manager: PreviewManager): Promise<void> {
 async function previewActiveScript(manager: PreviewManager): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   const doc = editor?.document;
-  if (!doc || !isRenderScript(doc.uri.fsPath, doc.getText())) {
+  // `quarto preview` renders the file from DISK, so the document must actually be
+  // one. Without the scheme check the gate reads buffer text from any provider —
+  // e.g. the built-in Git extension's read-only `git:` diff of a spin script,
+  // whose fsPath is the working-tree path — and we would happily preview the
+  // working-tree file while the user is looking at an old revision.
+  if (
+    !doc ||
+    doc.uri.scheme !== "file" ||
+    !isRenderScript(doc.uri.fsPath, doc.getText())
+  ) {
     void vscode.window.showErrorMessage(
       "Quarto: open a Quarto render script to preview — a .py/.jl/.r file " +
-        "starting with a `# %% [markdown]` cell, or a .r file starting with a " +
-        "`#' ---` block.",
+        "starting with a `# %% [markdown]` or `# %% [raw]` cell, or a .r file " +
+        "starting with a `#' ---` block.",
     );
     return;
   }

@@ -2,6 +2,7 @@ import * as assert from "node:assert";
 import { execSync } from "node:child_process";
 import * as path from "node:path";
 import * as vscode from "vscode";
+import { isRenderScript } from "../../../src/core/render-script";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
@@ -133,11 +134,16 @@ describe("Quarto: Preview Script command", () => {
       await vscode.commands.executeCommand("quarto.previewScript");
     });
 
-    // The gate passed — no "not a render script" refusal.
-    assert.deepStrictEqual(
-      errors,
-      [],
-      "a valid spin script must not be refused by the gate",
+    // The GATE passed. Assert specifically that the gate's own refusal is absent,
+    // NOT that no error occurred at all: withErrorCapture wraps the whole await,
+    // and openPreview only settles after the preview starts (or fails), so a
+    // missing-R/knitr environment would also land an error here. Asserting
+    // "errors == []" would then blame the gate for an environment problem. (Plan
+    // §6: "the accept-path assertion must target the gate-reject string
+    // specifically, not 'no error at all'.")
+    assert.ok(
+      !errors.some((e) => /render script/i.test(e)),
+      `a valid spin script must not be refused by the gate; saw: ${JSON.stringify(errors)}`,
     );
 
     // ...and a REAL preview server actually spawned for it (knitr, no kernel).
@@ -180,6 +186,49 @@ describe("Quarto: Preview Script command", () => {
       spawned,
       false,
       "refusing a non-render-script must not spawn a preview server",
+    );
+  });
+
+  it("refuses a non-file document even when its text and extension look like a script", async function () {
+    this.timeout(30000);
+
+    // An untitled buffer whose PATH ends in .r and whose TEXT is a valid spin
+    // script: isRenderScript(fsPath, text) returns true for it. Only the adapter's
+    // `uri.scheme !== "file"` guard refuses it. This is the same guard that stops
+    // the built-in Git extension's read-only `git:` diff of a spin script (whose
+    // fsPath IS the working-tree path) from previewing the working-tree file while
+    // the user is looking at an old revision.
+    const uri = vscode.Uri.parse("untitled:/tmp/untitled-spin.r");
+    const doc = await vscode.workspace.openTextDocument(uri);
+    const edit = new vscode.WorkspaceEdit();
+    edit.insert(
+      uri,
+      new vscode.Position(0, 0),
+      "#' ---\n#' title: T\n#' ---\n\n1 + 1\n",
+    );
+    await vscode.workspace.applyEdit(edit);
+    await vscode.window.showTextDocument(doc);
+
+    // Precondition: the PURE detector accepts it — so the test can only pass
+    // because of the scheme guard, not because the detector happened to say no.
+    assert.strictEqual(doc.uri.scheme, "untitled");
+    assert.ok(
+      isRenderScript(doc.uri.fsPath, doc.getText()),
+      "precondition: the pure detector must accept this buffer, so that the " +
+        "scheme guard is the only thing that can refuse it",
+    );
+
+    const errors: string[] = [];
+    await withErrorCapture(errors, async () => {
+      await vscode.commands.executeCommand("quarto.previewScript");
+    });
+
+    assert.strictEqual(errors.length, 1, "the gate should refuse a non-file doc");
+    assert.match(errors[0], /render script/i);
+    assert.strictEqual(
+      pgrepCount("preview.*untitled-spin"),
+      0,
+      "an unsaved, non-file buffer must never be previewed",
     );
   });
 

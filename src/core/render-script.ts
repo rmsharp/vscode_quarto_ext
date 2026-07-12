@@ -42,8 +42,22 @@ const PERCENT_CELL = /^\s*#\s*%%+\s+\[(markdown|raw)\]/;
 /** Extensions the jupyter/julia engines claim as percent scripts. */
 const PERCENT_EXTENSIONS = [".py", ".jl", ".r"];
 
-/** Path B: the file opens with a roxygen `#' ---` … `#' ---` front-matter block. */
-const SPIN_HEADER = /^\s*#'\s*---[\s\S]+?\s*#'\s*---/;
+/**
+ * Path B: the file opens with a roxygen `#' ---` … `#' ---` front-matter block.
+ *
+ * ⚠ One character differs from Quarto's own regex (quarto.js:28695), which reads
+ * `[\s\S]+?\s*#'`. That `\s*` is REDUNDANT — the lazy `[\s\S]+?` already absorbs
+ * any whitespace it could match, so the two accept exactly the same language —
+ * but it is also AMBIGUOUS with that lazy quantifier, so on a FAILING match (a
+ * header opened and never closed) the engine retries every expansion against it
+ * and the match becomes O(n²) in the longest contiguous whitespace run. A `.r`
+ * file with an unclosed `#' ---` and ~80k blank lines took **3.7 seconds**;
+ * without the `\s*` it takes 0.03 ms. Quarto gets away with it because the CLI
+ * runs this once per render in a Deno subprocess; we run it on VS Code's
+ * single-threaded extension host — and Slice 2 will run it on every keystroke.
+ * The cost is locked by a unit test in `test/unit/render-script.test.ts`.
+ */
+const SPIN_HEADER = /^\s*#'\s*---[\s\S]+?#'\s*---/;
 
 /** The knitr engine only spins R. */
 const SPIN_EXTENSION = ".r";
