@@ -5,9 +5,9 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 82 — IMPLEMENTATION: `BACKLOG.md` item 15 — preview command family breadth (`quarto.previewScript` + `quarto.previewFormat`).** Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate.
+**Task:** **Session 82 — IMPLEMENTATION: `BACKLOG.md` item 15 — `quarto.previewFormat` ONLY (per-format preview QuickPick).** Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate.
 **Started:** 2026-07-12
-**Status:** Session claimed. Phase 2 research beginning (existing `src/features/preview.ts` + Posit's public `previewScript`/`previewFormat` facts, clean-room — never their AGPL source). Per the item-14/Session-79 precedent, if research surfaces genuine scope uncertainty (the BACKLOG framing turning out wrong) it will be surfaced to the operator via `AskUserQuestion` before any implementation code.
+**Status:** IN PROGRESS. Phase 2 research done + scope decided. Item 15 is TWO independent commands; Phase 2 research found `previewScript` needs NEW content-driven context-key infrastructure (a `quartoRenderScriptActive`-style key from scanning the active script for `# %%` percent-cells — no precedent in this codebase; the BACKLOG "moderate scope" framing understates it) while `previewFormat` is a self-contained slice. **Operator confirmed via `AskUserQuestion`: `previewFormat` only this session; `previewScript` deferred to its own future session.** Grounded facts: `quarto preview <file> --no-browser --to <fmt>` verified (renders the chosen format, `--to` forwarded to render, self-exits on `--timeout`); Posit's public manifest confirms `quarto.previewFormat` ("Preview Format...", palette + editor/title, no keybinding). Plan: L1 new `src/core/preview-format.ts` (`parseDeclaredFormats` reusing `frontMatterContentLines` + `buildPreviewArgs` sibling of `buildRenderArgs`); L2 thread `{to}` through `PreviewManager` + new `quarto.previewFormat` command (QuickPick of declared-or-`["html"]`); L3 manifest.
 **Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
 
 ---
