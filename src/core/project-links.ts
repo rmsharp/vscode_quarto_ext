@@ -27,6 +27,73 @@ export interface PathValueCandidate {
 const YAML_BOOLEANS = new Set(["true", "false"]);
 
 /**
+ * The value-position context at `(line, col)` in a bare `_quarto.yml` document,
+ * or `null` when the cursor is not in a completable value slot — a key position,
+ * a comment, or a non-mapping/non-sequence line (plan §5.1/§2.6, Slice 2).
+ *
+ * `token` is the value-so-far (the value-token text up to the cursor); the caller
+ * (a `CompletionItemProvider` adapter) splits it at the last `/` to pick the
+ * directory to list. `replaceRange` spans the whole value token on the line — the
+ * same "replacing" convention `providers/yaml.ts` uses — so accepting an item
+ * overwrites the existing value rather than duplicating a suffix.
+ */
+export interface ProjectLinkValueContext {
+  token: string;
+  replaceRange: { line: number; startCol: number; endCol: number };
+}
+
+/**
+ * Detect whether the cursor at `(line, col)` sits in a value slot and, if so,
+ * return the value-so-far token and the value token's on-screen span. Only the
+ * cursor's own line is inspected (no whole-document walk — plan §2.6). Reuses the
+ * same value-token grammar as `findPathValueCandidates` (`mappingColonIndex` +
+ * `valueSlotAfterColon`) so the two never disagree on where a value begins.
+ */
+export function valueContextAt(
+  text: string,
+  line: number,
+  col: number,
+): ProjectLinkValueContext | null {
+  const lines = text.split(/\r?\n/);
+  if (line < 0 || line >= lines.length) {
+    return null;
+  }
+  const raw = lines[line];
+  const indent = leadingWsLen(raw);
+  const content = raw.slice(indent);
+  if (content === "" || content.startsWith("#")) {
+    return null; // blank / comment line — no value slot
+  }
+  let colonAbs: number;
+  if (content.startsWith("-")) {
+    // A block-sequence item needs `- ` (dash + whitespace); `-x`/`-` have no value.
+    if (content.length < 2 || !/\s/.test(content[1])) {
+      return null;
+    }
+    // A `- key: value` inline mapping (the navbar/sidebar `- href:` / book
+    // `- part:` shape) completes the mapping's VALUE; a bare `- value` scalar uses
+    // the dash itself as the value delimiter (mirrors `valueSpanOf`, §2.5/§2.6).
+    const wsAfterDash = /^\s*/.exec(content.slice(1))?.[0].length ?? 0;
+    const rest = content.slice(1 + wsAfterDash);
+    const mc = mappingColonIndex(rest);
+    colonAbs = mc >= 0 ? indent + 1 + wsAfterDash + mc : indent;
+  } else {
+    const mc = mappingColonIndex(content);
+    if (mc < 0) {
+      return null; // not a mapping line
+    }
+    colonAbs = indent + mc;
+  }
+  if (col <= colonAbs) {
+    return null; // cursor at or before the delimiter — a key position, not a value slot
+  }
+  const slot = valueSlotAfterColon(raw, colonAbs);
+  const startCol = col < slot.startCol ? col : slot.startCol;
+  const endCol = Math.max(slot.endCol, col);
+  return { token: raw.slice(startCol, col), replaceRange: { line, startCol, endCol } };
+}
+
+/**
  * Enumerate every candidate scalar / sequence-item value in `text`. Skips
  * blank/comment lines, pure-mapping container lines (`key:` with an empty value),
  * and boolean-literal tokens. Numbers are NOT excluded — a numbered file like

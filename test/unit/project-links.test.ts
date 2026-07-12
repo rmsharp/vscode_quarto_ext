@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findPathValueCandidates } from "../../src/core/project-links";
+import { findPathValueCandidates, valueContextAt } from "../../src/core/project-links";
 
 describe("findPathValueCandidates — scalar mapping values", () => {
   it("finds a top-level `key: value` scalar candidate", () => {
@@ -110,5 +110,109 @@ describe("findPathValueCandidates — line skipping", () => {
       { line: 1, valueRange: { startCol: 14, endCol: 22 }, token: "refs.bib" },
       { line: 3, valueRange: { startCol: 5, endCol: 12 }, token: "apa.csl" },
     ]);
+  });
+});
+
+describe("valueContextAt — cursor value-slot detection (Slice 2)", () => {
+  it("returns a value context when the cursor is in a `key: value` value slot", () => {
+    // `bibliography: refs.bib`; cursor at col 14, the value-token start. The
+    // value-so-far is empty; the replace range spans the whole value token.
+    const text = "bibliography: refs.bib";
+    expect(valueContextAt(text, 0, 14)).toEqual({
+      token: "",
+      replaceRange: { line: 0, startCol: 14, endCol: 22 },
+    });
+  });
+
+  it("returns null when the cursor is in a KEY position (gate-d discriminator)", () => {
+    // Mid-typing the key `bibliography:` — cursor at col 5, before the colon.
+    // Completion must NOT fire in a key slot, only in a value slot.
+    const text = "bibliography: refs.bib";
+    expect(valueContextAt(text, 0, 5)).toBeNull();
+  });
+
+  it("returns a value context after a `- ` block-sequence marker, capturing the path-so-far", () => {
+    // `  - chapters/intro.qmd`: dash at col 2, value at col 4. Cursor at col 13,
+    // just past `chapters/` — the value-so-far includes the slash so the caller
+    // can re-scope the listing into that subdirectory.
+    const text = "  - chapters/intro.qmd";
+    expect(valueContextAt(text, 0, 13)).toEqual({
+      token: "chapters/",
+      replaceRange: { line: 0, startCol: 4, endCol: 22 },
+    });
+  });
+
+  it("returns the VALUE slot of an inline-mapping sequence item (`- href: intro.qmd`)", () => {
+    // The dominant navbar/sidebar shape. Completion fires in the href VALUE, not
+    // the `href` key: value starts at col 14 (after `href: `).
+    const text = "      - href: intro.qmd";
+    expect(valueContextAt(text, 0, 14)).toEqual({
+      token: "",
+      replaceRange: { line: 0, startCol: 14, endCol: 23 },
+    });
+  });
+
+  it("returns null in the KEY position of an inline-mapping sequence item", () => {
+    // Cursor at col 9, inside the `href` key of `- href: intro.qmd` — a key slot.
+    const text = "      - href: intro.qmd";
+    expect(valueContextAt(text, 0, 9)).toBeNull();
+  });
+
+  it("captures a partial filename after the last `/` in the token", () => {
+    // `chapters: sub/pa` with the cursor after `pa` — the value-so-far keeps the
+    // directory prefix so the caller lists `sub/` and VS Code filters on `pa`.
+    const text = "chapters: sub/pa";
+    expect(valueContextAt(text, 0, 16)).toEqual({
+      token: "sub/pa",
+      replaceRange: { line: 0, startCol: 10, endCol: 16 },
+    });
+  });
+
+  it("fires in an empty value slot right after `key: ` (trailing space)", () => {
+    const text = "bibliography: ";
+    expect(valueContextAt(text, 0, 14)).toEqual({
+      token: "",
+      replaceRange: { line: 0, startCol: 14, endCol: 14 },
+    });
+  });
+
+  it("fires right after `key:` with no space yet (slot anchored at colon+1)", () => {
+    // The `:` trigger fires here; the adapter prepends a separating space so the
+    // accepted YAML is `key: value`, not `key:value`.
+    const text = "bibliography:";
+    expect(valueContextAt(text, 0, 13)).toEqual({
+      token: "",
+      replaceRange: { line: 0, startCol: 13, endCol: 13 },
+    });
+  });
+
+  it("excludes a trailing inline comment from the value-token span", () => {
+    // `chapters: intro.qmd  # note`, cursor after `intro`. The replace range ends
+    // at the value token, never eating the comment.
+    const text = "chapters: intro.qmd  # note";
+    expect(valueContextAt(text, 0, 15)).toEqual({
+      token: "intro",
+      replaceRange: { line: 0, startCol: 10, endCol: 19 },
+    });
+  });
+
+  it("returns null on a blank line, a comment line, and a plain scalar with no colon", () => {
+    expect(valueContextAt("", 0, 0)).toBeNull();
+    expect(valueContextAt("# just a comment", 0, 5)).toBeNull();
+    expect(valueContextAt("plainscalar", 0, 5)).toBeNull();
+  });
+
+  it("returns null for an out-of-range line index", () => {
+    expect(valueContextAt("bibliography: refs.bib", 5, 0)).toBeNull();
+    expect(valueContextAt("bibliography: refs.bib", -1, 0)).toBeNull();
+  });
+
+  it("finds the value slot at any indentation depth (whole-document scope)", () => {
+    // A deeply-nested `output-dir:` under project:. Cursor at the value start.
+    const text = ["project:", "  book:", "    output-dir: docs"].join("\n");
+    expect(valueContextAt(text, 2, 16)).toEqual({
+      token: "",
+      replaceRange: { line: 2, startCol: 16, endCol: 20 },
+    });
   });
 });
