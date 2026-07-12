@@ -55,9 +55,9 @@ see individual rows for what changed and why.
 
 | | Count | Examples |
 |---|---|---|
-| **Parity** (same capability, comparable depth) | 21 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion, outline granularity, Format Cell, cell navigation/cache commands, `_quarto.yml` document links + filepath completion (Sessions 80–81) |
+| **Parity** (same capability, comparable depth) | 22 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion, outline granularity, Format Cell, cell navigation/cache commands, `_quarto.yml` document links + filepath completion (Sessions 80–81) |
 | **We're ahead** | 4 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image *paste* for `.qmd` (Posit's source editor still doesn't support it — drag-drop is a narrower story, see below, Session 67); spell checking in the plain source editor (a documented `cspell` config recipe — Posit's own spell check is Visual-Editor-only — Session 65) |
-| **Real gaps** (Posit has, we don't) | 10 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67), preview-command-family breadth (Session 67 — **partial: per-format preview picker `quarto.previewFormat` shipped Session 82 and the render-script preview command `quarto.previewScript` shipped Session 84, so both capabilities exist; the residual is Posit's UX *gating* for the latter — context key, shared `Ctrl+Shift+K`, editor-title button, activation events — item 15 Slice 2**) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52 (residual `runCurrent` sub-gap closed, Session 78, item 13(e)); snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (this row's own detailed-section body text was found still stale — still saying "Not implemented" — while updating this table for Session 78's own item 13(d)/(e) closures; corrected here, not a Session 78 finding about its own work); cell navigation/cache-management commands gap closed, Session 78, item 13(d); `_quarto.yml` document links + filepath completion gap closed, Sessions 80–81, item 14 |
+| **Real gaps** (Posit has, we don't) | 9 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52 (residual `runCurrent` sub-gap closed, Session 78, item 13(e)); snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (this row's own detailed-section body text was found still stale — still saying "Not implemented" — while updating this table for Session 78's own item 13(d)/(e) closures; corrected here, not a Session 78 finding about its own work); cell navigation/cache-management commands gap closed, Session 78, item 13(d); `_quarto.yml` document links + filepath completion gap closed, Sessions 80–81, item 14; preview-command-family breadth gap closed, Sessions 82/84/85, item 15 (per-format picker + render-script preview + the Posit-parity gating layer) |
 | **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 | **Soft / ambiguous comparison** (new bucket, Session 67) | 3 | per-key nested/deep YAML completion depth (neither side has an exhaustive inventory); project-wide/multi-file cross-ref & citation intelligence (both largely single-file-scoped, Posit's is conditional); extensibility surfaces — a public CLI-query API and Quarto-Extension/Lua-authoring support (developer-facing, arguably outside this doc's own "what a document author can do" scope) |
 
@@ -124,7 +124,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   `features/preview.ts`'s process-group-owning model doesn't trivially generalize to multi-output-file
   projects (confirmed Session 44).
 
-**Preview command family breadth (render-script preview, per-format preview picker). (Session 67; `previewFormat` SHIPPED Session 82; `previewScript` command SHIPPED Session 84.)**
+**Preview command family breadth (render-script preview, per-format preview picker). (Session 67; `previewFormat` SHIPPED Session 82; `previewScript` command SHIPPED Session 84; `previewScript` GATING LAYER shipped Session 85 — PARITY REACHED, item 15 closed.)**
 - *Ours:* **Capability parity — both commands ship; the residual gap is Posit's UX *gating*, not the feature.**
   `quarto.previewFormat` ("Preview Format...", Session 82) enumerates a document's declared `format:` outputs and
   previews the chosen one (`quarto preview … --to <fmt>`). `quarto.previewScript` ("Preview Script...", Session 84)
@@ -143,10 +143,27 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   is a general contextual dispatcher across the Visual Editor / plain `.qmd` / Mermaid / Graphviz — that
   one is substantively the same `Ctrl+Shift+L` capability this doc's "Live preview of LaTeX math" row
   already covers, just not previously tied to its command ID; it is not counted as a gap here.
-- *Notes:* Both commands now exist (per-format picker Session 82; render-script preview Session 84), so the
-  *capability* gap is closed. The remaining delta is Posit's discoverability/gating layer for `previewScript`
-  (context key + shared keybinding + editor-title button + activation events) — `BACKLOG.md` item 15, Slice 2.
-  Counted below as a residual **partial**, not a closed gap, until that ships.
+- *Notes:* **Parity reached — gap CLOSED (Sessions 82/84/85; `BACKLOG.md` item 15 closed).** Both commands
+  exist (per-format picker Session 82; render-script preview Session 84), and Session 85 shipped the
+  gating layer that was the residual delta: the `quartoRenderScriptActive` context key, the
+  mutually-exclusive `Ctrl+Shift+K` pair, the editor-title entry, the palette gate, and the
+  render-script activation events.
+  **Two deliberate divergences, both in the safer direction and both grounded firsthand against the
+  VS Code 1.128 build:**
+  (a) *Keybinding scope.* `Ctrl+Shift+K` is VS Code's built-in **Delete Line**
+  (`editor.action.deleteLines`, `primary: 3113`, weight 100 — and an external extension's keybindings
+  register at weight 400+, so they win every collision). Posit gates `quarto.preview` on a bare
+  `!quartoRenderScriptActive`, which is true in essentially every editor, so their binding overrides
+  Delete Line in *every* file type. Ours is scoped `editorLangId == quarto && !quartoRenderScriptActive`:
+  the mutual exclusion is identical, but Delete Line keeps working outside Quarto documents.
+  (b) *Palette entry.* Posit hides `previewScript` from the palette (`when: false`); we show it, gated on
+  `resourceExtname` (`.py`/`.jl`/`.r`/`.R`) rather than on the context key — deliberately, because the key
+  is only settable *after* activation and VS Code will not activate an extension merely to evaluate a
+  `when` clause, so keying the palette entry off it would make the command unreachable for a lone script
+  in a non-Quarto folder (adversarial review, Session 85; Learning #93).
+  *Shared residual (Posit has it too, disclosed not papered over):* a standalone `.py`/`.jl` script opened
+  with no Quarto workspace file present does not activate the extension, so the keybinding and
+  editor-title button stay inert there — the palette command still reaches it and auto-activates.
 
 ---
 
@@ -773,9 +790,9 @@ planning session should still verify before implementing):
    non-schema-driven, whole-document, existence-checked heuristic, not scoped to those three
    blocks). Shipped as a whole-document heuristic across two vertical-slice sessions: Slice 1
    `DocumentLinkProvider` (Session 80), Slice 2 filepath `CompletionItemProvider` (Session 81).
-6. **Preview command family breadth** (`previewScript` for standalone render scripts; `previewFormat` as
-   a per-format preview picker). Moderate scope, narrower audience (multi-format documents; standalone
-   render scripts are a less common workflow).
+6. ~~**Preview command family breadth** (`previewScript` for standalone render scripts; `previewFormat` as
+   a per-format preview picker).~~ **SHIPPED — Sessions 82 (`previewFormat`), 84 (`previewScript`), 85
+   (the `quartoRenderScriptActive` gating layer). Item 15 closed; parity reached.**
 7. **Semantic highlighting via the embedded language's LSP** (layered on top of static TextMate grammar).
    A genuinely bigger feature than the "quick wins" above — a new `SemanticTokensProvider` mechanism, not
    a registration/config change — likely warrants its own planning session rather than folding into #4.
