@@ -46,6 +46,24 @@ describe("findPathValueCandidates — block-sequence items", () => {
     const text = ["render:", "  -", "  -x"].join("\n");
     expect(findPathValueCandidates(text)).toEqual([]);
   });
+
+  it("extracts the value from an inline-mapping sequence item (`- href: page.qmd`)", () => {
+    // The dominant navbar/sidebar `contents:` shape and book `- part:` lists.
+    // The path is the VALUE of the inline mapping, not the whole `key: value`.
+    const text = ["website:", "  navbar:", "    left:", "      - href: intro.qmd"].join(
+      "\n",
+    );
+    expect(findPathValueCandidates(text)).toEqual([
+      { line: 3, valueRange: { startCol: 14, endCol: 23 }, token: "intro.qmd" },
+    ]);
+  });
+
+  it("extracts the value from a `- part: value` book-chapters item", () => {
+    const text = ["book:", "  chapters:", "    - part: summary.qmd"].join("\n");
+    expect(findPathValueCandidates(text)).toEqual([
+      { line: 2, valueRange: { startCol: 12, endCol: 23 }, token: "summary.qmd" },
+    ]);
+  });
 });
 
 describe("findPathValueCandidates — quoting and comments", () => {
@@ -67,6 +85,15 @@ describe("findPathValueCandidates — quoting and comments", () => {
     const text = "bibliography: refs.bib  # the main bib";
     expect(findPathValueCandidates(text)).toEqual([
       { line: 0, valueRange: { startCol: 14, endCol: 22 }, token: "refs.bib" },
+    ]);
+  });
+
+  it("finds the mapping colon past a colon embedded in a quoted key", () => {
+    // The mapping colon is the first `:` followed by whitespace/EOL, so the
+    // in-quote `:` in `"a:b"` (followed by `b`) is correctly skipped.
+    const text = '"a:b": intro.qmd';
+    expect(findPathValueCandidates(text)).toEqual([
+      { line: 0, valueRange: { startCol: 7, endCol: 16 }, token: "intro.qmd" },
     ]);
   });
 });

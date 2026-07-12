@@ -60,12 +60,13 @@ export function findPathValueCandidates(text: string): PathValueCandidate[] {
 }
 
 /**
- * The value-token span on a `key: value` mapping line or a `- value` block-
- * sequence item, or `null` when the line is neither. Reuses the ONE existing
- * value-token grammar in this codebase — `yaml-context.ts`'s `valueSlotAfterColon`
- * (leading-ws skip, quote-aware, trailing-comment trim) — for both shapes, since
- * a `:` and a `- ` marker are both single-char delimiters the value follows
- * (plan §2.5; S79 gotcha #4: reuse the grammar, never re-derive a divergent one).
+ * The value-token span on a `key: value` mapping line, a `- value` block-
+ * sequence scalar, or a `- key: value` inline-mapping sequence item (the
+ * dominant navbar/sidebar `- href:`/book `- part:` shape), or `null` when the
+ * line is none of these. Reuses the ONE existing value-token grammar in this
+ * codebase — `yaml-context.ts`'s `valueSlotAfterColon` (leading-ws skip,
+ * quote-aware, trailing-comment trim) — anchored at the mapping colon (§2.5;
+ * S79 gotcha #4: reuse the grammar, never re-derive a divergent one).
  */
 function valueSpanOf(
   raw: string,
@@ -78,13 +79,39 @@ function valueSpanOf(
     if (content.length < 2 || !/\s/.test(content[1])) {
       return null;
     }
+    // The item may be a bare scalar (`- data/raw.csv`) or an inline mapping
+    // (`- href: page.qmd`). If a mapping colon follows the marker, the value is
+    // that mapping's value; otherwise the whole post-marker scalar is the value.
+    const wsAfterDash = /^\s*/.exec(content.slice(1))?.[0].length ?? 0;
+    const rest = content.slice(1 + wsAfterDash);
+    const mc = mappingColonIndex(rest);
+    if (mc >= 0) {
+      return valueSlotAfterColon(raw, indent + 1 + wsAfterDash + mc);
+    }
     return valueSlotAfterColon(raw, indent); // dash position as the value delimiter
   }
-  const colon = content.indexOf(":");
-  if (colon < 0) {
-    return null; // not a mapping line
+  const mc = mappingColonIndex(content);
+  if (mc < 0) {
+    return null; // not a mapping line (a plain scalar, or `key:value` with no space)
   }
-  return valueSlotAfterColon(raw, indent + colon);
+  return valueSlotAfterColon(raw, indent + mc);
+}
+
+/**
+ * The index of the first colon in `s` that acts as a YAML block-mapping key
+ * separator — a `:` immediately followed by whitespace or end-of-string — or
+ * `-1` if none. A colon followed by a non-space (e.g. inside `http://…` or a
+ * `key:value`-no-space plain scalar) is NOT a mapping separator, so this avoids
+ * the naive `indexOf(":")` mis-parse (a scalar with an embedded colon, or a
+ * colon inside a simple quoted key like `"a:b":`).
+ */
+function mappingColonIndex(s: string): number {
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === ":" && (i + 1 === s.length || /\s/.test(s[i + 1]))) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 /** Strip one matching layer of surrounding YAML quotes (`"x"` / `'x'`). */

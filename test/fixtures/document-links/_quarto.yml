@@ -7,3 +7,10 @@ project:
 
 bibliography: refs.bib
 csl: nonexistent.csl
+
+website:
+  navbar:
+    left:
+      - href: intro.qmd
+      - text: Missing
+        href: nonexistent.qmd

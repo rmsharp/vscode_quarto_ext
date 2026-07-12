@@ -100,13 +100,35 @@ describe("Quarto: _quarto.yml document links (file-path values)", () => {
     );
   });
 
-  it("produces exactly the 3 real-file/dir links and nothing else", async () => {
+  it("links the VALUE of an inline-mapping sequence item (`- href: intro.qmd`)", async () => {
+    // The dominant website navbar/sidebar `contents:` shape. `- href: intro.qmd`
+    // is on line 13, and intro.qmd exists. The link must cover intro.qmd, not the
+    // whole `href: intro.qmd`, and target the real file.
+    const links = await fileLinksFor(QUARTO_YML);
+    const link = linkOnLine(links, 13);
+    assert.ok(link, "expected a link on the `- href: intro.qmd` navbar item");
+    assert.strictEqual(link.target?.fsPath, path.resolve(FIXTURE_DIR, "intro.qmd"));
+  });
+
+  it("does NOT link an inline-mapping label or a non-existent inline-mapping path", async () => {
+    const links = await fileLinksFor(QUARTO_YML);
+    // `- text: Missing` (line 14) is a label, not a path; the continuation
+    // `href: nonexistent.qmd` (line 15) points at nothing on disk.
+    assert.strictEqual(linkOnLine(links, 14), undefined, "a text label must not link");
+    assert.strictEqual(
+      linkOnLine(links, 15),
+      undefined,
+      "a non-existent inline-mapping path must not link",
+    );
+  });
+
+  it("produces exactly the 4 real-file/dir links and nothing else", async () => {
     const links = await fileLinksFor(QUARTO_YML);
     const lines = links.map((l) => l.range.start.line).sort((a, b) => a - b);
     assert.deepStrictEqual(
       lines,
-      [2, 4, 7],
-      `expected links only on lines 2/4/7, got lines ${lines.join(",")}`,
+      [2, 4, 7, 13],
+      `expected links only on lines 2/4/7/13, got lines ${lines.join(",")}`,
     );
   });
 });

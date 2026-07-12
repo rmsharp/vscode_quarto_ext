@@ -1,0 +1,5 @@
+---
+title: Intro
+---
+
+A real chapter file referenced by a navbar `- href:` inline-mapping item.
