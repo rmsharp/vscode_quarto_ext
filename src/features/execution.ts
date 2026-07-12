@@ -52,6 +52,11 @@ export function registerExecutionFeature(
       runPreviousCell,
     ),
     vscode.commands.registerCommand("quarto.runCellsBelow", runCellsBelow),
+    vscode.commands.registerCommand("quarto.goToNextCell", goToNextCell),
+    vscode.commands.registerCommand(
+      "quarto.goToPreviousCell",
+      goToPreviousCell,
+    ),
     // Keep the `quarto.inCodeCell` context key in sync so ctrl/shift+enter only
     // bind inside a cell (and fall through to normal newline editing elsewhere).
     vscode.window.onDidChangeTextEditorSelection((e) =>
@@ -202,6 +207,54 @@ async function runPreviousCell(): Promise<void> {
     return;
   }
   await runCells(editor, [prev]);
+  const pos = new vscode.Position(prev.startLine + 1, 0);
+  editor.selection = new vscode.Selection(pos, pos);
+  editor.revealRange(new vscode.Range(pos, pos));
+}
+
+/**
+ * Move the cursor into the body of the first cell after the current position —
+ * pure navigation, no delegate dispatch (distinct from {@link runNextCell}).
+ */
+async function goToNextCell(): Promise<void> {
+  const editor = activeQuartoEditor();
+  if (!editor) {
+    return;
+  }
+  const text = editor.document.getText();
+  const line = editor.selection.active.line;
+  const next = findAllCells(text).find((c) => c.startLine > line);
+  if (!next) {
+    void vscode.window.showInformationMessage(
+      "Quarto: there is no next code cell.",
+    );
+    return;
+  }
+  const pos = new vscode.Position(next.startLine + 1, 0);
+  editor.selection = new vscode.Selection(pos, pos);
+  editor.revealRange(new vscode.Range(pos, pos));
+}
+
+/**
+ * Move the cursor into the body of the closest cell before the current
+ * position — pure navigation, no delegate dispatch (distinct from
+ * {@link runPreviousCell}).
+ */
+async function goToPreviousCell(): Promise<void> {
+  const editor = activeQuartoEditor();
+  if (!editor) {
+    return;
+  }
+  const text = editor.document.getText();
+  const line = editor.selection.active.line;
+  const above = findAllCells(text).filter((c) => c.endLine < line);
+  const prev = above[above.length - 1];
+  if (!prev) {
+    void vscode.window.showInformationMessage(
+      "Quarto: there is no previous code cell.",
+    );
+    return;
+  }
   const pos = new vscode.Position(prev.startLine + 1, 0);
   editor.selection = new vscode.Selection(pos, pos);
   editor.revealRange(new vscode.Range(pos, pos));

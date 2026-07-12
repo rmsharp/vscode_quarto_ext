@@ -242,6 +242,16 @@
         "command": "quarto.formatCell",
         "title": "Format Cell",
         "category": "Quarto"
+      },
+      {
+        "command": "quarto.goToNextCell",
+        "title": "Go to Next Cell",
+        "category": "Quarto"
+      },
+      {
+        "command": "quarto.goToPreviousCell",
+        "title": "Go to Previous Cell",
+        "category": "Quarto"
       }
     ],
     "menus": {
@@ -319,6 +329,18 @@
         "key": "ctrl+k ctrl+f",
         "mac": "cmd+k cmd+f",
         "when": "editorTextFocus && editorLangId == quarto && quarto.inCodeCell"
+      },
+      {
+        "command": "quarto.goToNextCell",
+        "key": "ctrl+pagedown",
+        "mac": "cmd+pagedown",
+        "when": "editorTextFocus && editorLangId == quarto"
+      },
+      {
+        "command": "quarto.goToPreviousCell",
+        "key": "ctrl+pageup",
+        "mac": "cmd+pageup",
+        "when": "editorTextFocus && editorLangId == quarto"
       }
     ],
     "snippets": [

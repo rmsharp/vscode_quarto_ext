@@ -399,3 +399,118 @@ describe("Quarto: Run Cell family", () => {
     );
   });
 });
+
+describe("Quarto: cell navigation (non-executing)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  beforeEach(() => {
+    calls = [];
+  });
+
+  afterEach(async () => {
+    for (const d of disposables.splice(0)) {
+      d.dispose();
+    }
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("registers quarto.goToNextCell and quarto.goToPreviousCell", async () => {
+    const commands = await vscode.commands.getCommands(true);
+    assert.ok(
+      commands.includes("quarto.goToNextCell"),
+      "quarto.goToNextCell should be registered",
+    );
+    assert.ok(
+      commands.includes("quarto.goToPreviousCell"),
+      "quarto.goToPreviousCell should be registered",
+    );
+  });
+
+  it("Go to Next Cell moves the cursor into the next cell without dispatching", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_CELLS, 4); // prose, before cell 1
+
+    await vscode.commands.executeCommand("quarto.goToNextCell");
+
+    assert.strictEqual(calls.length, 0, "goToNextCell must not run anything");
+    assert.strictEqual(
+      editor.selection.active.line,
+      7,
+      "cursor should land in cell 1's body",
+    );
+  });
+
+  it("Go to Next Cell moves past the current cell to the one after it", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_CELLS, 7); // inside cell 1
+
+    await vscode.commands.executeCommand("quarto.goToNextCell");
+
+    assert.strictEqual(calls.length, 0, "goToNextCell must not run anything");
+    assert.strictEqual(
+      editor.selection.active.line,
+      13,
+      "cursor should land in cell 2's body",
+    );
+  });
+
+  it("Go to Next Cell shows a message and does not move when there is no next cell", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_CELLS, 13); // inside cell 2, the last cell
+
+    await assert.doesNotReject(
+      () =>
+        Promise.resolve(
+          vscode.commands.executeCommand("quarto.goToNextCell"),
+        ),
+      "going to the next cell with none remaining must not crash",
+    );
+    assert.strictEqual(calls.length, 0);
+    assert.strictEqual(
+      editor.selection.active.line,
+      13,
+      "cursor should not move",
+    );
+  });
+
+  it("Go to Previous Cell moves the cursor into the previous cell without dispatching", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_CELLS, 13); // inside cell 2
+
+    await vscode.commands.executeCommand("quarto.goToPreviousCell");
+
+    assert.strictEqual(
+      calls.length,
+      0,
+      "goToPreviousCell must not run anything",
+    );
+    assert.strictEqual(
+      editor.selection.active.line,
+      7,
+      "cursor should land in cell 1's body",
+    );
+  });
+
+  it("Go to Previous Cell shows a message and does not move when there is no previous cell", async () => {
+    registerStandInDelegate();
+    const editor = await openAt(RUN_CELLS, 7); // inside cell 1, the first cell
+
+    await assert.doesNotReject(
+      () =>
+        Promise.resolve(
+          vscode.commands.executeCommand("quarto.goToPreviousCell"),
+        ),
+      "going to the previous cell with none remaining must not crash",
+    );
+    assert.strictEqual(calls.length, 0);
+    assert.strictEqual(
+      editor.selection.active.line,
+      7,
+      "cursor should not move",
+    );
+  });
+});
