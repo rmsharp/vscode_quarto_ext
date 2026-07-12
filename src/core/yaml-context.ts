@@ -358,7 +358,7 @@ function nearestShallowerLine(
  */
 const NESTED_CONTAINERS = new Set<string>(["execute", "format"]);
 
-type Slot = { startCol: number; endCol: number };
+export type Slot = { startCol: number; endCol: number };
 
 /**
  * The top-level key and value token spans on a front-matter line, or both `null`
@@ -398,7 +398,7 @@ function topLevelSlots(
  * value start or whitespace-preceded; quoted scalars are left intact, and
  * enum/boolean values never contain `#`, so this only narrows the commented case.
  */
-function valueSlotAfterColon(lineText: string, colon: number): Slot {
+export function valueSlotAfterColon(lineText: string, colon: number): Slot {
   const afterColon = colon + 1;
   const region = lineText.slice(afterColon);
   const wsLen = (region.match(/^[ \t]*/) ?? [""])[0].length;
