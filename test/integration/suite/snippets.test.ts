@@ -48,6 +48,34 @@ describe("Quarto: contributed snippets", () => {
     );
   });
 
+  it("offers the qlisttable snippet by prefix in a quarto document (BACKLOG item 13(c))", async () => {
+    const doc = await openQuartoDoc("qlisttable");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(0, 10),
+    );
+    const labels = (list?.items ?? []).map(labelText);
+    assert.ok(
+      labels.includes("qlisttable"),
+      `completion should offer the qlisttable snippet; got ${JSON.stringify(labels)}`,
+    );
+  });
+
+  it("offers the qfragment snippet by prefix in a quarto document (BACKLOG item 13(c))", async () => {
+    const doc = await openQuartoDoc("qfragment");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(0, 9),
+    );
+    const labels = (list?.items ?? []).map(labelText);
+    assert.ok(
+      labels.includes("qfragment"),
+      `completion should offer the qfragment snippet; got ${JSON.stringify(labels)}`,
+    );
+  });
+
   it("does NOT offer a quarto snippet in a plain markdown document (language-scoped)", async () => {
     const doc = await vscode.workspace.openTextDocument({
       content: "qpy",

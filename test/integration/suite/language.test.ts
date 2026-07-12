@@ -39,3 +39,30 @@ describe("Quarto language registration", () => {
     );
   });
 });
+
+describe("Standalone diagram/typst language registration (BACKLOG item 13(b))", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  const CASES: Array<{ id: string; fixture: string }> = [
+    { id: "dot", fixture: "sample.dot" },
+    { id: "mermaid", fixture: "sample.mmd" },
+    { id: "typst", fixture: "sample.typ" },
+  ];
+
+  for (const { id, fixture } of CASES) {
+    it(`opens a ${fixture} fixture as languageId '${id}'`, async () => {
+      const doc = await vscode.workspace.openTextDocument(
+        path.resolve(ROOT, "test/fixtures", fixture),
+      );
+      assert.strictEqual(
+        doc.languageId,
+        id,
+        `a ${fixture} document should resolve to the ${id} language`,
+      );
+    });
+  }
+});
