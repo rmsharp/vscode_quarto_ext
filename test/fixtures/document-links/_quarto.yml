@@ -1,0 +1,9 @@
+project:
+  type: book
+  output-dir: assets
+  resources:
+    - data/notes.txt
+    - "*.qmd"
+
+bibliography: refs.bib
+csl: nonexistent.csl
