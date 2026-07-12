@@ -25,6 +25,7 @@ import { registerRenderProjectFeature } from "./features/render-project";
 import { registerCitationProviders } from "./providers/citation";
 import { registerCrossrefProviders } from "./providers/crossref";
 import { registerQuartoYamlDocumentLinksFeature } from "./providers/document-links";
+import { registerFilepathCompletionFeature } from "./providers/filepath-completion";
 import { registerOutlineProvider } from "./providers/outline";
 import { registerYamlCompletionProvider } from "./providers/yaml";
 import { registerYamlDiagnosticsFeature } from "./features/yaml-diagnostics";
@@ -59,6 +60,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerYamlDiagnosticsFeature(context);
   registerEmbeddedLanguageFeature(context);
   registerQuartoYamlDocumentLinksFeature(context);
+  registerFilepathCompletionFeature(context);
 }
 
 /**
