@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S84
+date: 2026-07-12
+status: pending
+active_task: IMPLEMENTATION — BACKLOG item 15 second half, Slice 1: the quarto.previewScript command. Executing docs/planning/2026-07-12-preview-script-plan.md §6 Slice 1 (Shape A layer of Shape B) per DEVELOPMENT_WORKSTREAM.md + strict TDD. Slice 2 (quartoRenderScriptActive context key + Ctrl+Shift+K mutual-exclusion + editor/title menu + activation events) is a SEPARATE future session. Gate-(a) contract re-verified against current code at Orient — no drift. Operator kickoff decisions (AskUserQuestion, all four = the plan's recommendations): Shape B/Slice-1-only; intent-faithful grouped percent regex + knitr spin; palette gated on quartoRenderScriptActive (Slice 2); title "Preview Script...".
+```
+
+```handoff
 session: S83
 date: 2026-07-12
 status: complete
