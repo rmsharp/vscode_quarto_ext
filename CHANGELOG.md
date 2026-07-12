@@ -9,6 +9,9 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-11 · [ad hoc] (Session 80 — operator-requested Claude Code config)
+- Created a committed project `.claude/settings.json` pinning this repository's default Claude Code model to `claude-opus-4-8` (Opus 4.8). The personal `.claude/settings.local.json` remains gitignored (unchanged).
+
 ### 2026-07-11 · [BL-14] (Session 79 — _quarto.yml document links + filepath autocompletion, BACKLOG item 14, PLANNING SESSION — plan written, not implemented)
 - Wrote `docs/planning/2026-07-11-quarto-yml-document-links-plan.md` via a 6-agent research + adversarial-verification `Workflow`. **Headline finding: item 14's own BACKLOG text ("reuses existing `core/project-yaml.ts`/`core/yaml-context.ts` infrastructure") is wrong** — that infrastructure covers only 15 of 50 empirically-confirmed path-typed fields in the installed Quarto schema (`project:`/`website:`/`book:` only); the other 35 (`bibliography`, `csl`, `css`, `template`, `include-in-header`, etc.) live in the general document front-matter schema. Independently, Posit's own shipped PR #906 (grounded via public-only facts — PR description/CHANGELOG/discussion, never their AGPL source) is confirmed to be a non-schema-driven, whole-document, existence-checked heuristic.
 - **Scope lock, operator-confirmed via a mid-planning `AskUserQuestion`:** build the same whole-document, existence-checked heuristic. Plan recommends two vertical-slice sessions (`DocumentLinkProvider`; filepath `CompletionItemProvider`), sharing one new pure-core module (`src/core/project-links.ts`). Also found unlike `yaml-diagnostics.ts`, this feature can use a simpler pattern-based `DocumentSelector`, avoiding the diagnostics feature's event/debounce/generation-counter machinery.
