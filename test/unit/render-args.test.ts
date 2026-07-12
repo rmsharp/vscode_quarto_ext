@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCacheRefreshArgs,
   buildRenderArgs,
   buildRenderProjectArgs,
   parseOutputPath,
@@ -39,6 +40,24 @@ describe("buildRenderProjectArgs", () => {
     expect(buildRenderProjectArgs("/abs/project")).toEqual([
       "render",
       "/abs/project",
+    ]);
+  });
+});
+
+describe("buildCacheRefreshArgs", () => {
+  it("builds a render invocation with --cache-refresh (confirmed against the installed Quarto CLI's own --help)", () => {
+    expect(buildCacheRefreshArgs("/abs/doc.qmd")).toEqual([
+      "render",
+      "/abs/doc.qmd",
+      "--cache-refresh",
+    ]);
+  });
+
+  it("does not shell-split paths containing spaces (argv, not a string)", () => {
+    expect(buildCacheRefreshArgs("/abs/my doc.qmd")).toEqual([
+      "render",
+      "/abs/my doc.qmd",
+      "--cache-refresh",
     ]);
   });
 });

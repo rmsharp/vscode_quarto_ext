@@ -47,6 +47,17 @@ export function buildRenderProjectArgs(projectRoot: string): string[] {
   return ["render", projectRoot];
 }
 
+/**
+ * Build the argv for `quarto render <file> --cache-refresh` — the documented
+ * way to force-refresh a document's Jupyter/Knitr execution cache (confirmed
+ * against the installed Quarto CLI's own `render --help` and quarto.org's
+ * code-execution docs; there is no CLI flag to purge the cache WITHOUT also
+ * rendering).
+ */
+export function buildCacheRefreshArgs(file: string): string[] {
+  return ["render", file, "--cache-refresh"];
+}
+
 /** Matches a single SGR ANSI escape (e.g. `\x1b[31m`), which Quarto emits. */
 const ANSI_PATTERN = /\x1b\[[0-9;]*m/g;
 
