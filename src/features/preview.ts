@@ -29,6 +29,13 @@ import { isRenderScript } from "../core/render-script";
 import { QuartoNotFound, resolveBinary } from "../quarto/cli";
 
 const CHANNEL_NAME = "Quarto Preview";
+/**
+ * Context key: "the active editor is a render script this extension can preview"
+ * (`BACKLOG.md` item 15 Slice 2; plan §6 Slice 2). Drives the mutually-exclusive
+ * `Ctrl+Shift+K` (`quarto.preview` binds when it is FALSE, `quarto.previewScript`
+ * when it is TRUE), the editor-title button, and the palette entry.
+ */
+const RENDER_SCRIPT_CONTEXT = "quartoRenderScriptActive";
 /** How long to wait for the `Browse at <url>` line before declaring failure. */
 const START_TIMEOUT_MS = 60_000;
 /** Grace period after SIGTERM before escalating to SIGKILL on the group. */
@@ -400,7 +407,22 @@ export function registerPreviewFeature(
     vscode.workspace.onDidCloseTextDocument((doc) =>
       manager.onDocumentClosed(doc),
     ),
+    // Keep `quartoRenderScriptActive` fresh so ctrl+shift+k binds to
+    // `previewScript` on a render script and to `preview` everywhere else.
+    vscode.window.onDidChangeActiveTextEditor((editor) =>
+      updateRenderScriptContext(editor),
+    ),
+    // Render-script-ness is a property of the TEXT, so an edit alone can change
+    // it with no editor switch — typing `# %% [markdown]` atop a plain .py file
+    // makes it previewable immediately, before any save.
+    vscode.workspace.onDidChangeTextDocument((e) => {
+      const active = vscode.window.activeTextEditor;
+      if (active && e.document === active.document) {
+        updateRenderScriptContext(active);
+      }
+    }),
   );
+  updateRenderScriptContext(vscode.window.activeTextEditor);
 }
 
 async function previewActiveDocument(manager: PreviewManager): Promise<void> {
@@ -427,18 +449,8 @@ async function previewActiveDocument(manager: PreviewManager): Promise<void> {
  * ever claimed by both commands.
  */
 async function previewActiveScript(manager: PreviewManager): Promise<void> {
-  const editor = vscode.window.activeTextEditor;
-  const doc = editor?.document;
-  // `quarto preview` renders the file from DISK, so the document must actually be
-  // one. Without the scheme check the gate reads buffer text from any provider —
-  // e.g. the built-in Git extension's read-only `git:` diff of a spin script,
-  // whose fsPath is the working-tree path — and we would happily preview the
-  // working-tree file while the user is looking at an old revision.
-  if (
-    !doc ||
-    doc.uri.scheme !== "file" ||
-    !isRenderScript(doc.uri.fsPath, doc.getText())
-  ) {
+  const doc = vscode.window.activeTextEditor?.document;
+  if (!isPreviewableRenderScript(doc)) {
     void vscode.window.showErrorMessage(
       "Quarto: open a Quarto render script to preview — a .py/.jl/.r file " +
         "starting with a `# %% [markdown]` or `# %% [raw]` cell, or a .r file " +
@@ -447,6 +459,48 @@ async function previewActiveScript(manager: PreviewManager): Promise<void> {
     return;
   }
   await manager.openPreview(doc);
+}
+
+/**
+ * The ONE predicate behind both `quarto.previewScript`'s gate and the
+ * `quartoRenderScriptActive` context key. They must never disagree: the key is
+ * what binds `Ctrl+Shift+K` to `previewScript`, so a key that is true for a
+ * document the gate would refuse produces a keystroke that fires a command that
+ * immediately errors. Sharing the predicate makes that divergence unrepresentable
+ * rather than merely unlikely.
+ *
+ * `quarto preview` renders the file from DISK, so the document must actually be
+ * one. Without the scheme check we would read buffer text from any provider —
+ * e.g. the built-in Git extension's read-only `git:` diff of a spin script, whose
+ * fsPath is the working-tree path — and preview the working-tree file while the
+ * user is looking at an old revision.
+ */
+function isPreviewableRenderScript(
+  doc: vscode.TextDocument | undefined,
+): doc is vscode.TextDocument {
+  return (
+    doc !== undefined &&
+    doc.uri.scheme === "file" &&
+    isRenderScript(doc.uri.fsPath, doc.getText())
+  );
+}
+
+/**
+ * Keep `quartoRenderScriptActive` in sync with the active editor. Mirrors
+ * `execution.ts`'s `updateCellContext` — including its guard: a background
+ * editor's event must not clobber a key that describes the ACTIVE one.
+ */
+function updateRenderScriptContext(
+  editor: vscode.TextEditor | undefined,
+): void {
+  if (editor !== undefined && editor !== vscode.window.activeTextEditor) {
+    return;
+  }
+  void vscode.commands.executeCommand(
+    "setContext",
+    RENDER_SCRIPT_CONTEXT,
+    isPreviewableRenderScript(editor?.document),
+  );
 }
 
 /**

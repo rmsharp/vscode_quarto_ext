@@ -1,5 +1,7 @@
 import * as assert from "node:assert";
 import { execSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import { isRenderScript } from "../../../src/core/render-script";
@@ -97,6 +99,212 @@ async function openActive(file: string): Promise<void> {
   const doc = await vscode.workspace.openTextDocument(file);
   await vscode.window.showTextDocument(doc);
 }
+
+/** The context key under test (Slice 2). */
+const KEY = "quartoRenderScriptActive";
+
+interface ContextCall {
+  key: string;
+  value: unknown;
+}
+
+/**
+ * Capture `setContext` calls.
+ *
+ * VS Code offers NO way to read a context key back — `setContext` is a
+ * write-only command and there is no `getContext` API — so the only faithful
+ * observation point is the `executeCommand` call the extension itself makes.
+ * We intercept it, RECORD the call, and still delegate to the real
+ * implementation so the key genuinely updates (unlike create-project.test.ts's
+ * `vscode.openFolder` interception, which must SUPPRESS the real call because it
+ * would reload the window mid-suite; the mechanism is otherwise identical, and
+ * is the established precedent for this in the repo).
+ */
+async function withContextCapture<T>(
+  captured: ContextCall[],
+  body: () => Promise<T>,
+): Promise<T> {
+  const commandsAny = vscode.commands as unknown as Record<string, unknown>;
+  const original = commandsAny.executeCommand as (
+    command: string,
+    ...rest: unknown[]
+  ) => Thenable<unknown>;
+  commandsAny.executeCommand = (command: string, ...rest: unknown[]) => {
+    if (command === "setContext") {
+      captured.push({ key: rest[0] as string, value: rest[1] });
+    }
+    return original(command, ...rest);
+  };
+  try {
+    return await body();
+  } finally {
+    commandsAny.executeCommand = original;
+  }
+}
+
+/** The most recent value the extension pushed for `key` (`undefined` if never). */
+function lastValueFor(captured: ContextCall[], key: string): unknown {
+  const hits = captured.filter((c) => c.key === key);
+  return hits.length > 0 ? hits[hits.length - 1].value : undefined;
+}
+
+describe("quartoRenderScriptActive context key", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("goes true when a render script becomes the active editor", async function () {
+    this.timeout(30000);
+    const captured: ContextCall[] = [];
+    await withContextCapture(captured, async () => {
+      await openActive(SPIN);
+      await waitFor(() => lastValueFor(captured, KEY) !== undefined, 5000);
+    });
+
+    // Sanity: the interception itself is live. `execution.ts` sets its OWN
+    // context key (`quarto.inCodeCell`) on every active-editor change, so seeing
+    // it proves a failure below means "our key is never set", not "the capture
+    // harness is broken".
+    assert.ok(
+      captured.some((c) => c.key === "quarto.inCodeCell"),
+      "precondition: the setContext interception must be live (expected to see " +
+        "execution.ts's own quarto.inCodeCell key being set)",
+    );
+
+    assert.strictEqual(
+      lastValueFor(captured, KEY),
+      true,
+      `${KEY} must be true while a render script is the active editor`,
+    );
+  });
+
+  it("goes true the moment an ordinary script is EDITED into a render script (before any save)", async function () {
+    this.timeout(30000);
+    // A real on-disk file (the scheme guard requires `file:`), in an OS temp dir
+    // so the repo is never dirtied — the create-project/convert-notebook pattern.
+    const dir = mkdtempSync(path.join(os.tmpdir(), "quarto-ext-ctxkey-"));
+    const script = path.join(dir, "ordinary.py");
+    writeFileSync(script, 'print("hello")\n', "utf8");
+
+    try {
+      const captured: ContextCall[] = [];
+      await withContextCapture(captured, async () => {
+        await openActive(script);
+        await waitFor(() => lastValueFor(captured, KEY) !== undefined, 5000);
+
+        // Ordinary Python: not a render script.
+        assert.strictEqual(
+          lastValueFor(captured, KEY),
+          false,
+          "precondition: plain Python must not be a render script",
+        );
+
+        // The user types a percent markdown cell at the top. The buffer is now a
+        // render script; it is NOT saved. The key must track the BUFFER, not the
+        // file on disk — `openPreview` saves a dirty document before rendering, so
+        // an unsaved-but-valid script is genuinely previewable.
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(
+          vscode.Uri.file(script),
+          new vscode.Position(0, 0),
+          "# %% [markdown]\n# Hi\n\n",
+        );
+        await vscode.workspace.applyEdit(edit);
+
+        await waitFor(() => lastValueFor(captured, KEY) === true, 5000);
+      });
+
+      assert.strictEqual(
+        lastValueFor(captured, KEY),
+        true,
+        `${KEY} must flip to true on the EDIT that makes the buffer a render ` +
+          `script — an active-editor-change listener alone never sees this`,
+      );
+    } finally {
+      await vscode.commands.executeCommand(
+        "workbench.action.revertAndCloseActiveEditor",
+      );
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // --- Behavior-lock battery (disclosed: these passed on first run, they are
+  // --- not claimed REDs). Each pins an invariant that a plausible future edit
+  // --- would silently break; the two below are break-revert-proven.
+
+  it("goes false on a .qmd — the mutual-exclusion invariant that gives ctrl+shift+k back to quarto.preview", async function () {
+    this.timeout(30000);
+    const captured: ContextCall[] = [];
+    await withContextCapture(captured, async () => {
+      await openActive(QMD);
+      await waitFor(() => lastValueFor(captured, KEY) !== undefined, 5000);
+    });
+
+    // If this key were ever true for a .qmd, ctrl+shift+k would fire
+    // `previewScript` on a Quarto document — which `previewScript` then refuses.
+    // The keybinding pair is only sound because the two predicates are disjoint.
+    assert.strictEqual(
+      lastValueFor(captured, KEY),
+      false,
+      `${KEY} must be false for a .qmd — that is quarto.preview's territory`,
+    );
+  });
+
+  it("goes false for a non-file document even when its text and extension look like a script", async function () {
+    this.timeout(30000);
+    // The key must agree with the COMMAND GATE, which refuses a non-`file:` doc
+    // (a `git:` diff of a spin script has the working-tree fsPath). If the key
+    // said true here, ctrl+shift+k would bind to a command that then errors.
+    // Throwaway temp dir for the same reason as the sibling gate test above: a
+    // regressed scheme guard makes `openPreview` save this untitled buffer to a
+    // REAL file at that path, which would poison every later run.
+    const dir = mkdtempSync(path.join(os.tmpdir(), "quarto-ext-untitled-ctx-"));
+    try {
+      const uri = vscode.Uri.parse(
+        `untitled:${path.join(dir, "untitled-ctx-spin.r")}`,
+      );
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const edit = new vscode.WorkspaceEdit();
+      edit.insert(
+        uri,
+        new vscode.Position(0, 0),
+        "#' ---\n#' title: T\n#' ---\n\n1 + 1\n",
+      );
+      await vscode.workspace.applyEdit(edit);
+
+      const captured: ContextCall[] = [];
+      await withContextCapture(captured, async () => {
+        await vscode.window.showTextDocument(doc);
+        await waitFor(() => lastValueFor(captured, KEY) !== undefined, 5000);
+      });
+
+      // Precondition: the PURE detector accepts this buffer — so a failure here
+      // can only mean the scheme guard is missing, not that the detector said no.
+      assert.ok(
+        isRenderScript(doc.uri.fsPath, doc.getText()),
+        "precondition: the pure detector must accept this buffer, so that the " +
+          "scheme guard is the only thing that can make the key false",
+      );
+      assert.strictEqual(
+        lastValueFor(captured, KEY),
+        false,
+        `${KEY} must be false for a non-file doc — the key MUST agree with the ` +
+          `command gate, which refuses it`,
+      );
+    } finally {
+      await vscode.commands.executeCommand(
+        "workbench.action.revertAndCloseActiveEditor",
+      );
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("Quarto: Preview Script command", () => {
   before(async () => {
@@ -198,38 +406,61 @@ describe("Quarto: Preview Script command", () => {
     // the built-in Git extension's read-only `git:` diff of a spin script (whose
     // fsPath IS the working-tree path) from previewing the working-tree file while
     // the user is looking at an old revision.
-    const uri = vscode.Uri.parse("untitled:/tmp/untitled-spin.r");
-    const doc = await vscode.workspace.openTextDocument(uri);
-    const edit = new vscode.WorkspaceEdit();
-    edit.insert(
-      uri,
-      new vscode.Position(0, 0),
-      "#' ---\n#' title: T\n#' ---\n\n1 + 1\n",
-    );
-    await vscode.workspace.applyEdit(edit);
-    await vscode.window.showTextDocument(doc);
+    //
+    // ⚠ The untitled path is deliberately inside a THROWAWAY temp dir, not a fixed
+    // /tmp name. If the scheme guard ever regresses, the gate accepts this buffer
+    // and `openPreview` calls `doc.save()` on it — and saving an UNTITLED document
+    // WRITES A REAL FILE at that path. A fixed path would then survive the run, and
+    // every subsequent run would fail at `openTextDocument` with a baffling "file
+    // already exists" instead of the real regression. (Observed for real while
+    // break-revert-proving the guard in Session 85.) Scoping it here means the
+    // fallout is deleted with the dir.
+    const dir = mkdtempSync(path.join(os.tmpdir(), "quarto-ext-untitled-"));
+    try {
+      const uri = vscode.Uri.parse(
+        `untitled:${path.join(dir, "untitled-spin.r")}`,
+      );
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const edit = new vscode.WorkspaceEdit();
+      edit.insert(
+        uri,
+        new vscode.Position(0, 0),
+        "#' ---\n#' title: T\n#' ---\n\n1 + 1\n",
+      );
+      await vscode.workspace.applyEdit(edit);
+      await vscode.window.showTextDocument(doc);
 
-    // Precondition: the PURE detector accepts it — so the test can only pass
-    // because of the scheme guard, not because the detector happened to say no.
-    assert.strictEqual(doc.uri.scheme, "untitled");
-    assert.ok(
-      isRenderScript(doc.uri.fsPath, doc.getText()),
-      "precondition: the pure detector must accept this buffer, so that the " +
-        "scheme guard is the only thing that can refuse it",
-    );
+      // Precondition: the PURE detector accepts it — so the test can only pass
+      // because of the scheme guard, not because the detector happened to say no.
+      assert.strictEqual(doc.uri.scheme, "untitled");
+      assert.ok(
+        isRenderScript(doc.uri.fsPath, doc.getText()),
+        "precondition: the pure detector must accept this buffer, so that the " +
+          "scheme guard is the only thing that can refuse it",
+      );
 
-    const errors: string[] = [];
-    await withErrorCapture(errors, async () => {
-      await vscode.commands.executeCommand("quarto.previewScript");
-    });
+      const errors: string[] = [];
+      await withErrorCapture(errors, async () => {
+        await vscode.commands.executeCommand("quarto.previewScript");
+      });
 
-    assert.strictEqual(errors.length, 1, "the gate should refuse a non-file doc");
-    assert.match(errors[0], /render script/i);
-    assert.strictEqual(
-      pgrepCount("preview.*untitled-spin"),
-      0,
-      "an unsaved, non-file buffer must never be previewed",
-    );
+      assert.strictEqual(
+        errors.length,
+        1,
+        "the gate should refuse a non-file doc",
+      );
+      assert.match(errors[0], /render script/i);
+      assert.strictEqual(
+        pgrepCount("preview.*untitled-spin"),
+        0,
+        "an unsaved, non-file buffer must never be previewed",
+      );
+    } finally {
+      await vscode.commands.executeCommand(
+        "workbench.action.revertAndCloseActiveEditor",
+      );
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("refuses a .qmd — that is quarto.preview's job, not previewScript's", async function () {
