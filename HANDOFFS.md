@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S85
+date: 2026-07-12
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION). BACKLOG item 15, Slice 2 — the quarto.previewScript Posit-parity gating layer — executing docs/planning/2026-07-12-preview-script-plan.md §6 Slice 2 under the strict-TDD gate. The LAST open piece of item 15; the item closes with it. L1: updateRenderScriptContext + the quartoRenderScriptActive content-driven context key in preview.ts (reusing isRenderScript, mirroring execution.ts:404 updateCellContext, wired to onDidChangeActiveTextEditor + onDidChangeTextDocument + a registration-time call). L2 manifest: the mutually-exclusive ctrl+shift+k/cmd+shift+k pair on BOTH quarto.preview (when: "!quartoRenderScriptActive") and quarto.previewScript (when: "quartoRenderScriptActive"), the editor/title menu, the palette when-gate (plan §10 Q3, operator-approved at the S84 kickoff), and activation events onLanguage:r + workspaceContains:**/*.{qmd,rmd} + workspaceContains:**/_quarto.{yml,yaml}. Gate (a) contract re-verified against current code at Orient — zero drift.
+```
+
+```handoff
 session: S84
 date: 2026-07-12
 status: complete
