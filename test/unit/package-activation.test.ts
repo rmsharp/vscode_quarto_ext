@@ -17,4 +17,39 @@ describe("package.json activationEvents", () => {
   it("still includes onLanguage:quarto (the pre-existing .qmd/.rmd/.Rmd activation)", () => {
     expect(packageJson.activationEvents).toContain("onLanguage:quarto");
   });
+
+  /**
+   * `BACKLOG.md` item 15 Slice 2. The `quartoRenderScriptActive` context key can
+   * only be set while the extension is ACTIVE, and nothing here activates for a
+   * bare `.py`/`.jl`/`.r` script — so without these events the key stays unset and
+   * the keybinding/editor-title button are inert. Same events Posit uses (plan
+   * §2.4/§5.3), for the same reason.
+   */
+  describe("render-script activation (item 15 Slice 2)", () => {
+    it("activates for R, which covers the kernel-free knitr spin script", () => {
+      expect(packageJson.activationEvents).toContain("onLanguage:r");
+    });
+
+    it("activates inside a Quarto project, which is where render scripts actually live", () => {
+      // A render-script-only project (a `_quarto.yml` plus `.py` scripts and NOT
+      // one `.qmd`) activates on the second event alone — dropping it was a
+      // confirmed defect in the plan's own first draft (its review's finding #6).
+      expect(packageJson.activationEvents).toContain(
+        "workspaceContains:**/*.{qmd,rmd}",
+      );
+      expect(packageJson.activationEvents).toContain(
+        "workspaceContains:**/_quarto.{yml,yaml}",
+      );
+    });
+
+    it("does NOT activate for every Python/Julia file", () => {
+      // Deliberate, disclosed limitation (plan §5.3): a LONE .py/.jl script with no
+      // Quarto workspace file present does not activate us, so the key stays unset
+      // and only the palette command (which auto-activates on invoke) works. Posit
+      // makes the same call — activating on every Python file in VS Code is too
+      // costly to justify. Do NOT "fix" the gap by adding these.
+      expect(packageJson.activationEvents).not.toContain("onLanguage:python");
+      expect(packageJson.activationEvents).not.toContain("onLanguage:julia");
+    });
+  });
 });
