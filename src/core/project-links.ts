@@ -88,9 +88,16 @@ export function valueContextAt(
     return null; // cursor at or before the delimiter — a key position, not a value slot
   }
   const slot = valueSlotAfterColon(raw, colonAbs);
+  if (col > slot.endCol) {
+    // Cursor past the value token — in trailing whitespace or a trailing inline
+    // comment. Firing here would overrun the comment on accept, so treat it as no
+    // value slot (mirrors yaml-context's `frontMatterContextAt` upper bound;
+    // adversarial review, Session 81). `valueSlotAfterColon` already trims the
+    // comment, so `slot.endCol` is the value token's true end.
+    return null;
+  }
   const startCol = col < slot.startCol ? col : slot.startCol;
-  const endCol = Math.max(slot.endCol, col);
-  return { token: raw.slice(startCol, col), replaceRange: { line, startCol, endCol } };
+  return { token: raw.slice(startCol, col), replaceRange: { line, startCol, endCol: slot.endCol } };
 }
 
 /**

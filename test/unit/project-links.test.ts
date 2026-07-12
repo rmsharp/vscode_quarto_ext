@@ -207,6 +207,22 @@ describe("valueContextAt — cursor value-slot detection (Slice 2)", () => {
     expect(valueContextAt("bibliography: refs.bib", -1, 0)).toBeNull();
   });
 
+  it("fires at the value-token end but returns null once the cursor is past it (trailing-comment upper bound)", () => {
+    // `chapters: intro.qmd  # note`: the value token is `intro.qmd` (cols 10-18,
+    // ending at col 19). A cursor at col 19 is still a value slot; a cursor in the
+    // trailing whitespace (col 20) or inside the `# note` comment (col 22) is PAST
+    // the value — completion must NOT fire there, or accepting an item would overrun
+    // the comment (adversarial review, Session 81). Mirrors yaml-context's
+    // frontMatterContextAt `col <= valueSlot.endCol` upper bound.
+    const text = "chapters: intro.qmd  # note";
+    expect(valueContextAt(text, 0, 19)).toEqual({
+      token: "intro.qmd",
+      replaceRange: { line: 0, startCol: 10, endCol: 19 },
+    });
+    expect(valueContextAt(text, 0, 20)).toBeNull();
+    expect(valueContextAt(text, 0, 22)).toBeNull();
+  });
+
   it("finds the value slot at any indentation depth (whole-document scope)", () => {
     // A deeply-nested `output-dir:` under project:. Cursor at the value start.
     const text = ["project:", "  book:", "    output-dir: docs"].join("\n");
