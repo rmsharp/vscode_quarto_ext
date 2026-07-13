@@ -8,9 +8,20 @@
  * delegation (Learning #13 / #1).
  *
  * Thin `vscode` adapter (plan §3.3): the position gate and the virtual-document
- * blanking are the pure core (`core/embedded/virtual-doc`); this module is the
- * impure plumbing — the content provider, the URI/Map bookkeeping, the
- * `executeCommand` forward, and the out-of-cell secondary-edit filter.
+ * blanking are the pure core (`core/embedded/virtual-doc`); the vdoc's lifecycle on
+ * disk belongs to `features/embedded-vdoc.ts`; this module is what remains — the
+ * `executeCommand` forwards, the definition-URI remap, and the out-of-cell
+ * secondary-edit filter.
+ *
+ * **The vdoc is a real `file:` document, and that is load-bearing** (BACKLOG item 18).
+ * These four forwards previously routed through a `TextDocumentContentProvider` on a
+ * custom `quarto-embedded:` scheme, and every one of them was dead in production:
+ * real language servers register their providers against a `documentSelector` scoped
+ * to the schemes they can read, so no provider was ever registered for those vdocs and
+ * each `executeXxxProvider` returned nothing — no error, no warning. Measured against
+ * real Pylance on identical content: 306 completions on a `file:` URI, 0 on ours. Do
+ * not reintroduce a custom scheme here; it will silently break all four features again,
+ * and the stand-in tests will not tell you (see `assertRoutedThroughVdoc`).
  *
  * Gating is the disjoint complement of the YAML (`#|` lines + front matter) and
  * `@` (prose) providers on the shared `{language:"quarto"}` selector (plan §4.3,
@@ -23,15 +34,14 @@
 
 import * as vscode from "vscode";
 import { needsLanguageExtension } from "../core/embedded/lang-map";
+import type { EmbeddedHit } from "../core/embedded/virtual-doc";
 import {
   buildVirtualContent,
   embeddedCellAt,
 } from "../core/embedded/virtual-doc";
+import { disposeVdocs, ensureVdoc } from "../features/embedded-vdoc";
 
 const QMD: vscode.DocumentSelector = { language: "quarto" };
-
-/** The URI scheme our per-language virtual documents live under (plan §5/§9 Q1). */
-const SCHEME = "quarto-embedded";
 
 /**
  * Completion trigger characters — the union of the embedded languages' triggers
@@ -51,87 +61,56 @@ const SIG_TRIGGERS = ["(", ","];
 export function registerEmbeddedLanguageFeature(
   context: vscode.ExtensionContext,
 ): void {
-  const store = new VirtualDocStore();
   context.subscriptions.push(
-    vscode.workspace.registerTextDocumentContentProvider(SCHEME, store),
     vscode.languages.registerCompletionItemProvider(
       QMD,
-      new EmbeddedCompletionProvider(store),
+      new EmbeddedCompletionProvider(),
       ...TRIGGERS,
     ),
-    vscode.languages.registerHoverProvider(QMD, new EmbeddedHoverProvider(store)),
+    vscode.languages.registerHoverProvider(QMD, new EmbeddedHoverProvider()),
     vscode.languages.registerDefinitionProvider(
       QMD,
-      new EmbeddedDefinitionProvider(store),
+      new EmbeddedDefinitionProvider(),
     ),
     vscode.languages.registerSignatureHelpProvider(
       QMD,
-      new EmbeddedSignatureHelpProvider(store),
+      new EmbeddedSignatureHelpProvider(),
       ...SIG_TRIGGERS,
     ),
-    // The virtual-doc Map must not grow unbounded: drop a document's vdocs when
-    // it closes (plan §7).
-    vscode.workspace.onDidCloseTextDocument((doc) => store.evict(doc.uri)),
+    // Vdocs are real files in the user's workspace, so a closed document must take
+    // its own with it — this is a disk cleanup now, not just a Map eviction.
+    vscode.workspace.onDidCloseTextDocument((doc) => void disposeVdocs(doc.uri)),
   );
 }
 
 /**
- * Holds the per-(document, language) virtual-document contents and serves them to
- * VS Code as a `TextDocumentContentProvider`. Stored and looked up by the canonical
- * vdoc URI string (`uri.toString()`), which is symmetric by VS Code's
- * document-identity contract — no manual `path` decode (the sample's hardcoded
- * `-4` parse does not generalize to `.py`/`.r`/`.jl`/`.js`, plan §2.4). An
- * `owners` index maps each source document to its vdoc keys for eviction.
+ * The virtual document for the language under the cursor: every cell of that language,
+ * with everything else blanked to equal-length space runs so positions and ranges pass
+ * through unchanged (the identity mapping — `buildVirtualContent`).
+ *
+ * Returns `undefined` when no vdoc could be written, in which case the caller simply
+ * does not forward. That is the same graceful degradation as "no language extension
+ * installed": the cell keeps its TextMate colouring and everything else keeps working.
  */
-class VirtualDocStore implements vscode.TextDocumentContentProvider {
-  private readonly contents = new Map<string, string>();
-  private readonly owners = new Map<string, Set<string>>();
-
-  provideTextDocumentContent(uri: vscode.Uri): string | undefined {
-    return this.contents.get(uri.toString());
-  }
-
-  /** Store `content` as the `ext` virtual doc for `docUri` and return its vdoc URI. */
-  set(
-    docUri: vscode.Uri,
-    ext: string,
-    languageId: string,
-    content: string,
-  ): vscode.Uri {
-    // The trailing `.ext` is what makes VS Code resolve the vdoc's languageId
-    // (plan §2.4); the encoded original URI keeps vdocs per-document distinct.
-    const vdocUri = vscode.Uri.from({
-      scheme: SCHEME,
-      authority: languageId,
-      path: `/${encodeURIComponent(docUri.toString(true))}.${ext}`,
-    });
-    const key = vdocUri.toString();
-    this.contents.set(key, content); // rebuild-per-request (edit-sync, plan §2.4)
-    const owner = docUri.toString();
-    const keys = this.owners.get(owner) ?? new Set<string>();
-    keys.add(key);
-    this.owners.set(owner, keys);
-    return vdocUri;
-  }
-
-  /** Drop every virtual doc owned by `docUri` (called when the document closes). */
-  evict(docUri: vscode.Uri): void {
-    const owner = docUri.toString();
-    const keys = this.owners.get(owner);
-    if (keys === undefined) {
-      return;
-    }
-    for (const key of keys) {
-      this.contents.delete(key);
-    }
-    this.owners.delete(owner);
-  }
+async function vdocFor(
+  document: vscode.TextDocument,
+  text: string,
+  hit: EmbeddedHit,
+): Promise<vscode.Uri | undefined> {
+  return ensureVdoc(
+    document,
+    {
+      docUri: document.uri.toString(),
+      languageId: hit.languageId,
+      ext: hit.ext,
+      kind: "lang",
+    },
+    buildVirtualContent(text, hit.languageId),
+  );
 }
 
 /** Forward completion inside a mapped-language cell body to that language's providers. */
 class EmbeddedCompletionProvider implements vscode.CompletionItemProvider {
-  constructor(private readonly store: VirtualDocStore) {}
-
   /**
    * languageIds we have already evaluated for the degradation hint this session —
    * so the "install the … extension" nudge shows at most once per language and
@@ -156,8 +135,10 @@ class EmbeddedCompletionProvider implements vscode.CompletionItemProvider {
     // language, the forward below will quietly yield nothing — nudge the user once,
     // non-blocking. Fire-and-forget so it never delays (or blocks) completion.
     this.maybeHintMissingExtension(hit.languageId);
-    const content = buildVirtualContent(text, hit.languageId);
-    const vdocUri = this.store.set(document.uri, hit.ext, hit.languageId, content);
+    const vdocUri = await vdocFor(document, text, hit);
+    if (vdocUri === undefined) {
+      return undefined;
+    }
     // Identity mapping (plan §2.3): the position passes straight through, and the
     // returned primary insertion needs no remap.
     const list = await vscode.commands.executeCommand<vscode.CompletionList>(
@@ -204,8 +185,6 @@ class EmbeddedCompletionProvider implements vscode.CompletionItemProvider {
  * completion, enforced BEFORE any `await` (Learning #27).
  */
 class EmbeddedHoverProvider implements vscode.HoverProvider {
-  constructor(private readonly store: VirtualDocStore) {}
-
   async provideHover(
     document: vscode.TextDocument,
     position: vscode.Position,
@@ -215,8 +194,10 @@ class EmbeddedHoverProvider implements vscode.HoverProvider {
     if (hit === null) {
       return undefined;
     }
-    const content = buildVirtualContent(text, hit.languageId);
-    const vdocUri = this.store.set(document.uri, hit.ext, hit.languageId, content);
+    const vdocUri = await vdocFor(document, text, hit);
+    if (vdocUri === undefined) {
+      return undefined;
+    }
     const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
       "vscode.executeHoverProvider",
       vdocUri,
@@ -255,8 +236,6 @@ function mergeHovers(
  * enforced BEFORE any `await` (Learning #27).
  */
 class EmbeddedDefinitionProvider implements vscode.DefinitionProvider {
-  constructor(private readonly store: VirtualDocStore) {}
-
   async provideDefinition(
     document: vscode.TextDocument,
     position: vscode.Position,
@@ -266,8 +245,10 @@ class EmbeddedDefinitionProvider implements vscode.DefinitionProvider {
     if (hit === null) {
       return undefined;
     }
-    const content = buildVirtualContent(text, hit.languageId);
-    const vdocUri = this.store.set(document.uri, hit.ext, hit.languageId, content);
+    const vdocUri = await vdocFor(document, text, hit);
+    if (vdocUri === undefined) {
+      return undefined;
+    }
     const results = await vscode.commands.executeCommand<
       (vscode.Location | vscode.LocationLink)[]
     >("vscode.executeDefinitionProvider", vdocUri, position);
@@ -338,8 +319,6 @@ function isLocationLink(
  * inverse-gating contract, enforced BEFORE any `await` (Learning #27).
  */
 class EmbeddedSignatureHelpProvider implements vscode.SignatureHelpProvider {
-  constructor(private readonly store: VirtualDocStore) {}
-
   async provideSignatureHelp(
     document: vscode.TextDocument,
     position: vscode.Position,
@@ -351,8 +330,10 @@ class EmbeddedSignatureHelpProvider implements vscode.SignatureHelpProvider {
     if (hit === null) {
       return undefined;
     }
-    const content = buildVirtualContent(text, hit.languageId);
-    const vdocUri = this.store.set(document.uri, hit.ext, hit.languageId, content);
+    const vdocUri = await vdocFor(document, text, hit);
+    if (vdocUri === undefined) {
+      return undefined;
+    }
     // Identity mapping (plan §2.3): the position passes straight through, and the
     // single SignatureHelp (no URI, no edits) is returned unchanged.
     return vscode.commands.executeCommand<vscode.SignatureHelp>(

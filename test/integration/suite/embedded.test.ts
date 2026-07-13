@@ -1,10 +1,48 @@
 import * as assert from "node:assert";
+import * as path from "node:path";
 import * as vscode from "vscode";
+import { isOurVdocFileName } from "../../../src/core/embedded/vdoc-path";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
-/** Scheme our embedded provider routes virtual documents through (plan §5). */
-const SCHEME = "quarto-embedded";
+/**
+ * Assert a forward actually routed through one of OUR virtual documents — and that the
+ * vdoc is a real `file:` document, which is the whole point of BACKLOG item 18.
+ *
+ * The assertion this replaced checked only that the URI carried our custom scheme. That
+ * was true, and worthless: it confirmed the request reached a provider we had registered
+ * on that scheme, while saying nothing about whether any REAL language server registers
+ * there. None do — they filter by scheme in their `documentSelector` — so the forward
+ * returned nothing in production while this suite stayed green.
+ */
+function assertRoutedThroughVdoc(uriString: string, what: string): void {
+  const uri = vscode.Uri.parse(uriString);
+  assert.strictEqual(
+    uri.scheme,
+    "file",
+    `${what} — a custom scheme is invisible to real language servers (BACKLOG item 18)`,
+  );
+  assert.ok(
+    isOurVdocFileName(path.basename(uri.fsPath)),
+    `${what} — expected one of our vdocs, got ${uri.fsPath}`,
+  );
+}
+
+/**
+ * The stand-ins used to be keyed `{ scheme: "quarto-embedded" }` — pinned to the EXACT
+ * axis real language servers discriminate on. That is what hid BACKLOG item 18 for so
+ * long: a double registered on the axis the real dependency filters by cannot reveal
+ * that the real dependency rejects that axis, so a 100%-green suite coexisted with a
+ * feature returning nothing in production.
+ *
+ * They are now keyed on the real thing: a `file:` document whose name we own. A bare
+ * `{ scheme: "file" }` would be unusable — it would fire for every file in the test
+ * host and collide with real providers — so the glob narrows it to our vdocs alone.
+ */
+const VDOC_SELECTOR: vscode.DocumentSelector = {
+  scheme: "file",
+  pattern: "**/vdoc-mit.*",
+};
 /** Detail tag on the stand-in's items, so we can pick them out of a merged list. */
 const STANDIN_DETAIL = "embedded-stand-in";
 
@@ -74,7 +112,7 @@ let defStandInReturnsNothing = false;
 function registerStandIn(): void {
   disposables.push(
     vscode.languages.registerCompletionItemProvider(
-      { scheme: SCHEME },
+      VDOC_SELECTOR,
       {
         provideCompletionItems(document) {
           calls.push({
@@ -188,11 +226,7 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
       "the embedded (stand-in) completion should appear in the cell body",
     );
     assert.strictEqual(calls.length, 1, "the stand-in should be invoked once");
-    assert.strictEqual(
-      vscode.Uri.parse(calls[0].uri).scheme,
-      SCHEME,
-      "the request must route through the quarto-embedded virtual document, not the .qmd directly",
-    );
+    assertRoutedThroughVdoc(calls[0].uri, "the request must route through our file: virtual document, not the .qmd directly");
     assert.strictEqual(
       calls[0].languageId,
       "python",
@@ -260,11 +294,7 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
       "the {r} cell body should now forward to the embedded stand-in",
     );
     assert.strictEqual(calls.length, 1, "the stand-in should be invoked once for the r cell");
-    assert.strictEqual(
-      vscode.Uri.parse(calls[0].uri).scheme,
-      SCHEME,
-      "the r request must route through the quarto-embedded virtual document",
-    );
+    assertRoutedThroughVdoc(calls[0].uri, "the r request must route through our file: virtual document");
     // The .r vdoc's languageId may NOT resolve in the bare host (no built-in r
     // language-basics — §9 Q8 / Learning #35b); the scheme-keyed stand-in fires
     // regardless. We assert the forward routed through the vdoc, not languageId.
@@ -282,11 +312,7 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
 
     assert.deepStrictEqual(embeddedLabels(list), ["FWD_PY"], "the {ojs} cell forwards");
     assert.strictEqual(calls.length, 1);
-    assert.strictEqual(
-      vscode.Uri.parse(calls[0].uri).scheme,
-      SCHEME,
-      "the ojs request routes through the virtual document",
-    );
+    assertRoutedThroughVdoc(calls[0].uri, "the ojs request routes through the virtual document");
     assert.strictEqual(
       calls[0].languageId,
       "javascript",
@@ -320,11 +346,7 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
       1,
       "the {julia} cell must forward through the vdoc (proves julia is mapped + gated)",
     );
-    assert.strictEqual(
-      vscode.Uri.parse(calls[0].uri).scheme,
-      SCHEME,
-      "the julia request routes through the quarto-embedded virtual document",
-    );
+    assertRoutedThroughVdoc(calls[0].uri, "the julia request routes through our file: virtual document");
     assert.deepStrictEqual(
       embeddedLabels(list),
       [],
@@ -402,7 +424,7 @@ describe("Quarto: embedded-cell completion forwarding (6e-1, python)", () => {
 function registerHoverStandIn(): void {
   hoverDisposables.push(
     vscode.languages.registerHoverProvider(
-      { scheme: SCHEME },
+      VDOC_SELECTOR,
       {
         provideHover(document, position) {
           hoverCalls.push({
@@ -427,7 +449,7 @@ function registerHoverStandIn(): void {
 function registerSecondHoverStandIn(): void {
   hoverDisposables.push(
     vscode.languages.registerHoverProvider(
-      { scheme: SCHEME },
+      VDOC_SELECTOR,
       {
         provideHover(_document, position) {
           return new vscode.Hover(
@@ -508,11 +530,7 @@ describe("Quarto: embedded-cell hover forwarding (6e-3)", () => {
       1,
       "the stand-in hover should be invoked once",
     );
-    assert.strictEqual(
-      vscode.Uri.parse(hoverCalls[0].uri).scheme,
-      SCHEME,
-      "the hover request must route through the quarto-embedded virtual document, not the .qmd directly",
-    );
+    assertRoutedThroughVdoc(hoverCalls[0].uri, "the hover request must route through our file: virtual document, not the .qmd directly");
     assert.strictEqual(
       hoverCalls[0].languageId,
       "python",
@@ -651,7 +669,7 @@ describe("Quarto: embedded-cell hover forwarding (6e-3)", () => {
 function registerDefStandIn(): void {
   defDisposables.push(
     vscode.languages.registerDefinitionProvider(
-      { scheme: SCHEME },
+      VDOC_SELECTOR,
       {
         provideDefinition(document) {
           defCalls.push({
@@ -739,11 +757,7 @@ describe("Quarto: embedded-cell go-to-definition forwarding (6e-4)", () => {
     const ours = ourDefs(results);
     assert.strictEqual(ours.length, 1, "the embedded definition should be forwarded");
     assert.strictEqual(defCalls.length, 1, "the def stand-in should be invoked once");
-    assert.strictEqual(
-      vscode.Uri.parse(defCalls[0].uri).scheme,
-      SCHEME,
-      "the request must route through the quarto-embedded virtual document, not the .qmd directly",
-    );
+    assertRoutedThroughVdoc(defCalls[0].uri, "the request must route through our file: virtual document, not the .qmd directly");
     assert.strictEqual(
       defUri(ours[0]).toString(),
       doc.uri.toString(),
@@ -882,7 +896,7 @@ let sigStandInReturnsNothing = false;
 function registerSigStandIn(): void {
   sigDisposables.push(
     vscode.languages.registerSignatureHelpProvider(
-      { scheme: SCHEME },
+      VDOC_SELECTOR,
       {
         provideSignatureHelp(document) {
           sigCalls.push({
@@ -956,11 +970,7 @@ describe("Quarto: embedded-cell signature-help forwarding (6e-5)", () => {
       "the embedded (stand-in) signature help should be returned in the cell body",
     );
     assert.strictEqual(sigCalls.length, 1, "the stand-in should be invoked once");
-    assert.strictEqual(
-      vscode.Uri.parse(sigCalls[0].uri).scheme,
-      SCHEME,
-      "the request must route through the quarto-embedded virtual document, not the .qmd directly",
-    );
+    assertRoutedThroughVdoc(sigCalls[0].uri, "the request must route through our file: virtual document, not the .qmd directly");
     assert.strictEqual(
       sigCalls[0].languageId,
       "python",
