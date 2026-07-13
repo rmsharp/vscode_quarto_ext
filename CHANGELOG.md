@@ -52,7 +52,17 @@ skips loudly (never silently) when Pylance is absent, because Pylance cannot be 
 
 `docs/POSIT-COMPARISON.md` claimed parity for these features throughout, and has been corrected.
 
-767 unit / 300 integration / 7 real-LSP; clean 43-file `.vsix`.
+A 21-agent adversarial review (8 lenses × 2 skeptics + a completeness critic) on the shipped slice
+found and fixed a set of real issues at the root: two concurrent-mint disk leaks; a start-line-shift
+vdoc that was stranded until document close; two "concurrency" integration tests that passed even with
+the cell discriminator removed (the same test-double disease this fix is about); and a day-one
+gitignore gap. It also surfaced — and the harness then confirmed empirically — that under the
+**non-default** `python.analysis.diagnosticMode: "workspace"`, Pylance publishes diagnostics against
+the vdoc files (zero under the default `openFilesOnly`); that is a hard problem of its own (deleting a
+vdoc does not retract its diagnostics, and VS Code cannot force-close a background model) and is filed
+as tracked follow-up rather than half-fixed.
+
+767 unit / 300 integration / 10 real-LSP; clean 43-file `.vsix`.
 
 ### 2026-07-12 · [BL-16] (Session 86 — PLANNING: embedded-LSP vdoc scheme migration + semantic highlighting. **Plan written; item 16 stays open. A SHIPPED DEFECT was uncovered and filed as new BACKLOG item 18.**)
 
