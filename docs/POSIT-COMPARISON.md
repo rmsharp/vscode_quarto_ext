@@ -286,8 +286,10 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
 - *Ours:* Present for completion/hover/go-to-definition/signature-help — embedded grammar regions for
   python/r/julia/ojs, plus request forwarding into the user's installed language extension via
   per-language virtual documents, with graceful degradation. (`src/core/embedded/`,
-  `src/providers/embedded.ts`, `src/features/embedded-vdoc.ts`.) **Verified against real Pylance**
-  (`npm run test:lsp`), not only against test doubles — see the note below. **Diagnostics forwarding:
+  `src/providers/embedded.ts`, `src/features/embedded-vdoc.ts`.) **All four — completion, hover,
+  go-to-definition, signature-help — plus in-cell symbols are verified against real Pylance**
+  (`npm run test:lsp`), not only against test doubles; the go-to-definition test also confirms the
+  vdoc-URI-to-`.qmd` remap end to end — see the note below. **Diagnostics forwarding:
   not implemented** — the only `DiagnosticCollection` anywhere in `src/` is
   `src/features/yaml-diagnostics.ts`, scoped to `_quarto.yml`'s project/website/book blocks only;
   `src/providers/embedded.ts` registers no diagnostics.
