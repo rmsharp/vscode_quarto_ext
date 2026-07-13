@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S87
+date: 2026-07-13
+status: pending
+active_task: IMPLEMENTATION (strict TDD). BACKLOG item 18 (SHIPPED DEFECT) — Slice 0 of docs/planning/2026-07-12-embedded-lsp-scheme-and-semantic-tokens-plan.md: migrate the embedded-language vdoc off its three custom URI schemes (quarto-embedded / quarto-outline-symbols / quarto-format-cell) onto a real `file:` URI, so {python} completion / hover / go-to-def / signature-help and in-cell outline symbols actually reach the user's real language server. Item 16's semantic-tokens slices (1–3) are SEPARATE future sessions — not started.
+```
+
+```handoff
 session: S86
 date: 2026-07-12
 status: complete
