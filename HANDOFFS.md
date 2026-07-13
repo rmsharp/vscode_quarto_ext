@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S88
+date: 2026-07-13
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION). BACKLOG item 16 — Slice 1 of docs/planning/2026-07-12-embedded-lsp-scheme-and-semantic-tokens-plan.md: semantic highlighting for {python} cells via the embedded language's LSP. L1 = pure core/embedded/semantic-tokens.ts (decodeTokens + the legend / modifier-BITSET remap + single-stream re-encode); L2 = providers/semantic-tokens.ts + extension.ts wiring. Strict TDD. Slices 2 (multi-language merge) and 3 (theming / {ojs} / the D4 legend decision) are SEPARATE future sessions — NOT started (FM #18/#26).
+```
+
+```handoff
 session: S87
 date: 2026-07-13
 status: complete
