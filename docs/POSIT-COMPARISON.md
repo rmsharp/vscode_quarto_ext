@@ -286,10 +286,23 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
 - *Ours:* Present for completion/hover/go-to-definition/signature-help — embedded grammar regions for
   python/r/julia/ojs, plus request forwarding into the user's installed language extension via
   per-language virtual documents, with graceful degradation. (`src/core/embedded/`,
-  `src/providers/embedded.ts`.) **Diagnostics forwarding: not implemented** — the only
-  `DiagnosticCollection` anywhere in `src/` is `src/features/yaml-diagnostics.ts`, scoped to
-  `_quarto.yml`'s project/website/book blocks only; `src/providers/embedded.ts` registers no
-  diagnostics.
+  `src/providers/embedded.ts`, `src/features/embedded-vdoc.ts`.) **Verified against real Pylance**
+  (`npm run test:lsp`), not only against test doubles — see the note below. **Diagnostics forwarding:
+  not implemented** — the only `DiagnosticCollection` anywhere in `src/` is
+  `src/features/yaml-diagnostics.ts`, scoped to `_quarto.yml`'s project/website/book blocks only;
+  `src/providers/embedded.ts` registers no diagnostics.
+
+  > **⚠ These features were BROKEN from Phase 6e until Session 87 (BACKLOG item 18), and this document
+  > claimed parity for them the whole time.** The virtual documents were served on a custom URI scheme
+  > (`quarto-embedded:`), and real language servers register their providers against a
+  > `documentSelector` scoped to the schemes they can read — so no provider was ever registered for
+  > them and every forward returned nothing, with no error and no warning. Measured against real
+  > Pylance on identical content: **306 completions on a `file:` URI, 0 on ours.** In-cell outline
+  > symbols were dead the same way (2 → 0). `{ojs}` alone kept working, because VS Code's *built-in*
+  > TS/JS provider happens to be scheme-agnostic. Session 87 moved the vdoc to a real `file:` document
+  > and added `npm run test:lsp`, which exercises the forwards against a real language server with a
+  > control proving it was alive. The entry below is the parity claim as it now stands — earned, and
+  > checked against the real dependency rather than a double.
 - *Posit's:* Present for Python/R/Julia, explicitly documented ("Completion for embedded languages…
   enhanced features… can be enabled by installing the most recent version(s) of these extensions" —
   Python/Jupyter, R, Julia). **Session 67, MAJOR finding:** since v1.133.0 (2026-06-03, PR #980,
@@ -298,8 +311,13 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   inside `.qmd` code cells — independently toggleable via `quarto.cells.diagnostics.enabled` (default
   `true`) and `.debounceDelay` (default 500ms), alongside the pre-existing
   `quarto.cells.hoverHelp.enabled`/`quarto.cells.signatureHelp.enabled` toggles.
-- *Notes:* We still match on substance for completion/hover/go-to-def/signature-help across all four
-  languages (more granular and better test-evidenced than what Posit's docs page shows). Diagnostics
+- *Notes:* We match on substance for completion/hover/go-to-def/signature-help across all four
+  languages — **as of Session 87, and now verified against a real language server rather than a test
+  double.** The previous wording here ("better test-evidenced than what Posit's docs page shows") was
+  the most confidently wrong sentence in this document: the suite was 100% green precisely *because*
+  every stand-in was registered on our own custom URI scheme — the exact axis a real server
+  discriminates by — so it could not have detected that no real server registers there. Test count is
+  not test evidence when the doubles agree with the code about the wrong thing. Diagnostics
   forwarding is a real, substantive gap — a Python code cell with a real type error or lint violation shows
   nothing in this project, where Posit's extension shows the same red squiggle the user would see in a
   plain `.py` file — and was the single largest *incremental* (non-Visual-Editor) gap Session 67's refresh

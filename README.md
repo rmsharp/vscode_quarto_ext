@@ -160,6 +160,24 @@ These are active only when the cursor is inside a code cell.
 |---------|------|---------|-------------|
 | `quarto.path` | string | `""` | Absolute path to the `quarto` executable. When empty, `quarto` is resolved from `PATH`. |
 
+## Code intelligence inside code cells
+
+Completion, hover, go-to-definition, signature help, in-cell outline symbols and **Format Cell** work
+inside `{python}`, `{r}`, `{julia}` and `{ojs}` cells by delegating to the language extension you have
+already installed (Pylance for Python, and so on). No language server is bundled, and none is required
+— without one, cells simply keep their syntax colouring.
+
+To make that work, the extension writes a temporary *virtual document* containing just that cell's
+code, so your language server has a real file it is willing to analyse. These live in
+`.quarto/vdoc-mit/` inside your workspace, are deleted when the document closes, and any left behind by
+a crash are swept at startup. They are pure cache — add this to your `.gitignore`:
+
+```gitignore
+.quarto/vdoc-mit/
+```
+
+(If you already ignore `.quarto/`, you are covered.)
+
 ## Spell checking
 
 This extension does not include its own spell checker, but ships a ready-made config recipe that scopes

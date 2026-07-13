@@ -9,6 +9,51 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-13 · [BL-18] (Session 87 — **FIXED: embedded-language features silently returned nothing from real language servers.** Item 18 CLOSED; item 16 unblocked.)
+
+**If you write `{python}` cells, these features did not work, and there was no way to tell.**
+
+Completion, hover, go-to-definition, signature help and in-cell outline symbols inside code cells all
+returned **nothing** from a real language server — quietly, with no error and no warning, looking
+exactly like "no language extension installed". This shipped in Phase 6e and has been broken ever
+since.
+
+**Cause.** Those features hand the target language's provider a *virtual document* containing the
+cell's code. The vdoc used a custom URI scheme (`quarto-embedded:`), and real language servers
+register their providers against a `documentSelector` scoped to the schemes they can read
+(`file:`/`untitled:`/`vscode-notebook-cell:`). No provider was ever registered for our vdocs, so
+every request correctly returned nothing. Measured against real Pylance, identical content and
+position: **306 completions on a `file:` URI, 0 on ours**; in-cell symbols, 2 → 0. `{ojs}` was the
+lone exception, because VS Code's *built-in* TS/JS provider happens to be scheme-agnostic.
+
+**Fix.** The vdoc is now a real `file:` document under `<workspaceRoot>/.quarto/vdoc-mit/` (gitignored;
+written per forward, deleted when the document closes, swept at activation). All three
+`TextDocumentContentProvider` registrations are gone.
+
+**A second, latent bug the fix exposed — Format Cell could destroy your document.** Once a real
+formatter could finally answer, it did what formatters do: it trimmed the whitespace-only lines that
+the vdoc uses to blank out everything around the cell. Those lines are the cell's *fences* in the real
+document. The edit filter used `findCellAtPosition`, which is inclusive of fence lines, so it accepted
+them:
+
+    BEFORE  ```{ojs}\nx   =   1\n```
+    AFTER   \nx = 1\n              <- both fences deleted; the cell is no longer a cell
+
+Unreachable before this slice (no formatter ever answered), and invisible to the tests (the stand-in
+only ever produced body-confined edits). Now filtered on body membership, and pinned by a test.
+
+**Why no test caught any of this, and what changed.** Every stand-in provider was registered on
+`{ scheme: <our custom scheme> }` — the *exact axis* real servers discriminate by — so the suite was
+structurally incapable of detecting that no real server registers there. 754 unit and 287 integration
+tests were green throughout. Adding more doubles could never have found it. This release therefore
+also ships **`npm run test:lsp`**: a real-Pylance harness that exercises the forwards against an actual
+language server, with a control in the same run proving the server was alive. It is local-only and
+skips loudly (never silently) when Pylance is absent, because Pylance cannot be redistributed to CI.
+
+`docs/POSIT-COMPARISON.md` claimed parity for these features throughout, and has been corrected.
+
+767 unit / 300 integration / 7 real-LSP; clean 43-file `.vsix`.
+
 ### 2026-07-12 · [BL-16] (Session 86 — PLANNING: embedded-LSP vdoc scheme migration + semantic highlighting. **Plan written; item 16 stays open. A SHIPPED DEFECT was uncovered and filed as new BACKLOG item 18.**)
 
 - **Deliverable:** `docs/planning/2026-07-12-embedded-lsp-scheme-and-semantic-tokens-plan.md` (v2). Plan only — implementation is a separate session per slice (FM #18).
