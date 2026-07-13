@@ -434,7 +434,7 @@
       {
         "id": "quartoGettingStarted",
         "title": "Get Started with Quarto",
-        "description": "Install Quarto, write your first document or project, then render, preview, and run code — all from this extension.",
+        "description": "Install Quarto, write your first document or project, then render, preview, and run code \u2014 all from this extension.",
         "featuredFor": [
           "**/*.qmd"
         ],
@@ -453,7 +453,7 @@
           {
             "id": "createDocument",
             "title": "Create your first document",
-            "description": "Start writing right away with a blank `.qmd` document — no file needed on disk yet.\n[New Quarto Document](command:quarto.newDocument)",
+            "description": "Start writing right away with a blank `.qmd` document \u2014 no file needed on disk yet.\n[New Quarto Document](command:quarto.newDocument)",
             "media": {
               "markdown": "media/walkthrough/create-document.md"
             },
@@ -464,7 +464,7 @@
           {
             "id": "createProject",
             "title": "Create a project",
-            "description": "Multi-file books, websites, and manuscripts start from a Quarto project. Pick a type, a folder, and a name — the extension scaffolds the rest and opens it.\n[Create Project](command:quarto.createProject)",
+            "description": "Multi-file books, websites, and manuscripts start from a Quarto project. Pick a type, a folder, and a name \u2014 the extension scaffolds the rest and opens it.\n[Create Project](command:quarto.createProject)",
             "media": {
               "markdown": "media/walkthrough/create-project.md"
             },
@@ -507,7 +507,8 @@
     "test": "vitest run",
     "test:integration": "npm run compile && npm run compile-tests && node ./out/test/integration/runTest.js",
     "package": "npm run compile && vsce package",
-    "vscode:prepublish": "npm run compile"
+    "vscode:prepublish": "npm run compile",
+    "test:lsp": "npm run compile && npm run compile-tests && node ./out/test/lsp/runTest.js"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

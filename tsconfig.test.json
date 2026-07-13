@@ -5,7 +5,14 @@
     "outDir": "out",
     "rootDir": ".",
     "sourceMap": true,
-    "types": ["node", "mocha", "vscode"]
+    "types": [
+      "node",
+      "mocha",
+      "vscode"
+    ]
   },
-  "include": ["test/integration/**/*.ts"]
+  "include": [
+    "test/integration/**/*.ts",
+    "test/lsp/**/*.ts"
+  ]
 }
