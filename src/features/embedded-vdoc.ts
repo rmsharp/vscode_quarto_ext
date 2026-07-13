@@ -81,14 +81,26 @@ interface LiveVdoc {
 /** Monotonic across the session — this, alone, is what makes every written path unique. */
 let version = 0;
 
-/** `vdocKeyString(key)` -> the vdoc currently on disk for it. */
+/** `vdocKeyString(key)` -> the vdoc currently reusable for it (the reuse cache). */
 const live = new Map<string, LiveVdoc>();
 
-/** `docUri.toString()` -> the key strings it owns, so a close can drop them all. */
-const owners = new Map<string, Set<string>>();
+/**
+ * `docUri.toString()` -> EVERY vdoc file this session has minted for it and not yet
+ * deleted, keyed by `uri.toString()`. This is a superset of `live`: it also retains a
+ * file that `live` has stopped pointing at — a concurrent double-mint's loser, or a cell
+ * whose start line shifted so its key changed — so a document close still deletes it
+ * rather than stranding it on disk until the next session's sweep.
+ */
+const docFiles = new Map<string, Map<string, vscode.Uri>>();
 
 /** Lazily-created fallback directory for documents with no workspace folder (untitled). */
 let fallbackDir: vscode.Uri | undefined;
+/**
+ * The in-flight creation of `fallbackDir`, memoised so two concurrent forwards for an
+ * untitled document cannot each run `mkdtemp` and leak the loser's directory. The FIRST
+ * caller starts it; every concurrent caller awaits the same promise.
+ */
+let fallbackDirPromise: Promise<vscode.Uri> | undefined;
 
 /**
  * Write `content` as `key`'s virtual document, open its model, and return its `file:`
@@ -128,9 +140,13 @@ export async function ensureVdoc(
     await vscode.workspace.openTextDocument(uri);
 
     live.set(ks, { uri, content });
-    ownersOf(key.docUri).add(ks);
+    filesOf(key.docUri).set(uri.toString(), uri);
     if (existing !== undefined) {
+      // The ordinary supersede: same key, new content (a keystroke in the same cell).
+      // Delete the previous file AND stop tracking it, so an actively-edited cell holds
+      // exactly one file rather than one per keystroke.
       await deleteQuietly(existing.uri);
+      docFiles.get(key.docUri)?.delete(existing.uri.toString());
     }
     return uri;
   } catch {
@@ -141,31 +157,31 @@ export async function ensureVdoc(
   }
 }
 
-/** Delete every vdoc owned by `docUri` — called when the source document closes. */
+/** Delete every vdoc file owned by `docUri` — called when the source document closes. */
 export async function disposeVdocs(docUri: vscode.Uri): Promise<void> {
   const owner = docUri.toString();
-  const keys = owners.get(owner);
-  if (keys === undefined) {
+  const files = docFiles.get(owner);
+  if (files === undefined) {
     return;
   }
-  owners.delete(owner);
-  await Promise.all(
-    [...keys].map(async (ks) => {
-      const entry = live.get(ks);
+  docFiles.delete(owner);
+  // Drop this document's reuse-cache entries too. `live` is keyed by content-key, not by
+  // document, so filter by the file each entry points at.
+  const owned = new Set([...files.values()].map((u) => u.toString()));
+  for (const [ks, entry] of live) {
+    if (owned.has(entry.uri.toString())) {
       live.delete(ks);
-      if (entry !== undefined) {
-        await deleteQuietly(entry.uri);
-      }
-    }),
-  );
+    }
+  }
+  await Promise.all([...files.values()].map((uri) => deleteQuietly(uri)));
 }
 
 /** Delete every vdoc this session created, and the temp directory it may have made. */
 export async function disposeAllVdocs(): Promise<void> {
-  const entries = [...live.values()];
+  const all = [...docFiles.values()].flatMap((m) => [...m.values()]);
   live.clear();
-  owners.clear();
-  await Promise.all(entries.map((e) => deleteQuietly(e.uri)));
+  docFiles.clear();
+  await Promise.all(all.map((uri) => deleteQuietly(uri)));
 
   // Remove the fallback temp directory too, or every session that ever touched an
   // untitled `.qmd` would leave an empty directory behind in the OS temp dir forever.
@@ -176,6 +192,7 @@ export async function disposeAllVdocs(): Promise<void> {
   if (fallbackDir !== undefined) {
     const dir = fallbackDir;
     fallbackDir = undefined;
+    fallbackDirPromise = undefined;
     try {
       await nodeFs.rmdir(dir.fsPath);
     } catch {
@@ -241,13 +258,50 @@ async function vdocDirFor(doc: vscode.TextDocument): Promise<vscode.Uri | undefi
   if (folder !== undefined) {
     const dir = vscode.Uri.joinPath(folder.uri, ...VDOC_DIR_SEGMENTS);
     await vscode.workspace.fs.createDirectory(dir); // idempotent, recursive
+    await ensureGitignored(dir);
     return dir;
   }
-  if (fallbackDir === undefined) {
-    const made = await nodeFs.mkdtemp(path.join(os.tmpdir(), "quarto-mit-vdoc-"));
-    fallbackDir = vscode.Uri.file(made);
+  // Memoise the in-flight mkdtemp: two concurrent untitled forwards must share ONE temp
+  // directory, or the loser's directory leaks (module state, so a check-then-act on the
+  // resolved value straddles the await and races).
+  if (fallbackDirPromise === undefined) {
+    fallbackDirPromise = nodeFs
+      .mkdtemp(path.join(os.tmpdir(), "quarto-mit-vdoc-"))
+      .then((made) => {
+        fallbackDir = vscode.Uri.file(made);
+        return fallbackDir;
+      });
   }
-  return fallbackDir;
+  return fallbackDirPromise;
+}
+
+/** Directories we have already dropped a `.gitignore` into this session (write it once). */
+const gitignored = new Set<string>();
+
+/**
+ * Drop a `.gitignore` containing `*` into our vdoc directory the first time we create it,
+ * so a user who has not read the README's gitignore guidance still never sees our vdocs as
+ * untracked files (and cannot accidentally `git add .` a copy of their own source). This is
+ * exactly what Quarto's own CLI does for its `.quarto/` cache. Best-effort — never throws.
+ */
+async function ensureGitignored(dir: vscode.Uri): Promise<void> {
+  const key = dir.toString();
+  if (gitignored.has(key)) {
+    return;
+  }
+  gitignored.add(key);
+  const gitignore = vscode.Uri.joinPath(dir, ".gitignore");
+  try {
+    await vscode.workspace.fs.stat(gitignore);
+    return; // already there (a previous session) — leave it
+  } catch {
+    // does not exist — write it
+  }
+  try {
+    await vscode.workspace.fs.writeFile(gitignore, new TextEncoder().encode("*\n"));
+  } catch {
+    // read-only workspace, etc. The README guidance is the fallback.
+  }
 }
 
 /** Whether VS Code still holds a model for `uri` (see `ensureVdoc`'s reuse branch). */
@@ -256,13 +310,13 @@ function isModelOpen(uri: vscode.Uri): boolean {
   return vscode.workspace.textDocuments.some((d) => d.uri.toString() === key);
 }
 
-function ownersOf(docUri: string): Set<string> {
-  const existing = owners.get(docUri);
+function filesOf(docUri: string): Map<string, vscode.Uri> {
+  const existing = docFiles.get(docUri);
   if (existing !== undefined) {
     return existing;
   }
-  const created = new Set<string>();
-  owners.set(docUri, created);
+  const created = new Map<string, vscode.Uri>();
+  docFiles.set(docUri, created);
   return created;
 }
 

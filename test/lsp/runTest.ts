@@ -107,7 +107,7 @@ async function main(): Promise<void> {
       {
         // Pylance analyses on open; keep it to open files so the run is fast and so we
         // measure the default diagnostic posture, not a workspace-wide crawl.
-        "python.analysis.diagnosticMode": "openFilesOnly",
+        "python.analysis.diagnosticMode": process.env.QMD_LSP_DIAGMODE ?? "openFilesOnly",
         "python.defaultInterpreterPath": process.env.QMD_LSP_PYTHON ?? "python3",
       },
       null,
@@ -138,7 +138,7 @@ async function main(): Promise<void> {
         "--skip-release-notes",
         "--disable-workspace-trust",
       ],
-      extensionTestsEnv: { QMD_LSP_WORKSPACE: workspace },
+      extensionTestsEnv: { QMD_LSP_WORKSPACE: workspace, QMD_LSP_DIAGMODE: process.env.QMD_LSP_DIAGMODE ?? "openFilesOnly" },
     });
   } catch (err) {
     console.error("Real-LSP tests failed:", err);

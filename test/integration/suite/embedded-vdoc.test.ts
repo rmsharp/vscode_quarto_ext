@@ -116,6 +116,20 @@ describe("embedded vdoc: the file: document the forwards ride on (item 18 Slice 
     );
   });
 
+  it("drops a .gitignore into its directory, so a user never sees vdocs as untracked files", async () => {
+    // Adversarial-review finding: the extension writes vdocs before the user reads the
+    // README's gitignore guidance, so in a workspace not already ignoring .quarto/ they would
+    // show up as untracked (and could be `git add .`-ed, committing a copy of the user's
+    // source). Quarto's own CLI solves this by writing a .gitignore into its cache dir; so do we.
+    const doc = await openProjectQmd();
+    await ensureVdoc(doc, langKey(doc), "z = 1\n");
+
+    const gitignore = vscode.Uri.joinPath(vdocDir(), ".gitignore");
+    assert.strictEqual(await exists(gitignore), true, "a .gitignore must be written into the vdoc dir");
+    const body = new TextDecoder().decode(await vscode.workspace.fs.readFile(gitignore));
+    assert.ok(body.includes("*"), `the .gitignore must ignore everything; got ${JSON.stringify(body)}`);
+  });
+
   it("mints a FRESH path when the content changes, so a request never sees stale text", async () => {
     // M2/M3, the silent one. Once a model is open VS Code caches it, and rewriting the
     // file on disk invalidates that cache only ASYNCHRONOUSLY — measured at ≈1017 ms
@@ -190,13 +204,26 @@ describe("embedded vdoc: the file: document the forwards ride on (item 18 Slice 
       cellStartLine: startLine,
     });
 
-    const [a, b] = await Promise.all([
-      ensureVdoc(doc, cellKey(10), "def alpha(): pass\n"),
-      ensureVdoc(doc, cellKey(20), "def beta(): pass\n"),
-    ]);
+    // SEQUENTIAL, not concurrent — deliberately. A concurrent pair mints distinct paths
+    // even with a broken key, because the monotonic `version` counter alone makes every
+    // path unique; asserting "distinct paths" would therefore pass against the exact bug
+    // this test is named for (an adversarial-review finding — the old version did exactly
+    // that). Run them sequentially so the SECOND call sees the first in the reuse cache:
+    // if the two cells shared a key, the second would treat the first's vdoc as its own
+    // stale entry and DELETE it. So the discriminating assertion is not "distinct paths"
+    // but "both files still exist".
+    const a = await ensureVdoc(doc, cellKey(10), "def alpha(): pass\n");
+    const b = await ensureVdoc(doc, cellKey(20), "def beta(): pass\n");
 
     assert.ok(a && b);
-    assert.notStrictEqual(a.toString(), b.toString(), "concurrent cells must not share a path");
+    assert.notStrictEqual(a.toString(), b.toString(), "two cells must not share a path");
+    assert.strictEqual(
+      await exists(a),
+      true,
+      "the FIRST cell's vdoc must survive the second being minted — if the key lacked the " +
+        "cell discriminator, the second call would delete the first as a stale same-key entry",
+    );
+    assert.strictEqual(await exists(b), true, "the second cell's vdoc exists too");
     const textOf = (uri: vscode.Uri): string | undefined =>
       vscode.workspace.textDocuments.find((d) => d.uri.toString() === uri.toString())?.getText();
     assert.strictEqual(textOf(a), "def alpha(): pass\n");
@@ -216,6 +243,36 @@ describe("embedded vdoc: the file: document the forwards ride on (item 18 Slice 
       false,
       "no vdoc may survive its source document — they are cache files in the user's tree",
     );
+  });
+
+  it("reclaims a vdoc whose KEY changed (a cell whose start line shifted) at document close", async () => {
+    // Adversarial-review finding: cell vdocs are keyed by absolute cellStartLine, so
+    // inserting a line above a cell changes its key. The old file is no longer the "live"
+    // entry for any current key, and before the fix it was stranded on disk until the next
+    // session's sweep. It must be reclaimed at document close like everything else.
+    const doc = await openProjectQmd();
+    const cellKey = (startLine: number): VdocKey => ({
+      docUri: doc.uri.toString(),
+      languageId: "python",
+      ext: "py",
+      kind: "cell",
+      cellStartLine: startLine,
+    });
+
+    const before = await ensureVdoc(doc, cellKey(10), "def f(): pass\n"); // the cell at line 10
+    const shifted = await ensureVdoc(doc, cellKey(11), "def f(): pass\n"); // a line inserted above it
+    assert.ok(before && shifted);
+    assert.notStrictEqual(before.toString(), shifted.toString(), "a shifted cell mints a new vdoc");
+    assert.strictEqual(await exists(before), true, "precondition: the pre-shift vdoc is on disk");
+
+    await disposeVdocs(doc.uri);
+
+    assert.strictEqual(
+      await exists(before),
+      false,
+      "the stranded (pre-shift) vdoc must be reclaimed at close, not left for the next session",
+    );
+    assert.strictEqual(await exists(shifted), false, "and so must the current one");
   });
 
   it("falls back to a private temp directory for a document with no workspace folder", async () => {

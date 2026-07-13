@@ -223,6 +223,105 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
     );
   });
 
+  it("resolves go-to-definition inside a {python} cell, and maps it back to the .qmd", async () => {
+    // The forward with the MOST post-processing: remapDefinitions swaps the vdoc URI on the
+    // result back to the .qmd. A locally-defined symbol exercises that remap end to end
+    // against a real server (the stand-in can only approximate the shape Pylance returns).
+    const doc = await writeDoc(
+      "definition.qmd",
+      ["```{python}", "def my_func():", "    return 1", "", "x = my_func()", "```", ""].join("\n"),
+    );
+    await vscode.window.showTextDocument(doc, { preview: false });
+
+    const defs = await vscode.commands.executeCommand<
+      (vscode.Location | vscode.LocationLink)[]
+    >("vscode.executeDefinitionProvider", doc.uri, new vscode.Position(4, 8)); // on `my_func` use
+
+    const locations = (defs ?? []).map((d) =>
+      "targetUri" in d ? d.targetUri : (d as vscode.Location).uri,
+    );
+    assert.ok(locations.length > 0, "real Pylance must resolve the definition of a local symbol");
+    assert.ok(
+      locations.every((u) => u.toString() === doc.uri.toString()),
+      `a definition inside the cell must be remapped back to the .qmd, not left pointing at the ` +
+        `vdoc; got [${locations.map((u) => u.scheme + ":" + (u.fsPath.split("/").pop() ?? "")).join(", ")}]`,
+    );
+  });
+
+  it("resolves signature help inside a {python} cell", async () => {
+    const doc = await writeDoc(
+      "signature.qmd",
+      ["```{python}", "def greet(name, greeting):", "    return greeting", "", "greet(", "```", ""].join("\n"),
+    );
+    await vscode.window.showTextDocument(doc, { preview: false });
+
+    const help = await vscode.commands.executeCommand<vscode.SignatureHelp>(
+      "vscode.executeSignatureHelpProvider",
+      doc.uri,
+      new vscode.Position(4, 6), // just after `greet(`
+      "(",
+    );
+
+    assert.ok(
+      help !== undefined && help.signatures.length > 0,
+      "real Pylance must return signature help for a local function call inside a {python} cell",
+    );
+    assert.ok(
+      help.signatures[0].label.includes("name"),
+      `the signature must describe the real parameters; got "${help?.signatures[0]?.label}"`,
+    );
+  });
+
+  it("does NOT flood the Problems panel with diagnostics on phantom vdoc files (default diagnosticMode)", async () => {
+    // Adversarial-review HIGH (completeness critic): the per-cell outline vdoc blanks every
+    // OTHER cell, so a cell that references a name defined in a sibling cell (df from cell 1,
+    // used in cell 2) becomes an undefined-name in its isolated vdoc. If Pylance published
+    // diagnostics for these background-opened files, the Problems panel would fill with
+    // "df is not defined" pointing at .quarto/vdoc-mit/ paths the user cannot navigate to —
+    // and this project deliberately does NOT forward embedded diagnostics.
+    //
+    // This is the exact scenario, driven through the real outline forward, then EVERY URI in
+    // the global diagnostics set is inspected for one of our vdocs. Session 86's spike found
+    // zero under the default diagnosticMode (openFilesOnly: a background-opened, never-shown
+    // file is not "open" for diagnostics); this pins that empirically and permanently.
+    const doc = await writeDoc(
+      "cross-cell.qmd",
+      [
+        "```{python}",
+        "import pandas as pd",
+        "df = pd.DataFrame()",
+        "```",
+        "",
+        "```{python}",
+        "df.head()", // references df from the FIRST cell — undefined in an isolated vdoc
+        "undefined_name_xyz + 1", // an outright undefined name, to be sure
+        "```",
+        "",
+      ].join("\n"),
+    );
+    await vscode.window.showTextDocument(doc, { preview: false });
+
+    // Drive the per-cell outline forward (this is what opens the isolated cell vdocs).
+    await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+      "vscode.executeDocumentSymbolProvider",
+      doc.uri,
+    );
+    // Give Pylance a generous window to publish anything it is going to publish.
+    await new Promise((r) => setTimeout(r, 5000));
+
+    const vdocDiagnostics = vscode.languages
+      .getDiagnostics()
+      .filter(([uri]) => /vdoc-mit\./.test(uri.fsPath))
+      .map(([uri, diags]) => `${uri.fsPath}: ${diags.map((d) => d.message).join("; ")}`);
+
+    assert.deepStrictEqual(
+      vdocDiagnostics,
+      [],
+      `no diagnostics may be attributed to our vdoc files (default diagnosticMode). Found:\n` +
+        vdocDiagnostics.join("\n"),
+    );
+  });
+
   it("still forwards {ojs} to the built-in JS service, with FULL semantics (no regression)", async () => {
     // {ojs} is the one thing that worked BEFORE this slice — VS Code's built-in TS/JS
     // provider happens to be scheme-agnostic for completion, so it answered even on our
