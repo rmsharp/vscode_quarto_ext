@@ -1,48 +1,9 @@
 import * as assert from "node:assert";
-import * as path from "node:path";
 import * as vscode from "vscode";
-import { isOurVdocFileName } from "../../../src/core/embedded/vdoc-path";
+import { assertRoutedThroughVdoc, VDOC_SELECTOR } from "./vdoc-assert";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
-/**
- * Assert a forward actually routed through one of OUR virtual documents — and that the
- * vdoc is a real `file:` document, which is the whole point of BACKLOG item 18.
- *
- * The assertion this replaced checked only that the URI carried our custom scheme. That
- * was true, and worthless: it confirmed the request reached a provider we had registered
- * on that scheme, while saying nothing about whether any REAL language server registers
- * there. None do — they filter by scheme in their `documentSelector` — so the forward
- * returned nothing in production while this suite stayed green.
- */
-function assertRoutedThroughVdoc(uriString: string, what: string): void {
-  const uri = vscode.Uri.parse(uriString);
-  assert.strictEqual(
-    uri.scheme,
-    "file",
-    `${what} — a custom scheme is invisible to real language servers (BACKLOG item 18)`,
-  );
-  assert.ok(
-    isOurVdocFileName(path.basename(uri.fsPath)),
-    `${what} — expected one of our vdocs, got ${uri.fsPath}`,
-  );
-}
-
-/**
- * The stand-ins used to be keyed `{ scheme: "quarto-embedded" }` — pinned to the EXACT
- * axis real language servers discriminate on. That is what hid BACKLOG item 18 for so
- * long: a double registered on the axis the real dependency filters by cannot reveal
- * that the real dependency rejects that axis, so a 100%-green suite coexisted with a
- * feature returning nothing in production.
- *
- * They are now keyed on the real thing: a `file:` document whose name we own. A bare
- * `{ scheme: "file" }` would be unusable — it would fire for every file in the test
- * host and collide with real providers — so the glob narrows it to our vdocs alone.
- */
-const VDOC_SELECTOR: vscode.DocumentSelector = {
-  scheme: "file",
-  pattern: "**/vdoc-mit.*",
-};
 /** Detail tag on the stand-in's items, so we can pick them out of a merged list. */
 const STANDIN_DETAIL = "embedded-stand-in";
 
@@ -103,11 +64,14 @@ let defReturnsLink = false;
 let defStandInReturnsNothing = false;
 
 /**
- * Register a stand-in completion provider for the embedded scheme (Learning #13b):
- * the bare test host has no Python extension, so this faithfully substitutes for it
- * and records the URI/languageId/text it was invoked on, proving the forward routed
- * THROUGH the vdoc rather than hitting the quarto doc directly. Keyed by `{scheme}`
- * so it fires regardless of whether the vdoc's languageId resolves (§9 Q8).
+ * Register a stand-in completion provider on our vdocs (Learning #13b): the bare test
+ * host has no Python extension, so this substitutes for it and records the
+ * URI/languageId/text it was invoked on, proving the forward routed THROUGH the vdoc
+ * rather than hitting the `.qmd` directly.
+ *
+ * Keyed by `VDOC_SELECTOR` — see `vdoc-assert.ts` for why the old `{scheme: <ours>}`
+ * key was the thing that hid BACKLOG item 18, and why no stand-in can replace
+ * `npm run test:lsp`.
  */
 function registerStandIn(): void {
   disposables.push(
