@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
+  disposeAllVdocs,
   disposeVdocs,
   ensureVdoc,
   sweepStaleVdocs,
@@ -239,7 +240,44 @@ describe("embedded vdoc: the file: document the forwards ride on (item 18 Slice 
       !uri.fsPath.startsWith(vdocDir().fsPath),
       "an untitled document has no workspace root and must not write into one",
     );
+
+    // The directory must be private: it holds a copy of the user's source, in a location
+    // other users of the machine can enumerate.
+    const mode = (await nodeFs.stat(path.dirname(uri.fsPath))).mode & 0o777;
+    assert.strictEqual(
+      mode,
+      0o700,
+      `the fallback directory must be private (0700), got ${mode.toString(8)}`,
+    );
     await disposeVdocs(untitled.uri);
+  });
+
+  it("leaves nothing behind in the temp directory — not the source, and not the directory", async () => {
+    // Found by looking rather than assuming: an earlier revision deleted the vdoc FILES
+    // on shutdown but never the mkdtemp directory, so every session that touched an
+    // untitled `.qmd` leaked an empty directory into the OS temp dir. The files were
+    // always cleaned (the user's source never lingered) but the directories piled up.
+    const untitled = await vscode.workspace.openTextDocument({
+      language: "quarto",
+      content: "```{python}\nsecret = 1\n```\n",
+    });
+    const uri = await ensureVdoc(untitled, langKey(untitled), "secret = 1\n");
+    assert.ok(uri);
+    const dir = path.dirname(uri.fsPath);
+    assert.strictEqual(await exists(uri), true, "precondition: the vdoc was written");
+
+    await disposeAllVdocs();
+
+    assert.strictEqual(
+      await exists(vscode.Uri.file(uri.fsPath)),
+      false,
+      "the user's source must not survive shutdown in a world-enumerable temp dir",
+    );
+    assert.strictEqual(
+      await exists(vscode.Uri.file(dir)),
+      false,
+      "the temp directory must not survive either — otherwise every session leaks one",
+    );
   });
 });
 

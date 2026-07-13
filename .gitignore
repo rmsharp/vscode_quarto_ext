@@ -41,3 +41,12 @@ docs/*_files/
 # Logs & OS cruft
 *.log
 .DS_Store
+
+# Embedded-language virtual documents (BACKLOG item 18). Real files on disk — that is
+# what makes the user's language server willing to read them — but pure cache: written
+# per forward, deleted when the document closes, swept at activation. Under `.quarto/`
+# so it follows Quarto's own cache convention. NOTE: because this is ignored, a stray
+# vdoc is invisible to `git status`, so cleanup is asserted by direct fs.readdir in
+# test/integration/suite/embedded-vdoc.test.ts — never by a clean worktree.
+.quarto/vdoc-mit/
+test/fixtures/project/.quarto/vdoc-mit/

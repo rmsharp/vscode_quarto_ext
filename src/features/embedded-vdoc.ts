@@ -160,12 +160,28 @@ export async function disposeVdocs(docUri: vscode.Uri): Promise<void> {
   );
 }
 
-/** Delete every vdoc this session created. Called at deactivate. */
+/** Delete every vdoc this session created, and the temp directory it may have made. */
 export async function disposeAllVdocs(): Promise<void> {
   const entries = [...live.values()];
   live.clear();
   owners.clear();
   await Promise.all(entries.map((e) => deleteQuietly(e.uri)));
+
+  // Remove the fallback temp directory too, or every session that ever touched an
+  // untitled `.qmd` would leave an empty directory behind in the OS temp dir forever.
+  //
+  // `rmdir` is deliberately NOT recursive: it can only succeed on an empty directory, so
+  // it is impossible for this to delete a file — if anything unexpected is in there, the
+  // call simply fails and we leave it alone.
+  if (fallbackDir !== undefined) {
+    const dir = fallbackDir;
+    fallbackDir = undefined;
+    try {
+      await nodeFs.rmdir(dir.fsPath);
+    } catch {
+      // Not empty, or already gone. Either way, not ours to force.
+    }
+  }
 }
 
 /**
