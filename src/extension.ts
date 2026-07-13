@@ -12,6 +12,7 @@ import { registerClearCacheFeature } from "./features/clear-cache";
 import { registerConvertNotebookFeature } from "./features/convert-notebook";
 import { registerCreateProjectFeature } from "./features/create-project";
 import { registerDiagramPreviewFeature } from "./features/diagram-preview";
+import { disposeAllVdocs, sweepStaleVdocs } from "./features/embedded-vdoc";
 import { registerEmbeddedLanguageFeature } from "./providers/embedded";
 import { registerExecutionFeature } from "./features/execution";
 import { registerFormatCellFeature } from "./features/format-cell";
@@ -61,6 +62,13 @@ export function activate(context: vscode.ExtensionContext): void {
   registerEmbeddedLanguageFeature(context);
   registerQuartoYamlDocumentLinksFeature(context);
   registerFilepathCompletionFeature(context);
+
+  // Embedded-language virtual documents are real files under `.quarto/vdoc-mit/`, so a
+  // host that crashed (or was killed) leaves some behind. Clean them at startup. Scoped
+  // to our own directory and our own filenames — it never walks the user's tree, and it
+  // never touches Posit's `.quarto/vdoc/`. Fire-and-forget: a failed sweep must not
+  // delay or block activation.
+  void sweepStaleVdocs(vscode.workspace.workspaceFolders ?? []);
 }
 
 /**
@@ -107,4 +115,8 @@ export function deactivate(): void {
   // PreviewManager is also a registered subscription, so this is belt-and-
   // suspenders against the host disposing subscriptions in a different order.
   disposeAllPreviews();
+  // Likewise own the vdoc lifecycle: these are real files in the user's workspace, and
+  // leaving them behind would mean the next session's sweep has to clean up after a
+  // clean shutdown. (The sweep is the backstop for a CRASH, not the normal path.)
+  void disposeAllVdocs();
 }

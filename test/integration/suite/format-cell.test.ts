@@ -1,10 +1,10 @@
 import * as assert from "node:assert";
 import * as vscode from "vscode";
+import { assertRoutedThroughVdoc, VDOC_SELECTOR } from "./vdoc-assert";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
 /** Scheme Format Cell's per-cell virtual documents route through (plan: this session). */
-const SCHEME = "quarto-format-cell";
 
 interface FormatCall {
   /** The URI the stand-in was invoked on — proves the request routed through the vdoc. */
@@ -34,7 +34,7 @@ const disposables: vscode.Disposable[] = [];
 function registerStandIn(): void {
   disposables.push(
     vscode.languages.registerDocumentFormattingEditProvider(
-      { scheme: SCHEME },
+      VDOC_SELECTOR,
       {
         provideDocumentFormattingEdits(document) {
           calls.push({
@@ -125,10 +125,9 @@ describe("Quarto: Format Cell (quarto.formatCell)", () => {
     await vscode.commands.executeCommand("quarto.formatCell");
 
     assert.strictEqual(calls.length, 1, "the stand-in should be invoked once");
-    assert.strictEqual(
-      vscode.Uri.parse(calls[0].uri).scheme,
-      SCHEME,
-      "the request must route through the format-cell virtual document",
+    assertRoutedThroughVdoc(
+      calls[0].uri,
+      "Format Cell must route through our real file: virtual document",
     );
     assert.strictEqual(calls[0].languageId, "python");
     const text = editor.document.getText();

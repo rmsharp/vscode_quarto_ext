@@ -11,26 +11,40 @@
  * (`core/embedded/virtual-doc.ts` `buildCellVirtualContent`, slice 2) and
  * splicing the result in as that cell node's children.
  *
+ * In-cell symbols ride the SAME real `file:` virtual document as every other
+ * embedded forward (`features/embedded-vdoc.ts`, BACKLOG item 18). They used to
+ * route through a custom `quarto-outline-symbols:` scheme, which no real
+ * language server registers for — so this feature returned **nothing** from real
+ * Pylance in production (`file:` → 2 symbols, our scheme → 0), while its tests
+ * stayed green because the stand-in was keyed on that very scheme.
+ *
+ * ## Two DIFFERENT caches, and only one of them is fixed by the scheme change
+ *
  * `vscode.DocumentSymbolProvider` has no refresh event, and `vscode.execute
- * DocumentSymbolProvider` caches its result per URI internally (plan §2.3) —
+ * DocumentSymbolProvider` caches its **result** per URI internally (plan §2.3) —
  * a config change alone does not bump the document version, so a
  * previously-queried document would otherwise keep serving its stale
  * (pre-toggle) symbols forever, even through a direct command re-invocation,
- * not just the Outline UI (plan §2.4, empirically confirmed against a REAL
- * on-disk document during slice 1's own TDD). The fix for the TOP-LEVEL
- * provider is the VS Code-sanctioned one: dispose and re-register the
- * provider on the relevant config change, which fires the language-feature
- * registry's own change event. The SAME cache also strands a reused, stable
- * per-cell vdoc URI (the convention `embedded.ts`'s `VirtualDocStore` uses
- * for completion/hover/definition/signature-help, which are unaffected by
- * this specific cache) — `InCellSymbolStore` below fixes this the other way,
- * by minting a version-stamped, never-before-seen URI on every outline
- * computation so the cache can never have anything stale to serve.
+ * not just the Outline UI (empirically confirmed against a REAL on-disk document
+ * during slice 1's own TDD, Learning #78 — so this is emphatically **not** an
+ * artefact of the old custom scheme, and moving to `file:` does not fix it).
+ *
+ * The fix for the TOP-LEVEL provider is the VS Code-sanctioned one: dispose and
+ * re-register the provider on the relevant config change, which fires the
+ * language-feature registry's own change event. That is still here, and still
+ * necessary.
+ *
+ * The fix for the PER-CELL forward is a URI the result cache has never seen. That
+ * mechanism has not been deleted — it has been **generalized**: `ensureVdoc` mints
+ * a fresh path whenever a vdoc's content changes (which is also what defeats the
+ * separate model-text cache, M2/M3), so an edited cell is always queried on a URI
+ * with no cached result, exactly as the old version-stamped store guaranteed.
  */
 
 import * as vscode from "vscode";
 import { cellLanguageId } from "../core/embedded/lang-map";
 import { buildCellVirtualContent } from "../core/embedded/virtual-doc";
+import { disposeVdocs, ensureVdoc } from "../features/embedded-vdoc";
 import {
   buildOutline,
   findCellAtPosition,
@@ -40,40 +54,30 @@ import {
 
 const SHOW_CELLS_SETTING = "symbols.showCodeCellsInOutline";
 
-/**
- * The scheme in-cell symbol forwarding's per-cell virtual documents live
- * under (plan §2.3/§5, slice 2). Distinct from `embedded.ts`'s
- * `quarto-embedded` scheme — a `vscode.workspace.registerTextDocumentContent
- * Provider` call can register at most one provider per scheme.
- */
-const IN_CELL_SYMBOL_SCHEME = "quarto-outline-symbols";
-
 /** Register the outline provider for the `quarto` language, tied to the extension lifetime. */
 export function registerOutlineProvider(context: vscode.ExtensionContext): void {
-  const store = new InCellSymbolStore();
-  let registration = registerProvider(store);
+  let registration = registerProvider();
   context.subscriptions.push(
-    vscode.workspace.registerTextDocumentContentProvider(IN_CELL_SYMBOL_SCHEME, store),
     new vscode.Disposable(() => registration.dispose()),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration(`quarto.${SHOW_CELLS_SETTING}`)) {
         registration.dispose();
-        registration = registerProvider(store);
+        registration = registerProvider();
       }
     }),
     vscode.commands.registerCommand(
       "quarto.toggleCodeCellsInOutline",
       toggleShowCells,
     ),
-    // The vdoc Map must not grow unbounded: drop a document's vdocs when it closes.
-    vscode.workspace.onDidCloseTextDocument((doc) => store.evict(doc.uri)),
+    // Vdocs are real files now: a closed document must take its own off disk.
+    vscode.workspace.onDidCloseTextDocument((doc) => void disposeVdocs(doc.uri)),
   );
 }
 
-function registerProvider(store: InCellSymbolStore): vscode.Disposable {
+function registerProvider(): vscode.Disposable {
   return vscode.languages.registerDocumentSymbolProvider(
     { language: "quarto" },
-    new QmdDocumentSymbolProvider(store),
+    new QmdDocumentSymbolProvider(),
   );
 }
 
@@ -88,81 +92,7 @@ async function toggleShowCells(): Promise<void> {
   );
 }
 
-/**
- * Serves per-cell virtual documents for in-cell symbol forwarding (BACKLOG
- * item 11 slice 2, plan §2.3). Unlike `embedded.ts`'s `VirtualDocStore`
- * (whose STABLE per-(document, language) key is exactly right for
- * completion/hover/definition/signature-help), `vscode.executeDocumentSymbol
- * Provider` caches its result per URI internally, so a stable key here would
- * serve stale in-cell symbols after the first outline computation. Every
- * `set()` call therefore mints a version-stamped URI the cache can never have
- * seen before, and evicts the PREVIOUS version for the same cell (keyed by
- * document + the cell's start line) so the map does not grow unbounded across
- * a long editing session.
- */
-class InCellSymbolStore implements vscode.TextDocumentContentProvider {
-  private readonly contents = new Map<string, string>();
-  /** `${docUri}#${cellStartLine}` -> the currently-live vdoc key, for eviction on the next `set()`. */
-  private readonly current = new Map<string, string>();
-  /** docUri -> every live vdoc key it owns, for eviction on document close. */
-  private readonly owners = new Map<string, Set<string>>();
-  private version = 0;
-
-  provideTextDocumentContent(uri: vscode.Uri): string | undefined {
-    return this.contents.get(uri.toString());
-  }
-
-  /** Store `content` as a FRESH version-stamped vdoc for `docUri`'s cell at `cellStartLine`. */
-  set(
-    docUri: vscode.Uri,
-    cellStartLine: number,
-    ext: string,
-    languageId: string,
-    content: string,
-  ): vscode.Uri {
-    const owner = docUri.toString();
-    const cellKey = `${owner}#${cellStartLine}`;
-    const previous = this.current.get(cellKey);
-    if (previous !== undefined) {
-      this.contents.delete(previous);
-      this.owners.get(owner)?.delete(previous);
-    }
-    this.version += 1;
-    const vdocUri = vscode.Uri.from({
-      scheme: IN_CELL_SYMBOL_SCHEME,
-      authority: languageId,
-      path: `/${encodeURIComponent(docUri.toString(true))}/${cellStartLine}/${this.version}.${ext}`,
-    });
-    const key = vdocUri.toString();
-    this.contents.set(key, content);
-    this.current.set(cellKey, key);
-    const keys = this.owners.get(owner) ?? new Set<string>();
-    keys.add(key);
-    this.owners.set(owner, keys);
-    return vdocUri;
-  }
-
-  /** Drop every virtual doc owned by `docUri` (called when the document closes). */
-  evict(docUri: vscode.Uri): void {
-    const owner = docUri.toString();
-    const keys = this.owners.get(owner);
-    if (keys !== undefined) {
-      for (const key of keys) {
-        this.contents.delete(key);
-      }
-      this.owners.delete(owner);
-    }
-    for (const cellKey of [...this.current.keys()]) {
-      if (cellKey.startsWith(`${owner}#`)) {
-        this.current.delete(cellKey);
-      }
-    }
-  }
-}
-
 class QmdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
-  constructor(private readonly store: InCellSymbolStore) {}
-
   async provideDocumentSymbols(
     document: vscode.TextDocument,
   ): Promise<vscode.DocumentSymbol[]> {
@@ -173,7 +103,7 @@ class QmdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
     const tree = buildOutline(text);
     const visible = showCells ? tree : hideCellsInOutline(tree);
     return Promise.all(
-      visible.map((symbol) => toDocumentSymbol(symbol, document, text, this.store)),
+      visible.map((symbol) => toDocumentSymbol(symbol, document, text)),
     );
   }
 }
@@ -188,7 +118,6 @@ async function toDocumentSymbol(
   symbol: OutlineSymbol,
   document: vscode.TextDocument,
   text: string,
-  store: InCellSymbolStore,
 ): Promise<vscode.DocumentSymbol> {
   const kind =
     symbol.kind === "heading"
@@ -203,9 +132,9 @@ async function toDocumentSymbol(
   );
   result.children =
     symbol.kind === "cell"
-      ? await forwardCellSymbols(symbol, document.uri, text, store)
+      ? await forwardCellSymbols(symbol, document, text)
       : await Promise.all(
-          symbol.children.map((child) => toDocumentSymbol(child, document, text, store)),
+          symbol.children.map((child) => toDocumentSymbol(child, document, text)),
         );
   return result;
 }
@@ -221,9 +150,8 @@ async function toDocumentSymbol(
  */
 async function forwardCellSymbols(
   cellSymbol: OutlineSymbol,
-  docUri: vscode.Uri,
+  document: vscode.TextDocument,
   text: string,
-  store: InCellSymbolStore,
 ): Promise<vscode.DocumentSymbol[]> {
   const el = cellLanguageId(cellSymbol.lang ?? "");
   if (el === null) {
@@ -233,8 +161,24 @@ async function forwardCellSymbols(
   if (cell === null) {
     return [];
   }
-  const content = buildCellVirtualContent(text, cell);
-  const vdocUri = store.set(docUri, cell.startLine, el.ext, el.languageId, content);
+  // The cell's START LINE is what keeps two same-language cells apart. Every cell of
+  // the document is forwarded CONCURRENTLY (the `Promise.all` above), so a key without
+  // that discriminator would put two cells on one path and let their writes race — each
+  // rendering the other's symbols.
+  const vdocUri = await ensureVdoc(
+    document,
+    {
+      docUri: document.uri.toString(),
+      languageId: el.languageId,
+      ext: el.ext,
+      kind: "cell",
+      cellStartLine: cell.startLine,
+    },
+    buildCellVirtualContent(text, cell),
+  );
+  if (vdocUri === undefined) {
+    return []; // nowhere to write the vdoc — degrade to a cell node with no children
+  }
   const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
     "vscode.executeDocumentSymbolProvider",
     vdocUri,

@@ -15,85 +15,34 @@
  * `executeFormatDocumentProvider` forward, and the out-of-cell edit filter
  * (mirroring `embedded.ts`'s `filterOutOfCellEdits` defense-in-depth).
  *
- * Unlike `outline.ts`'s `InCellSymbolStore`, this store reuses a STABLE vdoc URI
- * per (document, language) and overwrites its content on every command
- * invocation — the same pattern `embedded.ts`'s completion/hover/definition/
- * signature-help forwarding already uses successfully. `executeDocumentSymbol
- * Provider`'s internal per-URI RESULT cache (Learning #77/78) was a quirk
- * specific to that one command; this feature is invoked once per explicit user
- * action (never continuously) and always refreshes the vdoc's content
- * immediately before forwarding — an integration test proves a real edit
- * between two invocations is seen fresh (no staleness), consistent with
- * Learning #81 (an ACTUAL text edit, not a bare repeated call, is what
- * triggers correct re-invocation).
+ * The vdoc is a real `file:` document on disk (`features/embedded-vdoc.ts`,
+ * BACKLOG item 18). It used to route through a custom `quarto-format-cell:`
+ * scheme, which no real language server registers for.
+ *
+ * **This feature's status against a real formatter is UNPROVEN, not proven-broken.**
+ * It is architecturally identical to the four forwards that were measured dead on
+ * the custom scheme, so it was almost certainly dead too — but no Python formatter
+ * extension was installed in the spike host, so even the `file:` control returned 0
+ * edits and the experiment could not distinguish "our forward is broken" from "no
+ * formatter is installed". Do not claim it either way without re-probing with a real
+ * formatter (e.g. `ms-python.black-formatter`) present. What IS proven is that the
+ * forward now reaches a real, non-stand-in provider: `test:lsp` exercises it against
+ * VS Code's own BUILT-IN JavaScript formatter via an `{ojs}` cell, which needs no
+ * extension at all.
  */
 
 import * as vscode from "vscode";
 import { buildCellVirtualContent, embeddedCellAt } from "../core/embedded/virtual-doc";
+import { disposeVdocs, ensureVdoc } from "./embedded-vdoc";
 import { type Cell, findCellAtPosition } from "../core/qmd/model";
-
-/**
- * The scheme Format Cell's per-cell virtual documents live under — distinct
- * from `embedded.ts`'s `quarto-embedded` and `outline.ts`'s
- * `quarto-outline-symbols` (a `registerTextDocumentContentProvider` call
- * allows at most one provider per scheme).
- */
-const SCHEME = "quarto-format-cell";
 
 /** Register the Format Cell command, tied to the extension lifetime. */
 export function registerFormatCellFeature(context: vscode.ExtensionContext): void {
-  const store = new FormatCellVirtualDocStore();
   context.subscriptions.push(
-    vscode.workspace.registerTextDocumentContentProvider(SCHEME, store),
-    vscode.commands.registerCommand("quarto.formatCell", () => formatCellAtCursor(store)),
-    // The virtual-doc Map must not grow unbounded: drop a document's vdocs when
-    // it closes (mirrors `embedded.ts`'s `VirtualDocStore`).
-    vscode.workspace.onDidCloseTextDocument((doc) => store.evict(doc.uri)),
+    vscode.commands.registerCommand("quarto.formatCell", formatCellAtCursor),
+    // Vdocs are real files now: a closed document must take its own off disk.
+    vscode.workspace.onDidCloseTextDocument((doc) => void disposeVdocs(doc.uri)),
   );
-}
-
-/**
- * Per-(document, language) virtual-document store — the same shape as
- * `embedded.ts`'s `VirtualDocStore` (stable URI, content overwritten per
- * request). See the module docstring for why this file does not need
- * `outline.ts`'s version-stamped-URI store.
- */
-class FormatCellVirtualDocStore implements vscode.TextDocumentContentProvider {
-  private readonly contents = new Map<string, string>();
-  private readonly owners = new Map<string, Set<string>>();
-
-  provideTextDocumentContent(uri: vscode.Uri): string | undefined {
-    return this.contents.get(uri.toString());
-  }
-
-  /** Store `content` as the `ext` virtual doc for `docUri` and return its vdoc URI. */
-  set(docUri: vscode.Uri, ext: string, languageId: string, content: string): vscode.Uri {
-    const vdocUri = vscode.Uri.from({
-      scheme: SCHEME,
-      authority: languageId,
-      path: `/${encodeURIComponent(docUri.toString(true))}.${ext}`,
-    });
-    const key = vdocUri.toString();
-    this.contents.set(key, content); // rebuild-per-request (edit-sync)
-    const owner = docUri.toString();
-    const keys = this.owners.get(owner) ?? new Set<string>();
-    keys.add(key);
-    this.owners.set(owner, keys);
-    return vdocUri;
-  }
-
-  /** Drop every virtual doc owned by `docUri` (called when the document closes). */
-  evict(docUri: vscode.Uri): void {
-    const owner = docUri.toString();
-    const keys = this.owners.get(owner);
-    if (keys === undefined) {
-      return;
-    }
-    for (const key of keys) {
-      this.contents.delete(key);
-    }
-    this.owners.delete(owner);
-  }
 }
 
 /** The active editor's tab settings, defaulted defensively for `FormattingOptions`. */
@@ -105,7 +54,7 @@ function formattingOptions(editor: vscode.TextEditor): vscode.FormattingOptions 
   };
 }
 
-async function formatCellAtCursor(store: FormatCellVirtualDocStore): Promise<void> {
+async function formatCellAtCursor(): Promise<void> {
   const editor = vscode.window.activeTextEditor;
   if (!editor || editor.document.languageId !== "quarto") {
     return;
@@ -123,8 +72,20 @@ async function formatCellAtCursor(store: FormatCellVirtualDocStore): Promise<voi
   if (cell === null) {
     return; // unreachable: embeddedCellAt already confirmed a cell at this line
   }
-  const content = buildCellVirtualContent(text, cell);
-  const vdocUri = store.set(editor.document.uri, hit.ext, hit.languageId, content);
+  const vdocUri = await ensureVdoc(
+    editor.document,
+    {
+      docUri: editor.document.uri.toString(),
+      languageId: hit.languageId,
+      ext: hit.ext,
+      kind: "cell",
+      cellStartLine: cell.startLine,
+    },
+    buildCellVirtualContent(text, cell),
+  );
+  if (vdocUri === undefined) {
+    return; // nowhere to write the vdoc — no forward, no edit, no error
+  }
   const edits = await vscode.commands.executeCommand<vscode.TextEdit[]>(
     "vscode.executeFormatDocumentProvider",
     vdocUri,

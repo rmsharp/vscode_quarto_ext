@@ -1,6 +1,7 @@
 import * as assert from "node:assert";
 import * as path from "node:path";
 import * as vscode from "vscode";
+import { assertRoutedThroughVdoc, VDOC_SELECTOR } from "./vdoc-assert";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
@@ -24,8 +25,6 @@ async function symbolsFor(file: string): Promise<vscode.DocumentSymbol[]> {
   return result ?? [];
 }
 
-/** The scheme in-cell symbol forwarding routes through (BACKLOG item 11 slice 2, plan §2.3/§5). */
-const IN_CELL_SYMBOL_SCHEME = "quarto-outline-symbols";
 /** Detail tag on the stand-in's items, so it can be told apart from any other node. */
 const STANDIN_SYMBOL_NAME = "in_cell_fn";
 
@@ -52,7 +51,7 @@ const symbolDisposables: vscode.Disposable[] = [];
 function registerSymbolStandIn(): void {
   symbolDisposables.push(
     vscode.languages.registerDocumentSymbolProvider(
-      { scheme: IN_CELL_SYMBOL_SCHEME },
+      VDOC_SELECTOR,
       {
         provideDocumentSymbols(document) {
           symbolCalls.push({ uri: document.uri.toString(), text: document.getText() });
@@ -252,7 +251,7 @@ describe("Quarto: in-cell code symbol forwarding (BACKLOG item 11 slice 2)", () 
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 
-  it("forwards in-cell python symbols as children of the cell node, through the new scheme", async () => {
+  it("forwards in-cell python symbols as children of the cell node, through the file: vdoc", async () => {
     registerSymbolStandIn();
     const doc = await openInMemory(["```{python}", "def foo(): pass", "```"].join("\n"));
 
@@ -267,10 +266,9 @@ describe("Quarto: in-cell code symbol forwarding (BACKLOG item 11 slice 2)", () 
       "the stand-in's symbol should be forwarded as the cell node's child",
     );
     assert.strictEqual(symbolCalls.length, 1, "the stand-in should be invoked once");
-    assert.strictEqual(
-      vscode.Uri.parse(symbolCalls[0].uri).scheme,
-      IN_CELL_SYMBOL_SCHEME,
-      "the request must route through the in-cell-symbol virtual document",
+    assertRoutedThroughVdoc(
+      symbolCalls[0].uri,
+      "in-cell symbols must route through our real file: virtual document",
     );
   });
 
