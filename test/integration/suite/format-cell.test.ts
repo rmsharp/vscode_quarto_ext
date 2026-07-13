@@ -23,6 +23,18 @@ let standInReturnsNothing = false;
 /** When true, the stand-in also attaches an edit whose range lands OUTSIDE the
  * target cell (in the front matter) — the out-of-cell defense-in-depth case. */
 let standInOutOfCellEdit = false;
+/**
+ * When true the stand-in also returns edits on the cell's own FENCE lines and its `#|`
+ * option line — faithfully modelling what a REAL formatter does, and what no stand-in
+ * had ever modelled before.
+ *
+ * `buildCellVirtualContent` blanks every non-body line to an equal-length run of spaces,
+ * so in the vdoc the fences are just whitespace-only lines. A real formatter trims those
+ * to empty. Those edits are perfectly reasonable *for the vdoc* — and catastrophic when
+ * applied to the real `.qmd`, where the same coordinates hold the fences that make the
+ * cell a cell.
+ */
+let standInFenceEdit = false;
 const disposables: vscode.Disposable[] = [];
 
 /**
@@ -53,6 +65,13 @@ function registerStandIn(): void {
             // "title: Demo" is 11 chars — a valid range in the blanked vdoc,
             // but it must never land in the real document's front matter.
             edits.push(vscode.TextEdit.replace(new vscode.Range(1, 0, 1, 11), "HACKED"));
+          }
+          if (standInFenceEdit) {
+            // Exactly what a real formatter emits: the blanked fence and option lines are
+            // whitespace-only in the vdoc, so it trims them to empty.
+            edits.push(vscode.TextEdit.replace(new vscode.Range(6, 0, 6, 11), "")); // ```{python}
+            edits.push(vscode.TextEdit.replace(new vscode.Range(7, 0, 7, 14), "")); // #| echo: false
+            edits.push(vscode.TextEdit.replace(new vscode.Range(10, 0, 10, 3), "")); // ```
           }
           return edits;
         },
@@ -103,6 +122,7 @@ describe("Quarto: Format Cell (quarto.formatCell)", () => {
     calls = [];
     standInReturnsNothing = false;
     standInOutOfCellEdit = false;
+    standInFenceEdit = false;
   });
 
   afterEach(async () => {
@@ -245,5 +265,61 @@ describe("Quarto: Format Cell (quarto.formatCell)", () => {
       "editorTextFocus && editorLangId == quarto && quarto.inCodeCell",
       "the keybinding must be restricted to quarto AND inside a code cell",
     );
+  });
+});
+
+/**
+ * The cell's own fence lines are INSIDE the cell (`findCellAtPosition` is inclusive of
+ * them) but they are not BODY. That distinction is the whole ballgame, and getting it
+ * wrong destroys the user's document.
+ *
+ * This was unreachable until BACKLOG item 18: the forward went to a custom URI scheme
+ * that no real formatter registered for, so `executeFormatDocumentProvider` always
+ * returned zero edits and the filter was never exercised by anything but a stand-in that
+ * only ever produced body-confined edits. Repairing the forward made a latent
+ * document-corruption bug live, and a real formatter hit it immediately:
+ *
+ *     BEFORE  ```{ojs}\nx   =   1\n```\n
+ *     AFTER   \nx = 1\n\n          <- both fences deleted; the cell is gone
+ */
+describe("Quarto: Format Cell — the cell's fences must survive a real formatter", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    for (const d of disposables.splice(0)) {
+      d.dispose();
+    }
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("never applies an edit that lands on a fence or a #| option line", async () => {
+    standInFenceEdit = true;
+    registerStandIn();
+    const editor = await openInMemory(DOC);
+    moveCursor(editor, 8, 1);
+
+    await vscode.commands.executeCommand("quarto.formatCell");
+
+    const text = editor.document.getText();
+    assert.ok(
+      text.includes("```{python}"),
+      `the OPENING fence must survive — without it the cell is no longer a cell.\nGot:\n${text}`,
+    );
+    assert.ok(
+      text.includes("```"),
+      `the CLOSING fence must survive.\nGot:\n${text}`,
+    );
+    assert.ok(
+      text.includes("#| echo: false"),
+      `the cell-option directive must survive — it is YAML, not code.\nGot:\n${text}`,
+    );
+    // ...and the body edits it SHOULD apply still land, so this is not just "reject
+    // everything", which would be trivially safe and useless.
+    assert.ok(text.includes("x = 1"), "the in-body edit must still be applied");
+    assert.ok(text.includes("y = 2"), "the in-body edit must still be applied");
   });
 });

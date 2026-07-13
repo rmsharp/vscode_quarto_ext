@@ -107,18 +107,43 @@ async function formatCellAtCursor(): Promise<void> {
 }
 
 /**
- * Whether every line of `range` belongs to `cell`'s own body — region
- * membership, not coordinate validity, mirroring `embedded.ts`'s
- * `filterOutOfCellEdits`/`rangeInSameLangBody`. Under `buildCellVirtualContent`'s
- * whole-document blanking, a line outside `cell` identity-maps to a *valid*
- * `.qmd` offset (e.g. the front matter), so a misbehaving formatter's edit
- * there must never be applied to the real document.
+ * Whether every line of `range` belongs to `cell`'s own **body** — region membership, not
+ * coordinate validity. Under `buildCellVirtualContent`'s whole-document blanking, every
+ * line outside the body identity-maps to a *valid* `.qmd` offset, so a formatter's edit
+ * there is perfectly well-formed and utterly destructive.
+ *
+ * Two distinct hazards, and the second one bit:
+ *
+ *  1. A line **outside the cell** (the front matter, prose, a sibling cell). Caught by the
+ *     ownership check below.
+ *
+ *  2. A line **inside the cell but not in its body** — the opening fence, the closing
+ *     fence, a `#|` option line. `findCellAtPosition` is INCLUSIVE of a cell's fences, so
+ *     an ownership check ALONE happily accepts an edit that lands on ```` ```{python} ````
+ *     and deletes it. And a real formatter emits exactly that: the fences are blanked to
+ *     whitespace-only lines in the vdoc, and formatters trim trailing whitespace. Observed
+ *     end-to-end against VS Code's own JavaScript formatter, before this guard:
+ *
+ *         BEFORE  ```{ojs}\nx   =   1\n```\n
+ *         AFTER   \nx = 1\n\n            <- both fences gone; the cell is no longer a cell
+ *
+ *     This was latent, not new: until BACKLOG item 18 the forward went to a custom URI
+ *     scheme no real formatter registered for, so zero edits ever came back and only a
+ *     stand-in (which emitted body-confined edits) ever exercised this path. Repairing the
+ *     forward made a document-corruption bug reachable.
+ *
+ * `embeddedCellAt` is the body-only gate — `null` on fences and on `#|` option lines — and
+ * is the same primitive `embedded.ts`'s own edit filter (`rangeInSameLangBody`) already
+ * used correctly. This function had reached for `findCellAtPosition` instead.
  */
 function rangeWithinCell(text: string, range: vscode.Range, cell: Cell): boolean {
   for (let line = range.start.line; line <= range.end.line; line++) {
+    if (embeddedCellAt(text, line) === null) {
+      return false; // a fence, a `#|` directive, prose, YAML — never code we may rewrite
+    }
     const owner = findCellAtPosition(text, line);
     if (owner === null || owner.startLine !== cell.startLine) {
-      return false;
+      return false; // a body line, but of a DIFFERENT cell
     }
   }
   return true;

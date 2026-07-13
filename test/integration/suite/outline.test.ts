@@ -283,15 +283,31 @@ describe("Quarto: in-cell code symbol forwarding (BACKLOG item 11 slice 2)", () 
     await symbolsForDoc(doc);
 
     assert.strictEqual(symbolCalls.length, 2, "each cell forwards through its own vdoc");
+
+    // Match the calls by CONTENT, never by arrival order. The cells are forwarded
+    // concurrently (`Promise.all` in outline.ts), so the order the stand-in is invoked in
+    // is not defined. This test used to index symbolCalls[0]/[1] positionally and got away
+    // with it only because the old content-provider answered synchronously; once the vdoc
+    // became a real file, the disk I/O made the race visible and the test flaked. The
+    // PRODUCT was never order-dependent — each cell's children come from its own forward's
+    // return value — which is what the real-Pylance suite proves directly.
+    const first = symbolCalls.find((c) => c.text.includes("import numpy as np"));
+    const second = symbolCalls.find((c) => c.text.includes("np.array([1])"));
+
+    assert.ok(first, "one vdoc must carry the first cell's body");
+    assert.ok(second, "one vdoc must carry the second cell's body");
     assert.ok(
-      symbolCalls[0].text.includes("import numpy as np") &&
-        !symbolCalls[0].text.includes("np.array([1])"),
-      "the first cell's vdoc keeps only its own body, blanking the sibling cell",
+      !first.text.includes("np.array([1])"),
+      "the first cell's vdoc must blank its same-language sibling, not merge with it",
     );
     assert.ok(
-      symbolCalls[1].text.includes("np.array([1])") &&
-        !symbolCalls[1].text.includes("import numpy as np"),
-      "the second cell's vdoc keeps only its own body, blanking the sibling cell",
+      !second.text.includes("import numpy as np"),
+      "the second cell's vdoc must blank its same-language sibling, not merge with it",
+    );
+    assert.notStrictEqual(
+      first.uri,
+      second.uri,
+      "the two cells must not share a vdoc path — concurrent writes would race",
     );
   });
 
