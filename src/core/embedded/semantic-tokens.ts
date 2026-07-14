@@ -146,6 +146,44 @@ export function encodeTokens(tokens: AbsToken[], ourLegend: Legend): Uint32Array
 }
 
 /**
+ * Merge N language servers' answers for ONE document into a single stream in `ourLegend`
+ * (BACKLOG item 16, Slice 2; plan §5.5 D5).
+ *
+ * A `.qmd` may hold `{python}`, `{r}` and `{ojs}` cells at once. Each language gets its own
+ * virtual document — its cells kept verbatim, every other line blanked — so each server
+ * answers in the `.qmd`'s own coordinates about a DISJOINT set of lines. VS Code, though,
+ * accepts exactly one stream per document, in strictly ascending order.
+ *
+ * The whole merge is a composition of the two functions above, and each half of it is
+ * load-bearing:
+ *
+ *  - **`decodeTokens` per stream** resolves each server's indices against ITS OWN legend.
+ *    They do not agree: `readonly` is bit 7 for Pylance, bit 3 for the built-in JS service,
+ *    and bit 2 for us. Decoding both against one legend would report a read-only Python
+ *    constant as `modification` and a JS one as `static`.
+ *  - **`encodeTokens` over the concatenation** sorts ascending before delta-encoding. The
+ *    streams arrive in language order, which has nothing to do with document order — the
+ *    `{ojs}` cell may sit above the `{python}` one. Concatenating without sorting does not
+ *    merely mis-order the tokens: the deltas are relative, so a backwards step produces a
+ *    negative `deltaLine` that wraps in a `Uint32Array` to ~4.29 billion.
+ *
+ * A stream that is missing or malformed contributes nothing and takes nothing with it —
+ * `decodeTokens` yields `[]` for it, and the other languages are unaffected. That is not a
+ * theoretical nicety: the JS service's legend command returns `undefined` on the first pass
+ * while its token command already answers (measured, Session 89), so on a mixed document's
+ * first debounced pass one language routinely has no usable stream.
+ */
+export function mergeSemanticTokens(
+  streams: TokenStream[],
+  ourLegend: Legend,
+): Uint32Array {
+  return encodeTokens(
+    streams.flatMap((stream) => decodeTokens(stream)),
+    ourLegend,
+  );
+}
+
+/**
  * The modifier names encoded in `bits`, in the SOURCE legend's bit order.
  *
  * Modifiers are a BITSET, not an index: bit `n` means "the modifier at index `n` of the

@@ -17,7 +17,7 @@ import {
   findCellAtPosition,
   findCellOptionLines,
 } from "../qmd/model";
-import { cellLanguageId } from "./lang-map";
+import { cellLanguageId, type EmbeddedLang } from "./lang-map";
 
 /** What 6e found at the cursor: the forwardable cell's engine + its routing target. */
 export interface EmbeddedHit {
@@ -138,6 +138,50 @@ export function hasCellOfLanguage(text: string, languageId: string): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Every forwarding target in `text` that has something for a server to look at — deduped
+ * by languageId, in first-appearance order (plan §6.5).
+ *
+ * This is the multi-language gate the semantic-tokens provider opens each pass with, and
+ * it subsumes the single-language `hasCellOfLanguage`. Its contract is the same
+ * equivalence, generalized — a language is returned IFF its virtual document is non-empty:
+ *
+ *   `embeddedLanguagesIn(text)` ⟺ every `L` with `buildVirtualContent(text, L).trim() !== ""`
+ *
+ * and the unit tests assert exactly that property on every case, so the cheap gate and the
+ * expensive builder it guards cannot drift.
+ *
+ * Two details that are easy to get wrong, and that the tests pin:
+ *
+ *  - **Dedupe on the languageId, never the engine.** `{ojs}` and `{js}` are two engine
+ *    tokens for ONE language; forwarding both would ask the JS server twice and emit every
+ *    javascript token twice — a duplicate-token stream, which is precisely what VS Code
+ *    must never be handed.
+ *  - **Return the resolved target, not just the name.** `ensureVdoc`'s `VdocKey` requires
+ *    `ext`, and there is no languageId → ext reverse map (`cellLanguageId` is keyed by the
+ *    ENGINE token). A bare `string[]` — which is what plan §6.5 specifies — cannot mint a
+ *    vdoc; the plan predates the shipped key.
+ */
+export function embeddedLanguagesIn(text: string): EmbeddedLang[] {
+  const lines = text.split("\n");
+  const optionLines = new Set(findCellOptionLines(text).map((o) => o.line));
+  const seen = new Map<string, EmbeddedLang>();
+  for (const cell of findAllCells(text)) {
+    const el = cellLanguageId(cell.lang);
+    if (el === null || seen.has(el.languageId)) {
+      continue;
+    }
+    const lastBody = cell.startLine + bodyLineCount(cell);
+    for (let i = cell.startLine + 1; i <= lastBody; i++) {
+      if (!optionLines.has(i) && lines[i].trim() !== "") {
+        seen.set(el.languageId, { languageId: el.languageId, ext: el.ext });
+        break;
+      }
+    }
+  }
+  return [...seen.values()];
 }
 
 /**

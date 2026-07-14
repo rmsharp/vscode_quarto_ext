@@ -3,6 +3,7 @@ import {
   type AbsToken,
   decodeTokens,
   encodeTokens,
+  mergeSemanticTokens,
   OUR_LEGEND,
 } from "../../src/core/embedded/semantic-tokens";
 
@@ -273,5 +274,169 @@ describe("semantic-tokens: re-encoding into OUR legend", () => {
     // …and the standard names it forwards ARE present.
     expect(OUR_LEGEND.tokenTypes).toContain("variable");
     expect(OUR_LEGEND.tokenModifiers).toContain("readonly");
+  });
+});
+
+/**
+ * The built-in TypeScript/JavaScript service's REAL semantic-token legend, captured
+ * firsthand in the Session 89 probe (`vscode.provideDocumentSemanticTokensLegend` on a
+ * plain `.js` file in the real-LSP harness). 12 types, 6 modifiers — a completely
+ * different index space from Pylance's 29/15, which is the whole reason the merge must
+ * decode each stream against ITS OWN legend.
+ */
+const JS_TYPES = [
+  "class", "enum", "interface", "namespace", "typeParameter", "type",
+  "parameter", "variable", "enumMember", "property", "function", "method",
+];
+const JS_MODIFIERS = [
+  "declaration", "static", "async", "readonly", "defaultLibrary", "local",
+];
+
+describe("mergeSemanticTokens: one document, N language servers (Slice 2, plan §5.5)", () => {
+  // The document these fixtures model — the {ojs} cell comes FIRST, the {python} cell second:
+  //
+  //   0  # Title
+  //   1
+  //   2  ```{ojs}
+  //   3  const G = 'hi';        <- javascript token, .qmd line 3
+  //   4  ```
+  //   5
+  //   6  ```{python}
+  //   7  CONSTANT = 42          <- python token, .qmd line 7
+  //   8  ```
+  //
+  // Each server sees only its OWN cell (every other line is blanked to spaces), so each
+  // returns a stream in .qmd coordinates covering a DISJOINT set of lines.
+
+  /** Pylance's answer for `CONSTANT` on line 7: variable(15), bits 129 = declaration|readonly. */
+  const pythonStream = {
+    data: new Uint32Array([7, 0, 8, 15, 129]),
+    legend: { tokenTypes: PYLANCE_TYPES, tokenModifiers: PYLANCE_MODIFIERS },
+  };
+  /** The JS service's answer for `G` on line 3: variable(7), bits 9 = declaration|readonly. */
+  const jsStream = {
+    data: new Uint32Array([3, 6, 1, 7, 9]),
+    legend: { tokenTypes: JS_TYPES, tokenModifiers: JS_MODIFIERS },
+  };
+
+  it("SORTS across streams — the python stream arrives first, but its tokens come LATER", () => {
+    // THE headline of this slice. The provider hands streams over in the order the languages
+    // appear in `LANGUAGES`/the document, which has NOTHING to do with where their tokens
+    // land. Here python is passed first while its token is on line 7 and javascript's is on
+    // line 3. VS Code requires strictly ascending document order, and the deltas are relative
+    // — so concatenating without sorting does not merely mis-order, it produces a NEGATIVE
+    // deltaLine that wraps around in a Uint32Array to ~4.29 billion and corrupts the document.
+    const merged = mergeSemanticTokens([pythonStream, jsStream], OUR_LEGEND);
+    const decoded = decodeTokens({ data: merged, legend: OUR_LEGEND });
+
+    expect(decoded).toEqual([
+      { line: 3, char: 6, length: 1, type: "variable", modifiers: ["declaration", "readonly"] },
+      { line: 7, char: 0, length: 8, type: "variable", modifiers: ["declaration", "readonly"] },
+    ]);
+  });
+
+  it("re-deltas against the previously EMITTED token, not each stream's own origin", () => {
+    // Both source streams delta from line 0 (each is a standalone stream). In the merged
+    // stream the second token's deltaLine must be 7-3 = 4, NOT its original 7. Decoding
+    // catches this, but assert the wire bytes too: this is the one place the merge could
+    // look right in every absolute assertion and still hand VS Code a broken stream.
+    const merged = mergeSemanticTokens([pythonStream, jsStream], OUR_LEGEND);
+
+    const VARIABLE = OUR_LEGEND.tokenTypes.indexOf("variable");
+    const DECL_READONLY =
+      (1 << OUR_LEGEND.tokenModifiers.indexOf("declaration")) |
+      (1 << OUR_LEGEND.tokenModifiers.indexOf("readonly"));
+
+    expect([...merged]).toEqual([
+      3, 6, 1, VARIABLE, DECL_READONLY, // javascript, line 3 (delta from origin)
+      4, 0, 8, VARIABLE, DECL_READONLY, // python,     line 7 = 3 + 4
+    ]);
+  });
+
+  it("decodes each stream against ITS OWN legend — the same bit means a different modifier", () => {
+    // The trap this whole design exists to avoid, now doubly confirmed against two REAL
+    // servers. `readonly` is bit 7 for Pylance and bit 3 for the JS service; in OUR legend
+    // it is bit 2, and bits 7 and 3 there are `modification` and `static`. So a merge that
+    // decoded both streams against one legend — or copied the bitsets through — would tell
+    // the theme that the Python constant is being MUTATED and the JS one is STATIC.
+    expect(PYLANCE_MODIFIERS[7]).toBe("readonly");
+    expect(JS_MODIFIERS[3]).toBe("readonly");
+    expect(OUR_LEGEND.tokenModifiers[7]).toBe("modification");
+    expect(OUR_LEGEND.tokenModifiers[3]).toBe("static");
+
+    const decoded = decodeTokens({
+      data: mergeSemanticTokens([pythonStream, jsStream], OUR_LEGEND),
+      legend: OUR_LEGEND,
+    });
+
+    // Both arrive as readonly, from two different source bits. Neither is modification/static.
+    for (const token of decoded) {
+      expect(token.modifiers).toContain("readonly");
+      expect(token.modifiers).not.toContain("modification");
+      expect(token.modifiers).not.toContain("static");
+    }
+  });
+
+  it("degrades per language: a server that returns nothing must not silence the others", () => {
+    // Measured, not hypothetical (Session 89 probe): the JS service's LEGEND command returns
+    // `undefined` on the first pass while its TOKENS command already answers — so on a mixed
+    // document's first debounced pass one language legitimately has no usable stream. If the
+    // merge were all-or-nothing, the whole document would go uncoloured, intermittently.
+    const merged = mergeSemanticTokens([pythonStream], OUR_LEGEND);
+    const decoded = decodeTokens({ data: merged, legend: OUR_LEGEND });
+
+    expect(decoded).toEqual([
+      { line: 7, char: 0, length: 8, type: "variable", modifiers: ["declaration", "readonly"] },
+    ]);
+  });
+
+  it("is empty for no streams at all, and survives a MALFORMED stream among good ones", () => {
+    expect([...mergeSemanticTokens([], OUR_LEGEND)]).toEqual([]);
+
+    // A stream whose length is not a multiple of 5 is not what it claims to be. It decodes
+    // to nothing (never a partial, provably-misread colouring) — and, critically, it must not
+    // take the healthy languages down with it.
+    const malformed = {
+      data: new Uint32Array([1, 2, 3]),
+      legend: { tokenTypes: JS_TYPES, tokenModifiers: JS_MODIFIERS },
+    };
+    const decoded = decodeTokens({
+      data: mergeSemanticTokens([malformed, pythonStream], OUR_LEGEND),
+      legend: OUR_LEGEND,
+    });
+
+    expect(decoded).toEqual([
+      { line: 7, char: 0, length: 8, type: "variable", modifiers: ["declaration", "readonly"] },
+    ]);
+  });
+
+  it("interleaves MANY tokens from both languages into one ascending stream", () => {
+    // Two multi-token streams whose lines genuinely interleave, so the merge cannot get the
+    // order right by accident of one stream simply preceding the other. This is also the
+    // case that would have caught the Session 88 decoder bug (Learning #97): tokens on
+    // several different lines, where the per-line column reset actually matters.
+    const js = {
+      // lines 3 and 4 (two tokens on line 4 — exercises the same-line delta path too)
+      data: new Uint32Array([3, 6, 1, 7, 0, 1, 2, 3, 10, 0, 0, 8, 4, 6, 0]),
+      legend: { tokenTypes: JS_TYPES, tokenModifiers: JS_MODIFIERS },
+    };
+    const py = {
+      // lines 7 and 9
+      data: new Uint32Array([7, 0, 8, 15, 0, 2, 4, 5, 12, 0]),
+      legend: { tokenTypes: PYLANCE_TYPES, tokenModifiers: PYLANCE_MODIFIERS },
+    };
+
+    const decoded = decodeTokens({
+      data: mergeSemanticTokens([py, js], OUR_LEGEND),
+      legend: OUR_LEGEND,
+    });
+
+    expect(decoded.map((t) => `${t.type}@${t.line}:${t.char}`)).toEqual([
+      "variable@3:6",  // js
+      "function@4:2",  // js
+      "parameter@4:10", // js, same line as the previous token
+      "variable@7:0",  // python
+      "function@9:4",  // python
+    ]);
   });
 });

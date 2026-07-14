@@ -4,6 +4,7 @@ import {
   buildCellVirtualContent,
   buildVirtualContent,
   embeddedCellAt,
+  embeddedLanguagesIn,
   hasCellOfLanguage,
 } from "../../src/core/embedded/virtual-doc";
 
@@ -309,5 +310,124 @@ describe("hasCellOfLanguage: the cheap gate that guards buildVirtualContent", ()
     const text = ["```{python}", "```", "", "```{python}", "y = 2", "```", ""].join("\n");
     expect(hasCellOfLanguage(text, "python")).toBe(true);
     agrees(text, "python");
+  });
+});
+
+describe("embeddedLanguagesIn: every forwarding target present in the document", () => {
+  it("returns each language present, in FIRST-APPEARANCE order, with its vdoc extension", () => {
+    // Order is the document's, not the language map's and not alphabetical — {ojs} is
+    // deliberately first here, while `LANGUAGES` lists python first and "javascript" sorts
+    // before "python". An implementation that iterates the map, or sorts, fails this.
+    //
+    // The `ext` is not decoration: `ensureVdoc`'s VdocKey requires it, and there is no
+    // languageId -> ext reverse map (cellLanguageId is keyed by ENGINE). Returning the
+    // resolved target is what lets the provider mint a vdoc at all.
+    const text = [
+      "# Title",
+      "",
+      "```{ojs}",
+      "x = 1",
+      "```",
+      "",
+      "```{python}",
+      "y = 2",
+      "```",
+      "",
+    ].join("\n");
+
+    expect(embeddedLanguagesIn(text)).toEqual([
+      { languageId: "javascript", ext: "js" },
+      { languageId: "python", ext: "py" },
+    ]);
+  });
+
+  // The contract, inherited from `hasCellOfLanguage` (which this subsumes) and generalized
+  // to N languages. A language is present IFF its virtual document has something in it:
+  //
+  //   embeddedLanguagesIn(text) === exactly the L with buildVirtualContent(text, L).trim() !== ""
+  //
+  // Asserted as a PROPERTY on every case below, not just as values, so the cheap gate and
+  // the expensive builder it guards can never drift apart.
+  const EVERY_TARGET = ["python", "r", "julia", "javascript"];
+  const agreesWithBuild = (text: string): void => {
+    const returned = embeddedLanguagesIn(text).map((e) => e.languageId);
+    for (const lang of EVERY_TARGET) {
+      expect(returned.includes(lang)).toBe(buildVirtualContent(text, lang).trim() !== "");
+    }
+  };
+
+  it("omits a language whose cells are EMPTY or hold only option lines", () => {
+    // Nothing to ask a server about: buildVirtualContent blanks option lines, so both of
+    // these build an all-whitespace vdoc. Returning the language anyway would write a file
+    // to the user's workspace and start a language server on it, for nothing.
+    const text = [
+      "```{python}", // 0  empty cell
+      "```", // 1
+      "", // 2
+      "```{r}", // 3
+      "#| echo: false", // 4  option line only
+      "```", // 5
+      "", // 6
+      "```{ojs}", // 7
+      "o = 4", // 8  the ONLY language with real content
+      "```", // 9
+      "", // 10
+    ].join("\n");
+
+    expect(embeddedLanguagesIn(text)).toEqual([{ languageId: "javascript", ext: "js" }]);
+    agreesWithBuild(text);
+  });
+
+  it("includes a language whose FIRST cell is empty but a LATER cell has content", () => {
+    const text = [
+      "```{python}", // 0  empty
+      "```", // 1
+      "", // 2
+      "```{python}", // 3
+      "y = 2", // 4  content — python IS present
+      "```", // 5
+      "", // 6
+    ].join("\n");
+
+    expect(embeddedLanguagesIn(text)).toEqual([{ languageId: "python", ext: "py" }]);
+    agreesWithBuild(text);
+  });
+
+  it("returns nothing for a prose-only document, or for an unmapped engine", () => {
+    const prose = ["# Title", "", "Just words.", ""].join("\n");
+    expect(embeddedLanguagesIn(prose)).toEqual([]);
+    agreesWithBuild(prose);
+
+    // `bash` has no forwarding target (cellLanguageId -> null), so it is not a language we
+    // can ask anything of — and a non-executable ```python block is not a cell at all.
+    const unmapped = ["```{bash}", "ls -la", "```", "", "```python", "x = 1", "```", ""].join("\n");
+    expect(embeddedLanguagesIn(unmapped)).toEqual([]);
+    agreesWithBuild(unmapped);
+  });
+
+  it("dedupes: many cells of the same language collapse to ONE target", () => {
+    // The provider mints one vdoc PER TARGET, not per cell — a document with 20 python
+    // cells must forward once, not 20 times.
+    const text = [
+      "```{python}", "a = 1", "```", "",
+      "```{python}", "b = 2", "```", "",
+      "```{python}", "c = 3", "```", "",
+    ].join("\n");
+
+    expect(embeddedLanguagesIn(text)).toEqual([{ languageId: "python", ext: "py" }]);
+    agreesWithBuild(text);
+  });
+
+  it("maps BOTH javascript engines ({ojs} and {js}) to a single javascript target", () => {
+    // Two distinct ENGINE tokens, one languageId. Deduping on the engine instead of the
+    // languageId would forward javascript twice, and the merge would emit every JS token
+    // twice — a duplicate-token stream, which is exactly what VS Code must never be given.
+    const text = [
+      "```{ojs}", "o = 1", "```", "",
+      "```{js}", "j = 2", "```", "",
+    ].join("\n");
+
+    expect(embeddedLanguagesIn(text)).toEqual([{ languageId: "javascript", ext: "js" }]);
+    agreesWithBuild(text);
   });
 });
