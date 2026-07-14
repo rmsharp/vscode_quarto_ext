@@ -9,6 +9,37 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-13 · [BL-16] (Session 88 — **NEW: semantic highlighting for `{python}` cells, from your own language server.** Item 16 Slice 1 SHIPPED; Slices 2–3 remain, so item 16 stays open.)
+
+**Your `{python}` cells are now coloured by Pylance, not just by a static grammar.**
+
+Until now, code inside a Quarto cell was coloured only by TextMate rules — pattern matching, which
+cannot tell a function from a variable that happens to look like one. VS Code supports a second,
+semantic layer, driven by the language server you already have installed. This adds it.
+
+- New `quarto` `DocumentSemanticTokensProvider` forwards the document to your Python server and
+  translates its answer back into `.qmd` coordinates. Verified end to end against **real Pylance**
+  (`npm run test:lsp`, with a control proving Pylance was alive), not a stand-in: `CONSTANT` comes back
+  as `variable.declaration.readonly`, `main` as `function.declaration`, `getcwd` as `function` — each on
+  its real cell-body line.
+- **No Python extension installed → nothing changes.** Cells keep their TextMate colouring. Same for a
+  document with no `{python}` cells (no vdoc is written and no language server is woken), a server that
+  declines, a server that errors, and a workspace we cannot write to. The feature degrades; it never
+  throws.
+- **Known limit, measured rather than hidden:** we carry only the *standard* VS Code token types, so
+  names specific to Pylance — `module` (`os`, `typing`), `selfParameter` (every `self`),
+  `builtinConstant` (`True`/`None`), `magicFunction` (`__init__`) — are dropped and keep their TextMate
+  colour. That is **13 of 36 tokens (36%)** on a representative file. Degraded, never *wrong*: a dropped
+  token cannot be mis-coloured. Carrying them is a deliberate, separate decision (Slice 3).
+- Scope: `{python}` only this slice. `{r}` / `{julia}` / `{ojs}` come with the multi-language merge
+  (Slice 2).
+
+Also fixed, found by the slice's adversarial review: a forward still in flight when you closed the
+`.qmd` could strand a copy of your source in `.quarto/vdoc-mit/` for the rest of the session; a
+"Compare with HEAD" diff of a `.qmd` would write your Python out to a temp directory and start a
+language server on it; and a large prose-only `.qmd` rebuilt a full copy of itself on every keystroke
+before discovering it had no Python in it.
+
 ### 2026-07-13 · [BL-18] (Session 87 — **FIXED: embedded-language features silently returned nothing from real language servers.** Item 18 CLOSED; item 16 unblocked.)
 
 **If you write `{python}` cells, these features did not work, and there was no way to tell.**

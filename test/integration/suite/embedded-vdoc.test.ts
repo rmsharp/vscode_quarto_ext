@@ -494,14 +494,23 @@ describe("embedded vdoc: a forward still in flight when the document closes", ()
     const doc = await openProjectQmd();
     const key = langKey(doc);
 
+    // Snapshot first. Other suites in this run share the one vdoc directory and may have
+    // vdocs live in it right now — asserting the directory is EMPTY would make this test
+    // depend on suite order and fail under load. The invariant that actually belongs to
+    // this test is narrower and exact: THIS forward must leave nothing NEW behind.
+    const ours = async (): Promise<string[]> =>
+      (await nodeFs.readdir(vdocDir().fsPath).catch(() => [] as string[]))
+        .filter((n) => isOurVdocFileName(n))
+        .sort();
+    const before = await ours();
+
     // Start the forward, then close the document WITHOUT awaiting it — the real race.
     const inFlight = ensureVdoc(doc, key, "import os\nx = 1\n");
     await disposeVdocs(doc.uri);
     const uri = await inFlight;
 
-    // Whatever ensureVdoc decided, nothing owned by this document may survive on disk.
-    const names = await nodeFs.readdir(vdocDir().fsPath).catch(() => [] as string[]);
-    const strays = names.filter((n) => isOurVdocFileName(n));
+    const after = await ours();
+    const strays = after.filter((n) => !before.includes(n));
     assert.deepStrictEqual(
       strays,
       [],

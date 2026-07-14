@@ -269,17 +269,23 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   SQL, Stan, PRQL, Lua, Ruby, PHP, Perl, Java, Dockerfile, PowerShell, Scala, `typst`, `dot`, `mermaid`,
   and more. **Separately, since v1.127.0 (2025-12-17, PR #868), Posit layers real semantic-tokens
   highlighting on top of the static grammar** when the user's installed language extension supplies an
-  LSP with semantic-highlighting support (Posit's own documented example: Pylance) — a second, distinct
-  highlighting mechanism this project has none of.
+  LSP with semantic-highlighting support (Posit's own documented example: Pylance). **We now have this
+  mechanism too, for `{python}` — Session 88 (item 16, Slice 1)** — but not yet at parity: it is one
+  language, and it carries only the *standard* VS Code token types, so Pylance's own names (`module`,
+  `selfParameter`, `builtinConstant`, `magicFunction` — a measured 36% of its tokens) are dropped and
+  keep their TextMate colour. Slice 2 adds the multi-language merge; Slice 3 settles the legend/theming
+  question. Still a real gap, now a narrower one.
 - *Notes:* **No longer "Direct parity."** Two distinct, previously-uncovered gaps: (1) breadth —
   **narrowed Session 76 from 5 scopes to 20** (our new count) vs. Posit's 50; the residual gap is
   `dot`/`mermaid`/`typst` (deliberately excluded from item 13(a) — see the new "Standalone diagram/typst
   language registration" row below, a distinct registration mechanism, not this grammar's
   `embeddedLanguages` map) and Stan/PRQL/Scala/others from Posit's undisclosed "and more" (no confirmed
   VS-Code-bundled scope for these; Scala in particular is not bundled, unlike everything else on the
-  list, so a real one needs its own firsthand research, not assumption); (2) mechanism — no
-  `SemanticTokensProvider` of any kind in this project, so embedded code never gets LSP-driven semantic
-  coloring, only static TextMate coloring (item 16, unranked, likely its own planning session).
+  list, so a real one needs its own firsthand research, not assumption); (2) mechanism — **partially
+  closed, Session 88.** `src/providers/semantic-tokens.ts` is a real `SemanticTokensProvider`, and
+  `{python}` cells now get LSP-driven semantic colouring from the user's own server (proven against real
+  Pylance in `npm run test:lsp`, not a stand-in). The residual gap is scope, not mechanism: other
+  languages (Slice 2) and the foreign-token-name/theming decision (Slice 3) are still to come.
 
 **Code-cell language embedding — completion/hover/go-to-def/signature-help/diagnostics forwarding.
 (Verdict revised — Session 67: previously ambiguous/unbucketed → Real gap.)**
