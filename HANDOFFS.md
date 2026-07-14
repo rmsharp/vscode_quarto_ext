@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S90
+date: 2026-07-14
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION). BACKLOG item 16 Slice 3 — theming, the D4 legend decision, and real-window colour verification (plan §5.4 + §7 Slice 3). The LAST slice of item 16; shipping it CLOSES the item. Resolve D4: carry the embedded servers' foreign token names in OUR_LEGEND + contribute semanticTokenScopes for language "quarto", OR map each foreign name to its superType. Dropping is the plan's fallback, not the strategy — it currently costs a measured 36% of real Pylance's tokens and 0% of the built-in TS/JS service's. OUR_LEGEND (src/core/embedded/semantic-tokens.ts:46) is the one line that changes; the translation core is legend-agnostic. Gate (a) re-verified at Orient: ZERO drift, greenfield confirmed (no semanticTokenScopes/semanticTokenTypes/superType anywhere in package.json or src/), baseline 803 unit green firsthand. One narrowing: plan §7 lists four Slice-3 items and S89 already discharged the {ojs}/built-in-TS-JS probe firsthand.
+```
+
+```handoff
 session: S89
 date: 2026-07-14
 status: complete
