@@ -57,7 +57,7 @@ see individual rows for what changed and why.
 |---|---|---|
 | **Parity** (same capability, comparable depth) | 22 | render, preview, project-level render, execution delegation, most `@`-completion, cell-option completion, scaffolding commands, getting-started walkthrough, notebook `.ipynb` conversion, outline granularity, Format Cell, cell navigation/cache commands, `_quarto.yml` document links + filepath completion (Sessions 80–81) |
 | **We're ahead** | 4 | format-scoped nested option completion (Posit's own docs admit their top-level suggestions aren't format-filtered); default keybindings for Bold/Italic (Posit removed theirs in 2022 after a conflict and never restored them); image *paste* for `.qmd` (Posit's source editor still doesn't support it — drag-drop is a narrower story, see below, Session 67); spell checking in the plain source editor (a documented `cspell` config recipe — Posit's own spell check is Visual-Editor-only — Session 65) |
-| **Real gaps** (Posit has, we don't) | 9 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth + semantic highlighting (Session 67), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52 (residual `runCurrent` sub-gap closed, Session 78, item 13(e)); snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (this row's own detailed-section body text was found still stale — still saying "Not implemented" — while updating this table for Session 78's own item 13(d)/(e) closures; corrected here, not a Session 78 finding about its own work); cell navigation/cache-management commands gap closed, Session 78, item 13(d); `_quarto.yml` document links + filepath completion gap closed, Sessions 80–81, item 14; preview-command-family breadth gap closed, Sessions 82/84/85, item 15 (per-format picker + render-script preview + the Posit-parity gating layer) |
+| **Real gaps** (Posit has, we don't) | 9 | Visual (WYSIWYG) editor, Contextual Assist Panel, Zotero (Visual-Editor-only for them), YAML diagnostics (partial), syntax-highlighting breadth (Session 67 — the *semantic highlighting* half of this bucket is CLOSED, Sessions 88–90, item 16: a real `SemanticTokensProvider` forwards every embedded language to its own server; only static-grammar breadth remains), code-cell diagnostics forwarding (Session 67 finding; investigated and accepted as a permanent, documented gap, Session 69 — see below), Reticulate execution (Session 67), standalone diagram/typst language registration (partial — registration/config shipped Session 77; grammar + DOT-snippet-family residual), cell-background highlighting (Session 67) — project-level render gap closed, Session 45; scaffolding-commands gap closed, Sessions 49–50; walkthrough gap closed, Session 51; run-cell command family gap closed, Session 52 (residual `runCurrent` sub-gap closed, Session 78, item 13(e)); snippets gap closed, Session 53; Graphviz rendering gap closed, Session 56; notebook conversion gap closed, Session 63; spell-checking gap closed (source-editor recipe), Session 65; outline granularity gap closed, Sessions 71–74; Format Cell gap closed, Session 75 (this row's own detailed-section body text was found still stale — still saying "Not implemented" — while updating this table for Session 78's own item 13(d)/(e) closures; corrected here, not a Session 78 finding about its own work); cell navigation/cache-management commands gap closed, Session 78, item 13(d); `_quarto.yml` document links + filepath completion gap closed, Sessions 80–81, item 14; preview-command-family breadth gap closed, Sessions 82/84/85, item 15 (per-format picker + render-script preview + the Posit-parity gating layer) |
 | **True parity in absence** (neither has it) | 1 | AI/Copilot-native features (both rely on a separately-installed Copilot extension) |
 | **Soft / ambiguous comparison** (new bucket, Session 67) | 3 | per-key nested/deep YAML completion depth (neither side has an exhaustive inventory); project-wide/multi-file cross-ref & citation intelligence (both largely single-file-scoped, Posit's is conditional); extensibility surfaces — a public CLI-query API and Quarto-Extension/Lua-authoring support (developer-facing, arguably outside this doc's own "what a document author can do" scope) |
 
@@ -289,9 +289,17 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   `SemanticTokensProvider`; it forwards **every** language present in the document to its own server and
   merges the streams (`mergeSemanticTokens`) into the one ascending stream VS Code accepts. Proven with
   two REAL servers at once, not stand-ins: a `.qmd` whose `{ojs}` cell sits between two `{python}` cells
-  comes back correctly interleaved from real Pylance and the real built-in TS/JS service. The residual
-  gap is now only **theming** — the foreign-token-name decision (D4, Slice 3), which is what would
-  recover the 36% of Pylance's tokens we currently drop to TextMate.
+  comes back correctly interleaved from real Pylance and the real built-in TS/JS service. (3) theming —
+  **closed, Session 90 (D4, Slice 3), and the answer was NOT the obvious one.** The tempting move —
+  carry all of Pylance's foreign token names, "recovering" the 36% we drop — is a **regression**: a
+  `.qmd`'s `{python}` cell is already coloured by VS Code's bundled MagicPython grammar, so the semantic
+  layer paints *over* a grammar that is mostly right, and a carried-but-unstyleable name **overrides**
+  TextMate rather than degrading to it. Pylance's own `contributes.semanticTokenScopes` entries — which
+  say "the superType default is wrong for this type" — are `language: "python"`-gated and therefore inert
+  on a `.qmd`. So we carry exactly **`module`** (`os`, `np`), the one name MagicPython gives no scope at
+  all and the one real Pylance is observed emitting, plus a `semanticTokenScopes` contribution for
+  `language: "quarto"`. `magicFunction` would have turned `__init__` from #DCDCAA to #d2a8ff purple.
+  **Item 16 is now fully SHIPPED — this row is at parity.**
 
 **Code-cell language embedding — completion/hover/go-to-def/signature-help/diagnostics forwarding.
 (Verdict revised — Session 67: previously ambiguous/unbucketed → Real gap.)**
@@ -825,9 +833,13 @@ planning session should still verify before implementing):
 6. ~~**Preview command family breadth** (`previewScript` for standalone render scripts; `previewFormat` as
    a per-format preview picker).~~ **SHIPPED — Sessions 82 (`previewFormat`), 84 (`previewScript`), 85
    (the `quartoRenderScriptActive` gating layer). Item 15 closed; parity reached.**
-7. **Semantic highlighting via the embedded language's LSP** (layered on top of static TextMate grammar).
-   A genuinely bigger feature than the "quick wins" above — a new `SemanticTokensProvider` mechanism, not
-   a registration/config change — likely warrants its own planning session rather than folding into #4.
+7. ~~**Semantic highlighting via the embedded language's LSP**~~ — **DONE (Sessions 86–90, item 16).**
+   Planned Session 86; shipped across three slices (88: single-language `{python}`; 89: the multi-language
+   merge; 90: theming / the D4 legend decision). It did warrant its own planning session, as predicted.
+   The theming slice's finding is worth carrying forward: the *obvious* answer — carry the embedded
+   server's foreign token names to "recover" the tokens a standard legend drops — is a **regression**,
+   because a `.qmd` code cell is already coloured by its embedded TextMate grammar, so the semantic layer
+   overrides a mostly-correct incumbent rather than filling a void. See `PROJECT_LEARNINGS.md` #99/#100.
 8. **Lower priority / narrower audience**: cell-execution background highlighting (cosmetic only);
    Reticulate (R↔Python via Knitr engine) execution pathway (narrow audience — mixed R/Python Knitr
    documents); the create-project-family discoverability gap (`newPresentation`/`newNotebook`/

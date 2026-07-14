@@ -7,8 +7,8 @@
 ## ACTIVE TASK
 **Task:** **Session 90 — IMPLEMENTATION: `BACKLOG.md` item 16 — Slice 3 of `docs/planning/2026-07-12-embedded-lsp-scheme-and-semantic-tokens-plan.md`: theming, the D4 legend decision, and real-window colour verification. This is the LAST slice of item 16 — shipping it CLOSES the item.** Per plan §5.4 (D4) + §7 Slice 3: resolve whether to **(a)** carry the embedded servers' foreign token names in `OUR_LEGEND` and contribute `semanticTokenScopes` for `language: "quarto"`, or **(b)** map each foreign name to its `superType` (readable from the serving extension's `contributes.semanticTokenTypes`). Dropping is the plan's explicit *fallback*, not the strategy — today it costs a measured **36%** of real Pylance's tokens (`module` / `selfParameter` / `builtinConstant` / `magicFunction`) and **0%** of the built-in TS/JS service's. `OUR_LEGEND` (`src/core/embedded/semantic-tokens.ts:46`) is the one line that changes; the translation core is already legend-agnostic. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate.
 **Started:** 2026-07-14
-**Status:** Session claimed. Work beginning. **RESUMED after an aborted first attempt — disclosed, not hidden.** The claim commit `7bef50b` (2026-07-14 14:22) landed and then that agent left **zero** technical work: no code, no tests, no close-out, working tree clean, no commits after it. The Phase 1B crash breadcrumb did exactly its job — the next Orient found a `status: pending` receipt in `HANDOFFS.md` and an ACTIVE TASK reading "Work beginning" with nothing behind it. **The operator directed (via `AskUserQuestion`) that this session ADOPT the standing claim rather than reconcile S90 as a ghost and open S91** — the right call, because there is no work to misattribute (zero commits) and the gate (a) contract below was verified against a tree that has not changed since. The `status: pending` receipt is therefore still MINE to complete at Phase 3D, exactly as a 1B stub is designed to be. Nothing about the task, the contract, or the baseline changed between the two attempts; the only cost was one wasted claim.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** **SHIPPED. Item 16 Slice 3 is done — and item 16 is now CLOSED.** `{python}`/`{r}`/`{julia}`/`{ojs}` cells are coloured by the user's own language servers, every language merged into one stream, and the theming decision (D4) is resolved on evidence. **The headline is that the obvious answer was a REGRESSION.** The plan, the backlog, and my predecessor's receipt all framed D4 as "carry the foreign names and recover the measured 36% of Pylance's tokens we drop." Doing that would have made colours WORSE: a `.qmd`'s `{python}` cell is *already* coloured by VS Code's bundled MagicPython grammar, so the semantic layer paints OVER a grammar that is mostly right, and a carried-but-unstyleable name **overrides** TextMate rather than degrading to it. `magicFunction` would have turned `__init__` from #DCDCAA to #d2a8ff purple. **Shipped: carry exactly `module`** — the one name MagicPython gives no scope at all AND real Pylance is observed emitting — plus a `contributes.semanticTokenScopes` for `language: "quarto"`. Proven against real Pylance: `module@3:7`, `module@8:11`. **A 61-agent adversarial review found a real defect in my own work** (11th consecutive slice): I had also carried `intrinsic`, which passes the triage rule but which real Pylance NEVER EMITS — a dead legend entry and a dead manifest rule, the exact defect my own new test claimed to prevent. Dropped; test hole closed. 811 unit / 314 integration / 12 real-LSP; clean 43-file `.vsix`.
+**Ledger:** `CHANGELOG: 2026-07-14 · [BL-16] (Session 90 — item 16 Slice 3 SHIPPED: the D4 legend decision; item 16 CLOSED)` entry written.
 **Baseline re-verified firsthand at resumption (not trusted from the aborted attempt's note):** `npm test` → **803 unit / 44 files green**, matching both the S89 receipt and the original claim exactly. The sentinel test `test/unit/semantic-tokens.test.ts:267` is present and still passing — it is designed to go RED when Slice 3 lands, and that RED is this session's first gate.
 **Gate (a) contract re-verified at Orient against current code — ZERO drift, with ONE narrowing to record.** `OUR_LEGEND` is at `semantic-tokens.ts:46` (23 standard types / 10 standard modifiers) and `providers/semantic-tokens.ts:71` builds its registration legend FROM it, so the adapter is genuinely legend-agnostic and Slice 3 changes the core, not the provider. The sentinel test `test/unit/semantic-tokens.test.ts:267` ("declares a legend of standard names only (the Slice 3 / D4 boundary)") is present and is designed to fail when this lands. **Greenfield confirmed by grep:** zero hits for `semanticTokenScopes` / `semanticTokenTypes` / `superType` in `package.json` + `src/` (the manifest's `contributes` has 8 keys; neither is among them). Baseline green, verified firsthand: **803 unit** (44 files) — matching the S89 receipt exactly. **The narrowing:** plan §7 Slice 3 enumerates FOUR things, and Session 89 already discharged one — "probe built-in TS/JS semantic tokens on `file:` for `{ojs}`" was measured firsthand (the service DOES serve tokens on our `file:` vdoc; legend 12t/6m; **0%** of its types foreign to the standard legend). Remaining: **D4**, real-window colour verification, and the `docs/POSIT-COMPARISON.md` item-16 row. Fewer layers than the plan enumerated, not more.
 **Recorded at claim — D4 must be decided on EVIDENCE, not preference (the S88/S89 habit that has now paid off three times: measure the real dependency BEFORE designing).** The load-bearing unknowns are about VS Code's own resolution chain, not about our code: is the semantic-token-TYPE registry global or per-language; does a foreign name we emit from a `quarto` provider resolve through the *serving* extension's `contributes.semanticTokenTypes` `superType` chain; and is `contributes.semanticTokenScopes` language-scoped such that Pylance's own python-scoped entries can never colour a `.qmd`. These will be grounded against the shipped VS Code bundle and the installed Pylance manifest firsthand — per S89 gotcha (5), "read the shipped bundle before believing any claim about VS Code."
@@ -32,6 +32,103 @@
 **Gate (a) contract re-verified at Orient against current code — ZERO drift, with two Slice-0 refinements the plan's prose predates and that Slice 1 MUST build against (not against §6.4's stale pseudocode):** (1) `VdocKey` no longer carries `version` — the adapter owns a module-level monotonic counter (`embedded-vdoc.ts:82`) — and instead carries `ext`; the shipped shape is `{docUri, languageId, ext, kind, cellStartLine?}` (`vdoc-path.ts:52`). The plan's `ensureVdoc(doc, {kind:"lang", languageId:L, version:++v, …}, content)` would not compile. (2) `ensureVdoc` is **reuse-on-unchanged-content / fresh-path-on-change** (`embedded-vdoc.ts:121`), not literally "fresh path per computation" — strictly better (it is what keeps a per-keystroke provider off the disk, 🐉8) and already break-revert-proven. Verified present and unchanged: `ensureVdoc` owns the mandatory `openTextDocument` (M1, `embedded-vdoc.ts:140`); `buildVirtualContent` (`virtual-doc.ts:83`) gives the identity mapping that lands tokens in `.qmd` coordinates with **no remap**; `providers/embedded.ts:95` `vdocFor` is the exact `kind:"lang"` pattern to mirror; `extension.ts:64` is the wiring point; `npm run test:lsp` exists. **Greenfield confirmed by grep:** zero hits for `SemanticTokens` / `semantic-tokens` / `provideDocumentSemanticTokens` / `embeddedLanguagesIn` across `src/` + `test/` + `package.json`. Baseline green: 767 unit.
 **Kickoff decisions (operator, via `AskUserQuestion`):** run `npm run test:lsp` (real-Pylance Extension Development Host) freely this session — it is the only evidence that can prove Slice 1, since a stand-in cannot (the item-18 lesson); run `npm run test:integration` as routine.
 **Scope note on D4 (the legend), recorded at claim:** the plan defers the *theming* decision — carry Pylance's foreign type names + `contributes.semanticTokenScopes`, vs. map them to their `superType` — to **Slice 3** (§5.4). Slice 1 therefore declares the **standard VS Code legend** and takes the plan's explicit safe fallback: a token whose type is absent from our legend is **dropped** (it keeps its TextMate colour — degraded, never *wrong*), and unknown modifier *bits* are **cleared, not token-dropping**. Consequence to measure and report, not to silently ship: Pylance's `module` / `selfParameter` / `builtinConstant` / `magicFunction` / `intrinsic` tokens fall outside the standard set, so part of a Python cell keeps TextMate colouring until Slice 3. I will measure the real drop rate against real Pylance and hand Slice 3 the number.
+
+## Session 90 Self-Assessment
+
+- **Phase 0 completed in full**, and it mattered: the Orient found that **Session 90 had already been
+  claimed and had died leaving zero work** (commit `7bef50b`, a `status: pending` receipt, an ACTIVE TASK
+  reading "Work beginning" with nothing behind it). The Phase 1B crash breadcrumb did exactly its job.
+  I reported it and let the operator choose (adopt the claim vs. reconcile as a ghost) rather than
+  deciding unilaterally; they chose adopt, and I re-verified the baseline (803 unit) firsthand rather
+  than trusting the dead session's note.
+- **I did not trust the framing I inherited, and that is the whole session.** The plan, the BACKLOG and
+  S89's receipt all agreed D4 meant "carry the foreign names, recover 36%." Instead of implementing that,
+  I grounded the decision against the shipped VS Code bundle, the installed Pylance manifest, the bundled
+  MagicPython grammar and the real default theme — and found the framing inverted. **The 36% was a
+  measure of coverage, never of harm.** Learning #99.
+- **Strict TDD with genuine REDs.** `module` shown RED first (`expected [] to deeply equal [0,7,2,-1,0]`
+  — the encoder dropped it and `indexOf` was −1), then GREEN; the manifest coupling test shown RED
+  (`expected undefined to be defined`), then GREEN. Checkpoint commit at every layer boundary, and I
+  committed BEFORE mutating (S89's gotcha #2, which would otherwise have deleted my implementation).
+- **Break-revert found a hole in my own docstring, and I corrected the docstring rather than inventing a
+  rule to justify it.** I had written "ORDER IS SIGNIFICANT — never insert"; the insert-at-front mutant
+  left all tests green, because the registration legend and the encoder's index map both derive from the
+  same array. It is *not* significant. Saying so truthfully is worth more than a tidy-sounding warning
+  the code does not back.
+- **I caught my own vacuous assertion before it shipped.** The real-LSP fixture originally contained only
+  names D4 *carries*, so my "the ten stay dropped" assertion could not have failed. I added
+  `class C`/`__init__`/`self`/`True` so real Pylance actually emits the dropped names — and the
+  assertion then genuinely discriminated (break-revert: carrying `magicFunction` makes it fire).
+- **And then the review found the one I did NOT catch, which is the cautionary half of this session.**
+  I carried `intrinsic` on the strength of the triage rule and wrote "same rule, same reasoning" in a
+  docstring — **without ever asking a real server whether it emits it.** It does not. My unit test
+  "proving" the carry fed a stream real Pylance cannot produce: a fabricated RED wearing the costume of
+  evidence. My coupling test could not catch it because it pinned *scope-rules == legend* — an agreement
+  between two artifacts I wrote, which is always satisfiable by writing both consistently wrong. I had
+  applied the real-LSP DONE-gate standard to `module` and, for `intrinsic`, substituted an argument.
+  **That is Learning #100, and it is the exact species of error Learning #98 warns about — committed in
+  the very session where I quoted #98 back at myself.**
+- **Arbitrated rather than deferred.** 26 findings raised, 11 survived refutation. I FIXED the ones this
+  slice created (the `intrinsic` carry; three wrong hexes, all from resolving the theme's `include` chain
+  with a naive prefix match instead of VS Code's actual theme trie; the test hole) and **FILED 3 with
+  mechanisms** rather than half-fixing them. I also **REFUTED** the review's challenge to the core
+  decision — "dropping `selfParameter` is strictly worse than carrying it" — by resolving the colours:
+  carrying it bare gives #ffa657, matching neither the #79c0ff a `.qmd` shows today nor the #c9d1d9 a
+  real `.py` shows. It would invent a third colour. The drop stands.
+- **Runtime verification (Phase 3E): PARTIAL, and disclosed rather than papered over.** The mechanism is
+  proven end to end against **real Pylance** (12/12, `module@3:7` and `module@8:11` at real `.qmd`
+  coordinates), and the colours are resolved through VS Code's own theme trie over the real default
+  theme. But **the actual pixels were not eyeballed by me** — the F5 pass needs a real window, and I
+  asked the operator before launching anything on their screen (per the standing confirm-before-
+  screen-prompting rule). The command and the checklist are in the handoff. **The residual risk is
+  small and bounded** (does `os` turn teal, does `__init__` stay #DCDCAA) and it cannot regress anything
+  that the 12/12 real-LSP gate already proves — but it is not zero, and I am not claiming it.
+- **Self-score: 8/10.** The decision is right, it is grounded in the shipped bytes rather than in the
+  plan's framing, it inverted an inherited assumption that would have shipped a regression, and every
+  finding is fixed or filed with evidence. **Not higher because I shipped a dead legend entry and a dead
+  manifest rule into two commits, defended by a docstring sentence I had not tested — and was saved by
+  the review rather than by my own verification, in the exact way my predecessor was.** The system caught
+  it, which is the system working; but the claim was mine, and the standard I applied to `module` (ask a
+  real server) was the standard I should have applied to `intrinsic` in the same breath.
+
+## Session 89 Handoff Evaluation (by Session 90)
+
+**Score: 9/10.** An executable brief whose every load-bearing claim held up firsthand — and whose one
+omission cost me a bug that its own successor-review then caught.
+
+- **What helped, decisively:** `next_steps` was the session. It named the D4 options, the exact line to
+  change (`OUR_LEGEND`, `semantic-tokens.ts:46`), and — critically — **"you have the numbers already, do
+  not re-measure"** (36% of Pylance, 0% of the built-in JS service). That freed the whole session to
+  spend its budget on the *decision* rather than on re-deriving the inputs, which is exactly where the
+  value turned out to be: the numbers were never the hard part; what they MEANT was.
+- **Gotcha (2) — "COMMIT THE CHECKPOINT, THEN MUTATE" — saved me directly.** I ran three break-revert
+  mutants against `OUR_LEGEND` and reverted each with `git checkout --`. Had I not committed first, that
+  would have deleted the implementation, exactly as it did to S89. I committed first without thinking
+  about it, because the receipt had made it reflex.
+- **Gotcha (8) — "run the standing adversarial review on ANY slice even when green" — is again the single
+  most valuable line in the receipt, and again it was right.** I was green across the entire matrix (811
+  unit, 314 integration, 12 real-LSP against two real servers) and the review still found that I had
+  carried a token type real Pylance never emits. Eleven consecutive slices.
+- **`key_files` was line-accurate; the gate (a) re-verification found ZERO drift.** `OUR_LEGEND` at :46,
+  the provider legend-agnostic, the sentinel test present and designed to fail. All three exactly as
+  described.
+- **The scope note on the filed MEDIUM ("a KEPT type with CLEARED modifiers still OVERRIDES TextMate")
+  was the most valuable *warning* in the receipt.** It told me not to treat modifier-clearing as safe,
+  and that framing — *override vs. degrade* — turned out to be the key to the whole D4 decision, not
+  just to the modifier question. S89 handed me the concept I needed and did not know it.
+- **What was missing (the −1):** the receipt said Slice 3's job was to decide between carrying names and
+  superType-mapping, and it inherited the plan's framing that carrying would "recover 36%." **Neither the
+  receipt nor the plan ever asked what TextMate was already doing with those tokens** — and the answer
+  (MagicPython already colours `__init__`, `self`, `True` correctly, often pixel-identically to a `.py`)
+  inverts the entire decision. That is not a fault of S89's diligence; the framing came from the plan it
+  inherited. But a receipt that had said *"before you carry a name, check what the existing grammar
+  already gives it"* would have handed me Learning #99 instead of letting me derive it.
+- **What was wrong:** nothing. 803 unit / 44 files matched my starting state exactly; both ledger
+  frontiers reconciled; the `.vsix` file count matched.
+- **ROI:** very high. The one thing I would add to any future receipt in this area is now Learning #100,
+  because S89's own advice — "the pure core already composes, the legend is the one line that changes" —
+  is *true* and yet quietly invites you to believe a legend edit is safe without asking a real server
+  what it emits. It isn't.
 
 ## Session 88 Handoff Evaluation (by Session 89)
 

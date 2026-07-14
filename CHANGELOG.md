@@ -7,6 +7,32 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-14 · [BL-16] Session 90 — item 16 Slice 3 SHIPPED: the D4 legend decision. **Item 16 is CLOSED.**
+
+Semantic highlighting via the embedded language's LSP is now complete end to end. Slice 3 resolved D4
+(plan §5.4) — and the obvious answer was a **regression**, which is the finding.
+
+- **Carry exactly `module`** (`src/core/embedded/semantic-tokens.ts` `OUR_LEGEND`) + a new
+  `contributes.semanticTokenScopes` for `language: "quarto"` (`module` → `entity.name.namespace`).
+  Deliberately NO `contributes.semanticTokenTypes` — that registry is a global bare-id-keyed map whose
+  deregistration is owner-blind, so declaring Pylance's ids would mean our uninstall degrades the user's
+  plain `.py` files.
+- **Why not carry all 12 foreign names and "recover" the measured 36% we drop:** a `.qmd`'s `{python}`
+  cell is *already* coloured by VS Code's bundled MagicPython grammar, so the semantic layer paints OVER
+  a grammar that is mostly right — a carried-but-unstyleable name **overrides** TextMate rather than
+  degrading to it. `magicFunction` would have turned `__init__` from #DCDCAA to #d2a8ff purple.
+  (Learning #99, the **triage rule**: a serving extension's own `semanticTokenScopes` entry for a type is
+  that author saying the superType default is *wrong* for it — and those entries are `python`-gated, so
+  inert on a `.qmd`. The set with no entry is the set safe to carry.)
+- **The standing adversarial review (61 agents) caught a real defect in this slice's own work** — 11th
+  consecutive slice. `intrinsic` passed the triage rule and was carried, but real Pylance never emits it
+  (it sends `variable`+`builtin`; token type 18 has zero emission sites), so it was a dead legend entry
+  AND a dead manifest rule — the exact defect this slice's own new test claimed to prevent. Dropped, and
+  the test hole closed. (Learning #100: a legend is not a promise of emission.)
+- Proven against **real Pylance**: `module@3:7`, `module@8:11`. 811 unit / 314 integration / 12 real-LSP;
+  clean 43-file `.vsix`. Filed 3 new items (the modifier partial-override, `self`'s `.qmd`-vs-`.py`
+  colour, the unpinned standard legend).
+
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
 ### 2026-07-14 · [BL-16] (Session 89 — **every language in your document is now semantically coloured, not just `{python}`.** Item 16 Slice 2 SHIPPED; only Slice 3 remains, so item 16 stays open.)

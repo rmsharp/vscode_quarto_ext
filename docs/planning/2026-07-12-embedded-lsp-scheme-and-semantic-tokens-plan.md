@@ -296,7 +296,18 @@ A single path per `(document, language)` is **wrong**: outline forwards N cells 
 `version` increments per computation (D2). Consumers therefore never collide, and no two concurrent
 forwards share a path.
 
-### 5.4 D4 — Our declared `SemanticTokensLegend`
+### 5.4 D4 — Our declared `SemanticTokensLegend` — ✅ **RESOLVED, Session 90 (Slice 3)**
+
+> **Resolution: carry exactly `module`; drop the rest.** Neither of the two options this section poses
+> was right as posed. Option (a) "carry the foreign names" is a **regression** — a `.qmd`'s `{python}`
+> cell is already coloured by MagicPython, so the semantic layer paints OVER a mostly-correct grammar and
+> a carried-but-unstyleable name *overrides* TextMate rather than degrading to it (`magicFunction` would
+> turn `__init__` from #DCDCAA to #d2a8ff purple). Option (b) "map to superType" is **redundant** — VS
+> Code already walks the superType chain globally (`getTypeHierarchy`), so hand-rolling it buys nothing
+> and dead-ends anyway (`builtinConstant`'s superType `constant` is not a registered type at all).
+> The shipped answer carries `module` (+ a `semanticTokenScopes` contribution for `language: "quarto"`),
+> the one name MagicPython gives no scope at all AND real Pylance is observed emitting. See
+> `PROJECT_LEARNINGS.md` #99 (the triage rule) and #100 (a legend is not a promise of emission).
 
 `registerDocumentSemanticTokensProvider(selector, provider, legend)` needs the legend **up front**, but
 the server's legend is only knowable at runtime. Pylance's real legend (captured in the spike) is **29
