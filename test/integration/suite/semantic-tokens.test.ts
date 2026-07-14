@@ -32,6 +32,8 @@ const STANDIN_LEGEND = new vscode.SemanticTokensLegend(
 let calls: string[] = [];
 /** When true the stand-in answers with nothing (the "no language extension" case). */
 let standInReturnsNothing = false;
+/** When true the stand-in THROWS — a server that is erroring, restarting, or shutting down. */
+let standInThrows = false;
 let disposables: vscode.Disposable[] = [];
 
 function registerStandIn(): void {
@@ -41,6 +43,9 @@ function registerStandIn(): void {
       {
         provideDocumentSemanticTokens(document) {
           calls.push(document.uri.toString());
+          if (standInThrows) {
+            throw new Error("simulated language-server failure");
+          }
           if (standInReturnsNothing) {
             return undefined;
           }
@@ -84,6 +89,7 @@ describe("embedded semantic tokens", () => {
   beforeEach(() => {
     calls = [];
     standInReturnsNothing = false;
+    standInThrows = false;
     registerStandIn();
   });
 
@@ -199,6 +205,22 @@ describe("embedded semantic tokens", () => {
       await vscode.commands.executeCommand("workbench.action.closeAllEditors");
       await vscode.workspace.fs.delete(fixture, { useTrash: false });
     }
+  });
+
+  it("degrades to no tokens — never throws — when the language server ERRORS", async () => {
+    // Adversarial review, HIGH. The two forwards are `executeCommand`s, and those REJECT
+    // (they do not merely resolve to `undefined`) when the server errors, is restarting, or
+    // is shutting down. An unhandled rejection propagates out of the provider and breaks
+    // this feature's one non-negotiable contract: the worst a failing server may ever do to
+    // a `.qmd` is leave it with its TextMate colouring.
+    standInThrows = true;
+    const doc = await openQmd(["```{python}", "x = 1", "```", ""].join("\n"));
+
+    // Must RESOLVE, not reject. If the provider throws, this line is where it surfaces.
+    const tokens = await tokensFor(doc);
+
+    assert.strictEqual(tokens, undefined, "a failing server must yield no tokens");
+    assert.strictEqual(calls.length, 1, "…and the forward must genuinely have been made");
   });
 
   it("returns nothing, and does not throw, when no server serves the embedded language", async () => {

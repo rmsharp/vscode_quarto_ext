@@ -135,16 +135,29 @@ class EmbeddedSemanticTokensProvider
     // The legend is per-server and only knowable at runtime, so it must be fetched
     // alongside the tokens: the token stream's type/modifier numbers are indices INTO it
     // and are meaningless without it.
-    const [legend, tokens] = await Promise.all([
-      vscode.commands.executeCommand<vscode.SemanticTokensLegend | undefined>(
-        "vscode.provideDocumentSemanticTokensLegend",
-        vdocUri,
-      ),
-      vscode.commands.executeCommand<vscode.SemanticTokens | undefined>(
-        "vscode.provideDocumentSemanticTokens",
-        vdocUri,
-      ),
-    ]);
+    //
+    // Both calls can REJECT, not merely resolve to `undefined` — a language server that
+    // errors, is shutting down, or is mid-restart rejects the request. An unhandled
+    // rejection here would propagate out of `provideDocumentSemanticTokens` and break the
+    // contract this whole feature is built on: the worst a failing server may ever do to a
+    // `.qmd` is leave it with its TextMate colouring. So a rejection is a non-answer, and
+    // a non-answer degrades — it never throws.
+    let legend: vscode.SemanticTokensLegend | undefined;
+    let tokens: vscode.SemanticTokens | undefined;
+    try {
+      [legend, tokens] = await Promise.all([
+        vscode.commands.executeCommand<vscode.SemanticTokensLegend | undefined>(
+          "vscode.provideDocumentSemanticTokensLegend",
+          vdocUri,
+        ),
+        vscode.commands.executeCommand<vscode.SemanticTokens | undefined>(
+          "vscode.provideDocumentSemanticTokens",
+          vdocUri,
+        ),
+      ]);
+    } catch {
+      return undefined;
+    }
     if (legend === undefined || tokens === undefined) {
       return undefined; // no server for this language, or it declined — TextMate stands
     }
