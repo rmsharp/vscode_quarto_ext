@@ -3,6 +3,7 @@ import { findAllCells } from "../../src/core/qmd/model";
 import {
   buildCellVirtualContent,
   buildVirtualContent,
+  canonicalVdocContent,
   embeddedCellAt,
   embeddedLanguagesIn,
 } from "../../src/core/embedded/virtual-doc";
@@ -419,5 +420,72 @@ describe("embeddedLanguagesIn: every forwarding target present in the document",
 
     expect(embeddedLanguagesIn(text)).toEqual([{ languageId: "javascript", ext: "js" }]);
     agreesWithBuild(text);
+  });
+});
+
+describe("canonicalVdocContent: the vdoc is a function of the CODE, not the prose (🐉8)", () => {
+  it("collapses whitespace-only lines to empty, and touches NOTHING else", () => {
+    // The whole contract in one case. The builders blank non-code lines to EQUAL-LENGTH
+    // space runs, so the vdoc's bytes depend on the length of the user's prose — type one
+    // character in a paragraph and every language's vdoc is rewritten. Collapsing the
+    // blanks makes the vdoc depend on the code alone.
+    const blanked = ["     ", "x = 1", "", "\t  ", "y = 2"].join("\n");
+
+    expect(canonicalVdocContent(blanked)).toBe(["", "x = 1", "", "", "y = 2"].join("\n"));
+  });
+
+  it("PRESERVES leading indentation on a code line — it is not a trim", () => {
+    // The line that decides whether the vdoc is still valid Python. Trimming every line
+    // (rather than only the whitespace-only ones) leaves the whole unit + integration suite
+    // GREEN — every fixture in them sits at column 0 — while making `def f():\n    return 1`
+    // an IndentationError and moving every token's column. Derived from the invariant, not
+    // from the lines I happened to write (Learning #97).
+    const indented = ["def f():", "    return 1", "        # deep", "\tif x:"].join("\n");
+
+    expect(canonicalVdocContent(indented)).toBe(indented);
+  });
+
+  it("preserves the line COUNT exactly — a line goes empty, never away", () => {
+    // What makes the identity mapping survive: vscode.Position is (line, character), not an
+    // offset, so line indices are the thing that must not move. Removing a blank line would
+    // shift every line below it and mis-place every token in the document.
+    const text = ["", "a = 1", "   ", "", "b = 2", "  "].join("\n");
+    const out = canonicalVdocContent(text);
+
+    expect(out.split("\n").length).toBe(text.split("\n").length);
+    expect(out.split("\n")[4]).toBe("b = 2");
+  });
+
+  it("is idempotent, and a no-op on content that is already canonical", () => {
+    const once = canonicalVdocContent(buildVirtualContent(DOC, "python"));
+    expect(canonicalVdocContent(once)).toBe(once);
+  });
+
+  it("makes a PROSE edit produce byte-identical content — the reuse this exists for", () => {
+    // The property, end to end at the pure level: lengthen a prose line, and the python
+    // virtual document is UNCHANGED once canonicalized. That equality is exactly what
+    // ensureVdoc's reuse branch compares, so this is why no file is written.
+    const before = ["# Title", "", "```{python}", "x = 1", "```", ""].join("\n");
+    const after = ["# Title!!!", "", "```{python}", "x = 1", "```", ""].join("\n");
+
+    // The raw builders DISAGREE — that is the churn, and why the byte-compare never hit.
+    expect(buildVirtualContent(after, "python")).not.toBe(buildVirtualContent(before, "python"));
+
+    // Canonicalized, they are identical.
+    expect(canonicalVdocContent(buildVirtualContent(after, "python"))).toBe(
+      canonicalVdocContent(buildVirtualContent(before, "python")),
+    );
+  });
+
+  it("still DIFFERS when code changes — reuse must not become staleness (M3)", () => {
+    // The other half. If a code edit canonicalized to the same bytes, ensureVdoc would reuse
+    // the path, VS Code would serve the cached model, and the server would answer from the
+    // PREVIOUS revision — silently, forever (the ≈1017 ms async-invalidation race).
+    const before = ["```{python}", "x = 1", "```", ""].join("\n");
+    const after = ["```{python}", "x = 2", "```", ""].join("\n");
+
+    expect(canonicalVdocContent(buildVirtualContent(after, "python"))).not.toBe(
+      canonicalVdocContent(buildVirtualContent(before, "python")),
+    );
   });
 });

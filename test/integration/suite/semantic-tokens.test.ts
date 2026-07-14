@@ -485,6 +485,52 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
     );
   });
 
+  it("keeps INDENTED code verbatim in the vdoc, at its real column", async () => {
+    // The canonicalization must collapse whitespace-only lines and NOTHING else. Trimming
+    // every line instead left the entire unit + integration suite green — every fixture in
+    // it sits at column 0 — while it would make `def f():` / `    return 1` an
+    // IndentationError to Python and move every token's column leftwards.
+    //
+    // The stand-in reports each token at its line's first non-space column, so an indented
+    // body line is the discriminating input: it must come back at column 4, and the vdoc on
+    // disk must still hold the indentation.
+    const doc = await openQmd(
+      [
+        "# Title", // 0
+        "", // 1
+        "```{python}", // 2
+        "def f():", // 3
+        "    return 1", // 4  <- INDENTED
+        "```", // 5
+        "", // 6
+      ].join("\n"),
+    );
+
+    const tokens = await tokensFor(doc);
+
+    assert.ok(tokens !== undefined);
+    assert.strictEqual(pyCalls.length, 1);
+
+    const vdocLines = (
+      await vscode.workspace.openTextDocument(vscode.Uri.parse(pyCalls[0]))
+    )
+      .getText()
+      .split("\n");
+    assert.strictEqual(
+      vdocLines[4],
+      "    return 1",
+      "the indented body line must reach the server byte-for-byte — trimming it would make " +
+        "the vdoc invalid Python",
+    );
+
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+    assert.deepStrictEqual(
+      decoded.map((t) => `${t.line}:${t.char}`),
+      ["3:0", "4:4"],
+      "the token on the indented line must land at column 4, not column 0",
+    );
+  });
+
   it("still mints a fresh vdoc when the edit changes CODE", async () => {
     // The other half of the contract, and the reason this cannot simply cache forever.
     // Rewriting a path that already has an open model invalidates it only ASYNCHRONOUSLY

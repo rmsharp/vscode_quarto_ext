@@ -159,6 +159,41 @@ export function embeddedLanguagesIn(text: string): EmbeddedLang[] {
 }
 
 /**
+ * Collapse every whitespace-only line to an empty one, leaving every other line BYTE-EXACT.
+ *
+ * The form a virtual document is written to disk in, and the form its reuse is decided by
+ * (`features/embedded-vdoc.ts`). It is what keeps semantic tokens off the per-keystroke
+ * disk-write path (plan 🐉8).
+ *
+ * The builders above are LENGTH-PRESERVING: every line that is not the target language's
+ * code is blanked to an EQUAL-LENGTH run of spaces, which is precisely what gives the
+ * identity coordinate mapping. The cost is that the vdoc's bytes then depend on the length
+ * of the user's PROSE — type one character in a paragraph and a blanked run lengthens, so
+ * the vdoc differs, so a byte-comparison reuse check can never hit, and a fresh file is
+ * minted, written, opened and deleted on every debounced pass, for every language, while
+ * the user types. Every line of code was identical each time.
+ *
+ * Collapsing the blanks removes the dependency: the vdoc becomes a function of the CODE
+ * alone. Nothing addressable moves —
+ *
+ *  - **A line becomes empty; it never disappears.** Line indices, and the newline count,
+ *    are preserved exactly, and `vscode.Position` is (line, character), not an offset.
+ *  - **Only whitespace-only lines are touched.** A code line keeps its leading indentation
+ *    byte-for-byte, which is not cosmetic: trimming it would make Python invalid and move
+ *    every token's column. The tests pin an INDENTED line for exactly this reason.
+ *  - **No request or result has ever landed on a blanked line** — that is what blanking is
+ *    for — and Python, R, Julia and JavaScript all read a whitespace-only line and an empty
+ *    one identically (Python ignores a blank line outright: no NEWLINE token, no effect on
+ *    the indentation stack).
+ */
+export function canonicalVdocContent(content: string): string {
+  return content
+    .split("\n")
+    .map((line) => (line.trim() === "" ? "" : line))
+    .join("\n");
+}
+
+/**
  * The virtual document for exactly ONE cell (BACKLOG item 11 slice 2, outline
  * in-cell symbol forwarding, plan §2.1/§2.3). `buildVirtualContent` above keeps
  * EVERY cell of a given language — correct for cursor-position forwarding

@@ -56,6 +56,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import * as vscode from "vscode";
+import { canonicalVdocContent } from "../core/embedded/virtual-doc";
 import {
   isOurVdocFileName,
   VDOC_DIR_SEGMENTS,
@@ -75,7 +76,7 @@ const INSTANCE_ID = randomUUID().replace(/-/g, "").slice(0, 12);
 /** A vdoc we currently have on disk, with the (canonicalized) content it was written with. */
 interface LiveVdoc {
   uri: vscode.Uri;
-  /** Always `canonicalize`d — the exact bytes on disk, and what reuse is decided against. */
+  /** Always `canonicalVdocContent` — the exact bytes on disk, and what reuse is judged on. */
   content: string;
 }
 
@@ -128,65 +129,29 @@ let fallbackDir: vscode.Uri | undefined;
 let fallbackDirPromise: Promise<vscode.Uri> | undefined;
 
 /**
- * Collapse every whitespace-only line to an empty one, leaving all other lines byte-exact.
- *
- * This is the form a vdoc is WRITTEN in, and the form its reuse is decided by — and it is
- * what keeps semantic tokens off the per-keystroke disk-write path (plan 🐉8).
- *
- * The builders are LENGTH-PRESERVING: every line that is not the target language's code is
- * blanked to an EQUAL-LENGTH run of spaces, which is precisely what gives the identity
- * coordinate mapping. The cost is that the vdoc's bytes then depend on the length of the
- * user's PROSE. Typing one character in a paragraph lengthens a blanked run, so the vdoc
- * changes, so the byte-comparison below can never hit — and a fresh file is minted,
- * written, opened, and the old one deleted, on every debounced pass, for every language in
- * the document, while the user types. Every line of code was identical each time.
- *
- * Collapsing the blanks removes that dependency entirely: the vdoc becomes a function of
- * the CODE alone, so a prose edit produces byte-identical content and reuses the open model.
- * Nothing that matters is lost:
- *
- *  - **Line indices are preserved** — a line becomes empty, never disappears. The newline
- *    count is untouched, and `vscode.Position` is (line, character), not an offset, so
- *    positions and ranges still pass through unchanged.
- *  - **Every column that anyone can address is preserved.** Requests are only ever made
- *    inside a cell BODY, and results only ever come back from one; those lines are kept
- *    verbatim by every builder. No token, symbol, definition or completion has ever landed
- *    on a blanked line — that is what blanking is FOR.
- *  - **Every language reads a whitespace-only line and an empty one identically.** Python
- *    ignores a blank line outright (it generates no NEWLINE and does not touch the
- *    indentation stack); R, Julia and JavaScript treat whitespace as insignificant.
- *
- * It is also strictly safer than the alternative it replaces (comparing a canonical form
- * while still serving the OLD file): that would leave a vdoc on disk whose blanked lines
- * have lengths the document no longer has, and a formatter DOES touch those lines — Format
- * Cell's fence-deletion bug (Session 87) was a real formatter trimming exactly them. Here
- * the file always holds exactly the bytes the comparison approved, so no stale vdoc exists
- * to reason about.
- */
-function canonicalize(content: string): string {
-  return content
-    .split("\n")
-    .map((line) => (line.trim() === "" ? "" : line))
-    .join("\n");
-}
-
-/**
  * Write `content` as `key`'s virtual document, open its model, and return its `file:`
  * URI — or `undefined` when no writable location exists, in which case the caller
  * simply does not forward (the same graceful degradation as "no language extension
  * installed"). Never throws.
  *
  * Reuses the existing path when the content is unchanged (no write, no new model); mints a
- * fresh path and deletes the previous one when it is not. "Unchanged" is judged — and the
- * file is written — in `canonicalize`d form, so an edit that alters only prose reuses the
- * vdoc while an edit that alters CODE still mints a fresh path.
+ * fresh path and deletes the previous one when it is not.
+ *
+ * "Unchanged" is judged — and the file is WRITTEN — in `canonicalVdocContent` form, so an
+ * edit that alters only prose reuses the vdoc (plan 🐉8) while an edit that alters CODE
+ * still mints a fresh path (M3, above, is untouched). Writing the canonical form rather
+ * than merely comparing against it is deliberate: comparing canonically while serving the
+ * OLD file would leave a vdoc on disk whose blanked lines have lengths the document no
+ * longer has — and a formatter DOES touch those lines (Format Cell's fence-deletion bug,
+ * Session 87, was a real formatter trimming exactly them). Here the file always holds the
+ * bytes the comparison approved, so no stale vdoc exists to reason about.
  */
 export async function ensureVdoc(
   doc: vscode.TextDocument,
   key: VdocKey,
   content: string,
 ): Promise<vscode.Uri | undefined> {
-  const canonical = canonicalize(content);
+  const canonical = canonicalVdocContent(content);
   const ks = vdocKeyString(key);
   const existing = live.get(ks);
   if (existing !== undefined && existing.content === canonical && isModelOpen(existing.uri)) {
