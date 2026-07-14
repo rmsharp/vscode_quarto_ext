@@ -498,6 +498,124 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
     );
   });
 
+  it("SEMANTIC TOKENS: merges REAL Pylance and the REAL built-in JS service into one stream", async () => {
+    // BACKLOG item 16, Slice 2's DONE gate, and the only test that can prove it: two
+    // GENUINELY DIFFERENT language servers, each with its own legend, answering about one
+    // `.qmd` — merged into the single ascending stream VS Code accepts.
+    //
+    // The fixture straddles deliberately. Python's cells sit ABOVE and BELOW the {ojs} cell,
+    // and the provider forwards in first-appearance order (python first), so the streams
+    // concatenate to lines [3, 11, 12, 7] — NOT ascending. The merge's sort is therefore
+    // load-bearing against real data, not just against fixtures: without it the delta from
+    // line 12 back to line 7 is negative and wraps in a Uint32Array to ~4.29 billion.
+    const PY_CONST = 3;
+    const JS_LINE = 7;
+    const PY_DEF = 11;
+    const doc = await writeDoc(
+      "merged.qmd",
+      [
+        "# Title", // 0
+        "", // 1
+        "```{python}", // 2
+        "CONSTANT = 42", // 3   <- python
+        "```", // 4
+        "", // 5
+        "```{ojs}", // 6
+        "const GREETING = 'hi';", // 7   <- javascript, BETWEEN the two python cells
+        "```", // 8
+        "", // 9
+        "```{python}", // 10
+        "def main():", // 11  <- python
+        "    return CONSTANT", // 12  <- python
+        "```", // 13
+        "", // 14
+      ].join("\n"),
+    );
+    await vscode.window.showTextDocument(doc, { preview: false });
+
+    // Poll until BOTH languages have landed. This is not just harness patience: the JS
+    // service's LEGEND command returns `undefined` on its first call while its TOKEN command
+    // already answers (measured this session), so the first pass legitimately carries python
+    // only. That the document is correctly coloured anyway — and then self-heals to include
+    // javascript — IS the "degrades per language" contract, observed rather than asserted.
+    let decoded: ReturnType<typeof decodeTokens> = [];
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+        "vscode.provideDocumentSemanticTokens",
+        doc.uri,
+      );
+      if (tokens !== undefined && tokens.data.length > 0) {
+        decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+        if (decoded.some((t) => t.line === JS_LINE) && decoded.some((t) => t.line === PY_CONST)) {
+          break;
+        }
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+
+    const py = decoded.filter((t) => t.line !== JS_LINE);
+    const js = decoded.filter((t) => t.line === JS_LINE);
+    console.log(
+      `  [merge] ${decoded.length} tokens: ${py.length} from real Pylance, ${js.length} from the ` +
+        `real built-in TS/JS service`,
+    );
+    console.log(
+      `  [merge] ${decoded.map((t) => `${t.type}${t.modifiers.length ? "." + t.modifiers.join(".") : ""}@${t.line}:${t.char}`).join("  ")}`,
+    );
+
+    assert.ok(py.length > 0, "real Pylance must contribute tokens to the merged stream");
+    assert.ok(
+      js.length > 0,
+      `the real built-in JS service must contribute tokens for the {ojs} cell (line ${JS_LINE}). ` +
+        `Got only python's. Slice 1 could reach neither; this is the whole point of Slice 2.`,
+    );
+
+    // THE invariant VS Code requires of any semantic-token stream, and the one the merge
+    // exists to guarantee: strictly ascending (line, char). Two servers' streams interleave
+    // arbitrarily, so this is exactly what a missing sort would break.
+    for (let i = 1; i < decoded.length; i++) {
+      const prev = decoded[i - 1];
+      const cur = decoded[i];
+      assert.ok(
+        cur.line > prev.line || (cur.line === prev.line && cur.char >= prev.char),
+        `the merged stream must be ascending; token ${i} (${cur.type}@${cur.line}:${cur.char}) ` +
+          `follows ${prev.type}@${prev.line}:${prev.char}`,
+      );
+    }
+
+    // Every token must land on a cell BODY line — never a fence, the prose, or the title.
+    const BODY_LINES = new Set([PY_CONST, JS_LINE, PY_DEF, 12]);
+    const stray = decoded.filter((t) => !BODY_LINES.has(t.line));
+    assert.deepStrictEqual(
+      stray.map((t) => `${t.type}@${t.line}:${t.char}`),
+      [],
+      "the identity mapping must land every token inside a cell body",
+    );
+
+    // And the bitset remap, proven from BOTH servers at once — the two disagree about
+    // `readonly` in DIFFERENT ways (Pylance bit 7, the JS service bit 3; ours is bit 2), so
+    // a naive index copy would report the Python constant as `modification` and the JS one
+    // as `static`. Both must arrive as `readonly`.
+    const pyConst = decoded.find((t) => t.line === PY_CONST && t.char === 0);
+    assert.ok(pyConst, "CONSTANT must be tokenized by Pylance");
+    assert.ok(
+      pyConst.modifiers.includes("readonly"),
+      `CONSTANT must carry readonly remapped out of PYLANCE's bit 7; got [${pyConst.modifiers.join(", ")}]`,
+    );
+    const jsConst = decoded.find((t) => t.line === JS_LINE && t.char === 6); // `GREETING`
+    assert.ok(jsConst, "GREETING must be tokenized by the built-in JS service");
+    assert.ok(
+      jsConst.modifiers.includes("readonly"),
+      `GREETING must carry readonly remapped out of the JS SERVICE's bit 3 — a different bit ` +
+        `from Pylance's, decoded against a different legend; got [${jsConst.modifiers.join(", ")}]`,
+    );
+    assert.ok(
+      !jsConst.modifiers.includes("static"),
+      `a naive index copy would make the JS service's readonly (bit 3) our 'static' (bit 3); ` +
+        `got [${jsConst.modifiers.join(", ")}]`,
+    );
+  });
+
   it("formats an {ojs} cell through the built-in JS formatter (Format Cell reaches a REAL provider)", async () => {
     // Format Cell's status against a real PYTHON formatter is UNPROVEN — none is installed
     // here, so even a `file:` control would return 0 edits and prove nothing (this is

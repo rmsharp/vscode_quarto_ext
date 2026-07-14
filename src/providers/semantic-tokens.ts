@@ -22,29 +22,32 @@
  * API commands: callable, but NOT enumerated by `getCommands(true)` — so do not write a
  * test that asserts their presence that way; it fails while the command works.
  *
- * ## Scope: Slice 1 is `{python}` only
+ * ## Scope: every language in the document (Slice 2)
  *
- * One language, one stream. Slice 2 generalizes to every language present in the document
- * and merges the streams (`mergeSemanticTokens`); Slice 3 settles the legend/theming
- * question (D4). The translation core is already legend-agnostic, so neither needs to
- * revisit this file's logic — only its language selection.
+ * A `.qmd` may mix `{python}`, `{r}`, `{julia}` and `{ojs}`. Each gets its own virtual
+ * document and its own server, and the answers — each in its own legend, each covering a
+ * disjoint set of lines — are merged into the ONE ascending stream VS Code accepts
+ * (`mergeSemanticTokens`). A language whose server is absent, silent, or failing drops out
+ * on its own and takes nothing with it.
+ *
+ * Slice 3 still owns the legend/theming question (D4): a token type outside our standard
+ * legend is currently dropped and keeps its TextMate colour. That costs 36% of Pylance's
+ * tokens and 0% of the built-in JS service's (both measured) — the translation core is
+ * legend-agnostic, so Slice 3 changes `OUR_LEGEND`, not this file.
  */
 
 import * as vscode from "vscode";
-import { cellLanguageId } from "../core/embedded/lang-map";
+import type { EmbeddedLang } from "../core/embedded/lang-map";
 import {
-  decodeTokens,
-  encodeTokens,
+  mergeSemanticTokens,
   OUR_LEGEND,
+  type TokenStream,
 } from "../core/embedded/semantic-tokens";
 import {
   buildVirtualContent,
-  hasCellOfLanguage,
+  embeddedLanguagesIn,
 } from "../core/embedded/virtual-doc";
 import { disposeVdocs, ensureVdoc } from "../features/embedded-vdoc";
-
-/** Slice 1's single forwarding target. Slice 2 replaces this with every language present. */
-const SLICE_1_LANGUAGE = "python";
 
 /**
  * Only real documents, and only the two schemes that have somewhere to put a vdoc.
@@ -93,27 +96,56 @@ class EmbeddedSemanticTokensProvider
   async provideDocumentSemanticTokens(
     document: vscode.TextDocument,
   ): Promise<vscode.SemanticTokens | undefined> {
-    const target = cellLanguageId(SLICE_1_LANGUAGE);
-    if (target === null) {
-      return undefined;
-    }
     const text = document.getText();
 
-    // Cheap gate FIRST. VS Code re-requests tokens for every visible `.qmd` on a debounced
-    // timer as the user types, so this runs constantly — including for documents that
-    // contain no Python at all, which is most of them. `hasCellOfLanguage` answers from
-    // the cell scan alone; `buildVirtualContent` additionally rebuilds a full-length copy
-    // of the document, which on a large prose-only `.qmd` is pure waste on the extension
-    // host's single thread (measured at ~29 ms per pass on a 4.4 MB document — every pass
-    // of which was thrown away by the emptiness check that used to live here).
-    if (!hasCellOfLanguage(text, target.languageId)) {
+    // Cheap gate FIRST, and it is now the whole language selection too. VS Code re-requests
+    // tokens for every visible `.qmd` on a debounced timer as the user types, so this runs
+    // constantly — including for the many documents with no code cells at all.
+    // `embeddedLanguagesIn` answers from the cell scan alone, while `buildVirtualContent`
+    // rebuilds a full-length copy of the document per language (~29 ms per pass on a 4.4 MB
+    // prose-only document, on the extension host's single thread).
+    const targets = embeddedLanguagesIn(text);
+    if (targets.length === 0) {
       return undefined;
     }
 
-    // The whole-language virtual document: this language's cell bodies kept verbatim,
-    // everything else blanked to equal-length space runs. That blanking is the identity
-    // mapping — the server's line/character coordinates are already the `.qmd`'s, so no
-    // token needs a coordinate remap.
+    // Concurrently, not sequentially. Each language has its OWN vdoc key, so the mints
+    // cannot collide, and `features/embedded-vdoc.ts` is already proven under concurrent
+    // forwards (the outline forwards every cell at once). Serializing here would make a
+    // 3-language document three round-trips deep on a debounced timer for no benefit.
+    const streams = await Promise.all(
+      targets.map((target) => this.streamFor(document, text, target)),
+    );
+
+    // Each language degrades ON ITS OWN. This is not a nicety: the built-in TS/JS service's
+    // LEGEND command returns `undefined` on the first pass while its TOKEN command already
+    // answers (measured, Session 89), so on a mixed document's first debounced pass one
+    // language routinely has no usable stream. An all-or-nothing merge would leave the
+    // whole document uncoloured, intermittently, for reasons no user could reproduce.
+    const usable = streams.filter((s): s is TokenStream => s !== undefined);
+    if (usable.length === 0) {
+      return undefined; // nobody answered — TextMate colouring stands
+    }
+
+    return new vscode.SemanticTokens(mergeSemanticTokens(usable, OUR_LEGEND));
+  }
+
+  /**
+   * One language's answer, in ITS OWN legend — or `undefined` if it has none to give.
+   *
+   * Never throws, and never lets one language's failure reach another's: every exit here is
+   * a value, so the merge simply proceeds with whatever streams did arrive.
+   */
+  private async streamFor(
+    document: vscode.TextDocument,
+    text: string,
+    target: EmbeddedLang,
+  ): Promise<TokenStream | undefined> {
+    // This language's virtual document: its cell bodies kept verbatim, everything else —
+    // prose, fences, and every OTHER language's cells — blanked to equal-length space runs.
+    // That blanking is the identity mapping: the server's line/character coordinates are
+    // already the `.qmd`'s, so no token needs a coordinate remap, and two languages'
+    // streams necessarily cover disjoint lines.
     const content = buildVirtualContent(text, target.languageId);
 
     const vdocUri = await ensureVdoc(
@@ -132,16 +164,17 @@ class EmbeddedSemanticTokensProvider
       return undefined;
     }
 
-    // The legend is per-server and only knowable at runtime, so it must be fetched
-    // alongside the tokens: the token stream's type/modifier numbers are indices INTO it
-    // and are meaningless without it.
+    // The legend is per-SERVER and only knowable at runtime, so it must be fetched
+    // alongside the tokens: the stream's type/modifier numbers are indices INTO it and are
+    // meaningless without it. With N languages this is N legends, not one — `readonly` is
+    // bit 7 for Pylance and bit 3 for the built-in JS service — which is exactly why the
+    // stream is carried WITH its legend rather than decoded here.
     //
     // Both calls can REJECT, not merely resolve to `undefined` — a language server that
     // errors, is shutting down, or is mid-restart rejects the request. An unhandled
-    // rejection here would propagate out of `provideDocumentSemanticTokens` and break the
-    // contract this whole feature is built on: the worst a failing server may ever do to a
-    // `.qmd` is leave it with its TextMate colouring. So a rejection is a non-answer, and
-    // a non-answer degrades — it never throws.
+    // rejection would propagate out of `provideDocumentSemanticTokens` and break the
+    // contract this whole feature rests on: the worst a failing server may ever do to a
+    // `.qmd` is leave it with its TextMate colouring.
     let legend: vscode.SemanticTokensLegend | undefined;
     let tokens: vscode.SemanticTokens | undefined;
     try {
@@ -162,7 +195,6 @@ class EmbeddedSemanticTokensProvider
       return undefined; // no server for this language, or it declined — TextMate stands
     }
 
-    const decoded = decodeTokens({ data: tokens.data, legend });
-    return new vscode.SemanticTokens(encodeTokens(decoded, OUR_LEGEND));
+    return { data: tokens.data, legend };
   }
 }

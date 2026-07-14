@@ -5,7 +5,6 @@ import {
   buildVirtualContent,
   embeddedCellAt,
   embeddedLanguagesIn,
-  hasCellOfLanguage,
 } from "../../src/core/embedded/virtual-doc";
 
 /** Indices of every `\n` in `s` — the newline-position invariant for identity mapping. */
@@ -262,57 +261,6 @@ describe("embeddedCellAt — the cursor body-gate", () => {
   });
 });
 
-describe("hasCellOfLanguage: the cheap gate that guards buildVirtualContent", () => {
-  // The semantic-tokens provider asks this on every debounced keystroke of every `.qmd`,
-  // so it must be cheap. But it must agree EXACTLY with the expensive thing it guards, or
-  // the "optimization" silently changes behavior. That equivalence IS the contract:
-  //
-  //   hasCellOfLanguage(text, L)  <=>  buildVirtualContent(text, L).trim() !== ""
-  //
-  // Every case below asserts the property as well as the value, so the two can never drift.
-  const agrees = (text: string, lang: string): void => {
-    expect(hasCellOfLanguage(text, lang)).toBe(
-      buildVirtualContent(text, lang).trim() !== "",
-    );
-  };
-
-  it("is true for a document with a non-empty cell of that language", () => {
-    const text = ["# H", "", "```{python}", "x = 1", "```", ""].join("\n");
-    expect(hasCellOfLanguage(text, "python")).toBe(true);
-    agrees(text, "python");
-  });
-
-  it("is false for prose only, and for a cell of a DIFFERENT language", () => {
-    const prose = ["# H", "", "Just words.", ""].join("\n");
-    expect(hasCellOfLanguage(prose, "python")).toBe(false);
-    agrees(prose, "python");
-
-    const other = ["```{r}", "x <- 1", "```", ""].join("\n");
-    expect(hasCellOfLanguage(other, "python")).toBe(false);
-    agrees(other, "python");
-  });
-
-  it("is false for an EMPTY cell, and for one holding only `#|` option lines", () => {
-    // The subtle case, and why this cannot simply be "does a python cell exist?".
-    // buildVirtualContent blanks option lines, so a cell with nothing but options builds
-    // an all-whitespace document: there is nothing to ask a server about, and minting a
-    // vdoc for it would write a file and start a language server for no reason.
-    const empty = ["```{python}", "```", ""].join("\n");
-    expect(hasCellOfLanguage(empty, "python")).toBe(false);
-    agrees(empty, "python");
-
-    const optionsOnly = ["```{python}", "#| echo: false", "```", ""].join("\n");
-    expect(hasCellOfLanguage(optionsOnly, "python")).toBe(false);
-    agrees(optionsOnly, "python");
-  });
-
-  it("is true when a LATER cell has content though an earlier one is empty", () => {
-    const text = ["```{python}", "```", "", "```{python}", "y = 2", "```", ""].join("\n");
-    expect(hasCellOfLanguage(text, "python")).toBe(true);
-    agrees(text, "python");
-  });
-});
-
 describe("embeddedLanguagesIn: every forwarding target present in the document", () => {
   it("returns each language present, in FIRST-APPEARANCE order, with its vdoc extension", () => {
     // Order is the document's, not the language map's and not alphabetical — {ojs} is
@@ -396,9 +344,6 @@ describe("embeddedLanguagesIn: every forwarding target present in the document",
 
     expect(embeddedLanguagesIn(text)).toEqual([{ languageId: "javascript", ext: "js" }]);
     agreesWithBuild(text);
-
-    // And the primitive it subsumes agrees, on the same input.
-    expect(hasCellOfLanguage(text, "python")).toBe(false);
   });
 
   it("omits a language whose cells are EMPTY or hold only option lines", () => {

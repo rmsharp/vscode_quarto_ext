@@ -237,3 +237,233 @@ describe("embedded semantic tokens", () => {
     assert.strictEqual(calls.length, 1, "…but the forward must still have been attempted");
   });
 });
+
+/**
+ * Slice 2 — the multi-language merge.
+ *
+ * TWO stand-ins, one per vdoc extension, each with its OWN legend. That is not test
+ * scaffolding for its own sake: it is exactly how reality is shaped (Pylance registers for
+ * `python` with a 29-type legend; the built-in service registers for `javascript` with a
+ * 12-type one), and it is the only arrangement that can catch the mistake that matters —
+ * fetching ONE legend and decoding BOTH streams against it.
+ *
+ * The two legends are INVERTED relative to each other, so that mistake is loud rather than
+ * subtle: `variable` is index 1 for python and index 0 for javascript, and `readonly` is
+ * bit 1 for python and bit 0 for javascript. Cross-decode a stream and it comes back as a
+ * `function`, or as a `declaration` — a wrong answer, not a missing one.
+ *
+ * Each stand-in emits one token per NON-BLANK line of the document it is handed, which is
+ * what a real server effectively does: it only ever sees its own language's cells, because
+ * every other line has been blanked to spaces.
+ */
+const PY_STANDIN_LEGEND = new vscode.SemanticTokensLegend(
+  ["function", "variable"], // variable = 1
+  ["declaration", "readonly"], // readonly = bit 1
+);
+const JS_STANDIN_LEGEND = new vscode.SemanticTokensLegend(
+  ["variable", "function"], // variable = 0  <- inverted
+  ["readonly", "declaration"], // readonly = bit 0  <- inverted
+);
+
+/** Emit one `variable`+`readonly` token per non-blank line, in `legend`'s own indices. */
+function tokensForNonBlankLines(
+  document: vscode.TextDocument,
+  variableIndex: number,
+  readonlyBit: number,
+): vscode.SemanticTokens {
+  const data: number[] = [];
+  let prevLine = 0;
+  let prevChar = 0;
+  document
+    .getText()
+    .split("\n")
+    .forEach((text, line) => {
+      if (text.trim() === "") {
+        return;
+      }
+      const char = text.length - text.trimStart().length;
+      const deltaLine = line - prevLine;
+      data.push(
+        deltaLine,
+        deltaLine === 0 ? char - prevChar : char,
+        text.trim().length,
+        variableIndex,
+        1 << readonlyBit,
+      );
+      prevLine = line;
+      prevChar = char;
+    });
+  return new vscode.SemanticTokens(new Uint32Array(data));
+}
+
+describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
+  let pyCalls: string[] = [];
+  let jsCalls: string[] = [];
+  let jsLegendIsUndefined = false;
+  let multiDisposables: vscode.Disposable[] = [];
+
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  beforeEach(() => {
+    pyCalls = [];
+    jsCalls = [];
+    jsLegendIsUndefined = false;
+    multiDisposables.push(
+      vscode.languages.registerDocumentSemanticTokensProvider(
+        { scheme: "file", pattern: "**/vdoc-mit.*.py" },
+        {
+          provideDocumentSemanticTokens(document) {
+            pyCalls.push(document.uri.toString());
+            return tokensForNonBlankLines(document, 1, 1);
+          },
+        },
+        PY_STANDIN_LEGEND,
+      ),
+      vscode.languages.registerDocumentSemanticTokensProvider(
+        { scheme: "file", pattern: "**/vdoc-mit.*.js" },
+        {
+          provideDocumentSemanticTokens(document) {
+            jsCalls.push(document.uri.toString());
+            if (jsLegendIsUndefined) {
+              return undefined;
+            }
+            return tokensForNonBlankLines(document, 0, 0);
+          },
+        },
+        JS_STANDIN_LEGEND,
+      ),
+    );
+  });
+
+  afterEach(async () => {
+    multiDisposables.forEach((d) => d.dispose());
+    multiDisposables = [];
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  /**
+   * The fixture that makes the SORT load-bearing. Python's cells straddle the {ojs} cell,
+   * so python's stream carries tokens on lines 1 AND 7 while javascript's carries one on
+   * line 4. The provider forwards in first-appearance order — python first — so the streams
+   * concatenate to lines [1, 7, 4]: not ascending. Merging without sorting does not merely
+   * mis-order them; the delta from line 7 back to line 4 is negative and wraps in a
+   * Uint32Array to ~4.29 billion.
+   */
+  const STRADDLED = [
+    "```{python}", // 0
+    "p1 = 1", // 1  <- python token
+    "```", // 2
+    "```{ojs}", // 3
+    "o = 2", // 4  <- javascript token
+    "```", // 5
+    "```{python}", // 6
+    "p2 = 3", // 7  <- python token
+    "```", // 8
+    "", // 9
+  ].join("\n");
+
+  it("merges {python} and {ojs} into ONE ascending stream, each in its own legend", async () => {
+    const doc = await openQmd(STRADDLED);
+
+    const tokens = await tokensFor(doc);
+
+    assert.ok(tokens !== undefined, "a mixed document must produce tokens");
+    assert.strictEqual(pyCalls.length, 1, "python must be forwarded exactly once");
+    assert.strictEqual(jsCalls.length, 1, "javascript must be forwarded exactly once");
+    assertRoutedThroughVdoc(pyCalls[0], "semantic tokens (python)");
+    assertRoutedThroughVdoc(jsCalls[0], "semantic tokens (javascript)");
+    assert.notStrictEqual(
+      pyCalls[0],
+      jsCalls[0],
+      "each language must get its OWN vdoc — one shared file would blank the other's cells",
+    );
+
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+
+    // Ascending, interleaved, and every token is a `variable`+`readonly` — which it can
+    // only be if EACH stream was decoded against ITS OWN legend (they are inverted, so a
+    // cross-decode yields `function`/`declaration` instead).
+    assert.deepStrictEqual(
+      decoded.map((t) => `${t.type}.${t.modifiers.join(".")}@${t.line}:${t.char}`),
+      [
+        "variable.readonly@1:0", // python
+        "variable.readonly@4:0", // javascript — BETWEEN the two python tokens
+        "variable.readonly@7:0", // python
+      ],
+    );
+  });
+
+  it("colours an {ojs}-only document — a language Slice 1 could not reach at all", async () => {
+    const doc = await openQmd(["# Title", "", "```{ojs}", "o = 1", "```", ""].join("\n"));
+
+    const tokens = await tokensFor(doc);
+
+    assert.ok(tokens !== undefined, "an {ojs}-only document must produce tokens");
+    assert.deepStrictEqual(pyCalls, [], "no python cells: no python vdoc may be written");
+    assert.strictEqual(jsCalls.length, 1);
+
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+    assert.deepStrictEqual(decoded, [
+      { line: 3, char: 0, length: 5, type: "variable", modifiers: ["readonly"] },
+    ]);
+  });
+
+  it("keeps the OTHER language's tokens when one server answers with nothing", async () => {
+    // Measured, not hypothetical (Session 89 probe): the built-in JS service's LEGEND
+    // command returns `undefined` on the first pass while its TOKEN command already
+    // answers. So on a mixed document's first debounced pass, one language routinely has
+    // no usable stream — and an all-or-nothing merge would leave the whole document
+    // uncoloured, intermittently, for reasons the user could never reproduce.
+    jsLegendIsUndefined = true;
+    const doc = await openQmd(STRADDLED);
+
+    const tokens = await tokensFor(doc);
+
+    assert.ok(tokens !== undefined, "python's tokens must survive javascript's silence");
+    assert.strictEqual(jsCalls.length, 1, "…and javascript must genuinely have been asked");
+
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+    assert.deepStrictEqual(
+      decoded.map((t) => `${t.type}@${t.line}:${t.char}`),
+      ["variable@1:0", "variable@7:0"],
+      "exactly python's two tokens — no gap, no throw, no empty document",
+    );
+  });
+
+  it("forwards ONCE per language, not once per cell", async () => {
+    // {ojs} and {js} are two engine tokens for ONE language. Forwarding per cell would ask
+    // the JS server twice about the same vdoc and emit every token twice — a duplicate
+    // stream, which VS Code must never be handed.
+    const doc = await openQmd(
+      [
+        "```{ojs}", // 0
+        "o = 1", // 1
+        "```", // 2
+        "```{js}", // 3
+        "j = 2", // 4
+        "```", // 5
+        "```{python}", // 6
+        "p = 3", // 7
+        "```", // 8
+        "", // 9
+      ].join("\n"),
+    );
+
+    const tokens = await tokensFor(doc);
+
+    assert.ok(tokens !== undefined, "the mixed document must produce tokens");
+    assert.strictEqual(jsCalls.length, 1, "{ojs} and {js} are ONE javascript forward");
+    assert.strictEqual(pyCalls.length, 1);
+
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+    assert.deepStrictEqual(
+      decoded.map((t) => `${t.line}:${t.char}`),
+      ["1:0", "4:0", "7:0"],
+      "both javascript cells appear ONCE each — the single js vdoc holds both",
+    );
+  });
+});
