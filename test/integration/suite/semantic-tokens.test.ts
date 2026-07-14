@@ -1,9 +1,11 @@
 import * as assert from "node:assert";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import {
   decodeTokens,
   OUR_LEGEND,
 } from "../../../src/core/embedded/semantic-tokens";
+import { VDOC_DIR_SEGMENTS } from "../../../src/core/embedded/vdoc-path";
 import { assertRoutedThroughVdoc, VDOC_SELECTOR } from "./vdoc-assert";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
@@ -145,6 +147,58 @@ describe("embedded semantic tokens", () => {
 
     assert.strictEqual(tokens, undefined, "no python cells means no tokens");
     assert.deepStrictEqual(calls, [], "no vdoc may be created or queried");
+  });
+
+  it("writes its vdoc into <workspaceRoot>/.quarto/vdoc-mit/ for an ON-DISK .qmd", async () => {
+    // Every other test here opens an UNTITLED document, which has no workspace folder and
+    // therefore routes through the `mkdtemp` OS-temp fallback. That left the branch that
+    // actually matters — the one that creates a directory and writes a copy of the user's
+    // source INSIDE THEIR REPOSITORY — covered by nothing. The plan warned about exactly
+    // this ("the whole suite must move to real on-disk fixtures"), and the adversarial
+    // review found it had not been heeded.
+    //
+    // The fixture is created and destroyed inside this test: the workspace folder is a
+    // real Quarto project (`project: type: default`), so a stray `.qmd` holding a python
+    // cell would be picked up by `quarto render` in the render-project suite and fail it
+    // for want of a Jupyter kernel.
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    assert.ok(folder, "the integration host must have a workspace folder open");
+    const fixture = vscode.Uri.joinPath(folder.uri, "semantic-tokens-fixture.qmd");
+    await vscode.workspace.fs.writeFile(
+      fixture,
+      new TextEncoder().encode(["```{python}", "x = 1", "```", ""].join("\n")),
+    );
+
+    try {
+      const doc = await vscode.workspace.openTextDocument(fixture);
+      await vscode.window.showTextDocument(doc);
+
+      const tokens = await tokensFor(doc);
+
+      assert.ok(tokens !== undefined, "an on-disk .qmd must produce tokens too");
+      assert.strictEqual(calls.length, 1);
+
+      // The point of the test: the vdoc lives under the workspace root, not in OS temp.
+      const vdocPath = vscode.Uri.parse(calls[0]).fsPath;
+      const expectedDir = vscode.Uri.joinPath(folder.uri, ...VDOC_DIR_SEGMENTS).fsPath;
+      assert.strictEqual(
+        path.dirname(vdocPath),
+        expectedDir,
+        `the vdoc for an on-disk .qmd must be written under the workspace root, not the ` +
+          `untitled/no-folder OS-temp fallback; got ${vdocPath}`,
+      );
+      // And the `.gitignore` that keeps it out of the user's `git status` must be there.
+      const gitignore = vscode.Uri.joinPath(
+        folder.uri,
+        ...VDOC_DIR_SEGMENTS,
+        ".gitignore",
+      );
+      const body = await vscode.workspace.fs.readFile(gitignore);
+      assert.strictEqual(new TextDecoder().decode(body).trim(), "*");
+    } finally {
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+      await vscode.workspace.fs.delete(fixture, { useTrash: false });
+    }
   });
 
   it("returns nothing, and does not throw, when no server serves the embedded language", async () => {

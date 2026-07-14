@@ -467,3 +467,49 @@ describe("embedded vdoc: sweep safety — the delete loop's blast radius", () =>
     await disposeVdocs(doc.uri);
   });
 });
+
+describe("embedded vdoc: a forward still in flight when the document closes", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    await ext.activate();
+  });
+
+  it("does not strand the vdoc on disk, and does not resurrect the closed document's state", async () => {
+    // Found by the Slice 1 adversarial review (completeness critic).
+    //
+    // `disposeVdocs` runs once, synchronously, from `onDidCloseTextDocument`. `ensureVdoc`
+    // reads `live` BEFORE its awaits (writeFile / openTextDocument) and writes `live` and
+    // `docFiles` AFTER them — and `filesOf()` RE-CREATES the `docFiles` entry that
+    // `disposeVdocs` just deleted. So a forward that is mid-await when the document closes
+    // registers a brand-new vdoc against a document that will never be disposed again:
+    // a copy of the user's source is left in `.quarto/vdoc-mit/` inside their repository,
+    // with an open model that the language server keeps analysing, for the rest of the
+    // session.
+    //
+    // Semantic tokens are what make this routine rather than theoretical: they are the one
+    // forward VS Code fires with NO user gesture, on a debounced timer, right up until the
+    // moment the editor closes. Closing a `.qmd` shortly after typing in a python cell is
+    // an ordinary thing to do.
+    const doc = await openProjectQmd();
+    const key = langKey(doc);
+
+    // Start the forward, then close the document WITHOUT awaiting it — the real race.
+    const inFlight = ensureVdoc(doc, key, "import os\nx = 1\n");
+    await disposeVdocs(doc.uri);
+    const uri = await inFlight;
+
+    // Whatever ensureVdoc decided, nothing owned by this document may survive on disk.
+    const names = await nodeFs.readdir(vdocDir().fsPath).catch(() => [] as string[]);
+    const strays = names.filter((n) => isOurVdocFileName(n));
+    assert.deepStrictEqual(
+      strays,
+      [],
+      `a vdoc minted while the document was closing was stranded in the user's workspace: ` +
+        `[${strays.join(", ")}]. It is a copy of their source, and nothing will ever delete it.`,
+    );
+    if (uri !== undefined) {
+      assert.ok(!(await exists(uri)), "the returned vdoc must not exist on disk");
+    }
+  });
+});

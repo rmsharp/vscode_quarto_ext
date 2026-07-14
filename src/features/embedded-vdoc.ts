@@ -93,6 +93,30 @@ const live = new Map<string, LiveVdoc>();
  */
 const docFiles = new Map<string, Map<string, vscode.Uri>>();
 
+/**
+ * `docUri.toString()` -> how many times that document's vdocs have been disposed.
+ *
+ * `ensureVdoc` reads its state before a chain of awaits (mkdir, write, open) and writes it
+ * after them, but `disposeVdocs` runs synchronously from `onDidCloseTextDocument` and can
+ * land in the middle. Without this, a forward that was in flight when the document closed
+ * would resume and re-register its brand-new file — `filesOf()` RE-CREATES the `docFiles`
+ * entry `disposeVdocs` had just deleted — leaving a copy of the user's source in their
+ * workspace that nothing will ever delete, and an open model the language server keeps
+ * analysing, for the rest of the session.
+ *
+ * So: take the epoch before the awaits, compare after. If it moved, the document we were
+ * working for is gone, and the only correct thing to do is clean up and forward nothing.
+ *
+ * Semantic tokens are what made this routine rather than theoretical: they are the one
+ * forward VS Code fires with no user gesture, on a debounced timer, right up to the moment
+ * the editor closes.
+ */
+const disposeEpoch = new Map<string, number>();
+
+function epochOf(docUri: string): number {
+  return disposeEpoch.get(docUri) ?? 0;
+}
+
 /** Lazily-created fallback directory for documents with no workspace folder (untitled). */
 let fallbackDir: vscode.Uri | undefined;
 /**
@@ -127,6 +151,10 @@ export async function ensureVdoc(
     return existing.uri;
   }
 
+  // The owner's dispose count as of NOW, before any await. If it moves while we are
+  // writing and opening, the `.qmd` we are doing this for has been closed underneath us.
+  const epoch = epochOf(key.docUri);
+
   try {
     const dir = await vdocDirFor(doc);
     if (dir === undefined) {
@@ -138,6 +166,15 @@ export async function ensureVdoc(
     // M1 — MANDATORY, and its absence is silent. Without this the language server is
     // never asked about the document and every forward returns `undefined`.
     await vscode.workspace.openTextDocument(uri);
+
+    if (epochOf(key.docUri) !== epoch) {
+      // The document closed while we were working. `disposeVdocs` has already run and will
+      // not run again, so registering this file would strand it — and it holds a copy of
+      // the user's source. Delete it and forward nothing; the caller degrades exactly as
+      // it does when no vdoc can be written at all.
+      await deleteQuietly(uri);
+      return undefined;
+    }
 
     live.set(ks, { uri, content });
     filesOf(key.docUri).set(uri.toString(), uri);
@@ -160,6 +197,12 @@ export async function ensureVdoc(
 /** Delete every vdoc file owned by `docUri` — called when the source document closes. */
 export async function disposeVdocs(docUri: vscode.Uri): Promise<void> {
   const owner = docUri.toString();
+  // Bump FIRST, and unconditionally — before the early return. An `ensureVdoc` can be
+  // mid-await for a document that has no files registered YET (it has not reached its
+  // `live.set`), which is precisely the race this guards: the early return below would
+  // otherwise let that forward resume and register a file against a closed document.
+  disposeEpoch.set(owner, epochOf(owner) + 1);
+
   const files = docFiles.get(owner);
   if (files === undefined) {
     return;
