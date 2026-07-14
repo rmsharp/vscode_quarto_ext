@@ -18,6 +18,24 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S89
+date: 2026-07-14
+status: pending
+active_task: IMPLEMENTATION. BACKLOG item 16, Slice 2 of docs/planning/2026-07-12-embedded-lsp-scheme-and-semantic-tokens-plan.md — the multi-language semantic-token merge. L1 pure core (embeddedLanguagesIn in core/embedded/virtual-doc.ts per plan §6.5; mergeSemanticTokens in core/embedded/semantic-tokens.ts per §5.5 D5). L2 providers/semantic-tokens.ts forwards once per language present and merges the streams into one ascending, legend-consistent array, each language degrading silently on its own. L3 plan 🐉8 — the vdoc-churn fix in features/embedded-vdoc.ts, which plan §7 explicitly assigns to THIS slice and which the multi-language loop makes N× worse. Slice 3 (theming / D4 legend / {ojs} colour verification) is a SEPARATE future session and will NOT be started (FM #18/#26).
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+Session claimed at Phase 1B. Gate (a) re-verified at Orient: zero drift; both new symbols
+(`mergeSemanticTokens`, `embeddedLanguagesIn`) confirmed greenfield by grep; baseline green at 784
+unit. This block is the crash breadcrumb — Phase 3D overwrites it to `status: complete`.
+
+```handoff
 session: S88
 date: 2026-07-13
 status: complete
