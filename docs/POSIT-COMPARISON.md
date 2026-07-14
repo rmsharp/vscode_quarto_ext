@@ -270,22 +270,28 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   and more. **Separately, since v1.127.0 (2025-12-17, PR #868), Posit layers real semantic-tokens
   highlighting on top of the static grammar** when the user's installed language extension supplies an
   LSP with semantic-highlighting support (Posit's own documented example: Pylance). **We now have this
-  mechanism too, for `{python}` — Session 88 (item 16, Slice 1)** — but not yet at parity: it is one
-  language, and it carries only the *standard* VS Code token types, so Pylance's own names (`module`,
-  `selfParameter`, `builtinConstant`, `magicFunction` — a measured 36% of its tokens) are dropped and
-  keep their TextMate colour. Slice 2 adds the multi-language merge; Slice 3 settles the legend/theming
-  question. Still a real gap, now a narrower one.
+  mechanism too, for EVERY embedded language at once — Sessions 88–89 (item 16, Slices 1–2)**: each
+  language in a `.qmd` is forwarded to its own server and the answers are merged into one ordered
+  stream (verified against real Pylance **and** the real built-in TS/JS service together, in
+  `npm run test:lsp`). The residual gap is no longer scope but *theming*: we carry only the **standard**
+  VS Code token types, so a server's own names (Pylance's `module`, `selfParameter`, `builtinConstant`,
+  `magicFunction` — a measured **36%** of its tokens; the built-in JS service loses **0%**) are dropped
+  and keep their TextMate colour. Slice 3 settles that legend/theming question (D4). A real gap still,
+  and now a narrow one.
 - *Notes:* **No longer "Direct parity."** Two distinct, previously-uncovered gaps: (1) breadth —
   **narrowed Session 76 from 5 scopes to 20** (our new count) vs. Posit's 50; the residual gap is
   `dot`/`mermaid`/`typst` (deliberately excluded from item 13(a) — see the new "Standalone diagram/typst
   language registration" row below, a distinct registration mechanism, not this grammar's
   `embeddedLanguages` map) and Stan/PRQL/Scala/others from Posit's undisclosed "and more" (no confirmed
   VS-Code-bundled scope for these; Scala in particular is not bundled, unlike everything else on the
-  list, so a real one needs its own firsthand research, not assumption); (2) mechanism — **partially
-  closed, Session 88.** `src/providers/semantic-tokens.ts` is a real `SemanticTokensProvider`, and
-  `{python}` cells now get LSP-driven semantic colouring from the user's own server (proven against real
-  Pylance in `npm run test:lsp`, not a stand-in). The residual gap is scope, not mechanism: other
-  languages (Slice 2) and the foreign-token-name/theming decision (Slice 3) are still to come.
+  list, so a real one needs its own firsthand research, not assumption); (2) mechanism — **closed for
+  every embedded language, Sessions 88–89.** `src/providers/semantic-tokens.ts` is a real
+  `SemanticTokensProvider`; it forwards **every** language present in the document to its own server and
+  merges the streams (`mergeSemanticTokens`) into the one ascending stream VS Code accepts. Proven with
+  two REAL servers at once, not stand-ins: a `.qmd` whose `{ojs}` cell sits between two `{python}` cells
+  comes back correctly interleaved from real Pylance and the real built-in TS/JS service. The residual
+  gap is now only **theming** — the foreign-token-name decision (D4, Slice 3), which is what would
+  recover the 36% of Pylance's tokens we currently drop to TextMate.
 
 **Code-cell language embedding — completion/hover/go-to-def/signature-help/diagnostics forwarding.
 (Verdict revised — Session 67: previously ambiguous/unbucketed → Real gap.)**

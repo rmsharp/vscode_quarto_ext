@@ -9,6 +9,29 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 <!-- Add entries here as work is completed. Group by month when the list grows. -->
 
+### 2026-07-14 · [BL-16] (Session 89 — **every language in your document is now semantically coloured, not just `{python}`.** Item 16 Slice 2 SHIPPED; only Slice 3 remains, so item 16 stays open.)
+
+**A `.qmd` that mixes `{python}`, `{r}`, `{julia}` and `{ojs}` now gets each language coloured by that
+language's own server** — all merged into one stream, correctly ordered, with each server's token names
+and modifier bits translated out of its own legend and into ours.
+
+- **`{ojs}` cells are coloured too, by VS Code's own built-in TypeScript/JavaScript service** — no extra
+  extension to install. Proven end to end with **two real servers at once**: a document whose `{ojs}` cell
+  sits between two `{python}` cells comes back correctly interleaved from real Pylance and the real
+  built-in service.
+- **Typing in your prose no longer rewrites a file on disk.** Previously every keystroke — anywhere in the
+  document, including in a paragraph — rebuilt, rewrote and reopened a virtual document for *every*
+  language in it, several times a second, and made the language server re-analyse from scratch each time.
+  It now happens only when you change **code** (plan 🐉8; the backlog item is closed).
+- A language whose server is missing, slow, or failing quietly drops out on its own; the other languages
+  are unaffected, and its cells keep their normal colouring. If a server was merely still starting, we now
+  ask VS Code to come back — it would not have on its own.
+- Fixed along the way: a cell fenced ```` ```{constructor} ```` (or any other `Object.prototype` name)
+  caused a copy of that cell's source to be written to `.quarto/vdoc-mit/…​.undefined` on every pass.
+
+Slice 3 (theming — carrying a server's own token names, which is what recovers the 36% of Pylance's
+tokens we currently leave to the static grammar) is the only part of item 16 still to come.
+
 ### 2026-07-13 · [BL-16] (Session 88 — **NEW: semantic highlighting for `{python}` cells, from your own language server.** Item 16 Slice 1 SHIPPED; Slices 2–3 remain, so item 16 stays open.)
 
 **Your `{python}` cells are now coloured by Pylance, not just by a static grammar.**

@@ -7,8 +7,8 @@
 ## ACTIVE TASK
 **Task:** **Session 89 — IMPLEMENTATION: `BACKLOG.md` item 16 — Slice 2 of `docs/planning/2026-07-12-embedded-lsp-scheme-and-semantic-tokens-plan.md`: the multi-language semantic-token merge.** Layers per plan §7 Slice 2 (+ §5.5 D5, §6.5): **(L1)** pure core — `embeddedLanguagesIn(text)` in `src/core/embedded/virtual-doc.ts` (§6.5 — the last thing that module still owes the plan) and `mergeSemanticTokens(streams, ourLegend)` in `src/core/embedded/semantic-tokens.ts` (§5.5 D5); **(L2)** `src/providers/semantic-tokens.ts` — replace the `SLICE_1_LANGUAGE = "python"` constant with one forward per language present, merged into ONE ascending, legend-consistent stream, each language degrading silently on its own; **(L3)** plan **🐉8** — the vdoc-churn fix in `src/features/embedded-vdoc.ts`, which plan §7 **explicitly assigns to this slice** ("measure it and debounce/cache if the cost is real — the plan's biggest performance unknown") and which Slice 2 makes N× worse by minting one vdoc *per language* per debounced pass; re-verified across all four consumers. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. **Slice 3 (theming / the D4 legend decision / `{ojs}` colour verification) is a SEPARATE future session — do not start it (FM #18/#26).**
 **Started:** 2026-07-14
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** **SHIPPED. Item 16 Slice 2 is done; item 16 stays OPEN (only Slice 3 remains).** Every embedded language in a `.qmd` is now coloured by its own server, merged into one ascending stream. **Proven against TWO REAL SERVERS AT ONCE** (`npm run test:lsp`): a `.qmd` whose `{ojs}` cell sits BETWEEN two `{python}` cells returns `variable.declaration.readonly@3:0` (real Pylance), `variable.declaration.readonly@7:6` (real built-in TS/JS), `function.declaration@11:4`, `variable.readonly@12:11` — correctly interleaved, so the merge's sort is load-bearing against real data. The bitset remap is load-bearing **twice over, from two directions**: `readonly` is bit 7 for Pylance and bit 3 for the JS service, and bit 3 is *our* `static`. Plan **🐉8 (the vdoc churn) is RESOLVED**. **A 49-agent adversarial review (8 lenses × 2 skeptics + completeness critic, ~3.6M subagent tokens; 24 findings → 22 survived) found that MY OWN 🐉8 fix had broken the identity mapping** — the invariant the entire embedded architecture rests on. Fixed, plus a missing `onDidChangeSemanticTokens` (a language that missed the first pass could stay uncoloured until the user typed), an untested never-throw guard, and a prototype-pollution bug. 803 unit / 314 integration / 12 real-LSP; clean 43-file `.vsix`.
+**Ledger:** `CHANGELOG: 2026-07-14 · [BL-16] (Session 89 — item 16 Slice 2 SHIPPED: multi-language semantic-token merge + 🐉8 resolved; Slice 3 remains)` entry written.
 **Gate (a) contract re-verified at Orient against current code — ZERO drift.** Every layer's target is where the plan and the S88 handoff say it is, and both new symbols are genuinely greenfield: `core/embedded/semantic-tokens.ts` exports `decodeTokens` / `encodeTokens` / `OUR_LEGEND` / `Legend` / `TokenStream` / `AbsToken` and **no `mergeSemanticTokens`**; `core/embedded/virtual-doc.ts` exports `embeddedCellAt` / `buildVirtualContent` / `hasCellOfLanguage` / `buildCellVirtualContent` and **no `embeddedLanguagesIn`**; `providers/semantic-tokens.ts:47` is the `SLICE_1_LANGUAGE = "python"` constant L2 replaces (and its `QMD` selector, `LEGEND`, and never-throws `try`/`catch` all generalize unchanged); `features/embedded-vdoc.ts:145` is the reuse branch `existing.content === content` that 🐉8's canonical-form fix changes. Baseline green, verified firsthand this session: **784 unit** (44 files) — matching the S87→S88 receipt exactly.
 **The merge is provable against TWO REAL servers, and that decides the DONE gate.** `core/embedded/lang-map.ts:36` maps `ojs → {languageId:"javascript", ext:"js"}`, and `:59` records that **`javascript` is always built-in** — so VS Code's own TS/JS language server serves the second stream with **no extra extension install**, inside the existing `npm run test:lsp` harness (which installs only Python+Pylance). The plan's Slice-2 DONE criterion — "a `.qmd` mixing `{python}` and `{r}`/`{ojs}` returns one correctly-ordered, legend-consistent array" — is therefore verifiable end to end against real Pylance **and** real TS/JS, not a stand-in. (This is *not* Slice 3's `{ojs}` item: Slice 3 owns the **theming/colour** decision (D4). Slice 2 owns only "do the two streams merge into one correctly-ordered array".)
 **Scope note recorded at claim:** the LOW "deleting the last `{python}` cell strands the previous vdoc" item is filed against the churn item ("the fix belongs with the churn item above, since both are about the whole-language vdoc's lifecycle"). It is in scope for L3 **only if** the churn fix's own lifecycle reconciliation covers it; if it needs separate surface, it stays filed and I will say so rather than quietly bundling it.
@@ -21,6 +21,92 @@
 **Gate (a) contract re-verified at Orient against current code — ZERO drift, with two Slice-0 refinements the plan's prose predates and that Slice 1 MUST build against (not against §6.4's stale pseudocode):** (1) `VdocKey` no longer carries `version` — the adapter owns a module-level monotonic counter (`embedded-vdoc.ts:82`) — and instead carries `ext`; the shipped shape is `{docUri, languageId, ext, kind, cellStartLine?}` (`vdoc-path.ts:52`). The plan's `ensureVdoc(doc, {kind:"lang", languageId:L, version:++v, …}, content)` would not compile. (2) `ensureVdoc` is **reuse-on-unchanged-content / fresh-path-on-change** (`embedded-vdoc.ts:121`), not literally "fresh path per computation" — strictly better (it is what keeps a per-keystroke provider off the disk, 🐉8) and already break-revert-proven. Verified present and unchanged: `ensureVdoc` owns the mandatory `openTextDocument` (M1, `embedded-vdoc.ts:140`); `buildVirtualContent` (`virtual-doc.ts:83`) gives the identity mapping that lands tokens in `.qmd` coordinates with **no remap**; `providers/embedded.ts:95` `vdocFor` is the exact `kind:"lang"` pattern to mirror; `extension.ts:64` is the wiring point; `npm run test:lsp` exists. **Greenfield confirmed by grep:** zero hits for `SemanticTokens` / `semantic-tokens` / `provideDocumentSemanticTokens` / `embeddedLanguagesIn` across `src/` + `test/` + `package.json`. Baseline green: 767 unit.
 **Kickoff decisions (operator, via `AskUserQuestion`):** run `npm run test:lsp` (real-Pylance Extension Development Host) freely this session — it is the only evidence that can prove Slice 1, since a stand-in cannot (the item-18 lesson); run `npm run test:integration` as routine.
 **Scope note on D4 (the legend), recorded at claim:** the plan defers the *theming* decision — carry Pylance's foreign type names + `contributes.semanticTokenScopes`, vs. map them to their `superType` — to **Slice 3** (§5.4). Slice 1 therefore declares the **standard VS Code legend** and takes the plan's explicit safe fallback: a token whose type is absent from our legend is **dropped** (it keeps its TextMate colour — degraded, never *wrong*), and unknown modifier *bits* are **cleared, not token-dropping**. Consequence to measure and report, not to silently ship: Pylance's `module` / `selfParameter` / `builtinConstant` / `magicFunction` / `intrinsic` tokens fall outside the standard set, so part of a Python cell keeps TextMate colouring until Slice 3. I will measure the real drop rate against real Pylance and hand Slice 3 the number.
+
+## Session 88 Handoff Evaluation (by Session 89)
+
+**Score: 10/10.** The third consecutive 10, and it earned it the way the last two did: every
+load-bearing claim held up firsthand, and its process advice produced this session's best decision
+*and* caught its worst mistake.
+
+- **What helped, decisively:** `next_steps` was the session. It named the exact layer split, told me
+  `mergeSemanticTokens` **IS** `encodeTokens(streams.flatMap(decodeTokens))` (I verified rather than
+  trusted — it was exactly right, so L1's core was 4 lines), and told me Slice 2 **owns** the 🐉8 churn
+  item with the measurement already done. I inherited evidence instead of a question.
+- **Gotcha #3 (the modifier BITSET) paid off a second time, in a way S88 could not have predicted.**
+  It sent me to measure the *built-in TS/JS* legend before writing anything — and `readonly` is bit 3
+  there, where OUR legend has `static`. A naive copy would have told the theme that every JS `const` is
+  static. Two servers, two different collisions, one habit.
+- **Gotcha #8 ("run the standing adversarial review on ANY slice even when green — NINE consecutive")
+  is the single most valuable line in the receipt, and it is the reason this session did not ship a
+  regression.** I was green across the whole matrix — 803 unit, 314 integration, 12 real-LSP against
+  real servers — and the review still found that my own 🐉8 fix broke the identity mapping. Ten now.
+- **Gotcha #4 (the Mocha loader globs the BUILD OUTPUT) saved me directly** — I deleted my grounding
+  probe's `.ts` *and* its compiled `.js`, and never saw the phantom test S88 lost a minute to.
+- **What was missing:** one thing, and it is small. The receipt said the plan's §6.5 signature was
+  `embeddedLanguagesIn(text): string[]`, and did not flag that this **cannot compile** against the
+  shipped `VdocKey`, which needs `ext` (there is no languageId→ext reverse map). S88 had already found
+  the same class of staleness in §6.4 and recorded it; §6.5 had the same disease and went unremarked.
+  Cost: two minutes.
+- **What was wrong:** nothing. 784 unit / 307 integration / 11 real-LSP / clean 43-file `.vsix` matched
+  my starting state exactly; both ledger frontiers reconciled with a `status: complete` receipt.
+- **ROI:** As high as it gets.
+
+## Session 89 Self-Assessment
+
+- **Phase 0 completed in full** (`SAFEGUARDS.md` in full → `pwd` + `SESSION_NOTES.md` ACTIVE TASK →
+  `gh issue list` (0 → `BACKLOG.md` governs; Active empty) → `git status`/`log`/`diff` →
+  `methodology_dashboard.py` (78/100; the "critical" flag is the long-accepted **dev-only** npm-audit
+  posture) → ledger reconcile (CHANGELOG frontier `0dd4c3a`, HANDOFFS frontier = HEAD `aea8875`; the one
+  post-frontier commit is the S88 close-out doc commit whose action is already recorded → **no backfill
+  owed**) → report → `AskUserQuestion` per the standing CLAUDE.md step). Operator picked item 16 Slice 2.
+- **Gate (a) re-verified before claiming — and I recorded where the PLAN was stale rather than
+  discovering it at compile time.** §6.5's `string[]` signature cannot serve the shipped `VdocKey`
+  (which needs `ext`); I returned the resolved `EmbeddedLang` targets and said why.
+- **Measured the real dependency BEFORE designing, again, and it paid for itself twice.** A throwaway
+  probe (written, run, **deleted** — both the `.ts` and its compiled `.js`) established three facts the
+  plan did not have: the built-in TS/JS service *does* serve tokens on our `file:` vdoc (the plan
+  recorded this as UNTESTED, and it is what makes `{ojs}` a real merge partner); its `readonly` is bit 3
+  where ours is `static`; and its **legend command returns `undefined` on the first call while its token
+  command already answers** — which is why "each language degrades on its own" is the common path, not a
+  nicety, and which later turned out to be a *user-visible bug* (finding #2) rather than just a design note.
+- **Strict TDD with genuine REDs** (module missing → empty/options-only cells counted → `mergeSemanticTokens`
+  missing, 6 tests → the provider forwards only python, 4 tests → the churn reproduced as a failing test →
+  the identity-mapping regression → prototype pollution). Checkpoint commit at every layer boundary.
+- **I made a real process mistake and caught it myself.** I ran the L1 break-revert battery against an
+  **uncommitted** implementation and used `git checkout --` to revert each mutant — which silently
+  deleted the code I had just written, so five of six mutant results were measuring "function missing",
+  not the mutant. I noticed, restored, committed first, and re-ran. Corrected discipline, now a gotcha:
+  **commit the checkpoint, then mutate.**
+- **The battery — derived from INVARIANTS, per Learning #97 — caught three of its own holes**, and each
+  was a real gap: the content gate was unpinned (no fixture had a cell whose body was *multiple blank
+  lines*); "first-appearance order" was unpinned (my example put `{ojs}` first, where first-appearance
+  and alphabetical *agree*, while my own comment claimed it discriminated); and trimming EVERY line
+  rather than only blank ones left all 313 integration tests green (no fixture had **indented** code).
+- **Ran the standing adversarial review even though the entire matrix was green — TEN consecutive slices
+  — and it found that my own 🐉8 fix had broken the identity mapping.** A blank line inside a cell body
+  is a CODE line the cursor sits on after every Enter-with-auto-indent; my canonicalization emptied it,
+  so completion forwarded a column that no longer existed. My doc-comment asserted the *opposite*, in
+  three confident bullets. Semantic tokens never noticed (no token lands on a blank line) — which is
+  exactly why every lens pointed at the semantic-token diff missed it, and why 12/12 real-LSP tests
+  against real servers could not catch it. **Not one fixture in the repo contains a whitespace-only
+  line.** That is Learning #98, and it is the cautionary half of this session.
+- **Arbitrated rather than deferred.** 24 findings, 22 survived both skeptics. I fixed 4 (the regression,
+  the missing `onDidChangeSemanticTokens`, the untested never-throw guard, the prototype pollution) and
+  **filed 5 with their mechanisms and measurements** rather than half-fixing them — including the two I
+  could not verify firsthand (the R/Julia passive-minting behaviour: no such server installed here, and
+  I said so instead of guessing).
+- **Runtime verification (Phase 3E): materially exceeded.** Driven end to end against **two real language
+  servers**, with controls, and re-run in full after every fix — including after the regression fix, which
+  is what proves all four consumers still work.
+- **Corrected the docs my change made FALSE** (Learning #7/#10): `POSIT-COMPARISON.md` twice said semantic
+  highlighting was `{python}`-only with Slice 2 still to come.
+- **Self-score: 8/10.** The feature is real, proven against two real servers rather than doubles, the
+  performance dragon the plan assigned to this slice is genuinely dead, and every finding is fixed or
+  filed with evidence. **Not higher because I shipped a regression to the invariant the entire embedded
+  architecture rests on, defended it in a comment with three false bullets, and was saved by the review
+  rather than by my own verification.** I also mis-ran my own battery and nearly lost the implementation.
+  The system caught both, which is the system working — but the safety argument was mine, and I should
+  have gone looking for the input that violated it instead of asserting that none existed.
 
 ## Session 87 Handoff Evaluation (by Session 88)
 
