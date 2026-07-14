@@ -396,7 +396,24 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
     //
     // The CONTROL is the same Python as a plain `.py`. If Pylance serves no tokens THERE,
     // nothing can be concluded here.
-    const body = ["import os", "", "CONSTANT = 42", "", "def main(w):", "    return os.getcwd()"];
+    // The `class C` / `__init__` / `self` / `True` lines are NOT decoration. Without them this
+    // fixture contains only names D4 CARRIES, so the "the ten stay dropped" assertion below
+    // would pass vacuously — an assertion that cannot fail is worth nothing (Learning #98:
+    // zero hits in the fixtures means UNTESTED, not safe). These four lines make real Pylance
+    // emit `magicFunction` (__init__), `selfParameter` (self) and `builtinConstant` (True) —
+    // the exact names D4 decided NOT to carry — so the assertion genuinely discriminates.
+    const body = [
+      "import os",
+      "",
+      "CONSTANT = 42",
+      "",
+      "def main(w):",
+      "    return os.getcwd()",
+      "",
+      "class C:",
+      "    def __init__(self):",
+      "        self.flag = True",
+    ];
 
     const control = await writeDoc("tokens-control.py", `${body.join("\n")}\n`);
     await vscode.window.showTextDocument(control, { preview: false });
@@ -487,11 +504,52 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
         `and silently tell the theme a constant is being mutated.`,
     );
 
-    // Report the D4 cost with real numbers, so Slice 3 does not have to guess.
+    // ── Slice 3 / D4 — THE DONE GATE ────────────────────────────────────────────────────
+    //
+    // `os` must now come back as a `module` token. This is the entire user-visible win of
+    // D4, and it is the one assertion no stand-in and no unit test can make for us: `module`
+    // is a name only a REAL Pylance emits, and until this slice our legend dropped it on the
+    // floor. It appears twice in the fixture — the `import os` on the first body line, and
+    // the `os.getcwd()` on the last — so we can also prove it is not a one-off.
+    //
+    // If this fails while the control is green, the legend change did not reach the wire.
+    const modules = decoded.filter((t) => t.type === "module");
+    assert.ok(
+      modules.length >= 2,
+      `real Pylance types \`os\` as \`module\`, and D4 carries that name. Expected it on the ` +
+        `\`import os\` line and again in \`os.getcwd()\`; got ${modules.length}. Decoded: ` +
+        decoded.map((t) => `${t.type}@${t.line}:${t.char}`).join(", "),
+    );
+    const importedOs = decoded.find((t) => t.line === BODY_FIRST && t.char === 7);
+    assert.ok(importedOs, "expected a token for `os` at the import, .qmd line 3 col 7");
+    assert.strictEqual(
+      importedOs.type,
+      "module",
+      "`os` must survive as `module` — the foreign name D4 decided to CARRY, because " +
+        "MagicPython gives a module name no TextMate scope at all and so the semantic layer " +
+        "has something to add and nothing to destroy",
+    );
+    console.log(
+      `  [D4] ${modules.length} \`module\` tokens survived into our legend: ` +
+        modules.map((t) => `${t.type}@${t.line}:${t.char}`).join(", "),
+    );
+
+    // And the names D4 decided NOT to carry must still be absent — carrying them would strand
+    // each token on a superType default that is measurably WRONG in the real default theme.
+    const mustNotCarry = ["selfParameter", "magicFunction", "builtinConstant", "parenthesis"];
+    const leaked = decoded.filter((t) => mustNotCarry.includes(t.type));
+    assert.deepStrictEqual(
+      leaked.map((t) => t.type),
+      [],
+      "the ten foreign names Pylance styles ITSELF must stay dropped — TextMate already " +
+        "colours them correctly, and overriding it can only make them worse",
+    );
+
+    // Report the post-D4 numbers with real data.
     const dropped = controlCount - decoded.length;
     console.log(
       `  [tokens] forwarded ${decoded.length} of Pylance's ${controlCount} tokens ` +
-        `(${dropped} dropped as foreign to our standard legend — the D4 / Slice 3 decision)`,
+        `(${dropped} deliberately dropped — the names Pylance styles itself, D4/Slice 3)`,
     );
     console.log(
       `  [tokens] ${decoded.map((t) => `${t.type}${t.modifiers.length ? "." + t.modifiers.join(".") : ""}@${t.line}:${t.char}`).join("  ")}`,
