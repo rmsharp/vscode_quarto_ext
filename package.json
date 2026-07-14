@@ -415,6 +415,19 @@
         "path": "./snippets/quarto.json"
       }
     ],
+    "semanticTokenScopes": [
+      {
+        "language": "quarto",
+        "scopes": {
+          "module": [
+            "entity.name.namespace"
+          ],
+          "intrinsic": [
+            "keyword.operator"
+          ]
+        }
+      }
+    ],
     "configuration": {
       "title": "Quarto",
       "properties": {

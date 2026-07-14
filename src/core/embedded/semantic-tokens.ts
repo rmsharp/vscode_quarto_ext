@@ -92,8 +92,13 @@ export interface AbsToken {
  * would mean OUR uninstall deletes PYLANCE's registration and degrades the user's plain `.py`
  * files.
  *
- * ORDER IS SIGNIFICANT — these are positional indices, declared up front at registration.
- * APPEND new names; never insert.
+ * Order is NOT significant, and it is worth saying so rather than leaving a plausible-sounding
+ * warning that the code does not actually back. These names become positional indices, but the
+ * registration legend (`providers/semantic-tokens.ts`) and the encoder's index map are BOTH
+ * derived from this one array, so they cannot disagree — inserting a name shifts them together.
+ * The only indexed reads elsewhere in this module are against the SOURCE server's legend, never
+ * ours. (Checked by break-revert: a mutant that inserts `module` at the FRONT instead of
+ * appending leaves all tests green — because there is no defect for them to catch.)
  */
 export const OUR_LEGEND: Legend = {
   tokenTypes: [
