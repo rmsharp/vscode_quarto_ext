@@ -46,6 +46,35 @@ describe("semantic-tokens: decoding a server's delta-encoded stream", () => {
     ]);
   });
 
+  it("RESETS char at a new line — deltaChar is relative to the line, not the stream", () => {
+    // The line that decides where every colour lands, and the one my first battery did
+    // NOT pin: an adversarial review proved that deleting the reset
+    // (`char = deltaLine === 0 ? char + deltaChar : deltaChar` -> `char += deltaChar`)
+    // left the ENTIRE suite green — 777 unit + 304 integration — because every
+    // multi-token stream in it happened to sit on ONE line, so `char` was always 0 at the
+    // moment a new line arrived and the two branches agreed.
+    //
+    // In the wild it is never 0. deltaChar is relative to the previous token ON THE SAME
+    // LINE; when the line advances it is an ABSOLUTE column. Carry the old column over and
+    // every token after the first line drifts right, cumulatively — the whole cell
+    // mis-coloured, drifting further with each line.
+    //
+    // Two tokens, two DIFFERENT lines, and the first is NOT at column 0. That is what it
+    // takes to tell the two implementations apart.
+    const stream = {
+      data: new Uint32Array([
+        3, 8, 4, 1, 0, // line 3, char 8
+        1, 4, 3, 1, 0, // line 4, char 4  — NOT char 12
+      ]),
+      legend: { tokenTypes: ["comment", "keyword"], tokenModifiers: [] },
+    };
+
+    expect(decodeTokens(stream).map((t) => [t.line, t.char])).toEqual([
+      [3, 8],
+      [4, 4],
+    ]);
+  });
+
   it("treats a malformed stream as EMPTY rather than throwing, and never half-decodes it", () => {
     // §6.2's error contract. A server that returns a stream whose length is not a
     // multiple of 5 is broken, but a broken server must degrade the document to TextMate
@@ -57,6 +86,39 @@ describe("semantic-tokens: decoding a server's delta-encoded stream", () => {
     };
 
     expect(decodeTokens(stream)).toEqual([]);
+  });
+
+  it("DROPS a token whose type index is outside the source legend", () => {
+    // The stream and the legend disagree — we cannot know what this token is. Dropping it
+    // (rather than emitting `type: undefined` behind an interface that promises `string`)
+    // keeps the malformed value from reaching Slice 2's merge, where TypeScript would not
+    // warn anyone about it.
+    const stream = {
+      data: new Uint32Array([
+        0, 0, 4, 999, 0, // type index 999: out of bounds
+        0, 5, 2, 1, 0, // a good token, which must survive
+      ]),
+      legend: { tokenTypes: ["comment", "keyword"], tokenModifiers: [] },
+    };
+
+    expect(decodeTokens(stream)).toEqual([
+      { line: 0, char: 5, length: 2, type: "keyword", modifiers: [] },
+    ]);
+  });
+
+  it("never aliases modifier bit 32 onto bit 0 (JS shifts are mod 32)", () => {
+    // `1 << 32 === 1` in JavaScript. A legend longer than 32 modifiers would therefore
+    // make index 32 fire whenever bit 0 is set, attaching a modifier the server never sent
+    // — the one failure this module must never have, since it would MIS-colour rather than
+    // merely under-colour. No server ships 33 modifiers today (Pylance has 15), so this is
+    // a guard against a future one, and against Slice 2 inheriting the bug.
+    const tokenModifiers = Array.from({ length: 34 }, (_, i) => `m${i}`);
+    const stream = {
+      data: new Uint32Array([0, 0, 1, 0, 0b1]), // ONLY bit 0 is set
+      legend: { tokenTypes: ["variable"], tokenModifiers },
+    };
+
+    expect(decodeTokens(stream)[0].modifiers).toEqual(["m0"]); // never ["m0", "m32"]
   });
 
   it("decodes an empty stream to nothing", () => {

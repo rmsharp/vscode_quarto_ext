@@ -79,11 +79,21 @@ export function decodeTokens(stream: TokenStream): AbsToken[] {
     const deltaChar = data[i + 1];
     line += deltaLine;
     char = deltaLine === 0 ? char + deltaChar : deltaChar;
+    const type = legend.tokenTypes[data[i + 3]];
+    if (type === undefined) {
+      // A type index past the end of the server's own legend: the stream and the legend
+      // disagree, so we cannot know what this token is. Drop it here rather than emit an
+      // AbsToken whose `type` is `undefined` while the interface promises a `string` —
+      // TypeScript cannot catch an out-of-bounds index, and the next consumer (Slice 2's
+      // merge) would dereference it with no warning. `encodeTokens` would drop it anyway;
+      // this makes that intentional instead of incidental.
+      continue;
+    }
     out.push({
       line,
       char,
       length: data[i + 2],
-      type: legend.tokenTypes[data[i + 3]],
+      type,
       modifiers: modifierNames(data[i + 4], legend.tokenModifiers),
     });
   }
@@ -147,7 +157,12 @@ export function encodeTokens(tokens: AbsToken[], ourLegend: Legend): Uint32Array
  */
 function modifierNames(bits: number, tokenModifiers: string[]): string[] {
   const names: string[] = [];
-  for (let bit = 0; bit < tokenModifiers.length; bit++) {
+  // Stop at 32. The bitset is one uint32, so a legend may only ever address 32 modifiers —
+  // and JS shift counts are taken mod 32, so `1 << 32` is `1`, not 0. Looping past the end
+  // would therefore make modifier 32 alias modifier 0 and silently attach a name the
+  // server never set, which is the one thing this module promises never to do.
+  const addressable = Math.min(tokenModifiers.length, 32);
+  for (let bit = 0; bit < addressable; bit++) {
     if ((bits & (1 << bit)) !== 0) {
       names.push(tokenModifiers[bit]);
     }

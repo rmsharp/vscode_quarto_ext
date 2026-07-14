@@ -37,13 +37,32 @@ import {
   encodeTokens,
   OUR_LEGEND,
 } from "../core/embedded/semantic-tokens";
-import { buildVirtualContent } from "../core/embedded/virtual-doc";
+import {
+  buildVirtualContent,
+  hasCellOfLanguage,
+} from "../core/embedded/virtual-doc";
 import { disposeVdocs, ensureVdoc } from "../features/embedded-vdoc";
 
 /** Slice 1's single forwarding target. Slice 2 replaces this with every language present. */
 const SLICE_1_LANGUAGE = "python";
 
-const QMD: vscode.DocumentSelector = { language: "quarto" };
+/**
+ * Only real documents, and only the two schemes that have somewhere to put a vdoc.
+ *
+ * The scheme filter is load-bearing here in a way it is not for the gesture-driven
+ * forwards. VS Code asks a semantic-tokens provider about EVERY visible model with no
+ * user action at all — including the read-only `git:` side of a "Compare with HEAD" diff.
+ * With a bare `{language:"quarto"}` selector we would answer for that document too, and
+ * since `getWorkspaceFolder()` is scheme-aware and returns nothing for `git:`, the vdoc
+ * would silently take the `mkdtemp` fallback: writing the HEAD revision of the user's
+ * Python out to a temp directory and starting a language server on it, every time they
+ * look at a diff. `untitled:` legitimately uses that fallback (there is no workspace
+ * directory to use); `git:` and friends have no business creating one.
+ */
+const QMD: vscode.DocumentSelector = [
+  { language: "quarto", scheme: "file" },
+  { language: "quarto", scheme: "untitled" },
+];
 
 /** The legend we declare up front, as VS Code requires (see `OUR_LEGEND`). */
 const LEGEND = new vscode.SemanticTokensLegend(
@@ -80,16 +99,22 @@ class EmbeddedSemanticTokensProvider
     }
     const text = document.getText();
 
+    // Cheap gate FIRST. VS Code re-requests tokens for every visible `.qmd` on a debounced
+    // timer as the user types, so this runs constantly — including for documents that
+    // contain no Python at all, which is most of them. `hasCellOfLanguage` answers from
+    // the cell scan alone; `buildVirtualContent` additionally rebuilds a full-length copy
+    // of the document, which on a large prose-only `.qmd` is pure waste on the extension
+    // host's single thread (measured at ~29 ms per pass on a 4.4 MB document — every pass
+    // of which was thrown away by the emptiness check that used to live here).
+    if (!hasCellOfLanguage(text, target.languageId)) {
+      return undefined;
+    }
+
     // The whole-language virtual document: this language's cell bodies kept verbatim,
     // everything else blanked to equal-length space runs. That blanking is the identity
     // mapping — the server's line/character coordinates are already the `.qmd`'s, so no
-    // token needs a coordinate remap. It is also why a document with no cells of this
-    // language yields content that is entirely whitespace: there is nothing to ask about,
-    // so do not write a file or wake a language server for it.
+    // token needs a coordinate remap.
     const content = buildVirtualContent(text, target.languageId);
-    if (content.trim() === "") {
-      return undefined;
-    }
 
     const vdocUri = await ensureVdoc(
       document,

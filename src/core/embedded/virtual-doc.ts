@@ -102,6 +102,45 @@ export function buildVirtualContent(text: string, languageId: string): string {
 }
 
 /**
+ * Whether `text` has anything for `languageId`'s server to look at — i.e. at least one
+ * NON-BLANK body line that `buildVirtualContent` would keep.
+ *
+ * The cheap gate in front of the expensive builder. Its contract is an equivalence, not
+ * an approximation:
+ *
+ *   `hasCellOfLanguage(text, L)` ⟺ `buildVirtualContent(text, L).trim() !== ""`
+ *
+ * and the unit tests assert exactly that property on every case, so the two cannot drift.
+ * It exists because the semantic-tokens provider runs on a debounced timer for every
+ * visible `.qmd` — including the great majority that contain no code cells at all — and
+ * `buildVirtualContent` rebuilds a full-length copy of the document before its caller can
+ * discover there was nothing in it (≈29 ms per pass on a 4.4 MB prose-only document, on
+ * the extension host's single thread).
+ *
+ * Note it is deliberately NOT "does a cell of this language exist": an empty cell, or one
+ * holding only `#|` option lines, builds an all-whitespace vdoc. There is nothing to ask a
+ * server about, and minting a vdoc for it would write a file and start a language server
+ * for nothing.
+ */
+export function hasCellOfLanguage(text: string, languageId: string): boolean {
+  const lines = text.split("\n");
+  const optionLines = new Set(findCellOptionLines(text).map((o) => o.line));
+  for (const cell of findAllCells(text)) {
+    const el = cellLanguageId(cell.lang);
+    if (el === null || el.languageId !== languageId) {
+      continue;
+    }
+    const lastBody = cell.startLine + bodyLineCount(cell);
+    for (let i = cell.startLine + 1; i <= lastBody; i++) {
+      if (!optionLines.has(i) && lines[i].trim() !== "") {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * The virtual document for exactly ONE cell (BACKLOG item 11 slice 2, outline
  * in-cell symbol forwarding, plan §2.1/§2.3). `buildVirtualContent` above keeps
  * EVERY cell of a given language — correct for cursor-position forwarding
