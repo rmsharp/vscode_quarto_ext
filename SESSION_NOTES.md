@@ -75,14 +75,16 @@
   decision — "dropping `selfParameter` is strictly worse than carrying it" — by resolving the colours:
   carrying it bare gives #ffa657, matching neither the #79c0ff a `.qmd` shows today nor the #c9d1d9 a
   real `.py` shows. It would invent a third colour. The drop stands.
-- **Runtime verification (Phase 3E): PARTIAL, and disclosed rather than papered over.** The mechanism is
-  proven end to end against **real Pylance** (12/12, `module@3:7` and `module@8:11` at real `.qmd`
-  coordinates), and the colours are resolved through VS Code's own theme trie over the real default
-  theme. But **the actual pixels were not eyeballed by me** — the F5 pass needs a real window, and I
-  asked the operator before launching anything on their screen (per the standing confirm-before-
-  screen-prompting rule). The command and the checklist are in the handoff. **The residual risk is
-  small and bounded** (does `os` turn teal, does `__init__` stay #DCDCAA) and it cannot regress anything
-  that the 12/12 real-LSP gate already proves — but it is not zero, and I am not claiming it.
+- **Runtime verification (Phase 3E): PASS — mechanism AND pixels.** The mechanism is proven end to end
+  against **real Pylance** (12/12, `module@3:7` and `module@8:11` at real `.qmd` coordinates), colours
+  resolved through VS Code's own theme trie. The pixels were then confirmed in a real window: I asked the
+  operator before launching anything on their screen (the standing confirm-before-screen-prompting rule),
+  they ran the isolated EDH, and reported both decisive predictions holding — **`os`/`np` are now TEAL
+  where they were plain foreground** (the D4 win is real, not a no-op) and **`__init__` is STILL yellow
+  (#DCDCAA), NOT purple** (the regression the naive answer would have shipped did not occur). "Inspect
+  Editor Tokens and Scopes" reads "(module) os", confirming the semantic classification, not just the
+  colour. `self`/`True` unchanged. **Phase 3E was completed IN this session rather than deferred** — the
+  verification of this session's work is this session's step, not the next session's audit.
 - **Self-score: 8/10.** The decision is right, it is grounded in the shipped bytes rather than in the
   plan's framing, it inverted an inherited assumption that would have shipped a regression, and every
   finding is fixed or filed with evidence. **Not higher because I shipped a dead legend entry and a dead
