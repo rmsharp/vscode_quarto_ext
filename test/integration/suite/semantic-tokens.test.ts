@@ -140,12 +140,12 @@ describe("embedded semantic tokens", () => {
     // ...and the body line therefore sits on its own .qmd line, verbatim.
     assert.strictEqual(vdocLines[5], "y = 2", "the cell body must sit on ITS OWN .qmd line");
 
-    // The front-matter line is still THERE — blanked, not removed. It is now EMPTY rather
-    // than an equal-length run of spaces: `ensureVdoc` canonicalizes whitespace-only lines
-    // to "" before writing, so that the vdoc is a function of the CODE alone and a prose
-    // keystroke does not mint a new file (plan 🐉8). Nothing addressable moves — no request
-    // or result has ever landed on a blanked line, which is what blanking is for — and the
-    // count assertion above is what actually pins "not removed".
+    // The front-matter line is still THERE — blanked, not removed. It is EMPTY rather than an
+    // equal-length run of spaces: `buildVirtualContent` blanks non-code lines to "", so the
+    // vdoc is a function of the CODE alone and a prose keystroke does not mint a new file
+    // (plan 🐉8). The count assertion above is what actually pins "not removed"; the blanking
+    // happens in the BUILDER, which is the only thing that knows which lines are body lines
+    // (a whitespace-only line inside a cell is code, and is kept verbatim).
     assert.strictEqual(vdocLines[1], "", "front matter must be blanked, not removed");
   });
 
@@ -426,6 +426,14 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
     // answers. So on a mixed document's first debounced pass, one language routinely has
     // no usable stream — and an all-or-nothing merge would leave the whole document
     // uncoloured, intermittently, for reasons the user could never reproduce.
+    //
+    // NOTE on faithfulness (adversarial review, Session 89): this flag makes javascript's
+    // TOKENS command return nothing, which is the EASY half. The half that actually happens —
+    // a real token stream paired with an UNDEFINED legend — cannot be staged through
+    // `registerDocumentSemanticTokensProvider`, because the legend comes from the
+    // registration itself and is always defined. That guard is therefore pinned where it can
+    // be: in the pure core, which now treats a legendless stream as empty rather than
+    // dereferencing it (`semantic-tokens.test.ts`, "a stream with no usable legend degrades").
     jsLegendIsUndefined = true;
     const doc = await openQmd(STRADDLED);
 

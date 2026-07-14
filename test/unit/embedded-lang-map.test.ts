@@ -46,3 +46,22 @@ describe("needsLanguageExtension — degradation signal (§9 Q6)", () => {
     expect(needsLanguageExtension("javascript", ["python", "javascript"])).toBe(false);
   });
 });
+
+describe("cellLanguageId: an engine token is DATA, never a property of Object.prototype", () => {
+  it("returns null for inherited keys like {constructor} / {toString} / {valueOf}", () => {
+    // Adversarial review (Session 89). `LANGUAGES[lang] ?? null` over an object LITERAL walks
+    // the prototype chain, so `cellLanguageId("constructor")` returned Object's constructor —
+    // a truthy function — instead of null. Downstream, `embeddedLanguagesIn` emitted a target
+    // of {languageId: undefined, ext: undefined}, and the semantic-tokens provider wrote a copy
+    // of the user's source to `.quarto/vdoc-mit/vdoc-mit.<id>.<n>.undefined` and opened a model
+    // on it, on every debounced pass. A cell fence is user input; it must never index a prototype.
+    for (const evil of ["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"]) {
+      expect(cellLanguageId(evil)).toBeNull();
+    }
+  });
+
+  it("still resolves the real engines", () => {
+    expect(cellLanguageId("python")).toEqual({ languageId: "python", ext: "py" });
+    expect(cellLanguageId("ojs")).toEqual({ languageId: "javascript", ext: "js" });
+  });
+});

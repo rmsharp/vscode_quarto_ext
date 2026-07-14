@@ -440,3 +440,50 @@ describe("mergeSemanticTokens: one document, N language servers (Slice 2, plan �
     ]);
   });
 });
+
+describe("a stream with no usable legend degrades — it must never throw out of the provider", () => {
+  // Adversarial review (Session 89), test-faithfulness lens: the provider DOES guard against
+  // pairing a real token stream with an undefined legend, but nothing tested that guard — the
+  // integration stand-in made the TOKENS command return undefined, which is the opposite of the
+  // failure that was actually MEASURED (the built-in TS/JS legend command returns undefined on
+  // its first call while its token command already answers). Deleting the guard left the whole
+  // suite green, and in production it would have thrown a TypeError out of
+  // provideDocumentSemanticTokens — stripping semantic colour from the ENTIRE document,
+  // every other language included.
+  //
+  // So the guarantee now lives in the core, where it is total.
+  const REAL_TOKENS = new Uint32Array([3, 0, 8, 7, 9]);
+
+  it("decodes to nothing when the legend is undefined, rather than throwing", () => {
+    expect(() =>
+      decodeTokens({ data: REAL_TOKENS, legend: undefined as never }),
+    ).not.toThrow();
+    expect(decodeTokens({ data: REAL_TOKENS, legend: undefined as never })).toEqual([]);
+  });
+
+  it("merges to nothing when a stream's legend is undefined, and keeps the OTHER language", () => {
+    const good = {
+      data: new Uint32Array([7, 0, 8, 15, 129]),
+      legend: { tokenTypes: PYLANCE_TYPES, tokenModifiers: PYLANCE_MODIFIERS },
+    };
+    const legendless = { data: REAL_TOKENS, legend: undefined as never };
+
+    const merged = mergeSemanticTokens([legendless, good], OUR_LEGEND);
+    const decoded = decodeTokens({ data: merged, legend: OUR_LEGEND });
+
+    // Python survives intact; the legend-less stream contributes nothing and takes nothing.
+    expect(decoded).toEqual([
+      { line: 7, char: 0, length: 8, type: "variable", modifiers: ["declaration", "readonly"] },
+    ]);
+  });
+
+  it("tolerates a malformed legend object (missing / non-array fields)", () => {
+    expect(decodeTokens({ data: REAL_TOKENS, legend: {} as never })).toEqual([]);
+    expect(
+      decodeTokens({
+        data: REAL_TOKENS,
+        legend: { tokenTypes: "nope", tokenModifiers: [] } as never,
+      }),
+    ).toEqual([]);
+  });
+});

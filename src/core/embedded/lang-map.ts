@@ -42,7 +42,13 @@ const LANGUAGES: Readonly<Record<string, EmbeddedLang>> = {
  * the mapped set (no forwarding). 6e-1 maps only `python`.
  */
 export function cellLanguageId(lang: string): EmbeddedLang | null {
-  return LANGUAGES[lang] ?? null;
+  // OWN properties only. `lang` comes straight out of a ```` ```{...} ```` fence — it is user
+  // input, and a bare `LANGUAGES[lang]` walks the prototype chain: `cellLanguageId("constructor")`
+  // returned `Object.prototype.constructor`, a truthy function, instead of `null`. Everything
+  // downstream believed it: `embeddedLanguagesIn` emitted `{languageId: undefined, ext: undefined}`,
+  // and the semantic-tokens provider — which runs with no user gesture — wrote a copy of the cell's
+  // source to `.quarto/vdoc-mit/vdoc-mit.<id>.<n>.undefined` and opened a model on it, every pass.
+  return Object.prototype.hasOwnProperty.call(LANGUAGES, lang) ? LANGUAGES[lang] : null;
 }
 
 /**

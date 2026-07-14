@@ -56,7 +56,6 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import * as vscode from "vscode";
-import { canonicalVdocContent } from "../core/embedded/virtual-doc";
 import {
   isOurVdocFileName,
   VDOC_DIR_SEGMENTS,
@@ -73,10 +72,10 @@ import {
  */
 const INSTANCE_ID = randomUUID().replace(/-/g, "").slice(0, 12);
 
-/** A vdoc we currently have on disk, with the (canonicalized) content it was written with. */
+/** A vdoc we currently have on disk, with the content it was written with. */
 interface LiveVdoc {
   uri: vscode.Uri;
-  /** Always `canonicalVdocContent` — the exact bytes on disk, and what reuse is judged on. */
+  /** The exact bytes on disk, and what reuse is judged against. */
   content: string;
 }
 
@@ -137,24 +136,27 @@ let fallbackDirPromise: Promise<vscode.Uri> | undefined;
  * Reuses the existing path when the content is unchanged (no write, no new model); mints a
  * fresh path and deletes the previous one when it is not.
  *
- * "Unchanged" is judged — and the file is WRITTEN — in `canonicalVdocContent` form, so an
- * edit that alters only prose reuses the vdoc (plan 🐉8) while an edit that alters CODE
- * still mints a fresh path (M3, above, is untouched). Writing the canonical form rather
- * than merely comparing against it is deliberate: comparing canonically while serving the
- * OLD file would leave a vdoc on disk whose blanked lines have lengths the document no
- * longer has — and a formatter DOES touch those lines (Format Cell's fence-deletion bug,
- * Session 87, was a real formatter trimming exactly them). Here the file always holds the
- * bytes the comparison approved, so no stale vdoc exists to reason about.
+ * The comparison is a plain byte-equality on what the BUILDER produced, and that is enough
+ * to keep this off the per-keystroke disk-write path (plan 🐉8) because the builders blank
+ * every non-code line to EMPTY: a virtual document is a function of the CODE alone, so an
+ * edit that only touches prose yields identical bytes and reuses the open model, while an
+ * edit that touches CODE differs and mints a fresh path (M3, above, is untouched).
+ *
+ * An earlier attempt at 🐉8 canonicalized HERE instead — collapsing every whitespace-only
+ * line before writing. That was wrong, and the adversarial review caught it: a blank line
+ * INSIDE a cell body is a code line the user can put their cursor on (press Enter in a
+ * Python function and auto-indent leaves you at column 4 of a whitespace-only line), and
+ * emptying it moved a column the forwarded position still referred to. Only the builders
+ * know which lines are body lines, so only the builders may blank them.
  */
 export async function ensureVdoc(
   doc: vscode.TextDocument,
   key: VdocKey,
   content: string,
 ): Promise<vscode.Uri | undefined> {
-  const canonical = canonicalVdocContent(content);
   const ks = vdocKeyString(key);
   const existing = live.get(ks);
-  if (existing !== undefined && existing.content === canonical && isModelOpen(existing.uri)) {
+  if (existing !== undefined && existing.content === content && isModelOpen(existing.uri)) {
     // Unchanged content: the open model already holds exactly these bytes, so there is
     // nothing to invalidate and nothing to write. This is the common case (hovering,
     // completing, re-outlining without an edit — and now every prose keystroke) and it is
@@ -174,7 +176,7 @@ export async function ensureVdoc(
     }
     version += 1;
     const uri = vscode.Uri.joinPath(dir, vdocFileName(INSTANCE_ID, version, key.ext));
-    await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(canonical));
+    await vscode.workspace.fs.writeFile(uri, new TextEncoder().encode(content));
     // M1 — MANDATORY, and its absence is silent. Without this the language server is
     // never asked about the document and every forward returns `undefined`.
     await vscode.workspace.openTextDocument(uri);
@@ -188,7 +190,7 @@ export async function ensureVdoc(
       return undefined;
     }
 
-    live.set(ks, { uri, content: canonical });
+    live.set(ks, { uri, content });
     filesOf(key.docUri).set(uri.toString(), uri);
     if (existing !== undefined) {
       // The ordinary supersede: same key, new content (a keystroke in the same cell).

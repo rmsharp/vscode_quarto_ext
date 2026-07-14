@@ -3,7 +3,6 @@ import { findAllCells } from "../../src/core/qmd/model";
 import {
   buildCellVirtualContent,
   buildVirtualContent,
-  canonicalVdocContent,
   embeddedCellAt,
   embeddedLanguagesIn,
 } from "../../src/core/embedded/virtual-doc";
@@ -35,33 +34,40 @@ const DOC = [
   "More prose.", // 12
 ].join("\n");
 
-describe("buildVirtualContent — length-preserving per-language blanking", () => {
+describe("buildVirtualContent — line-preserving per-language blanking", () => {
   it("keeps only {python} body lines verbatim, blanking everything else", () => {
     const v = buildVirtualContent(DOC, "python").split("\n");
     expect(v[8]).toBe("import pandas as pd");
     expect(v[9]).toBe("x = 1");
     // Front matter, prose, fences, and the `#|` option line are blanked to
     // equal-length space runs.
-    expect(v[1]).toBe(" ".repeat("title: Demo".length));
-    expect(v[4]).toBe(" ".repeat("Some prose.".length));
-    expect(v[6]).toBe(" ".repeat("```{python}".length));
-    expect(v[7]).toBe(" ".repeat("#| echo: false".length));
-    expect(v[10]).toBe(" ".repeat("```".length));
-    expect(v[12]).toBe(" ".repeat("More prose.".length));
+    expect(v[1]).toBe("");
+    expect(v[4]).toBe("");
+    expect(v[6]).toBe("");
+    expect(v[7]).toBe("");
+    expect(v[10]).toBe("");
+    expect(v[12]).toBe("");
   });
 
-  it("is the identity map: same length and same newline positions as the source", () => {
+  it("is the identity map: same LINE COUNT, and every kept line at its own index", () => {
+    // The invariant that matters is the LINE one, not the byte one. `vscode.Position` is
+    // (line, character): a forwarded position round-trips iff its line index is unchanged and
+    // its column still exists on that line. Byte-length equality with the .qmd was a STRONGER
+    // property than that — and it is exactly what made a prose keystroke rewrite the vdoc for
+    // every language, on every debounced pass (plan 🐉8). Non-code lines are now blanked to
+    // EMPTY, so the vdoc is a function of the code alone.
     const v = buildVirtualContent(DOC, "python");
-    expect(v.length).toBe(DOC.length);
-    expect(newlineIndices(v)).toEqual(newlineIndices(DOC));
+    expect(v.split("\n").length).toBe(DOC.split("\n").length);
+    expect(newlineIndices(v).length).toBe(newlineIndices(DOC).length);
+    expect(v.split("\n")[8]).toBe("import pandas as pd");
+    expect(v.split("\n")[9]).toBe("x = 1");
   });
 
-  it("stays length/newline-preserving on a CRLF document (built from raw text)", () => {
+  it("stays line-preserving on a CRLF document, keeping the body line verbatim (with its CR)", () => {
     const crlf = ["```{python}", "x = 1", "```"].join("\r\n");
     const v = buildVirtualContent(crlf, "python");
-    expect(v.length).toBe(crlf.length);
-    expect(newlineIndices(v)).toEqual(newlineIndices(crlf));
-    // The kept body line is verbatim, including its trailing CR.
+    expect(v.split("\n").length).toBe(crlf.split("\n").length);
+    // The kept body line is verbatim, including its trailing CR — built from the RAW text (G4).
     expect(v.split("\n")[1]).toBe("x = 1\r");
   });
 
@@ -75,7 +81,7 @@ describe("buildVirtualContent — length-preserving per-language blanking", () =
       "```", // 5
     ].join("\n");
     const v = buildVirtualContent(text, "python").split("\n");
-    expect(v[1]).toBe(" ".repeat("y <- 2".length));
+    expect(v[1]).toBe("");
     expect(v[4]).toBe("z = 3");
   });
 });
@@ -102,31 +108,31 @@ describe("buildVirtualContent — multi-language documents (6e-2)", () => {
   it("the python vdoc keeps only python bodies, blanking r/julia/ojs", () => {
     const v = buildVirtualContent(MIXED, "python").split("\n");
     expect(v[1]).toBe("p = 1");
-    expect(v[4]).toBe(" ".repeat("r_v <- 2".length));
-    expect(v[7]).toBe(" ".repeat("j = 3".length));
-    expect(v[11]).toBe(" ".repeat("o = 4".length));
+    expect(v[4]).toBe("");
+    expect(v[7]).toBe("");
+    expect(v[11]).toBe("");
   });
 
   it("the r vdoc keeps only r bodies, blanking python/julia/ojs", () => {
     const v = buildVirtualContent(MIXED, "r").split("\n");
     expect(v[4]).toBe("r_v <- 2");
-    expect(v[1]).toBe(" ".repeat("p = 1".length));
-    expect(v[7]).toBe(" ".repeat("j = 3".length));
-    expect(v[11]).toBe(" ".repeat("o = 4".length));
+    expect(v[1]).toBe("");
+    expect(v[7]).toBe("");
+    expect(v[11]).toBe("");
   });
 
   it("the julia vdoc keeps only julia bodies, blanking the rest", () => {
     const v = buildVirtualContent(MIXED, "julia").split("\n");
     expect(v[7]).toBe("j = 3");
-    expect(v[1]).toBe(" ".repeat("p = 1".length));
-    expect(v[4]).toBe(" ".repeat("r_v <- 2".length));
+    expect(v[1]).toBe("");
+    expect(v[4]).toBe("");
   });
 
   it("the javascript vdoc keeps the {ojs} body and blanks its `//|` option line", () => {
     const v = buildVirtualContent(MIXED, "javascript").split("\n");
     expect(v[11]).toBe("o = 4");
-    expect(v[10]).toBe(" ".repeat("//| echo: false".length));
-    expect(v[1]).toBe(" ".repeat("p = 1".length));
+    expect(v[10]).toBe("");
+    expect(v[1]).toBe("");
   });
 
   it("keeps cross-cell same-language state: two {python} cells both survive in one python vdoc", () => {
@@ -142,14 +148,13 @@ describe("buildVirtualContent — multi-language documents (6e-2)", () => {
     const v = buildVirtualContent(text, "python").split("\n");
     expect(v[1]).toBe("import numpy as np");
     expect(v[5]).toBe("np.array([1])");
-    expect(v[3]).toBe(" ".repeat("Some prose.".length));
+    expect(v[3]).toBe("");
   });
 
-  it("is the identity map (length + newline positions) for every languageId of a mixed doc", () => {
+  it("is the identity map (LINE COUNT) for every languageId of a mixed doc", () => {
     for (const lang of ["python", "r", "julia", "javascript"]) {
       const v = buildVirtualContent(MIXED, lang);
-      expect(v.length).toBe(MIXED.length);
-      expect(newlineIndices(v)).toEqual(newlineIndices(MIXED));
+      expect(v.split("\n").length).toBe(MIXED.split("\n").length);
     }
   });
 });
@@ -168,10 +173,10 @@ describe("buildCellVirtualContent — isolates exactly ONE cell (BACKLOG item 11
     const [first, second] = findAllCells(text);
     const v = buildCellVirtualContent(text, first).split("\n");
     expect(v[1]).toBe("import numpy as np");
-    expect(v[5]).toBe(" ".repeat("np.array([1])".length));
+    expect(v[5]).toBe("");
     // Sanity: the second cell's own vdoc keeps ITS body and blanks the first's.
     const v2 = buildCellVirtualContent(text, second).split("\n");
-    expect(v2[1]).toBe(" ".repeat("import numpy as np".length));
+    expect(v2[1]).toBe("");
     expect(v2[5]).toBe("np.array([1])");
   });
 
@@ -179,7 +184,7 @@ describe("buildCellVirtualContent — isolates exactly ONE cell (BACKLOG item 11
     const text = ["```{python}", "#| echo: false", "import pandas as pd", "```"].join("\n");
     const [cell] = findAllCells(text);
     const v = buildCellVirtualContent(text, cell).split("\n");
-    expect(v[1]).toBe(" ".repeat("#| echo: false".length));
+    expect(v[1]).toBe("");
     expect(v[2]).toBe("import pandas as pd");
   });
 
@@ -195,25 +200,27 @@ describe("buildCellVirtualContent — isolates exactly ONE cell (BACKLOG item 11
     ].join("\n");
     const [cell] = findAllCells(text);
     const v = buildCellVirtualContent(text, cell).split("\n");
-    expect(v[1]).toBe(" ".repeat("title: Demo".length));
-    expect(v[3]).toBe(" ".repeat("Some prose.".length));
-    expect(v[4]).toBe(" ".repeat("```{python}".length));
+    expect(v[1]).toBe("");
+    expect(v[3]).toBe("");
+    expect(v[4]).toBe("");
     expect(v[5]).toBe("x = 1");
-    expect(v[6]).toBe(" ".repeat("```".length));
+    expect(v[6]).toBe("");
   });
 
-  it("is the identity map: same length and same newline positions as the source", () => {
+  it("is the identity map: same LINE COUNT, and the cell's body at its own index", () => {
+    // Line-preserving, not byte-preserving — see buildVirtualContent's identity test for why
+    // (`vscode.Position` is (line, character), and byte equality is what caused 🐉8).
     const v = buildCellVirtualContent(DOC, findAllCells(DOC)[0]);
-    expect(v.length).toBe(DOC.length);
-    expect(newlineIndices(v)).toEqual(newlineIndices(DOC));
+    expect(v.split("\n").length).toBe(DOC.split("\n").length);
+    expect(newlineIndices(v).length).toBe(newlineIndices(DOC).length);
+    expect(v.split("\n")[8]).toBe("import pandas as pd");
   });
 
-  it("stays length/newline-preserving on a CRLF document (built from raw text)", () => {
+  it("stays line-preserving on a CRLF document, keeping the body line verbatim", () => {
     const crlf = ["```{python}", "x = 1", "```"].join("\r\n");
     const [cell] = findAllCells(crlf);
     const v = buildCellVirtualContent(crlf, cell);
-    expect(v.length).toBe(crlf.length);
-    expect(newlineIndices(v)).toEqual(newlineIndices(crlf));
+    expect(v.split("\n").length).toBe(crlf.split("\n").length);
     expect(v.split("\n")[1]).toBe("x = 1\r");
   });
 });
@@ -423,69 +430,57 @@ describe("embeddedLanguagesIn: every forwarding target present in the document",
   });
 });
 
-describe("canonicalVdocContent: the vdoc is a function of the CODE, not the prose (🐉8)", () => {
-  it("collapses whitespace-only lines to empty, and touches NOTHING else", () => {
-    // The whole contract in one case. The builders blank non-code lines to EQUAL-LENGTH
-    // space runs, so the vdoc's bytes depend on the length of the user's prose — type one
-    // character in a paragraph and every language's vdoc is rewritten. Collapsing the
-    // blanks makes the vdoc depend on the code alone.
-    const blanked = ["     ", "x = 1", "", "\t  ", "y = 2"].join("\n");
+describe("the identity mapping holds for a WHITESPACE-ONLY line inside a cell body", () => {
+  // The adversarial review's headline (Session 89), and a regression this session INTRODUCED.
+  //
+  // A blank line inside a code cell is a CODE-BODY line — `embeddedCellAt` returns a hit on it,
+  // so completion/hover/definition/signature-help forward the user's position there unchanged.
+  // It arises constantly: press Enter inside a Python function and VS Code's auto-indent writes
+  // "    " into the buffer and puts the cursor at column 4.
+  //
+  // The first 🐉8 fix collapsed EVERY whitespace-only line to "" — including that one. Column 4
+  // then did not exist in the virtual document, so the forwarded position no longer described
+  // where the user was. Semantic tokens never noticed (no token lands on a blank line), which is
+  // exactly why every lens pointed at the semantic-token diff missed it.
+  const CELL = [
+    "```{python}", // 0
+    "def f():", // 1
+    "    x = 1", // 2
+    "    ", // 3  <- whitespace-only BODY line: the cursor sits here after Enter
+    "    return x", // 4
+    "```", // 5
+    "", // 6
+  ].join("\n");
 
-    expect(canonicalVdocContent(blanked)).toBe(["", "x = 1", "", "", "y = 2"].join("\n"));
+  it("keeps a whitespace-only BODY line verbatim, so the cursor's column still exists", () => {
+    expect(embeddedCellAt(CELL, 3)).not.toBeNull(); // it IS a forwardable code line
+
+    const vdoc = buildVirtualContent(CELL, "python").split("\n");
+    expect(vdoc[3]).toBe("    "); // NOT "" — column 4 must exist for the forwarded position
   });
 
-  it("PRESERVES leading indentation on a code line — it is not a trim", () => {
-    // The line that decides whether the vdoc is still valid Python. Trimming every line
-    // (rather than only the whitespace-only ones) leaves the whole unit + integration suite
-    // GREEN — every fixture in them sits at column 0 — while making `def f():\n    return 1`
-    // an IndentationError and moving every token's column. Derived from the invariant, not
-    // from the lines I happened to write (Learning #97).
-    const indented = ["def f():", "    return 1", "        # deep", "\tif x:"].join("\n");
-
-    expect(canonicalVdocContent(indented)).toBe(indented);
+  it("keeps it in the per-cell vdoc too (outline / Format Cell ride on this one)", () => {
+    const [cell] = findAllCells(CELL);
+    expect(buildCellVirtualContent(CELL, cell).split("\n")[3]).toBe("    ");
   });
 
-  it("preserves the line COUNT exactly — a line goes empty, never away", () => {
-    // What makes the identity mapping survive: vscode.Position is (line, character), not an
-    // offset, so line indices are the thing that must not move. Removing a blank line would
-    // shift every line below it and mis-place every token in the document.
-    const text = ["", "a = 1", "   ", "", "b = 2", "  "].join("\n");
-    const out = canonicalVdocContent(text);
-
-    expect(out.split("\n").length).toBe(text.split("\n").length);
-    expect(out.split("\n")[4]).toBe("b = 2");
+  it("preserves the LINE COUNT and every body line's index — the invariant positions need", () => {
+    // vscode.Position is (line, character), never an offset. So what must not move is the LINE
+    // INDEX of every code line, and the COLUMN of everything on it. Byte-length equality with the
+    // .qmd was a stronger property than that, and it is precisely what made a prose keystroke
+    // rewrite the vdoc (🐉8).
+    const v = buildVirtualContent(CELL, "python").split("\n");
+    expect(v.length).toBe(CELL.split("\n").length);
+    expect(v[1]).toBe("def f():");
+    expect(v[2]).toBe("    x = 1");
+    expect(v[4]).toBe("    return x");
+    expect(v[0]).toBe(""); // the fence is blanked away entirely
   });
 
-  it("is idempotent, and a no-op on content that is already canonical", () => {
-    const once = canonicalVdocContent(buildVirtualContent(DOC, "python"));
-    expect(canonicalVdocContent(once)).toBe(once);
-  });
-
-  it("makes a PROSE edit produce byte-identical content — the reuse this exists for", () => {
-    // The property, end to end at the pure level: lengthen a prose line, and the python
-    // virtual document is UNCHANGED once canonicalized. That equality is exactly what
-    // ensureVdoc's reuse branch compares, so this is why no file is written.
+  it("STILL makes a prose-only edit produce byte-identical content (🐉8 stays fixed)", () => {
     const before = ["# Title", "", "```{python}", "x = 1", "```", ""].join("\n");
-    const after = ["# Title!!!", "", "```{python}", "x = 1", "```", ""].join("\n");
+    const after = ["# Title with much more prose", "", "```{python}", "x = 1", "```", ""].join("\n");
 
-    // The raw builders DISAGREE — that is the churn, and why the byte-compare never hit.
-    expect(buildVirtualContent(after, "python")).not.toBe(buildVirtualContent(before, "python"));
-
-    // Canonicalized, they are identical.
-    expect(canonicalVdocContent(buildVirtualContent(after, "python"))).toBe(
-      canonicalVdocContent(buildVirtualContent(before, "python")),
-    );
-  });
-
-  it("still DIFFERS when code changes — reuse must not become staleness (M3)", () => {
-    // The other half. If a code edit canonicalized to the same bytes, ensureVdoc would reuse
-    // the path, VS Code would serve the cached model, and the server would answer from the
-    // PREVIOUS revision — silently, forever (the ≈1017 ms async-invalidation race).
-    const before = ["```{python}", "x = 1", "```", ""].join("\n");
-    const after = ["```{python}", "x = 2", "```", ""].join("\n");
-
-    expect(canonicalVdocContent(buildVirtualContent(after, "python"))).not.toBe(
-      canonicalVdocContent(buildVirtualContent(before, "python")),
-    );
+    expect(buildVirtualContent(after, "python")).toBe(buildVirtualContent(before, "python"));
   });
 });

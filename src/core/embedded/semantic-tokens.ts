@@ -65,6 +65,23 @@ export const OUR_LEGEND: Legend = {
  */
 export function decodeTokens(stream: TokenStream): AbsToken[] {
   const { data, legend } = stream;
+  // A stream with no usable legend is not decodable AT ALL: the type/modifier numbers are
+  // indices INTO it and mean nothing without it. This is not hypothetical — the built-in
+  // TS/JS service's legend command resolves to `undefined` on its first call while its token
+  // command already returns a real stream (measured, Session 89). The provider guards against
+  // pairing them, but the guarantee belongs HERE: this module's whole contract is that the
+  // worst a broken server may ever do to a `.qmd` is leave it with TextMate colouring, and a
+  // `legend.tokenTypes` dereference on `undefined` would instead throw out of the provider and
+  // strip the WHOLE document — every other language included.
+  if (
+    legend === undefined ||
+    legend === null ||
+    !Array.isArray(legend.tokenTypes) ||
+    !Array.isArray(legend.tokenModifiers) ||
+    !(data instanceof Uint32Array)
+  ) {
+    return [];
+  }
   // Five uint32s per token, exactly. A length that is not a multiple of 5 means the
   // stream is not what it claims to be, and a partial decode would colour the document
   // from data we have provably misread — worse than not colouring it at all.

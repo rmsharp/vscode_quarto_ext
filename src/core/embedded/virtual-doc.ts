@@ -73,12 +73,21 @@ export function embeddedCellAt(text: string, line: number): EmbeddedHit | null {
  * The virtual document for ONE `languageId`: every interior body line of a cell
  * whose `cellLanguageId(...).languageId === languageId` is kept VERBATIM; every
  * other line (prose, YAML, fences, `#|` option lines, other-language cells) is
- * replaced by a space-run of EQUAL length, with newlines preserved. Built
- * line-based from the RAW `text` (never `Cell.code`, which is LF-normalized — G4)
- * so it is CRLF-safe. The identity-mapping contract (plan §2.3, the headline
- * tests): `buildVirtualContent(text, L).length === text.length` and the `\n`
- * positions are identical, so a `vscode.Position` passes straight through and
- * results return unchanged.
+ * EMPTIED, with the newline kept. Built line-based from the RAW `text` (never
+ * `Cell.code`, which is LF-normalized — G4) so it is CRLF-safe.
+ *
+ * The identity-mapping contract (plan §2.3) is a LINE contract, because
+ * `vscode.Position` is (line, character) and never an offset: the line COUNT is
+ * preserved, every kept line sits at its own `.qmd` index with its columns intact,
+ * so a position passes straight through and results return unchanged.
+ *
+ * Blanking to EMPTY rather than to an equal-length space run is what makes the vdoc a
+ * function of the CODE alone (plan 🐉8): a prose keystroke used to lengthen a blanked
+ * run, change the vdoc's bytes, and so mint/write/open a fresh file for EVERY language
+ * on every debounced pass, while every line of code stayed identical. Note the blanking
+ * must happen HERE and not downstream, because only this function knows which lines are
+ * body lines — a whitespace-only line INSIDE a cell body is code the user can put a
+ * cursor on, and it is kept verbatim.
  */
 export function buildVirtualContent(text: string, languageId: string): string {
   const lines = text.split("\n");
@@ -96,9 +105,7 @@ export function buildVirtualContent(text: string, languageId: string): string {
       }
     }
   }
-  return lines
-    .map((line, i) => (keep.has(i) ? line : " ".repeat(line.length)))
-    .join("\n");
+  return lines.map((line, i) => (keep.has(i) ? line : "")).join("\n");
 }
 
 /**
@@ -159,41 +166,6 @@ export function embeddedLanguagesIn(text: string): EmbeddedLang[] {
 }
 
 /**
- * Collapse every whitespace-only line to an empty one, leaving every other line BYTE-EXACT.
- *
- * The form a virtual document is written to disk in, and the form its reuse is decided by
- * (`features/embedded-vdoc.ts`). It is what keeps semantic tokens off the per-keystroke
- * disk-write path (plan 🐉8).
- *
- * The builders above are LENGTH-PRESERVING: every line that is not the target language's
- * code is blanked to an EQUAL-LENGTH run of spaces, which is precisely what gives the
- * identity coordinate mapping. The cost is that the vdoc's bytes then depend on the length
- * of the user's PROSE — type one character in a paragraph and a blanked run lengthens, so
- * the vdoc differs, so a byte-comparison reuse check can never hit, and a fresh file is
- * minted, written, opened and deleted on every debounced pass, for every language, while
- * the user types. Every line of code was identical each time.
- *
- * Collapsing the blanks removes the dependency: the vdoc becomes a function of the CODE
- * alone. Nothing addressable moves —
- *
- *  - **A line becomes empty; it never disappears.** Line indices, and the newline count,
- *    are preserved exactly, and `vscode.Position` is (line, character), not an offset.
- *  - **Only whitespace-only lines are touched.** A code line keeps its leading indentation
- *    byte-for-byte, which is not cosmetic: trimming it would make Python invalid and move
- *    every token's column. The tests pin an INDENTED line for exactly this reason.
- *  - **No request or result has ever landed on a blanked line** — that is what blanking is
- *    for — and Python, R, Julia and JavaScript all read a whitespace-only line and an empty
- *    one identically (Python ignores a blank line outright: no NEWLINE token, no effect on
- *    the indentation stack).
- */
-export function canonicalVdocContent(content: string): string {
-  return content
-    .split("\n")
-    .map((line) => (line.trim() === "" ? "" : line))
-    .join("\n");
-}
-
-/**
  * The virtual document for exactly ONE cell (BACKLOG item 11 slice 2, outline
  * in-cell symbol forwarding, plan §2.1/§2.3). `buildVirtualContent` above keeps
  * EVERY cell of a given language — correct for cursor-position forwarding
@@ -201,11 +173,11 @@ export function canonicalVdocContent(content: string): string {
  * but wrong for document-symbol forwarding: two same-language cells would merge
  * into one indistinguishable symbol list. This isolates `cell`'s own interior
  * body lines (excluding its `#|`/`//|` option lines, which are YAML directives,
- * not language code) and blanks everything else — prose, YAML, fences, and
+ * not language code) and empties everything else — prose, YAML, fences, and
  * every OTHER cell, even a same-language sibling — so the forwarded symbols can
  * be attributed to `cell` alone. Same identity-mapping contract as
- * `buildVirtualContent` (length- and newline-preserving, built from the RAW
- * text, so it is CRLF-safe).
+ * `buildVirtualContent` (LINE-preserving; body lines kept verbatim, including a
+ * whitespace-only one; built from the RAW text, so it is CRLF-safe).
  */
 export function buildCellVirtualContent(text: string, cell: Cell): string {
   const lines = text.split("\n");
@@ -214,7 +186,7 @@ export function buildCellVirtualContent(text: string, cell: Cell): string {
   return lines
     .map((line, i) => {
       const inBody = i > cell.startLine && i <= lastBody && !optionLines.has(i);
-      return inBody ? line : " ".repeat(line.length);
+      return inBody ? line : "";
     })
     .join("\n");
 }

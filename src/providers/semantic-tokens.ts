@@ -73,26 +73,77 @@ const LEGEND = new vscode.SemanticTokensLegend(
   OUR_LEGEND.tokenModifiers,
 );
 
+/**
+ * How many times a document whose answer came back INCOMPLETE may ask VS Code to re-fetch,
+ * and how long to wait first.
+ *
+ * A language server is not ready the instant we open its virtual document — and VS Code will
+ * not come back on its own. Its `ModelSemanticColoring` re-fetches on model change, theme
+ * change, config change, and provider-registry change; the registry change is the one that
+ * SHOULD rescue us (opening the vdoc is what activates Pylance / the TS-JS service, which then
+ * register their providers). But it schedules that fetch on a 300 ms timer, and when the timer
+ * fires while our first request is still in flight — two disk writes, two `openTextDocument`s,
+ * two servers starting — `_fetchDocumentSemanticTokensNow` sees its own in-flight guard and
+ * returns, dropping the fetch rather than queueing it. So the rescue is swallowed by the very
+ * work that triggered it, and the language that missed the first pass stays uncoloured until
+ * the user happens to type.
+ *
+ * Firing `onDidChangeSemanticTokens` is the API's own answer to "my tokens changed underneath
+ * you, ask again". The cap is what keeps it honest: if a language genuinely has no server
+ * installed, its stream will never arrive, and an uncapped retry would re-ask forever. After
+ * these attempts we stop, and those cells keep their TextMate colouring — the correct
+ * degradation, and the one this whole feature promises.
+ */
+const INCOMPLETE_RETRIES = 3;
+const INCOMPLETE_RETRY_MS = 700;
+
 /** Register semantic-token forwarding for embedded cells, tied to the extension lifetime. */
 export function registerSemanticTokensProvider(
   context: vscode.ExtensionContext,
 ): void {
+  const provider = new EmbeddedSemanticTokensProvider();
   context.subscriptions.push(
-    vscode.languages.registerDocumentSemanticTokensProvider(
-      QMD,
-      new EmbeddedSemanticTokensProvider(),
-      LEGEND,
-    ),
+    provider,
+    vscode.languages.registerDocumentSemanticTokensProvider(QMD, provider, LEGEND),
     // Our vdocs are real files in the user's workspace. Every embedded feature registers
     // this (the adapter's `disposeVdocs` is idempotent and keyed by the OWNING document),
     // so a closed `.qmd` takes its vdocs with it no matter which feature minted them.
-    vscode.workspace.onDidCloseTextDocument((doc) => void disposeVdocs(doc.uri)),
+    vscode.workspace.onDidCloseTextDocument((doc) => {
+      provider.forget(doc.uri);
+      void disposeVdocs(doc.uri);
+    }),
   );
 }
 
 class EmbeddedSemanticTokensProvider
-  implements vscode.DocumentSemanticTokensProvider
+  implements vscode.DocumentSemanticTokensProvider, vscode.Disposable
 {
+  /** Fired when a pass came back incomplete — "ask me again, a server has since woken up". */
+  private readonly changed = new vscode.EventEmitter<void>();
+  readonly onDidChangeSemanticTokens: vscode.Event<void> = this.changed.event;
+
+  /** `docUri` -> re-fetches already requested for an incomplete answer (capped). */
+  private readonly retried = new Map<string, number>();
+  /** Pending retry timers, so a closing document does not leave one armed. */
+  private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  dispose(): void {
+    this.timers.forEach((t) => clearTimeout(t));
+    this.timers.clear();
+    this.changed.dispose();
+  }
+
+  /** Drop a closed document's retry state (its vdocs are being disposed alongside). */
+  forget(uri: vscode.Uri): void {
+    const key = uri.toString();
+    const timer = this.timers.get(key);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      this.timers.delete(key);
+    }
+    this.retried.delete(key);
+  }
+
   async provideDocumentSemanticTokens(
     document: vscode.TextDocument,
   ): Promise<vscode.SemanticTokens | undefined> {
@@ -123,11 +174,47 @@ class EmbeddedSemanticTokensProvider
     // language routinely has no usable stream. An all-or-nothing merge would leave the
     // whole document uncoloured, intermittently, for reasons no user could reproduce.
     const usable = streams.filter((s): s is TokenStream => s !== undefined);
+
+    // A language present in the document that gave us nothing is not necessarily a language
+    // with no server — far more often it is a server that had not finished starting when we
+    // asked (its very activation is what our `openTextDocument` triggered). VS Code will not
+    // come back on its own, so ask it to.
+    this.retryIfIncomplete(document, targets.length, usable.length);
+
     if (usable.length === 0) {
       return undefined; // nobody answered — TextMate colouring stands
     }
 
     return new vscode.SemanticTokens(mergeSemanticTokens(usable, OUR_LEGEND));
+  }
+
+  /**
+   * Ask VS Code to re-fetch when some language present in the document produced no stream —
+   * at most `INCOMPLETE_RETRIES` times, so a language with genuinely no server installed
+   * settles on TextMate colouring instead of re-asking forever.
+   */
+  private retryIfIncomplete(
+    document: vscode.TextDocument,
+    wanted: number,
+    got: number,
+  ): void {
+    const key = document.uri.toString();
+    if (got >= wanted) {
+      this.retried.delete(key); // every language answered — start fresh next time
+      return;
+    }
+    const already = this.retried.get(key) ?? 0;
+    if (already >= INCOMPLETE_RETRIES || this.timers.has(key)) {
+      return;
+    }
+    this.retried.set(key, already + 1);
+    this.timers.set(
+      key,
+      setTimeout(() => {
+        this.timers.delete(key);
+        this.changed.fire();
+      }, INCOMPLETE_RETRY_MS),
+    );
   }
 
   /**
