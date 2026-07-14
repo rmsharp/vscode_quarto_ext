@@ -117,12 +117,10 @@ describe("embedded semantic tokens", () => {
   });
 
   it("maps tokens to the RIGHT .qmd lines when the cell is preceded by prose", async () => {
-    // The identity mapping's actual job. The stand-in always reports its token on line 1
-    // OF THE VDOC — and because non-cell lines are blanked to equal-length space runs
-    // rather than removed, vdoc line 1 IS .qmd line 1. Here line 1 is front matter, so
-    // the cell body sits lower and the stand-in must be asked about a document whose
-    // shape matches the .qmd exactly. This is the test that would fail if anyone
-    // "optimized" buildVirtualContent to emit only the cell's lines.
+    // The identity mapping's actual job, and the test that fails if anyone "optimizes"
+    // the builder to emit only the cell's lines. Non-cell lines are BLANKED, never removed,
+    // so vdoc line N is .qmd line N. Here the cell body sits below front matter, and the
+    // server must be asked about a document whose line shape matches the .qmd exactly.
     const doc = await openQmd(
       ["---", "title: t", "---", "", "```{python}", "y = 2", "```", ""].join("\n"),
     );
@@ -132,13 +130,23 @@ describe("embedded semantic tokens", () => {
     assert.strictEqual(calls.length, 1);
     const vdoc = await vscode.workspace.openTextDocument(vscode.Uri.parse(calls[0]));
     const vdocLines = vdoc.getText().split("\n");
+
+    // THE invariant: the line COUNT is preserved, so every index still lines up...
     assert.strictEqual(
       vdocLines.length,
       8,
       "the vdoc must have the same line count as the .qmd (identity mapping)",
     );
+    // ...and the body line therefore sits on its own .qmd line, verbatim.
     assert.strictEqual(vdocLines[5], "y = 2", "the cell body must sit on ITS OWN .qmd line");
-    assert.strictEqual(vdocLines[1], "        ", "front matter must be blanked, not removed");
+
+    // The front-matter line is still THERE — blanked, not removed. It is now EMPTY rather
+    // than an equal-length run of spaces: `ensureVdoc` canonicalizes whitespace-only lines
+    // to "" before writing, so that the vdoc is a function of the CODE alone and a prose
+    // keystroke does not mint a new file (plan 🐉8). Nothing addressable moves — no request
+    // or result has ever landed on a blanked line, which is what blanking is for — and the
+    // count assertion above is what actually pins "not removed".
+    assert.strictEqual(vdocLines[1], "", "front matter must be blanked, not removed");
   });
 
   it("returns nothing — and writes NO vdoc — for a .qmd with no {python} cells", async () => {
@@ -431,6 +439,72 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
       decoded.map((t) => `${t.type}@${t.line}:${t.char}`),
       ["variable@1:0", "variable@7:0"],
       "exactly python's two tokens — no gap, no throw, no empty document",
+    );
+  });
+
+  it("REUSES every language's vdoc when an edit changes only PROSE (plan 🐉8)", async () => {
+    // The plan's biggest performance unknown, and the one §7 assigns to this slice.
+    //
+    // VS Code re-requests tokens on a debounced timer as the user types (300 ms–2 s), for
+    // every visible `.qmd`. `buildVirtualContent` is LENGTH-PRESERVING — non-cell lines are
+    // blanked to EQUAL-LENGTH space runs, which is exactly what gives the identity mapping —
+    // so typing a single character in PROSE changes the blanked run's length, and therefore
+    // the vdoc's bytes, even though every line of code is byte-identical. `ensureVdoc`'s
+    // reuse branch compares raw bytes, so it can never hit: a fresh file is minted, written,
+    // opened and the old one deleted, on every pass. Slice 2 multiplies that by the number
+    // of languages in the document.
+    //
+    // What must be true instead: an edit that changes no CODE reuses every vdoc, writes
+    // nothing, and opens no new model.
+    const doc = await openQmd(STRADDLED);
+    await tokensFor(doc);
+
+    assert.strictEqual(pyCalls.length, 1, "precondition: the first pass forwards python");
+    assert.strictEqual(jsCalls.length, 1, "precondition: the first pass forwards javascript");
+    const pyFirst = pyCalls[0];
+    const jsFirst = jsCalls[0];
+
+    // Append a character to a PROSE line. No code line changes; no line is added or removed.
+    const editor = await vscode.window.showTextDocument(doc);
+    await editor.edit((b) => b.insert(new vscode.Position(9, 0), "prose"));
+
+    await tokensFor(doc);
+
+    assert.strictEqual(pyCalls.length, 2, "the second pass must genuinely have forwarded");
+    assert.strictEqual(jsCalls.length, 2);
+    assert.strictEqual(
+      pyCalls[1],
+      pyFirst,
+      "python's vdoc must be REUSED after a prose-only edit — a new path here means a disk " +
+        "write, a new model, and a full re-analysis by the language server, on every keystroke",
+    );
+    assert.strictEqual(
+      jsCalls[1],
+      jsFirst,
+      "javascript's vdoc must be reused too — the cost is per LANGUAGE, so Slice 2 doubles it",
+    );
+  });
+
+  it("still mints a fresh vdoc when the edit changes CODE", async () => {
+    // The other half of the contract, and the reason this cannot simply cache forever.
+    // Rewriting a path that already has an open model invalidates it only ASYNCHRONOUSLY
+    // (≈1017 ms, measured in the S86 spike), so a changed cell MUST get a fresh path or the
+    // server answers from the previous revision — silently, on every edit, forever (M3).
+    const doc = await openQmd(STRADDLED);
+    await tokensFor(doc);
+    const pyFirst = pyCalls[0];
+
+    // Edit the python cell body.
+    const editor = await vscode.window.showTextDocument(doc);
+    await editor.edit((b) => b.insert(new vscode.Position(1, 6), " + 1"));
+
+    await tokensFor(doc);
+
+    assert.strictEqual(pyCalls.length, 2);
+    assert.notStrictEqual(
+      pyCalls[1],
+      pyFirst,
+      "a CODE edit must mint a fresh vdoc path — reusing it would serve the stale revision",
     );
   });
 
