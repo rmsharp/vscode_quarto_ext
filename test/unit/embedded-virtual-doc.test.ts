@@ -356,6 +356,51 @@ describe("embeddedLanguagesIn: every forwarding target present in the document",
     }
   };
 
+  it("orders by the DOCUMENT, not alphabetically — python first, then javascript", () => {
+    // The discriminating case, and the one my first test did NOT provide: with {ojs} first
+    // the two orderings agree ("javascript" < "python"), so sorting alphabetically passed.
+    // Here they disagree, and only first-appearance order survives.
+    //
+    // Honest scope: this order does not change the COLOURS. The merge sorts every token by
+    // (line, char) regardless, so which stream is fetched first is immaterial to the output.
+    // What it pins is DETERMINISM — the same document always forwards in the same order —
+    // and the documented contract, which was previously asserted by a test that could not
+    // actually tell the two apart.
+    const text = [
+      "```{python}", // 0
+      "p = 1", // 1
+      "```", // 2
+      "", // 3
+      "```{ojs}", // 4
+      "o = 2", // 5
+      "```", // 6
+      "", // 7
+    ].join("\n");
+
+    expect(embeddedLanguagesIn(text)).toEqual([
+      { languageId: "python", ext: "py" },
+      { languageId: "javascript", ext: "js" },
+    ]);
+  });
+
+  it("omits a language whose cell body is nothing but BLANK lines", () => {
+    // The case that pins the non-blank content check itself. An EMPTY cell and an
+    // OPTIONS-ONLY cell are both rejected for other reasons (zero body lines; every body
+    // line is an option line), so neither one exercises `lines[i].trim() !== ""` — deleting
+    // that check left the whole suite green, which is how a break-revert battery derived
+    // from invariants rather than from the lines I happened to write earns its keep.
+    //
+    // A body of two blank lines is the smallest input that tells them apart: it HAS body
+    // lines, none of them are option lines, and there is still nothing for a server to read.
+    const text = ["```{python}", "", "", "```", "", "```{ojs}", "o = 1", "```", ""].join("\n");
+
+    expect(embeddedLanguagesIn(text)).toEqual([{ languageId: "javascript", ext: "js" }]);
+    agreesWithBuild(text);
+
+    // And the primitive it subsumes agrees, on the same input.
+    expect(hasCellOfLanguage(text, "python")).toBe(false);
+  });
+
   it("omits a language whose cells are EMPTY or hold only option lines", () => {
     // Nothing to ask a server about: buildVirtualContent blanks option lines, so both of
     // these build an all-whitespace vdoc. Returning the language anyway would write a file
