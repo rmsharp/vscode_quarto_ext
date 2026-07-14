@@ -1,0 +1,23 @@
+---
+title: "D4 colour verification (Session 90, item 16 Slice 3)"
+---
+
+Prose above the cell, so a wrong coordinate mapping cannot accidentally look right.
+
+```{python}
+import os
+import numpy as np
+
+CONSTANT = 42
+
+
+class Widget:
+    def __init__(self, name):
+        self.name = name
+        self.ready = True
+
+    def path(self):
+        return os.getcwd()
+```
+
+Prose below the cell.

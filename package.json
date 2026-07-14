@@ -421,9 +421,6 @@
         "scopes": {
           "module": [
             "entity.name.namespace"
-          ],
-          "intrinsic": [
-            "keyword.operator"
           ]
         }
       }

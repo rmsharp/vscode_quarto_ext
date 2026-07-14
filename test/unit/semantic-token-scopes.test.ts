@@ -57,17 +57,36 @@ describe("contributes.semanticTokenScopes (D4, Slice 3)", () => {
     const styled = Object.keys(contributed?.[0].scopes ?? {});
 
     expect([...carried].sort()).toEqual([...styled].sort());
-    expect(carried).toEqual(["module", "intrinsic"]);
+    expect(carried).toEqual(["module"]);
   });
 
-  it("probes the SAME TextMate scope VS Code's own built-in rule uses for each superType", () => {
+  it("carries ONLY names a REAL server is observed emitting — the rule this file learned the hard way", () => {
+    // ⚠ THIS TEST EXISTS BECAUSE THE ONE ABOVE WAS NOT ENOUGH, AND SAYING SO IS THE POINT.
+    //
+    // The test above pins scope-rules == legend, and calls a rule for a name outside the legend
+    // "dead code that no test would ever catch". It then failed to catch exactly that: `intrinsic`
+    // was carried AND styled, so both sets agreed and this file was green — while real Pylance
+    // never emits `intrinsic` at all (its walker sends `variable` + the `builtin` modifier; token
+    // type 18 has zero emission sites in every shipped bundle). A legend is not a promise of
+    // emission, and an agreement between two things I control proves nothing about the wire.
+    //
+    // The only authority on what a server emits is a server. `test/lsp/suite/real-lsp.test.ts`
+    // drives REAL Pylance and asserts `module` arrives (module@3:7 from `import os`). This test
+    // pins the carried set to exactly what that gate proves, so a future name cannot be added on
+    // the strength of the triage rule alone without a real-LSP observation to back it.
+    const OBSERVED_ON_THE_WIRE_FROM_A_REAL_SERVER = ["module"];
+
+    const carried = OUR_LEGEND.tokenTypes.filter((t) => !STANDARD_TYPES.includes(t));
+    expect(carried).toEqual(OBSERVED_ON_THE_WIRE_FROM_A_REAL_SERVER);
+  });
+
+  it("probes the SAME TextMate scope VS Code's own built-in rule uses for the superType", () => {
     // Read firsthand out of the shipped bundle (v1.126.0):
     //   i("namespace", …, [["entity.name.namespace"]])
-    //   i("operator",  …, [["keyword.operator"]])
-    // Using the same probes means our rule resolves to byte-identically the colour a real `.py`
-    // gets, in whatever theme the user has — rather than inventing a colour of our own.
+    // Using the same probe means our rule resolves to byte-identically the colour a real `.py`
+    // gets, in whatever theme the user has — rather than inventing a colour of our own. In the
+    // real default theme (Dark 2026) that is #4EC9B0, resolved through VS Code's own theme trie.
     expect(contributed?.[0].scopes.module).toEqual(["entity.name.namespace"]);
-    expect(contributed?.[0].scopes.intrinsic).toEqual(["keyword.operator"]);
   });
 
   it("does NOT contribute semanticTokenTypes — that registry is global and owner-blind", () => {

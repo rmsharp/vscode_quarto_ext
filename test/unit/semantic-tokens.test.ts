@@ -281,15 +281,32 @@ describe("semantic-tokens: re-encoding into OUR legend", () => {
     expect(OUR_LEGEND.tokenTypes).toContain("module");
   });
 
-  it("KEEPS an `intrinsic` token — the other name Pylance declines to style itself", () => {
-    // Pylance type 18. Carried for the same reason as `module` and by the same rule: Pylance
-    // ships no `semanticTokenScopes` entry for it, so its author is content with the superType
-    // default (`operator` -> `keyword.operator`), which is what TextMate would give it anyway.
-    const tokens = decodeTokens(pylanceStream(4, 0, 3, 18, 0));
+  it("does NOT carry `intrinsic` — it passes the triage rule but NO server ever emits it", () => {
+    // 🔑 THE SECOND RULE, and it cost a bug to learn: a legend is not a promise of EMISSION.
+    //
+    // `intrinsic` (Pylance type 18) passes the triage rule perfectly — Pylance ships no
+    // `semanticTokenScopes` entry for it — and it WAS carried on that basis. But real Pylance
+    // never emits it: its walker maps `DeclarationType.Intrinsic` to `{type: 15 (variable),
+    // modifiers: 512 (builtin)}`, and type 18 has ZERO emission sites in every shipped bundle.
+    // It exists in the legend only because the legend is generated from an enum.
+    //
+    // Carrying it therefore added a dead legend entry AND a dead `semanticTokenScopes` rule —
+    // the exact defect `semantic-token-scopes.test.ts` claims to prevent, which it could not
+    // catch because it pinned the scope set against the LEGEND rather than against what a
+    // server can actually put on the wire. Only the real-LSP gate can settle that.
+    //
+    // So: carry a name only when a REAL server is OBSERVED emitting it. This test is the
+    // headstone, so nobody re-adds `intrinsic` by reading the triage rule alone.
+    expect(OUR_LEGEND.tokenTypes).not.toContain("intrinsic");
 
-    const encoded = encodeTokens(tokens, OUR_LEGEND);
-
-    expect([...encoded]).toEqual([4, 0, 3, OUR_LEGEND.tokenTypes.indexOf("intrinsic"), 0]);
+    // And what Pylance ACTUALLY sends for `__name__` — type 15 (`variable`) with modifier bit 9
+    // (`builtin`) — still round-trips as a plain `variable`, exactly as it did before Slice 3.
+    const intrinsicAsPylanceReallySendsIt = decodeTokens(pylanceStream(4, 0, 8, 15, 1 << 9));
+    expect(intrinsicAsPylanceReallySendsIt[0].type).toBe("variable");
+    expect(intrinsicAsPylanceReallySendsIt[0].modifiers).toEqual(["builtin"]);
+    expect([...encodeTokens(intrinsicAsPylanceReallySendsIt, OUR_LEGEND)]).toEqual([
+      4, 0, 8, OUR_LEGEND.tokenTypes.indexOf("variable"), 0, // `builtin` is foreign -> cleared
+    ]);
   });
 
   it("still DROPS every foreign name Pylance styles ITSELF — carrying them would MIS-colour", () => {
