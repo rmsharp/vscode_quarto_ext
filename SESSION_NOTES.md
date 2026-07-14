@@ -7,11 +7,151 @@
 ## ACTIVE TASK
 **Task:** **Session 88 — IMPLEMENTATION: `BACKLOG.md` item 16 — Slice 1 of `docs/planning/2026-07-12-embedded-lsp-scheme-and-semantic-tokens-plan.md`: semantic highlighting for `{python}` cells via the embedded language's LSP.** Layers per plan §7 Slice 1: **(L1)** `src/core/embedded/semantic-tokens.ts` — `decodeTokens` + the legend / modifier-**bitset** remap + single-stream re-encode (pure, vscode-free); **(L2)** `src/providers/semantic-tokens.ts` `registerDocumentSemanticTokensProvider({language:"quarto"}, provider, OUR_LEGEND)` + `extension.ts` wiring. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. **Slices 2 (multi-language merge) and 3 (theming / `{ojs}` / the D4 legend decision) are SEPARATE future sessions — do not start them (FM #18/#26).**
 **Started:** 2026-07-13
-**Status:** IN PROGRESS. Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** **SHIPPED. Item 16 Slice 1 is done; item 16 stays OPEN (Slices 2 and 3 remain).** `{python}` cells are now semantically coloured by the user's own language server. **Proven against REAL Pylance** (`npm run test:lsp`, with a control): `CONSTANT` → `variable.declaration.readonly@5:0`, `main` → `function.declaration@7:4`, `w` → `parameter.declaration@7:9`, `getcwd` → `function@8:14` — every token on a real cell-BODY line, via the identity mapping, with no coordinate remap. The **modifier-bitset remap is load-bearing and not theoretical**: Pylance puts `readonly` at bit 7 where the standard legend has `modification`, so a naive index copy would have told the theme a read-only constant was being *mutated*. **A 59-agent adversarial review (8 lenses × 2 skeptics + completeness critic, ~3.6M subagent tokens; 25 candidates → 14 survivors) found a hole in MY OWN break-revert battery** — the decoder's per-line column reset, the one line that decides where every colour lands, was pinned by nothing, and deleting it left all 777 unit + 304 integration tests green. Fixed, plus: a never-throws violation (a rejecting server propagated out of the provider), a close-during-flight leak that stranded a copy of the user's source, a missing scheme guard (a Git diff of a `.qmd` wrote the user's Python to OS temp), a missing size/no-python gate (~29 ms/pass wasted on a 4.4 MB prose-only doc), and two Slice-2 landmines. 784 unit / 307 integration / 11 real-LSP; clean 43-file `.vsix`.
+**Ledger:** `CHANGELOG: 2026-07-13 · [BL-16] (Session 88 — item 16 Slice 1 SHIPPED: semantic highlighting for {python}; Slices 2–3 remain)` entry written.
 **Gate (a) contract re-verified at Orient against current code — ZERO drift, with two Slice-0 refinements the plan's prose predates and that Slice 1 MUST build against (not against §6.4's stale pseudocode):** (1) `VdocKey` no longer carries `version` — the adapter owns a module-level monotonic counter (`embedded-vdoc.ts:82`) — and instead carries `ext`; the shipped shape is `{docUri, languageId, ext, kind, cellStartLine?}` (`vdoc-path.ts:52`). The plan's `ensureVdoc(doc, {kind:"lang", languageId:L, version:++v, …}, content)` would not compile. (2) `ensureVdoc` is **reuse-on-unchanged-content / fresh-path-on-change** (`embedded-vdoc.ts:121`), not literally "fresh path per computation" — strictly better (it is what keeps a per-keystroke provider off the disk, 🐉8) and already break-revert-proven. Verified present and unchanged: `ensureVdoc` owns the mandatory `openTextDocument` (M1, `embedded-vdoc.ts:140`); `buildVirtualContent` (`virtual-doc.ts:83`) gives the identity mapping that lands tokens in `.qmd` coordinates with **no remap**; `providers/embedded.ts:95` `vdocFor` is the exact `kind:"lang"` pattern to mirror; `extension.ts:64` is the wiring point; `npm run test:lsp` exists. **Greenfield confirmed by grep:** zero hits for `SemanticTokens` / `semantic-tokens` / `provideDocumentSemanticTokens` / `embeddedLanguagesIn` across `src/` + `test/` + `package.json`. Baseline green: 767 unit.
 **Kickoff decisions (operator, via `AskUserQuestion`):** run `npm run test:lsp` (real-Pylance Extension Development Host) freely this session — it is the only evidence that can prove Slice 1, since a stand-in cannot (the item-18 lesson); run `npm run test:integration` as routine.
 **Scope note on D4 (the legend), recorded at claim:** the plan defers the *theming* decision — carry Pylance's foreign type names + `contributes.semanticTokenScopes`, vs. map them to their `superType` — to **Slice 3** (§5.4). Slice 1 therefore declares the **standard VS Code legend** and takes the plan's explicit safe fallback: a token whose type is absent from our legend is **dropped** (it keeps its TextMate colour — degraded, never *wrong*), and unknown modifier *bits* are **cleared, not token-dropping**. Consequence to measure and report, not to silently ship: Pylance's `module` / `selfParameter` / `builtinConstant` / `magicFunction` / `intrinsic` tokens fall outside the standard set, so part of a Python cell keeps TextMate colouring until Slice 3. I will measure the real drop rate against real Pylance and hand Slice 3 the number.
+
+## Session 87 Handoff Evaluation (by Session 88)
+
+**Score: 10/10.** The second consecutive 10, and it earned it the same way S86 did: by being an
+executable brief whose every load-bearing claim held up firsthand.
+
+- **What helped, decisively:** `next_steps` was not a summary, it was the session. It named the exact
+  layer split (L1 pure core, L2 provider + wiring), the exact API (`vscode.provideDocumentSemanticTokens`
+  / `…Legend` — **`provide*`, not `execute*`**, which is the one thing a session reasoning by analogy
+  from the four existing `executeXxxProvider` forwards would have got wrong and burned an hour on), the
+  warning that those commands are **not enumerated by `getCommands(true)`** (so don't assert their
+  presence that way — it fails while the command works), and the instruction to **add a `test:lsp` case**.
+  I did exactly that and it is the only evidence that could prove this slice.
+- **`key_files` was line-accurate and the gate-(a) re-verification found ZERO drift** — but better than
+  that, it told me *where the plan was stale*: it described `ensureVdoc` as reuse-on-unchanged /
+  fresh-path-on-change, which is what the shipped code does, whereas the plan's §6.4 pseudocode still
+  passes a `version` in the `VdocKey` (it no longer exists; the adapter owns the counter, and the key
+  carries `ext`). Following the plan literally would not have compiled. The handoff, not the plan, was
+  the correct source — exactly the right relationship between the two.
+- **The gotchas earned their keep, individually.** #5 ("**semantic-token MODIFIERS are a BITSET, not an
+  index** — remap bit-by-bit; a naive copy silently mis-colours") is the single most valuable line in
+  the receipt: it sent me to *measure Pylance's real legend* before writing the remap, which is how I
+  found that `readonly` sits at bit 7 for Pylance and bit 2 for the standard legend. Without that
+  sentence I would very plausibly have copied the number through, shipped it, and had every test pass.
+  #4 (M1: `openTextDocument` is mandatory and its absence is SILENT) meant I never debugged a phantom
+  "no extension installed". #2 (a control must be POLLED, not sampled once) is why my real-LSP control
+  polls. #8 ("**run the standing adversarial review on ANY slice even when green — EIGHT consecutive
+  slices**") made it nine, and it is what caught the hole in my own battery.
+- **What was missing:** nothing I can fairly charge to it. The one thing that would have helped is a
+  warning that the `test:lsp` Mocha loader globs the **build output** (`out/**/*.test.js`), so a deleted
+  probe `.ts` keeps running from its stale `.js` — I hit that, spent a minute confused by an
+  11th passing test that no longer had a source file, and have now added it to my own gotchas.
+- **What was wrong:** nothing. Its stated 767 unit / 300 integration / 10 real-LSP / clean 43-file
+  `.vsix` matched my exact starting state, and both ledger frontiers reconciled at HEAD `58877a6` with a
+  `status: complete` receipt.
+- **ROI:** As high as it gets. Orientation → claimed, contract-verified session in one pass, and its
+  process advice (measure the real dependency; run the review anyway) produced both the session's best
+  design decision and its most important finding.
+
+## Session 88 Self-Assessment
+
+- **Phase 0 completed in full** (`SAFEGUARDS.md` in full → `pwd` + `SESSION_NOTES.md` ACTIVE TASK →
+  `gh issue list` (0 → `BACKLOG.md` governs; Active empty) → `git status`/`log`/`diff` →
+  `methodology_dashboard.py` (78/100; the "critical" flag remains the long-accepted **dev-only**
+  npm-audit posture) → ledger reconcile (both CHANGELOG and HANDOFFS frontiers at HEAD `58877a6`, zero
+  post-frontier commits, S87 receipt `status: complete` → no backfill owed) → report → `AskUserQuestion`
+  per the standing CLAUDE.md Phase-0 step). Operator picked item 16 Slice 1.
+- **Gate (a) re-verified before claiming — zero drift, and I recorded the two places the PLAN (not the
+  code) had gone stale** rather than discovering them at compile time: `VdocKey` carries `ext`, not
+  `version`; `ensureVdoc` is reuse-on-unchanged, not fresh-path-per-computation. Built against the
+  shipped signatures.
+- **Measured the real dependency BEFORE designing, instead of transcribing the plan's summary of it.**
+  A throwaway probe in the real-LSP harness dumped Pylance's actual legend (29 types / 15 modifiers) and
+  a decoded token stream. Three facts came out of it that the plan did not have, and two of them changed
+  the code: the bitset remap is **real and hot** (25 of 36 tokens carry modifier bits; `readonly` is bit
+  7 for Pylance and bit 2 for us — a naive copy silently reports `modification`), and the standard-only
+  legend **drops 36% of tokens**, which I could then disclose with a number instead of a shrug. The
+  probe was written, run, and deleted; no spike residue is committed.
+- **Strict TDD with genuine REDs** (module missing → modifier names unresolved → malformed stream
+  half-decoded → `encodeTokens` absent → provider not registered → `hasCellOfLanguage` absent → the
+  in-flight-close leak → the never-throws violation). Where behaviors were already GREEN from a minimal
+  implementation I **said so** and shipped them as a disclosed behavior-lock battery rather than
+  claiming fictional REDs — then break-revert-proved each against a specific mutant.
+- **Grounded the two scariest claims in the shipped VS Code bundle rather than accepting them.** Reading
+  `workbench.desktop.main.js` gave hard numbers that killed a whole lens and one of the critic's HIGHs:
+  semantic tokens are **debounced 300 ms–2 s** (`REQUEST_MIN_DELAY=300`, `REQUEST_MAX_DELAY=2e3`), VS
+  Code **refuses to start a second document-token request while one is in flight** (so the "N racing
+  calls" scenario cannot occur — the entire `cancellation` lens went 0-for-3), and **any change to the
+  provider registry re-schedules a fetch for every open model unconditionally** (`handleRegistryChange`),
+  so the "cold Pylance means no colours until you type" HIGH is false: the cold start self-heals.
+- **Ran the standing adversarial review even though everything was green — NINE consecutive slices now —
+  and it found the thing I was proudest of to be hollow.** My break-revert battery covered the bitset,
+  the type filter, the sort and the `%5` guard, and I presented it as strong verification. It never
+  covered the decoder's coordinate math, and an agent proved by execution that deleting the per-line
+  column reset left **777 unit + 304 integration tests green**. Every multi-token stream I had written
+  happened to sit on one line. That is Learning #97, and it is the cautionary half of my own session.
+- **Arbitrated rather than deferred.** I re-verified all 14 survivors firsthand: fixed 8, refuted 2 with
+  evidence from the VS Code source, and **filed 4 with measurements instead of fixing them** — including
+  the one five lenses converged on (the reuse cache can never hit, so every debounced edit rewrites the
+  vdoc). I measured it (prose-only edit → vdoc bytes change 30→31 though every python line is identical;
+  models 25→29 over 10 edits, *not* 25→35, which refutes the reviewers' own "leaks a model per keystroke"
+  framing), wrote the root cause and a sound fix into BACKLOG, and left it for Slice 2 — which is where
+  the plan explicitly assigns it (🐉8). Fixing it would have meant changing shared lifecycle code that
+  all four forwards ride on; that is a slice, not a drive-by.
+- **Scope discipline held.** No Slice 2 work (`mergeSemanticTokens`/`embeddedLanguagesIn` deliberately
+  unwritten, though the core composes for them trivially). No Slice 3 work (D4 deferred, and the test
+  that pins the standard-only legend is written to fail on purpose when Slice 3 lands). Did not touch
+  the deferred preview-lifecycle bug or the workspace-mode diagnostics item.
+- **Runtime verification (Phase 3E): materially exceeded.** The deliverable changes runtime behavior and
+  was driven end to end against a **real language server**, with a control, not merely built clean.
+- **Corrected two docs my own change made FALSE** (Learning #7/#10): `POSIT-COMPARISON.md` twice asserted
+  this project has **no `SemanticTokensProvider` of any kind**. It now has one — but I corrected those
+  lines to say *partially* closed, with the 36% number and the remaining slices, rather than claiming a
+  parity I have not earned.
+- **Self-score: 8/10.** The feature is real, proven against the real dependency rather than a double,
+  every review finding is resolved or filed with evidence, and every boundary is disclosed with a
+  measurement. **Not higher because the review's headline finding was mine, and it was the exact thing I
+  had claimed as my verification strength.** I wrote a four-mutant break-revert battery, presented it in
+  a commit message as proof the tests discriminate, and it did not touch the one line that decides where
+  every colour lands. The suite was green; the battery was "proven"; and both were measuring something
+  other than the thing that mattered. That is Learning #94 one level up — the *mutant list* agreeing with
+  the code about the wrong thing — committed by the person who had just read #94 in the handoff. The
+  system caught it, which is the system working; but I should have derived the mutants from the module's
+  invariants, not from the lines I happened to have thought about.
+
+### What Session 88 Did — 2026-07-13
+
+**Deliverable:** `BACKLOG.md` item 16, **Slice 1** — semantic highlighting for `{python}` cells via the
+embedded language's LSP. Executed plan §7 Slice 1 under `DEVELOPMENT_WORKSTREAM.md` with strict TDD.
+**Item 16 stays OPEN** — Slices 2 (multi-language merge) and 3 (theming / `{ojs}` / the D4 legend
+decision) are separate sessions, NOT started (FM #18/#26).
+
+**Kickoff:** operator "go" → Phase 0 orientation + report → `AskUserQuestion` (item 16 Slice 1 / item 14
+Slice 2 / the workspace-mode diagnostics leak / item 17) → Slice 1. A second `AskUserQuestion` obtained
+the standing go-ahead to run `npm run test:lsp` (a real-Pylance Extension Development Host appears on the
+operator's screen — the standing `confirm-before-screen-prompting-actions` memory). Gate (a) re-verified
+(zero drift; two stale spots in the *plan* recorded). 1B claim committed (`7cb0997`).
+
+**Implementation (strict TDD, checkpoint commits):**
+1. **Grounding probe** (written, run, **deleted** — no residue): dumped real Pylance's legend and token
+   stream. Produced the two facts that shaped the code (the bitset remap is real and hot; the
+   standard-only legend drops 36%).
+2. **L1 the pure core** (`5ee96b7`): `src/core/embedded/semantic-tokens.ts` — `decodeTokens` /
+   `encodeTokens` / `OUR_LEGEND`. 4 genuine REDs + a disclosed, break-revert-proven behavior-lock
+   battery. 777 unit (+10).
+3. **L2 the provider** (`2d02a52`): `src/providers/semantic-tokens.ts` +
+   `extension.ts` wiring + the real-LSP test that is the DONE gate. Adapter-first RED. The integration
+   stand-in is keyed on a **different legend index order** than ours, so an index/bitset passthrough
+   fails it loudly. 304 integration (+4), 11 real-LSP (+1).
+4. **Adversarial review + fixes** (`78828cc` / `045dbdf` / `09d29a6`): 59 agents → 25 candidates → 14
+   survivors → 8 fixed, 2 refuted from the VS Code source, 4 filed with measurements.
+
+**Verification:** `check-types` clean at every boundary; `npm test` 784/784; `npm run test:integration`
+307; `npm run test:lsp` 11/11 against real Pylance with a control; `npm run package` clean 43-file
+`.vsix`; working tree clean.
+
+**Not started / filed (scope discipline):** Slice 2 and Slice 3; the vdoc-reuse churn (🐉8 — measured and
+filed, and it is Slice 2's by the plan's own assignment); the legend/tokens two-provider mismatch; the
+cleared-modifier fidelity loss (D4/Slice 3); the strand-on-last-cell-deleted LOW; the pre-existing
+`onDocumentClosed` preview bug; the workspace-mode diagnostics leak.
 
 ## Session 87 ACTIVE TASK (superseded by Session 88 — full entry preserved below)
 **Task:** **Session 87 — IMPLEMENTATION: `BACKLOG.md` item 18 (SHIPPED DEFECT) — Slice 0 of `docs/planning/2026-07-12-embedded-lsp-scheme-and-semantic-tokens-plan.md`: migrate the embedded-language virtual document off its three custom URI schemes onto a real `file:` URI, so `{python}` completion / hover / go-to-definition / signature-help and in-cell outline symbols actually reach the user's real language server.** Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. **Item 16's semantic-tokens slices (1–3) are SEPARATE future sessions — do not start them (FM #18/#26).**
