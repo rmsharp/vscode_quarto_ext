@@ -1,6 +1,10 @@
 import * as assert from "node:assert";
 import * as path from "node:path";
 import * as vscode from "vscode";
+import {
+  decodeTokens,
+  OUR_LEGEND,
+} from "../../../src/core/embedded/semantic-tokens";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
@@ -381,6 +385,116 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
     );
     console.log(
       `  [ojs] forwarded ${items.length} semantic completions (control: ${controlItems.length})`,
+    );
+  });
+
+  it("SEMANTIC TOKENS: colours a {python} cell from real Pylance, at real .qmd coordinates", async () => {
+    // BACKLOG item 16, Slice 1 — the feature this whole two-session arc exists for, and
+    // the ONLY test that can prove it. Semantic tokens were impossible on the old custom
+    // scheme for EVERY language (not even VS Code's built-in TS/JS served them), so a
+    // stand-in cannot distinguish "we forward correctly" from "no server was ever asked".
+    //
+    // The CONTROL is the same Python as a plain `.py`. If Pylance serves no tokens THERE,
+    // nothing can be concluded here.
+    const body = ["import os", "", "CONSTANT = 42", "", "def main(w):", "    return os.getcwd()"];
+
+    const control = await writeDoc("tokens-control.py", `${body.join("\n")}\n`);
+    await vscode.window.showTextDocument(control, { preview: false });
+
+    let controlTokens: vscode.SemanticTokens | undefined;
+    let controlLegend: vscode.SemanticTokensLegend | undefined;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      controlLegend = await vscode.commands.executeCommand<vscode.SemanticTokensLegend>(
+        "vscode.provideDocumentSemanticTokensLegend",
+        control.uri,
+      );
+      controlTokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+        "vscode.provideDocumentSemanticTokens",
+        control.uri,
+      );
+      if (controlTokens !== undefined && controlTokens.data.length > 0) {
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    assert.ok(
+      controlTokens && controlTokens.data.length > 0 && controlLegend,
+      "CONTROL FAILED: real Pylance served no semantic tokens on a plain .py, so nothing " +
+        "can be concluded about our forwarding from this run.",
+    );
+    const controlCount = controlTokens.data.length / 5;
+    console.log(
+      `  [control] real Pylance served ${controlCount} semantic tokens on a plain .py ` +
+        `(legend: ${controlLegend.tokenTypes.length} types, ${controlLegend.tokenModifiers.length} modifiers)`,
+    );
+
+    // The same code, now as a {python} cell. Two prose lines first, so a wrong coordinate
+    // mapping cannot accidentally look right.
+    const doc = await writeDoc(
+      "tokens.qmd",
+      ["# Title", "", "```{python}", ...body, "```", ""].join("\n"),
+    );
+    await vscode.window.showTextDocument(doc, { preview: false });
+
+    let tokens: vscode.SemanticTokens | undefined;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+        "vscode.provideDocumentSemanticTokens",
+        doc.uri,
+      );
+      if (tokens !== undefined && tokens.data.length > 0) {
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+
+    assert.ok(
+      tokens && tokens.data.length > 0,
+      `real Pylance must serve semantic tokens INSIDE a {python} cell. Got none, while ` +
+        `the control returned ${controlCount} on the same code in a plain .py — so Pylance ` +
+        `is alive and the forward is broken.`,
+    );
+
+    // Decode in OUR legend — which is what the provider emits, and is a different index
+    // space from Pylance's. Getting readable names out of it is itself proof the remap ran.
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+
+    // The cell body starts on .qmd line 3 (`# Title`, blank, fence, then `import os`).
+    // Every token must land inside the body — never on the fence, the prose, or line 0.
+    const BODY_FIRST = 3;
+    const BODY_LAST = BODY_FIRST + body.length - 1;
+    const stray = decoded.filter((t) => t.line < BODY_FIRST || t.line > BODY_LAST);
+    assert.deepStrictEqual(
+      stray,
+      [],
+      `every token must land on a cell BODY line (${BODY_FIRST}–${BODY_LAST}); the identity ` +
+        `mapping is what guarantees that, and a stray token means it is broken`,
+    );
+
+    // Spot-check real content at real coordinates: `CONSTANT` is on .qmd line 5, column 0.
+    const constant = decoded.find((t) => t.line === BODY_FIRST + 2 && t.char === 0);
+    assert.ok(
+      constant,
+      `expected a token for CONSTANT at .qmd line ${BODY_FIRST + 2}, col 0; got ` +
+        decoded.map((t) => `${t.type}@${t.line}:${t.char}`).join(", "),
+    );
+    assert.strictEqual(constant.type, "variable", "CONSTANT must come back as a variable");
+    assert.ok(
+      constant.modifiers.includes("readonly"),
+      `CONSTANT must carry the READONLY modifier remapped into our legend's bit order. ` +
+        `Pylance sets readonly at bit 7; our legend has it at bit 2, and bit 7 is ` +
+        `\`modification\` — so a naive bitset copy would report [${constant.modifiers.join(", ")}] ` +
+        `and silently tell the theme a constant is being mutated.`,
+    );
+
+    // Report the D4 cost with real numbers, so Slice 3 does not have to guess.
+    const dropped = controlCount - decoded.length;
+    console.log(
+      `  [tokens] forwarded ${decoded.length} of Pylance's ${controlCount} tokens ` +
+        `(${dropped} dropped as foreign to our standard legend — the D4 / Slice 3 decision)`,
+    );
+    console.log(
+      `  [tokens] ${decoded.map((t) => `${t.type}${t.modifiers.length ? "." + t.modifiers.join(".") : ""}@${t.line}:${t.char}`).join("  ")}`,
     );
   });
 

@@ -28,6 +28,7 @@ import { registerCrossrefProviders } from "./providers/crossref";
 import { registerQuartoYamlDocumentLinksFeature } from "./providers/document-links";
 import { registerFilepathCompletionFeature } from "./providers/filepath-completion";
 import { registerOutlineProvider } from "./providers/outline";
+import { registerSemanticTokensProvider } from "./providers/semantic-tokens";
 import { registerYamlCompletionProvider } from "./providers/yaml";
 import { registerYamlDiagnosticsFeature } from "./features/yaml-diagnostics";
 import { registerWorkspaceSymbolsProvider } from "./providers/workspace-symbols";
@@ -60,6 +61,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerYamlCompletionProvider(context);
   registerYamlDiagnosticsFeature(context);
   registerEmbeddedLanguageFeature(context);
+  registerSemanticTokensProvider(context);
   registerQuartoYamlDocumentLinksFeature(context);
   registerFilepathCompletionFeature(context);
 
