@@ -26,22 +26,74 @@ export interface AbsToken {
 
 /**
  * The legend WE declare to VS Code at registration — the standard token types and
- * modifiers, and nothing else.
+ * modifiers, PLUS exactly the two foreign names it is safe to carry (plan §5.4, D4).
  *
  * A `SemanticTokensLegend` must be declared up front, but an embedded server's legend is
  * only knowable at runtime and differs per language (Pylance's has 29 types; a Julia
  * server's will not). So we translate into a fixed legend of our own, and a name that is
- * not in it is DROPPED — that token simply keeps its TextMate colour. Degraded, never
- * wrong.
+ * not in it is DROPPED — that token keeps its TextMate colour.
  *
- * What that costs today, measured against real Pylance (Session 88): 13 of 36 tokens in a
- * representative Python file fall outside the standard set — every `self`
- * (`selfParameter`), `os`/`typing` (`module`), `True`/`None` (`builtinConstant`) and
- * `__init__` (`magicFunction`). Carrying those foreign names through — either by
- * declaring them here and contributing `semanticTokenScopes`, or by mapping each to its
- * `superType` — is plan §5.4's D4 decision, and it is deliberately deferred to Slice 3,
- * where the resulting colours can be verified in a real window. This constant is the one
- * line that changes when that lands.
+ * ## D4, resolved (Slice 3): carry `module` and `intrinsic`. Drop the other ten.
+ *
+ * The tempting answer — carry all of Pylance's foreign names, recovering the measured 36%
+ * of its tokens we drop — is WRONG, and it is worth saying exactly why, because it looks
+ * right and the wrongness is invisible in the theme most people debug against.
+ *
+ * A `.qmd`'s `{python}` cell is ALREADY coloured, by VS Code's bundled MagicPython TextMate
+ * grammar. So the semantic layer is not painting a blank canvas — it is painting OVER a
+ * grammar that is mostly right. A foreign name we carry but cannot style correctly does not
+ * degrade to TextMate; it OVERRIDES it, and can only make things worse.
+ *
+ * 🔑 **The triage rule.** A serving extension's own `contributes.semanticTokenScopes` entry
+ * for a type is that author saying: *the superType default is the WRONG colour for this
+ * type*. Pylance ships such an entry for `selfParameter`, `clsParameter`, `magicFunction`,
+ * `builtinConstant` and its six punctuation types — and NONE for `module` and `intrinsic`.
+ * The set with no scope entry is exactly the set that is safe to carry bare. That is not a
+ * coincidence: it is the same judgement the author already made, read back out of their
+ * manifest. And their entries cannot help US — VS Code gates them on the MODEL's languageId,
+ * which for a `.qmd` is `quarto`, never `python`.
+ *
+ * What that means concretely, resolved firsthand against the shipped bundle and the REAL
+ * default theme (`COLOR_THEME_DARK = "Dark 2026"` — *not* Dark+/Dark Modern, which colour
+ * these scopes identically and so hide the whole problem):
+ *
+ *  - `module` (`os`, `np`, `typing`) — MagicPython gives a module name NO scope at all: it is
+ *    a bare identifier on plain editor foreground (verified: zero `variable.other*` scopes in
+ *    the grammar). This is the one place the semantic layer has something to ADD and nothing
+ *    to destroy, and it resolves through `namespace` -> `entity.name.namespace` to exactly the
+ *    colour a real `.py` gets. **This is the entire user-visible win of D4.**
+ *  - `intrinsic` — same rule, same reasoning (`operator` -> `keyword.operator`).
+ *  - `magicFunction` (`__init__`) — CARRYING IT IS A REGRESSION. Its superType `function`
+ *    probes `["entity.name.function"]` BEFORE `["support.function"]` and returns on the first
+ *    hit, so `__init__` would turn #d2a8ff PURPLE — replacing the #79c0ff that MagicPython's
+ *    `support.function.magic.python` already gives it correctly.
+ *  - `builtinConstant` (`True`/`None`) — its superType `constant` is not a token type VS Code
+ *    registers at all (verified: zero occurrences in the shipped bundle), so carrying it would
+ *    resolve to nothing and drop anyway. Pure no-op.
+ *  - `selfParameter`, the punctuation types — same family: styled by their author, inert here.
+ *
+ * The recovery is therefore NOT "36% of tokens". It is "module names now colour like they do
+ * in a `.py`", and the other ten are dropped BECAUSE TextMate already has them right.
+ *
+ * ⚠ **"Degraded, never wrong" is true of a DROPPED type — and NOT of a kept one.** An unknown
+ * type name is provably omitted from the stream (VS Code resolves it to no style and filters
+ * it out), so TextMate survives untouched, foreground and font style both. But a token whose
+ * TYPE we keep while CLEARING a foreign MODIFIER is a PARTIAL override: it still paints, just
+ * without the refinement. Pylance's `typeHintComment` is the live instance — inside a legacy
+ * `# type: List[int]` comment it emits a standard `class`, which we already carry, and we
+ * repaint the interior of a comment as live code. That is filed (BACKLOG), not fixed here, and
+ * carrying the modifier names would NOT fix it — their scope rules are python-gated too.
+ *
+ * The `contributes.semanticTokenScopes` half of this decision lives in `package.json` (scoped
+ * to `language: "quarto"`), and it is what makes the `module` win survive even against a server
+ * that registers no `superType` at all. We deliberately do NOT contribute
+ * `contributes.semanticTokenTypes`: VS Code's type registry is a single global map keyed by
+ * bare id, and its deregistration is owner-blind and un-refcounted — declaring Pylance's ids
+ * would mean OUR uninstall deletes PYLANCE's registration and degrades the user's plain `.py`
+ * files.
+ *
+ * ORDER IS SIGNIFICANT — these are positional indices, declared up front at registration.
+ * APPEND new names; never insert.
  */
 export const OUR_LEGEND: Legend = {
   tokenTypes: [
@@ -49,6 +101,8 @@ export const OUR_LEGEND: Legend = {
     "parameter", "variable", "property", "enumMember", "decorator", "event",
     "function", "method", "macro", "label", "comment", "string", "keyword",
     "number", "regexp", "operator",
+    // The two foreign names, carried (D4). See the triage rule above.
+    "module", "intrinsic",
   ],
   tokenModifiers: [
     "declaration", "definition", "readonly", "static", "deprecated", "abstract",

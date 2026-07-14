@@ -264,16 +264,86 @@ describe("semantic-tokens: re-encoding into OUR legend", () => {
     expect([...encodeTokens([], OUR_LEGEND)]).toEqual([]);
   });
 
-  it("declares a legend of standard names only (the Slice 3 / D4 boundary)", () => {
-    // Pins the deliberate scope boundary: Slice 1 carries NO foreign names. When Slice 3
-    // resolves D4 (carry Pylance's names + semanticTokenScopes, or map to superType),
-    // this test is the one that should fail and be updated — on purpose.
-    expect(OUR_LEGEND.tokenTypes).not.toContain("selfParameter");
-    expect(OUR_LEGEND.tokenTypes).not.toContain("module");
+  it("KEEPS a `module` token — the one foreign name TextMate cannot colour (Slice 3 / D4)", () => {
+    // `import os` — Pylance types `os` as `module` (index 17 of its real legend), the type
+    // whose recovery is the entire user-visible point of D4.
+    //
+    // Why THIS name and not the other eleven: MagicPython (VS Code's bundled Python grammar,
+    // which already colours the `{python}` cell) declares NO scope at all for a module name —
+    // `os` / `np` / `typing` are bare identifiers on plain editor foreground. It is the one
+    // place the semantic layer has something to ADD and nothing to DESTROY. Verified firsthand
+    // against the shipped grammar: zero `variable.other*` scopes.
+    const tokens = decodeTokens(pylanceStream(0, 7, 2, 17, 0));
+
+    const encoded = encodeTokens(tokens, OUR_LEGEND);
+
+    expect([...encoded]).toEqual([0, 7, 2, OUR_LEGEND.tokenTypes.indexOf("module"), 0]);
+    expect(OUR_LEGEND.tokenTypes).toContain("module");
+  });
+
+  it("KEEPS an `intrinsic` token — the other name Pylance declines to style itself", () => {
+    // Pylance type 18. Carried for the same reason as `module` and by the same rule: Pylance
+    // ships no `semanticTokenScopes` entry for it, so its author is content with the superType
+    // default (`operator` -> `keyword.operator`), which is what TextMate would give it anyway.
+    const tokens = decodeTokens(pylanceStream(4, 0, 3, 18, 0));
+
+    const encoded = encodeTokens(tokens, OUR_LEGEND);
+
+    expect([...encoded]).toEqual([4, 0, 3, OUR_LEGEND.tokenTypes.indexOf("intrinsic"), 0]);
+  });
+
+  it("still DROPS every foreign name Pylance styles ITSELF — carrying them would MIS-colour", () => {
+    // 🔑 THE TRIAGE RULE, and the reason D4 is a hybrid rather than "carry everything".
+    //
+    // A serving extension's own `contributes.semanticTokenScopes` entry for a type is that
+    // author saying: *the superType default is the WRONG colour for this type*. Pylance ships
+    // such an entry for selfParameter, clsParameter, magicFunction, builtinConstant and its six
+    // punctuation types — and NONE for `module`/`intrinsic`. So the set with no scope entry is
+    // exactly the set that is safe to carry bare. That is not a coincidence; it is the same
+    // judgement the author already encoded, read back out.
+    //
+    // Those entries are `"language": "python"`-gated, and VS Code compares against the MODEL's
+    // languageId — which for us is "quarto". They are therefore INERT on a `.qmd`: carrying the
+    // names would strand each token on its superType default, which is measurably WRONG in the
+    // real default theme (Dark 2026, NOT Dark+ — they differ, and Dark+ hides this):
+    //
+    //   magicFunction -> `function` -> probes ["entity.name.function"] FIRST -> #d2a8ff PURPLE,
+    //   replacing the #79c0ff that MagicPython's `support.function.magic.python` correctly gives
+    //   `__init__` today. A KEPT-but-mis-coloured token is worse than a dropped one: dropping
+    //   provably falls back to TextMate, which is already right.
+    //
+    //   builtinConstant -> `constant` -> a type VS Code does not register at all (verified: zero
+    //   occurrences in the shipped bundle) -> no rule -> dropped anyway. Carrying it buys nothing.
+    const selfParameter = 19;
+    const magicFunction = 21;
+    const builtinConstant = 22;
+    const parenthesis = 23;
+    const tokens = decodeTokens(
+      pylanceStream(
+        0, 0, 4, selfParameter, 0,
+        1, 4, 8, magicFunction, 0,
+        1, 4, 4, builtinConstant, 0,
+        1, 0, 1, parenthesis, 0,
+      ),
+    );
+
+    expect([...encodeTokens(tokens, OUR_LEGEND)]).toEqual([]);
+    for (const name of ["selfParameter", "clsParameter", "magicFunction", "builtinConstant"]) {
+      expect(OUR_LEGEND.tokenTypes).not.toContain(name);
+    }
+  });
+
+  it("carries NO foreign MODIFIER — the filed partial-override stays filed, not widened", () => {
+    // Modifiers are deliberately untouched by D4. Pylance's `builtin`/`typeHint`/`typeHintComment`
+    // stay out of our legend, so they are CLEARED (the token survives, the refinement is lost).
+    //
+    // That is the known, filed MEDIUM — a kept type with cleared modifiers is a PARTIAL override:
+    // safe from a *wrong* colour, not from a *lost* one. Carrying the modifier names would NOT fix
+    // it (Pylance's modifier rules are python-gated too, hence inert here), so this slice does not
+    // pretend to. Pinned so a later session cannot quietly assume D4 resolved it.
     expect(OUR_LEGEND.tokenModifiers).not.toContain("builtin");
-    // …and the standard names it forwards ARE present.
-    expect(OUR_LEGEND.tokenTypes).toContain("variable");
-    expect(OUR_LEGEND.tokenModifiers).toContain("readonly");
+    expect(OUR_LEGEND.tokenModifiers).not.toContain("typeHintComment");
+    expect(OUR_LEGEND.tokenModifiers).toHaveLength(10);
   });
 });
 
