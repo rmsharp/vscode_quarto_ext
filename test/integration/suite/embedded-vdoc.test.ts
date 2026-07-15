@@ -573,8 +573,15 @@ describe("embedded vdoc: a forward still in flight when the EXTENSION deactivate
         `[${strays.join(", ")}]. It is a copy of their source, and nothing will delete it until the ` +
         `next session's activation sweep.`,
     );
-    if (uri !== undefined) {
-      assert.ok(!(await exists(uri)), "the returned vdoc must not exist on disk");
-    }
+    // The guard must DROP the forward, not hand back a live vdoc. The `allEpoch` snapshot is taken
+    // before `disposeAllVdocs` bumps the generation, so the post-await re-check always fires here —
+    // asserting the contract (return undefined) directly, rather than behind an `if (uri !== ...)`
+    // that (the S91 review noted) can never run. The strays check above is the belt; this is the
+    // suspenders, and it also pins that the guard forwards NOTHING rather than a deleted-file URI.
+    assert.strictEqual(
+      uri,
+      undefined,
+      "an in-flight forward at deactivate must forward nothing (return undefined), not a live vdoc",
+    );
   });
 });
