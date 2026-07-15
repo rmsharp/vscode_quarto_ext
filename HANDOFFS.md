@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S91
+date: 2026-07-14
+status: pending
+active_task: IMPLEMENTATION (bug fix) — BACKLOG "Polish / deferred" HIGH: `disposeAllVdocs` never bumps the dispose epoch, so an in-flight forward at extension DEACTIVATE re-registers its vdoc and strands a copy of the user's source in `.quarto/vdoc-mit/`. The sibling `disposeVdocs` (document close) was fixed S88 by bumping the per-document epoch first and unconditionally; the shutdown path was left unguarded. Strict TDD; one bug, one deliverable.
+```
+
+```handoff
 session: S90
 date: 2026-07-14
 status: complete
