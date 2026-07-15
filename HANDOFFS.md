@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S92
+date: 2026-07-14
+status: pending
+active_task: PLANNING (design/architecture). BACKLOG "Polish / deferred" HIGH — embedded vdocs publish diagnostics to the Problems panel under Pylance's non-default `python.analysis.diagnosticMode: "workspace"`. Deliverable is ONE grounded design doc in docs/planning/ (NOT an implementation — FM #18/#19); implementation is a separate session. Operator chose "Design plan" over "attempt direct fix now" at the plan-vs-implement fork: no fix approach is chosen and the leading lightweight candidate (move vdocs out of the workspace root) risks a silent regression of project-relative import resolution that must be grounded firsthand first.
+```
+
+```handoff
 session: S91
 date: 2026-07-14
 status: complete
