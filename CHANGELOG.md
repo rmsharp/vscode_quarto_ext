@@ -7,6 +7,28 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-15 · [ad hoc] Session 94 — REFUTED the S89 passive-minting "cheap fix" (evidence-based BACKLOG correction; MEDIUM→LOW) + fixed a stale item-14 sub-bullet
+
+Investigated the S89-filed MEDIUM "`{r}`/`{julia}` semantic-token vdoc minting is passive." The operator picked
+it at Phase 0; grounding it firsthand **refuted the filed fix before any production code** (Learning #105). The
+proposed cheap fix — "gate `embeddedLanguagesIn`'s targets on the languageId being registered via
+`needsLanguageExtension`/`getLanguages()`" — cannot work: VS Code core ships built-in *language-basics*
+extensions (grammar + config, **no server**) for `r`, `julia`, `python`, and `javascript`
+(`<VSCode.app>/Contents/Resources/app/extensions/{r,julia,python,javascript}`, v1.128.0), so `getLanguages()`
+returns all four in every standard VS Code and `needsLanguageExtension` is `false` for the whole mapped set. A
+RED integration test whose **premise was asserted** (`!getLanguages().includes("r")`) fired on the first run;
+the app-bundle inspection confirmed the cause. Two further facts: the first speculative mint is architecturally
+unavoidable (no API detects a semantic-tokens provider without a real document; an `undefined` legend is not a
+reliable "no provider" signal — S89), and the residual harm is bounded (the vdoc is gitignored, disposed on
+close, swept on activation). **Deliverable = an evidence-based `BACKLOG.md` correction**: the item is rewritten
+to record the refutation, downgraded **MEDIUM→LOW**, and the only correct approach (an unavoidable-first-mint
+lifecycle change) documented for a future session; the installed-R-server diagnostics concern is cross-linked to
+the (unmeasured) R/Julia-leak item. No production code shipped (the fix was refuted, not implemented). Also
+**corrected a stale BACKLOG sub-bullet** (`BACKLOG.md:54`): item 14 Slice 2 (filepath `CompletionItemProvider`)
+was SHIPPED in Session 81, but its sub-bullet was left at `[ ] PENDING` when S81 flipped the parent to `[x]` —
+that lone stale `[ ]` is what the S91/S92/S93 handoffs kept re-ranking as the top "next" candidate. `PROJECT_LEARNINGS.md`
+#105 appended.
+
 ### 2026-07-15 · [ad hoc] Session 93 — FIXED HIGH: the `diagnosticMode:"workspace"` embedded-vdoc Problems-panel leak (candidate G)
 
 Implemented candidate G from the Session 92 plan: a python-gated file-level `# type: ignore` injected on the

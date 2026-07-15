@@ -7,8 +7,65 @@
 ## ACTIVE TASK
 **Task:** **Session 94 — IMPLEMENTATION (bug fix): `BACKLOG.md` "Polish / deferred" MEDIUM (S89 adversarial review) — `providers/semantic-tokens.ts` mints an embedded-language vdoc (writes the user's cell source to `.quarto/vdoc-mit/` + opens a hidden model) per language on every debounced pass, with NO gate on whether a language server for that language is even registered.** The fix: gate `embeddedLanguagesIn`'s targets on the languageId being registered, via the existing `needsLanguageExtension` (`core/embedded/lang-map.ts:67`) + `vscode.languages.getLanguages()` — the exact mechanism `providers/embedded.ts:167` already uses but `providers/semantic-tokens.ts` never calls. So an `{r}`/`{julia}` cell with no R/Julia extension installed no longer writes the user's source to disk. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate.
 **Started:** 2026-07-15
-**Status:** Session claimed. Work beginning. **Phase 0 finding folded into this session:** the operator's first Phase-0 pick (item 14 Slice 2, filepath `CompletionItemProvider`) was ALREADY SHIPPED in Session 81 — implemented (`src/core/project-links.ts` `valueContextAt` + `src/providers/filepath-completion.ts`), committed (`a56eef7`/`2c8867d`/`5c2e9c2`), wired (`extension.ts:66`), unit+integration tested (26 unit green), adversarially reviewed. The BACKLOG parent (item 14, `:52`) is correctly `[x]` but the Slice-2 sub-bullet (`BACKLOG.md:54`) was left stale at `[ ] PENDING` ("no `CompletionItemKind.File` usage exists yet"), which is what the S91/S92/S93 handoffs kept ranking as candidate #1. I re-asked; operator picked THIS MEDIUM as the real deliverable and I will flip the stale `:54` line `[ ]`→`[x]` as close-out hygiene.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** **DONE. The S89-filed "cheap fix" is REFUTED, and the deliverable is an evidence-based `BACKLOG.md` correction (item downgraded MEDIUM→LOW), NOT a code fix.** The RED test earned its keep before a line of production code (the Learning #101 pattern, now #105): I wrote a RED integration test asserting an `{r}` cell mints no vdoc, with an *asserted premise* (`!getLanguages().includes("r")`). The premise assertion FIRED on the first run — `r` IS registered in vanilla VS Code — and inspecting the VS Code app bundle confirmed why: VS Code core ships built-in *language-basics* (grammar + config, no server) for `r`/`julia`/`python`/`javascript` (`<VSCode.app>/…/app/extensions/{r,julia,python,javascript}`, v1.128.0), so `getLanguages()` returns all four universally and `needsLanguageExtension` is `false` for the whole mapped set. The filed "gate on `getLanguages()`" fix therefore filters NOTHING. Two further facts: (1) the first speculative mint is architecturally unavoidable (no API detects a semantic-tokens provider without a real document; an `undefined` legend is not a reliable "no provider" signal — S89 measured the built-in JS service returning one transiently *with* a provider); (2) residual harm is bounded (vdoc gitignored + disposed on close `semantic-tokens.ts:111` + swept on activation `extension.ts:73`). Operator chose "Correct + downgrade" over building the (medium-complexity, race-prone, still-can't-avoid-first-write) lifecycle fix. **No production code shipped.** Also fixed the stale `BACKLOG.md:54` sub-bullet folded in as agreed hygiene.
+**Ledger:** `CHANGELOG: 2026-07-15 · [ad hoc] (Session 94 — REFUTED the S89 passive-minting cheap fix; evidence-based BACKLOG correction MEDIUM→LOW + fixed the stale item-14 sub-bullet)` entry written.
+**What was done (this session):** No commits before the deliverable except the 1B claim (`bcb4f95`). The deliverable is docs: (a) `BACKLOG.md` item rewritten — refutation with evidence (VS Code built-in language basics; RED premise assertion; app-bundle inspection), downgraded MEDIUM→LOW, the only-correct-fix (lifecycle) documented for a future session, diagnostics concern cross-linked to the R/Julia-leak item; (b) `BACKLOG.md:54` stale `[ ] PENDING` → `[x] SHIPPED Session 81` + the false "no usage exists yet" claim neutralized; (c) `PROJECT_LEARNINGS.md` #105; (d) `CHANGELOG.md` entry. All in the single close-out commit.
+**What's next (Active is empty — pick via `AskUserQuestion` at Phase 0):** Ranked open candidates: **(1)** the **2 + 2N semantic-token rescan MEDIUM** (`BACKLOG.md:118`) — memoise `scanRegions` keyed on text; touches the shared model, its own slice. **(2)** the two **S91 LOWs** (`BACKLOG.md:102-103`) — the `mkdtemp` fallback-dir leak + the after-dispatch epoch boundary (same `disposeAllVdocs` blast radius). **(3)** item 17 (`BACKLOG.md:64`) — the lower-priority/narrower-audience bundle (cell-background highlighting; Reticulate; create-project discoverability; notebook markdown renderer). **(4)** IF someone wants the real fix for THIS item: the unavoidable-first-mint lifecycle change (dispose-and-remember-unserved after the retry budget) — but see the LOW downgrade rationale first.
+**Key files (this session, all docs):** `BACKLOG.md` (the corrected `{r}`/`{julia}` passive-minting item ~`:116`; the item-14 Slice-2 sub-bullet `:54`). `PROJECT_LEARNINGS.md` #105. `CHANGELOG.md` (top entry). Evidence lives in: `src/providers/semantic-tokens.ts:147-189` (the passive `provideDocumentSemanticTokens` that mints per-language), `src/core/embedded/lang-map.ts:67` (`needsLanguageExtension`), `src/core/embedded/virtual-doc.ts:177` (`embeddedLanguagesIn`), and the VS Code app bundle `resources/app/extensions/{r,julia,python,javascript}`.
+**Gotchas for the next session:** (1) 🔑 **`getLanguages()`/`needsLanguageExtension` cannot mean "a server for this language is installed"** — VS Code registers `r`/`julia`/`python`/`javascript` via built-in language basics (no server). Learning #105. Do NOT re-attempt the getLanguages gate. (2) **A filed one-liner's PREMISE is a hypothesis** — assert it in the RED test (this is exactly how the refutation surfaced instantly). (3) **The BACKLOG had a stale-child-under-shipped-parent bug** (`:54`) that mis-directed 3 sessions; I fixed that one, but **Phase 6d's parent (`BACKLOG.md:67`) looks similarly stale** (it says "6d-1/6d-2 SHIPPED" while Polish/deferred references 6d-3…6d-6 from Sessions 20-24) — a candidate for a future doc-integrity sweep (NOT investigated this session, out of scope). (4) **`MOCHA_GREP` is NOT in the tree** — I added an opt-in `mocha.grep(process.env.MOCHA_GREP)` hook to `test/integration/suite/index.ts` to speed the RED loop, then reverted it to keep this docs-only session clean; re-add it (4 lines) if you want filtered integration runs.
+**Scope held (1 and done):** ONE deliverable — the evidence-based BACKLOG correction + the agreed `:54` hygiene fix. Did NOT implement the lifecycle fix (operator declined; refuted the cheap one), did NOT sweep other stale BACKLOG siblings (the unpicked option), did NOT keep the MOCHA_GREP test-infra change.
+
+## Session 93 Handoff Evaluation (by Session 94)
+
+**Score: 7/10.** S93's handoff was precise, evidence-rich, and left a frictionless clean state — but its
+**#1-ranked next candidate was an already-shipped item**, which cost me a Phase-0 discovery detour and an extra
+`AskUserQuestion` round.
+
+- **What helped, decisively:** the **#2 candidate it named — "the embedded-vdoc MEDIUM cluster S89 filed
+  (passive `{r}`/`{julia}` minting; …)" — is exactly what I worked on**, described accurately with the right
+  file pointers. Its gotchas were load-bearing and correct: "R/Julia are UNMEASURED and `# type: ignore` is
+  Pyright-specific — the fix SHAPE extends, the STRING does not" primed me to distrust the filed fix's
+  generality, and Learning #104 (never `git checkout` an uncommitted change) shaped my break-revert hygiene.
+- **The clean close-out was a genuine gift:** both ledger frontiers at HEAD, tree clean → Phase 0 reconcile had
+  literally nothing to backfill (one dashboard snapshot aside).
+- **What was wrong (the −3):** the **#1 candidate (item 14 Slice 2, filepath `CompletionItemProvider`) was
+  SHIPPED in Session 81.** The handoff re-ranked a done item because it trusted the stale `BACKLOG.md:54` `[ ]`
+  sub-bullet without cross-checking the parent item 14 (`[x]`) — the exact Learning #7 (cross-reference
+  completeness) check. **Mitigating:** S93 *inherited* this — S91 and S92 ranked it too; it is a systemic
+  BACKLOG-hygiene gap (a stale child under a shipped parent), not a defect S93 introduced. Still, a diligent
+  ranking cross-checks that a candidate is actually open, and this one was greppably not.
+- **ROI:** net-positive. The accurate #2 candidate became the real work, and the clean state made everything but
+  the stale-item discovery frictionless.
+
+## Session 94 Self-Assessment
+
+- **The RED-test-with-an-asserted-premise is the session's spine, and it paid off in one run.** I wrote the
+  failing test FIRST and made its *premise* an explicit assertion (`!getLanguages().includes("r")`) rather than
+  an unstated assumption. The premise fired immediately — disproving the filed fix before I wrote a single line
+  of production code — and I grounded *why* firsthand (VS Code app-bundle built-in language basics), establishing
+  the load-bearing fact instead of asserting it. This is Learning #105 (sibling of #101: a filed one-liner's
+  premise is itself a hypothesis).
+- **Gate-(a) contract re-verification at Orient caught the OTHER problem before any code:** reading the code the
+  operator's first pick pointed at revealed item 14 Slice 2 was already shipped (S81). I surfaced it, re-asked,
+  and folded the stale-`:54` correction into this session rather than silently either re-implementing or dropping it.
+- **I steered the hard moment to the operator instead of improvising.** When the filed fix was refuted and the
+  only correct fix turned out to be a medium-complexity, race-prone lifecycle change that still can't avoid the
+  first write, I presented the evidence and three real options rather than unilaterally building it or WONTFIX-ing.
+- **Scope discipline held:** reverted the MOCHA_GREP test-infra helper (unrelated to a docs deliverable), did not
+  sweep other stale BACKLOG siblings (the unpicked option), did not build the lifecycle fix, and confirmed
+  screen-surfacing test authorization up front (standing feedback) before the one integration run I needed.
+- **Honest weaknesses:** (1) I presented item 14 Slice 2 in my *first* `AskUserQuestion` (trusting the S93
+  ranking) before verifying it was open — a more diligent Phase 0 would have grepped the parent's `[x]` state
+  first and saved a round-trip (a cost partly inherited, but partly mine). (2) This session ships **no code** —
+  correct here (the fix was refuted; the operator chose the doc correction over the marginal lifecycle fix), but
+  worth naming plainly. (3) No adversarial review — correct, as there is no code/behavior to hole; the rigor went
+  into the refutation instead. (4) No runtime smoke test — genuinely N/A (docs-only, nothing runtime ships); not
+  FM #24. (5) I *noted* but did not investigate the suspected Phase-6d stale-parent — disclosed as a follow-up,
+  not silently dropped.
+- **Self-score: 8/10.** Evidence-gated refutation, premise-asserted RED test, operator-steered at the decision
+  point, scope held, all cross-references (Learning #105, BACKLOG, CHANGELOG, HANDOFFS) completed. Not higher
+  because the deliverable is "only" a documentation correction (the honest, correct outcome) and because a
+  sharper Phase 0 would have flagged the already-shipped candidate before my first question, not after.
 
 ## Session 93 ACTIVE TASK (superseded by Session 94 — full entry preserved below)
 **Task:** **Session 93 — IMPLEMENTATION (bug fix): `BACKLOG.md` "Polish / deferred" HIGH — embedded vdocs publish phantom diagnostics to the Problems panel under Pylance's non-default `python.analysis.diagnosticMode: "workspace"`. Implementing candidate G from `docs/planning/2026-07-14-embedded-vdoc-diagnostics-leak-plan.md` (Session 92): a python-gated file-level `# type: ignore` on the vdoc's already-blanked line 0.** Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. **Pre-declared vertical slice** (gate (a) contract = plan §6: L1 pure `core/` builders + L2 workspace-mode `test:lsp`). Operator picked this via `AskUserQuestion` at Phase 0 (Active empty); it is S92's pre-declared implementation session and was S91's top-ranked candidate (1).
