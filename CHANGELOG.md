@@ -7,6 +7,20 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-14 · [ad hoc] Session 92 — PLAN: the `diagnosticMode:"workspace"` embedded-vdoc Problems-panel leak
+
+Design/architecture plan (`docs/planning/2026-07-14-embedded-vdoc-diagnostics-leak-plan.md`) for the HIGH
+"Polish / deferred" item — embedded vdocs publishing phantom diagnostics into the Problems panel under
+Pylance's non-default `python.analysis.diagnosticMode: "workspace"`. Firsthand grounding against real Pylance
+2026.2.1 **refuted the obvious fix** (relocating vdocs out of the workspace — the OS-temp vdocs leaked
+identically, because Pyright injects tracked membership at `didOpen` time, location-independent) and
+**confirmed the recommended fix**: a file-level `# type: ignore` on the vdoc's already-blanked line 0
+(python-gated) fully suppresses the leak while preserving completion (n=273) and emitting **no** spurious
+line-0 semantic token. A 13-agent adversarial review of the first draft refuted its initial recommendation (a
+`deleteQuietly`→`WorkspaceEdit` disposal-timing change: partial + max blast radius on the S88/S91 race paths)
+and surfaced the in-content class. **Plan only — no code shipped; implementation is a separate session
+(FM #18/#19).** Learning #102.
+
 ### 2026-07-14 · [ad hoc] Session 91 — FIXED (HIGH): the `disposeAllVdocs` deactivate-strand race
 
 An in-flight embedded-language forward (semantic tokens fire on a debounced timer up to the moment
