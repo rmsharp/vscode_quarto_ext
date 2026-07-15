@@ -396,8 +396,32 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
       "vscode.provideDocumentSemanticTokens",
       doc.uri,
     );
-    // A generous window for Pylance to publish anything it is going to publish.
-    await new Promise((r) => setTimeout(r, 5000));
+
+    // A POSITIVE liveness control instead of a blind fixed wait (S93 review, completeness
+    // critic): poll until Pylance has actually PUBLISHED a diagnostic on the workspace's
+    // `control.py` (a real, open `.py` whose `os.` dangling dot is a syntax error). Only once
+    // diagnostics are demonstrably flowing does an EMPTY vdoc-diagnostic set mean "muted" rather
+    // than "not yet published" — that is the false-green a fixed sleep leaves open. control.py is
+    // an OPEN file (not a background vdoc), so it is diagnosed in BOTH modes, making this control
+    // mode-independent. The completion control below is a second, per-vdoc liveness proof: Pylance
+    // answering `os.getcwd` on the WHOLE-LANGUAGE vdoc means that vdoc (which carries the primary
+    // `undefined_name_xyz` phantom) was processed, so a leak would have surfaced.
+    const controlUri = uriIn("control.py");
+    let diagnosticsFlowing = false;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      if (vscode.languages.getDiagnostics(controlUri).length > 0) {
+        diagnosticsFlowing = true;
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    assert.ok(
+      diagnosticsFlowing,
+      "CONTROL FAILED: Pylance never published a diagnostic on control.py, so an empty vdoc set " +
+        "cannot be read as 'muted' rather than 'not yet published' — this run proves nothing.",
+    );
+    // A short settle so any vdoc diagnostics that WOULD publish have landed alongside the control's.
+    await new Promise((r) => setTimeout(r, 1500));
 
     // Every diagnostic message attributed to any of our vdoc files, flattened one-per-line.
     const vdocDiagnostics = vscode.languages

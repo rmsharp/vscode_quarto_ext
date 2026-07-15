@@ -518,7 +518,8 @@
     "test:integration": "npm run compile && npm run compile-tests && node ./out/test/integration/runTest.js",
     "package": "npm run compile && vsce package",
     "vscode:prepublish": "npm run compile",
-    "test:lsp": "npm run compile && npm run compile-tests && node ./out/test/lsp/runTest.js"
+    "test:lsp": "npm run compile && npm run compile-tests && node ./out/test/lsp/runTest.js",
+    "test:lsp:workspace": "QMD_LSP_DIAGMODE=workspace npm run test:lsp"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

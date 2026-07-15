@@ -249,6 +249,23 @@ describe("buildCellVirtualContent — candidate G: `# type: ignore` on line 0 (p
     expect(v.split("\n")[0]).not.toBe("# type: ignore");
     expect(v.trim()).toBe(""); // an effectively-empty per-cell vdoc stays empty
   });
+
+  it("when the cell's fence is at line 0, the mute sits IMMEDIATELY above the body (adjacency edge)", () => {
+    // Documents the one input where the injected comment is adjacent to the body: a .qmd that
+    // opens directly with a code cell (no front matter/prose), so the fence is line 0, the mute
+    // overwrites it, and the body is line 1 with no blank between. Coordinate-safety still holds
+    // (line 0 is the fence, never a body line), so outline/completion/semantic-token forwards are
+    // unaffected. The residual this pins is Format Cell ONLY (S93 review, completeness critic
+    // LOW): a Python formatter that inserts a blank line after a leading module comment could emit
+    // a body-line-1 edit that `format-cell.ts` `rangeWithinCell` would accept. Unverified — no
+    // Python formatter in the harness — and black does NOT do this (a comment attaches to the
+    // following statement). Filed in BACKLOG.md; recheck when a real Python formatter is present.
+    const text = ["```{python}", "x = 1", "```"].join("\n");
+    const [cell] = findAllCells(text);
+    const v = buildCellVirtualContent(text, cell).split("\n");
+    expect(v[0]).toBe("# type: ignore"); // the mute, on the (blanked) fence line
+    expect(v[1]).toBe("x = 1"); // the body, immediately below — at its own index, verbatim
+  });
 });
 
 describe("buildCellVirtualContent — isolates exactly ONE cell (BACKLOG item 11 slice 2)", () => {
