@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S95
+date: 2026-07-15
+status: pending
+active_task: IMPLEMENTATION (perf/bug fix). BACKLOG "Polish / deferred" MEDIUM (:118, S89) — a semantic-token pass rescans the whole document 2+2N times (N=embedded languages) because scanRegions (src/core/qmd/model.ts:269) has no cache. Fix: memoise scanRegions keyed on the document text (single-entry last-value cache). Strict TDD. Operator picked at Phase 0.
+```
+
+```handoff
 session: S94
 date: 2026-07-15
 status: complete
