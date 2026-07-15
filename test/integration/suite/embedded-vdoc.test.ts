@@ -522,3 +522,59 @@ describe("embedded vdoc: a forward still in flight when the document closes", ()
     }
   });
 });
+
+describe("embedded vdoc: a forward still in flight when the EXTENSION deactivates", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    await ext.activate();
+  });
+
+  it("does not strand the vdoc on disk when disposeAllVdocs runs mid-forward (shutdown race)", async () => {
+    // The sibling of the `disposeVdocs` (document-close) race above, on the DEACTIVATE path —
+    // filed HIGH by the Session 89 adversarial review.
+    //
+    // `disposeVdocs` bumps the per-document epoch FIRST and unconditionally (the S88 fix), so an
+    // in-flight forward for a closing document cleans up and forwards nothing. `disposeAllVdocs`
+    // (extension deactivate) clears `live`/`docFiles` but historically bumped NO epoch, so the
+    // same race at SHUTDOWN was unguarded: an `ensureVdoc` mid-await resumes, `filesOf()`
+    // RE-CREATES the `docFiles` entry `disposeAllVdocs` just cleared, and its file — a copy of the
+    // user's source — survives in `.quarto/vdoc-mit/` until the next session's activation sweep.
+    // Semantic tokens make this routine: VS Code fires them with no user gesture, on a debounced
+    // timer, right up to the moment the window closes — which is exactly when deactivate runs.
+    //
+    // NB the docUri is NOT registered in `docFiles` at the instant deactivate runs (this forward
+    // has not reached `live.set`), so a fix that only bumps epochs for owners ALREADY in
+    // `docFiles` does not cover this case: the guard has to invalidate EVERY in-flight forward,
+    // not just known owners — which is why the fix is a global shutdown generation, not a
+    // per-owner epoch bump.
+    const doc = await openProjectQmd();
+    const key = langKey(doc);
+
+    // Snapshot first — other suites share the one vdoc directory. The invariant that belongs to
+    // this test is exact and narrow: THIS forward must leave nothing NEW behind.
+    const ours = async (): Promise<string[]> =>
+      (await nodeFs.readdir(vdocDir().fsPath).catch(() => [] as string[]))
+        .filter((n) => isOurVdocFileName(n))
+        .sort();
+    const before = await ours();
+
+    // Start the forward, then deactivate WITHOUT awaiting it — the real shutdown race.
+    const inFlight = ensureVdoc(doc, key, "import sys\ny = 2\n");
+    await disposeAllVdocs();
+    const uri = await inFlight;
+
+    const after = await ours();
+    const strays = after.filter((n) => !before.includes(n));
+    assert.deepStrictEqual(
+      strays,
+      [],
+      `a vdoc minted while the extension was deactivating was stranded in the user's workspace: ` +
+        `[${strays.join(", ")}]. It is a copy of their source, and nothing will delete it until the ` +
+        `next session's activation sweep.`,
+    );
+    if (uri !== undefined) {
+      assert.ok(!(await exists(uri)), "the returned vdoc must not exist on disk");
+    }
+  });
+});

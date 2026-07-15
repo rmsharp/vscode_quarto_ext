@@ -118,6 +118,20 @@ function epochOf(docUri: string): number {
   return disposeEpoch.get(docUri) ?? 0;
 }
 
+/**
+ * A single, monotonic shutdown generation, bumped by `disposeAllVdocs` (extension deactivate).
+ *
+ * The per-document `disposeEpoch` above cannot guard the deactivate race: `disposeVdocs` is handed
+ * the specific `docUri` that closed and bumps THAT epoch, but `disposeAllVdocs` gets no `docUri`,
+ * and an in-flight `ensureVdoc` may be mid-await for a document that has not yet reached its
+ * `live.set`/`filesOf` — so it is in no map for a per-owner sweep to enumerate. `ensureVdoc`
+ * therefore snapshots THIS counter alongside the per-document epoch before its awaits and re-checks
+ * both after: a bump here invalidates EVERY in-flight forward at once, known owner or not, so none
+ * re-registers its file against a session that is shutting down. Monotonic and snapshot-compared,
+ * so a bump from a prior deactivate never affects a later forward (which snapshots it fresh).
+ */
+let disposeAllEpoch = 0;
+
 /** Lazily-created fallback directory for documents with no workspace folder (untitled). */
 let fallbackDir: vscode.Uri | undefined;
 /**
@@ -167,7 +181,10 @@ export async function ensureVdoc(
 
   // The owner's dispose count as of NOW, before any await. If it moves while we are
   // writing and opening, the `.qmd` we are doing this for has been closed underneath us.
+  // The global shutdown generation guards the sibling race at deactivate (see `disposeAllEpoch`),
+  // where there is no `docUri` to key a per-document epoch on.
   const epoch = epochOf(key.docUri);
+  const allEpoch = disposeAllEpoch;
 
   try {
     const dir = await vdocDirFor(doc);
@@ -181,11 +198,12 @@ export async function ensureVdoc(
     // never asked about the document and every forward returns `undefined`.
     await vscode.workspace.openTextDocument(uri);
 
-    if (epochOf(key.docUri) !== epoch) {
-      // The document closed while we were working. `disposeVdocs` has already run and will
-      // not run again, so registering this file would strand it — and it holds a copy of
-      // the user's source. Delete it and forward nothing; the caller degrades exactly as
-      // it does when no vdoc can be written at all.
+    if (epochOf(key.docUri) !== epoch || disposeAllEpoch !== allEpoch) {
+      // The document closed (per-document epoch) — or the extension deactivated (global epoch) —
+      // while we were working. `disposeVdocs`/`disposeAllVdocs` has already run and will not run
+      // again for this file, so registering it would strand it — and it holds a copy of the user's
+      // source. Delete it and forward nothing; the caller degrades exactly as it does when no vdoc
+      // can be written at all.
       await deleteQuietly(uri);
       return undefined;
     }
@@ -235,6 +253,11 @@ export async function disposeVdocs(docUri: vscode.Uri): Promise<void> {
 
 /** Delete every vdoc this session created, and the temp directory it may have made. */
 export async function disposeAllVdocs(): Promise<void> {
+  // Bump the shutdown generation FIRST, before the awaits — the deactivate sibling of
+  // `disposeVdocs`'s unconditional per-document bump. An `ensureVdoc` in flight right now (semantic
+  // tokens fire on a debounced timer up to the moment the window closes) sees this move when it
+  // resumes and cleans up, rather than re-registering its file against a shutting-down session.
+  disposeAllEpoch += 1;
   const all = [...docFiles.values()].flatMap((m) => [...m.values()]);
   live.clear();
   docFiles.clear();
