@@ -159,6 +159,98 @@ describe("buildVirtualContent — multi-language documents (6e-2)", () => {
   });
 });
 
+describe("buildVirtualContent — candidate G: `# type: ignore` on line 0 (workspace-mode diagnostics mute)", () => {
+  // A python cell and an {ojs} (javascript) cell, each with real body content.
+  const PY_AND_OJS = [
+    "```{python}", // 0
+    "import pandas as pd", // 1 python body
+    "```", // 2
+    "```{ojs}", // 3
+    "o = 4", // 4 ojs (javascript) body
+    "```", // 5
+  ].join("\n");
+
+  it("injects a file-level `# type: ignore` on line 0 of a python vdoc that has body content", () => {
+    // Plan §4.1 (BACKLOG HIGH): under Pylance's non-default `diagnosticMode: "workspace"`
+    // the background vdoc model is diagnosed on its TRACKED membership (Pyright injects it
+    // at `didOpen`, location-independent), flooding the Problems panel with phantom errors
+    // on `.quarto/vdoc-mit/*.py` paths the user cannot navigate to. A file-level
+    // `# type: ignore` on line 0 mutes every diagnostic in the file. Line 0 is provably
+    // never a code body line (a body line needs a fence above it), so writing it shifts no
+    // coordinate — confirmed firsthand: leak `[]`, completion n=273, zero line-0 tokens.
+    const v = buildVirtualContent(DOC, "python").split("\n");
+    expect(v[0]).toBe("# type: ignore");
+  });
+
+  it("does NOT inject into a non-python (javascript) vdoc — `#` is a JS syntax error", () => {
+    // Load-bearing correctness, not a nicety (plan §4.3): the mute is python-only. `#` starts a
+    // comment in python but is a SYNTAX ERROR in JS/TS, so injecting it into a `{ojs}`/`{js}`
+    // vdoc would corrupt the very forward the vdoc exists to serve. The javascript vdoc's line 0
+    // must stay blank, exactly as before candidate G.
+    const v = buildVirtualContent(PY_AND_OJS, "javascript").split("\n");
+    expect(v[0]).toBe("");
+    expect(v[4]).toBe("o = 4"); // the {ojs} body is still forwarded verbatim
+  });
+
+  it("does NOT inject into an all-whitespace-body python cell — preserves the `embeddedLanguagesIn` invariant", () => {
+    // The refinement over the plan's `keep.size > 0` gate. A python cell whose body is only
+    // blank/whitespace lines is KEPT in `keep` (a whitespace body line is code the cursor can
+    // land on, kept verbatim) — so `keep.size > 0` — but it is NOT a forwarding target:
+    // `embeddedLanguagesIn` excludes it (`:159` requires a NON-whitespace body line) and there
+    // is nothing for Pyright to diagnose, so nothing to mute. Injecting here would make
+    // `buildVirtualContent(text,"python").trim() !== ""` while `embeddedLanguagesIn` reports
+    // python absent — breaking the load-bearing `embeddedLanguagesIn ⟺ non-empty` invariant. So
+    // the gate is NON-whitespace body content, not `keep.size > 0`.
+    const text = ["```{python}", "    ", "```"].join("\n"); // body: one whitespace-only line
+    expect(embeddedLanguagesIn(text).map((e) => e.languageId)).not.toContain("python");
+    const v = buildVirtualContent(text, "python");
+    expect(v.split("\n")[0]).not.toBe("# type: ignore"); // no mute injected
+    expect(v.trim()).toBe(""); // the invariant: an effectively-empty vdoc stays empty
+  });
+
+  it("shifts no coordinate — the mute overwrites the blank line 0, body lines keep their index/column", () => {
+    // Coordinate-safety pin (plan §4.1, §10). DOC's python cell is NOT at line 0 (front matter
+    // sits above it), so this shows the directive lands on document line 0 regardless of where
+    // the cell is, while every kept body line stays at its exact (index, column) — a forwarded
+    // `vscode.Position` round-trips unchanged.
+    const v = buildVirtualContent(DOC, "python").split("\n");
+    expect(v.length).toBe(DOC.split("\n").length); // no line added or removed
+    expect(v[0]).toBe("# type: ignore"); // the mute, on document line 0
+    expect(v[8]).toBe("import pandas as pd"); // body line: exact index + column preserved
+    expect(v[9]).toBe("x = 1");
+  });
+});
+
+describe("buildCellVirtualContent — candidate G: `# type: ignore` on line 0 (per-cell vdoc mute)", () => {
+  it("injects the `# type: ignore` mute on line 0 of a python cell with body content", () => {
+    // The per-cell vdocs (outline in-cell symbols, Format Cell) are opened as background
+    // `file:` models too and leak the SAME workspace-mode phantom diagnostics (plan §3.1 —
+    // "df is not defined" from a per-cell vdoc that blanks the sibling that defined df). Same
+    // file-level mute; line 0 is never a body line (body needs the fence above), so it is
+    // coordinate-safe.
+    const [cell] = findAllCells(DOC);
+    const v = buildCellVirtualContent(DOC, cell).split("\n");
+    expect(v[0]).toBe("# type: ignore");
+    expect(v[8]).toBe("import pandas as pd"); // the cell's own body, unmoved
+  });
+
+  it("does NOT inject into a non-python ({ojs}) cell — `#` is a JS syntax error", () => {
+    const text = ["```{ojs}", "o = 4", "```"].join("\n");
+    const [cell] = findAllCells(text);
+    const v = buildCellVirtualContent(text, cell).split("\n");
+    expect(v[0]).toBe("");
+    expect(v[1]).toBe("o = 4"); // the cell body still isolated verbatim
+  });
+
+  it("does NOT inject into an all-whitespace-body python cell (nothing to mute)", () => {
+    const text = ["```{python}", "    ", "```"].join("\n"); // one whitespace-only body line
+    const [cell] = findAllCells(text);
+    const v = buildCellVirtualContent(text, cell);
+    expect(v.split("\n")[0]).not.toBe("# type: ignore");
+    expect(v.trim()).toBe(""); // an effectively-empty per-cell vdoc stays empty
+  });
+});
+
 describe("buildCellVirtualContent — isolates exactly ONE cell (BACKLOG item 11 slice 2)", () => {
   it("keeps only the target cell's body, blanking a same-language sibling cell", () => {
     const text = [
@@ -304,6 +396,14 @@ describe("embeddedLanguagesIn: every forwarding target present in the document",
   //
   // Asserted as a PROPERTY on every case below, not just as values, so the cheap gate and
   // the expensive builder it guards can never drift apart.
+  //
+  // Candidate G note: the python vdoc's `.trim()` can now be non-empty because of the injected
+  // `# type: ignore` mute, not only because of body content — which is EXACTLY why that mute is
+  // gated on NON-whitespace body content (the same condition this invariant uses), not on
+  // `keep.size > 0`. A python cell whose body is only blank lines has `keep.size > 0` yet is
+  // absent from `embeddedLanguagesIn`; muting it would make the RHS true while the LHS is false
+  // and break this equivalence. The "…nothing but BLANK lines" case below is that discriminator
+  // (it goes RED against a `keep.size > 0` gate), so do not simplify the gate to `keep.size > 0`.
   const EVERY_TARGET = ["python", "r", "julia", "javascript"];
   const agreesWithBuild = (text: string): void => {
     const returned = embeddedLanguagesIn(text).map((e) => e.languageId);
@@ -474,7 +574,10 @@ describe("the identity mapping holds for a WHITESPACE-ONLY line inside a cell bo
     expect(v[1]).toBe("def f():");
     expect(v[2]).toBe("    x = 1");
     expect(v[4]).toBe("    return x");
-    expect(v[0]).toBe(""); // the fence is blanked away entirely
+    // The fence's content is gone; line 0 now carries the candidate-G `# type: ignore` mute
+    // (python vdoc with body). Line 0 is never a code body line, so this shifts no position —
+    // v[1], v[2], v[4] above prove the body lines are still at their own indices.
+    expect(v[0]).toBe("# type: ignore");
   });
 
   it("STILL makes a prose-only edit produce byte-identical content (🐉8 stays fixed)", () => {

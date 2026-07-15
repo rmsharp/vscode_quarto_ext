@@ -19,6 +19,20 @@ import {
 } from "../qmd/model";
 import { cellLanguageId, type EmbeddedLang } from "./lang-map";
 
+/**
+ * The file-level mute injected on a python vdoc's line 0 (candidate G, plan §4.1). Under
+ * Pylance's non-default `python.analysis.diagnosticMode: "workspace"`, opening a background
+ * vdoc model injects it into Pyright's TRACKED set (`didOpen`, `service.ts`) — bypassing the
+ * default dot-directory exclude and independent of the file's location — so it gets diagnosed
+ * even though the user never opened it, flooding the Problems panel with phantom errors on
+ * the vdoc paths under `.quarto/vdoc-mit/` (e.g. `"df" is not defined` from a per-cell vdoc
+ * that blanks the sibling cell that defined `df`). A first-line file-level `# type: ignore`
+ * mutes every diagnostic in the file (PEP 484 / Pyright) while leaving completion, hover, and
+ * imports untouched (it filters diagnostic OUTPUT only). It is python-only because `#` is a JS
+ * SYNTAX error — never inject it into a `{ojs}`/`{js}` vdoc.
+ */
+export const TYPE_IGNORE_DIRECTIVE = "# type: ignore";
+
 /** What 6e found at the cursor: the forwardable cell's engine + its routing target. */
 export interface EmbeddedHit {
   /** The cell engine token, e.g. `"python"`. */
@@ -105,7 +119,22 @@ export function buildVirtualContent(text: string, languageId: string): string {
       }
     }
   }
-  return lines.map((line, i) => (keep.has(i) ? line : "")).join("\n");
+  // Candidate G (plan §4.1): mute Pylance's workspace-mode phantom diagnostics on this
+  // background vdoc model with a file-level `# type: ignore` on the already-blanked line 0.
+  // Coordinate-safe: line 0 is never a code body line (a body line needs a fence above it),
+  // so this shifts nothing and the identity mapping is untouched — `!keep.has(0)` makes that
+  // structural fact a load-bearing guard. Gated to `python` (a `#` would corrupt a JS vdoc)
+  // AND to NON-WHITESPACE python body content — the same condition `embeddedLanguagesIn`
+  // uses (`:159`), NOT `keep.size > 0` — so the pinned invariant
+  // `embeddedLanguagesIn(text) ⟺ buildVirtualContent(text, L).trim() !== ""` still holds:
+  // an all-blank-body python cell must stay an all-whitespace (effectively empty) vdoc.
+  const injectMute =
+    languageId === "python" &&
+    !keep.has(0) &&
+    [...keep].some((i) => lines[i].trim() !== "");
+  return lines
+    .map((line, i) => (i === 0 && injectMute ? TYPE_IGNORE_DIRECTIVE : keep.has(i) ? line : ""))
+    .join("\n");
 }
 
 /**
@@ -183,10 +212,17 @@ export function buildCellVirtualContent(text: string, cell: Cell): string {
   const lines = text.split("\n");
   const optionLines = new Set(findCellOptionLines(text).map((o) => o.line));
   const lastBody = cell.startLine + bodyLineCount(cell);
+  const inBody = (i: number): boolean =>
+    i > cell.startLine && i <= lastBody && !optionLines.has(i);
+  // Candidate G (plan §4.1): the per-cell vdoc leaks the same workspace-mode phantom
+  // diagnostics (plan §3.1), so it takes the same file-level `# type: ignore` mute. Line 0 is
+  // never a body line here either — `inBody` requires `i > cell.startLine` and `cell.startLine`
+  // is a fence line ≥ 0 — so the write is coordinate-safe. Gated to a python cell (a `#` is a
+  // JS syntax error) with NON-WHITESPACE body content (nothing to mute in an all-blank cell).
+  const injectMute =
+    cellLanguageId(cell.lang)?.languageId === "python" &&
+    lines.some((line, i) => inBody(i) && line.trim() !== "");
   return lines
-    .map((line, i) => {
-      const inBody = i > cell.startLine && i <= lastBody && !optionLines.has(i);
-      return inBody ? line : "";
-    })
+    .map((line, i) => (i === 0 && injectMute ? TYPE_IGNORE_DIRECTIVE : inBody(i) ? line : ""))
     .join("\n");
 }
