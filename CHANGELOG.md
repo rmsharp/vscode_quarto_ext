@@ -7,6 +7,22 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-14 · [ad hoc] Session 91 — FIXED (HIGH): the `disposeAllVdocs` deactivate-strand race
+
+An in-flight embedded-language forward (semantic tokens fire on a debounced timer up to the moment
+the window closes) that resumed after extension **deactivate** re-registered its virtual document,
+stranding a copy of the user's cell source in `.quarto/vdoc-mit/` until the next session's activation
+sweep. The sibling `disposeVdocs` (document close) was guarded in Session 88 by a per-document epoch;
+`disposeAllVdocs` bumped no epoch, so the shutdown race was unguarded. Fixed with a single monotonic
+global shutdown generation (`disposeAllEpoch`), bumped synchronously-first in `disposeAllVdocs` and
+snapshotted before `ensureVdoc`'s awaits — a per-owner bump could NOT reach the race (at deactivate
+there is no `docUri` and the forward is not yet in any map; the RED test proved it, stranding a real
+`vdoc-mit.*.py`). Bump is synchronous-first so the guard holds even though `deactivate()`
+fire-and-forgets `disposeAllVdocs`. Commits `a634564` (fix + RED-proven integration test) and
+`43b0ac1` (test tightening from the S91 review). Adversarially reviewed (9 agents; 5 of 6 lenses
+empty); two residual PRE-EXISTING LOWs filed to `BACKLOG.md`. Learning #101. 811 unit / 315
+integration / clean 43-file `.vsix`.
+
 ### 2026-07-14 · [BL-16] Session 90 — item 16 Slice 3 SHIPPED: the D4 legend decision. **Item 16 is CLOSED.**
 
 Semantic highlighting via the embedded language's LSP is now complete end to end. Slice 3 resolved D4

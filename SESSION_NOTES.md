@@ -7,8 +7,13 @@
 ## ACTIVE TASK
 **Task:** **Session 91 — IMPLEMENTATION (bug fix): `BACKLOG.md` "Polish / deferred" HIGH — `disposeAllVdocs` never bumps the dispose epoch, so an in-flight forward at extension *deactivate* re-registers its vdoc and strands a copy of the user's source in `.quarto/vdoc-mit/`.** The sibling path (`disposeVdocs`, document close) was fixed Session 88 by bumping the per-document epoch FIRST and unconditionally; the shutdown path (`disposeAllVdocs`) was left unguarded. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. Operator picked this via `AskUserQuestion` at Phase 0; it was S90's top-ranked `next_steps` candidate (1).
 **Started:** 2026-07-14
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** **SHIPPED. The HIGH `disposeAllVdocs` deactivate-strand race is fixed, and the standing adversarial review confirms the fix (5 of 6 lenses empty).** An in-flight embedded-language forward that resumed after extension deactivate re-registered its vdoc, stranding a copy of the user's cell source in `.quarto/vdoc-mit/` until the next session's sweep. **The headline is that the filed "one line, bump every owner's epoch" fix was WRONG — and the RED test proved it before I wrote a line of production code.** At deactivate there is no `docUri` to key a per-document epoch on, and the racing `ensureVdoc` has not yet reached `live.set`/`filesOf`, so it is in NO map to enumerate; a per-owner bump cannot reach it. The fix is a single monotonic module-global `disposeAllEpoch`, bumped **synchronously-first** in `disposeAllVdocs` (so it holds even though `deactivate()` fire-and-forgets `disposeAllVdocs`) and snapshotted before `ensureVdoc`'s awaits. 811 unit / 315 integration / clean 43-file `.vsix`. Learning #101.
+**Ledger:** `CHANGELOG: 2026-07-14 · [ad hoc] (Session 91 — FIXED HIGH: the disposeAllVdocs deactivate-strand race)` entry written.
+**What was done (commits):** `a634564` — the fix (global `disposeAllEpoch`) + a RED-proven integration test that, without the fix, stranded a real `vdoc-mit.3b8e8c45f410.15.py` on disk. `43b0ac1` — tightened that test to `assert.strictEqual(uri, undefined)` (S91 review found the `if (uri !== undefined)` branch dead). `b924b90` — the claim. RED shown before GREEN (`expected [vdoc-mit.*.py] to deeply equal []`).
+**Adversarial review (9 agents, 6 lenses × 2 skeptics + completeness critic, ~401K subagent tokens):** race-correctness / regression / test-quality / resource-leak / api-contract ALL returned empty — no lens could hole the source-file strand guard. One survivor + three critic findings, ALL LOW and all PRE-EXISTING or cosmetic: the `mkdtemp` fallback-dir leak (both skeptics `in_scope:false`), the after-dispatch epoch boundary (shared with `disposeVdocs`, backstopped by the sweep), and two in-flight-test nits. FILED the two production LOWs to `BACKLOG.md` "Polish / deferred"; FIXED the one that touched my own test (`43b0ac1`). Held scope: did NOT bundle the `mkdtemp` LOW even though it lives in the same function (my claim pre-declared it out of scope, FM #17/#26).
+**Key files:** `src/features/embedded-vdoc.ts` — new module-global `disposeAllEpoch` (with a docstring on WHY it is global not per-owner); `ensureVdoc` snapshots `allEpoch` before its awaits and the post-await guard now reads `epochOf(key.docUri) !== epoch || disposeAllEpoch !== allEpoch`; `disposeAllVdocs` bumps `disposeAllEpoch += 1` FIRST, before its awaits. `test/integration/suite/embedded-vdoc.test.ts` — new describe "a forward still in flight when the EXTENSION deactivates" at the file tail, mirroring the S88 sibling "…when the document closes" (line ~478). `src/extension.ts:123` — the `void disposeAllVdocs()` fire-and-forget (unchanged; it is WHY the bump must be synchronous-first).
+**What's next (specific):** Item 16 and this HIGH are both closed. Pick the next item from `BACKLOG.md` "Up Next" / "Polish / deferred" via `AskUserQuestion` (Active is empty). Strongest candidates: **(1)** the still-open HIGH — embedded vdocs publish diagnostics to the Problems panel under `python.analysis.diagnosticMode:"workspace"` (`BACKLOG.md` Polish, filed S87; user-facing pollution). **(2)** The next feature-parity slice — item 14 Slice 2, filepath `CompletionItemProvider` for `_quarto.yml` (plan §6 Slice 2 already written, reuses `src/core/project-links.ts`). **(3)** The two S91-filed LOWs, cheapest if bundling the same `disposeAllVdocs` blast radius — the `mkdtemp` fallback-dir leak (move the `fallbackDir`/`fallbackDirPromise` reset OUT of the `if` block and observe `fallbackDirPromise`) and the after-dispatch boundary (a latched `deactivated` boolean would cover both siblings).
+**Gotchas for the next session:** (1) 🔑 **Don't trust a filed "one-liner" for a concurrency fix — write the RED test first (Learning #101).** The BACKLOG *and* my predecessor's handoff both said "one line, bump every owner's epoch," and both were wrong about the SHAPE, not just the count. The RED test settled it in one run. (2) **A per-key guard does not port to a global teardown** — the teardown has no key, and the racing op may be registered under none yet; use a global monotonic generation, bumped synchronously before any await. (3) **`deactivate()` fire-and-forgets `disposeAllVdocs` (`extension.ts:123`)** — any correctness that depends on the async cleanup completing is unreliable at shutdown; put the load-bearing state change synchronous and first. (4) **RUN THE STANDING ADVERSARIAL REVIEW ON ANY FIX EVEN WHEN GREEN — twelfth consecutive slice.** It came back mostly empty this time (the fix is small and correct), which is itself the signal that the review is calibrated, not skippable. (5) **COMMIT THE CHECKPOINT, THEN edit** (inherited from S89/S90) — still true; I committed the claim and the fix before the review-response edit.
 **Scope (1 and done):** ONE bug — the `disposeAllVdocs` shutdown-race strand (`src/features/embedded-vdoc.ts:237`). The other four embedded-vdoc items S89/S90 filed (passive `{r}`/`{julia}` minting MEDIUM; the 2+2N rescan MEDIUM; the `disposeEpoch`/`mkdtemp` LOWs; the Problems-panel diagnostics HIGH) are explicitly NOT in scope (FM #17/#26) — I will not bundle them.
 **Design note recorded at claim (to be VALIDATED by the RED test, not asserted):** the filed fix says "bump every owner's epoch in `disposeAllVdocs`." That is likely INSUFFICIENT: an `ensureVdoc` mid-await for a document that has not yet reached `live.set`/`filesOf` has no `docFiles` entry to enumerate — the exact case `disposeVdocs` handles ONLY because it is handed the specific `docUri` (it bumps that one epoch before its early return, `embedded-vdoc.ts:218`). `disposeAllVdocs` gets no `docUri`, so the minimal CORRECT fix is a global shutdown-generation counter that `ensureVdoc` snapshots before its awaits and re-checks after (mirroring the per-document epoch but covering EVERY in-flight forward). The RED test decides: if a per-owner bump leaves the test RED, the global counter is proven necessary.
 **Baseline to re-verify firsthand at first step:** S90 receipt claims 811 unit / 314 integration / 12 real-LSP green, clean 43-file `.vsix`. `test/integration/suite/embedded-vdoc.test.ts:478` is the sibling `disposeVdocs` in-flight race test my new test mirrors (same structure, `disposeAllVdocs()` in place of `disposeVdocs(doc.uri)`).
@@ -41,6 +46,72 @@
 **Gate (a) contract re-verified at Orient against current code — ZERO drift, with two Slice-0 refinements the plan's prose predates and that Slice 1 MUST build against (not against §6.4's stale pseudocode):** (1) `VdocKey` no longer carries `version` — the adapter owns a module-level monotonic counter (`embedded-vdoc.ts:82`) — and instead carries `ext`; the shipped shape is `{docUri, languageId, ext, kind, cellStartLine?}` (`vdoc-path.ts:52`). The plan's `ensureVdoc(doc, {kind:"lang", languageId:L, version:++v, …}, content)` would not compile. (2) `ensureVdoc` is **reuse-on-unchanged-content / fresh-path-on-change** (`embedded-vdoc.ts:121`), not literally "fresh path per computation" — strictly better (it is what keeps a per-keystroke provider off the disk, 🐉8) and already break-revert-proven. Verified present and unchanged: `ensureVdoc` owns the mandatory `openTextDocument` (M1, `embedded-vdoc.ts:140`); `buildVirtualContent` (`virtual-doc.ts:83`) gives the identity mapping that lands tokens in `.qmd` coordinates with **no remap**; `providers/embedded.ts:95` `vdocFor` is the exact `kind:"lang"` pattern to mirror; `extension.ts:64` is the wiring point; `npm run test:lsp` exists. **Greenfield confirmed by grep:** zero hits for `SemanticTokens` / `semantic-tokens` / `provideDocumentSemanticTokens` / `embeddedLanguagesIn` across `src/` + `test/` + `package.json`. Baseline green: 767 unit.
 **Kickoff decisions (operator, via `AskUserQuestion`):** run `npm run test:lsp` (real-Pylance Extension Development Host) freely this session — it is the only evidence that can prove Slice 1, since a stand-in cannot (the item-18 lesson); run `npm run test:integration` as routine.
 **Scope note on D4 (the legend), recorded at claim:** the plan defers the *theming* decision — carry Pylance's foreign type names + `contributes.semanticTokenScopes`, vs. map them to their `superType` — to **Slice 3** (§5.4). Slice 1 therefore declares the **standard VS Code legend** and takes the plan's explicit safe fallback: a token whose type is absent from our legend is **dropped** (it keeps its TextMate colour — degraded, never *wrong*), and unknown modifier *bits* are **cleared, not token-dropping**. Consequence to measure and report, not to silently ship: Pylance's `module` / `selfParameter` / `builtinConstant` / `magicFunction` / `intrinsic` tokens fall outside the standard set, so part of a Python cell keeps TextMate colouring until Slice 3. I will measure the real drop rate against real Pylance and hand Slice 3 the number.
+
+## Session 91 Self-Assessment
+
+- **Phase 0 was clean and fast** because S90 left a fully-closed state: item 16 shut, tree clean, both
+  ledger frontiers current. The one reconcile subtlety — commit `5574c07` sat after the CHANGELOG
+  frontier — I judged as S90's own post-close-out Phase 3E addendum (already covered by S90's entry),
+  reported it, and did not double-log. The operator picked this task via `AskUserQuestion`; it was
+  S90's top-ranked next-step, so orientation and direction agreed.
+- **The session's whole value is that I did NOT trust the filed fix, and the RED test is what earned
+  that.** The BACKLOG and S90's handoff both said "one line, bump every owner's epoch." I recorded at
+  CLAIM time (before any code) that this was probably insufficient — a per-owner bump can't reach a
+  forward that is in no map yet — and let the RED test arbitrate rather than asserting it. The test
+  stranded a real `vdoc-mit.*.py`, confirming a per-owner bump would not have caught it. Learning #101.
+- **Strict TDD with a genuine RED for the right reason.** `expected [ vdoc-mit.3b8e8c45f410.15.py ] to
+  deeply equal []` — a real copy of the user's source on disk — then GREEN. Checkpoint commit at each
+  boundary (claim → fix → review-response), and I committed before the review-response edit.
+- **I ran the standing adversarial review even though every layer was green (twelfth consecutive
+  slice), and this time it came back almost empty** — 5 of 6 lenses found nothing, and the survivor +
+  critic findings were all LOW and pre-existing or cosmetic. A near-empty review on a small, correct
+  fix is the review working, not the review being unnecessary: the one finding that touched my own
+  code (a dead test assertion) I fixed; the pre-existing ones I filed with mechanisms.
+- **I held scope under real temptation.** The `mkdtemp` fallback-dir leak lives in the SAME function I
+  was editing (`disposeAllVdocs`) and the completeness critic even marked its deepening `in_scope:true`
+  — the textbook "while I'm in here anyway." My claim had pre-declared the `mkdtemp` LOWs out of scope
+  (FM #17/#26), so I filed it (sharpened with the dangling-`fallbackDirPromise` finding) rather than
+  bundling it. One bug, one deliverable.
+- **Runtime verification (Phase 3E): the integration EDH IS the runtime verification, and it is
+  stronger than a manual smoke here.** The change is a shutdown-race guard; a by-hand repro (close the
+  window at the exact microsecond a semantic-token forward is mid-await) is not deterministically
+  triggerable. The integration test triggers it deterministically inside a REAL VS Code Extension
+  Development Host, exercising the actual `disposeAllVdocs`/`ensureVdoc` code against the real
+  filesystem — RED without the fix, GREEN with it. This is not FM #24 (build-passes-ship-it): the
+  evidence is the real runtime code path producing the correct observable filesystem outcome, not a
+  clean compile.
+- **Self-score: 9/10.** The fix is correct, evidence-gated (the RED test proved the global counter
+  necessary, refuting the filed framing), adversarially confirmed (5/6 lenses empty), scope-disciplined,
+  and the one finding touching my own code is fixed. Not a 10 because the deliverable was a bounded,
+  well-specified bug — clean execution of a narrow task, not a hard judgement call like S90's inverted
+  assumption. The honest note: the review found nothing wrong because the change was small, so this
+  session tested my discipline (scope, TDD, close-out) more than my judgement.
+
+## Session 90 Handoff Evaluation (by Session 91)
+
+**Score: 8/10.** S90's handoff was written for a now-closed feature (item 16 semantic tokens), so most
+of its body — key_files, the D4 gotchas — did not serve my bug-fix task. But the part that DID matter,
+`next_steps`, teed up this exact item accurately, and the state it left made Phase 0 frictionless.
+
+- **What helped, decisively:** `next_steps` candidate (1) named this bug precisely — *"the
+  `disposeAllVdocs` epoch (HIGH … an in-flight forward at deactivate re-registers its vdoc and strands
+  the user's source)"* — and told me the sibling was fixed. That framing was correct on the WHAT and
+  pointed me straight at `disposeVdocs`'s S88 fix as the template. It also matched the BACKLOG item, so
+  the operator's pick and the handoff agreed.
+- **The clean close-out was itself a gift.** Item 16 shut, tree clean, both ledger frontiers current,
+  the `.vsix` count documented (43) — my Phase 0 baseline re-verification (811 unit / 314 integration)
+  matched the receipt exactly, with nothing to reconcile but one already-covered addendum commit.
+- **What was wrong (the −2):** the handoff (echoing the BACKLOG) characterized the fix as *"one line …
+  bump every owner's epoch."* That is inaccurate — a per-owner bump does not fix the race, because at
+  deactivate there is no `docUri` and the forward is in no map yet. A per-owner "one-liner" would have
+  shipped a fix that its own test could not have made pass. It cost me nothing (I'd already flagged the
+  doubt at claim and let the RED test decide), but a handoff that states a fix's SHAPE should either
+  have verified it or flagged it as unverified. This is the sibling of the very lesson S90 itself
+  recorded (Learning #100: don't assert a mechanism you haven't tested).
+- **What was missing:** nothing material for my task — the bug was well-described in the BACKLOG, which
+  the handoff correctly deferred to.
+- **ROI:** high. The next-steps pointer and the clean state saved the whole orientation; the "one line"
+  miss is exactly what a RED-first discipline exists to absorb.
 
 ## Session 90 Self-Assessment
 
