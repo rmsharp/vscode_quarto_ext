@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S94
+date: 2026-07-15
+status: pending
+active_task: IMPLEMENTATION (bug fix). BACKLOG "Polish / deferred" MEDIUM (S89 adversarial review) — providers/semantic-tokens.ts mints an embedded-language vdoc (writes the user's cell source to .quarto/vdoc-mit/ + opens a hidden model) per language on EVERY debounced pass, with NO gate on whether a server for that language is even registered. Fix: gate embeddedLanguagesIn's targets on the languageId being registered via needsLanguageExtension (core/embedded/lang-map.ts:67) + vscode.languages.getLanguages() — the exact mechanism providers/embedded.ts:167 already uses but providers/semantic-tokens.ts never calls. So an {r}/{julia} cell with no R/Julia extension no longer writes the user's source to disk. Strict TDD. Chosen at Phase 0 AFTER I surfaced that the pre-ranked item 14 Slice 2 (filepath CompletionItemProvider) was ALREADY SHIPPED (S81) and BACKLOG:54 was merely stale [ ] (fixing that at close-out).
+```
+
+```handoff
 session: S93
 date: 2026-07-15
 status: complete
