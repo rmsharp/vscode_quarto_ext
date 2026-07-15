@@ -7,9 +7,12 @@
 ## ACTIVE TASK
 **Task:** **Session 92 — PLANNING (design/architecture): `BACKLOG.md` "Polish / deferred" HIGH — embedded vdocs publish diagnostics to the Problems panel under Pylance's non-default `python.analysis.diagnosticMode: "workspace"`.** Deliverable is ONE grounded design document in `docs/planning/` (NOT an implementation — FM #18/#19), following `docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md`. Operator picked the item via `AskUserQuestion` at Phase 0 (it was S91's top-ranked `next_steps` candidate (1)), then chose "Design plan" over "attempt direct fix now" at the plan-vs-implement fork — because no fix approach is chosen and the leading lightweight candidate (move vdocs out of the workspace root) risks a *silent* regression of project-relative import resolution that must be grounded firsthand before committing.
 **Started:** 2026-07-14
-**Status:** **Session claimed. Work beginning.** The plan must ground each candidate fix firsthand against real Pylance in the `test:lsp` harness (does out-of-workspace break import resolution? does `python.analysis.exclude`/`ignore` retract already-published diagnostics? does any move regress the item-18 completion/hover behavior?), recommend one approach, and give per-phase completion criteria for the implementation session(s). **Candidate fixes, none chosen yet:** (1) move vdocs out of `<workspaceRoot>/.quarto/vdoc-mit/` to the OS-temp path the untitled fallback already uses (risks import-resolution regression); (2) Pylance-specific config injection `python.analysis.exclude`/`ignore` (doesn't cover R/Julia; invasive; retraction unproven); (3) own a `vscode-languageclient` (operator REJECTED this heavier architecture at S69, item 10 Option A); (4) force-close the background model (no known public VS Code API). **Load-bearing constraints already established at Orient:** deleting a vdoc file does NOT retract its diagnostics (no `didClose` fires); default `openFilesOnly` has ZERO leak (pinned by `real-lsp.test.ts:279`); the leak is `workspace`-mode-only.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
-**Key files (read at Orient):** `src/features/embedded-vdoc.ts` (the vdoc lifecycle — `ensureVdoc` opens the background model M1; `vdocDirFor` writes to `<workspaceRoot>/.quarto/vdoc-mit/` for workspace docs, OS-temp `mkdtemp` for untitled). `src/core/embedded/vdoc-path.ts` (naming/ownership; `VDOC_DIR_SEGMENTS`). `test/lsp/suite/real-lsp.test.ts:279` (the "does NOT flood the Problems panel (default diagnosticMode)" test — the harness a plan extends to a `workspace`-mode case). `docs/planning/2026-07-10-code-cell-diagnostics-plan.md` (item 10 — the rejected own-a-languageclient architecture; read before re-proposing it).
+**Status:** **SHIPPED (the PLAN — deliverable is `docs/planning/2026-07-14-embedded-vdoc-diagnostics-leak-plan.md`, NOT code).** The whole value: firsthand grounding **refuted the "obvious" fix** (relocate vdocs out of the workspace) that the item, the backlog, Posit's PR prose, a source-level Pyright read, AND this plan's own first draft all favored — a `test:lsp` run under `QMD_LSP_DIAGMODE=workspace` showed the OS-temp-relocated vdocs leak identically, because Pyright injects tracked membership at `didOpen` time (location-independent). The fix that the plan recommends came from a THIRD mechanism class nobody's framing contained — **in-content suppression: a file-level `# type: ignore` on the vdoc's already-blanked line 0** — confirmed firsthand under workspace mode to fully suppress the leak (`[]`, was 5 diagnostics), preserve completion (n=273, `head` present), and emit **zero** semantic tokens on `.qmd` line 0 (the adversarial review's key exposure, refuted). A 13-agent review of the plan's FIRST DRAFT caught that its first-draft recommendation (`D`: rewrite `deleteQuietly`→`WorkspaceEdit`) was inverted (partial + max-blast-radius on the S88/S91 race paths) and surfaced the in-content class; the plan was rewritten around candidate G. Learning #102. **Implementation is a SEPARATE session (FM #18/#19) — I did NOT implement G.**
+**Ledger:** `CHANGELOG: 2026-07-14 · [ad hoc] (Session 92 — PLAN for the diagnosticMode:workspace vdoc leak; relocation refuted, `# type: ignore` fix confirmed)` entry written.
+**What's next (specific — this is the implementation session):** Implement **candidate G** per the plan §6 as ONE pure-`core/` slice, strict TDD. **L1:** in `src/core/embedded/virtual-doc.ts`, inject `# type: ignore` on line 0 of `buildVirtualContent` (gate: `languageId === "python" && keep.size > 0 && !keep.has(0)`) and `buildCellVirtualContent` (gate: `cellLanguageId(cell.lang)?.languageId === "python"`; line 0 is never a body line). Headless vitest one behavior at a time + **update the `embeddedLanguagesIn ⟺ buildVirtualContent(text,'python').trim() !== ''` invariant test** for the injected line (the invariant still holds — both sides gate on python body content — but the exact-string assertion changes). **L2:** a `test:lsp` case under `QMD_LSP_DIAGMODE=workspace` (workspace-mode sibling of `real-lsp.test.ts:279`): RED (leak) → GREEN (`vdoc-mit` diagnostics `[]`), + a completion control (n>0), + a `vscode.provideDocumentSemanticTokens` assertion that NO token lands on `.qmd` line 0 (pins the version-specific clean result). Then a docs pass. Operator Q's at plan §9 (confirm G / drop D; R/Julia measurement; whether to also document `python.analysis.ignore`).
+**Key files:** `docs/planning/2026-07-14-embedded-vdoc-diagnostics-leak-plan.md` (THE deliverable — §3.5 firsthand G confirmation, §4 decision, §5 alternatives+verdicts, §6 slice). `src/core/embedded/virtual-doc.ts:92`/`:182` (the two builders — G's only change site). `test/lsp/suite/real-lsp.test.ts:279` + `test/lsp/runTest.ts:110/141` (`QMD_LSP_DIAGMODE` toggle — G's L2 gate). `src/features/embedded-vdoc.ts:404` (`deleteQuietly` — the D blast radius, deliberately NOT touched). `PROJECT_LEARNINGS.md` #102.
+**Gotchas for the implementation session:** (1) 🔑 **`#` is a JS SYNTAX ERROR** — the python-languageId gate is load-bearing correctness; never inject unconditionally into the shared builders (it would corrupt `{ojs}`/`{js}` vdocs). (2) **The clean line-0 semantic-token result is Pylance-VERSION-specific** — pin "no token on `.qmd` line 0" in L2 so a future tokenizing Pylance is caught, not shipped. (3) **Do NOT implement `D`** (the `deleteQuietly`→`WorkspaceEdit` disposal-timing change from the first draft) — the review refuted it (partial + max blast radius on S88/S91 paths + `didClose`-retracts unconfirmed, contradicted by pylance #5896). (4) **Relocation is REFUTED** — do not revisit moving vdocs out of `.quarto/vdoc-mit/` (the temp-path vdocs leaked identically, §3.2). (5) **R/Julia leak is UNMEASURED** (no servers here) — measure before building any R/Julia arm; if they leak, extend the in-content directive family, not D.
+**Scope (1 and done):** ONE plan produced. NO code shipped (candidate G is the NEXT session). The `dashboard_history.jsonl` change is the Phase 0 dashboard snapshot.
 
 ## Session 91 ACTIVE TASK (superseded by Session 92 — full entry preserved below)
 **Task:** **Session 91 — IMPLEMENTATION (bug fix): `BACKLOG.md` "Polish / deferred" HIGH — `disposeAllVdocs` never bumps the dispose epoch, so an in-flight forward at extension *deactivate* re-registers its vdoc and strands a copy of the user's source in `.quarto/vdoc-mit/`.** The sibling path (`disposeVdocs`, document close) was fixed Session 88 by bumping the per-document epoch FIRST and unconditionally; the shutdown path (`disposeAllVdocs`) was left unguarded. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. Operator picked this via `AskUserQuestion` at Phase 0; it was S90's top-ranked `next_steps` candidate (1).
@@ -53,6 +56,65 @@
 **Gate (a) contract re-verified at Orient against current code — ZERO drift, with two Slice-0 refinements the plan's prose predates and that Slice 1 MUST build against (not against §6.4's stale pseudocode):** (1) `VdocKey` no longer carries `version` — the adapter owns a module-level monotonic counter (`embedded-vdoc.ts:82`) — and instead carries `ext`; the shipped shape is `{docUri, languageId, ext, kind, cellStartLine?}` (`vdoc-path.ts:52`). The plan's `ensureVdoc(doc, {kind:"lang", languageId:L, version:++v, …}, content)` would not compile. (2) `ensureVdoc` is **reuse-on-unchanged-content / fresh-path-on-change** (`embedded-vdoc.ts:121`), not literally "fresh path per computation" — strictly better (it is what keeps a per-keystroke provider off the disk, 🐉8) and already break-revert-proven. Verified present and unchanged: `ensureVdoc` owns the mandatory `openTextDocument` (M1, `embedded-vdoc.ts:140`); `buildVirtualContent` (`virtual-doc.ts:83`) gives the identity mapping that lands tokens in `.qmd` coordinates with **no remap**; `providers/embedded.ts:95` `vdocFor` is the exact `kind:"lang"` pattern to mirror; `extension.ts:64` is the wiring point; `npm run test:lsp` exists. **Greenfield confirmed by grep:** zero hits for `SemanticTokens` / `semantic-tokens` / `provideDocumentSemanticTokens` / `embeddedLanguagesIn` across `src/` + `test/` + `package.json`. Baseline green: 767 unit.
 **Kickoff decisions (operator, via `AskUserQuestion`):** run `npm run test:lsp` (real-Pylance Extension Development Host) freely this session — it is the only evidence that can prove Slice 1, since a stand-in cannot (the item-18 lesson); run `npm run test:integration` as routine.
 **Scope note on D4 (the legend), recorded at claim:** the plan defers the *theming* decision — carry Pylance's foreign type names + `contributes.semanticTokenScopes`, vs. map them to their `superType` — to **Slice 3** (§5.4). Slice 1 therefore declares the **standard VS Code legend** and takes the plan's explicit safe fallback: a token whose type is absent from our legend is **dropped** (it keeps its TextMate colour — degraded, never *wrong*), and unknown modifier *bits* are **cleared, not token-dropping**. Consequence to measure and report, not to silently ship: Pylance's `module` / `selfParameter` / `builtinConstant` / `magicFunction` / `intrinsic` tokens fall outside the standard set, so part of a Python cell keeps TextMate colouring until Slice 3. I will measure the real drop rate against real Pylance and hand Slice 3 the number.
+
+## Session 91 Handoff Evaluation (by Session 92)
+
+**Score: 8/10.** S91's handoff pointed me at this exact item precisely and left a frictionless state; the
+−2 is inherited framing it could not have known was wrong.
+
+- **What helped, decisively:** `next_steps` candidate (1) named this bug exactly — *"embedded vdocs publish
+  diagnostics to the Problems panel under `python.analysis.diagnosticMode:"workspace"` … user-facing
+  pollution"* — and it was the operator's pick, so orientation and direction agreed. It correctly deferred the
+  fix detail to the BACKLOG item rather than guessing.
+- **The clean close-out was a gift.** Item 16 + the disposeAllVdocs HIGH both closed, tree clean, both ledger
+  frontiers current — Phase 0 had literally nothing to reconcile (one dashboard snapshot aside).
+- **What was incomplete (the −2), and it is the BACKLOG's, not really S91's:** the inherited fix framing
+  (BACKLOG item + Posit prose) pointed at "relocate / own-a-client / close-the-model" and implied relocation
+  might work. Firsthand measurement refuted relocation and the actual fix (`# type: ignore`) was in a
+  mechanism class the framing never named. S91 correctly deferred to the BACKLOG, so this is a note for the
+  BACKLOG item's framing, not a defect in S91's handoff — which did its one job (accurate next-step + clean
+  state) well.
+- **ROI:** high. The precise next-step and the clean state made the whole Phase 0 frictionless.
+
+## Session 92 Self-Assessment
+
+- **I recognized this as a PLANNING deliverable, not implementation, and confirmed the plan-vs-implement fork
+  with the operator before any grounding** — the item is explicitly "genuinely hard, warrants its own
+  session," no fix was chosen, and strict TDD cannot start on an unchosen approach (FM #18/#19). The operator
+  chose "design plan."
+- **The session's whole value is that firsthand grounding REFUTED the obvious fix.** Relocation was favored by
+  the item, the backlog, Posit's own PR #980 prose, a source-level Pyright read, AND my own plan's first
+  draft. One `test:lsp` run refuted it (the temp-path vdocs leaked identically). Implementing it would have
+  shipped a non-fix plus needless sweep re-architecture. This is the S88/S90 pattern (don't trust the
+  inherited framing; measure the real dependency) paying off a third time. Learning #102.
+- **Grounding was exhaustive and layered:** source-level Pyright/VS Code reads (3 research agents), Posit prose
+  (a 4th), then firsthand `test:lsp` probes against real Pylance 2026.2.1 — and I confirmed each measurement
+  against the REAL extension lifecycle after a hand-rolled probe (retype-to-plaintext) turned out to *clear*
+  the leak (it is Posit's own clearing mechanism) rather than reproduce the natural steady state.
+- **I ran the standing adversarial review on the PLAN, not just code (13 agents) — and it earned its keep.** It
+  refuted my first-draft recommendation (`D`, a `deleteQuietly`→`WorkspaceEdit` disposal-timing change) as
+  inverted: partial for the static case (it never clears the live per-cell vdocs) and maximum blast radius on
+  the exact S88/S91 race-critical paths — and it surfaced the in-content `# type: ignore` class I had only
+  half-seen. I then confirmed that candidate firsthand (suppress + preserve + no line-0 token) and rewrote the
+  plan around it.
+- **Scope discipline held.** I confirmed with the operator before EACH screen-surfacing `test:lsp` run
+  (standing feedback: get go-ahead before actions that surface a window). I did NOT implement candidate G —
+  the plan is the deliverable; G is a separate session.
+- **The honest weakness: my first-draft recommendation was wrong.** I over-valued "general across servers" and
+  under-analyzed that D is only partial and mutates the riskiest primitive in the module. My own adversarial
+  process caught it — the system working — but a cleaner first synthesis would have weighed D's partial-ness
+  and blast radius before recommending it. I also left the open-vs-closed branch attribution un-instrumented
+  (inferred, not measured) — moot for the recommended fix (G suppresses via content regardless of branch), but
+  a loose end I flagged in the plan rather than closing.
+- **Runtime verification (Phase 3E):** the deliverable is a PLAN — no runtime behavior ships this session. But
+  every load-bearing claim in it was verified firsthand in a REAL VS Code Extension Development Host against
+  real Pylance (leak reproduced; relocation refuted; `# type: ignore` suppresses + preserves + no line-0
+  token; `ignore` suppresses). This is stronger grounding than a plan usually carries, not weaker — the plan's
+  recommendation is evidence-gated, not argued.
+- **Self-score: 9/10.** Thorough, evidence-gated, adversarially reviewed, lands on a confirmed clean fix, and
+  held the plan-vs-implement boundary. Not a 10 because the first-draft recommendation (D) was a real
+  misjudgment that the review had to correct, and one empirical nuance (branch attribution) was inferred
+  rather than measured.
 
 ## Session 91 Self-Assessment
 
