@@ -7,12 +7,70 @@
 ## ACTIVE TASK
 **Task:** **Session 93 — IMPLEMENTATION (bug fix): `BACKLOG.md` "Polish / deferred" HIGH — embedded vdocs publish phantom diagnostics to the Problems panel under Pylance's non-default `python.analysis.diagnosticMode: "workspace"`. Implementing candidate G from `docs/planning/2026-07-14-embedded-vdoc-diagnostics-leak-plan.md` (Session 92): a python-gated file-level `# type: ignore` on the vdoc's already-blanked line 0.** Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. **Pre-declared vertical slice** (gate (a) contract = plan §6: L1 pure `core/` builders + L2 workspace-mode `test:lsp`). Operator picked this via `AskUserQuestion` at Phase 0 (Active empty); it is S92's pre-declared implementation session and was S91's top-ranked candidate (1).
 **Started:** 2026-07-15
-**Status:** **IN PROGRESS. Session claimed; gate (a) contract re-verified against current code at Orient — ZERO structural drift, with ONE refinement found.** The plan's gate `keep.size > 0` for `buildVirtualContent` does NOT actually preserve the `embeddedLanguagesIn ⟺ non-empty` invariant: `keep` adds body lines WITHOUT a whitespace check (`virtual-doc.ts:102-106`) while `embeddedLanguagesIn` requires a NON-whitespace body line (`:159`), and the module's own docstring (`:132-135`) confirms an all-blank-body python cell yields an all-whitespace vdoc with `keep.size > 0`. Correct gate = non-whitespace body content (the `embeddedLanguagesIn` condition). Strict TDD will pin it. No production code written yet.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's action is recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
-**What's next:** L1 headless vitest TDD in `src/core/embedded/virtual-doc.ts` — inject `# type: ignore` on line 0, gated python + non-whitespace-body + `!keep.has(0)` in `buildVirtualContent`; python-cell + non-whitespace-body in `buildCellVirtualContent`; UPDATE the invariant property test for the injected line. L2 workspace-mode `test:lsp` (RED leak → GREEN `[]`) + completion control + no-line-0-token pin — **SCREEN-SURFACING; get operator go-ahead before each run.** Then the standing adversarial review, then a docs pass (`POSIT-COMPARISON.md`; close the Python HIGH; file the R/Julia-leak MEASUREMENT as a new small item).
-**Key files:** `src/core/embedded/virtual-doc.ts:92`/`:182` (the two builders — G's only change site). `test/unit/embedded-virtual-doc.test.ts:300-313` (the `agreesWithBuild` invariant property test to update). `test/lsp/suite/real-lsp.test.ts:279` + `test/lsp/runTest.ts:110/141` (`QMD_LSP_DIAGMODE` toggle — G's L2 gate). `docs/planning/2026-07-14-embedded-vdoc-diagnostics-leak-plan.md` (the contract).
-**Gotchas:** (1) 🔑 `#` is a JS SYNTAX ERROR — the python-languageId gate is load-bearing correctness; never inject into the shared builders for non-python. (2) Gate on NON-whitespace body content, not `keep.size > 0` (invariant). (3) Do NOT touch `deleteQuietly` (D rejected, plan §5). (4) `test:lsp` surfaces a VS Code window — confirm before each run. (5) Pin "no token on `.qmd` line 0" (Pylance-version-specific, plan §4.3).
-**Scope (1 and done):** ONE fix — candidate G in the two builders + its unit/LSP tests + a docs pass. NO `deleteQuietly`/lifecycle changes, NO relocation, NO R/Julia arm (unmeasured — file a measurement item instead).
+**Status:** **SHIPPED. The HIGH `diagnosticMode:"workspace"` vdoc Problems-panel leak is FIXED for python, verified RED→GREEN live against real Pylance, and the standing 11-agent adversarial review found ZERO surviving defects in the fix.** Candidate G — a python-gated file-level `# type: ignore` on the vdoc's already-blanked line 0, in both pure builders — mutes Pyright's phantom type/name/import diagnostics on `.quarto/vdoc-mit/*.py` paths under workspace mode. **The session's headline is that the CONTRACT RE-VERIFICATION and the RUNTIME each refined a load-bearing plan detail (Learning #103):** (1) the plan's gate `keep.size > 0` would break the `embeddedLanguagesIn ⟺ non-empty` invariant for an all-blank-body python cell — the correct gate is *non-whitespace body content* (the existing invariant test goes RED against `keep.size>0`, break-revert-proven); (2) the plan's spike read as "full suppression" (`[]`), but the workspace-mode `test:lsp` run showed `# type: ignore` mutes type/name/import but NOT *parse/syntax* errors (a transient residual, filed). 819 unit / 13 real-LSP (workspace mode) / clean 43-file `.vsix`.
+**Ledger:** `CHANGELOG: 2026-07-15 · [ad hoc] (Session 93 — FIXED HIGH: the diagnosticMode:workspace vdoc Problems-panel leak, candidate G)` entry written.
+**What was done (commits):** `48bdf2a` — L1: the `# type: ignore` injection in `buildVirtualContent` + `buildCellVirtualContent` (gated python + non-whitespace-body + `!keep.has(0)`), strict TDD, gates + coordinate-safety each break-revert-proven. `772e0dc` — L2: the workspace-mode real-LSP gate (`test/lsp/suite/real-lsp.test.ts` "MUTES phantom vdoc diagnostics"), proven RED→GREEN live (pre-fix: `"df" is not defined` / `Import "pandas" could not be resolved`; post-fix: zero vdoc diagnostics). `15840c5` — adversarial-review response (L2 liveness control, `test:lsp:workspace` script, cell-at-line-0 unit test). `409efdd` — the claim. Docs (BACKLOG [x] FIXED + 3 follow-ups; POSIT-COMPARISON note) + CHANGELOG + learnings in the close-out commit.
+**What's next (Active is empty — pick via `AskUserQuestion` at Phase 0):** This HIGH is closed. Ranked candidates: **(1)** the next feature-parity slice — **item 14 Slice 2, filepath `CompletionItemProvider`** for `_quarto.yml` value slots (plan §6 Slice 2 already written, reuses `src/core/project-links.ts`). **(2)** the embedded-vdoc MEDIUM cluster S89 filed — passive `{r}`/`{julia}` vdoc minting; the 2+2N semantic-token rescan; the "no test makes one language throw while another answers" coverage gap. **(3)** the S93-filed follow-ups to THIS fix (all in `BACKLOG.md` Polish/deferred): the R/Julia leak measurement (needs a real R/Julia server); the transient syntax-error residual; the Format Cell cell-at-line-0 adjacency edge (needs a real Python formatter). **(4)** the two S91-filed LOWs (`mkdtemp` fallback-dir leak; after-dispatch epoch boundary).
+**Key files (as SHIPPED):** `src/core/embedded/virtual-doc.ts` — `TYPE_IGNORE_DIRECTIVE` const + `injectMute` in `buildVirtualContent` (`:92` area) and `buildCellVirtualContent` (`:182` area). `test/unit/embedded-virtual-doc.test.ts` — the two "candidate G" describe blocks + the updated coordinate test + the `agreesWithBuild` invariant note. `test/lsp/suite/real-lsp.test.ts` — the "MUTES phantom vdoc diagnostics" workspace-mode test + the `:279` workspace-mode guard. `package.json` — `test:lsp:workspace` script. `docs/planning/2026-07-14-embedded-vdoc-diagnostics-leak-plan.md` (the contract). `PROJECT_LEARNINGS.md` #103/#104.
+**Gotchas for the next session:** (1) 🔑 **Gate on NON-whitespace body content, not `keep.size > 0`** — the plan's stated gate was subtly wrong; the invariant test pins it (Learning #103). (2) 🔑 **`#` is a JS SYNTAX ERROR** — the python-languageId gate is load-bearing; never inject into a non-python vdoc. (3) **`# type: ignore` mutes TYPE/NAME/IMPORT diagnostics, NOT syntax errors** — a mid-typing `os.` still leaks transiently under workspace mode (filed residual). (4) **The workspace-mode gate is `npm run test:lsp:workspace`** — a real window; the default `npm run test:lsp` runs openFilesOnly where there is no leak (the gate is vacuous there by physics, not by bug). (5) **Break-revert on UNCOMMITTED code: use `cp` backup, never `git checkout`** (Learning #104 — I lost the uncommitted L1 once to a `git checkout` and re-applied it). (6) **R/Julia are UNMEASURED and `# type: ignore` is Pyright-specific** — the fix SHAPE extends, the STRING does not; measure before building any R/Julia arm.
+**Scope held (1 and done):** ONE fix — candidate G in the two builders + tests + docs + the review-response hardening. Did NOT touch `deleteQuietly`/lifecycle (D rejected), did NOT relocate vdocs (refuted), did NOT build an R/Julia arm (unmeasured — filed).
+
+## Session 92 Handoff Evaluation (by Session 93)
+
+**Score: 9/10.** S92's handoff (the planning session that produced the plan I implemented) pointed me at
+candidate G with a precise L1/L2 breakdown, accurate gotchas, and the exact contract — a frictionless
+setup. The −1 is for two plan-detail nuances firsthand work refined, both of which the plan half-flagged.
+
+- **What helped, decisively:** the `HANDOFFS.md` S92 receipt and the ACTIVE TASK named the deliverable
+  exactly ("implement candidate G, ONE pure-core slice, strict TDD"), enumerated L1's two change sites and
+  gates, L2's structure, and 6 accurate gotchas (the `#`-is-a-JS-syntax-error load-bearing gate; the
+  version-specific line-0 token pin; do-NOT-implement-D; relocation-refuted; R/Julia-unmeasured). Orientation
+  and direction agreed, and the operator's Phase-0 pick matched.
+- **The plan itself was strong grounding, not just prose:** every load-bearing claim was verified firsthand
+  against real Pylance in S92, so I inherited evidence, not assertions. That is why implementation was fast
+  and the mechanism was never in doubt.
+- **What was slightly off (the −1), and the plan half-anticipated both:** (1) the gate `keep.size > 0` was the
+  wrong predicate (should be non-whitespace body) — but §4.3 explicitly flagged "the invariant test must be
+  updated," the tell that the gate was load-bearing and under-specified; the contract re-verification at Orient
+  caught it before any code. (2) the plan's `[]` spike read as "full suppression" but its fixture had no syntax
+  errors, so the type-vs-syntax boundary of `# type: ignore` surfaced only at the runtime gate. Neither is a
+  handoff failure — the plan correctly proved the mechanism CLASS; refining the boundary is implementation's
+  job (Learning #103).
+- **ROI:** very high. A precise, evidence-backed handoff turned a genuinely hard bug into a clean TDD slice.
+
+## Session 93 Self-Assessment
+
+- **I re-verified the gate (a) contract at Orient before claiming — and it paid off immediately.** Reading the
+  two builders and their invariant surfaced that the plan's `keep.size > 0` gate would break the pinned
+  `embeddedLanguagesIn ⟺ non-empty` equivalence; I gated on non-whitespace body content instead and
+  break-revert-proved that the existing invariant test discriminates the two. This is exactly the discipline the
+  vertical-slice gate (a) exists to enforce.
+- **Strict TDD throughout L1, one behavior at a time, RED shown before GREEN**, with the python gate, the
+  non-whitespace gate, and coordinate-safety each break-revert-proven (via file backups after I learned #104
+  the hard way — I lost the uncommitted injection to a `git checkout` once and re-applied it).
+- **The runtime RED→GREEN was the session's spine, not a formality.** I proved the leak live (real Pylance,
+  workspace mode: `"df" is not defined`, `Import "pandas" could not be resolved`) and the mute live (zero vdoc
+  diagnostics) — and when the first GREEN run unexpectedly failed, I diagnosed it firsthand (the global
+  assertion caught sibling tests' deliberately-incomplete `os.`/`greet(` syntax vdocs, which `# type: ignore`
+  cannot mute) and rescoped the test to the item's actual phantom classes rather than weakening the fix or
+  hand-waving. That diagnosis IS the Learning #103 scope insight.
+- **I ran the standing adversarial review even though the fix is small and green (13th consecutive slice).** It
+  returned ZERO surviving defects (6 lenses × 2 skeptics: the one finding refuted 4/4, correctly). The
+  completeness critic's 4 items were all non-defects (test/tooling/doc hardening + an unverified LOW residual),
+  and I addressed each proportionately without over-engineering — no production code changed in response.
+- **Scope discipline held.** I confirmed with the operator before EACH screen-surfacing `test:lsp` run
+  (standing feedback), did NOT touch `deleteQuietly`/lifecycle (D — rejected), did NOT relocate vdocs
+  (refuted), and filed R/Julia + the syntax residual + the Format Cell edge as follow-ups rather than bundling
+  them.
+- **Honest weaknesses:** (1) I lost my uncommitted L1 to a careless `git checkout` during a break-revert and
+  had to re-apply it — a self-inflicted detour, now Learning #104. (2) The syntax-error residual means the item
+  is FIXED for its core (persistent type/name/import pollution) but not 100% — I marked it honestly and filed
+  the residual, rather than claiming a clean close. (3) I did not re-run the integration suite, reasoning it is
+  unaffected (pure-core content change; the only integration test that inspects vdoc content asserts line 1/5,
+  never line 0; wiring untouched) — a disclosed, justified decision, not a silent skip.
+- **Self-score: 9/10.** Evidence-gated, adversarially reviewed, RED→GREEN-proven live, contract re-verified,
+  scope held, all findings addressed. Not a 10 because of the self-inflicted `git checkout` detour and because
+  the fix leaves a disclosed (if minor and Posit-shared) syntax-error residual.
 
 ## Session 92 ACTIVE TASK (superseded by Session 93 — full entry preserved below)
 **Task:** **Session 92 — PLANNING (design/architecture): `BACKLOG.md` "Polish / deferred" HIGH — embedded vdocs publish diagnostics to the Problems panel under Pylance's non-default `python.analysis.diagnosticMode: "workspace"`.** Deliverable is ONE grounded design document in `docs/planning/` (NOT an implementation — FM #18/#19), following `docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md`. Operator picked the item via `AskUserQuestion` at Phase 0 (it was S91's top-ranked `next_steps` candidate (1)), then chose "Design plan" over "attempt direct fix now" at the plan-vs-implement fork — because no fix approach is chosen and the leading lightweight candidate (move vdocs out of the workspace root) risks a *silent* regression of project-relative import resolution that must be grounded firsthand before committing.

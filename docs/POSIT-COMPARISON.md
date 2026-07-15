@@ -312,7 +312,13 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   vdoc-URI-to-`.qmd` remap end to end — see the note below. **Diagnostics forwarding:
   not implemented** — the only `DiagnosticCollection` anywhere in `src/` is
   `src/features/yaml-diagnostics.ts`, scoped to `_quarto.yml`'s project/website/book blocks only;
-  `src/providers/embedded.ts` registers no diagnostics.
+  `src/providers/embedded.ts` registers no diagnostics. **The inverse leak — background vdocs
+  *publishing* phantom diagnostics under Pylance's non-default `diagnosticMode: "workspace"` — is
+  muted (Session 93):** the two vdoc builders inject a file-level `# type: ignore` on line 0 of a
+  python vdoc, suppressing the type/name/import phantom errors on `.quarto/vdoc-mit/` paths (verified
+  RED→GREEN against real Pylance under `QMD_LSP_DIAGMODE=workspace`). The default `openFilesOnly`
+  posture never leaked. Transient parse-error residuals (mid-typing) and R/Julia remain as tracked
+  follow-ups (`BACKLOG.md`).
 
   > **⚠ These features were BROKEN from Phase 6e until Session 87 (BACKLOG item 18), and this document
   > claimed parity for them the whole time.** The virtual documents were served on a custom URI scheme

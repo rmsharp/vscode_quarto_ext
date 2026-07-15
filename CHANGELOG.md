@@ -7,6 +7,34 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-15 · [ad hoc] Session 93 — FIXED HIGH: the `diagnosticMode:"workspace"` embedded-vdoc Problems-panel leak (candidate G)
+
+Implemented candidate G from the Session 92 plan: a python-gated file-level `# type: ignore` injected on the
+vdoc's already-blanked line 0, in both pure builders (`src/core/embedded/virtual-doc.ts` `buildVirtualContent`
++ `buildCellVirtualContent`). Under Pylance's non-default `python.analysis.diagnosticMode: "workspace"`, the
+background vdoc models were diagnosed on their tracked membership (injected at `didOpen`, location-independent)
+and flooded the Problems panel with phantom errors on `.quarto/vdoc-mit/*.py` paths; the file-level mute
+suppresses Pyright's type/name/import diagnostics while preserving completion/hover/imports. Gated python-only
+(a `#` is a JS syntax error) and to non-whitespace python body content — the same condition `embeddedLanguagesIn`
+uses, NOT `keep.size > 0`, so the `embeddedLanguagesIn ⟺ non-empty` invariant holds (the plan's stated gate was
+refined at the contract re-verification — Learning #103). Line 0 is never a code body line, so the write shifts
+no coordinate.
+
+Verified **RED→GREEN live** against real Pylance 2026.2.1 under `QMD_LSP_DIAGMODE=workspace` (`npm run
+test:lsp:workspace`): pre-fix the fixture's vdocs carried `"df" is not defined` / `Import "pandas" could not be
+resolved`; post-fix zero vdoc diagnostics, completion preserved, no line-0 semantic token. The standing
+11-agent adversarial review found ZERO surviving defects; the completeness critic's items were test/tooling
+hardening (a `control.py` liveness control replacing a blind sleep; a `test:lsp:workspace` script; a
+cell-at-line-0 unit test). Commits `48bdf2a` (L1) / `772e0dc` (L2) / `15840c5` (review response). 819 unit /
+13 real-LSP (workspace) / clean 43-file `.vsix`.
+
+**Scope (honest):** FIXED for the persistent type/name/import phantom class (the cross-cell "df is not defined"
+and unresolved-import pollution the item is really about). Does NOT suppress transient parse/syntax errors
+(`os.` mid-typing) — `# type: ignore` cannot; filed as a residual. R/Julia are UNMEASURED (no such servers
+here); the fix SHAPE extends but the string `# type: ignore` is Pyright-specific — filed. Format Cell has an
+unverified cell-at-line-0 adjacency edge — filed. `BACKLOG.md` HIGH marked FIXED (python) with the three
+follow-ups; `docs/POSIT-COMPARISON.md` noted.
+
 ### 2026-07-14 · [ad hoc] Session 92 — PLAN: the `diagnosticMode:"workspace"` embedded-vdoc Problems-panel leak
 
 Design/architecture plan (`docs/planning/2026-07-14-embedded-vdoc-diagnostics-leak-plan.md`) for the HIGH
