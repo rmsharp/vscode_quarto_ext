@@ -288,6 +288,15 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
     // the global diagnostics set is inspected for one of our vdocs. Session 86's spike found
     // zero under the default diagnosticMode (openFilesOnly: a background-opened, never-shown
     // file is not "open" for diagnostics); this pins that empirically and permanently.
+    //
+    // This asserts the DEFAULT (openFilesOnly) posture — a blanket "zero diagnostics", which is
+    // true there because background-opened vdocs are not diagnosed at all. Under
+    // `QMD_LSP_DIAGMODE=workspace` that blanket claim is neither true nor this test's job (the
+    // workspace-mode sibling below owns that mode, asserting the item's phantom classes are
+    // muted while tolerating the syntax residual `# type: ignore` cannot touch), so no-op here.
+    if (process.env.QMD_LSP_DIAGMODE === "workspace") {
+      return;
+    }
     const doc = await writeDoc(
       "cross-cell.qmd",
       [
@@ -323,6 +332,120 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
       [],
       `no diagnostics may be attributed to our vdoc files (default diagnosticMode). Found:\n` +
         vdocDiagnostics.join("\n"),
+    );
+  });
+
+  it("MUTES phantom vdoc diagnostics under diagnosticMode:workspace via the line-0 `# type: ignore` (candidate G)", async () => {
+    // The workspace-mode counterpart of the default-mode pin above, and the runtime proof of
+    // candidate G (BACKLOG "Polish/deferred" HIGH; plan §6 L2, S92/S93). Under
+    // `python.analysis.diagnosticMode: "workspace"` Pyright diagnoses a vdoc on its TRACKED
+    // membership — injected at didOpen (`service.ts`), location-independent — even though the
+    // client never opened it. So WITHOUT the fix this exact fixture floods the Problems panel
+    // with phantom errors on `.quarto/vdoc-mit/*.py` paths (S92 §3.1 reproduced 5: an
+    // unresolved `pandas` import; `"df" is not defined` ×2 from the isolated per-cell vdocs
+    // that blank the sibling that defined `df`; `"undefined_name_xyz" is not defined` ×2).
+    // Candidate G injects a file-level `# type: ignore` on the vdoc's already-blanked line 0,
+    // muting every file diagnostic while leaving completion/hover/imports intact.
+    //
+    // DISCRIMINATING POWER REQUIRES `QMD_LSP_DIAGMODE=workspace`. Under the default
+    // openFilesOnly mode there is no leak to mute (proven by the sibling above), so the
+    // diagnostics assertion is a genuine RED→GREEN gate for the fix only when the whole suite
+    // is launched under workspace mode. The completion and no-line-0-token assertions below are
+    // meaningful in BOTH modes.
+    //
+    // SCOPE — what the mute does and does NOT suppress (verified in-session, S93). A file-level
+    // `# type: ignore` mutes Pyright's *type/name/import* diagnostics (PEP 484), which is the
+    // exact class this item is about — `"df" is not defined` (cross-cell blanking), `"…" is not
+    // defined`, `Import "pandas" could not be resolved`. It does NOT suppress *parse/syntax*
+    // errors, which are a different category Pyright emits before type-checking runs. So this
+    // asserts on the ITEM's phantom classes, not a blanket zero: a blanket `=== []` over the
+    // GLOBAL vdoc-diagnostics set is polluted by sibling tests whose fixtures are deliberately
+    // syntactically incomplete (`os.` in the completion test, `greet(` in signature help), whose
+    // syntax errors the mute cannot and does not touch. That syntax residual is transient
+    // (mid-typing) and is a documented limitation of candidate G — see the BACKLOG note.
+    const mode = process.env.QMD_LSP_DIAGMODE ?? "openFilesOnly";
+    // The phantom-diagnostic signature this item is about — the classes `# type: ignore` mutes.
+    const PHANTOM = /is not defined|could not be resolved/;
+    const doc = await writeDoc(
+      "workspace-mute.qmd",
+      [
+        "```{python}", // 0
+        "import os", // 1
+        "import pandas as pd", // 2  unresolved import → a diagnostic without the mute
+        "df = pd.DataFrame()", // 3
+        "```", // 4
+        "", // 5
+        "```{python}", // 6
+        "df.head()", // 7  df defined in cell 1 → "not defined" in the ISOLATED per-cell vdoc
+        "undefined_name_xyz + 1", // 8  an outright undefined name
+        "os.getcwd()", // 9  a stdlib call, for a reliable completion control
+        "```", // 10
+        "", // 11
+      ].join("\n"),
+    );
+    await vscode.window.showTextDocument(doc, { preview: false });
+
+    // Drive BOTH forwards that open background vdocs: the per-cell outline forward (isolated
+    // per-cell vdocs) AND the whole-language semantic-tokens forward. Both leak under workspace
+    // mode without the mute; both must be muted by it.
+    await vscode.commands.executeCommand<vscode.DocumentSymbol[]>(
+      "vscode.executeDocumentSymbolProvider",
+      doc.uri,
+    );
+    await vscode.commands.executeCommand<vscode.SemanticTokens>(
+      "vscode.provideDocumentSemanticTokens",
+      doc.uri,
+    );
+    // A generous window for Pylance to publish anything it is going to publish.
+    await new Promise((r) => setTimeout(r, 5000));
+
+    // Every diagnostic message attributed to any of our vdoc files, flattened one-per-line.
+    const vdocDiagnostics = vscode.languages
+      .getDiagnostics()
+      .filter(([uri]) => /vdoc-mit\./.test(uri.fsPath))
+      .flatMap(([uri, diags]) => diags.map((d) => `${path.basename(uri.fsPath)}: ${d.message}`));
+    // Logged so the syntax residual the mute cannot touch is visible in the run, not hidden.
+    console.log(`  [workspace-mute mode=${mode}] vdoc diagnostics after the mute:`);
+    for (const line of vdocDiagnostics) {
+      console.log(`    ${line}`);
+    }
+    // (the fix) NONE of the item's phantom type/name/import diagnostics survive on any vdoc.
+    const phantomLeaks = vdocDiagnostics.filter((line) => PHANTOM.test(line));
+    assert.deepStrictEqual(
+      phantomLeaks,
+      [],
+      `candidate G must mute every phantom type/name/import diagnostic on our vdocs (mode=${mode}). ` +
+        `Leaked:\n${phantomLeaks.join("\n")}`,
+    );
+
+    // (control) the mute filters diagnostic OUTPUT only — completion still works. `os.` (stdlib)
+    // is resolvable regardless of whether pandas is installed in the harness interpreter.
+    const items = await completionsAt(doc, 9, 3); // `os.` in the second cell
+    assert.ok(
+      items.includes("getcwd"),
+      `completion must survive the mute — it filters diagnostics, not IntelliSense. ` +
+        `Got ${items.length} items, "getcwd" ${items.includes("getcwd") ? "present" : "ABSENT"}.`,
+    );
+
+    // (version-drift pin, plan §4.3) the injected `# type: ignore` on .qmd line 0 must itself
+    // emit NO semantic token. Today real Pylance emits none for the comment line; a future
+    // Pylance that tokenizes it would surface a spurious token on .qmd line 0. Pin it so that
+    // regression is caught by the gate, not shipped.
+    const tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+      "vscode.provideDocumentSemanticTokens",
+      doc.uri,
+    );
+    assert.ok(
+      tokens && tokens.data.length > 0,
+      "real Pylance must serve some semantic tokens on the {python} cells, else the line-0 pin is vacuous",
+    );
+    const lineZeroTokens = decodeTokens({ data: tokens.data, legend: OUR_LEGEND }).filter(
+      (t) => t.line === 0,
+    );
+    assert.deepStrictEqual(
+      lineZeroTokens,
+      [],
+      "the line-0 `# type: ignore` mute must emit NO semantic token (else it colours .qmd line 0)",
     );
   });
 
