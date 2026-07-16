@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S98
+date: 2026-07-16
+status: pending
+active_task: IMPLEMENTATION (test-coverage). BACKLOG "Polish / deferred" MEDIUM (:123, S89 review) — no test makes ONE embedded language throw while another answers; `streamFor`'s per-language try/catch is correct but the "a failing server takes nothing with it" claim is asserted, not pinned. Deliverable: ONE integration test (throwing python stand-in + healthy javascript, javascript tokens survive), break-revert-proven to discriminate. Operator picked at Phase 0 (Active empty); S97's ranked candidate (2).
+```
+
+```handoff
 session: S97
 date: 2026-07-15
 status: complete
