@@ -7,6 +7,36 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-16 · [ad hoc] Session 101 — FIXED the `fallbackDirPromise` memo lifecycle: `BACKLOG:102` CLOSED and `BACKLOG:121` leg (b) FIXED (one code surface)
+
+Fixed both filed defects in `src/features/embedded-vdoc.ts`'s untitled-document fallback state — they are the same
+~6 lines, not two areas, which is why they were taken together. Under strict TDD: both tests RED first for the right
+reason, then GREEN, and all three source changes break-revert-proven load-bearing against their own tests.
+
+- **`:102` — a deactivate racing an unresolved `mkdtemp` leaked the private 0700 temp directory.** CONFIRMED by
+  observation, with two corrections to the filed item. It is **not a race**: `disposeAllVdocs` reaches its fallback
+  check after `await Promise.all(...)`, which for the untitled-first-forward case is a microtask, and microtasks
+  always drain before the loop can deliver `mkdtemp`'s threadpool completion — so the leak is the common case
+  (2 of 2 unstubbed runs). And **the filed fix was insufficient**: with only "observe `fallbackDirPromise`", the
+  directory still survived every run, EMPTY — the in-flight forward writes its file before the non-recursive `rmdir`
+  lands, `rmdir` fails ENOTEMPTY, and the forward's own epoch guard then removes the file, leaving the very empty
+  directory the fix targets. Needed a third change: a pre-write epoch re-check in `ensureVdoc`.
+- **`:121b` — a transient `mkdtemp` failure latched a rejected promise for the whole session**, leaving completion /
+  hover / go-to-definition / signature help / in-cell outline / Format Cell silently dead on every untitled `.qmd`
+  until a window reload. The filed text understated it: the reset sat behind the success-only `if`, so a rejection was
+  cleared by *nothing*, deactivate included. Fixed at the rejection site, guarded on still being the same attempt.
+- **The resolved `fallbackDir` companion variable is deleted.** The diff removed its last real read, leaving
+  write-only state behind a comment calling it live; holding the memo only as its promise is what makes the state
+  unmisreadable, and reading a resolved value during the creation window *was* the bug.
+- **Filed, not fixed (scope):** a crash with an untitled `.qmd` open strands the user's source in the OS temp dir
+  permanently — nothing sweeps it (`extension.ts:73` sweeps only workspace folders). Found by looking at the machine:
+  56 leaked directories, 2–11 real vdoc files each. Bigger than either item fixed here.
+
+Files: `src/features/embedded-vdoc.ts`, `test/integration/suite/embedded-vdoc.test.ts` (+2 tests, new describe),
+`BACKLOG.md` (`:102` → `[x]`, `:121` leg (b) resolved, both rewritten IN PLACE to preserve 30 line-number citations;
+new item appended at the end), `PROJECT_LEARNINGS.md` #111, `HANDOFFS.md`, `SESSION_NOTES.md`.
+321 integration (was 319) / 828 unit / check-types clean / clean 43-file `.vsix`.
+
 ### 2026-07-16 · [ad hoc] Session 100 — PINNED the RANGE axis of `BACKLOG:125` (both legs), made its coverage STRUCTURAL, and CLOSED the item
 
 Pinned the (b) RANGE-registry axis S99 left characterized-but-unpinned — the divergence path our `{ojs}`/`{js}` cells

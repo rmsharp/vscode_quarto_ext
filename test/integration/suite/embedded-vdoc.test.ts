@@ -1,4 +1,5 @@
 import * as assert from "node:assert";
+import { randomUUID } from "node:crypto";
 import { promises as nodeFs } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -583,5 +584,189 @@ describe("embedded vdoc: a forward still in flight when the EXTENSION deactivate
       undefined,
       "an in-flight forward at deactivate must forward nothing (return undefined), not a live vdoc",
     );
+  });
+});
+
+/**
+ * The `fallbackDirPromise` memo's own lifecycle — BACKLOG:102 and BACKLOG:121 leg (b), which
+ * are ONE code surface rather than two areas: both are consequences of the same
+ * `if (fallbackDir !== undefined)` block in `disposeAllVdocs` guarding the memo resets.
+ *
+ * **The fixture is an UNTITLED document, and that is load-bearing.** Only a document with no
+ * workspace folder reaches `vdocDirFor`'s `mkdtemp` branch at all; a workspace `.qmd` takes the
+ * `.quarto/vdoc-mit/` branch and never touches this state. The sibling deactivate-race describe
+ * above uses `openProjectQmd()` and therefore has never once exercised these lines.
+ */
+describe("embedded vdoc: the fallback temp directory's lifecycle (BACKLOG:102 + :121b)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    await ext.activate();
+  });
+
+  /**
+   * Park `mkdtemp` until `release()`, then run the REAL one. This is the only test in this
+   * file that patches `node:fs`, and it earns it: the window being staged is the interval
+   * between `fallbackDirPromise = nodeFs.mkdtemp(...)` being assigned and its `.then()`
+   * assigning `fallbackDir` — and `disposeAllVdocs` reads `fallbackDir`, so the whole defect
+   * only shows while that callback has not run.
+   *
+   * Why not the plain don't-await pattern the sibling describes use: it works today, but only
+   * by accident of state this test cannot see. `disposeAllVdocs` reaches its `fallbackDir`
+   * check after `await Promise.all(all.map(deleteQuietly))` — and when `all` is EMPTY that is a
+   * microtask, which always drains before the event loop's poll phase can deliver `mkdtemp`'s
+   * threadpool completion. So the window is currently guaranteed open. Let ANY vdoc be
+   * registered at that moment, though, and `deleteQuietly` becomes real I/O, `mkdtemp` wins the
+   * race, `fallbackDir` is set, the block runs, and this test PASSES WITHOUT EVER EXERCISING THE
+   * BUG. Gating makes the precondition explicit rather than inherited from suite ordering.
+   * (Measured both ways: unstubbed, the leak reproduced on 2 of 2 runs — so the gate pins a
+   * naturally-occurring interleaving, not a synthetic one.)
+   */
+  function gateMkdtemp(): {
+    release: () => void;
+    restore: () => void;
+    made: () => string | undefined;
+  } {
+    const original = nodeFs.mkdtemp as (prefix: string) => Promise<string>;
+    let open = (): void => {};
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    let madeDir: string | undefined;
+    (nodeFs as unknown as { mkdtemp: unknown }).mkdtemp = async (prefix: string) => {
+      await gate;
+      madeDir = await original.call(nodeFs, prefix);
+      return madeDir;
+    };
+    return {
+      release: () => open(),
+      restore: () => {
+        (nodeFs as unknown as { mkdtemp: unknown }).mkdtemp = original;
+      },
+      made: () => madeDir,
+    };
+  }
+
+  it("does not leak the fallback temp dir when deactivate races an unresolved mkdtemp", async () => {
+    // BACKLOG:102. `vdocDirFor` assigns `fallbackDir` ONLY inside the `mkdtemp().then()`
+    // callback, so while that syscall is in flight the variable is still `undefined`. In
+    // `disposeAllVdocs` the `rmdir` AND both memo resets sit inside one
+    // `if (fallbackDir !== undefined)` block — so a deactivate landing in that window skips
+    // all three. `mkdtemp` then resolves, creating a private 0700 directory that nothing will
+    // ever remove: `disposeAllVdocs` is spent for the session, and `sweepStaleVdocs` only ever
+    // reads workspace `.quarto/vdoc-mit/`, never the OS temp dir. This is the race sibling of
+    // the "leaves nothing behind in the temp directory" test above, which only ever staged the
+    // resolved-in-time path.
+    const untitled = await vscode.workspace.openTextDocument({
+      language: "quarto",
+      content: "```{python}\nsecret = 1\n```\n",
+    });
+    const gate = gateMkdtemp();
+    let made: string | undefined;
+    let survived: boolean;
+    try {
+      // Start the forward, then deactivate WITHOUT awaiting either — the real shutdown race,
+      // staged as the sibling describe stages it, but with `mkdtemp` held open so the window is
+      // certain rather than inherited from suite state.
+      const inFlight = ensureVdoc(untitled, langKey(untitled), "secret = 1\n");
+      const deactivating = disposeAllVdocs();
+
+      // Let the deactivate run all the way to its fallback-directory check before `mkdtemp` is
+      // allowed to resolve. A macrotask boundary drains every pending microtask, so this is a
+      // guarantee rather than a hope — and it is what makes the window certain: at this instant
+      // `fallbackDir` is necessarily still unset, because the only line that assigns it is the
+      // `.then()` of the call still parked on the gate.
+      //
+      // Releasing must NOT be awaited behind `deactivating`: once disposeAllVdocs observes the
+      // in-flight promise it AWAITS it, so a `await deactivating` before the release deadlocks
+      // the two against each other (found by doing exactly that — it hung for the full 20s).
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      gate.release();
+      await Promise.all([deactivating, inFlight]);
+
+      made = gate.made();
+      assert.ok(made, "precondition: the fallback mkdtemp ran and made a directory to leak");
+      survived = await exists(vscode.Uri.file(made));
+    } finally {
+      // Leaving `mkdtemp` stubbed would corrupt every later suite in the run.
+      gate.restore();
+    }
+
+    // Reclaim whatever leaked BEFORE asserting, so a RED run does not litter the developer's
+    // temp dir on every iteration, and so the module's memo is clean for later tests either way.
+    await disposeAllVdocs();
+    await nodeFs.rm(made, { recursive: true, force: true }).catch(() => {});
+
+    assert.strictEqual(
+      survived,
+      false,
+      `deactivate raced the fallback mkdtemp and leaked its directory (${made}). Nothing will ` +
+        `ever remove it: disposeAllVdocs is spent for the session, and the activation sweep ` +
+        `only ever reads workspace .quarto/vdoc-mit/, never the OS temp dir.`,
+    );
+  });
+
+  it("retries mkdtemp after a transient failure, rather than latching untitled docs dead", async () => {
+    // BACKLOG:121 leg (b). `fallbackDirPromise` memoises the in-flight `mkdtemp` so that two
+    // concurrent untitled forwards share one directory. But the memo is only ever cleared on the
+    // SUCCESS path — the reset lives behind `if (fallbackDir !== undefined)`, and `fallbackDir` is
+    // assigned only in the `.then()` a rejection never runs. So one transient failure (a full disk,
+    // EMFILE) leaves a REJECTED promise memoised forever: every later untitled forward awaits that
+    // same rejection and degrades to no-forward, and completion / hover / go-to-definition /
+    // signature help / in-cell outline / Format Cell stay silently dead on every untitled `.qmd`
+    // for the rest of the session — with no error, no notification, and nothing in the log.
+    //
+    // The failure is induced through the REAL `mkdtemp` rather than a stub: `os.tmpdir()` re-reads
+    // $TMPDIR on every call, so pointing it at a path that does not exist makes the genuine syscall
+    // fail with ENOENT — the same rejection an ENOSPC/EMFILE spike produces, on the real code path.
+    const untitled = await vscode.workspace.openTextDocument({
+      language: "quarto",
+      content: "```{python}\nimport os\n```\n",
+    });
+    const realTmpdir = process.env.TMPDIR;
+    // A FRESH name every run. A fixed "obviously nonexistent" path is not reliably nonexistent —
+    // the first draft of this test used one, and something created it (mode 755, not mkdtemp's
+    // 0700), after which `mkdtemp` SUCCEEDED and the precondition assert fired: the test stopped
+    // inducing the failure it exists to induce. A per-run UUID cannot be pre-created.
+    const noSuchDir = path.join(os.tmpdir(), `quarto-mit-no-such-dir-${randomUUID()}`);
+    let first: vscode.Uri | undefined;
+    try {
+      process.env.TMPDIR = noSuchDir;
+      first = await ensureVdoc(untitled, langKey(untitled), "import os\n");
+      assert.strictEqual(
+        first,
+        undefined,
+        "precondition: a failing mkdtemp must degrade this forward to no-forward",
+      );
+    } finally {
+      // NOT `process.env.TMPDIR = realTmpdir`: assigning `undefined` to an env var STRINGIFIES it,
+      // so on a host where TMPDIR was never set (Linux, Docker, `env -i`) that restore leaves the
+      // literal string "undefined" behind. `os.tmpdir()` is `TMPDIR || TMP || TEMP || "/tmp"`, and
+      // a non-empty string is truthy, so the `/tmp` default would never engage again for the rest
+      // of the host process. Verified: the assignment yields `os.tmpdir() === "undefined"`, the
+      // delete yields "/tmp". Latent on macOS only because launchd always sets TMPDIR.
+      if (realTmpdir === undefined) {
+        delete process.env.TMPDIR;
+      } else {
+        process.env.TMPDIR = realTmpdir;
+      }
+      // Belt and braces: if the induced failure ever fails to be induced, do not leave the
+      // directory behind to poison the next run the way the fixed path poisoned this one.
+      await nodeFs.rm(noSuchDir, { recursive: true, force: true }).catch(() => {});
+    }
+
+    // The disk is healthy again. The very next forward must retry — the memo exists to share ONE
+    // in-flight creation, and a settled rejection has nothing left to share.
+    const second = await ensureVdoc(untitled, langKey(untitled), "import os\n");
+    try {
+      assert.ok(
+        second,
+        "a transient mkdtemp failure latched the memo: every later untitled forward now awaits " +
+          "the same rejected promise, so embedded features stay dead for untitled documents " +
+          "until the window is reloaded.",
+      );
+    } finally {
+      await disposeAllVdocs();
+    }
   });
 });

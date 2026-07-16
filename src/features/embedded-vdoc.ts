@@ -132,12 +132,17 @@ function epochOf(docUri: string): number {
  */
 let disposeAllEpoch = 0;
 
-/** Lazily-created fallback directory for documents with no workspace folder (untitled). */
-let fallbackDir: vscode.Uri | undefined;
 /**
- * The in-flight creation of `fallbackDir`, memoised so two concurrent forwards for an
- * untitled document cannot each run `mkdtemp` and leak the loser's directory. The FIRST
- * caller starts it; every concurrent caller awaits the same promise.
+ * The lazily-created fallback directory for documents with no workspace folder (untitled), held
+ * as its in-flight creation and memoised so two concurrent forwards cannot each run `mkdtemp` and
+ * leak the loser's directory. The FIRST caller starts it; every concurrent caller awaits the same
+ * promise.
+ *
+ * The PROMISE is the whole state — there is deliberately no resolved `fallbackDir` companion
+ * variable. There used to be, and it was the bug: it is assigned only inside the `mkdtemp`
+ * `.then()`, so anything reading it during the creation window sees `undefined` and concludes
+ * there is no directory to clean up, precisely when one is about to exist (BACKLOG:102).
+ * Everything that needs the directory must await this promise instead.
  */
 let fallbackDirPromise: Promise<vscode.Uri> | undefined;
 
@@ -189,6 +194,23 @@ export async function ensureVdoc(
   try {
     const dir = await vdocDirFor(doc);
     if (dir === undefined) {
+      return undefined;
+    }
+    if (epochOf(key.docUri) !== epoch || disposeAllEpoch !== allEpoch) {
+      // Bail BEFORE writing, not just after. The re-check below already deletes a file minted
+      // against a dead session, but by then the file has EXISTED — and for the untitled fallback
+      // that is enough to defeat the cleanup: `disposeAllVdocs` removes the temp directory with a
+      // deliberately NON-recursive `rmdir`, which fails outright if this forward has put a file in
+      // it, leaving an empty directory nothing will ever remove.
+      //
+      // MEASURED, not reasoned: with only the `disposeAllVdocs` change below and this guard
+      // absent, the temp directory reliably survived deactivate — `survived=true contents=[]`,
+      // i.e. the rmdir had already failed by the time this forward deleted its own file. The
+      // precise interleaving that produces that is NOT characterized here (a probe of promise
+      // resume-order gave an answer that contradicts the obvious one, and it was not run down);
+      // what IS established is that the cleanup is not reliable without this guard and is with it.
+      // Writing nothing is also just correct on its own terms — the file below would be created
+      // only to be deleted a few lines later.
       return undefined;
     }
     version += 1;
@@ -266,17 +288,36 @@ export async function disposeAllVdocs(): Promise<void> {
   // Remove the fallback temp directory too, or every session that ever touched an
   // untitled `.qmd` would leave an empty directory behind in the OS temp dir forever.
   //
-  // `rmdir` is deliberately NOT recursive: it can only succeed on an empty directory, so
-  // it is impossible for this to delete a file — if anything unexpected is in there, the
-  // call simply fails and we leave it alone.
-  if (fallbackDir !== undefined) {
-    const dir = fallbackDir;
-    fallbackDir = undefined;
-    fallbackDirPromise = undefined;
+  // AWAIT the memo rather than testing any already-resolved value: an untitled forward can be
+  // inside `mkdtemp` at this very moment, so the directory does not exist yet but is about to.
+  // Testing a resolved value is exactly the shape that leaked it — see `fallbackDirPromise`'s
+  // declaration — and nothing else ever removes it: this function is spent for the session, and
+  // `sweepStaleVdocs` only ever reads workspace `.quarto/vdoc-mit/`, never the OS temp dir.
+  // The window is not exotic: deactivate reaches this line after `await Promise.all(...)`, and
+  // when no vdocs are registered that is a microtask, which always drains before the event loop
+  // can deliver `mkdtemp`'s completion.
+  //
+  // The reset is unconditional and happens BEFORE the await, so the memo is cleared on every
+  // path — including a `mkdtemp` that REJECTED, which the old success-only reset could never
+  // reach at all.
+  const pending = fallbackDirPromise;
+  fallbackDirPromise = undefined;
+  if (pending !== undefined) {
+    let dir: vscode.Uri | undefined;
     try {
-      await nodeFs.rmdir(dir.fsPath);
+      dir = await pending;
     } catch {
-      // Not empty, or already gone. Either way, not ours to force.
+      // `mkdtemp` failed, so it made no directory and there is nothing to remove.
+    }
+    if (dir !== undefined) {
+      // `rmdir` is deliberately NOT recursive: it can only succeed on an empty directory, so
+      // it is impossible for this to delete a file — if anything unexpected is in there, the
+      // call simply fails and we leave it alone.
+      try {
+        await nodeFs.rmdir(dir.fsPath);
+      } catch {
+        // Not empty, or already gone. Either way, not ours to force.
+      }
     }
   }
 }
@@ -345,12 +386,28 @@ async function vdocDirFor(doc: vscode.TextDocument): Promise<vscode.Uri | undefi
   // directory, or the loser's directory leaks (module state, so a check-then-act on the
   // resolved value straddles the await and races).
   if (fallbackDirPromise === undefined) {
-    fallbackDirPromise = nodeFs
+    const attempt: Promise<vscode.Uri> = nodeFs
       .mkdtemp(path.join(os.tmpdir(), "quarto-mit-vdoc-"))
-      .then((made) => {
-        fallbackDir = vscode.Uri.file(made);
-        return fallbackDir;
+      .then((made) => vscode.Uri.file(made))
+      .catch((err: unknown) => {
+        // Memoise the ATTEMPT, never the FAILURE. This promise exists only so that concurrent
+        // forwards share one in-flight creation; once it has settled as a rejection there is
+        // nothing left to share, and keeping it would latch the failure for the whole session —
+        // one transient EMFILE/ENOSPC spike leaving completion, hover, go-to-definition and the
+        // rest silently dead on every untitled document until the window is reloaded. Clearing it
+        // HERE is what makes the next forward retry: `disposeAllVdocs` only runs at deactivate,
+        // far too late to be the thing that recovers a live session.
+        //
+        // Clear the memo only while it is still THIS attempt. `disposeAllVdocs` resets it
+        // unconditionally, so a rejection arriving after a deactivate can find a NEWER attempt
+        // already memoised — nulling that would strand its directory and start a third `mkdtemp`.
+        if (fallbackDirPromise === attempt) {
+          fallbackDirPromise = undefined;
+        }
+        // Rethrow so the caller still degrades to no-forward, exactly as before.
+        throw err;
       });
+    fallbackDirPromise = attempt;
   }
   return fallbackDirPromise;
 }

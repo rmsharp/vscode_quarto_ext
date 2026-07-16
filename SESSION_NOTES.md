@@ -7,8 +7,92 @@
 ## ACTIVE TASK
 **Task:** **Session 101 — IMPLEMENTATION: the `fallbackDirPromise` memo lifecycle — `BACKLOG.md:102` + `BACKLOG.md:121` leg (b), which are ONE code surface, not two areas.** Both bugs live in the same ~6 lines of `src/features/embedded-vdoc.ts`: the `if (fallbackDir !== undefined)` block (~:272-275) and the memo creation (~:347-355). **(a) `:102` — the raced deactivate.** `vdocDirFor` assigns `fallbackDir` only inside the `mkdtemp().then()` callback, so if `disposeAllVdocs` runs while `mkdtemp` is still unresolved it reads `fallbackDir === undefined` and skips BOTH its `rmdir` AND the `fallbackDir`/`fallbackDirPromise` resets — all three sit inside that one `if`. `mkdtemp` then resolves, creating a 0700 dir nothing will remove. Worse: on a re-enable WITHOUT a window reload (JS module retained), the stale `fallbackDirPromise` is reused and the next untitled forward writes the user's source into the leaked dir. Filed fix: move the resets OUT of the `if`, and have `disposeAllVdocs` observe `fallbackDirPromise` (not just `fallbackDir`). **(b) `:121b` — the latched failure.** `fallbackDirPromise` memoises the in-flight `mkdtemp` and is only ever reset in `disposeAllVdocs`, so ONE transient failure (full disk, EMFILE) is latched for the session: every later untitled forward awaits the same rejected promise and embedded features stay dead for untitled docs until reload. Filed fix: clear the memo on rejection. **Both are LOW.** **The filed premises will NOT be inherited (Learnings #107/#108/#109/#110 — four consecutive sessions found a predecessor's or a review's headline claim needed refuting, and S100's own false "two-read race" was adopted from a review and written into six files as *measured* before its own probe killed it).** First move is firsthand grounding — do these races actually occur, and does a test observe them — BEFORE any fix code; then strict TDD, RED shown before GREEN. Deliverable is ONE of: the real fix under TDD, or a documented refutation/boundary if a premise does not survive. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`. Operator picked this via `AskUserQuestion` at Phase 0 (Active empty), from MY re-slice of the four remaining vdoc-lifecycle LOWs by code surface rather than S100's split by filing session. (IN PROGRESS)
 **Started:** 2026-07-16
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** **DONE. SHIPPED — `BACKLOG:102` is CLOSED `[x]`, `BACKLOG:121` leg (b) is FIXED (the item stays OPEN over leg (a) alone), and both filed descriptions are corrected on the record.** Both premises CONFIRMED by observation — but **the filed FIX was insufficient, and that is the session's substance.** Implemented verbatim, it left the directory surviving EMPTY on every run (`survived=true contents=[]`): the in-flight forward writes its file before the non-recursive `rmdir` lands, `rmdir` fails ENOTEMPTY, and the forward's own epoch guard then deletes the file — leaving exactly the empty directory the fix existed to reclaim. The real fix needed a THIRD change the item never contemplated: a **pre-write** epoch re-check in `ensureVdoc` (do not write a file you are about to delete). Also corrected: **`:102` is NOT a race.** `disposeAllVdocs` reaches its fallback check after `await Promise.all(...)`, which for the untitled-first-forward case is a *microtask*, and microtasks always drain before the loop's poll phase can deliver `mkdtemp`'s libuv-threadpool completion — so it leaks EVERY time (2/2 unstubbed runs), and the filed word "race" mis-sized the severity in the safe direction. `:121b`'s filed text ("only ever reset in `disposeAllVdocs`") likewise **understated** it: the reset sat behind the success-only `if`, so a rejection was cleared by *nothing*, deactivate included. All three src changes are **break-revert-proven** load-bearing against their own tests (by me, not delegated — see below). I also **deleted the resolved `fallbackDir` companion variable**: my own change removed its last real read, leaving write-only state behind a comment calling it live, and reading a resolved value during the creation window *is* the bug. **The sharpest lesson was procedural: I delegated break-revert to a review fleet and it corrupted the tree I was shipping** — one agent deleted the pre-write guard and never restored it, then a *second* agent reviewed the corrupted tree and confidently reported "REFUTED — no hunk touches `ensureVdoc`", true only because its sibling had just deleted that hunk. Caught only because `git diff --stat` shrank 70→59 mid-review (Learning #112). **Found by looking at the machine rather than the code:** 56 leaked temp dirs holding 2–11 REAL vdoc files each — a crash strands an untitled document's source in the OS temp dir forever, because nothing sweeps it. Filed, not fixed (scope); it is bigger than either item I closed. Full matrix: 321 integration (was 319, stable 3/3) / 828 unit / check-types clean / clean 43-file `.vsix`.
+**Ledger:** `CHANGELOG: 2026-07-16 · [ad hoc] (Session 101 — FIXED the fallbackDirPromise memo lifecycle; :102 CLOSED, :121 leg (b) FIXED)` entry written.
+**What was done (commits):** 1B claim `92d5076`. Fix + records in the single close-out commit: `src/features/embedded-vdoc.ts` (three changes + the `fallbackDir` deletion), `test/integration/suite/embedded-vdoc.test.ts` (new describe, 2 pins), `BACKLOG.md` (`:102` → `[x]` and `:121` rewritten IN PLACE to preserve 30 line-number citations; the new OS-temp-sweep item appended at the END, 181→182 lines), `CHANGELOG.md`, `PROJECT_LEARNINGS.md` #111 + #112, `HANDOFFS.md`, and this file.
+**What's next (Active is empty — pick via `AskUserQuestion` at Phase 0):** **(1) 🔑 the NEW item at the END of "Polish / deferred"** — a crash with an untitled `.qmd` open strands the user's REAL source in the OS temp dir forever (`sweepStaleVdocs` is called with `workspace.workspaceFolders` only; nothing sweeps `os.tmpdir()`). Observed: 56 dirs, 2–11 real vdoc files each, ~1 per integration run. Bigger than both items I just fixed, and a real deletion path — wants a plan, not a reflex fix (`mkdtemp` randomises the dir name, so activation cannot find last session's dir without a stable parent or a prefix scan that widens the delete loop's blast radius). **(2)** the remaining vdoc-lifecycle LOWs, now cleanly two: `BACKLOG:103` (after-dispatch deactivate boundary — a latched `deactivated` flag) and `BACKLOG:121` leg (a) (unbounded `disposeEpoch`). **(3)** item 17 (`BACKLOG:64`) — a bundle; likely needs a planning session first. **Housekeeping:** ~14 `quarto-mit-vdoc-*` dirs remain under `$TMPDIR` (instances of the newly-filed item, safe to `rm -rf`); I removed only the `quarto-mit-no-such-dir-121b` residue an agent created.
+**Key files (this session):** `src/features/embedded-vdoc.ts` — ~:190 (pre-write guard), ~:288 (`disposeAllVdocs` observes the promise), ~:378 (the `.catch` + identity guard); `fallbackDirPromise`'s declaration ~:135 now carries the "the PROMISE is the whole state — there is deliberately no resolved companion" rationale, **do not reintroduce one**. `test/integration/suite/embedded-vdoc.test.ts` — the new describe ~:590-760.
+**Gotchas for the next session:** (1) 🔑 **NEVER delegate a break-revert experiment on the working tree** (Learning #112) — verify integrity by checksum BEFORE triaging any review finding; findings computed against a corrupted tree must be discarded, not reasoned about. (2) 🔑 **A fixed "guaranteed nonexistent" path is not guaranteed** — an agent probe created `<tmp>/quarto-mit-no-such-dir-121b` (mode 755) and test 2's `mkdtemp` then SUCCEEDED, firing its precondition. The path is now a per-run `randomUUID` and is `rm -rf`'d in the `finally`. (3) 🔑 **The UNTITLED fixture and the mkdtemp GATE are both load-bearing.** A workspace doc never reaches the branch; without the gate, test 1 silently depends on `docFiles` being empty at deactivate (true today only by suite ordering) and would PASS WITHOUT EXERCISING THE BUG. (4) **`process.env.TMPDIR = <undefined>` stringifies to `"undefined"`** and permanently defeats `os.tmpdir()`'s `/tmp` default — test 2 branches to `delete`. Latent on macOS only because launchd sets TMPDIR; it would fire on Linux/CI. (5) **Do NOT sweep the historical integration counts** — 321 appears only in THIS session's records. (6) **`test:lsp` not run** — neither path involves a real server. (7) **`BACKLOG:NNN` is a LINE NUMBER, now 30 citations deep** — rewrite items IN PLACE, append new ones at the END.
+**Scope held (1 and done):** ONE deliverable — the `fallbackDirPromise` memo lifecycle. The pre-write guard is IN scope (the filed fix provably does not work without it — measured, not argued), and the `fallbackDir` deletion is cleanup of state my own change made dead. Did NOT fix `BACKLOG:103` or `:121` leg (a) (the other half of the cluster — the operator was offered them as a separate option and did not pick them), did NOT fix the newly-found OS-temp-sweep defect (filed instead — it is a real deletion path deserving a plan), did NOT retire the `BACKLOG:NNN` line-number scheme (still a real, separate cleanup, now 30 citations deep).
+
+## Session 100 Handoff Evaluation (by Session 101)
+
+**Score: 9/10.** S100's handoff is the second consecutive one that named the right work, framed it
+accurately, and — decisively — flagged its own uncertainty where it existed. Everything I needed to
+start was in it, and its traps were real traps that would have cost me time.
+
+- **What helped, concretely:** all three 🔑 gotchas paid. The `BACKLOG:NNN`-is-a-line-number warning
+  was worth the most — the scheme is now **30** citations deep (I added 5 myself), and without that
+  warning I would have inserted the new item mid-file and rotted `:125`'s 7 and `:127`'s 15. I
+  rewrote `:102`/`:121` in place and appended at the end instead. The "do not sweep the historical
+  integration counts" note stopped me touching the 315/316/317/319 snapshots. State was spotless for
+  the fourth consecutive session: both ledger frontiers at HEAD, receipt `status: complete`, tree
+  clean, so Phase 0 reconcile had nothing to backfill.
+- **What it got RIGHT that mattered most:** its ranked candidate list was honest about *shape* rather
+  than just naming items — "same `disposeAllVdocs` blast radius, likely one session; fix = a latched
+  `deactivated` flag + move the `fallbackDir` reset out of the `if`". That let me read the four
+  remaining LOWs and notice, before claiming anything, that its **split was along the wrong seam**:
+  `:102` and `:121b` are the same six lines, while `:103` and `:121a` are both the deactivate guard.
+  A handoff good enough to be argued with is a good handoff.
+- **The −1:** it ranked the two S91 LOWs (`:102` + `:103`) as one session because they share a
+  "blast radius" — a file-level notion, not a code-surface one — and repeated the filed fix
+  ("move the `fallbackDir` reset out of the `if`") as though it were settled. It is not: implemented
+  verbatim, that fix **does not work**. S100 had no way to know without running it, and it never
+  claimed to have run it — so this is a thin −1 for passing along a remedy with the same confidence
+  as a diagnosis, not for being wrong. (Learning #111 is exactly this, generalised.)
+- **ROI:** strongly net-positive. Zero refutation tax on the deliverable's premises — a first in this
+  run. Every correction I made was to the *filed items*, not to my predecessor's reading of them.
+
+## Session 101 Self-Assessment
+
+- **The deliverable landed, and the RED was real twice — but the part I am most satisfied with is
+  that I did not stop at GREEN-by-the-filed-recipe.** Implementing `:102`'s stated fix produced a
+  still-failing test, and the honest options were "the test is wrong" or "the filed fix is wrong". I
+  instrumented instead of guessing (after the workstream's anti-pattern #5 fired at exactly two
+  failed attempts), and `contents=[]` settled it in one run: the directory survived *empty*, which
+  only happens if the rmdir had already failed. That single observation is what turned a
+  transcription job into a real fix.
+- **I applied #107–#110 to a remedy, not just a diagnosis, and that is the generalisation.** The
+  prior four learnings all say "do not inherit the predecessor's *diagnosis*". This item's
+  diagnosis was fine; its **fix** was the thing that was wrong. A fix nobody has executed is a guess
+  in a confident voice — now Learning #111.
+- **The worst thing I did was procedural, and it nearly shipped a broken tree.** I told a 6-lens
+  review fleet to prove test discrimination by reverting each source change. One agent deleted the
+  pre-write guard and never restored it; I caught it only because `git diff --stat` shrank 70→59
+  mid-review. Worse, a *second* agent then reviewed the corrupted tree and reported "REFUTED — no
+  hunk touches `ensureVdoc`" — a false refutation indistinguishable from a real one, which I would
+  have had no way to spot had I not checked integrity first. I redid all three break-reverts myself
+  with a backup and a checksum. **The instinct that saved it was checking the tree before triaging
+  the findings**, and that is now Learning #112. I should have given the fleet a read-only remit or a
+  worktree from the start; the review's value did not require it to write.
+- **I caught two false statements of my own before they shipped, one of them twice.** First: my
+  `.catch` comment justified an unconditional memo reset with "every writer first tests
+  `=== undefined`" — which *my own* `disposeAllVdocs` change had just falsified, so a late rejection
+  could clobber a newer attempt; fixed with an identity guard. Second, and closer to the bone: my
+  pre-write guard's comment explained itself with a promise-resume-order theory I had *reasoned* but
+  not measured, and an agent probe contradicted it. That is precisely S100's #110 trap. Rather than
+  invent a replacement theory, the shipped comment states what I measured and explicitly marks the
+  interleaving as **uncharacterized**. Saying "this works and I cannot fully explain why" in a code
+  comment is less satisfying than a clean story and much more honest.
+- **The most valuable finding was not in the diff at all.** Checking whether my own tests littered
+  the temp dir surfaced 56 leaked directories holding 2–11 *real* vdoc files — the user's source —
+  because nothing sweeps `os.tmpdir()` on the crash path. That is materially worse than either item
+  I was closing (an empty dir, and a session-scoped latch), and I found it by *looking at the
+  machine* rather than reading code. I filed it rather than fixing it: it is a real deletion path and
+  deserves a plan, and taking it would have been the mega-session failure mode.
+- **Honest boundaries.** No `test:lsp` (neither path involves a real language server). No F5 pass —
+  this deliverable adds no drivable UI surface; the 321-test real-EDH suite, which exercises the
+  actual `deactivate`/`mkdtemp` paths in a real extension host, is the runtime verification, so this
+  is not FM #24. The `:102` "worse" clause (re-enable without a window reload) is **unverified** — I
+  deliberately did not rely on it, and the two grounding agents assigned to it died on schema
+  retries; the harm I claim is only the harm I measured.
+- **Self-score: 8/10.** The fix is right, minimal, and proven three ways (RED-first, break-revert per
+  change, 3/3 stability), both filed items are corrected on the record rather than merely ticked, and
+  the two lessons are ones the next session can act on. **Not higher because I corrupted my own
+  working tree by delegating an experiment that mutates it** — the fleet's findings were worth having,
+  but the guard it deleted was the load-bearing change, and had I triaged the findings without first
+  checksumming the tree I would have "confirmed" a refutation manufactured by a sibling agent. I also
+  spent a lap on a resume-order theory I never needed to characterize.
 
 ## Session 100 ACTIVE TASK (superseded by Session 101 — full entry preserved below)
 **Task:** **Session 100 — IMPLEMENTATION: the (b) RANGE-fallback axis of `BACKLOG.md:125` — the last actionable step on the last semantic-token MEDIUM.** S99 pinned the (a) DOCUMENT axis (a top provider that DECLINES while a tied one answers ⇒ stream decoded against a foreign legend ⇒ silently wrong colour) and proved no fix is constructible. It left (b) OPEN and explicitly UNPINNED: per S99's byte-level reading, the built-in TS extension registers ONLY a range provider (zero doc registrations), so `javascript` has no document provider and **both our commands already fall through to the range registry today** for every `{ojs}`/`{js}` cell — legend to `_provideDocumentRangeSemanticTokensLegend` with NO range argument (VS Code's own "might be out-of-sync" blind-`r[0]` path once the top group holds >1), tokens to `ZNt` → first-that-answers. Claimed BROADER in kind than (a): `ZNt` swallows per-provider errors (`catch(c){Fs(c),a=null}`), so a top provider that **THROWS** diverges too — where the doc path's `mki` rethrows and degrades safely via our try/catch. Deliverable: pin it — two TIED javascript range providers on a `.js` vdoc, top one DECLINING, then the THROW sibling. **S99's range-axis mechanism is characterized FROM BYTES, NOT OBSERVED (S99 says so itself), so it is a predecessor premise and will NOT be inherited (Learnings #107/#108/#109 — three consecutive predecessors' headlines needed refuting, and S99's own 9-agent grounding still manufactured a false conclusion by never asking which path an `{ojs}` cell takes).** First move is firsthand grounding in the real 1.129.0 EDH — does the fall-through actually occur, does the THROW leg really diverge — BEFORE any test code. Deliverable is ONE of: the real pin under strict TDD (RED shown before GREEN), or a documented refutation/boundary if the premise does not survive. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`. Operator picked this via `AskUserQuestion` at Phase 0 (Active empty); it was S99's ranked candidate (1). (IN PROGRESS)
