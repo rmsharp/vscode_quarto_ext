@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S96
+date: 2026-07-15
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, test-infra / bug fix). BACKLOG "Polish / deferred" MEDIUM (:119, filed S95) — the integration suite has 4 pre-existing failures in semantic-tokens.test.ts "multi-language merge (Slice 2)" (an EXTRA token at vdoc 0:0) from an UNPINNED @vscode/test-electron floating to VS Code 1.129. Fix: pin the test VS Code version (recommended regardless) AND/OR update the 4 expected token streams. Operator picked at Phase 0 (Active empty); S95's top-ranked candidate (1).
+```
+
+```handoff
 session: S95
 date: 2026-07-15
 status: complete
