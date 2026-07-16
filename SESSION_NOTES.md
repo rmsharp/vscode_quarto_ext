@@ -7,8 +7,70 @@
 ## ACTIVE TASK
 **Task:** **Session 96 — IMPLEMENTATION (test-infra / bug fix): `BACKLOG.md` "Polish / deferred" MEDIUM (`:119`, filed S95) — the integration suite has 4 pre-existing failures in `semantic-tokens.test.ts` "multi-language merge (Slice 2)": an EXTRA semantic token at vdoc line `0:0` the expectations (written against VS Code ~1.128.x) do not list, caused by an UNPINNED `@vscode/test-electron` floating to VS Code 1.129 (built-in-tokenizer drift). Product unaffected, but a red suite masks future real regressions.** Fix: (a) PIN the test VS Code version so the built-in-tokenizer surface stops drifting silently (recommended regardless), AND/OR (b) update the 4 expected token streams to match the pinned version. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict-TDD gate (the RED is the currently-failing suite). Operator picked this via `AskUserQuestion` at Phase 0 (Active empty); it was S95's top-ranked candidate (1). (IN PROGRESS)
 **Started:** 2026-07-15
-**Status:** Session claimed. Work beginning — reproducing the 4 failures on the current unpinned harness, then deciding pin-only vs pin+update with the operator.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** **DONE. SHIPPED — the integration suite is GREEN (315 passing / 0 failing), and the S95-filed diagnosis is REFUTED.** The 4 "multi-language merge (Slice 2)" failures were NOT VS Code 1.129 tokenizer drift. True root cause, re-derived from code + a controlled experiment: since S93, `buildVirtualContent` injects `# type: ignore` on a **python vdoc's line 0**; the Slice-2 stand-in `tokensForNonBlankLines` emits a token per **non-blank** line, so it spuriously tokenized that mute comment, and — because vdoc line N IS .qmd line N with no remap (`providers/semantic-tokens.ts:234`) — the token landed at `.qmd` line 0 (the extra `@0:0`). All 4 failing fixtures contain a `{python}` cell, including test 4 which S95 misread as "javascript-only" (its fixture is an `{ojs}`+`{js}`+`{python}` mix). **Version-independent, proven empirically:** the unfixed suite fails identically (311/4, same 4× `@0:0`) on BOTH VS Code 1.128.1 AND 1.129.0. **Production was always correct** — real Pylance emits NO token for the mute comment (pinned firsthand, `real-lsp.test.ts:469`); the stand-in was the only thing modelling a server that emits one. **Fix (two parts):** (1) the stand-in now skips the `# type: ignore` line — greening all 4 with their semantically-correct expectations UNCHANGED; (2) `test/integration/runTest.ts` now pins `version: "1.129.0"` (independent hygiene — an unpinned harness makes "did the editor change or did we?" unanswerable). No production `src/` code changed. Full verify matrix: 315 integration / 825 unit / check-types clean / clean 43-file `.vsix`.
+**Ledger:** `CHANGELOG: 2026-07-15 · [ad hoc] (Session 96 — FIXED MEDIUM: the 4 RED integration tests; refuted the S95 "1.129 drift" diagnosis)` entry written.
+**What was done (commits):** 1B claim `fc1a348`. The fix + docs land in the single close-out commit: `test/integration/suite/semantic-tokens.test.ts` (import `TYPE_IGNORE_DIRECTIVE`; `tokensForNonBlankLines` skips the mute line + docstring explaining why), `test/integration/runTest.ts` (`version: "1.129.0"` pin + comment), plus `BACKLOG.md` (`:119` marked `[x]` FIXED with the corrected diagnosis), `CHANGELOG.md`, `PROJECT_LEARNINGS.md` (#107 + inline correction to #106(c)).
+**What's next (Active is empty — pick via `AskUserQuestion` at Phase 0):** Ranked open candidates: **(1)** the two **S91 LOWs** (`BACKLOG.md:102-103`) — `mkdtemp` fallback-dir leak + after-dispatch epoch boundary (same `disposeAllVdocs` blast radius, likely one session; fix = a latched `deactivated` flag). **(2)** the **largest remaining semantic-token fidelity MEDIUM** (`BACKLOG.md:127`) — a kept TYPE with foreign MODIFIERS (Pylance `builtin` on `print`) overrides TextMate, losing the distinction; fix shape = the shipped `module` `semanticTokenScopes` fix applied to the modifier axis. **(3)** the two **S89 LOWs** (`BACKLOG.md:120-121`) — unbounded `disposeEpoch` growth + latched `mkdtemp` failure. **(4)** the two **semantic-token test-coverage MEDIUMs** (`BACKLOG.md:123`, `:125`) — no test makes one language throw while another answers; split legend/stream provider. OR item 17 (`BACKLOG.md:64`), the narrower-audience feature bundle. **Optional micro-follow-up I filed as a note (not a formal item):** a defensive "drop tokens outside a cell body" filter in `providers/semantic-tokens.ts` (inert today — real Pylance never emits at line 0 — but hardens against a hypothetical server that does).
+**Key files (this session):** `test/integration/suite/semantic-tokens.test.ts` — the `TYPE_IGNORE_DIRECTIVE` import (`:9`) + `tokensForNonBlankLines` skip (`~:277-305`, the `|| text.trim() === TYPE_IGNORE_DIRECTIVE` guard + its docstring). `test/integration/runTest.ts` — the `version: "1.129.0"` pin (`~:31`). Evidence anchors: `src/core/embedded/virtual-doc.ts:106-136` (the `# type: ignore` line-0 injection, python-gated), `src/providers/semantic-tokens.ts:234` (no coordinate remap — vdoc line N IS .qmd line N), `test/lsp/suite/real-lsp.test.ts:454-473` (real Pylance emits no line-0 token). `BACKLOG.md:119` / `CHANGELOG.md` top / `PROJECT_LEARNINGS.md` #107 + #106(c).
+**Gotchas for the next session:** (1) 🔑 **The integration harness is now PINNED to VS Code 1.129.0** (`runTest.ts`). Bump it deliberately when adopting a newer baseline, and re-run the suite — do NOT let it float again (that ambiguity is exactly what let S93's real breakage go two sessions undiagnosed and then be misdiagnosed). (2) 🔑 **The Slice-2 stand-in models "one token per non-blank CODE line"** — if a future vdoc-builder change injects any other non-code line (like S93's `# type: ignore`), the stand-in will tokenize it unless you teach it to skip that line too. The faithful reference is `real-lsp.test.ts:469` (a real server emits nothing for the mute). (3) **A filed diagnosis is a hypothesis** (Learning #107): S95's "1.129 drift" was confidently wrong and its cited discriminator (test 4 "javascript-only") was a fixture misread; reproduce against a controlled variable before trusting an inherited causal story. (4) **No `src/` production code changed this session** — the fix is entirely test-infrastructure; the integration suite (real EDH, 315 green) IS the runtime verification.
+**Scope held (1 and done):** ONE deliverable — green the RED integration suite + pin the harness + correct the filed diagnosis. Did NOT implement the defensive body-only token filter (noted for a future session), did NOT touch any `src/` production code, did NOT "update the 4 expected token streams" (the filed option (b) — it would have baked a stand-in artefact into the assertions, asserting a spurious token real Pylance never emits).
+
+## Session 95 Handoff Evaluation (by Session 96)
+
+**Score: 6/10.** S95's handoff pointed me at the right work with an accurate file pointer and left a frictionless
+clean state — but its **root-cause diagnosis of that work was confidently wrong**, and a diligent read of its own
+cited evidence (which I had to do from scratch) would have caught it. That is the difference between a handoff
+that saves discovery time and one that would have *cost* it had I trusted it.
+
+- **What helped:** the ranked candidate **(1) "the 4 pre-existing integration failures … MEDIUM; needs an
+  operator decision (pin the version and/or update the 4 expected token streams)"** correctly identified the task,
+  the file (`semantic-tokens.test.ts`), the symptom (an extra `@0:0` token), and the clean state (both ledger
+  frontiers at HEAD → Phase 0 reconcile had nothing to backfill). The pointer to `BACKLOG:119` was accurate.
+- **What was WRONG (the −4), and it was load-bearing:** the diagnosis — "VS Code 1.128→1.129 built-in-tokenizer
+  drift; environmental, not source; proven by test 4 being javascript-only" — is false on every count. Test 4's
+  fixture has a `{python}` cell (`pyCalls===1`), so it was never a valid discriminator; the failure reproduces
+  identically on 1.128.1; and the true cause is S95's own predecessor S93's `# type: ignore` injection meeting an
+  unfaithful stand-in. Had I implemented the filed fix (pin + update expectations), I'd have shipped a *green suite
+  that asserts a spurious token real Pylance never emits* — a worse state than red. The tell was structural: the
+  filed fix named a mechanism (tokenizer drift) that neither of its two remedies (pin/update) actually addressed.
+- **The mitigating truth:** this is the *same* class of error S95 itself warned about elsewhere — its Learning #106(c)
+  even encodes the wrong story. It is not malice or laziness; it is a plausible causal narrative adopted without a
+  controlled experiment. But a handoff's headline claim is exactly what the next session is most tempted to trust,
+  so a wrong one is expensive.
+- **ROI:** net-positive only because I did not trust it — I re-derived from code and ran the controlled 1.128.1
+  experiment. Had I executed the filed fix on faith, ROI would have been strongly negative.
+
+## Session 96 Self-Assessment
+
+- **The diagnose discipline was the whole session, and it paid off.** I refused to inherit S95's causal story: I
+  read the actual builder (`# type: ignore` on line 0), the actual stand-in (token per non-blank line), and the
+  actual fixtures (test 4 is NOT js-only), then ran the *controlled experiment* — the unfixed suite on VS Code
+  1.128.1 — which falsified "1.129 drift" outright (identical 311/4). This is Learning #107, the sibling of
+  #101/#105 applied to an inherited diagnosis rather than an inherited fix.
+- **I fixed the right layer.** The failure was in the test double, not production (real Pylance emits no line-0
+  token, pinned). So I made the stand-in faithful rather than "updating expectations" to encode its artefact —
+  which would have inverted the test's meaning (asserting a spurious token the extension does not really emit).
+  The semantically-correct expectations are unchanged; the RED→GREEN (311/4 → 315/0) rests on a faithful double.
+- **Strict-TDD shape for a test-infra fix:** the RED was the 4 failing tests, observed on TWO versions before any
+  change; the GREEN is the minimal stand-in skip; the assertions still discriminate (they would fail if the
+  extension actually emitted a spurious body-external token — and `real-lsp.test.ts:469` independently pins the
+  production side against a real server).
+- **I pinned the harness even though drift was not the cause** — because the *ambiguity* an unpinned harness
+  creates is real and is precisely what let S93's genuine breakage hide for two sessions and then be misdiagnosed.
+  That is hygiene the operator explicitly asked for ("recommended regardless"), justified on its own merits, not
+  smuggled in as the "fix."
+- **I corrected the record at every site the wrong diagnosis had reached** (Learning #7 cross-reference
+  completeness): `BACKLOG:119`, `PROJECT_LEARNINGS.md` #106(c) inline, and the new #107 — not just the one place I
+  happened to be editing.
+- **Honest weaknesses:** (1) I did not run a *fixed* suite on 1.128.1 as well (only unfixed-on-both + fixed-on-1.129);
+  the stand-in skip is version-agnostic by construction, so I judged one fixed run on the pinned version sufficient,
+  but a purist could want the 2×2 matrix. (2) I did not run the standing multi-agent adversarial review this session
+  — the change is a 2-line test-double skip + a version pin with an overwhelming, empirically-closed causal chain
+  and no production surface; I judged a full review disproportionate, but that is a judgment, disclosed.
+- **Self-score: 9/10.** Correct root cause established by controlled experiment (not asserted), the right layer
+  fixed, expectations preserved, record corrected everywhere, full verify matrix green, scope held. Not a 10
+  because the deliverable is a test-infra correction rather than user-visible capability, and because I made a
+  proportionality call to skip the adversarial-review workflow (defensible, disclosed).
 
 ## Session 95 ACTIVE TASK (superseded by Session 96 — full entry preserved below)
 **Task:** **Session 95 — IMPLEMENTATION (perf/bug fix): `BACKLOG.md` "Polish / deferred" MEDIUM (`:118`, S89 adversarial review) — a semantic-token pass rescans the whole document 2 + 2N times (N = embedded languages) because `scanRegions` (`src/core/qmd/model.ts:269`) has no cache; `findAllCells`/`findCellOptionLines`/`findBodyLines` each re-invoke it, so `embeddedLanguagesIn` scans twice and `buildVirtualContent` scans twice more per language, on every debounced timer for every visible `.qmd`.** The fix: memoise `scanRegions` keyed on the document text (single-entry last-value cache — collapses the within-pass redundancy while naturally evicting on text change; a `Map` keyed on full text would leak). Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. Operator picked this via `AskUserQuestion` at Phase 0 (Active empty); it was S94's top-ranked candidate (1).

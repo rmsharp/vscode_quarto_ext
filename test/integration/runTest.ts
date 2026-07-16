@@ -29,6 +29,13 @@ async function main(): Promise<void> {
       "test/fixtures/project",
     );
     await runTests({
+      // Pin the Extension Development Host's VS Code to a fixed version. Left
+      // unpinned, `@vscode/test-electron` floats to the latest stable, so a VS
+      // Code release can silently change the built-in tokenizer/language-service
+      // surface these tests observe and make "did the editor change, or did we?"
+      // unanswerable (Session 96, BACKLOG:119). Bump this deliberately — and
+      // re-run the suite — when adopting a newer VS Code baseline.
+      version: "1.129.0",
       extensionDevelopmentPath,
       extensionTestsPath,
       launchArgs: [workspacePath],

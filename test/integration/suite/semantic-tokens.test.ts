@@ -6,6 +6,7 @@ import {
   OUR_LEGEND,
 } from "../../../src/core/embedded/semantic-tokens";
 import { VDOC_DIR_SEGMENTS } from "../../../src/core/embedded/vdoc-path";
+import { TYPE_IGNORE_DIRECTIVE } from "../../../src/core/embedded/virtual-doc";
 import { assertRoutedThroughVdoc, VDOC_SELECTOR } from "./vdoc-assert";
 
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
@@ -273,7 +274,18 @@ const JS_STANDIN_LEGEND = new vscode.SemanticTokensLegend(
   ["readonly", "declaration"], // readonly = bit 0  <- inverted
 );
 
-/** Emit one `variable`+`readonly` token per non-blank line, in `legend`'s own indices. */
+/**
+ * Emit one `variable`+`readonly` token per non-blank CODE line, in `legend`'s own indices —
+ * skipping the file-level `# type: ignore` mute that `buildVirtualContent` injects on a python
+ * vdoc's line 0 (Session 93, the diagnosticMode:"workspace" phantom-diagnostic fix). A real
+ * semantic-token server emits NO token for that comment — pinned firsthand against Pylance in
+ * `test/lsp/suite/real-lsp.test.ts` ("the line-0 `# type: ignore` mute must emit NO semantic
+ * token") — so a stand-in that emitted one there would model a server that does not exist, and,
+ * because vdoc line N IS .qmd line N with no coordinate remap (`providers/semantic-tokens.ts`),
+ * would spuriously colour the cell's fence at .qmd line 0. Omitting this skip is exactly what
+ * turned the 4 "multi-language merge (Slice 2)" cases red once S93 landed — a stand-in artefact,
+ * NOT a VS Code version drift (fails identically on 1.128.1 and 1.129.0; BACKLOG:119 / Session 96).
+ */
 function tokensForNonBlankLines(
   document: vscode.TextDocument,
   variableIndex: number,
@@ -286,7 +298,7 @@ function tokensForNonBlankLines(
     .getText()
     .split("\n")
     .forEach((text, line) => {
-      if (text.trim() === "") {
+      if (text.trim() === "" || text.trim() === TYPE_IGNORE_DIRECTIVE) {
         return;
       }
       const char = text.length - text.trimStart().length;

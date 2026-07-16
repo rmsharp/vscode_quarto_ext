@@ -7,6 +7,19 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-15 · [ad hoc] Session 96 — FIXED MEDIUM: the 4 RED integration tests; refuted the S95 "1.129 drift" diagnosis
+
+Greened the integration suite (`BACKLOG :119`), and **corrected its filed root cause**. The 4 failures in
+`semantic-tokens.test.ts` "multi-language merge (Slice 2)" were NOT VS Code version drift (as S95 filed): they
+reproduce identically (311 pass / 4 fail, same 4× `@0:0`) on BOTH VS Code 1.128.1 and 1.129.0. True cause: since
+S93, `buildVirtualContent` injects `# type: ignore` on a python vdoc's line 0, and the stand-in
+`tokensForNonBlankLines` emits a token per non-blank line — so it spuriously tokenized the mute comment, landing
+a token at `.qmd` line 0 (no coordinate remap). Production was always correct (real Pylance emits no token there,
+pinned in `real-lsp.test.ts:469`). Fix: (1) the stand-in now skips the `# type: ignore` line (models a real
+server) — greening all 4 with unchanged, semantically-correct expectations; (2) `test/integration/runTest.ts`
+now pins `version: "1.129.0"` (genuine hygiene against future drift, though drift was not the cause). Corrected
+`BACKLOG :119`, `PROJECT_LEARNINGS.md` #106(c), and added #107. 315 integration / 825 unit / clean 43-file `.vsix`.
+
 ### 2026-07-15 · [ad hoc] Session 95 — FIXED MEDIUM: memoised `scanRegions` (the 2+2N per-pass rescan)
 
 Fixed the S89-filed MEDIUM (`BACKLOG :118`): a semantic-token pass re-scanned the whole document **2+2N times**
