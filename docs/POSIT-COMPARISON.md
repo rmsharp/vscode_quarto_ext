@@ -299,7 +299,11 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   on a `.qmd`. So we carry exactly **`module`** (`os`, `np`), the one name MagicPython gives no scope at
   all and the one real Pylance is observed emitting, plus a `semanticTokenScopes` contribution for
   `language: "quarto"`. `magicFunction` would have turned `__init__` from #DCDCAA to #d2a8ff purple.
-  **Item 16 is now fully SHIPPED — this row is at parity.**
+  **Item 16 is now fully SHIPPED — this row is at parity.** *(Session 97 extended the same discipline to
+  the MODIFIER axis, BACKLOG:127: it carries the one modifier `typeHintComment` — the interior of a legacy
+  `# type:` comment, which we were repainting from the #8b949e comment colour to #4EC9B0 teal — with a
+  matching `*.typeHintComment` scope contribution, and REFUTED the filed `builtin` instance, which already
+  matches a real `.py`.)*
 
 **Code-cell language embedding — completion/hover/go-to-def/signature-help/diagnostics forwarding.
 (Verdict revised — Session 67: previously ambiguous/unbucketed → Real gap.)**

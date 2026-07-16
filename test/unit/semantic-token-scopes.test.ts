@@ -5,11 +5,15 @@ import { OUR_LEGEND } from "../../src/core/embedded/semantic-tokens";
 /**
  * The `contributes.semanticTokenScopes` half of the D4 decision (BACKLOG item 16, Slice 3).
  *
- * `OUR_LEGEND` carries two foreign token names — `module` and `intrinsic` — because they are
- * the two Pylance declines to style itself (see the triage rule in `semantic-tokens.ts`). This
- * manifest entry is what makes that win SERVER-INDEPENDENT: it maps each carried name straight
- * to the TextMate scope VS Code's own built-in default rule probes for that name's superType,
- * scoped to `language: "quarto"`.
+ * `OUR_LEGEND` carries two foreign names, one per axis: `module` on the TYPE axis (D4, Session 90)
+ * and `typeHintComment` on the MODIFIER axis (BACKLOG:127, Session 97). Each is carried because a
+ * real server (Pylance) is observed emitting it AND clearing/dropping it leaves the `.qmd` worse
+ * than a real `.py`. This manifest entry is what makes each win SERVER-INDEPENDENT: it maps the
+ * carried name straight to the TextMate scope that resolves to the same colour a real `.py` gets
+ * (`module` -> `entity.name.namespace`; `*.typeHintComment` -> `comment.typehint.type.notation.python`,
+ * mirroring Pylance's OWN python-gated rule), scoped to `language: "quarto"`.
+ * (An earlier draft also named `intrinsic`; that was removed — Pylance never emits it — see the
+ * "does NOT carry intrinsic" test in `semantic-tokens.test.ts`.)
  *
  * Why it is needed at all, given the superType chain already resolves `module` when Pylance is
  * installed: VS Code's `semanticTokenScopes` handler validates SHAPE ONLY and never looks the
@@ -31,6 +35,12 @@ const STANDARD_TYPES = [
   "number", "regexp", "operator",
 ];
 
+/** The standard VS Code semantic token MODIFIERS. Anything else in our legend is a carried name. */
+const STANDARD_MODIFIERS = [
+  "declaration", "definition", "readonly", "static", "deprecated", "abstract",
+  "async", "modification", "documentation", "defaultLibrary",
+];
+
 const contributed = (manifest as { contributes: Record<string, unknown> }).contributes
   .semanticTokenScopes as { language: string; scopes: Record<string, string[]> }[] | undefined;
 
@@ -44,20 +54,31 @@ describe("contributes.semanticTokenScopes (D4, Slice 3)", () => {
     expect(contributed?.[0].language).toBe("quarto");
   });
 
-  it("maps EXACTLY the foreign names OUR_LEGEND carries — no dead rules, no unstyled carries", () => {
-    // 🔑 The invariant that can rot silently, in either direction:
+  it("maps EXACTLY the foreign names OUR_LEGEND carries, across BOTH axes — no dead rules, no unstyled carries", () => {
+    // 🔑 The invariant that can rot silently, in either direction — now spanning two axes:
     //
+    //   - a carried TYPE name (`module`) is a BARE scope key (`"module"`);
+    //   - a carried MODIFIER (`typeHintComment`) is a `*.<modifier>` selector key
+    //     (`"*.typeHintComment"` — matches that modifier on any type);
     //   - a carried name with NO scope rule degrades to superType-only, so it works ONLY while a
     //     server that registers the superType is installed — the bug this entry exists to prevent;
-    //   - a scope rule for a name NOT in the legend is dead code that no test would ever catch,
-    //     because it simply never matches anything.
+    //   - a scope rule for a name NOT carried is dead code that no test would otherwise catch.
     //
-    // Both are invisible at runtime. Pin the two sets equal.
-    const carried = OUR_LEGEND.tokenTypes.filter((t) => !STANDARD_TYPES.includes(t));
-    const styled = Object.keys(contributed?.[0].scopes ?? {});
+    // Both are invisible at runtime. Pin the two sets equal, PER AXIS.
+    const carriedTypes = OUR_LEGEND.tokenTypes.filter((t) => !STANDARD_TYPES.includes(t));
+    const carriedModifiers = OUR_LEGEND.tokenModifiers.filter((m) => !STANDARD_MODIFIERS.includes(m));
 
-    expect([...carried].sort()).toEqual([...styled].sort());
-    expect(carried).toEqual(["module"]);
+    const keys = Object.keys(contributed?.[0].scopes ?? {});
+    const typeKeys = keys.filter((k) => !k.includes("."));      // bare type selectors
+    const modifierKeys = keys.filter((k) => k.startsWith("*.")); // `*.<modifier>` selectors
+    // Every key is one recognised shape or the other — no unrecognised selector form slipped in.
+    expect(typeKeys.length + modifierKeys.length).toBe(keys.length);
+
+    expect([...typeKeys].sort()).toEqual([...carriedTypes].sort());
+    expect(modifierKeys.map((k) => k.slice(2)).sort()).toEqual([...carriedModifiers].sort());
+
+    expect(carriedTypes).toEqual(["module"]);
+    expect(carriedModifiers).toEqual(["typeHintComment"]);
   });
 
   it("carries ONLY names a REAL server is observed emitting — the rule this file learned the hard way", () => {
@@ -71,13 +92,19 @@ describe("contributes.semanticTokenScopes (D4, Slice 3)", () => {
     // emission, and an agreement between two things I control proves nothing about the wire.
     //
     // The only authority on what a server emits is a server. `test/lsp/suite/real-lsp.test.ts`
-    // drives REAL Pylance and asserts `module` arrives (module@3:7 from `import os`). This test
-    // pins the carried set to exactly what that gate proves, so a future name cannot be added on
-    // the strength of the triage rule alone without a real-LSP observation to back it.
-    const OBSERVED_ON_THE_WIRE_FROM_A_REAL_SERVER = ["module"];
+    // drives REAL Pylance and asserts `module` arrives (module@3:7 from `import os`) AND that
+    // `class.typeHintComment` arrives (inside a legacy `# type: T` comment). This test pins the
+    // carried sets — BOTH axes — to exactly what that gate proves, so a future name cannot be
+    // added on the strength of the triage rule alone without a real-LSP observation to back it.
+    // (This is why `builtin`, which real Pylance DOES emit, is still not carried: emission is
+    // necessary but not sufficient — see `semantic-tokens.test.ts`; it already matches a `.py`.)
+    const OBSERVED_TYPES = ["module"];
+    const OBSERVED_MODIFIERS = ["typeHintComment"];
 
-    const carried = OUR_LEGEND.tokenTypes.filter((t) => !STANDARD_TYPES.includes(t));
-    expect(carried).toEqual(OBSERVED_ON_THE_WIRE_FROM_A_REAL_SERVER);
+    const carriedTypes = OUR_LEGEND.tokenTypes.filter((t) => !STANDARD_TYPES.includes(t));
+    const carriedModifiers = OUR_LEGEND.tokenModifiers.filter((m) => !STANDARD_MODIFIERS.includes(m));
+    expect(carriedTypes).toEqual(OBSERVED_TYPES);
+    expect(carriedModifiers).toEqual(OBSERVED_MODIFIERS);
   });
 
   it("probes the SAME TextMate scope VS Code's own built-in rule uses for the superType", () => {
@@ -87,6 +114,23 @@ describe("contributes.semanticTokenScopes (D4, Slice 3)", () => {
     // gets, in whatever theme the user has — rather than inventing a colour of our own. In the
     // real default theme (Dark 2026) that is #4EC9B0, resolved through VS Code's own theme trie.
     expect(contributed?.[0].scopes.module).toEqual(["entity.name.namespace"]);
+  });
+
+  it("maps the carried MODIFIER `typeHintComment` to Pylance's OWN comment scope (BACKLOG:127 (a))", () => {
+    // The modifier axis of the same decision. Real Pylance tags a `# type: T` comment's interior
+    // `class.typeHintComment` and styles it, in its own `python`-gated manifest, as
+    // `*.typeHintComment -> ['comment.typehint.type.notation.python']`. That rule is inert on a
+    // `.qmd` (model languageId is `quarto`), so WE mirror it, `quarto`-scoped — mapping our carried
+    // modifier to the byte-identical scope, which resolves through the effective Dark-2026 theme
+    // trie to the #8b949e comment colour a real `.py` shows, instead of the #4EC9B0 teal a bare
+    // `class` gives (both hexes resolved firsthand, last-wins over the include chain).
+    //
+    // The selector is `*.typeHintComment` (any type + the modifier), matching Pylance's own form:
+    // Pylance emits `class.typeHintComment`, `class.typeHintComment.builtin`, and `variable.*`
+    // inside type comments, and all should resolve to the comment colour.
+    expect(contributed?.[0].scopes["*.typeHintComment"]).toEqual([
+      "comment.typehint.type.notation.python",
+    ]);
   });
 
   it("does NOT contribute semanticTokenTypes — that registry is global and owner-blind", () => {

@@ -26,7 +26,8 @@ export interface AbsToken {
 
 /**
  * The legend WE declare to VS Code at registration — the standard token types and
- * modifiers, PLUS the one foreign name it is both safe AND possible to carry (plan §5.4, D4).
+ * modifiers, PLUS the two foreign names it is both safe AND useful to carry: `module` on the
+ * TYPE axis (plan §5.4, D4) and `typeHintComment` on the MODIFIER axis (BACKLOG:127, Session 97).
  *
  * A `SemanticTokensLegend` must be declared up front, but an embedded server's legend is
  * only knowable at runtime and differs per language (Pylance's has 29 types; a Julia
@@ -94,14 +95,40 @@ export interface AbsToken {
  * type name is provably omitted from the stream (VS Code resolves it to no style and filters
  * it out), so TextMate survives untouched, foreground and font style both. But a token whose
  * TYPE we keep while CLEARING a foreign MODIFIER is a PARTIAL override: it still paints, just
- * without the refinement. Pylance's `typeHintComment` is the live instance — inside a legacy
- * `# type: List[int]` comment it emits a standard `class`, which we already carry, and we
- * repaint the interior of a comment as live code. That is filed (BACKLOG), not fixed here, and
- * carrying the modifier names would NOT fix it — their scope rules are python-gated too.
+ * without the refinement.
  *
- * The `contributes.semanticTokenScopes` half of this decision lives in `package.json` (scoped
- * to `language: "quarto"`), and it is what makes the `module` win survive even against a server
- * that registers no `superType` at all. We deliberately do NOT contribute
+ * ## The modifier axis (BACKLOG:127), resolved: carry `typeHintComment`. Refute `builtin`.
+ *
+ * The same triage-plus-emission discipline decides the modifier axis, and it splits the two
+ * candidates BACKLOG:127 named in OPPOSITE directions — which is the whole finding:
+ *
+ *  - **`typeHintComment` — CARRIED, because it fixes a WRONG colour.** Real Pylance tags the
+ *    interior of a legacy `# type: List[int]` comment as `class.typeHintComment` (observed
+ *    firsthand, Session 97). We already carry `class`, so before this fix we emitted a bare
+ *    `class` there — repainting the interior of a COMMENT as a live type: #4EC9B0 teal, where a
+ *    real `.py` (and MagicPython alone) shows the #8b949e comment colour via Pylance's OWN
+ *    `*.typeHintComment` -> `comment.typehint.type.notation.python` rule. This is the ONE place a
+ *    cleared modifier is a genuinely wrong colour, not a merely-lost distinction. Carrying the
+ *    modifier + a `quarto`-scoped `*.typeHintComment` rule (mirroring Pylance's own, in
+ *    `package.json`) makes the `.qmd` match the `.py` — the exact shape as the `module` fix.
+ *
+ *  - **`builtin` — NOT carried, because our `.qmd` ALREADY matches the `.py`.** This is a
+ *    REFUTATION of BACKLOG:127's own headline instance (`print` -> `function.builtin`). Pylance
+ *    ships NO `function.builtin`/`variable.builtin` scope rule (its `semanticTokenScopes` styles
+ *    `magicFunction`/`builtinConstant`/`*.overridden`/`*.typeHintComment` — never the bare
+ *    `builtin` modifier), so a REAL `.py` resolves `print` through the plain `function` default to
+ *    #d2a8ff and `__name__` through `variable` to #ffa657 — which is EXACTLY what our bare-modifier
+ *    `.qmd` shows today (all hexes resolved firsthand through the effective Dark-2026 theme trie,
+ *    last-wins). Carrying `builtin` + a scope rule would repaint `print` #DCDCAA
+ *    (`support.function.builtin.python`) and `__name__` #79c0ff (`support.variable.magic.python`)
+ *    — DIVERGING from the `.py` even in the DEFAULT theme, not converging. That is the
+ *    `selfParameter` trap (above) on the modifier axis: the "obvious" carry is a regression
+ *    against the match-`.py` target. So `builtin` — and `typeHint`, styled nowhere and with no
+ *    observed divergence — stay foreign and cleared.
+ *
+ * The `contributes.semanticTokenScopes` half of BOTH the `module` and the `typeHintComment` wins
+ * lives in `package.json` (scoped to `language: "quarto"`), and it is what makes them survive even
+ * against a server that registers no `superType` at all. We deliberately do NOT contribute
  * `contributes.semanticTokenTypes`: VS Code's type registry is a single global map keyed by
  * bare id, and its deregistration is owner-blind and un-refcounted — declaring Pylance's ids
  * would mean OUR uninstall deletes PYLANCE's registration and degrades the user's plain `.py`
@@ -129,6 +156,13 @@ export const OUR_LEGEND: Legend = {
   tokenModifiers: [
     "declaration", "definition", "readonly", "static", "deprecated", "abstract",
     "async", "modification", "documentation", "defaultLibrary",
+    // The one foreign MODIFIER, carried (BACKLOG:127 (a)) — and, unlike a dropped/cleared name,
+    // it fixes a token that is a WRONG colour rather than a merely-lost one. Real Pylance tags the
+    // interior of a legacy `# type: T` comment with this (`class.typeHintComment`, observed
+    // firsthand); clearing it repainted a COMMENT as live code. Paired with the `quarto`-scoped
+    // `*.typeHintComment` rule in `package.json`. `builtin` is deliberately NOT here — see the
+    // "modifier axis" section in the docstring above and `test/unit/semantic-tokens.test.ts`.
+    "typeHintComment",
   ],
 };
 

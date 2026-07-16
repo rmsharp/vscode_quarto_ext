@@ -350,17 +350,63 @@ describe("semantic-tokens: re-encoding into OUR legend", () => {
     }
   });
 
-  it("carries NO foreign MODIFIER — the filed partial-override stays filed, not widened", () => {
-    // Modifiers are deliberately untouched by D4. Pylance's `builtin`/`typeHint`/`typeHintComment`
-    // stay out of our legend, so they are CLEARED (the token survives, the refinement is lost).
+  it("KEEPS the `typeHintComment` modifier — a `# type:` comment's interior is a COMMENT, not live code (BACKLOG:127 (a))", () => {
+    // 🔑 THE ONE MODIFIER worth carrying, and — unlike the type axis — it fixes a WRONG colour,
+    // not a merely-lost one. Firsthand data (Session 97 probe, ms-python.vscode-pylance-2026.2.1):
+    // the `List` in `xs = []  # type: List[int]` comes back as Pylance type 7 (`class`) with
+    // modifier bit 6 (`typeHintComment`). D4 CLEARED that bit, leaving a bare `class` — which
+    // OVERRIDES MagicPython and repaints the interior of a COMMENT as a live type: #4EC9B0 teal,
+    // where a real `.py` (and TextMate alone) shows the #8b949e comment colour via Pylance's own
+    // `*.typeHintComment` -> `comment.typehint.type.notation.python` rule. Carrying the modifier,
+    // paired with the quarto-scoped scope rule in `package.json`, makes the `.qmd` match the `.py`.
+    const typeHintCommentBit = 1 << 6; // Pylance's own bit for it (PYLANCE_MODIFIERS[6])
+    const tokens = decodeTokens(pylanceStream(9, 17, 4, 7, typeHintCommentBit));
+    expect(tokens[0]).toEqual({
+      line: 9, char: 17, length: 4, type: "class", modifiers: ["typeHintComment"],
+    });
+
+    // The discriminator: the modifier must SURVIVE the re-encode into our legend. Round-tripping
+    // through our own legend is what proves the bit was kept, not silently cleared as before.
+    const encoded = encodeTokens(tokens, OUR_LEGEND);
+    const roundTripped = decodeTokens({ data: encoded, legend: OUR_LEGEND });
+    expect(roundTripped[0].type).toBe("class");
+    expect(roundTripped[0].modifiers).toContain("typeHintComment");
+  });
+
+  it("still carries NO OTHER foreign MODIFIER — `builtin`/`typeHint` stay CLEARED (the refutation of BACKLOG:127 (b))", () => {
+    // 🔑 The other half of the modifier decision, and it is a REFUTATION, grounded firsthand.
     //
-    // That is the known, filed MEDIUM — a kept type with cleared modifiers is a PARTIAL override:
-    // safe from a *wrong* colour, not from a *lost* one. Carrying the modifier names would NOT fix
-    // it (Pylance's modifier rules are python-gated too, hence inert here), so this slice does not
-    // pretend to. Pinned so a later session cannot quietly assume D4 resolved it.
+    // BACKLOG:127's headline instance was `print` -> `function.builtin`, "the builtin distinction
+    // is lost". But Session 97's probe + theme-trie resolution proved that framing wrong: Pylance
+    // ships NO `function.builtin`/`variable.builtin` scope rule (its `semanticTokenScopes` styles
+    // magicFunction/builtinConstant/*.overridden/*.typeHintComment — never the bare `builtin`
+    // modifier), so a REAL `.py` resolves `print` through the plain `function` default to #d2a8ff
+    // and `__name__` through `variable` to #ffa657 — which is EXACTLY what our `.qmd` shows today
+    // (hexes resolved firsthand through the effective Dark-2026 trie, last-wins). We already match
+    // `.py`. Carrying `builtin` + a scope rule would repaint `print` #DCDCAA and `__name__` #79c0ff
+    // (`support.function.builtin`/`support.variable.magic`) — DIVERGING from the `.py` even in the
+    // DEFAULT theme. That is the S90 `selfParameter` trap on the modifier axis: the "obvious" carry
+    // is a regression against the project's match-`.py` target.
+    //
+    // So `builtin` stays foreign and CLEARED. `typeHint` (bit 5, distinct from typeHintComment)
+    // likewise: Pylance styles it nowhere and no visible divergence was found. Only the ONE
+    // modifier that fixes a wrong colour is carried.
     expect(OUR_LEGEND.tokenModifiers).not.toContain("builtin");
-    expect(OUR_LEGEND.tokenModifiers).not.toContain("typeHintComment");
-    expect(OUR_LEGEND.tokenModifiers).toHaveLength(10);
+    expect(OUR_LEGEND.tokenModifiers).not.toContain("typeHint");
+
+    // `print` (function + builtin) and `__name__` (variable + builtin) still round-trip BARE.
+    const printTok = decodeTokens(pylanceStream(4, 4, 5, 12, 1 << 9)); // Pylance type 12 = function
+    expect(printTok[0]).toEqual({ line: 4, char: 4, length: 5, type: "function", modifiers: ["builtin"] });
+    expect(decodeTokens({ data: encodeTokens(printTok, OUR_LEGEND), legend: OUR_LEGEND })[0].modifiers)
+      .toEqual([]); // builtin CLEARED -> bare function, matching a real .py
+  });
+
+  it("carries EXACTLY one foreign modifier — the whole modifier legend is pinned", () => {
+    // The standard set is 10; `typeHintComment` is the single carried foreign modifier (the type
+    // axis carries `module` for the same "fixes a colour TextMate gets wrong" reason). Pinned so a
+    // future name cannot be added on the triage rule alone — the real-LSP gate must observe it.
+    expect(OUR_LEGEND.tokenModifiers).toContain("typeHintComment");
+    expect(OUR_LEGEND.tokenModifiers).toHaveLength(11);
   });
 });
 

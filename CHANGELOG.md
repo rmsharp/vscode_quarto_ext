@@ -7,6 +7,23 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-15 · [ad hoc] Session 97 — FIXED MEDIUM: semantic-token modifier fidelity (`BACKLOG:127`) — carry `typeHintComment`, REFUTE `builtin`
+
+Resolved the modifier axis of the semantic-token fidelity item, and **corrected its filed headline**. Firsthand
+grounding (a real-Pylance 2026.2.1 probe + effective Dark-2026 theme-trie resolution, last-wins) split the item's
+two instances in opposite directions. **(a) `typeHintComment` — FIXED:** real Pylance tags a legacy `# type:`
+comment's interior `class.typeHintComment` (verified on the wire); we were clearing the modifier and repainting the
+comment interior as a live type (`entity.name.type` #4EC9B0 teal vs the `.py`'s #8b949e comment colour). Now carry
+the modifier in `OUR_LEGEND` + a `quarto`-scoped `*.typeHintComment` → `comment.typehint.type.notation.python`
+contribution mirroring Pylance's own rule (the shape of the shipped `module` fix, on the modifier axis). **(b)
+`builtin` (the filed HEADLINE) — REFUTED, not carried:** Pylance ships no `function.builtin`/`variable.builtin`
+scope rule, so a real `.py` shows `print`/`__name__` in the plain `function`/`variable` colour — exactly what our
+bare-modifier `.qmd` already shows; carrying `builtin` would *diverge* from the `.py` even in the default theme.
+Strict TDD (RED shown before GREEN on both the legend carry and the manifest rule). Standing multi-agent adversarial
+review (6 candidates → 3 test/doc-quality survivors, all fixed; the correctness lenses confirmed the decision and one
+caught a hex-citation error, corrected). No `src/` behavior beyond the legend + manifest; 828 unit / 315 integration
+/ 14 real-LSP / check-types clean / clean 43-file `.vsix`. Learning #108.
+
 ### 2026-07-15 · [ad hoc] Session 96 — FIXED MEDIUM: the 4 RED integration tests; refuted the S95 "1.129 drift" diagnosis
 
 Greened the integration suite (`BACKLOG :119`), and **corrected its filed root cause**. The 4 failures in

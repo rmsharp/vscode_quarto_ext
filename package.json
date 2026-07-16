@@ -421,6 +421,9 @@
         "scopes": {
           "module": [
             "entity.name.namespace"
+          ],
+          "*.typeHintComment": [
+            "comment.typehint.type.notation.python"
           ]
         }
       }

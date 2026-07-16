@@ -703,6 +703,100 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
     );
   });
 
+  it("SEMANTIC TOKENS: carries `typeHintComment` (matches .py) but NOT `builtin` (already matches .py) — BACKLOG:127", async () => {
+    // The modifier-axis DONE gate, and the only test that can settle it: it takes a REAL server
+    // to prove BOTH halves of BACKLOG:127's resolution — that Pylance actually EMITS
+    // `typeHintComment` (so carrying it is not a dead `intrinsic`-style entry, Learning #100), and
+    // that our `.qmd` now PRESERVES it; and, on the refuted half, that `print`/`__name__` still
+    // come back BARE (we did NOT carry `builtin`, because a real `.py` shows them bare too).
+    //
+    // The fixture MUST contain a legacy `# type: T` comment — that is the only place Pylance
+    // emits `typeHintComment`. Two forms, so a single-token fluke cannot pass it.
+    const body = [
+      "from typing import List",
+      "",
+      "def greet(name):",
+      "    print(name)",            // print  -> function + builtin  (must round-trip BARE)
+      "",
+      "the_mod = __name__",         // __name__ -> variable + builtin (must round-trip BARE)
+      "xs = []  # type: List[int]", // List/int here -> class + typeHintComment (must SURVIVE)
+      "n = 0  # type: int",
+    ];
+
+    // CONTROL: decode a plain `.py` against PYLANCE's OWN legend, to prove `typeHintComment` is
+    // genuinely on the wire from a real server (the rule the `intrinsic` bug taught).
+    const control = await writeDoc("modifier-control.py", `${body.join("\n")}\n`);
+    await vscode.window.showTextDocument(control, { preview: false });
+    let pyLegend: vscode.SemanticTokensLegend | undefined;
+    let pyTokens: vscode.SemanticTokens | undefined;
+    for (let attempt = 0; attempt < 60; attempt++) {
+      pyLegend = await vscode.commands.executeCommand<vscode.SemanticTokensLegend>(
+        "vscode.provideDocumentSemanticTokensLegend", control.uri);
+      pyTokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+        "vscode.provideDocumentSemanticTokens", control.uri);
+      if (pyTokens && pyTokens.data.length > 0) break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    assert.ok(
+      pyTokens && pyTokens.data.length > 0 && pyLegend,
+      "CONTROL FAILED: real Pylance served no semantic tokens on a plain .py — nothing can be concluded.",
+    );
+    const rawPy = decodeTokens({
+      data: pyTokens.data,
+      legend: { tokenTypes: pyLegend.tokenTypes, tokenModifiers: pyLegend.tokenModifiers },
+    });
+    const pyTypeHint = rawPy.filter((t) => t.modifiers.includes("typeHintComment"));
+    assert.ok(
+      pyTypeHint.length >= 2,
+      `real Pylance must EMIT \`typeHintComment\` inside the two \`# type:\` comments (that is the ` +
+        `only thing that makes carrying the modifier legitimate rather than a dead legend entry). ` +
+        `Got ${pyTypeHint.length}. Raw: ${rawPy.map((t) => `${t.type}.${t.modifiers.join(".")}`).join(" ")}`,
+    );
+
+    // The same code as a {python} cell — decode OUR provider's output against OUR legend.
+    const doc = await writeDoc("modifier.qmd", ["```{python}", ...body, "```", ""].join("\n"));
+    await vscode.window.showTextDocument(doc, { preview: false });
+    let tokens: vscode.SemanticTokens | undefined;
+    for (let attempt = 0; attempt < 30; attempt++) {
+      tokens = await vscode.commands.executeCommand<vscode.SemanticTokens>(
+        "vscode.provideDocumentSemanticTokens", doc.uri);
+      if (tokens && tokens.data.length > 0) break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    assert.ok(tokens && tokens.data.length > 0, "real Pylance must serve tokens inside the {python} cell");
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+    console.log(`  [modifier] ${decoded.map((t) =>
+      `${t.type}${t.modifiers.length ? "." + t.modifiers.join(".") : ""}@${t.line}:${t.char}`).join("  ")}`);
+
+    // (1) THE FIX: `typeHintComment` SURVIVES our re-encode — the comment interior is a comment.
+    const carried = decoded.filter((t) => t.modifiers.includes("typeHintComment"));
+    assert.ok(
+      carried.length >= 2,
+      `our provider must PRESERVE \`typeHintComment\` on the \`# type:\` comment tokens (BACKLOG:127 (a)); ` +
+        `got ${carried.length}. Decoded: ${decoded.map((t) => `${t.type}.${t.modifiers.join(".")}`).join(" ")}`,
+    );
+
+    // (2) THE REFUTATION (BACKLOG:127 (b)): `builtin` is genuinely on the wire, but we deliberately
+    // CLEAR it — because a real `.py` shows print/__name__ bare too (Pylance ships no
+    // function.builtin/variable.builtin scope rule), so carrying `builtin` would DIVERGE from the
+    // `.py`. The honest proof is a PAIR: (a) real Pylance EMITS builtin (symmetric with the
+    // typeHintComment emission proof above — else "we drop it" is vacuous), and (b) our legend
+    // cannot even express it, so the re-encode clears it. A filter on our OWN output for "builtin"
+    // would be tautological (decodeTokens resolves names only against OUR_LEGEND), so it is not the
+    // proof — the control decode is.
+    const pyBuiltin = rawPy.filter((t) => t.modifiers.includes("builtin"));
+    assert.ok(
+      pyBuiltin.length >= 2,
+      `real Pylance must EMIT \`builtin\` on print/__name__ — else "we deliberately drop it" proves ` +
+        `nothing. Got ${pyBuiltin.length}. Raw: ${rawPy.map((t) => `${t.type}.${t.modifiers.join(".")}`).join(" ")}`,
+    );
+    assert.ok(
+      !OUR_LEGEND.tokenModifiers.includes("builtin"),
+      "our legend must NOT carry `builtin` (the refuted half of BACKLOG:127) — so the re-encode " +
+        "clears every builtin bit and print/__name__ come back bare, matching a real .py",
+    );
+  });
+
   it("SEMANTIC TOKENS: merges REAL Pylance and the REAL built-in JS service into one stream", async () => {
     // BACKLOG item 16, Slice 2's DONE gate, and the only test that can prove it: two
     // GENUINELY DIFFERENT language servers, each with its own legend, answering about one
