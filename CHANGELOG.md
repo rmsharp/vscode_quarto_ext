@@ -7,6 +7,54 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-16 · [ad hoc] Session 100 — PINNED the RANGE axis of `BACKLOG:125` (both legs), made its coverage STRUCTURAL, and CLOSED the item
+
+Pinned the (b) RANGE-registry axis S99 left characterized-but-unpinned — the divergence path our `{ojs}`/`{js}` cells
+actually traverse, since the built-in TypeScript extension registers ONLY a range provider (1.129.0: 0 doc / 1 range).
+Two new integration tests, both RED-first in a real Extension Development Host and both break-revert-proven to
+discriminate. **No `src/` production code changed and none can be** — the non-fix proof is unchanged (provider identity
+never crosses the RPC boundary).
+
+**What the session found that the record did not have.** (1) The existing suite never exercised this branch at all: the
+Slice-2 javascript stand-in registers a *document* provider, which makes `hki` true and silently reroutes every `{ojs}`
+test onto the document path — the test environment and production traversed *different branches*, the concrete instance
+of Learning #109 (now Learning #110). (2) The THROW leg is real and has no document-axis counterpart: `ZNt` swallows
+per-provider errors and its `uki` record has no error field at all, where the doc path's `dki` carries one and `mki`
+rethrows — so a crashing server is a safe no-op on the document path and a WRONG COLOUR on the range path. (3) The
+legend fall-through passes NO range, landing on VS Code's own self-warned blind branch while the correct `ZNt`-based
+pairing sits one line below it.
+
+**Coverage is now structural rather than input-specific.** `has()` and `_orderedForEach()` filter the same `_score>0`
+over the same `_entries`, so `hki(i,t)` <=> `rdn(i,t)!==null` and both commands always pick the SAME registry per
+snapshot: doc non-empty -> document axis (S99 pin); doc empty -> range axis (S100 pins); both empty -> we degrade. That
+trichotomy is exhaustive over ALL inputs, so `{r}`/`{julia}` need no separate measurement — a claim the previous,
+javascript-specific framing could not make.
+
+**The item is CLOSED** — the first time either axis's session could say so. What licenses it is the structural argument
+above (S99 lacked it and its close would have been false); both axes are pinned, no fix is constructible on either, a
+default install is safe, and the only residual action — upstream escalation — is contingent on a user report. The two
+pins stay as tripwires.
+
+**A third precondition was raised, and REFUTED — including against my own first draft.** The review's scope lens
+proposed a "two-read race": our two `executeCommand`s each re-read the registry (`_updateScores` per invocation, no
+shared snapshot), so a mutation between them would diverge the pair with no decline, no throw and no tie group. I
+adopted it and wrote it into the record as measured. It is false, and I confirmed the refutation with my own
+positive-controlled probe in a real EDH: the sequential recipe `await legendCmd(); registerB(); await tokensCmd()` DOES
+diverge (proving the probe is not blind), but our actual `Promise.all` shape — with the rival registered at every
+earliest moment (same tick, `queueMicrotask`, `setTimeout(0)`, `setImmediate`) — never saw it (`bCalls=0`, every run).
+There is no window: the ext-host send chain is synchronous, so both messages queue in ONE tick on a FIFO channel, and
+each handler completes its registry read before its first await; a registration lands before both or after both. **"No
+shared snapshot" is not "an observable interleaving"** — the latter needs an await, and there is none. My evidence for
+the race was S89's *prose* retry note reasoned backwards, i.e. an inherited diagnosis treated as a measurement — the
+exact #107 trap, committed while authoring a learning about it (Learning #110's second half now records that).
+
+Also corrected two claims of my own the review caught: the "observationally identical" tripwire note (false — `ZNt`
+calls every provider, so a leg-(1) fix DOUBLES the call counts) and an overclaim that the premise assertions guard
+against built-in TS interference (they do not; `isBuiltin` ordering does). Files:
+`test/integration/suite/semantic-tokens.test.ts` (the new describe + the S99 pin's now-stale cross-reference),
+`BACKLOG.md` (`:125` -> `[x]`, rewritten IN PLACE to preserve its 7 line-number citations), `PROJECT_LEARNINGS.md`
+#110. 319 integration (was 317) / 828 unit / check-types clean / clean 43-file `.vsix`.
+
 ### 2026-07-16 · [ad hoc] Session 99 — CONFIRMED + PINNED the document axis of `BACKLOG:125` (semantic-token legend/stream provider divergence); item stays OPEN
 
 Proved firsthand, in a real Extension Development Host, that VS Code's semantic-token legend and token stream really

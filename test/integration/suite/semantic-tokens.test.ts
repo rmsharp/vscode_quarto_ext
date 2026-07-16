@@ -275,7 +275,8 @@ const JS_STANDIN_LEGEND = new vscode.SemanticTokensLegend(
 );
 
 /**
- * A SECOND python provider's legend, for the BACKLOG:125 provider-divergence pin below —
+ * A SECOND python provider's legend, for the BACKLOG:125 DOCUMENT-axis provider-divergence pin
+ * below (the RANGE-axis pins at the end of this file stage the same shape with their own pair) —
  * inverted against `PY_STANDIN_LEGEND` at exactly the two indices that stand-in emits, so a
  * stream decoded against the WRONG one of the two comes back with different NAMES rather than
  * with nothing. Index 1 is `function` here and `variable` there; bit 1 is `declaration` here and
@@ -583,7 +584,10 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
     // reachable in provider-count terms — but BROADER in kind: `ZNt` swallows per-provider errors
     // (`catch(c){Fs(c),a=null}`), so a top range provider that THROWS diverges too, where the doc
     // path's `mki` does `if(a.error)throw a.error` and degrades to `undefined` via our try/catch.
-    // That axis is characterized but NOT pinned here — see BACKLOG:125.
+    // That axis is now PINNED TOO, in its own describe at the end of this file ("RANGE-registry
+    // provider divergence (BACKLOG:125 axis b)", Session 100) — including the THROW leg, which
+    // this document axis does not have. It needed a separate describe because the Slice-2 js
+    // stand-in above is a DOCUMENT provider, which makes `hki` true and hides the range path.
     //
     // Harm, stated honestly: this mis-COLOURS, it never mis-POSITIONS (coordinates are
     // legend-independent) and it cannot crash us (`decodeTokens` drops an out-of-range index;
@@ -768,6 +772,325 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
       decoded.map((t) => `${t.line}:${t.char}`),
       ["1:0", "4:0", "7:0"],
       "both javascript cells appear ONCE each — the single js vdoc holds both",
+    );
+  });
+});
+
+/**
+ * The (b) RANGE-registry axis of BACKLOG:125 — the divergence path our {ojs}/{js} cells
+ * ACTUALLY traverse in production, which every test above this line misses.
+ *
+ * ## Why this needs its own describe, and why that is the whole finding
+ *
+ * The Slice-2 suite registers its javascript stand-in with
+ * `registerDocumentSemanticTokensProvider`. That single choice puts a DOCUMENT provider in
+ * the registry for a `.js` vdoc — so `hki` is true and the doc path is taken. Production has
+ * no such provider: the built-in TypeScript extension registers ONLY
+ * `registerDocumentRangeSemanticTokensProvider` (1.129.0: zero `registerDocumentSemantic-
+ * TokensProvider` occurrences in `extensions/typescript-language-features/dist/extension.js`),
+ * and nothing else serves javascript. So every {ojs}/{js} cell a real user writes falls
+ * through to the RANGE registry, and the suite above has never once exercised that branch.
+ *
+ *   `function hki(s,o){return s.has(o)}`  <- "does the DOC registry have a provider for this model?"
+ *   tokens: `if(!hki(i,t))return …executeCommand("_provideDocumentRangeSemanticTokens",e,t.getFullModelRange())`
+ *   legend: `let n=rdn(i,t);return n?n[0].getLegend():…executeCommand("_provideDocumentRangeSemanticTokensLegend",e)`
+ *
+ * This describe therefore registers NO document provider for the `.js` vdoc — that absence is
+ * load-bearing, not an oversight. Add one and these tests silently stop testing the range path.
+ * (PROJECT_LEARNINGS #109: grounding a defect on the path your TEST takes is not grounding it
+ * on the path your CODE takes.)
+ *
+ * ## The mechanism, verbatim from the shipped 1.129.0 workbench bundle
+ *
+ * The two commands read the SAME range registry and the SAME top tie-group —
+ * `Ago(n,i)` -> `orderedGroups(o)[0]` — but index into it by DIFFERENT rules:
+ *
+ *   legend: `if(r.length===0)return;`
+ *           `if(r.length===1)return r[0].getLegend();`                       <- correct at exactly one
+ *           `if(!t||!q.isIRange(t))return console.warn("provideDocumentRangeSemanticTokensLegend`
+ *           ` might be out-of-sync with provideDocumentRangeSemanticTokens unless a range`
+ *           ` argument is passed in"),r[0].getLegend();`                     <- BLIND. we land HERE
+ *           `let a=await ZNt(n,i,q.lift(t),ye.None);if(a)return a.provider.getLegend()` <- correct, but
+ *                                                                              only WITH a range
+ *   tokens: `ZNt` -> `for(let r of n)if(r.tokens)return r`                   <- the FIRST that ANSWERS
+ *
+ * The doc legend command's fall-through passes ONLY the uri — no range — so VS Code takes its
+ * own self-warned blind branch. It has the CORRECT implementation one line below and cannot
+ * reach it. Divergence therefore needs exactly what the doc axis needs: a top provider that does
+ * not answer while a tied one does. (Our two commands provably read the SAME registry snapshot —
+ * see "the two-read race", considered and refuted, below.)
+ *
+ * ## Why these two pins cover EVERY language, not just javascript
+ *
+ * The {ojs}/{js} framing above is the motivating instance, NOT the coverage argument — reaching
+ * for it would repeat #109 one level up ({r}/{julia} servers are unmeasured here, so "which branch
+ * does an {r} cell take?" is exactly as unanswered today as the {ojs} question was yesterday). What
+ * actually licenses coverage is STRUCTURAL: the two registry predicates are the same predicate.
+ *   `has(o){return this.all(o).length>0}`
+ *   `all(o){…this._updateScores(o,!1);…for(let t of this._entries)t._score>0&&e.push(t.provider);…}`
+ *   `_orderedForEach(o,e,t){this._updateScores(o,e);for(let i of this._entries)i._score>0&&t(i)}`
+ * Both filter `_score>0` over the same `_entries`, so `hki(i,t)` <=> `rdn(i,t)!==null`, and per
+ * snapshot BOTH commands always select the SAME registry:
+ *   doc registry non-empty          -> both take the DOCUMENT path  -> the S99 pin above
+ *   doc empty, range non-empty      -> both take the RANGE path     -> the two pins below
+ *   both empty                      -> both undefined -> we degrade -> "no server serves…" test
+ * That trichotomy is exhaustive over ALL inputs, so whichever registry a user's python / R / Julia
+ * / javascript server happens to register in, it lands on an axis that is already pinned. (Nor is
+ * there a cross-registry split: when the doc registry is non-empty but every provider DECLINES,
+ * `mki` returns `r[0]` with `tokens:null` and the command hits `if(!a||!PZe(a))return` — it yields
+ * `undefined`, it does NOT fall through to range.)
+ *
+ * ## Why this axis is BROADER than the document axis: the THROW leg
+ *
+ * The range path's per-provider error handling has no error CHANNEL at all —
+ *   `async function ZNt(s,o,e,t){let i=Ago(s,o),n=await Promise.all(i.map(async r=>{let a;`
+ *   `try{a=await r.provideDocumentRangeSemanticTokens(o,e,t)}catch(c){Fs(c),a=null}`
+ *   `return(!a||!PZe(a))&&(a=null),new uki(r,a)}));for(let r of n)if(r.tokens)return r;…}`
+ *   `var uki=class{constructor(o,e){this.provider=o;this.tokens=e}}`   <- (provider, tokens). NO error.
+ * — where the document path's `mki` builds `new dki(a,c,l)` (provider, tokens, ERROR) and then
+ * `for(let a of r){if(a.error)throw a.error;if(a.tokens)return a}`. So a THROWING top provider
+ * REJECTS the doc command (our try/catch degrades it to `undefined` — the cell keeps its
+ * TextMate colour, which is the correct degradation), but on the RANGE path it is swallowed and
+ * a tied provider's stream is returned under the THROWER's legend. A throw is a wrong COLOUR
+ * here and a safe no-op there. That leg is pinned below and has no document-axis counterpart.
+ *
+ * ## Reachability, stated honestly
+ *
+ * Both legs need TWO javascript range providers TIED on selector score. `CU` caps every match
+ * at 10 by ASSIGNMENT, not addition (`if(c)if(c===o.scheme)p=10;…if(a){…p=10;…}`), so our
+ * `{scheme:"file",pattern:"**\/vdoc-mit.*.js"}` and the TS extension's javascript selector both
+ * score 10 and share one group — a real second JS semantic-token extension would too. With the
+ * stock single provider the group holds one and `if(r.length===1)` returns the right legend, so
+ * a default install is SAFE. Harm is bounded exactly as on the doc axis: it mis-COLOURS, never
+ * mis-POSITIONS, and cannot crash us.
+ *
+ * And the ordering WITHIN that group is fully determined, which is what makes the production case
+ * sharp rather than racy. The ext-host stamps every registered selector with its extension's
+ * builtin-ness — `{…,isBuiltin:r?.isBuiltin}` — and `_compareByScoreAndTime` sorts
+ * `score desc -> non-builtin BEFORE builtin -> _time DESC` (`Bot(s)` is `!!s.isBuiltin`). Note
+ * builtin-ness only ORDERS within a group; `orderedGroups` still groups by equal `_score`. So a
+ * third-party JS extension always outranks the BUILT-IN TS service and owns the blind legend: if
+ * it declines (or throws) while the built-in answers, the user sees the third-party's legend over
+ * the built-in's stream. That is the real-world shape of this bug, and it is deterministic.
+ *
+ * ## The two-read race — CONSIDERED AND REFUTED (do not re-file it)
+ *
+ * A tempting third precondition, raised and killed during this session's review; it is recorded
+ * here so nobody re-derives it. The TRUE half: our fetch does not take one registry snapshot.
+ * `streamFor` issues the legend and tokens commands as two independent `executeCommand`s, and each
+ * re-reads the registry (`all()` and `_orderedForEach()` both call `_updateScores` per invocation —
+ * there is no shared snapshot OBJECT). It looks like a registry mutation between the two reads
+ * would diverge them with no decline, no throw and no tie group.
+ *
+ * It cannot, because there is no window to mutate in. "No shared snapshot" is not "an observable
+ * interleaving" — the latter needs an await between the two reads, and there is none:
+ *   - the ext-host chain to the RPC send is fully SYNCHRONOUS (`_doExecuteCommand` ->
+ *     `_executeContributedCommand` -> the ApiCommand handler -> `$executeCommand`), so
+ *     `Promise.all([legendCmd(), tokensCmd()])` queues BOTH messages in ONE tick, in order;
+ *   - on the main thread `$executeCommand` -> `CommandService.executeCommand` reaches the
+ *     synchronous `_tryExecuteCommand` (no shipped extension declares
+ *     `onCommand:_provideDocument*SemanticTokens*`, so there is no activation await);
+ *   - each handler completes its `Ago`/`rdn` read BEFORE its first await — the legend command on
+ *     the blind branch never awaits at all;
+ *   - the channel is FIFO, and a provider registration is itself an ext-host message, so it lands
+ *     before BOTH commands or after BOTH — never between them.
+ * MEASURED, not merely argued (Session 100, real EDH): with a positive control proving the probe
+ * can see it — `await legendCmd(); registerB(); await tokensCmd()` diverges, B called — our actual
+ * `Promise.all` shape with B registered at every earliest moment (same tick, `queueMicrotask`,
+ * `setTimeout(0)`, `setImmediate`) gave `bCalls=0` every time: B was not in the registry when the
+ * TOKENS command read it. So S99's "deterministic and stable, not racy" holds for our fetch, and
+ * the sequential `await; register; await` recipe would pin an artifact of the TEST's call shape,
+ * not a property of `streamFor`.
+ *
+ * ⚠ And do NOT cite `providers/semantic-tokens.ts`'s S89 retry note ("the LEGEND command returns
+ * `undefined` while the TOKEN command already answers") as evidence for it, as this comment's own
+ * first draft did. That note is PROSE, not a measurement artifact (#107: an inherited diagnosis is
+ * a hypothesis) — and on the range path the mechanics point the OTHER way: with one range provider
+ * registered but the server not yet ready, the legend is DEFINED (`if(r.length===1)return
+ * r[0].getLegend()` never calls the provider) while the TOKENS command is UNDEFINED (`ZNt` ->
+ * `tokens:null`). Its operative conclusion — one language routinely has no usable stream on the
+ * first pass, so degrade per-language — holds either way; only its command attribution is suspect.
+ *
+ * The honest residual: a provider registered from a DIFFERENT ext host (remote / web-worker) does
+ * not share this channel's ordering. Same harm, same non-fix, unmeasured — not worth a guard.
+ *
+ * ## No fix, and no guard — same proof as the doc axis
+ *
+ * The answering provider's identity never crosses the RPC boundary, so we can neither pair
+ * atomically nor DETECT that this happened. Switching production to the range pair is a
+ * REGRESSION: the fallback runs doc->range and never range->doc, so it would silently drop
+ * every full-only server (Pylance). The race has the same non-fix for the same reason. See
+ * BACKLOG:125 for the full argument.
+ */
+describe("embedded semantic tokens — RANGE-registry provider divergence (BACKLOG:125 axis b)", () => {
+  /** The ANSWERING range provider's legend: `variable` = 0, `readonly` = bit 0. */
+  const JS_RANGE_LEGEND = new vscode.SemanticTokensLegend(
+    ["variable", "function"],
+    ["readonly", "declaration"],
+  );
+  /**
+   * The RIVAL range provider's legend — inverted against `JS_RANGE_LEGEND` at exactly the two
+   * indices the answerer emits, so a stream decoded against the WRONG one comes back with
+   * different NAMES rather than with nothing. Both names are in `OUR_LEGEND`, so a cross-decode
+   * is not dropped: it paints, wrongly.
+   */
+  const RIVAL_JS_RANGE_LEGEND = new vscode.SemanticTokensLegend(
+    ["function", "variable"],
+    ["declaration", "readonly"],
+  );
+
+  /** An {ojs}-only fixture: one code line, so exactly one token, at .qmd line 1. */
+  const OJS_ONLY = ["```{ojs}", "o = 1", "```", ""].join("\n");
+
+  let answerCalls: string[] = [];
+  let rivalCalls: string[] = [];
+  /** When true the RIVAL throws instead of declining — the leg the doc axis does not have. */
+  let rivalThrows = false;
+  let rangeDisposables: vscode.Disposable[] = [];
+
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  beforeEach(() => {
+    answerCalls = [];
+    rivalCalls = [];
+    rivalThrows = false;
+    // Registration ORDER is load-bearing. `register` stamps `_time:this._clock++` and
+    // `_compareByScoreAndTime` sorts score desc -> non-builtin -> `_time` DESC, so between these
+    // two (same selector => same score, both non-builtin) the LAST-registered is `group[0][0]` —
+    // the one whose legend is taken blind. The rival must therefore register LAST.
+    //
+    // The built-in TS extension's range provider is in this tie-group too (it activates on the
+    // .js vdoc and its javascript selector also scores 10), and `ZNt` will call it. It cannot
+    // disturb the staging: the ext-host stamps `isBuiltin` onto every registered selector, and
+    // non-builtin sorts ahead of builtin, so it can never be `group[0][0]` and never precedes our
+    // answerer in the first-that-answers walk. It is invisible to these tests, not excluded.
+    rangeDisposables.push(
+      vscode.languages.registerDocumentRangeSemanticTokensProvider(
+        { scheme: "file", pattern: "**/vdoc-mit.*.js" },
+        {
+          provideDocumentRangeSemanticTokens(document) {
+            answerCalls.push(document.uri.toString());
+            return tokensForNonBlankLines(document, 0, 0);
+          },
+        },
+        JS_RANGE_LEGEND,
+      ),
+      vscode.languages.registerDocumentRangeSemanticTokensProvider(
+        { scheme: "file", pattern: "**/vdoc-mit.*.js" }, // the SAME selector => the same score
+        {                                                // => ONE group with the answerer
+          provideDocumentRangeSemanticTokens(document) {
+            rivalCalls.push(document.uri.toString());
+            if (rivalThrows) {
+              throw new Error("simulated range-provider failure");
+            }
+            return undefined; // declines — it has no answer for this document
+          },
+        },
+        RIVAL_JS_RANGE_LEGEND,
+      ),
+    );
+  });
+
+  afterEach(async () => {
+    rangeDisposables.forEach((d) => d.dispose());
+    rangeDisposables = [];
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("PINS the RANGE axis: a DECLINING top provider yields a foreign legend", async () => {
+    // ⚠ ASSERTS A WRONG ANSWER ON PURPOSE — a tripwire, not a specification. See the block
+    // comment above for the verbatim mechanism and the proof that no fix is constructible.
+    //
+    // 🔑 IF THIS FAILS, DO NOT ASSUME A FIX. The outcome rests on TWO independent legs, and only
+    // the first is the defect — the second is merely how this fixture stages it:
+    //   (1) does the range legend command still take `r[0].getLegend()` BLIND when it is handed
+    //       no range and the top group holds >1 — or has VS Code started passing a range down
+    //       from `_provideDocumentSemanticTokensLegend` (it already has the correct code one
+    //       line below its own warning)?
+    //   (2) does `_compareByScoreAndTime` still sort `_time` DESC — i.e. is the LAST-registered
+    //       rival still `group[0][0]`?
+    // Only (1) changing means this axis is FIXED: then delete this pin and assert
+    // `variable.readonly@1:0` (the RED this pin was inverted from). If (2) changed alone the
+    // defect is fully INTACT and only the staging is stale — register the rival FIRST and it
+    // recurs identically.
+    //
+    // 🔑 THE CALL COUNTS TELL THE TWO LEGS APART. `ZNt` invokes EVERY member of the group
+    // (`Promise.all(i.map(…))`), and today only the TOKENS command reaches it, so each provider is
+    // asked exactly ONCE. If VS Code fixes leg (1) by passing a range down, the LEGEND command
+    // runs `ZNt` too and every provider is asked TWICE — so the premise assertions below (`=== 1`)
+    // fire BEFORE the decode assertion, and their messages would misdirect you. Read a `2` as
+    // "leg (1) was fixed", not as a broken fixture. (The same is true of the document axis's pin:
+    // its leg-(1) fix — porting `mki`'s re-run into `_provideDocumentSemanticTokensLegend` — must
+    // also ASK providers to learn who answers, so it doubles that pin's counts too. Its comment
+    // says the legs are "observationally identical"; that is the one claim there to distrust.)
+    // Re-derive both legs against the then-current bundle; this comment's own diagnosis is no
+    // exception (Learnings #107/#108/#109).
+    //
+    // The pin is also break-revert-proven to DISCRIMINATE (Session 100): swap the two
+    // registrations so the ANSWERER registers last — making it `group[0][0]` — and both pins in
+    // this describe return `variable.readonly@1:0`, the correct colour. The defect tracks exactly
+    // which provider sits at `group[0][0]`, which is the mechanism claimed above.
+    const doc = await openQmd(OJS_ONLY);
+
+    const tokens = await tokensFor(doc);
+
+    assert.ok(tokens !== undefined, "an {ojs} document must produce tokens");
+    // Both premises, asserted rather than assumed (Learning #105): the rival is genuinely in
+    // the group and genuinely consulted, and it genuinely produced NOTHING — so every token
+    // below provably came from the OTHER provider's stream.
+    assert.strictEqual(rivalCalls.length, 1, "the declining rival must genuinely have been asked");
+    assert.strictEqual(answerCalls.length, 1, "…and the ANSWERING provider must genuinely have been asked");
+
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+    assert.deepStrictEqual(
+      decoded.map((t) => `${t.type}.${t.modifiers.join(".")}@${t.line}:${t.char}`),
+      ["function.declaration@1:0"],
+      "THE DEFECT, pinned on the axis {ojs} cells actually traverse: the stream provably came " +
+        "from the ANSWERING provider (the rival returned nothing), which meant `variable`+" +
+        "`readonly` — but VS Code handed us the RIVAL's legend, so index 0 resolved to " +
+        "`function` and bit 0 to `declaration`. Both names are in OUR_LEGEND, so the token is " +
+        "not dropped: it paints the wrong colour.",
+    );
+  });
+
+  it("PINS the RANGE axis: a THROWING top provider diverges where the DOCUMENT path degrades safely", async () => {
+    // ⚠ ASSERTS A WRONG ANSWER ON PURPOSE. This is the leg the document axis does NOT have, and
+    // it is why BACKLOG:125's range axis is broader in KIND, not merely in reachability.
+    //
+    // Read this against its Slice-1 sibling, "degrades to no tokens — never throws — when the
+    // language server ERRORS": there, a throwing DOCUMENT provider makes `mki` rethrow
+    // (`new dki(a,c,l)` carries the error; `for(let a of r){if(a.error)throw a.error;…}`), the
+    // command rejects, our `streamFor` try/catch returns `undefined`, and the cell keeps its
+    // TextMate colouring — the correct degradation this whole feature promises.
+    //
+    // On the RANGE path the identical failure is SILENTLY SWALLOWED: `catch(c){Fs(c),a=null}`,
+    // and `uki` has no error field to carry it (`constructor(o,e){this.provider=o;this.tokens=e}`),
+    // so the loop `for(let r of n)if(r.tokens)return r` simply walks past the thrower to a tied
+    // provider — while the legend command, which never calls anyone, still hands back the
+    // THROWER's legend. A server that crashes therefore does strictly MORE harm here than on the
+    // document path: a wrong colour instead of a safe no-op.
+    rivalThrows = true;
+    const doc = await openQmd(OJS_ONLY);
+
+    const tokens = await tokensFor(doc);
+
+    // NOT `undefined`: unlike the document path, the throw does not degrade — it is swallowed
+    // and a stream comes back anyway.
+    assert.ok(tokens !== undefined, "the range path does not degrade on a throw — it answers");
+    assert.strictEqual(rivalCalls.length, 1, "the throwing rival must genuinely have been asked");
+    assert.strictEqual(answerCalls.length, 1, "…and the ANSWERING provider must genuinely have been asked");
+
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+    assert.deepStrictEqual(
+      decoded.map((t) => `${t.type}.${t.modifiers.join(".")}@${t.line}:${t.char}`),
+      ["function.declaration@1:0"],
+      "THE DEFECT, throw leg: the rival THREW, so `ZNt` swallowed it and returned the tied " +
+        "provider's stream — decoded against the THROWER's legend. The document path would have " +
+        "rejected here and left the cell its TextMate colour; the range path paints it wrong.",
     );
   });
 });
