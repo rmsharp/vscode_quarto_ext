@@ -275,6 +275,19 @@ const JS_STANDIN_LEGEND = new vscode.SemanticTokensLegend(
 );
 
 /**
+ * A SECOND python provider's legend, for the BACKLOG:125 provider-divergence pin below —
+ * inverted against `PY_STANDIN_LEGEND` at exactly the two indices that stand-in emits, so a
+ * stream decoded against the WRONG one of the two comes back with different NAMES rather than
+ * with nothing. Index 1 is `function` here and `variable` there; bit 1 is `declaration` here and
+ * `readonly` there. Both names are in `OUR_LEGEND`, so a cross-decode is not dropped — it paints,
+ * wrongly, which is the whole point of the item.
+ */
+const RIVAL_PY_STANDIN_LEGEND = new vscode.SemanticTokensLegend(
+  ["variable", "function"],
+  ["readonly", "declaration"],
+);
+
+/**
  * Emit one `variable`+`readonly` token per non-blank CODE line, in `legend`'s own indices —
  * skipping the file-level `# type: ignore` mute that `buildVirtualContent` injects on a python
  * vdoc's line 0 (Session 93, the diagnosticMode:"workspace" phantom-diagnostic fix). A real
@@ -394,6 +407,9 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
     "", // 9
   ].join("\n");
 
+  /** A python-only fixture: one code line, so exactly one token, at .qmd line 1. */
+  const PY_ONLY = ["```{python}", "p1 = 1", "```", ""].join("\n");
+
   it("merges {python} and {ojs} into ONE ascending stream, each in its own legend", async () => {
     const doc = await openQmd(STRADDLED);
 
@@ -496,6 +512,117 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
       decoded.map((t) => `${t.type}.${t.modifiers.join(".")}@${t.line}:${t.char}`),
       ["variable.readonly@4:0"],
       "exactly javascript's ONE token, decoded against ITS legend — no python token, no throw, no empty document",
+    );
+  });
+
+  it("PINS a VS Code platform defect: the legend and the stream can come from DIFFERENT providers", async () => {
+    // ⚠ THIS TEST ASSERTS A WRONG ANSWER ON PURPOSE. It is a tripwire, not a specification:
+    // the expectation below is what VS Code 1.129.0 actually does, and it is a DEFECT we cannot
+    // fix from an extension (BACKLOG:125, filed by the Session 88 Slice-1 review; mechanism
+    // re-grounded and premise proven firsthand here, Session 99).
+    //
+    // 🔑 THE MECHANISM, verbatim from the shipped 1.129.0 workbench bundle. Both commands read
+    // the SAME registry and the SAME top group — `orderedGroups(model)[0]`, which holds every
+    // provider that TIED on selector score — but they index into it by DIFFERENT rules:
+    //
+    //   legend: `let n=rdn(i,t); return n ? n[0].getLegend() : …`
+    //           `function rdn(s,o){let e=s.orderedGroups(o);return e.length>0?e[0]:null}`
+    //             -> group[0][0]'s legend, taken BLIND: that provider is never even called.
+    //   tokens: `mki` -> `function ndn(s,o){…return e.length>0?e[0]:[]}`, then
+    //           `for(let a of r){if(a.error)throw a.error;if(a.tokens)return a}`
+    //             -> the FIRST member of group[0] that actually ANSWERS.
+    //
+    // So they agree if and only if group[0][0] answers. THE PRECONDITION IS A TOP PROVIDER THAT
+    // DECLINES — that single fact is the whole bug, and the item as filed omitted it (it framed
+    // this as each command resolving "independently", which is wrong: the resolution is shared,
+    // deterministic and stable — `register` stamps `_time:this._clock++` and
+    // `_compareByScoreAndTime` sorts score desc -> non-builtin -> `_time` DESC, so the
+    // LAST-registered of a tie owns the legend, identically on every call).
+    //
+    // 🔑 WHY THERE IS NO FIX, AND NO GUARD (all read out of the same bundle, Session 99). The
+    // answering provider's identity never crosses the RPC boundary: the command destructures it
+    // as `let{provider:r,tokens:a}=n` and uses `r` ONLY for `r.releaseDocumentSemanticTokens(…)`,
+    // putting `cki({id:0,type:"full",data:a.data})` on the wire. `SemanticTokens` is
+    // `{resultId,data}` — no legend, no provider (`@types/vscode`). Registration carries no
+    // extension id, providers cannot be counted (Learning #105), and `exclusive` is proposed-API
+    // -gated. So we cannot pair atomically, and we cannot even DETECT that this happened.
+    // The tempting alternative — the RANGE pair, whose legend command genuinely re-runs the
+    // selection and returns `a.provider.getLegend()` when passed a range — is a REGRESSION in
+    // this codebase's shape: it reads a SEPARATE registry, the fallback runs doc->range and never
+    // range->doc, so it would silently drop every full-only server (the #99/#107/#108 trap: the
+    // obvious fix makes things worse).
+    //
+    // 🔑 IF THIS TEST FAILS, DO NOT ASSUME A FIX. The pinned outcome rests on TWO independent
+    // legs, and only the first is the defect — the second is merely how this fixture stages it:
+    //   (1) does the legend command still take `orderedGroups(model)[0][0]` BLIND — or has the
+    //       range path's re-run been ported into `_provideDocumentSemanticTokensLegend`?
+    //   (2) does `_compareByScoreAndTime` still sort `_time` DESC — i.e. is the LAST-registered
+    //       rival still `group[0][0]`?
+    // Only (1) changing means THIS axis is fixed: then delete this pin and assert
+    // `variable.readonly@1:0`. If (2) changed alone the defect is fully INTACT and only the
+    // staging is stale — register the rival FIRST and it recurs identically. The two cases are
+    // OBSERVATIONALLY IDENTICAL here: same failure output, and the premise assertions below hold
+    // in both, because `mki` maps over EVERY member of group[0] (`Promise.all(n.map(…))`) — so
+    // each provider is called exactly once either way, whatever the order. Re-derive both legs
+    // against the then-current bundle; this comment's own diagnosis is no exception (#99/#107/#108).
+    //
+    // 🔑 AND EVEN THEN our fetch would NOT be sound: a SECOND divergence path survives in the
+    // RANGE registry — and it is the one our {ojs}/{js} cells actually traverse. The built-in TS
+    // extension registers ONLY `registerDocumentRangeSemanticTokensProvider` (1.129.0: zero
+    // `registerDocumentSemanticTokensProvider` occurrences), so `javascript` has NO document
+    // provider, `hki(i,t)` is false for a `.js` vdoc (`lang-map.ts` maps ojs/js -> javascript/.js),
+    // and BOTH commands fall through:
+    //   legend: `n?n[0].getLegend():executeCommand("_provideDocumentRangeSemanticTokensLegend",e)`
+    //           — note NO range is passed, so that command warns ("might be out-of-sync with
+    //           provideDocumentRangeSemanticTokens unless a range argument is passed in") and
+    //           returns `r[0].getLegend()` BLIND once the top group holds >1. It is correct at
+    //           exactly one: `if(r.length===1)return r[0].getLegend()`.
+    //   tokens: `if(!hki(i,t))return executeCommand("_provideDocumentRangeSemanticTokens",e,
+    //           t.getFullModelRange())` -> `ZNt` -> the first provider that ANSWERS.
+    // Same tie-group precondition (that path also reads `orderedGroups(o)[0]`), so it is no more
+    // reachable in provider-count terms — but BROADER in kind: `ZNt` swallows per-provider errors
+    // (`catch(c){Fs(c),a=null}`), so a top range provider that THROWS diverges too, where the doc
+    // path's `mki` does `if(a.error)throw a.error` and degrades to `undefined` via our try/catch.
+    // That axis is characterized but NOT pinned here — see BACKLOG:125.
+    //
+    // Harm, stated honestly: this mis-COLOURS, it never mis-POSITIONS (coordinates are
+    // legend-independent) and it cannot crash us (`decodeTokens` drops an out-of-range index;
+    // `encodeTokens` drops a name outside OUR_LEGEND). It bites only when the wrong legend maps
+    // the index to a name that IS in OUR_LEGEND — which is exactly what is staged below.
+    const rivalCalls: string[] = [];
+    multiDisposables.push(
+      vscode.languages.registerDocumentSemanticTokensProvider(
+        { scheme: "file", pattern: "**/vdoc-mit.*.py" }, // the SAME selector as the answering
+        {                                                // stand-in => the same score => ONE group
+          provideDocumentSemanticTokens(document) {
+            rivalCalls.push(document.uri.toString());
+            return undefined; // declines — it has no answer for this document
+          },
+        },
+        RIVAL_PY_STANDIN_LEGEND,
+      ),
+    );
+
+    const doc = await openQmd(PY_ONLY);
+
+    const tokens = await tokensFor(doc);
+
+    assert.ok(tokens !== undefined, "a python document must produce tokens");
+    // Both premises, asserted rather than assumed (Learning #105): the rival is genuinely in the
+    // group and genuinely consulted, and it genuinely produced NOTHING — so every token below
+    // provably came from the OTHER provider's stream.
+    assert.strictEqual(rivalCalls.length, 1, "the declining rival must genuinely have been asked");
+    assert.strictEqual(pyCalls.length, 1, "…and the ANSWERING provider must genuinely have been asked");
+
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+    assert.deepStrictEqual(
+      decoded.map((t) => `${t.type}.${t.modifiers.join(".")}@${t.line}:${t.char}`),
+      ["function.declaration@1:0"],
+      "THE DEFECT, pinned: the stream provably came from the ANSWERING provider (the rival " +
+        "returned nothing), which meant `variable`+`readonly` — but VS Code handed us the " +
+        "RIVAL's legend, so index 1 resolved to `function` and bit 1 to `declaration`. Both " +
+        "names are in OUR_LEGEND, so the token is not dropped: it paints the wrong colour. " +
+        "If this assertion fails, see the tripwire note above — VS Code may have fixed it.",
     );
   });
 

@@ -7,6 +7,32 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-16 · [ad hoc] Session 99 — CONFIRMED + PINNED the document axis of `BACKLOG:125` (semantic-token legend/stream provider divergence); item stays OPEN
+
+Proved firsthand, in a real Extension Development Host, that VS Code's semantic-token legend and token stream really
+can come from DIFFERENT providers — and corrected the item's filed *mechanism*, which was wrong in three ways. The two
+commands do NOT resolve "independently": both read the same `orderedGroups(model)[0]` tie-group, deterministically and
+stably (`_time` DESC — the last-registered of a tie owns the legend). They index that one group by DIFFERENT rules —
+the legend command takes `group[0][0]` BLIND (never calling it), while the tokens command returns the FIRST member that
+ANSWERS — so they agree **iff `group[0][0]` answers**. That precondition, a top provider that DECLINES, is the whole bug
+and the filing omitted it. New integration test "PINS a VS Code platform defect…" stages it with a declining rival
+python provider carrying an inverted legend; the RED showed `function.declaration@1:0` where the answering provider
+meant `variable.readonly@1:0` — a silently WRONG colour, not a dropped token. The test is retained as a tripwire.
+
+**No production code changed, and none can be:** both proposed fix directions are refuted from the API's own bytes.
+S98's handoff framing ("fetch legend + stream atomically from the same provider") is impossible — the answering
+provider's identity never crosses the RPC boundary (`SemanticTokens` is `{resultId,data}`; registration carries no
+extension id), so we cannot pair atomically **and cannot detect** that it happened. The tempting range-pair swap is a
+regression (separate registry; fallback runs doc→range and never range→doc, so it would drop every full-only server).
+
+**The item is NOT closed** — the standing 6-lens adversarial review refuted this session's own planned conclusion. A
+SECOND divergence path survives in the RANGE registry, and it is the one our `{ojs}`/`{js}` cells already traverse:
+the built-in TS extension registers only a range provider (0 doc registrations), so `javascript` has no document
+provider and both commands fall through, the legend one with no range argument — which VS Code itself warns is
+"might be out-of-sync" and answers with a blind `r[0]`. That axis is characterized but unpinned, and is BROADER
+(`ZNt` swallows errors, so a THROW diverges too). `BACKLOG:125` rewritten in place with both axes; the (b) pin is the
+next actionable step. Learning #109. 317 integration (was 316) / 828 unit / check-types clean / clean 43-file `.vsix`.
+
 ### 2026-07-16 · [ad hoc] Session 98 — CLOSED test-coverage MEDIUM (`BACKLOG:123`): pinned per-language semantic-token isolation
 
 Pinned the claim that a throwing embedded-language server takes nothing down with it. `streamFor`'s try/catch is
