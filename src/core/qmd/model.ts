@@ -253,11 +253,48 @@ interface Regions {
 }
 
 /**
+ * The last `computeRegions` result, memoized on its exact input text. Every
+ * public accessor below routes through the single scan, and a single semantic-
+ * token pass calls them repeatedly on the *same* document text: `embeddedLanguagesIn`
+ * scans twice and `buildVirtualContent` scans twice more per embedded language,
+ * so a document with N embedded languages was rescanned 2 + 2N times per debounced
+ * pass (BACKLOG "Polish / deferred", `:118`). A single-entry (last-value) cache
+ * collapses all same-text calls in a pass to ONE scan while evicting naturally
+ * when the text changes — a `Map` keyed on full document text would instead grow
+ * unboundedly across edits. Sound because `computeRegions` is a pure function of
+ * `text` (no external state, time, or randomness), so equal text ⇒ equal regions;
+ * the key comparison is a value comparison (JS `===` on strings).
+ */
+let regionsCache: { text: string; regions: Regions } | null = null;
+
+/**
+ * The parsed regions of `text`, served from the single-entry cache on a repeat
+ * call with identical text (see `regionsCache`). The returned `Regions` object,
+ * its arrays, AND their `Cell`/`Heading`/`BodyLine` elements are shared across
+ * calls and MUST be treated as immutable — the same contract every consumer has
+ * always honored (the codebase reads them only; it even types `runCells(cells:
+ * readonly Cell[])`). The public array accessors (`findHeadings`/`findAllCells`/
+ * `findBodyLines`) additionally `.slice()` so the array *spine* a caller receives
+ * is its own (reordering/adding/removing cannot reach the cache); the ELEMENTS in
+ * that array are still the shared region objects, so a caller must not mutate an
+ * element's fields (`cell.code`, `heading.text`, …) — no consumer does.
+ */
+function scanRegions(text: string): Regions {
+  if (regionsCache !== null && regionsCache.text === text) {
+    return regionsCache.regions;
+  }
+  const regions = computeRegions(text);
+  regionsCache = { text, regions };
+  return regions;
+}
+
+/**
  * Walk the document once, classifying each line by region so that heading and
  * cell detection AGREE on what to skip: YAML front matter (a leading
  * `---`…`---`/`...`), block HTML comments (`<!-- … -->`, which Pandoc does not
  * render), and code fences. This single pass is the model's source of truth;
  * `findHeadings`, `findAllCells`, and `buildOutline` are thin views over it.
+ * Reached only through the memoizing `scanRegions` wrapper above.
  *
  * Cell rules (CommonMark + Quarto): a fence opened with N of a char closes on a
  * line of ≥N of that char with no info string. Only a backtick fence whose info
@@ -266,7 +303,7 @@ interface Regions {
  * display form, ```` ```{.python} ```` Pandoc class blocks, and any `{lang}`
  * fence nested inside an outer (longer or tilde) fence.
  */
-function scanRegions(text: string): Regions {
+function computeRegions(text: string): Regions {
   const lines = text.split(/\r?\n/);
   const headings: Heading[] = [];
   const cells: Cell[] = [];
@@ -396,9 +433,14 @@ function scanRegions(text: string): Regions {
   return { headings, cells, bodyLines, frontMatter };
 }
 
-/** Find every ATX heading in `text`, in document order. */
+/**
+ * Find every ATX heading in `text`, in document order. Returns a fresh array
+ * each call (a shallow copy of the memoized scan's headings — see `scanRegions`),
+ * so a caller may reorder/add/remove entries without affecting a later call; the
+ * `Heading` elements themselves are shared and immutable (do not mutate a field).
+ */
 export function findHeadings(text: string): Heading[] {
-  return scanRegions(text).headings;
+  return scanRegions(text).headings.slice();
 }
 
 /**
@@ -450,9 +492,16 @@ export function frontMatterContentLines(text: string): string[] | null {
   return lines.slice(fm.startLine + 1, end);
 }
 
-/** Find every executable `{lang}` code cell in `text`, in document order. */
+/**
+ * Find every executable `{lang}` code cell in `text`, in document order. Returns
+ * a fresh array each call (a shallow copy of the memoized scan's cells — see
+ * `scanRegions`), so a caller may reorder/add/remove entries without affecting a
+ * later call; the `Cell` elements themselves are shared and immutable (do not
+ * mutate a field). `findCellAtPosition`/`findCellOptionLines` return elements
+ * from this same shared set, so the same don't-mutate contract applies to them.
+ */
 export function findAllCells(text: string): Cell[] {
-  return scanRegions(text).cells;
+  return scanRegions(text).cells.slice();
 }
 
 /**
@@ -547,10 +596,12 @@ function slotsOf(
  * Every live content line — prose and heading lines that are outside YAML front
  * matter, block HTML comments, and code fences. The cross-ref layer scans these
  * for inline `{#fig-…}`/`{#tbl-…}` attribute blocks without re-deriving the
- * skip-regions (the shared-scanner guarantee — see Learning #14).
+ * skip-regions (the shared-scanner guarantee — see Learning #14). Returns a fresh
+ * array each call (a shallow copy of the memoized scan — see `scanRegions`); the
+ * `BodyLine` elements are shared and immutable (do not mutate a field).
  */
 export function findBodyLines(text: string): BodyLine[] {
-  return scanRegions(text).bodyLines;
+  return scanRegions(text).bodyLines.slice();
 }
 
 /**

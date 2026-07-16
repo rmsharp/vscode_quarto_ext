@@ -622,3 +622,105 @@ describe("buildOutline — against the sample.qmd fixture", () => {
     expect(roots[0].children[1].children).toEqual([]);
   });
 });
+
+describe("scanRegions memoization contract", () => {
+  // The single `scanRegions` pass is memoized on the document text (a semantic-
+  // token pass otherwise rescans 2 + 2N times, N = embedded languages — BACKLOG
+  // ":118"). The cache is shared, so two invariants must hold: the public region
+  // accessors must keep handing out per-call-INDEPENDENT arrays (a caller must
+  // not be able to corrupt a later call by mutating what it received — the
+  // aliasing hazard a shared cache introduces), and the cache must be keyed
+  // correctly (a call with different text must never return a prior text's
+  // regions — the staleness hazard). Both are break-revert-proven: a memo that
+  // returns the cached array directly turns the aliasing tests red; a memo that
+  // ignores the key turns the keying test red.
+
+  const withCells = [
+    "# Title", // 0
+    "", // 1
+    "Some prose.", // 2
+    "", // 3
+    "```{python}", // 4
+    "x = 1", // 5
+    "```", // 6
+    "", // 7
+    "## Section", // 8
+    "", // 9
+    "```{r}", // 10
+    "y <- 2", // 11
+    "```", // 12
+  ].join("\n");
+
+  it("findAllCells returns an independent array — mutating it cannot corrupt a later call", () => {
+    const first = findAllCells(withCells);
+    expect(first).toHaveLength(2);
+    first.push({ startLine: 999, endLine: 999, lang: "bogus", code: "" });
+    first.sort((a, b) => b.startLine - a.startLine);
+
+    const second = findAllCells(withCells);
+    expect(second).toHaveLength(2);
+    expect(second.map((c) => c.lang)).toEqual(["python", "r"]);
+  });
+
+  it("findHeadings returns an independent array — mutating it cannot corrupt a later call", () => {
+    const first = findHeadings(withCells);
+    expect(first).toHaveLength(2);
+    first.length = 0;
+
+    const second = findHeadings(withCells);
+    expect(second.map((h) => h.text)).toEqual(["Title", "Section"]);
+  });
+
+  it("findBodyLines returns an independent array — mutating it cannot corrupt a later call", () => {
+    const first = findBodyLines(withCells);
+    const originalLength = first.length;
+    expect(originalLength).toBeGreaterThan(0);
+    first.length = 0;
+
+    const second = findBodyLines(withCells);
+    expect(second).toHaveLength(originalLength);
+  });
+
+  it("is keyed on the text — a call with different text never returns a prior text's regions", () => {
+    // Prime the cache with a two-cell document, then a zero-cell one, then the
+    // first again. A memo that ignored its key would echo the previous answer.
+    expect(findAllCells(withCells)).toHaveLength(2);
+
+    const noCells = ["# Just a heading", "", "Only prose, no cells."].join("\n");
+    expect(findAllCells(noCells)).toEqual([]);
+    expect(findHeadings(noCells)).toEqual([
+      { level: 1, text: "Just a heading", line: 0 },
+    ]);
+
+    expect(findAllCells(withCells).map((c) => c.lang)).toEqual(["python", "r"]);
+  });
+
+  it("is keyed on the FULL text, not a length/prefix proxy — same-length docs with different regions never collide", () => {
+    // A weaker key than the full-string `===` (e.g. text.length, a prefix, or an
+    // unverified hash) would return a prior document's regions for a DIFFERENT
+    // document of the same length. Pin the full-text key: prime a one-cell doc,
+    // then query a pure-prose doc padded (trailing spaces keep it prose) to the
+    // IDENTICAL length. This stays green under the correct `===` and goes red the
+    // moment the key is weakened to a same-length-colliding proxy.
+    const oneCell = ["```{python}", "x = 1", "```"].join("\n");
+    const proseBase = "definitely no cells";
+    const prose = proseBase + " ".repeat(oneCell.length - proseBase.length);
+    expect(prose.length).toBe(oneCell.length);
+
+    expect(findAllCells(oneCell)).toHaveLength(1); // prime with the cell doc
+    expect(findAllCells(prose)).toEqual([]); // same length — must NOT echo the cell
+    expect(findAllCells(oneCell)).toHaveLength(1); // and the cell doc is still correct
+  });
+
+  it("hands out a distinct top-level array on each call (the defensive copy), with equal content", () => {
+    // The accessors `.slice()`, so two calls return DIFFERENT array objects
+    // (`===`-distinct) holding EQUAL content. A memo that returned the cached
+    // array by reference would make these the same object — the aliasing hazard
+    // the copy prevents. (`toEqual` alone is a tautology for a deterministic fn:
+    // it holds under every memo strategy, so identity is what discriminates.)
+    expect(findAllCells(withCells)).not.toBe(findAllCells(withCells));
+    expect(findAllCells(withCells)).toEqual(findAllCells(withCells));
+    expect(findHeadings(withCells)).not.toBe(findHeadings(withCells));
+    expect(findBodyLines(withCells)).not.toBe(findBodyLines(withCells));
+  });
+});

@@ -7,8 +7,67 @@
 ## ACTIVE TASK
 **Task:** **Session 95 — IMPLEMENTATION (perf/bug fix): `BACKLOG.md` "Polish / deferred" MEDIUM (`:118`, S89 adversarial review) — a semantic-token pass rescans the whole document 2 + 2N times (N = embedded languages) because `scanRegions` (`src/core/qmd/model.ts:269`) has no cache; `findAllCells`/`findCellOptionLines`/`findBodyLines` each re-invoke it, so `embeddedLanguagesIn` scans twice and `buildVirtualContent` scans twice more per language, on every debounced timer for every visible `.qmd`.** The fix: memoise `scanRegions` keyed on the document text (single-entry last-value cache — collapses the within-pass redundancy while naturally evicting on text change; a `Map` keyed on full text would leak). Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate. Operator picked this via `AskUserQuestion` at Phase 0 (Active empty); it was S94's top-ranked candidate (1).
 **Started:** 2026-07-15
-**Status:** Session claimed. Work beginning. Understand phase: `scanRegions` confirmed pure fn of `text`; central correctness risk is ALIASING (`findHeadings`/`findAllCells`/`findBodyLines` return internal arrays directly — a shared cache is only safe if no consumer mutates them, or accessors defensively copy). Auditing consumers for mutation before design.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** **DONE. SHIPPED — the shared `scanRegions` is memoised (single-entry last-value cache keyed on the exact document text), collapsing the 2+2N per-pass rescan to ONE scan, proven firsthand 10→1 on a 4-language doc. Behavior-preserving.** The scan body was renamed `computeRegions`; `scanRegions` now serves the cache. The three accessors that handed out internal arrays (`findHeadings`/`findAllCells`/`findBodyLines`) `.slice()` so the shared cache can't be corrupted (array spine copied; elements shared & immutable — the contract every consumer already honored, even typed `runCells(cells: readonly Cell[])`). Strict TDD RED→GREEN: contract tests (aliasing-independence + full-text keying) written first, break-revert-proven to discriminate (a no-`.slice()` memo turns the aliasing tests red AND cross-pollinates a sibling test via the shared cache; a length-keyed memo turns the keying test red). The 2+2N→1 collapse proven firsthand with a temporary `globalThis` scan counter + `QMD_NOMEMO` bypass (reverted before commit, file-backup discipline per Learning #104). Standing 10-agent adversarial review: exactly 1 real LOW confirmed — my docstring over-claimed "a caller can never corrupt a later call's view" (false for ELEMENT mutation; `.slice()` copies only the spine) + one tautological test (`findX(t) toEqual findX(t)` holds for any deterministic fn) — both fixed (accurate docstrings + `.not.toBe` identity assertion). 825 unit / type-check clean / clean 43-file `.vsix`.
+**Ledger:** `CHANGELOG: 2026-07-15 · [ad hoc] (Session 95 — FIXED MEDIUM: memoised scanRegions, the 2+2N per-pass rescan)` entry written.
+**What was done (commits):** 1B claim `15af6ac`. The fix + tests + docs land in the single close-out commit: `src/core/qmd/model.ts` (the memo + `.slice()` accessors + accurate docstrings), `test/unit/qmd-model.test.ts` (6 "scanRegions memoization contract" tests), plus `BACKLOG.md` (`:118` marked `[x] FIXED` + the new pre-existing-integration-failures finding), `CHANGELOG.md`, `PROJECT_LEARNINGS.md` #106.
+**What's next (Active is empty — pick via `AskUserQuestion` at Phase 0):** Ranked open candidates: **(1)** 🔴 **the 4 pre-existing integration failures** (new BACKLOG item just below the fixed `:118`) — `semantic-tokens.test.ts` "multi-language merge (Slice 2)" has been RED since S93 from an UNPINNED `@vscode/test-electron` (VS Code auto-updated 1.128→1.129, built-in tokenizer drift). MEDIUM; needs an operator decision (pin the version and/or update the 4 expected token streams). **(2)** the two **S91 LOWs** (`BACKLOG.md:102-103`) — `mkdtemp` fallback-dir leak + after-dispatch epoch boundary (same `disposeAllVdocs` blast radius). **(3)** the two **S89 LOWs** (`BACKLOG.md:120`) — unbounded `disposeEpoch` growth + latched `mkdtemp` failure. **(4)** item 17 (`BACKLOG.md:64`) — the lower-priority/narrower-audience feature bundle.
+**Key files (this session):** `src/core/qmd/model.ts` — `regionsCache` + the memoizing `scanRegions` wrapper (`:268`/`:277` area), `computeRegions` (the renamed body, `:301`), the three `.slice()` accessors (`findHeadings`/`findAllCells`/`findBodyLines`) with accurate immutability docstrings. `test/unit/qmd-model.test.ts` — the "scanRegions memoization contract" describe block (aliasing-independence ×3, full-text keying, same-`.length` collision guard, distinct-array identity). `PROJECT_LEARNINGS.md` #106. `CHANGELOG.md`/`BACKLOG.md` top.
+**Gotchas for the next session:** (1) 🔑 **`.slice()` copies the array SPINE, not the elements** — `Cell`/`Heading`/`BodyLine` objects are shared across calls now; the contract is "reorder/add/remove your array freely, but NEVER mutate an element field" (documented in the accessor docstrings). No consumer mutates elements (audited); a future one must not. (2) **The memo is a single-entry (last-value) cache** — it collapses within-pass redundancy on ONE document; across several visible docs the passes alternate texts and it just misses (no benefit, no corruption — confirmed by the passing integration suite). Do NOT "improve" it to a `Map` keyed on full text (unbounded growth). (3) **The key is a full-text `===`** — do NOT weaken it to `text.length`/prefix/hash; the same-`.length` collision test (`test/unit/qmd-model.test.ts`) pins this and goes RED on a proxy key. (4) 🔴 **The integration suite is RED (4 pre-existing failures)** — NOT from this change (byte-identical on clean HEAD); it's VS Code 1.129 tokenizer drift via an unpinned test version. Filed as its own MEDIUM. Don't mistake it for a regression of your work.
+**Scope held (1 and done):** ONE deliverable — the `scanRegions` memo + its contract tests + the review-response doc/test fixes. Did NOT fix the 4 pre-existing integration failures (filed for its own session — needs an operator decision on pin-vs-update), did NOT add element-level deep-copy/`Object.freeze` (over-engineering for a contract that already holds; documented instead), did NOT touch any consumer of the model.
+
+## Session 94 Handoff Evaluation (by Session 95)
+
+**Score: 8/10.** S94's handoff pointed me at exactly the right work with an accurate description and file
+pointer, and left a frictionless clean state — but neither it nor its predecessors flagged that the integration
+suite had gone RED, which cost me a discovery-and-diagnosis detour.
+
+- **What helped, decisively:** the ranked next-candidate **(1) "the 2 + 2N semantic-token rescan MEDIUM
+  (`BACKLOG:118`) — memoise `scanRegions` keyed on text; touches the shared model, its own slice"** is precisely
+  what the operator picked and I implemented — described accurately, with the correct BACKLOG pointer and the
+  load-bearing "touches the shared model every feature rides on" framing that (correctly) drove my consumer-mutation
+  audit and the wide-blast-radius integration run.
+- **The clean close-out was a genuine gift:** both ledger frontiers at HEAD, tree clean → Phase 0 reconcile had
+  nothing to backfill.
+- **What was missing (the −2):** the handoff (and the S93→S94 chain) gave **no warning that `npm run
+  test:integration` was already failing** (4 pre-existing failures). S93 explicitly skipped its integration re-run
+  ("reasoned unaffected"); S94 was docs-only, so it wouldn't have run it — but a "build status" line saying
+  "integration not run since S92; may have drifted" would have saved me the stash-and-baseline diagnosis. Mitigating:
+  this is an inherited chain gap, not a defect S94 introduced, and S94's docs-only scope makes it understandable.
+- **ROI:** strongly net-positive. The accurate top candidate WAS the work; only the undetected red suite cost time.
+
+## Session 95 Self-Assessment
+
+- **Strict TDD held for a change that has no natural output to red-first.** I wrote the contract tests first,
+  then demonstrated a genuine RED by implementing the memo NAIVELY (no `.slice()`) — the aliasing tests failed AND
+  the shared cache cross-pollinated a sibling test — before adding the defensive copy to go GREEN. This is the
+  honest TDD shape for a behavior-preserving optimization (Learning #106): test the contract it must preserve,
+  break-revert-proven to discriminate, not a contrived output test.
+- **I proved the perf property itself firsthand** rather than asserting it: temporary `globalThis` scan-counter +
+  `QMD_NOMEMO` bypass showed the exact 2+2N→1 collapse (10→1 on a 4-language doc), then reverted the instrumentation
+  (file-backup, never `git checkout` — Learning #104).
+- **The consumer-mutation audit was evidence-based, not assumed** (FM #4 / Development anti-pattern #4): I grepped
+  every consumer of the model's public functions for array/element mutation and found none — the codebase even types
+  `runCells(cells: readonly Cell[])`. That grounded the `.slice()`-is-sufficient design.
+- **The wide-blast-radius integration run caught a real, pre-existing problem** I then diagnosed to root cause
+  (stash → baseline → identical 311/4; javascript-only test-4 discriminator → environmental VS Code 1.129 drift, not
+  source) and FILED rather than fixed (scope held). This is exactly why "run integration even when you reason it's
+  unaffected" matters — the very anti-pattern that let the suite go red undetected.
+- **I ran the standing adversarial review and acted on its one real finding proportionately.** The 10-agent review
+  confirmed 1 LOW (docstring over-claim + a tautological test); I corrected the docstrings to the true contract and
+  strengthened the test, but did NOT over-engineer (no element deep-copy/`Object.freeze` for a contract that already
+  holds). I also applied my own judgment on the 3 "refuted" findings — keeping the cheap, high-value same-`.length`
+  keying guard the finder proposed, which the verifier had dismissed as "hypothetical."
+- **Honest weaknesses:** (1) my initial workflow post-processing had a bug (the verify stage returned a bare array,
+  not `{verified}`), so the auto-summary said "0 findings" — I caught it via the `agents_empty_result: 4` signal and
+  read the journal directly rather than trusting the empty result; a cleaner script would have aggregated correctly.
+  (2) The `.slice()`/element-sharing asymmetry is a real (if standard) subtlety a reviewer flagged — I judged
+  documenting the contract the right call over paying per-element copy cost, but it's a judgment, disclosed. (3) The
+  memo gives no benefit under multi-document thrash — acceptable (the 2+2N waste is within-pass), disclosed.
+- **Self-score: 9/10.** Behavior-preserving, TDD RED→GREEN with break-revert-proven discriminating tests, perf
+  proven firsthand, evidence-based audit, adversarially reviewed, all findings addressed proportionately, a real
+  pre-existing regression discovered/diagnosed/filed, scope held. Not a 10 because of the self-inflicted workflow
+  post-processing bug (recovered) and because the deliverable is a modest optimization rather than a user-visible
+  capability.
 
 ## Session 94 ACTIVE TASK (superseded by Session 95 — full entry preserved below)
 **Task:** **Session 94 — IMPLEMENTATION (bug fix): `BACKLOG.md` "Polish / deferred" MEDIUM (S89 adversarial review) — `providers/semantic-tokens.ts` mints an embedded-language vdoc (writes the user's cell source to `.quarto/vdoc-mit/` + opens a hidden model) per language on every debounced pass, with NO gate on whether a language server for that language is even registered.** The fix: gate `embeddedLanguagesIn`'s targets on the languageId being registered, via the existing `needsLanguageExtension` (`core/embedded/lang-map.ts:67`) + `vscode.languages.getLanguages()` — the exact mechanism `providers/embedded.ts:167` already uses but `providers/semantic-tokens.ts` never calls. So an `{r}`/`{julia}` cell with no R/Julia extension installed no longer writes the user's source to disk. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with this project's strict TDD gate.

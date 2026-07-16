@@ -7,6 +7,23 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-15 · [ad hoc] Session 95 — FIXED MEDIUM: memoised `scanRegions` (the 2+2N per-pass rescan)
+
+Fixed the S89-filed MEDIUM (`BACKLOG :118`): a semantic-token pass re-scanned the whole document **2+2N times**
+(N = embedded languages) because the shared region parser `scanRegions` (`src/core/qmd/model.ts`) had no cache —
+`embeddedLanguagesIn` scans twice and `buildVirtualContent` scans twice more per language, on every debounced pass
+for every visible `.qmd`. Added a **single-entry (last-value) memo keyed on the exact document text** (renamed the
+scan body to `computeRegions`; `scanRegions` now serves the cache), collapsing all same-text calls in a pass to
+**one** scan while evicting naturally on text change (a `Map` keyed on full text would grow unboundedly). Sound
+because `computeRegions` is a pure function of `text`. The three accessors that handed out internal arrays
+(`findHeadings`/`findAllCells`/`findBodyLines`) now `.slice()` so the shared cache can't be corrupted by a caller.
+Strict TDD: contract tests (aliasing-independence + full-text keying) break-revert-proven to discriminate; the
+2+2N→1 collapse proven firsthand with throwaway instrumentation (10→1 scans on a 4-language doc), reverted before
+commit. 825 unit (+6) / type-check clean / clean 43-file `.vsix`. Standing 10-agent adversarial review: 1 real LOW
+(docstring over-claimed isolation for element mutation — `.slice()` copies the spine, not elements — and one
+tautological test), both fixed. Integration suite delta ZERO (see the new BACKLOG finding on its 4 pre-existing
+failures). Learning #106.
+
 ### 2026-07-15 · [ad hoc] Session 94 — REFUTED the S89 passive-minting "cheap fix" (evidence-based BACKLOG correction; MEDIUM→LOW) + fixed a stale item-14 sub-bullet
 
 Investigated the S89-filed MEDIUM "`{r}`/`{julia}` semantic-token vdoc minting is passive." The operator picked
