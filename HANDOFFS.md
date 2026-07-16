@@ -18,6 +18,20 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S100
+date: 2026-07-16
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION). The (b) RANGE-fallback axis of BACKLOG:125 — the last actionable step on the last semantic-token MEDIUM. S99 pinned the (a) DOCUMENT axis and left (b) characterized FROM BYTES but explicitly UNPINNED. Deliverable: pin it — two TIED javascript range providers on a .js vdoc, top one DECLINING, then the THROW sibling (which the doc path does NOT have: ZNt swallows per-provider errors where mki rethrows). S99's mechanism is a predecessor premise and will NOT be inherited (Learnings #107/#108/#109) — firsthand grounding in the real 1.129.0 EDH comes BEFORE any test code. Outcome is ONE of: the pin under strict TDD (RED before GREEN), or a documented refutation/boundary if the premise does not survive grounding. Operator picked via AskUserQuestion at Phase 0 (Active empty); S99's ranked candidate (1).
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+```handoff
 session: S99
 date: 2026-07-16
 status: complete
