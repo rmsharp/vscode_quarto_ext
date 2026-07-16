@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S99
+date: 2026-07-16
+status: pending
+active_task: IMPLEMENTATION. BACKLOG "Polish / deferred" MEDIUM (:125, S88 Slice-1 review) — the legend and the token stream are fetched as two separate executeCommands, so with TWO semantic-token providers registered for one embedded language, VS Code could resolve each against a different provider (one server's stream decoded against another's legend). The LAST open semantic-token MEDIUM. The filed premise is NOT inherited: the item says there is no atomic "give me both" API while S98's handoff framed the fix as fetching both from the same provider — grounding those firsthand precedes any code (Learnings #107/#108). Deliverable: a guard under strict TDD, or a documented refutation/boundary. Operator picked at Phase 0 (Active empty); S98's ranked candidate (1).
+```
+
+```handoff
 session: S98
 date: 2026-07-16
 status: complete
