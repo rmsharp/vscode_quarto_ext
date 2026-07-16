@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S101
+date: 2026-07-16
+status: pending
+active_task: IMPLEMENTATION — the `fallbackDirPromise` memo lifecycle in src/features/embedded-vdoc.ts, closing BACKLOG:102 + BACKLOG:121 leg (b). These are ONE code surface, not two areas: the `if (fallbackDir !== undefined)` block (~:272-275) and the memo creation (~:347-355). (a) :102 — a deactivate that races an unresolved mkdtemp reads fallbackDir === undefined and skips the rmdir AND both resets (all three inside the one `if`), leaking a 0700 temp dir; worse, a re-enable without a window reload reuses the stale fallbackDirPromise and writes the user's source into the leaked dir. (b) :121b — the memo is only reset in disposeAllVdocs, so one transient mkdtemp failure (full disk, EMFILE) is latched for the session and embedded features stay dead for untitled docs until reload. Both LOW. Filed premises NOT inherited (Learnings #107/#108/#109/#110) — firsthand grounding BEFORE any fix code, then strict TDD (RED before GREEN). Deliverable is ONE of: the real fix, or a documented refutation/boundary. Operator picked at Phase 0 via AskUserQuestion (Active empty), from THIS session's re-slice of the four remaining vdoc-lifecycle LOWs by code surface rather than S100's split by filing session.
+```
+
+```handoff
 session: S100
 date: 2026-07-16
 status: complete
