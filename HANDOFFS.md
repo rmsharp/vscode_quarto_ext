@@ -18,6 +18,15 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S97
+date: 2026-07-15
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, semantic-token fidelity). BACKLOG "Polish / deferred" MEDIUM (:127) — the largest remaining semantic-token gap. A token whose TYPE we keep but whose MODIFIER is foreign (Pylance `builtin` on `print`/`__name__`/`__doc__`) is emitted BARE, overriding MagicPython's correct builtin colour instead of degrading to it. Fix shape: carry the one `builtin` modifier in OUR_LEGEND + a `language:"quarto"`-scoped contributes.semanticTokenScopes rule — the shipped S90 `module` fix applied to the MODIFIER axis. Operator picked at Phase 0 (Active empty); S96's ranked candidate (2). Claim only — work beginning.
+changelog_ref: CHANGELOG pending (set at Phase 3F)
+commit: 1B claim (this commit)
+```
+
+```handoff
 session: S96
 date: 2026-07-15
 status: complete
