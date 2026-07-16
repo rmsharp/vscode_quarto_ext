@@ -320,6 +320,8 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
   let pyCalls: string[] = [];
   let jsCalls: string[] = [];
   let jsLegendIsUndefined = false;
+  /** When true the PYTHON stand-in throws — a server erroring, restarting, or shutting down. */
+  let pyThrows = false;
   let multiDisposables: vscode.Disposable[] = [];
 
   before(async () => {
@@ -332,12 +334,18 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
     pyCalls = [];
     jsCalls = [];
     jsLegendIsUndefined = false;
+    pyThrows = false;
     multiDisposables.push(
       vscode.languages.registerDocumentSemanticTokensProvider(
         { scheme: "file", pattern: "**/vdoc-mit.*.py" },
         {
           provideDocumentSemanticTokens(document) {
             pyCalls.push(document.uri.toString());
+            if (pyThrows) {
+              // A real server that errors, restarts, or shuts down REJECTS the request —
+              // and `executeCommand` surfaces that as a rejection, not an `undefined`.
+              throw new Error("simulated language-server failure");
+            }
             return tokensForNonBlankLines(document, 1, 1);
           },
         },
@@ -459,6 +467,35 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
       decoded.map((t) => `${t.type}@${t.line}:${t.char}`),
       ["variable@1:0", "variable@7:0"],
       "exactly python's two tokens — no gap, no throw, no empty document",
+    );
+  });
+
+  it("keeps the OTHER language's tokens when one server THROWS", async () => {
+    // The throw-sibling of the "answers with nothing" case above, and the CROSS-LANGUAGE
+    // counterpart of Slice 1's "degrades to no tokens … when the language server ERRORS":
+    // that one proves a lone throwing server yields `undefined` (never an exception); this
+    // one proves the throw is isolated PER LANGUAGE — a throwing python must not take a
+    // healthy javascript's tokens down with it. `streamFor`'s try/catch turns each forward's
+    // rejection into an `undefined` BEFORE the `Promise.all` in `provideDocumentSemanticTokens`
+    // sees it, so the merge simply proceeds with whatever streams did arrive
+    // (`src/providers/semantic-tokens.ts`). Until now the suite only ever made a stand-in
+    // throw when it was the ONLY language, so "a failing server takes nothing with it" was
+    // asserted, not pinned (BACKLOG:123, Session 89 adversarial review).
+    pyThrows = true;
+    const doc = await openQmd(STRADDLED);
+
+    // Must RESOLVE, not reject: python's throw must not propagate out of the provider.
+    const tokens = await tokensFor(doc);
+
+    assert.ok(tokens !== undefined, "javascript's tokens must survive python's failure");
+    assert.strictEqual(pyCalls.length, 1, "…and python must genuinely have been asked (it threw)");
+    assert.strictEqual(jsCalls.length, 1, "…and javascript must genuinely have been asked");
+
+    const decoded = decodeTokens({ data: tokens.data, legend: OUR_LEGEND });
+    assert.deepStrictEqual(
+      decoded.map((t) => `${t.type}.${t.modifiers.join(".")}@${t.line}:${t.char}`),
+      ["variable.readonly@4:0"],
+      "exactly javascript's ONE token, decoded against ITS legend — no python token, no throw, no empty document",
     );
   });
 

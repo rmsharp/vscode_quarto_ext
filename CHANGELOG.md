@@ -7,6 +7,22 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-16 · [ad hoc] Session 98 — CLOSED test-coverage MEDIUM (`BACKLOG:123`): pinned per-language semantic-token isolation
+
+Pinned the claim that a throwing embedded-language server takes nothing down with it. `streamFor`'s try/catch is
+per-language (every exit a value), so a failing server drops out of the `Promise.all` and the merge proceeds with
+whatever streams arrived — but the integration suite only ever made a stand-in throw when it was the *only* language
+(the Slice-1 "…when the language server ERRORS" test), so "a failing server takes nothing with it" was asserted, not
+pinned. Added ONE Slice-2 test — "keeps the OTHER language's tokens when one server THROWS": a throwing python
+stand-in + a healthy javascript one over the STRADDLED fixture, asserting `tokens !== undefined`, both languages
+genuinely asked, and the decoded stream is EXACTLY `["variable.readonly@4:0"]` (python's throw dropped, javascript's
+one token surviving and decoded against its own inverted legend). **No `src/` production code changed** — the shipped
+code was already correct; this closes a test-**coverage** gap. Break-revert-proven to discriminate (swapping
+`streamFor`'s `catch { return undefined }` for a re-throw reddens exactly this test + the Slice-1 "…ERRORS" test),
+reverted to byte-identical HEAD. Standing 4-lens adversarial review + synthesis found zero test-quality defects and
+confirmed the item's premise accurate (flipped to `[x]` without reframing) and the reverse orientation not a residual
+gap. **316 integration** (was 315) / 828 unit / check-types clean.
+
 ### 2026-07-15 · [ad hoc] Session 97 — FIXED MEDIUM: semantic-token modifier fidelity (`BACKLOG:127`) — carry `typeHintComment`, REFUTE `builtin`
 
 Resolved the modifier axis of the semantic-token fidelity item, and **corrected its filed headline**. Firsthand

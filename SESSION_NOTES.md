@@ -7,8 +7,60 @@
 ## ACTIVE TASK
 **Task:** **Session 98 — IMPLEMENTATION (test-coverage): `BACKLOG.md:123` MEDIUM — no test makes ONE embedded language throw while another answers.** `streamFor`'s try/catch is per-language (`src/providers/semantic-tokens.ts:267-280`: both `executeCommand`s are wrapped, every exit returns a value, so `Promise.all(targets.map(streamFor))` never rejects), so a throwing server cannot take another language's tokens down with it — the code is CORRECT. But the integration suite only ever makes a stand-in throw when it is the *only* language, so the claim "a failing server takes nothing with it" is asserted, not pinned. Deliverable: ONE integration test — a throwing python stand-in + a healthy javascript one — asserting the javascript tokens survive. Because the code is already correct, the strict-TDD discipline is break-revert-proving the new test DISCRIMINATES (it goes red if the per-language isolation is removed). Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`. Operator picked this via `AskUserQuestion` at Phase 0 (Active empty); it was S97's ranked candidate (2). (IN PROGRESS)
 **Started:** 2026-07-16
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** **DONE. SHIPPED — the per-language semantic-token isolation claim is now PINNED by a cross-language throw test.** Before this session the suite only ever made a stand-in throw when it was the *only* language (Slice-1 "…when the language server ERRORS"), so "a failing server takes nothing with it" was asserted, not pinned. Added ONE Slice-2 test — "keeps the OTHER language's tokens when one server THROWS": a throwing python stand-in + a healthy javascript one over the STRADDLED fixture (python tokens on .qmd lines 1 & 7, an {ojs}/js token on line 4), asserting `tokens !== undefined`, both languages genuinely asked (`pyCalls===1`, `jsCalls===1`), and the decoded stream is EXACTLY `["variable.readonly@4:0"]` — python's throw dropped, javascript's one token surviving and decoded against ITS OWN (inverted) legend. **No `src/` production code changed** — the shipped code was already correct; this closes a genuine test-**coverage** gap (`BACKLOG:123`). **Break-revert proven to discriminate:** replacing `streamFor`'s `catch { return undefined }` with `catch (e) { throw e }` reddens exactly the 2 throw-exercising tests (Slice-1 "ERRORS" + this new one), everything else stays green; reverted to byte-identical HEAD. **Standing multi-agent adversarial review (4 diverse lenses + synthesis): ZERO test-quality defects** — all three test-correctness lenses (tautology, fixture/assertion correctness, scope/residual-coverage) returned empty; every surviving finding was a close-out record item (all applied). It confirmed the item's premise is *accurate* (no reframe, unlike S96/S97's inherited-wrong headlines) and that the reverse orientation (js-throws) is NOT a residual gap (byte-for-byte identical, language/position-agnostic code path). Full matrix: 316 integration (was 315) / 828 unit / check-types clean.
+**Ledger:** `CHANGELOG: 2026-07-16 · [ad hoc] (Session 98 — closed test-coverage MEDIUM: pinned per-language semantic-token isolation with a throwing-python + healthy-javascript test)` entry written.
+**What was done (commits):** 1B claim `cfa7d76`. Test + records in the single close-out commit: `test/integration/suite/semantic-tokens.test.ts` (a `pyThrows` flag + its `beforeEach` reset + the guarded throw in the python stand-in + the new `it("keeps the OTHER language's tokens when one server THROWS")`), plus `BACKLOG.md` (`:123` → `[x]`, premise preserved), `CHANGELOG.md`, and this file. No `PROJECT_LEARNINGS.md` row (routine coverage-gap closure, zero production change — stated, not skipped).
+**What's next (Active is empty — pick via `AskUserQuestion` at Phase 0):** Ranked open candidates: **(1)** the LAST semantic-token MEDIUM, `BACKLOG.md:125` — the legend and the token stream can come from DIFFERENT providers (two Python providers → one server's stream decoded against another's legend); needs *production* code (fetch legend + stream atomically from the same provider), not reachable with a single provider installed. **(2)** the two **S91 LOWs** (`BACKLOG.md:102-103`) — `mkdtemp` fallback-dir leak + after-dispatch epoch boundary (same `disposeAllVdocs` blast radius, likely one session; fix = a latched `deactivated` flag + move the `fallbackDir` reset out of the `if`). **(3)** the two **S89 LOWs** (`BACKLOG.md:121`) — unbounded `disposeEpoch` growth + latched `mkdtemp` failure. **(4)** item 17 (`BACKLOG.md:64`) — the narrower-audience feature bundle. **Micro-follow-up still noted (not filed):** the defensive "drop tokens outside a cell body" filter (`providers/semantic-tokens.ts`) — inert today, still optional.
+**Key files (this session):** `test/integration/suite/semantic-tokens.test.ts` — the new Slice-2 test `it("keeps the OTHER language's tokens when one server THROWS")` (mirrors its "answers with nothing" sibling ~:435; the cross-language counterpart of the Slice-1 "…ERRORS" test ~:219), the `pyThrows` flag (~:322) + reset (~:334) + the guarded throw in the python stand-in (~:340). The production isolation it pins: `src/providers/semantic-tokens.ts:267-280` (`streamFor`'s try/catch — every exit a value) feeding the `Promise.all` + undefined-filter in `provideDocumentSemanticTokens` (~:167-188).
+**Gotchas for the next session:** (1) 🔑 **This session changed NO `src/` code** — the integration suite (real Extension Development Host, 316 green) IS the runtime verification; not FM #24 (there is no new product code path to drive). (2) **The break-revert used a file backup** (`cp` to scratchpad, restore, `git diff --stat` empty), per Learning #104 — never `git checkout` an uncommitted file. (3) **When you close a backlog item, state the NEW count (316) only in YOUR new records** — the ~10 existing "315 integration" strings across CHANGELOG/HANDOFFS/SESSION_NOTES/BACKLOG:119,:130 are per-session historical snapshots; do NOT sweep them (Learning #7/#10; the standing review flagged this trap explicitly). (4) **`BACKLOG:123`'s premise was ACCURATE** — I flipped it to `[x]` with a "pinned S98" note and did NOT reframe it; this is the first candidate in a while whose filed framing did not need refutation.
+**Scope held (1 and done):** ONE deliverable — the single cross-language throw test + its records. Did NOT touch any `src/` production code, did NOT add the reverse-orientation (js-throws) test (proven a duplicate code path, not a gap), did NOT add the defensive body-only token filter (still noted), did NOT sweep the historical "315" counts.
+
+## Session 97 Handoff Evaluation (by Session 98)
+
+**Score: 8/10.** S97's handoff named the right item with an *accurate* premise and left a frictionless clean
+state — the first predecessor in several sessions whose pointer I did NOT have to refute. Its only gaps were
+minor pointer-completeness, not correctness.
+
+- **What helped, decisively:** the ranked "What's next" candidate **(2) "the two semantic-token test-coverage
+  MEDIUMs (`BACKLOG:123`,`:125`) — no test makes ONE language throw while another answers"** named `:123`
+  precisely and framed it correctly. The clean state was a genuine gift: both ledger frontiers at HEAD (lag
+  0/0), so Phase 0 reconcile had nothing to backfill. And — unlike S95→S96 and S96→S97, where the inherited
+  headline was *wrong* and would have shipped a regression — S97's `:123` framing was verified accurate by my
+  own adversarial review (the item's premise is precise; I flipped it to `[x]` without reframing).
+- **What was missing (the −2), both minor:** (a) the candidate bundled `:123` with `:125` as "the two
+  test-coverage MEDIUMs", but they are structurally different — `:123` is pure test-coverage on already-correct
+  code (a near-mechanical mirror of an existing test), while `:125` needs *production* code; a reader could
+  under-scope `:125` by association. (b) The pointer did not name the two sibling tests that make `:123`
+  near-mechanical — the "answers with nothing" test (`:435`) my new test mirrors and the Slice-1 "ERRORS" test
+  (`:219`) — which I had to discover. Neither gap cost much; the core (right item, accurate premise, clean
+  state) was excellent.
+- **ROI:** strongly net-positive, with no refutation tax for the first time in the recent run.
+
+## Session 98 Self-Assessment
+
+- **The whole session was a small, well-scoped coverage-gap closure done to the project's full bar.** The RED
+  discipline for a test that pins *already-correct* code is break-revert: I proved the new test discriminates
+  (breaking `streamFor`'s isolation reds exactly the 2 throw-exercising tests, nothing else) rather than
+  manufacturing a contrived failure — the same shape S95 used for a behavior-preserving change (Learning
+  #106a). Backup-file discipline (Learning #104), not `git checkout`, for the uncommitted break-revert.
+- **The standing adversarial review earned its cost even on a one-test change.** Its three test-correctness
+  lenses independently confirmed the test is non-tautological, the expected `variable.readonly@4:0` is right,
+  and the scope closes `:123` exactly as filed — and it caught the one real cross-reference trap (do not sweep
+  the ~10 historical "315" counts; state 316 only in new records), which I followed precisely. This is the
+  Report-brevity/materiality call made correctly: a small change, but the change's *value* is test correctness,
+  which is exactly what a review verifies.
+- **I did NOT invent a production change.** The tempting over-reach was the reverse-orientation (js-throws)
+  test or the defensive body-only token filter; the review confirmed the former is a duplicate code path and
+  the latter stays an optional note. One test, one intent.
+- **No new `PROJECT_LEARNINGS.md` row** — a routine coverage-gap closure with byte-identical production offers
+  no new insight the existing item and neighbours don't already carry; forcing one would be ceremony against
+  the Report-brevity preference. Stated explicitly here rather than left as an open question.
+- **Honest boundary:** no F5/pixel pass — there is nothing visual to see (test-only, zero production change),
+  and the real-EDH integration suite already drives every semantic-token consumer end-to-end (316 green).
+- **Self-score: 9/10.** Right gap closed exactly as filed, break-revert-proven discriminating, adversarial
+  review run and its one real finding applied, records complete and the historical-count trap avoided, scope
+  held to one test. Not a 10 only because the deliverable is a single coverage test rather than user-visible
+  capability — the correct-sized deliverable for this item, but a modest one.
 
 ## Session 97 ACTIVE TASK (superseded by Session 98 — full entry preserved below)
 **Task:** **Session 97 — IMPLEMENTATION (semantic-token fidelity): `BACKLOG.md:127` MEDIUM — the largest remaining semantic-token gap.** Pylance emits a token whose TYPE we keep but whose MODIFIER is foreign — `builtin` on `print` (→ `function`+`builtin`) and on `__name__`/`__doc__` (→ `variable`+`builtin`). `builtin` is not in `OUR_LEGEND.tokenModifiers`, so `encodeTokens` clears the bit (`modifierBit.get("builtin") ?? 0`) and the token paints BARE `function`/`variable`, which OVERRIDES MagicPython's already-correct builtin colour rather than degrading to TextMate — a *lost* distinction, not a *wrong* colour, but still a fidelity regression vs. TextMate alone. Fix shape (per the item): carry the ONE `builtin` modifier in `OUR_LEGEND` + a `language:"quarto"`-scoped `contributes.semanticTokenScopes` rule (`*.builtin` → the right MagicPython scope), the same shape as the shipped S90 `module` fix applied to the MODIFIER axis. The `*.typeHintComment` instance (repainting a comment interior as live code) is the second cited instance — verify emission firsthand before touching it. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` with strict TDD, gated by the two S90/S100 rules: carry a name only if (a) the triage rule says it is safe AND (b) a REAL server is observed emitting it (`test/lsp/suite/real-lsp.test.ts`). Operator picked this via `AskUserQuestion` at Phase 0 (Active empty); it was S96's ranked candidate (2). (IN PROGRESS)
