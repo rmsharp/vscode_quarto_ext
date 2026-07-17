@@ -1153,3 +1153,81 @@ describe("embedded vdoc: reclaiming the temp dir a crash strands (plan Phase 1)"
     await sweepStaleTempVdocs(vscode.Uri.file(path.join(os.tmpdir(), `no-such-dir-${randomUUID()}`)));
   });
 });
+
+/**
+ * The fallback temp dir must stay 0700 even after it is deleted underneath a live session —
+ * Phase 2 of `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md` (BACKLOG:182).
+ *
+ * **The hazard.** `vdocDirFor` memoises the mkdtemp fallback dir for the whole session, so once
+ * made it is returned to every later untitled forward WITHOUT re-checking that it still exists.
+ * If the OS reaper (Linux, ~10 days) or the user deletes it, the next `ensureVdoc` write goes
+ * through `vscode.workspace.fs.writeFile`, whose internal `mkdirp` SILENTLY re-creates the parent
+ * with `fs.promises.mkdir(path)` and NO mode arg — `0777 & ~umask` (0755 at umask 022, 0777
+ * world-writable at umask 000). The user's actual cell source then lands in a world-readable
+ * directory, the exact information disclosure the 0700 mkdtemp exists to prevent — and a real one
+ * on Linux, where `/tmp` is world-listable and `readdir(/tmp)` defeats mkdtemp's unpredictability.
+ * There is NO ENOENT to hook (the re-create is silent), so the fix must detect the deletion with
+ * an explicit stat and re-mint a fresh private directory.
+ *
+ * **Why untitled is load-bearing** (as in the sibling lifecycle describe): only a document with
+ * no workspace folder reaches `vdocDirFor`'s mkdtemp branch; a workspace `.qmd` takes the
+ * `.quarto/vdoc-mit/` branch, whose `createDirectory` is recursive and idempotent and never
+ * exhibits this.
+ */
+describe("embedded vdoc: the fallback dir stays 0700 after a delete-underneath (plan Phase 2, BACKLOG:182)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    await ext.activate();
+  });
+
+  it("re-mints a private 0700 directory when the memoised fallback dir is deleted out from under it", async () => {
+    // Reset the module memo so the first forward mints a directory THIS test owns, rather than
+    // inheriting one a prior test left memoised (module-global state, one mocha process).
+    await disposeAllVdocs();
+
+    const untitled = await vscode.workspace.openTextDocument({
+      language: "quarto",
+      content: "```{python}\nimport os\n```\n",
+    });
+
+    const first = await ensureVdoc(untitled, langKey(untitled), "import os\n");
+    assert.ok(first, "precondition: the untitled forward must produce a fallback vdoc");
+    const firstDir = path.dirname(first.fsPath);
+    assert.strictEqual(
+      (await nodeFs.stat(firstDir)).mode & 0o777,
+      0o700,
+      "precondition: the freshly minted fallback dir is 0700",
+    );
+
+    // Delete it out from under the live session — the OS reaper or a user `rm -rf $TMPDIR/...`.
+    await nodeFs.rm(firstDir, { recursive: true, force: true });
+
+    // A SECOND forward with DIFFERENT content, so the reuse branch (content-equal + model-open)
+    // cannot short-circuit and the write genuinely goes back through vdocDirFor -> writeFile.
+    const second = await ensureVdoc(untitled, langKey(untitled), "import sys\n");
+    let secondDir: string | undefined;
+    try {
+      assert.ok(second, "the second forward must still produce a vdoc after the dir vanished");
+      // Assert on the SECOND forward's OWN directory, never the captured firstDir: under the fix
+      // firstDir stays deleted (a fresh mkdtemp is minted), so statting firstDir would ENOENT and
+      // prove nothing. It is the directory the user's source ACTUALLY landed in that must be 0700.
+      secondDir = path.dirname(second.fsPath);
+      const mode = (await nodeFs.stat(secondDir)).mode & 0o777;
+      assert.strictEqual(
+        mode,
+        0o700,
+        `the user's source was written into a ${mode.toString(8)} directory after the private ` +
+          `one was deleted — vscode.workspace.fs.writeFile re-created it at 0777 & ~umask instead ` +
+          `of a fresh 0700 mkdtemp. On Linux (/tmp world-listable) that is an information ` +
+          `disclosure.`,
+      );
+    } finally {
+      await disposeAllVdocs();
+      await nodeFs.rm(firstDir, { recursive: true, force: true }).catch(() => {});
+      if (secondDir !== undefined) {
+        await nodeFs.rm(secondDir, { recursive: true, force: true }).catch(() => {});
+      }
+    }
+  });
+});

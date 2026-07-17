@@ -562,7 +562,11 @@ async function vdocDirFor(doc: vscode.TextDocument): Promise<vscode.Uri | undefi
   // Memoise the in-flight mkdtemp: two concurrent untitled forwards must share ONE temp
   // directory, or the loser's directory leaks (module state, so a check-then-act on the
   // resolved value straddles the await and races).
-  if (fallbackDirPromise === undefined) {
+  //
+  // `mintFallback` creates one attempt, memoises it, and returns it. It is the ONLY writer of
+  // `fallbackDirPromise` on this path, so the identity guard in its `.catch` and the one in the
+  // re-mint branch below both compare against the exact promise they mean to clear.
+  const mintFallback = (): Promise<vscode.Uri> => {
     const attempt: Promise<vscode.Uri> = nodeFs
       .mkdtemp(
         path.join(
@@ -590,8 +594,38 @@ async function vdocDirFor(doc: vscode.TextDocument): Promise<vscode.Uri | undefi
         throw err;
       });
     fallbackDirPromise = attempt;
+    return attempt;
+  };
+
+  const memo = fallbackDirPromise;
+  if (memo === undefined) {
+    return mintFallback();
   }
-  return fallbackDirPromise;
+  // The memoised directory can be deleted out from under a live session by the OS reaper (on
+  // Linux, ~10 days) or by the user. Writing into a vanished directory does NOT fail:
+  // `vscode.workspace.fs.writeFile` re-creates the parent via an internal `mkdirp` that calls
+  // `fs.promises.mkdir` with NO mode argument, so it comes back `0777 & ~umask` (0755 measured at
+  // umask 022, 0777 world-writable at umask 000). That silently downgrades the privacy the 0700
+  // `mkdtemp` established and drops a copy of the user's source into a world-readable location — a
+  // real information disclosure on Linux, where `/tmp` is world-listable and `readdir` defeats
+  // `mkdtemp`'s unpredictability. There is no `ENOENT` to hook (the re-create is silent), so
+  // detect the deletion with an explicit `stat` before handing the directory back.
+  const dir = await memo;
+  try {
+    await nodeFs.stat(dir.fsPath);
+    return dir; // still present — the overwhelmingly common path, one extra stat per forward
+  } catch {
+    // Gone. Re-mint a fresh private directory — but only while `fallbackDirPromise` is STILL the
+    // stale promise we found gone. A concurrent forward may already have re-minted (moving the
+    // memo on) or a `disposeAllVdocs` may have reset it; clobbering either would strand a
+    // directory, the same reason the `.catch` above guards its clear. If we lost that race, share
+    // whatever is memoised now (a sibling's freshly-made, still-present directory) or mint if the
+    // memo was reset out from under us.
+    if (fallbackDirPromise === memo) {
+      return mintFallback();
+    }
+    return fallbackDirPromise ?? mintFallback();
+  }
 }
 
 /** Directories we have already dropped a `.gitignore` into this session (write it once). */

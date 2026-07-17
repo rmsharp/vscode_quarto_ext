@@ -7,6 +7,39 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-17 · [BL-182] Session 104 — SHIPPED Phase 2 of the OS temp-dir vdoc sweep: the fallback dir stays 0700 after a delete-underneath
+
+Implementation session, strict TDD. **Phase 2 of `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md`**.
+`BACKLOG:182` **stays open** — only Phase 3 (the comment fix) remains.
+
+**Fixed.** `vdocDirFor` memoises the private `mkdtemp` fallback directory for the whole session and,
+before this change, returned it to every later untitled forward without re-checking that it still
+existed. If the OS reaper (Linux, ~10 days) or the user deleted it, the next `ensureVdoc` write went
+through `vscode.workspace.fs.writeFile`, whose internal `mkdirp` **silently re-creates** the parent with
+`fs.promises.mkdir` and **no mode argument** → `0777 & ~umask` (**0755** measured at umask 022, **0777
+world-writable** at umask 000). The user's actual cell source then landed in a world-readable directory —
+a real information disclosure on Linux, where `/tmp` is world-listable and `readdir` defeats `mkdtemp`'s
+unpredictability. It also falsified a shipped `README.md:174` promise ("`0700` on macOS and Linux").
+
+**How.** `vdocDirFor` now `stat`s the memoised directory before handing it back; on `ENOENT` it re-mints
+a fresh `0700` `mkdtemp`. The re-mint uses the same **identity-CAS** discipline the module's existing
+`.catch` models (`if (fallbackDirPromise === memo)`), so two concurrent forwards that both find the
+directory gone do not each mint one and orphan the loser's (the BL-102 leak class the plan flagged as its
+un-named dragon). No resolved-value companion to `fallbackDirPromise` was reintroduced (S101 removed it
+deliberately).
+
+**Correction on the record.** The filed cause ("a reclaim racing a live forward can downgrade the dir")
+no longer holds after Phase 1: the sweep's self-skip + ESRCH-only liveness guard mean our *own* sweep can
+never delete a live directory, so the real trigger is OS/user deletion. `BACKLOG:182` updated to match.
+
+**Verified.** RED-proven — the identical integration test observed `0755` with the fix absent (a clean-build
+assertion failure, not a build break), then `0700` with it present. `check-types` clean; **832** unit
+(unchanged — the branch imports `vscode`, so it has no headless unit surface); **332** integration (331 +
+1); clean 43-file `.vsix`. Runtime-exercised end-to-end in a real Extension Development Host (the new test
+drives a real untitled document, a real filesystem deletion, and a real `writeFile`, then stats the real
+resulting directory mode). Files: `src/features/embedded-vdoc.ts` (`vdocDirFor`),
+`test/integration/suite/embedded-vdoc.test.ts` (new describe). Commit `HASH_PENDING`.
+
 ### 2026-07-17 · [BL-182] Session 103 — SHIPPED Phase 1 of the OS temp-dir vdoc sweep: a crash's stranded vdocs are now reclaimed
 
 Implementation session. **Phase 1 of `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md`**, shipped as
