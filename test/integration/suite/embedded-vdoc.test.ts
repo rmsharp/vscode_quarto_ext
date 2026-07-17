@@ -1,4 +1,5 @@
 import * as assert from "node:assert";
+import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { promises as nodeFs } from "node:fs";
 import * as os from "node:os";
@@ -8,10 +9,15 @@ import {
   disposeAllVdocs,
   disposeVdocs,
   ensureVdoc,
+  isProcessDead,
+  sweepStaleTempVdocs,
   sweepStaleVdocs,
 } from "../../../src/features/embedded-vdoc";
 import {
+  hostDiscriminator,
   isOurVdocFileName,
+  tempVdocDirParse,
+  tempVdocDirPrefix,
   VDOC_DIR_SEGMENTS,
   type VdocKey,
 } from "../../../src/core/embedded/vdoc-path";
@@ -769,4 +775,178 @@ describe("embedded vdoc: the fallback temp directory's lifecycle (BACKLOG:102 + 
       await disposeAllVdocs();
     }
   });
+});
+
+/**
+ * The crash-reclaim sweep for the OS temp dir — Phase 1 of
+ * `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md`.
+ *
+ * **Why this exists.** A crash (or SIGKILL, or host teardown) with an UNTITLED `.qmd` open
+ * strands that document's vdocs — the user's actual cell source — in the OS temp dir.
+ * `sweepStaleVdocs` only ever reads `<workspace>/.quarto/vdoc-mit/`, so nothing ever
+ * reclaimed them.
+ *
+ * **Why it is the most dangerous loop in this extension.** Unlike the workspace sweep, this
+ * one runs in a directory shared with every other process on the machine, and two windows
+ * each holding an untitled `.qmd` is entirely ordinary. Of the six guards, four (G1/G3/G4/G5)
+ * are passed BY CONSTRUCTION by a live sibling window's own directory — we named it, we own
+ * it, we wrote every file in it. Only **G0** (host tag) and **G2** (PID liveness) stand
+ * between this loop and a live window's data. There is no defence in depth on the hazard
+ * that matters, so both are pinned directly and adversarially.
+ */
+describe("embedded vdoc: reclaiming the temp dir a crash strands (plan Phase 1)", () => {
+  /** Our own host tag — what a directory this machine wrote is stamped with (G0). */
+  const ourHost = (): string => hostDiscriminator(os.hostname());
+
+  /** PIDs whose liveness is a FACT of this run, never a hard-coded guess (gate d). */
+  interface Pids {
+    /** Spawned and reaped: `kill(pid,0)` -> ESRCH. Genuinely dead. */
+    dead: number;
+    /**
+     * A live child of this test run. 🐉7: it MUST be foreign, never `process.pid` — the
+     * sweep's self-skip branch intercepts our own pid BEFORE the liveness check, so a
+     * `process.pid` fixture never reaches G2 and stays green with G2 DELETED.
+     */
+    liveForeign: number;
+  }
+
+  /**
+   * A private temp root, two real PIDs, and a guaranteed cleanup.
+   *
+   * The `dir` seam is why this is safe (plan §4.2). The developer's REAL `$TMPDIR` is
+   * concurrently in use by live extension hosts, and the integration host is SIGKILLed every
+   * run — so it holds this suite's own corpses AND sibling runs' (🐉5). Any assertion scoped
+   * to the real temp dir would be polluted by both. Every fixture here is created by this
+   * test, inside a directory this test made, and asserted only against itself.
+   */
+  async function withTempFixture(
+    fn: (root: vscode.Uri, pids: Pids) => Promise<void>,
+  ): Promise<void> {
+    const root = vscode.Uri.file(
+      await nodeFs.mkdtemp(path.join(os.tmpdir(), `quarto-mit-fixture-${randomUUID()}-`)),
+    );
+    // Dead: spawn a trivial child and wait for its exit, so ESRCH is established rather
+    // than assumed. A hard-coded high pid can silently become live and pass for the wrong reason.
+    const dying = spawn(process.execPath, ["-e", ""], { stdio: "ignore" });
+    const dead = dying.pid ?? -1;
+    await new Promise<void>((r) => dying.on("exit", () => r()));
+    // Live + foreign: a child that outlives the assertions (🐉7).
+    const living = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60_000)"], {
+      stdio: "ignore",
+    });
+    const liveForeign = living.pid ?? -1;
+    try {
+      assert.ok(dead > 0 && liveForeign > 0, "the fixture PIDs must be real");
+      assert.strictEqual(isProcessDead(dead), true, "the 'dead' fixture pid must be ESRCH-dead");
+      assert.strictEqual(
+        isProcessDead(liveForeign),
+        false,
+        "the 'live foreign' fixture pid must be alive — otherwise G2's test proves nothing",
+      );
+      await fn(root, { dead, liveForeign });
+    } finally {
+      living.kill("SIGKILL");
+      await nodeFs.rm(root.fsPath, { recursive: true, force: true });
+    }
+  }
+
+  /** A directory named exactly as `mkdtemp` would have named it for `host`/`pid`. */
+  async function mk(root: vscode.Uri, host: string, pid: number): Promise<vscode.Uri> {
+    const dir = vscode.Uri.joinPath(root, `${tempVdocDirPrefix(host, pid)}aBcDeF`);
+    await nodeFs.mkdir(dir.fsPath, { mode: 0o700 });
+    return dir;
+  }
+
+  /** Put a file of OURS inside `dir` — what a stranded session actually left behind. */
+  async function seedVdoc(dir: vscode.Uri, name = "vdoc-mit.abc123.1.py"): Promise<vscode.Uri> {
+    const file = vscode.Uri.joinPath(dir, name);
+    await nodeFs.writeFile(file.fsPath, "x = 1\n");
+    return file;
+  }
+
+  async function dirExists(uri: vscode.Uri): Promise<boolean> {
+    try {
+      await nodeFs.stat(uri.fsPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  it("reads EPERM as ALIVE, not dead (🐉1 — the one assertion that discriminates)", () => {
+    // 🐉1, and this single row is why the test exists. The natural implementation —
+    //     try { process.kill(pid, 0); return false } catch { return true }
+    // — passes EVERY other case in this suite and is CATASTROPHICALLY wrong: it reads a
+    // live process we merely lack permission to signal as dead, and reclaims its directory.
+    //
+    // Measured firsthand on this machine, not inherited from the plan:
+    //   kill(1, 0)            -> EPERM   (launchd: demonstrably alive)
+    //   kill(process.pid, 0)  -> no throw (alive)
+    //   kill(<reaped child>)  -> ESRCH   (genuinely dead)
+    //
+    // pid 1 is the ideal fixture: it always exists, is never ours, and is never signalable
+    // by a non-root user — so EPERM is guaranteed rather than incidental.
+    assert.strictEqual(
+      isProcessDead(1),
+      false,
+      "EPERM was read as 'dead'. This is the 🐉1 inversion: a live process this user cannot " +
+        "signal is not a dead one, and treating it as dead deletes a LIVE window's vdocs.",
+    );
+  });
+
+  it("stamps the directory it CREATES with our host tag and our pid", async () => {
+    // The other half of the capability, and the half with no second chance: a directory is
+    // only reclaimable if the session that created it left the two facts the sweep needs.
+    // The sweep above is inert without this — it would find nothing it recognises, forever.
+    //
+    // The UNTITLED fixture is load-bearing (S101): only a document with no workspace folder
+    // reaches vdocDirFor's mkdtemp branch at all. A workspace `.qmd` takes the
+    // `.quarto/vdoc-mit/` branch and never touches this code.
+    const untitled = await vscode.workspace.openTextDocument({
+      language: "quarto",
+      content: "```{python}\nsecret = 1\n```\n",
+    });
+    const uri = await ensureVdoc(untitled, langKey(untitled), "secret = 1\n");
+    assert.ok(uri, "precondition: an untitled document must still get a vdoc");
+    try {
+      const parsed = tempVdocDirParse(path.basename(path.dirname(uri.fsPath)));
+
+      assert.ok(
+        parsed,
+        `the fallback temp directory's name must be parseable by our own sweep; got ` +
+          `${path.basename(path.dirname(uri.fsPath))}. An unparseable name means the sweep ` +
+          `silently reclaims NOTHING, forever (🐉2).`,
+      );
+      assert.strictEqual(
+        parsed.host,
+        ourHost(),
+        "the directory must carry THIS machine's host tag, or G0 skips our own leftovers forever",
+      );
+      assert.strictEqual(
+        parsed.pid,
+        process.pid,
+        "the directory must carry the creating ext host's pid — it is the liveness key the " +
+          "next activation asks kill(pid,0) about",
+      );
+    } finally {
+      await disposeAllVdocs();
+    }
+  });
+
+  it("reclaims the directory of a dead host bearing our tag", () =>
+    withTempFixture(async (root, pids) => {
+      // The capability itself: a crashed session's stranded source is gone after the next
+      // activation. This is the whole point of Phase 1.
+      const dead = await mk(root, ourHost(), pids.dead);
+      await seedVdoc(dead);
+
+      await sweepStaleTempVdocs(root);
+
+      assert.strictEqual(
+        await dirExists(dead),
+        false,
+        "a dead session's temp vdoc directory survived the sweep — the crash leak this " +
+          "phase exists to close is still open.",
+      );
+    }));
 });

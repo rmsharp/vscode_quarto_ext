@@ -57,7 +57,10 @@ import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import * as vscode from "vscode";
 import {
+  hostDiscriminator,
   isOurVdocFileName,
+  tempVdocDirParse,
+  tempVdocDirPrefix,
   VDOC_DIR_SEGMENTS,
   vdocFileName,
   vdocInstanceId,
@@ -366,6 +369,153 @@ async function sweepFolder(folderUri: vscode.Uri): Promise<void> {
 }
 
 /**
+ * Whether the process `pid` is provably gone — guard G2 of the temp-dir reclaim, and the
+ * only thing standing between that delete loop and a live sibling window's data once the
+ * host tag (G0) has agreed.
+ *
+ * **`true` ONLY on `ESRCH`.** `kill(pid, 0)` sends no signal; it just asks the kernel about
+ * the process, and it reports three distinguishable outcomes:
+ *
+ * | outcome | meaning | verdict |
+ * |---|---|---|
+ * | no throw | alive, and signalable by us | `false` |
+ * | `EPERM` | **alive**, but owned by another user | `false` |
+ * | `ESRCH` | no such process | `true` |
+ *
+ * The `EPERM` row is the whole reason this is a named, exported function rather than three
+ * inline lines (🐉1). The natural shape — `try { kill(pid,0); alive } catch { dead }` —
+ * silently folds `EPERM` into "dead" and thereby reclaims the directory of a *live* process
+ * we merely lack permission to signal. That inverts the failure direction of the entire
+ * design, from "leak" to "delete the user's source". Measured: `kill(1, 0)` throws `EPERM`
+ * on this machine, and pid 1 is demonstrably alive.
+ *
+ * Anything unexpected also reads as alive: this function's bias is always toward leaving
+ * the directory alone. Exported so the inversion can be pinned directly, since no
+ * behavioural test through the sweep discriminates it (§8's trap box).
+ *
+ * Total; never throws.
+ */
+export function isProcessDead(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return false; // no throw: alive
+  } catch (err: unknown) {
+    return (err as NodeJS.ErrnoException | undefined)?.code === "ESRCH";
+  }
+}
+
+/**
+ * Reclaim the temp directories a CRASHED session left behind — the untitled-document
+ * counterpart of `sweepStaleVdocs`, and the only thing that ever removes them.
+ *
+ * `disposeAllVdocs` handles the clean-deactivate path, but a SIGKILL, a host teardown or a
+ * power loss never reaches it, and what is stranded is not a cache: for an untitled `.qmd`
+ * it is the user's actual cell source. Called fire-and-forget at activation, so it must
+ * never throw (C6) and must never delay startup.
+ *
+ * `dir` defaults to the real OS temp dir; tests pass a private root they created. That seam
+ * exists because the developer's `$TMPDIR` is concurrently in use by live extension hosts —
+ * a delete-loop test must never be pointed at it (plan §4.2).
+ *
+ * ## The guards, and which of them actually matter
+ *
+ * A LIVE sibling window's directory passes G1/G3/G4/G5 **by construction** — we named it, we
+ * own it, and every file inside it is one we wrote. So those four bound the blast radius
+ * against *foreign* data only, and **G0 and G2 are the entire defence** against deleting a
+ * live window's source. There is deliberately no defence in depth on the hazard that
+ * matters; saying so plainly is more useful than counting guards that cannot fire.
+ *
+ * Every guard fails toward *leave it alone*.
+ */
+export async function sweepStaleTempVdocs(dir?: vscode.Uri): Promise<void> {
+  const root = dir?.fsPath ?? os.tmpdir();
+  let names: string[];
+  try {
+    names = await nodeFs.readdir(root);
+  } catch {
+    return; // no temp dir to read — nothing to reclaim
+  }
+  const ours = hostDiscriminator(os.hostname());
+  await Promise.all(
+    names.map(async (name) => {
+      // G1 — ownership by grammar. `null` is "not ours", which means SKIP; it is never
+      // "unparseable, so reclaim it". This directory is shared with every other process
+      // on the machine, so anything we do not positively recognise is someone else's.
+      const parsed = tempVdocDirParse(name);
+      if (parsed === null) {
+        return;
+      }
+      // G0 — a PID is only meaningful inside the namespace that issued it. If this
+      // directory was stamped on another machine (an NFS home with a shared TMPDIR) or in
+      // another PID namespace (a bind-mounted /tmp), then ESRCH does not mean "dead", it
+      // means "meaningless" — and acting on it would delete LIVE data.
+      if (parsed.host !== ours) {
+        return;
+      }
+      // Our own live directory. NOTE this precedes the liveness check, which is exactly why
+      // `process.pid` cannot be used to test G2 (🐉7): it never reaches it.
+      if (parsed.pid === process.pid) {
+        return;
+      }
+      // G2 — only a provably dead owner. EPERM and every surprise read as ALIVE.
+      if (!isProcessDead(parsed.pid)) {
+        return;
+      }
+      await reclaimTempVdocDir(path.join(root, name));
+    }),
+  );
+}
+
+/** Delete our own files out of `dirPath`, then the directory — if it is really ours. */
+async function reclaimTempVdocDir(dirPath: string): Promise<void> {
+  // G3 — a real directory we own, not a symlink someone planted in a world-writable /tmp
+  // hoping we would follow it. `lstat` does not traverse, so a symlink fails isDirectory().
+  let stat;
+  try {
+    stat = await nodeFs.lstat(dirPath);
+  } catch {
+    return;
+  }
+  if (!stat.isDirectory()) {
+    return;
+  }
+  // `getuid` does not exist on Windows. Treat "cannot ask" as "do not check" rather than as
+  // a mismatch: the latter would silently disable this sweep on the ONE platform where it
+  // matters most (Windows never reaps its temp dir, so the leak there is unbounded).
+  const uid = process.getuid?.();
+  if (uid !== undefined && stat.uid !== uid) {
+    return;
+  }
+  let names: string[];
+  try {
+    names = await nodeFs.readdir(dirPath);
+  } catch {
+    return;
+  }
+  await Promise.all(
+    names.map(async (name) => {
+      // G4 — only files we wrote. A foreign file keeps the directory alive via G5 below,
+      // which is the correct outcome: we do not know what it is.
+      if (!isOurVdocFileName(name)) {
+        return;
+      }
+      try {
+        await nodeFs.unlink(path.join(dirPath, name));
+      } catch {
+        // Gone already, or not ours to remove. Either way, leave it.
+      }
+    }),
+  );
+  // G5 — NON-recursive, deliberately. It can only succeed on an empty directory, so it is
+  // structurally incapable of deleting a file G4 declined to claim.
+  try {
+    await nodeFs.rmdir(dirPath);
+  } catch {
+    // Not empty (something foreign is in there), or already gone. Not ours to force.
+  }
+}
+
+/**
  * Where `doc`'s vdocs live: `<workspaceRoot>/.quarto/vdoc-mit/` when the document
  * belongs to a workspace folder, else a private 0700 temp directory (an untitled or
  * out-of-workspace document has no workspace root to write into).
@@ -373,6 +523,11 @@ async function sweepFolder(folderUri: vscode.Uri): Promise<void> {
  * The temp directory is a fallback, never the default: writing the user's source into a
  * predictable, world-readable location would be an information disclosure, and
  * `mkdtemp` is what makes the path unpredictable and the directory private.
+ *
+ * The name carries the two facts `sweepStaleTempVdocs` needs to reclaim this directory if
+ * this session never gets to clean it up: which machine made it, and which process owned
+ * it. Without them a crash strands the user's source here permanently — `disposeAllVdocs`
+ * is the only other thing that removes it, and a SIGKILL never reaches it.
  */
 async function vdocDirFor(doc: vscode.TextDocument): Promise<vscode.Uri | undefined> {
   const folder = vscode.workspace.getWorkspaceFolder(doc.uri);
@@ -387,7 +542,12 @@ async function vdocDirFor(doc: vscode.TextDocument): Promise<vscode.Uri | undefi
   // resolved value straddles the await and races).
   if (fallbackDirPromise === undefined) {
     const attempt: Promise<vscode.Uri> = nodeFs
-      .mkdtemp(path.join(os.tmpdir(), "quarto-mit-vdoc-"))
+      .mkdtemp(
+        path.join(
+          os.tmpdir(),
+          tempVdocDirPrefix(hostDiscriminator(os.hostname()), process.pid),
+        ),
+      )
       .then((made) => vscode.Uri.file(made))
       .catch((err: unknown) => {
         // Memoise the ATTEMPT, never the FAILURE. This promise exists only so that concurrent
