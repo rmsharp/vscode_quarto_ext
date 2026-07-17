@@ -38,7 +38,7 @@ assertion failure, not a build break), then `0700` with it present. `check-types
 1); clean 43-file `.vsix`. Runtime-exercised end-to-end in a real Extension Development Host (the new test
 drives a real untitled document, a real filesystem deletion, and a real `writeFile`, then stats the real
 resulting directory mode). Files: `src/features/embedded-vdoc.ts` (`vdocDirFor`),
-`test/integration/suite/embedded-vdoc.test.ts` (new describe). Commit `HASH_PENDING`.
+`test/integration/suite/embedded-vdoc.test.ts` (new describe). Commit `f4c4009`.
 
 ### 2026-07-17 · [BL-182] Session 103 — SHIPPED Phase 1 of the OS temp-dir vdoc sweep: a crash's stranded vdocs are now reclaimed
 
