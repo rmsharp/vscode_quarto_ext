@@ -43,12 +43,23 @@
  *
  * ## Sweep safety
  *
- * `sweepStaleVdocs` deletes files inside the user's workspace, so it is bounded by
- * two independent guards, both owned by `core/embedded/vdoc-path.ts`: it only ever
- * reads our own directory (`.quarto/vdoc-mit/`, never Posit's `.quarto/vdoc/`), and
- * within it only deletes names `isOurVdocFileName` claims. It never recurses, never
- * pattern-matches across the workspace, and never deletes a file this window is
- * still using.
+ * There are TWO crash sweeps here, and they are deliberately separate functions because
+ * they run in places with very different hazards.
+ *
+ * **`sweepStaleVdocs`** deletes files inside the user's workspace, bounded by two
+ * independent guards, both owned by `core/embedded/vdoc-path.ts`: it only ever reads our
+ * own directory (`.quarto/vdoc-mit/`, never Posit's `.quarto/vdoc/`), and within it only
+ * deletes names `isOurVdocFileName` claims. It never recurses, never pattern-matches
+ * across the workspace, and never deletes a file this window is still using.
+ *
+ * **`sweepStaleTempVdocs`** reclaims what a crash strands in the OS temp dir — where an
+ * untitled document's vdocs go, and where they are the user's source rather than a cache.
+ * That directory is shared with every other process on the machine, and a second window
+ * holding its own untitled `.qmd` is ordinary, so this sweep additionally turns on a host
+ * tag (G0) and a PID-liveness check (G2). Those two are the ENTIRE defence against
+ * deleting a live window's data: a live sibling's directory passes the grammar, the
+ * ownership check and the non-recursive rmdir *by construction*, because we named it and
+ * wrote every file in it. See that function's own docstring.
  */
 
 import { promises as nodeFs } from "node:fs";
@@ -294,8 +305,11 @@ export async function disposeAllVdocs(): Promise<void> {
   // AWAIT the memo rather than testing any already-resolved value: an untitled forward can be
   // inside `mkdtemp` at this very moment, so the directory does not exist yet but is about to.
   // Testing a resolved value is exactly the shape that leaked it — see `fallbackDirPromise`'s
-  // declaration — and nothing else ever removes it: this function is spent for the session, and
-  // `sweepStaleVdocs` only ever reads workspace `.quarto/vdoc-mit/`, never the OS temp dir.
+  // declaration. This is still the only thing that removes the directory *within this session*:
+  // `sweepStaleTempVdocs` is the crash backstop and it runs at the NEXT activation, by which
+  // point this session's directory has been sitting in the OS temp dir holding the user's
+  // source the whole time. (`sweepStaleVdocs`, the workspace sweep, never reads the temp dir
+  // at all.) So the clean path still owns cleaning up after itself.
   // The window is not exotic: deactivate reaches this line after `await Promise.all(...)`, and
   // when no vdocs are registered that is a microtask, which always drains before the event loop
   // can deliver `mkdtemp`'s completion.
@@ -428,14 +442,21 @@ export function isProcessDead(pid: number): boolean {
  * Every guard fails toward *leave it alone*.
  */
 export async function sweepStaleTempVdocs(dir?: vscode.Uri): Promise<void> {
-  const root = dir?.fsPath ?? os.tmpdir();
+  // `os.tmpdir()` and `os.hostname()` are inside the try too, deliberately. Both are
+  // syscall-backed and neither is total — `hostname(3)` can fail (EPERM under some
+  // sandboxes/seccomp filters), and Node rethrows it. They look like plain property reads,
+  // which is exactly why they are easy to leave outside a guard; but this function is
+  // `void`-called from activate, so ANY throw here is an unhandled rejection during startup.
+  let root: string;
+  let ours: string;
   let names: string[];
   try {
+    root = dir?.fsPath ?? os.tmpdir();
+    ours = hostDiscriminator(os.hostname());
     names = await nodeFs.readdir(root);
   } catch {
-    return; // no temp dir to read — nothing to reclaim
+    return; // no readable temp dir, or no identity to compare against — reclaim nothing
   }
-  const ours = hostDiscriminator(os.hostname());
   await Promise.all(
     names.map(async (name) => {
       // G1 — ownership by grammar. `null` is "not ours", which means SKIP; it is never
@@ -525,9 +546,10 @@ async function reclaimTempVdocDir(dirPath: string): Promise<void> {
  * `mkdtemp` is what makes the path unpredictable and the directory private.
  *
  * The name carries the two facts `sweepStaleTempVdocs` needs to reclaim this directory if
- * this session never gets to clean it up: which machine made it, and which process owned
- * it. Without them a crash strands the user's source here permanently — `disposeAllVdocs`
- * is the only other thing that removes it, and a SIGKILL never reaches it.
+ * this session never gets to clean it up: which machine made it, and which process owned it.
+ * Without them a crash strands the user's source here until the OS clears it — which on
+ * Windows is never. `disposeAllVdocs` is the only other thing that removes it, and a SIGKILL
+ * never reaches that.
  */
 async function vdocDirFor(doc: vscode.TextDocument): Promise<vscode.Uri | undefined> {
   const folder = vscode.workspace.getWorkspaceFolder(doc.uri);

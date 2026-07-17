@@ -168,11 +168,12 @@ already installed (Pylance for Python, and so on). No language server is bundled
 — without one, cells simply keep their syntax colouring.
 
 To make that work, the extension writes a temporary *virtual document* containing just that cell's
-code, so your language server has a real file it is willing to analyse. For a document saved in your
-workspace these live in `.quarto/vdoc-mit/`; for an **untitled** document — which has no workspace
-folder to write into — they go to a private `0700` directory in your system temp folder instead. Either
-way they are deleted when the document closes, and any left behind by a crash are swept at startup.
-They are pure cache — add this to your `.gitignore`:
+code, so your language server has a real file it is willing to analyse. For a document inside your
+workspace these live in `.quarto/vdoc-mit/`; a document with no workspace folder — an untitled one, or
+a file opened on its own — has no such directory to write into, so its vdocs go to a private
+per-user directory in your system temp folder instead (`0700` on macOS and Linux). Either way they are
+deleted when the document closes, and any left behind by a crash are swept at startup. They are pure
+cache — add this to your `.gitignore`:
 
 ```gitignore
 .quarto/vdoc-mit/

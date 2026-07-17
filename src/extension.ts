@@ -78,11 +78,13 @@ export function activate(context: vscode.ExtensionContext): void {
   // own filenames — it never walks the user's tree, and it never touches Posit's
   // `.quarto/vdoc/`.
   void sweepStaleVdocs(vscode.workspace.workspaceFolders ?? []);
-  // TEMP vdocs, under the OS temp dir. This is where an UNTITLED document's vdocs go (it
-  // has no workspace root to write into), and they are not a cache — they are the user's
-  // actual cell source. Nothing else ever reclaims them: `disposeAllVdocs` covers the clean
-  // deactivate, but a SIGKILL or a power loss never reaches it, so before this call a crash
-  // stranded them permanently.
+  // TEMP vdocs, under the OS temp dir. This is where the vdocs of any document with no
+  // workspace FOLDER go — untitled documents typically, but equally a saved file opened
+  // outside every workspace folder — and they are not a cache: they are the user's actual
+  // cell source. Nothing else reclaims them: `disposeAllVdocs` covers the clean deactivate,
+  // but a SIGKILL or a power loss never reaches it. Before this call nothing ever did, so
+  // they survived until the OS itself cleared them — at reboot on macOS, after ~10 days on
+  // a typical Linux, and NEVER on Windows.
   //
   // Kept as a SEPARATE call rather than folded into the sweep above, deliberately: the two
   // loops have different guards and different hazards. This one runs in a directory shared
