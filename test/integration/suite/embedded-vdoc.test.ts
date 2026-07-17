@@ -949,4 +949,187 @@ describe("embedded vdoc: reclaiming the temp dir a crash strands (plan Phase 1)"
           "phase exists to close is still open.",
       );
     }));
+
+  it("NEVER touches a LIVE sibling window's directory (G2 — 🐉7: a FOREIGN live pid)", () =>
+    withTempFixture(async (root, pids) => {
+      // The catastrophic case, and the reason this whole design is not a prefix scan. Two
+      // windows each holding an untitled `.qmd` is entirely ORDINARY — so a sweep that
+      // deleted every `quarto-mit-vdoc-*` it found would destroy a live window's source
+      // every time a second window started.
+      //
+      // 🐉7 — THE FIXTURE IS THE TEST. `process.pid` CANNOT verify G2: the self-skip branch
+      // intercepts our own pid BEFORE the liveness check, so a `process.pid` fixture never
+      // reaches G2 and stays green with G2 DELETED. Only a live FOREIGN pid discriminates,
+      // which is why withTempFixture spawns a real long-lived child.
+      const liveDir = await mk(root, ourHost(), pids.liveForeign);
+      const file = await seedVdoc(liveDir);
+
+      await sweepStaleTempVdocs(root);
+
+      assert.strictEqual(
+        await dirExists(liveDir),
+        true,
+        "the sweep deleted a LIVE window's temp directory. G2 is the only guard against " +
+          "this (a live window's own dir passes G1/G3/G4/G5 by construction), and losing it " +
+          "means destroying the user's unsaved source in another window.",
+      );
+      assert.strictEqual(
+        await dirExists(file),
+        true,
+        "the live window's vdoc FILE must survive too, not merely its directory",
+      );
+      // The fixture must still be alive, or this test proved nothing about liveness.
+      assert.strictEqual(
+        isProcessDead(pids.liveForeign),
+        false,
+        "the live fixture process died mid-test — G2 was never actually exercised",
+      );
+    }));
+
+  it("NEVER reclaims a directory stamped on another machine (G0)", () =>
+    withTempFixture(async (root, pids) => {
+      // G0. `kill(pid,0)` answers "is this pid alive IN MY PID NAMESPACE". For a directory
+      // stamped elsewhere — a bind-mounted /tmp, or an NFS home with a shared TMPDIR — a
+      // dead-looking pid means "meaningless", not "dead", and reclaiming on it would delete
+      // LIVE data. Unusual, but real; and the tag is ~3 lines and locks at first publish.
+      const foreignHost = ourHost() === "abcdef" ? "fedcba" : "abcdef";
+      const dir = await mk(root, foreignHost, pids.dead);
+      await seedVdoc(dir);
+
+      await sweepStaleTempVdocs(root);
+
+      assert.strictEqual(
+        await dirExists(dir),
+        true,
+        "a directory bearing ANOTHER machine's host tag was reclaimed on the strength of a " +
+          "pid that means nothing in this namespace — G0 is gone, and with it the only " +
+          "reason the ESRCH check is sound at all.",
+      );
+    }));
+
+  it("NEVER touches its OWN live directory (characterisation — G2 is what enforces it)", () =>
+    withTempFixture(async (root) => {
+      // ⚠ THIS TEST DOES NOT DISCRIMINATE THE SELF-SKIP, and saying so is the point.
+      // Break-revert measured, this session: delete the `parsed.pid === process.pid` branch
+      // and this test STAYS GREEN — because G2 then reads our own pid as alive (it is) and
+      // skips the directory anyway. The self-skip is a redundant statement of intent and one
+      // saved syscall, NOT a load-bearing guard; G2 is what actually protects this case.
+      //
+      // It is kept because the plan pre-declared it (§4.1) and because it is the reason 🐉7
+      // exists: the branch sits BEFORE the liveness check, so a `process.pid` fixture is
+      // intercepted and never reaches G2 — which is why G2's own test must use a live
+      // FOREIGN pid. Read this as characterisation, not as coverage: it pins the BEHAVIOUR
+      // (our live dir survives) while G2's test pins the guard that causes it.
+      const own = await mk(root, ourHost(), process.pid);
+      await seedVdoc(own);
+
+      await sweepStaleTempVdocs(root);
+
+      assert.strictEqual(
+        await dirExists(own),
+        true,
+        "the sweep reclaimed the directory THIS host is actively writing vdocs into",
+      );
+    }));
+
+  it("claims no directory it did not name, whatever it looks like (G1)", () =>
+    withTempFixture(async (root, pids) => {
+      // G1. The temp dir is shared with every other process on the machine, so the ownership
+      // gate is the difference between a scoped reclaim and a wildcard delete in /tmp.
+      const decoys = [
+        // Posit's Quarto extension — the same purpose, and many users have both installed.
+        ".vdoc.a1b2c3d4.py",
+        // Our OWN old, PID-less grammar. These exist on real machines right now. They are
+        // deliberately NOT reclaimed: without a pid there is no way to know if the owning
+        // window is still alive, and guessing would delete live data.
+        `quarto-mit-vdoc-${pids.dead}-rzvF0U`,
+        // Our name minus the trailing dash (🐉2's shape).
+        `quarto-mit-vdoc-${ourHost()}-${pids.dead}OU5bb0`,
+        // An ordinary temp-dir neighbour.
+        "com.apple.launchd.aBcDeF",
+        "someone-elses-work",
+      ];
+      for (const name of decoys) {
+        const dir = vscode.Uri.joinPath(root, name);
+        await nodeFs.mkdir(dir.fsPath, { recursive: true });
+        await nodeFs.writeFile(vscode.Uri.joinPath(dir, "payload.txt").fsPath, "not ours\n");
+      }
+
+      await sweepStaleTempVdocs(root);
+
+      for (const name of decoys) {
+        assert.strictEqual(
+          await dirExists(vscode.Uri.joinPath(root, name)),
+          true,
+          `the sweep claimed ${name}, which it never named. In the OS temp dir that is ` +
+            `someone else's data.`,
+        );
+      }
+    }));
+
+  it("leaves a foreign FILE — and therefore its directory — alone (G4 + G5)", () =>
+    withTempFixture(async (root, pids) => {
+      // G4 and G5 together. Even inside a directory we DID name, a file we did not write is
+      // not ours to delete; and because the rmdir is non-recursive, declining the file
+      // necessarily spares the directory too. G5 is structurally incapable of forcing it.
+      const dir = await mk(root, ourHost(), pids.dead);
+      const ourFile = await seedVdoc(dir);
+      const theirs = vscode.Uri.joinPath(dir, "someones-notes.txt");
+      await nodeFs.writeFile(theirs.fsPath, "not ours\n");
+
+      await sweepStaleTempVdocs(root);
+
+      assert.strictEqual(
+        await dirExists(theirs),
+        true,
+        "the sweep deleted a foreign file that merely happened to sit in a directory we named",
+      );
+      assert.strictEqual(
+        await dirExists(dir),
+        true,
+        "the rmdir must be NON-recursive: a directory still holding something foreign must " +
+          "survive, even though its owner is dead",
+      );
+      assert.strictEqual(
+        await dirExists(ourFile),
+        false,
+        "our OWN vdoc should still have been reclaimed — the foreign file bounds the delete, " +
+          "it does not veto it",
+      );
+    }));
+
+  it("never follows a SYMLINK wearing one of our names (G3)", () =>
+    withTempFixture(async (root, pids) => {
+      // G3. On Linux `/tmp` is world-writable and shared between users, so another user can
+      // create `quarto-mit-vdoc-<ourtag>-<deadpid>-aBcDeF` as a symlink pointing at a
+      // directory of ours — and a sweeper that followed it would empty the target. `lstat`
+      // does not traverse, so a symlink simply fails `isDirectory()` and is skipped.
+      // (Largely nil on macOS, whose per-user 0700 TMPDIR no other user can write to — but
+      // this is exactly the platform difference the guard exists to not depend on.)
+      const target = vscode.Uri.joinPath(root, "target-dir");
+      await nodeFs.mkdir(target.fsPath);
+      const bait = await seedVdoc(target, "vdoc-mit.abc123.1.py");
+      const link = vscode.Uri.joinPath(root, `${tempVdocDirPrefix(ourHost(), pids.dead)}aBcDeF`);
+      await nodeFs.symlink(target.fsPath, link.fsPath);
+
+      await sweepStaleTempVdocs(root);
+
+      assert.strictEqual(
+        await dirExists(bait),
+        true,
+        "the sweep followed a symlink and deleted the file it pointed at — G3 is gone, and " +
+          "in a world-writable /tmp that is an attacker-chosen delete",
+      );
+      assert.strictEqual(
+        await dirExists(target),
+        true,
+        "the symlink's target directory must be untouched",
+      );
+    }));
+
+  it("never throws, whatever it finds (C6 — it is fire-and-forget from activate)", async () => {
+    // Activation calls this with `void`: a rejection would surface as an unhandled promise
+    // rejection during startup, and a throw would break activation for every other feature.
+    await sweepStaleTempVdocs(vscode.Uri.file(path.join(os.tmpdir(), `no-such-dir-${randomUUID()}`)));
+  });
 });
