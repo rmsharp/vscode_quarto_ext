@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S104
+date: 2026-07-17
+status: pending
+active_task: IMPLEMENTATION — Phase 2 of docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md: re-assert 0700 on the temp fallback dir after an OS/user deletion resurrects it at 0777 & ~umask. Strict TDD. Phase 3 (comment) stays a separate session (operator, S103 Q4). This is a status:pending crash breadcrumb opened at Phase 1B; Phase 3D overwrites it to status:complete.
+```
+
+```handoff
 session: S103
 date: 2026-07-17
 status: complete
