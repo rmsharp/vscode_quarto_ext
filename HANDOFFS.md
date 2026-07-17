@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S102
+date: 2026-07-16
+status: pending
+active_task: PLANNING (the deliverable is a plan document, NOT code — FM #18). The OS temp-dir vdoc sweep gap, BACKLOG:182: a crash/SIGKILL/host teardown with an untitled or out-of-workspace .qmd open strands that document's vdocs — the user's real cell source — in the OS temp dir with nothing to ever reclaim them. Code premise VERIFIED FIRSTHAND at Phase 0 (extension.ts:73 passes only workspaceFolders; sweepFolder reads only <folder>/.quarto/vdoc-mit/; os.tmpdir() has exactly one executable site at embedded-vdoc.ts:390; sweepStaleVdocs has exactly one call site; the module's own comment at :295 concedes it). Two Phase 0 corrections to the filed item, both measured: (1) the filed "56 leaked dirs" headline measures ZERO today — the code defect stands but the severity framing was a developer-machine artifact, not a user rate; (2) the item's proposed fix walks into an unfiled deletion trap — reusing the workspace sweep's INSTANCE_ID skip inverts for the temp dir, where two windows each holding an untitled .qmd is ordinary, so a naive prefix scan deletes other live windows' in-use vdocs. Real deletion path ⇒ plan, not reflex fix. Following ARCHITECTURE_WORKSTREAM.md. Operator picked via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S101
 date: 2026-07-16
 status: complete
