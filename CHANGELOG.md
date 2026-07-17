@@ -7,6 +7,42 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-17 · [BL-182] Session 103 — SHIPPED Phase 1 of the OS temp-dir vdoc sweep: a crash's stranded vdocs are now reclaimed
+
+Implementation session. **Phase 1 of `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md`**, shipped as
+ONE operator-ratified 4-layer vertical slice with a checkpoint commit and the full verification matrix at
+every layer boundary. `BACKLOG:182` **stays open** — Phases 2 and 3 remain.
+
+**Fixed.** A crash, SIGKILL or host teardown with an untitled `.qmd` open stranded that document's vdocs
+— the user's actual cell source, not a cache — in the OS temp dir, where nothing ever reclaimed them
+(`sweepStaleVdocs` only reads `<workspace>/.quarto/vdoc-mit/`). Until the OS cleared them: at reboot on
+macOS, ~10 days on a typical Linux, **never on Windows**.
+
+**Added.** `hostDiscriminator` / `tempVdocDirPrefix` / `tempVdocDirParse` in the pure
+`core/embedded/vdoc-path.ts` (L1, `575c9a3`); `isProcessDead` + `sweepStaleTempVdocs(dir?)` in
+`features/embedded-vdoc.ts`, and `mkdtemp` now stamped `quarto-mit-vdoc-<host>-<pid>-XXXXXX` (L2,
+`c4aff29`); activation wiring + the `README.md` correction (L3, `41f8956`); the guard matrix (L4,
+`d437968`). The sweep reclaims **only** directories bearing our host tag whose owning PID is
+`ESRCH`-dead — **`EPERM` means ALIVE**, and inverting that would delete a live window's source.
+
+**Runtime-verified**, not merely built: fixtures planted in the real `$TMPDIR` and a real Extension
+Development Host activation reclaimed the dead-PID directory while G0 (foreign host), G2 (live foreign
+PID) and G4/G5 (foreign file) each spared theirs. A previous run's own leaked directory was reclaimed as
+corroboration. Every guard break-revert-proven individually.
+
+**Corrected after a 57-agent adversarial review** (`3797e2e`, `6514064`): `hostDiscriminator`'s docstring
+inverted G0's failure direction in the dangerous direction (a host-tag collision makes G0 *fail open* → a
+wrong delete; the *leak* comes from a hostname change) — the plan's §4.2 row carried the same error and is
+corrected too; `os.hostname()`/`os.tmpdir()` sat outside the try in a `void`-called function (a C6
+unhandled-rejection hole at startup); two comments this change itself made stale; a README `0700` promise
+that cannot hold on Windows; and two tests that passed without proving what they claimed.
+
+**Filed, not fixed** (both at the end of `BACKLOG.md`): `vdoc-path.ts` holds two raw NUL bytes so git and
+grep read it as **binary** — pre-existing, and it silently defeats the grep-based inventory this project's
+planning sessions depend on; and the 🐉1 EPERM discriminator cannot run as root or on Windows.
+
+**Verification:** `check-types` clean, **832 unit** (+4), **331 integration** (+10), clean 43-file `.vsix`.
+
 ### 2026-07-16 · [ad hoc] Session 102 — PLANNED the OS temp-dir vdoc sweep (`BACKLOG:182`); the item's severity and its filed fix both CORRECTED on measured grounds
 
 Planning session. **No `src/` or `test/` change** (verified by checksum — the deliverable is the plan;

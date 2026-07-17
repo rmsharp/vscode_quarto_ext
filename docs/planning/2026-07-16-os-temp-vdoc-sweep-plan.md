@@ -430,7 +430,7 @@ precondition from a claim the plan makes about deleting the user's data.
 
 | Function | Input | Output | Error | Notes |
 |---|---|---|---|---|
-| `hostDiscriminator(hostname: string)` | `os.hostname()` | 6 lowercase hex chars | total; never throws | A non-cryptographic hash. **Not** a security control — a scope tag (G0). Collisions cost only a missed reclaim (leak) |
+| `hostDiscriminator(hostname: string)` | `os.hostname()` | 6 lowercase hex chars | total; never throws | A non-cryptographic hash. **Not** a security control — a scope tag (G0). ⚠ **CORRECTED S103: this row said "Collisions cost only a missed reclaim (leak)" and that is BACKWARDS** — a collision makes G0 *fail open* (`parsed.host === ours` passes for another machine's dir), so it costs a **wrong delete**, not a leak; the *leak* comes from a hostname CHANGE. Measured: `node7582.cluster.local` and `node8137.cluster.local` both → `477c36`; ~3% at 1000 hosts. Only reachable when two machines share one `$TMPDIR`, which is why 24 bits is still accepted — but the cost is not zero. §4.1 already stated this correctly; the table did not |
 | `tempVdocDirPrefix(host: string, pid: number)` | host tag + PID | `` `quarto-mit-vdoc-${host}-${pid}-` `` | total; never throws | **The trailing `-` is load-bearing** (§3.3). This is the string handed to `mkdtemp` |
 | `tempVdocDirParse(name: string)` | a directory basename | `{host, pid} \| null` | total; never throws | `null` for anything not matching the anchored grammar — **a non-match is NOT-OURS (skip), never a parse failure to reclaim** |
 
@@ -606,14 +606,32 @@ not reaching the path.
 
 ### Phase 3 — correct the record (the §3.5 refutation)
 
-Correct `embedded-vdoc.ts:333-337`'s false "self-healing" mechanism to what was measured: *the model
-outlives the file, so a cross-window delete cannot break an active forward.* Also correct `:295`, which
-says the temp dir is swept by nothing — Phase 1 makes that sentence false. Comment-only; no logic
-change (C5's TDD gate does not apply to a comment, but nothing else may ride along).
+> **⚠ RE-PINNED after Phase 1 shipped (Session 103).** Every line number below was written against the
+> pre-Phase-1 file and Phase 1 moved all of them — the old `:445-448` now lands *inside code Phase 1
+> added*. The citations here are re-verified by grep as of `6514064`. **Re-grep before trusting them
+> again:** this is the second time this plan's line numbers have rotted, and `grep -rn` **cannot see
+> `vdoc-path.ts` at all** (it holds two raw NUL bytes, so git and grep read it as binary — use
+> `grep -a`; filed at the end of `BACKLOG.md`).
+>
+> **Phase 3's scope SHRANK.** The `:295` half is **already done**: Session 103 rewrote that comment in
+> the same change that falsified it, because a change should not leave its own claims stale. What
+> remains is the `self-healing` comment alone.
 
-**What DONE looks like:** `embedded-vdoc.ts:333-337` states the measured mechanism (the model outlives
-the file) rather than the refuted one (the model dies with the file); `:295` no longer claims the temp
-dir is unswept; `grep -rn "self-healing" src/` surfaces no remaining instance of the false claim.
+Correct the false "self-healing" mechanism at **`embedded-vdoc.ts:348-354`** (was `:333-337`, inside
+`sweepStaleVdocs`'s docstring) to what was measured: *the model outlives the file, so a cross-window
+delete cannot break an active forward.* Comment-only; no logic change (C5's TDD gate does not apply to
+a comment, but nothing else may ride along).
+
+Supporting locations, re-verified: `isModelOpen()` is at **`:627-630`** (was `:445-448`); the reuse
+branch that returns a URI whose file may be gone is at **`:190-199`** (was `:178-185`) and carries a
+*second* instance of the same false word — `grep -ran "self-healing" src/` currently returns **two**
+hits (`:196` and `:352`), not one. Phase 3 must fix both.
+
+**What DONE looks like:** `embedded-vdoc.ts:348-354` states the measured mechanism (the model outlives
+the file) rather than the refuted one (the model dies with the file); `grep -ran "self-healing" src/`
+surfaces no remaining instance of the false claim. **Use `-ran`, not `-an`:** without `-r` the command
+exits 0 having searched nothing, which reads exactly like success (verified — this plan's own author
+made that mistake while writing this line). The `-a` is for `vdoc-path.ts`, which plain grep cannot read.
 
 **Verification commands:**
 ```bash
