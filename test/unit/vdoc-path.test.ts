@@ -122,7 +122,14 @@ describe("vdoc-path: the temp-dir grammar (the crash-reclaim boundary)", () => {
     // positively recognise is someone else's data.
     for (const foreign of [
       "quarto-mit-vdoc-2954b2-93497OU5bb0", // 🐉2: our own name, minus the trailing dash
-      "quarto-mit-vdoc-14933-rzvF0U", // the PID-less shape we write TODAY
+      // The REAL legacy shape: `mkdtemp(tmpdir + "quarto-mit-vdoc-")` -> prefix + 6 random
+      // chars, no host tag and no pid. Verified against actual directories still sitting in
+      // this machine's $TMPDIR (quarto-mit-vdoc-BLjvTa, -crPIgP, -NZ9UpT, ...). These are
+      // deliberately NOT reclaimable: with no pid there is no way to know whether the window
+      // that made one is still alive, and guessing would delete live data. They leak, and
+      // that is the correct trade — nothing has ever shipped, so they exist only on dev boxes.
+      "quarto-mit-vdoc-BLjvTa",
+      "quarto-mit-vdoc-14933-rzvF0U", // a plausible-but-fabricated shape no version ever wrote
       "quarto-mit-vdoc-ZZZZZZ-1-abcdef", // host tag not hex
       "quarto-mit-vdoc-2954b2-abc-abcdef", // pid not numeric
       "quarto-mit-vdoc-2954b2--abcdef", // empty pid

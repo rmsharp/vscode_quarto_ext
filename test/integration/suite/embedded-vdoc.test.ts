@@ -873,19 +873,35 @@ describe("embedded vdoc: reclaiming the temp dir a crash strands (plan Phase 1)"
     }
   }
 
-  it("reads EPERM as ALIVE, not dead (🐉1 — the one assertion that discriminates)", () => {
+  it("reads EPERM as ALIVE, not dead (🐉1 — the one assertion that discriminates)", function () {
     // 🐉1, and this single row is why the test exists. The natural implementation —
     //     try { process.kill(pid, 0); return false } catch { return true }
     // — passes EVERY other case in this suite and is CATASTROPHICALLY wrong: it reads a
     // live process we merely lack permission to signal as dead, and reclaims its directory.
     //
-    // Measured firsthand on this machine, not inherited from the plan:
-    //   kill(1, 0)            -> EPERM   (launchd: demonstrably alive)
-    //   kill(process.pid, 0)  -> no throw (alive)
-    //   kill(<reaped child>)  -> ESRCH   (genuinely dead)
-    //
-    // pid 1 is the ideal fixture: it always exists, is never ours, and is never signalable
-    // by a non-root user — so EPERM is guaranteed rather than incidental.
+    // ⚠ THE PRECONDITION IS ASSERTED, NOT ASSUMED, and that is the whole design of this test.
+    // Its discriminating power rests ENTIRELY on kill(1,0) actually throwing EPERM here. If it
+    // does not — running as root, where the signal is permitted and nothing throws — then the
+    // shipped and the naive implementations BOTH return false and this assertion passes while
+    // proving nothing (measured this session: at uid 0 they are identical). Silently degrading
+    // into a tautology is exactly the failure this project keeps rediscovering (Learning #109),
+    // so the premise is probed first and the test SKIPS loudly rather than passing vacuously.
+    // The same probe covers Windows, which has no pid 1 at all (PIDs come in multiples of 4).
+    let outcome: string;
+    try {
+      process.kill(1, 0);
+      outcome = "NO_THROW";
+    } catch (err: unknown) {
+      outcome = (err as NodeJS.ErrnoException).code ?? "UNKNOWN";
+    }
+    if (outcome !== "EPERM") {
+      // Not a pass. "We could not run the discriminator here" — say so out loud.
+      this.skip();
+      return;
+    }
+
+    // Only now is the assertion meaningful: pid 1 is alive AND unsignalable by us, so the
+    // shipped impl must say "alive" where the naive one says "dead".
     assert.strictEqual(
       isProcessDead(1),
       false,
@@ -1039,10 +1055,14 @@ describe("embedded vdoc: reclaiming the temp dir a crash strands (plan Phase 1)"
       const decoys = [
         // Posit's Quarto extension — the same purpose, and many users have both installed.
         ".vdoc.a1b2c3d4.py",
-        // Our OWN old, PID-less grammar. These exist on real machines right now. They are
-        // deliberately NOT reclaimed: without a pid there is no way to know if the owning
-        // window is still alive, and guessing would delete live data.
-        `quarto-mit-vdoc-${pids.dead}-rzvF0U`,
+        // Our OWN old grammar, in its REAL shape: `mkdtemp(tmpdir + "quarto-mit-vdoc-")`
+        // produced the prefix plus 6 random chars, with no host tag and no pid. Directories
+        // of exactly this shape are sitting in this machine's $TMPDIR right now. They are
+        // deliberately NOT reclaimed: with no pid there is nothing to ask kill(pid,0) about,
+        // so the owning window's liveness is unknowable and guessing would delete live data.
+        // They leak forever, which is the right trade — no released version ever wrote them,
+        // so the population is developer-only.
+        "quarto-mit-vdoc-BLjvTa",
         // Our name minus the trailing dash (🐉2's shape).
         `quarto-mit-vdoc-${ourHost()}-${pids.dead}OU5bb0`,
         // An ordinary temp-dir neighbour.
