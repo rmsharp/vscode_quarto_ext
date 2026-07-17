@@ -48,6 +48,14 @@ untitled documents — Phase 1 pays that debt off rather than creating one.
 Learning #113 recorded: a claim inherited from your own subagent is still inherited — the plan's first
 draft carried a dragon labelled "Measured" that was a probe's prose gloss, refuted by its own review.
 
+### 2026-07-16 · [ad hoc] Session 102 — recorded the health-dashboard snapshot
+
+`dashboard_history.jsonl` — the append from Phase 0 step 5's mandated `methodology_dashboard.py` run
+(health 78/100; the single "critical" risk flag is the known dev-only `npm audit` posture accepted in
+Session 13 — `dependencies: {}`, so nothing ships). Logged as its own action rather than folded into
+the close-out commit above: it is a separate commit, and "too small to log" is failure mode #27, not an
+exception.
+
 ### 2026-07-16 · [ad hoc] Session 101 — FIXED the `fallbackDirPromise` memo lifecycle: `BACKLOG:102` CLOSED and `BACKLOG:121` leg (b) FIXED (one code surface)
 
 Fixed both filed defects in `src/features/embedded-vdoc.ts`'s untitled-document fallback state — they are the same
