@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  hostDiscriminator,
   isOurVdocFileName,
+  tempVdocDirParse,
+  tempVdocDirPrefix,
   VDOC_DIR_SEGMENTS,
   vdocFileName,
   vdocInstanceId,
@@ -65,6 +68,74 @@ describe("vdoc-path: ownership and the sweep boundary", () => {
     expect(vdocInstanceId(vdocFileName("w9x8y7", 3, "r"))).toBe("w9x8y7");
     expect(vdocInstanceId(".vdoc.a1b2.py")).toBeNull();
     expect(vdocInstanceId("analysis.py")).toBeNull();
+  });
+});
+
+/**
+ * The temp-dir grammar (plan `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md` §4.2).
+ *
+ * These names bound a DELETE loop that runs in the OS temp dir — a directory shared with
+ * every other process on the machine, unlike the workspace sweep's private
+ * `.quarto/vdoc-mit/`. The host tag and the PID are not decoration: they are the only two
+ * guards (G0/G2) standing between the sweep and a LIVE sibling window's data, because a
+ * live window's own directory passes every other guard by construction (§4.3).
+ */
+describe("vdoc-path: the temp-dir grammar (the crash-reclaim boundary)", () => {
+  it("derives a 6-char lowercase-hex host tag, stable for one hostname", () => {
+    const tag = hostDiscriminator("some-laptop.local");
+
+    // 6 lowercase hex chars is what the anchored grammar accepts (`[0-9a-f]{6}`); any
+    // other shape makes a directory this host writes unparseable to its own sweep.
+    expect(tag).toMatch(/^[0-9a-f]{6}$/);
+    // Stable: the tag is re-derived at every activation and must match what a PREVIOUS
+    // session stamped, or the sweep skips its own leftovers forever (G0 fails to leak).
+    expect(hostDiscriminator("some-laptop.local")).toBe(tag);
+  });
+
+  it("builds the mkdtemp prefix with its trailing dash (🐉2 — an EXACT-string pin)", () => {
+    // 🐉2, and the assertion shape is the point. `mkdtemp` appends its 6 random chars
+    // with NO separator of its own — measured firsthand this session:
+    //   prefix "quarto-mit-vdoc-2954b2-93497-"  ->  quarto-mit-vdoc-2954b2-93497-liatFS   ✓ parses
+    //   prefix "quarto-mit-vdoc-2954b2-93497"   ->  quarto-mit-vdoc-2954b2-93497OU5bb0    ✗ matches NOTHING
+    // So dropping the dash makes every directory we create unparseable to our own sweep:
+    // a TOTAL, SILENT leak — in the safe direction, which is exactly why no behavioural
+    // test would ever catch it. Only an exact-string assertion discriminates this; a
+    // `toMatch`/round-trip assertion passes happily with the dash gone.
+    expect(tempVdocDirPrefix("2954b2", 93497)).toBe("quarto-mit-vdoc-2954b2-93497-");
+  });
+
+  it("round-trips the host and pid off a REAL mkdtemp name", () => {
+    // Not a hand-written string: this is verbatim output from `mkdtemp` on this machine
+    // (probed firsthand this session), so the grammar is pinned against what the syscall
+    // actually produces rather than against what we imagine it produces.
+    expect(tempVdocDirParse("quarto-mit-vdoc-2954b2-93497-liatFS")).toEqual({
+      host: "2954b2",
+      pid: 93497,
+    });
+    // `pid` must be a NUMBER — it is handed straight to `kill(pid, 0)`.
+    expect(tempVdocDirParse("quarto-mit-vdoc-2954b2-93497-liatFS")?.pid).toBe(93497);
+  });
+
+  it("claims nothing it did not name — null is SKIP, never 'reclaim it anyway'", () => {
+    // Guard G1, and the stakes are higher here than for the workspace sweep: this loop
+    // runs in the OS temp dir, next to every other process's files. A name we do not
+    // positively recognise is someone else's data.
+    for (const foreign of [
+      "quarto-mit-vdoc-2954b2-93497OU5bb0", // 🐉2: our own name, minus the trailing dash
+      "quarto-mit-vdoc-14933-rzvF0U", // the PID-less shape we write TODAY
+      "quarto-mit-vdoc-ZZZZZZ-1-abcdef", // host tag not hex
+      "quarto-mit-vdoc-2954b2-abc-abcdef", // pid not numeric
+      "quarto-mit-vdoc-2954b2--abcdef", // empty pid
+      "quarto-mit-vdoc-2954b2-1-abcdef/../../etc", // traversal, trailing
+      "../quarto-mit-vdoc-2954b2-1-abcdef", // traversal, leading
+      "quarto-mit-vdoc-2954b2-1-abcdefg", // 7 suffix chars, not 6
+      "pre-quarto-mit-vdoc-2954b2-1-abcdef", // our shape, not at the start
+      ".vdoc.a1b2c3d4.py", // Posit's
+      "com.apple.launchd.aBcDeF", // an ordinary temp-dir neighbour
+      "", // degenerate
+    ]) {
+      expect(tempVdocDirParse(foreign), `must not claim ${foreign}`).toBeNull();
+    }
   });
 });
 
