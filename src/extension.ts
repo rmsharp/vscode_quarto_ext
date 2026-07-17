@@ -12,7 +12,11 @@ import { registerClearCacheFeature } from "./features/clear-cache";
 import { registerConvertNotebookFeature } from "./features/convert-notebook";
 import { registerCreateProjectFeature } from "./features/create-project";
 import { registerDiagramPreviewFeature } from "./features/diagram-preview";
-import { disposeAllVdocs, sweepStaleVdocs } from "./features/embedded-vdoc";
+import {
+  disposeAllVdocs,
+  sweepStaleTempVdocs,
+  sweepStaleVdocs,
+} from "./features/embedded-vdoc";
 import { registerEmbeddedLanguageFeature } from "./providers/embedded";
 import { registerExecutionFeature } from "./features/execution";
 import { registerFormatCellFeature } from "./features/format-cell";
@@ -65,12 +69,26 @@ export function activate(context: vscode.ExtensionContext): void {
   registerQuartoYamlDocumentLinksFeature(context);
   registerFilepathCompletionFeature(context);
 
-  // Embedded-language virtual documents are real files under `.quarto/vdoc-mit/`, so a
-  // host that crashed (or was killed) leaves some behind. Clean them at startup. Scoped
-  // to our own directory and our own filenames — it never walks the user's tree, and it
-  // never touches Posit's `.quarto/vdoc/`. Fire-and-forget: a failed sweep must not
-  // delay or block activation.
+  // Embedded-language virtual documents are real files, so a host that crashed (or was
+  // killed) leaves some behind. Clean both places they can live, at startup.
+  //
+  // Fire-and-forget: a failed sweep must not delay or block activation.
+  //
+  // WORKSPACE vdocs, under `<root>/.quarto/vdoc-mit/`. Scoped to our own directory and our
+  // own filenames — it never walks the user's tree, and it never touches Posit's
+  // `.quarto/vdoc/`.
   void sweepStaleVdocs(vscode.workspace.workspaceFolders ?? []);
+  // TEMP vdocs, under the OS temp dir. This is where an UNTITLED document's vdocs go (it
+  // has no workspace root to write into), and they are not a cache — they are the user's
+  // actual cell source. Nothing else ever reclaims them: `disposeAllVdocs` covers the clean
+  // deactivate, but a SIGKILL or a power loss never reaches it, so before this call a crash
+  // stranded them permanently.
+  //
+  // Kept as a SEPARATE call rather than folded into the sweep above, deliberately: the two
+  // loops have different guards and different hazards. This one runs in a directory shared
+  // with every other process on the machine, so it turns on a host tag and a PID-liveness
+  // check that the workspace sweep has no need of. Merging them would hide that.
+  void sweepStaleTempVdocs();
 }
 
 /**
