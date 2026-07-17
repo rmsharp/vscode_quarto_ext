@@ -7,8 +7,13 @@
 ## ACTIVE TASK
 **Task:** **Session 102 — PLANNING: the OS temp-dir vdoc sweep gap (`BACKLOG.md:182`). The deliverable is ONE PLAN DOCUMENT in `docs/planning/`, NOT code (FM #18 — the plan↔implementation boundary is never collapsible).** A crash / SIGKILL / host teardown with an untitled (or out-of-workspace) `.qmd` open strands that document's vdocs — the user's real cell source — in the OS temp dir with nothing to ever reclaim them. **Code premise VERIFIED FIRSTHAND at Phase 0, not inherited:** `src/extension.ts:73` passes only `vscode.workspace.workspaceFolders ?? []`; `sweepFolder` (`src/features/embedded-vdoc.ts:345-346`) only ever reads `<folder>/.quarto/vdoc-mit/` (`VDOC_DIR_SEGMENTS`); `os.tmpdir()` has exactly ONE executable site (`embedded-vdoc.ts:390`, the `mkdtemp`), every other hit being a comment; `sweepStaleVdocs` has exactly ONE call site. The module's own comment at `:295` concedes it. **TWO Phase 0 corrections to the filed item, both measured:** (1) 🔑 **the filed headline evidence NO LONGER REPRODUCES** — "56 `quarto-mit-vdoc-*` dirs with 2–11 real vdoc files each" measures **ZERO** today across `$TMPDIR`, `/tmp`, and `/var/folders` (not a sandbox artifact: node's own `os.tmpdir()` resolves to the same path, which holds 328 other entries; S101's own notes recorded ~14 remaining at its close). The code defect is untouched by this — only the *severity framing* is: "~1 leaked dir per integration run" is a developer-machine artifact (the test host is SIGKILLed every run), NOT a user's rate, and macOS reaps `/var/folders` so "forever" holds on Windows/Linux, not here. (2) 🔑 **an unfiled design trap the item's proposed fix walks into** — it says to reuse the workspace sweep's two guards + `INSTANCE_ID` skip, but that reasoning INVERTS for the temp dir: the workspace sweep excuses collateral damage because two windows on one workspace root is rare (`embedded-vdoc.ts:333-337`), whereas two windows each holding an untitled `.qmd` is entirely ORDINARY — so a naive prefix scan of `os.tmpdir()` means a newly-activating window DELETES every other live window's in-use vdocs. **This is a real deletion path**, which is exactly why it gets a plan and not a reflex fix. Plan must carry: a grep-based evidence inventory (MANDATORY — deletion/migration shape), per-phase completion criteria + verification commands, explicit session boundaries, and "here be dragons" flags (Learning #3). Following `docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md`. Operator picked this via `AskUserQuestion` at Phase 0 (Active empty), from my ranked candidate list. (IN PROGRESS)
 **Started:** 2026-07-16
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Status:** **DONE. The plan is written and committed, `BACKLOG:182` is corrected in place and points at it, and `src/`/`test/` are BYTE-IDENTICAL to session start** (checksum `c2a7c11f…`, verified at open and close — no FM #18 bleed). The code defect is **CONFIRMED and airtight**, re-verified firsthand rather than inherited. **Three of the item's filed claims are corrected on measured grounds** — (1) its "56 dirs with 2–11 real vdoc files" headline measures **ZERO** today and its "~1 per integration run" is a developer-machine artifact, not a user rate; (2) its security clause "0644 inside a 0700 dir" is **REFUTED** (`writeFile` with no mode is `0666 & ~umask` — measured 0666 at umask 000), so the bound is the **directory alone** ⇒ **disk-hygiene, NOT cross-user disclosure**; (3) its proposed fix would **delete a LIVE sibling window's dir**, which VS Code then silently resurrects at **0755** — a hygiene fix causing the exact disclosure `:373-375` exists to prevent. **Recommendation:** host-tag + PID-stamped `mkdtemp`, reclaiming only `ESRCH`-dead PIDs bearing our host tag (**`EPERM` = ALIVE**); `globalStorageUri` **rejected** (rare collisions → always, + profile fragmentation). Grammar **executed** against a real `mkdtemp`, not merely specified. **⏰ The single most important finding: the grammar LOCKS AT FIRST PUBLISH and the extension has NEVER shipped** (v0.0.1, `preview:true`, 0 tags) — land Phase 1 before `vsce publish` or the design is frozen wrong forever. **My own first draft had three claims refuted by its own 45-agent review before commit** — including a dragon I labelled "Measured" that was a probe's prose gloss (Learning #113). Bounds: `check-types` clean, 828 unit green; no src change ⇒ no further matrix; Linux/Windows **sourced, not measured**.
+**Ledger:** `CHANGELOG: 2026-07-16 · [ad hoc] (Session 102 — PLANNED the OS temp-dir vdoc sweep; BACKLOG:182's severity and filed fix both corrected)` entry written.
+**What was done (commits):** 1B claim `272dfba`. Plan + records in the single close-out commit: `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md` (new), `BACKLOG.md` (`:182` rewritten IN PLACE to preserve 30 line-number citations; the `:333-337`/180s item appended at the END, 182→183 lines), `CHANGELOG.md`, `PROJECT_LEARNINGS.md` #113, `HANDOFFS.md`, and this file. **No `src/` or `test/` change.**
+**What's next:** **Phase 1 of the plan — but ANSWER §9 Q1 FIRST** (one 4-layer vertical slice, my recommendation, vs two sessions; it gates the session's shape, and the honest disanalogy with the S45/S47 precedent is that those were delete-free). Q3 (worth doing at all — "do nothing" is genuinely tenable) and Q4 also open. **⏰ TIME-SENSITIVE:** the grammar locks at first publish; if a Marketplace listing is near, this LOW-priority item **jumps the queue**. Otherwise unchanged: `BACKLOG:103` (after-dispatch deactivate — confirmed, an adversarial verifier could not refute it; one TDD session, no plan) and `BACKLOG:121` leg (a) (tidiness). `BACKLOG:64` item 17 — **split the 4-way bundle first**; then (c) is one session, and (b) Reticulate ranks above (a) (silent misroute vs cosmetic).
+**Key files (this session):** `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md` — read **§9** (3 operator questions), **§11** (8 dragons), **§13** (a per-claim trust table: measured vs byte-traced vs sourced vs inherited — trust it over any sentence's tone). Unchanged production it plans against: `src/extension.ts:73`, `src/features/embedded-vdoc.ts:390`/`:345-346`/`:295`/`:333-337`/`:373-375`/`:147`, `src/core/embedded/vdoc-path.ts:69-72`, `test/unit/vdoc-path.test.ts:52-53`/`:61`, `README.md:170-173` (**already promises the swept behaviour — false today**).
+**Gotchas for the next session:** (1) 🔑 **`process.pid` CANNOT test G2** — the self-skip branch intercepts it first, so the obvious fixture stays green with G2 deleted (🐉7, Learning #109's shape). Use a live FOREIGN pid. (2) 🔑 **`EPERM` = ALIVE** (🐉1) — `catch { dead }` inverts the failure direction; the §8 `EPERM` row is its only discriminator. (3) 🔑 **Read 🐉2 as written, not as remembered** — my first draft's "parses as PID 548278" was FALSE; the real failure is a silent, total, safe-direction leak (Learning #113). (4) **NEVER delegate a tree-mutating experiment** (#112) — held across 63 agents this session via read-only remits + scratchpad probes + checksums before triage. (5) **`BACKLOG:NNN` is a LINE NUMBER, 30 citations deep** — rewrite in place, append at the END. (6) **The integration suite manufactures this bug** (🐉5) — steady state after a run is **1 dir, not 0**; an earlier draft's "trend to 0" was wrong. (7) ~1 leftover `quarto-mit-vdoc-*` dir sits in `$TMPDIR` now (this session's own probe, 0700, empty) — safe to `rm -rf`.
+**Scope held (1 and done):** ONE deliverable — the plan. Did **NOT** implement any of it (FM #18 — the plan↔implementation boundary is never collapsible). Did **NOT** fix the `:333-337` comment I proved false (filed + scheduled as Phase 3 instead) despite it being a one-line edit I had the evidence for — that is the "while I'm at it" trap. Did **NOT** fix the README's false promise, the 0755 resurrection (Phase 2), or the newly-found ~180s model-eviction churn (filed, unmeasured `_cleanup()` interaction). Did **NOT** retire the `BACKLOG:NNN` scheme, and did **NOT** touch `BACKLOG:103`/`:121a`/`:64`.
 
 ## Session 101 ACTIVE TASK (superseded by Session 102 — full entry preserved below)
 **Task:** **Session 101 — IMPLEMENTATION: the `fallbackDirPromise` memo lifecycle — `BACKLOG.md:102` + `BACKLOG.md:121` leg (b), which are ONE code surface, not two areas.** Both bugs live in the same ~6 lines of `src/features/embedded-vdoc.ts`: the `if (fallbackDir !== undefined)` block (~:272-275) and the memo creation (~:347-355). **(a) `:102` — the raced deactivate.** `vdocDirFor` assigns `fallbackDir` only inside the `mkdtemp().then()` callback, so if `disposeAllVdocs` runs while `mkdtemp` is still unresolved it reads `fallbackDir === undefined` and skips BOTH its `rmdir` AND the `fallbackDir`/`fallbackDirPromise` resets — all three sit inside that one `if`. `mkdtemp` then resolves, creating a 0700 dir nothing will remove. Worse: on a re-enable WITHOUT a window reload (JS module retained), the stale `fallbackDirPromise` is reused and the next untitled forward writes the user's source into the leaked dir. Filed fix: move the resets OUT of the `if`, and have `disposeAllVdocs` observe `fallbackDirPromise` (not just `fallbackDir`). **(b) `:121b` — the latched failure.** `fallbackDirPromise` memoises the in-flight `mkdtemp` and is only ever reset in `disposeAllVdocs`, so ONE transient failure (full disk, EMFILE) is latched for the session: every later untitled forward awaits the same rejected promise and embedded features stay dead for untitled docs until reload. Filed fix: clear the memo on rejection. **Both are LOW.** **The filed premises will NOT be inherited (Learnings #107/#108/#109/#110 — four consecutive sessions found a predecessor's or a review's headline claim needed refuting, and S100's own false "two-read race" was adopted from a review and written into six files as *measured* before its own probe killed it).** First move is firsthand grounding — do these races actually occur, and does a test observe them — BEFORE any fix code; then strict TDD, RED shown before GREEN. Deliverable is ONE of: the real fix under TDD, or a documented refutation/boundary if a premise does not survive. Following `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md`. Operator picked this via `AskUserQuestion` at Phase 0 (Active empty), from MY re-slice of the four remaining vdoc-lifecycle LOWs by code surface rather than S100's split by filing session. (IN PROGRESS)
@@ -20,6 +25,39 @@
 **Key files (this session):** `src/features/embedded-vdoc.ts` — ~:190 (pre-write guard), ~:288 (`disposeAllVdocs` observes the promise), ~:378 (the `.catch` + identity guard); `fallbackDirPromise`'s declaration ~:135 now carries the "the PROMISE is the whole state — there is deliberately no resolved companion" rationale, **do not reintroduce one**. `test/integration/suite/embedded-vdoc.test.ts` — the new describe ~:590-760.
 **Gotchas for the next session:** (1) 🔑 **NEVER delegate a break-revert experiment on the working tree** (Learning #112) — verify integrity by checksum BEFORE triaging any review finding; findings computed against a corrupted tree must be discarded, not reasoned about. (2) 🔑 **A fixed "guaranteed nonexistent" path is not guaranteed** — an agent probe created `<tmp>/quarto-mit-no-such-dir-121b` (mode 755) and test 2's `mkdtemp` then SUCCEEDED, firing its precondition. The path is now a per-run `randomUUID` and is `rm -rf`'d in the `finally`. (3) 🔑 **The UNTITLED fixture and the mkdtemp GATE are both load-bearing.** A workspace doc never reaches the branch; without the gate, test 1 silently depends on `docFiles` being empty at deactivate (true today only by suite ordering) and would PASS WITHOUT EXERCISING THE BUG. (4) **`process.env.TMPDIR = <undefined>` stringifies to `"undefined"`** and permanently defeats `os.tmpdir()`'s `/tmp` default — test 2 branches to `delete`. Latent on macOS only because launchd sets TMPDIR; it would fire on Linux/CI. (5) **Do NOT sweep the historical integration counts** — 321 appears only in THIS session's records. (6) **`test:lsp` not run** — neither path involves a real server. (7) **`BACKLOG:NNN` is a LINE NUMBER, now 30 citations deep** — rewrite items IN PLACE, append new ones at the END.
 **Scope held (1 and done):** ONE deliverable — the `fallbackDirPromise` memo lifecycle. The pre-write guard is IN scope (the filed fix provably does not work without it — measured, not argued), and the `fallbackDir` deletion is cleanup of state my own change made dead. Did NOT fix `BACKLOG:103` or `:121` leg (a) (the other half of the cluster — the operator was offered them as a separate option and did not pick them), did NOT fix the newly-found OS-temp-sweep defect (filed instead — it is a real deletion path deserving a plan), did NOT retire the `BACKLOG:NNN` line-number scheme (still a real, separate cleanup, now 30 citations deep).
+
+## Session 101 Handoff Evaluation (by Session 102)
+
+**Score: 9/10.** The third consecutive 9. S101 named the right work, ranked it honestly by *shape*
+rather than by severity label, and — the thing that actually decided this session — told me its top
+candidate needed a plan rather than a fix, and said why. It was right.
+
+- **What helped, concretely:** the ranked candidate list did the whole job. It put the OS-temp item at
+  (1), explained the sizing in one clause ("it is a real deletion path and deserves a plan"), and named
+  the exact design fork I would hit (`mkdtemp` randomises the name ⇒ you need either a stable parent or
+  a prefix scan, and the scan "widens the delete loop's blast radius"). That is a handoff arguing about
+  the *right* thing. All 7 gotchas paid, but two were decisive: 🔑**(1) NEVER delegate a break-revert on
+  the working tree** — I ran three fleets totalling 63 agents and gave every one a read-only remit with
+  probes confined to a scratchpad, then checksummed the tree before triaging each batch. It came back
+  byte-identical all three times. That warning is the reason this session's findings are trustworthy at
+  all. 🔑**(7) `BACKLOG:NNN` is a LINE NUMBER, 30 citations deep** — I rewrote `:182` in place and
+  appended the new item at the END; all 30 citations verified unmoved afterward. Without that note I
+  would have inserted mid-file and rotted `:125`'s 35 refs and `:127`'s 17.
+- **What it got RIGHT that mattered most:** it labelled its own unverified clause. The `:102`
+  "worse" (re-enable-without-reload) claim is marked **UNVERIFIED** in the notes, the item, *and* the
+  receipt, with an explicit "the harm I claim is only the harm I measured." That is the fourth
+  consecutive handoff to disclose its own soft spots, and it is why I spent my grounding budget on the
+  temp-sweep design rather than on re-litigating S101's fix.
+- **The −1, and it is the same shape as the −1 S101 gave S100:** its filed evidence had already expired
+  when I read it. "56 `quarto-mit-vdoc-*` dirs, 2–11 real vdoc files each" measures **0** today — and
+  S101 *knew* the population was down to ~14 at its own close (it says so in its housekeeping note) yet
+  wrote the 56 figure into the item as the headline, present-tense, without noting it was a high-water
+  mark it had itself already cleaned. A number that decays between sessions needs a timestamp or a
+  "when measured" clause, or the next session inherits a severity that no longer exists. Nothing shipped
+  wrong from it — the *code* premise was airtight and re-verified — but it cost me a grounding lap and,
+  read carelessly, it would have oversold the item's priority to the operator.
+- **ROI:** strongly net-positive. Zero refutation tax on the deliverable's premises for the second
+  consecutive session; the corrections I made were to the *filed item*, not to S101's reading of it.
 
 ## Session 100 Handoff Evaluation (by Session 101)
 
@@ -48,6 +86,54 @@ start was in it, and its traps were real traps that would have cost me time.
   as a diagnosis, not for being wrong. (Learning #111 is exactly this, generalised.)
 - **ROI:** strongly net-positive. Zero refutation tax on the deliverable's premises — a first in this
   run. Every correction I made was to the *filed items*, not to my predecessor's reading of them.
+
+## Session 102 Self-Assessment
+
+- **The deliverable is a plan, and it stayed a plan.** `src/` and `test/` are byte-identical to session
+  start (checksum `c2a7c11f…`, verified at close). No FM #18 bleed, no "while I'm at it" fix of the
+  `:333-337` comment I proved false — it is filed and scheduled as Phase 3 instead.
+- **The best thing I did was refuse to inherit, and it paid three times.** Phase 0 alone killed the
+  item's headline evidence (56 dirs → **0**, measured across three paths, with a check that it wasn't a
+  sandbox artifact), and grounding killed two more: the `globalStorage` alternative that *sounds*
+  obviously better (it inverts the liveness risk from "rare" to "always"), and the filed fix itself,
+  which walks into a live-window delete that VS Code then silently resurrects at **0755** — a hygiene
+  fix causing the exact disclosure the code exists to prevent. None of that is visible from reading the
+  item; all of it is visible from running things.
+- **The worst thing I did is the most instructive, and it is Learning #111 committed by the author of
+  the paragraph warning about it.** My 🐉2 claimed a missing trailing dash makes `mkdtemp`'s output
+  "parse as PID 548278", labelled **Measured**. It is false. The grounding agent's *prose gloss*
+  ("reads as pid 548278") was true of its own scratch `parseInt` parser; I transcribed it into a dragon
+  about an anchored regex it was never run against. Three review lenses caught it independently and I
+  confirmed it in one node command: the name returns **NO MATCH (null)**. The real failure is the
+  opposite class — a silent, total, *safe*-direction leak. I had grounded the item's premises firsthand
+  and then failed to ground my own remedy. **The lesson generalises past #111: a claim inherited from
+  *my own subagent* is still inherited.** Now Learning #113.
+- **The review earned its keep, and I made it earn it.** 39 findings, 14 survived refutation, and I
+  re-verified every load-bearing one myself before acting — which mattered, because the fleet was wrong
+  too: its CRITICAL on PID namespaces rested on "VS Code Remote makes this routine", and its own
+  verifier disproved that (every default remote mode runs the ext host inside the remote and uses that
+  environment's `os.tmpdir()`). I adopted the guard anyway, for a reason the reviewer didn't give: §3.8
+  measures that **nothing has ever shipped**, so the grammar is free today and frozen at first publish.
+  That reframed the item from "LOW-priority hygiene, do it whenever" to "LOW-priority hygiene with a
+  hard deadline" — the most useful thing in the plan, and it came from a *refuted* finding.
+- **I verified the design instead of asserting it.** The revised grammar was executed against a real
+  `mkdtemp`: it round-trips `host=2954b2 pid=78955` and rejects the dashless form, the old grammar,
+  non-hex hosts, traversal, and Posit's names. After 🐉2 I was not going to ship a second unrun claim.
+- **Honest boundaries.** Linux and Windows are **sourced, not measured** — no box. The `writeFile`
+  0755 finding is byte-traced in the pinned bundle plus measured node semantics, with **no live EDH
+  probe**. The `isModelOpen` refutation used an **in-process** provider, not a real out-of-process LSP.
+  The "both windows hold an untitled `.qmd`" premise is **still inherited from S101 and unmeasured** —
+  I said so in §1 rather than letting a `ps` census that proves a near-tautology carry it. §3.7's macOS
+  disassembly is an **inference** supporting a measured census, and I relabelled it after the review
+  caught my §13 blanket "everything is measured or byte-traced" laundering it. No 3E runtime pass: a
+  plan changes no runtime behaviour and there is nothing to drive — this is not FM #24.
+- **Self-score: 8/10.** The plan is grounded where it matters, its recommendation survived a genuine
+  attempt to kill it, every phase has DONE criteria and verification commands, the inventory is real
+  and re-verified after my own revision renamed things, and the corrections to `:182` are on the record
+  rather than tidied away. **Not higher because I put a false claim in my own plan and labelled it
+  Measured** — the review caught it, not me, and it is the exact error this project has now recorded
+  six consecutive times. Also not higher because the plan needed ~15 corrective edits post-review,
+  which says the first draft was more confident than earned.
 
 ## Session 101 Self-Assessment
 

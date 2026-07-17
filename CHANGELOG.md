@@ -7,6 +7,47 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-16 · [ad hoc] Session 102 — PLANNED the OS temp-dir vdoc sweep (`BACKLOG:182`); the item's severity and its filed fix both CORRECTED on measured grounds
+
+Planning session. **No `src/` or `test/` change** (verified by checksum — the deliverable is the plan;
+FM #18 keeps plan and implementation in separate sessions).
+
+**Added** `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md` — a design plan for reclaiming the
+virtual documents a crash strands in the OS temp dir. The code defect is confirmed and airtight
+(re-verified firsthand): `extension.ts:73` sweeps only workspace folders, `os.tmpdir()` has exactly one
+executable site (`embedded-vdoc.ts:390`), and nothing ever reclaims the untitled-document fallback dir.
+**Recommendation:** host-tag + PID-stamped `mkdtemp` (`quarto-mit-vdoc-<h>-<pid>-XXXXXX`), reclaiming
+only `ESRCH`-dead PIDs bearing our own host tag (`EPERM` means ALIVE). Three phases, each a session,
+each with DONE criteria and verification commands. Grammar executed against a real `mkdtemp`, not
+merely specified.
+
+**Corrected `BACKLOG:182` in place** (line-number citations preserved; 30 verified unmoved) on three
+measured points: (1) its headline evidence — "56 dirs with 2–11 real vdoc files" — measures **0** today
+and was a developer-machine artifact (the test host is SIGKILLed each run), not a user's rate; (2) its
+security clause "0644 files inside a 0700 dir" is **refuted** — `writeFile` with no mode is
+`0666 & ~umask` (0666 at umask 000), so the bound is the *directory alone*, making this **disk-hygiene,
+not cross-user disclosure**; (3) its proposed fix (reuse the workspace `INSTANCE_ID` skip) would delete
+a **live** sibling window's directory, which VS Code then silently resurrects at **0755** — a hygiene
+fix causing the exact disclosure the code exists to prevent. Real bounds: macOS = reboot interval,
+Debian = 10 days, **Windows = unbounded** (the actual win). `globalStorageUri` evaluated and **rejected**
+(turns rare cross-window collisions into always; adds profile fragmentation).
+
+**Surfaced a scheduling constraint that reframes the item:** the directory grammar locks at first
+publish, and the extension has **never** shipped (v0.0.1, `preview: true`, 0 git tags, CHANGELOG all
+`[Unreleased]`) — so the design is free to get right today and frozen the moment `vsce publish` runs.
+
+**Filed (not fixed), new item at the END of "Polish / deferred":** `embedded-vdoc.ts:333-337`'s
+"self-healing" claim is **false** — `isModelOpen()` returned true for a file deleted 10s earlier
+(flipping only at an unrelated ~180s model-eviction mark); the bottom line survives for the opposite
+reason (the model *outlives* the file). Includes the new, unrelated finding that vdoc models
+self-destruct at ~180s in normal operation, with the `_cleanup()`-valve interaction unmeasured.
+
+**Also noted:** `README.md:170-173` already promises the swept behaviour and is **false today** for
+untitled documents — Phase 1 pays that debt off rather than creating one.
+
+Learning #113 recorded: a claim inherited from your own subagent is still inherited — the plan's first
+draft carried a dragon labelled "Measured" that was a probe's prose gloss, refuted by its own review.
+
 ### 2026-07-16 · [ad hoc] Session 101 — FIXED the `fallbackDirPromise` memo lifecycle: `BACKLOG:102` CLOSED and `BACKLOG:121` leg (b) FIXED (one code surface)
 
 Fixed both filed defects in `src/features/embedded-vdoc.ts`'s untitled-document fallback state — they are the same
