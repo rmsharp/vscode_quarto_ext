@@ -18,6 +18,22 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S103
+date: 2026-07-17
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: IMPLEMENTATION — Phase 1 of docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md (the temp-dir reclaim), as ONE pre-declared 4-layer vertical slice. Ship a host-tag + PID-stamped mkdtemp plus an activation sweep that reclaims ONLY dirs bearing our host tag whose owning ext host is provably ESRCH-dead. Gate (a) contract = the plan's §6 layer table: L1 pure core (hostDiscriminator/tempVdocDirPrefix/tempVdocDirParse) + unit tests; L2 embedded-vdoc.ts (vdocDirFor prefix, isProcessDead, sweepStaleTempVdocs(dir?)); L3 extension.ts:73 wiring + README.md:170-173 correction; L4 integration tests. Checkpoint commit + full verification matrix at EVERY layer boundary (gates b/c). Gate (a) re-verified at Orient and git-proven: ZERO commits touched src/ or test/ since the plan commit 434c858 and the tree is identical to it, so the contract has not drifted.
+what_was_done: pending
+next_steps: pending
+key_files: docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md (§4.2 interface contracts, §6 Phase 1 layer table, §8 verification + the 🐉7 trap box, §11 dragons). src/core/embedded/vdoc-path.ts (L1 target; mirrors NAME_RE at :72). src/features/embedded-vdoc.ts:390 (the sole os.tmpdir() executable site; L2 target), :345-346 (sweepFolder's workspace-only scope), :295 (the comment conceding the gap). src/extension.ts:73 (the sole sweep call site; L3 target). test/unit/vdoc-path.test.ts:52-53/:61. README.md:170-173 (already promises the swept behaviour — false today).
+gotchas: OPERATOR DECISIONS taken at Phase 1 (plan §9): Q1 = ONE 4-layer slice; Q3 = do it; Q4 = the Phase 3 comment fix (:333-337) stays a SEPARATE session. Q2's publish urgency is OFF — the operator reports no near-term vsce publish, so this proceeds as LOW-priority hygiene on merit, NOT against the grammar-locks-at-publish clock (which is nonetheless real: v0.0.1, preview:true, 0 tags, verified firsthand). CARRY FORWARD: (1) EPERM = ALIVE, not dead (🐉1) — `catch { dead }` inverts the failure direction. (2) process.pid CANNOT test G2 (🐉7) — the self-skip branch intercepts it first; use a live FOREIGN pid. (3) The trailing dash in the prefix is load-bearing (🐉2) — pin with an EXACT-STRING assertion, not a parse assertion. (4) The integration suite MANUFACTURES this bug (🐉5) — steady state after a run is 1 dir, not 0; scope assertions to fixtures the test created. (5) NEVER delegate a tree-mutating experiment (#112). (6) BACKLOG:NNN is a LINE NUMBER, 30 citations deep — rewrite in place, append at the END.
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending (this is the 1B claim stub)
+```
+
+```handoff
 session: S102
 date: 2026-07-16
 status: complete
