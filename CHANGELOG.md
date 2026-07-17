@@ -43,6 +43,12 @@ planning sessions depend on; and the 🐉1 EPERM discriminator cannot run as roo
 
 **Verification:** `check-types` clean, **832 unit** (+4), **331 integration** (+10), clean 43-file `.vsix`.
 
+*Commit span for this entry:* `c18eb72` (1B claim) … `86069c3` (dashboard snapshot), i.e. the whole
+session — the slice (`575c9a3`, `c4aff29`, `41f8956`, `d437968`), the review fixes (`3797e2e`,
+`6514064`), and the close-out records (`ffe3f84`, `3d430f9`, `86069c3`). *Recorded here so the next
+Phase 0 reconcile sees a frontier at HEAD rather than a spurious gap: the close-out commits are the
+mechanics of this one action, not separate unrecorded actions.*
+
 ### 2026-07-16 · [ad hoc] Session 102 — PLANNED the OS temp-dir vdoc sweep (`BACKLOG:182`); the item's severity and its filed fix both CORRECTED on measured grounds
 
 Planning session. **No `src/` or `test/` change** (verified by checksum — the deliverable is the plan;
