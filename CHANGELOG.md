@@ -7,6 +7,32 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-18 · [BL-176] Session 108 — deliberate dev-toolchain upgrade cleared all 7 `npm audit` advisories
+
+Dev-toolchain maintenance session (config; strict-TDD-exempt — no product logic, the full verification
+matrix is the correctness proof). `BACKLOG:176` closed `[x]`.
+
+**Changed.** `npm audit` went from **7 vulnerabilities (4 moderate / 2 high / 1 critical)** to **0**, the
+right way — a deliberate, separately-verified bump, *not* `npm audit fix --force` (which downgrades
+mocha to 8.1.3 for zero end-user benefit). Three edits to `package.json` (+ `package-lock.json`):
+`esbuild` `^0.24.2`→`^0.28.1` (bundler; clears the esbuild dev-server advisory); `vitest`
+`^2.1.8`→`^3.2.7` (unit runner; resolves `vite`→7.3.6, `vite-node`→3.2.4, `@vitest/mocker`→3.2.7 — all
+above their vulnerable ranges — and clears the critical vitest-UI advisory `<3.2.6`); and a new
+`overrides: { "serialize-javascript": "^7.0.7" }` (clears the `serialize-javascript` high advisory
+**and** mocha's transitive-only advisory in one pin). `mocha` kept at `^10.8.2`: even the latest mocha
+(11.7.6) still pins `serialize-javascript ^6.0.2`, so bumping mocha cannot clear it — only the override
+does — and a major mocha bump adds breaking-change risk for no audit benefit. The override is inert to
+runtime (mocha runs single-process here; `serialize-javascript` is only exercised by mocha's parallel
+reporter).
+
+**Verified (full matrix).** `check-types` clean; **834 unit** under vitest 3.2.7 (46 files, count
+unchanged — no vitest-3 breakage); **333 integration** in a real VS Code Extension Development Host that
+loads the actual esbuild-0.28.1 bundle (so the bundle is runtime-exercised, not just compiled — not FM
+#24); clean **43-file `.vsix`**; `npm audit --json` → `{moderate:0, high:0, critical:0, total:0}`. The
+standing "none of these ship" invariant re-verified four ways (empty runtime `dependencies`, no `src/`
+imports, whole-token grep of `dist/extension.js` → 0, `vsce ls` → 0 `node_modules`). `docs/SECURITY-AUDIT.md`
+updated to the cleared posture with the per-advisory resolution recorded.
+
 ### 2026-07-17 · [BL-103] Session 107 — the after-dispatch deactivate re-registration race fixed with a global `deactivated` latch
 
 Implementation session (strict TDD). `BACKLOG:103` closed `[x]`.

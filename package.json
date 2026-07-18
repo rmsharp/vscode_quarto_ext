@@ -530,12 +530,15 @@
     "@types/vscode": "^1.90.0",
     "@vscode/test-electron": "^2.4.1",
     "@vscode/vsce": "^3.2.1",
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.28.1",
     "katex": "^0.16.47",
     "mocha": "^10.8.2",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8",
+    "vitest": "^3.2.7",
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.3.2"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.7"
   }
 }
