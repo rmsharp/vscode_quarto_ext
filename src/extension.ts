@@ -26,6 +26,7 @@ import { registerFormattingFeature } from "./features/formatting";
 import { registerImagePasteFeature } from "./providers/image-paste";
 import { registerMathPreviewFeature } from "./features/math-preview";
 import { registerNewDocumentFeature } from "./features/new-document";
+import { registerNewNotebookFeature } from "./features/new-notebook";
 import { disposeAllPreviews, registerPreviewFeature } from "./features/preview";
 import { registerRenderFeature } from "./features/render";
 import { registerRenderProjectFeature } from "./features/render-project";
@@ -60,6 +61,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerRenderProjectFeature(context);
   registerClearCacheFeature(context);
   registerNewDocumentFeature(context);
+  registerNewNotebookFeature(context);
   registerCreateProjectFeature(context);
   registerConvertNotebookFeature(context);
   registerPreviewFeature(context);

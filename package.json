@@ -172,6 +172,11 @@
         "category": "Quarto"
       },
       {
+        "command": "quarto.newNotebook",
+        "title": "New Quarto Notebook",
+        "category": "Quarto"
+      },
+      {
         "command": "quarto.createProject",
         "title": "Create Project",
         "category": "Quarto"
@@ -291,6 +296,10 @@
       "file/newFile": [
         {
           "command": "quarto.fileNewDocument",
+          "group": "file"
+        },
+        {
+          "command": "quarto.newNotebook",
           "group": "file"
         }
       ],
