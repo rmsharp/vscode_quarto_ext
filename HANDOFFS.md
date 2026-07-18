@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S105
+date: 2026-07-17
+status: pending
+active_task: IMPLEMENTATION (IN PROGRESS). BACKLOG:184 -- src/core/embedded/vdoc-path.ts holds two raw NUL bytes (measured firsthand at offsets 8990/9346 -> line 180 docstring, line 185 vdocKeyString's .join), so git and grep read it as BINARY and any grep -rn inventory over src/ is silently blind to the delete-loop ownership grammar it owns (TEMP_DIR_RE/isOurVdocFileName/VDOC_DIR_SEGMENTS). Fix is byte-identical: replace the source literal NUL with a "\0" escape (same runtime byte, printable source), NOT a new printable separator. vdocKeyString is an in-memory Map key only (one call site, embedded-vdoc.ts:190) -- never persisted -- so the change is provably inert. Strict TDD, RED before GREEN.
+```
+
+```handoff
 session: S104
 date: 2026-07-17
 status: complete
