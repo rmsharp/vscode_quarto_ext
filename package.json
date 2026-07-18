@@ -162,6 +162,16 @@
         "category": "Quarto"
       },
       {
+        "command": "quarto.newPresentation",
+        "title": "New Quarto Presentation",
+        "category": "Quarto"
+      },
+      {
+        "command": "quarto.fileNewDocument",
+        "title": "New Quarto Document",
+        "category": "Quarto"
+      },
+      {
         "command": "quarto.createProject",
         "title": "Create Project",
         "category": "Quarto"
@@ -278,7 +288,17 @@
       }
     ],
     "menus": {
+      "file/newFile": [
+        {
+          "command": "quarto.fileNewDocument",
+          "group": "file"
+        }
+      ],
       "commandPalette": [
+        {
+          "command": "quarto.fileNewDocument",
+          "when": "false"
+        },
         {
           "command": "quarto.convertToIpynb",
           "when": "editorLangId == quarto"
