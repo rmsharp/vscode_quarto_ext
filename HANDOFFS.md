@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S109
+date: 2026-07-18
+status: pending
+active_task: BACKLOG GROOMING (triage; strict-TDD-exempt — pure BACKLOG.md doc edit, no product logic). SPLIT BACKLOG:64 item 17 (the 4-way "lower priority / narrower audience" bundle: (a) cell-execution background highlighting; (b) Reticulate execution pathway; (c) create-project-family discoverability; (d) notebook markdown-cell Quarto-aware renderer) into 4 individually-grabbable BACKLOG items, preserving the line-number citation scheme (rewrite item 17 in place as a 1-line pointer; append the 4 split-out items at the END of the file). Verification is citation-integrity (no cited line shifts) + line-count bookkeeping. Operator picked this via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S108
 date: 2026-07-18
 status: complete
