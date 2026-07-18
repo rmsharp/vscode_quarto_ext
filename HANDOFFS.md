@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S107
+date: 2026-07-17
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — BACKLOG:103: the deactivate epoch guard covers the mid-await race but NOT a forward dispatched ENTIRELY AFTER disposeAllVdocs runs. disposeAllEpoch bumps once per deactivate, so a forward dispatched after the bump snapshots the final value at ensureVdoc's pre-await read, both post-await re-checks compare equal, and it re-registers a vdoc holding the user's source into the just-cleared maps. Reachable because deactivate() void-calls disposeAllVdocs() and the host disposes providers afterward. Plus two prerequisite test nits (dead if-branch in the S88 doc-close test; mid-suite process-global disposeAllVdocs() coupling). NOT inheriting the handoff's unsourced "needs a per-document latch" claim — grounding the correct (likely global-signal) latch design with a RED integration test first.
+```
+
+```handoff
 session: S106
 date: 2026-07-17
 status: complete
