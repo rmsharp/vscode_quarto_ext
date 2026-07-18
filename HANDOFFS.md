@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S108
+date: 2026-07-18
+status: pending
+active_task: DEV-TOOLCHAIN UPGRADE (config, strict-TDD-exempt — no product logic; the full verification matrix is the correctness proof). BACKLOG:176 — clear all 7 npm audit advisories (4 moderate / 2 high / 1 critical, all dev-only + accepted, docs/SECURITY-AUDIT.md) the right way, NOT via `npm audit fix --force` (which downgrades mocha to 8.1.3). Bump esbuild ^0.24.2 -> 0.28.x (bundler; esbuild.js), vitest ^2.1.8 -> 3.x (unit runner; pulls patched vite/vite-node/@vitest/mocker), and resolve mocha's vulnerable serialize-javascript without the mocha-8 downgrade (bump mocha and/or an overrides pin to a patched serialize-javascript). Then re-run the FULL matrix (check-types, 834 unit, 333 integration, clean .vsix) + re-check posture with npm audit --json + update docs/SECURITY-AUDIT.md. Operator picked via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S107
 date: 2026-07-17
 status: complete
