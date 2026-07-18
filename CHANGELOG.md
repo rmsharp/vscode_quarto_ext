@@ -7,6 +7,17 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-18 · [BL-17c] Session 110 — create-document-family presets: quarto.newPresentation + quarto.fileNewDocument (BACKLOG:64 item 17c)
+
+Feature (strict TDD). The two `.qmd` presets of `BACKLOG:64` item 17c — create-document-family discoverability commands over the existing untitled-`.qmd` path (Posit parity, `POSIT-COMPARISON.md` Session 67):
+
+- **`quarto.newPresentation`** → opens an untitled `.qmd` with `format: revealjs`.
+- **`quarto.fileNewDocument`** → the File▸New File… variant of `newDocument` (untitled `.qmd`, `format: html`); contributed to `contributes.menus["file/newFile"]` and hidden from the command palette (`when:"false"`) so it doesn't duplicate `quarto.newDocument`.
+
+`buildNewDocumentContent` (`src/core/new-document.ts`) is now parameterized by a `NewDocumentFormat` union (`html`|`revealjs`, default `html` — every existing caller byte-identical); the three commands share one `newQuartoBuffer` helper. **Verification:** RED→GREEN on the core format parameterization (a genuine AssertionError, not a type error); 835 unit (834+1) / 337 integration (333+4) / clean 43-file `.vsix`; break-revert-proven the integration wiring (registration/behavior tests red when the two registrations are disabled, while the manifest-reading `file/newFile` menu test stays green — gate d). Commits `62a172d` (core) + `c76661b` (wiring).
+
+**Scope decision (operator, S110).** The third Posit command, `quarto.newNotebook`, creates an `.ipynb` — a different mechanism (notebook creation, not a text buffer) — so it was split out of 17c into new **item 17e** rather than bundled here. `BACKLOG:64` item 17c marked `[x]`; item 17e appended (`BACKLOG.md` 189 → 190 lines; item 17c rewritten in place, so no cited line shifted). Technique recorded as `PROJECT_LEARNINGS.md` #123.
+
 ### 2026-07-18 · [ad hoc] Session 109 — split BACKLOG:64 item 17 (the 4-way bundle) into individually-grabbable items 17a–17d
 
 Backlog grooming / triage (doc-only, strict-TDD-exempt — no product logic; verification is citation-integrity). `BACKLOG:64` item 17 — a "lower priority / narrower audience" bundle of four unrelated sub-features that could not be picked or estimated as one unit — was decomposed into four individually-grabbable items:
