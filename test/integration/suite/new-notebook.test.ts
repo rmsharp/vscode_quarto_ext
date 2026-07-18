@@ -1,5 +1,5 @@
 import * as assert from "node:assert";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as vscode from "vscode";
@@ -132,6 +132,60 @@ describe("Quarto: New Quarto Notebook (quarto.newNotebook)", () => {
       shown.getCells()[0].document.getText(),
       '---\ntitle: "Untitled"\nformat: html\n---',
     );
+  });
+
+  it("saves a Code + languageId 'raw' cell as a Jupyter cell_type 'raw' cell (the SAVE direction the front-matter cell relies on)", async () => {
+    // The feature's correctness at save time rests on the serialize direction:
+    // a NotebookCellData(Code, ..., "raw") must be written as cell_type "raw" so
+    // Quarto reads it as front matter. Build the exact cell shape the adapter
+    // produces, save a file-backed notebook, and read the emitted JSON.
+    const dir = mkdtempSync(path.join(os.tmpdir(), "quarto-ext-newnb-"));
+    try {
+      const ipynbPath = path.join(dir, "roundtrip.ipynb");
+      writeFileSync(ipynbPath, RAW_CELL_IPYNB); // a minimal valid, file-backed seed
+      const notebook = await vscode.workspace.openNotebookDocument(
+        vscode.Uri.file(ipynbPath),
+      );
+
+      const cells = [
+        new vscode.NotebookCellData(
+          vscode.NotebookCellKind.Code,
+          '---\ntitle: "Roundtrip"\nformat: html\n---',
+          "raw",
+        ),
+        new vscode.NotebookCellData(vscode.NotebookCellKind.Code, "", "python"),
+      ];
+      const edit = new vscode.WorkspaceEdit();
+      edit.set(notebook.uri, [
+        vscode.NotebookEdit.replaceCells(
+          new vscode.NotebookRange(0, notebook.cellCount),
+          cells,
+        ),
+      ]);
+      assert.ok(
+        await vscode.workspace.applyEdit(edit),
+        "replacing the notebook cells should succeed",
+      );
+      assert.ok(await notebook.save(), "saving the notebook should succeed");
+
+      const saved = JSON.parse(readFileSync(ipynbPath, "utf8"));
+      assert.strictEqual(
+        saved.cells[0].cell_type,
+        "raw",
+        "the front-matter cell must save as a Jupyter raw cell",
+      );
+      assert.strictEqual(
+        saved.cells[1].cell_type,
+        "code",
+        "the starter cell must save as a Jupyter code cell",
+      );
+      assert.ok(
+        (saved.cells[0].source as string[]).join("").includes('title: "Roundtrip"'),
+        "the raw cell must carry the YAML front matter as its source",
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("the built-in serializer maps a Jupyter raw cell to Code + languageId 'raw' (the mapping the front-matter cell relies on)", async () => {

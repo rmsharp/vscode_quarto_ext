@@ -20,14 +20,6 @@
 import * as vscode from "vscode";
 import { buildNewNotebookCells } from "../core/new-notebook";
 
-/** nbformat 4.5 header, matching VS Code's own `ipynb.newUntitledIpynb`. */
-const NEW_NOTEBOOK_METADATA = {
-  cells: [],
-  metadata: {},
-  nbformat: 4,
-  nbformat_minor: 5,
-};
-
 export function registerNewNotebookFeature(
   context: vscode.ExtensionContext,
 ): void {
@@ -58,7 +50,11 @@ async function newQuartoNotebook(): Promise<void> {
         ),
     ),
   );
-  data.metadata = NEW_NOTEBOOK_METADATA;
+  // Seed the nbformat 4.5 header (a fresh object per call, mirroring VS Code's
+  // own `ipynb.newUntitledIpynb`) so the notebook carries a valid header when
+  // the user later saves it. The `cells: []` here is overwritten by the real
+  // cells at serialize time — it is kept only to match the reference shape.
+  data.metadata = { cells: [], metadata: {}, nbformat: 4, nbformat_minor: 5 };
   const notebook = await vscode.workspace.openNotebookDocument(
     "jupyter-notebook",
     data,
