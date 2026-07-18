@@ -125,6 +125,16 @@
         }
       }
     ],
+    "notebookRenderer": [
+      {
+        "id": "quarto-mit.markdown-it-callout",
+        "displayName": "Quarto (MIT) Notebook Callout Renderer",
+        "entrypoint": {
+          "extends": "vscode.markdown-it-renderer",
+          "path": "./dist/notebook-renderer.js"
+        }
+      }
+    ],
     "commands": [
       {
         "command": "quarto.verifyInstallation",
