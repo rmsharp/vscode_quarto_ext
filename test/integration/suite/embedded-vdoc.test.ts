@@ -524,9 +524,17 @@ describe("embedded vdoc: a forward still in flight when the document closes", ()
       `a vdoc minted while the document was closing was stranded in the user's workspace: ` +
         `[${strays.join(", ")}]. It is a copy of their source, and nothing will ever delete it.`,
     );
-    if (uri !== undefined) {
-      assert.ok(!(await exists(uri)), "the returned vdoc must not exist on disk");
-    }
+    // The guard must DROP the forward, not hand back a live (or deleted-file) vdoc. `disposeVdocs`
+    // bumps this document's per-document epoch FIRST and unconditionally, before this forward's
+    // post-await re-check runs, so the re-check ALWAYS fires and returns undefined — assert the
+    // contract directly, exactly as the deactivate sibling below does, rather than behind an
+    // `if (uri !== undefined)` that can never run (BACKLOG:103 nit 2a — the S91 review tightened
+    // the sibling but left this copy behind).
+    assert.strictEqual(
+      uri,
+      undefined,
+      "a forward in flight when the document closes must forward nothing (return undefined), not a live vdoc",
+    );
   });
 });
 
