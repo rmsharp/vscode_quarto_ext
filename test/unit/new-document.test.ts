@@ -14,6 +14,12 @@ describe("buildNewDocumentContent", () => {
     );
   });
 
+  it("emits the given format when one is supplied (revealjs for a presentation — item 17c)", () => {
+    expect(buildNewDocumentContent("My Talk", "revealjs")).toBe(
+      '---\ntitle: "My Talk"\nformat: revealjs\n---\n\n',
+    );
+  });
+
   it("falls back to \"Untitled\" for an empty title (matches Posit's own default)", () => {
     expect(buildNewDocumentContent("")).toBe(
       '---\ntitle: "Untitled"\nformat: html\n---\n\n',
