@@ -7,6 +7,35 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-17 · [BL-184] Session 105 — de-binary-fied `core/embedded/vdoc-path.ts`: the NUL-byte key separator is now the escape `"\0"`
+
+Implementation session, strict TDD. `BACKLOG:184` closed.
+
+**Fixed.** `src/core/embedded/vdoc-path.ts` held two raw NUL bytes — `vdocKeyString`'s field
+separator (`.join("\0")`, written as a literal `0x00`) and an inline copy of it quoted in the
+docstring above. Consequences, both re-measured firsthand this session: `git diff` rendered the file
+`Bin … 0 insertions` (every change to it invisible to review), and `grep -rn` **silently skipped** it
+(exiting 0, reading like "no match") — so any grep-based evidence inventory over `src/`, which this
+project mandates for deletion-shaped work, was blind to the delete-loop ownership grammar the file
+owns (`TEMP_DIR_RE`, `isOurVdocFileName`, `VDOC_DIR_SEGMENTS`). The fix replaces the source literal NUL
+with the escape `"\0"`: the **emitted byte is unchanged** (the key is an in-memory `Map` key only —
+one call site, `embedded-vdoc.ts:190`, never persisted or cross-session — so the change is provably
+inert), but the source is now plain text. Rejected the item's own prescription to swap in a new
+printable separator: that re-prices the collision risk rather than removing it (you must then prove the
+new char cannot occur in any field value), whereas byte-identity is provable by an exact-equality test.
+The false "the separator is a space" comment in the docstring and the unit test is corrected to "NUL
+byte."
+
+**Tests.** RED→GREEN on a new `test/unit/source-hygiene.test.ts` that scans `src/**/*.ts` for any NUL
+byte — RED (flagged `vdoc-path.ts` at byte 8990) before the fix, GREEN after, and a durable regression
+guard against reintroduction anywhere in `src/`. Plus an exact-byte pin on `vdocKeyString` output
+(`… .join("\0")`, with `includes("\\0") === false`) that catches the classic `"\0"`→`"\\0"` two-char
+typo; break-revert-proven load-bearing (only that pin reddens under the typo). Full matrix: `check-types`
+clean, **834 unit** (832 + 2 new), **332 integration** (unchanged — no regression), clean 43-file `.vsix`.
+The runtime value is byte-identical by construction and by the exact pin, so there is no runtime
+behaviour change to smoke-test; the integration Extension Development Host exercised the vdoc path
+regardless and is unchanged.
+
 ### 2026-07-17 · [BL-182] Session 104 — SHIPPED Phase 2 of the OS temp-dir vdoc sweep: the fallback dir stays 0700 after a delete-underneath
 
 Implementation session, strict TDD. **Phase 2 of `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md`**.

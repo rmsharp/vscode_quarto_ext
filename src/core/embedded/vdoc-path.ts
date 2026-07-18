@@ -177,12 +177,15 @@ export function tempVdocDirParse(name: string): TempVdocDir | null {
  * live-set map. Deliberately NOT a hash: an accidental collision between two distinct
  * cells would make them evict each other's files mid-forward.
  *
- * ` ` is the separator because it cannot occur in a URI, a languageId, or an
- * extension, so no combination of field values can forge another key's string.
+ * The separator is a NUL byte, written as the escape `"\0"` in source so this file
+ * stays plain text to git and grep. (A raw NUL byte here made git and grep read the
+ * whole file as binary, defeating the mandatory grep inventory; see BACKLOG:184.) A
+ * NUL cannot occur in a URI, a languageId, or an extension, so no combination of
+ * field values can forge another key's string.
  */
 export function vdocKeyString(key: VdocKey): string {
   const cell = key.kind === "cell" ? String(key.cellStartLine ?? -1) : "";
-  return [key.docUri, key.languageId, key.ext, key.kind, cell].join(" ");
+  return [key.docUri, key.languageId, key.ext, key.kind, cell].join("\0");
 }
 
 /**

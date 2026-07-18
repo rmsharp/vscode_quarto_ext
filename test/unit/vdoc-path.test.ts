@@ -188,9 +188,26 @@ describe("vdoc-path: the key", () => {
     expect(vdocKeyString({ ...base })).toBe(vdocKeyString({ ...base }));
   });
 
-  it("cannot be forged by a docUri that embeds the separator", () => {
-    // The separator is a space, which cannot occur in a URI — so no field value can
-    // spoof another key's string. Two genuinely different keys stay different.
+  it("joins fields with a NUL byte — the exact separator, pinned against a silent refactor", () => {
+    // The separator is written as the escape `"\0"` in source (a raw NUL byte made
+    // git and grep read the whole file as binary — BACKLOG:184). This pins the
+    // RUNTIME separator to U+0000, so swapping it for any other character — or the
+    // classic `"\\0"` typo (backslash-zero, TWO chars, a real behaviour change) —
+    // turns this red instead of shipping silently.
+    expect(vdocKeyString(base)).toBe(
+      ["file:///w/a.qmd", "python", "py", "cell", "10"].join("\0"),
+    );
+    // Belt-and-braces on the two-char `\0` regression specifically: the key must
+    // contain the NUL control character, never a literal backslash-zero.
+    expect(vdocKeyString(base).includes("\0")).toBe(true);
+    expect(vdocKeyString(base).includes("\\0")).toBe(false);
+  });
+
+  it("cannot be forged by a docUri that embeds separator-like content", () => {
+    // The separator is a NUL byte — it cannot occur in a URI, a languageId, or an
+    // extension, so no field value can splice across field boundaries to spoof
+    // another key's string. A docUri stuffed with the other fields' text stays one
+    // field, so it still differs from a genuinely different key.
     expect(vdocKeyString({ ...base, docUri: "file:///w/a.qmd python py cell 10" })).not.toBe(
       vdocKeyString(base),
     );
