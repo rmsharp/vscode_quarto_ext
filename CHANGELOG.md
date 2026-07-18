@@ -36,6 +36,8 @@ The runtime value is byte-identical by construction and by the exact pin, so the
 behaviour change to smoke-test; the integration Extension Development Host exercised the vdoc path
 regardless and is unchanged.
 
+Commit `c3354c9` (deliverable: the fix + both tests + `BACKLOG:184` → `[x]`); 1B claim `63fb45b`.
+
 ### 2026-07-17 · [BL-182] Session 104 — SHIPPED Phase 2 of the OS temp-dir vdoc sweep: the fallback dir stays 0700 after a delete-underneath
 
 Implementation session, strict TDD. **Phase 2 of `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md`**.
