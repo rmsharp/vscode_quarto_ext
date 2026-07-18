@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S111
+date: 2026-07-18
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). BACKLOG.md item 17a — cell-execution code-cell background highlighting. A config-gated static vscode.TextEditorDecorationType tinting the editor background of executable code cells, driven by the existing findAllCells / core/qmd/model.ts cell ranges, plus ~5 new contributes.configuration keys (quarto.cells.background.*). STATIC decoration of runnable cells (not a live running-cell indicator — Run Cell delegates out-of-process). Operator picked 17a via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S110
 date: 2026-07-18
 status: complete
