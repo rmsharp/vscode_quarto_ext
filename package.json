@@ -460,6 +460,21 @@
           "type": "boolean",
           "default": true,
           "description": "Show code cells in the Outline view and editor breadcrumbs."
+        },
+        "quarto.cells.background.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Highlight the background of executable code cells in Quarto documents."
+        },
+        "quarto.cells.background.light": {
+          "type": "string",
+          "default": "#0000000F",
+          "markdownDescription": "Background colour for executable code cells in light colour themes, as a CSS colour string (an 8-digit `#RRGGBBAA` hex includes an alpha channel for a translucent tint). Applies only when `#quarto.cells.background.enabled#` is on."
+        },
+        "quarto.cells.background.dark": {
+          "type": "string",
+          "default": "#FFFFFF14",
+          "markdownDescription": "Background colour for executable code cells in dark and high-contrast colour themes, as a CSS colour string (an 8-digit `#RRGGBBAA` hex includes an alpha channel for a translucent tint). Applies only when `#quarto.cells.background.enabled#` is on."
         }
       }
     },

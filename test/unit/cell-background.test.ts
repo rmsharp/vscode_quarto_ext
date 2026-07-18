@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import packageJson from "../../package.json";
 import {
   cellBackgroundRanges,
   DEFAULT_CELL_BACKGROUND,
@@ -92,5 +93,39 @@ describe("resolveCellBackgroundSettings", () => {
     expect(resolveCellBackgroundSettings({ light: "  #abcdef12  " }).light).toBe(
       "#abcdef12",
     );
+  });
+});
+
+/**
+ * A manifest-shape regression guard (same pattern as `walkthrough.test.ts` /
+ * `snippets.test.ts`): the `contributes.configuration` defaults MUST match
+ * `DEFAULT_CELL_BACKGROUND`, so the settings a user sees before overriding are
+ * exactly what the adapter falls back to. One source of truth, pinned here.
+ */
+describe("package.json contributes.configuration (quarto.cells.background.*)", () => {
+  const props = packageJson.contributes.configuration.properties as Record<
+    string,
+    { type: string; default: unknown; description?: string; markdownDescription?: string }
+  >;
+
+  it("contributes the enabled toggle with the DEFAULT_CELL_BACKGROUND default", () => {
+    const key = props["quarto.cells.background.enabled"];
+    expect(key).toBeDefined();
+    expect(key.type).toBe("boolean");
+    expect(key.default).toBe(DEFAULT_CELL_BACKGROUND.enabled);
+  });
+
+  it("contributes the light colour with the DEFAULT_CELL_BACKGROUND default", () => {
+    const key = props["quarto.cells.background.light"];
+    expect(key).toBeDefined();
+    expect(key.type).toBe("string");
+    expect(key.default).toBe(DEFAULT_CELL_BACKGROUND.light);
+  });
+
+  it("contributes the dark colour with the DEFAULT_CELL_BACKGROUND default", () => {
+    const key = props["quarto.cells.background.dark"];
+    expect(key).toBeDefined();
+    expect(key.type).toBe("string");
+    expect(key.default).toBe(DEFAULT_CELL_BACKGROUND.dark);
   });
 });

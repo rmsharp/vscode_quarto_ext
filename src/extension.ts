@@ -8,6 +8,7 @@
 
 import * as vscode from "vscode";
 import { meetsMinimum, MINIMUM_QUARTO_VERSION } from "./core/version";
+import { registerCellBackgroundFeature } from "./features/cell-background";
 import { registerClearCacheFeature } from "./features/clear-cache";
 import { registerConvertNotebookFeature } from "./features/convert-notebook";
 import { registerCreateProjectFeature } from "./features/create-project";
@@ -63,6 +64,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerConvertNotebookFeature(context);
   registerPreviewFeature(context);
   registerExecutionFeature(context);
+  registerCellBackgroundFeature(context);
   registerFormatCellFeature(context);
   registerFormattingFeature(context);
   registerMathPreviewFeature(context);
