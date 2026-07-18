@@ -7,6 +7,16 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-18 · [BL-17d] Session 113 — notebook markdown-cell callout-note renderer (BACKLOG item 17d)
+
+Feature (strict TDD). New **`contributes.notebookRenderer`** (`quarto-mit.markdown-it-callout`, extending VS Code's built-in `vscode.markdown-it-renderer`) renders a Quarto **`::: {.callout-note}`** fenced div as a note-admonition block inside `.ipynb` **markdown** cells, instead of showing raw `:::` text. First slice = the `callout-note` type only.
+
+Genuinely new contribution-point infrastructure (first `notebookRenderer`, first browser/esm bundle, first `markdown-it` dependency). The mechanism was grounded **firsthand** against the shipped VS Code built-ins (`markdown-language-features/notebook-out/index.js` declares the base renderer whose API is `extendMarkdownIt: cb => cb(md)`; `markdown-math`/`ipynb` `notebook-out/*.js` are the `extends`-based worked examples): the renderer entrypoint runs in the notebook renderer **webview sandbox** and installs a markdown-it plugin into the host-provided `md`.
+
+- **Core (`src/core/notebook-callout.ts`, pure `vscode`-free §3.3):** `calloutNotePlugin(md)` registers a container block rule (count the opening `:` run → validate the `{.callout-note}` attribute block → scan the closing fence → tokenise the body as markdown between `callout_note_open`/`callout_note_close` tokens) plus renderer rules emitting the callout markup. `import type MarkdownIt` only, so the shipped webview bundle never contains markdown-it (it uses the base renderer's instance). RED (module-missing) → GREEN; 10 unit tests through `md.render()`.
+- **Adapter/infra:** `src/webview/notebook-renderer.ts` (`activate(ctx)` fetches the base renderer via `ctx.getRenderer("vscode.markdown-it-renderer")` and installs the plugin); `esbuild.js` gains a 2nd context (`platform:'browser', format:'esm'`, no externals) emitting `dist/notebook-renderer.js` (2.8 KB); `package.json` declares the contribution. `markdown-it` + `@types/markdown-it` added as devDependencies (test-time only).
+- **Verification:** `check-types` clean; **865 unit** (855 + 10); **349 integration** (346 + 3), gate-d break-revert-proven by breaking the manifest renderer id; clean **44-file `.vsix`** (43 + `dist/notebook-renderer.js`). The on-screen box is eyeball-only (the renderer webview DOM has no ext-host read-back); the first slice is structural (the `:::` markers vanish and the body renders under a "Note" label) — CSS box styling is a filed follow-on.
+
 ### 2026-07-18 · [BL-17e] Session 112 — quarto.newNotebook: create a new Quarto .ipynb notebook (BACKLOG item 17e)
 
 Feature (strict TDD). New **`quarto.newNotebook`** ("New Quarto Notebook") command creates a new in-memory (untitled, unsaved) Quarto `.ipynb` notebook — a raw YAML front-matter cell (`title` + `format: html`) followed by an empty python starter code cell — and opens it in the notebook editor. Discoverable in the command palette and File▸New File….
