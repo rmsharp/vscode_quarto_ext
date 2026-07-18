@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S106
+date: 2026-07-17
+status: pending
+active_task: Phase 3 (the FINAL phase) of docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md -- correct the false "self-healing" comment at src/features/embedded-vdoc.ts:196 (ensureVdoc reuse branch) and :352 (sweepStaleVdocs docstring); re-pin the plan's rotted §3.4 citation (:373-375 is now sweepFolder's ownership comment -> the disclosure rationale is :544-546); close BACKLOG:182 (umbrella) + :183 (this comment) once done. Comment-only, TDD-exempt. Claimed; work beginning.
+```
+
+```handoff
 session: S105
 date: 2026-07-17
 status: complete
