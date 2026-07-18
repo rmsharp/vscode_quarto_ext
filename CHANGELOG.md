@@ -7,6 +7,17 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-18 · [ad hoc] Session 109 — split BACKLOG:64 item 17 (the 4-way bundle) into individually-grabbable items 17a–17d
+
+Backlog grooming / triage (doc-only, strict-TDD-exempt — no product logic; verification is citation-integrity). `BACKLOG:64` item 17 — a "lower priority / narrower audience" bundle of four unrelated sub-features that could not be picked or estimated as one unit — was decomposed into four individually-grabbable items:
+
+- **17a** cell-execution code-cell background highlighting (`quarto.cells.background.*`) — cosmetic decoration; cell-range infra already exists.
+- **17b** Reticulate execution pathway (`quarto.cells.useReticulate`) — needs engine (Knitr/Jupyter) detection, which does not exist yet (the load-bearing unknown to scope first).
+- **17c** create-project-family discoverability (`quarto.newPresentation`/`.newNotebook`/`.fileNewDocument`) — thin presets over existing `quarto.newDocument`/`quarto.createProject`.
+- **17d** notebook markdown-cell Quarto-aware renderer (`contributes.notebookRenderer`) — new contribution-point infra; niche.
+
+**Method (preserves the line-number citation scheme).** `BACKLOG:NNN` citations are line-number-based (17 distinct cited lines across code/docs/tests, highest 185). Item 17's single physical line (line 64) was rewritten IN PLACE as a 1-line pointer, and 17a–17d were APPENDED at the end of the file (185 → 189 lines), so no cited line shifted — verified by `git diff --numstat` (`5  1`, one line modified in place) and by spot-printing every cited line post-edit (each still resolves to its original item). No `src/`/`test/`/`package.json` change. The technique is recorded as `PROJECT_LEARNINGS.md` #122.
+
 ### 2026-07-18 · [BL-176] Session 108 — deliberate dev-toolchain upgrade cleared all 7 `npm audit` advisories
 
 Dev-toolchain maintenance session (config; strict-TDD-exempt — no product logic, the full verification
