@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S113
+date: 2026-07-18
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). BACKLOG item 17d — notebook markdown-cell Quarto-aware renderer (contributes.notebookRenderer). Renders Quarto-flavored syntax inside .ipynb markdown cells when a notebook is edited directly in VS Code. Genuinely new contribution-point infrastructure; the notebook markdown-cell rendering extension mechanism (webview-side, not an output renderer) is being grounded FIRSTHAND before any test. Operator picked 17d via AskUserQuestion at Phase 0 (Active empty). Claim breadcrumb — overwritten at Phase 3D close-out.
+```
+
+```handoff
 session: S112
 date: 2026-07-18
 status: complete
