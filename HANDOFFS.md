@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S110
+date: 2026-07-18
+status: pending
+active_task: IMPLEMENTATION (strict TDD applies). BACKLOG:64 item 17c — create-project-family command discoverability (quarto.newPresentation / quarto.newNotebook / quarto.fileNewDocument): preset "new X" commands over the existing quarto.newDocument (untitled format: html buffer via the pure core/new-document.ts buildNewDocumentContent) / quarto.createProject. Grounded at Phase 0/1: the three commands are absent from package.json and src/, and buildNewDocumentContent HARD-CODES format: html, so presets require parameterizing it = arg-building logic = the strict-TDD gate applies (NOT a pure package.json contribution). Exact preset semantics + the File▸New File integration to be grounded in Phase 2 against Posit's command set + docs/POSIT-COMPARISON.md before any code. Operator picked via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S109
 date: 2026-07-18
 status: complete
