@@ -10,6 +10,7 @@ import {
   disposeVdocs,
   ensureVdoc,
   isProcessDead,
+  resetDeactivation,
   sweepStaleTempVdocs,
   sweepStaleVdocs,
 } from "../../../src/features/embedded-vdoc";
@@ -68,6 +69,13 @@ function langKey(doc: vscode.TextDocument): VdocKey {
 }
 
 describe("embedded vdoc: the file: document the forwards ride on (item 18 Slice 0)", () => {
+  // This describe calls the process-global `disposeAllVdocs()`, which latches the deactivate flag
+  // (BACKLOG:103). Clear it after every test — a set latch would drop every later `ensureVdoc` in
+  // the shared host, the cross-suite coupling nit 2b names. Mirrors the re-activation `activate` does.
+  afterEach(() => {
+    resetDeactivation();
+  });
+
   before(async () => {
     const ext = vscode.extensions.getExtension(EXTENSION_ID);
     assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
@@ -539,6 +547,11 @@ describe("embedded vdoc: a forward still in flight when the document closes", ()
 });
 
 describe("embedded vdoc: a forward still in flight when the EXTENSION deactivates", () => {
+  // Clear the deactivate latch this describe's `disposeAllVdocs()` sets (BACKLOG:103 nit 2b).
+  afterEach(() => {
+    resetDeactivation();
+  });
+
   before(async () => {
     const ext = vscode.extensions.getExtension(EXTENSION_ID);
     assert.ok(ext);
@@ -601,6 +614,64 @@ describe("embedded vdoc: a forward still in flight when the EXTENSION deactivate
   });
 });
 
+describe("embedded vdoc: a forward dispatched AFTER the extension deactivates (BACKLOG:103)", () => {
+  // This test deactivates then dispatches, so it necessarily leaves the latch set. Clear it after
+  // (BACKLOG:103 nit 2b) so it does not drop later forwards in the shared host.
+  afterEach(() => {
+    resetDeactivation();
+  });
+
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    await ext.activate();
+  });
+
+  it("does not re-register a vdoc for a forward that dispatches entirely after disposeAllVdocs", async () => {
+    // The sibling above stages the MID-AWAIT race: the forward is already in flight when
+    // `disposeAllVdocs` bumps the shutdown generation, so its post-await re-check sees the bump
+    // and cleans up. This stages the OTHER half — a forward dispatched ENTIRELY AFTER
+    // `disposeAllVdocs` has finished. `disposeAllEpoch` moves exactly ONCE per session, so a
+    // forward that snapshots it AFTER the bump reads the already-final value and its re-checks
+    // compare EQUAL — the epoch guard cannot fire for it, and it proceeds to `live.set` /
+    // `filesOf().set`, re-registering a fresh vdoc (a copy of the user's source) into the maps
+    // `disposeAllVdocs` just cleared, with nothing in this session to reclaim it.
+    //
+    // Reachable in production because `deactivate()` fire-and-forgets `void disposeAllVdocs()`
+    // and the host disposes the provider subscriptions AFTERWARD, so a debounced semantic-tokens
+    // pass can still dispatch through a live provider for an interval past the bump.
+    const doc = await openProjectQmd();
+    const key = langKey(doc);
+
+    // Snapshot first — other suites share the one vdoc directory. The invariant that belongs to
+    // this test is exact and narrow: a forward dispatched after deactivate must leave nothing NEW.
+    const ours = async (): Promise<string[]> =>
+      (await nodeFs.readdir(vdocDir().fsPath).catch(() => [] as string[]))
+        .filter((n) => isOurVdocFileName(n))
+        .sort();
+    const before = await ours();
+
+    // Deactivate FULLY, THEN dispatch — the after-dispatch race, not the mid-await one.
+    await disposeAllVdocs();
+    const uri = await ensureVdoc(doc, key, "import os\nafter = 3\n");
+
+    const after = await ours();
+    const strays = after.filter((n) => !before.includes(n));
+    assert.deepStrictEqual(
+      strays,
+      [],
+      `a vdoc minted by a forward dispatched after deactivate was stranded in the user's ` +
+        `workspace: [${strays.join(", ")}]. It is a copy of their source, and nothing in this ` +
+        `session will delete it.`,
+    );
+    assert.strictEqual(
+      uri,
+      undefined,
+      "a forward dispatched entirely after deactivate must forward nothing (return undefined)",
+    );
+  });
+});
+
 /**
  * The `fallbackDirPromise` memo's own lifecycle — BACKLOG:102 and BACKLOG:121 leg (b), which
  * are ONE code surface rather than two areas: both are consequences of the same
@@ -612,6 +683,11 @@ describe("embedded vdoc: a forward still in flight when the EXTENSION deactivate
  * above uses `openProjectQmd()` and therefore has never once exercised these lines.
  */
 describe("embedded vdoc: the fallback temp directory's lifecycle (BACKLOG:102 + :121b)", () => {
+  // Clear the deactivate latch this describe's `disposeAllVdocs()` calls set (BACKLOG:103 nit 2b).
+  afterEach(() => {
+    resetDeactivation();
+  });
+
   before(async () => {
     const ext = vscode.extensions.getExtension(EXTENSION_ID);
     assert.ok(ext);
@@ -803,6 +879,11 @@ describe("embedded vdoc: the fallback temp directory's lifecycle (BACKLOG:102 + 
  * that matters, so both are pinned directly and adversarially.
  */
 describe("embedded vdoc: reclaiming the temp dir a crash strands (plan Phase 1)", () => {
+  // Clear the deactivate latch this describe's `disposeAllVdocs()` call sets (BACKLOG:103 nit 2b).
+  afterEach(() => {
+    resetDeactivation();
+  });
+
   /** Our own host tag — what a directory this machine wrote is stamped with (G0). */
   const ourHost = (): string => hostDiscriminator(os.hostname());
 
@@ -1183,6 +1264,11 @@ describe("embedded vdoc: reclaiming the temp dir a crash strands (plan Phase 1)"
  * exhibits this.
  */
 describe("embedded vdoc: the fallback dir stays 0700 after a delete-underneath (plan Phase 2, BACKLOG:182)", () => {
+  // Clear the deactivate latch this describe's `disposeAllVdocs()` calls set (BACKLOG:103 nit 2b).
+  afterEach(() => {
+    resetDeactivation();
+  });
+
   before(async () => {
     const ext = vscode.extensions.getExtension(EXTENSION_ID);
     assert.ok(ext);
@@ -1191,8 +1277,11 @@ describe("embedded vdoc: the fallback dir stays 0700 after a delete-underneath (
 
   it("re-mints a private 0700 directory when the memoised fallback dir is deleted out from under it", async () => {
     // Reset the module memo so the first forward mints a directory THIS test owns, rather than
-    // inheriting one a prior test left memoised (module-global state, one mocha process).
+    // inheriting one a prior test left memoised (module-global state, one mocha process). This uses
+    // `disposeAllVdocs` as a clean-slate reset, not a real deactivate — so clear the deactivate
+    // latch it now also sets (BACKLOG:103), or the forwards exercised below would be dropped.
     await disposeAllVdocs();
+    resetDeactivation();
 
     const untitled = await vscode.workspace.openTextDocument({
       language: "quarto",

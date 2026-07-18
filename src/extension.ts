@@ -14,6 +14,7 @@ import { registerCreateProjectFeature } from "./features/create-project";
 import { registerDiagramPreviewFeature } from "./features/diagram-preview";
 import {
   disposeAllVdocs,
+  resetDeactivation,
   sweepStaleTempVdocs,
   sweepStaleVdocs,
 } from "./features/embedded-vdoc";
@@ -39,6 +40,15 @@ import { registerWorkspaceSymbolsProvider } from "./providers/workspace-symbols"
 import { QuartoNotFound, resolveBinary } from "./quarto/cli";
 
 export function activate(context: vscode.ExtensionContext): void {
+  // Clear the vdoc deactivate latch first: a disable→re-enable WITHOUT a window reload retains this
+  // module, and `disposeAllVdocs` (from the previous deactivate) left the latch set. Without this,
+  // every embedded-language forward in the re-enabled session would be dropped (see `deactivated`).
+  // Load-bearing but NOT integration-tested: `ext.activate()` is idempotent on the shared Extension
+  // Development Host, so a test cannot re-run `activate()` to drive this line — the suite exercises
+  // `resetDeactivation()` directly instead. Do not delete it: no test would fail, yet embedded
+  // features would go dead after a re-enable-without-reload.
+  resetDeactivation();
+
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "quarto.verifyInstallation",

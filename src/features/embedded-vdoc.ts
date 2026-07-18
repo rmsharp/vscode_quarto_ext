@@ -147,6 +147,38 @@ function epochOf(docUri: string): number {
 let disposeAllEpoch = 0;
 
 /**
+ * Latched `true` from the moment `disposeAllVdocs` runs (extension deactivate) until the next
+ * activation clears it (`resetDeactivation`, from `activate`).
+ *
+ * `disposeAllEpoch` guards a forward ALREADY IN FLIGHT when deactivate bumps it — snapshot before
+ * the awaits, re-check after. It cannot guard a forward DISPATCHED ENTIRELY AFTER the bump: the
+ * counter moves exactly once per session, so that forward snapshots the already-final value and its
+ * re-checks compare EQUAL — nothing left to detect. And the window is real: `deactivate()`
+ * fire-and-forgets `void disposeAllVdocs()` and the host disposes the provider subscriptions
+ * AFTERWARD, so a debounced semantic-tokens pass (VS Code fires them with no user gesture, right up
+ * to window close) can still dispatch through a live provider for an interval past the bump — and it
+ * would re-register a fresh vdoc, a copy of the user's source, into the just-cleared maps.
+ *
+ * A monotonic counter cannot express "after the last deactivate" for a forward that has nothing
+ * earlier to compare against; a latched boolean can. It must be per-SESSION (global), not
+ * per-document: the after-dispatch forward may be for a document in no map to key a per-owner latch
+ * on — the same reason the epoch above is global. Cleared at activation because a disable→re-enable
+ * WITHOUT a window reload retains this module (BACKLOG:102's lesson), so a never-reset latch would
+ * leave embedded features dead for the re-enabled session.
+ */
+let deactivated = false;
+
+/**
+ * Clear the deactivate latch (see `deactivated`). Called from `activate` so a re-enable without a
+ * window reload — which retains this module — starts live rather than latched dead. The integration
+ * tests, which simulate deactivate by calling `disposeAllVdocs` directly on the shared host, call
+ * this to simulate the matching re-activation and keep their global state order-independent.
+ */
+export function resetDeactivation(): void {
+  deactivated = false;
+}
+
+/**
  * The lazily-created fallback directory for documents with no workspace folder (untitled), held
  * as its in-flight creation and memoised so two concurrent forwards cannot each run `mkdtemp` and
  * leak the loser's directory. The FIRST caller starts it; every concurrent caller awaits the same
@@ -187,6 +219,14 @@ export async function ensureVdoc(
   key: VdocKey,
   content: string,
 ): Promise<vscode.Uri | undefined> {
+  if (deactivated) {
+    // The extension has deactivated and not re-activated. A forward dispatched entirely after
+    // `disposeAllVdocs` cannot be caught by the snapshot-compared epoch guard below (see
+    // `deactivated`), so it is stopped here — before it writes and registers a vdoc holding a copy
+    // of the user's source that nothing in this shutting-down session would ever reclaim. Forward
+    // nothing, exactly as when no writable location exists.
+    return undefined;
+  }
   const ks = vdocKeyString(key);
   const existing = live.get(ks);
   if (existing !== undefined && existing.content === content && isModelOpen(existing.uri)) {
@@ -275,6 +315,21 @@ export async function disposeVdocs(docUri: vscode.Uri): Promise<void> {
   // otherwise let that forward resume and register a file against a closed document.
   disposeEpoch.set(owner, epochOf(owner) + 1);
 
+  // Note the asymmetry with `disposeAllVdocs`'s `deactivated` latch: there is deliberately NO
+  // per-document "closed" latch here to guard a forward dispatched ENTIRELY AFTER this close (the
+  // sibling of the after-dispatch DEACTIVATE race the latch fixes). It is not needed, for two
+  // independent reasons — which is why BACKLOG:103's filed premise that a latch "would apply
+  // symmetrically to `disposeVdocs`" is false; the two paths are not symmetric:
+  //   (1) Unreachable — VS Code dispatches no forward for a CLOSED document. Every request type but
+  //       one is a user gesture (impossible without an editor); the one no-gesture forward, semantic
+  //       tokens, has its retry timer cleared by `provider.forget(doc.uri)` in the SAME close
+  //       handler, immediately before this call (`providers/semantic-tokens.ts` onDidClose).
+  //   (2) Self-healing if it somehow did occur — a re-registered file lands back in `docFiles`,
+  //       which the session-end `disposeAllVdocs` enumerates (`[...docFiles.values()]`) and reclaims.
+  //       The deactivate case has NO such backstop: it happens after the last `disposeAllVdocs`.
+  // If a future provider ever arms a no-gesture timer without a matching `forget()` on close,
+  // reason (1) no longer holds and this asymmetry must be revisited.
+
   const files = docFiles.get(owner);
   if (files === undefined) {
     return;
@@ -297,7 +352,12 @@ export async function disposeAllVdocs(): Promise<void> {
   // `disposeVdocs`'s unconditional per-document bump. An `ensureVdoc` in flight right now (semantic
   // tokens fire on a debounced timer up to the moment the window closes) sees this move when it
   // resumes and cleans up, rather than re-registering its file against a shutting-down session.
+  //
+  // Latch `deactivated` in the same breath: the epoch above catches a forward IN FLIGHT across this
+  // bump, but a forward DISPATCHED ENTIRELY AFTER it snapshots the final epoch value and slips the
+  // guard — `ensureVdoc` reads this latch at its top and forwards nothing (see `deactivated`).
   disposeAllEpoch += 1;
+  deactivated = true;
   const all = [...docFiles.values()].flatMap((m) => [...m.values()]);
   live.clear();
   docFiles.clear();

@@ -7,6 +7,42 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-17 · [BL-103] Session 107 — the after-dispatch deactivate re-registration race fixed with a global `deactivated` latch
+
+Implementation session (strict TDD). `BACKLOG:103` closed `[x]`.
+
+**Fixed.** A cell forward dispatched *entirely after* `disposeAllVdocs` runs re-registered a vdoc
+holding the user's real cell source into the just-cleared maps. `ensureVdoc` snapshots the monotonic
+`disposeAllEpoch` before its awaits and re-checks after, but that counter bumps exactly once per
+deactivate — so a forward that snapshots the already-final value slips both re-checks and reaches
+`live.set`/`filesOf().set`. Reachable because `deactivate()` fire-and-forgets `void disposeAllVdocs()`
+and the host disposes provider subscriptions afterward, so a debounced semantic-tokens pass can still
+dispatch through a live provider past the bump; nothing in that session reclaims the stranded file.
+The fix is a module-global `deactivated` boolean, set in `disposeAllVdocs` alongside the epoch bump,
+checked at the top of `ensureVdoc`, and cleared by a new `resetDeactivation()` called from `activate()`
+(a disable→re-enable without a window reload retains the JS module, so a never-reset latch would leave
+embedded features dead).
+
+**Rejected the predecessor handoff's unsourced "needs a per-document latch."** A per-document latch
+shares the epoch's set-side blind spot — an after-dispatch forward may be for a document in no map to
+key a per-owner latch on — so the latch must be global. The filed premise that the fix "would apply
+symmetrically to `disposeVdocs`" is likewise false and is corrected on the record: the per-document
+close sibling is unreachable (a closed document receives no forward; semantic tokens' retry timer is
+cleared by `provider.forget()` in the same close handler) and self-healing (a re-registration lands in
+`docFiles`, reclaimed at session-end `disposeAllVdocs`). Pinned in a comment at `disposeVdocs`.
+
+**Test hygiene (the item's two filed nits).** The doc-close in-flight assertion is tightened from a
+dead `if (uri !== undefined)` branch to `assert.strictEqual(uri, undefined)` (matching its S91
+deactivate sibling); the cross-suite coupling from tests calling the process-global `disposeAllVdocs()`
+mid-suite is closed by `afterEach(resetDeactivation)` in every latch-setting describe, making the suite
+order-independent.
+
+A RED integration test observed a real stranded `vdoc-mit.*.py`; the guard is break-revert-proven
+load-bearing (disabled → the new test reddens, the epoch-guarded mid-forward sibling stays green); a
+5-lens plus completeness-critic adversarial review found no refutation. Bounds: `check-types` clean,
+**834 unit** (unchanged — `ensureVdoc` imports `vscode`, no headless surface), **333 integration**
+(332 + 1 new), clean 43-file `.vsix`.
+
 ### 2026-07-17 · [BL-182/183] Session 106 — Phase 3 (final) of the OS temp-vdoc sweep plan: the false "self-healing" comment corrected
 
 Implementation session, comment-only (TDD-exempt — no logic changed). `BACKLOG:182` (umbrella) and
