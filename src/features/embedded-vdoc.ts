@@ -193,8 +193,12 @@ export async function ensureVdoc(
     // Unchanged content: the open model already holds exactly these bytes, so there is
     // nothing to invalidate and nothing to write. This is the common case (hovering,
     // completing, re-outlining without an edit — and now every prose keystroke) and it is
-    // what keeps us off the disk. The `isModelOpen` check makes it self-healing if another
-    // window's sweep removed the file underneath us.
+    // what keeps us off the disk. The `isModelOpen` check gates reuse on the model being
+    // live, not on the file still existing: if another window's sweep (or the OS reaper)
+    // deleted the file underneath us, reuse stays safe because the model outlives the file
+    // — requests are served from the open in-memory document, not the file on disk. Only
+    // once the model is evicted does `isModelOpen` return false and we fall through to mint
+    // a fresh file. It never "notices" the file is gone — it tracks the model, not the file.
     return existing.uri;
   }
 
@@ -349,8 +353,11 @@ export async function disposeAllVdocs(): Promise<void> {
  *
  * A second window open on the same workspace root is the one case where this deletes a
  * file that is still in use. That is rare (VS Code opens a folder in a single window by
- * default) and self-healing: `ensureVdoc` notices the model is gone and re-mints on the
- * next request. The alternative — leaving other instances' files alone — would mean a
+ * default) and harmless: the model outlives the file, so the other window's requests are
+ * still served from its in-memory model even after the file is gone.
+ * `ensureVdoc` does NOT notice the delete — `isModelOpen` tracks the model, not the file —
+ * and need not: only once that model is evicted does the next request mint a fresh file.
+ * The alternative — leaving other instances' files alone — would mean a
  * crash never gets cleaned up at all, which is the failure this exists to prevent.
  */
 export async function sweepStaleVdocs(

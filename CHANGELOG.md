@@ -7,6 +7,35 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-17 · [BL-182/183] Session 106 — Phase 3 (final) of the OS temp-vdoc sweep plan: the false "self-healing" comment corrected
+
+Implementation session, comment-only (TDD-exempt — no logic changed). `BACKLOG:182` (umbrella) and
+`BACKLOG:183` (this comment) both closed; the whole `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md`
+plan is now shipped (Phase 1 S103, Phase 2 S104, Phase 3 S106).
+
+**Fixed.** Two source comments in `src/features/embedded-vdoc.ts` claimed a cross-window / OS-reaper
+delete of an in-use vdoc file is *"self-healing: `ensureVdoc` notices the model is gone and re-mints."*
+That mechanism is false (measured in a real Extension Development Host, plan §3.5): `isModelOpen()` tests
+the **in-memory model** (`vscode.workspace.textDocuments`), not the file — it returns `true` for a file
+deleted 10s earlier, flipping false only at a ~180s eviction. So `ensureVdoc` never "notices" the delete;
+the case is **harmless because the model outlives the file** (requests are served from the open in-memory
+document, not the file on disk), not self-healing. Both sites — the `ensureVdoc` reuse branch (`:196-201`)
+and the `sweepStaleVdocs` docstring (`:354-361`) — now state the measured mechanism; `grep -ran
+"self-healing" src/` returns nothing.
+
+**Verified.** `check-types` clean; **834 unit** and **332 integration** both **unchanged** (a comment
+edit moves no test count — the plan's own DONE signal); clean 43-file `.vsix`. The two new comment
+rewordings were run through a 3-lens adversarial refutation pass (mechanism / overclaim / code-consistency)
+before commit — all three returned "not refuted"; one flagged that naming "completions" (Python
+completions go through out-of-process Pylance, whose file-watcher was the plan's explicitly *unmeasured*
+caveat) generalized past the hover-only measurement, so the wording was tightened to "requests are served
+from the open in-memory document" to state only the measured mechanism.
+
+**Record corrected.** The plan's §3.4/C2/§3.6 citation of `embedded-vdoc.ts:373-375` as the disclosure
+comment had rotted (that line is now `sweepFolder`'s *ownership* comment); re-pinned to `:551-553`
+(`vdocDirFor`'s "information disclosure" docstring). `BACKLOG:183`'s stale claim that "Phase 3's scope is
+the `:348-354` comment alone" was corrected — there were two `self-healing` sites, both fixed.
+
 ### 2026-07-17 · [BL-184] Session 105 — de-binary-fied `core/embedded/vdoc-path.ts`: the NUL-byte key separator is now the escape `"\0"`
 
 Implementation session, strict TDD. `BACKLOG:184` closed.

@@ -132,7 +132,7 @@ on a debounced timer. So vdocs land in the temp dir merely from having an untitl
 | # | Constraint | Source |
 |---|-----------|--------|
 | C1 | The vdoc must be a real `file:` document on disk | Item 18 / Learning #94 — real LSPs filter by scheme; a custom scheme returned 0 completions vs 306 |
-| C2 | The temp dir must stay **unpredictable and private** | `embedded-vdoc.ts:373-375` — writing user source to a predictable location is disclosure |
+| C2 | The temp dir must stay **unpredictable and private** | `embedded-vdoc.ts:551-553` — writing user source to a predictable location is disclosure |
 | C3 | Any delete loop is bounded by **ownership, never pattern-matching** | `vdoc-path.ts:24-42` — the sweep must never reach Posit's `.quarto/vdoc/` |
 | C4 | `core/` must not import `vscode` and is unit-tested headlessly | architecture §3.3 |
 | C5 | Strict TDD — RED before GREEN, one test at a time | `CLAUDE.md` operator directive |
@@ -273,7 +273,7 @@ and creates down, swallowing `EntryExists`.
    **This is not the Session 101 rejected-memo bug class repeated.**
 2. **But the resurrected directory comes back `0755`, not `0700`.** VS Code re-creates it with
    `fs.promises.mkdir(path)` and **no mode arg** → `0777 & ~umask` → **0755 measured**. That directly
-   voids the guarantee `vdocDirFor`'s own comment (`:373-375`) rests on. **A sweep that deletes a live
+   voids the guarantee `vdocDirFor`'s own comment (`:551-553`) rests on. **A sweep that deletes a live
    window's directory silently downgrades that window's privacy for the rest of the session.**
 3. **The self-heal is silent and total** — `mkdirp` swallows the error, so `writeFile` will *never*
    surface `ENOENT` for a vanished parent. Any "the dir was swept, mint a fresh private one" logic must
@@ -408,7 +408,7 @@ PID alive **in my PID namespace**". If a directory's PID was minted in a *differ
 *different machine*, `ESRCH` does not mean "dead" — it means "meaningless", and the sweep would
 **delete a live window's directory**. That is the one case where the failure direction inverts from
 *leak* to *delete*, and §3.4 then completes the damage: VS Code silently resurrects the directory at
-**0755**, so a hygiene fix would cause the exact disclosure `embedded-vdoc.ts:373-375` exists to
+**0755**, so a hygiene fix would cause the exact disclosure `embedded-vdoc.ts:551-553` exists to
 prevent.
 
 **Honest sizing:** this is **not** routine. In every *default* VS Code Remote mode (Dev Containers,
@@ -526,7 +526,7 @@ an already-unusual shared `$TMPDIR`.
 | **A. Do nothing** | zero risk; zero code; macOS bounds it at reboot and Debian at 10 days; the leak is KBs (§3.7) | **Windows never reaps** → unbounded accumulation of the user's source; a crash is exactly when it happens | **Genuinely tenable** — this is the honest fallback if the operator judges the priority too low (§9 Q3). Rejected because Windows is unbounded and the fix is small |
 | **B. Prefix scan, no liveness** (as filed) | simplest; no grammar change | Deletes live sibling windows' dirs — **measured: 2 ext hosts share one TMPDIR** (§3.3) — and each delete silently downgrades that window to **0755** for the session (§3.4) | **Rejected on measurement.** The item's "reuse the INSTANCE_ID skip" reasoning inverts for temp |
 | **C. `context.globalStorageUri`** | one stable known path; no prefix scan; no randomness | Turns *rare* collisions into *always*; profile fragmentation; 0755 + predictable | **Rejected** (§3.6) — buys the cheap problem, worsens the expensive one |
-| **D. Stable parent** `<tmp>/quarto-mit-vdoc/<random>/` | narrow scan; unambiguous | A **predictable parent** in Linux's 1777 `/tmp` is a classic pre-creation/symlink target (CWE-377) — it trades away C2, the exact property `:373-375` exists to hold | Rejected — needs `lstat`+owner+mode hardening of the parent to claw back what `mkdtemp` gives free |
+| **D. Stable parent** `<tmp>/quarto-mit-vdoc/<random>/` | narrow scan; unambiguous | A **predictable parent** in Linux's 1777 `/tmp` is a classic pre-creation/symlink target (CWE-377) — it trades away C2, the exact property `:551-553` exists to hold | Rejected — needs `lstat`+owner+mode hardening of the parent to claw back what `mkdtemp` gives free |
 | **E. Age/mtime guard** | no PID; no new grammar | Reclaims a live-but-idle window's dir; **liar timestamps measured** (a 0.48d-old dir holding a file claiming 571.83d); atime unreliable under Linux `relatime` | Rejected (§3.7) — the failure direction is *delete a live dir*, the wrong way to fail |
 | **F. Lock file / flock** | systemd-tmpfiles honours BSD locks — one mechanism would buy safety from both our sweep *and* the Linux reaper | **Node has no built-in `flock`** → a native dependency, against `dependencies: {}` | Rejected — disproportionate at this priority (§3.7) |
 | **G. Route untitled docs to an open workspace folder** | collapses the leak to folderless windows only; reuses the swept path | Writes an untitled scratch doc's source into an unrelated project's `.quarto/`; does not fix the folderless case | Rejected — partial, with a real surprise for the user |
@@ -605,6 +605,17 @@ not reaching the path.
 **This phase is one session. Close out when done.**
 
 ### Phase 3 — correct the record (the §3.5 refutation)
+
+> **✅ SHIPPED Session 106 (2026-07-17) — Phase 3 complete; with it the WHOLE plan is now shipped.** Both
+> `self-healing` instances were corrected to the measured mechanism — *harmless because the model outlives
+> the file* — instead of the refuted *self-healing because the model dies with the file*: the `ensureVdoc`
+> reuse-branch comment (`embedded-vdoc.ts:196-201`) and the `sweepStaleVdocs` docstring (`:354-361`).
+> `grep -ran "self-healing" src/` now returns nothing; test counts UNCHANGED (comment-only, TDD-exempt).
+> The four §3.4/C2/§3.6 `:551-553` citations below were **re-pinned this session** from the rotted
+> `:373-375` (which by S106 pointed at `sweepFolder`'s *ownership* comment, not the disclosure one) to
+> `:551-553` — `vdocDirFor`'s "information disclosure" docstring. **Re-grep the phrase, not the number, if
+> you return here: line numbers have now rotted three times.** `BACKLOG:182` (umbrella) and `:183` (this
+> comment) both closed `[x]`. Commit: see `CHANGELOG.md` 2026-07-17 · [BL-182/183].
 
 > **⚠ RE-PINNED after Phase 1 shipped (Session 103).** Every line number below was written against the
 > pre-Phase-1 file and Phase 1 moved all of them — the old `:445-448` now lands *inside code Phase 1
