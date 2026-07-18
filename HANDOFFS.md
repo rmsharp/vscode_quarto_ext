@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S112
+date: 2026-07-18
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — BACKLOG item 17e: quarto.newNotebook (create a new Quarto .ipynb notebook). Genuinely new notebook-creation infra: a pure vscode-free core cell-descriptor builder (src/core/new-notebook.ts) returning plain { kind, value, languageId } descriptors (a raw YAML front-matter cell + a starter code cell), and a src/features/new-notebook.ts adapter that maps them to vscode.NotebookCellData → NotebookData, opens an in-memory jupyter-notebook via openNotebookDocument and shows it via showNotebookDocument, plus the quarto.newNotebook command contribution + extension.ts wiring. Design constraints (BACKLOG:190): core stays vscode-free; verify FIRSTHAND the Jupyter raw cell ↔ NotebookCellKind.Code + languageId:"raw" mapping; keep the starter heading-free + intercept showNotebookDocument in tests (workspace-symbol-leak isolation). Operator picked 17e via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S111
 date: 2026-07-18
 status: complete
