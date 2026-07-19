@@ -351,7 +351,8 @@ function calloutRule(
   // escapes + HTML character references), reproducing pandoc's litChar rule. The
   // same decoder classifies nested openers in the closing-fence scan below.
   const decode = (raw: string): string => state.md.utils.unescapeAll(raw);
-  const divAttrs = type === undefined ? parseDivAttrs(params, decode) : null;
+  const attrs = parseDivAttrs(params, decode);
+  const divAttrs = type === undefined ? attrs : null;
   if (
     type === undefined &&
     (divAttrs === null ||
@@ -360,6 +361,16 @@ function calloutRule(
         divAttrs.attrs.length === 0))
   ) {
     return false;
+  }
+
+  // For a callout, a non-empty `title=` attribute overrides the default type
+  // title (an empty `title=""` falls back to the default, matching Quarto). A
+  // `## Heading` first line is the other title source, handled after the body is
+  // tokenised (below), and only when there is no `title=` — the attribute wins.
+  let calloutTitle: string | undefined;
+  if (type !== undefined && attrs) {
+    const titleAttr = attrs.attrs.find(([name]) => name === "title");
+    if (titleAttr && titleAttr[1] !== "") calloutTitle = titleAttr[1];
   }
 
   // Validation-only phase (e.g. paragraph-termination lookahead): a real callout
@@ -462,6 +473,7 @@ function calloutRule(
   tokenOpen.map = [startLine, nextLine];
   if (type !== undefined) {
     tokenOpen.info = type;
+    if (calloutTitle !== undefined) tokenOpen.meta = { title: calloutTitle };
   } else if (divAttrs) {
     // Pandoc/Quarto attribute order: id, then all classes, then the other
     // attributes in source order.
@@ -490,10 +502,24 @@ function calloutRule(
   return true;
 }
 
-/** Renderer rule for a `callout_open` token: emit the callout header for its type. */
-function renderCalloutOpen(tokens: MarkdownIt.Token[], idx: number): string {
-  const type = tokens[idx].info;
-  const title = CALLOUT_TITLES[type] ?? type;
+/**
+ * Renderer rule for a `callout_open` token: emit the callout header. When the
+ * block rule found a custom title (`token.meta.title` — a `title=` attribute or an
+ * extracted leading heading), it is used instead of the default type title; the
+ * custom title is HTML-escaped here.
+ */
+function renderCalloutOpen(
+  md: MarkdownIt,
+  tokens: MarkdownIt.Token[],
+  idx: number,
+): string {
+  const token = tokens[idx];
+  const type = token.info;
+  const customTitle = token.meta?.title as string | undefined;
+  const title =
+    customTitle !== undefined
+      ? md.utils.escapeHtml(customTitle)
+      : (CALLOUT_TITLES[type] ?? type);
   return (
     `<div class="callout callout-${type}">\n` +
     `<div class="callout-header"><div class="callout-title">${title}</div></div>\n` +
@@ -528,7 +554,8 @@ export function calloutPlugin(md: MarkdownIt): void {
   md.block.ruler.before("fence", "callout", calloutRule, {
     alt: ["paragraph", "reference", "blockquote", "list"],
   });
-  md.renderer.rules.callout_open = renderCalloutOpen;
+  md.renderer.rules.callout_open = (tokens, idx) =>
+    renderCalloutOpen(md, tokens, idx);
   md.renderer.rules.callout_close = renderCalloutClose;
   md.renderer.rules.div_open = renderDivOpen;
   md.renderer.rules.div_close = renderDivClose;

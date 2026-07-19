@@ -613,4 +613,13 @@ describe("calloutPlugin", () => {
     const outerClose = html.indexOf("</div>");
     expect(html.indexOf('<div class="sib">')).toBeGreaterThan(outerClose);
   });
+
+  describe("custom callout titles (17d follow-on D)", () => {
+    it("uses a title= attribute as the callout's displayed title", () => {
+      const html = render('::: {.callout-note title="Custom Title"}\nBody.\n:::\n');
+      expect(html).toContain('class="callout-title">Custom Title<');
+      expect(html).toContain('class="callout callout-note"'); // still a note callout
+      expect(html).toContain("<p>Body.</p>");
+    });
+  });
 });
