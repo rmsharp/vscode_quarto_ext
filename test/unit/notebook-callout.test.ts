@@ -367,4 +367,33 @@ describe("calloutPlugin", () => {
     const html = render('::: {key="a}b"}\nBody.\n:::\n');
     expect(html).toContain('<div data-key="a}b">');
   });
+
+  // --- Invalid-block guards + no-space marker. Grounded firsthand: a brace block
+  // with a bare word or a bad key is not a valid div and falls through. ---
+
+  it("leaves a bare word inside braces unrendered: ::: {.box checked}", () => {
+    // `checked` is neither #id, .class, nor key=value → the block is invalid.
+    const html = render("::: {.box checked}\nBody.\n:::\n");
+    expect(html).not.toContain("<div");
+    expect(html).toContain(":::");
+  });
+
+  it("leaves a digit-leading key unrendered: ::: {1abc=v}", () => {
+    // A key must start with a letter or `_`; `1abc` is invalid → block invalid.
+    const html = render("::: {1abc=v}\nBody.\n:::\n");
+    expect(html).not.toContain("<div");
+    expect(html).toContain(":::");
+  });
+
+  it("leaves a multi-word bare shorthand unrendered: ::: foo bar", () => {
+    const html = render("::: foo bar\nBody.\n:::\n");
+    expect(html).not.toContain("<div");
+    expect(html).toContain(":::");
+  });
+
+  it('accepts a bare word with no space after the marker: :::foo -> <div class="foo">', () => {
+    const html = render(":::foo\nBody.\n:::\n");
+    expect(html).toContain('<div class="foo">');
+    expect(html).toContain("<p>Body.</p>");
+  });
 });
