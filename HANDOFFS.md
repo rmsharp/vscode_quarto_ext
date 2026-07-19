@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S118
+date: 2026-07-19
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). BACKLOG item 17d follow-on (D): custom callout titles in the notebook markdown-cell renderer (src/core/notebook-callout.ts). A title= attribute on a callout block (::: {.callout-note title="Foo"}) and/or a ## Header first line inside the callout body become the callout's displayed title, replacing the default type name (Note/Tip/Warning/Caution/Important). Operator picked (D) via AskUserQuestion at Phase 0 (Active empty; highest-ranked open item, continues the S113-S117 notebook-renderer thread). Grounding title semantics FIRSTHAND vs quarto render first (the callout admonition markup is Quarto-filter output, not raw pandoc), then strict TDD RED->GREEN one mechanism at a time; the callout default-title path stays intact when no custom title is given. This status:pending stub is the crash breadcrumb until Phase 3D overwrites it to complete.
+```
+
+```handoff
 session: S117
 date: 2026-07-19
 status: complete
