@@ -519,20 +519,22 @@ function calloutRule(
 /**
  * Renderer rule for a `callout_open` token: emit the callout header. When the
  * block rule found a custom title (`token.meta.title` — a `title=` attribute or an
- * extracted leading heading), it is used instead of the default type title; the
- * custom title is HTML-escaped here.
+ * extracted leading heading), it is used instead of the default type title. The
+ * custom title is rendered as inline markdown (`**b**` → `<strong>b</strong>`),
+ * matching quarto render; `renderInline` also HTML-escapes `&`/`<`/`>`.
  */
 function renderCalloutOpen(
   md: MarkdownIt,
   tokens: MarkdownIt.Token[],
   idx: number,
+  env: unknown,
 ): string {
   const token = tokens[idx];
   const type = token.info;
   const customTitle = token.meta?.title as string | undefined;
   const title =
     customTitle !== undefined
-      ? md.utils.escapeHtml(customTitle)
+      ? md.renderInline(customTitle, env)
       : (CALLOUT_TITLES[type] ?? type);
   return (
     `<div class="callout callout-${type}">\n` +
@@ -568,8 +570,8 @@ export function calloutPlugin(md: MarkdownIt): void {
   md.block.ruler.before("fence", "callout", calloutRule, {
     alt: ["paragraph", "reference", "blockquote", "list"],
   });
-  md.renderer.rules.callout_open = (tokens, idx) =>
-    renderCalloutOpen(md, tokens, idx);
+  md.renderer.rules.callout_open = (tokens, idx, _options, env) =>
+    renderCalloutOpen(md, tokens, idx, env);
   md.renderer.rules.callout_close = renderCalloutClose;
   md.renderer.rules.div_open = renderDivOpen;
   md.renderer.rules.div_close = renderDivClose;

@@ -630,5 +630,21 @@ describe("calloutPlugin", () => {
       expect(html).toContain("<p>Body text.</p>");
       expect(html).not.toContain("<h2"); // heading became the title, not left in body
     });
+
+    it("renders inline markdown in an extracted heading title", () => {
+      const html = render(
+        "::: {.callout-note}\n## A **bold** word\nBody.\n:::\n",
+      );
+      expect(html).toContain(
+        'class="callout-title">A <strong>bold</strong> word<',
+      );
+    });
+
+    it("renders inline markdown in a title= attribute", () => {
+      const html = render(
+        '::: {.callout-note title="a **b** c"}\nBody.\n:::\n',
+      );
+      expect(html).toContain('class="callout-title">a <strong>b</strong> c<');
+    });
   });
 });
