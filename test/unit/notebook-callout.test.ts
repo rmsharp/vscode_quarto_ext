@@ -1,23 +1,23 @@
 import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
-import { calloutNotePlugin } from "../../src/core/notebook-callout";
+import { calloutPlugin } from "../../src/core/notebook-callout";
 
 /**
- * `calloutNotePlugin` is a pure, `vscode`-free markdown-it plugin (BACKLOG item
- * 17d, first slice) that teaches markdown-it to render a Quarto
- * `::: {.callout-note}` fenced div as a note-admonition `<div>`. The webview
+ * `calloutPlugin` is a pure, `vscode`-free markdown-it plugin (BACKLOG item 17d)
+ * that teaches markdown-it to render a Quarto `::: {.callout-<type>}` fenced div
+ * (note/tip/warning/caution/important) as an admonition `<div>`. The webview
  * entrypoint (`src/webview/notebook-renderer.ts`) hands it to VS Code's built-in
- * `vscode.markdown-it-renderer` via `extendMarkdownIt(md => md.use(calloutNotePlugin))`,
+ * `vscode.markdown-it-renderer` via `extendMarkdownIt(md => md.use(calloutPlugin))`,
  * so notebook markdown cells render Quarto callouts instead of raw `:::` text.
  *
  * The plugin runs webview-side, so its rendering logic is unit-tested here
  * headlessly by constructing a markdown-it instance the same way VS Code does.
  */
 function render(src: string): string {
-  return new MarkdownIt().use(calloutNotePlugin).render(src);
+  return new MarkdownIt().use(calloutPlugin).render(src);
 }
 
-describe("calloutNotePlugin", () => {
+describe("calloutPlugin", () => {
   it("wraps a ::: {.callout-note} block in a callout-note div and renders its body", () => {
     const html = render("::: {.callout-note}\nHello.\n:::\n");
     expect(html).toContain('class="callout callout-note"');

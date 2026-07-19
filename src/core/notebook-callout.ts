@@ -1,45 +1,67 @@
 import type MarkdownIt from "markdown-it";
 
 /**
- * Pure, `vscode`-free markdown-it plugin (BACKLOG item 17d, first slice) that
- * renders a Quarto `::: {.callout-note}` fenced div as a note-admonition block.
+ * Pure, `vscode`-free markdown-it plugin (BACKLOG item 17d) that renders Quarto
+ * callout fenced divs (`::: {.callout-<type>}` … `:::`) as admonition blocks.
  *
- * A Quarto callout is a Pandoc fenced div (`:::` + an attribute block carrying
- * the class `.callout-note`) whose body is ordinary markdown. This plugin adds a
- * markdown-it block rule that recognises such a div, tokenises its body as
- * markdown, and wraps it in the callout markup Quarto's HTML output uses. The
- * webview entrypoint (`src/webview/notebook-renderer.ts`) installs it into VS
- * Code's built-in `vscode.markdown-it-renderer` so notebook markdown cells show
- * the callout instead of raw `:::` text.
+ * A Quarto callout is a Pandoc fenced div (`:::` + an attribute block carrying a
+ * class such as `.callout-note` / `.callout-tip` / `.callout-warning` /
+ * `.callout-caution` / `.callout-important`) whose body is ordinary markdown.
+ * This plugin adds a markdown-it block rule that recognises such a div, tokenises
+ * its body as markdown, and wraps it in the callout markup Quarto's HTML output
+ * uses. The webview entrypoint (`src/webview/notebook-renderer.ts`) installs it
+ * into VS Code's built-in `vscode.markdown-it-renderer` so notebook markdown
+ * cells show the callout instead of raw `:::` text.
  *
- * This first slice handles ONLY `callout-note` — other callout types
- * (tip/warning/caution/important) and generic fenced divs fall through unchanged.
+ * Only the callout types in `CALLOUT_TITLES` are recognised; a fenced div with
+ * any other class (a generic `::: {.foo}`, an unknown `.callout-bogus`, or a
+ * near-miss like `.callout-notes`) falls through unrendered.
  */
 
 const MARKER = 0x3a; // ":"
 const MIN_MARKERS = 3;
 
 /**
- * Matches the attribute block of a note callout: a `{…}` block whose class list
- * includes `.callout-note` exactly (not a prefix of e.g. `.callout-note-2`). The
- * block may also carry an id or further classes: `{.callout-note}`,
- * `{.callout-note #warn}`, `{.foo .callout-note}` all match; `{.callout-tip}`
- * and `{.callout}` do not.
+ * The Quarto callout types this renderer recognises, each mapped to its default
+ * display title. This map is the single source of truth — the block rule matches
+ * a `.callout-<type>` class only when `<type>` is a key here, and the renderer
+ * reads its title from here.
  */
-const CALLOUT_NOTE_PARAMS = /^\{[^}]*\.callout-note(?![\w-])[^}]*\}$/;
+const CALLOUT_TITLES: Record<string, string> = {
+  note: "Note",
+};
 
-function isCalloutNoteParams(params: string): boolean {
-  return CALLOUT_NOTE_PARAMS.test(params.trim());
+/**
+ * Matches a callout attribute block: a `{…}` block whose class list includes a
+ * `.callout-<type>` class, capturing `<type>` in group 1. The `(?![\w-])` guard
+ * pins the class to a whole word, so `.callout-note` matches but `.callout-notes`
+ * and `.callout-note-2` do not. The block may also carry an id or further
+ * classes: `{.callout-note}`, `{.callout-note #warn}`, `{.foo .callout-note}`
+ * all match. Membership in `CALLOUT_TITLES` is validated separately, so a
+ * captured but unknown type (e.g. `.callout-bogus`) is still rejected.
+ */
+const CALLOUT_PARAMS = /^\{[^}]*\.callout-([a-z]+)(?![\w-])[^}]*\}$/;
+
+/**
+ * The callout type named by an attribute block, or `undefined` if the block is
+ * not a known callout.
+ */
+function calloutType(params: string): string | undefined {
+  const match = CALLOUT_PARAMS.exec(params.trim());
+  if (!match) return undefined;
+  const type = match[1];
+  return type in CALLOUT_TITLES ? type : undefined;
 }
 
 /**
- * markdown-it block rule: a container for `::: {.callout-note}` … `:::`. Modelled
- * on the standard markdown-it fenced-container algorithm (reimplemented, not
- * copied): count the opening `:` run, validate the params as a note callout,
+ * markdown-it block rule: a container for `::: {.callout-<type>}` … `:::`.
+ * Modelled on the standard markdown-it fenced-container algorithm (reimplemented,
+ * not copied): count the opening `:` run, validate the params as a known callout,
  * scan for a closing fence of at least the same length with only trailing spaces,
- * then tokenise the interior as block markdown between open/close tokens.
+ * then tokenise the interior as block markdown between open/close tokens. The
+ * matched type is carried on the open token's `info` for the renderer.
  */
-function calloutNoteRule(
+function calloutRule(
   state: MarkdownIt.StateBlock,
   startLine: number,
   endLine: number,
@@ -57,7 +79,8 @@ function calloutNoteRule(
 
   const markup = state.src.slice(markerStart, pos);
   const params = state.src.slice(pos, max);
-  if (!isCalloutNoteParams(params)) return false;
+  const type = calloutType(params);
+  if (type === undefined) return false;
 
   // Validation-only phase (e.g. paragraph-termination lookahead): a real callout
   // opens here, so report a match without emitting tokens.
@@ -94,14 +117,15 @@ function calloutNoteRule(
   const oldLineMax = state.lineMax;
   state.lineMax = nextLine;
 
-  const tokenOpen = state.push("callout_note_open", "div", 1);
+  const tokenOpen = state.push("callout_open", "div", 1);
   tokenOpen.markup = markup;
+  tokenOpen.info = type;
   tokenOpen.block = true;
   tokenOpen.map = [startLine, nextLine];
 
   state.md.block.tokenize(state, startLine + 1, nextLine);
 
-  const tokenClose = state.push("callout_note_close", "div", -1);
+  const tokenClose = state.push("callout_close", "div", -1);
   tokenClose.markup = markup;
   tokenClose.block = true;
 
@@ -111,23 +135,26 @@ function calloutNoteRule(
   return true;
 }
 
-function renderCalloutNoteOpen(): string {
+/** Renderer rule for a `callout_open` token: emit the callout header for its type. */
+function renderCalloutOpen(tokens: MarkdownIt.Token[], idx: number): string {
+  const type = tokens[idx].info;
+  const title = CALLOUT_TITLES[type] ?? type;
   return (
-    '<div class="callout callout-note">\n' +
-    '<div class="callout-header"><div class="callout-title">Note</div></div>\n' +
+    `<div class="callout callout-${type}">\n` +
+    `<div class="callout-header"><div class="callout-title">${title}</div></div>\n` +
     '<div class="callout-body">\n'
   );
 }
 
-function renderCalloutNoteClose(): string {
+function renderCalloutClose(): string {
   return "</div>\n</div>\n";
 }
 
-/** markdown-it plugin entry point: `md.use(calloutNotePlugin)`. */
-export function calloutNotePlugin(md: MarkdownIt): void {
-  md.block.ruler.before("fence", "callout_note", calloutNoteRule, {
+/** markdown-it plugin entry point: `md.use(calloutPlugin)`. */
+export function calloutPlugin(md: MarkdownIt): void {
+  md.block.ruler.before("fence", "callout", calloutRule, {
     alt: ["paragraph", "reference", "blockquote", "list"],
   });
-  md.renderer.rules.callout_note_open = renderCalloutNoteOpen;
-  md.renderer.rules.callout_note_close = renderCalloutNoteClose;
+  md.renderer.rules.callout_open = renderCalloutOpen;
+  md.renderer.rules.callout_close = renderCalloutClose;
 }

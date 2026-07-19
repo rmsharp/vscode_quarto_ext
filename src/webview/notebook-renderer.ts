@@ -1,5 +1,5 @@
 import type MarkdownIt from "markdown-it";
-import { calloutNotePlugin } from "../core/notebook-callout";
+import { calloutPlugin } from "../core/notebook-callout";
 
 /**
  * The API the built-in `vscode.markdown-it-renderer` exposes to renderers that
@@ -23,10 +23,10 @@ interface RendererContext {
  * into the notebook renderer webview sandbox (no `vscode`/Node — DOM only),
  * where it calls `activate` with a RendererContext.
  *
- * We fetch the base markdown-it renderer and install the pure Quarto
- * callout-note plugin into its shared markdown-it instance, so a notebook's
- * markdown cells render `::: {.callout-note}` blocks as note admonitions rather
- * than raw `:::` text. The rendering logic itself lives in the vscode-free core
+ * We fetch the base markdown-it renderer and install the pure Quarto callout
+ * plugin into its shared markdown-it instance, so a notebook's markdown cells
+ * render `::: {.callout-<type>}` blocks as admonitions rather than raw `:::`
+ * text. The rendering logic itself lives in the vscode-free core
  * (`src/core/notebook-callout.ts`) and is unit-tested headlessly.
  */
 export async function activate(ctx: RendererContext): Promise<void> {
@@ -34,5 +34,5 @@ export async function activate(ctx: RendererContext): Promise<void> {
   if (!base) {
     throw new Error("Could not load 'vscode.markdown-it-renderer'");
   }
-  base.extendMarkdownIt((md) => calloutNotePlugin(md));
+  base.extendMarkdownIt((md) => calloutPlugin(md));
 }
