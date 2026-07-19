@@ -31,6 +31,8 @@ import type MarkdownIt from "markdown-it";
 
 const MARKER = 0x3a; // ":"
 const MIN_MARKERS = 3;
+const BACKTICK = 0x60; // "`"
+const TILDE = 0x7e; // "~"
 
 /**
  * The Quarto callout types this renderer recognises, each mapped to its default
@@ -372,8 +374,15 @@ function calloutRule(
   // nested OPENER when its params open a div (`isDivOpener`); any other
   // fence-like line is ordinary body content. The closer's colon count is
   // independent of the opener's, matching pandoc (a `::::` div closes on `:::`).
+  //
+  // A `:::`-looking line INSIDE a fenced code block (``` / ~~~) is literal code,
+  // not a div fence, so the scan tracks code-fence state and skips those lines —
+  // mirroring how the recursive tokenizer parses them (without this, a `::: {.x}`
+  // shown as example code would be counted as a nested opener and swallow the
+  // div's real closer).
   let nextLine = startLine;
   let depth = 0;
+  let codeFence: { char: number; len: number } | null = null;
   let autoClosed = false;
   for (;;) {
     nextLine++;
@@ -386,8 +395,39 @@ function calloutRule(
       // A less-indented non-blank line terminates the container.
       break;
     }
-    if (state.src.charCodeAt(lineStart) !== MARKER) continue;
-    if (state.sCount[nextLine] - state.blkIndent >= 4) continue; // indented code
+
+    const firstChar = state.src.charCodeAt(lineStart);
+    const indented = state.sCount[nextLine] - state.blkIndent >= 4;
+    if (codeFence !== null) {
+      // Inside a fenced code block: only its own closing fence (same marker char,
+      // at least as long, trailing spaces only, not indented as code) ends it;
+      // every other line — `:::` included — is literal code.
+      if (firstChar === codeFence.char && !indented) {
+        const runEnd = state.skipChars(lineStart, codeFence.char);
+        if (
+          runEnd - lineStart >= codeFence.len &&
+          state.skipSpaces(runEnd) >= lineMax
+        ) {
+          codeFence = null;
+        }
+      }
+      continue;
+    }
+    if ((firstChar === BACKTICK || firstChar === TILDE) && !indented) {
+      // A code-fence opener: at least 3 of ` or ~; a backtick opener's info
+      // string may not contain a backtick (markdown-it's fence rule).
+      const runEnd = state.skipChars(lineStart, firstChar);
+      if (
+        runEnd - lineStart >= 3 &&
+        !(firstChar === BACKTICK && state.src.slice(runEnd, lineMax).includes("`"))
+      ) {
+        codeFence = { char: firstChar, len: runEnd - lineStart };
+        continue;
+      }
+    }
+
+    if (firstChar !== MARKER) continue;
+    if (indented) continue; // indented code
 
     const fenceEnd = state.skipChars(lineStart, MARKER);
     if (fenceEnd - lineStart < MIN_MARKERS) continue; // fewer than 3 colons → not a fence

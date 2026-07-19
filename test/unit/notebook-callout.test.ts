@@ -568,4 +568,49 @@ describe("calloutPlugin", () => {
     expect(html.indexOf("::: foo bar")).toBeLessThan(closeIdx); // body text, inside
     expect(html.indexOf("AFTER")).toBeGreaterThan(closeIdx); // outside the outer div
   });
+
+  it("does not treat a ::: line inside a ~~~ fenced code block as a div fence", () => {
+    // The depth scan must skip fenced code, or a :::-looking OPENER inside the
+    // code block is mis-counted as a nested opener and consumes the div's real
+    // closer. Grounded vs pandoc 3.6.3: the code is literal, the div closes at
+    // its own :::, and AFTER stays outside.
+    const html = render("::: {.outer}\n~~~\n::: {.x}\n~~~\n:::\nAFTER\n");
+    expect(html).toContain('<div class="outer">');
+    expect(html).toContain("<pre><code>::: {.x}"); // literal code, not a div
+    expect(html).not.toContain('class="x"'); // never opened as a div
+    expect(html).not.toContain("<p>:::"); // no leaked closing fence
+    expect(html.indexOf("AFTER")).toBeGreaterThan(html.indexOf("</div>")); // outside
+  });
+
+  it("does not treat a ::: line inside a ``` fenced code block as a div fence", () => {
+    const html = render("::: {.outer}\n```\n::: {.x}\n```\n:::\nAFTER\n");
+    expect(html).toContain('<div class="outer">');
+    expect(html).toContain("<pre><code>::: {.x}");
+    expect(html).not.toContain('class="x"');
+    expect(html).not.toContain("<p>:::");
+    expect(html.indexOf("AFTER")).toBeGreaterThan(html.indexOf("</div>"));
+  });
+
+  it("keeps a bare ::: inside a code block literal (does not close the div early)", () => {
+    // Grounded vs pandoc 3.6.3: the div closes at the ::: AFTER the code block,
+    // not at the bare ::: inside it, so the code block is not split.
+    const html = render("::: {.outer}\n~~~\n:::\n~~~\n:::\n");
+    expect(html).toContain('<div class="outer">');
+    expect(html).toContain("<pre><code>:::");
+    expect(html.trimEnd().endsWith("</div>")).toBe(true); // div closes last
+    // exactly one <pre><code> — the code block was not split into two
+    expect((html.match(/<pre>/g) ?? []).length).toBe(1);
+  });
+
+  it("does not absorb an independent sibling div after a div containing example ::: code", () => {
+    const html = render(
+      "::: {.outer}\n~~~\n::: {.inner}\n~~~\n:::\n\n::: {.sib}\ny\n:::\n",
+    );
+    expect(html).toContain('<div class="outer">');
+    expect(html).toContain('<div class="sib">');
+    expect(html).not.toContain('class="inner"'); // literal code, not a div
+    // .sib is a sibling of .outer, not nested inside it
+    const outerClose = html.indexOf("</div>");
+    expect(html.indexOf('<div class="sib">')).toBeGreaterThan(outerClose);
+  });
 });
