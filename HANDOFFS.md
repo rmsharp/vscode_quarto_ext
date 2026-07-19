@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S119
+date: 2026-07-19
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). BACKLOG item 17d follow-on (E): collapse="true|false" on a Quarto callout renders as a collapsible <details> in the notebook markdown-cell renderer (src/core/notebook-callout.ts). collapse="true" starts collapsed; collapse="false" is collapsible but starts expanded; no collapse attribute -> the current non-collapsible callout block (unchanged). Operator picked (E) via AskUserQuestion at Phase 0 (Active empty; the "natural next slice" per S118's handoff — continues the S113-S118 notebook-renderer thread). The callout admonition markup is a Quarto Lua-filter transform, so collapse target markup will be grounded FIRSTHAND with quarto render 1.7.33 before any test. Strict TDD RED->GREEN one mechanism at a time; default non-collapsible callout path + generic-div path stay intact.
+```
+
+```handoff
 session: S118
 date: 2026-07-19
 status: complete
