@@ -646,5 +646,84 @@ describe("calloutPlugin", () => {
       );
       expect(html).toContain('class="callout-title">a <strong>b</strong> c<');
     });
+
+    it("lets title= win over a leading heading, keeping the heading in the body", () => {
+      const html = render(
+        '::: {.callout-tip title="Attr Title"}\n## Heading Title\nBody.\n:::\n',
+      );
+      expect(html).toContain('class="callout-title">Attr Title<');
+      expect(html).toContain("<h2>Heading Title</h2>"); // heading stays in the body
+      expect(html).toContain("<p>Body.</p>");
+    });
+
+    it("falls back to the default title for an empty title=\"\"", () => {
+      const html = render('::: {.callout-note title=""}\nBody.\n:::\n');
+      expect(html).toContain('class="callout-title">Note<');
+    });
+
+    it("still extracts a leading heading when title= is empty", () => {
+      const html = render(
+        '::: {.callout-note title=""}\n## Heading Here\nBody.\n:::\n',
+      );
+      expect(html).toContain('class="callout-title">Heading Here<');
+      expect(html).not.toContain("<h2");
+    });
+
+    it("extracts a leading setext heading as the title", () => {
+      const html = render(
+        "::: {.callout-note}\nUnderlined Title\n========\nBody.\n:::\n",
+      );
+      expect(html).toContain('class="callout-title">Underlined Title<');
+      expect(html).not.toContain("<h1");
+    });
+
+    it("extracts a leading heading of any level (### -> title)", () => {
+      const html = render("::: {.callout-note}\n### Deep\nBody.\n:::\n");
+      expect(html).toContain('class="callout-title">Deep<');
+      expect(html).not.toContain("<h3");
+    });
+
+    it("does not extract a heading that is not the first block", () => {
+      const html = render(
+        "::: {.callout-note}\nIntro para.\n\n## Later Heading\nBody.\n:::\n",
+      );
+      expect(html).toContain('class="callout-title">Note<'); // default title kept
+      expect(html).toContain("<h2>Later Heading</h2>"); // heading stays in the body
+    });
+
+    it("extracts a leading heading even with a blank line before it", () => {
+      const html = render("::: {.callout-note}\n\n## After Blank\nBody.\n:::\n");
+      expect(html).toContain('class="callout-title">After Blank<');
+      expect(html).not.toContain("<h2");
+    });
+
+    it("extracts only the FIRST heading; later headings stay in the body", () => {
+      const html = render(
+        "::: {.callout-note}\n## First H\n## Second H\nBody.\n:::\n",
+      );
+      expect(html).toContain('class="callout-title">First H<');
+      expect(html).toContain("<h2>Second H</h2>");
+    });
+
+    it("renders a heading-only callout with an extracted title and empty body", () => {
+      const html = render("::: {.callout-note}\n## Just A Title\n:::\n");
+      expect(html).toContain('class="callout-title">Just A Title<');
+      expect(html).not.toContain("<h2");
+      expect(html).not.toContain("<p>"); // no body content
+    });
+
+    it("HTML-escapes & and < in a title= value", () => {
+      const html = render('::: {.callout-note title="A & B < C"}\nx\n:::\n');
+      expect(html).toContain('class="callout-title">A &amp; B &lt; C<');
+    });
+
+    it("does not treat a generic (non-callout) div's title= as a display title", () => {
+      // A generic div's title= is a plain HTML attribute (S116), not a callout
+      // title; the callout-title logic must not touch the generic-div path.
+      const html = render('::: {.foo title="x"}\n## H\nBody.\n:::\n');
+      expect(html).toContain('<div class="foo" title="x">');
+      expect(html).toContain("<h2>H</h2>"); // heading NOT extracted for a generic div
+      expect(html).not.toContain("callout-title");
+    });
   });
 });
