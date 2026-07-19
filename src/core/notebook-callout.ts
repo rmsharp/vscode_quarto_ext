@@ -486,7 +486,21 @@ function calloutRule(
     }
   }
 
+  const bodyStart = state.tokens.length;
   state.md.block.tokenize(state, startLine + 1, nextLine);
+
+  // A callout with no `title=` takes its title from a leading heading (any level,
+  // ATX or setext), which is then removed from the body — matching quarto render.
+  // markdown-it tokenised the heading as heading_open + inline + heading_close; the
+  // inline token's raw content is the title source. A leading paragraph (or any
+  // non-heading first block) leaves the default title and the body untouched.
+  if (type !== undefined && calloutTitle === undefined) {
+    const headingOpen = state.tokens[bodyStart];
+    if (headingOpen !== undefined && headingOpen.type === "heading_open") {
+      tokenOpen.meta = { title: state.tokens[bodyStart + 1].content };
+      state.tokens.splice(bodyStart, 3); // heading_open + inline + heading_close
+    }
+  }
 
   const tokenClose = state.push(
     type !== undefined ? "callout_close" : "div_close",

@@ -621,5 +621,14 @@ describe("calloutPlugin", () => {
       expect(html).toContain('class="callout callout-note"'); // still a note callout
       expect(html).toContain("<p>Body.</p>");
     });
+
+    it("extracts a leading ## heading as the title and removes it from the body", () => {
+      const html = render(
+        "::: {.callout-note}\n## My Heading Title\nBody text.\n:::\n",
+      );
+      expect(html).toContain('class="callout-title">My Heading Title<');
+      expect(html).toContain("<p>Body text.</p>");
+      expect(html).not.toContain("<h2"); // heading became the title, not left in body
+    });
   });
 });
