@@ -227,14 +227,31 @@ function parseDivAttrs(
   if (tokens === null) return null;
   let id: string | null = null;
   const classes: string[] = [];
+  const classSeen = new Set<string>();
   const attrs: [string, string][] = [];
+  const attrSeen = new Set<string>();
+  const addClass = (cls: string): void => {
+    if (cls !== "" && !classSeen.has(cls)) {
+      classSeen.add(cls); // duplicate classes collapse, matching Pandoc
+      classes.push(cls);
+    }
+  };
   for (const token of tokens) {
     if (token.kind === "id") {
       id = token.value; // several ids → the last wins, matching Pandoc/Quarto
     } else if (token.kind === "class") {
-      classes.push(token.value);
+      addClass(token.value);
+    } else if (token.key === "class") {
+      // `class="a b"` merges into the class list, whitespace-split, like Pandoc.
+      for (const cls of token.value.split(/\s+/)) addClass(cls);
+    } else if (token.key === "id") {
+      id = token.value; // `id=` sets the id; the last id (by any form) wins
     } else {
-      attrs.push([htmlAttrName(token.key), token.value]);
+      const name = htmlAttrName(token.key);
+      if (!attrSeen.has(name)) {
+        attrSeen.add(name); // a duplicate attribute name keeps the FIRST, like Pandoc
+        attrs.push([name, token.value]);
+      }
     }
   }
   return { id, classes, attrs };

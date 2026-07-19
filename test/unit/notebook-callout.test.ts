@@ -302,4 +302,46 @@ describe("calloutPlugin", () => {
     const html = render('::: {style="x" .late}\nBody.\n:::\n');
     expect(html).toContain('<div class="late" style="x">');
   });
+
+  // --- Pandoc attribute-list semantics: class=/id= merge into the class list /
+  // id; duplicate classes and duplicate attributes collapse. Grounded firsthand. ---
+
+  it('treats class= as a class, not a data- attr: ::: {class=v} -> <div class="v">', () => {
+    const html = render("::: {class=v}\nBody.\n:::\n");
+    expect(html).toContain('<div class="v">');
+    expect(html).not.toContain("data-class");
+  });
+
+  it('treats id= as the id, not a data- attr: ::: {id=v} -> <div id="v">', () => {
+    const html = render("::: {id=v}\nBody.\n:::\n");
+    expect(html).toContain('<div id="v">');
+    expect(html).not.toContain("data-id");
+  });
+
+  it('splits a class= value on whitespace and appends to .class: ::: {.a class="b c"} -> <div class="a b c">', () => {
+    const html = render('::: {.a class="b c"}\nBody.\n:::\n');
+    expect(html).toContain('<div class="a b c">');
+  });
+
+  it('lets a later id= win over an earlier #id: ::: {#x id=y} -> <div id="y">', () => {
+    const html = render("::: {#x id=y}\nBody.\n:::\n");
+    expect(html).toContain('<div id="y">');
+    expect(html).not.toContain('id="x"');
+  });
+
+  it('deduplicates repeated classes: ::: {.a .b .a} -> <div class="a b">', () => {
+    const html = render("::: {.a .b .a}\nBody.\n:::\n");
+    expect(html).toContain('<div class="a b">');
+  });
+
+  it('deduplicates a class across .class and class=: ::: {.a class="a b"} -> <div class="a b">', () => {
+    const html = render('::: {.a class="a b"}\nBody.\n:::\n');
+    expect(html).toContain('<div class="a b">');
+  });
+
+  it('keeps the FIRST of a duplicate attribute name: ::: {data-x=1 data-x=2} -> <div data-x="1">', () => {
+    const html = render("::: {data-x=1 data-x=2}\nBody.\n:::\n");
+    expect(html).toContain('<div data-x="1">');
+    expect(html).not.toContain('data-x="2"');
+  });
 });
