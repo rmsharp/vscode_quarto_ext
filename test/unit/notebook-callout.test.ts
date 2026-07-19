@@ -761,5 +761,82 @@ describe("calloutPlugin", () => {
       expect(html).toContain("<p>Body.</p>");
       expect(html).toContain("</details>");
     });
+
+    it("treats an unquoted collapse=true as collapsed", () => {
+      const html = render("::: {.callout-note collapse=true}\nBody.\n:::\n");
+      expect(html).toContain('<details class="callout callout-note">'); // closed, no open
+      expect(html).not.toContain(" open>");
+    });
+
+    it('treats a case-variant collapse="TRUE" as expanded (value match is case-sensitive)', () => {
+      // quarto only recognises the exact lowercase `true`; TRUE/True start expanded.
+      const html = render('::: {.callout-note collapse="TRUE"}\nBody.\n:::\n');
+      expect(html).toContain('<details class="callout callout-note" open>');
+    });
+
+    it('treats a non-boolean collapse="maybe" as expanded but still collapsible', () => {
+      const html = render('::: {.callout-note collapse="maybe"}\nBody.\n:::\n');
+      expect(html).toContain('<details class="callout callout-note" open>');
+    });
+
+    it('treats an empty collapse="" as expanded but still collapsible', () => {
+      const html = render('::: {.callout-note collapse=""}\nBody.\n:::\n');
+      expect(html).toContain('<details class="callout callout-note" open>');
+    });
+
+    it("leaves a callout with no collapse attribute as a non-collapsible <div>", () => {
+      const html = render("::: {.callout-note}\nBody.\n:::\n");
+      expect(html).toContain('<div class="callout callout-note">');
+      expect(html).not.toContain("<details");
+      expect(html).not.toContain("<summary");
+    });
+
+    it("closes a collapsible callout with </details>, not a second </div>", () => {
+      const html = render('::: {.callout-note collapse="true"}\nBody.\n:::\n');
+      expect(html).toContain("</div>\n</details>\n");
+      expect(html).not.toContain("</div>\n</div>\n"); // the plain-callout close form
+    });
+
+    it("uses an extracted leading heading as the <summary> title of a collapsed callout", () => {
+      // collapse composes with heading-title extraction: the heading becomes the
+      // summary title and is removed from the body (grounded vs quarto render).
+      const html = render(
+        '::: {.callout-note collapse="true"}\n## My Title\nBody.\n:::\n',
+      );
+      expect(html).toContain('<details class="callout callout-note">');
+      expect(html).toContain('class="callout-title">My Title<');
+      expect(html).not.toContain("<h2");
+      expect(html).toContain("<p>Body.</p>");
+    });
+
+    it("uses a title= attribute as the <summary> title of a collapsible callout", () => {
+      const html = render(
+        '::: {.callout-tip collapse="false" title="Attr Title"}\nBody.\n:::\n',
+      );
+      expect(html).toContain('<details class="callout callout-tip" open>');
+      expect(html).toContain('class="callout-title">Attr Title<');
+    });
+
+    it("renders body markdown inside a collapsible callout", () => {
+      const html = render(
+        '::: {.callout-note collapse="true"}\nSome **bold** text.\n:::\n',
+      );
+      expect(html).toContain("<strong>bold</strong>");
+    });
+
+    it("carries the callout type into a collapsible callout's class and title", () => {
+      const html = render('::: {.callout-warning collapse="true"}\nBody.\n:::\n');
+      expect(html).toContain('<details class="callout callout-warning">');
+      expect(html).toContain('class="callout-title">Warning<');
+    });
+
+    it("does not turn a generic (non-callout) div's collapse= into a <details>", () => {
+      // collapse is a callout-only control; on a generic div it stays a plain
+      // data- attribute, byte-matching quarto render (<div class="foo" data-collapse="true">).
+      const html = render('::: {.foo collapse="true"}\nGeneric.\n:::\n');
+      expect(html).toContain('<div class="foo" data-collapse="true">');
+      expect(html).not.toContain("<details");
+      expect(html).not.toContain("<summary");
+    });
   });
 });
