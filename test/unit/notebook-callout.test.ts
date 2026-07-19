@@ -73,6 +73,19 @@ describe("calloutPlugin", () => {
     expect(html).toContain(":::"); // falls through as raw text, not silently dropped
   });
 
+  it("first known callout class wins: {.callout-note .callout-bogus} renders as a note", () => {
+    // A valid callout class must not be masked by a later unknown .callout-* class.
+    const html = render("::: {.callout-note .callout-bogus}\nBody.\n:::\n");
+    expect(html).toContain('class="callout callout-note"');
+    expect(html).toContain('class="callout-title">Note<');
+  });
+
+  it("first known callout class wins deterministically: {.callout-note .callout-tip} is a note", () => {
+    const html = render("::: {.callout-note .callout-tip}\nBody.\n:::\n");
+    expect(html).toContain('class="callout callout-note"');
+    expect(html).not.toContain("callout-tip");
+  });
+
   it("auto-closes an unterminated callout at the end of the cell", () => {
     const html = render("::: {.callout-note}\nNo closing fence.\n");
     expect(html).toContain('class="callout callout-note"');

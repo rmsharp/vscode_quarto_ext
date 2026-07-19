@@ -35,26 +35,34 @@ const CALLOUT_TITLES: Record<string, string> = {
   important: "Important",
 };
 
-/**
- * Matches a callout attribute block: a `{…}` block whose class list includes a
- * `.callout-<type>` class, capturing `<type>` in group 1. The `(?![\w-])` guard
- * pins the class to a whole word, so `.callout-note` matches but `.callout-notes`
- * and `.callout-note-2` do not. The block may also carry an id or further
- * classes: `{.callout-tip}`, `{.callout-note #warn}`, `{.foo .callout-warning}`
- * all match. Membership in `CALLOUT_TITLES` is validated separately, so a
- * captured but unknown type (e.g. `.callout-bogus`) is still rejected.
- */
-const CALLOUT_PARAMS = /^\{[^}]*\.callout-([a-z]+)(?![\w-])[^}]*\}$/;
+/** A single Pandoc attribute block: `{ … }` with no interior `}`. */
+const ATTR_BLOCK = /^\{[^}]*\}$/;
 
 /**
  * The callout type named by an attribute block, or `undefined` if the block is
  * not a known callout.
+ *
+ * The block must be a single `{…}` attribute block; it may carry an id or
+ * further classes (`{.callout-tip}`, `{.callout-note #warn}`,
+ * `{.foo .callout-warning}`). Each `.callout-<type>` class is matched with a
+ * `(?![\w-])` whole-word guard, so `.callout-note` matches but `.callout-notes`
+ * and `.callout-note-2` do not. When the block lists more than one
+ * `.callout-*` class, the FIRST one that is a known type wins — deterministic,
+ * and a valid callout class is not masked by a later unknown one. Membership in
+ * `CALLOUT_TITLES` closes the set, so a lone unknown type (e.g. `.callout-bogus`)
+ * is rejected.
  */
 function calloutType(params: string): string | undefined {
-  const match = CALLOUT_PARAMS.exec(params.trim());
-  if (!match) return undefined;
-  const type = match[1];
-  return type in CALLOUT_TITLES ? type : undefined;
+  const trimmed = params.trim();
+  if (!ATTR_BLOCK.test(trimmed)) return undefined;
+  // Fresh regex per call — the `g` flag carries `lastIndex` state that must not
+  // leak across invocations.
+  const classPattern = /\.callout-([a-z]+)(?![\w-])/g;
+  let match: RegExpExecArray | null;
+  while ((match = classPattern.exec(trimmed)) !== null) {
+    if (match[1] in CALLOUT_TITLES) return match[1];
+  }
+  return undefined;
 }
 
 /**
