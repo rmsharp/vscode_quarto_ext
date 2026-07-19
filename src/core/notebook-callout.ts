@@ -82,8 +82,12 @@ function calloutType(params: string): string | undefined {
  * pandoc 3.6.3 (what `quarto render` runs) by probing every candidate name and
  * observing which pass through — not transcribed from memory, which was wrong
  * about several (`onshow`/`onsort`/`inlist`/`popover`/`inert`/… are prefixed in
- * 3.6.3). `class` and `id` are intentionally absent: they never reach this path
- * because `class=`/`id=` are consumed into the class list / id in `parseDivAttrs`.
+ * 3.6.3). These 214 names were re-derived against a comprehensive candidate list
+ * (all HTML global/element attributes + every event-handler family + RDFa) after
+ * an adversarial pass found a first, narrower probe had missed 21 window/clipboard
+ * event handlers (`oncopy`, `onpaste`, `onstorage`, …). `class` and `id` are
+ * intentionally absent: they never reach this path because `class=`/`id=` are
+ * consumed into the class list / id in `buildDivAttrs`.
  */
 const KNOWN_HTML5_ATTRS = new Set<string>([
   "abbr", "about", "accept", "accept-charset", "accesskey", "action", "allow", "allowfullscreen",
@@ -96,21 +100,23 @@ const KNOWN_HTML5_ATTRS = new Set<string>([
   "imagesrcset", "inputmode", "integrity", "is", "ismap", "itemid", "itemprop", "itemref",
   "itemscope", "itemtype", "kind", "lang", "list", "loading", "loop", "low",
   "manifest", "max", "maxlength", "media", "method", "min", "minlength", "multiple",
-  "muted", "name", "nomodule", "nonce", "novalidate", "onabort", "onblur", "oncancel",
-  "oncanplay", "oncanplaythrough", "onchange", "onclick", "onclose", "oncontextmenu", "oncuechange", "ondblclick",
-  "ondrag", "ondragend", "ondragenter", "ondragexit", "ondragleave", "ondragover", "ondragstart", "ondrop",
-  "ondurationchange", "onemptied", "onended", "onerror", "onfocus", "oninput", "oninvalid", "onkeydown",
-  "onkeypress", "onkeyup", "onload", "onloadeddata", "onloadedmetadata", "onloadstart", "onmousedown", "onmouseenter",
-  "onmouseleave", "onmousemove", "onmouseout", "onmouseover", "onmouseup", "onpause", "onplay", "onplaying",
-  "onprogress", "onratechange", "onreset", "onresize", "onscroll", "onsecuritypolicyviolation", "onseeked", "onseeking",
-  "onselect", "onstalled", "onsubmit", "onsuspend", "ontimeupdate", "ontoggle", "onvolumechange", "onwaiting",
-  "onwheel", "open", "optimum", "pattern", "ping", "placeholder", "playsinline", "poster",
-  "prefix", "preload", "property", "readonly", "referrerpolicy", "rel", "required", "resource",
-  "rev", "reversed", "role", "rows", "rowspan", "sandbox", "scope", "selected",
-  "shape", "size", "sizes", "slot", "span", "spellcheck", "src", "srcdoc",
-  "srclang", "srcset", "start", "step", "style", "tabindex", "target", "title",
-  "translate", "type", "typemustmatch", "typeof", "usemap", "value", "vocab", "width",
-  "wrap",
+  "muted", "name", "nomodule", "nonce", "novalidate", "onabort", "onafterprint", "onauxclick",
+  "onbeforeprint", "onbeforeunload", "onblur", "oncancel", "oncanplay", "oncanplaythrough", "onchange", "onclick",
+  "onclose", "oncontextmenu", "oncopy", "oncuechange", "oncut", "ondblclick", "ondrag", "ondragend",
+  "ondragenter", "ondragexit", "ondragleave", "ondragover", "ondragstart", "ondrop", "ondurationchange", "onemptied",
+  "onended", "onerror", "onfocus", "onhashchange", "oninput", "oninvalid", "onkeydown", "onkeypress",
+  "onkeyup", "onlanguagechange", "onload", "onloadeddata", "onloadedmetadata", "onloadend", "onloadstart", "onmessage",
+  "onmessageerror", "onmousedown", "onmouseenter", "onmouseleave", "onmousemove", "onmouseout", "onmouseover", "onmouseup",
+  "onoffline", "ononline", "onpagehide", "onpageshow", "onpaste", "onpause", "onplay", "onplaying",
+  "onpopstate", "onprogress", "onratechange", "onrejectionhandled", "onreset", "onresize", "onscroll", "onsecuritypolicyviolation",
+  "onseeked", "onseeking", "onselect", "onstalled", "onstorage", "onsubmit", "onsuspend", "ontimeupdate",
+  "ontoggle", "onunhandledrejection", "onunload", "onvolumechange", "onwaiting", "onwheel", "open", "optimum",
+  "pattern", "ping", "placeholder", "playsinline", "poster", "prefix", "preload", "property",
+  "readonly", "referrerpolicy", "rel", "required", "resource", "rev", "reversed", "role",
+  "rows", "rowspan", "sandbox", "scope", "selected", "shape", "size", "sizes",
+  "slot", "span", "spellcheck", "src", "srcdoc", "srclang", "srcset", "start",
+  "step", "style", "tabindex", "target", "title", "translate", "type", "typemustmatch",
+  "typeof", "usemap", "value", "vocab", "width", "wrap",
 ]);
 
 /**

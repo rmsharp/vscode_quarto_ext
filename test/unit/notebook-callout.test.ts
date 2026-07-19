@@ -396,4 +396,23 @@ describe("calloutPlugin", () => {
     expect(html).toContain('<div class="foo">');
     expect(html).toContain("<p>Body.</p>");
   });
+
+  // --- Adversarial-panel fixes (grounded firsthand vs quarto pandoc 3.6.3) ---
+
+  it("passes window/clipboard event handlers through verbatim (not data-): oncopy, onpaste, onstorage, …", () => {
+    // These 21 handlers are in pandoc 3.6.3's HTML5 attribute set; the plugin's
+    // first derivation missed them (incomplete candidate list).
+    for (const h of [
+      "oncopy",
+      "onpaste",
+      "onstorage",
+      "onhashchange",
+      "onbeforeunload",
+      "onauxclick",
+    ]) {
+      const html = render(`::: {.b ${h}=v}\nX\n:::\n`);
+      expect(html).toContain(`<div class="b" ${h}="v">`);
+      expect(html).not.toContain(`data-${h}`);
+    }
+  });
 });
