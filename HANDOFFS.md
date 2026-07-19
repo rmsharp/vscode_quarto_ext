@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S115
+date: 2026-07-18
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). BACKLOG item 17d follow-on (C), scoped to generic fenced divs: `::: {.className}` → `<div id/class>body</div>` for any non-callout Pandoc div in the notebook markdown-cell renderer (src/core/notebook-callout.ts), instead of raw `:::` text. Known callout classes still render as admonitions — the callout path (calloutType + calloutRule fence-scan) is untouched; a new generic-div branch handles only what calloutType rejects. key=val attrs + bare-word `::: foo` shorthand deferred. Operator picked 17d then scoped to generic divs via a second AskUserQuestion (Active empty, FM #26 one-capability). Custom callout titles + collapse (the other two (C) sub-features) filed as follow-ons.
+```
+
+```handoff
 session: S114
 date: 2026-07-18
 status: complete
