@@ -87,11 +87,19 @@ function parseDivAttrs(params: string): { id: string | null; classes: string[] }
   const trimmed = params.trim();
   if (!ATTR_BLOCK.test(trimmed)) return null;
   const inner = trimmed.slice(1, -1);
+  // Drop `key=value` / `key="value"` attributes before scanning, so a `.`/`#`
+  // inside a value (`style="padding: .5em"`, `data-x="go #home"`) is never
+  // misread as a class/id. Emitting key=value attributes is a deferred follow-on;
+  // here they must simply not pollute the id/class extraction.
+  const idClassOnly = inner.replace(
+    /[\w-]+=("[^"]*"|'[^']*'|[^\s}]+)/g,
+    " ",
+  );
   const classes: string[] = [];
   let id: string | null = null;
   const tokenPattern = /(?:^|\s)([.#])([\w-]+)/g;
   let match: RegExpExecArray | null;
-  while ((match = tokenPattern.exec(inner)) !== null) {
+  while ((match = tokenPattern.exec(idClassOnly)) !== null) {
     if (match[1] === ".") classes.push(match[2]);
     else if (id === null) id = match[2];
   }

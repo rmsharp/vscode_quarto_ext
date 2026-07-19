@@ -119,6 +119,28 @@ describe("calloutPlugin", () => {
     expect(html).toContain(":::");
   });
 
+  it('does not misread a dot inside a quoted value as a class: ::: {style="padding: .5em"} stays unrendered', () => {
+    // key=value is deferred; the `.5em` inside the value must NOT become a class.
+    // Grounded against `quarto render`: <div style="padding: .5em"> with NO class;
+    // since we don't emit key=value yet, the div has no id/class and falls through.
+    const html = render('::: {style="padding: .5em"}\nBody.\n:::\n');
+    expect(html).not.toContain("<div");
+    expect(html).toContain(":::"); // raw, not rendered
+  });
+
+  it('does not misread a hash inside a quoted value as an id: ::: {data-target="go #home"} stays unrendered', () => {
+    const html = render('::: {data-target="go #home"}\nBody.\n:::\n');
+    expect(html).not.toContain("<div");
+    expect(html).toContain(":::");
+  });
+
+  it('keeps a real class alongside a dotted quoted value: ::: {.box title="a .b"} -> <div class="box">', () => {
+    // The real `.box` class survives; the `.b` inside the value is ignored.
+    const html = render('::: {.box title="a .b"}\nBody.\n:::\n');
+    expect(html).toContain('<div class="box">');
+    expect(html).not.toContain(".b");
+  });
+
   it("callout still wins when a generic class precedes a callout class: {.foo .callout-note}", () => {
     // The generic-div branch must never steal a div that is a known callout.
     const html = render("::: {.foo .callout-note}\nBody.\n:::\n");
