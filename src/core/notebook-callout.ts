@@ -73,48 +73,171 @@ function calloutType(params: string): string | undefined {
 }
 
 /**
- * The id and class(es) named by a Pandoc attribute block, or `undefined` when
- * the block carries neither, or `null` when `params` is not a single `{…}`
- * attribute block at all.
- *
- * Only `#id` and `.class` tokens are read. `key=value` / `key="value"`
- * attributes are stripped first, so a `.` or `#` inside a value (`x="a.b"`,
- * `style="padding: .5em"`) is never misread as a class/id — emitting key=value
- * attributes and bare-word shorthand (`::: foo`) are out of scope (deferred
- * follow-on). Matching Pandoc/Quarto: several ids resolve to the last, and an
- * id/class name may contain interior dots and hyphens.
+ * Attribute names Pandoc's HTML5 writer emits verbatim, i.e. WITHOUT the `data-`
+ * prefix it adds to unknown names. Derived FIRSTHAND from the quarto-bundled
+ * pandoc 3.6.3 (what `quarto render` runs) by probing every candidate name and
+ * observing which pass through — not transcribed from memory, which was wrong
+ * about several (`onshow`/`onsort`/`inlist`/`popover`/`inert`/… are prefixed in
+ * 3.6.3). `class` and `id` are intentionally absent: they never reach this path
+ * because `class=`/`id=` are consumed into the class list / id in `parseDivAttrs`.
  */
-function parseDivAttrs(params: string): { id: string | null; classes: string[] } | null {
+const KNOWN_HTML5_ATTRS = new Set<string>([
+  "abbr", "about", "accept", "accept-charset", "accesskey", "action", "allow", "allowfullscreen",
+  "allowpaymentrequest", "allowusermedia", "alt", "as", "async", "autocapitalize", "autocomplete", "autofocus",
+  "autoplay", "charset", "checked", "cite", "color", "cols", "colspan", "content",
+  "contenteditable", "controls", "coords", "crossorigin", "data", "datatype", "datetime", "decoding",
+  "default", "defer", "dir", "dirname", "disabled", "download", "draggable", "enctype",
+  "enterkeyhint", "for", "form", "formaction", "formenctype", "formmethod", "formnovalidate", "formtarget",
+  "headers", "height", "hidden", "high", "href", "hreflang", "http-equiv", "imagesizes",
+  "imagesrcset", "inputmode", "integrity", "is", "ismap", "itemid", "itemprop", "itemref",
+  "itemscope", "itemtype", "kind", "lang", "list", "loading", "loop", "low",
+  "manifest", "max", "maxlength", "media", "method", "min", "minlength", "multiple",
+  "muted", "name", "nomodule", "nonce", "novalidate", "onabort", "onblur", "oncancel",
+  "oncanplay", "oncanplaythrough", "onchange", "onclick", "onclose", "oncontextmenu", "oncuechange", "ondblclick",
+  "ondrag", "ondragend", "ondragenter", "ondragexit", "ondragleave", "ondragover", "ondragstart", "ondrop",
+  "ondurationchange", "onemptied", "onended", "onerror", "onfocus", "oninput", "oninvalid", "onkeydown",
+  "onkeypress", "onkeyup", "onload", "onloadeddata", "onloadedmetadata", "onloadstart", "onmousedown", "onmouseenter",
+  "onmouseleave", "onmousemove", "onmouseout", "onmouseover", "onmouseup", "onpause", "onplay", "onplaying",
+  "onprogress", "onratechange", "onreset", "onresize", "onscroll", "onsecuritypolicyviolation", "onseeked", "onseeking",
+  "onselect", "onstalled", "onsubmit", "onsuspend", "ontimeupdate", "ontoggle", "onvolumechange", "onwaiting",
+  "onwheel", "open", "optimum", "pattern", "ping", "placeholder", "playsinline", "poster",
+  "prefix", "preload", "property", "readonly", "referrerpolicy", "rel", "required", "resource",
+  "rev", "reversed", "role", "rows", "rowspan", "sandbox", "scope", "selected",
+  "shape", "size", "sizes", "slot", "span", "spellcheck", "src", "srcdoc",
+  "srclang", "srcset", "start", "step", "style", "tabindex", "target", "title",
+  "translate", "type", "typemustmatch", "typeof", "usemap", "value", "vocab", "width",
+  "wrap",
+]);
+
+/**
+ * Pandoc's HTML5 attribute-name rule: a known HTML5/RDFa name — or one already
+ * carrying a `data-`/`aria-` prefix or a namespace `:` (`xml:lang`) — is emitted
+ * as written; every other name is prefixed with `data-` (`key` → `data-key`,
+ * `Foo` → `data-Foo`; the check is case-sensitive, matching pandoc).
+ */
+function htmlAttrName(key: string): string {
+  if (
+    key.startsWith("data-") ||
+    key.startsWith("aria-") ||
+    key.includes(":") ||
+    KNOWN_HTML5_ATTRS.has(key)
+  ) {
+    return key;
+  }
+  return "data-" + key;
+}
+
+/** A single token inside a `{…}` attribute block. */
+type DivToken =
+  | { kind: "id"; value: string }
+  | { kind: "class"; value: string }
+  | { kind: "kv"; key: string; value: string };
+
+/** `#id` / `.class` name chars — word chars plus interior dots and hyphens. */
+const NAME_CHAR = /[\w.-]/;
+/** A `key` in `key=value` starts with a letter or `_`… */
+const KEY_START = /[A-Za-z_]/;
+/** …then continues with word chars, dots, colons, and hyphens (`data-x`, `xml:lang`). */
+const KEY_CHAR = /[\w.:-]/;
+
+/**
+ * Tokenise the inside of a Pandoc `{…}` attribute block into ordered `#id`,
+ * `.class`, and `key=value` tokens, or `null` if the block is not well-formed.
+ *
+ * Reimplements Pandoc's attribute grammar (not copied): whitespace-separated
+ * tokens; a value may be bare (`key=val`), double- or single-quoted (`key="a b"`,
+ * `key='v'`) with the quotes allowing interior spaces. A stray bare word with no
+ * `#`/`.`/`=` (`{.box checked}`), a `#`/`.` with no name, a key starting with a
+ * digit (`{1abc=v}`), or an unterminated quote makes the whole block invalid →
+ * `null`, so the caller leaves it unrendered (pandoc instead reinterprets a few
+ * of these as a literal-brace class; matching that degenerate reinterpretation is
+ * out of scope — an unrenderable div is the safe outcome).
+ */
+function tokenizeDivAttrs(inner: string): DivToken[] | null {
+  const tokens: DivToken[] = [];
+  let i = 0;
+  const n = inner.length;
+  while (i < n) {
+    while (i < n && /\s/.test(inner[i])) i++;
+    if (i >= n) break;
+    const c = inner[i];
+    if (c === "#" || c === ".") {
+      i++;
+      const start = i;
+      while (i < n && NAME_CHAR.test(inner[i])) i++;
+      if (i === start) return null; // `#`/`.` with no name
+      const value = inner.slice(start, i);
+      tokens.push(c === "#" ? { kind: "id", value } : { kind: "class", value });
+      continue;
+    }
+    if (!KEY_START.test(c)) return null; // bare word / bad key start → invalid block
+    const keyStart = i;
+    i++;
+    while (i < n && KEY_CHAR.test(inner[i])) i++;
+    const key = inner.slice(keyStart, i);
+    if (i >= n || inner[i] !== "=") return null; // bare word (no `=`) → invalid block
+    i++; // consume `=`
+    let value: string;
+    const quote = inner[i];
+    if (quote === '"' || quote === "'") {
+      i++;
+      const valueStart = i;
+      while (i < n && inner[i] !== quote) i++;
+      if (i >= n) return null; // unterminated quote → invalid block
+      value = inner.slice(valueStart, i);
+      i++; // consume closing quote
+    } else {
+      const valueStart = i;
+      while (i < n && !/\s/.test(inner[i]) && inner[i] !== "}") i++;
+      value = inner.slice(valueStart, i); // may be empty: `key=` → `key=""`
+    }
+    tokens.push({ kind: "kv", key, value });
+  }
+  return tokens;
+}
+
+/**
+ * The id, class(es), and other attributes named by a Pandoc attribute block, or
+ * `null` when `params` is not a valid div-attribute spec.
+ *
+ * Handles both forms `quarto render` accepts: a bare-word shorthand `::: foo`
+ * (≡ `::: {.foo}`, a single non-brace whitespace-free word → one class), and a
+ * `{…}` attribute block carrying any mix of `#id`, `.class`, and `key=value`
+ * attributes. `key=value` attributes are EMITTED (see `htmlAttrName` for the
+ * `data-` prefix rule), replacing the earlier strip-and-ignore. Matching
+ * Pandoc/Quarto: several ids resolve to the last; id/class names may contain
+ * interior dots/hyphens; attribute order is id, then all classes, then the other
+ * attributes in source order.
+ */
+function parseDivAttrs(
+  params: string,
+): { id: string | null; classes: string[]; attrs: [string, string][] } | null {
   const trimmed = params.trim();
   if (!ATTR_BLOCK.test(trimmed)) {
     // Bare-word shorthand: `::: foo` ≡ `::: {.foo}` → a single non-brace,
     // whitespace-free word becomes a class (grounded vs quarto render). A block
     // with whitespace (`::: foo bar`) or a stray `{` is not a valid div.
     if (trimmed !== "" && !trimmed.startsWith("{") && !/\s/.test(trimmed)) {
-      return { id: null, classes: [trimmed] };
+      return { id: null, classes: [trimmed], attrs: [] };
     }
     return null;
   }
   const inner = trimmed.slice(1, -1);
-  // Drop `key=value` / `key="value"` attributes before scanning, so a `.`/`#`
-  // inside a value (`style="padding: .5em"`, `data-x="go #home"`) is never
-  // misread as a class/id. Emitting key=value attributes is a deferred follow-on;
-  // here they must simply not pollute the id/class extraction.
-  const idClassOnly = inner.replace(
-    /[\w-]+=("[^"]*"|'[^']*'|[^\s}]+)/g,
-    " ",
-  );
-  const classes: string[] = [];
+  const tokens = tokenizeDivAttrs(inner);
+  if (tokens === null) return null;
   let id: string | null = null;
-  // An id/class name may contain interior dots and hyphens (`.a.b`, `#id.class`),
-  // matching Pandoc's identifier grammar.
-  const tokenPattern = /(?:^|\s)([.#])([\w.-]+)/g;
-  let match: RegExpExecArray | null;
-  while ((match = tokenPattern.exec(idClassOnly)) !== null) {
-    if (match[1] === ".") classes.push(match[2]);
-    else id = match[2]; // several ids → the last wins, matching Pandoc/Quarto
+  const classes: string[] = [];
+  const attrs: [string, string][] = [];
+  for (const token of tokens) {
+    if (token.kind === "id") {
+      id = token.value; // several ids → the last wins, matching Pandoc/Quarto
+    } else if (token.kind === "class") {
+      classes.push(token.value);
+    } else {
+      attrs.push([htmlAttrName(token.key), token.value]);
+    }
   }
-  return { id, classes };
+  return { id, classes, attrs };
 }
 
 /**
@@ -153,7 +276,9 @@ function calloutRule(
   if (
     type === undefined &&
     (divAttrs === null ||
-      (divAttrs.id === null && divAttrs.classes.length === 0))
+      (divAttrs.id === null &&
+        divAttrs.classes.length === 0 &&
+        divAttrs.attrs.length === 0))
   ) {
     return false;
   }
@@ -204,10 +329,14 @@ function calloutRule(
   if (type !== undefined) {
     tokenOpen.info = type;
   } else if (divAttrs) {
-    // id first, then class — matches Pandoc/Quarto's attribute order.
+    // Pandoc/Quarto attribute order: id, then all classes, then the other
+    // attributes in source order.
     if (divAttrs.id !== null) tokenOpen.attrSet("id", divAttrs.id);
     if (divAttrs.classes.length > 0) {
       tokenOpen.attrSet("class", divAttrs.classes.join(" "));
+    }
+    for (const [name, value] of divAttrs.attrs) {
+      tokenOpen.attrPush([name, value]);
     }
   }
 

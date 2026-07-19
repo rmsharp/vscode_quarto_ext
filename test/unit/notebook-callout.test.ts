@@ -127,34 +127,34 @@ describe("calloutPlugin", () => {
     expect(html).toContain(":::"); // falls through as raw text
   });
 
-  it("leaves a key=value-only div ::: {data-x=\"y\"} unrendered (key=val deferred)", () => {
-    // key=value attributes are out of scope this slice; with no id/class the div
-    // is not recognised and falls through, rather than rendering an empty <div>.
+  it('emits a key=value-only div ::: {data-x="y"} as <div data-x="y"> (already data- prefixed → verbatim)', () => {
+    // Grounded vs quarto render. Was deferred (unrendered); now key=value is
+    // emitted. `data-x` already carries the `data-` prefix, so it passes through.
     const html = render('::: {data-x="y"}\nBody.\n:::\n');
-    expect(html).not.toContain("<div");
-    expect(html).toContain(":::");
+    expect(html).toContain('<div data-x="y">');
+    expect(html).not.toContain(":::");
   });
 
-  it('does not misread a dot inside a quoted value as a class: ::: {style="padding: .5em"} stays unrendered', () => {
-    // key=value is deferred; the `.5em` inside the value must NOT become a class.
-    // Grounded against `quarto render`: <div style="padding: .5em"> with NO class;
-    // since we don't emit key=value yet, the div has no id/class and falls through.
+  it('emits a known HTML5 attr verbatim (no data-): ::: {style="padding: .5em"} -> <div style="padding: .5em">', () => {
+    // Grounded vs quarto render: `style` is a known HTML5 attribute, emitted as
+    // written; the `.5em` inside the value is a value, never a class.
     const html = render('::: {style="padding: .5em"}\nBody.\n:::\n');
-    expect(html).not.toContain("<div");
-    expect(html).toContain(":::"); // raw, not rendered
+    expect(html).toContain('<div style="padding: .5em">');
+    expect(html).not.toContain("class="); // no phantom `.5em` class
   });
 
-  it('does not misread a hash inside a quoted value as an id: ::: {data-target="go #home"} stays unrendered', () => {
+  it('keeps a # inside a value as a value, not an id: ::: {data-target="go #home"} -> <div data-target="go #home">', () => {
     const html = render('::: {data-target="go #home"}\nBody.\n:::\n');
-    expect(html).not.toContain("<div");
-    expect(html).toContain(":::");
+    expect(html).toContain('<div data-target="go #home">');
+    expect(html).not.toContain('id="'); // the `#home` is value text, not an id
   });
 
-  it('keeps a real class alongside a dotted quoted value: ::: {.box title="a .b"} -> <div class="box">', () => {
-    // The real `.box` class survives; the `.b` inside the value is ignored.
+  it('emits a real class AND a known attr with a dotted value: ::: {.box title="a .b"} -> <div class="box" title="a .b">', () => {
+    // Grounded vs quarto render: the `.box` class and the `title` attribute both
+    // survive; the `.b` inside the value is value text, not a second class.
     const html = render('::: {.box title="a .b"}\nBody.\n:::\n');
-    expect(html).toContain('<div class="box">');
-    expect(html).not.toContain(".b");
+    expect(html).toContain('<div class="box" title="a .b">');
+    expect(html).not.toContain("box b"); // `.b` did NOT become a class
   });
 
   it("callout still wins when a generic class precedes a callout class: {.foo .callout-note}", () => {
@@ -241,5 +241,65 @@ describe("calloutPlugin", () => {
     expect(html).toContain('<div class="foo">');
     expect(html).toContain("<p>Body.</p>");
     expect(html).not.toContain(":::"); // fully rendered, not raw text
+  });
+
+  // --- key=value attribute emission — grounded firsthand vs quarto pandoc 3.6.3.
+  // Pandoc data-prefixes an UNKNOWN attribute name (`key` → `data-key`); order is
+  // id, then all classes, then other attributes in source order. ---
+
+  it('emits an unknown key=value as a data- attribute: ::: {.box key=val} -> <div class="box" data-key="val">', () => {
+    const html = render("::: {.box key=val}\nBody.\n:::\n");
+    expect(html).toContain('<div class="box" data-key="val">');
+    expect(html).toContain("<p>Body.</p>");
+  });
+
+  it('renders a key=value-only div ::: {data-x="y"} (no id/class) as <div data-x="y">', () => {
+    const html = render('::: {data-x="y"}\nBody.\n:::\n');
+    expect(html).toContain('<div data-x="y">');
+    expect(html).toContain("<p>Body.</p>");
+  });
+
+  it('emits a known HTML5 attribute verbatim, not data- prefixed: ::: {.x style="color:red"}', () => {
+    const html = render('::: {.x style="color:red"}\nBody.\n:::\n');
+    expect(html).toContain('<div class="x" style="color:red">');
+    expect(html).not.toContain("data-style");
+  });
+
+  it('passes an aria-* attribute through verbatim: ::: {.x aria-label="hi"}', () => {
+    const html = render('::: {.x aria-label="hi"}\nBody.\n:::\n');
+    expect(html).toContain('<div class="x" aria-label="hi">');
+    expect(html).not.toContain("data-aria");
+  });
+
+  it('passes a namespaced (colon) attribute through verbatim: ::: {.x xml:lang="en"}', () => {
+    const html = render('::: {.x xml:lang="en"}\nBody.\n:::\n');
+    expect(html).toContain('<div class="x" xml:lang="en">');
+  });
+
+  it('data- prefixes an unknown name case-sensitively: ::: {.x Foo=Bar} -> data-Foo', () => {
+    const html = render("::: {.x Foo=Bar}\nBody.\n:::\n");
+    expect(html).toContain('<div class="x" data-Foo="Bar">');
+  });
+
+  it("accepts an unquoted value: ::: {width=50%} -> <div width=\"50%\">", () => {
+    // `width` is a known attr; `50%` is an unquoted value.
+    const html = render("::: {width=50%}\nBody.\n:::\n");
+    expect(html).toContain('<div width="50%">');
+  });
+
+  it("orders attributes id, then classes, then others in source order", () => {
+    // Grounded vs quarto render: {#id .cls key=v style="s" data-z="1"} ->
+    // <div id="id" class="cls" data-key="v" style="s" data-z="1">.
+    const html = render(
+      '::: {#id .cls key=v style="s" data-z="1"}\nBody.\n:::\n',
+    );
+    expect(html).toContain(
+      '<div id="id" class="cls" data-key="v" style="s" data-z="1">',
+    );
+  });
+
+  it("groups classes first even when a class follows an attribute: ::: {style=\"x\" .late}", () => {
+    const html = render('::: {style="x" .late}\nBody.\n:::\n');
+    expect(html).toContain('<div class="late" style="x">');
   });
 });
