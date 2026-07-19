@@ -725,5 +725,14 @@ describe("calloutPlugin", () => {
       expect(html).toContain("<h2>H</h2>"); // heading NOT extracted for a generic div
       expect(html).not.toContain("callout-title");
     });
+
+    it("falls back to the default title for an empty leading heading, still removed from body", () => {
+      // quarto strips the empty heading from the body but titles the callout with
+      // the default type name — matching the title="" fallback (adversarial panel).
+      const html = render("::: {.callout-note}\n##\nBody.\n:::\n");
+      expect(html).toContain('class="callout-title">Note<'); // default, not blank
+      expect(html).not.toContain("<h2"); // empty heading still removed from the body
+      expect(html).toContain("<p>Body.</p>");
+    });
   });
 });

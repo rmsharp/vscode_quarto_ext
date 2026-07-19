@@ -497,7 +497,10 @@ function calloutRule(
   if (type !== undefined && calloutTitle === undefined) {
     const headingOpen = state.tokens[bodyStart];
     if (headingOpen !== undefined && headingOpen.type === "heading_open") {
-      tokenOpen.meta = { title: state.tokens[bodyStart + 1].content };
+      // An empty heading (`##`) is still removed from the body but falls back to
+      // the default type title, matching quarto and the empty `title=""` guard.
+      const headingTitle = state.tokens[bodyStart + 1].content;
+      if (headingTitle !== "") tokenOpen.meta = { title: headingTitle };
       state.tokens.splice(bodyStart, 3); // heading_open + inline + heading_close
     }
   }
