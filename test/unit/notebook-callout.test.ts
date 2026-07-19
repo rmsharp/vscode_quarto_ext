@@ -79,6 +79,19 @@ describe("calloutPlugin", () => {
     expect(html).not.toContain("callout-title"); // no callout header/title
   });
 
+  it('renders id + multiple classes: ::: {#myid .bar .baz} -> <div id="myid" class="bar baz">', () => {
+    // Grounded against `quarto render`: id first, classes space-joined.
+    const html = render("::: {#myid .bar .baz}\nBody.\n:::\n");
+    expect(html).toContain('<div id="myid" class="bar baz">');
+    expect(html).toContain("<p>Body.</p>");
+  });
+
+  it('renders an id-only fenced div ::: {#solo} as <div id="solo">', () => {
+    const html = render("::: {#solo}\nBody.\n:::\n");
+    expect(html).toContain('<div id="solo">');
+    expect(html).toContain("<p>Body.</p>");
+  });
+
   it("first known callout class wins: {.callout-note .callout-bogus} renders as a note", () => {
     // A valid callout class must not be masked by a later unknown .callout-* class.
     const html = render("::: {.callout-note .callout-bogus}\nBody.\n:::\n");
@@ -90,6 +103,50 @@ describe("calloutPlugin", () => {
     const html = render("::: {.callout-note .callout-tip}\nBody.\n:::\n");
     expect(html).toContain('class="callout callout-note"');
     expect(html).not.toContain("callout-tip");
+  });
+
+  it("leaves an empty attribute block ::: {} unrendered (no id or class)", () => {
+    const html = render("::: {}\nBody.\n:::\n");
+    expect(html).not.toContain("<div");
+    expect(html).toContain(":::"); // falls through as raw text
+  });
+
+  it("leaves a key=value-only div ::: {data-x=\"y\"} unrendered (key=val deferred)", () => {
+    // key=value attributes are out of scope this slice; with no id/class the div
+    // is not recognised and falls through, rather than rendering an empty <div>.
+    const html = render('::: {data-x="y"}\nBody.\n:::\n');
+    expect(html).not.toContain("<div");
+    expect(html).toContain(":::");
+  });
+
+  it("callout still wins when a generic class precedes a callout class: {.foo .callout-note}", () => {
+    // The generic-div branch must never steal a div that is a known callout.
+    const html = render("::: {.foo .callout-note}\nBody.\n:::\n");
+    expect(html).toContain('class="callout callout-note"');
+    expect(html).toContain('class="callout-title">Note<');
+    expect(html).not.toContain('<div class="foo">'); // not rendered as a generic div
+  });
+
+  it("renders a generic div's body as markdown (inner **bold** becomes <strong>)", () => {
+    const html = render("::: {.foo}\nSome **bold** text.\n:::\n");
+    expect(html).toContain('<div class="foo">');
+    expect(html).toContain("<strong>bold</strong>");
+  });
+
+  it("does not absorb content after the closing fence into a generic div", () => {
+    const html = render("::: {.foo}\nInside.\n:::\n\nOutside.\n");
+    const closeIdx = html.indexOf("</div>");
+    const outsideIdx = html.indexOf("Outside.");
+    expect(closeIdx).toBeGreaterThan(-1);
+    expect(outsideIdx).toBeGreaterThan(closeIdx);
+  });
+
+  it("renders two generic divs in one cell as two separate blocks", () => {
+    const html = render("::: {.a}\nFirst.\n:::\n\n::: {.b}\nSecond.\n:::\n");
+    expect(html).toContain('<div class="a">');
+    expect(html).toContain('<div class="b">');
+    expect(html).toContain("First.");
+    expect(html).toContain("Second.");
   });
 
   it("auto-closes an unterminated callout at the end of the cell", () => {

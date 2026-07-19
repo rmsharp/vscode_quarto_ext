@@ -123,7 +123,11 @@ function calloutRule(
   // path (`type !== undefined`) instead. A div with neither a known callout
   // class nor any generic class falls through unrendered.
   const divAttrs = type === undefined ? parseDivAttrs(params) : null;
-  if (type === undefined && (divAttrs === null || divAttrs.classes.length === 0)) {
+  if (
+    type === undefined &&
+    (divAttrs === null ||
+      (divAttrs.id === null && divAttrs.classes.length === 0))
+  ) {
     return false;
   }
 
@@ -173,7 +177,11 @@ function calloutRule(
   if (type !== undefined) {
     tokenOpen.info = type;
   } else if (divAttrs) {
-    tokenOpen.attrSet("class", divAttrs.classes.join(" "));
+    // id first, then class — matches Pandoc/Quarto's attribute order.
+    if (divAttrs.id !== null) tokenOpen.attrSet("id", divAttrs.id);
+    if (divAttrs.classes.length > 0) {
+      tokenOpen.attrSet("class", divAttrs.classes.join(" "));
+    }
   }
 
   state.md.block.tokenize(state, startLine + 1, nextLine);
