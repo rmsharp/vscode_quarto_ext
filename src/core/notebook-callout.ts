@@ -163,7 +163,10 @@ const KEY_CHAR = /[\w.:-]/;
  * of these as a literal-brace class; matching that degenerate reinterpretation is
  * out of scope — an unrenderable div is the safe outcome).
  */
-function tokenizeDivAttrs(inner: string): DivToken[] | null {
+function tokenizeDivAttrs(
+  inner: string,
+  decode: (raw: string) => string,
+): DivToken[] | null {
   const tokens: DivToken[] = [];
   let i = 0;
   const n = inner.length;
@@ -191,30 +194,24 @@ function tokenizeDivAttrs(inner: string): DivToken[] | null {
     const quote = inner[i];
     if (quote === '"' || quote === "'") {
       i++;
-      let quoted = "";
+      const valueStart = i;
+      // Advance to the closing quote, stepping over an escaped char so a `\"`
+      // (or `\'`) is not mistaken for the closer; the raw slice is decoded below.
       while (i < n && inner[i] !== quote) {
-        // `\"`/`\'` and `\\` unescape to the bare char; any other `\x` stays
-        // literal (both chars), matching pandoc's attribute-value escaping.
-        if (
-          inner[i] === "\\" &&
-          i + 1 < n &&
-          (inner[i + 1] === quote || inner[i + 1] === "\\")
-        ) {
-          quoted += inner[i + 1];
-          i += 2;
-        } else {
-          quoted += inner[i];
-          i++;
-        }
+        i += inner[i] === "\\" && i + 1 < n ? 2 : 1;
       }
       if (i >= n) return null; // unterminated quote → invalid block
-      value = quoted;
+      value = decode(inner.slice(valueStart, i));
       i++; // consume closing quote
     } else {
       const valueStart = i;
       while (i < n && !/\s/.test(inner[i]) && inner[i] !== "}") i++;
-      value = inner.slice(valueStart, i); // may be empty: `key=` → `key=""`
+      value = decode(inner.slice(valueStart, i)); // may be empty: `key=` → `key=""`
     }
+    // `decode` applies pandoc's litChar rule: unescape `\` before ASCII
+    // punctuation and resolve HTML character references (`&amp;` → `&`, `&#65;`
+    // → `A`). markdown-it's renderAttrs then re-escapes for output, so a single
+    // `&amp;` round-trips instead of double-encoding to `&amp;amp;`.
     tokens.push({ kind: "kv", key, value });
   }
   return tokens;
@@ -235,12 +232,13 @@ function tokenizeDivAttrs(inner: string): DivToken[] | null {
  */
 function parseDivAttrs(
   params: string,
+  decode: (raw: string) => string,
 ): { id: string | null; classes: string[]; attrs: [string, string][] } | null {
   const trimmed = params.trim();
   // A `{…}` attribute block. The gate is start-`{`/end-`}` (not `^\{[^}]*\}$`) so
   // that a `}` inside a quoted value is allowed; the tokenizer validates the rest.
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-    const tokens = tokenizeDivAttrs(trimmed.slice(1, -1));
+    const tokens = tokenizeDivAttrs(trimmed.slice(1, -1), decode);
     return tokens === null ? null : buildDivAttrs(tokens);
   }
   // Bare-word shorthand: `::: foo` ≡ `::: {.foo}` → a single non-brace,
@@ -327,7 +325,12 @@ function calloutRule(
   // `<div>` carrying its class(es); known callout classes take the admonition
   // path (`type !== undefined`) instead. A div with neither a known callout
   // class nor any generic class falls through unrendered.
-  const divAttrs = type === undefined ? parseDivAttrs(params) : null;
+  // Decode attribute values with the host markdown-it's `unescapeAll` (backslash
+  // escapes + HTML character references), reproducing pandoc's litChar rule.
+  const divAttrs =
+    type === undefined
+      ? parseDivAttrs(params, (raw) => state.md.utils.unescapeAll(raw))
+      : null;
   if (
     type === undefined &&
     (divAttrs === null ||

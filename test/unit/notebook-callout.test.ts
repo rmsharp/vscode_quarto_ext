@@ -415,4 +415,29 @@ describe("calloutPlugin", () => {
       expect(html).not.toContain(`data-${h}`);
     }
   });
+
+  it('unescapes a backslash before ASCII punctuation in a value: ::: {.cell pattern="\\.csv$"} -> pattern=".csv$"', () => {
+    // Grounded vs quarto render: pandoc drops the backslash before ASCII
+    // punctuation (\. -> .), matching markdown-it unescapeAll.
+    const html = render('::: {.cell pattern="\\.csv$"}\nX\n:::\n');
+    expect(html).toContain('<div class="cell" pattern=".csv$">');
+  });
+
+  it('keeps a backslash before a letter or digit: ::: {key="a\\1b"} -> data-key="a\\1b"', () => {
+    const html = render('::: {key="a\\1b"}\nX\n:::\n');
+    expect(html).toContain('<div data-key="a\\1b">');
+  });
+
+  it('decodes a character reference in a value (no double-escape): ::: {.b title="A &amp; B"}', () => {
+    // Grounded vs quarto render: pandoc decodes `&amp;` to `&` then the HTML
+    // writer re-escapes it to `&amp;` — a single entity, not `&amp;amp;`.
+    const html = render('::: {.b title="A &amp; B"}\nX\n:::\n');
+    expect(html).toContain('<div class="b" title="A &amp; B">');
+    expect(html).not.toContain("&amp;amp;");
+  });
+
+  it('decodes a named/numeric reference in a value: ::: {.b title="&copy;&#65;"} -> ©A', () => {
+    const html = render('::: {.b title="&copy;&#65;"}\nX\n:::\n');
+    expect(html).toContain('<div class="b" title="©A">');
+  });
 });
