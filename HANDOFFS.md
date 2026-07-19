@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S114
+date: 2026-07-18
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). BACKLOG item 17d follow-on (A): extend the notebook markdown-cell callout renderer (src/core/notebook-callout.ts) from the callout-note-only first slice to the other four Quarto callout types (tip/warning/caution/important), generalising the single-type block rule + regex + render to a data-driven type map. Pure vscode-free markdown-it plugin logic — strict-TDD RED→GREEN, headless unit tests are the faithful verification. Operator picked this via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S113
 date: 2026-07-18
 status: complete
