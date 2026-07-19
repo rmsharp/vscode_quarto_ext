@@ -66,6 +66,32 @@ function calloutType(params: string): string | undefined {
 }
 
 /**
+ * The id and class(es) named by a Pandoc attribute block, or `undefined` when
+ * the block carries neither, or `null` when `params` is not a single `{…}`
+ * attribute block at all.
+ *
+ * Only `#id` and `.class` tokens are read. Each is matched at the block start or
+ * after whitespace, so a `.` or `#` inside a `key="value"` value (`x="a.b"`) is
+ * not misread as a class/id. `key=value` attributes and bare-word shorthand
+ * (`::: foo`) are out of scope (deferred follow-on) and ignored. When several
+ * ids are present the first wins.
+ */
+function parseDivAttrs(params: string): { id: string | null; classes: string[] } | null {
+  const trimmed = params.trim();
+  if (!ATTR_BLOCK.test(trimmed)) return null;
+  const inner = trimmed.slice(1, -1);
+  const classes: string[] = [];
+  let id: string | null = null;
+  const tokenPattern = /(?:^|\s)([.#])([\w-]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = tokenPattern.exec(inner)) !== null) {
+    if (match[1] === ".") classes.push(match[2]);
+    else if (id === null) id = match[2];
+  }
+  return { id, classes };
+}
+
+/**
  * markdown-it block rule: a container for `::: {.callout-<type>}` … `:::`.
  * Modelled on the standard markdown-it fenced-container algorithm (reimplemented,
  * not copied): count the opening `:` run, validate the params as a known callout,
@@ -92,7 +118,14 @@ function calloutRule(
   const markup = state.src.slice(markerStart, pos);
   const params = state.src.slice(pos, max);
   const type = calloutType(params);
-  if (type === undefined) return false;
+  // A non-callout Pandoc fenced div (`::: {.className}`) renders as a plain
+  // `<div>` carrying its class(es); known callout classes take the admonition
+  // path (`type !== undefined`) instead. A div with neither a known callout
+  // class nor any generic class falls through unrendered.
+  const divAttrs = type === undefined ? parseDivAttrs(params) : null;
+  if (type === undefined && (divAttrs === null || divAttrs.classes.length === 0)) {
+    return false;
+  }
 
   // Validation-only phase (e.g. paragraph-termination lookahead): a real callout
   // opens here, so report a match without emitting tokens.
@@ -129,15 +162,27 @@ function calloutRule(
   const oldLineMax = state.lineMax;
   state.lineMax = nextLine;
 
-  const tokenOpen = state.push("callout_open", "div", 1);
+  const tokenOpen = state.push(
+    type !== undefined ? "callout_open" : "div_open",
+    "div",
+    1,
+  );
   tokenOpen.markup = markup;
-  tokenOpen.info = type;
   tokenOpen.block = true;
   tokenOpen.map = [startLine, nextLine];
+  if (type !== undefined) {
+    tokenOpen.info = type;
+  } else if (divAttrs) {
+    tokenOpen.attrSet("class", divAttrs.classes.join(" "));
+  }
 
   state.md.block.tokenize(state, startLine + 1, nextLine);
 
-  const tokenClose = state.push("callout_close", "div", -1);
+  const tokenClose = state.push(
+    type !== undefined ? "callout_close" : "div_close",
+    "div",
+    -1,
+  );
   tokenClose.markup = markup;
   tokenClose.block = true;
 
@@ -162,6 +207,24 @@ function renderCalloutClose(): string {
   return "</div>\n</div>\n";
 }
 
+/**
+ * Renderer rule for a `div_open` token: emit the opening `<div>` with its id and
+ * class attributes. `renderAttrs` HTML-escapes attribute names and values.
+ */
+function renderDivOpen(
+  tokens: MarkdownIt.Token[],
+  idx: number,
+  _options: MarkdownIt.Options,
+  _env: unknown,
+  self: MarkdownIt.Renderer,
+): string {
+  return `<div${self.renderAttrs(tokens[idx])}>\n`;
+}
+
+function renderDivClose(): string {
+  return "</div>\n";
+}
+
 /** markdown-it plugin entry point: `md.use(calloutPlugin)`. */
 export function calloutPlugin(md: MarkdownIt): void {
   md.block.ruler.before("fence", "callout", calloutRule, {
@@ -169,4 +232,6 @@ export function calloutPlugin(md: MarkdownIt): void {
   });
   md.renderer.rules.callout_open = renderCalloutOpen;
   md.renderer.rules.callout_close = renderCalloutClose;
+  md.renderer.rules.div_open = renderDivOpen;
+  md.renderer.rules.div_close = renderDivClose;
 }

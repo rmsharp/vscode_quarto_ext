@@ -62,15 +62,21 @@ describe("calloutPlugin", () => {
     expect(html).toContain("<p>Body.</p>");
   });
 
-  it("leaves a generic fenced div ::: {.foo} unrendered", () => {
+  it('renders a generic fenced div ::: {.foo} as <div class="foo"> with its body', () => {
     const html = render("::: {.foo}\nBody.\n:::\n");
-    expect(html).not.toContain('class="callout');
+    expect(html).toContain('<div class="foo">');
+    expect(html).toContain("<p>Body.</p>");
+    expect(html).not.toContain(":::"); // fully rendered, not raw `:::` text
+    expect(html).not.toContain('class="callout'); // a generic div is not an admonition
   });
 
-  it("leaves an unknown callout type ::: {.callout-bogus} unrendered (closed set)", () => {
+  it('renders an unknown callout type ::: {.callout-bogus} as a plain <div class="callout-bogus"> (not an admonition)', () => {
+    // Grounded against `quarto render`: an unknown `.callout-*` class is just a
+    // Pandoc div; only the closed set of KNOWN types becomes an admonition.
     const html = render("::: {.callout-bogus}\nBody.\n:::\n");
-    expect(html).not.toContain('class="callout');
-    expect(html).toContain(":::"); // falls through as raw text, not silently dropped
+    expect(html).toContain('<div class="callout-bogus">');
+    expect(html).not.toContain('class="callout callout-'); // NOT the admonition wrapper
+    expect(html).not.toContain("callout-title"); // no callout header/title
   });
 
   it("first known callout class wins: {.callout-note .callout-bogus} renders as a note", () => {
