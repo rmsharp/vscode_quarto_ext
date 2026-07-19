@@ -750,5 +750,16 @@ describe("calloutPlugin", () => {
       expect(html).toContain("</details>");
       expect(html).not.toContain('<div class="callout callout-note">'); // not the plain div form
     });
+
+    it('renders a collapse="false" callout as an expanded (open) collapsible <details>', () => {
+      // Grounded vs quarto render: collapse="false" is still collapsible but
+      // starts EXPANDED — distinct from a callout with no collapse attribute,
+      // which is not collapsible at all. The JS-free equivalent is `<details open>`.
+      const html = render('::: {.callout-note collapse="false"}\nBody.\n:::\n');
+      expect(html).toContain('<details class="callout callout-note" open>');
+      expect(html).toContain('<summary class="callout-header">');
+      expect(html).toContain("<p>Body.</p>");
+      expect(html).toContain("</details>");
+    });
   });
 });

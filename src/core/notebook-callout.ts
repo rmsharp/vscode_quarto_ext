@@ -375,14 +375,16 @@ function calloutRule(
 
   // A `collapse` attribute makes a callout collapsible, rendered as a `<details>`
   // (this renderer is JS-free, unlike quarto's Bootstrap collapse markup).
-  // Grounded vs quarto render 1.7.33: any collapse value is collapsible.
+  // Grounded vs quarto render 1.7.33: ANY collapse value is collapsible, and it
+  // starts collapsed only when the value is exactly `true` (case-sensitive —
+  // `TRUE`/`True`/`false`/`maybe`/`` all start expanded), else expanded (`open`).
   // `collapse=` is not a known HTML5 name, so `parseDivAttrs` stored it under the
   // `data-collapse` name (`htmlAttrName`'s `data-` rule); as a callout control
   // attribute it is consumed here and never emitted onto the div.
   let collapse: "closed" | "open" | undefined;
   if (type !== undefined && attrs) {
     const collapseAttr = attrs.attrs.find(([name]) => name === "data-collapse");
-    if (collapseAttr) collapse = "closed";
+    if (collapseAttr) collapse = collapseAttr[1] === "true" ? "closed" : "open";
   }
 
   // Validation-only phase (e.g. paragraph-termination lookahead): a real callout
@@ -565,8 +567,9 @@ function renderCalloutOpen(
   // `<summary>` is the clickable header; a plain callout stays a `<div>`.
   const collapse = token.meta?.collapse as "closed" | "open" | undefined;
   if (collapse !== undefined) {
+    const openAttr = collapse === "open" ? " open" : "";
     return (
-      `<details class="callout callout-${type}">\n` +
+      `<details class="callout callout-${type}"${openAttr}>\n` +
       `<summary class="callout-header"><div class="callout-title">${title}</div></summary>\n` +
       '<div class="callout-body">\n'
     );
