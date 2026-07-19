@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S116
+date: 2026-07-18
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). BACKLOG item 17d follow-on — complete generic fenced-div attribute support in the notebook markdown-cell renderer (src/core/notebook-callout.ts): (1) parse+emit key=value / key="value" attributes on generic divs (currently stripped-and-ignored), (2) bare-word ::: foo shorthand (→ <div class="foo">). Callout admonition path stays byte-identical. Operator picked via AskUserQuestion at Phase 0 (Active empty). All output grounded firsthand vs quarto pandoc/quarto render.
+```
+
+```handoff
 session: S115
 date: 2026-07-18
 status: complete
