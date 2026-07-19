@@ -440,4 +440,26 @@ describe("calloutPlugin", () => {
     const html = render('::: {.b title="&copy;&#65;"}\nX\n:::\n');
     expect(html).toContain('<div class="b" title="©A">');
   });
+
+  it("does not treat a malformed {…}-glued-to-trailing block as a bare word class: ::: {.callout-note}x", () => {
+    // A complete {…} block with glued trailing content is neither a valid attr
+    // block nor a bare word → pandoc renders no div; the plugin must not invent
+    // a class literally named "{.callout-note}x".
+    const html = render("::: {.callout-note}x\nBODY\n:::\n");
+    expect(html).not.toContain("<div");
+    expect(html).toContain(":::");
+  });
+
+  it("leaves a leading-underscore key unrendered: ::: {.b _key=v}", () => {
+    // Grounded vs quarto render: an attribute key must start with a LETTER;
+    // a leading underscore is invalid → the whole block is not a div.
+    const html = render("::: {.b _key=v}\nBODY\n:::\n");
+    expect(html).not.toContain("<div");
+    expect(html).toContain(":::");
+  });
+
+  it("still accepts an interior underscore in a key: ::: {.b k_y=v} -> data-k_y", () => {
+    const html = render("::: {.b k_y=v}\nBODY\n:::\n");
+    expect(html).toContain('<div class="b" data-k_y="v">');
+  });
 });

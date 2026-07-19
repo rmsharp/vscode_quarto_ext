@@ -145,8 +145,9 @@ type DivToken =
 
 /** `#id` / `.class` name chars — word chars plus interior dots and hyphens. */
 const NAME_CHAR = /[\w.-]/;
-/** A `key` in `key=value` starts with a letter or `_`… */
-const KEY_START = /[A-Za-z_]/;
+/** A `key` in `key=value` starts with a letter (pandoc rejects a leading digit
+ * or underscore)… */
+const KEY_START = /[A-Za-z]/;
 /** …then continues with word chars, dots, colons, and hyphens (`data-x`, `xml:lang`). */
 const KEY_CHAR = /[\w.:-]/;
 
@@ -243,8 +244,10 @@ function parseDivAttrs(
   }
   // Bare-word shorthand: `::: foo` ≡ `::: {.foo}` → a single non-brace,
   // whitespace-free word becomes a class (grounded vs quarto render). A block
-  // with whitespace (`::: foo bar`) or a stray unclosed `{` is not a valid div.
-  if (trimmed !== "" && !/\s/.test(trimmed)) {
+  // with whitespace (`::: foo bar`) or one that STARTS with `{` but is not a
+  // well-formed block (`::: {.a}x`, an unclosed `{`) is not a valid div — it must
+  // NOT become a class literally named `{.a}x`.
+  if (trimmed !== "" && !trimmed.startsWith("{") && !/\s/.test(trimmed)) {
     return { id: null, classes: [trimmed], attrs: [] };
   }
   return null;
