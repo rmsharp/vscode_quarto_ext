@@ -344,4 +344,27 @@ describe("calloutPlugin", () => {
     expect(html).toContain('<div data-x="1">');
     expect(html).not.toContain('data-x="2"');
   });
+
+  // --- Quoted-value fidelity: backslash escapes and a `}` inside a quoted value.
+  // Grounded firsthand vs quarto pandoc 3.6.3. ---
+
+  it('unescapes \\" and \\\\ inside a double-quoted value', () => {
+    // ::: {.a key="he said \"hi\""} -> <div class="a" data-key="he said &quot;hi&quot;">
+    const html = render(
+      '::: {.a key="he said \\"hi\\""}\nBody.\n:::\n',
+    );
+    expect(html).toContain(
+      '<div class="a" data-key="he said &quot;hi&quot;">',
+    );
+  });
+
+  it('keeps a non-escape backslash literal: ::: {key="a\\nb"} -> data-key="a\\nb"', () => {
+    const html = render('::: {key="a\\nb"}\nBody.\n:::\n');
+    expect(html).toContain('<div data-key="a\\nb">');
+  });
+
+  it('allows a } inside a quoted value: ::: {key="a}b"} -> <div data-key="a}b">', () => {
+    const html = render('::: {key="a}b"}\nBody.\n:::\n');
+    expect(html).toContain('<div data-key="a}b">');
+  });
 });

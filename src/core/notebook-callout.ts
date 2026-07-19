@@ -181,10 +181,24 @@ function tokenizeDivAttrs(inner: string): DivToken[] | null {
     const quote = inner[i];
     if (quote === '"' || quote === "'") {
       i++;
-      const valueStart = i;
-      while (i < n && inner[i] !== quote) i++;
+      let quoted = "";
+      while (i < n && inner[i] !== quote) {
+        // `\"`/`\'` and `\\` unescape to the bare char; any other `\x` stays
+        // literal (both chars), matching pandoc's attribute-value escaping.
+        if (
+          inner[i] === "\\" &&
+          i + 1 < n &&
+          (inner[i + 1] === quote || inner[i + 1] === "\\")
+        ) {
+          quoted += inner[i + 1];
+          i += 2;
+        } else {
+          quoted += inner[i];
+          i++;
+        }
+      }
       if (i >= n) return null; // unterminated quote → invalid block
-      value = inner.slice(valueStart, i);
+      value = quoted;
       i++; // consume closing quote
     } else {
       const valueStart = i;
@@ -213,18 +227,32 @@ function parseDivAttrs(
   params: string,
 ): { id: string | null; classes: string[]; attrs: [string, string][] } | null {
   const trimmed = params.trim();
-  if (!ATTR_BLOCK.test(trimmed)) {
-    // Bare-word shorthand: `::: foo` ≡ `::: {.foo}` → a single non-brace,
-    // whitespace-free word becomes a class (grounded vs quarto render). A block
-    // with whitespace (`::: foo bar`) or a stray `{` is not a valid div.
-    if (trimmed !== "" && !trimmed.startsWith("{") && !/\s/.test(trimmed)) {
-      return { id: null, classes: [trimmed], attrs: [] };
-    }
-    return null;
+  // A `{…}` attribute block. The gate is start-`{`/end-`}` (not `^\{[^}]*\}$`) so
+  // that a `}` inside a quoted value is allowed; the tokenizer validates the rest.
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    const tokens = tokenizeDivAttrs(trimmed.slice(1, -1));
+    return tokens === null ? null : buildDivAttrs(tokens);
   }
-  const inner = trimmed.slice(1, -1);
-  const tokens = tokenizeDivAttrs(inner);
-  if (tokens === null) return null;
+  // Bare-word shorthand: `::: foo` ≡ `::: {.foo}` → a single non-brace,
+  // whitespace-free word becomes a class (grounded vs quarto render). A block
+  // with whitespace (`::: foo bar`) or a stray unclosed `{` is not a valid div.
+  if (trimmed !== "" && !/\s/.test(trimmed)) {
+    return { id: null, classes: [trimmed], attrs: [] };
+  }
+  return null;
+}
+
+/**
+ * Fold ordered `{…}` tokens into `{ id, classes, attrs }`, applying Pandoc's
+ * attribute-list semantics: `class=`/`id=` merge into the class list / id, the
+ * last id (by any form) wins, duplicate classes collapse, a duplicate attribute
+ * name keeps the first, and `key=value` names get the `data-` rule of
+ * `htmlAttrName`. Attribute order is id, then all classes, then the rest in
+ * source order (applied by the caller when it emits the token attributes).
+ */
+function buildDivAttrs(
+  tokens: DivToken[],
+): { id: string | null; classes: string[]; attrs: [string, string][] } {
   let id: string | null = null;
   const classes: string[] = [];
   const classSeen = new Set<string>();
