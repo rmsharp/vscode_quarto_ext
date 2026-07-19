@@ -4,21 +4,25 @@ import type MarkdownIt from "markdown-it";
  * Pure, `vscode`-free markdown-it plugin (BACKLOG item 17d) that renders Quarto
  * Pandoc fenced divs (`::: {…}` … `:::`) in notebook markdown cells.
  *
- * A Pandoc fenced div is `:::` followed by an attribute block (`{…}`) whose body
- * is ordinary markdown. The single block rule this plugin adds handles two cases:
+ * A Pandoc fenced div is `:::` followed by an attribute spec — either a `{…}`
+ * attribute block or a bare word (`::: foo` ≡ `::: {.foo}`) — whose body is
+ * ordinary markdown. The single block rule this plugin adds handles two cases:
  *
  *  - **Callout** — a class in `CALLOUT_TITLES` (`.callout-note` / `.callout-tip` /
  *    `.callout-warning` / `.callout-caution` / `.callout-important`) is wrapped in
  *    the admonition markup Quarto's HTML output uses (a titled callout block).
- *  - **Generic div** — any other fenced div carrying an id and/or class(es)
- *    (`::: {.foo}`, `::: {#id .a .b}`, an unknown `.callout-bogus`) renders as a
- *    plain `<div id=… class=…>` around its markdown body, matching what
+ *  - **Generic div** — any other fenced div carrying an id, class(es), and/or
+ *    `key=value` attributes (`::: {.foo}`, `::: {#id .a .b}`, `::: {.box k=v}`,
+ *    `::: foo`, an unknown `.callout-bogus`) renders as a plain
+ *    `<div id=… class=… …>` around its markdown body, matching what
  *    `quarto render` emits for a non-callout div (only the closed set of known
  *    types becomes an admonition; everything else is just a div).
  *
- * A div with neither a known callout class nor any generic id/class (`::: {}`, a
- * `key=value`-only block) falls through unrendered. `key=value` attributes and
- * bare-word shorthand (`::: foo`) are out of scope (deferred follow-on).
+ * `key=value` attributes are emitted with Pandoc's HTML5 `data-` rule (see
+ * `htmlAttrName`); `class=`/`id=` merge into the class list / id. A div with no
+ * id, class, or attribute (`::: {}`), or a malformed attribute block (`::: {.box
+ * checked}`, a digit-leading key), falls through unrendered. Behaviour is
+ * grounded firsthand against the quarto-bundled pandoc 3.6.3.
  *
  * The webview entrypoint (`src/webview/notebook-renderer.ts`) installs this into
  * VS Code's built-in `vscode.markdown-it-renderer` so notebook markdown cells
