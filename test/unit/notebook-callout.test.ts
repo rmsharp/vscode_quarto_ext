@@ -838,5 +838,17 @@ describe("calloutPlugin", () => {
       expect(html).not.toContain("<details");
       expect(html).not.toContain("<summary");
     });
+
+    it("does not treat a literal data-collapse= attribute as the collapse control", () => {
+      // quarto distinguishes the SOURCE `collapse=` control from a `data-collapse=`
+      // passthrough attribute: grounded firsthand, quarto renders data-collapse as a
+      // NON-collapsible callout (no data-bs-toggle / callout-collapse). Collapse
+      // detection keys on the source name `collapse`, not the pandoc-normalized
+      // `data-collapse` that htmlAttrName gives a real collapse= (adversarial panel).
+      const html = render('::: {.callout-note data-collapse="true"}\nBody.\n:::\n');
+      expect(html).toContain('<div class="callout callout-note">'); // non-collapsible
+      expect(html).not.toContain("<details");
+      expect(html).not.toContain("<summary");
+    });
   });
 });

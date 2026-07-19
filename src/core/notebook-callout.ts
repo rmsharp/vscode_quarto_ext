@@ -256,6 +256,34 @@ function parseDivAttrs(
 }
 
 /**
+ * The raw value of a callout's `collapse` attribute — its SOURCE key, before
+ * Pandoc's `data-` normalisation — or `undefined` if the block has no `collapse=`.
+ *
+ * Keyed on the source name `collapse`, NOT the normalised `data-collapse` that
+ * `htmlAttrName` produces, so a literal `data-collapse=` an author might copy from
+ * quarto's own emitted HTML stays an inert passthrough attribute rather than being
+ * mistaken for the collapse control — matching quarto render, which treats
+ * `data-collapse` as a plain attribute on a non-collapsible callout. (Both
+ * `collapse=` and a literal `data-collapse=` normalise to the same
+ * `data-collapse` attribute name, so keying on the normalised name cannot tell
+ * them apart.) The last `collapse=` wins, matching Pandoc's repeated-key rule.
+ */
+function calloutCollapse(
+  params: string,
+  decode: (raw: string) => string,
+): string | undefined {
+  const trimmed = params.trim();
+  if (!(trimmed.startsWith("{") && trimmed.endsWith("}"))) return undefined;
+  const tokens = tokenizeDivAttrs(trimmed.slice(1, -1), decode);
+  if (tokens === null) return undefined;
+  let value: string | undefined;
+  for (const token of tokens) {
+    if (token.kind === "kv" && token.key === "collapse") value = token.value;
+  }
+  return value;
+}
+
+/**
  * Fold ordered `{…}` tokens into `{ id, classes, attrs }`, applying Pandoc's
  * attribute-list semantics: `class=`/`id=` merge into the class list / id, the
  * last id (by any form) wins, duplicate classes collapse, a duplicate attribute
@@ -378,13 +406,16 @@ function calloutRule(
   // Grounded vs quarto render 1.7.33: ANY collapse value is collapsible, and it
   // starts collapsed only when the value is exactly `true` (case-sensitive —
   // `TRUE`/`True`/`false`/`maybe`/`` all start expanded), else expanded (`open`).
-  // `collapse=` is not a known HTML5 name, so `parseDivAttrs` stored it under the
-  // `data-collapse` name (`htmlAttrName`'s `data-` rule); as a callout control
-  // attribute it is consumed here and never emitted onto the div.
+  // The control is keyed on the SOURCE attribute name `collapse` (see
+  // `calloutCollapse`), not the normalised `data-collapse`, so a literal
+  // `data-collapse=` stays an inert passthrough. As a callout control attribute it
+  // is consumed here and never emitted onto the div.
   let collapse: "closed" | "open" | undefined;
-  if (type !== undefined && attrs) {
-    const collapseAttr = attrs.attrs.find(([name]) => name === "data-collapse");
-    if (collapseAttr) collapse = collapseAttr[1] === "true" ? "closed" : "open";
+  if (type !== undefined) {
+    const collapseValue = calloutCollapse(params, decode);
+    if (collapseValue !== undefined) {
+      collapse = collapseValue === "true" ? "closed" : "open";
+    }
   }
 
   // Validation-only phase (e.g. paragraph-termination lookahead): a real callout
