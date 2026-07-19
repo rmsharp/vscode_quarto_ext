@@ -297,6 +297,23 @@ function buildDivAttrs(
 }
 
 /**
+ * Whether a fence line's params open a nested div by this plugin's own rules — a
+ * known callout class, or a generic div carrying an id, class, or attribute. The
+ * closing-fence scan uses this to track nesting depth so a nested div's closer is
+ * not mistaken for the outer div's, matching how pandoc pairs fences. A fence-like
+ * line that is neither a valid opener nor a bare closer (e.g. `::: foo bar`, an
+ * unclosed `::: {bad`) opens nothing and is ordinary body content.
+ */
+function isDivOpener(params: string, decode: (raw: string) => string): boolean {
+  if (calloutType(params) !== undefined) return true;
+  const attrs = parseDivAttrs(params, decode);
+  return (
+    attrs !== null &&
+    (attrs.id !== null || attrs.classes.length > 0 || attrs.attrs.length > 0)
+  );
+}
+
+/**
  * markdown-it block rule: a container for a Pandoc fenced div `::: {…}` … `:::`.
  * Modelled on the standard markdown-it fenced-container algorithm (reimplemented,
  * not copied): count the opening `:` run, classify the params as a known callout
@@ -329,11 +346,10 @@ function calloutRule(
   // path (`type !== undefined`) instead. A div with neither a known callout
   // class nor any generic class falls through unrendered.
   // Decode attribute values with the host markdown-it's `unescapeAll` (backslash
-  // escapes + HTML character references), reproducing pandoc's litChar rule.
-  const divAttrs =
-    type === undefined
-      ? parseDivAttrs(params, (raw) => state.md.utils.unescapeAll(raw))
-      : null;
+  // escapes + HTML character references), reproducing pandoc's litChar rule. The
+  // same decoder classifies nested openers in the closing-fence scan below.
+  const decode = (raw: string): string => state.md.utils.unescapeAll(raw);
+  const divAttrs = type === undefined ? parseDivAttrs(params, decode) : null;
   if (
     type === undefined &&
     (divAttrs === null ||
@@ -348,8 +364,16 @@ function calloutRule(
   // opens here, so report a match without emitting tokens.
   if (silent) return true;
 
-  // Locate the closing fence line (or auto-close at the end of the block).
+  // Locate THIS div's own closing fence (or auto-close at the end of the block),
+  // tracking nesting depth so a nested div's closer is not mistaken for ours —
+  // the fix for same-length nested divs (`::: {.outer}` … `::: {.inner}` …).
+  // A fence line (a run of at least MIN_MARKERS colons at the line start, not
+  // indented code) is a CLOSER when only whitespace follows the colons, else a
+  // nested OPENER when its params open a div (`isDivOpener`); any other
+  // fence-like line is ordinary body content. The closer's colon count is
+  // independent of the opener's, matching pandoc (a `::::` div closes on `:::`).
   let nextLine = startLine;
+  let depth = 0;
   let autoClosed = false;
   for (;;) {
     nextLine++;
@@ -365,13 +389,22 @@ function calloutRule(
     if (state.src.charCodeAt(lineStart) !== MARKER) continue;
     if (state.sCount[nextLine] - state.blkIndent >= 4) continue; // indented code
 
-    let closePos = state.skipChars(lineStart, MARKER);
-    if (closePos - lineStart < markerCount) continue; // shorter than the opener
-    closePos = state.skipSpaces(closePos);
-    if (closePos < lineMax) continue; // trailing content → not a closing fence
+    const fenceEnd = state.skipChars(lineStart, MARKER);
+    if (fenceEnd - lineStart < MIN_MARKERS) continue; // fewer than 3 colons → not a fence
 
-    autoClosed = true;
-    break;
+    if (state.skipSpaces(fenceEnd) >= lineMax) {
+      // Only whitespace after the colons → a closing fence.
+      if (depth > 0) {
+        depth--; // closes a nested div, not this one
+        continue;
+      }
+      autoClosed = true;
+      break;
+    }
+
+    // Colons followed by content: a nested div opener increases depth; any other
+    // fence-like line (`::: foo bar`) opens nothing and is body content.
+    if (isDivOpener(state.src.slice(fenceEnd, lineMax), decode)) depth++;
   }
 
   // Pin the container's extent so inner block tokenisation cannot run past the

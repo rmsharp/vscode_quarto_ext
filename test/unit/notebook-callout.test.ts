@@ -462,4 +462,110 @@ describe("calloutPlugin", () => {
     const html = render("::: {.b k_y=v}\nBODY\n:::\n");
     expect(html).toContain('<div class="b" data-k_y="v">');
   });
+
+  // --- Nested fenced divs (depth tracking; grounded firsthand vs quarto pandoc 3.6.3) ---
+
+  it("pairs same-length nested divs correctly, keeping trailing content inside the outer div", () => {
+    // The reported HIGH bug: the closing-fence scan had no depth tracking, so the
+    // outer div grabbed the INNER div's closer and closed early — ejecting AFTER
+    // outside the outer div and folding the real outer closer into a literal <p>.
+    // Pandoc pairs the fences: outer wraps inner AND the trailing AFTER paragraph.
+    const html = render(
+      "::: {.outer}\n::: {.inner}\nZ\n:::\nAFTER\n:::\n",
+    );
+    expect(html).toContain('<div class="outer">');
+    expect(html).toContain('<div class="inner">');
+    expect(html).toContain("<p>Z</p>");
+    expect(html).toContain("<p>AFTER</p>");
+    // No fence leaks as literal text, and AFTER sits before the outer's own
+    // closing </div> (i.e. inside the outer div).
+    expect(html).not.toContain(":::");
+    expect(html.trimEnd().endsWith("</div>")).toBe(true);
+    expect(html.indexOf("AFTER")).toBeLessThan(html.lastIndexOf("</div>"));
+  });
+
+  it("pairs same-length nested bare-word divs (::: outer / ::: inner)", () => {
+    const html = render("::: outer\n::: inner\nZ\n:::\nAFTER\n:::\n");
+    expect(html).toContain('<div class="outer">');
+    expect(html).toContain('<div class="inner">');
+    expect(html).toContain("<p>AFTER</p>");
+    expect(html).not.toContain(":::");
+    expect(html.indexOf("AFTER")).toBeLessThan(html.lastIndexOf("</div>"));
+  });
+
+  it("closes a longer-fenced div (::::) on a shorter closing fence (:::), matching pandoc", () => {
+    // The closer's colon count is independent of the opener's — grounded vs
+    // pandoc 3.6.3. (Before the depth-tracking fix, the scan required the closer
+    // to be at least as long as the opener, so a :::: div stayed open forever.)
+    const html = render(":::: {.x}\nZ\n:::\n");
+    expect(html).toContain('<div class="x">');
+    expect(html).toContain("<p>Z</p>");
+    expect(html).not.toContain(":::");
+    expect(html.trimEnd().endsWith("</div>")).toBe(true);
+  });
+
+  it("pairs mixed-length nesting (outer ::::, inner :::), keeping trailing content inside", () => {
+    const html = render(
+      ":::: {.outer}\n::: {.inner}\nZ\n:::\nAFTER\n::::\n",
+    );
+    expect(html).toContain('<div class="outer">');
+    expect(html).toContain('<div class="inner">');
+    expect(html).toContain("<p>AFTER</p>");
+    expect(html).not.toContain(":::");
+    expect(html.indexOf("AFTER")).toBeLessThan(html.lastIndexOf("</div>"));
+  });
+
+  it("keeps a nested callout inside a generic outer div (.callout-note in .panel-tabset), trailing content still inside", () => {
+    // The real-world case from the bug report: a callout nested in a panel-tabset.
+    const html = render(
+      "::: {.panel-tabset}\n::: {.callout-note}\nBody\n:::\nAFTER\n:::\n",
+    );
+    expect(html).toContain('<div class="panel-tabset">');
+    expect(html).toContain('class="callout callout-note"');
+    expect(html).toContain("<p>Body</p>");
+    expect(html).toContain("<p>AFTER</p>");
+    expect(html).not.toContain(":::");
+    expect(html.trimEnd().endsWith("</div>")).toBe(true);
+    expect(html.indexOf("AFTER")).toBeLessThan(html.lastIndexOf("</div>"));
+  });
+
+  it("keeps trailing content inside an outer CALLOUT when a generic div is nested in it", () => {
+    const html = render(
+      "::: {.callout-note}\n::: {.inner}\nBody\n:::\nAFTER\n:::\n",
+    );
+    expect(html).toContain('class="callout callout-note"');
+    expect(html).toContain('<div class="inner">');
+    expect(html).toContain("<p>AFTER</p>");
+    expect(html).not.toContain(":::");
+    expect(html.indexOf("AFTER")).toBeLessThan(html.lastIndexOf("</div>"));
+  });
+
+  it("pairs three levels of same-length nesting", () => {
+    const html = render(
+      "::: {.a}\n::: {.b}\n::: {.c}\nZ\n:::\n:::\n:::\n",
+    );
+    expect(html).toContain('<div class="a">');
+    expect(html).toContain('<div class="b">');
+    expect(html).toContain('<div class="c">');
+    expect(html).toContain("<p>Z</p>");
+    expect(html).not.toContain(":::");
+    expect((html.match(/<div/g) ?? []).length).toBe(3);
+    expect((html.match(/<\/div>/g) ?? []).length).toBe(3);
+  });
+
+  it("does not count a fence-like non-opener (::: foo bar) as a nested div, so the first bare ::: closes the outer", () => {
+    // `::: foo bar` is neither a valid opener (multi-word bare spec) nor a bare
+    // closer → it is body text and must NOT push depth. If it did, the outer div
+    // would swallow everything after. Grounded vs pandoc: the outer closes at the
+    // first bare :::, and AFTER falls OUTSIDE it.
+    const html = render(
+      "::: {.outer}\n::: foo bar\nZ\n:::\nAFTER\n:::\n",
+    );
+    expect(html).toContain('<div class="outer">');
+    expect(html).not.toContain('class="foo"'); // never became a div
+    const openIdx = html.indexOf('<div class="outer">');
+    const closeIdx = html.indexOf("</div>", openIdx); // the outer's own close
+    expect(html.indexOf("::: foo bar")).toBeLessThan(closeIdx); // body text, inside
+    expect(html.indexOf("AFTER")).toBeGreaterThan(closeIdx); // outside the outer div
+  });
 });
