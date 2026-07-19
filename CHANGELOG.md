@@ -7,6 +7,14 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-18 · [BL-17d] Session 114 — render tip/warning/caution/important callouts; first-known-class-wins fix (BACKLOG item 17d follow-on A)
+
+Feature (strict TDD). The notebook markdown-cell callout renderer (`src/core/notebook-callout.ts`), shipped for `callout-note` only in S113, now renders **all five Quarto callout types** — `note`/`tip`/`warning`/`caution`/`important` — as their admonition blocks (`class="callout callout-<type>"` + default title). The single-type block rule was generalised to a data-driven `CALLOUT_TITLES` map: the export `calloutNotePlugin` was renamed **`calloutPlugin`**, one `callout_open`/`callout_close` token pair carries the type on `token.info`, and the renderer reads the class + title from the map. Done in the right TDD order — a behavior-preserving refactor (note-only, all 865 tests stayed green) then each new type added RED→GREEN.
+
+**Adversarially verified by a 3-lens panel, which caught a regression the generalisation introduced:** the first-cut capturing regex had a greedy `[^}]*` before the capture, so a div listing two `.callout-*` classes locked onto the **last** one — `{.callout-note .callout-bogus}` rendered nothing and `{.callout-note .callout-tip}` flipped to tip (both regressions vs the note-only literal). Fixed to **first-known-callout-class-wins** (a scan, not a single capture), which also restores byte-identical single-class output and correctly resolves a real class followed by a `.callout-*` substring inside an attribute value. Two false positives the panel flagged (non-ASCII `.callout-noté`; `.callout-` inside an attr value with no real class) are pre-existing — shared with the note-only code, unchanged this session.
+
+CSS box styling remains a deferred follow-on (still structural-only — the `:::` markers vanish and the body renders under the type's title, but no coloured box yet; eyeball-only). Commits `d8f656e` (refactor/rename, no behavior change), `ffff176` (four new types), `e19e603` (first-known-class-wins fix). `check-types` clean, **872 unit** (865 + 7), **349 integration** (unchanged — wiring untouched), clean **44-file `.vsix`**; markdown-it still host-provided (not bundled). Learning #127.
+
 ### 2026-07-18 · [BL-17d] Session 113 — notebook markdown-cell callout-note renderer (BACKLOG item 17d)
 
 Feature (strict TDD). New **`contributes.notebookRenderer`** (`quarto-mit.markdown-it-callout`, extending VS Code's built-in `vscode.markdown-it-renderer`) renders a Quarto **`::: {.callout-note}`** fenced div as a note-admonition block inside `.ipynb` **markdown** cells, instead of showing raw `:::` text. First slice = the `callout-note` type only.
