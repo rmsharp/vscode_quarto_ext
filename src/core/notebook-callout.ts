@@ -373,6 +373,18 @@ function calloutRule(
     if (titleAttr && titleAttr[1] !== "") calloutTitle = titleAttr[1];
   }
 
+  // A `collapse` attribute makes a callout collapsible, rendered as a `<details>`
+  // (this renderer is JS-free, unlike quarto's Bootstrap collapse markup).
+  // Grounded vs quarto render 1.7.33: any collapse value is collapsible.
+  // `collapse=` is not a known HTML5 name, so `parseDivAttrs` stored it under the
+  // `data-collapse` name (`htmlAttrName`'s `data-` rule); as a callout control
+  // attribute it is consumed here and never emitted onto the div.
+  let collapse: "closed" | "open" | undefined;
+  if (type !== undefined && attrs) {
+    const collapseAttr = attrs.attrs.find(([name]) => name === "data-collapse");
+    if (collapseAttr) collapse = "closed";
+  }
+
   // Validation-only phase (e.g. paragraph-termination lookahead): a real callout
   // opens here, so report a match without emitting tokens.
   if (silent) return true;
@@ -505,6 +517,13 @@ function calloutRule(
     }
   }
 
+  // Carry the collapse state on both tokens (merging with any title meta) so the
+  // open renderer emits `<details>`/`<summary>` and the close renderer matches it
+  // with `</details>` instead of `</div>`.
+  if (collapse !== undefined) {
+    (tokenOpen.meta ??= {}).collapse = collapse;
+  }
+
   const tokenClose = state.push(
     type !== undefined ? "callout_close" : "div_close",
     "div",
@@ -512,6 +531,9 @@ function calloutRule(
   );
   tokenClose.markup = markup;
   tokenClose.block = true;
+  if (collapse !== undefined) {
+    (tokenClose.meta ??= {}).collapse = collapse;
+  }
 
   state.lineMax = oldLineMax;
   state.line = nextLine + (autoClosed ? 1 : 0);
@@ -539,6 +561,16 @@ function renderCalloutOpen(
     customTitle !== undefined
       ? md.renderInline(customTitle, env)
       : (CALLOUT_TITLES[type] ?? type);
+  // A collapsible callout (a `collapse` attribute) renders as a `<details>` whose
+  // `<summary>` is the clickable header; a plain callout stays a `<div>`.
+  const collapse = token.meta?.collapse as "closed" | "open" | undefined;
+  if (collapse !== undefined) {
+    return (
+      `<details class="callout callout-${type}">\n` +
+      `<summary class="callout-header"><div class="callout-title">${title}</div></summary>\n` +
+      '<div class="callout-body">\n'
+    );
+  }
   return (
     `<div class="callout callout-${type}">\n` +
     `<div class="callout-header"><div class="callout-title">${title}</div></div>\n` +
@@ -546,8 +578,9 @@ function renderCalloutOpen(
   );
 }
 
-function renderCalloutClose(): string {
-  return "</div>\n</div>\n";
+function renderCalloutClose(tokens: MarkdownIt.Token[], idx: number): string {
+  const collapse = tokens[idx].meta?.collapse as "closed" | "open" | undefined;
+  return collapse !== undefined ? "</div>\n</details>\n" : "</div>\n</div>\n";
 }
 
 /**

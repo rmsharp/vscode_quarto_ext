@@ -735,4 +735,20 @@ describe("calloutPlugin", () => {
       expect(html).toContain("<p>Body.</p>");
     });
   });
+
+  describe("collapsible callouts (17d follow-on E)", () => {
+    it('renders a collapse="true" callout as a collapsed <details> with a <summary> header', () => {
+      // Grounded vs quarto render 1.7.33: collapse="true" makes the callout
+      // collapsible and starts it collapsed. This renderer is JS-free, so the
+      // faithful static equivalent is a <details> (closed) whose <summary> is the
+      // callout header/title.
+      const html = render('::: {.callout-note collapse="true"}\nBody.\n:::\n');
+      expect(html).toContain('<details class="callout callout-note">');
+      expect(html).toContain('<summary class="callout-header">');
+      expect(html).toContain('class="callout-title">Note<');
+      expect(html).toContain("<p>Body.</p>");
+      expect(html).toContain("</details>");
+      expect(html).not.toContain('<div class="callout callout-note">'); // not the plain div form
+    });
+  });
 });
