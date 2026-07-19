@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S117
+date: 2026-07-19
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). Fix the HIGH pre-existing correctness bug (filed at BACKLOG EOF, surfaced by the S116 6-lens panel): nested same-length fenced divs are mis-paired in src/core/notebook-callout.ts calloutRule's closing-fence scan, which walks forward and accepts the FIRST fence whose marker run-length ≥ the opener's with NO depth tracking. So when an inner and outer div use the same ::: length, the outer grabs the INNER div's closer and closes early — ejecting following content outside the outer div and folding the real outer closer into literal <p> text. Affects BOTH the callout admonition path and the generic-div path (the scan is shared). Fix = track fence depth: while scanning for the closer, a nested opener of run-length ≥ the current opener pushes a level and must be matched by its own closer before the outer closer is accepted (mirror pandoc / markdown-it-container nesting). Its own strict-TDD session; needs the full callout regression battery green. Following docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md.
+```
+
+```handoff
 session: S116
 date: 2026-07-19
 status: complete
