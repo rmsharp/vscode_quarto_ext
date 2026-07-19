@@ -29,6 +29,10 @@ const MIN_MARKERS = 3;
  */
 const CALLOUT_TITLES: Record<string, string> = {
   note: "Note",
+  tip: "Tip",
+  warning: "Warning",
+  caution: "Caution",
+  important: "Important",
 };
 
 /**
@@ -36,7 +40,7 @@ const CALLOUT_TITLES: Record<string, string> = {
  * `.callout-<type>` class, capturing `<type>` in group 1. The `(?![\w-])` guard
  * pins the class to a whole word, so `.callout-note` matches but `.callout-notes`
  * and `.callout-note-2` do not. The block may also carry an id or further
- * classes: `{.callout-note}`, `{.callout-note #warn}`, `{.foo .callout-note}`
+ * classes: `{.callout-tip}`, `{.callout-note #warn}`, `{.foo .callout-warning}`
  * all match. Membership in `CALLOUT_TITLES` is validated separately, so a
  * captured but unknown type (e.g. `.callout-bogus`) is still rejected.
  */

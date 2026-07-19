@@ -34,15 +34,43 @@ describe("calloutPlugin", () => {
     expect(html).toContain('class="callout-title">Note<');
   });
 
-  it("leaves other callout types unrendered — ::: {.callout-tip} is not a note", () => {
+  it("renders ::: {.callout-tip} as a tip callout labelled 'Tip'", () => {
     const html = render("::: {.callout-tip}\nBody.\n:::\n");
-    expect(html).not.toContain("callout-note");
-    expect(html).not.toContain('class="callout ');
+    expect(html).toContain('class="callout callout-tip"');
+    expect(html).toContain('class="callout-title">Tip<');
+    expect(html).toContain("<p>Body.</p>");
+  });
+
+  it("renders ::: {.callout-warning} as a warning callout labelled 'Warning'", () => {
+    const html = render("::: {.callout-warning}\nBody.\n:::\n");
+    expect(html).toContain('class="callout callout-warning"');
+    expect(html).toContain('class="callout-title">Warning<');
+    expect(html).toContain("<p>Body.</p>");
+  });
+
+  it("renders ::: {.callout-caution} as a caution callout labelled 'Caution'", () => {
+    const html = render("::: {.callout-caution}\nBody.\n:::\n");
+    expect(html).toContain('class="callout callout-caution"');
+    expect(html).toContain('class="callout-title">Caution<');
+    expect(html).toContain("<p>Body.</p>");
+  });
+
+  it("renders ::: {.callout-important} as an important callout labelled 'Important'", () => {
+    const html = render("::: {.callout-important}\nBody.\n:::\n");
+    expect(html).toContain('class="callout callout-important"');
+    expect(html).toContain('class="callout-title">Important<');
+    expect(html).toContain("<p>Body.</p>");
   });
 
   it("leaves a generic fenced div ::: {.foo} unrendered", () => {
     const html = render("::: {.foo}\nBody.\n:::\n");
     expect(html).not.toContain('class="callout');
+  });
+
+  it("leaves an unknown callout type ::: {.callout-bogus} unrendered (closed set)", () => {
+    const html = render("::: {.callout-bogus}\nBody.\n:::\n");
+    expect(html).not.toContain('class="callout');
+    expect(html).toContain(":::"); // falls through as raw text, not silently dropped
   });
 
   it("auto-closes an unterminated callout at the end of the cell", () => {
@@ -67,6 +95,18 @@ describe("calloutPlugin", () => {
   it("does not match a class that merely starts with callout-note (e.g. .callout-notes)", () => {
     const html = render("::: {.callout-notes}\nBody.\n:::\n");
     expect(html).not.toContain('class="callout callout-note"');
+  });
+
+  it("renders two different callout types in one cell as distinct blocks", () => {
+    const html = render(
+      "::: {.callout-note}\nFirst.\n:::\n\n::: {.callout-warning}\nSecond.\n:::\n",
+    );
+    expect(html).toContain('class="callout callout-note"');
+    expect(html).toContain('class="callout callout-warning"');
+    expect(html).toContain('class="callout-title">Note<');
+    expect(html).toContain('class="callout-title">Warning<');
+    expect(html).toContain("First.");
+    expect(html).toContain("Second.");
   });
 
   it("renders two callouts in one cell as two separate blocks", () => {
