@@ -77,11 +77,12 @@ function calloutType(params: string): string | undefined {
  * the block carries neither, or `null` when `params` is not a single `{…}`
  * attribute block at all.
  *
- * Only `#id` and `.class` tokens are read. Each is matched at the block start or
- * after whitespace, so a `.` or `#` inside a `key="value"` value (`x="a.b"`) is
- * not misread as a class/id. `key=value` attributes and bare-word shorthand
- * (`::: foo`) are out of scope (deferred follow-on) and ignored. When several
- * ids are present the first wins.
+ * Only `#id` and `.class` tokens are read. `key=value` / `key="value"`
+ * attributes are stripped first, so a `.` or `#` inside a value (`x="a.b"`,
+ * `style="padding: .5em"`) is never misread as a class/id — emitting key=value
+ * attributes and bare-word shorthand (`::: foo`) are out of scope (deferred
+ * follow-on). Matching Pandoc/Quarto: several ids resolve to the last, and an
+ * id/class name may contain interior dots and hyphens.
  */
 function parseDivAttrs(params: string): { id: string | null; classes: string[] } | null {
   const trimmed = params.trim();
@@ -97,11 +98,13 @@ function parseDivAttrs(params: string): { id: string | null; classes: string[] }
   );
   const classes: string[] = [];
   let id: string | null = null;
-  const tokenPattern = /(?:^|\s)([.#])([\w-]+)/g;
+  // An id/class name may contain interior dots and hyphens (`.a.b`, `#id.class`),
+  // matching Pandoc's identifier grammar.
+  const tokenPattern = /(?:^|\s)([.#])([\w.-]+)/g;
   let match: RegExpExecArray | null;
   while ((match = tokenPattern.exec(idClassOnly)) !== null) {
     if (match[1] === ".") classes.push(match[2]);
-    else if (id === null) id = match[2];
+    else id = match[2]; // several ids → the last wins, matching Pandoc/Quarto
   }
   return { id, classes };
 }

@@ -105,6 +105,22 @@ describe("calloutPlugin", () => {
     expect(html).not.toContain("callout-tip");
   });
 
+  it('keeps the LAST id when several are present: ::: {#a #b} -> <div id="b"> (matches Pandoc)', () => {
+    const html = render("::: {#a #b}\nBody.\n:::\n");
+    expect(html).toContain('<div id="b">');
+    expect(html).not.toContain('id="a"');
+  });
+
+  it('keeps an interior dot in a class name: ::: {.a.b} -> <div class="a.b"> (matches Pandoc)', () => {
+    const html = render("::: {.a.b}\nBody.\n:::\n");
+    expect(html).toContain('<div class="a.b">');
+  });
+
+  it('keeps an interior dot in an id: ::: {#id.class} -> <div id="id.class">', () => {
+    const html = render("::: {#id.class}\nBody.\n:::\n");
+    expect(html).toContain('<div id="id.class">');
+  });
+
   it("leaves an empty attribute block ::: {} unrendered (no id or class)", () => {
     const html = render("::: {}\nBody.\n:::\n");
     expect(html).not.toContain("<div");
