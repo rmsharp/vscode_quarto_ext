@@ -2,20 +2,27 @@ import type MarkdownIt from "markdown-it";
 
 /**
  * Pure, `vscode`-free markdown-it plugin (BACKLOG item 17d) that renders Quarto
- * callout fenced divs (`::: {.callout-<type>}` … `:::`) as admonition blocks.
+ * Pandoc fenced divs (`::: {…}` … `:::`) in notebook markdown cells.
  *
- * A Quarto callout is a Pandoc fenced div (`:::` + an attribute block carrying a
- * class such as `.callout-note` / `.callout-tip` / `.callout-warning` /
- * `.callout-caution` / `.callout-important`) whose body is ordinary markdown.
- * This plugin adds a markdown-it block rule that recognises such a div, tokenises
- * its body as markdown, and wraps it in the callout markup Quarto's HTML output
- * uses. The webview entrypoint (`src/webview/notebook-renderer.ts`) installs it
- * into VS Code's built-in `vscode.markdown-it-renderer` so notebook markdown
- * cells show the callout instead of raw `:::` text.
+ * A Pandoc fenced div is `:::` followed by an attribute block (`{…}`) whose body
+ * is ordinary markdown. The single block rule this plugin adds handles two cases:
  *
- * Only the callout types in `CALLOUT_TITLES` are recognised; a fenced div with
- * any other class (a generic `::: {.foo}`, an unknown `.callout-bogus`, or a
- * near-miss like `.callout-notes`) falls through unrendered.
+ *  - **Callout** — a class in `CALLOUT_TITLES` (`.callout-note` / `.callout-tip` /
+ *    `.callout-warning` / `.callout-caution` / `.callout-important`) is wrapped in
+ *    the admonition markup Quarto's HTML output uses (a titled callout block).
+ *  - **Generic div** — any other fenced div carrying an id and/or class(es)
+ *    (`::: {.foo}`, `::: {#id .a .b}`, an unknown `.callout-bogus`) renders as a
+ *    plain `<div id=… class=…>` around its markdown body, matching what
+ *    `quarto render` emits for a non-callout div (only the closed set of known
+ *    types becomes an admonition; everything else is just a div).
+ *
+ * A div with neither a known callout class nor any generic id/class (`::: {}`, a
+ * `key=value`-only block) falls through unrendered. `key=value` attributes and
+ * bare-word shorthand (`::: foo`) are out of scope (deferred follow-on).
+ *
+ * The webview entrypoint (`src/webview/notebook-renderer.ts`) installs this into
+ * VS Code's built-in `vscode.markdown-it-renderer` so notebook markdown cells
+ * show the rendered blocks instead of raw `:::` text.
  */
 
 const MARKER = 0x3a; // ":"
@@ -92,12 +99,13 @@ function parseDivAttrs(params: string): { id: string | null; classes: string[] }
 }
 
 /**
- * markdown-it block rule: a container for `::: {.callout-<type>}` … `:::`.
+ * markdown-it block rule: a container for a Pandoc fenced div `::: {…}` … `:::`.
  * Modelled on the standard markdown-it fenced-container algorithm (reimplemented,
- * not copied): count the opening `:` run, validate the params as a known callout,
- * scan for a closing fence of at least the same length with only trailing spaces,
- * then tokenise the interior as block markdown between open/close tokens. The
- * matched type is carried on the open token's `info` for the renderer.
+ * not copied): count the opening `:` run, classify the params as a known callout
+ * or a generic id/class-bearing div (else bail), scan for a closing fence of at
+ * least the same length with only trailing spaces, then tokenise the interior as
+ * block markdown between open/close tokens. A callout carries its type on the
+ * open token's `info`; a generic div carries its id/class as token attributes.
  */
 function calloutRule(
   state: MarkdownIt.StateBlock,
