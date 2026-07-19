@@ -232,4 +232,14 @@ describe("calloutPlugin", () => {
     expect(html).toContain("First.");
     expect(html).toContain("Second.");
   });
+
+  // --- Bare-word shorthand (::: foo) — grounded firsthand vs quarto pandoc 3.6.3 ---
+
+  it('renders bare-word shorthand ::: foo as <div class="foo"> (no braces)', () => {
+    // Grounded vs quarto render: `::: foo` ≡ `::: {.foo}` → <div class="foo">.
+    const html = render("::: foo\nBody.\n:::\n");
+    expect(html).toContain('<div class="foo">');
+    expect(html).toContain("<p>Body.</p>");
+    expect(html).not.toContain(":::"); // fully rendered, not raw text
+  });
 });

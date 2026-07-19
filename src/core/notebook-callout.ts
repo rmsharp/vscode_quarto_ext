@@ -86,7 +86,15 @@ function calloutType(params: string): string | undefined {
  */
 function parseDivAttrs(params: string): { id: string | null; classes: string[] } | null {
   const trimmed = params.trim();
-  if (!ATTR_BLOCK.test(trimmed)) return null;
+  if (!ATTR_BLOCK.test(trimmed)) {
+    // Bare-word shorthand: `::: foo` ≡ `::: {.foo}` → a single non-brace,
+    // whitespace-free word becomes a class (grounded vs quarto render). A block
+    // with whitespace (`::: foo bar`) or a stray `{` is not a valid div.
+    if (trimmed !== "" && !trimmed.startsWith("{") && !/\s/.test(trimmed)) {
+      return { id: null, classes: [trimmed] };
+    }
+    return null;
+  }
   const inner = trimmed.slice(1, -1);
   // Drop `key=value` / `key="value"` attributes before scanning, so a `.`/`#`
   // inside a value (`style="padding: .5em"`, `data-x="go #home"`) is never
