@@ -135,3 +135,59 @@ describe("CURATED_SCHEMA_INDEX — offline closedness matches the live schema", 
     expect(byName.get("output")?.valuesClosed).toBeFalsy(); // …but must stay OPEN
   });
 });
+
+/**
+ * NESTED front-matter value validation (nested plan L1, §3.2). `frontMatterKeys(["execute"])`
+ * returns `CURATED_EXECUTE_KEYS` UNCONDITIONALLY (yaml-schema.ts:517-519) — even under a parsed
+ * live schema — because the live schema assembles the execute object across files (deferred
+ * recursive resolution). Those curated fields must therefore carry the closedness bits by hand for
+ * value validation to reach them. Every row below is grounded to `quarto render` 1.7.33 (plan §2.1).
+ * The load-bearing OPEN cases are `output` (anyOf free arm — `output: banana` exit 0) and `daemon`
+ * (boolean-OR-number — `daemon: 30` exit 0): a closed-boolean mark on either is the cardinal-sin FP,
+ * so both must stay `valuesClosed`-unset (plan §3.2, §7.5).
+ */
+describe("CURATED_EXECUTE_KEYS — nested execute closedness (nested plan L1, §3.2)", () => {
+  // The accessor validation actually inverts — returns the curated constant for BOTH indices.
+  const byName = new Map(
+    CURATED_SCHEMA_INDEX.frontMatterKeys(["execute"]).map((f) => [f.name, f]),
+  );
+
+  it("marks the boolean execute options closed + boolean-accepting", () => {
+    for (const n of [
+      "eval",
+      "warning",
+      "error",
+      "include",
+      "enabled",
+      "daemon-restart",
+      "keep-md",
+      "keep-ipynb",
+    ]) {
+      expect(byName.get(n)?.valuesClosed, `${n} closed`).toBe(true);
+      expect(byName.get(n)?.acceptsBoolean, `${n} acceptsBoolean`).toBe(true);
+    }
+  });
+
+  it("marks echo (true/false/fenced) closed + boolean-accepting", () => {
+    expect(byName.get("echo")?.valuesClosed).toBe(true);
+    expect(byName.get("echo")?.acceptsBoolean).toBe(true);
+    expect(byName.get("echo")?.values).toEqual(["true", "false", "fenced"]);
+  });
+
+  it("marks cache (true/false/refresh) and freeze (true/false/auto) closed + boolean-accepting", () => {
+    expect(byName.get("cache")?.valuesClosed).toBe(true);
+    expect(byName.get("cache")?.acceptsBoolean).toBe(true);
+    expect(byName.get("freeze")?.valuesClosed).toBe(true);
+    expect(byName.get("freeze")?.acceptsBoolean).toBe(true);
+  });
+
+  it("leaves `output` OPEN — anyOf free arm, `output: banana` renders exit 0 (cardinal-sin guard)", () => {
+    expect(byName.get("output")?.values).toContain("asis"); // values IS populated…
+    expect(byName.get("output")?.valuesClosed).toBeFalsy(); // …but it must stay OPEN
+  });
+
+  it("leaves `daemon` OPEN — boolean-OR-number, `daemon: 30` renders exit 0 (numeric slice's job)", () => {
+    expect(byName.get("daemon")?.values).toContain("true"); // values IS populated…
+    expect(byName.get("daemon")?.valuesClosed).toBeFalsy(); // …but it must stay OPEN
+  });
+});

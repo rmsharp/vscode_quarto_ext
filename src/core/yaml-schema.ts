@@ -287,20 +287,31 @@ export const CURATED_FRONTMATTER_KEYS: SchemaField[] = [
  * SIMPLE enumerable forms only — `daemon`'s number-timeout form is non-enumerable,
  * so only its boolean values are offered), for nested VALUE completion (6d-6 cont.).
  */
+// The `valuesClosed`/`acceptsBoolean` bits are HAND-annotated here (not derived by
+// `annotateClosedness`) because `frontMatterKeys(["execute"])` returns this constant
+// UNCONDITIONALLY — even under a parsed live schema (`:517-519`), which cannot assemble
+// the execute object across files (deferred recursive resolution). Nested value validation
+// (nested plan L1, §3.2) gates on `valuesClosed===true`, so without these bits execute values
+// stay unvalidated. Every closed row is grounded to `quarto render` 1.7.33 (plan §2.1):
+// `execute.echo: maybe` / `eval: banana` / `cache: banana` / `freeze: banana` render exit 1
+// (REJECTED → flag). `output` and `daemon` are DELIBERATELY LEFT OPEN (no `valuesClosed`):
+// `output: banana` (anyOf free arm) and `daemon: 30` (boolean-OR-number — the numeric slice's
+// job) both render exit 0, so a closed-boolean mark on either would be the cardinal-sin false
+// positive (plan §3.2, §7.5). Completion is unaffected — it reads `values`, never `valuesClosed`.
 export const CURATED_EXECUTE_KEYS: SchemaField[] = [
-  { name: "eval", description: "Evaluate code cells (`false` renders the code without running it).", values: BOOL },
-  { name: "echo", description: "Show cell source code in the rendered output.", values: ["true", "false", "fenced"] },
+  { name: "eval", description: "Evaluate code cells (`false` renders the code without running it).", values: BOOL, valuesClosed: true, acceptsBoolean: true },
+  { name: "echo", description: "Show cell source code in the rendered output.", values: ["true", "false", "fenced"], valuesClosed: true, acceptsBoolean: true },
   { name: "output", description: "Include execution output in the rendered document.", values: ["true", "false", "asis"] },
-  { name: "warning", description: "Include warnings in the rendered output.", values: BOOL },
-  { name: "error", description: "Include errors in the output instead of halting the render.", values: BOOL },
-  { name: "include", description: "Master switch: suppress all cell output (code and results).", values: BOOL },
-  { name: "cache", description: "Cache cell results to skip re-execution when unchanged.", values: ["true", "false", "refresh"] },
-  { name: "freeze", description: "Reuse previously rendered results (`auto`, `true`, or `false`).", values: ["true", "false", "auto"] },
-  { name: "enabled", description: "Master switch for code execution in this document.", values: BOOL },
+  { name: "warning", description: "Include warnings in the rendered output.", values: BOOL, valuesClosed: true, acceptsBoolean: true },
+  { name: "error", description: "Include errors in the output instead of halting the render.", values: BOOL, valuesClosed: true, acceptsBoolean: true },
+  { name: "include", description: "Master switch: suppress all cell output (code and results).", values: BOOL, valuesClosed: true, acceptsBoolean: true },
+  { name: "cache", description: "Cache cell results to skip re-execution when unchanged.", values: ["true", "false", "refresh"], valuesClosed: true, acceptsBoolean: true },
+  { name: "freeze", description: "Reuse previously rendered results (`auto`, `true`, or `false`).", values: ["true", "false", "auto"], valuesClosed: true, acceptsBoolean: true },
+  { name: "enabled", description: "Master switch for code execution in this document.", values: BOOL, valuesClosed: true, acceptsBoolean: true },
   { name: "daemon", description: "Keep a Jupyter kernel alive between renders (seconds, or a boolean).", values: BOOL },
-  { name: "daemon-restart", description: "Restart the Jupyter daemon before rendering.", values: BOOL },
-  { name: "keep-md", description: "Keep the intermediate Markdown produced during rendering.", values: BOOL },
-  { name: "keep-ipynb", description: "Keep the intermediate notebook produced during rendering.", values: BOOL },
+  { name: "daemon-restart", description: "Restart the Jupyter daemon before rendering.", values: BOOL, valuesClosed: true, acceptsBoolean: true },
+  { name: "keep-md", description: "Keep the intermediate Markdown produced during rendering.", values: BOOL, valuesClosed: true, acceptsBoolean: true },
+  { name: "keep-ipynb", description: "Keep the intermediate notebook produced during rendering.", values: BOOL, valuesClosed: true, acceptsBoolean: true },
 ];
 
 /**
