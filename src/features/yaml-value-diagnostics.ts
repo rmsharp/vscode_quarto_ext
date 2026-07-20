@@ -1,10 +1,13 @@
 /**
  * Cell-option / front-matter VALUE diagnostics — flag a WRONG value of an
  * already-recognized option with an Error squiggle, matching what `quarto
- * render` 1.7.33 itself rejects. Two surfaces, one collection: Phase 1 (§4.1)
+ * render` 1.7.33 itself rejects. Three surfaces, one collection: Phase 1 (§4.1)
  * validates `#|`/`//|` cell options (`findCellOptionLines`); Phase 2 (§4.2)
- * validates TOP-LEVEL front-matter scalars (`findFrontMatterValueLines`). Both
- * feed the same surface-agnostic `isWrongValue` matcher.
+ * validates TOP-LEVEL front-matter scalars (`findFrontMatterValueLines`); Phase 3
+ * (nested plan §3.4) validates NESTED front-matter scalars under `execute:`/`format:`
+ * (`findNestedFrontMatterValueLines`). All three feed the same surface-agnostic
+ * `isWrongValue` matcher — nested is a third value SOURCE, not a third feature (same
+ * `.qmd` gate, same `quarto-value` collection).
  *
  * A sibling of the unknown-KEY feature (`features/yaml-diagnostics.ts`) with an
  * INVERTED safety story: unknown-key flagging is banned on these open surfaces (a
@@ -25,6 +28,7 @@
 import * as vscode from "vscode";
 import { findCellOptionLines } from "../core/qmd/model";
 import { findFrontMatterValueLines } from "../core/yaml-frontmatter-values";
+import { findNestedFrontMatterValueLines } from "../core/yaml-frontmatter-nested-values";
 import { engineFor } from "../core/yaml-context";
 import { isWrongValue } from "../core/yaml-value-check";
 import type { SchemaField } from "../core/yaml-schema";
@@ -62,8 +66,9 @@ async function computeValueDiagnostics(
   const text = document.getText();
   const cellLines = findCellOptionLines(text);
   const fmValueLines = findFrontMatterValueLines(text);
-  if (cellLines.length === 0 && fmValueLines.length === 0) {
-    return isCurrent() ? [] : null;
+  const nestedLines = findNestedFrontMatterValueLines(text);
+  if (cellLines.length === 0 && fmValueLines.length === 0 && nestedLines.length === 0) {
+    return isCurrent() ? [] : null; // nothing to check — the fast path must count ALL three sources
   }
   const index = await source.getIndex();
   if (document.isClosed || !isCurrent()) {
@@ -127,6 +132,36 @@ async function computeValueDiagnostics(
     const diagnostic = new vscode.Diagnostic(
       range,
       valueMessage(fm.rawToken, fm.key, field),
+      vscode.DiagnosticSeverity.Error,
+    );
+    diagnostic.source = DIAGNOSTIC_SOURCE;
+    diagnostic.code = DIAGNOSTIC_CODE;
+    diagnostics.push(diagnostic);
+  }
+  // Phase 3 (nested plan §3.4): NESTED front-matter values under `execute:`/`format:`.
+  // `findNestedFrontMatterValueLines` already sliced each {parentPath, key, rawToken,
+  // valueRange} from the SAME snapshot `text` (no live re-read after the await). Resolve
+  // each key against its CONTAINER's field set — `frontMatterKeys(parentPath).find(...)` —
+  // inverting the completion provider's own nested-value lookup (`providers/yaml.ts:102`).
+  // `parentPath` EXCLUDES the key (the `nestedParentPath` function convention), so there is
+  // NO `.slice(0,-1)` here, unlike the completion CONTEXT which appends the key. An unknown
+  // key, an open field (`isWrongValue` precondition fails), or a valid value all skip — the
+  // same three no-ops the two loops above rely on. `execute:` closedness is the curated
+  // annotation (L1); `format.<fmt>.*` closedness is reader-derived (plan §2.2, §3.2).
+  for (const nested of nestedLines) {
+    const field = index.frontMatterKeys(nested.parentPath).find((f) => f.name === nested.key);
+    if (field === undefined || !isWrongValue(nested.rawToken, field)) {
+      continue;
+    }
+    const range = new vscode.Range(
+      nested.line,
+      nested.valueRange.startCol,
+      nested.line,
+      nested.valueRange.endCol,
+    );
+    const diagnostic = new vscode.Diagnostic(
+      range,
+      valueMessage(nested.rawToken, nested.key, field),
       vscode.DiagnosticSeverity.Error,
     );
     diagnostic.source = DIAGNOSTIC_SOURCE;

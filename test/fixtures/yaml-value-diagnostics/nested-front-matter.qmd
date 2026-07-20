@@ -1,0 +1,24 @@
+---
+execute:
+  echo: maybe
+  eval: banana
+  output: banana
+  daemon: 30
+format:
+  html:
+    toc: yes
+    number-sections: yes
+    df-print: banana
+    theme: banana
+    notarealoption: yes
+---
+
+Prose body. The five wrong CLOSED nested values above each render exit 1 under
+`quarto render` 1.7.33: `execute.echo: maybe` (closed boolean+fenced),
+`execute.eval: banana` (closed boolean), `format.html.toc: yes` and
+`format.html.number-sections: yes` (closed booleans), `format.html.df-print: banana`
+(closed enum non-member). The rest render exit 0 and must NEVER be flagged:
+`execute.output: banana` (OPEN anyOf free arm), `execute.daemon: 30` (OPEN
+boolean-or-number — the numeric slice's job), `format.html.theme: banana` (OPEN free
+string), `format.html.notarealoption: yes` (UNKNOWN key). Nested resolution reuses
+the completion provider's own lookup, inverted (nested value-validation plan §3.4).

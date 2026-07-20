@@ -1,0 +1,22 @@
+---
+execute:
+  echo: fenced
+  eval: false
+  output: asis
+  daemon: 30
+  cache: refresh
+format:
+  html:
+    toc: true
+    number-sections: false
+    df-print: kable
+    theme: cosmo
+---
+
+Every nested value here renders exit 0 under `quarto render` 1.7.33, so the feature
+must produce ZERO diagnostics: `execute.echo: fenced` (valid enum member),
+`execute.eval: false` (valid boolean), `execute.output: asis` (OPEN, valid),
+`execute.daemon: 30` (OPEN number), `execute.cache: refresh` (valid enum member),
+`format.html.toc: true` / `format.html.number-sections: false` (valid booleans),
+`format.html.df-print: kable` (valid enum member), `format.html.theme: cosmo` (OPEN
+free string).
