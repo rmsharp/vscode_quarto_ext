@@ -53,6 +53,20 @@ but inspired by the public, MIT-licensed VS Code guidance and sample:
   https://github.com/microsoft/vscode-extension-samples
   License: MIT
 
+Bootstrap Icons (notebook callout box icons)
+--------------------------------------------
+The notebook markdown-cell callout renderer (BACKLOG item 17d follow-on B) styles
+each callout type with an icon, embedded as an inline SVG data-URI in the CSS the
+renderer webview injects (src/core/notebook-callout.ts `CALLOUT_ICON`). These five
+glyphs — info-circle, lightbulb, exclamation-triangle, cone-striped, and
+exclamation-circle — are Bootstrap Icons, matching the icons Quarto's own HTML
+output uses for the same callout types (grounded against `quarto render` 1.7.33):
+
+  twbs/icons (Bootstrap Icons)
+  https://github.com/twbs/icons
+  License: MIT
+  Copyright (c) 2019-2024 The Bootstrap Authors
+
 Quarto CLI (runtime dependency, invoked via the shell)
 ------------------------------------------------------
   https://github.com/quarto-dev/quarto-cli

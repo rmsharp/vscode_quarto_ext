@@ -90,4 +90,30 @@ describe("Quarto: notebook markdown-cell callout renderer (item 17d)", () => {
       "the bundled ES module must export activate",
     );
   });
+
+  it("ships the callout box styles (item 17d follow-on B) in the bundle", () => {
+    // The rendered box has no extension-host read-back (eyeball-only), so verify
+    // what the host CAN see: the CSS-generation code + its grounded quarto 1.7.33
+    // palette/icons + the injection id are actually bundled. (`.callout-<type>` is
+    // runtime-generated from a template literal, so grep the STATIC markers.)
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    const bundle = fs.readFileSync(
+      path.join(ext.extensionPath, "dist", "notebook-renderer.js"),
+      "utf8",
+    );
+    // The idempotent injection target.
+    assert.ok(
+      bundle.includes("quarto-mit-callout-styles"),
+      "the style-injection element id must ship",
+    );
+    // Grounded accent palette (bootstrap note/tip/important) + the accent rule.
+    for (const marker of ["#0d6efd", "#198754", "#dc3545", "border-left-color"]) {
+      assert.ok(bundle.includes(marker), `bundle should contain ${marker}`);
+    }
+    // Grounded per-type Bootstrap-Icons glyphs.
+    for (const icon of ["bi-info-circle", "bi-lightbulb", "bi-exclamation-circle"]) {
+      assert.ok(bundle.includes(icon), `bundle should contain the ${icon} icon`);
+    }
+  });
 });
