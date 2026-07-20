@@ -316,7 +316,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   vdoc-URI-to-`.qmd` remap end to end — see the note below. **Diagnostics forwarding:
   not implemented** — the two `DiagnosticCollection`s in `src/` are
   `src/features/yaml-diagnostics.ts` (unknown keys in `_quarto.yml`'s project/website/book blocks)
-  and `src/features/yaml-value-diagnostics.ts` (wrong cell-option *values* in `.qmd`, Session 124);
+  and `src/features/yaml-value-diagnostics.ts` (wrong cell-option and top-level front-matter *values* in `.qmd`, Sessions 124–125);
   neither forwards code-cell diagnostics, and `src/providers/embedded.ts` registers none. **The inverse leak — background vdocs
   *publishing* phantom diagnostics under Pylance's non-default `diagnosticMode: "workspace"` — is
   muted (Session 93):** the two vdoc builders inject a file-level `# type: ignore` on line 0 of a
@@ -438,13 +438,17 @@ bucket.)**
 **YAML schema validation / diagnostics (red squiggles for invalid/unknown keys).**
 - *Ours:* Present, narrower in scope — always-on diagnostics flag unknown keys inside the
   `project:`/`website:`/`book:` blocks of `_quarto.yml`/`_quarto.yaml` only (the one region confirmed
-  "closed" against the live schema), **and (Session 124) flag a wrong *value* of an already-recognized
-  `#|` cell option in `.qmd` when its value set is provably closed** (`echo: maybe`,
-  `code-overflow: banana` → Error; open sets like `output`/`engine` are never flagged, and unknown cell
-  KEYS remain intentionally unflagged since those schemas are open). Front-matter *values* are the
-  remaining Phase 2 — **Session 47** (keys) + **Session 124** (cell values), `BACKLOG.md` item #2/#43.
+  "closed" against the live schema), **and (Sessions 124–125) flag a wrong *value* of an
+  already-recognized `#|` cell option OR top-level front-matter key in `.qmd` when its value set is
+  provably closed** (`echo: maybe`, `code-overflow: banana`, `toc: yes`, `pdf-engine: PDFLATEX` → Error;
+  open sets like `output`/`engine`/`documentclass` are never flagged, top-level `format` is
+  intentionally unvalidated (its enum is injected after closedness), and unknown KEYS remain
+  intentionally unflagged since those schemas are open). NESTED front-matter *values* (`format:`/
+  `execute:` children) are the deferred v2 slice — **Session 47** (project keys) + **Session 124** (cell
+  values) + **Session 125** (top-level front-matter values), `BACKLOG.md` item #2/#43.
   (`src/core/yaml-schema.ts` `SchemaIndex.projectKeys`, `src/core/yaml-value-check.ts`,
-  `src/core/project-yaml.ts`, `src/features/yaml-diagnostics.ts`, `src/features/yaml-value-diagnostics.ts`.)
+  `src/core/yaml-frontmatter-values.ts`, `src/core/project-yaml.ts`, `src/features/yaml-diagnostics.ts`,
+  `src/features/yaml-value-diagnostics.ts`.)
 - *Posit's:* Present, with caveats — on-save validation for both the classic editor and (since v1.124.0)
   the Visual Editor, plus profile-specific `_quarto.yml` (since v1.39.0), and (unlike ours) also covers
   front matter and cell options. Coverage is inconsistent because some internal schemas are "open"
@@ -452,11 +456,12 @@ bucket.)**
   (`quarto-tdg.org/yaml`); Posit's own docs don't state this caveat directly. Implemented as a custom
   internal LSP diagnostics provider, not the standard VS Code `yamlValidation`/`jsonValidation` manifest
   points.
-- *Notes:* Partial parity (Sessions 47 + 124) — narrowed, not closed. We validate the project-config
-  block keys and cell-option *values* (empirically the regions safe to flag without false positives; see
-  `BACKLOG.md`'s "Polish / deferred" for known false-negative edge cases). The remaining gap on our side
-  is narrower: front-matter *values* (Phase 2) and unknown front-matter/cell KEYS (intentionally
-  unflagged — open schemas).
+- *Notes:* Partial parity (Sessions 47 + 124 + 125) — narrowed, not closed. We validate the
+  project-config block keys, cell-option *values*, and top-level front-matter *values* (empirically the
+  regions safe to flag without false positives; see `BACKLOG.md`'s "Polish / deferred" for known
+  false-negative edge cases). The remaining gap on our side is narrower: NESTED front-matter *values*
+  (deferred v2), the intentionally-unvalidated top-level `format`, and unknown front-matter/cell KEYS
+  (intentionally unflagged — open schemas).
 
 ---
 
