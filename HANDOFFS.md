@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S127
+date: 2026-07-20
+status: pending
+active_task: PLANNING — design NESTED front-matter VALUE validation (BACKLOG:46, the v2 slice §4.3 of docs/planning/2026-07-19-value-validation-plan.md explicitly deferred). Flag a wrong VALUE of an already-recognized nested front-matter key (under execute:, format: html:, …) with an Error squiggle matching quarto render 1.7.33. Reuses the shipped surface-agnostic matcher isWrongValue, the schema-closedness model (valuesClosed/acceptsBoolean, already set on nested children by objectChildren), and the createDebouncedDiagnosticsFeature factory (3rd caller). Designs the new piece: nested value-line enumerator + nested-path resolution (forward-scan analog of nestedParentPath yaml-context.ts:232, "the largest new pure-core surface"), incl. the two-level format: html: descent + the format-inject-after-closedness quirk at depth. Operator picked via AskUserQuestion at Phase 0, then confirmed plan-first (FM #18/#19). Deliverable = ONE plan doc in docs/planning/; implementation is separate strict-TDD session(s) per phase.
+```
+
+```handoff
 session: S126
 date: 2026-07-20
 status: complete
