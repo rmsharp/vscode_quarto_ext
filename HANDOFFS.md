@@ -18,6 +18,15 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S125
+date: 2026-07-19
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). Phase 2 of docs/planning/2026-07-19-value-validation-plan.md §4.2: top-level front-matter VALUE validation (.qmd). Flag a wrong VALUE of an already-recognized TOP-LEVEL front-matter key (toc: yes, toc: "true") with an Error squiggle matching quarto render 1.7.33; emit nothing for valid (toc: True), OPEN sets (documentclass: myclass), and top-level format (intentionally unvalidated — enum injected after closedness). NEW pure findFrontMatterValueLines(text) enumerator (mirrors findProjectConfigKeyLines, bounded by findFrontMatter) + reuse the Phase-1 isWrongValue matcher + wire the front-matter path into the yaml-value-diagnostics feature. Operator picked via AskUserQuestion at Phase 0. ONE deliverable — v2 (nested/numeric/.ipynb) and the createDebouncedDiagnosticsFeature extract stay filed.
+changelog_ref: pending (Phase 3F)
+commit: pending (close-out commit follows this receipt)
+```
+
+```handoff
 session: S124
 date: 2026-07-19
 status: complete
