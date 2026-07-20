@@ -895,4 +895,73 @@ describe("callout box styles (17d follow-on B)", () => {
       /\.callout-note\s+\.callout-title::before\s*\{[^}]*background-image:\s*url\('data:image\/svg\+xml,<svg[^']*bi-info-circle/,
     );
   });
+
+  // --- regression-lock coverage (all grounded firsthand vs quarto render 1.7.33) ---
+
+  // [type, accent hex, "r, g, b" of the accent, the Bootstrap-Icons class name]
+  const GROUNDED: ReadonlyArray<[string, string, string, string]> = [
+    ["note", "#0d6efd", "13, 110, 253", "bi-info-circle"],
+    ["tip", "#198754", "25, 135, 84", "bi-lightbulb"],
+    ["warning", "#ffc107", "255, 193, 7", "bi-exclamation-triangle"],
+    ["caution", "#fd7e14", "253, 126, 20", "bi-cone-striped"],
+    ["important", "#dc3545", "220, 53, 69", "bi-exclamation-circle"],
+  ];
+
+  it.each(GROUNDED)(
+    "gives .callout-%s its grounded accent border, translucent tint, and icon",
+    (type, accent, rgb, iconClass) => {
+      const css = calloutStyles();
+      expect(css).toMatch(
+        new RegExp(`\\.callout-${type} \\{[^}]*border-left-color: ${accent.replace("#", "\\#")};`),
+      );
+      expect(css).toMatch(
+        new RegExp(
+          `\\.callout-${type} > \\.callout-header \\{[^}]*background-color: rgba\\(${rgb}, 0\\.1\\);`,
+        ),
+      );
+      expect(css).toMatch(
+        new RegExp(
+          `\\.callout-${type} \\.callout-title::before \\{[^}]*background-image: url\\('data:image/svg\\+xml,<svg[^']*${iconClass}`,
+        ),
+      );
+    },
+  );
+
+  it("emits the base box border, margin, and body/header padding", () => {
+    const css = calloutStyles();
+    expect(css).toMatch(/\.callout\s*\{[^}]*border:\s*1px solid/);
+    expect(css).toMatch(/\.callout\s*\{[^}]*margin:/);
+    expect(css).toMatch(/\.callout-header\s*\{[^}]*padding:/);
+    expect(css).toMatch(/\.callout-body\s*\{[^}]*padding:/);
+  });
+
+  it("makes a collapsible summary.callout-header show a pointer cursor", () => {
+    // The <details>/<summary> collapse form reuses .callout-header; the summary
+    // must read as clickable (and keeps the native disclosure marker).
+    expect(calloutStyles()).toMatch(/summary\.callout-header\s*\{[^}]*cursor:\s*pointer/);
+  });
+
+  it("scaffolds the icon as an inline-block ::before box even before per-type images", () => {
+    expect(calloutStyles()).toMatch(
+      /\.callout-title::before\s*\{[^}]*content:\s*"";[^}]*display:\s*inline-block/,
+    );
+  });
+
+  it("styles exactly the five known callout types — no more, no less", () => {
+    const css = calloutStyles();
+    for (const type of ["note", "tip", "warning", "caution", "important"]) {
+      expect(css).toContain(`.callout-${type} {`);
+    }
+    // An unknown `.callout-*` renders as a plain div (not an admonition), so it
+    // must never receive a box rule.
+    expect(css).not.toContain(".callout-bogus");
+    // Guard the count directly: five accent rules, one per type.
+    expect(css.match(/border-left-color:/g)).toHaveLength(5);
+  });
+
+  it("keeps every icon data URI free of a raw # (which would truncate the url())", () => {
+    // The SVGs use rgb() fills precisely so no `#` appears inside url('data:...'),
+    // which a CSS parser would treat as a fragment and break the icon.
+    expect(calloutStyles()).not.toMatch(/url\('data:image\/svg\+xml,[^']*#/);
+  });
 });
