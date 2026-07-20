@@ -314,9 +314,10 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   go-to-definition, signature-help — plus in-cell symbols are verified against real Pylance**
   (`npm run test:lsp`), not only against test doubles; the go-to-definition test also confirms the
   vdoc-URI-to-`.qmd` remap end to end — see the note below. **Diagnostics forwarding:
-  not implemented** — the only `DiagnosticCollection` anywhere in `src/` is
-  `src/features/yaml-diagnostics.ts`, scoped to `_quarto.yml`'s project/website/book blocks only;
-  `src/providers/embedded.ts` registers no diagnostics. **The inverse leak — background vdocs
+  not implemented** — the two `DiagnosticCollection`s in `src/` are
+  `src/features/yaml-diagnostics.ts` (unknown keys in `_quarto.yml`'s project/website/book blocks)
+  and `src/features/yaml-value-diagnostics.ts` (wrong cell-option *values* in `.qmd`, Session 124);
+  neither forwards code-cell diagnostics, and `src/providers/embedded.ts` registers none. **The inverse leak — background vdocs
   *publishing* phantom diagnostics under Pylance's non-default `diagnosticMode: "workspace"` — is
   muted (Session 93):** the two vdoc builders inject a file-level `# type: ignore` on line 0 of a
   python vdoc, suppressing the type/name/import phantom errors on `.quarto/vdoc-mit/` paths (verified
@@ -437,9 +438,13 @@ bucket.)**
 **YAML schema validation / diagnostics (red squiggles for invalid/unknown keys).**
 - *Ours:* Present, narrower in scope — always-on diagnostics flag unknown keys inside the
   `project:`/`website:`/`book:` blocks of `_quarto.yml`/`_quarto.yaml` only (the one region confirmed
-  "closed" against the live schema); front matter and cell options remain completion-only, no diagnostics
-  — **Session 47**, `BACKLOG.md` item #2. (`src/core/yaml-schema.ts` `SchemaIndex.projectKeys`,
-  `src/core/project-yaml.ts`, `src/features/yaml-diagnostics.ts`.)
+  "closed" against the live schema), **and (Session 124) flag a wrong *value* of an already-recognized
+  `#|` cell option in `.qmd` when its value set is provably closed** (`echo: maybe`,
+  `code-overflow: banana` → Error; open sets like `output`/`engine` are never flagged, and unknown cell
+  KEYS remain intentionally unflagged since those schemas are open). Front-matter *values* are the
+  remaining Phase 2 — **Session 47** (keys) + **Session 124** (cell values), `BACKLOG.md` item #2/#43.
+  (`src/core/yaml-schema.ts` `SchemaIndex.projectKeys`, `src/core/yaml-value-check.ts`,
+  `src/core/project-yaml.ts`, `src/features/yaml-diagnostics.ts`, `src/features/yaml-value-diagnostics.ts`.)
 - *Posit's:* Present, with caveats — on-save validation for both the classic editor and (since v1.124.0)
   the Visual Editor, plus profile-specific `_quarto.yml` (since v1.39.0), and (unlike ours) also covers
   front matter and cell options. Coverage is inconsistent because some internal schemas are "open"
@@ -447,10 +452,11 @@ bucket.)**
   (`quarto-tdg.org/yaml`); Posit's own docs don't state this caveat directly. Implemented as a custom
   internal LSP diagnostics provider, not the standard VS Code `yamlValidation`/`jsonValidation` manifest
   points.
-- *Notes:* Partial parity (Session 47) — narrowed, not closed. We validate only the project-config block
-  (empirically the one region safe to flag without false positives; see `BACKLOG.md`'s "Polish /
-  deferred" for two known false-negative edge cases). Posit's front-matter/cell-option coverage remains a
-  real, smaller gap on our side.
+- *Notes:* Partial parity (Sessions 47 + 124) — narrowed, not closed. We validate the project-config
+  block keys and cell-option *values* (empirically the regions safe to flag without false positives; see
+  `BACKLOG.md`'s "Polish / deferred" for known false-negative edge cases). The remaining gap on our side
+  is narrower: front-matter *values* (Phase 2) and unknown front-matter/cell KEYS (intentionally
+  unflagged — open schemas).
 
 ---
 
@@ -775,9 +781,11 @@ can do" scope, included for completeness rather than as a strict real-gap claim.
 ### Historical priority list (Session 42, tracked through Session 65) — mostly shipped
 
 1. ~~YAML schema diagnostics~~ (red squiggles for invalid front-matter/cell-option keys) — **PARTIALLY
-   SHIPPED Session 47** (`BACKLOG.md` item #2): covers `_quarto.yml`'s `project:`/`website:`/`book:`
-   blocks only, built on the existing schema reader (`src/core/yaml-schema.ts`). Front-matter and
-   cell-option diagnostics remain unimplemented — still open, still a narrower residual gap.
+   SHIPPED Sessions 47 + 124** (`BACKLOG.md` item #2/#43): Session 47 covers unknown KEYS in
+   `_quarto.yml`'s `project:`/`website:`/`book:` blocks; Session 124 flags wrong cell-option *VALUES*
+   in `.qmd` (Phase 1 of the value-validation plan). Front-matter *values* (Phase 2) remain open;
+   unknown front-matter/cell KEYS stay intentionally unflagged (open schemas). Built on the existing
+   schema reader (`src/core/yaml-schema.ts`).
 2. ~~Snippets~~ — **SHIPPED Session 53** (`BACKLOG.md` item #5): `snippets/quarto.json`, 13 snippets,
    declarative and TDD-gate-exempt, as predicted here. ~~And a **getting-started walkthrough**~~ —
    **SHIPPED Session 51** (`BACKLOG.md` item #3 Track C) — both declarative, TDD-gate-exempt,
