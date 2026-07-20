@@ -228,8 +228,16 @@ function nestedKeyContextAt(
  * Bails (`null`) on anything else — a non-`format` column-0 root, a scalar / flow /
  * block-scalar intermediate container, or a sequence item — rather than offer wrong
  * keys (plan §7).
+ *
+ * Exported so the nested front-matter VALUE enumerator
+ * (`core/yaml-frontmatter-nested-values.ts`) reuses the SAME tested ancestor walk in a
+ * forward per-line loop instead of a cursor-anchored one (nested value-validation plan
+ * §3.3) — the same "forward loop, not cursor walk" reuse `mappingContainerKey`/
+ * `leadingWsLen` were exported for. It returns the CONTAINER path EXCLUDING the line's
+ * own key (unlike the completion CONTEXT's `parentPath`, which appends the key), so the
+ * enumerator resolves with `frontMatterKeys(parentPath).find(name === key)`.
  */
-function nestedParentPath(
+export function nestedParentPath(
   lines: string[],
   line: number,
   indent: number,

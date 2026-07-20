@@ -1,0 +1,155 @@
+import { describe, expect, it } from "vitest";
+import { findNestedFrontMatterValueLines } from "../../src/core/yaml-frontmatter-nested-values";
+
+describe("findNestedFrontMatterValueLines — nested execute value lines", () => {
+  it("emits an execute child scalar with parentPath, key, value range, and raw token", () => {
+    const text = ["---", "execute:", "  echo: maybe", "---", "", "Body."].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 2, parentPath: ["execute"], key: "echo", valueRange: { startCol: 8, endCol: 13 }, rawToken: "maybe" },
+    ]);
+  });
+
+  it("emits multiple execute children in document order (the reader judges validity later)", () => {
+    const text = ["---", "execute:", "  echo: fenced", "  eval: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 2, parentPath: ["execute"], key: "echo", valueRange: { startCol: 8, endCol: 14 }, rawToken: "fenced" },
+      { line: 3, parentPath: ["execute"], key: "eval", valueRange: { startCol: 8, endCol: 14 }, rawToken: "banana" },
+    ]);
+  });
+});
+
+describe("findNestedFrontMatterValueLines — nested format value lines (per-format, reader-gated)", () => {
+  it("emits format.html.toc with the two-level container path", () => {
+    const text = ["---", "format:", "  html:", "    toc: yes", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 3, parentPath: ["format", "html"], key: "toc", valueRange: { startCol: 9, endCol: 12 }, rawToken: "yes" },
+    ]);
+  });
+
+  it("emits format.pdf.toc — the per-format path is genuine, not a shared flat list", () => {
+    const text = ["---", "format:", "  pdf:", "    toc: yes", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 3, parentPath: ["format", "pdf"], key: "toc", valueRange: { startCol: 9, endCol: 12 }, rawToken: "yes" },
+    ]);
+  });
+
+  it("emits a deep object sub-key with its FULL path (schema-free; the reader gates resolution)", () => {
+    // position ⊥ data — the enumerator emits ["format","html","theme"]; frontMatterKeys
+    // resolves one object level and returns [] for an unknown sub-key, so it is a safe no-op.
+    const text = ["---", "format:", "  html:", "    theme:", "      foo: bar", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 4, parentPath: ["format", "html", "theme"], key: "foo", valueRange: { startCol: 11, endCol: 14 }, rawToken: "bar" },
+    ]);
+  });
+});
+
+describe("findNestedFrontMatterValueLines — bounded / structural (never a false line)", () => {
+  it("returns [] for a document with no front matter", () => {
+    const text = ["Just prose.", "execute:", "  echo: maybe"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([]);
+  });
+
+  it("skips COLUMN-0 lines (the top-level enumerator's job) and emits only the indented child", () => {
+    const text = ["---", "toc: yes", "execute:", "  echo: maybe", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 3, parentPath: ["execute"], key: "echo", valueRange: { startCol: 8, endCol: 13 }, rawToken: "maybe" },
+    ]);
+  });
+
+  it("skips a nested comment line and a nested block-sequence item", () => {
+    const text = ["---", "format:", "  html:", "    # c", "    - seq", "    toc: yes", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 5, parentPath: ["format", "html"], key: "toc", valueRange: { startCol: 9, endCol: 12 }, rawToken: "yes" },
+    ]);
+  });
+
+  it("skips a nested block-opener (container, no scalar value) but emits its scalar sibling", () => {
+    const text = ["---", "execute:", "  echo:", "  eval: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 3, parentPath: ["execute"], key: "eval", valueRange: { startCol: 8, endCol: 14 }, rawToken: "banana" },
+    ]);
+  });
+
+  it("returns [] when the enclosing structure is not one we resolve (a non-format column-0 root)", () => {
+    // `crossref:` is NOT in NESTED_CONTAINERS, so nestedParentPath returns null → skipped
+    // (a documented safe false negative, plan §4.3).
+    const text = ["---", "crossref:", "  chapters: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([]);
+  });
+});
+
+describe("findNestedFrontMatterValueLines — nested value-token grammar (quotes, comments)", () => {
+  it("retains the quotes of a quoted value in rawToken and its range", () => {
+    const text = ["---", "execute:", '  echo: "fenced"', "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 2, parentPath: ["execute"], key: "echo", valueRange: { startCol: 8, endCol: 16 }, rawToken: '"fenced"' },
+    ]);
+  });
+
+  it("strips a trailing unquoted inline comment from the value token", () => {
+    const text = ["---", "execute:", "  echo: maybe # note", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 2, parentPath: ["execute"], key: "echo", valueRange: { startCol: 8, endCol: 13 }, rawToken: "maybe" },
+    ]);
+  });
+});
+
+describe("findNestedFrontMatterValueLines — block scalars protected by the ancestor walk (§7.2)", () => {
+  it("does NOT emit a fake child line INSIDE a block scalar (more-indented content)", () => {
+    // `nestedParentPath` bails because the `include-in-header: |` container has a scalar
+    // value (mappingContainerKey → null), so the fake `toc: yes` is never resolved.
+    const text = ["---", "format:", "  html:", "    include-in-header: |", "      toc: yes", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 3, parentPath: ["format", "html"], key: "include-in-header", valueRange: { startCol: 23, endCol: 24 }, rawToken: "|" },
+    ]);
+  });
+
+  it("DOES emit a real sibling at the SAME indent as the `|` opener (block ended — correct, not an FP)", () => {
+    const text = ["---", "format:", "  html:", "    include-in-header: |", "    toc: yes", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 3, parentPath: ["format", "html"], key: "include-in-header", valueRange: { startCol: 23, endCol: 24 }, rawToken: "|" },
+      { line: 4, parentPath: ["format", "html"], key: "toc", valueRange: { startCol: 9, endCol: 12 }, rawToken: "yes" },
+    ]);
+  });
+});
+
+describe("findNestedFrontMatterValueLines — multi-line flow at depth (the NEW FP, §7.1)", () => {
+  // At depth there is NO column-0 backstop, so an under-count is a live cardinal-sin FP,
+  // not the safe false negative it is at the top level. All three docs below render exit 0.
+  it("(a) does NOT emit a same-indent continuation line of a multi-line flow at depth", () => {
+    const text = ["---", "format:", "  html:", "    x: {", "    toc: yes", "    }", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 3, parentPath: ["format", "html"], key: "x", valueRange: { startCol: 7, endCol: 8 }, rawToken: "{" },
+    ]);
+  });
+
+  it("(b) arms flow on an ANCHORED opener whose token starts with `&`, not `{` (plan-review CRITICAL)", () => {
+    const text = ["---", "format:", "  html:", "    foo: &a { x: 1,", "    toc: yes }", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 3, parentPath: ["format", "html"], key: "foo", valueRange: { startCol: 9, endCol: 19 }, rawToken: "&a { x: 1," },
+    ]);
+  });
+
+  it("(c) counts braces QUOTE-AWARE so a quoted `}` does not drop flow depth early (plan-review HIGH)", () => {
+    const text = ["---", "execute:", "  foo: {", '  a: "}",', "  echo: maybe,", "  }", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 2, parentPath: ["execute"], key: "foo", valueRange: { startCol: 7, endCol: 8 }, rawToken: "{" },
+    ]);
+  });
+
+  it("resumes emitting a real sibling AFTER a multi-line flow closes", () => {
+    const text = ["---", "execute:", "  foo: {", "  }", "  echo: maybe", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 2, parentPath: ["execute"], key: "foo", valueRange: { startCol: 7, endCol: 8 }, rawToken: "{" },
+      { line: 4, parentPath: ["execute"], key: "echo", valueRange: { startCol: 8, endCol: 13 }, rawToken: "maybe" },
+    ]);
+  });
+
+  it("does not enter flow-skip for a single-line BALANCED flow collection at depth", () => {
+    const text = ["---", "execute:", "  foo: {a: 1}", "  echo: maybe", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 2, parentPath: ["execute"], key: "foo", valueRange: { startCol: 7, endCol: 13 }, rawToken: "{a: 1}" },
+      { line: 3, parentPath: ["execute"], key: "echo", valueRange: { startCol: 8, endCol: 13 }, rawToken: "maybe" },
+    ]);
+  });
+});
