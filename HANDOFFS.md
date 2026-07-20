@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S129
+date: 2026-07-20
+status: pending
+active_task: PLANNING — numeric type-aware front-matter VALUE validation (BACKLOG:46 v2, deferred sub-item plan §4.3). Deliverable = ONE plan document at docs/planning/2026-07-20-numeric-frontmatter-value-validation-plan.md with an evidence-based (grep + quarto render 1.7.33-grounded) inventory of numeric front-matter fields and a §4 strict-TDD vertical-slice contract. NO code this session; implementation is the next session (FM #18/#19). Operator picked via AskUserQuestion at Phase 0.
+```
+
+```handoff
 session: S128
 date: 2026-07-20
 status: complete
