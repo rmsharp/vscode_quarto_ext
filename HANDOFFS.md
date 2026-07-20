@@ -18,6 +18,14 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S128
+date: 2026-07-20
+status: pending
+active_task: IMPLEMENTATION (strict TDD, vertical slice) of docs/planning/2026-07-20-nested-frontmatter-value-validation-plan.md §4 — NESTED front-matter VALUE validation (BACKLOG:46 v2). Flag a wrong VALUE of an already-recognized nested front-matter key (under execute:, format:\n <fmt>:) with an Error squiggle matching quarto render 1.7.33; emit nothing for open fields / unknown keys / valid values. Layer set (gate-(a) contract, plan §4): L1 annotate CURATED_EXECUTE_KEYS closedness (11 closed; daemon/output stay OPEN) + closedness unit test; L2 new src/core/yaml-frontmatter-nested-values.ts (findNestedFrontMatterValueLines + quote-aware/node-property-aware flowScan) + export nestedParentPath from yaml-context.ts + unit tests; L3 third loop in computeValueDiagnostics + nested fixtures + a 3rd integration describe; L4 mandatory §9 adversarial review + TDD fixes. Operator picked v2-nested via AskUserQuestion at Phase 0; plan §4 re-verified unchanged at Orient.
+commit: pending (1B claim; close-out overwrites this block to status: complete)
+```
+
+```handoff
 session: S127
 date: 2026-07-20
 status: complete
