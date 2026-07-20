@@ -18,6 +18,14 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S122
+date: 2026-07-19
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). BACKLOG item 194 — the notebook callout BOX CSS (S120 follow-on B) ships through the WRONG channel and does not render in a live notebook (runtime-confirmed defect S121). Fix injectCalloutStyles (src/webview/notebook-renderer.ts) to tag the injected <style> with class="markdown-style" so VS Code clones it into each notebook markdown cell's shadow root, making the box styling actually render. Operator picked this via AskUserQuestion at Phase 0. Strict TDD: RED unit test (injected element carries markdown-style) -> GREEN (style.className = "markdown-style" + widen StyleHost type) -> integration ship-check the bundle contains markdown-style -> npm run compile rebuild -> offer the operator a re-run of the S121 EDH eyeball to confirm boxes render.
+commit: pending (close-out overwrites this stub to status: complete)
+```
+
+```handoff
 session: S121
 date: 2026-07-19
 status: complete
