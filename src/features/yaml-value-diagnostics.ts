@@ -177,6 +177,15 @@ async function computeValueDiagnostics(
  * values; a boolean-accepting field is phrased as `true` or `false`.
  */
 function valueMessage(rawToken: string, key: string, field: SchemaField): string {
+  // Numeric arm FIRST (numeric plan §3.4, dragon #9): curated `daemon` carries BOTH
+  // `scalarType:"number"` and `values:[true,false]`+`acceptsBoolean`, so it would
+  // satisfy the acceptsBoolean-enum branch below and mis-message `daemon: banana` as
+  // "expected true or false" (omitting number). Dispatch on `scalarType` first.
+  if (field.scalarType === "number") {
+    return field.acceptsBoolean
+      ? `Value ${rawToken} is not valid for "${key}" — expected a number or true or false.`
+      : `Value ${rawToken} is not valid for "${key}" — expected a number.`;
+  }
   const values = field.values ?? [];
   if (field.acceptsBoolean && values.every((v) => v === "true" || v === "false")) {
     return `Value ${rawToken} is not valid for "${key}" — expected true or false.`;

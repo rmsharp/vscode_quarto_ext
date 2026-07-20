@@ -138,6 +138,88 @@ describe("isWrongValue — a quoted value with a trailing inline comment (advers
   });
 });
 
+/** A plain numeric field (e.g. `fig-width`, `columns`) — `scalarType:"number"`, no enum. */
+const numField: SchemaField = { name: "fig-width", scalarType: "number" };
+
+/** `daemon`/`toc-expand` = number OR boolean — `scalarType:"number"` + `acceptsBoolean`. */
+const numBoolField: SchemaField = {
+  name: "daemon",
+  values: ["true", "false"],
+  scalarType: "number",
+  acceptsBoolean: true,
+};
+
+describe("isWrongValue — numeric fields (scalarType, the R predicate, numeric plan §2.3)", () => {
+  it("accepts every YAML number literal quarto accepts (ints, floats, exp, radices, inf/nan, underscores)", () => {
+    for (const v of [
+      "6", "6.5", "-6", "+6", "0", "00", "09", "0777", "1e2", "1E2", "1.5e-3", "1.e2", "1e+2",
+      ".5", ".5e2", "5.", "-0", "+0.5", "1_000", "0_0", "0x1A", "0o17", "0b101", ".inf", ".Inf",
+      ".nan", ".NaN",
+    ]) {
+      expect(isWrongValue(v, numField), `${v} should be a valid number`).toBe(false);
+    }
+  });
+
+  it("flags a non-number quarto rejects at its schema layer (wide, 6abc, 6px, 1,000, inf, nan)", () => {
+    for (const v of ["wide", "6abc", "6px", "1,000", "inf", "nan", "1.0.0", ".", "+", "e2"]) {
+      expect(isWrongValue(v, numField), `${v} should be flagged`).toBe(true);
+    }
+  });
+
+  it("flags a QUOTED number — quarto rejects it as a string (fig-width: \"6\" / '6')", () => {
+    expect(isWrongValue('"6"', numField)).toBe(true);
+    expect(isWrongValue("'6'", numField)).toBe(true);
+  });
+
+  it("flags leading-underscore `_1` and sexagesimal `10:30` — NOT safe FNs, quarto rejects both", () => {
+    expect(isWrongValue("_1", numField)).toBe(true);
+    expect(isWrongValue("10:30", numField)).toBe(true);
+  });
+
+  it("flags a boolean on a PLAIN numeric field — a number field rejects true (fig-width: true)", () => {
+    expect(isWrongValue("true", numField)).toBe(true);
+  });
+
+  it("leaves the deliberate safe FNs unflagged (superset R: +.5, -.5, 0X1A, 1_) — C1 over-acceptance", () => {
+    for (const v of ["+.5", "-.5", "0X1A", "1_"]) {
+      expect(isWrongValue(v, numField), `${v} is a deliberate safe FN`).toBe(false);
+    }
+  });
+
+  it("accepts an unquoted value with a trailing inline comment (fig-width: 6  # note)", () => {
+    // Belt-and-suspenders: the loops mostly pre-strip, but the matcher strips ` #…` too.
+    expect(isWrongValue("6  # note", numField)).toBe(false);
+    expect(isWrongValue("6 # note", numField)).toBe(false);
+  });
+
+  it("skips node-property / flow / block tokens on a numeric field (the cardinal-sin guard)", () => {
+    for (const v of ["&a 6", "*a", "!expr 1+1", "[1, 2]", "{a: 1}", "|", ">"]) {
+      expect(isWrongValue(v, numField), `${v} should be skipped`).toBe(false);
+    }
+  });
+
+  it("skips an empty token on a numeric field (mid-edit fig-width:)", () => {
+    expect(isWrongValue("", numField)).toBe(false);
+  });
+});
+
+describe("isWrongValue — number-OR-boolean fields (daemon/toc-expand, acceptsBoolean)", () => {
+  it("accepts both a number and the six boolean spellings (daemon: 30 / true / FALSE)", () => {
+    for (const v of ["30", "0", "3.5", "true", "True", "TRUE", "false", "False", "FALSE"]) {
+      expect(isWrongValue(v, numBoolField), `${v} should be valid for daemon`).toBe(false);
+    }
+  });
+
+  it("flags a non-number, non-boolean value (daemon: banana)", () => {
+    expect(isWrongValue("banana", numBoolField)).toBe(true);
+  });
+
+  it("flags a QUOTED number even on a boolean-accepting numeric field (daemon: \"30\")", () => {
+    expect(isWrongValue('"30"', numBoolField)).toBe(true);
+    expect(isWrongValue('"true"', numBoolField)).toBe(true); // quoted boolean is a string → rejected
+  });
+});
+
 describe("isWrongValue — non-scalar and empty tokens are skipped", () => {
   it("skips an empty token (mid-edit `#| echo:`)", () => {
     expect(isWrongValue("", boolField)).toBe(false);
