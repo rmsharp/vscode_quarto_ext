@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S121
+date: 2026-07-19
+status: pending
+active_task: RUNTIME VERIFICATION (collaborative — GUI is operator-launched). Eyeball the item-17d notebook markdown-cell callout rendering in a live Extension Development Host and produce a definitive verdict on (a) whether the callout STRUCTURE (A-E) renders in a real .ipynb markdown cell and (b) whether the S120 box CSS applies. The box CSS ships via a head-injected <style> (injectCalloutStyles, src/webview/notebook-renderer.ts) — an UNTESTED assumption (VS Code notebook markdown cells may render in a CSP/shadow-DOM/separate-renderer context where head-injected CSS never applies). If the CSS mechanism is broken, deliver a ROOT-CAUSE diagnosis of the correct notebook-renderer CSS channel (the FIX itself is a separate session, per S120's post-close-out note). The GUI can't launch from the sandboxed tool context (confirmed S120 + S74), so the operator launches the isolated EDH from their own shell; I prepare the fixture + exact launch command, do the no-GUI mechanism analysis (VS Code notebook-markdown rendering contract + our wiring), and adjudicate. Operator picked this via AskUserQuestion at Phase 0.
+```
+
+```handoff
 session: S120
 date: 2026-07-19
 status: complete
