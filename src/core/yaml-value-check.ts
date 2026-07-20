@@ -58,18 +58,20 @@ export function isWrongValue(rawToken: string, field: SchemaField): boolean {
 }
 
 /**
- * Strip one matching layer of YAML scalar quoting (`"v"` or `'v'`) to the
- * logical value, or return `token` unchanged if it is not wrapped in a matching
- * pair. No escape decoding — closed-enum/boolean values never contain a quote
- * character, so this is sufficient for membership comparison (mirrors
- * `project-yaml.ts:unquoteKey`, adapted for values).
+ * The logical value of a YAML scalar token: for a quoted token, the content up to
+ * the matching CLOSING quote — deliberately ignoring anything after it, because the
+ * cell-option value slot retains a trailing ` # comment` for a quoted value
+ * (`slotsOf` strips inline comments only for UNQUOTED values), and `#| key: "v" #
+ * note` renders exit 0 (adversarial review, S124). An unquoted or unterminated
+ * token is returned unchanged. No escape decoding — closed-enum/boolean values
+ * never contain a quote character.
  */
 function unquote(token: string): string {
-  if (token.length >= 2) {
-    const first = token[0];
-    const last = token[token.length - 1];
-    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
-      return token.slice(1, -1);
+  const first = token[0];
+  if (first === '"' || first === "'") {
+    const close = token.indexOf(first, 1);
+    if (close > 0) {
+      return token.slice(1, close); // content between the quotes; trailing comment/junk ignored
     }
   }
   return token;

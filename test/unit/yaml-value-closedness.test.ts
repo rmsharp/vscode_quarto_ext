@@ -20,6 +20,12 @@ const FIXTURE = JSON.stringify({
     { name: "eval", schema: "boolean", description: "eval" },
     // CLOSED — bare string enum, NOT boolean.
     { name: "code-overflow", schema: { enum: ["scroll", "wrap"] }, description: "overflow" },
+    // CLOSED enum whose MEMBERS include real YAML booleans — quarto accepts the six
+    // boolean spellings for these (message: True → exit 0), so acceptsBoolean must be
+    // true even though the node is an enum, not a boolean type (adversarial review, S124).
+    { name: "message", schema: { enum: [true, false, "NA"] }, description: "messages" },
+    // CLOSED enum with ONE boolean member (false) among strings (results).
+    { name: "results", schema: { enum: ["markup", "asis", "hold", "hide", false] }, description: "results" },
   ],
   "schema/cell-textoutput.yml": [
     // OPEN — anyOf with a free `string`/`object` arm, yet `values` = [true,false,asis].
@@ -59,6 +65,14 @@ describe("parseSchemaIndex — value closedness (valuesClosed / acceptsBoolean, 
   it("marks a bare string enum closed but NOT boolean-accepting (code-overflow)", () => {
     expect(byName.get("code-overflow")?.valuesClosed).toBe(true);
     expect(byName.get("code-overflow")?.acceptsBoolean).toBeFalsy();
+  });
+
+  it("marks an enum whose members include YAML booleans as boolean-accepting (message, results)", () => {
+    // quarto accepts message: True / TRUE / FALSE (exit 0), so the six spellings must pass.
+    expect(byName.get("message")?.valuesClosed).toBe(true);
+    expect(byName.get("message")?.acceptsBoolean).toBe(true);
+    expect(byName.get("results")?.valuesClosed).toBe(true);
+    expect(byName.get("results")?.acceptsBoolean).toBe(true);
   });
 
   it("marks maybeArrayOf[enum] and ref→enum closed (fig-align, column)", () => {

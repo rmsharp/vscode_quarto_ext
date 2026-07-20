@@ -128,7 +128,8 @@ async function refreshDiagnostics(
   generations.set(key, generation);
   const isCurrent = (): boolean => generations.get(key) === generation;
 
-  const cellLines = findCellOptionLines(document.getText());
+  const text = document.getText();
+  const cellLines = findCellOptionLines(text);
   if (cellLines.length === 0) {
     if (isCurrent()) {
       collection.set(document.uri, []);
@@ -139,12 +140,19 @@ async function refreshDiagnostics(
   if (document.isClosed || !isCurrent()) {
     return; // closed while awaiting the first-load schema, or superseded — never resurrect
   }
+  // Slice keys/values from the SAME snapshot `findCellOptionLines` saw — NEVER re-read
+  // the live document after the await. A plain edit during the slow first-load schema
+  // await does not bump the generation guard (it only arms a debounced timer), so a
+  // live `document.lineAt(cell.line)` could throw (line now out of range) or slice
+  // shifted content; the snapshot keeps this pass internally consistent, and the next
+  // debounced pass supersedes it (adversarial review, S124).
+  const lines = text.split(/\r?\n/);
   const diagnostics: vscode.Diagnostic[] = [];
   for (const cell of cellLines) {
     if (cell.keySlot === null || cell.valueSlot === null) {
       continue; // block-sequence item, or no `:` yet — no value to validate
     }
-    const lineText = document.lineAt(cell.line).text;
+    const lineText = lines[cell.line] ?? "";
     const optionKey = lineText.slice(cell.keySlot.startCol, cell.keySlot.endCol);
     const rawToken = lineText.slice(cell.valueSlot.startCol, cell.valueSlot.endCol);
     if (optionKey.length === 0 || rawToken.length === 0) {

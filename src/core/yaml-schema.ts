@@ -781,12 +781,16 @@ function closednessOfSchema(
     return { closed: true, acceptsBoolean: true };
   }
   if (Array.isArray(s.enum)) {
-    return { closed: true, acceptsBoolean: false };
+    // An enum LISTING real YAML booleans (e.g. `message`: {enum:[true,false,"NA"]})
+    // accepts the six boolean spellings — `message: True` renders exit 0 — so it is
+    // boolean-accepting even though the node is an enum, not a boolean type
+    // (adversarial review, S124). A pure string enum stays non-boolean.
+    return { closed: true, acceptsBoolean: s.enum.some((v) => typeof v === "boolean") };
   }
   if (s.enum !== null && typeof s.enum === "object" && !Array.isArray(s.enum)) {
     const values = (s.enum as Record<string, unknown>).values;
     if (Array.isArray(values)) {
-      return { closed: true, acceptsBoolean: false };
+      return { closed: true, acceptsBoolean: values.some((v) => typeof v === "boolean") };
     }
   }
   if (Array.isArray(s.anyOf)) {

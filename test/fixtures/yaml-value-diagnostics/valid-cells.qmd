@@ -7,11 +7,13 @@ title: Valid cell-option values (zero diagnostics expected)
 #| eval: false
 #| output: asis
 #| code-overflow: scroll
+#| fig-align: "center" # a quoted value with a trailing comment (renders exit 0)
 1 + 1
 ```
 
 ```{r}
 #| cache: true
 #| animation-hook: gifski
+#| message: TRUE
 2 + 2
 ```

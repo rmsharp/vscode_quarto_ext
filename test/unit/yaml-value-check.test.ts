@@ -113,6 +113,31 @@ describe("isWrongValue — OPEN sets are never validated (the cardinal-sin guard
   });
 });
 
+/** `fig-align` = `maybeArrayOf[enum]` — closed string enum, NOT boolean. */
+const figAlignField: SchemaField = {
+  name: "fig-align",
+  values: ["default", "left", "right", "center"],
+  valuesClosed: true,
+};
+
+describe("isWrongValue — a quoted value with a trailing inline comment (adversarial review, S124)", () => {
+  // The cell-option value slot retains a trailing ` # comment` for a QUOTED value
+  // (slotsOf skips comment-stripping inside quotes); quarto renders these exit 0,
+  // so the matcher must NOT flag them — a false positive would breach the hard rule.
+  it("accepts a valid quoted enum member followed by a comment (fig-align: \"center\" # note)", () => {
+    expect(isWrongValue('"center" # a comment', figAlignField)).toBe(false);
+    expect(isWrongValue("'left'   # note", figAlignField)).toBe(false);
+  });
+
+  it("accepts a valid quoted enum member with a comment on echo (\"fenced\" # note)", () => {
+    expect(isWrongValue('"fenced" # note', echoField)).toBe(false);
+  });
+
+  it("still flags a WRONG quoted value even with a trailing comment", () => {
+    expect(isWrongValue('"middle" # note', figAlignField)).toBe(true);
+  });
+});
+
 describe("isWrongValue — non-scalar and empty tokens are skipped", () => {
   it("skips an empty token (mid-edit `#| echo:`)", () => {
     expect(isWrongValue("", boolField)).toBe(false);
