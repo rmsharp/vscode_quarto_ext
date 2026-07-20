@@ -438,17 +438,20 @@ bucket.)**
 **YAML schema validation / diagnostics (red squiggles for invalid/unknown keys).**
 - *Ours:* Present, narrower in scope — always-on diagnostics flag unknown keys inside the
   `project:`/`website:`/`book:` blocks of `_quarto.yml`/`_quarto.yaml` only (the one region confirmed
-  "closed" against the live schema), **and (Sessions 124–125) flag a wrong *value* of an
-  already-recognized `#|` cell option OR top-level front-matter key in `.qmd` when its value set is
-  provably closed** (`echo: maybe`, `code-overflow: banana`, `toc: yes`, `pdf-engine: PDFLATEX` → Error;
-  open sets like `output`/`engine`/`documentclass` are never flagged, top-level `format` is
-  intentionally unvalidated (its enum is injected after closedness), and unknown KEYS remain
-  intentionally unflagged since those schemas are open). NESTED front-matter *values* (`format:`/
-  `execute:` children) are the deferred v2 slice — **Session 47** (project keys) + **Session 124** (cell
-  values) + **Session 125** (top-level front-matter values), `BACKLOG.md` item #2/#43.
-  (`src/core/yaml-schema.ts` `SchemaIndex.projectKeys`, `src/core/yaml-value-check.ts`,
-  `src/core/yaml-frontmatter-values.ts`, `src/core/project-yaml.ts`, `src/features/yaml-diagnostics.ts`,
-  `src/features/yaml-value-diagnostics.ts`.)
+  "closed" against the live schema), **and (Sessions 124–125, 128) flag a wrong *value* of an
+  already-recognized `#|` cell option, top-level front-matter key, OR NESTED front-matter key (under
+  `execute:`/`format:\n <fmt>:`) in `.qmd` when its value set is provably closed** (`echo: maybe`,
+  `code-overflow: banana`, `toc: yes`, `pdf-engine: PDFLATEX`, `execute.echo: maybe`,
+  `format.html.toc: yes`, `format.html.df-print: banana` → Error; open sets like
+  `output`/`engine`/`documentclass`/`execute.output`/`execute.daemon`/`format.html.theme` are never
+  flagged, top-level `format` is intentionally unvalidated (its enum is injected after closedness), and
+  unknown KEYS remain intentionally unflagged since those schemas are open). NESTED front-matter
+  *values* under `execute:`/`format:` are now covered too — **Session 47** (project keys) + **Session
+  124** (cell values) + **Session 125** (top-level front-matter values) + **Session 128** (nested
+  values), `BACKLOG.md` item #2/#43/#46. (`src/core/yaml-schema.ts` `SchemaIndex.projectKeys`,
+  `src/core/yaml-value-check.ts`, `src/core/yaml-frontmatter-values.ts`,
+  `src/core/yaml-frontmatter-nested-values.ts`, `src/core/project-yaml.ts`,
+  `src/features/yaml-diagnostics.ts`, `src/features/yaml-value-diagnostics.ts`.)
 - *Posit's:* Present, with caveats — on-save validation for both the classic editor and (since v1.124.0)
   the Visual Editor, plus profile-specific `_quarto.yml` (since v1.39.0), and (unlike ours) also covers
   front matter and cell options. Coverage is inconsistent because some internal schemas are "open"
@@ -456,12 +459,14 @@ bucket.)**
   (`quarto-tdg.org/yaml`); Posit's own docs don't state this caveat directly. Implemented as a custom
   internal LSP diagnostics provider, not the standard VS Code `yamlValidation`/`jsonValidation` manifest
   points.
-- *Notes:* Partial parity (Sessions 47 + 124 + 125) — narrowed, not closed. We validate the
-  project-config block keys, cell-option *values*, and top-level front-matter *values* (empirically the
-  regions safe to flag without false positives; see `BACKLOG.md`'s "Polish / deferred" for known
-  false-negative edge cases). The remaining gap on our side is narrower: NESTED front-matter *values*
-  (deferred v2), the intentionally-unvalidated top-level `format`, and unknown front-matter/cell KEYS
-  (intentionally unflagged — open schemas).
+- *Notes:* Partial parity (Sessions 47 + 124 + 125 + 128) — narrowed, not closed. We validate the
+  project-config block keys, cell-option *values*, top-level front-matter *values*, AND nested
+  front-matter *values* under `execute:`/`format:` (empirically the regions safe to flag without false
+  positives; see `BACKLOG.md`'s "Polish / deferred" for known false-negative edge cases). The remaining
+  gap on our side is narrower still: NUMERIC-typed nested values (`daemon: 30`, `fig-width: wide`),
+  `.ipynb` cell/front-matter values, other closed front-matter containers (`crossref:`/`website:`/
+  `brand:`/`jupyter:`), the intentionally-unvalidated top-level `format`, and unknown front-matter/cell
+  KEYS (intentionally unflagged — open schemas).
 
 ---
 
@@ -786,11 +791,12 @@ can do" scope, included for completeness rather than as a strict real-gap claim.
 ### Historical priority list (Session 42, tracked through Session 65) — mostly shipped
 
 1. ~~YAML schema diagnostics~~ (red squiggles for invalid front-matter/cell-option keys) — **PARTIALLY
-   SHIPPED Sessions 47 + 124** (`BACKLOG.md` item #2/#43): Session 47 covers unknown KEYS in
-   `_quarto.yml`'s `project:`/`website:`/`book:` blocks; Session 124 flags wrong cell-option *VALUES*
-   in `.qmd` (Phase 1 of the value-validation plan). Front-matter *values* (Phase 2) remain open;
-   unknown front-matter/cell KEYS stay intentionally unflagged (open schemas). Built on the existing
-   schema reader (`src/core/yaml-schema.ts`).
+   SHIPPED Sessions 47 + 124 + 125 + 128** (`BACKLOG.md` item #2/#43/#46): Session 47 covers unknown
+   KEYS in `_quarto.yml`'s `project:`/`website:`/`book:` blocks; Sessions 124/125/128 flag wrong
+   *VALUES* of cell options, top-level front-matter keys, and nested `execute:`/`format:` keys in `.qmd`
+   (Phases 1–3 of the value-validation plan — all SHIPPED). Only NUMERIC-typed values, `.ipynb`, and
+   other closed containers remain open; unknown front-matter/cell KEYS stay intentionally unflagged
+   (open schemas). Built on the existing schema reader (`src/core/yaml-schema.ts`).
 2. ~~Snippets~~ — **SHIPPED Session 53** (`BACKLOG.md` item #5): `snippets/quarto.json`, 13 snippets,
    declarative and TDD-gate-exempt, as predicted here. ~~And a **getting-started walkthrough**~~ —
    **SHIPPED Session 51** (`BACKLOG.md` item #3 Track C) — both declarative, TDD-gate-exempt,
