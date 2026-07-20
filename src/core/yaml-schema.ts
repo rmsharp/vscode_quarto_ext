@@ -83,8 +83,27 @@ export interface SchemaField {
    * `valuesClosed === true`. Set for a bare/object-wrapped `boolean` and for an
    * `anyOf` any of whose closed arms is a boolean (e.g. `echo` = `anyOf[boolean,
    * enum[fenced]]`).
+   *
+   * ALSO set on a NUMERIC field that additionally accepts booleans (`scalarType ===
+   * "number"` with a boolean arm, e.g. `daemon`/`toc-expand` = number-OR-boolean) —
+   * the numeric branch of `isWrongValue` reads it there to accept `daemon: true`
+   * (numeric plan §3.2/§3.3). Orthogonal to `valuesClosed`: a numeric field has no
+   * closed enum, so `acceptsBoolean` on it is meaningful WITHOUT `valuesClosed`.
    */
   acceptsBoolean?: boolean;
+  /**
+   * Set to `"number"` ONLY when the field's schema resolves EXCLUSIVELY to
+   * `number`/`integer` (optionally alongside `boolean`, which additionally sets
+   * `acceptsBoolean`) — derived per-schema-node by `numericTypeOfSchema` (the
+   * structural sibling of `closednessOfSchema`), NOT by key name (numeric plan
+   * §3.2/§7.3). Orthogonal to `valuesClosed` (a numeric field carries no `values`
+   * enum). When set, `isWrongValue` validates the value as a YAML number literal
+   * (the `R` predicate, numeric plan §2.3) instead of against a closed enum.
+   * A field with ANY string/enum/object/array arm is left unset (open) — the
+   * cardinal-sin guard, mirroring `valuesClosed`'s inverted risk polarity. Unused
+   * by / invisible to completion (which reads `values` only).
+   */
+  scalarType?: "number";
 }
 
 /** The two boolean values offered for a plain boolean option, in order. */
@@ -294,10 +313,13 @@ export const CURATED_FRONTMATTER_KEYS: SchemaField[] = [
 // (nested plan L1, §3.2) gates on `valuesClosed===true`, so without these bits execute values
 // stay unvalidated. Every closed row is grounded to `quarto render` 1.7.33 (plan §2.1):
 // `execute.echo: maybe` / `eval: banana` / `cache: banana` / `freeze: banana` render exit 1
-// (REJECTED → flag). `output` and `daemon` are DELIBERATELY LEFT OPEN (no `valuesClosed`):
-// `output: banana` (anyOf free arm) and `daemon: 30` (boolean-OR-number — the numeric slice's
-// job) both render exit 0, so a closed-boolean mark on either would be the cardinal-sin false
-// positive (plan §3.2, §7.5). Completion is unaffected — it reads `values`, never `valuesClosed`.
+// (REJECTED → flag). `output` stays DELIBERATELY enum-OPEN (no `valuesClosed`): `output: banana`
+// (anyOf free arm) renders exit 0, so a closed mark would be the cardinal-sin false positive.
+// `daemon` also stays enum-OPEN (no `valuesClosed`), but is NUMBER-typed: it carries
+// `scalarType:"number"` + `acceptsBoolean:true` (number-OR-boolean), so the NUMERIC branch of
+// `isWrongValue` validates it — `daemon: 30` / `daemon: true` accepted, `daemon: banana` /
+// `daemon: "30"` flagged (numeric plan §2.2/§3.2). Completion is unaffected — it reads `values`,
+// never `valuesClosed`/`scalarType`.
 export const CURATED_EXECUTE_KEYS: SchemaField[] = [
   { name: "eval", description: "Evaluate code cells (`false` renders the code without running it).", values: BOOL, valuesClosed: true, acceptsBoolean: true },
   { name: "echo", description: "Show cell source code in the rendered output.", values: ["true", "false", "fenced"], valuesClosed: true, acceptsBoolean: true },
@@ -308,7 +330,7 @@ export const CURATED_EXECUTE_KEYS: SchemaField[] = [
   { name: "cache", description: "Cache cell results to skip re-execution when unchanged.", values: ["true", "false", "refresh"], valuesClosed: true, acceptsBoolean: true },
   { name: "freeze", description: "Reuse previously rendered results (`auto`, `true`, or `false`).", values: ["true", "false", "auto"], valuesClosed: true, acceptsBoolean: true },
   { name: "enabled", description: "Master switch for code execution in this document.", values: BOOL, valuesClosed: true, acceptsBoolean: true },
-  { name: "daemon", description: "Keep a Jupyter kernel alive between renders (seconds, or a boolean).", values: BOOL },
+  { name: "daemon", description: "Keep a Jupyter kernel alive between renders (seconds, or a boolean).", values: BOOL, scalarType: "number", acceptsBoolean: true },
   { name: "daemon-restart", description: "Restart the Jupyter daemon before rendering.", values: BOOL, valuesClosed: true, acceptsBoolean: true },
   { name: "keep-md", description: "Keep the intermediate Markdown produced during rendering.", values: BOOL, valuesClosed: true, acceptsBoolean: true },
   { name: "keep-ipynb", description: "Keep the intermediate notebook produced during rendering.", values: BOOL, valuesClosed: true, acceptsBoolean: true },
@@ -850,6 +872,101 @@ function annotateClosedness(field: SchemaField, schema: unknown, definitions: Ma
 }
 
 /**
+ * Whether a schema-DSL `schema` field resolves EXCLUSIVELY to a YAML number
+ * (optionally alongside a boolean) — the NUMERIC sibling of `closednessOfSchema`
+ * (numeric plan §3.2). Returns three content flags, OR'd across every reachable arm:
+ *   • `number`  — the subtree contains a `number`/`integer` leaf
+ *   • `boolean` — the subtree contains a `boolean` leaf (an allowed COMPANION arm)
+ *   • `other`   — the subtree contains a DISQUALIFYING leaf: a `string`/`path`/
+ *                 `arrayOf`/`object`, an unrecognized node, the depth-cap, OR an
+ *                 `enum` (even an all-numeric enum is a CLOSED set — the enum path
+ *                 handles it, never the numeric branch)
+ * A field is numeric-typed iff `number && !other` (see `annotateScalarType`); it
+ * accepts booleans iff `boolean`. Three content flags — not the sibling's two-field
+ * `{closed, acceptsBoolean}` — because the `anyOf` fold must distinguish a boolean
+ * COMPANION arm (allowed) from a DISQUALIFYING arm (a two-field encoding cannot).
+ * Two arms differ from the sibling (dragon #8):
+ *   • the bare-string arm is SPLIT so `"number"`/`"integer"` return `number` BEFORE
+ *     the generic `string ⇒ other` fallback — a verbatim copy of the sibling swallows
+ *     bare `"number"` into `other` and leaves the WHOLE feature inert (a total FN);
+ *   • `maybeArrayOf` RECURSES into its inner node (like `closednessOfSchema`), so
+ *     `maybeArrayOf[number]` (`number-offset`) yields `number` — its array form
+ *     (`number-offset: [1,2]`) is skip-guarded by the matcher's leading-`[` guard,
+ *     exactly as the shipped enum feature marks `maybeArrayOf[enum]` (`fig-align`).
+ * Risk polarity matches the sibling: an unproven node contributes `other` (disqualify).
+ */
+function numericTypeOfSchema(
+  schema: unknown,
+  definitions: Map<string, unknown>,
+  depth: number,
+): { number: boolean; boolean: boolean; other: boolean } {
+  const OTHER = { number: false, boolean: false, other: true };
+  const BOOL_ONLY = { number: false, boolean: true, other: false };
+  if (depth > 5) {
+    return OTHER; // unproven deep node — disqualify (inverted polarity, like the sibling's OPEN)
+  }
+  if (schema === "boolean") {
+    return BOOL_ONLY; // a companion arm, not numeric on its own
+  }
+  if (schema === "number" || schema === "integer") {
+    return { number: true, boolean: false, other: false }; // the SPLIT bare-string arm (dragon #8)
+  }
+  if (typeof schema === "string" || schema === null || typeof schema !== "object") {
+    return OTHER; // bare "string" | "path" | non-object → disqualify
+  }
+  const s = schema as Record<string, unknown>;
+  if (s.boolean !== null && typeof s.boolean === "object") {
+    return BOOL_ONLY; // object-wrapped boolean companion
+  }
+  if (Array.isArray(s.enum) || (s.enum !== null && typeof s.enum === "object" && !Array.isArray(s.enum))) {
+    return OTHER; // an enum is a CLOSED set — the enum path, not numeric (even an all-numeric enum)
+  }
+  if (Array.isArray(s.anyOf)) {
+    let out = { number: false, boolean: false, other: false };
+    for (const member of s.anyOf) {
+      const inner = numericTypeOfSchema(member, definitions, depth + 1);
+      out = {
+        number: out.number || inner.number,
+        boolean: out.boolean || inner.boolean,
+        other: out.other || inner.other,
+      };
+    }
+    return out;
+  }
+  if (s.maybeArrayOf !== undefined) {
+    return numericTypeOfSchema(s.maybeArrayOf, definitions, depth + 1);
+  }
+  if (typeof s.ref === "string") {
+    return numericTypeOfSchema(definitions.get(s.ref), definitions, depth + 1);
+  }
+  if (s.string !== null && typeof s.string === "object") {
+    return OTHER; // string:{completions} — any string renders, not numeric
+  }
+  if (s.schema !== undefined) {
+    return numericTypeOfSchema(s.schema, definitions, depth + 1);
+  }
+  return OTHER; // arrayOf, object, path, and other deferred/unrecognized forms
+}
+
+/**
+ * Set `field.scalarType = "number"` (and `field.acceptsBoolean`, if the field also
+ * accepts booleans) from its raw `schema` when the schema resolves EXCLUSIVELY to a
+ * number (numeric plan §3.2). Called at the SAME two reader choke points as
+ * `annotateClosedness` (`toField`/`objectChildren`) but — unlike it — NOT gated on
+ * `field.values`: a numeric field carries no `values` enum, so gating on `values`
+ * would skip EVERY numeric field (dragon #1). A mixed/open field is left unmarked.
+ */
+function annotateScalarType(field: SchemaField, schema: unknown, definitions: Map<string, unknown>): void {
+  const t = numericTypeOfSchema(schema, definitions, 0);
+  if (t.number && !t.other) {
+    field.scalarType = "number";
+    if (t.boolean) {
+      field.acceptsBoolean = true;
+    }
+  }
+}
+
+/**
  * The `properties` map of the `{object: {properties}}` an option's schema
  * resolves to, or `null` if it never lands on a non-empty object. Walks `anyOf`
  * (first arm that lands on an object), `ref` (repeated, `seenRefs`-guarded
@@ -1131,6 +1248,7 @@ function objectChildren(
       field.values = values;
     }
     annotateClosedness(field, sub, definitions);
+    annotateScalarType(field, sub, definitions);
     const children = objectChildren(sub, definitions, depth + 1, seenRefs);
     if (children.length > 0) {
       field.children = children;
@@ -1171,6 +1289,7 @@ function toField(entry: unknown, definitions: Map<string, unknown>): SchemaField
     field.values = values;
   }
   annotateClosedness(field, e.schema, definitions);
+  annotateScalarType(field, e.schema, definitions);
   const engine = engineTag(e.tags);
   if (engine !== undefined) {
     field.engine = engine;
