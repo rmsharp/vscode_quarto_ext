@@ -1,8 +1,10 @@
 /**
  * Cell-option / front-matter VALUE diagnostics — flag a WRONG value of an
  * already-recognized option with an Error squiggle, matching what `quarto
- * render` 1.7.33 itself rejects (value-validation plan §4.1, Phase 1: `#|`/`//|`
- * cell options).
+ * render` 1.7.33 itself rejects. Two surfaces, one collection: Phase 1 (§4.1)
+ * validates `#|`/`//|` cell options (`findCellOptionLines`); Phase 2 (§4.2)
+ * validates TOP-LEVEL front-matter scalars (`findFrontMatterValueLines`). Both
+ * feed the same surface-agnostic `isWrongValue` matcher.
  *
  * A sibling of the unknown-KEY feature (`features/yaml-diagnostics.ts`), copying
  * its hard-won `DiagnosticCollection` lifecycle but with an INVERTED safety
@@ -22,6 +24,7 @@
 
 import * as vscode from "vscode";
 import { findCellOptionLines } from "../core/qmd/model";
+import { findFrontMatterValueLines } from "../core/yaml-frontmatter-values";
 import { engineFor } from "../core/yaml-context";
 import { isWrongValue } from "../core/yaml-value-check";
 import type { SchemaField } from "../core/yaml-schema";
@@ -130,7 +133,8 @@ async function refreshDiagnostics(
 
   const text = document.getText();
   const cellLines = findCellOptionLines(text);
-  if (cellLines.length === 0) {
+  const fmValueLines = findFrontMatterValueLines(text);
+  if (cellLines.length === 0 && fmValueLines.length === 0) {
     if (isCurrent()) {
       collection.set(document.uri, []);
     }
@@ -174,6 +178,36 @@ async function refreshDiagnostics(
     const diagnostic = new vscode.Diagnostic(
       range,
       valueMessage(rawToken, optionKey, field),
+      vscode.DiagnosticSeverity.Error,
+    );
+    diagnostic.source = DIAGNOSTIC_SOURCE;
+    diagnostic.code = DIAGNOSTIC_CODE;
+    diagnostics.push(diagnostic);
+  }
+  // Phase 2 (plan §4.2): top-level front-matter values. `findFrontMatterValueLines`
+  // already sliced each {key, rawToken, valueRange} from the SAME snapshot `text`
+  // (no live re-read after the await), so this is internally consistent with the
+  // cell path. Resolve each key against the document-root field set the completion
+  // provider uses; an unrecognized key, an open set, or a valid value all skip. The
+  // top-level `format` key stays UNVALIDATED by construction — its value enum is
+  // injected after closedness is derived, so `valuesClosed` is unset and the matcher
+  // skips it (a safe false negative; closing that list would false-positive on
+  // extension/custom formats — plan §4.2 dragon).
+  const fmFields = index.frontMatterKeys([]);
+  for (const fm of fmValueLines) {
+    const field = fmFields.find((f) => f.name === fm.key);
+    if (field === undefined || !isWrongValue(fm.rawToken, field)) {
+      continue;
+    }
+    const range = new vscode.Range(
+      fm.line,
+      fm.valueRange.startCol,
+      fm.line,
+      fm.valueRange.endCol,
+    );
+    const diagnostic = new vscode.Diagnostic(
+      range,
+      valueMessage(fm.rawToken, fm.key, field),
       vscode.DiagnosticSeverity.Error,
     );
     diagnostic.source = DIAGNOSTIC_SOURCE;

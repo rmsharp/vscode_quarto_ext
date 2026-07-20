@@ -1,0 +1,15 @@
+---
+toc: True
+number-sections: false
+df-print: "kable"
+cache: refresh
+documentclass: myclass
+format: html
+title: A Perfectly Fine Title
+---
+
+Every top-level value here renders exit 0 under `quarto render` 1.7.33, so the
+feature must produce ZERO diagnostics: `toc: True` (valid boolean spelling),
+`number-sections: false`, `df-print: "kable"` (quoted enum member), `cache:
+refresh` (enum whose members include booleans — `refresh` is a valid member),
+`documentclass: myclass` (OPEN), `format: html`, `title:` (free string).
