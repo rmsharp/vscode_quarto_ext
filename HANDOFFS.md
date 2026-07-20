@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S124
+date: 2026-07-19
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — Phase 1 of docs/planning/2026-07-19-value-validation-plan.md: cell-option VALUE validation (#|/// |, .qmd). Flag a wrong VALUE of an already-recognized #| cell-option (echo: maybe, eval: 3, code-overflow: banana) with an Error squiggle on the value; emit NOTHING for valid values (echo: True, echo: fenced) or OPEN sets (output: banana, animation-hook: myhook -> both exit 0). Operator picked via AskUserQuestion at Phase 0. ONE deliverable — Phase 2 (front-matter) is a separate later session (plan<->code boundary).
+```
+
+```handoff
 session: S123
 date: 2026-07-19
 status: complete
