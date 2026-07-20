@@ -636,22 +636,12 @@ function renderDivClose(): string {
 }
 
 /**
- * The CSS the notebook renderer webview injects (as a `<style>`, via
- * `src/webview/notebook-renderer.ts`) so the structural callout markup renders as
- * a coloured admonition box. It targets OUR class structure — `.callout`
- * (`<div>` or `<details>`) → `.callout-header` (`<div>` or `<summary>`) →
- * `.callout-title`, plus `.callout-body` — NOT quarto's Bootstrap DOM, so it is
- * a visual/semantic equivalent (the same posture the `<details>` collapse slice
- * took), not a byte match. Only the base, type-independent box rules are here;
- * per-type accents/tints/icons are appended by `calloutStyles`.
- */
-/**
  * Per-type accent colour, grounded FIRSTHAND against `quarto render` 1.7.33's
  * bootstrap theme (`div.callout-<type>.callout` `border-left-color`): note the
  * bootstrap primary blue, tip success green, warning amber, caution orange,
- * important danger red. The header tint is derived from this accent as a
- * low-alpha rgba (theme-adaptive), and the same accent keys the icon (added
- * alongside in `CALLOUT_STYLE`).
+ * important danger red. `calloutTypeStyles` derives the header tint from this
+ * accent as a low-alpha rgba (theme-adaptive) and pairs it with the sibling
+ * `CALLOUT_ICON` entry (both maps are keyed by the same type).
  */
 const CALLOUT_ACCENT: Record<string, string> = {
   note: "#0d6efd",
@@ -701,6 +691,17 @@ function calloutTypeStyles(type: string): string {
   ].join("\n");
 }
 
+/**
+ * The base, type-independent callout box CSS — the box (border, rounded corners),
+ * the header/body padding, the collapsible `<summary>` cursor, and the icon
+ * `::before` scaffold; `calloutStyles` appends the per-type accents/tints/icons.
+ * Injected as a `<style>` by the notebook renderer webview
+ * (`src/webview/notebook-renderer.ts`); it targets OUR class structure — `.callout`
+ * (`<div>` or `<details>`) → `.callout-header` (`<div>` or `<summary>`) →
+ * `.callout-title`, plus `.callout-body` — NOT quarto's Bootstrap DOM, so it is a
+ * visual/semantic equivalent (the same posture the `<details>` collapse slice
+ * took), not a byte match.
+ */
 const CALLOUT_BASE_STYLES = [
   ".callout {",
   "  border: 1px solid rgba(128, 128, 128, 0.35);",
