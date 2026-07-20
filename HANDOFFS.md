@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S123
+date: 2026-07-19
+status: pending
+active_task: PLANNING — design front-matter / cell-option VALUE validation. Flag a wrong VALUE of an already-recognized front-matter key or #| cell-option (e.g. toc: "yes" not a boolean; echo: maybe not in [true,false]; #| output: banana not in [true,false,asis]) as a diagnostic. Reuses SchemaField.values (src/core/yaml-schema.ts:32) the completion providers already read + the DiagnosticCollection template in src/features/yaml-diagnostics.ts (unknown-KEY detection). Deliverable = ONE plan doc in docs/planning/; implementation is a SEPARATE strict-TDD session (plan<->code boundary, FM #18). Operator picked via AskUserQuestion at Phase 0.
+```
+
+```handoff
 session: S122
 date: 2026-07-19
 status: complete
