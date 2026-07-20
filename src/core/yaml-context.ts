@@ -370,8 +370,13 @@ export type Slot = { startCol: number; endCol: number };
  * present) starts after the colon with leading whitespace skipped and a trailing
  * unquoted inline comment / whitespace excluded — the same grammar the
  * cell-option `slotsOf` (`core/qmd/model`) applies to a `#|` value.
+ *
+ * Exported so the Phase-2 front-matter VALUE enumerator
+ * (`core/yaml-frontmatter-values.ts`) reuses the SAME top-level line grammar the
+ * completion path uses (value-validation plan §4.2) — single-sourced, not a
+ * second top-level `key: value` parser.
  */
-function topLevelSlots(
+export function topLevelSlots(
   lineText: string,
 ): { keySlot: Slot | null; valueSlot: Slot | null } {
   if (/^[ \t]/.test(lineText) || lineText.startsWith("-") || lineText.startsWith("#")) {
