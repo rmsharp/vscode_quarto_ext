@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S120
+date: 2026-07-19
+status: pending
+active_task: IMPLEMENTATION (strict TDD). BACKLOG item 17d follow-on (B): CSS box styling for the notebook markdown-cell callout renderer — inject a <style> (via src/webview/notebook-renderer.ts) so the already-emitted structural callouts (.callout .callout-<type> / .callout-header / .callout-title / .callout-body, and the <details> collapsible form) render as coloured admonition boxes with a per-type accent colour + icon, visual parity with quarto render 1.7.33, targeting OUR class structure (NOT quarto's Bootstrap DOM — the DOM-vs-semantics framing S119 used for <details>). CSS + colour/icon generation lives in pure core/ (unit-tested RED->GREEN); the <style> injection and the on-screen box are eyeball-only (no webview DOM read-back — FM #24-honest). Operator picked (B) via AskUserQuestion at Phase 0 after descoping Phase 6d b2-iii (the sole remaining 17d follow-on; closes the S113-S119 notebook-renderer thread). This session also folds in the Phase 6d b2-iii DESCOPE grooming decision (mark BACKLOG b2-iii-deep descoped -> 6d a complete milestone; CHANGELOG [ad hoc] grooming entry).
+```
+
+```handoff
 session: S119
 date: 2026-07-19
 status: complete
