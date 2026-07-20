@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S126
+date: 2026-07-20
+status: pending
+active_task: REFACTOR (strict TDD, plan-mode gated) — extract createDebouncedDiagnosticsFeature({gate, compute}) (BACKLOG:47). Both src/features/yaml-diagnostics.ts (unknown-KEY) and src/features/yaml-value-diagnostics.ts (VALUE) copy the same ~75-line DiagnosticCollection lifecycle / 350ms debounce / per-URI generation-guard skeleton (rule-of-two fully met). Extract the shared skeleton into a factory parameterized by a per-feature gate + compute; both features become thin callers. Behavior-preserving only. Operator picked via AskUserQuestion at Phase 0. Cross-module -> SAFEGUARDS plan-mode gate applies.
+```
+
+```handoff
 session: S125
 date: 2026-07-20
 status: complete
