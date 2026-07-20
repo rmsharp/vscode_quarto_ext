@@ -12,6 +12,7 @@ import { calloutStyles } from "../../src/core/notebook-callout";
  */
 interface FakeStyle {
   id: string;
+  className: string;
   textContent: string | null;
 }
 
@@ -26,7 +27,11 @@ function fakeDoc(opts: { headNull?: boolean } = {}) {
   };
   const doc = {
     getElementById: (id: string): FakeStyle | null => byId.get(id) ?? null,
-    createElement: (_tag: string): FakeStyle => ({ id: "", textContent: null }),
+    createElement: (_tag: string): FakeStyle => ({
+      id: "",
+      className: "",
+      textContent: null,
+    }),
     head: opts.headNull ? null : sink,
     documentElement: sink,
   };
@@ -40,6 +45,18 @@ describe("injectCalloutStyles", () => {
     injectCalloutStyles(doc as any);
     expect(appended).toHaveLength(1);
     expect(appended[0].textContent).toBe(calloutStyles());
+  });
+
+  it("tags the injected <style> with class 'markdown-style' so VS Code clones it into each notebook cell's shadow root (BACKLOG #194)", () => {
+    // VS Code renders every notebook markdown cell inside a shadow root and clones
+    // only #_defaultStyles + elements carrying class="markdown-style" into it (the
+    // clone loop's else-branch clones a bare classed <style> element directly). A
+    // bare document.head <style> without the class never crosses the boundary, so
+    // the S120 box CSS silently did not render (runtime-confirmed defect, S121).
+    const { doc, appended } = fakeDoc();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    injectCalloutStyles(doc as any);
+    expect(appended[0].className).toBe("markdown-style");
   });
 
   it("gives the injected <style> a stable id so injection is idempotent", () => {

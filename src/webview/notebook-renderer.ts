@@ -8,7 +8,11 @@ import { calloutPlugin, calloutStyles } from "../core/notebook-callout";
  */
 interface StyleHost {
   getElementById(id: string): unknown;
-  createElement(tag: "style"): { id: string; textContent: string | null };
+  createElement(tag: "style"): {
+    id: string;
+    className: string;
+    textContent: string | null;
+  };
   head: { appendChild(node: unknown): void } | null;
   documentElement: { appendChild(node: unknown): void };
 }
@@ -24,11 +28,22 @@ const CALLOUT_STYLE_ELEMENT_ID = "quarto-mit-callout-styles";
  * coloured admonition box. Idempotent (a second call is a no-op) and DOM-only:
  * the rendered box has no extension-host read-back, so it is eyeball-only — this
  * helper's logic is unit-tested against a fake document.
+ *
+ * The `class="markdown-style"` tag is load-bearing (BACKLOG #194): VS Code
+ * renders every notebook markdown cell inside a *shadow root* and clones only
+ * `#_defaultStyles` plus elements carrying `class="markdown-style"` into it
+ * (`for (const d of document.getElementsByClassName("markdown-style")) …
+ * a.appendChild(d.cloneNode(true))`, grounded firsthand in the shipped
+ * markdown-language-features/notebook-out/index.js). A bare `document.head`
+ * `<style>` without the class never crosses the shadow boundary, so the styles
+ * silently do not apply — the runtime-confirmed defect from Session 121. Keep
+ * the `id` for idempotency; keep the class or the box CSS stops rendering.
  */
 export function injectCalloutStyles(doc: StyleHost): void {
   if (doc.getElementById(CALLOUT_STYLE_ELEMENT_ID)) return; // already injected
   const style = doc.createElement("style");
   style.id = CALLOUT_STYLE_ELEMENT_ID;
+  style.className = "markdown-style"; // cloned into each cell's shadow root
   style.textContent = calloutStyles();
   (doc.head ?? doc.documentElement).appendChild(style);
 }

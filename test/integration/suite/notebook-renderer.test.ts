@@ -116,4 +116,21 @@ describe("Quarto: notebook markdown-cell callout renderer (item 17d)", () => {
       assert.ok(bundle.includes(icon), `bundle should contain the ${icon} icon`);
     }
   });
+
+  it("ships the callout styles through the markdown-style shadow-DOM channel (BACKLOG #194)", () => {
+    // VS Code renders every notebook markdown cell inside a shadow root and clones
+    // ONLY elements carrying class="markdown-style" into it. Without that class the
+    // injected <style> never crosses the shadow boundary and the box CSS silently
+    // does not render (runtime-confirmed defect, S121). Verify the class ships.
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext);
+    const bundle = fs.readFileSync(
+      path.join(ext.extensionPath, "dist", "notebook-renderer.js"),
+      "utf8",
+    );
+    assert.ok(
+      bundle.includes("markdown-style"),
+      "the injected <style> must carry class='markdown-style' so VS Code clones it into each notebook cell's shadow root",
+    );
+  });
 });
