@@ -1,0 +1,17 @@
+---
+title: Valid cell-option values (zero diagnostics expected)
+---
+
+```{python}
+#| echo: True
+#| eval: false
+#| output: asis
+#| code-overflow: scroll
+1 + 1
+```
+
+```{r}
+#| cache: true
+#| animation-hook: gifski
+2 + 2
+```

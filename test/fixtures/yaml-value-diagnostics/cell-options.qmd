@@ -1,0 +1,19 @@
+---
+title: Cell-option value diagnostics fixture
+---
+
+Prose before the cells.
+
+```{python}
+#| echo: maybe
+#| eval: true
+#| output: banana
+1 + 1
+```
+
+```{r}
+#| code-overflow: banana
+#| animation-hook: myhook
+#| echo: "true"
+2 + 2
+```

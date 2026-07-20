@@ -38,6 +38,7 @@ import { registerOutlineProvider } from "./providers/outline";
 import { registerSemanticTokensProvider } from "./providers/semantic-tokens";
 import { registerYamlCompletionProvider } from "./providers/yaml";
 import { registerYamlDiagnosticsFeature } from "./features/yaml-diagnostics";
+import { registerYamlValueDiagnosticsFeature } from "./features/yaml-value-diagnostics";
 import { registerWorkspaceSymbolsProvider } from "./providers/workspace-symbols";
 import { QuartoNotFound, resolveBinary } from "./quarto/cli";
 
@@ -78,6 +79,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerCitationProviders(context);
   registerYamlCompletionProvider(context);
   registerYamlDiagnosticsFeature(context);
+  registerYamlValueDiagnosticsFeature(context);
   registerEmbeddedLanguageFeature(context);
   registerSemanticTokensProvider(context);
   registerQuartoYamlDocumentLinksFeature(context);
