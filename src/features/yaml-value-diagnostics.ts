@@ -6,20 +6,20 @@
  * validates TOP-LEVEL front-matter scalars (`findFrontMatterValueLines`). Both
  * feed the same surface-agnostic `isWrongValue` matcher.
  *
- * A sibling of the unknown-KEY feature (`features/yaml-diagnostics.ts`), copying
- * its hard-won `DiagnosticCollection` lifecycle but with an INVERTED safety
- * story: unknown-key flagging is banned on these open surfaces (a typo is
- * indistinguishable from a legal custom key), whereas value validation is safe
- * HERE precisely because it only ever fires on a key that is already recognized
- * AND whose value set is provably CLOSED (`SchemaField.valuesClosed`) — the pure
- * `isWrongValue` matcher never flags an open set (plan §0/§7.1).
+ * A sibling of the unknown-KEY feature (`features/yaml-diagnostics.ts`) with an
+ * INVERTED safety story: unknown-key flagging is banned on these open surfaces (a
+ * typo is indistinguishable from a legal custom key), whereas value validation is
+ * safe HERE precisely because it only ever fires on a key that is already
+ * recognized AND whose value set is provably CLOSED (`SchemaField.valuesClosed`) —
+ * the pure `isWrongValue` matcher never flags an open set (plan §0/§7.1).
  *
- * Like its sibling, this is a `DiagnosticCollection` driven by raw document
- * events, NOT a registered `LanguageFeatureProvider` — VS Code offers no
- * diagnostic *provider* to register. But the gate differs: `.qmd` IS this
- * extension's own `"quarto"` languageId, so this feature gates on languageId
- * (not filename), and keeps its OWN collection/code so it can never share a URI
- * with the `_quarto.yml` unknown-key feature.
+ * Both siblings share the `createDebouncedDiagnosticsFeature` skeleton
+ * (`./debounced-diagnostics`, BACKLOG:47) — the `DiagnosticCollection` lifecycle,
+ * 350 ms debounce, and per-URI generation guard. This module supplies the three
+ * per-feature axes: the **languageId gate** (`.qmd` IS this extension's own
+ * `"quarto"` languageId, unlike `_quarto.yml` which the sibling gates by
+ * filename), its own collection/code (so it never shares a URI's entries with the
+ * unknown-key feature), and the value `compute`.
  */
 
 import * as vscode from "vscode";
@@ -28,14 +28,14 @@ import { findFrontMatterValueLines } from "../core/yaml-frontmatter-values";
 import { engineFor } from "../core/yaml-context";
 import { isWrongValue } from "../core/yaml-value-check";
 import type { SchemaField } from "../core/yaml-schema";
-import { createSchemaSource, type SchemaSource } from "./yaml-schema-source";
+import {
+  createDebouncedDiagnosticsFeature,
+  type DiagnosticsComputeContext,
+} from "./debounced-diagnostics";
 
 const COLLECTION_NAME = "quarto-value";
 const DIAGNOSTIC_SOURCE = "Quarto";
 const DIAGNOSTIC_CODE = "quarto-invalid-option-value";
-
-/** The change-event debounce (immediate on open/save) — copied from the sibling. */
-const DEBOUNCE_MS = 350;
 
 /** Whether `document` is one of this extension's own `.qmd` documents (the gate). */
 function isQuartoDocument(document: vscode.TextDocument): boolean {
@@ -43,113 +43,32 @@ function isQuartoDocument(document: vscode.TextDocument): boolean {
 }
 
 /**
- * Construct the `DiagnosticCollection` + schema source, wire the four
- * languageId-gated document events, and prime already-open `.qmd` documents.
- * Everything is pushed into `context.subscriptions`.
+ * Compute value diagnostics for an open `.qmd`. Returns `[]` to clear, a
+ * non-empty array to set, or `null` to write nothing (superseded/closed) — the
+ * factory owns the write.
+ *
+ * Slices keys/values from the SAME snapshot `findCellOptionLines` saw — NEVER
+ * re-reads the live document after the await. A plain edit during the slow
+ * first-load schema await does not bump the generation guard (it only arms a
+ * debounced timer), so a live `document.lineAt(cell.line)` could throw (line now
+ * out of range) or slice shifted content; the snapshot keeps this pass internally
+ * consistent, and the next debounced pass supersedes it (adversarial review,
+ * S124).
  */
-export function registerYamlValueDiagnosticsFeature(context: vscode.ExtensionContext): void {
-  const collection = vscode.languages.createDiagnosticCollection(COLLECTION_NAME);
-  const source = createSchemaSource();
-  const pendingTimers = new Map<string, ReturnType<typeof setTimeout>>();
-  // Per-URI generation guard (MANDATORY — same slow-first-load `SchemaSource`
-  // race the sibling documents): the initial `quarto --paths` spawn + ~680KB
-  // parse can let an earlier call's pre-edit diagnostics resolve AFTER a later,
-  // faster, already-correct call cleared them for edited-since content.
-  const generations = new Map<string, number>();
-
-  const cancelPending = (key: string): void => {
-    const timer = pendingTimers.get(key);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      pendingTimers.delete(key);
-    }
-  };
-
-  const runNow = (document: vscode.TextDocument): void => {
-    void refreshDiagnostics(collection, source, document, generations);
-  };
-
-  const scheduleRefresh = (document: vscode.TextDocument): void => {
-    const key = document.uri.toString();
-    cancelPending(key);
-    pendingTimers.set(
-      key,
-      setTimeout(() => {
-        pendingTimers.delete(key);
-        runNow(document);
-      }, DEBOUNCE_MS),
-    );
-  };
-
-  context.subscriptions.push(
-    collection,
-    vscode.workspace.onDidOpenTextDocument((document) => {
-      if (isQuartoDocument(document)) {
-        runNow(document);
-      }
-    }),
-    vscode.workspace.onDidChangeTextDocument((event) => {
-      if (isQuartoDocument(event.document)) {
-        scheduleRefresh(event.document);
-      }
-    }),
-    vscode.workspace.onDidSaveTextDocument((document) => {
-      if (isQuartoDocument(document)) {
-        runNow(document);
-      }
-    }),
-    vscode.workspace.onDidCloseTextDocument((document) => {
-      if (isQuartoDocument(document)) {
-        // Cancel BEFORE delete so a pending timer cannot resurrect a stale entry.
-        cancelPending(document.uri.toString());
-        collection.delete(document.uri);
-      }
-    }),
-  );
-
-  for (const document of vscode.workspace.textDocuments) {
-    if (isQuartoDocument(document)) {
-      runNow(document);
-    }
-  }
-}
-
-/**
- * Recompute and set `document`'s value diagnostics. Never `collection.clear()`
- * (always `set`, scoped to this one URI); allocates a generation and re-checks
- * it before the sync fast path and after the async schema-index await, so a
- * superseded call discards its own now-stale result.
- */
-async function refreshDiagnostics(
-  collection: vscode.DiagnosticCollection,
-  source: SchemaSource,
+async function computeValueDiagnostics(
   document: vscode.TextDocument,
-  generations: Map<string, number>,
-): Promise<void> {
-  const key = document.uri.toString();
-  const generation = (generations.get(key) ?? 0) + 1;
-  generations.set(key, generation);
-  const isCurrent = (): boolean => generations.get(key) === generation;
-
+  { source, isCurrent }: DiagnosticsComputeContext,
+): Promise<vscode.Diagnostic[] | null> {
   const text = document.getText();
   const cellLines = findCellOptionLines(text);
   const fmValueLines = findFrontMatterValueLines(text);
   if (cellLines.length === 0 && fmValueLines.length === 0) {
-    if (isCurrent()) {
-      collection.set(document.uri, []);
-    }
-    return;
+    return isCurrent() ? [] : null;
   }
   const index = await source.getIndex();
   if (document.isClosed || !isCurrent()) {
-    return; // closed while awaiting the first-load schema, or superseded — never resurrect
+    return null; // closed while awaiting the first-load schema, or superseded — never resurrect
   }
-  // Slice keys/values from the SAME snapshot `findCellOptionLines` saw — NEVER re-read
-  // the live document after the await. A plain edit during the slow first-load schema
-  // await does not bump the generation guard (it only arms a debounced timer), so a
-  // live `document.lineAt(cell.line)` could throw (line now out of range) or slice
-  // shifted content; the snapshot keeps this pass internally consistent, and the next
-  // debounced pass supersedes it (adversarial review, S124).
   const lines = text.split(/\r?\n/);
   const diagnostics: vscode.Diagnostic[] = [];
   for (const cell of cellLines) {
@@ -214,7 +133,7 @@ async function refreshDiagnostics(
     diagnostic.code = DIAGNOSTIC_CODE;
     diagnostics.push(diagnostic);
   }
-  collection.set(document.uri, diagnostics);
+  return diagnostics;
 }
 
 /**
@@ -229,3 +148,14 @@ function valueMessage(rawToken: string, key: string, field: SchemaField): string
   }
   return `Value ${rawToken} is not valid for "${key}" — expected one of: ${values.join(", ")}.`;
 }
+
+/**
+ * Construct the `DiagnosticCollection` + schema source, wire the four
+ * languageId-gated document events, and prime already-open `.qmd` documents.
+ * Everything is pushed into `context.subscriptions`.
+ */
+export const registerYamlValueDiagnosticsFeature = createDebouncedDiagnosticsFeature({
+  collectionName: COLLECTION_NAME,
+  gate: isQuartoDocument,
+  compute: computeValueDiagnostics,
+});
