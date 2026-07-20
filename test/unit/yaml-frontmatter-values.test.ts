@@ -95,3 +95,43 @@ describe("findFrontMatterValueLines — value-token grammar (quotes, comments, m
     ]);
   });
 });
+
+describe("findFrontMatterValueLines — multi-line flow collections (adversarial review, S125)", () => {
+  // A value that opens an unclosed flow mapping `{…}` / sequence `[…]` spans
+  // several lines; its continuation lines sit at column 0 and MUST NOT be
+  // re-parsed as independent top-level mappings — quarto renders the whole thing
+  // exit 0, so emitting e.g. `toc` from a continuation line would be a cardinal-sin
+  // false positive downstream.
+  it("does NOT emit column-0 continuation lines of a multi-line flow MAPPING", () => {
+    const text = ["---", "mymeta: {", "toc: yes,", "x: 1}", "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([
+      { line: 1, key: "mymeta", valueRange: { startCol: 8, endCol: 9 }, rawToken: "{" },
+    ]);
+  });
+
+  it("resumes validation on the top-level line AFTER a multi-line flow SEQUENCE closes", () => {
+    const text = ["---", "filters: [a,", "b]", "toc: yes", "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([
+      { line: 1, key: "filters", valueRange: { startCol: 9, endCol: 12 }, rawToken: "[a," },
+      { line: 3, key: "toc", valueRange: { startCol: 5, endCol: 8 }, rawToken: "yes" },
+    ]);
+  });
+
+  it("does not enter flow-skip for a value that merely CONTAINS a bracket mid-scalar or is a QUOTED string", () => {
+    // Neither opens a flow collection (a collection must START with [/{), so the
+    // following top-level line stays validated — no over-suppression.
+    const text = ["---", 'title: "A [ Talk"', "toc: yes", "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([
+      { line: 1, key: "title", valueRange: { startCol: 7, endCol: 17 }, rawToken: '"A [ Talk"' },
+      { line: 2, key: "toc", valueRange: { startCol: 5, endCol: 8 }, rawToken: "yes" },
+    ]);
+  });
+
+  it("does not enter flow-skip for a single-line balanced flow collection", () => {
+    const text = ["---", "filters: [a, b]", "toc: yes", "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([
+      { line: 1, key: "filters", valueRange: { startCol: 9, endCol: 15 }, rawToken: "[a, b]" },
+      { line: 2, key: "toc", valueRange: { startCol: 5, endCol: 8 }, rawToken: "yes" },
+    ]);
+  });
+});

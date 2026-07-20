@@ -148,4 +148,17 @@ describe("isWrongValue — non-scalar and empty tokens are skipped", () => {
       expect(isWrongValue(v, enumField), `${v} should be skipped`).toBe(false);
     }
   });
+
+  // Adversarial review (S125): a value carrying a YAML node property — an anchor
+  // (`&name`), an alias (`*name`), or a tag (`!!type`/`!tag`) — is a node the
+  // matcher cannot resolve to a plain scalar. quarto resolves it and accepts the
+  // underlying value (`toc: &a true`, `toc: !!bool true`, `toc: *a` all render
+  // exit 0), so flagging it would be a cardinal-sin false positive. Skip it.
+  it("skips a value that begins with a YAML anchor, alias, or tag (& / * / !)", () => {
+    expect(isWrongValue("&a true", boolField), "&a true (anchor)").toBe(false);
+    expect(isWrongValue("!!bool true", boolField), "!!bool true (tag)").toBe(false);
+    expect(isWrongValue("*a", boolField), "*a (alias)").toBe(false);
+    expect(isWrongValue("&w none", enumField), "&w none (anchor on a string enum)").toBe(false);
+    expect(isWrongValue("*ref", enumField), "*ref (alias on a string enum)").toBe(false);
+  });
 });

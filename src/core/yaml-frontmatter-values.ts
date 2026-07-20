@@ -60,8 +60,23 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
   // `fm.startLine + 1 + i` (the fences are excluded from both).
   const baseLine = fm.startLine + 1;
   const result: FrontMatterValueLine[] = [];
+  // Depth of an unclosed multi-line FLOW collection (`{…}` / `[…]`). While > 0 we
+  // are inside a value that spans lines, so a column-0 continuation line is NOT a
+  // new top-level mapping and must be skipped — otherwise a continuation like
+  // `toc: yes,` inside `mymeta: {\n…\n}` would be misread as a top-level `toc`
+  // value and flagged, a cardinal-sin false positive on a doc quarto accepts
+  // (adversarial review, S125). Block scalars (`|`/`>`) need no tracking: their
+  // content is indented, so `topLevelSlots` already skips it. Counting is
+  // quote-naive (the plan forbids YAML-parsing); an over-count only OVER-skips
+  // (a safe false negative), and the indentation check backs it up for indented
+  // continuation lines.
+  let flowDepth = 0;
   for (let i = 0; i < contentLines.length; i++) {
     const lineText = contentLines[i];
+    if (flowDepth > 0) {
+      flowDepth = Math.max(0, flowDepth + netFlowDelta(lineText));
+      continue; // inside a multi-line flow value — skip continuation lines
+    }
     const { keySlot, valueSlot } = topLevelSlots(lineText);
     if (keySlot === null || valueSlot === null) {
       continue; // not a top-level mapping line, or no colon → no value to check
@@ -76,6 +91,27 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       rawToken,
     });
+    // Only a value that STARTS with `[`/`{` opens a flow collection; if it does
+    // not close on this line, the following lines are its continuation.
+    if (/^[[{]/.test(rawToken)) {
+      const delta = netFlowDelta(rawToken);
+      if (delta > 0) {
+        flowDepth = delta;
+      }
+    }
   }
   return result;
+}
+
+/** Net `{`/`[` opens minus `}`/`]` closes in `s` (quote-naive — see the caller). */
+function netFlowDelta(s: string): number {
+  let d = 0;
+  for (const ch of s) {
+    if (ch === "{" || ch === "[") {
+      d++;
+    } else if (ch === "}" || ch === "]") {
+      d--;
+    }
+  }
+  return d;
 }

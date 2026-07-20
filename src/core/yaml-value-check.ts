@@ -32,8 +32,14 @@ export function isWrongValue(rawToken: string, field: SchemaField): boolean {
   if (field.valuesClosed !== true || (field.values?.length ?? 0) === 0) {
     return false; // open set / no enum data — never flag (the cardinal-sin guard)
   }
-  if (rawToken.length === 0 || /^[[\]{}|>]/.test(rawToken)) {
-    return false; // empty (mid-edit) or non-scalar (flow/block) — skip
+  if (rawToken.length === 0 || /^[[\]{}|>&*!]/.test(rawToken)) {
+    // Skip: empty (mid-edit); a flow collection `[…]`/`{…}` or block scalar
+    // `|`/`>`; OR a value carrying a YAML node property — an anchor (`&name`),
+    // an alias (`*name`), or a tag (`!!type`/`!tag`). quarto resolves the node
+    // property and accepts the underlying value (`toc: &a true` → exit 0), so a
+    // token the matcher can't reduce to a plain scalar must never be flagged
+    // (adversarial review, S125 — a cardinal-sin false positive otherwise).
+    return false;
   }
   const values = field.values as string[];
   // Step 1 — booleans: the six spellings, UNQUOTED only. The anchored regex
