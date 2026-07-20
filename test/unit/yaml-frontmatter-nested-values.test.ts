@@ -153,3 +153,42 @@ describe("findNestedFrontMatterValueLines — multi-line flow at depth (the NEW 
     ]);
   });
 });
+
+describe("findNestedFrontMatterValueLines — multi-line QUOTED scalars (review CRITICAL FP fix)", () => {
+  // A value that opens an unterminated single/double-quoted scalar spans several lines
+  // until the closing quote; quarto folds the whole thing into ONE string (all interior
+  // lines are literal content). A continuation line at the SAME indent as the key that
+  // reads `<closed-sibling>: <text>` MUST NOT be enumerated as a nested mapping — otherwise
+  // the closed sibling is resolved+flagged while quarto renders the doc exit 0 (a cardinal-
+  // sin false positive the adversarial review caught; flowScan alone missed it because an
+  // unterminated quote contains no {}[] brackets). Asserted on the emitted KEY sequence —
+  // the essential property is that the closed sibling is NOT emitted.
+  it("(d) does NOT emit a closed sibling inside a multi-line DOUBLE-quoted scalar", () => {
+    // format.html.title: "Start of title \n echo: false is the default"  — quarto exit 0.
+    const text = ["---", "format:", "  html:", '    title: "Start of title', '    echo: false is the default"', "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["title"]);
+  });
+
+  it("(e) does NOT emit a closed sibling inside a multi-line SINGLE-quoted scalar", () => {
+    // format.html.title: 'This covers \n reference-location: choices'  — quarto exit 0.
+    const text = ["---", "format:", "  html:", "    title: 'This covers", "    reference-location: choices'", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["title"]);
+  });
+
+  it("(f) does NOT emit a closed sibling inside a multi-line quoted scalar at EXECUTE level", () => {
+    // execute.output: "some text \n echo: banana"  — quarto exit 0 (output stays OPEN anyway).
+    const text = ["---", "execute:", '  output: "some text', '  echo: banana"', "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["output"]);
+  });
+
+  it("resumes emitting a real sibling AFTER the multi-line quoted scalar closes", () => {
+    const text = ["---", "execute:", '  foo: "multi', '  line: x"', "  echo: maybe", "---"].join("\n");
+    // `line: x"` closes the quote (continuation, skipped); `echo: maybe` is then a fresh candidate.
+    expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["foo", "echo"]);
+  });
+
+  it("does NOT arm quote-skip for a single-line CLOSED quoted value (echo: \"fenced\" still emits its sibling)", () => {
+    const text = ["---", "execute:", '  echo: "fenced"', "  eval: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["echo", "eval"]);
+  });
+});

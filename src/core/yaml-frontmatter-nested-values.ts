@@ -15,13 +15,16 @@
  *      ancestor walk (exported from `yaml-context.ts`) per line, not a hand-rolled
  *      path stack — so the `format`-rooted-only rule and the block-scalar bail (a
  *      `key: |` container makes `mappingContainerKey` return null) come for free.
- *   2. Multi-line FLOW collections at depth are tracked with a QUOTE-AWARE,
- *      node-property-aware net-bracket scanner (`flowScan`) — NOT the top-level
- *      enumerator's quote-naive `netFlowDelta`. At depth there is no column-0
- *      backstop, so a quote-naive under-count is a live false positive, not the safe
- *      false negative it is at the top level (plan §7.1, three firsthand-rendered
- *      exit-0 FP shapes: same-indent continuation, anchored opener `foo: &a { … }`,
- *      quoted brace `a: "}"`).
+ *   2. Multi-line values that span lines at depth are tracked with a QUOTE-AWARE,
+ *      node-property-aware scanner (`scanFlow`) that follows BOTH an unclosed flow
+ *      collection (`{…}`/`[…]`) AND an unterminated quoted scalar (`key: "text…`) —
+ *      NOT the top-level enumerator's quote-naive, quote-blind `netFlowDelta`. At depth
+ *      there is no column-0 backstop, so a continuation line misread as a nested mapping
+ *      is a live cardinal-sin false positive, not the safe false negative it is at the
+ *      top level (plan §7.1's three firsthand-rendered flow shapes: same-indent
+ *      continuation, anchored opener `foo: &a { … }`, quoted brace `a: "}"`; PLUS the
+ *      adversarial review's CONFIRMED multi-line-quoted-scalar FP `title: "…\n echo: x"`
+ *      that the flow-only guard missed).
  *
  * `parentPath` EXCLUDES this line's own key (the `nestedParentPath` FUNCTION
  * convention), unlike the completion CONTEXT's `parentPath` which appends it — so
@@ -75,22 +78,29 @@ export function findNestedFrontMatterValueLines(
   // ancestors the absolute-line completion path would (Learning #14 — one scanner).
   const baseLine = fm.startLine + 1;
   const result: NestedFrontMatterValueLine[] = [];
-  // Depth of an unclosed multi-line FLOW collection (`{…}` / `[…]`). While > 0 we are
-  // inside a value that spans lines, so a following line — even at the SAME indent as
-  // its container — is a continuation, NOT a new nested mapping, and must be skipped.
-  // Unlike the top-level enumerator (`netFlowDelta`), the counter here is QUOTE-AWARE
-  // and armed over the WHOLE token (`flowScan`): at depth there is NO column-0 backstop,
-  // so a quote-naive under-count would be a live cardinal-sin false positive on a doc
-  // quarto accepts, not a safe false negative (plan §7.1, three firsthand-rendered
-  // exit-0 shapes: same-indent continuation, anchored opener `foo: &a { … }`, quoted
-  // brace `a: "}"`). Over-skipping when ambiguous (a stray brace in a plain scalar arms
-  // flow) is the safe direction.
+  // State of an unclosed multi-line value that spans following lines. TWO forms, both of
+  // which make a following line — even at the SAME indent as its key — a continuation, NOT
+  // a new nested mapping, so it must be skipped (else its `closed-sibling: text` reads as a
+  // real value and is flagged while quarto folds the whole span into ONE value it accepts —
+  // a cardinal-sin false positive at depth, where there is NO column-0 backstop):
+  //   • `flowDepth` — an unclosed FLOW collection `{…}` / `[…]` (plan §7.1, three
+  //     firsthand-rendered exit-0 shapes: same-indent continuation, anchored opener
+  //     `foo: &a { … }`, quoted brace `a: "}"`);
+  //   • `openQuote` — an unterminated single/double-QUOTED scalar `key: "text…` whose
+  //     closing quote is on a later line (the adversarial review's CONFIRMED CRITICAL FP —
+  //     a quote-only counter misses it because an open quote contains no `{}[]` brackets).
+  // `scanFlow` tracks BOTH together (a flow collection may contain a line-spanning quoted
+  // string, and a quote suppresses bracket counting). Over-skipping when ambiguous (a stray
+  // brace/quote in a plain scalar) is the safe false-negative direction.
   let flowDepth = 0;
+  let openQuote: '"' | "'" | null = null;
   for (let i = 0; i < contentLines.length; i++) {
     const lineText = contentLines[i];
-    if (flowDepth > 0) {
-      flowDepth = Math.max(0, flowDepth + flowScan(lineText));
-      continue; // inside a multi-line flow value — skip continuation lines
+    if (flowDepth > 0 || openQuote !== null) {
+      const s = scanFlow(lineText, flowDepth, openQuote);
+      flowDepth = Math.max(0, s.depth);
+      openQuote = s.quote;
+      continue; // inside a multi-line flow/quoted value — skip continuation lines
     }
     const indent = leadingWsLen(lineText);
     if (indent === 0) {
@@ -131,31 +141,45 @@ export function findNestedFrontMatterValueLines(
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       rawToken,
     });
-    // Arm flow tracking if THIS value opens an unclosed flow collection. Evaluated over
-    // the WHOLE token (never a first-char `/^[[{]/` test) so an anchored/tagged opener
-    // `foo: &a { …` — whose token starts with `&` — still arms (plan §7.1b).
-    const delta = flowScan(rawToken);
-    if (delta > 0) {
-      flowDepth = delta;
+    // Arm the continuation-skip if THIS value opens an unclosed flow collection OR an
+    // unterminated quoted scalar. Evaluated over the WHOLE token (never a first-char
+    // `/^[[{]/` test) so an anchored/tagged opener `foo: &a { …` — whose token starts with
+    // `&` — still arms its flow (plan §7.1b), and `title: "text…` arms its quote.
+    const s = scanFlow(rawToken, 0, null);
+    if (s.depth > 0) {
+      flowDepth = s.depth;
+    }
+    if (s.quote !== null) {
+      openQuote = s.quote;
     }
   }
   return result;
 }
 
+/** The unclosed-value state after scanning `s`: net flow-bracket depth + any open quote. */
+interface FlowState {
+  depth: number;
+  quote: '"' | "'" | null;
+}
+
 /**
- * Net `{`/`[` opens minus `}`/`]` closes in `s`, counting ONLY characters outside
- * single/double quotes — the QUOTE-AWARE analog of the top-level `netFlowDelta`
- * (plan §3.3 step 2, §7.1). A `\`-escaped char inside a double-quoted scalar and a
- * `''` inside a single-quoted one are consumed, so a quoted brace never miscounts.
- * An unquoted `#` (at the start or whitespace-preceded) begins a YAML comment: the
- * remainder is not flow structure, so counting stops there — which biases toward NOT
- * dropping depth on a `}` hidden in a comment (a safe over-skip). Node properties
- * (`&anchor`/`*alias`/`!tag`) contain no brackets, so they contribute 0 automatically;
- * arming on `flowScan(token) > 0` over the whole token is therefore node-property-aware.
+ * Advance the multi-line-value state across `s`, starting from `startDepth`/`startQuote`,
+ * and return the resulting `{depth, quote}`. Tracks BOTH an unclosed FLOW collection
+ * (`{…}`/`[…]`, net-counted) and an unterminated single/double-QUOTED scalar, together —
+ * because they nest: a bracket inside a quote is literal (not counted), and a quote opened
+ * inside a flow persists across lines. This is the QUOTE-AWARE analog of the top-level
+ * `netFlowDelta`, extended with quote PERSISTENCE (plan §3.3 step 2, §7.1, plus the review's
+ * multi-line-quoted-scalar FP). A `\`-escaped char inside a double-quoted scalar and a `''`
+ * inside a single-quoted one are consumed, so a quoted bracket never miscounts and an
+ * embedded quote never closes early. An unquoted `#` (at the start or whitespace-preceded,
+ * OUTSIDE any quote/at flow depth 0) begins a YAML comment: the remainder is not structure,
+ * so scanning stops there — biasing toward NOT dropping depth on a `}` hidden in a comment
+ * (a safe over-skip). Node properties (`&anchor`/`*alias`/`!tag`) contain no brackets, so
+ * they contribute 0 automatically; arming on the WHOLE token is therefore node-property-aware.
  */
-function flowScan(s: string): number {
-  let depth = 0;
-  let quote: '"' | "'" | null = null;
+function scanFlow(s: string, startDepth: number, startQuote: '"' | "'" | null): FlowState {
+  let depth = startDepth;
+  let quote = startQuote;
   for (let i = 0; i < s.length; i++) {
     const ch = s[i];
     if (quote === '"') {
@@ -184,7 +208,7 @@ function flowScan(s: string): number {
       continue;
     }
     if (ch === "#" && (i === 0 || /\s/.test(s[i - 1]))) {
-      break; // an unquoted comment — the rest is not flow structure
+      break; // an unquoted comment — the rest is not structure
     }
     if (ch === "{" || ch === "[") {
       depth++;
@@ -192,5 +216,5 @@ function flowScan(s: string): number {
       depth--;
     }
   }
-  return depth;
+  return { depth, quote };
 }
