@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
-import { calloutPlugin } from "../../src/core/notebook-callout";
+import { calloutPlugin, calloutStyles } from "../../src/core/notebook-callout";
 
 /**
  * `calloutPlugin` is a pure, `vscode`-free markdown-it plugin (BACKLOG item 17d)
@@ -850,5 +850,49 @@ describe("calloutPlugin", () => {
       expect(html).not.toContain("<details");
       expect(html).not.toContain("<summary");
     });
+  });
+});
+
+/**
+ * BACKLOG item 17d follow-on (B): CSS box styling. `calloutStyles()` returns the
+ * CSS that the webview entrypoint (`src/webview/notebook-renderer.ts`) injects as a
+ * `<style>` so the structural callout markup (`.callout .callout-<type>` /
+ * `.callout-header` / `.callout-title` / `.callout-body`, both the `<div>` and the
+ * `<details>` collapsible forms) renders as a coloured admonition box with a
+ * per-type accent + icon. The palette + icons are grounded FIRSTHAND against
+ * `quarto render` 1.7.33 (bootstrap theme): note #0d6efd/info-circle,
+ * tip #198754/lightbulb, warning #ffc107/exclamation-triangle,
+ * caution #fd7e14/cone-striped, important #dc3545/exclamation-circle. The CSS
+ * targets OUR class structure (not quarto's Bootstrap DOM); the header tint is a
+ * theme-adaptive translucent accent (a disclosed divergence from quarto's fixed
+ * light tint, so it reads in both light and dark VS Code themes). The rendered box
+ * itself is eyeball-only (no webview DOM read-back); this suite is the faithful
+ * automated verification of the CSS-generation logic.
+ */
+describe("callout box styles (17d follow-on B)", () => {
+  it("emits a base .callout box rule with rounded corners", () => {
+    expect(calloutStyles()).toMatch(/\.callout\s*\{[^}]*border-radius/);
+  });
+
+  it("gives .callout-note the grounded quarto accent (#0d6efd border + translucent header tint)", () => {
+    const css = calloutStyles();
+    // Accent left border = quarto's bootstrap note colour, grounded firsthand.
+    expect(css).toMatch(/\.callout-note\b[^{}]*\{[^}]*border-left-color:\s*#0d6efd/);
+    // Header tint is that accent as a low-alpha rgba (theme-adaptive: reads in
+    // light AND dark VS Code themes, a disclosed divergence from quarto's fixed
+    // light tint). #0d6efd -> rgb(13, 110, 253).
+    expect(css).toMatch(
+      /\.callout-note\b[^{}]*\.callout-header\s*\{[^}]*background-color:\s*rgba\(13,\s*110,\s*253,/,
+    );
+  });
+
+  it("prepends the grounded per-type icon (info-circle) before the note title", () => {
+    const css = calloutStyles();
+    // The icon is the grounded quarto/Bootstrap-Icons SVG, embedded as a data URI
+    // background-image on .callout-title::before (single-quoted url(); the SVG uses
+    // rgb() fills so there is no `#` to url-encode).
+    expect(css).toMatch(
+      /\.callout-note\s+\.callout-title::before\s*\{[^}]*background-image:\s*url\('data:image\/svg\+xml,<svg[^']*bi-info-circle/,
+    );
   });
 });
