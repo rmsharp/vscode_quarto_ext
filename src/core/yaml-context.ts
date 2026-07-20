@@ -418,8 +418,12 @@ export function valueSlotAfterColon(lineText: string, colon: number): Slot {
  * The cell engine for a cell language: knitr for `{r}`, jupyter for
  * `{python}`/`{julia}`, ojs for `{ojs}`/`{js}`. An unrecognized language yields
  * `undefined` (engine-agnostic) — a benign over-offer, refined in a later slice.
+ *
+ * Exported so value-diagnostics (`features/yaml-value-diagnostics.ts`) resolves a
+ * cell option against the SAME engine-scoped set the completion provider uses —
+ * single-sourced here rather than duplicated (value-validation plan §4.1 L3).
  */
-function engineFor(lang: string): CellEngine | undefined {
+export function engineFor(lang: string): CellEngine | undefined {
   switch (lang.toLowerCase()) {
     case "r":
       return "knitr";

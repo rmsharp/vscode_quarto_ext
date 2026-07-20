@@ -61,6 +61,30 @@ export interface SchemaField {
    * b2-iii-deep residue), so this is always exactly one level.
    */
   children?: SchemaField[];
+  /**
+   * True ONLY when the value set is EXHAUSTIVE — every reachable arm of the field's
+   * schema is an `enum` (bare-array or `{values}`-object form) or a `boolean` (bare
+   * or object-wrapped), with NO free arm anywhere in the resolution (value-validation
+   * plan §3.2). A `string` node is ALWAYS a free/open arm — **INCLUDING
+   * `string:{completions:[…]}`**: completions are autocomplete HINTS, not a
+   * constraint — Quarto accepts ANY string (`engine: banana`, `documentclass: myclass`
+   * render exit 0), yet `valuesOfSchema` still populates a non-empty `values` for them.
+   * `number`/`path`/`arrayOf`/`object`, an unrecognized node, and the depth-cap
+   * bail-out are open too. **`values` being non-empty must NOT be read as closed — this
+   * bit is the sole guard against the cardinal-sin false positive.** Only value-validate
+   * a field when `valuesClosed === true`; anything not positively proven enumerable is
+   * left unset (open). Unaffected by / unused by completion (which reads `values` only).
+   */
+  valuesClosed?: boolean;
+  /**
+   * True when the closed value set includes the YAML-1.2 boolean type, so the six
+   * spellings `true|True|TRUE|false|False|FALSE` are accepted UNQUOTED (and quoted
+   * boolean-looking forms like `"true"` are rejected). Only meaningful when
+   * `valuesClosed === true`. Set for a bare/object-wrapped `boolean` and for an
+   * `anyOf` any of whose closed arms is a boolean (e.g. `echo` = `anyOf[boolean,
+   * enum[fenced]]`).
+   */
+  acceptsBoolean?: boolean;
 }
 
 /** The two boolean values offered for a plain boolean option, in order. */
@@ -103,14 +127,22 @@ export const CURATED_CELL_OPTIONS: SchemaField[] = [
   {
     name: "echo",
     description: "Show the cell's source code in the rendered output.",
+    // anyOf[boolean, enum[fenced]] (schema/cell-codeoutput.yml, Quarto 1.7.33) → closed.
     values: ["true", "false", "fenced"],
+    valuesClosed: true,
+    acceptsBoolean: true,
   },
   {
     name: "eval",
     description: "Evaluate the cell; `false` echoes the code without running it.",
     values: BOOL,
+    valuesClosed: true,
+    acceptsBoolean: true,
   },
   {
+    // OPEN: real schema is anyOf[boolean, enum[asis], string, object] — accepts ANY
+    // string (`output: banana` → exit 0), so it must stay unmarked (plan §7.1). The
+    // `values` list is offered for completion only; it is NOT a closed set.
     name: "output",
     description: "Include execution results in the output (`true`/`false`/`asis`).",
     values: ["true", "false", "asis"],
@@ -119,16 +151,22 @@ export const CURATED_CELL_OPTIONS: SchemaField[] = [
     name: "warning",
     description: "Include warnings in the rendered output.",
     values: BOOL,
+    valuesClosed: true,
+    acceptsBoolean: true,
   },
   {
     name: "error",
     description: "Include errors in the output instead of halting the render.",
     values: BOOL,
+    valuesClosed: true,
+    acceptsBoolean: true,
   },
   {
     name: "include",
     description: "Master switch: suppress all of the cell's output (code and results).",
     values: BOOL,
+    valuesClosed: true,
+    acceptsBoolean: true,
   },
   {
     name: "label",
@@ -152,13 +190,18 @@ export const CURATED_CELL_OPTIONS: SchemaField[] = [
   {
     name: "fig-align",
     description: "Figure alignment: `default`, `left`, `right`, or `center`.",
+    // maybeArrayOf[enum] (schema/cell-pagelayout.yml) → closed string enum.
     values: ["default", "left", "right", "center"],
+    valuesClosed: true,
   },
   { name: "tbl-cap", description: "Caption for the table the cell produces." },
   {
     name: "code-fold",
     description: "Collapse the code into an expandable block (`true`/`false`/`show`).",
+    // anyOf[boolean, enum[show]] (schema/cell-codeoutput.yml) → closed.
     values: ["true", "false", "show"],
+    valuesClosed: true,
+    acceptsBoolean: true,
   },
   {
     name: "code-summary",
@@ -169,6 +212,8 @@ export const CURATED_CELL_OPTIONS: SchemaField[] = [
     description: "Cache the cell's results to skip re-execution when unchanged.",
     engine: "knitr",
     values: BOOL,
+    valuesClosed: true,
+    acceptsBoolean: true,
   },
   {
     name: "layout-ncol",
@@ -177,7 +222,9 @@ export const CURATED_CELL_OPTIONS: SchemaField[] = [
   {
     name: "column",
     description: "Page column for the cell's output (e.g. `body`, `page`, `margin`).",
+    // ref → page-column enum (Quarto 1.7.33 definitions.yml) → closed string enum.
     values: PAGE_COLUMNS,
+    valuesClosed: true,
   },
 ];
 
@@ -697,6 +744,97 @@ function valuesOfSchema(
 }
 
 /**
+ * Whether a schema-DSL `schema` field's value set is provably CLOSED, and whether
+ * it accepts the YAML-1.2 boolean type — the closedness sibling of `valuesOfSchema`
+ * (value-validation plan §3.2). Its risk polarity is INVERTED from `valuesOfSchema`:
+ * an unproven node MUST default to OPEN (`closed:false`), because a field wrongly
+ * marked closed is the cardinal-sin false positive. The base cases, enumerated
+ * explicitly and mirroring `valuesOfSchema`'s exact arm order + `depth` guard:
+ *   • bare / object-wrapped `boolean`      → closed, acceptsBoolean
+ *   • `enum` (bare array or `{values}`)     → closed (NOT boolean — an enum listing
+ *                                             `true`/`false` is still case-sensitive)
+ *   • `anyOf`                               → closed iff EVERY arm closed;
+ *                                             acceptsBoolean iff some (closed) arm is boolean
+ *   • `maybeArrayOf` / `ref` / `schema`     → inherit the inner node's closedness
+ *   • bare `string` — **INCLUDING `string:{completions}`** — `number`, `path`,
+ *     `arrayOf`, `object`, an unrecognized node, and `depth>5` → OPEN
+ * `string:{completions}` is the load-bearing case: it yields a non-empty `values`
+ * (`valuesOfSchema`, above) yet accepts ANY string, so it must be OPEN.
+ */
+function closednessOfSchema(
+  schema: unknown,
+  definitions: Map<string, unknown>,
+  depth: number,
+): { closed: boolean; acceptsBoolean: boolean } {
+  const OPEN = { closed: false, acceptsBoolean: false };
+  if (depth > 5) {
+    return OPEN;
+  }
+  if (schema === "boolean") {
+    return { closed: true, acceptsBoolean: true };
+  }
+  if (typeof schema === "string" || schema === null || typeof schema !== "object") {
+    return OPEN; // bare "string" | "number" | "path" | non-object → open
+  }
+  const s = schema as Record<string, unknown>;
+  if (s.boolean !== null && typeof s.boolean === "object") {
+    return { closed: true, acceptsBoolean: true };
+  }
+  if (Array.isArray(s.enum)) {
+    return { closed: true, acceptsBoolean: false };
+  }
+  if (s.enum !== null && typeof s.enum === "object" && !Array.isArray(s.enum)) {
+    const values = (s.enum as Record<string, unknown>).values;
+    if (Array.isArray(values)) {
+      return { closed: true, acceptsBoolean: false };
+    }
+  }
+  if (Array.isArray(s.anyOf)) {
+    let closed = true;
+    let acceptsBoolean = false;
+    for (const member of s.anyOf) {
+      const inner = closednessOfSchema(member, definitions, depth + 1);
+      closed = closed && inner.closed;
+      acceptsBoolean = acceptsBoolean || inner.acceptsBoolean;
+    }
+    return { closed, acceptsBoolean: closed && acceptsBoolean };
+  }
+  if (s.maybeArrayOf !== undefined) {
+    return closednessOfSchema(s.maybeArrayOf, definitions, depth + 1);
+  }
+  if (typeof s.ref === "string") {
+    return closednessOfSchema(definitions.get(s.ref), definitions, depth + 1);
+  }
+  if (s.string !== null && typeof s.string === "object") {
+    return OPEN; // string:{completions} — completions are HINTS, any string renders
+  }
+  if (s.schema !== undefined) {
+    return closednessOfSchema(s.schema, definitions, depth + 1);
+  }
+  return OPEN; // arrayOf, object, and other deferred/unrecognized forms
+}
+
+/**
+ * Set the derived `valuesClosed`/`acceptsBoolean` bits on `field` from its raw
+ * `schema` (shared by `toField` and `objectChildren`). Only stamps `valuesClosed`
+ * when the field is BOTH provably closed AND actually value-bearing, so the
+ * matcher's precondition (`valuesClosed===true && values.length>0`) can gate on
+ * the single bit; a genuinely open field is left unmarked (open by default).
+ */
+function annotateClosedness(field: SchemaField, schema: unknown, definitions: Map<string, unknown>): void {
+  if (field.values === undefined || field.values.length === 0) {
+    return;
+  }
+  const { closed, acceptsBoolean } = closednessOfSchema(schema, definitions, 0);
+  if (closed) {
+    field.valuesClosed = true;
+    if (acceptsBoolean) {
+      field.acceptsBoolean = true;
+    }
+  }
+}
+
+/**
  * The `properties` map of the `{object: {properties}}` an option's schema
  * resolves to, or `null` if it never lands on a non-empty object. Walks `anyOf`
  * (first arm that lands on an object), `ref` (repeated, `seenRefs`-guarded
@@ -977,6 +1115,7 @@ function objectChildren(
     if (values.length > 0) {
       field.values = values;
     }
+    annotateClosedness(field, sub, definitions);
     const children = objectChildren(sub, definitions, depth + 1, seenRefs);
     if (children.length > 0) {
       field.children = children;
@@ -1016,6 +1155,7 @@ function toField(entry: unknown, definitions: Map<string, unknown>): SchemaField
   if (values.length > 0) {
     field.values = values;
   }
+  annotateClosedness(field, e.schema, definitions);
   const engine = engineTag(e.tags);
   if (engine !== undefined) {
     field.engine = engine;
