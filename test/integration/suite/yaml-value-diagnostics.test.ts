@@ -133,18 +133,18 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 
-  it("flags exactly the 3 wrong top-level values, and NOTHING for open/valid/format/free-string", async () => {
+  it("flags exactly the 5 wrong top-level values, and NOTHING for open/valid/format/free-string", async () => {
     const doc = await openActive(FRONT_MATTER);
     assert.ok(
-      await waitFor(() => valueDiagnostics(doc.uri).length >= 3, 5000),
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 5, 5000),
       "expected front-matter value diagnostics to appear within 5s of opening",
     );
 
     const diags = valueDiagnostics(doc.uri);
     assert.strictEqual(
       diags.length,
-      3,
-      `expected exactly 3, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+      5,
+      `expected exactly 5, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
     );
 
     const byLine = new Map(diags.map((d) => [d.range.start.line, d]));
@@ -152,8 +152,12 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
     assert.ok(byLine.get(1)?.message.includes("yes"), "toc: yes should flag on line 1");
     // number-sections: "false" (line 2) — a QUOTED boolean is a string → rejected.
     assert.ok(byLine.get(2), 'number-sections: "false" (quoted boolean) should flag on line 2');
-    // df-print: banana (line 3) — closed string enum.
+    // df-print: banana (line 3) — closed string enum, total non-member.
     assert.ok(byLine.get(3)?.message.includes("banana"), "df-print: banana should flag on line 3");
+    // cache: banana (line 8) — enum whose members include booleans ([true,false,refresh]); banana is off-list.
+    assert.ok(byLine.get(8)?.message.includes("banana"), "cache: banana should flag on line 8");
+    // pdf-engine: PDFLATEX (line 9) — closed string enum, WRONG CASE (membership is case-sensitive).
+    assert.ok(byLine.get(9)?.message.includes("PDFLATEX"), "pdf-engine: PDFLATEX (wrong case) should flag on line 9");
 
     for (const d of diags) {
       assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Error);
@@ -195,7 +199,7 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
 
   it("re-scans live on edit (debounced) and drops a diagnostic once a value is fixed", async () => {
     const doc = await openActive(FRONT_MATTER);
-    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 3, 5000));
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 5, 5000));
 
     const editor = vscode.window.activeTextEditor;
     assert.ok(editor);
@@ -204,8 +208,8 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
     });
 
     assert.ok(
-      await waitFor(() => valueDiagnostics(doc.uri).length === 2, 3000),
-      "fixing toc: yes → toc: true should drop the count from 3 to 2 after the debounce",
+      await waitFor(() => valueDiagnostics(doc.uri).length === 4, 3000),
+      "fixing toc: yes → toc: true should drop the count from 5 to 4 after the debounce",
     );
   });
 });

@@ -6,10 +6,14 @@ citations-hover: true
 documentclass: myclass
 format: htlm
 title: My Talk: 2026
+cache: banana
+pdf-engine: PDFLATEX
 ---
 
-Prose body. The three wrong closed-set values above (toc, number-sections,
-df-print) each render exit 1 under `quarto render` 1.7.33; the rest render
-exit 0 and must never be flagged: `citations-hover: true` (valid boolean),
-`documentclass: myclass` (OPEN string.completions), `format: htlm` (intentionally
-UNVALIDATED — its enum is injected after closedness), `title:` (free string).
+Prose body. The five wrong closed-set values above — toc (bare non-boolean),
+number-sections (quoted boolean), df-print (enum non-member), cache (enum-with-
+boolean-members, off-list), pdf-engine (enum WRONG CASE) — each render exit 1
+under `quarto render` 1.7.33; the rest render exit 0 and must never be flagged:
+`citations-hover: true` (valid boolean), `documentclass: myclass` (OPEN
+string.completions), `format: htlm` (intentionally UNVALIDATED — its enum is
+injected after closedness), `title:` (free string).
