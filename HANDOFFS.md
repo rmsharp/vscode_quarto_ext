@@ -18,6 +18,14 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S132
+date: 2026-07-21
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD vertical slice). VALUE validation for 15 OTHER closed front-matter CONTAINERS (BACKLOG:47 deferred clause) — implement docs/planning/2026-07-20-other-container-value-validation-plan.md §4 gate-(a) contract, L1→L4. Gate (a) re-verified at Orient: zero src/test drift since plan commit 4b4d428. Operator picked "Impl other-container slice" via AskUserQuestion at Phase 0 (Active empty).
+commit: pending (1B claim; close-out overwrites this receipt to status: complete)
+```
+
+```handoff
 session: S131
 date: 2026-07-20
 status: complete
