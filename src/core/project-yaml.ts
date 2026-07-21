@@ -11,7 +11,8 @@
  */
 
 import * as path from "node:path";
-import { leadingWsLen, mappingContainerKey } from "./yaml-context";
+import { scanFlow } from "./qmd/model";
+import { leadingWsLen, mappingContainerKey, valueSlotAfterColon } from "./yaml-context";
 
 /** The three `_quarto.yml` blocks with a genuinely closed key set (plan §0). */
 const PROJECT_CONFIG_CONTAINERS = new Set(["project", "website", "book"]);
@@ -94,6 +95,115 @@ export function findProjectConfigKeyLines(text: string): ProjectConfigKeyLine[] 
 
 function isProjectConfigContainer(name: string): name is "project" | "website" | "book" {
   return PROJECT_CONFIG_CONTAINERS.has(name);
+}
+
+/** One value line found directly inside `project:`/`website:`/`book:`. */
+export interface ProjectConfigValueLine {
+  line: number;
+  container: "project" | "website" | "book";
+  /** The unquoted mapping key (schema-comparable, like `findProjectConfigKeyLines`). */
+  key: string;
+  /** The half-open `[startCol, endCol)` span of the value token on `line`. */
+  valueRange: { startCol: number; endCol: number };
+  /** The value token exactly as written (possibly quoted; trailing unquoted comment excluded). */
+  rawToken: string;
+}
+
+/**
+ * Enumerate every direct child of `project:`/`website:`/`book:` that carries a
+ * non-empty scalar VALUE, in document order — the value-side counterpart of
+ * `findProjectConfigKeyLines`, feeding `SchemaIndex.projectFields` + the shared
+ * `isWrongValue` matcher (`_quarto.yml` value validation, plan §3.2 B).
+ *
+ * Container tracking is `findProjectConfigKeyLines`'s (column-0 header sets scope; a
+ * genuine column-0 line ends it; one indent level only). The ONE structural
+ * difference — and the load-bearing safety property this surface's KEY enumerator
+ * lacks — is the `scanFlow` continuation guard: a mapping-looking line folded inside
+ * a multi-line QUOTED value (`title: "…\n  draft-mode: x"`) or an unclosed FLOW
+ * collection is part of the value quarto accepts (renders exit 0), so emitting it and
+ * letting the matcher flag it would be a cardinal-sin false positive (plan §2.3/§7.3).
+ * `scanFlow` (the shared quote/flow-aware scanner) tracks both and skips continuation
+ * lines; over-skipping when ambiguous is the safe false-negative direction.
+ */
+export function findProjectConfigValueLines(text: string): ProjectConfigValueLine[] {
+  const lines = stripBom(text).split(/\r?\n/);
+  const result: ProjectConfigValueLine[] = [];
+  let currentContainer: "project" | "website" | "book" | null = null;
+  let containerIndent: number | null = null;
+  // Continuation state of an unclosed multi-line value (plan §2.3/§7.3): a following
+  // line — even at the container's own child indent, or at column 0 — is folded into
+  // the value, NOT a new mapping, so it must be skipped or it reads as a real child and
+  // is flagged (the cardinal-sin FP the KEY enumerator lacks a guard for). `scanFlow`
+  // tracks BOTH an unclosed flow collection `{…}`/`[…]` (`flowDepth`) and an
+  // unterminated quoted scalar `key: "text…` (`openQuote`); over-skipping is the safe
+  // false-negative direction.
+  let flowDepth = 0;
+  let openQuote: '"' | "'" | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const lineText = lines[i];
+    if (flowDepth > 0 || openQuote !== null) {
+      const s = scanFlow(lineText, flowDepth, openQuote);
+      flowDepth = Math.max(0, s.depth);
+      openQuote = s.quote;
+      continue; // inside a multi-line flow/quoted value — never a new mapping
+    }
+    const trimmed = lineText.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) {
+      continue; // blank/comment lines never affect container scope
+    }
+    const indent = leadingWsLen(lineText);
+    if (indent === 0) {
+      const key = mappingContainerKey(lineText);
+      currentContainer = key !== null && isProjectConfigContainer(key) ? key : null;
+      containerIndent = null; // reset; set on the first child line seen under it
+      continue;
+    }
+    if (currentContainer === null) {
+      continue;
+    }
+    if (containerIndent === null) {
+      containerIndent = indent; // the first indented line under the container defines its depth
+    }
+    if (indent !== containerIndent) {
+      continue; // deeper nesting or a dedent — out of v1 scope, skip
+    }
+    if (lineText.slice(indent).startsWith("-")) {
+      continue; // a block-sequence item hosts no mapping value
+    }
+    const colon = lineText.indexOf(":", indent);
+    if (colon < 0) {
+      continue; // no colon → no mapping value to check
+    }
+    const rawKey = lineText.slice(indent, colon).replace(/[ \t]+$/, "");
+    if (rawKey.length === 0) {
+      continue; // `: value` with no key — malformed
+    }
+    const valueSlot = valueSlotAfterColon(lineText, colon);
+    const rawToken = lineText.slice(valueSlot.startCol, valueSlot.endCol);
+    if (rawToken.length === 0) {
+      continue; // block-opener (`navbar:`) or still-typing → no scalar to validate
+    }
+    result.push({
+      line: i,
+      container: currentContainer,
+      key: unquoteKey(rawKey),
+      valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
+      rawToken,
+    });
+    // Arm the continuation-skip if THIS value opens an unclosed flow collection OR an
+    // unterminated quoted scalar. Scanned over the WHOLE token (not a first-char test)
+    // so an anchored/tagged opener `foo: &a { …` still arms its flow, and `title: "text…`
+    // arms its quote (mirrors `findNestedFrontMatterValueLines`).
+    const s = scanFlow(rawToken, 0, null);
+    if (s.depth > 0) {
+      flowDepth = s.depth;
+    }
+    if (s.quote !== null) {
+      openQuote = s.quote;
+    }
+  }
+  return result;
 }
 
 /**

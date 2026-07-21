@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { findProjectConfigKeyLines, isProjectConfigFileName } from "../../src/core/project-yaml";
+import {
+  findProjectConfigKeyLines,
+  findProjectConfigValueLines,
+  isProjectConfigFileName,
+} from "../../src/core/project-yaml";
 
 describe("findProjectConfigKeyLines — direct children of project:/website:/book:", () => {
   it("finds direct children of project:", () => {
@@ -143,6 +147,106 @@ describe("findProjectConfigKeyLines — a leading UTF-8 BOM does not disable sca
     expect(findProjectConfigKeyLines(text)).toEqual([
       { line: 1, container: "project", key: "bogus-key", keyRange: { startCol: 2, endCol: 11 } },
     ]);
+  });
+});
+
+describe("findProjectConfigValueLines — one-level scalar values under project:/website:/book:", () => {
+  it("emits {container, key, valueRange, rawToken} for each direct scalar child, spans exact", () => {
+    const text = ["website:", "  draft-mode: hidden", "  title: My Site"].join("\n");
+    expect(findProjectConfigValueLines(text)).toEqual([
+      // `hidden` spans cols 14..20 on `  draft-mode: hidden`
+      { line: 1, container: "website", key: "draft-mode", valueRange: { startCol: 14, endCol: 20 }, rawToken: "hidden" },
+      { line: 2, container: "website", key: "title", valueRange: { startCol: 9, endCol: 16 }, rawToken: "My Site" },
+    ]);
+  });
+
+  it("tracks each container independently across the document", () => {
+    const text = [
+      "project:",
+      "  execute-dir: banana",
+      "book:",
+      "  downloads: mobi",
+    ].join("\n");
+    expect(findProjectConfigValueLines(text)).toEqual([
+      { line: 1, container: "project", key: "execute-dir", valueRange: { startCol: 15, endCol: 21 }, rawToken: "banana" },
+      { line: 3, container: "book", key: "downloads", valueRange: { startCol: 13, endCol: 17 }, rawToken: "mobi" },
+    ]);
+  });
+
+  it("skips a block-opener child that carries no scalar value (no rawToken to validate)", () => {
+    const text = ["website:", "  navbar:", "    title: Nav"].join("\n");
+    // `navbar:` opens a nested block (empty value → skipped); its deeper `title:` is
+    // out of one-level scope. Nothing to value-validate.
+    expect(findProjectConfigValueLines(text)).toEqual([]);
+  });
+
+  it("emits a flow-sequence value as its `[…]` token (the matcher, not the enumerator, skips it)", () => {
+    const text = ["website:", "  repo-actions: [edit, source]"].join("\n");
+    expect(findProjectConfigValueLines(text)).toEqual([
+      { line: 1, container: "website", key: "repo-actions", valueRange: { startCol: 16, endCol: 30 }, rawToken: "[edit, source]" },
+    ]);
+  });
+
+  it("unquotes a quoted key so it resolves against the schema's bare name", () => {
+    const text = ["website:", '  "draft-mode": hidden'].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(got).toHaveLength(1);
+    expect(got[0].key).toBe("draft-mode");
+    expect(got[0].rawToken).toBe("hidden");
+  });
+
+  it("skips deeper nesting, dedents, block-sequence items, comments, and unknown containers", () => {
+    const text = [
+      "format:", // unknown container
+      "  html:",
+      "    toc: bad",
+      "website:",
+      "  # a comment",
+      "  draft-mode: gone",
+      "    deeper: x", // deeper than the container's own child indent → skipped
+      "  - seqitem", // block-sequence item → skipped
+    ].join("\n");
+    expect(findProjectConfigValueLines(text)).toEqual([
+      { line: 5, container: "website", key: "draft-mode", valueRange: { startCol: 14, endCol: 18 }, rawToken: "gone" },
+    ]);
+  });
+
+  it("returns [] for an empty document and one with no project:/website:/book:", () => {
+    expect(findProjectConfigValueLines("")).toEqual([]);
+    expect(findProjectConfigValueLines("format:\n  html:\n    toc: true")).toEqual([]);
+  });
+});
+
+describe("findProjectConfigValueLines — scanFlow continuation guard (THE cardinal-sin FP, plan §2.3/§7.3)", () => {
+  it("does NOT emit a mapping-looking line folded inside a multi-line QUOTED value (quarto renders it exit 0)", () => {
+    // `title: "…` opens an unterminated double-quoted scalar; the `draft-mode: x` on the
+    // next line is part of that quoted title (quarto folds it, exit 0). A naive line
+    // scanner would emit `draft-mode: x` and the matcher would flag it — a cardinal-sin
+    // FP. The scanFlow guard turns it into a correct non-emit. `reader-mode: bad` AFTER
+    // the closing quote IS a real child and IS emitted.
+    const text = [
+      "website:",
+      '  title: "a long title that wraps',
+      "  draft-mode: not-a-real-value here\"",
+      "  reader-mode: bad",
+    ].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(got.map((v) => v.key)).toEqual(["title", "reader-mode"]);
+    expect(got.find((v) => v.key === "draft-mode"), "the folded draft-mode line must NOT be emitted").toBeUndefined();
+  });
+
+  it("does NOT emit a mapping-looking continuation line of a multi-line FLOW collection (at the container's OWN indent, so only scanFlow — not the indent guard — catches it)", () => {
+    const text = [
+      "website:",
+      "  repo-actions: [",
+      "  draft-mode: gone]", // indent 2 == container child indent; a naive scanner emits it (FP)
+      "  reader-mode: false",
+    ].join("\n");
+    const got = findProjectConfigValueLines(text);
+    // `repo-actions` emitted as its `[` opener; the folded `draft-mode: gone]` line is
+    // inside the still-open flow collection → skipped; `reader-mode` after the `]` is real.
+    expect(got.map((v) => v.key)).toEqual(["repo-actions", "reader-mode"]);
+    expect(got.find((v) => v.key === "draft-mode"), "the in-flow draft-mode line must NOT be emitted").toBeUndefined();
   });
 });
 
