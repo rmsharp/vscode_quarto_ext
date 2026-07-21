@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S136
+date: 2026-07-21
+status: pending
+active_task: PLANNING (evidence-based, adversarially reviewed) — DEPTH-2 value validation for _quarto.yml project-config containers, extending S135's shipped depth-1 slice one level deeper (project.preview.* closed booleans first, then any cheap super-reachable depth-2 children). Deliverable = ONE plan document at docs/planning/2026-07-21-quarto-yml-depth2-value-validation-plan.md; NO code this session (FM #18/#19 — implementation is a separate session). Operator picked "Depth-2 _quarto.yml values" via AskUserQuestion at Phase 0 (Active empty). Following SESSION_RUNNER §Planning Sessions + ARCHITECTURE_WORKSTREAM.md.
+```
+
+```handoff
 session: S135
 date: 2026-07-21
 status: complete
