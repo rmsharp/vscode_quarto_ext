@@ -18,6 +18,14 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S133
+date: 2026-07-21
+status: pending
+active_task: Clear the high-severity brace-expansion dev-dependency vulnerability (GHSA-3jxr-9vmj-r5cp — DoS via exponential-time {} expansion; transitive via mocha, dev/test-only, not in the .vsix runtime). Run non-breaking `npm audit fix` (NOT --force), then verify compile + unit (1095 baseline) + integration (383 baseline) + `npx @vscode/vsce package` all green. Config-only, no new logic (CLAUDE.md config-exempt clause). Operator picked "Clear the dep vuln" via AskUserQuestion at Phase 0 (Active empty). ONE deliverable — this single advisory only.
+commit: pending (1B claim)
+```
+
+```handoff
 session: S132
 date: 2026-07-21
 status: complete
