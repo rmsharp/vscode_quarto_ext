@@ -155,8 +155,8 @@ describe("findProjectConfigValueLines — one-level scalar values under project:
     const text = ["website:", "  draft-mode: hidden", "  title: My Site"].join("\n");
     expect(findProjectConfigValueLines(text)).toEqual([
       // `hidden` spans cols 14..20 on `  draft-mode: hidden`
-      { line: 1, container: "website", key: "draft-mode", valueRange: { startCol: 14, endCol: 20 }, rawToken: "hidden" },
-      { line: 2, container: "website", key: "title", valueRange: { startCol: 9, endCol: 16 }, rawToken: "My Site" },
+      { line: 1, container: "website", path: [], key: "draft-mode", valueRange: { startCol: 14, endCol: 20 }, rawToken: "hidden" },
+      { line: 2, container: "website", path: [], key: "title", valueRange: { startCol: 9, endCol: 16 }, rawToken: "My Site" },
     ]);
   });
 
@@ -168,22 +168,24 @@ describe("findProjectConfigValueLines — one-level scalar values under project:
       "  downloads: mobi",
     ].join("\n");
     expect(findProjectConfigValueLines(text)).toEqual([
-      { line: 1, container: "project", key: "execute-dir", valueRange: { startCol: 15, endCol: 21 }, rawToken: "banana" },
-      { line: 3, container: "book", key: "downloads", valueRange: { startCol: 13, endCol: 17 }, rawToken: "mobi" },
+      { line: 1, container: "project", path: [], key: "execute-dir", valueRange: { startCol: 15, endCol: 21 }, rawToken: "banana" },
+      { line: 3, container: "book", path: [], key: "downloads", valueRange: { startCol: 13, endCol: 17 }, rawToken: "mobi" },
     ]);
   });
 
-  it("skips a block-opener child that carries no scalar value (no rawToken to validate)", () => {
+  it("does not emit the block-opener itself (no scalar value), but DOES emit its depth-2 grandchild", () => {
     const text = ["website:", "  navbar:", "    title: Nav"].join("\n");
-    // `navbar:` opens a nested block (empty value → skipped); its deeper `title:` is
-    // out of one-level scope. Nothing to value-validate.
-    expect(findProjectConfigValueLines(text)).toEqual([]);
+    // `navbar:` opens a nested block (empty value → not emitted); its `title:` grandchild
+    // is now in DEPTH-2 scope and emitted with path=["navbar"] (`title` spans cols 11..14).
+    expect(findProjectConfigValueLines(text)).toEqual([
+      { line: 2, container: "website", path: ["navbar"], key: "title", valueRange: { startCol: 11, endCol: 14 }, rawToken: "Nav" },
+    ]);
   });
 
   it("emits a flow-sequence value as its `[…]` token (the matcher, not the enumerator, skips it)", () => {
     const text = ["website:", "  repo-actions: [edit, source]"].join("\n");
     expect(findProjectConfigValueLines(text)).toEqual([
-      { line: 1, container: "website", key: "repo-actions", valueRange: { startCol: 16, endCol: 30 }, rawToken: "[edit, source]" },
+      { line: 1, container: "website", path: [], key: "repo-actions", valueRange: { startCol: 16, endCol: 30 }, rawToken: "[edit, source]" },
     ]);
   });
 
@@ -207,7 +209,7 @@ describe("findProjectConfigValueLines — one-level scalar values under project:
       "  - seqitem", // block-sequence item → skipped
     ].join("\n");
     expect(findProjectConfigValueLines(text)).toEqual([
-      { line: 5, container: "website", key: "draft-mode", valueRange: { startCol: 14, endCol: 18 }, rawToken: "gone" },
+      { line: 5, container: "website", path: [], key: "draft-mode", valueRange: { startCol: 14, endCol: 18 }, rawToken: "gone" },
     ]);
   });
 
@@ -247,6 +249,88 @@ describe("findProjectConfigValueLines — scanFlow continuation guard (THE cardi
     // inside the still-open flow collection → skipped; `reader-mode` after the `]` is real.
     expect(got.map((v) => v.key)).toEqual(["repo-actions", "reader-mode"]);
     expect(got.find((v) => v.key === "draft-mode"), "the in-flow draft-mode line must NOT be emitted").toBeUndefined();
+  });
+});
+
+describe("findProjectConfigValueLines — DEPTH-2 grandchildren under a block-opener child (depth-2 value plan §3.2 B)", () => {
+  it("emits a depth-2 grandchild line with path=[child], keeping depth-1 scalars as path=[]", () => {
+    const text = [
+      "website:",
+      "  navbar:",
+      "    collapse-below: sm",
+      "    pinned: true",
+      "  draft-mode: hidden",
+    ].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(got.map((v) => ({ key: v.key, path: v.path }))).toEqual([
+      { key: "collapse-below", path: ["navbar"] },
+      { key: "pinned", path: ["navbar"] },
+      { key: "draft-mode", path: [] },
+    ]);
+    // exact value span on the first grandchild (`sm` at cols 20..22 of `    collapse-below: sm`)
+    expect(got.find((v) => v.key === "collapse-below")).toMatchObject({
+      container: "website",
+      valueRange: { startCol: 20, endCol: 22 },
+      rawToken: "sm",
+    });
+  });
+
+  it("resolves a grandchild path for project.preview and book (super-merged)", () => {
+    const project = findProjectConfigValueLines(["project:", "  preview:", "    browser: nope"].join("\n"));
+    expect(project.map((v) => ({ container: v.container, path: v.path, key: v.key }))).toEqual([
+      { container: "project", path: ["preview"], key: "browser" },
+    ]);
+    const book = findProjectConfigValueLines(["book:", "  sidebar:", "    style: dock"].join("\n"));
+    expect(book.map((v) => ({ container: v.container, path: v.path, key: v.key }))).toEqual([
+      { container: "book", path: ["sidebar"], key: "style" },
+    ]);
+  });
+
+  it("does NOT emit a mapping-looking line folded inside a multi-line QUOTED grandchild value (the depth-2 scanFlow FP, NO column-0 backstop, §2.3/dragon 2)", () => {
+    // `title: "…` opens an unterminated quote at DEPTH-2; the `collapse-below:` line is
+    // folded into the quoted title (quarto renders exit 0). Emitting it and letting the
+    // matcher flag it would be a cardinal-sin FP. The scanFlow continuation guard skips it.
+    const text = [
+      "website:",
+      "  navbar:",
+      '    title: "a long title that wraps',
+      '    collapse-below: not-a-real-value"',
+      "    pinned: false",
+    ].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(got.map((v) => v.key)).toEqual(["title", "pinned"]);
+    expect(
+      got.find((v) => v.key === "collapse-below"),
+      "the folded depth-2 collapse-below line must NOT be emitted",
+    ).toBeUndefined();
+  });
+
+  it("does NOT emit depth-3+ grandchildren (double-capped), but still catches a depth-2 sibling after a depth-3 block (§2.2/dragon 7)", () => {
+    const text = [
+      "website:",
+      "  navbar:",
+      "    tools:", // depth-2 block-opener — not emitted (no scalar)
+      "      - icon: github", // depth-3 — skipped
+      "    collapse-below: sm", // depth-2 sibling after the depth-3 block — still caught
+    ].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(got.map((v) => ({ key: v.key, path: v.path }))).toEqual([
+      { key: "collapse-below", path: ["navbar"] },
+    ]);
+  });
+
+  it("does NOT emit a grandchild under a SEQUENCE-form child (a `- ` item hosts no depth-2 mapping value — safe FN, dragon 6)", () => {
+    const text = ["website:", "  sidebar:", "    - id: main", "      style: docked"].join("\n");
+    expect(findProjectConfigValueLines(text)).toEqual([]);
+  });
+
+  it("treats `navbar: true` as a depth-1 scalar (anyOf boolean arm) — no child scope opened (dragon 5)", () => {
+    const text = ["website:", "  navbar: true", "  draft-mode: hidden"].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(got.map((v) => ({ key: v.key, path: v.path }))).toEqual([
+      { key: "navbar", path: [] },
+      { key: "draft-mode", path: [] },
+    ]);
   });
 });
 

@@ -79,6 +79,14 @@ async function computeProjectValueDiagnostics(
   }
   const diagnostics: vscode.Diagnostic[] = [];
   for (const entry of valueLines) {
+    // L2 INERT GUARD (depth-2 value plan §4.1 L2): the enumerator now emits DEPTH-2
+    // grandchildren (`path=[child]`) too, but the feature stays depth-1-only until L3
+    // flips this line to real path-aware resolution. Skipping `path.length !== 0` here
+    // guarantees inertness even where a grandchild name collides with a closed depth-1
+    // field (which would otherwise flag prematurely at this checkpoint).
+    if (entry.path.length !== 0) {
+      continue;
+    }
     // Resolve the child against its OWN container's super-merged field set. An
     // unknown key (never flagged — the KEY feature's territory), an open field
     // (`isWrongValue`'s `valuesClosed` precondition fails), or a valid value all skip.

@@ -97,10 +97,22 @@ function isProjectConfigContainer(name: string): name is "project" | "website" |
   return PROJECT_CONFIG_CONTAINERS.has(name);
 }
 
-/** One value line found directly inside `project:`/`website:`/`book:`. */
+/** One value line found inside `project:`/`website:`/`book:`, at depth-1 or depth-2. */
 export interface ProjectConfigValueLine {
   line: number;
   container: "project" | "website" | "book";
+  /**
+   * The ancestor child keys between the container and this value's key, top-down.
+   * `[]` for a DEPTH-1 child (`draft-mode: hidden` → `path:[]`); `[child]` for a
+   * DEPTH-2 grandchild under a pure block-opener child (`navbar:\n  collapse-below: sm`
+   * → `path:["navbar"]`). The compute resolves BY PATH — never bare `key` — because
+   * grandchild names collide with depth-1 names, one collision being a CLOSED depth-1
+   * enum (`book.type` CSL vs `book.cookie-consent.type`): bare-name resolution there is
+   * a cardinal-sin FP, not merely a miss (depth-2 value plan §7.5/dragon 3). Shaped as
+   * a list (not a scalar `parentChild`) to mirror `NestedFrontMatterValueLine.parentPath`
+   * and stay forward-compatible with depth-3 (plan §10 Q4).
+   */
+  path: string[];
   /** The unquoted mapping key (schema-comparable, like `findProjectConfigKeyLines`). */
   key: string;
   /** The half-open `[startCol, endCol)` span of the value token on `line`. */
@@ -110,33 +122,47 @@ export interface ProjectConfigValueLine {
 }
 
 /**
- * Enumerate every direct child of `project:`/`website:`/`book:` that carries a
- * non-empty scalar VALUE, in document order — the value-side counterpart of
- * `findProjectConfigKeyLines`, feeding `SchemaIndex.projectFields` + the shared
- * `isWrongValue` matcher (`_quarto.yml` value validation, plan §3.2 B).
+ * Enumerate every `project:`/`website:`/`book:` descendant that carries a non-empty
+ * scalar VALUE — at DEPTH-1 (a direct child) or DEPTH-2 (a grandchild under a pure
+ * block-opener child) — in document order, feeding `SchemaIndex.projectFields` (whose
+ * fields now carry `.children`) + the shared `isWrongValue` matcher (depth-2 value
+ * plan §3.2 B). Each emission carries a `path`: `[]` at depth-1, `[child]` at depth-2.
  *
- * Container tracking is `findProjectConfigKeyLines`'s (column-0 header sets scope; a
- * genuine column-0 line ends it; one indent level only). The ONE structural
- * difference — and the load-bearing safety property this surface's KEY enumerator
- * lacks — is the `scanFlow` continuation guard: a mapping-looking line folded inside
- * a multi-line QUOTED value (`title: "…\n  draft-mode: x"`) or an unclosed FLOW
+ * A bounded TWO-level forward state machine. Container tracking is
+ * `findProjectConfigKeyLines`'s (column-0 header sets scope; a genuine column-0 line
+ * ends it). Above that: when a depth-1 line is a pure block-opener (`navbar:`, no
+ * scalar), `childKey`/`childIndent` open a depth-2 scope; a depth-1 sibling or a
+ * column-0 line closes it. Depth-3+ (`indent > childIndent`) and sequence-item
+ * grandchildren are NOT emitted — the reader's `.children` is one level and the
+ * enumerator caps at `path.length===1`, so deeper values are a safe false negative
+ * (plan §4.2).
+ *
+ * The load-bearing safety property this surface's KEY enumerator lacks is the
+ * `scanFlow` continuation guard, and at DEPTH-2 it has NO column-0 backstop (a folded
+ * line can sit at any indent, §2.3/dragon 2): a mapping-looking line inside a
+ * multi-line QUOTED value (`title: "…\n    collapse-below: x"`) or an unclosed FLOW
  * collection is part of the value quarto accepts (renders exit 0), so emitting it and
- * letting the matcher flag it would be a cardinal-sin false positive (plan §2.3/§7.3).
- * `scanFlow` (the shared quote/flow-aware scanner) tracks both and skips continuation
- * lines; over-skipping when ambiguous is the safe false-negative direction.
+ * letting the matcher flag it would be a cardinal-sin false positive. `scanFlow` (the
+ * shared quote/flow-aware scanner) tracks both and skips continuation lines regardless
+ * of level; over-skipping when ambiguous is the safe false-negative direction.
  */
 export function findProjectConfigValueLines(text: string): ProjectConfigValueLine[] {
   const lines = stripBom(text).split(/\r?\n/);
   const result: ProjectConfigValueLine[] = [];
   let currentContainer: "project" | "website" | "book" | null = null;
   let containerIndent: number | null = null;
+  // Depth-2 scope: when a depth-1 line is a pure block-opener (`navbar:`), `childKey`
+  // names it and `childIndent` (fixed on the first grandchild line) pins the depth-2
+  // level. A depth-1 sibling or a column-0 line clears both. A depth-2 block-opener is
+  // NOT tracked deeper — the reader/enumerator both cap at depth-2 (plan §3.2 B/§4.2).
+  let childKey: string | null = null;
+  let childIndent: number | null = null;
   // Continuation state of an unclosed multi-line value (plan §2.3/§7.3): a following
-  // line — even at the container's own child indent, or at column 0 — is folded into
-  // the value, NOT a new mapping, so it must be skipped or it reads as a real child and
-  // is flagged (the cardinal-sin FP the KEY enumerator lacks a guard for). `scanFlow`
-  // tracks BOTH an unclosed flow collection `{…}`/`[…]` (`flowDepth`) and an
-  // unterminated quoted scalar `key: "text…` (`openQuote`); over-skipping is the safe
-  // false-negative direction.
+  // line — at ANY indent, or column 0 — is folded into the value, NOT a new mapping, so
+  // it must be skipped or it reads as a real child and is flagged (the cardinal-sin FP
+  // the KEY enumerator lacks a guard for). `scanFlow` tracks BOTH an unclosed flow
+  // collection `{…}`/`[…]` (`flowDepth`) and an unterminated quoted scalar
+  // `key: "text…` (`openQuote`); over-skipping is the safe false-negative direction.
   let flowDepth = 0;
   let openQuote: '"' | "'" | null = null;
 
@@ -157,6 +183,8 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
       const key = mappingContainerKey(lineText);
       currentContainer = key !== null && isProjectConfigContainer(key) ? key : null;
       containerIndent = null; // reset; set on the first child line seen under it
+      childKey = null;
+      childIndent = null;
       continue;
     }
     if (currentContainer === null) {
@@ -165,9 +193,28 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
     if (containerIndent === null) {
       containerIndent = indent; // the first indented line under the container defines its depth
     }
-    if (indent !== containerIndent) {
-      continue; // deeper nesting or a dedent — out of v1 scope, skip
+
+    // Classify this line's level. `path === null` means out of scope (skip).
+    let path: string[] | null = null;
+    if (indent === containerIndent) {
+      childKey = null; // a depth-1 line ends any previous child's depth-2 scope
+      childIndent = null;
+      path = [];
+    } else if (indent > containerIndent) {
+      if (childKey === null) {
+        continue; // no open block-opener child (the depth-1 parent was a scalar) → skip
+      }
+      if (childIndent === null) {
+        childIndent = indent; // first grandchild line pins the depth-2 level
+      }
+      if (indent !== childIndent) {
+        continue; // depth-3+ (deeper than the depth-2 level) — capped, safe FN
+      }
+      path = [childKey];
+    } else {
+      continue; // shallower than the child indent but not column 0 — malformed, skip
     }
+
     if (lineText.slice(indent).startsWith("-")) {
       continue; // a block-sequence item hosts no mapping value
     }
@@ -182,19 +229,27 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
     const valueSlot = valueSlotAfterColon(lineText, colon);
     const rawToken = lineText.slice(valueSlot.startCol, valueSlot.endCol);
     if (rawToken.length === 0) {
-      continue; // block-opener (`navbar:`) or still-typing → no scalar to validate
+      // A pure block-opener. At DEPTH-1 it opens a depth-2 child scope; at DEPTH-2 it is
+      // a depth-3 container we never descend into (childKey stays the depth-1 parent).
+      if (path.length === 0) {
+        childKey = unquoteKey(rawKey);
+        childIndent = null;
+      }
+      continue;
     }
     result.push({
       line: i,
       container: currentContainer,
+      path,
       key: unquoteKey(rawKey),
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       rawToken,
     });
     // Arm the continuation-skip if THIS value opens an unclosed flow collection OR an
-    // unterminated quoted scalar. Scanned over the WHOLE token (not a first-char test)
-    // so an anchored/tagged opener `foo: &a { …` still arms its flow, and `title: "text…`
-    // arms its quote (mirrors `findNestedFrontMatterValueLines`).
+    // unterminated quoted scalar — the depth-2 scanFlow FP guard (no column-0 backstop,
+    // §2.3). Scanned over the WHOLE token (not a first-char test) so an anchored/tagged
+    // opener `foo: &a { …` still arms its flow, and `title: "text…` arms its quote
+    // (mirrors `findNestedFrontMatterValueLines`).
     const s = scanFlow(rawToken, 0, null);
     if (s.depth > 0) {
       flowDepth = s.depth;
