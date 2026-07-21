@@ -542,7 +542,7 @@ const PROJECT_FIELDS_FIXTURE = JSON.stringify({
           "google-analytics": {
             object: {
               properties: {
-                version: { enum: ["3", "4"] }, // numeric-MEMBER enum — MUST be left OPEN (§3.2 A)
+                version: { enum: [3, 4] }, // numeric-MEMBER enum (JS NUMBERS, as the real schema) — validated by parsed value (matcher plan §3.1)
                 "anonymize-ip": "boolean",
               },
             },
@@ -779,28 +779,31 @@ describe("parseSchemaIndex — projectFields: annotated project-config child fie
     expect(style?.values).toEqual(["docked", "floating"]);
   });
 
-  it("leaves a numeric-MEMBER enum grandchild (google-analytics.version enum[3,4]) OPEN — quarto coerces 3.0≡3, so string-membership would false-positive (the §9-caught cardinal sin, §3.2 A / dragon 11)", () => {
+  it("marks a numeric-MEMBER enum grandchild (google-analytics.version enum[3,4]) CLOSED + numericMemberEnum — validated by PARSED value (S137 guard DELETED; matcher plan §3.1 D / L3)", () => {
     const ga = index.projectFields("website").find((f) => f.name === "google-analytics");
     const byName = new Map((ga?.children ?? []).map((c) => [c.name, c]));
     const version = byName.get("version");
     expect(version, "version is a recognized grandchild").toBeDefined();
-    expect(version?.values, "its enum members are still resolved (just not treated as closed)").toEqual([
-      "3",
-      "4",
-    ]);
-    expect(
-      version?.valuesClosed,
-      "a numeric-member enum must be left open — never string-matched (cardinal-sin coercion FP)",
-    ).toBeUndefined();
-    // a NON-numeric enum sibling stays closed (the guard is scoped to numeric members only)
+    expect(version?.values, "its enum members are resolved").toEqual(["3", "4"]);
+    // The S137 openNumericMemberEnum guard is GONE — version stays CLOSED and is now
+    // validated correctly by the shared matcher's numeric branch (no coercion FP).
+    expect(version?.valuesClosed, "numeric-member enum is now CLOSED (guard deleted)").toBe(true);
+    expect(version?.numericMemberEnum, "and flagged as numeric-member → parsed-value matching").toBe(true);
+    // The matcher coerces correctly: an out-of-set number flags, a coerced member does not.
+    expect(isWrongValue("5", version!), "version: 5 is now FLAGGED — validation restored").toBe(true);
+    expect(isWrongValue("3.0", version!), "version: 3.0 ≡ 3 accepted (no coercion FP)").toBe(false);
+    expect(isWrongValue("3", version!)).toBe(false);
+    // a NON-numeric enum sibling is unaffected — still a plain closed boolean, no bit
     const anonymize = byName.get("anonymize-ip");
-    expect(anonymize?.valuesClosed, "a boolean grandchild is unaffected by the guard").toBe(true);
-    // book inherits the same guarded grandchild via super
+    expect(anonymize?.valuesClosed, "a boolean grandchild is closed").toBe(true);
+    expect(anonymize?.numericMemberEnum, "a boolean grandchild is NOT numeric-member").toBeUndefined();
+    // book inherits the same grandchild via super — also closed + numeric-member
     const bookVersion = index
       .projectFields("book")
       .find((f) => f.name === "google-analytics")
       ?.children?.find((c) => c.name === "version");
-    expect(bookVersion?.valuesClosed, "book.google-analytics.version is guarded too (super-merged)").toBeUndefined();
+    expect(bookVersion?.valuesClosed, "book.google-analytics.version closed too (super-merged)").toBe(true);
+    expect(bookVersion?.numericMemberEnum, "book.google-analytics.version numeric-member too").toBe(true);
   });
 
   it("gives a scalar/enum depth-1 field no `.children` (depth cap — one object level only)", () => {
