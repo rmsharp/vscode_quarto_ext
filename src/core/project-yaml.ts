@@ -237,6 +237,27 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
       }
       continue;
     }
+    // Scan the value token FIRST — over the WHOLE token, not a first-char test — so an
+    // anchored/tagged opener `foo: &a { …` still arms its flow and `title: "text…` arms
+    // its quote (mirrors `findNestedFrontMatterValueLines`).
+    const s = scanFlow(rawToken, 0, null);
+    if (s.depth > 0) {
+      flowDepth = s.depth;
+    }
+    if (s.quote !== null) {
+      openQuote = s.quote;
+    }
+    if (s.depth > 0 || s.quote !== null) {
+      // The value OPENS a multi-line quoted/flow scalar (`location: "nav\`, `x: [`). Its
+      // FOLDED result is unknowable from this opening line, and the raw opener token is not
+      // a plain scalar the matcher can reduce — yet quarto folds it and may ACCEPT it (an
+      // escaped-newline `"nav\<nl>bar"` folds to `navbar`, exit 0). Emitting the opener would
+      // let the matcher flag it against the closed enum = a cardinal-sin false positive (§9
+      // review HIGH — the closed-enum opener depth-1 shipped and this slice inherited). Skip
+      // emitting; the continuation guard (armed above) still skips the folded lines.
+      // Over-skipping when a value spans lines is the safe false-negative direction.
+      continue;
+    }
     result.push({
       line: i,
       container: currentContainer,
@@ -245,18 +266,6 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       rawToken,
     });
-    // Arm the continuation-skip if THIS value opens an unclosed flow collection OR an
-    // unterminated quoted scalar — the depth-2 scanFlow FP guard (no column-0 backstop,
-    // §2.3). Scanned over the WHOLE token (not a first-char test) so an anchored/tagged
-    // opener `foo: &a { …` still arms its flow, and `title: "text…` arms its quote
-    // (mirrors `findNestedFrontMatterValueLines`).
-    const s = scanFlow(rawToken, 0, null);
-    if (s.depth > 0) {
-      flowDepth = s.depth;
-    }
-    if (s.quote !== null) {
-      openQuote = s.quote;
-    }
   }
   return result;
 }

@@ -233,7 +233,9 @@ describe("findProjectConfigValueLines — scanFlow continuation guard (THE cardi
       "  reader-mode: bad",
     ].join("\n");
     const got = findProjectConfigValueLines(text);
-    expect(got.map((v) => v.key)).toEqual(["title", "reader-mode"]);
+    // `title` OPENS the multi-line quote (unresolvable opener → not emitted, §9-review HIGH);
+    // the folded `draft-mode` line is skipped; only `reader-mode` after the close quote is real.
+    expect(got.map((v) => v.key)).toEqual(["reader-mode"]);
     expect(got.find((v) => v.key === "draft-mode"), "the folded draft-mode line must NOT be emitted").toBeUndefined();
   });
 
@@ -245,9 +247,10 @@ describe("findProjectConfigValueLines — scanFlow continuation guard (THE cardi
       "  reader-mode: false",
     ].join("\n");
     const got = findProjectConfigValueLines(text);
-    // `repo-actions` emitted as its `[` opener; the folded `draft-mode: gone]` line is
-    // inside the still-open flow collection → skipped; `reader-mode` after the `]` is real.
-    expect(got.map((v) => v.key)).toEqual(["repo-actions", "reader-mode"]);
+    // `repo-actions: [` OPENS a multi-line flow collection (unresolvable opener → not
+    // emitted); the folded `draft-mode: gone]` line is inside the still-open flow → skipped;
+    // only `reader-mode` after the `]` is a real, complete scalar.
+    expect(got.map((v) => v.key)).toEqual(["reader-mode"]);
     expect(got.find((v) => v.key === "draft-mode"), "the in-flow draft-mode line must NOT be emitted").toBeUndefined();
   });
 });
@@ -298,7 +301,9 @@ describe("findProjectConfigValueLines — DEPTH-2 grandchildren under a block-op
       "    pinned: false",
     ].join("\n");
     const got = findProjectConfigValueLines(text);
-    expect(got.map((v) => v.key)).toEqual(["title", "pinned"]);
+    // `title` OPENS the multi-line quote (unresolvable opener → not emitted); the folded
+    // `collapse-below` line is scanFlow-skipped; only `pinned` after the close quote is real.
+    expect(got.map((v) => v.key)).toEqual(["pinned"]);
     expect(
       got.find((v) => v.key === "collapse-below"),
       "the folded depth-2 collapse-below line must NOT be emitted",
@@ -335,16 +340,16 @@ describe("findProjectConfigValueLines — DEPTH-2 grandchildren under a block-op
 });
 
 describe("findProjectConfigValueLines — DEPTH-2 exotic continuation shapes never leak a folded mapping (L4 §9 author sweep — all grounded exit 0/rejected-downstream, never a schema FP)", () => {
-  it("skips a mapping-looking line folded inside a SINGLE-quoted grandchild value", () => {
+  it("skips a mapping-looking line folded inside a SINGLE-quoted grandchild value (and does not emit the opener)", () => {
     const text = ["website:", "  navbar:", "    title: 'wraps", "    collapse-below: not-real'", "    pinned: false"].join("\n");
     const got = findProjectConfigValueLines(text);
-    expect(got.map((v) => v.key)).toEqual(["title", "pinned"]);
+    expect(got.map((v) => v.key)).toEqual(["pinned"]);
   });
 
-  it("skips a mapping-looking continuation of an unclosed FLOW collection in a grandchild value", () => {
+  it("skips a mapping-looking continuation of an unclosed FLOW collection in a grandchild value (and does not emit the opener)", () => {
     const text = ["website:", "  navbar:", "    foreground: {a: 1,", "    collapse-below: x}", "    pinned: false"].join("\n");
     const got = findProjectConfigValueLines(text);
-    expect(got.map((v) => v.key)).toEqual(["foreground", "pinned"]);
+    expect(got.map((v) => v.key)).toEqual(["pinned"]);
   });
 
   it("skips BLOCK-scalar content (deeper than the grandchild indent — the indent guard, since scanFlow is blind to `|`/`>`), still catching a later depth-2 sibling", () => {
@@ -353,6 +358,26 @@ describe("findProjectConfigValueLines — DEPTH-2 exotic continuation shapes nev
     // `title:` emits (rawToken `|`, matcher-skipped anyway); its indented content is
     // depth-3 → not emitted; `pinned` is a real depth-2 sibling → emitted.
     expect(got.map((v) => v.key)).toEqual(["title", "pinned"]);
+  });
+
+  it("does NOT emit the OPENING line of a multi-line DOUBLE-quoted value — quarto FOLDS the escaped newline to a valid member (exit 0), but the raw opener token (`\"nav\\`) is not a plain scalar the matcher can reduce, so emitting it is a cardinal-sin FP (the §9-review HIGH, present at depth-1 too)", () => {
+    // `location: "nav\` opens a double-quoted scalar continued via an escaped newline;
+    // quarto folds `"nav\<nl>  bar"` -> `navbar` (a valid enum member) and renders exit 0.
+    // The scanFlow guard skips the CONTINUATION line, but the OPENING line was previously
+    // emitted with token `"nav\` and flagged against [navbar,sidebar] = FP. It must not emit.
+    const text = ["website:", "  search:", '    location: "nav\\', '      bar"', "    limit: 20"].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(
+      got.map((v) => v.key),
+      "the multi-line-quoted opener must not be emitted; the depth-2 `limit` after it still is",
+    ).toEqual(["limit"]);
+  });
+
+  it("does NOT emit the OPENING line of a multi-line SINGLE-quoted or unclosed-FLOW value either (same class — folded/continued value unknowable)", () => {
+    const sq = findProjectConfigValueLines(["website:", "  navbar:", "    title: 'a\\", "      b'", "    pinned: false"].join("\n"));
+    expect(sq.map((v) => v.key), "single-quoted multi-line opener not emitted").toEqual(["pinned"]);
+    const flow = findProjectConfigValueLines(["website:", "  repo-actions: [", "  edit]", "  title: x"].join("\n"));
+    expect(flow.map((v) => v.key), "unclosed-flow opener not emitted; the scalar after `]` is").toEqual(["title"]);
   });
 
   it("emits an anchored grandchild value verbatim (the matcher's leading-`&` guard makes it a non-flag, not the enumerator's job — no cardinal-sin FP)", () => {

@@ -21,6 +21,9 @@ website:
 book:
   cookie-consent:
     type: express
+  sidebar:
+    style: "float\
+      ing"
   navbar:
     title: "a long navbar title that wraps
     collapse-below: not-a-real-value here"
