@@ -553,6 +553,17 @@ function indexOf(
       if (parentPath.length === 1 && parentPath[0] === "format") {
         return formatFields;
       }
+      // One level under ANY OTHER top-level object container (other-container value
+      // validation, plan §3.2 change A): its already-resolved, already-annotated
+      // one-object-level children (`toField` → `objectChildren` populated + annotated
+      // `.children` at parse time — no new parsing/curation). A scalar field or an
+      // unknown key has no `.children` → []. `execute:`/`format:` are handled by their
+      // explicit branches ABOVE and never reach here; this branch is fully general,
+      // so the enumerator/completion GATE (`NESTED_CONTAINERS`) — not this reader — is
+      // the single source of truth for WHICH containers are actually validated.
+      if (parentPath.length === 1) {
+        return topLevelFields.find((f) => f.name === parentPath[0])?.children ?? [];
+      }
       // Per-format options (6d-6+ b2-i): under `format:\n  <fmt>:`, the document-*
       // ∪ format-scoped cell-* fields whose `tags.formats` admit the concrete
       // format `<fmt>`, alias-expanded and negation-aware (Quarto's `useSchema`).

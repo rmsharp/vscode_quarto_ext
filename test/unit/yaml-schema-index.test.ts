@@ -610,6 +610,53 @@ describe("parseSchemaIndex — front-matter key extraction (6d-4)", () => {
   });
 });
 
+// Other-container value-validation slice (plan §3.2 change A): a GENERAL length-1
+// branch in `frontMatterKeys` exposes any top-level object container's
+// already-resolved, already-annotated one-object-level children (`toField` →
+// `objectChildren`). This is the READER half; the enumerator/completion GATE
+// (`NESTED_CONTAINERS`) decides which containers are actually validated. The
+// branch must sit AFTER the `execute`/`format` length-1 branches (they keep their
+// overrides) and must not touch the length-2 `format` path.
+describe("parseSchemaIndex — general length-1 container children (other-container value validation, plan §3.2)", () => {
+  const index = parseSchemaIndex(FIXTURE);
+
+  it("serves a closed object container's annotated children under its length-1 path (`crossref`)", () => {
+    const kids = index.frontMatterKeys(["crossref"]);
+    expect(kids.map((f) => f.name)).toContain("chapters");
+    const chapters = kids.find((f) => f.name === "chapters");
+    expect(chapters?.valuesClosed, "chapters is a provably-closed boolean child").toBe(true);
+  });
+
+  it("serves another container's annotated children (`editor` → closed `mode` enum)", () => {
+    const mode = index.frontMatterKeys(["editor"]).find((f) => f.name === "mode");
+    expect(mode?.valuesClosed, "editor.mode is a closed enum[source,visual]").toBe(true);
+    expect(mode?.values).toEqual(["source", "visual"]);
+  });
+
+  it("returns [] for a scalar top-level field with no object children (`toc`)", () => {
+    expect(index.frontMatterKeys(["toc"])).toEqual([]);
+  });
+
+  it("returns [] for an unknown top-level key", () => {
+    expect(index.frontMatterKeys(["definitely-not-a-front-matter-key"])).toEqual([]);
+  });
+
+  it("does NOT shadow the `execute` length-1 branch (still the curated execute set)", () => {
+    expect(index.frontMatterKeys(["execute"]).map((f) => f.name)).toEqual(
+      CURATED_EXECUTE_KEYS.map((f) => f.name),
+    );
+  });
+
+  it("does NOT shadow the `format` length-1 branch (still the reader-derived format names)", () => {
+    const names = index.frontMatterKeys(["format"]).map((f) => f.name);
+    expect(names).toContain("html");
+    expect(names).toContain("revealjs");
+    // `format` IS a top-level field (epub-scoped string, no children); the general
+    // branch would return [] for it — proving the format branch runs FIRST.
+    expect(names).not.toEqual([]);
+  });
+});
+
 describe("parseSchemaIndex — format-name extraction (6d-6 cont.)", () => {
   const index = parseSchemaIndex(FIXTURE);
   const formatNames = index.frontMatterKeys(["format"]).map((f) => f.name);
