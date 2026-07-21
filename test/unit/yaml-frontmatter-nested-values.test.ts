@@ -217,4 +217,17 @@ describe("findNestedFrontMatterValueLines — multi-line QUOTED scalars (review 
     const text = ["---", "execute:", '  echo: "fenced"', "  eval: banana", "---"].join("\n");
     expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["echo", "eval"]);
   });
+
+  // Regression guard for the L4 §9-review primary risk (Session 132, other-container slice):
+  // the multi-line quoted fold class (cases d/e/f above) must hold under a NEWLY-VALIDATED
+  // container too, not just execute:/format:. crossref.fig-title(open) opens an unterminated
+  // double-quoted scalar whose continuation reads `chapters: banana` at the SAME indent —
+  // quarto folds both lines into ONE fig-title string (exit 0, grounded firsthand) so the
+  // closed sibling crossref.chapters must NOT be enumerated and flagged. Both the author's
+  // sweep and a fresh 4-lens adversarial review found ZERO FPs; this locks the container-
+  // agnostic scanFlow guard so a future regression is caught on the new surface.
+  it("(g) does NOT emit a closed sibling inside a multi-line quoted scalar under a NEW container (crossref)", () => {
+    const text = ["---", "crossref:", '  fig-title: "Big caption', '  chapters: banana inside the quote"', "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["fig-title"]);
+  });
 });
