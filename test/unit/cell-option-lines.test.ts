@@ -206,3 +206,52 @@ describe("findCellOptionLines — Quarto-faithful prefix matching", () => {
     expect(opt.keySlot).toEqual({ startCol: 5, endCol: 9 }); // "echo" after "#  | "
   });
 });
+
+describe("findCellOptionLines — multi-line QUOTED / flow values (adversarial review, S130)", () => {
+  // Quarto folds every `#|` line of a cell into ONE YAML block, so a multi-line
+  // quoted scalar's continuation `#|` line is INSIDE the value, not a new option.
+  // Emitting it would let value-diagnostics flag e.g. `#| fig-height: wide"` (a
+  // numeric cell option) on a doc quarto renders exit 0 — a cardinal-sin FP the
+  // numeric slice made live for fig-width/fig-height/layout-ncol.
+  it("does NOT emit a `#|` continuation line inside a multi-line DOUBLE-quoted value", () => {
+    const text = [
+      "```{r}",
+      '#| fig-cap: "a caption that wraps',
+      '#| fig-height: wide"',
+      "1 + 1",
+      "```",
+    ].join("\n");
+    // Only the fig-cap line (line 1) is a real option; line 2 is its continuation.
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("resumes option detection on the `#|` line AFTER the closing quote", () => {
+    const text = [
+      "```{r}",
+      '#| fig-cap: "a',
+      '#| b"',
+      "#| echo: false",
+      "1 + 1",
+      "```",
+    ].join("\n");
+    // fig-cap (1) opens, line 2 (`b"`) closes it, echo (3) is a real option again.
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 3]);
+  });
+
+  it("does NOT emit a `#|` continuation line inside a multi-line FLOW collection", () => {
+    const text = [
+      "```{r}",
+      "#| fig-subcap: [one,",
+      "#| fig-height: 3]",
+      "1 + 1",
+      "```",
+    ].join("\n");
+    // fig-subcap opens `[`; the `#| fig-height: 3]` line is its continuation.
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("still emits a normal option after a single-line quoted value (no over-suppression)", () => {
+    const text = ["```{r}", '#| fig-cap: "a short caption"', "#| fig-width: 3", "1 + 1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+});

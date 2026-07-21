@@ -527,9 +527,26 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
   const result: CellOptionLine[] = [];
   for (const cell of findAllCells(text)) {
     const bodyLines = cell.code.length === 0 ? [] : cell.code.split("\n");
+    // Track an unclosed multi-line value across the cell's `#|` lines: quarto folds
+    // every `#|` line into ONE YAML block, so the continuation of a multi-line quoted
+    // scalar / flow collection is INSIDE the prior option's value, NOT a new option.
+    // Emitting it would let value-diagnostics flag e.g. `#| fig-height: wide"` inside a
+    // multi-line `#| fig-cap: "…"` — a cardinal-sin false positive on a doc quarto renders
+    // exit 0 (adversarial review, S130). A non-`#|` (code) line ends the option block.
+    let flowDepth = 0;
+    let openQuote: '"' | "'" | null = null;
     bodyLines.forEach((lineText, j) => {
       const m = CELL_OPTION_PREFIX.exec(lineText);
       if (m === null) {
+        flowDepth = 0; // a code line ends any multi-line option value
+        openQuote = null;
+        return;
+      }
+      if (flowDepth > 0 || openQuote !== null) {
+        // A continuation of a multi-line quoted/flow value on a prior `#|` line — skip it.
+        const s = scanFlow(m[4], flowDepth, openQuote);
+        flowDepth = Math.max(0, s.depth);
+        openQuote = s.quote;
         return;
       }
       // keyStart = comment chars + inter-pipe ws + the `|` + the gap before the key.
@@ -542,6 +559,11 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
         keySlot,
         valueSlot,
       });
+      // Arm the continuation-skip if THIS option opens an unclosed quoted scalar / flow
+      // collection — scanned over the whole post-prefix content (a key holds no quote/bracket).
+      const s = scanFlow(m[4], 0, null);
+      flowDepth = s.depth > 0 ? s.depth : 0;
+      openQuote = s.quote;
     });
   }
   return result;
@@ -590,6 +612,79 @@ function slotsOf(
     keySlot,
     valueSlot: { startCol: valueStart, endCol: valueStart + valueText.length },
   };
+}
+
+/** The unclosed-value state after scanning a line: net flow-bracket depth + any open quote. */
+export interface FlowState {
+  depth: number;
+  quote: '"' | "'" | null;
+}
+
+/**
+ * Advance the multi-line-value state across `s`, starting from `startDepth`/`startQuote`,
+ * and return the resulting `{depth, quote}`. Tracks BOTH an unclosed FLOW collection
+ * (`{…}`/`[…]`, net-counted) and an unterminated single/double-QUOTED scalar, together —
+ * because they nest: a bracket inside a quote is literal (not counted), and a quote opened
+ * inside a flow persists across lines. A multi-line quoted scalar folds its continuation
+ * line into the value even when that continuation sits at COLUMN 0, so the top-level and
+ * nested front-matter value enumerators AND `findCellOptionLines` all use this to skip
+ * continuation lines — else a continuation like `columns: wide"` (front matter) or a `#|`
+ * line `fig-height: wide"` (cell option) is misread as an independent mapping and flagged,
+ * a cardinal-sin false positive on a document quarto renders exit 0 (adversarial reviews
+ * S125 flow-shapes / S128 nested quoted-scalar / S130 top-level + cell quoted-scalar).
+ *
+ * A `\`-escaped char inside a double-quoted scalar and a `''` inside a single-quoted one are
+ * consumed, so a quoted bracket never miscounts and an embedded quote never closes early. An
+ * unquoted `#` (at the start or whitespace-preceded, OUTSIDE any quote) begins a YAML comment:
+ * scanning stops there — biasing toward NOT dropping depth on a `}` hidden in a comment (a safe
+ * over-skip). Node properties (`&anchor`/`*alias`/`!tag`) contain no brackets, so they
+ * contribute 0 automatically; scanning the WHOLE token is therefore node-property-aware.
+ * Over-skipping when ambiguous (a stray brace/quote in a plain scalar) is the safe
+ * false-negative direction. Quote-AWARE — deliberately NOT a naive bracket-only counter.
+ *
+ * Lives here (the lowest-level `qmd/model` module) so `findCellOptionLines` can use it
+ * without an import cycle through `yaml-context` (which imports this module).
+ */
+export function scanFlow(s: string, startDepth: number, startQuote: '"' | "'" | null): FlowState {
+  let depth = startDepth;
+  let quote = startQuote;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (quote === '"') {
+      if (ch === "\\") {
+        i++; // consume the escaped character (e.g. `\"`, `\\`)
+        continue;
+      }
+      if (ch === '"') {
+        quote = null;
+      }
+      continue;
+    }
+    if (quote === "'") {
+      if (ch === "'") {
+        if (s[i + 1] === "'") {
+          i++; // `''` is an escaped single quote — stay inside the scalar
+          continue;
+        }
+        quote = null;
+      }
+      continue;
+    }
+    // Outside quotes.
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+    if (ch === "#" && (i === 0 || /\s/.test(s[i - 1]))) {
+      break; // an unquoted comment — the rest is not structure
+    }
+    if (ch === "{" || ch === "[") {
+      depth++;
+    } else if (ch === "}" || ch === "]") {
+      depth--;
+    }
+  }
+  return { depth, quote };
 }
 
 /**

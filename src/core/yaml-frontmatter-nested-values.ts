@@ -33,8 +33,8 @@
  * (plan §3.3 footgun, §11 dragon 2).
  */
 
-import { findFrontMatter, frontMatterContentLines } from "./qmd/model";
-import { leadingWsLen, nestedParentPath, scanFlow, valueSlotAfterColon } from "./yaml-context";
+import { findFrontMatter, frontMatterContentLines, scanFlow } from "./qmd/model";
+import { leadingWsLen, nestedParentPath, valueSlotAfterColon } from "./yaml-context";
 
 /** One nested (indented) front-matter line that carries a non-empty scalar value. */
 export interface NestedFrontMatterValueLine {

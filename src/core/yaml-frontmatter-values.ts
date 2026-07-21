@@ -18,8 +18,8 @@
  * line, and a no-colon line are all skipped: they have no scalar value to check.
  */
 
-import { findFrontMatter, frontMatterContentLines } from "./qmd/model";
-import { scanFlow, topLevelSlots } from "./yaml-context";
+import { findFrontMatter, frontMatterContentLines, scanFlow } from "./qmd/model";
+import { topLevelSlots } from "./yaml-context";
 
 /** One top-level front-matter line that carries a non-empty scalar value. */
 export interface FrontMatterValueLine {
