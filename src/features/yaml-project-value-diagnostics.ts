@@ -28,7 +28,12 @@
  */
 
 import * as vscode from "vscode";
-import { findProjectConfigValueLines, isProjectConfigFileName } from "../core/project-yaml";
+import {
+  findProjectConfigValueLines,
+  isProjectConfigFileName,
+  type ProjectConfigValueLine,
+} from "../core/project-yaml";
+import type { SchemaField } from "../core/yaml-schema";
 import { isWrongValue, valueMessage } from "../core/yaml-value-check";
 import {
   createDebouncedDiagnosticsFeature,
@@ -63,6 +68,27 @@ function isProjectConfigDocument(document: vscode.TextDocument): boolean {
  * cannot throw or slice shifted content; the next debounced pass supersedes it
  * (generation-guard discipline, S124).
  */
+/**
+ * Resolve a value line to the annotated `SchemaField` it should be checked against,
+ * BY PATH (depth-2 value plan §3.2 C). `path=[]` → a depth-1 child; `path=[parent]` →
+ * that parent's grandchild (`.children`, populated by the L1 reader). Depth-3+ never
+ * enumerates (`path.length >= 2` is defensive). Path resolution is mandatory — a bare
+ * `key` lookup would collide a valid grandchild (`book.cookie-consent.type`) with a
+ * closed depth-1 enum of the same name (`book.type` CSL), a cardinal-sin FP (dragon 3).
+ */
+function resolveProjectValueField(
+  fields: SchemaField[],
+  entry: ProjectConfigValueLine,
+): SchemaField | undefined {
+  if (entry.path.length === 0) {
+    return fields.find((f) => f.name === entry.key);
+  }
+  if (entry.path.length === 1) {
+    return fields.find((f) => f.name === entry.path[0])?.children?.find((c) => c.name === entry.key);
+  }
+  return undefined;
+}
+
 async function computeProjectValueDiagnostics(
   document: vscode.TextDocument,
   { source, isCurrent }: DiagnosticsComputeContext,
@@ -79,18 +105,13 @@ async function computeProjectValueDiagnostics(
   }
   const diagnostics: vscode.Diagnostic[] = [];
   for (const entry of valueLines) {
-    // L2 INERT GUARD (depth-2 value plan §4.1 L2): the enumerator now emits DEPTH-2
-    // grandchildren (`path=[child]`) too, but the feature stays depth-1-only until L3
-    // flips this line to real path-aware resolution. Skipping `path.length !== 0` here
-    // guarantees inertness even where a grandchild name collides with a closed depth-1
-    // field (which would otherwise flag prematurely at this checkpoint).
-    if (entry.path.length !== 0) {
-      continue;
-    }
-    // Resolve the child against its OWN container's super-merged field set. An
-    // unknown key (never flagged — the KEY feature's territory), an open field
-    // (`isWrongValue`'s `valuesClosed` precondition fails), or a valid value all skip.
-    const field = index.projectFields(entry.container).find((f) => f.name === entry.key);
+    // Resolve BY PATH against the container's super-merged field set (depth-2 value
+    // plan §3.2 C) — NEVER by bare `key`: a grandchild name can collide with a CLOSED
+    // depth-1 field (`book.type` CSL enum vs `book.cookie-consent.type`), where bare-name
+    // resolution would be a cardinal-sin FP, not merely a miss (§7.5/dragon 3). An
+    // unknown key/path (the KEY feature's territory), an open field (`isWrongValue`'s
+    // `valuesClosed` precondition fails), or a valid value all skip.
+    const field = resolveProjectValueField(index.projectFields(entry.container), entry);
     if (field === undefined || !isWrongValue(entry.rawToken, field)) {
       continue;
     }

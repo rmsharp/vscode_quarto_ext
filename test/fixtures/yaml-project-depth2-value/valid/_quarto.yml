@@ -1,0 +1,26 @@
+project:
+  preview:
+    browser: true
+    navigate: false
+
+website:
+  navbar:
+    collapse-below: lg
+    pinned: true
+    title: "My Site"
+    background: primary
+  search:
+    location: navbar
+    limit: 20
+  google-analytics:
+    tracking-id: G-XYZ
+    version: 3.0
+  sidebar:
+    style: docked
+
+book:
+  cookie-consent:
+    type: express
+  navbar:
+    title: "a long navbar title that wraps
+    collapse-below: not-a-real-value here"

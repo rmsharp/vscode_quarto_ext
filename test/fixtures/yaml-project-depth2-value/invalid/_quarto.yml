@@ -1,0 +1,18 @@
+project:
+  preview:
+    browser: nope
+
+website:
+  navbar:
+    collapse-below: banana
+  sidebar:
+    style: dock
+  search:
+    location: x
+    limit: banana
+  cookie-consent:
+    type: y
+
+book:
+  sidebar:
+    alignment: z
