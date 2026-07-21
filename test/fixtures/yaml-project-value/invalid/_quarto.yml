@@ -1,0 +1,11 @@
+project:
+  type: whatever
+  execute-dir: banana
+
+website:
+  draft-mode: hidden
+  repo-actions: fork
+
+book:
+  downloads: mobi
+  sharing: mastodon

@@ -1,0 +1,16 @@
+project:
+  execute-dir: project
+  output-dir: _site
+
+website:
+  draft-mode: gone
+  reader-mode: true
+  back-to-top-navigation: false
+  repo-actions: [edit, source]
+  title: "a long site title that wraps
+    draft-mode: not-a-real-value here"
+
+book:
+  downloads: [pdf, epub]
+  sharing: twitter
+  type: book
