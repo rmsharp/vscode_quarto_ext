@@ -131,3 +131,29 @@ function unquote(token: string): string {
   }
   return token;
 }
+
+/**
+ * The Error message for a wrong value — grounded on the FACT of Quarto's error,
+ * not its exact expected-list wording (plan §3.4). Lists the closed set's valid
+ * values; a boolean-accepting field is phrased as `true` or `false`.
+ *
+ * Lives in the pure core (relocated from `features/yaml-value-diagnostics.ts`,
+ * Session 135) so BOTH the document-surface value feature AND the `_quarto.yml`
+ * project-config value feature import ONE message function (plan §3.2 C / §11 dragon 9).
+ */
+export function valueMessage(rawToken: string, key: string, field: SchemaField): string {
+  // Numeric arm FIRST (numeric plan §3.4, dragon #9): curated `daemon` carries BOTH
+  // `scalarType:"number"` and `values:[true,false]`+`acceptsBoolean`, so it would
+  // satisfy the acceptsBoolean-enum branch below and mis-message `daemon: banana` as
+  // "expected true or false" (omitting number). Dispatch on `scalarType` first.
+  if (field.scalarType === "number") {
+    return field.acceptsBoolean
+      ? `Value ${rawToken} is not valid for "${key}" — expected a number or true or false.`
+      : `Value ${rawToken} is not valid for "${key}" — expected a number.`;
+  }
+  const values = field.values ?? [];
+  if (field.acceptsBoolean && values.every((v) => v === "true" || v === "false")) {
+    return `Value ${rawToken} is not valid for "${key}" — expected true or false.`;
+  }
+  return `Value ${rawToken} is not valid for "${key}" — expected one of: ${values.join(", ")}.`;
+}

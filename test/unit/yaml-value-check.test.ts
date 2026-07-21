@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isWrongValue } from "../../src/core/yaml-value-check";
+import { isWrongValue, valueMessage } from "../../src/core/yaml-value-check";
 import type { SchemaField } from "../../src/core/yaml-schema";
 
 /**
@@ -242,5 +242,37 @@ describe("isWrongValue — non-scalar and empty tokens are skipped", () => {
     expect(isWrongValue("*a", boolField), "*a (alias)").toBe(false);
     expect(isWrongValue("&w none", enumField), "&w none (anchor on a string enum)").toBe(false);
     expect(isWrongValue("*ref", enumField), "*ref (alias on a string enum)").toBe(false);
+  });
+});
+
+describe("valueMessage — the wrong-value Error text (relocated to the pure core, plan §3.2 C / §11 dragon 9)", () => {
+  it("phrases a closed string enum as 'expected one of: …'", () => {
+    expect(valueMessage("banana", "code-overflow", enumField)).toBe(
+      'Value banana is not valid for "code-overflow" — expected one of: scroll, wrap.',
+    );
+  });
+
+  it("phrases a pure-boolean field as 'expected true or false'", () => {
+    expect(valueMessage("maybe", "toc", boolField)).toBe(
+      'Value maybe is not valid for "toc" — expected true or false.',
+    );
+  });
+
+  it("phrases a boolean-accepting field that ALSO has an enum arm with 'expected one of' (echo), not the bare boolean phrasing", () => {
+    expect(valueMessage("banana", "echo", echoField)).toBe(
+      'Value banana is not valid for "echo" — expected one of: true, false, fenced.',
+    );
+  });
+
+  it("phrases a numeric field as 'expected a number' (scalarType dispatched FIRST, numeric plan §3.4)", () => {
+    expect(valueMessage("wide", "fig-width", numField)).toBe(
+      'Value wide is not valid for "fig-width" — expected a number.',
+    );
+  });
+
+  it("phrases a number-OR-boolean field as 'expected a number or true or false' (daemon)", () => {
+    expect(valueMessage("banana", "daemon", numBoolField)).toBe(
+      'Value banana is not valid for "daemon" — expected a number or true or false.',
+    );
   });
 });
