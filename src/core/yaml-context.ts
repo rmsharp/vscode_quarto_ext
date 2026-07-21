@@ -346,8 +346,11 @@ function nearestShallowerLine(
 }
 
 /**
- * Front-matter mapping keys whose children are completed one level deep (Slice
- * 6d-6). Two containers in v1:
+ * Front-matter mapping keys whose children are validated/completed one level deep
+ * (Slice 6d-6, widened by the other-container value slice — plan §3.2). `execute`
+ * and `format` are the two SPECIAL-CASED containers (their `frontMatterKeys` reader
+ * branches differ); the other 15 (listed in the set below) resolve through the
+ * general length-1 reader branch. The two special cases:
  *   - `execute` — its child KEYS and their VALUES come from a curated set (the
  *     live schema assembles the execute object across multiple files — deferred).
  *   - `format` — its child keys are FORMAT NAMES (`html`, `pdf`, `revealjs`, …),
@@ -364,7 +367,32 @@ function nearestShallowerLine(
  * resolves one object level under a format option and returns nothing deeper
  * (depth-4+ is the deferred residue, b2-iii-deep).
  */
-const NESTED_CONTAINERS = new Set<string>(["execute", "format"]);
+const NESTED_CONTAINERS = new Set<string>([
+  "execute",
+  "format",
+  // Other-container value validation (plan §3.2 change B): 15 top-level object
+  // containers grounded firsthand (`quarto render` 1.7.33) to carry ≥1 provably-closed
+  // one-level child (plan §2.2). The reader's general length-1 branch already resolves
+  // their annotated `.children`; THIS gate is the single source of truth for which
+  // containers the nested enumerator + completion detector descend into. Grounded OUT
+  // and deliberately absent: `website`/`book`/`project` (an `_quarto.yml` project-config
+  // surface, not `.qmd` front matter) and `brand`/`jupyter` (no closed one-level child).
+  "about",
+  "code-tools",
+  "crossref",
+  "editor",
+  "identifier",
+  "ibooks",
+  "grid",
+  "lightbox",
+  "notebook-preview-options",
+  "listing",
+  "mermaid",
+  "html-math-method",
+  "menu",
+  "chalkboard",
+  "scroll-view",
+]);
 
 export type Slot = { startCol: number; endCol: number };
 

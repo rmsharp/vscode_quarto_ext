@@ -70,10 +70,36 @@ describe("findNestedFrontMatterValueLines — bounded / structural (never a fals
     ]);
   });
 
-  it("returns [] when the enclosing structure is not one we resolve (a non-format column-0 root)", () => {
-    // `crossref:` is NOT in NESTED_CONTAINERS, so nestedParentPath returns null → skipped
-    // (a documented safe false negative, plan §4.3).
+  it("returns [] when the enclosing structure is not one we resolve (a non-listed column-0 root)", () => {
+    // `website:` is a PROJECT-config container grounded OUT of NESTED_CONTAINERS (plan §2.2
+    // — an `_quarto.yml` surface, not `.qmd` front matter), so nestedParentPath returns null
+    // → skipped (a documented safe false negative). This guards that the L2 widening did NOT
+    // become "descend into every container".
+    const text = ["---", "website:", "  title: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([]);
+  });
+});
+
+describe("findNestedFrontMatterValueLines — other closed containers (L2 go-live, plan §3.2 change B)", () => {
+  it("emits a one-level child under `crossref` (a non-format container newly in NESTED_CONTAINERS)", () => {
     const text = ["---", "crossref:", "  chapters: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 2, parentPath: ["crossref"], key: "chapters", valueRange: { startCol: 12, endCol: 18 }, rawToken: "banana" },
+    ]);
+  });
+
+  it("emits a one-level child under another container (`editor`), proving it is not crossref-specific", () => {
+    const text = ["---", "editor:", "  mode: wysiwyg", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 2, parentPath: ["editor"], key: "mode", valueRange: { startCol: 8, endCol: 15 }, rawToken: "wysiwyg" },
+    ]);
+  });
+
+  it("BAILS at a 2-level descent under a non-format container (the deeper climb is format-root only)", () => {
+    // `nestedParentPath` climbs to the column-0 root and returns the path only when that root
+    // is `format:` (yaml-context.ts:277). Under `crossref:` the 2-level `bar:` line bails →
+    // not emitted (a documented safe false negative, plan §2.3 — deeper nesting deferred).
+    const text = ["---", "crossref:", "  sub:", "    bar: baz", "---"].join("\n");
     expect(findNestedFrontMatterValueLines(text)).toEqual([]);
   });
 });
