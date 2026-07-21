@@ -475,7 +475,10 @@ bucket.)**
   (`navbar.collapse-below`/`sidebar.style`/`search.location`/`search.limit`/`cookie-consent.type`/
   `project.preview.browser`/…; Session 137, website + book via `super base-website`), AND NUMERIC-typed values on every one of
   those surfaces (`fig-width: wide`, `columns: fat`, `execute.daemon: banana`, a cell `#| layout-ncol: two`;
-  Session 130) — empirically the regions safe to flag without false positives (see `BACKLOG.md`'s
+  Session 130), AND numeric-MEMBER enums by COERCED value (`aspectratio` document front matter incl. nested
+  `format.beamer`, `google-analytics.version` under website + book; Session 139 — the shared matcher now
+  compares `169.0`≡`169`/`3.0`≡`3` numerically, removing ≥3 live `aspectratio` false positives and restoring
+  `version` validation) — empirically the regions safe to flag without false positives (see `BACKLOG.md`'s
   "Polish / deferred" for known false-negative edge cases). The remaining gap on our side is narrower
   still: `.ipynb` cell/front-matter values, the DEEPER `_quarto.yml`-config container values
   (depth-3+ under `navbar:`/`sidebar:`/`search:`, sequence-form navbar/sidebar items, and `execute:`/`format:` document keys placed in
@@ -817,7 +820,10 @@ can do" scope, included for completeness rather than as a strict real-gap claim.
    wrong closed values one level under `project:`/`website:`/`book:` (`draft-mode`/`downloads`/`sharing`/
    `repo-actions`/`execute-dir`/…); Session 137 extends it one level deeper — wrong closed GRANDCHILD values two
    levels under those blocks (`navbar.collapse-below`/`sidebar.style`/`search.location`/`cookie-consent.type`/
-   `project.preview.browser`/…; all SHIPPED). Only `.ipynb`, the DEEPER `_quarto.yml`-config values
+   `project.preview.browser`/…; all SHIPPED); Session 139 corrects numeric-MEMBER enums (`aspectratio`,
+   `google-analytics.version`) to validate by COERCED numeric value on both the document and project
+   surfaces — removing ≥3 live `aspectratio` false positives (`169.0`/`+169`/`0169`) and restoring
+   `version` validation (`version: 5` now flagged, `3.0`≡`3` accepted). Only `.ipynb`, the DEEPER `_quarto.yml`-config values
    (depth-3+ and `execute:`/`format:` document keys in `_quarto.yml`), and integer-typed pandoc-layer rejections remain open;
    unknown front-matter/cell KEYS stay intentionally unflagged (open schemas). Built on the existing schema reader (`src/core/yaml-schema.ts`).
 2. ~~Snippets~~ — **SHIPPED Session 53** (`BACKLOG.md` item #5): `snippets/quarto.json`, 13 snippets,
