@@ -1275,9 +1275,55 @@ function projectFieldsFromProperties(
     }
     annotateClosedness(field, schema, definitions);
     annotateScalarType(field, schema, definitions);
+    // Depth-2 (b2-iii-deep / depth-2 value plan §3.2 A): resolve this field's
+    // grandchildren one object level deep via the EXISTING `objectChildren` — the
+    // same anyOf-aware machinery the DOCUMENT surface uses. No `super` is needed at
+    // depth-2 (§2.4, grounded 0-mismatch): the container-level super already merged
+    // the depth-1 CHILDREN into `properties`, and each child's grandchildren come from
+    // its own object/anyOf. A scalar/enum field resolves no properties → `[]` → no
+    // `.children`. Each grandchild is then run through the numeric-member-enum-OPEN
+    // guard to neutralize the coercion cardinal-sin (§3.2 A).
+    const children = objectChildren(schema, definitions, 0, new Set());
+    if (children.length > 0) {
+      for (const child of children) {
+        openNumericMemberEnum(child);
+      }
+      field.children = children;
+    }
     fields.push(field);
   }
   return fields;
+}
+
+/** A YAML-coercible numeric scalar (`3`, `3.0`, `+4`, `.5`, `3e0`) — the coercion set §2.1. */
+const NUMERIC_LITERAL = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
+
+/**
+ * The numeric-member-enum-OPEN guard (depth-2 value plan §3.2 A / §2.1). A closed
+ * enum whose MEMBERS are numeric literals cannot be safely validated by the shared
+ * STRING-membership `isWrongValue`, because quarto COERCES YAML numerics before
+ * matching: `google-analytics.version: 3.0` ≡ `3` renders exit 0, yet
+ * `"3.0" ∉ ["3","4"]` — flagging it would be a cardinal-sin false positive (grounded
+ * firsthand, the §9 review's HIGH). So we unset `valuesClosed` on any grandchild
+ * whose closed value set contains a numeric literal, leaving it a documented safe
+ * false negative (`version` is simply never flagged — §2.3). Numeric-TYPED
+ * grandchildren (`search.limit`, `scalarType:"number"`) are UNAFFECTED: they carry no
+ * enum `values`, and the matcher's numeric branch coerces correctly.
+ *
+ * Scoped deliberately to the depth-2 project reader — NOT the shared
+ * `annotateClosedness`/`isWrongValue`, which the document/cell surfaces share (the
+ * same latent property exists there via `aspectratio`, filed as the deferred general
+ * fix, plan §4.3). Mutates in place (grandchildren are fresh objects from
+ * `objectChildren`).
+ */
+function openNumericMemberEnum(field: SchemaField): void {
+  if (
+    field.valuesClosed === true &&
+    field.values !== undefined &&
+    field.values.some((v) => NUMERIC_LITERAL.test(v))
+  ) {
+    field.valuesClosed = undefined;
+  }
 }
 
 /**

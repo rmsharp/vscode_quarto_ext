@@ -444,6 +444,18 @@ const PROJECT_FIELDS_FIXTURE = JSON.stringify({
             // so this MUST stay OPEN even though `values` is non-empty (the cardinal sin).
             type: { string: { completions: ["default", "website", "book"] } },
             "output-dir": "string",
+            // A depth-2 object child (b2-iii-deep / depth-2 value plan §3.2 A): its
+            // grandchildren are three closed booleans — the reader must populate
+            // `.children` via `objectChildren`, one level deep.
+            preview: {
+              object: {
+                properties: {
+                  browser: "boolean",
+                  navigate: "boolean",
+                  "watch-inputs": "boolean",
+                },
+              },
+            },
           },
         },
       },
@@ -468,6 +480,47 @@ const PROJECT_FIELDS_FIXTURE = JSON.stringify({
           "draft-mode": { enum: ["visible", "unlinked", "gone"] }, // closed enum
           "reader-mode": "boolean", // closed boolean
           "repo-actions": { maybeArrayOf: { enum: ["none", "edit", "source", "issue"] } },
+          // Depth-2 object children (depth-2 value plan §2.2): each grandchild is
+          // annotated one level deep by `objectChildren`. navbar exercises a closed
+          // enum + bool + the two OPEN-with-values traps (title anyOf/open-string,
+          // background string:{completions}); sidebar a closed enum reached via book's
+          // super; search the numeric-TYPED grandchildren; google-analytics the
+          // numeric-MEMBER enum (`version` — left OPEN by the reader guard, §3.2 A).
+          navbar: {
+            object: {
+              properties: {
+                "collapse-below": { enum: ["sm", "md", "lg"] }, // closed enum grandchild
+                pinned: "boolean", // closed boolean grandchild
+                title: "string", // OPEN grandchild (the depth-2 cardinal-sin trap)
+                background: { string: { completions: ["primary", "dark"] } }, // OPEN (completions are hints)
+              },
+            },
+          },
+          sidebar: {
+            object: {
+              properties: {
+                style: { enum: ["docked", "floating"] },
+                alignment: { enum: ["left", "right", "center"] },
+              },
+            },
+          },
+          search: {
+            object: {
+              properties: {
+                location: { enum: ["navbar", "sidebar"] }, // closed enum
+                limit: "number", // numeric-TYPED grandchild (scalarType:"number")
+                "collapse-after": "number", // numeric-TYPED grandchild
+              },
+            },
+          },
+          "google-analytics": {
+            object: {
+              properties: {
+                version: { enum: ["3", "4"] }, // numeric-MEMBER enum — MUST be left OPEN (§3.2 A)
+                "anonymize-ip": "boolean",
+              },
+            },
+          },
         },
       },
     },
@@ -659,13 +712,106 @@ describe("parseSchemaIndex — projectFields: annotated project-config child fie
     expect(CURATED_SCHEMA_INDEX.projectFields("book")).toEqual([]);
   });
 
-  it("does NOT regress projectKeys — keeping each property's schema leaves the name set byte-identical (plan §7.7)", () => {
-    expect(index.projectKeys("project")).toEqual(new Set(["execute-dir", "type", "output-dir"]));
+  it("populates `.children` on an object-valued child, annotating each grandchild one level deep (depth-2 value plan §3.2 A)", () => {
+    const navbar = index.projectFields("website").find((f) => f.name === "navbar");
+    expect(navbar?.children, "navbar is an object child — its grandchildren resolve").toBeDefined();
+    const byName = new Map((navbar?.children ?? []).map((c) => [c.name, c]));
+    // a closed enum grandchild is flaggable
+    expect(byName.get("collapse-below")?.valuesClosed).toBe(true);
+    expect(byName.get("collapse-below")?.values).toEqual(["sm", "md", "lg"]);
+    // a closed boolean grandchild is flaggable
+    expect(byName.get("pinned")?.valuesClosed).toBe(true);
+    // the OPEN-with-values traps are NEVER closed (no cardinal-sin FP, §2.3 / dragon 4)
+    expect(byName.get("title")?.valuesClosed, "navbar.title is an open string trap").toBeUndefined();
+    expect(
+      byName.get("background")?.valuesClosed,
+      "navbar.background is string:{completions} — a hint, never closed",
+    ).toBeUndefined();
+  });
+
+  it("annotates numeric-TYPED grandchildren (search.limit/collapse-after) as scalarType number, alongside a closed enum sibling (location)", () => {
+    const search = index.projectFields("website").find((f) => f.name === "search");
+    const byName = new Map((search?.children ?? []).map((c) => [c.name, c]));
+    expect(byName.get("limit")?.scalarType).toBe("number");
+    expect(byName.get("collapse-after")?.scalarType).toBe("number");
+    expect(byName.get("location")?.valuesClosed).toBe(true);
+    expect(byName.get("location")?.values).toEqual(["navbar", "sidebar"]);
+  });
+
+  it("resolves project.preview's three closed-boolean grandchildren", () => {
+    const preview = index.projectFields("project").find((f) => f.name === "preview");
+    const byName = new Map((preview?.children ?? []).map((c) => [c.name, c]));
+    expect(byName.get("browser")?.valuesClosed).toBe(true);
+    expect(byName.get("navigate")?.valuesClosed).toBe(true);
+    expect(byName.get("watch-inputs")?.valuesClosed).toBe(true);
+  });
+
+  it("resolves book's super-merged grandchildren — sidebar.style is closed via the base-website super hop (no `super` needed at depth-2, §2.4)", () => {
+    const sidebar = index.projectFields("book").find((f) => f.name === "sidebar");
+    const style = (sidebar?.children ?? []).find((c) => c.name === "style");
+    expect(style?.valuesClosed, "book.sidebar.style merges in via container-level super").toBe(true);
+    expect(style?.values).toEqual(["docked", "floating"]);
+  });
+
+  it("leaves a numeric-MEMBER enum grandchild (google-analytics.version enum[3,4]) OPEN — quarto coerces 3.0≡3, so string-membership would false-positive (the §9-caught cardinal sin, §3.2 A / dragon 11)", () => {
+    const ga = index.projectFields("website").find((f) => f.name === "google-analytics");
+    const byName = new Map((ga?.children ?? []).map((c) => [c.name, c]));
+    const version = byName.get("version");
+    expect(version, "version is a recognized grandchild").toBeDefined();
+    expect(version?.values, "its enum members are still resolved (just not treated as closed)").toEqual([
+      "3",
+      "4",
+    ]);
+    expect(
+      version?.valuesClosed,
+      "a numeric-member enum must be left open — never string-matched (cardinal-sin coercion FP)",
+    ).toBeUndefined();
+    // a NON-numeric enum sibling stays closed (the guard is scoped to numeric members only)
+    const anonymize = byName.get("anonymize-ip");
+    expect(anonymize?.valuesClosed, "a boolean grandchild is unaffected by the guard").toBe(true);
+    // book inherits the same guarded grandchild via super
+    const bookVersion = index
+      .projectFields("book")
+      .find((f) => f.name === "google-analytics")
+      ?.children?.find((c) => c.name === "version");
+    expect(bookVersion?.valuesClosed, "book.google-analytics.version is guarded too (super-merged)").toBeUndefined();
+  });
+
+  it("gives a scalar/enum depth-1 field no `.children` (depth cap — one object level only)", () => {
+    const draftMode = index.projectFields("website").find((f) => f.name === "draft-mode");
+    expect(draftMode?.children, "a scalar enum field resolves no grandchildren").toBeUndefined();
+  });
+
+  it("does NOT regress projectKeys — populating `.children` leaves the depth-1 name set byte-identical (plan §7.7); object-valued children (navbar/search/…) are themselves depth-1 keys", () => {
+    expect(index.projectKeys("project")).toEqual(
+      new Set(["execute-dir", "type", "output-dir", "preview"]),
+    );
     expect(index.projectKeys("website")).toEqual(
-      new Set(["title", "draft-mode", "reader-mode", "repo-actions"]),
+      new Set([
+        "title",
+        "draft-mode",
+        "reader-mode",
+        "repo-actions",
+        "navbar",
+        "sidebar",
+        "search",
+        "google-analytics",
+      ]),
     );
     expect(index.projectKeys("book")).toEqual(
-      new Set(["downloads", "title", "draft-mode", "reader-mode", "repo-actions", "type", "DOI"]),
+      new Set([
+        "downloads",
+        "title",
+        "draft-mode",
+        "reader-mode",
+        "repo-actions",
+        "type",
+        "DOI",
+        "navbar",
+        "sidebar",
+        "search",
+        "google-analytics",
+      ]),
     );
   });
 });
