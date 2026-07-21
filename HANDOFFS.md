@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S139
+date: 2026-07-21
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD, vertical slice). Implement docs/planning/2026-07-21-numeric-member-enum-matcher-fix-plan.md — the GENERAL numeric-member-enum matcher fix (cross-surface, isWrongValue). §4 gate-(a) contract, 4 checkpoint-committed layers: L1 (SchemaField.numericMemberEnum? + numeric-equality branch in isWrongValue gated on it [INERT] + unit truth-table incl. the NaN-underscore RED row 4_3=43) -> L2 (extend closednessOfSchema/annotateClosedness to set the bit from JS member-TYPE detection; DOCUMENT-surface aspectratio go-live) -> L3 (DELETE openNumericMemberEnum + call + orphaned NUMERIC_LITERAL; PROJECT-surface version go-live + fixtures both aspectratio reachabilities + version:5 + integration) -> L4 (MANDATORY §9 adversarial review, the shared-matcher numeric branch the primary FP target). Re-verify the §5 file:line inventory at Orient (gate (a), unchanged since plan commit bdace2e) before any code. Operator picked "Implement numeric-enum fix" via AskUserQuestion (Active empty). This block is the crash breadcrumb until Phase 3D overwrites it status: complete.
+```
+
+```handoff
 session: S138
 date: 2026-07-21
 status: complete
