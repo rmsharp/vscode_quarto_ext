@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S137
+date: 2026-07-21
+status: pending
+active_task: IMPLEMENTATION (strict TDD, vertical slice) — DEPTH-2 value validation for _quarto.yml project-config containers, per docs/planning/2026-07-21-quarto-yml-depth2-value-validation-plan.md §4 gate-(a) contract: L1 reader .children via objectChildren + numeric-member-enum-OPEN guard [INERT] → L2 depth-2 path-aware enumerator (ProjectConfigValueLine +path) + inert path.length!==0 compute guard [INERT] → L3 GO-LIVE path-aware compute + 2 _quarto.yml fixture dirs + integration describe → L4 MANDATORY §9 adversarial review (depth-2 scanFlow FP the primary target). Operator picked "Implement depth-2 slice" via Phase 0 AskUserQuestion (Active empty). ONE deliverable — this slice; §4.3 deferrals stay deferred. This pending stub is the crash breadcrumb; Phase 3D overwrites it to complete.
+```
+
+```handoff
 session: S136
 date: 2026-07-21
 status: complete
