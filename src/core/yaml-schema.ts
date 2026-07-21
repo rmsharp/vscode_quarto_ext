@@ -447,7 +447,9 @@ export const CURATED_PROJECT_KEYS = new Set([
  */
 const CURATED_PROJECT_CONFIG_KEYS: Map<"project" | "website" | "book", ClosedKeySet | null> =
   new Map([
-    ["project", { names: CURATED_PROJECT_KEYS, closed: true }],
+    // `properties` is empty: the curated fallback validates project: KEYS but has no
+    // per-child value schema, so `projectFields` returns [] offline (plan §2.3).
+    ["project", { names: CURATED_PROJECT_KEYS, closed: true, properties: new Map() }],
     ["website", null],
     ["book", null],
   ]);
@@ -492,12 +494,34 @@ export interface SchemaIndex {
    * schema diagnostics plan §2.2. Never throws.
    */
   projectKeys(container: "project" | "website" | "book"): Set<string> | null;
+
+  /**
+   * The one-level child fields of `_quarto.yml`'s `project:`/`website:`/`book:`
+   * block, fully annotated (`values` + `valuesClosed`/`acceptsBoolean`/`scalarType`)
+   * so the shared `isWrongValue` matcher can VALUE-validate them, or `[]` when the
+   * container is unresolved / offline (the curated fallback carries no per-child
+   * closedness). Super-merged exactly like `projectKeys` (website/book resolve
+   * through `super base-website` / `super csl-item-shared`); only a genuinely-closed
+   * child carries `valuesClosed`, so the matcher fires on exactly those — an open
+   * string / `string:{completions}` child (`website.title`, `project.type`) is left
+   * open and never flagged (`_quarto.yml` value validation, plan §3.2 A).
+   */
+  projectFields(container: "project" | "website" | "book"): SchemaField[];
 }
 
 /** One resolved container's key set + whether the resolution proved it closed. */
 interface ClosedKeySet {
   names: Set<string>;
   closed: boolean;
+  /**
+   * The super-merged property name → its raw schema node (own wins over an
+   * inherited `super` member of the same name), for `projectFields` value
+   * annotation (`_quarto.yml` value validation, plan §3.2 A). Built in the SAME
+   * super-walk as `names` (never a second resolution), and kept ALONGSIDE `names`
+   * rather than deriving it, so `projectKeys`'s exact behavior is unchanged. Empty
+   * for the curated fallback (no per-child closedness offline).
+   */
+  properties: Map<string, unknown>;
 }
 
 /**
@@ -511,6 +535,7 @@ function indexOf(
   perFormatFields: SchemaField[],
   aliases: FormatAliases,
   projectConfigKeys: Map<"project" | "website" | "book", ClosedKeySet | null>,
+  projectConfigFields: Map<"project" | "website" | "book", SchemaField[]>,
 ): SchemaIndex {
   // The top-level `format:` value is an output-format NAME (`html`, `pdf`, …), but
   // the flat document-key list models `format` only as a same-named epub-scoped
@@ -598,6 +623,13 @@ function indexOf(
       const resolved = projectConfigKeys.get(container);
       return resolved?.closed === true ? resolved.names : null;
     },
+    projectFields(container) {
+      // Pre-annotated at build time from the same resolved super-merge `projectKeys`
+      // uses (`buildProjectConfigFields`); `[]` for an unresolved container / the
+      // curated fallback. Only closed children carry `valuesClosed`, so the matcher
+      // fires on exactly those.
+      return projectConfigFields.get(container) ?? [];
+    },
   };
 }
 
@@ -677,6 +709,7 @@ export const CURATED_SCHEMA_INDEX: SchemaIndex = indexOf(
   CURATED_FORMAT_OPTIONS,
   new Map(), // no `$`-aliases needed: curated per-format options are all universal
   CURATED_PROJECT_CONFIG_KEYS,
+  new Map(), // no per-child value schema offline → projectFields returns [] (plan §2.3)
 );
 
 /** Strip a leading UTF-8 BOM, which `JSON.parse` rejects (Learning #16c). */
@@ -1127,10 +1160,17 @@ function resolveClosedKeysObject(
   seenRefs: Set<string>,
 ): ClosedKeySet {
   const names = new Set<string>();
+  // property name → its raw schema node, threaded through the SAME super merge as
+  // `names` so `projectFields` can annotate each child (plan §3.2 A). OWN properties
+  // win over an inherited `super` member of the same name (a child's own value schema
+  // overrides the base's — YAML `super` semantics), so a super member is added only
+  // when the name is not already present.
+  const props = new Map<string, unknown>();
   const properties = obj.properties;
   if (properties !== null && typeof properties === "object" && !Array.isArray(properties)) {
-    for (const key of Object.keys(properties as Record<string, unknown>)) {
+    for (const [key, schema] of Object.entries(properties as Record<string, unknown>)) {
       names.add(key);
+      props.set(key, schema);
     }
   }
   let closed = obj.closed === true;
@@ -1143,13 +1183,18 @@ function resolveClosedKeysObject(
         for (const name of resolved.names) {
           names.add(name);
         }
+        for (const [name, schema] of resolved.properties) {
+          if (!props.has(name)) {
+            props.set(name, schema); // own / earlier-super wins — never overwrite
+          }
+        }
         if (resolved.closed) {
           closed = true;
         }
       }
     }
   }
-  return { names, closed };
+  return { names, closed, properties: props };
 }
 
 /**
@@ -1182,6 +1227,57 @@ function buildProjectConfigKeys(
     );
   }
   return map;
+}
+
+/**
+ * The per-container annotated child `SchemaField`s for `SchemaIndex.projectFields`
+ * (`_quarto.yml` value validation, plan §3.2 A), derived from the SAME resolved
+ * `ClosedKeySet` map `buildProjectConfigKeys` produced (no second super-walk). Each
+ * super-merged `(name, schema)` becomes a field annotated by the exact functions the
+ * document surface uses (`valuesOfSchema` + `annotateClosedness` + `annotateScalarType`),
+ * so only a provably-closed / numeric child carries `valuesClosed` / `scalarType` and
+ * the shared `isWrongValue` matcher fires on exactly those. A container that did not
+ * resolve (`null`) — and the curated fallback, whose `properties` are empty — yields
+ * `[]`. Container CLOSEDNESS is irrelevant here (it gates unknown-KEY flagging, not
+ * value flagging): even an open container's recognized closed-enum child is
+ * value-validated, matching `quarto render`.
+ */
+function buildProjectConfigFields(
+  configKeys: Map<"project" | "website" | "book", ClosedKeySet | null>,
+  definitions: Map<string, unknown>,
+): Map<"project" | "website" | "book", SchemaField[]> {
+  const map = new Map<"project" | "website" | "book", SchemaField[]>();
+  for (const container of ["project", "website", "book"] as const) {
+    const resolved = configKeys.get(container);
+    map.set(
+      container,
+      resolved == null ? [] : projectFieldsFromProperties(resolved.properties, definitions),
+    );
+  }
+  return map;
+}
+
+/**
+ * Annotate a super-merged property name → schema map into value-validatable
+ * `SchemaField`s — the same three-step annotation `objectChildren` applies per child,
+ * minus description/grandchildren (project value validation is one level, plan §3.2 A).
+ */
+function projectFieldsFromProperties(
+  properties: Map<string, unknown>,
+  definitions: Map<string, unknown>,
+): SchemaField[] {
+  const fields: SchemaField[] = [];
+  for (const [name, schema] of properties) {
+    const field: SchemaField = { name };
+    const values = valuesOfSchema(schema, definitions, 0);
+    if (values.length > 0) {
+      field.values = values;
+    }
+    annotateClosedness(field, schema, definitions);
+    annotateScalarType(field, schema, definitions);
+    fields.push(field);
+  }
+  return fields;
 }
 
 /**
@@ -1337,16 +1433,21 @@ export function parseSchemaIndex(jsonText: string): SchemaIndex {
     const fmFields = collectFields(data, "schema/document-", definitions);
     // A valid JSON of an unexpected shape (no options found) is as useless as
     // unparseable input — degrade rather than offer nothing.
-    return cellFields.length === 0 && fmFields.length === 0
-      ? CURATED_SCHEMA_INDEX
-      : indexOf(
-          cellFields,
-          fmFields,
-          collectFormatNames(data),
-          perFormatSource(fmFields, cellFields),
-          parseFormatAliases(data["schema/format-aliases.yml"]),
-          buildProjectConfigKeys(data, definitions),
-        );
+    if (cellFields.length === 0 && fmFields.length === 0) {
+      return CURATED_SCHEMA_INDEX;
+    }
+    // Resolve the project-config containers ONCE — `projectKeys` reads the names,
+    // `projectFields` annotates the same super-merged property schemas (no second walk).
+    const projectConfigKeys = buildProjectConfigKeys(data, definitions);
+    return indexOf(
+      cellFields,
+      fmFields,
+      collectFormatNames(data),
+      perFormatSource(fmFields, cellFields),
+      parseFormatAliases(data["schema/format-aliases.yml"]),
+      projectConfigKeys,
+      buildProjectConfigFields(projectConfigKeys, definitions),
+    );
   } catch {
     return CURATED_SCHEMA_INDEX;
   }

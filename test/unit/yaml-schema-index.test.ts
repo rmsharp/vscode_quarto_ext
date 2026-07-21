@@ -417,6 +417,85 @@ const PARTIAL_PROJECT_CONFIG_FIXTURE = JSON.stringify({
   ],
 });
 
+/**
+ * A dedicated fixture for `SchemaIndex.projectFields` (`_quarto.yml` project-config
+ * VALUE validation, plan §3.2 A) — the same super/resolveRef resolution shapes as
+ * `PROJECT_CONFIG_FIXTURE`, but with ENUM / BOOLEAN / `string:{completions}` child
+ * schemas (not the all-`"string"` open children above) so the per-child annotation
+ * (`valuesOfSchema` + `annotateClosedness` + `annotateScalarType`) is exercised. It
+ * mirrors the real 1.7.33 shapes grounded firsthand (Session 134, §2.2): a closed
+ * enum (`draft-mode`), a boolean (`reader-mode`), a `maybeArrayOf[enum]`
+ * (`repo-actions`, like real website's), an open string (`title`), the
+ * `string:{completions}` cardinal-sin trap (`project.type` — non-empty `values`
+ * yet OPEN, plan §11 dragon 3), and `book`'s three-way super merge (its own
+ * `downloads` enum + base-website's children + a `csl-item-shared`-super `type` enum).
+ */
+const PROJECT_FIELDS_FIXTURE = JSON.stringify({
+  "schema/document-options.yml": [{ name: "toc", schema: "boolean", description: "TOC" }],
+  "schema/project.yml": [
+    {
+      name: "project",
+      schema: {
+        object: {
+          closed: true,
+          properties: {
+            "execute-dir": { enum: ["file", "project"] },
+            // string:{completions} — completions are HINTS; quarto accepts ANY string,
+            // so this MUST stay OPEN even though `values` is non-empty (the cardinal sin).
+            type: { string: { completions: ["default", "website", "book"] } },
+            "output-dir": "string",
+          },
+        },
+      },
+    },
+    { name: "website", schema: { ref: "test-base-website" } },
+    {
+      name: "book",
+      schema: {
+        object: {
+          super: [{ resolveRef: "test-book-schema" }, { resolveRef: "test-csl-item-shared" }],
+        },
+      },
+    },
+  ],
+  "schema/definitions.yml": [
+    {
+      id: "test-base-website",
+      object: {
+        closed: true,
+        properties: {
+          title: "string", // OPEN
+          "draft-mode": { enum: ["visible", "unlinked", "gone"] }, // closed enum
+          "reader-mode": "boolean", // closed boolean
+          "repo-actions": { maybeArrayOf: { enum: ["none", "edit", "source", "issue"] } },
+        },
+      },
+    },
+    {
+      id: "test-book-schema",
+      schema: {
+        object: {
+          closed: true,
+          super: { resolveRef: "test-base-website" },
+          properties: {
+            downloads: { enum: ["pdf", "epub", "docx"] }, // book's own closed enum
+            title: "string", // duplicated in base-website too — own wins, still OPEN
+          },
+        },
+      },
+    },
+    {
+      id: "test-csl-item-shared",
+      object: {
+        properties: {
+          type: { enum: ["article", "book", "chapter"] }, // closed enum via the csl super hop
+          DOI: "string",
+        },
+      },
+    },
+  ],
+});
+
 describe("parseSchemaIndex — _quarto.yml project:/website:/book: closed-key resolution (YAML diagnostics plan §5.1)", () => {
   const index = parseSchemaIndex(PROJECT_CONFIG_FIXTURE);
 
@@ -524,6 +603,70 @@ describe("CURATED_SCHEMA_INDEX — _quarto.yml project:/website:/book: closed-ke
 
   it("never flags book: offline for the same reason", () => {
     expect(CURATED_SCHEMA_INDEX.projectKeys("book")).toBeNull();
+  });
+});
+
+describe("parseSchemaIndex — projectFields: annotated project-config child fields (_quarto.yml value validation, plan §3.2 A)", () => {
+  const index = parseSchemaIndex(PROJECT_FIELDS_FIXTURE);
+
+  it("annotates website:'s closed enum child (draft-mode) and boolean child (reader-mode), leaving an open string open", () => {
+    const fields = index.projectFields("website");
+    const draftMode = fields.find((f) => f.name === "draft-mode");
+    expect(draftMode?.valuesClosed).toBe(true);
+    expect(draftMode?.values).toEqual(["visible", "unlinked", "gone"]);
+    const readerMode = fields.find((f) => f.name === "reader-mode");
+    expect(readerMode?.valuesClosed).toBe(true);
+    expect(readerMode?.acceptsBoolean).toBe(true);
+    const title = fields.find((f) => f.name === "title");
+    expect(title, "title is a recognized website child").toBeDefined();
+    expect(title?.valuesClosed, "an open string child is never closed (no cardinal-sin FP)").toBeUndefined();
+  });
+
+  it("annotates a maybeArrayOf[enum] child (repo-actions) as a closed enum — a scalar member is checkable; the matcher itself skips a flow sequence", () => {
+    const repoActions = index.projectFields("website").find((f) => f.name === "repo-actions");
+    expect(repoActions?.valuesClosed).toBe(true);
+    expect(repoActions?.values).toEqual(["none", "edit", "source", "issue"]);
+  });
+
+  it("resolves book:'s super-merged children — its own closed enum (downloads), a csl-super enum (type), AND the base-website children (draft-mode)", () => {
+    const byName = new Map(index.projectFields("book").map((f) => [f.name, f]));
+    expect(byName.get("downloads")?.valuesClosed).toBe(true);
+    expect(byName.get("downloads")?.values).toEqual(["pdf", "epub", "docx"]);
+    expect(byName.get("type")?.valuesClosed, "book.type resolves via the csl-item-shared super hop").toBe(true);
+    expect(byName.get("type")?.values).toEqual(["article", "book", "chapter"]);
+    expect(byName.get("draft-mode")?.valuesClosed, "base-website children merge in via super").toBe(true);
+  });
+
+  it("leaves project.type OPEN — string:{completions} is a hint, not a constraint (the cardinal-sin trap, plan §2.2 / §11 dragon 3)", () => {
+    const fields = index.projectFields("project");
+    const type = fields.find((f) => f.name === "type");
+    expect(type, "type is a recognized project child").toBeDefined();
+    expect(type?.valuesClosed, "project.type must NEVER be closed — quarto's schema layer accepts any string").toBeUndefined();
+    const executeDir = fields.find((f) => f.name === "execute-dir");
+    expect(executeDir?.valuesClosed, "execute-dir IS a closed enum").toBe(true);
+    expect(executeDir?.values).toEqual(["file", "project"]);
+  });
+
+  it("returns [] for a container absent from schema/project.yml (unresolved → never validate)", () => {
+    const partial = parseSchemaIndex(PARTIAL_PROJECT_CONFIG_FIXTURE);
+    expect(partial.projectFields("website")).toEqual([]);
+    expect(partial.projectFields("book")).toEqual([]);
+  });
+
+  it("returns [] for every container in the curated fallback (no per-child closedness offline, plan §2.3)", () => {
+    expect(CURATED_SCHEMA_INDEX.projectFields("project")).toEqual([]);
+    expect(CURATED_SCHEMA_INDEX.projectFields("website")).toEqual([]);
+    expect(CURATED_SCHEMA_INDEX.projectFields("book")).toEqual([]);
+  });
+
+  it("does NOT regress projectKeys — keeping each property's schema leaves the name set byte-identical (plan §7.7)", () => {
+    expect(index.projectKeys("project")).toEqual(new Set(["execute-dir", "type", "output-dir"]));
+    expect(index.projectKeys("website")).toEqual(
+      new Set(["title", "draft-mode", "reader-mode", "repo-actions"]),
+    );
+    expect(index.projectKeys("book")).toEqual(
+      new Set(["downloads", "title", "draft-mode", "reader-mode", "repo-actions", "type", "DOI"]),
+    );
   });
 });
 
