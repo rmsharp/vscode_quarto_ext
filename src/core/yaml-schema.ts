@@ -77,6 +77,24 @@ export interface SchemaField {
    */
   valuesClosed?: boolean;
   /**
+   * True ONLY when the field is a closed enum whose members are all YAML *numbers* —
+   * a "numeric-member enum" (`aspectratio` = `enum:[43,169,…]`; `google-analytics.version`
+   * = `enum:[3,4]`; numeric-member-enum matcher plan §2.1/§3.1). Quarto COERCES a YAML
+   * numeric before matching such an enum (`aspectratio: 169.0` ≡ `169`, and `+169`/`0169`/
+   * `4_3` all render exit 0), so STRING membership is wrong in BOTH directions — it
+   * false-POSITIVES the coerced unquoted forms (the cardinal sin) and false-negatives the
+   * quoted ones. When set, `isWrongValue` validates the token by PARSED numeric value
+   * (`Number()`, NaN-safe) instead of string membership. Set ONLY alongside
+   * `valuesClosed === true`, and ONLY from the raw `enum`'s JS member TYPES
+   * (`typeof v === "number"`) — which distinguishes `enum:[3,4]` (set the bit) from a
+   * hypothetical string enum `enum:["3","4"]` (do NOT: a string enum ACCEPTS the quoted
+   * `"3"` the numeric branch would reject), a distinction the stringified `values`
+   * (`["3","4"]` for both) has already lost. INVERTED RISK, like `valuesClosed`/`scalarType`:
+   * it *tightens* validation, so an over-eager set is the cardinal-sin false-positive risk —
+   * set it precisely. Unused by / invisible to completion (which reads `values` only).
+   */
+  numericMemberEnum?: boolean;
+  /**
    * True when the closed value set includes the YAML-1.2 boolean type, so the six
    * spellings `true|True|TRUE|false|False|FALSE` are accepted UNQUOTED (and quoted
    * boolean-looking forms like `"true"` are rejected). Only meaningful when

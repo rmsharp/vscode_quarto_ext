@@ -63,6 +63,12 @@ export function isWrongValue(rawToken: string, field: SchemaField): boolean {
   if (field.valuesClosed !== true || (field.values?.length ?? 0) === 0) {
     return false; // open set / no enum data — never flag (the cardinal-sin guard)
   }
+  if (field.numericMemberEnum === true) {
+    // Numeric-member enum (a closed enum whose members are YAML numbers, e.g.
+    // `aspectratio`/`version`): quarto COERCES the value numerically before matching,
+    // so validate by PARSED value, not string membership (matcher plan §3.1 C).
+    return isWrongNumericMember(rawToken, field.values as string[]);
+  }
   const values = field.values as string[];
   // Step 1 — booleans: the six spellings, UNQUOTED only. The anchored regex
   // rejects any quoted form on its own (`"true"` won't match), so a quoted
@@ -110,6 +116,40 @@ function isWrongNumber(rawToken: string, acceptsBoolean: boolean): boolean {
     return false; // `daemon: true` — a boolean is valid on a number-OR-boolean field
   }
   return !NUMBER_LITERAL.test(trimmed);
+}
+
+/**
+ * Whether `rawToken` is WRONG for a NUMERIC-MEMBER enum — a closed enum whose members
+ * are YAML numbers (`aspectratio` = [43,169,…], `version` = [3,4]; matcher plan §3.1 C).
+ * Quarto COERCES the value numerically before matching (`169.0` ≡ `169`, and `+169`/`0169`/
+ * `3e0`/`04`/`4_3`≡43 all render exit 0) and REJECTS the quoted form (`"169"` → exit 1)
+ * even when its content matches a member (§2.3). So:
+ *   1. a quoted token (leading `"`/`'`) is flagged FIRST — quarto rejects it;
+ *   2. an unquoted trailing ` #…` comment is stripped, then a token that is NOT a
+ *      `NUMBER_LITERAL` is flagged (`banana`, `wide`);
+ *   3. the token is parsed with **`Number()`** — the only JS parser matching quarto's
+ *      coercion (`parseFloat("0x2b")`=0 would false-positive hex `0x2b`≡43) — and flagged
+ *      ONLY when it is a FINITE value unequal to every member.
+ * `Number()` returns NaN for the YAML digit-group-underscore forms quarto ACCEPTS
+ * (`Number("4_3")`=NaN, though `4_3`≡43 renders exit 0) and for `.inf`/`.nan`; NaN is
+ * treated as NOT-confidently-out-of-set and left UNFLAGGED — the FN-safe default
+ * (matcher plan §3.1 C step 4 / §7.3, the §9-review HIGH). No YAML parsing, false-negative
+ * only: it never flags a value quarto accepts.
+ */
+function isWrongNumericMember(rawToken: string, members: string[]): boolean {
+  const firstChar = rawToken.trimStart()[0];
+  if (firstChar === '"' || firstChar === "'") {
+    return true; // quarto rejects the quoted form even if its content matches a member (§2.3)
+  }
+  const trimmed = rawToken.replace(/ #.*$/, "").trim();
+  if (!NUMBER_LITERAL.test(trimmed)) {
+    return true; // not a number literal → a genuine non-member (`banana`)
+  }
+  const parsed = Number(trimmed);
+  if (Number.isNaN(parsed)) {
+    return false; // e.g. `4_3` (≡43, quarto exit 0) or `.inf` — not confidently out of set → FN-safe
+  }
+  return !members.some((m) => Number(m) === parsed);
 }
 
 /**

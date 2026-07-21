@@ -276,3 +276,88 @@ describe("valueMessage — the wrong-value Error text (relocated to the pure cor
     );
   });
 });
+
+/**
+ * `numericMemberEnum` — a closed enum whose members are YAML *numbers* (matcher plan
+ * §2.1/§3.1). Quarto COERCES the value numerically before matching, so the token is
+ * validated by PARSED value, not string membership. Every row is grounded against
+ * `quarto render` 1.7.33 (plan §2.3): an unquoted number literal whose value equals a
+ * member is accepted (incl. coerced forms `3.0`/`+4`/`04`/`3e0`/`0169` and the YAML
+ * digit-group UNDERSCORE forms `4_3`≡43 which `Number()` parses to NaN — the §9-review
+ * HIGH, §7.3); an out-of-set number, a non-number, AND a quoted string (`"3"`/`"169"`)
+ * are all flagged. `valueMessage` is unchanged (§2.7).
+ */
+/** `google-analytics.version` = `enum:[3,4]` (JS numbers) → numeric-member (`["3","4"]` stringified). */
+const versionField: SchemaField = {
+  name: "version",
+  values: ["3", "4"],
+  valuesClosed: true,
+  numericMemberEnum: true,
+};
+
+/** `aspectratio` = `enum:[43,169,1610,149,141,54,32]` → numeric-member (document front matter). */
+const aspectratioField: SchemaField = {
+  name: "aspectratio",
+  values: ["43", "169", "1610", "149", "141", "54", "32"],
+  valuesClosed: true,
+  numericMemberEnum: true,
+};
+
+describe("isWrongValue — numeric-member enums (parsed-value membership, coercion-aware)", () => {
+  it("accepts an exact member, quoted-free (version: 3 / 4)", () => {
+    expect(isWrongValue("3", versionField)).toBe(false);
+    expect(isWrongValue("4", versionField)).toBe(false);
+  });
+
+  it("accepts a COERCED form equal to a member (version: 3.0 / 4.0 / +4 / 04 / 3e0) — quarto exit 0", () => {
+    for (const v of ["3.0", "4.0", "+4", "04", "3e0"]) {
+      expect(isWrongValue(v, versionField), `${v} should be accepted (coerces to a member)`).toBe(false);
+    }
+  });
+
+  it("flags an out-of-set number (version: 5 / 3.5) — validation RESTORED", () => {
+    expect(isWrongValue("5", versionField)).toBe(true);
+    expect(isWrongValue("3.5", versionField)).toBe(true);
+  });
+
+  it("flags a non-number (version: banana)", () => {
+    expect(isWrongValue("banana", versionField)).toBe(true);
+  });
+
+  it("flags the QUOTED form even when its content matches a member (version: \"3\" / '4') — quarto exit 1", () => {
+    expect(isWrongValue('"3"', versionField)).toBe(true);
+    expect(isWrongValue("'4'", versionField)).toBe(true);
+  });
+
+  it("accepts aspectratio members and their coerced forms (169 / 169.0 / +169 / 0169 / 43.0) — quarto exit 0", () => {
+    for (const v of ["43", "169", "169.0", "+169", "0169", "43.0"]) {
+      expect(isWrongValue(v, aspectratioField), `${v} should be accepted`).toBe(false);
+    }
+  });
+
+  it("accepts MEMBER-VALUED digit-group underscores (aspectratio: 4_3≡43 / 1_610≡1610 / 16_10≡1610) — the NaN guard, quarto exit 0", () => {
+    // Number("4_3") is NaN in JS, yet quarto coerces `4_3`→43 and renders exit 0. A naive
+    // `Number()!==member → flag` branch ships a cardinal-sin FP here (matcher plan §7.3, dragon 11).
+    for (const v of ["4_3", "1_610", "16_10"]) {
+      expect(isWrongValue(v, aspectratioField), `${v} must NOT flag (coerces to a member; Number()=NaN)`).toBe(false);
+    }
+  });
+
+  it("flags an out-of-set aspectratio number and a quoted form (aspectratio: 5 / banana / \"169\")", () => {
+    expect(isWrongValue("5", aspectratioField)).toBe(true);
+    expect(isWrongValue("banana", aspectratioField)).toBe(true);
+    expect(isWrongValue('"169"', aspectratioField)).toBe(true);
+  });
+
+  it("still SKIPS empty / flow / node-property tokens on a numeric-member field (shared skip, plan §3.3)", () => {
+    for (const v of ["", "[43]", "{v: 43}", "&anchor", "*alias", "!!int 43"]) {
+      expect(isWrongValue(v, versionField), `${v} should be skipped (never flagged)`).toBe(false);
+    }
+  });
+
+  it("valueMessage for a numeric-member enum is unchanged — 'expected one of: 3, 4' (§2.7)", () => {
+    expect(valueMessage("5", "version", versionField)).toBe(
+      'Value 5 is not valid for "version" — expected one of: 3, 4.',
+    );
+  });
+});
