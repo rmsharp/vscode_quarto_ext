@@ -1,0 +1,37 @@
+---
+fig-width: 1e2
+fig-height: .inf
+fig-asp: 1_000
+columns: 2
+dpi: 96
+number-offset: [1, 2]
+toc-expand: true
+linestretch: 2em
+execute:
+  daemon: 30
+  daemon-restart: false
+format:
+  html:
+    fig-dpi: 300
+    toc-depth: 3
+---
+
+Every value here renders exit 0 under `quarto render` 1.7.33 AND is a value the
+numeric matcher accepts, so the feature must produce ZERO diagnostics — the FP guard
+battery (numeric plan §4.1 L3):
+`fig-width: 1e2` / `fig-height: .inf` / `fig-asp: 1_000` are exotic YAML number
+literals (exponent, infinity, digit-group underscore) — kept on genuinely-FLOAT fields
+so they satisfy BOTH the quarto-schema layer and pandoc (integer-conceptual fields like
+`dpi`/`columns` pandoc-reject a float/`.inf`, numeric plan §2.4). `columns: 2` / `dpi: 96`
+are in-range ints. `number-offset: [1, 2]` is the ARRAY form — skip-guarded by the
+matcher's leading-`[` guard, never flagged. `toc-expand: true` is the BOOLEAN form of a
+number-OR-boolean field; `execute.daemon: 30` is its NUMBER form. `linestretch: 2em` is a
+MIXED number|string field — its string form must NOT be flagged (open, numeric plan §7.4).
+The per-format `fig-dpi: 300` / `toc-depth: 3` are valid per-format numbers. The cell
+`#| fig-width: 6  # a trailing comment` exercises the unquoted-comment strip.
+
+```{r}
+#| fig-width: 6  # a trailing comment
+#| layout-ncol: 2
+1 + 1
+```

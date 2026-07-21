@@ -13,6 +13,8 @@ const FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/fr
 const VALID_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/valid-front-matter.qmd");
 const NESTED_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/nested-front-matter.qmd");
 const VALID_NESTED_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/valid-nested-front-matter.qmd");
+const NUMERIC_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/numeric-front-matter.qmd");
+const VALID_NUMERIC_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/valid-numeric-front-matter.qmd");
 
 async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean> {
   const start = Date.now();
@@ -305,6 +307,106 @@ describe("Quarto: NESTED front-matter VALUE diagnostics (.qmd, nested plan §3.4
     assert.ok(
       await waitFor(() => valueDiagnostics(doc.uri).length === 4, 3000),
       "fixing execute.echo: maybe → echo: false should drop the count from 5 to 4 after the debounce",
+    );
+  });
+});
+
+describe("Quarto: NUMERIC front-matter VALUE diagnostics (.qmd, numeric plan §4.1 Phase 4)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("flags exactly the 4 wrong numeric values (all four surfaces), and NOTHING for valid numbers", async () => {
+    const doc = await openActive(NUMERIC_FRONT_MATTER);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 4, 5000),
+      "expected numeric value diagnostics to appear within 5s of opening",
+    );
+
+    const diags = valueDiagnostics(doc.uri);
+    assert.strictEqual(
+      diags.length,
+      4,
+      `expected exactly 4, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+    );
+
+    const byLine = new Map(diags.map((d) => [d.range.start.line, d]));
+    // columns: wide (line 1) — top-level number.
+    assert.ok(byLine.get(1)?.message.includes("wide"), "columns: wide should flag on line 1");
+    // format.html.fig-dpi: hi (line 6) — per-format number.
+    assert.ok(byLine.get(6)?.message.includes("hi"), "format.html.fig-dpi: hi should flag on line 6");
+    // execute.daemon: banana (line 9) — nested number-OR-boolean. The message MUST mention
+    // "number" (regression-lock the §3.4 arm ordering — daemon also has values:[true,false]
+    // + acceptsBoolean, so an appended-late arm would mis-message "expected true or false").
+    assert.ok(byLine.get(9)?.message.includes("banana"), "execute.daemon: banana should flag on line 9");
+    assert.ok(
+      byLine.get(9)?.message.includes("number"),
+      `execute.daemon: banana message must mention "number", got: ${byLine.get(9)?.message}`,
+    );
+    // cell #| layout-ncol: two (line 24) — cell-metadata number.
+    assert.ok(byLine.get(24)?.message.includes("two"), "cell #| layout-ncol: two should flag on line 24");
+
+    for (const d of diags) {
+      assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Error);
+      assert.strictEqual(d.code, DIAGNOSTIC_CODE);
+    }
+  });
+
+  it("never flags a valid number, a number-or-boolean's valid form, or a valid boolean", async () => {
+    const doc = await openActive(NUMERIC_FRONT_MATTER);
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 4, 5000));
+    const lines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    // fig-width: 6.5 (2) / toc-expand: 3 (3) / format.html.fig-width: 300 (7) /
+    // execute.daemon-restart: true (10) / cell #| fig-width: 3 (25) — all VALID.
+    for (const [ln, desc] of [
+      [2, "fig-width: 6.5 (valid number)"],
+      [3, "toc-expand: 3 (number-or-boolean, number form)"],
+      [7, "format.html.fig-width: 300 (valid number)"],
+      [10, "execute.daemon-restart: true (valid boolean)"],
+      [25, "cell #| fig-width: 3 (valid number)"],
+    ] as [number, string][]) {
+      assert.ok(!lines.includes(ln), `${desc} must NOT be flagged (line ${ln})`);
+    }
+  });
+
+  it("targets the VALUE token range, not the whole line (columns: wide → the `wide` span)", async () => {
+    const doc = await openActive(NUMERIC_FRONT_MATTER);
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 4, 5000));
+    const d = valueDiagnostics(doc.uri).find((x) => x.range.start.line === 1);
+    assert.ok(d);
+    // `columns: wide` — `wide` starts at column 9.
+    assert.strictEqual(d.range.start.character, 9, "range should start at the value token");
+    assert.strictEqual(d.range.end.character, 13, "range should end at the value token");
+  });
+
+  it("produces ZERO diagnostics for a .qmd whose numeric values are all valid, exotic, or open (FP battery)", async () => {
+    const doc = await openActive(VALID_NUMERIC_FRONT_MATTER);
+    await new Promise((r) => setTimeout(r, 400));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "first check");
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
+  });
+
+  it("re-scans live on edit (debounced) and drops a numeric diagnostic once the value is fixed", async () => {
+    const doc = await openActive(NUMERIC_FRONT_MATTER);
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 4, 5000));
+
+    const editor = vscode.window.activeTextEditor;
+    assert.ok(editor);
+    await editor.edit((builder) => {
+      builder.replace(doc.lineAt(1).range, "columns: 2");
+    });
+
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length === 3, 3000),
+      "fixing columns: wide → columns: 2 should drop the count from 4 to 3 after the debounce",
     );
   });
 });

@@ -1,0 +1,28 @@
+---
+columns: wide
+fig-width: 6.5
+toc-expand: 3
+format:
+  html:
+    fig-dpi: hi
+    fig-width: 300
+execute:
+  daemon: banana
+  daemon-restart: true
+---
+
+Prose body. The FOUR wrong NUMERIC values above each render exit 1 at the
+`quarto render` 1.7.33 YAML-SCHEMA layer ("…which must instead be a number"):
+`columns: wide` (top-level number), `format.html.fig-dpi: hi` (per-format number),
+`execute.daemon: banana` (nested number-OR-boolean), and the cell `#| layout-ncol: two`
+below (cell-metadata number). The rest are VALID and must NEVER be flagged:
+`fig-width: 6.5` / `format.html.fig-width: 300` (valid numbers), `toc-expand: 3`
+(number-OR-boolean, number form), `execute.daemon-restart: true` (valid boolean),
+and the cell `#| fig-width: 3` (valid number). Numeric validation reaches all four
+surfaces through the SHARED `isWrongValue` matcher — no new loop (numeric plan §3.1).
+
+```{r}
+#| layout-ncol: two
+#| fig-width: 3
+1 + 1
+```
