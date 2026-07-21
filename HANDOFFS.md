@@ -18,6 +18,12 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S138
+date: 2026-07-21
+status: pending
+active_task: PLANNING (evidence-based, adversarially reviewed) — the GENERAL numeric-member-enum matcher fix (cross-surface, PRE-EXISTING). Produce docs/planning/2026-07-21-numeric-member-enum-matcher-fix-plan.md: teach the SHARED isWrongValue matcher (src/core/yaml-value-check.ts) that a closed enum whose members are numeric literals accepts any token whose PARSED numeric value equals a member, so validation is RESTORED on numeric-member enums (google-analytics.version on the _quarto.yml surface, left OPEN by the S137 openNumericMemberEnum guard; aspectratio on the document surface) WITHOUT the coercion cardinal-sin FP (version: 3.0 ≡ 3 -> quarto exit 0). Evidence-based grep inventory of every isWrongValue consumer + every numeric-member enum in the real 1.7.33 schema; firsthand quarto render 1.7.33 grounding of the exact numeric-coercion accept-set; the design (detect-in-matcher vs annotate; unwinding the S137 openNumericMemberEnum guard); a §4 strict-TDD gate-(a) contract; the MANDATORY §9 adversarial-review requirement. Deliverable = the PLAN; NO code (FM #18/#19).
+
+```handoff
 session: S137
 date: 2026-07-21
 status: complete
