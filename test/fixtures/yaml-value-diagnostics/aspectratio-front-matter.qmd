@@ -1,0 +1,15 @@
+---
+title: aspectratio invalid
+aspectratio: 5
+format:
+  beamer:
+    aspectratio: "169"
+---
+
+Prose body. `aspectratio` is a NUMERIC-MEMBER enum (`enum:[43,169,1610,149,141,54,32]`)
+validated on BOTH reachabilities — top-level front matter AND nested `format.beamer`
+(numeric-member-enum matcher plan §2.4). Both values here render exit 1 at
+`quarto render` 1.7.33's YAML schema layer (`readAndValidateYamlFromFile`): the
+top-level `aspectratio: 5` is an out-of-set number ("must instead be one of: 43, 169,
+…"), and the nested `format.beamer.aspectratio: "169"` is a QUOTED string, which quarto
+rejects even though its content matches a member (§2.3) — so both must be flagged.

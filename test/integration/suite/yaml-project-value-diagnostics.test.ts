@@ -150,22 +150,23 @@ describe("Quarto: _quarto.yml project:/website:/book: DEPTH-2 grandchild VALUE d
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 
-  it("flags exactly the 7 wrong CLOSED grandchild values (navbar/sidebar/search/cookie-consent/preview, website + book), each at its value span", async () => {
+  it("flags exactly the 8 wrong CLOSED grandchild values (navbar/sidebar/search/cookie-consent/preview + numeric-member google-analytics.version, website + book), each at its value span", async () => {
     const doc = await openActive(D2_INVALID);
     assert.ok(
-      await waitFor(() => valueDiagnostics(doc.uri).length >= 7, 6000),
-      "expected 7 depth-2 value diagnostics within 6s of opening",
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 8, 6000),
+      "expected 8 depth-2 value diagnostics within 6s of opening",
     );
     const diags = valueDiagnostics(doc.uri);
     assert.strictEqual(
       diags.length,
-      7,
-      `expected exactly 7, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+      8,
+      `expected exactly 8, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
     );
 
     const byLine = new Map(diags.map((d) => [d.range.start.line, d]));
     // (0-indexed) 2 preview.browser, 6 navbar.collapse-below, 8 sidebar.style,
-    // 10 search.location, 11 search.limit, 13 cookie-consent.type, 17 book.sidebar.alignment
+    // 10 search.location, 11 search.limit, 13 cookie-consent.type, 17 book.sidebar.alignment,
+    // 19 book.google-analytics.version (numeric-member enum — validation RESTORED, S137 guard deleted).
     assert.ok(byLine.get(2)?.message.includes("browser"), "project.preview.browser on line 2");
     assert.ok(byLine.get(6)?.message.includes("collapse-below"), "navbar.collapse-below on line 6");
     assert.ok(byLine.get(8)?.message.includes("style"), "sidebar.style on line 8");
@@ -173,6 +174,9 @@ describe("Quarto: _quarto.yml project:/website:/book: DEPTH-2 grandchild VALUE d
     assert.ok(byLine.get(11)?.message.includes("limit"), "search.limit (numeric) on line 11");
     assert.ok(byLine.get(13)?.message.includes("type"), "cookie-consent.type on line 13");
     assert.ok(byLine.get(17)?.message.includes("alignment"), "book.sidebar.alignment on line 17");
+    // The numeric-member enum `google-analytics.version: 5` is now flagged (quarto rejects
+    // 5 ∉ {3,4}; 3.0 would coerce and clear) — the general matcher fix restored validation.
+    assert.ok(byLine.get(19)?.message.includes("version"), "book.google-analytics.version: 5 on line 19");
 
     // Exact value spans (half-open) match the enumerator's ranges.
     assert.deepStrictEqual(
@@ -184,6 +188,11 @@ describe("Quarto: _quarto.yml project:/website:/book: DEPTH-2 grandchild VALUE d
       [byLine.get(11)?.range.start.character, byLine.get(11)?.range.end.character],
       [11, 17],
       "search.limit value `banana` spans cols 11..17",
+    );
+    assert.deepStrictEqual(
+      [byLine.get(19)?.range.start.character, byLine.get(19)?.range.end.character],
+      [13, 14],
+      "book.google-analytics.version value `5` spans cols 13..14",
     );
 
     for (const d of diags) {
@@ -208,7 +217,7 @@ describe("Quarto: _quarto.yml project:/website:/book: DEPTH-2 grandchild VALUE d
 
   it("re-scans live on edit (debounced) and drops a depth-2 diagnostic once its grandchild value is fixed", async () => {
     const doc = await openActive(D2_INVALID);
-    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 7, 6000));
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 8, 6000));
 
     const editor = vscode.window.activeTextEditor;
     assert.ok(editor);
@@ -217,8 +226,8 @@ describe("Quarto: _quarto.yml project:/website:/book: DEPTH-2 grandchild VALUE d
     });
 
     assert.ok(
-      await waitFor(() => valueDiagnostics(doc.uri).length === 6, 3000),
-      "fixing navbar.collapse-below should drop the depth-2 diagnostic count from 7 to 6 after the debounce",
+      await waitFor(() => valueDiagnostics(doc.uri).length === 7, 3000),
+      "fixing navbar.collapse-below should drop the depth-2 diagnostic count from 8 to 7 after the debounce",
     );
   });
 });

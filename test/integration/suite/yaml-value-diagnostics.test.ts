@@ -17,6 +17,11 @@ const NUMERIC_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagno
 const VALID_NUMERIC_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/valid-numeric-front-matter.qmd");
 const CONTAINER_VALUES = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/container-values.qmd");
 const VALID_CONTAINER_VALUES = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/valid-container-values.qmd");
+const ASPECTRATIO_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/aspectratio-front-matter.qmd");
+const VALID_ASPECTRATIO_FRONT_MATTER = path.resolve(
+  ROOT,
+  "test/fixtures/yaml-value-diagnostics/valid-aspectratio-front-matter.qmd",
+);
 
 async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean> {
   const start = Date.now();
@@ -484,5 +489,69 @@ describe("Quarto: OTHER-container front-matter VALUE diagnostics (.qmd, other-co
       await waitFor(() => valueDiagnostics(doc.uri).length === 5, 3000),
       "fixing editor.mode: wysiwyg → mode: visual should drop the count from 6 to 5 after the debounce",
     );
+  });
+});
+
+describe("Quarto: ASPECTRATIO numeric-member VALUE diagnostics (.qmd, matcher plan §2.4 — both reachabilities)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("flags exactly the 2 wrong aspectratio values — top-level out-of-set + nested format.beamer quoted — each at its value span", async () => {
+    const doc = await openActive(ASPECTRATIO_FRONT_MATTER);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 2, 5000),
+      "expected aspectratio value diagnostics to appear within 5s of opening",
+    );
+
+    const diags = valueDiagnostics(doc.uri);
+    assert.strictEqual(
+      diags.length,
+      2,
+      `expected exactly 2, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+    );
+
+    const byLine = new Map(diags.map((d) => [d.range.start.line, d]));
+    // top-level `aspectratio: 5` (line 2) — out-of-set number, quarto exit 1 SCHEMA.
+    assert.ok(byLine.get(2)?.message.includes("aspectratio"), "top-level aspectratio: 5 should flag on line 2");
+    // nested `format.beamer.aspectratio: "169"` (line 5) — quoted form, quarto rejects it.
+    assert.ok(byLine.get(5)?.message.includes("aspectratio"), "nested format.beamer.aspectratio: \"169\" should flag on line 5");
+
+    // Exact value spans (half-open): `aspectratio: ` is 13 chars → `5` at 13..14 top-level;
+    // nested is 4-indented → `"169"` at 17..22.
+    assert.deepStrictEqual(
+      [byLine.get(2)?.range.start.character, byLine.get(2)?.range.end.character],
+      [13, 14],
+      "top-level aspectratio value `5` spans cols 13..14",
+    );
+    assert.deepStrictEqual(
+      [byLine.get(5)?.range.start.character, byLine.get(5)?.range.end.character],
+      [17, 22],
+      "nested aspectratio value `\"169\"` spans cols 17..22",
+    );
+
+    for (const d of diags) {
+      assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Error);
+      assert.strictEqual(d.code, DIAGNOSTIC_CODE);
+    }
+  });
+
+  it("produces ZERO diagnostics for coerced-valid aspectratio (169.0 top-level, 4_3 nested) — the LIVE cardinal-sin FP is GONE (both reachabilities)", async () => {
+    // Every value renders exit 0: `aspectratio: 169.0` ≡ 169 (top-level), and the nested
+    // `format.beamer.aspectratio: 4_3` ≡ 43 whose Number("4_3") is NaN (the §9-review HIGH —
+    // a naive Number()!==member branch would false-positive it). Before this fix, the
+    // top-level 169.0 was flagged with a red Error squiggle in a real host (the shipped FP).
+    const doc = await openActive(VALID_ASPECTRATIO_FRONT_MATTER);
+    await new Promise((r) => setTimeout(r, 400));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "first check");
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
   });
 });

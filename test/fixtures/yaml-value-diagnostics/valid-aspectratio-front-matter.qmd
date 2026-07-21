@@ -1,0 +1,16 @@
+---
+title: aspectratio valid (the live cardinal-sin FP regression battery)
+aspectratio: 169.0
+format:
+  beamer:
+    aspectratio: 4_3
+---
+
+Prose body. Every `aspectratio` value here renders exit 0 under `quarto render`
+1.7.33, so the feature must produce ZERO diagnostics — these are the LIVE cardinal-sin
+false positives the shared numeric-member matcher removes (numeric-member-enum matcher
+plan §2.4/§7.3). Top-level `aspectratio: 169.0` coerces to the member `169` (quarto
+exit 0), and nested `format.beamer.aspectratio: 4_3` coerces to `43` (quarto exit 0) —
+the YAML digit-group-underscore form whose `Number("4_3")` is NaN, the §9-review HIGH:
+a naive `Number()!==member → flag` branch would false-positive it. Both reachabilities,
+both must clear.

@@ -16,3 +16,5 @@ website:
 book:
   sidebar:
     alignment: z
+  google-analytics:
+    version: 5
