@@ -511,7 +511,8 @@ const PROJECT_FIELDS_FIXTURE = JSON.stringify({
           // enum + bool + the two OPEN-with-values traps (title anyOf/open-string,
           // background string:{completions}); sidebar a closed enum reached via book's
           // super; search the numeric-TYPED grandchildren; google-analytics the
-          // numeric-MEMBER enum (`version` — left OPEN by the reader guard, §3.2 A).
+          // numeric-MEMBER enum (`version` — CLOSED + numericMemberEnum, validated by
+          // PARSED value; the S137 openNumericMemberEnum guard is deleted, matcher plan §3.1).
           navbar: {
             object: {
               properties: {
