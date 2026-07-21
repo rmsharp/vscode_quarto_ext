@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S131
+date: 2026-07-20
+status: pending
+active_task: PLANNING (IN PROGRESS) — value validation for the other closed front-matter CONTAINERS (crossref:/website:/brand:/jupyter:), the deferred value-validation sub-item (S130 handoff next-steps (2)). Deliverable = ONE plan doc at docs/planning/2026-07-20-other-container-value-validation-plan.md with an evidence-based grep + firsthand quarto render 1.7.33 inventory, a §4 strict-TDD vertical-slice gate-(a) contract, and the MANDATORY §9 adversarial-review requirement. NO code (FM #18/#19 — implementation is the NEXT session). Operator picked "Value validation: other containers" via AskUserQuestion at Phase 0 (Active empty). This block is the crash breadcrumb; Phase 3D overwrites it to status: complete.
+```
+
+```handoff
 session: S130
 date: 2026-07-20
 status: complete
