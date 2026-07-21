@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S135
+date: 2026-07-21
+status: pending
+active_task: IMPLEMENTATION (strict TDD, vertical slice) of docs/planning/2026-07-21-quarto-yml-value-validation-plan.md — VALUE validation for _quarto.yml project-config containers (project:/website:/book: closed one-level children). Building the S134 gate-(a) contract L1 (super-chain-aware SchemaIndex.projectFields reader) → L2 (scanFlow-aware findProjectConfigValueLines enumerator) → L3 (GO-LIVE: relocate valueMessage to pure yaml-value-check.ts + new registerYamlProjectValueDiagnosticsFeature + extension.ts wiring + two _quarto.yml fixture dirs + integration describe) → L4 (MANDATORY §9 review; scanFlow-continuation FP re-hunt primary target). Operator picked "Implement S134 plan" via AskUserQuestion at Phase 0 (Active empty). CLAUDE.md project-wide strict-TDD gate.
+```
+
+```handoff
 session: S134
 date: 2026-07-21
 status: complete
