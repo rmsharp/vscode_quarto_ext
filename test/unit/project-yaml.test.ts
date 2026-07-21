@@ -334,6 +334,36 @@ describe("findProjectConfigValueLines — DEPTH-2 grandchildren under a block-op
   });
 });
 
+describe("findProjectConfigValueLines — DEPTH-2 exotic continuation shapes never leak a folded mapping (L4 §9 author sweep — all grounded exit 0/rejected-downstream, never a schema FP)", () => {
+  it("skips a mapping-looking line folded inside a SINGLE-quoted grandchild value", () => {
+    const text = ["website:", "  navbar:", "    title: 'wraps", "    collapse-below: not-real'", "    pinned: false"].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(got.map((v) => v.key)).toEqual(["title", "pinned"]);
+  });
+
+  it("skips a mapping-looking continuation of an unclosed FLOW collection in a grandchild value", () => {
+    const text = ["website:", "  navbar:", "    foreground: {a: 1,", "    collapse-below: x}", "    pinned: false"].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(got.map((v) => v.key)).toEqual(["foreground", "pinned"]);
+  });
+
+  it("skips BLOCK-scalar content (deeper than the grandchild indent — the indent guard, since scanFlow is blind to `|`/`>`), still catching a later depth-2 sibling", () => {
+    const text = ["website:", "  navbar:", "    title: |", "      collapse-below: not-real", "    pinned: false"].join("\n");
+    const got = findProjectConfigValueLines(text);
+    // `title:` emits (rawToken `|`, matcher-skipped anyway); its indented content is
+    // depth-3 → not emitted; `pinned` is a real depth-2 sibling → emitted.
+    expect(got.map((v) => v.key)).toEqual(["title", "pinned"]);
+  });
+
+  it("emits an anchored grandchild value verbatim (the matcher's leading-`&` guard makes it a non-flag, not the enumerator's job — no cardinal-sin FP)", () => {
+    const text = ["website:", "  navbar:", "    collapse-below: &a sm"].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(got.map((v) => ({ key: v.key, path: v.path, rawToken: v.rawToken }))).toEqual([
+      { key: "collapse-below", path: ["navbar"], rawToken: "&a sm" },
+    ]);
+  });
+});
+
 describe("isProjectConfigFileName — the filename gate is EXACT, never a suffix match (adversarial review, Session 47)", () => {
   it("accepts the exact basenames", () => {
     expect(isProjectConfigFileName("/a/b/_quarto.yml")).toBe(true);
