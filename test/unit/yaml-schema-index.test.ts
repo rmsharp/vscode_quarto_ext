@@ -6,6 +6,8 @@ import {
   CURATED_SCHEMA_INDEX,
   parseSchemaIndex,
 } from "../../src/core/yaml-schema";
+import type { SchemaField } from "../../src/core/yaml-schema";
+import { isWrongValue } from "../../src/core/yaml-value-check";
 
 /**
  * A small fixture mirroring the SHAPE of the real installed schema file
@@ -104,6 +106,30 @@ const FIXTURE = JSON.stringify({
       tags: { formats: ["$pdf-all"] },
       schema: "boolean",
       description: "Keep intermediate TeX (PDF only).",
+    },
+    // A NUMERIC-MEMBER enum (mirrors the real `aspectratio` = enum:[43,169,…]):
+    // members are JS NUMBERS, so the annotator must set `numericMemberEnum`
+    // (numeric-member-enum matcher plan §2.1/§3.1). Closed AND numeric-member.
+    {
+      name: "aspectratio",
+      schema: { enum: [43, 169, 1610, 149, 141, 54, 32] },
+      description: "Beamer aspect ratio (numeric-member enum).",
+    },
+    // A JS-STRING enum whose members happen to LOOK numeric (`["3","4"]`): closed,
+    // but NOT numeric-member — the forward-compat type-keying guard. `field.values`
+    // is `["3","4"]` for this AND for a number enum, so detection MUST read the raw
+    // JS member types, not the stringified values (plan §3.1 B / dragon 2).
+    {
+      name: "numstr-enum",
+      schema: { enum: ["3", "4"] },
+      description: "A string enum whose members look numeric (must NOT get the bit).",
+    },
+    // A MIXED enum (some numeric, some string members) — closed, NOT numeric-member
+    // (the bit requires ALL members numeric). Mirrors the real `brand-font-weight`.
+    {
+      name: "mixed-enum",
+      schema: { enum: [100, 200, "thin", "black"] },
+      description: "A mixed numeric/string enum (must NOT get the bit).",
     },
   ],
   // The alias table (`schema/format-aliases.yml`, `{aliases: …}`) the reader
@@ -896,6 +922,57 @@ describe("parseSchemaIndex — front-matter key extraction (6d-4)", () => {
   it("keeps the richer copyright definition on a name collision, not whichever occurs first", () => {
     const copyright = index.frontMatterKeys([]).find((f) => f.name === "copyright");
     expect(copyright?.children?.map((c) => c.name).sort()).toEqual(["holder", "statement", "year"]);
+  });
+});
+
+// Numeric-member-enum annotation (numeric-member-enum matcher plan §3.1 B / L2): a
+// closed enum whose members are all JS NUMBERS gets `numericMemberEnum` set at the
+// shared `annotateClosedness` choke point, so the DOCUMENT-surface matcher validates
+// it by parsed value (not string membership). Type-keyed, NOT value-keyed — a JS-string
+// enum `["3","4"]` and a mixed enum must NOT get the bit (the forward-compat guard).
+describe("parseSchemaIndex — numericMemberEnum annotation (document surface, matcher plan §3.1 B)", () => {
+  const index = parseSchemaIndex(FIXTURE);
+  const fm = (name: string): SchemaField | undefined =>
+    index.frontMatterKeys([]).find((f) => f.name === name);
+
+  it("sets numericMemberEnum on a closed enum whose members are all JS numbers (aspectratio)", () => {
+    const aspectratio = fm("aspectratio");
+    expect(aspectratio?.valuesClosed, "an enum is a closed set").toBe(true);
+    expect(aspectratio?.numericMemberEnum, "members are JS numbers → numeric-member").toBe(true);
+    expect(aspectratio?.values).toEqual(["43", "169", "1610", "149", "141", "54", "32"]);
+  });
+
+  it("does NOT set numericMemberEnum on a JS-STRING enum whose members look numeric (numstr-enum) — type-keyed, not value-keyed", () => {
+    const numstr = fm("numstr-enum");
+    expect(numstr?.valuesClosed, "still a closed string enum").toBe(true);
+    expect(
+      numstr?.numericMemberEnum,
+      "members are JS strings ['3','4'] → NOT numeric-member (would wrongly reject quoted \"3\")",
+    ).toBeUndefined();
+  });
+
+  it("does NOT set numericMemberEnum on a MIXED numeric/string enum (mixed-enum) — requires ALL members numeric", () => {
+    const mixed = fm("mixed-enum");
+    expect(mixed?.valuesClosed, "still a closed enum").toBe(true);
+    expect(mixed?.numericMemberEnum, "a mixed enum is not all-numeric").toBeUndefined();
+  });
+
+  it("does NOT set numericMemberEnum on a plain boolean or string-enum field (toc / code-overflow)", () => {
+    expect(fm("toc")?.numericMemberEnum, "boolean field").toBeUndefined();
+    // code-overflow is a cell option, not front-matter; use the string enum freeze instead
+    expect(fm("freeze")?.numericMemberEnum, "string enum [auto]").toBeUndefined();
+  });
+
+  it("GO-LIVE: the annotation makes the DOCUMENT matcher accept coerced aspectratio forms and flag out-of-set/quoted (composes L1+L2)", () => {
+    const aspectratio = fm("aspectratio");
+    expect(aspectratio, "aspectratio must resolve").toBeDefined();
+    // Coerced forms quarto accepts (exit 0) — the live FP is gone:
+    for (const v of ["169", "169.0", "+169", "0169", "4_3"]) {
+      expect(isWrongValue(v, aspectratio!), `${v} must NOT flag`).toBe(false);
+    }
+    // Out-of-set / quoted — still/now flagged:
+    expect(isWrongValue("5", aspectratio!)).toBe(true);
+    expect(isWrongValue('"169"', aspectratio!)).toBe(true);
   });
 });
 

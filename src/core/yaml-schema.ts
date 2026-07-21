@@ -914,11 +914,60 @@ function closednessOfSchema(
 }
 
 /**
- * Set the derived `valuesClosed`/`acceptsBoolean` bits on `field` from its raw
- * `schema` (shared by `toField` and `objectChildren`). Only stamps `valuesClosed`
- * when the field is BOTH provably closed AND actually value-bearing, so the
- * matcher's precondition (`valuesClosed===true && values.length>0`) can gate on
- * the single bit; a genuinely open field is left unmarked (open by default).
+ * Whether a schema-DSL `schema` field is a NUMERIC-MEMBER enum — a closed enum whose
+ * members are ALL YAML numbers (numeric-member-enum matcher plan §3.1 B). The focused
+ * sibling of `closednessOfSchema`, mirroring its arm order + `depth` guard and returning
+ * a single boolean. TRUE only for a bare-array or `{values}` `enum` whose EVERY member is
+ * a JS `number` (`aspectratio` = enum:[43,169,…], `google-analytics.version` = enum:[3,4]);
+ * a bare/wrapped `boolean`, a `string`/`number`/`path`/`object`/`arrayOf`, a string OR
+ * MIXED enum, and any unproven node are all FALSE. Reads the raw JS member TYPES (NOT
+ * `field.values`, already stringified to `["3","4"]` for BOTH a number AND a string enum),
+ * which is exactly what makes the bit TYPE-keyed and forward-compat-safe against a future
+ * all-numeric string enum (§6 A' / dragon 2). An `anyOf` is numeric-member iff EVERY arm
+ * is — no reachable schema hits this (the two positions are bare enums), but it is kept
+ * sound so an `anyOf` mixing a numeric enum with a string/boolean arm is never marked.
+ * Consumed ONLY when the field is ALSO closed (`annotateClosedness` gates on `closed`), so
+ * the bit always rides `valuesClosed` and the matcher precondition still gates it.
+ */
+function numericMemberEnumOfSchema(schema: unknown, definitions: Map<string, unknown>, depth: number): boolean {
+  if (depth > 5) {
+    return false;
+  }
+  if (typeof schema === "string" || schema === null || typeof schema !== "object") {
+    return false; // bare "boolean" | "string" | "number" | "path" | non-object
+  }
+  const s = schema as Record<string, unknown>;
+  if (Array.isArray(s.enum)) {
+    return s.enum.length > 0 && s.enum.every((v) => typeof v === "number");
+  }
+  if (s.enum !== null && typeof s.enum === "object" && !Array.isArray(s.enum)) {
+    const values = (s.enum as Record<string, unknown>).values;
+    return Array.isArray(values) && values.length > 0 && values.every((v) => typeof v === "number");
+  }
+  if (Array.isArray(s.anyOf)) {
+    return s.anyOf.length > 0 && s.anyOf.every((m) => numericMemberEnumOfSchema(m, definitions, depth + 1));
+  }
+  if (s.maybeArrayOf !== undefined) {
+    return numericMemberEnumOfSchema(s.maybeArrayOf, definitions, depth + 1);
+  }
+  if (typeof s.ref === "string") {
+    return numericMemberEnumOfSchema(definitions.get(s.ref), definitions, depth + 1);
+  }
+  if (s.schema !== undefined) {
+    return numericMemberEnumOfSchema(s.schema, definitions, depth + 1);
+  }
+  return false; // enum absent / string:{completions} / object / arrayOf / unrecognized
+}
+
+/**
+ * Set the derived `valuesClosed`/`acceptsBoolean`/`numericMemberEnum` bits on `field`
+ * from its raw `schema` (shared by `toField`, `objectChildren`, and the project reader).
+ * Only stamps `valuesClosed` when the field is BOTH provably closed AND actually
+ * value-bearing, so the matcher's precondition (`valuesClosed===true && values.length>0`)
+ * can gate on the single bit; a genuinely open field is left unmarked (open by default).
+ * `numericMemberEnum` rides on `closed` — set only for a closed all-JS-number enum, so
+ * the numeric-equality matcher branch reaches EVERY surface (document/cell/project) from
+ * this one choke point (matcher plan §2.6 / §3.1 B).
  */
 function annotateClosedness(field: SchemaField, schema: unknown, definitions: Map<string, unknown>): void {
   if (field.values === undefined || field.values.length === 0) {
@@ -929,6 +978,9 @@ function annotateClosedness(field: SchemaField, schema: unknown, definitions: Ma
     field.valuesClosed = true;
     if (acceptsBoolean) {
       field.acceptsBoolean = true;
+    }
+    if (numericMemberEnumOfSchema(schema, definitions, 0)) {
+      field.numericMemberEnum = true;
     }
   }
 }
