@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S134
+date: 2026-07-21
+status: pending
+active_task: PLANNING — value validation for _quarto.yml-surface project-config CONTAINER children (website:/book:/project:). Deliverable = ONE plan doc at docs/planning/2026-07-21-quarto-yml-value-validation-plan.md (evidence-based inventory + §4 strict-TDD gate-(a) contract + §9 mandatory adversarial-review requirement). NO code this session (FM #18/#19). Operator picked "_quarto.yml value validation (plan)" via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S133
 date: 2026-07-21
 status: complete
