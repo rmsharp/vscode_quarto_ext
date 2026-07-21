@@ -135,3 +135,34 @@ describe("findFrontMatterValueLines — multi-line flow collections (adversarial
     ]);
   });
 });
+
+describe("findFrontMatterValueLines — multi-line QUOTED scalars (adversarial review, S130)", () => {
+  // A multi-line single/double-QUOTED scalar folds its continuation line into the
+  // value even when that continuation sits at COLUMN 0 — quarto renders the whole
+  // span exit 0 as one string. So a continuation like `columns: wide"` is NOT a new
+  // top-level mapping; emitting it would be a cardinal-sin false positive (the numeric
+  // branch flags `columns`/`fig-width`, which were previously OPEN and masked it).
+  // The quote-naive flow counter misses this (an open quote holds no `[]{}` brackets);
+  // the fix is the quote-aware scanner the nested enumerator already uses (S128).
+  it("does NOT emit the column-0 continuation of a multi-line DOUBLE-quoted scalar", () => {
+    const text = ["---", 'title: "hello', 'columns: wide"', "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([
+      { line: 1, key: "title", valueRange: { startCol: 7, endCol: 13 }, rawToken: '"hello' },
+    ]);
+  });
+
+  it("does NOT emit the column-0 continuation of a multi-line SINGLE-quoted scalar", () => {
+    const text = ["---", "subtitle: 'intro", "fig-width: huge'", "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([
+      { line: 1, key: "subtitle", valueRange: { startCol: 10, endCol: 16 }, rawToken: "'intro" },
+    ]);
+  });
+
+  it("resumes validation on the top-level line AFTER the closing quote", () => {
+    const text = ["---", 'title: "hello', 'world"', "toc: yes", "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([
+      { line: 1, key: "title", valueRange: { startCol: 7, endCol: 13 }, rawToken: '"hello' },
+      { line: 3, key: "toc", valueRange: { startCol: 5, endCol: 8 }, rawToken: "yes" },
+    ]);
+  });
+});

@@ -19,7 +19,7 @@
  */
 
 import { findFrontMatter, frontMatterContentLines } from "./qmd/model";
-import { topLevelSlots } from "./yaml-context";
+import { scanFlow, topLevelSlots } from "./yaml-context";
 
 /** One top-level front-matter line that carries a non-empty scalar value. */
 export interface FrontMatterValueLine {
@@ -60,22 +60,29 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
   // `fm.startLine + 1 + i` (the fences are excluded from both).
   const baseLine = fm.startLine + 1;
   const result: FrontMatterValueLine[] = [];
-  // Depth of an unclosed multi-line FLOW collection (`{…}` / `[…]`). While > 0 we
-  // are inside a value that spans lines, so a column-0 continuation line is NOT a
-  // new top-level mapping and must be skipped — otherwise a continuation like
-  // `toc: yes,` inside `mymeta: {\n…\n}` would be misread as a top-level `toc`
-  // value and flagged, a cardinal-sin false positive on a doc quarto accepts
-  // (adversarial review, S125). Block scalars (`|`/`>`) need no tracking: their
-  // content is indented, so `topLevelSlots` already skips it. Counting is
-  // quote-naive (the plan forbids YAML-parsing); an over-count only OVER-skips
-  // (a safe false negative), and the indentation check backs it up for indented
-  // continuation lines.
+  // State of an unclosed multi-line value that spans following lines. While inside one, a
+  // column-0 continuation line is NOT a new top-level mapping and must be skipped — else a
+  // continuation like `toc: yes,` inside `mymeta: {\n…\n}`, OR `columns: wide"` inside a
+  // multi-line quoted `title: "…"`, is misread as a top-level mapping and flagged, a
+  // cardinal-sin false positive on a doc quarto renders exit 0. TWO forms, tracked together by
+  // the shared quote-aware `scanFlow` (`yaml-context.ts`) — the SAME scanner the nested
+  // enumerator uses:
+  //   • `flowDepth` — an unclosed FLOW collection `{…}` / `[…]` (adversarial review, S125);
+  //   • `openQuote` — an unterminated single/double-QUOTED scalar whose continuation folds
+  //     into the value even at COLUMN 0 (adversarial review, S130 — a quote holds no `{}[]`
+  //     brackets, so the previous quote-naive counter missed it entirely, and the numeric
+  //     branch made the latent FP live for ~35 numeric top-level keys).
+  // Block scalars (`|`/`>`) still need no tracking: their content is indented, so
+  // `topLevelSlots` already skips it. Over-skipping when ambiguous is the safe FN direction.
   let flowDepth = 0;
+  let openQuote: '"' | "'" | null = null;
   for (let i = 0; i < contentLines.length; i++) {
     const lineText = contentLines[i];
-    if (flowDepth > 0) {
-      flowDepth = Math.max(0, flowDepth + netFlowDelta(lineText));
-      continue; // inside a multi-line flow value — skip continuation lines
+    if (flowDepth > 0 || openQuote !== null) {
+      const s = scanFlow(lineText, flowDepth, openQuote);
+      flowDepth = Math.max(0, s.depth);
+      openQuote = s.quote;
+      continue; // inside a multi-line flow/quoted value — skip continuation lines
     }
     const { keySlot, valueSlot } = topLevelSlots(lineText);
     if (keySlot === null || valueSlot === null) {
@@ -91,27 +98,16 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       rawToken,
     });
-    // Only a value that STARTS with `[`/`{` opens a flow collection; if it does
-    // not close on this line, the following lines are its continuation.
-    if (/^[[{]/.test(rawToken)) {
-      const delta = netFlowDelta(rawToken);
-      if (delta > 0) {
-        flowDepth = delta;
-      }
+    // Arm the continuation-skip if THIS value opens an unclosed flow collection OR an
+    // unterminated quoted scalar — scanned over the WHOLE token (a quote cannot be detected
+    // by a first-char `[`/`{` test), matching the nested enumerator's arming.
+    const s = scanFlow(rawToken, 0, null);
+    if (s.depth > 0) {
+      flowDepth = s.depth;
+    }
+    if (s.quote !== null) {
+      openQuote = s.quote;
     }
   }
   return result;
-}
-
-/** Net `{`/`[` opens minus `}`/`]` closes in `s` (quote-naive — see the caller). */
-function netFlowDelta(s: string): number {
-  let d = 0;
-  for (const ch of s) {
-    if (ch === "{" || ch === "[") {
-      d++;
-    } else if (ch === "}" || ch === "]") {
-      d--;
-    }
-  }
-  return d;
 }

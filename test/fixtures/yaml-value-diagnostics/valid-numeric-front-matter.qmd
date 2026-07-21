@@ -1,4 +1,6 @@
 ---
+title: "a long title that wraps onto a second line where
+columns: wide reads like a mapping but is inside the quoted string"
 fig-width: 1e2
 fig-height: .inf
 fig-asp: 1_000
@@ -28,7 +30,11 @@ matcher's leading-`[` guard, never flagged. `toc-expand: true` is the BOOLEAN fo
 number-OR-boolean field; `execute.daemon: 30` is its NUMBER form. `linestretch: 2em` is a
 MIXED number|string field — its string form must NOT be flagged (open, numeric plan §7.4).
 The per-format `fig-dpi: 300` / `toc-depth: 3` are valid per-format numbers. The cell
-`#| fig-width: 6  # a trailing comment` exercises the unquoted-comment strip.
+`#| fig-width: 6  # a trailing comment` exercises the unquoted-comment strip. And the
+MULTI-LINE quoted `title: "…"` at the top folds its continuation line (which reads
+`columns: wide`) into the string — quarto renders it exit 0, so the quote-aware enumerator
+must NOT emit that continuation as a top-level `columns` value and flag it (the S130
+adversarial-review CRITICAL FP, now render-verified exit 0 and guarded end-to-end).
 
 ```{r}
 #| fig-width: 6  # a trailing comment

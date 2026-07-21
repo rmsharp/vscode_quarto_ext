@@ -15,16 +15,17 @@
  *      ancestor walk (exported from `yaml-context.ts`) per line, not a hand-rolled
  *      path stack — so the `format`-rooted-only rule and the block-scalar bail (a
  *      `key: |` container makes `mappingContainerKey` return null) come for free.
- *   2. Multi-line values that span lines at depth are tracked with a QUOTE-AWARE,
- *      node-property-aware scanner (`scanFlow`) that follows BOTH an unclosed flow
- *      collection (`{…}`/`[…]`) AND an unterminated quoted scalar (`key: "text…`) —
- *      NOT the top-level enumerator's quote-naive, quote-blind `netFlowDelta`. At depth
- *      there is no column-0 backstop, so a continuation line misread as a nested mapping
- *      is a live cardinal-sin false positive, not the safe false negative it is at the
- *      top level (plan §7.1's three firsthand-rendered flow shapes: same-indent
- *      continuation, anchored opener `foo: &a { … }`, quoted brace `a: "}"`; PLUS the
- *      adversarial review's CONFIRMED multi-line-quoted-scalar FP `title: "…\n echo: x"`
- *      that the flow-only guard missed).
+ *   2. Multi-line values that span lines are tracked with the shared QUOTE-AWARE,
+ *      node-property-aware scanner (`scanFlow`, `yaml-context.ts`) that follows BOTH an
+ *      unclosed flow collection (`{…}`/`[…]`) AND an unterminated quoted scalar
+ *      (`key: "text…`). BOTH enumerators (this nested one and the top-level
+ *      `findFrontMatterValueLines`) use the same scanner: a multi-line quoted scalar folds
+ *      its continuation into the value even at COLUMN 0, so a continuation line misread as a
+ *      mapping is a live cardinal-sin false positive at EITHER level, never a safe false
+ *      negative (plan §7.1's three firsthand-rendered flow shapes: same-indent continuation,
+ *      anchored opener `foo: &a { … }`, quoted brace `a: "}"`; PLUS the adversarial reviews'
+ *      CONFIRMED multi-line-quoted-scalar FPs — nested `title: "…\n echo: x"` (S128) and
+ *      top-level `title: "…\n columns: wide"` (S130) — that a flow-only guard missed).
  *
  * `parentPath` EXCLUDES this line's own key (the `nestedParentPath` FUNCTION
  * convention), unlike the completion CONTEXT's `parentPath` which appends it — so
@@ -33,7 +34,7 @@
  */
 
 import { findFrontMatter, frontMatterContentLines } from "./qmd/model";
-import { leadingWsLen, nestedParentPath, valueSlotAfterColon } from "./yaml-context";
+import { leadingWsLen, nestedParentPath, scanFlow, valueSlotAfterColon } from "./yaml-context";
 
 /** One nested (indented) front-matter line that carries a non-empty scalar value. */
 export interface NestedFrontMatterValueLine {
@@ -154,67 +155,4 @@ export function findNestedFrontMatterValueLines(
     }
   }
   return result;
-}
-
-/** The unclosed-value state after scanning `s`: net flow-bracket depth + any open quote. */
-interface FlowState {
-  depth: number;
-  quote: '"' | "'" | null;
-}
-
-/**
- * Advance the multi-line-value state across `s`, starting from `startDepth`/`startQuote`,
- * and return the resulting `{depth, quote}`. Tracks BOTH an unclosed FLOW collection
- * (`{…}`/`[…]`, net-counted) and an unterminated single/double-QUOTED scalar, together —
- * because they nest: a bracket inside a quote is literal (not counted), and a quote opened
- * inside a flow persists across lines. This is the QUOTE-AWARE analog of the top-level
- * `netFlowDelta`, extended with quote PERSISTENCE (plan §3.3 step 2, §7.1, plus the review's
- * multi-line-quoted-scalar FP). A `\`-escaped char inside a double-quoted scalar and a `''`
- * inside a single-quoted one are consumed, so a quoted bracket never miscounts and an
- * embedded quote never closes early. An unquoted `#` (at the start or whitespace-preceded,
- * OUTSIDE any quote/at flow depth 0) begins a YAML comment: the remainder is not structure,
- * so scanning stops there — biasing toward NOT dropping depth on a `}` hidden in a comment
- * (a safe over-skip). Node properties (`&anchor`/`*alias`/`!tag`) contain no brackets, so
- * they contribute 0 automatically; arming on the WHOLE token is therefore node-property-aware.
- */
-function scanFlow(s: string, startDepth: number, startQuote: '"' | "'" | null): FlowState {
-  let depth = startDepth;
-  let quote = startQuote;
-  for (let i = 0; i < s.length; i++) {
-    const ch = s[i];
-    if (quote === '"') {
-      if (ch === "\\") {
-        i++; // consume the escaped character (e.g. `\"`, `\\`)
-        continue;
-      }
-      if (ch === '"') {
-        quote = null;
-      }
-      continue;
-    }
-    if (quote === "'") {
-      if (ch === "'") {
-        if (s[i + 1] === "'") {
-          i++; // `''` is an escaped single quote — stay inside the scalar
-          continue;
-        }
-        quote = null;
-      }
-      continue;
-    }
-    // Outside quotes.
-    if (ch === '"' || ch === "'") {
-      quote = ch;
-      continue;
-    }
-    if (ch === "#" && (i === 0 || /\s/.test(s[i - 1]))) {
-      break; // an unquoted comment — the rest is not structure
-    }
-    if (ch === "{" || ch === "[") {
-      depth++;
-    } else if (ch === "}" || ch === "]") {
-      depth--;
-    }
-  }
-  return { depth, quote };
 }
