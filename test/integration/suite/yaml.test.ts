@@ -1532,3 +1532,53 @@ describe("Quarto: YAML deep-nested per-format option value completion (6d-6+ b2-
     assert.strictEqual(range.end.character, 19, "replaces through the end of 'true'");
   });
 });
+
+describe("Quarto: YAML other-container nested completion (bonus, other-container plan §3.3)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  // Widening NESTED_CONTAINERS + the general reader branch also enables KEY and VALUE
+  // completion under these containers (the detector previously returned null → no
+  // completion). Strictly additive — a bonus — but verified so a future regression is
+  // caught (plan §3.3).
+  it("offers a container's child KEYS one level under it (`crossref:` → chapters)", async () => {
+    const doc = await openInMemory("---\ncrossref:\n  \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 2), // the nested key slot under crossref:
+    );
+    const labels = documentOptionLabels(list);
+    assert.ok(labels.includes("chapters"), `should offer crossref child 'chapters'; got ${JSON.stringify(labels)}`);
+  });
+
+  it("offers a container child's closed VALUE enum (`mermaid:\\n  theme:` → dark/forest/…)", async () => {
+    const doc = await openInMemory("---\nmermaid:\n  theme: \n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 9), // after "  theme: "
+    );
+    const labels = documentValueLabels(list);
+    for (const v of ["default", "dark", "forest", "neutral"]) {
+      assert.ok(labels.includes(v), `should offer mermaid.theme value '${v}'; got ${JSON.stringify(labels)}`);
+    }
+  });
+
+  it("still bails under a grounded-OUT container (`website:` → no nested keys) — no over-widening", async () => {
+    const doc = await openInMemory("---\nwebsite:\n  ti\n---\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 4),
+    );
+    assert.deepStrictEqual(documentOptionLabels(list), [], "website: is not a validated container");
+  });
+});

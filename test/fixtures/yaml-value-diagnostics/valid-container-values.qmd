@@ -1,0 +1,40 @@
+---
+crossref:
+  chapters: true
+  fig-title: "Figura"
+listing:
+  - id: alpha
+    type: default
+mermaid:
+  theme: dark
+editor:
+  mode: visual
+chalkboard:
+  theme: whiteboard
+lightbox:
+  effect: fade
+grid:
+  sidebar-width: 250px
+about:
+  template: jolla
+  image-shape: round
+---
+
+Every value here renders exit 0 under `quarto render` 1.7.33 (grounded firsthand as one
+document, Session 132), so the feature must produce ZERO diagnostics:
+
+- `crossref.chapters: true` — valid closed boolean.
+- `crossref.fig-title: "Figura"` — an OPEN string child (the parser leaves it open) → never
+  flagged. The standing FP guard for a recognized-but-open container child.
+- `listing:` as a SEQUENCE — the `- id: alpha` sequence item makes `mappingContainerKey`
+  return null, so `nestedParentPath` bails and the `type: default` under it is NOT reached
+  (a documented safe false negative, plan §2.3; the single-object `listing:` form IS
+  validated, exercised in `container-values.qmd`).
+- `mermaid.theme: dark` / `editor.mode: visual` / `chalkboard.theme: whiteboard` /
+  `lightbox.effect: fade` — valid closed enum members (the regression guard that valid
+  closed values are NOT flagged).
+- `grid.sidebar-width: 250px` — a mixed `anyOf[number, string]` dimension → OPEN (`number &&
+  !other` fails); quarto accepts `"250px"`, so we correctly stay silent (same mechanism as
+  the numeric slice's `linestretch: 2em`).
+- `about:` WITH the REQUIRED `template` (else quarto exit 1 on a missing-property error, NOT
+  a value error the feature flags) + `image-shape: round` — a valid closed enum member.

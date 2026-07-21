@@ -1,0 +1,26 @@
+---
+crossref:
+  chapters: banana
+listing:
+  type: fancy
+mermaid:
+  theme: sunset
+editor:
+  mode: wysiwyg
+chalkboard:
+  theme: green
+lightbox:
+  effect: sparkle
+---
+
+Prose body. Each of the six wrong CLOSED values under these OTHER front-matter
+containers renders exit 1 under `quarto render` 1.7.33 (grounded firsthand, the
+"Validation of YAML front matter failed" schema layer — Session 132): `crossref.chapters:
+banana` (closed boolean), `listing.type: fancy` (closed enum[default,table,grid,custom]),
+`mermaid.theme: sunset` (closed enum[default,dark,forest,neutral]), `editor.mode: wysiwyg`
+(closed enum[source,visual]), `chalkboard.theme: green` (closed enum[chalkboard,whiteboard]
+— a revealjs container that still schema-validates at document top level under `--to html`),
+`lightbox.effect: sparkle` (closed enum[fade,zoom,none]). All six reach the shared
+`isWrongValue` matcher through the widened `NESTED_CONTAINERS` gate + the general length-1
+reader branch (other-container value-validation plan §3.2) — the Phase-3 diagnostics loop,
+matcher, and message are UNCHANGED.

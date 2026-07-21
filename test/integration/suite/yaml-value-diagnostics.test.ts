@@ -15,6 +15,8 @@ const NESTED_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnos
 const VALID_NESTED_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/valid-nested-front-matter.qmd");
 const NUMERIC_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/numeric-front-matter.qmd");
 const VALID_NUMERIC_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/valid-numeric-front-matter.qmd");
+const CONTAINER_VALUES = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/container-values.qmd");
+const VALID_CONTAINER_VALUES = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/valid-container-values.qmd");
 
 async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean> {
   const start = Date.now();
@@ -407,6 +409,80 @@ describe("Quarto: NUMERIC front-matter VALUE diagnostics (.qmd, numeric plan §4
     assert.ok(
       await waitFor(() => valueDiagnostics(doc.uri).length === 3, 3000),
       "fixing columns: wide → columns: 2 should drop the count from 4 to 3 after the debounce",
+    );
+  });
+});
+
+describe("Quarto: OTHER-container front-matter VALUE diagnostics (.qmd, other-container plan §4.1 Phase 5)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("flags exactly the 6 wrong closed values across 6 other containers, at their value spans", async () => {
+    const doc = await openActive(CONTAINER_VALUES);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 6, 5000),
+      "expected other-container value diagnostics to appear within 5s of opening",
+    );
+
+    const diags = valueDiagnostics(doc.uri);
+    assert.strictEqual(
+      diags.length,
+      6,
+      `expected exactly 6, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+    );
+
+    // (line, value token, [startCol, endCol]) — each a wrong CLOSED child of a
+    // different container, grounded to `quarto render` 1.7.33 exit 1 (schema layer).
+    const expected: Array<[number, string, number, number]> = [
+      [2, "banana", 12, 18], //   chapters: banana   (crossref, closed bool)
+      [4, "fancy", 8, 13], //     type: fancy        (listing, closed enum)
+      [6, "sunset", 9, 15], //    theme: sunset       (mermaid, closed enum)
+      [8, "wysiwyg", 8, 15], //   mode: wysiwyg       (editor, closed enum)
+      [10, "green", 9, 14], //    theme: green        (chalkboard, closed enum)
+      [12, "sparkle", 10, 17], // effect: sparkle     (lightbox, closed enum)
+    ];
+    const byLine = new Map(diags.map((d) => [d.range.start.line, d]));
+    for (const [line, token, startCol, endCol] of expected) {
+      const d = byLine.get(line);
+      assert.ok(d, `expected a diagnostic on line ${line} (value ${token})`);
+      assert.ok(d.message.includes(token), `line ${line} message should name the value "${token}"`);
+      assert.strictEqual(d.range.start.character, startCol, `line ${line} value should start at col ${startCol}`);
+      assert.strictEqual(d.range.end.character, endCol, `line ${line} value should end at col ${endCol}`);
+      assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Error);
+      assert.strictEqual(d.code, DIAGNOSTIC_CODE);
+    }
+  });
+
+  it("produces ZERO diagnostics for the valid/open/sequence FP battery across containers", async () => {
+    const doc = await openActive(VALID_CONTAINER_VALUES);
+    await new Promise((r) => setTimeout(r, 400));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "first check");
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
+  });
+
+  it("re-scans live on edit (debounced) and drops a container diagnostic once the value is fixed", async () => {
+    const doc = await openActive(CONTAINER_VALUES);
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 6, 5000));
+
+    const editor = vscode.window.activeTextEditor;
+    assert.ok(editor);
+    await editor.edit((builder) => {
+      // `  mode: wysiwyg` (editor, line 8) → a valid enum member.
+      builder.replace(doc.lineAt(8).range, "  mode: visual");
+    });
+
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length === 5, 3000),
+      "fixing editor.mode: wysiwyg → mode: visual should drop the count from 6 to 5 after the debounce",
     );
   });
 });
