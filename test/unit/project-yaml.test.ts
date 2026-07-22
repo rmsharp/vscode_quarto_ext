@@ -389,6 +389,59 @@ describe("findProjectConfigValueLines — DEPTH-2 exotic continuation shapes nev
   });
 });
 
+describe("findProjectConfigValueLines — a top-level execute: block's children (execute value plan §3.2)", () => {
+  it("emits a depth-1 execute child with container:\"execute\", path:[], span exact", () => {
+    const text = ["execute:", "  echo: banana"].join("\n");
+    // `echo` at indent 2; `banana` spans cols 8..14 on `  echo: banana`.
+    expect(findProjectConfigValueLines(text)).toEqual([
+      { line: 1, container: "execute", path: [], key: "echo", valueRange: { startCol: 8, endCol: 14 }, rawToken: "banana" },
+    ]);
+  });
+
+  it("is closedness-BLIND — emits open (output), numeric (daemon), and unknown (custom-thing) children too; the FEATURE decides what to flag", () => {
+    const text = ["execute:", "  output: banana", "  daemon: 30", "  custom-thing: whatever"].join("\n");
+    // All three are emitted; downstream the feature skips output (open), daemon (numeric
+    // accept), and custom-thing (unknown → resolver undefined). The enumerator's job is
+    // enumeration, not closedness.
+    expect(findProjectConfigValueLines(text).map((v) => ({ container: v.container, key: v.key }))).toEqual([
+      { container: "execute", key: "output" },
+      { container: "execute", key: "daemon" },
+      { container: "execute", key: "custom-thing" },
+    ]);
+  });
+
+  it("tracks execute: alongside project:/website:/book: in one document", () => {
+    const text = ["execute:", "  echo: banana", "project:", "  output-dir: docs"].join("\n");
+    expect(findProjectConfigValueLines(text).map((v) => ({ container: v.container, key: v.key }))).toEqual([
+      { container: "execute", key: "echo" },
+      { container: "project", key: "output-dir" },
+    ]);
+  });
+
+  it("emits a DEPTH-2 grandchild under an execute block-opener child with path=[child] (the name-collision surface: path, not bare key)", () => {
+    // `knitr:` opens a nested block; `cache: banana` under it emits path=["knitr"], NOT a
+    // depth-1 execute.cache. The feature resolves BY PATH → knitr ∉ CURATED_EXECUTE_KEYS
+    // → undefined → skip (a safe FN; quarto itself rejects the knitr shape). Bare-name
+    // resolution would mis-hit the closed execute.cache and flag `banana` — a cardinal-sin FP.
+    const text = ["execute:", "  knitr:", "    cache: banana"].join("\n");
+    expect(findProjectConfigValueLines(text)).toEqual([
+      { line: 2, container: "execute", path: ["knitr"], key: "cache", valueRange: { startCol: 11, endCol: 17 }, rawToken: "banana" },
+    ]);
+  });
+
+  it("KEY-ISOLATION LOCK (dragon 1): findProjectConfigKeyLines still IGNORES execute — the unknown-KEY feature must never flag an execute child key", () => {
+    // The value enumerator recognizes execute; the KEY enumerator must NOT. Quarto ACCEPTS
+    // unknown execute keys (`custom-thing: whatever` → exit 0), so flagging one would be a
+    // cardinal-sin FP. This locks the two container predicates apart: adding `execute` to
+    // the shared `PROJECT_CONFIG_CONTAINERS` (instead of the value-only `VALUE_CONTAINERS`)
+    // would turn this red.
+    const text = ["execute:", "  echo: banana", "  custom-thing: whatever"].join("\n");
+    expect(findProjectConfigKeyLines(text)).toEqual([]);
+    // Sanity: the VALUE enumerator DOES see them (proving the two predicates genuinely differ).
+    expect(findProjectConfigValueLines(text).map((v) => v.container)).toEqual(["execute", "execute"]);
+  });
+});
+
 describe("isProjectConfigFileName — the filename gate is EXACT, never a suffix match (adversarial review, Session 47)", () => {
   it("accepts the exact basenames", () => {
     expect(isProjectConfigFileName("/a/b/_quarto.yml")).toBe(true);

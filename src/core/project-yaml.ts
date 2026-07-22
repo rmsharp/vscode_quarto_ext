@@ -17,6 +17,18 @@ import { leadingWsLen, mappingContainerKey, valueSlotAfterColon } from "./yaml-c
 /** The three `_quarto.yml` blocks with a genuinely closed key set (plan §0). */
 const PROJECT_CONFIG_CONTAINERS = new Set(["project", "website", "book"]);
 
+/**
+ * The value-side top-level containers: `project`/`website`/`book` (closed project-config
+ * key sets) PLUS `execute` (a document-level options block also valid at the `_quarto.yml`
+ * top level, resolved via `frontMatterKeys(["execute"])` — execute value plan §3.2). Used
+ * ONLY by the VALUE enumerator `findProjectConfigValueLines`. The KEY enumerator
+ * (`findProjectConfigKeyLines`) MUST keep the narrower `PROJECT_CONFIG_CONTAINERS`:
+ * `execute`'s children are an OPEN set quarto accepts (`custom-thing: whatever` → exit 0),
+ * so flagging an unknown execute KEY would be a cardinal-sin false positive (execute value
+ * plan §7 / dragon 1).
+ */
+const VALUE_CONTAINERS = new Set(["project", "website", "book", "execute"]);
+
 /** The exact basenames this feature validates — never a suffix match. */
 const PROJECT_CONFIG_FILENAMES = new Set(["_quarto.yml", "_quarto.yaml"]);
 
@@ -98,6 +110,16 @@ function isProjectConfigContainer(name: string): name is "project" | "website" |
 }
 
 /**
+ * The VALUE enumerator's own container predicate — the KEY set plus `execute`. Kept
+ * SEPARATE from `isProjectConfigContainer` so adding `execute` never leaks into the
+ * unknown-KEY feature (execute value plan §7 / dragon 1). Used ONLY in
+ * `findProjectConfigValueLines`.
+ */
+function isValueContainer(name: string): name is "project" | "website" | "book" | "execute" {
+  return VALUE_CONTAINERS.has(name);
+}
+
+/**
  * One value line found inside a value-side top-level container, at depth-1 or depth-2.
  * `project`/`website`/`book` carry a closed project-config key set (`projectFields`);
  * `execute` is a document-level options block also valid at the `_quarto.yml` top level,
@@ -157,7 +179,7 @@ export interface ProjectConfigValueLine {
 export function findProjectConfigValueLines(text: string): ProjectConfigValueLine[] {
   const lines = stripBom(text).split(/\r?\n/);
   const result: ProjectConfigValueLine[] = [];
-  let currentContainer: "project" | "website" | "book" | null = null;
+  let currentContainer: "project" | "website" | "book" | "execute" | null = null;
   let containerIndent: number | null = null;
   // Depth-2 scope: when a depth-1 line is a pure block-opener (`navbar:`), `childKey`
   // names it and `childIndent` (fixed on the first grandchild line) pins the depth-2
@@ -189,7 +211,7 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
     const indent = leadingWsLen(lineText);
     if (indent === 0) {
       const key = mappingContainerKey(lineText);
-      currentContainer = key !== null && isProjectConfigContainer(key) ? key : null;
+      currentContainer = key !== null && isValueContainer(key) ? key : null;
       containerIndent = null; // reset; set on the first child line seen under it
       childKey = null;
       childIndent = null;
