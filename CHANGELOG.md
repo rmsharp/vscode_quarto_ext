@@ -7,6 +7,24 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-22 · [ad hoc] Session 144 — PLANNING: validate the scalar `format:` NAME (`.qmd` + `_quarto.yml`)
+
+Wrote `docs/planning/2026-07-22-quarto-format-name-validation-plan.md` — a grounded plan to flag an
+unknown/typo'd top-level output-format NAME (`format: banana`/`reveal`/`word`) with an Error squiggle
+matching `quarto render` 1.7.33's front-matter **schema** layer, WITHOUT false-positiving on extension
+formats, pandoc modifiers, hidden legacy variants, extension+modifier combos, or custom `.lua` writers.
+Deliverable = the PLAN; NO code (FM #18/#19). **Headline (the opposite of the S143 slice): this slice
+ADDS a bespoke matcher** — format-name acceptance is a REGEX UNION (`makeFrontMatterFormatSchema`:
+`^(.+-)?<name>([-+].+)?$` per built-in name + `^.+\.lua$`), not the flat closed enum `isWrongValue`
+requires. Scoped to Combo 1 (`.qmd` scalar — the only surface×form already emitting the token);
+Combos 2/3/4 deferred (§4.3). The MANDATORY 4-lens `quarto render`-verified §9 review
+(`wf_fc737cbf-672`) **refuted the first-draft predicate** (it had mirrored quarto's render-dispatch
+`parseFormatString`, the wrong layer, shipping 2 cardinal-sin FP classes: `.lua` writers and
+`<ext>-<builtin>-<mod>` names) and PROVED the fix; every finding firsthand-verified and folded, the
+corrected regex-mirror predicate re-verified → 0 divergences over the 32-case matrix + 51-case battery.
+Learning #157 (ground a mimicked validator on the exact layer whose output you reproduce, not a
+downstream one that disagrees).
+
 ### 2026-07-22 · [ad hoc] Session 143 — IMPLEMENTATION: `format:` per-format option VALUE validation in `_quarto.yml` (SHIPPED)
 
 Implemented `docs/planning/2026-07-22-quarto-yml-format-value-validation-plan.md` as one strict-TDD
