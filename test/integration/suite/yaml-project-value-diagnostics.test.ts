@@ -13,6 +13,8 @@ const D2_INVALID = path.resolve(ROOT, "test/fixtures/yaml-project-depth2-value/i
 const D2_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-depth2-value/valid/_quarto.yml");
 const EXEC_INVALID = path.resolve(ROOT, "test/fixtures/yaml-project-execute-value/invalid/_quarto.yml");
 const EXEC_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-execute-value/valid/_quarto.yml");
+const FMT_INVALID = path.resolve(ROOT, "test/fixtures/yaml-project-format-value/invalid/_quarto.yml");
+const FMT_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-format-value/valid/_quarto.yml");
 const QMD_FIXTURE = path.resolve(ROOT, "test/fixtures/sample.qmd");
 
 async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean> {
@@ -329,6 +331,108 @@ describe("Quarto: _quarto.yml top-level execute: VALUE diagnostics (execute valu
   });
 
   it("never produces an execute value diagnostic on a .qmd document — the filename gate structurally excludes it (the .qmd surface has its own S128 execute feature)", async () => {
+    const doc = await openActive(QMD_FIXTURE);
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0);
+  });
+});
+
+describe("Quarto: _quarto.yml top-level format: per-format option VALUE diagnostics (format value plan §3.2)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("flags exactly the 6 wrong CLOSED per-format option values (html.toc/df-print/fig-format/toc-depth, revealjs.transition, pdf.number-sections), each at its value span", async () => {
+    const doc = await openActive(FMT_INVALID);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 6, 6000),
+      "expected format value diagnostics within 6s of opening",
+    );
+    const diags = valueDiagnostics(doc.uri);
+    assert.strictEqual(
+      diags.length,
+      6,
+      `expected exactly 6, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+    );
+
+    const byLine = new Map(diags.map((d) => [d.range.start.line, d]));
+    // (0-indexed lines) 8 html.toc, 9 html.df-print, 10 html.fig-format, 11 html.toc-depth,
+    // 13 revealjs.transition, 15 pdf.number-sections. Cross-format resolution through
+    // frontMatterKeys(["format", fmt]) — three different format field sets, one enumerator.
+    assert.ok(byLine.get(8)?.message.includes("toc"), "html.toc on line 8");
+    assert.ok(byLine.get(9)?.message.includes("df-print"), "html.df-print on line 9");
+    assert.ok(byLine.get(10)?.message.includes("fig-format"), "html.fig-format on line 10");
+    assert.ok(byLine.get(11)?.message.includes("toc-depth"), "html.toc-depth on line 11");
+    assert.ok(byLine.get(13)?.message.includes("transition"), "revealjs.transition on line 13");
+    assert.ok(byLine.get(15)?.message.includes("number-sections"), "pdf.number-sections on line 15");
+    // `toc`/`number-sections` are boolean-closed; `toc-depth` is numeric — the message dispatches accordingly.
+    assert.ok(byLine.get(8)?.message.includes("true or false"), "html.toc: banana is a boolean reject");
+    assert.ok(byLine.get(11)?.message.includes("number"), "html.toc-depth: banana expects a number");
+
+    // Value spans (half-open) match the enumerator's exact ranges (grounded S143 via the
+    // compiled feature-sim harness; cross-checked 1:1 with quarto render 1.7.33 columns).
+    assert.deepStrictEqual(
+      [byLine.get(8)?.range.start.character, byLine.get(8)?.range.end.character],
+      [9, 15],
+      "html.toc value `banana` spans cols 9..15",
+    );
+    assert.deepStrictEqual(
+      [byLine.get(9)?.range.start.character, byLine.get(9)?.range.end.character],
+      [14, 20],
+      "html.df-print value `banana` spans cols 14..20",
+    );
+    assert.deepStrictEqual(
+      [byLine.get(15)?.range.start.character, byLine.get(15)?.range.end.character],
+      [21, 27],
+      "pdf.number-sections value `banana` spans cols 21..27",
+    );
+
+    for (const d of diags) {
+      assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Error);
+      assert.strictEqual(d.code, CODE);
+    }
+  });
+
+  it("produces ZERO diagnostics for a valid format: block — the FP battery: valid closed members, the code-fold anyOf(bool+show) trap, the OPEN theme/title traps, an unknown option, a cross-format option, the pandoc-layer toc-depth: 2.5, a multi-line quoted value, and an unknown-format-NAME block", async () => {
+    // Ordered after the flag test so the SchemaSource cache is warm. Every emitted line here
+    // resolves+matches to NO diagnostic (proven headlessly in-session): toc:true/number-sections:false
+    // (bool members), code-fold:show (anyOf → [true,false,show] → member), df-print:kable/fig-format:svg/
+    // transition:fade (enum members), toc-depth:3/fig-width:3.5/toc-depth:2.5 (numeric accept —
+    // 2.5 is a PANDOC error, not schema), theme:banana/title:whatever (OPEN → no valuesClosed → skip),
+    // custom-opt:whatever/documentclass:article (absent under html → resolver undefined → skip), the
+    // multi-line quoted `description` value (opener + continuation never emitted — scanFlow guard), and
+    // the unknown-format `banana:` block's `toc: true` (resolves to the universal toc field, valid → skip).
+    const doc = await openActive(FMT_VALID);
+    await new Promise((r) => setTimeout(r, 400));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "first check");
+    await new Promise((r) => setTimeout(r, 600));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
+  });
+
+  it("re-scans live on edit (debounced) and drops a diagnostic once a wrong per-format value is fixed", async () => {
+    const doc = await openActive(FMT_INVALID);
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 6, 6000));
+
+    const editor = vscode.window.activeTextEditor;
+    assert.ok(editor);
+    await editor.edit((builder) => {
+      builder.replace(doc.lineAt(8).range, "    toc: true"); // html.toc banana -> a valid member
+    });
+
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length === 5, 3000),
+      "fixing html.toc should drop the diagnostic count from 6 to 5 after the debounce",
+    );
+  });
+
+  it("never produces a format value diagnostic on a .qmd document — the filename gate structurally excludes it (the .qmd surface has its own S128 per-format value feature)", async () => {
     const doc = await openActive(QMD_FIXTURE);
     await new Promise((r) => setTimeout(r, 500));
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0);

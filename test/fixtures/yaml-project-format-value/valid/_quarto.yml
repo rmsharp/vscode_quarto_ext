@@ -1,0 +1,34 @@
+# S143 format: per-format option VALUE validation — VALID fixture (must produce ZERO
+# diagnostics from this feature). The FP battery: valid closed members, the code-fold
+# anyOf(bool+`show`) trap, the OPEN theme/title traps, an unknown option, a cross-format
+# option, the pandoc-layer toc-depth: 2.5, a multi-line quoted value, and an unknown-
+# format-NAME block. Every SCALAR line here is grounded (see below); every emitted line
+# resolves+matches to NO diagnostic.
+#
+# The contract is "zero of OUR diagnostics", NOT "renders clean": the unknown-format
+# `banana:` block (grounded quarto exit-1 "no possible value") and toc-depth: 2.5 (grounded
+# pandoc exit-1, NOT the schema layer) are deliberate safe-FN locks — quarto rejects them
+# downstream / by name, but THIS feature stays silent by design (dragons 3/4/7). All other
+# lines are grounded quarto exit-0.
+format:
+  html:
+    toc: true
+    code-fold: show
+    number-sections: false
+    df-print: kable
+    fig-format: svg
+    toc-depth: 3
+    fig-width: 3.5
+    theme: banana
+    title: whatever
+    custom-opt: whatever
+    documentclass: article
+    description: "line one
+      more: not-a-key"
+  pdf:
+    toc-depth: 2.5
+    number-sections: true
+  revealjs:
+    transition: fade
+  banana:
+    toc: true

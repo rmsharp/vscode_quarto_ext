@@ -1,0 +1,16 @@
+# S143 format: per-format option VALUE validation — INVALID fixture.
+# Each per-format option below is a wrong CLOSED/numeric value that quarto render 1.7.33
+# rejects at its schema layer (readAndValidateYamlFromFile, exit 1). Each value is grounded
+# single-valued (quarto stops at the first schema error per render, so a combined file does
+# not prove each row on its own — dragon 8). The three format blocks (html/revealjs/pdf)
+# prove cross-format resolution through frontMatterKeys(["format", <fmt>]).
+format:
+  html:
+    toc: banana
+    df-print: banana
+    fig-format: banana
+    toc-depth: banana
+  revealjs:
+    transition: banana
+  pdf:
+    number-sections: banana
