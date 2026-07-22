@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S141
+date: 2026-07-22
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD, vertical slice). Implement docs/planning/2026-07-21-quarto-yml-execute-value-validation-plan.md — execute: document-key VALUE validation in _quarto.yml. Gate-(a) §4.1 4-layer contract: L1 [INERT] widen ProjectConfigValueLine.container to include "execute" + route execute->frontMatterKeys(["execute"]) in the feature; L2 [GO-LIVE] value-only isValueContainer/VALUE_CONTAINERS used ONLY in findProjectConfigValueLines + unit tests RED->GREEN + KEY-isolation regression test; L3 fixtures + integration; L4 MANDATORY §9 review. Operator picked "Implement S140 plan" via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S140
 date: 2026-07-21
 status: complete
