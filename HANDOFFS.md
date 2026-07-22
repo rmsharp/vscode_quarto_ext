@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S144
+date: 2026-07-22
+status: pending
+active_task: PLANNING — validate the scalar format: NAME (an unknown/typo'd top-level format name, e.g. format: banana / format:\n  htlm:) on both the .qmd and _quarto.yml surfaces, matching quarto render 1.7.33, WITHOUT false-positiving on legitimately-installed extension/custom formats. The deliberate FN both surfaces carry today (format-name enum injected post-annotateClosedness so valuesClosed stays unset — S143 gotcha #3). Deliverable = ONE plan doc docs/planning/2026-07-22-quarto-format-name-validation-plan.md; NO code (FM #18/#19). Operator picked "Plan: format NAME validation" via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S143
 date: 2026-07-22
 status: complete
