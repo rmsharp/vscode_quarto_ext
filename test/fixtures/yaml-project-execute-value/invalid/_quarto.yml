@@ -1,0 +1,11 @@
+# S141 execute: value validation — INVALID fixture.
+# Each execute child below is a wrong CLOSED value that quarto render 1.7.33 rejects at
+# its schema layer (readAndValidateYamlFromFile, exit 1). Each value is grounded
+# single-valued (quarto stops at the first schema error per render, so a combined file
+# does not prove each row on its own — dragon 6).
+execute:
+  echo: banana
+  cache: nope
+  freeze: banana
+  error: 5
+  daemon: banana

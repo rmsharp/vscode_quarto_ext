@@ -1,0 +1,27 @@
+# S141 execute: value validation — VALID fixture (must produce ZERO diagnostics from this
+# feature). The FP battery: valid closed members, the YAML boolean spelling `True`, numeric
+# `daemon` accepts, the OPEN `output` trap, an unknown child, a multi-line quoted OPEN value
+# whose folded mapping-looking continuation line must NOT be emitted (scanFlow guard), and
+# the depth-2 knitr name-collision safe-FN.
+#
+# Every SCALAR line here is grounded quarto exit-0 EXCEPT the deliberate `knitr.cache` line
+# (grounded exit-1 "property name cache is invalid"): quarto validates knitr's shape, but
+# THIS feature stays silent by design — it resolves path=["knitr"] against the curated
+# execute keys, finds no `knitr` (it carries no `.children`), and skips. Bare-name
+# resolution there would mis-hit the closed depth-1 `execute.cache` and flag `banana` — a
+# cardinal-sin false positive. So this file's contract is "zero of OUR diagnostics", not
+# "renders clean" (the one non-clean line is the intentional safe-FN lock).
+execute:
+  echo: True
+  eval: false
+  cache: refresh
+  freeze: auto
+  enabled: false
+  daemon: 30
+  daemon-restart: true
+  output: banana
+  custom-thing: whatever
+  notes: "line one
+    cache: not-a-key"
+  knitr:
+    cache: banana
