@@ -97,10 +97,18 @@ function isProjectConfigContainer(name: string): name is "project" | "website" |
   return PROJECT_CONFIG_CONTAINERS.has(name);
 }
 
-/** One value line found inside `project:`/`website:`/`book:`, at depth-1 or depth-2. */
+/**
+ * One value line found inside a value-side top-level container, at depth-1 or depth-2.
+ * `project`/`website`/`book` carry a closed project-config key set (`projectFields`);
+ * `execute` is a document-level options block also valid at the `_quarto.yml` top level,
+ * resolved against `frontMatterKeys(["execute"])` instead (execute value plan §3.2). The
+ * KEY enumerator (`ProjectConfigKeyLine`) stays `{project,website,book}` — `execute`'s
+ * children are an OPEN set quarto accepts, so KEY validation of them would be a
+ * cardinal-sin FP (execute value plan §7 / dragon 1).
+ */
 export interface ProjectConfigValueLine {
   line: number;
-  container: "project" | "website" | "book";
+  container: "project" | "website" | "book" | "execute";
   /**
    * The ancestor child keys between the container and this value's key, top-down.
    * `[]` for a DEPTH-1 child (`draft-mode: hidden` → `path:[]`); `[child]` for a

@@ -105,13 +105,24 @@ async function computeProjectValueDiagnostics(
   }
   const diagnostics: vscode.Diagnostic[] = [];
   for (const entry of valueLines) {
-    // Resolve BY PATH against the container's super-merged field set (depth-2 value
-    // plan §3.2 C) — NEVER by bare `key`: a grandchild name can collide with a CLOSED
-    // depth-1 field (`book.type` CSL enum vs `book.cookie-consent.type`), where bare-name
-    // resolution would be a cardinal-sin FP, not merely a miss (§7.5/dragon 3). An
-    // unknown key/path (the KEY feature's territory), an open field (`isWrongValue`'s
-    // `valuesClosed` precondition fails), or a valid value all skip.
-    const field = resolveProjectValueField(index.projectFields(entry.container), entry);
+    // Select the field set by container, then resolve BY PATH (depth-2 value plan §3.2 C)
+    // — NEVER by bare `key`: a grandchild name can collide with a CLOSED depth-1 field
+    // (`book.type` CSL enum vs `book.cookie-consent.type`), where bare-name resolution
+    // would be a cardinal-sin FP, not merely a miss (§7.5/dragon 3). An unknown key/path
+    // (the KEY feature's territory), an open field (`isWrongValue`'s `valuesClosed`
+    // precondition fails), or a valid value all skip.
+    //
+    // `execute:` is a document-level options block valid at the `_quarto.yml` top level;
+    // its curated children come from `frontMatterKeys(["execute"])` (the SAME reader the
+    // `.qmd` document surface uses, S128), which returns `CURATED_EXECUTE_KEYS`
+    // UNCONDITIONALLY — so execute value validation is offline-robust, unlike
+    // `projectFields`, which returns `[]` when the CLI schema fails to load (execute
+    // value plan §3.2 B / §7). `project`/`website`/`book` keep `projectFields`.
+    const fields =
+      entry.container === "execute"
+        ? index.frontMatterKeys(["execute"])
+        : index.projectFields(entry.container);
+    const field = resolveProjectValueField(fields, entry);
     if (field === undefined || !isWrongValue(entry.rawToken, field)) {
       continue;
     }
