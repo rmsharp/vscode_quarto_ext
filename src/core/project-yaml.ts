@@ -123,14 +123,17 @@ function isValueContainer(name: string): name is "project" | "website" | "book" 
  * One value line found inside a value-side top-level container, at depth-1 or depth-2.
  * `project`/`website`/`book` carry a closed project-config key set (`projectFields`);
  * `execute` is a document-level options block also valid at the `_quarto.yml` top level,
- * resolved against `frontMatterKeys(["execute"])` instead (execute value plan §3.2). The
- * KEY enumerator (`ProjectConfigKeyLine`) stays `{project,website,book}` — `execute`'s
- * children are an OPEN set quarto accepts, so KEY validation of them would be a
- * cardinal-sin FP (execute value plan §7 / dragon 1).
+ * resolved against `frontMatterKeys(["execute"])` instead (execute value plan §3.2);
+ * `format` sets per-format project defaults, its per-format OPTION values resolved against
+ * `frontMatterKeys(["format", <fmt>])` → `perFormatOptions(fmt)` — the SAME reader path the
+ * `.qmd` document surface uses (format value plan §3.2 B). The KEY enumerator
+ * (`ProjectConfigKeyLine`) stays `{project,website,book}` — the `execute`/`format` children
+ * are OPEN sets quarto accepts (an unknown per-format option → exit 0), so KEY validation of
+ * them would be a cardinal-sin FP (execute value plan §7 / dragon 1).
  */
 export interface ProjectConfigValueLine {
   line: number;
-  container: "project" | "website" | "book" | "execute";
+  container: "project" | "website" | "book" | "execute" | "format";
   /**
    * The ancestor child keys between the container and this value's key, top-down.
    * `[]` for a DEPTH-1 child (`draft-mode: hidden` → `path:[]`); `[child]` for a

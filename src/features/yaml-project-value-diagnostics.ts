@@ -105,24 +105,43 @@ async function computeProjectValueDiagnostics(
   }
   const diagnostics: vscode.Diagnostic[] = [];
   for (const entry of valueLines) {
-    // Select the field set by container, then resolve BY PATH (depth-2 value plan §3.2 C)
-    // — NEVER by bare `key`: a grandchild name can collide with a CLOSED depth-1 field
-    // (`book.type` CSL enum vs `book.cookie-consent.type`), where bare-name resolution
-    // would be a cardinal-sin FP, not merely a miss (§7.5/dragon 3). An unknown key/path
-    // (the KEY feature's territory), an open field (`isWrongValue`'s `valuesClosed`
-    // precondition fails), or a valid value all skip.
+    // Select the field set by container, then resolve. An unknown key/path (the KEY
+    // feature's territory), an open field (`isWrongValue`'s `valuesClosed` precondition
+    // fails), or a valid value all skip.
     //
-    // `execute:` is a document-level options block valid at the `_quarto.yml` top level;
-    // its curated children come from `frontMatterKeys(["execute"])` (the SAME reader the
-    // `.qmd` document surface uses, S128), which returns `CURATED_EXECUTE_KEYS`
-    // UNCONDITIONALLY — so execute value validation is offline-robust, unlike
-    // `projectFields`, which returns `[]` when the CLI schema fails to load (execute
-    // value plan §3.2 B / §7). `project`/`website`/`book` keep `projectFields`.
-    const fields =
-      entry.container === "execute"
-        ? index.frontMatterKeys(["execute"])
-        : index.projectFields(entry.container);
-    const field = resolveProjectValueField(fields, entry);
+    // `format:` is a document-level key valid at the `_quarto.yml` top level, setting
+    // per-format project defaults. Its per-format OPTION values resolve via the SAME reader
+    // path the `.qmd` document surface uses — `frontMatterKeys(["format", fmt])` →
+    // `perFormatOptions(fmt)` — NOT the `.children` descent `resolveProjectValueField`
+    // performs (the format-name fields don't carry the options as `.children`; format value
+    // plan §3.2 B / dragon 2). Only a DEPTH-2 line (`path=[fmt]`, `key=option`) is
+    // resolvable; a depth-1 format line (`path=[]`, the format NAME itself, e.g.
+    // `html: default`) → `undefined` → skip — the top-level `format:` scalar is a deliberate
+    // FN on both surfaces (its enum is injected post-closedness, so `valuesClosed` stays
+    // unset; format value plan §4.3 / dragon 3). Offline is also a safe FN: the curated
+    // `CURATED_FORMAT_OPTIONS` carries no `valuesClosed`, so format validation flags nothing
+    // when the CLI schema fails to load (unlike execute, which is offline-robust; dragon 4).
+    let field: SchemaField | undefined;
+    if (entry.container === "format") {
+      field =
+        entry.path.length === 1
+          ? index.frontMatterKeys(["format", entry.path[0]]).find((f) => f.name === entry.key)
+          : undefined;
+    } else {
+      // Resolve BY PATH (depth-2 value plan §3.2 C) — NEVER by bare `key`: a grandchild name
+      // can collide with a CLOSED depth-1 field (`book.type` CSL enum vs
+      // `book.cookie-consent.type`), where bare-name resolution would be a cardinal-sin FP,
+      // not merely a miss (§7.5/dragon 3). `execute:`'s curated children come from
+      // `frontMatterKeys(["execute"])` (the SAME reader the `.qmd` document surface uses,
+      // S128), returned UNCONDITIONALLY — so execute value validation is offline-robust,
+      // unlike `projectFields`, which returns `[]` when the CLI schema fails to load (execute
+      // value plan §3.2 B / §7). `project`/`website`/`book` keep `projectFields`.
+      const fields =
+        entry.container === "execute"
+          ? index.frontMatterKeys(["execute"])
+          : index.projectFields(entry.container);
+      field = resolveProjectValueField(fields, entry);
+    }
     if (field === undefined || !isWrongValue(entry.rawToken, field)) {
       continue;
     }
