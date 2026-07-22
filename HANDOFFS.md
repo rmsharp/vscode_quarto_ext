@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S143
+date: 2026-07-22
+status: pending
+active_task: IMPLEMENTATION (strict TDD, vertical slice) — format: per-format option VALUE validation in _quarto.yml, implementing docs/planning/2026-07-22-quarto-yml-format-value-validation-plan.md §4.1 gate-(a) 4-layer contract (L1 [INERT] widen ProjectConfigValueLine.container +"format" + add the format resolver branch in the feature → L2 [GO-LIVE] add "format" to VALUE_CONTAINERS + RED→GREEN enumerator unit tests + KEY-isolation lock → L3 fixtures + integration → L4 MANDATORY §9 review). Operator picked "Implement S142 format-value plan" via AskUserQuestion at Phase 0 (Active empty). ONE deliverable — this slice. Status pending until Phase 3D overwrites to complete.
+```
+
+```handoff
 session: S142
 date: 2026-07-22
 status: complete
