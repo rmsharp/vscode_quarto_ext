@@ -199,7 +199,7 @@ describe("findProjectConfigValueLines — one-level scalar values under project:
 
   it("skips deeper nesting, dedents, block-sequence items, comments, and unknown containers", () => {
     const text = [
-      "format:", // unknown container
+      "metadata:", // unknown container (not a recognized value container — was `format:` before S143 made format live)
       "  html:",
       "    toc: bad",
       "website:",
@@ -213,9 +213,12 @@ describe("findProjectConfigValueLines — one-level scalar values under project:
     ]);
   });
 
-  it("returns [] for an empty document and one with no project:/website:/book:", () => {
+  it("returns [] for an empty document and one whose only top-level container is unrecognized", () => {
     expect(findProjectConfigValueLines("")).toEqual([]);
-    expect(findProjectConfigValueLines("format:\n  html:\n    toc: true")).toEqual([]);
+    // `metadata` is not a recognized value container → its descendants are skipped. (This
+    // was `format:` before S143 made `format` a live value container; `format:\n  html:\n
+    //    toc: banana` now emits, proven in the format describe below.)
+    expect(findProjectConfigValueLines("metadata:\n  html:\n    toc: true")).toEqual([]);
   });
 });
 
@@ -439,6 +442,51 @@ describe("findProjectConfigValueLines — a top-level execute: block's children 
     expect(findProjectConfigKeyLines(text)).toEqual([]);
     // Sanity: the VALUE enumerator DOES see them (proving the two predicates genuinely differ).
     expect(findProjectConfigValueLines(text).map((v) => v.container)).toEqual(["execute", "execute"]);
+  });
+});
+
+describe("findProjectConfigValueLines — a top-level format: block's per-format option values (format value plan §3.2)", () => {
+  it("emits a DEPTH-2 per-format option with container:\"format\", path:[fmt], span exact (the RED→GREEN driver)", () => {
+    const text = ["format:", "  html:", "    toc: banana"].join("\n");
+    // `toc` at indent 4; `banana` spans cols 9..15 on `    toc: banana`. `format → html → toc`
+    // is the exact depth-2 shape of `website → navbar → collapse-below` — path=["html"], NOT a
+    // depth-1 format.toc. Before go-live (`format` ∉ VALUE_CONTAINERS) this returned [] (today's
+    // `format:\n  html:\n    toc: true` → [] baseline); adding `format` makes it emit.
+    expect(findProjectConfigValueLines(text)).toEqual([
+      { line: 2, container: "format", path: ["html"], key: "toc", valueRange: { startCol: 9, endCol: 15 }, rawToken: "banana" },
+    ]);
+  });
+
+  it("is resolution-BLIND — also emits a DEPTH-1 format line (the format NAME itself, `html: default`, path=[]); the FEATURE skips it", () => {
+    // `html: default` is a depth-1 scalar under `format:` — the enumerator emits it with
+    // path=[] (it enumerates, it does not resolve). The FEATURE's format branch handles only
+    // path.length===1 (depth-2), so a path=[] line → undefined → skip: the top-level `format:`
+    // scalar (a format NAME) is a deliberate FN on both surfaces (format value plan §4.3/dragon 3).
+    const text = ["format:", "  html: default"].join("\n");
+    // `default` spans cols 8..15 on `  html: default`.
+    expect(findProjectConfigValueLines(text)).toEqual([
+      { line: 1, container: "format", path: [], key: "html", valueRange: { startCol: 8, endCol: 15 }, rawToken: "default" },
+    ]);
+  });
+
+  it("tracks multiple format-name blocks (html + pdf) under one format:, each with its own path", () => {
+    const text = ["format:", "  html:", "    toc: banana", "  pdf:", "    number-sections: nope"].join("\n");
+    expect(findProjectConfigValueLines(text).map((v) => ({ container: v.container, path: v.path, key: v.key, rawToken: v.rawToken }))).toEqual([
+      { container: "format", path: ["html"], key: "toc", rawToken: "banana" },
+      { container: "format", path: ["pdf"], key: "number-sections", rawToken: "nope" },
+    ]);
+  });
+
+  it("KEY-ISOLATION LOCK (dragon 1): findProjectConfigKeyLines still IGNORES format — the unknown-KEY feature must never flag a per-format option key", () => {
+    // The value enumerator recognizes format; the KEY enumerator must NOT. Quarto ACCEPTS
+    // unknown per-format option keys (`custom-opt: whatever` → exit 0), so flagging one would
+    // be a cardinal-sin FP. This locks the two container predicates apart: adding `format` to
+    // the shared `PROJECT_CONFIG_CONTAINERS` (instead of the value-only `VALUE_CONTAINERS`)
+    // would turn this red.
+    const text = ["format:", "  html:", "    toc: banana", "    custom-opt: whatever"].join("\n");
+    expect(findProjectConfigKeyLines(text)).toEqual([]);
+    // Sanity: the VALUE enumerator DOES see them (proving the two predicates genuinely differ).
+    expect(findProjectConfigValueLines(text).map((v) => v.container)).toEqual(["format", "format"]);
   });
 });
 

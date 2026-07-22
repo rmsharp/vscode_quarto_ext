@@ -19,15 +19,19 @@ const PROJECT_CONFIG_CONTAINERS = new Set(["project", "website", "book"]);
 
 /**
  * The value-side top-level containers: `project`/`website`/`book` (closed project-config
- * key sets) PLUS `execute` (a document-level options block also valid at the `_quarto.yml`
- * top level, resolved via `frontMatterKeys(["execute"])` — execute value plan §3.2). Used
- * ONLY by the VALUE enumerator `findProjectConfigValueLines`. The KEY enumerator
- * (`findProjectConfigKeyLines`) MUST keep the narrower `PROJECT_CONFIG_CONTAINERS`:
- * `execute`'s children are an OPEN set quarto accepts (`custom-thing: whatever` → exit 0),
- * so flagging an unknown execute KEY would be a cardinal-sin false positive (execute value
- * plan §7 / dragon 1).
+ * key sets) PLUS `execute` (a document-level options block, resolved via
+ * `frontMatterKeys(["execute"])` — execute value plan §3.2) PLUS `format` (per-format
+ * project defaults, its per-format OPTION values resolved via
+ * `frontMatterKeys(["format", <fmt>])` → `perFormatOptions(fmt)` — the SAME reader path the
+ * `.qmd` document surface uses; format value plan §3.2). Both `execute` and `format` are
+ * document-level keys also valid at the `_quarto.yml` top level. Used ONLY by the VALUE
+ * enumerator `findProjectConfigValueLines`. The KEY enumerator (`findProjectConfigKeyLines`)
+ * MUST keep the narrower `PROJECT_CONFIG_CONTAINERS`: the `execute`/`format` children are
+ * OPEN sets quarto accepts (`custom-thing: whatever` / an unknown per-format option → exit 0),
+ * so flagging an unknown KEY there would be a cardinal-sin false positive (execute value plan
+ * §7 / dragon 1).
  */
-const VALUE_CONTAINERS = new Set(["project", "website", "book", "execute"]);
+const VALUE_CONTAINERS = new Set(["project", "website", "book", "execute", "format"]);
 
 /** The exact basenames this feature validates — never a suffix match. */
 const PROJECT_CONFIG_FILENAMES = new Set(["_quarto.yml", "_quarto.yaml"]);
@@ -110,12 +114,14 @@ function isProjectConfigContainer(name: string): name is "project" | "website" |
 }
 
 /**
- * The VALUE enumerator's own container predicate — the KEY set plus `execute`. Kept
- * SEPARATE from `isProjectConfigContainer` so adding `execute` never leaks into the
+ * The VALUE enumerator's own container predicate — the KEY set plus `execute` and `format`.
+ * Kept SEPARATE from `isProjectConfigContainer` so adding these never leaks into the
  * unknown-KEY feature (execute value plan §7 / dragon 1). Used ONLY in
  * `findProjectConfigValueLines`.
  */
-function isValueContainer(name: string): name is "project" | "website" | "book" | "execute" {
+function isValueContainer(
+  name: string,
+): name is "project" | "website" | "book" | "execute" | "format" {
   return VALUE_CONTAINERS.has(name);
 }
 
@@ -182,7 +188,7 @@ export interface ProjectConfigValueLine {
 export function findProjectConfigValueLines(text: string): ProjectConfigValueLine[] {
   const lines = stripBom(text).split(/\r?\n/);
   const result: ProjectConfigValueLine[] = [];
-  let currentContainer: "project" | "website" | "book" | "execute" | null = null;
+  let currentContainer: "project" | "website" | "book" | "execute" | "format" | null = null;
   let containerIndent: number | null = null;
   // Depth-2 scope: when a depth-1 line is a pure block-opener (`navbar:`), `childKey`
   // names it and `childIndent` (fixed on the first grandchild line) pins the depth-2
