@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S142
+date: 2026-07-22
+status: pending
+active_task: PLANNING — value validation for format: document-keys placed in _quarto.yml. ONE plan document at docs/planning/2026-07-22-quarto-yml-format-value-validation-plan.md. The value-validation family's next _quarto.yml-surface item after execute: values (S141), flagged materially harder (per-format nested keys, reader-derived closedness, top-level format: scalar-vs-container ambiguity), so it earns its own plan. NO code (FM #18/#19); implementation is the next session. Operator picked "Plan: format: values" via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S141
 date: 2026-07-22
 status: complete
