@@ -7,6 +7,27 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-22 · [ad hoc] Session 143 — IMPLEMENTATION: `format:` per-format option VALUE validation in `_quarto.yml` (SHIPPED)
+
+Implemented `docs/planning/2026-07-22-quarto-yml-format-value-validation-plan.md` as one strict-TDD
+vertical slice — the value-validation family's tenth slice and its fourth `_quarto.yml`-surface item
+(after depth-1 S135, depth-2 S137, `execute:` S141). A wrong CLOSED/numeric value of a per-format
+option in `_quarto.yml` (`format:\n  html:\n    toc: banana`/`df-print: banana`/`fig-format: banana`/
+`toc-depth: banana`; `revealjs.transition: banana`; `pdf.number-sections: banana`) now shows an Error
+squiggle matching `quarto render` 1.7.33's `readAndValidateYamlFromFile` schema layer. **Zero new
+reader/matcher/message code** — the change was a value-side `"format"` container in `VALUE_CONTAINERS`
+(`src/core/project-yaml.ts`) + a resolver branch in `src/features/yaml-project-value-diagnostics.ts`
+routing format depth-2 lines through `frontMatterKeys(["format", fmt])` → `perFormatOptions(fmt)`, the
+SAME reader path the `.qmd` surface already ships. Gate-(a) 4-layer contract: `ad891fa` L1 [INERT]
+type-widen + resolver branch (dormant) · `9a4e811` L2 [GO-LIVE] `"format"`→`VALUE_CONTAINERS` +
+RED→GREEN enumerator emit + depth-1-skip + multi-format + KEY-isolation lock · `3cf6814` L3 fixtures +
+integration (real host). L4 MANDATORY §9 review (`wf_cbfd34f2-147`: fp-cardinal / container-isolation /
+surface-parity / doc-drift) returned all 4 lenses PLAN-SOUND — 0 code defects, 0 cardinal-sin FPs,
+converging with the author's own 27-value FP battery + a compiled feature-sim over both fixtures. Unit
+1154→1158, integration 397→401. `BACKLOG.md` item flipped `[x]` SHIPPED; `docs/POSIT-COMPARISON.md`
+reconciled (per-format value coverage added, remaining-gap prose narrowed to the scalar `format:` NAME +
+general document-key case); `PROJECT_LEARNINGS.md` #156.
+
 ### 2026-07-22 · [ad hoc] Session 142 — PLANNING: `format:` per-format option VALUE validation in `_quarto.yml`
 
 Wrote `docs/planning/2026-07-22-quarto-yml-format-value-validation-plan.md` — the value-validation

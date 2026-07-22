@@ -317,7 +317,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   not implemented** — the three `DiagnosticCollection`s in `src/` are
   `src/features/yaml-diagnostics.ts` (unknown keys in `_quarto.yml`'s project/website/book blocks),
   `src/features/yaml-value-diagnostics.ts` (wrong cell-option, front-matter, nested, numeric, and other-container *values* in `.qmd`, Sessions 124–125/128/130/132),
-  and `src/features/yaml-project-value-diagnostics.ts` (wrong closed *values* one and two levels under `_quarto.yml`'s project/website/book blocks, Sessions 135/137, plus a top-level `execute:` block's children, Session 141);
+  and `src/features/yaml-project-value-diagnostics.ts` (wrong closed *values* one and two levels under `_quarto.yml`'s project/website/book blocks, Sessions 135/137, plus a top-level `execute:` block's children, Session 141, plus per-format option values under `format:` → `<fmt>:`, Session 143);
   none of the three forwards code-cell diagnostics, and `src/providers/embedded.ts` registers none. **The inverse leak — background vdocs
   *publishing* phantom diagnostics under Pylance's non-default `diagnosticMode: "workspace"` — is
   muted (Session 93):** the two vdoc builders inject a file-level `# type: ignore` on line 0 of a
@@ -485,8 +485,8 @@ bucket.)**
   "Polish / deferred" for known false-negative edge cases). The remaining gap on our side is narrower
   still: `.ipynb` cell/front-matter values, the DEEPER `_quarto.yml`-config container values
   (depth-3+ under `navbar:`/`sidebar:`/`search:`, sequence-form navbar/sidebar items, and `format:` document keys placed in
-  `_quarto.yml` — the `execute:` half shipped Session 141, leaving `format:` document-keys, the general
-  document-key case, and depth-2+/KEY-under-`execute` open; `brand:`/`jupyter:`/`manuscript:` are grounded OUT with no closed one-level children),
+  `_quarto.yml` — the `execute:` half shipped Session 141 and the `format:` per-format OPTION-value half Session 143, leaving the
+  scalar `format:` NAME, the general document-key case, and depth-2+/KEY-under-`execute` open; `brand:`/`jupyter:`/`manuscript:` are grounded OUT with no closed one-level children),
   integer-typed pandoc-layer rejections
   (`toc-depth: 2.5` — a downstream pandoc error, not quarto's YAML-schema layer), the
   intentionally-unvalidated top-level `format`, and unknown front-matter/cell KEYS (intentionally
@@ -827,8 +827,9 @@ can do" scope, included for completeness rather than as a strict real-gap claim.
    `project.preview.browser`/…; all SHIPPED); Session 139 corrects numeric-MEMBER enums (`aspectratio`,
    `google-analytics.version`) to validate by COERCED numeric value on both the document and project
    surfaces — removing ≥3 live `aspectratio` false positives (`169.0`/`+169`/`0169`) and restoring
-   `version` validation (`version: 5` now flagged, `3.0`≡`3` accepted). Only `.ipynb`, the DEEPER `_quarto.yml`-config values
-   (depth-3+ and `format:` document keys in `_quarto.yml`; the `execute:` half shipped Session 141), and integer-typed pandoc-layer rejections remain open;
+   `version` validation (`version: 5` now flagged, `3.0`≡`3` accepted); Session 143 adds per-format option VALUE validation under
+   `_quarto.yml`'s `format:` → `<fmt>:` blocks (`format:\n  html:\n    toc: banana` etc., all SHIPPED). Only `.ipynb`, the DEEPER `_quarto.yml`-config values
+   (depth-3+, the scalar `format:` NAME, and the general document-key case in `_quarto.yml`; the `execute:` half shipped Session 141, the `format:` per-format OPTION values Session 143), and integer-typed pandoc-layer rejections remain open;
    unknown front-matter/cell KEYS stay intentionally unflagged (open schemas). Built on the existing schema reader (`src/core/yaml-schema.ts`).
 2. ~~Snippets~~ — **SHIPPED Session 53** (`BACKLOG.md` item #5): `snippets/quarto.json`, 13 snippets,
    declarative and TDD-gate-exempt, as predicted here. ~~And a **getting-started walkthrough**~~ —
