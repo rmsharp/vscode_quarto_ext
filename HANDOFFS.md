@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S140
+date: 2026-07-21
+status: pending
+active_task: PLANNING — write docs/planning/2026-07-21-quarto-yml-execute-value-validation-plan.md: value validation for `execute:` child keys placed at the TOP LEVEL of _quarto.yml (project-wide execute options, e.g. echo/cache/error/eval/warning), flagging a wrong CLOSED value with an Error squiggle matching quarto render 1.7.33's schema layer. The S135-deferred "near-term win" (execute: children already document-reader-resolvable via the S124/S125/S128 front-matter machinery). Deliverable = the PLAN; NO code (FM #18/#19). Operator picked "execute: keys in _quarto.yml" via AskUserQuestion at Phase 0 (Active empty). ONE deliverable — this plan; format: document keys / depth-3 / sequence-form stay deferred (FM #17/#26).
+```
+
+```handoff
 session: S139
 date: 2026-07-21
 status: complete
