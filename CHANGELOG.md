@@ -7,6 +7,25 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-22 · [ad hoc] Session 141 — IMPLEMENTATION: `execute:` document-key VALUE validation in `_quarto.yml` (SHIPPED)
+
+Flag a wrong CLOSED value of a top-level `execute:` block's child in `_quarto.yml`
+(`echo: banana`/`cache: nope`/`freeze: banana`/`error: 5`/`daemon: banana`) with an Error
+squiggle matching `quarto render` 1.7.33's `readAndValidateYamlFromFile` schema layer — the
+value-validation family's ninth slice, third on the `_quarto.yml` surface. **Zero new core
+code**: reuses `frontMatterKeys(["execute"])`→`CURATED_EXECUTE_KEYS` + `isWrongValue` +
+`valueMessage` (the same machinery the `.qmd` document surface uses, S128). Implemented the
+S140 plan's gate-(a) 4-layer contract as one strict-TDD vertical slice: L1 `4f67523` [INERT]
+widen `ProjectConfigValueLine.container` +`"execute"` + route `execute→frontMatterKeys` in
+the feature (dormant); L2 `e1e0ea3` [GO-LIVE] a value-ONLY `isValueContainer`/`VALUE_CONTAINERS`
+used solely in `findProjectConfigValueLines` (the unknown-KEY enumerator's
+`PROJECT_CONFIG_CONTAINERS` left untouched — dragon 1) + RED→GREEN unit tests + a KEY-isolation
+lock; L3 `97a18bf` fixtures + integration in a real host. L4 the mandatory 4-lens
+`quarto render`-verified §9 review `Workflow` (`wf_208f743b-ced`: fp-cardinal / container-isolation
+/ surface-parity / doc-drift) — all PLAN-SOUND, 0 cardinal-sin FPs, converging with a 37-case
+author FP battery. Unit 1149→1154, integration 393→397. Reconciled `docs/POSIT-COMPARISON.md`
+(execute no longer an open gap) + `BACKLOG.md` (flipped SHIPPED). Learning #154.
+
 ### 2026-07-21 · [ad hoc] Session 140 — PLANNING: `execute:` document-key VALUE validation in `_quarto.yml`
 Wrote `docs/planning/2026-07-21-quarto-yml-execute-value-validation-plan.md` — the value-validation family's **ninth** slice (planned) and its **third `_quarto.yml`-surface** item, the S135-deferred sub-bullet (b) "near-term win". **Deliverable = the PLAN; NO code** (FM #18/#19 — the plan↔implementation boundary). The plan flags a wrong CLOSED value of a child of a top-level `execute:` block in `_quarto.yml` (`echo: banana`/`cache: nope`/`freeze: banana`/`error: 5`/`daemon: banana`) with an Error squiggle matching `quarto render` 1.7.33's `readAndValidateYamlFromFile` schema layer. **Headline (grounded firsthand): ships with ZERO new core code** — the matcher `isWrongValue`, message `valueMessage`, and reader `frontMatterKeys(["execute"])`→`CURATED_EXECUTE_KEYS` already exist and already validate `execute:` children on the DOCUMENT surface (S128); quarto's execute-value behavior in `_quarto.yml` is a **1:1 match** with those annotations (full battery grounded: 11 closed children flag/accept correctly; `output` OPEN → never flag; `daemon` numeric; `error` boolean-only; unknown children ACCEPTED by quarto → **value-only scope is a CORRECTNESS requirement, not just scope**). The gap is pure surface plumbing: **(A)** a value-side `execute` container in `findProjectConfigValueLines`, **(B)** routing `execute → frontMatterKeys(["execute"])` in the feature. **HIGH dragon:** the value + unknown-KEY enumerators share `PROJECT_CONFIG_CONTAINERS`, so `execute` MUST go in a value-only predicate (else the KEY feature flags `custom-thing`, a cardinal-sin FP). Gate-(a) 4-layer contract (L1 inert routing+type-widen → L2 enumerator go-live → L3 fixtures+integration → L4 §9 review). **MANDATORY §9 adversarial review** — a 4-lens `quarto render`-verified `Workflow` (`wf_3380b341-948`: fp-cardinal / container-isolation / surface-parity / design-inventory) — returned **0 HIGH / 1 MEDIUM / 2 LOW / 9 INFO** (the three risk lenses PLAN-SOUND with **zero cardinal-sin FPs** across an independent battery); all 3 actionable findings re-verified firsthand + folded (the MEDIUM: execute DOES have object-valued children `knitr`/`jupyter`/`julia`/`server` — the §2.4 "no object child" claim was corrected, the safe-FN re-based on the curated reader's absent `.children`, + a new L3 depth-2 name-collision regression fixture). `PROJECT_LEARNINGS.md` #153; `BACKLOG.md` gains a PLANNED-ready Up Next item. Operator picked "execute: keys in _quarto.yml" via `AskUserQuestion` (Active empty).
 

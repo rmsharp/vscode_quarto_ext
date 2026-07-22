@@ -317,7 +317,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   not implemented** — the three `DiagnosticCollection`s in `src/` are
   `src/features/yaml-diagnostics.ts` (unknown keys in `_quarto.yml`'s project/website/book blocks),
   `src/features/yaml-value-diagnostics.ts` (wrong cell-option, front-matter, nested, numeric, and other-container *values* in `.qmd`, Sessions 124–125/128/130/132),
-  and `src/features/yaml-project-value-diagnostics.ts` (wrong closed *values* one and two levels under `_quarto.yml`'s project/website/book blocks, Sessions 135/137);
+  and `src/features/yaml-project-value-diagnostics.ts` (wrong closed *values* one and two levels under `_quarto.yml`'s project/website/book blocks, Sessions 135/137, plus a top-level `execute:` block's children, Session 141);
   none of the three forwards code-cell diagnostics, and `src/providers/embedded.ts` registers none. **The inverse leak — background vdocs
   *publishing* phantom diagnostics under Pylance's non-default `diagnosticMode: "workspace"` — is
   muted (Session 93):** the two vdoc builders inject a file-level `# type: ignore` on line 0 of a
@@ -478,11 +478,15 @@ bucket.)**
   Session 130), AND numeric-MEMBER enums by COERCED value (`aspectratio` document front matter incl. nested
   `format.beamer`, `google-analytics.version` under website + book; Session 139 — the shared matcher now
   compares `169.0`≡`169`/`3.0`≡`3` numerically, removing ≥3 live `aspectratio` false positives and restoring
-  `version` validation) — empirically the regions safe to flag without false positives (see `BACKLOG.md`'s
+  `version` validation), AND a wrong closed value of a top-level `execute:` block's children in `_quarto.yml`
+  (`echo`/`cache`/`freeze`/`error`/`daemon`/…; Session 141 — reusing the SAME `frontMatterKeys(["execute"])`
+  reader + `isWrongValue` matcher the `.qmd` document surface uses, S128, so the two surfaces agree exactly)
+  — empirically the regions safe to flag without false positives (see `BACKLOG.md`'s
   "Polish / deferred" for known false-negative edge cases). The remaining gap on our side is narrower
   still: `.ipynb` cell/front-matter values, the DEEPER `_quarto.yml`-config container values
-  (depth-3+ under `navbar:`/`sidebar:`/`search:`, sequence-form navbar/sidebar items, and `execute:`/`format:` document keys placed in
-  `_quarto.yml`; `brand:`/`jupyter:`/`manuscript:` are grounded OUT with no closed one-level children),
+  (depth-3+ under `navbar:`/`sidebar:`/`search:`, sequence-form navbar/sidebar items, and `format:` document keys placed in
+  `_quarto.yml` — the `execute:` half shipped Session 141, leaving `format:` document-keys, the general
+  document-key case, and depth-2+/KEY-under-`execute` open; `brand:`/`jupyter:`/`manuscript:` are grounded OUT with no closed one-level children),
   integer-typed pandoc-layer rejections
   (`toc-depth: 2.5` — a downstream pandoc error, not quarto's YAML-schema layer), the
   intentionally-unvalidated top-level `format`, and unknown front-matter/cell KEYS (intentionally
@@ -824,7 +828,7 @@ can do" scope, included for completeness rather than as a strict real-gap claim.
    `google-analytics.version`) to validate by COERCED numeric value on both the document and project
    surfaces — removing ≥3 live `aspectratio` false positives (`169.0`/`+169`/`0169`) and restoring
    `version` validation (`version: 5` now flagged, `3.0`≡`3` accepted). Only `.ipynb`, the DEEPER `_quarto.yml`-config values
-   (depth-3+ and `execute:`/`format:` document keys in `_quarto.yml`), and integer-typed pandoc-layer rejections remain open;
+   (depth-3+ and `format:` document keys in `_quarto.yml`; the `execute:` half shipped Session 141), and integer-typed pandoc-layer rejections remain open;
    unknown front-matter/cell KEYS stay intentionally unflagged (open schemas). Built on the existing schema reader (`src/core/yaml-schema.ts`).
 2. ~~Snippets~~ — **SHIPPED Session 53** (`BACKLOG.md` item #5): `snippets/quarto.json`, 13 snippets,
    declarative and TDD-gate-exempt, as predicted here. ~~And a **getting-started walkthrough**~~ —
