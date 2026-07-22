@@ -7,6 +7,22 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-22 · [ad hoc] Session 142 — PLANNING: `format:` per-format option VALUE validation in `_quarto.yml`
+
+Wrote `docs/planning/2026-07-22-quarto-yml-format-value-validation-plan.md` — the value-validation
+family's tenth slice (planned) and its fourth `_quarto.yml`-surface item (after `execute:`, S141).
+Flags a wrong CLOSED/numeric per-format option value in `_quarto.yml` (`format → <fmt> → <option>`,
+e.g. `format:\n  html:\n    toc: banana`) with an Error squiggle matching `quarto render` 1.7.33's
+`readAndValidateYamlFromFile` schema layer. Headline (grounded firsthand — `quarto render` + a fresh
+compiled-reader harness against current source, cross-checked 1:1): ZERO new reader/matcher/message
+logic — `frontMatterKeys(["format", fmt])` → `perFormatOptions(fmt)` + `isWrongValue` + `valueMessage`
+already validate this on the `.qmd` document surface (shipped + integration-tested); the gap is a
+value-side `format` container in `VALUE_CONTAINERS` + a feature resolver branch. Gate-(a) 4-layer
+contract (L1 [INERT] → L2 [GO-LIVE] → L3 fixtures+integration → L4 §9 review). Adversarial plan review
+`wf_4c1ebefd-c10` (fp-cardinal / enumerator-reality / resolver-parity / doc-drift): all 4 lenses
+PLAN-SOUND, 0 cardinal-sin FPs; 1 LOW (citation precision) folded. Deliverable = the PLAN; NO code
+(FM #18/#19). Learning #155.
+
 ### 2026-07-22 · [ad hoc] Session 141 — IMPLEMENTATION: `execute:` document-key VALUE validation in `_quarto.yml` (SHIPPED)
 
 Flag a wrong CLOSED value of a top-level `execute:` block's child in `_quarto.yml`
