@@ -1,0 +1,9 @@
+---
+title: A Report
+format: banana
+---
+
+`format: banana` is an unknown output-format NAME — `quarto render` 1.7.33 rejects
+it at the front-matter schema layer ("Validation of YAML front matter failed"). The
+format-name validation feature (plan §3.1) flags it with an Error squiggle over the
+`banana` value token. Nothing else here is wrong.

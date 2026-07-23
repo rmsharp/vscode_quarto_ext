@@ -1,0 +1,8 @@
+---
+title: A Report
+format: revealjs
+---
+
+`format: revealjs` is a valid built-in output format — `quarto render` 1.7.33
+accepts it. The format-name validation feature must produce ZERO diagnostics for
+this document (no false positive on a valid format).

@@ -18,6 +18,8 @@ const VALID_NUMERIC_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-
 const CONTAINER_VALUES = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/container-values.qmd");
 const VALID_CONTAINER_VALUES = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/valid-container-values.qmd");
 const ASPECTRATIO_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/aspectratio-front-matter.qmd");
+const INVALID_FORMAT_NAME = path.resolve(ROOT, "test/fixtures/format-name/invalid.qmd");
+const VALID_FORMAT_NAME = path.resolve(ROOT, "test/fixtures/format-name/valid.qmd");
 const VALID_ASPECTRATIO_FRONT_MATTER = path.resolve(
   ROOT,
   "test/fixtures/yaml-value-diagnostics/valid-aspectratio-front-matter.qmd",
@@ -233,6 +235,109 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
       "fixing toc: yes → toc: true should drop the count from 6 to 5 after the debounce",
     );
   });
+});
+
+describe("Quarto: scalar `format:` NAME validation (.qmd, Combo 1, format-name plan §3.1)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  /**
+   * Open a `.qmd` from inline content as an (unshown) untitled `quarto` document —
+   * the value feature gates on languageId only, so `onDidOpenTextDocument` primes
+   * it without an editor to close (no dirty-untitled save prompt). Unique URI per
+   * call, so diagnostics never bleed between battery cases.
+   */
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  it("flags an unknown format NAME (format: banana) with the bespoke message over the value token span", async () => {
+    const doc = await openActive(INVALID_FORMAT_NAME);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 1, 5000),
+      "expected a format-name diagnostic within 5s of opening",
+    );
+    const diags = valueDiagnostics(doc.uri);
+    assert.strictEqual(diags.length, 1, `expected exactly 1, got: ${diags.map((d) => d.message).join(" | ")}`);
+    const d = diags[0];
+    assert.strictEqual(d.range.start.line, 2, "the diagnostic is on the `format: banana` line (0-based line 2)");
+    assert.strictEqual(d.message, "Unknown output format banana.");
+    // `format: banana` — `banana` starts at column 8, ends at column 14.
+    assert.strictEqual(d.range.start.character, 8, "range starts at the value token");
+    assert.strictEqual(d.range.end.character, 14, "range ends at the value token");
+    assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Error);
+    assert.strictEqual(d.code, DIAGNOSTIC_CODE);
+  });
+
+  it("produces ZERO diagnostics for a valid format (format: revealjs)", async () => {
+    const doc = await openActive(VALID_FORMAT_NAME);
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "first check");
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
+  });
+
+  // Each unknown/schema-rejected name → exactly one flag on the format line (line 1).
+  // `foo-bar` is the sharp one: the render-dispatch `parseFormatString` ACCEPTS it,
+  // but the front-matter SCHEMA layer (which we mirror) REJECTS it; `html-` is a bare
+  // trailing delimiter the `([-+].+)` suffix cannot satisfy.
+  for (const name of ["reveal", "word", "foo-bar", "html-"]) {
+    it(`flags the unknown format name '${name}'`, async () => {
+      const doc = await openInline(`---\nformat: ${name}\n---\n\nBody.\n`);
+      assert.ok(
+        await waitFor(() => valueDiagnostics(doc.uri).length >= 1, 5000),
+        `expected '${name}' to be flagged within 5s`,
+      );
+      const diags = valueDiagnostics(doc.uri);
+      assert.strictEqual(diags.length, 1, `expected exactly 1 for '${name}', got ${diags.length}`);
+      assert.strictEqual(diags[0].range.start.line, 1, "on the format line");
+      assert.ok(diags[0].message.includes("Unknown output format"), "uses the bespoke format-name message");
+    });
+  }
+
+  // The FP battery — every form quarto's front-matter SCHEMA layer ACCEPTS must stay
+  // silent. A `df-print: banana` CANARY (line 1) MUST flag, proving the schema loaded
+  // and the compute ran in the SAME atomic pass; the assertion is then that the
+  // `format:` line (line 2) is NOT among the flagged lines (an FP-safe true negative).
+  // Covers: hidden legacy variant, extension format, base+modifier, extension+modifier,
+  // custom .lua writer, flow list (itself schema-invalid → FP-safe FN skip), quoted,
+  // and a synthesized format.
+  for (const name of [
+    "html5",
+    "foo-html",
+    "markdown+emoji",
+    "html-smart",
+    "foo-html-smart",
+    "my-writer.lua",
+    "foolua", // NO literal dot — quarto's wildcard-dot lua schema accepts it (§9-review fix, S145)
+    "[html, pdf]",
+    '"revealjs"',
+    "dashboard",
+  ]) {
+    it(`does NOT flag the schema-accepted form 'format: ${name}' (canary proves the pass ran)`, async () => {
+      const doc = await openInline(`---\ndf-print: banana\nformat: ${name}\n---\n\nBody.\n`);
+      assert.ok(
+        await waitFor(
+          () => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 1),
+          5000,
+        ),
+        "the df-print: banana canary (line 1) should flag, proving the value pass ran",
+      );
+      const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+      assert.ok(
+        !flaggedLines.includes(2),
+        `format: ${name} (schema-accepted) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+      );
+    });
+  }
 });
 
 describe("Quarto: NESTED front-matter VALUE diagnostics (.qmd, nested plan §3.4 Phase 3)", () => {

@@ -98,16 +98,37 @@ describe("isKnownFormatName — mirrors makeFrontMatterFormatSchema's anyOf (pla
     );
   });
 
-  describe("MUST-KNOW custom .lua writers → true (^.+\\.lua$, §9-review class A)", () => {
-    it.each(["my-writer.lua", "foo.lua", "some/dir/writer.lua"])(
-      "the .lua writer %s is known",
-      (name) => {
-        expect(isKnownFormatName(name, BUILT_IN)).toBe(true);
-      },
-    );
+  // Quarto's front-matter schema uses regexSchema("^.+\.lua$"); in that STRING the `\.`
+  // is not a defined escape, so it collapses to a bare `.` — a WILDCARD dot once compiled
+  // (runtime `^.+.lua$`). Quarto therefore ACCEPTS any name of >=2 chars followed by "lua"
+  // WITHOUT requiring a literal dot. Grounded firsthand (quarto render 1.7.33): `format:
+  // foolua`/`fooXlua`/`aalua`/`abclua` pass the front-matter SCHEMA layer (failing only
+  // later with a non-schema "Unknown format" error), while `lua`/`plua`/`Xlua`/`alua`
+  // (<=1 char before "lua") are SCHEMA-REJECTED. The predicate must mirror the wildcard,
+  // else it false-positives on every `<>=2-chars>lua` name (§9-review CARDINAL-FP, S145).
+  describe("MUST-KNOW quarto's wildcard-dot lua acceptance (^.+.lua$) → true (§9-review CARDINAL-FP fix, S145)", () => {
+    it.each([
+      "my-writer.lua", // a real dotted .lua writer
+      "foo.lua",
+      "some/dir/writer.lua",
+      "foolua", // NO literal dot — quarto schema-accepts via the wildcard; must NOT flag
+      "fooXlua",
+      "aalua", // exactly 2 chars before "lua" — the acceptance boundary (grounded)
+      "abclua",
+      "myreportlua",
+      "htmlua",
+    ])("the schema-accepted lua-form %s is known", (name) => {
+      expect(isKnownFormatName(name, BUILT_IN)).toBe(true);
+    });
 
-    it("a name ending in .js (not .lua) is NOT known via the lua branch", () => {
-      expect(isKnownFormatName("writer.js", BUILT_IN)).toBe(false);
+    it.each([
+      "lua", // 0 chars before "lua" — grounded SCHEMA-REJECT
+      "plua", // 1 char before "lua"
+      "Xlua",
+      "alua",
+      "writer.js", // not a lua form at all (and not a built-in)
+    ])("a name quarto's schema REJECTS at the lua boundary (%s) is NOT known", (name) => {
+      expect(isKnownFormatName(name, BUILT_IN)).toBe(false);
     });
   });
 

@@ -31,8 +31,15 @@ export function escapeRegExp(s: string): string {
  * never throws.
  */
 export function isKnownFormatName(name: string, builtIn: ReadonlySet<string>): boolean {
-  if (/^.+\.lua$/.test(name)) {
-    return true; // custom Lua pandoc writer (^.+\.lua$)
+  // Custom Lua pandoc writer. Quarto's schema is `regexSchema("^.+\.lua$")`, but in that
+  // STRING the `\.` is not a defined escape and collapses to a bare `.`, so quarto compiles
+  // and matches the WILDCARD-dot regex `^.+.lua$` — accepting any name of >=2 chars followed
+  // by "lua", NOT only a literal ".lua" (grounded firsthand: `format: foolua`/`aalua` pass
+  // quarto's front-matter SCHEMA layer; `lua`/`plua`/`alua` are schema-rejected). We mirror
+  // that wildcard EXACTLY — a literal-dot `\.lua$` would false-positive on `foolua` et al.
+  // (§9-review CARDINAL-FP, S145). The `.` is an intentional wildcard, not a missing escape.
+  if (/^.+.lua$/.test(name)) {
+    return true;
   }
   for (const b of builtIn) {
     // <ext>- prefix (optional) + the built-in b + [-+]<modifier> suffix (optional).
