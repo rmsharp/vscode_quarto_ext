@@ -1069,6 +1069,58 @@ describe("parseSchemaIndex — format-name extraction (6d-6 cont.)", () => {
   });
 });
 
+// The RAW built-in format set for VALIDATION (format-name validation plan §3.1 B /
+// L2): the complete `pandoc/formats.yml` (unfiltered — INCLUDES the hidden legacy
+// variants html4/html5/… that quarto's schema ACCEPTS but completion strips) plus
+// the synthesized formats, or `null` when the set is not known-complete (the curated
+// fallback, or a resource with no formats list). Distinct from `frontMatterKeys(["format"])`
+// (the COMPLETION accessor, which hides the legacy variants) — this MUST NOT hide them,
+// else a validator keyed on it would false-positive on `format: html5` (§2.2 dragon).
+describe("parseSchemaIndex — formatNamesForValidation: the raw built-in set (plan §3.1 B / L2)", () => {
+  const index = parseSchemaIndex(FIXTURE);
+  const set = index.formatNamesForValidation();
+
+  it("returns a non-null set over a parsed (online) index carrying pandoc/formats.yml", () => {
+    expect(set).not.toBeNull();
+  });
+
+  it("INCLUDES the hidden legacy variants completion strips (html5/html4/epub3/epub2/docbook5/docbook4)", () => {
+    for (const hidden of ["html5", "html4", "epub3", "epub2", "docbook5", "docbook4"]) {
+      expect(set?.has(hidden), `${hidden} must be present for validation`).toBe(true);
+    }
+  });
+
+  it("includes the base names and Quarto's synthesized formats (md/hugo/dashboard/email)", () => {
+    for (const n of ["html", "epub", "docbook", "pdf", "revealjs", "typst", "md", "hugo", "dashboard", "email"]) {
+      expect(set?.has(n), `${n} must be present`).toBe(true);
+    }
+  });
+
+  it("DIVERGES from the completion accessor — validation keeps html5, completion hides it", () => {
+    const completion = index.frontMatterKeys(["format"]).map((f) => f.name);
+    expect(completion, "completion HIDES html5").not.toContain("html5");
+    expect(set?.has("html5"), "validation KEEPS html5").toBe(true);
+  });
+
+  it("leaves the completion accessor byte-unchanged (still hides the legacy variants)", () => {
+    // Regression guard: adding the validation accessor must NOT alter completion.
+    const completion = index.frontMatterKeys(["format"]).map((f) => f.name);
+    for (const hidden of ["html5", "html4", "epub3", "epub2", "docbook5", "docbook4"]) {
+      expect(completion, `completion still hides ${hidden}`).not.toContain(hidden);
+    }
+  });
+
+  it("returns null for the curated fallback (offline — never flag; plan §3.1 B / dragon 3)", () => {
+    expect(CURATED_SCHEMA_INDEX.formatNamesForValidation()).toBeNull();
+  });
+
+  it("returns null for a parsed index whose resource carries NO pandoc/formats.yml (FP-safe)", () => {
+    // PROJECT_CONFIG_FIXTURE is a real parsed (online) index but has no format list;
+    // absence of the complete set MUST be null (don't-flag), never an empty set.
+    expect(parseSchemaIndex(PROJECT_CONFIG_FIXTURE).formatNamesForValidation()).toBeNull();
+  });
+});
+
 describe("parseSchemaIndex — per-format option extraction (6d-6+ b2-i)", () => {
   const index = parseSchemaIndex(FIXTURE);
   const htmlOpts = index.frontMatterKeys(["format", "html"]).map((f) => f.name);

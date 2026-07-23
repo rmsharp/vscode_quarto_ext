@@ -525,6 +525,21 @@ export interface SchemaIndex {
    * open and never flagged (`_quarto.yml` value validation, plan §3.2 A).
    */
   projectFields(container: "project" | "website" | "book"): SchemaField[];
+
+  /**
+   * The COMPLETE built-in output-format name set for VALIDATION — the raw
+   * `pandoc/formats.yml` (UNFILTERED: it INCLUDES the hidden legacy variants
+   * `html4`/`html5`/`epub2`/`epub3`/`docbook4`/`docbook5`, which quarto's
+   * front-matter schema ACCEPTS) plus Quarto's synthesized formats — or `null`
+   * when the set is not known to be complete (the curated fallback, or a
+   * resource with no format list). Callers MUST NOT flag anything for a `null`
+   * result (absence of proof is not proof of absence — the online-only gate,
+   * format-name validation plan §3.1 B). DISTINCT from `frontMatterKeys(["format"])`
+   * (the COMPLETION accessor, which HIDES the legacy variants): a validator keyed
+   * on the completion set would false-positive on `format: html5` (§2.2 dragon).
+   * Never throws.
+   */
+  formatNamesForValidation(): ReadonlySet<string> | null;
 }
 
 /** One resolved container's key set + whether the resolution proved it closed. */
@@ -554,6 +569,7 @@ function indexOf(
   aliases: FormatAliases,
   projectConfigKeys: Map<"project" | "website" | "book", ClosedKeySet | null>,
   projectConfigFields: Map<"project" | "website" | "book", SchemaField[]>,
+  rawFormatNames: ReadonlySet<string> | null,
 ): SchemaIndex {
   // The top-level `format:` value is an output-format NAME (`html`, `pdf`, …), but
   // the flat document-key list models `format` only as a same-named epub-scoped
@@ -648,6 +664,13 @@ function indexOf(
       // fires on exactly those.
       return projectConfigFields.get(container) ?? [];
     },
+    formatNamesForValidation() {
+      // The raw (unfiltered) built-in set, or `null` when not known-complete (the
+      // curated fallback / no format list) — the online-only gate. Threaded in at
+      // build time from `collectRawFormatNames`; never derived from `formatFields`
+      // (which is the hidden-STRIPPED completion set).
+      return rawFormatNames;
+    },
   };
 }
 
@@ -728,6 +751,7 @@ export const CURATED_SCHEMA_INDEX: SchemaIndex = indexOf(
   new Map(), // no `$`-aliases needed: curated per-format options are all universal
   CURATED_PROJECT_CONFIG_KEYS,
   new Map(), // no per-child value schema offline → projectFields returns [] (plan §2.3)
+  null, // offline: the curated set is incomplete (14 of 71) → formatNamesForValidation is null (never flag)
 );
 
 /** Strip a leading UTF-8 BOM, which `JSON.parse` rejects (Learning #16c). */
@@ -1532,6 +1556,7 @@ export function parseSchemaIndex(jsonText: string): SchemaIndex {
       parseFormatAliases(data["schema/format-aliases.yml"]),
       projectConfigKeys,
       buildProjectConfigFields(projectConfigKeys, definitions),
+      collectRawFormatNames(data),
     );
   } catch {
     return CURATED_SCHEMA_INDEX;
@@ -1642,6 +1667,27 @@ function collectFormatNames(data: Record<string, unknown>): SchemaField[] {
     fields.push({ name });
   }
   return fields;
+}
+
+/**
+ * The COMPLETE raw built-in output-format name set for VALIDATION (format-name
+ * validation plan §2.2 / §3.1 B): every name in the parsed `pandoc/formats.yml`
+ * plus Quarto's synthesized formats, WITHOUT the `collectFormatNames` hidden-strip
+ * — this set INCLUDES `html4/html5`, `epub2/epub3`, `docbook4/docbook5`, which
+ * quarto's front-matter schema ACCEPTS. Returns `null` when the list is absent/odd
+ * so the validation caller treats "set not known-complete" as never-flag (the
+ * online-only gate), NEVER an empty set. Mirrors the schema layer's own descriptor
+ * set (`pandocFormatsResource().concat("md","hugo","dashboard","email")`).
+ */
+function collectRawFormatNames(data: Record<string, unknown>): ReadonlySet<string> | null {
+  const raw = data["pandoc/formats.yml"];
+  if (!Array.isArray(raw)) {
+    return null; // no complete list → don't-flag (FP-safe), never an empty set
+  }
+  const names = raw
+    .filter((n): n is string => typeof n === "string" && n.length > 0)
+    .concat(FORMAT_SYNTHESIZED);
+  return new Set(names); // UNFILTERED — no isHiddenFormat strip (validation, not completion)
 }
 
 /**
