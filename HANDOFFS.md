@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S145
+date: 2026-07-23
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD, vertical slice). Implement the scalar format: NAME validation in .qmd (Combo 1) per docs/planning/2026-07-22-quarto-format-name-validation-plan.md §4.1 gate-(a) L1->L4 contract. Flag an unknown/typo'd top-level output-format NAME (format: banana/reveal/word) with an Error squiggle matching quarto render 1.7.33's front-matter SCHEMA layer (makeFrontMatterFormatSchema), WITHOUT FP on extension formats, pandoc modifiers, hidden legacy variants, extension+modifier combos, or custom .lua writers. Operator picked "Implement format: NAME" via AskUserQuestion at Phase 0 (Active empty).
+```
+
+```handoff
 session: S144
 date: 2026-07-22
 status: complete
