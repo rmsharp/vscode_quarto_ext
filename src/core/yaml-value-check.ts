@@ -34,6 +34,19 @@ const NUMBER_LITERAL =
   /^[+-]?(?:\.?[0-9][0-9_]*(?:\.[0-9_]*)?(?:[eE][+-]?[0-9]+)?|0[xX][0-9a-fA-F_]+|0[oO][0-7_]+|0[bB][01_]+|\.(?:inf|Inf|INF))$|^\.(?:nan|NaN|NAN)$/;
 
 /**
+ * YAML 1.2's four core null spellings, anchored and case-EXACT — the set Quarto accepts
+ * for a field whose enum lists a literal `null` (document-key plan §2.5). Grounded
+ * firsthand against `quarto render` 1.7.33: `auto-play-media:` `null`/`Null`/`NULL`/`~`
+ * all render exit 0, while `NuLl` renders exit 1 (YAML's null resolution is case-exact,
+ * not case-insensitive) and the quoted `"null"` renders exit 1 (a string, not the null
+ * type). The anchoring is what rejects the quoted form — `"null"` cannot match.
+ *
+ * YAML also resolves an EMPTY value to null, but an empty token never reaches this test:
+ * `isWrongValue`'s shared skip returns first (and the enumerators skip empty slots).
+ */
+const NULL_SPELLINGS = /^(?:null|Null|NULL|~)$/;
+
+/**
  * Whether `rawToken` (a document value token, possibly quoted) is WRONG for
  * `field` — i.e. `quarto render` would reject it. Returns `false` (flag
  * nothing) for anything not positively proven wrong.
@@ -62,6 +75,13 @@ export function isWrongValue(rawToken: string, field: SchemaField): boolean {
   }
   if (field.valuesClosed !== true || (field.values?.length ?? 0) === 0) {
     return false; // open set / no enum data — never flag (the cardinal-sin guard)
+  }
+  if (field.acceptsNull === true && NULL_SPELLINGS.test(rawToken)) {
+    // The NULL arm (document-key plan §2.5): the field's enum lists a literal `null`,
+    // which `valuesOfSchema` dropped from `values` — so membership below cannot see it.
+    // Checked BEFORE the numeric-member branch too: `enum:[null, 3, 4]` is not an
+    // all-number enum, but a future all-number-plus-null enum must still accept null.
+    return false;
   }
   if (field.numericMemberEnum === true) {
     // Numeric-member enum (a closed enum whose members are YAML numbers, e.g.
@@ -192,6 +212,13 @@ export function valueMessage(rawToken: string, key: string, field: SchemaField):
       : `Value ${rawToken} is not valid for "${key}" — expected a number.`;
   }
   const values = field.values ?? [];
+  if (field.acceptsNull === true) {
+    // The null arm is real but absent from `values` (`valuesOfSchema` drops it), so the
+    // list would otherwise omit a value quarto accepts — and quarto's OWN clause names it
+    // first: ``one of: `null`, `true`, `false``. Takes precedence over the boolean phrasing
+    // below, which cannot express a third accepted spelling (document-key plan §2.5).
+    return `Value ${rawToken} is not valid for "${key}" — expected one of: ${["null", ...values].join(", ")}.`;
+  }
   if (field.acceptsBoolean && values.every((v) => v === "true" || v === "false")) {
     return `Value ${rawToken} is not valid for "${key}" — expected true or false.`;
   }

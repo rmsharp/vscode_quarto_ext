@@ -361,3 +361,93 @@ describe("isWrongValue — numeric-member enums (parsed-value membership, coerci
     );
   });
 });
+
+/**
+ * The NULL ARM (`acceptsNull`, document-key plan §2.5/§4.0) — a cross-surface correctness
+ * fix, not a coverage slice. `valuesOfSchema` drops a literal `null` enum member while
+ * `closednessOfSchema` still reports the enum CLOSED, so the matcher flagged the very value
+ * quarto lists as valid. Every row is grounded firsthand against `quarto render` 1.7.33 on
+ * the `.qmd` top level, the `.qmd` per-format path, and `_quarto.yml`:
+ *
+ *   auto-play-media: null | Null | NULL | ~   -> exit 0 (ACCEPTED)
+ *   auto-play-media: NuLl | "null" | banana   -> exit 1, ``one of: `null`, `true`, `false```
+ *   toc: null | ~                             -> exit 1 (no null arm — must keep flagging)
+ *
+ * So the accepted set is exactly YAML 1.2's four core null spellings, case-EXACT, unquoted.
+ */
+
+/** `auto-play-media` = `enum:[null, true, false]` — closed, boolean-accepting, null-admitting. */
+const nullBoolField: SchemaField = {
+  name: "auto-play-media",
+  values: ["true", "false"],
+  valuesClosed: true,
+  acceptsBoolean: true,
+  acceptsNull: true,
+};
+
+/** `ipynb-shell-interactivity` = `enum:[null, "all", …]` — closed string enum, null-admitting. */
+const nullEnumField: SchemaField = {
+  name: "ipynb-shell-interactivity",
+  values: ["all", "last", "last_expr", "none", "last_expr_or_assign"],
+  valuesClosed: true,
+  acceptsNull: true,
+};
+
+describe("isWrongValue — the null arm (acceptsNull, document-key plan §2.5/§4.0)", () => {
+  it("accepts all four YAML-1.2 null spellings on a null-admitting boolean enum", () => {
+    for (const v of ["null", "Null", "NULL", "~"]) {
+      expect(isWrongValue(v, nullBoolField), `auto-play-media: ${v} renders exit 0`).toBe(false);
+    }
+  });
+
+  it("still FLAGS the case-inexact NuLl and the quoted \"null\" (both render exit 1)", () => {
+    expect(isWrongValue("NuLl", nullBoolField)).toBe(true);
+    expect(isWrongValue('"null"', nullBoolField)).toBe(true);
+    expect(isWrongValue("'null'", nullBoolField)).toBe(true);
+  });
+
+  it("still FLAGS a genuinely wrong value on a null-admitting field (auto-play-media: banana)", () => {
+    expect(isWrongValue("banana", nullBoolField)).toBe(true);
+    expect(isWrongValue("banana", nullEnumField)).toBe(true);
+  });
+
+  it("accepts the null spellings on a null-admitting STRING enum too, and its real members", () => {
+    for (const v of ["null", "Null", "NULL", "~"]) {
+      expect(isWrongValue(v, nullEnumField), `ipynb-shell-interactivity: ${v}`).toBe(false);
+    }
+    expect(isWrongValue("all", nullEnumField)).toBe(false);
+  });
+
+  it("leaves a field WITHOUT a null arm flagging null — toc: null / ~ render exit 1", () => {
+    // The precise cost of the fix: it must not loosen the 135 closed fields that have no
+    // null arm. `toc: null`, `code-copy: null`, `df-print: null` are all quarto-REJECTED.
+    for (const v of ["null", "Null", "NULL", "~"]) {
+      expect(isWrongValue(v, boolField), `toc: ${v} renders exit 1`).toBe(true);
+      expect(isWrongValue(v, enumField), `code-overflow: ${v} renders exit 1`).toBe(true);
+    }
+  });
+
+  it("never flags on an OPEN field even when it admits null (the cardinal-sin guard still first)", () => {
+    expect(isWrongValue("null", { ...openField, acceptsNull: true })).toBe(false);
+    expect(isWrongValue("banana", { ...openField, acceptsNull: true })).toBe(false);
+  });
+
+  it("valueMessage lists null among the valid values, as quarto's own clause does", () => {
+    // quarto: ``which must instead be one of: `null`, `true`, `false` `` (verified firsthand).
+    expect(valueMessage("banana", "auto-play-media", nullBoolField)).toBe(
+      'Value banana is not valid for "auto-play-media" — expected one of: null, true, false.',
+    );
+    expect(valueMessage("banana", "ipynb-shell-interactivity", nullEnumField)).toBe(
+      'Value banana is not valid for "ipynb-shell-interactivity" — expected one of: null, all, last, last_expr, none, last_expr_or_assign.',
+    );
+  });
+
+  it("valueMessage is UNCHANGED for a field without a null arm (toc / code-overflow)", () => {
+    expect(valueMessage("maybe", "toc", boolField)).toBe(
+      'Value maybe is not valid for "toc" — expected true or false.',
+    );
+    expect(valueMessage("banana", "code-overflow", enumField)).toBe(
+      'Value banana is not valid for "code-overflow" — expected one of: scroll, wrap.',
+    );
+  });
+});
