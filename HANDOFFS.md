@@ -18,6 +18,20 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S147
+date: 2026-07-23
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). PREREQUISITE P — the null-enum-member FP fix, per docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md §2.5 + §4.0 (L1 [INERT] SchemaField.acceptsNull derived over EVERY arm valuesOfSchema walks -> L2 [GO-LIVE] NULL_SPELLINGS in isWrongValue + valueMessage -> L3 integration locks on all three affected surfaces -> L4 mandatory §9 adversarial review). Fixes a cardinal-sin false positive LIVE on shipped code: auto-play-media: null (also ~/Null/NULL) is flagged on the .qmd top-level (S125) and per-format (S143) surfaces though quarto render 1.7.33 exits 0. Exactly 3 fields Quarto-wide. Operator picked this via AskUserQuestion at Phase 0 (Active empty). ONE deliverable — slice P only; NOT P2, NOT the document-key slice (FM #26).
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+```handoff
 session: S146
 date: 2026-07-23
 status: complete
