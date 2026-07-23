@@ -18,6 +18,20 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S146
+date: 2026-07-23
+status: pending
+active_task: PLANNING (IN PROGRESS). Write ONE plan document — docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md — for general top-level document-key VALUE validation in _quarto.yml: flag a wrong VALUE of an already-recognized general top-level document key at col 0 of a project config (toc: banana, citeproc: nope, code-fold: banana), the case beyond the shipped execute: (S141) and format: (S143) containers. Deferred as "harder, needs its own plan" by S135/S141/S143; it is also the entangled prerequisite for the format-name Combo 3 deferral (same top-level-scalar enumeration in findProjectConfigValueLines). Operator picked "PLAN: general document-key values" via AskUserQuestion at Phase 0 (Active empty). Deliverable = the PLAN; NO implementation code (FM #18/#19).
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+```handoff
 session: S145
 date: 2026-07-23
 status: complete
