@@ -122,6 +122,29 @@ export interface SchemaField {
    * by / invisible to completion (which reads `values` only).
    */
   scalarType?: "number";
+  /**
+   * True when the field's resolved schema admits a literal YAML `null` — an `enum`
+   * listing a JSON `null` member (`auto-play-media` = `enum:[null,true,false]`;
+   * `ipynb-shell-interactivity` = `enum:[null,"all",…]`). `valuesOfSchema` maps enum
+   * members through `scalarToYaml`, which returns `null` for a JSON `null`, and then
+   * FILTERS those out — while `closednessOfSchema` still reports the enum CLOSED. So
+   * `values` silently under-reports the accepted set, breaking the family invariant
+   * (`valuesClosed === true` ⟹ `values` enumerates every accepted spelling) and making
+   * the matcher flag the very value Quarto lists as valid (`auto-play-media: null`
+   * renders exit 0; quarto's own rejection clause reads ``one of: `null`, `true`,
+   * `false``). This bit records the dropped arm so `isWrongValue` can accept the four
+   * YAML-1.2 null spellings (`null`/`Null`/`NULL`/`~`) — and ONLY those: `NuLl` and the
+   * quoted `"null"` are genuinely rejected (grounded firsthand, Quarto 1.7.33).
+   *
+   * Risk polarity is INVERTED from `valuesClosed`/`numericMemberEnum`: this bit only
+   * LOOSENS validation, so an over-eager set is a safe false negative while a MISSED
+   * null arm is the cardinal-sin false positive. Derived over EVERY arm
+   * `valuesOfSchema`/`closednessOfSchema` walk (not just the bare `enum` 1.7.33 needs
+   * today), and `anyOf` folds with OR — any arm admitting null makes the field admit it.
+   * Set only alongside `valuesClosed === true` (the only state in which it is read).
+   * Unused by / invisible to completion (which reads `values` only).
+   */
+  acceptsNull?: boolean;
 }
 
 /** The two boolean values offered for a plain boolean option, in order. */
@@ -984,6 +1007,48 @@ function numericMemberEnumOfSchema(schema: unknown, definitions: Map<string, unk
 }
 
 /**
+ * Whether a schema-DSL `schema` field admits a literal YAML `null` — the null-arm sibling
+ * of `closednessOfSchema`/`numericMemberEnumOfSchema` (document-key plan §2.5/§4.0),
+ * mirroring their arm order + `depth` guard and returning a single boolean.
+ */
+function acceptsNullOfSchema(schema: unknown, definitions: Map<string, unknown>, depth: number): boolean {
+  if (depth > 5) {
+    return false;
+  }
+  if (typeof schema === "string" || schema === null || typeof schema !== "object") {
+    return false; // bare "boolean" | "string" | "number" | "path" | non-object
+  }
+  const s = schema as Record<string, unknown>;
+  if (Array.isArray(s.enum)) {
+    return s.enum.includes(null);
+  }
+  if (s.enum !== null && typeof s.enum === "object" && !Array.isArray(s.enum)) {
+    const values = (s.enum as Record<string, unknown>).values;
+    return Array.isArray(values) && values.includes(null);
+  }
+  if (Array.isArray(s.anyOf)) {
+    // OR, not AND — the sibling annotators fold `anyOf` with AND because they prove a
+    // RESTRICTION (every arm must be closed/numeric); this one proves an ADMISSION, so a
+    // single null-admitting arm makes the whole field admit null. Matching the sibling's
+    // AND here would be the cardinal-sin false positive.
+    return s.anyOf.some((m) => acceptsNullOfSchema(m, definitions, depth + 1));
+  }
+  if (s.maybeArrayOf !== undefined) {
+    return acceptsNullOfSchema(s.maybeArrayOf, definitions, depth + 1);
+  }
+  if (typeof s.ref === "string") {
+    return acceptsNullOfSchema(definitions.get(s.ref), definitions, depth + 1);
+  }
+  if (s.string !== null && typeof s.string === "object") {
+    return false; // string:{completions} — a free string arm, not a null admission
+  }
+  if (s.schema !== undefined) {
+    return acceptsNullOfSchema(s.schema, definitions, depth + 1);
+  }
+  return false; // boolean (bare/wrapped), arrayOf, object, and other unrecognized forms
+}
+
+/**
  * Set the derived `valuesClosed`/`acceptsBoolean`/`numericMemberEnum` bits on `field`
  * from its raw `schema` (shared by `toField`, `objectChildren`, and the project reader).
  * Only stamps `valuesClosed` when the field is BOTH provably closed AND actually
@@ -1005,6 +1070,9 @@ function annotateClosedness(field: SchemaField, schema: unknown, definitions: Ma
     }
     if (numericMemberEnumOfSchema(schema, definitions, 0)) {
       field.numericMemberEnum = true;
+    }
+    if (acceptsNullOfSchema(schema, definitions, 0)) {
+      field.acceptsNull = true;
     }
   }
 }
