@@ -116,9 +116,10 @@ async function computeProjectValueDiagnostics(
     // performs (the format-name fields don't carry the options as `.children`; format value
     // plan §3.2 B / dragon 2). Only a DEPTH-2 line (`path=[fmt]`, `key=option`) is
     // resolvable; a depth-1 format line (`path=[]`, the format NAME itself, e.g.
-    // `html: default`) → `undefined` → skip — the top-level `format:` scalar is a deliberate
-    // FN on both surfaces (its enum is injected post-closedness, so `valuesClosed` stays
-    // unset; format value plan §4.3 / dragon 3). Offline is also a safe FN: the curated
+    // `html: default`) → `undefined` → skip — the top-level `format:` scalar NAME stays a
+    // deliberate FN on THIS `_quarto.yml` surface (Combo 3, deferred — it needs a new col-0
+    // emission; format-name validation plan §4.3). The `.qmd` scalar NAME is now validated
+    // (S145, Combo 1) by a bespoke predicate, not via `valuesClosed`. Offline is also a safe FN: the curated
     // `CURATED_FORMAT_OPTIONS` carries no `valuesClosed`, so format validation flags nothing
     // when the CLI schema fails to load (unlike execute, which is offline-robust; dragon 4).
     let field: SchemaField | undefined;

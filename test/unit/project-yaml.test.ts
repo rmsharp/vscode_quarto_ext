@@ -461,7 +461,8 @@ describe("findProjectConfigValueLines — a top-level format: block's per-format
     // `html: default` is a depth-1 scalar under `format:` — the enumerator emits it with
     // path=[] (it enumerates, it does not resolve). The FEATURE's format branch handles only
     // path.length===1 (depth-2), so a path=[] line → undefined → skip: the top-level `format:`
-    // scalar (a format NAME) is a deliberate FN on both surfaces (format value plan §4.3/dragon 3).
+    // scalar (a format NAME) is a deliberate FN on THIS `_quarto.yml` surface (Combo 3, deferred;
+    // the `.qmd` scalar NAME is validated as of S145, Combo 1 — format-name validation plan §4.3).
     const text = ["format:", "  html: default"].join("\n");
     // `default` spans cols 8..15 on `  html: default`.
     expect(findProjectConfigValueLines(text)).toEqual([

@@ -448,8 +448,11 @@ bucket.)**
   `execute.echo: maybe`, `format.html.toc: yes`, `crossref.chapters: banana`, `mermaid.theme: sunset`,
   `columns: wide` → Error; open sets like
   `output`/`engine`/`documentclass`/`execute.output`/`execute.daemon`/`format.html.theme`/`crossref.fig-title`
-  are never flagged, top-level `format` is intentionally unvalidated (its enum is injected after
-  closedness), and unknown KEYS remain intentionally unflagged since those schemas are open). Coverage:
+  are never flagged; the top-level `.qmd` `format` NAME is now VALIDATED against `quarto render`'s
+  front-matter schema layer (Session 145 — `format: banana`/`reveal`/`word` → Error, while
+  extension/modifier/hidden/`.lua` names stay silent; the `_quarto.yml` `format` scalar NAME and the
+  container-key form on both surfaces stay deferred); and unknown KEYS remain intentionally unflagged
+  since those schemas are open). Coverage:
   **Session 47** (project keys) + **124** (cell values) + **125** (top-level front-matter values) +
   **128** (nested `execute:`/`format:` values) + **130** (numeric-typed values on every surface) +
   **132** (15 other closed containers) + **135** (`_quarto.yml` project-config container values —
@@ -486,10 +489,10 @@ bucket.)**
   still: `.ipynb` cell/front-matter values, the DEEPER `_quarto.yml`-config container values
   (depth-3+ under `navbar:`/`sidebar:`/`search:`, sequence-form navbar/sidebar items, and `format:` document keys placed in
   `_quarto.yml` — the `execute:` half shipped Session 141 and the `format:` per-format OPTION-value half Session 143, leaving the
-  scalar `format:` NAME, the general document-key case, and depth-2+/KEY-under-`execute` open; `brand:`/`jupyter:`/`manuscript:` are grounded OUT with no closed one-level children),
+  `_quarto.yml` scalar `format:` NAME (the `.qmd` scalar `format:` NAME shipped Session 145), the general document-key case, and depth-2+/KEY-under-`execute` open; `brand:`/`jupyter:`/`manuscript:` are grounded OUT with no closed one-level children),
   integer-typed pandoc-layer rejections
   (`toc-depth: 2.5` — a downstream pandoc error, not quarto's YAML-schema layer), the
-  intentionally-unvalidated top-level `format`, and unknown front-matter/cell KEYS (intentionally
+  scalar `format:` NAME on the `_quarto.yml` surface plus the container-key form on both surfaces (the `.qmd` scalar NAME shipped Session 145), and unknown front-matter/cell KEYS (intentionally
   unflagged — open schemas).
 
 ---
