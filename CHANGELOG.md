@@ -7,6 +7,41 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-23 · [ad hoc] Session 146 — PLANNING: general top-level document-key VALUE validation in `_quarto.yml`
+
+Wrote `docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md` (commit `0c1a149`):
+flag a wrong CLOSED/numeric value of a recognized **general document key at column 0** of `_quarto.yml`
+(`toc: banana`, `number-sections: yes`, `fig-width: wide`, `code-fold: banana`) — the case beyond the
+shipped `execute:` (S141) and `format:` (S143) containers — matching `quarto render` 1.7.33's
+`readAndValidateYamlFromFile` layer. It ships with **zero new matcher/reader/message code** (the reader
+`frontMatterKeys([])`, matcher `isWrongValue` and message `valueMessage` are the same three the `.qmd`
+top-level surface has used since S125); the gap is enumerator plumbing — `findProjectConfigValueLines`
+never emits a column-0 scalar.
+
+**The grounding and the mandatory §9 adversarial review (`Workflow` `wf_314c0811-6c9`) uncovered THREE
+pre-existing, LIVE cardinal-sin false positives, two of them on ALREADY-SHIPPED surfaces.** None is
+introduced by the planned slice; all three are firsthand-verified in both directions:
+**(A)** `valuesOfSchema` drops a literal `null` enum member while `closednessOfSchema` still marks the
+field CLOSED, so `auto-play-media: null` is flagged today on the `.qmd` top-level (S125) and per-format
+(S143) surfaces though `quarto render` exits 0 — exactly 3 fields Quarto-wide → **prerequisite slice P**.
+**(B)** the `_quarto.yml` column-0 continuation guard is never armed, so a mapping-looking line folded
+inside a column-0 multi-line quoted value (or a valid-YAML column-0 flow collection) is flagged on a
+document quarto accepts → **fixed in-slice**, with a narrowed opener rule the review proved necessary
+(the verbatim arming would make an ordinary `title: Don't Panic` swallow the rest of the file).
+**(C)** every enumerator splits at `indexOf(":")`, but YAML's separator is a colon + space/tab/EOL, so
+`toc:: true` (quarto's key is `toc:`, accepted on an OPEN key set) is flagged — live today on `.qmd` and
+on `_quarto.yml`'s `execute:` → **prerequisite slice P2**.
+
+Grounding (firsthand, Quarto 1.7.33): 170/170 wrong-value probes **generated from the live reader** are
+schema-rejected; 169/170 valid-value probes exit 0; an enum-parity diff against quarto's own
+`which must instead be …` clauses for all 170 rejections (3 divergences → defect A); a 936-shape author FP
+battery (614 flagged shapes rendered, 614/614 genuinely rejected); and a scan of all 14 committed
+`_quarto.yml` fixtures showing none gains a diagnostic. Baselines verified, not assumed: `check-types`
+clean, unit 1223, integration 417.
+
+Deliverable = the plan; **no code** (FM #18/#19). Implementation is a 3-session arc: P → P2 → the slice.
+Learning #159 (a battery's size is not its coverage; diff against the tool's own error text).
+
 ### 2026-07-23 · [ad hoc] Session 145 — IMPLEMENTATION: validate the scalar `format:` NAME in `.qmd` (Combo 1, SHIPPED)
 
 Implemented the S144 plan `docs/planning/2026-07-22-quarto-format-name-validation-plan.md` §4.1 gate-(a)
