@@ -220,6 +220,26 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
   });
 
+  it("never flags a YAML null on a null-admitting top-level field (auto-play-media/preload-iframes/ipynb-shell-interactivity)", async () => {
+    // The null-arm lock (document-key plan §2.5, prerequisite P). Before the `acceptsNull`
+    // fix these three lines were flagged although `quarto render` 1.7.33 exits 0 on each —
+    // `valuesOfSchema` drops the literal `null` enum member while `closednessOfSchema` still
+    // marks the field CLOSED. Asserted per-line so a regression names the offending row.
+    const doc = await openActive(VALID_FRONT_MATTER);
+    await new Promise((r) => setTimeout(r, 500));
+    const byLine = new Map(valueDiagnostics(doc.uri).map((d) => [d.range.start.line, d.message]));
+    for (const [line, label] of [
+      [8, "auto-play-media: null"],
+      [9, "preload-iframes: ~"],
+      [10, "ipynb-shell-interactivity: NULL"],
+    ] as const) {
+      assert.ok(
+        !byLine.has(line),
+        `${label} renders exit 0 and must NOT be flagged (got: ${byLine.get(line)})`,
+      );
+    }
+  });
+
   it("re-scans live on edit (debounced) and drops a diagnostic once a value is fixed", async () => {
     const doc = await openActive(FRONT_MATTER);
     assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 6, 5000));
@@ -414,6 +434,24 @@ describe("Quarto: NESTED front-matter VALUE diagnostics (.qmd, nested plan §3.4
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "first check");
     await new Promise((r) => setTimeout(r, 500));
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
+  });
+
+  it("never flags a YAML null on a null-admitting PER-FORMAT field (format.html.ipynb-shell-interactivity / format.revealjs.preload-iframes)", async () => {
+    // The null-arm lock on the .qmd per-format surface (document-key plan §2.5, prerequisite
+    // P) — a different resolution path from the top-level lock above (`frontMatterKeys(["format",
+    // fmt])`, not `frontMatterKeys([])`). Both lines render exit 0 (grounded single-valued).
+    const doc = await openActive(VALID_NESTED_FRONT_MATTER);
+    await new Promise((r) => setTimeout(r, 500));
+    const byLine = new Map(valueDiagnostics(doc.uri).map((d) => [d.range.start.line, d.message]));
+    for (const [line, label] of [
+      [14, "format.html.ipynb-shell-interactivity: null"],
+      [16, "format.revealjs.preload-iframes: ~"],
+    ] as const) {
+      assert.ok(
+        !byLine.has(line),
+        `${label} renders exit 0 and must NOT be flagged (got: ${byLine.get(line)})`,
+      );
+    }
   });
 
   it("re-scans live on edit (debounced) and drops a nested diagnostic once the value is fixed", async () => {

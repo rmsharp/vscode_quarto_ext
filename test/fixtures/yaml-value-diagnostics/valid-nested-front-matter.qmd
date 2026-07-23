@@ -12,6 +12,9 @@ format:
     number-sections: false
     df-print: kable
     theme: cosmo
+    ipynb-shell-interactivity: null
+  revealjs:
+    preload-iframes: ~
 ---
 
 Every nested value here renders exit 0 under `quarto render` 1.7.33, so the feature
@@ -24,3 +27,11 @@ exit 0), `execute.daemon: 30` (OPEN number), `execute.cache: refresh` (valid enu
 member), `format.html.toc: true` / `format.html.number-sections: false` (valid
 booleans), `format.html.df-print: kable` (valid enum member), `format.html.theme: cosmo`
 (OPEN free string).
+
+The last two lines are the NULL-ARM lock on the PER-FORMAT surface (document-key plan
+§2.5, prerequisite P): `format.html.ipynb-shell-interactivity: null` and
+`format.revealjs.preload-iframes: ~` are both grounded exit 0, yet before the `acceptsNull`
+fix both were flagged — their enums list a literal `null` member that `valuesOfSchema`
+drops while `closednessOfSchema` still marks the field CLOSED. `ipynb-shell-interactivity`
+is the wide-reach case (it resolves on all 65 per-format surfaces); `preload-iframes` is
+revealjs-scoped and also covers the `~` spelling.

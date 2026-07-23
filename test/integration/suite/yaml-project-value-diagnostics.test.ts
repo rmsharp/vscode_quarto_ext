@@ -416,6 +416,22 @@ describe("Quarto: _quarto.yml top-level format: per-format option VALUE diagnost
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
   });
 
+  it("never flags a YAML null on a null-admitting per-format field in _quarto.yml (revealjs.preload-iframes / revealjs.auto-play-media)", async () => {
+    // The null-arm lock on the THIRD affected surface (document-key plan §2.5, prerequisite P):
+    // a different feature, a different DiagnosticCollection, and a different suite from the two
+    // .qmd locks. Both rows render exit 0 single-valued; before the `acceptsNull` fix both were
+    // flagged. Asserted by message content so the row is named even though line numbers drift.
+    const doc = await openActive(FMT_VALID);
+    await new Promise((r) => setTimeout(r, 500));
+    const messages = valueDiagnostics(doc.uri).map((d) => d.message);
+    for (const name of ["preload-iframes", "auto-play-media"]) {
+      assert.ok(
+        !messages.some((m) => m.includes(name)),
+        `${name}: a YAML null renders exit 0 and must NOT be flagged (got: ${messages.join(" | ")})`,
+      );
+    }
+  });
+
   it("re-scans live on edit (debounced) and drops a diagnostic once a wrong per-format value is fixed", async () => {
     const doc = await openActive(FMT_INVALID);
     assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 6, 6000));

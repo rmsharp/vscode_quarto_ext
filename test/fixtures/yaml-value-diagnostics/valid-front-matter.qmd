@@ -6,6 +6,9 @@ cache: refresh
 documentclass: myclass
 format: html
 title: A Perfectly Fine Title
+auto-play-media: null
+preload-iframes: ~
+ipynb-shell-interactivity: NULL
 ---
 
 Every top-level value here renders exit 0 under `quarto render` 1.7.33, so the
@@ -13,3 +16,13 @@ feature must produce ZERO diagnostics: `toc: True` (valid boolean spelling),
 `number-sections: false`, `df-print: "kable"` (quoted enum member), `cache:
 refresh` (enum whose members include booleans — `refresh` is a valid member),
 `documentclass: myclass` (OPEN), `format: html`, `title:` (free string).
+
+The last three are the NULL-ARM lock (document-key plan §2.5, prerequisite P).
+Their schemas list a literal `null` enum member (`auto-play-media` =
+`enum:[null,true,false]`, `ipynb-shell-interactivity` = `enum:[null,"all",…]`),
+which `valuesOfSchema` DROPS from `values` while `closednessOfSchema` still marks
+the field CLOSED — so before the `acceptsNull` fix the matcher flagged all three,
+a cardinal-sin false positive. Each is grounded exit 0 single-valued, and the four
+YAML null spellings are covered across them (`null`, `~`, `NULL`; `Null` is unit-
+tested). The case-inexact `NuLl` and the quoted `"null"` are quarto-REJECTED and
+belong in the INVALID fixture, not here.

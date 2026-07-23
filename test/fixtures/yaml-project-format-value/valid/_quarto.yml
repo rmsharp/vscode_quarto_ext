@@ -5,6 +5,12 @@
 # format-NAME block. Every SCALAR line here is grounded (see below); every emitted line
 # resolves+matches to NO diagnostic.
 #
+# The revealjs `preload-iframes: null` / `auto-play-media: ~` rows are the NULL-ARM lock on
+# the _quarto.yml per-format surface (document-key plan §2.5, prerequisite P): both are
+# grounded quarto exit-0 single-valued, yet before the `acceptsNull` fix both were flagged —
+# their enums list a literal `null` member that `valuesOfSchema` drops while
+# `closednessOfSchema` still marks the field CLOSED (the cardinal-sin false positive).
+#
 # The contract is "zero of OUR diagnostics", NOT "renders clean": the unknown-format
 # `banana:` block (grounded quarto exit-1 "no possible value") and toc-depth: 2.5 (grounded
 # pandoc exit-1, NOT the schema layer) are deliberate safe-FN locks — quarto rejects them
@@ -30,5 +36,7 @@ format:
     number-sections: true
   revealjs:
     transition: fade
+    preload-iframes: null
+    auto-play-media: ~
   banana:
     toc: true
