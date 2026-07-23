@@ -7,6 +7,31 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-23 · [ad hoc] Session 145 — IMPLEMENTATION: validate the scalar `format:` NAME in `.qmd` (Combo 1, SHIPPED)
+
+Implemented the S144 plan `docs/planning/2026-07-22-quarto-format-name-validation-plan.md` §4.1 gate-(a)
+L1→L4 contract as ONE strict-TDD vertical slice. An unknown/typo'd top-level output-format NAME in a
+`.qmd` (`format: banana`/`reveal`/`word`) now gets an Error squiggle matching `quarto render` 1.7.33's
+front-matter **schema** layer (`makeFrontMatterFormatSchema`), while extension formats, pandoc modifiers,
+hidden legacy variants, extension+modifier combos, and custom `.lua` writers stay silent (0 cardinal-sin FPs).
+Commits: `5333bd7` L1 [INERT] pure `isKnownFormatName` regex-mirror predicate + `formatNameMessage` +
+`escapeRegExp` · `47f68e4` L2 [INERT] `SchemaIndex.formatNamesForValidation()` raw built-in set (71) / `null`
+offline + `collectRawFormatNames` · `bf42cb3` L3 [GO-LIVE] the `fm.key==="format"` branch in
+`yaml-value-diagnostics.ts` (null-gate → hygiene → `unquote` → predicate); THREE FN-lock tests reconciled by
+intent-preserving swap (the grep+feature-sim caught a third count-dependent test the plan under-counted) ·
+`8fefa5b` L4 fixtures + integration (401→417) + the §9-review CARDINAL-FP fix. Unit 1158→1223.
+
+The MANDATORY 4-lens `quarto render`-verified §9 review (`wf_f9e2f6f5-ae4`) **earned its keep**: the
+predicate-parity lens found a grounded cardinal-sin FP the plan + L1 tests + both sims missed — quarto's
+schema is `regexSchema("^.+\.lua$")` whose STRING `\.` collapses to a **wildcard** dot at compile time
+(runtime `^.+.lua$`), so quarto accepts any ≥2-chars+`lua` name (`foolua`/`aalua`), not only a literal `.lua`;
+the literal-dot predicate false-positived on all of them. Firsthand-verified (quarto render) → fixed the regex
+to the wildcard, RED→GREEN; a 50-name render-vs-predicate battery → **0 cardinal FPs, 0 divergences**. The
+offline-gate lens returned PLAN-SOUND; the fp-cardinal + doc-drift lenses (retry-capped) were discharged
+firsthand. Doc-drift reconciled whole-corpus (`docs/POSIT-COMPARISON.md` ×3 + two in-code "both surfaces"
+comments). Learning #158. **Deferred (still OPEN):** Combo 3 (`_quarto.yml` scalar — entangled with the general
+document-key case), Combos 2/4 (container-key form both surfaces), multi-format MAPPING-form names, nearest-match hint.
+
 ### 2026-07-22 · [ad hoc] Session 144 — PLANNING: validate the scalar `format:` NAME (`.qmd` + `_quarto.yml`)
 
 Wrote `docs/planning/2026-07-22-quarto-format-name-validation-plan.md` — a grounded plan to flag an
