@@ -10,10 +10,11 @@ cache: banana
 pdf-engine: PDFLATEX
 ---
 
-Prose body. The five wrong closed-set values above — toc (bare non-boolean),
-number-sections (quoted boolean), df-print (enum non-member), cache (enum-with-
-boolean-members, off-list), pdf-engine (enum WRONG CASE) — each render exit 1
-under `quarto render` 1.7.33; the rest render exit 0 and must never be flagged:
-`citations-hover: true` (valid boolean), `documentclass: myclass` (OPEN
-string.completions), `format: htlm` (intentionally UNVALIDATED — its enum is
-injected after closedness), `title:` (free string).
+Prose body. The six wrong values above — toc (bare non-boolean), number-sections
+(quoted boolean), df-print (enum non-member), `format: htlm` (unknown output-format
+NAME, a typo of `html`), cache (enum-with-boolean-members, off-list), pdf-engine
+(enum WRONG CASE) — each render exit 1 under `quarto render` 1.7.33; the rest render
+exit 0 and must never be flagged: `citations-hover: true` (valid boolean),
+`documentclass: myclass` (OPEN string.completions), `title:` (free string). The
+`format` NAME is validated against quarto's front-matter schema layer
+(format-name validation plan §3.1) — extension/modifier/hidden/.lua names stay silent.

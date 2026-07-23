@@ -30,7 +30,8 @@ import { findCellOptionLines } from "../core/qmd/model";
 import { findFrontMatterValueLines } from "../core/yaml-frontmatter-values";
 import { findNestedFrontMatterValueLines } from "../core/yaml-frontmatter-nested-values";
 import { engineFor } from "../core/yaml-context";
-import { isWrongValue, valueMessage } from "../core/yaml-value-check";
+import { isWrongValue, valueMessage, unquote } from "../core/yaml-value-check";
+import { isKnownFormatName, formatNameMessage } from "../core/format-name-check";
 import {
   createDebouncedDiagnosticsFeature,
   type DiagnosticsComputeContext,
@@ -111,13 +112,47 @@ async function computeValueDiagnostics(
   // already sliced each {key, rawToken, valueRange} from the SAME snapshot `text`
   // (no live re-read after the await), so this is internally consistent with the
   // cell path. Resolve each key against the document-root field set the completion
-  // provider uses; an unrecognized key, an open set, or a valid value all skip. The
-  // top-level `format` key stays UNVALIDATED by construction — its value enum is
-  // injected after closedness is derived, so `valuesClosed` is unset and the matcher
-  // skips it (a safe false negative; closing that list would false-positive on
-  // extension/custom formats — plan §4.2 dragon).
+  // provider uses; an unrecognized key, an open set, or a valid value all skip.
+  //
+  // The top-level `format` scalar is a SPECIAL case (format-name validation plan
+  // §3.1 C): its value is an output-format NAME, not a closed enum, so `isWrongValue`
+  // cannot validate it (the format field's value list is injected after closedness
+  // is derived, so `valuesClosed` stays unset). It is validated instead by a bespoke
+  // predicate mirroring quarto's front-matter SCHEMA layer (`makeFrontMatterFormatSchema`):
+  // an unknown/typo'd name (`format: banana`) is flagged, while extension formats,
+  // pandoc modifiers, hidden legacy variants, extension+modifier combos, and custom
+  // `.lua` writers are all schema-ACCEPTED and left silent. Offline (the curated
+  // fallback → `formatNamesForValidation()` is `null`) it never flags.
   const fmFields = index.frontMatterKeys([]);
   for (const fm of fmValueLines) {
+    if (fm.key === "format") {
+      const builtIn = index.formatNamesForValidation();
+      if (builtIn === null) {
+        continue; // offline — the built-in set is not known-complete → never flag (dragon 4)
+      }
+      if (fm.rawToken.length === 0 || /^[[\]{}|>&*!]/.test(fm.rawToken)) {
+        continue; // flow/block/node-property token (e.g. `format: [html, pdf]`, itself
+        // schema-invalid) — the same skip `isWrongValue` uses; an FP-safe false negative
+      }
+      if (isKnownFormatName(unquote(fm.rawToken), builtIn)) {
+        continue; // a name quarto's schema layer accepts (built-in/ext/modifier/.lua)
+      }
+      const range = new vscode.Range(
+        fm.line,
+        fm.valueRange.startCol,
+        fm.line,
+        fm.valueRange.endCol,
+      );
+      const diagnostic = new vscode.Diagnostic(
+        range,
+        formatNameMessage(fm.rawToken),
+        vscode.DiagnosticSeverity.Error,
+      );
+      diagnostic.source = DIAGNOSTIC_SOURCE;
+      diagnostic.code = DIAGNOSTIC_CODE;
+      diagnostics.push(diagnostic);
+      continue; // handled — do NOT fall through to the generic `isWrongValue` path
+    }
     const field = fmFields.find((f) => f.name === fm.key);
     if (field === undefined || !isWrongValue(fm.rawToken, field)) {
       continue;

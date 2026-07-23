@@ -161,7 +161,7 @@ function isWrongNumericMember(rawToken: string, members: string[]): boolean {
  * token is returned unchanged. No escape decoding — closed-enum/boolean values
  * never contain a quote character.
  */
-function unquote(token: string): string {
+export function unquote(token: string): string {
   const first = token[0];
   if (first === '"' || first === "'") {
     const close = token.indexOf(first, 1);

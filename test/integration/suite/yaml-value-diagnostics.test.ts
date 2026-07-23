@@ -144,18 +144,18 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 
-  it("flags exactly the 5 wrong top-level values, and NOTHING for open/valid/format/free-string", async () => {
+  it("flags exactly the 6 wrong top-level values (incl. the unknown format name), and NOTHING for open/valid/free-string", async () => {
     const doc = await openActive(FRONT_MATTER);
     assert.ok(
-      await waitFor(() => valueDiagnostics(doc.uri).length >= 5, 5000),
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 6, 5000),
       "expected front-matter value diagnostics to appear within 5s of opening",
     );
 
     const diags = valueDiagnostics(doc.uri);
     assert.strictEqual(
       diags.length,
-      5,
-      `expected exactly 5, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+      6,
+      `expected exactly 6, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
     );
 
     const byLine = new Map(diags.map((d) => [d.range.start.line, d]));
@@ -165,6 +165,16 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
     assert.ok(byLine.get(2), 'number-sections: "false" (quoted boolean) should flag on line 2');
     // df-print: banana (line 3) — closed string enum, total non-member.
     assert.ok(byLine.get(3)?.message.includes("banana"), "df-print: banana should flag on line 3");
+    // format: htlm (line 6) — unknown output-format NAME (schema-rejected typo of `html`),
+    // validated by the bespoke format-name predicate (format-name validation plan §3.1).
+    assert.ok(
+      byLine.get(6)?.message.includes("htlm"),
+      "format: htlm (unknown output format) should flag on line 6",
+    );
+    assert.ok(
+      byLine.get(6)?.message.includes("Unknown output format"),
+      "the format-name message is the bespoke one, not the closed-enum message",
+    );
     // cache: banana (line 8) — enum whose members include booleans ([true,false,refresh]); banana is off-list.
     assert.ok(byLine.get(8)?.message.includes("banana"), "cache: banana should flag on line 8");
     // pdf-engine: PDFLATEX (line 9) — closed string enum, WRONG CASE (membership is case-sensitive).
@@ -176,15 +186,15 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
     }
   });
 
-  it("never flags an OPEN field (documentclass) or the intentionally-unvalidated top-level `format`", async () => {
+  it("flags an unknown top-level `format` NAME but never an OPEN field, a valid boolean, or a free string", async () => {
     const doc = await openActive(FRONT_MATTER);
-    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 3, 5000));
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 6, 5000));
     const lines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
     // documentclass: myclass (line 5) — OPEN string.completions → never flagged.
     assert.ok(!lines.includes(5), "documentclass: myclass (open) must NOT be flagged");
-    // format: htlm (line 6) — render-fatal, but intentionally UNVALIDATED (§4.2 dragon:
-    // its enum is injected after closedness, so valuesClosed is unset → skipped).
-    assert.ok(!lines.includes(6), "format: htlm (intentionally unvalidated) must NOT be flagged");
+    // format: htlm (line 6) — an unknown output-format NAME is now VALIDATED against
+    // quarto's front-matter schema layer and flagged (format-name validation plan §3.1).
+    assert.ok(lines.includes(6), "format: htlm (unknown output format) MUST be flagged");
     // citations-hover: true (line 4) is a valid boolean; title: (line 7) is a free string.
     assert.ok(!lines.includes(4), "citations-hover: true (valid) must NOT be flagged");
     assert.ok(!lines.includes(7), "title: (free string) must NOT be flagged");
@@ -210,7 +220,7 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
 
   it("re-scans live on edit (debounced) and drops a diagnostic once a value is fixed", async () => {
     const doc = await openActive(FRONT_MATTER);
-    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 5, 5000));
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 6, 5000));
 
     const editor = vscode.window.activeTextEditor;
     assert.ok(editor);
@@ -219,8 +229,8 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
     });
 
     assert.ok(
-      await waitFor(() => valueDiagnostics(doc.uri).length === 4, 3000),
-      "fixing toc: yes → toc: true should drop the count from 5 to 4 after the debounce",
+      await waitFor(() => valueDiagnostics(doc.uri).length === 5, 3000),
+      "fixing toc: yes → toc: true should drop the count from 6 to 5 after the debounce",
     );
   });
 });
