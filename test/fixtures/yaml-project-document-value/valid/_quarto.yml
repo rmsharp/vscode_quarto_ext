@@ -43,3 +43,19 @@ website:
   page-navigation: banana
   line two"
 code-tools: true
+# The §9-REVIEW lock (S149). The same fold, but opened on a line this enumerator SKIPS rather
+# than emits: `notes:` sits under an UNRECOGNIZED top-level block, so the scope guard used to
+# `continue` before the arming and the folded `toc: banana` was read as a real document key.
+# quarto folds all three lines into one `custom-block.note` string and renders exit 0.
+custom-block:
+  note: "line one
+toc: banana
+  line two"
+# …and the second half of that hole: a block-SEQUENCE item whose own scalar is quoted has no
+# key/value separator at all, so the separator guard's "no colon ⇒ no value" reasoning did not
+# reach it. quarto renders `chapters: ['intro.qmd number-sections: banana']` — one string,
+# exit 0, with no `number-sections` key in the document at all.
+custom-list:
+  - "intro.qmd
+number-sections: banana"
+fig-height: 4

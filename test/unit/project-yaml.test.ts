@@ -682,6 +682,58 @@ describe("findProjectConfigValueLines — COLUMN-0 document keys (document-key v
     expect(findProjectConfigValueLines("toc: banana\"").map((v) => v.rawToken)).toEqual(["banana\""]);
   });
 
+  it("ARMS the continuation guard from a line it does NOT emit — a value opened on a SKIPPED line still folds the lines below it (§9 review, S149)", () => {
+    // The Defect-B fix's own blind spot, found by the mandatory §9 review and reproduced
+    // firsthand. Routing column-0 scalars through the shared tail arms the guard only for
+    // lines that REACH the tail — but five scope guards `continue` before it: a line outside
+    // any tracked container, a depth-3+ line, a block-sequence item, a line with no open child
+    // scope, and a dedent. A multi-line value opened on such a line armed nothing, so its
+    // folded continuation was read as a real mapping one level down.
+    //
+    // Every case here is ONE YAML string that `quarto render` 1.7.33 renders exit 0.
+    // (a) opened under a NON-value container, folding onto a column-0 line: a NEW false
+    // positive this slice introduced — silent before the column-0 emission existed, flagged
+    // after (verified against the pre-slice enumerator).
+    const nonContainer = ["custom:", '  note: "multi line', "toc: banana", '  end"'].join("\n");
+    expect(findProjectConfigValueLines(nonContainer)).toEqual([]);
+    // (b) opened on a BLOCK-SEQUENCE item deep in a navbar — the realistic shape.
+    const seqItem = [
+      "website:", "  navbar:", "    left:", '      - text: "Home',
+      "toc: banana", '          "', "        href: index.qmd",
+    ].join("\n");
+    expect(findProjectConfigValueLines(seqItem).map((v) => v.key)).toEqual([]);
+    // (c) the same fold landing on a DEPTH-1 container child instead — the identical root
+    // cause on the already-shipped path, so it is PRE-EXISTING (it reproduces before this
+    // slice too). One fix covers both; leaving it would be arbitrary.
+    const toContainer = ["custom:", '  note: "multi line', "website:", "  page-navigation: banana", '  end"'].join("\n");
+    expect(findProjectConfigValueLines(toContainer)).toEqual([]);
+    // …and the guard must still DISARM: everything after the closing quote is real again.
+    const resumes = ["custom:", '  note: "multi line', "toc: banana", '  end"', "code-fold: banana", "toc: banana"].join("\n");
+    expect(findProjectConfigValueLines(resumes).map((v) => v.key)).toEqual(["code-fold", "toc"]);
+  });
+
+  it("ARMS from a line with NO key/value separator too — a block-sequence item's own quoted scalar opens a multi-line value (§9 review, S149)", () => {
+    // The second half of the same blind spot. The separator guard's safety argument (S148) is
+    // \"no separator colon anywhere ⇒ the line hosts no value ⇒ nothing could open a
+    // multi-line scalar\" — true for a MAPPING line, false for a block-SEQUENCE item, whose
+    // value is the item itself: `- \"intro.qmd` has no colon at all and still opens a quoted
+    // scalar that folds the following lines in. quarto renders this exit 0 with
+    // `chapters: ['intro.qmd toc: banana']` — there is no `toc` key at all — while we squiggled
+    // the interior of that string.
+    const seqScalar = ["book:", "  chapters:", '    - "intro.qmd', 'toc: banana"'].join("\n");
+    expect(findProjectConfigValueLines(seqScalar)).toEqual([]);
+    // A single-quoted item behaves the same.
+    const seqSingle = ["book:", "  chapters:", "    - 'intro.qmd", "toc: banana'"].join("\n");
+    expect(findProjectConfigValueLines(seqSingle)).toEqual([]);
+    // …and a PLAIN sequence item must still arm NOTHING — over-arming here would swallow the
+    // rest of the file on the most ordinary `_quarto.yml` shape there is.
+    const plainSeq = ["book:", "  chapters:", "    - intro.qmd", "toc: banana"].join("\n");
+    expect(findProjectConfigValueLines(plainSeq).map((v) => v.key)).toEqual(["toc"]);
+    // Nor may `toc:banana` (a colon with no separator) arm: its first character is not a quote.
+    const noSep = ["toc:banana", "code-fold: show", "number-sections: yes"].join("\n");
+    expect(findProjectConfigValueLines(noSep).map((v) => v.key)).toEqual(["code-fold", "number-sections"]);
+  });
+
   it("KEY-ISOLATION LOCK (dragon 3): findProjectConfigKeyLines still returns [] for a document-key-only file — the OPEN document root must never reach the unknown-KEY feature", () => {
     // Dragon 1 in its most dangerous form: the `_quarto.yml` top level is an OPEN key set —
     // `custom-thing: whatever` renders exit 0 — so KEY validation at column 0 is a

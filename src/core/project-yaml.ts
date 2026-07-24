@@ -35,6 +35,12 @@ const PROJECT_CONFIG_CONTAINERS = new Set(["project", "website", "book"]);
  * OPEN sets quarto accepts (`custom-thing: whatever` / an unknown per-format option → exit 0),
  * so flagging an unknown KEY there would be a cardinal-sin false positive (execute value plan
  * §7 / dragon 1).
+ *
+ * ⚠ This set is NOT the full list of what the value enumerator emits. A COLUMN-0 document key
+ * is emitted with the synthetic marker `"document"` (document-key value plan §3.2 change A),
+ * which is deliberately absent here because it is the ABSENCE of a container, not the name of
+ * one — there is no `document:` line to open it, and adding it would make `isValueContainer`
+ * claim a real key by that name opens a container. See `ProjectConfigValueLine.container`.
  */
 const VALUE_CONTAINERS = new Set(["project", "website", "book", "execute", "format"]);
 
@@ -244,6 +250,72 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
       continue; // blank/comment lines never affect container scope
     }
     const indent = leadingWsLen(lineText);
+
+    // ── ARM THE CONTINUATION GUARD FIRST, INDEPENDENT OF EMISSION SCOPE ──
+    // Every line carrying a mapping value can open a multi-line quoted/flow scalar that folds
+    // the following lines into itself, whether or not THIS enumerator goes on to emit it. Five
+    // scope guards below `continue` before the emission tail — a line outside any tracked
+    // container, a depth-3+ line, a block-sequence item, a line with no open child scope, and a
+    // dedent — so arming only for emitted lines leaves those folds unguarded, and their
+    // continuation lines are then read as real mappings and flagged on a document quarto
+    // renders exit 0. Measured firsthand (§9 review, S149): `custom:\n  note: "multi\ntoc:
+    // banana\n  end"` is ONE YAML string quarto renders exit 0, and a navbar
+    // `- text: "Home` folding onto a column-0 line is the realistic shape of the same thing.
+    //
+    // ⚠ Do NOT move this back below the scope guards to "only pay for lines we emit". The
+    // guard is a property of the FILE's scan state, not of the level being validated — which
+    // is the same reason the enumerator is one forward pass rather than one pass per level.
+    //
+    // ⚠ A line with NO separator colon still carries a scalar, and it can still open a
+    // multi-line value. S148's guard reasoned "no separator ⇒ the line hosts no value" — true
+    // of a MAPPING line, false of a block-SEQUENCE item, whose value is the item itself:
+    // `    - "intro.qmd` has no colon at all and opens a quoted scalar that folds the lines
+    // below it. quarto renders `book:\n  chapters:\n    - "intro.qmd\ntoc: banana"` exit 0
+    // with `chapters: ['intro.qmd toc: banana']` — there is no `toc` key in that document at
+    // all — while we squiggled the interior of the string (§9 review, S149). So the arming
+    // token is the value after the separator when there is one, and otherwise the line's own
+    // content past a leading `- `. `toc:banana` still arms nothing: its first character is `t`.
+    const colon = mappingColonAt(lineText, indent);
+    const valueSlot = colon < 0 ? null : valueSlotAfterColon(lineText, colon);
+    const rawToken = valueSlot === null ? "" : lineText.slice(valueSlot.startCol, valueSlot.endCol);
+    const armToken =
+      valueSlot === null ? lineText.slice(indent).replace(/^-[ \t]*/, "").trimEnd() : rawToken;
+    // Arm only for a token that actually OPENS a quoted or flow scalar, decided by its FIRST
+    // character past any leading node property (`&anchor `/`!tag `). It is deliberately NOT a
+    // `scanFlow` over the whole token: that scan treats an unmatched quote/bracket ANYWHERE in
+    // the token as an opener, and at column 0 that is catastrophic — an ordinary
+    // `title: Don't Panic` (quarto exit 0) arms a phantom quote whose continuation guard then
+    // swallows EVERY remaining line of the file, silently disabling all
+    // `project:`/`website:`/`book:`/`execute:`/`format:` value validation below it. A column-0
+    // `title:`/`description:` above the container blocks is the single most common
+    // `_quarto.yml` shape (document-key value plan §2.6/dragon 2).
+    //
+    // In a YAML plain scalar an inner quote/bracket is literal text, so narrowing is also
+    // simply more correct — it RESTORES true positives the whole-token scan dropped at
+    // depth-1 and depth-2 (`  title: Don't Panic` swallowed the rest of its container;
+    // `page-navigation: banana"` was never emitted though quarto rejects it — both measured
+    // firsthand, S149 cases H08/H12).
+    //
+    // ⚠ The sibling `.qmd` enumerators (`yaml-frontmatter-values.ts`,
+    // `yaml-frontmatter-nested-values.ts`) still use the whole-token form AND still arm only
+    // from lines they emit. That is a deliberate scope boundary, not an oversight: changing
+    // them changes shipped `.qmd` behavior this slice's fixtures do not cover, and their blast
+    // radius is bounded by the front-matter fences rather than the file. Filed to `BACKLOG.md`.
+    let opensMultiLine = false;
+    if (armToken.length > 0) {
+      const opener = armToken.replace(/^(?:[&!][^\s]*[ \t]+)+/, "")[0];
+      if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
+        const s = scanFlow(armToken, 0, null);
+        if (s.depth > 0) {
+          flowDepth = s.depth;
+        }
+        if (s.quote !== null) {
+          openQuote = s.quote;
+        }
+        opensMultiLine = s.depth > 0 || s.quote !== null;
+      }
+    }
+
     // Classify this line's level. `path === null` means out of scope (skip); `level` is the
     // container marker the emission carries, and BOTH must be declared here, ABOVE the
     // column-0 branch that now assigns them (dragon 10 — declaring `path` below it, where it
@@ -298,43 +370,27 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
     }
 
     if (lineText.slice(indent).startsWith("-")) {
-      continue; // a block-sequence item hosts no mapping value
+      continue; // a block-sequence item hosts no mapping value of its own to VALIDATE
     }
-    // The mapping colon is the first colon at/after the indent that is a real YAML
-    // key/value SEPARATOR — scanned forward, never just the first colon (see
-    // `mappingColonAt`). On `echo:: banana` that is the SECOND colon, making the key
-    // `echo:`, which resolves against no schema field and is silently skipped.
-    const colon = mappingColonAt(lineText, indent);
-    if (colon < 0) {
-      // The colon is NOT a YAML key/value separator (it is followed by something other
-      // than space/tab/EOL), so this line hosts no mapping value here: on `echo:: banana`
-      // YAML's key is `echo:` and on `echo:banana` the whole thing is a plain scalar.
-      // Emitting a `key`/`: banana` split would let the matcher flag a line quarto renders
-      // exit 0 on an OPEN key set — the cardinal-sin FP this guard removes (plan §2.8/P2).
-      // The line has no key/value separator anywhere, so it is not a mapping at all:
-      // `echo:banana` makes execute's value the plain scalar "echo:banana", which quarto
-      // REJECTS (exit 1). Staying silent is a false negative, the safe direction.
+    if (colon < 0 || valueSlot === null) {
+      // The line has no YAML key/value SEPARATOR anywhere (`mappingColonAt` scanned all of
+      // it, never just the first colon), so it hosts no mapping value here: on
+      // `echo:: banana` YAML's key is `echo:` and on `echo:banana` the whole line is a plain
+      // scalar. Emitting a `key`/`: banana` split would let the matcher flag a line quarto
+      // renders exit 0 on an OPEN key set — the cardinal-sin FP the separator guard removes
+      // (plan §2.8/P2, S148). `echo:banana` IS quarto-rejected (exit 1), so staying silent
+      // there is a false negative, the safe direction.
       //
-      // Skipping also costs the block-opener assignment below, which is correct: a line
-      // that is not a mapping cannot open a depth-2 child scope either.
-      //
-      // ⚠ This `continue` also skips the `scanFlow` ARMING below. That is safe ONLY because
-      // `mappingColonAt` scanned the WHOLE line first: reaching here means the line has no
-      // separator colon at all, so it hosts no value, so nothing could have opened a
-      // multi-line scalar — and the following mapping-looking line is then a YAML PARSE
-      // error quarto rejects (firsthand: exit 1 with a YAMLException, both surfaces, quote
-      // and flow forms alike). An earlier form of this guard judged only the FIRST colon,
-      // which broke exactly here: on `a:b: "text` a LATER colon IS the separator, the value
-      // DOES open a quoted scalar, and skipping the line lost the arming and flagged the
-      // folded continuation on a document quarto renders exit 0 (§9 review, S148).
+      // Skipping also costs the block-opener assignment below, which is correct: a line that
+      // is not a mapping cannot open a depth-2 child scope either. It costs no ARMING —
+      // that now happens above, before any scope guard, and a line with no separator hosts
+      // no value that could open a multi-line scalar.
       continue;
     }
     const rawKey = lineText.slice(indent, colon).replace(/[ \t]+$/, "");
     if (rawKey.length === 0) {
       continue; // `: value` with no key — malformed
     }
-    const valueSlot = valueSlotAfterColon(lineText, colon);
-    const rawToken = lineText.slice(valueSlot.startCol, valueSlot.endCol);
     if (rawToken.length === 0) {
       // A pure block-opener. At DEPTH-1 it opens a depth-2 child scope; at DEPTH-2 it is
       // a depth-3 container we never descend into (childKey stays the depth-1 parent).
@@ -348,48 +404,17 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
       }
       continue;
     }
-    // Arm the multi-line continuation guard — but ONLY for a token that actually OPENS a
-    // quoted or flow scalar, decided by its FIRST character past any leading node property
-    // (`&anchor `/`!tag `). It is deliberately NOT a `scanFlow` over the whole token: that
-    // scan treats an unmatched quote/bracket ANYWHERE in the token as an opener, and at
-    // column 0 that is catastrophic — an ordinary `title: Don't Panic` (quarto exit 0) arms a
-    // phantom quote whose continuation guard then swallows EVERY remaining line of the file,
-    // silently disabling all `project:`/`website:`/`book:`/`execute:`/`format:` value
-    // validation below it. A column-0 `title:`/`description:` above the container blocks is
-    // the single most common `_quarto.yml` shape (document-key value plan §2.6/dragon 2).
-    //
-    // In a YAML plain scalar an inner quote/bracket is literal text, so narrowing is also
-    // simply more correct — it RESTORES true positives the whole-token scan dropped at
-    // depth-1 and depth-2 (`  title: Don't Panic` swallowed the rest of its container;
-    // `page-navigation: banana"` was never emitted though quarto rejects it — both measured
-    // firsthand, S149 cases H08/H12). Note it as a deliberate behavior change on those
-    // already-shipped surfaces, in the false-positive-removing direction.
-    //
-    // ⚠ The sibling `.qmd` enumerators (`yaml-frontmatter-values.ts`,
-    // `yaml-frontmatter-nested-values.ts`) still use the whole-token form. That is a
-    // deliberate scope boundary, not an oversight: narrowing them changes shipped `.qmd`
-    // behavior this slice's fixtures do not cover. Their blast radius is bounded by the
-    // front-matter fences rather than the file. Filed to `BACKLOG.md`.
-    const opener = rawToken.replace(/^(?:[&!][^\s]*[ \t]+)+/, "")[0];
-    if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
-      const s = scanFlow(rawToken, 0, null);
-      if (s.depth > 0) {
-        flowDepth = s.depth;
-      }
-      if (s.quote !== null) {
-        openQuote = s.quote;
-      }
-      if (s.depth > 0 || s.quote !== null) {
-        // The value OPENS a multi-line quoted/flow scalar (`location: "nav\`, `x: [`). Its
-        // FOLDED result is unknowable from this opening line, and the raw opener token is not
-        // a plain scalar the matcher can reduce — yet quarto folds it and may ACCEPT it (an
-        // escaped-newline `"nav\<nl>bar"` folds to `navbar`, exit 0). Emitting the opener would
-        // let the matcher flag it against the closed enum = a cardinal-sin false positive (§9
-        // review HIGH — the closed-enum opener depth-1 shipped and this slice inherited). Skip
-        // emitting; the continuation guard (armed above) still skips the folded lines.
-        // Over-skipping when a value spans lines is the safe false-negative direction.
-        continue;
-      }
+    if (opensMultiLine) {
+      // The value OPENS a multi-line quoted/flow scalar (`location: "nav\`, `x: [`). Its
+      // FOLDED result is unknowable from this opening line, and the raw opener token is not a
+      // plain scalar the matcher can reduce — yet quarto folds it and may ACCEPT it (an
+      // escaped-newline `"nav\<nl>bar"` folds to `navbar`, exit 0). Emitting the opener would
+      // let the matcher flag it against the closed enum = a cardinal-sin false positive (§9
+      // review HIGH — the closed-enum opener depth-1 shipped and this slice inherited). The
+      // continuation guard was already armed above, so the folded lines are skipped either
+      // way; this suppresses only the OPENER's own emission. Over-skipping when a value spans
+      // lines is the safe false-negative direction.
+      continue;
     }
     result.push({
       line: i,

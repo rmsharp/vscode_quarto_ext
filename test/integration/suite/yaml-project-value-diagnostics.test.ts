@@ -595,6 +595,29 @@ describe("Quarto: _quarto.yml COLUMN-0 document-key VALUE diagnostics (document-
     assert.ok(lines.includes("code-tools: true"), "fixture drift: the post-fold disarm row is gone");
   });
 
+  it("never flags a line folded inside a value opened on a line the enumerator SKIPS — under an unrecognized block, and inside a block-sequence item's own quoted scalar (§9 review, S149)", () => {
+    // The blind spot the mandatory §9 review found in the Defect-B fix itself: routing
+    // column-0 scalars through the shared tail arms the guard only for lines that REACH the
+    // tail, and five scope guards `continue` before it. A multi-line value opened on such a
+    // line armed nothing, so its folded continuation was read as a real document key one level
+    // down — a NEW cardinal-sin false positive this slice had introduced (verified silent
+    // against the pre-slice enumerator). The sequence-item half is the same hole reached a
+    // different way: `- "intro.qmd` has no key/value separator at all, so the separator guard's
+    // "no colon ⇒ no value" reasoning never applied to it. Both rows render quarto exit 0.
+    return (async () => {
+      const doc = await openActive(DOC_VALID);
+      await new Promise((r) => setTimeout(r, 500));
+      const lines = doc.getText().split(/\r?\n/);
+      for (const row of ["toc: banana", 'number-sections: banana"']) {
+        const line = lines.findIndex((t) => t === row);
+        assert.ok(line >= 0, `fixture drift: the folded \`${row}\` row is gone`);
+        const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === line);
+        assert.ok(hit === undefined, `${row} is string interior on a doc quarto renders exit 0 (got: ${hit?.message})`);
+      }
+      assert.ok(lines.includes("fig-height: 4"), "fixture drift: the post-fold disarm row is gone");
+    })();
+  });
+
   it("never flags a `key:: value` line at COLUMN 0 — the separator FP (P2) on the openest key set there is", async () => {
     // The separator lock (plan §2.8, prerequisite P2) carried onto the new surface. YAML's key
     // is `code-copy:`, unknown on the OPEN document root, so quarto renders exit 0 (grounded

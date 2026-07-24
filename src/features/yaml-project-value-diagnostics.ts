@@ -107,8 +107,11 @@ async function computeProjectValueDiagnostics(
   // The COLUMN-0 document keys' field set, hoisted out of the loop (a reference return —
   // `frontMatterKeys([])` hands back the prebuilt `topLevelFields` array). This is the SAME
   // reader call the `.qmd` top-level front-matter surface makes (S125,
-  // `yaml-value-diagnostics.ts`), which is why the two surfaces agree exactly for these keys
-  // (document-key value plan §0 headline 1: zero new reader/matcher/message code).
+  // `yaml-value-diagnostics.ts`), which is why the two surfaces agree on every one of these
+  // keys but ONE (document-key value plan §0 headline 1: zero new reader/matcher/message
+  // code). The exception is `format:`, flagged on `.qmd` by S145's bespoke regex-union
+  // predicate and deliberately silent here — measured, not assumed: an author sweep of all
+  // 378 top-level fields × 7 probe values found 6 divergences and all 6 were `format:`.
   const documentFields = index.frontMatterKeys([]);
   for (const entry of valueLines) {
     // Select the field set by container, then resolve. An unknown key/path (the KEY
@@ -123,8 +126,10 @@ async function computeProjectValueDiagnostics(
     // plan §3.2 B / dragon 2). Only a DEPTH-2 line (`path=[fmt]`, `key=option`) is
     // resolvable; a depth-1 format line (`path=[]`, the format NAME itself, e.g.
     // `html: default`) → `undefined` → skip — the top-level `format:` scalar NAME stays a
-    // deliberate FN on THIS `_quarto.yml` surface (Combo 3, deferred — it needs a new col-0
-    // emission; format-name validation plan §4.3). The `.qmd` scalar NAME is now validated
+    // deliberate FN on THIS `_quarto.yml` surface (Combo 3, deferred — the col-0 emission it
+    // was blocked on now EXISTS, S149, so what remains is a ~6-line branch mirroring
+    // `yaml-value-diagnostics.ts`'s: null-gate → hygiene skip → `unquote` → `isKnownFormatName`
+    // → `formatNameMessage`; format-name validation plan §4.3). The `.qmd` scalar NAME is validated
     // (S145, Combo 1) by a bespoke predicate, not via `valuesClosed`. Offline is also a safe FN: the curated
     // `CURATED_FORMAT_OPTIONS` carries no `valuesClosed`, so format validation flags nothing
     // when the CLI schema fails to load (unlike execute, which is offline-robust; dragon 4).
