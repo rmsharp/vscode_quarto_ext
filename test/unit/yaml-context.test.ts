@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { completionContextAt, isMappingSeparator } from "../../src/core/yaml-context";
+import {
+  completionContextAt,
+  isMappingSeparator,
+  mappingColonAt,
+} from "../../src/core/yaml-context";
 
 /** Compute a 0-based character offset for (line, col) in `\n`-joined text. */
 function offsetAt(text: string, line: number, col: number): number {
@@ -543,6 +547,36 @@ describe("completionContextAt — the separator guard's effect on COMPLETION (P2
     const ctx = completionContextAt(text, offsetAt(text, 1, 7));
     expect(ctx?.kind).toBe("frontmatter-value");
     expect(ctx?.token).toBe("tr");
+  });
+});
+
+describe("mappingColonAt (P2 — find the separator colon, not the first colon)", () => {
+  it("returns the first colon when it IS the separator", () => {
+    expect(mappingColonAt("toc: true")).toBe(3);
+  });
+
+  it("SCANS PAST a non-separator colon to the real one (`toc:: true`)", () => {
+    expect(mappingColonAt("toc:: true")).toBe(4);
+  });
+
+  it("scans past a colon inside the key (`a:b: banana`)", () => {
+    expect(mappingColonAt("a:b: banana")).toBe(3);
+  });
+
+  it("scans past a URL-ish colon run (`url:http://x: v`)", () => {
+    expect(mappingColonAt("url:http://x: v")).toBe(12);
+  });
+
+  it("returns -1 when NO colon is a separator (`toc:banana` — a plain scalar)", () => {
+    expect(mappingColonAt("toc:banana")).toBe(-1);
+  });
+
+  it("honours the `from` offset so an indented line skips its leading blanks", () => {
+    expect(mappingColonAt("  echo:: banana", 2)).toBe(7);
+  });
+
+  it("finds a block opener's trailing colon (`execute:`)", () => {
+    expect(mappingColonAt("execute:")).toBe(7);
   });
 });
 

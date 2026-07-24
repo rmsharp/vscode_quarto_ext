@@ -484,6 +484,37 @@ export function isMappingSeparator(lineText: string, colon: number): boolean {
 }
 
 /**
+ * The index of the first colon at or after `from` that is a real YAML block-mapping
+ * key/value SEPARATOR, or `-1` if the line has none (so it hosts no mapping value).
+ *
+ * This is what the three value ENUMERATORS use — NOT `indexOf(":")` and not
+ * `isMappingSeparator(line, indexOf(":"))`. Judging only the FIRST colon is wrong
+ * whenever a LATER one is the separator: on `a:b: "text` (and on `toc:: "text`, and
+ * `url:http://x: "text`) YAML's key is `a:b` / `toc:` / `url:http://x` and the value
+ * opens a multi-line quoted scalar that folds the following line in. Quarto renders
+ * all of those **exit 0**. Treating such a line as a non-mapping skips the `scanFlow`
+ * arming, so the folded continuation line is then read as a mapping of its own and
+ * flagged — a cardinal-sin false positive (found by the §9 review, reproduced
+ * firsthand, S148).
+ *
+ * Scanning forward instead makes the line parse correctly: the key becomes `a:b`,
+ * which resolves against no schema field and so is silently skipped, while the value
+ * still arms the continuation guard exactly as it should.
+ *
+ * ⚠ Do NOT fold this into `topLevelSlots`. That grammar is shared with COMPLETION,
+ * which derives its KEY span from the raw first colon and must keep doing so — see
+ * the note there.
+ */
+export function mappingColonAt(lineText: string, from = 0): number {
+  for (let i = lineText.indexOf(":", from); i >= 0; i = lineText.indexOf(":", i + 1)) {
+    if (isMappingSeparator(lineText, i)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
  * The value token span on `lineText` after the colon at index `colon`. Leading
  * whitespace after the colon is skipped, and a trailing unquoted inline comment /
  * whitespace excluded — the YAML value grammar shared by a top-level front-matter
