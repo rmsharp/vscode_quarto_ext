@@ -126,6 +126,28 @@ describe("findFrontMatterValueLines — the key/value SEPARATOR guard (P2, THE c
     const text = ["---", "toc:\tfalse", "---"].join("\n");
     expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["toc"]);
   });
+
+  it("does NOT arm the multi-line skip from a NON-separator opener — safe, the shape is quarto-REJECTED", () => {
+    // The guard's `continue` happens before the scanFlow arming, so `title:"…` no longer
+    // arms the quote and the following line IS emitted. Safe for a structural reason: a
+    // multi-line quoted/flow value can only OPEN as the VALUE of a mapping, so with no
+    // separator there is no value and the next mapping-looking line is a YAML PARSE error
+    // — quarto exits 1 with a YAMLException (firsthand-verified, S148). Agreement, not the
+    // cardinal-sin FP. Locked so a future change to the guard's placement surfaces here.
+    const text = ["---", 'title:"a long title that wraps', 'columns: wide"', "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["columns"]);
+  });
+
+  it("STILL arms the multi-line skip from a real separator opener (`title: \"…` renders exit 0)", () => {
+    // The control that makes the case above safe rather than a regression: WITH the space
+    // the colon is a separator, the guard passes, the arming works, and the folded
+    // continuation line is skipped exactly as before — on a document quarto renders exit 0.
+    // The OPENER line itself is still emitted here (this enumerator pushes, then arms; the
+    // project enumerator instead skips its opener), but `title` is OPEN so nothing is
+    // flagged. What matters is that `columns` — closed, numeric — is NOT emitted.
+    const text = ["---", 'title: "a long title that wraps', 'columns: wide"', "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["title"]);
+  });
 });
 
 describe("findFrontMatterValueLines — multi-line flow collections (adversarial review, S125)", () => {

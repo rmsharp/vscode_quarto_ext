@@ -104,6 +104,17 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
       // — asking about index 3 reads the colon ITSELF as the following character and
       // wrongly skips a real mapping quarto validates (`toc : true` exit 0, `toc : banana`
       // exit 1, both firsthand-verified). A value slot exists here, so the colon is present.
+      //
+      // ⚠ This `continue` also skips the `scanFlow` ARMING below, and that is safe for a
+      // structural reason worth stating: a multi-line quoted scalar or flow collection can
+      // only OPEN as the VALUE of a mapping. If the colon is not a separator there is no
+      // value, so a token that looks like an opener (`title:"a long title that wraps`) is
+      // just text in a plain scalar — which makes the following mapping-looking line a YAML
+      // PARSE error. Verified firsthand on every such shape: quarto exits 1 with a
+      // YAMLException, on both surfaces, for both the quote and the flow form. So the
+      // continuation line we now emit is on a document quarto REJECTS — agreement, not the
+      // cardinal-sin FP. (With the space, `title: "…` renders exit 0, the colon IS a
+      // separator, the guard passes, and the arming works exactly as before.)
       continue;
     }
     const rawToken = lineText.slice(valueSlot.startCol, valueSlot.endCol);
