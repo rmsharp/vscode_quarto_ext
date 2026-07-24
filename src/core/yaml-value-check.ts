@@ -63,7 +63,7 @@ const NULL_SPELLINGS = /^(?:null|Null|NULL|~)$/;
  * `|`/`>` is skipped — never a closed-enum scalar, plan §7.6).
  */
 export function isWrongValue(rawToken: string, field: SchemaField): boolean {
-  if (rawToken.length === 0 || /^[[\]{}|>&*!]/.test(rawToken)) {
+  if (rawToken.length === 0 || /^[[\]{}|>&*!]/.test(rawToken) || rawToken.includes("\\")) {
     // Shared skip, FIRST — applies to numeric AND enum fields (numeric plan §3.3).
     // Skip: empty (mid-edit); a flow collection `[…]`/`{…}` or block scalar
     // `|`/`>`; OR a value carrying a YAML node property — an anchor (`&name`),
@@ -71,6 +71,20 @@ export function isWrongValue(rawToken: string, field: SchemaField): boolean {
     // property and accepts the underlying value (`toc: &a true` → exit 0), so a
     // token the matcher can't reduce to a plain scalar must never be flagged
     // (adversarial review, S125 — a cardinal-sin false positive otherwise).
+    //
+    // Also skip any token containing a BACKSLASH (the escape-decoding FP, P3 /
+    // §9-review S149). A DOUBLE-quoted YAML value processes backslash escapes, so
+    // `toc-location: "\x62ody"` DECODES to `body` and quarto renders it exit 0 — but
+    // `unquote` does no escape decoding, so `members.includes` saw the literal
+    // `\x62ody`, missed, and flagged a value quarto accepts (grounded firsthand vs
+    // quarto 1.7.33). Skipping is escape-form-agnostic (`\xNN`, `\uNNNN`, `\\`, …) and
+    // FALSE-NEGATIVE ONLY: a closed-enum/boolean member never itself contains a
+    // backslash, so this can never suppress a genuine member match — it only stops
+    // flagging backslash-bearing values, which after decoding are either accepted
+    // (the FP we remove) or rejected (`bo\dy`, `"\x62anana"` → quarto exit 1; now a
+    // deliberate safe FN, per the hard product rule). Single-quoted tokens have no
+    // escapes except `''` (which can't produce a member), so skipping them costs
+    // nothing real.
     return false;
   }
   if (field.scalarType === "number") {

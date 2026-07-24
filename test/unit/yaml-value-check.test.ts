@@ -138,6 +138,49 @@ describe("isWrongValue — a quoted value with a trailing inline comment (advers
   });
 });
 
+describe("isWrongValue — the escape-decoding FP (P3, cross-surface, §9-review S149; grounded firsthand vs quarto render 1.7.33)", () => {
+  // A DOUBLE-quoted YAML value processes backslash escapes, so `"\x73croll"` DECODES to
+  // `scroll` and `quarto render` accepts it (exit 0) — but `unquote` does NO escape
+  // decoding (by design; decoding would need a YAML parser), so `members.includes` sees
+  // the literal `\x73croll`, finds no match, and flags a value quarto accepts: a
+  // cardinal-sin false positive live since S125. The fix skips any token containing a
+  // backslash — escape-form-agnostic (covers `\xNN`, `\uNNNN`, `\\`, …) and FN-only (a
+  // member never itself contains a backslash, so skipping introduces zero new flags).
+  it("does NOT flag a double-quoted \\x escape that decodes to an enum member (code-overflow: \"\\x73croll\" → scroll, exit 0)", () => {
+    expect(isWrongValue('"\\x73croll"', enumField)).toBe(false);
+  });
+
+  it("is escape-form-agnostic — a \\u unicode escape that decodes to a member is not flagged (\"\\u0073croll\" → scroll, exit 0)", () => {
+    expect(isWrongValue('"\\u0073croll"', enumField)).toBe(false);
+  });
+
+  it("does NOT flag a \\x escape that decodes to a boolean-enum member (echo: \"\\x66enced\" → fenced, exit 0)", () => {
+    expect(isWrongValue('"\\x66enced"', echoField)).toBe(false);
+  });
+
+  // The FN-safe direction: a backslash-bearing value that quarto REJECTS (exit 1) is now
+  // silent too — a deliberate safe false negative, not a defect. `bo\dy` (unquoted plain
+  // scalar) and `'\x73croll'` (single-quoted, no escape processing) are both literal
+  // strings quarto's schema rejects; before P3 we flagged them (a true positive), and the
+  // coverage loss is acceptable under the hard FN-only product rule (these are contrived
+  // hand-written forms — no naturally-occurring value carries a backslash).
+  it("is false-negative only — a backslash value quarto rejects is now silently skipped (safe)", () => {
+    expect(isWrongValue("sc\\roll", enumField), "unquoted literal backslash").toBe(false);
+    expect(isWrongValue("'\\x73croll'", enumField), "single-quoted, no escape processing").toBe(false);
+    expect(isWrongValue('"\\x62anana"', enumField), "decodes to banana, exit 1 — was a TP, now safe FN").toBe(false);
+  });
+
+  // The skip is narrow: it fires ONLY on a backslash. Every backslash-free judgement is
+  // unchanged — a plain member (quoted or not) is still accepted, a plain non-member is
+  // still flagged. This pins that P3 did not widen into a general quote/coverage change.
+  it("leaves every backslash-free judgement unchanged", () => {
+    expect(isWrongValue("scroll", enumField), "plain member").toBe(false);
+    expect(isWrongValue('"scroll"', enumField), "plain quoted member").toBe(false);
+    expect(isWrongValue("banana", enumField), "plain non-member still flagged").toBe(true);
+    expect(isWrongValue('"banana"', enumField), "quoted non-member still flagged").toBe(true);
+  });
+});
+
 /** A plain numeric field (e.g. `fig-width`, `columns`) — `scalarType:"number"`, no enum. */
 const numField: SchemaField = { name: "fig-width", scalarType: "number" };
 

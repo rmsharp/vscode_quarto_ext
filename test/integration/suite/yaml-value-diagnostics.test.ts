@@ -781,3 +781,45 @@ describe("Quarto: ASPECTRATIO numeric-member VALUE diagnostics (.qmd, matcher pl
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
   });
 });
+
+describe("Quarto: the escape-decoding FP is GONE end-to-end (.qmd, P3 / §9-review S149)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  /** Inline untitled `quarto` doc (unique URI/call) — no fixture line-anchor to shift. */
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // Site A — the closed-enum matcher (`isWrongValue`). `toc-location: "\x62ody"` DECODES
+  // to `body` and `quarto render` 1.7.33 accepts it (exit 0, grounded firsthand), but
+  // before P3 the value feature flagged it in a real host (a cardinal-sin FP live since
+  // S125). A `df-print: banana` CANARY (line 1) MUST flag, proving the schema loaded and
+  // the compute ran in the SAME atomic pass; the assertion is then that the escape line
+  // (line 2) is NOT among the flagged lines.
+  for (const [label, value] of [
+    ["\\x hex escape", '"\\x62ody"'],
+    ["\\u unicode escape", '"\\u0062ody"'],
+  ] as const) {
+    it(`does NOT flag a top-level enum whose ${label} decodes to a member (toc-location: ${value} → body, exit 0)`, async () => {
+      const doc = await openInline(`---\ndf-print: banana\ntoc-location: ${value}\n---\n\nBody.\n`);
+      assert.ok(
+        await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 1), 5000),
+        "the df-print: banana canary (line 1) should flag, proving the value pass ran",
+      );
+      const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+      assert.ok(
+        !flaggedLines.includes(2),
+        `toc-location: ${value} (decodes to a member, exit 0) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+      );
+    });
+  }
+});
