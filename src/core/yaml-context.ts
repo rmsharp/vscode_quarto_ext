@@ -443,10 +443,12 @@ export function topLevelSlots(
  * of the line — a colon followed by anything else is an ordinary character
  * inside the key's plain scalar.
  *
- * Single-sourced here and applied by all THREE value enumerators
- * (`findProjectConfigValueLines`, `topLevelSlots`'s value slot,
- * `findNestedFrontMatterValueLines`), which otherwise split at
- * `indexOf(":")` and mis-read the key. On `toc:: true` YAML's key is `toc:`
+ * Single-sourced here and applied (via `mappingColonAt`) by all FOUR
+ * diagnostics-side value paths: `findProjectConfigValueLines`,
+ * `findFrontMatterValueLines`, `findNestedFrontMatterValueLines`, and the
+ * CELL-OPTION loop in `features/yaml-value-diagnostics.ts` (whose `slotsOf`
+ * grammar, like `topLevelSlots`, stays unguarded for completion's sake).
+ * All of them otherwise split at `indexOf(":")` and mis-read the key. On `toc:: true` YAML's key is `toc:`
  * and its value `true`; splitting at the first colon yields key `toc` with the
  * bogus value token `: true`, which the matcher then flags — while quarto,
  * seeing an unknown key on an OPEN key set, renders exit 0. That is a

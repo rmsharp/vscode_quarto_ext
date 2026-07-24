@@ -326,12 +326,20 @@ guard in `topLevelSlots` covers the `.qmd` surfaces. Its only cost is the `toc:b
 > **Correction (Session 148, while implementing §4.0b — the defect is real and the fix works, but
 > this section under-counts the sites and mis-states one table row).**
 >
-> 1. **THREE enumerators split at the first colon, not two.** Besides `project-yaml.ts:260` and
->    `topLevelSlots`, `yaml-frontmatter-nested-values.ts:125`
->    (`findNestedFrontMatterValueLines`, the `.qmd` NESTED surface, S128) has its own
->    `indexOf(":", indent)` and carried the same live FP: `execute:\n  echo:: true` and
->    `format:\n  html:\n    toc:: banana` both render **exit 0** and were both flagged. Found by
->    grep + firsthand render; fixed in the same slice.
+> 1. **FOUR value paths split at the first colon, not two.** Besides `project-yaml.ts:260` and
+>    `topLevelSlots`: (a) `yaml-frontmatter-nested-values.ts:125`
+>    (`findNestedFrontMatterValueLines`, the `.qmd` NESTED surface, S128) — `execute:\n  echo:: true`
+>    and `format:\n  html:\n    toc:: banana` both render **exit 0** and were both flagged; and
+>    (b) the **CELL-OPTION** path — `slotsOf` in `core/qmd/model.ts` — where `#| echo:: banana`
+>    renders **exit 0** and was flagged. (a) was found by grep + firsthand render; (b) only by the
+>    mandatory §9 review, because the implementing session's own 30-case battery varied the surface
+>    but never the cell-option axis. Both fixed in the same slice.
+>
+>    ⚠ **For slice ③: the separator rule is DIAGNOSTICS-side.** It is applied by each value path,
+>    never inside the shared `topLevelSlots`/`slotsOf` grammar, which COMPLETION also uses. And it
+>    must SCAN FORWARD for the first separator colon (`mappingColonAt`), never merely test the first
+>    colon — on `a:b: "text` a later colon is the separator, and treating the line as a non-mapping
+>    loses the `scanFlow` arming and flags the folded continuation on a doc quarto renders exit 0.
 > 2. **The row "`page-navigation:: true` under `website:` → agreement, not an FP" holds only at
 >    DEPTH-1.** At depth-2, `website:\n  navbar:\n    collapse-below:: sm` renders **exit 0** and
 >    was a live FP. The one shared tail covers both depths, so the fix is unchanged — but the
