@@ -7,6 +7,60 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-23 · [ad hoc] Session 149 — IMPLEMENTATION: ③ general document-key VALUE validation in `_quarto.yml` (SHIPPED)
+
+Implemented `docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md` §4.1 —
+the third and last slice of that plan's 3-session arc (① P shipped S147, ② P2 shipped S148),
+under the project-wide strict-TDD gate.
+
+A wrong value of a recognized general document key at **column 0 of `_quarto.yml`**
+(`toc: banana`, `number-sections: yes`, `fig-width: wide`, `df-print: KABLE`,
+`toc-depth: banana`) now gets an Error squiggle matching `quarto render` 1.7.33's
+`readAndValidateYamlFromFile` layer. Zero new reader, matcher or message code: a column-0 line
+that is not a pure block-opener falls through the enumerator's SHARED emission tail with the
+synthetic `container:"document"`, and the feature resolves it against `frontMatterKeys([])` —
+the same reader call the `.qmd` top-level surface has made since S125. Measured consequence:
+the two surfaces agree on 377 of 378 top-level fields (2,646 comparisons, 6 divergences, all
+`format:`, which is the one deliberate one — Combo 3, deferred).
+
+The same restructure fixed **defect B**: column-0 lines used to return before the `scanFlow`
+arming, so a mapping-looking line folded inside a column-0 multi-line quoted value was read as
+a real child and flagged on a document quarto renders exit 0 — three such live false positives
+measured firsthand, including an anchored form the plan had not listed. The arming was also
+NARROWED to a token whose first character (past `&anchor `/`!tag `) opens a quoted or flow
+scalar; the shipped whole-token scan made an ordinary `title: Don't Panic` arm a phantom quote
+and swallow every remaining line of the file. Narrowing additionally restored two measured true
+positives on the already-shipped indented paths.
+
+**The mandatory §9 adversarial review (`wf_e4bd89e6-696`, 5 render-verified lenses with
+refute-first skeptics per finding; 39 agents, 781 tool calls) earned its keep decisively: it
+caught a cardinal-sin false positive this slice had ITSELF introduced.** The "column-0 values
+are armed by the same tail as every other level" premise holds only for lines that REACH the
+tail, and five scope guards return before it — so a multi-line value opened on a skipped line
+(under an unrecognized top-level block, on a block-sequence item, at depth-3+) armed nothing and
+its fold became a flagged document key on a file quarto renders exit 0. Reproduced firsthand and
+proven silent against the pre-slice enumerator before any change, then fixed RED→GREEN by
+hoisting the arming above every scope guard; a second half — a sequence item's own quoted scalar
+has no separator colon, so the "no colon ⇒ no value" reasoning never applied — needed its own
+RED→GREEN. All 24 of the reviewers' false-positive cases are resolved: 21 silent (quarto exit 0),
+3 correctly flagged (quarto exit 1 SCHEMA). One lens returned CLEAN.
+
+Verified firsthand: check-types clean; unit 1278 → 1288; integration 425 → 433 green in a real
+Extension Development Host (this project's runtime smoke). Author grounding: 82 render-grounded
+cases with 0 cardinal-sin false positives and 10 enumerated safe false negatives, a 14-case
+adversarial battery against the narrowing itself, and a scan of all 16 committed `_quarto.yml`
+fixtures showing every prior diagnostic count unchanged. Break-revert-proven at both layers and
+through the real host.
+
+Commits: `06e0566` L1 [INERT] · `0e81e06` L2 [GO-LIVE] · `9d5ec90` L3 fixtures + integration ·
+`02a056b` L4/L5 the review and its fix · `b07bc44` doc-drift + three dated plan corrections.
+
+Filed, not fixed here: **P3**, a live cross-surface cardinal-sin FP the review's surface-parity
+lens found (`unquote` does no escape decoding, so `toc-location: "\x62ody"` — which quarto folds
+to `body` and renders exit 0 — is flagged, on BOTH surfaces, pre-existing since S125); the `.qmd`
+sibling enumerators' two older arming behaviors; and a quoted-KEY divergence in the safe
+direction.
+
 ### 2026-07-23 · [ad hoc] Session 148 — IMPLEMENTATION: PREREQUISITE P2, the key/value-separator FP fix (SHIPPED)
 
 Implemented `docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md` §2.8 + §4.0b —
