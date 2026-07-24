@@ -1,7 +1,7 @@
 /**
  * `WorkspaceSymbolProvider` for `.qmd` files — powers "Go to Symbol in
  * Workspace" (Ctrl+T / Cmd+T) across every `.qmd` file in the workspace, not
- * just the active editor (BACKLOG "Up Next" item #6). A thin `vscode`
+ * just the active editor (CHANGELOG: workspace symbol provider, Session 54). A thin `vscode`
  * adapter: per-file parsing reuses the same `core/qmd/model` `buildOutline`
  * the Outline view and breadcrumbs use (`providers/outline.ts`), flattened
  * via `core/workspace-symbols.ts` `flattenOutline` and matched against the

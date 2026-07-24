@@ -1,6 +1,6 @@
 /**
  * Pure, `vscode`-free naming + ownership layer for the embedded-language virtual
- * documents (BACKLOG item 18 — the shipped-defect fix; plan §6.1). This module MUST
+ * documents (CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87 — the shipped-defect fix; plan §6.1). This module MUST
  * NOT import `vscode` (architecture §3.3) and is unit-tested headlessly.
  *
  * ## Why these files exist at all
@@ -179,7 +179,7 @@ export function tempVdocDirParse(name: string): TempVdocDir | null {
  *
  * The separator is a NUL byte, written as the escape `"\0"` in source so this file
  * stays plain text to git and grep. (A raw NUL byte here made git and grep read the
- * whole file as binary, defeating the mandatory grep inventory; see BACKLOG:184.) A
+ * whole file as binary, defeating the mandatory grep inventory; see CHANGELOG: vdoc-path NUL-separator source hygiene, Session 105.) A
  * NUL cannot occur in a URI, a languageId, or an extension, so no combination of
  * field values can forge another key's string.
  */

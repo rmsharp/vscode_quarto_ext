@@ -1,6 +1,6 @@
 /**
  * Pure, `vscode`-free cell-descriptor builder for `quarto.newNotebook`
- * (BACKLOG item 17e — create a new Quarto `.ipynb` notebook).
+ * (CHANGELOG: quarto.newNotebook, Session 112 — create a new Quarto `.ipynb` notebook).
  *
  * Lives in `core/` and MUST NOT import `vscode` (architecture plan §3.3). It
  * returns plain `{ languageId, value }` descriptors; the adapter

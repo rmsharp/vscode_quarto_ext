@@ -115,7 +115,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
 **Project-level render command ("Render Project").**
 - *Ours:* Present — `quarto.renderProject` discovers the project root (`_quarto.yml`/`_quarto.yaml`,
   ancestor-walk) and spawns `quarto render <root>` with `cwd` pinned to root, rendering the whole project
-  rather than just the active document — **Session 45**, `BACKLOG.md` item #1. (`src/core/project.ts`,
+  rather than just the active document — **Session 45**, CHANGELOG: project-level render, Session 45. (`src/core/project.ts`,
   `src/features/render-project.ts`.)
 - *Posit's:* Present — a dedicated "Render Project" command (v1.11.2) that renders every document in a
   project.
@@ -143,7 +143,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   is a general contextual dispatcher across the Visual Editor / plain `.qmd` / Mermaid / Graphviz — that
   one is substantively the same `Ctrl+Shift+L` capability this doc's "Live preview of LaTeX math" row
   already covers, just not previously tied to its command ID; it is not counted as a gap here.
-- *Notes:* **Parity reached — gap CLOSED (Sessions 82/84/85; `BACKLOG.md` item 15 closed).** Both commands
+- *Notes:* **Parity reached — gap CLOSED (Sessions 82/84/85; CHANGELOG: preview command family breadth, Sessions 82-85 closed).** Both commands
   exist (per-format picker Session 82; render-script preview Session 84), and Session 85 shipped the
   gating layer that was the residual delta: the `quartoRenderScriptActive` context key, the
   mutually-exclusive `Ctrl+Shift+K` pair, the editor-title entry, the palette gate, and the
@@ -182,7 +182,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
 - *Ours:* Present — **10 commands** (run cell, run+advance, run selected line(s), run current code, run
   next cell, run previous cell, run above, run below, run all, insert cell), each individually keybound
   (`ctrl/shift+enter` for the original two, `ctrl+alt+<mnemonic>` for most of the rest — **Session 52**,
-  `BACKLOG.md` item #4 — `ctrl+alt+c` for `runCurrent`, **Session 78**, item 13(e)).
+  CHANGELOG: run-cell command family completion, Session 52 — `ctrl+alt+c` for `runCurrent`, **Session 78**, item 13(e)).
 - *Posit's:* Present — **Session 67 recount: 10 commands, not 8.** The manifest declares
   `quarto.runSelection`, `quarto.runCurrent` ("Run Current Code"), `quarto.runCurrentAdvance`,
   `quarto.runCurrentCell`, `quarto.runPreviousCell`, `quarto.runNextCell`, `quarto.runCellsAbove`,
@@ -261,7 +261,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
 - *Ours:* Present — registers a `quarto` language for `.qmd`/`.rmd`/`.Rmd`, TextMate grammar
   (`text.html.quarto`), **20 embedded scopes** as of Session 76 (yaml/frontmatter, python, r, julia,
   javascript/ojs, bash, c, cpp, csharp, fsharp, rust, go, sql, lua, ruby, php, perl, java, dockerfile,
-  powershell — BACKLOG item 13(a), each confirmed against this repo's own bundled `.vscode-test` VS Code
+  powershell — CHANGELOG: quick declarative wins bundle, Sessions 76-78(a), each confirmed against this repo's own bundled `.vscode-test` VS Code
   install's built-in extensions, not guessed).
 - *Posit's:* Present — "Syntax highlighting for markdown and embedded languages," but **Session 67's
   manifest diff found the grammar's `embeddedLanguages` map currently lists 50 scope keys**, not just
@@ -300,7 +300,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   all and the one real Pylance is observed emitting, plus a `semanticTokenScopes` contribution for
   `language: "quarto"`. `magicFunction` would have turned `__init__` from #DCDCAA to #d2a8ff purple.
   **Item 16 is now fully SHIPPED — this row is at parity.** *(Session 97 extended the same discipline to
-  the MODIFIER axis, BACKLOG:127: it carries the one modifier `typeHintComment` — the interior of a legacy
+  the MODIFIER axis, CHANGELOG: semantic-token modifier axis, Session 97: it carries the one modifier `typeHintComment` — the interior of a legacy
   `# type:` comment, which we were repainting from the #8b949e comment colour to #4EC9B0 teal — with a
   matching `*.typeHintComment` scope contribution, and REFUTED the filed `builtin` instance, which already
   matches a real `.py`.)*
@@ -326,7 +326,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   posture never leaked. Transient parse-error residuals (mid-typing) and R/Julia remain as tracked
   follow-ups (`BACKLOG.md`).
 
-  > **⚠ These features were BROKEN from Phase 6e until Session 87 (BACKLOG item 18), and this document
+  > **⚠ These features were BROKEN from Phase 6e until Session 87 (CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87), and this document
   > claimed parity for them the whole time.** The virtual documents were served on a custom URI scheme
   > (`quarto-embedded:`), and real language servers register their providers against a
   > `documentSelector` scoped to the schemes they can read — so no provider was ever registered for
@@ -365,7 +365,7 @@ Editor — rather than take on that dependency. See "Code-cell language embeddin
   installed extension entirely in favor of spawning and owning their own dedicated language-server
   connections). **Session 69: the operator decided to accept this as a permanent, documented gap** — the
   same treatment as the excluded Visual Editor — rather than take on that new class of dependency, closing
-  `BACKLOG.md` item 10 as investigated-not-pursued. Full evidence trail:
+  CHANGELOG: code-cell diagnostics forwarding, closed as not pursued, Session 69 as investigated-not-pursued. Full evidence trail:
   `docs/planning/2026-07-10-code-cell-diagnostics-plan.md`.
 
 ---
@@ -456,7 +456,7 @@ bucket.)**
   **Session 47** (project keys) + **124** (cell values) + **125** (top-level front-matter values) +
   **128** (nested `execute:`/`format:` values) + **130** (numeric-typed values on every surface) +
   **132** (15 other closed containers) + **135** (`_quarto.yml` project-config container values —
-  `project:`/`website:`/`book:`), `BACKLOG.md` item #2/#43/#46/#47. (`src/core/yaml-schema.ts`
+  `project:`/`website:`/`book:`), CHANGELOG: YAML schema diagnostics, Session 47/#43/#46/#47. (`src/core/yaml-schema.ts`
   `SchemaIndex.projectKeys`/`projectFields`, `src/core/yaml-value-check.ts`,
   `src/core/yaml-frontmatter-values.ts`, `src/core/yaml-frontmatter-nested-values.ts`,
   `src/core/project-yaml.ts`, `src/features/yaml-diagnostics.ts`,
@@ -615,13 +615,13 @@ added.)**
   via a vendored WASM build of Graphviz itself (`@viz-js/viz`, shipped Session 56).
 - *Posit's:* Present — both Mermaid and Graphviz render live.
 - *Notes:* At parity on live rendering. Unlike every other vendored asset in this project, the Graphviz
-  WASM module's compiled contents are EPL-2.0 (not MIT) — disclosed in `NOTICE`; see BACKLOG.md item #7.
+  WASM module's compiled contents are EPL-2.0 (not MIT) — disclosed in `NOTICE`; see CHANGELOG: Graphviz dot diagram rendering, Session 56.
   A related but distinct gap (standalone `.dot`/`.mmd` file-type support, not just live rendering inside
   `.qmd`) is tracked as its own row below — Session 67.
 
 **Standalone diagram/typst language registration (`.dot`, `.mmd`, `.typ` as first-class file types).
 (Session 67; SHIPPED Session 76's item 13(b) list corrected below.)**
-- *Ours:* **Present, config-only — SHIPPED Session 77 (`BACKLOG.md` item 13(b)).** `dot` (`.dot`/`.gv`),
+- *Ours:* **Present, config-only — SHIPPED Session 77 (CHANGELOG: quick declarative wins bundle, Sessions 76-78(b)).** `dot` (`.dot`/`.gv`),
   `mermaid` (`.mmd`), and `typst` (`.typ`) are each registered as standalone, first-class VS Code
   languages — own `contributes.languages` entry + a dedicated `languages/<id>-language-configuration.json`
   each (comments, brackets, auto-closing/surrounding pairs) — independent of the embedded-grammar scopes
@@ -674,7 +674,7 @@ added.)**
 **Create project / create Quarto document commands.**
 - *Ours:* Present — `quarto.newDocument` (title-prompted, opens an untitled `.qmd` buffer from a
   YAML-safe front-matter template) and `quarto.createProject` (type/parent-folder/name prompts, spawns
-  `quarto create-project`, opens the result as the workspace) — **Sessions 49–50**, `BACKLOG.md` item #3
+  `quarto create-project`, opens the result as the workspace) — **Sessions 49–50**, CHANGELOG: onboarding walkthrough + scaffolding commands, Sessions 49-51
   Tracks A/B. (`src/core/new-document.ts`, `src/features/new-document.ts`,
   `src/core/create-project-args.ts`, `src/features/create-project.ts`.)
 - *Posit's:* Present — `quarto.newDocument`, `quarto.createProject`, `quarto.fileCreateProject`, etc.
@@ -743,8 +743,8 @@ added.)**
 **Snippets for common Quarto constructs.**
 - *Ours:* Present — **15 snippets** (`snippets/quarto.json`, `contributes.snippets`): front matter, the
   4 executable-cell languages, callouts, fenced divs, tabset panels, one per cross-reference kind this
-  extension itself recognizes (fig/tbl/eq/sec/lst) — **Session 53**, `BACKLOG.md` item #5 — plus
-  `list-table` and a reveal.js `fragment` snippet — **SHIPPED Session 77, `BACKLOG.md` item 13(c)**.
+  extension itself recognizes (fig/tbl/eq/sec/lst) — **Session 53**, CHANGELOG: snippets, Session 53 — plus
+  `list-table` and a reveal.js `fragment` snippet — **SHIPPED Session 77, CHANGELOG: quick declarative wins bundle, Sessions 76-78(c)**.
 - *Posit's:* Present — "Code snippets… make it easier to enter repeating code patterns (code blocks,
   callouts, divs, etc.)."
 - *Notes:* **Parity reached (Session 77)** for every construct named in this comparison. Independently
@@ -786,7 +786,7 @@ added.)**
 **Getting-started walkthrough / onboarding UI.**
 - *Ours:* Present — a `contributes.walkthroughs` entry (`quartoGettingStarted`, 5 steps: install/verify
   Quarto, create a document, create a project, render/preview, run a cell), each with a command-link
-  action button and a completion event — **Session 51**, `BACKLOG.md` item #3 Track C.
+  action button and a completion event — **Session 51**, CHANGELOG: onboarding walkthrough + scaffolding commands, Sessions 49-51 Track C.
 - *Posit's:* Present — "Getting started with Quarto walkthrough" (v1.17.0).
 - *Notes:* Parity reached (Session 51) — no longer a gap.
 
@@ -797,7 +797,7 @@ added.)**
   `#|`/`//|` options), inline code spans, HTML comments, math, and cross-reference/citation tokens — so
   plain-source-editor spelling works with zero false positives on real content, empirically validated
   against a multi-region fixture. No spell-check engine, dictionary, or `DiagnosticCollection` of our
-  own — **Session 65**, `BACKLOG.md` item 9.
+  own — **Session 65**, CHANGELOG: spell checking, Session 65.
 - *Posit's:* Partial — native spell checking exists, but only inside the Visual Editor, not in plain
   source/markdown editing; their Visual Editor's spell checker also has a documented single-language-at-
   a-time limitation.
@@ -834,7 +834,7 @@ can do" scope, included for completeness rather than as a strict real-gap claim.
 ### Historical priority list (Session 42, tracked through Session 65) — mostly shipped
 
 1. ~~YAML schema diagnostics~~ (red squiggles for invalid front-matter/cell-option keys) — **PARTIALLY
-   SHIPPED Sessions 47 + 124 + 125 + 128 + 130** (`BACKLOG.md` item #2/#43/#46/#47): Session 47 covers
+   SHIPPED Sessions 47 + 124 + 125 + 128 + 130** (CHANGELOG: YAML schema diagnostics, Session 47/#43/#46/#47): Session 47 covers
    unknown KEYS in `_quarto.yml`'s `project:`/`website:`/`book:` blocks; Sessions 124/125/128 flag wrong
    enum/boolean *VALUES* of cell options, top-level front-matter keys, and nested `execute:`/`format:`
    keys in `.qmd`; Session 130 adds NUMERIC-typed value validation on all those surfaces; Session 132
@@ -862,18 +862,18 @@ can do" scope, included for completeness rather than as a strict real-gap claim.
    `_quarto.yml`'s `format:` → `<fmt>:` blocks (`format:\n  html:\n    toc: banana` etc., all SHIPPED). Only `.ipynb`, the DEEPER `_quarto.yml`-config values
    (depth-3+ and the scalar `format:` NAME in `_quarto.yml`; the `execute:` half shipped Session 141, the `format:` per-format OPTION values Session 143, and the general document-key case at COLUMN 0 Session 149), and integer-typed pandoc-layer rejections remain open;
    unknown front-matter/cell KEYS stay intentionally unflagged (open schemas). Built on the existing schema reader (`src/core/yaml-schema.ts`).
-2. ~~Snippets~~ — **SHIPPED Session 53** (`BACKLOG.md` item #5): `snippets/quarto.json`, 13 snippets,
+2. ~~Snippets~~ — **SHIPPED Session 53** (CHANGELOG: snippets, Session 53): `snippets/quarto.json`, 13 snippets,
    declarative and TDD-gate-exempt, as predicted here. ~~And a **getting-started walkthrough**~~ —
-   **SHIPPED Session 51** (`BACKLOG.md` item #3 Track C) — both declarative, TDD-gate-exempt,
+   **SHIPPED Session 51** (CHANGELOG: onboarding walkthrough + scaffolding commands, Sessions 49-51 Track C) — both declarative, TDD-gate-exempt,
    low-effort, as predicted here.
 3. ~~Project-level render~~ (`_quarto.yml` discovery + "render whole project") — **SHIPPED Session 45**
-   (`BACKLOG.md` item #1): `quarto.renderProject` discovers the project root and renders it with `cwd`
+   (CHANGELOG: project-level render, Session 45): `quarto.renderProject` discovers the project root and renders it with `cwd`
    pinned to root. "Preview Project" remains a deliberate, unshipped follow-up.
-4. ~~A fuller run-cell command family~~ — **SHIPPED Session 52** (`BACKLOG.md` item #4): Run Selected
+4. ~~A fuller run-cell command family~~ — **SHIPPED Session 52** (CHANGELOG: run-cell command family completion, Session 52): Run Selected
    Line(s), Run Next Cell, Run Previous Cell, and Run Cells Below, plus default keybindings across the
    resulting 9-command family. (Session 67 recount: the family's true size was 10 on Posit's side, not
    9 — see the Run-cell row above.)
-5. ~~Graphviz (`{dot}`) diagram rendering~~ — **SHIPPED Session 56** (`BACKLOG.md` item #7): vendored
+5. ~~Graphviz (`{dot}`) diagram rendering~~ — **SHIPPED Session 56** (CHANGELOG: Graphviz dot diagram rendering, Session 56): vendored
    `@viz-js/viz`'s WASM Graphviz build (`media/graphviz/viz-global.js`), a `'wasm-unsafe-eval'` CSP
    addition, and a `dot` render branch calling `Viz.instance().renderString(...)` — at parity with
    Mermaid. First vendored asset whose compiled contents are non-MIT (EPL-2.0 Graphviz core), disclosed
@@ -893,7 +893,7 @@ size (sizes are impressions from this refresh's research, not a planning-session
 planning session should still verify before implementing):
 
 1. ~~**Code-cell diagnostics forwarding**~~ — **Investigated and closed as not pursued (Option A, Session
-   68/69, `BACKLOG.md` item 10).** This item's original framing above ("builds on the existing
+   68/69, CHANGELOG: code-cell diagnostics forwarding, closed as not pursued, Session 69).** This item's original framing above ("builds on the existing
    `src/providers/embedded.ts` forwarding infrastructure... a new forwarding kind on the same architecture,
    not a new subsystem") turned out to be **empirically wrong** — diagnostics cannot be served by that
    pull-based forwarding mechanism at all (VS Code API limitation, confirmed three independent ways; see
@@ -902,10 +902,10 @@ planning session should still verify before implementing):
    of dependency this project has never taken on. The operator decided to accept the gap permanently
    instead, the same treatment as the excluded Visual Editor. Full evidence trail:
    `docs/planning/2026-07-10-code-cell-diagnostics-plan.md`.
-2. ~~**Outline granularity**~~ — **SHIPPED, both slices (Sessions 71–74, `BACKLOG.md` item 11).**
+2. ~~**Outline granularity**~~ — **SHIPPED, both slices (Sessions 71–74, CHANGELOG: outline granularity, in-cell code symbols + show/hide toggle, Sessions 71-73).**
    In-cell code symbols + a show/hide-cells toggle, built on the existing `DocumentSymbolProvider`
    (`src/providers/outline.ts`), pixel-verified in a live Extension Development Host.
-3. ~~**Format Cell**~~ — **SHIPPED (Session 75, `BACKLOG.md` item 12).** `quarto.formatCell` delegates a
+3. ~~**Format Cell**~~ — **SHIPPED (Session 75, CHANGELOG: Format Cell, Session 75).** `quarto.formatCell` delegates a
    code cell's body to the embedded language's installed formatter via a virtual document.
 4. **Quick, mostly-declarative wins** (bundle, similar in shape to the Session 51/53 walkthrough/snippets
    work): ~~embedded-grammar breadth~~ — **SHIPPED (Session 76, item 13(a)):** 5→20 scopes.

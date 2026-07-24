@@ -1,5 +1,5 @@
 /**
- * `Quarto: New Quarto Notebook` (BACKLOG item 17e) — create a new Quarto
+ * `Quarto: New Quarto Notebook` (CHANGELOG: quarto.newNotebook, Session 112) — create a new Quarto
  * `.ipynb` notebook, the notebook sibling of the item-17c create-document
  * family. Discoverable in the command palette and File▸New File….
  *

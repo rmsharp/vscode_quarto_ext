@@ -1,6 +1,6 @@
 /**
  * Cell-execution code-cell background highlighting — the pure `core/` layer
- * (`BACKLOG.md` item 17a, Session 111).
+ * (CHANGELOG: cell-execution code-cell background highlighting, Session 111).
  *
  * A STATIC decoration of the executable code cells in a `.qmd`: cells that *can*
  * run, not a running-cell indicator (Run Cell delegates out-of-process, so no

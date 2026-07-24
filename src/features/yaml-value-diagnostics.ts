@@ -17,7 +17,7 @@
  * the pure `isWrongValue` matcher never flags an open set (plan §0/§7.1).
  *
  * Both siblings share the `createDebouncedDiagnosticsFeature` skeleton
- * (`./debounced-diagnostics`, BACKLOG:47) — the `DiagnosticCollection` lifecycle,
+ * (`./debounced-diagnostics`, CHANGELOG: createDebouncedDiagnosticsFeature extraction, Session 126) — the `DiagnosticCollection` lifecycle,
  * 350 ms debounce, and per-URI generation guard. This module supplies the three
  * per-feature axes: the **languageId gate** (`.qmd` IS this extension's own
  * `"quarto"` languageId, unlike `_quarto.yml` which the sibling gates by

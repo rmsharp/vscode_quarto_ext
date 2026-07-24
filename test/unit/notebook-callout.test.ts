@@ -3,7 +3,7 @@ import MarkdownIt from "markdown-it";
 import { calloutPlugin, calloutStyles } from "../../src/core/notebook-callout";
 
 /**
- * `calloutPlugin` is a pure, `vscode`-free markdown-it plugin (BACKLOG item 17d)
+ * `calloutPlugin` is a pure, `vscode`-free markdown-it plugin (CHANGELOG: notebook markdown-cell Quarto-aware renderer, Session 113)
  * that teaches markdown-it to render a Quarto `::: {.callout-<type>}` fenced div
  * (note/tip/warning/caution/important) as an admonition `<div>`. The webview
  * entrypoint (`src/webview/notebook-renderer.ts`) hands it to VS Code's built-in
@@ -854,7 +854,7 @@ describe("calloutPlugin", () => {
 });
 
 /**
- * BACKLOG item 17d follow-on (B): CSS box styling. `calloutStyles()` returns the
+ * CHANGELOG: notebook markdown-cell Quarto-aware renderer, Session 113 follow-on (B): CSS box styling. `calloutStyles()` returns the
  * CSS that the webview entrypoint (`src/webview/notebook-renderer.ts`) injects as a
  * `<style>` so the structural callout markup (`.callout .callout-<type>` /
  * `.callout-header` / `.callout-title` / `.callout-body`, both the `<div>` and the

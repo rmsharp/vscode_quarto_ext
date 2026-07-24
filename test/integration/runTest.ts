@@ -33,7 +33,7 @@ async function main(): Promise<void> {
       // unpinned, `@vscode/test-electron` floats to the latest stable, so a VS
       // Code release can silently change the built-in tokenizer/language-service
       // surface these tests observe and make "did the editor change, or did we?"
-      // unanswerable (Session 96, BACKLOG:119). Bump this deliberately — and
+      // unanswerable (Session 96, CHANGELOG: multi-language merge suite failures, Session 96). Bump this deliberately — and
       // re-run the suite — when adopting a newer VS Code baseline.
       version: "1.129.0",
       extensionDevelopmentPath,

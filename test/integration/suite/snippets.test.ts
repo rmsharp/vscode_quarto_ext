@@ -48,7 +48,7 @@ describe("Quarto: contributed snippets", () => {
     );
   });
 
-  it("offers the qlisttable snippet by prefix in a quarto document (BACKLOG item 13(c))", async () => {
+  it("offers the qlisttable snippet by prefix in a quarto document (CHANGELOG: quick declarative wins bundle, Sessions 76-78(c))", async () => {
     const doc = await openQuartoDoc("qlisttable");
     const list = await vscode.commands.executeCommand<vscode.CompletionList>(
       "vscode.executeCompletionItemProvider",
@@ -62,7 +62,7 @@ describe("Quarto: contributed snippets", () => {
     );
   });
 
-  it("offers the qfragment snippet by prefix in a quarto document (BACKLOG item 13(c))", async () => {
+  it("offers the qfragment snippet by prefix in a quarto document (CHANGELOG: quick declarative wins bundle, Sessions 76-78(c))", async () => {
     const doc = await openQuartoDoc("qfragment");
     const list = await vscode.commands.executeCommand<vscode.CompletionList>(
       "vscode.executeCompletionItemProvider",

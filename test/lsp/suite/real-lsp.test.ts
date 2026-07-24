@@ -9,7 +9,7 @@ import {
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
 /**
- * The tests that could have caught BACKLOG item 18, and the only tests that can catch it
+ * The tests that could have caught CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87, and the only tests that can catch it
  * again. Every one of them runs against **real Pylance**, not a stand-in.
  *
  * Each assertion is paired with a CONTROL on a plain `.py` file in the same run. Without
@@ -70,7 +70,7 @@ async function waitForPylance(): Promise<string[]> {
   return [];
 }
 
-describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)", function () {
+describe("REAL Pylance: the forwards that were silently dead (CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87)", function () {
   let controlItems: string[] = [];
 
   before(async function () {
@@ -536,7 +536,7 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
   });
 
   it("SEMANTIC TOKENS: colours a {python} cell from real Pylance, at real .qmd coordinates", async () => {
-    // BACKLOG item 16, Slice 1 — the feature this whole two-session arc exists for, and
+    // CHANGELOG: semantic highlighting via the embedded LSP, Sessions 88-90, Slice 1 — the feature this whole two-session arc exists for, and
     // the ONLY test that can prove it. Semantic tokens were impossible on the old custom
     // scheme for EVERY language (not even VS Code's built-in TS/JS served them), so a
     // stand-in cannot distinguish "we forward correctly" from "no server was ever asked".
@@ -703,9 +703,9 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
     );
   });
 
-  it("SEMANTIC TOKENS: carries `typeHintComment` (matches .py) but NOT `builtin` (already matches .py) — BACKLOG:127", async () => {
+  it("SEMANTIC TOKENS: carries `typeHintComment` (matches .py) but NOT `builtin` (already matches .py) — CHANGELOG: semantic-token modifier axis, Session 97", async () => {
     // The modifier-axis DONE gate, and the only test that can settle it: it takes a REAL server
-    // to prove BOTH halves of BACKLOG:127's resolution — that Pylance actually EMITS
+    // to prove BOTH halves of CHANGELOG: semantic-token modifier axis, Session 97's resolution — that Pylance actually EMITS
     // `typeHintComment` (so carrying it is not a dead `intrinsic`-style entry, Learning #100), and
     // that our `.qmd` now PRESERVES it; and, on the refuted half, that `print`/`__name__` still
     // come back BARE (we did NOT carry `builtin`, because a real `.py` shows them bare too).
@@ -772,11 +772,11 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
     const carried = decoded.filter((t) => t.modifiers.includes("typeHintComment"));
     assert.ok(
       carried.length >= 2,
-      `our provider must PRESERVE \`typeHintComment\` on the \`# type:\` comment tokens (BACKLOG:127 (a)); ` +
+      `our provider must PRESERVE \`typeHintComment\` on the \`# type:\` comment tokens (CHANGELOG: semantic-token modifier axis, Session 97 (a)); ` +
         `got ${carried.length}. Decoded: ${decoded.map((t) => `${t.type}.${t.modifiers.join(".")}`).join(" ")}`,
     );
 
-    // (2) THE REFUTATION (BACKLOG:127 (b)): `builtin` is genuinely on the wire, but we deliberately
+    // (2) THE REFUTATION (CHANGELOG: semantic-token modifier axis, Session 97 (b)): `builtin` is genuinely on the wire, but we deliberately
     // CLEAR it — because a real `.py` shows print/__name__ bare too (Pylance ships no
     // function.builtin/variable.builtin scope rule), so carrying `builtin` would DIVERGE from the
     // `.py`. The honest proof is a PAIR: (a) real Pylance EMITS builtin (symmetric with the
@@ -792,13 +792,13 @@ describe("REAL Pylance: the forwards that were silently dead (BACKLOG item 18)",
     );
     assert.ok(
       !OUR_LEGEND.tokenModifiers.includes("builtin"),
-      "our legend must NOT carry `builtin` (the refuted half of BACKLOG:127) — so the re-encode " +
+      "our legend must NOT carry `builtin` (the refuted half of CHANGELOG: semantic-token modifier axis, Session 97) — so the re-encode " +
         "clears every builtin bit and print/__name__ come back bare, matching a real .py",
     );
   });
 
   it("SEMANTIC TOKENS: merges REAL Pylance and the REAL built-in JS service into one stream", async () => {
-    // BACKLOG item 16, Slice 2's DONE gate, and the only test that can prove it: two
+    // CHANGELOG: semantic highlighting via the embedded LSP, Sessions 88-90, Slice 2's DONE gate, and the only test that can prove it: two
     // GENUINELY DIFFERENT language servers, each with its own legend, answering about one
     // `.qmd` — merged into the single ascending stream VS Code accepts.
     //

@@ -5,7 +5,7 @@ import { isOurVdocFileName } from "../../../src/core/embedded/vdoc-path";
 
 /**
  * Shared by every embedded-forwarding suite (completion/hover/definition/signature-help,
- * in-cell outline symbols, Format Cell). It exists because of BACKLOG item 18, and it is
+ * in-cell outline symbols, Format Cell). It exists because of CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87, and it is
  * worth understanding before changing either of the two things in it.
  *
  * ## Why the stand-ins are keyed like this
@@ -46,7 +46,7 @@ export function assertRoutedThroughVdoc(uriString: string, what: string): void {
   assert.strictEqual(
     uri.scheme,
     "file",
-    `${what} — a custom scheme is invisible to real language servers (BACKLOG item 18)`,
+    `${what} — a custom scheme is invisible to real language servers (CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87)`,
   );
   assert.ok(
     isOurVdocFileName(path.basename(uri.fsPath)),

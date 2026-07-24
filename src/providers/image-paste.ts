@@ -2,7 +2,7 @@
  * `DocumentPasteEditProvider` + `DocumentDropEditProvider` for `.qmd`
  * documents — pastes/drops a clipboard or dragged image as a file under
  * `images/` next to the document (plan §3 Q1, operator decision) and
- * inserts a Markdown image reference (BACKLOG "Phase 7 authoring aids"
+ * inserts a Markdown image reference (CHANGELOG: image paste, Session 58
  * final item; drag-and-drop parity bundled into v1 per plan §3 Q2, operator
  * decision). A thin `vscode` adapter over one shared core: all naming/
  * collision logic lives in the pure `core/image-paste.ts`, and both

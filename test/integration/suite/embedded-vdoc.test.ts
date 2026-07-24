@@ -70,7 +70,7 @@ function langKey(doc: vscode.TextDocument): VdocKey {
 
 describe("embedded vdoc: the file: document the forwards ride on (item 18 Slice 0)", () => {
   // This describe calls the process-global `disposeAllVdocs()`, which latches the deactivate flag
-  // (BACKLOG:103). Clear it after every test — a set latch would drop every later `ensureVdoc` in
+  // (CHANGELOG: post-dispose forward latch, Session 107). Clear it after every test — a set latch would drop every later `ensureVdoc` in
   // the shared host, the cross-suite coupling nit 2b names. Mirrors the re-activation `activate` does.
   afterEach(() => {
     resetDeactivation();
@@ -93,7 +93,7 @@ describe("embedded vdoc: the file: document the forwards ride on (item 18 Slice 
     //  - the URI must be `file:` — real servers register their providers against a
     //    documentSelector scoped to the schemes they can read, so our old custom
     //    scheme meant NO provider was ever registered and every forward silently
-    //    returned nothing (this is the defect, BACKLOG item 18);
+    //    returned nothing (this is the defect, CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87);
     //  - the model must be OPEN — `vscode.provide*` does not force-open a document.
     //    Against an unopened URI the provider is never invoked and the command
     //    returns `undefined`, which is indistinguishable from "no extension
@@ -536,7 +536,7 @@ describe("embedded vdoc: a forward still in flight when the document closes", ()
     // bumps this document's per-document epoch FIRST and unconditionally, before this forward's
     // post-await re-check runs, so the re-check ALWAYS fires and returns undefined — assert the
     // contract directly, exactly as the deactivate sibling below does, rather than behind an
-    // `if (uri !== undefined)` that can never run (BACKLOG:103 nit 2a — the S91 review tightened
+    // `if (uri !== undefined)` that can never run (CHANGELOG: post-dispose forward latch, Session 107 nit 2a — the S91 review tightened
     // the sibling but left this copy behind).
     assert.strictEqual(
       uri,
@@ -547,7 +547,7 @@ describe("embedded vdoc: a forward still in flight when the document closes", ()
 });
 
 describe("embedded vdoc: a forward still in flight when the EXTENSION deactivates", () => {
-  // Clear the deactivate latch this describe's `disposeAllVdocs()` sets (BACKLOG:103 nit 2b).
+  // Clear the deactivate latch this describe's `disposeAllVdocs()` sets (CHANGELOG: post-dispose forward latch, Session 107 nit 2b).
   afterEach(() => {
     resetDeactivation();
   });
@@ -614,9 +614,9 @@ describe("embedded vdoc: a forward still in flight when the EXTENSION deactivate
   });
 });
 
-describe("embedded vdoc: a forward dispatched AFTER the extension deactivates (BACKLOG:103)", () => {
+describe("embedded vdoc: a forward dispatched AFTER the extension deactivates (CHANGELOG: post-dispose forward latch, Session 107)", () => {
   // This test deactivates then dispatches, so it necessarily leaves the latch set. Clear it after
-  // (BACKLOG:103 nit 2b) so it does not drop later forwards in the shared host.
+  // (CHANGELOG: post-dispose forward latch, Session 107 nit 2b) so it does not drop later forwards in the shared host.
   afterEach(() => {
     resetDeactivation();
   });
@@ -673,7 +673,7 @@ describe("embedded vdoc: a forward dispatched AFTER the extension deactivates (B
 });
 
 /**
- * The `fallbackDirPromise` memo's own lifecycle — BACKLOG:102 and BACKLOG:121 leg (b), which
+ * The `fallbackDirPromise` memo's own lifecycle — CHANGELOG: mkdtemp fallback-dir leak, Session 101 and BACKLOG: disposeEpoch grows unboundedly leg (b), which
  * are ONE code surface rather than two areas: both are consequences of the same
  * `if (fallbackDir !== undefined)` block in `disposeAllVdocs` guarding the memo resets.
  *
@@ -682,8 +682,8 @@ describe("embedded vdoc: a forward dispatched AFTER the extension deactivates (B
  * `.quarto/vdoc-mit/` branch and never touches this state. The sibling deactivate-race describe
  * above uses `openProjectQmd()` and therefore has never once exercised these lines.
  */
-describe("embedded vdoc: the fallback temp directory's lifecycle (BACKLOG:102 + :121b)", () => {
-  // Clear the deactivate latch this describe's `disposeAllVdocs()` calls set (BACKLOG:103 nit 2b).
+describe("embedded vdoc: the fallback temp directory's lifecycle (CHANGELOG: mkdtemp fallback-dir leak, Session 101 + :121b)", () => {
+  // Clear the deactivate latch this describe's `disposeAllVdocs()` calls set (CHANGELOG: post-dispose forward latch, Session 107 nit 2b).
   afterEach(() => {
     resetDeactivation();
   });
@@ -738,7 +738,7 @@ describe("embedded vdoc: the fallback temp directory's lifecycle (BACKLOG:102 + 
   }
 
   it("does not leak the fallback temp dir when deactivate races an unresolved mkdtemp", async () => {
-    // BACKLOG:102. `vdocDirFor` assigns `fallbackDir` ONLY inside the `mkdtemp().then()`
+    // CHANGELOG: mkdtemp fallback-dir leak, Session 101. `vdocDirFor` assigns `fallbackDir` ONLY inside the `mkdtemp().then()`
     // callback, so while that syscall is in flight the variable is still `undefined`. In
     // `disposeAllVdocs` the `rmdir` AND both memo resets sit inside one
     // `if (fallbackDir !== undefined)` block — so a deactivate landing in that window skips
@@ -797,7 +797,7 @@ describe("embedded vdoc: the fallback temp directory's lifecycle (BACKLOG:102 + 
   });
 
   it("retries mkdtemp after a transient failure, rather than latching untitled docs dead", async () => {
-    // BACKLOG:121 leg (b). `fallbackDirPromise` memoises the in-flight `mkdtemp` so that two
+    // BACKLOG: disposeEpoch grows unboundedly leg (b). `fallbackDirPromise` memoises the in-flight `mkdtemp` so that two
     // concurrent untitled forwards share one directory. But the memo is only ever cleared on the
     // SUCCESS path — the reset lives behind `if (fallbackDir !== undefined)`, and `fallbackDir` is
     // assigned only in the `.then()` a rejection never runs. So one transient failure (a full disk,
@@ -879,7 +879,7 @@ describe("embedded vdoc: the fallback temp directory's lifecycle (BACKLOG:102 + 
  * that matters, so both are pinned directly and adversarially.
  */
 describe("embedded vdoc: reclaiming the temp dir a crash strands (plan Phase 1)", () => {
-  // Clear the deactivate latch this describe's `disposeAllVdocs()` call sets (BACKLOG:103 nit 2b).
+  // Clear the deactivate latch this describe's `disposeAllVdocs()` call sets (CHANGELOG: post-dispose forward latch, Session 107 nit 2b).
   afterEach(() => {
     resetDeactivation();
   });
@@ -1245,7 +1245,7 @@ describe("embedded vdoc: reclaiming the temp dir a crash strands (plan Phase 1)"
 
 /**
  * The fallback temp dir must stay 0700 even after it is deleted underneath a live session —
- * Phase 2 of `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md` (BACKLOG:182).
+ * Phase 2 of `docs/planning/2026-07-16-os-temp-vdoc-sweep-plan.md` (CHANGELOG: OS-temp vdoc sweep, Sessions 103/106).
  *
  * **The hazard.** `vdocDirFor` memoises the mkdtemp fallback dir for the whole session, so once
  * made it is returned to every later untitled forward WITHOUT re-checking that it still exists.
@@ -1263,8 +1263,8 @@ describe("embedded vdoc: reclaiming the temp dir a crash strands (plan Phase 1)"
  * `.quarto/vdoc-mit/` branch, whose `createDirectory` is recursive and idempotent and never
  * exhibits this.
  */
-describe("embedded vdoc: the fallback dir stays 0700 after a delete-underneath (plan Phase 2, BACKLOG:182)", () => {
-  // Clear the deactivate latch this describe's `disposeAllVdocs()` calls set (BACKLOG:103 nit 2b).
+describe("embedded vdoc: the fallback dir stays 0700 after a delete-underneath (plan Phase 2, CHANGELOG: OS-temp vdoc sweep, Sessions 103/106)", () => {
+  // Clear the deactivate latch this describe's `disposeAllVdocs()` calls set (CHANGELOG: post-dispose forward latch, Session 107 nit 2b).
   afterEach(() => {
     resetDeactivation();
   });
@@ -1279,7 +1279,7 @@ describe("embedded vdoc: the fallback dir stays 0700 after a delete-underneath (
     // Reset the module memo so the first forward mints a directory THIS test owns, rather than
     // inheriting one a prior test left memoised (module-global state, one mocha process). This uses
     // `disposeAllVdocs` as a clean-slate reset, not a real deactivate — so clear the deactivate
-    // latch it now also sets (BACKLOG:103), or the forwards exercised below would be dropped.
+    // latch it now also sets (CHANGELOG: post-dispose forward latch, Session 107), or the forwards exercised below would be dropped.
     await disposeAllVdocs();
     resetDeactivation();
 

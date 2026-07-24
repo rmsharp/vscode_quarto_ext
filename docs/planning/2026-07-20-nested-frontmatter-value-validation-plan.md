@@ -1,7 +1,7 @@
 # Plan — NESTED front-matter VALUE validation (`.qmd`)
 
 **Session 127 (planning). Workstream:** `docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md`.
-**Backlog:** `BACKLOG.md:46` — the **v2 "nested front-matter values"** slice the Session-123 plan
+**Backlog:** CHANGELOG: nested front-matter values, Session 128` — the **v2 "nested front-matter values"** slice the Session-123 plan
 (`docs/planning/2026-07-19-value-validation-plan.md` §4.3) explicitly deferred.
 **Predecessors shipped:** Phase 1 (cell options, S124), Phase 2 (top-level front-matter, S125), the
 `createDebouncedDiagnosticsFeature` extract (S126).
@@ -454,7 +454,7 @@ The cardinal sin is a **false positive**. Each guard below was rendered firsthan
    `flowScan`. Open question: does the *top-level* enumerator also want the hardened scanner (its
    column-0 backstop makes its naive count a safe FN today, so not a bug — but single-sourcing a
    correct scanner is tidier)? *Recommend:* write the quote-aware `flowScan` for nested now; leave the
-   top-level as-is (its FN is safe) and file "unify on the quote-aware scanner" alongside BACKLOG:182's
+   top-level as-is (its FN is safe) and file "unify on the quote-aware scanner" alongside CHANGELOG: OS-temp vdoc sweep, Sessions 103/106's
    value-slot-grammar single-sourcing — do NOT expand this slice to refactor Phase 2.
 2. **Quoted-key handling.** Mirror the top-level "quotes retained" imprecision (safe FN) vs add a
    `mappingColonIndex`/`unquoteKey`-style resolve. *Recommend: mirror top-level* (rare, safe); revisit

@@ -258,7 +258,7 @@ interface Regions {
  * token pass calls them repeatedly on the *same* document text: `embeddedLanguagesIn`
  * scans twice and `buildVirtualContent` scans twice more per embedded language,
  * so a document with N embedded languages was rescanned 2 + 2N times per debounced
- * pass (BACKLOG "Polish / deferred", `:118`). A single-entry (last-value) cache
+ * pass (CHANGELOG: semantic-token pass rescans the document 2+2N times, Session 95). A single-entry (last-value) cache
  * collapses all same-text calls in a pass to ONE scan while evicting naturally
  * when the text changes — a `Map` keyed on full document text would instead grow
  * unboundedly across edits. Sound because `computeRegions` is a pure function of

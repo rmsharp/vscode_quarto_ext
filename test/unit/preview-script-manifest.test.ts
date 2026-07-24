@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import packageJson from "../../package.json";
 
 /**
- * Manifest-shape regression guards for `BACKLOG.md` item 15 Slice 2 — the
+ * Manifest-shape regression guards for CHANGELOG: preview command family breadth, Sessions 82-85 Slice 2 — the
  * Posit-parity gating layer for `quarto.previewScript` (plan §6 Slice 2).
  *
  * The `when`-clause content here is genuinely load-bearing, not boilerplate: it

@@ -27,7 +27,7 @@
 
 | Question | Decision | Grounded on |
 |---|---|---|
-| **Feature shape** | A **new sibling feature** `src/features/yaml-value-diagnostics.ts` that **copies** the proven lifecycle skeleton from `yaml-diagnostics.ts` — NOT an extension of it, NOT "tier-2" of the unknown-key roadmap. | §3.1; `BACKLOG.md:43` ("genuinely different feature") |
+| **Feature shape** | A **new sibling feature** `src/features/yaml-value-diagnostics.ts` that **copies** the proven lifecycle skeleton from `yaml-diagnostics.ts` — NOT an extension of it, NOT "tier-2" of the unknown-key roadmap. | §3.1; CHANGELOG: front-matter/cell-option VALUE validation, Sessions 124-149` ("genuinely different feature") |
 | **v1 value scope** | **Enum-only, closedness-aware.** Flag only when a recognized key's value set is provably **closed** (no open string/number/object arm) and the normalized token is not accepted. Booleans are the special closed set. | §3.3; schema dragon (§7.1) |
 | **v1 surfaces** | **Phase 1:** `#|`/`//|` cell options. **Phase 2:** **top-level** front-matter scalars. Both `.qmd`/`.rmd`/`.Rmd` only. | §4 |
 | **Deferred to v2** | **nested** front-matter values (`execute:`, `format: html:` …), **numeric** type-aware (`fig-width: wide`), **`.ipynb`**. Filed to backlog, not built. | §4.3 |
@@ -35,7 +35,7 @@
 | **False-positive posture** | **False-negative-only.** Any uncertainty (unresolved field / no closed set / non-scalar value / unknown engine) → **flag nothing.** Mirrors the `projectKeys → Set|null` "absence of proof is not proof of absence" contract. | §3.4; `2026-07-09-…-plan.md` §5.1 |
 
 **The one-sentence justification for a separate feature:** unknown-**key** flagging is *permanently
-banned* on front-matter/cell-options (`BACKLOG.md:42`, operator-confirmed S61) because those schemas
+banned* on front-matter/cell-options (CHANGELOG: unknown-key diagnostics, closed as not a real gap`, operator-confirmed S61) because those schemas
 are open — a typo is indistinguishable from a legal custom key. Value validation is **safe on exactly
 those same surfaces** because it only ever fires on a key that is **already recognized**; the safety
 story is *inverted*, which is why it is a sibling, not a continuation.
@@ -58,7 +58,7 @@ closes that gap with an in-editor Error diagnostic that mirrors Quarto's own pre
   vertical slices. Pure logic in `src/core/` unit-tested with vitest; VS Code adapters via
   `@vscode/test-electron`.
 - **False-negative-only** direction is a hard product rule for this class of feature
-  (`BACKLOG.md:43`): never flag a value Quarto would accept.
+  (CHANGELOG: front-matter/cell-option VALUE validation, Sessions 124-149`): never flag a value Quarto would accept.
 - **No publish near-term** (operator, S103). **WYSIWYG editor excluded** (operator, S43).
 - VS Code diagnostics are **push-only** — there is no diagnostic *provider* to register; a
   `DiagnosticCollection` driven by raw `workspace.onDid*TextDocument` events is the only mechanism
@@ -111,7 +111,7 @@ reference — Quarto's *actual* schema behavior, not the docs' simplified enums.
    The matcher **must** know boolean-vs-enum (§3.2) — the current model can't tell them apart.
 
 **⚠ Charter disclosure — one of the two operator-filed flagship examples is intentionally out of
-reach.** `BACKLOG.md:43` (quoted above as this feature's charter) names **two** examples: `toc: "yes"`
+reach.** CHANGELOG: front-matter/cell-option VALUE validation, Sessions 124-149` (quoted above as this feature's charter) names **two** examples: `toc: "yes"`
 (a closed boolean — **IN** scope) and "an invalid `engine:` value." But `engine` is `string.completions`
 → **open** (`engine: banana` → exit 0, verified), so a *correctly-built* closed-set validator produces
 **no diagnostic** for it, by design (false-negative-only). Validating a `string.completions` field as if
@@ -341,7 +341,7 @@ Reuse / touch / new — every entry grounded to a file:line (Session-123 firstha
   *after* closedness is derived → `format` stays `valuesClosed`-unset → skipped (§4.2 dragon).**
   *Completion is unaffected — it reads `values` only.*
 - `yaml-context.ts` — export `engineFor` (422) or add a core sibling (single-source it — cf.
-  Learning #14; BACKLOG:177 is the *analogous* precedent, a small refs.ts/model.ts helper — the `#|`
+  Learning #14; BACKLOG: Consolidate the cell-option-prefix grammar between refs.ts and model.ts is the *analogous* precedent, a small refs.ts/model.ts helper — the `#|`
   cell-option-prefix regex — that was copied and then diverged; **not** a warning about `engineFor`
   itself, which `grep` confirms BACKLOG never mentions).
 - `extension.ts` — one `import` + one `registerYamlValueDiagnosticsFeature(context)` (mirror 40/80).
@@ -440,7 +440,7 @@ a stale diagnostic after a newer edit.
   the cardinal sin; guarded by §7.1 tests); (b) a third `createSchemaSource()` means a third one-time
   `quarto --paths` spawn on first use — harmless, consistent with the two existing (a shared
   module-level source is an optional micro-refactor); (c) the `engineFor` export must not create a
-  divergent duplicate — the same helper-copied-then-diverged class as BACKLOG:177's refs.ts/model.ts
+  divergent duplicate — the same helper-copied-then-diverged class as BACKLOG: Consolidate the cell-option-prefix grammar between refs.ts and model.ts's refs.ts/model.ts
   prefix-regex duplication, applied here to `engineFor`.
 
 ---
@@ -502,4 +502,4 @@ remains, and it does not block Phase 1.)*
 6. 🐉 **Copy the skeleton; keep the generation guard.** Do not extend `yaml-diagnostics.ts`; do not
    drop the async race guard "because it looks like boilerplate."
 7. 🐉 **`BACKLOG:NNN` is a line number**, and this is a **sibling** feature — do not phrase it as
-   reopening the permanently-closed unknown-key-in-open-regions boundary (`BACKLOG:42`).
+   reopening the permanently-closed unknown-key-in-open-regions boundary (CHANGELOG: unknown-key diagnostics, closed as not a real gap`).

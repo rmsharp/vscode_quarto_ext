@@ -1,6 +1,6 @@
 /**
  * Shared skeleton for the extension's document-event-driven `DiagnosticCollection`
- * features (extracted Session 126, BACKLOG:47 — rule-of-two: the unknown-KEY
+ * features (extracted Session 126, CHANGELOG: createDebouncedDiagnosticsFeature extraction, Session 126 — rule-of-two: the unknown-KEY
  * `_quarto.yml` feature `features/yaml-diagnostics.ts` and the VALUE feature
  * `features/yaml-value-diagnostics.ts` had both copied this ~75-line lifecycle
  * verbatim).

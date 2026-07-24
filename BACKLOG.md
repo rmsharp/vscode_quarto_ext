@@ -2,6 +2,25 @@
 
 *Open, actionable work items only. Completed work → `CHANGELOG.md`. Feature inventory & plans → `ROADMAP.md`.*
 
+> **⚠ Historical `BACKLOG:NNN` / `BACKLOG item N` references do not resolve — and never reliably did.**
+> Sessions used to cite this file by **line number** (`BACKLOG` + colon + a line number) or by the
+> roadmap's **item number** (`BACKLOG` + the word *item* + a number). Both are positional: any insertion
+> above a cited line silently retargets it at a *different* item, which is worse than a broken link
+> because it still looks valid. By Session 150, 12 of the 34 distinct cited line numbers already landed
+> on blank or unrelated lines — and one had been wrong from the day it was written.
+>
+> Session 150 rewrote all **194** such citations in **live** artifacts (`src/`, `test/`, `docs/`, and this
+> file) to name their target instead — `CHANGELOG: <title>, Session N` for work that has shipped, or
+> `BACKLOG: <item title>` for work still open here. (The replacement text carries no quote or backtick
+> on purpose: several citations sit inside `describe(...)`/`it(...)` string literals, where an inserted
+> quote terminates the string and breaks the build.) It deliberately left the ~523 occurrences in the
+> **append-only history** (`SESSION_NOTES.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md`)
+> untouched: rewriting those would edit the record of what past sessions actually wrote. **When you meet a
+> `BACKLOG:NNN` in a historical document, read it as "some item in `BACKLOG.md` as it stood that day" and
+> resolve it with `git show <commit>:BACKLOG.md`, not against the current file.**
+>
+> **Do not add new positional citations.** Cite items by title.
+
 ## Active
 
 *(empty — pick the next item from "Up Next" below.*

@@ -45,7 +45,7 @@ delivered in slices: **Slice 0 repairs the foundation; Slices 1–3 build semant
 
 > *Since v1.127.0, Posit layers VS Code semantic-tokens highlighting (from e.g. Pylance) on top of
 > static TextMate grammar coloring for embedded code. A new `SemanticTokensProvider` mechanism, not a
-> registration/config change. Likely warrants its own planning session.* — `BACKLOG.md` item 16
+> registration/config change. Likely warrants its own planning session.* — CHANGELOG: semantic highlighting via the embedded LSP, Sessions 88-90
 
 ### 1.2 The prior that had to be tested, not trusted
 

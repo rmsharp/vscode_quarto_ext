@@ -1,6 +1,6 @@
 /**
  * Pure, `vscode`-free helpers for the `Quarto: Preview Format…` command
- * (`BACKLOG.md` item 15). Two concerns:
+ * (CHANGELOG: preview command family breadth, Sessions 82-85). Two concerns:
  *
  *  - `parseDeclaredFormats` — enumerate a document's declared output formats from
  *    its front-matter `format:` block, so the command can offer them in a

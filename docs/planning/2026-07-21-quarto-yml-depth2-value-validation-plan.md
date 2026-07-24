@@ -393,7 +393,7 @@ value can be flagged), not horizontal slicing.
 - **Broader `_quarto.yml` document-key values** (`execute:` near-term, `format:` nested) — the
   cross-surface item S135 deferred; a DIFFERENT surface (document reader), unchanged by this slice.
 - **The KEY enumerator's scanFlow gap** — `findProjectConfigKeyLines` is not scanFlow-aware
-  (pre-existing, adjacent to `BACKLOG:158`). Note only.
+  (pre-existing, adjacent to BACKLOG: Outline show/hide toggle, cosmetic re-expand-on-toggle fix`). Note only.
 - **General numeric-member-enum matcher fix (cross-surface, PRE-EXISTING).** The shared
   string-membership `isWrongValue` can not safely validate a closed enum whose members are numeric
   (quarto coerces `3.0`≡`3`). This slice neutralizes it LOCALLY (leave `version` open, §3.2 A), but the
@@ -429,7 +429,7 @@ value can be flagged), not horizontal slicing.
 | `registerYamlProjectValueDiagnosticsFeature` / collection / code | `:112` / `quarto-project-value` / `quarto-invalid-project-value` | UNCHANGED (same feature, same collection) |
 | `extension.ts` registration | `src/extension.ts:42/:84` | UNCHANGED (feature already registered) |
 | Tests | `test/unit/yaml-schema-index.test.ts` (+`.children` rows incl. numeric + version-open guard), `test/unit/project-yaml.test.ts` (+depth-2 rows; S135 rows +`path:[]`), `test/integration/suite/yaml-project-value-diagnostics.test.ts` (+depth-2 `describe`), `test/fixtures/yaml-project-depth2-value/{invalid,valid}/_quarto.yml` (NEW) | ADD |
-| Close-out docs OWED (Phase 3, at GO-LIVE) | `docs/POSIT-COMPARISON.md:320` ("one level under" → depth-2), `:472-473`, `:479` + `:817` (drop "depth-2+ under navbar/sidebar/search" from the remaining-gap list); `BACKLOG.md:28` BL-47 deferred sub-bullet (a) → SHIPPED/annotated (its "needs anyOf + a deeper enumerator" is corrected — anyOf came free via `objectChildren`); `PROJECT_LEARNINGS.md` + `CHANGELOG.md` (protocol-covered) | RECONCILE |
+| Close-out docs OWED (Phase 3, at GO-LIVE) | `docs/POSIT-COMPARISON.md:320` ("one level under" → depth-2), `:472-473`, `:479` + `:817` (drop "depth-2+ under navbar/sidebar/search" from the remaining-gap list); CHANGELOG: notebook .ipynb conversion, Session 63` BL-47 deferred sub-bullet (a) → SHIPPED/annotated (its "needs anyOf + a deeper enumerator" is corrected — anyOf came free via `objectChildren`); `PROJECT_LEARNINGS.md` + `CHANGELOG.md` (protocol-covered) | RECONCILE |
 
 Grounding scratch (this session, uncommitted — `scratchpad/` is NOT gitignored, do NOT `git add`):
 `scratchpad/depth2-explore.cjs` (super-aware depth-2 closed inventory), `scratchpad/anyof-probe.cjs`

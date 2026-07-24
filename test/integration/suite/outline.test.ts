@@ -232,7 +232,7 @@ describe("Quarto: Document outline (symbols)", () => {
   });
 });
 
-describe("Quarto: in-cell code symbol forwarding (BACKLOG item 11 slice 2)", () => {
+describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity, in-cell code symbols + show/hide toggle, Sessions 71-73 slice 2)", () => {
   before(async () => {
     const ext = vscode.extensions.getExtension(EXTENSION_ID);
     assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);

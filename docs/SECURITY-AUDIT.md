@@ -4,7 +4,7 @@
 
 ## Decision
 
-**`npm audit` now reports 0 vulnerabilities.** The 7 dev-only advisories previously accepted here (4 moderate, 2 high, 1 critical — see the history table below) were cleared in Session 108 (`BACKLOG:176`) by a **deliberate, separately-verified dev-toolchain upgrade** — *not* `npm audit fix --force` (which downgrades mocha to 8.1.3 for zero end-user benefit; see "Why not `npm audit fix`"). The three changes:
+**`npm audit` now reports 0 vulnerabilities.** The 7 dev-only advisories previously accepted here (4 moderate, 2 high, 1 critical — see the history table below) were cleared in Session 108 (CHANGELOG: dev-toolchain upgrade for npm audit, Session 108`) by a **deliberate, separately-verified dev-toolchain upgrade** — *not* `npm audit fix --force` (which downgrades mocha to 8.1.3 for zero end-user benefit; see "Why not `npm audit fix`"). The three changes:
 
 | Change | From → To | Clears |
 |---|---|---|

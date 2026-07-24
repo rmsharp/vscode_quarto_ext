@@ -7,7 +7,7 @@ const REPO_ROOT = join(__dirname, "..", "..");
 
 /**
  * A regression guard for the standalone .dot/.mmd/.typ language registrations
- * (BACKLOG.md item 13(b), declarative-only, TDD-exempt per CLAUDE.md) —
+ * (CHANGELOG: quick declarative wins bundle, Sessions 76-78(b), declarative-only, TDD-exempt per CLAUDE.md) —
  * mirrors walkthrough.test.ts/snippets.test.ts's manifest-shape-check
  * pattern. Catches a broken `configuration` path reference, a duplicate
  * language id, or a colliding file extension, none of which VS Code's own

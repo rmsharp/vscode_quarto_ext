@@ -1,6 +1,6 @@
 /**
  * Pure logic for the workspace symbol provider ("Go to Symbol in Workspace",
- * BACKLOG "Up Next" item #6) — flattening the per-document outline tree from
+ * CHANGELOG: workspace symbol provider, Session 54) — flattening the per-document outline tree from
  * `core/qmd/model`'s `buildOutline` into a queryable flat list, and matching
  * a flattened symbol's name against a query string. The `vscode` adapter
  * (`providers/workspace-symbols.ts`) calls `buildOutline` once per workspace

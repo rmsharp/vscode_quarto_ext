@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
  * file that owns the delete-loop ownership grammar (`TEMP_DIR_RE`,
  * `isOurVdocFileName`, `VDOC_DIR_SEGMENTS`) — was unsearchable for exactly this
  * reason, so a `grep -rn` inventory over `src/` was silently blind to the guards on
- * both delete loops (BACKLOG:184). This test fails the moment any `.ts` file under
+ * both delete loops (CHANGELOG: vdoc-path NUL-separator source hygiene, Session 105). This test fails the moment any `.ts` file under
  * `src/` reintroduces a raw NUL, so a separator or docstring can never again smuggle
  * one in undetected.
  */

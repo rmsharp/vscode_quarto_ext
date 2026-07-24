@@ -21,7 +21,7 @@ function contributedRenderer(): NotebookRendererContribution | undefined {
 }
 
 /**
- * BACKLOG item 17d (first slice): the extension contributes a
+ * CHANGELOG: notebook markdown-cell Quarto-aware renderer, Session 113 (first slice): the extension contributes a
  * `notebookRenderer` that extends VS Code's built-in `vscode.markdown-it-renderer`
  * so notebook markdown cells render Quarto callouts. The rendering logic runs in
  * the isolated notebook renderer webview and cannot be inspected from the
@@ -117,7 +117,7 @@ describe("Quarto: notebook markdown-cell callout renderer (item 17d)", () => {
     }
   });
 
-  it("ships the callout styles through the markdown-style shadow-DOM channel (BACKLOG #194)", () => {
+  it("ships the callout styles through the markdown-style shadow-DOM channel (CHANGELOG: notebook callout BOX CSS shipped through the wrong channel, Session 122)", () => {
     // VS Code renders every notebook markdown cell inside a shadow root and clones
     // ONLY elements carrying class="markdown-style" into it. Without that class the
     // injected <style> never crosses the shadow boundary and the box CSS silently

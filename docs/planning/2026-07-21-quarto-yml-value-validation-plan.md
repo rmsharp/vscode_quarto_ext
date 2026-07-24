@@ -331,7 +331,7 @@ requires, not horizontal slicing.
   general `.ipynb` value cliff still stands for document front matter.
 - **The KEY enumerator's scanFlow gap** — `findProjectConfigKeyLines` is not scanFlow-aware, so a
   multi-line quoted value could hide a `key:`-looking line and produce an unknown-KEY FP. Pre-existing,
-  separate feature; adjacent to `BACKLOG:51`. Note only.
+  separate feature; adjacent to CHANGELOG: createDebouncedDiagnosticsFeature extraction, Session 126`. Note only.
 - **Fallback subsetting:** if L4 finds a per-child FP that cannot be cleanly fixed, drop the offending
   child(ren) from the closed set (e.g. skip `book.type` if the CSL 45-enum causes trouble) and defer —
   the reader is general, so subsetting is a small change. The slice stays recoverable.

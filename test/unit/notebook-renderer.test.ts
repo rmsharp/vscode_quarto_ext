@@ -47,7 +47,7 @@ describe("injectCalloutStyles", () => {
     expect(appended[0].textContent).toBe(calloutStyles());
   });
 
-  it("tags the injected <style> with class 'markdown-style' so VS Code clones it into each notebook cell's shadow root (BACKLOG #194)", () => {
+  it("tags the injected <style> with class 'markdown-style' so VS Code clones it into each notebook cell's shadow root (CHANGELOG: notebook callout BOX CSS shipped through the wrong channel, Session 122)", () => {
     // VS Code renders every notebook markdown cell inside a shadow root and clones
     // only #_defaultStyles + elements carrying class="markdown-style" into it (the
     // clone loop's else-branch clones a bare classed <style> element directly). A

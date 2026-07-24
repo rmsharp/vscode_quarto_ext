@@ -1,7 +1,7 @@
 /**
  * Pure, `vscode`-free detector for Quarto **render scripts** — the standalone
  * `.py`/`.jl`/`.r` files `quarto preview` will serve, as opposed to `.qmd`
- * documents (`BACKLOG.md` item 15, `quarto.previewScript`; plan
+ * documents (CHANGELOG: preview command family breadth, Sessions 82-85, `quarto.previewScript`; plan
  * `docs/planning/2026-07-12-preview-script-plan.md` §5.2).
  *
  * Quarto picks an execution engine by asking each engine's `claimsFile`, which

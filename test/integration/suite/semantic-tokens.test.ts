@@ -12,7 +12,7 @@ import { assertRoutedThroughVdoc, VDOC_SELECTOR } from "./vdoc-assert";
 const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 
 /**
- * Semantic-token forwarding for embedded cells (BACKLOG item 16, Slice 1).
+ * Semantic-token forwarding for embedded cells (CHANGELOG: semantic highlighting via the embedded LSP, Sessions 88-90, Slice 1).
  *
  * The stand-in below is registered on `VDOC_SELECTOR` — our vdoc files, NOT a custom
  * scheme (see `vdoc-assert.ts`: that key is what hid item 18). And no stand-in can prove
@@ -275,7 +275,7 @@ const JS_STANDIN_LEGEND = new vscode.SemanticTokensLegend(
 );
 
 /**
- * A SECOND python provider's legend, for the BACKLOG:125 DOCUMENT-axis provider-divergence pin
+ * A SECOND python provider's legend, for the CHANGELOG: RANGE-registry provider divergence, Session 100 DOCUMENT-axis provider-divergence pin
  * below (the RANGE-axis pins at the end of this file stage the same shape with their own pair) —
  * inverted against `PY_STANDIN_LEGEND` at exactly the two indices that stand-in emits, so a
  * stream decoded against the WRONG one of the two comes back with different NAMES rather than
@@ -298,7 +298,7 @@ const RIVAL_PY_STANDIN_LEGEND = new vscode.SemanticTokensLegend(
  * because vdoc line N IS .qmd line N with no coordinate remap (`providers/semantic-tokens.ts`),
  * would spuriously colour the cell's fence at .qmd line 0. Omitting this skip is exactly what
  * turned the 4 "multi-language merge (Slice 2)" cases red once S93 landed — a stand-in artefact,
- * NOT a VS Code version drift (fails identically on 1.128.1 and 1.129.0; BACKLOG:119 / Session 96).
+ * NOT a VS Code version drift (fails identically on 1.128.1 and 1.129.0; CHANGELOG: multi-language merge suite failures, Session 96 / Session 96).
  */
 function tokensForNonBlankLines(
   document: vscode.TextDocument,
@@ -497,7 +497,7 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
     // sees it, so the merge simply proceeds with whatever streams did arrive
     // (`src/providers/semantic-tokens.ts`). Until now the suite only ever made a stand-in
     // throw when it was the ONLY language, so "a failing server takes nothing with it" was
-    // asserted, not pinned (BACKLOG:123, Session 89 adversarial review).
+    // asserted, not pinned (CHANGELOG: one-language-throws pinning, Session 98, Session 89 adversarial review).
     pyThrows = true;
     const doc = await openQmd(STRADDLED);
 
@@ -519,7 +519,7 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
   it("PINS a VS Code platform defect: the legend and the stream can come from DIFFERENT providers", async () => {
     // ⚠ THIS TEST ASSERTS A WRONG ANSWER ON PURPOSE. It is a tripwire, not a specification:
     // the expectation below is what VS Code 1.129.0 actually does, and it is a DEFECT we cannot
-    // fix from an extension (BACKLOG:125, filed by the Session 88 Slice-1 review; mechanism
+    // fix from an extension (CHANGELOG: RANGE-registry provider divergence, Session 100, filed by the Session 88 Slice-1 review; mechanism
     // re-grounded and premise proven firsthand here, Session 99).
     //
     // 🔑 THE MECHANISM, verbatim from the shipped 1.129.0 workbench bundle. Both commands read
@@ -585,7 +585,7 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
     // (`catch(c){Fs(c),a=null}`), so a top range provider that THROWS diverges too, where the doc
     // path's `mki` does `if(a.error)throw a.error` and degrades to `undefined` via our try/catch.
     // That axis is now PINNED TOO, in its own describe at the end of this file ("RANGE-registry
-    // provider divergence (BACKLOG:125 axis b)", Session 100) — including the THROW leg, which
+    // provider divergence (CHANGELOG: RANGE-registry provider divergence, Session 100 axis b)", Session 100) — including the THROW leg, which
     // this document axis does not have. It needed a separate describe because the Slice-2 js
     // stand-in above is a DOCUMENT provider, which makes `hki` true and hides the range path.
     //
@@ -777,7 +777,7 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
 });
 
 /**
- * The (b) RANGE-registry axis of BACKLOG:125 — the divergence path our {ojs}/{js} cells
+ * The (b) RANGE-registry axis of CHANGELOG: RANGE-registry provider divergence, Session 100 — the divergence path our {ojs}/{js} cells
  * ACTUALLY traverse in production, which every test above this line misses.
  *
  * ## Why this needs its own describe, and why that is the whole finding
@@ -920,9 +920,9 @@ describe("embedded semantic tokens — multi-language merge (Slice 2)", () => {
  * atomically nor DETECT that this happened. Switching production to the range pair is a
  * REGRESSION: the fallback runs doc->range and never range->doc, so it would silently drop
  * every full-only server (Pylance). The race has the same non-fix for the same reason. See
- * BACKLOG:125 for the full argument.
+ * CHANGELOG: RANGE-registry provider divergence, Session 100 for the full argument.
  */
-describe("embedded semantic tokens — RANGE-registry provider divergence (BACKLOG:125 axis b)", () => {
+describe("embedded semantic tokens — RANGE-registry provider divergence (CHANGELOG: RANGE-registry provider divergence, Session 100 axis b)", () => {
   /** The ANSWERING range provider's legend: `variable` = 0, `readonly` = bit 0. */
   const JS_RANGE_LEGEND = new vscode.SemanticTokensLegend(
     ["variable", "function"],
@@ -1059,7 +1059,7 @@ describe("embedded semantic tokens — RANGE-registry provider divergence (BACKL
 
   it("PINS the RANGE axis: a THROWING top provider diverges where the DOCUMENT path degrades safely", async () => {
     // ⚠ ASSERTS A WRONG ANSWER ON PURPOSE. This is the leg the document axis does NOT have, and
-    // it is why BACKLOG:125's range axis is broader in KIND, not merely in reachability.
+    // it is why CHANGELOG: RANGE-registry provider divergence, Session 100's range axis is broader in KIND, not merely in reachability.
     //
     // Read this against its Slice-1 sibling, "degrades to no tokens — never throws — when the
     // language server ERRORS": there, a throwing DOCUMENT provider makes `mki` rethrow

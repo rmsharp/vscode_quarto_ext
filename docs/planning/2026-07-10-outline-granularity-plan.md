@@ -1,4 +1,4 @@
-# Outline Granularity (`BACKLOG.md` item 11): Architecture Plan
+# Outline Granularity (CHANGELOG: outline granularity, in-cell code symbols + show/hide toggle, Sessions 71-73): Architecture Plan
 
 ## 0. How this plan was produced (evidence provenance) — and the headline finding
 
@@ -57,7 +57,7 @@ both load-bearing for the interface design in §5:
    The fix is a **version-varying vdoc URI per outline computation**, detailed in §5.
 
 Neither finding blocks the feature. Both change the interface contract from what a first read of
-`BACKLOG.md` item 11 or `src/providers/embedded.ts` would suggest ("just reuse the existing
+CHANGELOG: outline granularity, in-cell code symbols + show/hide toggle, Sessions 71-73 or `src/providers/embedded.ts` would suggest ("just reuse the existing
 `VirtualDocStore`") — which is exactly the kind of assumption this project's Architecture
 Workstream exists to catch before an implementation session inherits it.
 
@@ -65,7 +65,7 @@ Workstream exists to catch before an implementation session inherits it.
 
 ## 1. Executive summary (TL;DR)
 
-`BACKLOG.md` item 11 bundles three sub-features, all shipped by Posit since v1.127.0–v1.133.0:
+CHANGELOG: outline granularity, in-cell code symbols + show/hide toggle, Sessions 71-73 bundles three sub-features, all shipped by Posit since v1.127.0–v1.133.0:
 
 - **(a) In-cell code symbols** — the outline shows symbols *from inside* a code cell's body (e.g.
   a Python function def), not just one flat node per cell. Posit PRs #972/#974.
@@ -341,7 +341,7 @@ ordering is a recommendation for whoever implements it, not a mandate to bundle 
 | Alternative | Pros | Cons | Why rejected |
 |---|---|---|---|
 | Reuse `embedded.ts`'s existing `VirtualDocStore` class directly | Less new code; one fewer store to maintain | Its stable per-(document, language) URI key is exactly what causes the R1 staleness bug for document-symbol forwarding (fine for completion/hover, wrong here); the class isn't exported | Rejected — a new, small, version-aware store is required (§2.3/§4). |
-| Keep the outline shallow (headings + one node per cell, no in-cell forwarding) — the design `vuejs/language-tools`/Volar (MIT, mature embedded-language framework) deliberately chose for its own SFC outline | Simpler, zero new caching/versioning concerns, matches a real, actively-maintained MIT prior-art project's own considered choice | Doesn't serve this project's stated Posit-parity goal; `BACKLOG.md` item 11 exists specifically because Posit's deeper tree is the identified gap | Rejected for this project's mission, but noted as a legitimate design a comparable MIT project chose — not a straw man. |
+| Keep the outline shallow (headings + one node per cell, no in-cell forwarding) — the design `vuejs/language-tools`/Volar (MIT, mature embedded-language framework) deliberately chose for its own SFC outline | Simpler, zero new caching/versioning concerns, matches a real, actively-maintained MIT prior-art project's own considered choice | Doesn't serve this project's stated Posit-parity goal; CHANGELOG: outline granularity, in-cell code symbols + show/hide toggle, Sessions 71-73 exists specifically because Posit's deeper tree is the identified gap | Rejected for this project's mission, but noted as a legitimate design a comparable MIT project chose — not a straw man. |
 | A no-op `WorkspaceEdit` hack to force an outline refresh on toggle (Posit's own **first**, since-abandoned attempt, per PR #974's review history) | Simple to implement, no registry-level API needed | Marks the editor dirty (a real UX cost the author called "annoying"); Posit's own reviewers moved away from it in favor of dispose+re-register | Rejected — the cleaner mechanism (§2.4) is corroborated by two independent sources and was Posit's own final choice too. |
 
 ---

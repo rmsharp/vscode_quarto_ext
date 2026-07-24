@@ -268,7 +268,7 @@ describe("buildCellVirtualContent — candidate G: `# type: ignore` on line 0 (p
   });
 });
 
-describe("buildCellVirtualContent — isolates exactly ONE cell (BACKLOG item 11 slice 2)", () => {
+describe("buildCellVirtualContent — isolates exactly ONE cell (CHANGELOG: outline granularity, in-cell code symbols + show/hide toggle, Sessions 71-73 slice 2)", () => {
   it("keeps only the target cell's body, blanking a same-language sibling cell", () => {
     const text = [
       "```{python}", // 0

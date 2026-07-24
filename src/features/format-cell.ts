@@ -1,8 +1,8 @@
 /**
- * `Quarto: Format Cell` (BACKLOG item 12, Session 75) — delegates a code cell's
+ * `Quarto: Format Cell` (CHANGELOG: Format Cell, Session 75) — delegates a code cell's
  * body to its embedded language's own installed formatter (e.g. Black/autopep8
  * for Python, `styler` for R), via the SAME per-cell virtual-document forwarding
- * recipe as outline in-cell symbol forwarding (BACKLOG item 11 slice 2):
+ * recipe as outline in-cell symbol forwarding (CHANGELOG: outline granularity, in-cell code symbols + show/hide toggle, Sessions 71-73 slice 2):
  * `core/embedded/virtual-doc.ts`'s `buildCellVirtualContent` isolates exactly
  * the cursor's cell (blanking every other line, INCLUDING that cell's own
  * `#|`/`//|` option lines and any sibling same-language cell), so the forwarded
@@ -16,7 +16,7 @@
  * (mirroring `embedded.ts`'s `filterOutOfCellEdits` defense-in-depth).
  *
  * The vdoc is a real `file:` document on disk (`features/embedded-vdoc.ts`,
- * BACKLOG item 18). It used to route through a custom `quarto-format-cell:`
+ * CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87). It used to route through a custom `quarto-format-cell:`
  * scheme, which no real language server registers for.
  *
  * **This feature's status against a real formatter is UNPROVEN, not proven-broken.**
@@ -127,7 +127,7 @@ async function formatCellAtCursor(): Promise<void> {
  *         BEFORE  ```{ojs}\nx   =   1\n```\n
  *         AFTER   \nx = 1\n\n            <- both fences gone; the cell is no longer a cell
  *
- *     This was latent, not new: until BACKLOG item 18 the forward went to a custom URI
+ *     This was latent, not new: until CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87 the forward went to a custom URI
  *     scheme no real formatter registered for, so zero edits ever came back and only a
  *     stand-in (which emitted body-confined edits) ever exercised this path. Repairing the
  *     forward made a document-corruption bug reachable.

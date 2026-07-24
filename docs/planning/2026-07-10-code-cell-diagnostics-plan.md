@@ -1,4 +1,4 @@
-# Code-Cell Diagnostics Forwarding (`BACKLOG.md` item 10): Architecture Plan
+# Code-Cell Diagnostics Forwarding (CHANGELOG: code-cell diagnostics forwarding, closed as not pursued, Session 69): Architecture Plan
 
 ## 0. How this plan was produced (evidence provenance) — and the headline finding
 
@@ -191,7 +191,7 @@ operator picks Option B and a language priority — §9 Q2).
 
 **Option A — Accept this as a permanent, documented gap.** Add code-cell diagnostics forwarding to
 `docs/POSIT-COMPARISON.md` as an explicitly excluded gap (parallel treatment to the Visual Editor), close
-`BACKLOG.md` item 10 as "investigated, not pursued," and redirect effort to items 11+ (outline granularity,
+CHANGELOG: code-cell diagnostics forwarding, closed as not pursued, Session 69 as "investigated, not pursued," and redirect effort to items 11+ (outline granularity,
 Format Cell, etc.), which this session's research did not find any comparable hard blocker for.
 **Rationale for A:** this project's whole embedded-language story to date (Learning #1/#13, the "delegated
 companion-extension" pattern cited for spell-checking and run-cell delegation) is built on *reusing what the

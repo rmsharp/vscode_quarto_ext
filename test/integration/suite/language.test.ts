@@ -40,7 +40,7 @@ describe("Quarto language registration", () => {
   });
 });
 
-describe("Standalone diagram/typst language registration (BACKLOG item 13(b))", () => {
+describe("Standalone diagram/typst language registration (CHANGELOG: quick declarative wins bundle, Sessions 76-78(b))", () => {
   before(async () => {
     const ext = vscode.extensions.getExtension(EXTENSION_ID);
     assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);

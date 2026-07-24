@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { runTests } from "@vscode/test-electron";
 
 /**
- * The real-LSP harness (`npm run test:lsp`) — BACKLOG item 18.
+ * The real-LSP harness (`npm run test:lsp`) — CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87.
  *
  * ## Why this exists at all
  *
@@ -79,7 +79,7 @@ async function main(): Promise<void> {
         `  This harness needs ${REQUIRED.join(" + ")} in ~/.vscode/extensions.`,
         "  It is the ONLY test that can prove embedded forwarding actually reaches a",
         "  real language server. The stand-in suites CANNOT detect that class of defect",
-        "  (BACKLOG item 18) — they were all green while the feature was dead.",
+        "  (CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87) — they were all green while the feature was dead.",
         "",
         "  Install the Python + Pylance extensions in VS Code, then re-run.",
         "=".repeat(78),

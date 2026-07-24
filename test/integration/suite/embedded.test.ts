@@ -70,7 +70,7 @@ let defStandInReturnsNothing = false;
  * rather than hitting the `.qmd` directly.
  *
  * Keyed by `VDOC_SELECTOR` — see `vdoc-assert.ts` for why the old `{scheme: <ours>}`
- * key was the thing that hid BACKLOG item 18, and why no stand-in can replace
+ * key was the thing that hid CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87, and why no stand-in can replace
  * `npm run test:lsp`.
  */
 function registerStandIn(): void {

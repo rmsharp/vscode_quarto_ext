@@ -273,7 +273,7 @@ describe("Quarto: Format Cell (quarto.formatCell)", () => {
  * them) but they are not BODY. That distinction is the whole ballgame, and getting it
  * wrong destroys the user's document.
  *
- * This was unreachable until BACKLOG item 18: the forward went to a custom URI scheme
+ * This was unreachable until CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87: the forward went to a custom URI scheme
  * that no real formatter registered for, so `executeFormatDocumentProvider` always
  * returned zero edits and the filter was never exercised by anything but a stand-in that
  * only ever produced body-confined edits. Repairing the forward made a latent

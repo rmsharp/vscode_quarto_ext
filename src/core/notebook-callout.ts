@@ -1,7 +1,7 @@
 import type MarkdownIt from "markdown-it";
 
 /**
- * Pure, `vscode`-free markdown-it plugin (BACKLOG item 17d) that renders Quarto
+ * Pure, `vscode`-free markdown-it plugin (CHANGELOG: notebook markdown-cell Quarto-aware renderer, Session 113) that renders Quarto
  * Pandoc fenced divs (`::: {…}` … `:::`) in notebook markdown cells.
  *
  * A Pandoc fenced div is `:::` followed by an attribute spec — either a `{…}`

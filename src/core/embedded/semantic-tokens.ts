@@ -1,5 +1,5 @@
 /**
- * Pure, `vscode`-free semantic-token translation (BACKLOG item 16, plan §6.2). This
+ * Pure, `vscode`-free semantic-token translation (CHANGELOG: semantic highlighting via the embedded LSP, Sessions 88-90, plan §6.2). This
  * module MUST NOT import `vscode` (architecture §3.3) and is unit-tested headlessly.
  */
 
@@ -27,7 +27,7 @@ export interface AbsToken {
 /**
  * The legend WE declare to VS Code at registration — the standard token types and
  * modifiers, PLUS the two foreign names it is both safe AND useful to carry: `module` on the
- * TYPE axis (plan §5.4, D4) and `typeHintComment` on the MODIFIER axis (BACKLOG:127, Session 97).
+ * TYPE axis (plan §5.4, D4) and `typeHintComment` on the MODIFIER axis (CHANGELOG: semantic-token modifier axis, Session 97).
  *
  * A `SemanticTokensLegend` must be declared up front, but an embedded server's legend is
  * only knowable at runtime and differs per language (Pylance's has 29 types; a Julia
@@ -97,10 +97,10 @@ export interface AbsToken {
  * TYPE we keep while CLEARING a foreign MODIFIER is a PARTIAL override: it still paints, just
  * without the refinement.
  *
- * ## The modifier axis (BACKLOG:127), resolved: carry `typeHintComment`. Refute `builtin`.
+ * ## The modifier axis (CHANGELOG: semantic-token modifier axis, Session 97), resolved: carry `typeHintComment`. Refute `builtin`.
  *
  * The same triage-plus-emission discipline decides the modifier axis, and it splits the two
- * candidates BACKLOG:127 named in OPPOSITE directions — which is the whole finding:
+ * candidates CHANGELOG: semantic-token modifier axis, Session 97 named in OPPOSITE directions — which is the whole finding:
  *
  *  - **`typeHintComment` — CARRIED, because it fixes a WRONG colour.** Real Pylance tags the
  *    interior of a legacy `# type: List[int]` comment as `class.typeHintComment` (observed
@@ -113,7 +113,7 @@ export interface AbsToken {
  *    `package.json`) makes the `.qmd` match the `.py` — the exact shape as the `module` fix.
  *
  *  - **`builtin` — NOT carried, because our `.qmd` ALREADY matches the `.py`.** This is a
- *    REFUTATION of BACKLOG:127's own headline instance (`print` -> `function.builtin`). Pylance
+ *    REFUTATION of CHANGELOG: semantic-token modifier axis, Session 97's own headline instance (`print` -> `function.builtin`). Pylance
  *    ships NO `function.builtin`/`variable.builtin` scope rule (its `semanticTokenScopes` styles
  *    `magicFunction`/`builtinConstant`/`*.overridden`/`*.typeHintComment` — never the bare
  *    `builtin` modifier), so a REAL `.py` resolves `print` through the plain `function` default to
@@ -156,7 +156,7 @@ export const OUR_LEGEND: Legend = {
   tokenModifiers: [
     "declaration", "definition", "readonly", "static", "deprecated", "abstract",
     "async", "modification", "documentation", "defaultLibrary",
-    // The one foreign MODIFIER, carried (BACKLOG:127 (a)) — and, unlike a dropped/cleared name,
+    // The one foreign MODIFIER, carried (CHANGELOG: semantic-token modifier axis, Session 97 (a)) — and, unlike a dropped/cleared name,
     // it fixes a token that is a WRONG colour rather than a merely-lost one. Real Pylance tags the
     // interior of a legacy `# type: T` comment with this (`class.typeHintComment`, observed
     // firsthand); clearing it repainted a COMMENT as live code. Paired with the `quarto`-scoped
@@ -274,7 +274,7 @@ export function encodeTokens(tokens: AbsToken[], ourLegend: Legend): Uint32Array
 
 /**
  * Merge N language servers' answers for ONE document into a single stream in `ourLegend`
- * (BACKLOG item 16, Slice 2; plan §5.5 D5).
+ * (CHANGELOG: semantic highlighting via the embedded LSP, Sessions 88-90, Slice 2; plan §5.5 D5).
  *
  * A `.qmd` may hold `{python}`, `{r}` and `{ojs}` cells at once. Each language gets its own
  * virtual document — its cells kept verbatim, every other line blanked — so each server

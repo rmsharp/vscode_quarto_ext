@@ -13,7 +13,7 @@
  * The `DiagnosticCollection` lifecycle (raw document events, 350 ms debounce,
  * per-URI generation guard, cancel-before-delete) is the shared
  * `createDebouncedDiagnosticsFeature` skeleton (`./debounced-diagnostics`,
- * BACKLOG:47). This module supplies only the three per-feature axes: the
+ * CHANGELOG: createDebouncedDiagnosticsFeature extraction, Session 126). This module supplies only the three per-feature axes: the
  * **filename gate** (`_quarto.yml` is not this extension's own `"quarto"`
  * languageId — it opens as VS Code's built-in `"yaml"` or plain text, so filename
  * is the only reliable gate, unlike the `.qmd` value feature which gates on

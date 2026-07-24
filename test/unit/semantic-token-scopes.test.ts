@@ -3,10 +3,10 @@ import manifest from "../../package.json";
 import { OUR_LEGEND } from "../../src/core/embedded/semantic-tokens";
 
 /**
- * The `contributes.semanticTokenScopes` half of the D4 decision (BACKLOG item 16, Slice 3).
+ * The `contributes.semanticTokenScopes` half of the D4 decision (CHANGELOG: semantic highlighting via the embedded LSP, Sessions 88-90, Slice 3).
  *
  * `OUR_LEGEND` carries two foreign names, one per axis: `module` on the TYPE axis (D4, Session 90)
- * and `typeHintComment` on the MODIFIER axis (BACKLOG:127, Session 97). Each is carried because a
+ * and `typeHintComment` on the MODIFIER axis (CHANGELOG: semantic-token modifier axis, Session 97). Each is carried because a
  * real server (Pylance) is observed emitting it AND clearing/dropping it leaves the `.qmd` worse
  * than a real `.py`. This manifest entry is what makes each win SERVER-INDEPENDENT: it maps the
  * carried name straight to the TextMate scope that resolves to the same colour a real `.py` gets
@@ -116,7 +116,7 @@ describe("contributes.semanticTokenScopes (D4, Slice 3)", () => {
     expect(contributed?.[0].scopes.module).toEqual(["entity.name.namespace"]);
   });
 
-  it("maps the carried MODIFIER `typeHintComment` to Pylance's OWN comment scope (BACKLOG:127 (a))", () => {
+  it("maps the carried MODIFIER `typeHintComment` to Pylance's OWN comment scope (CHANGELOG: semantic-token modifier axis, Session 97 (a))", () => {
     // The modifier axis of the same decision. Real Pylance tags a `# type: T` comment's interior
     // `class.typeHintComment` and styles it, in its own `python`-gated manifest, as
     // `*.typeHintComment -> ['comment.typehint.type.notation.python']`. That rule is inert on a

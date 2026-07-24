@@ -195,7 +195,7 @@ export function embeddedLanguagesIn(text: string): EmbeddedLang[] {
 }
 
 /**
- * The virtual document for exactly ONE cell (BACKLOG item 11 slice 2, outline
+ * The virtual document for exactly ONE cell (CHANGELOG: outline granularity, in-cell code symbols + show/hide toggle, Sessions 71-73 slice 2, outline
  * in-cell symbol forwarding, plan §2.1/§2.3). `buildVirtualContent` above keeps
  * EVERY cell of a given language — correct for cursor-position forwarding
  * (completion/hover/definition/signature-help only care about one position),

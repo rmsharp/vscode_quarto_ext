@@ -3,7 +3,7 @@ import { buildNewNotebookCells } from "../../src/core/new-notebook";
 
 /**
  * `buildNewNotebookCells` builds the pure, `vscode`-free cell descriptors for a
- * new Quarto `.ipynb` notebook (BACKLOG item 17e): a raw YAML front-matter cell
+ * new Quarto `.ipynb` notebook (CHANGELOG: quarto.newNotebook, Session 112): a raw YAML front-matter cell
  * followed by an empty starter code cell. The adapter
  * (`src/features/new-notebook.ts`) maps each `{ languageId, value }` descriptor
  * to a `vscode.NotebookCellData(NotebookCellKind.Code, value, languageId)`.

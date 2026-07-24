@@ -1,5 +1,5 @@
 /**
- * Semantic highlighting for embedded code cells (BACKLOG item 16, Slice 1; plan §6.4).
+ * Semantic highlighting for embedded code cells (CHANGELOG: semantic highlighting via the embedded LSP, Sessions 88-90, Slice 1; plan §6.4).
  *
  * VS Code colours a `.qmd` from our TextMate grammar, which is syntactic: it knows `foo`
  * is an identifier, not that it is a read-only module-level constant. The user's own

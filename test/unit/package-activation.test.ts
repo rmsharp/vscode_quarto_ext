@@ -19,7 +19,7 @@ describe("package.json activationEvents", () => {
   });
 
   /**
-   * `BACKLOG.md` item 15 Slice 2. The `quartoRenderScriptActive` context key can
+   * CHANGELOG: preview command family breadth, Sessions 82-85 Slice 2. The `quartoRenderScriptActive` context key can
    * only be set while the extension is ACTIVE, and nothing here activates for a
    * bare `.py`/`.jl`/`.r` script — so without these events the key stays unset and
    * the keybinding/editor-title button are inert. Same events Posit uses (plan

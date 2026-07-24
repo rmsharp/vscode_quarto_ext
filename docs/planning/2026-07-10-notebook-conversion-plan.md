@@ -1,7 +1,7 @@
 # Notebook (`.ipynb`) Conversion: Implementation Plan
 
 **Status:** PLAN (draft for an executor session). Produced by Session 62 (2026-07-10).
-**Governs:** `BACKLOG.md` "Up Next" item 8 — notebook (`.ipynb`) conversion (`BACKLOG.md:28`), ranked at Session 61's grill-me, reversing Session 43's original "parked" call ("no evidence anywhere in this project's history that notebook-format interop is a real workflow here" — the operator confirmed at Session 61 that a real need exists).
+**Governs:** `BACKLOG.md` "Up Next" item 8 — notebook (`.ipynb`) conversion (CHANGELOG: notebook .ipynb conversion, Session 63`), ranked at Session 61's grill-me, reversing Session 43's original "parked" call ("no evidence anywhere in this project's history that notebook-format interop is a real workflow here" — the operator confirmed at Session 61 that a real need exists).
 **Scope lock:** one or two new Command-Palette commands (§8 Q1) that shell out to the existing MIT `quarto convert` CLI subcommand to convert the active document between `.qmd` and `.ipynb`, then open the result. **No vendored asset, no new notebook UI** — VS Code's own built-in `ipynb` extension (MIT, bundled) already renders/edits `.ipynb`. **No execution support** — running a converted notebook's cells remains the user's own `ms-toolsai.jupyter` install, the same boundary this project already draws for `.qmd` cell execution (no bundled Python/R/Julia/OJS kernels).
 
 ---
@@ -71,8 +71,8 @@ Architecturally this is the smallest CLI-spawning feature shipped yet: no prompt
 ## 2. Scope
 
 **In scope (v1):**
-- Convert the ACTIVE document only (no file picker) — matches `render`/`renderProject`'s zero-prompt-when-operating-on-the-active-file design, and Session 61's own sizing ("closer to `quarto.renderProject`'s size... no prompts if operating on the active file", `BACKLOG.md:28`).
-- Both directions (`.qmd`→`.ipynb` and `.ipynb`→`.qmd`) — Session 61's explicit decision (`BACKLOG.md:28`: "Scope: both directions... in one session").
+- Convert the ACTIVE document only (no file picker) — matches `render`/`renderProject`'s zero-prompt-when-operating-on-the-active-file design, and Session 61's own sizing ("closer to `quarto.renderProject`'s size... no prompts if operating on the active file", CHANGELOG: notebook .ipynb conversion, Session 63`).
+- Both directions (`.qmd`→`.ipynb` and `.ipynb`→`.qmd`) — Session 61's explicit decision (CHANGELOG: notebook .ipynb conversion, Session 63`: "Scope: both directions... in one session").
 - Overwrite confirmation (modal) when the derived output path already exists.
 - Auto-save the active document first if dirty (inherits `render.ts`/`preview.ts`'s existing convention, not a new risk).
 - Auto-open the converted file on success.
@@ -82,7 +82,7 @@ Architecturally this is the smallest CLI-spawning feature shipped yet: no prompt
 - Any UI or logic to repair the round-trip fidelity gaps found in §0.1 (injected `jupyter: python3` key, hardcoded `python3` kernelspec, `{ojs}` cells not becoming code cells) — these are the underlying CLI's own behavior; disclosing them (§6) is this plan's obligation, fixing them is not (there is nothing in our own code to fix — the gap is upstream).
 - Notebook cell **execution** — remains the user's own `ms-toolsai.jupyter` install (§0.3), the same boundary already drawn for `.qmd` cell execution.
 - A `quarto.convert.withIds` (or similar) setting for the CLI's `--with-ids` flag — v1 omits it (no evidence any consumer of this project needs stable cell IDs preserved across conversion); can be added later without any interface break.
-- The Visual (WYSIWYG) editor — excluded project-wide (Session 43, `BACKLOG.md:35`).
+- The Visual (WYSIWYG) editor — excluded project-wide (Session 43, BACKLOG: Post-Posit-comparison feature roadmap, the Visual-editor exclusion`).
 
 ---
 
@@ -192,7 +192,7 @@ Estimated total surface: 2 new files + 1 test-unit file + 1 test-integration fil
 ## 7. Alternatives considered (rejected for v1)
 
 - **Rely on the bare CLI's implicit default-output naming** (omit `-o` entirely) — rejected: would require parsing an undocumented `"Converted to X"` stdout string to learn the actual output path for the "open it" step, adding a fragile dependency on CLI wording that could change across versions. Passing `-o` with our own pre-derived path (verified firsthand, §0.1) is simpler and matches `create-project.ts`'s "caller already knows the path" shape (§0.2) rather than `render-project.ts`'s "must parse stdout" shape (which exists there only because a project's render output isn't cheaply precomputable).
-- **A destination/output-path picker (`showSaveDialog`) for v1** — rejected: adds a prompt to what Session 61 explicitly sized as a zero-prompt, active-document-only feature (`BACKLOG.md:28`); the same-directory/swapped-extension default (matching what the bare CLI would itself produce) is simpler and sufficient for v1. Candidate v2 addition, not blocking.
+- **A destination/output-path picker (`showSaveDialog`) for v1** — rejected: adds a prompt to what Session 61 explicitly sized as a zero-prompt, active-document-only feature (CHANGELOG: notebook .ipynb conversion, Session 63`); the same-directory/swapped-extension default (matching what the bare CLI would itself produce) is simpler and sufficient for v1. Candidate v2 addition, not blocking.
 - **Building any fidelity-repair logic for the kernelspec/OJS/round-trip gaps found in §0.1/§6** — rejected: these are the underlying `quarto convert` CLI's own output; "fixing" them would mean post-processing the generated `.ipynb`/`.qmd` ourselves, a materially larger and riskier scope than this plan's own sizing, with no operator ask for it. Disclosure (§6), not repair, is this plan's obligation.
 
 ---

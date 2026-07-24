@@ -34,7 +34,7 @@ import { QuartoNotFound, resolveBinary } from "../quarto/cli";
 const CHANNEL_NAME = "Quarto Preview";
 /**
  * Context key: "the active editor is a render script this extension can preview"
- * (`BACKLOG.md` item 15 Slice 2; plan §6 Slice 2). Drives the mutually-exclusive
+ * (CHANGELOG: preview command family breadth, Sessions 82-85 Slice 2; plan §6 Slice 2). Drives the mutually-exclusive
  * `Ctrl+Shift+K` (`quarto.preview` binds when it is FALSE, `quarto.previewScript`
  * when it is TRUE), the editor-title button, and the palette entry.
  */
@@ -441,7 +441,7 @@ async function previewActiveDocument(manager: PreviewManager): Promise<void> {
 
 /**
  * `Quarto: Preview Script…` — preview a standalone Quarto **render script**
- * (`BACKLOG.md` item 15; plan `docs/planning/2026-07-12-preview-script-plan.md`).
+ * (CHANGELOG: preview command family breadth, Sessions 82-85; plan `docs/planning/2026-07-12-preview-script-plan.md`).
  *
  * The sibling of `previewActiveDocument`: same `PreviewManager.openPreview`, a
  * different gate. `quarto.preview` gates on `languageId === "quarto"`, which a

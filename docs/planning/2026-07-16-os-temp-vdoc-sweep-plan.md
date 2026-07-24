@@ -1,6 +1,6 @@
 # Reclaiming the OS temp-dir vdocs a crash leaves behind — Design Plan
 
-`BACKLOG.md:182` (filed Session 101, "Polish / deferred"). Planning session: **Session 102**.
+CHANGELOG: OS-temp vdoc sweep, Sessions 103/106` (filed Session 101, "Polish / deferred"). Planning session: **Session 102**.
 Workstream: `docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md`.
 
 ---
@@ -27,7 +27,7 @@ implementation):
 
 > ### Headline — four findings, all measured, and they reshape the item
 >
-> 1. **The filed severity is overstated, and the security clause is REFUTED as written.** `BACKLOG:182`
+> 1. **The filed severity is overstated, and the security clause is REFUTED as written.** CHANGELOG: OS-temp vdoc sweep, Sessions 103/106`
 >    says the files are "0644 inside a 0700 dir, so the disclosure is bounded by the directory mode."
 >    The *directory* half is true and in fact **stronger** than claimed (0700 is a ceiling — umask can
 >    only subtract from it, never widen it). The *file* half is false: `writeFile` with no mode yields
@@ -201,7 +201,7 @@ umask 0777 -> mkdtemp DIR 0000
 - **macOS has a second gate:** `/var/folders/dg/…/T` is itself `drwx------`, contrasted with
   `/private/tmp` at `drwxrwxrwt`.
 - **Design consequence:** *never write a vdoc anywhere but inside the mkdtemp dir* — the file mode is
-  not a gate you may lean on. And **`BACKLOG:182`'s "the disclosure is bounded by the directory mode"
+  not a gate you may lean on. And **CHANGELOG: OS-temp vdoc sweep, Sessions 103/106`'s "the disclosure is bounded by the directory mode"
   should be restated**: it is bounded by the directory mode *alone*, and on macOS doubly so.
 
 > **Gap (honest):** the probe measured `fs.promises.writeFile`; the real vdoc write (`:218`) goes
@@ -370,7 +370,7 @@ package.json: version 0.0.1 · preview: true · publisher rmsharp
 git tag       -> 0 tags
 CHANGELOG.md  -> "## [Unreleased]" is the ONLY release heading
 ```
-`BACKLOG.md:23` records the remaining step as operator-only: *"actual `vsce publish` needs a registered
+BACKLOG: Marketplace publish prerequisites` records the remaining step as operator-only: *"actual `vsce publish` needs a registered
 Marketplace publisher `rmsharp` + a PAT; `preview: true` is set."*
 
 **The extension has never been published.** Two consequences, both load-bearing: no user machine can
@@ -614,7 +614,7 @@ not reaching the path.
 > The four §3.4/C2/§3.6 `:551-553` citations below were **re-pinned this session** from the rotted
 > `:373-375` (which by S106 pointed at `sweepFolder`'s *ownership* comment, not the disclosure one) to
 > `:551-553` — `vdocDirFor`'s "information disclosure" docstring. **Re-grep the phrase, not the number, if
-> you return here: line numbers have now rotted three times.** `BACKLOG:182` (umbrella) and `:183` (this
+> you return here: line numbers have now rotted three times.** CHANGELOG: OS-temp vdoc sweep, Sessions 103/106` (umbrella) and `:183` (this
 > comment) both closed `[x]`. Commit: see `CHANGELOG.md` 2026-07-17 · [BL-182/183].
 
 > **⚠ RE-PINNED after Phase 1 shipped (Session 103).** Every line number below was written against the
@@ -801,7 +801,7 @@ commit, given it corrects a comment about the very lifecycle L2 touches?
   `INSTANCE_ID`-mismatch trade-off stays as it is; §3.5 shows it is **safer than its own comment
   claims**, just for a different reason.
 - **`sweepStaleVdocs`'s signature** — deliberately, to keep 5 test call sites untouched (§4.2, §7).
-- **`BACKLOG:121` leg (a)** (unbounded `disposeEpoch`) and **`BACKLOG:103`** (after-dispatch deactivate)
+- **BACKLOG: disposeEpoch grows unboundedly` leg (a)** (unbounded `disposeEpoch`) and **CHANGELOG: post-dispose forward latch, Session 107`** (after-dispatch deactivate)
   — adjacent vdoc-lifecycle LOWs, deliberately out of scope.
 - **Any liveness mechanism beyond G0+G2** — no lock file, no `flock`, no heartbeat, no background timer,
   no native dependency. §3.7 sizes this as LOW-priority hygiene; a protocol would be disproportionate.
@@ -867,7 +867,7 @@ non-default shared `$TMPDIR` — the conjunction G0 exists to break.
 
 ## 13. Provenance and corrections owed to the record
 
-This plan **corrects `BACKLOG:182`** on two measured points (§3.1, §3.2): the "56 directories" evidence
+This plan **corrects CHANGELOG: OS-temp vdoc sweep, Sessions 103/106`** on two measured points (§3.1, §3.2): the "56 directories" evidence
 no longer reproduces (0 today) and was a developer-machine artifact rather than a user rate; and the
 "0644 files inside a 0700 dir" security clause is refuted as written — the bound is the **directory
 alone**. The item is rewritten **in place** (🐉6) to point at this plan.

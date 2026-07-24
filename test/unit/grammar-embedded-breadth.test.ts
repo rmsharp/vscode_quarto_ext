@@ -6,7 +6,7 @@ import * as vsctm from "vscode-textmate";
 import { beforeAll, describe, expect, it } from "vitest";
 
 /**
- * Headless tokenization proof (BACKLOG item 13(a)) that each newly-added
+ * Headless tokenization proof (CHANGELOG: quick declarative wins bundle, Sessions 76-78(a)) that each newly-added
  * embedded-language cell actually gets its own `meta.embedded.block.<lang>`
  * scope, distinct from `cell-generic`'s undifferentiated
  * `meta.embedded.block.quarto` catch-all. Mirrors `test/unit/tokenize.test.ts`'s
@@ -73,7 +73,7 @@ function hasScope(tokens: FlatToken[], scope: string, onText: string): boolean {
   return tokens.some((t) => t.scopes.includes(scope) && lines.has(t.line));
 }
 
-describe("embedded-grammar breadth (BACKLOG item 13(a))", () => {
+describe("embedded-grammar breadth (CHANGELOG: quick declarative wins bundle, Sessions 76-78(a))", () => {
   let tokens: FlatToken[];
 
   beforeAll(async () => {
@@ -98,7 +98,7 @@ describe("embedded-grammar breadth (BACKLOG item 13(a))", () => {
 
 /**
  * The remaining 14 languages (bundled VS Code scopes confirmed directly
- * against this repo's own `.vscode-test` install — see BACKLOG.md item 13(a))
+ * against this repo's own `.vscode-test` install — see CHANGELOG: quick declarative wins bundle, Sessions 76-78(a))
  * are mechanically identical to the bash case above, already proven end-to-end.
  * CLAUDE.md's own TDD-gate carve-out exempts pure grammar JSON from a unit
  * test entirely ("Pure declarative/config/doc edits with no logic... are

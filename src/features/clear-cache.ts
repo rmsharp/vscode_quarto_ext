@@ -1,5 +1,5 @@
 /**
- * `Quarto: Clear Cache...` (BACKLOG item 13(d)).
+ * `Quarto: Clear Cache...` (CHANGELOG: quick declarative wins bundle, Sessions 76-78(d)).
  *
  * Thin `vscode` adapter over the CLI: spawns `quarto render <file>
  * --cache-refresh`, the documented way to force-refresh a document's

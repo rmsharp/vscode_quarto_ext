@@ -350,7 +350,7 @@ describe("semantic-tokens: re-encoding into OUR legend", () => {
     }
   });
 
-  it("KEEPS the `typeHintComment` modifier — a `# type:` comment's interior is a COMMENT, not live code (BACKLOG:127 (a))", () => {
+  it("KEEPS the `typeHintComment` modifier — a `# type:` comment's interior is a COMMENT, not live code (CHANGELOG: semantic-token modifier axis, Session 97 (a))", () => {
     // 🔑 THE ONE MODIFIER worth carrying, and — unlike the type axis — it fixes a WRONG colour,
     // not a merely-lost one. Firsthand data (Session 97 probe, ms-python.vscode-pylance-2026.2.1):
     // the `List` in `xs = []  # type: List[int]` comes back as Pylance type 7 (`class`) with
@@ -373,10 +373,10 @@ describe("semantic-tokens: re-encoding into OUR legend", () => {
     expect(roundTripped[0].modifiers).toContain("typeHintComment");
   });
 
-  it("still carries NO OTHER foreign MODIFIER — `builtin`/`typeHint` stay CLEARED (the refutation of BACKLOG:127 (b))", () => {
+  it("still carries NO OTHER foreign MODIFIER — `builtin`/`typeHint` stay CLEARED (the refutation of CHANGELOG: semantic-token modifier axis, Session 97 (b))", () => {
     // 🔑 The other half of the modifier decision, and it is a REFUTATION, grounded firsthand.
     //
-    // BACKLOG:127's headline instance was `print` -> `function.builtin`, "the builtin distinction
+    // CHANGELOG: semantic-token modifier axis, Session 97's headline instance was `print` -> `function.builtin`, "the builtin distinction
     // is lost". But Session 97's probe + theme-trie resolution proved that framing wrong: Pylance
     // ships NO `function.builtin`/`variable.builtin` scope rule (its `semanticTokenScopes` styles
     // magicFunction/builtinConstant/*.overridden/*.typeHintComment — never the bare `builtin`

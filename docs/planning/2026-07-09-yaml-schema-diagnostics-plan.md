@@ -13,7 +13,7 @@ Grounded via a 6-agent research + adversarial-verification `Workflow` (Session 4
 
 **The single most important finding, and the reason this plan's scope is a fraction of BACKLOG.md's original framing:**
 
-BACKLOG.md item #2 as written asked for "flag a key absent from the schema" across front matter, cell options, and `_quarto.yml`. A live empirical test against the installed CLI — made-up key vs. a genuine typo of a real option, in each candidate surface, independently reproduced twice with different fixtures and key names — found:
+CHANGELOG: YAML schema diagnostics, Session 47 as written asked for "flag a key absent from the schema" across front matter, cell options, and `_quarto.yml`. A live empirical test against the installed CLI — made-up key vs. a genuine typo of a real option, in each candidate surface, independently reproduced twice with different fixtures and key names — found:
 
 | Surface | Open or closed (live-tested against Quarto 1.7.33) | Safe to flag "unknown key"? |
 |---|---|---|

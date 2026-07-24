@@ -23,13 +23,13 @@ declare const document: StyleHost | undefined;
 const CALLOUT_STYLE_ELEMENT_ID = "quarto-mit-callout-styles";
 
 /**
- * Inject the callout box stylesheet (BACKLOG item 17d follow-on B) once into the
+ * Inject the callout box stylesheet (CHANGELOG: notebook markdown-cell Quarto-aware renderer, Session 113 follow-on B) once into the
  * notebook renderer webview, so the structural callout markup renders as a
  * coloured admonition box. Idempotent (a second call is a no-op) and DOM-only:
  * the rendered box has no extension-host read-back, so it is eyeball-only — this
  * helper's logic is unit-tested against a fake document.
  *
- * The `class="markdown-style"` tag is load-bearing (BACKLOG #194): VS Code
+ * The `class="markdown-style"` tag is load-bearing (CHANGELOG: notebook callout BOX CSS shipped through the wrong channel, Session 122): VS Code
  * renders every notebook markdown cell inside a *shadow root* and clones only
  * `#_defaultStyles` plus elements carrying `class="markdown-style"` into it
  * (`for (const d of document.getElementsByClassName("markdown-style")) …
@@ -65,7 +65,7 @@ interface RendererContext {
 }
 
 /**
- * Notebook-renderer entrypoint (BACKLOG item 17d, first slice). This module is
+ * Notebook-renderer entrypoint (CHANGELOG: notebook markdown-cell Quarto-aware renderer, Session 113, first slice). This module is
  * bundled for the browser (`dist/notebook-renderer.js`) and loaded by VS Code
  * into the notebook renderer webview sandbox (no `vscode`/Node — DOM only),
  * where it calls `activate` with a RendererContext.

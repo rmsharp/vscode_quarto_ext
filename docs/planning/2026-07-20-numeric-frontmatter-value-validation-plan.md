@@ -8,7 +8,7 @@ This is the **v2 "numeric" slice** the two prior value-validation plans filed as
 `docs/planning/2026-07-19-value-validation-plan.md` §4.3 and
 `docs/planning/2026-07-20-nested-frontmatter-value-validation-plan.md` §4.3. Cell-option, top-level
 front-matter, and nested front-matter **enum/boolean** value validation are ALL shipped (Sessions 122–128,
-`BACKLOG.md:46`). This slice adds ONE new value-TYPE dimension — a scalar typed `number` — flagging a
+CHANGELOG: nested front-matter values, Session 128`). This slice adds ONE new value-TYPE dimension — a scalar typed `number` — flagging a
 non-number value of an already-recognized numeric option, matching `quarto render` 1.7.33.
 
 ---
@@ -53,7 +53,7 @@ surfaces it as an inline Error squiggle, exactly as the enum/boolean slices alre
 
 ### 1.2 Constraints (standing, binding)
 
-- **C1 — false-negative-only (the hard product rule, `BACKLOG.md:43`).** NEVER flag a value quarto would
+- **C1 — false-negative-only (the hard product rule, CHANGELOG: front-matter/cell-option VALUE validation, Sessions 124-149`).** NEVER flag a value quarto would
   accept. Everything the matcher is unsure about returns "not wrong" (flag nothing). This is the cardinal
   rule the entire feature's trust rests on; the numeric branch upholds it via a superset predicate (§2.3).
 - **C2 — `quarto render` 1.7.33 is the sole oracle.** Flag only what quarto's **YAML-schema layer** rejects
@@ -462,7 +462,7 @@ mixed→marked (it has no string arm; its array form is skip-guarded) is the one
      the intended fields and not leak across containers? Does `numericTypeOfSchema` mirror
      `closednessOfSchema`'s arm order (no missed `ref`/`anyOf`/`maybeArrayOf`)?
    - **Lifecycle:** generation-guard/`isCurrent()`/snapshot contract intact; empty-fast-path still correct.
-   - **Doc-drift (named targets — verified this planning session):** (i) `BACKLOG.md:47` — the
+   - **Doc-drift (named targets — verified this planning session):** (i) CHANGELOG: numeric type-aware front-matter values, Session 130` — the
      `- [ ] **v2 (still deferred, plan §4.3):** numeric type-aware …` bullet under item 46: flip its NUMERIC
      clause to a shipped `[x]` bullet (mirroring item 46's structure), **keeping `.ipynb` /
      `CURATED_FORMAT_OPTIONS` / other-containers open**. (ii) `docs/POSIT-COMPARISON.md:466` and `:797` — both
@@ -549,5 +549,5 @@ mixed→marked (it has no string arm; its array form is skip-guarded) is the one
   independently re-confirmed over 60+ live `quarto render` probes. Its findings were folded back in: the
   `number-offset` maybeArrayOf reclassification (HIGH), the L2-is-go-live / message-in-L2 / message-FIRST
   contract fixes (3×MEDIUM), the `dpi: .inf`→`fig-width: .inf` valid-fixture + §9.2 schema-accept-vs-exit-0
-  criterion (MEDIUM), the named `BACKLOG:47`/`POSIT-COMPARISON:466,797`/no-ROADMAP doc-drift targets (MEDIUM),
+  criterion (MEDIUM), the named CHANGELOG: createDebouncedDiagnosticsFeature extraction, Session 126`/`POSIT-COMPARISON:466,797`/no-ROADMAP doc-drift targets (MEDIUM),
   and the `_1`/`10:30`-are-flagged-not-safe-FN and bare-string-split corrections (2×LOW). Zero CRITICAL.

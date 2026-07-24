@@ -13,7 +13,7 @@
  * `executeCommand` forwards, the definition-URI remap, and the out-of-cell
  * secondary-edit filter.
  *
- * **The vdoc is a real `file:` document, and that is load-bearing** (BACKLOG item 18).
+ * **The vdoc is a real `file:` document, and that is load-bearing** (CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87).
  * These four forwards previously routed through a `TextDocumentContentProvider` on a
  * custom `quarto-embedded:` scheme, and every one of them was dead in production:
  * real language servers register their providers against a `documentSelector` scoped

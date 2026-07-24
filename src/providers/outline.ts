@@ -1,7 +1,7 @@
 /**
  * `DocumentSymbolProvider` for `.qmd` — populates the Outline view and the
  * editor breadcrumbs (plan §6 Phase 6a; the `quarto.symbols.showCodeCellsInOutline`
- * toggle, BACKLOG item 11 slice 1; in-cell code symbol forwarding, slice 2 —
+ * toggle, CHANGELOG: outline granularity, in-cell code symbols + show/hide toggle, Sessions 71-73 slice 1; in-cell code symbol forwarding, slice 2 —
  * `docs/planning/2026-07-10-outline-granularity-plan.md`).
  *
  * A thin `vscode` adapter (plan §3.3): all parsing lives in the pure
@@ -12,7 +12,7 @@
  * splicing the result in as that cell node's children.
  *
  * In-cell symbols ride the SAME real `file:` virtual document as every other
- * embedded forward (`features/embedded-vdoc.ts`, BACKLOG item 18). They used to
+ * embedded forward (`features/embedded-vdoc.ts`, CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87). They used to
  * route through a custom `quarto-outline-symbols:` scheme, which no real
  * language server registers for — so this feature returned **nothing** from real
  * Pylance in production (`file:` → 2 symbols, our scheme → 0), while its tests

@@ -16,7 +16,7 @@
 
 ### 1.1 Problem statement
 
-Quarto renders/previews not only `.qmd` documents but standalone **render scripts** — `.py`/`.jl`/`.r` files authored so that prose and code interleave. `quarto preview script.py` serves a live-reloading preview exactly like `quarto preview doc.qmd`. This project's `quarto.preview` **refuses** anything whose `languageId !== "quarto"` (`src/features/preview.ts:404`), so it cannot preview a script. Posit's extension ships a sibling `quarto.previewScript` for this. It is BACKLOG item 15's remaining half.
+Quarto renders/previews not only `.qmd` documents but standalone **render scripts** — `.py`/`.jl`/`.r` files authored so that prose and code interleave. `quarto preview script.py` serves a live-reloading preview exactly like `quarto preview doc.qmd`. This project's `quarto.preview` **refuses** anything whose `languageId !== "quarto"` (`src/features/preview.ts:404`), so it cannot preview a script. Posit's extension ships a sibling `quarto.previewScript` for this. It is CHANGELOG: preview command family breadth, Sessions 82-85's remaining half.
 
 ### 1.2 What the user gets
 

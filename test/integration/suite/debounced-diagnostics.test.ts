@@ -8,7 +8,7 @@ import {
 
 /**
  * Direct coverage for the shared `createDebouncedDiagnosticsFeature` skeleton
- * (BACKLOG:47, Session 126) via a SYNTHETIC feature — a stand-in `gate`/`compute`
+ * (CHANGELOG: createDebouncedDiagnosticsFeature extraction, Session 126) via a SYNTHETIC feature — a stand-in `gate`/`compute`
  * exercised in the real `@vscode/test-electron` host. This gives the extracted
  * machinery its own tests (the two real callers only exercise it indirectly, and
  * the yaml-diagnostics suite documents that it can only smoke-test the
@@ -70,7 +70,7 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve };
 }
 
-describe("Quarto: createDebouncedDiagnosticsFeature (shared skeleton, BACKLOG:47)", () => {
+describe("Quarto: createDebouncedDiagnosticsFeature (shared skeleton, CHANGELOG: createDebouncedDiagnosticsFeature extraction, Session 126)", () => {
   // The synthetic feature under test, disposed after each test so it never leaks
   // listeners (or a live collection) into the shared Extension Development Host.
   let disposeFeature: (() => void) | undefined;

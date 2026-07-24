@@ -13,7 +13,7 @@ import {
 
 /**
  * The pure naming + ownership layer for the `file:`-scheme virtual documents
- * (BACKLOG item 18, plan §6.1).
+ * (CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87, plan §6.1).
  *
  * Most of what is asserted here is a SAFETY property, not a formatting one:
  * `isOurVdocFileName` and `VDOC_DIR_SEGMENTS` together bound a DELETE loop
@@ -190,7 +190,7 @@ describe("vdoc-path: the key", () => {
 
   it("joins fields with a NUL byte — the exact separator, pinned against a silent refactor", () => {
     // The separator is written as the escape `"\0"` in source (a raw NUL byte made
-    // git and grep read the whole file as binary — BACKLOG:184). This pins the
+    // git and grep read the whole file as binary — CHANGELOG: vdoc-path NUL-separator source hygiene, Session 105). This pins the
     // RUNTIME separator to U+0000, so swapping it for any other character — or the
     // classic `"\\0"` typo (backslash-zero, TWO chars, a real behaviour change) —
     // turns this red instead of shipping silently.

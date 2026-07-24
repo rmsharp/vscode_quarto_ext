@@ -1,5 +1,5 @@
 /**
- * The one `vscode` adapter every embedded-language forward rides on (BACKLOG item 18
+ * The one `vscode` adapter every embedded-language forward rides on (CHANGELOG: embedded-language forwarding did not reach real language servers, Session 87
  * — the shipped-defect fix; plan §6.3). Owns the lifecycle of the virtual documents:
  * writing them, opening their models, deleting them, and sweeping what a crash left
  * behind.
@@ -163,7 +163,7 @@ let disposeAllEpoch = 0;
  * earlier to compare against; a latched boolean can. It must be per-SESSION (global), not
  * per-document: the after-dispatch forward may be for a document in no map to key a per-owner latch
  * on — the same reason the epoch above is global. Cleared at activation because a disable→re-enable
- * WITHOUT a window reload retains this module (BACKLOG:102's lesson), so a never-reset latch would
+ * WITHOUT a window reload retains this module (CHANGELOG: mkdtemp fallback-dir leak, Session 101's lesson), so a never-reset latch would
  * leave embedded features dead for the re-enabled session.
  */
 let deactivated = false;
@@ -187,7 +187,7 @@ export function resetDeactivation(): void {
  * The PROMISE is the whole state — there is deliberately no resolved `fallbackDir` companion
  * variable. There used to be, and it was the bug: it is assigned only inside the `mkdtemp`
  * `.then()`, so anything reading it during the creation window sees `undefined` and concludes
- * there is no directory to clean up, precisely when one is about to exist (BACKLOG:102).
+ * there is no directory to clean up, precisely when one is about to exist (CHANGELOG: mkdtemp fallback-dir leak, Session 101).
  * Everything that needs the directory must await this promise instead.
  */
 let fallbackDirPromise: Promise<vscode.Uri> | undefined;
@@ -318,7 +318,7 @@ export async function disposeVdocs(docUri: vscode.Uri): Promise<void> {
   // Note the asymmetry with `disposeAllVdocs`'s `deactivated` latch: there is deliberately NO
   // per-document "closed" latch here to guard a forward dispatched ENTIRELY AFTER this close (the
   // sibling of the after-dispatch DEACTIVATE race the latch fixes). It is not needed, for two
-  // independent reasons — which is why BACKLOG:103's filed premise that a latch "would apply
+  // independent reasons — which is why CHANGELOG: post-dispose forward latch, Session 107's filed premise that a latch "would apply
   // symmetrically to `disposeVdocs`" is false; the two paths are not symmetric:
   //   (1) Unreachable — VS Code dispatches no forward for a CLOSED document. Every request type but
   //       one is a user gesture (impossible without an editor); the one no-gesture forward, semantic

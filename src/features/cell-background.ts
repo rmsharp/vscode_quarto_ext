@@ -1,6 +1,6 @@
 /**
  * Cell-execution code-cell background highlighting — the `vscode` adapter
- * (`BACKLOG.md` item 17a, Session 111).
+ * (CHANGELOG: cell-execution code-cell background highlighting, Session 111).
  *
  * Draws a faint background tint behind every executable `{lang}` cell in the
  * visible `.qmd` editors, so a code cell reads as a distinct block. It is a
