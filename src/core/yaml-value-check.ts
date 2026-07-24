@@ -5,12 +5,18 @@
  * whether the value is WRONG — i.e. `quarto render` 1.7.33 would reject it —
  * so the diagnostic feature can emit an Error squiggle.
  *
- * FALSE-NEGATIVE ONLY (the hard product rule, `BACKLOG.md:43`): never flag a
- * value Quarto would accept. Everything the matcher is unsure about — an open
- * value set, a non-scalar token, an empty token — returns `false` (flag
- * nothing). The safety of the whole feature rests on `field.valuesClosed`
- * (see its doc comment): a non-empty `values` list is NOT proof the set is
- * closed.
+ * FALSE-NEGATIVE ONLY (the hard product rule — see `BACKLOG.md`'s value-validation
+ * entries; cited by name rather than by line, which drifts): never flag a value
+ * Quarto would accept. Everything the matcher is unsure about — an open value set,
+ * a non-scalar token, an empty token — returns `false` (flag nothing).
+ *
+ * Safety rests on TWO field bits, not one. `valuesClosed` proves the set is closed
+ * (a non-empty `values` list is NOT proof of that — see its doc comment); `acceptsNull`
+ * then supplies the one accepted spelling `values` cannot carry, because `valuesOfSchema`
+ * drops a literal `null` enum member. Reading `valuesClosed` alone — "it's closed, so
+ * `values` is the whole accepted set" — is exactly the reasoning that produced the
+ * `auto-play-media: null` cardinal-sin false positive (document-key plan §2.5). The
+ * accepted set of a closed field is `values` ∪ (the null spellings, when `acceptsNull`).
  */
 
 import type { SchemaField } from "./yaml-schema";
@@ -194,8 +200,18 @@ export function unquote(token: string): string {
 
 /**
  * The Error message for a wrong value — grounded on the FACT of Quarto's error,
- * not its exact expected-list wording (plan §3.4). Lists the closed set's valid
- * values; a boolean-accepting field is phrased as `true` or `false`.
+ * not its exact expected-list wording (plan §3.4).
+ *
+ * FOUR arms, and their ORDER is load-bearing — each earlier arm exists because a later
+ * one mis-messages the fields it would otherwise catch:
+ *   1. numeric (`scalarType`)  — FIRST because curated `daemon` carries BOTH
+ *      `scalarType:"number"` and `values:[true,false]`+`acceptsBoolean`, so arm 3 would
+ *      claim "expected true or false" and omit number (numeric plan §3.4, dragon #9).
+ *   2. null-admitting (`acceptsNull`) — before arm 3 because the boolean phrasing cannot
+ *      express a third accepted spelling; quarto's own clause names null first.
+ *   3. boolean-accepting, all-boolean `values` — phrased as `true` or `false`.
+ *   4. plain closed enum — lists `values`.
+ * Adding a fifth arm means deciding its precedence against these, not appending it.
  *
  * Lives in the pure core (relocated from `features/yaml-value-diagnostics.ts`,
  * Session 135) so BOTH the document-surface value feature AND the `_quarto.yml`

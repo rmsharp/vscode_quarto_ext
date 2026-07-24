@@ -3,8 +3,11 @@ import { CURATED_SCHEMA_INDEX, parseSchemaIndex } from "../../src/core/yaml-sche
 
 /**
  * `parseSchemaIndex` must derive, per field, whether its value set is provably
- * CLOSED (`valuesClosed`) and whether it accepts the YAML-1.2 boolean type
- * (`acceptsBoolean`) — the two bits value-validation gates on (plan §3.2). Every
+ * CLOSED (`valuesClosed`), whether it accepts the YAML-1.2 boolean type
+ * (`acceptsBoolean`), and whether it admits a literal YAML null (`acceptsNull`, the
+ * third describe below) — the bits value-validation gates on (plan §3.2; the null arm
+ * is document-key plan §2.5/§4.0). This file is the annotator's whole test surface:
+ * a new derived bit's tests belong HERE, beside its siblings, not in a new file. Every
  * shape below is grounded firsthand against Quarto 1.7.33's live schema. The
  * load-bearing cases are the two OPEN families that still populate a non-empty
  * `values`: an `anyOf` with a free `string`/`object` arm (`output`), and a bare
@@ -204,8 +207,11 @@ describe("CURATED_EXECUTE_KEYS — nested execute closedness (nested plan L1, §
  * yet quarto's own rejection clause for a genuinely wrong value reads
  * ``which must instead be one of: `null`, `true`, `false` ``.
  *
- * `acceptsNull` restores the family invariant (`valuesClosed === true` ⟹ `values` enumerates
- * every accepted spelling) by recording the dropped arm separately. It is derived over EVERY arm
+ * `acceptsNull` does NOT put the dropped member back into `values` — `values` still omits it.
+ * It records the dropped arm SEPARATELY, so the accepted set of a closed field becomes
+ * `values` ∪ (the YAML null spellings, when `acceptsNull`). Any consumer that reads
+ * `valuesClosed` + `values` and ignores `acceptsNull` re-ships the false positive. It is
+ * derived over EVERY arm
  * `valuesOfSchema`/`closednessOfSchema` walk — bare `enum`, `enum:{values}`, `anyOf`,
  * `maybeArrayOf`, `ref` into `definitions`, the `{tags, schema}` wrapper, and the `depth > 5`
  * guard — not merely the two arms Quarto 1.7.33 happens to need today: a null-admitting enum
@@ -241,6 +247,11 @@ const NULL_FIXTURE = JSON.stringify({
     { name: "ref-form", schema: { ref: "null-enum-def" }, description: "rf" },
     // A CYCLIC ref — must terminate on the depth guard, not blow the stack.
     { name: "cyclic-ref-form", schema: { ref: "cycle-a" }, description: "cy" },
+    // An enum OBJECT with no `values` array, PLUS a later null-admitting arm. Both siblings
+    // check `Array.isArray(values)` INSIDE that block and FALL THROUGH when it is absent, so
+    // the field resolves closed+valued via the later arm; this walk must fall through too.
+    { name: "enumobj-noValues-then-ref", schema: { enum: { hidden: true }, ref: "null-enum-def" }, description: "eo2" },
+    { name: "enumobj-noValues-then-anyof", schema: { enum: { hidden: true }, anyOf: [{ enum: [null, "a"] }] }, description: "eo3" },
     { name: "tags-schema-form", schema: { tags: {}, schema: { enum: [null, "t"] } }, description: "ts" },
     // Same arms, NO null member anywhere — each must stay unset.
     { name: "enum-object-form-clean", schema: { enum: { values: ["a", "b"] } }, description: "eoc" },
@@ -321,5 +332,18 @@ describe("parseSchemaIndex — the null arm (acceptsNull, document-key plan §2.
 
   it("terminates on a cyclic ref via the depth guard rather than blowing the stack", () => {
     expect(byName.get("cyclic-ref-form")?.acceptsNull).toBeFalsy();
+  });
+
+  it("FALLS THROUGH an enum object with no `values` array, exactly as both siblings do (§9 review)", () => {
+    // The one arm-order divergence the mandatory review found. `valuesOfSchema` and
+    // `closednessOfSchema` test `Array.isArray(values)` INSIDE the `{enum:<object>}` block and
+    // continue to the later arms when it is missing; returning from that block instead makes
+    // the field resolve CLOSED with `values` (via the later arm) but WITHOUT `acceptsNull` —
+    // the cardinal-sin false positive. Not reachable in Quarto 1.7.33, but a divergence in the
+    // UNSAFE direction, and the whole point of deriving this bit over EVERY arm.
+    for (const n of ["enumobj-noValues-then-ref", "enumobj-noValues-then-anyof"]) {
+      expect(byName.get(n)?.valuesClosed, `${n} resolves closed via the later arm`).toBe(true);
+      expect(byName.get(n)?.acceptsNull, `${n} must see the later arm's null`).toBe(true);
+    }
   });
 });

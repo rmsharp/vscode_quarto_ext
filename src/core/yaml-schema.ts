@@ -71,9 +71,15 @@ export interface SchemaField {
    * render exit 0), yet `valuesOfSchema` still populates a non-empty `values` for them.
    * `number`/`path`/`arrayOf`/`object`, an unrecognized node, and the depth-cap
    * bail-out are open too. **`values` being non-empty must NOT be read as closed — this
-   * bit is the sole guard against the cardinal-sin false positive.** Only value-validate
+   * bit is the PRIMARY guard against the cardinal-sin false positive.** Only value-validate
    * a field when `valuesClosed === true`; anything not positively proven enumerable is
    * left unset (open). Unaffected by / unused by completion (which reads `values` only).
+   *
+   * ⚠ CLOSED does not mean `values` alone enumerates the accepted set. `valuesOfSchema`
+   * DROPS a literal `null` enum member (`scalarToYaml` returns `null` for it), so for a
+   * null-admitting enum the accepted set is `values` ∪ the YAML null spellings — carried
+   * by the separate `acceptsNull` bit below. A matcher that consults `valuesClosed` and
+   * `values` but not `acceptsNull` re-ships the `auto-play-media: null` false positive.
    */
   valuesClosed?: boolean;
   /**
@@ -538,7 +544,8 @@ export interface SchemaIndex {
 
   /**
    * The one-level child fields of `_quarto.yml`'s `project:`/`website:`/`book:`
-   * block, fully annotated (`values` + `valuesClosed`/`acceptsBoolean`/`scalarType`)
+   * block, fully annotated (`values` + every bit `annotateClosedness`/`annotateScalarType`
+   * derive: `valuesClosed`/`acceptsBoolean`/`numericMemberEnum`/`acceptsNull`/`scalarType`)
    * so the shared `isWrongValue` matcher can VALUE-validate them, or `[]` when the
    * container is unresolved / offline (the curated fallback carries no per-child
    * closedness). Super-merged exactly like `projectKeys` (website/book resolve
@@ -1010,6 +1017,16 @@ function numericMemberEnumOfSchema(schema: unknown, definitions: Map<string, unk
  * Whether a schema-DSL `schema` field admits a literal YAML `null` — the null-arm sibling
  * of `closednessOfSchema`/`numericMemberEnumOfSchema` (document-key plan §2.5/§4.0),
  * mirroring their arm order + `depth` guard and returning a single boolean.
+ *
+ * Parity with `closednessOfSchema` — not with the DSL's whole null vocabulary — is the right
+ * standard, because this bit is only ever READ behind the `valuesClosed` gate. Quarto 1.7.33
+ * has two further null-bearing shapes that are deliberately NOT walked here: a BARE `null`
+ * `anyOf` member (`epub-subdirectory` = `anyOf:["path", null]`) and the `{null:{…}}` type
+ * wrapper (`out-width`). Neither can produce a false positive, because `closednessOfSchema`
+ * returns OPEN for both — even when such an arm sits beside otherwise-closed arms, since its
+ * `anyOf` fold is AND — so `isWrongValue` returns at the closed gate before this bit is
+ * consulted (verified firsthand against the real reader, incl. the adversarial variants).
+ * If a future Quarto ever made one of those shapes CLOSED, this walk would need the arm.
  */
 function acceptsNullOfSchema(schema: unknown, definitions: Map<string, unknown>, depth: number): boolean {
   if (depth > 5) {
@@ -1024,7 +1041,13 @@ function acceptsNullOfSchema(schema: unknown, definitions: Map<string, unknown>,
   }
   if (s.enum !== null && typeof s.enum === "object" && !Array.isArray(s.enum)) {
     const values = (s.enum as Record<string, unknown>).values;
-    return Array.isArray(values) && values.includes(null);
+    if (Array.isArray(values)) {
+      return values.includes(null);
+    }
+    // FALL THROUGH when `values` is absent — both siblings do, so a node carrying an enum
+    // OBJECT without a `values` array PLUS a later null-admitting arm resolves closed+valued
+    // via that later arm. Returning here instead would leave it closed but unmarked: the
+    // cardinal-sin false positive (§9 review, reproduced firsthand through the real reader).
   }
   if (Array.isArray(s.anyOf)) {
     // OR, not AND — the sibling annotators fold `anyOf` with AND because they prove a
@@ -1049,8 +1072,10 @@ function acceptsNullOfSchema(schema: unknown, definitions: Map<string, unknown>,
 }
 
 /**
- * Set the derived `valuesClosed`/`acceptsBoolean`/`numericMemberEnum` bits on `field`
- * from its raw `schema` (shared by `toField`, `objectChildren`, and the project reader).
+ * Set the derived `valuesClosed`/`acceptsBoolean`/`numericMemberEnum`/`acceptsNull` bits
+ * on `field` from its raw `schema` (shared by `toField`, `objectChildren`, and the project
+ * reader). Keep this list in step with the body — it is the index a reader uses to find
+ * which derived bits exist, and every one of them must have a matching read site.
  * Only stamps `valuesClosed` when the field is BOTH provably closed AND actually
  * value-bearing, so the matcher's precondition (`valuesClosed===true && values.length>0`)
  * can gate on the single bit; a genuinely open field is left unmarked (open by default).
