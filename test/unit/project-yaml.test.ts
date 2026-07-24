@@ -259,16 +259,18 @@ describe("findProjectConfigValueLines — scanFlow continuation guard (THE cardi
 });
 
 describe("findProjectConfigValueLines — the key/value SEPARATOR guard (P2, THE cardinal-sin FP, plan §2.8)", () => {
-  it("does NOT emit a `key:: value` line under execute: (quarto renders it exit 0)", () => {
+  it("parses `key:: value` under execute: at the SEPARATOR — key `echo:` (quarto exit 0)", () => {
     // YAML's key here is `echo:`, not `echo` — the FIRST colon is part of the key scalar.
     // `execute:`'s child key set is OPEN, so quarto accepts the odd key and renders exit 0
     // (firsthand-verified, S148). Splitting at the first colon yields key `echo` with the
     // bogus value token `: banana`, which the matcher flags — a cardinal-sin false positive.
     const text = ["project:", "  type: default", "execute:", "  echo:: banana"].join("\n");
-    expect(findProjectConfigValueLines(text).map((v) => v.key)).toEqual(["type"]);
+    // Parsed at the real separator: the key is `echo:`, which matches no schema field, so
+    // the feature skips it exactly as it skips any unknown key (locked in integration).
+    expect(findProjectConfigValueLines(text).map((v) => v.key)).toEqual(["type", "echo:"]);
   });
 
-  it("does NOT emit a `key:: value` line at DEPTH-2 under website: (quarto exit 0)", () => {
+  it("parses `key:: value` at DEPTH-2 under website: at the SEPARATOR (quarto exit 0)", () => {
     // The plan's §2.8 table treated the CLOSED project/website/book key sets as agreeing
     // with quarto. That holds at depth-1 only: at depth-2 under `navbar:` quarto accepts
     // the odd key `collapse-below:` and renders exit 0 (firsthand-verified, S148), so this
@@ -280,7 +282,7 @@ describe("findProjectConfigValueLines — the key/value SEPARATOR guard (P2, THE
       "  navbar:",
       "    collapse-below:: sm",
     ].join("\n");
-    expect(findProjectConfigValueLines(text).map((v) => v.key)).toEqual(["type"]);
+    expect(findProjectConfigValueLines(text).map((v) => v.key)).toEqual(["type", "collapse-below:"]);
   });
 
   it("does NOT emit a `key:value` line with NO space (quarto exit 1 — an accepted safe FN)", () => {
@@ -308,6 +310,25 @@ describe("findProjectConfigValueLines — the key/value SEPARATOR guard (P2, THE
     const got = findProjectConfigValueLines(text);
     expect(got.map((v) => v.key)).toEqual(["type", "collapse-below"]);
     expect(got.find((v) => v.key === "collapse-below")?.path).toEqual(["navbar"]);
+  });
+
+  it("ARMS the multi-line skip when a LATER colon is the separator (`a:b: \"text`)", () => {
+    // §9-review finding. `a:b: "…` IS a mapping (key `a:b`), and its value opens a quoted
+    // scalar that folds the next line in. Judging only the FIRST colon made us treat the
+    // line as a non-mapping, skip it, and lose the scanFlow arming — so the folded
+    // `draft-mode:` line was read as a real child. Scanning forward keeps the arming.
+    const text = [
+      "website:",
+      '  a:b: "a long value that wraps',
+      '  draft-mode: not-a-real-value here"',
+      "  reader-mode: false",
+    ].join("\n");
+    const got = findProjectConfigValueLines(text);
+    expect(
+      got.find((v) => v.key === "draft-mode"),
+      "the folded draft-mode line must NOT be emitted",
+    ).toBeUndefined();
+    expect(got.map((v) => v.key)).toEqual(["reader-mode"]);
   });
 
   it("a NON-mapping depth-1 line does not open a depth-2 scope (`navbar:x`)", () => {

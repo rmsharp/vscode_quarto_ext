@@ -44,13 +44,26 @@ describe("findNestedFrontMatterValueLines — nested format value lines (per-for
 });
 
 describe("findNestedFrontMatterValueLines — the key/value SEPARATOR guard (P2, THE cardinal-sin FP, plan §2.8)", () => {
-  it("does NOT emit a `key:: value` line under execute: (quarto renders it exit 0)", () => {
+  it("parses `key:: value` under execute: at the SEPARATOR — key `echo:` (quarto exit 0)", () => {
     // The THIRD enumerator carrying this defect — not named in the plan's §2.8, found by
     // grep + firsthand render at S148. YAML's key is `echo:`; `execute:`'s child key set is
     // OPEN, so quarto accepts it and renders exit 0, while splitting at the first colon
     // yields the bogus value token `: banana` for the matcher to flag.
     const text = ["---", "execute:", "  echo:: banana", "---"].join("\n");
-    expect(findNestedFrontMatterValueLines(text)).toEqual([]);
+    // Parsed at the real separator: the key is `echo:`, matching no schema field, so the
+    // feature skips it as it skips any unknown key (the no-diagnostic end state is locked
+    // in the integration suite).
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      { line: 2, parentPath: ["execute"], key: "echo:", valueRange: { startCol: 9, endCol: 15 }, rawToken: "banana" },
+    ]);
+  });
+
+  it("ARMS the multi-line skip when a LATER colon is the separator (`a:b: \"text`)", () => {
+    // §9-review finding, nested surface: judging only the FIRST colon lost the scanFlow
+    // arming, so the folded `echo: banana"` line was emitted and flagged on a document
+    // quarto renders exit 0. Scanning forward to the real separator keeps the arming.
+    const text = ["---", "execute:", '  a:b: "a long value that wraps', '  echo: banana"', "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text).map((v) => v.key)).toEqual(["a:b"]);
   });
 });
 

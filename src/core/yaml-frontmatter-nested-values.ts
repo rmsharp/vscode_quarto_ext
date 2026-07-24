@@ -35,7 +35,7 @@
 
 import { findFrontMatter, frontMatterContentLines, scanFlow } from "./qmd/model";
 import {
-  isMappingSeparator,
+  mappingColonAt,
   leadingWsLen,
   nestedParentPath,
   valueSlotAfterColon,
@@ -127,26 +127,21 @@ export function findNestedFrontMatterValueLines(
     // The mapping colon is the FIRST colon at/after the indent (a colon inside the value,
     // e.g. `subtitle: a: b`, stays in the value — mirrors the top-level grammar; a quoted
     // key with an embedded colon is a rare safe false negative, plan §7.9).
-    const colon = lineText.indexOf(":", indent);
+    const colon = mappingColonAt(lineText, indent);
     if (colon < 0) {
-      continue; // no colon → no mapping value to check
-    }
-    if (!isMappingSeparator(lineText, colon)) {
-      // Not a YAML key/value separator, so this line hosts no mapping value: on
-      // `echo:: banana` the key is `echo:` (quarto accepts it on this OPEN key set and
-      // renders exit 0) and on `echo:banana` the whole line is a plain scalar. The same
-      // guard the other two enumerators apply — the cardinal-sin FP fix (plan §2.8/P2).
+      // No key/value separator anywhere on the line, so it hosts no mapping value:
+      // `echo:banana` is a plain scalar, which quarto REJECTS (exit 1). A safe false
+      // negative — the same rule the other two enumerators apply (plan §2.8/P2).
       //
-      // ⚠ This `continue` also skips the `scanFlow` ARMING below, and that is safe for a
-      // structural reason worth stating: a multi-line quoted scalar or flow collection can
-      // only OPEN as the VALUE of a mapping. If the colon is not a separator there is no
-      // value, so a token that looks like an opener (`title:"a long title that wraps`) is
-      // just text in a plain scalar — which makes the following mapping-looking line a YAML
-      // PARSE error. Verified firsthand on every such shape: quarto exits 1 with a
-      // YAMLException, on both surfaces, for both the quote and the flow form. So the
-      // continuation line we now emit is on a document quarto REJECTS — agreement, not the
-      // cardinal-sin FP. (With the space, `title: "…` renders exit 0, the colon IS a
-      // separator, the guard passes, and the arming works exactly as before.)
+      // ⚠ This `continue` also skips the `scanFlow` ARMING below. That is safe ONLY because
+      // `mappingColonAt` scanned the WHOLE line first: reaching here means the line has no
+      // separator colon at all, so it hosts no value, so nothing could have opened a
+      // multi-line scalar — and the following mapping-looking line is then a YAML PARSE
+      // error quarto rejects (firsthand: exit 1 with a YAMLException, both surfaces, quote
+      // and flow forms alike). An earlier form of this guard judged only the FIRST colon,
+      // which broke exactly here: on `a:b: "text` a LATER colon IS the separator, the value
+      // DOES open a quoted scalar, and skipping the line lost the arming and flagged the
+      // folded continuation on a document quarto renders exit 0 (§9 review, S148).
       continue;
     }
     const key = lineText.slice(indent, colon).replace(/[ \t]+$/, "");
