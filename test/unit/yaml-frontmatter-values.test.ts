@@ -236,3 +236,47 @@ describe("findFrontMatterValueLines — multi-line QUOTED scalars (adversarial r
     ]);
   });
 });
+
+describe("findFrontMatterValueLines — arming discipline parity with findProjectConfigValueLines (BACKLOG: .qmd sibling-enumerator OLD arming, Session 153)", () => {
+  // Two arming defects the `_quarto.yml` value enumerator already fixed but the `.qmd`
+  // siblings still carried (grounded firsthand vs quarto 1.7.33; blast radius bounded by the
+  // `---` fences). Both directions below render exit 0 (FP) or exit 1 (FN) — measured, not
+  // assumed:
+  //  • Defect B (the FALSE-POSITIVE, the one that matters): the continuation guard was armed
+  //    only from EMITTED (column-0) lines, so a value opened on a SKIPPED line (indented,
+  //    sequence item, no-colon) left its fold unguarded and its folded continuation was read
+  //    as a real mapping and flagged on a document quarto renders exit 0.
+  //  • Defect A (the false NEGATIVE): the arm scanned the WHOLE value token, so an inner quote
+  //    in a plain scalar (`title: Don't Panic`) armed a phantom quote that swallowed the rest
+  //    of the front matter — silently disabling validation of every following key.
+  it("Defect B: does NOT emit a column-0 key folded inside an INDENTED multi-line quoted scalar", () => {
+    // `css: "styles` opens a double-quoted scalar on an INDENTED line the top-level enumerator
+    // skips; `df-print: banana` is FOLDED into that string and there is NO top-level df-print
+    // key at all (quarto renders exit 0 — grounded firsthand). Arming only from emitted lines
+    // left the fold unguarded, so df-print was emitted and flagged: a cardinal-sin FP.
+    const text = ["---", "format:", "  html:", '    css: "styles', "df-print: banana", 'more"', "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual([]);
+  });
+
+  it("Defect B: does NOT emit a column-0 key folded inside a SEQUENCE-item multi-line quoted scalar", () => {
+    // `- "data` (an indented block-sequence item, no colon at all) opens a quoted scalar that
+    // folds `df-print: banana` into the `resources` list; there is no top-level df-print key
+    // (quarto exit 0, grounded firsthand). The arm token for a no-colon line is its content
+    // past the leading `- `, so the sequence item arms even though it is never emitted.
+    const text = ["---", "resources:", '  - "data', "df-print: banana", 'end"', "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual([]);
+  });
+
+  it("Defect A: STILL emits a real key after an apostrophe-bearing plain scalar (no phantom quote)", () => {
+    // `title: Don't Panic` is a plain scalar — the `'` is literal, quarto renders exit 0 — so it
+    // must NOT arm a quote. `df-print: banana` below it is a real invalid value (quarto exit 1)
+    // and MUST be emitted; the OLD whole-token arm set a phantom `'` that swallowed it (a FN).
+    const text = ["---", "title: Don't Panic", "df-print: banana", "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["title", "df-print"]);
+  });
+
+  it("control: a PLAIN column-0 closed-enum value is still emitted (no over-suppression)", () => {
+    const text = ["---", "df-print: banana", "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["df-print"]);
+  });
+});
