@@ -314,6 +314,33 @@ describe("Quarto: _quarto.yml top-level execute: VALUE diagnostics (execute valu
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
   });
 
+  it("never flags a `key:: value` line under execute: — the separator FP (P2)", async () => {
+    // The separator lock on the shipped _quarto.yml execute: surface (document-key plan
+    // §2.8, prerequisite P2). YAML's key is `echo:`, unknown on execute's OPEN child key
+    // set, so quarto renders exit 0 (grounded single-valued). Before the guard we split at
+    // the first colon and flagged the bogus value token `: banana` against echo's closed
+    // enum. Named separately from the aggregate zero above so a regression names the row.
+    const doc = await openActive(EXEC_VALID);
+    await new Promise((r) => setTimeout(r, 500));
+    const line = doc.getText().split(/\r?\n/).findIndex((t) => t === "  echo:: banana");
+    assert.ok(line >= 0, "fixture drift: the `echo:: banana` row is gone");
+    const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === line);
+    assert.ok(hit === undefined, `echo:: banana renders exit 0 and must NOT be flagged (got: ${hit?.message})`);
+  });
+
+  it("never flags a `key:: value` line at DEPTH-2 under website: — the separator FP (P2)", async () => {
+    // The case the S146 plan's §2.8 table got wrong: it treated the CLOSED
+    // project/website/book key sets as agreeing with quarto. That holds at depth-1 only —
+    // at depth-2 under `navbar:` quarto accepts the odd key `collapse-below:` and renders
+    // exit 0 (grounded single-valued, S148), so this was a live FP too.
+    const doc = await openActive(D2_VALID);
+    await new Promise((r) => setTimeout(r, 500));
+    const line = doc.getText().split(/\r?\n/).findIndex((t) => t === "    collapse-below:: sm");
+    assert.ok(line >= 0, "fixture drift: the `collapse-below:: sm` row is gone");
+    const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === line);
+    assert.ok(hit === undefined, `collapse-below:: sm renders exit 0 and must NOT be flagged (got: ${hit?.message})`);
+  });
+
   it("re-scans live on edit (debounced) and drops a diagnostic once a wrong execute value is fixed", async () => {
     const doc = await openActive(EXEC_INVALID);
     assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 5, 6000));

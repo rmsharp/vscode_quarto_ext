@@ -6,6 +6,7 @@ project:
 website:
   navbar:
     collapse-below: lg
+    collapse-below:: sm
     pinned: true
     title: "My Site"
     background: primary

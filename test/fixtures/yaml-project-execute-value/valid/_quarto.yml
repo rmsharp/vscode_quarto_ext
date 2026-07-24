@@ -25,3 +25,10 @@ execute:
     cache: not-a-key"
   knitr:
     cache: banana
+  # The SEPARATOR lock (document-key plan §2.8, prerequisite P2). YAML's key on the next
+  # line is `echo:`, not `echo` — the first colon is part of the key scalar — and execute's
+  # child key set is OPEN, so quarto accepts the odd key and renders exit 0 (grounded
+  # single-valued). Splitting at the first colon yielded key `echo` with the bogus value
+  # token `: banana`, flagged against echo's closed enum: a cardinal-sin false positive,
+  # live on this shipped surface until the guard.
+  echo:: banana
