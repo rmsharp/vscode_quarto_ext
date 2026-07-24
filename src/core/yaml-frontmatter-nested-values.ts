@@ -34,7 +34,12 @@
  */
 
 import { findFrontMatter, frontMatterContentLines, scanFlow } from "./qmd/model";
-import { leadingWsLen, nestedParentPath, valueSlotAfterColon } from "./yaml-context";
+import {
+  isMappingSeparator,
+  leadingWsLen,
+  nestedParentPath,
+  valueSlotAfterColon,
+} from "./yaml-context";
 
 /** One nested (indented) front-matter line that carries a non-empty scalar value. */
 export interface NestedFrontMatterValueLine {
@@ -125,6 +130,13 @@ export function findNestedFrontMatterValueLines(
     const colon = lineText.indexOf(":", indent);
     if (colon < 0) {
       continue; // no colon → no mapping value to check
+    }
+    if (!isMappingSeparator(lineText, colon)) {
+      // Not a YAML key/value separator, so this line hosts no mapping value: on
+      // `echo:: banana` the key is `echo:` (quarto accepts it on this OPEN key set and
+      // renders exit 0) and on `echo:banana` the whole line is a plain scalar. The same
+      // guard the other two enumerators apply — the cardinal-sin FP fix (plan §2.8/P2).
+      continue;
     }
     const key = lineText.slice(indent, colon).replace(/[ \t]+$/, "");
     if (key.length === 0) {

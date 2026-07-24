@@ -43,6 +43,17 @@ describe("findNestedFrontMatterValueLines — nested format value lines (per-for
   });
 });
 
+describe("findNestedFrontMatterValueLines — the key/value SEPARATOR guard (P2, THE cardinal-sin FP, plan §2.8)", () => {
+  it("does NOT emit a `key:: value` line under execute: (quarto renders it exit 0)", () => {
+    // The THIRD enumerator carrying this defect — not named in the plan's §2.8, found by
+    // grep + firsthand render at S148. YAML's key is `echo:`; `execute:`'s child key set is
+    // OPEN, so quarto accepts it and renders exit 0, while splitting at the first colon
+    // yields the bogus value token `: banana` for the matcher to flag.
+    const text = ["---", "execute:", "  echo:: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([]);
+  });
+});
+
 describe("findNestedFrontMatterValueLines — bounded / structural (never a false line)", () => {
   it("returns [] for a document with no front matter", () => {
     const text = ["Just prose.", "execute:", "  echo: maybe"].join("\n");
