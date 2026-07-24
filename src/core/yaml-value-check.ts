@@ -198,8 +198,11 @@ function isWrongNumericMember(rawToken: string, members: string[]): boolean {
  * cell-option value slot retains a trailing ` # comment` for a quoted value
  * (`slotsOf` strips inline comments only for UNQUOTED values), and `#| key: "v" #
  * note` renders exit 0 (adversarial review, S124). An unquoted or unterminated
- * token is returned unchanged. No escape decoding — closed-enum/boolean values
- * never contain a quote character.
+ * token is returned unchanged. No escape decoding — a DOUBLE-quoted value's backslash
+ * escapes are NOT resolved here; both callers (`isWrongValue` and the format-name path
+ * in `features/yaml-value-diagnostics.ts`) instead skip any backslash-bearing token
+ * BEFORE calling this, so an escape that would decode to a valid member/name is never
+ * mis-flagged (the escape-decoding FP, P3 / §9-review S149).
  */
 export function unquote(token: string): string {
   const first = token[0];
