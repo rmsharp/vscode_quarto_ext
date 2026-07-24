@@ -844,3 +844,93 @@ describe("Quarto: the escape-decoding FP is GONE end-to-end (.qmd, P3 / §9-revi
     );
   });
 });
+
+describe("Quarto: arming-discipline parity (.qmd, BACKLOG: sibling-enumerator OLD arming, Session 153)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // Defect B — the cardinal-sin FALSE POSITIVE (arm the continuation guard from EVERY scalar
+  // line, not only EMITTED ones). A closed-enum key FOLDED inside a multi-line quoted scalar
+  // that was OPENED on a line the enumerator skips must NOT be flagged (quarto renders the whole
+  // span exit 0, grounded firsthand vs 1.7.33). A `df-print: banana` CANARY on line 1 (a real
+  // invalid value OUTSIDE the fold) MUST flag, so "0 on the folded line" is not vacuous.
+  it("Defect B (top-level): does NOT flag a key folded inside a SEQUENCE-item multi-line quoted scalar", async () => {
+    // `- "data` (line 3, a skipped block-sequence item) opens a quoted scalar that folds
+    // `number-sections: banana` (line 4) into the `resources` list; there is no top-level
+    // number-sections key. Before the fix the enumerator skipped the sequence item without
+    // arming and emitted+flagged the folded line.
+    const doc = await openInline(`---\ndf-print: banana\nresources:\n  - "data\nnumber-sections: banana\nend"\n---\n\nBody.\n`);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 1), 5000),
+      "the df-print: banana canary (line 1) should flag, proving the value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(4),
+      `the folded number-sections (line 4) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
+
+  it("Defect B (nested): does NOT flag a nested key folded inside a COLUMN-0 multi-line quoted scalar", async () => {
+    // `title: "My great` (line 2, a column-0 line the NESTED pass skips as the top-level pass's
+    // job) opens a quoted scalar that folds `execute:` / `echo: banana` (line 4) into title's
+    // string; there is no execute block at all. Before the fix the nested enumerator never armed
+    // on the skipped column-0 line and emitted+flagged the folded echo.
+    const doc = await openInline(`---\ndf-print: banana\ntitle: "My great\nexecute:\n  echo: banana\nend"\n---\n\nBody.\n`);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 1), 5000),
+      "the df-print: banana canary (line 1) should flag, proving the value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(4),
+      `the folded echo (line 4) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
+
+  // Defect A — the phantom-quote FALSE NEGATIVE (narrow the arm to a first-char opener). A plain
+  // scalar with an inner apostrophe must NOT arm a phantom quote; the real invalid key below it
+  // MUST be flagged. Inherently non-vacuous: the OLD whole-token arm produced ZERO diagnostics
+  // here (the swallowed key), so the positive assertion below could not have passed before.
+  it("Defect A (top-level): flags a real invalid value after an apostrophe-bearing plain scalar", async () => {
+    const doc = await openInline(`---\ntitle: Don't Panic\ndf-print: banana\n---\n\nBody.\n`);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 2), 5000),
+      "df-print: banana (line 2) MUST flag — the OLD arm set a phantom `'` from title that swallowed it",
+    );
+    const diags = valueDiagnostics(doc.uri);
+    assert.strictEqual(
+      diags.length,
+      1,
+      `only df-print (line 2) should flag; got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+    );
+    assert.strictEqual(diags[0].range.start.line, 2, "the diagnostic is on the df-print line");
+  });
+
+  it("Defect A (nested): flags a real invalid nested value after an apostrophe-bearing plain sibling", async () => {
+    const doc = await openInline(`---\nformat:\n  html:\n    toc-title: Don't skip\n    number-sections: banana\n---\n\nBody.\n`);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 4), 5000),
+      "number-sections: banana (line 4) MUST flag — the OLD arm set a phantom `'` from toc-title that swallowed it",
+    );
+    const diags = valueDiagnostics(doc.uri);
+    assert.strictEqual(
+      diags.length,
+      1,
+      `only number-sections (line 4) should flag; got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+    );
+    assert.strictEqual(diags[0].range.start.line, 4, "the diagnostic is on the number-sections line");
+  });
+});
