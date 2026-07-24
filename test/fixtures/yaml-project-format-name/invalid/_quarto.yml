@@ -1,0 +1,7 @@
+# Combo 3 (Session 152) — top-level scalar format: NAME validation in _quarto.yml (INVALID
+# fixture). `format: banana` is a wrong output-format NAME that quarto render 1.7.33 rejects at
+# its _quarto.yml schema layer (readAndValidateYamlFromFile, exit 1 — grounded firsthand:
+# `Field "format" has value banana, which must instead be 'ansi'`). This feature flags it,
+# mirroring the shipped .qmd surface (S145 Combo 1), with the more helpful message
+# `Unknown output format banana.` rather than quarto's unhelpful `must instead be 'ansi'`.
+format: banana

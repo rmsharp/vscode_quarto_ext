@@ -17,6 +17,8 @@ const FMT_INVALID = path.resolve(ROOT, "test/fixtures/yaml-project-format-value/
 const FMT_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-format-value/valid/_quarto.yml");
 const DOC_INVALID = path.resolve(ROOT, "test/fixtures/yaml-project-document-value/invalid/_quarto.yml");
 const DOC_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-document-value/valid/_quarto.yml");
+const FMTNAME_INVALID = path.resolve(ROOT, "test/fixtures/yaml-project-format-name/invalid/_quarto.yml");
+const FMTNAME_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-format-name/valid/_quarto.yml");
 const QMD_FIXTURE = path.resolve(ROOT, "test/fixtures/sample.qmd");
 
 async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean> {
@@ -668,6 +670,103 @@ describe("Quarto: _quarto.yml COLUMN-0 document-key VALUE diagnostics (document-
   });
 
   it("never produces a document-key value diagnostic on a .qmd document — the filename gate structurally excludes it (the .qmd surface has its own S125 top-level feature)", async () => {
+    const doc = await openActive(QMD_FIXTURE);
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0);
+  });
+});
+
+describe("Quarto: _quarto.yml top-level scalar format: NAME VALUE diagnostics (Combo 3, format-name validation plan §4.3)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("flags a wrong top-level scalar format: NAME (format: banana), at its value span", async () => {
+    // The measured true positive: `format: banana` renders quarto 1.7.33 exit 1 at the
+    // _quarto.yml schema layer (`Field "format" has value banana, which must instead be
+    // 'ansi'`). This is the ONE divergence the .qmd surface had over this one until now (S149's
+    // author sweep: 6 of 378 top-level fields diverged, all 6 `format:`), now closed by Combo 3.
+    const doc = await openActive(FMTNAME_INVALID);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 1, 6000),
+      "expected a format-name diagnostic within 6s of opening",
+    );
+    const diags = valueDiagnostics(doc.uri);
+    assert.strictEqual(
+      diags.length,
+      1,
+      `expected exactly 1, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+    );
+    const d = diags[0];
+    const line = doc.getText().split(/\r?\n/).findIndex((t) => t === "format: banana");
+    assert.ok(line >= 0, "fixture drift: the `format: banana` row is gone");
+    assert.strictEqual(d.range.start.line, line, "the format line is flagged");
+    // The format-NAME message (S145's), NOT the closed-enum `valueMessage`.
+    assert.ok(d.message.includes("Unknown output format"), `format-name message expected, got: ${d.message}`);
+    assert.ok(d.message.includes("banana"), "the message names the unknown format");
+    // The squiggle sits on the VALUE token: `banana` after `format: ` spans cols 8..14 (half-open).
+    assert.deepStrictEqual(
+      [d.range.start.character, d.range.end.character],
+      [8, 14],
+      "banana spans cols 8..14",
+    );
+    assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Error);
+    assert.strictEqual(d.code, CODE);
+  });
+
+  it("produces ZERO diagnostics for the valid format-name battery — a built-in name, an ext/modifier wrap, the escape-decoding FP, and a flow collection", async () => {
+    // Ordered after the flag test so the SchemaSource cache is warm. Every `format:` line here
+    // must resolve to NO diagnostic: html (built-in), html-pretty (<ext>-/-<modifier> wrap),
+    // "\x68tml" (the escape-decoding FP — decodes to html, exit 0; the backslash guard keeps it
+    // silent), and [html, pdf] (the leading-`[` hygiene skip). The last two are safe FNs.
+    const doc = await openActive(FMTNAME_VALID);
+    await new Promise((r) => setTimeout(r, 400));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "first check");
+    await new Promise((r) => setTimeout(r, 600));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
+  });
+
+  it('never flags the escape-decoding form format: "\\x68tml" — it decodes to html and renders exit 0 (the P3 backslash guard, carried onto this surface)', async () => {
+    // Named separately from the aggregate zero so a regression names the row. `unquote` does no
+    // YAML escape decoding, so isKnownFormatName sees the literal `\x68tml` and misses; without
+    // the backslash hygiene guard this would flag a value quarto renders exit 0 — the P3
+    // cardinal-sin FP (S151), which the handoff warned must be carried onto this new surface.
+    const doc = await openActive(FMTNAME_VALID);
+    await new Promise((r) => setTimeout(r, 500));
+    // Exact-match the DATA line, not `.includes("x68tml")` — the fixture's own comment lines
+    // mention `\x68tml` too, and a substring find would land on a comment (no diagnostic there,
+    // so the assertion would pass vacuously without ever testing the real row).
+    const line = doc.getText().split(/\r?\n/).findIndex((t) => t === 'format: "\\x68tml"');
+    assert.ok(line >= 0, "fixture drift: the escape-decoding row is gone");
+    const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === line);
+    assert.ok(hit === undefined, `the escape-decoding form must NOT be flagged (got: ${hit?.message})`);
+  });
+
+  it("re-scans live on edit (debounced) and drops the diagnostic once the format name is fixed", async () => {
+    const doc = await openActive(FMTNAME_INVALID);
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 1, 6000));
+
+    const editor = vscode.window.activeTextEditor;
+    assert.ok(editor);
+    const line = doc.getText().split(/\r?\n/).findIndex((t) => t === "format: banana");
+    await editor.edit((builder) => {
+      builder.replace(doc.lineAt(line).range, "format: html"); // banana -> a real output format
+    });
+
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length === 0, 3000),
+      "fixing the format name should clear the diagnostic after the debounce",
+    );
+  });
+
+  it("never produces a format-name diagnostic on a .qmd document — the filename gate structurally excludes it (the .qmd surface has its own S145 format-name feature)", async () => {
     const doc = await openActive(QMD_FIXTURE);
     await new Promise((r) => setTimeout(r, 500));
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0);

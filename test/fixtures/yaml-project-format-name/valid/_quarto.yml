@@ -1,0 +1,18 @@
+# Combo 3 (Session 152) — top-level scalar format: NAME validation in _quarto.yml (VALID
+# fixture: must produce ZERO diagnostics from this feature). The FP battery for the top-level
+# format NAME. The file intentionally REPEATS the `format:` key: this feature scans lines, not
+# parsed YAML, so each `format:` line is an independent validation case (YAML duplicate-key
+# semantics are irrelevant here). Every row is grounded vs quarto render 1.7.33:
+#   - `format: html`         exit 0 — a built-in name, schema-accepted
+#   - `format: html-pretty`  exit 0 — a built-in wrapped by an <ext>- prefix / -<modifier> suffix
+#   - `format: "\x68tml"`    exit 0 — DECODES to `html`; the escape-decoding FP (P3). unquote does
+#                            no escape decoding, so isKnownFormatName sees the literal `\x68tml`
+#                            and misses — the backslash hygiene guard is what keeps this silent.
+#   - `format: [html, pdf]`  exit 1 — quarto rejects the flow sequence, but the leading-`[`
+#                            hygiene skip keeps this feature silent (a safe FN, matching .qmd).
+# The last two are deliberate safe FNs, so this file's contract is "zero of OUR diagnostics",
+# not "renders clean".
+format: html
+format: html-pretty
+format: "\x68tml"
+format: [html, pdf]

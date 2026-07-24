@@ -34,7 +34,8 @@ import {
   type ProjectConfigValueLine,
 } from "../core/project-yaml";
 import type { SchemaField } from "../core/yaml-schema";
-import { isWrongValue, valueMessage } from "../core/yaml-value-check";
+import { isWrongValue, valueMessage, unquote } from "../core/yaml-value-check";
+import { isKnownFormatName, formatNameMessage } from "../core/format-name-check";
 import {
   createDebouncedDiagnosticsFeature,
   type DiagnosticsComputeContext,
@@ -124,32 +125,76 @@ async function computeProjectValueDiagnostics(
     // `perFormatOptions(fmt)` — NOT the `.children` descent `resolveProjectValueField`
     // performs (the format-name fields don't carry the options as `.children`; format value
     // plan §3.2 B / dragon 2). Only a DEPTH-2 line (`path=[fmt]`, `key=option`) is
-    // resolvable; a depth-1 format line (`path=[]`, the format NAME itself, e.g.
-    // `html: default`) → `undefined` → skip — the top-level `format:` scalar NAME stays a
-    // deliberate FN on THIS `_quarto.yml` surface (Combo 3, deferred — the col-0 emission it
-    // was blocked on now EXISTS, S149, so what remains is a ~6-line branch mirroring
-    // `yaml-value-diagnostics.ts`'s: null-gate → hygiene skip → `unquote` → `isKnownFormatName`
-    // → `formatNameMessage`; format-name validation plan §4.3). The `.qmd` scalar NAME is validated
-    // (S145, Combo 1) by a bespoke predicate, not via `valuesClosed`. Offline is also a safe FN: the curated
+    // resolvable in THIS `"format"` arm; a depth-1 format line (`path=[]`, the format NAME
+    // itself used as a mapping key, e.g. `html: default`) → `undefined` → skip. The top-level
+    // scalar `format:` NAME (`format: banana`) is a `container:"document"` line, NOT one of
+    // these `"format"` lines, and is validated in the document arm below by the bespoke
+    // predicate (Combo 3, S152 — mirroring S145 Combo 1 on `.qmd`; format-name validation plan
+    // §4.3). Offline the per-format OPTION values are a safe FN: the curated
     // `CURATED_FORMAT_OPTIONS` carries no `valuesClosed`, so format validation flags nothing
     // when the CLI schema fails to load (unlike execute, which is offline-robust; dragon 4).
     let field: SchemaField | undefined;
     if (entry.container === "document") {
+      if (entry.key === "format") {
+        // Combo 3 (format-name validation plan §4.3, S152): the top-level scalar `format:` NAME.
+        // `format` is NOT a closed enum (its names are injected after closedness annotation), so
+        // `isWrongValue` cannot see it; it is validated instead by the SAME bespoke predicate the
+        // `.qmd` surface uses (S145 Combo 1, `yaml-value-diagnostics.ts`) — null-gate →
+        // flow/block/backslash hygiene skip → `unquote` → `isKnownFormatName` → `formatNameMessage`.
+        // `path` is always `[]` for a column-0 document key, so `entry.key === "format"` uniquely
+        // identifies the top-level scalar. This closes the ONE deliberate divergence from the `.qmd`
+        // surface (S149's author sweep: 6 of 378 top-level fields diverged, all `format:`). Grounded
+        // firsthand vs `quarto render` 1.7.33: `format: banana` is exit 1 at its `_quarto.yml` schema
+        // layer; `format: html`/`html-pretty` are exit 0.
+        const builtIn = index.formatNamesForValidation();
+        if (builtIn === null) {
+          continue; // offline — the built-in set is not known-complete → never flag (dragon 4)
+        }
+        if (
+          entry.rawToken.length === 0 ||
+          /^[[\]{}|>&*!]/.test(entry.rawToken) ||
+          entry.rawToken.includes("\\")
+        ) {
+          // A flow/block/node-property token (`format: [html, pdf]`, itself schema-invalid) — the
+          // same FP-safe skip `isWrongValue` uses. The BACKSLASH case is the escape-decoding FP
+          // (P3 / S151) carried onto this surface: `format: "\x68tml"` DECODES to `html` and quarto
+          // renders it exit 0, but `unquote` does no escape decoding, so `isKnownFormatName` would
+          // see the literal `\x68tml`, miss, and flag a value quarto accepts. Same shared `unquote`,
+          // same defect class, same FN-only fix as the `.qmd` format path — grounded firsthand vs
+          // quarto 1.7.33 (a format name never itself contains a backslash).
+          continue;
+        }
+        if (isKnownFormatName(unquote(entry.rawToken), builtIn)) {
+          continue; // a name quarto's schema layer accepts (built-in/ext/modifier/.lua)
+        }
+        const range = new vscode.Range(
+          entry.line,
+          entry.valueRange.startCol,
+          entry.line,
+          entry.valueRange.endCol,
+        );
+        const diagnostic = new vscode.Diagnostic(
+          range,
+          formatNameMessage(entry.rawToken),
+          vscode.DiagnosticSeverity.Error,
+        );
+        diagnostic.source = DIAGNOSTIC_SOURCE;
+        diagnostic.code = DIAGNOSTIC_CODE;
+        diagnostics.push(diagnostic);
+        continue; // handled by the bespoke predicate — do NOT fall through to `isWrongValue`
+      }
       // A COLUMN-0 document key — the synthetic "container" that is really the document root
       // (document-key value plan §3.1/§3.2 change B). `path` is always `[]` here, so this is a
       // flat name lookup, NOT `resolveProjectValueField`'s `.children` descent. Everything
       // downstream (`isWrongValue` → `valueMessage` → the squiggle) is unchanged.
       //
-      // Three deliberate skips fall out of the reader rather than needing code: an UNKNOWN
+      // Two deliberate skips fall out of the reader rather than needing code: an UNKNOWN
       // column-0 key (`custom-thing: whatever`) is absent from the set — and must be, because
       // the `_quarto.yml` top level is an OPEN key set quarto accepts (exit 0), which makes
-      // KEY validation here a non-starter, not a deferral (§2.4/dragon 3); an OPEN field
+      // KEY validation here a non-starter, not a deferral (§2.4/dragon 3); and an OPEN field
       // (`title`, `theme`, `engine`) carries no `valuesClosed`, so `isWrongValue` returns
-      // false; and `format` is deliberately NOT closed (its names are injected after
-      // closedness annotation), so the top-level `format:` scalar NAME stays a safe FN here —
-      // the ONE known, deliberate divergence from the `.qmd` surface, which validates it with
-      // a bespoke predicate (S145 Combo 1). Closing that gap is Combo 3, a different matcher
-      // and its own slice (§4.3/dragon 6) — do NOT "fix" it by making the field closed.
+      // false. The top-level scalar `format:` NAME is the exception, handled above by its own
+      // bespoke predicate (Combo 3, S152) rather than by `isWrongValue`.
       field = documentFields.find((f) => f.name === entry.key);
     } else if (entry.container === "format") {
       field =
