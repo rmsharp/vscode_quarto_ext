@@ -7,6 +7,58 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-23 · [ad hoc] Session 147 — IMPLEMENTATION: PREREQUISITE P, the null-enum-member FP fix (SHIPPED)
+
+Implemented `docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md` §2.5 + §4.0 —
+the first of the three-session arc that plan defines, and the value family's **second cross-surface
+CORRECTNESS fix** after S139 (not a coverage slice). Removes a **cardinal-sin false positive that was
+live on shipped code**: `valuesOfSchema` maps enum members through `scalarToYaml` (which returns
+`null` for a JSON `null`) and filters them out, while `closednessOfSchema` still reports the enum
+CLOSED — so `auto-play-media: null` (and `~`/`Null`/`NULL`) was flagged on the `.qmd` top level
+(S125), the `.qmd` per-format path, and `_quarto.yml`'s `format:` container (S143), although
+`quarto render` 1.7.33 exits 0 on every one of them and quarto's own rejection clause reads
+``one of: `null`, `true`, `false``.
+
+Commits: `51264af` **L1 [INERT]** — `SchemaField.acceptsNull` + `acceptsNullOfSchema`, which mirrors
+the sibling annotators' arm order and depth guard but folds `anyOf` with **OR** (they prove a
+restriction; this proves an admission) and **resolves `ref` into `definitions`**. `20b6b8c`
+**L2 [GO-LIVE]** — an `acceptsNull`-gated branch in `isWrongValue` using the anchored, case-EXACT
+`NULL_SPELLINGS = /^(?:null|Null|NULL|~)$/`, plus `valueMessage` listing `null` first as quarto does.
+`78b573c` **L3** — locks on all three affected surfaces (two `.qmd` fixtures + the `_quarto.yml`
+per-format fixture, a different feature and DiagnosticCollection). `f28856f` **L4** — the MANDATORY
+§9 adversarial review (`wf_ef8b6c4b-254`: 4 quarto-render-verified lenses + an independent
+verify-or-refute skeptic per finding; 13 agents, 513 tool calls) and the fix it produced.
+
+**The review earned its keep.** fp-cardinal / annotator-parity / surface-sweep all returned CLEAN —
+fp-cardinal independently re-ran the full 167-probe battery (167/167 exit 1) and rendered 90 further
+names the top-level battery could not reach (nested `.qmd`, project depth-1/2, cell options,
+`execute:` children, per-format-only), all exit 1. doc-drift filed 9 findings, of which independent
+skeptics confirmed 2 (both folded). But the real catch was a LOW/latent note from a CLEAN lens: the
+new walk's `{enum: <object>}` arm **returned** where both siblings **fall through**, so a node with
+an enum object lacking a `values` array plus a later null-admitting arm would resolve CLOSED via that
+later arm yet stay unmarked — the cardinal-sin false positive, in the unsafe direction. Unreachable
+in 1.7.33, reproduced firsthand through the real reader, fixed RED→GREEN. The author's own
+arm-by-arm read had missed it by comparing WHICH arms exist rather than their fall-through semantics.
+`857f5fe` reconciles doc-drift (POSIT-COMPARISON ×2; a dated correction note on the S146 plan's §2.5
+blast-radius line, which is right about the FP but wrong about the schema).
+
+**3 validated fields** Quarto-wide (`auto-play-media`, `preload-iframes`,
+`ipynb-shell-interactivity`). A **fourth** name, `output-file`, admits null behind a `ref` but
+resolves OPEN, so it was never validated and never a false positive — S146's scan missed it because
+it treated `node.ref` as an object when the DSL makes it a string; that is precisely why the shipped
+walk resolves the `ref` arm. `NuLl` and the quoted `"null"` keep flagging, as do the other 167
+closed/numeric top-level fields.
+
+Verification: exhaustive batteries generated FROM THE LIVE READER (not sampled) — **167/167**
+still-flagged null probes quarto-REJECTED (0 surviving FPs) and **12/12** newly-silent probes
+quarto-ACCEPTED, so the matcher agrees with quarto 179/179 on the whole top-level null surface. A
+depth-50 re-scan with extra arms (`allOf`/`oneOf`/`arrayOf`/`object.properties`) finds the same 4
+names, so the depth-5 guard hides nothing. Break-revert-proven at both layers: a case-insensitive
+regex, an unanchored regex and an `!== false` gate each turn a distinct unit test red, and
+suppressing the annotation turns 6 integration tests red. The offline curated path carries zero
+exposure (no curated field is both closed and null-admitting). `check-types` clean; unit
+**1223→1241**; integration **417→420**.
+
 ### 2026-07-23 · [ad hoc] Session 146 — PLANNING: general top-level document-key VALUE validation in `_quarto.yml`
 
 Wrote `docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md` (commit `0c1a149`):
