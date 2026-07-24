@@ -19,7 +19,7 @@
  */
 
 import { findFrontMatter, frontMatterContentLines, scanFlow } from "./qmd/model";
-import { isMappingSeparator, topLevelSlots } from "./yaml-context";
+import { mappingColonAt, topLevelSlots, valueSlotAfterColon } from "./yaml-context";
 
 /** One top-level front-matter line that carries a non-empty scalar value. */
 export interface FrontMatterValueLine {
@@ -84,46 +84,34 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
       openQuote = s.quote;
       continue; // inside a multi-line flow/quoted value — skip continuation lines
     }
-    const { keySlot, valueSlot } = topLevelSlots(lineText);
-    if (keySlot === null || valueSlot === null) {
-      continue; // not a top-level mapping line, or no colon → no value to check
+    const { keySlot } = topLevelSlots(lineText);
+    if (keySlot === null) {
+      continue; // an indented / sequence / comment line — not a top-level mapping
     }
-    if (!isMappingSeparator(lineText, lineText.indexOf(":"))) {
-      // The colon does not separate a key from a value, so this line hosts no mapping
-      // value: on `toc:: true` YAML's key is `toc:` (quarto accepts it on this OPEN key
-      // set and renders exit 0) and on `toc:banana` the whole line is a plain scalar.
-      // Emitting either would let the matcher flag a line quarto accepts, or a line whose
-      // key we misread — the cardinal-sin FP this guard removes (plan §2.8/P2).
-      //
-      // Applied HERE rather than inside `topLevelSlots` because that grammar is shared
-      // with COMPLETION, which must keep offering values on a `key:value` line — it is a
-      // user mid-typing, and the provider repairs it by prepending a space (S148).
-      //
-      // ⚠ Re-find the colon rather than reusing `keySlot.endCol`: the key span has its
-      // trailing blanks trimmed, so on `toc : banana` it ends at 3 while the colon is at 4
-      // — asking about index 3 reads the colon ITSELF as the following character and
-      // wrongly skips a real mapping quarto validates (`toc : true` exit 0, `toc : banana`
-      // exit 1, both firsthand-verified). A value slot exists here, so the colon is present.
-      //
-      // ⚠ This `continue` also skips the `scanFlow` ARMING below, and that is safe for a
-      // structural reason worth stating: a multi-line quoted scalar or flow collection can
-      // only OPEN as the VALUE of a mapping. If the colon is not a separator there is no
-      // value, so a token that looks like an opener (`title:"a long title that wraps`) is
-      // just text in a plain scalar — which makes the following mapping-looking line a YAML
-      // PARSE error. Verified firsthand on every such shape: quarto exits 1 with a
-      // YAMLException, on both surfaces, for both the quote and the flow form. So the
-      // continuation line we now emit is on a document quarto REJECTS — agreement, not the
-      // cardinal-sin FP. (With the space, `title: "…` renders exit 0, the colon IS a
-      // separator, the guard passes, and the arming works exactly as before.)
+    // The mapping colon is the first colon that is a real YAML key/value SEPARATOR,
+    // scanned forward — NOT `topLevelSlots`' value slot, which is built from the raw
+    // first colon because COMPLETION needs it that way (a `key:value` line is a user
+    // mid-typing there, repaired by prepending a space; see the note in that function).
+    // For DIAGNOSTICS the same line is simply not a mapping, so key and value are both
+    // re-derived here from the separator: on `a:b: banana` the key is `a:b`, and on
+    // `toc:: true` it is `toc:` — neither resolves to a schema field, so both are
+    // silently skipped, while the value still arms the multi-line continuation guard.
+    const colon = mappingColonAt(lineText);
+    if (colon < 0) {
+      // No separator anywhere: `toc:banana` is a plain scalar, which quarto REJECTS
+      // (exit 1). Staying silent is a false negative, the safe direction — and with no
+      // value on the line there is nothing that could have opened a multi-line scalar,
+      // so skipping the `scanFlow` arming below is safe too (plan §2.8/P2, S148).
       continue;
     }
+    const valueSlot = valueSlotAfterColon(lineText, colon);
     const rawToken = lineText.slice(valueSlot.startCol, valueSlot.endCol);
     if (rawToken.length === 0) {
       continue; // block-opener / comment-only value → no scalar to validate
     }
     result.push({
       line: baseLine + i,
-      key: lineText.slice(keySlot.startCol, keySlot.endCol),
+      key: lineText.slice(0, colon).replace(/[ \t]+$/, ""),
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       rawToken,
     });

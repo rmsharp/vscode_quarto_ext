@@ -97,13 +97,18 @@ describe("findFrontMatterValueLines — value-token grammar (quotes, comments, m
 });
 
 describe("findFrontMatterValueLines — the key/value SEPARATOR guard (P2, THE cardinal-sin FP, plan §2.8)", () => {
-  it("does NOT emit a `key:: value` top-level line (quarto renders it exit 0)", () => {
+  it("parses `key:: value` at the SEPARATOR — key `toc:`, not `toc` (quarto renders it exit 0)", () => {
     // YAML's key is `toc:`, not `toc`. The `.qmd` front-matter top level is an OPEN key
     // set, so quarto accepts the odd key and renders exit 0 (firsthand-verified, S148),
-    // while splitting at the first colon yields the bogus value token `: true` — which
+    // while splitting at the FIRST colon yields the bogus value token `: true` — which
     // the matcher flags against toc's closed boolean enum. A cardinal-sin false positive.
+    // Scanning forward to the real separator makes the key `toc:`, which matches no
+    // schema field, so the feature skips it exactly as it skips any unknown key. The
+    // no-diagnostic end state is locked in the integration suite.
     const text = ["---", "toc:: true", "---"].join("\n");
-    expect(findFrontMatterValueLines(text)).toEqual([]);
+    expect(findFrontMatterValueLines(text)).toEqual([
+      { line: 1, key: "toc:", valueRange: { startCol: 6, endCol: 10 }, rawToken: "true" },
+    ]);
   });
 
   it("does NOT emit a `key:value` line with NO space (quarto exit 1 — an accepted safe FN)", () => {
@@ -136,6 +141,17 @@ describe("findFrontMatterValueLines — the key/value SEPARATOR guard (P2, THE c
     // cardinal-sin FP. Locked so a future change to the guard's placement surfaces here.
     const text = ["---", 'title:"a long title that wraps', 'columns: wide"', "---"].join("\n");
     expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["columns"]);
+  });
+
+  it("ARMS the multi-line skip when a LATER colon is the separator (`a:b: \"text` — quarto exit 0)", () => {
+    // §9-review finding, confirmed firsthand. The guard asked only about the FIRST colon,
+    // but here the SECOND one is the separator: YAML's key is `a:b` and its value opens a
+    // multi-line quoted scalar that folds the next line in. quarto renders it exit 0.
+    // Treating the line as a non-mapping skipped the scanFlow arming, so `columns: wide"`
+    // was emitted and flagged — a cardinal-sin FP this session INTRODUCED. The fix is to
+    // scan forward for the first colon that IS a separator, not to judge the first colon.
+    const text = ["---", 'a:b: "a long value that wraps', 'columns: wide"', "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["a:b"]);
   });
 
   it("STILL arms the multi-line skip from a real separator opener (`title: \"…` renders exit 0)", () => {
