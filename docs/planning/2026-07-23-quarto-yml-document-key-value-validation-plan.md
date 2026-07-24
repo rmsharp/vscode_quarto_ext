@@ -232,6 +232,16 @@ by `qmdsim.cjs`), per-format options **1–3** depending on format (`revealjs` 3
 surfaces), cell options **0**, curated `execute` **0**, `projectFields` **0**. The planned column-0
 surface would add a fourth exposure.
 
+> **Correction (Session 147, while implementing §4.0 — the count above is right about the FP, wrong
+> about the schema).** "Exactly 3 fields in all of Quarto 1.7.33" is the count of fields that admit
+> null **and are validated**. **Four** names admit a literal null: the three above plus `output-file`
+> (`ref: pandoc-format-output-file`), which resolves **OPEN** and so was never validated and never a
+> false positive. S146's `nullscan.ts` could not see it because its walk treated `node.ref` as an
+> object when the DSL makes it a **string**, so it never resolved into `definitions.yml`. This is
+> direct evidence for the §4.0 L1 requirement to walk EVERY arm: the shipped `acceptsNullOfSchema`
+> resolves `ref`, and a null-admitting enum moving behind one is now caught. The FP counts, the
+> per-surface blast radius, and the design in §4.0 are all unaffected.
+
 **Consequence for this plan:** the general document-key slice cannot go live before A is fixed, or
 it knowingly ships a cardinal-sin FP on a new surface. A is specified as a prerequisite slice in
 **§4.0** (its own session — the S139 precedent for a cross-surface correctness fix).

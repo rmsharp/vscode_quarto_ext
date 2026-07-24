@@ -483,7 +483,14 @@ bucket.)**
   compares `169.0`≡`169`/`3.0`≡`3` numerically, removing ≥3 live `aspectratio` false positives and restoring
   `version` validation), AND a wrong closed value of a top-level `execute:` block's children in `_quarto.yml`
   (`echo`/`cache`/`freeze`/`error`/`daemon`/…; Session 141 — reusing the SAME `frontMatterKeys(["execute"])`
-  reader + `isWrongValue` matcher the `.qmd` document surface uses, S128, so the two surfaces agree exactly)
+  reader + `isWrongValue` matcher the `.qmd` document surface uses, S128, so the two surfaces agree exactly),
+  AND — Session 147, the second cross-surface CORRECTNESS fix after S139 — the NULL ARM: a field whose
+  schema lists a literal `null` enum member (`auto-play-media`, `preload-iframes`,
+  `ipynb-shell-interactivity`) no longer has its `key: null`/`~`/`Null`/`NULL` flagged, because
+  `valuesOfSchema` silently DROPPED that member from `values` while `closednessOfSchema` still
+  marked the field CLOSED — removing 3 live false positives reachable from the `.qmd` top level,
+  the `.qmd` per-format path, and `_quarto.yml`'s `format:` container, while the case-inexact `NuLl`
+  and the quoted `"null"` (both quarto-rejected) keep flagging
   — empirically the regions safe to flag without false positives (see `BACKLOG.md`'s
   "Polish / deferred" for known false-negative edge cases). The remaining gap on our side is narrower
   still: `.ipynb` cell/front-matter values, the DEEPER `_quarto.yml`-config container values
@@ -830,7 +837,12 @@ can do" scope, included for completeness rather than as a strict real-gap claim.
    `project.preview.browser`/…; all SHIPPED); Session 139 corrects numeric-MEMBER enums (`aspectratio`,
    `google-analytics.version`) to validate by COERCED numeric value on both the document and project
    surfaces — removing ≥3 live `aspectratio` false positives (`169.0`/`+169`/`0169`) and restoring
-   `version` validation (`version: 5` now flagged, `3.0`≡`3` accepted); Session 143 adds per-format option VALUE validation under
+   `version` validation (`version: 5` now flagged, `3.0`≡`3` accepted); Session 147 corrects the NULL ARM on
+   every surface — a schema `enum` listing a literal `null` had that member dropped from `values` while the
+   field stayed CLOSED, so `auto-play-media: null` (and `~`/`Null`/`NULL`) was flagged though `quarto render`
+   exits 0; **3 validated fields** Quarto-wide (a 4th, `output-file`, admits null behind a `ref` but
+   resolves OPEN, so it was never validated and never a false positive), 3 live false positives removed;
+   Session 143 adds per-format option VALUE validation under
    `_quarto.yml`'s `format:` → `<fmt>:` blocks (`format:\n  html:\n    toc: banana` etc., all SHIPPED). Only `.ipynb`, the DEEPER `_quarto.yml`-config values
    (depth-3+, the scalar `format:` NAME, and the general document-key case in `_quarto.yml`; the `execute:` half shipped Session 141, the `format:` per-format OPTION values Session 143), and integer-typed pandoc-layer rejections remain open;
    unknown front-matter/cell KEYS stay intentionally unflagged (open schemas). Built on the existing schema reader (`src/core/yaml-schema.ts`).
