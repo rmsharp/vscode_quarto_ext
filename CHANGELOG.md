@@ -7,6 +7,40 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-23 · [ad hoc] Session 148 — IMPLEMENTATION: PREREQUISITE P2, the key/value-separator FP fix (SHIPPED)
+
+Implemented `docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md` §2.8 + §4.0b —
+the second prerequisite of that plan's 3-session arc, under the project-wide strict-TDD gate.
+
+YAML's block-mapping key/value separator is a colon followed by space, tab, or end of line. Every
+value path instead split at the first colon, so `toc:: true` — whose real key is `toc:`, unknown but
+ACCEPTED on an OPEN key set, `quarto render` 1.7.33 exit 0 — was read as key `toc` with the bogus
+value token `: true` and flagged. A cardinal-sin false positive, live on shipped code.
+
+FOUR value paths carried it, not the two the plan named: `findProjectConfigValueLines`,
+`findFrontMatterValueLines`, `findNestedFrontMatterValueLines` (unnamed by the plan, found by grep +
+firsthand render), and the `#|` CELL-OPTION loop (found only by the mandatory §9 review). It was also
+live at DEPTH-2 under `website:`, which the plan's table had recorded as agreement. A 36-case battery
+across all four surfaces, every case paired with a firsthand quarto exit code: 14 measured
+cardinal-sin FPs → 0, with 7 residual false negatives, every one on a document quarto rejects.
+
+Two design rules the implementation had to discover, both now recorded in-code and in the plan for
+the remaining slice:
+- The rule is DIAGNOSTICS-side. Applying it inside the shared `topLevelSlots`/`slotsOf` grammar
+  removes a deliberate completion affordance (on a `key:value` line the provider offers the value
+  with a prepended space, repairing a user mid-typing). It belongs in each value path instead.
+- It must SCAN FORWARD to the first separator colon (`mappingColonAt`), never merely test the first
+  one: on `a:b: "text` a later colon is the separator, and treating the line as a non-mapping loses
+  the `scanFlow` arming and flags the folded continuation on a doc quarto renders exit 0 — an FP this
+  session introduced and the §9 review caught.
+
+Commits: `ebecd3d` L1 [INERT] · `9cdcd23` L2 [GO-LIVE] `_quarto.yml` · `1217b86` L3 + `a43f758` L4a
+(guard moved out of the shared grammar) · `c83ef87` L4b `.qmd` nested · `6bc3cd0`/`20b8799` L5 locks
+in a real host · `893045a` L6 arming · `ffd0ac4` doc-drift · `d150c45`/`7c496fd`/`db480f2` L7
+`mappingColonAt` · `48dc384` L8 cell options · `d1cb06c` doc reconcile.
+unit 1241 → 1278; integration 420 → 425; check-types clean.
+
+
 ### 2026-07-23 · [ad hoc] Session 147 — IMPLEMENTATION: PREREQUISITE P, the null-enum-member FP fix (SHIPPED)
 
 Implemented `docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md` §2.5 + §4.0 —
