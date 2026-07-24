@@ -854,6 +854,30 @@ P shipping first*.
    of the file — silently disabling every shipped `_quarto.yml` value diagnostic below it. Strip a
    leading `&anchor`/`!tag`, then arm only on a leading `"`/`'`/`[`/`{`. Write the L2(e) lock; if it
    is green before your change, you transcribed the arming rule wrong.
+
+   > **Correction (Session 149, implementing §4.1 — three things this dragon gets wrong, all
+   > measured).**
+   >
+   > 1. **The L2(e) lock IS green before the change.** The shipped column-0 branch `continue`s
+   >    *before* the arming, so nothing arms at column 0 today and `title: Don't Panic` is
+   >    harmless. L2(e) is an **anti-regression** lock, not an FP reproduction; it goes RED only
+   >    once the restructure lands *with* the arming transcribed whole-token (verified both ways,
+   >    including through a real Extension Development Host, where widening reddens 3 integration
+   >    tests).
+   > 2. **Narrowing the arming is necessary but NOT sufficient, and on its own it opens a NEW
+   >    cardinal-sin FP.** The arming sits at the END of the loop body, behind five scope
+   >    `continue`s. A multi-line value opened on a line the enumerator SKIPS — under an
+   >    unrecognized top-level block, on a block-sequence item, at depth-3+, with no open child
+   >    scope, or after a dedent — arms nothing, so once column-0 lines are emitted its folded
+   >    continuation becomes a flagged "document key" on a file quarto renders exit 0
+   >    (`custom:\n  note: "multi\ntoc: banana\n  end"`). **The arming must therefore be hoisted
+   >    ABOVE every scope guard**, not merely narrowed. Found by the §9 review, not by the
+   >    author's 82-case battery — every one of whose fold cases opened the value on a line the
+   >    enumerator emits.
+   > 3. **The arming token is not always the value after the separator.** A block-SEQUENCE item
+   >    whose own scalar is quoted (`- "intro.qmd`) has no separator colon at all, so S148's
+   >    "no colon ⇒ no value ⇒ nothing to arm" reasoning — sound for a mapping line — does not
+   >    apply. Use the line's content past a leading `- ` when there is no separator.
 3. **🔴 The KEY enumerator must stay blind to column 0.** The top level of `_quarto.yml` is an OPEN
    set (`custom-thing: whatever` → exit 0). `findProjectConfigKeyLines` (`:75`) and
    `PROJECT_CONFIG_CONTAINERS` (`:18`) are untouched; write the isolation lock (L2f). This is the
@@ -871,6 +895,15 @@ P shipping first*.
    deliberate `.qmd`-vs-`_quarto.yml` divergence (§9 lens 3) — expected, fixture-locked, not a bug.
 7. **Ground every fixture value single-valued** (S139 lesson): quarto reports only the first schema
    error per render.
+
+   > **Correction (Session 149, §9 review's fp-cardinal lens — measured, not argued).** That is
+   > true of `.qmd` FRONT MATTER but **false for `_quarto.yml` project validation**:
+   > `readAndValidateYamlFromFile` reports **every** field error in one render (verified with a
+   > two-bad-key file — both `df-print` and `toc-location` reported). Single-valued grounding is
+   > therefore still *correct* on this surface but no longer *necessary*, and batching makes an
+   > exhaustive sweep ~170× cheaper. The lens used that to run **3,570 render-grounded
+   > comparisons** — all 170 flaggable top-level fields × 21 probe values — with **zero** false
+   > positives, which is a far stronger result than any hand-built battery.
 8. **Offline is a total FN here** (`CURATED_FRONTMATTER_KEYS` has no `valuesClosed`) — unlike
    `execute:`, which is offline-robust. Do not "fix" the curated fallback to close that gap; an
    unverified curated closedness is how a cardinal-sin FP gets shipped offline.
