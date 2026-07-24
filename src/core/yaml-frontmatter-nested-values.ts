@@ -108,13 +108,57 @@ export function findNestedFrontMatterValueLines(
       openQuote = s.quote;
       continue; // inside a multi-line flow/quoted value — skip continuation lines
     }
+    const trimmed = lineText.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) {
+      continue; // blank / comment — hosts no value to arm or emit
+    }
     const indent = leadingWsLen(lineText);
+
+    // ── ARM THE CONTINUATION GUARD FIRST, INDEPENDENT OF EMISSION SCOPE ──
+    // Mirrors the `_quarto.yml` value enumerator (`project-yaml.ts:findProjectConfigValueLines`)
+    // and the top-level `.qmd` sibling. A multi-line quoted/flow value can be OPENED on a line
+    // this NESTED pass does not emit — a COLUMN-0 line (skipped as the top-level pass's job), a
+    // block-sequence item, a line under an unresolved container, a no-colon line — and it folds
+    // the following lines into itself even at depth, where there is NO column-0 backstop. Arming
+    // only from EMITTED lines (the OLD behavior) left those folds unguarded, so a nested
+    // mapping-looking continuation was read as a real mapping and flagged on a document quarto
+    // renders exit 0 — a cardinal-sin false positive (Defect B, grounded firsthand vs quarto
+    // 1.7.33, S153: `title: "My great\nexecute:\n  echo: banana\nend"` folds echo into title's
+    // string and there is no execute block at all). The arm token is the value after the
+    // separator when there is one, else the line's own content past a leading `- ` (a
+    // block-sequence mapping `- text: "Home` opens a quoted scalar that folds later lines in).
+    const colon = mappingColonAt(lineText, indent);
+    const valueSlot = colon < 0 ? null : valueSlotAfterColon(lineText, colon);
+    const rawToken = valueSlot === null ? "" : lineText.slice(valueSlot.startCol, valueSlot.endCol);
+    const armToken =
+      valueSlot === null ? lineText.slice(indent).replace(/^-[ \t]*/, "").trimEnd() : rawToken;
+    // Arm only for a token whose FIRST character (past a stripped leading node property
+    // `&anchor `/`!tag `) opens a quoted/flow scalar — deliberately NOT a `scanFlow` over the
+    // WHOLE token. The whole-token scan arms a phantom quote from an inner apostrophe in a plain
+    // scalar (`toc-title: Don't skip` → a `'` that swallows the following nested keys, silently
+    // disabling their validation — Defect A). Stripping the node property BEFORE the first-char
+    // test keeps an anchored/tagged flow opener `foo: &a { …` arming (its brackets are then
+    // counted by the whole-token scan), which is the case the OLD whole-token form existed for.
+    if (armToken.length > 0) {
+      const opener = armToken.replace(/^(?:[&!][^\s]*[ \t]+)+/, "")[0];
+      if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
+        const s = scanFlow(armToken, 0, null);
+        if (s.depth > 0) {
+          flowDepth = s.depth;
+        }
+        if (s.quote !== null) {
+          openQuote = s.quote;
+        }
+      }
+    }
+
+    // ── EMISSION (indented, resolvable nested mappings only) ──
     if (indent === 0) {
       continue; // a column-0 line is the top-level enumerator's job, not here
     }
     const rest = lineText.slice(indent);
-    if (rest.startsWith("-") || rest.startsWith("#")) {
-      continue; // a block-sequence item / comment hosts no nested mapping value
+    if (rest.startsWith("-")) {
+      continue; // a block-sequence item hosts no nested mapping value of its own
     }
     // The CONTAINER path (excluding this line's key) via the SAME tested ancestor walk
     // completion uses. `null` ⇒ skip: an unresolvable structure, a non-`format` column-0
@@ -124,32 +168,18 @@ export function findNestedFrontMatterValueLines(
     if (parentPath === null) {
       continue;
     }
-    // The mapping colon is the FIRST colon at/after the indent (a colon inside the value,
-    // e.g. `subtitle: a: b`, stays in the value — mirrors the top-level grammar; a quoted
-    // key with an embedded colon is a rare safe false negative, plan §7.9).
-    const colon = mappingColonAt(lineText, indent);
-    if (colon < 0) {
+    if (colon < 0 || valueSlot === null) {
       // No key/value separator anywhere on the line, so it hosts no mapping value:
-      // `echo:banana` is a plain scalar, which quarto REJECTS (exit 1). A safe false
-      // negative — the same rule the other two enumerators apply (plan §2.8/P2).
-      //
-      // ⚠ This `continue` also skips the `scanFlow` ARMING below. That is safe ONLY because
-      // `mappingColonAt` scanned the WHOLE line first: reaching here means the line has no
-      // separator colon at all, so it hosts no value, so nothing could have opened a
-      // multi-line scalar — and the following mapping-looking line is then a YAML PARSE
-      // error quarto rejects (firsthand: exit 1 with a YAMLException, both surfaces, quote
-      // and flow forms alike). An earlier form of this guard judged only the FIRST colon,
-      // which broke exactly here: on `a:b: "text` a LATER colon IS the separator, the value
-      // DOES open a quoted scalar, and skipping the line lost the arming and flagged the
-      // folded continuation on a document quarto renders exit 0 (§9 review, S148).
+      // `echo:banana` is a plain scalar, which quarto REJECTS (exit 1) — a safe false negative,
+      // the same rule the other two enumerators apply (plan §2.8/P2). The arm token above was
+      // still computed from the whole line, so a no-colon line that opens a quoted scalar (a
+      // sequence item) has already armed the guard; only the EMISSION is skipped here.
       continue;
     }
     const key = lineText.slice(indent, colon).replace(/[ \t]+$/, "");
     if (key.length === 0) {
       continue; // `: value` with no key — malformed, nothing to resolve
     }
-    const valueSlot = valueSlotAfterColon(lineText, colon);
-    const rawToken = lineText.slice(valueSlot.startCol, valueSlot.endCol);
     if (rawToken.length === 0) {
       continue; // block-opener (`html:` / `theme:`) or still-typing → no scalar to validate
     }
@@ -160,17 +190,6 @@ export function findNestedFrontMatterValueLines(
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       rawToken,
     });
-    // Arm the continuation-skip if THIS value opens an unclosed flow collection OR an
-    // unterminated quoted scalar. Evaluated over the WHOLE token (never a first-char
-    // `/^[[{]/` test) so an anchored/tagged opener `foo: &a { …` — whose token starts with
-    // `&` — still arms its flow (plan §7.1b), and `title: "text…` arms its quote.
-    const s = scanFlow(rawToken, 0, null);
-    if (s.depth > 0) {
-      flowDepth = s.depth;
-    }
-    if (s.quote !== null) {
-      openQuote = s.quote;
-    }
   }
   return result;
 }

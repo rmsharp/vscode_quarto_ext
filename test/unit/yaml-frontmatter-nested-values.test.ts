@@ -255,3 +255,37 @@ describe("findNestedFrontMatterValueLines — multi-line QUOTED scalars (review 
     expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["fig-title"]);
   });
 });
+
+describe("findNestedFrontMatterValueLines — arming discipline parity with findProjectConfigValueLines (BACKLOG: .qmd sibling-enumerator OLD arming, Session 153)", () => {
+  // The same two arming defects fixed in the top-level sibling, at depth (grounded firsthand
+  // vs quarto 1.7.33):
+  //  • Defect B (the cardinal-sin FALSE POSITIVE): the guard was armed only from EMITTED
+  //    (indented, resolvable) lines, so a multi-line quoted scalar opened on a SKIPPED line —
+  //    a COLUMN-0 line, which this enumerator skips as the top-level pass's job — left its fold
+  //    unguarded, and a nested mapping-looking line folded inside it was emitted and flagged on
+  //    a document quarto renders exit 0.
+  //  • Defect A (the false NEGATIVE): the whole-token arm set a phantom quote from an inner
+  //    apostrophe in a plain nested scalar, swallowing the following nested keys.
+  it("Defect B: does NOT emit a nested key folded inside a COLUMN-0 multi-line quoted scalar", () => {
+    // `title: "My great` opens a double-quoted scalar at column 0 — the nested enumerator skips
+    // column-0 lines, so the OLD code never armed here; `execute:` and `  echo: banana` are all
+    // FOLDED into title's string and there is no execute block at all (quarto exit 0, grounded
+    // firsthand). Arming from every scalar line (including the skipped column-0 one) suppresses
+    // the folded `echo` the OLD code emitted+flagged.
+    const text = ["---", 'title: "My great', "execute:", "  echo: banana", 'end"', "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual([]);
+  });
+
+  it("Defect A: STILL emits a nested key after an apostrophe-bearing plain scalar sibling", () => {
+    // `toc-title: Don't skip` is a plain scalar (the `'` is literal, quarto exit 0) — it must NOT
+    // arm a quote. `number-sections: banana` below it is a real invalid boolean (quarto exit 1)
+    // and MUST be emitted; the OLD whole-token arm set a phantom `'` that swallowed it.
+    const text = ["---", "format:", "  html:", "    toc-title: Don't skip", "    number-sections: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["toc-title", "number-sections"]);
+  });
+
+  it("control: a PLAIN nested closed-enum value is still emitted (no over-suppression)", () => {
+    const text = ["---", "format:", "  html:", "    number-sections: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["number-sections"]);
+  });
+});
