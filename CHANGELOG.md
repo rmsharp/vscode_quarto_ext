@@ -7,6 +7,32 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-24 · [ad hoc] Session 152 — IMPLEMENTATION: format-name Combo 3 — validate the top-level scalar `format:` NAME in `_quarto.yml` (SHIPPED)
+
+Closed the last top-level-scalar divergence between the `.qmd` and `_quarto.yml` value surfaces: a
+wrong output-format NAME at column 0 of `_quarto.yml` (`format: banana`) now squiggles, matching
+`quarto render` 1.7.33's `_quarto.yml` schema-layer rejection (grounded firsthand: exit 1, `Field
+"format" has value banana, which must instead be 'ansi'`). Implemented as a ~15-line branch in
+`src/features/yaml-project-value-diagnostics.ts`'s `"document"` arm running the SAME bespoke
+predicate the `.qmd` surface has used since S145 (null-gate → flow/block/backslash hygiene skip →
+`unquote` → `isKnownFormatName` → `formatNameMessage`), NOT `isWrongValue` (which cannot see
+`format` — its names are injected after closedness annotation, so `valuesClosed` stays unset).
+Unblocked by S149's column-0 `container:"document"` emission. The backslash hygiene skip is the P3
+escape-decoding guard (S151) carried onto this surface exactly as the S151 handoff warned:
+`format: "\x68tml"` decodes to `html` (quarto exit 0) but `unquote` does no escape decoding, so
+without the guard `isKnownFormatName` would miss and flag a value quarto accepts. Strict TDD:
+integration RED (2 tests, `format: banana` → 0 diagnostics) → GREEN. FP-safety owned firsthand
+in-session: 0 cardinal FPs across 37 format-name shapes, cross-checking feature-decision vs real
+quarto. Mandatory §9 review (Workflow `wf_e8d7c0c9-7da`, 5 lenses): over-suppression /
+branch-interaction / re-grounding CLEAN and non-vacuous (an independent ~45-value FP battery, 0 FPs);
+survivors were 1 LOW safe-FN missed site (`_metadata.yml`, filed not fixed) + 5 doc-staleness items
+(`docs/POSIT-COMPARISON.md`, a unit-test comment, 3 planning snapshots — all fixed;
+`PROJECT_LEARNINGS.md` #155 correctly left as append-only). Commits: 1B claim `a672255`; prep
+`4d3baed` (retire the format:banana FN-lock from the document-key fixture); feature `5f76f83`;
+doc-drift `da44f95` (Learning #10 whole-corpus reconcile); this close-out. check-types clean; unit
+1293; integration 436 → 441 (5 new tests). Removed Combo 3 (sub-item a) from `BACKLOG.md`; filed the
+`_metadata.yml` coverage gap.
+
 ### 2026-07-24 · [ad hoc] Session 151 — IMPLEMENTATION: PREREQUISITE P3, the escape-decoding FP (SHIPPED)
 
 Fixed a live cross-surface cardinal-sin false positive on shipped code. `unquote`
