@@ -117,6 +117,21 @@ describe("Quarto: cell-option VALUE diagnostics (.qmd, plan §4.1 Phase 1)", () 
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
   });
 
+  it("never flags a `key:: value` CELL OPTION — the separator FP (P2, the fourth surface)", async () => {
+    // The fourth value enumerator carrying this defect — found by the §9 review, not by
+    // my own battery, which varied the surface but never the cell-option axis. `slotsOf`
+    // (core/qmd/model.ts) splits at the first colon, so `#| echo:: banana` was read as key
+    // `echo` with the bogus value `: banana` and flagged, though quarto renders it exit 0
+    // (grounded single-valued: `#| echo:: true` and `#| echo:: banana` both exit 0, while
+    // `#| echo: banana` and `#| echo:banana` both exit 1).
+    const doc = await openActive(VALID_CELLS);
+    await new Promise((r) => setTimeout(r, 500));
+    const line = doc.getText().split(/\r?\n/).findIndex((t) => t === "#| echo:: banana");
+    assert.ok(line >= 0, "fixture drift: the `#| echo:: banana` row is gone");
+    const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === line);
+    assert.ok(hit === undefined, `#| echo:: banana renders exit 0 and must NOT be flagged (got: ${hit?.message})`);
+  });
+
   it("re-scans live on edit (debounced) and drops a diagnostic once the value is fixed", async () => {
     const doc = await openActive(CELL_OPTIONS);
     assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 3, 5000));

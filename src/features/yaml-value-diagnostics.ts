@@ -29,7 +29,7 @@ import * as vscode from "vscode";
 import { findCellOptionLines } from "../core/qmd/model";
 import { findFrontMatterValueLines } from "../core/yaml-frontmatter-values";
 import { findNestedFrontMatterValueLines } from "../core/yaml-frontmatter-nested-values";
-import { engineFor } from "../core/yaml-context";
+import { engineFor, mappingColonAt, valueSlotAfterColon } from "../core/yaml-context";
 import { isWrongValue, valueMessage, unquote } from "../core/yaml-value-check";
 import { isKnownFormatName, formatNameMessage } from "../core/format-name-check";
 import {
@@ -81,8 +81,22 @@ async function computeValueDiagnostics(
       continue; // block-sequence item, or no `:` yet — no value to validate
     }
     const lineText = lines[cell.line] ?? "";
-    const optionKey = lineText.slice(cell.keySlot.startCol, cell.keySlot.endCol);
-    const rawToken = lineText.slice(cell.valueSlot.startCol, cell.valueSlot.endCol);
+    // Re-derive key and value from the real YAML key/value SEPARATOR rather than from
+    // `cell.keySlot`/`cell.valueSlot`, which `slotsOf` builds from the FIRST colon.
+    // `#| echo:: banana` is a mapping whose key is `echo:` — unknown on this open set, so
+    // quarto renders it exit 0 — while the first-colon split yields key `echo` with the
+    // bogus value `: banana` and flags it: the cardinal-sin FP this session removes from
+    // the other three enumerators (plan §2.8/P2; this fourth surface found by the §9
+    // review). `slotsOf` itself is deliberately untouched because it is shared with
+    // cell-option COMPLETION, where `key:value` is a user mid-typing the provider repairs
+    // by prepending a space — the same diagnostics-side-only rule applied everywhere else.
+    const sep = mappingColonAt(lineText, cell.keySlot.startCol);
+    if (sep < 0) {
+      continue; // no separator anywhere (`#| echo:banana`) — quarto exit 1, a safe FN
+    }
+    const optionKey = lineText.slice(cell.keySlot.startCol, sep).replace(/[ \t]+$/, "");
+    const valueSlot = valueSlotAfterColon(lineText, sep);
+    const rawToken = lineText.slice(valueSlot.startCol, valueSlot.endCol);
     if (optionKey.length === 0 || rawToken.length === 0) {
       continue; // key or value still being typed
     }
@@ -95,9 +109,9 @@ async function computeValueDiagnostics(
     }
     const range = new vscode.Range(
       cell.line,
-      cell.valueSlot.startCol,
+      valueSlot.startCol,
       cell.line,
-      cell.valueSlot.endCol,
+      valueSlot.endCol,
     );
     const diagnostic = new vscode.Diagnostic(
       range,
