@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S153
+date: 2026-07-24
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). The .qmd sibling-enumerator OLD arming fix — bring findFrontMatterValueLines and findNestedFrontMatterValueLines up to the continuation-guard arming discipline findProjectConfigValueLines (src/core/project-yaml.ts) already has: (a) narrow arming to a token whose FIRST character opens a quoted/flow scalar instead of scanFlow-ing the WHOLE token (the phantom-quote false NEGATIVE — title: Don't Panic swallowing the block), and (b) arm from EVERY scalar-bearing line, not only emitted lines (the false-POSITIVE direction — a value opened on a skipped line leaves its fold unguarded and its continuation is flagged on a document quarto renders exit 0). Filed S149; the boundary the in-code comment at project-yaml.ts:299-303 points at. NOT measured on the .qmd surface, so it STARTS with a firsthand grounding pass. Operator-selected at Phase 0. ONE deliverable — this arming fix ONLY; NOT Combos 2/4, NOT the quoted-KEY divergence, NOT _metadata.yml (FM #26).
+```
+
+```handoff
 session: S152
 date: 2026-07-24
 status: complete
