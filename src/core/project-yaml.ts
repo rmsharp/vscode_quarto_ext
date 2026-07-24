@@ -173,20 +173,31 @@ export interface ProjectConfigValueLine {
 }
 
 /**
- * Enumerate every `project:`/`website:`/`book:` descendant that carries a non-empty
- * scalar VALUE — at DEPTH-1 (a direct child) or DEPTH-2 (a grandchild under a pure
- * block-opener child) — in document order, feeding `SchemaIndex.projectFields` (whose
- * fields now carry `.children`) + the shared `isWrongValue` matcher (depth-2 value
- * plan §3.2 B). Each emission carries a `path`: `[]` at depth-1, `[child]` at depth-2.
+ * Enumerate every line of a `_quarto.yml` that carries a non-empty scalar VALUE the
+ * feature can resolve, in document order, feeding the shared `isWrongValue` matcher:
+ *
+ * - a `project:`/`website:`/`book:`/`execute:`/`format:` descendant at DEPTH-1 (a direct
+ *   child) or DEPTH-2 (a grandchild under a pure block-opener child), resolved via
+ *   `SchemaIndex.projectFields` / `frontMatterKeys([...])` (depth-2 value plan §3.2 B);
+ * - a **COLUMN-0 document key** (`toc: banana`, `fig-width: wide`), emitted with the
+ *   synthetic `container:"document"`, resolved via `frontMatterKeys([])` — the SAME
+ *   reader the `.qmd` top-level front-matter surface has used since S125 (document-key
+ *   value plan §3.2 change A).
+ *
+ * Each emission carries a `path`: `[]` at depth-1 and at the document level, `[child]`
+ * at depth-2.
  *
  * A bounded TWO-level forward state machine. Container tracking is
  * `findProjectConfigKeyLines`'s (column-0 header sets scope; a genuine column-0 line
- * ends it). Above that: when a depth-1 line is a pure block-opener (`navbar:`, no
+ * ends it) — a column-0 line still ends the previous container's scope whether or not it
+ * is itself an opener; the document-level emission is layered on top of that reset, never
+ * instead of it. Above that: when a depth-1 line is a pure block-opener (`navbar:`, no
  * scalar), `childKey`/`childIndent` open a depth-2 scope; a depth-1 sibling or a
  * column-0 line closes it. Depth-3+ (`indent > childIndent`) and sequence-item
  * grandchildren are NOT emitted — the reader's `.children` is one level and the
  * enumerator caps at `path.length===1`, so deeper values are a safe false negative
- * (plan §4.2).
+ * (plan §4.2). Depth-2 UNDER a column-0 document key (`crossref:\n  chapters: banana`)
+ * is likewise not emitted — its own deferred slice.
  *
  * The load-bearing safety property this surface's KEY enumerator lacks is the
  * `scanFlow` continuation guard, and at DEPTH-2 it has NO column-0 backstop (a folded
@@ -195,7 +206,10 @@ export interface ProjectConfigValueLine {
  * collection is part of the value quarto accepts (renders exit 0), so emitting it and
  * letting the matcher flag it would be a cardinal-sin false positive. `scanFlow` (the
  * shared quote/flow-aware scanner) tracks both and skips continuation lines regardless
- * of level; over-skipping when ambiguous is the safe false-negative direction.
+ * of level; over-skipping when ambiguous is the safe false-negative direction. Column-0
+ * values are armed by the SAME tail as every other level — which is the whole reason the
+ * document-key emission is a restructure rather than a second grammar, and which fixes
+ * the FP that arming gap caused at column 0 (3 measured live cases; see the arming block).
  */
 export function findProjectConfigValueLines(text: string): ProjectConfigValueLine[] {
   const lines = stripBom(text).split(/\r?\n/);
@@ -230,40 +244,57 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
       continue; // blank/comment lines never affect container scope
     }
     const indent = leadingWsLen(lineText);
+    // Classify this line's level. `path === null` means out of scope (skip); `level` is the
+    // container marker the emission carries, and BOTH must be declared here, ABOVE the
+    // column-0 branch that now assigns them (dragon 10 — declaring `path` below it, where it
+    // used to live, is a TDZ error).
+    let path: string[] | null = null;
+    let level: ProjectConfigValueLine["container"] | null = null;
     if (indent === 0) {
       const key = mappingContainerKey(lineText);
       currentContainer = key !== null && isValueContainer(key) ? key : null;
       containerIndent = null; // reset; set on the first child line seen under it
       childKey = null;
       childIndent = null;
-      continue;
-    }
-    if (currentContainer === null) {
-      continue;
-    }
-    if (containerIndent === null) {
-      containerIndent = indent; // the first indented line under the container defines its depth
-    }
-
-    // Classify this line's level. `path === null` means out of scope (skip).
-    let path: string[] | null = null;
-    if (indent === containerIndent) {
-      childKey = null; // a depth-1 line ends any previous child's depth-2 scope
-      childIndent = null;
+      if (key !== null) {
+        continue; // a pure block-opener carries no scalar value of its own
+      }
+      // A column-0 `key: value` — a DOCUMENT key, validated against `frontMatterKeys([])`
+      // (document-key value plan §3.2 change A). Falling through to the SHARED emission tail
+      // (rather than opening a second grammar, §6 alt 2) is also what arms the continuation
+      // guard for these lines, which is the Defect-B fix: today the branch `continue`s first,
+      // so a mapping-looking line folded inside a column-0 multi-line quoted value is read as
+      // a real child and flagged on a document quarto renders exit 0 (measured firsthand, 3
+      // live cardinal-sin FPs — S149 cases G01/G02/H07).
+      level = "document";
       path = [];
-    } else if (indent > containerIndent) {
-      if (childKey === null) {
-        continue; // no open block-opener child (the depth-1 parent was a scalar) → skip
-      }
-      if (childIndent === null) {
-        childIndent = indent; // first grandchild line pins the depth-2 level
-      }
-      if (indent !== childIndent) {
-        continue; // depth-3+ (deeper than the depth-2 level) — capped, safe FN
-      }
-      path = [childKey];
+    } else if (currentContainer === null) {
+      continue;
     } else {
-      continue; // shallower than the child indent but not column 0 — malformed, skip
+      // UNCHANGED classification — but it must stay INSIDE this arm, including the
+      // `containerIndent` bootstrap, which is `null` on the column-0 path (dragon 10).
+      if (containerIndent === null) {
+        containerIndent = indent; // the first indented line under the container defines its depth
+      }
+      level = currentContainer;
+      if (indent === containerIndent) {
+        childKey = null; // a depth-1 line ends any previous child's depth-2 scope
+        childIndent = null;
+        path = [];
+      } else if (indent > containerIndent) {
+        if (childKey === null) {
+          continue; // no open block-opener child (the depth-1 parent was a scalar) → skip
+        }
+        if (childIndent === null) {
+          childIndent = indent; // first grandchild line pins the depth-2 level
+        }
+        if (indent !== childIndent) {
+          continue; // depth-3+ (deeper than the depth-2 level) — capped, safe FN
+        }
+        path = [childKey];
+      } else {
+        continue; // shallower than the child indent but not column 0 — malformed, skip
+      }
     }
 
     if (lineText.slice(indent).startsWith("-")) {
@@ -307,36 +338,62 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
     if (rawToken.length === 0) {
       // A pure block-opener. At DEPTH-1 it opens a depth-2 child scope; at DEPTH-2 it is
       // a depth-3 container we never descend into (childKey stays the depth-1 parent).
-      if (path.length === 0) {
+      // At the DOCUMENT level it opens nothing: depth-2 under a column-0 document key
+      // (`crossref:\n  chapters: banana`) is a separate, deferred slice (§4.3). A pure
+      // column-0 opener never even reaches here — `mappingContainerKey` catches it above —
+      // so this arm is for the residue `toc::`, whose separator is its SECOND colon.
+      if (path.length === 0 && level !== "document") {
         childKey = unquoteKey(rawKey);
         childIndent = null;
       }
       continue;
     }
-    // Scan the value token FIRST — over the WHOLE token, not a first-char test — so an
-    // anchored/tagged opener `foo: &a { …` still arms its flow and `title: "text…` arms
-    // its quote (mirrors `findNestedFrontMatterValueLines`).
-    const s = scanFlow(rawToken, 0, null);
-    if (s.depth > 0) {
-      flowDepth = s.depth;
-    }
-    if (s.quote !== null) {
-      openQuote = s.quote;
-    }
-    if (s.depth > 0 || s.quote !== null) {
-      // The value OPENS a multi-line quoted/flow scalar (`location: "nav\`, `x: [`). Its
-      // FOLDED result is unknowable from this opening line, and the raw opener token is not
-      // a plain scalar the matcher can reduce — yet quarto folds it and may ACCEPT it (an
-      // escaped-newline `"nav\<nl>bar"` folds to `navbar`, exit 0). Emitting the opener would
-      // let the matcher flag it against the closed enum = a cardinal-sin false positive (§9
-      // review HIGH — the closed-enum opener depth-1 shipped and this slice inherited). Skip
-      // emitting; the continuation guard (armed above) still skips the folded lines.
-      // Over-skipping when a value spans lines is the safe false-negative direction.
-      continue;
+    // Arm the multi-line continuation guard — but ONLY for a token that actually OPENS a
+    // quoted or flow scalar, decided by its FIRST character past any leading node property
+    // (`&anchor `/`!tag `). It is deliberately NOT a `scanFlow` over the whole token: that
+    // scan treats an unmatched quote/bracket ANYWHERE in the token as an opener, and at
+    // column 0 that is catastrophic — an ordinary `title: Don't Panic` (quarto exit 0) arms a
+    // phantom quote whose continuation guard then swallows EVERY remaining line of the file,
+    // silently disabling all `project:`/`website:`/`book:`/`execute:`/`format:` value
+    // validation below it. A column-0 `title:`/`description:` above the container blocks is
+    // the single most common `_quarto.yml` shape (document-key value plan §2.6/dragon 2).
+    //
+    // In a YAML plain scalar an inner quote/bracket is literal text, so narrowing is also
+    // simply more correct — it RESTORES true positives the whole-token scan dropped at
+    // depth-1 and depth-2 (`  title: Don't Panic` swallowed the rest of its container;
+    // `page-navigation: banana"` was never emitted though quarto rejects it — both measured
+    // firsthand, S149 cases H08/H12). Note it as a deliberate behavior change on those
+    // already-shipped surfaces, in the false-positive-removing direction.
+    //
+    // ⚠ The sibling `.qmd` enumerators (`yaml-frontmatter-values.ts`,
+    // `yaml-frontmatter-nested-values.ts`) still use the whole-token form. That is a
+    // deliberate scope boundary, not an oversight: narrowing them changes shipped `.qmd`
+    // behavior this slice's fixtures do not cover. Their blast radius is bounded by the
+    // front-matter fences rather than the file. Filed to `BACKLOG.md`.
+    const opener = rawToken.replace(/^(?:[&!][^\s]*[ \t]+)+/, "")[0];
+    if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
+      const s = scanFlow(rawToken, 0, null);
+      if (s.depth > 0) {
+        flowDepth = s.depth;
+      }
+      if (s.quote !== null) {
+        openQuote = s.quote;
+      }
+      if (s.depth > 0 || s.quote !== null) {
+        // The value OPENS a multi-line quoted/flow scalar (`location: "nav\`, `x: [`). Its
+        // FOLDED result is unknowable from this opening line, and the raw opener token is not
+        // a plain scalar the matcher can reduce — yet quarto folds it and may ACCEPT it (an
+        // escaped-newline `"nav\<nl>bar"` folds to `navbar`, exit 0). Emitting the opener would
+        // let the matcher flag it against the closed enum = a cardinal-sin false positive (§9
+        // review HIGH — the closed-enum opener depth-1 shipped and this slice inherited). Skip
+        // emitting; the continuation guard (armed above) still skips the folded lines.
+        // Over-skipping when a value spans lines is the safe false-negative direction.
+        continue;
+      }
     }
     result.push({
       line: i,
-      container: currentContainer,
+      container: level,
       path,
       key: unquoteKey(rawKey),
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },

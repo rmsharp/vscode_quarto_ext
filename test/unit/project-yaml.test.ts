@@ -578,6 +578,153 @@ describe("findProjectConfigValueLines — a top-level format: block's per-format
   });
 });
 
+describe("findProjectConfigValueLines — COLUMN-0 document keys (document-key value plan §3.2 change A)", () => {
+  it("emits a column-0 scalar with container:\"document\", path:[], span exact (the RED→GREEN driver)", () => {
+    const text = "toc: banana";
+    // `banana` spans cols 5..11 on `toc: banana`. A column-0 `key: value` is a DOCUMENT key —
+    // the document root has no opener line to name it, so the container marker is synthetic.
+    // Grounded: `quarto render` 1.7.33 rejects this at the SCHEMA layer (exit 1), the exact
+    // layer this family mirrors (S149 case A01).
+    expect(findProjectConfigValueLines(text)).toEqual([
+      { line: 0, container: "document", path: [], key: "toc", valueRange: { startCol: 5, endCol: 11 }, rawToken: "banana" },
+    ]);
+  });
+
+  it("is closedness-BLIND — emits open (title), unknown (custom-thing) and container-NAMED (project) column-0 scalars too; the FEATURE decides what to flag", () => {
+    // The enumerator enumerates; it does not resolve. Downstream the feature skips `title`
+    // (open — no `valuesClosed`), `custom-thing` (absent from the document field set: the
+    // `_quarto.yml` top level is an OPEN key set quarto ACCEPTS, so flagging it would be a
+    // cardinal-sin FP), and `project` (absent from the DOCUMENT field set — a safe FN; quarto
+    // rejects it). All three render exit 0 / exit 1 as noted in S149 cases C01/C02/D02.
+    const text = ["title: banana", "custom-thing: whatever", "project: banana"].join("\n");
+    expect(findProjectConfigValueLines(text).map((v) => ({ container: v.container, key: v.key, rawToken: v.rawToken }))).toEqual([
+      { container: "document", key: "title", rawToken: "banana" },
+      { container: "document", key: "custom-thing", rawToken: "whatever" },
+      { container: "document", key: "project", rawToken: "banana" },
+    ]);
+  });
+
+  it("does NOT emit a pure block-opener, still opens its container scope, and a column-0 scalar BETWEEN two containers breaks neither (S149 case I06)", () => {
+    // The container state machine is unchanged: a column-0 opener still opens scope, a genuine
+    // column-0 line still ends it, and the new document-level emission slots in between without
+    // disturbing either. `website:`/`project:` themselves emit nothing (no scalar value).
+    const text = ["website:", "  page-navigation: banana", "toc: banana", "project:", "  output-dir: docs"].join("\n");
+    expect(findProjectConfigValueLines(text).map((v) => ({ line: v.line, container: v.container, path: v.path, key: v.key }))).toEqual([
+      { line: 1, container: "website", path: [], key: "page-navigation" },
+      { line: 2, container: "document", path: [], key: "toc" },
+      { line: 4, container: "project", path: [], key: "output-dir" },
+    ]);
+  });
+
+  it("DEFECT-B LOCK: does NOT emit a mapping-looking line folded inside a COLUMN-0 multi-line QUOTED value, nor the opener itself (quarto exit 0 — 3 measured live FPs)", () => {
+    // THE cardinal-sin FP this slice removes. Column-0 lines used to `continue` before the
+    // `scanFlow` arming, so nothing armed at the document level and the folded `website:` +
+    // `page-navigation: banana` were read as a real container and child. `quarto render`
+    // 1.7.33 renders all three shapes **exit 0** — the whole thing is one `title` string —
+    // while the shipped code flagged `banana` (S149 cases G01/G02/H07, measured firsthand in
+    // both directions). Routing column-0 scalars through the SHARED emission tail arms the
+    // guard for them, which is why the fix is a restructure and not a second grammar.
+    const plain = ["title: \"multi", "website:", "  page-navigation: banana", "  more: text\""].join("\n");
+    expect(findProjectConfigValueLines(plain)).toEqual([]);
+    // The escaped-newline form quarto FOLDS to a valid member (`"nav\` + `bar"` → `navbar`).
+    const escaped = ["title: \"nav\\", "website:", "  page-navigation: banana", "  bar\""].join("\n");
+    expect(findProjectConfigValueLines(escaped)).toEqual([]);
+    // ANCHORED opener — the arming must look PAST a leading `&anchor `/`!tag ` node property.
+    // Not in the plan's list; found by this session's own grounding sweep (S149 case H07).
+    const anchored = ["title: &anchor \"multi", "website:", "  page-navigation: banana", "  x\""].join("\n");
+    expect(findProjectConfigValueLines(anchored)).toEqual([]);
+  });
+
+  it("DEFECT-B LOCK: the same for a column-0 FLOW collection, and emission RESUMES once the multi-line value closes (S149 cases G03/G05/H05/H06)", () => {
+    // A valid-YAML column-0 flow fold (comma-separated) renders exit 0; nothing inside it is a
+    // mapping. (Its non-comma sibling is invalid YAML — quarto rejects it at the PARSE layer,
+    // exit 1 — so that shape was never a false positive; see the S149 grounding note.)
+    const flow = ["custom-thing: [alpha,", "  website: beta,", "  page-navigation: banana]"].join("\n");
+    expect(findProjectConfigValueLines(flow)).toEqual([]);
+    const bracket = ["custom-thing: [", "  website,", "  page-navigation]"].join("\n");
+    expect(findProjectConfigValueLines(bracket)).toEqual([]);
+    // …and the guard must DISARM: a real document key after the closing quote/bracket is a
+    // true positive quarto reports (exit 1 SCHEMA), so over-skipping must not become permanent.
+    const resumes = ["title: \"a long title that wraps", "  onto the next line\"", "toc: banana"].join("\n");
+    expect(findProjectConfigValueLines(resumes).map((v) => ({ line: v.line, container: v.container, key: v.key }))).toEqual([
+      { line: 2, container: "document", key: "toc" },
+    ]);
+    const resumesFlow = ["custom-thing: [a,", "  b]", "toc: banana"].join("\n");
+    expect(findProjectConfigValueLines(resumesFlow).map((v) => v.key)).toEqual(["toc"]);
+  });
+
+  it("NARROWED-ARMING LOCK (dragon 2): a PLAIN scalar containing an apostrophe or bracket must NOT arm the continuation guard — it would swallow the rest of the file", () => {
+    // `scanFlow` scans the WHOLE token and treats ANY unmatched quote/bracket in it as opening
+    // a multi-line value. At column 0 that is catastrophic: `title: Don't Panic` (quarto exit 0)
+    // would arm a phantom quote and silently disable EVERY value diagnostic below it — and a
+    // column-0 `title:`/`description:` above the container blocks is the single most common
+    // `_quarto.yml` shape. So the arming must NARROW: strip a leading `&anchor `/`!tag `, then
+    // arm only if the first remaining character opens a quoted or flow scalar.
+    // Every expectation below is a TRUE POSITIVE quarto reports (exit 1 SCHEMA — S149 cases
+    // H01/H02/H04/H10/H11); losing one is a regression, not a safe FN.
+    const apostrophe = ["title: Don't Panic", "website:", "  page-navigation: banana"].join("\n");
+    expect(findProjectConfigValueLines(apostrophe).map((v) => ({ container: v.container, key: v.key }))).toEqual([
+      { container: "document", key: "title" },
+      { container: "website", key: "page-navigation" },
+    ]);
+    const bracket = ["title: Panic [1", "website:", "  page-navigation: banana"].join("\n");
+    expect(findProjectConfigValueLines(bracket).map((v) => v.key)).toEqual(["title", "page-navigation"]);
+    // …and the same for a following DOCUMENT key, the shape with no container backstop at all.
+    const thenDoc = ["title: Don't Panic", "toc: banana"].join("\n");
+    expect(findProjectConfigValueLines(thenDoc).map((v) => v.key)).toEqual(["title", "toc"]);
+    // A CLOSED quoted token is not an opener either (it never was — the whole-token scan
+    // resolved it — but the narrowed rule must keep it that way).
+    const closed = ["title: \"closed\"", "toc: banana"].join("\n");
+    expect(findProjectConfigValueLines(closed).map((v) => v.key)).toEqual(["title", "toc"]);
+    // A quote at the END of a plain token opens nothing: `toc: banana"` is a plain scalar
+    // quarto REJECTS (exit 1), so emitting it is agreement. The whole-token scan armed here
+    // and dropped the true positive.
+    expect(findProjectConfigValueLines("toc: banana\"").map((v) => v.rawToken)).toEqual(["banana\""]);
+  });
+
+  it("KEY-ISOLATION LOCK (dragon 3): findProjectConfigKeyLines still returns [] for a document-key-only file — the OPEN document root must never reach the unknown-KEY feature", () => {
+    // Dragon 1 in its most dangerous form: the `_quarto.yml` top level is an OPEN key set —
+    // `custom-thing: whatever` renders exit 0 — so KEY validation at column 0 is a
+    // NON-STARTER, not a deferral. The two enumerators keep separate container predicates
+    // (`PROJECT_CONFIG_CONTAINERS` vs `VALUE_CONTAINERS`), and "document" is in NEITHER: it is
+    // the absence of a container. Teaching the KEY enumerator about column 0 would turn this red.
+    const text = ["toc: banana", "custom-thing: whatever", "title: Some Title"].join("\n");
+    expect(findProjectConfigKeyLines(text)).toEqual([]);
+    // Sanity: the VALUE enumerator DOES see all three (the predicates genuinely differ).
+    expect(findProjectConfigValueLines(text).map((v) => v.container)).toEqual(["document", "document", "document"]);
+  });
+
+  it("carries the shipped hygiene through to column 0: separator scan-forward (P2), quoted key, space-before-colon, tab separator, BOM and CRLF", () => {
+    // `toc:: true` — YAML's key is `toc:` (unknown on an OPEN key set → quarto exit 0), so the
+    // separator is the SECOND colon and the emitted key must be `toc:`, which resolves against
+    // no schema field and is silently skipped. Judging the FIRST colon would emit key `toc`
+    // with the bogus token `: true` and flag a document quarto accepts (P2, S148; S149 case E01).
+    expect(findProjectConfigValueLines("toc:: true").map((v) => ({ key: v.key, rawToken: v.rawToken }))).toEqual([
+      { key: "toc:", rawToken: "true" },
+    ]);
+    // `toc:banana` has no separator anywhere — a plain scalar document, quarto exit 1. Silent
+    // is the accepted safe FN (S149 case D06).
+    expect(findProjectConfigValueLines("toc:banana")).toEqual([]);
+    // A quoted column-0 key unquotes to its schema-comparable name (quarto exit 1 — I01).
+    expect(findProjectConfigValueLines("\"toc\": banana").map((v) => v.key)).toEqual(["toc"]);
+    // Trailing blanks are trimmed off the key span, so `toc : banana` still resolves (I02).
+    expect(findProjectConfigValueLines("toc : banana").map((v) => ({ key: v.key, rawToken: v.rawToken }))).toEqual([
+      { key: "toc", rawToken: "banana" },
+    ]);
+    // A TAB is a separator too, and `toc:\ttrue` renders exit 0 — a real mapping (I03).
+    expect(findProjectConfigValueLines("toc:\ttrue").map((v) => ({ key: v.key, rawToken: v.rawToken }))).toEqual([
+      { key: "toc", rawToken: "true" },
+    ]);
+    // A leading BOM must not glue itself to the first column-0 key (I05), and CRLF line
+    // endings must not leave a stray `\r` in the value token (I04).
+    expect(findProjectConfigValueLines("﻿toc: banana").map((v) => v.key)).toEqual(["toc"]);
+    expect(findProjectConfigValueLines("toc: banana\r\ncode-fold: banana\r\n").map((v) => ({ key: v.key, rawToken: v.rawToken }))).toEqual([
+      { key: "toc", rawToken: "banana" },
+      { key: "code-fold", rawToken: "banana" },
+    ]);
+  });
+});
+
 describe("isProjectConfigFileName — the filename gate is EXACT, never a suffix match (adversarial review, Session 47)", () => {
   it("accepts the exact basenames", () => {
     expect(isProjectConfigFileName("/a/b/_quarto.yml")).toBe(true);
