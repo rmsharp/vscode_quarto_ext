@@ -469,6 +469,14 @@ export function topLevelSlots(
  * ⚠ A carriage return is NOT accepted, and needs no arm: every caller reaches
  * this through a `/\r?\n/` split (verified exhaustively by grep, S148), so a
  * `\r` can never sit next to the colon.
+ *
+ * ⚠ A SECOND implementation of this same YAML rule already exists, privately, in
+ * `project-links.ts`'s `mappingColonIndex` (the document-link scanner) — which
+ * scans FORWARD for the first separator colon rather than judging a given one,
+ * and accepts any `/\s/` where YAML (and this predicate) allow only space/tab.
+ * Deliberately left alone rather than consolidated: that is a different feature
+ * with its own tests, and a cross-module refactor is plan-mode work. Filed to
+ * `BACKLOG.md` beside the two standing "consolidate the grammar" items (S148).
  */
 export function isMappingSeparator(lineText: string, colon: number): boolean {
   const next = lineText[colon + 1];

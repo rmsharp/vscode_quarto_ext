@@ -490,7 +490,15 @@ bucket.)**
   `valuesOfSchema` silently DROPPED that member from `values` while `closednessOfSchema` still
   marked the field CLOSED — removing 3 live false positives reachable from the `.qmd` top level,
   the `.qmd` per-format path, and `_quarto.yml`'s `format:` container, while the case-inexact `NuLl`
-  and the quoted `"null"` (both quarto-rejected) keep flagging
+  and the quoted `"null"` (both quarto-rejected) keep flagging,
+  AND — Session 148, the third such fix — the KEY/VALUE SEPARATOR: YAML's block-mapping separator is
+  a colon followed by space/tab/end-of-line, but all THREE value enumerators split at the first
+  colon, so `toc:: true` (whose real key is `toc:`, unknown but ACCEPTED on an OPEN key set, exit 0)
+  was read as key `toc` with the bogus value `: true` and flagged. Removing 14 measured live false
+  positives across every surface the family validates — the `.qmd` top level and nested paths, and
+  `_quarto.yml`'s `execute:`/`format:` containers plus DEPTH-2 under `project:`/`website:`/`book:`.
+  The rule is diagnostics-side only: completion still offers values on a `key:value` line, since
+  there it is a user mid-typing that the provider repairs by prepending the space
   — empirically the regions safe to flag without false positives (see `BACKLOG.md`'s
   "Polish / deferred" for known false-negative edge cases). The remaining gap on our side is narrower
   still: `.ipynb` cell/front-matter values, the DEEPER `_quarto.yml`-config container values
@@ -842,6 +850,13 @@ can do" scope, included for completeness rather than as a strict real-gap claim.
    field stayed CLOSED, so `auto-play-media: null` (and `~`/`Null`/`NULL`) was flagged though `quarto render`
    exits 0; **3 validated fields** Quarto-wide (a 4th, `output-file`, admits null behind a `ref` but
    resolves OPEN, so it was never validated and never a false positive), 3 live false positives removed;
+   Session 148 corrects the KEY/VALUE SEPARATOR on every surface — all three value enumerators split at
+   the first colon rather than at YAML's separator (a colon followed by space/tab/end-of-line), so
+   `toc:: true`, whose real key is `toc:` and which quarto ACCEPTS on an OPEN key set (exit 0), was read
+   as key `toc` with the bogus value `: true` and flagged; **14 measured live false positives removed**
+   across the `.qmd` top-level and nested paths and `_quarto.yml`'s `execute:`/`format:` containers and
+   DEPTH-2 under `project:`/`website:`/`book:`. Diagnostics-side only — completion still offers values on
+   a `key:value` line, where it is a user mid-typing the provider repairs by prepending the space;
    Session 143 adds per-format option VALUE validation under
    `_quarto.yml`'s `format:` → `<fmt>:` blocks (`format:\n  html:\n    toc: banana` etc., all SHIPPED). Only `.ipynb`, the DEEPER `_quarto.yml`-config values
    (depth-3+, the scalar `format:` NAME, and the general document-key case in `_quarto.yml`; the `execute:` half shipped Session 141, the `format:` per-format OPTION values Session 143), and integer-typed pandoc-layer rejections remain open;

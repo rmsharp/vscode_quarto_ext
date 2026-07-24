@@ -322,6 +322,32 @@ the surfaces this slice touches are the openest there are. Verified firsthand:
 **Fix:** after the colon scan, require the next character to be a space, a tab, or absent. One line in
 the shared tail covers the new column-0 arm *and* the shipped `execute:`/`format:` surfaces; the same
 guard in `topLevelSlots` covers the `.qmd` surfaces. Its only cost is the `toc:banana` safe FN above.
+
+> **Correction (Session 148, while implementing §4.0b — the defect is real and the fix works, but
+> this section under-counts the sites and mis-states one table row).**
+>
+> 1. **THREE enumerators split at the first colon, not two.** Besides `project-yaml.ts:260` and
+>    `topLevelSlots`, `yaml-frontmatter-nested-values.ts:125`
+>    (`findNestedFrontMatterValueLines`, the `.qmd` NESTED surface, S128) has its own
+>    `indexOf(":", indent)` and carried the same live FP: `execute:\n  echo:: true` and
+>    `format:\n  html:\n    toc:: banana` both render **exit 0** and were both flagged. Found by
+>    grep + firsthand render; fixed in the same slice.
+> 2. **The row "`page-navigation:: true` under `website:` → agreement, not an FP" holds only at
+>    DEPTH-1.** At depth-2, `website:\n  navbar:\n    collapse-below:: sm` renders **exit 0** and
+>    was a live FP. The one shared tail covers both depths, so the fix is unchanged — but the
+>    "closed key sets agree" reasoning is not a safe generalization.
+> 3. **The guard does NOT belong in `topLevelSlots`.** That grammar is shared with the COMPLETION
+>    providers, where a `key:value` line is a user mid-typing that `providers/yaml.ts` deliberately
+>    repairs by prepending a space. Putting the guard there removes that affordance (two integration
+>    tests caught the nested half; the top-level half was silent). The separator rule is
+>    **diagnostics-side**: it belongs in each of the three value ENUMERATORS.
+> 4. **A second false-negative class beyond `toc:banana`.** On a CLOSED key set, `type:: banana`
+>    and `page-navigation:: true` are quarto-REJECTED (exit 1) but we are now silent on both — the
+>    VALUE enumerator skips, and the KEY enumerator (untouched by design, dragon 3) still reads the
+>    known key before the colon. Safe direction, filed to `BACKLOG.md`, not fixed here.
+>
+> The design in §4.0b is otherwise unaffected: the predicate, its placement in the shared tail, and
+> the accepted `toc:banana` cost are all as specified.
 Because it changes SHIPPED behavior on other surfaces, it belongs in a prerequisite slice (§4.0 P2),
 exactly like Defect A.
 

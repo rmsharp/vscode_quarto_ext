@@ -178,6 +178,11 @@ function valueSpanOf(
  * `key:value`-no-space plain scalar) is NOT a mapping separator, so this avoids
  * the naive `indexOf(":")` mis-parse (a scalar with an embedded colon, or a
  * colon inside a simple quoted key like `"a:b":`).
+ *
+ * ⚠ The value enumerators express the SAME YAML rule as `isMappingSeparator`
+ * (`yaml-context.ts`), which judges a given colon rather than scanning for one,
+ * and allows only space/tab where this accepts any `/\s/`. Two implementations
+ * of one rule; consolidating them is filed in `BACKLOG.md` (S148).
  */
 function mappingColonIndex(s: string): number {
   for (let i = 0; i < s.length; i++) {
