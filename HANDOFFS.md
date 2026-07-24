@@ -18,6 +18,25 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S148
+date: 2026-07-23
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD vertical slice). PREREQUISITE P2 of the S146 plan's 3-session arc, per docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md §2.8 (Defect C) + §4.0b. Every value enumerator splits at the first colon (src/core/project-yaml.ts:260 lineText.indexOf(":", indent); src/core/yaml-context.ts:421 topLevelSlots), but YAML's block-mapping separator is a colon followed by space, tab, or end of line. So on `toc:: true` quarto's key is `toc:` — unknown, but ACCEPTED on an OPEN key set, so quarto render 1.7.33 exits 0 — while our key is `toc` and our value token is the bogus `: true`, which we FLAG. A cardinal-sin false positive live today on TWO shipped surfaces: .qmd front matter (S125/S128) and _quarto.yml's execute:/format: containers (S141/S143). Fix: after the colon scan, require the next character to be a space, a tab, or absent. Operator picked this via AskUserQuestion at Phase 0 (Active empty). ONE deliverable — slice P2 only; NOT ③ the document-key slice (FM #26).
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+Session claimed at Phase 1B. This block is the crash breadcrumb: if the session ends before
+close-out, the next session's Phase 0 reconcile finds it still `status: pending`.
+
+```handoff
 session: S147
 date: 2026-07-23
 status: complete
