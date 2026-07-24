@@ -296,11 +296,15 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
     // `page-navigation: banana"` was never emitted though quarto rejects it — both measured
     // firsthand, S149 cases H08/H12).
     //
-    // ⚠ The sibling `.qmd` enumerators (`yaml-frontmatter-values.ts`,
-    // `yaml-frontmatter-nested-values.ts`) still use the whole-token form AND still arm only
-    // from lines they emit. That is a deliberate scope boundary, not an oversight: changing
-    // them changes shipped `.qmd` behavior this slice's fixtures do not cover, and their blast
-    // radius is bounded by the front-matter fences rather than the file. Filed to `BACKLOG.md`.
+    // The sibling `.qmd` enumerators (`yaml-frontmatter-values.ts`,
+    // `yaml-frontmatter-nested-values.ts`) now share this SAME arming discipline — arm from
+    // EVERY scalar line (not only the ones they emit) and narrow the arm to a first-character
+    // opener past a stripped node property — as of the `.qmd` sibling-enumerator arming fix
+    // (Session 153; see `CHANGELOG.md`). They were the last two value enumerators still using
+    // the OLD whole-token, emit-only arming, which caused a phantom-quote false NEGATIVE
+    // (`title: Don't Panic` swallowing the block) and a folded-continuation false POSITIVE at
+    // depth — both grounded firsthand vs quarto 1.7.33. The divergence this comment used to
+    // flag is closed; all three value enumerators arm alike.
     let opensMultiLine = false;
     if (armToken.length > 0) {
       const opener = armToken.replace(/^(?:[&!][^\s]*[ \t]+)+/, "")[0];
