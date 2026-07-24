@@ -7,6 +7,39 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-24 · [ad hoc] Session 151 — IMPLEMENTATION: PREREQUISITE P3, the escape-decoding FP (SHIPPED)
+
+Fixed a live cross-surface cardinal-sin false positive on shipped code. `unquote`
+(`src/core/yaml-value-check.ts`) returns the raw text between quotes with **no YAML escape
+decoding**, so a DOUBLE-quoted value whose escapes decode to a value `quarto render` 1.7.33
+accepts was flagged with an Error squiggle on a document quarto renders **exit 0**. Grounded
+firsthand vs quarto 1.7.33 and the real installed schema: `toc-location: "\x62ody"` → exit 0
+(folds to `body`), `df-print: "ka\x62le"` → exit 0 (`kable`), `format: "\x68tml"` → exit 0
+(`html`), `echo: "\x66enced"` → exit 0 (`fenced`); negative controls (`"\x62anana"`,
+`format: banana`) still render exit 1 and still flag.
+
+**Two sites, one defect class.** The item was filed against `isWrongValue` only (`~1 line`),
+but the root cause is the shared `unquote`, which has TWO live consumers — `isWrongValue`'s
+enum membership and the `.qmd` format-scalar path's `isKnownFormatName` — both carrying the
+identical FP (the "TWO → FOUR" undercount of P2/S148). Fixed both:
+
+- **Site A** (`83fa35c`) — `isWrongValue`'s shared hygiene skip gains `|| rawToken.includes("\\")`;
+  feeds all four value surfaces (.qmd cell/front-matter/nested, `_quarto.yml` enum).
+- **Site B** (`a450a4d`) — the `.qmd` format-scalar path (`features/yaml-value-diagnostics.ts`)
+  gains the same guard before `isKnownFormatName`. `_quarto.yml` has no format path (Combo 3
+  deferred), so site A already covers its enum surface.
+- **Doc-drift** (`b6fc20f`) — `unquote`'s "no escape decoding" comment now cross-references the
+  guard (Learning #7).
+
+FALSE-NEGATIVE ONLY and escape-form-agnostic: a closed-enum member / format name never itself
+contains a backslash, so the guard introduces zero new false positives; it only stops flagging
+backslash-bearing values, which after decoding are either accepted (the FP removed) or rejected
+(now a safe FN). Strict TDD (RED before each GREEN); unit 1288→1293, integration 433→436 in a
+real Extension Development Host; zero regressions. MANDATORY §9 adversarial review
+(`wf_13a81e7c-28a`, 4 lenses) returned CLEAN — the first in this family to find nothing
+author-missed, because the two failure modes of a suppression fix (a missed sibling site;
+over-suppression) were grounded pre-emptively. Learning #164. Operator-selected at Phase 0.
+
 ### 2026-07-24 · [ad hoc] Session 150 — AUDIT + REMEDIATION: `BACKLOG.md` ledger hygiene (COMPLETE)
 
 Operator-raised at Phase 0: `BACKLOG.md` had been accumulating completed items instead of
