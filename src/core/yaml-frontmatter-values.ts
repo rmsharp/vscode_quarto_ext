@@ -19,7 +19,7 @@
  */
 
 import { findFrontMatter, frontMatterContentLines, scanFlow } from "./qmd/model";
-import { topLevelSlots } from "./yaml-context";
+import { isMappingSeparator, topLevelSlots } from "./yaml-context";
 
 /** One top-level front-matter line that carries a non-empty scalar value. */
 export interface FrontMatterValueLine {
@@ -87,6 +87,24 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
     const { keySlot, valueSlot } = topLevelSlots(lineText);
     if (keySlot === null || valueSlot === null) {
       continue; // not a top-level mapping line, or no colon → no value to check
+    }
+    if (!isMappingSeparator(lineText, lineText.indexOf(":"))) {
+      // The colon does not separate a key from a value, so this line hosts no mapping
+      // value: on `toc:: true` YAML's key is `toc:` (quarto accepts it on this OPEN key
+      // set and renders exit 0) and on `toc:banana` the whole line is a plain scalar.
+      // Emitting either would let the matcher flag a line quarto accepts, or a line whose
+      // key we misread — the cardinal-sin FP this guard removes (plan §2.8/P2).
+      //
+      // Applied HERE rather than inside `topLevelSlots` because that grammar is shared
+      // with COMPLETION, which must keep offering values on a `key:value` line — it is a
+      // user mid-typing, and the provider repairs it by prepending a space (S148).
+      //
+      // ⚠ Re-find the colon rather than reusing `keySlot.endCol`: the key span has its
+      // trailing blanks trimmed, so on `toc : banana` it ends at 3 while the colon is at 4
+      // — asking about index 3 reads the colon ITSELF as the following character and
+      // wrongly skips a real mapping quarto validates (`toc : true` exit 0, `toc : banana`
+      // exit 1, both firsthand-verified). A value slot exists here, so the colon is present.
+      continue;
     }
     const rawToken = lineText.slice(valueSlot.startCol, valueSlot.endCol);
     if (rawToken.length === 0) {

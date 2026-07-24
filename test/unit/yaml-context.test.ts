@@ -497,9 +497,14 @@ describe("completionContextAt — the separator guard's effect on COMPLETION (P2
   // `topLevelSlots` is shared by the value ENUMERATOR and the completion providers, so the
   // guard lands on both. Completion must lose the VALUE slot on a non-mapping line (there is
   // no key `toc` to value there — YAML's key is `toc:`) while KEY completion is untouched.
-  it("offers NO value completion past a non-separator colon (`toc:: true`)", () => {
-    const text = ["---", "toc:: true", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 8))).toBeNull(); // inside "tr|ue"
+  it("STILL offers value completion past a non-separator colon — completion is mid-typing", () => {
+    // The separator rule is DIAGNOSTICS-side only. `topLevelSlots` is shared with the
+    // completion providers, and a `key:value` line there is a user mid-typing that the
+    // provider deliberately repairs by prepending a space (`code-overflow:scroll` →
+    // ` scroll`, pinned in test/integration/suite/yaml.test.ts). Narrowing the value slot
+    // in the shared grammar silently removed that affordance — 2 integration tests, S148.
+    const text = ["---", "toc:scroll", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 8))?.kind).toBe("frontmatter-value");
   });
 
   it("still offers KEY completion on that same line (the key slot is untouched)", () => {
@@ -514,6 +519,23 @@ describe("completionContextAt — the separator guard's effect on COMPLETION (P2
     const ctx = completionContextAt(text, offsetAt(text, 1, 4));
     expect(ctx?.kind).toBe("frontmatter-value");
     expect(ctx?.parentPath).toEqual(["toc"]);
+  });
+
+  it("STILL offers NESTED value completion past a non-separator colon (same reason)", () => {
+    const text = ["---", "execute:", "  echo:fenced", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 10))?.kind).toBe("frontmatter-value");
+  });
+
+  it("still offers NESTED value completion on a normal `  key: value` line", () => {
+    const text = ["---", "execute:", "  echo: fen", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 2, 11));
+    expect(ctx?.kind).toBe("frontmatter-value");
+    expect(ctx?.parentPath).toEqual(["execute", "echo"]);
+  });
+
+  it("still offers NESTED value completion right after a bare colon (`  echo:`)", () => {
+    const text = ["---", "execute:", "  echo:", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 7))?.kind).toBe("frontmatter-value");
   });
 
   it("still offers value completion on a normal `key: value` line", () => {

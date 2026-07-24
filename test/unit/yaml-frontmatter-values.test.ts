@@ -105,6 +105,27 @@ describe("findFrontMatterValueLines — the key/value SEPARATOR guard (P2, THE c
     const text = ["---", "toc:: true", "---"].join("\n");
     expect(findFrontMatterValueLines(text)).toEqual([]);
   });
+
+  it("does NOT emit a `key:value` line with NO space (quarto exit 1 — an accepted safe FN)", () => {
+    const text = ["---", "toc:banana", "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([]);
+  });
+
+  it("STILL emits when blanks precede the colon (`toc : banana` — quarto exit 1, a real mapping)", () => {
+    // The trap this locks: the key SPAN ends at 3 (trailing blanks trimmed) but the colon
+    // is at 4, so a guard applied at `keySlot.endCol` reads the colon itself as the
+    // following character and wrongly skips the line. `toc : true` renders exit 0 and
+    // `toc : banana` exit 1 (both firsthand-verified, S148), so this must stay validated.
+    const text = ["---", "toc : banana", "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([
+      { line: 1, key: "toc", valueRange: { startCol: 6, endCol: 12 }, rawToken: "banana" },
+    ]);
+  });
+
+  it("still emits a TAB-separated value (`toc:\ttrue` renders exit 0 — a real mapping)", () => {
+    const text = ["---", "toc:\tfalse", "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["toc"]);
+  });
 });
 
 describe("findFrontMatterValueLines — multi-line flow collections (adversarial review, S125)", () => {

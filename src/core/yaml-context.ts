@@ -424,17 +424,16 @@ export function topLevelSlots(
     "",
   );
   const keySlot: Slot = { startCol: 0, endCol: keyText.length };
+  // ⚠ NO separator guard here, deliberately (S148). `isMappingSeparator` is a
+  // DIAGNOSTICS-side rule, applied by the value ENUMERATORS, not by this shared
+  // grammar: a `key:value` line with no space is not a YAML mapping, but for
+  // COMPLETION it is a user mid-typing, and the provider deliberately offers the
+  // value with a PREPENDED SPACE to repair it (`code-overflow:scroll` → ` scroll`,
+  // pinned by test/integration/suite/yaml.test.ts). Narrowing the value slot here
+  // silently removes that affordance on both the top-level and nested paths.
   return {
     keySlot,
-    // The VALUE slot exists only when that colon is a real YAML key/value separator.
-    // On `toc:: true` the key is `toc:` and quarto renders it exit 0 on this OPEN key
-    // set, so emitting a `toc`/`: true` split would be a cardinal-sin FP (plan §2.8/P2).
-    // The KEY slot deliberately keeps the RAW colon index: narrowing it here would make
-    // the key span the whole line on such a line, regressing key completion.
-    valueSlot:
-      colon < 0 || !isMappingSeparator(lineText, colon)
-        ? null
-        : valueSlotAfterColon(lineText, colon),
+    valueSlot: colon < 0 ? null : valueSlotAfterColon(lineText, colon),
   };
 }
 
