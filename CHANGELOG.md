@@ -7,6 +7,46 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-24 · [ad hoc] Session 153 — IMPLEMENTATION: the `.qmd` sibling-enumerator OLD arming fix (SHIPPED)
+
+Brought the two `.qmd` front-matter value enumerators — `findFrontMatterValueLines`
+(`src/core/yaml-frontmatter-values.ts`) and `findNestedFrontMatterValueLines`
+(`src/core/yaml-frontmatter-nested-values.ts`) — to the SAME multi-line-continuation arming
+discipline `findProjectConfigValueLines` (`_quarto.yml`) already had, closing the last two value
+enumerators that still used the OLD whole-token, emit-only arming. Two defects fixed per enumerator,
+both grounded firsthand vs `quarto render` 1.7.33 (blast radius bounded by the `---` fences):
+
+- **Defect B — the cardinal-sin false POSITIVE.** The continuation guard was armed only from EMITTED
+  lines, so a multi-line quoted/flow scalar opened on a SKIPPED line (an indented line, a
+  block-sequence item, a column-0 line for the nested pass) left its fold unguarded, and a folded
+  mapping-looking continuation was emitted and flagged with an Error squiggle on a document quarto
+  renders exit 0. Grounded: `format:\n  html:\n    css: "styles\ndf-print: banana\nmore"` folds
+  df-print into css (exit 0) yet the top-level enumerator emitted+flagged df-print; `title: "My
+  great\nexecute:\n  echo: banana\nend"` folds echo into title (exit 0) yet the nested enumerator
+  emitted+flagged echo. Fixed by arming ABOVE the emission scope guards, for every scalar-bearing
+  line.
+- **Defect A — the phantom-quote false NEGATIVE.** The arm scanned the WHOLE value token, so an inner
+  apostrophe in a plain scalar (`title: Don't Panic`, quarto exit 0) armed a phantom `'` that
+  swallowed the rest of the front matter — silently disabling validation of every following key.
+  Fixed by narrowing the arm to a token whose FIRST character (past a stripped leading node property
+  `&anchor `/`!tag `) opens `"'[{`; the node-property strip keeps the anchored-opener case
+  `foo: &a { …` arming, which is why the old code scanned the whole token.
+
+Strict TDD (RED→GREEN per enumerator; the Defect-B FP test emitted the folded key before the fix).
+Unit 1293→1300 (56 files, zero regressions — all prior arming tests, incl. the §7.2 block-scalar and
+anchored/quote-aware flow locks, unchanged); integration 441→445 (four end-to-end tests in a real
+Extension Development Host: FP shapes produce no diagnostic while a `df-print: banana` canary does,
+FN shapes now flag the previously-swallowed key). Commits `cae6a66` (site A), `250c489` (site B),
+`bc4e612` (integration), `9759fb7` (doc-drift: the stale `project-yaml.ts` divergence note, Learning
+#10). Mandatory §9 review (`wf_e7af7feb-c34`, 4 lenses + adversarial verify, `agents_error:0`) came
+back CLEAN on the two changed enumerators: over-suppression confirmed the `"'[{` gate complete and
+the new arm a strict subset of the old; branch-interaction confirmed the emission gate byte-identical
+(no new FP); re-grounding independently reproduced all four verdicts and proved the pins non-vacuous;
+the only surviving finding was the out-of-scope missed-site below. **Filed (out of scope, FM #26):**
+`findCellOptionLines` (the THIRD value enumerator, `#|` cell options) has the SAME Defect A —
+`#| fig-cap: Don't do this` swallows a later `#| echo: banana` (quarto exit 1) — grounded firsthand;
+a differently-structured surface needing its own slice.
+
 ### 2026-07-24 · [ad hoc] Session 152 — IMPLEMENTATION: format-name Combo 3 — validate the top-level scalar `format:` NAME in `_quarto.yml` (SHIPPED)
 
 Closed the last top-level-scalar divergence between the `.qmd` and `_quarto.yml` value surfaces: a
