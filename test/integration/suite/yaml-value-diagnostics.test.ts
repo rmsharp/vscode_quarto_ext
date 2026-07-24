@@ -822,4 +822,25 @@ describe("Quarto: the escape-decoding FP is GONE end-to-end (.qmd, P3 / §9-revi
       );
     });
   }
+
+  // Site B — the bespoke format-NAME path (`isKnownFormatName(unquote(...))`,
+  // yaml-value-diagnostics.ts). The SAME shared `unquote`, so the SAME defect: `format:
+  // "\x68tml"` DECODES to `html` and `quarto render` accepts it (exit 0, grounded
+  // firsthand), but `unquote` handed `isKnownFormatName` the literal `\x68tml`, which is
+  // no known format, so it was flagged — the identical escape-decoding FP on a sibling
+  // call site. The filed item named `isWrongValue` only; this is the same defect class
+  // (cf. P2/S148, where "TWO sites" turned out to be FOUR). Canary `df-print: banana`
+  // (line 1) proves the pass ran; the `format:` line (line 2) must NOT flag.
+  it("does NOT flag a top-level format NAME whose \\x escape decodes to a known format (format: \"\\x68tml\" → html, exit 0)", async () => {
+    const doc = await openInline(`---\ndf-print: banana\nformat: "\\x68tml"\n---\n\nBody.\n`);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 1), 5000),
+      "the df-print: banana canary (line 1) should flag, proving the value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(2),
+      `format: "\\x68tml" (decodes to html, exit 0) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
 });

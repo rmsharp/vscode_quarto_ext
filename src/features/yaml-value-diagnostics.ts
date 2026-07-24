@@ -144,9 +144,15 @@ async function computeValueDiagnostics(
       if (builtIn === null) {
         continue; // offline — the built-in set is not known-complete → never flag (dragon 4)
       }
-      if (fm.rawToken.length === 0 || /^[[\]{}|>&*!]/.test(fm.rawToken)) {
+      if (fm.rawToken.length === 0 || /^[[\]{}|>&*!]/.test(fm.rawToken) || fm.rawToken.includes("\\")) {
         continue; // flow/block/node-property token (e.g. `format: [html, pdf]`, itself
-        // schema-invalid) — the same skip `isWrongValue` uses; an FP-safe false negative
+        // schema-invalid) — the same skip `isWrongValue` uses; an FP-safe false negative.
+        // The BACKSLASH case is the escape-decoding FP (P3 / §9-review S149) on this
+        // sibling call site: `format: "\x68tml"` DECODES to `html` and quarto renders it
+        // exit 0, but `unquote` does no escape decoding, so `isKnownFormatName` saw the
+        // literal `\x68tml`, missed, and flagged a value quarto accepts. Same shared
+        // `unquote`, same defect class, same FN-only fix as `isWrongValue` (grounded
+        // firsthand vs quarto 1.7.33; a format name never itself contains a backslash).
       }
       if (isKnownFormatName(unquote(fm.rawToken), builtIn)) {
         continue; // a name quarto's schema layer accepts (built-in/ext/modifier/.lua)
