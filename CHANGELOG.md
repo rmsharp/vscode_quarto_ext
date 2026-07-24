@@ -7,6 +7,62 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-24 · [ad hoc] Session 150 — AUDIT + REMEDIATION: `BACKLOG.md` ledger hygiene (COMPLETE)
+
+Operator-raised at Phase 0: `BACKLOG.md` had been accumulating completed items instead of
+removing them at close-out, contrary to its own header rule and SESSION_RUNNER Phase 3F ("for a
+completed backlog item, remove it from `BACKLOG.md` in the same commit"). Measured extent: **115 KB
+of the 250 KB file — 46% — was completed work**: 35 top-level `[x]` blocks plus 41 nested, against
+42 top-level open items. The file is now **59 KB with 46 open items and zero completed ones**.
+
+Deleting was verified, not assumed. Two independent audit lenses ran over every completed block
+before anything was removed. The **evidence-token lens** (commit SHA / plan path / session number /
+Learning number, each checked against `CHANGELOG.md`) cleared 34 of 35 blocks. The **forward-looking-
+content lens** — grepping the doomed regions for operator instructions, standing constraints and
+known limitations, which by construction have no ledger home — produced 24 hits, 22 of them marker
+words inside historical prose (spot-verified: two blocks claiming residuals were "filed below" do
+resolve to real open items). Between them the lenses found **five things a bulk delete would have
+destroyed**:
+
+- two genuinely-open `- [ ]` sub-items nested under completed parents (depth-3+ project-config
+  values; sequence-form `navbar:`/`sidebar:` grandchildren), promoted to top level in `16d9b06`;
+- two pieces of open work written as *prose* sub-bullets with no checkbox — the Marketplace publish
+  prerequisites (a registered publisher + a PAT; flip `package.json`'s `"preview": true` when the
+  listing is stable) and the standing "`format-cell` against a real Python formatter remains
+  UNPROVEN" verification gap — promoted in `5da671a`; and
+- one genuine **failure-mode-#27 ledger gap**: Session 36's Phase 6d-6+ (b2-iii) deep-nesting PLAN
+  shipped as commit `6223e15` but was never recorded, so the block scheduled for deletion held its
+  last surviving trace. Backfilled in `814b589` (a separate dated entry above, at its own date).
+
+Two unchecked boxes nested under completed parents were confirmed NOT to be live work — Session 120
+descoped `b2-iii` and declared Phase 6d complete — and were removed with their parent. The
+still-open "Post-Posit-comparison feature roadmap" tracker was condensed from 44 lines / 82 KB to
+7 lines / 4 KB, keeping its two standing operator directives (the Visual/WYSIWYG-editor exclusion
+and the three unranked "soft comparison" findings) and its two open candidates, and dropping 16
+completed ranked items, 17 completed sub-slices, and 3 closed grooming decisions — one of which,
+the front-matter/cell-option VALUE-validation bullet, was additionally **stale**, still reading
+"PLANNED, ready to implement" for work that shipped across Sessions 124-149.
+
+The removal invalidated every positional citation to the file, so the same session rewrote
+**194 of them across 70 files** (`2188b8e`), including shipped `src/` comments. Four spellings were
+in use (`BACKLOG:NNN`, `BACKLOG item N`, `BACKLOG item #N`, plus four one-off legacy forms) and all
+are now gone from live artifacts. Each target was resolved from git history (`git blame` the citing
+line, then `git show <sha>:BACKLOG.md`) rather than guessed — which showed the convention had been
+**broken before this session touched it**: 12 of 34 distinct cited line numbers already landed on
+blank or unrelated lines, and `BACKLOG:177` was wrong the day it was written. Citations now read
+`CHANGELOG: <title>, Session N` for shipped work (the majority — those items no longer exist here,
+so a title-based `BACKLOG` reference would have been a fresh dangling link) or `BACKLOG: <item
+title>` for the six still open. Per operator decision the ~523 occurrences in append-only history
+(`SESSION_NOTES.md`, `HANDOFFS.md`, `CHANGELOG.md`, `PROJECT_LEARNINGS.md`) were left untouched;
+`BACKLOG.md`'s header now explains how to resolve a historical citation and forbids new positional
+ones.
+
+Verification: `check-types` clean, unit **1288** passing, integration **433** passing in a real
+Extension Development Host — each exactly the Session 149 baseline, zero regressions. A first
+citation-rewrite attempt using a quoted form broke 5 test files (citations sit inside
+`describe(...)`/`it(...)` string literals, not only in comments); it was caught by `npm test`,
+reverted, and redone quote- and backtick-free. Learning #163.
+
 ### 2026-07-23 · [ad hoc] Session 149 — IMPLEMENTATION: ③ general document-key VALUE validation in `_quarto.yml` (SHIPPED)
 
 Implemented `docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md` §4.1 —
