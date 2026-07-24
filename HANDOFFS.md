@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S152
+date: 2026-07-24
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). format-name Combo 3 — flag a wrong scalar format: NAME at column 0 of _quarto.yml. Unblocked by S149's column-0 emission (container:"document", path:[]). Adds a "document"-arm branch in src/features/yaml-project-value-diagnostics.ts mirroring the shipped .qmd format-scalar path in src/features/yaml-value-diagnostics.ts (null-gate -> flow/block-token hygiene skip INCLUDING the P3 backslash guard .includes(backslash) -> unquote -> isKnownFormatName -> formatNameMessage), plus flipping the format: banana fixture row in test/fixtures/yaml-project-document-value/valid/_quarto.yml from its FN lock. Reuses S145's isKnownFormatName + SchemaIndex.formatNamesForValidation() unchanged. Operator-selected at Phase 0. ONE deliverable — Combo 3 ONLY; NOT Combos 2/4, NOT the sibling-enumerator OLD arming, NOT the quoted-KEY divergence (FM #26).
+```
+
+```handoff
 session: S151
 date: 2026-07-24
 status: complete
