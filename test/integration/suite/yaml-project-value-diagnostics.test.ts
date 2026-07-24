@@ -569,9 +569,10 @@ describe("Quarto: _quarto.yml COLUMN-0 document-key VALUE diagnostics (document-
 
   it("produces ZERO diagnostics for a valid document-key _quarto.yml — the FP battery: valid members, TRUE, a numeric, a trailing comment, a numeric-member enum, an anchor and a tag, a YAML null, an OPEN key, an unknown key, the separator form, and a multi-line quoted fold", async () => {
     // Ordered after the flag test so the SchemaSource cache is warm. Every scalar row of this
-    // fixture is grounded `quarto render` 1.7.33 exit 0 EXCEPT the two deliberate safe-FN
-    // locks (`format: banana`, `project: banana`, both exit 1) — and the whole file minus
-    // those two rows renders exit 0 as one document, verified firsthand.
+    // fixture is grounded `quarto render` 1.7.33 exit 0 EXCEPT the deliberate safe-FN lock
+    // (`project: banana`, exit 1) — and the whole file minus that row renders exit 0 as one
+    // document, verified firsthand. (`format: banana` was a second such lock until Combo 3,
+    // S152, made it a true positive; it moved to test/fixtures/yaml-project-format-name/.)
     const doc = await openActive(DOC_VALID);
     await new Promise((r) => setTimeout(r, 400));
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "first check");
@@ -631,18 +632,18 @@ describe("Quarto: _quarto.yml COLUMN-0 document-key VALUE diagnostics (document-
     assert.ok(hit === undefined, `code-copy:: hover renders exit 0 and must NOT be flagged (got: ${hit?.message})`);
   });
 
-  it("stays silent on the top-level scalar `format:` NAME and on a container name used as a scalar — the two deliberate safe FNs (Combo 3 / absent from the document field set)", async () => {
-    // `format: banana` and `project: banana` are both quarto exit 1, and this feature is
-    // deliberately silent on both. `format` is not a CLOSED field (its names are injected
-    // after closedness annotation), so validating it needs S145's bespoke regex-union
-    // predicate — that is Combo 3, a different matcher and its own slice (dragon 6). It is
-    // also the ONE known, deliberate divergence from the .qmd surface, which DOES flag it:
-    // an author sweep of all 378 top-level fields x 7 probe values found 6 divergences and
-    // all 6 were `format:`. Do NOT "fix" this by making the field closed.
+  it("stays silent on a container name used as a scalar (project: banana) — a deliberate safe FN, absent from the document field set", async () => {
+    // `project: banana` is quarto exit 1 (a container NAME is not a valid document-key value),
+    // and this feature is deliberately silent on it: `project` is absent from the DOCUMENT
+    // field set, so the resolver returns undefined and nothing is flagged.
+    //
+    // The top-level scalar `format:` NAME was ALSO a deliberate safe FN here until Session 152,
+    // when Combo 3 shipped its validation — it is NO longer a safe FN on this surface; see the
+    // dedicated "top-level scalar format: NAME" describe below.
     const doc = await openActive(DOC_VALID);
     await new Promise((r) => setTimeout(r, 500));
     const lines = doc.getText().split(/\r?\n/);
-    for (const row of ["format: banana", "project: banana"]) {
+    for (const row of ["project: banana"]) {
       const line = lines.findIndex((t) => t === row);
       assert.ok(line >= 0, `fixture drift: the \`${row}\` row is gone`);
       const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === line);

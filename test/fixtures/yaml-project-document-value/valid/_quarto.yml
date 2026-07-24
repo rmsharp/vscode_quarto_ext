@@ -5,12 +5,15 @@
 # an unknown key (the _quarto.yml top level is an OPEN key set), the key/value-separator form,
 # and a multi-line quoted value whose folded mapping-looking lines must never be emitted.
 #
-# Every SCALAR line here is grounded quarto exit-0 EXCEPT the two deliberate safe-FN locks
-# (`format: banana` and `project: banana`, both grounded exit-1): quarto rejects them, but
-# THIS feature stays silent by design — `format` is not a closed field (its names are injected
-# after closedness annotation, so the top-level scalar format NAME is Combo 3, a different
-# matcher and its own slice — dragon 6), and `project` is absent from the DOCUMENT field set.
-# So this file's contract is "zero of OUR diagnostics", not "renders clean".
+# Every SCALAR line here is grounded quarto exit-0 EXCEPT the deliberate safe-FN lock
+# (`project: banana`, grounded exit-1): quarto rejects it, but THIS feature stays silent by
+# design because `project` is a container NAME, absent from the DOCUMENT field set. So this
+# file's contract is "zero of OUR diagnostics", not "renders clean".
+#
+# The top-level scalar `format:` NAME was ALSO a documented safe-FN lock here until Session 152,
+# when Combo 3 shipped its validation (test/fixtures/yaml-project-format-name/, mirroring the
+# .qmd surface's S145 predicate). Its `format: banana` row moved there: on THIS surface it is a
+# TRUE positive now, not a safe FN, so it no longer belongs in a "zero diagnostics" fixture.
 #
 # A third reader-driven safe FN worth knowing about is NOT in the file because it needs no
 # lock: `code-fold: banana` renders exit 1 but resolves OPEN ({} — no valuesClosed), exactly
@@ -26,7 +29,6 @@ aspectratio: 169
 citeproc: &anchored true
 code-link: !!bool true
 auto-play-media: null
-format: banana
 project: banana
 # The SEPARATOR lock (plan §2.8, prerequisite P2) at COLUMN 0 — the openest key set there is.
 # YAML's key on the next line is `code-copy:`, not `code-copy`, and the top level is an OPEN
