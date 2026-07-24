@@ -431,6 +431,44 @@ export function topLevelSlots(
 }
 
 /**
+ * Is the colon at index `colon` on `lineText` a YAML block-mapping key/value
+ * SEPARATOR? YAML's separator is a colon followed by a space, a tab, or the end
+ * of the line — a colon followed by anything else is an ordinary character
+ * inside the key's plain scalar.
+ *
+ * Single-sourced here and applied by all THREE value enumerators
+ * (`findProjectConfigValueLines`, `topLevelSlots`'s value slot,
+ * `findNestedFrontMatterValueLines`), which otherwise split at
+ * `indexOf(":")` and mis-read the key. On `toc:: true` YAML's key is `toc:`
+ * and its value `true`; splitting at the first colon yields key `toc` with the
+ * bogus value token `: true`, which the matcher then flags — while quarto,
+ * seeing an unknown key on an OPEN key set, renders exit 0. That is a
+ * cardinal-sin false positive, and it was live on both shipped surfaces
+ * (`.qmd` front matter S125/S128; `_quarto.yml` `execute:`/`format:` S141/S143,
+ * and depth-2 under `website:` S138) until this guard (plan §2.8 / §4.0b).
+ *
+ * Its only cost is a false NEGATIVE on the no-separator form (`toc:banana`,
+ * `toc:true`): quarto rejects those (the document is a plain scalar, exit 1)
+ * and we now stay silent. FN is the safe direction — see the module-level
+ * rule that a wrong flag is never acceptable, a missed one is.
+ *
+ * ⚠ Takes the colon INDEX, deliberately — it judges the colon it is given, not
+ * the first one on the line. Callers that also derive a KEY span from the same
+ * index (`topLevelSlots`) must keep using the raw `indexOf` result for the key
+ * and apply this guard only to the VALUE slot; folding the guard into a
+ * "find the mapping colon" helper would return -1 on `toc:: true` and balloon
+ * that key span from `toc` to the whole line, regressing key completion (S148).
+ *
+ * ⚠ A carriage return is NOT accepted, and needs no arm: every caller reaches
+ * this through a `/\r?\n/` split (verified exhaustively by grep, S148), so a
+ * `\r` can never sit next to the colon.
+ */
+export function isMappingSeparator(lineText: string, colon: number): boolean {
+  const next = lineText[colon + 1];
+  return next === undefined || next === " " || next === "\t";
+}
+
+/**
  * The value token span on `lineText` after the colon at index `colon`. Leading
  * whitespace after the colon is skipped, and a trailing unquoted inline comment /
  * whitespace excluded — the YAML value grammar shared by a top-level front-matter

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completionContextAt } from "../../src/core/yaml-context";
+import { completionContextAt, isMappingSeparator } from "../../src/core/yaml-context";
 
 /** Compute a 0-based character offset for (line, col) in `\n`-joined text. */
 function offsetAt(text: string, line: number, col: number): number {
@@ -490,5 +490,40 @@ describe("completionContextAt — front-matter value (6d-5)", () => {
     const text = ["---", "execute:", "  freeze: auto  # c", "---"].join("\n");
     // col 17 is inside the comment; the value span ends at "auto" (col 14).
     expect(completionContextAt(text, offsetAt(text, 2, 17))).toBeNull();
+  });
+});
+
+describe("isMappingSeparator (P2 — the key/value separator grammar)", () => {
+  it("is true for a colon followed by a space (`toc: true`)", () => {
+    expect(isMappingSeparator("toc: true", 3)).toBe(true);
+  });
+
+  it("is true for a colon at END OF LINE — a block opener (`execute:`)", () => {
+    expect(isMappingSeparator("execute:", 7)).toBe(true);
+  });
+
+  it("is true for a colon followed by a TAB (quarto renders `toc:\ttrue` exit 0)", () => {
+    expect(isMappingSeparator("toc:\ttrue", 3)).toBe(true);
+  });
+
+  // The defect this slice fixes: on `toc:: true` YAML's key is `toc:` (the FIRST colon is
+  // part of the key scalar, not a separator) and quarto renders it exit 0 on any OPEN key
+  // set. Splitting at the first colon yields the bogus value token `: true`, which the
+  // matcher then flags — a cardinal-sin false positive (plan §2.8, firsthand-verified S148).
+  it("is FALSE for a colon followed by another colon (`toc:: true` — quarto exit 0)", () => {
+    expect(isMappingSeparator("toc:: true", 3)).toBe(false);
+  });
+
+  it("is FALSE for a colon followed by a letter (`toc:banana` — a plain scalar)", () => {
+    expect(isMappingSeparator("toc:banana", 3)).toBe(false);
+  });
+
+  it("is FALSE for a colon followed by `#` (no space ⇒ not a comment either)", () => {
+    expect(isMappingSeparator("toc:#c", 3)).toBe(false);
+  });
+
+  it("judges the colon it is GIVEN, not the first one on the line", () => {
+    // On `toc:: true` the SECOND colon is the real separator.
+    expect(isMappingSeparator("toc:: true", 4)).toBe(true);
   });
 });
