@@ -9,6 +9,8 @@ title: A Perfectly Fine Title
 auto-play-media: null
 preload-iframes: ~
 ipynb-shell-interactivity: NULL
+toc:: true
+fig-width:: wide
 ---
 
 Every top-level value here renders exit 0 under `quarto render` 1.7.33, so the
@@ -26,3 +28,11 @@ a cardinal-sin false positive. Each is grounded exit 0 single-valued, and the fo
 YAML null spellings are covered across them (`null`, `~`, `NULL`; `Null` is unit-
 tested). The case-inexact `NuLl` and the quoted `"null"` are quarto-REJECTED and
 belong in the INVALID fixture, not here.
+
+The last two lines are the SEPARATOR lock (document-key plan §2.8, prerequisite P2).
+YAML's block-mapping separator is a colon followed by space/tab/end-of-line, so the keys
+here are `toc:` and `fig-width:` — unknown names on this OPEN key set, which quarto
+accepts (both grounded exit 0 single-valued). Splitting at the FIRST colon instead yields
+key `toc` with the bogus value token `: true`, which the matcher flagged against toc's
+closed boolean enum — a cardinal-sin false positive, live until the guard. Both matcher
+branches are covered: `toc` is a closed boolean enum, `fig-width` a numeric field.

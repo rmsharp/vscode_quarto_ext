@@ -6,6 +6,7 @@ execute:
   echo: false is just prose inside the quoted string"
   daemon: 30
   cache: refresh
+  echo:: banana
 format:
   html:
     toc: true
@@ -13,6 +14,7 @@ format:
     df-print: kable
     theme: cosmo
     ipynb-shell-interactivity: null
+    toc:: banana
   revealjs:
     preload-iframes: ~
 ---
@@ -35,3 +37,11 @@ fix both were flagged — their enums list a literal `null` member that `valuesO
 drops while `closednessOfSchema` still marks the field CLOSED. `ipynb-shell-interactivity`
 is the wide-reach case (it resolves on all 65 per-format surfaces); `preload-iframes` is
 revealjs-scoped and also covers the `~` spelling.
+
+`execute.echo:: banana` and `format.html.toc:: banana` are the SEPARATOR lock on the
+NESTED surface (document-key plan §2.8, prerequisite P2). YAML's separator is a colon
+followed by space/tab/end-of-line, so these keys are `echo:` and `toc:` — unknown names
+on OPEN key sets, which quarto accepts (both grounded exit 0 single-valued). Splitting at
+the first colon yields the bogus value token `: banana` against the closed `echo`/`toc`
+enums — a cardinal-sin false positive, live on this surface until the guard. This is the
+enumerator the S146 plan did not name; the FP here was found by grep + firsthand render.

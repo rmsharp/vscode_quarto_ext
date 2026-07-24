@@ -233,6 +233,7 @@ describe("Quarto: top-level front-matter VALUE diagnostics (.qmd, plan §4.2 Pha
       [9, "preload-iframes: ~"],
       [10, "ipynb-shell-interactivity: NULL"],
     ] as const) {
+      // (line numbers unshifted — the P2 separator rows were appended BELOW these)
       assert.ok(
         !byLine.has(line),
         `${label} renders exit 0 and must NOT be flagged (got: ${byLine.get(line)})`,
@@ -443,10 +444,67 @@ describe("Quarto: NESTED front-matter VALUE diagnostics (.qmd, nested plan §3.4
     const doc = await openActive(VALID_NESTED_FRONT_MATTER);
     await new Promise((r) => setTimeout(r, 500));
     const byLine = new Map(valueDiagnostics(doc.uri).map((d) => [d.range.start.line, d.message]));
-    for (const [line, label] of [
-      [14, "format.html.ipynb-shell-interactivity: null"],
-      [16, "format.revealjs.preload-iframes: ~"],
+    for (const [line, label, rowText] of [
+      [15, "format.html.ipynb-shell-interactivity: null", "    ipynb-shell-interactivity: null"],
+      [18, "format.revealjs.preload-iframes: ~", "    preload-iframes: ~"],
     ] as const) {
+      // Pin the row TEXT as well as its number: inserting a fixture row above one of these
+      // shifts it onto a different, also-unflagged line, so a bare `!has(line)` would keep
+      // passing while silently checking the wrong row (S148 nearly did exactly that).
+      assert.strictEqual(
+        doc.lineAt(line).text,
+        rowText,
+        `fixture drift: line ${line} is no longer ${label}`,
+      );
+      assert.ok(
+        !byLine.has(line),
+        `${label} renders exit 0 and must NOT be flagged (got: ${byLine.get(line)})`,
+      );
+    }
+  });
+
+  it("never flags a `key:: value` TOP-LEVEL line — the separator FP (toc / fig-width)", async () => {
+    // The separator lock on the .qmd top-level surface (document-key plan §2.8, prerequisite
+    // P2). YAML's keys here are `toc:` and `fig-width:` — unknown on this OPEN key set, so
+    // quarto renders exit 0 (both grounded single-valued). Before the guard we split at the
+    // first colon and flagged the bogus `: true` / `: wide` tokens against toc's closed
+    // boolean enum and fig-width's numeric branch — both matcher branches covered.
+    const doc = await openActive(VALID_FRONT_MATTER);
+    await new Promise((r) => setTimeout(r, 500));
+    const byLine = new Map(valueDiagnostics(doc.uri).map((d) => [d.range.start.line, d.message]));
+    for (const [line, label] of [
+      [11, "toc:: true"],
+      [12, "fig-width:: wide"],
+    ] as const) {
+      assert.strictEqual(
+        doc.lineAt(line).text,
+        label,
+        `fixture drift: line ${line} is no longer ${label}`,
+      );
+      assert.ok(
+        !byLine.has(line),
+        `${label} renders exit 0 and must NOT be flagged (got: ${byLine.get(line)})`,
+      );
+    }
+  });
+
+  it("never flags a `key:: value` NESTED line — the separator FP (execute.echo / format.html.toc)", async () => {
+    // The separator lock on the .qmd NESTED surface (document-key plan §2.8, prerequisite
+    // P2) — the enumerator the plan did not name. YAML's key on `echo:: banana` is `echo:`,
+    // unknown on an OPEN key set, so quarto renders exit 0 (grounded single-valued); before
+    // the guard we split at the first colon and flagged the bogus value token `: banana`.
+    const doc = await openActive(VALID_NESTED_FRONT_MATTER);
+    await new Promise((r) => setTimeout(r, 500));
+    const byLine = new Map(valueDiagnostics(doc.uri).map((d) => [d.range.start.line, d.message]));
+    for (const [line, label, rowText] of [
+      [8, "execute.echo:: banana", "  echo:: banana"],
+      [16, "format.html.toc:: banana", "    toc:: banana"],
+    ] as const) {
+      assert.strictEqual(
+        doc.lineAt(line).text,
+        rowText,
+        `fixture drift: line ${line} is no longer ${label}`,
+      );
       assert.ok(
         !byLine.has(line),
         `${label} renders exit 0 and must NOT be flagged (got: ${byLine.get(line)})`,
