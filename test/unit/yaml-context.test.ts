@@ -493,6 +493,37 @@ describe("completionContextAt — front-matter value (6d-5)", () => {
   });
 });
 
+describe("completionContextAt — the separator guard's effect on COMPLETION (P2 shared consumer)", () => {
+  // `topLevelSlots` is shared by the value ENUMERATOR and the completion providers, so the
+  // guard lands on both. Completion must lose the VALUE slot on a non-mapping line (there is
+  // no key `toc` to value there — YAML's key is `toc:`) while KEY completion is untouched.
+  it("offers NO value completion past a non-separator colon (`toc:: true`)", () => {
+    const text = ["---", "toc:: true", "---"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 8))).toBeNull(); // inside "tr|ue"
+  });
+
+  it("still offers KEY completion on that same line (the key slot is untouched)", () => {
+    const text = ["---", "toc:: true", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 2)); // inside "to|c"
+    expect(ctx?.kind).toBe("frontmatter-key");
+    expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 0, endCol: 3 });
+  });
+
+  it("still offers value completion right after a bare colon (`toc:` — the `:` trigger)", () => {
+    const text = ["---", "toc:", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 4));
+    expect(ctx?.kind).toBe("frontmatter-value");
+    expect(ctx?.parentPath).toEqual(["toc"]);
+  });
+
+  it("still offers value completion on a normal `key: value` line", () => {
+    const text = ["---", "toc: tr", "---"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 7));
+    expect(ctx?.kind).toBe("frontmatter-value");
+    expect(ctx?.token).toBe("tr");
+  });
+});
+
 describe("isMappingSeparator (P2 — the key/value separator grammar)", () => {
   it("is true for a colon followed by a space (`toc: true`)", () => {
     expect(isMappingSeparator("toc: true", 3)).toBe(true);

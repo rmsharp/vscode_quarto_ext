@@ -426,7 +426,15 @@ export function topLevelSlots(
   const keySlot: Slot = { startCol: 0, endCol: keyText.length };
   return {
     keySlot,
-    valueSlot: colon < 0 ? null : valueSlotAfterColon(lineText, colon),
+    // The VALUE slot exists only when that colon is a real YAML key/value separator.
+    // On `toc:: true` the key is `toc:` and quarto renders it exit 0 on this OPEN key
+    // set, so emitting a `toc`/`: true` split would be a cardinal-sin FP (plan §2.8/P2).
+    // The KEY slot deliberately keeps the RAW colon index: narrowing it here would make
+    // the key span the whole line on such a line, regressing key completion.
+    valueSlot:
+      colon < 0 || !isMappingSeparator(lineText, colon)
+        ? null
+        : valueSlotAfterColon(lineText, colon),
   };
 }
 

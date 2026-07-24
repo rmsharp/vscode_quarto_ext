@@ -96,6 +96,17 @@ describe("findFrontMatterValueLines — value-token grammar (quotes, comments, m
   });
 });
 
+describe("findFrontMatterValueLines — the key/value SEPARATOR guard (P2, THE cardinal-sin FP, plan §2.8)", () => {
+  it("does NOT emit a `key:: value` top-level line (quarto renders it exit 0)", () => {
+    // YAML's key is `toc:`, not `toc`. The `.qmd` front-matter top level is an OPEN key
+    // set, so quarto accepts the odd key and renders exit 0 (firsthand-verified, S148),
+    // while splitting at the first colon yields the bogus value token `: true` — which
+    // the matcher flags against toc's closed boolean enum. A cardinal-sin false positive.
+    const text = ["---", "toc:: true", "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([]);
+  });
+});
+
 describe("findFrontMatterValueLines — multi-line flow collections (adversarial review, S125)", () => {
   // A value that opens an unclosed flow mapping `{…}` / sequence `[…]` spans
   // several lines; its continuation lines sit at column 0 and MUST NOT be
