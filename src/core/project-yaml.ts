@@ -12,7 +12,12 @@
 
 import * as path from "node:path";
 import { scanFlow } from "./qmd/model";
-import { leadingWsLen, mappingContainerKey, valueSlotAfterColon } from "./yaml-context";
+import {
+  isMappingSeparator,
+  leadingWsLen,
+  mappingContainerKey,
+  valueSlotAfterColon,
+} from "./yaml-context";
 
 /** The three `_quarto.yml` blocks with a genuinely closed key set (plan §0). */
 const PROJECT_CONFIG_CONTAINERS = new Set(["project", "website", "book"]);
@@ -260,6 +265,16 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
     const colon = lineText.indexOf(":", indent);
     if (colon < 0) {
       continue; // no colon → no mapping value to check
+    }
+    if (!isMappingSeparator(lineText, colon)) {
+      // The colon is NOT a YAML key/value separator (it is followed by something other
+      // than space/tab/EOL), so this line hosts no mapping value here: on `echo:: banana`
+      // YAML's key is `echo:` and on `echo:banana` the whole thing is a plain scalar.
+      // Emitting a `key`/`: banana` split would let the matcher flag a line quarto renders
+      // exit 0 on an OPEN key set — the cardinal-sin FP this guard removes (plan §2.8/P2).
+      // Skipping also costs the block-opener assignment below, which is correct: a line
+      // that is not a mapping cannot open a depth-2 child scope either.
+      continue;
     }
     const rawKey = lineText.slice(indent, colon).replace(/[ \t]+$/, "");
     if (rawKey.length === 0) {
