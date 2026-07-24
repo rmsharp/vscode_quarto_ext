@@ -893,6 +893,9 @@ P shipping first*.
    post-closedness, `yaml-schema.ts:582-585`). If you find yourself making it closed to "finish the
    job", stop — that is Combo 3, a different matcher, a different slice. It is also the ONE
    deliberate `.qmd`-vs-`_quarto.yml` divergence (§9 lens 3) — expected, fixture-locked, not a bug.
+   **(2026-07-24 correction: correct for THIS document-key slice, which deliberately did not touch
+   `format`. Combo 3 SHIPPED Session 152 as its own slice — a bespoke predicate, NOT by closing the
+   field — so the surfaces now agree on the top-level scalar too and the divergence is closed.)**
 7. **Ground every fixture value single-valued** (S139 lesson): quarto reports only the first schema
    error per render.
 

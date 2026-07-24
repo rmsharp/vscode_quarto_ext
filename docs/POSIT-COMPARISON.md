@@ -450,8 +450,9 @@ bucket.)**
   `output`/`engine`/`documentclass`/`execute.output`/`execute.daemon`/`format.html.theme`/`crossref.fig-title`
   are never flagged; the top-level `.qmd` `format` NAME is now VALIDATED against `quarto render`'s
   front-matter schema layer (Session 145 — `format: banana`/`reveal`/`word` → Error, while
-  extension/modifier/hidden/`.lua` names stay silent; the `_quarto.yml` `format` scalar NAME and the
-  container-key form on both surfaces stay deferred); and unknown KEYS remain intentionally unflagged
+  extension/modifier/hidden/`.lua` names stay silent; the `_quarto.yml` `format` scalar NAME shipped
+  Session 152 via the SAME predicate, leaving only the container-key form deferred on both surfaces);
+  and unknown KEYS remain intentionally unflagged
   since those schemas are open). Coverage:
   **Session 47** (project keys) + **124** (cell values) + **125** (top-level front-matter values) +
   **128** (nested `execute:`/`format:` values) + **130** (numeric-typed values on every surface) +
@@ -504,11 +505,10 @@ bucket.)**
   "Polish / deferred" for known false-negative edge cases). The remaining gap on our side is narrower
   still: `.ipynb` cell/front-matter values, the DEEPER `_quarto.yml`-config container values
   (depth-3+ under `navbar:`/`sidebar:`/`search:`, sequence-form navbar/sidebar items, and `format:` document keys placed in
-  `_quarto.yml` — the `execute:` half shipped Session 141 and the `format:` per-format OPTION-value half Session 143, leaving the
-  `_quarto.yml` scalar `format:` NAME (the `.qmd` scalar `format:` NAME shipped Session 145) and depth-2+/KEY-under-`execute` open — **the general document-key case shipped Session 149** (a wrong value of a recognized document key at COLUMN 0 of `_quarto.yml`: `toc: banana`, `number-sections: yes`, `fig-width: wide`, resolved through the SAME `frontMatterKeys([])` reader the `.qmd` top-level surface has used since S125, so the two agree on 377 of 378 top-level fields — `format:` is the one deliberate divergence); `brand:`/`jupyter:`/`manuscript:` are grounded OUT with no closed one-level children),
+  `_quarto.yml` — the `execute:` half shipped Session 141 and the `format:` per-format OPTION-value half Session 143, leaving depth-2+/KEY-under-`execute` open — **the general document-key case shipped Session 149** (a wrong value of a recognized document key at COLUMN 0 of `_quarto.yml`: `toc: banana`, `number-sections: yes`, `fig-width: wide`, resolved through the SAME `frontMatterKeys([])` reader the `.qmd` top-level surface has used since S125) **and the top-level scalar `format:` NAME shipped Session 152** (Combo 3, via the SAME bespoke predicate the `.qmd` surface has used since Session 145 — so the two surfaces now agree on 378 of 378 top-level fields, with no remaining top-level-scalar divergence); `brand:`/`jupyter:`/`manuscript:` are grounded OUT with no closed one-level children),
   integer-typed pandoc-layer rejections
   (`toc-depth: 2.5` — a downstream pandoc error, not quarto's YAML-schema layer), the
-  scalar `format:` NAME on the `_quarto.yml` surface plus the container-key form on both surfaces (the `.qmd` scalar NAME shipped Session 145), and unknown front-matter/cell KEYS (intentionally
+  container-key form of `format:` on both surfaces (the scalar `format:` NAME shipped Session 145 on `.qmd` and Session 152 on `_quarto.yml`), and unknown front-matter/cell KEYS (intentionally
   unflagged — open schemas).
 
 ---
@@ -860,7 +860,7 @@ can do" scope, included for completeness rather than as a strict real-gap claim.
    a `key:value` line, where it is a user mid-typing the provider repairs by prepending the space;
    Session 143 adds per-format option VALUE validation under
    `_quarto.yml`'s `format:` → `<fmt>:` blocks (`format:\n  html:\n    toc: banana` etc., all SHIPPED). Only `.ipynb`, the DEEPER `_quarto.yml`-config values
-   (depth-3+ and the scalar `format:` NAME in `_quarto.yml`; the `execute:` half shipped Session 141, the `format:` per-format OPTION values Session 143, and the general document-key case at COLUMN 0 Session 149), and integer-typed pandoc-layer rejections remain open;
+   (depth-3+; the `execute:` half shipped Session 141, the `format:` per-format OPTION values Session 143, the general document-key case at COLUMN 0 Session 149, and the top-level scalar `format:` NAME Session 152), and integer-typed pandoc-layer rejections remain open;
    unknown front-matter/cell KEYS stay intentionally unflagged (open schemas). Built on the existing schema reader (`src/core/yaml-schema.ts`).
 2. ~~Snippets~~ — **SHIPPED Session 53** (CHANGELOG: snippets, Session 53): `snippets/quarto.json`, 13 snippets,
    declarative and TDD-gate-exempt, as predicted here. ~~And a **getting-started walkthrough**~~ —

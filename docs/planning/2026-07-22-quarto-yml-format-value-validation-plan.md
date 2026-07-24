@@ -513,6 +513,9 @@ the §9 surface-parity lens asserts the two surfaces agree on the same format bl
 3. **Depth-1 format lines (the format NAME) must resolve to `undefined` (skip).** The format branch
    handles only `path.length === 1` (depth-2). A depth-1 line (`html: default`, `path=[]`) → skip. The
    top-level `format:` scalar is a deliberate FN on both surfaces — do NOT try to validate it.
+   **(2026-07-24 correction: this was the scope boundary for THIS per-format-OPTION slice. The
+   top-level scalar `format:` NAME itself is now validated as Combo 3, SHIPPED Session 152 — but the
+   `html: default` mapping-KEY case named here stays a deliberate FN, Combos 2 & 4.)**
 4. **Offline is a safe FN for `format`; do NOT "fix" it.** `CURATED_FORMAT_OPTIONS` is un-annotated (no
    `valuesClosed`), so format validation flags nothing offline. Unlike execute (offline-robust). This is
    correct-by-design (a safe FN); hand-annotating the curated fallback is a separate, larger change.

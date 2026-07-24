@@ -547,9 +547,11 @@ describe("findProjectConfigValueLines — a top-level format: block's per-format
   it("is resolution-BLIND — also emits a DEPTH-1 format line (the format NAME itself, `html: default`, path=[]); the FEATURE skips it", () => {
     // `html: default` is a depth-1 scalar under `format:` — the enumerator emits it with
     // path=[] (it enumerates, it does not resolve). The FEATURE's format branch handles only
-    // path.length===1 (depth-2), so a path=[] line → undefined → skip: the top-level `format:`
-    // scalar (a format NAME) is a deliberate FN on THIS `_quarto.yml` surface (Combo 3, deferred;
-    // the `.qmd` scalar NAME is validated as of S145, Combo 1 — format-name validation plan §4.3).
+    // path.length===1 (depth-2), so a path=[] line → undefined → skip: a format NAME used as a
+    // mapping KEY under `format:` (the container-key form, Combos 2 & 4) is still a deliberate FN
+    // on this surface. Distinct from the top-level SCALAR `format: banana` (container:"document"),
+    // which IS validated as of Session 152 (Combo 3), by the same bespoke predicate the `.qmd`
+    // surface has used since S145 (Combo 1 — format-name validation plan §4.3).
     const text = ["format:", "  html: default"].join("\n");
     // `default` spans cols 8..15 on `  html: default`.
     expect(findProjectConfigValueLines(text)).toEqual([
