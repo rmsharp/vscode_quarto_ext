@@ -18,6 +18,25 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S149
+date: 2026-07-23
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD vertical slice). Slice ③ — the general top-level document-key VALUE validation in _quarto.yml — per docs/planning/2026-07-23-quarto-yml-document-key-value-validation-plan.md §4.1's L1→L4 gate-(a) contract. This is the THIRD and last slice of that plan's 3-session arc; prerequisite P shipped S147 and prerequisite P2 shipped S148, so nothing blocks it. Today a wrong VALUE of an already-recognized general top-level document key at column 0 of _quarto.yml (toc: banana, number-sections: yes, fig-width: wide, code-fold: banana) is silent, though quarto render 1.7.33 rejects it at the readAndValidateYamlFromFile schema layer — column-0 lines in findProjectConfigValueLines only set container scope and emit nothing. The slice adds that column-0 emission through the SHARED tail, routes it to frontMatterKeys([]) + isWrongValue + valueMessage unchanged (the same three the .qmd surface has used since S125), and fixes the plan's defect B in-slice: the missing column-0 continuation-guard arming, with the NARROWED opener rule (strip a leading &anchor / !tag, then arm only on a leading quote, bracket, or brace — the shipped whole-token scanFlow arming would make `title: Don't Panic` swallow the rest of the file). Operator picked this via AskUserQuestion at Phase 0 (Active empty). ONE deliverable — slice ③ only; NOT format-name Combo 3 (~6 lines once this lands), NOT the grammar consolidation (FM #26).
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+Session claimed at Phase 1B. This block is the crash breadcrumb: if the session ends before
+close-out, the next session's Phase 0 reconcile finds it still `status: pending`.
+
+```handoff
 session: S148
 date: 2026-07-23
 status: complete
