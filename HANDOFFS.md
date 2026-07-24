@@ -18,6 +18,20 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S150
+date: 2026-07-24
+status: pending
+active_task: AUDIT + REMEDIATION — BACKLOG.md ledger hygiene. Make BACKLOG.md conform to its own contract ("Open, actionable work items only. Completed work -> CHANGELOG.md"), which SESSION_RUNNER Phase 3F also requires ("For a completed backlog item, remove it from BACKLOG.md in the same commit"). Operator-raised at Phase 0. Measured: 250 KB / 232 lines, 115 KB (46%) completed work — 35 top-level [x] blocks + 41 nested, vs 42 top-level open items. Four sub-scopes in order: (1) promote the 4 OPEN sub-items nested under DONE parents (BACKLOG.md:49,50,108,111) to top level FIRST so open work is never at risk; (2) per-item audit of all 76 completed blocks against CHANGELOG.md, backfilling the ledger where thin; (3) delete the verified blocks; (4) rewrite the 99 LIVE BACKLOG:NNN citations to stable item titles and add one note covering the 523 in append-only history, which are deliberately left alone. Operator chose disposition and citation scope via AskUserQuestion at Phase 0. Governing doc docs/methodology/workstreams/AUDIT_WORKSTREAM.md. ONE deliverable — NOT P3 (operator reserved it for next session), NOT Combo 3.
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+```handoff
 session: S149
 date: 2026-07-23
 status: complete
