@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S151
+date: 2026-07-24
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — PREREQUISITE P3, the escape-decoding false positive. unquote (src/core/yaml-value-check.ts) does no escape decoding, so a double-quoted value whose YAML escapes DECODE to a valid enum member is flagged on a document quarto render 1.7.33 renders exit 0 — a cardinal-sin false positive, cross-surface, pre-existing, live on shipped code (.qmd top level since S125, _quarto.yml format: container since S143, widened by S149's column-0 surface). Planned fix is FN-only and about one line: extend isWrongValue's existing hygiene skip so a token containing a backslash is never flagged. Operator selected it via AskUserQuestion at Phase 0. ONE deliverable — P3 only; NOT format-name Combo 3, NOT the sibling enumerators' arming behaviors.
+```
+
+```handoff
 session: S150
 date: 2026-07-24
 status: complete
