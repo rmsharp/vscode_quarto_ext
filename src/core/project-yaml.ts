@@ -141,10 +141,17 @@ function isValueContainer(
  * (`ProjectConfigKeyLine`) stays `{project,website,book}` — the `execute`/`format` children
  * are OPEN sets quarto accepts (an unknown per-format option → exit 0), so KEY validation of
  * them would be a cardinal-sin FP (execute value plan §7 / dragon 1).
+ *
+ * `"document"` is the SYNTHETIC container of a COLUMN-0 document key — the document root
+ * itself, which has no opener line to name it (document-key value plan §3.1/§6 alt 1: it is
+ * the absence of a container, not a container name, so `VALUE_CONTAINERS`/`isValueContainer`
+ * deliberately do NOT gain it). Its fields come from `frontMatterKeys([])` — the SAME reader
+ * the `.qmd` top-level front-matter surface has used since S125 — and its `path` is always
+ * `[]` (depth-2 under a document key is a separate, deferred slice).
  */
 export interface ProjectConfigValueLine {
   line: number;
-  container: "project" | "website" | "book" | "execute" | "format";
+  container: "project" | "website" | "book" | "execute" | "format" | "document";
   /**
    * The ancestor child keys between the container and this value's key, top-down.
    * `[]` for a DEPTH-1 child (`draft-mode: hidden` → `path:[]`); `[child]` for a

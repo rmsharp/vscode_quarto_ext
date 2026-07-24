@@ -104,6 +104,12 @@ async function computeProjectValueDiagnostics(
     return null;
   }
   const diagnostics: vscode.Diagnostic[] = [];
+  // The COLUMN-0 document keys' field set, hoisted out of the loop (a reference return —
+  // `frontMatterKeys([])` hands back the prebuilt `topLevelFields` array). This is the SAME
+  // reader call the `.qmd` top-level front-matter surface makes (S125,
+  // `yaml-value-diagnostics.ts`), which is why the two surfaces agree exactly for these keys
+  // (document-key value plan §0 headline 1: zero new reader/matcher/message code).
+  const documentFields = index.frontMatterKeys([]);
   for (const entry of valueLines) {
     // Select the field set by container, then resolve. An unknown key/path (the KEY
     // feature's territory), an open field (`isWrongValue`'s `valuesClosed` precondition
@@ -123,7 +129,24 @@ async function computeProjectValueDiagnostics(
     // `CURATED_FORMAT_OPTIONS` carries no `valuesClosed`, so format validation flags nothing
     // when the CLI schema fails to load (unlike execute, which is offline-robust; dragon 4).
     let field: SchemaField | undefined;
-    if (entry.container === "format") {
+    if (entry.container === "document") {
+      // A COLUMN-0 document key — the synthetic "container" that is really the document root
+      // (document-key value plan §3.1/§3.2 change B). `path` is always `[]` here, so this is a
+      // flat name lookup, NOT `resolveProjectValueField`'s `.children` descent. Everything
+      // downstream (`isWrongValue` → `valueMessage` → the squiggle) is unchanged.
+      //
+      // Three deliberate skips fall out of the reader rather than needing code: an UNKNOWN
+      // column-0 key (`custom-thing: whatever`) is absent from the set — and must be, because
+      // the `_quarto.yml` top level is an OPEN key set quarto accepts (exit 0), which makes
+      // KEY validation here a non-starter, not a deferral (§2.4/dragon 3); an OPEN field
+      // (`title`, `theme`, `engine`) carries no `valuesClosed`, so `isWrongValue` returns
+      // false; and `format` is deliberately NOT closed (its names are injected after
+      // closedness annotation), so the top-level `format:` scalar NAME stays a safe FN here —
+      // the ONE known, deliberate divergence from the `.qmd` surface, which validates it with
+      // a bespoke predicate (S145 Combo 1). Closing that gap is Combo 3, a different matcher
+      // and its own slice (§4.3/dragon 6) — do NOT "fix" it by making the field closed.
+      field = documentFields.find((f) => f.name === entry.key);
+    } else if (entry.container === "format") {
       field =
         entry.path.length === 1
           ? index.frontMatterKeys(["format", entry.path[0]]).find((f) => f.name === entry.key)
