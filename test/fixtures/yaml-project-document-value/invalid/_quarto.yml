@@ -1,0 +1,20 @@
+# S149 general document-key value validation — INVALID fixture.
+# Each COLUMN-0 line below is a wrong value of a recognized top-level DOCUMENT key that
+# quarto render 1.7.33 rejects at its schema layer (readAndValidateYamlFromFile, exit 1).
+# Each value is grounded single-valued (quarto stops at the first schema error per render,
+# so a combined file does not prove each row on its own — dragon 7).
+#
+# The `title:` row below is the NARROWED-ARMING lock (dragon 2), and it is load-bearing for
+# every row under it: `title: Don't Panic` renders exit 0, but a whole-token scanFlow arming
+# reads its inner
+# apostrophe as opening a multi-line value and the continuation guard then swallows the REST
+# OF THE FILE — all five flags below would vanish and this fixture would silently assert
+# nothing. Do not "tidy" it away.
+title: Don't Panic
+toc: banana
+number-sections: yes
+fig-width: wide
+df-print: KABLE
+toc-depth: banana
+website:
+  page-navigation: true

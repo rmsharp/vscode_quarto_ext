@@ -15,6 +15,8 @@ const EXEC_INVALID = path.resolve(ROOT, "test/fixtures/yaml-project-execute-valu
 const EXEC_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-execute-value/valid/_quarto.yml");
 const FMT_INVALID = path.resolve(ROOT, "test/fixtures/yaml-project-format-value/invalid/_quarto.yml");
 const FMT_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-format-value/valid/_quarto.yml");
+const DOC_INVALID = path.resolve(ROOT, "test/fixtures/yaml-project-document-value/invalid/_quarto.yml");
+const DOC_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-document-value/valid/_quarto.yml");
 const QMD_FIXTURE = path.resolve(ROOT, "test/fixtures/sample.qmd");
 
 async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean> {
@@ -476,6 +478,172 @@ describe("Quarto: _quarto.yml top-level format: per-format option VALUE diagnost
   });
 
   it("never produces a format value diagnostic on a .qmd document — the filename gate structurally excludes it (the .qmd surface has its own S128 per-format value feature)", async () => {
+    const doc = await openActive(QMD_FIXTURE);
+    await new Promise((r) => setTimeout(r, 500));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0);
+  });
+});
+
+describe("Quarto: _quarto.yml COLUMN-0 document-key VALUE diagnostics (document-key value plan §3.2)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("flags exactly the 5 wrong COLUMN-0 document-key values (toc/number-sections/fig-width/df-print/toc-depth), each at its value span", async () => {
+    const doc = await openActive(DOC_INVALID);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 5, 6000),
+      "expected document-key value diagnostics within 6s of opening",
+    );
+    const diags = valueDiagnostics(doc.uri);
+    assert.strictEqual(
+      diags.length,
+      5,
+      `expected exactly 5, got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+    );
+
+    const byLine = new Map(diags.map((d) => [d.range.start.line, d]));
+    // (0-indexed) 13 toc, 14 number-sections, 15 fig-width, 16 df-print, 17 toc-depth.
+    // Each row is pinned by its TEXT as well as its number: inserting a fixture row above
+    // silently retargets a line-anchored assertion onto a different, unflagged row (S148
+    // learned this the hard way on S147's null locks).
+    const lines = doc.getText().split(/\r?\n/);
+    assert.strictEqual(lines[13], "toc: banana", "fixture drift: line 13");
+    assert.strictEqual(lines[14], "number-sections: yes", "fixture drift: line 14");
+    assert.strictEqual(lines[15], "fig-width: wide", "fixture drift: line 15");
+    assert.strictEqual(lines[16], "df-print: KABLE", "fixture drift: line 16");
+    assert.strictEqual(lines[17], "toc-depth: banana", "fixture drift: line 17");
+
+    assert.ok(byLine.get(13)?.message.includes("toc"), "toc on line 13");
+    assert.ok(byLine.get(14)?.message.includes("number-sections"), "number-sections on line 14");
+    assert.ok(byLine.get(15)?.message.includes("fig-width"), "fig-width on line 15");
+    assert.ok(byLine.get(16)?.message.includes("df-print"), "df-print on line 16");
+    assert.ok(byLine.get(17)?.message.includes("toc-depth"), "toc-depth on line 17");
+    // `yes`/`no`/`on`/`off` are NOT YAML 1.2 booleans — quarto rejects them (exit 1), so this
+    // is parity, not a false positive.
+    assert.ok(byLine.get(14)?.message.includes("true or false"), "number-sections expects booleans");
+    // fig-width/toc-depth are NUMERIC fields, routed through the matcher's numeric branch.
+    assert.ok(byLine.get(15)?.message.includes("number"), "fig-width expects a number");
+    assert.ok(byLine.get(17)?.message.includes("number"), "toc-depth expects a number");
+    // df-print is a closed enum, and membership is case-SENSITIVE on both sides.
+    assert.ok(byLine.get(16)?.message.includes("kable"), "df-print lists its members");
+
+    // Value spans (half-open) — the squiggle sits on the VALUE token, never the key.
+    assert.deepStrictEqual(
+      [byLine.get(13)?.range.start.character, byLine.get(13)?.range.end.character],
+      [5, 11],
+      "toc value `banana` spans cols 5..11",
+    );
+    assert.deepStrictEqual(
+      [byLine.get(14)?.range.start.character, byLine.get(14)?.range.end.character],
+      [17, 20],
+      "number-sections value `yes` spans cols 17..20",
+    );
+    assert.deepStrictEqual(
+      [byLine.get(17)?.range.start.character, byLine.get(17)?.range.end.character],
+      [11, 17],
+      "toc-depth value `banana` spans cols 11..17",
+    );
+
+    // The NARROWED-ARMING proof, in a real host: `title: Don't Panic` sits ABOVE all five
+    // rows. Under a whole-token scanFlow arming its apostrophe opens a phantom quoted value
+    // and the continuation guard swallows the rest of the file — this whole test would go to
+    // ZERO diagnostics. It is also itself unflagged (an OPEN field).
+    assert.strictEqual(doc.getText().split(/\r?\n/)[12], "title: Don't Panic", "fixture drift: line 12");
+    assert.ok(byLine.get(12) === undefined, "the open `title` field must not be flagged");
+    // …and the co-existing website: container is still validated normally (a valid value here).
+    assert.ok(byLine.get(19) === undefined, "website.page-navigation: true is valid");
+
+    for (const d of diags) {
+      assert.strictEqual(d.severity, vscode.DiagnosticSeverity.Error);
+      assert.strictEqual(d.code, CODE);
+    }
+  });
+
+  it("produces ZERO diagnostics for a valid document-key _quarto.yml — the FP battery: valid members, TRUE, a numeric, a trailing comment, a numeric-member enum, an anchor and a tag, a YAML null, an OPEN key, an unknown key, the separator form, and a multi-line quoted fold", async () => {
+    // Ordered after the flag test so the SchemaSource cache is warm. Every scalar row of this
+    // fixture is grounded `quarto render` 1.7.33 exit 0 EXCEPT the two deliberate safe-FN
+    // locks (`format: banana`, `project: banana`, both exit 1) — and the whole file minus
+    // those two rows renders exit 0 as one document, verified firsthand.
+    const doc = await openActive(DOC_VALID);
+    await new Promise((r) => setTimeout(r, 400));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "first check");
+    await new Promise((r) => setTimeout(r, 600));
+    assert.strictEqual(valueDiagnostics(doc.uri).length, 0, "second check, later");
+  });
+
+  it("never flags a folded line inside a COLUMN-0 multi-line quoted value — the Defect-B FP this slice removes (3 measured live cases)", async () => {
+    // THE false positive this slice removes, named separately from the aggregate zero above so
+    // a regression names the row. quarto folds the four `description:` lines into one string
+    // and renders exit 0; the shipped code read the folded `website:` + `page-navigation:
+    // banana` as a real container and child and flagged the value. The row after the closing
+    // quote proves the guard also DISARMS.
+    const doc = await openActive(DOC_VALID);
+    await new Promise((r) => setTimeout(r, 500));
+    const lines = doc.getText().split(/\r?\n/);
+    const folded = lines.findIndex((t) => t === "  page-navigation: banana");
+    assert.ok(folded >= 0, "fixture drift: the folded `page-navigation: banana` row is gone");
+    const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === folded);
+    assert.ok(hit === undefined, `the folded line renders exit 0 and must NOT be flagged (got: ${hit?.message})`);
+    assert.ok(lines.includes("code-tools: true"), "fixture drift: the post-fold disarm row is gone");
+  });
+
+  it("never flags a `key:: value` line at COLUMN 0 — the separator FP (P2) on the openest key set there is", async () => {
+    // The separator lock (plan §2.8, prerequisite P2) carried onto the new surface. YAML's key
+    // is `code-copy:`, unknown on the OPEN document root, so quarto renders exit 0 (grounded
+    // single-valued). Splitting at the first colon would flag the bogus token `: hover`
+    // against code-copy's closed enum.
+    const doc = await openActive(DOC_VALID);
+    await new Promise((r) => setTimeout(r, 500));
+    const line = doc.getText().split(/\r?\n/).findIndex((t) => t === "code-copy:: hover");
+    assert.ok(line >= 0, "fixture drift: the `code-copy:: hover` row is gone");
+    const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === line);
+    assert.ok(hit === undefined, `code-copy:: hover renders exit 0 and must NOT be flagged (got: ${hit?.message})`);
+  });
+
+  it("stays silent on the top-level scalar `format:` NAME and on a container name used as a scalar — the two deliberate safe FNs (Combo 3 / absent from the document field set)", async () => {
+    // `format: banana` and `project: banana` are both quarto exit 1, and this feature is
+    // deliberately silent on both. `format` is not a CLOSED field (its names are injected
+    // after closedness annotation), so validating it needs S145's bespoke regex-union
+    // predicate — that is Combo 3, a different matcher and its own slice (dragon 6). It is
+    // also the ONE known, deliberate divergence from the .qmd surface, which DOES flag it:
+    // an author sweep of all 378 top-level fields x 7 probe values found 6 divergences and
+    // all 6 were `format:`. Do NOT "fix" this by making the field closed.
+    const doc = await openActive(DOC_VALID);
+    await new Promise((r) => setTimeout(r, 500));
+    const lines = doc.getText().split(/\r?\n/);
+    for (const row of ["format: banana", "project: banana"]) {
+      const line = lines.findIndex((t) => t === row);
+      assert.ok(line >= 0, `fixture drift: the \`${row}\` row is gone`);
+      const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === line);
+      assert.ok(hit === undefined, `${row} is a deliberate safe FN and must NOT be flagged (got: ${hit?.message})`);
+    }
+  });
+
+  it("re-scans live on edit (debounced) and drops a diagnostic once a wrong document-key value is fixed", async () => {
+    const doc = await openActive(DOC_INVALID);
+    assert.ok(await waitFor(() => valueDiagnostics(doc.uri).length >= 5, 6000));
+
+    const editor = vscode.window.activeTextEditor;
+    assert.ok(editor);
+    await editor.edit((builder) => {
+      builder.replace(doc.lineAt(13).range, "toc: true"); // banana -> a valid member
+    });
+
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length === 4, 3000),
+      "fixing the document-level toc should drop the diagnostic count from 5 to 4 after the debounce",
+    );
+  });
+
+  it("never produces a document-key value diagnostic on a .qmd document — the filename gate structurally excludes it (the .qmd surface has its own S125 top-level feature)", async () => {
     const doc = await openActive(QMD_FIXTURE);
     await new Promise((r) => setTimeout(r, 500));
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0);

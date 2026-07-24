@@ -1,0 +1,45 @@
+# S149 general document-key value validation — VALID fixture (must produce ZERO diagnostics
+# from this feature). The FP battery for the COLUMN-0 document surface: valid closed members,
+# the YAML boolean spelling TRUE, a numeric accept, a trailing comment, a numeric-member enum,
+# YAML node properties (anchor and tag), a YAML null on a null-admitting field, an OPEN key,
+# an unknown key (the _quarto.yml top level is an OPEN key set), the key/value-separator form,
+# and a multi-line quoted value whose folded mapping-looking lines must never be emitted.
+#
+# Every SCALAR line here is grounded quarto exit-0 EXCEPT the two deliberate safe-FN locks
+# (`format: banana` and `project: banana`, both grounded exit-1): quarto rejects them, but
+# THIS feature stays silent by design — `format` is not a closed field (its names are injected
+# after closedness annotation, so the top-level scalar format NAME is Combo 3, a different
+# matcher and its own slice — dragon 6), and `project` is absent from the DOCUMENT field set.
+# So this file's contract is "zero of OUR diagnostics", not "renders clean".
+#
+# A third reader-driven safe FN worth knowing about is NOT in the file because it needs no
+# lock: `code-fold: banana` renders exit 1 but resolves OPEN ({} — no valuesClosed), exactly
+# as it already does on the shipped .qmd surface. The reader decides, and both surfaces agree.
+title: Some Title
+custom-thing: whatever
+toc: true
+number-sections: TRUE
+df-print: kable
+fig-width: 6.5
+toc-depth: 3 # a trailing comment is stripped before matching
+aspectratio: 169
+citeproc: &anchored true
+code-link: !!bool true
+auto-play-media: null
+format: banana
+project: banana
+# The SEPARATOR lock (plan §2.8, prerequisite P2) at COLUMN 0 — the openest key set there is.
+# YAML's key on the next line is `code-copy:`, not `code-copy`, and the top level is an OPEN
+# key set, so quarto accepts the odd key and renders exit 0 (grounded single-valued).
+# Splitting at the first colon yielded key `code-copy` with the bogus value token `: hover`,
+# flagged against code-copy's closed enum: a cardinal-sin false positive.
+code-copy:: hover
+# The DEFECT-B lock (plan §2.6) — the FP this slice removes. quarto folds all four lines into
+# one `description` string and renders exit 0; before the fix, the column-0 branch returned
+# before the scanFlow arming, so `page-navigation: banana` was read as a real website child
+# and flagged. The final row proves the guard DISARMS: `code-tools` is scanned again.
+description: "line one
+website:
+  page-navigation: banana
+  line two"
+code-tools: true
