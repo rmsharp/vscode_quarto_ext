@@ -473,10 +473,18 @@ describe("findCellOptionLines — block-scalar (`|`/`>`) value folds its continu
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
   });
 
-  it("does NOT arm a plain value that merely CONTAINS a pipe (`a | b`)", () => {
+  it("does NOT arm a plain value that merely CONTAINS a pipe (`a | b`) — an over-broad header regex would over-suppress", () => {
     // A `|` is a block-scalar indicator only at the START of a value; `fig-cap: a | b` is a plain
-    // scalar (quarto exit 0), so the following `#| echo: false` is a real option — both emit.
-    const text = ["```{python}", "#| fig-cap: a | b", "#| echo: false", "1+1", "```"].join("\n");
+    // scalar, so it must NOT arm a block-scalar skip. The follow-on `#| echo: false` is INDENTED
+    // (folded-indent 2) so it DISCRIMINATES the arm: with the correctly-anchored header regex the
+    // plain value does not arm and BOTH lines emit ([1, 2]); an over-broad regex that matched
+    // `a | b` would arm a block scalar and SUPPRESS line 2 ([1]). Verified firsthand RED against an
+    // over-arming mutant (`BLOCK_SCALAR_HEADER = /\|/`): it emits [1] (§9 test-quality lens, S158).
+    // (This shape is malformed YAML — a more-indented mapping under a PLAIN scalar renders quarto
+    // exit 1, YAMLException; a SAME-indent sibling would emit regardless of arm state and so cannot
+    // discriminate — hence the indented follow-on. The pin guards the enumerator's arm invariant,
+    // not a quarto-exit-0 fold.)
+    const text = ["```{python}", "#| fig-cap: a | b", "#|   echo: false", "1+1", "```"].join("\n");
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
   });
 });

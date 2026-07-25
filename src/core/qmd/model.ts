@@ -569,8 +569,14 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
         // Inside an open block scalar: a blank `#|` line (always part of the block) and any line
         // MORE indented than the opening key are the block's literal content — skip them. The
         // first non-blank line at or BELOW the opener's indent ENDS the block and is a real
-        // option again (fall through). Strictly-greater is quarto-faithful: a sibling at the SAME
-        // folded-indent renders exit 1, a real option (grounded firsthand, S158).
+        // option again (fall through). Strictly-greater is quarto-faithful for a RENDERABLE doc: a
+        // sibling at the SAME folded-indent renders exit 1, a real option (grounded firsthand,
+        // S158). The boundary is the KEY's indent, not YAML's auto-detected CONTENT indent, so a
+        // `#|` line mis-indented BETWEEN the key and the content (key < foldedIndent < content) is
+        // also skipped — but that band exists ONLY on a doc quarto already rejects with a
+        // structural `YAMLException: bad indentation` (exit 1, never a value error), so over-
+        // skipping there is the safe false-negative direction, not a lost value TP (§9 over-
+        // suppression lens, S158).
         if (m[4].trim() === "" || foldedIndent > blockScalarIndent) {
           return;
         }
