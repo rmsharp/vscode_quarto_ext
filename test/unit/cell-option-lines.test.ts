@@ -732,6 +732,19 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
     ]);
   });
 
+  it("emits a suffixed `(*| … *)` option line in an {ocaml} cell (a PAREN opener)", () => {
+    // `(*` is the only opener in the table containing a regex GROUPING metacharacter, so this
+    // is the pin that makes `escapeRegExp` load-bearing: drop `(` and `)` from its char class
+    // and the generated pattern becomes a capture group, which shifts every group index and
+    // throws on the unbalanced `*)`. Nothing else in the suite reaches that (§9 review, S161).
+    // Grounded firsthand: this document renders quarto exit 1, `Field "echo" has value banana`.
+    const text = ["```{ocaml}", "(*| echo: banana *)", "1", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([
+      { line: 1, cellLang: "ocaml", prefix: "(*|", contentEndCol: 16,
+        keySlot: { startCol: 4, endCol: 8 }, valueSlot: { startCol: 10, endCol: 16 } },
+    ]);
+  });
+
   it("trims whitespace AFTER the closer before testing for it, as quarto does", () => {
     const text = ["```{c}", "/*| echo: banana */   ", "1;", "```"].join("\n");
     expect(findCellOptionLines(text)[0].valueSlot).toEqual({ startCol: 10, endCol: 16 });

@@ -528,17 +528,40 @@ export function findAllCells(text: string): Cell[] {
 }
 
 /**
- * Quarto's OWN language → comment-character table (`kLangCommentChars`), transcribed from
- * the installed 1.7.33 (`share/editor/tools/yaml/web-worker.js`; the identical table also
- * drives `share/filters/modules/constants.lua`). A one-element entry is a line comment; a
- * two-element entry is a BLOCK comment whose closer must also terminate the directive line
- * (see `commentCharsFor`). Facts about another tool's syntax, not expression — the same
+ * Quarto's OWN language → comment-character table (`kLangCommentChars`), transcribed from the
+ * installed 1.7.33 (`share/editor/tools/yaml/web-worker.js`; the identical table also drives
+ * `share/filters/modules/constants.lua`). A one-element entry is a line comment; a two-element
+ * entry is a BLOCK comment whose closer must also terminate the directive line (see
+ * `commentCharsFor`). Facts about another tool's syntax, not expression — the same
  * license-clean basis as the curated schema names (Learning #25).
+ *
+ * These are the 46 entries of quarto's STATIC literal. Its EFFECTIVE table has 47: at startup
+ * quarto overlays the resource `handlers/lang-comment-chars.yml`
+ * (`share/editor/tools/yaml/yaml-intelligence-resources.json`), whose only addition is
+ * `mermaid: "%%"`. That row is deliberately NOT copied here, because adding it would create a
+ * false positive rather than remove one: `mermaid` is a cell-HANDLER language
+ * (`handlers/languages.yml` is exactly `["mermaid","dot"]`), and quarto validates a handler
+ * cell against the handler's own schema instead of the cell-option schema — so it renders ANY
+ * option value in a `{mermaid}` cell at exit 0, `%%|` included (grounded firsthand). Emitting
+ * `%%|` lines there would hand value-diagnostics something quarto never rejects. The same
+ * applies to `dot`, whose `//` row IS present: options in `{dot}` cells are enumerated and can
+ * be flagged on a document quarto accepts. That is a PRE-EXISTING false positive — the old
+ * hard-coded `//` reached `{dot}` identically — with a root cause of its own (handler-language
+ * scoping, not comment chars), tracked in BACKLOG rather than papered over here (§9 review,
+ * S161, adjudicated firsthand).
  *
  * Lookup is CASE-SENSITIVE and unknown languages fall back to `#`, both grounded firsthand
  * vs 1.7.33: `{SQL}` + `--| echo: banana` renders exit 0 while `{SQL}` + `#| echo: banana`
  * renders exit 1, and `{banana}` behaves the same way — quarto does not lowercase the fence
  * token before the lookup, so `{SQL}` is simply an unknown language taking the default.
+ *
+ * Two rows — `d3` and `fortran95` — are unreachable in quarto: its cell-fence recognizer
+ * captures the language as `([=A-Za-z]+)`, so a token containing a DIGIT is never a cell at
+ * all and its options are never validated (`{fortran}` + `!| echo: banana` renders exit 1,
+ * `{fortran95}` renders exit 0). Our `CELL_INFO` does admit digits, so such a cell is flagged
+ * — also PRE-EXISTING (the old hard-coded `#` reached `{fortran95}` the same way, and that
+ * direction is now silent), root-caused in the fence-token grammar rather than here, and
+ * likewise filed.
  */
 const LANG_COMMENT_CHARS: Readonly<Record<string, readonly [string] | readonly [string, string]>> = {
   r: ["#"], python: ["#"], julia: ["#"], scala: ["//"], matlab: ["%"], csharp: ["//"],

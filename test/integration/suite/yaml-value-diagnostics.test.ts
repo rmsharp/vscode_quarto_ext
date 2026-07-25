@@ -1583,33 +1583,39 @@ describe("Quarto: the cell-option comment char follows the cell LANGUAGE (.qmd, 
     );
   });
 
-  // THE ENGINE-SCOPE FP THIS SESSION'S OWN L1 WOULD OTHERWISE HAVE SHIPPED. Quarto scopes
-  // its cell schema to the DOCUMENT's engine, so a knitr-only key is validated in an `{r}`
-  // cell but NOT in a `{sql}` cell of a document with no knitr engine — grounded firsthand:
-  // `--| cache: banana` in {sql} renders exit 1 in a knitr document and exit 0 in a
-  // markdown- or jupyter-engine one. The `{r}` cell here is what makes the assertion
-  // non-vacuous: it proves `cache` IS a closed-valued key this feature flags, so the {sql}
-  // silence is the engine scope at work and not a missing schema entry.
+  // THE ENGINE-SCOPE FP THIS SESSION'S OWN L1 WOULD OTHERWISE HAVE SHIPPED. Quarto scopes its
+  // cell schema to the DOCUMENT's engine, so a knitr-only key is validated in a `{sql}` cell
+  // of a KNITR document but not in one whose engine is markdown.
+  //
+  // The FP document must therefore contain NO `{r}` cell — an `{r}` cell IS what makes a
+  // document knitr, which would make quarto validate the very line the test says it ignores.
+  // The first draft of this test put the `cache`-is-a-real-key control in the SAME document
+  // and justified itself with "quarto renders it exit 0"; measurement says that document
+  // renders exit 1 with `Field "cache" has value banana`, so the assertion was pinning an
+  // accepted safe FALSE NEGATIVE while claiming to pin FP-avoidance (§9 review, S161; two
+  // lenses found it independently and firsthand adjudication upheld them). The control now
+  // lives in its own document.
+  //
+  // Grounded firsthand vs quarto 1.7.33 (`--no-execute`), each shape measured separately:
+  //   markdown-engine {sql}, `--| cache: banana` alone          -> exit 0
+  //   markdown-engine {sql}, `--| cache:` + `--| echo: banana`  -> exit 1, errors=[echo] ONLY
+  //   knitr {r}, `#| cache: banana`                             -> exit 1, errors=[cache]
+  //   knitr document, {sql} `--| cache: banana`                 -> exit 1, errors=[cache]
   it("does not flag an ENGINE-SCOPED key in a cell whose engine is undeterminable", async () => {
+    // No `{r}` cell anywhere: this document's engine is markdown, so quarto reports ONLY the
+    // engine-agnostic `echo` error and never looks at `cache`.
     const content = [
       "---", "title: T", "---", "",           // 0-3
-      "```{r}",                               // 4
-      "#| cache: banana",                     // 5  knitr cell — MUST flag (quarto exit 1)
-      "1",                                    // 6
-      "```", "",                              // 7-8
-      "```{sql}",                             // 9
-      "--| cache: banana",                    // 10 engine undeterminable — must NOT flag
-      "--| echo: banana",                     // 11 engine-agnostic — MUST flag (exit 1)
-      "SELECT 1",                             // 12
-      "```", "",                              // 13-14
+      "```{sql}",                             // 4
+      "--| cache: banana",                    // 5  knitr-only key, engine undeterminable
+      "--| echo: banana",                     // 6  engine-agnostic — MUST flag (quarto exit 1)
+      "SELECT 1",                             // 7
+      "```", "",                              // 8-9
     ].join("\n");
     const doc = await openInline(content);
     assert.ok(
-      await waitFor(() => {
-        const lines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
-        return lines.includes(5) && lines.includes(11);
-      }, 5000),
-      `line 5 (knitr-scoped \`cache\` in an {r} cell) and line 11 (engine-agnostic \`echo\` in the {sql} cell) must BOTH flag — the first proves \`cache\` is a key this feature validates at all, the second proves the pass reached the {sql} cell; flagged: ${valueDiagnostics(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 6), 5000),
+      `line 6 (engine-agnostic \`echo\` in the {sql} cell) must flag, proving the pass reached this cell; flagged: ${valueDiagnostics(
         doc.uri,
       )
         .map((d) => d.range.start.line)
@@ -1617,8 +1623,30 @@ describe("Quarto: the cell-option comment char follows the cell LANGUAGE (.qmd, 
     );
     const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
     assert.ok(
-      !flagged.includes(10),
-      `line 10 is a knitr-only key in a {sql} cell, whose document engine the cell language does not determine — quarto renders it exit 0, so it must NOT be flagged; flagged lines: ${flagged.join(",")}`,
+      !flagged.includes(5),
+      `line 5 is a knitr-only key in a {sql} cell of a MARKDOWN-engine document — quarto renders that document exit 1 for \`echo\` alone and never reports \`cache\`, so it must NOT be flagged; flagged lines: ${flagged.join(",")}`,
+    );
+  });
+
+  // The non-vacuity control for the test above, in its OWN document so it cannot change the
+  // engine of the one under test: `cache` really is a closed-valued key this feature flags,
+  // so the silence above is the engine scope at work and not a missing schema entry.
+  it("DOES flag that same engine-scoped key in an {r} cell, where the engine IS determined", async () => {
+    const content = [
+      "---", "title: T", "---", "",           // 0-3
+      "```{r}",                               // 4
+      "#| cache: banana",                     // 5  knitr — quarto exit 1, `cache` reported
+      "1",                                    // 6
+      "```", "",                              // 7-8
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 5), 5000),
+      `line 5 (\`#| cache: banana\` in an {r} cell) must flag — without this the suppression assertion above could pass merely because \`cache\` is absent from the schema index; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
     );
   });
 });
