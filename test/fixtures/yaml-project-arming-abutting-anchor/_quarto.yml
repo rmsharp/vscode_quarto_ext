@@ -7,8 +7,9 @@
 # a real top-level key and flagging it is a cardinal-sin FALSE POSITIVE. Before S155 the strip's
 # greedy `[^\s]*` swallowed the `[` and the arm never fired, so `toc` was emitted and flagged.
 #
-# `number-sections: banana` (line 1) is the CANARY — a genuinely-wrong document-key value OUTSIDE
-# the fold that MUST flag, so "no diagnostic on the folded line" is not vacuous.
+# `number-sections: banana` (the FIRST data row below, OUTSIDE the fold) is the CANARY — a
+# genuinely-wrong document-key value that MUST flag, so "no diagnostic on the folded line" is not
+# vacuous. (The consuming integration test asserts the exact line numbers; keep them in sync.)
 number-sections: banana
 resources: &a[one,
 toc: banana]

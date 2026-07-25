@@ -797,13 +797,13 @@ describe("Quarto: _quarto.yml arming-discipline parity — abutting anchor (Sess
   it("does NOT flag a document key folded inside an ABUTTING-anchor multi-line flow value", async () => {
     const doc = await openActive(ABUTTING_ANCHOR);
     assert.ok(
-      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 11), 5000),
-      "the number-sections: banana canary (line 11) should flag, proving the project value pass ran",
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 12), 5000),
+      "the number-sections: banana canary (line 12) should flag, proving the project value pass ran",
     );
     const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
     assert.ok(
-      !flaggedLines.includes(13),
-      `the folded toc (line 13) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+      !flaggedLines.includes(14),
+      `the folded toc (line 14) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
     );
   });
 });
