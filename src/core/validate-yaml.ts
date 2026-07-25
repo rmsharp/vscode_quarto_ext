@@ -82,6 +82,28 @@ const VALIDATE_YAML_KEY = "validate-yaml";
  * See `yaml-value-diagnostics.ts` — `validate-yaml: false` + `format: banana` still
  * renders **exit 1** (`Unknown format banana`), because an unresolvable format fails
  * before the validation gate is ever consulted.
+ *
+ * ## What this deliberately does NOT see — and the one place it over-suppresses
+ *
+ * Quarto's render gate reads the **resolved** metadata (`context.format.render?.
+ * ["validate-yaml"]`), not the raw front-matter key, so the flag reaches a document from
+ * more places than this function looks at. All measured firsthand vs 1.7.33:
+ *
+ * - **`format:` sub-keys.** `format:` / `  html:` / `    validate-yaml: false` disarms
+ *   (exit 0), and this function does not see it — we keep flagging. A false POSITIVE,
+ *   still open, filed.
+ * - **Project and directory config.** `validate-yaml: false` in `_quarto.yml` disarms
+ *   every `.qmd` in the project (exit 0) and `_quarto.yml`'s own validation too; the
+ *   same key in a directory's `_metadata.yml` disarms the documents beneath it. This
+ *   extension reads neither file from a `.qmd` pass, so we keep flagging. Also filed.
+ * - **⚠ The one case where this function over-suppresses.** Per-format resolution WINS
+ *   over the top level: `validate-yaml: false` at the root plus `format:` / `  html:` /
+ *   `    validate-yaml: true` renders **exit 1** — quarto validates — while this
+ *   function reports the document disarmed and we stay silent. That is a lost TRUE
+ *   POSITIVE, introduced here, in the FP-safe direction (silence, never a wrong
+ *   squiggle). Not fixed because honouring precedence needs a per-format answer and a
+ *   diagnostics pass has no single "current format" to resolve against — a document may
+ *   declare several. Filed as its own deliverable together with the sub-key case above.
  */
 export function isValidationDisabledByFrontMatter(
   frontMatterValueLines: readonly { key: string; rawToken: string }[],
