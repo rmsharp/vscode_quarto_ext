@@ -1222,3 +1222,84 @@ describe("Quarto: arming-discipline parity — #| cell-option node-property-name
     );
   });
 });
+
+describe("Quarto: arming-discipline parity — #| cell-option block-scalar (`|`/`>`) value folds its continuation (.qmd, BACKLOG: block-scalar cell-option FP, Session 158)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // FP-GONE — the cardinal-sin false positive this session fixes. A value that opens a YAML block
+  // scalar (`|` literal / `>` folded) folds every MORE-indented following `#|` line into its
+  // literal content, so a mapping-looking `#|   echo: banana` is the block's text, NOT a real
+  // option. The enumerator's continuation state (`scanFlow`) tracked only quotes + `{}[]` depth,
+  // never `|`/`>`, so it emitted the folded line and value-diagnostics flagged it — on a doc quarto
+  // renders exit 0. Grounded firsthand vs quarto render 1.7.33: with a leading `#| echo: banana`
+  // canary the ONLY error is the canary (line 2 of the standalone .qmd); the folded `#|   echo:
+  // banana` is fig-cap's block content, unflagged. Non-vacuous: pre-fix the folded line WAS
+  // flagged, so the "not flagged" assertion could not have passed before the fix; the canary
+  // (a VALIDATED cell option with an invalid value) proves the cell-option value pass actually ran.
+  it("does NOT flag a mapping-looking #| line folded into a `|` block scalar (canary proves the pass ran)", async () => {
+    const content = [
+      "---", "title: t", "---", "",
+      "```{python}",
+      "#| echo: banana",
+      "#| fig-cap: |",
+      "#|   echo: banana",
+      "1+1",
+      "```",
+      "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 5), 5000),
+      "the #| echo: banana canary (line 5) should flag, proving the cell-option value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(7),
+      `the folded #|   echo: banana (line 7) must NOT be flagged — it is fig-cap's block-scalar content; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
+
+  // NO-OVER-SUPPRESSION — the termination guard. The block-scalar skip must END at the first
+  // non-blank `#|` line back at or BELOW the opener's folded-indent, so a real sibling option
+  // DEDENTED after the block is still validated. Here `#|   echo: banana` (indent 2) is folded
+  // content but `#| echo: banana` (indent 0) is a real sibling — quarto renders it exit 1 ("must
+  // instead be `true` or `false`") on line 4 of the standalone .qmd, so it MUST still flag.
+  // Over-suppressing it would turn the FP fix into a lost TRUE POSITIVE. Non-vacuous both ways:
+  // the folded line (6) must NOT flag (RED against the pre-fix source, which emitted it) AND the
+  // dedented line (7) MUST flag (RED against any regression that fails to terminate the skip).
+  it("still flags a real option DEDENTED back to the key indent after a block scalar (skip terminates)", async () => {
+    const content = [
+      "---", "title: t", "---", "",
+      "```{python}",
+      "#| fig-cap: |",
+      "#|   echo: banana",
+      "#| echo: banana",
+      "1+1",
+      "```",
+      "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 7), 5000),
+      "the DEDENTED #| echo: banana (line 7) MUST flag — the block scalar ended, so it is a real option quarto rejects (exit 1)",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(6),
+      `the folded #|   echo: banana (line 6) must NOT be flagged — it is fig-cap's block-scalar content; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
+});
