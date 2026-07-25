@@ -6,7 +6,7 @@ import {
   CURATED_SCHEMA_INDEX,
   parseSchemaIndex,
 } from "../../src/core/yaml-schema";
-import type { SchemaField } from "../../src/core/yaml-schema";
+import type { SchemaField, SchemaIndex } from "../../src/core/yaml-schema";
 import { isWrongValue } from "../../src/core/yaml-value-check";
 
 /**
@@ -1367,7 +1367,12 @@ describe("parseSchemaIndex — engine tags & filtering", () => {
   const index = parseSchemaIndex(FIXTURE);
   const engineOf = (name: string): string | undefined =>
     index.cellOptions().find((f) => f.name === name)?.engine;
-  const namesFor = (engine?: "knitr" | "jupyter" | "ojs" | "unknown"): string[] =>
+  // Typed FROM the contract rather than by re-listing it: a hand-copied union silently
+  // drifts when a scope is added, and nothing catches it — `tsconfig.json` includes only
+  // `["src"]`, so `npm run check-types` never sees this file, and vitest transpiles without
+  // type-checking. That is exactly how the S162 `"none"` pin below shipped as a TS2345 error
+  // that every green run reported as passing.
+  const namesFor = (engine?: Parameters<SchemaIndex["cellOptions"]>[0]): string[] =>
     index.cellOptions(engine).map((f) => f.name);
 
   it("reads `tags.engine` for single-engine options", () => {

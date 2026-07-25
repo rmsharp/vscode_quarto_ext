@@ -700,10 +700,12 @@ export function cellOptionScopeFor(lang: string): CellEngine | "unknown" | "none
  * `--| echo: banana` renders **exit 1** with a real `Field "echo" has value banana`. Every
  * one of those handler lines was flagged before S162: the cardinal sin.
  *
- * The suppression costs no true positive. The only key quarto really does enforce in a
- * handler cell is mermaid's own `mermaid-format` (`%%| mermaid-format: banana` → exit 1),
- * and neither it nor `theme` is a member of `cellOptions()` at all, so this feature could
- * never have flagged either one.
+ * The suppression costs no true positive. Quarto does enforce exactly TWO keys in a handler
+ * cell — both mermaid's own, both measured: `mermaid-format` against its `png|svg|js` enum
+ * (`%%| mermaid-format: banana` → exit 1) and `theme` against `null|string`, which admits any
+ * string but rejects a non-scalar (`%%| theme: banana` → exit 0, but `theme: [1,2]`,
+ * `theme: {a: 1}` and `theme: 42` each → exit 1). Neither key is a member of `cellOptions()`
+ * at all, so this feature could never have flagged either one whatever scope it used.
  *
  * **Case-SENSITIVE, and that is load-bearing.** Quarto tests `languages.indexOf(language)`
  * against the raw fence token with no case folding, exactly like the `kLangCommentChars`
@@ -715,13 +717,29 @@ export function cellOptionScopeFor(lang: string): CellEngine | "unknown" | "none
  * Only DIAGNOSTICS narrow this far. Completion still goes through `engineFor`, so a handler
  * cell keeps offering the cell-option list — an over-offer, which is benign, where an
  * over-flag is not (the same asymmetry that separates `"unknown"` from `undefined`).
- * Emission is untouched too: `findCellOptionLines` still reports handler-cell option lines,
- * because the outline, virtual documents and the cross-reference index all consume them.
+ * Emission is untouched too: `findCellOptionLines` still reports handler-cell option lines.
+ * Exactly two modules consume that enumerator — `completionContextAt` just above, and
+ * `features/yaml-value-diagnostics.ts` — plus the embedded virtual-doc builders
+ * (`embedded/virtual-doc.ts`). For a HANDLER language the vdoc builders are unreachable:
+ * `cellLanguageId("dot")` and `cellLanguageId("mermaid")` are both `null`, and every vdoc
+ * path bails on an unmapped language BEFORE it consults the option lines (`embeddedCellAt`
+ * returns at the `el === null` guard; `buildVirtualContent` skips the cell). So for `{dot}`
+ * and `{mermaid}` specifically, the only live consumer left is cell-option COMPLETION —
+ * which is precisely what a mutant that suppressed emission here would break. The
+ * cross-reference index is NOT a consumer at all: `core/refs.ts` scans labels with its own
+ * private `CELL_LABEL_OPTION` regex (the second-scanner divergence tracked in BACKLOG), and
+ * `core/cell-background.ts` uses `findAllCells` only.
  */
 const CELL_HANDLER_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot"]);
 
-/** Whether `lang` is one of quarto's cell-handler languages (case-sensitive). */
-export function isCellHandlerLanguage(lang: string): boolean {
+/**
+ * Whether `lang` is one of quarto's cell-handler languages (case-sensitive).
+ *
+ * Deliberately NOT exported: `cellOptionScopeFor` is the only caller and the tested entry
+ * point. Export it when a second consumer actually needs it — e.g. the deferred
+ * `mermaid: ["%%"]` comment-char row, or a handler-aware completion narrowing.
+ */
+function isCellHandlerLanguage(lang: string): boolean {
   return CELL_HANDLER_LANGUAGES.has(lang);
 }
 

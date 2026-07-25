@@ -514,7 +514,7 @@ export interface SchemaIndex {
    * restricted to a *different* engine is excluded; an engine-agnostic option is
    * always included.
    *
-   * Three scopes, deliberately distinct:
+   * Four scopes, deliberately distinct:
    *  - a concrete engine — that engine's options plus the engine-agnostic ones;
    *  - `undefined` (absent) — the FULL set, unfiltered. "We do not filter what we cannot
    *    classify": an over-OFFER, correct for completion;

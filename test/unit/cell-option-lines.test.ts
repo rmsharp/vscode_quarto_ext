@@ -870,11 +870,21 @@ describe("findCellOptionLines — a cell-HANDLER language still EMITS; only vali
     // because quarto validates a handler cell against `handlers/<lang>/schema.yml` — for
     // `dot`, a resource that does not exist — and so renders any option value there exit 0.
     // That narrowing belongs to the DIAGNOSTICS path alone (`cellOptionScopeFor` →
-    // `"none"`, `yaml-context.ts`). This enumerator is shared with the outline, embedded
-    // virtual documents, cell-background highlighting and the cross-reference index, none
-    // of which care which schema validates the cell — a `//| label: fig-g` in a `{dot}`
-    // cell is still a real label quarto resolves `@fig-g` against. Suppressing here instead
-    // would be the plausible-looking fix that silently breaks all four.
+    // `"none"`, `yaml-context.ts`); suppressing HERE instead is the plausible-looking fix
+    // this pin exists to catch. Measured, the casualty of that mutant in a `{dot}` or
+    // `{mermaid}` cell is cell-option COMPLETION: those are the only two languages at issue,
+    // `cellLanguageId` returns `null` for both, and every embedded virtual-doc path bails on
+    // an unmapped language BEFORE it consults the option lines — so completion is the one
+    // live consumer left. (For an engine-MAPPED language the vdoc builders consume it too,
+    // which is why the enumerator's contract must hold generally, not just for handlers.)
+    // Deliberately NOT claimed here: the cross-reference index and cell-background
+    // highlighting. Neither calls this enumerator — `core/refs.ts` scans labels with its own
+    // `CELL_LABEL_OPTION` regex and `core/cell-background.ts` uses `findAllCells`. The
+    // `//| label: fig-g` below is a real label quarto resolves `@fig-g` against (measured:
+    // exit 0, `href="#fig-g"`, "Figure 1") and our index does register it — but through
+    // refs.ts's private scanner, so it is realistic fixture content, not evidence for this
+    // pin. An earlier revision of this comment cited all four consumers and was wrong on
+    // every one (S162 §9 review, adjudicated firsthand).
     const text = [
       "```{dot}",
       "//| label: fig-g",

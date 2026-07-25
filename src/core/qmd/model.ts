@@ -541,16 +541,20 @@ export function findAllCells(text: string): Cell[] {
  * `mermaid: "%%"`. That row is still deliberately NOT copied here, but the REASON changed in
  * S162 and the blocker is gone. `mermaid` and `dot` are quarto's two cell-HANDLER languages
  * (`handlers/languages.yml` is exactly `["mermaid","dot"]`), and quarto validates a handler
- * cell against `handlers/<lang>/schema.yml` instead of the cell-option schema — so it renders
- * ANY cell option in either at exit 0. Before S162 that was a live false positive in `{dot}`
- * (whose `//` row IS present, so its options were enumerated and flagged on a document quarto
- * accepts) and adding `mermaid` would have created a second one. S162 fixed it at its real
- * root — `cellOptionScopeFor` now returns the `"none"` scope for a handler language
- * (`isCellHandlerLanguage`, `yaml-context.ts`), so nothing in either cell is validated no
- * matter which lines are emitted here. Adding the `mermaid` row is therefore now SAFE for
- * diagnostics; it is left out only because it is a change to what the enumerator EMITS, whose
- * consumers are the outline, virtual documents, completion and the cross-reference index —
- * a separate deliverable with its own grounding, tracked in BACKLOG.
+ * cell against `handlers/<lang>/schema.yml` instead of the cell-option schema — so no `cell-*`
+ * field reaches either, and every cell option we validate renders exit 0 there. (Quarto does
+ * enforce mermaid's own `mermaid-format` and `theme` through that handler schema; neither is a
+ * member of `cellOptions()`, so neither is reachable from here.) Before S162 that was a live
+ * false positive in `{dot}` — whose `//` row IS present, so its options were enumerated and
+ * flagged on a document quarto accepts — and adding `mermaid` would have created a second one.
+ * S162 fixed it at its real root: `cellOptionScopeFor` returns the `"none"` scope for a handler
+ * language (`isCellHandlerLanguage`, `yaml-context.ts`), so nothing in either cell is validated
+ * no matter which lines are emitted here. Adding the `mermaid` row is therefore now SAFE for
+ * diagnostics; it is left out only because it changes what the enumerator EMITS. For these two
+ * languages that means cell-option COMPLETION — the embedded virtual-doc builders bail on an
+ * unmapped `cellLanguageId` before consulting option lines, and neither `core/refs.ts` nor
+ * `core/cell-background.ts` calls this enumerator at all. A separate deliverable with its own
+ * grounding, tracked in BACKLOG.
  *
  * Lookup is CASE-SENSITIVE and unknown languages fall back to `#`, both grounded firsthand
  * vs 1.7.33: `{SQL}` + `--| echo: banana` renders exit 0 while `{SQL}` + `#| echo: banana`
