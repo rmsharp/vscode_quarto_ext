@@ -7,6 +7,84 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-25 · [ad hoc] Session 162 — IMPLEMENTATION: a cell-HANDLER language is validated by no cell schema (SHIPPED)
+
+Quarto registers a small set of cell **handlers** — `handlers/languages.yml` is exactly
+`["mermaid","dot"]` — and `parseAndValidateCellOptions` swaps the engine's cell schema for
+`handlers/<lang>/schema.yml` when the cell language is one of them:
+
+```js
+let schema = engineOptionsSchema[engine];
+if (getYamlIntelligenceResource("handlers/languages.yml").indexOf(language) !== -1) {
+  try { schema = getYamlIntelligenceResource(`handlers/${language}/schema.yml`); }
+  catch (_e) { schema = undefined; }
+}
+if (schema === undefined || !validate) { /* parse WITHOUT validating */ }
+```
+
+`handlers/dot/schema.yml` does not exist, so the lookup throws and **nothing** in a `{dot}` cell
+is validated; `handlers/mermaid/schema.yml` does exist but declares only `mermaid-format` and
+`theme` and admits every other key. Either way no `cell-*` field reaches a handler cell, so
+`features/yaml-value-diagnostics.ts` was squiggling documents quarto **accepts** — the cardinal
+sin. **PRE-EXISTING**: the pre-S161 hard-coded `//` reached `{dot}` identically.
+
+`cellOptionScopeFor` (`src/core/yaml-context.ts`) now returns a new `"none"` scope for a handler
+language, and `SchemaIndex.cellOptions("none")` is the empty set — the last point on the same
+narrowing axis S161 L2 opened: full ⊇ engine ⊇ intersection ⊇ ∅. `"none"` needs its own branch
+because, unlike `"unknown"`, it is not expressible as a filter over `SchemaField.engine`: it must
+drop the engine-**agnostic** fields too.
+
+**Grounded firsthand vs quarto 1.7.33 before any code** (`--no-execute`, 53 documents, plus a read
+of quarto's own `parseAndValidateCellOptions`). In a markdown-engine document `{dot}` + `//| echo`,
+`fig-align`, `eval`, `cache`, `code-fold` each `: banana` all render **exit 0**, as do `{mermaid}`
++ `#| echo: banana` and `%%| echo: banana`; the control `{sql}` + `--| echo: banana` renders
+**exit 1**, as do 12 further languages spanning every comment-char family including the unknown
+`{banana}` — so the exclusion is provably minimal. Post-fix agreement measured on 14 documents:
+**0 disagreements**.
+
+**Two facts the filed item did not carry, both load-bearing.** (1) The handler match is
+**CASE-SENSITIVE** — quarto tests `languages.indexOf(language)` against the raw fence token with
+no folding, so `{DOT}`, `{Dot}` and `{Mermaid}` are ordinary unknown languages and each renders
+**exit 1** on `#| echo: banana`. A case-folding exclusion would have converted three measured true
+positives into silence; the pin that guards this kills a `toLowerCase` mutant. (2) The item's claim
+that quarto "renders ANY option value in those cells exit 0" is **false for `{mermaid}`**: its
+handler schema enforces `mermaid-format` (`%%| mermaid-format: banana` → exit 1) and `theme`
+(rejects a non-scalar). Neither is a member of `cellOptions()`, so the fix is unaffected.
+
+**What the suppression costs, measured rather than asserted.** The §9 review found that L1's
+"costs no true positive" was false, and firsthand adjudication upheld it. An exhaustive sweep of
+all **47** keys this feature can flag in a `{dot}` cell, one render each, in both engines: a
+markdown-engine document renders **46 of 47 exit 0** — the exception, `layout`, is an OPEN-valued
+field we never flagged either way, so every key we could actually FLAG renders exit 0 there — while
+a **knitr** document makes exactly one flaggable key —
+`include` — a real value-dependent failure (`//| include: banana` → exit 1 from knitr's own
+`if (options$include)`; `//| include: false` → exit 0). We flagged it before and are silent now.
+The trade is deliberate: `cellOptionScopeFor` receives only the cell LANGUAGE and cannot know the
+document engine, so it is one conditional false negative against 46 unconditional false positives,
+and an over-flag is the cardinal sin. A second, narrower true positive is also given up —
+`` ```{mermaid=x} `` is the language `mermaid=x` to quarto (its recognizer is `([=A-Za-z]+)`, `=`
+inside the class) and takes the ordinary schema, but our `CELL_INFO` truncates at `=` so it
+arrives as `mermaid` and matches. Both are filed, with the `engine:` override and the `CELL_INFO`
+fence-token deliverable that would respectively fix them.
+
+**Scope held to validation.** Emission and completion are deliberately untouched, and both are
+pinned against the plausible-but-wrong alternative fix. For `{dot}`/`{mermaid}` specifically the
+only live consumer of the enumerator besides diagnostics is cell-option **completion** — the
+embedded virtual-doc builders bail on an unmapped `cellLanguageId` before consulting option lines,
+and neither `core/refs.ts` nor `core/cell-background.ts` calls it at all.
+
+Strict TDD, six layers, RED verified per layer by measurement: the scope pin RED against the real
+pre-fix tree, the `"none"`-is-empty pin RED with the branch reverted (it returned `echo`, `eval`,
+`code-fold` — precisely the FP set), the two preservation pins RED against targeted mutants, and
+the integration layer RED against a reverted `cellOptionScopeFor` (the pre-fix tree reported
+`flagged lines: 5,6,11,16,21`). Unit 1393 → 1399, integration 464 → 466, check-types clean; the
+GREEN integration run doubles as the Phase 3E runtime smoke test.
+
+Commits: `a60fd10` (L1 fix + unit pins), `dd51509` (L2 blast-radius pins), `82bda78` (L3
+integration), `e36c1ac` (L4 stale docstring), `33cf8b6` (L5 four review-found defects in my own
+work), `a101fe9` (L6 two false claims about what the suppression costs), `5a2ede1` (L7 the
+markdown half of the sweep, measured rather than inferred: 46 of 47).
+
 ### 2026-07-25 · [ad hoc] Session 161 — IMPLEMENTATION: the cell-option comment char is scoped to the cell LANGUAGE (SHIPPED)
 
 `findCellOptionLines` (`src/core/qmd/model.ts`) hard-coded exactly two comment characters
