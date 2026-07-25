@@ -582,12 +582,23 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
           ? m[4].replace(/^-[ \t]*/, "").trimEnd()
           : m[4].slice(armColon + 1).replace(/^[ \t]+/, "").trimEnd();
       // Strip a leading node property before the first-char test. The name charset excludes
-      // flow indicators/quotes (`[]{}"'`), so the strip stops at — and thus SEES — an opener
-      // that ABUTS the anchor/tag with no space (`&a[one,`, which js-yaml/quarto accept and
-      // fold: fig-cap takes a list, so it renders exit 0 — flagging its folded continuation
-      // would be a cardinal-sin FP the whole-token arm avoided; §9 branch-interaction lens,
-      // S154). The trailing ws is optional so both `&a [one,` and `&a[one,` strip to `[one,`.
-      const opener = armToken.replace(/^(?:[&!][^\s[\]{}"']*[ \t]*)+/, "")[0];
+      // ONLY the YAML c-flow-indicators `,[]{}` (the chars an anchor/tag NAME may not contain),
+      // so two things hold: (1) the strip stops at — and thus SEES — an opener that ABUTS the
+      // anchor/tag with no space (`&a[one,`/`&a{one:`, which js-yaml/quarto accept and fold:
+      // fig-cap takes a list, so `#| fig-cap: &a[one,` renders exit 0 — flagging its folded
+      // continuation would be a cardinal-sin FP the whole-token arm avoided; §9 branch-
+      // interaction lens, S154); and (2) a QUOTE, being a LEGAL anchor-name char, is KEPT in
+      // the name and NOT read as an opener — `#| myopt: &a'b` (a node named `a'b`, null value)
+      // quarto ACCEPTS (exit 0), so mis-reading `'b` as a quote opener would phantom-fold a
+      // following real option and drop its validation (`#| echo: banana` is then the SOLE
+      // error quarto reports, exit 1 — a lost TRUE POSITIVE). The earlier `[^\s[\]{}"']` form
+      // over-excluded quotes; corrected to the YAML-exact `[^\s,[\]{}]` to match the three
+      // front-matter/project VALUE enumerators (S155 §9 over-suppression correction,
+      // PROJECT_LEARNINGS #168). The trailing ws is optional so `&a [one,` and `&a[one,` both
+      // strip to `[one,`. (An anchor NAME containing a quote FOLLOWED by a real flow opener,
+      // `&a'b [1,`, still arms — via `scanFlow` seeing that inner `'` — but that pathological
+      // shape is unchanged by this correction and out of scope.)
+      const opener = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "")[0];
       if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
         const s = scanFlow(armToken, 0, null);
         flowDepth = s.depth > 0 ? s.depth : 0;

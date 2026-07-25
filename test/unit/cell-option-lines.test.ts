@@ -296,9 +296,46 @@ describe("findCellOptionLines — arming discipline parity: the phantom-quote FN
   it("arms an anchored flow opener that ABUTS the bracket with NO space (`&a[one,`) — quarto folds it, exit 0", () => {
     // js-yaml/quarto accept an anchor abutting a flow bracket and fold the continuation
     // (fig-cap takes a list, so `#| fig-cap: &a[one,` / `#| echo: banana]` renders exit 0).
-    // The strip's name charset excludes `[]{}"'`, so it stops at — and sees — the `[` opener;
-    // flagging the folded `#| echo: banana]` would be a cardinal-sin FP (§9 review, S154).
+    // The strip's name charset excludes the flow indicators `,[]{}`, so it stops at — and sees
+    // — the `[` opener; flagging the folded `#| echo: banana]` would be a cardinal-sin FP (S154).
     const text = ["```{python}", "#| fig-cap: &a[one,", "#| echo: banana]", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+});
+
+describe("findCellOptionLines — anchor-name QUOTE strip parity (over-suppression correction, S156)", () => {
+  // The node-property strip's name charset must exclude ONLY the YAML flow indicators
+  // `,[]{}` (the chars an anchor / tag NAME may not contain). A quote is a LEGAL
+  // anchor-name char and must be KEPT in the name, never treated as an opener. The S154
+  // strip `[^\s[\]{}"']` over-excluded quotes, so a quote INSIDE an anchor name (`&a'b`)
+  // stopped the strip early, leaving `'b` whose `'` armed a phantom single-quote that
+  // swallowed the following real option — an over-suppression FALSE NEGATIVE. This is the
+  // same correction S155 shipped on the three front-matter / project VALUE enumerators
+  // (`[^\s[\]{}"']` → `[^\s,[\]{}]`; PROJECT_LEARNINGS #168). Grounded firsthand vs quarto
+  // render 1.7.33: `#| myopt: &a'b` (an unknown / null-tolerant option) renders exit 0, so
+  // the swallowed `#| echo: banana` (exit 1 — "must instead be `true` or `false`") is the
+  // SOLE error — a genuine lost TRUE POSITIVE, not a safe FN.
+  it("does NOT let an APOSTROPHE in an anchor NAME arm a phantom quote (`&a'b`)", () => {
+    const text = ["```{python}", "#| myopt: &a'b", "#| echo: banana", "1+1", "```"].join("\n");
+    // `&a'b` anchors a null value; `'` is a legal anchor-name char, so nothing is opened
+    // and the real `#| echo: banana` (line 2) is a normal option again, not a continuation.
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+
+  it("does NOT let a DOUBLE-QUOTE in an anchor NAME arm a phantom quote (`&a\"b`)", () => {
+    const text = ["```{python}", '#| myopt: &a"b', "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+
+  it("does NOT let a quote in a TAG NAME arm a phantom quote (`!t'x`)", () => {
+    const text = ["```{python}", "#| myopt: !t'x", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+
+  it("STILL arms an anchor abutting a flow BRACE (`&a{one:`) — the flow indicators stay excluded", () => {
+    // The correction narrows the name charset to exclude ONLY `,[]{}`, so an abutting `{` / `[`
+    // (both flow indicators) is still SEEN as the opener and the continuation guard still arms.
+    const text = ["```{python}", "#| fig-cap: &a{one:", "#| echo: banana", "1+1", "```"].join("\n");
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
   });
 });
