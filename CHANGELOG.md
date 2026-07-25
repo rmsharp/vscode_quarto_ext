@@ -7,6 +7,63 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-25 · [ad hoc] Session 159 — IMPLEMENTATION: the quoted-KEY divergence, `.qmd` front-matter surfaces (SHIPPED)
+
+Brought the `.qmd` front-matter VALUE-diagnostics surfaces to key-unquoting parity
+with `_quarto.yml`: a YAML mapping key now has one matching layer of quoting stripped
+before it is resolved against the schema's bare field names. Filed Session 149 (§9
+review surface-parity lens) as a LOW, safe-direction parity gap.
+
+**Not a parity nicety — a LIVE lost true positive.** Grounded firsthand vs `quarto
+render --no-execute` 1.7.33 BEFORE any code: `"toc": banana` (top level), `execute:` /
+`  "echo": banana` and `format:` / `  html:` / `    "toc": banana` (nested), and
+`#| "echo": banana` (cell option) ALL render **exit 1 with a real VALUE error** — the
+same `Field "X" has value banana, which must instead be …` quarto gives the unquoted
+line — yet every one was SILENT. Single-quoted forms behave identically, and
+`"format": banana` additionally bypassed the format-NAME path, which the consumer
+reaches only when the key literal equals `format`.
+
+Fix: one shared `unquoteKey`, moved from `project-yaml.ts`'s private helper to
+`yaml-context.ts` (the module that already hosts the shared YAML grammar) and applied
+in `findFrontMatterValueLines` and `findNestedFrontMatterValueLines`. It requires a
+MATCHING leading/trailing pair, which keeps it FP-safe: `"toc` and `"toc" x` are left
+intact, resolve against no field, and stay silent — and both are documents quarto
+rejects with a structural `YAMLException`, never a value error (Learning #171b).
+`"toc ": banana` (space inside the quotes) is a DIFFERENT key that quarto accepts
+**exit 0**; it unquotes to `toc ` and stays silent. Escapes are deliberately not
+decoded (`"\u0074oc"` stays a safe FN — the same limitation the value-side `unquote`
+carries). Resolves the nested-value plan's §10 Q2, which had recommended mirroring the
+top-level "quotes retained" imprecision and revisiting "only if the review shows a real
+miss."
+
+**The mandatory §9 adversarial review (5 lenses, 19 agents) raised a HIGH finding
+against this change and firsthand adjudication upheld it**, so the session also
+shipped a correction and a partial revert:
+
+- `mappingColonAt` scanned for the first colon followed by whitespace WITHOUT skipping
+  a quoted key, so `"a: b": "text` split inside the quotes and the enumerators'
+  continuation guard never armed — the line quarto FOLDS into that value was read as a
+  real mapping and flagged, on documents quarto renders **exit 0**. Measured with the
+  real enumerators against the real installed schema: with a BARE folded key that FP
+  was already live pre-S159; unquoting would have widened it to quoted folded keys.
+  The separator scan now skips a quoted key region (honoring YAML escapes), which only
+  ever moves the scan start later — so it can turn a mis-split into a correct split or
+  into "no separator", never invent one. Net: the widening is gone AND the pre-existing
+  front-matter FP is gone.
+- The **cell-option half was REVERTED**. Its arm token comes from `findCellOptionLines`'
+  own `m[4].indexOf(":")`, so `#| a:b: "text` disarms the guard the same way; that FP is
+  likewise pre-existing with a bare folded key. `model.ts` is deliberately import-free
+  (`yaml-context.ts` imports IT), so it cannot share the fix without the cross-module
+  grammar consolidation `BACKLOG.md` already tracks. Filed with its grounding and the
+  required fix order (arm grammar first, then the unquote) rather than shipped.
+
+The review also surfaced a **live PRE-EXISTING cardinal-sin FP unrelated to this work**
+— a `#|` line after code in a cell (`` ```{python} `` / `1+1` / `#| echo: banana`)
+renders exit 0 and we flag it — verified firsthand and filed as the recommended next
+pick.
+
+unit 1329 → 1340, integration 456 → 458, check-types clean, runtime smoke PASS.
+
 ### 2026-07-25 · [ad hoc] Backlog grooming (post-S158, operator-directed) — filed the CHANGELOG-header format migration
 
 Filed a new `BACKLOG.md` "Up Next" item (operator request): migrate this file's
