@@ -694,18 +694,39 @@ export function cellOptionScopeFor(lang: string): CellEngine | "unknown" | "none
  * So neither handler cell is reachable by any `cell-*` field: `handlers/dot/schema.yml`
  * does not exist, the lookup throws, and NOTHING in a `{dot}` cell is validated; while
  * `handlers/mermaid/schema.yml` does exist but declares only `mermaid-format` and `theme`
- * and admits every other key. Grounded firsthand vs 1.7.33 — `{dot}` + `//| echo`,
- * `fig-align`, `eval`, `cache` and `code-fold` all `: banana` render **exit 0**, as do
- * `{mermaid}` + `#| echo: banana` and `%%| echo: banana`, while the control `{sql}` +
- * `--| echo: banana` renders **exit 1** with a real `Field "echo" has value banana`. Every
- * one of those handler lines was flagged before S162: the cardinal sin.
+ * and admits every other key. Grounded firsthand vs 1.7.33 in a MARKDOWN-engine document —
+ * `{dot}` + `//| echo`, `fig-align`, `eval`, `cache` and `code-fold` all `: banana` render
+ * **exit 0**, as do `{mermaid}` + `#| echo: banana` and `%%| echo: banana`, while the control
+ * `{sql}` + `--| echo: banana` renders **exit 1** with a real `Field "echo" has value banana`.
+ * Every one of those handler lines was flagged before S162: the cardinal sin.
  *
- * The suppression costs no true positive. Quarto does enforce exactly TWO keys in a handler
- * cell — both mermaid's own, both measured: `mermaid-format` against its `png|svg|js` enum
- * (`%%| mermaid-format: banana` → exit 1) and `theme` against `null|string`, which admits any
- * string but rejects a non-scalar (`%%| theme: banana` → exit 0, but `theme: [1,2]`,
- * `theme: {a: 1}` and `theme: 42` each → exit 1). Neither key is a member of `cellOptions()`
- * at all, so this feature could never have flagged either one whatever scope it used.
+ * **The engine qualifier above is not decoration.** A handler cell is exempt from quarto's
+ * cell SCHEMA under every engine, but a knitr document runs knitr's own chunk machinery over
+ * it as well, and that machinery is not schema-driven. Measured: in a knitr document (any
+ * `{r}` cell present) `{mermaid}` + `#| echo: banana` renders exit 1 — not a value error but
+ * `The chunk options should start with '%%| ' instead of '#| '`, which fires identically for
+ * the VALID `#| echo: false`, so it is structural and no value diagnostic can express it.
+ *
+ * **What the suppression costs.** An exhaustive sweep of all 47 keys this feature can flag in
+ * a `{dot}` cell, one render each: in a markdown-engine document every one renders exit 0, so
+ * the false-positive fix is exactly right there. In a KNITR document exactly one of them —
+ * `include` — becomes a real, value-dependent failure (`//| include: banana` → exit 1 from
+ * knitr's own `if (options$include)`; `//| include: false` → exit 0), and we flagged it before
+ * S162 and are silent now. That is a deliberate trade under this project's doctrine, not an
+ * oversight: `cellOptionScopeFor` receives only the cell LANGUAGE and cannot know the document
+ * engine (the same limit S161 L2 documented), so the choice is one conditional false negative
+ * against 46 unconditional false positives, and an over-flag is the cardinal sin. Tracked in
+ * BACKLOG together with the front-matter `engine:` override that would let us tell the two
+ * documents apart. (`layout: banana` also renders exit 1 in both engines, but it is an
+ * open-valued field we never flagged either way — a PRE-EXISTING lost true positive, unchanged
+ * by S162.)
+ *
+ * Quarto does enforce two keys of its own in a handler cell — both mermaid's, both measured:
+ * `mermaid-format` against its `png|svg|js` enum (`%%| mermaid-format: banana` → exit 1) and
+ * `theme` against `null|string`, which admits any string but rejects a non-scalar
+ * (`%%| theme: banana` → exit 0, but `theme: [1,2]`, `theme: {a: 1}` and `theme: 42` each →
+ * exit 1). Neither is a member of `cellOptions()`, so this feature could never have flagged
+ * either one whatever scope it used.
  *
  * **Case-SENSITIVE, and that is load-bearing.** Quarto tests `languages.indexOf(language)`
  * against the raw fence token with no case folding, exactly like the `kLangCommentChars`
@@ -713,6 +734,18 @@ export function cellOptionScopeFor(lang: string): CellEngine | "unknown" | "none
  * taking the `#` comment-char default and the ORDINARY cell schema: each renders **exit 1**
  * on `#| echo: banana` (measured). Folding case here would convert those true positives
  * into silence.
+ *
+ * **`lang` is OUR token, not quarto's, and for one shape they differ.** Quarto's fence
+ * recognizer captures the language as `([=A-Za-z]+)` — `=` is INSIDE the class — so
+ * ```` ```{mermaid=x} ```` has the language `mermaid=x`, which is not in
+ * `handlers/languages.yml` and therefore takes the ordinary cell schema: measured, its
+ * `#| echo: banana` renders **exit 1** with a real `Field "echo" has value banana`. Our
+ * `CELL_INFO` truncates the token at `=`, so it arrives here as `mermaid`, matches, and is
+ * suppressed — a true positive we flagged before S162 and lose now. The root cause is the
+ * pre-existing `CELL_INFO`/fence-token divergence already tracked in BACKLOG (the same regex
+ * that admits digits, which quarto's recognizer rejects); it cannot be fixed here without the
+ * raw token, and that fix is its own deliverable because `findAllCells` feeds the outline,
+ * virtual documents, highlighting and diagram regions. Filed, not papered over.
  *
  * Only DIAGNOSTICS narrow this far. Completion still goes through `engineFor`, so a handler
  * cell keeps offering the cell-option list — an over-offer, which is benign, where an

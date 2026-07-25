@@ -1672,10 +1672,13 @@ describe("Quarto: a cell-HANDLER language is validated by no cell schema (.qmd, 
   // — exactly ["mermaid","dot"]. `handlers/dot/schema.yml` does not exist, so the lookup
   // throws and NOTHING in a `{dot}` cell is validated; `handlers/mermaid/schema.yml` exists
   // but declares only `mermaid-format`/`theme` and admits any other key. Grounded firsthand
-  // vs 1.7.33: every option line below renders exit 0, and every one was squiggled before
-  // this session. The canary in the last cell is a real `{sql}` option quarto rejects —
-  // without it a wholesale loss of cell-option validation would satisfy the suppression
-  // assertions vacuously.
+  // vs 1.7.33: every option line below renders exit 0 in this document, and every one was
+  // squiggled before this session. The document is deliberately MARKDOWN-engine — it holds no
+  // `{r}` cell — because a knitr document additionally runs knitr's own chunk machinery over a
+  // handler cell and rejects some of these shapes structurally (S162 §9 review; the accounting
+  // is in `cellOptionScopeFor`'s docstring). The canary in the last cell is a real `{sql}`
+  // option quarto rejects — without it a wholesale loss of cell-option validation would
+  // satisfy the suppression assertions vacuously.
   it("does NOT flag any option value in a {dot} or {mermaid} cell (canary proves the pass ran)", async () => {
     const content = [
       "---", "title: T", "---", "",           // 0-3

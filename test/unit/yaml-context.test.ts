@@ -665,11 +665,19 @@ describe("cellOptionScopeFor — a cell-HANDLER language is validated by no cell
   // for `handlers/<lang>/schema.yml` when the cell language is one of them. `dot` has no
   // such resource, so the lookup throws, `schema === undefined`, and NOTHING is validated;
   // `mermaid` has one, but it declares only `mermaid-format` and `theme` and admits any
-  // other key. Either way no cell-option field applies. Grounded firsthand vs 1.7.33:
-  // `{dot}` + `//| echo|fig-align|eval|cache|code-fold: banana` all render exit 0, as does
-  // `{mermaid}` + `#|` or `%%| echo: banana` — while the control `{sql}` + `--| echo:
-  // banana` renders exit 1. We flag every one of those `{dot}`/`{mermaid}` lines today
-  // (measured against the shipped tree), which is the cardinal sin.
+  // other key. Either way no cell-option field applies. Grounded firsthand vs 1.7.33 in a
+  // MARKDOWN-engine document: `{dot}` + `//| echo|fig-align|eval|cache|code-fold: banana` all
+  // render exit 0, as does `{mermaid}` + `#|` or `%%| echo: banana` — while the control
+  // `{sql}` + `--| echo: banana` renders exit 1. We flag every one of those `{dot}`/`{mermaid}`
+  // lines today (measured against the shipped tree), which is the cardinal sin.
+  //
+  // The engine qualifier is load-bearing and was missing from the first revision of this
+  // comment (S162 §9 review). A KNITR document also runs knitr's own chunk machinery over a
+  // handler cell: there `{mermaid}` + `#| echo: banana` renders exit 1 with the structural
+  // `The chunk options should start with '%%| ' instead of '#| '` — which fires identically
+  // for the VALID `#| echo: false`, so no value diagnostic can express it — and `//| include:
+  // banana` in a `{dot}` cell is a real value-dependent failure we deliberately give up. See
+  // `cellOptionScopeFor`'s docstring for the full accounting.
   it('maps the two cell-handler languages to "none"', () => {
     expect(cellOptionScopeFor("dot")).toBe("none");
     expect(cellOptionScopeFor("mermaid")).toBe("none");

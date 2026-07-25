@@ -542,9 +542,12 @@ export function findAllCells(text: string): Cell[] {
  * S162 and the blocker is gone. `mermaid` and `dot` are quarto's two cell-HANDLER languages
  * (`handlers/languages.yml` is exactly `["mermaid","dot"]`), and quarto validates a handler
  * cell against `handlers/<lang>/schema.yml` instead of the cell-option schema — so no `cell-*`
- * field reaches either, and every cell option we validate renders exit 0 there. (Quarto does
- * enforce mermaid's own `mermaid-format` and `theme` through that handler schema; neither is a
- * member of `cellOptions()`, so neither is reachable from here.) Before S162 that was a live
+ * field reaches either, and in a markdown- or jupyter-engine document every cell option we
+ * validate renders exit 0 there. (Quarto does enforce mermaid's own `mermaid-format` and
+ * `theme` through that handler schema; neither is a member of `cellOptions()`, so neither is
+ * reachable from here. A KNITR document additionally runs knitr's own chunk machinery over a
+ * handler cell, which is not schema-driven — see `cellOptionScopeFor`'s docstring for the one
+ * key that costs us and why the trade is deliberate.) Before S162 that was a live
  * false positive in `{dot}` — whose `//` row IS present, so its options were enumerated and
  * flagged on a document quarto accepts — and adding `mermaid` would have created a second one.
  * S162 fixed it at its real root: `cellOptionScopeFor` returns the `"none"` scope for a handler
