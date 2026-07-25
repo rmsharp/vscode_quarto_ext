@@ -934,3 +934,78 @@ describe("Quarto: arming-discipline parity (.qmd, BACKLOG: sibling-enumerator OL
     assert.strictEqual(diags[0].range.start.line, 4, "the diagnostic is on the number-sections line");
   });
 });
+
+describe("Quarto: arming-discipline parity — #| cell options (.qmd, BACKLOG: findCellOptionLines phantom-quote FN, Session 154)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // Defect A end-to-end — the phantom-quote FALSE NEGATIVE on the THIRD value enumerator
+  // (findCellOptionLines). An inner apostrophe in a PLAIN cell-option value must NOT arm a
+  // phantom quote; the real invalid option below it MUST be flagged. Inherently non-vacuous:
+  // the OLD whole-token arm swallowed `#| echo: banana` (ZERO diagnostics), so the positive
+  // assertion could not have passed before the fix. Grounded firsthand vs quarto render 1.7.33:
+  // `#| fig-cap: Don't do this` renders exit 0; `#| echo: banana` renders exit 1.
+  it("Defect A: flags a real invalid #| option after an apostrophe-bearing plain cell-option value", async () => {
+    const content = [
+      "---", "title: t", "---", "",
+      "```{python}",
+      "#| fig-cap: Don't do this",
+      "#| echo: banana",
+      "1+1",
+      "```",
+      "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 6), 5000),
+      "#| echo: banana (line 6) MUST flag — the OLD whole-token arm set a phantom `'` from fig-cap that swallowed it",
+    );
+    const diags = valueDiagnostics(doc.uri);
+    assert.strictEqual(
+      diags.length,
+      1,
+      `only #| echo (line 6) should flag; got: ${diags.map((d) => `${d.range.start.line}:${d.message}`).join(" | ")}`,
+    );
+    assert.strictEqual(diags[0].range.start.line, 6, "the diagnostic is on the #| echo line");
+  });
+
+  // No-new-FP — the narrowing must NOT over-suppress: a GENUINE multi-line double-quoted
+  // value still folds its continuation, so a bad-looking `#| fig-width: not-a-number"` that
+  // is actually INSIDE the fig-cap string must NOT be flagged (quarto renders it exit 0,
+  // grounded firsthand). A `#| echo: banana` CANARY (a real invalid option OUTSIDE the fold)
+  // MUST flag, so "not flagged on the folded line" is not vacuous.
+  it("does NOT flag a #| option folded inside a genuine multi-line quoted value (canary proves the pass ran)", async () => {
+    const content = [
+      "---", "title: t", "---", "",
+      "```{python}",
+      "#| echo: banana",
+      '#| fig-cap: "a caption that wraps',
+      '#| fig-width: not-a-number"',
+      "1+1",
+      "```",
+      "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 5), 5000),
+      "the #| echo: banana canary (line 5) should flag, proving the cell-option value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(7),
+      `the folded #| fig-width (line 7) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
+});
