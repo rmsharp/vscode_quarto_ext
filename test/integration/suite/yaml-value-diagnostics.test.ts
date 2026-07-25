@@ -1068,3 +1068,75 @@ describe("Quarto: arming-discipline parity — abutting anchor (.qmd, BACKLOG: n
     );
   });
 });
+
+describe("Quarto: arming-discipline parity — #| cell-option anchor-name quote (.qmd, BACKLOG: cell-option strip over-exclusion, Session 156)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // Lost-TRUE-POSITIVE recovery — the over-suppression FALSE NEGATIVE the S155 §9 review filed
+  // against `findCellOptionLines`. The S154 strip `[^\s[\]{}"']` over-excluded quotes, so a quote
+  // INSIDE an anchor NAME (`&a'b`) stopped the strip early, leaving `'b` whose `'` armed a phantom
+  // single-quote that swallowed the following real `#|` option. Grounded firsthand vs quarto render
+  // 1.7.33: `#| myopt: &a'b` (an unknown / null-tolerant option) renders exit 0, so the swallowed
+  // `#| echo: banana` (exit 1 — "must instead be `true` or `false`") is the SOLE error — a genuine
+  // lost true positive. Inherently non-vacuous: the OLD strip swallowed `#| echo: banana` (ZERO
+  // diagnostics on it), so the positive assertion could not have passed before the fix.
+  it("recovers a lost TP: flags a real invalid #| option after an anchor-name-quote value (`&a'b`)", async () => {
+    const content = [
+      "---", "title: t", "---", "",
+      "```{python}",
+      "#| myopt: &a'b",
+      "#| echo: banana",
+      "1+1",
+      "```",
+      "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 6), 5000),
+      "#| echo: banana (line 6) MUST flag — the over-excluding strip set a phantom `'` from &a'b that swallowed it",
+    );
+    const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === 6);
+    assert.ok(hit?.message.includes("banana"), `the line-6 diagnostic should be the echo: banana value error (got: ${hit?.message})`);
+  });
+
+  // No-over-suppression — the correction must NOT newly-emit a genuine folded continuation. An
+  // anchor ABUTTING a flow bracket (`&a[one,`) still opens a multi-line flow that quarto FOLDS, so
+  // the following mapping-looking `#|` line is part of the list, not a real option (grounded
+  // firsthand: `#| fig-cap: &a[one,` / `#| number-sections: banana]` renders exit 0). A
+  // `#| echo: banana` CANARY OUTSIDE the fold MUST flag, so "0 on the folded line" is not vacuous.
+  it("still folds an ABUTTING-anchor multi-line flow value — the folded #| line is NOT flagged (canary proves the pass ran)", async () => {
+    const content = [
+      "---", "title: t", "---", "",
+      "```{python}",
+      "#| echo: banana",
+      "#| fig-cap: &a[one,",
+      "#| number-sections: banana]",
+      "1+1",
+      "```",
+      "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 5), 5000),
+      "the #| echo: banana canary (line 5) should flag, proving the cell-option value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(7),
+      `the folded #| number-sections (line 7) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
+});
