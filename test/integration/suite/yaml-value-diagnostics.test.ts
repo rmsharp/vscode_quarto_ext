@@ -1364,3 +1364,105 @@ describe("Quarto: QUOTED-KEY parity across all three .qmd surfaces (.qmd, BACKLO
     );
   });
 });
+
+describe("Quarto: only a cell's LEADING option block is validated (.qmd, Session 160)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // THE CARDINAL-SIN FP, end to end. Quarto reads a cell's directives only from the leading
+  // contiguous run of `#|` lines, so an option below code, below a blank line, or below a plain
+  // comment is an ordinary comment — each of these three documents renders quarto 1.7.33
+  // **exit 0** (grounded firsthand, `--no-execute`), yet all three were squiggled before this
+  // session. The cell in the SECOND fence is the canary: its `#| echo: banana` IS in a leading
+  // block, quarto renders it exit 1, and it must still flag — without it a wholesale loss of
+  // cell-option validation would satisfy the assertion below vacuously.
+  //
+  // Every suppressed key must be one that WOULD flag if it were emitted, or the assertion is
+  // vacuous for a second reason. `echo`/`eval`/`warning` are closed-valued in the real 1.7.33
+  // schema (each renders exit 1 for `banana` when moved into a leading block — grounded
+  // firsthand). This originally used `output:`, which is OPEN-valued — quarto renders
+  // `#| output: banana` exit 0 even in a leading block — so that line could never have flagged
+  // and proved nothing about the fix.
+  it("does NOT flag `#|` lines below the leading block (canary in a second cell proves the pass ran)", async () => {
+    const content = [
+      "---", "title: T", "---", "",           // 0-3
+      "```{python}",                          // 4
+      "1+1",                                  // 5  code ENDS the block
+      "#| echo: banana",                      // 6  ordinary comment — quarto exit 0
+      "```", "",                              // 7-8
+      "```{python}",                          // 9
+      "#| label: cell-b",                     // 10
+      "",                                     // 11 blank ENDS the block
+      "#| eval: banana",                      // 12 ordinary comment — quarto exit 0
+      "2+2",                                  // 13
+      "```", "",                              // 14-15
+      "```{python}",                          // 16
+      "# a plain comment",                    // 17 comment ENDS the block (never opens it)
+      "#| warning: banana",                   // 18 ordinary comment — quarto exit 0
+      "3+3",                                  // 19
+      "```", "",                              // 20-21
+      "```{python}",                          // 22
+      "#| echo: banana",                      // 23 CANARY: a real leading-block option, exit 1
+      "4+4",                                  // 24
+      "```", "",                              // 25-26
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 23), 5000),
+      "the canary (line 23, a LEADING-block `#| echo: banana`) should flag, proving the cell-option value pass ran",
+    );
+    const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    for (const line of [6, 12, 18]) {
+      assert.ok(
+        !flagged.includes(line),
+        `line ${line} sits BELOW its cell's leading option block — quarto renders it exit 0, so it must NOT be flagged; flagged lines: ${flagged.join(",")}`,
+      );
+    }
+  });
+
+  // NO OVER-SUPPRESSION. The three shapes that LOOK like terminators but are not: a bare `#|`,
+  // a gapless `#|key:`, and a spaced `# | key:`. Quarto still reports the value errors of the
+  // blocks they sit in (exit 1, each grounded firsthand), so all three `banana` lines must flag.
+  // This is the pin that stops the FP fix from becoming a lost TRUE POSITIVE.
+  it("STILL flags every option in a leading block containing bare / gapless / spaced directive lines", async () => {
+    const content = [
+      "---", "title: T", "---", "",           // 0-3
+      "```{python}",                          // 4
+      "#| label: cell-a",                     // 5
+      "#|",                                   // 6  bare — NOT a terminator
+      "#| echo: banana",                      // 7  must flag
+      "1+1",                                  // 8
+      "```", "",                              // 9-10
+      "```{python}",                          // 11
+      "#|label: cell-b",                      // 12 gapless — NOT a terminator
+      "#| eval: banana",                      // 13 must flag
+      "2+2",                                  // 14
+      "```", "",                              // 15-16
+      "```{python}",                          // 17
+      "# | label: cell-c",                    // 18 spaced pipe — NOT a terminator
+      "#| warning: banana",                   // 19 must flag
+      "3+3",                                  // 20
+      "```", "",                              // 21-22
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => {
+        const lines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+        return [7, 13, 19].every((l) => lines.includes(l));
+      }, 5000),
+      "lines 7, 13 and 19 all sit in a LEADING block (a bare `#|`, a gapless `#|key:` and a spaced `# | key:` do not end it) — all three MUST still flag",
+    );
+  });
+});
