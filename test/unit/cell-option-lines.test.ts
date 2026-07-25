@@ -863,3 +863,27 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
   });
 });
+
+describe("findCellOptionLines — a cell-HANDLER language still EMITS; only validation narrows (S162)", () => {
+  it("still reports the option lines of a `{dot}` cell", () => {
+    // S162 stops value-diagnostics from FLAGGING options in a `{dot}`/`{mermaid}` cell,
+    // because quarto validates a handler cell against `handlers/<lang>/schema.yml` — for
+    // `dot`, a resource that does not exist — and so renders any option value there exit 0.
+    // That narrowing belongs to the DIAGNOSTICS path alone (`cellOptionScopeFor` →
+    // `"none"`, `yaml-context.ts`). This enumerator is shared with the outline, embedded
+    // virtual documents, cell-background highlighting and the cross-reference index, none
+    // of which care which schema validates the cell — a `//| label: fig-g` in a `{dot}`
+    // cell is still a real label quarto resolves `@fig-g` against. Suppressing here instead
+    // would be the plausible-looking fix that silently breaks all four.
+    const text = [
+      "```{dot}",
+      "//| label: fig-g",
+      "//| echo: banana",
+      "digraph {a->b}",
+      "```",
+    ].join("\n");
+    const lines = findCellOptionLines(text);
+    expect(lines.map((o) => o.line)).toEqual([1, 2]);
+    expect(lines.map((o) => o.cellLang)).toEqual(["dot", "dot"]);
+  });
+});

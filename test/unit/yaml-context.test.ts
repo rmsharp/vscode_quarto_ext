@@ -688,6 +688,18 @@ describe("cellOptionScopeFor — a cell-HANDLER language is validated by no cell
     }
   });
 
+  it("still OFFERS cell-option completion in a handler cell — only validation narrows", () => {
+    // The same asymmetry that separates `"unknown"` from `undefined`, one step further out:
+    // an over-OFFER is benign, an over-FLAG is the cardinal sin. Completion goes through
+    // `engineFor`, not `cellOptionScopeFor`, so a `{dot}` cell keeps completing the
+    // cell-option list even though nothing there will ever be validated. A narrowing that
+    // reached completion too would be a silent capability loss with no defect to justify it.
+    // (`//` is genuinely dot's comment char in quarto's own table, so quarto reads this line
+    // as a directive — it just validates it against a handler schema that does not exist.)
+    const text = ["```{dot}", "//| ec", "digraph {a->b}", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 6))?.kind).toBe("cell-option-key");
+  });
+
   it("narrows ONLY the handler languages — every other language keeps its scope", () => {
     // The exclusion is provably minimal: `handlers/languages.yml` has exactly two entries,
     // and 12 other languages spanning every comment-char family — matlab, stata, c, apl,
