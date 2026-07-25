@@ -319,3 +319,47 @@ describe("findNestedFrontMatterValueLines — arming discipline parity with find
     expect(findNestedFrontMatterValueLines(q).map((e) => e.key)).toEqual(["myref", "number-sections"]);
   });
 });
+
+describe("findNestedFrontMatterValueLines — QUOTED-KEY parity with the top-level sibling (S159)", () => {
+  it("emits a quoted NESTED key unquoted, so it resolves against its container's bare field names", () => {
+    // The nested surface has the identical divergence the top-level one had: a quoted key kept
+    // its quotes, matched no field under `frontMatterKeys(parentPath)`, and the diagnostic was
+    // silently lost. Grounded firsthand vs quarto 1.7.33: `execute:` / `  "echo": banana`
+    // renders exit 1 with `Field "echo" has value banana, which must instead be true or false` —
+    // the same error the unquoted line gets. Depth makes this WORSE than at the top level, not
+    // better: there is no column-0 backstop, and `execute:`/`format.<fmt>` children are exactly
+    // where the closed-value sets live.
+    const text = ["---", "execute:", '  "echo": banana', "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(text)).toEqual([
+      {
+        line: 2,
+        parentPath: ["execute"],
+        key: "echo",
+        valueRange: { startCol: 10, endCol: 16 },
+        rawToken: "banana",
+      },
+    ]);
+  });
+
+  it("unquotes a single-quoted nested key and a quoted key under `format.<fmt>` too", () => {
+    // Grounded firsthand: `format:` / `  html:` / `    "toc": banana` renders exit 1 with
+    // `Field "toc" has value banana` — the per-format option path, whose closedness is
+    // reader-derived, so the lost TP spans both nested containers, not just `execute:`.
+    const single = ["---", "execute:", "  'echo': banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(single).map((e) => e.key)).toEqual(["echo"]);
+    const perFormat = ["---", "format:", "  html:", '    "toc": banana', "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(perFormat).map((e) => `${e.parentPath.join(".")}/${e.key}`))
+      .toEqual(["format.html/toc"]);
+  });
+
+  it("keeps a nested key whose quotes do NOT form a matching pair intact — no over-stripping", () => {
+    // The FP guard, same rule as the top-level sibling: an unterminated or trailing-text key is
+    // left alone, resolves against no field, and stays silent — and such a document is a
+    // structural YAMLException for quarto (exit 1), never a value error, so silence is faithful.
+    // Discriminates against an over-eager unquote that strips whenever EITHER end is a quote.
+    const unterminated = ["---", "execute:", '  "echo: banana', "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(unterminated).map((e) => e.key)).toEqual(['"echo']);
+    const trailingText = ["---", "execute:", '  "echo" x: banana', "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(trailingText).map((e) => e.key)).toEqual(['"echo" x']);
+  });
+});

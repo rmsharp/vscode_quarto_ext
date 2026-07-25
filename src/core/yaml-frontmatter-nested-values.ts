@@ -38,6 +38,7 @@ import {
   mappingColonAt,
   leadingWsLen,
   nestedParentPath,
+  unquoteKey,
   valueSlotAfterColon,
 } from "./yaml-context";
 
@@ -51,7 +52,11 @@ export interface NestedFrontMatterValueLine {
    * `frontMatterKeys(parentPath).find(name === key)` (NOT `.slice(0,-1)`).
    */
   parentPath: string[];
-  /** The nested mapping key (raw text as it appears — quotes, if any, retained). */
+  /**
+   * The nested mapping key, with one matching layer of YAML quoting stripped (`"echo"` →
+   * `echo`) so it resolves against its container's bare field names — the same `unquoteKey`
+   * rule the top-level and `_quarto.yml` value enumerators apply (S159).
+   */
   key: string;
   /** The half-open `[startCol, endCol)` span of the value token on `line`. */
   valueRange: { startCol: number; endCol: number };
@@ -188,7 +193,16 @@ export function findNestedFrontMatterValueLines(
       // sequence item) has already armed the guard; only the EMISSION is skipped here.
       continue;
     }
-    const key = lineText.slice(indent, colon).replace(/[ \t]+$/, "");
+    // UNQUOTED, for the same reason and by the same shared rule as the top-level sibling and
+    // `findProjectConfigValueLines`: a quoted key is YAML-legal and semantically identical to
+    // its bare form, and quarto validates the two identically (`execute:` / `  "echo": banana`
+    // renders exit 1 with `Field "echo" has value banana` — grounded firsthand vs 1.7.33,
+    // S159). Keeping the quotes attached resolved against no field under
+    // `frontMatterKeys(parentPath)` and silently lost the diagnostic. FP-safe: `unquoteKey`
+    // needs a MATCHING pair, so a merely quote-adjacent key (`"echo`, `"echo" x`) is left
+    // intact and stays silent — and those are structural `YAMLException`s for quarto, never
+    // value errors.
+    const key = unquoteKey(lineText.slice(indent, colon).replace(/[ \t]+$/, ""));
     if (key.length === 0) {
       continue; // `: value` with no key — malformed, nothing to resolve
     }
