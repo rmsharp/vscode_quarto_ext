@@ -209,6 +209,20 @@ export interface BodyLine {
 export interface CellOptionLine {
   /** 0-based line index of the option line in the whole document. */
   line: number;
+  /**
+   * 0-based line index of the owning cell's opening FENCE — the identity of the cell
+   * this option belongs to, so a consumer can group a flat option list back into cells.
+   *
+   * Emitted rather than inferred because the alternative is arithmetic on `line` gaps
+   * ("two consecutive option lines are the same cell"), which happens to hold today only
+   * because a cell's options are its LEADING contiguous run (S160) and two cells are
+   * always separated by at least a closing and an opening fence. That is a property of
+   * two other rules rather than a stated one, and the enumerator already knows the exact
+   * answer — value-diagnostics needs it to honour a PER-CELL `validate-yaml: false`,
+   * which disarms exactly one cell and must not leak to the next (grounded firsthand,
+   * S163: cell 1 carrying the flag leaves cell 2's `#| echo: banana` at exit 1).
+   */
+  cellStartLine: number;
   /** The owning cell's engine/language, e.g. `"python"`, `"r"`, `"ojs"`. */
   cellLang: string;
   /**
@@ -807,6 +821,7 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
       const { keySlot, valueSlot } = slotsOf(content, keyStart);
       result.push({
         line: cell.startLine + 1 + j,
+        cellStartLine: cell.startLine,
         cellLang: cell.lang,
         prefix: m[1] + "|",
         contentEndCol: keyStart + content.length,

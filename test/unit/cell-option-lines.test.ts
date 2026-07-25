@@ -12,6 +12,7 @@ describe("findCellOptionLines — detection inside executable cells", () => {
     expect(findCellOptionLines(text)).toEqual([
       {
         line: 1,
+        cellStartLine: 0,
         cellLang: "python",
         prefix: "#|",
         contentEndCol: 14,
@@ -26,6 +27,7 @@ describe("findCellOptionLines — detection inside executable cells", () => {
     expect(findCellOptionLines(text)).toEqual([
       {
         line: 1,
+        cellStartLine: 0,
         cellLang: "ojs",
         prefix: "//|",
         contentEndCol: 14,
@@ -46,6 +48,7 @@ describe("findCellOptionLines — detection inside executable cells", () => {
     expect(findCellOptionLines(text)).toEqual([
       {
         line: 1,
+        cellStartLine: 0,
         cellLang: "r",
         prefix: "#|",
         contentEndCol: 5,
@@ -202,6 +205,7 @@ describe("findCellOptionLines — Quarto-faithful prefix matching", () => {
     expect(findCellOptionLines(text)).toEqual([
       {
         line: 1,
+        cellStartLine: 0,
         cellLang: "r",
         prefix: "#|",
         contentEndCol: 15,
@@ -676,6 +680,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
     expect(findCellOptionLines(text)).toEqual([
       {
         line: 1,
+        cellStartLine: 0,
         cellLang: "sql",
         prefix: "--|",
         contentEndCol: 16,
@@ -690,7 +695,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
   it("emits a `%|` option line in a {matlab} cell", () => {
     const text = ["```{matlab}", "%| echo: banana", "1", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "matlab", prefix: "%|", contentEndCol: 15,
+      { line: 1, cellStartLine: 0, cellLang: "matlab", prefix: "%|", contentEndCol: 15,
         keySlot: { startCol: 3, endCol: 7 }, valueSlot: { startCol: 9, endCol: 15 } },
     ]);
   });
@@ -703,7 +708,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
   it("emits a `⍝|` option line in an {apl} cell (a non-ASCII opener)", () => {
     const text = ["```{apl}", "⍝| echo: banana", "1", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "apl", prefix: "⍝|", contentEndCol: 15,
+      { line: 1, cellStartLine: 0, cellLang: "apl", prefix: "⍝|", contentEndCol: 15,
         keySlot: { startCol: 3, endCol: 7 }, valueSlot: { startCol: 9, endCol: 15 } },
     ]);
   });
@@ -718,7 +723,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
   it("emits a suffixed `/*| … */` option line in a {c} cell, with the suffix OUTSIDE the slots", () => {
     const text = ["```{c}", "/*| echo: banana */", "1;", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "c", prefix: "/*|", contentEndCol: 16,
+      { line: 1, cellStartLine: 0, cellLang: "c", prefix: "/*|", contentEndCol: 16,
         keySlot: { startCol: 4, endCol: 8 }, // "echo"
         valueSlot: { startCol: 10, endCol: 16 } }, // "banana", NOT "banana */"
     ]);
@@ -727,7 +732,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
   it("emits a suffixed `*| …;` option line in a {sas} cell (`;` is sas's closer)", () => {
     const text = ["```{sas}", "*| echo: banana;", "1;", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "sas", prefix: "*|", contentEndCol: 15,
+      { line: 1, cellStartLine: 0, cellLang: "sas", prefix: "*|", contentEndCol: 15,
         keySlot: { startCol: 3, endCol: 7 }, valueSlot: { startCol: 9, endCol: 15 } },
     ]);
   });
@@ -740,7 +745,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
     // Grounded firsthand: this document renders quarto exit 1, `Field "echo" has value banana`.
     const text = ["```{ocaml}", "(*| echo: banana *)", "1", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "ocaml", prefix: "(*|", contentEndCol: 16,
+      { line: 1, cellStartLine: 0, cellLang: "ocaml", prefix: "(*|", contentEndCol: 16,
         keySlot: { startCol: 4, endCol: 8 }, valueSlot: { startCol: 10, endCol: 16 } },
     ]);
   });
@@ -895,5 +900,28 @@ describe("findCellOptionLines — a cell-HANDLER language still EMITS; only vali
     const lines = findCellOptionLines(text);
     expect(lines.map((o) => o.line)).toEqual([1, 2]);
     expect(lines.map((o) => o.cellLang)).toEqual(["dot", "dot"]);
+  });
+});
+
+describe("Session 163 — CellOptionLine.cellStartLine", () => {
+  it("reports the owning cell's fence line, so option lines can be grouped per cell", () => {
+    const text = [
+      "```{python}",   // 0
+      "#| echo: false", // 1
+      "#| eval: true",  // 2
+      "x = 1",          // 3
+      "```",            // 4
+      "",               // 5
+      "```{sql}",       // 6
+      "--| echo: true", // 7
+      "SELECT 1",       // 8
+      "```",            // 9
+    ].join("\n");
+    const got = findCellOptionLines(text).map((o) => [o.line, o.cellStartLine]);
+    expect(got).toEqual([
+      [1, 0],
+      [2, 0],
+      [7, 6],
+    ]);
   });
 });
