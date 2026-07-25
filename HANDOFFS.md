@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S162
+date: 2026-07-25
+status: pending
+active_task: IMPLEMENTATION (strict TDD). Cell-HANDLER language scope: quarto validates a {dot}/{mermaid} cell's options against handlers/<lang>/schema.yml instead of the schema/cell-* set, so it renders ANY option value there exit 0 while features/yaml-value-diagnostics.ts flags it — the cardinal sin. handlers/languages.yml is exactly ["mermaid","dot"]. Measured firsthand by S161: {dot} + //| echo: banana exit 0, {dot} + //| fig-align: banana exit 0, {mermaid} + #| echo: banana exit 0, {mermaid} + %%| echo: banana exit 0, vs the control {sql} + --| fig-align: banana exit 1. PRE-EXISTING — the old hard-coded // reached {dot} identically. A THIRD narrowing axis alongside S161 L2's engine scope. The fix ADDS suppression so it needs its own over-suppression grounding first. It also unblocks the missing mermaid: ["%%"] row in LANG_COMMENT_CHARS. Operator-selected via AskUserQuestion at Phase 0 (Active was empty after S161 closed out). ONE deliverable — handler scope ONLY; NOT the engine: override, NOT the digit-token fence grammar, NOT the comment-char table coverage gap, NOT refs.ts, NOT the unterminated-cell FP, NOT the raw-block gap, NOT Combos 2/4, NOT the quoted-KEY halves, NOT _metadata.yml (all filed; FM #26).
+```
+
+```handoff
 session: S161
 date: 2026-07-25
 status: complete
