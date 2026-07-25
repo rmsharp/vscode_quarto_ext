@@ -255,3 +255,41 @@ describe("findCellOptionLines — multi-line QUOTED / flow values (adversarial r
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
   });
 });
+
+describe("findCellOptionLines — arming discipline parity: the phantom-quote FN (Defect A, S154)", () => {
+  // The continuation guard arms only when a value ACTUALLY opens a multi-line quoted
+  // scalar / flow collection — decided by the value token's FIRST character (past a
+  // stripped node property), NOT by a scanFlow over the whole `key: value`. An inner
+  // apostrophe / quote / bracket in a PLAIN scalar is literal YAML text and must not
+  // arm a phantom quote that swallows the following real option — the mirror of the
+  // fix S153 shipped for the two `.qmd` front-matter value enumerators (the third and
+  // last site of the phantom-quote defect class; PROJECT_LEARNINGS #166). Grounded
+  // firsthand vs quarto render 1.7.33: `#| fig-cap: Don't do this` renders exit 0, while
+  // the swallowed `#| echo: banana` renders exit 1 ("must instead be `true` or `false`").
+  it("does NOT let an inner APOSTROPHE in a plain value swallow the following option", () => {
+    const text = ["```{python}", "#| fig-cap: Don't do this", "#| echo: banana", "1+1", "```"].join("\n");
+    // Both are real options; the apostrophe in fig-cap is literal, not a quote opener.
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+
+  it("does NOT let an inner DOUBLE-QUOTE in a plain value swallow the following option", () => {
+    // The other half of the defect class: an inner `"` in a plain scalar is literal too.
+    // Before the S154 fix the whole-token scan armed a phantom `"` and swallowed line 2.
+    const text = ["```{python}", '#| fig-cap: he said "hi', "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+
+  it("STILL arms a genuine SINGLE-quoted multi-line value (narrowing did not disable `'` openers)", () => {
+    // Preserved behavior: a value that genuinely OPENS with `'` still folds its
+    // continuation, so `#| b'` (line 2) is skipped and `#| echo` (line 3) resumes.
+    const text = ["```{r}", "#| fig-cap: 'a", "#| b'", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 3]);
+  });
+
+  it("STILL arms an ANCHORED flow opener — the node-property strip is load-bearing", () => {
+    // `&a ` is stripped BEFORE the first-char test, so the `[` is seen as the opener and
+    // the flow arms; without the strip the opener would be `&` and line 2 would leak.
+    const text = ["```{r}", "#| fig-subcap: &a [one,", "#| fig-height: 3]", "#| echo: false", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 3]);
+  });
+});

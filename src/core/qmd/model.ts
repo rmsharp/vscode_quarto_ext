@@ -559,11 +559,34 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
         keySlot,
         valueSlot,
       });
-      // Arm the continuation-skip if THIS option opens an unclosed quoted scalar / flow
-      // collection — scanned over the whole post-prefix content (a key holds no quote/bracket).
-      const s = scanFlow(m[4], 0, null);
-      flowDepth = s.depth > 0 ? s.depth : 0;
-      openQuote = s.quote;
+      // Arm the continuation-skip only if THIS option's VALUE actually OPENS an unclosed
+      // quoted scalar / flow collection, decided by the value token's FIRST character past a
+      // stripped node property (`&anchor `/`!tag `) — mirroring the two `.qmd` front-matter
+      // value enumerators (`yaml-frontmatter-values.ts`/`-nested-values.ts`) and the
+      // `_quarto.yml` reference (`project-yaml.ts` findProjectConfigValueLines). Deliberately
+      // NOT a `scanFlow` over the whole `m[4]`: that scan treats an inner quote/bracket in a
+      // PLAIN value as an opener and arms a phantom quote — `#| fig-cap: Don't do this`
+      // (quarto exit 0) armed a `'` whose guard then swallowed a following `#| echo: banana`
+      // that quarto REJECTS (exit 1), silently dropping its validation (Defect A / the
+      // phantom-quote FALSE NEGATIVE, S154; PROJECT_LEARNINGS #166 — the third and last site
+      // of this defect class). A value that folds a following `#|` mapping line into itself
+      // MUST start with a quote or flow bracket (a plain scalar ends at its line; a
+      // continuation must be more-indented), so the first-char gate is COMPLETE and strictly
+      // more correct — an anchored/tagged opener `&a { … ` still arms because the node
+      // property is stripped BEFORE the first-char test (its brackets are then counted by the
+      // scan). `m[4]` is `key: value` (or a `- ` sequence item), so the value is the text
+      // after the first colon, else the line content past a leading `- `.
+      const armColon = m[4].indexOf(":");
+      const armToken =
+        armColon < 0
+          ? m[4].replace(/^-[ \t]*/, "").trimEnd()
+          : m[4].slice(armColon + 1).replace(/^[ \t]+/, "").trimEnd();
+      const opener = armToken.replace(/^(?:[&!][^\s]*[ \t]+)+/, "")[0];
+      if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
+        const s = scanFlow(armToken, 0, null);
+        flowDepth = s.depth > 0 ? s.depth : 0;
+        openQuote = s.quote;
+      }
     });
   }
   return result;
