@@ -7,6 +7,33 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-24 · [ad hoc] Session 156 — IMPLEMENTATION: the findCellOptionLines strip over-exclusion parity fix (SHIPPED)
+
+Corrected the node-property strip in the `#|`/`//|` cell-option enumerator
+(`findCellOptionLines`, `src/core/qmd/model.ts`) from the over-excluding
+`[^\s[\]{}"']` to the YAML-exact `[^\s,[\]{}]`, matching the three front-matter/
+project VALUE enumerators (S155). A quote is a LEGAL YAML anchor-name char (the
+c-flow-indicators an anchor NAME may not contain are ONLY `,[]{}`), so the old
+charset stopped the strip at a quote INSIDE an anchor name (`&a'b`), leaving `'b`
+whose `'` armed a phantom quote that swallowed the following real `#|` option.
+
+Grounded firsthand vs quarto 1.7.33: this is a genuine lost TRUE POSITIVE, NOT
+the safe FN the backlog had filed it as (with the lost-TP question flagged
+UNVERIFIED). `#| myopt: &a'b` (an unknown/null-tolerant option) renders exit 0,
+so the swallowed `#| echo: banana` (exit 1) is the SOLE error — a real dropped
+diagnostic. Strict TDD: 4 unit pins (3 RED→GREEN + 1 preservation), unit
+1311→1315; 2 integration tests RED-verified against the pre-fix source
+(451 passing/1 failing → 452/0), integration 450→452; check-types clean;
+runtime smoke PASS.
+
+The mandatory §9 review (5 lenses + adversarial verify, `wf_06a97818-8e0`,
+`agents_error:0`) found — and I filed, not fixed — a separate PRE-EXISTING lost
+TP: the multi-line-continuation `scanFlow` (~line 547) is node-property-blind, so
+an anchor-name quote in a CONTINUATION line of an already-open flow still swallows
+the following option (grounded firsthand; the continuation path is byte-identical
+pre/post-S156). Corrected the fix's own comment to name that real residual rather
+than the benign single-line shape it had cited.
+
 ### 2026-07-24 · [ad hoc] Session 155 — IMPLEMENTATION: the abutting-anchor node-property strip fix, 3 value enumerators (SHIPPED)
 
 Corrected the node-property strip in the three `.qmd`/`_quarto.yml` VALUE enumerators
