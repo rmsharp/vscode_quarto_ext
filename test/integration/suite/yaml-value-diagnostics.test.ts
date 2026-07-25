@@ -1650,3 +1650,95 @@ describe("Quarto: the cell-option comment char follows the cell LANGUAGE (.qmd, 
     );
   });
 });
+
+describe("Quarto: a cell-HANDLER language is validated by no cell schema (.qmd, Session 162)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // THE CARDINAL-SIN FP, end to end. Quarto swaps its engine cell schema for
+  // `handlers/<lang>/schema.yml` when the cell language is one of `handlers/languages.yml`
+  // — exactly ["mermaid","dot"]. `handlers/dot/schema.yml` does not exist, so the lookup
+  // throws and NOTHING in a `{dot}` cell is validated; `handlers/mermaid/schema.yml` exists
+  // but declares only `mermaid-format`/`theme` and admits any other key. Grounded firsthand
+  // vs 1.7.33: every option line below renders exit 0, and every one was squiggled before
+  // this session. The canary in the last cell is a real `{sql}` option quarto rejects —
+  // without it a wholesale loss of cell-option validation would satisfy the suppression
+  // assertions vacuously.
+  it("does NOT flag any option value in a {dot} or {mermaid} cell (canary proves the pass ran)", async () => {
+    const content = [
+      "---", "title: T", "---", "",           // 0-3
+      "```{dot}",                             // 4
+      "//| echo: banana",                     // 5  quarto exit 0 — no schema for dot
+      "//| fig-align: banana",                // 6  quarto exit 0
+      "digraph {a->b}",                       // 7
+      "```", "",                              // 8-9
+      "```{dot}",                             // 10
+      "//| eval: banana",                     // 11 quarto exit 0
+      "digraph {a->b}",                       // 12
+      "```", "",                              // 13-14
+      "```{mermaid}",                         // 15
+      "#| echo: banana",                      // 16 quarto exit 0 — mermaid handler schema
+      "graph TD;A-->B;",                      // 17
+      "```", "",                              // 18-19
+      "```{sql}",                             // 20
+      "--| echo: banana",                     // 21 CANARY: a real sql option, quarto exit 1
+      "SELECT 1",                             // 22
+      "```", "",                              // 23-24
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 21), 5000),
+      "the canary (line 21, a real `--| echo: banana` in {sql}) should flag, proving the cell-option value pass ran",
+    );
+    const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    for (const line of [5, 6, 11, 16]) {
+      assert.ok(
+        !flagged.includes(line),
+        `line ${line} sits in a cell-HANDLER cell, which quarto validates against handlers/<lang>/schema.yml and renders exit 0 — it must NOT be flagged; flagged lines: ${flagged.join(",")}`,
+      );
+    }
+  });
+
+  // THE OVER-SUPPRESSION GUARD, end to end. Quarto matches `handlers/languages.yml` with an
+  // unfolded `indexOf`, so `{DOT}`/`{Mermaid}` are ordinary unknown languages: they take the
+  // `#` comment-char default AND the ordinary cell schema, and each renders exit 1 with a
+  // real `Field "echo" has value banana` (grounded firsthand). A case-folding exclusion
+  // would silence both — turning this session's FP fix into a lost true positive.
+  it("STILL flags a wrong VALUE in {DOT}/{Mermaid} — the handler match is case-sensitive", async () => {
+    const content = [
+      "---", "title: T", "---", "",           // 0-3
+      "```{DOT}",                             // 4
+      "#| echo: banana",                      // 5  quarto exit 1 — DOT is not a handler
+      "digraph {a->b}",                       // 6
+      "```", "",                              // 7-8
+      "```{Mermaid}",                         // 9
+      "#| echo: banana",                      // 10 quarto exit 1 — Mermaid is not a handler
+      "graph TD;A-->B;",                      // 11
+      "```", "",                              // 12-13
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => {
+        const lines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+        return [5, 10].every((l) => lines.includes(l));
+      }, 5000),
+      `lines 5 ({DOT}) and 10 ({Mermaid}) each render quarto exit 1 with a real value error and MUST still flag; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
+    );
+  });
+});
