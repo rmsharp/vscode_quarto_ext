@@ -521,9 +521,14 @@ export interface SchemaIndex {
    *  - `"unknown"` — ONLY the engine-agnostic options, i.e. the intersection valid under
    *    every engine. No field carries this tag, so the same filter yields it. This is the
    *    over-offer's mirror: the FP-safe scope for VALIDATION when the document engine is
-   *    undeterminable from the cell language (`cellOptionScopeFor`, `yaml-context.ts`).
+   *    undeterminable from the cell language (`cellOptionScopeFor`, `yaml-context.ts`);
+   *  - `"none"` — the EMPTY set: no cell-option field applies at all. Quarto swaps its
+   *    engine cell schema for `handlers/<lang>/schema.yml` in a cell-HANDLER language
+   *    (`{dot}`/`{mermaid}`), so nothing in `cell-*` reaches those cells — see
+   *    `CELL_HANDLER_LANGUAGES` (`yaml-context.ts`, S162). The last point on the same
+   *    narrowing axis: full ⊇ engine ⊇ intersection ⊇ ∅.
    */
-  cellOptions(engine?: "knitr" | "jupyter" | "ojs" | "unknown"): SchemaField[];
+  cellOptions(engine?: "knitr" | "jupyter" | "ojs" | "unknown" | "none"): SchemaField[];
   /**
    * The front-matter keys to offer at the given mapping path. Top-level keys are
    * returned for the document root (`parentPath` empty, 6d-4) — there the `format`
@@ -631,6 +636,13 @@ function indexOf(
     cellOptions(engine) {
       if (engine === undefined) {
         return cellFields;
+      }
+      // `"none"` needs its own branch: unlike `"unknown"` it is not expressible as a filter
+      // over `SchemaField.engine`, because it excludes the engine-AGNOSTIC fields too — a
+      // handler cell is validated by a different schema entirely, not by a narrower engine
+      // (S162).
+      if (engine === "none") {
+        return [];
       }
       // `"unknown"` falls out of this same filter: no `SchemaField.engine` can hold it
       // (the type is `CellEngine`), so the right-hand disjunct is never true and only the

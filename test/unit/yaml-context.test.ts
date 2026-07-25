@@ -659,6 +659,50 @@ describe("cellOptionScopeFor — the schema scope a cell's options are VALIDATED
   });
 });
 
+describe("cellOptionScopeFor — a cell-HANDLER language is validated by no cell schema at all (S162)", () => {
+  // Quarto registers a small set of cell HANDLERS — `handlers/languages.yml` is exactly
+  // ["mermaid","dot"] — and `parseAndValidateCellOptions` swaps the engine's cell schema
+  // for `handlers/<lang>/schema.yml` when the cell language is one of them. `dot` has no
+  // such resource, so the lookup throws, `schema === undefined`, and NOTHING is validated;
+  // `mermaid` has one, but it declares only `mermaid-format` and `theme` and admits any
+  // other key. Either way no cell-option field applies. Grounded firsthand vs 1.7.33:
+  // `{dot}` + `//| echo|fig-align|eval|cache|code-fold: banana` all render exit 0, as does
+  // `{mermaid}` + `#|` or `%%| echo: banana` — while the control `{sql}` + `--| echo:
+  // banana` renders exit 1. We flag every one of those `{dot}`/`{mermaid}` lines today
+  // (measured against the shipped tree), which is the cardinal sin.
+  it('maps the two cell-handler languages to "none"', () => {
+    expect(cellOptionScopeFor("dot")).toBe("none");
+    expect(cellOptionScopeFor("mermaid")).toBe("none");
+  });
+
+  it("matches the handler list CASE-SENSITIVELY, exactly as quarto does", () => {
+    // Quarto tests `languages.indexOf(language)` against the raw fence token and never folds
+    // case, so `{DOT}`/`{Dot}`/`{Mermaid}` are ordinary unknown languages: they take the `#`
+    // comment-char default AND the ordinary cell schema. Measured firsthand vs 1.7.33 — each
+    // renders **exit 1** with a real `Field "echo" has value banana` on `#| echo: banana`,
+    // and we flag all three today, correctly. A case-folding lookup here would turn those
+    // true positives into silence: over-suppression is the failure direction a fix that ADDS
+    // suppression has to guard, and this is the whole of it.
+    for (const lang of ["DOT", "Dot", "dOt", "Mermaid", "MERMAID", "merMaid"]) {
+      expect(cellOptionScopeFor(lang), lang).toBe("unknown");
+    }
+  });
+
+  it("narrows ONLY the handler languages — every other language keeps its scope", () => {
+    // The exclusion is provably minimal: `handlers/languages.yml` has exactly two entries,
+    // and 12 other languages spanning every comment-char family — matlab, stata, c, apl,
+    // haskell, bash, ruby, go, tikz, css, sas and the unknown `{banana}` — each render
+    // exit 1 with a real value error on `echo: banana` (measured). Widening the set beyond
+    // these two would lose real true positives.
+    for (const lang of ["sql", "matlab", "c", "sas", "fortran", "apl", "stata", "banana"]) {
+      expect(cellOptionScopeFor(lang), lang).toBe("unknown");
+    }
+    expect(cellOptionScopeFor("r")).toBe("knitr");
+    expect(cellOptionScopeFor("python")).toBe("jupyter");
+    expect(cellOptionScopeFor("ojs")).toBe("ojs");
+  });
+});
+
 describe("completionContextAt — cell-option completion follows the LANGUAGE's comment char (S161)", () => {
   it("offers cell-option completion on a `--|` line in a {sql} cell", () => {
     // Quarto reads this as a directive (`{sql}` + `--| echo: banana` renders exit 1 with a

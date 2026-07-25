@@ -666,9 +666,63 @@ export function engineFor(lang: string): CellEngine | undefined {
  * either has a determined engine or was itself a false positive. Teaching the enumerator
  * quarto's per-language comment char is what first makes `{sql}`/`{matlab}`/`{c}` options
  * real, so the narrowing ships WITH it (S161 L2).
+ *
+ * A cell-HANDLER language narrows one step further, to `"none"` — see
+ * `CELL_HANDLER_LANGUAGES` below (S162).
  */
-export function cellOptionScopeFor(lang: string): CellEngine | "unknown" {
-  return engineFor(lang) ?? "unknown";
+export function cellOptionScopeFor(lang: string): CellEngine | "unknown" | "none" {
+  return isCellHandlerLanguage(lang) ? "none" : (engineFor(lang) ?? "unknown");
+}
+
+/**
+ * Quarto's OWN cell-handler language list (`handlers/languages.yml`), transcribed from the
+ * installed 1.7.33 — where it is exactly these two. A fact about another tool's dispatch,
+ * not expression (the same license-clean basis as the curated schema names, Learning #25).
+ *
+ * Quarto's `parseAndValidateCellOptions` (`share/editor/tools/yaml/web-worker.js`) picks the
+ * cell schema by ENGINE, then overrides it for a handler language:
+ *
+ * ```js
+ * let schema = engineOptionsSchema[engine];
+ * if (getYamlIntelligenceResource("handlers/languages.yml").indexOf(language) !== -1) {
+ *   try { schema = getYamlIntelligenceResource(`handlers/${language}/schema.yml`); }
+ *   catch (_e) { schema = undefined; }
+ * }
+ * if (schema === undefined || !validate) { ...parse without validating... }
+ * ```
+ *
+ * So neither handler cell is reachable by any `cell-*` field: `handlers/dot/schema.yml`
+ * does not exist, the lookup throws, and NOTHING in a `{dot}` cell is validated; while
+ * `handlers/mermaid/schema.yml` does exist but declares only `mermaid-format` and `theme`
+ * and admits every other key. Grounded firsthand vs 1.7.33 — `{dot}` + `//| echo`,
+ * `fig-align`, `eval`, `cache` and `code-fold` all `: banana` render **exit 0**, as do
+ * `{mermaid}` + `#| echo: banana` and `%%| echo: banana`, while the control `{sql}` +
+ * `--| echo: banana` renders **exit 1** with a real `Field "echo" has value banana`. Every
+ * one of those handler lines was flagged before S162: the cardinal sin.
+ *
+ * The suppression costs no true positive. The only key quarto really does enforce in a
+ * handler cell is mermaid's own `mermaid-format` (`%%| mermaid-format: banana` → exit 1),
+ * and neither it nor `theme` is a member of `cellOptions()` at all, so this feature could
+ * never have flagged either one.
+ *
+ * **Case-SENSITIVE, and that is load-bearing.** Quarto tests `languages.indexOf(language)`
+ * against the raw fence token with no case folding, exactly like the `kLangCommentChars`
+ * lookup (`qmd/model.ts`). `{DOT}`, `{Dot}` and `{Mermaid}` are therefore unknown languages
+ * taking the `#` comment-char default and the ORDINARY cell schema: each renders **exit 1**
+ * on `#| echo: banana` (measured). Folding case here would convert those true positives
+ * into silence.
+ *
+ * Only DIAGNOSTICS narrow this far. Completion still goes through `engineFor`, so a handler
+ * cell keeps offering the cell-option list — an over-offer, which is benign, where an
+ * over-flag is not (the same asymmetry that separates `"unknown"` from `undefined`).
+ * Emission is untouched too: `findCellOptionLines` still reports handler-cell option lines,
+ * because the outline, virtual documents and the cross-reference index all consume them.
+ */
+const CELL_HANDLER_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot"]);
+
+/** Whether `lang` is one of quarto's cell-handler languages (case-sensitive). */
+export function isCellHandlerLanguage(lang: string): boolean {
+  return CELL_HANDLER_LANGUAGES.has(lang);
 }
 
 /**

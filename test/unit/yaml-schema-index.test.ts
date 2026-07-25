@@ -1426,6 +1426,17 @@ describe("parseSchemaIndex — engine tags & filtering", () => {
       expect(unknown, `"unknown" must exclude the engine-scoped ${scoped}`).not.toContain(scoped);
     }
   });
+
+  it('"none" is EMPTY — it excludes the engine-agnostic options too (S162)', () => {
+    // A cell-HANDLER language (`{dot}`/`{mermaid}`) is not validated by a narrower ENGINE;
+    // quarto swaps the whole cell schema for `handlers/<lang>/schema.yml`, so no `cell-*`
+    // field applies at all. That makes `"none"` the one scope not expressible as a filter
+    // over `SchemaField.engine`: the engine-agnostic fields — the very ones `"unknown"`
+    // keeps — must go too, because `{dot}` + `//| echo: banana` and `{mermaid}` + `#| echo:
+    // banana` both render quarto exit 0 (measured) while `echo` is engine-agnostic.
+    expect(namesFor("none")).toEqual([]);
+    expect(namesFor("none")).not.toContain("echo");
+  });
 });
 
 describe("parseSchemaIndex — robustness & fallback", () => {
