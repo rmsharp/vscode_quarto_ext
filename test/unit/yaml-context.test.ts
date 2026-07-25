@@ -614,3 +614,20 @@ describe("isMappingSeparator (P2 — the key/value separator grammar)", () => {
     expect(isMappingSeparator("toc:: true", 4)).toBe(true);
   });
 });
+
+describe("completionContextAt — only the cell's LEADING option block completes (S160)", () => {
+  it("offers NO cell-option completion on a `#|` line that follows code", () => {
+    // Quarto ignores a `#|` line below the leading block, so offering it the cell-option
+    // key list would advertise options that will never take effect. The completion and
+    // diagnostics surfaces share `findCellOptionLines`, so they agree by construction.
+    const text = ["```{python}", "1+1", "#| ec", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 5))).toBeNull();
+  });
+
+  it("STILL offers cell-option completion in the leading block", () => {
+    // The control that stops the pin above being satisfied by a wholesale loss of
+    // cell-option completion — the same token in the leading block must still complete.
+    const text = ["```{python}", "#| ec", "1+1", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 5))?.kind).toBe("cell-option-key");
+  });
+});
