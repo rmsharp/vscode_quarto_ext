@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S154
+date: 2026-07-24
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). The findCellOptionLines phantom-quote FN fix — Defect A on the THIRD value enumerator. Bring findCellOptionLines (src/core/qmd/model.ts, the #| cell-option enumerator, ~line 564) to the SAME narrowed multi-line-continuation arming discipline S153 shipped for the two .qmd front-matter value enumerators: strip a leading node property, then arm the continuation guard only when the token's FIRST char opens "'[{ instead of scanFlow-ing the WHOLE post-prefix token. Today an apostrophe in a plain cell-option value (#| fig-cap: Don't do this) arms a phantom single-quote that swallows a following #| echo: banana (quarto render 1.7.33 exit 1, never flagged) — a realistic FALSE NEGATIVE. It does NOT have Defect B (already arms from every #| line; a non-#| code line resets state). Filed Session 153. Operator-selected at Phase 0. ONE deliverable — this enumerator's Defect A ONLY; NOT the quoted-KEY divergence, NOT Combos 2/4, NOT _metadata.yml (all filed; FM #26).
+```
+
+```handoff
 session: S153
 date: 2026-07-24
 status: complete
