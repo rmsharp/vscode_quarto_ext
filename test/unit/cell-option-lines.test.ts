@@ -659,3 +659,171 @@ describe("findCellOptionLines — the block TERMINATOR is quarto's directive pat
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
   });
 });
+
+describe("findCellOptionLines — the comment char is scoped to the cell LANGUAGE (S161)", () => {
+  // Quarto builds its cell-option directive pattern per LANGUAGE from its own
+  // `kLangCommentChars` table (`^<comment>\s*\| ?`), not from a fixed `#`/`//` pair.
+  // Grounded firsthand vs quarto 1.7.33 (`--no-execute`): `{sql}` + `--| echo: banana`
+  // renders exit 1 with `Field "echo" has value banana` (this was a LOST TRUE POSITIVE
+  // — we emitted nothing), while `{sql}` + `#| echo: banana` renders exit 0 (a
+  // cardinal-sin FALSE POSITIVE — we emitted and value-diagnostics squiggled it).
+  it("emits a `--|` option line in a {sql} cell", () => {
+    const text = ["```{sql}", "--| echo: banana", "SELECT 1", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([
+      {
+        line: 1,
+        cellLang: "sql",
+        prefix: "--|",
+        keySlot: { startCol: 4, endCol: 8 }, // "echo"
+        valueSlot: { startCol: 10, endCol: 16 }, // "banana"
+      },
+    ]);
+  });
+
+  // The remaining openers in quarto's table. Each renders quarto exit 1 with a real
+  // `Field "echo" has value banana` and emitted NOTHING before this fix.
+  it("emits a `%|` option line in a {matlab} cell", () => {
+    const text = ["```{matlab}", "%| echo: banana", "1", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([
+      { line: 1, cellLang: "matlab", prefix: "%|",
+        keySlot: { startCol: 3, endCol: 7 }, valueSlot: { startCol: 9, endCol: 15 } },
+    ]);
+  });
+
+  it("emits a `!|` option line in a {fortran} cell", () => {
+    const text = ["```{fortran}", "!| echo: banana", "1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => [o.line, o.prefix])).toEqual([[1, "!|"]]);
+  });
+
+  it("emits a `⍝|` option line in an {apl} cell (a non-ASCII opener)", () => {
+    const text = ["```{apl}", "⍝| echo: banana", "1", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([
+      { line: 1, cellLang: "apl", prefix: "⍝|",
+        keySlot: { startCol: 3, endCol: 7 }, valueSlot: { startCol: 9, endCol: 15 } },
+    ]);
+  });
+
+  it("emits a `*|` option line in a {stata} cell — a single-element `*` with NO suffix", () => {
+    const text = ["```{stata}", "*| echo: banana", "1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => [o.line, o.prefix])).toEqual([[1, "*|"]]);
+  });
+
+  // BLOCK-comment languages carry a second delimiter (`commentChars[1]`). Quarto requires
+  // the line to `trimEnd().endsWith(suffix)` and strips it from the YAML content.
+  it("emits a suffixed `/*| … */` option line in a {c} cell, with the suffix OUTSIDE the slots", () => {
+    const text = ["```{c}", "/*| echo: banana */", "1;", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([
+      { line: 1, cellLang: "c", prefix: "/*|",
+        keySlot: { startCol: 4, endCol: 8 }, // "echo"
+        valueSlot: { startCol: 10, endCol: 16 } }, // "banana", NOT "banana */"
+    ]);
+  });
+
+  it("emits a suffixed `*| …;` option line in a {sas} cell (`;` is sas's closer)", () => {
+    const text = ["```{sas}", "*| echo: banana;", "1;", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([
+      { line: 1, cellLang: "sas", prefix: "*|",
+        keySlot: { startCol: 3, endCol: 7 }, valueSlot: { startCol: 9, endCol: 15 } },
+    ]);
+  });
+
+  it("trims whitespace AFTER the closer before testing for it, as quarto does", () => {
+    const text = ["```{c}", "/*| echo: banana */   ", "1;", "```"].join("\n");
+    expect(findCellOptionLines(text)[0].valueSlot).toEqual({ startCol: 10, endCol: 16 });
+  });
+
+  it("does NOT emit a block-comment directive that is missing its closer", () => {
+    // Grounded firsthand: `{c}` + `/*| echo: banana` (unclosed) renders quarto exit 0 —
+    // quarto reads no directive there at all, so flagging it would be the cardinal sin.
+    const text = ["```{c}", "/*| echo: banana", "1;", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([]);
+  });
+
+  it("an UNCLOSED block-comment line ENDS the option block, like any non-directive", () => {
+    // Grounded firsthand: quarto renders this exit 0 — the unclosed middle line terminates
+    // its leading block, so the invalid option BELOW it is never read (S160's rule, reached
+    // here through the suffix half of the directive predicate).
+    const text = [
+      "```{c}",
+      "/*| eval: false */", // 1  a real directive
+      "/*| output: true", // 2  no closer -> NOT a directive -> ends the block
+      "/*| echo: banana */", // 3  below the block: an ordinary comment to quarto
+      "1;",
+      "```",
+    ].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  // The FALSE-POSITIVE direction: our two previously hard-coded chars, in cells where
+  // quarto reads no directive at all. Every one of these renders quarto exit 0.
+  it("does NOT emit `#|` in a {sql} cell (the cardinal-sin FP)", () => {
+    const text = ["```{sql}", "#| echo: banana", "SELECT 1", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([]);
+  });
+
+  it("does NOT emit `//|` in a {python} cell", () => {
+    const text = ["```{python}", "//| echo: banana", "x = 1", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([]);
+  });
+
+  it("does NOT emit `#|` in an {ojs} cell", () => {
+    const text = ["```{ojs}", "#| echo: banana", "x = 1", "```"].join("\n");
+    expect(findCellOptionLines(text)).toEqual([]);
+  });
+
+  it("does NOT emit `#|` or `//|` in a {c} cell", () => {
+    const hash = ["```{c}", "#| echo: banana", "1;", "```"].join("\n");
+    const slash = ["```{c}", "//| echo: banana", "1;", "```"].join("\n");
+    expect(findCellOptionLines(hash)).toEqual([]);
+    expect(findCellOptionLines(slash)).toEqual([]);
+  });
+
+  // A wrong-comment-char line is not a directive, so it TERMINATES quarto's leading block
+  // (S160) — the same root cause one step more visible. Both grounded firsthand at exit 0.
+  it("a wrong-char `#|` line mid-block ENDS a {sql} cell's option block", () => {
+    const text = [
+      "```{sql}",
+      "--| eval: false", // 1  a real directive
+      "#| echo: false", // 2  not a directive in {sql} -> ends the block
+      "--| echo: banana", // 3  below the block -> an ordinary comment to quarto
+      "SELECT 1",
+      "```",
+    ].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("a wrong-char `//|` line mid-block ENDS a {python} cell's option block", () => {
+    const text = [
+      "```{python}",
+      "#| eval: false", // 1
+      "//| echo: false", // 2  not a directive in {python} -> ends the block
+      "#| echo: banana", // 3  below the block
+      "x = 1",
+      "```",
+    ].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  // Quarto does NOT lowercase the fence token before the table lookup, so a capitalized
+  // language is simply UNKNOWN and takes the `#` default. Both directions grounded firsthand.
+  it("the language lookup is CASE-SENSITIVE — {SQL} takes the `#` default, not `--`", () => {
+    const dashes = ["```{SQL}", "--| echo: banana", "SELECT 1", "```"].join("\n");
+    const hash = ["```{SQL}", "#| echo: banana", "SELECT 1", "```"].join("\n");
+    expect(findCellOptionLines(dashes)).toEqual([]); // quarto exit 0
+    expect(findCellOptionLines(hash).map((o) => o.line)).toEqual([1]); // quarto exit 1
+  });
+
+  it("an UNKNOWN language falls back to `#`, and only `#`", () => {
+    const hash = ["```{banana}", "#| echo: banana", "1", "```"].join("\n");
+    const slash = ["```{banana}", "//| echo: banana", "1", "```"].join("\n");
+    expect(findCellOptionLines(hash).map((o) => o.line)).toEqual([1]); // quarto exit 1
+    expect(findCellOptionLines(slash)).toEqual([]); // quarto exit 0
+  });
+
+  it("resolves the table by OWN properties only — `{constructor}` is not a language", () => {
+    // `lang` is user input straight out of the fence; a bare index would walk the prototype
+    // chain and hand `commentCharsFor` a function instead of a table entry.
+    const text = ["```{constructor}", "#| echo: banana", "1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+});

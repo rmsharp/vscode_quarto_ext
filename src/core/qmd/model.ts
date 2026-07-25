@@ -211,8 +211,16 @@ export interface CellOptionLine {
   line: number;
   /** The owning cell's engine/language, e.g. `"python"`, `"r"`, `"ojs"`. */
   cellLang: string;
-  /** The comment-option prefix actually used on the line. */
-  prefix: "#|" | "//|";
+  /**
+   * The comment-option prefix actually used on the line — the cell language's comment
+   * OPENER followed by the pipe, with any whitespace between them normalized away
+   * (`#  | echo: false` reports `#|`). Quarto scopes the opener to the cell language
+   * (`kLangCommentChars`), so this is not limited to `#|`/`//|`: a `{sql}` cell reports
+   * `--|`, `{matlab}` reports `%|`, `{c}` reports `/*|` (S161). For a block-comment
+   * language the closing suffix is NOT part of this field — it is stripped from the
+   * option's content and never enters the key/value spans.
+   */
+  prefix: string;
   /**
    * The span `[startCol, endCol)` of the option *key* token (the text before the
    * `:`), 0-based columns. An empty span (`startCol == endCol`) marks a line with
@@ -505,21 +513,87 @@ export function findAllCells(text: string): Cell[] {
 }
 
 /**
- * A cell-option line, matching Quarto's own directive pattern `^#\s*\| ?` (and
- * `^//\s*\| ?` for ojs/js): the comment char (`#` or `//`) at COLUMN 0 — no
- * leading indentation, since Quarto treats an indented `#|` as ordinary code —
- * then optional whitespace, the pipe, an optional gap, and the option
- * `key[: value]`. Group 1 is the comment char, 2 the whitespace between it and
- * the pipe, 3 the gap before the key, 4 the remainder. Anchored at `^` so column
- * math is exact.
+ * Quarto's OWN language → comment-character table (`kLangCommentChars`), transcribed from
+ * the installed 1.7.33 (`share/editor/tools/yaml/web-worker.js`; the identical table also
+ * drives `share/filters/modules/constants.lua`). A one-element entry is a line comment; a
+ * two-element entry is a BLOCK comment whose closer must also terminate the directive line
+ * (see `commentCharsFor`). Facts about another tool's syntax, not expression — the same
+ * license-clean basis as the curated schema names (Learning #25).
+ *
+ * Lookup is CASE-SENSITIVE and unknown languages fall back to `#`, both grounded firsthand
+ * vs 1.7.33: `{SQL}` + `--| echo: banana` renders exit 0 while `{SQL}` + `#| echo: banana`
+ * renders exit 1, and `{banana}` behaves the same way — quarto does not lowercase the fence
+ * token before the lookup, so `{SQL}` is simply an unknown language taking the default.
  */
-const CELL_OPTION_PREFIX = /^(#|\/\/)([ \t]*)\|([ \t]*)(.*)$/;
+const LANG_COMMENT_CHARS: Readonly<Record<string, readonly [string] | readonly [string, string]>> = {
+  r: ["#"], python: ["#"], julia: ["#"], scala: ["//"], matlab: ["%"], csharp: ["//"],
+  fsharp: ["//"], c: ["/*", "*/"], css: ["/*", "*/"], sas: ["*", ";"], powershell: ["#"],
+  bash: ["#"], sql: ["--"], mysql: ["--"], psql: ["--"], lua: ["--"], cpp: ["//"], cc: ["//"],
+  stan: ["#"], octave: ["#"], fortran: ["!"], fortran95: ["!"], awk: ["#"], gawk: ["#"],
+  stata: ["*"], java: ["//"], groovy: ["//"], sed: ["#"], perl: ["#"], prql: ["#"], ruby: ["#"],
+  tikz: ["%"], js: ["//"], d3: ["//"], node: ["//"], sass: ["//"], scss: ["//"], coffee: ["#"],
+  go: ["//"], asy: ["//"], haskell: ["--"], dot: ["//"], ojs: ["//"], apl: ["⍝"],
+  ocaml: ["(*", "*)"], rust: ["//"],
+};
+
+/** The comment delimiters quarto reads cell-option directives with, for one cell language. */
+interface CommentChars {
+  /** The opener the directive pattern is built from — quarto's `commentChars[0]`. */
+  open: string;
+  /**
+   * The closer a directive line must ALSO end with, for a block-comment language — quarto's
+   * `commentChars[1]`, `null` for a line-comment language. Quarto tests
+   * `line.trimEnd().endsWith(suffix)` and strips the suffix from the YAML content; a matching
+   * line WITHOUT it is not a directive at all and therefore ENDS the option block.
+   */
+  close: string | null;
+}
+
+/**
+ * The comment delimiters for cell language `lang`. OWN properties only — `lang` comes
+ * straight out of a ```` ```{...} ```` fence and is user input, so a bare index walks the
+ * prototype chain (the `cellLanguageId("constructor")` defect, `embedded/lang-map.ts`).
+ */
+function commentCharsFor(lang: string): CommentChars {
+  const entry = Object.prototype.hasOwnProperty.call(LANG_COMMENT_CHARS, lang)
+    ? LANG_COMMENT_CHARS[lang]
+    : undefined;
+  return entry === undefined
+    ? { open: "#", close: null }
+    : { open: entry[0], close: entry[1] ?? null };
+}
+
+/** Escape a literal so it can be embedded in a `RegExp` — quarto's own `escapeRegExp`. */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * A cell-option line for ONE cell language, matching Quarto's own directive pattern
+ * `^<comment>\s*\| ?`: the language's comment opener at COLUMN 0 — no leading indentation,
+ * since Quarto treats an indented directive as ordinary code — then optional whitespace, the
+ * pipe, an optional gap, and the option `key[: value]`. Group 1 is the comment opener, 2 the
+ * whitespace between it and the pipe, 3 the gap before the key, 4 the remainder. Anchored at
+ * `^` so column math is exact.
+ *
+ * The comment char is per-LANGUAGE, not the fixed `#`/`//` pair this used to hard-code:
+ * quarto builds the pattern from `kLangCommentChars[lang]`, so both directions were wrong
+ * for every other language — `{sql}` + `--| echo: banana` renders exit 1 with a real
+ * `Field "echo" has value banana` and we emitted NOTHING (a lost true positive), while
+ * `{sql}` + `#| echo: banana` renders exit 0 and we emitted it for value-diagnostics to
+ * squiggle (the cardinal sin). Both grounded firsthand vs 1.7.33 across the table's nine
+ * distinct openers (S161).
+ */
+function cellOptionPrefixFor({ open }: CommentChars): RegExp {
+  return new RegExp("^(" + escapeRegExp(open) + ")([ \\t]*)\\|([ \\t]*)(.*)$");
+}
 
 /**
  * Quarto's OWN directive predicate — `^<comment>\s*\| ?` — and nothing more: a PREFIX test,
- * with `\s` (all whitespace) rather than `[ \t]`, and no end anchor.
+ * with `\s` (all whitespace) rather than `[ \t]`, and no end anchor. For a block-comment
+ * language the caller must ALSO apply the `close` suffix test (`isCellOptionDirective`).
  *
- * `CELL_OPTION_PREFIX` above is deliberately stricter, because it must also SLICE the line
+ * `cellOptionPrefixFor` above is deliberately stricter, because it must also SLICE the line
  * into key and value spans. Two divergences follow from that: its gap is `[ \t]`, so an
  * exotic-but-legal whitespace (NBSP, vertical tab) between the comment char and the pipe is
  * rejected; and it ends `(.*)$`, where `.` excludes U+2028/U+2029, so a line separator
@@ -531,13 +605,46 @@ const CELL_OPTION_PREFIX = /^(#|\/\/)([ \t]*)\|([ \t]*)(.*)$/;
  * non-directive line ends the cell's whole option block, using the strict pattern there
  * would let one exotic character silently discard every real option BELOW it. So the two
  * roles are split — this permissive pattern decides where the block ENDS, and the strict
- * one above decides what gets EMITTED (§9 review, S160; found against this session's own
- * change, adjudicated firsthand). The comment-char alternation is deliberately identical to
- * `CELL_OPTION_PREFIX`'s: quarto scopes the comment char to the cell's ENGINE, and that
- * divergence is a separate, pre-existing defect tracked in BACKLOG — widening it here would
- * change behaviour this fix has no grounding for.
+ * one above decides what gets EMITTED (§9 review, S160; found against that session's own
+ * change, adjudicated firsthand).
  */
-const CELL_OPTION_DIRECTIVE = /^(?:#|\/\/)\s*\|/;
+function cellOptionDirectiveFor({ open }: CommentChars): RegExp {
+  return new RegExp("^(?:" + escapeRegExp(open) + ")\\s*\\|");
+}
+
+/**
+ * Whether quarto reads `lineText` as a cell-option directive — the permissive pattern PLUS,
+ * for a block-comment language, the closing suffix quarto requires
+ * (`line.trimEnd().endsWith(optionSuffix)`). Grounded firsthand vs 1.7.33: in a `{c}` cell an
+ * `echo: banana` directive CLOSED by the block-comment terminator renders exit 1 with a real
+ * value error, while the same line left UNCLOSED renders exit 0 — and an unclosed line
+ * mid-block ends the block, exactly like any other non-directive line (S161).
+ */
+function isCellOptionDirective(lineText: string, directive: RegExp, close: string | null): boolean {
+  return directive.test(lineText) && (close === null || lineText.trimEnd().endsWith(close));
+}
+
+/**
+ * The YAML content quarto folds out of a directive line's remainder — `m[4]` for a
+ * line-comment language, and for a BLOCK-comment language the same with the closing suffix
+ * (and the whitespace on either side of it) removed, mirroring quarto's own
+ * `yamlOption.trimEnd().substring(0, len - suffix.length).trimEnd()`. `null` when the
+ * language needs a suffix the line does not carry, which makes the line a non-directive.
+ *
+ * Only ever SHORTENS the remainder from the END, so every column derived from `keyStart`
+ * stays exact, and for a line-comment language it is `m[4]` untouched — no behaviour change
+ * on the `#`/`//` languages this function did not use to reach.
+ */
+function directiveContent(remainder: string, close: string | null): string | null {
+  if (close === null) {
+    return remainder;
+  }
+  const trimmed = remainder.trimEnd();
+  if (!trimmed.endsWith(close)) {
+    return null;
+  }
+  return trimmed.slice(0, trimmed.length - close.length).trimEnd();
+}
 
 /**
  * A YAML block-scalar header appearing as a cell-option VALUE: `|` (literal) or `>` (folded),
@@ -583,16 +690,26 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
     // the quote/flow state above: a value opens EITHER a quote/flow OR a block scalar (disjoint
     // first chars `"'[{` vs `|>`), never both. Null when no block scalar is open.
     let blockScalarIndent: number | null = null;
+    // The comment delimiters quarto reads THIS cell's directives with, resolved from its
+    // language (S161). Built once per cell rather than per line, and never cached across
+    // cells: the table is keyed by a fence token that is user input, so a process-lifetime
+    // cache would grow with the distinct tokens a document happens to contain.
+    const comment = commentCharsFor(cell.lang);
+    const prefixRe = cellOptionPrefixFor(comment);
+    const directiveRe = cellOptionDirectiveFor(comment);
     for (let j = 0; j < bodyLines.length; j++) {
       const lineText = bodyLines[j];
-      const m = CELL_OPTION_PREFIX.exec(lineText);
-      if (m === null) {
-        if (CELL_OPTION_DIRECTIVE.test(lineText)) {
-          // A line quarto reads as a directive but that `CELL_OPTION_PREFIX` cannot slice
-          // (an NBSP/vertical-tab gap, or a U+2028 in the content). It is part of quarto's
-          // YAML block, so it must NOT end the block — skip the LINE and keep scanning, the
-          // same one-line false negative the pre-S160 code had. Terminating here instead
-          // would discard every real option below it (§9 review, S160).
+      const m = prefixRe.exec(lineText);
+      // For a block-comment language the closing suffix is part of the directive: a line
+      // lacking it is not a directive at all, so `content` is `null` and the block ends here.
+      const content = m === null ? null : directiveContent(m[4], comment.close);
+      if (m === null || content === null) {
+        if (isCellOptionDirective(lineText, directiveRe, comment.close)) {
+          // A line quarto reads as a directive but that the strict prefix pattern cannot
+          // slice (an NBSP/vertical-tab gap, or a U+2028 in the content). It is part of
+          // quarto's YAML block, so it must NOT end the block — skip the LINE and keep
+          // scanning, the same one-line false negative the pre-S160 code had. Terminating
+          // here instead would discard every real option below it (§9 review, S160).
           continue;
         }
         // END OF THE CELL'S OPTION BLOCK — not merely a reset of the continuation state.
@@ -626,25 +743,25 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
         // structural `YAMLException: bad indentation` (exit 1, never a value error), so over-
         // skipping there is the safe false-negative direction, not a lost value TP (§9 over-
         // suppression lens, S158).
-        if (m[4].trim() === "" || foldedIndent > blockScalarIndent) {
+        if (content.trim() === "" || foldedIndent > blockScalarIndent) {
           continue;
         }
         blockScalarIndent = null;
       }
       if (flowDepth > 0 || openQuote !== null) {
         // A continuation of a multi-line quoted/flow value on a prior `#|` line — skip it.
-        const s = scanFlow(m[4], flowDepth, openQuote);
+        const s = scanFlow(content, flowDepth, openQuote);
         flowDepth = Math.max(0, s.depth);
         openQuote = s.quote;
         continue;
       }
       // keyStart = comment chars + inter-pipe ws + the `|` + the gap before the key.
       const keyStart = m[1].length + m[2].length + 1 + m[3].length;
-      const { keySlot, valueSlot } = slotsOf(m[4], keyStart);
+      const { keySlot, valueSlot } = slotsOf(content, keyStart);
       result.push({
         line: cell.startLine + 1 + j,
         cellLang: cell.lang,
-        prefix: m[1] === "#" ? "#|" : "//|",
+        prefix: m[1] + "|",
         keySlot,
         valueSlot,
       });
@@ -666,11 +783,11 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
       // property is stripped BEFORE the first-char test (its brackets are then counted by the
       // scan). `m[4]` is `key: value` (or a `- ` sequence item), so the value is the text
       // after the first colon, else the line content past a leading `- `.
-      const armColon = m[4].indexOf(":");
+      const armColon = content.indexOf(":");
       const armToken =
         armColon < 0
-          ? m[4].replace(/^-[ \t]*/, "").trimEnd()
-          : m[4].slice(armColon + 1).replace(/^[ \t]+/, "").trimEnd();
+          ? content.replace(/^-[ \t]*/, "").trimEnd()
+          : content.slice(armColon + 1).replace(/^[ \t]+/, "").trimEnd();
       // Strip a leading node property before the first-char test. The name charset excludes
       // ONLY the YAML c-flow-indicators `,[]{}` (the chars an anchor/tag NAME may not contain),
       // so two things hold: (1) the strip stops at — and thus SEES — an opener that ABUTS the
