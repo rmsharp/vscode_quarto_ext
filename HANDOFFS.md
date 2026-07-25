@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S163
+date: 2026-07-25
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). Honour quarto's documented `validate-yaml: false` escape hatch in the .qmd value-diagnostics feature. Quarto's readAndValidateYamlFromMappedString computes validateYaml from the front-matter key and returns yamlValidationErrors: [] when it is false; measured firsthand by S162, validate-yaml: false + {python} + #| echo: banana renders exit 0 while the identical document without the key renders exit 1, and features/yaml-value-diagnostics.ts flags it either way. The cardinal sin in its most explicit form. PRE-EXISTING. Scope grounded by S162: all three .qmd value surfaces plus a per-cell form where the VALUE disarms validation. Operator-selected via AskUserQuestion at Phase 0. ONE deliverable — the .qmd escape hatch; the _quarto.yml project surface will be MEASURED and filed unless it is the identical shape at the identical gate.
+```
+
+```handoff
 session: S162
 date: 2026-07-25
 status: complete
