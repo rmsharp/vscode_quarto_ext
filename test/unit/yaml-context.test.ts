@@ -658,3 +658,25 @@ describe("cellOptionScopeFor — the schema scope a cell's options are VALIDATED
     }
   });
 });
+
+describe("completionContextAt — cell-option completion follows the LANGUAGE's comment char (S161)", () => {
+  it("offers cell-option completion on a `--|` line in a {sql} cell", () => {
+    // Quarto reads this as a directive (`{sql}` + `--| echo: banana` renders exit 1 with a
+    // real value error), so the key list belongs here. Pre-fix the surface was silent.
+    const text = ["```{sql}", "--| ec", "SELECT 1", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 6))?.kind).toBe("cell-option-key");
+  });
+
+  it("offers NO cell-option completion on a `#|` line in a {sql} cell", () => {
+    // Quarto reads no directive there at all (exit 0), so offering the key list would
+    // advertise options that can never take effect — the completion-surface twin of the
+    // diagnostics false positive.
+    const text = ["```{sql}", "#| ec", "SELECT 1", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 5))).toBeNull();
+  });
+
+  it("offers NO cell-option completion on a `//|` line in a {python} cell", () => {
+    const text = ["```{python}", "//| ec", "x = 1", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 6))).toBeNull();
+  });
+});

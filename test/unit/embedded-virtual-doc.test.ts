@@ -648,3 +648,53 @@ describe("the leading-option-block rule reaches the embedded surfaces (S160)", (
     expect(buildVirtualContent(text, "python").trim()).not.toBe("");
   });
 });
+
+describe("the per-language comment char reaches the embedded surfaces (S161)", () => {
+  // `findCellOptionLines` is what tells these builders which body lines are YAML rather
+  // than the cell's own language. Scoping the comment char to the language therefore
+  // reclassifies two shapes on EVERY consumer at once: a `//|` line in a `{python}` cell
+  // and a `#|` line in an `{ojs}` cell stop being directives and become ordinary code —
+  // which is exactly what quarto does with them (both render exit 0, their content never
+  // read as an option). These pin that consequence so it cannot silently regress.
+
+  it("keeps a `//|` line as CODE in a {python} cell's vdoc", () => {
+    // Pre-fix this was blanked as a directive, so the Python server never saw a line the
+    // user really did write into a Python cell — and quarto passes it to Python verbatim.
+    const text = ["```{python}", "//| echo: banana", "x = 1", "```"].join("\n");
+    expect(buildVirtualContent(text, "python").split("\n")[1]).toBe("//| echo: banana");
+  });
+
+  it("keeps a `#|` line as CODE in an {ojs} cell's vdoc", () => {
+    const text = ["```{ojs}", "#| echo: banana", "x = 1", "```"].join("\n");
+    expect(buildVirtualContent(text, "javascript").split("\n")[1]).toBe("#| echo: banana");
+  });
+
+  it("still blanks each language's OWN directive — the option block is untouched", () => {
+    // The load-bearing control: without it the two pins above are satisfied by a wholesale
+    // loss of option-line detection, which would leak every real directive into the vdoc.
+    const py = ["```{python}", "#| echo: banana", "x = 1", "```"].join("\n");
+    expect(buildVirtualContent(py, "python").split("\n")[1]).toBe("");
+    const ojs = ["```{ojs}", "//| echo: banana", "x = 1", "```"].join("\n");
+    expect(buildVirtualContent(ojs, "javascript").split("\n")[1]).toBe("");
+  });
+
+  it("forwards the cursor on a wrong-char `//|` line to the LANGUAGE, not to YAML", () => {
+    // `embeddedCellAt` returns null on an option line (it belongs to the YAML provider).
+    // A `//|` in python is not an option, so hover/completion there is Python's — while
+    // the `#|` form still is not, keeping the two provider regions disjoint.
+    const text = ["```{python}", "//| echo: banana", "x = 1", "```"].join("\n");
+    expect(embeddedCellAt(text, 1)?.languageId).toBe("python");
+    const own = ["```{python}", "#| echo: banana", "x = 1", "```"].join("\n");
+    expect(embeddedCellAt(own, 1)).toBeNull();
+  });
+
+  it("counts a cell whose ONLY content is a wrong-char directive as forwardable", () => {
+    // `embeddedLanguagesIn` must stay equivalent to "the vdoc has something in it" — the
+    // invariant this file pins everywhere else — so the reclassification has to move BOTH
+    // together. A cell with ordinary code alongside would report python either way and
+    // prove nothing, so the `//|` line is the cell's only body line.
+    const text = ["```{python}", "//| echo: banana", "```"].join("\n");
+    expect(embeddedLanguagesIn(text).map((l) => l.languageId)).toEqual(["python"]);
+    expect(buildVirtualContent(text, "python").trim()).not.toBe("");
+  });
+});
