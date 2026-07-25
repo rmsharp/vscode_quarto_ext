@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S156
+date: 2026-07-24
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). The findCellOptionLines node-property strip over-exclusion parity fix — bring the cell-option enumerator's strip charset from [^\s[\]{}"'] to the YAML-exact [^\s,[\]{}] S155 shipped on the 3 value enumerators (src/core/qmd/model.ts:590), so a quote in an anchor NAME (a legal YAML anchor-name char — c-flow-indicators are ONLY ,[]{}) is not misread as a quote opener that phantom-folds a following #| option. Filed S155 (§9 over-suppression lens). Operator-selected at Phase 0. ONE deliverable — this charset on findCellOptionLines ONLY; NOT the block-scalar |/> cell-option FP, NOT the quoted-KEY divergence, NOT Combos 2/4, NOT _metadata.yml (all filed; FM #26).
+```
+
+```handoff
 session: S155
 date: 2026-07-24
 status: complete
