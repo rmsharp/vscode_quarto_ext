@@ -7,6 +7,13 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-25 · [ad hoc] Backlog grooming (post-S158, operator-directed) — filed the CHANGELOG-header format migration
+
+Filed a new `BACKLOG.md` "Up Next" item (operator request): migrate this file's
+header/preamble to the current v3.1+ "Authoritative Action Ledger" seed format so
+`bin/status` no longer flags it `present (stale format)`, keeping every existing dated
+entry intact. No behavioral change — a standalone header swap for a future session.
+
 ### 2026-07-25 · [ad hoc] Session 158 — IMPLEMENTATION: the block-scalar (`|`/`>`) cell-option false-positive fix (SHIPPED)
 
 Made `findCellOptionLines` (`src/core/qmd/model.ts`) block-scalar-aware. Quarto
