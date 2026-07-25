@@ -595,9 +595,15 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
       // over-excluded quotes; corrected to the YAML-exact `[^\s,[\]{}]` to match the three
       // front-matter/project VALUE enumerators (S155 §9 over-suppression correction,
       // PROJECT_LEARNINGS #168). The trailing ws is optional so `&a [one,` and `&a[one,` both
-      // strip to `[one,`. (An anchor NAME containing a quote FOLLOWED by a real flow opener,
-      // `&a'b [1,`, still arms — via `scanFlow` seeing that inner `'` — but that pathological
-      // shape is unchanged by this correction and out of scope.)
+      // strip to `[one,`. This corrects the SINGLE-LINE arm decision only. A separate,
+      // PRE-EXISTING lost TP survives on the multi-line-continuation path below (the
+      // `scanFlow(m[4], flowDepth, openQuote)` at the top of this loop): that scan is node-
+      // property-blind, so an anchor-name quote in a CONTINUATION line of an already-open flow
+      // (`#| fig-cap: [` / `#| one, &a'b` / `#| ]` / `#| echo: banana`) makes `scanFlow` read the
+      // `'` as opening a quote, swallowing the following real option — which quarto ACCEPTS the
+      // fold and flags (exit 1), a genuine lost TP. Unchanged by this diff (§9 missed-sites lens,
+      // S156; filed in BACKLOG). The benign single-line curiosity `#| foo: &a'b [1,` still arms
+      // via that same scan, but quarto REJECTS its unclosed flow, so no TP is lost there.
       const opener = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "")[0];
       if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
         const s = scanFlow(armToken, 0, null);
