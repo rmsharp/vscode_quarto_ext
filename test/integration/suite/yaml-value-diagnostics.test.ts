@@ -1140,3 +1140,79 @@ describe("Quarto: arming-discipline parity — #| cell-option anchor-name quote 
     );
   });
 });
+
+describe("Quarto: arming-discipline parity — #| cell-option node-property-name quote on the CONTINUATION path (.qmd, BACKLOG: continuation-path scanFlow lost TP, Session 157)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // Lost-TRUE-POSITIVE recovery — the SIBLING code path to the single-line arm S156 fixed. The
+  // multi-line-continuation `scanFlow` skip was node-property-blind for QUOTES: a quote inside an
+  // anchor NAME (`&a'b`) in a CONTINUATION line of an already-open flow was read as a scalar opener,
+  // arming a phantom `'` that swallowed the following real `#|` option. Fixed at the shared root
+  // (`scanFlow` now skips `&`/`*`/`!` node-property names, S157). Grounded firsthand vs quarto render
+  // 1.7.33: `#| myopt: [` / `#| one, &a'b` / `#| ]` folds a list under an unknown / null-tolerant key
+  // (exit 0), so the swallowed `#| echo: banana` (exit 1 — "must instead be `true` or `false`") is the
+  // SOLE error — a genuine lost TP. Inherently non-vacuous: the OLD scan swallowed `#| echo: banana`
+  // (ZERO diagnostics on it), so the positive assertion could not have passed before the fix.
+  it("recovers a lost TP: flags a real invalid #| option after an anchor-name-quote CONTINUATION line", async () => {
+    const content = [
+      "---", "title: t", "---", "",
+      "```{python}",
+      "#| myopt: [",
+      "#| one, &a'b",
+      "#| ]",
+      "#| echo: banana",
+      "1+1",
+      "```",
+      "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 8), 5000),
+      "#| echo: banana (line 8) MUST flag — a quote in the continuation-line anchor name &a'b set a phantom `'` that swallowed it",
+    );
+    const hit = valueDiagnostics(doc.uri).find((d) => d.range.start.line === 8);
+    assert.ok(hit?.message.includes("banana"), `the line-8 diagnostic should be the echo: banana value error (got: ${hit?.message})`);
+  });
+
+  // No-over-suppression — the root-cause fix must NOT disable genuine quoted-scalar continuation
+  // detection. A multi-line DOUBLE-quoted `fig-cap` (whose text literally contains `&x` and `[`
+  // INSIDE the quote) folds its continuation, so the mapping-looking `#| number-sections: banana"`
+  // line is part of the string, not a real option (grounded firsthand: renders exit 0 apart from the
+  // canary). A `#| echo: banana` CANARY before the fold MUST flag, so "0 on the folded line" is not
+  // vacuous.
+  it("still folds a genuine multi-line DOUBLE-quoted value containing `&`/`[` — the folded #| line is NOT flagged (canary proves the pass ran)", async () => {
+    const content = [
+      "---", "title: t", "---", "",
+      "```{python}",
+      "#| echo: banana",
+      '#| fig-cap: "a &x [b',
+      '#| number-sections: banana"',
+      "1+1",
+      "```",
+      "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 5), 5000),
+      "the #| echo: banana canary (line 5) should flag, proving the cell-option value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(7),
+      `the folded #| number-sections (line 7) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
+});
