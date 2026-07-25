@@ -516,6 +516,30 @@ export function findAllCells(text: string): Cell[] {
 const CELL_OPTION_PREFIX = /^(#|\/\/)([ \t]*)\|([ \t]*)(.*)$/;
 
 /**
+ * Quarto's OWN directive predicate — `^<comment>\s*\| ?` — and nothing more: a PREFIX test,
+ * with `\s` (all whitespace) rather than `[ \t]`, and no end anchor.
+ *
+ * `CELL_OPTION_PREFIX` above is deliberately stricter, because it must also SLICE the line
+ * into key and value spans. Two divergences follow from that: its gap is `[ \t]`, so an
+ * exotic-but-legal whitespace (NBSP, vertical tab) between the comment char and the pipe is
+ * rejected; and it ends `(.*)$`, where `.` excludes U+2028/U+2029, so a line separator
+ * anywhere in the content is rejected. Quarto accepts all three (grounded firsthand vs
+ * 1.7.33: each renders exit 1 with a real `Field "echo" has value banana` VALUE error).
+ *
+ * That strictness is harmless for EMISSION — an unparseable directive line is simply not
+ * reported, a one-line false negative. It is NOT harmless for TERMINATION: since a
+ * non-directive line ends the cell's whole option block, using the strict pattern there
+ * would let one exotic character silently discard every real option BELOW it. So the two
+ * roles are split — this permissive pattern decides where the block ENDS, and the strict
+ * one above decides what gets EMITTED (§9 review, S160; found against this session's own
+ * change, adjudicated firsthand). The comment-char alternation is deliberately identical to
+ * `CELL_OPTION_PREFIX`'s: quarto scopes the comment char to the cell's ENGINE, and that
+ * divergence is a separate, pre-existing defect tracked in BACKLOG — widening it here would
+ * change behaviour this fix has no grounding for.
+ */
+const CELL_OPTION_DIRECTIVE = /^(?:#|\/\/)\s*\|/;
+
+/**
  * A YAML block-scalar header appearing as a cell-option VALUE: `|` (literal) or `>` (folded),
  * an optional indentation indicator (`1`–`9`) and/or chomping indicator (`+`/`-`) in either
  * order, then only optional whitespace and an optional `#` comment before end of line. A
@@ -563,6 +587,14 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
       const lineText = bodyLines[j];
       const m = CELL_OPTION_PREFIX.exec(lineText);
       if (m === null) {
+        if (CELL_OPTION_DIRECTIVE.test(lineText)) {
+          // A line quarto reads as a directive but that `CELL_OPTION_PREFIX` cannot slice
+          // (an NBSP/vertical-tab gap, or a U+2028 in the content). It is part of quarto's
+          // YAML block, so it must NOT end the block — skip the LINE and keep scanning, the
+          // same one-line false negative the pre-S160 code had. Terminating here instead
+          // would discard every real option below it (§9 review, S160).
+          continue;
+        }
         // END OF THE CELL'S OPTION BLOCK — not merely a reset of the continuation state.
         // Quarto reads a cell's `#|` directives from the LEADING contiguous run of directive
         // lines and stops at the first body line that is not one; everything below is ordinary

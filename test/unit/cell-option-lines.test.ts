@@ -542,10 +542,14 @@ describe("findCellOptionLines — quarto honors only the cell's LEADING option b
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([]);
   });
 
-  it("ends the block PER CELL — a later cell's leading block is unaffected", () => {
-    // The terminator must not leak across cells: cell one's post-code option is dropped
-    // (quarto exit 0 for it) while cell two's leading option is still emitted. Grounded
-    // firsthand as one document: quarto reports ONLY cell two's `eval` error (exit 1).
+  it("ends the block PER CELL — every cell gets its own leading block and its own terminator", () => {
+    // The terminator must not leak across cells, and must apply to EVERY cell rather than
+    // only the first. Cell one's post-code option is dropped and cell two's LEADING option
+    // is still emitted — but cell two ALSO carries a post-code option, which is what makes
+    // this pin discriminate: a mutant that terminates only while scanning the first cell
+    // yields [6, 8] here, and the simpler two-cell shape (without line 8) could not tell
+    // the two apart. Grounded firsthand as one document: quarto reports ONLY the `eval`
+    // error, exit 1 — neither line 2 nor line 8.
     const text = [
       "```{python}", // 0
       "1+1", // 1 — code ends cell one's block (which never opened)
@@ -554,8 +558,9 @@ describe("findCellOptionLines — quarto honors only the cell's LEADING option b
       "", // 4
       "```{python}", // 5
       "#| eval: banana", // 6 — cell two's LEADING block: a real option
-      "2+2", // 7
-      "```", // 8
+      "2+2", // 7 — code ends cell two's block too
+      "#| warning: banana", // 8 — ordinary comment, in the SECOND cell
+      "```", // 9
     ].join("\n");
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([6]);
   });
@@ -605,5 +610,52 @@ describe("findCellOptionLines — quarto honors only the cell's LEADING option b
     // firsthand). So this line is an option, not a plain comment that terminates.
     const text = ["```{python}", "# | label: cell-a", "#| echo: banana", "1+1", "```"].join("\n");
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+});
+
+describe("findCellOptionLines — the block TERMINATOR is quarto's directive pattern, not our stricter one (S160 §9)", () => {
+  // Quarto's own predicate is `^<comment>\s*\| ?` — a PREFIX test using `\s` (ALL
+  // whitespace) with no end anchor. Our `CELL_OPTION_PREFIX` is deliberately stricter: its
+  // gap is `[ \t]` and it ends `(.*)$`, where `.` excludes U+2028/U+2029. That strictness
+  // was harmless while it only decided whether ONE line was emitted — an unparseable
+  // directive line was silently skipped and everything below it still validated. The S160
+  // `break` promoted the same regex to deciding how LONG the block is, which turned that
+  // one-line false negative into a whole-cell LOST TRUE POSITIVE. Found by this session's
+  // own §9 review, against this session's own change, and adjudicated firsthand.
+  //
+  // Every shape below renders quarto exit 1 with a real `Field "echo" has value banana`
+  // VALUE error, and every one WAS emitted by the pre-S160 enumerator — so shipping the
+  // strict terminator would have been a regression, not merely an unfixed gap.
+  // Termination now tests the permissive directive pattern; EMISSION still requires the
+  // strict one, so an unparseable directive line is skipped rather than ending the block.
+
+  const NBSP = "\u00A0"; // matched by `\s`, NOT by `[ \t]`
+  const VTAB = "\u000B"; // ditto
+  const LSEP = "\u2028"; // matched by `\s`; also excluded by `.`
+
+  it("a NON-BREAKING SPACE in the gap does not end the block", () => {
+    const text = ["```{python}", `#${NBSP}| label: cell-a`, "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([2]);
+  });
+
+  it("a VERTICAL TAB in the gap does not end the block", () => {
+    const text = ["```{python}", `#${VTAB}| label: cell-a`, "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([2]);
+  });
+
+  it("a U+2028 LINE SEPARATOR inside a directive's value does not end the block", () => {
+    // `(.*)$` cannot match this line at all — `.` excludes U+2028 — so the strict regex
+    // rejects it even though quarto reads it as part of the cell's YAML block.
+    const text = ["```{python}", `#| fig-cap: a${LSEP}b`, "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([2]);
+  });
+
+  it("STILL ends the block on a line that is not a directive at all", () => {
+    // The control: relaxing the terminator must not stop real terminators terminating.
+    // `#x| oops` has no whitespace-only gap between `#` and `|`, so it is not a directive
+    // under EITHER pattern — quarto renders the option below it exit 0, and it must stay
+    // unflagged. Without this, the fix above could be satisfied by never terminating.
+    const text = ["```{python}", "#| label: cell-a", "#x| oops", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
   });
 });
