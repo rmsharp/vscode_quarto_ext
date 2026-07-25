@@ -508,12 +508,58 @@ export function isMappingSeparator(lineText: string, colon: number): boolean {
  * the note there.
  */
 export function mappingColonAt(lineText: string, from = 0): number {
-  for (let i = lineText.indexOf(":", from); i >= 0; i = lineText.indexOf(":", i + 1)) {
+  for (let i = lineText.indexOf(":", afterQuotedKey(lineText, from)); i >= 0; i = lineText.indexOf(":", i + 1)) {
     if (isMappingSeparator(lineText, i)) {
       return i;
     }
   }
   return -1;
+}
+
+/**
+ * The index just past a QUOTED key at `from` (skipping leading blanks), or `from` itself when the
+ * key is not quoted or its closing quote is missing. The separator scan starts here so a colon
+ * INSIDE a quoted key is never mistaken for the key/value separator.
+ *
+ * Without this, `"a: b": "text` split at the colon in the quoted key: the key became `"a` and the
+ * "value" `b": "text`, whose first character does not open a quoted scalar — so the enumerators'
+ * continuation guard never armed, and the line quarto FOLDS into that value was read as a real
+ * mapping and flagged. quarto 1.7.33 renders such a document **exit 0** (it folds to the single
+ * key `a: b`), making that a cardinal-sin false positive; it was live for a folded line with a
+ * bare key, and unquoting the key (S159) would have widened it to quoted folded keys too.
+ * Grounded firsthand: `"a: b": "text` / `toc: banana"` and its flow variant both exit 0.
+ *
+ * Conservative by construction — it only ever moves the scan start LATER, so it can turn a
+ * mis-split into a correct split or into "no separator" (a skipped line), never invent one. An
+ * UNTERMINATED quoted key (`"toc: banana`) keeps the old scan position: that document is a
+ * structural `YAMLException` for quarto, and the pre-existing behavior there is already silent.
+ * Escapes are honored the way YAML defines them — `\"` inside a double-quoted key, a doubled `''`
+ * inside a single-quoted one — so a key containing a quote does not end it early.
+ */
+function afterQuotedKey(lineText: string, from: number): number {
+  let start = from;
+  while (start < lineText.length && (lineText[start] === " " || lineText[start] === "\t")) {
+    start++;
+  }
+  const quote = lineText[start];
+  if (quote !== '"' && quote !== "'") {
+    return from;
+  }
+  for (let i = start + 1; i < lineText.length; i++) {
+    const ch = lineText[i];
+    if (quote === '"' && ch === "\\") {
+      i++; // an escaped char inside a double-quoted scalar — never a closer
+      continue;
+    }
+    if (ch === quote) {
+      if (quote === "'" && lineText[i + 1] === "'") {
+        i++; // `''` is an escaped single quote inside a single-quoted scalar
+        continue;
+      }
+      return i + 1;
+    }
+  }
+  return from; // unterminated — leave the scan exactly where it was
 }
 
 /**

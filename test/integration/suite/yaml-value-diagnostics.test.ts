@@ -1320,27 +1320,6 @@ describe("Quarto: QUOTED-KEY parity across all three .qmd surfaces (.qmd, BACKLO
     return vscode.workspace.openTextDocument({ language: "quarto", content });
   }
 
-  // LOST-TP RECOVERED — cell options. A quoted `#|` option key kept its quotes, matched no field
-  // in `index.cellOptions(...)`, and the diagnostic was silently dropped. Grounded firsthand vs
-  // quarto render 1.7.33: `#| "echo": banana` renders exit 1 with `Field "echo" has value banana,
-  // which must instead be true or false` — identical to the unquoted form (and `#| 'echo': banana`
-  // too). Non-vacuous: RED against the pre-fix source, where nothing on this line flagged.
-  it("flags a wrong value on a DOUBLE-quoted #| cell-option key", async () => {
-    const content = [
-      "---", "title: t", "---", "",
-      "```{python}",
-      '#| "echo": banana',
-      "1+1",
-      "```",
-      "",
-    ].join("\n");
-    const doc = await openInline(content);
-    assert.ok(
-      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 5), 5000),
-      'the quoted #| "echo": banana (line 5) MUST flag — quarto rejects it exit 1 exactly as the unquoted form',
-    );
-  });
-
   // The same recovery on the two FRONT-MATTER surfaces, top-level and nested, in one document.
   // Grounded firsthand: `"toc": banana` exit 1 (`Field "toc"`), `execute:` / `  "echo": banana`
   // exit 1 (`Field "echo"`). Both were silent before this session.

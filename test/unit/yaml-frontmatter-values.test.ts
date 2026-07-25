@@ -355,6 +355,18 @@ describe("findFrontMatterValueLines — QUOTED-KEY parity with findProjectConfig
     expect(findFrontMatterValueLines(mismatchedPair).map((v) => v.key)).toEqual([`"toc'`]);
   });
 
+  it("strips exactly ONE quoting layer — a doubly-quoted key stays unresolvable", () => {
+    // §9 test-quality lens: every other pin here survives a `unquoteKey` that strips quote layers
+    // REPEATEDLY, and that variant flags documents quarto rejects only STRUCTURALLY. `""toc"":
+    // banana` is a YAMLException (`end of the stream or a document separator is expected`, exit 1
+    // — grounded firsthand), never a value error, so the faithful answer is silence; stripping
+    // twice would resurrect `toc` and squiggle a wrong reason. One layer, exactly.
+    const dq = ["---", '""toc"": banana', "---"].join("\n");
+    expect(findFrontMatterValueLines(dq).map((v) => v.key)).toEqual(['"toc"']);
+    const sq = ["---", "''toc'': banana", "---"].join("\n");
+    expect(findFrontMatterValueLines(sq).map((v) => v.key)).toEqual(["'toc'"]);
+  });
+
   it("does NOT equate a quoted key whose CONTENT differs from the bare name (`\"toc \"` is a different key)", () => {
     // `"toc ": banana` is the key `toc ` (trailing space INSIDE the quotes), which front matter's
     // OPEN key set accepts — grounded firsthand: quarto renders it **exit 0**. Unquoting yields
@@ -364,13 +376,38 @@ describe("findFrontMatterValueLines — QUOTED-KEY parity with findProjectConfig
     expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["toc "]);
   });
 
-  it("leaves the naive-colon split of a quoted key CONTAINING a colon unchanged (still silent)", () => {
-    // `"a: b": banana` — `mappingColonAt` is not quote-aware inside the KEY region, so the split
-    // lands at the colon INSIDE the quotes, yielding key `"a` (no matching pair → left intact)
-    // and value `b": banana`. quarto renders this **exit 0** (the key `a: b` is unknown on the
-    // open front-matter set), so silence is correct. Pre-existing behavior this change does not
-    // alter — pinned so a future quote-aware colon scan has to consider the interaction.
+  it("does NOT emit a line FOLDED into a value opened by a quoted key containing a colon (FP)", () => {
+    // §9 fp-cardinal lens, adjudicated firsthand. `mappingColonAt` scanned for the first colon
+    // followed by whitespace WITHOUT skipping a quoted key, so on `"a: b": "text` it picked the
+    // colon INSIDE the quotes: the key became `"a` and the "value" `b": "text`, whose first char
+    // `b` does not open a quoted scalar — so the continuation guard never armed and the folded
+    // line below was read as a real top-level mapping. quarto 1.7.33 renders this document
+    // **exit 0** (it folds to the single key `a: b` with the value `text 'toc': banana`), so
+    // flagging the folded line is a cardinal-sin FALSE POSITIVE. It was live for a folded line
+    // with a BARE key before S159; unquoting the key would have widened it to quoted folded keys
+    // too, so the separator scan now skips a quoted key region and the guard arms correctly.
+    const quotedOpener = ["---", '"a: b": "text', "'toc': banana\"", "---"].join("\n");
+    expect(findFrontMatterValueLines(quotedOpener).map((v) => v.key)).toEqual(["a: b"]);
+    // The same shape with a BARE folded key — the PRE-EXISTING instance of the same FP, also gone.
+    const bareFolded = ["---", '"a: b": "text', "toc: banana\"", "---"].join("\n");
+    expect(findFrontMatterValueLines(bareFolded).map((v) => v.key)).toEqual(["a: b"]);
+    // FLOW variant of the same opener — one root cause, both continuation forms.
+    const flow = ["---", '"a: b": [one,', "'toc': banana]", "---"].join("\n");
+    expect(findFrontMatterValueLines(flow).map((v) => v.key)).toEqual(["a: b"]);
+    // Emission RESUMES after the fold closes — the guard is not left armed.
+    const resumes = ["---", '"a: b": "text', "toc: banana\"", "df-print: banana", "---"].join("\n");
+    expect(findFrontMatterValueLines(resumes).map((v) => v.key)).toEqual(["a: b", "df-print"]);
+  });
+
+  it("splits a quoted key CONTAINING a colon at the REAL separator, and stays silent", () => {
+    // `"a: b": banana` — the separator scan skips the quoted key, so the key is `a: b` (unquoted)
+    // and the value `banana`, rather than the old mis-split key `"a` with value `b": banana`.
+    // Either way the feature stays SILENT, which is what matters: quarto renders this **exit 0**
+    // (the key `a: b` is unknown on the OPEN front-matter key set — grounded firsthand), and
+    // `a: b` matches no schema field. What the correct split additionally buys is the arming
+    // fix pinned in the next test: the value is now seen for what it is, so a value that OPENS a
+    // multi-line scalar arms the continuation guard instead of silently disarming it.
     const text = ["---", '"a: b": banana', "---"].join("\n");
-    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(['"a']);
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["a: b"]);
   });
 });

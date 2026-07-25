@@ -29,7 +29,7 @@ import * as vscode from "vscode";
 import { findCellOptionLines } from "../core/qmd/model";
 import { findFrontMatterValueLines } from "../core/yaml-frontmatter-values";
 import { findNestedFrontMatterValueLines } from "../core/yaml-frontmatter-nested-values";
-import { engineFor, mappingColonAt, unquoteKey, valueSlotAfterColon } from "../core/yaml-context";
+import { engineFor, mappingColonAt, valueSlotAfterColon } from "../core/yaml-context";
 import { isWrongValue, valueMessage, unquote } from "../core/yaml-value-check";
 import { isKnownFormatName, formatNameMessage } from "../core/format-name-check";
 import {
@@ -94,16 +94,20 @@ async function computeValueDiagnostics(
     if (sep < 0) {
       continue; // no separator anywhere (`#| echo:banana`) — quarto exit 1, a safe FN
     }
-    // UNQUOTED, the same shared rule the three value ENUMERATORS apply to their keys (S159).
-    // A `#|` option key may be quoted — it is ordinary YAML — and quarto validates the quoted
-    // and bare forms identically: `#| "echo": banana` renders exit 1 with `Field "echo" has
-    // value banana, which must instead be true or false`, exactly as `#| echo: banana` does
-    // (grounded firsthand vs 1.7.33; `'echo'` likewise). Comparing `"echo"` against the
-    // schema's bare names matched nothing, so the diagnostic was silently lost on this surface
-    // too. FP-safe by the same argument as the enumerators: `unquoteKey` requires a MATCHING
-    // pair, so `#| "echo: banana` / `#| "echo" x: banana` stay intact and unmatched — and those
-    // are documents quarto rejects structurally, not on this value.
-    const optionKey = unquoteKey(lineText.slice(cell.keySlot.startCol, sep).replace(/[ \t]+$/, ""));
+    // NOT unquoted, deliberately — see BACKLOG: the `#|` cell-option quoted-KEY lost TP.
+    // quarto validates a quoted `#|` option key exactly like the bare form (`#| "echo": banana`
+    // renders exit 1 with `Field "echo" has value banana` — grounded firsthand vs 1.7.33), so
+    // this IS a lost true positive, and S159 fixed the identical gap on both front-matter
+    // surfaces. It is NOT fixed here because unquoting alone makes a PRE-EXISTING cardinal-sin
+    // FP reachable on this surface: `findCellOptionLines` derives its continuation-guard arm
+    // token from `m[4].indexOf(":")` (the FIRST colon, not the real separator), so an option key
+    // containing a colon (`#| a:b: "text`) disarms the guard and the folded line below is emitted
+    // as a real option — on a document quarto renders exit 0. With a BARE folded key that FP is
+    // already live (pre-existing); unquoting would widen it to quoted folded keys. The front-matter
+    // surfaces had the sibling defect in the SHARED `mappingColonAt`, fixed in S159; `model.ts` is
+    // deliberately import-free (`yaml-context.ts` imports IT), so the same fix cannot be shared
+    // here without the cross-module grammar consolidation BACKLOG already tracks.
+    const optionKey = lineText.slice(cell.keySlot.startCol, sep).replace(/[ \t]+$/, "");
     const valueSlot = valueSlotAfterColon(lineText, sep);
     const rawToken = lineText.slice(valueSlot.startCol, valueSlot.endCol);
     if (optionKey.length === 0 || rawToken.length === 0) {
