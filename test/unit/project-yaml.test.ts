@@ -737,7 +737,7 @@ describe("findProjectConfigValueLines — COLUMN-0 document keys (document-key v
   });
 
   it("ABUTTING-ANCHOR strip (S155): an anchor abutting a flow bracket (`&a[one,`, no space) still arms — quarto folds it, exit 0", () => {
-    // The node-property strip's name charset must EXCLUDE flow indicators/quotes (`[]{}"'`) so it
+    // The node-property strip's name charset must EXCLUDE the YAML flow indicators `,[]{}` so it
     // stops at — and thus SEES — an opener that ABUTS the anchor with no space. The OLD strip
     // `/^(?:[&!][^\s]*[ \t]+)+/` let its greedy `[^\s]*` swallow the `[` and then, finding no
     // REQUIRED trailing whitespace, matched nothing at all: the opener was read as `&`, the arm
@@ -759,6 +759,18 @@ describe("findProjectConfigValueLines — COLUMN-0 document keys (document-key v
     // node property), so a form that already armed keeps arming.
     expect(findProjectConfigValueLines(["resources: &a [one,", "toc: banana]"].join("\n")).map((v) => v.key)).toEqual([]);
     expect(findProjectConfigValueLines(["resources: [one,", "toc: banana]"].join("\n")).map((v) => v.key)).toEqual([]);
+  });
+
+  it("ANCHOR-NAME QUOTE (S155 §9): a quote INSIDE an anchor name (`&a'b`) is a legal name char, NOT a quote opener — must not phantom-fold a following real key", () => {
+    // YAML's flow indicators (c-flow-indicator) are ONLY `,[]{}` — a quote is a LEGAL anchor-name
+    // char. So `myref: &a'b` is a node named `a'b` with a NULL value, which quarto ACCEPTS (exit 0),
+    // and `toc: banana` below it is a SEPARATE real key quarto REJECTS (exit 1, sole error toc). The
+    // name charset must KEEP quotes (exclude only `,[]{}`) so `&a'b` strips WHOLE and does NOT arm a
+    // phantom `'` that swallows `toc`. Grounded firsthand: myref+`toc: banana` exit 1 (sole toc
+    // error); myref+`toc: true` exit 0 (proving myref: null accepted). The over-excluding S154
+    // charset `[^\s[\]{}"']` armed here and dropped the toc true-positive (§9 over-suppression, S155).
+    const q = ["myref: &a'b", "toc: banana"].join("\n");
+    expect(findProjectConfigValueLines(q).map((v) => v.key)).toEqual(["myref", "toc"]);
   });
 
   it("KEY-ISOLATION LOCK (dragon 3): findProjectConfigKeyLines still returns [] for a document-key-only file — the OPEN document root must never reach the unknown-KEY feature", () => {
