@@ -1438,7 +1438,11 @@ describe("parseSchemaIndex — engine tags & filtering", () => {
     // field applies at all. That makes `"none"` the one scope not expressible as a filter
     // over `SchemaField.engine`: the engine-agnostic fields — the very ones `"unknown"`
     // keeps — must go too, because `{dot}` + `//| echo: banana` and `{mermaid}` + `#| echo:
-    // banana` both render quarto exit 0 (measured) while `echo` is engine-agnostic.
+    // banana` both render quarto exit 0 in a MARKDOWN-engine document (measured) while `echo`
+    // is engine-agnostic. The engine qualifier matters: a knitr document runs knitr's own
+    // chunk machinery over a handler cell and rejects the `{mermaid}` shape structurally.
+    // (This was the fourth site of that unqualified claim; L6 corrected three and missed this
+    // one because it fixed the sites it remembered instead of grepping for them.)
     expect(namesFor("none")).toEqual([]);
     expect(namesFor("none")).not.toContain("echo");
   });

@@ -668,8 +668,11 @@ describe("cellOptionScopeFor — a cell-HANDLER language is validated by no cell
   // other key. Either way no cell-option field applies. Grounded firsthand vs 1.7.33 in a
   // MARKDOWN-engine document: `{dot}` + `//| echo|fig-align|eval|cache|code-fold: banana` all
   // render exit 0, as does `{mermaid}` + `#|` or `%%| echo: banana` — while the control
-  // `{sql}` + `--| echo: banana` renders exit 1. We flag every one of those `{dot}`/`{mermaid}`
-  // lines today (measured against the shipped tree), which is the cardinal sin.
+  // `{sql}` + `--| echo: banana` renders exit 1. Measured against the shipped tree, FIVE of
+  // those seven lines are flagged today — the cardinal sin. The two that are not are the prior
+  // narrowings already working: `cache` is knitr-scoped so S161 L2's `"unknown"` scope excludes
+  // it, and `%%|` is never emitted because `LANG_COMMENT_CHARS` has no `mermaid` row. An
+  // earlier revision of this comment claimed all seven (S162 §9 review).
   //
   // The engine qualifier is load-bearing and was missing from the first revision of this
   // comment (S162 §9 review). A KNITR document also runs knitr's own chunk machinery over a
@@ -704,8 +707,19 @@ describe("cellOptionScopeFor — a cell-HANDLER language is validated by no cell
     // reached completion too would be a silent capability loss with no defect to justify it.
     // (`//` is genuinely dot's comment char in quarto's own table, so quarto reads this line
     // as a directive — it just validates it against a handler schema that does not exist.)
+    //
+    // `.engine` is the load-bearing assertion, not `.kind`. The provider filters with
+    // `index.cellOptions(ctx.engine)` (`providers/yaml.ts`), so the natural wrong fix — routing
+    // completion through `cellOptionScopeFor` too — would hand it `"none"`, yield the EMPTY
+    // list, and leave `.kind` untouched: a total loss of cell-option completion in handler
+    // cells that a `.kind`-only pin sails straight past. Measured: that two-line mutant passed
+    // all 88 tests in this file before this assertion existed (S162 §9 review). `undefined` is
+    // the right value — `engineFor("dot")` is undefined, which `cellOptions` reads as "do not
+    // filter", the deliberate over-offer.
     const text = ["```{dot}", "//| ec", "digraph {a->b}", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 6))?.kind).toBe("cell-option-key");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 6));
+    expect(ctx?.kind).toBe("cell-option-key");
+    expect(ctx?.engine).toBeUndefined();
   });
 
   it("narrows ONLY the handler languages — every other language keeps its scope", () => {

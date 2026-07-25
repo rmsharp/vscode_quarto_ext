@@ -698,7 +698,13 @@ export function cellOptionScopeFor(lang: string): CellEngine | "unknown" | "none
  * `{dot}` + `//| echo`, `fig-align`, `eval`, `cache` and `code-fold` all `: banana` render
  * **exit 0**, as do `{mermaid}` + `#| echo: banana` and `%%| echo: banana`, while the control
  * `{sql}` + `--| echo: banana` renders **exit 1** with a real `Field "echo" has value banana`.
- * Every one of those handler lines was flagged before S162: the cardinal sin.
+ *
+ * FIVE of those seven handler lines were flagged before S162 — the cardinal sin — and the two
+ * that were not are informative rather than exceptions: `//| cache: banana` escaped because
+ * `cache` is knitr-scoped and S161 L2's `"unknown"` scope already excluded it, and
+ * `%%| echo: banana` escaped because our `LANG_COMMENT_CHARS` has no `mermaid` row, so a `%%|`
+ * line is never emitted at all. Both are the two prior narrowings on this same axis already
+ * doing their job; this scope closes what neither could reach.
  *
  * **The engine qualifier above is not decoration.** A handler cell is exempt from quarto's
  * cell SCHEMA under every engine, but a knitr document runs knitr's own chunk machinery over
