@@ -128,7 +128,8 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
       // WHOLE and does NOT arm a phantom quote that would swallow a following real key (§9
       // over-suppression lens, S155). The OLD `/^(?:[&!][^\s]*[ \t]+)+/` under-armed the abutting
       // bracket; the S154 cell-option charset `[^\s[\]{}"']` over-excluded quotes (the SAME
-      // over-suppression, still latent on that surface — filed). All three value enumerators share this.
+      // over-suppression, since corrected on that surface too — S156). All three value enumerators
+      // and the cell-option `findCellOptionLines` share this.
       const opener = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "")[0];
       if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
         const s = scanFlow(armToken, 0, null);

@@ -316,8 +316,9 @@ export function findProjectConfigValueLines(text: string): ProjectConfigValueLin
       // `&a'b` (a quoted node name with a NULL value, which quarto accepts, exit 0) strips WHOLE and
       // does NOT arm a phantom quote that would swallow a following real key (§9 over-suppression
       // lens, S155). The OLD `/^(?:[&!][^\s]*[ \t]+)+/` under-armed the abutting bracket; the S154
-      // cell-option charset `[^\s[\]{}"']` over-excluded quotes (the SAME over-suppression, still
-      // latent on that surface — filed). All three value enumerators now share this corrected charset.
+      // cell-option charset `[^\s[\]{}"']` over-excluded quotes (the SAME over-suppression, since
+      // corrected on that surface too — S156). All three value enumerators and the cell-option
+      // `findCellOptionLines` now share this corrected charset.
       const opener = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "")[0];
       if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
         const s = scanFlow(armToken, 0, null);
