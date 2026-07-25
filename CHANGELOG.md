@@ -7,6 +7,71 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-25 · [ad hoc] Session 161 — IMPLEMENTATION: the cell-option comment char is scoped to the cell LANGUAGE (SHIPPED)
+
+`findCellOptionLines` (`src/core/qmd/model.ts`) hard-coded exactly two comment characters
+(`#` and `//`) while quarto builds its cell-option directive pattern **per cell language**
+from its own `kLangCommentChars` table (`^<comment>\s*\| ?`). One root cause, defective in
+**both** directions, both grounded firsthand vs quarto 1.7.33 (`--no-execute`, 57 documents)
+**before any code**:
+
+- **Lost true positive** — `{sql}` + `--| echo: banana` renders **exit 1** with a real
+  `Field "echo" has value banana`, and we emitted nothing.
+- **Cardinal-sin false positive** — `{sql}` + `#| echo: banana` renders **exit 0** (quarto
+  reads no directive there at all) and we emitted it for value-diagnostics to squiggle.
+
+Both patterns are now built per cell from quarto's table, once per cell rather than per
+line, with no process-lifetime cache (the key is a user-supplied fence token). The
+strict/permissive split S160 introduced is preserved: the strict pattern decides what is
+EMITTED, the permissive one where the block ENDS.
+
+**Grounding overturned the filed item twice.** (1) A **block-comment** language (`c`, `css`,
+`sas`, `ocaml`) carries a *second* delimiter: quarto requires `line.trimEnd().endsWith(suffix)`,
+strips it from the YAML content, and treats a line lacking it as a NON-directive — so it also
+ENDS the block. Measured both ways: a closed directive renders exit 1, the same line unclosed
+renders exit 0. (2) The lookup is **case-SENSITIVE** — quarto never lowercases the fence token,
+so `{SQL}` is simply an unknown language taking the `#` default (`{SQL}` + `--|` → exit 0,
+`{SQL}` + `#|` → exit 1).
+
+**Two false positives this session's own first layer would have shipped, each caught by its
+own verification and fixed before release.** Neither was in the filed item.
+
+- **Engine scope.** Quarto scopes its cell schema to the DOCUMENT's engine, which a cell
+  language does not determine. `{sql}` + `--| cache: banana` renders exit 1 in a knitr
+  document but **exit 0** in a markdown- or jupyter-engine one. Resolving newly-emitted keys
+  against the full field set would have squiggled a document quarto accepts, so
+  `cellOptionScopeFor` maps an undeterminable engine to a new `"unknown"` scope —
+  the engine-agnostic intersection. Completion still passes `engineFor`, since an over-offer
+  is benign where an over-flag is not.
+- **The block-comment closer in the value span.** Value-diagnostics re-derives spans from the
+  RAW line text (it must resolve the true YAML separator, S159), which still carries the
+  closer — so `/*| echo: false */`, a **valid** directive quarto renders exit 0, failed
+  `echo`'s closed set as `false */`. `CellOptionLine.contentEndCol` is the bound the feature
+  now clamps to; for every line-comment language it is the end of the line, so the clamp is
+  provably a no-op there.
+
+**The mandatory §9 adversarial review** (`wf_c7cd5eb0-9af`, 6 lenses, 34 agents,
+`agents_error:0`, ~1.99M subagent tokens) raised 5 findings; **all 5 were confirmed
+firsthand before acting**. Two were defects in this session's own work and were fixed: the
+engine-scope integration pin justified itself with a **false claim** — its document contained
+an `{r}` cell, which makes the document knitr, so quarto renders it exit 1 and the assertion
+was pinning an accepted safe false negative while claiming to guard a false positive (found
+independently by two lenses; the control now lives in its own document) — and `escapeRegExp`
+was load-bearing but unpinned, since ocaml's `(*` is the only opener with a regex grouping
+metacharacter (an `{ocaml}` pin now kills that mutant, and is the only test that does).
+Three findings are PRE-EXISTING with root causes of their own and are filed: handler
+languages (`{dot}`/`{mermaid}`) are never schema-validated by quarto; a digit-bearing fence
+token (`{fortran95}`, `{d3}`) is not a cell to quarto at all; and front-matter `engine:`
+overrides the document engine. The old hard-coded `#`/`//` reached all three identically, so
+this change widens none of them — and in each case it silences one of the two directions.
+
+Strict TDD, six checkpoint-committed layers. 32 tests added: 21 in the enumerator (16 RED
+against a real pre-fix tree; the rest RED against targeted mutants — a lowercasing lookup, a
+prototype-walking index, an unescaping `escapeRegExp`), 8 consumer pins for the vdoc and
+completion surfaces, 3 schema/scope pins, and 4 end-to-end integration tests. Commits
+`3eb7d96` (L1), `ab54333` (L2), `53a99f2` (L3), `8e6058b` (L4+L5), `b05ea4c` (L6).
+unit **1361 → 1393**, integration **460 → 464**, exit 0, runtime smoke PASS.
+
 ### 2026-07-25 · [ad hoc] Session 160 — IMPLEMENTATION: the `#|` leading-option-block cardinal-sin FP (SHIPPED)
 
 `findCellOptionLines` (`src/core/qmd/model.ts`) now reports only a cell's **leading
