@@ -736,6 +736,31 @@ describe("findProjectConfigValueLines — COLUMN-0 document keys (document-key v
     expect(findProjectConfigValueLines(noSep).map((v) => v.key)).toEqual(["code-fold", "number-sections"]);
   });
 
+  it("ABUTTING-ANCHOR strip (S155): an anchor abutting a flow bracket (`&a[one,`, no space) still arms — quarto folds it, exit 0", () => {
+    // The node-property strip's name charset must EXCLUDE flow indicators/quotes (`[]{}"'`) so it
+    // stops at — and thus SEES — an opener that ABUTS the anchor with no space. The OLD strip
+    // `/^(?:[&!][^\s]*[ \t]+)+/` let its greedy `[^\s]*` swallow the `[` and then, finding no
+    // REQUIRED trailing whitespace, matched nothing at all: the opener was read as `&`, the arm
+    // never fired, and the folded `toc: banana]` was emitted and flagged on a document `quarto
+    // render` 1.7.33 RENDERS exit 0 — `resources: &a[one,` / `toc: banana]` folds to
+    // `resources: [one, {toc: banana}]` (grounded firsthand: exit 0; a cardinal-sin FP). The
+    // hardened strip mirrors the one S154 shipped on the cell-option surface (`model.ts`). Once
+    // armed, the `resources:` opener line is itself suppressed (an unclosed-flow opener is never a
+    // reducible scalar) AND the folded `toc` is skipped — so the abutting form now yields exactly
+    // what the spaced/plain forms already did. Before the fix it yielded `["resources","toc"]`,
+    // flagging the folded `toc` (the cardinal-sin FP).
+    const abut = ["resources: &a[one,", "toc: banana]"].join("\n");
+    expect(findProjectConfigValueLines(abut).map((v) => v.key)).toEqual([]);
+    // …and emission RESUMES once the flow closes: `code-fold: banana` after the `]` is real again.
+    const resumes = ["resources: &a[one,", "toc: banana]", "code-fold: banana"].join("\n");
+    expect(findProjectConfigValueLines(resumes).map((v) => v.key)).toEqual(["code-fold"]);
+    // Parity: the abutting form (`&a[one,`) now behaves IDENTICALLY to the SPACED (`&a [one,`) and
+    // plain (`[one,`) forms — the change is a strict superset (it strips MORE, never less, of a
+    // node property), so a form that already armed keeps arming.
+    expect(findProjectConfigValueLines(["resources: &a [one,", "toc: banana]"].join("\n")).map((v) => v.key)).toEqual([]);
+    expect(findProjectConfigValueLines(["resources: [one,", "toc: banana]"].join("\n")).map((v) => v.key)).toEqual([]);
+  });
+
   it("KEY-ISOLATION LOCK (dragon 3): findProjectConfigKeyLines still returns [] for a document-key-only file — the OPEN document root must never reach the unknown-KEY feature", () => {
     // Dragon 1 in its most dangerous form: the `_quarto.yml` top level is an OPEN key set —
     // `custom-thing: whatever` renders exit 0 — so KEY validation at column 0 is a
