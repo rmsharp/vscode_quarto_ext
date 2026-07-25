@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S155
+date: 2026-07-24
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). The abutting-anchor node-property strip fix on the 3 front-matter/project VALUE enumerators — bring the S153 strip regex /^(?:[&!][^\s]*[ \t]+)+/ up to the HARDENED form S154 shipped on the cell-option surface (/^(?:[&!][^\s[\]{}"']*[ \t]*)+/) in findProjectConfigValueLines (src/core/project-yaml.ts:310), findFrontMatterValueLines (src/core/yaml-frontmatter-values.ts:121), and findNestedFrontMatterValueLines (src/core/yaml-frontmatter-nested-values.ts:143), so an anchor/tag ABUTTING a flow bracket (&a[one,, no space — js-yaml/quarto accept and fold it, exit 0) is stripped and the first-char continuation-guard arm fires. Filed Session 154 (§9 review branch-interaction lens; the SAME defect was found and FIXED on the cell-option surface in S154). Operator-selected via AskUserQuestion at Phase 0. ONE deliverable — this strip hardening on the 3 named enumerators ONLY; NOT the block-scalar cell-option FP, NOT the quoted-KEY divergence, NOT Combos 2/4, NOT _metadata.yml (all filed; FM #26).
+```
+
+```handoff
 session: S154
 date: 2026-07-24
 status: complete
