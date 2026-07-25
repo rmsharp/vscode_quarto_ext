@@ -19,13 +19,23 @@
  */
 
 import { findFrontMatter, frontMatterContentLines, scanFlow } from "./qmd/model";
-import { leadingWsLen, mappingColonAt, topLevelSlots, valueSlotAfterColon } from "./yaml-context";
+import {
+  leadingWsLen,
+  mappingColonAt,
+  topLevelSlots,
+  unquoteKey,
+  valueSlotAfterColon,
+} from "./yaml-context";
 
 /** One top-level front-matter line that carries a non-empty scalar value. */
 export interface FrontMatterValueLine {
   /** 0-based document line. */
   line: number;
-  /** The mapping key (raw text as it appears — quotes, if any, retained). */
+  /**
+   * The mapping key, with one matching layer of YAML quoting stripped (`"toc"` → `toc`)
+   * so it resolves against the schema's bare field names — the same `unquoteKey` rule
+   * `findProjectConfigValueLines` applies (S159).
+   */
   key: string;
   /** The half-open `[startCol, endCol)` span of the value token on `line`. */
   valueRange: { startCol: number; endCol: number };
@@ -161,7 +171,18 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
     }
     result.push({
       line: baseLine + i,
-      key: lineText.slice(0, colon).replace(/[ \t]+$/, ""),
+      // UNQUOTED, so the key resolves against the schema's bare field names — the same rule
+      // `findProjectConfigValueLines` applies (`unquoteKey`, shared from `yaml-context.ts`).
+      // A quoted key is YAML-legal and semantically identical to its bare form, and quarto
+      // treats them identically: `"toc": banana` renders exit 1 with `Field "toc" has value
+      // banana` exactly as `toc: banana` does (grounded firsthand vs 1.7.33, S159). Keeping
+      // the quotes attached resolved against no field, so the diagnostic was silently lost on
+      // this surface while `_quarto.yml` flagged it — the surface-parity gap filed S149. The
+      // fix only ever ADDS a diagnostic quarto also reports: a key that merely LOOKS quoted
+      // (`"toc`, `"toc" x`) has no matching pair, so it is left intact and stays silent, and
+      // those documents are structural `YAMLException`s (exit 1) rather than value errors
+      // anyway. `valueRange`/`rawToken` are computed from the separator and are unaffected.
+      key: unquoteKey(lineText.slice(0, colon).replace(/[ \t]+$/, "")),
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       rawToken,
     });

@@ -310,3 +310,67 @@ describe("findFrontMatterValueLines — arming discipline parity with findProjec
     expect(findFrontMatterValueLines(q).map((v) => v.key)).toEqual(["myref", "df-print"]);
   });
 });
+
+describe("findFrontMatterValueLines — QUOTED-KEY parity with findProjectConfigValueLines (S159)", () => {
+  it("emits a double-quoted key UNQUOTED, so it resolves against the schema's bare names", () => {
+    // Quoting a key is YAML-legal and semantically identical to its bare form: `quarto render`
+    // 1.7.33 rejects `"toc": banana` with the SAME error it gives the unquoted line — `Field "toc"
+    // has value banana, which must instead be true or false` (exit 1, grounded firsthand). Emitting
+    // the key with its quotes still attached resolved against no field, so the diagnostic was
+    // silently lost while the byte-identical line in `_quarto.yml` was correctly flagged
+    // (`findProjectConfigValueLines` has unquoted since S47) — the surface-parity gap filed S149.
+    const text = ["---", '"toc": banana', "---"].join("\n");
+    expect(findFrontMatterValueLines(text)).toEqual([
+      { line: 1, key: "toc", valueRange: { startCol: 7, endCol: 13 }, rawToken: "banana" },
+    ]);
+  });
+
+  it("emits a SINGLE-quoted key unquoted too (`'toc': banana` renders exit 1 identically)", () => {
+    // Grounded firsthand: `'toc': banana` → exit 1, `Field "toc" has value banana`.
+    const text = ["---", "'toc': banana", "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["toc"]);
+  });
+
+  it("emits the quoted `format` key unquoted, so the format-NAME path recognizes it", () => {
+    // The consumer branches on `fm.key === "format"` before the generic matcher, so a quoted
+    // `format` key must unquote or the whole format-name validation is skipped for it.
+    // Grounded firsthand: `"format": banana` → exit 1, `Field "format" has value banana`.
+    const text = ["---", '"format": banana', "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["format"]);
+  });
+
+  it("keeps a key whose quotes do NOT form a matching pair intact — no over-stripping", () => {
+    // The FP guard. Each of these is a document quarto rejects with a STRUCTURAL YAMLException
+    // (exit 1, never a value error — grounded firsthand: `unexpected end of the stream within a
+    // double quoted scalar` / `end of the stream or a document separator is expected`), so the
+    // faithful answer is silence. Leaving the key intact achieves that: it resolves against no
+    // schema field. An over-eager unquote (stripping whenever EITHER end is a quote) would
+    // resurrect `toc` here and flag a structurally-broken document with a wrong-reason value
+    // error — Learning #171b, and the mutant these three pins discriminate against.
+    const unterminated = ["---", '"toc: banana', "---"].join("\n");
+    expect(findFrontMatterValueLines(unterminated).map((v) => v.key)).toEqual(['"toc']);
+    const trailingText = ["---", '"toc" x: banana', "---"].join("\n");
+    expect(findFrontMatterValueLines(trailingText).map((v) => v.key)).toEqual(['"toc" x']);
+    const mismatchedPair = ["---", `"toc': banana`, "---"].join("\n");
+    expect(findFrontMatterValueLines(mismatchedPair).map((v) => v.key)).toEqual([`"toc'`]);
+  });
+
+  it("does NOT equate a quoted key whose CONTENT differs from the bare name (`\"toc \"` is a different key)", () => {
+    // `"toc ": banana` is the key `toc ` (trailing space INSIDE the quotes), which front matter's
+    // OPEN key set accepts — grounded firsthand: quarto renders it **exit 0**. Unquoting yields
+    // `toc `, which matches no schema field, so we stay silent. Flagging it would be a
+    // cardinal-sin false positive on a document quarto accepts.
+    const text = ["---", '"toc ": banana', "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["toc "]);
+  });
+
+  it("leaves the naive-colon split of a quoted key CONTAINING a colon unchanged (still silent)", () => {
+    // `"a: b": banana` — `mappingColonAt` is not quote-aware inside the KEY region, so the split
+    // lands at the colon INSIDE the quotes, yielding key `"a` (no matching pair → left intact)
+    // and value `b": banana`. quarto renders this **exit 0** (the key `a: b` is unknown on the
+    // open front-matter set), so silence is correct. Pre-existing behavior this change does not
+    // alter — pinned so a future quote-aware colon scan has to consider the interaction.
+    const text = ["---", '"a: b": banana', "---"].join("\n");
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(['"a']);
+  });
+});
