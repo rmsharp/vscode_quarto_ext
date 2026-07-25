@@ -538,17 +538,19 @@ export function findAllCells(text: string): Cell[] {
  * These are the 46 entries of quarto's STATIC literal. Its EFFECTIVE table has 47: at startup
  * quarto overlays the resource `handlers/lang-comment-chars.yml`
  * (`share/editor/tools/yaml/yaml-intelligence-resources.json`), whose only addition is
- * `mermaid: "%%"`. That row is deliberately NOT copied here, because adding it would create a
- * false positive rather than remove one: `mermaid` is a cell-HANDLER language
+ * `mermaid: "%%"`. That row is still deliberately NOT copied here, but the REASON changed in
+ * S162 and the blocker is gone. `mermaid` and `dot` are quarto's two cell-HANDLER languages
  * (`handlers/languages.yml` is exactly `["mermaid","dot"]`), and quarto validates a handler
- * cell against the handler's own schema instead of the cell-option schema — so it renders ANY
- * option value in a `{mermaid}` cell at exit 0, `%%|` included (grounded firsthand). Emitting
- * `%%|` lines there would hand value-diagnostics something quarto never rejects. The same
- * applies to `dot`, whose `//` row IS present: options in `{dot}` cells are enumerated and can
- * be flagged on a document quarto accepts. That is a PRE-EXISTING false positive — the old
- * hard-coded `//` reached `{dot}` identically — with a root cause of its own (handler-language
- * scoping, not comment chars), tracked in BACKLOG rather than papered over here (§9 review,
- * S161, adjudicated firsthand).
+ * cell against `handlers/<lang>/schema.yml` instead of the cell-option schema — so it renders
+ * ANY cell option in either at exit 0. Before S162 that was a live false positive in `{dot}`
+ * (whose `//` row IS present, so its options were enumerated and flagged on a document quarto
+ * accepts) and adding `mermaid` would have created a second one. S162 fixed it at its real
+ * root — `cellOptionScopeFor` now returns the `"none"` scope for a handler language
+ * (`isCellHandlerLanguage`, `yaml-context.ts`), so nothing in either cell is validated no
+ * matter which lines are emitted here. Adding the `mermaid` row is therefore now SAFE for
+ * diagnostics; it is left out only because it is a change to what the enumerator EMITS, whose
+ * consumers are the outline, virtual documents, completion and the cross-reference index —
+ * a separate deliverable with its own grounding, tracked in BACKLOG.
  *
  * Lookup is CASE-SENSITIVE and unknown languages fall back to `#`, both grounded firsthand
  * vs 1.7.33: `{SQL}` + `--| echo: banana` renders exit 0 while `{SQL}` + `#| echo: banana`
