@@ -581,7 +581,13 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
         armColon < 0
           ? m[4].replace(/^-[ \t]*/, "").trimEnd()
           : m[4].slice(armColon + 1).replace(/^[ \t]+/, "").trimEnd();
-      const opener = armToken.replace(/^(?:[&!][^\s]*[ \t]+)+/, "")[0];
+      // Strip a leading node property before the first-char test. The name charset excludes
+      // flow indicators/quotes (`[]{}"'`), so the strip stops at — and thus SEES — an opener
+      // that ABUTS the anchor/tag with no space (`&a[one,`, which js-yaml/quarto accept and
+      // fold: fig-cap takes a list, so it renders exit 0 — flagging its folded continuation
+      // would be a cardinal-sin FP the whole-token arm avoided; §9 branch-interaction lens,
+      // S154). The trailing ws is optional so both `&a [one,` and `&a[one,` strip to `[one,`.
+      const opener = armToken.replace(/^(?:[&!][^\s[\]{}"']*[ \t]*)+/, "")[0];
       if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
         const s = scanFlow(armToken, 0, null);
         flowDepth = s.depth > 0 ? s.depth : 0;

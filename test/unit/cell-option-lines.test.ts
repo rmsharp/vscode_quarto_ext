@@ -292,4 +292,13 @@ describe("findCellOptionLines — arming discipline parity: the phantom-quote FN
     const text = ["```{r}", "#| fig-subcap: &a [one,", "#| fig-height: 3]", "#| echo: false", "1+1", "```"].join("\n");
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 3]);
   });
+
+  it("arms an anchored flow opener that ABUTS the bracket with NO space (`&a[one,`) — quarto folds it, exit 0", () => {
+    // js-yaml/quarto accept an anchor abutting a flow bracket and fold the continuation
+    // (fig-cap takes a list, so `#| fig-cap: &a[one,` / `#| echo: banana]` renders exit 0).
+    // The strip's name charset excludes `[]{}"'`, so it stops at — and sees — the `[` opener;
+    // flagging the folded `#| echo: banana]` would be a cardinal-sin FP (§9 review, S154).
+    const text = ["```{python}", "#| fig-cap: &a[one,", "#| echo: banana]", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
 });
