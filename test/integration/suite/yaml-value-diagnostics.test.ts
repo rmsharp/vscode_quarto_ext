@@ -1303,3 +1303,85 @@ describe("Quarto: arming-discipline parity — #| cell-option block-scalar (`|`/
     );
   });
 });
+
+describe("Quarto: QUOTED-KEY parity across all three .qmd surfaces (.qmd, BACKLOG: quoted-KEY divergence, Session 159)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // LOST-TP RECOVERED — cell options. A quoted `#|` option key kept its quotes, matched no field
+  // in `index.cellOptions(...)`, and the diagnostic was silently dropped. Grounded firsthand vs
+  // quarto render 1.7.33: `#| "echo": banana` renders exit 1 with `Field "echo" has value banana,
+  // which must instead be true or false` — identical to the unquoted form (and `#| 'echo': banana`
+  // too). Non-vacuous: RED against the pre-fix source, where nothing on this line flagged.
+  it("flags a wrong value on a DOUBLE-quoted #| cell-option key", async () => {
+    const content = [
+      "---", "title: t", "---", "",
+      "```{python}",
+      '#| "echo": banana',
+      "1+1",
+      "```",
+      "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 5), 5000),
+      'the quoted #| "echo": banana (line 5) MUST flag — quarto rejects it exit 1 exactly as the unquoted form',
+    );
+  });
+
+  // The same recovery on the two FRONT-MATTER surfaces, top-level and nested, in one document.
+  // Grounded firsthand: `"toc": banana` exit 1 (`Field "toc"`), `execute:` / `  "echo": banana`
+  // exit 1 (`Field "echo"`). Both were silent before this session.
+  it("flags a wrong value on a quoted TOP-LEVEL and a quoted NESTED front-matter key", async () => {
+    const content = [
+      "---",
+      '"toc": banana',
+      "execute:",
+      '  "echo": banana',
+      "---", "", "Body.", "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => {
+        const lines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+        return lines.includes(1) && lines.includes(3);
+      }, 5000),
+      "both the quoted top-level key (line 1) and the quoted nested key (line 3) MUST flag",
+    );
+  });
+
+  // NO OVER-STRIPPING — the FP guard, end to end. `"toc ": banana` is the key `toc ` (trailing
+  // space INSIDE the quotes), which the OPEN front-matter key set accepts: grounded firsthand,
+  // quarto renders it **exit 0**. It must stay silent, while the `df-print: banana` canary below
+  // it (a closed set quarto rejects, exit 1) proves the front-matter value pass actually ran.
+  it("does NOT flag a quoted key whose CONTENT differs from any field name (canary proves the pass ran)", async () => {
+    const content = [
+      "---",
+      '"toc ": banana',
+      "df-print: banana",
+      "---", "", "Body.", "",
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 2), 5000),
+      "the df-print: banana canary (line 2) should flag, proving the front-matter value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(1),
+      `"toc ": banana (line 1) must NOT be flagged — the key is \`toc \`, unknown on the open set, and quarto renders it exit 0; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
+});
