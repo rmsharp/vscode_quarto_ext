@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S159
+date: 2026-07-25
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). The quoted-KEY divergence between the .qmd front-matter and _quarto.yml project value enumerators. findProjectConfigValueLines (src/core/project-yaml.ts) unquotes the key via unquoteKey, so "toc": banana in _quarto.yml resolves to the toc field and is flagged — correct, quarto rejects it exit 1 SCHEMA. findFrontMatterValueLines (src/core/yaml-frontmatter-values.ts) keeps the quotes, so the byte-identical line in .qmd front matter resolves to no field and is SILENT — a false NEGATIVE. Filed Session 149 (§9 surface-parity lens, verified firsthand), LOW, safe direction. Bring the .qmd side to parity. Ground firsthand FIRST (esbuild-bundle + real quarto exit codes): the filed severity is a lower bound to disprove (Learnings #164/#168/#171b), and adding flags carries FP risk that must be grounded — unquoteKey strips only a matching leading/trailing pair, so "toc / "toc" x must stay silent. Settle the NESTED sibling findNestedFrontMatterValueLines in the same grounding pass (same defect class, same surface) before fixing scope. Operator-selected at Phase 0. ONE deliverable — this quoted-KEY parity gap ONLY; NOT Combos 2/4, NOT _metadata.yml, NOT the CHANGELOG-header migration, NOT the fast-uri advisory (all filed; FM #26).
+```
+
+```handoff
 session: S158
 date: 2026-07-25
 status: complete
