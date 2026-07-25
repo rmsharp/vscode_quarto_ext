@@ -1,0 +1,14 @@
+# S155 abutting-anchor arming — the node-property strip under-arm on `findProjectConfigValueLines`.
+#
+# `resources: &a[one,` (line below) opens a multi-line FLOW sequence with an anchor ABUTTING the
+# bracket (no space). js-yaml/quarto fold the following mapping-looking line INTO that list —
+# `resources: &a[one,` / `toc: banana]` resolves to `resources: [one, {toc: banana}]`, which
+# `quarto render` 1.7.33 renders exit 0 (grounded firsthand). So the folded `toc: banana]` is NOT
+# a real top-level key and flagging it is a cardinal-sin FALSE POSITIVE. Before S155 the strip's
+# greedy `[^\s]*` swallowed the `[` and the arm never fired, so `toc` was emitted and flagged.
+#
+# `number-sections: banana` (line 1) is the CANARY — a genuinely-wrong document-key value OUTSIDE
+# the fold that MUST flag, so "no diagnostic on the folded line" is not vacuous.
+number-sections: banana
+resources: &a[one,
+toc: banana]

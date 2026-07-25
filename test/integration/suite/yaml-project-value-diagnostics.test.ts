@@ -20,6 +20,7 @@ const DOC_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-document-value/
 const FMTNAME_INVALID = path.resolve(ROOT, "test/fixtures/yaml-project-format-name/invalid/_quarto.yml");
 const FMTNAME_VALID = path.resolve(ROOT, "test/fixtures/yaml-project-format-name/valid/_quarto.yml");
 const QMD_FIXTURE = path.resolve(ROOT, "test/fixtures/sample.qmd");
+const ABUTTING_ANCHOR = path.resolve(ROOT, "test/fixtures/yaml-project-arming-abutting-anchor/_quarto.yml");
 
 async function waitFor(predicate: () => boolean, timeoutMs: number): Promise<boolean> {
   const start = Date.now();
@@ -770,5 +771,39 @@ describe("Quarto: _quarto.yml top-level scalar format: NAME VALUE diagnostics (C
     const doc = await openActive(QMD_FIXTURE);
     await new Promise((r) => setTimeout(r, 500));
     assert.strictEqual(valueDiagnostics(doc.uri).length, 0);
+  });
+});
+
+describe("Quarto: _quarto.yml arming-discipline parity — abutting anchor (Session 155)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  // The cardinal-sin FALSE POSITIVE the S154 §9 review filed against the _quarto.yml value
+  // enumerator (fixed on the cell-option surface then, here now). An anchor ABUTTING a flow bracket
+  // (`resources: &a[one,`) opens a multi-line flow that js-yaml/quarto FOLD — `toc: banana]` on the
+  // next line is part of the `resources` list, not a real top-level key — so flagging it is an FP
+  // on a document `quarto render` 1.7.33 renders exit 0 (grounded firsthand). Before S155 the
+  // strip's greedy `[^\s]*` swallowed the `[`, the arm never fired, and `toc` was flagged. The
+  // `number-sections: banana` CANARY (line 11) is a genuinely-wrong value OUTSIDE the fold that
+  // MUST flag, so "0 on the folded line" is not vacuous.
+  it("does NOT flag a document key folded inside an ABUTTING-anchor multi-line flow value", async () => {
+    const doc = await openActive(ABUTTING_ANCHOR);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 11), 5000),
+      "the number-sections: banana canary (line 11) should flag, proving the project value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(13),
+      `the folded toc (line 13) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+    );
   });
 });

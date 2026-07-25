@@ -1009,3 +1009,62 @@ describe("Quarto: arming-discipline parity — #| cell options (.qmd, BACKLOG: f
     );
   });
 });
+
+describe("Quarto: arming-discipline parity — abutting anchor (.qmd, BACKLOG: node-property strip under-arm, Session 155)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // The cardinal-sin FALSE POSITIVE the S154 §9 review filed against the two `.qmd` value
+  // enumerators (fixed on the cell-option surface then, on these two now). An anchor ABUTTING a
+  // flow bracket with NO space (`&a[one,`) opens a multi-line flow that js-yaml/quarto FOLD — the
+  // following mapping-looking line is part of the list, not a real key — so flagging it is an FP
+  // on a document `quarto render` 1.7.33 renders exit 0 (grounded firsthand: `keywords: &a[one,`
+  // / `df-print: banana]` folds to `keywords: [one, {df-print: banana}]`, exit 0). The OLD strip's
+  // greedy `[^\s]*` swallowed the `[`, so the arm never fired and the folded line was flagged. A
+  // `number-sections: banana` CANARY OUTSIDE the fold MUST flag, so "0 on the folded line" is not
+  // vacuous.
+  it("top-level: does NOT flag a key folded inside an ABUTTING-anchor multi-line flow value", async () => {
+    // `keywords: &a[one,` (line 2) opens the flow; `df-print: banana]` (line 3) is folded into the
+    // `keywords` list. `number-sections: banana` (line 1) is the canary OUTSIDE the fold.
+    const doc = await openInline(`---\nnumber-sections: banana\nkeywords: &a[one,\ndf-print: banana]\n---\n\nBody.\n`);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 1), 5000),
+      "the number-sections: banana canary (line 1) should flag, proving the value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(3),
+      `the folded df-print (line 3) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
+
+  it("nested: does NOT flag a nested key folded inside an ABUTTING-anchor multi-line flow value", async () => {
+    // `fig-cap: &a[one,` (line 4) opens the flow; `number-sections: banana]` (line 5) is folded
+    // into the `fig-cap` list. `toc: banana` (line 3) is the canary OUTSIDE the fold. Grounded
+    // firsthand: the fold renders exit 0.
+    const doc = await openInline(
+      `---\nformat:\n  html:\n    toc: banana\n    fig-cap: &a[one,\n    number-sections: banana]\n---\n\nBody.\n`,
+    );
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 3), 5000),
+      "the toc: banana canary (line 3) should flag, proving the nested value pass ran",
+    );
+    const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flaggedLines.includes(5),
+      `the folded number-sections (line 5) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+    );
+  });
+});
