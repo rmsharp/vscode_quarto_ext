@@ -288,4 +288,23 @@ describe("findNestedFrontMatterValueLines — arming discipline parity with find
     const text = ["---", "format:", "  html:", "    number-sections: banana", "---"].join("\n");
     expect(findNestedFrontMatterValueLines(text).map((e) => e.key)).toEqual(["number-sections"]);
   });
+
+  it("ABUTTING-ANCHOR strip (S155): an anchor abutting a flow bracket (`&a[one,`, no space) still arms — quarto folds it, exit 0", () => {
+    // The same abutting-anchor under-arm as the two siblings, at depth. The OLD strip
+    // `/^(?:[&!][^\s]*[ \t]+)+/` let its greedy `[^\s]*` swallow the `[`, then the REQUIRED trailing
+    // ws failed to match, so `fig-cap: &a[one,` was read as opening with `&`, the arm never fired,
+    // and the folded `number-sections: banana]` was emitted and flagged on a document `quarto
+    // render` 1.7.33 RENDERS exit 0 (`format:`/`html:`/`fig-cap: &a[one,` / `number-sections:
+    // banana]` folds to `fig-cap: [one, {number-sections: banana}]` — grounded firsthand: exit 0;
+    // a cardinal-sin FP). Hardened to the strict superset the cell-option site (`model.ts`) uses.
+    const abut = ["---", "format:", "  html:", "    fig-cap: &a[one,", "    number-sections: banana]", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(abut).map((e) => e.key)).toEqual(["fig-cap"]);
+    // Emission RESUMES once the flow closes: `code-fold: banana` after the `]` is real again.
+    const resumes = ["---", "format:", "  html:", "    fig-cap: &a[one,", "    number-sections: banana]", "    code-fold: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(resumes).map((e) => e.key)).toEqual(["fig-cap", "code-fold"]);
+    // Parity: the abutting form now behaves IDENTICALLY to the SPACED (`&a [one,`) form, which
+    // already armed — the change is a strict superset (it strips MORE, never less, of a property).
+    const spaced = ["---", "format:", "  html:", "    fig-cap: &a [one,", "    number-sections: banana]", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(spaced).map((e) => e.key)).toEqual(["fig-cap"]);
+  });
 });
