@@ -80,10 +80,21 @@ the integration layer RED against a reverted `cellOptionScopeFor` (the pre-fix t
 `flagged lines: 5,6,11,16,21`). Unit 1393 → 1399, integration 464 → 466, check-types clean; the
 GREEN integration run doubles as the Phase 3E runtime smoke test.
 
+**The review's own accounting.** `wf_3e866168-ab8` — 6 lenses, 2 adversarial refuters per
+finding, 47 agents. Every finding acted on was confirmed firsthand before acting, including
+re-deriving the key sweep rather than trusting the lens (which corrected its count). The code was
+right throughout; what the review kept finding was that the STORY told about it was not — a
+four-consumer blast-radius claim wrong on all four counts, "costs no true positive", "theme is
+unenforced", four unqualified "renders exit 0" sites, "Three scopes" listing four, "every one of
+those lines was flagged" (it was five of seven), a TS2345 no check in this repo can see, and —
+the worst — an L2 completion pin that named the exact wrong fix it guarded and then failed to
+catch it, because it asserted `.kind` where the provider filters on `.engine`.
+
 Commits: `a60fd10` (L1 fix + unit pins), `dd51509` (L2 blast-radius pins), `82bda78` (L3
 integration), `e36c1ac` (L4 stale docstring), `33cf8b6` (L5 four review-found defects in my own
 work), `a101fe9` (L6 two false claims about what the suppression costs), `5a2ede1` (L7 the
-markdown half of the sweep, measured rather than inferred: 46 of 47).
+markdown half of the sweep, measured rather than inferred: 46 of 47), `523a283` (L8 the vacuous
+completion pin plus two more false claims, from the sixth lens).
 
 ### 2026-07-25 · [ad hoc] Session 161 — IMPLEMENTATION: the cell-option comment char is scoped to the cell LANGUAGE (SHIPPED)
 
