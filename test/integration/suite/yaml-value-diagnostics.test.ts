@@ -1745,3 +1745,101 @@ describe("Quarto: a cell-HANDLER language is validated by no cell schema (.qmd, 
     );
   });
 });
+
+// Session 163 — quarto's documented `validate-yaml: false` escape hatch. The render
+// pipeline gates its whole validation pass on the resolved key
+// (`const validate = context.format.render?.["validate-yaml"]; if (validate !== false)`),
+// and `readAndValidateYamlFromMappedString` repeats the test per mapped string
+// (`annotation.result["validate-yaml"] !== false`), which is what gives the PER-CELL form.
+// Every expectation below was grounded firsthand vs quarto 1.7.33 (`--no-execute`),
+// each against a control differing only in the flag.
+describe("Quarto: `validate-yaml: false` turns validation off (.qmd, Session 163)", () => {
+  it("suppresses all three .qmd value surfaces when the front matter opts out", async () => {
+    const content = [
+      "---",                        // 0
+      "title: T",                   // 1
+      "validate-yaml: false",       // 2
+      "code-fold: banana",          // 3  top-level scalar — exit 1 without the flag
+      "execute:",                   // 4
+      "  echo: banana",             // 5  nested scalar   — exit 1 without the flag
+      "---",                        // 6
+      "",                           // 7
+      "```{python}",                // 8
+      "#| echo: banana",            // 9  cell option     — exit 1 without the flag
+      "1",                          // 10
+      "```",                        // 11
+      "",                           // 12
+    ].join("\n");
+    const doc = await openInline(content);
+    // Settle: the pass is debounced, so wait for the schema to load and a pass to land.
+    await waitFor(() => valueDiagnostics(doc.uri).length > 0, 2500);
+    const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.deepStrictEqual(
+      flagged,
+      [],
+      `the document renders quarto exit 0 — nothing may be flagged; flagged lines: ${flagged.join(",")}`,
+    );
+  });
+
+  it("STILL flags the front-matter FORMAT NAME, which the flag does not suppress", async () => {
+    // THE OVER-SUPPRESSION GUARD. `validate-yaml: false` + `format: banana` renders
+    // quarto **exit 1** with `Unknown format banana` — an unresolvable format fails
+    // before the validation gate is consulted. Gating the format-name branch on the
+    // flag would trade this session's false-positive fix for a lost TRUE POSITIVE.
+    const content = [
+      "---",                    // 0
+      "title: T",               // 1
+      "validate-yaml: false",   // 2
+      "format: banana",         // 3  STILL exit 1 — must still flag
+      "code-fold: banana",      // 4  suppressed by the flag
+      "---",                    // 5
+      "",                       // 6
+      "text",                   // 7
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 3), 5000),
+      `line 3 (\`format: banana\`) renders quarto exit 1 even with the flag and MUST still flag; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
+    );
+    const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flagged.includes(4),
+      `line 4 is an ordinary scalar the flag DOES suppress; flagged lines: ${flagged.join(",")}`,
+    );
+  });
+
+  it("scopes a per-cell `#| validate-yaml: false` to its own cell only", async () => {
+    const content = [
+      "---", "title: T", "---", "",   // 0-3
+      "```{python}",                  // 4
+      "#| validate-yaml: false",      // 5
+      "#| echo: banana",              // 6  suppressed — this cell opted out
+      "1",                            // 7
+      "```",                          // 8
+      "",                             // 9
+      "```{python}",                  // 10
+      "#| echo: banana",              // 11 NOT suppressed — quarto renders exit 1
+      "2",                            // 12
+      "```",                          // 13
+      "",                             // 14
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 11), 5000),
+      `line 11 is in a cell that did NOT opt out and renders quarto exit 1 — it must flag; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
+    );
+    const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flagged.includes(6),
+      `line 6 sits in a cell whose own option block opted out (quarto exit 0) and must NOT be flagged; flagged lines: ${flagged.join(",")}`,
+    );
+  });
+});

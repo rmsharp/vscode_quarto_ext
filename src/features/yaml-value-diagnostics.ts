@@ -9,6 +9,12 @@
  * `isWrongValue` matcher — nested is a third value SOURCE, not a third feature (same
  * `.qmd` gate, same `quarto-value` collection).
  *
+ * All three are subject to quarto's `validate-yaml` escape hatch (S163,
+ * `core/validate-yaml.ts`): a top-level `validate-yaml: false` turns validation off for the
+ * whole document, and a cell may opt out on its own with `#| validate-yaml: false`. The
+ * single exception is the front-matter format NAME, which quarto rejects even with the flag
+ * set — see the `format` branch below.
+ *
  * A sibling of the unknown-KEY feature (`features/yaml-diagnostics.ts`) with an
  * INVERTED safety story: unknown-key flagging is banned on these open surfaces (a
  * typo is indistinguishable from a legal custom key), whereas value validation is
@@ -32,6 +38,10 @@ import { findNestedFrontMatterValueLines } from "../core/yaml-frontmatter-nested
 import { cellOptionScopeFor, mappingColonAt, valueSlotAfterColon } from "../core/yaml-context";
 import { isWrongValue, valueMessage, unquote } from "../core/yaml-value-check";
 import { isKnownFormatName, formatNameMessage } from "../core/format-name-check";
+import {
+  cellsWithValidationDisabled,
+  isValidationDisabledByFrontMatter,
+} from "../core/validate-yaml";
 import {
   createDebouncedDiagnosticsFeature,
   type DiagnosticsComputeContext,
@@ -76,7 +86,20 @@ async function computeValueDiagnostics(
   }
   const lines = text.split(/\r?\n/);
   const diagnostics: vscode.Diagnostic[] = [];
+  // Quarto's documented escape hatch (S163). A top-level `validate-yaml: false` turns the
+  // render pipeline's whole validation pass off — `const validate =
+  // context.format.render?.["validate-yaml"]; if (validate !== false) { validateDocument() }`
+  // — so every surface below renders exit 0 and flagging any of it is the cardinal sin in
+  // its most explicit form: the user has literally asked for validation to be off.
+  // A cell may also opt out on its own (`#| validate-yaml: false`), which is the SAME test
+  // applied to that cell's option YAML and therefore scoped to that one cell.
+  // ONE surface is deliberately NOT suppressed — see the `format` branch below.
+  const documentValidationOff = isValidationDisabledByFrontMatter(fmValueLines);
+  const optedOutCells = cellsWithValidationDisabled(cellLines, lines);
   for (const cell of cellLines) {
+    if (documentValidationOff || optedOutCells.has(cell.cellStartLine)) {
+      continue; // quarto validates nothing in this cell — grounded firsthand, exit 0
+    }
     if (cell.keySlot === null || cell.valueSlot === null) {
       continue; // block-sequence item, or no `:` yet — no value to validate
     }
@@ -210,6 +233,18 @@ async function computeValueDiagnostics(
       diagnostics.push(diagnostic);
       continue; // handled — do NOT fall through to the generic `isWrongValue` path
     }
+    // THE ONE SURFACE `validate-yaml: false` DOES NOT SUPPRESS is the format NAME above.
+    // The flag gates quarto's YAML VALIDATION pass, but an unresolvable output format fails
+    // earlier and independently, in format resolution: grounded firsthand vs 1.7.33,
+    // `validate-yaml: false` + `format: banana` renders **exit 1** with `Unknown format
+    // banana` (while the same document with `format: html` and an invalid cell option
+    // renders exit 0, so it really is the NAME that survives and not the flag failing).
+    // Suppressing it here — as "gate the whole compute on the flag" would — would trade
+    // this session's false-positive fix for a lost TRUE POSITIVE. Hence the gate sits
+    // BELOW the `format` branch rather than at the top of the function.
+    if (documentValidationOff) {
+      continue;
+    }
     const field = fmFields.find((f) => f.name === fm.key);
     if (field === undefined || !isWrongValue(fm.rawToken, field)) {
       continue;
@@ -240,6 +275,9 @@ async function computeValueDiagnostics(
   // same three no-ops the two loops above rely on. `execute:` closedness is the curated
   // annotation (L1); `format.<fmt>.*` closedness is reader-derived (plan §2.2, §3.2).
   for (const nested of nestedLines) {
+    if (documentValidationOff) {
+      break; // the flag suppresses nested scalars too (`execute:`/`echo: banana` → exit 0)
+    }
     const field = index.frontMatterKeys(nested.parentPath).find((f) => f.name === nested.key);
     if (field === undefined || !isWrongValue(nested.rawToken, field)) {
       continue;
