@@ -360,6 +360,16 @@ describe("findCellOptionLines — node-property-name quote on the CONTINUATION p
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 4]);
   });
 
+  it("recovers the option after a DOUBLE-quote in a continuation-line anchor name (`&a\"b`)", () => {
+    // The double-quote arm of the same class — pinned separately so a regression that re-admitted
+    // ONLY `"` (not `'`) into scanFlow's node-property terminator charset cannot escape the suite
+    // (every other scanFlow-path test uses `'` or a tag). Non-vacuous and a genuine lost TP:
+    // grounded firsthand, pre-fix emits [1] and quarto renders `#| myopt: [` / `#| one, &a"b` /
+    // `#| ]` exit 0, flagging only the swallowed `#| echo: banana` (exit 1) — same shape as `&a'b`.
+    const text = ["```{python}", "#| myopt: [", '#| one, &a"b', "#| ]", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 4]);
+  });
+
   it("recovers the option when the anchor-name quote sits MID-flow on a SINGLE line (`[one, &a'b]`)", () => {
     // The same root-cause fix also reaches the single-line arm's own `scanFlow` call: a COMPLETE
     // flow `[one, &a'b]` used to leave a phantom open `'` (its `]` fell inside the phantom quote,
@@ -377,8 +387,14 @@ describe("findCellOptionLines — node-property-name quote on the CONTINUATION p
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 4]);
   });
 
-  it("recovers the option after a TAG in a continuation line (`!!str x`)", () => {
-    const text = ["```{python}", "#| myopt: [", "#| one, !!str x", "#| ]", "#| echo: banana", "1+1", "```"].join("\n");
+  it("does NOT let a quote in a TAG name (`!t'x`) in a continuation line arm a phantom quote", () => {
+    // Pins the `!` (tag) arm of scanFlow's node-property skip. This DISCRIMINATES the fix — pre-fix
+    // scanFlow read the `'` in the tag name as a scalar opener and swallowed line 4 (emitted [1]);
+    // post-fix emits [1, 4]. NB this is a scanner-CONSISTENCY pin, not a live-lost-TP recovery like
+    // `&`/`*`: quarto 1.7.33 rejects a quote-in-tag-name (`unknown tag`, exit 1 on the tag line)
+    // before it would flag the following option, so no quarto-accepted TP is at stake here — but the
+    // scanner must still treat all three node-property introducers (`&`/`*`/`!`) identically.
+    const text = ["```{python}", "#| myopt: [", "#| one, !t'x", "#| ]", "#| echo: banana", "1+1", "```"].join("\n");
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 4]);
   });
 

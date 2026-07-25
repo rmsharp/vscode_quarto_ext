@@ -1115,15 +1115,19 @@ describe("Quarto: arming-discipline parity — #| cell-option anchor-name quote 
   // No-over-suppression — the correction must NOT newly-emit a genuine folded continuation. An
   // anchor ABUTTING a flow bracket (`&a[one,`) still opens a multi-line flow that quarto FOLDS, so
   // the following mapping-looking `#|` line is part of the list, not a real option (grounded
-  // firsthand: `#| fig-cap: &a[one,` / `#| number-sections: banana]` renders exit 0). A
-  // `#| echo: banana` CANARY OUTSIDE the fold MUST flag, so "0 on the folded line" is not vacuous.
+  // firsthand: `#| fig-cap: &a[one,` / `#| echo: banana]` renders exit 0 — the fold is accepted).
+  // The folded line uses `echo` (a VALIDATED cell option with an invalid value), so if the fix ever
+  // broke folding and emitted line 7 as a standalone option it WOULD flag — making the guard
+  // non-vacuous. (`number-sections` is NOT a validated CELL option, so it could never flag in a cell
+  // context whether folded or emitted — an inert guard; §9 test-quality lens, S157.) A separate
+  // `#| echo: banana` CANARY OUTSIDE the fold MUST flag, proving the value pass ran at all.
   it("still folds an ABUTTING-anchor multi-line flow value — the folded #| line is NOT flagged (canary proves the pass ran)", async () => {
     const content = [
       "---", "title: t", "---", "",
       "```{python}",
       "#| echo: banana",
       "#| fig-cap: &a[one,",
-      "#| number-sections: banana]",
+      "#| echo: banana]",
       "1+1",
       "```",
       "",
@@ -1136,7 +1140,7 @@ describe("Quarto: arming-discipline parity — #| cell-option anchor-name quote 
     const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
     assert.ok(
       !flaggedLines.includes(7),
-      `the folded #| number-sections (line 7) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+      `the folded #| echo (line 7) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
     );
   });
 });
@@ -1189,17 +1193,19 @@ describe("Quarto: arming-discipline parity — #| cell-option node-property-name
 
   // No-over-suppression — the root-cause fix must NOT disable genuine quoted-scalar continuation
   // detection. A multi-line DOUBLE-quoted `fig-cap` (whose text literally contains `&x` and `[`
-  // INSIDE the quote) folds its continuation, so the mapping-looking `#| number-sections: banana"`
-  // line is part of the string, not a real option (grounded firsthand: renders exit 0 apart from the
-  // canary). A `#| echo: banana` CANARY before the fold MUST flag, so "0 on the folded line" is not
-  // vacuous.
+  // INSIDE the quote) folds its continuation, so the mapping-looking `#| echo: banana"` line is part
+  // of the string, not a real option (grounded firsthand: renders exit 0 apart from the canary). The
+  // folded line uses `echo` (a VALIDATED cell option with an invalid value) so if the fix ever broke
+  // folding and emitted line 7 it WOULD flag — a non-vacuous guard. (`number-sections` is NOT a
+  // validated CELL option, so it could never flag whether folded or emitted; §9 test-quality lens,
+  // S157.) A separate `#| echo: banana` CANARY before the fold MUST flag, proving the pass ran.
   it("still folds a genuine multi-line DOUBLE-quoted value containing `&`/`[` — the folded #| line is NOT flagged (canary proves the pass ran)", async () => {
     const content = [
       "---", "title: t", "---", "",
       "```{python}",
       "#| echo: banana",
       '#| fig-cap: "a &x [b',
-      '#| number-sections: banana"',
+      '#| echo: banana"',
       "1+1",
       "```",
       "",
@@ -1212,7 +1218,7 @@ describe("Quarto: arming-discipline parity — #| cell-option node-property-name
     const flaggedLines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
     assert.ok(
       !flaggedLines.includes(7),
-      `the folded #| number-sections (line 7) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
+      `the folded #| echo (line 7) must NOT be flagged; flagged lines: ${flaggedLines.join(",")}`,
     );
   });
 });
