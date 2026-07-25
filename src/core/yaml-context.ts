@@ -542,6 +542,40 @@ export function valueSlotAfterColon(lineText: string, colon: number): Slot {
 }
 
 /**
+ * Strip ONE matching layer of YAML key-quoting (`"key"` or `'key'`) to the logical
+ * key name, or return `key` unchanged if it isn't quoted. The single implementation
+ * of that rule for every diagnostics surface: quoting a key is YAML-legal and
+ * semantically identical to its bare form, and quarto validates the two the same way
+ * (`"toc": banana` and `toc: banana` both render exit 1 with `Field "toc" has value
+ * banana` — grounded firsthand vs 1.7.33 on the `.qmd` front-matter, nested, cell-option
+ * and `_quarto.yml` surfaces). Comparing the schema's bare names against a key with its
+ * quotes still attached therefore silently loses the diagnostic.
+ *
+ * Requires a MATCHING leading/trailing pair, which is what makes it FP-safe: `"toc`
+ * (unterminated) and `"toc" x` (trailing text) are left intact, resolve against no
+ * schema field, and stay silent — and both are documents quarto rejects with a
+ * STRUCTURAL `YAMLException`, never a value error, so silence is the faithful answer
+ * (Learning #171b). Deliberately does NOT decode escapes: `"toc": banana` decodes
+ * to `toc` for quarto (exit 1) but stays `toc` here and is silently skipped — a
+ * safe false negative, the same accepted limitation the VALUE-side `unquote`
+ * (`yaml-value-check.ts`) carries.
+ *
+ * Lives here rather than in any one enumerator because all four value surfaces need
+ * the identical rule; it was previously private to `project-yaml.ts`, which is why the
+ * three `.qmd` surfaces silently diverged from `_quarto.yml` until S159.
+ */
+export function unquoteKey(key: string): string {
+  if (key.length >= 2) {
+    const first = key[0];
+    const last = key[key.length - 1];
+    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
+      return key.slice(1, -1);
+    }
+  }
+  return key;
+}
+
+/**
  * The cell engine for a cell language: knitr for `{r}`, jupyter for
  * `{python}`/`{julia}`, ojs for `{ojs}`/`{js}`. An unrecognized language yields
  * `undefined` (engine-agnostic) — a benign over-offer, refined in a later slice.

@@ -16,6 +16,7 @@ import {
   mappingColonAt,
   leadingWsLen,
   mappingContainerKey,
+  unquoteKey,
   valueSlotAfterColon,
 } from "./yaml-context";
 
@@ -483,21 +484,4 @@ function keySpanAt(
     return null;
   }
   return { key: unquoteKey(raw), keyRange: { startCol: indent, endCol: indent + raw.length } };
-}
-
-/**
- * Strip one matching layer of YAML key-quoting (`"key"` or `'key'`) to the
- * logical key name, or return `key` unchanged if it isn't quoted. Does not
- * attempt escape decoding — no real project:/website:/book: key name
- * contains a quote character, so this is sufficient for schema comparison.
- */
-function unquoteKey(key: string): string {
-  if (key.length >= 2) {
-    const first = key[0];
-    const last = key[key.length - 1];
-    if ((first === '"' && last === '"') || (first === "'" && last === "'")) {
-      return key.slice(1, -1);
-    }
-  }
-  return key;
 }
