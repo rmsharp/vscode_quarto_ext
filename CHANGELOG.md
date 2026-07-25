@@ -7,6 +7,33 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-24 · [ad hoc] Session 154 — IMPLEMENTATION: the `findCellOptionLines` phantom-quote FN fix (SHIPPED)
+
+Brought `findCellOptionLines` (`src/core/qmd/model.ts`, the `#|`/`//|` cell-option enumerator — the
+THIRD and last continuation-guard arming site) to the SAME first-char-opener arming discipline the
+three value enumerators already share, closing the last site of the phantom-quote defect class S153
+fixed in the two `.qmd` front-matter enumerators (PROJECT_LEARNINGS #166). Grounded firsthand vs
+`quarto render` 1.7.33 before writing code.
+
+- **Defect A (phantom-quote FALSE NEGATIVE):** the arm scanned `scanFlow` over the WHOLE post-prefix
+  token (`key: value`), so an inner apostrophe/quote/bracket in a PLAIN value armed a phantom quote
+  whose continuation guard swallowed the following real option. `#| fig-cap: Don't do this` (quarto
+  exit 0) swallowed `#| echo: banana` which quarto REJECTS (exit 1) — never flagged. Fixed by
+  narrowing the arm to the VALUE token's first character (past a stripped node property) opening
+  `"'[{`, mirroring `project-yaml.ts` `findProjectConfigValueLines`.
+- **Node-property strip hardening (§9 review, cardinal-sin FP the narrowing would otherwise
+  introduce):** the ported strip regex `/^(?:[&!][^\s]*[ \t]+)+/` did not strip an anchor/tag
+  ABUTTING a flow bracket (`&a[one,`, no space — js-yaml/quarto accept and fold it, exit 0), so it
+  under-armed and flagged the folded continuation. Fixed to `/^(?:[&!][^\s[\]{}"']*[ \t]*)+/` (a
+  strict superset of the old strip — only arms more, the FN-safe direction).
+
+Strict TDD: unit 1300→1305 (RED→GREEN + boundary/regression pins), integration 445→447 (2 end-to-end
+tests in a real host — the previously-swallowed `#| echo: banana` now flags; a genuine multi-line
+quoted `#| fig-cap` still folds its continuation, canary-proven non-vacuous). Mandatory §9 review
+`wf_7456a5f0-85a` (4 lenses + adversarial verify, `agents_error:0`) — caught the abutting-anchor FP
+(fixed) and two out-of-scope items (the same weaker strip regex latent in the 3 reference enumerators;
+a pre-existing block-scalar `|`/`>` cell-option FP), both filed in `BACKLOG.md`.
+
 ### 2026-07-24 · [ad hoc] Session 153 — IMPLEMENTATION: the `.qmd` sibling-enumerator OLD arming fix (SHIPPED)
 
 Brought the two `.qmd` front-matter value enumerators — `findFrontMatterValueLines`
