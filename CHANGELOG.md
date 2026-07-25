@@ -7,6 +7,48 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-25 · [ad hoc] Session 157 — IMPLEMENTATION: the continuation-path node-property-blind scanFlow lost-TP fix (SHIPPED)
+
+Fixed the SIBLING decision path to the single-line arm S156 corrected, at the
+shared root. `findCellOptionLines` (`src/core/qmd/model.ts`) decides "does this
+`#|` value open a multi-line fold?" in two places — the single-line arm (S156)
+and the multi-line-continuation skip `scanFlow(m[4], …)` (~:547). The shared
+`scanFlow` helper was node-property-blind for QUOTES: a quote inside a YAML
+node-property NAME (anchor `&a'b`, alias `*a'b`, tag `!t'x`) is a legal
+`ns-anchor-char`, not a scalar delimiter, but `scanFlow` read it as opening a
+quoted scalar. So an anchor-name quote in a CONTINUATION line of an already-open
+flow — or MID-flow on a single line (`#| myopt: [one, &a'b]`) — armed a phantom
+quote that swallowed the following real `#|` option, a lost TRUE POSITIVE.
+
+Fix: `scanFlow`'s outside-quotes branch now recognizes a node-property introducer
+(`&`/`*`/`!`) and skips its NAME (to the next whitespace or c-flow-indicator
+`,[]{}`), so a quote in the name is never a delimiter. Brackets terminate the
+name, so depth counting is unchanged — only the spurious quote-open is prevented.
+Being in the shared helper, this correctly fixes the same latent defect on all
+four enumerator surfaces (cell-option continuation + single-line arm, and the
+three front-matter/project VALUE enumerators), with no regression (§9
+over-suppression lens clean; missed-sites lens confirmed the blast radius).
+Also corrected `scanFlow`'s docstring (it falsely claimed whole-token scanning
+was "node-property-aware" — it was aware of brackets, blind to quotes-in-names)
+and the `findCellOptionLines` residual comment.
+
+Grounded firsthand vs quarto 1.7.33: `#| myopt: [` / `#| one, &a'b` / `#| ]`
+folds a list (exit 0) and flags only the swallowed `#| echo: banana` (exit 1) —
+a genuine lost TP; the double-quote (`&a"b`) variant is identical. Strict TDD:
+6 unit pins (5 RED-verified recovery + 1 preservation), unit 1315→1321; 2
+integration tests RED-verified against the pre-fix source (recovery test failed
+453/1 → 454/0), integration 452→454; check-types clean; runtime smoke PASS.
+
+The mandatory §9 review (5 lenses + adversarial verify, `wf_2be01ba3-f22`,
+14 agents, `agents_error:0`) confirmed the fix correct and found 3 test-quality
+gaps (all fixed in the same session, not filed): the no-over-suppression
+integration guard used `#| number-sections` on the folded line — NOT a validated
+CELL option, so the guard was vacuous (switched to a folded `#| echo`, fixing the
+identical pattern in the S156 sibling test too); unit U4 used a quote-free tag
+`!!str x` that did not discriminate the `!` arm (switched to `!t'x`); and the
+double-quote `&a"b` continuation shape was unpinned (added). It also confirmed
+BACKLOG.md still listed this now-fixed item (removed here at close-out).
+
 ### 2026-07-24 · [ad hoc] Session 156 — IMPLEMENTATION: the findCellOptionLines strip over-exclusion parity fix (SHIPPED)
 
 Corrected the node-property strip in the `#|`/`//|` cell-option enumerator
