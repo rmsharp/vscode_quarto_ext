@@ -512,10 +512,18 @@ export interface SchemaIndex {
   /**
    * The cell options to offer, optionally filtered to a cell engine. An option
    * restricted to a *different* engine is excluded; an engine-agnostic option is
-   * always included. An unknown/absent engine yields the full set (we do not
-   * filter what we cannot classify).
+   * always included.
+   *
+   * Three scopes, deliberately distinct:
+   *  - a concrete engine — that engine's options plus the engine-agnostic ones;
+   *  - `undefined` (absent) — the FULL set, unfiltered. "We do not filter what we cannot
+   *    classify": an over-OFFER, correct for completion;
+   *  - `"unknown"` — ONLY the engine-agnostic options, i.e. the intersection valid under
+   *    every engine. No field carries this tag, so the same filter yields it. This is the
+   *    over-offer's mirror: the FP-safe scope for VALIDATION when the document engine is
+   *    undeterminable from the cell language (`cellOptionScopeFor`, `yaml-context.ts`).
    */
-  cellOptions(engine?: "knitr" | "jupyter" | "ojs"): SchemaField[];
+  cellOptions(engine?: "knitr" | "jupyter" | "ojs" | "unknown"): SchemaField[];
   /**
    * The front-matter keys to offer at the given mapping path. Top-level keys are
    * returned for the document root (`parentPath` empty, 6d-4) — there the `format`
@@ -624,6 +632,9 @@ function indexOf(
       if (engine === undefined) {
         return cellFields;
       }
+      // `"unknown"` falls out of this same filter: no `SchemaField.engine` can hold it
+      // (the type is `CellEngine`), so the right-hand disjunct is never true and only the
+      // engine-agnostic fields survive — exactly the intersection that scope means.
       return cellFields.filter((f) => f.engine === undefined || f.engine === engine);
     },
     frontMatterKeys(parentPath) {

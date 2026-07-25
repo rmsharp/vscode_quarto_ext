@@ -624,11 +624,13 @@ export function unquoteKey(key: string): string {
 /**
  * The cell engine for a cell language: knitr for `{r}`, jupyter for
  * `{python}`/`{julia}`, ojs for `{ojs}`/`{js}`. An unrecognized language yields
- * `undefined` (engine-agnostic) — a benign over-offer, refined in a later slice.
+ * `undefined`, which `cellOptions` reads as "do not filter" — a benign over-OFFER, and so
+ * what the COMPLETION provider wants (`providers/yaml.ts`).
  *
- * Exported so value-diagnostics (`features/yaml-value-diagnostics.ts`) resolves a
- * cell option against the SAME engine-scoped set the completion provider uses —
- * single-sourced here rather than duplicated (value-validation plan §4.1 L3).
+ * Diagnostics must not use this directly: an over-flag is the cardinal sin, not a benign
+ * over-offer. They go through `cellOptionScopeFor` below, which maps the same `undefined`
+ * to the narrowing `"unknown"` scope. Both live here so the two consumers share ONE language
+ * → engine table rather than duplicating it (value-validation plan §4.1 L3).
  */
 export function engineFor(lang: string): CellEngine | undefined {
   switch (lang.toLowerCase()) {
@@ -643,6 +645,30 @@ export function engineFor(lang: string): CellEngine | undefined {
     default:
       return undefined;
   }
+}
+
+/**
+ * The schema scope a cell option must be VALIDATED against, given the cell's language —
+ * `engineFor` refined so an undeterminable engine narrows instead of widening.
+ *
+ * `cellOptions(undefined)` deliberately means "no filtering, the FULL set". That is right
+ * for COMPLETION, where offering a knitr-only option in a cell that turns out to be jupyter
+ * is a benign over-offer. It is wrong for DIAGNOSTICS, because quarto scopes its cell schema
+ * to the DOCUMENT's engine — which a cell LANGUAGE alone does not determine: a `{sql}` cell
+ * is knitr in a document that also holds an `{r}` cell and markdown otherwise. Grounded
+ * firsthand vs quarto 1.7.33: `{sql}` + `--| cache: banana` renders exit 1 in a knitr
+ * document but **exit 0** in a markdown- or jupyter-engine one, while the engine-agnostic
+ * `--| echo: banana` renders exit 1 in all three. Validating the full set would therefore
+ * squiggle a document quarto ACCEPTS — the cardinal sin.
+ *
+ * Before S161 this could not bite: the only cells whose options were enumerated at all had
+ * a `#|`/`//|` prefix, and every language that reaches this function through one of those
+ * either has a determined engine or was itself a false positive. Teaching the enumerator
+ * quarto's per-language comment char is what first makes `{sql}`/`{matlab}`/`{c}` options
+ * real, so the narrowing ships WITH it (S161 L2).
+ */
+export function cellOptionScopeFor(lang: string): CellEngine | "unknown" {
+  return engineFor(lang) ?? "unknown";
 }
 
 /**

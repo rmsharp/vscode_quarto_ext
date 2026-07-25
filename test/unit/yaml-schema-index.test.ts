@@ -1367,7 +1367,7 @@ describe("parseSchemaIndex — engine tags & filtering", () => {
   const index = parseSchemaIndex(FIXTURE);
   const engineOf = (name: string): string | undefined =>
     index.cellOptions().find((f) => f.name === name)?.engine;
-  const namesFor = (engine?: "knitr" | "jupyter" | "ojs"): string[] =>
+  const namesFor = (engine?: "knitr" | "jupyter" | "ojs" | "unknown"): string[] =>
     index.cellOptions(engine).map((f) => f.name);
 
   it("reads `tags.engine` for single-engine options", () => {
@@ -1407,9 +1407,24 @@ describe("parseSchemaIndex — engine tags & filtering", () => {
     expect(ojs).not.toContain("tags"); // jupyter
   });
 
-  it("does not filter when the engine is unknown (returns the full set)", () => {
+  it("does not filter when no engine is passed (returns the full set)", () => {
     expect(namesFor(undefined)).toContain("cache");
     expect(namesFor(undefined)).toContain("tags");
+  });
+
+  it('"unknown" keeps ONLY the engine-agnostic options (S161)', () => {
+    // Quarto scopes its cell schema to the DOCUMENT's engine, which a cell LANGUAGE alone
+    // does not determine: a `{sql}` cell is knitr in a document that also has an `{r}` cell
+    // and markdown otherwise. Grounded firsthand vs 1.7.33 — `{sql}` + `--| cache: banana`
+    // renders exit 1 in a knitr document but exit 0 in a markdown- or jupyter-engine one,
+    // while the engine-agnostic `--| echo: banana` renders exit 1 in all three. So the only
+    // FP-safe set for an undeterminable engine is the intersection.
+    const unknown = namesFor("unknown");
+    expect(unknown).toContain("echo"); // engine-agnostic
+    expect(unknown).toContain("tbl-colwidths"); // multi-engine → tag unset → agnostic
+    for (const scoped of ["cache", "fig-width", "message", "animation-hook", "tags"]) {
+      expect(unknown, `"unknown" must exclude the engine-scoped ${scoped}`).not.toContain(scoped);
+    }
   });
 });
 

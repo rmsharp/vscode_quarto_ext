@@ -29,7 +29,7 @@ import * as vscode from "vscode";
 import { findCellOptionLines } from "../core/qmd/model";
 import { findFrontMatterValueLines } from "../core/yaml-frontmatter-values";
 import { findNestedFrontMatterValueLines } from "../core/yaml-frontmatter-nested-values";
-import { engineFor, mappingColonAt, valueSlotAfterColon } from "../core/yaml-context";
+import { cellOptionScopeFor, mappingColonAt, valueSlotAfterColon } from "../core/yaml-context";
 import { isWrongValue, valueMessage, unquote } from "../core/yaml-value-check";
 import { isKnownFormatName, formatNameMessage } from "../core/format-name-check";
 import {
@@ -113,10 +113,19 @@ async function computeValueDiagnostics(
     if (optionKey.length === 0 || rawToken.length === 0) {
       continue; // key or value still being typed
     }
-    // Resolve the key against the SAME engine-scoped set completion uses. An
-    // unknown key is never flagged — that is the permanently-banned unknown-key
-    // territory, not this feature's job (plan §7.4).
-    const field = index.cellOptions(engineFor(cell.cellLang)).find((f) => f.name === optionKey);
+    // Resolve the key against the engine-scoped set. An unknown key is never flagged —
+    // that is the permanently-banned unknown-key territory, not this feature's job (plan
+    // §7.4). This is the same set completion offers WHENEVER the engine is determined; the
+    // two deliberately diverge only where it is not (`"unknown"` vs `undefined`), because
+    // an over-offer is benign and an over-flag is the cardinal sin.
+    // `cellOptionScopeFor`, NOT `engineFor`: an undeterminable engine must narrow to the
+    // engine-agnostic intersection, never widen to the full set. Since S161 the enumerator
+    // reports options for every language in quarto's comment-char table, so a `{sql}`/
+    // `{matlab}`/`{c}` cell reaches this line for the first time — and quarto scopes its
+    // cell schema to the DOCUMENT's engine, which those languages do not determine.
+    const field = index
+      .cellOptions(cellOptionScopeFor(cell.cellLang))
+      .find((f) => f.name === optionKey);
     if (field === undefined || !isWrongValue(rawToken, field)) {
       continue;
     }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  cellOptionScopeFor,
   completionContextAt,
   isMappingSeparator,
   mappingColonAt,
@@ -629,5 +630,31 @@ describe("completionContextAt — only the cell's LEADING option block completes
     // cell-option completion — the same token in the leading block must still complete.
     const text = ["```{python}", "#| ec", "1+1", "```"].join("\n");
     expect(completionContextAt(text, offsetAt(text, 1, 5))?.kind).toBe("cell-option-key");
+  });
+});
+
+describe("cellOptionScopeFor — the schema scope a cell's options are VALIDATED against (S161)", () => {
+  // `engineFor` returns `undefined` for any language outside r/python/julia/ojs/js, and
+  // `SchemaIndex.cellOptions(undefined)` deliberately means "no filtering — the FULL set",
+  // which is right for COMPLETION (offering a little too much is harmless) and wrong for
+  // DIAGNOSTICS. Quarto scopes its cell schema to the DOCUMENT's engine, which a cell
+  // language alone does not determine: `{sql}` is knitr in a document that also holds an
+  // `{r}` cell, and markdown otherwise. Grounded firsthand vs quarto 1.7.33 — `{sql}` +
+  // `--| cache: banana` renders exit 1 in a knitr document but exit 0 in a markdown- or
+  // jupyter-engine one. Validating against the full set would therefore squiggle a document
+  // quarto ACCEPTS: the cardinal sin, and one this session's own L1 would have introduced by
+  // emitting those lines for the first time. The FP-safe scope is the intersection.
+  it("maps a language whose engine IS determined to that engine", () => {
+    expect(cellOptionScopeFor("r")).toBe("knitr");
+    expect(cellOptionScopeFor("python")).toBe("jupyter");
+    expect(cellOptionScopeFor("julia")).toBe("jupyter");
+    expect(cellOptionScopeFor("ojs")).toBe("ojs");
+  });
+
+  it('maps a language whose engine is NOT determined to "unknown", never to undefined', () => {
+    // `undefined` here would be the whole-set fallback — the FP. Assert the literal.
+    for (const lang of ["sql", "matlab", "c", "sas", "fortran", "apl", "stata", "banana"]) {
+      expect(cellOptionScopeFor(lang), lang).toBe("unknown");
+    }
   });
 });
