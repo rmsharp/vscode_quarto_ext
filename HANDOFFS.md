@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S158
+date: 2026-07-25
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). The block-scalar (|/>) cell-option false-positive fix in findCellOptionLines (src/core/qmd/model.ts). Make the enumerator block-scalar-aware: a #| option whose value is a YAML block-scalar header (|/> with optional chomping/indent indicators) arms a continuation-skip that skips every following #| line more indented than the opening key, using the quarto-folded indentation (the #| gap minus the one space quarto's ^#\s*\| ? strips — CELL_OPTION_PREFIX captures that indentation into the gap group m[3] and drops it from m[4]). Today scanFlow tracks only quotes + {}[] depth (never |/>), so #| fig-cap: | / #|   echo: banana folds echo: banana into fig-cap's literal block (quarto exit 0) yet the enumerator emits echo: banana as an independent option and value-diagnostics flags it — a cardinal-sin FP on a doc quarto accepts. PRE-EXISTING (identical pre/post-S154), LOW/pathological. Operator-selected at Phase 0. ONE deliverable — this block-scalar cell-option FP ONLY; NOT the quoted-KEY divergence, NOT Combos 2/4, NOT _metadata.yml (all filed; FM #26).
+```
+
+```handoff
 session: S157
 date: 2026-07-25
 status: complete
