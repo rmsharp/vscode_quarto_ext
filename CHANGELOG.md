@@ -7,6 +7,28 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-25 · [ad hoc] Backfilled (reconcile-on-read): undocumented commit `b30eadf` — the `validate-yaml: false` backlog item's scope grounded firsthand (S162 post-close-out)
+
+Recorded at Session 163's Phase 0 reconcile. Session 162's `§9` review `Workflow` finished **after**
+its close-out commit, so this one documentation commit landed past the S162 ledger entry above and
+never got an entry of its own.
+
+`b30eadf` (`BACKLOG.md` only, no code) grounds the still-open **`validate-yaml: false`** item that
+S162 filed as its recommended next pick. All measurements taken firsthand against controls that
+differ only in the flag:
+
+- per-cell `#| validate-yaml: false` → **exit 0**, `#| validate-yaml: true` → **exit 1** — so it is
+  the **VALUE** that disarms validation, not the presence of the key
+- front-matter scalar: `validate-yaml: false` + `code-fold: banana` → exit 0, control → exit 1
+- nested front matter: `execute:` / `echo: banana` → exit 0, control → exit 1
+
+So the escape hatch covers **all three `.qmd` value surfaces**, and the mechanism is recorded too
+(`partitionCellOptionsMapped`'s `validate` argument into `parseAndValidateCellOptions`, the same
+`if (schema === undefined || !validate)` short-circuit S162's handler scope is built on). Whether
+`_quarto.yml` honours the flag remains ungrounded.
+
+No behaviour change — documentation only.
+
 ### 2026-07-25 · [ad hoc] Session 162 — IMPLEMENTATION: a cell-HANDLER language is validated by no cell schema (SHIPPED)
 
 Quarto registers a small set of cell **handlers** — `handlers/languages.yml` is exactly
