@@ -296,7 +296,8 @@ describe("findNestedFrontMatterValueLines — arming discipline parity with find
     // and the folded `number-sections: banana]` was emitted and flagged on a document `quarto
     // render` 1.7.33 RENDERS exit 0 (`format:`/`html:`/`fig-cap: &a[one,` / `number-sections:
     // banana]` folds to `fig-cap: [one, {number-sections: banana}]` — grounded firsthand: exit 0;
-    // a cardinal-sin FP). Hardened to the strict superset the cell-option site (`model.ts`) uses.
+    // a cardinal-sin FP). The corrected charset excludes ONLY the YAML flow indicators `,[]{}`
+    // (keeping quotes, which are legal anchor chars — §9 over-suppression, S155).
     const abut = ["---", "format:", "  html:", "    fig-cap: &a[one,", "    number-sections: banana]", "---"].join("\n");
     expect(findNestedFrontMatterValueLines(abut).map((e) => e.key)).toEqual(["fig-cap"]);
     // Emission RESUMES once the flow closes: `code-fold: banana` after the `]` is real again.
@@ -306,5 +307,15 @@ describe("findNestedFrontMatterValueLines — arming discipline parity with find
     // already armed — the change is a strict superset (it strips MORE, never less, of a property).
     const spaced = ["---", "format:", "  html:", "    fig-cap: &a [one,", "    number-sections: banana]", "---"].join("\n");
     expect(findNestedFrontMatterValueLines(spaced).map((e) => e.key)).toEqual(["fig-cap"]);
+  });
+
+  it("ANCHOR-NAME QUOTE (S155 §9): a quote INSIDE a nested anchor name (`&a'b`) is not a quote opener — must not phantom-fold a following real key", () => {
+    // YAML's flow indicators are ONLY `,[]{}`; a quote is a LEGAL anchor-name char. So a nested
+    // `myref: &a'b` is a node named `a'b` with a NULL value quarto ACCEPTS (exit 0), and
+    // `number-sections: banana` below it is a SEPARATE real key quarto REJECTS (exit 1). The name
+    // charset must KEEP quotes so `&a'b` strips WHOLE and does NOT arm a phantom `'` that swallows
+    // `number-sections`. The over-excluding S154 charset `[^\s[\]{}"']` armed here and dropped the TP.
+    const q = ["---", "format:", "  html:", "    myref: &a'b", "    number-sections: banana", "---"].join("\n");
+    expect(findNestedFrontMatterValueLines(q).map((e) => e.key)).toEqual(["myref", "number-sections"]);
   });
 });
