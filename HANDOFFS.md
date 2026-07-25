@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S157
+date: 2026-07-25
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — the continuation-path node-property-blind scanFlow lost-TP fix in findCellOptionLines (src/core/qmd/model.ts ~:547). Bring the multi-line-continuation scanFlow path up to node-property awareness (strip a leading &/! node property with the YAML-exact [^\s,[\]{}] before scanning the continuation flow) so an anchor-name quote in a CONTINUATION line of an already-open flow no longer arms a phantom quote that swallows a following #| option. SIBLING path to the single-line arm S156 fixed (:601). Operator-selected at Phase 0. ONE deliverable — this continuation scanFlow path ONLY (FM #26). Pending stub opened at Phase 1B claim; overwritten to status: complete at Phase 3D.
+```
+
+```handoff
 session: S156
 date: 2026-07-24
 status: complete
