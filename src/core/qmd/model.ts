@@ -516,6 +516,17 @@ export function findAllCells(text: string): Cell[] {
 const CELL_OPTION_PREFIX = /^(#|\/\/)([ \t]*)\|([ \t]*)(.*)$/;
 
 /**
+ * A YAML block-scalar header appearing as a cell-option VALUE: `|` (literal) or `>` (folded),
+ * an optional indentation indicator (`1`–`9`) and/or chomping indicator (`+`/`-`) in either
+ * order, then only optional whitespace and an optional `#` comment before end of line. A
+ * leading `|`/`>` in a YAML value is ALWAYS a block-scalar indicator (never a plain scalar), so
+ * the end-of-content anchor only additionally rejects a MALFORMED header (`| foo`), which quarto
+ * errors on regardless — a value matching this arms a block-scalar continuation-skip in
+ * `findCellOptionLines`, folding its more-indented `#|` continuation lines into the value.
+ */
+const BLOCK_SCALAR_HEADER = /^[|>](?:[1-9][-+]?|[-+][1-9]?)?[ \t]*(?:#.*)?$/;
+
+/**
  * Every `#|` / `//|` cell-option line inside an executable cell, in document
  * order. A view over the shared scanner (`findAllCells`) — never a second scanner
  * (Learning #14): only interior lines of executable `{lang}` cells are examined,
@@ -535,12 +546,35 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
     // exit 0 (adversarial review, S130). A non-`#|` (code) line ends the option block.
     let flowDepth = 0;
     let openQuote: '"' | "'" | null = null;
+    // An open block scalar (`|`/`>`), tracked by the folded-indent of the KEY that opened it:
+    // quarto folds every MORE-indented `#|` line into the block's literal content, so a
+    // following mapping-looking line is that literal text, NOT a new option. Emitting it would
+    // let value-diagnostics flag e.g. `#| fig-cap: |` / `#|   echo: banana` — a cardinal-sin FP
+    // on a doc quarto renders exit 0 (adversarial review, S154/S155; fixed S158). Separate from
+    // the quote/flow state above: a value opens EITHER a quote/flow OR a block scalar (disjoint
+    // first chars `"'[{` vs `|>`), never both. Null when no block scalar is open.
+    let blockScalarIndent: number | null = null;
     bodyLines.forEach((lineText, j) => {
       const m = CELL_OPTION_PREFIX.exec(lineText);
       if (m === null) {
         flowDepth = 0; // a code line ends any multi-line option value
         openQuote = null;
+        blockScalarIndent = null;
         return;
+      }
+      // The indentation quarto sees for this `#|` line's folded content: the post-pipe
+      // whitespace `m[3]` minus the ONE space quarto's `^#\s*\| ?` directive strips.
+      const foldedIndent = m[3].startsWith(" ") ? m[3].length - 1 : m[3].length;
+      if (blockScalarIndent !== null) {
+        // Inside an open block scalar: a blank `#|` line (always part of the block) and any line
+        // MORE indented than the opening key are the block's literal content — skip them. The
+        // first non-blank line at or BELOW the opener's indent ENDS the block and is a real
+        // option again (fall through). Strictly-greater is quarto-faithful: a sibling at the SAME
+        // folded-indent renders exit 1, a real option (grounded firsthand, S158).
+        if (m[4].trim() === "" || foldedIndent > blockScalarIndent) {
+          return;
+        }
+        blockScalarIndent = null;
       }
       if (flowDepth > 0 || openQuote !== null) {
         // A continuation of a multi-line quoted/flow value on a prior `#|` line — skip it.
@@ -560,7 +594,8 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
         valueSlot,
       });
       // Arm the continuation-skip only if THIS option's VALUE actually OPENS an unclosed
-      // quoted scalar / flow collection, decided by the value token's FIRST character past a
+      // quoted scalar / flow collection (or a `|`/`>` block scalar — the `else if` below),
+      // decided by the value token's FIRST character past a
       // stripped node property (`&anchor `/`!tag `) — mirroring the two `.qmd` front-matter
       // value enumerators (`yaml-frontmatter-values.ts`/`-nested-values.ts`) and the
       // `_quarto.yml` reference (`project-yaml.ts` findProjectConfigValueLines). Deliberately
@@ -605,11 +640,18 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
       // the anchor sits MID-flow on a single line (`#| myopt: [one, &a'b]`: the `]` no longer
       // falls inside a phantom quote). So the first-char strip below and `scanFlow` are now BOTH
       // node-property-aware for quotes, on every path (§9 missed-sites lens, S156; fixed S157).
-      const opener = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "")[0];
+      const stripped = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "");
+      const opener = stripped[0];
       if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
         const s = scanFlow(armToken, 0, null);
         flowDepth = s.depth > 0 ? s.depth : 0;
         openQuote = s.quote;
+      } else if (BLOCK_SCALAR_HEADER.test(stripped)) {
+        // The value is a `|`/`>` block-scalar header, so its continuation is the block's
+        // more-indented literal content: arm the skip at THIS key's folded-indent (the block
+        // ends at the first non-blank `#|` line back at or below that indent). `stripped` has
+        // any leading node property removed (`&anchor |`), so an anchored block scalar arms too.
+        blockScalarIndent = foldedIndent;
       }
     });
   }

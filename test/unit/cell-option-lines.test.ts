@@ -407,3 +407,76 @@ describe("findCellOptionLines — node-property-name quote on the CONTINUATION p
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 3]);
   });
 });
+
+describe("findCellOptionLines — block-scalar (`|`/`>`) value folds its continuation (S158)", () => {
+  // Quarto folds every `#|` line of a cell into ONE YAML block, so a value that OPENS a
+  // YAML block scalar (`|` literal / `>` folded) consumes every following `#|` line more
+  // indented than the opening key — that mapping-looking continuation is the block's literal
+  // content, NOT a new option. `findCellOptionLines`'s continuation state (`scanFlow`) tracked
+  // only quotes + `{}[]` flow depth, never `|`/`>`, so it emitted the folded continuation and
+  // value-diagnostics flagged it — a cardinal-sin FALSE POSITIVE on a doc quarto renders exit 0.
+  // Grounded firsthand vs quarto render --no-execute 1.7.33: `#| fig-cap: |` / `#|   echo: banana`
+  // renders exit 0 (echo:banana is fig-cap's literal block content), while the bare `#| echo:
+  // banana` renders exit 1 ("must instead be `true` or `false`"). The folded-indent quarto sees
+  // is the post-pipe whitespace minus the one space its `^#\s*\| ?` directive strips, so a line
+  // is block content iff its folded-indent EXCEEDS the opener's (strictly greater — a sibling at
+  // the SAME indent renders exit 1, a real option).
+  it("does NOT emit a mapping-looking `#|` line folded into a `|` literal block scalar", () => {
+    const text = ["```{python}", "#| fig-cap: |", "#|   echo: banana", "1+1", "```"].join("\n");
+    // fig-cap opens a literal block (line 1); `#|   echo: banana` (line 2, indent 2 > 0) is its
+    // folded content, not a real option — emitting it flags a doc quarto accepts (exit 0).
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("does NOT emit a `#|` line folded into a `>` FOLDED block scalar", () => {
+    // The `>` (folded) indicator folds its more-indented continuation the same way; grounded
+    // firsthand exit 0. Pins the `>` branch of BLOCK_SCALAR_HEADER (pre-fix emitted [1, 2]).
+    const text = ["```{python}", "#| fig-cap: >", "#|   echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("folds a block scalar with a chomping/indent indicator (`|-`)", () => {
+    // A header may carry a chomping (`+`/`-`) and/or indentation (`1`–`9`) indicator; `|-` is
+    // still a block-scalar opener (grounded firsthand exit 0). Pins the indicator alternation.
+    const text = ["```{python}", "#| fig-cap: |-", "#|   echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("folds a block scalar whose header carries a trailing comment (`| # a caption`)", () => {
+    // A `#` comment may follow the indicators on the header line; the continuation still folds
+    // (grounded firsthand exit 0). Pins the optional-comment tail of BLOCK_SCALAR_HEADER.
+    const text = ["```{python}", "#| fig-cap: | # a caption", "#|   echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("STILL arms an ANCHORED block scalar (`&a |`) — the node-property strip is load-bearing", () => {
+    // `&a ` is stripped BEFORE the header test, so `|` is seen as the opener and the block arms;
+    // quarto folds the anchored block the same way (grounded firsthand exit 0).
+    const text = ["```{python}", "#| fig-cap: &a |", "#|   echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("does NOT over-suppress: a real sibling option DEDENTED back to the key indent still emits", () => {
+    // The load-bearing termination guard: the block ends at the first non-blank `#|` line at or
+    // BELOW the opener's folded-indent. Here `#|   line one` (indent 2) is block content but
+    // `#| echo: banana` (indent 0) is a real sibling option — quarto renders it exit 1 ("must
+    // instead be `true` or `false`"), so it MUST still be emitted and flagged (grounded firsthand).
+    // Over-suppressing it would turn the FP fix into a lost TRUE POSITIVE.
+    const text = ["```{python}", "#| fig-cap: |", "#|   line one", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 3]);
+  });
+
+  it("keeps a BLANK `#|` line inside the block scalar (blank lines are block content)", () => {
+    // A blank `#|` line is always part of an open block scalar, so it does NOT end the block; the
+    // following more-indented `#| echo: banana` stays folded (grounded firsthand exit 0).
+    const text = ["```{python}", "#| fig-cap: |", "#|   line one", "#|", "#|   echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("does NOT arm a plain value that merely CONTAINS a pipe (`a | b`)", () => {
+    // A `|` is a block-scalar indicator only at the START of a value; `fig-cap: a | b` is a plain
+    // scalar (quarto exit 0), so the following `#| echo: false` is a real option — both emit.
+    const text = ["```{python}", "#| fig-cap: a | b", "#| echo: false", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+});
