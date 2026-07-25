@@ -222,6 +222,21 @@ export interface CellOptionLine {
    */
   prefix: string;
   /**
+   * The 0-based column just past the end of the option's YAML CONTENT — i.e. where the
+   * directive's payload stops. For a line-comment language that is the end of the line, so
+   * it constrains nothing; for a BLOCK-comment language it excludes the closing delimiter
+   * (`/*| echo: banana` + the closer reports the column just past `banana`).
+   *
+   * `keySlot`/`valueSlot` are already computed from the closer-stripped content and need no
+   * adjustment. This bound exists for a consumer that must re-derive spans from the RAW line
+   * text — value-diagnostics does, because it resolves the true YAML key/value SEPARATOR
+   * rather than the first colon (S159) — and would otherwise slice the closer into the
+   * value. That is not cosmetic: it would flag a valid `echo: false` directive in a `{c}`
+   * cell, because `false` plus the closer is not in echo's closed value set, on a document
+   * quarto renders exit 0 (S161).
+   */
+  contentEndCol: number;
+  /**
    * The span `[startCol, endCol)` of the option *key* token (the text before the
    * `:`), 0-based columns. An empty span (`startCol == endCol`) marks a line with
    * the prefix but no key yet (e.g. `#| `). `null` when the line cannot host a
@@ -762,6 +777,7 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
         line: cell.startLine + 1 + j,
         cellLang: cell.lang,
         prefix: m[1] + "|",
+        contentEndCol: keyStart + content.length,
         keySlot,
         valueSlot,
       });

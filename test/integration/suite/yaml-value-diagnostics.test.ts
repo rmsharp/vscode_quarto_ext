@@ -1466,3 +1466,159 @@ describe("Quarto: only a cell's LEADING option block is validated (.qmd, Session
     );
   });
 });
+
+describe("Quarto: the cell-option comment char follows the cell LANGUAGE (.qmd, Session 161)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  // THE LOST TRUE POSITIVE, end to end. Quarto builds its directive pattern from
+  // `kLangCommentChars[lang]`, so these lines ARE options and each document renders quarto
+  // 1.7.33 exit 1 with a real value error (grounded firsthand, `--no-execute`) — yet before
+  // this session we emitted nothing for any of them. `{c}` additionally carries a closing
+  // suffix, which quarto requires and strips from the YAML content: the flagged span must
+  // cover `banana` alone, never `banana */`, which is what proves the suffix is stripped
+  // rather than merely tolerated.
+  it("flags a wrong VALUE on each language's OWN comment char", async () => {
+    const content = [
+      "---", "title: T", "---", "",           // 0-3
+      "```{sql}",                             // 4
+      "--| echo: banana",                     // 5  quarto exit 1
+      "SELECT 1",                             // 6
+      "```", "",                              // 7-8
+      "```{matlab}",                          // 9
+      "%| code-fold: banana",                 // 10 quarto exit 1
+      "1",                                    // 11
+      "```", "",                              // 12-13
+      "```{c}",                               // 14
+      "/*| echo: banana */",                  // 15 quarto exit 1 (suffix REQUIRED)
+      "1;",                                   // 16
+      "```", "",                              // 17-18
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => {
+        const lines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+        return [5, 10, 15].every((l) => lines.includes(l));
+      }, 5000),
+      `lines 5 (--| in sql), 10 (%| in matlab) and 15 (/*| … */ in c) each render quarto exit 1 with a real value error and MUST flag; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
+    );
+    const suffixed = valueDiagnostics(doc.uri).find((d) => d.range.start.line === 15);
+    assert.ok(suffixed, "the {c} diagnostic should exist");
+    assert.strictEqual(
+      doc.getText(suffixed.range),
+      "banana",
+      "the block-comment closer is stripped from the option content, so the squiggle must cover the VALUE alone",
+    );
+  });
+
+  // THE CARDINAL-SIN FP, end to end. Our two previously hard-coded chars, in cells where
+  // quarto reads no directive at all — every one of these renders exit 0 (grounded
+  // firsthand), and every one was squiggled before this session. The canary in the last
+  // cell is a real `{sql}` option that quarto rejects: without it a wholesale loss of
+  // cell-option validation would satisfy the suppression assertions vacuously.
+  it("does NOT flag a wrong-comment-char line (canary in a later cell proves the pass ran)", async () => {
+    const content = [
+      "---", "title: T", "---", "",           // 0-3
+      "```{sql}",                             // 4
+      "#| echo: banana",                      // 5  not a directive in sql — quarto exit 0
+      "SELECT 1",                             // 6
+      "```", "",                              // 7-8
+      "```{python}",                          // 9
+      "//| echo: banana",                     // 10 not a directive in python — quarto exit 0
+      "x = 1",                                // 11
+      "```", "",                              // 12-13
+      "```{ojs}",                             // 14
+      "#| echo: banana",                      // 15 not a directive in ojs — quarto exit 0
+      "x = 1",                                // 16
+      "```", "",                              // 17-18
+      "```{c}",                               // 19
+      "/*| echo: banana",                     // 20 no closer — not a directive — quarto exit 0
+      "1;",                                   // 21
+      "```", "",                              // 22-23
+      "```{c}",                               // 24
+      "/*| echo: false */",                   // 25 VALID directive — quarto exit 0
+      "1;",                                   // 26
+      "```", "",                              // 27-28
+      "```{sql}",                             // 29
+      "--| echo: banana",                     // 30 CANARY: a real sql option, quarto exit 1
+      "SELECT 1",                             // 31
+      "```", "",                              // 32-33
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 30), 5000),
+      "the canary (line 30, a real `--| echo: banana` in {sql}) should flag, proving the cell-option value pass ran",
+    );
+    const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    for (const line of [5, 10, 15, 20]) {
+      assert.ok(
+        !flagged.includes(line),
+        `line ${line} uses a comment char quarto does not read as a directive in that cell's language — quarto renders it exit 0, so it must NOT be flagged; flagged lines: ${flagged.join(",")}`,
+      );
+    }
+    // Line 25 is a VALID directive in a block-comment language. It is the one shape where
+    // recognizing the line correctly is not enough: the value must be sliced WITHOUT the
+    // closing delimiter, or `false */` fails echo's closed value set and a document quarto
+    // renders exit 0 is squiggled. This is the FP this session's own L1 introduced and L5
+    // removed (`contentEndCol`).
+    assert.ok(
+      !flagged.includes(25),
+      `line 25 is a VALID {c} directive (\`echo: false\` with the block-comment closer) — quarto renders it exit 0, so it must NOT be flagged; the closer must be excluded from the value span. flagged lines: ${flagged.join(",")}`,
+    );
+  });
+
+  // THE ENGINE-SCOPE FP THIS SESSION'S OWN L1 WOULD OTHERWISE HAVE SHIPPED. Quarto scopes
+  // its cell schema to the DOCUMENT's engine, so a knitr-only key is validated in an `{r}`
+  // cell but NOT in a `{sql}` cell of a document with no knitr engine — grounded firsthand:
+  // `--| cache: banana` in {sql} renders exit 1 in a knitr document and exit 0 in a
+  // markdown- or jupyter-engine one. The `{r}` cell here is what makes the assertion
+  // non-vacuous: it proves `cache` IS a closed-valued key this feature flags, so the {sql}
+  // silence is the engine scope at work and not a missing schema entry.
+  it("does not flag an ENGINE-SCOPED key in a cell whose engine is undeterminable", async () => {
+    const content = [
+      "---", "title: T", "---", "",           // 0-3
+      "```{r}",                               // 4
+      "#| cache: banana",                     // 5  knitr cell — MUST flag (quarto exit 1)
+      "1",                                    // 6
+      "```", "",                              // 7-8
+      "```{sql}",                             // 9
+      "--| cache: banana",                    // 10 engine undeterminable — must NOT flag
+      "--| echo: banana",                     // 11 engine-agnostic — MUST flag (exit 1)
+      "SELECT 1",                             // 12
+      "```", "",                              // 13-14
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => {
+        const lines = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+        return lines.includes(5) && lines.includes(11);
+      }, 5000),
+      `line 5 (knitr-scoped \`cache\` in an {r} cell) and line 11 (engine-agnostic \`echo\` in the {sql} cell) must BOTH flag — the first proves \`cache\` is a key this feature validates at all, the second proves the pass reached the {sql} cell; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
+    );
+    const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flagged.includes(10),
+      `line 10 is a knitr-only key in a {sql} cell, whose document engine the cell language does not determine — quarto renders it exit 0, so it must NOT be flagged; flagged lines: ${flagged.join(",")}`,
+    );
+  });
+});

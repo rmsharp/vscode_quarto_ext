@@ -108,7 +108,22 @@ async function computeValueDiagnostics(
     // deliberately import-free (`yaml-context.ts` imports IT), so the same fix cannot be shared
     // here without the cross-module grammar consolidation BACKLOG already tracks.
     const optionKey = lineText.slice(cell.keySlot.startCol, sep).replace(/[ \t]+$/, "");
-    const valueSlot = valueSlotAfterColon(lineText, sep);
+    // Clamp to where the directive's YAML CONTENT ends. Re-deriving from the raw line text
+    // (which the separator rule above requires) cannot see a BLOCK-comment language's
+    // closing delimiter, so in a `{c}` cell `/*| echo: false */` would slice `false */` as
+    // the value — not in echo's closed set, so it would be flagged, on a document quarto
+    // renders exit 0. That is a cardinal-sin FP this session's own L1 would have introduced
+    // by emitting those lines for the first time; `contentEndCol` is the bound that removes
+    // it, and for every line-comment language it is the end of the line, so this is a no-op
+    // (S161 L5, caught by the L4 integration pin on the diagnostic's RANGE).
+    const rawSlot = valueSlotAfterColon(lineText, sep);
+    const valueSlot = {
+      startCol: rawSlot.startCol,
+      endCol: Math.max(rawSlot.startCol, Math.min(rawSlot.endCol, cell.contentEndCol)),
+    };
+    // No extra trim: `contentEndCol` already excludes the whitespace before a closer (quarto
+    // trims it too), and `valueSlotAfterColon` already excludes trailing whitespace, so the
+    // token and the squiggled range stay exactly the same span.
     const rawToken = lineText.slice(valueSlot.startCol, valueSlot.endCol);
     if (optionKey.length === 0 || rawToken.length === 0) {
       continue; // key or value still being typed

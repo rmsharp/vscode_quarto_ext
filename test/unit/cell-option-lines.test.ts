@@ -14,6 +14,7 @@ describe("findCellOptionLines — detection inside executable cells", () => {
         line: 1,
         cellLang: "python",
         prefix: "#|",
+        contentEndCol: 14,
         keySlot: { startCol: 3, endCol: 7 }, // "echo"
         valueSlot: { startCol: 9, endCol: 14 }, // "false"
       },
@@ -27,6 +28,7 @@ describe("findCellOptionLines — detection inside executable cells", () => {
         line: 1,
         cellLang: "ojs",
         prefix: "//|",
+        contentEndCol: 14,
         keySlot: { startCol: 4, endCol: 8 },
         valueSlot: { startCol: 10, endCol: 14 }, // "true"
       },
@@ -46,6 +48,7 @@ describe("findCellOptionLines — detection inside executable cells", () => {
         line: 1,
         cellLang: "r",
         prefix: "#|",
+        contentEndCol: 5,
         keySlot: { startCol: 3, endCol: 5 },
         valueSlot: null, // no colon yet → no value slot
       },
@@ -201,6 +204,7 @@ describe("findCellOptionLines — Quarto-faithful prefix matching", () => {
         line: 1,
         cellLang: "r",
         prefix: "#|",
+        contentEndCol: 15,
         keySlot: { startCol: 4, endCol: 8 },
         valueSlot: { startCol: 10, endCol: 15 }, // "false"
       },
@@ -674,6 +678,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
         line: 1,
         cellLang: "sql",
         prefix: "--|",
+        contentEndCol: 16,
         keySlot: { startCol: 4, endCol: 8 }, // "echo"
         valueSlot: { startCol: 10, endCol: 16 }, // "banana"
       },
@@ -685,7 +690,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
   it("emits a `%|` option line in a {matlab} cell", () => {
     const text = ["```{matlab}", "%| echo: banana", "1", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "matlab", prefix: "%|",
+      { line: 1, cellLang: "matlab", prefix: "%|", contentEndCol: 15,
         keySlot: { startCol: 3, endCol: 7 }, valueSlot: { startCol: 9, endCol: 15 } },
     ]);
   });
@@ -698,7 +703,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
   it("emits a `⍝|` option line in an {apl} cell (a non-ASCII opener)", () => {
     const text = ["```{apl}", "⍝| echo: banana", "1", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "apl", prefix: "⍝|",
+      { line: 1, cellLang: "apl", prefix: "⍝|", contentEndCol: 15,
         keySlot: { startCol: 3, endCol: 7 }, valueSlot: { startCol: 9, endCol: 15 } },
     ]);
   });
@@ -713,7 +718,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
   it("emits a suffixed `/*| … */` option line in a {c} cell, with the suffix OUTSIDE the slots", () => {
     const text = ["```{c}", "/*| echo: banana */", "1;", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "c", prefix: "/*|",
+      { line: 1, cellLang: "c", prefix: "/*|", contentEndCol: 16,
         keySlot: { startCol: 4, endCol: 8 }, // "echo"
         valueSlot: { startCol: 10, endCol: 16 } }, // "banana", NOT "banana */"
     ]);
@@ -722,7 +727,7 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
   it("emits a suffixed `*| …;` option line in a {sas} cell (`;` is sas's closer)", () => {
     const text = ["```{sas}", "*| echo: banana;", "1;", "```"].join("\n");
     expect(findCellOptionLines(text)).toEqual([
-      { line: 1, cellLang: "sas", prefix: "*|",
+      { line: 1, cellLang: "sas", prefix: "*|", contentEndCol: 15,
         keySlot: { startCol: 3, endCol: 7 }, valueSlot: { startCol: 9, endCol: 15 } },
     ]);
   });
@@ -818,6 +823,24 @@ describe("findCellOptionLines — the comment char is scoped to the cell LANGUAG
     const slash = ["```{banana}", "//| echo: banana", "1", "```"].join("\n");
     expect(findCellOptionLines(hash).map((o) => o.line)).toEqual([1]); // quarto exit 1
     expect(findCellOptionLines(slash)).toEqual([]); // quarto exit 0
+  });
+
+  it("reports where the YAML content ENDS, so a consumer can clamp the closer off", () => {
+    // `keySlot`/`valueSlot` are already computed from the suffix-stripped content, but a
+    // consumer that re-derives spans from the RAW line text (value-diagnostics does, to
+    // find the real YAML separator — S159) cannot see the closer and would slice
+    // `banana */` as the value. Worse, it would then flag `/*| echo: false */` — a document
+    // quarto renders exit 0 — because `false */` is not in echo's closed value set.
+    // `contentEndCol` is that bound. For a line-comment language it is the end of the
+    // remainder, so clamping to it is a no-op.
+    const c = ["```{c}", "/*| echo: banana */", "1;", "```"].join("\n");
+    expect(findCellOptionLines(c)[0].contentEndCol).toBe(16); // just past "banana"
+    const spaced = ["```{c}", "/*| echo:  banana  */", "1;", "```"].join("\n");
+    expect(findCellOptionLines(spaced)[0].contentEndCol).toBe(17); // just past "banana"
+    const py = ["```{python}", "#| echo: banana", "x = 1", "```"].join("\n");
+    expect(findCellOptionLines(py)[0].contentEndCol).toBe(15); // the whole line
+    const trailing = ["```{python}", "#| echo: banana   ", "x = 1", "```"].join("\n");
+    expect(findCellOptionLines(trailing)[0].contentEndCol).toBe(18); // trailing ws included
   });
 
   it("resolves the table by OWN properties only — `{constructor}` is not a language", () => {
