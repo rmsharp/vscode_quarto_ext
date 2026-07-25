@@ -7,6 +7,33 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-24 · [ad hoc] Session 155 — IMPLEMENTATION: the abutting-anchor node-property strip fix, 3 value enumerators (SHIPPED)
+
+Corrected the node-property strip in the three `.qmd`/`_quarto.yml` VALUE enumerators
+(`findProjectConfigValueLines` in `src/core/project-yaml.ts`, `findFrontMatterValueLines` in
+`src/core/yaml-frontmatter-values.ts`, `findNestedFrontMatterValueLines` in
+`src/core/yaml-frontmatter-nested-values.ts`) so the continuation-guard arm correctly SEES a flow
+opener abutting an anchor (`&a[one,`, no space). The S153 strip `/^(?:[&!][^\s]*[ \t]+)+/` let its
+greedy `[^\s]*` swallow the abutting `[` and then, finding no required trailing whitespace, stripped
+nothing — so the opener was read as `&`, the arm never fired, and the folded continuation was
+emitted and flagged. **NOT latent as filed:** grounded firsthand vs quarto 1.7.33, list-accepting
+keys make the fold render exit 0 on all three surfaces — `resources: &a[one,`/`toc: banana]`
+(project), `keywords: &a[one,`/`df-print: banana]` (fm), `format:`/`html:`/`fig-cap: &a[one,`/
+`number-sections: banana]` (nested) — so the folded closed-enum key was flagged on a document quarto
+ACCEPTS: a live cardinal-sin false positive on all three surfaces (S154 filed it as latent because it
+only tried `title:`, a non-list key that renders exit 1). Fixed with the YAML-exact anchor-name
+charset `/^(?:[&!][^\s,[\]{}]*[ \t]*)+/` — excludes ONLY the flow indicators `,[]{}`; KEEPS quotes,
+which are legal anchor-name chars. The mandatory §9 review caught that the initial port of S154's
+`[^\s[\]{}"']` charset over-excluded quotes, causing an over-suppression false-NEGATIVE regression
+(`myref: &a'b` phantom-folds a following real key quarto rejects, exit 1) — corrected in-session with
+the YAML-exact charset. Strict TDD, per-site RED→GREEN; integration verified RED against pre-fix code
+(`git checkout daae2a7`) then GREEN. Unit 1305→1311, integration 447→450, check-types clean, runtime
+smoke PASS. Commits `4e4a48f`/`9fb2243`/`51b46e6` (initial abutting fix), `4d13b38` (integration, 3
+surfaces + fixture), `a0e12d9`/`8114fd4`/`b93592b` (charset over-suppression correction), `97f1b5f`
+(§9 test-quality fixture-comment fix). §9 review `wf_d4d42586-d66` (5 lenses + adversarial verify,
+`agents_error:0`, `agents_empty_result:0`). Filed: the identical charset over-exclusion on the
+cell-option site (`src/core/qmd/model.ts`, S154's surface — safe-FN there).
+
 ### 2026-07-24 · [ad hoc] Session 154 — IMPLEMENTATION: the `findCellOptionLines` phantom-quote FN fix (SHIPPED)
 
 Brought `findCellOptionLines` (`src/core/qmd/model.ts`, the `#|`/`//|` cell-option enumerator — the
