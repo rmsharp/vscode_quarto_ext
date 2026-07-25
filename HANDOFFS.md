@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S161
+date: 2026-07-25
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — the cell-option COMMENT-CHAR blindness in src/core/qmd/model.ts. CELL_OPTION_PREFIX / CELL_OPTION_DIRECTIVE hard-code the two comment chars # and //, while quarto builds its cell-option directive pattern PER LANGUAGE (^<comment>\s*\| ?). One root cause, defective in BOTH directions: (a) lost TRUE POSITIVE — ```{sql} + "--| echo: banana" renders quarto exit 1 with a real value error and we emit nothing; (b) cardinal-sin FALSE POSITIVE — ```{sql} + "#| echo: banana" renders exit 0 and we flag it. Filed by Session 160's §9 review (missed-sites/root-cause correction), BOTH directions verified firsthand by S160 vs quarto 1.7.33, PRE-EXISTING (byte-identical pre/post S160). Operator selected it via AskUserQuestion at Phase 0. Following docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md under the project-wide strict-TDD gate. ONE deliverable — this comment-char root cause ONLY; NOT refs.ts, NOT the unterminated-cell-at-EOF FP, NOT the raw-block gap, NOT Combos 2/4, NOT the quoted-KEY halves, NOT _metadata.yml (all filed; FM #26).
+```
+
+```handoff
 session: S160
 date: 2026-07-25
 status: complete
