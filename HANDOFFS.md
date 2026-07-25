@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S160
+date: 2026-07-25
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). The #| leading-block cardinal-sin FALSE POSITIVE in findCellOptionLines (src/core/qmd/model.ts). Quarto honors #| directives ONLY in a cell's LEADING contiguous option block; a #| line after code is an ordinary comment. Today the enumerator emits every #| line anywhere in the cell body, so ```{python} / 1+1 / #| echo: banana renders quarto exit 0 yet value-diagnostics squiggles it. Filed by S159's §9 review (fp-cardinal lens), verified firsthand by S159 as LIVE and PRE-EXISTING (byte-identical pre/post S159). Two adjacent shapes the review reports were NOT re-verified firsthand (a #| block interrupted by a blank line; #| options in cells quarto does not validate, e.g. {sql}) — ground before acting. The fix ADDS suppression, so it needs its own over-suppression grounding plus RED-verified tests in both directions. Operator-selected at Phase 0. ONE deliverable — this leading-block rule ONLY; NOT the quoted-KEY CONTAINER half, NOT the cell-option quoted-KEY half (blocked on the arm-token grammar), NOT Combos 2/4, NOT _metadata.yml (all filed; FM #26).
+```
+
+```handoff
 session: S159
 date: 2026-07-25
 status: complete
