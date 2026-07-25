@@ -1754,12 +1754,27 @@ describe("Quarto: a cell-HANDLER language is validated by no cell schema (.qmd, 
 // Every expectation below was grounded firsthand vs quarto 1.7.33 (`--no-execute`),
 // each against a control differing only in the flag.
 describe("Quarto: `validate-yaml: false` turns validation off (.qmd, Session 163)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
   it("suppresses all three .qmd value surfaces when the front matter opts out", async () => {
     const content = [
       "---",                        // 0
       "title: T",                   // 1
       "validate-yaml: false",       // 2
-      "code-fold: banana",          // 3  top-level scalar — exit 1 without the flag
+      "df-print: banana",           // 3  top-level scalar — exit 1 without the flag
       "execute:",                   // 4
       "  echo: banana",             // 5  nested scalar   — exit 1 without the flag
       "---",                        // 6
@@ -1791,7 +1806,12 @@ describe("Quarto: `validate-yaml: false` turns validation off (.qmd, Session 163
       "title: T",               // 1
       "validate-yaml: false",   // 2
       "format: banana",         // 3  STILL exit 1 — must still flag
-      "code-fold: banana",      // 4  suppressed by the flag
+      // `df-print`, NOT `code-fold`: the RED run proved this assertion vacuous with
+      // `code-fold`, which this feature does not flag at document root either way, so
+      // "line 4 is not flagged" held pre-fix and guarded nothing. `df-print: banana`
+      // IS flagged pre-fix (and renders quarto exit 1 on its own, exit 0 under the
+      // flag — both measured), so the contrast between the two lines is now real.
+      "df-print: banana",       // 4  suppressed by the flag
       "---",                    // 5
       "",                       // 6
       "text",                   // 7
