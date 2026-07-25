@@ -707,19 +707,23 @@ export function cellOptionScopeFor(lang: string): CellEngine | "unknown" | "none
  * `The chunk options should start with '%%| ' instead of '#| '`, which fires identically for
  * the VALID `#| echo: false`, so it is structural and no value diagnostic can express it.
  *
- * **What the suppression costs.** An exhaustive sweep of all 47 keys this feature can flag in
- * a `{dot}` cell, one render each: in a markdown-engine document every one renders exit 0, so
- * the false-positive fix is exactly right there. In a KNITR document exactly one of them —
- * `include` — becomes a real, value-dependent failure (`//| include: banana` → exit 1 from
- * knitr's own `if (options$include)`; `//| include: false` → exit 0), and we flagged it before
- * S162 and are silent now. That is a deliberate trade under this project's doctrine, not an
- * oversight: `cellOptionScopeFor` receives only the cell LANGUAGE and cannot know the document
- * engine (the same limit S161 L2 documented), so the choice is one conditional false negative
- * against 46 unconditional false positives, and an over-flag is the cardinal sin. Tracked in
- * BACKLOG together with the front-matter `engine:` override that would let us tell the two
- * documents apart. (`layout: banana` also renders exit 1 in both engines, but it is an
- * open-valued field we never flagged either way — a PRE-EXISTING lost true positive, unchanged
- * by S162.)
+ * **What the suppression costs, swept rather than sampled.** All 47 keys in
+ * `cellOptions("unknown")` — the scope a `{dot}` cell had before S162 — one `quarto render`
+ * each, in BOTH engines. In a markdown-engine document **46 of 47 render exit 0**; the
+ * exception is `layout: banana` (exit 1 from pandoc's `_json.lua`), and it renders exit 1
+ * under knitr too. But `layout` is an OPEN-valued field, so `isWrongValue` never fired on it
+ * and we never flagged it either way — a PRE-EXISTING lost true positive, unchanged by S162.
+ * So every key we could actually flag renders exit 0 here, and the false-positive fix is
+ * exactly right in a markdown-engine document.
+ *
+ * A KNITR document is where it costs something. There exactly one flaggable key —
+ * `include` — is a real, value-dependent failure: `//| include: banana` → exit 1 from knitr's
+ * own `if (options$include)`, `//| include: false` → exit 0. We flagged it before S162 and are
+ * silent now. That is a deliberate trade under this project's doctrine, not an oversight:
+ * `cellOptionScopeFor` receives only the cell LANGUAGE and cannot know the document engine
+ * (the same limit S161 L2 documented), so the choice is ONE conditional false negative against
+ * 46 UNCONDITIONAL false positives, and an over-flag is the cardinal sin. Tracked in BACKLOG
+ * with the front-matter `engine:` override that would let us tell the two documents apart.
  *
  * Quarto does enforce two keys of its own in a handler cell — both mermaid's, both measured:
  * `mermaid-format` against its `png|svg|js` enum (`%%| mermaid-format: banana` → exit 1) and
