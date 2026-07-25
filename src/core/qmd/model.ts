@@ -595,15 +595,16 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
       // over-excluded quotes; corrected to the YAML-exact `[^\s,[\]{}]` to match the three
       // front-matter/project VALUE enumerators (S155 §9 over-suppression correction,
       // PROJECT_LEARNINGS #168). The trailing ws is optional so `&a [one,` and `&a[one,` both
-      // strip to `[one,`. This corrects the SINGLE-LINE arm decision only. A separate,
-      // PRE-EXISTING lost TP survives on the multi-line-continuation path below (the
-      // `scanFlow(m[4], flowDepth, openQuote)` at the top of this loop): that scan is node-
-      // property-blind, so an anchor-name quote in a CONTINUATION line of an already-open flow
-      // (`#| fig-cap: [` / `#| one, &a'b` / `#| ]` / `#| echo: banana`) makes `scanFlow` read the
-      // `'` as opening a quote, swallowing the following real option — which quarto ACCEPTS the
-      // fold and flags (exit 1), a genuine lost TP. Unchanged by this diff (§9 missed-sites lens,
-      // S156; filed in BACKLOG). The benign single-line curiosity `#| foo: &a'b [1,` still arms
-      // via that same scan, but quarto REJECTS its unclosed flow, so no TP is lost there.
+      // strip to `[one,`. This is the SINGLE-LINE arm decision. The SIBLING multi-line-
+      // continuation path (the `scanFlow(m[4], flowDepth, openQuote)` skip at the top of this
+      // loop) carried the SAME anchor-name-quote defect — `scanFlow` read a quote inside a node
+      // property NAME as a scalar opener, so `#| myopt: [` / `#| one, &a'b` / `#| ]` armed a
+      // phantom `'` that swallowed the following `#| echo: banana` (a lost TP: quarto folds the
+      // list, exit 0, and flags only echo, exit 1). That is now fixed AT THE ROOT — `scanFlow`
+      // skips node-property names (`&`/`*`/`!`, S157) — which also closes the mirror case where
+      // the anchor sits MID-flow on a single line (`#| myopt: [one, &a'b]`: the `]` no longer
+      // falls inside a phantom quote). So the first-char strip below and `scanFlow` are now BOTH
+      // node-property-aware for quotes, on every path (§9 missed-sites lens, S156; fixed S157).
       const opener = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "")[0];
       if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
         const s = scanFlow(armToken, 0, null);
@@ -683,10 +684,13 @@ export interface FlowState {
  * consumed, so a quoted bracket never miscounts and an embedded quote never closes early. An
  * unquoted `#` (at the start or whitespace-preceded, OUTSIDE any quote) begins a YAML comment:
  * scanning stops there — biasing toward NOT dropping depth on a `}` hidden in a comment (a safe
- * over-skip). Node properties (`&anchor`/`*alias`/`!tag`) contain no brackets, so they
- * contribute 0 automatically; scanning the WHOLE token is therefore node-property-aware.
- * Over-skipping when ambiguous (a stray brace/quote in a plain scalar) is the safe
- * false-negative direction. Quote-AWARE — deliberately NOT a naive bracket-only counter.
+ * over-skip). A node property (`&anchor`/`*alias`/`!tag`, outside any quote) is skipped whole: its
+ * NAME runs to the next whitespace or c-flow-indicator (`,[]{}`) and may legally contain a QUOTE
+ * (a valid `ns-anchor-char`), so scanning it char-by-char would misread that quote as opening a
+ * scalar (`&a'b` armed a phantom `'` that swallowed a following `#|` option — a lost true positive,
+ * S157). Skipping the name leaves depth unchanged (a name holds no brackets — those terminate it)
+ * and prevents the spurious open. Over-skipping when ambiguous (a stray brace/quote in a plain
+ * scalar) is the safe false-negative direction. Quote-AWARE — NOT a naive bracket-only counter.
  *
  * Lives here (the lowest-level `qmd/model` module) so `findCellOptionLines` can use it
  * without an import cycle through `yaml-context` (which imports this module).
@@ -717,6 +721,20 @@ export function scanFlow(s: string, startDepth: number, startQuote: '"' | "'" | 
       continue;
     }
     // Outside quotes.
+    if (ch === "&" || ch === "*" || ch === "!") {
+      // A YAML node property (anchor `&`, alias `*`, or tag `!`). Its NAME runs to the
+      // next whitespace or c-flow-indicator (`,[]{}`) and may legally contain a QUOTE —
+      // a quote is a valid `ns-anchor-char`. Skip the whole name so an embedded quote is
+      // NOT misread as opening a quoted scalar (`&a'b` inside a flow armed a phantom `'`
+      // that swallowed the following `#|` option — a lost true positive, S157). Brackets
+      // terminate the name, so depth counting is unchanged; only the spurious quote-open
+      // is prevented. Matches the single-line arm's leading node-property strip charset
+      // `[^\s,[\]{}]`, extended here to node properties appearing ANYWHERE in the flow.
+      let k = i + 1;
+      while (k < s.length && !/[\s,[\]{}]/.test(s[k])) k++;
+      i = k - 1; // the loop's own `i++` advances to the terminator (or past the end)
+      continue;
+    }
     if (ch === '"' || ch === "'") {
       quote = ch;
       continue;

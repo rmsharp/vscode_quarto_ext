@@ -339,3 +339,55 @@ describe("findCellOptionLines — anchor-name QUOTE strip parity (over-suppressi
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
   });
 });
+
+describe("findCellOptionLines — node-property-name quote on the CONTINUATION path (S157)", () => {
+  // S156 corrected the SINGLE-LINE arm's node-property strip; the multi-line-continuation
+  // path (the `scanFlow(m[4], …)` skip at the top of the loop) was a SIBLING code path with
+  // the SAME defect, fixed here at the shared root: `scanFlow` treated a quote as a scalar
+  // opener even inside a node-property NAME (`&a'b` / `*a'b` / `!t'x`), where the quote is a
+  // legal char, not a delimiter. So an anchor-name quote in a CONTINUATION line of an
+  // already-open flow armed a phantom quote that swallowed the following real option — a lost
+  // TRUE POSITIVE. Grounded firsthand vs quarto render 1.7.33: `#| myopt: [` / `#| one, &a'b`
+  // / `#| ]` (an unknown / null-tolerant key folding a list) renders exit 0, so the swallowed
+  // `#| echo: banana` (exit 1 — "must instead be `true` or `false`") is the SOLE error — a
+  // genuine lost TP. The same bug also reached the single-line arm's own `scanFlow` call when
+  // the anchor sits MID-flow (`#| myopt: [one, &a'b]`), also grounded exit-1-sole-error.
+  it("recovers the option swallowed by an anchor-name quote in a CONTINUATION line (`&a'b`)", () => {
+    const text = ["```{python}", "#| myopt: [", "#| one, &a'b", "#| ]", "#| echo: banana", "1+1", "```"].join("\n");
+    // myopt opens `[` (line 1); the continuation `#| one, &a'b` (line 2) carries an anchor whose
+    // NAME contains a quote (legal, not an opener); `#| ]` (line 3) closes the flow; the real
+    // `#| echo: banana` (line 4) is a normal option again — not swallowed by a phantom quote.
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 4]);
+  });
+
+  it("recovers the option when the anchor-name quote sits MID-flow on a SINGLE line (`[one, &a'b]`)", () => {
+    // The same root-cause fix also reaches the single-line arm's own `scanFlow` call: a COMPLETE
+    // flow `[one, &a'b]` used to leave a phantom open `'` (its `]` fell inside the phantom quote,
+    // so depth never returned to 0), arming a continuation that swallowed line 2. quarto renders
+    // `#| myopt: [one, &a'b]` exit 0 and flags only `#| echo: banana` (exit 1).
+    const text = ["```{python}", "#| myopt: [one, &a'b]", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+
+  it("recovers the option after an ALIAS-name quote in a continuation line (`*a'b`)", () => {
+    // Aliases are node properties too; `*a'b` in a continuation line no longer arms a phantom
+    // quote. (A DEFINED alias folds and renders; an UNDEFINED one self-errors — either way the
+    // scanner must not over-suppress the following option.)
+    const text = ["```{python}", "#| myopt: [", "#| one, *a'b", "#| ]", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 4]);
+  });
+
+  it("recovers the option after a TAG in a continuation line (`!!str x`)", () => {
+    const text = ["```{python}", "#| myopt: [", "#| one, !!str x", "#| ]", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 4]);
+  });
+
+  it("does NOT over-suppress: a genuine multi-line DOUBLE-quoted scalar containing a `[` still folds its continuation", () => {
+    // The load-bearing guard: the node-property skip must not disable real quoted-scalar
+    // continuation detection. `fig-cap: "a [b` opens a genuine double quote (with a literal `[`
+    // inside it); line 2 `c] d"` closes it; `#| echo: banana` (line 3) resumes. Line 2 must stay
+    // skipped — emitting it would be the cardinal-sin FP scanFlow exists to prevent.
+    const text = ["```{python}", '#| fig-cap: "a [b', '#| c] d"', "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 3]);
+  });
+});
