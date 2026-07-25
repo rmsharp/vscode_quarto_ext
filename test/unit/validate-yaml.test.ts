@@ -92,6 +92,17 @@ describe("Session 163 — cellsWithValidationDisabled", () => {
     expect([...cells(afterBlank)]).toEqual([]);
   });
 
+  it("honours a QUOTED per-cell key, which is the only thing pinning unquoteKey here", () => {
+    // Measured: `#| "validate-yaml": false` + `#| echo: banana` renders quarto exit 0, so
+    // NOT unquoting would flag a document quarto accepts. The §9 review found this claim
+    // was made in the docstring and grounded firsthand, but pinned by nothing — the
+    // `unquoteKey` call could be deleted with the whole suite still green.
+    const dq = '---\ntitle: t\n---\n\n```{python}\n#| "validate-yaml": false\n#| echo: banana\n1\n```\n';
+    expect([...cells(dq)]).toEqual([4]);
+    const sq = "---\ntitle: t\n---\n\n```{python}\n#| 'validate-yaml': false\n#| echo: banana\n1\n```\n";
+    expect([...cells(sq)]).toEqual([4]);
+  });
+
   it("requires boolean false per-cell too", () => {
     const t = "---\ntitle: t\n---\n\n```{python}\n#| validate-yaml: true\n#| echo: banana\n1\n```\n";
     expect([...cells(t)]).toEqual([]);

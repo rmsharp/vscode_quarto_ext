@@ -11,9 +11,11 @@
  *
  * All three are subject to quarto's `validate-yaml` escape hatch (S163,
  * `core/validate-yaml.ts`): a top-level `validate-yaml: false` turns validation off for the
- * whole document, and a cell may opt out on its own with `#| validate-yaml: false`. The
- * single exception is the front-matter format NAME, which quarto rejects even with the flag
- * set — see the `format` branch below.
+ * whole document, and a cell may opt out on its own with `#| validate-yaml: false`. What the
+ * flag does NOT suppress is anything PANDOC rejects on its own rather than quarto's YAML
+ * schema — the front-matter format NAME (kept flagging, pinned) and 26 of the 170 top-level
+ * keys this feature can flag (measured by exhaustive sweep, still suppressed, filed). See
+ * the `format` branch below for the accounting.
  *
  * A sibling of the unknown-KEY feature (`features/yaml-diagnostics.ts`) with an
  * INVERTED safety story: unknown-key flagging is banned on these open surfaces (a
@@ -233,15 +235,36 @@ async function computeValueDiagnostics(
       diagnostics.push(diagnostic);
       continue; // handled — do NOT fall through to the generic `isWrongValue` path
     }
-    // THE ONE SURFACE `validate-yaml: false` DOES NOT SUPPRESS is the format NAME above.
-    // The flag gates quarto's YAML VALIDATION pass, but an unresolvable output format fails
-    // earlier and independently, in format resolution: grounded firsthand vs 1.7.33,
-    // `validate-yaml: false` + `format: banana` renders **exit 1** with `Unknown format
-    // banana` (while the same document with `format: html` and an invalid cell option
-    // renders exit 0, so it really is the NAME that survives and not the flag failing).
-    // Suppressing it here — as "gate the whole compute on the flag" would — would trade
-    // this session's false-positive fix for a lost TRUE POSITIVE. Hence the gate sits
-    // BELOW the `format` branch rather than at the top of the function.
+    // The format NAME above is deliberately NOT suppressed. The flag gates quarto's YAML
+    // VALIDATION pass, but an unresolvable output format fails earlier and independently,
+    // in format resolution: grounded firsthand vs 1.7.33, `validate-yaml: false` +
+    // `format: banana` renders **exit 1** with `Unknown format banana` (while the same
+    // document with `format: html` and an invalid cell option renders exit 0, so it really
+    // is the NAME that survives and not the flag failing). Suppressing it — as "gate the
+    // whole compute on the flag" would — trades a false positive for a lost TRUE POSITIVE.
+    // Hence the gate sits BELOW the `format` branch rather than at the top of the function.
+    //
+    // ⚠ THE FORMAT NAME IS NOT THE ONLY SURVIVOR, and an earlier revision of this comment
+    // claimed it was. Swept all 170 top-level keys this feature can flag (those for which
+    // `isWrongValue("banana", field)` is true), one render each with the flag set:
+    // **26 still render exit 1**, and all 26 render exit 1 without the flag too, so each is
+    // a real value error we reported before and are silent on now —
+    //   ascii, cite-method, citeproc, columns, dpi, email-obfuscation, epub-chapter-level,
+    //   eol, fail-if-warnings, html-q-tags, incremental, ipynb-output, listings,
+    //   number-offset, preserve-tabs, reference-location, section-divs,
+    //   shift-heading-level-by, slide-level, strip-comments, tab-stop, toc, toc-depth,
+    //   top-level-division, trace, wrap
+    // They survive because they are consumed by PANDOC, whose Aeson decoder rejects them
+    // (`expected Bool, but encountered String`, `Unknown wrap method "banana"`), not by the
+    // quarto YAML-schema layer the flag gates; `number-offset` is quarto's own non-schema
+    // check. The other 144 render exit 0, so suppression is right for them.
+    //
+    // Not fixed here: the survivor set is a property of PANDOC's option decoder and varies
+    // with pandoc version and output format, so hard-coding these 26 names would be exactly
+    // the brittle transcription Learning #174 warns about. Filed with the full sweep. The
+    // trade as it stands is 144 unconditional false positives removed against 26 true
+    // positives lost, and an over-flag is this project's cardinal sin — but that is a
+    // measured trade, not the "one exception" this comment used to assert.
     if (documentValidationOff) {
       continue;
     }

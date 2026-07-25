@@ -57,6 +57,27 @@ import { unquoteKey } from "./yaml-context";
  * The token is expected to arrive with surrounding whitespace already excluded (both
  * value enumerators exclude it) and WITHOUT a trailing `# comment`, which YAML does
  * not treat as part of a plain scalar.
+ *
+ * ## The table above is a rule about PLAIN SCALARS, not a complete rule about YAML
+ *
+ * This compares the raw token, while quarto compares the PARSED value, so four shapes
+ * disarm quarto that this predicate does not recognise. Found by the S163 §9 review and
+ * re-measured firsthand, each against a control identical but for `false`→`true`:
+ *
+ * | shape | renders | we currently |
+ * |---|---|---|
+ * | `validate-yaml: &a false` (anchor) | exit 0 | keep flagging — **FP** |
+ * | `validate-yaml: !!bool false` (tag) | exit 0 | keep flagging — **FP** |
+ * | `xx: &a false` + `validate-yaml: *a` (alias) | exit 0 | keep flagging — **FP** |
+ * | `validate-yaml:` / `  false` (value on next line) | exit 0 | keep flagging — **FP** |
+ *
+ * These are PRE-EXISTING false positives — the pre-S163 tree flagged those documents
+ * too — but they are shapes of the escape hatch we still fail to honour, so they are
+ * filed rather than glossed. **Do not "fix" them by stripping the node property and
+ * re-comparing**: `!!str false` renders **exit 1** (it is the string, so validation
+ * stays ON) while `!!bool "false"` renders **exit 0** (the tag coerces the quoted
+ * scalar), so the tag inverts the quoted-scalar row above. A correct fix resolves the
+ * YAML node, and the alias form additionally needs a document-level anchor table.
  */
 export function isValidationDisabledValue(rawToken: string): boolean {
   return rawToken === "false" || rawToken === "False" || rawToken === "FALSE";

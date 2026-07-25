@@ -1785,9 +1785,28 @@ describe("Quarto: `validate-yaml: false` turns validation off (.qmd, Session 163
       "```",                        // 11
       "",                           // 12
     ].join("\n");
+    // PHASE 1 — the non-vacuity control, and it must come first. Asserting a NEGATIVE
+    // ("nothing is flagged") can pass on a feature that never ran at all: an earlier
+    // revision of this test waited on `diagnostics.length > 0`, a predicate the fixed tree
+    // can never satisfy, so it degenerated to a fixed sleep and would have passed against
+    // a dead provider (§9 review). So first prove, on THIS EXACT DOCUMENT minus the flag
+    // line, that all three surfaces really are flaggable and the pass really does run.
+    const controlDoc = await openInline(content.replace("validate-yaml: false\n", ""));
+    assert.ok(
+      await waitFor(() => {
+        const l = valueDiagnostics(controlDoc.uri).map((d) => d.range.start.line);
+        return [2, 4, 8].every((n) => l.includes(n)); // one line lower — the flag line is gone
+      }, 5000),
+      `control (identical but for the flag) must flag all three surfaces, else this test proves nothing; flagged: ${valueDiagnostics(
+        controlDoc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
+    );
+
+    // PHASE 2 — the same document WITH the flag: quarto renders it exit 0, so we must be silent.
     const doc = await openInline(content);
-    // Settle: the pass is debounced, so wait for the schema to load and a pass to land.
-    await waitFor(() => valueDiagnostics(doc.uri).length > 0, 2500);
+    await waitFor(() => valueDiagnostics(doc.uri).length > 0, 2500); // settle (see above)
     const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
     assert.deepStrictEqual(
       flagged,
