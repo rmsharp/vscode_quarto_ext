@@ -7,6 +7,62 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-25 · [ad hoc] Session 160 — IMPLEMENTATION: the `#|` leading-option-block cardinal-sin FP (SHIPPED)
+
+`findCellOptionLines` (`src/core/qmd/model.ts`) now reports only a cell's **leading
+contiguous block** of `#|`/`//|` directive lines, as quarto does. It previously scanned
+every body line — resetting the continuation state on a non-directive line but carrying
+on — so it emitted directive-looking lines anywhere in the cell and value-diagnostics
+squiggled them. That flagged documents `quarto render` **accepts**: the cardinal sin.
+
+Grounded firsthand vs quarto 1.7.33 (`--no-execute`, ~45 documents) **before any code**.
+The block ends at the first body line that is not a directive, and four terminator shapes
+each render **exit 0** for an invalid option below them: **code**, a **blank line**, a
+**whitespace-only line**, and a **plain `# comment`** — on both the `#` (python/r/knitr)
+and `//` (ojs) comment-char families. Four shapes that look like terminators are not, and
+still render **exit 1**: a bare `#|`, a `#| ` with empty content, a gapless `#|key:`, and
+a spaced `# | key:`. Testing the *directive pattern* rather than "is this code" is what
+makes the terminator set exactly quarto's.
+
+**A pre-existing test pinned the bug.** `"finds multiple option lines and ignores
+interleaved code"` asserted `[1, 2, 4]` on the ungrounded comment *"not contiguous, but
+still a `#|` line"*. That exact document renders exit 0; move the same option into the
+leading block and it renders exit 1. Corrected to `[1, 2]`, with the measurement recorded
+at the site.
+
+**The §9 review found a defect in this session's own fix, and firsthand adjudication
+upheld it.** L1 reused `CELL_OPTION_PREFIX` as the terminator, but that regex is
+deliberately stricter than quarto's real predicate (`^<comment>\s*\| ?`) because it must
+also slice the line into key/value spans: its gap is `[ \t]` not `\s`, and it ends
+`(.*)$` where `.` excludes U+2028/U+2029. Harmless while it only decided whether *one*
+line was emitted — but the `break` promoted it to deciding how *long* the block is, which
+turned a one-line false negative into a whole-cell **lost true positive**. Measured: a
+non-breaking space or vertical tab in the gap, or a U+2028 in a directive's value, each
+renders exit 1 with a real `Field "echo" has value banana`, was reported pre-S160, and
+was silent after L1. Fixed by splitting the roles — a new permissive
+`CELL_OPTION_DIRECTIVE` decides where the block **ends**, `CELL_OPTION_PREFIX` still
+decides what is **emitted** — so an unparseable directive line is skipped rather than
+ending the block. Emission is unchanged, so the correction can only restore true
+positives, never add a diagnostic.
+
+Blast radius, all pinned: a below-the-block `#|` line is now **code**, so it stays in the
+language vdoc, forwards to the language server, and no longer offers cell-option
+completion — which is what quarto treats it as. The documented invariant
+`embeddedLanguagesIn(text) ⟺ buildVirtualContent(text,L).trim() !== ""` still holds.
+
+Verification: check-types clean; unit **1340 → 1361**; integration **458 → 460**, runtime
+smoke exit 0. All 8 recovery pins RED-verified against a real pre-fix tree; every
+over-suppression pin RED against a targeted mutant; the per-cell pin strengthened after
+the review showed a "terminates only in the first cell" mutant surviving it. §9 review:
+`wf_f82621a3-a49`, 6 lenses + 2 independent refuters per finding, **34 agents**,
+`agents_error: 0`, `agents_empty_result: 0`, 2.53M subagent tokens.
+
+Residuals filed in `BACKLOG.md`, including a **correction to a previously-filed root
+cause**: quarto does validate `{sql}` cell options — via `--|`, SQL's comment char — so
+the `{sql}` and wrong-comment-char items are not "engine scope" and not two defects, but
+one hard-coded-comment-char root cause that is both a lost TP and an FP across 13+ cell
+languages.
+
 ### 2026-07-25 · [ad hoc] Session 159 — IMPLEMENTATION: the quoted-KEY divergence, `.qmd` front-matter surfaces (SHIPPED)
 
 Brought the `.qmd` front-matter VALUE-diagnostics surfaces to key-unquoting parity
