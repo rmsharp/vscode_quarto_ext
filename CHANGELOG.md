@@ -7,6 +7,45 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-25 · [ad hoc] Session 158 — IMPLEMENTATION: the block-scalar (`|`/`>`) cell-option false-positive fix (SHIPPED)
+
+Made `findCellOptionLines` (`src/core/qmd/model.ts`) block-scalar-aware. Quarto
+folds every `#|` line of a cell into ONE YAML block, so a cell-option value that
+opens a YAML block scalar (`|` literal / `>` folded, with optional chomping/indent
+indicators + trailing comment) folds every MORE-indented following `#|` line into
+its literal content. The enumerator's continuation state (`scanFlow`) tracked only
+quotes + `{}[]` flow depth — never `|`/`>` — so `#| fig-cap: |` / `#|   echo:
+banana` had its folded `echo: banana` emitted as an independent option and
+value-diagnostics flagged it: a cardinal-sin FALSE POSITIVE on a doc quarto renders
+**exit 0**. Filed S154/S155 (§9 gate-completeness lens), PRE-EXISTING (byte-identical
+pre/post the S154 arming work), LOW/pathological.
+
+Fix: track an open block scalar by the folded-indent of its opening key (the
+post-pipe whitespace `m[3]` minus the ONE space quarto's `^#\s*\| ?` directive
+strips — `CELL_OPTION_PREFIX` captures that indentation into `m[3]` and drops it
+from `m[4]`). Skip every blank `#|` line and every line MORE indented than the
+opener; the first non-blank line back at or below that indent ENDS the block and is
+a real option again (strictly-greater is quarto-faithful — a sibling at the same
+folded-indent renders exit 1). The node-property strip is reused, so an anchored
+block scalar (`&a |`) arms too. A new `BLOCK_SCALAR_HEADER` regex gates the arm.
+
+Grounded firsthand vs `quarto render --no-execute` 1.7.33 BEFORE any code
+(esbuild-bundle of the import-free `model.ts` + real exit codes): the FP shapes
+(`|`, `>`, `|-`, `| # comment`, `&a |`, `>-`, `|2`) render exit 0; a bare
+`#| echo: banana` and a DEDENTED sibling render exit 1; blank `#|` lines stay in
+the block. Strict TDD, per-layer RED→GREEN with per-boundary checkpoint commits:
+unit describe (8 pins; 7 RED-verified against the pre-fix source, 1 an over-arming
+mutant-verified regression guard), unit 1321→1329; 2 integration tests VERIFIED RED
+against the pre-fix source (454/2-fail → 456/0), runtime smoke PASS. Mandatory §9
+review (`wf_bba35d38-f9f`, 5 lenses + adversarial verify): 3 lenses CLEAN
+(missed-sites — the 3 value enumerators are indent-based by construction, no
+block-scalar FP; header-regex; indent-model), 2 findings both adjudicated firsthand
+and fixed in-session (a vacuous plain-pipe pin → made non-vacuous; an intermediate-band
+over-skip → documented as an immaterial safe-FN that fires only on docs quarto
+already rejects with a structural `YAMLException`). Commits `a64ec4b` (fix+unit),
+`7535fb8` (integration), `202d69f` (§9 test-quality + doc), + this close-out.
+PROJECT_LEARNINGS #171.
+
 ### 2026-07-25 · [ad hoc] Session 157 — IMPLEMENTATION: the continuation-path node-property-blind scanFlow lost-TP fix (SHIPPED)
 
 Fixed the SIBLING decision path to the single-line arm S156 corrected, at the

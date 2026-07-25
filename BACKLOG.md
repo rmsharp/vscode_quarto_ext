@@ -31,21 +31,24 @@ sibling-enumerator OLD arming fix — SHIPPED Session 153**, and the **`findCell
 phantom-quote FN (Defect A on the THIRD/last value enumerator, the `#|` cell-option surface) —
 SHIPPED Session 154**, and the **abutting-anchor node-property strip fix on the 3 front-matter/project
 value enumerators — SHIPPED Session 155**, the **`findCellOptionLines` strip over-exclusion
-parity fix — SHIPPED Session 156**, and the **continuation-path node-property-blind `scanFlow`
-lost TP — SHIPPED Session 157** (all four continuation-guard arming sites now narrow the arm to a
+parity fix — SHIPPED Session 156**, the **continuation-path node-property-blind `scanFlow`
+lost TP — SHIPPED Session 157**, and the **block-scalar (`|`/`>`) cell-option FP — SHIPPED
+Session 158** (all four continuation-guard arming sites now narrow the arm to a
 first-char opener; the three value enumerators (S155) and the cell-option enumerator (S156) now all
 use the YAML-exact anchor-name strip charset `[^\s,[\]{}]` — and on the cell-option surface it was a
 live lost TP, not the safe-FN/UNVERIFIED it had been filed as; S157 then fixed the SIBLING decision
 path at the shared root — `scanFlow` now skips `&`/`*`/`!` node-property NAMES, so a quote in an
 anchor/alias/tag name in a CONTINUATION line of an open flow (or mid-flow on one line) no longer
 phantom-arms, closing the anchor-name-quote class on BOTH cell-option decision paths and correctly
-benefiting the three value enumerators' continuation paths too — see `CHANGELOG.md`).*
+benefiting the three value enumerators' continuation paths too; S158 then made `findCellOptionLines`
+block-scalar-aware — a `|`/`>` cell-option value now folds its more-indented `#|` continuation lines
+into the block instead of emitting them, closing the last known cell-option continuation-fold FP,
+grounded live (exit 0) not the "astronomically rare" it had been filed as — see `CHANGELOG.md`).*
 
 ***Remaining candidates:** the format-name family's **Combos 2 & 4** (the container-key form
 `format:\n  banana:`, sub-items (b)–(d) below) is the natural continuation; the **quoted-KEY
-divergence** is a LOW safe-FN `.qmd`/`_quarto.yml` parity gap; and two safe coverage gaps filed by
-§9 reviews — the **`_metadata.yml` coverage gap** (S152) and the **block-scalar cell-option FP**
-(S154/S155, below). Operator picks at Phase 0.*
+divergence** is a LOW safe-FN `.qmd`/`_quarto.yml` parity gap; and one safe coverage gap filed by
+a §9 review — the **`_metadata.yml` coverage gap** (S152). Operator picks at Phase 0.*
 
 ***A note on this file's history:** it accumulated completed items for ~150 sessions despite its
 own header rule and SESSION_RUNNER Phase 3F. Session 150 removed 115 KB of completed work
@@ -55,7 +58,6 @@ ledger.**)*
 
 ## Up Next
 
-- [ ] **`findCellOptionLines` does not track a block-scalar (`|`/`>`) cell-option value, and the `#|` prefix strip loses the continuation's indentation — an indented block-scalar continuation is emitted and flagged** (filed Session 154, §9 review gate-completeness lens, verified firsthand vs quarto 1.7.33; **PRE-EXISTING, cardinal-sin FP direction but astronomically rare**). `#| fig-cap: |` then `#|   echo: banana` folds `echo: banana` into fig-cap's literal block scalar (quarto renders **exit 0**), but `scanFlow` (`src/core/qmd/model.ts`) never tracked `|`/`>` (it tracks only quotes + `{}[]` depth) and `CELL_OPTION_PREFIX` (`:516`) greedily captures the gap into `m[3]`, discarding the continuation's indentation — so the folded `echo: banana` is emitted as a normal option and value-diagnostics flags it. **Identical pre- and post-S154** (neither the old whole-token arm nor the new first-char arm fires on a `|`/`>` value — verified firsthand: both emit `[1,2]`), so NOT introduced by the S154 arming fix; the arming work is orthogonal. A faithful fix needs block-scalar state in `scanFlow` (arm on a trailing `|`/`>` opener and skip more-indented continuations) OR indentation-aware prefix handling, plus its own FP grounding — its own slice. LOW (the shape is non-idiomatic; a real caption is rarely a block scalar with a mapping-looking line under it).
 - [ ] **Quoted-KEY divergence between the two surfaces** (filed Session 149, §9 review surface-parity lens, verified firsthand; **safe direction, LOW**). `findProjectConfigValueLines` unquotes the key (`unquoteKey`), so `"toc": banana` in `_quarto.yml` resolves and is flagged — correct, quarto rejects it (exit 1 SCHEMA). `findFrontMatterValueLines` keeps the quotes, so the same line in `.qmd` front matter resolves to no field and is silent — a false NEGATIVE. The `_quarto.yml` behavior is the right one; the `.qmd` side is the gap. No FP risk either way (`unquoteKey` strips only a matching leading/trailing pair, so `"toc` / `"toc" x` stay silent — verified).
 - [ ] **Validate the scalar `format:` NAME on the remaining surfaces + polish (S145 §4.3 deferrals)** — all reuse S145's `isKnownFormatName` (`src/core/format-name-check.ts`) + `SchemaIndex.formatNamesForValidation()`. **(a) Combo 3 — the `_quarto.yml` top-level scalar `format: banana` — SHIPPED Session 152** (a ~15-line branch in `yaml-project-value-diagnostics.ts`'s `"document"` arm mirroring the `.qmd` path, WITH the P3 backslash guard; fixtures `test/fixtures/yaml-project-format-name/`; see `CHANGELOG.md`). (b) **Combos 2 & 4** the container-key form `format:\n  banana:` on both surfaces — needs a NEW container-KEY emission (`.qmd` has no key enumerator; `_quarto.yml` never pushes the block-opener name); plus a diagnostic-placement question (quarto reports the unknown container on its first child line; we would squiggle the name token). (c) multi-format MAPPING-form names (`format:\n  html:\n  banana:`). (d) nearest-match hint (`Unknown output format 'reveal'. Did you mean 'revealjs'?` — Levenshtein). All LOW.
 - [ ] **The project-value diagnostics feature does not cover directory-level `_metadata.yml`/`_metadata.yaml`** (filed Session 152, §9 review missed-sites lens, verified firsthand; **safe direction — under-flagging, no FP**). `isProjectConfigFileName` (`src/core/project-yaml.ts`, `PROJECT_CONFIG_FILENAMES = {_quarto.yml, _quarto.yaml}`) gates the WHOLE `_quarto.yml` project-value feature (`features/yaml-project-value-diagnostics.ts`) on those exact basenames, so a directory-level `_metadata.yml` (quarto applies it as metadata to every doc in that directory) receives NONE of these diagnostics: `format: banana` there renders `quarto render` exit 1 ("Directory metadata validation failed … has value banana, which must instead be 'ansi'") but is never flagged, and neither is any closed document-key value (`toc: banana`, etc.). **PRE-EXISTING** — the gate has been `_quarto.yml`-only since the feature shipped; Combo 3 (S152) made the format-NAME half of the gap newly visible but did not create it. A faithful fix is its own slice: `_metadata.yml` carries DOCUMENT-level metadata (document keys + `format:` + `execute:`), NOT the `project:`/`website:`/`book:` containers, so widening the gate must also scope which field sets apply — needs its own grounding of what quarto validates in `_metadata.yml`, plus fixtures. LOW (safe FN).
