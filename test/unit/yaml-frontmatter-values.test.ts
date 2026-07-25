@@ -279,4 +279,23 @@ describe("findFrontMatterValueLines — arming discipline parity with findProjec
     const text = ["---", "df-print: banana", "---"].join("\n");
     expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["df-print"]);
   });
+
+  it("ABUTTING-ANCHOR strip (S155): an anchor abutting a flow bracket (`&a[one,`, no space) still arms — quarto folds it, exit 0", () => {
+    // The node-property strip's name charset must EXCLUDE flow indicators/quotes so it stops at —
+    // and thus SEES — an opener that ABUTS the anchor with no space. The OLD strip
+    // `/^(?:[&!][^\s]*[ \t]+)+/` let its greedy `[^\s]*` swallow the `[`, then the REQUIRED trailing
+    // ws failed to match, so `keywords: &a[one,` was read as opening with `&`, the arm never fired,
+    // and the folded `df-print: banana]` was emitted and flagged on a document `quarto render`
+    // 1.7.33 RENDERS exit 0 (`keywords: &a[one,` / `df-print: banana]` folds to
+    // `keywords: [one, {df-print: banana}]` — grounded firsthand: exit 0; a cardinal-sin FP).
+    const abut = ["---", "keywords: &a[one,", "df-print: banana]", "---"].join("\n");
+    expect(findFrontMatterValueLines(abut).map((v) => v.key)).toEqual(["keywords"]);
+    // Emission RESUMES once the flow closes: `code-fold: banana` after the `]` is real again.
+    const resumes = ["---", "keywords: &a[one,", "df-print: banana]", "code-fold: banana", "---"].join("\n");
+    expect(findFrontMatterValueLines(resumes).map((v) => v.key)).toEqual(["keywords", "code-fold"]);
+    // Parity: the abutting form now behaves IDENTICALLY to the SPACED (`&a [one,`) form, which
+    // already armed — the change is a strict superset (it strips MORE, never less, of a property).
+    const spaced = ["---", "keywords: &a [one,", "df-print: banana]", "---"].join("\n");
+    expect(findFrontMatterValueLines(spaced).map((v) => v.key)).toEqual(["keywords"]);
+  });
 });

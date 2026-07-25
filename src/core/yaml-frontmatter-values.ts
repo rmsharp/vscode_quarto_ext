@@ -118,7 +118,15 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
     // anchored/tagged opener `foo: &a { … ` still arms because the node property is stripped
     // BEFORE the first-character test (its brackets are then counted by the whole-token scan).
     if (armToken.length > 0) {
-      const opener = armToken.replace(/^(?:[&!][^\s]*[ \t]+)+/, "")[0];
+      // Strip a leading node property before the first-char test. The name charset excludes flow
+      // indicators/quotes (`[]{}"'`) and the trailing whitespace is OPTIONAL, so the strip stops
+      // at — and thus SEES — an opener that ABUTS the anchor/tag with no space (`&a[one,`, which
+      // js-yaml/quarto fold: `keywords: &a[one,` / `df-print: banana]` renders exit 0, so flagging
+      // the folded `df-print` would be a cardinal-sin FP). The OLD `/^(?:[&!][^\s]*[ \t]+)+/`
+      // under-armed it — its greedy `[^\s]*` swallowed the `[`, then the REQUIRED trailing ws
+      // failed to match, so the opener was read as `&`. Hardened to the strict superset the
+      // cell-option site (`qmd/model.ts`) uses — S155; filed by the §9 branch-interaction lens, S154.
+      const opener = armToken.replace(/^(?:[&!][^\s[\]{}"']*[ \t]*)+/, "")[0];
       if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
         const s = scanFlow(armToken, 0, null);
         if (s.depth > 0) {
