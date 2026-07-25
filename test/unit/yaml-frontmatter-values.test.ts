@@ -281,7 +281,7 @@ describe("findFrontMatterValueLines — arming discipline parity with findProjec
   });
 
   it("ABUTTING-ANCHOR strip (S155): an anchor abutting a flow bracket (`&a[one,`, no space) still arms — quarto folds it, exit 0", () => {
-    // The node-property strip's name charset must EXCLUDE flow indicators/quotes so it stops at —
+    // The node-property strip's name charset must EXCLUDE the YAML flow indicators `,[]{}` so it stops at —
     // and thus SEES — an opener that ABUTS the anchor with no space. The OLD strip
     // `/^(?:[&!][^\s]*[ \t]+)+/` let its greedy `[^\s]*` swallow the `[`, then the REQUIRED trailing
     // ws failed to match, so `keywords: &a[one,` was read as opening with `&`, the arm never fired,
@@ -297,5 +297,16 @@ describe("findFrontMatterValueLines — arming discipline parity with findProjec
     // already armed — the change is a strict superset (it strips MORE, never less, of a property).
     const spaced = ["---", "keywords: &a [one,", "df-print: banana]", "---"].join("\n");
     expect(findFrontMatterValueLines(spaced).map((v) => v.key)).toEqual(["keywords"]);
+  });
+
+  it("ANCHOR-NAME QUOTE (S155 §9): a quote INSIDE an anchor name (`&a'b`) is a legal name char, NOT a quote opener — must not phantom-fold a following real key", () => {
+    // YAML's flow indicators are ONLY `,[]{}`; a quote is a LEGAL anchor-name char. So `myref: &a'b`
+    // is a node named `a'b` with a NULL value quarto ACCEPTS (exit 0), and `df-print: banana` below
+    // it is a SEPARATE real key quarto REJECTS (exit 1, sole error). The name charset must KEEP
+    // quotes so `&a'b` strips WHOLE and does NOT arm a phantom `'` that swallows `df-print`. Grounded
+    // firsthand: myref+`df-print: banana` exit 1 (sole df-print error); myref+`df-print: kable` exit
+    // 0 (proving myref: null accepted). The over-excluding S154 charset `[^\s[\]{}"']` dropped the TP.
+    const q = ["---", "myref: &a'b", "df-print: banana", "---"].join("\n");
+    expect(findFrontMatterValueLines(q).map((v) => v.key)).toEqual(["myref", "df-print"]);
   });
 });

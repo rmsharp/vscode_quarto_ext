@@ -118,15 +118,18 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
     // anchored/tagged opener `foo: &a { … ` still arms because the node property is stripped
     // BEFORE the first-character test (its brackets are then counted by the whole-token scan).
     if (armToken.length > 0) {
-      // Strip a leading node property before the first-char test. The name charset excludes flow
-      // indicators/quotes (`[]{}"'`) and the trailing whitespace is OPTIONAL, so the strip stops
-      // at — and thus SEES — an opener that ABUTS the anchor/tag with no space (`&a[one,`, which
-      // js-yaml/quarto fold: `keywords: &a[one,` / `df-print: banana]` renders exit 0, so flagging
-      // the folded `df-print` would be a cardinal-sin FP). The OLD `/^(?:[&!][^\s]*[ \t]+)+/`
-      // under-armed it — its greedy `[^\s]*` swallowed the `[`, then the REQUIRED trailing ws
-      // failed to match, so the opener was read as `&`. Hardened to the strict superset the
-      // cell-option site (`qmd/model.ts`) uses — S155; filed by the §9 branch-interaction lens, S154.
-      const opener = armToken.replace(/^(?:[&!][^\s[\]{}"']*[ \t]*)+/, "")[0];
+      // Strip a leading node property before the first-char test. The name charset excludes ONLY
+      // YAML's flow indicators `,[]{}` (an anchor/tag name cannot contain them — c-flow-indicator)
+      // and the trailing whitespace is OPTIONAL, so the strip stops at — and thus SEES — a flow
+      // opener that ABUTS the anchor with no space (`&a[one,`, which js-yaml/quarto fold:
+      // `keywords: &a[one,` / `df-print: banana]` renders exit 0, so flagging the folded `df-print`
+      // would be a cardinal-sin FP). It does NOT exclude quotes `"'` — those ARE legal anchor-name
+      // chars, so `&a'b` (a quoted node name with a NULL value, which quarto accepts, exit 0) strips
+      // WHOLE and does NOT arm a phantom quote that would swallow a following real key (§9
+      // over-suppression lens, S155). The OLD `/^(?:[&!][^\s]*[ \t]+)+/` under-armed the abutting
+      // bracket; the S154 cell-option charset `[^\s[\]{}"']` over-excluded quotes (the SAME
+      // over-suppression, still latent on that surface — filed). All three value enumerators share this.
+      const opener = armToken.replace(/^(?:[&!][^\s,[\]{}]*[ \t]*)+/, "")[0];
       if (opener === '"' || opener === "'" || opener === "[" || opener === "{") {
         const s = scanFlow(armToken, 0, null);
         if (s.depth > 0) {
