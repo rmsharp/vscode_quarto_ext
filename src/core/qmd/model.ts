@@ -533,6 +533,11 @@ const BLOCK_SCALAR_HEADER = /^[|>](?:[1-9][-+]?|[-+][1-9]?)?[ \t]*(?:#.*)?$/;
  * so a `#|` in prose, in a non-executable ```` ```python ```` block, or on a
  * fence line is never reported. The owning cell supplies the absolute line and
  * engine.
+ *
+ * Only the cell's LEADING option block is reported: quarto reads a cell's directives
+ * from the leading contiguous run of `#|` lines and stops at the first body line that
+ * is not one, so a `#|` line below that point is an ordinary comment (S160 — see the
+ * block-terminating `break` below).
  */
 export function findCellOptionLines(text: string): CellOptionLine[] {
   const result: CellOptionLine[] = [];
@@ -554,13 +559,25 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
     // the quote/flow state above: a value opens EITHER a quote/flow OR a block scalar (disjoint
     // first chars `"'[{` vs `|>`), never both. Null when no block scalar is open.
     let blockScalarIndent: number | null = null;
-    bodyLines.forEach((lineText, j) => {
+    for (let j = 0; j < bodyLines.length; j++) {
+      const lineText = bodyLines[j];
       const m = CELL_OPTION_PREFIX.exec(lineText);
       if (m === null) {
-        flowDepth = 0; // a code line ends any multi-line option value
-        openQuote = null;
-        blockScalarIndent = null;
-        return;
+        // END OF THE CELL'S OPTION BLOCK — not merely a reset of the continuation state.
+        // Quarto reads a cell's `#|` directives from the LEADING contiguous run of directive
+        // lines and stops at the first body line that is not one; everything below is ordinary
+        // code, so a `#|` there is just a comment. Emitting it let value-diagnostics squiggle
+        // a document quarto ACCEPTS — the cardinal sin. Grounded firsthand vs quarto 1.7.33
+        // (`--no-execute`, 35 documents, S160): `1+1` / `#| echo: banana` renders exit 0, as do
+        // the other three terminator shapes — a BLANK line, a whitespace-only line, and a plain
+        // `# comment` — each of which likewise renders exit 0 for a following invalid option, on
+        // both the `#` (python/r) and `//` (ojs) comment-char families. Testing the DIRECTIVE
+        // PATTERN rather than "is this code" is what makes the terminator set exactly quarto's:
+        // a bare `#|`, a `#| ` with empty content, a gapless `#|key:`, and a spaced `# | key:`
+        // all match, and all were grounded as NON-terminators (quarto still reports their block's
+        // value errors, exit 1). Continuation lines of an open quoted/flow/block-scalar value are
+        // `#|` lines too, so they never terminate — the guards below still own that folding.
+        break;
       }
       // The indentation quarto sees for this `#|` line's folded content: the post-pipe
       // whitespace `m[3]` minus the ONE space quarto's `^#\s*\| ?` directive strips.
@@ -578,7 +595,7 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
         // skipping there is the safe false-negative direction, not a lost value TP (§9 over-
         // suppression lens, S158).
         if (m[4].trim() === "" || foldedIndent > blockScalarIndent) {
-          return;
+          continue;
         }
         blockScalarIndent = null;
       }
@@ -587,7 +604,7 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
         const s = scanFlow(m[4], flowDepth, openQuote);
         flowDepth = Math.max(0, s.depth);
         openQuote = s.quote;
-        return;
+        continue;
       }
       // keyStart = comment chars + inter-pipe ws + the `|` + the gap before the key.
       const keyStart = m[1].length + m[2].length + 1 + m[3].length;
@@ -659,7 +676,7 @@ export function findCellOptionLines(text: string): CellOptionLine[] {
         // any leading node property removed (`&anchor |`), so an anchored block scalar arms too.
         blockScalarIndent = foldedIndent;
       }
-    });
+    }
   }
   return result;
 }

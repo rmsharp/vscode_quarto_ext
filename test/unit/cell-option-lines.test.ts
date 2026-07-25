@@ -66,16 +66,24 @@ describe("findCellOptionLines — detection inside executable cells", () => {
     expect(opts[1].keySlot).toBeNull(); // the `- a` sequence item
   });
 
-  it("finds multiple option lines and ignores interleaved code", () => {
+  it("finds multiple option lines and STOPS at interleaved code", () => {
+    // This test used to assert [1, 2, 4], on the comment "not contiguous, but still a
+    // #| line" — an assumption about quarto that was never grounded, and that is wrong.
+    // Measured firsthand vs quarto 1.7.33 (`--no-execute`) on THIS EXACT document with
+    // line 4 given an invalid value (`#| eval: banana`): it renders exit 0 — quarto never
+    // reads line 4 at all. Move the same option up into the leading block and the same
+    // document renders exit 1, `Field "eval" has value banana`. So line 4 is an ordinary
+    // comment, and emitting it made value-diagnostics squiggle a document quarto ACCEPTS
+    // (S160). The corrected expectation is the leading block only.
     const text = [
       "```{python}", // 0
       "#| echo: false", // 1
       "#| label: fig-a", // 2
-      "import numpy", // 3 (code, not an option)
-      "#| eval: true", // 4 — not contiguous, but still a #| line
+      "import numpy", // 3 — code: ENDS the option block
+      "#| eval: true", // 4 — below the block, so an ordinary comment
       "```", // 5
     ].join("\n");
-    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2, 4]);
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
   });
 });
 
@@ -485,6 +493,117 @@ describe("findCellOptionLines — block-scalar (`|`/`>`) value folds its continu
     // discriminate — hence the indented follow-on. The pin guards the enumerator's arm invariant,
     // not a quarto-exit-0 fold.)
     const text = ["```{python}", "#| fig-cap: a | b", "#|   echo: false", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+});
+
+describe("findCellOptionLines — quarto honors only the cell's LEADING option block (S160)", () => {
+  it("does NOT emit a `#|` line that follows CODE", () => {
+    // Quarto reads a cell's `#|` directives ONLY from the leading contiguous run of
+    // directive lines and stops at the first body line that is not one; a `#|` after
+    // code is an ordinary comment. Grounded firsthand vs quarto 1.7.33: this document
+    // renders exit 0, yet we emitted the line and value-diagnostics squiggled it — a
+    // cardinal-sin FALSE POSITIVE on a document quarto ACCEPTS.
+    const text = ["```{python}", "1+1", "#| echo: banana", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([]);
+  });
+
+  it("does NOT emit a `#|` line below a BLANK line", () => {
+    // A blank line is not a directive line, so it ends the block: quarto renders this
+    // exit 0 (grounded firsthand). Note the option ABOVE the blank IS still honored —
+    // quarto reports its value errors (exit 1) — so this pins the boundary, not a
+    // wholesale suppression.
+    const text = ["```{python}", "#| label: cell-a", "", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("does NOT emit a `#|` line below a WHITESPACE-ONLY line", () => {
+    // Same terminator class as the blank line, and the same firsthand exit 0 — the test
+    // is `CELL_OPTION_PREFIX` matching, so a line of spaces is as much a terminator as
+    // code. Distinct from the blank-line pin because a `trim()`-based terminator test
+    // would treat the two differently.
+    const text = ["```{python}", "#| label: cell-a", "   ", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("does NOT emit a `#|` line below a plain `#` comment", () => {
+    // A plain comment is not a directive line either (quarto's directive needs the pipe),
+    // so it ends the block — grounded firsthand exit 0 both as the cell's FIRST line and
+    // mid-block. This is the most realistic FP shape of the set: a `#|` option left below
+    // an explanatory comment.
+    const text = ["```{python}", "#| label: cell-a", "# a plain comment", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1]);
+  });
+
+  it("emits NOTHING when a blank line precedes the cell's first `#|` line", () => {
+    // The block starts at body line 0. A leading blank means it never opens at all, so
+    // every following `#|` line is an ordinary comment — quarto renders this exit 0.
+    const text = ["```{python}", "", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([]);
+  });
+
+  it("ends the block PER CELL — a later cell's leading block is unaffected", () => {
+    // The terminator must not leak across cells: cell one's post-code option is dropped
+    // (quarto exit 0 for it) while cell two's leading option is still emitted. Grounded
+    // firsthand as one document: quarto reports ONLY cell two's `eval` error (exit 1).
+    const text = [
+      "```{python}", // 0
+      "1+1", // 1 — code ends cell one's block (which never opened)
+      "#| echo: banana", // 2 — ordinary comment
+      "```", // 3
+      "", // 4
+      "```{python}", // 5
+      "#| eval: banana", // 6 — cell two's LEADING block: a real option
+      "2+2", // 7
+      "```", // 8
+    ].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([6]);
+  });
+
+  it("applies to the `//|` (ojs) comment-char family too", () => {
+    // Grounded firsthand on the `//` family independently: `//|` after code renders exit 0,
+    // and a `//|` block interrupted by a blank line renders exit 0 for the option below it.
+    const text = ["```{ojs}", "1+1", "//| echo: banana", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([]);
+  });
+
+  // ── The OVER-SUPPRESSION direction ──────────────────────────────────────────────
+  // These four shapes LOOK like block terminators but are not: quarto still reports the
+  // value errors of the block they sit in (exit 1, grounded firsthand). They are the
+  // pins that stop this fix becoming a lost TRUE POSITIVE, and each is RED against a
+  // plausible over-eager terminator, not merely against the pre-fix source (Learning
+  // #171c — a pin that passes pre-fix AND survives every mutant is vacuous).
+
+  it("a BARE `#|` line does NOT end the block", () => {
+    // Grounded firsthand: `#| label: cell-a` / `#|` / `#| echo: banana` renders exit 1 on
+    // echo, so the bare line is part of the block. RED against the plausible mutant
+    // `if (m === null || m[4].trim() === "") break;` — which yields [1].
+    const text = ["```{python}", "#| label: cell-a", "#|", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2, 3]);
+  });
+
+  it("a `#| ` line with EMPTY content does NOT end the block", () => {
+    // The trailing-space spelling of the same shape, likewise exit 1 firsthand. Kept
+    // distinct from the bare pin because the gap lands in `m[3]` rather than being absent,
+    // so a terminator keyed on the gap would separate them.
+    const text = ["```{python}", "#| ", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+
+  it("a GAPLESS `#|key: value` line does NOT end the block", () => {
+    // Quarto accepts a directive with no space after the pipe: `#|label: cell-a` /
+    // `#| echo: banana` renders exit 1 on echo (grounded firsthand). RED against a mutant
+    // that required the ` ` gap to continue the block — which would yield [2].
+    const text = ["```{python}", "#|label: cell-a", "#| echo: banana", "1+1", "```"].join("\n");
+    expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
+  });
+
+  it("a SPACED `# | key: value` line does NOT end the block", () => {
+    // Quarto's directive pattern allows whitespace between the comment char and the pipe
+    // (`^#\s*\| ?`): `# | label: cell-a` / `#| echo: banana` renders exit 1 on echo, and
+    // `# | echo: banana` alone as the first body line renders exit 1 too (both grounded
+    // firsthand). So this line is an option, not a plain comment that terminates.
+    const text = ["```{python}", "# | label: cell-a", "#| echo: banana", "1+1", "```"].join("\n");
     expect(findCellOptionLines(text).map((o) => o.line)).toEqual([1, 2]);
   });
 });
