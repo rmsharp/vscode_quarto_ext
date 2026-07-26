@@ -7,6 +7,58 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-26 · [ad hoc] Session 165 — IMPLEMENTATION: the DEFAULT (no-override) document engine (SHIPPED)
+
+Quarto scopes a cell's option schema to the **document's** engine. Session 164 taught this
+extension to honour an explicit front-matter `engine:` override; when the front matter names no
+engine — the ordinary case — quarto resolves one from the document's own cell languages
+(`markdownExecutionEngine`: languages outer, engines inner; knitr claims `r`, jupyter claims
+`julia`, markdown claims nothing; then any non-`ojs`, non-handler language forces jupyter; else
+markdown). That answer is **document-wide and order-dependent**, and we were still scoping each
+cell to its own language. Measured firsthand vs 1.7.33, `cache` being knitr-only and
+closed-valued so `#| cache: banana` renders exit 1 iff quarto resolved knitr:
+
+- `{julia}` then `{r}`, `cache` on the `{r}` cell → **exit 0** and we squiggled it (cardinal FP)
+- `{r}` then `{python}`, `cache` on the `{python}` cell → **exit 1** and we were silent (lost TP)
+
+**The language set is a transcription of quarto's own `languagesInMarkdown` regex, not a walk of
+`findAllCells`** — a safety requirement, not a style choice: quarto's scan is context-free, so a
+`{julia}` fence inside a ```` example block, a blockquote, a 4-space code block, an HTML comment,
+a tab-indented fence or a front-matter block scalar all count for it and none are cells to us.
+All six measured exit 0; a cell-list reading would have answered knitr on every one.
+
+Layers, each RED→GREEN with a checkpoint commit: **L1** `1fec09e` the fallback + the
+`{{< include >}}` decline (includes are expanded pre-engine and measurably flip the answer both
+ways); **L2** `a203987` an UNMATCHED selector falls through while an UNREADABLE one declines;
+**L3** `f0d306b` four integration pins, RED-verified twice; `bc4d61d` the oracle's verdict
+recorded in the docstring; **L4** `e2413f6` the §9 review corrections.
+
+**The §9 review found TWELVE cardinal-sin false positives L2 introduced**, all in the one
+direction the module names as dangerous. Root cause in one sentence: before this session a
+decline was inert (the caller fell back to the per-cell language, which was all it had), and the
+language fallback turned a decline into a confident document-wide answer — knitr, on any document
+holding an `{r}` cell. So `engine: &a markdown` / `*a` / `>-`+body / empty+continuation, the same
+nested under `execute:`, an engine-named key with `!!bool true` / `&a true` / a `|` body / a
+column-0 sequence, `execute: *a` and `execute: &a`, and a blank line before the opening `---` all
+render exit 0 while we claimed knitr and squiggled the non-`{r}` cells. L4 fixes all twelve with
+one rule — a shape we decline to READ must BLOCK the fallback, while one we read and find to name
+nothing must not — and pins the neighbours it must not over-correct (`engine: banana`,
+`engine: MARKDOWN`, `jupyter: false` all still fall through, measured exit 1). Two true positives
+are given up knowingly (`engine: &a knitr`, `engine: |` + a literal body): telling them from their
+exit-0 twins needs YAML chomping semantics. The review also caught five knitr-POSITIVE pins left
+vacuous (the `{python}`-document rule applied in only one direction) and four false doc claims of
+mine, including three shapes I called invisible to `findAllCells` that it sees perfectly well.
+
+**Verification.** Unit 1449 → 1465; integration 477 passing / 0 failing, run four times (RED
+twice with the fallback stubbed to its pre-S165 answer — the first RED caught an off-by-one in my
+own test — then GREEN, then again on the shipping build after L4); `check-types` and both
+test-file type-checks clean throughout; thirteen targeted mutants, each killing a specific pin. The
+headline evidence is an end-to-end oracle replaying this feature's own flag decision against
+`quarto render`'s exit code over **64 documents**, run against three builds via `git archive`:
+pre-S165 `FP 16`, the flawed intermediate `FP 16` with **12 regressions**, the shipping build
+`FP 4` — **18 improved, 0 regressed** against the pre-session baseline, with every remaining
+false positive pre-existing and filed.
+
 ### 2026-07-25 · [ad hoc] Session 164 — IMPLEMENTATION: honour the front-matter `engine:` override (SHIPPED)
 
 Quarto scopes a cell's option schema to the **document's** engine. This extension scoped it to
