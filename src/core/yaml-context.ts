@@ -701,9 +701,26 @@ export function engineFor(lang: string): CellEngine | undefined {
  *
  * The handler-language branch stays ABOVE all of it: quarto swaps the engine schema for
  * `handlers/<lang>/schema.yml` by LANGUAGE, so a `{dot}`/`{mermaid}` cell is exempt under
- * every engine. A knitr document does reject such a cell, but structurally — the VALID
- * `//| echo: false` renders exit 1 there too — so no value diagnostic can express it and
- * letting the engine widen it back would be a cardinal-sin false positive.
+ * every engine. **The reason is one measured key, not a structural exemption** — an earlier
+ * revision of this comment said the VALID `//| echo: false` renders exit 1 in a knitr
+ * document "so no value diagnostic can express it", and the S164 §9 completeness critic
+ * showed both halves are false. Re-measured with a VALID `digraph { a -> b }` body (the
+ * original probe used `1 + 1`, which is not DOT, so its exit 1 was a graphviz syntax error
+ * misread as a chunk-option error):
+ *
+ * | knitr document, `{dot}` cell | renders |
+ * |---|---|
+ * | `//| echo: false` (valid) | exit 0 |
+ * | `//| echo: banana` | exit 0 |
+ * | `//| cache: banana` | exit 0 ← **this is why widening would be the cardinal sin** |
+ * | `//| include: false` | exit 0 |
+ * | `//| include: banana` | **exit 1** ← value-dependent, and therefore expressible |
+ *
+ * So `cache` — a member of `cellOptions("knitr")` — is accepted in a handler cell of a knitr
+ * document, and scoping such a cell to knitr would squiggle it. That single key is the whole
+ * argument. And `include` shows the cost is real rather than theoretical: it IS a true
+ * positive a value diagnostic can express, the one BACKLOG's handler-scope item filed, and
+ * the document-engine capability this session shipped is what a future fix would need.
  */
 export function cellOptionScopeFor(
   lang: string,
@@ -773,11 +790,19 @@ export function cellOptionScopeFor(
  * A KNITR document is where it costs something. There exactly one flaggable key —
  * `include` — is a real, value-dependent failure: `//| include: banana` → exit 1 from knitr's
  * own `if (options$include)`, `//| include: false` → exit 0. We flagged it before S162 and are
- * silent now. That is a deliberate trade under this project's doctrine, not an oversight:
- * `cellOptionScopeFor` receives only the cell LANGUAGE and cannot know the document engine
- * (the same limit S161 L2 documented), so the choice is ONE conditional false negative against
- * 46 UNCONDITIONAL false positives, and an over-flag is the cardinal sin. Tracked in BACKLOG
- * with the front-matter `engine:` override that would let us tell the two documents apart.
+ * silent now. That is a deliberate trade under this project's doctrine, not an oversight: the
+ * choice is ONE conditional false negative against 46 UNCONDITIONAL false positives, and an
+ * over-flag is the cardinal sin.
+ *
+ * **The stated blocker is no longer true, and that is this session's news.** S162 wrote that
+ * `cellOptionScopeFor` "receives only the cell LANGUAGE and cannot know the document engine",
+ * and filed the recovery behind the front-matter `engine:` override. S164 shipped that
+ * override — the engine now arrives as this function's second argument — so telling the two
+ * documents apart is possible today. It is still not DONE: the handler branch above returns
+ * `"none"` before the engine is consulted, and narrowing it to "`none` except `include` when
+ * the document engine is knitr" is its own deliverable with its own measurements (re-measured
+ * here: `//| include: banana` exit 1, `//| include: false` exit 0, `//| cache: banana` exit 0).
+ * Left filed, with the blocker updated rather than the claim repeated.
  *
  * Quarto does enforce two keys of its own in a handler cell — both mermaid's, both measured:
  * `mermaid-format` against its `png|svg|js` enum (`%%| mermaid-format: banana` → exit 1) and

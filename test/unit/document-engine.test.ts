@@ -67,6 +67,26 @@ describe("Session 164 — documentEngineForScoping: the nested `execute: engine:
     expect(resolve(doc("execute:\n  engine: knitr\n"))).toBe("knitr");
   });
 
+  it("documents WHY the resolver's depth guard is currently unreachable", () => {
+    // The §9 review reported the `parentPath.length === 1` guard as pinned by nothing, and it
+    // is right that the mutant dropping it survives — but not because the pin is missing.
+    // NOTHING deeper than `["execute"]` is ever emitted under `execute:` at all, so no input
+    // can reach the clause. Faking a pin here would be the vacuous-test habit this project
+    // keeps catching; instead this pins the ENUMERATOR contract the guard depends on, so if
+    // that ever changes, the next session is told the guard has become load-bearing.
+    const deeper = findNestedFrontMatterValueLines(
+      "---\ntitle: t\nexecute:\n  daemon:\n    engine: markdown\n---\n",
+    );
+    expect(deeper.filter((r) => r.parentPath[0] === "execute" && r.parentPath.length > 1)).toEqual(
+      [],
+    );
+    // …while the depth-1 child IS emitted, which is what the resolver actually consumes.
+    const atOne = findNestedFrontMatterValueLines(
+      "---\ntitle: t\nexecute:\n  engine: markdown\n---\n",
+    );
+    expect(atOne.map((r) => `${r.parentPath.join(".")}.${r.key}`)).toEqual(["execute.engine"]);
+  });
+
   it("does NOT read an `engine:` nested anywhere else", () => {
     // `format:` / `  html:` / `    engine: markdown` + `{r}` + `#| cache: banana` renders
     // exit 1 — engine resolution reads the RAW top-level front matter (plus `execute:`),

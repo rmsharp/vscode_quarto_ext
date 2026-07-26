@@ -49,15 +49,19 @@ export interface FrontMatterValueLine {
  */
 export interface FrontMatterTopLevelLine extends FrontMatterValueLine {
   /**
-   * Whether this key opens a BLOCK — i.e. the next content line inside the front matter is
-   * indented under it. Only ever true for a line with no scalar value, so it is the
-   * mapping/sequence half of "does this key have a value at all"; a blank or comment-only
-   * line in between is skipped, because neither is content (S164).
+   * Whether this key opens a block whose body is a genuine CONTAINER — a mapping entry or a
+   * block-sequence item. Only ever true for a line with no scalar value; a blank or
+   * comment-only line in between is skipped, because neither is YAML content (S164).
    *
    * Needed because quarto's engine selector tests a top-level key for JS TRUTHINESS
    * (`if (yaml[engine.name])`), and a mapping is truthy while the null of a bare `key:` is
    * not — measured, `jupyter:` + a kernelspec block renders exit 0 where bare `jupyter:`
    * renders exit 1 (`core/document-engine.ts`).
+   *
+   * **"The next line is indented" is NOT the test**, though this field said so until the §9
+   * review: an indented line can also continue a multi-line PLAIN SCALAR, which carries the
+   * key's value and may be falsy. See `opensBlockAt` for the measurement — reading
+   * `knitr:` / `  false` as a container shipped a cardinal-sin false positive.
    */
   hasChildren: boolean;
 }

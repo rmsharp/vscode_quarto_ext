@@ -36,13 +36,17 @@ const ENGINE_NAMES: ReadonlySet<string> = new Set([
 /**
  * A top-level front-matter mapping line, as `findFrontMatterTopLevelLines` emits it.
  *
- * `hasChildren` is optional so the value-only view (`findFrontMatterValueLines`) also
- * satisfies this shape; absent it, a block-opener simply does not select.
+ * `hasChildren` is REQUIRED on purpose. It was optional in L5 "so the value-only view also
+ * satisfies this shape", and the §9 completeness critic showed what that latitude actually
+ * bought: `findFrontMatterValueLines` — imported on the adjacent line of the sole call site —
+ * type-checks here silently, and passing it un-ships the container form, restoring the very
+ * cardinal-sin false positive L5 exists to remove, with `tsc` and the whole suite green.
+ * Requiring the field turns that call into a compile error.
  */
 interface TopLevelScalar {
   key: string;
   rawToken: string;
-  hasChildren?: boolean;
+  hasChildren: boolean;
 }
 
 /** A nested front-matter scalar, as `findNestedFrontMatterValueLines` emits it. */
@@ -206,11 +210,15 @@ export function documentEngineForScoping(
       }
     } else if (fm.key === EXECUTE_KEY && fm.rawToken.startsWith("{")) {
       unresolvedSelector = true; // a FLOW `execute: {…}` — its members are not enumerated
-    } else if (ENGINE_NAMES.has(fm.key) && isTruthyNode(fm.rawToken, fm.hasChildren === true)) {
+    } else if (ENGINE_NAMES.has(fm.key) && isTruthyNode(fm.rawToken, fm.hasChildren)) {
       selected.add(fm.key as DocumentEngine);
     }
   }
   for (const ns of nested) {
+    // The depth clause is DEFENCE-IN-DEPTH, not a live branch: `findNestedFrontMatterValueLines`
+    // never emits anything deeper than `["execute"]` under `execute:` (pinned in the unit
+    // suite), so no input reaches it today. It is kept because the enumerator's allow-list is
+    // the only thing making that true, and `format:`-nested paths ARE emitted at length 2.
     if (ns.parentPath.length === 1 && ns.parentPath[0] === EXECUTE_KEY && ns.key === ENGINE_KEY) {
       const named = engineNamed(ns.rawToken);
       if (named !== undefined) {
@@ -250,9 +258,19 @@ export function documentEngineForScoping(
  * region deliberately — `---` / blank / `toc: banana` / `---` still renders exit 1, so
  * flagging it is a true positive — which is why the test lives here and not in the scanner.
  *
- * The mirror skew is not ours to exploit: quarto `trimLeft()`s first, so blank lines BEFORE
- * the opening `---` still give quarto a front matter where our scanner sees none. That
- * direction only ever costs an override we fail to honour, never a wrong one.
+ * ⚠ **The mirror skew is a LIVE false positive, not a harmless one** — an earlier revision of
+ * this docstring said it "only ever costs an override we fail to honour, never a wrong one",
+ * which is the same false universal the module header retracts above, and the §9 completeness
+ * critic caught it here. Quarto `trimLeft()`s the document first, so a blank line BEFORE the
+ * opening `---` still gives QUARTO a front matter while `scanRegions` (which opens front
+ * matter only at line 0) gives us none. Measured: a leading blank line, then `---` /
+ * `title: t` / `engine: markdown` / `---`, then an `{r}` cell with `#| cache: banana` renders
+ * **exit 0** — with `#| echo: banana` at exit 1 proving validation ran, and the `engine:` line
+ * removed at exit 1 proving knitr is the fallback — while we resolve no engine, scope the cell
+ * to knitr by language, and squiggle it. The false positive is PRE-EXISTING (the pre-S164 tree
+ * reached knitr through the language too) and this guard neither creates nor widens it, but it
+ * is real and it is filed. Closing it means teaching the scanner quarto's `trimLeft`, which
+ * changes every front-matter surface and so belongs in its own deliverable.
  */
 function engineResolverSeesFrontMatter(contentLines: readonly string[] | null): boolean {
   return contentLines !== null && contentLines.length > 0 && contentLines[0].trim().length > 0;
@@ -293,15 +311,33 @@ function engineNamed(rawToken: string): DocumentEngine | undefined {
 }
 
 /**
- * Every raw scalar token whose PARSED YAML value is falsy in JavaScript, which is the
- * test quarto's `if (yaml[engine.name])` actually applies. Measured firsthand vs 1.7.33
- * — one `quarto render --no-execute` per spelling, each in a document whose `{r}` cell
- * carries `#| cache: banana`, which renders exit 1 whenever the named key fails to
- * select and quarto falls back to knitr.
+ * The falsy spellings that matter here — NOT every falsy YAML scalar, and an earlier
+ * revision of this comment claimed otherwise (S164 §9 review).
  *
- * A QUOTED `"false"` is deliberately absent: it parses to the non-empty STRING `false`,
- * which is truthy, so it DOES select — the same quoted-scalar inversion `validate-yaml`
- * carries (`core/validate-yaml.ts`).
+ * The rule quarto applies is JS truthiness of the PARSED node (`if (yaml[engine.name])`), so
+ * the true falsy set also includes every numeric zero — `0.0`, `+0`, `-0`, `00`, `0x0`,
+ * `0o0`, `0b0`, `.0`, `0.`, `0e0` — none of which are listed. **That omission cannot produce
+ * a false positive**, and the reason is measured rather than argued:
+ *
+ * - On `knitr:` — the ONLY key whose selection widens anything — every one of those values is
+ *   itself a front-matter SCHEMA error, because `knitr:` must be an object. Measured,
+ *   `knitr: 0`, `knitr: 0.0`, `knitr: 1` and `knitr: ''` each render **exit 1** with
+ *   `Validation of YAML front matter failed … Field "knitr" has value …`, so quarto rejects
+ *   those documents whatever we do and flagging one is not a cardinal-sin false positive.
+ *   The only falsy-AND-schema-valid `knitr:` values are the booleans, which ARE listed
+ *   (`knitr: false` renders exit 0 — quarto really did not select it).
+ * - On `markdown:`/`jupyter:`/`julia:` a wrong TRUTHY reading selects a non-knitr engine,
+ *   which maps to the engine-agnostic scope and never widens. Measured: `markdown: 0.0` and
+ *   `markdown: 0` are schema-VALID and falsy (both render exit 0), we read them as truthy and
+ *   select markdown — and are silent either way, so the answers agree.
+ *
+ * The listed spellings were each measured; the unlisted ones are documented above rather than
+ * added, because adding them would imply a completeness this raw-token test cannot have.
+ *
+ * A QUOTED `"false"` is deliberately absent for the opposite reason: it parses to the
+ * non-empty STRING `false`, which is truthy, so it DOES select — measured, `jupyter: "false"`
+ * renders exit 1 with `Jupyter kernel 'false' not found`, an error only the jupyter engine
+ * raises. Same quoted-scalar inversion `validate-yaml` carries (`core/validate-yaml.ts`).
  */
 const FALSY_NODES: ReadonlySet<string> = new Set([
   "false",
