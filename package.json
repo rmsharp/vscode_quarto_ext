@@ -572,6 +572,7 @@
     "watch": "node esbuild.js --watch",
     "compile-tests": "tsc -p tsconfig.test.json",
     "test": "vitest run",
+    "test:oracle": "vitest run --config vitest.oracle.config.ts",
     "test:integration": "npm run compile && npm run compile-tests && node ./out/test/integration/runTest.js",
     "package": "npm run compile && vsce package",
     "vscode:prepublish": "npm run compile",
