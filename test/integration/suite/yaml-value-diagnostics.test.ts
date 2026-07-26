@@ -18,6 +18,10 @@ const VALID_NUMERIC_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-
 const CONTAINER_VALUES = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/container-values.qmd");
 const VALID_CONTAINER_VALUES = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/valid-container-values.qmd");
 const ASPECTRATIO_FRONT_MATTER = path.resolve(ROOT, "test/fixtures/yaml-value-diagnostics/aspectratio-front-matter.qmd");
+const ENGINE_OVERRIDE_RMD = path.resolve(
+  ROOT,
+  "test/fixtures/yaml-value-diagnostics/engine-override.Rmd",
+);
 const INVALID_FORMAT_NAME = path.resolve(ROOT, "test/fixtures/format-name/invalid.qmd");
 const VALID_FORMAT_NAME = path.resolve(ROOT, "test/fixtures/format-name/valid.qmd");
 const VALID_ASPECTRATIO_FRONT_MATTER = path.resolve(
@@ -1879,6 +1883,166 @@ describe("Quarto: `validate-yaml: false` turns validation off (.qmd, Session 163
     assert.ok(
       !flagged.includes(6),
       `line 6 sits in a cell whose own option block opted out (quarto exit 0) and must NOT be flagged; flagged lines: ${flagged.join(",")}`,
+    );
+  });
+});
+
+// Session 164 — the front-matter `engine:` override. Quarto scopes a cell's option schema
+// to the DOCUMENT's engine, never to the cell's language: `validateDocument` hands
+// `context.engine.name` to `partitionCellOptionsMapped`, which picks
+// `engineOptionsSchema[engine]`, and each of those four schemas is `cell-*` filtered by the
+// field's own `tags.engine`. Every expectation below was grounded firsthand vs quarto
+// 1.7.33 (`--no-execute`), each against a control differing only in the `engine:` line.
+describe("Quarto: the front-matter `engine:` override scopes cell options (.qmd, Session 164)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  it("stops flagging a knitr-only option in an {r} cell of an `engine: markdown` document", async () => {
+    // THE FILED DEFECT. `engine: markdown` + `{r}` + `#| cache: banana` renders quarto
+    // **exit 0**; the identical document without the `engine:` line renders **exit 1**
+    // with `Field "cache" has value banana`. `cache` is knitr-only (`cell-cache.yml`,
+    // `tags.engine: knitr`), and the markdown engine's schema holds only the
+    // engine-agnostic fields, so quarto never even looks at it here.
+    const content = [
+      "---",               // 0
+      "title: T",          // 1
+      "engine: markdown",  // 2
+      "---",               // 3
+      "",                  // 4
+      "```{r}",            // 5
+      "#| cache: banana",  // 6  exit 0 WITH the override, exit 1 without it
+      "1 + 1",             // 7
+      "```",               // 8
+      "",                  // 9
+    ].join("\n");
+    // PHASE 1 — the non-vacuity control FIRST. Asserting a NEGATIVE can pass against a
+    // provider that never ran, so prove on THIS EXACT DOCUMENT minus the override that
+    // the line really is flaggable (S163 §9 review).
+    const controlDoc = await openInline(content.replace("engine: markdown\n", ""));
+    assert.ok(
+      await waitFor(
+        () => valueDiagnostics(controlDoc.uri).some((d) => d.range.start.line === 5),
+        5000,
+      ),
+      `control (identical but for the override) must flag the knitr-only \`cache\` at line 5, else this test proves nothing; flagged: ${valueDiagnostics(
+        controlDoc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
+    );
+
+    // PHASE 2 — the same document WITH the override: quarto renders it exit 0.
+    const doc = await openInline(content);
+    await waitFor(() => valueDiagnostics(doc.uri).length > 0, 2500); // settle (see above)
+    const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.deepStrictEqual(
+      flagged,
+      [],
+      `\`engine: markdown\` makes this document render quarto exit 0 — nothing may be flagged; flagged lines: ${flagged.join(",")}`,
+    );
+  });
+
+  it("STILL flags an engine-AGNOSTIC option under `engine: markdown`", async () => {
+    // THE OVER-SUPPRESSION GUARD. The override narrows the scope; it does not turn
+    // validation off. `engine: markdown` + `{r}` + `#| echo: banana` renders quarto
+    // **exit 1** — `echo` carries no `tags.engine`, so it is in every engine's schema.
+    // Mapping the markdown engine to the EMPTY scope would trade this session's
+    // false-positive fix for a lost true positive.
+    const content = [
+      "---",               // 0
+      "title: T",          // 1
+      "engine: markdown",  // 2
+      "---",               // 3
+      "",                  // 4
+      "```{r}",            // 5
+      "#| echo: banana",   // 6  agnostic — STILL exit 1 under the override
+      "#| cache: banana",  // 7  knitr-only — suppressed by the override
+      "1 + 1",             // 8
+      "```",               // 9
+      "",                  // 10
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 6), 5000),
+      `line 6 (\`echo\`, engine-agnostic) renders quarto exit 1 even under \`engine: markdown\` and MUST still flag; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
+    );
+    const flagged = valueDiagnostics(doc.uri).map((d) => d.range.start.line);
+    assert.ok(
+      !flagged.includes(7),
+      `line 7 (\`cache\`, knitr-only) is exactly what the override suppresses; flagged lines: ${flagged.join(",")}`,
+    );
+  });
+
+  it("STARTS flagging a knitr-only option in a {python} cell of an `engine: knitr` document", async () => {
+    // The override cuts BOTH ways, and this direction is a true positive we used to lose:
+    // `engine: knitr` + `{python}` + `#| cache: banana` renders quarto **exit 1**, while
+    // the identical document without the `engine:` line renders **exit 0** (its default
+    // engine is jupyter, whose schema has no `cache`). Scoping by cell language could
+    // never reach this.
+    const content = [
+      "---",              // 0
+      "title: T",         // 1
+      "engine: knitr",    // 2
+      "---",              // 3
+      "",                 // 4
+      "```{python}",      // 5
+      "#| cache: banana", // 6  exit 1 WITH the override, exit 0 without it
+      "1 + 1",            // 7
+      "```",              // 8
+      "",                 // 9
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 6), 5000),
+      `line 6 renders quarto exit 1 under \`engine: knitr\` and MUST flag; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
+    );
+
+    // The control proves the diagnostic really came from the override and not from the
+    // language: strip the `engine:` line and the SAME cell must go silent.
+    const controlDoc = await openInline(content.replace("engine: knitr\n", ""));
+    await waitFor(() => valueDiagnostics(controlDoc.uri).length > 0, 2500); // settle
+    const controlFlagged = valueDiagnostics(controlDoc.uri).map((d) => d.range.start.line);
+    assert.deepStrictEqual(
+      controlFlagged,
+      [],
+      `without the override this document renders quarto exit 0 — nothing may be flagged; flagged lines: ${controlFlagged.join(",")}`,
+    );
+  });
+
+  it("IGNORES the override on a .Rmd — knitr claims that extension before the front matter", async () => {
+    // `fileExecutionEngine` runs `claimsFile` over every engine BEFORE it partitions any
+    // front matter, and knitr claims `.rmd`/`.rmarkdown`. Measured: this exact fixture
+    // renders quarto **exit 1** as an `.Rmd`, while the identical text as a `.qmd` renders
+    // exit 0 (the first test above). Honouring the override here would silence a document
+    // quarto really validates — and this extension's languageId opens `.Rmd`.
+    const doc = await openActive(ENGINE_OVERRIDE_RMD);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 6), 5000),
+      `line 6 of the .Rmd renders quarto exit 1 despite \`engine: markdown\` and MUST still flag; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
     );
   });
 });

@@ -38,6 +38,7 @@ import { findCellOptionLines } from "../core/qmd/model";
 import { findFrontMatterValueLines } from "../core/yaml-frontmatter-values";
 import { findNestedFrontMatterValueLines } from "../core/yaml-frontmatter-nested-values";
 import { cellOptionScopeFor, mappingColonAt, valueSlotAfterColon } from "../core/yaml-context";
+import { documentEngineForScoping } from "../core/document-engine";
 import { isWrongValue, valueMessage, unquote } from "../core/yaml-value-check";
 import { isKnownFormatName, formatNameMessage } from "../core/format-name-check";
 import {
@@ -98,6 +99,13 @@ async function computeValueDiagnostics(
   // ONE surface is deliberately NOT suppressed — see the `format` branch below.
   const documentValidationOff = isValidationDisabledByFrontMatter(fmValueLines);
   const optedOutCells = cellsWithValidationDisabled(cellLines, lines);
+  // The DOCUMENT's engine (S164), which is what quarto actually scopes a cell's option
+  // schema to — `validateDocument` hands `context.engine.name` to
+  // `partitionCellOptionsMapped`, which picks `engineOptionsSchema[engine]`. Resolved once
+  // for the whole document because the engine IS a document-level fact; `undefined` (no
+  // override, or an `.Rmd` whose extension already pinned knitr) leaves every cell on the
+  // per-cell language approximation this feature used before.
+  const documentEngine = documentEngineForScoping(document.fileName, fmValueLines, nestedLines);
   for (const cell of cellLines) {
     if (documentValidationOff || optedOutCells.has(cell.cellStartLine)) {
       continue; // quarto validates nothing in this cell — grounded firsthand, exit 0
@@ -163,8 +171,13 @@ async function computeValueDiagnostics(
     // reports options for every language in quarto's comment-char table, so a `{sql}`/
     // `{matlab}`/`{c}` cell reaches this line for the first time — and quarto scopes its
     // cell schema to the DOCUMENT's engine, which those languages do not determine.
+    // When the front matter named the document's engine, that name REPLACES the language
+    // guess — `engine: markdown` + an `{r}` cell + `#| cache: banana` renders quarto exit 0
+    // while the identical document without the key renders exit 1, so scoping that cell to
+    // knitr was the cardinal sin (S164). It cuts the other way too: `engine: knitr` + a
+    // `{python}` cell + `#| cache: banana` renders exit 1, a true positive we used to lose.
     const field = index
-      .cellOptions(cellOptionScopeFor(cell.cellLang))
+      .cellOptions(cellOptionScopeFor(cell.cellLang, documentEngine))
       .find((f) => f.name === optionKey);
     if (field === undefined || !isWrongValue(rawToken, field)) {
       continue;
