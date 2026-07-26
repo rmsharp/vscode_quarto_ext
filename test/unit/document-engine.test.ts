@@ -61,11 +61,12 @@ describe("Session 164 — documentEngineForScoping: the top-level `engine:` scal
     // quarto falls through to language resolution and renders the same document exit 1;
     // `Engine:` is not a recognized key at all. Folding either would silence a document
     // quarto really does validate.
-    // S165 L1: an unrecognized VALUE still declines here — a readable-but-unmatched selector
-    // is separated from an unreadable one in L2, which is where these two become `knitr`.
-    // An unrecognized KEY was never a selector at all, so it already takes the fallback.
-    expect(resolve(doc("engine: MARKDOWN\n"))).toBeUndefined();
-    expect(resolve(doc("engine: Markdown\n"))).toBeUndefined();
+    // S165 L2: the fall-through is now MODELLED, so the expected value is the language answer
+    // (`knitr`, from the `{r}` cell) rather than `undefined` — measured, `engine: MARKDOWN` +
+    // `#| cache: banana` renders exit 1. The pin still discriminates: a build that folded the
+    // case would answer `markdown`.
+    expect(resolve(doc("engine: MARKDOWN\n"))).toBe("knitr");
+    expect(resolve(doc("engine: Markdown\n"))).toBe("knitr");
     expect(resolve(doc("Engine: markdown\n"))).toBe("knitr");
   });
 
@@ -73,7 +74,10 @@ describe("Session 164 — documentEngineForScoping: the top-level `engine:` scal
     // `engine: banana` is NOT itself a front-matter schema error (the control
     // `engine: banana` + `#| cache: true` renders exit 0), and quarto falls through to
     // language resolution — so the same document with `#| cache: banana` renders exit 1.
-    expect(resolve(doc("engine: banana\n"))).toBeUndefined();
+    // S165 L2: `knitr` IS that exit-1 fall-through. A build that accepted the unknown name as
+    // a selector would answer something else entirely.
+    expect(resolve(doc("engine: banana\n"))).toBe("knitr");
+    expect(resolve(pyDoc("engine: banana\n"))).toBe("jupyter");
   });
 });
 
@@ -306,11 +310,38 @@ describe("Session 164 — documentEngineForScoping: an UNREADABLE competing sele
 
   it("does NOT manufacture ambiguity when NOTHING resolved", () => {
     // `execute:` / `  engine: banana` alone renders exit 0 with a {python} cell — quarto fell
-    // back to the language, which is exactly what `undefined` makes us do. Forcing
-    // "ambiguous" here would be a needless narrowing, and `engine: banana` alone with an {r}
-    // cell renders exit 1, which only the language fallback gets right.
-    expect(resolve(doc("execute:\n  engine: banana\n"))).toBeUndefined();
-    expect(resolve(doc("engine: banana\n"))).toBeUndefined();
+    // back to the language, which is exactly what `undefined` made us do. Forcing "ambiguous"
+    // here would be a needless narrowing, and `engine: banana` alone with an {r} cell renders
+    // exit 1, which only the language fallback gets right.
+    // S165 L2: that fall-back is now the ANSWER rather than an approximation.
+    expect(resolve(doc("execute:\n  engine: banana\n"))).toBe("knitr");
+    expect(resolve(doc("engine: banana\n"))).toBe("knitr");
+    expect(resolve(pyDoc("execute:\n  engine: banana\n"))).toBe("jupyter");
+  });
+
+  it("still declines when the UNREADABLE selector is the only one — S165 L2", () => {
+    // The distinction L2 draws, and the reason it is not simply "unresolved ⇒ fall back".
+    //
+    //   `engine: banana`             — we can READ it and it names nothing. Quarto matches
+    //                                  nothing either, so it falls to the languages and so do
+    //                                  we. Measured: + `{r}` cache → exit 1 (knitr);
+    //                                  + `{julia}` first → exit 0 (jupyter).
+    //   `execute: {engine: markdown}` — we cannot read the flow mapping's MEMBERS. Quarto CAN,
+    //                                  and honours it: measured, that document's `{r}` cell
+    //                                  with `#| cache: banana` renders **exit 0** (control
+    //                                  `#| echo: banana`: exit 1, so validation ran). Falling
+    //                                  back to the languages here would answer knitr and
+    //                                  squiggle a document quarto ACCEPTS — the cardinal sin,
+    //                                  newly manufactured by this session rather than
+    //                                  inherited. So it declines.
+    //
+    // The cost is measured and accepted: a flow `execute:` that contains NO engine key really
+    // does fall to the languages (`execute: {echo: false}` + `{r}` cache → exit 1) and we now
+    // stay silent there — a lost true positive in the FP-safe direction, and the same answer
+    // this feature gave before S165 for that document's non-r cells.
+    expect(resolve(doc("execute: {engine: markdown}\n"))).toBeUndefined();
+    expect(resolve(doc("execute: {echo: false}\n"))).toBeUndefined();
+    expect(resolve(pyDoc("execute: {engine: knitr}\n"))).toBeUndefined();
   });
 });
 

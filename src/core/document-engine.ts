@@ -198,17 +198,33 @@ export function documentEngineForScoping(
     // A selector line we can SEE but cannot RESOLVE. Quarto's last-writer-wins assignment into
     // `format.execute.engine` means such a line can overwrite one we did resolve, so answering
     // from the readable half alone would be a confident wrong answer, not a partial one.
-    let unresolvedSelector = false;
+    //
+    // The two kinds are only equivalent while something ELSE resolved (both force
+    // `"ambiguous"`). With nothing resolved they part company, and S165 L2 is that split:
+    //
+    // - UNMATCHED — we read the value and it names no engine (`engine: banana`, or the case
+    //   typo `engine: MARKDOWN`). Quarto's loop matches nothing either and falls through to
+    //   the LANGUAGES, so following it is not a guess, it is the same computation. Measured,
+    //   `engine: banana` + an `{r}` cell's `#| cache: banana` renders exit 1 (knitr, from the
+    //   language) and the same document with a `{julia}` cell first renders exit 0.
+    // - UNREADABLE — the value exists and we cannot see it (a FLOW `execute: {…}`, whose
+    //   members no enumerator emits). Quarto CAN see it and may well have selected on it:
+    //   measured, `execute: {engine: markdown}` + `{r}` + `#| cache: banana` renders **exit 0**
+    //   (control `#| echo: banana`: exit 1). Falling back to the languages there would answer
+    //   knitr and squiggle a document quarto ACCEPTS — a cardinal-sin false positive this
+    //   session would have MANUFACTURED, not inherited. So it declines.
+    let unmatchedSelector = false;
+    let unreadableSelector = false;
     for (const fm of topLevel) {
       if (fm.key === ENGINE_KEY) {
         const named = engineNamed(fm.rawToken);
         if (named !== undefined) {
           selected.add(named);
         } else {
-          unresolvedSelector = true;
+          unmatchedSelector = true;
         }
       } else if (fm.key === EXECUTE_KEY && fm.rawToken.startsWith("{")) {
-        unresolvedSelector = true; // a FLOW `execute: {…}` — its members are not enumerated
+        unreadableSelector = true; // a FLOW `execute: {…}` — its members are not enumerated
       } else if (ENGINE_NAMES.has(fm.key) && isTruthyNode(fm.rawToken, fm.hasChildren)) {
         selected.add(fm.key as DocumentEngine);
       }
@@ -223,15 +239,16 @@ export function documentEngineForScoping(
         if (named !== undefined) {
           selected.add(named);
         } else {
-          unresolvedSelector = true;
+          unmatchedSelector = true;
         }
       }
     }
     if (selected.size > 0) {
-      return selected.size === 1 && !unresolvedSelector ? [...selected][0] : "ambiguous";
+      const oneAnswer = selected.size === 1 && !unmatchedSelector && !unreadableSelector;
+      return oneAnswer ? [...selected][0] : "ambiguous";
     }
-    if (unresolvedSelector) {
-      return undefined; // we cannot rule out a selection we cannot read — see below
+    if (unreadableSelector) {
+      return undefined; // quarto may have selected on a value we cannot see — never guess
     }
   }
   // Nothing in the front matter selected an engine, so quarto resolves it from the document's
