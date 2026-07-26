@@ -44,6 +44,25 @@ export interface FrontMatterValueLine {
 }
 
 /**
+ * A top-level front-matter mapping line as the UNFILTERED scan sees it — a superset of
+ * `FrontMatterValueLine` that also covers the block-openers the value view drops.
+ */
+export interface FrontMatterTopLevelLine extends FrontMatterValueLine {
+  /**
+   * Whether this key opens a BLOCK — i.e. the next content line inside the front matter is
+   * indented under it. Only ever true for a line with no scalar value, so it is the
+   * mapping/sequence half of "does this key have a value at all"; a blank or comment-only
+   * line in between is skipped, because neither is content (S164).
+   *
+   * Needed because quarto's engine selector tests a top-level key for JS TRUTHINESS
+   * (`if (yaml[engine.name])`), and a mapping is truthy while the null of a bare `key:` is
+   * not — measured, `jupyter:` + a kernelspec block renders exit 0 where bare `jupyter:`
+   * renders exit 1 (`core/document-engine.ts`).
+   */
+  hasChildren: boolean;
+}
+
+/**
  * Enumerate every top-level front-matter mapping line in `text` that carries a
  * non-empty scalar value, in document order. Returns `[]` when the document has
  * no front matter.
@@ -58,6 +77,25 @@ export interface FrontMatterValueLine {
  * value yields an empty value token and is skipped (no scalar to validate).
  */
 export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] {
+  // Strips `hasChildren` rather than widening this shape: several suites assert the emitted
+  // objects with `toEqual`, and this enumerator's contract predates the engine work.
+  return findFrontMatterTopLevelLines(text)
+    .filter((l) => l.rawToken.length > 0)
+    .map(({ line, key, valueRange, rawToken }) => ({ line, key, valueRange, rawToken }));
+}
+
+/**
+ * Every top-level front-matter mapping line, INCLUDING the block-openers
+ * `findFrontMatterValueLines` filters out (`format:`, `jupyter:` above a kernelspec, a bare
+ * `toc:`). Same scan, same continuation guard, one predicate less — so the two can never
+ * disagree about which lines are top-level mappings in the first place.
+ *
+ * Exists because a key can matter without carrying a scalar: quarto's engine selector tests
+ * a top-level `knitr:`/`jupyter:`/`markdown:`/`julia:` key for truthiness, and a mapping is
+ * truthy (`core/document-engine.ts`, S164). Value DIAGNOSTICS still want the filtered view —
+ * a block-opener has no scalar to validate — which is why that stays the default export.
+ */
+export function findFrontMatterTopLevelLines(text: string): FrontMatterTopLevelLine[] {
   const fm = findFrontMatter(text);
   if (fm === null) {
     return [];
@@ -69,7 +107,7 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
   // `contentLines[i]` is the interior line at absolute document line
   // `fm.startLine + 1 + i` (the fences are excluded from both).
   const baseLine = fm.startLine + 1;
-  const result: FrontMatterValueLine[] = [];
+  const result: FrontMatterTopLevelLine[] = [];
   // State of an unclosed multi-line value that spans following lines. While inside one, a
   // column-0 continuation line is NOT a new top-level mapping and must be skipped — else a
   // continuation like `toc: yes,` inside `mymeta: {\n…\n}`, OR `columns: wide"` inside a
@@ -166,9 +204,6 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
     if (colon < 0 || valueSlot === null) {
       continue; // no key/value separator — not a mapping here (a safe false negative)
     }
-    if (rawToken.length === 0) {
-      continue; // block-opener / comment-only value → no scalar to validate
-    }
     result.push({
       line: baseLine + i,
       // UNQUOTED, so the key resolves against the schema's bare field names — the same rule
@@ -185,7 +220,32 @@ export function findFrontMatterValueLines(text: string): FrontMatterValueLine[] 
       key: unquoteKey(lineText.slice(0, colon).replace(/[ \t]+$/, "")),
       valueRange: { startCol: valueSlot.startCol, endCol: valueSlot.endCol },
       rawToken,
+      // Only a line with NO scalar can open a block, so the lookahead is skipped entirely
+      // for the common case — and a value-bearing line can never be reported as a parent.
+      hasChildren: rawToken.length === 0 && opensBlockAt(contentLines, i),
     });
   }
   return result;
+}
+
+/**
+ * Whether the front-matter content line at `i` is followed by an INDENTED line — the
+ * mapping/sequence body of a block-opener — before any further content.
+ *
+ * Blank and comment-only lines are skipped because neither is YAML content: `jupyter:` above
+ * nothing but a `# comment` is still the null node, and quarto renders that document exit 1
+ * (measured), so counting the comment as a body would claim an engine nothing selected.
+ * Called only for a line whose scalar token is empty, which cannot have armed the
+ * quoted/flow continuation guard, so the following lines really are ordinary lines here.
+ */
+function opensBlockAt(contentLines: readonly string[], i: number): boolean {
+  for (let j = i + 1; j < contentLines.length; j++) {
+    const line = contentLines[j];
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) {
+      continue;
+    }
+    return leadingWsLen(line) > 0;
+  }
+  return false;
 }

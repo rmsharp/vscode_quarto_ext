@@ -30,10 +30,16 @@ const ENGINE_NAMES: ReadonlySet<string> = new Set([
   "julia",
 ]);
 
-/** A top-level front-matter scalar, as `findFrontMatterValueLines` emits it. */
+/**
+ * A top-level front-matter mapping line, as `findFrontMatterTopLevelLines` emits it.
+ *
+ * `hasChildren` is optional so the value-only view (`findFrontMatterValueLines`) also
+ * satisfies this shape; absent it, a block-opener simply does not select.
+ */
 interface TopLevelScalar {
   key: string;
   rawToken: string;
+  hasChildren?: boolean;
 }
 
 /** A nested front-matter scalar, as `findNestedFrontMatterValueLines` emits it. */
@@ -147,7 +153,7 @@ export function documentEngineForScoping(
       if (named !== undefined) {
         selected.add(named);
       }
-    } else if (ENGINE_NAMES.has(fm.key) && isTruthyNode(fm.rawToken)) {
+    } else if (ENGINE_NAMES.has(fm.key) && isTruthyNode(fm.rawToken, fm.hasChildren === true)) {
       selected.add(fm.key as DocumentEngine);
     }
   }
@@ -223,7 +229,16 @@ const FALSY_NODES: ReadonlySet<string> = new Set([
   '""',
 ]);
 
-/** Whether an engine-named key's raw value token parses to a truthy node. */
-function isTruthyNode(rawToken: string): boolean {
-  return rawToken.length > 0 && !FALSY_NODES.has(rawToken);
+/**
+ * Whether an engine-named key's value is a truthy YAML node.
+ *
+ * With no scalar token the key is either a block-opener (a MAPPING — truthy, and the common
+ * `jupyter:` + kernelspec spelling: measured exit 0) or the null of a bare `key:` (falsy:
+ * measured exit 1, and itself a front-matter schema error).
+ */
+function isTruthyNode(rawToken: string, hasChildren: boolean): boolean {
+  if (rawToken.length === 0) {
+    return hasChildren;
+  }
+  return !FALSY_NODES.has(rawToken);
 }

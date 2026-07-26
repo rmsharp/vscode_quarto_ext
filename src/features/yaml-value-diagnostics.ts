@@ -35,7 +35,10 @@
 
 import * as vscode from "vscode";
 import { findCellOptionLines } from "../core/qmd/model";
-import { findFrontMatterValueLines } from "../core/yaml-frontmatter-values";
+import {
+  findFrontMatterTopLevelLines,
+  findFrontMatterValueLines,
+} from "../core/yaml-frontmatter-values";
 import { findNestedFrontMatterValueLines } from "../core/yaml-frontmatter-nested-values";
 import { cellOptionScopeFor, mappingColonAt, valueSlotAfterColon } from "../core/yaml-context";
 import { documentEngineForScoping } from "../core/document-engine";
@@ -105,7 +108,16 @@ async function computeValueDiagnostics(
   // for the whole document because the engine IS a document-level fact; `undefined` (no
   // override, or an `.Rmd` whose extension already pinned knitr) leaves every cell on the
   // per-cell language approximation this feature used before.
-  const documentEngine = documentEngineForScoping(document.fileName, fmValueLines, nestedLines);
+  // `findFrontMatterTopLevelLines`, not `fmValueLines`: a key can select an engine without
+  // carrying a scalar. `jupyter:` above a kernelspec block is the everyday spelling of the
+  // alias and renders quarto exit 0 on a knitr-only cell option, so reading only the
+  // value-bearing lines would leave that document's `{r}` cells scoped to knitr — the very
+  // false positive this fix removes.
+  const documentEngine = documentEngineForScoping(
+    document.fileName,
+    findFrontMatterTopLevelLines(text),
+    nestedLines,
+  );
   for (const cell of cellLines) {
     if (documentValidationOff || optedOutCells.has(cell.cellStartLine)) {
       continue; // quarto validates nothing in this cell — grounded firsthand, exit 0

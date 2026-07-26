@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { documentEngineForScoping } from "../../src/core/document-engine";
-import { findFrontMatterValueLines } from "../../src/core/yaml-frontmatter-values";
+import { findFrontMatterTopLevelLines } from "../../src/core/yaml-frontmatter-values";
 import { findNestedFrontMatterValueLines } from "../../src/core/yaml-frontmatter-nested-values";
 
 /**
@@ -11,7 +11,7 @@ import { findNestedFrontMatterValueLines } from "../../src/core/yaml-frontmatter
 const resolve = (text: string, fileName = "doc.qmd") =>
   documentEngineForScoping(
     fileName,
-    findFrontMatterValueLines(text),
+    findFrontMatterTopLevelLines(text),
     findNestedFrontMatterValueLines(text),
   );
 
@@ -102,6 +102,29 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
   it("is not fooled by a NESTED key that merely shares the name", () => {
     expect(resolve(doc("execute:\n  jupyter: python3\n"))).toBeUndefined();
   });
+
+  it("selects on the CONTAINER form too — a mapping is a truthy node", () => {
+    // `jupyter:` carrying a kernelspec block is the other everyday spelling of the alias,
+    // and quarto's `if (yaml["jupyter"])` is just as true for a mapping as for a string.
+    // Measured: `jupyter:` / `  kernelspec:` / `    name: python3` … + `{r}` +
+    // `#| cache: banana` renders **exit 0**, against the no-key control at exit 1.
+    // Missing this form is not a harmless gap — it leaves an {r} cell in a jupyter
+    // document scoped to knitr, which is the very false positive this session removes.
+    expect(
+      resolve(doc("jupyter:\n  kernelspec:\n    name: python3\n    language: python\n")),
+    ).toBe("jupyter");
+    expect(resolve(doc("markdown:\n  wrap: none\n"))).toBe("markdown");
+    // Measured: `knitr:` / `  opts_chunk:` / `    collapse: true` + `{python}` +
+    // `#| cache: banana` renders exit 1 — the container form selects knitr as well.
+    expect(resolve(doc("knitr:\n  opts_chunk:\n    collapse: true\n"))).toBe("knitr");
+  });
+
+  it("does NOT mistake a comment-only block for children — that node is still null", () => {
+    // A comment is not content, so `jupyter:` here is null and quarto renders the same
+    // document exit 1. Reading it as a mapping would claim an engine nothing selected.
+    expect(resolve(doc("jupyter:\n  # nothing yet\n"))).toBeUndefined();
+    expect(resolve(doc("jupyter:\n\ntoc: true\n"))).toBeUndefined();
+  });
 });
 
 describe("Session 164 — documentEngineForScoping: two selectors that DISAGREE", () => {
@@ -115,6 +138,9 @@ describe("Session 164 — documentEngineForScoping: two selectors that DISAGREE"
   it("returns `ambiguous` when the front matter selects more than one engine", () => {
     expect(resolve(doc("engine: markdown\nexecute:\n  engine: knitr\n"))).toBe("ambiguous");
     expect(resolve(doc("engine: jupyter\nmarkdown: true\n"))).toBe("ambiguous");
+    expect(resolve(doc("jupyter: python3\nknitr:\n  opts_chunk:\n    collapse: true\n"))).toBe(
+      "ambiguous",
+    );
   });
 
   it("does NOT call the SAME engine named twice ambiguous", () => {

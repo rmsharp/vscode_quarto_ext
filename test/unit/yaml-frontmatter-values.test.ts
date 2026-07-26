@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { findFrontMatterValueLines } from "../../src/core/yaml-frontmatter-values";
+import {
+  findFrontMatterTopLevelLines,
+  findFrontMatterValueLines,
+} from "../../src/core/yaml-frontmatter-values";
 
 describe("findFrontMatterValueLines — top-level front-matter value lines", () => {
   it("emits a top-level scalar value line with key, value range, and raw token", () => {
@@ -409,5 +412,45 @@ describe("findFrontMatterValueLines — QUOTED-KEY parity with findProjectConfig
     // multi-line scalar arms the continuation guard instead of silently disarming it.
     const text = ["---", '"a: b": banana', "---"].join("\n");
     expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["a: b"]);
+  });
+});
+
+describe("findFrontMatterTopLevelLines — the UNFILTERED view, block-openers included (S164)", () => {
+  const keys = (text: string) => findFrontMatterTopLevelLines(text).map((v) => v.key);
+  const opener = (text: string, key: string) =>
+    findFrontMatterTopLevelLines(text).find((v) => v.key === key);
+
+  it("emits the block-openers the value view drops, and nothing else extra", () => {
+    const text = ["---", "title: T", "format:", "  html:", "    toc: true", "jupyter:", "---"].join(
+      "\n",
+    );
+    expect(keys(text)).toEqual(["title", "format", "jupyter"]);
+    // The value view is exactly this minus the empty-token lines — the two share one scan,
+    // so they cannot disagree about which lines are top-level mappings.
+    expect(findFrontMatterValueLines(text).map((v) => v.key)).toEqual(["title"]);
+  });
+
+  it("reports hasChildren only for a key an INDENTED line actually follows", () => {
+    const text = ["---", "title: T", "format:", "  html:", "jupyter:", "---"].join("\n");
+    expect(opener(text, "format")?.hasChildren).toBe(true);
+    expect(opener(text, "jupyter")?.hasChildren).toBe(false); // nothing follows it
+    expect(opener(text, "title")?.hasChildren).toBe(false); // carries a scalar, never a parent
+  });
+
+  it("does not count a blank or comment-only line as a child", () => {
+    const blank = ["---", "jupyter:", "", "toc: true", "---"].join("\n");
+    expect(opener(blank, "jupyter")?.hasChildren).toBe(false);
+    const comment = ["---", "jupyter:", "  # not yet", "---"].join("\n");
+    expect(opener(comment, "jupyter")?.hasChildren).toBe(false);
+    // …but a real indented line AFTER a comment still counts.
+    const afterComment = ["---", "jupyter:", "  # soon", "  kernelspec:", "---"].join("\n");
+    expect(opener(afterComment, "jupyter")?.hasChildren).toBe(true);
+  });
+
+  it("keeps the continuation guard — a folded column-0 line is not a top-level key here either", () => {
+    // The same S130 false positive the value view guards against: a multi-line quoted
+    // scalar folds the following line into itself, so `toc` is not a key at all.
+    const text = ["---", 'title: "one', 'toc: banana"', "---"].join("\n");
+    expect(keys(text)).toEqual(["title"]);
   });
 });
