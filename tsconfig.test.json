@@ -13,6 +13,7 @@
   },
   "include": [
     "test/integration/**/*.ts",
-    "test/lsp/**/*.ts"
+    "test/lsp/**/*.ts",
+    "test/oracle/**/*.ts"
   ]
 }

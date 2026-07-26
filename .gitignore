@@ -38,6 +38,13 @@ test/fixtures/yaml-diagnostics/**/.gitignore
 docs/*.html
 docs/*_files/
 
+# The oracle's quarto-verdict cache (`npm run test:oracle`). Pure measurement cache: it
+# is keyed by the installed quarto version plus each document's exact bytes, so it can
+# only ever be re-derived by re-rendering. Deliberately NOT committed — the durable,
+# reviewable artifact is `test/oracle/baseline.json` (what we expect to conclude), not a
+# machine-local transcript of what one quarto install happened to say.
+test/oracle/.quarto-cache.json
+
 # Logs & OS cruft
 *.log
 .DS_Store
