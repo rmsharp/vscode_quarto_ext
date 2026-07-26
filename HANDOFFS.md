@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S167
+date: 2026-07-26
+status: pending
+active_task: PLANNING. Write the plan for lifting the pure cell-option flag decision out of src/features/yaml-value-diagnostics.ts into src/core/, so the feature and the oracle (test/oracle/flags.ts) share ONE implementation and the mirror is REMOVED rather than mitigated. S166's #1 ranked recommendation; SAFEGUARDS gates refactoring behind plan mode, so the PLAN is the deliverable and implementation is a separate session (FM #18/#19). Following ARCHITECTURE_WORKSTREAM.md plus SESSION_RUNNER Planning-Sessions gates. Operator-selected via AskUserQuestion at Phase 0. ONE deliverable.
+```
+
+```handoff
 session: S166
 date: 2026-07-26
 status: complete
