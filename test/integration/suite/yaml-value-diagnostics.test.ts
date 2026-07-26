@@ -2046,3 +2046,181 @@ describe("Quarto: the front-matter `engine:` override scopes cell options (.qmd,
     );
   });
 });
+
+// Session 165 — the DEFAULT (no-override) document engine. When the front matter names no
+// engine, quarto resolves one from the document's own cell languages
+// (`markdownExecutionEngine`: languages outer, engines inner, first claim wins, else jupyter,
+// else markdown), and that answer is document-wide and ORDER-DEPENDENT. Until now this
+// feature scoped each cell to its OWN language. Every expectation below was grounded firsthand
+// vs quarto 1.7.33 (`--no-execute`), each against a control differing in one line.
+describe("Quarto: the DEFAULT engine comes from the cell languages (.qmd, Session 165)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  const flaggedLines = (uri: vscode.Uri) =>
+    valueDiagnostics(uri).map((d) => d.range.start.line);
+
+  it("stops flagging a knitr-only option in an {r} cell that a {julia} cell precedes", async () => {
+    // THE FILED DEFECT. jupyter's `claimsLanguage` answers "julia" and knitr's answers "r",
+    // and the loop walks the LANGUAGES outer — so whichever appears first owns the whole
+    // document. Measured: this document renders quarto **exit 0**, while the identical one
+    // without the `{julia}` cell renders **exit 1** with `Field "cache" has value banana`.
+    const content = [
+      "---",              // 0
+      "title: T",         // 1
+      "---",              // 2
+      "",                 // 3
+      "```{julia}",       // 4  ← makes the WHOLE document jupyter
+      "1 + 1",            // 5
+      "```",              // 6
+      "",                 // 7
+      "```{r}",           // 8
+      "#| cache: banana", // 9  knitr-only: exit 1 without the {julia} cell, exit 0 with it
+      "1 + 1",            // 10
+      "```",              // 11
+      "",                 // 12
+    ].join("\n");
+
+    // PHASE 1 — the non-vacuity control FIRST: a negative assertion can pass against a
+    // provider that never ran, so prove the line is flaggable on this exact text minus the
+    // {julia} cell (the same discipline S163's §9 review imposed).
+    const controlDoc = await openInline(content.replace("```{julia}\n1 + 1\n```\n\n", ""));
+    assert.ok(
+      await waitFor(() => flaggedLines(controlDoc.uri).includes(5), 5000),
+      `control (identical but for the {julia} cell) must flag the knitr-only \`cache\`; flagged: ${flaggedLines(controlDoc.uri).join(",")}`,
+    );
+
+    // PHASE 2 — with the {julia} cell first, quarto renders it exit 0.
+    const doc = await openInline(content);
+    await waitFor(() => flaggedLines(doc.uri).length > 0, 2500); // settle
+    assert.deepStrictEqual(
+      flaggedLines(doc.uri),
+      [],
+      `a {julia} cell ahead of the {r} cell makes this document jupyter and quarto renders it exit 0 — nothing may be flagged; flagged lines: ${flaggedLines(doc.uri).join(",")}`,
+    );
+  });
+
+  it("STILL flags an engine-AGNOSTIC option in that same jupyter-resolved document", async () => {
+    // THE OVER-SUPPRESSION GUARD. Resolving the document to jupyter narrows the scope; it
+    // does not turn validation off. Measured: `#| echo: banana` on the {r} cell of the very
+    // document above renders quarto **exit 1** — `echo` carries no `tags.engine`.
+    const content = [
+      "---",              // 0
+      "title: T",         // 1
+      "---",              // 2
+      "",                 // 3
+      "```{julia}",       // 4
+      "1 + 1",            // 5
+      "```",              // 6
+      "",                 // 7
+      "```{r}",           // 8
+      "#| echo: banana",  // 9  agnostic — exit 1 even though the document is jupyter
+      "#| cache: banana", // 10 knitr-only — the one the narrowing suppresses
+      "1 + 1",            // 11
+      "```",              // 12
+      "",                 // 13
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => flaggedLines(doc.uri).includes(9), 5000),
+      `line 9 (\`echo\`, engine-agnostic) renders quarto exit 1 and MUST still flag; flagged: ${flaggedLines(doc.uri).join(",")}`,
+    );
+    assert.ok(
+      !flaggedLines(doc.uri).includes(10),
+      `line 10 (\`cache\`, knitr-only) is what the jupyter resolution suppresses; flagged lines: ${flaggedLines(doc.uri).join(",")}`,
+    );
+  });
+
+  it("STARTS flagging a knitr-only option in a {python} cell when an {r} cell is present", async () => {
+    // The direction that WIDENS, and a true positive scoping by cell language could never
+    // reach: quarto validates EVERY cell of a knitr document against knitr's schema.
+    // Measured **exit 1**, against the same document without the {r} cell at exit 0.
+    const content = [
+      "---",              // 0
+      "title: T",         // 1
+      "---",              // 2
+      "",                 // 3
+      "```{r}",           // 4  ← makes the WHOLE document knitr
+      "1 + 1",            // 5
+      "```",              // 6
+      "",                 // 7
+      "```{python}",      // 8
+      "#| cache: banana", // 9  exit 1 WITH the {r} cell, exit 0 without it
+      "1 + 1",            // 10
+      "```",              // 11
+      "",                 // 12
+    ].join("\n");
+    const doc = await openInline(content);
+    assert.ok(
+      await waitFor(() => flaggedLines(doc.uri).includes(9), 5000),
+      `line 9 renders quarto exit 1 because the {r} cell makes the document knitr, and MUST flag; flagged: ${flaggedLines(doc.uri).join(",")}`,
+    );
+
+    // The control proves the flag came from the DOCUMENT's engine and not from the cell's
+    // language: drop the {r} cell and the same {python} cell must go silent.
+    const controlDoc = await openInline(content.replace("```{r}\n1 + 1\n```\n\n", ""));
+    await waitFor(() => flaggedLines(controlDoc.uri).length > 0, 2500); // settle
+    assert.deepStrictEqual(
+      flaggedLines(controlDoc.uri),
+      [],
+      `without the {r} cell this document is jupyter and renders quarto exit 0 — nothing may be flagged; flagged lines: ${flaggedLines(controlDoc.uri).join(",")}`,
+    );
+  });
+
+  it("narrows on a {julia} fence inside an example block — quarto's scan is CONTEXT-FREE", async () => {
+    // The design decision this feature rests on, end to end. Quarto's `languagesInMarkdown` is
+    // a plain regex over the whole file with no fence-nesting awareness, so the `{julia}` line
+    // below — which is DISPLAYED text, not a cell, and which `findAllCells` correctly does not
+    // report — still makes the document jupyter. Measured **exit 0**, against the same
+    // document with that block removed at exit 1. Reading the engine off our own cell list
+    // would flag line 10 here and squiggle a document quarto ACCEPTS.
+    const content = [
+      "---",              // 0
+      "title: T",         // 1
+      "---",              // 2
+      "",                 // 3
+      "````",             // 4  ← an EXAMPLE block: the fence inside is not a cell
+      "```{julia}",       // 5
+      "1 + 1",            // 6
+      "```",              // 7
+      "````",             // 8
+      "",                 // 9
+      "```{r}",           // 10
+      "#| cache: banana", // 11
+      "1 + 1",            // 12
+      "```",              // 13
+      "",                 // 14
+    ].join("\n");
+    const controlDoc = await openInline(
+      content.replace("````\n```{julia}\n1 + 1\n```\n````\n\n", ""),
+    );
+    // Line 5 in the CONTROL, not 11: removing the six-line example block shifts the `{r}`
+    // cell up to line 4 and its option to line 5. (The first RED run caught this as an
+    // off-by-one — the control was flagging correctly and the assertion was looking at the
+    // wrong line, which would have masked whatever phase 2 did.)
+    assert.ok(
+      await waitFor(() => flaggedLines(controlDoc.uri).includes(5), 5000),
+      `control (the same document without the example block) must flag \`cache\`; flagged: ${flaggedLines(controlDoc.uri).join(",")}`,
+    );
+
+    const doc = await openInline(content);
+    await waitFor(() => flaggedLines(doc.uri).length > 0, 2500); // settle
+    assert.deepStrictEqual(
+      flaggedLines(doc.uri),
+      [],
+      `quarto counts the {julia} fence inside the example block and renders this exit 0 — nothing may be flagged; flagged lines: ${flaggedLines(doc.uri).join(",")}`,
+    );
+  });
+});
