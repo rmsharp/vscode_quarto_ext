@@ -737,6 +737,60 @@ describe("cellOptionScopeFor — a cell-HANDLER language is validated by no cell
   });
 });
 
+describe("cellOptionScopeFor — a resolved DOCUMENT engine replaces the language guess (S164)", () => {
+  // Quarto scopes a cell's schema to the DOCUMENT's engine, never to the cell's language:
+  // validateDocument passes context.engine.name down to partitionCellOptionsMapped, which
+  // picks engineOptionsSchema[engine]. When the front matter tells us that name, the
+  // language approximation is not just unnecessary — it is wrong.
+  it("scopes EVERY language to the resolved engine, whatever the cell is written in", () => {
+    // Measured: `engine: knitr` + a {python} cell + `#| cache: banana` renders exit 1
+    // (control without the key: exit 0), and `#| collapse: banana` likewise. A knitr
+    // document validates its {ojs} and {sql} cells against knitr too — measured, an {ojs}
+    // cell's `//| cache: banana` renders exit 1 in a document holding an {r} cell.
+    for (const lang of ["r", "python", "julia", "ojs", "js", "sql", "matlab", "banana"]) {
+      expect(cellOptionScopeFor(lang, "knitr"), lang).toBe("knitr");
+      expect(cellOptionScopeFor(lang, "jupyter"), lang).toBe("jupyter");
+    }
+  });
+
+  it("narrows an {r} cell to the agnostic set under a markdown/julia engine", () => {
+    // THE filed defect: `engine: markdown` + an {r} cell + `#| cache: banana` renders
+    // exit 0 while the identical document without the key renders exit 1. Quarto's
+    // markdown and julia engine schemas are `cell-*` filtered by `tags.engine === the
+    // engine name`, and no shipped cell field carries a markdown or julia tag, so those
+    // two schemas ARE the engine-agnostic set — `"unknown"` is the exact answer here, not
+    // an approximation. The agnostic keys are still validated (measured: the same
+    // document with `#| echo: banana` renders exit 1), which is what `"unknown"` keeps.
+    expect(cellOptionScopeFor("r", "markdown")).toBe("unknown");
+    expect(cellOptionScopeFor("r", "julia")).toBe("unknown");
+    expect(cellOptionScopeFor("python", "markdown")).toBe("unknown");
+  });
+
+  it("narrows to the agnostic set when the front matter is ambiguous", () => {
+    expect(cellOptionScopeFor("r", "ambiguous")).toBe("unknown");
+    expect(cellOptionScopeFor("python", "ambiguous")).toBe("unknown");
+  });
+
+  it("leaves the language approximation in place when no engine was resolved", () => {
+    expect(cellOptionScopeFor("r", undefined)).toBe("knitr");
+    expect(cellOptionScopeFor("python", undefined)).toBe("jupyter");
+    expect(cellOptionScopeFor("sql", undefined)).toBe("unknown");
+    expect(cellOptionScopeFor("ojs", undefined)).toBe("ojs");
+  });
+
+  it("keeps the handler-language exemption above the engine — the schema SWAP is by LANGUAGE", () => {
+    // `parseAndValidateCellOptions` picks engineOptionsSchema[engine] and then OVERRIDES it
+    // for a handler language, so a {dot}/{mermaid} cell is exempt under every engine. In a
+    // knitr document such a cell does render exit 1, but structurally — measured, the same
+    // `//| echo: false` that is VALID renders exit 1 too — so no value diagnostic can
+    // express it and letting the engine widen this back would be a cardinal-sin FP.
+    for (const engine of ["knitr", "jupyter", "markdown", "julia", "ambiguous"] as const) {
+      expect(cellOptionScopeFor("dot", engine), engine).toBe("none");
+      expect(cellOptionScopeFor("mermaid", engine), engine).toBe("none");
+    }
+  });
+});
+
 describe("completionContextAt — cell-option completion follows the LANGUAGE's comment char (S161)", () => {
   it("offers cell-option completion on a `--|` line in a {sql} cell", () => {
     // Quarto reads this as a directive (`{sql}` + `--| echo: banana` renders exit 1 with a

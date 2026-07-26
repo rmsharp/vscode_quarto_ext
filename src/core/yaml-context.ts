@@ -16,6 +16,7 @@
  * `frontmatter-value` (the slot after that key's colon).
  */
 
+import type { DocumentEngine } from "./document-engine";
 import { findCellOptionLines, inFrontMatter } from "./qmd/model";
 
 /** Which kind of YAML position the cursor is at. */
@@ -669,9 +670,48 @@ export function engineFor(lang: string): CellEngine | undefined {
  *
  * A cell-HANDLER language narrows one step further, to `"none"` — see
  * `CELL_HANDLER_LANGUAGES` below (S162).
+ *
+ * ## `documentEngine` — when the language does not have to be guessed at all (S164)
+ *
+ * Everything above describes the FALLBACK. Quarto never scopes by cell language: it scopes
+ * by the DOCUMENT's engine, which `validateDocument` hands to `partitionCellOptionsMapped`
+ * as `context.engine.name`. When the front matter names that engine (`core/document-engine.ts`
+ * reads the three spellings), pass it here and the guess is replaced by the fact:
+ *
+ * - **knitr / jupyter** — used directly, for EVERY cell language. Measured, `engine: knitr` +
+ *   a `{python}` cell + `#| cache: banana` renders **exit 1** (control without the key: exit
+ *   0), and a knitr document validates its `{ojs}` and `{sql}` cells against knitr too.
+ * - **markdown / julia** — `"unknown"`. Those two engine schemas are `cell-*` filtered by
+ *   `tags.engine === "markdown"` / `"julia"`, and NO shipped `cell-*` field carries either
+ *   tag, so each schema IS the engine-agnostic set: `"unknown"` is the exact answer here
+ *   rather than a narrowing. (Should a future quarto add such a tag, this under-reports —
+ *   the safe direction.) The agnostic fields stay validated, which is what makes
+ *   `engine: markdown` + `#| echo: banana` still render exit 1 while `#| cache: banana`
+ *   renders exit 0 — the filed false positive this argument removes.
+ * - **`"ambiguous"`** — `"unknown"`, because two disagreeing selectors resolve in an order
+ *   we cannot see (see `documentEngineForScoping`).
+ *
+ * The handler-language branch stays ABOVE all of it: quarto swaps the engine schema for
+ * `handlers/<lang>/schema.yml` by LANGUAGE, so a `{dot}`/`{mermaid}` cell is exempt under
+ * every engine. A knitr document does reject such a cell, but structurally — the VALID
+ * `//| echo: false` renders exit 1 there too — so no value diagnostic can express it and
+ * letting the engine widen it back would be a cardinal-sin false positive.
  */
-export function cellOptionScopeFor(lang: string): CellEngine | "unknown" | "none" {
-  return isCellHandlerLanguage(lang) ? "none" : (engineFor(lang) ?? "unknown");
+export function cellOptionScopeFor(
+  lang: string,
+  documentEngine?: DocumentEngine | "ambiguous",
+): CellEngine | "unknown" | "none" {
+  if (isCellHandlerLanguage(lang)) {
+    return "none"; // the schema SWAP is by LANGUAGE and outranks every engine
+  }
+  if (documentEngine === undefined) {
+    return engineFor(lang) ?? "unknown"; // the language approximation, unchanged
+  }
+  if (documentEngine === "knitr" || documentEngine === "jupyter") {
+    return documentEngine;
+  }
+  // markdown, julia, and `"ambiguous"` all land on the engine-agnostic intersection.
+  return "unknown";
 }
 
 /**
