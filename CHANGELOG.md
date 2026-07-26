@@ -7,6 +7,77 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-25 · [ad hoc] Session 164 — IMPLEMENTATION: honour the front-matter `engine:` override (SHIPPED)
+
+Quarto scopes a cell's option schema to the **document's** engine. This extension scoped it to
+the **cell's language**, so an `{r}` cell in a document that had overridden its engine was
+validated against knitr regardless — squiggling documents `quarto render` **accepts**.
+**PRE-EXISTING** (`engineFor` has always keyed on the cell language alone). Filed by the
+Session 161 §9 review, verified firsthand by S161, operator-selected at Phase 0.
+
+Read from the render path rather than inferred:
+
+```js
+// renderFileInternal → validateDocument(context)
+//   → validateDocumentFromSource(target.markdown, context.engine.name)
+//     → partitionCellOptionsMapped(lang, cell.sourceWithYaml, true, engine)
+let schema = engineOptionsSchema[engine];   // markdown | knitr | jupyter | julia
+// and each of those four is `cell-*` filtered by the field's own tags.engine (makeEngineSchema)
+```
+
+The filter is the one `SchemaIndex.cellOptions` already implements, so the only missing input
+was the engine NAME.
+
+`src/core/document-engine.ts` (new) owns the rule. `documentEngineForScoping` reads the three
+spellings of the override out of the document's own front matter — a top-level `engine: <name>`,
+the same key under `execute:`, and a truthy top-level key literally NAMED after an engine
+(`jupyter: python3`, or `jupyter:` above a kernelspec mapping) — and
+`cellOptionScopeFor(lang, engine)` uses it in place of the language guess.
+
+**Both directions, both measured.** `engine: markdown` + `{r}` + `#| cache: banana` renders
+exit 0 and is now silent (it was flagged); `engine: knitr` + `{python}` + `#| cache: banana`
+renders exit 1 and is now flagged (it was silent). An engine-agnostic option such as
+`#| echo: banana` still renders exit 1 under `engine: markdown` and is still flagged — the
+override narrows the scope, it does not turn validation off.
+
+**Three deliberate limits, each grounded.** On an `.Rmd`/`.rmd` the override is IGNORED, because
+`claimsFile` gives knitr the file before any front matter is read (measured: exit 1 there, exit 0
+for the same text as `.qmd`) — and this extension's languageId opens `.Rmd`. When the front
+matter selects *two* engines the resolver declines and narrows to the agnostic set, because
+quarto's answer is genuinely order-dependent (the same two keys in opposite order render exit 1
+and exit 0) and a project `engines:` list reorders the selector loop besides. And the
+handler-language exemption (S162) still outranks the engine, because quarto swaps that schema by
+LANGUAGE.
+
+**The safety story was swept, not argued.** Our scope model was compared against quarto's own
+`makeEngineSchema` filter over every one of the 43 `cell-*` fields this feature can actually flag
+(`isWrongValue("banana", f)`), for all four engines: they agree exactly — no field we would flag
+that quarto would not, and none quarto flags that we would not. `cellOptions("knitr")` is 43
+fields and every other scope is the same 23, so only a *knitr* answer can widen anything; the
+falsy-value table that guards it was measured spelling by spelling.
+
+Residuals filed rather than folded in: the default (no-override) language path, `.Rmd`
+whole-document knitr scoping, the FLOW spelling `execute: {engine: markdown}`, node-property
+value spellings, the project `engines:` reorder, and a latent multi-engine `tags.engine`
+modelling gap that is inert today.
+
+**The §9 review earned its cost three times over.** It found three cardinal-sin false
+positives this session had INTRODUCED, all in the one direction the design named as
+dangerous (claiming knitr wrongly), each re-measured firsthand before any code moved:
+an indented plain-scalar body read as a container (`knitr:` / `  false` — quarto exit 0,
+we squiggled it); a node-property value read as a truthy string (`knitr: !!bool false`,
+`&a false`, an alias — all exit 0); and two partitioner/ordering skews (a blank first
+content line, which quarto's ENGINE partitioner rejects outright, and a later unreadable
+`execute.engine` that overwrites an earlier `engine: knitr` — a mere case typo suffices).
+L6-L8 fix all of them. The review also falsified five claims in the session's own prose,
+including a handler-cell justification whose supporting measurement turned out to be a
+graphviz syntax error misread as a chunk-option error.
+
+Final state: an end-to-end replay of the feature's own scope decision against
+`quarto render`'s exit code over 17 documents reports **zero cardinal false positives,
+every case agreeing**.
+
+
 ### 2026-07-25 · [ad hoc] Session 163 — IMPLEMENTATION: honour quarto's `validate-yaml: false` escape hatch (SHIPPED)
 
 Quarto documents a document-wide opt-out from YAML validation, and this extension ignored
