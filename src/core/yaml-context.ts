@@ -681,11 +681,19 @@ export function engineFor(lang: string): CellEngine | undefined {
  * - **knitr / jupyter** — used directly, for EVERY cell language. Measured, `engine: knitr` +
  *   a `{python}` cell + `#| cache: banana` renders **exit 1** (control without the key: exit
  *   0), and a knitr document validates its `{ojs}` and `{sql}` cells against knitr too.
- * - **markdown / julia** — `"unknown"`. Those two engine schemas are `cell-*` filtered by
- *   `tags.engine === "markdown"` / `"julia"`, and NO shipped `cell-*` field carries either
- *   tag, so each schema IS the engine-agnostic set: `"unknown"` is the exact answer here
- *   rather than a narrowing. (Should a future quarto add such a tag, this under-reports —
- *   the safe direction.) The agnostic fields stay validated, which is what makes
+ * - **markdown / julia** — `"unknown"`. Those two engine schemas keep a `cell-*` field iff its
+ *   `tags.engine` is absent OR names that engine, and no shipped field carries a `markdown`
+ *   or `julia` tag, so the two coincide with the engine-agnostic set on everything this
+ *   feature can act on. **They are not literally identical, and an earlier revision of this
+ *   comment said they were** (S164 §9 review): quarto's filter also admits a field whose tag
+ *   is a LIST naming the engine, while `engineTag` (`yaml-schema.ts`) maps a multi-engine
+ *   list to `undefined`, i.e. into the agnostic set. So `"unknown"` is a strict SUPERSET of
+ *   quarto's markdown/julia schema by exactly those fields — one in 1.7.33, `tbl-colwidths`.
+ *   That is inert rather than harmless-by-luck: swept over all 43 fields `isWrongValue` can
+ *   fire on, our four scopes and quarto's four filters agree EXACTLY, because
+ *   `tbl-colwidths` is open-valued and so unflaggable. It would become a cardinal-sin false
+ *   positive the day quarto gives a multi-engine tag to a closed-valued field. Filed.
+ *   The agnostic fields stay validated, which is what makes
  *   `engine: markdown` + `#| echo: banana` still render exit 1 while `#| cache: banana`
  *   renders exit 0 — the filed false positive this argument removes.
  * - **`"ambiguous"`** — `"unknown"`, because two disagreeing selectors resolve in an order

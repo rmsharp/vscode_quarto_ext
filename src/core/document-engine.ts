@@ -23,6 +23,9 @@ export type DocumentEngine = "knitr" | "jupyter" | "markdown" | "julia";
 /** Quarto's own key for the override, at the top level and under `execute:` alike. */
 const ENGINE_KEY = "engine";
 
+/** The execute-defaults container the override may also live under. */
+const EXECUTE_KEY = "execute";
+
 const ENGINE_NAMES: ReadonlySet<string> = new Set([
   "knitr",
   "jupyter",
@@ -95,28 +98,44 @@ interface NestedScalar {
  *
  * ## Why two disagreeing selectors return `"ambiguous"` instead of a guess
  *
- * Quarto's answer is order-dependent in two ways we cannot see from a `.qmd` alone:
+ * Quarto's answer is order-dependent in two ways — and, contrary to an earlier revision of
+ * this comment, only ONE of them is invisible to us:
  *
  *  - **Key order.** `metadataAsFormat` assigns into `format.execute` while walking
  *    `Object.keys(metadata)`, so the LAST writer wins. Measured, the same two keys in
  *    opposite orders give opposite answers: `engine: markdown` then `execute:`/`  engine:
  *    knitr` renders **exit 1** (knitr won), and `execute:`/`  engine: knitr` then
- *    `engine: markdown` renders **exit 0** (markdown won).
+ *    `engine: markdown` renders **exit 0** (markdown won). Document order IS visible to us —
+ *    the enumerators emit in it — so this half could in principle be modelled. It is not,
+ *    because the second half cannot be, and modelling one of two interacting orderings buys
+ *    a confident answer that the other can still invalidate (S164 §9 review).
  *  - **Project reordering.** `reorderEngines` puts `_quarto.yml`'s `engines:` list at the
  *    front of the loop. Measured: with `engines: [jupyter, knitr]` a document carrying both
  *    `engine: knitr` and `jupyter: python3` flips from exit 0 to exit 1. We never read
- *    `_quarto.yml` on a `.qmd` pass, so that reorder is invisible here.
+ *    `_quarto.yml` on a `.qmd` pass, so that reorder is genuinely invisible here.
  *
  * Guessing wrong in the knitr direction is the cardinal sin (below), so a set with more than
  * one member declines to answer and the caller narrows to the engine-agnostic intersection.
- * A set with ONE member is safe from both effects — no ordering can elect an engine that
- * nothing selected — so `engine: jupyter` + `jupyter: python3` resolves plainly to jupyter.
+ *
+ * **One VISIBLE member is not the same as one member.** A selector line we can see but not
+ * resolve — an `engine:`/`execute.engine` whose value names no engine, or a flow
+ * `execute: {…}` whose members no enumerator emits — still participates in that
+ * last-writer-wins assignment, and can leave quarto selecting NOTHING where we resolved one
+ * name. Measured, every one of `engine: knitr` + `execute:`/`  engine: Knitr` (a mere case
+ * typo), + `execute:`/`  engine: banana`, and + `execute: {engine: markdown}` renders
+ * **exit 0** with a `{python}` cell's `#| cache: banana`, against the agnostic control at
+ * exit 1 and `engine: knitr` alone at exit 1. So an unresolved selector forces `"ambiguous"`
+ * too — but only when something else DID resolve: with nothing resolved, `undefined` is
+ * already quarto's own answer (`execute:`/`  engine: banana` alone renders exit 0 on a
+ * `{python}` cell, and `engine: banana` alone renders exit 1 on an `{r}` cell — both are the
+ * language fallback, which is exactly what `undefined` selects).
  *
  * ## Which mistakes are dangerous, swept rather than assumed
  *
- * Over the 94 `cell-*` fields of the installed 1.7.33 resource, 43 are ones this extension
- * can actually flag (`isWrongValue("banana", field)`; the rest are open-valued and never
- * fire whatever scope is used — the S162 `layout` / S163 170-key lesson). Of those:
+ * The installed 1.7.33 resource declares **97** `cell-*` fields; this extension's parser keeps
+ * 94 of them, and 43 of those are ones it can actually flag (`isWrongValue("banana", field)`;
+ * the rest are open-valued and never fire whatever scope is used — the S162 `layout` / S163
+ * 170-key lesson). Of those 43:
  *
  * - `cellOptions("knitr")` → **43**
  * - `cellOptions("jupyter")` = `cellOptions("ojs")` = `cellOptions("unknown")` → **23**,
@@ -129,6 +148,15 @@ interface NestedScalar {
  * lost true positive and can never cost a false positive. The whole safety story of this
  * module is therefore: *never claim knitr wrongly.* That is why the falsy table below is
  * measured rather than reasoned, and why an unrecognized spelling always declines.
+ *
+ * The stronger form of the same check, run against quarto's own filter rather than reasoned
+ * from the tags: for each of the four engines, take quarto's `makeEngineSchema` rule (keep a
+ * field iff `tags.engine` is absent, equals the engine, or is a list containing it) over the
+ * raw resource, and set-diff it against `cellOptions(scope)` restricted to the 43 flaggable
+ * fields. All four agree EXACTLY — no field we would flag that quarto would not, and none
+ * quarto flags that we would not. The restriction to flaggable fields is what makes that
+ * true: unrestricted, `"unknown"` is a strict superset by the multi-engine-tagged
+ * `tbl-colwidths` (see `cellOptionScopeFor`).
  *
  * ## What it does NOT see — and why a MISS is not automatically harmless
  *
@@ -155,33 +183,79 @@ export function documentEngineForScoping(
   fileName: string,
   topLevel: readonly TopLevelScalar[],
   nested: readonly NestedScalar[],
+  frontMatterContentLines: readonly string[] | null,
 ): DocumentEngine | "ambiguous" | undefined {
   if (isRMarkdownFileName(fileName)) {
     return undefined; // knitr claimed the file by EXTENSION; the front matter never runs
   }
+  if (!engineResolverSeesFrontMatter(frontMatterContentLines)) {
+    return undefined; // quarto's engine partitioner rejects this block — it selects nothing
+  }
   const selected = new Set<DocumentEngine>();
+  // A selector line we can SEE but cannot RESOLVE. Quarto's last-writer-wins assignment into
+  // `format.execute.engine` means such a line can overwrite one we did resolve, so answering
+  // from the readable half alone would be a confident wrong answer, not a partial one.
+  let unresolvedSelector = false;
   for (const fm of topLevel) {
     if (fm.key === ENGINE_KEY) {
       const named = engineNamed(fm.rawToken);
       if (named !== undefined) {
         selected.add(named);
+      } else {
+        unresolvedSelector = true;
       }
+    } else if (fm.key === EXECUTE_KEY && fm.rawToken.startsWith("{")) {
+      unresolvedSelector = true; // a FLOW `execute: {…}` — its members are not enumerated
     } else if (ENGINE_NAMES.has(fm.key) && isTruthyNode(fm.rawToken, fm.hasChildren === true)) {
       selected.add(fm.key as DocumentEngine);
     }
   }
   for (const ns of nested) {
-    if (ns.parentPath.length === 1 && ns.parentPath[0] === "execute" && ns.key === ENGINE_KEY) {
+    if (ns.parentPath.length === 1 && ns.parentPath[0] === EXECUTE_KEY && ns.key === ENGINE_KEY) {
       const named = engineNamed(ns.rawToken);
       if (named !== undefined) {
         selected.add(named);
+      } else {
+        unresolvedSelector = true;
       }
     }
   }
   if (selected.size === 0) {
-    return undefined;
+    return undefined; // nothing selected — the language fallback is quarto's own answer too
   }
-  return selected.size === 1 ? [...selected][0] : "ambiguous";
+  return selected.size === 1 && !unresolvedSelector ? [...selected][0] : "ambiguous";
+}
+
+/**
+ * Whether quarto's ENGINE partitioner would see this front matter at all.
+ *
+ * Quarto runs two different partitioners over the same document, and S164 originally wired
+ * the permissive one into engine selection. YAML VALIDATION uses `breakQuartoMd`, which only
+ * needs the block to open and close with `---`. ENGINE selection uses
+ * `partitionYamlFrontMatter`, which rejects more:
+ *
+ * ```js
+ * const mdLines = lines(markdown.trimLeft());
+ * if (mdLines.length < 3 || !mdLines[0].match(kRegExBeginYAML)) return null;
+ * else if (mdLines[1].trim().length === 0 || mdLines[1].match(kRegExEndYAML)) return null;
+ * ```
+ *
+ * so a block whose FIRST content line is blank selects no engine, and quarto falls back to
+ * the cell languages. Measured: `---` / blank / `knitr: true` / `---` with a `{python}` cell's
+ * `#| cache: banana` renders **exit 0**, while the engine-agnostic `#| echo: banana` on the
+ * same front matter renders exit 1 (so cell validation really ran) and the identical document
+ * WITHOUT the blank line renders exit 1 (so knitr really is selected there).
+ *
+ * Only ENGINE resolution takes this narrower view. The value surfaces keep the permissive
+ * region deliberately — `---` / blank / `toc: banana` / `---` still renders exit 1, so
+ * flagging it is a true positive — which is why the test lives here and not in the scanner.
+ *
+ * The mirror skew is not ours to exploit: quarto `trimLeft()`s first, so blank lines BEFORE
+ * the opening `---` still give quarto a front matter where our scanner sees none. That
+ * direction only ever costs an override we fail to honour, never a wrong one.
+ */
+function engineResolverSeesFrontMatter(contentLines: readonly string[] | null): boolean {
+  return contentLines !== null && contentLines.length > 0 && contentLines[0].trim().length > 0;
 }
 
 /**

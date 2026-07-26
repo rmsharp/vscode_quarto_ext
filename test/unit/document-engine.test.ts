@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { documentEngineForScoping } from "../../src/core/document-engine";
 import { findFrontMatterTopLevelLines } from "../../src/core/yaml-frontmatter-values";
 import { findNestedFrontMatterValueLines } from "../../src/core/yaml-frontmatter-nested-values";
+import { frontMatterContentLines } from "../../src/core/qmd/model";
 
 /**
  * Drive the resolver the way the feature does — from the real enumerators over a real
@@ -13,6 +14,7 @@ const resolve = (text: string, fileName = "doc.qmd") =>
     fileName,
     findFrontMatterTopLevelLines(text),
     findNestedFrontMatterValueLines(text),
+    frontMatterContentLines(text),
   );
 
 const doc = (fm: string) => `---\ntitle: t\n${fm}---\n\n\`\`\`{r}\n#| cache: banana\n1 + 1\n\`\`\`\n`;
@@ -193,6 +195,60 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
     // document exit 1. Reading it as a mapping would claim an engine nothing selected.
     expect(resolve(doc("jupyter:\n  # nothing yet\n"))).toBeUndefined();
     expect(resolve(doc("jupyter:\n\ntoc: true\n"))).toBeUndefined();
+  });
+});
+
+describe("Session 164 — documentEngineForScoping: quarto's ENGINE partitioner is stricter", () => {
+  // Quarto uses TWO front-matter partitioners. Validation goes through `breakQuartoMd`, which
+  // only needs the block to open and close with `---`. ENGINE selection goes through
+  // `partitionYamlFrontMatter`, which ALSO returns null when the first content line is blank
+  // or is itself a fence:
+  //
+  //   if (mdLines.length < 3 || !mdLines[0].match(kRegExBeginYAML)) return null;
+  //   else if (mdLines[1].trim().length === 0 || mdLines[1].match(kRegExEndYAML)) return null;
+  //
+  // so on such a document quarto resolves NO engine from the front matter and falls back to
+  // the cell languages. Found by the S164 §9 review; measured firsthand.
+  it("declines when the first front-matter content line is BLANK", () => {
+    // `---` / blank / `knitr: true` / `---` + a {python} cell with `#| cache: banana` renders
+    // **exit 0** — knitr was never selected — while the same front matter with `#| echo:
+    // banana` renders exit 1, proving cell validation really ran, and the identical document
+    // WITHOUT the blank line renders exit 1 (knitr genuinely selected). Reading the block here
+    // widened every cell to knitr's 43 fields and squiggled a document quarto ACCEPTS.
+    expect(resolve("---\n\nknitr: true\n---\n\ntext\n")).toBeUndefined();
+    expect(resolve("---\n\nengine: knitr\n---\n\ntext\n")).toBeUndefined();
+    expect(resolve("---\n\nknitr:\n  opts_chunk:\n    echo: false\n---\n\ntext\n")).toBeUndefined();
+    // The control: the SAME front matter without the leading blank line does select.
+    expect(resolve("---\nknitr: true\n---\n\ntext\n")).toBe("knitr");
+  });
+
+  it("still resolves normally for an ordinary front matter", () => {
+    expect(resolve(doc("engine: markdown\n"))).toBe("markdown");
+  });
+});
+
+describe("Session 164 — documentEngineForScoping: an UNREADABLE competing selector", () => {
+  // `metadataAsFormat` ASSIGNS into `format.execute.engine` while walking `Object.keys`, so a
+  // later `execute.engine` OVERWRITES an earlier top-level `engine:` — including when its own
+  // value names no engine at all, in which case quarto ends up selecting NOTHING and falls
+  // back to the cell languages. If we can read the first spelling but not the second, the set
+  // we see has one member and we would answer with full confidence. Found by the §9 review.
+  it("returns `ambiguous` when a resolved selector is joined by one we cannot read", () => {
+    // All three render **exit 0** with a {python} cell's `#| cache: banana` (control with
+    // `#| echo: banana`: exit 1, so validation ran; control `engine: knitr` alone: exit 1).
+    // A mere CASE TYPO in the second spelling is enough to trigger it.
+    expect(resolve(doc("engine: knitr\nexecute:\n  engine: Knitr\n"))).toBe("ambiguous");
+    expect(resolve(doc("engine: knitr\nexecute:\n  engine: banana\n"))).toBe("ambiguous");
+    expect(resolve(doc("engine: knitr\nexecute: {engine: markdown}\n"))).toBe("ambiguous");
+  });
+
+  it("does NOT manufacture ambiguity when NOTHING resolved", () => {
+    // `execute:` / `  engine: banana` alone renders exit 0 with a {python} cell — quarto fell
+    // back to the language, which is exactly what `undefined` makes us do. Forcing
+    // "ambiguous" here would be a needless narrowing, and `engine: banana` alone with an {r}
+    // cell renders exit 1, which only the language fallback gets right.
+    expect(resolve(doc("execute:\n  engine: banana\n"))).toBeUndefined();
+    expect(resolve(doc("engine: banana\n"))).toBeUndefined();
   });
 });
 

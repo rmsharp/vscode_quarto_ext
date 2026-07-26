@@ -34,7 +34,7 @@
  */
 
 import * as vscode from "vscode";
-import { findCellOptionLines } from "../core/qmd/model";
+import { findCellOptionLines, frontMatterContentLines } from "../core/qmd/model";
 import {
   findFrontMatterTopLevelLines,
   findFrontMatterValueLines,
@@ -117,6 +117,7 @@ async function computeValueDiagnostics(
     document.fileName,
     findFrontMatterTopLevelLines(text),
     nestedLines,
+    frontMatterContentLines(text),
   );
   for (const cell of cellLines) {
     if (documentValidationOff || optedOutCells.has(cell.cellStartLine)) {
