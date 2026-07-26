@@ -7,6 +7,87 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-25 · [ad hoc] Session 163 — IMPLEMENTATION: honour quarto's `validate-yaml: false` escape hatch (SHIPPED)
+
+Quarto documents a document-wide opt-out from YAML validation, and this extension ignored
+it — squiggling documents `quarto render` **accepts**. That is the cardinal sin in its most
+explicit form: the user has literally asked for validation to be off and we overrode them.
+`features/yaml-value-diagnostics.ts` never read the key. **PRE-EXISTING.**
+
+Two gates in quarto behave as one. The render pipeline skips its whole validation pass:
+
+```js
+const validate = context.format.render?.["validate-yaml"];
+if (validate !== false) { const r = await validateDocument(context); ... }
+```
+
+and `readAndValidateYamlFromMappedString` repeats the test per mapped string
+(`annotation.result["validate-yaml"] !== false`), which is what gives the **per-cell** form.
+
+`src/core/validate-yaml.ts` (new) owns the rules; the feature consumes them. A top-level
+front-matter `validate-yaml: false` now suppresses all three `.qmd` value surfaces, and a
+cell may opt out on its own with `#| validate-yaml: false`, scoped to that cell.
+
+**Grounded firsthand vs quarto 1.7.33 before any code** (`--no-execute`, 58 documents across
+three passes, plus a read of quarto's own `validateDocumentFromSource`,
+`parseAndValidateCellOptions` and the render-path gate in `bin/quarto.js`). Each probe was
+paired with a control differing ONLY in the flag:
+
+- **the value must be a YAML 1.2 core boolean.** `false`/`False`/`FALSE` disarm (exit 0);
+  `no`/`No`/`off`/`n`/`"false"`/`'false'`/`0`/`null`/`~`/`true` do **not** (exit 1). The
+  `no`/`off` row is the trap — YAML **1.1** would read those as booleans and quarto's parser
+  does not, so a matcher built from that intuition would silence documents quarto validates.
+- **position matters**: nested under `execute:` the key does nothing (exit 1).
+- **per-cell scope**: disarms every key in its own cell; does **not** leak to the next cell;
+  does **not** disarm the front matter; order-independent within the block; works under any
+  comment char (`--|` in `{sql}`); only inside the cell's LEADING option run (S160), which
+  `findCellOptionLines` already reports, so position needed no new check.
+- **lexical**: a trailing `# comment`, extra spacing, trailing whitespace and a quoted key
+  (`"validate-yaml": false`, and `#| "validate-yaml": false`) all disarm.
+
+**THE HEADLINE — the filed item's prescription was wrong, and following it would have traded
+a false positive for a lost true positive.** The item said "the gate belongs at the top of
+`computeValueDiagnostics` (covering all three sources)". Measured: `validate-yaml: false` +
+`format: banana` still renders **exit 1** with `Unknown format banana`, because an
+unresolvable output format fails in format RESOLUTION — earlier than, and independently of,
+the validation pass the flag gates. The control (`format: html` + the flag + an invalid cell
+option) renders exit 0, so it is specifically the NAME that survives. The gate therefore sits
+**below** the front-matter `format` branch, and an integration test guards exactly that.
+
+**AND THE FORMAT NAME IS NOT THE ONLY SURVIVOR — this session first claimed it was, and the
+§9 review caught it.** The exhaustive sweep the correction demanded: all **170** top-level
+keys this feature can actually flag (`isWrongValue("banana", field)`, which is the domain that
+matters — a key we cannot flag can never cost a true positive, the S162 `layout` lesson), one
+render each with the flag set. **26 still render exit 1** — `toc`, `citeproc`, `ascii`,
+`incremental`, `columns`, `dpi`, `wrap`, `eol` and 18 more — and each renders exit 1 without
+the flag too, so every one is a real value error we reported before and are silent on now.
+They survive because **pandoc** rejects them in its Aeson decoder, not the quarto YAML-schema
+layer the flag gates. The remaining 144 render exit 0. The design stands on the measured trade
+— 144 unconditional false positives removed against 26 lost true positives, and an over-flag
+is the cardinal sin — but it is a trade, not the "one exception" the first draft asserted.
+Not fixed here because the survivor set belongs to pandoc's decoder and shifts with pandoc
+version and output format, so hard-coding 26 names is the brittle transcription Learning #174
+warns about. Filed with the sweep. Also filed: four YAML spellings that disarm quarto and that
+the raw-token matcher misses — anchored, tagged, aliased, and value-on-the-next-line — with
+the trap that makes the obvious fix wrong (`!!str false` renders exit 1, `!!bool "false"`
+renders exit 0, so a tag inverts the quoted-scalar rule).
+
+**What it still does not see, recorded rather than glossed.** Quarto's gate reads RESOLVED
+metadata, so the flag also arrives via a `format:` sub-key, `_quarto.yml` (project-wide, and
+for `_quarto.yml` itself) and a directory's `_metadata.yml` — all measured at exit 0, all
+still flagged by us, all filed. And per-format resolution **overrides** the top level: root
+`validate-yaml: false` plus `format: html: validate-yaml: true` renders exit 1 while we now
+stay silent — a lost true positive this change introduces, in the FP-safe direction, filed
+and documented at the function.
+
+`CellOptionLine` gained `cellStartLine` (additive) so option lines group back into cells
+exactly, rather than by inferring cell identity from line-number adjacency.
+
+Verification: check-types clean; unit **1399 → 1411**; integration **466 → 469**, RED-verified
+against a real reverted tree first (3 failing, each for its stated reason — that run is also
+what exposed one of the three integration tests as vacuous, since its "suppressed" line used
+a key this feature never flags at document root; swapped to one it does).
+
 ### 2026-07-25 · [ad hoc] Backfilled (reconcile-on-read): undocumented commit `b30eadf` — the `validate-yaml: false` backlog item's scope grounded firsthand (S162 post-close-out)
 
 Recorded at Session 163's Phase 0 reconcile. Session 162's `§9` review `Workflow` finished **after**
