@@ -18,6 +18,23 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S166
+date: 2026-07-26
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — commit the end-to-end exit-code replay ORACLE as an opt-in, in-repo verification harness. It runs this feature's OWN flag decision (findCellOptionLines -> documentEngineForScoping -> cellOptionScopeFor -> SchemaIndex.cellOptions -> isWrongValue, against quarto's installed resource) over a document corpus, compares it to a real `quarto render --no-execute`, and classifies each row agree / lost-TP / cardinal-FP. It has been the primary safety evidence for two consecutive sessions (S164's 17 documents, S165's 64) and exists only in disposable session scratchpads. Operator selected it via AskUserQuestion at Phase 0. ONE deliverable.
+what_was_done: pending
+next_steps: pending
+key_files: pending
+gotchas: pending
+runtime_smoke: pending
+changelog_ref: pending
+commit: pending
+```
+
+Session claimed at Phase 1B. Work beginning. This block is the crash breadcrumb — if this session
+ends before close-out, Phase 0 reconcile will find it `pending`.
+
+```handoff
 session: S165
 date: 2026-07-26
 status: complete
