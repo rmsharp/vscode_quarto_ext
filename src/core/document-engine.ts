@@ -350,6 +350,18 @@ function languageFallbackEngine(text: string): DocumentEngine | undefined {
  * a pure diagnostics pass does not have (the same gap BACKLOG's `_quarto.yml`-from-a-`.qmd`
  * item describes), so it is filed rather than guessed at.
  *
+ * **What declining does NOT do is make an include-bearing document correct.** Replayed
+ * end-to-end (this feature's own flag decision against `quarto render`'s exit code over 48
+ * documents, pre-S165 vs post-S165: 16 improved, 0 regressed), the two include rows above stay
+ * cardinal FALSE POSITIVES — byte-identical to the pre-S165 tree, because the per-cell
+ * approximation still scopes their `{r}` cell to knitr. The alternative, answering
+ * `"ambiguous"` on any include-bearing document, would remove both; measured, it would also
+ * silence the knitr-only fields on every OTHER include-bearing document — the ordinary book
+ * chapter — and one row of that same corpus (`{r}` + cache, then an include) shows quarto
+ * really is knitr there. A rare conditional false positive against a common lost true
+ * positive is the reverse of the trade this project's doctrine settles (S162's 1-against-46,
+ * S163's 26-against-144), so the choice is filed with both measurements rather than made here.
+ *
  * The test is deliberately LOOSER than quarto's own `isBlockShortcode`, which requires the
  * shortcode to be alone on its line (`^\s*{{< (.+?) >}}\s*$`): over-detecting only declines
  * more often, which is the safe direction, while under-detecting would re-open the false
