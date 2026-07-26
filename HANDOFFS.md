@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S165
+date: 2026-07-25
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). Resolve the DEFAULT (no-override) document engine from the document's cell languages, the way quarto's `markdownExecutionEngine` does — languages outer, engines inner, first claim wins, else jupyter — and feed it into the `documentEngineForScoping` slot S164 created. Today the no-override path still scopes each cell to its OWN language, so a `{julia}` cell BEFORE an `{r}` cell (which makes the whole document jupyter for quarto) leaves us validating that `{r}` cell against knitr: measured, `#| cache: banana` there renders exit 0 and we flag it — a cardinal-sin false positive. PRE-EXISTING; filed by S164; operator-selected via AskUserQuestion at Phase 0. ONE deliverable.
+```
+
+```handoff
 session: S164
 date: 2026-07-25
 status: complete
