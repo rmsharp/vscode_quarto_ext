@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S164
+date: 2026-07-25
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). Honour a front-matter `engine:` override when scoping cell options. Quarto lets a document override its engine — measured by S161: `engine: markdown` + an `{r}` cell + `#| cache: banana` renders exit 0, while the identical document without the `engine:` line renders exit 1 with `Field "cache" has value banana`. `cellOptionScopeFor`/`engineFor` (src/core/yaml-context.ts) derive the scope purely from the cell LANGUAGE, so they take the knitr branch for any `{r}` cell and flag `cache` regardless — a cardinal-sin false positive on a document quarto accepts. PRE-EXISTING (engineFor has always keyed on the cell language alone). Filed by the Session 161 §9 review, verified firsthand by S161. Operator-selected via AskUserQuestion at Phase 0. ONE deliverable — the `engine:` override only.
+```
+
+```handoff
 session: S163
 date: 2026-07-25
 status: complete
