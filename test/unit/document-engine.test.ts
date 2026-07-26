@@ -15,9 +15,23 @@ const resolve = (text: string, fileName = "doc.qmd") =>
     findFrontMatterTopLevelLines(text),
     findNestedFrontMatterValueLines(text),
     frontMatterContentLines(text),
+    text,
   );
 
 const doc = (fm: string) => `---\ntitle: t\n${fm}---\n\n\`\`\`{r}\n#| cache: banana\n1 + 1\n\`\`\`\n`;
+
+/**
+ * The same document with a `{python}` cell instead of an `{r}` one — so its LANGUAGE
+ * fallback is jupyter rather than knitr (S165).
+ *
+ * Every pin whose point is "the front matter does NOT select knitr" must use this one.
+ * With `doc()` the language fallback answers knitr anyway, so such a pin would pass just
+ * as happily against a build that wrongly SELECTED knitr — the vacuous-pin habit this
+ * project keeps catching. It is also how those cases were measured in the first place:
+ * S164's own comments record `{python}` cells for the falsy and node-property probes.
+ */
+const pyDoc = (fm: string) =>
+  `---\ntitle: t\n${fm}---\n\n\`\`\`{python}\n#| cache: banana\n1 + 1\n\`\`\`\n`;
 
 describe("Session 164 — documentEngineForScoping: the top-level `engine:` scalar", () => {
   it("resolves each of quarto's four engine names", () => {
@@ -27,9 +41,12 @@ describe("Session 164 — documentEngineForScoping: the top-level `engine:` scal
     expect(resolve(doc("engine: julia\n"))).toBe("julia");
   });
 
-  it("is undefined when the front matter names no engine at all", () => {
-    expect(resolve(doc(""))).toBeUndefined();
-    expect(resolve("no front matter here\n")).toBeUndefined();
+  it("falls back to the cell LANGUAGES when the front matter names no engine at all", () => {
+    // S165: this pin read `undefined` until the language fallback existed. Both answers are
+    // measured — `{r}` + `#| cache: banana` renders exit 1 (knitr), and a document with no
+    // cell fences at all is `markdownEngine` by quarto's final `return`.
+    expect(resolve(doc(""))).toBe("knitr");
+    expect(resolve("no front matter here\n")).toBe("markdown");
   });
 
   it("accepts a QUOTED engine name — quarto compares the parsed scalar", () => {
@@ -44,9 +61,12 @@ describe("Session 164 — documentEngineForScoping: the top-level `engine:` scal
     // quarto falls through to language resolution and renders the same document exit 1;
     // `Engine:` is not a recognized key at all. Folding either would silence a document
     // quarto really does validate.
+    // S165 L1: an unrecognized VALUE still declines here — a readable-but-unmatched selector
+    // is separated from an unreadable one in L2, which is where these two become `knitr`.
+    // An unrecognized KEY was never a selector at all, so it already takes the fallback.
     expect(resolve(doc("engine: MARKDOWN\n"))).toBeUndefined();
     expect(resolve(doc("engine: Markdown\n"))).toBeUndefined();
-    expect(resolve(doc("Engine: markdown\n"))).toBeUndefined();
+    expect(resolve(doc("Engine: markdown\n"))).toBe("knitr");
   });
 
   it("ignores an engine name quarto does not know", () => {
@@ -91,7 +111,9 @@ describe("Session 164 — documentEngineForScoping: the nested `execute: engine:
     // `format:` / `  html:` / `    engine: markdown` + `{r}` + `#| cache: banana` renders
     // exit 1 — engine resolution reads the RAW top-level front matter (plus `execute:`),
     // never per-format metadata. Reading it there would silence a validated document.
-    expect(resolve(doc("format:\n  html:\n    engine: markdown\n"))).toBeUndefined();
+    // S165: `knitr` (the language answer for that same exit-1 document) rather than
+    // `undefined`; a build that DID read the per-format key would answer `markdown`.
+    expect(resolve(doc("format:\n  html:\n    engine: markdown\n"))).toBe("knitr");
   });
 });
 
@@ -110,19 +132,21 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
   it("does NOT select on a FALSY value — quarto tests JS truthiness of the parsed node", () => {
     // Every one of these renders the same document exit 1, i.e. quarto fell through to
     // language resolution and used knitr — measured firsthand vs 1.7.33, one render each.
+    // S165: `knitr` IS that fall-through, now modelled. Still discriminating on an `{r}`
+    // document, because a build that read the value as truthy would answer `jupyter`.
     for (const value of ["false", "False", "FALSE", "null", "Null", "NULL", "~", "0", "''", '""']) {
-      expect(resolve(doc(`jupyter: ${value}\n`)), value).toBeUndefined();
+      expect(resolve(doc(`jupyter: ${value}\n`)), value).toBe("knitr");
     }
   });
 
   it("does NOT select on a bare key with no value — that node is null", () => {
     // `jupyter:` alone renders exit 1 (and is itself a front-matter schema error).
-    expect(resolve(doc("jupyter:\n"))).toBeUndefined();
-    expect(resolve(doc("markdown:\n"))).toBeUndefined();
+    expect(resolve(doc("jupyter:\n"))).toBe("knitr");
+    expect(resolve(doc("markdown:\n"))).toBe("knitr");
   });
 
   it("is not fooled by a NESTED key that merely shares the name", () => {
-    expect(resolve(doc("execute:\n  jupyter: python3\n"))).toBeUndefined();
+    expect(resolve(doc("execute:\n  jupyter: python3\n"))).toBe("knitr");
   });
 
   it("selects on the CONTAINER form too — a mapping is a truthy node", () => {
@@ -151,12 +175,17 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
     // Claiming knitr here widened every cell to knitr's 43 fields and squiggled a document
     // quarto ACCEPTS — the cardinal sin, in the one direction this module must never get
     // wrong. Blank- and comment-skipping widened the same hole (both measured exit 0).
-    expect(resolve(doc("knitr:\n  false\n"))).toBeUndefined();
-    expect(resolve(doc("knitr:\n\n  false\n"))).toBeUndefined();
-    expect(resolve(doc("knitr: # off\n  false\n"))).toBeUndefined();
+    // S165: these MUST use the `{python}` document. On an `{r}` one the language fallback now
+    // answers knitr anyway, so the pin would pass just as happily against a build that wrongly
+    // SELECTED knitr here — it would stop discriminating exactly the defect it exists for.
+    // `pyDoc` is also the shape they were measured on (see the exit 0 above).
+    expect(resolve(pyDoc("knitr:\n  false\n"))).toBe("jupyter");
+    expect(resolve(pyDoc("knitr:\n\n  false\n"))).toBe("jupyter");
+    expect(resolve(pyDoc("knitr: # off\n  false\n"))).toBe("jupyter");
     // Same shape on a narrowing engine: `markdown:` + indented `false` renders exit 1 with an
     // {r} cell, i.e. quarto did NOT select markdown either.
-    expect(resolve(doc("markdown:\n  false\n"))).toBeUndefined();
+    expect(resolve(pyDoc("markdown:\n  false\n"))).toBe("jupyter");
+    expect(resolve(doc("markdown:\n  false\n"))).toBe("knitr");
   });
 
   it("still selects on a real mapping or sequence body — the L5 capability is intact", () => {
@@ -172,8 +201,10 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
     // Measured: `jupyter: |` with no body + an {r} cell + `#| cache: banana` renders exit 1,
     // i.e. jupyter was NOT selected — the folded value is "" and quarto's truthiness test
     // fails. Reading `|` as an ordinary truthy token cost a true positive.
-    expect(resolve(doc("jupyter: |\n"))).toBeUndefined();
-    expect(resolve(doc("jupyter: >\n"))).toBeUndefined();
+    // S165: `knitr` is the language fall-through that exit 1 records. A build reading `|` as
+    // an ordinary truthy token would answer `jupyter`, so the pin still discriminates.
+    expect(resolve(doc("jupyter: |\n"))).toBe("knitr");
+    expect(resolve(doc("jupyter: >\n"))).toBe("knitr");
   });
 
   it("does NOT select on a NODE-PROPERTY token — quarto tests the PARSED node, which may be falsy", () => {
@@ -185,12 +216,16 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
     // knitr, squiggling documents quarto accepts. The module header claimed node properties
     // "can never manufacture" a wrong claim; that was true of the `engine:` NAME comparison
     // and false here, where the test is truthiness rather than equality.
+    // S165: the `{python}` document, for the same reason as the indented-scalar pin above and
+    // because that is what the exit-0 measurements used — on an `{r}` document the language
+    // fallback answers knitr, so a build that wrongly read `!!bool false` as truthy would be
+    // indistinguishable from a correct one.
     for (const value of ["!!bool false", "&a false", "*a", "!!str false"]) {
-      expect(resolve(doc(`knitr: ${value}\n`)), value).toBeUndefined();
+      expect(resolve(pyDoc(`knitr: ${value}\n`)), value).toBe("jupyter");
     }
     // The cost is a true positive when the tagged node is TRUTHY — `knitr: !!bool true`
     // renders exit 1, i.e. knitr really is selected there and we now stay silent. FP-safe.
-    expect(resolve(doc("knitr: !!bool true\n"))).toBeUndefined();
+    expect(resolve(pyDoc("knitr: !!bool true\n"))).toBe("jupyter");
   });
 
   it("DOES select on a quoted falsy-looking string — the parsed value is a truthy string", () => {
@@ -213,8 +248,9 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
   it("does NOT mistake a comment-only block for children — that node is still null", () => {
     // A comment is not content, so `jupyter:` here is null and quarto renders the same
     // document exit 1. Reading it as a mapping would claim an engine nothing selected.
-    expect(resolve(doc("jupyter:\n  # nothing yet\n"))).toBeUndefined();
-    expect(resolve(doc("jupyter:\n\ntoc: true\n"))).toBeUndefined();
+    // S165: `knitr` is that exit-1 fall-through; a build seeing children would answer `jupyter`.
+    expect(resolve(doc("jupyter:\n  # nothing yet\n"))).toBe("knitr");
+    expect(resolve(doc("jupyter:\n\ntoc: true\n"))).toBe("knitr");
   });
 });
 
@@ -235,9 +271,15 @@ describe("Session 164 — documentEngineForScoping: quarto's ENGINE partitioner 
     // banana` renders exit 1, proving cell validation really ran, and the identical document
     // WITHOUT the blank line renders exit 1 (knitr genuinely selected). Reading the block here
     // widened every cell to knitr's 43 fields and squiggled a document quarto ACCEPTS.
-    expect(resolve("---\n\nknitr: true\n---\n\ntext\n")).toBeUndefined();
-    expect(resolve("---\n\nengine: knitr\n---\n\ntext\n")).toBeUndefined();
-    expect(resolve("---\n\nknitr:\n  opts_chunk:\n    echo: false\n---\n\ntext\n")).toBeUndefined();
+    // S165: on the `{python}` document these are `jupyter` — the LANGUAGE answer quarto's own
+    // exit 0 records — rather than `undefined`, and that is also the shape they were measured
+    // on. A build that read the rejected block would answer `knitr` and squiggle it.
+    expect(
+      resolve("---\n\nknitr: true\n---\n\n```{python}\n#| cache: banana\n1 + 1\n```\n"),
+    ).toBe("jupyter");
+    expect(resolve("---\n\nknitr: true\n---\n\ntext\n")).toBe("markdown");
+    expect(resolve("---\n\nengine: knitr\n---\n\ntext\n")).toBe("markdown");
+    expect(resolve("---\n\nknitr:\n  opts_chunk:\n    echo: false\n---\n\ntext\n")).toBe("markdown");
     // The control: the SAME front matter without the leading blank line does select.
     expect(resolve("---\nknitr: true\n---\n\ntext\n")).toBe("knitr");
   });
@@ -317,5 +359,142 @@ describe("Session 164 — documentEngineForScoping: the FILE EXTENSION claims fi
     // A name that merely CONTAINS the extension is not that extension.
     expect(resolve(doc("engine: markdown\n"), "doc.rmd.qmd")).toBe("markdown");
     expect(resolve(doc("engine: markdown\n"), "my.rmd.notes.qmd")).toBe("markdown");
+  });
+});
+
+describe("Session 165 — documentEngineForScoping: the DEFAULT engine, from the cell languages", () => {
+  it("resolves a document with a {julia} cell BEFORE an {r} cell to jupyter, not knitr", () => {
+    // THE headline false positive this session removes. Quarto's language fallback is
+    // document-wide and ORDER-DEPENDENT: `markdownExecutionEngine` iterates the LANGUAGES
+    // outer and the ENGINES inner, and jupyter claims `julia` while knitr claims `r`, so
+    // whichever of the two appears FIRST decides the whole document.
+    //
+    // Measured firsthand vs 1.7.33, one `quarto render --no-execute` each:
+    //   {julia} then {r}, `#| cache: banana` on the {r} cell → exit 0   ← we squiggled this
+    //   {julia} then {r}, `#| echo:  banana` on the {r} cell → exit 1   ← validation DID run
+    //   {r} alone,        `#| cache: banana`                 → exit 1   ← knitr really is it
+    const jlThenR =
+      "---\ntitle: t\n---\n\n```{julia}\n1 + 1\n```\n\n```{r}\n#| cache: banana\n1 + 1\n```\n";
+    expect(resolve(jlThenR)).toBe("jupyter");
+  });
+
+  it("gives the SAME document the other answer when the {r} cell comes first", () => {
+    // The order really is the whole rule — measured, `{r}` then `{julia}` renders exit 1.
+    const rThenJl =
+      "---\ntitle: t\n---\n\n```{r}\n#| cache: banana\n1 + 1\n```\n\n```{julia}\n1 + 1\n```\n";
+    expect(resolve(rThenJl)).toBe("knitr");
+  });
+
+  it("scopes a NON-r cell to knitr when the document holds an {r} cell anywhere", () => {
+    // The other direction of the same fix, and the one that WIDENS: quarto validates every
+    // cell of a knitr document against knitr's schema, whatever the cell's own language.
+    // Measured, `#| cache: banana` on the {python} cell renders **exit 1** in both orders,
+    // against the {python}-alone control at exit 0 — true positives this feature used to lose.
+    expect(resolve(`${doc("").replace("#| cache: banana\n", "")}\n\`\`\`{python}\n1\n\`\`\`\n`)).toBe(
+      "knitr",
+    );
+    expect(resolve("---\ntitle: t\n---\n\n```{python}\n1\n```\n\n```{r}\n1\n```\n")).toBe("knitr");
+    expect(resolve("---\ntitle: t\n---\n\n```{r}\n1\n```\n\n```{sql}\nselect 1\n```\n")).toBe(
+      "knitr",
+    );
+  });
+
+  it("applies quarto's SECOND loop — an unclaimed language forces jupyter, else markdown", () => {
+    // `for (const l of languages) if (l !== "ojs" && !handlerLanguages.includes(l)) return
+    // jupyterEngine; return markdownEngine`. Measured: `{python}`/`{sql}` alone → exit 0 on
+    // `cache` and exit 1 on `echo`, i.e. validated but not against knitr; `{ojs}` alone → the
+    // same pair. jupyter and markdown are indistinguishable DOWNSTREAM (`cellOptionScopeFor`
+    // maps both to the agnostic set) — these pin the transcription itself, which is what makes
+    // the knitr answer above trustworthy.
+    const only = (lang: string) => `---\ntitle: t\n---\n\n\`\`\`{${lang}}\nx\n\`\`\`\n`;
+    expect(resolve(only("python"))).toBe("jupyter");
+    expect(resolve(only("sql"))).toBe("jupyter");
+    expect(resolve(only("ojs"))).toBe("markdown"); // the `!== "ojs"` exception
+    expect(resolve(only("dot"))).toBe("markdown"); // a cell-HANDLER language
+    expect(resolve(only("mermaid"))).toBe("markdown");
+    expect(resolve(only("julia"))).toBe("jupyter"); // claimed in the FIRST loop, by jupyter
+    // Mixed: the handler/ojs exceptions only hold while EVERY language is exempt.
+    expect(resolve(only("dot") + "```{python}\nx\n```\n")).toBe("jupyter");
+    // No cell fences at all — quarto's final `return markdownEngine`.
+    expect(resolve("---\ntitle: t\n---\n\njust prose\n")).toBe("markdown");
+  });
+
+  it("counts a fence quarto's CONTEXT-FREE regex counts, wherever it sits", () => {
+    // Each of these `{julia}` fences is invisible to a nesting-aware cell scanner and visible
+    // to quarto, and each renders the whole document **exit 0** on the {r} cell's
+    // `#| cache: banana` (control: `#| echo: banana` → exit 1, so validation ran). Reading the
+    // engine off `findAllCells` would answer knitr for all five and squiggle documents quarto
+    // ACCEPTS — this is why the language set is a transcription of quarto's regex, not a
+    // re-use of our own model.
+    const withJulia = (fenced: string) =>
+      `---\ntitle: t\n---\n\n${fenced}\n\`\`\`{r}\n#| cache: banana\n1 + 1\n\`\`\`\n`;
+    expect(resolve(withJulia("````\n```{julia}\n1\n```\n````\n"))).toBe("jupyter"); // example block
+    expect(resolve(withJulia("> ```{julia}\n> 1\n> ```\n"))).toBe("jupyter"); // blockquote
+    expect(resolve(withJulia("   ```{julia}\n   1\n   ```\n"))).toBe("jupyter"); // indented
+    expect(resolve(withJulia("    ```{julia}\n    1\n    ```\n"))).toBe("jupyter"); // indented code
+    expect(resolve(withJulia("<!--\n```{julia}\n1\n```\n-->\n"))).toBe("jupyter"); // HTML comment
+    expect(resolve(withJulia("\t```{julia}\n\t1\n\t```\n"))).toBe("jupyter"); // tab-indented
+    expect(resolve(withJulia("````{julia}\n1\n````\n"))).toBe("jupyter"); // 4 backticks
+    expect(resolve(withJulia("``` {julia}\n1\n```\n"))).toBe("jupyter"); // space after the ticks
+    // …and a fence in the FRONT MATTER counts too: quarto scans the whole file text.
+    expect(
+      resolve("---\ntitle: |\n  ```{julia}\n---\n\n```{r}\n#| cache: banana\n1 + 1\n```\n"),
+    ).toBe("jupyter");
+  });
+
+  it("does NOT count a fence quarto's regex rejects", () => {
+    // The mirror set, and the direction where a LOOSER transcription would cost true
+    // positives rather than manufacture false ones. Each renders exit 1 — knitr — because the
+    // `{julia}` line is not a language to quarto.
+    const withJulia = (fenced: string) =>
+      `---\ntitle: t\n---\n\n${fenced}\n\`\`\`{r}\n#| cache: banana\n1 + 1\n\`\`\`\n`;
+    expect(resolve(withJulia("```{julia} x\n1\n```\n"))).toBe("knitr"); // trailing text
+    expect(resolve(withJulia("```{ julia }\n1\n```\n"))).toBe("knitr"); // spaces inside braces
+  });
+
+  it("reads the token the way quarto's regex does — lowercased, digits allowed, no dots", () => {
+    // `.toLowerCase()`: measured, `{R}` + `#| cache: banana` renders exit 1.
+    expect(resolve("---\ntitle: t\n---\n\n```{R}\n#| cache: banana\n1 + 1\n```\n")).toBe("knitr");
+    // knitr's attribute forms are part of the same match.
+    expect(resolve("---\ntitle: t\n---\n\n```{r, echo=FALSE}\n1\n```\n")).toBe("knitr");
+    // `[a-zA-Z0-9_]+` admits DIGITS, unlike quarto's CELL recognizer `([=A-Za-z]+)`: `{r9}` is
+    // a language but not a cell (measured, its own `#| cache: banana` renders exit 0), so it
+    // reaches the second loop and forces jupyter rather than leaving the document markdown.
+    expect(resolve("---\ntitle: t\n---\n\n```{r9}\nx\n```\n")).toBe("jupyter");
+    // …but a DOT is in neither recognizer: `{r.foo}` is not a language and not a cell
+    // (measured, both `#| cache: banana` and `#| echo: banana` render exit 0), even though our
+    // own `CELL_INFO` reads it as an `{r}` cell. Resolving from the raw text is what keeps
+    // that pre-existing fence-token divergence out of the engine answer.
+    expect(resolve("---\ntitle: t\n---\n\n```{r.foo}\nx\n```\n")).toBe("markdown");
+  });
+
+  it("DECLINES on an `{{< include >}}` — the text quarto resolves against is not ours", () => {
+    // `resolveFullMarkdownForFile` expands includes BEFORE the engine is chosen, and it flips
+    // the answer both ways (measured): a child holding `{julia}` above an `{r}` cell renders
+    // exit 0 where the include-free control renders exit 1, and a child holding `{r}` above a
+    // `{python}` cell renders exit 1 where the control renders exit 0. Position matters too, so
+    // the answer cannot even be bounded without reading the included files. `undefined`
+    // restores exactly the per-cell behaviour this extension already had — never a new flag.
+    expect(
+      resolve(
+        "---\ntitle: t\n---\n\n{{< include child.qmd >}}\n\n```{r}\n#| cache: banana\n1\n```\n",
+      ),
+    ).toBeUndefined();
+    // Deliberately looser than quarto's own block-shortcode rule: an indented or inline
+    // spelling declines too, because over-declining is the safe direction.
+    expect(resolve("---\ntitle: t\n---\n\n  {{< include a.qmd >}}\n\n```{r}\n1\n```\n")).toBeUndefined();
+    expect(resolve("---\ntitle: t\n---\n\ntext {{<include a.qmd>}}\n\n```{r}\n1\n```\n")).toBeUndefined();
+    // A DIFFERENT shortcode is not an include and does not disturb the fallback.
+    expect(resolve("---\ntitle: t\n---\n\n{{< video x >}}\n\n```{r}\n1\n```\n")).toBe("knitr");
+  });
+
+  it("leaves an R-Markdown extension on the per-cell approximation, exactly as before", () => {
+    // The `.Rmd` veto still returns before any of this. Quarto's answer there is knitr for
+    // EVERY cell (`claimsFile`, before any front matter or language is read), and adopting
+    // that scope WIDENS what we squiggle — S164 filed it as its own deliverable and S165 does
+    // not touch it. What matters here is that the language fallback did not silently become
+    // that change: an `.Rmd` still resolves `undefined`.
+    expect(resolve(doc(""), "doc.Rmd")).toBeUndefined();
+    expect(resolve("---\ntitle: t\n---\n\n```{python}\n1\n```\n", "doc.rmd")).toBeUndefined();
   });
 });

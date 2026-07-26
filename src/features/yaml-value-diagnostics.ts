@@ -105,19 +105,24 @@ async function computeValueDiagnostics(
   // The DOCUMENT's engine (S164), which is what quarto actually scopes a cell's option
   // schema to — `validateDocument` hands `context.engine.name` to
   // `partitionCellOptionsMapped`, which picks `engineOptionsSchema[engine]`. Resolved once
-  // for the whole document because the engine IS a document-level fact; `undefined` (no
-  // override, or an `.Rmd` whose extension already pinned knitr) leaves every cell on the
-  // per-cell language approximation this feature used before.
+  // for the whole document because the engine IS a document-level fact.
   // `findFrontMatterTopLevelLines`, not `fmValueLines`: a key can select an engine without
   // carrying a scalar. `jupyter:` above a kernelspec block is the everyday spelling of the
   // alias and renders quarto exit 0 on a knitr-only cell option, so reading only the
   // value-bearing lines would leave that document's `{r}` cells scoped to knitr — the very
   // false positive this fix removes.
+  // `text` is the LANGUAGE fallback's input (S165): when the front matter names no engine,
+  // quarto resolves one from the document's own cell fences — document-wide and
+  // order-dependent — so the resolver needs the raw document, not our cell list (its
+  // docstrings carry the measurements for why those differ). `undefined` still means "keep
+  // the per-cell language approximation", but it is now reached only by an `.Rmd`, by an
+  // `{{< include >}}` whose expansion we cannot see, or by an unreadable competing selector.
   const documentEngine = documentEngineForScoping(
     document.fileName,
     findFrontMatterTopLevelLines(text),
     nestedLines,
     frontMatterContentLines(text),
+    text,
   );
   for (const cell of cellLines) {
     if (documentValidationOff || optedOutCells.has(cell.cellStartLine)) {

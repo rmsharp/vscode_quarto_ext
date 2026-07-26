@@ -188,50 +188,259 @@ export function documentEngineForScoping(
   topLevel: readonly TopLevelScalar[],
   nested: readonly NestedScalar[],
   frontMatterContentLines: readonly string[] | null,
+  text: string,
 ): DocumentEngine | "ambiguous" | undefined {
   if (isRMarkdownFileName(fileName)) {
     return undefined; // knitr claimed the file by EXTENSION; the front matter never runs
   }
-  if (!engineResolverSeesFrontMatter(frontMatterContentLines)) {
-    return undefined; // quarto's engine partitioner rejects this block — it selects nothing
-  }
-  const selected = new Set<DocumentEngine>();
-  // A selector line we can SEE but cannot RESOLVE. Quarto's last-writer-wins assignment into
-  // `format.execute.engine` means such a line can overwrite one we did resolve, so answering
-  // from the readable half alone would be a confident wrong answer, not a partial one.
-  let unresolvedSelector = false;
-  for (const fm of topLevel) {
-    if (fm.key === ENGINE_KEY) {
-      const named = engineNamed(fm.rawToken);
-      if (named !== undefined) {
-        selected.add(named);
-      } else {
-        unresolvedSelector = true;
-      }
-    } else if (fm.key === EXECUTE_KEY && fm.rawToken.startsWith("{")) {
-      unresolvedSelector = true; // a FLOW `execute: {…}` — its members are not enumerated
-    } else if (ENGINE_NAMES.has(fm.key) && isTruthyNode(fm.rawToken, fm.hasChildren)) {
-      selected.add(fm.key as DocumentEngine);
-    }
-  }
-  for (const ns of nested) {
-    // The depth clause is DEFENCE-IN-DEPTH, not a live branch: `findNestedFrontMatterValueLines`
-    // never emits anything deeper than `["execute"]` under `execute:` (pinned in the unit
-    // suite), so no input reaches it today. It is kept because the enumerator's allow-list is
-    // the only thing making that true, and `format:`-nested paths ARE emitted at length 2.
-    if (ns.parentPath.length === 1 && ns.parentPath[0] === EXECUTE_KEY && ns.key === ENGINE_KEY) {
-      const named = engineNamed(ns.rawToken);
-      if (named !== undefined) {
-        selected.add(named);
-      } else {
-        unresolvedSelector = true;
+  if (engineResolverSeesFrontMatter(frontMatterContentLines)) {
+    const selected = new Set<DocumentEngine>();
+    // A selector line we can SEE but cannot RESOLVE. Quarto's last-writer-wins assignment into
+    // `format.execute.engine` means such a line can overwrite one we did resolve, so answering
+    // from the readable half alone would be a confident wrong answer, not a partial one.
+    let unresolvedSelector = false;
+    for (const fm of topLevel) {
+      if (fm.key === ENGINE_KEY) {
+        const named = engineNamed(fm.rawToken);
+        if (named !== undefined) {
+          selected.add(named);
+        } else {
+          unresolvedSelector = true;
+        }
+      } else if (fm.key === EXECUTE_KEY && fm.rawToken.startsWith("{")) {
+        unresolvedSelector = true; // a FLOW `execute: {…}` — its members are not enumerated
+      } else if (ENGINE_NAMES.has(fm.key) && isTruthyNode(fm.rawToken, fm.hasChildren)) {
+        selected.add(fm.key as DocumentEngine);
       }
     }
+    for (const ns of nested) {
+      // The depth clause is DEFENCE-IN-DEPTH, not a live branch: `findNestedFrontMatterValueLines`
+      // never emits anything deeper than `["execute"]` under `execute:` (pinned in the unit
+      // suite), so no input reaches it today. It is kept because the enumerator's allow-list is
+      // the only thing making that true, and `format:`-nested paths ARE emitted at length 2.
+      if (ns.parentPath.length === 1 && ns.parentPath[0] === EXECUTE_KEY && ns.key === ENGINE_KEY) {
+        const named = engineNamed(ns.rawToken);
+        if (named !== undefined) {
+          selected.add(named);
+        } else {
+          unresolvedSelector = true;
+        }
+      }
+    }
+    if (selected.size > 0) {
+      return selected.size === 1 && !unresolvedSelector ? [...selected][0] : "ambiguous";
+    }
+    if (unresolvedSelector) {
+      return undefined; // we cannot rule out a selection we cannot read — see below
+    }
   }
-  if (selected.size === 0) {
-    return undefined; // nothing selected — the language fallback is quarto's own answer too
+  // Nothing in the front matter selected an engine, so quarto resolves it from the document's
+  // own cell languages — and so do we (S165).
+  return languageFallbackEngine(text);
+}
+
+/**
+ * Quarto's LANGUAGE fallback: the engine a document gets when its front matter names none.
+ *
+ * This is the branch `markdownExecutionEngine` reaches after the yaml loop finds nothing —
+ * the ordinary case for the overwhelming majority of real documents, and until S165 the one
+ * this extension approximated per CELL rather than per DOCUMENT:
+ *
+ * ```js
+ * const languages = languagesInMarkdown(markdown);          // a Set, in first-appearance order
+ * for (const language of languages)
+ *   for (const [_, engine] of reorderedEngines)             // knitr, jupyter, markdown, julia
+ *     if (engine.claimsLanguage(language)) return engine;   // knitr↔"r", jupyter↔"julia",
+ *                                                           // markdown↔nothing, julia↔"julia"
+ * for (const language of languages)
+ *   if (language !== "ojs" && !handlerLanguages.includes(language)) return jupyterEngine;
+ * return markdownEngine;
+ * ```
+ *
+ * Measured firsthand vs 1.7.33 — `cache` is knitr-only and closed-valued, so `#| cache: banana`
+ * renders **exit 1** iff quarto resolved knitr, with the engine-agnostic `#| echo: banana` as
+ * the control proving cell validation ran at all:
+ *
+ * | document | resolves | renders |
+ * |---|---|---|
+ * | `{r}` | knitr | exit 1 |
+ * | `{julia}` then `{r}` (`cache` on the `{r}` cell) | jupyter | **exit 0** ← the FP removed |
+ * | `{r}` then `{julia}` | knitr | exit 1 |
+ * | `{r}` then `{python}` (`cache` on the `{python}` cell) | knitr | **exit 1** ← the TP gained |
+ * | `{python}` then `{r}` (`cache` on the `{python}` cell) | knitr | exit 1 |
+ * | `{r}` then `{sql}` / `{ojs}` (`cache` on the second cell) | knitr | exit 1 |
+ * | `{python}` alone, `{sql}` alone, `{ojs}` alone | jupyter / jupyter / markdown | exit 0 |
+ *
+ * So the change cuts BOTH ways, and only one of the two directions is dangerous: answering
+ * knitr is the single answer that WIDENS what this feature squiggles (43 flaggable fields
+ * against 23 for every other engine — see the module header). Everything below is about the
+ * shapes where a naive reading would claim knitr and quarto would not.
+ *
+ * ## Why this does NOT walk `findAllCells`
+ *
+ * The obvious implementation — ask the model for the document's cells and read their
+ * languages — is measurably WRONG, in the cardinal direction. Quarto's `languagesInMarkdown`
+ * is a context-FREE regex over the whole file: it has no notion of fence nesting, blockquotes,
+ * indented code, HTML comments or front matter, and it counts every line that looks like a
+ * cell fence. Our scanner, correctly, does not. Each row below is a `{julia}` fence that
+ * quarto counts and `findAllCells` does not, in a document whose only real cell is an `{r}`
+ * one carrying `#| cache: banana` — every one renders **exit 0**, i.e. quarto resolved jupyter,
+ * while a cell-list reading would have answered knitr and squiggled it:
+ *
+ * | the `{julia}` fence sits in… | renders |
+ * |---|---|
+ * | a ```` ```` ````-fenced example block | exit 0 |
+ * | a `>` blockquote | exit 0 |
+ * | a 3-space-indented fence | exit 0 |
+ * | a 4-space indented-code block | exit 0 |
+ * | an HTML comment | exit 0 |
+ * | a front-matter block scalar | exit 0 |
+ *
+ * (Controls: the same six documents with `#| echo: banana` render exit 1, so validation ran;
+ * the same document without the `{julia}` fence renders exit 1, so knitr is the fallback.)
+ * Transcribing quarto's regex is therefore not a stylistic preference — it is what makes our
+ * language set equal to quarto's on the same text, by construction rather than by luck.
+ */
+function languageFallbackEngine(text: string): DocumentEngine | undefined {
+  if (INCLUDE_SHORTCODE.test(text)) {
+    return undefined; // the text quarto resolves against is not the text we have — see below
   }
-  return selected.size === 1 && !unresolvedSelector ? [...selected][0] : "ambiguous";
+  return engineFromLanguages(languagesInMarkdown(text));
+}
+
+/**
+ * An `{{< include >}}` shortcode makes the document's language set UNKNOWABLE from this file
+ * alone, so the fallback declines and the caller keeps its per-cell language approximation.
+ *
+ * `fileExecutionEngine` resolves the engine from `project.resolveFullMarkdownForFile(...)`,
+ * which runs `expandIncludes` FIRST (the include handler is the one directive whose stage is
+ * `pre-engine`), so the markdown quarto counts languages in is the include-EXPANDED text.
+ * Measured firsthand, and it flips the answer in BOTH directions:
+ *
+ * | document | renders | vs the same document with the include removed |
+ * |---|---|---|
+ * | `{{< include child >}}` (child has `{julia}`) then `{r}` + `cache` | **exit 0** | exit 1 |
+ * | `{{< include child >}}` (child has `{r}`) then `{python}` + `cache` | **exit 1** | exit 0 |
+ * | `{r}` + `cache` then `{{< include child >}}` (child has `{julia}`) | exit 1 | — |
+ * | nested: doc → child → grandchild with `{julia}`, then `{r}` + `cache` | **exit 0** | — |
+ *
+ * (Control on the first row: the same document with `#| echo: banana` renders exit 1.)
+ * The third row is the one that makes a "just ignore includes" reading unsafe rather than
+ * merely incomplete: position matters, so we cannot even bound the answer without reading the
+ * included files. Declining costs the true positives this fallback would otherwise recover on
+ * such a document; it cannot cost a false positive, because `undefined` restores exactly the
+ * behaviour this extension already had. Reading the included files is a filesystem capability
+ * a pure diagnostics pass does not have (the same gap BACKLOG's `_quarto.yml`-from-a-`.qmd`
+ * item describes), so it is filed rather than guessed at.
+ *
+ * The test is deliberately LOOSER than quarto's own `isBlockShortcode`, which requires the
+ * shortcode to be alone on its line (`^\s*{{< (.+?) >}}\s*$`): over-detecting only declines
+ * more often, which is the safe direction, while under-detecting would re-open the false
+ * positive above.
+ */
+const INCLUDE_SHORTCODE = /\{\{<\s*include\b/;
+
+/**
+ * Quarto's `languagesInMarkdown`, transcribed from the installed 1.7.33 — a fact about
+ * another tool's dispatch, not expression (Learning #25, the same basis as the curated schema
+ * names and the comment-char table):
+ *
+ * ```js
+ * const kChunkRegex = /^[\t >]*```+\s*\{([a-zA-Z0-9_]+)( *[ ,].*)?\}\s*$/gm;
+ * ```
+ *
+ * Every clause earns its place, and each was measured rather than assumed (the probe is a
+ * `{julia}` fence of the given shape ahead of an `{r}` cell carrying `#| cache: banana`, so
+ * **exit 0** means the fence WAS counted as a language and exit 1 means it was not):
+ *
+ * - `[\t >]*` — a tab-, space- or `>`-prefixed fence still counts (exit 0 for all three).
+ * - ```` ```+ ```` — four backticks count too (exit 0).
+ * - `\s*` before `{` — ```` ``` {julia} ```` counts (exit 0), but a space INSIDE the braces
+ *   (`{ julia }`) does not (exit 1).
+ * - `[a-zA-Z0-9_]+` — DIGITS are allowed here, unlike quarto's *cell* recognizer
+ *   (`([=A-Za-z]+)` in `breakQuartoMd`). So `{r9}` is a LANGUAGE but not a CELL: measured,
+ *   `{r9}` + `#| cache: banana` renders exit 0 (nothing in it is validated) while `{r9}`
+ *   followed by a real `{r}` cell renders exit 1. Conversely `{r.foo}` matches NEITHER
+ *   recognizer — exit 0 for both `cache:` and `echo:` — though our own `CELL_INFO` does admit
+ *   it as an `{r}` cell (the fence-token divergence BACKLOG already tracks); resolving the
+ *   engine from the raw text rather than from the cell list is what keeps that divergence out
+ *   of the engine answer.
+ * - `( *[ ,].*)?` then `\s*$` — knitr's attribute forms (`{r, echo=FALSE}`, `{r echo=FALSE}`)
+ *   count, but trailing text after the closing brace (```` ```{julia} x ````) does not
+ *   (exit 1).
+ * - `.toLowerCase()` — `{R}` selects knitr (measured exit 1 on `#| cache: banana`).
+ *
+ * The Set preserves FIRST-APPEARANCE order, which is the whole reason the answer is
+ * order-dependent, and the regex is built per call because a `/g` regex carries `lastIndex`
+ * across calls (quarto resets it twice by hand for the same reason).
+ */
+function languagesInMarkdown(text: string): string[] {
+  const fenceLanguage = /^[\t >]*```+\s*\{([a-zA-Z0-9_]+)( *[ ,].*)?\}\s*$/gm;
+  const languages: string[] = [];
+  let match = fenceLanguage.exec(text);
+  while (match !== null) {
+    const language = match[1].toLowerCase();
+    if (!languages.includes(language)) {
+      languages.push(language);
+    }
+    match = fenceLanguage.exec(text);
+  }
+  return languages;
+}
+
+/**
+ * Quarto's cell-HANDLER languages as the ENGINE resolver sees them — `languages()`, the
+ * entries of the CLI's own `handlers` registry whose `type` is `"cell"`, which in 1.7.33 are
+ * exactly `mermaid` (`type: "cell"`, `stage: "post-engine"`) and `dot` (likewise).
+ *
+ * This is a SECOND copy of a list `yaml-context.ts` also holds (`CELL_HANDLER_LANGUAGES`), and
+ * the duplication is deliberate: they are two DIFFERENT quarto sources that happen to agree.
+ * That one transcribes the `handlers/languages.yml` resource, which the VALIDATION path reads
+ * to swap a cell's schema; this one transcribes the CLI-side handler registry, which the
+ * ENGINE path reads to decide whether a language forces jupyter. Sharing one constant would
+ * assert an equivalence quarto does not guarantee — and `document-engine.ts` cannot import
+ * `yaml-context.ts` in any case, since that module imports THIS one. Cross-referenced in both
+ * files so neither side rediscovers the pair.
+ */
+const HANDLER_CELL_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot"]);
+
+/**
+ * Quarto's two language loops, in order. Returns an engine for every input, including the
+ * empty one — a document with no cell fences at all resolves to `markdownEngine`.
+ *
+ * `julia` maps to **jupyter**, not to the julia engine, because `jupyterEngine.claimsLanguage`
+ * also answers `"julia"` and jupyter is registered ahead of julia, so jupyter wins the inner
+ * loop. A project-level `engines:` list can reorder that (`engines: [julia, knitr]` really
+ * does hand the document to the julia engine — measured, it gets as far as trying to spawn
+ * `julia`), but the two answers are indistinguishable HERE: `cellOptionScopeFor` maps jupyter
+ * and julia to sets that agree on every field this feature can flag.
+ *
+ * **The project `engines:` list cannot change the knitr answer at all**, which is why this
+ * fallback does not need to read `_quarto.yml` the way the front-matter path would (the
+ * override path returns `"ambiguous"` for exactly that reason). Knitr is the ONLY engine that
+ * claims `r`, and `r` is the only language it claims, so no reordering can give an `r`-first
+ * document to another engine, nor a `julia`-first document to knitr. Measured:
+ * `engines: [jupyter, knitr]` and `engines: [markdown]` both still render an `{r}` document's
+ * `#| cache: banana` exit 1, and `engines: [julia, knitr]` on a `{julia}`-then-`{r}` document
+ * raises a julia-engine error with NO `cache` diagnostic — i.e. julia, not knitr. (That last
+ * probe exits 1 for an unrelated reason, `Failed to spawn 'julia'`; its exit CODE says nothing
+ * and only its text does.)
+ */
+function engineFromLanguages(languages: readonly string[]): DocumentEngine {
+  for (const language of languages) {
+    if (language === "r") {
+      return "knitr"; // knitrEngine.claimsLanguage — the only engine that claims it
+    }
+    if (language === "julia") {
+      return "jupyter"; // jupyterEngine.claimsLanguage, registered ahead of juliaEngine
+    }
+  }
+  for (const language of languages) {
+    if (language !== "ojs" && !HANDLER_CELL_LANGUAGES.has(language)) {
+      return "jupyter";
+    }
+  }
+  return "markdown";
 }
 
 /**
