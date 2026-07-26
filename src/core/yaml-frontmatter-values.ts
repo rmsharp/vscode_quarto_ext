@@ -256,9 +256,20 @@ export function findFrontMatterTopLevelLines(text: string): FrontMatterTopLevelL
  *
  * So the body must LOOK like a container: a mapping entry (a real key/value separator) or a
  * block-sequence item. A scalar body reports `false`, and the engine resolver then declines
- * to select — which returns those documents to the per-cell language approximation they had
- * before, rather than to a wrong answer. That costs a true positive when the folded scalar is
- * TRUTHY (`knitr:` / `  true`, measured exit 1) — the FP-safe direction, and filed.
+ * to select. That costs a true positive when the folded scalar is TRUTHY (`knitr:` / `  true`,
+ * measured exit 1) — the FP-safe direction, and filed.
+ *
+ * ⚠ **The sentence that used to sit here — that declining "returns those documents to the
+ * per-cell language approximation" — stopped being true the moment S165 landed, and its own
+ * §9 completeness critic caught it.** Since S165 a front matter that selects nothing resolves
+ * through quarto's LANGUAGE fallback, so "did not select" is a confident document-wide answer
+ * (knitr, on any document holding an `{r}` cell) rather than a shrug. The safety of THIS
+ * function's decline therefore no longer lives in this file: `documentEngineForScoping` now
+ * distinguishes a body it reads as FALSY (quarto did not select either — fall through) from
+ * one it cannot READ at all (block scalar, node property, or an empty token with no children,
+ * which is also how a column-0 sequence body looks here) and blocks the fallback for the
+ * latter. If you change what this reports, read `readTruthiness` in `core/document-engine.ts`
+ * before assuming a `false` here is inert.
  */
 function opensBlockAt(contentLines: readonly string[], i: number): boolean {
   for (let j = i + 1; j < contentLines.length; j++) {

@@ -178,9 +178,19 @@ interface NestedScalar {
  * pre-S164 tree, because that tree always used the language. Each missed spelling above is
  * filed with its measurement.
  *
+ * **S165 nearly falsified that weaker statement too, and the sentence is only true because its
+ * §9 review caught the reason.** Once a document with no readable selector resolves through
+ * the LANGUAGE fallback, "we could not read it" stops being inert: it becomes a confident,
+ * document-WIDE answer, and on an r-first document that answer is knitr — so every cell, not
+ * just the `{r}` ones, gets squiggled on a document quarto accepts. That is strictly worse
+ * than the pre-S164 tree. The rule the code now follows, and the one any future spelling must
+ * respect: **a shape we decline to READ must BLOCK the fallback (`unreadableSelector`), while
+ * a shape we read and find to name nothing must not** (quarto matched nothing there either).
+ * `readEngineScalar` and `readTruthiness` are that distinction; each carries the exit codes.
+ *
  * The one place a raw-token read could actively manufacture a wrong answer is the
  * engine-NAMED key, because there the test is TRUTHINESS rather than name equality — an
- * unresolved `knitr: !!bool false` reads as a truthy string. `isTruthyNode` declines on node
+ * unresolved `knitr: !!bool false` reads as a truthy string. `readTruthiness` declines on node
  * properties for exactly that reason; see its docstring for the measurements.
  */
 export function documentEngineForScoping(
@@ -217,16 +227,32 @@ export function documentEngineForScoping(
     let unreadableSelector = false;
     for (const fm of topLevel) {
       if (fm.key === ENGINE_KEY) {
-        const named = engineNamed(fm.rawToken);
-        if (named !== undefined) {
-          selected.add(named);
+        const read = readEngineScalar(fm.rawToken);
+        if (read.kind === "engine") {
+          selected.add(read.engine);
+        } else if (read.kind === "unreadable") {
+          unreadableSelector = true;
         } else {
           unmatchedSelector = true;
         }
-      } else if (fm.key === EXECUTE_KEY && fm.rawToken.startsWith("{")) {
-        unreadableSelector = true; // a FLOW `execute: {…}` — its members are not enumerated
-      } else if (ENGINE_NAMES.has(fm.key) && isTruthyNode(fm.rawToken, fm.hasChildren)) {
-        selected.add(fm.key as DocumentEngine);
+      } else if (fm.key === EXECUTE_KEY && fm.rawToken.length > 0) {
+        // ANY scalar token on `execute:` is unreadable, not just a FLOW `{…}`. A block
+        // mapping leaves this empty and its children are enumerated; a token means an
+        // anchor, an alias, a tag or a flow, none of whose members we see. Measured, both
+        // `execute: *a` (aliasing a mapping that names markdown) and `execute: &a` above an
+        // `engine: markdown` child render **exit 0** on an r-first document's `{python}`
+        // cell — quarto read them and we cannot (S165 §9 review).
+        unreadableSelector = true;
+      } else if (ENGINE_NAMES.has(fm.key)) {
+        const truth = readTruthiness(fm.rawToken, fm.hasChildren);
+        if (truth === "truthy") {
+          selected.add(fm.key as DocumentEngine);
+        } else if (truth === "unreadable") {
+          unreadableSelector = true;
+        }
+        // "falsy" adds nothing and blocks nothing: quarto did not select on it either, so
+        // its own answer is the language fallback — measured, `jupyter: false` + an `{r}`
+        // cell renders exit 1.
       }
     }
     for (const ns of nested) {
@@ -235,9 +261,11 @@ export function documentEngineForScoping(
       // suite), so no input reaches it today. It is kept because the enumerator's allow-list is
       // the only thing making that true, and `format:`-nested paths ARE emitted at length 2.
       if (ns.parentPath.length === 1 && ns.parentPath[0] === EXECUTE_KEY && ns.key === ENGINE_KEY) {
-        const named = engineNamed(ns.rawToken);
-        if (named !== undefined) {
-          selected.add(named);
+        const read = readEngineScalar(ns.rawToken);
+        if (read.kind === "engine") {
+          selected.add(read.engine);
+        } else if (read.kind === "unreadable") {
+          unreadableSelector = true;
         } else {
           unmatchedSelector = true;
         }
@@ -251,9 +279,83 @@ export function documentEngineForScoping(
       return undefined; // quarto may have selected on a value we cannot see — never guess
     }
   }
+  if (frontMatterContentLines === null && text.trimStart().startsWith("---")) {
+    // Quarto's engine partitioner runs `lines(markdown.trimLeft())`, so a blank line BEFORE
+    // the opening `---` still gives it a front matter, while `scanRegions` opens front matter
+    // only at line 0 and gives us none. Falling back to the languages there would answer from
+    // a document whose engine key we never even saw. Measured: a leading blank line, then
+    // `---`/`title: t`/`engine: markdown`/`---`, then an `{r}` cell and a `{python}` cell with
+    // `#| cache: banana` renders **exit 0** (control `#| echo: banana`: exit 1; the same
+    // document without the `engine:` line: exit 1) — quarto read `markdown` and the fallback
+    // would have said knitr for EVERY cell. Before S165 that skew cost only the `{r}` cells
+    // (the per-cell approximation reached knitr for them anyway), so declining here is what
+    // keeps this session from WIDENING the pre-existing false positive BACKLOG already files
+    // (S165 §9 review). The skew itself is not fixed here: fixing it means teaching the
+    // scanner quarto's `trimLeft`, which moves every front-matter surface at once.
+    return undefined;
+  }
   // Nothing in the front matter selected an engine, so quarto resolves it from the document's
   // own cell languages — and so do we (S165).
   return languageFallbackEngine(text);
+}
+
+/**
+ * What a raw `engine:` value token tells us: an engine, that it names none, or nothing at all.
+ *
+ * The three-way answer is the S165 §9 review's correction, and the distinction is the whole
+ * safety property of the language fallback. Before the fallback existed, failing to resolve a
+ * token was harmless — the caller dropped back to the per-cell language, which was already the
+ * only thing it knew. Now a decline is a CONFIDENT document-wide answer, so "we could not read
+ * it" must be kept apart from "there was nothing to read":
+ *
+ * - **unmatched** — a plain scalar that names no engine. Quarto's loop compares
+ *   `format.execute.engine === engine.name` and misses too, so it falls through to the
+ *   languages and following it is the same computation. Measured, `engine: banana` on an
+ *   r-first document renders **exit 1** — knitr, from the language.
+ * - **unreadable** — a token whose VALUE is not in the token. Quarto resolves the parsed node
+ *   and may well select on it; we would be guessing. Each of these renders **exit 0** on an
+ *   r-first document's `{python}` cell carrying `#| cache: banana`, against its own
+ *   `#| echo: banana` control at exit 1 (so cell validation ran) and against the
+ *   `engine: markdown` control also at exit 0:
+ *
+ *   | spelling | why the token is not the value |
+ *   |---|---|
+ *   | `engine: &a markdown` | a node property precedes the scalar |
+ *   | `engine: *a` (alias) | the value lives at the anchor |
+ *   | `engine: >-` + an indented body | the value is the FOLDED body |
+ *   | `engine:` + an indented plain-scalar continuation | the value is on the next line |
+ *
+ *   L2 shipped all four as *unmatched*, which sent them to the language fallback and made an
+ *   r-first document claim knitr for every cell — four cardinal-sin false positives this
+ *   session INTRODUCED, all found by its own §9 review. The nested `execute:`/`  engine: &a
+ *   markdown` is the same defect in the other loop and measured identically.
+ *
+ * Two neighbours are deliberately NOT unreadable, because declining on them would cost true
+ * positives for nothing: `engine: banana` above, and the LITERAL block scalar `engine: |` + an
+ * indented `markdown`, which renders **exit 1** — `|` keeps the trailing newline, so the value
+ * is `"markdown\n"` and quarto matches nothing either. It is grouped with `>` here anyway,
+ * because separating them means reimplementing YAML chomping to win one exotic true positive,
+ * and the FP-safe side of that trade is the side this module always takes. Likewise
+ * `engine: &a knitr` renders exit 1 (quarto really does select knitr) and declining costs that
+ * true positive — the same accepted direction.
+ */
+type EngineScalarRead =
+  | { kind: "engine"; engine: DocumentEngine }
+  | { kind: "unmatched" }
+  | { kind: "unreadable" };
+
+function readEngineScalar(rawToken: string): EngineScalarRead {
+  if (rawToken.length === 0) {
+    return { kind: "unreadable" }; // an indented continuation may carry the value
+  }
+  const first = rawToken[0];
+  if (first === "&" || first === "!" || first === "*" || first === "|" || first === ">") {
+    return { kind: "unreadable" };
+  }
+  const name = unquote(rawToken);
+  return ENGINE_NAMES.has(name)
+    ? { kind: "engine", engine: name as DocumentEngine }
+    : { kind: "unmatched" };
 }
 
 /**
@@ -304,19 +406,28 @@ export function documentEngineForScoping(
  * one carrying `#| cache: banana` — every one renders **exit 0**, i.e. quarto resolved jupyter,
  * while a cell-list reading would have answered knitr and squiggled it:
  *
- * | the `{julia}` fence sits in… | renders |
- * |---|---|
- * | a ```` ```` ````-fenced example block | exit 0 |
- * | a `>` blockquote | exit 0 |
- * | a 3-space-indented fence | exit 0 |
- * | a 4-space indented-code block | exit 0 |
- * | an HTML comment | exit 0 |
- * | a front-matter block scalar | exit 0 |
+ * | the `{julia}` fence sits in… | quarto | `findAllCells` |
+ * |---|---|---|
+ * | a ```` ```` ````-fenced example block | exit 0 | does not see it |
+ * | a `>` blockquote | exit 0 | does not see it |
+ * | a 4-space indented-code block | exit 0 | does not see it |
+ * | an HTML comment | exit 0 | does not see it |
+ * | a TAB-indented fence | exit 0 | does not see it |
+ * | a front-matter block scalar | exit 0 | does not see it |
  *
- * (Controls: the same six documents with `#| echo: banana` render exit 1, so validation ran;
- * the same document without the `{julia}` fence renders exit 1, so knitr is the fallback.)
- * Transcribing quarto's regex is therefore not a stylistic preference — it is what makes our
- * language set equal to quarto's on the same text, by construction rather than by luck.
+ * (Controls: the same documents with `#| echo: banana` render exit 1, so validation ran; the
+ * same document without the `{julia}` fence renders exit 1, so knitr is the fallback.)
+ *
+ * **An earlier revision of this table listed three more rows that are not divergences at all**
+ * — a 3-SPACE-indented fence, a four-backtick ```` ````{julia} ```` fence, and
+ * ```` ``` {julia} ```` with a space after the ticks. The §9 review caught it and a direct
+ * check confirms: `findAllCells` reports the `{julia}` cell in all three, so they are shapes
+ * the two scanners AGREE on, not evidence for this design. They remain useful as regression
+ * pins on the transcribed regex; they are just not part of this argument.
+ *
+ * The six that remain are enough: transcribing quarto's regex is not a stylistic preference,
+ * it is what makes our language set equal to quarto's on the same text, by construction rather
+ * than by luck.
  */
 function languageFallbackEngine(text: string): DocumentEngine | undefined {
   if (INCLUDE_SHORTCODE.test(text)) {
@@ -352,7 +463,10 @@ function languageFallbackEngine(text: string): DocumentEngine | undefined {
  *
  * **What declining does NOT do is make an include-bearing document correct.** Replayed
  * end-to-end (this feature's own flag decision against `quarto render`'s exit code over 48
- * documents, pre-S165 vs post-S165: 16 improved, 0 regressed), the two include rows above stay
+ * documents, pre-S165 vs post-S165: 16 improved, 0 regressed — a corpus result, NOT a
+ * universal: the §9 review then found eleven unreadable-selector shapes OUTSIDE that corpus
+ * where the first cut of this session DID regress, all fixed in the correction layer and
+ * pinned), the two include rows above stay
  * cardinal FALSE POSITIVES — byte-identical to the pre-S165 tree, because the per-cell
  * approximation still scopes their `{r}` cell to knitr. The alternative, answering
  * `"ambiguous"` on any include-bearing document, would remove both; measured, it would also
@@ -425,11 +539,19 @@ function languagesInMarkdown(text: string): string[] {
  * This is a SECOND copy of a list `yaml-context.ts` also holds (`CELL_HANDLER_LANGUAGES`), and
  * the duplication is deliberate: they are two DIFFERENT quarto sources that happen to agree.
  * That one transcribes the `handlers/languages.yml` resource, which the VALIDATION path reads
- * to swap a cell's schema; this one transcribes the CLI-side handler registry, which the
- * ENGINE path reads to decide whether a language forces jupyter. Sharing one constant would
- * assert an equivalence quarto does not guarantee — and `document-engine.ts` cannot import
- * `yaml-context.ts` in any case, since that module imports THIS one. Cross-referenced in both
- * files so neither side rediscovers the pair.
+ * to swap a cell's schema; this one transcribes the CLI-side handler registry
+ * (`languages()` — the `handlers` entries whose `type` is `"cell"`), which the ENGINE path
+ * reads to decide whether a language forces jupyter. Sharing one constant would assert an
+ * equivalence quarto does not guarantee.
+ *
+ * **Two claims an earlier revision made here were false, and the §9 review was right about
+ * both.** It said the modules "cannot" import each other and that the pair was
+ * "cross-referenced in both files". The import claim is overstated: `yaml-context.ts` imports
+ * only `import type { DocumentEngine }` from here, which is erased at compile time, so a
+ * runtime import back would not be a cycle — it would just make two modules mutually
+ * dependent for no gain. And the cross-reference did not exist until this correction added it
+ * (see `CELL_HANDLER_LANGUAGES` in `yaml-context.ts`), so the sentence was describing an
+ * intention as a fact.
  */
 const HANDLER_CELL_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot"]);
 
@@ -542,12 +664,6 @@ function isRMarkdownFileName(fileName: string): boolean {
   return lower.endsWith(".rmd") || lower.endsWith(".rmarkdown");
 }
 
-/** The engine a raw `engine:` value token names, or `undefined` for anything else. */
-function engineNamed(rawToken: string): DocumentEngine | undefined {
-  const name = unquote(rawToken);
-  return ENGINE_NAMES.has(name) ? (name as DocumentEngine) : undefined;
-}
-
 /**
  * The falsy spellings that matter here — NOT every falsy YAML scalar, and an earlier
  * revision of this comment claimed otherwise (S164 §9 review).
@@ -591,13 +707,34 @@ const FALSY_NODES: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Whether an engine-named key's value is a truthy YAML node.
+ * Whether an engine-named key's value is a truthy YAML node — or whether we can tell at all.
  *
- * With no scalar token, `hasChildren` decides: a MAPPING or SEQUENCE body is truthy (the
- * common `jupyter:` + kernelspec spelling — measured exit 0), while the null of a bare
- * `key:` is falsy (measured exit 1, and itself a front-matter schema error). The enumerator
- * owns that distinction, and it is narrower than "the next line is indented" for a reason it
- * documents: an indented plain-scalar continuation carries the key's VALUE and may be falsy.
+ * The third answer is the S165 §9 review's correction, for the same reason `readEngineScalar`
+ * needs one: a decline is no longer inert. When this returned a bare `false` for a token it
+ * could not read, the key simply did not select, nothing else selected either, and the
+ * document fell through to the LANGUAGE fallback — which on an r-first document answers knitr
+ * and squiggles every cell. Measured, each of these renders **exit 0** with a `{python}`
+ * cell's `#| cache: banana` (control `#| echo: banana`: exit 1), i.e. quarto DID select
+ * markdown and we claimed knitr:
+ *
+ * | spelling | what quarto resolves |
+ * |---|---|
+ * | `markdown: !!bool true` | boolean true — truthy |
+ * | `markdown: &a true` | the anchored boolean — truthy |
+ * | `markdown: \|` + an indented body | the folded string — truthy |
+ * | `markdown:` + a COLUMN-0 sequence body | a sequence — truthy |
+ *
+ * The last row is why an empty token with no children is now unreadable rather than falsy:
+ * `opensBlockAt` requires indentation > 0, so a column-0 sequence body looks exactly like the
+ * null of a bare `key:`. Quarto tells them apart and we cannot. The cost is that a genuinely
+ * bare `jupyter:` no longer falls through — but that document renders exit 1 as a front-matter
+ * schema error (`Field "jupyter" has empty value`) whatever we answer, so no true positive is
+ * actually reachable there.
+ *
+ * With a scalar token present, `hasChildren` no longer decides: a MAPPING or SEQUENCE body is
+ * truthy (the common `jupyter:` + kernelspec spelling — measured exit 0), and an indented
+ * plain-scalar continuation carries the key's VALUE and may be falsy, which is the distinction
+ * the enumerator owns and documents.
  *
  * A BLOCK-SCALAR indicator (`|`, `>`, and their `|-`/`>+`/`|2` variants) also declines. The
  * token is punctuation, not the value: the value is the folded body, and an EMPTY body folds
@@ -619,16 +756,19 @@ const FALSY_NODES: ReadonlySet<string> = new Set([
  * `Jupyter kernel 'false' not found` — an error only the jupyter engine raises, so it really
  * was selected. Adding the quoted spellings to the falsy table would be wrong.
  */
-function isTruthyNode(rawToken: string, hasChildren: boolean): boolean {
+function readTruthiness(rawToken: string, hasChildren: boolean): "truthy" | "falsy" | "unreadable" {
   if (rawToken.length === 0) {
-    return hasChildren;
+    // A mapping/sequence body indented under the key is truthy; with no children the node is
+    // either null (falsy) or a COLUMN-0 sequence body (truthy) and the enumerator cannot tell
+    // us which, so we decline rather than guess in the knitr direction.
+    return hasChildren ? "truthy" : "unreadable";
   }
   const first = rawToken[0];
   if (first === "|" || first === ">") {
-    return false; // a block-scalar header — the value is the body, which may be empty
+    return "unreadable"; // a block-scalar header — the value is the body, which we do not see
   }
   if (first === "&" || first === "!" || first === "*") {
-    return false; // an anchored/tagged/aliased node — resolve it or decline, never guess
+    return "unreadable"; // an anchored/tagged/aliased node — resolve it or decline, never guess
   }
-  return !FALSY_NODES.has(rawToken);
+  return FALSY_NODES.has(rawToken) ? "falsy" : "truthy";
 }

@@ -671,12 +671,21 @@ export function engineFor(lang: string): CellEngine | undefined {
  * A cell-HANDLER language narrows one step further, to `"none"` — see
  * `CELL_HANDLER_LANGUAGES` below (S162).
  *
- * ## `documentEngine` — when the language does not have to be guessed at all (S164)
+ * ## `documentEngine` — when the language does not have to be guessed at all (S164, S165)
  *
- * Everything above describes the FALLBACK. Quarto never scopes by cell language: it scopes
- * by the DOCUMENT's engine, which `validateDocument` hands to `partitionCellOptionsMapped`
- * as `context.engine.name`. When the front matter names that engine (`core/document-engine.ts`
- * reads the three spellings), pass it here and the guess is replaced by the fact:
+ * Everything above describes the FALLBACK — and since S165 that fallback is the EXCEPTION,
+ * not the ordinary case. Quarto never scopes by cell language: it scopes by the DOCUMENT's
+ * engine, which `validateDocument` hands to `partitionCellOptionsMapped` as
+ * `context.engine.name`. S164 taught `core/document-engine.ts` to read the three spellings of
+ * an explicit front-matter override; S165 added quarto's DEFAULT path, where the engine is
+ * resolved from the document's own cell languages (document-wide and order-dependent). So
+ * `documentEngine` now arrives resolved for essentially every real document, and `undefined`
+ * — the "guess from this cell's language" case below — is left only for an `.Rmd`, a document
+ * carrying an `{{< include >}}` whose expansion we cannot see, a front matter quarto's
+ * `trimLeft` reveals and our scanner does not, or a selector whose value we cannot read.
+ * Each of those is measured at `documentEngineForScoping`.
+ *
+ * When the engine IS resolved, the guess is replaced by the fact:
  *
  * - **knitr / jupyter** — used directly, for EVERY cell language. Measured, `engine: knitr` +
  *   a `{python}` cell + `#| cache: banana` renders **exit 1** (control without the key: exit
@@ -847,6 +856,16 @@ export function cellOptionScopeFor(
  * `core/cell-background.ts` uses `findAllCells` only.
  */
 const CELL_HANDLER_LANGUAGES: ReadonlySet<string> = new Set(["mermaid", "dot"]);
+
+/**
+ * ⚠ `core/document-engine.ts` holds a SECOND list with the same two members
+ * (`HANDLER_CELL_LANGUAGES`). They are not redundant: this one transcribes the
+ * `handlers/languages.yml` RESOURCE, which quarto's VALIDATION path reads to swap a cell's
+ * schema; that one transcribes the CLI-side handler REGISTRY (`languages()`), which quarto's
+ * ENGINE resolver reads to decide whether a language forces jupyter. They agree in 1.7.33 and
+ * quarto does not guarantee they always will. If you change either, read the other's docstring
+ * first (S165 §9 review — the cross-reference this note is one half of).
+ */
 
 /**
  * Whether `lang` is one of quarto's cell-handler languages (case-sensitive).

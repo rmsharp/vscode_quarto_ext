@@ -36,7 +36,10 @@ const pyDoc = (fm: string) =>
 describe("Session 164 — documentEngineForScoping: the top-level `engine:` scalar", () => {
   it("resolves each of quarto's four engine names", () => {
     expect(resolve(doc("engine: markdown\n"))).toBe("markdown");
-    expect(resolve(doc("engine: knitr\n"))).toBe("knitr");
+    // S165 §9: the knitr rows use `pyDoc`. On an `{r}` document the LANGUAGE fallback answers
+    // knitr too, so a build that failed to read the override entirely would still pass — the
+    // pyDoc rule applied in only one direction (the review's test-quality lens).
+    expect(resolve(pyDoc("engine: knitr\n"))).toBe("knitr");
     expect(resolve(doc("engine: jupyter\n"))).toBe("jupyter");
     expect(resolve(doc("engine: julia\n"))).toBe("julia");
   });
@@ -88,7 +91,7 @@ describe("Session 164 — documentEngineForScoping: the nested `execute: engine:
     // Quarto folds a top-level `engine:` into `format.execute.engine` (`metadataAsFormat`,
     // `kEngine` ∈ `kExecuteDefaultsKeys`), so the two spellings are the same key.
     expect(resolve(doc("execute:\n  engine: markdown\n"))).toBe("markdown");
-    expect(resolve(doc("execute:\n  engine: knitr\n"))).toBe("knitr");
+    expect(resolve(pyDoc("execute:\n  engine: knitr\n"))).toBe("knitr"); // pyDoc: see above
   });
 
   it("documents WHY the resolver's depth guard is currently unreachable", () => {
@@ -145,8 +148,13 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
 
   it("does NOT select on a bare key with no value — that node is null", () => {
     // `jupyter:` alone renders exit 1 (and is itself a front-matter schema error).
-    expect(resolve(doc("jupyter:\n"))).toBe("knitr");
-    expect(resolve(doc("markdown:\n"))).toBe("knitr");
+    // S165 §9: `undefined` rather than the language answer, because an empty token with no
+    // indented children is ALSO how a COLUMN-0 sequence body looks to `opensBlockAt`, and that
+    // one IS truthy (`markdown:` + a column-0 `- x` renders exit 0 — quarto selected it). We
+    // cannot tell the two apart, so we decline instead of guessing in the knitr direction.
+    // Nothing is lost: a genuinely bare key is a front-matter schema error either way.
+    expect(resolve(doc("jupyter:\n"))).toBeUndefined();
+    expect(resolve(doc("markdown:\n"))).toBeUndefined();
   });
 
   it("is not fooled by a NESTED key that merely shares the name", () => {
@@ -165,8 +173,10 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
     ).toBe("jupyter");
     expect(resolve(doc("markdown:\n  wrap: none\n"))).toBe("markdown");
     // Measured: `knitr:` / `  opts_chunk:` / `    collapse: true` + `{python}` +
-    // `#| cache: banana` renders exit 1 — the container form selects knitr as well.
-    expect(resolve(doc("knitr:\n  opts_chunk:\n    collapse: true\n"))).toBe("knitr");
+    // `#| cache: banana` renders exit 1 — the container form selects knitr as well. S165 §9:
+    // that measurement used a `{python}` document and so must this pin, or the language
+    // fallback supplies the same answer and the pin stops discriminating.
+    expect(resolve(pyDoc("knitr:\n  opts_chunk:\n    collapse: true\n"))).toBe("knitr");
   });
 
   it("does NOT mistake an indented PLAIN SCALAR body for a mapping — it may parse FALSY", () => {
@@ -183,17 +193,22 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
     // answers knitr anyway, so the pin would pass just as happily against a build that wrongly
     // SELECTED knitr here — it would stop discriminating exactly the defect it exists for.
     // `pyDoc` is also the shape they were measured on (see the exit 0 above).
-    expect(resolve(pyDoc("knitr:\n  false\n"))).toBe("jupyter");
-    expect(resolve(pyDoc("knitr:\n\n  false\n"))).toBe("jupyter");
-    expect(resolve(pyDoc("knitr: # off\n  false\n"))).toBe("jupyter");
+    // S165 §9: `undefined` rather than the language answer. The value is on a continuation
+    // line we do not read, and it may just as well be `true` — measured, `knitr:` + an
+    // indented `true` renders exit 1, i.e. quarto DOES select knitr there. Declining covers
+    // both; the effective scope for these documents is unchanged (a {python} cell lands on
+    // the agnostic set either way).
+    expect(resolve(pyDoc("knitr:\n  false\n"))).toBeUndefined();
+    expect(resolve(pyDoc("knitr:\n\n  false\n"))).toBeUndefined();
+    expect(resolve(pyDoc("knitr: # off\n  false\n"))).toBeUndefined();
     // Same shape on a narrowing engine: `markdown:` + indented `false` renders exit 1 with an
     // {r} cell, i.e. quarto did NOT select markdown either.
-    expect(resolve(pyDoc("markdown:\n  false\n"))).toBe("jupyter");
-    expect(resolve(doc("markdown:\n  false\n"))).toBe("knitr");
+    expect(resolve(pyDoc("markdown:\n  false\n"))).toBeUndefined();
+    expect(resolve(doc("markdown:\n  false\n"))).toBeUndefined();
   });
 
   it("still selects on a real mapping or sequence body — the L5 capability is intact", () => {
-    expect(resolve(doc("knitr:\n  opts_chunk:\n    collapse: true\n"))).toBe("knitr");
+    expect(resolve(pyDoc("knitr:\n  opts_chunk:\n    collapse: true\n"))).toBe("knitr"); // pyDoc: see above
     expect(resolve(doc("jupyter:\n  kernelspec:\n    name: python3\n"))).toBe("jupyter");
     // A block SEQUENCE body is truthy too — measured, `jupyter:` + `  - a` selects jupyter
     // (it fails later inside the jupyter engine's own kernelspec check, which only runs once
@@ -207,8 +222,11 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
     // fails. Reading `|` as an ordinary truthy token cost a true positive.
     // S165: `knitr` is the language fall-through that exit 1 records. A build reading `|` as
     // an ordinary truthy token would answer `jupyter`, so the pin still discriminates.
-    expect(resolve(doc("jupyter: |\n"))).toBe("knitr");
-    expect(resolve(doc("jupyter: >\n"))).toBe("knitr");
+    // S165 §9: `undefined`. An empty block scalar is falsy, but a NON-empty one is a truthy
+    // string — measured, `markdown: |` + an indented body renders exit 0, i.e. selected. The
+    // token cannot tell us which, so the answer is "cannot read", not "falsy".
+    expect(resolve(doc("jupyter: |\n"))).toBeUndefined();
+    expect(resolve(doc("jupyter: >\n"))).toBeUndefined();
   });
 
   it("does NOT select on a NODE-PROPERTY token — quarto tests the PARSED node, which may be falsy", () => {
@@ -224,12 +242,15 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
     // because that is what the exit-0 measurements used — on an `{r}` document the language
     // fallback answers knitr, so a build that wrongly read `!!bool false` as truthy would be
     // indistinguishable from a correct one.
+    // S165 §9: `undefined` rather than the language answer, for the same reason — the mirror
+    // `markdown: !!bool true` and `markdown: &a true` both render exit 0 (quarto selected),
+    // so a node property is unreadable in BOTH directions and must block the fallback.
     for (const value of ["!!bool false", "&a false", "*a", "!!str false"]) {
-      expect(resolve(pyDoc(`knitr: ${value}\n`)), value).toBe("jupyter");
+      expect(resolve(pyDoc(`knitr: ${value}\n`)), value).toBeUndefined();
     }
     // The cost is a true positive when the tagged node is TRUTHY — `knitr: !!bool true`
     // renders exit 1, i.e. knitr really is selected there and we now stay silent. FP-safe.
-    expect(resolve(pyDoc("knitr: !!bool true\n"))).toBe("jupyter");
+    expect(resolve(pyDoc("knitr: !!bool true\n"))).toBeUndefined();
   });
 
   it("DOES select on a quoted falsy-looking string — the parsed value is a truthy string", () => {
@@ -253,8 +274,9 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
     // A comment is not content, so `jupyter:` here is null and quarto renders the same
     // document exit 1. Reading it as a mapping would claim an engine nothing selected.
     // S165: `knitr` is that exit-1 fall-through; a build seeing children would answer `jupyter`.
-    expect(resolve(doc("jupyter:\n  # nothing yet\n"))).toBe("knitr");
-    expect(resolve(doc("jupyter:\n\ntoc: true\n"))).toBe("knitr");
+    // S165 §9: `undefined` — same empty-token-with-no-children class as the bare key above.
+    expect(resolve(doc("jupyter:\n  # nothing yet\n"))).toBeUndefined();
+    expect(resolve(doc("jupyter:\n\ntoc: true\n"))).toBeUndefined();
   });
 });
 
@@ -364,7 +386,7 @@ describe("Session 164 — documentEngineForScoping: two selectors that DISAGREE"
   it("does NOT call the SAME engine named twice ambiguous", () => {
     // No reorder and no key order can change a set with one member.
     expect(resolve(doc("engine: jupyter\njupyter: python3\n"))).toBe("jupyter");
-    expect(resolve(doc("engine: knitr\nexecute:\n  engine: knitr\n"))).toBe("knitr");
+    expect(resolve(pyDoc("engine: knitr\nexecute:\n  engine: knitr\n"))).toBe("knitr"); // pyDoc: see above
   });
 });
 
@@ -527,5 +549,84 @@ describe("Session 165 — documentEngineForScoping: the DEFAULT engine, from the
     // that change: an `.Rmd` still resolves `undefined`.
     expect(resolve(doc(""), "doc.Rmd")).toBeUndefined();
     expect(resolve("---\ntitle: t\n---\n\n```{python}\n1\n```\n", "doc.rmd")).toBeUndefined();
+  });
+});
+
+describe("Session 165 §9 — a shape we DECLINE to read must block the fallback", () => {
+  // The review's headline finding, and the defect S165's own L2 introduced. Before the
+  // language fallback existed, failing to resolve a token was inert: the caller dropped back
+  // to the per-cell language, which was all it had anyway. With the fallback, a decline
+  // becomes a CONFIDENT document-wide answer — and on a document holding an {r} cell that
+  // answer is knitr, so EVERY cell gets squiggled, not just the {r} ones.
+  //
+  // `pyDoc` here would not discriminate: its fallback is jupyter, the same agnostic scope the
+  // fix produces. These MUST use the {r} document, where the broken answer (knitr) and the
+  // correct one (undefined -> per-cell) differ.
+  const rDoc = (fm: string) =>
+    `---\ntitle: t\n${fm}---\n\n\`\`\`{r}\n1\n\`\`\`\n\n\`\`\`{python}\n#| cache: banana\n1\n\`\`\`\n`;
+
+  it("declines on an `engine:` value whose VALUE is not in the token", () => {
+    // Each renders **exit 0** on that document (control `#| echo: banana`: exit 1, so cell
+    // validation ran; `engine: markdown` control: also exit 0) — quarto resolved the node and
+    // chose markdown, while L2 answered knitr and flagged the {python} cell.
+    expect(resolve(rDoc("engine: &a markdown\n"))).toBeUndefined();
+    expect(resolve(rDoc("xx: &a markdown\nengine: *a\n"))).toBeUndefined();
+    expect(resolve(rDoc("engine: >-\n  markdown\n"))).toBeUndefined();
+    expect(resolve(rDoc("engine:\n  markdown\n"))).toBeUndefined();
+    expect(resolve(rDoc("engine: !!str markdown\n"))).toBeUndefined();
+    // …and the same defect in the NESTED loop.
+    expect(resolve(rDoc("execute:\n  engine: &a markdown\n"))).toBeUndefined();
+  });
+
+  it("still falls through on a value it CAN read that names no engine", () => {
+    // The half of L2 that was right, and that this fix must not undo: quarto's loop misses
+    // these too and falls to the languages. Measured, `engine: banana` on that document
+    // renders **exit 1** with `Field "cache" has value banana`.
+    expect(resolve(rDoc("engine: banana\n"))).toBe("knitr");
+    expect(resolve(rDoc("engine: MARKDOWN\n"))).toBe("knitr");
+    expect(resolve(rDoc("engine: 'banana'\n"))).toBe("knitr");
+  });
+
+  it("declines on an ENGINE-NAMED key whose truthiness we cannot resolve", () => {
+    // Same defect, other selector: `readTruthiness` used to answer a flat `false` here, the
+    // key did not select, nothing else did, and the document fell to the languages. Measured
+    // exit 0 for all four — quarto selected markdown.
+    expect(resolve(rDoc("markdown: !!bool true\n"))).toBeUndefined();
+    expect(resolve(rDoc("markdown: &a true\n"))).toBeUndefined();
+    expect(resolve(rDoc("markdown: |\n  x\n"))).toBeUndefined();
+    expect(resolve(rDoc("markdown:\n- x\n"))).toBeUndefined(); // a COLUMN-0 sequence body
+  });
+
+  it("still falls through on an engine-named key that is definitely FALSY", () => {
+    // Quarto's `if (yaml[engine.name])` is false here too, so it also falls to the languages —
+    // measured, `jupyter: false` + an {r} cell renders exit 1. Declining would be a needless
+    // narrowing, and this is the pin that keeps the fix from over-correcting.
+    expect(resolve(rDoc("jupyter: false\n"))).toBe("knitr");
+    expect(resolve(rDoc("jupyter: null\n"))).toBe("knitr");
+    expect(resolve(rDoc("jupyter: 0\n"))).toBe("knitr");
+  });
+
+  it("declines on ANY scalar token on `execute:`, not just a flow mapping", () => {
+    // L2 tested `rawToken.startsWith("{")`. An anchor or an alias is just as unreadable, and
+    // both render **exit 0** on that document (controls at exit 1).
+    expect(resolve(rDoc("xx: &a\n  engine: markdown\nexecute: *a\n"))).toBeUndefined();
+    expect(resolve(rDoc("execute: &a\n  engine: markdown\n"))).toBeUndefined();
+    expect(resolve(rDoc("execute: {engine: markdown}\n"))).toBeUndefined();
+    // A block mapping leaves the token empty and IS readable through its children.
+    expect(resolve(rDoc("execute:\n  engine: markdown\n"))).toBe("markdown");
+  });
+
+  it("declines when quarto's trimLeft gives it a front matter our scanner never saw", () => {
+    // `partitionYamlFrontMatter` runs `lines(markdown.trimLeft())`, so a blank line BEFORE the
+    // opening `---` hides the block from `scanRegions` and not from quarto. Measured: that
+    // document with `engine: markdown` renders **exit 0** (control `#| echo: banana`: exit 1;
+    // the same document without the `engine:` line: exit 1). The skew is PRE-EXISTING and
+    // filed, but before S165 it cost only the {r} cells — falling back to the languages here
+    // would widen it to every cell, which is what this guard prevents.
+    expect(resolve(`\n${rDoc("engine: markdown\n")}`)).toBeUndefined();
+    expect(resolve(`\n\n  \n${rDoc("")}`)).toBeUndefined();
+    // A document that genuinely has no front matter still resolves normally.
+    expect(resolve("```{r}\n#| cache: banana\n1\n```\n")).toBe("knitr");
+    expect(resolve("just prose\n\n```{python}\nx\n```\n")).toBe("jupyter");
   });
 });
