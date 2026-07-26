@@ -54,6 +54,25 @@ export function classifyRow(
   return verdict.rejects ? "lost-tp" : "agree";
 }
 
+/**
+ * Baseline rows recorded as WRONG that carry no written reason.
+ *
+ * The failure this guards against is procedural, not technical: when the oracle fails, the
+ * cheapest way to make it pass is to re-seed the baseline, which turns a newly introduced
+ * cardinal false positive into an "expected" one with nobody having decided that. Requiring
+ * a reason for every non-agreeing row makes that a deliberate, reviewable edit. A lost true
+ * positive needs one too — safe is not the same as free, and the trade belongs in writing.
+ */
+export function unexplainedRows(
+  rows: Record<string, RowClass>,
+  known: Record<string, string>,
+): string[] {
+  return Object.entries(rows)
+    .filter(([, cls]) => cls === "cardinal-fp" || cls === "lost-tp")
+    .filter(([name]) => (known[name] ?? "").trim().length === 0)
+    .map(([name]) => name);
+}
+
 /** The result of replaying two builds over the SAME corpus. */
 export interface Comparison {
   /** Rows that got better, named. */

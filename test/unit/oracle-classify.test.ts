@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyRow, compareRuns, verdictOf } from "../oracle/classify";
+import { classifyRow, compareRuns, unexplainedRows, verdictOf } from "../oracle/classify";
 
 /**
  * The oracle's central lesson, pinned: AN EXIT CODE IS NOT A MEASUREMENT.
@@ -157,5 +157,39 @@ describe("compareRuns — improved, regressed, and what it refuses to score", ()
     const c = compareRuns({ a: "agree", gone: "agree" }, { a: "agree", added: "agree" });
     expect(c.incomparable.sort()).toEqual(["added", "gone"]);
     expect(c.unchanged).toBe(1);
+  });
+});
+
+/**
+ * The gate against silently absorbing a defect into the baseline.
+ *
+ * A baseline is only trustworthy if every row it records as WRONG carries a written
+ * reason. Without that, the way to make a failing oracle pass is to re-seed it — and a
+ * newly introduced cardinal false positive becomes "expected" with nobody having decided
+ * that. Every non-agreeing row must name why it is there and where it is filed.
+ */
+describe("unexplainedRows — a baseline may not absorb a defect silently", () => {
+  it("names a cardinal false positive that carries no reason", () => {
+    const rows = { a: "cardinal-fp", b: "agree" } as const;
+    expect(unexplainedRows(rows, {})).toEqual(["a"]);
+  });
+
+  it("accepts it once a reason is recorded", () => {
+    const rows = { a: "cardinal-fp" } as const;
+    expect(unexplainedRows(rows, { a: "PRE-EXISTING, filed: the include decline" })).toEqual([]);
+  });
+
+  it("requires a reason for a lost true positive too", () => {
+    // Safe does not mean free: a lost TP is a deliberate trade, and the trade should be
+    // written down where the next session reads it.
+    expect(unexplainedRows({ a: "lost-tp" }, {})).toEqual(["a"]);
+  });
+
+  it("an empty reason does not count as a reason", () => {
+    expect(unexplainedRows({ a: "cardinal-fp" }, { a: "   " })).toEqual(["a"]);
+  });
+
+  it("never demands a reason for agreement", () => {
+    expect(unexplainedRows({ a: "agree", b: "unrelated" }, {})).toEqual([]);
   });
 });
