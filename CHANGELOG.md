@@ -7,6 +7,63 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-26 · [ad hoc] Session 166 — IMPLEMENTATION: the exit-code replay oracle, committed as an opt-in harness (SHIPPED)
+
+The end-to-end oracle had been the primary safety evidence for two consecutive sessions
+(S164's 17 documents, S165's 64) and lived only in disposable session scratchpads — so the
+strongest claim either made, "0 regressed", could not be re-checked by anyone afterwards.
+It is now `test/oracle/`, run with `npm run test:oracle`.
+
+It replays this extension's OWN cell-option flag decision over a 66-document corpus,
+renders each with the real `quarto` CLI, and classifies every row **agree / lost-TP /
+cardinal-FP / unrelated**. Opt-in and outside `test/unit/` because it needs quarto on PATH
+and a minute of wall clock; the pure logic it composes (verdict parsing, classification,
+comparison, the baseline-reason gate) is pinned headlessly and runs in the default suite.
+
+**Measured this session, quarto 1.7.33:**
+
+| build | agree | lost TP | cardinal FP |
+|---|---|---|---|
+| this build | 59 | 3 | **4** |
+| pre-S165 (`87b3f38`, via `git archive` + `QMD_ORACLE_SRC`) | 41 | 9 | **16** |
+
+18 rows better, none worse — independently reproducing all three of S165's headline
+numbers from a re-implemented harness rather than trusting the claim. All four remaining
+cardinal false positives were adjudicated **by replay, not assertion**: each is also wrong
+pre-S165, so each is PRE-EXISTING, and `baseline.json` names the mechanism and filed item
+for every one (two include shapes, the `execute: {engine: markdown}` FLOW spelling, and the
+`{r.foo}` dotted fence token — the last being the CELL_INFO root cause under a spelling the
+filed item does not name).
+
+**Porting it was an audit, and it found three defects two sessions of use had not:**
+
+- **the mirror had drifted.** `cellOptionFlags` must re-walk `computeValueDiagnostics`'s
+  loop because that function imports `vscode`; S165's copy omitted the S163 `validate-yaml`
+  escape hatch entirely. No corpus row used the flag, so nothing could catch it. Closed,
+  pinned, and proven by a mutant that reproduces S165's version exactly — it kills both new
+  hatch pins while the positive control survives. Two corpus rows added for the flag.
+- **the quarto resource path was true on one machine** (`/Applications/quarto/...`). Now
+  resolved the way the product resolves it, through the already-tested `parseSharePath`.
+- **the schema was parsed by the CURRENT build's parser while replaying an OLD build.** The
+  parser now comes from the build under test, so a replay is faithful.
+
+**Three gates, each observed FAILING before being trusted:** a regression fails the run with
+every regressed row NAMED (the pre-S165 replay fails with 18); a baseline row recorded as
+wrong with no written reason fails the run (verified by deleting one — it named that row);
+and a row present in only one of baseline/run is reported incomparable rather than dropped,
+because silent omission is exactly how S165's oracle reported "0 regressed" while twelve
+regressions sat outside its corpus. A missing baseline seeds itself and still fails.
+
+Layers, each RED→GREEN with a checkpoint commit: **L1** `3b07d8f` the pure classification
+logic; **L2** `d845714` the flag mirror + the escape hatch; **L3** `d855cd2` the corpus and
+the build-under-test loader; **L4a** `a7a8409` the baseline-reason gate, **L4b** `64b24da`
+the driver + adjudicated baseline, **L4c** `9d3f525` the README + harness type-checking.
+Verification: unit **1465 → 1494**; check-types clean; `compile-tests` clean and now
+type-checking `test/oracle/**` (the integration runner's mocha walk is rooted at its own
+suite directory and never reaches it — read, not assumed); the oracle itself run cold (66
+real renders), warm, against two builds, and with both gates deliberately failed. Zero
+`src/` changes. Nine targeted mutants, each killing exactly its own pin.
+
 ### 2026-07-26 · [ad hoc] Session 165 — IMPLEMENTATION: the DEFAULT (no-override) document engine (SHIPPED)
 
 Quarto scopes a cell's option schema to the **document's** engine. Session 164 taught this
