@@ -133,10 +133,13 @@ interface NestedScalar {
  * never manufacture one, because a node-property token never equals a bare engine name.
  */
 export function documentEngineForScoping(
-  _fileName: string,
+  fileName: string,
   topLevel: readonly TopLevelScalar[],
   nested: readonly NestedScalar[],
 ): DocumentEngine | "ambiguous" | undefined {
+  if (isRMarkdownFileName(fileName)) {
+    return undefined; // knitr claimed the file by EXTENSION; the front matter never runs
+  }
   const selected = new Set<DocumentEngine>();
   for (const fm of topLevel) {
     if (fm.key === ENGINE_KEY) {
@@ -160,6 +163,34 @@ export function documentEngineForScoping(
     return undefined;
   }
   return selected.size === 1 ? [...selected][0] : "ambiguous";
+}
+
+/**
+ * Quarto's `kRmdExtensions` — the extensions knitr claims OUTRIGHT, in `claimsFile`, which
+ * `fileExecutionEngine` consults for every engine BEFORE it partitions any front matter:
+ *
+ * ```js
+ * for (const [_, engine] of reorderedEngines) if (engine.claimsFile(file, ext)) return engine;
+ * if (kMdExtensions.includes(ext) || kQmdExtensions.includes(ext)) { ...markdownExecutionEngine... }
+ * // knitr: claimsFile: (file, ext) => kRmdExtensions.includes(ext.toLowerCase()) || isKnitrSpinScript(file)
+ * ```
+ *
+ * so on an `.Rmd` the document IS knitr and no `engine:` key can say otherwise. This matters
+ * because this extension's `quarto` languageId opens `.qmd`, `.rmd` AND `.Rmd`: honouring the
+ * override there would silence a document quarto really validates. Measured firsthand — the
+ * same document with `engine: markdown`, with `engine: jupyter`, and with `jupyter: python3`
+ * renders **exit 1** as `doc.Rmd` and as `doc.rmd`, against the `.qmd` control at exit 0.
+ *
+ * What this deliberately does NOT do is scope those documents TO knitr. Quarto does — on an
+ * `.Rmd` a `{python}` cell is validated against knitr's schema (measured: `#| cache: banana`
+ * exit 1, `#| tags: banana` exit 0, against the `.qmd` control at exit 0) — so we still under-
+ * report there. That is a PRE-EXISTING lost true positive this session leaves exactly as it
+ * found it, filed rather than folded in: it WIDENS what we squiggle, which is the direction
+ * that deserves its own deliverable.
+ */
+function isRMarkdownFileName(fileName: string): boolean {
+  const lower = fileName.toLowerCase();
+  return lower.endsWith(".rmd") || lower.endsWith(".rmarkdown");
 }
 
 /** The engine a raw `engine:` value token names, or `undefined` for anything else. */

@@ -123,3 +123,28 @@ describe("Session 164 — documentEngineForScoping: two selectors that DISAGREE"
     expect(resolve(doc("engine: knitr\nexecute:\n  engine: knitr\n"))).toBe("knitr");
   });
 });
+
+describe("Session 164 — documentEngineForScoping: the FILE EXTENSION claims first", () => {
+  // `fileExecutionEngine` runs `engine.claimsFile(file, ext)` over every engine BEFORE it
+  // ever partitions the front matter, and knitr claims `kRmdExtensions = [".rmd",
+  // ".rmarkdown"]` (compared lowercased). Our `quarto` languageId opens .qmd, .rmd AND
+  // .Rmd, so on the R-Markdown extensions the override below is dead text. Measured: each
+  // of these renders exit 1 — quarto validated against knitr anyway — while the identical
+  // document named .qmd renders exit 0.
+  it("ignores every front-matter override on an R-Markdown extension", () => {
+    for (const name of ["doc.Rmd", "doc.rmd", "doc.RMD", "/a/b/doc.rmarkdown"]) {
+      expect(resolve(doc("engine: markdown\n"), name), name).toBeUndefined();
+      expect(resolve(doc("jupyter: python3\n"), name), name).toBeUndefined();
+      expect(resolve(doc("execute:\n  engine: jupyter\n"), name), name).toBeUndefined();
+    }
+  });
+
+  it("still honours the override on .qmd and on an unsaved/extensionless document", () => {
+    expect(resolve(doc("engine: markdown\n"), "doc.qmd")).toBe("markdown");
+    expect(resolve(doc("engine: markdown\n"), "/a/b/doc.QMD")).toBe("markdown");
+    expect(resolve(doc("engine: markdown\n"), "Untitled-1")).toBe("markdown");
+    // A name that merely CONTAINS the extension is not that extension.
+    expect(resolve(doc("engine: markdown\n"), "doc.rmd.qmd")).toBe("markdown");
+    expect(resolve(doc("engine: markdown\n"), "my.rmd.notes.qmd")).toBe("markdown");
+  });
+});
