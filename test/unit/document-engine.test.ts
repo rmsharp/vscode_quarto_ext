@@ -119,6 +119,75 @@ describe("Session 164 — documentEngineForScoping: the ENGINE-NAMED top-level k
     expect(resolve(doc("knitr:\n  opts_chunk:\n    collapse: true\n"))).toBe("knitr");
   });
 
+  it("does NOT mistake an indented PLAIN SCALAR body for a mapping — it may parse FALSY", () => {
+    // Found by the S164 §9 review and re-measured firsthand. `knitr:` + an indented `false`
+    // is not a block at all: it is the multi-line plain scalar `knitr: false`, so quarto's
+    // `if (yaml["knitr"])` is FALSE and knitr is NOT selected. Measured with a {python} cell
+    // carrying `#| cache: banana` — **exit 0** — against the engine-AGNOSTIC control on the
+    // same front matter (`#| echo: banana`, exit 1) proving validation really ran, and
+    // against `knitr:` + indented `true`, which renders exit 1 because knitr IS selected there.
+    // Claiming knitr here widened every cell to knitr's 43 fields and squiggled a document
+    // quarto ACCEPTS — the cardinal sin, in the one direction this module must never get
+    // wrong. Blank- and comment-skipping widened the same hole (both measured exit 0).
+    expect(resolve(doc("knitr:\n  false\n"))).toBeUndefined();
+    expect(resolve(doc("knitr:\n\n  false\n"))).toBeUndefined();
+    expect(resolve(doc("knitr: # off\n  false\n"))).toBeUndefined();
+    // Same shape on a narrowing engine: `markdown:` + indented `false` renders exit 1 with an
+    // {r} cell, i.e. quarto did NOT select markdown either.
+    expect(resolve(doc("markdown:\n  false\n"))).toBeUndefined();
+  });
+
+  it("still selects on a real mapping or sequence body — the L5 capability is intact", () => {
+    expect(resolve(doc("knitr:\n  opts_chunk:\n    collapse: true\n"))).toBe("knitr");
+    expect(resolve(doc("jupyter:\n  kernelspec:\n    name: python3\n"))).toBe("jupyter");
+    // A block SEQUENCE body is truthy too — measured, `jupyter:` + `  - a` selects jupyter
+    // (it fails later inside the jupyter engine's own kernelspec check, which only runs once
+    // that engine has been chosen).
+    expect(resolve(doc("jupyter:\n  - a\n"))).toBe("jupyter");
+  });
+
+  it("does NOT select on a BLOCK-SCALAR indicator — an empty block scalar is the empty string", () => {
+    // Measured: `jupyter: |` with no body + an {r} cell + `#| cache: banana` renders exit 1,
+    // i.e. jupyter was NOT selected — the folded value is "" and quarto's truthiness test
+    // fails. Reading `|` as an ordinary truthy token cost a true positive.
+    expect(resolve(doc("jupyter: |\n"))).toBeUndefined();
+    expect(resolve(doc("jupyter: >\n"))).toBeUndefined();
+  });
+
+  it("does NOT select on a NODE-PROPERTY token — quarto tests the PARSED node, which may be falsy", () => {
+    // Found by the S164 §9 review and re-measured firsthand with a {python} cell carrying
+    // `#| cache: banana`: `knitr: !!bool false`, `knitr: &a false`, and an alias
+    // `x: &a false` + `knitr: *a` ALL render **exit 0** — quarto resolved each to boolean
+    // false and did not select knitr — against the engine-agnostic control on the same front
+    // matter at exit 1. Comparing the RAW token read every one of them as truthy and claimed
+    // knitr, squiggling documents quarto accepts. The module header claimed node properties
+    // "can never manufacture" a wrong claim; that was true of the `engine:` NAME comparison
+    // and false here, where the test is truthiness rather than equality.
+    for (const value of ["!!bool false", "&a false", "*a", "!!str false"]) {
+      expect(resolve(doc(`knitr: ${value}\n`)), value).toBeUndefined();
+    }
+    // The cost is a true positive when the tagged node is TRUTHY — `knitr: !!bool true`
+    // renders exit 1, i.e. knitr really is selected there and we now stay silent. FP-safe.
+    expect(resolve(doc("knitr: !!bool true\n"))).toBeUndefined();
+  });
+
+  it("DOES select on a quoted falsy-looking string — the parsed value is a truthy string", () => {
+    // The deliberate inversion, now pinned. Measured: `jupyter: "false"` and `jupyter: 'false'`
+    // both render exit 1 with `Jupyter kernel 'false' not found` — an error only the JUPYTER
+    // engine raises, so jupyter was selected and the quoted scalar is truthy. Adding `"false"`
+    // to the falsy table would silently break this.
+    expect(resolve(doc('jupyter: "false"\n'))).toBe("jupyter");
+    expect(resolve(doc("jupyter: 'false'\n"))).toBe("jupyter");
+  });
+
+  it("skips a BLANK line between an engine-named key and its mapping body", () => {
+    // Measured: `jupyter:` + a blank line + an indented `kernelspec:` block renders exit 1
+    // with `Invalid Jupyter kernelspec` — again a jupyter-engine-only error, so the blank
+    // line did not end the mapping and jupyter was selected. This pins the blank half of the
+    // skip positively; the falsy-scalar tests above only pin it negatively.
+    expect(resolve(doc("jupyter:\n\n  kernelspec:\n    name: python3\n"))).toBe("jupyter");
+  });
+
   it("does NOT mistake a comment-only block for children — that node is still null", () => {
     // A comment is not content, so `jupyter:` here is null and quarto renders the same
     // document exit 1. Reading it as a mapping would claim an engine nothing selected.

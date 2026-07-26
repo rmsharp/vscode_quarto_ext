@@ -229,14 +229,32 @@ export function findFrontMatterTopLevelLines(text: string): FrontMatterTopLevelL
 }
 
 /**
- * Whether the front-matter content line at `i` is followed by an INDENTED line — the
- * mapping/sequence body of a block-opener — before any further content.
+ * Whether the front-matter content line at `i` opens a block whose body is a MAPPING or a
+ * SEQUENCE — i.e. a genuine container node — before any further content.
  *
  * Blank and comment-only lines are skipped because neither is YAML content: `jupyter:` above
  * nothing but a `# comment` is still the null node, and quarto renders that document exit 1
- * (measured), so counting the comment as a body would claim an engine nothing selected.
+ * (measured), so counting the comment as a body would claim a container that is not there.
  * Called only for a line whose scalar token is empty, which cannot have armed the
  * quoted/flow continuation guard, so the following lines really are ordinary lines here.
+ *
+ * ⚠ **Indentation alone is NOT the test, and assuming it was shipped a cardinal-sin false
+ * positive** (found by the S164 §9 review). An indented line under a bare `key:` has three
+ * shapes, not two: a mapping entry, a sequence item, or the continuation of a multi-line
+ * PLAIN SCALAR — and that third one carries the key's actual VALUE, which may be falsy.
+ * `knitr:` above an indented `false` is exactly `knitr: false`: measured firsthand, a
+ * `{python}` cell with `#| cache: banana` renders **exit 0** there (against the
+ * engine-agnostic control `#| echo: banana` at exit 1, proving validation ran, and against
+ * an indented `true` at exit 1, proving knitr really is selected in that case). Reporting a
+ * container made `documentEngineForScoping` claim knitr and squiggle a document quarto
+ * ACCEPTS — and the blank/comment skipping above widened the same hole (both spellings
+ * measured exit 0).
+ *
+ * So the body must LOOK like a container: a mapping entry (a real key/value separator) or a
+ * block-sequence item. A scalar body reports `false`, and the engine resolver then declines
+ * to select — which returns those documents to the per-cell language approximation they had
+ * before, rather than to a wrong answer. That costs a true positive when the folded scalar is
+ * TRUTHY (`knitr:` / `  true`, measured exit 1) — the FP-safe direction, and filed.
  */
 function opensBlockAt(contentLines: readonly string[], i: number): boolean {
   for (let j = i + 1; j < contentLines.length; j++) {
@@ -245,7 +263,12 @@ function opensBlockAt(contentLines: readonly string[], i: number): boolean {
     if (trimmed === "" || trimmed.startsWith("#")) {
       continue;
     }
-    return leadingWsLen(line) > 0;
+    if (leadingWsLen(line) === 0) {
+      return false; // a new top-level key — the opener's node is null
+    }
+    // A block-sequence item, or a mapping entry with a real key/value separator. Anything
+    // else indented is a plain-scalar continuation: the key's VALUE, not a container.
+    return trimmed === "-" || trimmed.startsWith("- ") || mappingColonAt(line) >= 0;
   }
   return false;
 }

@@ -130,13 +130,26 @@ interface NestedScalar {
  * module is therefore: *never claim knitr wrongly.* That is why the falsy table below is
  * measured rather than reasoned, and why an unrecognized spelling always declines.
  *
- * ## What it does NOT see (all misses, never a wrong knitr claim)
+ * ## What it does NOT see — and why a MISS is not automatically harmless
  *
- * A raw token carrying a YAML node property is not matched — `engine: &a markdown`,
- * `engine: !!str markdown` and an alias `engine: *a` all leave this `undefined`, so the
- * caller keeps today's language approximation. That is the same incompleteness
- * `isValidationDisabledValue` documents, and here it can only ever MISS an override; it can
- * never manufacture one, because a node-property token never equals a bare engine name.
+ * A raw token carrying a YAML node property is not matched: `engine: &a markdown`,
+ * `engine: !!str markdown` and an alias `engine: *a` all leave this `undefined`, and so do the
+ * FLOW spellings of the same override (`execute: {engine: markdown}` renders exit 0 —
+ * measured — and no enumerator here emits a flow-mapping member), and an engine-named key
+ * whose body is a COLUMN-0 sequence (`markdown:` then `- x`, also measured exit 0).
+ *
+ * **An earlier revision of this section called every miss safe. That is wrong**, and the S164
+ * §9 review was right to say so. A miss returns the caller to the per-cell language
+ * approximation, which for an `{r}` cell is knitr — so missing a NARROWING override
+ * (markdown/jupyter/julia) leaves the very false positive this module exists to remove. What
+ * is true is the weaker, still-useful statement: a miss never makes things WORSE than the
+ * pre-S164 tree, because that tree always used the language. Each missed spelling above is
+ * filed with its measurement.
+ *
+ * The one place a raw-token read could actively manufacture a wrong answer is the
+ * engine-NAMED key, because there the test is TRUTHINESS rather than name equality — an
+ * unresolved `knitr: !!bool false` reads as a truthy string. `isTruthyNode` declines on node
+ * properties for exactly that reason; see its docstring for the measurements.
  */
 export function documentEngineForScoping(
   fileName: string,
@@ -232,13 +245,42 @@ const FALSY_NODES: ReadonlySet<string> = new Set([
 /**
  * Whether an engine-named key's value is a truthy YAML node.
  *
- * With no scalar token the key is either a block-opener (a MAPPING — truthy, and the common
- * `jupyter:` + kernelspec spelling: measured exit 0) or the null of a bare `key:` (falsy:
- * measured exit 1, and itself a front-matter schema error).
+ * With no scalar token, `hasChildren` decides: a MAPPING or SEQUENCE body is truthy (the
+ * common `jupyter:` + kernelspec spelling — measured exit 0), while the null of a bare
+ * `key:` is falsy (measured exit 1, and itself a front-matter schema error). The enumerator
+ * owns that distinction, and it is narrower than "the next line is indented" for a reason it
+ * documents: an indented plain-scalar continuation carries the key's VALUE and may be falsy.
+ *
+ * A BLOCK-SCALAR indicator (`|`, `>`, and their `|-`/`>+`/`|2` variants) also declines. The
+ * token is punctuation, not the value: the value is the folded body, and an EMPTY body folds
+ * to the empty string, which is falsy. Measured, `jupyter: |` with no body renders **exit 1**
+ * on an `{r}` cell's `#| cache: banana`, i.e. jupyter was not selected. Declining costs a
+ * true positive when the body is non-empty (a truthy string) — the FP-safe direction, filed.
+ *
+ * So does a NODE PROPERTY (`&anchor`, `!tag`, `*alias`), and here the reason is sharper: this
+ * test is TRUTHINESS, not name equality, so an unresolved property token is not merely
+ * unrecognised — it reads as a truthy string and manufactures a selection. Measured, all of
+ * `knitr: !!bool false`, `knitr: &a false` and an alias to a false anchor render **exit 0**
+ * with a `{python}` cell's `#| cache: banana` (against the engine-agnostic control at exit 1),
+ * i.e. quarto resolved each to boolean false and did NOT select knitr — while we claimed it
+ * and squiggled a document quarto accepts. The mirror case `knitr: !!bool true` renders exit 1,
+ * so declining costs a true positive there; that is the direction this module always takes.
+ *
+ * A QUOTED falsy-looking scalar deliberately does NOT decline: `"false"` parses to the
+ * non-empty STRING `false`, which is truthy. Measured, `jupyter: "false"` renders exit 1 with
+ * `Jupyter kernel 'false' not found` — an error only the jupyter engine raises, so it really
+ * was selected. Adding the quoted spellings to the falsy table would be wrong.
  */
 function isTruthyNode(rawToken: string, hasChildren: boolean): boolean {
   if (rawToken.length === 0) {
     return hasChildren;
+  }
+  const first = rawToken[0];
+  if (first === "|" || first === ">") {
+    return false; // a block-scalar header — the value is the body, which may be empty
+  }
+  if (first === "&" || first === "!" || first === "*") {
+    return false; // an anchored/tagged/aliased node — resolve it or decline, never guess
   }
   return !FALSY_NODES.has(rawToken);
 }
