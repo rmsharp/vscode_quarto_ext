@@ -7,6 +7,67 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-27 · [ad hoc] Session 169 — IMPLEMENTATION: cell-option completion learns the document engine (SHIPPED)
+
+Cell-option **completion** scoped a cell's option list by the cell LANGUAGE
+(`engineFor`, in `completionContextAt`) while the value **validator** scoped it by the
+DOCUMENT engine (`cellOptionScopeFor`). Since S165 the document engine resolves for
+essentially every document, so the two disagreed on ordinary files — and in the direction
+that hurts: in a knitr document we **squiggled a knitr-only key in a `{python}`/`{ojs}`/`{js}`
+cell that completion refused to offer**. Filed by the S164 §9 review, widened by S165's,
+ranked #1 by S168.
+
+**Grounded firsthand vs quarto 1.7.33**, three documents differing by one line: an `{r}` cell
+plus a `{python}` cell carrying `#| cache: banana` renders **exit 1**
+(`Field "cache" has value banana`); the same document without the key renders exit 0 (so the
+exit 1 is the value, not the shape); the `{python}` cell ALONE renders exit 0 (so it is the
+OTHER cell that puts `cache` in scope).
+
+**The rule**, stated once: completion adopts the validator's scope wherever that scope names a
+real engine, and keeps its existing over-offer wherever the validator NARROWS — `"unknown"`
+(a markdown/julia/ambiguous/unresolved document, where quarto ACCEPTS the knitr-only key as
+merely inert) and `"none"` (a `{dot}`/`{mermaid}` handler cell, where adopting it would hand
+`cellOptions` the EMPTY set and delete handler-cell completion outright). Invariant: the
+offered set is never a strict subset of the flagged set. `ctx.engine` stays typed
+`CellEngine | undefined`, so the provider's `index.cellOptions(ctx.engine)` call is unchanged.
+
+**It is not all one direction, and the first draft of the docstrings said it was.** Measured
+before/after per language: `{python}` and `{ojs}`/`{js}` in a knitr document GAIN
+`cache`/`fig-width`/`fig-height` and lose nothing — the fix; but `{sql}`/`{bash}` in an
+engine-resolved document NARROW from the unfiltered set, and an `{r}` cell in a jupyter
+document loses those same three keys. Both narrowings are correct (quarto ignores those keys
+there) and both are now documented rather than hidden behind the invariant.
+
+**NEW `src/core/document-engine-resolve.ts`** — the one place the engine is resolved from a
+snapshot, called by BOTH `core/yaml-value-flags.ts` and `providers/yaml.ts`. `yaml-context.ts`
+cannot host it (the front-matter enumerators import that module), and a second hand-written
+copy of the five-argument wiring is the mirror-drift class S166–S168 spent three sessions
+removing. The rewire of `valueFlags` was proven behaviour-identical by an oracle differential:
+per-row detail lines **byte-identical** across all 66 corpus documents (59 agree / 3 lost TP /
+4 cardinal FP / 0 unrelated), and the diff was proven able to fire first — dropping one
+argument flips a row to `cardinal-fp` and exits 1.
+
+**Runtime verification: RED then GREEN.** With the pre-S169 rule restored the integration
+suite ran **478 passing / 1 failing**, the failure naming the full jupyter set the old
+provider offered in a knitr document; restored, **479 passing / 0 failing**. Unit 1530 → 1549.
+
+**§9 review** (`wf_d5bc1c1b-cc8`, 65 agents, `agents_error: 0`, ~3.7M subagent tokens):
+29 findings, **all 29 factually confirmed**, 20 also consequence-confirmed, plus 3 critic
+findings. Verdicts were recorded separately per verifier rather than requiring unanimity —
+9 findings were factually confirmed but consequence-refuted and would have been buried
+otherwise. Corrections applied in `027bbcb` (four unpinned branches, including the HIGH one:
+excluding `{ojs}` from the fix re-opened the exact defect and survived all 1545 tests),
+`498bcf9` (three false claims of mine — the enumerator swap is a COMPILE ERROR not a silent
+type-check, `{sql}` was never a refused-offer case, and the cost model was inverted: the
+enumerators are 92% of the 0.14 ms, not the language scan), and `e036b15` (two corpus sites
+outside `src/` my own sweep structurally could not reach). One finding was **refuted on
+adjudication**: the "comment-only" proof is empty over the commit it names (51 lines only if
+run over the whole session diff, which includes real code).
+
+**Disclosed, not fixed:** the fix is INERT on an `.Rmd` — the one document class whose engine
+is certain — because the extension veto returns `undefined` there. Filed against BACKLOG's
+existing `.Rmd` item, which owns that veto.
+
 ### 2026-07-27 · [ad hoc] Session 168 — IMPLEMENTATION: the value-flag decision lifted into `src/core/` (SHIPPED)
 
 Executed `docs/planning/2026-07-26-value-flag-decision-core-lift-plan.md` as one pre-declared
