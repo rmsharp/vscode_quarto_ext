@@ -7,6 +7,58 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-27 · [ad hoc] Session 168 — IMPLEMENTATION: the value-flag decision lifted into `src/core/` (SHIPPED)
+
+Executed `docs/planning/2026-07-26-value-flag-decision-core-lift-plan.md` as one pre-declared
+vertical slice, five checkpoint commits. **`test/oracle/flags.ts` — the hand-written mirror of
+the feature's cell-option loop, and the harness's own stated "single biggest weakness" — is
+DELETED.** The oracle and the editor now call one implementation,
+`src/core/yaml-value-flags.ts` (`collectValueSources` / `hasNoValueLines` / `valueFlags`).
+`src/features/yaml-value-diagnostics.ts` goes 366 → 98 lines and keeps only what is
+irreducibly `vscode`: the `.qmd` gate, the debounce/generation contract, and the
+`ValueFlag` → `vscode.Diagnostic` construction.
+
+**No behaviour change was intended and none was measured.** The strongest evidence is the
+differential check at Layer 3: the oracle's per-row `ours [...]` detail lines are
+**byte-identical** before and after, on all 66 corpus documents — the same flags, not merely
+the same row classes (two different non-empty flag sets both score `agree`, so row-class
+equality alone would have been too weak). The diff was itself proven able to detect a
+one-token change before the result was believed. Row classes unchanged: 59 agree, 3 lost TP,
+4 cardinal FP, 0 unrelated.
+
+The three loops moved **verbatim** — all 133 comment lines of measured quarto behaviour, every
+`continue` reason, and the `break`/`continue` asymmetry the plan's dragon 3 warns about. That
+warning is now a PIN rather than prose: a mutant swapping the top-level `continue` for `break`
+is caught (it would exit before a later `format:` line and lose a true positive quarto really
+rejects), while the same swap in the nested loop survives, confirming the two sites are not
+symmetric.
+
+Strict TDD, four RED→GREEN cycles, one per surface. The adapter's RED is the one that matters
+(slice gate d): with the decision stubbed, the integration suite fails **72** tests including
+*positive controls*, not merely negative assertions — the check S163 gotcha #5 demands, since
+a suite of negative assertions passes against a dead provider. Restored: **477 passing**.
+
+The two front-matter loops and the format-name branch — ~136 of the 272 moved lines — had
+**never been covered by any headless test** and are not covered by the oracle either (its
+driver scores `.cell`). They now carry per-branch pins: 30 in
+`test/unit/yaml-value-flags.test.ts`, unit 1494 → 1519 net.
+
+Two findings worth carrying forward. **(1) The plan's own dangling-reference grep was
+incomplete** — it did not name `loadCoreApi`, whose third consumer
+(`test/unit/oracle-corpus.test.ts`) went red on deletion; the pin was retargeted, not dropped.
+**(2) `compile-tests` stayed clean throughout that breakage**, because `tsconfig.test.json`
+covers `test/oracle/**` and `test/integration/**` but not `test/unit/**` — S162's filed
+"nothing type-checks `test/unit`" gap manifesting as a real caught defect rather than a
+hypothetical one.
+
+Accepted cost, recorded at `load.ts` and in the README (plan dragon 1): **replay now reaches
+back only to S168**, since no earlier commit contains `core/yaml-value-flags`. Freezing the
+mirror as a legacy replay path was rejected — it would reinstate the artefact whose existence
+was the problem.
+
+Closes the `BACKLOG.md` item *"The oracle MIRRORS the feature's flag decision instead of
+calling it, because the decision lives behind `vscode`"* (filed S166, planned S167).
+
 ### 2026-07-26 · [ad hoc] Session 167 — PLANNING: lifting the value-flag decision into `src/core/` (PLAN ONLY)
 
 `docs/planning/2026-07-26-value-flag-decision-core-lift-plan.md`. The architecture/refactor

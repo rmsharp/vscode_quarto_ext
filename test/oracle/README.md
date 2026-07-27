@@ -7,6 +7,10 @@ npm run test:oracle
 Runs this extension's **own** cell-option flag decision over a corpus of 66 documents,
 renders each one with the real `quarto` CLI, and compares the two answers.
 
+Since Session 168 that is meant literally: the harness calls
+`src/core/yaml-value-flags.ts`, the same module the editor's diagnostics call. There is no
+longer a second copy of the decision to drift.
+
 It exists because unit tests prove we do what we *think* quarto does. This proves what
 quarto *actually* does. The two questions it answers are the only ones that matter:
 
@@ -20,8 +24,9 @@ quarto *actually* does. The two questions it answers are the only ones that matt
 It is **opt-in** and lives outside `test/unit/`, so `npm test` stays hermetic and fast. It
 needs `quarto` on `PATH`, takes about a minute on a cold cache, and its verdict depends on
 the installed quarto **version**. The pure logic it composes — verdict parsing,
-classification, comparison — is pinned in `test/unit/oracle-*.test.ts` and **does** run in
-the default suite.
+classification, comparison — is pinned in `test/unit/oracle-*.test.ts`, and the flag
+decision itself in `test/unit/yaml-value-flags.test.ts`; both **do** run in the default
+suite.
 
 ## Why this exists
 
@@ -53,9 +58,16 @@ QMD_ORACLE_SRC=/tmp/old/src npm run test:oracle
 
 The build under test is a parameter, not a constant. Vitest transforms TypeScript from an
 arbitrary absolute path, so an archived tree needs no build step of its own (the oracle's
-config widens `server.fs.allow` for exactly this). A build older than S164 has no
-`core/document-engine` and will fail to load — correct, since the decision path being
-replayed does not exist there.
+config widens `server.fs.allow` for exactly this).
+
+⚠ **Replay reaches back only to Session 168.** The driver loads
+`core/yaml-value-flags`, which no earlier commit contains, so every pre-S168 build now
+fails to load rather than only those older than S164. That is a real capability regression,
+accepted deliberately when the mirror was deleted: replay answers *"did my change regress
+anything?"*, and `baseline.json` already encodes that answer per-document for all 66 rows.
+Freezing the old mirror as a legacy replay path was considered and rejected — it would
+reinstate the very artefact whose existence was the problem, and a frozen mirror still
+invites someone to quote its numbers.
 
 ## The three gates
 
@@ -75,20 +87,27 @@ A missing baseline seeds itself and *still* fails, so bootstrapping can never re
   while **twelve regressions sat just outside it**, on front-matter shapes it had not
   thought to include. **When you touch the engine-scoping path, add the shapes you touched
   before believing the number.**
-- **`flags.ts` is a MIRROR, not the feature.** `computeValueDiagnostics` imports `vscode`
-  and takes a `vscode.TextDocument`, so it cannot be called headlessly; the mirror re-walks
-  the same steps over the same core modules. If the feature's loop changes and the mirror
-  does not, the oracle keeps producing confident numbers about a decision the product no
-  longer makes. This is its single biggest weakness. Two things hold it honest, neither
-  sufficient alone: every step is pinned against the real core modules in
-  `test/unit/oracle-flags.test.ts`, and the step order and `continue` reasons are kept
-  verbatim so the two loops can be diffed by eye. **The principled fix — lifting the
-  decision into `src/core/` so the feature and the harness share one implementation — is
-  filed in `BACKLOG.md`.** S165's scratchpad mirror had already drifted: it omitted the
-  `validate-yaml` escape hatch entirely, and no corpus row could have caught it.
-- **Cell options only.** The feature also validates top-level and nested front-matter
-  scalars and the format name. A corpus row that turned on one of those would be scored
-  wrong here.
+- **It measures the decision, not the diagnostic.** The mirror is gone (S168) and the
+  harness now calls `src/core/yaml-value-flags.ts` directly, so the *decision* can no longer
+  drift from the product. What the oracle still cannot see is everything downstream of it:
+  nothing under `test/oracle/` imports `src/features/`, so the adapter that turns a
+  `ValueFlag` into a `vscode.Diagnostic` — its range, severity, `source`, `code`, the
+  debounce and the generation guard — is invisible here. A run is guaranteed identical
+  whether that adapter is correct or completely broken. **`npm run test:integration` is the
+  only thing that observes it.**
+  *(The weakness this replaces was real, not theoretical: S165's scratchpad mirror had
+  already drifted, omitting the `validate-yaml` escape hatch entirely, and no corpus row
+  could have caught it.)*
+- **Cell options only** — and note the CAUSE changed with the mirror's deletion. It is no
+  longer that the harness implements just the cell loop: `valueFlags` decides all three
+  surfaces, and the driver takes `.cell`. Top-level front-matter, nested and format-name
+  flags are computed, *reported* per document, and deliberately **not scored**, because
+  `classifyRow` consumes one boolean and `baseline.json`'s rows are per-document row
+  classes — a non-cell flag reaching the count would flip a row class and read exactly like
+  a real regression. On today's corpus that tally is **zero for all 66 documents**
+  (measured, S168), which is also why the grouping's real proof is a unit positive control
+  rather than an oracle run. Widening the corpus to front-matter shapes means scoring the
+  other groups too, and giving each its own baseline rows.
 - **An exit code is not a measurement.** `rejects` is decided by quarto's validation
   *text*, never its exit status, and the text carries ANSI codes *inside* the message. A
   nonzero exit with no validation text is retried once and then reported `unrelated` and
@@ -102,9 +121,8 @@ A missing baseline seeds itself and *still* fails, so bootstrapping can never re
 | File | Role |
 |---|---|
 | `corpus.ts` | The 66 documents, each with what was measured and why it is there |
-| `flags.ts` | The mirror of the feature's cell-option loop |
 | `classify.ts` | Pure: verdict parsing, row classification, build comparison, the reason gate |
-| `load.ts` | Loads the build under test and quarto's schema |
+| `load.ts` | Loads the build under test — its `core/yaml-value-flags` and its schema parser |
 | `run.oracle.test.ts` | The driver |
 | `baseline.json` | What this build is expected to conclude, with a reason per wrong row |
 | `.quarto-cache.json` | Verdict cache, keyed by quarto version + document bytes. Gitignored |
