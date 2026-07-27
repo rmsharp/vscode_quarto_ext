@@ -146,10 +146,13 @@ export function valueFlags(
   // `partitionCellOptionsMapped`, which picks `engineOptionsSchema[engine]`. Resolved once
   // for the whole document because the engine IS a document-level fact. `undefined` means
   // "keep the per-cell language approximation" and is now reached only by an
-  // `{{< include >}}` whose expansion we cannot see, a front matter quarto's `trimLeft`
-  // reveals and our scanner does not, or an unreadable competing selector. (An `.Rmd` was on
-  // that list until S170, which made it `"knitr"` — knitr claims the file by EXTENSION, so
-  // every cell of one is scoped to knitr, including `{python}`/`{sql}`/`{ojs}`.)
+  // `{{< include >}}` whose expansion we cannot see, or an unreadable competing selector.
+  // (An `.Rmd` was on that list until S170, which made it `"knitr"` — knitr claims the file by
+  // EXTENSION, so every cell of one is scoped to knitr, including `{python}`/`{sql}`/`{ojs}`.
+  // A front matter behind LEADING WHITESPACE was on it until S171, which applies quarto's own
+  // `trimLeft` in the shared resolver. Note the enumerators BELOW deliberately keep reading the
+  // UNTRIMMED text: quarto front-matter-validates only a document starting with `---` at byte
+  // 0, so trimming here too would manufacture false positives on the value surface.)
   //
   // The four derived inputs this needs live in `core/document-engine-resolve.ts` rather than
   // here (S169) — read that module for WHICH enumerator each argument must be and why a

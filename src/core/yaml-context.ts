@@ -721,10 +721,12 @@ export function engineFor(lang: string): CellEngine | undefined {
  * resolved from the document's own cell languages (document-wide and order-dependent). So
  * `documentEngine` now arrives resolved for essentially every real document, and `undefined`
  * — the "guess from this cell's language" case below — is left only for a document carrying
- * an `{{< include >}}` whose expansion we cannot see, a front matter quarto's `trimLeft`
- * reveals and our scanner does not, or a selector whose value we cannot read. Each of those
- * is measured at `documentEngineForScoping`. (An `.Rmd` was on that list until S170; it now
- * answers `"knitr"` from the EXTENSION, which is the one answer no reading can get wrong.)
+ * an `{{< include >}}` whose expansion we cannot see, or a selector whose value we cannot
+ * read. Each of those is measured at `documentEngineForScoping`. (An `.Rmd` was on that list
+ * until S170; it now answers `"knitr"` from the EXTENSION, which is the one answer no reading
+ * can get wrong. A front matter behind LEADING WHITESPACE was on it until S171; the shared
+ * `resolveDocumentEngine` now applies quarto's own `trimLeft` before enumerating, so those
+ * documents arrive resolved.)
  *
  * When the engine IS resolved, the guess is replaced by the fact:
  *
@@ -847,7 +849,8 @@ export function cellOptionScopeFor(
  *
  *  - **`"unknown"`** — a markdown/julia/`"ambiguous"` document, AND every document whose
  *    engine we could not resolve at all (`documentEngine === undefined`: an `{{< include >}}`,
- *    a front matter quarto's `trimLeft` reveals and our scanner does not). Quarto ACCEPTS a
+ *    or a selector whose value we cannot read — leading whitespace left this list in S171).
+ *    Quarto ACCEPTS a
  *    knitr-only key in the first group (it is merely inert: `engine: markdown` + `{r}` +
  *    `#\| cache: banana` renders exit 0), so withholding it would cost a real completion to
  *    prevent nothing.

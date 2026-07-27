@@ -55,9 +55,26 @@ import { findNestedFrontMatterValueLines } from "./yaml-frontmatter-nested-value
 /**
  * The engine quarto would scope this document's cell options to — `"ambiguous"` when its
  * front matter selects more than one, and `undefined` when nothing here can answer (an
- * `{{< include >}}` whose expansion we cannot see, a front matter quarto's `trimLeft`
- * reveals and our scanner does not, or a selector whose value we cannot read).
+ * `{{< include >}}` whose expansion we cannot see, or a selector whose value we cannot read).
  * `undefined` means "keep the per-cell language approximation", never "markdown".
+ *
+ * **`text` is `trimStart()`ed before anything is derived from it (S171), because quarto's
+ * engine partitioner is `lines(markdown.trimLeft())`.** Leading whitespace therefore does not
+ * hide the front matter from engine selection, and it used to hide it from us: `scanRegions`
+ * opens front matter only at line 0, so S165 had to decline, which means keeping the per-cell
+ * language approximation — knitr for an `{r}` cell — and we squiggled a knitr-only key on a
+ * document quarto renders clean. Replayed over the oracle's 86 documents, this trim closes 5
+ * cardinal false positives and regresses none.
+ *
+ * ⚠ **The trim belongs HERE and must not migrate into `scanRegions`.** Quarto runs a second,
+ * narrower partitioner for front-matter VALUE validation: `validateDocumentFromSource` calls
+ * `breakQuartoMd` and then tests `firstCell.source.value.startsWith("---")` — a literal byte-0
+ * test — so a document with ANY leading whitespace receives NO front-matter value validation
+ * from quarto at all. Measured across 17 keys whose bad value quarto rejects at line 0, **10
+ * render exit 0** once one blank line precedes the `---`. Trimming in the shared scanner would
+ * close one cardinal FP here and open ten on the value surface; `yaml-value-flags.ts` keeps
+ * enumerating from the untrimmed text for exactly that reason, and
+ * `test/unit/yaml-value-flags.test.ts`'s "FP GUARD" pin fails first if that ever changes.
  *
  * `fileName` is read only for the R-Markdown extensions, and it is never opened. Until S170
  * that read was a VETO — it answered `undefined` so no `engine:` key could silence a

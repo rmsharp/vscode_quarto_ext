@@ -295,8 +295,25 @@ export function documentEngineForScoping(
     // would have said knitr for EVERY cell. Before S165 that skew cost only the `{r}` cells
     // (the per-cell approximation reached knitr for them anyway), so declining here is what
     // keeps this session from WIDENING the pre-existing false positive BACKLOG already files
-    // (S165 §9 review). The skew itself is not fixed here: fixing it means teaching the
-    // scanner quarto's `trimLeft`, which moves every front-matter surface at once.
+    // (S165 §9 review).
+    //
+    // ⚠ **S171 CLOSED THE CASE THIS GUARD WAS WRITTEN FOR, and it is no longer reached by it.**
+    // `resolveDocumentEngine` — the ONE entry point both consumers use — now derives all four
+    // of its text-derived arguments from `text.trimStart()`, which is exactly what quarto's
+    // engine partitioner does. So a leading-whitespace document arrives here with its front
+    // matter already READ, and the branch above answers from the `engine:` key instead. The
+    // fix deliberately did NOT go into `scanRegions`: quarto runs a SECOND, narrower
+    // partitioner for front-matter VALUE validation (`validateDocumentFromSource` tests
+    // `breakQuartoMd`'s first cell for a literal `startsWith("---")`), so a document with any
+    // leading whitespace gets NO front-matter value validation at all — 10 of 17 swept keys
+    // whose bad value quarto rejects at line 0 render exit 0 behind one blank line. Teaching
+    // the shared scanner the `trimLeft` would have manufactured those ten as cardinal FPs.
+    //
+    // The guard is kept because it is still REACHABLE, measured rather than assumed: a first
+    // line that starts with `---` without being a fence (`----`, `---foo`) matches
+    // `startsWith` but not `FRONTMATTER_OPEN`, so `frontMatterContentLines` is null and we
+    // decline. Quarto's `kRegExBeginYAML` rejects those too and falls through to the
+    // languages, so declining there is a LOST TRUE POSITIVE (safe direction), not an FP.
     return undefined;
   }
   // Nothing in the front matter selected an engine, so quarto resolves it from the document's
@@ -634,8 +651,20 @@ function engineFromLanguages(languages: readonly string[]): DocumentEngine {
  * removed at exit 1 proving knitr is the fallback — while we resolve no engine, scope the cell
  * to knitr by language, and squiggle it. The false positive is PRE-EXISTING (the pre-S164 tree
  * reached knitr through the language too) and this guard neither creates nor widens it, but it
- * is real and it is filed. Closing it means teaching the scanner quarto's `trimLeft`, which
- * changes every front-matter surface and so belongs in its own deliverable.
+ * is real and it is filed.
+ *
+ * ✅ **CLOSED by S171 — and NOT the way this paragraph proposed.** It said "teaching the scanner
+ * quarto's `trimLeft`", and that would have been wrong in a measurable way. The two partitioners
+ * above disagree ON PURPOSE: `validateDocumentFromSource` gates front-matter VALUE validation on
+ * `breakQuartoMd`'s first cell literally `startsWith("---")` — a byte-0 test no `trimLeft` is
+ * applied to — so quarto does not front-matter-validate a document with ANY leading whitespace.
+ * Sweeping 17 keys whose bad value quarto rejects at line 0 and re-rendering each behind one
+ * leading blank line, **10 flip to exit 0** (`number-sections`, `code-fold`, `fig-width`,
+ * `fig-align`, `keep-md`, `freeze`, `cache`, `link-citations`, `execute`, `bibliography`). A
+ * shared-scanner fix would have closed one cardinal FP on the engine surface and opened ten on
+ * the value surface. S171 instead trims in `resolveDocumentEngine`, the one entry point both
+ * ENGINE consumers share, so the value enumerators still read the untrimmed text. Replayed over
+ * the oracle's 86 documents: 10 cardinal FP before, 5 after, 0 rows regressed.
  */
 function engineResolverSeesFrontMatter(contentLines: readonly string[] | null): boolean {
   return contentLines !== null && contentLines.length > 0 && contentLines[0].trim().length > 0;
