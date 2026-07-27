@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S171
+date: 2026-07-27
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — teach the region scanner quarto's `trimLeft`, so a blank line before the opening `---` stops hiding the front matter from us while quarto still reads it. `partitionYamlFrontMatter` runs `lines(markdown.trimLeft())`, so quarto opens the block regardless of leading whitespace; `scanRegions` opens front matter ONLY at line 0, so we see none and fall through to the per-cell approximation. Measured firsthand by S164: leading blank line + `---`/`title: t`/`engine: markdown`/`---` + `{r}` + `#| cache: banana` renders quarto exit 0 and we flag it (controls: `#| echo: banana` exit 1; same document without `engine:` exit 1). Last remaining CARDINAL false positive whose root cause is OURS rather than an unreadable input. S165's DECLINE guard stopped it widening to every cell; it did not fix it. DRAGON: the scanner is upstream of every front-matter surface at once, so this needs its own firsthand grounding pass before any code, and the change may need plan mode if it crosses module boundaries. Operator-selected via AskUserQuestion at Phase 0. ONE deliverable.
+```
+
+```handoff
 session: S170
 date: 2026-07-27
 status: complete
