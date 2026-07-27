@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S168
+date: 2026-07-27
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD, pre-declared vertical slice). Execute docs/planning/2026-07-26-value-flag-decision-core-lift-plan.md — lift the pure value-flag decision out of src/features/yaml-value-diagnostics.ts into src/core/, so the feature and the exit-code oracle call ONE implementation and test/oracle/flags.ts (the mirror that already drifted undetected once) is DELETED. Layers 1-5, five checkpoint commits + a separate close-out commit. Operator-selected via AskUserQuestion at Phase 0. ONE deliverable. This block is the 1B crash breadcrumb; Phase 3D overwrites it with status: complete.
+```
+
+```handoff
 session: S167
 date: 2026-07-27
 status: complete
