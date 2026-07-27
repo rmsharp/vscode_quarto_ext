@@ -100,7 +100,8 @@ const VALIDATE_YAML_KEY = "validate-yaml";
  * (measured, exit 0) without any comment-stripping here.
  *
  * NOTE the caller must NOT use this to suppress the front-matter FORMAT-NAME check.
- * See `yaml-value-diagnostics.ts` — `validate-yaml: false` + `format: banana` still
+ * See `yaml-value-flags.ts` (the decision; S168 lifted it out of the feature) —
+ * `validate-yaml: false` + `format: banana` still
  * renders **exit 1** (`Unknown format banana`), because an unresolvable format fails
  * before the validation gate is ever consulted.
  *

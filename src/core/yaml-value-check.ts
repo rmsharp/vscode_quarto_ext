@@ -200,7 +200,7 @@ function isWrongNumericMember(rawToken: string, members: string[]): boolean {
  * note` renders exit 0 (adversarial review, S124). An unquoted or unterminated
  * token is returned unchanged. No escape decoding — a DOUBLE-quoted value's backslash
  * escapes are NOT resolved here; both callers (`isWrongValue` and the format-name path
- * in `features/yaml-value-diagnostics.ts`) instead skip any backslash-bearing token
+ * in `core/yaml-value-flags.ts`) instead skip any backslash-bearing token
  * BEFORE calling this, so an escape that would decode to a valid member/name is never
  * mis-flagged (the escape-decoding FP, P3 / §9-review S149).
  */

@@ -447,7 +447,7 @@ export function topLevelSlots(
  * Single-sourced here and applied (via `mappingColonAt`) by all FOUR
  * diagnostics-side value paths: `findProjectConfigValueLines`,
  * `findFrontMatterValueLines`, `findNestedFrontMatterValueLines`, and the
- * CELL-OPTION loop in `features/yaml-value-diagnostics.ts` (whose `slotsOf`
+ * CELL-OPTION loop in `core/yaml-value-flags.ts` (whose `slotsOf`
  * grammar, like `topLevelSlots`, stays unguarded for completion's sake).
  * All of them otherwise split at `indexOf(":")` and mis-read the key. On `toc:: true` YAML's key is `toc:`
  * and its value `true`; splitting at the first colon yields key `toc` with the
@@ -844,7 +844,8 @@ export function cellOptionScopeFor(
  * over-flag is not (the same asymmetry that separates `"unknown"` from `undefined`).
  * Emission is untouched too: `findCellOptionLines` still reports handler-cell option lines.
  * Exactly two modules consume that enumerator — `completionContextAt` just above, and
- * `features/yaml-value-diagnostics.ts` — plus the embedded virtual-doc builders
+ * `core/yaml-value-flags.ts` (the value decision; S168 lifted it out of
+ * `features/yaml-value-diagnostics.ts`) — plus the embedded virtual-doc builders
  * (`embedded/virtual-doc.ts`). For a HANDLER language the vdoc builders are unreachable:
  * `cellLanguageId("dot")` and `cellLanguageId("mermaid")` are both `null`, and every vdoc
  * path bails on an unmapped language BEFORE it consults the option lines (`embeddedCellAt`

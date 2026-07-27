@@ -9,8 +9,8 @@
  * on the SAME project-config surface: the same filename gate, its OWN
  * collection/code (so it never shares a URI's entries with the KEY feature), and a
  * value `compute`. It reuses the surface-agnostic `isWrongValue` matcher + the pure
- * `valueMessage` (the SAME functions the `.qmd` document-surface value feature uses,
- * `features/yaml-value-diagnostics.ts`), fed by a NEW value SOURCE
+ * `valueMessage` (the SAME functions the `.qmd` document-surface value decision uses,
+ * `core/yaml-value-flags.ts`), fed by a NEW value SOURCE
  * (`findProjectConfigValueLines`, scanFlow-aware) resolved against a NEW reader
  * (`SchemaIndex.projectFields`, super-aware). The shipped KEY feature and every
  * document-surface value path are untouched.
@@ -108,7 +108,7 @@ async function computeProjectValueDiagnostics(
   // The COLUMN-0 document keys' field set, hoisted out of the loop (a reference return —
   // `frontMatterKeys([])` hands back the prebuilt `topLevelFields` array). This is the SAME
   // reader call the `.qmd` top-level front-matter surface makes (S125,
-  // `yaml-value-diagnostics.ts`), which is why the two surfaces agree on every one of these
+  // `core/yaml-value-flags.ts` since S168), which is why the two surfaces agree on every one of these
   // keys but ONE (document-key value plan §0 headline 1: zero new reader/matcher/message
   // code). The exception is `format:`, flagged on `.qmd` by S145's bespoke regex-union
   // predicate and deliberately silent here — measured, not assumed: an author sweep of all
@@ -139,7 +139,7 @@ async function computeProjectValueDiagnostics(
         // Combo 3 (format-name validation plan §4.3, S152): the top-level scalar `format:` NAME.
         // `format` is NOT a closed enum (its names are injected after closedness annotation), so
         // `isWrongValue` cannot see it; it is validated instead by the SAME bespoke predicate the
-        // `.qmd` surface uses (S145 Combo 1, `yaml-value-diagnostics.ts`) — null-gate →
+        // `.qmd` surface uses (S145 Combo 1, `core/yaml-value-flags.ts` since S168) — null-gate →
         // flow/block/backslash hygiene skip → `unquote` → `isKnownFormatName` → `formatNameMessage`.
         // `path` is always `[]` for a column-0 document key, so `entry.key === "format"` uniquely
         // identifies the top-level scalar. This closes the ONE deliberate divergence from the `.qmd`

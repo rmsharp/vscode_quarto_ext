@@ -17,9 +17,9 @@
  *   - the **snapshot discipline** the generation guard requires (see `computeValueDiagnostics`);
  *   - the `ValueFlag` → `vscode.Diagnostic` construction.
  *
- * What each surface means, why `validate-yaml` suppresses two of the three, and the
- * pandoc-survivor accounting are all documented at `core/yaml-value-flags.ts` — with the
- * code they describe.
+ * What each surface means, how quarto's `validate-yaml` escape hatch gates all three loops
+ * while the front-matter format NAME is deliberately exempt, and the pandoc-survivor
+ * accounting are all documented at `core/yaml-value-flags.ts` — with the code they describe.
  */
 import * as vscode from "vscode";
 import {
