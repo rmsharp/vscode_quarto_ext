@@ -52,9 +52,13 @@ mechanism and the filed `BACKLOG.md` item for each.
 This is the capability that turns "I think this is safe" into a number:
 
 ```bash
-git archive 87b3f38 src | tar -x -C /tmp/old
+git archive <rev> src | tar -x -C /tmp/old
 QMD_ORACLE_SRC=/tmp/old/src npm run test:oracle
 ```
+
+`<rev>` must be **Session 168 or later** — see the warning below. The pre-S165 comparison
+in the table above was measured by Session 166 against `87b3f38`, before the lift; that
+particular replay is history now and cannot be re-run.
 
 The build under test is a parameter, not a constant. Vitest transforms TypeScript from an
 arbitrary absolute path, so an archived tree needs no build step of its own (the oracle's

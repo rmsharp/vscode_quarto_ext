@@ -7,8 +7,10 @@ import { defineConfig } from "vitest/config";
  * once per corpus document: it needs a machine with quarto installed, takes minutes rather
  * than seconds, and its verdict depends on the installed quarto VERSION. None of that
  * belongs in the default `npm test`, which must stay hermetic and fast — so the oracle's
- * pure logic is pinned there instead (`test/unit/oracle-*.test.ts`) and only the live
- * measurement lives here.
+ * pure logic is pinned there instead — `test/unit/oracle-*.test.ts` for verdict parsing,
+ * classification and the corpus, and `test/unit/yaml-value-flags.test.ts` for the flag
+ * DECISION this harness measures (S168 lifted it into `src/core/`, so the oracle and the
+ * editor now call one module) — and only the live measurement lives here.
  */
 export default defineConfig({
   test: {

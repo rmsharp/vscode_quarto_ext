@@ -27,8 +27,8 @@ describe("CORPUS — structural invariants the reporting depends on", () => {
 
   it("every case's entry file exists in its own file map", () => {
     // A mistyped entry makes `files[entry]` undefined, which either throws inside the
-    // mirror or — worse — is read as an empty document that flags nothing and scores
-    // "agree" forever.
+    // flag decision or — worse — is read as an empty document that flags nothing and
+    // scores "agree" forever.
     const broken = CORPUS.filter((c) => entryTextOf(c) === undefined).map((c) => c.name);
     expect(broken).toEqual([]);
   });

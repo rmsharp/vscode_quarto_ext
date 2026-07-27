@@ -19,7 +19,10 @@ import { DEFAULT_SRC, loadSchemaIndex, loadValueFlags, quartoVersion } from "./l
  *
  * It renders every corpus document with the real `quarto` CLI, so it is excluded from the
  * default `npm test` run by living outside `test/unit/`. The pure logic it composes is
- * pinned headlessly in `test/unit/oracle-*.test.ts` and DOES run by default.
+ * pinned headlessly and DOES run by default: `test/unit/oracle-*.test.ts` for verdict
+ * parsing, classification and the corpus, and `test/unit/yaml-value-flags.test.ts` for the
+ * flag decision itself — which since S168 is the product's own `core/yaml-value-flags.ts`,
+ * not a mirror of it.
  *
  * What it asserts: no row may become a CARDINAL FALSE POSITIVE that the committed baseline
  * does not already record. Improvements are reported and are not failures — but they are
