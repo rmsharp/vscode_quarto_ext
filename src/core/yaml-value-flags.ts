@@ -1,12 +1,33 @@
 /**
  * The value-flag DECISION: which spans of a `.qmd` would we squiggle, and with what
- * message. Pure, synchronous, headless — no `vscode`, so both the feature adapter
- * (`features/yaml-value-diagnostics.ts`) and the exit-code oracle (`test/oracle/`) call
- * this ONE implementation.
+ * message. Pure, synchronous, headless — it imports no `vscode`, so both the feature
+ * adapter (`features/yaml-value-diagnostics.ts`) and the exit-code oracle
+ * (`test/oracle/`) call this ONE implementation (S168). Before that lift the decision was
+ * module-private behind a `vscode.TextDocument` and the oracle re-walked it by hand; that
+ * copy had already drifted once undetected, losing the `validate-yaml` escape hatch.
  *
- * (Session 168 lifted this body out of the feature. The full account of what the decision
- * IS — the three surfaces, the `validate-yaml` hatch, the pandoc-survivor accounting — is
- * rehomed here from the feature's own module docstring.)
+ * Flag a WRONG value of an already-recognized option, matching what `quarto render` 1.7.33
+ * itself rejects. Three surfaces, one decision: Phase 1 (§4.1) validates `#|`/`//|` cell
+ * options (`findCellOptionLines`); Phase 2 (§4.2) validates TOP-LEVEL front-matter scalars
+ * (`findFrontMatterValueLines`); Phase 3 (nested plan §3.4) validates NESTED front-matter
+ * scalars under `execute:`/`format:` (`findNestedFrontMatterValueLines`). All three feed
+ * the same surface-agnostic `isWrongValue` matcher — nested is a third value SOURCE, not a
+ * third feature.
+ *
+ * All three are subject to quarto's `validate-yaml` escape hatch (S163,
+ * `core/validate-yaml.ts`): a top-level `validate-yaml: false` turns validation off for the
+ * whole document, and a cell may opt out on its own with `#| validate-yaml: false`. What the
+ * flag does NOT suppress is anything PANDOC rejects on its own rather than quarto's YAML
+ * schema — the front-matter format NAME (kept flagging, pinned) and 26 of the 170 top-level
+ * keys this feature can flag (measured by exhaustive sweep, still suppressed, filed). See
+ * the `format` branch below for the accounting.
+ *
+ * The safety story is INVERTED from the unknown-KEY sibling (`features/yaml-diagnostics.ts`):
+ * unknown-key flagging is banned on these open surfaces (a typo is indistinguishable from a
+ * legal custom key), whereas value validation is safe HERE precisely because it only ever
+ * fires on a key that is already recognized AND whose value set is provably CLOSED
+ * (`SchemaField.valuesClosed`) — the pure `isWrongValue` matcher never flags an open set
+ * (plan §0/§7.1).
  */
 import { findCellOptionLines, frontMatterContentLines, type CellOptionLine } from "./qmd/model";
 import {
