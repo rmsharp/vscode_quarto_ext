@@ -184,6 +184,62 @@ describe("Quarto: YAML cell-option key completion", () => {
 });
 
 /**
+ * S169 — cell-option completion is scoped by the DOCUMENT's engine, not the cell's
+ * language. This is the only surface that can observe it: `providers/yaml.ts` is where
+ * `resolveDocumentEngine` is called, and nothing under `test/unit` or `test/oracle`
+ * imports the provider.
+ *
+ * The two cases are a matched pair and must be read together. The first alone would pass
+ * against a provider that offers `cache` unconditionally; the second is what proves the
+ * offer is genuinely conditioned on the OTHER cell in the document.
+ *
+ * Grounded firsthand vs quarto 1.7.33 — the same pair of documents, rendered:
+ *   `{r}` cell + `{python}` cell + `#| cache: banana` → exit 1, `Field "cache" has value banana`
+ *   the `{python}` cell ALONE   + `#| cache: banana` → exit 0
+ */
+describe("Quarto: cell-option completion follows the document engine (S169)", () => {
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("offers the knitr-only `cache` in a {python} cell of a KNITR document", async () => {
+    // The `{r}` cell makes quarto resolve this document to knitr, so it validates the
+    // python cell against knitr's schema — `cache` is in scope and we squiggle a wrong
+    // value there. Before S169 completion scoped by the cell LANGUAGE and refused to
+    // offer it: a key we squiggle but will not complete.
+    const doc = await openInMemory("```{r}\n1 + 1\n```\n\n```{python}\n#| \n1 + 1\n```\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(5, 3),
+    );
+    const labels = cellOptionLabels(list);
+    assert.ok(
+      labels.includes("cache"),
+      `knitr document: the {python} cell must offer 'cache'; got ${JSON.stringify(labels)}`,
+    );
+  });
+
+  it("does NOT offer `cache` when the same {python} cell stands alone", async () => {
+    // The control that gives the case above its meaning. With no `{r}` cell the document
+    // resolves to jupyter, quarto renders `#| cache: banana` exit 0, and we neither flag
+    // nor offer it. If this ever starts offering `cache`, the case above proves nothing.
+    const doc = await openInMemory("```{python}\n#| \n1 + 1\n```\n");
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(1, 3),
+    );
+    const labels = cellOptionLabels(list);
+    assert.ok(labels.length > 0, "the provider is live here (it offers the jupyter set)");
+    assert.ok(
+      !labels.includes("cache"),
+      `jupyter document: 'cache' must NOT be offered; got ${JSON.stringify(labels)}`,
+    );
+  });
+});
+
+/**
  * Slice 6d-2 — cell-option VALUE completion. The provider offers a known key's
  * curated value enum after the colon, and only there: never at the key slot, in
  * prose, in front matter, or for an unknown key. Environment-independent.
