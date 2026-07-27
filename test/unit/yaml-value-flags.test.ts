@@ -339,3 +339,83 @@ describe("valueFlags — the message on each flag", () => {
     expect(g.frontMatter[0]).toMatchObject({ line: 1, startCol: 5, endCol: 11 });
   });
 });
+
+/**
+ * Branches the §9 review proved were unpinned — each one verified first by a mutation that
+ * survived the whole 1519-test suite. Three of them guard measured CARDINAL FALSE
+ * POSITIVES, which is the class this project treats as the cardinal sin, so leaving them to
+ * the integration suite alone was the wrong trade.
+ */
+describe("valueFlags — the guards the review found unpinned", () => {
+  it("BLOCK-COMMENT language: the closing delimiter is NOT sliced into the value (S161)", () => {
+    // `/*| echo: false */` in a {c} cell renders quarto EXIT 0. Without the contentEndCol
+    // clamp the value slices as `false */`, which is not in echo's closed set, so we would
+    // squiggle a valid directive — the cardinal sin. Every other cell fixture in this file
+    // uses `#|`, for which the clamp is a documented no-op, so nothing else can catch this.
+    const text = "---\ntitle: t\n---\n\n```{c}\n/*| echo: false */\n1\n```\n";
+    expect(allFlags(text, fmCellIndex)).toEqual([]);
+  });
+
+  it("BLOCK-COMMENT language: a genuinely wrong value still flags, and the span excludes the closer", () => {
+    // The positive control for the pin above — otherwise it would pass against a {c} cell
+    // that is simply never validated at all.
+    const text = "---\ntitle: t\n---\n\n```{c}\n/*| echo: banana */\n1\n```\n";
+    const g = valueFlags(collectValueSources(text), "doc.qmd", fmCellIndex);
+    expect(g.cell.map((f) => `${f.line}:${f.key}=${f.rawToken}`)).toEqual(["5:echo=banana"]);
+    // `banana`, not `banana */` — the clamp is what makes the squiggled RANGE right too.
+    expect(g.cell[0]).toMatchObject({ startCol: 10, endCol: 16 });
+  });
+
+  it("a BACKSLASH-bearing format token is skipped — it may decode to a valid name (P3/S149)", () => {
+    // `format: "\x68tml"` DECODES to `html` and quarto renders it exit 0, but `unquote` does
+    // no escape decoding, so comparing the literal would flag a name quarto accepts.
+    expect(fmGroup('---\nformat: "\\x68tml"\n---\n')).toEqual([]);
+  });
+
+  it("a VALID cell-option value is silent (the isWrongValue skip itself)", () => {
+    // Every other cell fixture uses `cache: banana`; nothing pinned that a CORRECT value
+    // stays quiet, so deleting the matcher call left the suite green.
+    expect(cellFlags("---\ntitle: t\n---\n\n" + rCell("cache: false"))).toEqual([]);
+  });
+
+  it("`#| echo:: banana` is a mapping whose KEY is `echo:` — unknown, so silent (S148)", () => {
+    // Re-deriving the key from the real YAML separator rather than the first colon. Quarto
+    // renders this exit 0 (the key is unknown on an open set); the first-colon split would
+    // yield key `echo` with the bogus value `: banana` and squiggle it.
+    expect(cellFlags("---\ntitle: t\n---\n\n" + rCell("echo:: banana"))).toEqual([]);
+  });
+
+  it("`#| echo:banana` has no separator at all — a safe false negative, never a flag", () => {
+    expect(cellFlags("---\ntitle: t\n---\n\n" + rCell("echo:banana"))).toEqual([]);
+  });
+
+  it("a half-typed option (key present, value empty) is silent", () => {
+    expect(cellFlags("---\ntitle: t\n---\n\n" + rCell("echo:"))).toEqual([]);
+  });
+
+  it("hasNoValueLines counts the CELL source too, not just nested", () => {
+    const cellOnly = "```{r}\n#| echo: false\n1\n```\n";
+    expect(hasNoValueLines(collectValueSources(cellOnly))).toBe(false);
+  });
+
+  it("hasNoValueLines counts the TOP-LEVEL front-matter source too", () => {
+    // With only the nested conjunct load-bearing, the fast path would skip the schema load
+    // on a document whose only flaggable value is a top-level scalar — and flag nothing.
+    expect(hasNoValueLines(collectValueSources("---\ntoc: banana\n---\n"))).toBe(false);
+  });
+
+  it("the cell and nested flags carry the VALUE span, not a degenerate one", () => {
+    // Spans were asserted on the top-level push only; on the other sites `rawToken` comes
+    // from the enumerator independently of `valueRange`, so a wrong span changed nothing
+    // any pin could see.
+    const text = "---\nexecute:\n  echo: banana\n---\n\n" + rCell("cache: banana");
+    const g = valueFlags(collectValueSources(text), "doc.qmd", fmCellIndex);
+    expect(g.nested[0]).toMatchObject({ line: 2, startCol: 8, endCol: 14 });
+    expect(g.cell[0]).toMatchObject({ line: 6, startCol: 10, endCol: 16 });
+  });
+
+  it("the format-name flag carries the VALUE span", () => {
+    const g = valueFlags(collectValueSources("---\nformat: banana\n---\n"), "doc.qmd", fmCellIndex);
+    expect(g.frontMatter[0]).toMatchObject({ line: 1, startCol: 8, endCol: 14 });
+  });
+});
