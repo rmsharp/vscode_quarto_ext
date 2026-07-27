@@ -26,7 +26,11 @@ export type YamlContextKind =
   | "frontmatter-key"
   | "frontmatter-value";
 
-/** The cell engine a cell-option line belongs to, approximated from the cell language. */
+/**
+ * The engine whose cell-option schema applies to a cell-option line. Resolved from the
+ * DOCUMENT where that is possible (`completionEngineFor` / `cellOptionScopeFor`), and only
+ * approximated from the cell language where it is not.
+ */
 export type CellEngine = "knitr" | "jupyter" | "ojs";
 
 /** A completable YAML position: what to complete, the partial token, and the replace span. */
@@ -70,9 +74,15 @@ export interface YamlCompletionContext {
  *    completion trigger character — is typed constantly in ordinary prose. Diagnostics pay
  *    that cost on a debounce; completion has no debounce to hide behind.
  *
- * It cannot be resolved HERE: `resolveDocumentEngine` needs the front-matter enumerators,
- * and both of those modules import this one, so calling them would close an import cycle in
- * `src/core/`. Passing the answer in is the same shape `cellOptionScopeFor` already uses.
+ * It is not resolved HERE because `resolveDocumentEngine` needs the front-matter
+ * enumerators and both of those modules import THIS one, so calling them would close an
+ * import cycle in `src/core/`. (Measured, ES module hoisting would in fact tolerate that
+ * cycle today — every export involved is a hoisted `function` declaration used only inside
+ * call bodies — so this is a layering rule, not an impossibility; an earlier revision of
+ * this comment said "cannot", which the S169 §9 review correctly called untested. The rule
+ * still holds: the cycle would be load-bearing on that hoisting and would break the day any
+ * of it became a `const`.) Passing the answer in is the same shape `cellOptionScopeFor`
+ * already uses.
  */
 export function completionContextAt(
   text: string,
@@ -678,9 +688,13 @@ export function engineFor(lang: string): CellEngine | undefined {
  * The schema scope a cell option must be VALIDATED against, given the cell's language —
  * `engineFor` refined so an undeterminable engine narrows instead of widening.
  *
- * `cellOptions(undefined)` deliberately means "no filtering, the FULL set". That is right
- * for COMPLETION, where offering a knitr-only option in a cell that turns out to be jupyter
- * is a benign over-offer. It is wrong for DIAGNOSTICS, because quarto scopes its cell schema
+ * `cellOptions(undefined)` deliberately means "no filtering, the FULL set", the benign
+ * over-offer. That WAS completion's answer for any language outside r/python/julia/ojs/js;
+ * since S169 completion resolves the document engine too and reaches the unfiltered set only
+ * where this function would NARROW (`completionEngineFor` below), so the `{sql}`-in-a-knitr-
+ * document example used just below is no longer one of the cases where the two differ — the
+ * S169 §9 completeness critic caught this paragraph still claiming it did. It remains wrong
+ * for DIAGNOSTICS, because quarto scopes its cell schema
  * to the DOCUMENT's engine — which a cell LANGUAGE alone does not determine: a `{sql}` cell
  * is knitr in a document that also holds an `{r}` cell and markdown otherwise. Grounded
  * firsthand vs quarto 1.7.33: `{sql}` + `--| cache: banana` renders exit 1 in a knitr
@@ -804,22 +818,55 @@ export function cellOptionScopeFor(
  * refusing to offer one we DO flag is worse than either half alone, and that is the half
  * this function fixes.
  *
- * ## Why the two narrowing answers are NOT adopted
+ * ## The complete before/after, because it is NOT all one direction
+ *
+ * An earlier revision of this docstring described the change as fixing `{python}`/`{sql}`
+ * cells. That was wrong in both halves and the S169 §9 review caught it. `engineFor` is what
+ * moved, so the answer depends on which of its four outcomes the cell language has. Measured
+ * (`before` = `engineFor(lang)`, `after` = this function); key deltas on the curated index:
+ *
+ * | cell lang | document engine | before | after | effect |
+ * |---|---|---|---|---|
+ * | `{python}` | knitr | `jupyter` | `knitr` | **+3** (`cache`, `fig-width`, `fig-height`), −0 — THE FIX |
+ * | `{ojs}` / `{js}` | knitr | `ojs` | `knitr` | **+3**, −0 — the same fix, and it was unpinned until the review |
+ * | `{sql}` / `{bash}` / unknown | knitr | `undefined` (FULL) | `knitr` | a **NARROWING**: `cache` was already offered |
+ * | `{r}` | jupyter | `knitr` | `jupyter` | a **NARROWING**: −3, the knitr-only keys |
+ * | anything | markdown / julia / ambiguous / unresolved | unchanged | unchanged | — |
+ * | `{dot}` / `{mermaid}` | any | `undefined` | `undefined` | — (the `"none"` guard below) |
+ *
+ * The narrowing rows are correct — quarto scopes those cells to the document's engine, so
+ * the keys withdrawn are ones it ignores — but they are a real reduction in what the user is
+ * offered, and calling this change "a widening" would have been false.
+ *
+ * ## Why the two narrowing SCOPES are NOT adopted
  *
  * The asymmetry that separates `"unknown"` from `undefined` in `cellOptionScopeFor` runs the
  * other way out here. Those two scopes exist to stop the validator from *widening*; adopting
  * them in completion would *narrow* it, deleting offers with no defect behind them:
  *
- *  - **`"unknown"`** — a markdown/julia/`"ambiguous"` document. Quarto ACCEPTS a knitr-only
- *    key there (it is merely inert: `engine: markdown` + `{r}` + `#\| cache: banana` renders
- *    exit 0), so withholding it would cost a real completion to prevent nothing.
+ *  - **`"unknown"`** — a markdown/julia/`"ambiguous"` document, AND every document whose
+ *    engine we could not resolve at all (`documentEngine === undefined`: an `.Rmd`, an
+ *    `{{< include >}}`, a front matter quarto's `trimLeft` reveals and our scanner does not).
+ *    Quarto ACCEPTS a knitr-only key in the first group (it is merely inert: `engine:
+ *    markdown` + `{r}` + `#\| cache: banana` renders exit 0), so withholding it would cost a
+ *    real completion to prevent nothing.
  *  - **`"none"`** — a `{dot}`/`{mermaid}` handler cell, where no cell schema applies at all.
  *    Routing completion through the raw scope would hand `cellOptions` the EMPTY set and
  *    silently delete cell-option completion in handler cells entirely — the mutant the S162
  *    §9 review caught, which passed all 88 tests in this file before that pin existed.
  *
  * The upshot is an invariant worth stating: **the offered set is never a strict subset of
- * the flagged set** — completion may still over-offer, and never under-offers.
+ * the flagged set** — completion may still over-offer, and never under-offers. Note what
+ * that invariant deliberately does NOT say: it constrains completion relative to the
+ * VALIDATOR, not relative to what completion offered yesterday, so it is silent about the
+ * two narrowing rows above. Both statements are needed to describe this function honestly.
+ *
+ * ⚠ **The fix is inert on an `.Rmd`** — the one document class whose engine is CERTAIN.
+ * `resolveDocumentEngine` returns `undefined` there (knitr claimed the file by EXTENSION
+ * before any front matter is read), so this function falls back to the language and an
+ * `.Rmd`'s `{python}` cell still misses knitr's keys. Closing it belongs with BACKLOG's
+ * "`.Rmd` is knitr for EVERY cell" item, which owns that veto; found by the S169 §9
+ * completeness critic.
  *
  * Returning `CellEngine | undefined` rather than widening to include `"unknown"` is what
  * keeps `providers/yaml.ts`'s `index.cellOptions(ctx.engine)` call unchanged; `undefined`

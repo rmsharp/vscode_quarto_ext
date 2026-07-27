@@ -216,7 +216,8 @@ export function valueFlags(
     // §7.4). Since S169 completion resolves the SAME document engine through the SAME
     // `resolveDocumentEngine`, so wherever that engine names knitr or jupyter the two sets
     // are identical. They still diverge on the two NARROWING scopes — `"unknown"` (a
-    // markdown/julia/ambiguous document) and `"none"` (a handler cell) — where completion
+    // markdown/julia/ambiguous document, OR one whose engine resolved to nothing at all)
+    // and `"none"` (a handler cell) — where completion
     // keeps the wider language approximation (`completionEngineFor`, `yaml-context.ts`),
     // because an over-offer is benign and an over-flag is the cardinal sin. The invariant
     // that buys: the offered set is never a strict subset of the set flagged here, so this

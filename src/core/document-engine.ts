@@ -38,10 +38,15 @@ const ENGINE_NAMES: ReadonlySet<string> = new Set([
  *
  * `hasChildren` is REQUIRED on purpose. It was optional in L5 "so the value-only view also
  * satisfies this shape", and the §9 completeness critic showed what that latitude actually
- * bought: `findFrontMatterValueLines` — imported on the adjacent line of the sole call site —
- * type-checks here silently, and passing it un-ships the container form, restoring the very
- * cardinal-sin false positive L5 exists to remove, with `tsc` and the whole suite green.
- * Requiring the field turns that call into a compile error.
+ * bought: `findFrontMatterValueLines` — imported on the adjacent line of what was then the
+ * sole call site — type-checks here silently, and passing it un-ships the container form,
+ * restoring the very cardinal-sin false positive L5 exists to remove, with `tsc` and the
+ * whole suite green. Requiring the field turns that call into a compile error, and S169
+ * re-confirmed it still does: making that substitution in the caller now yields TS2345
+ * ("Property 'hasChildren' is missing"). The caller moved in S169 to
+ * `core/document-engine-resolve.ts`, which no longer imports `findFrontMatterValueLines`
+ * at all — so the adjacency that made the mistake easy is gone, and the type guard is what
+ * keeps it gone.
  */
 interface TopLevelScalar {
   key: string;
