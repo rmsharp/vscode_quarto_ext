@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S172
+date: 2026-07-27
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — make the CELL_INFO fence-token grammar match quarto's. Quarto's breakQuartoMd recognizer captures the cell language as [=A-Za-z]+ (letters and `=` only; no digits, dots, hyphens or underscores), so {python3}/{d3}/{fortran95}, the dotted {r.foo} and the glued {mermaid=x} are not executable cells to quarto — it partitions no options and validates nothing in them — while our CELL_INFO (/^\{([A-Za-z][A-Za-z0-9_-]*)[^}]*\}$/ in src/core/qmd/model.ts) admits them all and we squiggle. One root cause behind three separately-filed items (S161 §9 review, S162 §9 review, S166); {r.foo} is one of the 5 cardinal FPs the 86-document oracle still reports. DRAGON: findAllCells drives the outline, embedded virtual documents, cell background highlighting, diagram regions and run-cell, so the blast radius is much wider than diagnostics; and only one of the three filed shapes was ever re-verified, so each needs its own firsthand render first. Operator-selected via AskUserQuestion at Phase 0. ONE deliverable.
+```
+
+```handoff
 session: S171
 date: 2026-07-27
 status: complete
