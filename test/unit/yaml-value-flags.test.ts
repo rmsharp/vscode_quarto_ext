@@ -189,6 +189,85 @@ describe("valueFlags — an .Rmd is knitr for EVERY cell (S170)", () => {
 });
 
 /**
+ * Session 171 — leading whitespace hides the front matter from OUR scanner, never from
+ * quarto's ENGINE partitioner. The last cardinal false positive in this family whose root
+ * cause was ours rather than an unreadable input.
+ *
+ * `partitionYamlFrontMatter` opens with `lines(markdown.trimLeft())`, so no amount of
+ * leading whitespace hides the block from engine selection; `scanRegions` opens front
+ * matter only at line 0. S165 could only DECLINE (answer `undefined`) — and declining
+ * means "keep the per-cell language approximation", which answers knitr for an `{r}` cell.
+ * So we squiggled a knitr-only key on a document quarto renders clean. Grounded firsthand
+ * vs 1.7.33, one `quarto render --no-execute` per row:
+ *
+ * | document | renders |
+ * |---|---|
+ * | blank line, `engine: markdown`, `{r}` + `#\| cache: banana` | **exit 0** ← the defect |
+ * | same, but `#\| echo: banana` | exit 1 ← the agnostic control: cell validation ran |
+ * | same, `engine:` line removed | exit 1 ← so knitr really is the fallback here |
+ * | two blank lines / spaces-only line / leading tab / CRLF | all exit 0 |
+ *
+ * ⚠ **The fix is scoped to the ENGINE surface on purpose, and the pins below are what hold
+ * it there.** Quarto runs a SECOND, narrower partitioner for front-matter VALUE validation
+ * — `validateDocumentFromSource` calls `breakQuartoMd` and then tests
+ * `firstCell.source.value.startsWith("---")`, a literal byte-0 test — so a document with
+ * ANY leading whitespace gets no front-matter value validation from quarto at all. Sweeping
+ * 17 keys whose bad value quarto rejects at line 0 and re-rendering each behind one leading
+ * blank line, **10 flip to exit 0**: `number-sections`, `code-fold`, `fig-width`,
+ * `fig-align`, `keep-md`, `freeze`, `cache`, `link-citations`, `execute`, `bibliography`.
+ * Teaching `scanRegions` the `trimLeft` — which is what the filed item proposed — would
+ * therefore have manufactured ten classes of cardinal false positive on the value surface
+ * while closing one on the engine surface.
+ */
+describe("valueFlags — leading whitespace hides front matter from us, not from quarto (S171)", () => {
+  const leading = (prefix: string, fm: string[], opt: string) =>
+    prefix + ["---", "title: t", ...fm, "---", "", "```{r}", "#| " + opt, "1", "```", ""].join("\n");
+
+  it("no longer flags a knitr-only key when `engine: markdown` sits behind a blank line", () => {
+    // The cardinal false positive this session closes. Renders exit 0; we squiggled it.
+    expect(cellFlags(leading("\n", ["engine: markdown"], "cache: banana"))).toEqual([]);
+  });
+
+  it("STILL flags it when the same document names no engine — the fallback is untouched", () => {
+    // The discriminator. Without this pin the one above would also pass if the fix had
+    // simply stopped scoping leading-whitespace documents at all. Measured: exit 1.
+    // Line 6, not 7: dropping the `engine:` line makes this document one line shorter.
+    expect(cellFlags(leading("\n", [], "cache: banana"))).toEqual(["6:cache=banana"]);
+  });
+
+  it("STILL flags an engine-AGNOSTIC key behind the same override — the cell surface lives", () => {
+    // `echo` carries no `tags.engine`, so it survives into every scope including markdown's.
+    // Measured: exit 1 on the byte-identical document. A fix that silenced the whole cell
+    // surface for these documents would pass both pins above and fail this one.
+    expect(cellFlags(leading("\n", ["engine: markdown"], "echo: banana"))).toEqual([
+      "7:echo=banana",
+    ]);
+  });
+
+  it("reads through every leading-whitespace spelling quarto's `trimLeft` eats", () => {
+    // trimLeft strips spaces and tabs as well as newlines, so an INDENTED opening `---` is
+    // visible to quarto's engine partitioner too — measured exit 0 on all four.
+    for (const prefix of ["\n", "\n\n", "   \n", "\t"]) {
+      expect(cellFlags(leading(prefix, ["engine: markdown"], "cache: banana"))).toEqual([]);
+    }
+    expect(cellFlags("   " + leading("", ["engine: markdown"], "cache: banana").trimStart())).toEqual(
+      [],
+    );
+  });
+
+  it("FP GUARD: the VALUE surface must stay silent behind leading whitespace", () => {
+    // The pin that holds the fix to one surface. Quarto front-matter-validates only when the
+    // document starts with `---` at byte 0, so `toc: banana` behind a blank line is NOT a
+    // quarto YAML rejection — 10 of 17 swept keys render exit 0 in exactly this shape. If a
+    // future change teaches `scanRegions` the trimLeft, this pin goes red first.
+    expect(fmGroup("\n---\ntoc: banana\n---\n")).toEqual([]);
+    expect(fmGroup("   \n---\ntoc: banana\n---\n")).toEqual([]);
+    // …while the byte-0 control, which quarto DOES validate, is still flagged.
+    expect(fmGroup("---\ntoc: banana\n---\n")).toEqual(["1:toc=banana"]);
+  });
+});
+
+/**
  * Phase 2 — TOP-LEVEL front-matter scalars. Never covered headlessly before Session 168:
  * `computeValueDiagnostics` was module-private behind `vscode`, and the oracle's mirror
  * implemented the cell loop only.
