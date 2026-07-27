@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S169
+date: 2026-07-27
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). Teach cell-option COMPLETION the document engine. src/providers/yaml.ts still scopes cell-option completion by the CELL LANGUAGE (engineFor(lang)) while the value validator has scoped by the DOCUMENT engine since S165 (documentEngineForScoping). S165 made the divergence the ordinary case rather than the exotic one and gave it a second, worse direction: in a knitr document the validator FLAGS a knitr-only key in a {python}/{sql} cell that completion refuses to OFFER. Operator-selected via AskUserQuestion at Phase 0. ONE deliverable.
+```
+
+```handoff
 session: S168
 date: 2026-07-27
 status: complete
