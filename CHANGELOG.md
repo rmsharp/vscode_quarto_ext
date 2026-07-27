@@ -7,6 +7,82 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-27 · [ad hoc] Session 171 — IMPLEMENTATION: leading whitespace no longer hides the front matter from engine scoping (SHIPPED)
+
+A blank line — or spaces, or a tab — before the opening `---` hid a document's front matter
+from us and never from quarto. `partitionYamlFrontMatter`, which quarto uses to select the
+ENGINE, opens with `lines(markdown.trimLeft())`; `scanRegions` opens front matter only at
+line 0. S165 could therefore only **decline** there, and declining means keeping the per-cell
+language approximation — knitr for an `{r}` cell — so we squiggled a knitr-only key on a
+document `quarto render` accepts. That was the last remaining cardinal false positive in this
+family whose root cause was ours rather than an unreadable input.
+
+`resolveDocumentEngine` — the ONE entry point both engine consumers share since S169 — now
+derives all four of its text-derived arguments from `text.trimStart()`.
+
+**The filed fix was wrong, and this is the substance of the session.** `BACKLOG.md` had said
+since S164 that closing this "means teaching the scanner quarto's `trimLeft`"; the clause was
+copied into `document-engine.ts` twice, restated by S165, and carried into S170's handoff as
+ranked recommendation #1. Quarto runs **two** partitioners over the same syntax and they
+disagree on purpose — read firsthand out of `/Applications/quarto/bin/quarto.js`, not from the
+docstring that quoted one of them:
+
+```js
+// ENGINE selection
+const mdLines = lines(markdown.trimLeft());              // partitionYamlFrontMatter
+// FRONT-MATTER VALUE validation
+const nb = await breakQuartoMd(src);                     // validateDocumentFromSource
+if (firstCell.source.value.startsWith("---")) { /* …validate front matter… */ }
+```
+
+That second test is a literal byte-0 test with no trim, so quarto performs **no front-matter
+value validation at all** on a document with any leading whitespace. Measured across 17 keys
+whose bad value quarto rejects at line 0, re-rendered behind a single leading blank line,
+**10 render exit 0**: `number-sections`, `code-fold`, `fig-width`, `fig-align`, `keep-md`,
+`freeze`, `cache`, `link-citations`, `execute`, `bibliography`. Teaching the shared scanner
+the `trimLeft` would have closed one cardinal false positive and opened ten. Fixing it at the
+engine entry point leaves `yaml-value-flags.ts` enumerating from the untrimmed text, and the
+**FP GUARD** pin in `test/unit/yaml-value-flags.test.ts` fails first if that ever changes
+(mutation-proven: it is the only test of 1562 that dies when the value enumerator adopts the
+trim).
+
+**Grounded firsthand vs quarto 1.7.33**, ~60 renders. The claim: a leading blank line, then
+`---`/`title: t`/`engine: markdown`/`---`, then `{r}` + `#| cache: banana` renders **exit 0**
+— with `#| echo: banana` at exit 1 proving cell validation ran, and the `engine:` line removed
+at exit 1 proving knitr is the fallback. Every leading-whitespace spelling behaves the same:
+two blank lines, a spaces-only line, a tab, CRLF, and an **indented** `---` (JS `trimLeft`
+strips spaces as well as newlines, so `"   ---"` matches `kRegExBeginYAML` after it).
+
+**The replay is the argument.** `git archive d112f35 src` → `QMD_ORACLE_SRC` over the same
+86-document corpus:
+
+| build | agree | lost TP | **cardinal FP** |
+|---|---|---|---|
+| pre-S171 (`d112f35`) | 73 | 3 | **10** |
+| this build | 78 | 3 | **5** |
+
+Five closed, none regressed. The corpus grew 78 → 86: it already carried a row *named*
+`REVIEW blank line BEFORE --- + engine: markdown`, baselined `agree` — but that row's flagged
+cell is `{python}`, whose language fallback answers jupyter, so it stayed silent for the wrong
+reason and read as coverage. The eight new rows use `{r}` cells, which discriminate.
+
+**Filed, not fixed:** an **indented** opening `---` is a cardinal FP with a different root
+cause — `breakQuartoMd` anchors its `yamlRegEx` at column 0, so `   ---` opens nothing, then
+the *closing* `---` opens a region that never closes and swallows every cell, and quarto
+validates nothing at all (exit 0 even with the engine-agnostic control). Pre-existing,
+established by replay, recorded as oracle row `S171 indented --- + NO engine + {r} + cache
+(KNOWN residual)` and filed in `BACKLOG.md`.
+
+Also corrected: completion does **not** move for this document class, contrary to the
+"both surfaces move" framing S169/S170 established — `completionEngineFor` maps a `"markdown"`
+document to the `"unknown"` scope, which falls back to the cell language, exactly as
+`undefined` did before.
+
+Verification: check-types clean; compile-tests clean; unit **1562 / 62 files**; oracle 86
+documents / 78 agree / 3 lost TP / 5 cardinal FP / 0 unrelated; integration **RED 485 + 1
+failing → GREEN 486** (operator-approved, both runs). Seven commits: `d112f35` (1B claim),
+`5d6ef0d`, `923d5b8`, `63b5f60`, `0f1c8b6`, `aba4ff8`, `d55fcb8`.
+
 ### 2026-07-27 · [ad hoc] Session 170 — IMPLEMENTATION: an `.Rmd` is knitr for EVERY cell (SHIPPED)
 
 `documentEngineForScoping` answered `undefined` on quarto's `kRmdExtensions`. That was a
