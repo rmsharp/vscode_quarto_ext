@@ -5,6 +5,7 @@ import {
   isMappingSeparator,
   mappingColonAt,
 } from "../../src/core/yaml-context";
+import { resolveDocumentEngine } from "../../src/core/document-engine-resolve";
 
 /** Compute a 0-based character offset for (line, col) in `\n`-joined text. */
 function offsetAt(text: string, line: number, col: number): number {
@@ -19,7 +20,7 @@ function offsetAt(text: string, line: number, col: number): number {
 describe("completionContextAt — cell-option key", () => {
   it("returns a cell-option-key context for a partially-typed key on a #| line", () => {
     const text = ["```{python}", "#| ec", "x = 1", "```"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 5)); // after "ec"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 5), () => undefined); // after "ec"
     expect(ctx).toEqual({
       kind: "cell-option-key",
       parentPath: [],
@@ -31,7 +32,7 @@ describe("completionContextAt — cell-option key", () => {
 
   it("offers all keys (empty token) right after `#| `", () => {
     const text = ["```{python}", "#| ", "```"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 3));
+    const ctx = completionContextAt(text, offsetAt(text, 1, 3), () => undefined);
     expect(ctx?.kind).toBe("cell-option-key");
     expect(ctx?.token).toBe("");
     expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 3, endCol: 3 });
@@ -39,7 +40,7 @@ describe("completionContextAt — cell-option key", () => {
 
   it("replaces the WHOLE key token on a mid-token cursor (Learning #15b)", () => {
     const text = ["```{python}", "#| echo: false", "```"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 5)); // inside "ec|ho"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 5), () => undefined); // inside "ec|ho"
     expect(ctx?.token).toBe("ec");
     // The replace span covers all of "echo" [3,7), not just up to the cursor.
     expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 3, endCol: 7 });
@@ -47,45 +48,45 @@ describe("completionContextAt — cell-option key", () => {
 
   it("returns null inside the prefix/gap, before the key slot", () => {
     const text = ["```{python}", "#| echo: false", "```"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 1)); // between # and |
+    const ctx = completionContextAt(text, offsetAt(text, 1, 1), () => undefined); // between # and |
     expect(ctx).toBeNull();
   });
 
   it("returns null on a plain code line inside the cell", () => {
     const text = ["```{python}", "x = 1", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 3))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 1, 3), () => undefined)).toBeNull();
   });
 
   it("returns null on a prose line", () => {
     const text = ["# Heading", "", "Some prose here."].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 5))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 5), () => undefined)).toBeNull();
   });
 
   it("returns null on a sequence-item option line (no key)", () => {
     const text = ["```{python}", "#| fig-cap:", "#|   - a", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 7))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 7), () => undefined)).toBeNull();
   });
 
   it("maps the engine: {r} → knitr", () => {
     const text = ["```{r}", "#| ec", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 5))?.engine).toBe("knitr");
+    expect(completionContextAt(text, offsetAt(text, 1, 5), () => undefined)?.engine).toBe("knitr");
   });
 
   it("maps the engine: {ojs} //| line → ojs", () => {
     const text = ["```{ojs}", "//| ec", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 6))?.engine).toBe("ojs");
+    expect(completionContextAt(text, offsetAt(text, 1, 6), () => undefined)?.engine).toBe("ojs");
   });
 
   it("returns null on an INDENTED `#|` line (Quarto treats it as code)", () => {
     const text = ["```{python}", "  #| ec", "x = 1", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 7))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 1, 7), () => undefined)).toBeNull();
   });
 });
 
 describe("completionContextAt — cell-option value (6d-2)", () => {
   it("returns a value context at an empty value position (`#| echo: `)", () => {
     const text = ["```{python}", "#| echo: ", "```"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 9)); // after "echo: "
+    const ctx = completionContextAt(text, offsetAt(text, 1, 9), () => undefined); // after "echo: "
     expect(ctx).toEqual({
       kind: "cell-option-value",
       parentPath: ["echo"], // the key being valued
@@ -97,7 +98,7 @@ describe("completionContextAt — cell-option value (6d-2)", () => {
 
   it("fires right after the colon with no space yet (`:` trigger, `#| echo:`)", () => {
     const text = ["```{python}", "#| echo:", "```"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 8)); // right after ":"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 8), () => undefined); // right after ":"
     expect(ctx?.kind).toBe("cell-option-value");
     expect(ctx?.parentPath).toEqual(["echo"]);
     expect(ctx?.token).toBe("");
@@ -106,7 +107,7 @@ describe("completionContextAt — cell-option value (6d-2)", () => {
 
   it("replaces the WHOLE value token on a mid-value cursor (`#| echo: false`)", () => {
     const text = ["```{python}", "#| echo: false", "```"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 11)); // inside "fa|lse"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 11), () => undefined); // inside "fa|lse"
     expect(ctx?.kind).toBe("cell-option-value");
     expect(ctx?.token).toBe("fa");
     expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 9, endCol: 14 });
@@ -114,32 +115,32 @@ describe("completionContextAt — cell-option value (6d-2)", () => {
 
   it("maps the engine on a value position: {r} → knitr", () => {
     const text = ["```{r}", "#| eval: ", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 9))?.engine).toBe("knitr");
+    expect(completionContextAt(text, offsetAt(text, 1, 9), () => undefined)?.engine).toBe("knitr");
   });
 
   it("stays a KEY context (not value) when the cursor is at the colon", () => {
     const text = ["```{python}", "#| echo: false", "```"].join("\n");
     // col 7 = end of "echo", at the colon: still the key slot, not a value.
-    expect(completionContextAt(text, offsetAt(text, 1, 7))?.kind).toBe("cell-option-key");
+    expect(completionContextAt(text, offsetAt(text, 1, 7), () => undefined)?.kind).toBe("cell-option-key");
   });
 
   it("returns null in the whitespace gap between the colon and the value", () => {
     const text = ["```{python}", "#| echo:   false", "```"].join("\n");
     // col 9 sits in the run of spaces before "false" (value starts at col 11).
-    expect(completionContextAt(text, offsetAt(text, 1, 9))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 1, 9), () => undefined)).toBeNull();
   });
 
   it("returns null when the cursor is inside a trailing inline comment", () => {
     const text = ["```{python}", "#| echo: false  # comment", "```"].join("\n");
     // col 18 is inside the comment; the value span ends at "false" (col 14).
-    expect(completionContextAt(text, offsetAt(text, 1, 18))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 1, 18), () => undefined)).toBeNull();
   });
 });
 
 describe("completionContextAt — front-matter key (6d-4)", () => {
   it("returns a frontmatter-key context for a partially-typed top-level key", () => {
     const text = ["---", "title: x", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 2)); // inside "ti|tle"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 2), () => undefined); // inside "ti|tle"
     expect(ctx).toEqual({
       kind: "frontmatter-key",
       parentPath: [],
@@ -150,7 +151,7 @@ describe("completionContextAt — front-matter key (6d-4)", () => {
 
   it("offers all keys (empty token) on a blank front-matter line", () => {
     const text = ["---", "title: x", "", "format: html", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 0));
+    const ctx = completionContextAt(text, offsetAt(text, 2, 0), () => undefined);
     expect(ctx?.kind).toBe("frontmatter-key");
     expect(ctx?.token).toBe("");
     expect(ctx?.replaceRange).toEqual({ line: 2, startCol: 0, endCol: 0 });
@@ -158,7 +159,7 @@ describe("completionContextAt — front-matter key (6d-4)", () => {
 
   it("completes a bare key still being typed (no colon yet)", () => {
     const text = ["---", "titl", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 4));
+    const ctx = completionContextAt(text, offsetAt(text, 1, 4), () => undefined);
     expect(ctx?.kind).toBe("frontmatter-key");
     expect(ctx?.token).toBe("titl");
     expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 0, endCol: 4 });
@@ -166,21 +167,21 @@ describe("completionContextAt — front-matter key (6d-4)", () => {
 
   it("replaces the WHOLE key token on a mid-token cursor (Learning #15b)", () => {
     const text = ["---", "format: html", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 3)); // inside "for|mat"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 3), () => undefined); // inside "for|mat"
     expect(ctx?.token).toBe("for");
     expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 0, endCol: 6 });
   });
 
   it("hands off to a frontmatter-value context past the colon (6d-5 takes over)", () => {
     const text = ["---", "title: My Doc", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 9)); // in "My Doc"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 9), () => undefined); // in "My Doc"
     expect(ctx?.kind).toBe("frontmatter-value");
     expect(ctx?.parentPath).toEqual(["title"]);
   });
 
   it("returns a nested frontmatter-key context under the `execute:` container (6d-6)", () => {
     const text = ["---", "execute:", "  enabled: false", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 4)); // inside "en|abled"
+    const ctx = completionContextAt(text, offsetAt(text, 2, 4), () => undefined); // inside "en|abled"
     expect(ctx).toEqual({
       kind: "frontmatter-key",
       parentPath: ["execute"],
@@ -191,25 +192,25 @@ describe("completionContextAt — front-matter key (6d-4)", () => {
 
   it("returns null on a block-sequence item line (`- value`)", () => {
     const text = ["---", "bibliography:", "- a.bib", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 3))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 3), () => undefined)).toBeNull();
   });
 
   it("returns null on a YAML comment line in front matter", () => {
     const text = ["---", "# a comment", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 3))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 1, 3), () => undefined)).toBeNull();
   });
 
   it("returns null on the `---` fence lines themselves", () => {
     const text = ["---", "title: x", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 0, 0))).toBeNull();
-    expect(completionContextAt(text, offsetAt(text, 2, 0))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 0, 0), () => undefined)).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 0), () => undefined)).toBeNull();
   });
 });
 
 describe("completionContextAt — nested front-matter key under `execute:` (6d-6)", () => {
   it("offers all execute keys (empty token) on a blank indented line under execute", () => {
     const text = ["---", "execute:", "  ", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 2));
+    const ctx = completionContextAt(text, offsetAt(text, 2, 2), () => undefined);
     expect(ctx).toEqual({
       kind: "frontmatter-key",
       parentPath: ["execute"],
@@ -220,7 +221,7 @@ describe("completionContextAt — nested front-matter key under `execute:` (6d-6
 
   it("replaces the WHOLE nested key token on a mid-token cursor", () => {
     const text = ["---", "execute:", "  freeze: auto", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 4)); // inside "fr|eeze"
+    const ctx = completionContextAt(text, offsetAt(text, 2, 4), () => undefined); // inside "fr|eeze"
     expect(ctx?.kind).toBe("frontmatter-key");
     expect(ctx?.parentPath).toEqual(["execute"]);
     expect(ctx?.token).toBe("fr");
@@ -236,41 +237,41 @@ describe("completionContextAt — nested front-matter key under `execute:` (6d-6
       "  enabled: false",
       "---",
     ].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 4, 4)); // "en|abled"
+    const ctx = completionContextAt(text, offsetAt(text, 4, 4), () => undefined); // "en|abled"
     expect(ctx?.kind).toBe("frontmatter-key");
     expect(ctx?.parentPath).toEqual(["execute"]);
   });
 
   it("bails (null) under a NON-allow-listed container (`website:`)", () => {
     const text = ["---", "website:", "  title: x", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 4))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 4), () => undefined)).toBeNull();
   });
 
   it("bails (null) when the container has a scalar value (`execute: false`)", () => {
     const text = ["---", "execute: false", "  enabled: x", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 4))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 4), () => undefined)).toBeNull();
   });
 
   it("bails (null) on a block-scalar container (`execute: |`)", () => {
     const text = ["---", "execute: |", "  enabled: x", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 4))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 4), () => undefined)).toBeNull();
   });
 
   it("bails (null) on deeper nesting (parent is itself indented)", () => {
     const text = ["---", "execute:", "  julia:", "    exeflags: x", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 3, 6))).toBeNull(); // in "exeflags"
+    expect(completionContextAt(text, offsetAt(text, 3, 6), () => undefined)).toBeNull(); // in "exeflags"
   });
 
   it("bails (null) on a nested block-sequence item under execute", () => {
     const text = ["---", "execute:", "  - foo", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 4))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 4), () => undefined)).toBeNull();
   });
 });
 
 describe("completionContextAt — nested front-matter key under `format:` (6d-6 cont.)", () => {
   it("returns a nested frontmatter-key context under the `format:` container", () => {
     const text = ["---", "format:", "  html", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 4)); // inside "ht|ml"
+    const ctx = completionContextAt(text, offsetAt(text, 2, 4), () => undefined); // inside "ht|ml"
     expect(ctx).toEqual({
       kind: "frontmatter-key",
       parentPath: ["format"],
@@ -281,7 +282,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
 
   it("offers all format names (empty token) on a blank indented line under format", () => {
     const text = ["---", "format:", "  ", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 2));
+    const ctx = completionContextAt(text, offsetAt(text, 2, 2), () => undefined);
     expect(ctx).toEqual({
       kind: "frontmatter-key",
       parentPath: ["format"],
@@ -294,7 +295,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
     // A format name carries no value enum, so the provider offers nothing here —
     // the per-format-options deferral is graceful (parentPath = [container, name]).
     const text = ["---", "format:", "  html: default", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 10)); // in "de|fault"
+    const ctx = completionContextAt(text, offsetAt(text, 2, 10), () => undefined); // in "de|fault"
     expect(ctx).toEqual({
       kind: "frontmatter-value",
       parentPath: ["format", "html"],
@@ -307,7 +308,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
     const text = ["---", "format:", "  html:", "    toc: true", "---"].join("\n");
     // "    toc" is a per-format option key under format>html; the bounded 2-level
     // ancestor walk (rooted at `format`) yields ["format","html"] (was deferred).
-    const ctx = completionContextAt(text, offsetAt(text, 3, 6)); // in "to|c"
+    const ctx = completionContextAt(text, offsetAt(text, 3, 6), () => undefined); // in "to|c"
     expect(ctx).toEqual({
       kind: "frontmatter-key",
       parentPath: ["format", "html"],
@@ -318,7 +319,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
 
   it("offers all per-format keys (empty token) on a blank line under `format: <fmt>`", () => {
     const text = ["---", "format:", "  html:", "    ", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 3, 4));
+    const ctx = completionContextAt(text, offsetAt(text, 3, 4), () => undefined);
     expect(ctx).toEqual({
       kind: "frontmatter-key",
       parentPath: ["format", "html"],
@@ -333,7 +334,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
     // N-level format-rooted walk climbs to the column-0 `format` root and emits the
     // full ancestor path. The detector is schema-free — it does not know `theme` is
     // an object; the reader decides whether the option resolves to child keys.
-    const ctx = completionContextAt(text, offsetAt(text, 4, 7)); // in "x"
+    const ctx = completionContextAt(text, offsetAt(text, 4, 7), () => undefined); // in "x"
     expect(ctx).toEqual({
       kind: "frontmatter-key",
       parentPath: ["format", "html", "theme"],
@@ -347,7 +348,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
     // The detector climbs any number of pure-mapping levels to the `format` root —
     // it is schema-free (position ⊥ data). "Offers nothing at depth 4" is enforced
     // by the READER returning [] for a length-≥4 path (v1 resolves one object level).
-    const ctx = completionContextAt(text, offsetAt(text, 5, 9)); // in "x"
+    const ctx = completionContextAt(text, offsetAt(text, 5, 9), () => undefined); // in "x"
     expect(ctx).toEqual({
       kind: "frontmatter-key",
       parentPath: ["format", "html", "comments", "hypothesis"],
@@ -360,7 +361,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
     const text = ["---", "website:", "  html:", "    toc: x", "---"].join("\n");
     // The 2-level walk is rooted at `format` only; any other 2-level root bails
     // (mirrors the `execute:\n  julia:\n    exeflags` guard above).
-    expect(completionContextAt(text, offsetAt(text, 3, 6))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 3, 6), () => undefined)).toBeNull();
   });
 
   it("returns a per-format VALUE context two levels under `format:` (6d-6+ b2-ii)", () => {
@@ -368,7 +369,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
     // Past the colon on a per-format option line, the value slot completes that
     // option's enum. `parentPath` grows to [container, fmt, key] so the provider
     // resolves the values from `frontMatterKeys(["format","html"]).find(key)`.
-    const ctx = completionContextAt(text, offsetAt(text, 3, 21)); // in "sc|roll"
+    const ctx = completionContextAt(text, offsetAt(text, 3, 21), () => undefined); // in "sc|roll"
     expect(ctx).toEqual({
       kind: "frontmatter-value",
       parentPath: ["format", "html", "code-overflow"],
@@ -379,7 +380,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
 
   it("offers per-format values (empty token) on an empty value slot under `format: <fmt>`", () => {
     const text = ["---", "format:", "  html:", "    code-overflow: ", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 3, 19)); // at the empty value slot
+    const ctx = completionContextAt(text, offsetAt(text, 3, 19), () => undefined); // at the empty value slot
     expect(ctx).toEqual({
       kind: "frontmatter-value",
       parentPath: ["format", "html", "code-overflow"],
@@ -397,7 +398,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
     // detector or provider change needed (already generic over path length; this
     // locks the shape in, per the plan's own "confirm parentPath.slice(0,-1)
     // resolves children, not []" dragon).
-    const ctx = completionContextAt(text, offsetAt(text, 4, 16)); // in "fa|lse"
+    const ctx = completionContextAt(text, offsetAt(text, 4, 16), () => undefined); // in "fa|lse"
     expect(ctx).toEqual({
       kind: "frontmatter-value",
       parentPath: ["format", "html", "code-tools", "toggle"],
@@ -410,7 +411,7 @@ describe("completionContextAt — nested front-matter key under `format:` (6d-6 
 describe("completionContextAt — front-matter value (6d-5)", () => {
   it("returns a frontmatter-value context at an empty value position (`toc: `)", () => {
     const text = ["---", "toc: ", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 5)); // after "toc: "
+    const ctx = completionContextAt(text, offsetAt(text, 1, 5), () => undefined); // after "toc: "
     expect(ctx).toEqual({
       kind: "frontmatter-value",
       parentPath: ["toc"], // the key being valued
@@ -421,7 +422,7 @@ describe("completionContextAt — front-matter value (6d-5)", () => {
 
   it("fires right after the colon with no space yet (`:` trigger, `toc:`)", () => {
     const text = ["---", "toc:", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 4)); // right after ":"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 4), () => undefined); // right after ":"
     expect(ctx?.kind).toBe("frontmatter-value");
     expect(ctx?.parentPath).toEqual(["toc"]);
     expect(ctx?.token).toBe("");
@@ -430,7 +431,7 @@ describe("completionContextAt — front-matter value (6d-5)", () => {
 
   it("replaces the WHOLE value token on a mid-value cursor (`toc: false`)", () => {
     const text = ["---", "toc: false", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 7)); // inside "fa|lse"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 7), () => undefined); // inside "fa|lse"
     expect(ctx?.kind).toBe("frontmatter-value");
     expect(ctx?.token).toBe("fa");
     expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 5, endCol: 10 });
@@ -439,24 +440,24 @@ describe("completionContextAt — front-matter value (6d-5)", () => {
   it("stays a KEY context (not value) when the cursor is at the colon", () => {
     const text = ["---", "toc: false", "---"].join("\n");
     // col 3 = end of "toc", at the colon: still the key slot, not a value.
-    expect(completionContextAt(text, offsetAt(text, 1, 3))?.kind).toBe("frontmatter-key");
+    expect(completionContextAt(text, offsetAt(text, 1, 3), () => undefined)?.kind).toBe("frontmatter-key");
   });
 
   it("returns null in the whitespace gap between the colon and the value", () => {
     const text = ["---", "toc:   false", "---"].join("\n");
     // col 5 sits in the run of spaces before "false" (value starts at col 7).
-    expect(completionContextAt(text, offsetAt(text, 1, 5))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 1, 5), () => undefined)).toBeNull();
   });
 
   it("returns null when the cursor is inside a trailing inline comment", () => {
     const text = ["---", "toc: false  # comment", "---"].join("\n");
     // col 13 is inside the comment; the value span ends at "false" (col 10).
-    expect(completionContextAt(text, offsetAt(text, 1, 13))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 1, 13), () => undefined)).toBeNull();
   });
 
   it("returns a nested frontmatter-value context on an INDENTED execute line (6d-6 cont.)", () => {
     const text = ["---", "execute:", "  enabled: false", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 13)); // in "fa|lse"
+    const ctx = completionContextAt(text, offsetAt(text, 2, 13), () => undefined); // in "fa|lse"
     expect(ctx).toEqual({
       kind: "frontmatter-value",
       parentPath: ["execute", "enabled"], // [container, key being valued]
@@ -467,7 +468,7 @@ describe("completionContextAt — front-matter value (6d-5)", () => {
 
   it("fires right after the colon with no space on a nested line (`  cache:`)", () => {
     const text = ["---", "execute:", "  cache:", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 8)); // right after ":"
+    const ctx = completionContextAt(text, offsetAt(text, 2, 8), () => undefined); // right after ":"
     expect(ctx).toEqual({
       kind: "frontmatter-value",
       parentPath: ["execute", "cache"],
@@ -478,7 +479,7 @@ describe("completionContextAt — front-matter value (6d-5)", () => {
 
   it("replaces the WHOLE nested value token on a mid-value cursor (`  freeze: auto`)", () => {
     const text = ["---", "execute:", "  freeze: auto", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 12)); // inside "au|to"
+    const ctx = completionContextAt(text, offsetAt(text, 2, 12), () => undefined); // inside "au|to"
     expect(ctx?.kind).toBe("frontmatter-value");
     expect(ctx?.parentPath).toEqual(["execute", "freeze"]);
     expect(ctx?.token).toBe("au");
@@ -488,13 +489,13 @@ describe("completionContextAt — front-matter value (6d-5)", () => {
   it("returns null in the whitespace gap before a nested value", () => {
     const text = ["---", "execute:", "  cache:   true", "---"].join("\n");
     // col 9 sits in the run of spaces before "true" (value starts at col 11).
-    expect(completionContextAt(text, offsetAt(text, 2, 9))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 9), () => undefined)).toBeNull();
   });
 
   it("returns null inside a trailing inline comment on a nested value line", () => {
     const text = ["---", "execute:", "  freeze: auto  # c", "---"].join("\n");
     // col 17 is inside the comment; the value span ends at "auto" (col 14).
-    expect(completionContextAt(text, offsetAt(text, 2, 17))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 17), () => undefined)).toBeNull();
   });
 });
 
@@ -509,43 +510,43 @@ describe("completionContextAt — the separator guard's effect on COMPLETION (P2
     // ` scroll`, pinned in test/integration/suite/yaml.test.ts). Narrowing the value slot
     // in the shared grammar silently removed that affordance — 2 integration tests, S148.
     const text = ["---", "toc:scroll", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 8))?.kind).toBe("frontmatter-value");
+    expect(completionContextAt(text, offsetAt(text, 1, 8), () => undefined)?.kind).toBe("frontmatter-value");
   });
 
   it("still offers KEY completion on that same line (the key slot is untouched)", () => {
     const text = ["---", "toc:: true", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 2)); // inside "to|c"
+    const ctx = completionContextAt(text, offsetAt(text, 1, 2), () => undefined); // inside "to|c"
     expect(ctx?.kind).toBe("frontmatter-key");
     expect(ctx?.replaceRange).toEqual({ line: 1, startCol: 0, endCol: 3 });
   });
 
   it("still offers value completion right after a bare colon (`toc:` — the `:` trigger)", () => {
     const text = ["---", "toc:", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 4));
+    const ctx = completionContextAt(text, offsetAt(text, 1, 4), () => undefined);
     expect(ctx?.kind).toBe("frontmatter-value");
     expect(ctx?.parentPath).toEqual(["toc"]);
   });
 
   it("STILL offers NESTED value completion past a non-separator colon (same reason)", () => {
     const text = ["---", "execute:", "  echo:fenced", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 10))?.kind).toBe("frontmatter-value");
+    expect(completionContextAt(text, offsetAt(text, 2, 10), () => undefined)?.kind).toBe("frontmatter-value");
   });
 
   it("still offers NESTED value completion on a normal `  key: value` line", () => {
     const text = ["---", "execute:", "  echo: fen", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 2, 11));
+    const ctx = completionContextAt(text, offsetAt(text, 2, 11), () => undefined);
     expect(ctx?.kind).toBe("frontmatter-value");
     expect(ctx?.parentPath).toEqual(["execute", "echo"]);
   });
 
   it("still offers NESTED value completion right after a bare colon (`  echo:`)", () => {
     const text = ["---", "execute:", "  echo:", "---"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 7))?.kind).toBe("frontmatter-value");
+    expect(completionContextAt(text, offsetAt(text, 2, 7), () => undefined)?.kind).toBe("frontmatter-value");
   });
 
   it("still offers value completion on a normal `key: value` line", () => {
     const text = ["---", "toc: tr", "---"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 7));
+    const ctx = completionContextAt(text, offsetAt(text, 1, 7), () => undefined);
     expect(ctx?.kind).toBe("frontmatter-value");
     expect(ctx?.token).toBe("tr");
   });
@@ -622,14 +623,14 @@ describe("completionContextAt — only the cell's LEADING option block completes
     // key list would advertise options that will never take effect. The completion and
     // diagnostics surfaces share `findCellOptionLines`, so they agree by construction.
     const text = ["```{python}", "1+1", "#| ec", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 2, 5))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 2, 5), () => undefined)).toBeNull();
   });
 
   it("STILL offers cell-option completion in the leading block", () => {
     // The control that stops the pin above being satisfied by a wholesale loss of
     // cell-option completion — the same token in the leading block must still complete.
     const text = ["```{python}", "#| ec", "1+1", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 5))?.kind).toBe("cell-option-key");
+    expect(completionContextAt(text, offsetAt(text, 1, 5), () => undefined)?.kind).toBe("cell-option-key");
   });
 });
 
@@ -717,7 +718,7 @@ describe("cellOptionScopeFor — a cell-HANDLER language is validated by no cell
     // the right value — `engineFor("dot")` is undefined, which `cellOptions` reads as "do not
     // filter", the deliberate over-offer.
     const text = ["```{dot}", "//| ec", "digraph {a->b}", "```"].join("\n");
-    const ctx = completionContextAt(text, offsetAt(text, 1, 6));
+    const ctx = completionContextAt(text, offsetAt(text, 1, 6), () => undefined);
     expect(ctx?.kind).toBe("cell-option-key");
     expect(ctx?.engine).toBeUndefined();
   });
@@ -796,7 +797,7 @@ describe("completionContextAt — cell-option completion follows the LANGUAGE's 
     // Quarto reads this as a directive (`{sql}` + `--| echo: banana` renders exit 1 with a
     // real value error), so the key list belongs here. Pre-fix the surface was silent.
     const text = ["```{sql}", "--| ec", "SELECT 1", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 6))?.kind).toBe("cell-option-key");
+    expect(completionContextAt(text, offsetAt(text, 1, 6), () => undefined)?.kind).toBe("cell-option-key");
   });
 
   it("offers NO cell-option completion on a `#|` line in a {sql} cell", () => {
@@ -804,11 +805,101 @@ describe("completionContextAt — cell-option completion follows the LANGUAGE's 
     // advertise options that can never take effect — the completion-surface twin of the
     // diagnostics false positive.
     const text = ["```{sql}", "#| ec", "SELECT 1", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 5))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 1, 5), () => undefined)).toBeNull();
   });
 
   it("offers NO cell-option completion on a `//|` line in a {python} cell", () => {
     const text = ["```{python}", "//| ec", "x = 1", "```"].join("\n");
-    expect(completionContextAt(text, offsetAt(text, 1, 6))).toBeNull();
+    expect(completionContextAt(text, offsetAt(text, 1, 6), () => undefined)).toBeNull();
+  });
+});
+
+describe("completionContextAt — cell-option completion learns the DOCUMENT engine (S169)", () => {
+  /** The document engine as the provider resolves it, from this document's own text. */
+  const engineOf = (text: string) => () => resolveDocumentEngine("doc.qmd", text);
+
+  it("offers a knitr-only key in a {python} cell of a KNITR document", () => {
+    // THE filed defect, and the only direction that is more than cosmetic. Completion
+    // scoped by the cell LANGUAGE while the validator scoped by the DOCUMENT engine, so
+    // this cell got squiggled for a key completion would not offer.
+    //
+    // Grounded firsthand vs quarto 1.7.33, three documents differing in one line:
+    //   {r} cell + {python} cell + `#| cache: banana`  → exit 1, `Field "cache" has value banana`
+    //   the same document without the key              → exit 0  (so the exit 1 IS the value)
+    //   the {python} cell ALONE + `#| cache: banana`   → exit 0  (so it is the OTHER cell)
+    const text = [
+      "```{r}",
+      "1 + 1",
+      "```",
+      "",
+      "```{python}",
+      "#| ca",
+      "1 + 1",
+      "```",
+    ].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 5, 5), engineOf(text));
+    expect(ctx?.kind).toBe("cell-option-key");
+    expect(ctx?.engine).toBe("knitr");
+  });
+
+  it("does the same in the VALUE slot, not only the key slot", () => {
+    // Both emit sites read the same `engine`, and a fix applied to one of them would leave
+    // the other silently on the language approximation.
+    const text = ["```{r}", "1 + 1", "```", "", "```{python}", "#| cache: ", "```"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 5, 10), engineOf(text));
+    expect(ctx?.kind).toBe("cell-option-value");
+    expect(ctx?.engine).toBe("knitr");
+  });
+
+  // The four rows below run the REAL resolver, not the `() => undefined` fallback the rest
+  // of this file uses. Each is a shape whose answer must NOT move — the fix is worth having
+  // only if it changes exactly the row above and none of these.
+  it("keeps jupyter for a {python} cell when no other language is present", () => {
+    const text = ["```{python}", "#| ca", "1 + 1", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 5), engineOf(text))?.engine).toBe(
+      "jupyter",
+    );
+  });
+
+  it("keeps knitr for an {r} cell", () => {
+    const text = ["```{r}", "#| ca", "1 + 1", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 5), engineOf(text))?.engine).toBe("knitr");
+  });
+
+  it("keeps ojs for an {ojs} cell, whose document resolves to MARKDOWN", () => {
+    // The row that proves the "do not adopt a narrowing scope" half of the rule is live.
+    // `engineFromLanguages` skips ojs, so this document's engine is markdown, and
+    // `cellOptionScopeFor("ojs", "markdown")` is `"unknown"` — adopting it would drop this
+    // cell from ojs's option set to the engine-agnostic intersection for no defect.
+    const text = ["```{ojs}", "//| ec", "1 + 1", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 1, 6), engineOf(text))?.engine).toBe("ojs");
+  });
+
+  it("still OFFERS in a {dot} handler cell — `\"none\"` is the other scope never adopted", () => {
+    // The S162 pin, re-run through the real resolver. Routing completion through the raw
+    // scope would hand `cellOptions` the EMPTY set and delete cell-option completion in
+    // handler cells outright, leaving `.kind` untouched so a kind-only pin sails past it.
+    const text = ["```{dot}", "//| ec", "digraph {a->b}", "```"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 6), engineOf(text));
+    expect(ctx?.kind).toBe("cell-option-key");
+    expect(ctx?.engine).toBeUndefined();
+  });
+
+  it("keeps the over-offer under an explicit `engine: markdown`", () => {
+    // The benign half of the filed divergence, deliberately NOT closed: quarto accepts a
+    // knitr-only key here (it is inert — `engine: markdown` + `{r}` + `#| cache: banana`
+    // renders exit 0), so withholding it would cost a completion to prevent nothing.
+    // The validator scopes this cell to `"unknown"`; completion stays wider on purpose.
+    const text = [
+      "---",
+      "engine: markdown",
+      "---",
+      "",
+      "```{r}",
+      "#| ca",
+      "1 + 1",
+      "```",
+    ].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 5, 5), engineOf(text))?.engine).toBe("knitr");
   });
 });

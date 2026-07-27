@@ -43,7 +43,10 @@ export interface YamlCompletionContext {
    * does not duplicate the trailing suffix (Learning #15b).
    */
   replaceRange: { line: number; startCol: number; endCol: number };
-  /** For cell-option positions: the owning cell's engine (approximated from `cell.lang`). */
+  /**
+   * For cell-option positions: the engine whose option set to offer — the DOCUMENT's when
+   * it names a real one, else the cell language's approximation (`completionEngineFor`).
+   */
   engine?: CellEngine;
 }
 
@@ -55,10 +58,26 @@ export interface YamlCompletionContext {
  * — or on a top-level front-matter line, within its key slot (`frontmatter-key`)
  * or value slot (`frontmatter-value`). A prose or code line, an indented/sequence
  * line, or the whitespace gap before a value all yield `null`.
+ *
+ * `documentEngine` is a THUNK, and both halves of that are deliberate (S169):
+ *
+ *  - **Required, not optional.** `document-engine.ts:38-45` records what optional latitude
+ *    bought the last time an engine input could be left out: a wrong call site that
+ *    type-checked in silence and restored the very defect the change existed to remove.
+ *    A required parameter makes forgetting it a compile error.
+ *  - **Lazy.** It is invoked only once the cursor is known to be on a cell-option line.
+ *    Resolving the engine costs a full-document `languagesInMarkdown` scan, and `:` — a
+ *    completion trigger character — is typed constantly in ordinary prose. Diagnostics pay
+ *    that cost on a debounce; completion has no debounce to hide behind.
+ *
+ * It cannot be resolved HERE: `resolveDocumentEngine` needs the front-matter enumerators,
+ * and both of those modules import this one, so calling them would close an import cycle in
+ * `src/core/`. Passing the answer in is the same shape `cellOptionScopeFor` already uses.
  */
 export function completionContextAt(
   text: string,
   offset: number,
+  documentEngine: () => DocumentEngine | "ambiguous" | undefined,
 ): YamlCompletionContext | null {
   const { line, col } = lineColAt(text, offset);
   const lineText = text.split(/\r?\n/)[line] ?? "";
@@ -73,7 +92,7 @@ export function completionContextAt(
       : null;
   }
   const key = optLine.keySlot;
-  const engine = engineFor(optLine.cellLang);
+  const engine = completionEngineFor(optLine.cellLang, documentEngine());
 
   // Key context while the cursor is within the key slot (≤ the colon).
   if (key !== null && col >= key.startCol && col <= key.endCol) {
@@ -746,6 +765,65 @@ export function cellOptionScopeFor(
   }
   // markdown, julia, and `"ambiguous"` all land on the engine-agnostic intersection.
   return "unknown";
+}
+
+/**
+ * The engine whose option set cell-option COMPLETION should offer (S169).
+ *
+ * One rule: **completion adopts the validator's scope wherever that scope names a real
+ * engine, and keeps its own over-offer wherever the validator NARROWS.**
+ *
+ * ```
+ * const scope = cellOptionScopeFor(lang, documentEngine);
+ * scope is "unknown" | "none"  →  engineFor(lang)   (the over-offer, unchanged)
+ * otherwise                    →  scope            (the fact, adopted)
+ * ```
+ *
+ * ## Why adopting the scope matters — the defect this closes
+ *
+ * Until S169 completion called `engineFor(lang)` alone while diagnostics called
+ * `cellOptionScopeFor(lang, documentEngine)`. Since S165 the document engine is resolved for
+ * essentially every document, so the two disagreed on ORDINARY files — and in the direction
+ * that hurts. Grounded firsthand vs quarto 1.7.33, three documents differing by one line:
+ *
+ * | document | `#\| cache: banana` renders |
+ * |---|---|
+ * | an `{r}` cell **and** a `{python}` cell | **exit 1** — `Field "cache" has value banana` |
+ * | the same, key removed | exit 0 (so the exit 1 is the VALUE, not the shape) |
+ * | the `{python}` cell **alone** | exit 0 (so it is the OTHER cell that puts `cache` in scope) |
+ *
+ * So in a knitr document we squiggled `cache` in a `{python}` cell while completion refused
+ * to offer it. Offering a key we never flag is benign under this project's doctrine;
+ * refusing to offer one we DO flag is worse than either half alone, and that is the half
+ * this function fixes.
+ *
+ * ## Why the two narrowing answers are NOT adopted
+ *
+ * The asymmetry that separates `"unknown"` from `undefined` in `cellOptionScopeFor` runs the
+ * other way out here. Those two scopes exist to stop the validator from *widening*; adopting
+ * them in completion would *narrow* it, deleting offers with no defect behind them:
+ *
+ *  - **`"unknown"`** — a markdown/julia/`"ambiguous"` document. Quarto ACCEPTS a knitr-only
+ *    key there (it is merely inert: `engine: markdown` + `{r}` + `#\| cache: banana` renders
+ *    exit 0), so withholding it would cost a real completion to prevent nothing.
+ *  - **`"none"`** — a `{dot}`/`{mermaid}` handler cell, where no cell schema applies at all.
+ *    Routing completion through the raw scope would hand `cellOptions` the EMPTY set and
+ *    silently delete cell-option completion in handler cells entirely — the mutant the S162
+ *    §9 review caught, which passed all 88 tests in this file before that pin existed.
+ *
+ * The upshot is an invariant worth stating: **the offered set is never a strict subset of
+ * the flagged set** — completion may still over-offer, and never under-offers.
+ *
+ * Returning `CellEngine | undefined` rather than widening to include `"unknown"` is what
+ * keeps `providers/yaml.ts`'s `index.cellOptions(ctx.engine)` call unchanged; `undefined`
+ * there already means "do not filter", the deliberate over-offer.
+ */
+function completionEngineFor(
+  lang: string,
+  documentEngine: DocumentEngine | "ambiguous" | undefined,
+): CellEngine | undefined {
+  const scope = cellOptionScopeFor(lang, documentEngine);
+  return scope === "unknown" || scope === "none" ? engineFor(lang) : scope;
 }
 
 /**
