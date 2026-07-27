@@ -22,6 +22,15 @@ const ENGINE_OVERRIDE_RMD = path.resolve(
   ROOT,
   "test/fixtures/yaml-value-diagnostics/engine-override.Rmd",
 );
+// S170's matched pair: byte-identical files whose ONLY difference is the extension.
+const RMD_PYTHON_CELL = path.resolve(
+  ROOT,
+  "test/fixtures/yaml-value-diagnostics/rmd-python-cell.Rmd",
+);
+const RMD_PYTHON_CELL_QMD_TWIN = path.resolve(
+  ROOT,
+  "test/fixtures/yaml-value-diagnostics/rmd-python-cell.qmd",
+);
 const INVALID_FORMAT_NAME = path.resolve(ROOT, "test/fixtures/format-name/invalid.qmd");
 const VALID_FORMAT_NAME = path.resolve(ROOT, "test/fixtures/format-name/valid.qmd");
 const VALID_ASPECTRATIO_FRONT_MATTER = path.resolve(
@@ -2043,6 +2052,60 @@ describe("Quarto: the front-matter `engine:` override scopes cell options (.qmd,
       )
         .map((d) => d.range.start.line)
         .join(",")}`,
+    );
+  });
+
+});
+
+/**
+ * S170 — the `.Rmd` is scoped TO knitr, not merely protected from an override.
+ *
+ * The S164 case above cannot observe that: its cell is `{r}`, whose language approximation
+ * already answered knitr, so it passes identically against a build that ignores the
+ * extension entirely. These two do observe it, and only as a PAIR — the fixtures are
+ * BYTE-IDENTICAL and the sole difference is the file name, which is the one input no
+ * headless gate in this project varies (`test/unit` never sees the adapter; the oracle calls
+ * `valueFlags` directly and so cannot prove `document.fileName` is what reaches it).
+ *
+ * Both fixtures were rendered as committed: the `.Rmd` exits 1 (`Field "cache" has value
+ * banana`), the `.qmd` twin exits 0.
+ */
+describe("Quarto: an .Rmd is knitr for EVERY cell (Session 170)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("scopes a {python} cell of a .Rmd to KNITR — the extension, not the language", async () => {
+    const doc = await openActive(RMD_PYTHON_CELL);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).some((d) => d.range.start.line === 5), 5000),
+      `the knitr-only 'cache' on line 5 of a .Rmd renders quarto exit 1 and MUST be flagged; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => d.range.start.line)
+        .join(",")}`,
+    );
+  });
+
+  it("leaves the BYTE-IDENTICAL .qmd twin silent", async () => {
+    // The control that gives the case above its meaning. As a `.qmd` this document resolves
+    // to jupyter from its only cell's language, quarto renders it exit 0, and flagging it
+    // would be the cardinal sin. If this ever starts flagging, the case above proves nothing.
+    const doc = await openActive(RMD_PYTHON_CELL_QMD_TWIN);
+    assert.ok(
+      !(await waitFor(() => valueDiagnostics(doc.uri).length > 0, 2000)),
+      `the .qmd twin renders quarto exit 0 and must stay silent; flagged: ${valueDiagnostics(
+        doc.uri,
+      )
+        .map((d) => `${d.range.start.line}:${d.message}`)
+        .join(", ")}`,
     );
   });
 });

@@ -7,6 +7,16 @@ const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 // out/test/integration/suite -> project root
 const ROOT = path.resolve(__dirname, "../../../..");
 const FIXTURE = path.resolve(ROOT, "test/fixtures/yaml-completion.qmd");
+// S170's matched pair, shared with the diagnostics suite: byte-identical files whose ONLY
+// difference is the extension. Completion and diagnostics must agree about the same bytes.
+const RMD_PYTHON_CELL = path.resolve(
+  ROOT,
+  "test/fixtures/yaml-value-diagnostics/rmd-python-cell.Rmd",
+);
+const RMD_PYTHON_CELL_QMD_TWIN = path.resolve(
+  ROOT,
+  "test/fixtures/yaml-value-diagnostics/rmd-python-cell.qmd",
+);
 
 async function openFixture(): Promise<vscode.TextDocument> {
   const doc = await vscode.workspace.openTextDocument(FIXTURE);
@@ -235,6 +245,66 @@ describe("Quarto: cell-option completion follows the document engine (S169)", ()
     assert.ok(
       !labels.includes("cache"),
       `jupyter document: 'cache' must NOT be offered; got ${JSON.stringify(labels)}`,
+    );
+  });
+});
+
+/**
+ * S170 — completion on an `.Rmd`, where S169's fix was inert until the extension branch of
+ * `documentEngineForScoping` learned to answer `"knitr"`.
+ *
+ * Both S169 cases above open an UNTITLED in-memory document, so `document.fileName` is
+ * `"Untitled-1"` and the branch this session changed is unreachable from them. These two
+ * open REAL FILES — byte-identical ones whose only difference is the extension — which
+ * makes this the only gate in the project that proves the provider passes
+ * `document.fileName` at all. They are shared with the diagnostics suite on purpose: the
+ * two features must agree about the same bytes, and one fixture pair is how that stays true.
+ *
+ * Rendered as committed: the `.Rmd` exits 1 (`Field "cache" has value banana`), the `.qmd`
+ * twin exits 0.
+ */
+describe("Quarto: cell-option completion on a real .Rmd file (S170)", () => {
+  // `#| cache: banana` on line 5; column 5 puts the cursor inside the KEY token, after
+  // `#| ca` — the same key slot the S169 cases probe, on a document that has a file name.
+  const KEY_SLOT = new vscode.Position(5, 5);
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  it("offers the knitr-only `cache` in a {python} cell of a .Rmd", async () => {
+    const doc = await vscode.workspace.openTextDocument(RMD_PYTHON_CELL);
+    await vscode.window.showTextDocument(doc);
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      KEY_SLOT,
+    );
+    const labels = cellOptionLabels(list);
+    assert.ok(
+      labels.includes("cache"),
+      `.Rmd: the {python} cell must offer 'cache'; got ${JSON.stringify(labels)}`,
+    );
+  });
+
+  it("does NOT offer it in the BYTE-IDENTICAL .qmd twin", async () => {
+    // The control. As a `.qmd` this document resolves to jupyter from its only cell's
+    // language, quarto accepts `cache: banana` there, and offering the key would advertise
+    // an option that can never take effect. Without this row the case above would pass
+    // against a provider that offers `cache` unconditionally.
+    const doc = await vscode.workspace.openTextDocument(RMD_PYTHON_CELL_QMD_TWIN);
+    await vscode.window.showTextDocument(doc);
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      KEY_SLOT,
+    );
+    const labels = cellOptionLabels(list);
+    assert.ok(labels.length > 0, "the provider is live here (it offers the jupyter set)");
+    assert.ok(
+      !labels.includes("cache"),
+      `.qmd twin: 'cache' must NOT be offered; got ${JSON.stringify(labels)}`,
     );
   });
 });
