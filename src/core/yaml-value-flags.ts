@@ -145,9 +145,11 @@ export function valueFlags(
   // schema to — `validateDocument` hands `context.engine.name` to
   // `partitionCellOptionsMapped`, which picks `engineOptionsSchema[engine]`. Resolved once
   // for the whole document because the engine IS a document-level fact. `undefined` means
-  // "keep the per-cell language approximation" and is now reached only by an `.Rmd`, an
+  // "keep the per-cell language approximation" and is now reached only by an
   // `{{< include >}}` whose expansion we cannot see, a front matter quarto's `trimLeft`
-  // reveals and our scanner does not, or an unreadable competing selector.
+  // reveals and our scanner does not, or an unreadable competing selector. (An `.Rmd` was on
+  // that list until S170, which made it `"knitr"` — knitr claims the file by EXTENSION, so
+  // every cell of one is scoped to knitr, including `{python}`/`{sql}`/`{ojs}`.)
   //
   // The four derived inputs this needs live in `core/document-engine-resolve.ts` rather than
   // here (S169) — read that module for WHICH enumerator each argument must be and why a

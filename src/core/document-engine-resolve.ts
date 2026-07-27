@@ -55,11 +55,15 @@ import { findNestedFrontMatterValueLines } from "./yaml-frontmatter-nested-value
 /**
  * The engine quarto would scope this document's cell options to — `"ambiguous"` when its
  * front matter selects more than one, and `undefined` when nothing here can answer (an
- * `.Rmd`, an `{{< include >}}` whose expansion we cannot see, a front matter quarto's
- * `trimLeft` reveals and our scanner does not, or a selector whose value we cannot read).
+ * `{{< include >}}` whose expansion we cannot see, a front matter quarto's `trimLeft`
+ * reveals and our scanner does not, or a selector whose value we cannot read).
  * `undefined` means "keep the per-cell language approximation", never "markdown".
  *
- * `fileName` is read only for the `.Rmd` extension veto; it is never opened.
+ * `fileName` is read only for the R-Markdown extensions, and it is never opened. Until S170
+ * that read was a VETO — it answered `undefined` so no `engine:` key could silence a
+ * document quarto validates anyway. It is now the answer itself: an `.Rmd` is `"knitr"` for
+ * every cell, which is the ONE knitr verdict this module reaches without reading anything,
+ * and therefore the one it cannot get wrong (`isRMarkdownFileName`, `document-engine.ts`).
  */
 export function resolveDocumentEngine(
   fileName: string,

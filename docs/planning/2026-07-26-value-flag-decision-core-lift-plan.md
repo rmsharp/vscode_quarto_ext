@@ -163,6 +163,13 @@ re-declare them.)
 | Contract | Value |
 |---|---|
 | **Input** | A `ValueSources` (which carries its own text snapshot), the document's `fileName` (the `.Rmd` veto inside `documentEngineForScoping`), and a parsed `SchemaIndex` |
+
+> **Annotation (Session 170, not a rewrite):** the `fileName` row above records what that
+> input bought *when this plan was written*, and the contract itself is unchanged. What moved
+> is the branch behind it: the `.Rmd` read is no longer a veto returning `undefined` but the
+> answer itself — `"knitr"`, for every cell — so `fileName` now decides a document's whole
+> option scope rather than merely blocking an override. See `src/core/document-engine.ts`
+> `isRMarkdownFileName` and the S170 block in `test/unit/yaml-value-flags.test.ts`.
 | **Output** | Three arrays. `frontMatter` holds top-level **and** format-name flags **interleaved in source order**, exactly as the single loop at `:234-320` emits them today. The feature's diagnostic order is `cell` ++ `frontMatter` ++ `nested` |
 | **Errors** | None. Total function — every existing `continue`/`break` is a skip, not a throw. An offline `index.formatNamesForValidation() === null` yields no format-name flags (today's `:238` behaviour) |
 | **Versioning** | Internal module; the only consumers are the feature and the oracle, both in-tree |
