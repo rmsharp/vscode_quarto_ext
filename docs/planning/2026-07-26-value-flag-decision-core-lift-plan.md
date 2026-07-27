@@ -680,6 +680,10 @@ Explicitly out of scope (FM #26). Each stays filed:
 - **Completion is not touched.** `providers/yaml.ts` still scopes by cell language rather than
   document engine (BACKLOG: *Cell-option COMPLETION never learns the document engine*). This
   extraction makes that fix easier later; wiring it is a different capability.
+  *(Still true of Session 168, which this plan governs — but no longer true of the codebase:
+  **Session 169 shipped that fix.** Completion now resolves the document engine through
+  `core/document-engine-resolve.ts`, the shared entry point `valueFlags` also calls. Noted
+  rather than rewritten, because the sentence correctly records this plan's scope boundary.)*
 - **The corpus is not widened**, and `corpus.ts:14`'s stale "64 documents" is filed, not
   fixed. Widening in the same session would make the before/after unreadable.
 - **`features/yaml-project-value-diagnostics.ts` (249 lines) is not extracted**, though it has
