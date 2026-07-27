@@ -213,9 +213,14 @@ export function valueFlags(
     }
     // Resolve the key against the engine-scoped set. An unknown key is never flagged —
     // that is the permanently-banned unknown-key territory, not this feature's job (plan
-    // §7.4). This is the same set completion offers WHENEVER the engine is determined; the
-    // two deliberately diverge only where it is not (`"unknown"` vs `undefined`), because
-    // an over-offer is benign and an over-flag is the cardinal sin.
+    // §7.4). Since S169 completion resolves the SAME document engine through the SAME
+    // `resolveDocumentEngine`, so wherever that engine names knitr or jupyter the two sets
+    // are identical. They still diverge on the two NARROWING scopes — `"unknown"` (a
+    // markdown/julia/ambiguous document) and `"none"` (a handler cell) — where completion
+    // keeps the wider language approximation (`completionEngineFor`, `yaml-context.ts`),
+    // because an over-offer is benign and an over-flag is the cardinal sin. The invariant
+    // that buys: the offered set is never a strict subset of the set flagged here, so this
+    // loop can no longer squiggle a key completion refuses to offer.
     // `cellOptionScopeFor`, NOT `engineFor`: an undeterminable engine must narrow to the
     // engine-agnostic intersection, never widen to the full set. Since S161 the enumerator
     // reports options for every language in quarto's comment-char table, so a `{sql}`/

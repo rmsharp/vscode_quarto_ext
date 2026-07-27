@@ -8,6 +8,13 @@
  * (`core/yaml-context`), the option data in `core/yaml-schema`. This class only
  * translates between `vscode` positions/ranges and the core model.
  *
+ * Which cell options to offer is scoped by the DOCUMENT's engine, not the cell's language
+ * (S169) — `core/document-engine-resolve`, the same entry point the value validator calls.
+ * Before that the two disagreed on ordinary documents: in a knitr document the validator
+ * squiggled a knitr-only key in a `{python}`/`{sql}` cell that this provider refused to
+ * offer. The scoping RULE, including the two cases where completion deliberately stays
+ * wider than the validator, lives at `completionEngineFor` (`core/yaml-context`).
+ *
  * Provider gating is the INVERSE of the `@` cross-ref/citation providers (plan
  * §4.3): those gate to prose (`isReferenceableLine`); this one fires ONLY where
  * `completionContextAt` reports a YAML position and returns `undefined` everywhere

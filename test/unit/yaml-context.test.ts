@@ -702,8 +702,9 @@ describe("cellOptionScopeFor — a cell-HANDLER language is validated by no cell
 
   it("still OFFERS cell-option completion in a handler cell — only validation narrows", () => {
     // The same asymmetry that separates `"unknown"` from `undefined`, one step further out:
-    // an over-OFFER is benign, an over-FLAG is the cardinal sin. Completion goes through
-    // `engineFor`, not `cellOptionScopeFor`, so a `{dot}` cell keeps completing the
+    // an over-OFFER is benign, an over-FLAG is the cardinal sin. Completion routes through
+    // `completionEngineFor` (S169), which adopts this function's answer only where it names
+    // a real engine and NEVER adopts `"none"`, so a `{dot}` cell keeps completing the
     // cell-option list even though nothing there will ever be validated. A narrowing that
     // reached completion too would be a silent capability loss with no defect to justify it.
     // (`//` is genuinely dot's comment char in quarto's own table, so quarto reads this line

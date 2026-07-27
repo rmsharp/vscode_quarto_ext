@@ -517,7 +517,10 @@ export interface SchemaIndex {
    * Four scopes, deliberately distinct:
    *  - a concrete engine — that engine's options plus the engine-agnostic ones;
    *  - `undefined` (absent) — the FULL set, unfiltered. "We do not filter what we cannot
-   *    classify": an over-OFFER, correct for completion;
+   *    classify": an over-OFFER. Completion's fallback, no longer its ordinary case — since
+   *    S169 it passes a concrete engine whenever the DOCUMENT names one
+   *    (`completionEngineFor`, `yaml-context.ts`), and reaches this only for a handler cell
+   *    or a language it cannot classify in a document whose engine narrows;
    *  - `"unknown"` — ONLY the engine-agnostic options, i.e. the intersection valid under
    *    every engine. No field carries this tag, so the same filter yields it. This is the
    *    over-offer's mirror: the FP-safe scope for VALIDATION when the document engine is

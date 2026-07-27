@@ -644,13 +644,20 @@ export function unquoteKey(key: string): string {
 /**
  * The cell engine for a cell language: knitr for `{r}`, jupyter for
  * `{python}`/`{julia}`, ojs for `{ojs}`/`{js}`. An unrecognized language yields
- * `undefined`, which `cellOptions` reads as "do not filter" — a benign over-OFFER, and so
- * what the COMPLETION provider wants (`providers/yaml.ts`).
+ * `undefined`, which `cellOptions` reads as "do not filter" — a benign over-OFFER.
  *
- * Diagnostics must not use this directly: an over-flag is the cardinal sin, not a benign
- * over-offer. They go through `cellOptionScopeFor` below, which maps the same `undefined`
- * to the narrowing `"unknown"` scope. Both live here so the two consumers share ONE language
- * → engine table rather than duplicating it (value-validation plan §4.1 L3).
+ * **Neither consumer calls this as its whole answer any more.** It is the LANGUAGE
+ * approximation, and both consumers now prefer the document's own engine where they can get
+ * it (S164/S165 for diagnostics, S169 for completion):
+ *
+ * - diagnostics go through `cellOptionScopeFor`, which maps this `undefined` to the
+ *   narrowing `"unknown"` scope — an over-flag is the cardinal sin, a benign over-offer is
+ *   not;
+ * - completion goes through `completionEngineFor`, which reaches this function only where
+ *   that scope would NARROW (a markdown/julia/ambiguous document, or a handler cell).
+ *
+ * Both live here so the consumers share ONE language → engine table rather than duplicating
+ * it (value-validation plan §4.1 L3).
  */
 export function engineFor(lang: string): CellEngine | undefined {
   switch (lang.toLowerCase()) {
@@ -917,9 +924,12 @@ function completionEngineFor(
  * raw token, and that fix is its own deliverable because `findAllCells` feeds the outline,
  * virtual documents, highlighting and diagram regions. Filed, not papered over.
  *
- * Only DIAGNOSTICS narrow this far. Completion still goes through `engineFor`, so a handler
- * cell keeps offering the cell-option list — an over-offer, which is benign, where an
+ * Only DIAGNOSTICS narrow this far. Completion learned the document engine in S169, but it
+ * routes through `completionEngineFor`, which deliberately does NOT adopt this `"none"` — a
+ * handler cell keeps offering the cell-option list, an over-offer, which is benign where an
  * over-flag is not (the same asymmetry that separates `"unknown"` from `undefined`).
+ * Adopting it would hand `cellOptions` the EMPTY set and delete handler-cell completion
+ * outright, which is the mutant the S162 §9 review caught and the pin below still guards.
  * Emission is untouched too: `findCellOptionLines` still reports handler-cell option lines.
  * Exactly two modules consume that enumerator — `completionContextAt` just above, and
  * `core/yaml-value-flags.ts` (the value decision; S168 lifted it out of
