@@ -29,18 +29,14 @@
  * (`SchemaField.valuesClosed`) — the pure `isWrongValue` matcher never flags an open set
  * (plan §0/§7.1).
  */
-import { findCellOptionLines, frontMatterContentLines, type CellOptionLine } from "./qmd/model";
-import {
-  findFrontMatterTopLevelLines,
-  findFrontMatterValueLines,
-  type FrontMatterValueLine,
-} from "./yaml-frontmatter-values";
+import { findCellOptionLines, type CellOptionLine } from "./qmd/model";
+import { findFrontMatterValueLines, type FrontMatterValueLine } from "./yaml-frontmatter-values";
 import {
   findNestedFrontMatterValueLines,
   type NestedFrontMatterValueLine,
 } from "./yaml-frontmatter-nested-values";
 import { cellOptionScopeFor, mappingColonAt, valueSlotAfterColon } from "./yaml-context";
-import { documentEngineForScoping } from "./document-engine";
+import { resolveDocumentEngine } from "./document-engine-resolve";
 import { isWrongValue, valueMessage, unquote } from "./yaml-value-check";
 import { isKnownFormatName, formatNameMessage } from "./format-name-check";
 import {
@@ -145,28 +141,21 @@ export function valueFlags(
   // ONE surface is deliberately NOT suppressed — see the `format` branch below.
   const documentValidationOff = isValidationDisabledByFrontMatter(fmValueLines);
   const optedOutCells = cellsWithValidationDisabled(cellLines, lines);
-  // The DOCUMENT's engine (S164), which is what quarto actually scopes a cell's option
+  // The DOCUMENT's engine (S164/S165), which is what quarto actually scopes a cell's option
   // schema to — `validateDocument` hands `context.engine.name` to
   // `partitionCellOptionsMapped`, which picks `engineOptionsSchema[engine]`. Resolved once
-  // for the whole document because the engine IS a document-level fact.
-  // `findFrontMatterTopLevelLines`, not `fmValueLines`: a key can select an engine without
-  // carrying a scalar. `jupyter:` above a kernelspec block is the everyday spelling of the
-  // alias and renders quarto exit 0 on a knitr-only cell option, so reading only the
-  // value-bearing lines would leave that document's `{r}` cells scoped to knitr — the very
-  // false positive this fix removes.
-  // `text` is the LANGUAGE fallback's input (S165): when the front matter names no engine,
-  // quarto resolves one from the document's own cell fences — document-wide and
-  // order-dependent — so the resolver needs the raw document, not our cell list (its
-  // docstrings carry the measurements for why those differ). `undefined` still means "keep
-  // the per-cell language approximation", but it is now reached only by an `.Rmd`, by an
-  // `{{< include >}}` whose expansion we cannot see, or by an unreadable competing selector.
-  const documentEngine = documentEngineForScoping(
-    fileName,
-    findFrontMatterTopLevelLines(text),
-    nestedLines,
-    frontMatterContentLines(text),
-    text,
-  );
+  // for the whole document because the engine IS a document-level fact. `undefined` means
+  // "keep the per-cell language approximation" and is now reached only by an `.Rmd`, an
+  // `{{< include >}}` whose expansion we cannot see, a front matter quarto's `trimLeft`
+  // reveals and our scanner does not, or an unreadable competing selector.
+  //
+  // The four derived inputs this needs live in `core/document-engine-resolve.ts` rather than
+  // here (S169) — read that module for WHICH enumerator each argument must be and why a
+  // wrong one type-checks in silence. They moved because cell-option COMPLETION needs the
+  // identical answer: it used to scope by the cell LANGUAGE, so in a knitr document it
+  // refused to offer the very knitr-only key the loop below squiggles. Two hand-written
+  // copies of one fact is the mirror drift S166-S168 spent three sessions removing.
+  const documentEngine = resolveDocumentEngine(fileName, text);
   for (const c of cellLines) {
     if (documentValidationOff || optedOutCells.has(c.cellStartLine)) {
       continue; // quarto validates nothing in this cell — grounded firsthand, exit 0
