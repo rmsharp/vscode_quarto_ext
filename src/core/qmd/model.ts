@@ -635,13 +635,18 @@ export function findAllCells(text: string): Cell[] {
  * renders exit 1, and `{banana}` behaves the same way — quarto does not lowercase the fence
  * token before the lookup, so `{SQL}` is simply an unknown language taking the default.
  *
- * Two rows — `d3` and `fortran95` — are unreachable in quarto: its cell-fence recognizer
- * captures the language as `([=A-Za-z]+)`, so a token containing a DIGIT is never a cell at
- * all and its options are never validated (`{fortran}` + `!| echo: banana` renders exit 1,
- * `{fortran95}` renders exit 0). Our `CELL_INFO` does admit digits, so such a cell is flagged
- * — also PRE-EXISTING (the old hard-coded `#` reached `{fortran95}` the same way, and that
- * direction is now silent), root-caused in the fence-token grammar rather than here, and
- * likewise filed.
+ * Two rows — `d3` and `fortran95` — are unreachable, in quarto AND now here: quarto's
+ * cell-fence recognizer captures the language as `([=A-Za-z]+)`, so a token containing a
+ * DIGIT is never a cell at all and its options are never validated (`{fortran}` +
+ * `!| echo: banana` renders exit 1, `{fortran95}` renders exit 0).
+ *
+ * ✅ **CLOSED, Session 172.** This paragraph used to end "Our `CELL_INFO` does admit digits,
+ * so such a cell is flagged … likewise filed." It no longer does: `CELL_INFO` is now quarto's
+ * grammar, so a digit-bearing token builds no cell and never reaches this table. The two rows
+ * stay in the table deliberately — they are dead by quarto's grammar, not by ours, so deleting
+ * them would silently re-couple this table to a decision made one regex away. They are also the
+ * ONLY two of the 46 rows containing a character outside `[A-Za-z]`; every other row is
+ * reachable exactly as before.
  */
 const LANG_COMMENT_CHARS: Readonly<Record<string, readonly [string] | readonly [string, string]>> = {
   r: ["#"], python: ["#"], julia: ["#"], scala: ["//"], matlab: ["%"], csharp: ["//"],

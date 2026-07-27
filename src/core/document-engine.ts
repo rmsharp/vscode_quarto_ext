@@ -526,10 +526,16 @@ const INCLUDE_SHORTCODE = /\{\{<\s*include\b/;
  *   (`([=A-Za-z]+)` in `breakQuartoMd`). So `{r9}` is a LANGUAGE but not a CELL: measured,
  *   `{r9}` + `#| cache: banana` renders exit 0 (nothing in it is validated) while `{r9}`
  *   followed by a real `{r}` cell renders exit 1. Conversely `{r.foo}` matches NEITHER
- *   recognizer — exit 0 for both `cache:` and `echo:` — though our own `CELL_INFO` does admit
- *   it as an `{r}` cell (the fence-token divergence BACKLOG already tracks); resolving the
- *   engine from the raw text rather than from the cell list is what keeps that divergence out
- *   of the engine answer.
+ *   recognizer — exit 0 for both `cache:` and `echo:`.
+ *
+ *   ⚠ **These two classes must stay different, and Session 172 is when that stopped being an
+ *   accident.** `CELL_INFO` used to admit `{r9}` and `{r.foo}` as cells; S172 moved it onto
+ *   quarto's CELL grammar (`[=A-Za-z]`), which is NOT this one. Do not "consolidate" the two:
+ *   quarto's own two recognizers disagree on purpose, and unifying ours regresses BOTH
+ *   directions — a `{python3}`-only document would stop resolving jupyter (this scan counts
+ *   `python3`; the cell recognizer does not), and a `{=html}`-only document would start
+ *   resolving one (the cell recognizer accepts a leading `=`; this scan does not). Resolving
+ *   the engine from the raw text rather than from the cell list is what keeps the two apart.
  * - `( *[ ,].*)?` then `\s*$` — knitr's attribute forms (`{r, echo=FALSE}`, `{r echo=FALSE}`)
  *   count, but trailing text after the closing brace (```` ```{julia} x ````) does not
  *   (exit 1).

@@ -966,17 +966,23 @@ function completionEngineFor(
  * on `#| echo: banana` (measured). Folding case here would convert those true positives
  * into silence.
  *
- * **`lang` is OUR token, not quarto's, and for one shape they differ.** Quarto's fence
- * recognizer captures the language as `([=A-Za-z]+)` — `=` is INSIDE the class — so
- * ```` ```{mermaid=x} ```` has the language `mermaid=x`, which is not in
+ * ✅ **`lang` used to be OUR token rather than quarto's for one shape. CLOSED, Session 172.**
+ * Quarto's fence recognizer captures the language as `([=A-Za-z]+)` — `=` is INSIDE the class
+ * — so ```` ```{mermaid=x} ```` has the language `mermaid=x`, which is not in
  * `handlers/languages.yml` and therefore takes the ordinary cell schema: measured, its
- * `#| echo: banana` renders **exit 1** with a real `Field "echo" has value banana`. Our
- * `CELL_INFO` truncates the token at `=`, so it arrives here as `mermaid`, matches, and is
- * suppressed — a true positive we flagged before S162 and lose now. The root cause is the
- * pre-existing `CELL_INFO`/fence-token divergence already tracked in BACKLOG (the same regex
- * that admits digits, which quarto's recognizer rejects); it cannot be fixed here without the
- * raw token, and that fix is its own deliverable because `findAllCells` feeds the outline,
- * virtual documents, highlighting and diagram regions. Filed, not papered over.
+ * `#| echo: banana` renders **exit 1** with a real `Field "echo" has value banana`. `CELL_INFO`
+ * used to TRUNCATE the token at `=`, so it arrived here as `mermaid`, matched this handler set,
+ * and was suppressed — a true positive we flagged before S162 and then lost. S172 moved
+ * `CELL_INFO` onto quarto's grammar, so the token now arrives as `mermaid=x`, misses this set,
+ * and is flagged again; the oracle row `S172 {mermaid=x} glued token + echo` measures it, and
+ * the bare `{mermaid}` row beside it proves the exemption below still applies.
+ *
+ * ⚠ What did NOT move: an `=`-LED token. Quarto's class accepts one, and quarto really does
+ * validate raw blocks (`{=html}` + `#| echo: banana` renders exit 1, and `#| cache: banana` in
+ * a knitr document renders exit 1 too — a raw block takes the document engine's schema).
+ * `CELL_INFO` keeps its letter-led rule on purpose, because adopting that WIDENS what we
+ * squiggle onto a new block class and hands `lang === "=html"` to this function, the outline,
+ * the virtual-document language map, run-cell and the crossref index. Filed as its own item.
  *
  * Only DIAGNOSTICS narrow this far. Completion learned the document engine in S169, but it
  * routes through `completionEngineFor`, which deliberately does NOT adopt this `"none"` — a
