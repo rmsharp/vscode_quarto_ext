@@ -526,9 +526,11 @@ describe("Session 165 — documentEngineForScoping: the DEFAULT engine, from the
     // reaches the second loop and forces jupyter rather than leaving the document markdown.
     expect(resolve("---\ntitle: t\n---\n\n```{r9}\nx\n```\n")).toBe("jupyter");
     // …but a DOT is in neither recognizer: `{r.foo}` is not a language and not a cell
-    // (measured, both `#| cache: banana` and `#| echo: banana` render exit 0), even though our
-    // own `CELL_INFO` reads it as an `{r}` cell. Resolving from the raw text is what keeps
-    // that pre-existing fence-token divergence out of the engine answer.
+    // (measured, both `#| cache: banana` and `#| echo: banana` render exit 0). Until S172 our
+    // own `CELL_INFO` read it as an `{r}` cell and this comment cited that as a divergence the
+    // raw-text resolution kept out of the engine answer; `CELL_INFO` now carries quarto's cell
+    // grammar, so it agrees here too. The pin below is unchanged and still discriminating — it
+    // asserts the ENGINE, which has always come from the raw text, never from the cell list.
     expect(resolve("---\ntitle: t\n---\n\n```{r.foo}\nx\n```\n")).toBe("markdown");
   });
 
