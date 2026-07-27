@@ -7,6 +7,59 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-27 · [ad hoc] Session 170 — IMPLEMENTATION: an `.Rmd` is knitr for EVERY cell (SHIPPED)
+
+`documentEngineForScoping` answered `undefined` on quarto's `kRmdExtensions`. That was a
+**veto** — it stopped a front-matter `engine:` key from silencing a document quarto validates
+anyway — but it left both consumers on their per-cell language guess, so an `.Rmd`'s
+`{python}` cell was scoped to jupyter and up to **20** knitr-only flaggable fields were lost
+on every such file. Since S169 it cost completion too: that session taught completion the
+document engine, and this branch was the one place its fix was **inert**. It now answers
+`"knitr"`, which is what quarto uses for every cell of an `.Rmd`.
+
+**Grounded firsthand vs quarto 1.7.33**, on a document whose only cell is `{python}` — the
+language whose own fallback is jupyter, so a knitr verdict cannot have come from the
+languages: `doc.Rmd` + `#| cache: banana` renders **exit 1**; the byte-identical `doc.qmd`
+renders exit 0; the key removed renders exit 0; the agnostic `#| echo: banana` renders exit 1.
+`.rmd`, `.RMD` and `.Rmarkdown` all exit 1, and `{sql}`/`{ojs}`/`{bash}` cells exit 1 too.
+
+**The widening was swept, not argued.** knitr is the one answer that widens what we squiggle
+(+20 fields; every other engine maps to the same 23-field agnostic set). All 20 —
+`cache`, `cache-lazy`, `cache-rebuild`, `cache-comments`, `autodep`, `tidy`, `collapse`,
+`prompt`, `fig-width`, `fig-height`, `fig-format`, `fig-dpi`, `fig-asp`, `fig-show`,
+`external`, `sanitize`, `interval`, `purl`, `message`, `results` — were rendered as
+`#| <field>: banana` in a `{python}` cell of a `doc.Rmd`. **All 20 exit 1.** Valid values stay
+valid (`cache: true`, `fig-width: 6`, `results: hide` all exit 0), and the handler carve-out
+holds: `{dot}` + `//| cache: banana` renders exit 0 and `cellOptionScopeFor`'s `"none"` guard
+sits above the engine, so it is not flagged.
+
+**The `.Rmd` is the ONE document class whose engine is CERTAIN**, and that was measured rather
+than reasoned. `claimsFile` runs before `fileExecutionEngine` partitions anything, so none of
+the three open items that make other documents' engines uncertain can reach it — a
+front-matter override, a project `engines: [jupyter, knitr]` that reorders that very loop, and
+an `{{< include >}}` whose child holds a `{julia}` cell all still render exit 1 on a `doc.Rmd`.
+
+**The oracle grew twelve `.Rmd` rows (66 → 78 documents).** The corpus was 100% `.qmd`, so the
+extension branch had never been inside its horizon — C1 ran byte-identically green over all 66
+because none of them could observe it. Replayed against the pre-S170 build
+(`git archive af5a4bb src`) over the same 78: **63 agree / 11 lost TP / 4 cardinal FP** there
+against **71 / 3 / 4** here. Eight rows move from lost-TP to agree and the cardinal-FP count is
+**identical on both sides** — the measurement that made a widening safe to ship.
+
+**Runtime-verified RED then GREEN** with the operator's go-ahead (FM #24), on the only surface
+that sees a file name: a byte-identical fixture pair (`rmd-python-cell.Rmd` / `.qmd`) shared by
+the completion and diagnostics suites. RED with the one line reverted: **481 passing / 2
+failing**, the completion failure printing the whole 49-key jupyter set with `cache` absent,
+both `.qmd` controls passing in the same run. GREEN: **483 passing / 0 failing**.
+
+Commits: 1B claim `fcb2862`; **C1** `5147b1b` [RED→GREEN] the decision + the validator;
+**C2** `5786d0f` completion's inherited pins and the docstring that denied them; **C3**
+`ff70cf8` the oracle corpus + replay; **C4** `fe64c9f` the integration fixture pair; **C5**
+`0025055` the four corpus sites the change made stale. Close-out (this commit). Closes
+BACKLOG's "An `.Rmd`/`.rmd` is knitr for EVERY cell"; files a new one in its place (an
+`.Rmarkdown` never activates the extension at all, so the decision handles an extension the
+editor never delivers).
+
 ### 2026-07-27 · [ad hoc] Session 169 — IMPLEMENTATION: cell-option completion learns the document engine (SHIPPED)
 
 Cell-option **completion** scoped a cell's option list by the cell LANGUAGE
