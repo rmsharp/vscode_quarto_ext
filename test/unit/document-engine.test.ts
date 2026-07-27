@@ -5,9 +5,15 @@ import { findNestedFrontMatterValueLines } from "../../src/core/yaml-frontmatter
 import { frontMatterContentLines } from "../../src/core/qmd/model";
 
 /**
- * Drive the resolver the way the feature does — from the real enumerators over a real
- * document — so a pin cannot pass against a hand-built input shape the enumerators
- * never actually produce.
+ * Drive the DECISION from the real enumerators over a real document, so a pin cannot pass
+ * against a hand-built input shape the enumerators never actually produce.
+ *
+ * ⚠ **This is deliberately NOT byte-for-byte what the feature does, since S171.** The
+ * shipped entry point is `resolveDocumentEngine`, which `trimStart()`s the text before
+ * deriving these four arguments — quarto's engine partitioner is `lines(markdown.trimLeft())`.
+ * This helper passes the text through untouched, which is what keeps the leading-whitespace
+ * guard below reachable and testable at the decision level. For what the product answers on
+ * those documents, see `test/unit/document-engine-resolve.test.ts`.
  */
 const resolve = (text: string, fileName = "doc.qmd") =>
   documentEngineForScoping(
@@ -621,13 +627,22 @@ describe("Session 165 §9 — a shape we DECLINE to read must block the fallback
     expect(resolve(rDoc("execute:\n  engine: markdown\n"))).toBe("markdown");
   });
 
-  it("declines when quarto's trimLeft gives it a front matter our scanner never saw", () => {
+  it("DECISION LEVEL: declines untrimmed text whose front matter our scanner never saw", () => {
     // `partitionYamlFrontMatter` runs `lines(markdown.trimLeft())`, so a blank line BEFORE the
     // opening `---` hides the block from `scanRegions` and not from quarto. Measured: that
     // document with `engine: markdown` renders **exit 0** (control `#| echo: banana`: exit 1;
-    // the same document without the `engine:` line: exit 1). The skew is PRE-EXISTING and
-    // filed, but before S165 it cost only the {r} cells — falling back to the languages here
-    // would widen it to every cell, which is what this guard prevents.
+    // the same document without the `engine:` line: exit 1). Before S165 the skew cost only
+    // the {r} cells — falling back to the languages here would widen it to every cell, which
+    // is what this guard prevents.
+    //
+    // ⚠ **S171 means the PRODUCT no longer reaches this guard for these two inputs.**
+    // `resolveDocumentEngine` trims first, so the real answer for the first document is now
+    // `"markdown"` — pinned in `document-engine-resolve.test.ts` and in the S171 block of
+    // `yaml-value-flags.test.ts`. What is pinned HERE is the decision's own contract given
+    // untrimmed input, which is still exercised by first lines that start with `---` without
+    // being a fence (`----`, `---foo`): those match `startsWith` but not `FRONTMATTER_OPEN`,
+    // so the guard still fires for them after the trim. Quarto's `kRegExBeginYAML` rejects
+    // them too and falls through to the languages, making that decline a lost TP, not an FP.
     expect(resolve(`\n${rDoc("engine: markdown\n")}`)).toBeUndefined();
     expect(resolve(`\n\n  \n${rDoc("")}`)).toBeUndefined();
     // A document that genuinely has no front matter still resolves normally.
