@@ -14,15 +14,19 @@
  * arbitrary absolute path, so an archived tree needs no build step of its own. The oracle
  * config widens `server.fs.allow` for exactly this reason.
  *
- * ⚠ A build older than S164 has no `core/document-engine` and will fail to load. That is
- * correct behaviour, not a bug to paper over: the mirror's decision path does not exist
- * there, so there is nothing faithful to replay.
+ * ⚠ REPLAY REACHES BACK ONLY TO S168. The driver loads `core/yaml-value-flags`, which no
+ * commit before the S168 lift contains, so every older build now fails to load rather than
+ * only those older than S164. That is a real capability regression, accepted deliberately
+ * (plan §5 dragon 1): the replay answers "did my change regress anything?", and
+ * `baseline.json` already encodes that answer per-document for all 66 rows. Freezing the
+ * old mirror as a legacy replay path was rejected — it would reinstate the very artefact
+ * whose existence was the problem, and a frozen mirror still invites someone to quote its
+ * numbers.
  */
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { SchemaIndex } from "../../src/core/yaml-schema";
-import type { OracleCoreApi } from "./flags";
 
 /** The build the oracle replays unless told otherwise: this working tree's own `src/`. */
 export const DEFAULT_SRC = process.env.QMD_ORACLE_SRC ?? path.resolve(process.cwd(), "src");
@@ -30,32 +34,26 @@ export const DEFAULT_SRC = process.env.QMD_ORACLE_SRC ?? path.resolve(process.cw
 /** The schema file's path relative to quarto's share directory. */
 const SCHEMA_RELATIVE_PATH = path.join("editor", "tools", "yaml", "yaml-intelligence-resources.json");
 
-/** Assemble the core surface the mirror calls, from `srcDir`. */
-export async function loadCoreApi(srcDir: string): Promise<OracleCoreApi> {
-  const load = (rel: string) => import(/* @vite-ignore */ `${srcDir}/${rel}`);
-  const [model, fmValues, nested, context, engine, valueCheck, validateYaml] = await Promise.all([
-    load("core/qmd/model"),
-    load("core/yaml-frontmatter-values"),
-    load("core/yaml-frontmatter-nested-values"),
-    load("core/yaml-context"),
-    load("core/document-engine"),
-    load("core/yaml-value-check"),
-    load("core/validate-yaml"),
-  ]);
-  return {
-    findCellOptionLines: model.findCellOptionLines,
-    frontMatterContentLines: model.frontMatterContentLines,
-    findFrontMatterTopLevelLines: fmValues.findFrontMatterTopLevelLines,
-    findFrontMatterValueLines: fmValues.findFrontMatterValueLines,
-    findNestedFrontMatterValueLines: nested.findNestedFrontMatterValueLines,
-    documentEngineForScoping: engine.documentEngineForScoping,
-    cellOptionScopeFor: context.cellOptionScopeFor,
-    mappingColonAt: context.mappingColonAt,
-    valueSlotAfterColon: context.valueSlotAfterColon,
-    isWrongValue: valueCheck.isWrongValue,
-    isValidationDisabledByFrontMatter: validateYaml.isValidationDisabledByFrontMatter,
-    cellsWithValidationDisabled: validateYaml.cellsWithValidationDisabled,
-  };
+/**
+ * The build's own flag DECISION — the module the product itself calls (S168).
+ *
+ * Until S168 this assembled a 12-function struct for a hand-written mirror of the feature's
+ * cell loop. The mirror is gone: `core/yaml-value-flags.ts` is pure and headless, so the
+ * oracle now measures the same code path the editor takes, and there is nothing left to
+ * drift.
+ *
+ * ⚠ The return type is annotated deliberately. A dynamic `import()` with a
+ * template-literal specifier is `any`, so without this the driver's call site would be
+ * COMPLETELY unchecked — wrong arity, wrong argument order, a missing `.cell`, all
+ * invisible to `npm run compile-tests`, which the layer relies on as its type gate. Typing
+ * it against the CURRENT tree while loading the build under test at runtime is the same
+ * deliberate trade the old `OracleCoreApi` documented: a signature mismatch in an older
+ * build is a real incompatibility and should surface rather than be papered over.
+ */
+export async function loadValueFlags(
+  srcDir: string,
+): Promise<typeof import("../../src/core/yaml-value-flags")> {
+  return import(/* @vite-ignore */ `${srcDir}/core/yaml-value-flags`);
 }
 
 /**

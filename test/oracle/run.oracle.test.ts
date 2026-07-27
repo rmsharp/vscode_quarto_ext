@@ -12,8 +12,7 @@ import {
   type RowClass,
 } from "./classify";
 import { CORPUS, entryOf, entryTextOf, type OracleCase } from "./corpus";
-import { cellOptionFlags } from "./flags";
-import { DEFAULT_SRC, loadCoreApi, loadSchemaIndex, quartoVersion } from "./load";
+import { DEFAULT_SRC, loadSchemaIndex, loadValueFlags, quartoVersion } from "./load";
 
 /**
  * THE END-TO-END ORACLE. Opt-in: `npm run test:oracle`.
@@ -99,17 +98,31 @@ describe("end-to-end oracle — our flag decision vs a real `quarto render`", ()
     "introduces no cardinal false positive the baseline does not already record",
     async () => {
       const quarto = quartoVersion();
-      const api = await loadCoreApi(DEFAULT_SRC);
+      const mod = await loadValueFlags(DEFAULT_SRC);
       const index = await loadSchemaIndex(DEFAULT_SRC);
 
       const actual: Record<string, RowClass> = {};
       const detail: string[] = [];
+      // Non-cell flags are REPORTED, never scored (plan §5 dragon 2). The driver takes
+      // `.cell` because `classifyRow` consumes one boolean and `baseline.json`'s rows are
+      // per-document row CLASSES, so a front-matter flag reaching the count would flip a
+      // row class and read exactly like a real regression. A non-zero tally here is a
+      // signal to adjudicate — never a confirmation that anything works.
+      const nonCell: string[] = [];
       for (const c of CORPUS) {
         const text = entryTextOf(c);
         if (text === undefined) {
           throw new Error(`corpus case "${c.name}" names an entry it does not carry`);
         }
-        const flags = cellOptionFlags(text, entryOf(c), api, index);
+        const groups = mod.valueFlags(mod.collectValueSources(text), entryOf(c), index);
+        // Same `line:key=value` rendering the deleted mirror emitted, so a run before and
+        // after the S168 lift diffs byte-identically rather than merely by row class.
+        const flags = groups.cell.map((f) => `${f.line}:${f.key}=${f.rawToken}`);
+        if (groups.frontMatter.length > 0 || groups.nested.length > 0) {
+          nonCell.push(
+            `${c.name}: ${groups.frontMatter.length} front-matter, ${groups.nested.length} nested`,
+          );
+        }
         const verdict = renderVerdict(c, quarto);
         const row = classifyRow(flags.length > 0, verdict);
         actual[c.name] = row;
@@ -127,6 +140,8 @@ describe("end-to-end oracle — our flag decision vs a real `quarto render`", ()
           ...detail,
           `\n${CORPUS.length} documents: ${tally("agree")} agree, ${tally("lost-tp")} lost TP, ` +
             `${tally("cardinal-fp")} CARDINAL FP, ${tally("unrelated")} unrelated`,
+          `NON-CELL flags (reported, never scored): ` +
+            (nonCell.length === 0 ? "none on this corpus" : `\n  ${nonCell.join("\n  ")}`),
         ].join("\n"),
       );
 
