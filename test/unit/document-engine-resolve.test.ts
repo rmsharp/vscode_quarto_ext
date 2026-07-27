@@ -62,11 +62,16 @@ describe("resolveDocumentEngine — the ONE entry point both consumers call (S16
     expect(resolveDocumentEngine("doc.qmd", text)).toBe("markdown");
   });
 
-  it("declines on a blank line BEFORE the opening `---` — quarto's engine partitioner is narrower", () => {
-    // `frontMatterContentLines` (4th argument). Quarto's ENGINE partitioner runs
-    // `lines(markdown.trimLeft())` and so still sees this front matter, while our scanner
-    // opens front matter only at line 0 and sees none. Answering from the languages there
-    // would claim knitr document-wide on a document whose `engine:` key we never read.
+  it("READS a front matter behind a blank line, as quarto's `trimLeft` engine partitioner does (S171)", () => {
+    // `frontMatterContentLines` (4th argument), and the S171 deliverable. Quarto's ENGINE
+    // partitioner runs `lines(markdown.trimLeft())`, so leading whitespace does not hide the
+    // block from it; our scanner opens front matter only at line 0 and saw none, so S165 had
+    // to DECLINE here (answering from the languages would have claimed knitr document-wide on
+    // a document whose `engine:` key we never read). Declining still cost the cardinal FP:
+    // the caller falls back to the per-cell language, which answers knitr for this `{r}` cell.
+    // Grounded firsthand vs quarto 1.7.33: this document renders **exit 0**, the same document
+    // with `#| echo: banana` renders exit 1 (so cell validation really ran), and the same
+    // document without the `engine:` line renders exit 1 (so knitr really is the fallback).
     const text = [
       "",
       "---",
@@ -78,7 +83,7 @@ describe("resolveDocumentEngine — the ONE entry point both consumers call (S16
       "1 + 1",
       "```",
     ].join("\n");
-    expect(resolveDocumentEngine("doc.qmd", text)).toBeUndefined();
+    expect(resolveDocumentEngine("doc.qmd", text)).toBe("markdown");
   });
 
   it("answers knitr for an `.Rmd`, where knitr claimed the file by EXTENSION (S170)", () => {

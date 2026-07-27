@@ -69,11 +69,12 @@ export function resolveDocumentEngine(
   fileName: string,
   text: string,
 ): DocumentEngine | "ambiguous" | undefined {
+  const engineText = text.trimStart();
   return documentEngineForScoping(
     fileName,
-    findFrontMatterTopLevelLines(text),
-    findNestedFrontMatterValueLines(text),
-    frontMatterContentLines(text),
-    text,
+    findFrontMatterTopLevelLines(engineText),
+    findNestedFrontMatterValueLines(engineText),
+    frontMatterContentLines(engineText),
+    engineText,
   );
 }
