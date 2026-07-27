@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S170
+date: 2026-07-27
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — scope an .Rmd/.rmd/.Rmarkdown document to knitr for EVERY cell. `documentEngineForScoping` currently returns `undefined` on those extensions (S164's veto, which stops an `engine:` override from silencing a document quarto really validates) and so falls back to the per-cell language approximation. Quarto does not: `claimsFile` gives knitr the file by extension before any front matter is read, so an `.Rmd`'s {python} cell is validated against knitr's schema. Adopting the scope WIDENS what we squiggle (knitr is the +20-flaggable-field answer), so it needs its own firsthand FP grounding. S169 made it strictly more valuable — completion now scopes by the same document engine, so the .Rmd is the one document class whose engine is CERTAIN and the one where BOTH surfaces are still wrong. Operator-selected via AskUserQuestion at Phase 0. ONE deliverable.
+```
+
+```handoff
 session: S169
 date: 2026-07-27
 status: complete
