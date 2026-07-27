@@ -175,4 +175,35 @@ export const CORPUS: OracleCase[] = [
   { name: ".Rmd engine: markdown + {python} + cache (the veto)", entry: "doc.Rmd", files: { "doc.Rmd": "---\ntitle: t\nengine: markdown\n---\n\n" + cell("python", "cache: banana") } },
   { name: ".Rmd include(child {julia}) + {python} + cache", entry: "doc.Rmd", files: { "doc.Rmd": FM + "{{< include child.qmd >}}\n\n" + cell("python", "cache: banana"), "child.qmd": cell("julia", null) } },
   { name: ".Rmd + _quarto.yml engines: [jupyter, knitr] + {python} + cache", entry: "doc.Rmd", files: { "doc.Rmd": FM + cell("python", "cache: banana"), "_quarto.yml": "project:\n  type: default\nengines: [jupyter, knitr]\n" } },
+
+  // ---- S171: LEADING WHITESPACE before the opening `---` -------------------------------
+  // The corpus already carried a row named "REVIEW blank line BEFORE --- + engine: markdown"
+  // — and it was baselined `agree`, which read as "this shape is fine". It is not: that row
+  // uses `rThenPy`, whose flagged cell is `{python}`, and the per-cell fallback answers
+  // JUPYTER there, so `cache` was out of scope and we stayed silent for the wrong reason.
+  // A row named after a defect is not a row that can observe it (the S170 lesson again, and
+  // the third instance of this corpus's horizon warning).
+  //
+  // The `{r}` cell is what discriminates: its fallback answers knitr, so `cache: banana` is
+  // flagged exactly when we failed to read the front matter. Quarto's ENGINE partitioner
+  // runs `lines(markdown.trimLeft())` and reads it regardless.
+  { name: "S171 blank line + engine: markdown + {r} + cache", files: { "doc.qmd": "\n---\ntitle: t\nengine: markdown\n---\n\n" + cell("r", "cache: banana") } },
+  { name: "S171 blank line + NO engine + {r} + cache (must still flag)", files: { "doc.qmd": "\n" + FM + cell("r", "cache: banana") } },
+  { name: "S171 blank line + engine: markdown + {r} + echo (agnostic control)", files: { "doc.qmd": "\n---\ntitle: t\nengine: markdown\n---\n\n" + cell("r", "echo: banana") } },
+  { name: "S171 two blank lines + engine: markdown + {r} + cache", files: { "doc.qmd": "\n\n---\ntitle: t\nengine: markdown\n---\n\n" + cell("r", "cache: banana") } },
+  { name: "S171 spaces-only line + engine: markdown + {r} + cache", files: { "doc.qmd": "   \n---\ntitle: t\nengine: markdown\n---\n\n" + cell("r", "cache: banana") } },
+  { name: "S171 leading tab + engine: markdown + {r} + cache", files: { "doc.qmd": "\t---\ntitle: t\nengine: markdown\n---\n\n" + cell("r", "cache: banana") } },
+  // `trimLeft` strips spaces and tabs as well as newlines, so an INDENTED opening `---` is
+  // inside quarto's engine partitioner too — `"   ---".trimLeft()` is `"---"`, which matches
+  // `kRegExBeginYAML`. Measured exit 0.
+  { name: "S171 indented --- + engine: markdown + {r} + cache", files: { "doc.qmd": "   ---\ntitle: t\nengine: markdown\n---\n\n" + cell("r", "cache: banana") } },
+  // ⚠ A PRE-EXISTING cardinal FP this session MEASURED but did not fix, and it has a
+  // DIFFERENT root cause from the rows above. With an indented opener quarto's VALIDATION
+  // partitioner (`breakQuartoMd`, whose `yamlRegEx` is anchored at column 0) never opens the
+  // block, then opens one at the CLOSING `---` that never closes — so the `{r}` cell is
+  // swallowed into an unterminated YAML region and NO cell is validated at all. Measured:
+  // exit 0 even with the engine-agnostic `#| echo: banana`, which is the control proving
+  // nothing ran. Our engine answer falls through to the languages (knitr) and we flag it.
+  // Unchanged by this session — the pre-S171 build flags it identically. Filed in BACKLOG.
+  { name: "S171 indented --- + NO engine + {r} + cache (KNOWN residual)", files: { "doc.qmd": "   " + FM + cell("r", "cache: banana") } },
 ];
