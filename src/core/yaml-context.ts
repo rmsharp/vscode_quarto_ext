@@ -720,10 +720,11 @@ export function engineFor(lang: string): CellEngine | undefined {
  * an explicit front-matter override; S165 added quarto's DEFAULT path, where the engine is
  * resolved from the document's own cell languages (document-wide and order-dependent). So
  * `documentEngine` now arrives resolved for essentially every real document, and `undefined`
- * — the "guess from this cell's language" case below — is left only for an `.Rmd`, a document
- * carrying an `{{< include >}}` whose expansion we cannot see, a front matter quarto's
- * `trimLeft` reveals and our scanner does not, or a selector whose value we cannot read.
- * Each of those is measured at `documentEngineForScoping`.
+ * — the "guess from this cell's language" case below — is left only for a document carrying
+ * an `{{< include >}}` whose expansion we cannot see, a front matter quarto's `trimLeft`
+ * reveals and our scanner does not, or a selector whose value we cannot read. Each of those
+ * is measured at `documentEngineForScoping`. (An `.Rmd` was on that list until S170; it now
+ * answers `"knitr"` from the EXTENSION, which is the one answer no reading can get wrong.)
  *
  * When the engine IS resolved, the guess is replaced by the fact:
  *
@@ -845,11 +846,11 @@ export function cellOptionScopeFor(
  * them in completion would *narrow* it, deleting offers with no defect behind them:
  *
  *  - **`"unknown"`** — a markdown/julia/`"ambiguous"` document, AND every document whose
- *    engine we could not resolve at all (`documentEngine === undefined`: an `.Rmd`, an
- *    `{{< include >}}`, a front matter quarto's `trimLeft` reveals and our scanner does not).
- *    Quarto ACCEPTS a knitr-only key in the first group (it is merely inert: `engine:
- *    markdown` + `{r}` + `#\| cache: banana` renders exit 0), so withholding it would cost a
- *    real completion to prevent nothing.
+ *    engine we could not resolve at all (`documentEngine === undefined`: an `{{< include >}}`,
+ *    a front matter quarto's `trimLeft` reveals and our scanner does not). Quarto ACCEPTS a
+ *    knitr-only key in the first group (it is merely inert: `engine: markdown` + `{r}` +
+ *    `#\| cache: banana` renders exit 0), so withholding it would cost a real completion to
+ *    prevent nothing.
  *  - **`"none"`** — a `{dot}`/`{mermaid}` handler cell, where no cell schema applies at all.
  *    Routing completion through the raw scope would hand `cellOptions` the EMPTY set and
  *    silently delete cell-option completion in handler cells entirely — the mutant the S162
@@ -861,12 +862,15 @@ export function cellOptionScopeFor(
  * VALIDATOR, not relative to what completion offered yesterday, so it is silent about the
  * two narrowing rows above. Both statements are needed to describe this function honestly.
  *
- * ⚠ **The fix is inert on an `.Rmd`** — the one document class whose engine is CERTAIN.
- * `resolveDocumentEngine` returns `undefined` there (knitr claimed the file by EXTENSION
- * before any front matter is read), so this function falls back to the language and an
- * `.Rmd`'s `{python}` cell still misses knitr's keys. Closing it belongs with BACKLOG's
- * "`.Rmd` is knitr for EVERY cell" item, which owns that veto; found by the S169 §9
- * completeness critic.
+ * **The `.Rmd` — this fix's blind spot until S170, and now its strongest case.** S169 shipped
+ * with a ⚠ here saying the fix was INERT on an `.Rmd`, because `resolveDocumentEngine`
+ * answered `undefined` on that extension and this function fell back to the language. S170
+ * made that branch answer `"knitr"`, and completion inherited the fix with no change to this
+ * function — which is what the shared resolver is for. An `.Rmd`'s `{python}`, `{ojs}` and
+ * `{sql}` cells now offer knitr's keys, matching what the validator flags there, and unlike
+ * every other knitr answer this one cannot be wrong: it comes from `claimsFile`, not from
+ * reading the document. Pinned in `test/unit/yaml-context.test.ts`'s S170 block, each row
+ * against its `.qmd` control.
  *
  * Returning `CellEngine | undefined` rather than widening to include `"unknown"` is what
  * keeps `providers/yaml.ts`'s `index.cellOptions(ctx.engine)` call unchanged; `undefined`

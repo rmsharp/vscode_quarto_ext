@@ -973,3 +973,73 @@ describe("completionContextAt — cell-option completion learns the DOCUMENT eng
     expect(completionContextAt(text, offsetAt(text, 5, 5), engineOf(text))?.engine).toBe("knitr");
   });
 });
+
+/**
+ * Session 170 — completion on an `.Rmd`, the document class S169's fix could not reach.
+ *
+ * S169 taught completion the document engine, but `resolveDocumentEngine` answered
+ * `undefined` on an `.Rmd` (the extension veto), so `completionEngineFor` fell straight back
+ * to the cell language there and the fix was INERT on the one document class whose engine is
+ * CERTAIN. S170 makes that branch answer `"knitr"`, and completion inherits it through the
+ * same entry point — no change to `completionEngineFor` itself, which is the point of the
+ * shared resolver.
+ *
+ * These pins carry no new production code. They exist because the behaviour is now reachable
+ * only through the FILE NAME, an input no other headless gate in this project varies, and a
+ * pin that is not mutation-proven is a pin that has not been shown to discriminate anything:
+ * reverting S170's one line turns every `.Rmd` row below back to the language answer.
+ */
+describe("completionContextAt — an .Rmd offers knitr's keys in EVERY cell (S170)", () => {
+  const rmd = (text: string) => () => resolveDocumentEngine("doc.Rmd", text);
+  const qmd = (text: string) => () => resolveDocumentEngine("doc.qmd", text);
+
+  it("offers knitr's keys in a {python} cell of an .Rmd", () => {
+    // The `.qmd` control is what makes this about the extension: the same text, the same
+    // cursor, the only difference the file name. Measured — `#| cache: banana` in this cell
+    // renders exit 1 as doc.Rmd and exit 0 as doc.qmd.
+    const text = ["```{python}", "#| ca", "1 + 1", "```"].join("\n");
+    const at = offsetAt(text, 1, 5);
+    expect(completionContextAt(text, at, rmd(text))?.engine).toBe("knitr");
+    expect(completionContextAt(text, at, qmd(text))?.engine).toBe("jupyter");
+  });
+
+  it("offers them in an {ojs} cell too — the language whose .qmd answer is ojs", () => {
+    // `engineFromLanguages` skips ojs, so an ojs-only `.qmd` resolves markdown and completion
+    // keeps ojs's own set. The `.Rmd` answer comes from the extension instead, and quarto
+    // agrees: doc.Rmd + {ojs} + `//| cache: banana` renders exit 1.
+    const text = ["```{ojs}", "//| ca", "1 + 1", "```"].join("\n");
+    const at = offsetAt(text, 1, 6);
+    expect(completionContextAt(text, at, rmd(text))?.engine).toBe("knitr");
+    expect(completionContextAt(text, at, qmd(text))?.engine).toBe("ojs");
+  });
+
+  it("is not moved by a front-matter override — the S164 veto reaches completion too", () => {
+    // `engine: markdown` would make the `.qmd` scope `"unknown"`, where completion keeps its
+    // over-offer (`engineFor("python")` = jupyter). On the `.Rmd` the override never runs.
+    const text = [
+      "---",
+      "engine: markdown",
+      "---",
+      "",
+      "```{python}",
+      "#| ca",
+      "1 + 1",
+      "```",
+    ].join("\n");
+    const at = offsetAt(text, 5, 5);
+    expect(completionContextAt(text, at, rmd(text))?.engine).toBe("knitr");
+    expect(completionContextAt(text, at, qmd(text))?.engine).toBe("jupyter");
+  });
+
+  it("still OFFERS in a {dot} handler cell of an .Rmd, with no engine filter", () => {
+    // The guard that keeps the widening from reaching handler cells runs in
+    // `cellOptionScopeFor` above the engine branch, so `"none"` is what completion sees and
+    // it keeps `engineFor("dot")` — `undefined`, i.e. do not filter. Routing the raw scope
+    // through instead would hand `cellOptions` the EMPTY set and delete handler-cell
+    // completion outright, which `.kind` alone would not notice.
+    const text = ["```{dot}", "//| ec", "digraph {a->b}", "```"].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 1, 6), rmd(text));
+    expect(ctx?.kind).toBe("cell-option-key");
+    expect(ctx?.engine).toBeUndefined();
+  });
+});
