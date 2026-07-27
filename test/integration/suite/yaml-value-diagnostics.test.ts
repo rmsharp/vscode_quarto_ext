@@ -2287,3 +2287,85 @@ describe("Quarto: the DEFAULT engine comes from the cell languages (.qmd, Sessio
     );
   });
 });
+
+/**
+ * Session 171 — leading whitespace before the opening `---`.
+ *
+ * Quarto's ENGINE partitioner runs `lines(markdown.trimLeft())`, so a blank line before the
+ * `---` hides the front matter from `scanRegions` (which opens it only at line 0) and not
+ * from quarto. S165 could only DECLINE there, and declining means keeping the per-cell
+ * language approximation — knitr for an `{r}` cell — so we squiggled a knitr-only key on a
+ * document quarto renders CLEAN. `resolveDocumentEngine` now applies the same `trimStart()`.
+ *
+ * Grounded firsthand vs quarto 1.7.33, and re-measured through the oracle's 86-document
+ * replay (10 cardinal FP before, 5 after):
+ *
+ * | document | renders |
+ * |---|---|
+ * | blank line, `engine: markdown`, `{r}` + `#\| cache: banana` | **exit 0** ← the defect |
+ * | the same without the `engine:` line | exit 1 ← the canary below |
+ * | the same with `#\| echo: banana` | exit 1 ← the agnostic control below |
+ *
+ * ⚠ This block pins DIAGNOSTICS only, and that is deliberate rather than an omission.
+ * S169/S170 moved both surfaces at once because they shared this resolver; here completion
+ * does NOT move for this document class, verified by reading `completionEngineFor`: a
+ * `"markdown"` document maps to the `"unknown"` scope, which falls back to the cell
+ * language — exactly what `undefined` did before. Same offered set on both sides, so a
+ * completion pin here would assert something this change did not do.
+ */
+describe("Quarto: leading whitespace before `---` (.qmd, Session 171)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  const lineOf = (uri: vscode.Uri): number[] =>
+    valueDiagnostics(uri).map((d) => d.range.start.line);
+
+  // A leading blank line, so `---` sits on line 1 rather than line 0.
+  const withEngine = ["", "---", "title: t", "engine: markdown", "---", "", "```{r}"];
+  const noEngine = ["", "---", "title: t", "---", "", "```{r}"];
+
+  it("CANARY: the same document class WITHOUT the override still flags — the pass is live", async () => {
+    // Run first and asserted positively, because every other assertion in this block is a
+    // NEGATIVE one and a suite of negative assertions passes just as happily against a dead
+    // provider (S163 gotcha 5). Quarto renders this exit 1.
+    const doc = await openInline([...noEngine, "#| cache: banana", "1", "```", ""].join("\n"));
+    assert.ok(
+      await waitFor(() => lineOf(doc.uri).includes(6), 5000),
+      `the knitr-only \`cache\` must be flagged on line 6; flagged: ${lineOf(doc.uri).join(",")}`,
+    );
+  });
+
+  it("does NOT flag a knitr-only key when `engine: markdown` sits behind a blank line", async () => {
+    // The cardinal false positive this session closes. Renders exit 0; we squiggled it.
+    const doc = await openInline([...withEngine, "#| cache: banana", "1", "```", ""].join("\n"));
+    await waitFor(() => lineOf(doc.uri).length > 0, 2500); // settle, so this cannot pass early
+    assert.deepStrictEqual(
+      lineOf(doc.uri),
+      [],
+      `quarto reads \`engine: markdown\` through the blank line and renders exit 0 — nothing may be flagged; flagged lines: ${lineOf(doc.uri).join(",")}`,
+    );
+  });
+
+  it("STILL flags an engine-AGNOSTIC key behind the same override", async () => {
+    // `echo` carries no `tags.engine`, so it survives into markdown's scope too and quarto
+    // renders this exit 1. Without this row, "we stopped flagging" and "we fixed the scope"
+    // would be indistinguishable.
+    const doc = await openInline([...withEngine, "#| echo: banana", "1", "```", ""].join("\n"));
+    assert.ok(
+      await waitFor(() => lineOf(doc.uri).includes(7), 5000),
+      `the agnostic \`echo\` must still be flagged on line 7; flagged: ${lineOf(doc.uri).join(",")}`,
+    );
+  });
+});
