@@ -59,6 +59,47 @@ was the problem.
 Closes the `BACKLOG.md` item *"The oracle MIRRORS the feature's flag decision instead of
 calling it, because the decision lives behind `vscode`"* (filed S166, planned S167).
 
+**§9 adversarial review, run with the operator's go-ahead** (`wf_6af3a3c3-cab`): 6 read-only
+lenses, 2 perspective-diverse verifiers per finding with verdicts recorded **separately**
+(never requiring unanimity — that predicate is what nearly buried S167's panel), plus a
+completeness critic. **31 agents, `agents_error: 0`, ~2.4M subagent tokens, 12 findings + 1
+critic finding — ALL 12 factually confirmed by an independent verifier**, and every one
+re-adjudicated firsthand with a command before anything changed. The behaviour-preservation
+lens found **nothing**, which is the result that mattered most. Three correction commits:
+
+- `fa84385` — **a false claim this session introduced**: the new adapter docstring said
+  `validate-yaml` "suppresses two of the three" surfaces. It gates all three loops; the
+  front-matter format NAME is the exemption, and the core module the sentence redirects to
+  said so, leaving two files contradicting each other about measured quarto behaviour. Plus
+  **7 live `src/` cross-references** the lift falsified (the panel claimed 8; adjudicated
+  firsthand it is 7 — one is a true historical statement about an earlier move). Layer 5's
+  staleness sweep was scoped to `test/oracle/` and could not reach any of them.
+- `7d29e97` — **six branches whose mutants survived the entire 1519-test suite**, three of
+  them guarding measured CARDINAL FALSE POSITIVES: the `contentEndCol` clamp (S161), the
+  backslash escape skip (P3/S149), the real-separator rule (S148), `isWrongValue` itself,
+  two of `hasNoValueLines`'s three conjuncts, and the flag SPANS on three of four emit
+  sites. Each gap was confirmed by running the predicted mutation first; each mutant was
+  re-run after pinning and now dies. Unit 1519 → 1530.
+- `312f88c` — three stale pointers and an unrunnable worked example: two more copies of the
+  `test/unit/oracle-*.test.ts` glob claim (in `vitest.oracle.config.ts` and the driver's own
+  header — the README's copy was fixed in Layer 5, so the repo carried the same sentence
+  three times, one true and two stale), a comment naming the deleted mirror, and the
+  README's replay example `git archive 87b3f38`, which sat directly above the new warning
+  saying replay no longer reaches that far.
+
+**Two findings are recorded rather than fixed, because they are about the record itself.**
+(1) The **Layer 3 checkpoint commit `c0d4fd2` left `npm test` red** — it removed
+`loadCoreApi` while a unit test still imported it, and Layer 3's stated gates
+(`compile-tests`, `test:oracle`) structurally cannot see `test/unit`; the Layer 4 commit
+message then misattributed the cause to the file deletions one commit later. (2) **Two
+comment lines were reworded during a move the plan required to be verbatim** ("this session
+removes from" → "S148 removes from", and the same for "this session's own L1"): the
+rewording is more accurate once the code leaves the session that wrote it, but the L1 commit
+message's claim that every comment moved verbatim is therefore false. Both are left in
+history rather than rewritten — the checkpoint commits are this slice's recovery mechanism
+and rewriting them at close-out trades a documented defect for an undocumented risk.
+Recorded as `PROJECT_LEARNINGS.md` #181 and #182.
+
 ### 2026-07-26 · [ad hoc] Session 167 — PLANNING: lifting the value-flag decision into `src/core/` (PLAN ONLY)
 
 `docs/planning/2026-07-26-value-flag-decision-core-lift-plan.md`. The architecture/refactor
