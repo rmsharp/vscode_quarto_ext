@@ -165,12 +165,69 @@ const COMMENT_CLOSE = /-->/;
  */
 const COMMENT_FULL_LINE = /^[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
 /**
- * A brace info string for an *executable* cell: `{` then a language identifier
- * (a letter-led token), optionally followed by knitr-style options, then `}`.
- * Requiring a letter immediately after `{` excludes `{{python}}` (the display
- * form) and `{.python}` (a Pandoc class) — both non-executable.
+ * A brace info string for an *executable* cell: `{` then a language identifier,
+ * optionally followed by knitr-style options, then `}`.
+ *
+ * The language class and the option tail are quarto's own, transcribed from the
+ * installed 1.7.33 — `breakQuartoMd`'s cell recognizer, read out of
+ * `/Applications/quarto/bin/quarto.js` rather than from a docstring quoting it:
+ *
+ * ```js
+ * const startCodeCellRegEx = new RegExp("^\\s*(```+)\\s*\\{([=A-Za-z]+)( *[ ,].*)?\\}\\s*$");
+ * ```
+ *
+ * The capture is `[=A-Za-z]+` — **letters and `=` only: no digits, no dots, no
+ * hyphens, no underscores** — and the tail is `( *[ ,].*)?`, i.e. the options must
+ * begin at a SPACE or a COMMA. A token that fails it is not a cell to quarto at all:
+ * `breakQuartoMd` builds no code cell, `partitionCellOptionsMapped` never runs, and
+ * NOTHING inside is validated.
+ *
+ * ## Why this is not `[^}]*` any more (Session 172)
+ *
+ * The previous tail was `[^}]*`, which **truncated** where quarto **rejects** — and it
+ * was wrong in BOTH directions. Every row measured firsthand vs 1.7.33 with
+ * `quarto render --no-execute`, one bad option at column 0, controls in the suite:
+ *
+ * | info string | quarto | before | after |
+ * |---|---|---|---|
+ * | `{python3}` `{python2}` `{fortran95}` `{d3}` | exit 0 — no cell | cell `python3`… | no cell |
+ * | `{r.foo}` | exit 0 — no cell | cell `r` | no cell |
+ * | `{r-foo}` `{r_foo}` | exit 0 — no cell | cell `r-foo`/`r_foo` | no cell |
+ * | `{ré}` | exit 0 — no cell | cell **`r`** | no cell |
+ * | `` {r\techo=FALSE} `` (TAB) | exit 0 — no cell | cell `r` | no cell |
+ * | `{r=1}` `{mermaid=x1}` | exit 0 — no cell | cell `r`/`mermaid` | no cell |
+ * | `{mermaid=x}` `{mermaid=xy}` `{r=}` | exit 1 — cell `mermaid=x` | cell **`mermaid`** | cell `mermaid=x` |
+ * | `{r, fig.cap="}"}` `{r,}}` | exit 1 — cell `r` | **no cell** | cell `r` |
+ *
+ * The last two rows are the ones a "tighten the regex" framing misses. `[^}]*` cannot
+ * span a `}` inside a quoted chunk option, so a **legitimate knitr chunk header** was
+ * not a cell to us while quarto validates it — a lost true positive, recovered here.
+ * And truncation on `{ré}` produced a cell whose language was literally `r`,
+ * indistinguishable from a real one to every consumer at once.
+ *
+ * ## The letter-led rule is deliberately KEPT, and it is a divergence
+ *
+ * Requiring a letter immediately after `{` still excludes `{{python}}` (the display
+ * form) and `{.python}` (a Pandoc class). It ALSO excludes the `=`-led raw blocks
+ * `` ```{=html} ``/`` ```{=latex} ``, which quarto's `[=A-Za-z]+` DOES accept — and
+ * measurement confirms quarto validates them: `{=html}` + `#| echo: banana` renders
+ * **exit 1**, and in a knitr document `#| cache: banana` there renders exit 1 too, so
+ * a raw block takes the document engine's schema like any other cell. Adopting that
+ * would WIDEN what we squiggle onto a new block class, which is the cardinal-sin
+ * direction and its own deliverable — it is the separately filed raw-block item, whose
+ * "NOT re-verified" caveat this session discharged. Until then we under-report there,
+ * which is the safe direction. **Do not "complete" this by dropping the leading
+ * `[A-Za-z]`** without doing that item's consumer work: `cell.lang` would become
+ * `"=html"` at the outline, the virtual-document language map, run-cell and refs.
+ *
+ * ⚠ This is NOT the same grammar as the engine-selection language scan, and the two
+ * must not be consolidated: quarto's own `languagesInMarkdown` uses `[a-zA-Z0-9_]+`
+ * (digits and underscore IN, `=` OUT) — see `document-engine.ts`. Their disagreement
+ * is a faithful reproduction of quarto's, not drift. Unifying them would regress both
+ * directions: a `{python3}`-only document would stop resolving jupyter, and a
+ * `{=html}`-only one would start.
  */
-const CELL_INFO = /^\{([A-Za-z][A-Za-z0-9_-]*)[^}]*\}$/;
+const CELL_INFO = /^\{([A-Za-z][=A-Za-z]*)( *[ ,].*)?\}$/;
 /**
  * An inline code span — a run of N backticks closed by the next run of exactly
  * N (CommonMark §6.3). Its content is rendered literally, so any markup shown

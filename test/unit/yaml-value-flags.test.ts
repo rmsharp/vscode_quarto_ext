@@ -549,3 +549,29 @@ describe("valueFlags — the guards the review found unpinned", () => {
     expect(g.frontMatter[0]).toMatchObject({ line: 1, startCol: 8, endCol: 14 });
   });
 });
+
+/**
+ * Session 172 — the fence-token grammar. A token quarto does not recognize as a cell
+ * language is not a cell AT ALL to quarto, so it partitions no options and validates
+ * nothing inside: any bad value renders **exit 0** while we squiggle it.
+ *
+ * Quarto's recognizer, read firsthand out of `/Applications/quarto/bin/quarto.js`
+ * (`breakQuartoMd`, 1.7.33):
+ *
+ * ```js
+ * const startCodeCellRegEx = new RegExp("^\\s*(```+)\\s*\\{([=A-Za-z]+)( *[ ,].*)?\\}\\s*$");
+ * ```
+ *
+ * The language capture is `[=A-Za-z]+` — LETTERS and `=`, with NO digits, dots, hyphens
+ * or underscores. Our `CELL_INFO` admitted all of them and then swallowed the remainder
+ * with a `[^}]*` tail, so it TRUNCATED where quarto REJECTS.
+ */
+describe("cell fence tokens quarto does not recognize (Session 172)", () => {
+  it("does not flag an option in a DIGIT-bearing {python3} token — quarto builds no cell there", () => {
+    // Measured firsthand vs quarto 1.7.33: `{python3}` + `#| echo: banana` renders **exit 0**,
+    // while the control `{python}` + the same option renders exit 1. `echo` is engine-agnostic,
+    // so the difference cannot be an engine-scoping artefact — it is cell recognition.
+    const text = "---\ntitle: t\n---\n\n```{python3}\n#| echo: banana\n1\n```\n";
+    expect(cellFlags(text)).toEqual([]);
+  });
+});
