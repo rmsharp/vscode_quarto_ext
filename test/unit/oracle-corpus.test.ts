@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CORPUS, entryTextOf } from "../oracle/corpus";
-import { DEFAULT_SRC, loadCoreApi } from "../oracle/load";
+import { DEFAULT_SRC, loadValueFlags } from "../oracle/load";
 
 /**
  * Structural pins on the corpus itself.
@@ -34,12 +34,16 @@ describe("CORPUS — structural invariants the reporting depends on", () => {
   });
 });
 
-describe("loadCoreApi — the build under test is a parameter, not a constant", () => {
-  it("loads every core function the mirror calls from the repo's own src", async () => {
-    const api = await loadCoreApi(DEFAULT_SRC);
-    const missing = Object.entries(api)
-      .filter(([, v]) => typeof v !== "function")
-      .map(([k]) => k);
+describe("loadValueFlags — the build under test is a parameter, not a constant", () => {
+  it("loads the decision the product itself calls, from the repo's own src", async () => {
+    // Retargeted from `loadCoreApi` in S168: the oracle no longer assembles a 12-function
+    // struct for a hand-written mirror, it imports the ONE module the feature calls. The
+    // pin's point is unchanged — the dynamic import must really resolve against `srcDir`,
+    // because that parameter is the whole replay mechanism.
+    const mod = await loadValueFlags(DEFAULT_SRC);
+    const missing = (["collectValueSources", "hasNoValueLines", "valueFlags"] as const).filter(
+      (name) => typeof mod[name] !== "function",
+    );
     expect(missing).toEqual([]);
   });
 });
