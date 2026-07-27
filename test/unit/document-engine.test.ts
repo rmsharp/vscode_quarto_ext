@@ -397,11 +397,16 @@ describe("Session 164 — documentEngineForScoping: the FILE EXTENSION claims fi
   // .Rmd, so on the R-Markdown extensions the override below is dead text. Measured: each
   // of these renders exit 1 — quarto validated against knitr anyway — while the identical
   // document named .qmd renders exit 0.
+  //
+  // S170 turned the answer from `undefined` (a VETO on the override, leaving the caller on
+  // its per-cell language guess) into `"knitr"` (the veto AND quarto's actual scope). The
+  // veto half is what these rows still assert: whatever the front matter says, the answer
+  // does not move.
   it("ignores every front-matter override on an R-Markdown extension", () => {
     for (const name of ["doc.Rmd", "doc.rmd", "doc.RMD", "/a/b/doc.rmarkdown"]) {
-      expect(resolve(doc("engine: markdown\n"), name), name).toBeUndefined();
-      expect(resolve(doc("jupyter: python3\n"), name), name).toBeUndefined();
-      expect(resolve(doc("execute:\n  engine: jupyter\n"), name), name).toBeUndefined();
+      expect(resolve(doc("engine: markdown\n"), name), name).toBe("knitr");
+      expect(resolve(doc("jupyter: python3\n"), name), name).toBe("knitr");
+      expect(resolve(doc("execute:\n  engine: jupyter\n"), name), name).toBe("knitr");
     }
   });
 
@@ -541,14 +546,14 @@ describe("Session 165 — documentEngineForScoping: the DEFAULT engine, from the
     expect(resolve("---\ntitle: t\n---\n\n{{< video x >}}\n\n```{r}\n1\n```\n")).toBe("knitr");
   });
 
-  it("leaves an R-Markdown extension on the per-cell approximation, exactly as before", () => {
-    // The `.Rmd` veto still returns before any of this. Quarto's answer there is knitr for
-    // EVERY cell (`claimsFile`, before any front matter or language is read), and adopting
-    // that scope WIDENS what we squiggle — S164 filed it as its own deliverable and S165 does
-    // not touch it. What matters here is that the language fallback did not silently become
-    // that change: an `.Rmd` still resolves `undefined`.
-    expect(resolve(doc(""), "doc.Rmd")).toBeUndefined();
-    expect(resolve("---\ntitle: t\n---\n\n```{python}\n1\n```\n", "doc.rmd")).toBeUndefined();
+  it("answers an R-Markdown extension from the EXTENSION, never from the languages (S170)", () => {
+    // The `.Rmd` branch returns before any of this, so the language fallback must not be
+    // what produces the answer. The `{python}`-only row is what separates the two: its
+    // fallback is jupyter, so `"knitr"` there can only have come from the extension.
+    expect(resolve(doc(""), "doc.Rmd")).toBe("knitr");
+    expect(resolve("---\ntitle: t\n---\n\n```{python}\n1\n```\n", "doc.rmd")).toBe("knitr");
+    // …and a document with no cell fences at all, where the fallback answers `markdown`.
+    expect(resolve("---\ntitle: t\n---\n\njust prose\n", "doc.Rmd")).toBe("knitr");
   });
 });
 

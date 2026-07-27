@@ -81,11 +81,18 @@ describe("resolveDocumentEngine — the ONE entry point both consumers call (S16
     expect(resolveDocumentEngine("doc.qmd", text)).toBeUndefined();
   });
 
-  it("declines for an `.Rmd`, where knitr claimed the file by EXTENSION", () => {
-    // `fileName` (1st argument). The same text answers knitr as a `.qmd` (first pin above).
-    const text = ["```{r}", "1 + 1", "```", "", "```{python}", "1 + 1", "```"].join("\n");
-    expect(resolveDocumentEngine("doc.Rmd", text)).toBeUndefined();
-    expect(resolveDocumentEngine("doc.rmd", text)).toBeUndefined();
+  it("answers knitr for an `.Rmd`, where knitr claimed the file by EXTENSION (S170)", () => {
+    // `fileName` (1st argument), and both texts DISCRIMINATE: each answers something else
+    // as a `.qmd`, so a build that dropped the argument fails this pin rather than passing
+    // on a coincidence. Before S170 the `.Rmd` rows were `undefined` and the pin used a
+    // `{r}`-first text, which answers knitr as a `.qmd` too — it could not have caught it.
+    const pyOnly = ["```{python}", "1 + 1", "```"].join("\n");
+    expect(resolveDocumentEngine("doc.qmd", pyOnly)).toBe("jupyter");
+    expect(resolveDocumentEngine("doc.Rmd", pyOnly)).toBe("knitr");
+    expect(resolveDocumentEngine("doc.rmd", pyOnly)).toBe("knitr");
+    const overridden = ["---", "engine: markdown", "---", "", pyOnly].join("\n");
+    expect(resolveDocumentEngine("doc.qmd", overridden)).toBe("markdown");
+    expect(resolveDocumentEngine("doc.Rmd", overridden)).toBe("knitr"); // the veto, unchanged
   });
 
   it("declines on an `{{< include >}}`, whose expansion we cannot see", () => {

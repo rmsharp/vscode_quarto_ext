@@ -206,7 +206,7 @@ export function documentEngineForScoping(
   text: string,
 ): DocumentEngine | "ambiguous" | undefined {
   if (isRMarkdownFileName(fileName)) {
-    return undefined; // knitr claimed the file by EXTENSION; the front matter never runs
+    return "knitr"; // knitr claimed the file by EXTENSION; the front matter never runs (S170)
   }
   if (engineResolverSeesFrontMatter(frontMatterContentLines)) {
     const selected = new Set<DocumentEngine>();
@@ -657,12 +657,58 @@ function engineResolverSeesFrontMatter(contentLines: readonly string[] | null): 
  * same document with `engine: markdown`, with `engine: jupyter`, and with `jupyter: python3`
  * renders **exit 1** as `doc.Rmd` and as `doc.rmd`, against the `.qmd` control at exit 0.
  *
- * What this deliberately does NOT do is scope those documents TO knitr. Quarto does — on an
- * `.Rmd` a `{python}` cell is validated against knitr's schema (measured: `#| cache: banana`
- * exit 1, `#| tags: banana` exit 0, against the `.qmd` control at exit 0) — so we still under-
- * report there. That is a PRE-EXISTING lost true positive this session leaves exactly as it
- * found it, filed rather than folded in: it WIDENS what we squiggle, which is the direction
- * that deserves its own deliverable.
+ * ## S170 — the caller now gets the SCOPE, not just the veto
+ *
+ * Until S170 this branch answered `undefined`: it stopped an override from silencing the
+ * document, but left the caller on its per-cell language guess, so an `.Rmd`'s `{python}`
+ * cell was scoped to jupyter and up to **20** knitr-only flaggable fields were lost on every
+ * such file. It now answers `"knitr"`, which is what quarto itself uses for EVERY cell.
+ *
+ * Grounded firsthand vs 1.7.33, one `quarto render --no-execute` per row, on a document
+ * whose only cell is `{python}` — the language whose own fallback is jupyter, so a knitr
+ * verdict here cannot have come from the languages:
+ *
+ * | document | renders |
+ * |---|---|
+ * | `doc.Rmd`, `#\| cache: banana` | **exit 1** — `Field "cache" has value banana` |
+ * | `doc.qmd`, byte-identical | exit 0 ← the control: the difference IS the extension |
+ * | `doc.Rmd`, key removed | exit 0 ← so the exit 1 is the VALUE, not the shape |
+ * | `doc.Rmd`, `#\| echo: banana` | exit 1 ← the agnostic control: validation ran |
+ * | `doc.rmd`, `doc.RMD`, `doc.Rmarkdown` | exit 1 each — the whole `kRmdExtensions` set |
+ * | `doc.Rmd`, `{sql}` / `{ojs}` / `{bash}` + `cache: banana` | exit 1 each — EVERY cell |
+ * | `doc.Rmd`, `#\| cache: true` / `fig-width: 6` / `results: hide` | exit 0 — valid stays valid |
+ *
+ * **This is the one direction that WIDENS what we squiggle** (knitr is the +20-field answer;
+ * every other engine maps to the same 23-field agnostic set — see the module docstring), so
+ * it was swept rather than argued: each of the 20 fields `cellOptions("knitr")` adds over
+ * `cellOptions("jupyter")` — `cache`, `cache-lazy`, `cache-rebuild`, `cache-comments`,
+ * `autodep`, `tidy`, `collapse`, `prompt`, `fig-width`, `fig-height`, `fig-format`,
+ * `fig-dpi`, `fig-asp`, `fig-show`, `external`, `sanitize`, `interval`, `purl`, `message`,
+ * `results` — was rendered as `#| <field>: banana` in a `{python}` cell of a `doc.Rmd`.
+ * **All 20 render exit 1.** The widening is a pure true-positive gain here; it introduces no
+ * false positive, and nothing is lost in the other direction (`cellOptions("jupyter")` minus
+ * `cellOptions("knitr")` is empty on the flaggable set).
+ *
+ * ## Why the `.Rmd` is the one document class whose engine is CERTAIN
+ *
+ * `claimsFile` runs in a loop over the engines *before* `fileExecutionEngine` partitions
+ * anything, so the three open items that make other documents' engines uncertain cannot
+ * reach it — measured, not reasoned, each on a `doc.Rmd` whose `{python}` cell carries
+ * `#| cache: banana`, all **exit 1**:
+ *
+ *  - a front-matter override (`engine: markdown`, `jupyter: python3`) — the veto above;
+ *  - a project `engines: [jupyter, knitr]` in `_quarto.yml`, which reorders that very loop:
+ *    jupyter is asked first and does not claim `.rmd`, so knitr still takes the file;
+ *  - an `{{< include >}}` whose child holds a `{julia}` cell — expansion happens later, and
+ *    the language set it perturbs is never consulted.
+ *
+ * That is why this is the ONE branch where a confident knitr answer is safe: everywhere else
+ * this module reaches knitr by reading something, and reading can be wrong.
+ *
+ * A cell-HANDLER cell is still exempt, and that exemption is what keeps the widening honest:
+ * `cellOptionScopeFor` returns `"none"` for `{dot}`/`{mermaid}` above every engine, so an
+ * `.Rmd`'s `//| cache: banana` in a `{dot}` cell is not flagged — measured **exit 0**, which
+ * would have been a cardinal-sin false positive had the handler guard sat below this one.
  */
 function isRMarkdownFileName(fileName: string): boolean {
   const lower = fileName.toLowerCase();

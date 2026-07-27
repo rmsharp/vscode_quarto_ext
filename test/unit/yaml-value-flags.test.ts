@@ -138,6 +138,57 @@ describe("valueFlags — the document engine is resolved document-wide, in order
 });
 
 /**
+ * Session 170 — the `.Rmd` is knitr for EVERY cell, and it is the ONE document class whose
+ * engine is CERTAIN.
+ *
+ * `claimsFile` gives knitr the file by EXTENSION, in a loop that runs before quarto
+ * partitions any front matter, so nothing downstream can take it back. Grounded firsthand
+ * vs 1.7.33, one `quarto render --no-execute` per row, on a document whose ONLY cell is
+ * `{python}` — the cell language that resolves to jupyter under the fallback, so a knitr
+ * answer here cannot have come from the languages:
+ *
+ * | document | renders |
+ * |---|---|
+ * | `doc.Rmd`, `#\| cache: banana` | **exit 1** — `Field "cache" has value banana` |
+ * | `doc.qmd`, byte-identical | exit 0 ← the control that makes it the EXTENSION |
+ * | `doc.Rmd`, key removed | exit 0 ← so the exit 1 is the VALUE, not the shape |
+ * | `doc.Rmd`, `#\| echo: banana` | exit 1 ← the agnostic control: validation ran |
+ *
+ * The first pin is the one that was RED before this session: we resolved `undefined` there
+ * and scoped the cell to jupyter by its language, so up to 20 knitr-only fields were lost on
+ * every `.Rmd`.
+ */
+describe("valueFlags — an .Rmd is knitr for EVERY cell (S170)", () => {
+  const pyOnly = (opt: string) =>
+    "---\ntitle: t\n---\n\n" + "```{python}\n#| " + opt + "\n1\n```\n";
+
+  it("flags knitr-only `cache` in a {python} cell of an .Rmd", () => {
+    expect(cellFlags(pyOnly("cache: banana"), "doc.Rmd")).toEqual(["5:cache=banana"]);
+  });
+
+  it("leaves the byte-identical .qmd silent — the difference is the EXTENSION", () => {
+    // The discriminating control. Without it the pin above would also pass if the language
+    // fallback had somehow answered knitr for a {python}-only document, which it must not.
+    expect(cellFlags(pyOnly("cache: banana"), "doc.qmd")).toEqual([]);
+  });
+
+  it("keeps a VALID knitr value silent — the widening must not flag good documents", () => {
+    // `#| cache: true` in a {python} cell of a doc.Rmd renders exit 0, measured. A widening
+    // that also fired on valid values would be worse than the gap it closes.
+    expect(cellFlags(pyOnly("cache: true"), "doc.Rmd")).toEqual([]);
+  });
+
+  it("still exempts a cell-HANDLER cell, where knitr's scope would be the cardinal sin", () => {
+    // `cellOptionScopeFor` returns `"none"` for {dot}/{mermaid} ABOVE every engine, because
+    // quarto swaps the cell schema by LANGUAGE. Measured on a doc.Rmd: `//| cache: banana`
+    // in a {dot} cell renders **exit 0** — so had the handler guard sat below the extension
+    // branch, this session would have MANUFACTURED a cardinal-sin false positive.
+    const dot = "---\ntitle: t\n---\n\n```{dot}\n//| cache: banana\ndigraph { a -> b }\n```\n";
+    expect(cellFlags(dot, "doc.Rmd")).toEqual([]);
+  });
+});
+
+/**
  * Phase 2 — TOP-LEVEL front-matter scalars. Never covered headlessly before Session 168:
  * `computeValueDiagnostics` was module-private behind `vscode`, and the oracle's mirror
  * implemented the cell loop only.
