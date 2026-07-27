@@ -1,7 +1,7 @@
 {
   "quarto": "1.7.33",
-  "build": "S166 (d855cd2+), measured 2026-07-26",
-  "note": "What this build is EXPECTED to conclude for each corpus document. `rows` is the comparison input; every row that is not `agree` must carry a reason in `known`, or the oracle fails (test/oracle/classify.ts unexplainedRows). Re-seeding this file to silence a failure is the thing that gate exists to prevent. All seven non-agreeing rows below were confirmed PRE-EXISTING by replaying the pre-S165 build (87b3f38) over this same corpus: that build scores 16 cardinal FP / 9 lost TP / 41 agree, and every row here is wrong there too.",
+  "build": "S170 (5786d0f+), measured 2026-07-27; the 66 pre-.Rmd rows unchanged since S166 (d855cd2+), measured 2026-07-26",
+  "note": "What this build is EXPECTED to conclude for each corpus document. `rows` is the comparison input; every row that is not `agree` must carry a reason in `known`, or the oracle fails (test/oracle/classify.ts unexplainedRows). Re-seeding this file to silence a failure is the thing that gate exists to prevent. All seven non-agreeing rows below were confirmed PRE-EXISTING by replaying the pre-S165 build (87b3f38) over this same corpus: that build scores 16 cardinal FP / 9 lost TP / 41 agree, and every row here is wrong there too. S170 ADDED the twelve `.Rmd`/`.rmd`/`.Rmarkdown` rows, all measured `agree` on the shipping build and none carrying a `known` reason — the corpus was 100% `.qmd` until then, so the extension branch of documentEngineForScoping had never been inside the oracle's horizon. Replayed against the pre-S170 build (`git archive af5a4bb src` -> QMD_ORACLE_SRC), those same twelve score 8 LOST TP and 4 agree: the whole corpus reads 63 agree / 11 lost TP / 4 cardinal FP there, against 71 / 3 / 4 here. The cardinal-FP count is IDENTICAL on both sides — that is the measurement that made a widening safe to ship, and it is why the twelve rows exist.",
   "known": {
     "include(child {julia}) then {r} + cache": "CARDINAL FP, PRE-EXISTING (wrong in 87b3f38 too). Quarto expands `{{< include >}}` PRE-engine, so it counts the child's {julia} and resolves jupyter; we cannot see the child from the open buffer and answer knitr. S165 measured BOTH options and chose to DECLINE rather than answer \"ambiguous\", because ambiguity would cost the knitr-only fields on every ordinary include-bearing book chapter — a rare conditional FP against a common lost TP is the reverse of this project's settled trade. BACKLOG: An {{< include >}} makes the document's language set unknowable.",
     "nested include(child→grand {julia}) then {r} + cache": "CARDINAL FP, PRE-EXISTING. Same root cause as the row above, proving includes RECURSE (doc -> child -> grandchild). Same filed item.",
@@ -77,6 +77,18 @@
     "REVIEW engine: banana (must still fall through)": "agree",
     "REVIEW jupyter: false (must still fall through)": "agree",
     "validate-yaml: false + {r} + cache": "agree",
-    "per-cell #| validate-yaml: false + cache": "agree"
+    "per-cell #| validate-yaml: false + cache": "agree",
+    ".Rmd {python} + cache": "agree",
+    ".Rmd {python} + echo (agnostic control)": "agree",
+    ".Rmd {python} + cache: true (VALID — must stay silent)": "agree",
+    ".rmd lowercase {python} + cache": "agree",
+    ".Rmarkdown {python} + cache": "agree",
+    ".Rmd {r} + cache (unchanged — the language agreed already)": "agree",
+    ".Rmd {sql} + cache": "agree",
+    ".Rmd {ojs} + cache": "agree",
+    ".Rmd {dot} handler + cache (exempt)": "agree",
+    ".Rmd engine: markdown + {python} + cache (the veto)": "agree",
+    ".Rmd include(child {julia}) + {python} + cache": "agree",
+    ".Rmd + _quarto.yml engines: [jupyter, knitr] + {python} + cache": "agree"
   }
 }

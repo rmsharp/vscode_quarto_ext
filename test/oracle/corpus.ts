@@ -11,8 +11,15 @@
  * S165's central lesson is that this is easy to forget: its own 48-document version
  * reported "18 improved, 0 regressed" while TWELVE regressions sat just outside it, on
  * front-matter shapes it had not thought to include. A clean run over this corpus is
- * evidence about these 64 documents, not a property of the change. WHEN YOU TOUCH THE
+ * evidence about the documents IN it, not a property of the change. WHEN YOU TOUCH THE
  * ENGINE-SCOPING PATH, ADD THE SHAPES YOU TOUCHED before believing the number.
+ *
+ * S170 is the second instance of exactly that lesson, and the reason this sentence no
+ * longer quotes a count: every row was a `.qmd` until then, so the `documentEngineForScoping`
+ * branch keyed on the FILE EXTENSION sat entirely outside the horizon — a change to it ran
+ * green over 66 documents none of which could observe it. (The count in this comment had
+ * also been stale at "64" since the corpus reached 66, filed by S167 and unfixed until the
+ * rows below made it staler still. `CORPUS.length` is the number; prose is not.)
  *
  * `cache` is the workhorse: it is knitr-ONLY and closed-valued, so `#| cache: banana`
  * renders exit 1 exactly when quarto resolved knitr, and exit 0 otherwise. That makes it a
@@ -137,4 +144,35 @@ export const CORPUS: OracleCase[] = [
   // renders both exit 0, and a mirror that ignores the flag flags them.
   { name: "validate-yaml: false + {r} + cache", files: { "doc.qmd": "---\ntitle: t\nvalidate-yaml: false\n---\n\n" + cell("r", "cache: banana") } },
   { name: "per-cell #| validate-yaml: false + cache", files: { "doc.qmd": FM + "```{r}\n#| validate-yaml: false\n#| cache: banana\n1\n```\n" } },
+
+  // ---- the R-MARKDOWN extension: knitr for EVERY cell (S170) ---------------------------
+  // NEW at S170, and the corpus-horizon warning at the top of this file is exactly why:
+  // every row above this block is a `.qmd`, so the entire extension branch of
+  // `documentEngineForScoping` was outside the oracle's horizon and a change to it scored
+  // "0 regressed" over documents that could not observe it.
+  //
+  // `claimsFile` gives knitr the file by EXTENSION, in a loop that runs before quarto
+  // partitions any front matter. The `{python}`-only shape is the discriminating one: its
+  // own language fallback is jupyter, so a knitr verdict cannot have come from the languages.
+  { name: ".Rmd {python} + cache", entry: "doc.Rmd", files: { "doc.Rmd": FM + cell("python", "cache: banana") } },
+  { name: ".Rmd {python} + echo (agnostic control)", entry: "doc.Rmd", files: { "doc.Rmd": FM + cell("python", "echo: banana") } },
+  { name: ".Rmd {python} + cache: true (VALID — must stay silent)", entry: "doc.Rmd", files: { "doc.Rmd": FM + cell("python", "cache: true") } },
+  { name: ".rmd lowercase {python} + cache", entry: "doc.rmd", files: { "doc.rmd": FM + cell("python", "cache: banana") } },
+  // `.Rmarkdown` is the third member of quarto's `kRmdExtensions` and the decision handles
+  // it, but `package.json`'s `quarto` languageId registers only .qmd/.rmd/.Rmd — so today
+  // this row measures a branch the editor never reaches. Filed in BACKLOG, not fixed here.
+  { name: ".Rmarkdown {python} + cache", entry: "doc.Rmarkdown", files: { "doc.Rmarkdown": FM + cell("python", "cache: banana") } },
+  { name: ".Rmd {r} + cache (unchanged — the language agreed already)", entry: "doc.Rmd", files: { "doc.Rmd": FM + cell("r", "cache: banana") } },
+  { name: ".Rmd {sql} + cache", entry: "doc.Rmd", files: { "doc.Rmd": FM + cell("sql", "cache: banana", "--|") } },
+  { name: ".Rmd {ojs} + cache", entry: "doc.Rmd", files: { "doc.Rmd": FM + cell("ojs", "cache: banana", "//|") } },
+  // The handler carve-out, which must survive the widening: quarto swaps the cell schema by
+  // LANGUAGE above every engine, so this renders exit 0 and flagging it would be the
+  // cardinal sin this session could most easily have manufactured.
+  { name: ".Rmd {dot} handler + cache (exempt)", entry: "doc.Rmd", files: { "doc.Rmd": FM + "```{dot}\n//| cache: banana\ndigraph { a -> b }\n```\n" } },
+  // The three things that make OTHER documents' engines uncertain, none of which can reach
+  // a `claimsFile` decision. Each is the `.Rmd` twin of a row (or an open BACKLOG item)
+  // above, and each renders exit 1 where its `.qmd` counterpart does not.
+  { name: ".Rmd engine: markdown + {python} + cache (the veto)", entry: "doc.Rmd", files: { "doc.Rmd": "---\ntitle: t\nengine: markdown\n---\n\n" + cell("python", "cache: banana") } },
+  { name: ".Rmd include(child {julia}) + {python} + cache", entry: "doc.Rmd", files: { "doc.Rmd": FM + "{{< include child.qmd >}}\n\n" + cell("python", "cache: banana"), "child.qmd": cell("julia", null) } },
+  { name: ".Rmd + _quarto.yml engines: [jupyter, knitr] + {python} + cache", entry: "doc.Rmd", files: { "doc.Rmd": FM + cell("python", "cache: banana"), "_quarto.yml": "project:\n  type: default\nengines: [jupyter, knitr]\n" } },
 ];
