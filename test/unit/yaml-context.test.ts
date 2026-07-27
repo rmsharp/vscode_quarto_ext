@@ -852,9 +852,78 @@ describe("completionContextAt — cell-option completion learns the DOCUMENT eng
     expect(ctx?.engine).toBe("knitr");
   });
 
-  // The four rows below run the REAL resolver, not the `() => undefined` fallback the rest
-  // of this file uses. Each is a shape whose answer must NOT move — the fix is worth having
-  // only if it changes exactly the row above and none of these.
+  it("offers the knitr-only key in an {ojs} cell of a KNITR document too", () => {
+    // The §9 review's HIGHEST finding: the adoption rule was pinned ONLY for {python}, so a
+    // mutant that refused to adopt for `ojs`/`js` — re-opening the exact flag-but-refuse-to-
+    // offer defect for those cells — passed all 1545 tests. {ojs} is a genuine instance:
+    // `engineFor("ojs")` is `ojs`, whose option set excludes `cache`, while the validator
+    // scopes an {ojs} cell of a knitr document to knitr and flags it. Measured on the
+    // curated index, jupyter->knitr and ojs->knitr both GAIN exactly
+    // ["fig-width","fig-height","cache"] and lose nothing.
+    const text = ["```{r}", "1 + 1", "```", "", "```{ojs}", "//| ca", "1 + 1", "```"].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 5, 6), engineOf(text))?.engine).toBe("knitr");
+  });
+
+  it("adopts JUPYTER too, not only knitr — an {r} cell in a jupyter document", () => {
+    // The other half of the adoption rule, also unpinned until the §9 review: a mutant that
+    // adopted only `knitr` passed everything. This is the NARROWING direction — the {r} cell
+    // loses exactly ["fig-width","fig-height","cache"] — and it is correct: quarto scopes
+    // every cell of a jupyter document to jupyter's schema.
+    const text = [
+      "---",
+      "jupyter:",
+      "  kernelspec:",
+      "    name: python3",
+      "---",
+      "",
+      "```{r}",
+      "#| ca",
+      "1 + 1",
+      "```",
+    ].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 7, 5), engineOf(text))?.engine).toBe("jupyter");
+  });
+
+  it("never adopts `\"none\"` even when the document engine IS resolved", () => {
+    // The handler-cell guard was pinned only by dot-ONLY documents, whose engine resolves to
+    // markdown — so `cellOptionScopeFor` reached its `"none"` branch but the ENGINE branch
+    // was never exercised. A mutant that bypassed `cellOptionScopeFor` entirely (return the
+    // document engine when it is knitr/jupyter, else `engineFor`) passed all 1545 tests
+    // while silently scoping handler cells to knitr. The `{r}` cell makes this document
+    // knitr, so the guard is the only thing keeping the answer `undefined`.
+    const text = [
+      "```{r}",
+      "1 + 1",
+      "```",
+      "",
+      "```{dot}",
+      "//| ec",
+      "digraph {a->b}",
+      "```",
+    ].join("\n");
+    const ctx = completionContextAt(text, offsetAt(text, 5, 6), engineOf(text));
+    expect(ctx?.kind).toBe("cell-option-key");
+    expect(ctx?.engine).toBeUndefined();
+  });
+
+  it("does NOT resolve the engine at a position that is not a cell-option line", () => {
+    // The thunk's LAZINESS is the entire reason the third parameter is a function rather
+    // than a value, and it had no test: an eager mutant that hoisted the call above the
+    // cell-option branch was behaviour-identical and passed all 1545 tests. Measured on an
+    // 1810-line document, resolving costs ~0.14 ms — and `:` is one of this provider's
+    // completion trigger characters, typed constantly in ordinary prose.
+    let calls = 0;
+    const counting = () => {
+      calls++;
+      return undefined;
+    };
+    const text = ["# Heading", "", "Some prose: with a colon in it."].join("\n");
+    expect(completionContextAt(text, offsetAt(text, 2, 12), counting)).toBeNull();
+    expect(calls, "the engine must not be resolved for a prose position").toBe(0);
+  });
+
+  // The rows below run the REAL resolver, not the `() => undefined` fallback the rest of
+  // this file uses. Each is a shape whose answer must NOT move.
   it("keeps jupyter for a {python} cell when no other language is present", () => {
     const text = ["```{python}", "#| ca", "1 + 1", "```"].join("\n");
     expect(completionContextAt(text, offsetAt(text, 1, 5), engineOf(text))?.engine).toBe(
