@@ -206,4 +206,45 @@ export const CORPUS: OracleCase[] = [
   // nothing ran. Our engine answer falls through to the languages (knitr) and we flag it.
   // Unchanged by this session — the pre-S171 build flags it identically. Filed in BACKLOG.
   { name: "S171 indented --- + NO engine + {r} + cache (KNOWN residual)", files: { "doc.qmd": "   " + FM + cell("r", "cache: banana") } },
+
+  // ---- Session 172: quarto's fence-token grammar -------------------------------------
+  //
+  // `breakQuartoMd`'s recognizer captures the language as `([=A-Za-z]+)` and its option tail
+  // must begin with a SPACE or a COMMA. A token that fails it is not a cell to quarto at all,
+  // so nothing inside is validated and any bad value renders exit 0.
+  //
+  // ⚠ EVERY ROW BELOW USES THE ENGINE-AGNOSTIC `echo`, ON PURPOSE. The two pre-existing
+  // digit-token rows above (`{r9} digit token + cache`, `{r9} then a real {r} cell...`) are
+  // baselined `agree` for a mechanism that has NOTHING to do with cell recognition: `cache`
+  // is knitr-only, `r9` is not counted as `r` by the language scan, so the document resolves
+  // markdown and `cache` is out of scope whatever the scanner decides. They stayed silent for
+  // the wrong reason and read as coverage — the FOURTH instance of this corpus's horizon
+  // warning, and the third where a row was named after a defect it could not observe. With
+  // `echo` the scope is the same under every engine, so the flag can only come from whether
+  // we built a cell. Check the MECHANISM a row passes by, never its name (S171 gotcha 2).
+  { name: "S172 {python3} digit token + echo", files: { "doc.qmd": FM + cell("python3", "echo: banana") } },
+  { name: "S172 {fortran95} digit token + echo", files: { "doc.qmd": FM + cell("fortran95", "echo: banana", "!|") } },
+  { name: "S172 {fortran} digit-free control + echo", files: { "doc.qmd": FM + cell("fortran", "echo: banana", "!|") } },
+  { name: "S172 {r9} digit token + echo (the agnostic twin of the vacuous cache row)", files: { "doc.qmd": FM + cell("r9", "echo: banana") } },
+  { name: "S172 {r-foo} hyphen token + echo", files: { "doc.qmd": FM + cell("r-foo", "echo: banana") } },
+  { name: "S172 {r_foo} underscore token + echo", files: { "doc.qmd": FM + cell("r_foo", "echo: banana") } },
+  // Truncation, not rejection: the old tail captured `r` here, so a single accent typo made a
+  // cell indistinguishable from a real {r} to every consumer at once.
+  { name: "S172 {ré} non-ASCII token + echo", files: { "doc.qmd": FM + cell("ré", "echo: banana") } },
+  // quarto's tail is `( *[ ,].*)?` — the separator must be a space or a comma, never a tab.
+  { name: "S172 {r<TAB>echo=FALSE} tab-separated token + echo", files: { "doc.qmd": FM + cell("r\techo=FALSE", "echo: banana") } },
+  { name: "S172 {r=1} '=' then a digit + echo", files: { "doc.qmd": FM + cell("r=1", "echo: banana") } },
+  // The other direction. These two render exit 1 and we were SILENT on both.
+  { name: "S172 {mermaid=x} glued token + echo (quarto validates it)", files: { "doc.qmd": FM + cell("mermaid=x", "echo: banana") } },
+  { name: "S172 {mermaid} bare handler + echo (stays exempt)", files: { "doc.qmd": FM + "```{mermaid}\n%%| echo: banana\nflowchart LR\n  A --> B\n```\n" } },
+  // `[^}]*` cannot span the `}` inside the quoted value, so this WELL-FORMED knitr chunk
+  // header was not a cell to us while quarto validates it. A lost TP on ordinary input.
+  { name: "S172 {r, fig.cap=\"}\"} brace in a quoted option + echo", files: { "doc.qmd": FM + cell('r, fig.cap="}"', "echo: banana") } },
+  // ⚠ A PRE-EXISTING lost true positive this session MEASURED but deliberately did not fix.
+  // quarto's `[=A-Za-z]+` accepts a leading `=`, and it really does validate raw blocks:
+  // measured exit 1 here, and exit 1 for knitr-only `cache` in a knitr document, so a raw
+  // block takes the document engine's schema. We keep the letter-led rule because adopting
+  // this WIDENS what we squiggle onto a new block class. Filed in BACKLOG; the guard is the
+  // FP GUARD pin in test/unit/cells.test.ts and test/unit/yaml-value-flags.test.ts.
+  { name: "S172 {=html} raw block + echo (KNOWN residual, lost TP)", files: { "doc.qmd": FM + "```{=html}\n#| echo: banana\n<p>x</p>\n```\n" } },
 ];
