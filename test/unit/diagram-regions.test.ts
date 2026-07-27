@@ -77,3 +77,38 @@ describe("findDiagramRegions", () => {
     expect(findDiagramRegions("")).toEqual([]);
   });
 });
+
+/**
+ * Session 172 — the four malformed info strings this module's docstring listed as a known
+ * limitation are no longer reported as diagrams.
+ *
+ * The limitation was a consequence of `CELL_INFO`'s old `[^}]*` tail, which TRUNCATED the
+ * token instead of rejecting it: `{mermaid=x}` reached `engineFor` as `mermaid` and was
+ * previewed as a Mermaid diagram. Quarto draws none of these — measured firsthand, and for
+ * two different reasons, which is why the fix had to match quarto's grammar rather than
+ * simply forbid the punctuation.
+ */
+describe("findDiagramRegions — malformed info strings (Session 172)", () => {
+  const region = (token: string) =>
+    findDiagramRegions("```" + token + "\ndigraph { a -> b }\n```\n");
+
+  it("still finds the well-formed {dot} and {mermaid} controls", () => {
+    expect(region("{dot}").map((r) => r.engine)).toEqual(["dot"]);
+    expect(region("{mermaid}").map((r) => r.engine)).toEqual(["mermaid"]);
+  });
+
+  it("does not report a glued '=' token as a diagram — quarto's language is `mermaid=x`", () => {
+    // It IS a cell to quarto (measured exit 1 for a bad option), but its language is
+    // `mermaid=x`, which is not in quarto's handler list `["mermaid","dot"]` — so quarto
+    // renders it as an ordinary code cell, not a diagram.
+    expect(region("{mermaid=x}")).toEqual([]);
+    expect(region("{dot=1}")).toEqual([]); // '=' then a digit: not a cell to quarto at all
+  });
+
+  it("does not report a '#'- or '.'-suffixed token as a diagram", () => {
+    // Not cells to quarto at all (its tail must start with a space or a comma), so nothing
+    // in them is drawn or validated. Measured exit 0 for the dotted spelling.
+    expect(region("{mermaid#id}")).toEqual([]);
+    expect(region("{mermaid.foo}")).toEqual([]);
+  });
+});

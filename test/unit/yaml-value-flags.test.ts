@@ -575,3 +575,54 @@ describe("cell fence tokens quarto does not recognize (Session 172)", () => {
     expect(cellFlags(text)).toEqual([]);
   });
 });
+
+/**
+ * Session 172, the flag surface — the same grammar seen through `valueFlags`, which is
+ * what actually squiggles. `cells.test.ts` pins cell MEMBERSHIP; these pin the DIAGNOSTIC.
+ * Every row names the exit code measured firsthand vs quarto 1.7.33.
+ */
+describe("cell fence tokens — the flag surface (Session 172)", () => {
+  const withCell = (token: string, option: string) =>
+    "---\ntitle: t\n---\n\n```" + token + "\n#| " + option + "\n1\n```\n";
+
+  it("CANARY: the {r} control still flags, so the silences below are real", () => {
+    // A suite of negative assertions passes against a dead provider (S163 gotcha 5). This
+    // runs first and is the block's only positive assertion about an unchanged shape.
+    expect(cellFlags(withCell("{r}", "echo: banana"))).toEqual(["5:echo=banana"]);
+  });
+
+  it("stays silent on a DOTTED token — the oracle's standing cardinal false positive", () => {
+    // Measured exit 0. This is the row test/oracle/baseline.json baselines `cardinal-fp`.
+    expect(cellFlags(withCell("{r.foo}", "echo: banana"))).toEqual([]);
+  });
+
+  it("stays silent on HYPHEN, UNDERSCORE, NON-ASCII and TAB tokens", () => {
+    // All measured exit 0, none named by any filed item.
+    expect(cellFlags(withCell("{r-foo}", "echo: banana"))).toEqual([]);
+    expect(cellFlags(withCell("{r_foo}", "echo: banana"))).toEqual([]);
+    expect(cellFlags(withCell("{ré}", "echo: banana"))).toEqual([]);
+    expect(cellFlags(withCell("{r\techo=FALSE}", "echo: banana"))).toEqual([]);
+  });
+
+  it("NOW FLAGS a glued '=' token, which quarto validates and we used to suppress", () => {
+    // Measured exit 1. The language is `mermaid=x`, which is NOT in quarto's handler list
+    // (`["mermaid","dot"]`), so it takes the ordinary cell schema. We used to truncate to
+    // `mermaid`, hit the handler guard, and stay silent — a lost true positive.
+    expect(cellFlags(withCell("{mermaid=x}", "echo: banana"))).toEqual(["5:echo=banana"]);
+    // …while the BARE handler token stays exempt. Without this control the pin above would
+    // also pass if the handler guard had been removed outright.
+    expect(cellFlags(withCell("{mermaid}", "echo: banana"))).toEqual([]);
+  });
+
+  it("NOW FLAGS a legitimate knitr header whose option value contains a '}'", () => {
+    // Measured exit 1. `[^}]*` could not span the `}`, so this was not a cell to us at all.
+    expect(cellFlags(withCell('{r, fig.cap="}"}', "echo: banana"))).toEqual(["5:echo=banana"]);
+  });
+
+  it("FP GUARD: an '='-LED raw block stays silent, though quarto flags it", () => {
+    // ⚠ LOAD-BEARING — see the twin guard in cells.test.ts. Measured: `{=html}` + this
+    // option renders quarto exit 1, so we are under-reporting here ON PURPOSE. Adopting the
+    // `=`-led branch is the separately filed raw-block item, not a tidy-up of this one.
+    expect(cellFlags(withCell("{=html}", "echo: banana"))).toEqual([]);
+  });
+});
