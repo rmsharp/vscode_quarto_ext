@@ -7,6 +7,29 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-26 · [ad hoc] Session 167 — PLANNING: lifting the value-flag decision into `src/core/` (PLAN ONLY)
+
+`docs/planning/2026-07-26-value-flag-decision-core-lift-plan.md`. The architecture/refactor
+plan for extracting the pure "what would we squiggle?" decision out of
+`src/features/yaml-value-diagnostics.ts` into a new `src/core/yaml-value-flags.ts`, so the
+feature and the exit-code oracle call ONE implementation and `test/oracle/flags.ts` — the
+hand-written mirror that has already drifted undetected once — is deleted. Five layers,
+pre-declared as one vertical slice with per-layer checkpoint commits and verification.
+
+**No code was written.** Implementation is a separate session (FM #18). The `BACKLOG.md` item
+stays open and now points at the plan.
+
+An adversarial review panel was run with the operator's go-ahead (`wf_25552832-cd9`; 6 lenses,
+2 refuters per finding, a completeness critic; 77 agents, 0 errors, ~4.4M subagent tokens).
+It reported `survivors: []` — an **artefact of the survival predicate**, which required both
+refuters to agree and so recorded findings the factual refuter had independently CONFIRMED as
+killed. Reading the per-agent results instead of the summary yielded **29 grounded defects in
+the plan's first draft**, every one re-verified firsthand and corrected; §11 of the plan is
+the record. The two most serious were false *justifications* rather than false conclusions:
+an inventory grep whose pattern could not match the file it searched (Learning #180), and a
+`break`/`continue` safety rationale that, followed literally, licensed the one edit in the
+refactor that loses a true positive.
+
 ### 2026-07-26 · [ad hoc] Session 166 — IMPLEMENTATION: the exit-code replay oracle, committed as an opt-in harness (SHIPPED)
 
 The end-to-end oracle had been the primary safety evidence for two consecutive sessions
