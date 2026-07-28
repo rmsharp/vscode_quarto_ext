@@ -2369,3 +2369,95 @@ describe("Quarto: leading whitespace before `---` (.qmd, Session 171)", () => {
     );
   });
 });
+
+/**
+ * Session 172 — the fence-token grammar, through the real vscode adapter.
+ *
+ * `test/unit` and the oracle both call `core/` directly, so neither can see the adapter that
+ * turns a flag into a squiggle. This block is the only gate that does.
+ *
+ * Quarto's `breakQuartoMd` recognizer captures the cell language as `([=A-Za-z]+)` with an
+ * option tail of `( *[ ,].*)?`. A token that fails it is not a cell to quarto at all, so
+ * nothing inside is validated — measured exit 0 for every negative row below, against exit 1
+ * for the `{python}` control.
+ */
+describe("Quarto: fence tokens quarto does not recognize (.qmd, Session 172)", () => {
+  before(async () => {
+    const ext = vscode.extensions.getExtension(EXTENSION_ID);
+    assert.ok(ext, `extension ${EXTENSION_ID} should be discoverable`);
+    await ext.activate();
+  });
+
+  afterEach(async () => {
+    await vscode.commands.executeCommand("workbench.action.revertAndCloseActiveEditor");
+    await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+  });
+
+  async function openInline(content: string): Promise<vscode.TextDocument> {
+    return vscode.workspace.openTextDocument({ language: "quarto", content });
+  }
+
+  const lineOf = (uri: vscode.Uri): number[] =>
+    valueDiagnostics(uri).map((d) => d.range.start.line);
+
+  // `echo` is engine-AGNOSTIC on purpose: its scope is identical under all four engines, so a
+  // squiggle here can only mean we built a cell. A knitr-only key would confound cell
+  // recognition with engine scoping — the exact vacuity that made two oracle rows useless.
+  const doc = (token: string) =>
+    ["---", "title: t", "---", "", "```" + token, "#| echo: banana", "1", "```", ""].join("\n");
+
+  it("CANARY: the {python} control still squiggles — the pass is live", async () => {
+    // First, and the block's only positive assertion. A suite of negative assertions passes
+    // just as happily against a dead provider (S163 gotcha 5).
+    const d = await openInline(doc("{python}"));
+    assert.ok(
+      await waitFor(() => lineOf(d.uri).includes(5), 5000),
+      `the agnostic \`echo\` must be flagged on line 5; flagged: ${lineOf(d.uri).join(",")}`,
+    );
+  });
+
+  it("does NOT squiggle a DIGIT-bearing {python3} token", async () => {
+    const d = await openInline(doc("{python3}"));
+    await waitFor(() => lineOf(d.uri).length > 0, 2500); // settle, so this cannot pass early
+    assert.deepStrictEqual(
+      lineOf(d.uri),
+      [],
+      `quarto builds no cell for {python3} and renders exit 0 — nothing may be flagged; flagged lines: ${lineOf(d.uri).join(",")}`,
+    );
+  });
+
+  it("does NOT squiggle a DOTTED {r.foo} token, which used to arrive as an {r} cell", async () => {
+    const d = await openInline(doc("{r.foo}"));
+    await waitFor(() => lineOf(d.uri).length > 0, 2500);
+    assert.deepStrictEqual(
+      lineOf(d.uri),
+      [],
+      `quarto builds no cell for {r.foo} and renders exit 0; flagged lines: ${lineOf(d.uri).join(",")}`,
+    );
+  });
+
+  it("DOES squiggle a glued {mermaid=x} token — quarto validates it and we used to suppress it", async () => {
+    // The recovered lost true positive, and the row that proves this block is not simply
+    // asserting "we stopped flagging cells". quarto's language here is `mermaid=x`, which
+    // misses its handler list, so the cell takes the ordinary schema: measured exit 1.
+    const d = await openInline(doc("{mermaid=x}"));
+    assert.ok(
+      await waitFor(() => lineOf(d.uri).includes(5), 5000),
+      `{mermaid=x} is a cell whose language is not a handler — \`echo\` must be flagged on line 5; flagged: ${lineOf(d.uri).join(",")}`,
+    );
+  });
+
+  it("does NOT squiggle the BARE {mermaid} handler cell — the exemption survives", async () => {
+    // The control for the row above. Without it, that pin would also pass if the handler
+    // exemption had simply been removed. Measured exit 0.
+    const d = await openInline(
+      ["---", "title: t", "---", "", "```{mermaid}", "%%| echo: banana", "flowchart LR", "```", ""].join("\n"),
+    );
+    await waitFor(() => lineOf(d.uri).length > 0, 2500);
+    assert.deepStrictEqual(
+      lineOf(d.uri),
+      [],
+      `a bare {mermaid} handler cell is exempt under every engine; flagged lines: ${lineOf(d.uri).join(",")}`,
+    );
+  });
+});
