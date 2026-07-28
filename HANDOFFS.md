@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S173
+date: 2026-07-27
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). Close the `test/unit` type-check gap: nothing type-checks test/unit, so a unit test can ship as a TypeScript error that every green run reports as passing (tsconfig.json includes only ["src"]; tsconfig.test.json only test/integration, test/lsp, test/oracle; vitest transpiles with esbuild without checking types). Add test/unit to a type-checked project, adjudicate each surfaced error individually (fix vs @ts-expect-error, never a blanket suppression), and wire the check into a script so it cannot regress. Operator-selected via AskUserQuestion at Phase 0 from an empty BACKLOG Active section; it was S172's ranked recommendation #1. ONE deliverable.
+```
+
+```handoff
 session: S172
 date: 2026-07-27
 status: complete
