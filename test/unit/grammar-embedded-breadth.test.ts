@@ -44,7 +44,15 @@ async function tokenize(text: string): Promise<FlatToken[]> {
         );
         return vsctm.parseRawGrammar(raw, "quarto.tmLanguage.json");
       }
-      return { scopeName, patterns: [] };
+      // Empty stub for every external include — see `test/unit/tokenize.test.ts`,
+      // whose harness this mirrors, for why the stub must not be null and why it
+      // is built through `parseRawGrammar` rather than returned as a bare object
+      // literal (the literal does not satisfy `IRawGrammar`; the round-trip yields
+      // the identical object and needs no cast).
+      return vsctm.parseRawGrammar(
+        JSON.stringify({ scopeName, patterns: [] }),
+        `${scopeName}.json`,
+      );
     },
   });
 

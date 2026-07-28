@@ -54,7 +54,24 @@ beforeAll(async () => {
       }
       // Empty stub for every external include (markdown, yaml, source.*).
       // Must be a valid grammar, not null — see the file header.
-      return { scopeName, patterns: [] };
+      //
+      // Built through `parseRawGrammar` — the same typed entry point the real
+      // branch above uses — rather than returned as a bare object literal, because
+      // the literal does not satisfy `IRawGrammar` (CHANGELOG: the test/unit
+      // type-check gate, Session 173). `repository` is declared required, and
+      // `IRawRepositoryMap` additionally declares `$self`/`$base` as required
+      // rules, yet the engine fills all three in itself (`initGrammar`:
+      // `repository = repository || {}`, then it assigns `$self` and `$base`) —
+      // so the declared type is stricter than the value the runtime accepts.
+      // Spelling the three out here would hand the engine a fabricated
+      // `$self`/`$base` that it overwrites on the next line; a `as unknown as`
+      // double cast would punch a real hole in the very check this gate exists to
+      // apply. The round-trip yields the identical object this returned before, so
+      // the stub's behaviour is unchanged.
+      return vsctm.parseRawGrammar(
+        JSON.stringify({ scopeName, patterns: [] }),
+        `${scopeName}.json`,
+      );
     },
   });
 
