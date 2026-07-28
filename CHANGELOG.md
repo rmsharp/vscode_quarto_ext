@@ -7,6 +7,59 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-27 · [ad hoc] Session 172 — IMPLEMENTATION: the `CELL_INFO` fence-token grammar is quarto's (SHIPPED)
+
+`CELL_INFO` (`src/core/qmd/model.ts`) now carries quarto's own cell-fence recognizer,
+transcribed from `breakQuartoMd` in the installed 1.7.33 and read out of
+`/Applications/quarto/bin/quarto.js` rather than from the docstrings quoting it:
+
+    -  /^\{([A-Za-z][A-Za-z0-9_-]*)[^}]*\}$/
+    +  /^\{([A-Za-z][=A-Za-z]*)( *[ ,].*)?\}$/
+
+A fence token quarto does not recognise is not a cell to it **at all** — `breakQuartoMd`
+builds no code cell, `partitionCellOptionsMapped` never runs, and nothing inside is
+validated — so we were squiggling documents `quarto render` exits 0 on.
+
+**The old tail was wrong in BOTH directions**, which is what all three filed items missed.
+Too permissive: `{python3}`, `{fortran95}`, `{d3}`, `{r.foo}`, `{r-foo}`, `{r_foo}`, `{ré}`,
+a TAB-separated info string, and `{r=1}` were all cells to us and none to quarto — and the
+`[^}]*` tail TRUNCATED rather than rejected, so `{r.foo}` and `{ré}` each arrived as an `{r}`
+cell, indistinguishable from a real one at the outline, the virtual-document language map,
+run-cell and diagnostics at once. Too restrictive: a class excluding `}` cannot span a `}`
+inside a quoted chunk option, so the **well-formed** knitr header `` ```{r, fig.cap="}"} ``
+was not a cell to us while quarto validates it.
+
+Closes three filed items sharing one root cause — the digit-bearing fence token (S161 review,
+plus S166's dotted `{r.foo}` update), the glued `{mermaid=x}` whose language is really
+`mermaid=x` (S162 review), and the Session 16 `findDiagramRegions` over-detection — and three
+shapes no filing named: hyphen, underscore, and a non-ASCII letter.
+
+Measured, not derived, by replaying the pre-S172 build (`git archive faaeae9 src` ->
+`QMD_ORACLE_SRC`) over the same 99-document oracle corpus: **80 agree / 6 lost TP / 13 cardinal
+FP → 91 / 4 / 4.** Nine cardinal false positives closed, two lost true positives recovered,
+zero rows regressed. ~85 firsthand `quarto render --no-execute` measurements in four batches,
+each carrying known-answer controls.
+
+Two things deliberately NOT done, both measured and both filed. (a) The `=`-led raw-block
+branch: quarto accepts a leading `=`, and it really does validate raw blocks — `{=html}` +
+`#| echo: banana` renders exit 1, and knitr-only `#| cache: banana` renders exit 1 in a knitr
+document, so a raw block takes the document engine's schema. Adopting it WIDENS what we
+squiggle onto a new block class, so the item is re-rated with its mechanism rather than closed;
+the two FP GUARD pins are the enforced boundary, and a mutant adopting quarto's grammar
+verbatim kills exactly those two out of 1574 tests. (b) `FENCE_OPEN`'s 3-space indentation cap:
+quarto's recognizer opens with unbounded `\s*`, and a 4-space-, tab- and 8-space-indented fence
+with a column-0 option all render exit 1 while we stay silent — a different regex, newly filed.
+
+⚠ Standing hazard recorded at `document-engine.ts`: quarto has THREE fence grammars, and the
+engine-selection scan (`[a-zA-Z0-9_]+`) must stay different from the cell recognizer
+(`[=A-Za-z]+`). `{python3}` is a LANGUAGE but not a CELL; `{=html}` is a CELL but not a
+LANGUAGE. Consolidating ours — as a BACKLOG item and a src docstring both proposed — regresses
+both directions.
+
+Verification: check-types clean; compile-tests clean; unit **1583 / 62 files**; oracle 99
+documents, gate green; integration **491 passing**, taken RED first (3 failing, in both
+directions, with the CANARY passing) and GREEN after restoring.
+
 ### 2026-07-27 · [ad hoc] Session 171 — IMPLEMENTATION: leading whitespace no longer hides the front matter from engine scoping (SHIPPED)
 
 A blank line — or spaces, or a tab — before the opening `---` hid a document's front matter
