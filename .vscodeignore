@@ -18,8 +18,14 @@ media/screenshots/**
 **/*.map
 **/*.ts
 esbuild.js
+# One line per tsconfig, NOT a `tsconfig*.json` glob, so adding a project is a
+# deliberate decision here rather than a silent inheritance. `tsconfig.unit.json`
+# (CHANGELOG: the test/unit type-check gate, Session 173) shipped INSIDE the .vsix
+# until `vsce package` was run and its file tree actually read — the release gate
+# reports a clean exit either way.
 tsconfig.json
 tsconfig.test.json
+tsconfig.unit.json
 vitest.config.ts
 .gitignore
 
