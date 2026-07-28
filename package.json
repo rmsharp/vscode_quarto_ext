@@ -566,7 +566,8 @@
     ]
   },
   "scripts": {
-    "check-types": "tsc --noEmit",
+    "check-types": "tsc --noEmit && npm run check-types:unit",
+    "check-types:unit": "tsc -p tsconfig.unit.json",
     "bundle": "node esbuild.js",
     "compile": "npm run check-types && npm run bundle",
     "watch": "node esbuild.js --watch",
