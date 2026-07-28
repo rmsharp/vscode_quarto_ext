@@ -7,6 +7,84 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-07-27 · [ad hoc] Session 173 — IMPLEMENTATION: the `test/unit` type-check gate (SHIPPED)
+
+Nothing type-checked `test/unit`. `tsconfig.json` includes only `["src"]`,
+`tsconfig.test.json` only `test/integration/**`, `test/lsp/**` and `test/oracle/**`, and
+vitest transpiles with esbuild without checking types — so a unit test could ship as a
+TypeScript error that every green run reported as passing. S162 shipped exactly that: an
+`L1` pin calling `namesFor("none")` against a helper whose hand-copied union lacked
+`"none"`.
+
+`tsconfig.unit.json` type-checks all **62** unit test files (+45 `src` files transitively),
+and `check-types` now chains `check-types:unit`, which puts the gate on `compile` and
+therefore on `package`, `vscode:prepublish`, `test:integration` and `test:lsp` — none of
+which name it. `test/unit/type-check-gate.test.ts` pins that chain by REACHABILITY,
+expanding `npm run <name>` transitively rather than matching one script's spelling.
+
+**Mutation-proven in both directions.** Re-creating S162's exact shape:
+
+    npm test              exit 0   <- 1589 passed. Type nonsense, reported green.
+    npm run check-types   exit 2   <- TS2345: Argument of type '"none"' is not
+                                      assignable to parameter of type 'LangName'.
+    npm run compile       exit 2   <- packaging and both integration runners blocked.
+
+Reverse: cutting the wiring reds exactly 2 of the 6 pins; the 4 that pin the tsconfig
+itself correctly stay green.
+
+**The filed cost estimate was wrong by an order of magnitude, in the direction that would
+have wasted the session.** Ten handoffs quoted "~25 pre-existing errors across ~10 unit
+test files … decide whether to fix or `@ts-expect-error` each". Under options faithful to
+how vitest executes those files there are **2**. The other 23 are artifacts of the base
+project's `module: commonjs` and missing `resolveJsonModule`: 8× TS2732 on the
+`package.json` imports, then 6× TS18046 and 5× TS7006 all downstream of that one option
+(with the JSON untyped, everything derived from it degrades to `unknown`/`any`), and 4×
+TS1343 because `import.meta` needs an ESM `module`. Acting on the filed number would have
+meant editing ~23 tests that were never wrong.
+
+**The compiler options were the real deliverable, and the incantation every handoff has
+quoted since S162 is the wrong one here.** Matrix, errors as (total / in `src` / in `test`):
+
+    module=es2022   res=node      ->  2 / 0 / 2   <- adopted
+    module=esnext   res=node      ->  2 / 0 / 2
+    module=es2022   res=node10    ->  2 / 0 / 2
+    module=preserve res=bundler   ->  8 / 6 / 2
+    module=esnext   res=bundler   ->  8 / 6 / 2
+    module=node16   res=node16    ->  6 / 0 / 6
+    module=nodenext res=nodenext  ->  6 / 0 / 6
+
+`moduleResolution: bundler` injects 6 phantom TS2702 errors into
+`src/core/notebook-callout.ts` — a file `npm run check-types` passes clean — because
+ESM-style resolution drops the `export =` namespace interop this project's `commonjs` +
+`esModuleInterop` relies on. `node16`/`nodenext` fail the other way: the package is CJS, so
+the 4 `import.meta` uses come back as TS1470. Recorded cost of the adopted pair: node10
+resolution ignores `exports` maps, a false negative in the safe direction. `rootDir: "."`
+is required — the inherited `rootDir: "src"` reports TS6059 on all 62 files.
+
+The two genuine errors are fixed behaviour-preservingly: the stub grammar in
+`test/unit/tokenize.test.ts` and `test/unit/grammar-embedded-breadth.test.ts` is now built
+with `vsctm.parseRawGrammar` — the typed entry point the real branch beside it already
+uses — over `JSON.stringify` of the identical literal, so the returned value is unchanged.
+A bare `as vsctm.IRawGrammar` does not compile (TS2352); `as unknown as` would punch a hole
+in the very check this gate applies; spelling out `repository: { $self, $base }` would hand
+the engine fabricated rules it overwrites on the next line.
+
+**Running the release gate found a defect this change shipped.** `.vscodeignore` excludes
+build inputs one line per file, so `tsconfig.unit.json` was packaged INTO the `.vsix`;
+`vsce package` exits 0 either way and only the produced file tree shows it (Learning #7 in a
+form no corpus grep reaches). Fixed, verified absent from the real artifact. It also
+surfaced a larger PRE-EXISTING one, filed not fixed: the untracked `scratchpad/` directory
+is **3043 of the package's 3085 files** and has been since ~2026-07-21; the real extension
+is 42 files.
+
+`npm run check-types:unit` retires the hand-typed per-file incantation every handoff has
+carried since S162, and `CLAUDE.md` now names it.
+
+Commits: 1B claim `26a0f36`; **C1** `b2937d1` [RED→GREEN] the project + the 2 errors;
+**C2** `2f30f4e` [RED→GREEN] the wiring + 6 pins; **C3** `223cea8` the two falsified live
+claims; **C4** `b38b62a` the `.vsix` leak; **C5** `b1c6e54` backlog; close-out. `src/` is
+byte-identical throughout. `PROJECT_LEARNINGS.md` #199–#202.
+
 ### 2026-07-27 · [ad hoc] Session 172 — IMPLEMENTATION: the `CELL_INFO` fence-token grammar is quarto's (SHIPPED)
 
 `CELL_INFO` (`src/core/qmd/model.ts`) now carries quarto's own cell-fence recognizer,
