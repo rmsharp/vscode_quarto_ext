@@ -44,6 +44,15 @@ npx @vscode/vsce package   # produce the .vsix (release gate)
 
 For any Quarto-document fixtures the doc-build equivalent is `quarto render`.
 
+**Type-checking a unit test you just edited: `npm run check-types:unit`** (CHANGELOG: the
+`test/unit` type-check gate, Session 173). From S162 to S172 nothing type-checked `test/unit`, so
+every handoff in that range carried a hand-typed per-file `npx tsc …` incantation as a gotcha —
+one whose `--moduleResolution bundler` is measurably wrong for this repo (it reports 6 phantom
+TS2702 errors in `src/core/notebook-callout.ts`). `tsconfig.unit.json` is now the one definition,
+and `npm run check-types` runs it, so `compile`, `package`, `vscode:prepublish`,
+`test:integration` and `test:lsp` all reach it. **`npm test` passing is not evidence that
+`test/unit` type-checks** — vitest transpiles with esbuild and checks nothing.
+
 ---
 
 ## Project-Specific Methodology Adaptations

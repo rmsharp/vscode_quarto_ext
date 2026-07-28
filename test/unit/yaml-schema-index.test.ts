@@ -1368,10 +1368,16 @@ describe("parseSchemaIndex — engine tags & filtering", () => {
   const engineOf = (name: string): string | undefined =>
     index.cellOptions().find((f) => f.name === name)?.engine;
   // Typed FROM the contract rather than by re-listing it: a hand-copied union silently
-  // drifts when a scope is added, and nothing catches it — `tsconfig.json` includes only
-  // `["src"]`, so `npm run check-types` never sees this file, and vitest transpiles without
-  // type-checking. That is exactly how the S162 `"none"` pin below shipped as a TS2345 error
-  // that every green run reported as passing.
+  // drifts when a scope is added. That is exactly how the S162 `"none"` pin below shipped
+  // as a TS2345 error that every green run reported as passing — at the time `tsconfig.json`
+  // included only `["src"]`, so `npm run check-types` never saw this file and vitest
+  // transpiles without type-checking, leaving nothing that could catch it.
+  //
+  // ✅ THE STRUCTURAL HALF IS CLOSED (CHANGELOG: the test/unit type-check gate, Session 173):
+  // `tsconfig.unit.json` type-checks `test/unit`, and `check-types` runs it, so the same
+  // drift is now a build failure — mutation-proven by re-creating this exact shape.
+  // Typing from the contract is still the right form: the gate reports the mismatch, it does
+  // not repair a union that was copied wrong in the first place.
   const namesFor = (engine?: Parameters<SchemaIndex["cellOptions"]>[0]): string[] =>
     index.cellOptions(engine).map((f) => f.name);
 
