@@ -18,6 +18,7 @@ media/screenshots/**
 **/*.map
 **/*.ts
 esbuild.js
+check-package.js
 # One line per tsconfig, NOT a `tsconfig*.json` glob, so adding a project is a
 # deliberate decision here rather than a silent inheritance. `tsconfig.unit.json`
 # (CHANGELOG: the test/unit type-check gate, Session 173) shipped INSIDE the .vsix
@@ -48,3 +49,18 @@ methodology_dashboard.py
 dashboard.html
 dashboard_history.jsonl
 **/.DS_Store
+
+# Prior sessions' scratch work — probe scripts, fixture trees and throwaway
+# tsconfigs. UNTRACKED, and it shipped inside the .vsix from ~2026-07-21 until
+# Session 174: 3043 of the artifact's 3085 files, 84.68 MB uncompressed, against
+# a real extension of 42 files. `vsce package` exits 0 either way.
+#
+# ⚠ `scratchpad/` is deliberately NOT in `.gitignore` (decided, Session 174).
+# The `?? scratchpad/` line in every Phase 0 `git status` is the only
+# human-visible trace that ~97 MB of prior-session scratch lives in this repo,
+# and it costs exactly one line because git collapses the directory — it masks
+# no other stray file. Silencing it would buy cosmetic quiet at the price of the
+# one signal, so the packaging risk is carried HERE and by `check-package.js`
+# instead. Reversing that decision is a one-line change to `.gitignore`; the
+# .vsix stays protected either way.
+scratchpad/**
