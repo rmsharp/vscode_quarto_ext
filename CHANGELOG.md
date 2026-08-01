@@ -7,6 +7,72 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-01 · [ad hoc] Session 174 — IMPLEMENTATION: the `scratchpad/` `.vsix` packaging leak (SHIPPED)
+
+The untracked `scratchpad/` directory shipped inside every `.vsix` from ~2026-07-21:
+**3043 of the artifact's 3085 files, 84.68 MB uncompressed**, against a real extension of
+42 files — and `npx vsce package` exited 0 throughout. Measured before and after by reading
+the produced artifact with `unzip -Z1`, not by trusting an exit code: **3087 entries /
+29.73 MB → 44 / 1.8 MB** (42 extension files plus vsce's two manifest entries).
+
+**The deliverable was not the two `.vscodeignore` lines; it was inverting the default.**
+`.vscodeignore` is a DENYLIST, so the packaged set is allow-by-default: anything new at the
+repo root ships unless a human remembers, and no build, test, type-check or packaging step
+can observe the mistake. That default went wrong twice in eleven days — `tsconfig.unit.json`
+(Session 173) and `scratchpad/`. `check-package.js` now checks the packaged set
+**deny-by-default** against an explicit top-level allowlist, and it proved the point on its
+first run by reporting **two** violations rather than one: `scratchpad` (3043 files) and
+`check-package.js` itself, the brand-new root-level file written thirty seconds earlier,
+which would have shipped exactly as `tsconfig.unit.json` did.
+
+It asserts three things: the allowlist; **presence** of every allowlisted root (an
+over-broad exclusion that drops `dist/` is the same defect pointed the other way, and such a
+`.vsix` packages, publishes and installs perfectly cleanly); and file-count / byte ceilings
+as backstops for a leak *inside* an allowed root.
+
+**The wiring point was chosen by measurement.** Pointing `vscode:prepublish` at a
+marker-writing probe: `vsce package` runs it (1 marker), `vsce ls` does not (0). The first
+half makes `vscode:prepublish` strictly stronger than the project's own `package` script —
+vsce walks that edge itself, so even a bare `npx vsce package` now runs the gate. The second
+half is what makes the design possible: the gate shells out to `vsce ls` from inside
+`vscode:prepublish`, which would have been infinite recursion had the answer gone the other
+way. `test/unit/package-contents-gate.test.ts` pins that reachability, with the traversal
+extended to model the implicit edge (no `npm run` appears in it).
+
+**Mutation-proven in three directions.** A stray root-level file makes `npm run package`
+**ERROR with no artifact produced** — the gate blocks a release rather than describing one
+afterwards; cutting the wiring reds exactly 3 of the 4 pins (the 4th correctly stays green,
+pinning a different property); excluding `dist/**` reds the presence check.
+
+**The oracle's faithfulness is measured, not assumed.** `vsce ls` and a real `.vsix` are
+identical as sets with exactly two differences — the archive adds `extension.vsixmanifest` +
+`[Content_Types].xml` outside the `extension/` prefix, and two files are RENAMED on the way
+in (`LICENSE`→`LICENSE.txt`, `README.md`→`readme.md`). That justifies a ~7s oracle over a
+~36s one producing a 30 MB artifact, and the renames would have silently broken an allowlist
+spelled from the archive's names. The re-derivation command lives in the script.
+
+**⚠ `scratchpad/` was deliberately NOT added to `.gitignore`** (decision recorded in
+`.vscodeignore`). The `?? scratchpad/` line in every Phase 0 `git status` is the only
+human-visible trace that ~97 MB of prior-session scratch lives in this repo; it costs exactly
+one line because git collapses the directory, and it masks no other stray file. Silencing it
+would buy cosmetic quiet at the price of the one signal that would ever surface this.
+Reversing the decision is one line; the `.vsix` stays protected either way.
+
+**Known blind spot, documented at both sites:** the allowlist is top-level only, so a
+`media/screenshots/**` leak sits inside an allowed root where only the ceilings could catch
+it — `docs/F5-VISUAL-CHECKLIST.md`'s manual `vsce ls` step is still required and is marked
+as such. `docs/SECURITY-AUDIT.md`'s standing "the published `.vsix` contains only the
+esbuild bundle plus static assets" invariant — false for ~11 days, and re-verified by hand
+at a point in time by a person who had to think to look — is now enforced on every packaging
+run.
+
+Also filed: `methodology_dashboard.py` is two minor versions stale (v2.8.0 vs v2.10.2), and
+`scratchpad/` is ~97 MB with nothing pruning it (an operator decision — several planning
+documents cite files inside it as their grounding record).
+
+`src/` is byte-identical to the session's 1B claim; zero runtime surface changed.
+
+
 ### 2026-07-27 · [ad hoc] Session 173 — IMPLEMENTATION: the `test/unit` type-check gate (SHIPPED)
 
 Nothing type-checked `test/unit`. `tsconfig.json` includes only `["src"]`,
