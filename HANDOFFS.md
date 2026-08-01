@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S174
+date: 2026-08-01
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). Stop the untracked scratchpad/ directory from shipping inside the .vsix, and leave a gate that REDS when a future leak happens. Measured by S173 at Phase 3E: `npx vsce package` yields 3085 files / 29.73 MB, of which 3043 files / 84.68 MB uncompressed are scratchpad/; the real extension is 42 files. PRE-EXISTING since ~2026-07-21; vsce package exits 0 either way, so only reading the produced file tree shows it. Three parts: (1) the packaging exclusion; (2) a DELIBERATE, RECORDED decision on the .gitignore half — ignoring scratchpad/ silences the Phase 0 `git status` signal that is the only reason anyone would ever notice; (3) a regression gate keyed to real vsce output, since re-implementing .vscodeignore semantics in a test is the hand-transcription this project has been burned by. Operator-selected via AskUserQuestion at Phase 0; it was S173's ranked recommendation #1. ONE deliverable.
+```
+
+```handoff
 session: S173
 date: 2026-07-27
 status: complete
