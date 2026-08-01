@@ -36,9 +36,13 @@ The published `.vsix` contains only the esbuild **bundle** plus static assets �
 1. **No runtime dependencies.** `package.json` `"dependencies": {}` is empty (everything is in `devDependencies`; the new `overrides` key adds no runtime dep).
 2. **`src/` imports none of the vulnerable packages.** `grep -rnE "esbuild|vite|vitest|mocha|serialize-javascript" src/` → no matches.
 3. **The shipped bundle is clean.** `dist/extension.js` (the esbuild bundle of `src/extension.ts` with `vscode` external) contains none of their names — re-verified with a whole-token grep (`grep -aoE "\b(esbuild|vitest|vite-node|@vitest|serialize-javascript)\b"` → 0 matches).
-4. **The package ships no `node_modules`.** `vsce ls` → 0 `node_modules` entries; a 43-file package (source `dist/extension.js`, grammars, snippets, walkthrough media, and the vendored KaTeX/Mermaid/Graphviz webview assets).
+4. **The package ships no `node_modules`.** `vsce ls` → 0 `node_modules` entries; a 42-file package (source `dist/extension.js`, grammars, snippets, walkthrough media, and the vendored KaTeX/Mermaid/Graphviz webview assets).
 
 Therefore every advisory below affected only the local developer's build/test machine, never any user who installs the extension — which is why they were safely deferrable until this deliberate upgrade.
+
+> **⚠ Update (Session 174) — this invariant is now ENFORCED, because re-verifying it by hand was not enough.** The `node_modules` half of the claim above held continuously (`.vscodeignore` has excluded `node_modules/**` throughout). The **"only the bundle plus static assets"** half did not: from ~2026-07-21 the untracked `scratchpad/` directory shipped inside every `.vsix` — **3043 of the artifact's 3085 files, 84.68 MB uncompressed** — and `vsce package` reported a clean exit the whole time. It was found by hand at Session 173 and only because that session happened to read the produced file tree instead of the exit code. The four checks above are point-in-time verifications performed by a person; nothing re-ran them.
+>
+> `check-package.js` now asserts the invariant on every packaging run, wired through `vscode:prepublish` so a bare `npx vsce package` reaches it too. It is deny-by-default — every packaged path's top-level segment must be in an explicit allowlist — which is the direction that matters, since `.vscodeignore` is a denylist and therefore ships anything new by default. Item 4's count is the gate's own output: `check-package: OK — 42 files, 5.50 MB uncompressed`.
 
 ## History — the 7 advisories that were present (through Session 107) and how each was cleared
 

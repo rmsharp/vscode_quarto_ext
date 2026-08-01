@@ -53,6 +53,11 @@ references them via repo raw URLs), so the package stays lean — only
 - `npm run package` → clean `.vsix`, no missing-image / vsce warnings; confirm
   with `vsce ls` that `media/screenshots/**` is **not** listed but
   `media/icon.png` is.
+  - ⚠ **This manual step is still required** (Session 174). `check-package.js`
+    now gates every packaging run, but it is deny-by-default at the **top level**
+    only, and `media` is an allowed root — so a screenshots leak lives *inside*
+    an allowed root and the allowlist cannot see it. Only the size/count
+    ceilings would catch it, and only once it got large.
 - README image links resolve (relative paths match files on disk).
 - Commit and **push** (the Marketplace rewrites relative image paths against
   `origin`'s default branch, so unpushed images won't render in the listing).

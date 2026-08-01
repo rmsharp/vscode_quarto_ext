@@ -78,7 +78,15 @@ const ALLOWED_ROOTS = [
 
 /**
  * Obesity backstops for a leak INSIDE an allowed root, which the allowlist
- * cannot see. Both are ceilings with roughly 2x headroom over the artifact
+ * cannot see.
+ *
+ * ⚠ This is the gate's known blind spot, and it is not hypothetical: the
+ * `media/screenshots/**` exclusion that `docs/F5-VISUAL-CHECKLIST.md` asks a
+ * human to confirm by hand lives inside the allowed `media` root, so only these
+ * ceilings would ever catch it — and only once it got large. That checklist
+ * step is still required; this gate does not subsume it.
+ *
+ * Both are ceilings with roughly 2x headroom over the artifact
  * measured at Session 174 (42 files, 5.50 MB uncompressed), deliberately not
  * equalities: ordinary growth — another KaTeX font, another bundle — must never
  * red, while the leak class actually observed here reds by 30x on count and
