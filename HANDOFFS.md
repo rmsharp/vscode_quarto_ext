@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S180
+date: 2026-08-02
+status: pending
+active_task: IMPLEMENTATION (strict TDD -- real logic, so RED->GREEN is required; no declarative-edit exemption). Pandoc's `blank_before_header`: quarto renders with pandoc's `markdown` dialect, where that extension is ON by default, so an ATX heading pressed directly against a preceding non-blank line is NOT a heading -- it is paragraph continuation. Our ATX_HEADING test (src/core/qmd/model.ts:84) is applied to any body line with no such adjacency rule, so we emit a PHANTOM heading into the outline, breadcrumbs, sticky scroll and workspace symbols on documents pandoc renders as ordinary paragraph text. Filed by S179, verified firsthand then with `quarto pandoc -f markdown -t html`; PRE-EXISTING. S179's fence change widened its reach (a declined fence's body lines are now scanned as prose), which is the one direction that change can ADD something wrong rather than only remove it. Direction is the OPPOSITE of the last three sessions: this REMOVES headings a user can see. Operator-selected via AskUserQuestion at Phase 0, over S179's own ranked #1.
+```
+
+```handoff
 session: S179
 date: 2026-08-02
 status: complete
