@@ -37,6 +37,12 @@ const INDENTED_CELL = path.resolve(
   ROOT,
   "test/fixtures/yaml-value-diagnostics/indented-cell.qmd",
 );
+// S179: a well-formed cell, a cell whose closer is LONGER than its opener, and an
+// unterminated one — quarto validates only the first, measured at exit 1 reporting line 18.
+const FENCE_TERMINATION = path.resolve(
+  ROOT,
+  "test/fixtures/yaml-value-diagnostics/fence-termination.qmd",
+);
 const INVALID_FORMAT_NAME = path.resolve(ROOT, "test/fixtures/format-name/invalid.qmd");
 const VALID_FORMAT_NAME = path.resolve(ROOT, "test/fixtures/format-name/valid.qmd");
 const VALID_ASPECTRATIO_FRONT_MATTER = path.resolve(
@@ -148,6 +154,29 @@ describe("Quarto: cell-option VALUE diagnostics (.qmd, plan §4.1 Phase 1)", () 
     // 30 = the UNTERMINATED indented fence's option. Quarto builds no cell there and renders
     // exit 0, so a flag would be a false positive on a document quarto ACCEPTS.
     assert.ok(!lines.includes(30), "an unterminated indented fence must not be flagged");
+  });
+
+  it("flags ONLY the well-formed cell when the other fences never close (S179)", async () => {
+    // Phase 3E's wiring evidence for S179. The change is in `qmd/model.ts`, which every
+    // other fixture here reaches only through well-formed fences — so without this one a
+    // green run would again prove no REGRESSION and nothing about the deliverable.
+    //
+    // The fixture's premise is measured, not assumed: `quarto render --no-execute` on it
+    // exits 1 and reports EXACTLY ONE error, at line 18 (1-based) — the control's option.
+    // Neither malformed shape is validated, so a diagnostic on either is a cardinal-sin
+    // false positive on a document quarto is otherwise happy to build.
+    const doc = await openActive(FENCE_TERMINATION);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 1, 5000),
+      "expected the control cell's diagnostic to appear within 5s of opening",
+    );
+    const lines = valueDiagnostics(doc.uri)
+      .map((d) => d.range.start.line)
+      .sort((a, b) => a - b);
+    // Asserted as an exact SET, not a count: 17 is the control (0-based; quarto's line 18),
+    // 24 is the cell whose closer is LONGER than its opener, and 32 is the unterminated one.
+    // A count assertion would pass if a flag simply moved from one to another.
+    assert.deepStrictEqual(lines, [17], `unexpected diagnostic lines: ${lines.join(",")}`);
   });
 
   it("produces ZERO diagnostics for a .qmd whose cell-option values are all valid or open", async () => {

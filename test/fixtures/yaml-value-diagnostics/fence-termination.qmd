@@ -1,0 +1,34 @@
+---
+title: Fence termination fixture
+---
+
+Quarto closes a cell only on a fence whose backtick run is EXACTLY the opener's
+(`breakQuartoMd`: `match(endCodeRegEx)[1].length === inCode`), and pandoc's
+`markdown` treats a fence that never closes as prose rather than a code block.
+So neither malformed shape below is a cell, and flagging either would be a false
+positive (Session 179, measured firsthand vs 1.7.33).
+
+The well-formed control comes FIRST and the run lengths ASCEND after it, both on
+purpose: a bare closing run below an earlier opener would close it. Reordering
+this file or renumbering the fences will change what it tests.
+
+The control. Quarto really does validate this one, so it MUST be flagged.
+
+```{r}
+#| echo: maybe
+1
+```
+
+A LONGER closer does not close a cell — CommonMark says it does, quarto does not.
+
+````{r}
+#| echo: maybe
+2
+`````
+
+An UNTERMINATED cell is not a cell at all: quarto deletes the opening fence and
+flushes the rest as markdown.
+
+``````{r}
+#| echo: maybe
+3

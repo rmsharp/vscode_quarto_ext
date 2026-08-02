@@ -753,6 +753,31 @@ describe("a fence that is never CLOSED is not a code block at all (Session 179)"
     expect(headings).toEqual(closes ? ["After"] : ["Swallowed", "After"]);
   });
 
+  it("the OUTLINE recovers the sections a malformed fence used to swallow", () => {
+    // The second consumer of this change, and the one the filed item never mentioned. The
+    // integration suite verifies the DIAGNOSTICS consumer in a real editor; `buildOutline`
+    // is pure, so its half needs no Extension Development Host to establish.
+    //
+    // Before this session a 4-tick opener with a 3-tick closer ran to end of document, so
+    // every section below it vanished from the outline, breadcrumbs and sticky scroll —
+    // while `quarto render` emitted them as real `<h1>`/`<h2>`. Measured end-to-end.
+    const text = doc(
+      "# Top",
+      "",
+      "````{r}",
+      "1",
+      "```",
+      "",
+      "## Below One",
+      "",
+      "prose",
+      "",
+      "## Below Two",
+    );
+    expect(buildOutline(text).map((s) => s.name)).toEqual(["Top"]);
+    expect(buildOutline(text)[0].children.map((s) => s.name)).toEqual(["Below One", "Below Two"]);
+  });
+
   it("a cell closes at the EXACT run, not at an earlier longer one", () => {
     // ⚠ ADDED BY THIS SESSION'S ADVERSARIAL PASS, AND IT CLOSES A REAL HOLE. Reverting
     // `isCloser`'s cell branch to CommonMark's `>=` survived the entire unit suite AND all
