@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S182
+date: 2026-08-02
+status: pending
+active_task: IMPLEMENTATION (strict TDD). `CLOSES_PARAGRAPH`'s two ungrounded rows in src/core/qmd/model.ts, filed by S181 while repairing S180's M8 pin. (a) The `=+` entry is MEASURED wrong in all three positions where it is reachable -- `===` at line 0, after a blank, and below a 2+-line paragraph each leave pandoc's paragraph OPEN, so the ATX heading below is a phantom we report and quarto renders not at all (four rows: eq_at_start, eq_after_blank, eq_multiline, dash_multiline). (b) Its sibling the thematic-break entry is pinned by nothing -- deleting it survives all 1714 unit tests, and its removal deletes real ATX headings. PRE-EXISTING. (a) is the phantom direction, but the FIX for (a) runs in the heading-DELETING direction on paper, so it needs a scored pass against the real `quarto render` path, not a one-line deletion. Operator-selected via AskUserQuestion at Phase 0; it was S181's own ranked #1, which paired the two ("same list, same harness").
+```
+
+```handoff
 session: S181
 date: 2026-08-02
 status: complete
