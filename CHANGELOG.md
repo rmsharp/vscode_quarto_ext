@@ -7,6 +7,37 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-02 · [ad hoc] Session 179 — IMPLEMENTATION: a fence quarto never closes is not a code block at all (SHIPPED)
+
+Three **cardinal-sin false positives** and one **lost true positive**, from a single rule with two
+halves the filed item named separately. Quarto closes a cell only on a fence whose backtick run is
+EXACTLY the opener's — `breakQuartoMd`'s `line.match(endCodeRegEx)[1].length === inCode`, read out of
+the installed 1.7.33 — where CommonMark, and so our `isCloser`, accepted any run at least as long;
+and an unterminated cell was emitted as a cell running to end of document. Measured vs 1.7.33 with
+the 3/3 twin at exit 1: a 3-tick/4-tick, a 4-tick/3-tick and an unterminated cell all render **exit
+0** and all three were flagged.
+
+**The defect had a second user-visible surface nobody had filed.** `breakQuartoMd` never pushes the
+opening fence into its line buffer, so a cell it never closes is emitted by the final
+`flushLineBuffer("markdown", …)` WITHOUT the opener: quarto **deletes** it and everything below is
+ordinary markdown. All three shapes render the body as a paragraph, none is executed, and a heading
+below each is a real `<h1>` — while our model ran two of the three to EOF. On the pre-S179 build a
+`# Top` document with a 4-tick/3-tick cell produced the outline `[{Top → children: ["```{r}"]}]`:
+both sections gone from the outline, breadcrumbs and sticky scroll.
+
+The gate is uniform across both fence kinds because that is what the renderer implements — pandoc's
+`markdown` (quarto's dialect, not `commonmark`) requires a fence to be CLOSED or it is not a code
+block, measured at line 0, after a blank, and mid-paragraph. Only the closer's LENGTH rule stays
+split: plain `>=`, cell `===`. A closer INDEX keeps the now-universal lookahead affordable
+(0.7 ms → 162 ms → 2.1 ms per scan on a 2000-opener document).
+
+Replayed the pre-S179 build over the same 131-document corpus: **119 agree / 5 lost TP / 6 cardinal
+FP → 124 / 4 / 3.** Four rows changed, all toward agreement, **zero regressed**. Verified in a real
+Extension Development Host (`test:integration` 493 passing) and, for the outline half, against the
+pre-fix build headlessly. The operator ratified the shared-scanner fix site over the S177
+`collectValueSources` seam, and ratified removing the runnable-while-typing affordance that five
+tests deliberately encoded. Learnings #220–#222.
+
 ### 2026-08-01 · [ad hoc] Session 178 — IMPLEMENTATION: an indented cell fence is a cell to quarto (SHIPPED)
 
 Five **lost true positives**: quarto's cell opener is `^\s*(```+)\s*\{([=A-Za-z]+)( *[ ,].*)?\}\s*$`
