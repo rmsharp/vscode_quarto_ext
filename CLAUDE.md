@@ -23,12 +23,25 @@ The goal is feature parity *reimplemented independently under MIT licensing*, no
 
 ## Tech Stack
 
-*Not yet scaffolded — the stack below is the intended default, to be ratified in the first planning session.*
-
-- TypeScript on Node.js (VS Code Extension API)
-- esbuild for bundling; `@vscode/vsce` for packaging
-- Depends on the **Quarto CLI** at runtime (`quarto` ≥ 1.7 is installed: 1.7.33)
-- `vscode-languageclient` / LSP if a language-server architecture is chosen
+- **TypeScript on Node.js**, VS Code Extension API (`engines.vscode` `^1.90.0`). `vscode` is
+  host-provided and marked external — it is never bundled.
+- **esbuild** produces two bundles: `dist/extension.js` (cjs, node18) and
+  `dist/notebook-renderer.js` (esm, browser). **`@vscode/vsce`** packages the `.vsix`.
+- **The Quarto CLI is the one external program the extension runs** — spawned via
+  `node:child_process` from the adapter layer (`quarto` ≥ 1.7; 1.7.33 installed).
+- **Nothing is installed from npm at runtime.** `package.json` has no `dependencies` key at all;
+  every package is a devDependency used at build or test time. The two apparent exceptions are
+  not: `markdown-it` is a **type-only** import (erased at build — the instance comes from VS
+  Code's built-in `vscode.markdown-it-renderer`), and **KaTeX / Mermaid / Graphviz ship as
+  vendored static webview assets** under `media/`, not as bundled imports — each under its own
+  OSI licence, disclosed in `NOTICE`.
+- **No language server, and no `vscode-languageclient`** — it appears in neither `package.json`
+  nor any source file. Language intelligence *inside* code cells is instead forwarded to the
+  **user's own** language servers through embedded virtual documents; that is what
+  `npm run test:lsp` exercises against real Pylance.
+- **`src/core/` is `vscode`-free by design** and is where the logic lives; `vscode` is confined to
+  the adapters (`src/extension.ts`, `src/features/`, `src/providers/`, `src/quarto/`). That split
+  is what makes the bulk of the project unit-testable headlessly.
 
 ---
 
