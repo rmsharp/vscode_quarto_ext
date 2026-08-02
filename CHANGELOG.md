@@ -7,6 +7,59 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-01 · [ad hoc] Session 175 — DOCUMENTATION FIX: `CLAUDE.md`'s Build/Test/Verify section describes the real build (SHIPPED)
+
+`CLAUDE.md` is auto-loaded into every session's context before the session reads anything
+else, and `SAFEGUARDS.md` makes its "build equivalent" the command a session runs after every
+substantive change. That section was still a placeholder from before the extension was
+scaffolded — *"Placeholder until the extension is scaffolded. Once it exists, the build
+equivalent … is expected to be:"*, after ~170 sessions — and it annotated `npm test` as
+`@vscode/test-electron`. It is **vitest** over `test/unit`; `@vscode/test-electron` is
+`npm run test:integration`.
+
+**`CLAUDE.md` had been contradicting itself the whole time.** Line 100, in the TDD section,
+has always said it correctly — *"unit-tested headlessly with `npm test` (vitest); `vscode`
+adapters are verified with `@vscode/test-electron`"* — 60 lines below the block that denied
+it. A session reading top-down met the wrong claim first. The cross-reference sweep over the
+derived corpus (373 tracked files minus the four append-only history files) found the wrong
+claim in **no other live artifact**: the contradiction was internal to this one file.
+
+The section is now a table of what each of the 13 npm scripts **actually runs**, measured
+rather than transcribed — `package.json`'s surface is not the behaviour, since `npm run`
+resolves chains and the release gate is reached by an edge no `npm run` shows:
+
+- Which files each tsconfig project checks was read out of `tsc --listFiles`, not off the
+  `include` arrays: `tsconfig.json` → `src`; `tsconfig.unit.json` → `test/unit`;
+  `tsconfig.test.json` → `test/integration`, `test/lsp`, `test/oracle`.
+- `npm test` is hermetic, confirmed by grep: no `child_process` and no `vscode` import
+  anywhere in `test/unit`.
+- **The load-bearing claim was verified firsthand rather than quoted from Session 174:** a
+  bare `npx vsce package` — which touches none of our npm scripts — still printed
+  `Executing prepublish script` and `check-package: OK`. The `vscode:prepublish` edge, not
+  the `package` script, is what makes the gate unavoidable.
+- The one figure inherited rather than measured was the oracle's cold cost ("minutes"), so
+  it was measured: the cache was moved aside and the suite run cold — **94.9 s vs 0.36 s
+  warm**, with the regenerated cache **byte-identical** to the backup and the identical
+  verdict (99 documents: 91 agree / 4 lost TP / 4 cardinal FP), so the number is real and
+  nothing was damaged to get it.
+
+**An unmeasured claim was removed rather than softened.** The draft said the two Electron
+suites take over the screen "for minutes"; they were not run this session (they seize the
+operator's screen and need explicit go-ahead), so the duration is gone and only what the
+session can support remains.
+
+Mechanically confirmed rather than eyeballed: all 13 scripts named in the table exist in
+`package.json`, and the only script *not* in the table is `vscode:prepublish` — deliberately,
+because it is an edge `vsce` walks rather than a command anyone runs, and it is described in
+the prose above the table instead.
+
+Closes the filed item. Two new items filed: `CLAUDE.md`'s **Tech Stack** section carries the
+same stale "not yet scaffolded" framing plus a dangling *"`vscode-languageclient` / LSP if a
+language-server architecture is chosen"* (measured: no `vscode-languageclient` anywhere,
+`dependencies` empty — that question resolved to *no*), raised with the operator who chose to
+keep this session to the filed item; and `vitest.config.ts` / `vitest.oracle.config.ts` are
+type-checked by **no** tsconfig project (found by the same `--listFiles` measurement).
+
 ### 2026-08-01 · [ad hoc] Session 174 — IMPLEMENTATION: the `scratchpad/` `.vsix` packaging leak (SHIPPED)
 
 The untracked `scratchpad/` directory shipped inside every `.vsix` from ~2026-07-21:
