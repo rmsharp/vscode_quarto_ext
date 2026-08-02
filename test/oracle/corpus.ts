@@ -392,4 +392,13 @@ export const CORPUS: OracleCase[] = [
   // renders exit 1. The verdicts in this block are measured; where a comment explains a
   // MECHANISM it is inference, and this row is the standing reminder of the difference.
   { name: "S179 CONTROL declined 4-tick fence above a well-formed 3-tick cell + echo", files: { "doc.qmd": FM + "````{r}\n1\n\n" + cell("r", "echo: banana") } },
+  // ⚠ ADDED BY THIS SESSION'S ADVERSARIAL PASS. Reverting isCloser's cell branch to `>=`
+  // survived the whole unit suite AND all 130 documents, because the closer INDEX already
+  // decides whether a cell opens — the comparison only decides WHICH line closes one that
+  // is already open. It discriminates only when a LONGER run sits above the exact one, as
+  // here: the first cell must close at its exact ``` and not at the ```` above it, or the
+  // stray ``` opens a plain fence that swallows the second cell and its bad option with it.
+  // Measured **exit 1**, pointing at the second cell, so closing early is a LOST TRUE
+  // POSITIVE — the direction this whole change is supposed to be safe in.
+  { name: "S179 CONTROL longer run ABOVE the exact closer, then a real cell + echo", files: { "doc.qmd": FM + "```{r}\n1\n````\n2\n```\n\n" + cell("r", "echo: banana") } },
 ];

@@ -141,6 +141,7 @@
     "S179 CONTROL 4-tick opener with a 4-tick closer + echo": "agree",
     "S179 CONTROL mismatched closer, then a real one further down + echo": "agree",
     "S179 CONTROL unterminated cell above a real cell + echo on the SECOND": "agree",
-    "S179 CONTROL declined 4-tick fence above a well-formed 3-tick cell + echo": "agree"
+    "S179 CONTROL declined 4-tick fence above a well-formed 3-tick cell + echo": "agree",
+    "S179 CONTROL longer run ABOVE the exact closer, then a real cell + echo": "agree"
   }
 }

@@ -753,6 +753,22 @@ describe("a fence that is never CLOSED is not a code block at all (Session 179)"
     expect(headings).toEqual(closes ? ["After"] : ["Swallowed", "After"]);
   });
 
+  it("a cell closes at the EXACT run, not at an earlier longer one", () => {
+    // ⚠ ADDED BY THIS SESSION'S ADVERSARIAL PASS, AND IT CLOSES A REAL HOLE. Reverting
+    // `isCloser`'s cell branch to CommonMark's `>=` survived the entire unit suite AND all
+    // 130 corpus documents. The reason is subtle and worth keeping: once `buildCloserIndex`
+    // buckets cell closers by EXACT length, the index alone decides whether a cell opens, so
+    // the comparison in `isCloser` only decides WHICH line closes an already-open cell. It
+    // is discriminating exactly when a longer run sits ABOVE the exact one.
+    //
+    // Here the first cell must close at line 8, not at the 4-tick line 6 — otherwise the
+    // stray ``` on line 8 opens a plain fence that swallows the second cell whole and its
+    // bad option goes unreported. Measured: quarto renders this **exit 1**, pointing at the
+    // second cell's option, so closing early would be a LOST TRUE POSITIVE.
+    const text = doc("```{r}", "1", "````", "2", "```", "", "```{r}", "#| echo: banana", "1", "```");
+    expect(findAllCells(text).map((c) => `${c.startLine}..${c.endLine}`)).toEqual(["0..4", "6..9"]);
+  });
+
   it("the same three axes on a CELL fence, where the length rule is EXACT", () => {
     // The cell half of the table above. Quarto's rule is `=== inCode`, so unlike a plain
     // fence a LONGER closer does not close a cell — the divergence this session shipped.
