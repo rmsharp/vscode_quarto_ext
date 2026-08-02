@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S177
+date: 2026-08-01
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD — real logic, so RED->GREEN is required; no declarative-edit exemption). An INDENTED opening `---` makes quarto validate NOTHING in the document and we still flag its cells — a live CARDINAL FALSE POSITIVE filed by S171, PRE-EXISTING (pre-S171 build d112f35 flags it identically by replay). quarto's VALIDATION partitioner breakQuartoMd anchors its yamlRegEx at column 0, so `   ---` opens no front matter; a YAML region then opens at the CLOSING `---` and never closes, swallowing every cell below. Fix = teach cell ENUMERATION that column-0 rule (src/core/qmd/model.ts). WARNING carried into the session: the adjacent "teach scanRegions quarto's trimLeft" fix is MEASURED to trade 1 cardinal FP for 10 (test/unit/yaml-value-flags.test.ts FP GUARD reds first). Operator-selected at Phase 0 via AskUserQuestion; S176's ranked recommendation #1. ONE deliverable.
+```
+
+```handoff
 session: S176
 date: 2026-08-01
 status: complete
