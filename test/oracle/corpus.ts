@@ -282,4 +282,9 @@ export const CORPUS: OracleCase[] = [
   { name: "S177 CONTROL --- inside a ``` fence + echo", files: { "doc.qmd": FM + "```\n---\n```\n\n" + cell("r", "echo: banana") } },
   { name: "S177 CONTROL --- inside an {r} cell body + echo", files: { "doc.qmd": FM + "```{r}\n---\n1\n```\n\n" + cell("r", "echo: banana") } },
   { name: "S177 CONTROL cell ABOVE a later --- + echo", files: { "doc.qmd": FM + cell("r", "echo: banana") + "para\n---\nmore\n" } },
+  // Added by S177's adversarial pass. The exemption is asymmetric — `skipHRs` is `!inYaml`
+  // — so this closer is a delimiter even with blank lines on BOTH sides of it, and the cell
+  // below is validated (measured exit 1). Before this row, a mutant that applied the HR
+  // exemption when CLOSING too killed no DOCUMENT-level test, only a scanner pin.
+  { name: "S177 CONTROL blank-surrounded --- CLOSING the front matter + echo", files: { "doc.qmd": "---\ntitle: t\n\n---\n\n" + cell("r", "echo: banana") } },
 ];

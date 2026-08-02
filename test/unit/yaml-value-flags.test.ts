@@ -392,6 +392,16 @@ describe("valueFlags — a column-0 `---` swallows the cells below it (S177)", (
     expect(cellFlags(text)).toEqual(["10:cache=banana"]);
   });
 
+  it("STILL flags when a BLANK-SURROUNDED `---` closes the front matter — exit 1", () => {
+    // Added by this session's adversarial pass, which found that the exemption's
+    // open/close asymmetry was pinned only at the scanner level: a mutant applying
+    // `skipHRs` when CLOSING too killed no document-level test. It does now. Quarto
+    // passes `skipHRs = !inYaml`, so this closer is a delimiter even though blank lines
+    // sit on both sides of it, and the cell below is validated — measured exit 1.
+    const text = "---\ntitle: t\n\n---\n\n" + rCell("echo: banana");
+    expect(cellFlags(text)).toEqual(["6:echo=banana"]);
+  });
+
   it("leaves the FRONT-MATTER surface alone — the region model is cell-scoped", () => {
     // The front matter is itself a YAML region, and quarto validates it as the document's
     // first cell. Filtering the cell surface must not silence it: `toc: banana` at line 1
