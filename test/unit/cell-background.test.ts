@@ -51,10 +51,20 @@ describe("cellBackgroundRanges", () => {
     expect(cellBackgroundRanges(text)).toEqual([]);
   });
 
-  it("spans an unterminated cell to the last line of the document", () => {
-    // No closing fence: the cell runs to EOF, so the tint should too.
+  it("tints NOTHING when the fence is never closed", () => {
+    // ⚠ AMENDED SESSION 179. This used to tint to EOF, on the reasoning that an unclosed
+    // fence runs to end of document — CommonMark's rule, but not the one quarto renders
+    // with. Measured with `quarto pandoc -f markdown -t html`, an unclosed fence is not a
+    // code block at all (`<p>```{python} a = 1 b = 2</p>`), so tinting it painted a cell
+    // background over ordinary prose.
     const text = ["```{python}", "a = 1", "b = 2"].join("\n");
-    expect(cellBackgroundRanges(text)).toEqual([{ startLine: 0, endLine: 2 }]);
+    expect(cellBackgroundRanges(text)).toEqual([]);
+  });
+
+  it("CONTROL: the same cell CLOSED is still tinted", () => {
+    // Without this the pin above would also pass if tinting had stopped working entirely.
+    const text = ["```{python}", "a = 1", "b = 2", "```"].join("\n");
+    expect(cellBackgroundRanges(text)).toEqual([{ startLine: 0, endLine: 3 }]);
   });
 });
 

@@ -97,11 +97,26 @@ describe("findAllCells", () => {
     expect(findAllCells(text)).toEqual([]);
   });
 
-  it("treats an unterminated cell as running to the end of the document", () => {
-    // A user mid-typing: the opening fence has no matching close yet.
+  it("builds NO cell from an unterminated fence — quarto builds none either", () => {
+    // ⚠ AMENDED SESSION 179, AND THE PREMISE IT USED TO CARRY WAS WRONG. This pin used to
+    // assert the cell ran to end of document, on the reasoning that a user mid-typing has
+    // no closing fence yet and should keep the cell runnable. Measured against the real
+    // toolchain, that document has no cell in it at all: `breakQuartoMd` never closes the
+    // fence, so the final `flushLineBuffer("markdown", …)` emits the body as MARKDOWN
+    // WITHOUT the opener — quarto deletes it — and `quarto pandoc -f markdown` renders the
+    // whole run as `<p>```{python} x = 1 y = 2</p>`, prose rather than a code block. The
+    // affordance was therefore offering to run, tint and language-forward a block that no
+    // part of the pipeline treats as code, while the region swallowed every heading below
+    // it. Removing it retired three measured cardinal false positives (operator-ratified).
     const text = ["Intro.", "```{python}", "x = 1", "y = 2"].join("\n");
+    expect(findAllCells(text)).toEqual([]);
+  });
+
+  it("CONTROL: the same fence CLOSED is still an ordinary cell", () => {
+    // Without this the pin above would also pass if cell detection had been broken outright.
+    const text = ["Intro.", "```{python}", "x = 1", "y = 2", "```"].join("\n");
     expect(findAllCells(text)).toEqual([
-      { startLine: 1, endLine: 3, lang: "python", code: "x = 1\ny = 2" },
+      { startLine: 1, endLine: 4, lang: "python", code: "x = 1\ny = 2" },
     ]);
   });
 });

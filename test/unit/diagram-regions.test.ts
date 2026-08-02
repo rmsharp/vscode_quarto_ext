@@ -67,9 +67,17 @@ describe("findDiagramRegions", () => {
     expect(findDiagramRegions(text)).toEqual([]);
   });
 
-  it("captures an unterminated diagram cell to end of document", () => {
-    expect(findDiagramRegions("```{dot}\ndigraph { A -> B }")).toEqual([
-      { engine: "dot", code: "digraph { A -> B }", startLine: 0, endLine: 1 },
+  it("captures NOTHING from an unterminated diagram cell", () => {
+    // ⚠ AMENDED SESSION 179. An unclosed fence is not a code block to the dialect quarto
+    // renders with (`pandoc -f markdown`), and `breakQuartoMd` builds no cell from one, so
+    // there is no diagram here to preview — measured, not reasoned. See `qmd/model.ts`.
+    expect(findDiagramRegions("```{dot}\ndigraph { A -> B }")).toEqual([]);
+  });
+
+  it("CONTROL: the same diagram cell CLOSED is still captured", () => {
+    // Without this the pin above would also pass if diagram detection had broken outright.
+    expect(findDiagramRegions("```{dot}\ndigraph { A -> B }\n```")).toEqual([
+      { engine: "dot", code: "digraph { A -> B }", startLine: 0, endLine: 2 },
     ]);
   });
 
