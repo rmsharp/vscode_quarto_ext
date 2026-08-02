@@ -623,6 +623,20 @@ describe("an INDENTED cell fence — quarto's rule, not CommonMark's (Session 17
     expect(findHeadings(text).map((h) => h.text)).toEqual(["A Real Heading"]);
   });
 
+  it("CONTROL: an indented plain fence does not SWALLOW a real cell below it", () => {
+    // ⚠ ADDED BY THIS SESSION'S ADVERSARIAL PASS, which found the control above passes
+    // even when the CELL_INFO gate is removed — that fixture's plain fence has an INDENTED
+    // closer, so a mutant looking for a 0–3-space closer finds none and declines for the
+    // wrong reason. The killing shape needs a COLUMN-0 fence further down for the mutant to
+    // grab: the indented plain fence then opens a region that runs to the real cell's own
+    // closer and swallows it whole. Only the corpus row caught this; nothing at the unit
+    // level did.
+    const text = doc("Para.", "", "    ```", "    text", "    ```", "", "```{r}", "1", "```");
+    expect(findAllCells(text)).toEqual([
+      { startLine: 6, endLine: 8, lang: "r", code: "1" },
+    ]);
+  });
+
   it("CONTROL: an UNTERMINATED indented cell fence opens nothing", () => {
     // ⚠ THE CARDINAL-SIN GUARD, at the scanner level. Quarto builds no cell from an
     // unclosed fence (measured exit 0), so opening one would both flag a document quarto
@@ -638,6 +652,18 @@ describe("an INDENTED cell fence — quarto's rule, not CommonMark's (Session 17
     // session (filed separately). Without this pin, the guard above would also pass if the
     // affordance had been removed outright rather than merely not extended.
     expect(findAllCells(doc("```{r}", "1")).map((c) => c.lang)).toEqual(["r"]);
+  });
+
+  it("accepts EXOTIC whitespace — the indent class is `\\s`, not `[ \\t]`", () => {
+    // ⚠ ADDED BY THIS SESSION'S ADVERSARIAL PASS. Narrowing the class to `[ \t]*` — which
+    // reads like a harmless tightening — survived all 1637 tests AND the whole corpus.
+    // It is not harmless: quarto's own class is `\s`, and a FORM FEED, a VERTICAL TAB and
+    // a NO-BREAK SPACE indent each render **exit 1** (measured firsthand), so the narrowing
+    // would silently lose three real true positives. NBSP is the one that reaches real
+    // documents — it is what pasting indented code out of a rendered web page produces.
+    for (const ws of ["\f", "\v", " "]) {
+      expect(findAllCells(doc(ws + "```{r}", "1", ws + "```")).map((c) => c.lang)).toEqual(["r"]);
+    }
   });
 
   it("CONTROL: an indented TILDE fence is never a cell, indented or not", () => {

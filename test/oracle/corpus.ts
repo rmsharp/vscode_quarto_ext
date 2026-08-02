@@ -341,4 +341,10 @@ export const CORPUS: OracleCase[] = [
   // fence to it either, and the real cell below is still validated (measured exit 1). This is
   // the row that fails if the widening is applied to plain fences instead of cells only.
   { name: "S178 CONTROL indented PLAIN fence above a real cell + echo", files: { "doc.qmd": FM + "    ```\n    text\n    ```\n\n" + cell("r", "echo: banana") } },
+  // Added by S178's adversarial pass. Narrowing the indent class from quarto's `\s` to
+  // `[ \t]` survived the entire unit suite AND the whole corpus, and it is not harmless: a
+  // NO-BREAK SPACE indent renders exit 1 here, as do a form feed and a vertical tab. NBSP is
+  // the one that reaches real documents — it is what pasting indented code out of a
+  // rendered web page produces.
+  { name: "S178 CONTROL NBSP-indented {r} cell + echo", files: { "doc.qmd": FM + indentedCell(" ", "echo: banana") } },
 ];
