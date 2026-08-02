@@ -7,6 +7,65 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-01 · [ad hoc] Session 178 — IMPLEMENTATION: an indented cell fence is a cell to quarto (SHIPPED)
+
+Five **lost true positives**: quarto's cell opener is `^\s*(```+)\s*\{([=A-Za-z]+)( *[ ,].*)?\}\s*$`
+— leading whitespace **unbounded**, tabs included — and its closer `^\s*(```+)\s*$`, where
+CommonMark's fence rule, and so our `FENCE_OPEN`/`FENCE_CLOSE`, caps both at 3 spaces. An
+indented cell was therefore validated by quarto and invisible to us. Filed by Session 172.
+
+**The filed item's CAUTION was the thing measurement refuted, not its defect.** The item warned
+that adopting `\s*` would turn a fence inside an indented code block into a cell "for the outline,
+run-cell, virtual documents and highlighting, which is the widening direction" — and rated the
+whole thing LOW, "non-idiomatic input". Grounded firsthand vs 1.7.33: a fully indented ```` ```{r} ````
+fence+body, placed after a paragraph and a blank line so it sits in genuine CommonMark
+indented-code context, is **EXECUTED by knitr** — a `6 * 7` body printed `[1] 42` into the
+rendered HTML. There is no documentation idiom for Quarto to protect; an author cannot show a
+cell as literal example text by indenting it. A list-nested indented cell renders as a properly
+highlighted code cell, so indented cells are a legitimate idiom we were blind to at 4+ spaces.
+The prior decision the caution rested on (Learning #14(b), where an adversarial review ADDED the
+3-space cap) was reached from CommonMark reasoning before anyone measured quarto — and its two
+test pins survive today only because their fixture's fence is UNCLOSED, a shape quarto also
+declines to treat as a cell. The fix site went to the operator with the measurements attached
+and was ratified before any code.
+
+**Scoped to quarto's own asymmetry.** Only the CELL opener and the CELL closer widen; quarto's
+PLAIN fence opener is `^```` (column 0), so a non-cell fence keeps CommonMark's cap and the
+region model is otherwise byte-identical. And an indented cell must be **CLOSED**: quarto flushes
+an unclosed fence's lines as markdown and builds no cell (measured exit 0 against its closed
+twin's exit 1), so opening one would have manufactured a brand-new cardinal false positive —
+which this session's own first implementation did, until its control caught it. The column-0
+unterminated cell keeps its runnable-while-typing affordance unchanged.
+
+**THE measurement.** Replaying the pre-S178 build (`git archive ff6d7a8 src` → `QMD_ORACLE_SRC`)
+over the same 121-document corpus: pre-S178 **109 agree / 9 lost TP / 3 CARDINAL FP**, this build
+**114 / 4 / 3**. Five lost true positives recovered, the cardinal-FP count **identical** on both
+sides, zero rows regressed — and all five CONTROL rows are `agree` on **both** builds, which is
+what makes "no new false positive" a measurement rather than a hope for a change that can only
+ever ADD flags.
+
+**The adversarial pass found two holes in this session's own pins.** Five mutants, each verified
+to have landed before its result was read. Two died at both levels. Two survived: removing the
+`CELL_INFO` gate survived all 1636 unit tests — *including the control written for exactly that
+mutant*, whose fixture had an indented closer and so let the mutant decline for the wrong reason
+— and was caught only by an oracle row; and narrowing quarto's `\s` indent class to `[ \t]`
+survived unit AND corpus entirely, though a form feed, a vertical tab and a **no-break space**
+indent each render exit 1 (NBSP being what pasting indented code out of a rendered web page
+produces). Both are now closed at both levels. A third (tilde fences) was measured EQUIVALENT for
+the cell surface and deliberately left unkilled.
+
+Three behaviours driven RED→GREEN with the RED confirmed for the right reason each time; the
+first GREEN arrived for the WRONG reason (an unterminated cell running to EOF) and one
+`findAllCells` call exposed it. Verified in a real Extension Development Host: `test:integration`
+**492 passing**, including a new pin asserting the exact diagnostic line set on an indented cell,
+its plain-fence control and its unterminated control. Filed, not fixed: the fence closer's LENGTH
+rule diverges from quarto in both directions (two further measured cardinal FPs).
+
+Files: `src/core/qmd/model.ts`; `test/unit/qmd-model.test.ts`; `test/unit/yaml-value-flags.test.ts`;
+`test/oracle/corpus.ts`; `test/oracle/baseline.json`; `test/integration/suite/yaml-value-diagnostics.test.ts`;
+`test/fixtures/yaml-value-diagnostics/indented-cell.qmd`; `PROJECT_LEARNINGS.md` #217–#219.
+Commits `6d1e382`, `2e61ed2`, `0862150`, `1313a18`, `1ff7102`.
+
 ### 2026-08-01 · [ad hoc] Session 177 — IMPLEMENTATION: a column-0 `---` swallows the cells below it (SHIPPED)
 
 A live **cardinal false positive**: quarto validates NOTHING inside a YAML region, and we
