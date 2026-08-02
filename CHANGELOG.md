@@ -7,6 +7,51 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-01 · [ad hoc] Session 176 — DOCUMENTATION FIX: `CLAUDE.md`'s Tech Stack section states the stack that was built (SHIPPED)
+
+The twin of Session 175's fix, ~11 lines above it in the same auto-loaded file. The section
+described an intended default awaiting ratification — *"Not yet scaffolded — the stack below is
+the intended default, to be ratified in the first planning session"* — and left open an
+architecture question that was answered long ago: *"`vscode-languageclient` / LSP if a
+language-server architecture is chosen"*.
+
+**The claim this session inherited was its own, and it was wrong.** The BACKLOG item Session 175
+filed — written by the same author — says the extension *"ships zero runtime npm dependencies"*.
+`package.json` does have no `dependencies` key at all, but `katex` and `markdown-it` sit in
+`devDependencies`, and "devDependency" answers a build-time question, not a shipping one. Measured
+against the **built bundles** rather than the manifest:
+
+- `dist/extension.js` mentions `markdown-it` **0** times. Both `src/` imports are `import type`,
+  erased at build; the instance comes from VS Code's own `vscode.markdown-it-renderer` — the only
+  string `dist/notebook-renderer.js` actually contains.
+- `katex` appears in `dist/extension.js` only as references to the **vendored** `media/katex/`
+  assets served to a webview, never as a bundled library.
+- `vscode-textmate` / `vscode-oniguruma`: **0** in both bundles (test-only).
+
+So the accurate statement is *"nothing is installed from npm at runtime"*, with the two apparent
+exceptions named and explained — not "zero runtime dependencies". A second inherited claim was
+imprecise the same way: that item says `vscode-languageclient` *"appears nowhere in the repo"*; the
+sweep found it in four `docs/planning/*` records. What is true, and what the file now says, is that
+it is in neither `package.json` nor any source file.
+
+Everything else re-measured rather than assumed correct for looking plausible: `engines.vscode`
+`^1.90.0` with `vscode` marked external and never bundled; two esbuild bundles (cjs/node18 and
+esm/browser); **the Quarto CLI is the one external program the extension runs** — all six `spawn()`
+call sites take their binary from `quarto/cli.ts`'s `configuredBinary()`, and no site passes a
+hard-coded literal; `src/core/` imports `vscode` **nowhere**, which is what confines it to
+`src/extension.ts`, `src/features/`, `src/providers/` and `src/quarto/` and makes the bulk of the
+project headlessly unit-testable; KaTeX / Mermaid / Graphviz ship as vendored static assets under
+`media/`, each disclosed in `NOTICE`.
+
+**The change resolved a disagreement rather than creating one.** `README.md:167` independently
+states *"No language server is bundled, and none is required"*; the governing file now agrees with
+it. No placeholder framing remains in any live artifact.
+
+Closes the filed item. One new item filed: `CONTEXT.md:43` still records the language-support
+decision as *"RESOLVED (Session 1, awaiting operator ratification)"* — the decision content is
+accurate and matches what shipped, but ~175 sessions of work under that architecture is the
+ratification, and a settled decision framed as provisional invites a future session to reopen it.
+
 ### 2026-08-01 · [ad hoc] Session 175 — DOCUMENTATION FIX: `CLAUDE.md`'s Build/Test/Verify section describes the real build (SHIPPED)
 
 `CLAUDE.md` is auto-loaded into every session's context before the session reads anything
