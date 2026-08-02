@@ -7,6 +7,49 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-02 · [ad hoc] Session 180 — IMPLEMENTATION: an ATX heading cannot interrupt an open paragraph (SHIPPED)
+
+Quarto renders with pandoc's `markdown` dialect, where `blank_before_header` is on by default: an
+ATX heading pressed directly against a preceding non-blank line is paragraph continuation, not a
+heading. Our `ATX_HEADING` test was applied to any body line with no such rule, so we emitted a
+**phantom heading** — into the outline, breadcrumbs, sticky scroll, workspace symbols, and into the
+**cross-reference index**, where a phantom `{#sec-methods}` became a completion and go-to-definition
+target for a link `quarto render` emits as `?@sec-methods`, its unresolved-reference marker.
+
+**The filed prescription was measurably wrong, in the direction that deletes user-visible content.**
+The item said "a one-line adjacency test in `computeRegions` — a heading needs a blank or a region
+boundary above it". Built on a scratchpad copy of `src` and scored against the real renderer, that
+rule moves **10 documents toward quarto and 5 away**: a heading below a thematic break, a pipe-table
+row, an indented code block, a link-reference definition or a raw HTML block is REAL, and the naive
+rule deletes it — including, on this repo's own 108 markdown/qmd files, `SESSION_NOTES.md`'s
+"Session 83 Handoff Evaluation" heading. The rule shipped is pandoc's instead: a heading may not
+interrupt an **open paragraph**. `paragraphOpen` is deliberately SEPARATE state from
+`consecutiveBody`, which serves the setext disambiguation — folding them changes which setext
+underlines are recognized.
+
+**`CLOSES_PARAGRAPH` is permissive on purpose, and the asymmetry is load-bearing.** A line it misses
+deletes a heading quarto really renders; a line it matches too eagerly merely retains a pre-existing
+phantom. Five such residuals are measured, disclosed and pinned as KNOWN RESIDUAL; closing any of
+them costs a measured real heading (the "precise table" variant closes one phantom and deletes one).
+
+**`blank_before_header` is a DEFAULT, not an invariant.** A front-matter `from:
+markdown-blank_before_header`, `markdown_strict`, `gfm` or `commonmark` — or a nested per-format
+`format:`/`  html:`/`    from:` — really does bring the heading back, all four measured on the real
+render path; without a bail this change becomes a real-heading deletion on those documents. The bail
+keys on the key's presence, not on resolving the dialect, so it fails closed. `reader:` was proposed
+by the adversarial pass and **refuted by measurement** — quarto rejects that key outright (exit 1).
+
+Measured by replaying the pre-S180 build (`git archive 4b0125e`) over **92 documents rendered through
+the real `quarto render` path**: **24 rows toward quarto, 0 away, 10 retained residuals.** Over the
+repo's **108 real markdown/qmd files (2133 headings)** all four views — headings, cells, outline,
+refs — are **byte-identical**. `quarto pandoc -f markdown` was proven unfaithful for cell fences and
+was not used as the oracle. Three behaviours driven RED→GREEN, plus a fourth RED supplied free by an
+existing pin. The adversarial pass ran 21 mutants; **3 survived and all three were real holes**,
+each closed with the document where the two implementations first diverge. Re-run: 21 of 21 killed.
+`test:integration` **494 passing, exit 0** in a real Extension Development Host, including a new pin
+that queries the registered `DocumentSymbolProvider` the Outline view itself calls. The oracle is
+unchanged at 131 documents / 124 agree / 4 lost TP / 3 cardinal FP — zero diagnostics regression.
+
 ### 2026-08-02 · [ad hoc] Session 179 — IMPLEMENTATION: a fence quarto never closes is not a code block at all (SHIPPED)
 
 Three **cardinal-sin false positives** and one **lost true positive**, from a single rule with two
