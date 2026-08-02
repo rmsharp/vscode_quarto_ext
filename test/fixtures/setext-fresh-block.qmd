@@ -1,0 +1,24 @@
+---
+title: Setext fresh block
+---
+
+# Real Section
+
+    indented code
+Recovered Setext
+================
+
+## Genuine Child
+
+Prose that opens a paragraph.
+Not A Heading
+=============
+
+***
+Below A Thematic Break
+======================
+
+An indented code block is block-level, so `Recovered Setext` starts a fresh paragraph
+and its underline promotes it — quarto renders it as a real heading. `Not A Heading`
+is the second line of an open paragraph, and pandoc's `markdown` does not promote a
+multi-line paragraph, so its underline is literal text.

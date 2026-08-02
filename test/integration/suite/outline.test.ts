@@ -10,6 +10,7 @@ const ROOT = path.resolve(__dirname, "../../../..");
 const SAMPLE = path.resolve(ROOT, "test/fixtures/sample.qmd");
 const SETEXT = path.resolve(ROOT, "test/fixtures/setext.qmd");
 const BLANK_BEFORE_HEADER = path.resolve(ROOT, "test/fixtures/blank-before-header.qmd");
+const SETEXT_FRESH_BLOCK = path.resolve(ROOT, "test/fixtures/setext-fresh-block.qmd");
 
 /**
  * Ask the editor for the document symbols the same way the Outline view and
@@ -267,6 +268,42 @@ describe("Quarto: Document outline (symbols)", () => {
     assert.ok(
       !flatten(symbols).includes("Phantom Section"),
       "no phantom heading at any depth of the outline",
+    );
+  });
+
+  it("shows a setext heading below a block line, through the real provider (Session 181)", async () => {
+    // THE WIRING EVIDENCE for the other direction. Session 180 proved a phantom is kept OUT
+    // of the real provider; this proves a heading quarto really renders is put back IN.
+    //
+    // The fixture's premise is MEASURED, not assumed: `quarto render --to html` on these
+    // exact bytes emits `Real Section` (h1), `Recovered Setext` (h1), `Genuine Child` (h2)
+    // and `Below A Thematic Break` (h1), and NO `Not A Heading` — that underline follows a
+    // two-line paragraph, which pandoc's `markdown` never promotes.
+    //
+    // Against the pre-Session-181 build this same document produced the outline
+    //   [{ Real Section -> children: ["Genuine Child"] }]
+    // — TWO whole sections missing from the Outline view, breadcrumbs and sticky scroll,
+    // with `Genuine Child` nested under the wrong parent.
+    const symbols = await symbolsFor(SETEXT_FRESH_BLOCK);
+
+    assert.deepStrictEqual(
+      symbols.map((s) => s.name),
+      ["Real Section", "Recovered Setext", "Below A Thematic Break"],
+      "the setext heading below the indented code block must be a top-level symbol",
+    );
+
+    // The recovered heading takes its rightful child with it — before this session
+    // `Genuine Child` was nested under `Real Section` because its real parent did not exist.
+    assert.deepStrictEqual(symbols[0].children.map((c) => c.name), []);
+    assert.deepStrictEqual(symbols[1].children.map((c) => c.name), ["Genuine Child"]);
+
+    // The multi-line-paragraph control: its underline is literal text, not a heading. This is
+    // the assertion that fails if the rule is widened to "any block-ish line resets".
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    assert.ok(
+      !flatten(symbols).includes("Not A Heading"),
+      "a 2+-line paragraph must not promote at any depth of the outline",
     );
   });
 });
