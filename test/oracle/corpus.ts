@@ -247,4 +247,39 @@ export const CORPUS: OracleCase[] = [
   // this WIDENS what we squiggle onto a new block class. Filed in BACKLOG; the guard is the
   // FP GUARD pin in test/unit/cells.test.ts and test/unit/yaml-value-flags.test.ts.
   { name: "S172 {=html} raw block + echo (KNOWN residual, lost TP)", files: { "doc.qmd": FM + "```{=html}\n#| echo: banana\n<p>x</p>\n```\n" } },
+
+  // ---- Session 177: quarto's column-0 YAML delimiter ----------------------------------
+  //
+  // `breakQuartoMd`'s `yamlRegEx` is `/^---\s*$/` — anchored at COLUMN 0 and tested on EVERY
+  // line, not only line 0 — and a fence builds a cell only when `inPlainText()` (`!inCodeCell
+  // && !inCode && !inYaml`). So a column-0 `---` opens a YAML region that swallows every cell
+  // below it until the next one, and NOTHING inside a region is validated. The one exemption
+  // is `isYamlDelimiter`'s `skipHRs` arm — a `---` with a blank line BOTH above and below is a
+  // thematic break — and it applies only when a region would OPEN, since `skipHRs` is passed
+  // `!inYaml`.
+  //
+  // ⚠ EVERY ROW BELOW USES THE ENGINE-AGNOSTIC `echo`, for the S172 reason. The mechanism here
+  // is cell PARTITIONING, so a knitr-only `cache` would let a row pass on the ENGINE answer
+  // instead — silent because the document resolved markdown, not because we declined to build
+  // a cell. With `echo` the scope is identical under every engine, so the flag can only come
+  // from whether we validated a cell. The `cache` row S171 filed is kept above unchanged; this
+  // block adds its agnostic twin rather than editing it.
+  //
+  // The first five renders exit 0 and we flagged every one of them — five cardinal false
+  // positives with ONE root cause. The last six are the discriminating controls: each renders
+  // exit 1, so any of them going silent is a lost true positive, not a safe simplification.
+  { name: "S177 indented --- + {r} + echo (agnostic twin of the S171 cache row)", files: { "doc.qmd": "   " + FM + cell("r", "echo: banana") } },
+  { name: "S177 setext-H2 --- above the cell + echo", files: { "doc.qmd": FM + "Heading text\n---\n\n" + cell("r", "echo: banana") } },
+  { name: "S177 --- with a blank line ABOVE but text BELOW + echo", files: { "doc.qmd": FM + "para\n\n---\nmore text\n\n" + cell("r", "echo: banana") } },
+  { name: "S177 --- inside an HTML COMMENT + echo", files: { "doc.qmd": FM + "<!--\n---\n-->\n\n" + cell("r", "echo: banana") } },
+  { name: "S177 --- inside a ~~~ TILDE fence + echo", files: { "doc.qmd": FM + "~~~\n---\n~~~\n\n" + cell("r", "echo: banana") } },
+  // The controls. A blank-surrounded `---` is a horizontal rule and validation continues.
+  { name: "S177 CONTROL blank-surrounded --- (a true HR) + echo", files: { "doc.qmd": FM + "para\n\n---\n\n" + cell("r", "echo: banana") } },
+  // Nothing sits at column 0 anywhere, so no region ever opens — the mechanism is the CLOSING
+  // delimiter, not the indented opener.
+  { name: "S177 CONTROL indented --- with NO closing --- + echo", files: { "doc.qmd": "   ---\ntitle: t\n\n" + cell("r", "echo: banana") } },
+  { name: "S177 CONTROL region opens and CLOSES above the cell + echo", files: { "doc.qmd": FM + "para\n---\nk: v\n---\n\n" + cell("r", "echo: banana") } },
+  { name: "S177 CONTROL --- inside a ``` fence + echo", files: { "doc.qmd": FM + "```\n---\n```\n\n" + cell("r", "echo: banana") } },
+  { name: "S177 CONTROL --- inside an {r} cell body + echo", files: { "doc.qmd": FM + "```{r}\n---\n1\n```\n\n" + cell("r", "echo: banana") } },
+  { name: "S177 CONTROL cell ABOVE a later --- + echo", files: { "doc.qmd": FM + cell("r", "echo: banana") + "para\n---\nmore\n" } },
 ];
