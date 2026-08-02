@@ -1,0 +1,23 @@
+# Real Section
+
+Prose that closes with a blank line below it.
+
+===
+# Not A Heading At All
+
+line one of an open paragraph
+line two, so a paragraph is OPEN
+***
+# Also Not A Heading
+
+Prose above a closed paragraph.
+
+***
+
+# Below A Thematic Break
+
+# Heading Above
+-
+# Recovered Sibling
+
+## Genuine Child

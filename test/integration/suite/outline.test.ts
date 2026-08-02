@@ -11,6 +11,7 @@ const SAMPLE = path.resolve(ROOT, "test/fixtures/sample.qmd");
 const SETEXT = path.resolve(ROOT, "test/fixtures/setext.qmd");
 const BLANK_BEFORE_HEADER = path.resolve(ROOT, "test/fixtures/blank-before-header.qmd");
 const SETEXT_FRESH_BLOCK = path.resolve(ROOT, "test/fixtures/setext-fresh-block.qmd");
+const CLOSES_PARAGRAPH_FIXTURE = path.resolve(ROOT, "test/fixtures/closes-paragraph.qmd");
 
 /**
  * Ask the editor for the document symbols the same way the Outline view and
@@ -305,6 +306,44 @@ describe("Quarto: Document outline (symbols)", () => {
       !flatten(symbols).includes("Not A Heading"),
       "a 2+-line paragraph must not promote at any depth of the outline",
     );
+  });
+
+  it("keeps an `=` run and an open-paragraph thematic break out, and puts the ATX sibling back (Session 182)", async () => {
+    // THE WIRING EVIDENCE for Session 182, through the provider the Outline view, breadcrumbs,
+    // sticky scroll and Ctrl+T all really call. This session's change moves the outline in
+    // BOTH directions at once, so both are asserted on one document.
+    //
+    // The fixture's premise is MEASURED, not assumed: `quarto render --to html` on these exact
+    // bytes emits `Real Section`, `Below A Thematic Break`, `Recovered Sibling` and
+    // `Genuine Child` — and renders `=== # Not A Heading At All` and
+    // `… *** # Also Not A Heading` as ordinary PARAGRAPH text, with no heading at all.
+    //
+    // Against the pre-Session-182 build this same document produced the outline
+    //   [Real Section, Not A Heading At All, Also Not A Heading, Below A Thematic Break,
+    //    Heading Above -> children: ["Genuine Child"]]
+    // — TWO phantom top-level sections, `Recovered Sibling` missing outright, and
+    // `Genuine Child` nested under the WRONG parent because its real parent did not exist.
+    const symbols = await symbolsFor(CLOSES_PARAGRAPH_FIXTURE);
+
+    assert.deepStrictEqual(
+      symbols.map((s) => s.name),
+      ["Real Section", "Below A Thematic Break", "Heading Above", "Recovered Sibling"],
+      "both phantoms must be gone and the ATX sibling must be back, at top level",
+    );
+
+    // The recovered sibling takes its rightful child with it.
+    assert.deepStrictEqual(symbols[2].children.map((c) => c.name), []);
+    assert.deepStrictEqual(symbols[3].children.map((c) => c.name), ["Genuine Child"]);
+
+    // Neither phantom may reappear at ANY depth.
+    const flat = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flat(n.children)]);
+    for (const phantom of ["Not A Heading At All", "Also Not A Heading"]) {
+      assert.ok(!flat(symbols).includes(phantom), `${phantom} must not appear at any depth`);
+    }
+    // …and the control the fix must NOT delete: a heading below a break with a CLOSED
+    // paragraph above it is real, and is the assertion that fails if the gate is inverted.
+    assert.ok(flat(symbols).includes("Below A Thematic Break"));
   });
 });
 
