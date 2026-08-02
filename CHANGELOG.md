@@ -7,6 +7,62 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-02 · [ad hoc] Session 182 — IMPLEMENTATION: an `=` run is paragraph text, and a thematic break needs a closed paragraph (SHIPPED)
+
+`CLOSES_PARAGRAPH` carried two rows that had never been scored individually — Session 180
+scored the list as a whole against a corpus. Both are wrong, in opposite ways, and the
+obvious repair of the first deletes real headings.
+
+The `=+` row claimed an `=` run closes a paragraph. It is reachable only at
+`consecutiveBody !== 1`, and measured on the real `quarto render` path every such position
+renders the opposite: the run is ordinary paragraph **text**, so the paragraph stays open and
+the `#` line below is swallowed as continuation — **30 phantom headings across 7 of the 10
+reachable positions**. Row removed.
+
+The thematic-break row is right only where **no paragraph is open**. Against an open one
+`***`, `___`, `---` and their spaced spellings are lazy continuation — the `---` spelling
+proves it outright by rendering as an **em dash**, which only happens to paragraph text —
+for **34 more phantoms**. The row is lifted out of the list and gated on `!paragraphOpen`,
+the same rule `INDENTED_CODE_LINE` documents and `opensFreshBlock` already applies. The
+other nine rows are deliberately **not** gated: they are unmeasured against an open
+paragraph, and gating them is the heading-deleting direction.
+
+**Removing the `=+` row alone deletes 5 real headings.** Pandoc swallows an ATX line into a
+setext heading when a run follows it directly — `# Heading Above` / `===` renders
+`<h1># Heading Above</h1>`, literal `#` and all — and that swallow closes the block, making
+the heading below it real. This model declines the swallow, so the closure is recovered
+explicitly via `prevWasAtxHeading`. Its `-` half additionally recovers **3 pre-existing lost
+true positives**: `-` and `--` are too short for the thematic-break row, so nothing ever
+matched them.
+
+**The scoring metric was blind before the corpus was.** Comparing heading SETS for equality
+reported "0 rows broken" for the shipped candidate; four documents already differed for an
+unrelated reason, and a row that is already unequal cannot become more unequal. Re-scored
+per heading with both error directions reported separately, that candidate was deleting five
+real headings.
+
+**The mutation pass found two live bugs that 220 rendered documents and 1724 unit tests had
+both passed** — the ATX-adjacency regex borrowed ` {0,3}` from `SETEXT_H1` where the indent is
+correct (the swallow needs column 0, so ` ===` invented a heading), and the adjacency flag was
+cleared at the foot of the scanner loop, which every `continue` path skips, so it leaked
+across blank lines and whole fenced regions. 19 mutants, 5 survivors, all real; re-run 19/19
+killed.
+
+Measured against a pre-S182 build from `git archive 01b85d9` over **220 rendered documents**:
+**85 phantom headings removed, 0 added, 3 lost true positives recovered, 0 real headings
+lost.** Over the repo's 108 markdown/qmd files all four views — headings, cells, outline,
+refs — are byte-identical; that control was proven effective by injection, and the probe
+baseline cross-checked against the git-archive build (0 mismatches / 204 documents).
+
+Three behaviours driven RED→GREEN, the second being the regression the first GREEN
+introduced. `test:oracle` byte-identical to Sessions 180 and 181 — zero diagnostics
+regression. ⚠ `test:integration` did **not** reach exit 0: the new pin passed in both runs
+with 495 tests alongside it, but two runs failed on disjoint, unrelated tests (render
+timeouts, then a semantic-tokens call count) — nondeterminism this session partly caused by
+leaving quarto slow after ~400 renders. Not measured against the pre-S182 baseline.
+
+Learnings #231–#234.
+
 ### 2026-08-02 · [ad hoc] Session 181 — IMPLEMENTATION: a setext underline may claim the line below a block construct (SHIPPED)
 
 A setext underline was recognized only at `consecutiveBody === 1` — the line above had to be
