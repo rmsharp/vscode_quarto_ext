@@ -48,6 +48,15 @@ const cell = (lang: string, opt: string | null, prefix = "#|"): string =>
  *  the DISCRIMINATING pin; a "did not select knitr" assertion would be vacuous there. */
 const rThenPy = cell("r", null) + cell("python", "cache: banana");
 
+/**
+ * An INDENTED `{r}` cell (S178). The fence and its closer carry `indent`; the `#|` option
+ * deliberately does NOT — quarto matches a cell option with `^#\s*\| ?` against the raw
+ * line, so an indented option is not an option, which is the half we were already faithful
+ * to. `closeIndent` defaults to the opener's, since quarto compares only backtick counts.
+ */
+const indentedCell = (indent: string, opt: string, closeIndent = indent): string =>
+  indent + "```{r}\n#| " + opt + "\n1\n" + closeIndent + "```\n\n";
+
 export const CORPUS: OracleCase[] = [
   // ---- the ORDER-DEPENDENT language loop ---------------------------------------------
   { name: "{r} alone + cache", files: { "doc.qmd": FM + cell("r", "cache: banana") } },
@@ -287,4 +296,49 @@ export const CORPUS: OracleCase[] = [
   // below is validated (measured exit 1). Before this row, a mutant that applied the HR
   // exemption when CLOSING too killed no DOCUMENT-level test, only a scanner pin.
   { name: "S177 CONTROL blank-surrounded --- CLOSING the front matter + echo", files: { "doc.qmd": "---\ntitle: t\n\n---\n\n" + cell("r", "echo: banana") } },
+
+  // ---- S178: an INDENTED cell fence is a cell to quarto -------------------------------
+  //
+  // `breakQuartoMd`'s cell opener is `^\s*(```+)\s*\{([=A-Za-z]+)( *[ ,].*)?\}\s*$` and its
+  // closer `^\s*(```+)\s*$` — leading whitespace UNBOUNDED and tabs included — where
+  // CommonMark's fence rule, and so our `FENCE_OPEN`/`FENCE_CLOSE`, caps it at 3 spaces. So
+  // an indented cell was validated by quarto and invisible to us: lost true positives.
+  //
+  // As with the S172 and S177 blocks, every row uses the engine-AGNOSTIC `echo` rather than
+  // the knitr-only `cache`: the mechanism here is cell PARTITIONING, so a `cache` row could
+  // pass on the ENGINE answer instead of on whether we built a cell. That risk is REAL here
+  // and not theoretical — quarto's engine scan `languagesInMarkdown` opens `^[\t >]*`, so it
+  // has ALWAYS counted indented cells. Our engine answer was therefore already right on
+  // these documents while our cell partitioning was wrong, and only `echo` can see that.
+  //
+  // The first six render exit 1 and we flagged none of them. The last four are the
+  // discriminating controls: each must stay silent (or, for the plain-fence row, must still
+  // flag), so a row going the other way is a real defect and not a safe simplification.
+  { name: "S178 4-space indented {r} cell + echo", files: { "doc.qmd": FM + indentedCell("    ", "echo: banana") } },
+  { name: "S178 TAB indented {r} cell + echo", files: { "doc.qmd": FM + indentedCell("\t", "echo: banana") } },
+  { name: "S178 8-space indented {r} cell + echo", files: { "doc.qmd": FM + indentedCell("        ", "echo: banana") } },
+  // The closer's indent need not match the opener's — quarto's `endCodeRegEx` compares only
+  // the BACKTICK COUNT. Both directions measured.
+  { name: "S178 4-space cell with a COLUMN-0 closer + echo", files: { "doc.qmd": FM + indentedCell("    ", "echo: banana", "") } },
+  { name: "S178 8-space cell with a 2-space closer + echo", files: { "doc.qmd": FM + indentedCell("        ", "echo: banana", "  ") } },
+  // The closer at DOCUMENT level: if an indented cell never closes it swallows what follows,
+  // which is how this session's first pin went green for the wrong reason. Here the FIRST
+  // cell's value is valid and the SECOND cell's is not, so a flag can only come from the
+  // first cell having ended.
+  { name: "S178 indented cell then a column-0 cell + echo on the SECOND", files: { "doc.qmd": FM + indentedCell("    ", "echo: false") + cell("r", "echo: banana") } },
+  // Quarto reads a cell option only at COLUMN 0 (`^#\s*\| ?` against the raw line), so an
+  // indented option is not an option at all — measured exit 0. We were already faithful
+  // here, and this row is what keeps the fence widening from dragging the option half with
+  // it.
+  { name: "S178 CONTROL 4-space fence with a 4-space option + echo", files: { "doc.qmd": FM + "    ```{r}\n    #| echo: banana\n    1\n    ```\n\n" } },
+  // ⚠ THE CARDINAL-SIN GUARD. `breakQuartoMd` flushes an unclosed fence's lines as MARKDOWN,
+  // so quarto builds no code cell and validates nothing — measured exit 0. Opening one anyway
+  // is a false positive on a document quarto ACCEPTS, and it is what this session's own first
+  // implementation did before this row's unit twin caught it.
+  { name: "S178 CONTROL UNTERMINATED 4-space indented fence + echo", files: { "doc.qmd": FM + "para\n\n    ```{r}\n#| echo: banana\n1\n" } },
+  { name: "S178 CONTROL 4-space indented cell, VALID value", files: { "doc.qmd": FM + indentedCell("    ", "echo: false") } },
+  // Quarto's PLAIN fence opener is `^```` — column 0 — so an indented plain fence is not a
+  // fence to it either, and the real cell below is still validated (measured exit 1). This is
+  // the row that fails if the widening is applied to plain fences instead of cells only.
+  { name: "S178 CONTROL indented PLAIN fence above a real cell + echo", files: { "doc.qmd": FM + "    ```\n    text\n    ```\n\n" + cell("r", "echo: banana") } },
 ];

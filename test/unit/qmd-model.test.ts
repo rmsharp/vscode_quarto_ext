@@ -558,10 +558,21 @@ describe("region consistency — cells & headings agree on skip regions", () => 
 
   // review #3/#6: a 4-space-indented fence is indented code per CommonMark, not
   // a fence — it must not swallow following headings nor become a cell.
+  //
+  // ⚠ S178 RE-GROUNDED THE REASON THESE TWO STILL HOLD, AND IT IS NOT THE ONE ABOVE.
+  // Measured against quarto 1.7.33, an indented ```` ```{r} ```` fence IS a cell: quarto
+  // validates its column-0 options and knitr EXECUTES its body. What saves this fixture is
+  // that its fence is never CLOSED — `breakQuartoMd` flushes an unclosed fence's lines as
+  // MARKDOWN and builds no code cell, so such a document renders exit 0 and its heading
+  // survives into the rendered HTML (both measured). So these pins assert quarto's real
+  // behaviour for the shape they test, and the CommonMark rationale in the comment above is
+  // the right answer reached by an argument that does not generalise. Do NOT read them as
+  // "an indented fence is never a cell" — see the S178 block below, which pins the CLOSED
+  // shapes going the other way.
   const indentedFence = [
     "Para.", // 0
     "", // 1
-    "    ```{python}", // 2  4 spaces → indented code, NOT a fence
+    "    ```{python}", // 2  4 spaces, and never closed → not a cell to quarto either
     "    x = 1", // 3
     "", // 4
     "# A Real Heading", // 5
@@ -575,6 +586,63 @@ describe("region consistency — cells & headings agree on skip regions", () => 
 
   it("does not treat a 4-space-indented ```{python} as an executable cell", () => {
     expect(findAllCells(indentedFence)).toEqual([]);
+  });
+});
+
+describe("an INDENTED cell fence — quarto's rule, not CommonMark's (Session 178)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("a CLOSED 4-space-indented {r} fence IS a cell, and the closer ends it", () => {
+    // Measured vs 1.7.33: quarto validates this cell's column-0 options (exit 1 on a bad
+    // value, exit 0 on a good one) and knitr executes its body. `endLine` is the closing
+    // fence, so the cell's `code` excludes it — the same shape a column-0 cell produces.
+    expect(findAllCells(doc("    ```{r}", "1", "    ```"))).toEqual([
+      { startLine: 0, endLine: 2, lang: "r", code: "1" },
+    ]);
+  });
+
+  it("accepts a TAB and an 8-space indent — quarto's `^\\s*` is unbounded", () => {
+    expect(findAllCells(doc("\t```{r}", "1", "\t```")).map((c) => c.lang)).toEqual(["r"]);
+    expect(findAllCells(doc("        ```{r}", "1", "        ```")).map((c) => c.lang)).toEqual(["r"]);
+  });
+
+  it("does not require the closer's indent to match the opener's", () => {
+    // Quarto's `endCodeRegEx` compares only the BACKTICK COUNT. Both directions measured:
+    // an 8-space opener closes on a 2-space closer, and a 4-space opener on a column-0 one.
+    expect(findAllCells(doc("        ```{r}", "1", "  ```")).map((c) => c.endLine)).toEqual([2]);
+    expect(findAllCells(doc("    ```{r}", "1", "```")).map((c) => c.endLine)).toEqual([2]);
+  });
+
+  it("CONTROL: an indented PLAIN fence is still not a fence at all", () => {
+    // ⚠ LOAD-BEARING. Quarto's plain opener is `^```` — COLUMN 0 — so only the CELL half
+    // is widened. If this regressed, an indented plain fence would open a skip region and
+    // swallow the heading below it, which is the Learning #14(b) defect returning by
+    // another door.
+    const text = doc("Para.", "", "    ```", "    text", "    ```", "", "# A Real Heading");
+    expect(findAllCells(text)).toEqual([]);
+    expect(findHeadings(text).map((h) => h.text)).toEqual(["A Real Heading"]);
+  });
+
+  it("CONTROL: an UNTERMINATED indented cell fence opens nothing", () => {
+    // ⚠ THE CARDINAL-SIN GUARD, at the scanner level. Quarto builds no cell from an
+    // unclosed fence (measured exit 0), so opening one would both flag a document quarto
+    // ACCEPTS and swallow every heading below. The heading assertion is the half that a
+    // flag-surface test cannot see.
+    const text = doc("Para.", "", "    ```{r}", "1", "", "# A Real Heading");
+    expect(findAllCells(text)).toEqual([]);
+    expect(findHeadings(text).map((h) => h.text)).toEqual(["A Real Heading"]);
+  });
+
+  it("CONTROL: a COLUMN-0 unterminated cell is still emitted, unchanged by S178", () => {
+    // The runnable-while-typing affordance, and a divergence from quarto that predates this
+    // session (filed separately). Without this pin, the guard above would also pass if the
+    // affordance had been removed outright rather than merely not extended.
+    expect(findAllCells(doc("```{r}", "1")).map((c) => c.lang)).toEqual(["r"]);
+  });
+
+  it("CONTROL: an indented TILDE fence is never a cell, indented or not", () => {
+    // Quarto's `startCodeCellRegEx` has no tilde branch, and neither does ours.
+    expect(findAllCells(doc("    ~~~{r}", "1", "    ~~~"))).toEqual([]);
   });
 });
 
