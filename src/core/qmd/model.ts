@@ -21,6 +21,16 @@
  *    inside one as a phantom label. A faithful fix must avoid false-skipping
  *    4-space list-item continuation content (the model tracks no list context),
  *    so it needs its own list-aware TDD pass. Fenced code (```/~~~) IS skipped.
+ *  - Pandoc's `blank_before_header` IS implemented (an ATX heading may not
+ *    interrupt an open paragraph — see `CLOSES_PARAGRAPH`), but the predicate
+ *    that decides whether a line leaves a paragraph open is a deliberately
+ *    PERMISSIVE per-line test, not real block-level state. So a line that only
+ *    LOOKS block-level inside prose — a pipe in a sentence, a leading `<`, a
+ *    footnote definition, a 4-space lazy continuation — still yields a phantom
+ *    heading. Each is a retained pre-existing false positive (the safe
+ *    direction) and each is pinned as a KNOWN RESIDUAL in
+ *    `test/unit/qmd-model.test.ts`; tightening any of them costs a heading
+ *    quarto really renders.
  */
 
 /** An ATX (`#`..`######`) markdown heading outside any code fence / front matter. */
