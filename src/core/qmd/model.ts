@@ -134,6 +134,35 @@ const BLANK_LINE = /^[ \t]*$/;
  */
 const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
 /**
+ * Body lines that do NOT leave a paragraph open, so an ATX heading may follow one
+ * directly (Session 180). Pandoc's `blank_before_header` — on by default in the
+ * `markdown` dialect quarto renders with — forbids a heading only where it would
+ * interrupt an OPEN PARAGRAPH; a block-level construct leaves none open.
+ *
+ * ⚠ **This list is deliberately PERMISSIVE, and that asymmetry is load-bearing.**
+ * A line this list misses is treated as prose, and the heading below it is DROPPED
+ * — deleting a heading quarto really renders, which is the direction that must never
+ * happen. A line it matches too eagerly merely retains a pre-existing phantom. So
+ * when in doubt, add the pattern: the cost is a residual, not a regression.
+ */
+const CLOSES_PARAGRAPH: readonly RegExp[] = [
+  /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/, // thematic break
+  /^ {0,3}=+[ \t]*$/, //                                     setext underline run
+  /\|/, //                                                   a pipe-table row, anywhere on the line
+  /^ {0,3}\+[-+=: ]*$/, //                                   a grid-table border, which carries NO pipe
+  /^ {0,3}:{3,}/, //                                         a fenced-div / callout fence
+  /^(?: {4,}|\t)\S/, //                                      an indented code block, spaces OR tab
+  /^ {0,3}\[[^\]]*\]:/, //                                   a link-reference (or footnote) definition
+  /^ {0,3}</, //                                             a raw HTML block
+  /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
+  /^ {0,3}\\[a-zA-Z]/, //                                    a raw TeX block (`\clearpage`, `\newpage`)
+  /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator
+];
+/** Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`. */
+function closesParagraph(line: string): boolean {
+  return CLOSES_PARAGRAPH.some((re) => re.test(line));
+}
+/**
  * A fence opener: up to 3 spaces of indentation (CommonMark §4.5 — 4+ spaces is
  * indented code, not a fence), then ≥3 of ONE fence char (backtick or tilde),
  * then anything. Capturing the char lets the scanner require the closer to use
@@ -437,6 +466,11 @@ function computeRegions(text: string): Regions {
   // fence, blank line) or heading (ATX or setext). A setext underline is only
   // recognized when this is exactly 1 — see `SETEXT_H1`'s docstring.
   let consecutiveBody = 0;
+  // Whether a PARAGRAPH is open on the line above — pandoc's `blank_before_header`
+  // rule, which an ATX heading may not interrupt. Deliberately SEPARATE state from
+  // `consecutiveBody`: that counter serves the setext disambiguation and folding it
+  // into this one would change which setext underlines are recognized.
+  let paragraphOpen = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -479,11 +513,13 @@ function computeRegions(text: string): Regions {
     // A whole-line single-line comment renders to nothing — skip it entirely.
     if (COMMENT_FULL_LINE.test(line)) {
       consecutiveBody = 0;
+      paragraphOpen = false;
       continue;
     }
     if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line)) {
       inComment = true;
       consecutiveBody = 0;
+      paragraphOpen = false;
       continue;
     }
 
@@ -526,6 +562,7 @@ function computeRegions(text: string): Regions {
       if (hasCloserBelow(closerIndex, i + 1, candidate)) {
         open = candidate;
         consecutiveBody = 0;
+        paragraphOpen = false;
         continue;
       }
       // Otherwise the line is ordinary body — the pre-S178 behaviour, unchanged.
@@ -537,6 +574,7 @@ function computeRegions(text: string): Regions {
     if (BLANK_LINE.test(line)) {
       bodyLines.push({ line: i, text: line });
       consecutiveBody = 0;
+      paragraphOpen = false;
       continue;
     }
 
@@ -553,22 +591,25 @@ function computeRegions(text: string): Regions {
       }
       bodyLines.push({ line: i, text: line });
       consecutiveBody = 0;
+      paragraphOpen = false;
       continue;
     }
 
     // A live content line (prose or a heading) — outside every skip-region.
     bodyLines.push({ line: i, text: line });
 
-    // An ATX heading.
-    const m = ATX_HEADING.exec(line);
+    // An ATX heading — but only where no paragraph is open above it.
+    const m = paragraphOpen ? null : ATX_HEADING.exec(line);
     if (m) {
       const heading = parseHeadingLine(m, i);
       if (heading) {
         headings.push(heading);
       }
       consecutiveBody = 0;
+      paragraphOpen = false;
     } else {
       consecutiveBody++;
+      paragraphOpen = !closesParagraph(line);
     }
   }
 

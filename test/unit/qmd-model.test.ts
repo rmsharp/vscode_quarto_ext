@@ -809,6 +809,80 @@ describe("a fence that is never CLOSED is not a code block at all (Session 179)"
   });
 });
 
+describe("an ATX heading cannot interrupt an open paragraph (Session 180)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("RED->GREEN: a heading pressed against a paragraph line is not a heading", () => {
+    // Quarto renders with pandoc's `markdown` dialect, where `blank_before_header` is ON by
+    // default: a heading cannot interrupt an OPEN PARAGRAPH. Measured on the real render
+    // path (`quarto render --to html`, quarto 1.7.33 / pandoc 3.6.3), not reasoned:
+    //
+    //   intro / # foo / stuff   ->  <p>intro # foo stuff</p>   — NO heading at all
+    //   intro / (blank) / # foo ->  <h1>foo</h1>               — a real heading
+    //
+    // We reported a heading for both, so the first document put a PHANTOM entry into the
+    // outline, breadcrumbs, sticky scroll and workspace symbols.
+    expect(findHeadings(doc("intro", "# foo", "stuff")).map((h) => h.text)).toEqual([]);
+    expect(findHeadings(doc("intro", "", "# foo", "stuff")).map((h) => h.text)).toEqual(["foo"]);
+  });
+
+  /**
+   * RED->GREEN: WHICH lines leave a paragraph open.
+   *
+   * The filed item prescribed "a one-line adjacency test — a heading needs a blank or a
+   * region boundary above it". Measured, that rule moves 10 documents toward quarto and 5
+   * AWAY from it: a heading below a thematic break, a table row, an indented code block, a
+   * link-reference definition or a raw HTML block is REAL, and the naive rule deletes it.
+   * On this repo's own 108 markdown/qmd files it deletes `SESSION_NOTES.md`'s
+   * "Session 83 Handoff Evaluation" heading outright.
+   *
+   * So the rule is not adjacency but pandoc's own: a heading may not interrupt an OPEN
+   * PARAGRAPH. Every row below is a block-level construct that leaves none open, and every
+   * expectation was read off a real `quarto render --to html` (quarto 1.7.33 / pandoc
+   * 3.6.3) — never off `quarto pandoc` alone, which is unfaithful for cell fences.
+   */
+  it.each([
+    // A block-level construct leaves NO paragraph open, so `# foo` below it is real.
+    ["a thematic break", ["***"]],
+    ["a setext underline", ["Title", "==========="]],
+    ["a pipe table", ["| a | b |", "|---|---|", "| 1 | 2 |"]],
+    ["a grid table (whose border carries NO pipe)", ["+---+---+", "| a | b |", "+===+===+", "| 1 | 2 |", "+---+---+"]],
+    ["a fenced-div closer", ["::: {.note}", "body", ":::"]],
+    ["a callout closer", ["::: {.callout-note}", "body", ":::"]],
+    ["an indented code block", ["    code"]],
+    ["a TAB-indented code block", ["\tcode"]],
+    ["a link-reference definition", ["[x]: http://e.com"]],
+    ["a raw HTML block", ["<div>", "x", "</div>"]],
+    ["a raw HTML block closed with up to 3 spaces of indent", ["<div>", "x", "  </div>"]],
+    ["a bare `##` — an EMPTY heading to pandoc, which our ATX regex cannot match", ["##"]],
+    ["a raw TeX block", ["\\clearpage"]],
+    ["a mid-document YAML block ended with `...`", ["---", "subtitle: mid", "..."]],
+    ["a closed fenced code block", ["```", "code", "```"]],
+    ["a closed cell fence", ["```{r}", "1+1", "```"]],
+    ["a whole-line HTML comment", ["<!-- c -->"]],
+  ])("a heading below %s IS a heading", (_what, above) => {
+    // Containment, not equality: a construct may legitimately contribute a heading of its
+    // own (the setext row renders `Title` as well, measured `<h1>Title</h1><h1>foo</h1>`).
+    // The property under test is only whether `# foo` survives.
+    expect(findHeadings(doc("intro", "", ...above, "# foo", "trailing")).map((h) => h.text))
+      .toContain("foo");
+  });
+
+  it.each([
+    // These leave a paragraph OPEN, so the heading is not a heading at all.
+    ["prose — the filed defect itself", ["ordinary prose"]],
+    ["a two-line paragraph", ["one", "two"]],
+    ["a bullet-list item", ["- item"]],
+    ["an ordered-list item", ["1. item"]],
+    ["a blockquote line", ["> quote"]],
+    ["a lazy blockquote continuation", ["> quote", "lazy"]],
+    ["an UNCLOSED fence, which since Session 179 is ordinary prose", ["```"]],
+  ])("a heading below %s is NOT a heading", (_what, above) => {
+    expect(findHeadings(doc("intro", "", ...above, "# foo", "trailing")).map((h) => h.text))
+      .not.toContain("foo");
+  });
+});
+
 describe("buildOutline — against the sample.qmd fixture", () => {
   const fixture = readFileSync(
     path.resolve(__dirname, "../fixtures/sample.qmd"),
