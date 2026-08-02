@@ -769,3 +769,53 @@ describe("cell fence tokens — the flag surface (Session 172)", () => {
     expect(cellFlags(withCell("{=html}", "echo: banana"))).toEqual([]);
   });
 });
+
+describe("an INDENTED cell fence is a validated cell to quarto (Session 178)", () => {
+  /**
+   * Quarto's cell opener is `^\s*(```+)\s*\{([=A-Za-z]+)( *[ ,].*)?\}\s*$` — leading
+   * whitespace is UNBOUNDED and includes tabs — while our `FENCE_OPEN` caps it at
+   * CommonMark's 3 spaces. So a 4-space-indented `{r}` cell is validated by quarto and
+   * was invisible to us: a lost true positive, filed by Session 172.
+   */
+  const indented = (indent: string, opt: string) =>
+    "---\ntitle: t\n---\n\n" + indent + "```{r}\n#| " + opt + "\n1\n" + indent + "```\n";
+
+  it("RED->GREEN: flags a 4-space-indented {r} cell's column-0 option", () => {
+    // Measured firsthand vs quarto 1.7.33: this document renders **exit 1**
+    // ("Validation of YAML cell metadata failed"), and the same document with
+    // `cache: false` renders exit 0 — so it is the VALUE, and we were silent.
+    expect(cellFlags(indented("    ", "cache: banana"))).toEqual(["5:cache=banana"]);
+  });
+
+  it("RED->GREEN: an indented CLOSER ends the cell, so a LATER cell is still seen", () => {
+    // The opener alone is not enough: `FENCE_CLOSE` caps indentation at 3 too, so an
+    // indented cell would never close and would swallow the rest of the document —
+    // which is how the pin above first went green for the wrong reason. Quarto's
+    // `endCodeRegEx` is `^\s*(```+)\s*$`, unbounded, and this document renders **exit 1**
+    // for the SECOND cell's value (measured; the first cell's value is valid).
+    const twoCells =
+      "---\ntitle: t\n---\n\n" +
+      "    ```{r}\n#| cache: false\n1\n    ```\n\n" +
+      "```{r}\n#| cache: banana\n2\n```\n";
+    expect(cellFlags(twoCells)).toEqual(["10:cache=banana"]);
+  });
+
+  it("RED->GREEN CONTROL: an UNTERMINATED indented fence is NOT a cell", () => {
+    // ⚠ THE CARDINAL-SIN GUARD. `breakQuartoMd` flushes an unclosed fence's lines as
+    // MARKDOWN, so it builds no code cell and validates nothing: measured firsthand, this
+    // document renders **exit 0** while its closed twin renders exit 1. Our model
+    // deliberately keeps a COLUMN-0 unterminated cell runnable-while-typing (a divergence
+    // filed separately), and extending that affordance to indented fences would have
+    // manufactured a brand-new false positive on a document quarto ACCEPTS — the cardinal
+    // sin — which is exactly what this session's own first implementation did.
+    const unterminated =
+      "---\ntitle: t\n---\n\npara\n\n    ```{r}\n#| cache: banana\n1\n";
+    expect(cellFlags(unterminated)).toEqual([]);
+    // The column-0 twin is UNCHANGED by this session — still emitted, still the
+    // pre-existing filed FP. Without this line the pin above would also pass if the
+    // unterminated-cell affordance had been removed outright.
+    expect(cellFlags("---\ntitle: t\n---\n\npara\n\n```{r}\n#| cache: banana\n1\n")).toEqual([
+      "7:cache=banana",
+    ]);
+  });
+});

@@ -142,8 +142,33 @@ const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
  * counts as indented code. Shared with cell detection below.
  */
 const FENCE_OPEN = /^ {0,3}(([`~])\2{2,})(.*)$/;
+/**
+ * Quarto's OWN cell opener, whose leading whitespace is **unbounded** — `^\s*`, tabs
+ * included — where CommonMark's fence rule, and so `FENCE_OPEN` above, caps it at 3
+ * spaces. Backticks only, matching both quarto (its `startCodeCellRegEx` has no tilde
+ * branch) and `FENCE_OPEN`'s own cell test below.
+ *
+ * The capture groups are deliberately IDENTICAL in shape and order to `FENCE_OPEN`'s —
+ * run, char, rest — so the scanner can substitute one match object for the other.
+ *
+ * ⚠ This is the CELL opener only. Quarto's PLAIN fence opener is `^```` ``` ````, anchored
+ * at column 0, so a non-cell fence is not widened here and keeps CommonMark's 0–3 cap;
+ * `computeRegions` reaches this pattern only after `FENCE_OPEN` has declined AND the info
+ * string parses as a cell. See `CELL_FENCE_CLOSE` for the matching closer rule.
+ */
+const INDENTED_CELL_FENCE_OPEN = /^\s*((`)\2{2,})(.*)$/;
 /** A closing fence: 0–3 spaces, ≥3 of one fence char only, optional trailing space. */
 const FENCE_CLOSE = /^ {0,3}(([`~])\2{2,})[ \t]*$/;
+/**
+ * Quarto's `endCodeRegEx` — the same closer with UNBOUNDED leading whitespace. Used only
+ * for a fence that opened as a CELL, so a plain fence keeps CommonMark's 0–3 cap exactly
+ * as before. Grounded firsthand vs 1.7.33: quarto closes an 8-space-opened cell with a
+ * 2-space closer, so the closer's indent need not match the opener's (Session 178).
+ *
+ * Without this an indented cell would never close and would swallow the rest of the
+ * document — which is how this session's FIRST pin went green for the wrong reason.
+ */
+const CELL_FENCE_CLOSE = /^\s*(([`~])\2{2,})[ \t]*$/;
 /** The `---` line that opens a YAML front-matter block — only valid at line 0. */
 const FRONTMATTER_OPEN = /^---[ \t]*$/;
 /** A YAML front-matter terminator: `---` or `...` (YAML's document-end marker). */
@@ -462,19 +487,36 @@ function computeRegions(text: string): Regions {
     }
 
     // A fence opener (captures cell metadata so the closer can emit the cell).
-    const fence = FENCE_OPEN.exec(line);
+    // When CommonMark's 0–3-space rule declines, quarto's unbounded CELL opener gets a
+    // second look — but ONLY when the info string really is a cell, so a plain fence
+    // keeps the CommonMark cap (Session 178).
+    const plainFence = FENCE_OPEN.exec(line);
+    const fence = plainFence ?? indentedCellFenceAt(line);
     if (fence) {
       const char = fence[2];
       const info = char === "`" ? CELL_INFO.exec(fence[3].trim()) : null;
-      open = {
+      const candidate: OpenCellFence = {
         char,
         len: fence[1].length,
         isCell: info !== null,
         lang: info ? info[1] : "",
         startLine: i,
       };
-      consecutiveBody = 0;
-      continue;
+      // A fence CommonMark already accepted opens unconditionally, exactly as before. An
+      // INDENTED cell fence must additionally be CLOSED somewhere below: `breakQuartoMd`
+      // flushes an unclosed fence's lines as MARKDOWN, so quarto builds no code cell and
+      // validates nothing there — measured firsthand, such a document renders exit 0 while
+      // its closed twin renders exit 1. Opening one anyway would both manufacture a
+      // cardinal-sin false positive and swallow every heading below it. The COLUMN-0
+      // unterminated cell keeps its runnable-while-typing affordance (a divergence from
+      // quarto that predates this session and is filed separately) — this only declines to
+      // EXTEND that affordance to a shape that never had it.
+      if (plainFence !== null || hasCloserBelow(lines, i + 1, candidate)) {
+        open = candidate;
+        consecutiveBody = 0;
+        continue;
+      }
+      // Otherwise the line is ordinary body — the pre-S178 behaviour, unchanged.
     }
 
     // A blank line breaks paragraph continuity — a setext underline cannot
@@ -1113,10 +1155,49 @@ export function maskInlineCode(line: string): string {
   return line.replace(INLINE_CODE_SPAN, (span) => " ".repeat(span.length));
 }
 
-/** True if `line` closes the given open fence (same char, length ≥ opener). */
-function isCloser(line: string, open: OpenFence): boolean {
-  const m = FENCE_CLOSE.exec(line);
+/**
+ * `line` as a fence-opener match when it is an INDENTED executable cell — quarto's own
+ * `startCodeCellRegEx` shape, which our CommonMark-capped `FENCE_OPEN` declines. Returns
+ * `null` for everything else, including an indented PLAIN fence: quarto's plain opener is
+ * column-0, so widening that half would be our invention rather than its behaviour.
+ *
+ * Grounded firsthand vs quarto 1.7.33 (Session 178): a 4-space-, an 8-space- and a
+ * TAB-indented ```` ```{r} ```` whose `#|` option sits at column 0 each render **exit 1**
+ * on a bad value and **exit 0** on a good one, so quarto really does build and validate
+ * the cell. knitr goes further and EXECUTES it — a fully indented cell body prints its
+ * result into the rendered document — so an indented fence is a real cell in every
+ * machine-relevant sense, not the "indented code" CommonMark would call it.
+ */
+function indentedCellFenceAt(line: string): RegExpExecArray | null {
+  const m = INDENTED_CELL_FENCE_OPEN.exec(line);
+  return m !== null && CELL_INFO.test(m[3].trim()) ? m : null;
+}
+
+/**
+ * True if `line` closes the given open fence (same char, length ≥ opener).
+ *
+ * A CELL uses quarto's unbounded-indent closer, a plain fence CommonMark's 0–3-space one
+ * — the same split as the two openers above, and for the same reason: quarto's cell
+ * partitioner is indentation-blind while its plain-fence opener is column-0 (S178).
+ */
+function isCloser(line: string, open: OpenCellFence): boolean {
+  const m = (open.isCell ? CELL_FENCE_CLOSE : FENCE_CLOSE).exec(line);
   return m !== null && m[2] === open.char && m[1].length >= open.len;
+}
+
+/**
+ * Whether any line at or below `from` closes `open` — the lookahead an INDENTED cell fence
+ * needs, since quarto builds no cell from an unclosed one. Deliberately routed through
+ * `isCloser` rather than re-testing the pattern, so "what closes this fence" has exactly
+ * one definition (Learning #14).
+ */
+function hasCloserBelow(lines: readonly string[], from: number, open: OpenCellFence): boolean {
+  for (let j = from; j < lines.length; j++) {
+    if (isCloser(lines[j], open)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
