@@ -205,11 +205,19 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
  */
 const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
 /**
- * A setext underline run — `=`s or `-`s alone on a line, any length. Broader than
- * `SETEXT_H1`/`SETEXT_H2` in intent: this asks only "are these bytes a run pandoc could read
- * as an underline", for the ATX-adjacency rule in `closesParagraph` below.
+ * A setext underline run that pandoc will swallow the ATX line above into — `=`s or `-`s
+ * alone on a line, any length, at **column 0**, for the ATX-adjacency rule in
+ * `closesParagraph` below.
+ *
+ * ⚠ **Deliberately NARROWER than `SETEXT_H1`/`SETEXT_H2`, which allow 0-3 spaces of indent.**
+ * The swallow is measured to need zero indent: `# Heading Above` / `===` renders
+ * `<h1># Heading Above</h1>` and makes the heading below it real, while the same document
+ * with even ONE leading space renders `<h1>Heading Above</h1>` plus a plain paragraph, and
+ * the heading below is not a heading at all. Widening this to ` {0,3}` invents that heading.
+ * Trailing whitespace is fine (measured); trailing anything else is not — `=== junk` is not
+ * an underline, so the `$` anchor is load-bearing too.
  */
-const SETEXT_UNDERLINE_RUN = /^ {0,3}(?:=+|-+)[ \t]*$/;
+const SETEXT_UNDERLINE_RUN = /^(?:=+|-+)[ \t]*$/;
 /**
  * A thematic break (CommonMark §4.1) — 3+ of `*`, `-` or `_`, optionally space-separated.
  *
@@ -630,11 +638,12 @@ function computeRegions(text: string): Regions {
   // into this one would change which setext underlines are recognized.
   let paragraphOpen = false;
   // Whether the line ABOVE was an ATX heading (Session 182). Pandoc swallows such a line
-  // into a SETEXT heading when a `=`/`-` run follows it directly, which closes the block;
+  // into a SETEXT heading when a `=`/`-` run follows it DIRECTLY, which closes the block;
   // this model declines that swallow, so it recovers the closure here instead. See
-  // `closesParagraph`. ⚠ It is read BEFORE it is reassigned in the loop below — the same
-  // ordering hazard `pendingFreshBlock` carries, and it silently reads `false` forever if
-  // the two lines are swapped. Pinned.
+  // `closesParagraph`. ⚠ Unlike `pendingFreshBlock` and `prevIndentedCode`, this one DOES
+  // need clearing at every region boundary and blank line — the adjacency is literal, and
+  // a blank line between the heading and the run ends it. That is why it is snapshotted
+  // and cleared at the TOP of the loop rather than at the foot. Pinned.
   let prevWasAtxHeading = false;
   // A front-matter `from:` disables the paragraph rule for the whole document — see
   // `FRONTMATTER_FROM_KEY`. Without this the change DELETES headings quarto renders.
@@ -650,6 +659,16 @@ function computeRegions(text: string): Regions {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    // The ATX-adjacency state is consumed by THIS line and by no later one — pandoc
+    // swallows the heading only when the run is the line IMMEDIATELY below it. Clearing
+    // it here, at the top, is what makes that "immediately" true through every `continue`
+    // path below: a blank line, a fence, a comment or a front-matter block between the
+    // heading and the run all end the adjacency, and each of those paths `continue`s
+    // without reaching the assignment at the foot of the loop. Measured — `# Heading` /
+    // (blank) / `===` / `# ATX Below` renders NO heading below, where the same document
+    // without the blank renders one.
+    const prevLineWasAtxHeading = prevWasAtxHeading;
+    prevWasAtxHeading = false;
 
     // YAML front matter — only a `---` on the very first line opens it. Record
     // the span as it opens (provisionally unterminated, ending at EOF) and refine
@@ -804,12 +823,8 @@ function computeRegions(text: string): Regions {
       // whether these bytes open a block or merely continue a paragraph depends on it.
       pendingFreshBlock = opensFreshBlock(line, paragraphOpen);
       prevIndentedCode = indented;
-      // Both reads below are of the line ABOVE. ⚠ `prevWasAtxHeading` MUST be cleared
-      // AFTER the call that reads it, never before — swapping these two lines makes the
-      // argument permanently `false` and silently deletes the heading under
-      // `# Heading Above` / `===`. Pinned by an ordering test.
-      paragraphOpen = !closesParagraph(line, paragraphOpen, prevWasAtxHeading);
-      prevWasAtxHeading = false;
+      // `paragraphOpen` is read for the line ABOVE before being overwritten for this one.
+      paragraphOpen = !closesParagraph(line, paragraphOpen, prevLineWasAtxHeading);
     }
   }
 

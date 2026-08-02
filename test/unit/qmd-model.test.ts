@@ -1193,6 +1193,70 @@ describe("an `=`/`-` run and a thematic break do NOT close a paragraph (Session 
         .toEqual([]);
     }
   });
+
+  // ---------------------------------------------------------------------------------
+  // The adversarial pass. 17 mutants, 5 survivors, all real — and TWO of them were not
+  // missing pins but defects in this session's own first implementation, found only here.
+  // Every expectation below is a document where the two implementations FIRST diverge,
+  // read off a real `quarto render`.
+  // ---------------------------------------------------------------------------------
+
+  it("M9/M10: the ATX-swallow needs a run at COLUMN 0 with nothing after it", () => {
+    // MUTANT M9 (widen the run to ` {0,3}`) and M10 (drop the `$` anchor) both survived the
+    // suite as first written, and M9 was CORRECT where this session's code was not: the
+    // first implementation used ` {0,3}`, copied from `SETEXT_H1`, and invented a heading.
+    //
+    // Measured — one leading space is the whole difference:
+    //   # Heading Above / ===   / # ATX Below -> <h1># Heading Above</h1><h1>ATX Below</h1>
+    //   # Heading Above /  ===  / # ATX Below -> <h1>Heading Above</h1><p>=== # ATX Below</p>
+    //   # Heading Above / === junk / # ATX…   -> <h1>Heading Above</h1><p>=== junk # ATX…</p>
+    expect(findHeadings(doc("# Heading Above", "===", "# ATX Below")).map((h) => h.text))
+      .toContain("ATX Below");
+    expect(findHeadings(doc("# Heading Above", "===   ", "# ATX Below")).map((h) => h.text))
+      .toContain("ATX Below"); // trailing WHITESPACE is still an underline (measured)
+    for (const run of [" ===", "   ===", "   -", "=== junk"]) {
+      expect(findHeadings(doc("# Heading Above", run, "# ATX Below")).map((h) => h.text))
+        .not.toContain("ATX Below");
+    }
+  });
+
+  it("M13: the ATX-adjacency is LITERAL — a blank line or a region between ends it", () => {
+    // MUTANT M13 (never clear the state) survived, and exposed the same bug in this
+    // session's own code: the state was cleared at the foot of the loop, which every
+    // `continue` path skips, so it leaked across blank lines and whole fenced regions.
+    //
+    // Measured — the blank line is the whole difference:
+    //   # Heading Above / === / # ATX Below            -> <h1>…</h1><h1>ATX Below</h1>
+    //   # Heading Above / (blank) / === / # ATX Below  -> <h1>…</h1><p>=== # ATX Below</p>
+    expect(findHeadings(doc("# Heading Above", "===", "# ATX Below")).map((h) => h.text))
+      .toContain("ATX Below");
+    expect(findHeadings(doc("# Heading Above", "", "===", "# ATX Below")).map((h) => h.text))
+      .not.toContain("ATX Below");
+    expect(findHeadings(doc("# Heading Above", "", "-", "# ATX Below")).map((h) => h.text))
+      .not.toContain("ATX Below");
+    // …and it must not survive a fenced region either.
+    expect(findHeadings(doc("# Heading Above", "", "```", "code", "```", "===", "# ATX Below"))
+      .map((h) => h.text)).not.toContain("ATX Below");
+    // …nor a run of prose lines.
+    expect(findHeadings(doc("# Heading Above", "", "line one", "line two", "===", "# ATX Below"))
+      .map((h) => h.text)).not.toContain("ATX Below");
+  });
+
+  it("M11/M17: a thematic break is 3+ chars, and `_` is one of the three spellings", () => {
+    // MUTANT M11 (loosen `{3,}` to `{2,}`) and M17 (drop the `_` alternative) both survived.
+    // They fail in OPPOSITE directions, which is why both are pinned here: M11 would
+    // FABRICATE a heading, M17 would DELETE one. Measured, with a closed paragraph above so
+    // the break really is a break:
+    //   prose / (blank) / *** / # ATX Below -> <p>prose</p><hr><h1>ATX Below</h1>
+    //   prose / (blank) / **  / # ATX Below -> <p>prose</p><p>** # ATX Below</p>
+    for (const run of ["***", "___", "---", "_ _ _"]) {
+      expect(findHeadings(doc("prose", "", run, "# ATX Below")).map((h) => h.text))
+        .toEqual(["ATX Below"]);
+    }
+    for (const run of ["**", "__", "--"]) {
+      expect(findHeadings(doc("prose", "", run, "# ATX Below")).map((h) => h.text)).toEqual([]);
+    }
+  });
 });
 
 describe("buildOutline — against the sample.qmd fixture", () => {
