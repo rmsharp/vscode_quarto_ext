@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S179
+date: 2026-08-01
+status: pending
+active_task: IMPLEMENTATION (strict TDD -- real logic, so RED->GREEN is required; no declarative-edit exemption). Our fence-TERMINATION model diverges from quarto in two ways that are ONE defect, both live cardinal-sin false positives. (a) The CLOSER's LENGTH rule -- CommonMark lets a closer be LONGER than its opener, so `isCloser` (src/core/qmd/model.ts) tests `m[1].length >= open.len`, where quarto's breakQuartoMd tests `=== inCode`, exact equality. (b) An UNTERMINATED cell at COLUMN 0 is emitted as a cell running to end-of-document, where quarto flushes an unclosed fence's lines as MARKDOWN and builds no cell. Filed by S178 (a) and the S160 §9 review (b); (a) measured firsthand at the flag surface; both PRE-EXISTING. Measured vs 1.7.33: 3-tick open/4-tick close and 4-tick open/3-tick close each render quarto exit 0 while valueFlags returns `5:echo=banana`. ONE deliverable because fixing (a) alone converts it into (b) rather than closing it. Operator-selected via AskUserQuestion at Phase 0; it was S178's ranked recommendation #1.
+```
+
+```handoff
 session: S178
 date: 2026-08-01
 status: complete
