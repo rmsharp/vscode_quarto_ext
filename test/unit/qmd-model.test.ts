@@ -943,6 +943,54 @@ describe("an ATX heading cannot interrupt an open paragraph (Session 180)", () =
   });
 
   /**
+   * ADDED BY THIS SESSION'S ADVERSARIAL PASS — three mutants that survived everything else.
+   *
+   * Each is a real hole, not an equivalent mutant: the shipped build is right on all three
+   * and nothing could observe it. Each fixture is the document where the two implementations
+   * FIRST diverge, measured on the real render path rather than argued.
+   */
+  it("a DECLINED heading still leaves the paragraph open", () => {
+    // Mutant: `paragraphOpen = false` when an ATX line is declined. It survived the whole
+    // suite because every other fixture has only ONE heading under its paragraph. Here the
+    // declined `# First` would clear the flag and let `## Second` through as a phantom.
+    // Measured: this document renders NO heading at all — the paragraph swallows both.
+    expect(findHeadings(doc("intro", "# First", "## Second", "trailing")).map((h) => h.text))
+      .toEqual([]);
+  });
+
+  it("an `=` run that is NOT consumed as a setext underline still closes the paragraph", () => {
+    // Mutant: drop the `=+` pattern. It survived because the table's setext row has the
+    // underline at `consecutiveBody === 1`, where the SETEXT branch consumes it and clears
+    // the flag itself — so that row never exercised the pattern at all. An ineffective
+    // control, exactly the shape Learning #219 warns about.
+    //
+    // Here the indented line inflates the counter to 2, so the underline is NOT consumed and
+    // reaches the paragraph rule as an ordinary body line. Measured: quarto renders BOTH
+    // `<h1>Setext Title</h1>` and `<h1>ATX Below</h1>`.
+    //
+    // ⚠ We report only `ATX Below`. Missing the setext heading is a PRE-EXISTING false
+    // negative — `    indented code` counts as a body line, so the underline is never at
+    // `consecutiveBody === 1`. This session neither caused nor fixed it; the pin asserts the
+    // half this change is responsible for, and names the other half rather than hiding it.
+    const text = doc("    indented code", "Setext Title", "===========", "# ATX Below");
+    expect(findHeadings(text).map((h) => h.text)).toEqual(["ATX Below"]);
+  });
+
+  it("a CLOSED fence directly under prose closes the paragraph", () => {
+    // Mutant: drop `paragraphOpen = false` at the fence opener. It survived because every
+    // other fence fixture has a BLANK line above the fence, which already cleared the flag —
+    // so the assignment at the fence was pure redundancy in all of them.
+    //
+    // Pandoc's `para` is terminated by a fenced code block (`backtick_code_blocks`), so a
+    // fence CAN interrupt an open paragraph where a heading cannot. Measured: `<h1>foo</h1>`
+    // renders with and without the blank line, so both must keep the heading.
+    expect(findHeadings(doc("intro", "```", "code", "```", "# foo", "trailing")).map((h) => h.text))
+      .toEqual(["foo"]);
+    expect(findHeadings(doc("intro", "", "```", "code", "```", "# foo", "trailing")).map((h) => h.text))
+      .toEqual(["foo"]);
+  });
+
+  /**
    * TEST-AFTER (labelled) — the DISCLOSED RESIDUALS.
    *
    * `CLOSES_PARAGRAPH` is permissive on purpose, so it retains a pre-existing phantom
