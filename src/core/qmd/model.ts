@@ -424,6 +424,7 @@ function scanRegions(text: string): Regions {
  */
 function computeRegions(text: string): Regions {
   const lines = text.split(/\r?\n/);
+  const closerIndex = buildCloserIndex(lines);
   const headings: Heading[] = [];
   const cells: Cell[] = [];
   const bodyLines: BodyLine[] = [];
@@ -522,7 +523,7 @@ function computeRegions(text: string): Regions {
       // measured cardinal false positives AND stops the region swallowing the headings
       // below. The uniformity is load-bearing — when only the cell half declined, the
       // leftover mismatched fence opened a PLAIN region instead and swallowed them anyway.
-      if (hasCloserBelow(lines, i + 1, candidate)) {
+      if (hasCloserBelow(closerIndex, i + 1, candidate)) {
         open = candidate;
         consecutiveBody = 0;
         continue;
@@ -1207,18 +1208,80 @@ function isCloser(line: string, open: OpenCellFence): boolean {
 }
 
 /**
- * Whether any line at or below `from` closes `open` — the lookahead an INDENTED cell fence
- * needs, since quarto builds no cell from an unclosed one. Deliberately routed through
- * `isCloser` rather than re-testing the pattern, so "what closes this fence" has exactly
- * one definition (Learning #14).
+ * Every line that could close SOME fence, bucketed by the exact fence it would close.
+ *
+ * The key is `isCell|char|len` because `isCloser` answers differently along all three axes:
+ * a cell accepts unbounded indentation where a plain fence caps it at 3, and a cell needs
+ * an exact run length where a plain fence takes any run at least as long. Each bucket is
+ * built in ascending line order, so "is there one at or below `from`?" is a binary search.
+ *
+ * ⚠ THIS EXISTS FOR A MEASURED REASON, NOT AS TIDINESS. Since Session 179 EVERY fence needs
+ * the lookahead, not just the rare indented cell Session 178 added it for. Scanning the
+ * remaining lines per opener is quadratic, and on a document of 2000 unclosed openers that
+ * measured **0.7 ms → 162 ms per scan** — on the editor's debounced hot path. With the index
+ * the same document is back to sub-millisecond. Do not "simplify" this back into a loop.
  */
-function hasCloserBelow(lines: readonly string[], from: number, open: OpenCellFence): boolean {
-  for (let j = from; j < lines.length; j++) {
-    if (isCloser(lines[j], open)) {
-      return true;
+function buildCloserIndex(lines: readonly string[]): Map<string, number[]> {
+  const index = new Map<string, number[]>();
+  const push = (key: string, line: number) => {
+    const bucket = index.get(key);
+    if (bucket === undefined) {
+      index.set(key, [line]);
+    } else {
+      bucket.push(line);
+    }
+  };
+  for (let i = 0; i < lines.length; i++) {
+    // `CELL_FENCE_CLOSE` is the superset — the same run with unbounded indentation — so one
+    // match decides both kinds, and `FENCE_CLOSE` only has to re-test the indentation cap.
+    const m = CELL_FENCE_CLOSE.exec(lines[i]);
+    if (m === null) {
+      continue;
+    }
+    const char = m[2];
+    const len = m[1].length;
+    // A cell closes on an EXACT run length, so it lands in exactly one bucket.
+    push(`c|${char}|${len}`, i);
+    // A plain fence closes on any run at least as long, so this line is a candidate closer
+    // for every shorter opener too. Fence runs are ≥3 and openers longer than this line's
+    // run can never be closed by it, so the loop is bounded by the run's own length.
+    if (FENCE_CLOSE.test(lines[i])) {
+      for (let n = 3; n <= len; n++) {
+        push(`p|${char}|${n}`, i);
+      }
     }
   }
-  return false;
+  return index;
+}
+
+/**
+ * Whether any line at or below `from` closes `open` — the lookahead every fence now needs,
+ * since neither quarto nor pandoc builds a block from an unclosed one (Session 179; Session
+ * 178 applied it to indented cells only).
+ *
+ * The buckets are pre-filtered by exactly the predicate `isCloser` applies, so the two
+ * encode the same rule twice and can drift (Learning #14). What holds them together is the
+ * table in `test/unit/qmd-model.test.ts` — "a fence that is never CLOSED is not a code
+ * block at all (Session 179)", whose rows walk all three axes of the key (char, length,
+ * indent) with every row measured against `quarto pandoc -f markdown`.
+ */
+function hasCloserBelow(index: Map<string, number[]>, from: number, open: OpenCellFence): boolean {
+  const bucket = index.get(`${open.isCell ? "c" : "p"}|${open.char}|${open.len}`);
+  if (bucket === undefined) {
+    return false;
+  }
+  // First entry ≥ `from`, by binary search — the buckets are built in ascending order.
+  let lo = 0;
+  let hi = bucket.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (bucket[mid] < from) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
+    }
+  }
+  return lo < bucket.length;
 }
 
 /**

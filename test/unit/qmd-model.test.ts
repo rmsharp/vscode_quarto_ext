@@ -713,6 +713,59 @@ describe("a fence that is never CLOSED is not a code block at all (Session 179)"
     expect(findAllCells(text)).toEqual([]);
     expect(findHeadings(text).map((h) => h.text)).toEqual(["Heading Below"]);
   });
+
+  /**
+   * THE CLOSER INDEX AND `isCloser` MUST NOT DRIFT.
+   *
+   * `buildCloserIndex` pre-filters lines by exactly the predicate `isCloser` applies, so
+   * the two encode the same rule twice — the duplication Learning #14 exists to catch. It
+   * is there for a measured reason (every fence now needs the lookahead; without the index
+   * a 2000-opener document went 0.7 ms → 162 ms per scan), so it cannot simply be deleted.
+   * These pins walk all three axes the key is built from — CHAR, LENGTH, INDENT — so a
+   * change to either side that the other does not match is observable here.
+   *
+   * Every row measured with `quarto pandoc -f markdown -t html`, the dialect quarto renders
+   * with. `<pre>` means the fence closed; a paragraph means it never opened.
+   */
+  it.each([
+    // opener, closer, does the fence close?, measured pandoc result
+    ["```", "````", true, "3-tick opener, 4-tick closer — CODE BLOCK (plain takes >=)"],
+    ["````", "```", false, "4-tick opener, 3-tick closer — PARAGRAPH"],
+    ["```", "   ```", true, "closer indented 3 — CODE BLOCK (CommonMark cap is 0-3)"],
+    ["```", "    ```", false, "closer indented 4 — PARAGRAPH (past the cap)"],
+    ["~~~", "~~~~", true, "tilde opener, longer tilde closer — CODE BLOCK"],
+    ["```", "~~~", false, "backtick opener, tilde closer — PARAGRAPH (char must match)"],
+  ])("plain fence %s / %s closes: %s", (opener, closer, closes, _why) => {
+    // A PLAIN fence is observable through the heading it does or does not swallow. When it
+    // closes, `# After` is a heading because the fence ended; when it never closes, the
+    // fence does not open at all and `# Swallowed` is an ordinary heading too — so the
+    // discriminating assertion is the line the fence would have covered.
+    //
+    // ⚠ THE BLANK LINE AFTER THE OPENER IS LOAD-BEARING, and this pin was written without
+    // it first. Pandoc's `markdown` enables `blank_before_header`, so `# Swallowed` pressed
+    // directly against the opener is NOT a heading to pandoc even when the fence does not
+    // open (measured: that document yields `After` alone). Our scanner has no such rule, so
+    // the version without the blank line would have pinned OUR answer against pandoc's — a
+    // separate, pre-existing divergence riding along inside a pin about fences. Filed, not
+    // fixed here.
+    const text = doc("para", "", opener, "", "# Swallowed", closer, "", "# After");
+    const headings = findHeadings(text).map((h) => h.text);
+    expect(headings).toEqual(closes ? ["After"] : ["Swallowed", "After"]);
+  });
+
+  it("the same three axes on a CELL fence, where the length rule is EXACT", () => {
+    // The cell half of the table above. Quarto's rule is `=== inCode`, so unlike a plain
+    // fence a LONGER closer does not close a cell — the divergence this session shipped.
+    const cell = (opener: string, closer: string) =>
+      findAllCells(doc("para", "", opener + "{r}", "1", closer)).map((c) => c.lang);
+    expect(cell("```", "```")).toEqual(["r"]); // exact — a cell
+    expect(cell("```", "````")).toEqual([]); // longer — NOT a cell (plain would close)
+    expect(cell("````", "```")).toEqual([]); // shorter — not a cell either
+    expect(cell("````", "````")).toEqual(["r"]); // exact at a different length
+    expect(cell("   ```", "```")).toEqual(["r"]); // indent is unbounded for a CELL closer…
+    expect(cell("```", "    ```")).toEqual(["r"]); // …on both sides (S178, quarto's endCodeRegEx)
+    expect(cell("~~~", "~~~")).toEqual([]); // tilde is never a cell to quarto
+  });
 });
 
 describe("buildOutline — against the sample.qmd fixture", () => {
