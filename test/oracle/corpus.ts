@@ -347,4 +347,49 @@ export const CORPUS: OracleCase[] = [
   // the one that reaches real documents — it is what pasting indented code out of a
   // rendered web page produces.
   { name: "S178 CONTROL NBSP-indented {r} cell + echo", files: { "doc.qmd": FM + indentedCell(" ", "echo: banana") } },
+
+  // ---- S179: a fence quarto never CLOSES is not a cell ---------------------------------
+  //
+  // `breakQuartoMd` closes a cell only on an EXACT run length —
+  // `line.match(endCodeRegEx)[1].length === inCode` — where CommonMark, and so our
+  // `isCloser`, accepted any run at least as long. A cell it never closes is flushed as
+  // MARKDOWN, and since the opening fence is never pushed into `lineBuffer`, quarto DELETES
+  // it. So all three shapes below render **exit 0** while their well-formed twins render
+  // exit 1, and we flagged all three: cardinal-sin false positives.
+  //
+  // As with the S172/S177/S178 blocks these use the engine-AGNOSTIC `echo`, because the
+  // mechanism is cell PARTITIONING — a knitr-only `cache` row could pass on the ENGINE
+  // answer instead of on whether we built a cell.
+  { name: "S179 3-tick opener with a 4-tick closer + echo", files: { "doc.qmd": FM + "```{r}\n#| echo: banana\n1\n````\n\n" } },
+  { name: "S179 4-tick opener with a 3-tick closer + echo", files: { "doc.qmd": FM + "````{r}\n#| echo: banana\n1\n```\n\n" } },
+  { name: "S179 UNTERMINATED column-0 cell + echo", files: { "doc.qmd": FM + "para\n\n```{r}\n#| echo: banana\n1\n" } },
+  // The controls. Each well-formed twin must still flag, at BOTH run lengths, or the rows
+  // above would also pass if cell detection had been broken outright rather than made exact.
+  { name: "S179 CONTROL 3-tick opener with a 3-tick closer + echo", files: { "doc.qmd": FM + "```{r}\n#| echo: banana\n1\n```\n\n" } },
+  { name: "S179 CONTROL 4-tick opener with a 4-tick closer + echo", files: { "doc.qmd": FM + "````{r}\n#| echo: banana\n1\n````\n\n" } },
+  // ⚠ THE SUBTLE ONE, and the row that tests the closer INDEX rather than the rule. The
+  // 4-tick line does not close this cell, but an exact 3-tick closer appears further down —
+  // so the cell DOES open and runs to that later closer, swallowing the 4-tick line as body.
+  // Quarto does the same thing for the same reason (the mismatched line falls through to its
+  // `else` and is buffered), so this must still flag.
+  { name: "S179 CONTROL mismatched closer, then a real one further down + echo", files: { "doc.qmd": FM + "```{r}\n#| echo: banana\n1\n````\n2\n```\n\n" } },
+  // ⚠ THIS ROW AGREES FOR A REASON ITS FIRST COMMENT GOT WRONG, and the correction is worth
+  // keeping. It was added as "a declined fence must not swallow the cell below it" — but the
+  // first fence here is NOT declined: the second cell's own ``` IS an exact 3-tick closer, so
+  // the first fence opens and swallows the second cell whole, exactly as breakQuartoMd does.
+  // Both sides are silent because the `#|` line is then no longer in a cell's LEADING option
+  // block, not because anything was declined. Kept as a genuine agreement row; the control it
+  // was meant to be is the next one.
+  { name: "S179 CONTROL unterminated cell above a real cell + echo on the SECOND", files: { "doc.qmd": FM + "```{r}\n1\n\n" + cell("r", "echo: banana") } },
+  // THE CONTROL THAT ACTUALLY TESTS A DECLINED FENCE. The outer fence is 4 ticks with no
+  // 4-tick closer anywhere below, so it is genuinely unterminated and we decline it; the
+  // inner 3-tick cell is well formed. Measured **exit 1** on BOTH engines, pointing at the
+  // inner cell's option line — so quarto validates the inner cell and so do we.
+  //
+  // ⚠ AND IT IS THE ONE SHAPE `breakQuartoMd` ALONE DOES NOT EXPLAIN. Read literally, the
+  // outer fence never closes (3 !== 4 at the inner closer), so its loop would buffer
+  // everything and flush it as markdown with no cell at all — which predicts exit 0. It
+  // renders exit 1. The verdicts in this block are measured; where a comment explains a
+  // MECHANISM it is inference, and this row is the standing reminder of the difference.
+  { name: "S179 CONTROL declined 4-tick fence above a well-formed 3-tick cell + echo", files: { "doc.qmd": FM + "````{r}\n1\n\n" + cell("r", "echo: banana") } },
 ];
