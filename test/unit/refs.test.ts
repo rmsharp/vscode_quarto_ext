@@ -127,6 +127,49 @@ describe("indexLabels — respects the shared skip-regions (Learning #14)", () =
   });
 });
 
+describe("indexLabels — a PHANTOM heading is not a cross-reference target (Session 180)", () => {
+  // TEST-AFTER (labelled): this passes as a consequence of the `blank_before_header` rule
+  // in `core/qmd/model`, not from code written for it. It is here because `core/refs` is the
+  // SECOND consumer of `findHeadings`, and the filed item described only the outline.
+  //
+  // Measured end to end on the real render path — the whole document renders as
+  //   <p>Prose that opens the paragraph. ## Methods {#sec-methods}</p>
+  //   <p>The analysis is described in <strong>?@sec-methods</strong>.</p>
+  // `?@sec-methods` is quarto's UNRESOLVED-reference marker: the link is broken in the
+  // rendered document. Before this session we indexed `sec-methods` as a real target, so
+  // completion offered it and go-to-definition resolved it — pointing the author at a
+  // heading that does not exist.
+  it("drops the {#sec-} target of a heading pressed against a paragraph", () => {
+    const text = [
+      "---", // 0
+      "title: t", // 1
+      "---", // 2
+      "", // 3
+      "Prose that opens the paragraph.", // 4
+      "## Methods {#sec-methods}", // 5  NOT a heading to pandoc — so not a target either
+      "", // 6
+      "The analysis is described in @sec-methods.", // 7
+    ].join("\n");
+    expect(indexLabels(text)).toEqual([]);
+    expect(findLabel(text, "sec-methods")).toBeNull();
+  });
+
+  it("…and keeps it when a blank line makes the heading real", () => {
+    const text = [
+      "---", // 0
+      "title: t", // 1
+      "---", // 2
+      "", // 3
+      "Prose that opens the paragraph.", // 4
+      "", // 5  the one byte that makes the heading real
+      "## Methods {#sec-methods}", // 6
+    ].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "sec-methods", kind: "sec", line: 6, column: 13 },
+    ]);
+  });
+});
+
 describe("refIdAt — the cross-ref id under the cursor", () => {
   it("returns the id when the cursor is inside a @ref token", () => {
     //              See @fig-plot for details

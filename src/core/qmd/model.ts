@@ -158,6 +158,21 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
   /^ {0,3}\\[a-zA-Z]/, //                                    a raw TeX block (`\clearpage`, `\newpage`)
   /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator
 ];
+/**
+ * A front-matter `from:` key, at ANY indentation so a per-format
+ * `format:`/`  html:`/`    from: …` is caught too.
+ *
+ * `blank_before_header` is a pandoc DEFAULT, not an invariant: a document that selects a
+ * different reader dialect really does render a heading pressed against prose. Measured on
+ * the real render path — `markdown-blank_before_header`, `markdown_strict`, `gfm` and
+ * `commonmark` each render the heading, while plain `markdown` and no key at all do not.
+ *
+ * The bail keys on the key's PRESENCE, not on resolving the dialect, so it fails CLOSED:
+ * the cost is that `from: markdown` retains the phantom, which is the permitted direction.
+ * `reader:` is deliberately absent — quarto REJECTS that key outright (exit 1), so no such
+ * document ever renders a heading.
+ */
+const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
 /** Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`. */
 function closesParagraph(line: string): boolean {
   return CLOSES_PARAGRAPH.some((re) => re.test(line));
@@ -471,6 +486,9 @@ function computeRegions(text: string): Regions {
   // `consecutiveBody`: that counter serves the setext disambiguation and folding it
   // into this one would change which setext underlines are recognized.
   let paragraphOpen = false;
+  // A front-matter `from:` disables the paragraph rule for the whole document — see
+  // `FRONTMATTER_FROM_KEY`. Without this the change DELETES headings quarto renders.
+  let dialectOverride = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -484,6 +502,9 @@ function computeRegions(text: string): Regions {
       continue;
     }
     if (inFrontmatter) {
+      if (FRONTMATTER_FROM_KEY.test(line)) {
+        dialectOverride = true;
+      }
       if (FRONTMATTER_CLOSE.test(line)) {
         inFrontmatter = false;
         frontMatter = { startLine: 0, endLine: i, terminated: true };
@@ -599,7 +620,7 @@ function computeRegions(text: string): Regions {
     bodyLines.push({ line: i, text: line });
 
     // An ATX heading — but only where no paragraph is open above it.
-    const m = paragraphOpen ? null : ATX_HEADING.exec(line);
+    const m = paragraphOpen && !dialectOverride ? null : ATX_HEADING.exec(line);
     if (m) {
       const heading = parseHeadingLine(m, i);
       if (heading) {

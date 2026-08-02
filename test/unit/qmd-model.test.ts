@@ -881,6 +881,89 @@ describe("an ATX heading cannot interrupt an open paragraph (Session 180)", () =
     expect(findHeadings(doc("intro", "", ...above, "# foo", "trailing")).map((h) => h.text))
       .not.toContain("foo");
   });
+
+  /**
+   * RED->GREEN: `blank_before_header` is a DEFAULT, not an invariant — and a document can
+   * turn it off in its own front matter. This is the one place the whole change could
+   * DELETE a heading quarto really renders, which is the direction that must never happen.
+   *
+   * Every spelling below measured on the real render path with the same body (prose, then
+   * a heading pressed against it):
+   *
+   * | front matter                          | quarto renders |
+   * |---|---|
+   * | (none)                                | no heading     |
+   * | `from: markdown`                      | no heading     |
+   * | `from: markdown-blank_before_header`  | **a heading**  |
+   * | `from: markdown_strict`               | **a heading**  |
+   * | `from: gfm`                           | **a heading**  |
+   * | `from: commonmark`                    | **a heading**  |
+   * | `format:`/`  html:`/`    from: …`     | **a heading**  |
+   *
+   * So the bail keys on the PRESENCE of a `from:` key at any indentation, not on resolving
+   * the dialect: fail closed. The cost is that `from: markdown` — which really does enable
+   * the extension — retains the phantom, the permitted direction. `reader:` is deliberately
+   * NOT matched: quarto REJECTS that key outright (exit 1), so it can never render a heading.
+   */
+  it.each([
+    ["from: markdown-blank_before_header", ["from: markdown-blank_before_header"]],
+    ["from: markdown_strict", ["from: markdown_strict"]],
+    ["from: gfm", ["from: gfm"]],
+    ["from: commonmark", ["from: commonmark"]],
+    ["a nested per-format from:", ["format:", "  html:", "    from: markdown_strict"]],
+  ])("front matter carrying %s keeps a heading pressed against prose", (_what, fm) => {
+    const text = doc("---", "title: t", ...fm, "---", "", "Prose opens the paragraph.", "# Heading");
+    expect(findHeadings(text).map((h) => h.text)).toEqual(["Heading"]);
+  });
+
+  it("…and the control with no from: key still suppresses it", () => {
+    const text = doc("---", "title: t", "---", "", "Prose opens the paragraph.", "# Heading");
+    expect(findHeadings(text).map((h) => h.text)).toEqual([]);
+  });
+
+  it("the OUTLINE loses the phantom section and keeps the real one", () => {
+    // TEST-AFTER (labelled) — the user-visible surface the filed item named. `buildOutline`
+    // is pure, so this half needs no Extension Development Host.
+    //
+    // Measured: this document renders ONE body heading, `Real`. Before this session the
+    // outline, breadcrumbs, sticky scroll and workspace symbols all carried `Phantom` too,
+    // as a sibling section, so every node below it was filed under a heading that does not
+    // exist in the rendered document.
+    const text = doc(
+      "# Real",
+      "",
+      "Prose that opens a paragraph.",
+      "## Phantom",
+      "more prose",
+      "",
+      "## Genuine",
+    );
+    expect(buildOutline(text).map((s) => s.name)).toEqual(["Real"]);
+    expect(buildOutline(text)[0].children.map((s) => s.name)).toEqual(["Genuine"]);
+  });
+
+  /**
+   * TEST-AFTER (labelled) — the DISCLOSED RESIDUALS.
+   *
+   * `CLOSES_PARAGRAPH` is permissive on purpose, so it retains a pre-existing phantom
+   * wherever an exempt shape appears inside prose rather than as its own block. Each row
+   * below renders NO heading and we still report one. They are recorded, not fixed: every
+   * one is the safe direction, and tightening any of them costs a measured real heading
+   * (`SESSION_NOTES.md`'s own "Session 83 Handoff Evaluation" is what the precise-table
+   * variant deletes).
+   *
+   * This pin exists so the residuals are a decision on the record rather than a surprise.
+   */
+  it.each([
+    ["prose containing a pipe character", "Run `cat f | wc -l` to count."],
+    ["prose starting with inline HTML", "<em>hi</em> there prose"],
+    ["a footnote definition, which the link-ref pattern also matches", "[^1]: a note"],
+    ["an autolink on its own line", "<http://example.com>"],
+    ["a 4-space LAZY continuation of an open paragraph", "    still the same paragraph"],
+  ])("KNOWN RESIDUAL: a phantom heading below %s is still reported", (_what, above) => {
+    const text = doc("intro", above, "# foo", "trailing");
+    expect(findHeadings(text).map((h) => h.text)).toEqual(["foo"]);
+  });
 });
 
 describe("buildOutline — against the sample.qmd fixture", () => {
