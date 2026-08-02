@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S178
+date: 2026-08-01
+status: pending
+active_task: IMPLEMENTATION (strict TDD -- real logic, so RED->GREEN is required; no declarative-edit exemption). An INDENTED cell fence is a validated cell to quarto and invisible to us: `FENCE_OPEN` (src/core/qmd/model.ts) caps fence indentation at 3 spaces where quarto's cell opener is unbounded `^\s*`, tabs included. Filed by S172, verified firsthand then, PRE-EXISTING, LOST-TP direction (safe -- we are silent where quarto validates). Operator-selected via AskUserQuestion at Phase 0; it was S177's ranked recommendation #1. ONE deliverable.
+```
+
+```handoff
 session: S177
 date: 2026-08-01
 status: complete
