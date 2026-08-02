@@ -1,0 +1,21 @@
+---
+title: Blank before header
+---
+
+# Real Section
+
+Prose that opens a paragraph.
+## Phantom Section
+more prose in the same paragraph
+
+## Genuine Section
+
+Quarto renders this document with exactly two headings — `Real Section` and
+`Genuine Section`. `## Phantom Section` is pressed against the line above it, so
+pandoc's `blank_before_header` makes it paragraph text, not a heading.
+
+***
+# Below A Thematic Break
+
+A thematic break is block-level, so this heading is real even with no blank line
+above it. It is the control that fails if the rule is written as bare adjacency.

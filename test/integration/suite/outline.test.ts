@@ -9,6 +9,7 @@ const EXTENSION_ID = "rmsharp.vscode-quarto-ext";
 const ROOT = path.resolve(__dirname, "../../../..");
 const SAMPLE = path.resolve(ROOT, "test/fixtures/sample.qmd");
 const SETEXT = path.resolve(ROOT, "test/fixtures/setext.qmd");
+const BLANK_BEFORE_HEADER = path.resolve(ROOT, "test/fixtures/blank-before-header.qmd");
 
 /**
  * Ask the editor for the document symbols the same way the Outline view and
@@ -229,6 +230,44 @@ describe("Quarto: Document outline (symbols)", () => {
       ["ATX Subsection", "Setext Subsection"],
     );
     assert.strictEqual(h1.children[1].range.start.line, 13);
+  });
+
+  it("omits a heading pandoc renders as paragraph text, through the real provider (Session 180)", async () => {
+    // THE WIRING EVIDENCE. The unit tests establish the DECISION; this establishes that the
+    // registered DocumentSymbolProvider — the one the Outline view, breadcrumbs, sticky
+    // scroll and Ctrl+T actually call — carries it.
+    //
+    // The fixture's premise is MEASURED, not assumed: `quarto render --to html` on these
+    // exact bytes emits `Real Section` (h1), `Genuine Section` (h2) and
+    // `Below A Thematic Break` (h1), and NO `Phantom Section` — that one is pressed against
+    // the line above, so `blank_before_header` makes it paragraph text.
+    const symbols = await symbolsFor(BLANK_BEFORE_HEADER);
+
+    assert.deepStrictEqual(
+      symbols.map((s) => s.name),
+      ["Real Section", "Below A Thematic Break"],
+      "the phantom section must not appear as a top-level symbol",
+    );
+
+    // `Genuine Section` still nests under `Real Section` — the phantom's disappearance must
+    // not take the real sibling below it with it.
+    assert.deepStrictEqual(
+      symbols[0].children.map((c) => c.name),
+      ["Genuine Section"],
+    );
+
+    // The thematic-break control. If the rule were written as bare adjacency — the fix the
+    // backlog item prescribed — this heading would be deleted too, and it is one quarto
+    // really renders.
+    assert.strictEqual(symbols[1].children.length, 0);
+
+    // Nothing anywhere in the tree is the phantom.
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    assert.ok(
+      !flatten(symbols).includes("Phantom Section"),
+      "no phantom heading at any depth of the outline",
+    );
   });
 });
 
