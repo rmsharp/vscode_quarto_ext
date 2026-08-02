@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S175
+date: 2026-08-01
+status: pending
+active_task: IN PROGRESS (DOCUMENTATION FIX; no logic, so the strict-TDD gate's declarative-edit exemption applies — verification still required). Rewrite CLAUDE.md's "Build / Test / Verify" section against package.json's actual scripts. It still opens "Placeholder until the extension is scaffolded" after ~174 sessions, and it mis-names `npm test` as @vscode/test-electron when npm test is vitest over test/unit and @vscode/test-electron is `npm run test:integration`. CLAUDE.md is auto-loaded into every session BEFORE anything else, and SAFEGUARDS makes the build-equivalent the command a session runs after every substantive change — so a wrong one there is the highest-leverage small defect open. Dragons: (1) transcription — every command named must be run or read firsthand, not inferred from package.json's surface, since `npm run` resolves chains and `package` reaches check-package only through vsce's implicit vscode:prepublish edge; (2) S173 edited ONE line of this section and docked itself for leaving it MIXED, so the deliverable is the WHOLE section in its own commit; (3) the neighbouring SESSION_RUNNER.md / SAFEGUARDS.md / docs/methodology/** are synced byte-identical from canonical and must not be touched. Operator-selected via AskUserQuestion at Phase 0; it was S174's ranked recommendation #1. ONE deliverable.
+```
+
+```handoff
 session: S174
 date: 2026-08-01
 status: complete
