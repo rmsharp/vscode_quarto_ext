@@ -1,0 +1,32 @@
+---
+title: Indented cell fence fixture
+---
+
+Prose before the cell. The fence below is indented 4 spaces, which CommonMark
+calls indented code — but quarto's cell opener is `^\s*` and it validates this
+cell, and knitr executes it (both measured firsthand vs 1.7.33, Session 178).
+
+    ```{r}
+#| echo: maybe
+1
+    ```
+
+An indented PLAIN fence is not a fence to quarto either — its plain opener is
+column-0 — so it must not open a region that swallows the real cell below it.
+
+    ```
+    text
+    ```
+
+```{r}
+#| echo: maybe
+2
+```
+
+An UNTERMINATED indented fence builds no cell at all: quarto flushes an unclosed
+fence's lines as markdown, so the document renders exit 0 and nothing below is
+validated. Flagging here would be a false positive on a document quarto accepts.
+
+    ```{r}
+#| echo: maybe
+3

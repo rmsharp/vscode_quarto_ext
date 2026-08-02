@@ -31,6 +31,12 @@ const RMD_PYTHON_CELL_QMD_TWIN = path.resolve(
   ROOT,
   "test/fixtures/yaml-value-diagnostics/rmd-python-cell.qmd",
 );
+// S178: an indented cell fence, the plain-fence control and the unterminated control, in
+// one document — the only fixture here whose cell does not start at column 0.
+const INDENTED_CELL = path.resolve(
+  ROOT,
+  "test/fixtures/yaml-value-diagnostics/indented-cell.qmd",
+);
 const INVALID_FORMAT_NAME = path.resolve(ROOT, "test/fixtures/format-name/invalid.qmd");
 const VALID_FORMAT_NAME = path.resolve(ROOT, "test/fixtures/format-name/valid.qmd");
 const VALID_ASPECTRATIO_FRONT_MATTER = path.resolve(
@@ -120,6 +126,28 @@ describe("Quarto: cell-option VALUE diagnostics (.qmd, plan §4.1 Phase 1)", () 
     // `#| echo: maybe` — `maybe` starts at column 9.
     assert.strictEqual(d.range.start.character, 9, "range should start at the value token");
     assert.strictEqual(d.range.end.character, 14, "range should end at the value token");
+  });
+
+  it("flags an INDENTED cell's option in the real editor, and neither control (S178)", async () => {
+    // Phase 3E's wiring evidence. Every other fixture in this file starts its cell at
+    // column 0, so before this one the indented path had never been exercised through the
+    // real adapter — 491 passing adapter tests proved no REGRESSION and said nothing about
+    // whether the new behaviour reaches the editor.
+    const doc = await openActive(INDENTED_CELL);
+    assert.ok(
+      await waitFor(() => valueDiagnostics(doc.uri).length >= 2, 5000),
+      "expected the indented cell's diagnostic to appear within 5s of opening",
+    );
+    const lines = valueDiagnostics(doc.uri)
+      .map((d) => d.range.start.line)
+      .sort((a, b) => a - b);
+    // 9 = the INDENTED cell's option (the deliverable). 21 = the column-0 cell below the
+    // indented PLAIN fence, which must still be reached — if the plain fence wrongly opened
+    // a region it would swallow that cell and this line would vanish.
+    assert.deepStrictEqual(lines, [9, 21], `unexpected diagnostic lines: ${lines.join(",")}`);
+    // 30 = the UNTERMINATED indented fence's option. Quarto builds no cell there and renders
+    // exit 0, so a flag would be a false positive on a document quarto ACCEPTS.
+    assert.ok(!lines.includes(30), "an unterminated indented fence must not be flagged");
   });
 
   it("produces ZERO diagnostics for a .qmd whose cell-option values are all valid or open", async () => {
