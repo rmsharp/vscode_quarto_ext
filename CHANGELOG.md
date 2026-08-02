@@ -7,6 +7,48 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-02 · [ad hoc] Session 181 — IMPLEMENTATION: a setext underline may claim the line below a block construct (SHIPPED)
+
+A setext underline was recognized only at `consecutiveBody === 1` — the line above had to be
+the first line after a blank. Any block-level line above the title inflated the counter, so
+the underline was never inspected and the heading was dropped from the outline, breadcrumbs,
+sticky scroll, workspace symbols and the **cross-reference index**. Quarto renders it:
+`    indented code` / `Setext Title` / `===` is `<h1>Setext Title</h1>`, and `@sec-`
+references to such a heading resolve to real links.
+
+**The obvious implementation deletes headings, and only a pre-existing pin caught it.**
+Resetting the counter AT the block line passed the filed defect's RED and every test written
+for it — and silently deleted a heading the previous build got right. A setext underline
+directly below a block line claims THAT line, overriding the block reading: `    indented
+code` / `===` renders `<h1>indented code</h1>`, and `***`, `___`, `##`, `| a | b |`,
+`[x]: url` and `\clearpage` all behave the same way. The shipped rule is a one-line
+**deferral** — a block line makes the line BELOW it a fresh paragraph start and keeps its own
+claim — with one measured exception: an indented run of 2+ lines is firmly code. Session 180's
+M8 pin is what red-flagged the regression.
+
+**The two lists have opposite safety polarity and must never be unified.** `CLOSES_PARAGRAPH`
+is deliberately permissive because a pattern it misses DELETES an ATX heading;
+`OPENS_FRESH_BLOCK` is deliberately restrictive because a pattern it wrongly includes INVENTS
+a setext heading. Reusing `closesParagraph` here — the instinctive one-liner — manufactures
+**24 measured phantom headings** (`:::`, `+---+`, `a | b`, `[^1]:`, `<span>`, `...`, `===`).
+A mutant pin kills that substitution.
+
+**Measured:** 136 documents through the real `quarto render` path across six corpora, replayed
+against the pre-S181 build (`git archive 66cacc2`): **81 agree / 40 lost TP / 12 phantom →
+116 / 5 / 12** — 35 rows toward quarto, **0 away**, phantom count identical on both sides. Over
+the repo's 109 markdown/qmd files (2140 headings) all four views — headings, cells, outline,
+refs — are byte-identical; that control was proven effective by injecting a known-divergent
+document. Adversarial pass: 17 mutants, 5 survivors, all real, all closed and re-killed.
+
+Gate: check-types 0, compile 0, compile-tests 0, unit **1716 passed / 65 files**, `test:oracle`
+exit 0 (131 documents, 124 agree / 4 lost TP / 3 cardinal FP — byte-identical to Session 180),
+`check-package` OK 42 files / 5.51 MB, `test:integration` **495 passing, exit 0** in a real
+Extension Development Host.
+
+Filed, not fixed (each measured): Session 180's `=+` entry in `CLOSES_PARAGRAPH` is wrong in
+all three positions where it is reachable (four phantom rows); its thematic-break entry is
+pinned by nothing; and three items Session 180 reported as "filed" never reached `BACKLOG.md`.
+
 ### 2026-08-02 · [ad hoc] Session 180 — IMPLEMENTATION: an ATX heading cannot interrupt an open paragraph (SHIPPED)
 
 Quarto renders with pandoc's `markdown` dialect, where `blank_before_header` is on by default: an
