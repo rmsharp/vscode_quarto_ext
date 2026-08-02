@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S181
+date: 2026-08-02
+status: pending
+active_task: IN PROGRESS (IMPLEMENTATION, strict TDD). A SETEXT heading whose underline sits below an INDENTED line is a real heading to quarto and we report nothing. SETEXT_H1/SETEXT_H2 fire only at `consecutiveBody === 1`, and an indented (4-space) line above the title inflates that counter so the underline is never inspected at 1. Filed and MEASURED firsthand by S180 while building its M8 mutant pin. PRE-EXISTING; lost-true-positive direction today, but the FIX adds headings -- into the outline family AND the cross-reference index -- so an over-wide fix manufactures phantom crossref targets. Operator-selected via AskUserQuestion at Phase 0 over S180's own ranked #1. ONE deliverable.
+```
+
+```handoff
 session: S180
 date: 2026-08-02
 status: complete
