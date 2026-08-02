@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S176
+date: 2026-08-01
+status: pending
+active_task: IN PROGRESS (DOCUMENTATION FIX; no logic, so the strict-TDD gate's declarative-edit exemption applies — verification still required). Rewrite CLAUDE.md's "Tech Stack" section so it states the stack that was actually built. It opens "Not yet scaffolded — the stack below is the intended default, to be ratified in the first planning session" — the same placeholder framing S175 removed from the Build/Test/Verify section ~11 lines below, in the same auto-loaded file — and ends with "vscode-languageclient / LSP if a language-server architecture is chosen", a question answered long ago. Dragons: (1) the S175 transcription hazard pointed at a new surface — a dependency LIST is not an architecture, and devDependencies vs dependencies does not answer what SHIPS; (2) ⚠ do NOT carry S175's own phrasing forward unexamined — its BACKLOG item says the extension "ships zero runtime npm dependencies", but katex and markdown-it are devDependencies that esbuild may bundle into dist/extension.js, which would make that phrasing misleading; measure the bundle before writing any dependency claim; (3) the three surviving bullets each need re-verification rather than being assumed correct because they look plausible; (4) SESSION_RUNNER.md / SAFEGUARDS.md / docs/methodology/** are synced byte-identical from canonical and must not be touched. Operator-selected at session start; it was S175's ranked recommendation #1. ONE deliverable.
+```
+
+```handoff
 session: S175
 date: 2026-08-01
 status: complete
