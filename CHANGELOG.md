@@ -7,6 +7,49 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-01 · [ad hoc] Session 177 — IMPLEMENTATION: a column-0 `---` swallows the cells below it (SHIPPED)
+
+A live **cardinal false positive**: quarto validates NOTHING inside a YAML region, and we
+squiggled cells that fall in one. Filed by Session 171 for the INDENTED-opening case;
+measurement found the same root cause behind **five** more shapes and closed **six**.
+
+**The mechanism, read out of the installed 1.7.33 rather than from the filed description.**
+`breakQuartoMd`'s `yamlRegEx` is `/^---\s*$/` — anchored at COLUMN 0 **and tested on every
+line, not only line 0** — and a fence builds a cell only when `inPlainText()` (`!inCodeCell &&
+!inCode && !inYaml`). So any column-0 `---` opens a region that swallows every cell below it
+until the next one, and `partitionCellOptionsMapped` never runs inside it. The single exemption
+is `isYamlDelimiter`'s `skipHRs` arm — a `---` with a blank line BOTH above and below is a
+thematic break — and it is **asymmetric**: `skipHRs` is passed `!inYaml`, so a blank-surrounded
+`---` still CLOSES an open region.
+
+**What the filed item got wrong, and how it was caught.** Its prescription — and S176's receipt
+repeating it — said to teach cell ENUMERATION the rule in `core/qmd/model.ts`. Measured, that
+site is wrong: the swallow belongs to quarto's VALIDATION pass, not to the document. The
+rendered HTML of a swallowed document still carries the cell as a real highlighted code cell
+(knitr executes it, pandoc emits it, and the `#|` line is consumed as an option rather than
+printed), so teaching `findAllCells` the rule would have dropped real, runnable cells from six
+consumers — outline, cell-background, refs, diagram-regions, virtual-doc and run-cell — on
+documents quarto renders successfully. The seam chosen instead is `collectValueSources`, whose
+ONE product consumer is the squiggle. Operator ratified the divergence before any code.
+
+**Measured, not derived.** Replaying the pre-S177 build (`git archive 4907e2f src` →
+`QMD_ORACLE_SRC`) over the same 111-document corpus: pre-S177 **97 agree / 4 lost TP / 9
+CARDINAL FP**, this build **104 / 4 / 3**. Six cardinal false positives closed, zero lost true
+positives, zero rows regressed — and all seven CONTROL rows are `agree` on BOTH builds, which is
+what makes "no lost TP" a measurement rather than a hope.
+
+**Adversarial pass on its own change** (the first in six sessions): three mutants run against the
+new pins. Dropping the HR exemption and dropping fence tracking each died at both the scanner and
+the document level; inverting the exemption's open/close asymmetry died at the **scanner level
+only**. That gap was closed with a measured document (`---`/`title: t`/blank/`---`/blank/cell
+renders exit 1) plus a corpus row, and the mutant now dies at both levels.
+
+New: `src/core/qmd/quarto-yaml-regions.ts` (pure), `test/unit/quarto-yaml-regions.test.ts`.
+Commits `b8b8d27` (fix, RED→GREEN), `46aa8f2` (corpus + baseline + scanner pins), `8c8597a` (the
+asymmetry pin), `78f34d9` (learnings #214–#216). Verified: `compile` 0, `compile-tests` 0, unit
+**1626 passed / 65 files**, `test:oracle` exit 0, `check-package` OK 42 files / 5.50 MB. Phase 3E
+runtime verification offered and declined by the operator — see the handoff for the limitation.
+
 ### 2026-08-01 · [ad hoc] Session 176 — DOCUMENTATION FIX: `CLAUDE.md`'s Tech Stack section states the stack that was built (SHIPPED)
 
 The twin of Session 175's fix, ~11 lines above it in the same auto-loaded file. The section
