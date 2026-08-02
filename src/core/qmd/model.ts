@@ -125,6 +125,22 @@ const ATTR_ID = /#([^\s}]+)/;
  * after an ATX heading (the ATX line resets the counter to 0, matching Quarto's
  * `.qmd` reader's actual single-line-only rule, not the surprising ATX-swallowing
  * behavior a plain `---`-adjacency edge case can otherwise produce in Pandoc).
+ *
+ * Session 181 added the second way that counter reaches 1: the line above may also be the
+ * first line AFTER a block construct (`OPENS_FRESH_BLOCK`), not only the first line after a
+ * blank. KNOWN RESIDUALS, each measured firsthand and each PRE-EXISTING — this session
+ * neither caused nor closed them, and each costs something real to fix:
+ *
+ *   - A raw HTML block directly under an underline is claimed as a heading with its literal
+ *     tag as the text (`<div>` / `===` → we report `<div>`, quarto renders no heading).
+ *   - A raw TeX line likewise keeps its literal text (`\clearpage` / `===` → we report
+ *     `\clearpage`, quarto renders an EMPTY heading because it renders the TeX).
+ *   - A bare `##` under an underline renders an EMPTY `<h2></h2>` in quarto; we emit no
+ *     empty-titled heading at all, which is deliberate — an empty outline row is noise.
+ *   - An `=` run that is NOT consumed as an underline is treated by `CLOSES_PARAGRAPH` as
+ *     closing the paragraph, so an ATX heading below it is reported; measured, pandoc keeps
+ *     the paragraph open in all three positions where that entry is reachable, so the
+ *     heading is a phantom. That entry is Session 180's and is filed, not fixed here.
  */
 const SETEXT_H1 = /^ {0,3}=+[ \t]*$/;
 /** A setext level-2 underline — see `SETEXT_H1`. */
