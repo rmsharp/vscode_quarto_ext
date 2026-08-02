@@ -959,21 +959,22 @@ describe("an ATX heading cannot interrupt an open paragraph (Session 180)", () =
   });
 
   it("an `=` run that is NOT consumed as a setext underline still closes the paragraph", () => {
-    // Mutant: drop the `=+` pattern. It survived because the table's setext row has the
-    // underline at `consecutiveBody === 1`, where the SETEXT branch consumes it and clears
-    // the flag itself — so that row never exercised the pattern at all. An ineffective
-    // control, exactly the shape Learning #219 warns about.
+    // AMENDED BY SESSION 181, and the amendment is the point. As written this pin asserted
+    // `["ATX Below"]` and named the missing `Setext Title` as a PRE-EXISTING false negative
+    // it neither caused nor fixed. Session 181 fixed it, so the pin now asserts the full set
+    // its own comment already recorded as measured: quarto renders BOTH headings here.
     //
-    // Here the indented line inflates the counter to 2, so the underline is NOT consumed and
-    // reaches the paragraph rule as an ordinary body line. Measured: quarto renders BOTH
-    // `<h1>Setext Title</h1>` and `<h1>ATX Below</h1>`.
-    //
-    // ⚠ We report only `ATX Below`. Missing the setext heading is a PRE-EXISTING false
-    // negative — `    indented code` counts as a body line, so the underline is never at
-    // `consecutiveBody === 1`. This session neither caused nor fixed it; the pin asserts the
-    // half this change is responsible for, and names the other half rather than hiding it.
+    // ⚠ THE PIN IS NO LONGER AN EFFECTIVE CONTROL FOR THE `=+` PATTERN, and it cannot be made
+    // one honestly. Its original mutant was "drop `=+` from CLOSES_PARAGRAPH"; that pattern
+    // is reachable only where the underline is NOT consumed as a setext heading, and Session
+    // 181 makes it consumed here. Rebuilding the fixture so the run is unconsumed (two body
+    // lines above it) does not help either — MEASURED, that document renders NO heading at
+    // all, i.e. the `=+` entry's own premise is false in all three positions where it is
+    // reachable (at line 0, after a blank, and at `consecutiveBody >= 2`). Asserting our
+    // current answer there would lock in a phantom. Left as a measured, filed defect of
+    // Session 180's list rather than silently repaired or silently dropped.
     const text = doc("    indented code", "Setext Title", "===========", "# ATX Below");
-    expect(findHeadings(text).map((h) => h.text)).toEqual(["ATX Below"]);
+    expect(findHeadings(text).map((h) => h.text)).toEqual(["Setext Title", "ATX Below"]);
   });
 
   it("a CLOSED fence directly under prose closes the paragraph", () => {
@@ -1011,6 +1012,122 @@ describe("an ATX heading cannot interrupt an open paragraph (Session 180)", () =
   ])("KNOWN RESIDUAL: a phantom heading below %s is still reported", (_what, above) => {
     const text = doc("intro", above, "# foo", "trailing");
     expect(findHeadings(text).map((h) => h.text)).toEqual(["foo"]);
+  });
+});
+
+describe("a setext underline may follow a line that begins a FRESH block (Session 181)", () => {
+  it("recognizes a setext heading whose title sits directly below an indented code line", () => {
+    // MEASURED firsthand vs quarto 1.7.33 on the REAL `quarto render` path (not
+    // `quarto pandoc`): `    indented code` / `Setext Title` / `===` renders
+    // `<h1>Setext Title</h1>`. The indented line is an indented CODE BLOCK, so the
+    // title below it opens a FRESH paragraph — but `consecutiveBody` counted the
+    // code line as prose, so the underline was never inspected at 1 and the real
+    // heading was dropped from the outline, breadcrumbs, sticky scroll, workspace
+    // symbols and the cross-reference index.
+    const text = ["    indented code", "Setext Title", "==="].join("\n");
+    expect(findHeadings(text)).toEqual([{ level: 1, text: "Setext Title", line: 1 }]);
+  });
+
+  it("still claims the block line ITSELF when the underline sits directly below it", () => {
+    // RED 2 — a regression the FIRST implementation of RED 1 introduced, which no test
+    // written for RED 1 could see. Resetting the counter AT the block line makes the
+    // underline arrive at `consecutiveBody === 0`, so a heading the pre-S181 build got
+    // RIGHT is deleted — the one direction that must never happen.
+    //
+    // Measured firsthand on the real render path: a setext underline OVERRIDES the block
+    // interpretation of the line directly above it and claims that line's literal text.
+    // `    indented code` / `===` renders `<h1>indented code</h1>`; the whole family
+    // behaves the same way (`***`, `___`, `##`, `| a | b |`, `[x]: url`, `\clearpage`).
+    //
+    // The rule is therefore NOT "a block line resets the counter" but "a block line makes
+    // the line BELOW it a fresh paragraph start" — the block line keeps its own claim.
+    expect(findHeadings(["    indented code", "==="].join("\n"))).toEqual([
+      { level: 1, text: "indented code", line: 0 },
+    ]);
+    expect(findHeadings(["***", "==="].join("\n"))).toEqual([
+      { level: 1, text: "***", line: 0 },
+    ]);
+  });
+
+  it("declines a title inside an indented code block of 2+ lines", () => {
+    // The one exception measured: a LONE indented line under an underline is a setext
+    // title, but a run of 2+ is a firm code block and pandoc renders no heading at all.
+    // `    code one` / `    code two` / `===` renders nothing; nor does
+    // `    code` / `    Setext Title` / `===`.
+    expect(findHeadings(["    code one", "    code two", "==="].join("\n"))).toEqual([]);
+    expect(findHeadings(["    code", "    Setext Title", "==="].join("\n"))).toEqual([]);
+    // ...but the run still makes the NEXT unindented line a fresh paragraph start.
+    expect(findHeadings(["    code one", "    code two", "Setext Title", "==="].join("\n")))
+      .toEqual([{ level: 1, text: "Setext Title", line: 2 }]);
+  });
+
+  /**
+   * MUTANT PIN — kills `opensFreshBlock` → `closesParagraph`.
+   *
+   * `OPENS_FRESH_BLOCK` and `CLOSES_PARAGRAPH` both answer "is this line block-level?", so
+   * substituting one for the other is the instinctive simplification and it type-checks,
+   * reads cleanly, and is WRONG. The two lists have OPPOSITE safety polarity: a pattern
+   * missing from `CLOSES_PARAGRAPH` DELETES an ATX heading, so that list is deliberately
+   * permissive; a pattern wrongly present in `OPENS_FRESH_BLOCK` INVENTS a setext heading,
+   * so this one is deliberately restrictive.
+   *
+   * Every row below is a construct `CLOSES_PARAGRAPH` matches and `OPENS_FRESH_BLOCK` must
+   * NOT, each measured firsthand on the real `quarto render` path as rendering no heading.
+   * Making the substitution turns all seven into phantom headings — in the outline,
+   * breadcrumbs, sticky scroll, workspace symbols and the cross-reference index.
+   */
+  it.each([
+    ["a fenced-div / callout fence", ":::"],
+    ["a callout fence with attributes", "::: {.callout-note}"],
+    ["a grid-table border, which carries no pipe", "+---+---+"],
+    ["a bare pipe in ordinary prose", "a | b"],
+    ["a footnote definition, which the link-ref pattern also matches", "[^1]: a note"],
+    ["an INLINE html tag", "<span>hi</span>"],
+    ["a mid-document YAML `...` terminator", "..."],
+  ])("does NOT let %s open a fresh block for a setext underline", (_what, above) => {
+    expect(findHeadings([above, "Setext Title", "==="].join("\n"))).toEqual([]);
+    expect(findHeadings([above, "Setext Title", "---"].join("\n"))).toEqual([]);
+  });
+
+  /**
+   * The constructs that DO open a fresh block, each measured firsthand as rendering
+   * `<h1>Setext Title</h1>`. Written as the document where the rule FIRST diverges from
+   * a build without that pattern — a fixture with the underline directly below the
+   * construct proves nothing here, because the construct's own line is claimed at
+   * `consecutiveBody === 1` whether or not the pattern exists (that is how the adversarial
+   * pass found three of these unpinned; see Learning #226).
+   */
+  it.each([
+    ["an indented code block", "    indented code"],
+    ["a TAB-indented code block", "\tindented code"],
+    ["a thematic break", "***"],
+    ["an underscore thematic break", "___"],
+    ["a link-reference definition", "[x]: http://example.com"],
+    ["a pipe-table row", "| a | b |"],
+    ["a bare `##`", "##"],
+    ["a raw TeX block", "\\clearpage"],
+  ])("lets %s open a fresh block for a setext underline", (_what, above) => {
+    expect(findHeadings([above, "Setext Title", "==="].join("\n")))
+      .toEqual([{ level: 1, text: "Setext Title", line: 1 }]);
+  });
+
+  it("a raw HTML BLOCK opens a fresh block even against an OPEN paragraph", () => {
+    // Kills two mutants at once: dropping the `HTML_BLOCK_OPEN` early return, and the one
+    // that is easy to write and impossible to see — computing `pendingFreshBlock` AFTER
+    // `paragraphOpen` has been reassigned for this line, which silently asks the question
+    // about the wrong line. Measured: raw HTML is the ONLY construct that interrupts an
+    // open paragraph here; every other one becomes a lazy continuation of it.
+    expect(findHeadings(["prose line", "<div>", "Setext Title", "==="].join("\n")))
+      .toEqual([{ level: 1, text: "Setext Title", line: 2 }]);
+  });
+
+  it("a block construct against an OPEN paragraph is a lazy continuation, not a block", () => {
+    // The `paragraphOpen` bail. Measured — `prose` / `    indented` / `Title` / `===`
+    // renders NO heading, while the same document without the `prose` line renders
+    // `<h1>Title</h1>`. Dropping the bail fabricates a heading on every row here.
+    for (const above of ["    indented code", "\tindented", "***", "[x]: http://e.com", "| a | b |", "##", "\\clearpage"]) {
+      expect(findHeadings(["prose line", above, "Setext Title", "==="].join("\n"))).toEqual([]);
+    }
   });
 });
 

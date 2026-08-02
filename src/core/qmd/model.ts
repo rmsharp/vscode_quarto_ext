@@ -188,6 +188,77 @@ function closesParagraph(line: string): boolean {
   return CLOSES_PARAGRAPH.some((re) => re.test(line));
 }
 /**
+ * An indented code block (CommonMark §4.4) — 4+ spaces or a tab, then content.
+ * Only ever a code block where no paragraph is already open; against an open
+ * paragraph the same bytes are a LAZY CONTINUATION of it (measured).
+ */
+const INDENTED_CODE_LINE = /^(?: {4,}|\t)\S/;
+/**
+ * Lines that begin a FRESH BLOCK, so the line *below* them starts a new paragraph
+ * and may therefore be claimed by a setext underline (Session 181).
+ *
+ * ⚠ **THIS LIST HAS THE OPPOSITE SAFETY POLARITY TO `CLOSES_PARAGRAPH`, AND THE TWO
+ * MUST NEVER BE UNIFIED.** They look interchangeable — both answer "is this line
+ * block-level?" — and reusing `closesParagraph` here is the instinctive one-line fix.
+ * Measured against the real renderer, it manufactures **24 phantom setext headings**:
+ * `:::`, a grid-table border, a bare `a | b` in prose, a footnote definition, an
+ * inline `<span>`, `...` and a `===` run each leave pandoc's paragraph OPEN, so the
+ * line below them is continuation text and no heading is rendered at all.
+ *
+ * The polarity is inverted because this list ADDS headings where `CLOSES_PARAGRAPH`
+ * REMOVES them. A pattern missing from here only retains a pre-existing lost true
+ * positive — we stay silent, which is safe. A pattern wrongly present here INVENTS a
+ * heading quarto does not render, into the outline, breadcrumbs, sticky scroll,
+ * workspace symbols **and the cross-reference index**. So when in doubt, leave it out:
+ * the cost is a residual, not a fabrication. Every entry below was measured firsthand
+ * on the real `quarto render` path, both as `===` (h1) and `---` (h2).
+ */
+const OPENS_FRESH_BLOCK: readonly RegExp[] = [
+  INDENTED_CODE_LINE, //                                     an indented code block, spaces OR tab
+  /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/, //  a thematic break
+  /^ {0,3}\[[^\^\]][^\]]*\]:/, //                            a link-reference definition — NOT `[^1]:`
+  /^ {0,3}\|/, //                                            a pipe-table ROW; a bare `a | b` is prose
+  /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
+  /^ {0,3}\\[a-zA-Z]/, //                                    a raw TeX block (`\clearpage`, `\newpage`)
+];
+/**
+ * A raw HTML BLOCK opener — the one construct measured to interrupt an OPEN paragraph,
+ * so it is tested before the `paragraphOpen` bail. `prose` / `<div>` / `Title` / `===`
+ * renders `<h1>Title</h1>`, where every other construct in this file renders nothing.
+ *
+ * The tag list is CommonMark §4.6 condition 6 and is deliberately CLOSED: an INLINE tag
+ * does not open a block, so `<span>hi</span>` / `Title` / `===` renders no heading at all
+ * (measured). `CLOSES_PARAGRAPH`'s bare `/^ {0,3}</` would match both and fabricate one.
+ */
+const HTML_BLOCK_OPEN =
+  /^ {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)/i;
+/**
+ * Whether `line` begins a fresh block, so the line BELOW it starts a new paragraph and
+ * may therefore be claimed by a setext underline — see `OPENS_FRESH_BLOCK`.
+ *
+ * ⚠ **This says nothing about `line` itself.** A setext underline directly below one of
+ * these constructs claims THAT construct's own line, overriding the block reading:
+ * `    indented code` / `===` renders `<h1>indented code</h1>`, and `***`, `___`, `##`,
+ * `| a | b |`, `[x]: url` and `\clearpage` all behave identically (measured). The caller
+ * therefore defers this answer to the NEXT line instead of resetting the counter here —
+ * resetting at the construct deletes a heading the pre-Session-181 build got right.
+ *
+ * `paragraphOpen` is load-bearing, not a refinement: against an OPEN paragraph these same
+ * bytes are a LAZY CONTINUATION of it, and treating them as a block would fabricate a
+ * heading. Measured — `prose` / `    indented` / `Title` / `===` renders NO heading, while
+ * the identical document without the `prose` line renders `<h1>Title</h1>`. Raw HTML is
+ * the single measured exception and is tested before the bail.
+ */
+function opensFreshBlock(line: string, paragraphOpen: boolean): boolean {
+  if (HTML_BLOCK_OPEN.test(line)) {
+    return true;
+  }
+  if (paragraphOpen) {
+    return false;
+  }
+  return OPENS_FRESH_BLOCK.some((re) => re.test(line));
+}
+/**
  * A fence opener: up to 3 spaces of indentation (CommonMark §4.5 — 4+ spaces is
  * indented code, not a fence), then ≥3 of ONE fence char (backtick or tilde),
  * then anything. Capturing the char lets the scanner require the closer to use
@@ -488,8 +559,10 @@ function computeRegions(text: string): Regions {
   let open: OpenCellFence | null = null;
   // Count of consecutive fresh, non-blank body lines immediately above the
   // current line, reset to 0 on any region boundary (front matter, comment,
-  // fence, blank line) or heading (ATX or setext). A setext underline is only
-  // recognized when this is exactly 1 — see `SETEXT_H1`'s docstring.
+  // fence, blank line) or heading (ATX or setext), and — since Session 181 — on a
+  // line that begins a fresh block (`OPENS_FRESH_BLOCK`), because the paragraph a
+  // setext underline claims starts BELOW such a line, not at it. A setext underline
+  // is only recognized when this is exactly 1 — see `SETEXT_H1`'s docstring.
   let consecutiveBody = 0;
   // Whether a PARAGRAPH is open on the line above — pandoc's `blank_before_header`
   // rule, which an ATX heading may not interrupt. Deliberately SEPARATE state from
@@ -499,6 +572,14 @@ function computeRegions(text: string): Regions {
   // A front-matter `from:` disables the paragraph rule for the whole document — see
   // `FRONTMATTER_FROM_KEY`. Without this the change DELETES headings quarto renders.
   let dialectOverride = false;
+  // Whether the line ABOVE began a fresh block, making this line a paragraph start
+  // (Session 181). Deliberately a one-line deferral rather than a reset — see the loop.
+  // It needs no clearing at the region-boundary resets below: those set `consecutiveBody`
+  // to 0, where both branches of the deferral produce 1 for the next body line anyway.
+  let pendingFreshBlock = false;
+  // Whether the line above was an indented code line, so a run of 2+ can be told from a
+  // lone indented line. Same reasoning as above for why the resets need not clear it.
+  let prevIndentedCode = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -639,7 +720,22 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
     } else {
-      consecutiveBody++;
+      // A block line makes the line BELOW it a paragraph start; it does NOT reset the
+      // counter at itself, because an underline directly below a block line still claims
+      // that line (see `opensFreshBlock`). Hence the one-line deferral through
+      // `pendingFreshBlock` rather than a reset here.
+      //
+      // The exception is an indented code RUN: a LONE indented line under an underline is
+      // a setext title, but the second and later lines of a run are firmly code and can
+      // never be one — `    a` / `    b` / `===` renders no heading (measured), while
+      // `    a` / `===` renders `<h1>a</h1>`.
+      const indented = INDENTED_CODE_LINE.test(line);
+      const insideIndentedCode = indented && prevIndentedCode;
+      consecutiveBody = pendingFreshBlock && !insideIndentedCode ? 1 : consecutiveBody + 1;
+      // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
+      // whether these bytes open a block or merely continue a paragraph depends on it.
+      pendingFreshBlock = opensFreshBlock(line, paragraphOpen);
+      prevIndentedCode = indented;
       paragraphOpen = !closesParagraph(line);
     }
   }
