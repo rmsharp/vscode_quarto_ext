@@ -213,6 +213,52 @@ describe("indexLabels — a RECOVERED setext heading IS a cross-reference target
   });
 });
 
+describe("indexLabels — the CLOSES_PARAGRAPH repair reaches the crossref index too (Session 182)", () => {
+  // TEST-AFTER (labelled): both pass as a consequence of the `closesParagraph` change in
+  // `core/qmd/model`, not from code written for them. `core/refs` is the SECOND consumer of
+  // `findHeadings`, and this session's change moves it in BOTH directions — so both are
+  // pinned, each measured end to end on the real render path against the RENDERED LINK,
+  // never merely against our own answer.
+
+  it("drops the {#sec-} target invented by the thematic-break row (the phantom direction)", () => {
+    // Measured — the whole document renders as ONE paragraph:
+    //   <p>line one line two *** # Phantom {#sec-phantom}</p>
+    //   <p>See ?@sec-phantom for details.</p>
+    // `?@sec-phantom` is quarto's UNRESOLVED-reference marker. Before this session the
+    // thematic break closed the paragraph, so `# Phantom` was a heading, so `sec-phantom`
+    // was a crossref target: completion offered it and go-to-definition resolved it, for a
+    // link quarto had already rendered broken.
+    const text = [
+      "line one", // 0
+      "line two", // 1  a paragraph is now OPEN
+      "***", // 2  against an open paragraph this is lazy continuation, NOT a break
+      "# Phantom {#sec-phantom}", // 3  therefore not a heading, therefore not a target
+      "",
+      "See @sec-phantom for details.",
+    ].join("\n");
+    expect(indexLabels(text)).toEqual([]);
+    expect(findLabel(text, "sec-phantom")).toBeNull();
+  });
+
+  it("indexes the {#sec-} target the ATX-adjacency rule recovers (the lost-target direction)", () => {
+    // The other direction, and a PRE-EXISTING lost target: nothing in `CLOSES_PARAGRAPH`
+    // ever matched a bare `-`, so the heading below it was dropped and its id with it.
+    // Measured — quarto renders `<h1>Real Target</h1>` and `@sec-real` becomes a RESOLVED
+    // link rendering as `Section 1`, while we offered no target at all.
+    const text = [
+      "# Heading Above", // 0
+      "-", // 1  pandoc swallows line 0 into a setext h2, which CLOSES the block
+      "# Real Target {#sec-real}", // 2  so this is a real heading, and a real target
+      "",
+      "See @sec-real for details.",
+    ].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "sec-real", kind: "sec", line: 2, column: 16 },
+    ]);
+    expect(findLabel(text, "sec-real")).not.toBeNull();
+  });
+});
+
 describe("refIdAt — the cross-ref id under the cursor", () => {
   it("returns the id when the cursor is inside a @ref token", () => {
     //              See @fig-plot for details
