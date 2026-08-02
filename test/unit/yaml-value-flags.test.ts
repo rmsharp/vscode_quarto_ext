@@ -268,6 +268,139 @@ describe("valueFlags — leading whitespace hides front matter from us, not from
 });
 
 /**
+ * A column-0 `---` opens a YAML region that swallows every cell below it, and quarto
+ * validates NOTHING inside one (Session 177).
+ *
+ * Quarto's VALIDATION partitioner `breakQuartoMd` (read out of the installed 1.7.33 at
+ * `/Applications/quarto/bin/quarto.js`, not from a docstring quoting it) toggles a YAML
+ * region on `yamlRegEx = /^---\s*$/` — anchored at COLUMN 0, and tested on EVERY line, not
+ * only line 0. A cell fence is only a cell when `inPlainText()` (`!inCodeCell && !inCode &&
+ * !inYaml`), so a cell inside an open region is not a cell at all: `partitionCellOptionsMapped`
+ * never runs and nothing in it is validated. The one exemption is a horizontal rule —
+ * `isYamlDelimiter`'s `skipHRs` arm declines a `---` with a blank line BOTH above and below —
+ * and it applies only when OPENING (`skipHRs` is passed `!inYaml`), so a blank-surrounded
+ * `---` still CLOSES an open region.
+ *
+ * Grounded firsthand vs 1.7.33, one `quarto render --no-execute` per row, `cache: banana` in
+ * an `{r}` cell throughout (knitr-only, so exit 1 is a direct read-out that cell validation
+ * ran):
+ *
+ * | document | renders | why |
+ * |---|---|---|
+ * | `   ---` / `title: t` / `---`, then the cell | **exit 0** | the indented opener matches nothing; the CLOSING `---` opens a region that never closes |
+ * | `Heading text` / `---`, then the cell | **exit 0** | a setext-H2 underline is a column-0 `---` with no blank above |
+ * | blank, `---`, text, then the cell | **exit 0** | only ONE neighbour blank, so the HR exemption does not apply |
+ * | `---` inside an HTML comment | **exit 0** | `breakQuartoMd` tracks no comment state at all |
+ * | `---` inside a `~~~` tilde fence | **exit 0** | its `startCodeRegEx` is ``/^```/`` — backticks only |
+ * | blank, `---`, blank (a true HR) | exit 1 | the `skipHRs` exemption — validation continues |
+ * | `   ---` / `title: t` with NO closing `---` | exit 1 | nothing ever matched at column 0, so no region opened |
+ * | `---` inside a ``` fence, a 4-backtick fence, or an `{r}` cell | exit 1 | `inCode`/`inCodeCell` block the delimiter |
+ * | a region that OPENS and then CLOSES above the cell | exit 1 | validation resumes below it |
+ *
+ * ⚠ **This is scoped to the VALIDATION surface on purpose.** The swallow is a property of
+ * `breakQuartoMd`, not of the document: measured on the two swallowed shapes above, the
+ * rendered HTML still carries the cell as a real highlighted code cell (knitr executes it,
+ * pandoc emits it, and the `#|` line is consumed as an option rather than printed). So the
+ * cell must stay a cell for the outline, run-cell and the embedded-LSP virtual documents —
+ * only the squiggle is wrong. Teaching `findAllCells` this rule instead would drop real,
+ * runnable cells from a document quarto renders successfully.
+ */
+describe("valueFlags — a column-0 `---` swallows the cells below it (S177)", () => {
+  it("no longer flags a cell swallowed by an INDENTED opening `---`", () => {
+    // The filed cardinal false positive (S171). Measured exit 0; we squiggled it.
+    expect(cellFlags("   ---\ntitle: t\n---\n\n" + rCell("cache: banana"))).toEqual([]);
+  });
+
+  it("STILL flags below a true horizontal rule — the `skipHRs` exemption", () => {
+    // THE DISCRIMINATOR. A `---` with a blank line both above and below is a thematic
+    // break, not a delimiter, and quarto goes on validating: measured exit 1. Without
+    // this pin a fix that simply silenced every document containing a `---` would pass
+    // the one above while trading a cardinal FP for a lost true positive.
+    const text = "---\ntitle: t\n---\n\npara\n\n---\n\n" + rCell("cache: banana");
+    expect(cellFlags(text)).toEqual(["9:cache=banana"]);
+  });
+
+  it("STILL flags when the `---` is inside a fenced code block — `inCode` blocks it", () => {
+    // Measured exit 1: quarto's `startCodeRegEx` set `inCode`, so the `---` between the
+    // fences is literal text and never toggles a region. A scanner blind to fences would
+    // swallow the rest of the document here.
+    const text = "---\ntitle: t\n---\n\n```\n---\n```\n\n" + rCell("cache: banana");
+    expect(cellFlags(text)).toEqual(["9:cache=banana"]);
+  });
+
+  /**
+   * The pins below are TEST-AFTER, and saying so is the point: the three tests above
+   * drove the three behaviours (the swallow, the `skipHRs` exemption, the fence guard)
+   * RED→GREEN, and one state machine covers every remaining shape — so these passed on
+   * arrival. They are regression pins for shapes measured firsthand, not evidence of
+   * test-first discipline, and each carries the exit code it was measured at.
+   */
+  it("no longer flags below a setext-H2 `---` — measured exit 0", () => {
+    // The shape the filed item did not mention and the one an ordinary document is most
+    // likely to hit: a level-2 setext underline IS a column-0 `---` with no blank above.
+    const text = "---\ntitle: t\n---\n\nHeading text\n---\n\n" + rCell("cache: banana");
+    expect(cellFlags(text)).toEqual([]);
+  });
+
+  it("no longer flags below a `---` with a blank line above but TEXT below — exit 0", () => {
+    // Only ONE neighbour is blank, so quarto's HR exemption does not fire and the region
+    // opens. The near-miss of the horizontal-rule pin above.
+    const text = "---\ntitle: t\n---\n\npara\n\n---\nmore text\n\n" + rCell("cache: banana");
+    expect(cellFlags(text)).toEqual([]);
+  });
+
+  it("no longer flags below a `---` inside an HTML COMMENT — exit 0", () => {
+    // `breakQuartoMd` tracks no comment state, so the delimiter counts even here. Our own
+    // region model skips comments, which is why this shape was a false positive: the two
+    // scanners answer different questions and must not be consolidated.
+    const text = "---\ntitle: t\n---\n\n<!--\n---\n-->\n\n" + rCell("cache: banana");
+    expect(cellFlags(text)).toEqual([]);
+  });
+
+  it("no longer flags below a `---` inside a `~~~` TILDE fence — exit 0", () => {
+    // quarto's plain-fence recognizer is ``/^```/`` — backticks only — so a tilde fence
+    // never sets `inCode` and the `---` inside it opens a region.
+    const text = "---\ntitle: t\n---\n\n~~~\n---\n~~~\n\n" + rCell("cache: banana");
+    expect(cellFlags(text)).toEqual([]);
+  });
+
+  it("STILL flags when a region opens and then CLOSES above the cell — exit 1", () => {
+    // Validation resumes below the closing delimiter: the swallow is a REGION, not a
+    // document-wide switch. A fix that latched on the first `---` would fail here.
+    const text = "---\ntitle: t\n---\n\npara\n---\nk: v\n---\n\n" + rCell("cache: banana");
+    expect(cellFlags(text)).toEqual(["10:cache=banana"]);
+  });
+
+  it("STILL flags an indented `---` with NO closing `---` — exit 1", () => {
+    // The control that proves the mechanism is the CLOSING delimiter, not the indented
+    // opener: with nothing at column 0 anywhere, no region ever opens and quarto validates
+    // the cell normally. Measured exit 1 — the discriminating twin of the very first pin.
+    const text = "   ---\ntitle: t\n\n" + rCell("cache: banana");
+    expect(cellFlags(text)).toEqual(["4:cache=banana"]);
+  });
+
+  it("STILL flags a cell that sits ABOVE a later `---` — exit 1", () => {
+    // The region opens after the cell was already partitioned, so the cell is untouched.
+    const text = "---\ntitle: t\n---\n\n" + rCell("cache: banana") + "para\n---\nmore\n";
+    expect(cellFlags(text)).toEqual(["5:cache=banana"]);
+  });
+
+  it("STILL flags when the `---` is inside an `{r}` CELL — `inCodeCell` blocks it", () => {
+    // The cell branch, which tolerates leading whitespace where the plain-fence branch does
+    // not. Measured exit 1: a `---` in cell BODY text is literal, never a delimiter.
+    const text = "---\ntitle: t\n---\n\n```{r}\n---\n1\n```\n\n" + rCell("cache: banana");
+    expect(cellFlags(text)).toEqual(["10:cache=banana"]);
+  });
+
+  it("leaves the FRONT-MATTER surface alone — the region model is cell-scoped", () => {
+    // The front matter is itself a YAML region, and quarto validates it as the document's
+    // first cell. Filtering the cell surface must not silence it: `toc: banana` at line 1
+    // still reports, on the byte-0 document quarto really does reject.
+    expect(fmGroup("---\ntoc: banana\n---\n\nHeading\n---\n")).toEqual(["1:toc=banana"]);
+  });
+});
+
+/**
  * Phase 2 — TOP-LEVEL front-matter scalars. Never covered headlessly before Session 168:
  * `computeValueDiagnostics` was module-private behind `vscode`, and the oracle's mirror
  * implemented the cell loop only.

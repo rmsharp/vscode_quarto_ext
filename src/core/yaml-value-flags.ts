@@ -30,6 +30,7 @@
  * (plan §0/§7.1).
  */
 import { findCellOptionLines, type CellOptionLine } from "./qmd/model";
+import { inQuartoYamlRegion, quartoYamlRegions } from "./qmd/quarto-yaml-regions";
 import { findFrontMatterValueLines, type FrontMatterValueLine } from "./yaml-frontmatter-values";
 import {
   findNestedFrontMatterValueLines,
@@ -87,10 +88,21 @@ export interface GroupedValueFlags {
 
 /** Enumerate everything derivable from the snapshot. Cheap; needs no schema. */
 export function collectValueSources(text: string): ValueSources {
+  // A cell whose opening fence sits inside a quarto YAML region is not a cell to
+  // `breakQuartoMd` at all, so quarto validates NOTHING in it — see
+  // `qmd/quarto-yaml-regions.ts`. Dropping those option lines HERE, at the value
+  // DECISION's enumeration step, keeps the rule on the surface it belongs to: the
+  // swallow is a property of quarto's validation pass, not of the document, and the
+  // cell still renders as a real cell (measured). `findCellOptionLines` itself stays
+  // untouched, so completion context and the embedded-LSP virtual documents — its
+  // other two consumers — see the cell exactly as before (S177).
+  const regions = quartoYamlRegions(text);
   return {
     text,
     lines: text.split(/\r?\n/),
-    cellLines: findCellOptionLines(text),
+    cellLines: findCellOptionLines(text).filter(
+      (o) => !inQuartoYamlRegion(regions, o.cellStartLine),
+    ),
     fmValueLines: findFrontMatterValueLines(text),
     nestedLines: findNestedFrontMatterValueLines(text),
   };
