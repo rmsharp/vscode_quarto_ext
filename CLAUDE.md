@@ -34,24 +34,54 @@ The goal is feature parity *reimplemented independently under MIT licensing*, no
 
 ## Build / Test / Verify
 
-*Placeholder until the extension is scaffolded. Once it exists, the build equivalent (record in close-out, see SAFEGUARDS.md) is expected to be:*
+**The build equivalent (record the run in close-out, see SAFEGUARDS.md) is:**
 
 ```bash
-npm run compile      # type-check + bundle
-npm test             # @vscode/test-electron
-npx @vscode/vsce package   # produce the .vsix (release gate)
+npm run compile      # type-checks src AND test/unit, then bundles — seconds
+npm test             # vitest over test/unit — headless, hermetic, seconds
 ```
 
-For any Quarto-document fixtures the doc-build equivalent is `quarto render`.
+**The release gate is `npm run package`.** It runs `compile`, then `vsce package` — and `vsce`
+walks the `vscode:prepublish` edge itself, which runs `compile` again plus `check-package`. That
+edge is why even a bare `npx vsce package`, which touches none of our npm scripts, is still gated.
 
-**Type-checking a unit test you just edited: `npm run check-types:unit`** (CHANGELOG: the
-`test/unit` type-check gate, Session 173). From S162 to S172 nothing type-checked `test/unit`, so
-every handoff in that range carried a hand-typed per-file `npx tsc …` incantation as a gotcha —
-one whose `--moduleResolution bundler` is measurably wrong for this repo (it reports 6 phantom
-TS2702 errors in `src/core/notebook-callout.ts`). `tsconfig.unit.json` is now the one definition,
-and `npm run check-types` runs it, so `compile`, `package`, `vscode:prepublish`,
-`test:integration` and `test:lsp` all reach it. **`npm test` passing is not evidence that
-`test/unit` type-checks** — vitest transpiles with esbuild and checks nothing.
+### What each script actually runs
+
+| Script | Runs | Notes |
+|---|---|---|
+| `check-types` | `tsc --noEmit` (`tsconfig.json` → `src`), then `check-types:unit` | Exit 0 means **both** projects are clean. |
+| `check-types:unit` | `tsc -p tsconfig.unit.json` (`test/unit`) | The one definition — see the gotcha below. |
+| `bundle` | `node esbuild.js` | Two bundles: `dist/extension.js` (cjs, node18, `vscode` external) and `dist/notebook-renderer.js` (esm, browser). |
+| `compile` | `check-types` + `bundle` | |
+| `watch` | `node esbuild.js --watch` | Bundles only — **no type-check**. |
+| `compile-tests` | `tsc -p tsconfig.test.json` → `out/` | Emits (not `--noEmit`) `test/integration`, `test/lsp`, `test/oracle`; the two Electron runners execute what it emits. |
+| `test` | `vitest run` over `test/unit/**/*.test.ts` | **Not** `@vscode/test-electron`. No VS Code, no `quarto`. |
+| `test:oracle` | `vitest run --config vitest.oracle.config.ts` over `test/oracle/**/*.oracle.test.ts` | Shells out to the **real `quarto` CLI** once per corpus document, so its verdict depends on the installed quarto version. Cached in the gitignored `test/oracle/.quarto-cache.json`, keyed by quarto version + document bytes — sub-second warm, ~1.5 min cold (measured, one render per corpus document). |
+| `test:integration` | `compile` + `compile-tests` + `out/test/integration/runTest.js` | `@vscode/test-electron` downloads its own VS Code — no `code` CLI needed — pinned in the runner to a fixed version, and launches an Extension Development Host. **Takes over the screen.** |
+| `test:lsp` | same chain → `out/test/lsp/runTest.js` | Extension Development Host with a throwaway extensions dir holding only `ms-python.python` + Pylance, copied from the user's own install. Deliberately not in CI (Pylance licensing). **Takes over the screen.** |
+| `test:lsp:workspace` | `QMD_LSP_DIAGMODE=workspace npm run test:lsp` | The workspace-diagnostics variant of the same harness. |
+| `check-package` | `node check-package.js` | Deny-by-default allowlist over `vsce ls` output, so a new top-level file **reds** instead of silently shipping. Read its docstring before changing it. |
+| `package` | `compile` + `vsce package` | The release gate — see above. |
+
+For any Quarto-document fixture the doc-build equivalent is `quarto render`; `test:oracle` is the
+automated form of that check.
+
+### Gotchas that `package.json` does not show
+
+- **`npm test` passing is not evidence that `test/unit` type-checks** — vitest transpiles with
+  esbuild and checks nothing. Type-checking a unit test you just edited is `npm run
+  check-types:unit` (CHANGELOG: the `test/unit` type-check gate, Session 173). From S162 to S172
+  nothing type-checked `test/unit`, so every handoff in that range carried a hand-typed per-file
+  `npx tsc …` incantation as a gotcha — one whose `--moduleResolution bundler` is measurably wrong
+  for this repo (it reports 6 phantom TS2702 errors in `src/core/notebook-callout.ts`).
+  `tsconfig.unit.json` is now the one definition, and `npm run check-types` runs it, so `compile`,
+  `package`, `vscode:prepublish`, `test:integration` and `test:lsp` all reach it.
+- **`vsce package` exits 0 no matter what it packages.** Nothing in the build, test, type-check or
+  packaging pipeline can observe a packaging leak — only reading the produced file tree, or
+  `check-package`, can. The default was wrong twice — CHANGELOG: the `test/unit` type-check gate,
+  Session 173, and the `scratchpad/` `.vsix` packaging leak, Session 174.
+- **`test:integration` and `test:lsp` take over the screen** — each launches a real VS Code
+  Extension Development Host window. Get the operator's explicit go-ahead before running either.
 
 ---
 
