@@ -1131,6 +1131,70 @@ describe("a setext underline may follow a line that begins a FRESH block (Sessio
   });
 });
 
+describe("an `=`/`-` run and a thematic break do NOT close a paragraph (Session 182)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("RED->GREEN: an `=` run that is not consumed as a setext underline keeps the paragraph OPEN", () => {
+    // Session 180 put `/^ {0,3}=+[ \t]*$/` in `CLOSES_PARAGRAPH` so that an `=` run NOT
+    // consumed as a setext underline would still let an ATX heading below it through. That
+    // entry is reachable only at `consecutiveBody !== 1`, and measured on the real render
+    // path (`quarto render --to html`, quarto 1.7.33) every such position renders the
+    // OPPOSITE — the `=` run is ordinary paragraph text, so the paragraph stays open and
+    // the `#` line below is swallowed as continuation:
+    //
+    //   ===  / # ATX Below                  ->  <p>=== # ATX Below</p>   — NO heading
+    //   prose / (blank) / === / # ATX Below ->  <p>prose</p><p>=== # ATX Below</p>
+    //   one / two / === / # ATX Below       ->  <p>one two === # ATX Below</p>
+    //
+    // We reported `ATX Below` for all three, so each was a PHANTOM heading in the outline,
+    // breadcrumbs, sticky scroll, workspace symbols and the cross-reference index.
+    expect(findHeadings(doc("===", "# ATX Below")).map((h) => h.text)).toEqual([]);
+    expect(findHeadings(doc("prose here", "", "===", "# ATX Below")).map((h) => h.text)).toEqual([]);
+    expect(findHeadings(doc("line one", "line two", "===", "# ATX Below")).map((h) => h.text)).toEqual([]);
+  });
+
+  it("RED->GREEN: but an `=`/`-` run directly below an ATX heading DOES close the block", () => {
+    // The regression the obvious fix introduces, and which NOTHING in the suite caught —
+    // simply deleting the `=+` entry passes the test above and silently DELETES a heading
+    // quarto really renders. Measured:
+    //
+    //   # Heading Above / === / # ATX Below -> <h1># Heading Above</h1><h1>ATX Below</h1>
+    //   # Heading Above / -   / # ATX Below -> <h2># Heading Above</h2><h1>ATX Below</h1>
+    //
+    // Pandoc consumes the run as a SETEXT UNDERLINE over the `#` line — swallowing it,
+    // literal `#` and all, into a setext heading — which closes the block, so the heading
+    // below it is real. This model deliberately declines that swallow (see `SETEXT_H1`), so
+    // it must recover the closure some other way or lose the second heading outright.
+    //
+    // The `-` rows are the stronger claim: they were a pre-existing LOST TRUE POSITIVE that
+    // no `CLOSES_PARAGRAPH` row ever matched (`-`/`--` are too short for a thematic break).
+    for (const run of ["===", "=", "-", "--"]) {
+      expect(findHeadings(doc("# Heading Above", run, "# ATX Below")).map((h) => h.text))
+        .toContain("ATX Below");
+    }
+  });
+
+  it("RED->GREEN: a thematic break against an OPEN paragraph is lazy continuation, not a block", () => {
+    // Session 180's thematic-break row is right where no paragraph is open and WRONG where
+    // one is. Every row of S180's own construct table has a BLANK LINE above the construct,
+    // so the whole open-paragraph half of its behaviour was never exercised.
+    //
+    // Measured — against an open paragraph pandoc renders the run as ordinary text, and the
+    // `#` line below it as continuation of that same paragraph:
+    //
+    //   one / two / *** / # ATX Below -> <p>one two *** # ATX Below</p>  — NO heading
+    //   one / two / --- / # ATX Below -> <p>one two — # ATX Below</p>    — an EM DASH:
+    //                                     smart punctuation proves it is paragraph TEXT
+    //
+    // This is the same rule `INDENTED_CODE_LINE` and `opensFreshBlock` already carry: these
+    // constructs are block-level only where no paragraph is already open.
+    for (const run of ["***", "___", "---", "* * *", "- - -", "_ _ _"]) {
+      expect(findHeadings(doc("line one", "line two", run, "# ATX Below")).map((h) => h.text))
+        .toEqual([]);
+    }
+  });
+});
+
 describe("buildOutline — against the sample.qmd fixture", () => {
   const fixture = readFileSync(
     path.resolve(__dirname, "../fixtures/sample.qmd"),

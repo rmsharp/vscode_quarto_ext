@@ -170,10 +170,15 @@ const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
  * — deleting a heading quarto really renders, which is the direction that must never
  * happen. A line it matches too eagerly merely retains a pre-existing phantom. So
  * when in doubt, add the pattern: the cost is a residual, not a regression.
+ *
+ * ⚠ **The asymmetry is not a licence to add anything — Session 182 removed a row from here.**
+ * A pattern belongs only if the construct really does leave no paragraph open. Session 180's
+ * `/^ {0,3}=+[ \t]*$/` did not: an `=` run that is NOT consumed as a setext underline is
+ * ordinary paragraph TEXT, in every position where that entry was reachable (measured — 30
+ * phantom headings). "When in doubt, add it" applies to constructs you have not measured,
+ * not to ones you have measured to be paragraph content.
  */
 const CLOSES_PARAGRAPH: readonly RegExp[] = [
-  /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/, // thematic break
-  /^ {0,3}=+[ \t]*$/, //                                     setext underline run
   /\|/, //                                                   a pipe-table row, anywhere on the line
   /^ {0,3}\+[-+=: ]*$/, //                                   a grid-table border, which carries NO pipe
   /^ {0,3}:{3,}/, //                                         a fenced-div / callout fence
@@ -199,8 +204,47 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
  * document ever renders a heading.
  */
 const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
-/** Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`. */
-function closesParagraph(line: string): boolean {
+/**
+ * A setext underline run — `=`s or `-`s alone on a line, any length. Broader than
+ * `SETEXT_H1`/`SETEXT_H2` in intent: this asks only "are these bytes a run pandoc could read
+ * as an underline", for the ATX-adjacency rule in `closesParagraph` below.
+ */
+const SETEXT_UNDERLINE_RUN = /^ {0,3}(?:=+|-+)[ \t]*$/;
+/**
+ * A thematic break (CommonMark §4.1) — 3+ of `*`, `-` or `_`, optionally space-separated.
+ *
+ * ⚠ **Held OUT of `CLOSES_PARAGRAPH` on purpose (Session 182): it closes a paragraph only
+ * where none is open.** Against an OPEN paragraph these same bytes are a LAZY CONTINUATION
+ * of it — `one` / `two` / `***` / `# ATX Below` renders one `<p>` containing all four lines
+ * and NO heading, and the `---` spelling proves it outright by rendering as an em dash,
+ * which only happens to paragraph TEXT (measured; 34 phantom headings before the gate).
+ *
+ * This is the identical rule `INDENTED_CODE_LINE` documents and `opensFreshBlock` already
+ * applies. It is stated here rather than folded into either because `CLOSES_PARAGRAPH`'s
+ * remaining rows are UNMEASURED against an open paragraph — gating the whole list would be
+ * the heading-deleting direction on nine rows nobody has scored.
+ */
+const THEMATIC_BREAK = /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/;
+/**
+ * Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`.
+ *
+ * `prevWasAtxHeading` recovers a block closure this model would otherwise lose. Pandoc
+ * swallows an ATX heading line into a SETEXT heading when a run follows it directly —
+ * `# Heading Above` / `===` renders `<h1># Heading Above</h1>`, literal `#` and all
+ * (measured). That swallow closes the block, so a heading below the run is REAL. This
+ * model deliberately declines the swallow (see `SETEXT_H1`), which left the closure
+ * unmodelled: without this clause, `# Heading Above` / `===` / `# ATX Below` loses
+ * `ATX Below` outright — a real heading deleted, the direction that must never happen.
+ * The `-` half additionally recovers a PRE-EXISTING lost true positive: `-` and `--` are
+ * too short for the thematic-break row, so nothing here ever matched them.
+ */
+function closesParagraph(line: string, paragraphOpen: boolean, prevWasAtxHeading: boolean): boolean {
+  if (prevWasAtxHeading && SETEXT_UNDERLINE_RUN.test(line)) {
+    return true;
+  }
+  if (!paragraphOpen && THEMATIC_BREAK.test(line)) {
+    return true;
+  }
   return CLOSES_PARAGRAPH.some((re) => re.test(line));
 }
 /**
@@ -585,6 +629,13 @@ function computeRegions(text: string): Regions {
   // `consecutiveBody`: that counter serves the setext disambiguation and folding it
   // into this one would change which setext underlines are recognized.
   let paragraphOpen = false;
+  // Whether the line ABOVE was an ATX heading (Session 182). Pandoc swallows such a line
+  // into a SETEXT heading when a `=`/`-` run follows it directly, which closes the block;
+  // this model declines that swallow, so it recovers the closure here instead. See
+  // `closesParagraph`. ⚠ It is read BEFORE it is reassigned in the loop below — the same
+  // ordering hazard `pendingFreshBlock` carries, and it silently reads `false` forever if
+  // the two lines are swapped. Pinned.
+  let prevWasAtxHeading = false;
   // A front-matter `from:` disables the paragraph rule for the whole document — see
   // `FRONTMATTER_FROM_KEY`. Without this the change DELETES headings quarto renders.
   let dialectOverride = false;
@@ -735,6 +786,7 @@ function computeRegions(text: string): Regions {
       }
       consecutiveBody = 0;
       paragraphOpen = false;
+      prevWasAtxHeading = true;
     } else {
       // A block line makes the line BELOW it a paragraph start; it does NOT reset the
       // counter at itself, because an underline directly below a block line still claims
@@ -752,7 +804,12 @@ function computeRegions(text: string): Regions {
       // whether these bytes open a block or merely continue a paragraph depends on it.
       pendingFreshBlock = opensFreshBlock(line, paragraphOpen);
       prevIndentedCode = indented;
-      paragraphOpen = !closesParagraph(line);
+      // Both reads below are of the line ABOVE. ⚠ `prevWasAtxHeading` MUST be cleared
+      // AFTER the call that reads it, never before — swapping these two lines makes the
+      // argument permanently `false` and silently deletes the heading under
+      // `# Heading Above` / `===`. Pinned by an ordering test.
+      paragraphOpen = !closesParagraph(line, paragraphOpen, prevWasAtxHeading);
+      prevWasAtxHeading = false;
     }
   }
 
