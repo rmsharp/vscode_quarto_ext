@@ -811,11 +811,54 @@ describe("an INDENTED cell fence is a validated cell to quarto (Session 178)", (
     const unterminated =
       "---\ntitle: t\n---\n\npara\n\n    ```{r}\n#| cache: banana\n1\n";
     expect(cellFlags(unterminated)).toEqual([]);
-    // The column-0 twin is UNCHANGED by this session — still emitted, still the
-    // pre-existing filed FP. Without this line the pin above would also pass if the
-    // unterminated-cell affordance had been removed outright.
-    expect(cellFlags("---\ntitle: t\n---\n\npara\n\n```{r}\n#| cache: banana\n1\n")).toEqual([
-      "7:cache=banana",
-    ]);
+    // ⚠ AMENDED SESSION 179. This line used to assert the column-0 twin STILL flagged —
+    // the pre-existing false positive S178 deliberately left alone so that its own guard
+    // could not pass by deleting the affordance outright. S179 removed the affordance
+    // (operator-ratified) after measuring that quarto builds no cell from an unclosed fence
+    // at any indentation, so the two shapes now agree and this is the third of the three
+    // cardinal false positives that session closed.
+    expect(cellFlags("---\ntitle: t\n---\n\npara\n\n```{r}\n#| cache: banana\n1\n")).toEqual([]);
+    // CONTROL: closed, the same document flags — so neither line can pass by silencing
+    // the cell surface entirely.
+    expect(
+      cellFlags("---\ntitle: t\n---\n\npara\n\n```{r}\n#| cache: banana\n1\n```\n"),
+    ).toEqual(["7:cache=banana"]);
+  });
+});
+
+describe("a cell fence quarto never CLOSES is not a cell at all (Session 179)", () => {
+  /**
+   * Quarto closes a cell only on a fence whose backtick run is EXACTLY the opener's:
+   *
+   * ```js
+   * } else if (endCodeRegEx.test(line.substring) && inCode &&
+   *            line.substring.match(endCodeRegEx)[1].length === inCode) {
+   * ```
+   *
+   * — `breakQuartoMd`, read out of the installed `/Applications/quarto/bin/quarto.js`
+   * (1.7.33). CommonMark instead lets a closer be LONGER than its opener, which is what
+   * `isCloser` implemented, so three document shapes diverged. In every one of them quarto
+   * never closes the cell, and the `flushLineBuffer("markdown", …)` at the end of the loop
+   * then emits the buffered lines as MARKDOWN — note the opener line is never pushed into
+   * `lineBuffer` at all, so quarto **deletes** it.
+   *
+   * Measured firsthand vs 1.7.33, each against the well-formed 3/3 control at exit 1:
+   *
+   * | opener / closer | quarto | rendered body        | heading below |
+   * |---|---|---|---|
+   * | 3-tick / 4-tick | exit 0 | `<p>#| … 6 * 7 ````</p>` | real `<h1>` |
+   * | 4-tick / 3-tick | exit 0 | `<p>#| … 6 * 7 ```</p>`  | real `<h1>` |
+   * | 3-tick / none   | exit 0 | `<p>#| … 6 * 7</p>`      | real `<h1>` |
+   *
+   * So this is not only a validation question: the body is not even a code block, and
+   * everything below is ordinary markdown. Both surfaces are pinned here.
+   */
+  const doc = (open: string, close: string) =>
+    "---\ntitle: t\n---\n\npara\n\n" + open + "{r}\n#| cache: banana\n1\n" + close;
+
+  it("RED->GREEN: a 3-tick opener with a 4-tick closer is not validated", () => {
+    // Measured: renders **exit 0** where the 3/3 twin renders exit 1, and we returned
+    // `7:cache=banana` — a cardinal-sin false positive on a document quarto accepts.
+    expect(cellFlags(doc("```", "````\n"))).toEqual([]);
   });
 });

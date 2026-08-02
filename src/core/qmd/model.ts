@@ -502,16 +502,27 @@ function computeRegions(text: string): Regions {
         lang: info ? info[1] : "",
         startLine: i,
       };
-      // A fence CommonMark already accepted opens unconditionally, exactly as before. An
-      // INDENTED cell fence must additionally be CLOSED somewhere below: `breakQuartoMd`
-      // flushes an unclosed fence's lines as MARKDOWN, so quarto builds no code cell and
-      // validates nothing there — measured firsthand, such a document renders exit 0 while
-      // its closed twin renders exit 1. Opening one anyway would both manufacture a
-      // cardinal-sin false positive and swallow every heading below it. The COLUMN-0
-      // unterminated cell keeps its runnable-while-typing affordance (a divergence from
-      // quarto that predates this session and is filed separately) — this only declines to
-      // EXTEND that affordance to a shape that never had it.
-      if (plainFence !== null || hasCloserBelow(lines, i + 1, candidate)) {
+      // A FENCE OPENS ONLY IF IT IS CLOSED BELOW — both kinds, for two different measured
+      // reasons that happen to agree (Session 179; Session 178 applied this test to
+      // indented cell fences only).
+      //
+      // For a CELL, `breakQuartoMd` never pushes the opening fence into its line buffer, so
+      // a cell it never closes is emitted by the final `flushLineBuffer("markdown", …)`
+      // WITHOUT its opener: quarto deletes the fence and the rest of the document is
+      // ordinary markdown. Measured vs 1.7.33 — 3-tick/4-tick, 4-tick/3-tick and
+      // unterminated all render exit 0 where the 3/3 twin renders exit 1.
+      //
+      // For a PLAIN fence the rule is pandoc's, not CommonMark's: `-f markdown` (quarto's
+      // dialect, and the one this file's setext rules were already grounded against)
+      // requires a closing fence, where CommonMark runs an unclosed one to end of document.
+      // Measured with `quarto pandoc -f markdown -t html`: an unclosed ``` is `<p>``` …</p>`
+      // whether it sits at line 0, after a blank, or mid-paragraph — only closure matters.
+      //
+      // Declining here is therefore faithful on BOTH surfaces at once: it retires three
+      // measured cardinal false positives AND stops the region swallowing the headings
+      // below. The uniformity is load-bearing — when only the cell half declined, the
+      // leftover mismatched fence opened a PLAIN region instead and swallowed them anyway.
+      if (hasCloserBelow(lines, i + 1, candidate)) {
         open = candidate;
         consecutiveBody = 0;
         continue;
@@ -1174,15 +1185,25 @@ function indentedCellFenceAt(line: string): RegExpExecArray | null {
 }
 
 /**
- * True if `line` closes the given open fence (same char, length ≥ opener).
+ * True if `line` closes the given open fence (same char, and the right run LENGTH).
  *
  * A CELL uses quarto's unbounded-indent closer, a plain fence CommonMark's 0–3-space one
  * — the same split as the two openers above, and for the same reason: quarto's cell
  * partitioner is indentation-blind while its plain-fence opener is column-0 (S178).
+ *
+ * ⚠ THE LENGTH RULE IS ALSO SPLIT, AND THE ASYMMETRY IS DELIBERATE (Session 179).
+ * CommonMark §4.5 lets a closing fence be LONGER than its opener; quarto's `breakQuartoMd`
+ * requires `match(endCodeRegEx)[1].length === inCode`, EXACT equality. Both are correct for
+ * their own question — pandoc renders the document, quarto decides what it validates — so a
+ * plain fence keeps `>=` and only a CELL takes the exact rule. "Simplifying" the two back
+ * into one comparison reintroduces one of the two measured cardinal false positives.
  */
 function isCloser(line: string, open: OpenCellFence): boolean {
   const m = (open.isCell ? CELL_FENCE_CLOSE : FENCE_CLOSE).exec(line);
-  return m !== null && m[2] === open.char && m[1].length >= open.len;
+  if (m === null || m[2] !== open.char) {
+    return false;
+  }
+  return open.isCell ? m[1].length === open.len : m[1].length >= open.len;
 }
 
 /**

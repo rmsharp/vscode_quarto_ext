@@ -647,11 +647,17 @@ describe("an INDENTED cell fence — quarto's rule, not CommonMark's (Session 17
     expect(findHeadings(text).map((h) => h.text)).toEqual(["A Real Heading"]);
   });
 
-  it("CONTROL: a COLUMN-0 unterminated cell is still emitted, unchanged by S178", () => {
-    // The runnable-while-typing affordance, and a divergence from quarto that predates this
-    // session (filed separately). Without this pin, the guard above would also pass if the
-    // affordance had been removed outright rather than merely not extended.
-    expect(findAllCells(doc("```{r}", "1")).map((c) => c.lang)).toEqual(["r"]);
+  it("a COLUMN-0 unterminated cell opens nothing either (AMENDED Session 179)", () => {
+    // ⚠ THIS PIN ASSERTED THE OPPOSITE UNTIL S179, DELIBERATELY. It guarded the
+    // runnable-while-typing affordance so that S178 could decline to EXTEND it to indented
+    // fences without silently deleting it for column-0 ones. S179 then measured the
+    // affordance itself and removed it (operator-ratified): quarto builds no cell from an
+    // unclosed fence at ANY indentation, and pandoc renders it as prose, so the column-0
+    // and indented cases are now one rule rather than a deliberate asymmetry. What the pin
+    // guards now is that the two halves stay unified — see the S179 block below.
+    expect(findAllCells(doc("```{r}", "1"))).toEqual([]);
+    // CONTROL: closed, it is an ordinary cell — so this cannot pass by breaking detection.
+    expect(findAllCells(doc("```{r}", "1", "```")).map((c) => c.lang)).toEqual(["r"]);
   });
 
   it("accepts EXOTIC whitespace — the indent class is `\\s`, not `[ \\t]`", () => {
@@ -669,6 +675,43 @@ describe("an INDENTED cell fence — quarto's rule, not CommonMark's (Session 17
   it("CONTROL: an indented TILDE fence is never a cell, indented or not", () => {
     // Quarto's `startCodeCellRegEx` has no tilde branch, and neither does ours.
     expect(findAllCells(doc("    ~~~{r}", "1", "    ~~~"))).toEqual([]);
+  });
+});
+
+describe("a fence that is never CLOSED is not a code block at all (Session 179)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  /**
+   * Two rules, measured against the installed toolchain rather than transcribed:
+   *
+   * 1. **Quarto closes a CELL only on an exact-length run.** `breakQuartoMd` tests
+   *    `line.match(endCodeRegEx)[1].length === inCode`, where CommonMark allows any run at
+   *    least as long. A cell it never closes is flushed as MARKDOWN — and since the opening
+   *    fence is never pushed into its line buffer, quarto DELETES it.
+   * 2. **Pandoc's `markdown` requires a fence to be closed** or it is not a code block. This
+   *    is the dialect quarto renders with (`-f markdown`, not `commonmark`), and it is the
+   *    rule CommonMark does NOT share: CommonMark runs an unclosed fence to end of document.
+   *
+   * Measured with `quarto pandoc -f markdown -t html`, the closed control first:
+   *
+   * | document                        | pandoc          |
+   * |---|---|
+   * | `para` / ` ``` ` / `code` / ` ``` ` | `<pre><code>`   |
+   * | ` ``` ` / `code`   (unclosed, line 0) | `<p>``` code</p>` |
+   * | `para` / `` / ` ``` ` / `code`  | `<p>``` code</p>` |
+   *
+   * Position is irrelevant — only closure matters. So the same lookahead governs both fence
+   * kinds, and only the closer's LENGTH rule differs (plain `>=`, cell `===`).
+   */
+  it("RED->GREEN: a heading below a 3-tick/4-tick cell fence is still a heading", () => {
+    // ⚠ THE REGRESSION THIS SESSION'S OWN FIRST GREEN INTRODUCED. Declining the cell is
+    // half the answer: the stray 4-tick line then opened a PLAIN fence which, under the old
+    // "unclosed runs to EOF" rule, swallowed every heading below it. Measured end-to-end —
+    // `quarto render` emits `<p>#| echo: true 6 * 7 ````</p>` followed by a real `<h1>`, so
+    // the block is prose and the heading is genuine.
+    const text = doc("intro", "", "```{r}", "#| echo: true", "6 * 7", "````", "", "# Heading Below");
+    expect(findAllCells(text)).toEqual([]);
+    expect(findHeadings(text).map((h) => h.text)).toEqual(["Heading Below"]);
   });
 });
 
