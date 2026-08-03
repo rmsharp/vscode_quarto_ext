@@ -1,0 +1,57 @@
+# Real Section
+
+An inline tag is prose, so the line below it is NOT a heading.
+
+<span>inline</span>
+# Not A Heading — Inline Tag
+
+A real HTML block is not, and the heading below it IS real.
+
+<div>
+inner
+</div>
+# Below A Div
+
+A `<pre>` block is CommonMark condition 1, and Session 183's gate deleted this one.
+
+<pre>
+code
+</pre>
+# Below A Pre Block
+
+A footnote definition absorbs the line below it as its own body.
+
+[^1]: a footnote body
+# Not A Heading — Footnote
+
+A link-reference definition renders to nothing, so the heading below it is real.
+
+[x]: http://example.com
+# Below A Link Reference
+
+An inline TeX macro carries arguments and stays inside a paragraph.
+
+\textbf{bold}
+# Not A Heading — Inline TeX
+
+A bare macro alone on its line is a raw TeX block.
+
+\clearpage
+# Below A Bare Macro
+
+A comment with trailing content leaves that content as prose.
+
+<!-- a --> tail
+# Not A Heading — Comment With Tail
+
+A line that is nothing but comments renders to nothing.
+
+<!-- a --><!-- b -->
+# Below An All-Comment Line
+
+An empty bullet marker really is block-level, whatever it looks like.
+
++
+# Below A Lone Plus
+
+## Genuine Child

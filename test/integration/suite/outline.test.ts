@@ -16,6 +16,10 @@ const CLOSES_PARAGRAPH_GATE_FIXTURE = path.resolve(
   ROOT,
   "test/fixtures/closes-paragraph-gate.qmd",
 );
+const CLOSES_PARAGRAPH_NARROW_FIXTURE = path.resolve(
+  ROOT,
+  "test/fixtures/closes-paragraph-narrow.qmd",
+);
 
 /**
  * Ask the editor for the document symbols the same way the Outline view and
@@ -400,6 +404,76 @@ describe("Quarto: Document outline (symbols)", () => {
       !flat(symbols).includes("quoted one"),
       "KNOWN RESIDUAL: a setext heading inside a block quote is invisible to this model",
     );
+  });
+
+  it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
+    // WIRING EVIDENCE, through the provider the Outline view, breadcrumbs, sticky scroll and
+    // Ctrl+T actually call. The fixture's premise is MEASURED, not assumed — `quarto render`
+    // on these exact bytes emits EXACTLY these eight, in order:
+    //   Real Section / Below A Div / Below A Pre Block / Below A Link Reference /
+    //   Below A Bare Macro / Below An All-Comment Line / Below A Lone Plus / (h2) Genuine Child
+    // and renders all four `Not A Heading — …` lines as ordinary paragraph text.
+    //
+    // The same document discriminates both prior builds, which is what makes it evidence:
+    //   pre-Session-183 build : the 8 real headings PLUS all 4 phantoms
+    //   Session-183 build     : the 4 phantoms, and `Below A Pre Block` MISSING — the
+    //                           heading its gate deleted
+    //   this build            : exactly quarto's 8
+    const symbols = await symbolsFor(CLOSES_PARAGRAPH_NARROW_FIXTURE);
+    const flat = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flat(n.children)]);
+    const names = flat(symbols);
+
+    // THE NARROWING: each phantom is gone, at every depth. Every one of these lines merely
+    // CONTAINED a byte the construct uses — an inline tag, a footnote label, a braced macro,
+    // a comment followed by prose.
+    for (const phantom of [
+      "Not A Heading — Inline Tag",
+      "Not A Heading — Footnote",
+      "Not A Heading — Inline TeX",
+      "Not A Heading — Comment With Tail",
+    ]) {
+      assert.ok(!names.includes(phantom), `${phantom} is paragraph text to quarto, not a heading`);
+    }
+
+    // THE CONTROLS the narrowing must NOT delete. Each is a real heading quarto renders, and
+    // each fails if the corresponding row is narrowed one character too far:
+    //   Below A Pre Block         the heading Session 183 deleted — condition-1 tags now
+    //                             sit in the hoisted interrupter
+    //   Below A Link Reference    `[x]:` still closes; only `[^1]:` was excluded
+    //   Below A Bare Macro        `\clearpage` still closes; only braced macros were excluded
+    //   Below An All-Comment Line a line that is nothing but comments renders to nothing
+    //   Below A Lone Plus         a bare `+` is an EMPTY LIST ITEM and really is block-level —
+    //                             the filed prescription to exclude it is REFUTED by measurement
+    for (const real of [
+      "Real Section",
+      "Below A Div",
+      "Below A Pre Block",
+      "Below A Link Reference",
+      "Below A Bare Macro",
+      "Below An All-Comment Line",
+      "Below A Lone Plus",
+    ]) {
+      assert.ok(names.includes(real), `${real} is a real heading and must survive the narrowing`);
+    }
+
+    // …and the real child still nests under its real parent, so the TREE is right and not
+    // merely the set. A deleted parent silently re-parents its children.
+    const parent = symbols.find((s) => s.name === "Below A Lone Plus");
+    assert.ok(parent, "Below A Lone Plus must be a top-level section");
+    assert.deepStrictEqual(parent.children.map((c) => c.name), ["Genuine Child"]);
+
+    // Nothing else at all: the set is exactly quarto's, which no per-name assertion can say.
+    assert.deepStrictEqual(names, [
+      "Real Section",
+      "Below A Div",
+      "Below A Pre Block",
+      "Below A Link Reference",
+      "Below A Bare Macro",
+      "Below An All-Comment Line",
+      "Below A Lone Plus",
+      "Genuine Child",
+    ]);
   });
 });
 
