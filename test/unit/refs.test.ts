@@ -465,3 +465,44 @@ describe("indexLabels — gating CLOSES_PARAGRAPH reaches the crossref index too
     expect(findLabel(text, "sec-real")).not.toBeNull();
   });
 });
+
+describe("indexLabels — narrowing CLOSES_PARAGRAPH reaches the crossref index too (Session 184)", () => {
+  // TEST-AFTER (labelled): these pass as a consequence of the narrowing in `core/qmd/model`,
+  // not from code written for them. `core/refs` is the SECOND consumer of `findHeadings`, and
+  // this session moves it in BOTH directions, so both are pinned — each measured end to end on
+  // the real render path against the RENDERED LINK, never merely against our own answer.
+  // `?@sec-…` is quarto's UNRESOLVED-reference marker; `href="#sec-…"` is a working link.
+
+  it("RECOVERS the {#sec-} target below a <pre> block (the real-target direction)", () => {
+    // Measured — quarto renders the heading and the reference RESOLVES:
+    //   <pre>code</pre><section id="sec-real"><h1>Real</h1>
+    //   <p>See <a href="#sec-real" class="quarto-xref">Section&nbsp;1</a> for details.</p>
+    // Session 183's gate had deleted this heading, so the crossref target vanished with it:
+    // completion stopped offering `sec-real` and go-to-definition stopped resolving it, for a
+    // link quarto renders perfectly well. That is the cost of a lost heading, made concrete.
+    const text = [
+      "<pre>",
+      "code",
+      "</pre>", //                     the CLOSING delimiter sits directly above the heading
+      "# Real {#sec-real}",
+      "",
+      "See @sec-real for details.",
+    ].join("\n");
+    expect(indexLabels(text).map((l) => l.id)).toEqual(["sec-real"]);
+    expect(findLabel(text, "sec-real")).not.toBeNull();
+  });
+
+  it("drops the {#sec-} targets invented by the three narrowed rows (the phantom direction)", () => {
+    // Each measured: quarto renders NO heading and the reference comes out as `?@sec-…`.
+    // Before this session all three were crossref targets we offered for a link already broken.
+    for (const [above, id] of [
+      ["\\textbf{bold}", "sec-tex"], //     an INLINE TeX macro, not a raw-TeX block
+      ["[^1]: a footnote body", "sec-fn"], // a FOOTNOTE definition, not a link reference
+      ["<span>inline</span>", "sec-span"], // an INLINE tag, not an HTML block
+    ] as const) {
+      const text = [above, `# Phantom {#${id}}`, "", `See @${id} for details.`].join("\n");
+      expect(indexLabels(text)).toEqual([]);
+      expect(findLabel(text, id)).toBeNull();
+    }
+  });
+});
