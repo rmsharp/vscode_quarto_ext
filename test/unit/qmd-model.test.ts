@@ -1326,6 +1326,67 @@ describe("CLOSES_PARAGRAPH's remaining rows are gated on an OPEN paragraph (Sess
     expect(findHeadings(doc("line one", "    ---", "# ATX Below")).map((h) => h.text))
       .toEqual([]);
   });
+
+  /**
+   * TEST-AFTER (labelled) — the SURVIVORS of this session's 13-mutant adversarial pass.
+   *
+   * Six mutants died against the tests above and Session 180's pins. These seven survived the
+   * whole 1726-test suite, and EVERY ONE of them was then measured WRONG against the real
+   * renderer — none was more correct than the shipped code (Learning #232 asks that question
+   * first; here the answer was no seven times). Each row below is the document where the
+   * mutant and the shipped code FIRST disagree, with quarto's measured verdict.
+   */
+  it("MUTANT PINS: the three hoisted interrupters, and their exact boundaries", () => {
+    // M5 (drop RAW_TEX_ENV_OPEN) and M7 (recognise \begin but not \end). A raw TeX
+    // ENVIRONMENT interrupts an open paragraph, and the line directly above the heading is
+    // the CLOSING \end — so dropping either half deletes this heading.
+    //   line one / line two / \begin{center} / text / \end{center} / # ATX Below
+    //     -> [h1:ATX Below]   (measured; the prose also loses its <p> wrapper)
+    expect(
+      findHeadings(doc("line one", "line two", "\\begin{center}", "text", "\\end{center}", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+
+    // M8 (widen raw TeX to ANY macro, `/^ {0,3}\\[a-zA-Z]/`). A bare macro is INLINE and does
+    // NOT interrupt — widening fabricates a heading. This is the fragment-borrowing hazard of
+    // Learning #233: `CLOSES_PARAGRAPH`'s own raw-TeX row IS that wide pattern, and it is
+    // correct there (behind the gate) and wrong here (ahead of it).
+    //   line one / line two / \clearpage / # ATX Below -> []  (measured)
+    expect(findHeadings(doc("line one", "line two", "\\clearpage", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
+
+    // M9 (widen `:::` to `::`). Two colons are not a fence.
+    expect(findHeadings(doc("line one", "line two", "::", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
+
+    // M10 (drop the `$` anchor after `...`). `... and more prose` is prose, not a YAML
+    // terminator — the anchor is load-bearing, exactly as it is in `SETEXT_UNDERLINE_RUN`.
+    expect(findHeadings(doc("line one", "line two", "... and more prose", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
+  });
+
+  it("MUTANT PINS: the block-quote marker's indent, and the quotedness flag's LIFETIME", () => {
+    // M11 (require column 0, `/^>/`). CommonMark allows a block quote 0-3 spaces of indent,
+    // and quarto agrees — so narrowing the marker DELETES this heading.
+    //   ` > quoted one` / `    ---` / `# ATX Below` -> [h2:quoted one, h1:ATX Below] (measured)
+    expect(findHeadings(doc(" > quoted one", "    ---", "# ATX Below")).map((h) => h.text))
+      .toContain("ATX Below");
+
+    // M13 (set quotedness but never clear it). The flag belongs to ONE paragraph; if it leaks,
+    // every later paragraph in the document keeps the gate suspended and the phantoms come
+    // back. This is the same class as Session 182's own M13 — a state variable whose LIFETIME
+    // is wrong rather than whose value is wrong — and neither corpus contained the shape.
+    //   > quoted one / (blank) / line one / line two / <TAB>code / # ATX Below -> [] (measured)
+    expect(
+      findHeadings(doc("> quoted one", "", "line one", "line two", "\tcode", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual([]);
+    // …and the flag must genuinely be RECOMPUTED, not merely cleared: a quoted paragraph
+    // AFTER a plain one must still suspend the gate (kills the mirror-image mutant).
+    expect(
+      findHeadings(doc("line one", "", "> quoted one", "    ---", "# ATX Below")).map((h) => h.text),
+    ).toContain("ATX Below");
+  });
 });
 
 describe("buildOutline — against the sample.qmd fixture", () => {
