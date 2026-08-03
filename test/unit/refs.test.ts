@@ -415,3 +415,53 @@ describe("isReferenceableLine — cross-refs apply only to prose/heading lines (
     expect(isReferenceableLine(text, 8)).toBe(false);
   });
 });
+
+describe("indexLabels — gating CLOSES_PARAGRAPH reaches the crossref index too (Session 183)", () => {
+  // TEST-AFTER (labelled): both pass as a consequence of the `closesParagraph` gate in
+  // `core/qmd/model`, not from code written for them. `core/refs` is the SECOND consumer of
+  // `findHeadings` (Session 180), and this session's change moves it in BOTH directions, so
+  // both are pinned — each measured end to end on the real render path against the RENDERED
+  // LINK, never merely against our own answer.
+
+  it("drops the {#sec-} target invented by the indented-code row (the phantom direction)", () => {
+    // Measured — the whole document renders as ONE paragraph, and the reference is BROKEN:
+    //   <p>line one line two code # Phantom {#sec-phantom}</p>
+    //   <p>See <strong>?@sec-phantom</strong> for details.</p>
+    // `?@sec-phantom` is quarto's UNRESOLVED-reference marker. Before this session an
+    // indented line against an OPEN paragraph closed it, so `# Phantom` was a heading, so
+    // `sec-phantom` was a crossref target: completion offered it and go-to-definition
+    // resolved it, for a link quarto had already rendered broken.
+    const text = [
+      "line one", //                0
+      "line two", //                1  a paragraph is now OPEN
+      "\tcode", //                  2  against an open paragraph this is LAZY CONTINUATION
+      "# Phantom {#sec-phantom}", // 3  therefore not a heading, therefore not a target
+      "",
+      "See @sec-phantom for details.",
+    ].join("\n");
+    expect(indexLabels(text)).toEqual([]);
+    expect(findLabel(text, "sec-phantom")).toBeNull();
+  });
+
+  it("keeps the {#sec-} target below a raw TeX ENVIRONMENT (the real-target direction)", () => {
+    // The direction the gate must NOT break, and the reason `RAW_TEX_ENV_OPEN` is hoisted
+    // ahead of the `paragraphOpen` bail. Measured — quarto really closes the paragraph here
+    // and the reference RESOLVES:
+    //   <section id="sec-real"><h1>Real Target</h1>
+    //   <p>See <a href="#sec-real" class="quarto-xref">Section&nbsp;1</a> for details.</p>
+    // A blanket gate would have deleted this heading and with it a WORKING crossref target —
+    // turning a link quarto resolves into one our index cannot find.
+    const text = [
+      "line one",
+      "line two", //                    a paragraph is OPEN …
+      "\\begin{center}", //             … and a raw TeX ENVIRONMENT still interrupts it
+      "text",
+      "\\end{center}", //               the closing delimiter sits directly above the heading
+      "# Real Target {#sec-real}",
+      "",
+      "See @sec-real for details.",
+    ].join("\n");
+    expect(indexLabels(text).map((l) => l.id)).toEqual(["sec-real"]);
+    expect(findLabel(text, "sec-real")).not.toBeNull();
+  });
+});
