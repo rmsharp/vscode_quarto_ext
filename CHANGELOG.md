@@ -7,6 +7,49 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-03 · [ad hoc] Session 185 — IMPLEMENTATION: the indent is not part of pandoc's html-block rule, and a line block continues (SHIPPED)
+
+Recovered **184 of the real ATX headings Session 183's `paragraphOpen` gate deletes, adding
+ZERO deletions**, measured per heading in both directions over **465 documents** rendered
+through the real `quarto render` path (quarto 1.7.33) across eleven corpora:
+pre-S183 113 phantom / 128 lost · pre-S185 35 / 239 · **SHIPPED 42 / 55** — better than the
+pre-Session-183 build in *both* directions.
+
+**(b) `HTML_BLOCK_OPEN`'s indent cap was never a model of anything.** The filed item described
+family (b) as a `{0,3}`-versus-4-space boundary where "the gate suppresses the closer"; a
+nine-rung indent ladder refuted both halves. Pandoc's html-block rule does not look at leading
+whitespace at all — `<div>` against a two-line open paragraph releases the heading below it at
+0/1/3/4/5/6/8 spaces, one tab, two tabs, space+tab and tab+space alike, while `<span>`, `<em>`
+and `<not-a-tag` release it at none of them — and the opener alone deletes, with no closer
+needed. The class became `[ \t]*`. The TAG remains the whole rule.
+
+**(c) A pandoc LINE BLOCK's continuation line no longer opens a paragraph.** New state, each
+guard its own RED and each measured: the block may only open where no paragraph already is; a
+pipe TABLE's body row is spelled identically so a table RULE row (pipe delimiter *or* grid
+border) disarms it; the opener is `|` + space-or-tab + content at column 0, with `|line one`,
+a bare `|`, `| `, `|  ` and every indented `|` measured NOT to be line blocks; and the sticky
+table flag clears at every region boundary that ends a block, not only at a blank line.
+
+**The session's own mutation pass produced a mutant more correct than the code.**
+`LINE_BLOCK_CONTINUATION` was written `/^[ \t]+\S/` on the reasoning that a continuation "must
+have content"; pandoc's rule is only that the line begins with whitespace, and the `\S` deleted
+four real headings on lines whose sole content is a form feed, a vertical tab or a
+non-breaking space. Corrected, and pinned.
+
+**A 12-lens adversarial sweep (193 documents, written by agents that did not design the
+corpora) found ZERO deletions on every lens** — the check Session 184's sweep failed. It found
+seven new phantoms; four proved PRE-EXISTING by rendering the column-0 twin against three
+builds, and three were fixed. Mutation pass: 24 mutants, 24 killed, 0 survivors.
+
+Filed, not fixed: an unclosed condition-1 tag swallows the document; `HTML_BLOCK_OPEN`'s tag
+list is CommonMark's rather than pandoc's; a whole-line HTML comment does not close a pandoc
+paragraph and `COMMENT_FULL_LINE` treats it as if it does; a setext underline below a
+continuation is invisible (and the obvious fix is measured to invent a heading).
+
+Verified: check-types 0, compile 0, compile-tests 0, `npm test` 1754/65, `test:oracle` exit 0
+(byte-identical to S180–S184), `check-package` OK 42 files / 5.51 MB, `test:integration` 499
+passing exit 0 with the new Outline pin watched by name in the captured log.
+
 ### 2026-08-02 · [ad hoc] Session 184 — IMPLEMENTATION: CLOSES_PARAGRAPH's rows match the construct, and two "obvious" narrowings are refuted (SHIPPED)
 
 Session 183 fixed *when* `CLOSES_PARAGRAPH`'s rows apply. This session asked *what* they
