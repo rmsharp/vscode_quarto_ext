@@ -306,6 +306,49 @@ const CLOSER_LINE = /^ {0,3}(?::{3,}|\.\.\.[ \t]*$)/;
  */
 const BLOCK_QUOTE_MARKER = /^ {0,3}>/;
 /**
+ * A pandoc LINE BLOCK's own line, and the CONTINUATION of one (Session 185).
+ *
+ * A line block continues a line by indenting the next one, so its continuation is
+ * indistinguishable from prose to a per-line scanner — and being read as prose is what
+ * deleted the heading below every such block once Session 183 gated `CLOSES_PARAGRAPH` on an
+ * open paragraph: the continuation opened a paragraph, and the bail then suppressed every
+ * row on every line after it, including the `| …` line that would have closed it again.
+ *
+ * ⚠ **The opener is measured, not assumed, and each rejection below costs or saves a real
+ * heading.** On the real render path (quarto 1.7.33) a line block is a pipe followed by a
+ * SPACE OR TAB at **column 0** — and only there:
+ *
+ *   `| line one`     line block  ->  the heading below the block is REAL
+ *   `|\tline one`    line block  ->  real (so the class is `[ \t]`, not a literal space)
+ *   `|line one`      NOT a line block — prose; the heading below is a phantom
+ *   `|`              NOT one either: it renders a line-block div, but a following indented
+ *                    line does NOT attach to it, so treating it as an opener invents a heading
+ *   ` | line one`    NOT one — the indent disqualifies it, at 1, 3 and 4 spaces alike
+ *
+ * The CONTINUATION, by contrast, attaches at any indent whatever — 1, 2, 3, 4 and 8 spaces
+ * and a tab all render identically.
+ */
+const LINE_BLOCK_LINE = /^\|[ \t]/;
+const LINE_BLOCK_CONTINUATION = /^[ \t]+\S/;
+/**
+ * A pipe table's DELIMITER row — the line that turns a run of `| … |` rows into a table
+ * rather than a line block (Session 185).
+ *
+ * ⚠ **This exists only to DISARM `LINE_BLOCK_LINE`, and that asymmetry is what makes it
+ * safe.** A table's body row is spelled exactly like a line-block line, so without this the
+ * rule arms on `| 1 | 2 |` and reads the row below as a continuation — measured wrong:
+ *
+ *   `| a | b |` / `|---|---|` / `| 1 | 2 |` / `  continued` / `# ATX Below`  ->  NO heading
+ *   `| a | b |` /               `| 1 | 2 |` / `  continued` / `# ATX Below`  ->  the heading
+ *
+ * Only the delimiter row separates those two documents, and no per-line predicate can see it
+ * without state — hence the flag. Because disarming merely restores the pre-Session-185
+ * behaviour, an over-eager match here can only ever forgo a RECOVERY; it can never delete a
+ * heading. That is the opposite polarity to `CLOSES_PARAGRAPH`, and it is why this pattern is
+ * allowed to be approximate where those rows may not be.
+ */
+const TABLE_DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+/**
  * Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`.
  *
  * `prevWasAtxHeading` recovers a block closure this model would otherwise lose. Pandoc
@@ -323,7 +366,11 @@ function closesParagraph(
   paragraphOpen: boolean,
   prevWasAtxHeading: boolean,
   paragraphQuoted: boolean,
+  lineBlockAbove: boolean,
 ): boolean {
+  if (lineBlockAbove && LINE_BLOCK_CONTINUATION.test(line)) {
+    return true;
+  }
   if (prevWasAtxHeading && SETEXT_UNDERLINE_RUN.test(line)) {
     return true;
   }
@@ -385,9 +432,23 @@ const OPENS_FRESH_BLOCK: readonly RegExp[] = [
  * then suppressed by the bail. Measured — `<pre>` / `code` / `</pre>` / `# ATX Below` renders
  * `<pre>code</pre><h1>ATX Below</h1>`, and so does the same block pressed against a two-line
  * paragraph. 20 real headings, which the pre-Session-183 build got right.
+ *
+ * ⚠ **The leading-whitespace class is `[ \t]*`, NOT CommonMark's ` {0,3}` (Session 185), and
+ * that is measured rather than tidied.** Pandoc's html-block rule does not look at the
+ * indent at all. Against a two-line open paragraph, `<div>` releases the heading below it at
+ * 0, 1, 3, 4, 5, 6 and 8 spaces, at one tab, at two tabs, at space+tab and at tab+space —
+ * every spelling, identically — while `<span>`, `<em>` and `<not-a-tag` release it at NONE
+ * of them. Capping the indent therefore did not model CommonMark's indented-code rule; it
+ * simply lost the tag test on indented lines, and S183's bail then deleted the heading below
+ * every such block. 51 real headings across a 160-document scored corpus, which the
+ * pre-Session-183 build got right.
+ *
+ * ⚠ **The TAG is still the whole rule, and widening the indent did not weaken it.** The
+ * closed tag list above is what separates `    <div>` (a block) from `    <span>` (prose),
+ * exactly as it does at column 0. An indented line is NOT block-level for being indented.
  */
 const HTML_BLOCK_OPEN =
-  /^ {0,3}<\/?(?:pre|script|style|textarea|address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)/i;
+  /^[ \t]*<\/?(?:pre|script|style|textarea|address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)/i;
 /**
  * Whether `line` begins a fresh block, so the line BELOW it starts a new paragraph and
  * may therefore be claimed by a setext underline — see `OPENS_FRESH_BLOCK`.
@@ -740,6 +801,25 @@ function computeRegions(text: string): Regions {
   // a blank line between the heading and the run ends it. That is why it is snapshotted
   // and cleared at the TOP of the loop rather than at the foot. Pinned.
   let prevWasAtxHeading = false;
+  // Whether the line ABOVE belonged to a pandoc LINE BLOCK, so an indented line below it is
+  // that block's continuation rather than the start of a paragraph (Session 185). Like
+  // `prevWasAtxHeading` — and unlike `pendingFreshBlock` — it is snapshotted and cleared at
+  // the TOP of the loop, which is what ends the block at a blank line, a fence, a comment or
+  // a front-matter block: each of those `continue`s without reaching the assignment at the
+  // foot. Measured, and required: `| line one` / (blank) / `  continued` / `# ATX Below`
+  // renders NO heading, so an arm that survived the blank line would fabricate one.
+  // ⚠ The explicit annotation is load-bearing: this flag is snapshotted into `lineBlockAbove`
+  // and then re-assigned FROM an expression reading that snapshot, which tsc reports as a
+  // circular inference (TS7022) without it.
+  let lineBlockOpen: boolean = false;
+  // Whether a pipe TABLE's delimiter row has been seen in the current block, which disarms
+  // the line-block rule for the table's remaining body rows — see `TABLE_DELIMITER_ROW`.
+  // ⚠ Unlike `lineBlockOpen` this one is STICKY across the table's body rows, so it cannot be
+  // cleared at the top of the loop; it is cleared on the BLANK LINE that ends the table
+  // instead. Measured, and required in both directions: without the clear, a genuine line
+  // block BELOW a table never arms (`| a | b |` / `|---|---|` / `| 1 | 2 |` / (blank) /
+  // `| line one` / `  continued` / `# ATX Below` renders the heading and we would lose it).
+  let inPipeTable = false;
   // A front-matter `from:` disables the paragraph rule for the whole document — see
   // `FRONTMATTER_FROM_KEY`. Without this the change DELETES headings quarto renders.
   let dialectOverride = false;
@@ -764,6 +844,11 @@ function computeRegions(text: string): Regions {
     // without the blank renders one.
     const prevLineWasAtxHeading = prevWasAtxHeading;
     prevWasAtxHeading = false;
+    // ⚠ The explicit annotation is load-bearing, not style: this snapshot is read by the
+    // expression that re-assigns `lineBlockOpen` at the foot of the loop, and tsc reports the
+    // round trip as a circular inference (TS7022) unless one end of it is annotated.
+    const lineBlockAbove: boolean = lineBlockOpen;
+    lineBlockOpen = false;
 
     // YAML front matter — only a `---` on the very first line opens it. Record
     // the span as it opens (provisionally unterminated, ending at EOF) and refine
@@ -868,6 +953,7 @@ function computeRegions(text: string): Regions {
       bodyLines.push({ line: i, text: line });
       consecutiveBody = 0;
       paragraphOpen = false;
+      inPipeTable = false;
       continue;
     }
 
@@ -925,7 +1011,27 @@ function computeRegions(text: string): Regions {
         paragraphQuoted = BLOCK_QUOTE_MARKER.test(line);
       }
       // `paragraphOpen` is read for the line ABOVE before being overwritten for this one.
-      paragraphOpen = !closesParagraph(line, paragraphOpen, prevLineWasAtxHeading, paragraphQuoted);
+      // Annotated for the same TS7022 reason as `lineBlockAbove` above — this snapshot feeds
+      // the `lineBlockOpen` assignment, which `closesParagraph` reads back on the next line.
+      const wasParagraphOpen: boolean = paragraphOpen;
+      paragraphOpen = !closesParagraph(
+        line,
+        paragraphOpen,
+        prevLineWasAtxHeading,
+        paragraphQuoted,
+        lineBlockAbove,
+      );
+      // A line block stays open across its own continuations, so the arm re-arms on one; but
+      // it can only be OPENED where no paragraph already is. Measured: a line block does not
+      // interrupt a paragraph, with or without a continuation, so arming against an open one
+      // would close a paragraph quarto keeps open and fabricate the heading below it.
+      if (TABLE_DELIMITER_ROW.test(line)) {
+        inPipeTable = true;
+      }
+      lineBlockOpen =
+        !inPipeTable &&
+        ((lineBlockAbove && LINE_BLOCK_CONTINUATION.test(line)) ||
+          (!wasParagraphOpen && LINE_BLOCK_LINE.test(line)));
     }
   }
 

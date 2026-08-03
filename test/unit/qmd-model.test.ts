@@ -1652,6 +1652,178 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
   });
 });
 
+describe("an INDENTED HTML block and a LINE BLOCK still close a paragraph (Session 185)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("RED->GREEN: an INDENTED raw HTML block opener interrupts an open paragraph", () => {
+    // ⚠ HALF OF THE REGRESSION Session 183 SHIPPED, measured against the pre-S183 build.
+    // S183's `paragraphOpen` bail suppresses every row of `CLOSES_PARAGRAPH` against an open
+    // paragraph, and `HTML_BLOCK_OPEN` — the hoisted clause tested BEFORE that bail — capped
+    // its indent at CommonMark's ` {0,3}`. So an indented block opener fell through to the
+    // gated wide row and the heading below it was DELETED.
+    //
+    // Measured on the real render path (`quarto render --to html --no-execute`, quarto
+    // 1.7.33): pandoc's html-block rule does not look at leading whitespace AT ALL. Every one
+    // of these renders `<h1 id="atx-below">ATX Below</h1>` below a two-line open paragraph —
+    // 0, 1, 3, 4, 5, 6 and 8 spaces, one tab, two tabs, space+tab and tab+space:
+    //
+    //   prose one / prose two / (indent)<div> / # ATX Below  ->  <h1>ATX Below</h1>
+    //
+    // ⚠ AND THE CONTROL BELOW IS WHY THE INDENT IS THE ONLY THING THAT CHANGES. At those same
+    // indents an INLINE tag renders no heading whatever, so this widening must not be read as
+    // "an indented `<` line is block-level" — the TAG decides, exactly as it does at column 0,
+    // and `HTML_BLOCK_OPEN`'s closed tag list is what carries that decision.
+    for (const indent of ["    ", "     ", "        ", "\t", "\t\t", " \t", "\t "]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", `${indent}<div>`, "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+    // …and a full block whose body and closer are indented too — the closer is the line the
+    // bail used to swallow: `    <pre>` / `    code` / `    </pre>` / `# ATX Below` renders
+    // `<pre>code</pre><h1>ATX Below</h1>`.
+    expect(
+      findHeadings(doc("prose one", "prose two", "\t<pre>", "\tcode", "\t</pre>", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    // CONTROL — the inline tags must STILL yield no heading at the same indents (measured:
+    // `prose one` / `prose two` / `    <span>` / `# ATX Below` renders one `<p>` and nothing
+    // else). Without this assertion the test above passes for a wrong rule.
+    for (const indent of ["    ", "\t"]) {
+      for (const tag of ["<span>", "<em>", "<not-a-tag"]) {
+        expect(
+          findHeadings(doc("prose one", "prose two", `${indent}${tag}`, "# ATX Below"))
+            .map((h) => h.text),
+        ).toEqual([]);
+      }
+    }
+  });
+
+  it("RED->GREEN: a LINE BLOCK's continuation line does not open a paragraph", () => {
+    // ⚠ THE OTHER HALF OF S183's REGRESSION. A pandoc line block continues a line by INDENTING
+    // the next one, so a continuation looks exactly like prose to a per-line scanner: it opened
+    // a paragraph in this model, and S183's bail then suppressed every row on every line after
+    // it — including the `| …` line that would have closed the paragraph again. The heading
+    // below the block was deleted. Measured on the real render path (quarto 1.7.33):
+    //
+    //   | line one / (indent)continued / | line three / # ATX Below
+    //     ->  <div class="line-block">…</div><h1 id="atx-below">ATX Below</h1>
+    //
+    // The continuation attaches at EVERY indent — 1, 2, 3, 4 and 8 spaces, and a tab.
+    for (const cont of [" ", "  ", "   ", "    ", "        ", "\t"]) {
+      expect(
+        findHeadings(doc("| line one", `${cont}continued`, "| line three", "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+    // …and wherever in the block the continuation sits: after the last line, after a middle
+    // line, twice in a row, and deepening. All four render the heading (measured).
+    expect(
+      findHeadings(doc("| line one", "| line two", "  continued", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    expect(
+      findHeadings(doc("| line one", "  cont a", "  cont b", "| line four", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    // CONTROL — an identically-shaped indented line under something that is NOT a line block
+    // must STILL suppress the heading. Both of these render one `<p>` and no heading at all
+    // (measured), and without these assertions the test above passes for "any indented line
+    // is block-level", which would fabricate headings across ordinary prose.
+    expect(
+      findHeadings(doc("plain one", "  continued", "plain three", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual([]);
+    expect(
+      findHeadings(doc("a | b", "  continued", "c | d", "# ATX Below")).map((h) => h.text),
+    ).toEqual([]);
+  });
+
+  it("RED->GREEN: a LINE BLOCK cannot open against an already-OPEN paragraph", () => {
+    // A line block does not interrupt a paragraph — measured, and in BOTH spellings: with a
+    // continuation and without one, prose above leaves the whole thing paragraph text and the
+    // heading below is NOT rendered.
+    //
+    //   prose one / prose two / | line one / (2sp)continued / | line three / # ATX Below
+    //     ->  one <p>, NO heading
+    //
+    // So the arm may only be set where no paragraph is already open. Without that guard the
+    // continuation closes a paragraph quarto keeps open and we FABRICATE the heading — the
+    // phantom direction, and the reason this is its own RED rather than part of the rule above.
+    expect(
+      findHeadings(doc("prose one", "prose two", "| line one", "  continued", "| line three",
+                       "# ATX Below")).map((h) => h.text),
+    ).toEqual([]);
+    // The arm must also die at a BLANK line, which ends the block: `| line one` / (blank) /
+    // `  continued` / `# ATX Below` renders a line-block div, then a paragraph that swallows
+    // the heading (measured — no heading at all).
+    expect(
+      findHeadings(doc("| line one", "", "  continued", "# ATX Below")).map((h) => h.text),
+    ).toEqual([]);
+    // CONTROL — the recovery of the rule above must SURVIVE both guards. The same block with
+    // no prose above it, and the same block after a blank line, still release their heading.
+    expect(
+      findHeadings(doc("| line one", "  continued", "| line three", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    expect(
+      findHeadings(doc("prose one", "prose two", "", "| line one", "  continued", "| line three",
+                       "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+  });
+
+  it("RED->GREEN: a pipe TABLE's body row does not arm the line-block rule", () => {
+    // A table's body row is spelled exactly like a line-block line, so the rule above arms on
+    // it and then reads the row below as a continuation. Measured, that is wrong — the DELIMITER
+    // row is what makes the block a table, and a continuation-shaped line under a table is
+    // ordinary paragraph text that swallows the heading:
+    //
+    //   | a | b | / |---|---| / | 1 | 2 | / (2sp)continued / # ATX Below  ->  NO heading
+    //
+    // ⚠ The guard is safe in the DELETING direction by construction: refusing to arm merely
+    // leaves the pre-Session-185 behaviour in place, so an over-eager table detection can only
+    // ever forgo a recovery — it can never remove a heading we already emit.
+    expect(
+      findHeadings(doc("| a | b |", "|---|---|", "| 1 | 2 |", "  continued", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual([]);
+    // CONTROL — the SAME shape with no delimiter row is a line block after all, and its
+    // heading is real: `| a | b |` / `| 1 | 2 |` / `  continued` / `# ATX Below` renders
+    // `<div class="line-block">…</div><h1>ATX Below</h1>` (measured). This is what stops the
+    // guard from being written as "any pipe-bearing run suppresses the rule".
+    expect(
+      findHeadings(doc("| a | b |", "| 1 | 2 |", "  continued", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    // CONTROL — and the table's spell must be broken by the blank line that ends it, so a
+    // genuine line block BELOW a table still works (measured: `table>div>section>h1`).
+    expect(
+      findHeadings(doc("| a | b |", "|---|---|", "| 1 | 2 |", "", "| line one", "  continued",
+                       "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+  });
+
+  it("RED->GREEN: a line block's opener takes a TAB after the pipe, and nothing else", () => {
+    // Exhaustive over the opener spellings, each rendered firsthand. `|` + TAB is a line block
+    // exactly as `|` + SPACE is — both render `<div class="line-block">` and release the
+    // heading below — so requiring a literal space costs one real heading.
+    expect(
+      findHeadings(doc("|\tline one", "  continued", "| line three", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    // CONTROL — and the widening stops at `[ \t]`. These three are NOT line blocks, and each
+    // renders no heading at all (measured), so arming on them would fabricate one:
+    //
+    //   `|line one`     prose        -> one <p>, no heading
+    //   `|`             renders a line-block div, but an indented line below does NOT attach
+    //   ` | line one`   the indent disqualifies it (1, 3 and 4 spaces alike)
+    for (const opener of ["|line one", "|", " | line one", "   | line one", "    | line one"]) {
+      expect(
+        findHeadings(doc(opener, "  continued", "| line three", "# ATX Below")).map((h) => h.text),
+      ).toEqual([]);
+    }
+  });
+});
+
 describe("buildOutline — against the sample.qmd fixture", () => {
   const fixture = readFileSync(
     path.resolve(__dirname, "../fixtures/sample.qmd"),
