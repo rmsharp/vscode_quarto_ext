@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S183
+date: 2026-08-02
+status: pending
+active_task: IMPLEMENTATION (strict TDD). CLOSES_PARAGRAPH's remaining NINE rows (src/core/qmd/model.ts:181-191), audited against an OPEN paragraph in ONE scored pass, starting from the INDENTED-CODE row `/^(?: {4,}|\t)\S/` which Session 182 filed as MEASURED defective: an indented line against an OPEN paragraph is a LAZY CONTINUATION, not a code block -- `line one` / `line two` / `\t***` / `# ATX Below` renders NO heading and we emit one (3 measured rows). Per Learning #234 the other eight rows are scored in the SAME pass, because a list-level score is not a row-level score. Operator-selected at Phase 0 via AskUserQuestion; it was S182's ranked #1. WARNING carried forward from S182: this is the heading-DELETING direction, so every row needs its own measured per-heading verdict from the real `quarto render` path, in both error directions.
+```
+
+```handoff
 session: S182
 date: 2026-08-02
 status: complete
