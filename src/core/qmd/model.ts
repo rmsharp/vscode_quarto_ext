@@ -320,9 +320,13 @@ const BLOCK_QUOTE_MARKER = /^ {0,3}>/;
  *
  *   `| line one`     line block  ->  the heading below the block is REAL
  *   `|\tline one`    line block  ->  real (so the class is `[ \t]`, not a literal space)
+ *   `|  line one`    line block  ->  real (so the class REPEATS)
  *   `|line one`      NOT a line block — prose; the heading below is a phantom
  *   `|`              NOT one either: it renders a line-block div, but a following indented
  *                    line does NOT attach to it, so treating it as an opener invents a heading
+ *   `| ` / `|  `     NOT one, for the same reason — a pipe followed by whitespace and NOTHING
+ *                    ELSE takes no continuation, which is why the `\S` is required and why
+ *                    Session 185's adversarial sweep found this as a phantom it had introduced
  *   ` | line one`    NOT one — the indent disqualifies it, at 1, 3 and 4 spaces alike
  *
  * The CONTINUATION, by contrast, attaches at any indent whatever — 1, 2, 3, 4 and 8 spaces
@@ -336,11 +340,13 @@ const BLOCK_QUOTE_MARKER = /^ {0,3}>/;
  * A genuinely blank line still ends the block: `BLANK_LINE` is tested earlier in the loop and
  * `continue`s, so this pattern is never reached for one.
  */
-const LINE_BLOCK_LINE = /^\|[ \t]/;
+const LINE_BLOCK_LINE = /^\|[ \t]+\S/;
 const LINE_BLOCK_CONTINUATION = /^[ \t]+/;
 /**
- * A pipe table's DELIMITER row — the line that turns a run of `| … |` rows into a table
- * rather than a line block (Session 185).
+ * A table's RULE row — the line that turns a run of `| … |` rows into a table rather than a
+ * line block (Session 185). Two spellings, both measured: a PIPE table's delimiter
+ * (`|---|---|`, with optional alignment colons and optional outer pipes) and a GRID table's
+ * border (`+---+---+`, also `+===+===+`).
  *
  * ⚠ **This exists only to DISARM `LINE_BLOCK_LINE`, and that asymmetry is what makes it
  * safe.** A table's body row is spelled exactly like a line-block line, so without this the
@@ -354,8 +360,14 @@ const LINE_BLOCK_CONTINUATION = /^[ \t]+/;
  * behaviour, an over-eager match here can only ever forgo a RECOVERY; it can never delete a
  * heading. That is the opposite polarity to `CLOSES_PARAGRAPH`, and it is why this pattern is
  * allowed to be approximate where those rows may not be.
+ *
+ * ⚠ **Both spellings, and `\s*$` rather than `[ \t]*$`, were added because Session 185's own
+ * adversarial sweep produced the documents that need them** — a GRID table whose rule this
+ * never matched, and a pipe delimiter whose trailing whitespace is a FORM FEED. Each armed the
+ * line-block rule on a table body row and invented the heading below it.
  */
-const TABLE_DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+const TABLE_RULE_ROW =
+  /^ {0,3}(?:\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?|\+[-+=: ]*)\s*$/;
 /**
  * Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`.
  *
@@ -821,12 +833,17 @@ function computeRegions(text: string): Regions {
   // circular inference (TS7022) without it.
   let lineBlockOpen: boolean = false;
   // Whether a pipe TABLE's delimiter row has been seen in the current block, which disarms
-  // the line-block rule for the table's remaining body rows — see `TABLE_DELIMITER_ROW`.
+  // the line-block rule for the table's remaining body rows — see `TABLE_RULE_ROW`.
   // ⚠ Unlike `lineBlockOpen` this one is STICKY across the table's body rows, so it cannot be
-  // cleared at the top of the loop; it is cleared on the BLANK LINE that ends the table
-  // instead. Measured, and required in both directions: without the clear, a genuine line
-  // block BELOW a table never arms (`| a | b |` / `|---|---|` / `| 1 | 2 |` / (blank) /
-  // `| line one` / `  continued` / `# ATX Below` renders the heading and we would lose it).
+  // cleared at the top of the loop. It is cleared instead at EVERY region boundary that
+  // already ends a block — a blank line, a whole-line or opening HTML comment, a fence
+  // opener, a setext underline and an ATX heading — and clearing it at only the blank line
+  // was measured wrong: a comment, a fence or a heading between a table and a genuine line
+  // block left the guard armed and the heading below was never recovered (found by Session
+  // 185's adversarial sweep). The phantom risk of the broader clear was measured before it
+  // was made and there is none — a comment, a fence and a heading each really do END the
+  // table, so a `| …` run below one is a fresh line block and quarto renders the heading
+  // whether what follows the boundary is a line block or another table body row.
   let inPipeTable = false;
   // A front-matter `from:` disables the paragraph rule for the whole document — see
   // `FRONTMATTER_FROM_KEY`. Without this the change DELETES headings quarto renders.
@@ -900,12 +917,14 @@ function computeRegions(text: string): Regions {
     if (COMMENT_FULL_LINE.test(line)) {
       consecutiveBody = 0;
       paragraphOpen = false;
+      inPipeTable = false;
       continue;
     }
     if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line)) {
       inComment = true;
       consecutiveBody = 0;
       paragraphOpen = false;
+      inPipeTable = false;
       continue;
     }
 
@@ -949,6 +968,7 @@ function computeRegions(text: string): Regions {
         open = candidate;
         consecutiveBody = 0;
         paragraphOpen = false;
+        inPipeTable = false;
         continue;
       }
       // Otherwise the line is ordinary body — the pre-S178 behaviour, unchanged.
@@ -979,6 +999,7 @@ function computeRegions(text: string): Regions {
       bodyLines.push({ line: i, text: line });
       consecutiveBody = 0;
       paragraphOpen = false;
+      inPipeTable = false;
       continue;
     }
 
@@ -994,6 +1015,7 @@ function computeRegions(text: string): Regions {
       }
       consecutiveBody = 0;
       paragraphOpen = false;
+      inPipeTable = false;
       prevWasAtxHeading = true;
     } else {
       // A block line makes the line BELOW it a paragraph start; it does NOT reset the
@@ -1033,7 +1055,7 @@ function computeRegions(text: string): Regions {
       // it can only be OPENED where no paragraph already is. Measured: a line block does not
       // interrupt a paragraph, with or without a continuation, so arming against an open one
       // would close a paragraph quarto keeps open and fabricate the heading below it.
-      if (TABLE_DELIMITER_ROW.test(line)) {
+      if (TABLE_RULE_ROW.test(line)) {
         inPipeTable = true;
       }
       lineBlockOpen =

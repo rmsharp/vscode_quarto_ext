@@ -1886,6 +1886,100 @@ describe("an INDENTED HTML block and a LINE BLOCK still close a paragraph (Sessi
       findHeadings(doc("| line one", "\tcont a", "  cont b", "# ATX Below")).map((h) => h.text),
     ).toEqual(["ATX Below"]);
   });
+
+  it("RED->GREEN: a line-block opener with NO CONTENT after the pipe does not arm", () => {
+    // ⚠ FOUND BY THE ADVERSARIAL SWEEP — a phantom this session introduced, adjudicated
+    // firsthand by re-rendering and by probing the pre-Session-185 build. `|` alone was
+    // already known not to take a continuation; the sweep found that `| ` and `|  ` — a pipe
+    // followed by whitespace and NOTHING ELSE — behave the same way, and `/^\|[ \t]/` armed on
+    // both. Measured, quarto renders no heading in either:
+    //
+    //   `| ` / (2sp)continued / | line three / # ATX Below   ->  NO heading
+    //   `|  ` / (2sp)continued / # ATX Below                 ->  NO heading
+    for (const opener of ["| ", "|  ", "|\t"]) {
+      expect(
+        findHeadings(doc(opener, "  continued", "| line three", "# ATX Below")).map((h) => h.text),
+      ).toEqual([]);
+    }
+    // CONTROL — and the opener must still arm as soon as there IS content after the
+    // whitespace, at one space, at several, and after a tab. All three render the heading
+    // (measured), so this is a content requirement and NOT a retreat to a single-space rule.
+    for (const opener of ["| line one", "|  line one", "|\tline one"]) {
+      expect(
+        findHeadings(doc(opener, "  continued", "# ATX Below")).map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+  });
+
+  it("RED->GREEN: a GRID table's border is a table rule too, and the rule tolerates odd trailing whitespace", () => {
+    // ⚠ TWO MORE PHANTOMS FOUND BY THE ADVERSARIAL SWEEP, both adjudicated by re-rendering.
+    // The table guard only recognised the PIPE-table delimiter row, so two documents slipped
+    // past it and armed the line-block rule on what is really a table body row:
+    //
+    //   +---+---+ / | a | b | / +---+---+ / | line one / (2sp)continued / # ATX Below
+    //       a GRID table — its rule is `+---+---+`, which the pipe delimiter never matched
+    //   | a | b | / |---|---|(form feed) / | 1 | 2 | / (2sp)continued / # ATX Below
+    //       a pipe delimiter whose trailing whitespace is a FORM FEED, which `[ \t]*$` rejects
+    //
+    // Quarto renders NO heading in either.
+    expect(
+      findHeadings(doc("+---+---+", "| a | b |", "+---+---+", "| line one", "  continued",
+                       "# ATX Below")).map((h) => h.text),
+    ).toEqual([]);
+    expect(
+      findHeadings(doc("| a | b |", "|---|---|\f", "| 1 | 2 |", "  continued", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual([]);
+    // CONTROL — the guard must still die at the blank line that ends the table, so a genuine
+    // line block below a GRID table works. Measured: this one DOES render the heading, and it
+    // is the assertion that stops the fix from being "a `+` anywhere suppresses the rule".
+    expect(
+      findHeadings(doc("+---+---+", "| a | b |", "+---+---+", "", "| line one", "  continued",
+                       "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+  });
+
+  it("RED->GREEN: a table's spell is broken by any block boundary, not only by a blank line", () => {
+    // ⚠ THE ADVERSARIAL SWEEP'S SHARPEST FINDING about this session's own guard. `inPipeTable`
+    // was cleared ONLY on a blank line, so a comment, a fence or a heading between a table and
+    // a genuine line block left the guard armed and the heading below was never recovered.
+    // These are RESIDUALS rather than regressions — the pre-Session-185 build loses them too —
+    // but they are losses this session's own state introduced the possibility of fixing.
+    //
+    // ⚠ The phantom risk was measured before the flag was cleared more eagerly, and there is
+    // none: a comment, a fence and a heading each really do END the table, so the `| …` run
+    // below them is a fresh line block. Every document here renders the heading.
+    const tail = ["| line one", "  continued", "# ATX Below"];
+    expect(
+      findHeadings(doc("| a | b |", "|---|---|", "<!-- note -->", ...tail)).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    expect(
+      findHeadings(doc("| a | b |", "|---|---|", "<!-- note", "still note -->", ...tail))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    expect(
+      findHeadings(doc("| a | b |", "|---|---|", "```", "code", "```", ...tail)).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    // …and the same holds when what follows the boundary is a table BODY row rather than a
+    // fresh line block — measured, quarto renders the heading in all three.
+    const bodyTail = ["| 1 | 2 |", "  continued", "# ATX Below"];
+    expect(
+      findHeadings(doc("| a | b |", "|---|---|", "<!-- x -->", ...bodyTail)).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    expect(
+      findHeadings(doc("| a | b |", "|---|---|", "```", "code", "```", ...bodyTail))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    expect(
+      findHeadings(doc("| a | b |", "|---|---|", "# Heading", ...bodyTail)).map((h) => h.text),
+    ).toEqual(["Heading", "ATX Below"]);
+    // CONTROL — a CONTIGUOUS table must still disarm the rule. If the flag is cleared too
+    // eagerly this returns the phantom that RED 4 exists to prevent.
+    expect(
+      findHeadings(doc("| a | b |", "|---|---|", "| 1 | 2 |", "  continued", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual([]);
+  });
 });
 
 describe("buildOutline — against the sample.qmd fixture", () => {
