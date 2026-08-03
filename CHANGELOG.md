@@ -7,6 +7,69 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-02 · [ad hoc] Session 183 — IMPLEMENTATION: CLOSES_PARAGRAPH's remaining nine rows are gated on an OPEN paragraph (SHIPPED)
+
+Session 182 gated the thematic-break row on `!paragraphOpen` and deliberately left the other
+nine ungated, because gating them blind is the heading-DELETING direction. This audits all
+nine against the real renderer and gates them.
+
+**The defect was never one row.** All nine ignored `paragraphOpen`, so every exempt construct
+closed a paragraph even where pandoc treats it as LAZY CONTINUATION. Measured over **241
+documents** rendered through the real `quarto render` path — three corpora (104 one-line
+constructs, 42 well-formed multi-line constructs, 96 container variants), scored per HEADING
+with both error directions reported separately:
+
+| | phantoms (we invent) | lost (we delete) |
+|---|---|---|
+| before | 133 | 21 |
+| after | **68** | **21** |
+
+**65 phantoms removed, ZERO added, ZERO real headings lost.** All 21 "lost" are EMPTY-titled
+headings this model deliberately declines to emit — unchanged, and not lost content.
+
+**Gating alone is neither sufficient nor safe.** Three construct classes genuinely interrupt an
+open paragraph and are hoisted ahead of the bail, each because gating it was measured to delete
+real headings:
+
+* **HTML block openers** — `<div>` makes the prose above it stop being a `<p>`; `<span>` does not.
+* **Raw TeX ENVIRONMENTS** (`\begin{…}`/`\end{…}`) but **not** bare macros — `\begin{center}`
+  interrupts, `\clearpage` does not. The `\end` half matters: it is the line directly above
+  the heading.
+* **CLOSER lines** (`:::`, `...`) — structural, and the subtlest finding: a closer follows its
+  own construct's CONTENT, so to a per-line scanner with no block nesting it ALWAYS looks like
+  it faces an open paragraph. Gating them deleted four real headings.
+
+And the gate is **suspended inside a block quote**: measured, `> quoted one` / `    ---` /
+`# ATX Below` renders `<h2>quoted one</h2><h1>ATX Below</h1>`, because in a quote's lazy
+continuation a 4-space-indented `---` IS a setext underline. This model has no block-quote
+context and got that right only by accident; the gate would have turned the accident into a
+deleted heading.
+
+**Five of Session 180's DISCLOSED RESIDUAL phantoms are now fixed**, and their stated
+justification is refuted: they claimed tightening would delete `SESSION_NOTES.md`'s "Session 83
+Handoff Evaluation" heading. Rendered, quarto swallows that line into the paragraph above it —
+it was a phantom, caused by a `|` inside an inline-code regex firing the wide `/\|/` row.
+
+**Two instrument defects were found and fixed**, both by the adversarial pass, both in the
+harness inherited from Session 182. `<pre>` was tokenised as an empty `p:`; far worse, container
+tags were paired with a lazy closing match, so one match consumed a whole `<blockquote>`/`<table>`
+and every heading nested inside it vanished from the data — reporting "quarto emits no heading"
+where quarto emits one, the exact direction that makes a heading-deleting change look safe.
+Every figure taken before the fix was void and re-measured.
+
+TDD: three behaviours RED→GREEN, each RED confirmed for the right reason; two of the three REDs
+were regressions this session's own GREEN introduced, one caught by Session 180's pre-existing
+pins and one by a shape the adversarial pass found that neither corpus contained. Adversarial
+pass: 13 mutants, 7 survivors on the first run, every one then MEASURED wrong against quarto
+(none was more correct than the shipped code) and pinned; re-run 13/13 killed.
+
+Verification: check-types 0, compile 0, compile-tests 0, `npm test` **1730 / 65**,
+`test:oracle` exit 0 (131 documents, 124 agree / 4 lost TP / 3 cardinal FP / 0 unrelated —
+byte-identical to Sessions 180, 181 and 182, so zero diagnostics regression), `check-package`
+OK 42 files / 5.51 MB, **`test:integration` 497 passing, exit 0** in a real Extension
+Development Host. Repo control over 109 tracked md/qmd files and all four views: exactly ONE
+change, the `SESSION_NOTES.md` phantom above, removed. Learnings #235–#238.
+
 ### 2026-08-02 · [ad hoc] Session 182 — IMPLEMENTATION: an `=` run is paragraph text, and a thematic break needs a closed paragraph (SHIPPED)
 
 `CLOSES_PARAGRAPH` carried two rows that had never been scored individually — Session 180
