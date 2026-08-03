@@ -7,6 +7,62 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-02 · [ad hoc] Session 184 — IMPLEMENTATION: CLOSES_PARAGRAPH's rows match the construct, and two "obvious" narrowings are refuted (SHIPPED)
+
+Session 183 fixed *when* `CLOSES_PARAGRAPH`'s rows apply. This session asked *what* they
+match — and found that the more important defect ran the other way.
+
+**Session 183 shipped a heading-DELETING regression, and this fixes 20 of it.** Its gate
+hoisted `HTML_BLOCK_OPEN` ahead of the `paragraphOpen` bail, but that constant carries
+CommonMark §4.6 **condition 6** only, so `<pre>`, `<script>`, `<style>` and `<textarea>` —
+condition 1 — fell through to the gated wide row: their opener closed the paragraph, their
+BODY line opened a new one, and their CLOSER was suppressed by the bail, leaving a paragraph
+open across the heading below. `<pre>` / `code` / `</pre>` / `# ATX Below` renders
+`<pre>code</pre><h1>ATX Below</h1>`; we rendered nothing. Those four tags now sit in the
+hoisted interrupter, where measurement says they belong.
+
+**One narrowing shipped.** The link-reference row excludes only a VALID footnote label — `^`
+then one or more characters that are neither whitespace nor another `^` — a rule derived from
+an exhaustive sweep of 17 label spellings on the real render path.
+
+**Two narrowings were built, scored clean, and then REFUTED by an adversarial sweep.** Both
+the raw-HTML and raw-TeX narrowings scored **ZERO headings lost over 476 rendered documents**
+and were measured **deleting 31 real headings** once 121 shapes no corpus contained were
+rendered: `<meta>`, `<svg>`, `<button>`, `<video>`, `<audio>`, `<canvas>`, `<object>`,
+`<embed>`, `<noscript>`, `<map>`, `<output>`, `<progress>`, `<area>`, `<applet>`, `<ins>`,
+`<del>` all open raw HTML blocks outside CommonMark §4.6, and `\vspace{1em}`,
+`\usepackage{…}`, `\newcommand{…}`, `\setlength{…}`, `\definecolor{…}`, `\newpage[2]`,
+`\newpage{}`, `\clearpage\newpage` are all raw BLOCKS despite carrying braces. Pandoc
+classifies both by NAME, not by the shape of the line. Both rows reverted to wide.
+
+**Three prescriptions the filed item proposed are measured WRONG**, each now pinned: requiring
+a LEADING pipe deletes 4 real headings (pandoc pipe tables need no leading or trailing pipe);
+excluding a LONE `+` deletes 6 (a bare `+` is an empty list item and really is block-level);
+and borrowing `OPENS_FRESH_BLOCK`'s link-ref fragment deletes a 5th by rejecting `[]:`.
+
+**The mutation pass found a real question and the answer was no.** Forbidding the raw-TeX
+row's 0-3 space indent is measured MORE correct at top level (3 phantoms) and wrong inside a
+LIST ITEM, where content sits at column 2 and `\clearpage` really is at its block's column 0.
+It deleted 1 real heading, so it was implemented, measured and rejected.
+
+**THE MEASUREMENT.** 597 documents rendered through the real `quarto render` path (quarto
+1.7.33), scored per heading with the two error directions separate:
+
+| build | phantoms | lost headings |
+|---|---|---|
+| pre-Session-183 | 325 | 38 |
+| Session 183 (baseline) | 186 | 78 |
+| Session 184 first try | 143 | 107 (rejected) |
+| **SHIPPED** | **180** | **57** |
+
+Better than the baseline in BOTH directions, and **zero deletions introduced by this session**
+(provenance established per document against three builds). Over the repo's 110 tracked
+md/qmd files all four views are byte-identical, with the control proven EFFECTIVE by
+injection. Mutation pass: 18 mutants, 0 survivors, restore verified by content. Oracle exit 0
+— 131 documents, 124 agree, 4 lost TP, 3 CARDINAL FP, byte-identical to S180–S183.
+`check-package` OK, 42 files / 5.51 MB. Integration suite **498 passing, exit 0**, with the
+new Outline pin watched by name in the captured log.
+
 ### 2026-08-02 · [ad hoc] Session 183 — IMPLEMENTATION: CLOSES_PARAGRAPH's remaining nine rows are gated on an OPEN paragraph (SHIPPED)
 
 Session 182 gated the thematic-break row on `!paragraphOpen` and deliberately left the other
