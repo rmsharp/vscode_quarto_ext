@@ -1,0 +1,30 @@
+# Real Section
+
+Prose closed by a blank line below it.
+
+    an indented code block, with the paragraph CLOSED above it
+
+# Below Indented Code
+
+line one of an open paragraph
+line two, so a paragraph is OPEN
+	an indented line here is LAZY CONTINUATION, not code
+# Not A Heading At All
+
+more prose, and a paragraph is OPEN again
+\begin{center}
+a raw TeX ENVIRONMENT interrupts an open paragraph
+\end{center}
+# Below A TeX Environment
+
+prose with a paragraph OPEN above the div
+::: {.note}
+a fenced div's body
+:::
+# Below A Div Closer
+
+> quoted one
+    ---
+# Below A Quoted Setext
+
+## Genuine Child

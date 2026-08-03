@@ -12,6 +12,10 @@ const SETEXT = path.resolve(ROOT, "test/fixtures/setext.qmd");
 const BLANK_BEFORE_HEADER = path.resolve(ROOT, "test/fixtures/blank-before-header.qmd");
 const SETEXT_FRESH_BLOCK = path.resolve(ROOT, "test/fixtures/setext-fresh-block.qmd");
 const CLOSES_PARAGRAPH_FIXTURE = path.resolve(ROOT, "test/fixtures/closes-paragraph.qmd");
+const CLOSES_PARAGRAPH_GATE_FIXTURE = path.resolve(
+  ROOT,
+  "test/fixtures/closes-paragraph-gate.qmd",
+);
 
 /**
  * Ask the editor for the document symbols the same way the Outline view and
@@ -344,6 +348,58 @@ describe("Quarto: Document outline (symbols)", () => {
     // …and the control the fix must NOT delete: a heading below a break with a CLOSED
     // paragraph above it is real, and is the assertion that fails if the gate is inverted.
     assert.ok(flat(symbols).includes("Below A Thematic Break"));
+  });
+
+  it("gating CLOSES_PARAGRAPH on an open paragraph reaches the real Outline provider (Session 183)", async () => {
+    // WIRING EVIDENCE, through the provider the Outline view, breadcrumbs, sticky scroll and
+    // Ctrl+T actually call. The fixture's premise is MEASURED, not assumed — `quarto render`
+    // on these exact bytes emits, in order:
+    //   Real Section / Below Indented Code / Below A TeX Environment / (h2 quoted one) /
+    //   Below A Quoted Setext / Genuine Child
+    // and renders `# Not A Heading At All` as ordinary paragraph text.
+    //
+    // Against the pre-Session-183 build this document produced FOUR extra top-level sections
+    // (`Not A Heading At All` among them), because every row of `CLOSES_PARAGRAPH` fired
+    // regardless of whether a paragraph was open.
+    const symbols = await symbolsFor(CLOSES_PARAGRAPH_GATE_FIXTURE);
+    const flat = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flat(n.children)]);
+
+    // THE FIX: the phantom is gone, at every depth.
+    assert.ok(
+      !flat(symbols).includes("Not A Heading At All"),
+      "an indented line against an OPEN paragraph is lazy continuation, so the `#` line below it is not a heading",
+    );
+
+    // THE CONTROLS the gate must NOT delete — each is a real heading quarto renders, and each
+    // fails if the corresponding exemption is removed:
+    //   Below Indented Code      the paragraph is CLOSED, so the indent really is code
+    //   Below A TeX Environment  \begin{...}/\end{...} interrupts an open paragraph
+    //   Below A Quoted Setext    inside a block quote the gate is suspended
+    for (const real of ["Real Section", "Below Indented Code", "Below A TeX Environment", "Below A Quoted Setext"]) {
+      assert.ok(flat(symbols).includes(real), `${real} is a real heading and must survive the gate`);
+    }
+
+    // …and the real child still nests under its real parent.
+    const parent = symbols.find((s) => s.name === "Below A Quoted Setext");
+    assert.ok(parent, "Below A Quoted Setext must be a top-level section");
+    assert.deepStrictEqual(parent.children.map((c) => c.name), ["Genuine Child"]);
+
+    // TWO DISCLOSED RESIDUALS, asserted so they are a decision on the record rather than a
+    // surprise. (1) We still emit `Below A Div Closer`: a `:::` is exempt from the gate
+    // because a real div's closer follows its own body text, and gating it was measured to
+    // delete four real headings — so this phantom is the permitted side of that trade.
+    assert.ok(
+      flat(symbols).includes("Below A Div Closer"),
+      "KNOWN RESIDUAL: the closer-line exemption retains this phantom on purpose",
+    );
+    // (2) We do NOT emit quarto's `quoted one` — a SETEXT heading formed inside a block
+    // quote's lazy continuation, which this model cannot see, having no block-quote context.
+    // PRE-EXISTING and unchanged by this session.
+    assert.ok(
+      !flat(symbols).includes("quoted one"),
+      "KNOWN RESIDUAL: a setext heading inside a block quote is invisible to this model",
+    );
   });
 });
 
