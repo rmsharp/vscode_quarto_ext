@@ -525,3 +525,73 @@ describe("indexLabels — narrowing CLOSES_PARAGRAPH reaches the crossref index 
     }
   });
 });
+
+describe("indexLabels — the indented-HTML and line-block repairs reach the crossref index (Session 185)", () => {
+  // TEST-AFTER (labelled): these pass as a consequence of the repair in `core/qmd/model`, not
+  // from code written for them. `core/refs` is the SECOND consumer of `findHeadings`, and this
+  // session moves it in BOTH directions, so both are pinned — each measured end to end on the
+  // real render path against the RENDERED LINK, never merely against our own answer.
+  // `?@sec-…` is quarto's UNRESOLVED-reference marker; `href="#sec-…"` is a working link.
+
+  it("RECOVERS the {#sec-} targets below an INDENTED HTML block and a LINE BLOCK", () => {
+    // Measured — quarto renders both headings and both references RESOLVE:
+    //   prose one / prose two / (4sp)<div> / # Real {#sec-html}   ->  href="#sec-html"
+    //   | line one / (2sp)continued / | line three / # Real {#sec-lb}  ->  href="#sec-lb"
+    // Session 183's gate deleted both headings, so each crossref target vanished with it:
+    // completion stopped offering the id and go-to-definition stopped resolving it, for links
+    // quarto renders perfectly well. That is the cost of a deleted heading, made concrete.
+    const html = [
+      "prose one",
+      "prose two",
+      "    <div>", //                  indented past CommonMark's 3-space cap
+      "# Real {#sec-html}",
+      "",
+      "See @sec-html for details.",
+    ].join("\n");
+    expect(indexLabels(html).map((l) => l.id)).toEqual(["sec-html"]);
+    expect(findLabel(html, "sec-html")).not.toBeNull();
+
+    const lineBlock = [
+      "| line one",
+      "  continued", //                the continuation that used to open a paragraph
+      "| line three",
+      "# Real {#sec-lb}",
+      "",
+      "See @sec-lb for details.",
+    ].join("\n");
+    expect(indexLabels(lineBlock).map((l) => l.id)).toEqual(["sec-lb"]);
+    expect(findLabel(lineBlock, "sec-lb")).not.toBeNull();
+  });
+
+  it("does NOT invent a {#sec-} target where the line block cannot open (the phantom direction)", () => {
+    // The two guards, measured end to end. Quarto renders NO heading in either document and
+    // both references come out as `?@sec-…`, its unresolved marker — so offering these ids
+    // would be offering a crossref target for a link quarto has already rendered broken.
+    //
+    //   a line block against an OPEN paragraph does not open at all      -> ?@sec-ph
+    //   a continuation-shaped line under a pipe TABLE is paragraph text  -> ?@sec-tbl
+    const inParagraph = [
+      "prose one",
+      "prose two",
+      "| line one",
+      "  continued",
+      "# Phantom {#sec-ph}",
+      "",
+      "See @sec-ph for details.",
+    ].join("\n");
+    expect(indexLabels(inParagraph)).toEqual([]);
+    expect(findLabel(inParagraph, "sec-ph")).toBeNull();
+
+    const underTable = [
+      "| a | b |",
+      "|---|---|",
+      "| 1 | 2 |",
+      "  continued",
+      "# Phantom {#sec-tbl}",
+      "",
+      "See @sec-tbl for details.",
+    ].join("\n");
+    expect(indexLabels(underTable)).toEqual([]);
+    expect(findLabel(underTable, "sec-tbl")).toBeNull();
+  });
+});
