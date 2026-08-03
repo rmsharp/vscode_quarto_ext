@@ -177,16 +177,33 @@ const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
  * ordinary paragraph TEXT, in every position where that entry was reachable (measured — 30
  * phantom headings). "When in doubt, add it" applies to constructs you have not measured,
  * not to ones you have measured to be paragraph content.
+ *
+ * ⚠ **A row must match the CONSTRUCT, not merely a byte the construct happens to contain
+ * (Session 184).** Session 183 fixed *when* these rows apply; three of them still matched
+ * things that were not the construct at all, and each narrowing below is scored on its own
+ * against the real render path in BOTH directions — because narrowing is the DELETING
+ * direction and a row that is one character too narrow drops a real heading. Two narrowings
+ * that look obvious are MEASURED WRONG and are deliberately absent:
+ *
+ *   - the pipe row cannot require a LEADING pipe (`OPENS_FRESH_BLOCK`'s form). Pandoc pipe
+ *     tables need neither leading nor trailing pipes, so a table's last row can be `c | d`;
+ *     requiring one deletes 4 real headings. A single pipe-bearing line is a table only if a
+ *     DELIMITER row follows, which no per-line predicate can see — so the row stays wide and
+ *     its phantoms are the price of having no table state.
+ *   - the grid-border row must keep matching a LONE `+`. A bare `+` is an EMPTY LIST ITEM,
+ *     which really is block-level: `+` / `# ATX Below` renders `<ul>` then `<h1>ATX Below</h1>`
+ *     (measured). Excluding it — the "obvious" reading of a bullet marker as a defect —
+ *     deletes 6 real headings.
  */
 const CLOSES_PARAGRAPH: readonly RegExp[] = [
   /\|/, //                                                   a pipe-table row, anywhere on the line
   /^ {0,3}\+[-+=: ]*$/, //                                   a grid-table border, which carries NO pipe
   /^ {0,3}:{3,}/, //                                         a fenced-div / callout fence
   /^(?: {4,}|\t)\S/, //                                      an indented code block, spaces OR tab
-  /^ {0,3}\[[^\]]*\]:/, //                                   a link-reference (or footnote) definition
-  /^ {0,3}</, //                                             a raw HTML block
+  /^ {0,3}\[(?!\^)[^\]]*\]:/, //                             a link-reference definition — NOT `[^1]:`
+  /^ {0,3}<(?:!--|\?)/, //                                   an HTML comment / processing instruction
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
-  /^ {0,3}\\[a-zA-Z]/, //                                    a raw TeX block (`\clearpage`, `\newpage`)
+  /^ {0,3}\\[a-zA-Z]+[ \t]*$/, //                            a BARE raw-TeX macro ALONE on its line
   /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator
 ];
 /**
@@ -331,12 +348,20 @@ const OPENS_FRESH_BLOCK: readonly RegExp[] = [
  * so it is tested before the `paragraphOpen` bail. `prose` / `<div>` / `Title` / `===`
  * renders `<h1>Title</h1>`, where every other construct in this file renders nothing.
  *
- * The tag list is CommonMark §4.6 condition 6 and is deliberately CLOSED: an INLINE tag
- * does not open a block, so `<span>hi</span>` / `Title` / `===` renders no heading at all
- * (measured). `CLOSES_PARAGRAPH`'s bare `/^ {0,3}</` would match both and fabricate one.
+ * The tag list is CommonMark §4.6 conditions **1 and 6**, and is deliberately CLOSED: an
+ * INLINE tag does not open a block, so `<span>hi</span>` / `Title` / `===` renders no heading
+ * at all (measured). `CLOSES_PARAGRAPH`'s bare `/^ {0,3}</` would match both and fabricate one.
+ *
+ * ⚠ **The four condition-1 tags are load-bearing, not tidiness (Session 184).** Carrying only
+ * condition 6 left `<pre>`, `<script>`, `<style>` and `<textarea>` to the gated wide row, where
+ * Session 183's `paragraphOpen` bail DELETED the heading below every such block: the opener
+ * closed the paragraph, the block's BODY line opened a new one, and the CLOSER `</pre>` was
+ * then suppressed by the bail. Measured — `<pre>` / `code` / `</pre>` / `# ATX Below` renders
+ * `<pre>code</pre><h1>ATX Below</h1>`, and so does the same block pressed against a two-line
+ * paragraph. 20 real headings, which the pre-Session-183 build got right.
  */
 const HTML_BLOCK_OPEN =
-  /^ {0,3}<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)/i;
+  /^ {0,3}<\/?(?:pre|script|style|textarea|address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)/i;
 /**
  * Whether `line` begins a fresh block, so the line BELOW it starts a new paragraph and
  * may therefore be claimed by a setext underline — see `OPENS_FRESH_BLOCK`.

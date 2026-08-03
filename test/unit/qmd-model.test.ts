@@ -1389,6 +1389,135 @@ describe("CLOSES_PARAGRAPH's remaining rows are gated on an OPEN paragraph (Sess
   });
 });
 
+describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("RED->GREEN: a <pre>/<script>/<style>/<textarea> block INTERRUPTS an open paragraph", () => {
+    // ⚠ A REGRESSION Session 183 SHIPPED, measured here against the pre-Session-183 build.
+    // S183 gated `CLOSES_PARAGRAPH` on `paragraphOpen` and hoisted `HTML_BLOCK_OPEN` ahead of
+    // that bail — but `HTML_BLOCK_OPEN` carries only CommonMark §4.6 **condition 6**, and
+    // `pre`/`script`/`style`/`textarea` are **condition 1**. So a `<pre>` block reached the
+    // gated wide row `/^ {0,3}</` instead: its opener closed the paragraph, its BODY line
+    // opened a new one, and its CLOSER `</pre>` was then suppressed by the bail — leaving a
+    // paragraph open across the heading below. Measured on the real render path
+    // (`quarto render --to html --no-execute`, quarto 1.7.33), the heading is REAL:
+    //
+    //   <pre> / code / </pre> / # ATX Below  ->  <pre>code</pre><h1 id="atx-below">ATX Below</h1>
+    //
+    // and it is real in EVERY position — including against a genuinely open paragraph, which
+    // is what makes the hoisted clause (not the gated list) the correct home:
+    //
+    //   line one / line two / <script> / var x = 1; / </script> / # ATX Below -> <h1>ATX Below</h1>
+    //
+    // 20 real headings across the four corpora; the pre-S183 build lost NONE of them.
+    for (const tag of ["pre", "script", "style", "textarea"]) {
+      expect(
+        findHeadings(doc(`<${tag}>`, "body", `</${tag}>`, "# ATX Below")).map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+      // …against an OPEN paragraph too — quarto emits the heading there as well (measured),
+      // which is why these tags belong ahead of the `paragraphOpen` bail and not inside it.
+      expect(
+        findHeadings(doc("line one", "line two", `<${tag}>`, "body", `</${tag}>`, "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+  });
+
+  it("RED->GREEN: an INLINE `<` line is prose — only `<!--` and `<?` close a paragraph", () => {
+    // The wide row `/^ {0,3}</` matched anything opening with `<`, so an inline tag, an
+    // autolink, and a line that is not markup at all each "closed a paragraph" and let the
+    // `#` line below through as a heading quarto never renders. Measured, all with NO
+    // paragraph open above them (the only position where this row is still reachable after
+    // Session 183's gate):
+    //
+    //   <span>inline</span> / # ATX Below  -> <p>&lt;span&gt;inline&lt;/span&gt; # ATX Below</p>
+    //   <not-a-real-tag     / # ATX Below  -> <p>…</p>          no heading
+    //   <http://example.com>/ # ATX Below  -> <p><a …>…</a> …</p>  no heading
+    //   <3 apples           / # ATX Below  -> <p>…</p>          no heading
+    //
+    // `HTML_BLOCK_OPEN` above already admits every tag that really does open a block, and it
+    // is tested BEFORE the bail, so narrowing this row costs nothing there.
+    for (const above of ["<span>inline</span>", "<em>x</em>", "<not-a-real-tag",
+                         "<http://example.com>", "<3 apples"]) {
+      expect(findHeadings(doc(above, "# ATX Below")).map((h) => h.text)).toEqual([]);
+      expect(findHeadings(doc("line one", "", above, "# ATX Below")).map((h) => h.text))
+        .toEqual([]);
+    }
+    // The two shapes this row is narrowed TO — measured to close, but only where no paragraph
+    // is open, which is exactly what a GATED row means:
+    //   <!-- a comment --> / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
+    //   <?php echo 1; ?>   / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
+    expect(findHeadings(doc("<?php echo 1; ?>", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    // ⚠ `<!DOCTYPE html>` and `<![CDATA[ x ]]>` are CommonMark HTML blocks (conditions 4 and 5)
+    // and are deliberately NOT admitted: on the real quarto path neither closes a paragraph —
+    //   <!DOCTYPE html> / # ATX Below -> <p>&lt;!DOCTYPE html&gt; # ATX Below</p>  (measured)
+    // Reading the spec instead of the renderer would have added both and kept two phantoms.
+    expect(findHeadings(doc("<!DOCTYPE html>", "# ATX Below")).map((h) => h.text)).toEqual([]);
+    expect(findHeadings(doc("<![CDATA[ x ]]>", "# ATX Below")).map((h) => h.text)).toEqual([]);
+  });
+
+  it("RED->GREEN: a `[^1]:` FOOTNOTE definition is not a link reference and does not close", () => {
+    // A footnote definition ABSORBS the line below it as its own body's lazy continuation, so
+    // the `#` line never becomes a heading. A link-reference definition is invisible metadata
+    // and the heading below it is real. Measured:
+    //
+    //   [^1]: a footnote body   / # ATX Below -> (no heading at all)
+    //   [x]: http://example.com / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
+    //
+    // ⚠ THE NARROWING IS A NEGATIVE LOOKAHEAD, NOT `OPENS_FRESH_BLOCK`'s `\[[^\^\]][^\]]*\]:`.
+    // Borrowing that fragment is the obvious one-line fix and it is MEASURED WRONG here: it
+    // demands at least one character before the closing bracket, so it rejects `[]:` — which
+    // really does close (`[]: http://example.com` / `# ATX Below` renders the heading). Scored
+    // over the four corpora, the borrowed form DELETES 4 real headings while this one deletes
+    // none. That is Learning #233 as a number: a fragment lifted from the other list is
+    // unmeasured on THIS predicate's question, whatever it proved on its own.
+    expect(findHeadings(doc("[^1]: a footnote body", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
+    expect(findHeadings(doc("[^1]: a footnote body", "    continued", "# ATX Below"))
+      .map((h) => h.text)).toEqual([]);
+    expect(findHeadings(doc("line one", "", "[^1]: a footnote body", "# ATX Below"))
+      .map((h) => h.text)).toEqual([]);
+    // The three controls that keep the narrowing honest — each measured to close.
+    expect(findHeadings(doc("[x]: http://example.com", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    expect(findHeadings(doc("[]: http://example.com", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    // A caret that is not the FIRST character is an ordinary label, not a footnote.
+    expect(findHeadings(doc("[a^b]: http://example.com", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+  });
+
+  it("RED->GREEN: an inline TeX macro with ARGUMENTS is prose; a bare macro is a block", () => {
+    // `\clearpage` and `\newpage` are raw-TeX blocks and the heading below them is real;
+    // `\textbf{bold}` is INLINE, so pandoc wraps it in a paragraph that swallows the `#` line.
+    // The row could not tell them apart. Measured, with no paragraph open above:
+    //
+    //   \clearpage      / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
+    //   \newpage        / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
+    //   \textbf{bold}   / # ATX Below -> <p><strong>bold</strong> # ATX Below</p>   no heading
+    //   \emph{a} and more prose / # ATX Below -> <p>…</p>                           no heading
+    //
+    // The distinguishing byte is the ARGUMENT: a bare macro stands alone on its line. The
+    // ENVIRONMENT form `\begin{…}`/`\end{…}` also carries braces but is handled by
+    // `RAW_TEX_ENV_OPEN` ahead of the bail (Session 183), so narrowing here does not touch it.
+    expect(findHeadings(doc("\\textbf{bold}", "# ATX Below")).map((h) => h.text)).toEqual([]);
+    expect(findHeadings(doc("\\emph{a} and more prose", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
+    expect(findHeadings(doc("line one", "", "\\textbf{bold}", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
+    // Controls: the bare macros must still close, and the environment must still interrupt.
+    expect(findHeadings(doc("\\clearpage", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    expect(findHeadings(doc("\\newpage", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    expect(
+      findHeadings(doc("line one", "line two", "\\begin{center}", "text", "\\end{center}",
+                       "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+  });
+});
+
 describe("buildOutline — against the sample.qmd fixture", () => {
   const fixture = readFileSync(
     path.resolve(__dirname, "../fixtures/sample.qmd"),
