@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S184
+date: 2026-08-02
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD). CLOSES_PARAGRAPH's patterns are too WIDE (src/core/qmd/model.ts:181-191) -- NARROW the rows behind the 68 phantom headings S183 measured over 241 rendered documents, each row scored on its own against the real quarto render path in BOTH error directions. S183 fixed WHEN the rows apply; this fixes WHAT they match. Operator-selected at Phase 0 via AskUserQuestion (it was S183's ranked #1). DIRECTION OF HAZARD: narrowing is the heading-DELETING direction. DO NOT copy OPENS_FRESH_BLOCK's narrowed forms (Learnings #227/#233).
+```
+
+```handoff
 session: S183
 date: 2026-08-02
 status: complete
