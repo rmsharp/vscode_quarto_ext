@@ -195,13 +195,36 @@ const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
  *     (measured). Excluding it — the "obvious" reading of a bullet marker as a defect —
  *     deletes 6 real headings.
  */
+/**
+ * A line whose entire content is HTML comments — one or more, abutting or space-separated,
+ * where the LAST one may still be open at end of line.
+ *
+ * ⚠ **Narrower than a bare `<!--`, and the difference is measured in BOTH directions.** The
+ * ordinary whole-line comment never reaches `closesParagraph` at all — `COMMENT_FULL_LINE`
+ * and `COMMENT_OPEN` each `continue` past it — so the only lines this pattern is ever asked
+ * about are the ones those two miss, and there quarto splits them by whether any NON-comment
+ * content remains:
+ *
+ *   `<!-- a --><!-- b -->`  -> `<h1>ATX Below</h1>`   the line renders to nothing
+ *   `<!-- a --> <!-- b -->` -> `<h1>ATX Below</h1>`
+ *   `<!-- a --><!-- b`      -> `<h1>ATX Below</h1>`   (a second comment opens and runs on)
+ *   `<!-- a --> tail`       -> `<p>tail # ATX Below</p>`   NO heading — `tail` is prose
+ *   `<!-- a --><!-- b --> tail` -> NO heading
+ *
+ * A bare `/^ {0,3}<!--/` fabricated a heading on the last two; requiring the whole line to be
+ * comments keeps the first three, which a plain `<?`-only row deleted. Both errors were live
+ * at some point during Session 184 and each was caught by the other's control assertion.
+ */
+const COMMENT_ONLY_LINE =
+  /^ {0,3}(?:<!--(?:(?!-->)[\s\S])*-->[ \t]*)*<!--(?:(?!-->)[\s\S])*(?:-->[ \t]*)?$/;
 const CLOSES_PARAGRAPH: readonly RegExp[] = [
   /\|/, //                                                   a pipe-table row, anywhere on the line
   /^ {0,3}\+[-+=: ]*$/, //                                   a grid-table border, which carries NO pipe
   /^ {0,3}:{3,}/, //                                         a fenced-div / callout fence
   /^(?: {4,}|\t)\S/, //                                      an indented code block, spaces OR tab
   /^ {0,3}\[(?!\^)[^\]]*\]:/, //                             a link-reference definition — NOT `[^1]:`
-  /^ {0,3}<(?:!--|\?)/, //                                   an HTML comment / processing instruction
+  COMMENT_ONLY_LINE, //                                      a line that is NOTHING BUT comments
+  /^ {0,3}<\?/, //                                           a processing instruction (`<?php …`)
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
   /^ {0,3}\\[a-zA-Z]+[ \t]*$/, //                            a BARE raw-TeX macro ALONE on its line
   /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator

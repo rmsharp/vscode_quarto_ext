@@ -1516,6 +1516,86 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
                        "# ATX Below")).map((h) => h.text),
     ).toEqual(["ATX Below"]);
   });
+
+  it("RED->GREEN: an HTML comment with TRAILING CONTENT is prose, and was the row's only reach", () => {
+    // Found by this session's own mutation pass, which asked Learning #232's question — is the
+    // MUTANT more correct? — and for once the answer was yes. Dropping `<!--` from the narrowed
+    // row above changed nothing across all 476 corpus documents, because a comment normally
+    // never reaches `closesParagraph` at all: `COMMENT_FULL_LINE` skips a whole-line comment and
+    // `COMMENT_OPEN` opens a multi-line skip region, and BOTH `continue` past it.
+    //
+    // The one shape that DOES reach it is a comment with trailing content on the same line —
+    // it closes, so no region opens, and it is not a full-line comment either. There the row
+    // was measured WRONG in the phantom direction:
+    //
+    //   <!-- x --> tail    / # ATX Below -> <p>tail # ATX Below</p>   NO heading
+    //   (3sp)<!-- x --> tail / # ATX Below -> <p>tail # ATX Below</p> NO heading
+    //   <!-- a --><!-- b --> / # ATX Below -> <h1>ATX Below</h1>      (a FULL-LINE comment,
+    //                                          handled by the skip region, not by this row)
+    //
+    // So the `<!--` alternative only ever fired where it should not have. The row keeps `<?`
+    // alone, which IS measured to close: `<?php echo 1; ?>` / `# ATX Below` renders the heading.
+    expect(findHeadings(doc("<!-- x --> tail", "# ATX Below")).map((h) => h.text)).toEqual([]);
+    expect(findHeadings(doc("   <!-- x --> tail", "# ATX Below")).map((h) => h.text)).toEqual([]);
+    expect(findHeadings(doc("<!-- a --><!-- b --> tail", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
+    // ⚠ The OPPOSITE direction, which is why the row could not simply be deleted. A line that
+    // is nothing BUT comments renders to nothing, so the heading below it is REAL — and these
+    // three shapes all miss `COMMENT_FULL_LINE`, so this row is the only thing that sees them.
+    // Deleting the alternative outright (the first attempt) lost all three; each was caught by
+    // this assertion, not by the corpus.
+    expect(findHeadings(doc("<!-- a --><!-- b -->", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    expect(findHeadings(doc("<!-- a --> <!-- b -->", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    // ⚠ KNOWN RESIDUAL, PRE-EXISTING and NOT this session's: a line holding a COMPLETE comment
+    // followed by an UNTERMINATED one. Quarto renders `<h1>ATX Below</h1>`; we render nothing,
+    // and we did so identically on the pre-Session-183 and pre-Session-184 builds (probed).
+    // The cause is one level below this list: the region scanner asks `COMMENT_CLOSE.test(line)`,
+    // which is "does the line contain `-->` ANYWHERE", so the first comment's terminator is read
+    // as closing the second one and no skip region opens. The `still -->` line below is then
+    // scanned as prose and re-opens a paragraph across the heading. Fixing it means tracking the
+    // comment delimiter POSITION, not this row — filed in BACKLOG.md.
+    expect(findHeadings(doc("<!-- a --><!-- b", "still -->", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
+    // …and the ordinary whole-line comment, which the skip region handles before this row.
+    expect(findHeadings(doc("<!-- a comment -->", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+  });
+
+  it("test-after (mutation survivors M15/M16/M17): the three decisions nothing else pins", () => {
+    // These pin behaviour this session deliberately KEPT. Each mutant survived the suite until
+    // now, and each was then measured against the real renderer, where the mutant is WRONG.
+    //
+    // M15 — the raw-TeX row's trailing-whitespace tolerance is load-bearing, not cosmetic:
+    //   `\clearpage ` (trailing space) / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
+    // Forbidding it (`/^ {0,3}\\[a-zA-Z]+$/`) deletes that heading.
+    expect(findHeadings(doc("\\clearpage ", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    expect(findHeadings(doc("\\clearpage\t", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    //
+    // M16 — the pipe row must NOT require a leading pipe, though `OPENS_FRESH_BLOCK` twenty
+    // lines away does. Pandoc pipe tables need neither leading nor trailing pipes, so a real
+    // table's LAST row can be `c | d`, and the heading under it is real:
+    //   a | b / --|-- / c | d / # ATX Below -> <table>…</table><h1>ATX Below</h1>
+    // Measured over the four corpora, requiring a leading pipe deletes 4 real headings. The
+    // cost of leaving it wide is that a bare `a | b` in prose keeps its phantom — a single
+    // pipe-bearing line is a table only if a DELIMITER row follows it, which no per-line
+    // predicate can see. That is the trade, and it is the permitted direction.
+    expect(findHeadings(doc("a | b", "--|--", "c | d", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    expect(findHeadings(doc("a | b", "--|--", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    //
+    // M17 — the grid-border row must keep matching a LONE `+`. The filed item called that a
+    // defect ("matches a LONE `+`, which is a bullet marker"); measurement REFUTES it, because
+    // an empty bullet marker really is block-level:
+    //   `+` / # ATX Below -> <ul><li></li></ul><h1 id="atx-below">ATX Below</h1>
+    // Excluding it deletes 6 real headings across the corpora.
+    expect(findHeadings(doc("+", "# ATX Below")).map((h) => h.text)).toEqual(["ATX Below"]);
+    expect(findHeadings(doc("+ ", "# ATX Below")).map((h) => h.text)).toEqual(["ATX Below"]);
+  });
 });
 
 describe("buildOutline — against the sample.qmd fixture", () => {
