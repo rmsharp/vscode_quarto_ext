@@ -234,6 +234,35 @@ const SETEXT_UNDERLINE_RUN = /^(?:=+|-+)[ \t]*$/;
  */
 const THEMATIC_BREAK = /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/;
 /**
+ * A raw TeX ENVIRONMENT delimiter — `\begin{…}` / `\end{…}`.
+ *
+ * ⚠ **Deliberately narrower than `CLOSES_PARAGRAPH`'s `/^ {0,3}\\[a-zA-Z]/` row**, because
+ * only the environment form interrupts an open paragraph. Measured on the real render path:
+ * `line one` / `line two` / `\begin{center}` / `text` / `\end{center}` / `# ATX Below` emits
+ * a real `<h1>ATX Below</h1>` and the prose loses its `<p>` wrapper, while the same document
+ * using a bare macro — `\clearpage` — renders `<p>line one line two # ATX Below</p>`, one
+ * paragraph with no heading at all. A bare macro is inline; an environment opens a block.
+ */
+const RAW_TEX_ENV_OPEN = /^ {0,3}\\(?:begin|end)\{[^}]*\}/;
+/**
+ * A line that can be a construct's CLOSING delimiter — a fenced-div/callout `:::` or a
+ * mid-document YAML block's `...`.
+ *
+ * ⚠ **These must be tested BEFORE the `paragraphOpen` bail, and that is not a refinement.**
+ * A closer follows its own construct's CONTENT — a div's `:::` sits under the div's body
+ * text, a YAML block's `...` under its last key — so to a per-line scanner with no block
+ * nesting a closer ALWAYS looks like it sits against an open paragraph. Quarto knows it is
+ * inside the construct and closes it; this model cannot. Gating them was measured to DELETE
+ * five real headings (a closed `::: {.note}` div, a closed callout, and a `---`/`...` YAML
+ * block each render the heading below their closer). Leaving them ungated retains their
+ * open-paragraph phantoms instead, which is the permitted direction.
+ */
+const CLOSER_LINE = /^ {0,3}(?::{3,}|\.\.\.[ \t]*$)/;
+/**
+ * A block-quote marker, for `paragraphQuoted` — see `closesParagraph`.
+ */
+const BLOCK_QUOTE_MARKER = /^ {0,3}>/;
+/**
  * Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`.
  *
  * `prevWasAtxHeading` recovers a block closure this model would otherwise lose. Pandoc
@@ -246,14 +275,22 @@ const THEMATIC_BREAK = /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/;
  * The `-` half additionally recovers a PRE-EXISTING lost true positive: `-` and `--` are
  * too short for the thematic-break row, so nothing here ever matched them.
  */
-function closesParagraph(line: string, paragraphOpen: boolean, prevWasAtxHeading: boolean): boolean {
+function closesParagraph(
+  line: string,
+  paragraphOpen: boolean,
+  prevWasAtxHeading: boolean,
+  paragraphQuoted: boolean,
+): boolean {
   if (prevWasAtxHeading && SETEXT_UNDERLINE_RUN.test(line)) {
     return true;
   }
-  if (!paragraphOpen && THEMATIC_BREAK.test(line)) {
+  if (HTML_BLOCK_OPEN.test(line) || RAW_TEX_ENV_OPEN.test(line) || CLOSER_LINE.test(line)) {
     return true;
   }
-  return CLOSES_PARAGRAPH.some((re) => re.test(line));
+  if (paragraphOpen && !paragraphQuoted) {
+    return false;
+  }
+  return THEMATIC_BREAK.test(line) || CLOSES_PARAGRAPH.some((re) => re.test(line));
 }
 /**
  * An indented code block (CommonMark §4.4) — 4+ spaces or a tab, then content.
@@ -637,6 +674,13 @@ function computeRegions(text: string): Regions {
   // `consecutiveBody`: that counter serves the setext disambiguation and folding it
   // into this one would change which setext underlines are recognized.
   let paragraphOpen = false;
+  // Whether the currently-open paragraph began inside a BLOCK QUOTE (Session 183). The
+  // `paragraphOpen` gate is suspended there: measured, a 4-space-indented `---` in a quote's
+  // lazy continuation IS a setext underline and closes the block, so the heading below it is
+  // real — a construct this model cannot see, having no block-quote context. Needs no
+  // clearing at the region-boundary resets: those set `paragraphOpen` to false, and the next
+  // body line recomputes this before it is read.
+  let paragraphQuoted = false;
   // Whether the line ABOVE was an ATX heading (Session 182). Pandoc swallows such a line
   // into a SETEXT heading when a `=`/`-` run follows it DIRECTLY, which closes the block;
   // this model declines that swallow, so it recovers the closure here instead. See
@@ -823,8 +867,14 @@ function computeRegions(text: string): Regions {
       // whether these bytes open a block or merely continue a paragraph depends on it.
       pendingFreshBlock = opensFreshBlock(line, paragraphOpen);
       prevIndentedCode = indented;
+      // A paragraph's "quotedness" is decided by the line that STARTS it, so it is computed
+      // only when no paragraph is open — see `closesParagraph`. Reading it here, before
+      // `paragraphOpen` is overwritten below, is what makes "the line that starts it" true.
+      if (!paragraphOpen) {
+        paragraphQuoted = BLOCK_QUOTE_MARKER.test(line);
+      }
       // `paragraphOpen` is read for the line ABOVE before being overwritten for this one.
-      paragraphOpen = !closesParagraph(line, paragraphOpen, prevLineWasAtxHeading);
+      paragraphOpen = !closesParagraph(line, paragraphOpen, prevLineWasAtxHeading, paragraphQuoted);
     }
   }
 

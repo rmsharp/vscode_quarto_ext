@@ -992,16 +992,24 @@ describe("an ATX heading cannot interrupt an open paragraph (Session 180)", () =
   });
 
   /**
-   * TEST-AFTER (labelled) — the DISCLOSED RESIDUALS.
+   * AMENDED BY SESSION 183 — these five were DISCLOSED RESIDUALS and are now FIXED.
    *
-   * `CLOSES_PARAGRAPH` is permissive on purpose, so it retains a pre-existing phantom
-   * wherever an exempt shape appears inside prose rather than as its own block. Each row
-   * below renders NO heading and we still report one. They are recorded, not fixed: every
-   * one is the safe direction, and tightening any of them costs a measured real heading
-   * (`SESSION_NOTES.md`'s own "Session 83 Handoff Evaluation" is what the precise-table
-   * variant deletes).
+   * As written, this pin asserted `["foo"]` for each row: a phantom heading we reported where
+   * quarto renders none. Session 183 gated `CLOSES_PARAGRAPH` on `paragraphOpen`, and every
+   * one of these shapes is an exempt construct appearing INSIDE prose rather than as its own
+   * block — which is exactly what the gate now declines. All five re-measured on the real
+   * render path at Session 183 (`quarto render --to html --no-execute`, quarto 1.7.33), each
+   * as `intro` / <row> / `# foo` / `trailing`: **all five render NO heading at all**, so the
+   * assertion flips from the phantom to the empty set.
    *
-   * This pin exists so the residuals are a decision on the record rather than a surprise.
+   * ⚠ THE OLD JUSTIFICATION FOR KEEPING THEM WAS REFUTED BY MEASUREMENT, and that is worth
+   * recording rather than quietly deleting. It read: "tightening any of them costs a measured
+   * real heading (`SESSION_NOTES.md`'s own 'Session 83 Handoff Evaluation' is what the
+   * precise-table variant deletes)." Rendered at Session 183, the real 14-line window around
+   * `SESSION_NOTES.md:3426` emits ONLY `<h2>Session 84 (superseded …)</h2>` — the "Session 83
+   * Handoff Evaluation" line is swallowed into the paragraph above it as literal text, because
+   * the prose line above contains a `|` inside an inline-code regex and the wide `/\|/` row
+   * fired on it. It was a PHANTOM, not a real heading, so nothing was ever traded away.
    */
   it.each([
     ["prose containing a pipe character", "Run `cat f | wc -l` to count."],
@@ -1009,9 +1017,9 @@ describe("an ATX heading cannot interrupt an open paragraph (Session 180)", () =
     ["a footnote definition, which the link-ref pattern also matches", "[^1]: a note"],
     ["an autolink on its own line", "<http://example.com>"],
     ["a 4-space LAZY continuation of an open paragraph", "    still the same paragraph"],
-  ])("KNOWN RESIDUAL: a phantom heading below %s is still reported", (_what, above) => {
+  ])("FIXED (Session 183): no phantom heading below %s", (_what, above) => {
     const text = doc("intro", above, "# foo", "trailing");
-    expect(findHeadings(text).map((h) => h.text)).toEqual(["foo"]);
+    expect(findHeadings(text).map((h) => h.text)).toEqual([]);
   });
 });
 
@@ -1256,6 +1264,67 @@ describe("an `=`/`-` run and a thematic break do NOT close a paragraph (Session 
     for (const run of ["**", "__", "--"]) {
       expect(findHeadings(doc("prose", "", run, "# ATX Below")).map((h) => h.text)).toEqual([]);
     }
+  });
+});
+
+describe("CLOSES_PARAGRAPH's remaining rows are gated on an OPEN paragraph (Session 183)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("RED->GREEN: an INDENTED line against an OPEN paragraph is lazy continuation, not code", () => {
+    // Session 182 shipped the `!paragraphOpen` gate for the THEMATIC-BREAK row only, and
+    // filed the identical defect on the INDENTED-CODE row `/^(?: {4,}|\t)\S/`. Measured on
+    // the real render path (`quarto render --to html --no-execute`, quarto 1.7.33): against
+    // an OPEN paragraph an indented line is a LAZY CONTINUATION of it, not a code block, so
+    // nothing closes and the `#` line below is swallowed as paragraph text —
+    //
+    //   line one / line two / <TAB>*** / # ATX Below -> <p>line one line two *** # ATX Below</p>
+    //   line one / <TAB>code    / # ATX Below        -> <p>line one code # ATX Below</p>
+    //
+    // while the SAME construct with the paragraph CLOSED really is a code block and the
+    // heading below it is real:
+    //
+    //   line one / (blank) / (4sp)code / # ATX Below -> <p>line one</p><pre>code</pre><h1>ATX Below</h1>
+    //
+    // `INDENTED_CODE_LINE`'s own docstring already states this rule and `opensFreshBlock`
+    // already applies it; this row did not.
+    expect(findHeadings(doc("line one", "line two", "\t***", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
+    expect(findHeadings(doc("line one", "\tcode", "# ATX Below")).map((h) => h.text)).toEqual([]);
+    expect(findHeadings(doc("line one", "line two", "    code", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
+    // The control that keeps the gate honest: with the paragraph CLOSED the heading is REAL.
+    expect(findHeadings(doc("line one", "", "    code", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+  });
+
+  it("RED->GREEN: the gate does NOT apply inside a BLOCK QUOTE, where the same bytes close", () => {
+    // The regression the gate introduces, found by an adversarial pass rather than by my own
+    // corpus — both of which held the CONTAINER dimension fixed at top level. Measured:
+    //
+    //   > quoted one / (4sp)--- / # ATX Below
+    //       -> <blockquote><h2 id="quoted-one">quoted one</h2><h1 id="atx-below">ATX Below</h1></blockquote>
+    //   > quoted one / # ATX Below            (causal control, construct removed)
+    //       -> <blockquote><p>quoted one # ATX Below</p></blockquote>   — NO heading
+    //
+    // Inside a block quote's LAZY CONTINUATION a 4-space-indented `---` really is a setext
+    // underline (it needs exactly one body line above, the same requirement as our own
+    // setext rule), and that heading closes the block, so `# ATX Below` is REAL. At top level
+    // the identical bytes render one absorbed paragraph and no heading — measured both ways:
+    //
+    //   line one /    (4sp)--- / # ATX Below        -> <p>…</p>  no heading
+    //   > quoted one / > quoted two / (4sp)--- / …  -> no heading (2-line paragraph)
+    //
+    // This model tracks no block-quote context, so it cannot SEE that setext heading — the
+    // pre-`paragraphOpen`-gate build got `ATX Below` right only by accident, because the
+    // indented-code row happened to close the paragraph. Suspending the gate inside a quoted
+    // paragraph preserves that, at the cost of retaining the quoted context's phantoms. That
+    // trade is one-way on purpose: retaining a phantom is permitted, deleting a real heading
+    // is not.
+    expect(findHeadings(doc("> quoted one", "    ---", "# ATX Below")).map((h) => h.text))
+      .toContain("ATX Below");
+    // …and the top-level twin must NOT gain a heading, or the guard has leaked out of quotes.
+    expect(findHeadings(doc("line one", "    ---", "# ATX Below")).map((h) => h.text))
+      .toEqual([]);
   });
 });
 
