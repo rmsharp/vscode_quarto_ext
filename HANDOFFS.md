@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S185
+date: 2026-08-02
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD). Session 183's paragraphOpen gate STILL DELETES 17 real headings (src/core/qmd/model.ts) -- this session takes families (b) INDENTED HTML BLOCK (4+ spaces or a tab before <div>/<pre>/<p>, where HTML_BLOCK_OPEN's {0,3} declines and the gate then suppresses the closer) and (c) LINE BLOCK CONTINUATION (| line one / 2sp continued / | line three / # ATX Below). Family (a), a block-level tag outside HTML_BLOCK_OPEN, is BLOCKED on the pandoc tag-list item and is OUT OF SCOPE. Operator-selected at Phase 0 via AskUserQuestion (it was S184's ranked #1). DIRECTION OF HAZARD: the deletions are the forbidden direction, so the FIX runs in the phantom direction -- S184 measured this exact shape of trade costing 32 phantoms for 2 headings, so every candidate needs a per-heading two-direction score against the real quarto render path BEFORE it ships. Learning #239: a corpus I design cannot find the axis I did not enumerate; an adversarial sweep is budgeted.
+```
+
+```handoff
 session: S184
 date: 2026-08-02
 status: complete
