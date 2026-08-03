@@ -1822,6 +1822,70 @@ describe("an INDENTED HTML block and a LINE BLOCK still close a paragraph (Sessi
       ).toEqual([]);
     }
   });
+
+  it("RED->GREEN: a continuation needs LEADING whitespace, not non-blank CONTENT", () => {
+    // ⚠ FOUND BY THIS SESSION'S OWN MUTATION PASS, and the mutant was MORE CORRECT than the
+    // code (Learning #232). `LINE_BLOCK_CONTINUATION` was first written as `/^[ \t]+\S/` — an
+    // unmeasured refinement, reasoning that a continuation "must have content". Pandoc's rule
+    // is simply that the line BEGINS with whitespace. The `\S` therefore excluded any line
+    // whose only content is whitespace that `BLANK_LINE` (`/^[ \t]*$/`) does not recognise —
+    // a form feed, a vertical tab, a non-breaking space — and the block ended early, leaving a
+    // paragraph open across the heading. Measured, all four render `<h1>ATX Below</h1>`:
+    //
+    //   | line one / (2sp)(form feed) / # ATX Below        ->  <div class="line-block">…<h1>
+    //   | line one / (2sp)(vertical tab) / # ATX Below     ->  same
+    //   | line one / (2sp)(U+00A0) / # ATX Below           ->  same
+    //   | line one / (2sp)(form feed) / | line three / # ATX Below  ->  same
+    //
+    // Three of those four are PRE-EXISTING deletions the pre-Session-183 build loses too; the
+    // fourth (the one with a `| line three` below) is one that build gets RIGHT.
+    for (const ws of ["\f", "\v", " "]) {
+      expect(
+        findHeadings(doc("| line one", `  ${ws}`, "# ATX Below")).map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+    expect(
+      findHeadings(doc("| line one", "  \f", "| line three", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    // CONTROL — the widening must not make a whitespace-led line block-level on its OWN
+    // account. With no line block armed above it, the identical line still leaves the
+    // paragraph open (or never opens a block), and quarto renders NO heading in either
+    // (measured). This is what keeps the rule about line blocks rather than about indentation.
+    expect(
+      findHeadings(doc("plain one", "  \f", "# ATX Below")).map((h) => h.text),
+    ).toEqual([]);
+    expect(findHeadings(doc("  \f", "# ATX Below")).map((h) => h.text)).toEqual([]);
+  });
+
+  it("test-after (mutation survivors): a HYPHEN in a line block, and a TAB continuation", () => {
+    // ⚠ WRITTEN AFTER the implementation, and labelled as such — these pin two mutants that
+    // survived the suite as it stood. Neither mutant was more correct; both DELETE real
+    // headings, and both were adjudicated by rendering the deciding document rather than by
+    // argument (Learning #232).
+    //
+    // SURVIVOR `TABLE_DELIMITER_ROW -> /-/` — matching any line containing a hyphen would
+    // disarm the line-block rule on ordinary prose. Nothing in the suite held a hyphen inside
+    // a line block, so the over-eager guard looked harmless. All three render the heading:
+    expect(
+      findHeadings(doc("| line-one", "  continued", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    expect(
+      findHeadings(doc("| line one", "  con-tinued", "| line three", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    expect(
+      findHeadings(doc("| a - b", "  continued", "| c", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    //
+    // SURVIVOR `LINE_BLOCK_CONTINUATION -> /^ +\S/` — dropping the tab looked harmless because
+    // a tab-indented continuation ALSO matches `CLOSES_PARAGRAPH`'s indented-code row, which
+    // closes the paragraph by another route. What it silently loses is the RE-ARM: the block
+    // ends at the tab line, so a SPACE continuation below it is read as prose again and the
+    // heading is deleted. The document that separates them mixes the two indents:
+    expect(
+      findHeadings(doc("| line one", "\tcont a", "  cont b", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+  });
 });
 
 describe("buildOutline — against the sample.qmd fixture", () => {

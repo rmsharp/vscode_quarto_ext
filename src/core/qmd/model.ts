@@ -326,10 +326,18 @@ const BLOCK_QUOTE_MARKER = /^ {0,3}>/;
  *   ` | line one`    NOT one — the indent disqualifies it, at 1, 3 and 4 spaces alike
  *
  * The CONTINUATION, by contrast, attaches at any indent whatever — 1, 2, 3, 4 and 8 spaces
- * and a tab all render identically.
+ * and a tab all render identically — and its rule is only that the line BEGINS with
+ * whitespace. ⚠ **It deliberately does NOT require non-blank content, and that `\S` was a
+ * measured mistake, not a missing refinement** (found by Session 185's own mutation pass,
+ * where the mutant proved more correct than the code — Learning #232). Requiring content
+ * excluded any line whose only content is whitespace `BLANK_LINE` does not recognise — a form
+ * feed, a vertical tab, a non-breaking space — which ended the block early and left a
+ * paragraph open across the heading below. All four such documents render the heading.
+ * A genuinely blank line still ends the block: `BLANK_LINE` is tested earlier in the loop and
+ * `continue`s, so this pattern is never reached for one.
  */
 const LINE_BLOCK_LINE = /^\|[ \t]/;
-const LINE_BLOCK_CONTINUATION = /^[ \t]+\S/;
+const LINE_BLOCK_CONTINUATION = /^[ \t]+/;
 /**
  * A pipe table's DELIMITER row — the line that turns a run of `| … |` rows into a table
  * rather than a line block (Session 185).
