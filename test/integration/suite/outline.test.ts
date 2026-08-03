@@ -20,6 +20,10 @@ const CLOSES_PARAGRAPH_NARROW_FIXTURE = path.resolve(
   ROOT,
   "test/fixtures/closes-paragraph-narrow.qmd",
 );
+const CLOSES_PARAGRAPH_INDENT_FIXTURE = path.resolve(
+  ROOT,
+  "test/fixtures/closes-paragraph-indent.qmd",
+);
 
 /**
  * Ask the editor for the document symbols the same way the Outline view and
@@ -484,6 +488,75 @@ describe("Quarto: Document outline (symbols)", () => {
       "Genuine Child",
       "Residual Phantom — Inline Tag",
       "Residual Phantom — Inline TeX",
+    ]);
+  });
+
+  it("an INDENTED HTML block and a LINE BLOCK reach the Outline (Session 185)", async () => {
+    // Wiring evidence, not a second unit test: this goes through the REGISTERED
+    // DocumentSymbolProvider — the one backing the Outline view, breadcrumbs, sticky scroll
+    // and Ctrl+T — so it proves the repair reaches the surface a user actually sees.
+    //
+    // The fixture's premise is MEASURED, not assumed. `quarto render --to html --no-execute`
+    // (quarto 1.7.33) on those exact bytes emits exactly six headings:
+    //   Real Section, Below An Indented Div, Below A Tab Indented Pre, Below A Line Block,
+    //   Genuine Child, Below A Line Block After A Table
+    // Against the pre-Session-185 build the same document produced only THREE — the four
+    // indented-HTML and line-block headings were deleted outright.
+    //
+    // ⚠ Every construct in the fixture is pressed directly against prose on purpose. With a
+    // blank line above it the same line is an indented CODE block and the heading below is
+    // real for a reason that has nothing to do with this repair — a first draft of this
+    // fixture made exactly that mistake, and rendering it is what caught it.
+    const symbols = await symbolsFor(CLOSES_PARAGRAPH_INDENT_FIXTURE);
+    const flat = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flat(n.children)]);
+    const names = flat(symbols);
+
+    // THE REPAIR — four real headings the pre-Session-185 build deleted.
+    for (const real of [
+      "Below An Indented Div", //          `    <div>` against an open paragraph
+      "Below A Tab Indented Pre", //       a tab-indented block, body and closer included
+      "Below A Line Block", //             `| line one` / `  continued` / `| line three`
+      "Below A Line Block After A Table", // the table's spell broken by the blank line
+    ]) {
+      assert.ok(names.includes(real), `${real} is a real heading the repair must recover`);
+    }
+
+    // THE GUARDS — quarto renders no heading at any of these, and neither may we. Each fails
+    // if the corresponding guard is dropped, and each was measured before being asserted.
+    for (const phantom of [
+      "Not A Heading — Indented Inline Tag", //     the TAG decides, not the indent
+      "Not A Heading — Line Block In A Paragraph", // a line block cannot interrupt a paragraph
+      "Not A Heading — Under A Table", //           a delimiter row makes it a table
+    ]) {
+      assert.ok(!names.includes(phantom), `quarto renders no heading at "${phantom}"`);
+    }
+
+    // …and the real child still nests under its real parent, so the TREE is right and not
+    // merely the set. A deleted parent silently re-parents its children.
+    const parent = symbols.find((s) => s.name === "Below A Line Block");
+    assert.ok(parent, "Below A Line Block must be a top-level section");
+    assert.deepStrictEqual(parent.children.map((c) => c.name), ["Genuine Child"]);
+
+    // ONE DISCLOSED RESIDUAL, asserted so it is a decision on the record rather than a
+    // surprise in the Outline view. An UNCLOSED `<textarea>` swallows the rest of the document
+    // on the real render path, so quarto renders no heading below it and we emit one. The
+    // defect is PRE-EXISTING — the live and pre-Session-183 builds both emit it at column
+    // zero — and it belongs to the skip-region model, not to this file's paragraph rules.
+    assert.ok(
+      names.includes("Residual Phantom — Unclosed Textarea"),
+      "KNOWN RESIDUAL: an unclosed condition-1 tag swallows the document and we do not model it",
+    );
+
+    // Nothing else at all — the exact set, which no per-name assertion can say.
+    assert.deepStrictEqual(names, [
+      "Real Section",
+      "Below An Indented Div",
+      "Below A Tab Indented Pre",
+      "Below A Line Block",
+      "Genuine Child",
+      "Below A Line Block After A Table",
+      "Residual Phantom — Unclosed Textarea",
     ]);
   });
 });

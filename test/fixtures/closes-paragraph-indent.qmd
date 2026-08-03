@@ -1,0 +1,74 @@
+# Real Section
+
+An HTML block opener indented past CommonMark's three-space cap still interrupts an OPEN
+paragraph, because pandoc's html-block rule never looks at the indent. Every construct in
+this fixture is pressed directly against prose on purpose: with a blank line above it the
+same line would be an indented code block, and the heading below would be real for a
+reason that has nothing to do with what this fixture is pinning.
+
+prose one
+prose two
+    <div>
+# Below An Indented Div
+
+A tab is the same, and so are the block's body and its closing tag.
+
+prose one
+prose two
+	<pre>
+	code
+	</pre>
+# Below A Tab Indented Pre
+
+An INLINE tag at that same indent against that same open paragraph is prose, so the line
+below it is not a heading at all. The tag decides, exactly as it does at column zero.
+
+prose one
+prose two
+    <span>
+# Not A Heading — Indented Inline Tag
+
+A line block continues a line by indenting the next one, and the continuation belongs to
+the block rather than opening a paragraph.
+
+| line one
+  continued
+| line three
+# Below A Line Block
+
+## Genuine Child
+
+A line block cannot open against an already-open paragraph, so nothing below this one is
+a heading.
+
+prose one
+prose two
+| line four
+  continued
+# Not A Heading — Line Block In A Paragraph
+
+A pipe table's body row is spelled like a line-block line, but the delimiter row makes it
+a table, and a continuation-shaped line under a table is ordinary paragraph text.
+
+| a | b |
+|---|---|
+| 1 | 2 |
+  continued
+# Not A Heading — Under A Table
+
+Once the blank line has ended the table, a genuine line block below it works again.
+
+| line five
+  continued
+# Below A Line Block After A Table
+
+A disclosed residual follows, and it is last on purpose: an UNCLOSED condition-1 tag
+swallows the rest of the document on the real render path, so quarto renders no heading
+below it and we emit one. The defect is PRE-EXISTING — the live and pre-Session-183 builds
+both emit this phantom — and it belongs to the skip-region model, not to this file's
+paragraph rules.
+
+prose one
+prose two
+<textarea>
+# Residual Phantom — Unclosed Textarea
