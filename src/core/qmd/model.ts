@@ -194,39 +194,42 @@ const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
  *     which really is block-level: `+` / `# ATX Below` renders `<ul>` then `<h1>ATX Below</h1>`
  *     (measured). Excluding it — the "obvious" reading of a bullet marker as a defect —
  *     deletes 6 real headings.
+ *   - the raw-HTML row cannot be narrowed to a TAG LIST, and the raw-TeX row cannot be
+ *     narrowed to a BARE MACRO. Session 184 shipped both narrowings, scored ZERO headings
+ *     lost over 476 rendered documents, and an adversarial sweep then measured them deleting
+ *     THIRTY-ONE real headings on shapes no corpus held: `<meta>`, `<svg>`, `<button>`,
+ *     `<video>`, `<audio>`, `<canvas>`, `<object>`, `<embed>`, `<noscript>`, `<map>`,
+ *     `<output>`, `<progress>`, `<area>`, `<applet>`, `<ins>`, `<del>` all open raw HTML
+ *     blocks while sitting outside CommonMark §4.6; `\vspace{1em}`, `\usepackage{…}`,
+ *     `\newcommand{…}`, `\setlength{…}`, `\definecolor{…}`, `\newpage[2]`, `\newpage{}`
+ *     and `\clearpage\newpage` are all raw BLOCKS despite carrying braces. Pandoc classifies
+ *     both by NAME — `<ins>` opens a block and `<em>` does not; `\vspace` is a block and
+ *     `\textbf` is not — and nothing in the SHAPE of the line distinguishes them. Both rows
+ *     therefore stay wide, keeping their `<span>` / `\textbf{}` phantoms, until someone
+ *     transcribes those tables and measures them.
+ *
+ * The ONE narrowing that survived is the link-reference row, because its rule really is
+ * decided by the line's shape and was derived from an exhaustive sweep of 17 label spellings:
+ * a pandoc footnote label is `^` followed by one or more characters that are neither
+ * whitespace nor another `^`.
+ *
+ *   footnote (absorbs the line below) `[^1]` `[^note]` `[^a-b]` `[^1a]` `[^n_1]` `[^A]` `[^a.b]` `[^-]` `[^très]`
+ *   link reference (closes)           `[^]` `[^ 1]` `[^a b]` `[^^1]` `[^1^]` `[^1 ]` `[x]` `[]`
+ *
+ * A bare `(?!\^)` rejects the whole second row and deletes four real headings;
+ * `OPENS_FRESH_BLOCK`'s `\[[^\^\]][^\]]*\]:` additionally rejects `[]:` and deletes a fifth
+ * (Learning #233 — a fragment borrowed from the other list is unmeasured on THIS predicate's
+ * question, whatever it proved on its own).
  */
-/**
- * A line whose entire content is HTML comments — one or more, abutting or space-separated,
- * where the LAST one may still be open at end of line.
- *
- * ⚠ **Narrower than a bare `<!--`, and the difference is measured in BOTH directions.** The
- * ordinary whole-line comment never reaches `closesParagraph` at all — `COMMENT_FULL_LINE`
- * and `COMMENT_OPEN` each `continue` past it — so the only lines this pattern is ever asked
- * about are the ones those two miss, and there quarto splits them by whether any NON-comment
- * content remains:
- *
- *   `<!-- a --><!-- b -->`  -> `<h1>ATX Below</h1>`   the line renders to nothing
- *   `<!-- a --> <!-- b -->` -> `<h1>ATX Below</h1>`
- *   `<!-- a --><!-- b`      -> `<h1>ATX Below</h1>`   (a second comment opens and runs on)
- *   `<!-- a --> tail`       -> `<p>tail # ATX Below</p>`   NO heading — `tail` is prose
- *   `<!-- a --><!-- b --> tail` -> NO heading
- *
- * A bare `/^ {0,3}<!--/` fabricated a heading on the last two; requiring the whole line to be
- * comments keeps the first three, which a plain `<?`-only row deleted. Both errors were live
- * at some point during Session 184 and each was caught by the other's control assertion.
- */
-const COMMENT_ONLY_LINE =
-  /^ {0,3}(?:<!--(?:(?!-->)[\s\S])*-->[ \t]*)*<!--(?:(?!-->)[\s\S])*(?:-->[ \t]*)?$/;
 const CLOSES_PARAGRAPH: readonly RegExp[] = [
   /\|/, //                                                   a pipe-table row, anywhere on the line
   /^ {0,3}\+[-+=: ]*$/, //                                   a grid-table border, which carries NO pipe
   /^ {0,3}:{3,}/, //                                         a fenced-div / callout fence
   /^(?: {4,}|\t)\S/, //                                      an indented code block, spaces OR tab
-  /^ {0,3}\[(?!\^)[^\]]*\]:/, //                             a link-reference definition — NOT `[^1]:`
-  COMMENT_ONLY_LINE, //                                      a line that is NOTHING BUT comments
-  /^ {0,3}<\?/, //                                           a processing instruction (`<?php …`)
+  /^ {0,3}\[(?!\^[^\s^\]]+\]:)[^\]]*\]:/, //                 a link reference — NOT a `[^1]:` footnote
+  /^ {0,3}</, //                                             a raw HTML block — see the note below
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
-  /^ {0,3}\\[a-zA-Z]+[ \t]*$/, //                            a BARE raw-TeX macro ALONE on its line
+  /^ {0,3}\\[a-zA-Z]/, //                                    a raw TeX block — see the note below
   /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator
 ];
 /**

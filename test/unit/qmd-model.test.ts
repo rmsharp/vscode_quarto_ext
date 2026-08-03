@@ -1423,38 +1423,31 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
     }
   });
 
-  it("RED->GREEN: an INLINE `<` line is prose — only `<!--` and `<?` close a paragraph", () => {
-    // The wide row `/^ {0,3}</` matched anything opening with `<`, so an inline tag, an
-    // autolink, and a line that is not markup at all each "closed a paragraph" and let the
-    // `#` line below through as a heading quarto never renders. Measured, all with NO
-    // paragraph open above them (the only position where this row is still reachable after
-    // Session 183's gate):
+  it("KNOWN RESIDUAL: the `<` row keeps its phantoms because the row is not narrowable by shape", () => {
+    // ⚠ THESE ARE PHANTOMS ON PURPOSE, and pinning them is how the decision stays on the
+    // record. Each of these lines is prose to quarto — measured, with no paragraph open:
     //
     //   <span>inline</span> / # ATX Below  -> <p>&lt;span&gt;inline&lt;/span&gt; # ATX Below</p>
     //   <not-a-real-tag     / # ATX Below  -> <p>…</p>          no heading
     //   <http://example.com>/ # ATX Below  -> <p><a …>…</a> …</p>  no heading
-    //   <3 apples           / # ATX Below  -> <p>…</p>          no heading
+    //   <!DOCTYPE html>     / # ATX Below  -> <p>&lt;!DOCTYPE html&gt; …</p>  no heading
     //
-    // `HTML_BLOCK_OPEN` above already admits every tag that really does open a block, and it
-    // is tested BEFORE the bail, so narrowing this row costs nothing there.
+    // …and we emit a heading below every one. Session 184 narrowed the row to `<!--`/`<?` to
+    // remove exactly these, scored ZERO headings lost over 476 rendered documents, and was
+    // then shown by an adversarial sweep to be DELETING twenty real headings: `<meta>`,
+    // `<svg>`, `<button>`, `<video>`, `<audio>`, `<canvas>`, `<object>`, `<embed>`,
+    // `<noscript>`, `<map>`, `<output>`, `<progress>`, `<area>`, `<applet>`, `<ins>`, `<del>`
+    // and their variants all open a raw HTML block on the real render path while sitting
+    // outside CommonMark §4.6, which is all `HTML_BLOCK_OPEN` knows.
+    //
+    // The rule is not a SHAPE, it is pandoc's own tag classification — `<ins>` opens a block
+    // and `<em>` does not, and nothing about the two lines distinguishes them. Transcribing
+    // that table is a separate, measured job; until then the row stays wide, because a
+    // retained phantom is the permitted direction and a deleted heading never is.
     for (const above of ["<span>inline</span>", "<em>x</em>", "<not-a-real-tag",
-                         "<http://example.com>", "<3 apples"]) {
-      expect(findHeadings(doc(above, "# ATX Below")).map((h) => h.text)).toEqual([]);
-      expect(findHeadings(doc("line one", "", above, "# ATX Below")).map((h) => h.text))
-        .toEqual([]);
+                         "<http://example.com>", "<!DOCTYPE html>"]) {
+      expect(findHeadings(doc(above, "# ATX Below")).map((h) => h.text)).toEqual(["ATX Below"]);
     }
-    // The two shapes this row is narrowed TO — measured to close, but only where no paragraph
-    // is open, which is exactly what a GATED row means:
-    //   <!-- a comment --> / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
-    //   <?php echo 1; ?>   / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
-    expect(findHeadings(doc("<?php echo 1; ?>", "# ATX Below")).map((h) => h.text))
-      .toEqual(["ATX Below"]);
-    // ⚠ `<!DOCTYPE html>` and `<![CDATA[ x ]]>` are CommonMark HTML blocks (conditions 4 and 5)
-    // and are deliberately NOT admitted: on the real quarto path neither closes a paragraph —
-    //   <!DOCTYPE html> / # ATX Below -> <p>&lt;!DOCTYPE html&gt; # ATX Below</p>  (measured)
-    // Reading the spec instead of the renderer would have added both and kept two phantoms.
-    expect(findHeadings(doc("<!DOCTYPE html>", "# ATX Below")).map((h) => h.text)).toEqual([]);
-    expect(findHeadings(doc("<![CDATA[ x ]]>", "# ATX Below")).map((h) => h.text)).toEqual([]);
   });
 
   it("RED->GREEN: a `[^1]:` FOOTNOTE definition is not a link reference and does not close", () => {
@@ -1465,13 +1458,14 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
     //   [^1]: a footnote body   / # ATX Below -> (no heading at all)
     //   [x]: http://example.com / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
     //
-    // ⚠ THE NARROWING IS A NEGATIVE LOOKAHEAD, NOT `OPENS_FRESH_BLOCK`'s `\[[^\^\]][^\]]*\]:`.
-    // Borrowing that fragment is the obvious one-line fix and it is MEASURED WRONG here: it
-    // demands at least one character before the closing bracket, so it rejects `[]:` — which
-    // really does close (`[]: http://example.com` / `# ATX Below` renders the heading). Scored
-    // over the four corpora, the borrowed form DELETES 4 real headings while this one deletes
-    // none. That is Learning #233 as a number: a fragment lifted from the other list is
-    // unmeasured on THIS predicate's question, whatever it proved on its own.
+    // ⚠ THE NARROWING IS A LOOKAHEAD FOR A VALID FOOTNOTE LABEL, not a bare `(?!\^)` and not
+    // `OPENS_FRESH_BLOCK`'s `\[[^\^\]][^\]]*\]:`. Both shortcuts are MEASURED WRONG here: the
+    // borrowed fragment demands a character before the closing bracket, so it rejects `[]:`
+    // which really does close; and a bare `(?!\^)` rejects `[^]:`, `[^ 1]:`, `[^a b]:` and
+    // `[^^1]:`, none of which pandoc accepts as a footnote label — all four close. Between
+    // them the two shortcuts delete five real headings. That is Learning #233 as a number: a
+    // fragment lifted from the other list, or from intuition, is unmeasured on THIS
+    // predicate's question. The full 17-spelling sweep is pinned below.
     expect(findHeadings(doc("[^1]: a footnote body", "# ATX Below")).map((h) => h.text))
       .toEqual([]);
     expect(findHeadings(doc("[^1]: a footnote body", "    continued", "# ATX Below"))
@@ -1488,28 +1482,25 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
       .toEqual(["ATX Below"]);
   });
 
-  it("RED->GREEN: an inline TeX macro with ARGUMENTS is prose; a bare macro is a block", () => {
-    // `\clearpage` and `\newpage` are raw-TeX blocks and the heading below them is real;
-    // `\textbf{bold}` is INLINE, so pandoc wraps it in a paragraph that swallows the `#` line.
-    // The row could not tell them apart. Measured, with no paragraph open above:
+  it("KNOWN RESIDUAL: the raw-TeX row keeps its phantoms for the same reason", () => {
+    // ⚠ PHANTOMS ON PURPOSE, pinned so the decision is on the record. `\textbf{bold}` and
+    // `\emph{a} and more prose` are INLINE to pandoc — it wraps them in a paragraph that
+    // swallows the `#` line — and we emit a heading below both.
     //
-    //   \clearpage      / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
-    //   \newpage        / # ATX Below -> <h1 id="atx-below">ATX Below</h1>
-    //   \textbf{bold}   / # ATX Below -> <p><strong>bold</strong> # ATX Below</p>   no heading
-    //   \emph{a} and more prose / # ATX Below -> <p>…</p>                           no heading
-    //
-    // The distinguishing byte is the ARGUMENT: a bare macro stands alone on its line. The
-    // ENVIRONMENT form `\begin{…}`/`\end{…}` also carries braces but is handled by
-    // `RAW_TEX_ENV_OPEN` ahead of the bail (Session 183), so narrowing here does not touch it.
-    expect(findHeadings(doc("\\textbf{bold}", "# ATX Below")).map((h) => h.text)).toEqual([]);
-    expect(findHeadings(doc("\\emph{a} and more prose", "# ATX Below")).map((h) => h.text))
-      .toEqual([]);
-    expect(findHeadings(doc("line one", "", "\\textbf{bold}", "# ATX Below")).map((h) => h.text))
-      .toEqual([]);
-    // Controls: the bare macros must still close, and the environment must still interrupt.
-    expect(findHeadings(doc("\\clearpage", "# ATX Below")).map((h) => h.text))
+    // Session 184 narrowed this row to a BARE macro alone on its line (`/^ {0,3}\\[a-zA-Z]+[ \t]*$/`),
+    // which removes exactly those two and scored ZERO headings lost over 476 documents. An
+    // adversarial sweep then measured it DELETING eleven real headings, because a braced macro
+    // is not automatically inline — `\vspace{1em}`, `\vspace*{1em}`, `\usepackage{amsmath}`,
+    // `\newcommand{\foo}{bar}`, `\setlength{\parindent}{0pt}`, `\definecolor{…}`, `\newpage[2]`,
+    // `\newpage{}`, `\clearpage\newpage` and `\vspace2` are all raw BLOCKS on the real render
+    // path. Pandoc decides by MACRO NAME, not by whether braces are present, and this scanner
+    // has no such table. So the row stays wide and keeps its two phantoms.
+    expect(findHeadings(doc("\\textbf{bold}", "# ATX Below")).map((h) => h.text))
       .toEqual(["ATX Below"]);
-    expect(findHeadings(doc("\\newpage", "# ATX Below")).map((h) => h.text))
+    expect(findHeadings(doc("\\emph{a} and more prose", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    // The controls that must survive whatever happens to this row.
+    expect(findHeadings(doc("\\clearpage", "# ATX Below")).map((h) => h.text))
       .toEqual(["ATX Below"]);
     expect(
       findHeadings(doc("line one", "line two", "\\begin{center}", "text", "\\end{center}",
@@ -1517,50 +1508,113 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
     ).toEqual(["ATX Below"]);
   });
 
-  it("RED->GREEN: an HTML comment with TRAILING CONTENT is prose, and was the row's only reach", () => {
-    // Found by this session's own mutation pass, which asked Learning #232's question — is the
-    // MUTANT more correct? — and for once the answer was yes. Dropping `<!--` from the narrowed
-    // row above changed nothing across all 476 corpus documents, because a comment normally
-    // never reaches `closesParagraph` at all: `COMMENT_FULL_LINE` skips a whole-line comment and
-    // `COMMENT_OPEN` opens a multi-line skip region, and BOTH `continue` past it.
+  it("KNOWN RESIDUAL: the raw-TeX row's 0-3 space indent is WRONG at top level and REQUIRED in a list", () => {
+    // The mutation pass proposed forbidding the ` {0,3}` indent on the raw-TeX row — it
+    // survived the whole suite — and Learning #232's question, is the MUTANT more correct,
+    // measured YES at top level. A raw-TeX block must begin at column 0; indent it and pandoc
+    // treats it as paragraph text, which swallows the `#` line:
     //
-    // The one shape that DOES reach it is a comment with trailing content on the same line —
-    // it closes, so no region opens, and it is not a full-line comment either. There the row
-    // was measured WRONG in the phantom direction:
+    //   (1sp)\newpage / # ATX Below -> <p>\newpage # ATX Below</p>   NO heading   (we emit one)
+    //   (3sp)\clearpage / # ATX Below -> <p>…</p>                     NO heading   (we emit one)
     //
-    //   <!-- x --> tail    / # ATX Below -> <p>tail # ATX Below</p>   NO heading
-    //   (3sp)<!-- x --> tail / # ATX Below -> <p>tail # ATX Below</p> NO heading
-    //   <!-- a --><!-- b --> / # ATX Below -> <h1>ATX Below</h1>      (a FULL-LINE comment,
-    //                                          handled by the skip region, not by this row)
+    // It was implemented, and then REJECTED on the document below, which decides it. Inside a
+    // LIST ITEM the content column is not the line column: `\clearpage` indented two spaces
+    // under `- line one` really is at its block's column 0, quarto really does render the
+    // heading, and column-0 matching DELETES it. Measured across 597 rendered documents the
+    // narrowing removed 3 phantoms and deleted this 1 real heading.
     //
-    // So the `<!--` alternative only ever fired where it should not have. The row keeps `<?`
-    // alone, which IS measured to close: `<?php echo 1; ?>` / `# ATX Below` renders the heading.
-    expect(findHeadings(doc("<!-- x --> tail", "# ATX Below")).map((h) => h.text)).toEqual([]);
-    expect(findHeadings(doc("   <!-- x --> tail", "# ATX Below")).map((h) => h.text)).toEqual([]);
-    expect(findHeadings(doc("<!-- a --><!-- b --> tail", "# ATX Below")).map((h) => h.text))
-      .toEqual([]);
-    // ⚠ The OPPOSITE direction, which is why the row could not simply be deleted. A line that
-    // is nothing BUT comments renders to nothing, so the heading below it is REAL — and these
-    // three shapes all miss `COMMENT_FULL_LINE`, so this row is the only thing that sees them.
-    // Deleting the alternative outright (the first attempt) lost all three; each was caught by
-    // this assertion, not by the corpus.
-    expect(findHeadings(doc("<!-- a --><!-- b -->", "# ATX Below")).map((h) => h.text))
+    // A per-line predicate cannot see a containing block's content column, so the wider row
+    // stays and its top-level phantoms are the price. Deleting is never the acceptable side.
+    // This assertion is what kills the mutant: it fails the moment the indent is forbidden.
+    expect(
+      findHeadings(doc("- line one", "  line two", "", "  \\clearpage", "  # ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    // …and the disclosed top-level phantoms the row keeps in exchange.
+    expect(findHeadings(doc("   \\clearpage", "# ATX Below")).map((h) => h.text))
       .toEqual(["ATX Below"]);
-    expect(findHeadings(doc("<!-- a --> <!-- b -->", "# ATX Below")).map((h) => h.text))
-      .toEqual(["ATX Below"]);
-    // ⚠ KNOWN RESIDUAL, PRE-EXISTING and NOT this session's: a line holding a COMPLETE comment
-    // followed by an UNTERMINATED one. Quarto renders `<h1>ATX Below</h1>`; we render nothing,
-    // and we did so identically on the pre-Session-183 and pre-Session-184 builds (probed).
-    // The cause is one level below this list: the region scanner asks `COMMENT_CLOSE.test(line)`,
-    // which is "does the line contain `-->` ANYWHERE", so the first comment's terminator is read
-    // as closing the second one and no skip region opens. The `still -->` line below is then
-    // scanned as prose and re-opens a paragraph across the heading. Fixing it means tracking the
-    // comment delimiter POSITION, not this row — filed in BACKLOG.md.
+    // `RAW_TEX_ENV_OPEN` keeps its own ` {0,3}` and is a DIFFERENT predicate, tested ahead of
+    // the paragraph bail; its tolerance is unmeasured on this question and is not touched.
+    expect(
+      findHeadings(doc("line one", "line two", "  \\begin{center}", "text", "  \\end{center}",
+                       "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+  });
+
+  it("KNOWN RESIDUAL: a comment with an UNTERMINATED sibling loses its heading (PRE-EXISTING)", () => {
+    // Not this session's, and probed on both prior trees to prove it: a line holding a COMPLETE
+    // comment followed by an UNTERMINATED one. Quarto renders `<h1>ATX Below</h1>`; we render
+    // nothing, identically on the pre-Session-183 and pre-Session-184 builds.
+    //
+    // The cause is one level below `CLOSES_PARAGRAPH`: the region scanner asks
+    // `COMMENT_CLOSE.test(line)`, which is "does the line contain `-->` ANYWHERE", so the first
+    // comment's terminator is read as closing the second one and no skip region opens. The
+    // `still -->` line is then scanned as prose and re-opens a paragraph across the heading.
+    // Fixing it means tracking the comment delimiter's POSITION — filed in BACKLOG.md.
     expect(findHeadings(doc("<!-- a --><!-- b", "still -->", "# ATX Below")).map((h) => h.text))
       .toEqual([]);
-    // …and the ordinary whole-line comment, which the skip region handles before this row.
+    // …while the ordinary whole-line comment is handled by the skip region and is unaffected.
     expect(findHeadings(doc("<!-- a comment -->", "# ATX Below")).map((h) => h.text))
       .toEqual(["ATX Below"]);
+    expect(findHeadings(doc("<!-- a --><!-- b -->", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+  });
+
+  it("RED->GREEN: the HTML and raw-TeX rows are NOT narrowable by shape — 50 measured headings", () => {
+    // ⚠ THE CORRECTION. The first version of this session narrowed the HTML row to
+    // `<!--`/`<?` and the raw-TeX row to a BARE macro, and scored ZERO headings lost over 476
+    // rendered documents. An adversarial pass then rendered shapes none of those corpora
+    // contained, and the narrowings were deleting FIFTY real headings. Both reverts below are
+    // measured, and the lesson is in the docstrings: neither row's construct is decided by the
+    // SHAPE of the line. Pandoc classifies by TAG and by MACRO NAME, and this scanner has
+    // neither table.
+    //
+    // (a) HTML. `HTML_BLOCK_OPEN` carries CommonMark §4.6, but pandoc's markdown reader is not
+    // CommonMark: a great many tags outside that list still open a raw HTML block. Measured,
+    // every one of these renders `<h1>ATX Below</h1>` below it:
+    for (const tag of ["<meta charset=\"utf-8\">", "<META charset=\"utf-8\">", "<meta>",
+                       "<button>go</button>", "<button>", "<svg width='10'></svg>", "<svg>",
+                       "<video controls></video>", "<audio></audio>", "<canvas></canvas>",
+                       "<object></object>", "<embed src=\"x\">", "<noscript>x</noscript>",
+                       "<map name=\"m\"></map>", "<output>x</output>", "<progress></progress>",
+                       "<area shape=\"rect\">", "<applet></applet>", "<ins>x</ins>",
+                       "<del>x</del>"]) {
+      expect(findHeadings(doc(tag, "# ATX Below")).map((h) => h.text))
+        .toEqual(["ATX Below"]);
+    }
+    // (b) Raw TeX. A braced macro is NOT automatically inline: pandoc decides by macro NAME.
+    // `\textbf{bold}` is inline and swallows the heading, but every one of these is a raw
+    // BLOCK and the heading below it is real (measured):
+    for (const macro of ["\\vspace{1em}", "\\vspace*{1em}", "\\usepackage{amsmath}",
+                         "\\newcommand{\\foo}{bar}", "\\setlength{\\parindent}{0pt}",
+                         "\\definecolor{mycol}{RGB}{0,0,0}", "\\newpage[2]", "\\newpage{}",
+                         "\\clearpage\\newpage", "\\clearpage \\newpage", "\\vspace2"]) {
+      expect(findHeadings(doc("Intro prose.", "", macro, "# ATX Below")).map((h) => h.text))
+        .toEqual(["ATX Below"]);
+    }
+    // (c) …while the two shapes that motivated the raw-TeX narrowing stay phantoms, because
+    // the row is wide again. Disclosed, not hidden: this is the permitted direction.
+    expect(findHeadings(doc("\\textbf{bold}", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+  });
+
+  it("RED->GREEN: only a VALID footnote label suppresses the link-reference row", () => {
+    // The footnote narrowing SURVIVES the correction, because unlike the other two its rule is
+    // decided by the line's shape alone and was derived from an exhaustive measured sweep of
+    // 17 label spellings. A pandoc footnote label is `^` followed by one or more characters
+    // that are neither whitespace nor another `^`. Anything else beginning with `[` is a link
+    // reference, closes the paragraph, and must keep its heading — the first version of this
+    // session used a bare `(?!\^)` and deleted all four of these.
+    for (const label of ["[^]", "[^ 1]", "[^a b]", "[^^1]", "[^1^]", "[^1 ]", "[x]", "[]"]) {
+      expect(findHeadings(doc("Intro line.", "", `${label}: http://e.com`, "# ATX Below"))
+        .map((h) => h.text)).toEqual(["ATX Below"]);
+    }
+    // …and every one of these IS a footnote definition, which absorbs the line below it:
+    for (const label of ["[^1]", "[^note]", "[^a-b]", "[^1a]", "[^n_1]", "[^A]", "[^a.b]",
+                         "[^-]", "[^très]"]) {
+      expect(findHeadings(doc("Intro line.", "", `${label}: http://e.com`, "# ATX Below"))
+        .map((h) => h.text)).toEqual([]);
+    }
   });
 
   it("test-after (mutation survivors M15/M16/M17): the three decisions nothing else pins", () => {

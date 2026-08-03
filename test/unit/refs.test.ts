@@ -492,17 +492,36 @@ describe("indexLabels — narrowing CLOSES_PARAGRAPH reaches the crossref index 
     expect(findLabel(text, "sec-real")).not.toBeNull();
   });
 
-  it("drops the {#sec-} targets invented by the three narrowed rows (the phantom direction)", () => {
-    // Each measured: quarto renders NO heading and the reference comes out as `?@sec-…`.
-    // Before this session all three were crossref targets we offered for a link already broken.
+  it("drops the {#sec-} target invented by the footnote row (the phantom direction)", () => {
+    // Measured end to end: quarto renders NO heading here and the reference comes out as
+    // `?@sec-fn`, its unresolved-reference marker. Before this session `sec-fn` was a crossref
+    // target we offered — completion suggested it and go-to-definition resolved it — for a link
+    // quarto had already rendered broken.
+    const text = [
+      "[^1]: a footnote body", // a FOOTNOTE definition, which absorbs the line below it
+      "# Phantom {#sec-fn}",
+      "",
+      "See @sec-fn for details.",
+    ].join("\n");
+    expect(indexLabels(text)).toEqual([]);
+    expect(findLabel(text, "sec-fn")).toBeNull();
+  });
+
+  it("KNOWN RESIDUAL: the `<` and raw-TeX rows still invent crossref targets", () => {
+    // ⚠ Pinned as a disclosed cost, not an achievement. Both rows were narrowed during this
+    // session and both narrowings were REVERTED when an adversarial sweep measured them
+    // deleting 31 real headings between them (see qmd-model.test.ts). So these two crossref
+    // targets survive, for links quarto renders as `?@sec-…`:
+    //   <span>inline</span> / # Phantom {#sec-span}   -> ?@sec-span
+    //   \textbf{bold}       / # Phantom {#sec-tex}    -> ?@sec-tex
+    // A phantom target costs a spurious completion entry; a DELETED target breaks
+    // go-to-definition on a link that works. The trade is one-way and this is the cheap side.
     for (const [above, id] of [
-      ["\\textbf{bold}", "sec-tex"], //     an INLINE TeX macro, not a raw-TeX block
-      ["[^1]: a footnote body", "sec-fn"], // a FOOTNOTE definition, not a link reference
-      ["<span>inline</span>", "sec-span"], // an INLINE tag, not an HTML block
+      ["<span>inline</span>", "sec-span"],
+      ["\\textbf{bold}", "sec-tex"],
     ] as const) {
       const text = [above, `# Phantom {#${id}}`, "", `See @${id} for details.`].join("\n");
-      expect(indexLabels(text)).toEqual([]);
-      expect(findLabel(text, id)).toBeNull();
+      expect(indexLabels(text).map((l) => l.id)).toEqual([id]);
     }
   });
 });

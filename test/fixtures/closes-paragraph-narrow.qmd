@@ -1,24 +1,5 @@
 # Real Section
 
-An inline tag is prose, so the line below it is NOT a heading.
-
-<span>inline</span>
-# Not A Heading — Inline Tag
-
-A real HTML block is not, and the heading below it IS real.
-
-<div>
-inner
-</div>
-# Below A Div
-
-A `<pre>` block is CommonMark condition 1, and Session 183's gate deleted this one.
-
-<pre>
-code
-</pre>
-# Below A Pre Block
-
 A footnote definition absorbs the line below it as its own body.
 
 [^1]: a footnote body
@@ -29,25 +10,44 @@ A link-reference definition renders to nothing, so the heading below it is real.
 [x]: http://example.com
 # Below A Link Reference
 
-An inline TeX macro carries arguments and stays inside a paragraph.
+An empty bracket pair is a link reference too, not a footnote.
 
-\textbf{bold}
-# Not A Heading — Inline TeX
+[]: http://example.com
+# Below An Empty Label
+
+A caret that is not a valid footnote label is a link reference.
+
+[^ 1]: http://example.com
+# Below A Caret With A Space
+
+A `<pre>` block is CommonMark condition 1, and Session 183's gate deleted this one.
+
+<pre>
+code
+</pre>
+# Below A Pre Block
+
+A real HTML block is not narrowed away either.
+
+<div>
+inner
+</div>
+# Below A Div
+
+A tag outside CommonMark's condition-6 list still opens a raw HTML block.
+
+<meta charset="utf-8">
+# Below A Meta Tag
+
+A braced TeX macro is a raw block, not an inline.
+
+\vspace{1em}
+# Below A Braced Macro
 
 A bare macro alone on its line is a raw TeX block.
 
 \clearpage
 # Below A Bare Macro
-
-A comment with trailing content leaves that content as prose.
-
-<!-- a --> tail
-# Not A Heading — Comment With Tail
-
-A line that is nothing but comments renders to nothing.
-
-<!-- a --><!-- b -->
-# Below An All-Comment Line
 
 An empty bullet marker really is block-level, whatever it looks like.
 
@@ -55,3 +55,12 @@ An empty bullet marker really is block-level, whatever it looks like.
 # Below A Lone Plus
 
 ## Genuine Child
+
+Two disclosed residuals follow: quarto renders neither line below as a heading,
+and we emit both, because neither row is narrowable by the line's shape.
+
+<span>inline</span>
+# Residual Phantom — Inline Tag
+
+\textbf{bold}
+# Residual Phantom — Inline TeX
