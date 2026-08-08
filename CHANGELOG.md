@@ -53,8 +53,11 @@ different reader and was declared out of scope; the raw-TeX items remain open.
 Commits: 1B claim `6fd3633`; C1 `eeec268`; C2 `84c1f73`; C3 `7c1e405`; C4 `7c44197`; C5 `3b293f2`;
 close-out (this commit). Verification: check-types 0, compile 0, compile-tests 0, `npm test` 1762
 passed / 65 files, `test:oracle` exit 0 — 131 documents, 124 agree, 4 lost TP, 3 CARDINAL FP, 0
-unrelated (byte-identical to S180–S186), `check-package` OK 42 files / 5.51 MB. **Phase 3E
-runtime verification NOT RUN — see the handoff receipt; it is owed, not waived.**
+unrelated (byte-identical to S180–S186), `check-package` OK 42 files / 5.51 MB, and **`test:integration`
+499 passing / 0 failing / 0 pending, exit 0**. **Phase 3E RUN with explicit operator instruction,
+after the close-out commit** (`41c4946`) rather than before it — out of protocol order, and recorded
+as such. The two assertions this session INVERTED were watched BY NAME at lines 312–313 of the
+captured log, through the real registered `DocumentSymbolProvider`.
 
 ### 2026-08-08 · [ad hoc] Session 186 — MAINTENANCE: the record said 97 MB, the disk said 2.5 GB, and the visible signal could not tell the difference (DONE)
 
