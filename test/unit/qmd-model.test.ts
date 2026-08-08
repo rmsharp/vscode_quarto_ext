@@ -2231,6 +2231,89 @@ describe("the HTML block-tag rule is pandoc's, and it is CONTEXT-DEPENDENT (Sess
     }
   });
 
+  it("RED->GREEN 6: the TAIL of the line decides too — a tag with trailing text is PROSE", () => {
+    // ⚠ EVERY DEFECT THIS SESSION INTRODUCED HAD ONE ROOT CAUSE: the predicates looked only at
+    // the HEAD of the line. Found by a ten-lens adversarial sweep whose authors had never seen
+    // this session's corpora — 219 documents, all rendered — and NOT by any corpus I designed,
+    // because every probe I wrote put the tag ALONE on its line. That axis was invisible to me.
+    //
+    // Measured, and it is one rule in three disguises. A tag line is a block opener only if,
+    // after the tag name, the line either ENDS AT A `>` (trailing whitespace allowed) or
+    // contains no `>` at all (pandoc's tag parser spans newlines, so the `>` may be below):
+    //
+    //   <div>                          block     ends at `>`
+    //   <div>x</div>                   block     ends at `>`
+    //   <title>Doc</title id="y">      block     ends at `>` — a CLOSER may carry attributes
+    //   <div class="x"                 block     no `>` on this line; it is below
+    //   <div> trailing text            PROSE     does not end at `>`
+    //   </note> and that is deliberate PROSE     ditto
+    //   <!-- x --> trailing text       PROSE     ditto
+    //
+    // The three DELETIONS below are the sharpest: my one-line RCDATA branch demanded the
+    // closer be exactly `</title>` with only spaces or tabs before the `>`. Real closers carry
+    // attributes, and one probe used a form feed. That was an unmeasured narrowing written
+    // into a session whose entire subject is unmeasured narrowings — Session 185 lost four
+    // headings to the identical mistake one session ago.
+    for (const line of ["<title>Doc</title id=\"y\">", "<textarea rows=2>x</textarea class=\"y\">",
+                        "<title>x</title\f>"]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", line, "# ATX Below")).map((h) => h.text),
+        `${line} is a BALANCED pair — the closer's attributes do not stop it closing`,
+      ).toEqual(["ATX Below"]);
+    }
+    // …and the trailing-text phantoms, in both consumers.
+    for (const line of ["<note> trailing text", "</note> and that is deliberate.",
+                        "<ins> trailing text", "<!-- x --> trailing text"]) {
+      expect(
+        findHeadings(doc(line, "Title", "===")).map((h) => h.text),
+        `${line} must not open a fresh block`,
+      ).toEqual([]);
+      expect(
+        findHeadings(doc("prose one", "prose two", line, "# ATX Below")).map((h) => h.text),
+        `${line} must not interrupt an open paragraph`,
+      ).toEqual([]);
+    }
+    // CONTROL — the same tags with NOTHING after the `>` must still work, in both consumers,
+    // or the narrowing has simply deleted the whole feature.
+    for (const line of ["<note>", "</note>", "<ins>", "<!-- x -->", "<div>", "<div>x</div>",
+                        "<title>x</title>", "<div class=\"x\""]) {
+      expect(
+        findHeadings(doc(line, "# ATX Below")).map((h) => h.text),
+        `${line} must still leave the paragraph closed`,
+      ).toEqual(["ATX Below"]);
+    }
+  });
+
+  it("RED->GREEN 7: the eitherBlockOrInline class needs COLUMN ZERO; blockTags does not", () => {
+    // ⚠ ANOTHER AXIS NO CORPUS OF MINE VARIED — I measured the indent rule for class 1
+    // (Session 185 established pandoc ignores leading whitespace there) and then reused
+    // ` {0,3}` for class 2 without measuring it. The sweep rendered an indented `<button>`.
+    //
+    // Measured, `Intro.` / (blank) / (indent)`<button>` / Title / `===`:
+    //   indent 0      -> h1:Title      block
+    //   indent 1, 3   -> NO heading    NOT block  ← we said block
+    //   indent 4, tab -> h1:Title      block, but via the INDENTED-CODE rule, not the tag
+    // …while `<div>` — class 1 — is block at 0, 1, 3, 4 and tab alike.
+    //
+    // So the two classes genuinely have different indent rules, and the 4-space and tab rows
+    // are a confound rather than evidence: they are block because 4+ spaces with no paragraph
+    // open is an indented code block, which this file already claims on another row.
+    expect(findHeadings(doc("<button>", "Title", "===")).map((h) => h.text)).toEqual(["Title"]);
+    for (const indent of [" ", "   "]) {
+      expect(
+        findHeadings(doc("Intro sentence.", "", `${indent}<button>`, "Title", "===")).map((h) => h.text),
+        `an eitherBlockOrInline tag at indent ${indent.length} is NOT block`,
+      ).toEqual([]);
+    }
+    // CONTROL — class 1 must keep its indent tolerance, which Session 185 measured and shipped.
+    for (const indent of ["", " ", "   "]) {
+      expect(
+        findHeadings(doc("Intro sentence.", "", `${indent}<div>`, "Title", "===")).map((h) => h.text),
+        `a blockTags tag at indent ${indent.length} IS block`,
+      ).toEqual(["Title"]);
+    }
+  });
+
   it("KNOWN RESIDUAL: a STRAY `</script>` keeps its phantom, and removing it would DELETE", () => {
     // ⚠ THIS PHANTOM IS RETAINED ON PURPOSE, and the decision is measured in both directions.
     // Pandoc's `isInlineTag` carries the explicit case `TagClose "script" -> True`, so a

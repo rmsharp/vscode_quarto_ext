@@ -171,7 +171,33 @@ const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
  * The backreference is what distinguishes the two, and it is the only thing that can: the
  * opener bytes are identical.
  */
-const RCDATA_ONE_LINE_SRC = "<(textarea|title)\\b[^>]*>.*</\\1[ \\t]*>";
+/**
+ * The TAIL of a tag line, and it is half the rule (Session 187).
+ *
+ * A line whose HEAD is a block tag is a block opener only if, after the tag name, the line
+ * either ENDS AT A `>` (trailing whitespace allowed) or contains NO `>` at all. Measured:
+ *
+ *   `<div>` / `<div>x</div>` / `<title>Doc</title id="y">`   block — the line ends at a `>`
+ *   `<div class="x"`                                          block — the `>` is on a line below
+ *   `<div> trailing text` / `</note> and so on`               PROSE — it ends at neither
+ *
+ * ⚠ **Every defect this session introduced came from omitting this**, and no corpus of mine
+ * could have found it: every probe I wrote put the tag ALONE on its line, so the axis was
+ * invisible. A ten-lens adversarial sweep, written by agents that had never seen those
+ * corpora, rendered 219 documents and produced three DELETIONS and eight phantoms, all of
+ * them here (Learning #239 — a clean corpus score is evidence about the corpus).
+ */
+const TAG_LINE_TAIL = "(?:[^>]*|.*>[ \\t]*)$";
+/**
+ * A balanced RCDATA element written entirely on ONE line — `<title>Hello</title>`.
+ *
+ * ⚠ **The CLOSER may carry attributes, and demanding it not was measured DELETING three real
+ * headings.** `</title id="y">` and `</textarea class="y">` are closers pandoc accepts, and one
+ * sweep probe wrote `</title\f>` with a form feed. The first draft of this pattern ended
+ * `</\\1[ \\t]*>`, which is an unmeasured narrowing of exactly the kind Session 185 lost four
+ * headings to one session earlier.
+ */
+const RCDATA_ONE_LINE_SRC = "<(textarea|title)\\b[^>]*>.*</\\1\\b[^>]*>[ \\t]*$";
 /**
  * PANDOC's own HTML tag classification, transcribed from
  * `Text.Pandoc.Readers.HTML.TagCategories` at **pandoc 3.6.3** — the build quarto 1.7.33
@@ -232,13 +258,20 @@ const PANDOC_EITHER_TAGS =
  * the two apart, so the rare phantom is retained over the ordinary deletion.
  */
 const HTML_BLOCK_OR_INLINE_OPEN = new RegExp(
-  "^ {0,3}(?:" +
-    "<(?:" + PANDOC_BLOCK_OPEN_TAGS + "|" + PANDOC_EITHER_TAGS + ")(?:[ \\t/>]|$)" +
-    "|</(?:" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")(?:[ \\t/>]|$)" +
-    "|</?\\?" + // a processing instruction, opener `<?…` or closer `</?…`
-    "|<!--" +
-  ")" +
-    "|^ {0,3}" + RCDATA_ONE_LINE_SRC,
+  // Class 1 — `blockTags`, which tolerates 0-3 spaces exactly as `HTML_BLOCK_OPEN` does.
+  "^ {0,3}<(?:" + PANDOC_BLOCK_OPEN_TAGS + ")(?=[ \\t/>]|$)" + TAG_LINE_TAIL +
+  "|^ {0,3}</(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")(?=[ \\t/>]|$)" + TAG_LINE_TAIL +
+  "|^ {0,3}" + RCDATA_ONE_LINE_SRC +
+  // ⚠ Class 2 — `eitherBlockOrInline` — needs COLUMN ZERO, and that is measured, not tidied.
+  // `Intro.` / (blank) / (indent)`<button>` / Title / `===` renders the heading at indent 0
+  // and NOT at indent 1 or 3, while `<div>` renders it at 0, 1 and 3 alike. The 4-space and
+  // tab rows DO render it, but via the indented-code rule on another row, not via the tag —
+  // scoring them as agreement is what hid this.
+  "|^</?(?:" + PANDOC_EITHER_TAGS + ")(?=[ \\t/>]|$)" + TAG_LINE_TAIL +
+  // A processing instruction, opener `<?…` or closer `</?…`.
+  "|^ {0,3}</?\\?" + TAG_LINE_TAIL +
+  // A COMPLETE HTML comment. An unterminated one is measured NOT to be a block.
+  "|^ {0,3}<!--.*-->[ \\t]*$",
   "i",
 );
 /**
@@ -599,16 +632,13 @@ const OPENS_FRESH_BLOCK: readonly RegExp[] = [
  * exactly as it does at column 0. An indented line is NOT block-level for being indented.
  */
 const HTML_BLOCK_OPEN = new RegExp(
-  "^[ \\t]*(?:" +
-    // OPENERS — pandoc's `blockTags` minus the measured exceptions above (98 names).
-    "<(?:" + PANDOC_BLOCK_OPEN_TAGS + ")" +
-    "|" +
-    // CLOSERS — the same list PLUS `textarea` and `title`; see the docstring.
-    "</(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")" +
-  ")(?:[ \\t/>]|$)" +
-    // …or a BALANCED one-line RCDATA element, which the name lists cannot express because
-    // its opener bytes are identical to the unbalanced form — see `RCDATA_ONE_LINE`.
-    "|^[ \\t]*" + RCDATA_ONE_LINE_SRC,
+  // OPENERS — pandoc's `blockTags` minus the measured exceptions above (98 names).
+  "^[ \\t]*<(?:" + PANDOC_BLOCK_OPEN_TAGS + ")(?=[ \\t/>]|$)" + TAG_LINE_TAIL +
+  // CLOSERS — the same list PLUS `textarea` and `title`; see the docstring.
+  "|^[ \\t]*</(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")(?=[ \\t/>]|$)" + TAG_LINE_TAIL +
+  // …or a BALANCED one-line RCDATA element, which the name lists cannot express because its
+  // opener bytes are identical to the unbalanced form — see `RCDATA_ONE_LINE_SRC`.
+  "|^[ \\t]*" + RCDATA_ONE_LINE_SRC,
   "i",
 );
 /**
