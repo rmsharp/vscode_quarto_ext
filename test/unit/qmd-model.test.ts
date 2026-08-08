@@ -2152,6 +2152,40 @@ describe("the HTML block-tag rule is pandoc's, and it is CONTEXT-DEPENDENT (Sess
     }
   });
 
+  it("RED->GREEN 4: a SETEXT underline sees the eitherBlockOrInline class too", () => {
+    // `HTML_BLOCK_OPEN` has a THIRD consumer — `opensFreshBlock`, which decides whether the
+    // line BELOW a construct starts a fresh paragraph and can therefore be claimed by a setext
+    // underline. Class 1 is tested there ahead of the bail; class 2 was tested NOWHERE, so
+    // with no paragraph open a setext heading under `<ins>` was simply lost.
+    //
+    // ⚠ OPPOSITE SAFETY POLARITY — this list ADDS headings (see `OPENS_FRESH_BLOCK`), into the
+    // outline, breadcrumbs, sticky scroll, workspace symbols AND the cross-reference index. So
+    // it is measured in its own context rather than inferred from the ATX result: one document
+    // per name, `<T>` / Title / ===, verdict `h1:Title` EXACTLY. An inline tag also yields a
+    // setext heading there, but one whose text is `<em> Title` — a different answer, and
+    // scoring it as agreement would have hidden the whole defect.
+    for (const tag of ["<ins>", "<del>", "<svg>", "<button>", "<video>", "<audio>",
+                       "<object>", "<embed>", "<noscript>", "<map>", "<progress>",
+                       "<area>", "<applet>", "<iframe>", "<source>", "<track>"]) {
+      expect(
+        findHeadings(doc(tag, "Title", "===")).map((h) => h.text),
+        `${tag} must make the line below it a fresh paragraph`,
+      ).toEqual(["Title"]);
+    }
+    // CONTROL — an inline tag must NOT, or this passes for "any `<` line opens a block",
+    // which is the polarity that fabricates headings. Measured: `<em>` / Title / === renders
+    // a setext heading whose text is `<em> Title`, i.e. the paragraph was never interrupted.
+    for (const tag of ["<em>", "<span>", "<not-a-real-tag>", "<base>", "<!DOCTYPE html>"]) {
+      expect(
+        findHeadings(doc(tag, "Title", "===")).map((h) => h.text),
+        `${tag} must NOT make the line below it a fresh paragraph`,
+      ).toEqual([]);
+    }
+    // CONTROL — and class 2 must stay INLINE against an OPEN paragraph in this consumer too,
+    // which is the whole reason it cannot simply be folded into `HTML_BLOCK_OPEN`.
+    expect(findHeadings(doc("prose one", "<ins>", "Title", "===")).map((h) => h.text)).toEqual([]);
+  });
+
   it("KNOWN RESIDUAL: a STRAY `</script>` keeps its phantom, and removing it would DELETE", () => {
     // ⚠ THIS PHANTOM IS RETAINED ON PURPOSE, and the decision is measured in both directions.
     // Pandoc's `isInlineTag` carries the explicit case `TagClose "script" -> True`, so a

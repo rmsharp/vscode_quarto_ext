@@ -495,6 +495,17 @@ const INDENTED_CODE_LINE = /^(?: {4,}|\t)\S/;
  * workspace symbols **and the cross-reference index**. So when in doubt, leave it out:
  * the cost is a residual, not a fabrication. Every entry below was measured firsthand
  * on the real `quarto render` path, both as `===` (h1) and `---` (h2).
+ *
+ * ⚠ **`HTML_BLOCK_OR_INLINE_OPEN` is here and `HTML_BLOCK_OPEN` is NOT, and the split is the
+ * whole point (Session 187).** Class 1 is tested in `opensFreshBlock` AHEAD of the
+ * `paragraphOpen` bail, because it opens a block whether or not a paragraph is open. Class 2
+ * — pandoc's `eitherBlockOrInline` — belongs HERE, behind the bail: with no paragraph open
+ * `<ins>` / `Title` / `===` renders `<h1>Title</h1>`, and with one open the same three lines
+ * render a single paragraph whose setext text is `<ins> Title`, which is not `Title` and must
+ * not be scored as agreement. Measured one document per name, in both underline spellings:
+ * all 16 names yield exactly `h1:Title` for `===` and `h2:Title` for `---`, while `<em>` and
+ * `<span>` yield neither. Before this row, a setext heading under any of the 16 was simply
+ * lost — a true positive nothing in this file was looking for.
  */
 const OPENS_FRESH_BLOCK: readonly RegExp[] = [
   INDENTED_CODE_LINE, //                                     an indented code block, spaces OR tab
@@ -503,6 +514,7 @@ const OPENS_FRESH_BLOCK: readonly RegExp[] = [
   /^ {0,3}\|/, //                                            a pipe-table ROW; a bare `a | b` is prose
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
   /^ {0,3}\\[a-zA-Z]/, //                                    a raw TeX block (`\clearpage`, `\newpage`)
+  HTML_BLOCK_OR_INLINE_OPEN, //                              pandoc's eitherBlockOrInline class
 ];
 /**
  * A raw HTML BLOCK opener — the one construct measured to interrupt an OPEN paragraph,
