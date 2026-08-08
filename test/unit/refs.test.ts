@@ -507,21 +507,35 @@ describe("indexLabels — narrowing CLOSES_PARAGRAPH reaches the crossref index 
     expect(findLabel(text, "sec-fn")).toBeNull();
   });
 
-  it("KNOWN RESIDUAL: the `<` and raw-TeX rows still invent crossref targets", () => {
-    // ⚠ Pinned as a disclosed cost, not an achievement. Both rows were narrowed during this
-    // session and both narrowings were REVERTED when an adversarial sweep measured them
-    // deleting 31 real headings between them (see qmd-model.test.ts). So these two crossref
-    // targets survive, for links quarto renders as `?@sec-…`:
-    //   <span>inline</span> / # Phantom {#sec-span}   -> ?@sec-span
-    //   \textbf{bold}       / # Phantom {#sec-tex}    -> ?@sec-tex
-    // A phantom target costs a spurious completion entry; a DELETED target breaks
-    // go-to-definition on a link that works. The trade is one-way and this is the cheap side.
+  it("the `<span>` phantom crossref target is GONE (Session 187); the raw-TeX one REMAINS", () => {
+    // ⚠ TEST-AFTER (labelled) for the first half, and the assertion is INVERTED from what
+    // Session 184 pinned. `core/refs` is the SECOND consumer of `findHeadings`, so replacing
+    // CommonMark's tag list with pandoc's reaches the crossref index too — and it moves it in
+    // the good direction here: `<span>inline</span>` is prose to quarto, so the heading below
+    // it is not a heading and `sec-span` was never a real target. Quarto rendered that link as
+    // `?@sec-span`, its unresolved marker.
+    expect(
+      indexLabels(["<span>inline</span>", "# Phantom {#sec-span}", "", "See @sec-span."].join("\n"))
+        .map((l) => l.id),
+    ).toEqual([]);
+    // …and the RAW-TeX row is untouched by this session and still invents its target. That row
+    // needs pandoc's block-MACRO list, a different artefact from a different reader, and it is
+    // deliberately out of scope here (FM #26). Pinned so the remaining cost stays visible.
+    expect(
+      indexLabels(["\\textbf{bold}", "# Phantom {#sec-tex}", "", "See @sec-tex."].join("\n"))
+        .map((l) => l.id),
+    ).toEqual(["sec-tex"]);
+    // CONTROL — a REAL target below a real block opener must still be indexed, in both the
+    // `blockTags` and the `eitherBlockOrInline` classes. Losing these is the deleting
+    // direction and it would break go-to-definition on a link that works.
     for (const [above, id] of [
-      ["<span>inline</span>", "sec-span"],
-      ["\\textbf{bold}", "sec-tex"],
+      ["<div>", "sec-div"],
+      ["<meta charset=\"utf-8\">", "sec-meta"],
+      ["<ins>", "sec-ins"],
     ] as const) {
-      const text = [above, `# Phantom {#${id}}`, "", `See @${id} for details.`].join("\n");
-      expect(indexLabels(text).map((l) => l.id)).toEqual([id]);
+      expect(
+        indexLabels([above, `# Real {#${id}}`, "", `See @${id}.`].join("\n")).map((l) => l.id),
+      ).toEqual([id]);
     }
   });
 });

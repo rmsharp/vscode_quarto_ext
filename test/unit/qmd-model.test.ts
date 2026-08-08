@@ -1423,30 +1423,68 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
     }
   });
 
-  it("KNOWN RESIDUAL: the `<` row keeps its phantoms because the row is not narrowable by shape", () => {
-    // ⚠ THESE ARE PHANTOMS ON PURPOSE, and pinning them is how the decision stays on the
-    // record. Each of these lines is prose to quarto — measured, with no paragraph open:
+  it("RESOLVED Session 187 — the `<` row IS narrowable, by NAME rather than by shape", () => {
+    // ⚠ THIS TEST WAS "KNOWN RESIDUAL" FOR THREE SESSIONS AND ITS ASSERTIONS ARE NOW INVERTED.
+    // Session 184 pinned these five as phantoms retained ON PURPOSE, on the reasoning quoted
+    // below — which was correct about the SHAPE and wrong about the conclusion:
+    //
+    //   "The rule is not a SHAPE, it is pandoc's own tag classification — `<ins>` opens a
+    //    block and `<em>` does not, and nothing about the two lines distinguishes them.
+    //    Transcribing that table is a separate, measured job; until then the row stays wide."
+    //
+    // Session 187 did that job. The row is now `HTML_BLOCK_OR_INLINE_OPEN` — pandoc's
+    // `blockTags ∪ eitherBlockOrInline`, plus processing instructions and comments — so every
+    // line below is correctly prose again and the heading pressed under it is correctly gone.
+    //
+    // ⚠ ONE HALF OF S184's PREMISE IS ALSO REFUTED: `<ins>` does NOT open a block here.
+    // `<ins>x</ins>` and `<em>x</em>` render byte-identically against an open paragraph
+    // (measured, quarto 1.7.33). `ins` is in `eitherBlockOrInline`, which is block only where
+    // no paragraph is open — which is this context, so `<ins>` IS a control below.
+    //
+    // Each of these lines is prose to quarto — measured, with no paragraph open:
     //
     //   <span>inline</span> / # ATX Below  -> <p>&lt;span&gt;inline&lt;/span&gt; # ATX Below</p>
     //   <not-a-real-tag     / # ATX Below  -> <p>…</p>          no heading
     //   <http://example.com>/ # ATX Below  -> <p><a …>…</a> …</p>  no heading
     //   <!DOCTYPE html>     / # ATX Below  -> <p>&lt;!DOCTYPE html&gt; …</p>  no heading
     //
-    // …and we emit a heading below every one. Session 184 narrowed the row to `<!--`/`<?` to
-    // remove exactly these, scored ZERO headings lost over 476 rendered documents, and was
-    // then shown by an adversarial sweep to be DELETING twenty real headings: `<meta>`,
-    // `<svg>`, `<button>`, `<video>`, `<audio>`, `<canvas>`, `<object>`, `<embed>`,
-    // `<noscript>`, `<map>`, `<output>`, `<progress>`, `<area>`, `<applet>`, `<ins>`, `<del>`
-    // and their variants all open a raw HTML block on the real render path while sitting
-    // outside CommonMark §4.6, which is all `HTML_BLOCK_OPEN` knows.
-    //
-    // The rule is not a SHAPE, it is pandoc's own tag classification — `<ins>` opens a block
-    // and `<em>` does not, and nothing about the two lines distinguishes them. Transcribing
-    // that table is a separate, measured job; until then the row stays wide, because a
-    // retained phantom is the permitted direction and a deleted heading never is.
+    // Session 184's own narrowing — to `<!--`/`<?` alone — scored ZERO headings lost over 476
+    // rendered documents and was then measured DELETING twenty real headings, because it threw
+    // away the whole tag test rather than replacing it with the right one.
     for (const above of ["<span>inline</span>", "<em>x</em>", "<not-a-real-tag",
-                         "<http://example.com>", "<!DOCTYPE html>"]) {
-      expect(findHeadings(doc(above, "# ATX Below")).map((h) => h.text)).toEqual(["ATX Below"]);
+                         "<http://example.com>", "<!DOCTYPE html>",
+                         "<base>", "<basefont size=\"3\">", "<link>", "<option>",
+                         "<my-widget>", "<w:p>"]) {
+      expect(
+        findHeadings(doc(above, "# ATX Below")).map((h) => h.text),
+        `${above} is prose with no paragraph open — the heading below must NOT be emitted`,
+      ).toEqual([]);
+    }
+    // CONTROLS — the recovering direction, all measured to close in THIS context. Losing any
+    // of these is the deleting direction, and `eitherBlockOrInline` is exactly what S184's
+    // narrowing dropped. `<div` with no `>` stays a control on purpose: pandoc's tag parser
+    // spans newlines, so its `>` may be on a later line and it really does open a block —
+    // removing the `$` branch was measured deleting that heading.
+    for (const above of ["<div>", "<meta charset=\"utf-8\">", "<pre>", "<note>",
+                         "<ins>", "<del>", "<svg>", "<button>", "<video>", "<audio>",
+                         "<object>", "<embed>", "<noscript>", "<map>", "<progress>",
+                         "<area>", "<applet>", "<iframe>", "<source>", "<track>",
+                         "</script>", "<?xml version=\"1.0\"?>", "<div"]) {
+      expect(
+        findHeadings(doc(above, "# ATX Below")).map((h) => h.text),
+        `${above} must still leave the paragraph closed`,
+      ).toEqual(["ATX Below"]);
+    }
+    // ⚠ TWO PHANTOMS SURVIVE THE NARROWING, and both are beyond a per-line regex rather than
+    // oversights. Pandoc's `htmlTag` guards `all (isName . fst) attr`, so an attribute name
+    // that is not a valid XML name makes the whole thing NOT a tag — measured, `<div
+    // 1bad="x">` / `# ATX Below` renders no heading and we emit one. Deciding it needs real
+    // attribute parsing, and `<div` with no `>` needs the REST OF THE DOCUMENT (the closing
+    // angle may be lines below). Both are the retained direction; recorded, not endorsed.
+    for (const above of ["<div 1bad=\"x\">", "<div"]) {
+      expect(
+        findHeadings(doc(above, "# ATX Below")).map((h) => h.text),
+      ).toEqual(["ATX Below"]); // ← quarto renders no heading for the first. Retained.
     }
   });
 

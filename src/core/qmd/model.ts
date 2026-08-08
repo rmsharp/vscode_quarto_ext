@@ -160,6 +160,74 @@ const BLANK_LINE = /^[ \t]*$/;
  */
 const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
 /**
+ * PANDOC's own HTML tag classification, transcribed from
+ * `Text.Pandoc.Readers.HTML.TagCategories` at **pandoc 3.6.3** — the build quarto 1.7.33
+ * bundles (`quarto pandoc --version`) — and then MEASURED entry by entry on the real
+ * `quarto render` path, one document per name per context. The transcription is the
+ * hypothesis; the 2,051 rendered documents are the authority.
+ *
+ * ⚠ **THE SET NAMES ARE THE RULE, and that is why there are two of them.**
+ *
+ *   `blockTags` (= `blockHtmlTags ∪ blockDocBookTags ∪ epubTags`) — block in EVERY context,
+ *       whether or not a paragraph is already open.  `PANDOC_BLOCK_OPEN_TAGS` (98 names).
+ *   `eitherBlockOrInline` — block ONLY where no paragraph is open.  Against an OPEN
+ *       paragraph these are INLINE and interrupt nothing.  `PANDOC_EITHER_TAGS` (16 names).
+ *
+ * Measured, six shapes across four contexts: against an open paragraph 98 openers and 100
+ * closers interrupt; with no paragraph open, 115 and 117.  The difference is exactly
+ * `eitherBlockOrInline` (+ processing instructions, which behave the same way).
+ *
+ * ⚠ **`<ins>x</ins>` AND `<em>x</em>` RENDER BYTE-IDENTICALLY against an open paragraph.**
+ * `BACKLOG.md` asserted the opposite, and listed `svg`, `button`, `video`, `audio`, `object`,
+ * `embed`, `noscript`, `map`, `progress`, `area`, `applet`, `ins` and `del` as block openers
+ * on the strength of it.  Every one of those is in `eitherBlockOrInline`, not `blockTags`;
+ * the item conflated the two sets.  Of the sixteen names it named, only `meta`, `canvas` and
+ * `output` are in `blockTags` — and those three ARE now recovered (see `HTML_BLOCK_OPEN`).
+ *
+ * ⚠ **DO NOT MERGE THESE TWO CONSTANTS.** Folding `eitherBlockOrInline` into
+ * `HTML_BLOCK_OPEN` puts it ahead of the `paragraphOpen` bail and fabricates a heading below
+ * every `<ins>`, `<svg>` and `<button>` that sits inside a paragraph.  Folding it the other
+ * way — dropping it from the post-bail row — deletes the heading below every one that does
+ * not.  The split IS the measurement.
+ */
+const PANDOC_BLOCK_OPEN_TAGS = "informalequation|programlistingco|informalexample|informalfigure|programlisting|classsynopsis|informaltable|literallayout|segmentedlist|funcsynopsis|itemizedlist|variablelist|calloutlist|cmdsynopsis|mediaobject|orderedlist|bibliolist|blockquote|figcaption|formalpara|screenshot|simplelist|glosslist|important|procedure|colgroup|epigraph|equation|fieldset|frameset|noframes|qandaset|screenco|synopsis|address|article|caption|caution|default|details|example|isindex|section|sidebar|simpara|summary|warning|canvas|center|figure|footer|header|hgroup|msgset|output|screen|script|switch|aside|style|table|tbody|tfoot|thead|body|case|form|head|html|main|menu|meta|note|para|task|col|dir|div|nav|pre|tip|dd|dl|dt|hr|li|ol|td|th|tr|ul|p|h[1-6]";
+const PANDOC_BLOCK_CLOSE_TAGS = "informalequation|programlistingco|informalexample|informalfigure|programlisting|classsynopsis|informaltable|literallayout|segmentedlist|funcsynopsis|itemizedlist|variablelist|calloutlist|cmdsynopsis|mediaobject|orderedlist|bibliolist|blockquote|figcaption|formalpara|screenshot|simplelist|glosslist|important|procedure|colgroup|epigraph|equation|fieldset|frameset|noframes|qandaset|screenco|synopsis|textarea|address|article|caption|caution|default|details|example|isindex|section|sidebar|simpara|summary|warning|canvas|center|figure|footer|header|hgroup|msgset|output|screen|script|switch|aside|style|table|tbody|tfoot|thead|title|body|case|form|head|html|main|menu|meta|note|para|task|col|dir|div|nav|pre|tip|dd|dl|dt|hr|li|ol|td|th|tr|ul|p|h[1-6]";
+const PANDOC_EITHER_TAGS =
+  "applet|area|audio|button|del|embed|iframe|ins|map|noscript|object|progress|source|svg|track|video";
+/**
+ * A raw HTML line that closes a paragraph ONLY where none is open — pandoc's `blockTags`
+ * ∪ `eitherBlockOrInline`, plus a processing instruction and a comment, both of which are
+ * measured to behave the same way (`<?xml …?>` and `<!-- c -->` each leave the paragraph
+ * closed here and each are INLINE against an open one).
+ *
+ * ⚠ **This replaces the bare `/^ {0,3}</` row, and the narrowing is the DELETING direction.**
+ * Session 184 narrowed the same row to `<!--`/`<?`, scored ZERO headings lost over 476
+ * rendered documents, and an adversarial sweep then measured it deleting 20 real headings —
+ * because it removed the tag test instead of replacing it.  The replacement here is a NAME
+ * set measured over 191 tag names in this exact context, plus 26 non-tag spellings.
+ *
+ * ⚠ **The indent stays ` {0,3}`, unlike `HTML_BLOCK_OPEN`'s `[ \t]*`.** That is not an
+ * oversight: this row is only ever reached with NO paragraph open, and 4+ spaces there is an
+ * indented code block, which the row above already claims.  Widening it would be an
+ * unmeasured change to a second axis.
+ *
+ * ⚠ **The trailing `$` branch is KEPT, and removing it was measured deleting a heading.**
+ * `BACKLOG.md` files `<div` with no `>` as a phantom our `(?:[ \t/>]|$)` admits.  It is one
+ * only when the document contains no `>` at all afterwards: pandoc's `htmlTag` consumes
+ * `manyTill anyChar endAngle`, which SPANS NEWLINES, so `<div` / `class="x">` / `# ATX Below`
+ * really does open a block and really does render the heading.  A per-line regex cannot tell
+ * the two apart, so the rare phantom is retained over the ordinary deletion.
+ */
+const HTML_BLOCK_OR_INLINE_OPEN = new RegExp(
+  "^ {0,3}(?:" +
+    "<(?:" + PANDOC_BLOCK_OPEN_TAGS + "|" + PANDOC_EITHER_TAGS + ")(?:[ \\t/>]|$)" +
+    "|</(?:" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")(?:[ \\t/>]|$)" +
+    "|<\\?" +
+    "|<!--" +
+  ")",
+  "i",
+);
+/**
  * Body lines that do NOT leave a paragraph open, so an ATX heading may follow one
  * directly (Session 180). Pandoc's `blank_before_header` — on by default in the
  * `markdown` dialect quarto renders with — forbids a heading only where it would
@@ -227,7 +295,7 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
   /^ {0,3}:{3,}/, //                                         a fenced-div / callout fence
   /^(?: {4,}|\t)\S/, //                                      an indented code block, spaces OR tab
   /^ {0,3}\[(?!\^[^\s^\]]+\]:)[^\]]*\]:/, //                 a link reference — NOT a `[^1]:` footnote
-  /^ {0,3}</, //                                             a raw HTML block — see the note below
+  HTML_BLOCK_OR_INLINE_OPEN, //                              a raw HTML block — see the note below
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
   /^ {0,3}\\[a-zA-Z]/, //                                    a raw TeX block — see the note below
   /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator
@@ -504,8 +572,6 @@ const OPENS_FRESH_BLOCK: readonly RegExp[] = [
  * closed tag list above is what separates `    <div>` (a block) from `    <span>` (prose),
  * exactly as it does at column 0. An indented line is NOT block-level for being indented.
  */
-const PANDOC_BLOCK_OPEN_TAGS = "informalequation|programlistingco|informalexample|informalfigure|programlisting|classsynopsis|informaltable|literallayout|segmentedlist|funcsynopsis|itemizedlist|variablelist|calloutlist|cmdsynopsis|mediaobject|orderedlist|bibliolist|blockquote|figcaption|formalpara|screenshot|simplelist|glosslist|important|procedure|colgroup|epigraph|equation|fieldset|frameset|noframes|qandaset|screenco|synopsis|address|article|caption|caution|default|details|example|isindex|section|sidebar|simpara|summary|warning|canvas|center|figure|footer|header|hgroup|msgset|output|screen|script|switch|aside|style|table|tbody|tfoot|thead|body|case|form|head|html|main|menu|meta|note|para|task|col|dir|div|nav|pre|tip|dd|dl|dt|hr|li|ol|td|th|tr|ul|p|h[1-6]";
-const PANDOC_BLOCK_CLOSE_TAGS = "informalequation|programlistingco|informalexample|informalfigure|programlisting|classsynopsis|informaltable|literallayout|segmentedlist|funcsynopsis|itemizedlist|variablelist|calloutlist|cmdsynopsis|mediaobject|orderedlist|bibliolist|blockquote|figcaption|formalpara|screenshot|simplelist|glosslist|important|procedure|colgroup|epigraph|equation|fieldset|frameset|noframes|qandaset|screenco|synopsis|textarea|address|article|caption|caution|default|details|example|isindex|section|sidebar|simpara|summary|warning|canvas|center|figure|footer|header|hgroup|msgset|output|screen|script|switch|aside|style|table|tbody|tfoot|thead|title|body|case|form|head|html|main|menu|meta|note|para|task|col|dir|div|nav|pre|tip|dd|dl|dt|hr|li|ol|td|th|tr|ul|p|h[1-6]";
 const HTML_BLOCK_OPEN = new RegExp(
   "^[ \\t]*(?:" +
     // OPENERS — pandoc's `blockTags` minus the measured exceptions above (98 names).
