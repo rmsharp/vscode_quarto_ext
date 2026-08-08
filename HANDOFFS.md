@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S186
+date: 2026-08-08
+status: pending
+active_task: MAINTENANCE -- address the uncommitted surface. Phase 0 reconcile read a true zero on both frontiers and Active was EMPTY; backlog candidates were offered via AskUserQuestion per CLAUDE.md's Phase 0 addition, and the operator declined to pick one until the uncommitted work was addressed, directing a describe-then-decide pass first. Four parts, ONE intent (bring the uncommitted surface into a correct, recorded state): C1 commit .claude/settings.json as its own chore(claude); C2 commit dashboard_history.jsonl as its own chore(dashboard); C3 prune ONLY regenerable byproduct under scratchpad/ (*_files/, .quarto/, _site/, _book/, site_libs/, __pycache__), gated on a citation-disjointness proof, not on a pattern; C4 correct the 26x-stale record in BACKLOG.md and file the dangling-citation defect. TDD gate does NOT fire -- no part touches source logic; the verification owed instead is that the build matrix is BYTE-UNCHANGED across the session, measured at both ends.
+```
+
+```handoff
 session: S185
 date: 2026-08-03
 status: complete
