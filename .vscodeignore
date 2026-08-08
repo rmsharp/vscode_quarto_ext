@@ -57,10 +57,25 @@ dashboard_history.jsonl
 #
 # ⚠ `scratchpad/` is deliberately NOT in `.gitignore` (decided, Session 174).
 # The `?? scratchpad/` line in every Phase 0 `git status` is the only
-# human-visible trace that ~97 MB of prior-session scratch lives in this repo,
+# human-visible trace that prior-session scratch lives in this repo,
 # and it costs exactly one line because git collapses the directory — it masks
 # no other stray file. Silencing it would buy cosmetic quiet at the price of the
 # one signal, so the packaging risk is carried HERE and by `check-package.js`
 # instead. Reversing that decision is a one-line change to `.gitignore`; the
 # .vsix stays protected either way.
+#
+# ⚠ MEASURED AND PARTLY CORRECTED, Session 186. This comment used to say the
+# signal traced "~97 MB". Measured at that session's Orient: 2,600,816 KB
+# (2.5 GB) across 52,796 files — 26× the figure recorded here, in CHANGELOG.md
+# and at two sites in BACKLOG.md. TWO of the three premises above survive the
+# measurement: it does cost exactly one line, and it does mask no other stray
+# file (all 51,873 untracked-and-unignored files were under `scratchpad/`, zero
+# elsewhere). The THIRD fails — **the signal is SIZE-BLIND**. A collapsed
+# `?? scratchpad/` line is byte-identical at 97 MB and at 2.5 GB, which is
+# precisely how 26× of growth passed through it unnoticed for eleven sessions.
+# Keep the decision; do not read the line as a measurement. Session 186 pruned
+# 2,332 MB (91%) of regenerable `quarto render` byproduct back to 212 MB, gated
+# on proving the delete set disjoint from every `scratchpad/` path cited by a
+# tracked file. `scratchpad/**` below is what keeps ALL of it out of the .vsix,
+# at any size.
 scratchpad/**
