@@ -7,6 +7,55 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-08 · [ad hoc] Session 187 — IMPLEMENTATION: pandoc classifies by tag NAME, in two sets, and the set names are the rule (SHIPPED)
+
+Replaced CommonMark §4.6's tag list in `src/core/qmd/model.ts` with pandoc's own classification,
+transcribed from `Text.Pandoc.Readers.HTML.TagCategories` at **pandoc 3.6.3** (the build quarto
+1.7.33 bundles) and then **measured entry by entry** — six shapes across four contexts, **2,051
+documents rendered through the real `quarto render` path**, plus a 219-document adversarial sweep.
+
+**The rule is CONTEXT-DEPENDENT, and pandoc's two set names say so.** `blockTags`
+(`blockHtmlTags ∪ blockDocBookTags ∪ epubTags`) is block in every context; `eitherBlockOrInline`
+is block only where no paragraph is already open. Against an open paragraph 98 openers and 100
+closers interrupt; with none open, 115 and 117. Three measured exceptions to the source:
+`!DOCTYPE` (rejected by `htmlTag`'s own `isName` guard), and `textarea`/`title` (RCDATA — the
+unclosed opener swallows the document, so it opens nothing while its CLOSER is block).
+
+**Drains three filed items**, which were one artefact read in two directions: family (a) of
+Session 183's deletion item (heading-DELETING, HIGH), the raw-HTML width row, and
+`HTML_BLOCK_OPEN`'s list being CommonMark's rather than pandoc's.
+
+**REFUTES the central claim of the filed item it implements.** `BACKLOG.md` asserted
+"`<ins>x</ins>` opens a block and `<em>x</em>` does not" and listed thirteen further names as
+block openers. Rendered, the two lines are byte-identical. Of the sixteen names the item listed,
+only `meta`, `canvas` and `output` are in `blockTags`; the rest are `eitherBlockOrInline`.
+
+**SCORE, per heading, two directions separate:**
+
+| corpus | build | agree | phantom | LOST |
+|---|---|---|---|---|
+| designed, 2,223 docs | pre-S187 | 1467 | 303 | 453 |
+| designed, 2,223 docs | **SHIPPED** | **2207** | **16** | **0** |
+| adversarial sweep, 219 docs | pre-S187 | — | 105 | 111 |
+| adversarial sweep, 219 docs | **SHIPPED** | — | **81** | **111** |
+
+**453 headings recovered, 312 phantoms removed, ZERO deletions, ZERO new phantom classes.**
+
+**The adversarial sweep found three DELETIONS and eight phantoms this session had introduced**,
+none findable by any corpus it designed: every probe written here put the tag ALONE on its line,
+so the TAIL of the line was an invisible axis. One root cause, three disguises — a tag line is a
+block opener only if it ENDS AT a `>` or contains no `>` at all. A second axis: `eitherBlockOrInline`
+needs column zero where `blockTags` tolerates 0–3 spaces.
+
+**Scope split at claim (FM #26):** pandoc's block-MACRO list is a different artefact from a
+different reader and was declared out of scope; the raw-TeX items remain open.
+
+Commits: 1B claim `6fd3633`; C1 `eeec268`; C2 `84c1f73`; C3 `7c1e405`; C4 `7c44197`; C5 `3b293f2`;
+close-out (this commit). Verification: check-types 0, compile 0, compile-tests 0, `npm test` 1762
+passed / 65 files, `test:oracle` exit 0 — 131 documents, 124 agree, 4 lost TP, 3 CARDINAL FP, 0
+unrelated (byte-identical to S180–S186), `check-package` OK 42 files / 5.51 MB. **Phase 3E
+runtime verification NOT RUN — see the handoff receipt; it is owed, not waived.**
+
 ### 2026-08-08 · [ad hoc] Session 186 — MAINTENANCE: the record said 97 MB, the disk said 2.5 GB, and the visible signal could not tell the difference (DONE)
 
 Brought the uncommitted surface into a correct, recorded state. **Five actions, one intent** —
