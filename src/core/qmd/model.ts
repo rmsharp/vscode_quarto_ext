@@ -160,6 +160,19 @@ const BLANK_LINE = /^[ \t]*$/;
  */
 const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
 /**
+ * A balanced RCDATA element written entirely on ONE line — `<title>Hello</title>`.
+ *
+ * ⚠ **This exists because dropping `textarea`/`title` from the opener list DELETED three real
+ * headings (Session 187), and only the two-direction corpus score found them.** Their UNCLOSED
+ * openers open nothing, because both are RCDATA: everything after them is text until the
+ * closer, so an unterminated one swallows the rest of the document and the heading below never
+ * forms. A BALANCED pair on one line swallows nothing — the element ends where it began, the
+ * paragraph really is interrupted, and the heading below is real (measured, in both contexts).
+ * The backreference is what distinguishes the two, and it is the only thing that can: the
+ * opener bytes are identical.
+ */
+const RCDATA_ONE_LINE_SRC = "<(textarea|title)\\b[^>]*>.*</\\1[ \\t]*>";
+/**
  * PANDOC's own HTML tag classification, transcribed from
  * `Text.Pandoc.Readers.HTML.TagCategories` at **pandoc 3.6.3** — the build quarto 1.7.33
  * bundles (`quarto pandoc --version`) — and then MEASURED entry by entry on the real
@@ -222,9 +235,10 @@ const HTML_BLOCK_OR_INLINE_OPEN = new RegExp(
   "^ {0,3}(?:" +
     "<(?:" + PANDOC_BLOCK_OPEN_TAGS + "|" + PANDOC_EITHER_TAGS + ")(?:[ \\t/>]|$)" +
     "|</(?:" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")(?:[ \\t/>]|$)" +
-    "|<\\?" +
+    "|</?\\?" + // a processing instruction, opener `<?…` or closer `</?…`
     "|<!--" +
-  ")",
+  ")" +
+    "|^ {0,3}" + RCDATA_ONE_LINE_SRC,
   "i",
 );
 /**
@@ -591,7 +605,10 @@ const HTML_BLOCK_OPEN = new RegExp(
     "|" +
     // CLOSERS — the same list PLUS `textarea` and `title`; see the docstring.
     "</(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")" +
-  ")(?:[ \\t/>]|$)",
+  ")(?:[ \\t/>]|$)" +
+    // …or a BALANCED one-line RCDATA element, which the name lists cannot express because
+    // its opener bytes are identical to the unbalanced form — see `RCDATA_ONE_LINE`.
+    "|^[ \\t]*" + RCDATA_ONE_LINE_SRC,
   "i",
 );
 /**

@@ -2186,6 +2186,51 @@ describe("the HTML block-tag rule is pandoc's, and it is CONTEXT-DEPENDENT (Sess
     expect(findHeadings(doc("prose one", "<ins>", "Title", "===")).map((h) => h.text)).toEqual([]);
   });
 
+  it("RED->GREEN 5: a BALANCED RCDATA element on one line closes; so does a `</?…>` PI closer", () => {
+    // ⚠ THREE DELETIONS THIS SESSION INTRODUCED, caught by the two-direction corpus score
+    // and NOT by any test written before it. Both are consequences of the narrowing above:
+    //
+    // (a) `textarea` and `title` were dropped from the OPENER list because their UNCLOSED
+    //     openers swallow the document as RCDATA. But `<title>Hello</title>` — opener and
+    //     closer on ONE line — swallows nothing: the element is balanced, so the paragraph
+    //     really is interrupted and the heading below is REAL. Our regexes anchor at the
+    //     start of the line, so neither the opener branch (name not in the list) nor the
+    //     closer branch (line does not begin with `</`) matched it.
+    //     `<title>Hello</title>` is not a corner case; it is what raw HTML in a document
+    //     looks like.
+    //
+    // (b) `</?xml>` — a processing-instruction CLOSER. The new row grew a `<?` branch for
+    //     `<?xml …?>` and had no `</?` branch, so the closer was lost. This one is a
+    //     PRE-EXISTING loss in the setext context too, recovered here as a side effect.
+    //
+    // Measured, all five on the real render path — every one renders `<h1>ATX Below</h1>`.
+    for (const line of ["<textarea>x</textarea>", "<title>x</title>", "<title>Hello</title>"]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", line, "# ATX Below")).map((h) => h.text),
+        `${line} is BALANCED, so it interrupts the paragraph`,
+      ).toEqual(["ATX Below"]);
+      expect(
+        findHeadings(doc(line, "# ATX Below")).map((h) => h.text),
+        `${line} with no paragraph open`,
+      ).toEqual(["ATX Below"]);
+    }
+    expect(findHeadings(doc("</?xml>", "# ATX Below")).map((h) => h.text)).toEqual(["ATX Below"]);
+    // CONTROL — the UNBALANCED opener must still open nothing, or the fix has simply undone
+    // RED->GREEN 2 and re-armed the RCDATA swallow.
+    for (const line of ["<textarea>", "<title>"]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", line, "# ATX Below")).map((h) => h.text),
+        `${line} unbalanced must still open nothing`,
+      ).toEqual([]);
+    }
+    // CONTROL — a balanced INLINE element on one line must still open nothing.
+    for (const line of ["<em>x</em>", "<span>hi</span>"]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", line, "# ATX Below")).map((h) => h.text),
+      ).toEqual([]);
+    }
+  });
+
   it("KNOWN RESIDUAL: a STRAY `</script>` keeps its phantom, and removing it would DELETE", () => {
     // ⚠ THIS PHANTOM IS RETAINED ON PURPOSE, and the decision is measured in both directions.
     // Pandoc's `isInlineTag` carries the explicit case `TagClose "script" -> True`, so a

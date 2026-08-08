@@ -68,6 +68,13 @@ below it and we emit one. The defect is PRE-EXISTING — the live and pre-Sessio
 both emit this phantom — and it belongs to the skip-region model, not to this file's
 paragraph rules.
 
+RESOLVED Session 187 for `textarea` and `title` SPECIFICALLY: both are RCDATA, so an
+unclosed opener swallows the document as text and opens nothing, and both are now off
+the OPENER list. Their CLOSERS remain block closers and a BALANCED `<textarea>x</textarea>`
+on one line still interrupts a paragraph — dropping those two cases with it was measured
+deleting three real headings. The broader filed item is NOT drained: `<pre>`, `<script>`
+and `<style>` still swallow the document while we emit headings from inside them.
+
 prose one
 prose two
 <textarea>

@@ -464,14 +464,22 @@ describe("Quarto: Document outline (symbols)", () => {
     assert.ok(parent, "Below A Lone Plus must be a top-level section");
     assert.deepStrictEqual(parent.children.map((c) => c.name), ["Genuine Child"]);
 
-    // TWO DISCLOSED RESIDUALS, asserted so they are a decision on the record rather than a
-    // surprise in the Outline view. Both rows were narrowed during this session and both
-    // narrowings were REVERTED once an adversarial sweep measured them deleting 31 real
-    // headings between them: pandoc classifies these by TAG and by MACRO NAME, not by the
-    // shape of the line, and this model has neither table.
-    for (const residual of ["Residual Phantom — Inline Tag", "Residual Phantom — Inline TeX"]) {
-      assert.ok(names.includes(residual), `KNOWN RESIDUAL: ${residual} is retained on purpose`);
-    }
+    // ⚠ ONE OF THE TWO DISCLOSED RESIDUALS IS GONE (Session 187), and the assertion is
+    // inverted rather than deleted so the change of decision stays on the record. Session 184
+    // wrote that "pandoc classifies these by TAG and by MACRO NAME, not by the shape of the
+    // line, and this model has neither table" — correct, and Session 187 transcribed the TAG
+    // table (pandoc 3.6.3 `Text.Pandoc.Readers.HTML.TagCategories`, then measured entry by
+    // entry over 2,051 rendered documents). So the inline-TAG phantom is fixed here, at the
+    // real provider, and the inline-MACRO one is not: the block-macro list is a different
+    // artefact from a different reader and is deliberately out of scope.
+    assert.ok(
+      !names.includes("Residual Phantom — Inline Tag"),
+      "Session 187: `<span>inline</span>` is prose, so this phantom must NO LONGER reach the Outline",
+    );
+    assert.ok(
+      names.includes("Residual Phantom — Inline TeX"),
+      "KNOWN RESIDUAL: the raw-TeX row still needs pandoc's block-MACRO list",
+    );
 
     // Nothing else at all — the exact set, which no per-name assertion can say.
     assert.deepStrictEqual(names, [
@@ -486,7 +494,6 @@ describe("Quarto: Document outline (symbols)", () => {
       "Below A Bare Macro",
       "Below A Lone Plus",
       "Genuine Child",
-      "Residual Phantom — Inline Tag",
       "Residual Phantom — Inline TeX",
     ]);
   });
@@ -538,14 +545,20 @@ describe("Quarto: Document outline (symbols)", () => {
     assert.ok(parent, "Below A Line Block must be a top-level section");
     assert.deepStrictEqual(parent.children.map((c) => c.name), ["Genuine Child"]);
 
-    // ONE DISCLOSED RESIDUAL, asserted so it is a decision on the record rather than a
-    // surprise in the Outline view. An UNCLOSED `<textarea>` swallows the rest of the document
-    // on the real render path, so quarto renders no heading below it and we emit one. The
-    // defect is PRE-EXISTING — the live and pre-Session-183 builds both emit it at column
-    // zero — and it belongs to the skip-region model, not to this file's paragraph rules.
+    // ⚠ THIS RESIDUAL IS GONE TOO (Session 187), and again the assertion is inverted rather
+    // than deleted. An UNCLOSED `<textarea>` swallows the rest of the document on the real
+    // render path, so quarto renders no heading below it — and `textarea` is now off the
+    // OPENER list, because it is RCDATA and its unclosed opener opens nothing. Its CLOSER is
+    // still a block closer, and a BALANCED `<textarea>x</textarea>` on one line still
+    // interrupts a paragraph; dropping those two cases with it was measured deleting three
+    // real headings before it shipped.
+    //
+    // ⚠ The FILED ITEM this residual pointed at is only PARTLY drained: `<pre>`, `<script>`
+    // and `<style>` are not RCDATA in the same way and an unclosed one still swallows the
+    // document while we emit headings from inside it. That item stays open.
     assert.ok(
-      names.includes("Residual Phantom — Unclosed Textarea"),
-      "KNOWN RESIDUAL: an unclosed condition-1 tag swallows the document and we do not model it",
+      !names.includes("Residual Phantom — Unclosed Textarea"),
+      "Session 187: an unclosed <textarea> opens nothing, so this phantom must be gone",
     );
 
     // Nothing else at all — the exact set, which no per-name assertion can say.
@@ -556,7 +569,6 @@ describe("Quarto: Document outline (symbols)", () => {
       "Below A Line Block",
       "Genuine Child",
       "Below A Line Block After A Table",
-      "Residual Phantom — Unclosed Textarea",
     ]);
   });
 });
