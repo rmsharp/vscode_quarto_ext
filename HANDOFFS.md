@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S187
+date: 2026-08-08
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD) -- transcribe pandoc's HTML block-tag classification and MEASURE every entry on the real quarto render path, then ship it into src/core/qmd/model.ts at the two sites that need it: HTML_BLOCK_OPEN (:470-471, currently CommonMark 4.6 conditions 1+6) and CLOSES_PARAGRAPH's bare /^ {0,3}</ row (:230). Operator selected it via AskUserQuestion at Phase 0; it was S185's and S186's ranked #1. SCOPE SPLIT DECLARED AT CLAIM (FM #26): BACKLOG.md says to do the HTML tag list and the raw-TeX block-macro list together, but they are two artefacts from two readers and shipping both is two capabilities -- the raw-TeX block-macro list is OUT OF SCOPE and is the next session's item. The HTML half alone drains THREE filed items because they are one artefact read in both directions: the raw-HTML width row, family (a) of S183's deletion item (HIGH, heading-DELETING), and HTML_BLOCK_OPEN's list being CommonMark's rather than pandoc's. TDD gate FIRES -- this is real logic, RED->GREEN one behaviour at a time. HAZARD: the change runs in BOTH directions at once -- widening HTML_BLOCK_OPEN recovers headings, narrowing CLOSES_PARAGRAPH's wide row DELETES them, and S184 shipped exactly that narrowing on a ZERO-headings-lost score over 476 documents before a sweep measured it deleting 20 real headings (Learning #239). Baselines at Orient: check-types 0, npm test 1754 passed / 65 files; Phase 0 reconcile a true zero on both frontiers (7b48b1e = HEAD).
+```
+
+```handoff
 session: S186
 date: 2026-08-08
 status: complete
