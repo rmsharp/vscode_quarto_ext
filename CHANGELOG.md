@@ -7,6 +7,64 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-08 · [ad hoc] Session 186 — MAINTENANCE: the record said 97 MB, the disk said 2.5 GB, and the visible signal could not tell the difference (DONE)
+
+Brought the uncommitted surface into a correct, recorded state. **Five actions, one intent** —
+four commits plus one non-commit action (the prune leaves no tracked change, and is logged here
+because FM #27 counts actions, not commits).
+
+**Action 1 — `b54b583`, `chore(claude)`: committed `.claude/settings.json`.** One line,
+`claude-opus-4-8` → `claude-opus-5`. The file's **only** prior commit in all of history is
+`2f8084c` (2026-07-11), which created it — the model line had never once been bumped by a
+commit, only carried dirty, for ~28 sessions since 2026-07-25. Nothing in the build, test,
+type-check or packaging path reads it.
+
+**Action 2 — `fe1e05b`, `chore(dashboard)`: committed four `dashboard_history.jsonl` rows.**
+The Phase 0 orientation snapshots of Sessions 183, 184, 185 and 186. Last committed at
+`8dd11a5` (S182); **20 commits had landed since without it**, while S174's and S175's notes
+both assert it "rides this close-out commit". **Corrects a false premise seven earlier
+receipts used to justify leaving it dirty** — "rewritten at every Phase 0, therefore noise"
+is wrong: `methodology_dashboard.py` opens the file in **append** mode, so an uncommitted row
+is *lost*, not regenerated. Carries the only record in the repo of `npm audit` going 2 → 6.
+
+**Action 3 — non-commit: pruned 2,332 MB (91%) of regenerable byproduct from `scratchpad/`.**
+2,600,816 KB → 212,460 KB; 52,796 → 19,788 files; 20,650 → 4,096 dirs. Deleted only
+`*_files/`, `.quarto/`, `_site/`, `_book/` — the `quarto render` output in which each
+~200-byte probe document carries its own full copy of the bootstrap/quarto JS+CSS bundle.
+**Gated on a proven disjointness check, not on a pattern** (Learning #248): 78 `scratchpad/`
+tokens extracted from tracked files → 38 still existing → 2,768 top-most delete-set dirs →
+**zero** cited path inside the delete set → delete → **all 38 re-asserted present afterwards**.
+Build matrix byte-unchanged across the operation: `compile` 0, `npm test` **1754 / 65**,
+`check-package` **OK 42 files / 5.51 MB** — S185's close figures, exact.
+
+**Action 4 — `6e2e2b7`, `docs(backlog)`: corrected the record at all four sites and filed
+three findings.** The "~97 MB" figure was wrong by **26×** and appeared at two sites in
+`BACKLOG.md`, in this file's S174 entry, and in `.vscodeignore`'s decision comment. The item's
+other claims failed in the same direction: its growth model understated by ~15× on average and
+**130×** for `s183` alone (39,069 files), and its description of the contents was wrong **in
+kind** — 90% of the bytes were regenerable render output, not "probe scripts and fixture trees".
+**Two of S174's three non-gitignore premises survive measurement** (it does cost exactly one
+line; it does mask no other stray file — all 51,873 untracked-and-unignored files were under
+`scratchpad/`, zero elsewhere); **the third fails, and it is the load-bearing one — the signal
+is SIZE-BLIND.** A collapsed `?? scratchpad/` line is byte-identical at 97 MB and at 2.5 GB.
+The S174 decision stands; the figure was never a measurement (Learning #247).
+
+**Filed, not fixed** (each a real `- [ ]` in `BACKLOG.md`): (1) **51% of the `scratchpad/`
+paths cited by tracked documents already dangled** — 40 of 78, *before* this prune, which lost
+zero — including two findings documents cited by committed planning docs; a structural
+durability defect whose exposure is **live** in the current S185 receipt (Learning #249).
+(2) **`.vscode-test/` is 18 GB** — 7.2× scratchpad — and being gitignored has **no** visible
+signal at all; only `1.129.0` is pinned (`test/integration/runTest.ts:38`) and
+`test/lsp/runTest.ts` pins nothing, which is how four downloads accumulated. (3) **`npm audit`
+2 → 6**, devDependency-only, all `fixAvailable`, production tree empty.
+
+**Scope held (1 and done):** no source logic was touched, so the strict-TDD gate does not fire
+(`CLAUDE.md`'s declarative/no-logic exemption); the verification owed instead — that the build
+matrix is byte-unchanged — was measured at both ends. The `.vscode-test/` 18 GB finding was
+**filed, not acted on**, and no backlog item was started.
+
+**Learnings #247–#249** added to `PROJECT_LEARNINGS.md`.
+
 ### 2026-08-03 · [ad hoc] Session 185 — IMPLEMENTATION: the indent is not part of pandoc's html-block rule, and a line block continues (SHIPPED)
 
 Recovered **184 of the real ATX headings Session 183's `paragraphOpen` gate deletes, adding
