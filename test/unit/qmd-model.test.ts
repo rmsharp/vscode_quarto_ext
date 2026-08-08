@@ -1982,6 +1982,168 @@ describe("an INDENTED HTML block and a LINE BLOCK still close a paragraph (Sessi
   });
 });
 
+describe("the HTML block-tag rule is pandoc's, and it is CONTEXT-DEPENDENT (Session 187)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("RED->GREEN 1: a pandoc block tag OUTSIDE CommonMark §4.6 interrupts an open paragraph", () => {
+    // ⚠ FAMILY (a) of Session 183's deletion item — the last one open, heading-DELETING,
+    // filed HIGH. `HTML_BLOCK_OPEN` carried CommonMark §4.6 conditions 1+6; pandoc classifies
+    // by NAME from its OWN sets (`Text.Pandoc.Readers.HTML.TagCategories`, pandoc 3.6.3 —
+    // the build quarto 1.7.33 bundles), and `blockTags` there is
+    // `blockHtmlTags ∪ blockDocBookTags ∪ epubTags`. 47 of those names were missing from our
+    // list, so every one of them lost the heading below it against an open paragraph.
+    //
+    // Measured on the real render path, one document per name — each renders
+    // `<h1>ATX Below</h1>`, which the CommonMark list deletes:
+    //
+    //   prose one / prose two / <meta charset="utf-8"> / # ATX Below  ->  <h1>ATX Below</h1>
+    //
+    // The DocBook names are not decoration: pandoc folds `blockDocBookTags` into the same set
+    // precisely so raw DocBook survives a markdown document, so `<note>`, `<warning>` and
+    // `<para>` really are block openers on this path.
+    for (const tag of [
+      "<meta charset=\"utf-8\">", // blockHtmlTags — the exact document family (a) names
+      "<canvas>",
+      "<output>",
+      "<hgroup>",
+      "<isindex>",
+      "<note>", // blockDocBookTags
+      "<warning>",
+      "<para>",
+      "<programlisting>",
+      "<itemizedlist>",
+      "<switch>", // epubTags
+      "<case>",
+    ]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", tag, "# ATX Below")).map((h) => h.text),
+        `${tag} must interrupt an open paragraph`,
+      ).toEqual(["ATX Below"]);
+    }
+    // CONTROL — an inline tag must STILL yield no heading, or this passes for the wrong rule
+    // (namely "any `<` line is block-level", which is the row Session 184 measured deleting
+    // 20 real headings). Measured: each renders one `<p>` holding all four lines.
+    for (const tag of ["<span>", "<em>", "<not-a-real-tag>", "<my-widget>"]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", tag, "# ATX Below")).map((h) => h.text),
+        `${tag} must NOT interrupt an open paragraph`,
+      ).toEqual([]);
+    }
+  });
+
+  it("RED->GREEN 2: against an OPEN paragraph, ONLY pandoc's blockTags interrupt", () => {
+    // Two different reasons a tag we carried is wrong here, and they are NOT the same defect:
+    //
+    // (i)  NOT IN PANDOC'S SETS AT ALL — `base`, `basefont`, `dialog`, `frame`, `legend`,
+    //      `link`, `menuitem`, `optgroup`, `option`, `param`. CommonMark §4.6 lists them;
+    //      pandoc does not. `BACKLOG.md` names `<basefont size="3">` as the measured case.
+    //
+    // (ii) IN `eitherBlockOrInline`, WHICH IS NOT `blockTags` — `iframe`, `source`, `track`,
+    //      `ins`, `del`, `button`, `svg`, `video`, `audio`, `object`, `embed`, `noscript`,
+    //      `map`, `progress`, `area`, `applet`. The set name is the rule: they are block
+    //      where a block can start and INLINE where a paragraph is already open. Only their
+    //      first-context answer is asserted here; RED->GREEN 5 asserts the other context.
+    //
+    // ⚠ THIS REFUTES THE FILED ITEM'S CENTRAL CLAIM, and the refutation is measured.
+    // `BACKLOG.md` states "the rule is not a shape: `<ins>x</ins>` opens a block and
+    // `<em>x</em>` does not", and lists `<svg>`, `<button>`, `<video>`, `<audio>`,
+    // `<object>`, `<embed>`, `<noscript>`, `<map>`, `<progress>`, `<area>`, `<applet>`,
+    // `<ins>` and `<del>` as block openers. Rendered on the real path, quarto 1.7.33:
+    //
+    //   prose one / prose two / <ins>x</ins> / # ATX Below -> <p>… <ins>x</ins> # ATX Below</p>
+    //   prose one / prose two / <em>x</em>   / # ATX Below -> <p>… <em>x</em> # ATX Below</p>
+    //
+    // BYTE-FOR-BYTE THE SAME SHAPE. The item conflated `blockTags` with `eitherBlockOrInline`;
+    // of the sixteen names it lists only `meta`, `canvas` and `output` are in `blockTags`, and
+    // those three are asserted in RED->GREEN 1 above.
+    //
+    // (iii) `textarea` and `title` are in `blockTags` and still do NOT open a block here:
+    //      both are RCDATA elements, so an unclosed opener swallows the rest of the document
+    //      as text and the `# ATX Below` below it never becomes a heading at all. Their
+    //      CLOSERS behave differently — see RED->GREEN 3, which is why this cannot be a
+    //      single symmetric list.
+    for (const tag of [
+      "<base>", "<basefont size=\"3\">", "<dialog>", "<frame>", "<legend>",
+      "<link>", "<menuitem>", "<optgroup>", "<option>", "<param>",
+      "<iframe>", "<source>", "<track>", "<ins>x</ins>", "<del>", "<button>",
+      "<svg>", "<video>", "<audio>", "<object>", "<embed>", "<noscript>",
+      "<map>", "<progress>", "<area>", "<applet>",
+      "<textarea>", "<title>",
+    ]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", tag, "# ATX Below")).map((h) => h.text),
+        `${tag} must NOT interrupt an open paragraph`,
+      ).toEqual([]);
+    }
+    // CONTROL — the recovering direction must survive the narrowing. Without this the test
+    // above passes for "no `<` line is ever block-level", which deletes 98 tags' worth of
+    // real headings.
+    for (const tag of ["<div>", "<meta charset=\"utf-8\">", "<pre>", "<note>"]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", tag, "# ATX Below")).map((h) => h.text),
+        `${tag} must still interrupt an open paragraph`,
+      ).toEqual(["ATX Below"]);
+    }
+  });
+
+  it("RED->GREEN 3: the OPENER list and the CLOSER list are NOT the same list", () => {
+    // ⚠ THE SINGLE-LIST ASSUMPTION IS UNSAFE IN THE DELETING DIRECTION, and it took a
+    // rendered document per spelling to see it. `HTML_BLOCK_OPEN` matches `</?` — one list
+    // for both — and three names measure differently by direction:
+    //
+    //   <textarea>  no heading   |  </textarea>  HEADING   (RCDATA: the unclosed opener
+    //   <title>     no heading   |  </title>     HEADING    swallows the rest of the
+    //                                                       document as text, so the
+    //                                                       heading below never forms)
+    // Dropping `textarea`/`title` symmetrically — the obvious reading of "their openers are
+    // inline" — DELETES the heading below every `</textarea>` and `</title>`, which is the
+    // direction this project never takes. So the closer list is the opener list PLUS those
+    // two: 100 names against 98.
+    for (const line of ["</textarea>", "</title>"]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", line, "# ATX Below")).map((h) => h.text),
+        `${line} must close an open paragraph even though its opener does not`,
+      ).toEqual(["ATX Below"]);
+    }
+    // CONTROL — the opener side of the same two names, so the asymmetry is pinned from both
+    // directions and neither list can silently collapse into the other.
+    for (const line of ["<textarea>", "<title>"]) {
+      expect(
+        findHeadings(doc("prose one", "prose two", line, "# ATX Below")).map((h) => h.text),
+      ).toEqual([]);
+    }
+  });
+
+  it("KNOWN RESIDUAL: a STRAY `</script>` keeps its phantom, and removing it would DELETE", () => {
+    // ⚠ THIS PHANTOM IS RETAINED ON PURPOSE, and the decision is measured in both directions.
+    // Pandoc's `isInlineTag` carries the explicit case `TagClose "script" -> True`, so a
+    // STRAY `</script>` really is inline and we really do fabricate the heading below it:
+    //
+    //   prose one / prose two / </script>  / # ATX Below  ->  NO heading, and we emit one
+    //
+    // The obvious repair — drop `script` from the CLOSER list, which is what the measurement
+    // of the stray shape alone says — was implemented, and the EXISTING Session 184 test
+    // caught it deleting a real heading:
+    //
+    //   line one / line two / <script> / var x = 1; / </script> / # ATX Below -> <h1>ATX Below</h1>
+    //
+    // Both `</script>` lines are byte-identical. What differs is whether a raw block is OPEN
+    // above them, which is precisely the state a per-line scanner does not have — the same
+    // reason `CLOSER_LINE` is tested before the `paragraphOpen` bail. One rare phantom is the
+    // permitted direction; deleting the heading after every real `<script>` block is not.
+    expect(
+      findHeadings(doc("prose one", "prose two", "</script>", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]); // ← quarto renders NO heading here. Retained, not endorsed.
+    // CONTROL — the shape the retention protects, in both positions.
+    for (const above of [["line one", "line two"], []]) {
+      expect(
+        findHeadings(doc(...above, "<script>", "var x = 1;", "</script>", "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+  });
+});
+
 describe("buildOutline — against the sample.qmd fixture", () => {
   const fixture = readFileSync(
     path.resolve(__dirname, "../fixtures/sample.qmd"),

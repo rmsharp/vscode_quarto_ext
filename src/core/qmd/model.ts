@@ -441,9 +441,46 @@ const OPENS_FRESH_BLOCK: readonly RegExp[] = [
  * so it is tested before the `paragraphOpen` bail. `prose` / `<div>` / `Title` / `===`
  * renders `<h1>Title</h1>`, where every other construct in this file renders nothing.
  *
- * The tag list is CommonMark §4.6 conditions **1 and 6**, and is deliberately CLOSED: an
+ * The tag list is **PANDOC's, not CommonMark's (Session 187)**, and is deliberately CLOSED: an
  * INLINE tag does not open a block, so `<span>hi</span>` / `Title` / `===` renders no heading
  * at all (measured). `CLOSES_PARAGRAPH`'s bare `/^ {0,3}</` would match both and fabricate one.
+ *
+ * ⚠ **PANDOC CLASSIFIES BY TAG NAME, FROM ITS OWN SETS, AND THE RULE IS CONTEXT-DEPENDENT.**
+ * `Text.Pandoc.Readers.HTML.TagCategories` (pandoc 3.6.3 — the build quarto 1.7.33 bundles,
+ * `quarto pandoc --version`) defines TWO sets, and the set names ARE the rule:
+ *
+ *   `blockTags` = `blockHtmlTags ∪ blockDocBookTags ∪ epubTags` — block in EVERY context.
+ *                 This is the list here. It contains `meta`, `canvas`, `output`, `hgroup` and
+ *                 `isindex`, none of which is in CommonMark §4.6, plus ~42 DocBook names
+ *                 (`note`, `warning`, `para`, `programlisting`, …) that pandoc folds in on
+ *                 purpose so raw DocBook survives a markdown document.
+ *   `eitherBlockOrInline` — block ONLY where no paragraph is already open. NOT here; it lives
+ *                 in `OPENS_FRESH_BLOCK` and `CLOSES_PARAGRAPH`, both of which sit behind the
+ *                 `paragraphOpen` bail. See `PANDOC_EITHER_TAGS`.
+ *
+ * Measured over 2,051 documents rendered through the real `quarto render` path, six shapes
+ * across four contexts (opener/closer × paragraph-open/not, plus the setext question in both):
+ * against an OPEN paragraph 98 names interrupt and 100 closers do; with none open, 115 and 117.
+ * The two extra sets are exactly `eitherBlockOrInline`. Every name here has a document that
+ * decides it.
+ *
+ * ⚠ **THREE NAMES ARE MEASURED EXCEPTIONS to `blockTags`, and each is here for a reason.**
+ *   `!DOCTYPE` / `?xml` — `isBlockTag` admits any name starting `!` or `?`, but `htmlTag`'s own
+ *       sanity guard (`isName tagname || isPI tagname`) then REJECTS `!DOCTYPE`, so
+ *       `<!DOCTYPE html>` opens nothing in any context (measured). A processing instruction
+ *       `<?xml …?>` does open a block, but only where no paragraph is open — so it is class 2.
+ *   `textarea` / `title` — in `blockTags`, yet their OPENERS open nothing: both are RCDATA
+ *       elements, so an unclosed opener swallows the rest of the document as text and the
+ *       heading below never forms. Their CLOSERS are block. Hence two lists, not one.
+ *
+ * ⚠ **THE OPENER AND CLOSER LISTS DIFFER, and collapsing them is a heading-DELETING bug.**
+ * `PANDOC_BLOCK_CLOSE_TAGS` is `PANDOC_BLOCK_OPEN_TAGS` plus `textarea` and `title` (100 vs 98).
+ * `script` is retained in BOTH even though a STRAY `</script>` is measured inline (pandoc's
+ * `isInlineTag` has the explicit case `TagClose "script" -> True`): dropping it deletes the
+ * heading after every REAL `<script>` block, which the Session 184 test caught within minutes.
+ * The two `</script>` lines are byte-identical and differ only in whether a raw block is open
+ * above them — the state a per-line scanner does not have. The phantom is the permitted
+ * direction; see the KNOWN RESIDUAL test.
  *
  * ⚠ **The four condition-1 tags are load-bearing, not tidiness (Session 184).** Carrying only
  * condition 6 left `<pre>`, `<script>`, `<style>` and `<textarea>` to the gated wide row, where
@@ -467,8 +504,18 @@ const OPENS_FRESH_BLOCK: readonly RegExp[] = [
  * closed tag list above is what separates `    <div>` (a block) from `    <span>` (prose),
  * exactly as it does at column 0. An indented line is NOT block-level for being indented.
  */
-const HTML_BLOCK_OPEN =
-  /^[ \t]*<\/?(?:pre|script|style|textarea|address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t/>]|$)/i;
+const PANDOC_BLOCK_OPEN_TAGS = "informalequation|programlistingco|informalexample|informalfigure|programlisting|classsynopsis|informaltable|literallayout|segmentedlist|funcsynopsis|itemizedlist|variablelist|calloutlist|cmdsynopsis|mediaobject|orderedlist|bibliolist|blockquote|figcaption|formalpara|screenshot|simplelist|glosslist|important|procedure|colgroup|epigraph|equation|fieldset|frameset|noframes|qandaset|screenco|synopsis|address|article|caption|caution|default|details|example|isindex|section|sidebar|simpara|summary|warning|canvas|center|figure|footer|header|hgroup|msgset|output|screen|script|switch|aside|style|table|tbody|tfoot|thead|body|case|form|head|html|main|menu|meta|note|para|task|col|dir|div|nav|pre|tip|dd|dl|dt|hr|li|ol|td|th|tr|ul|p|h[1-6]";
+const PANDOC_BLOCK_CLOSE_TAGS = "informalequation|programlistingco|informalexample|informalfigure|programlisting|classsynopsis|informaltable|literallayout|segmentedlist|funcsynopsis|itemizedlist|variablelist|calloutlist|cmdsynopsis|mediaobject|orderedlist|bibliolist|blockquote|figcaption|formalpara|screenshot|simplelist|glosslist|important|procedure|colgroup|epigraph|equation|fieldset|frameset|noframes|qandaset|screenco|synopsis|textarea|address|article|caption|caution|default|details|example|isindex|section|sidebar|simpara|summary|warning|canvas|center|figure|footer|header|hgroup|msgset|output|screen|script|switch|aside|style|table|tbody|tfoot|thead|title|body|case|form|head|html|main|menu|meta|note|para|task|col|dir|div|nav|pre|tip|dd|dl|dt|hr|li|ol|td|th|tr|ul|p|h[1-6]";
+const HTML_BLOCK_OPEN = new RegExp(
+  "^[ \\t]*(?:" +
+    // OPENERS — pandoc's `blockTags` minus the measured exceptions above (98 names).
+    "<(?:" + PANDOC_BLOCK_OPEN_TAGS + ")" +
+    "|" +
+    // CLOSERS — the same list PLUS `textarea` and `title`; see the docstring.
+    "</(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")" +
+  ")(?:[ \\t/>]|$)",
+  "i",
+);
 /**
  * Whether `line` begins a fresh block, so the line BELOW it starts a new paragraph and
  * may therefore be claimed by a setext underline — see `OPENS_FRESH_BLOCK`.
