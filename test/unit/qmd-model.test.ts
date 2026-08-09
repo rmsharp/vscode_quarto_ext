@@ -3143,4 +3143,105 @@ describe("a SETEXT underline is anchored at the containing block's CONTENT COLUM
       ]);
     }
   });
+
+  it("test-after (KNOWN RESIDUALS): five families this anchor makes REACHABLE, and which of them are new", () => {
+    // A 240-document BLIND adversarial sweep (eight lenses, none of which saw the corpora
+    // above) scored PRE vs POST against the real quarto render path. The trade:
+    //
+    //   recovered headings   44        drained phantoms   31
+    //   NEW LOST              0   <-- the expensive direction for a narrowing, and it is EMPTY
+    //   NEW PHANTOM           9
+    //
+    // ⚠ THE PRE-EXISTENCE CONTROL WAS RUN ON ALL NINE, not on the suspicious ones (Learning
+    // #269). This session's trigger is "a NON-ZERO column being an accepted underline column",
+    // so the control is the same document with every underline moved to COLUMN 0 — a column
+    // BOTH builds accept. Where the pre-build fabricates the identical heading there, the
+    // defect is not the column rule; the column rule only opened a door onto it.
+    //
+    // Five of the nine are proven pre-existing that way (families 1-4 below), one is classified
+    // into a family proven on its siblings, and THREE are a genuinely new doorway (family 5).
+    // ⚠ Family 5's root cause is the `contentColumns` ARITHMETIC, which this change does not
+    // modify — the diff touches two regexes, one new function and one call site, and reads the
+    // stack without altering how it is built. The raw-TeX row has consumed that same stack
+    // since Session 189; whether it already diverges on these shapes is UNMEASURED and filed.
+
+    // ── FAMILY 1 — a container OPENER line used as a setext title keeps its MARKER in the
+    // heading text. Quarto strips it. PROVEN PRE-EXISTING: at column 0 the pre-build produces
+    // the identical wrong text, so the marker rule, not the column rule, is the defect.
+    expect(
+      names(doc("Intro for the yankee probe.", "", "Yankee Term", "", ":   Colon Definition Title", "    ---")),
+    ).toEqual(["h2::   Colon Definition Title"]);
+    // CONTROL — underline at column 0. Quarto renders `h2:Colon Definition Title`; we produce
+    // the marker-bearing text on BOTH builds. If this ever stops, the marker rule HAS been
+    // fixed and the assertion above must be re-measured against quarto, not updated to match.
+    expect(
+      names(doc("Intro for the yankee probe.", "", "Yankee Term", "", ":   Colon Definition Title", "---")),
+    ).toEqual(["h2::   Colon Definition Title"]);
+
+    // ── FAMILY 2 — an INDENTED CODE line read as a list opener, so its content column enters
+    // the stack. Already filed as `INDENTED_CODE_LINE`'s column blindness. PROVEN PRE-EXISTING:
+    // the column-0 control fabricates `Chi Code Title` on the pre-build, where quarto renders
+    // only `Chi Three Title` — the indented block really is code.
+    const chi = (u1: string, u2: string) =>
+      doc("Marker depth boundary.", "", "    - looks like an item", "", "      Chi Code Title", u1,
+          "", "Divider paragraph.", "", "   - real item at three", "", "     Chi Three Title", u2);
+    expect(names(chi("      ===", "     ==="))).toEqual(["h1:Chi Code Title", "h1:Chi Three Title"]);
+    expect(names(chi("===", "==="))).toEqual(["h1:Chi Code Title", "h1:Chi Three Title"]); // CONTROL
+
+    // ── FAMILY 3 — `A. x` / `Mr. x` read as an ordered-list marker, which is the already-filed
+    // "a single capital and exactly one space is not a list" item. PROVEN PRE-EXISTING BY THE
+    // PRE-BUILD'S OWN OUTPUT ON THIS DOCUMENT: it already emits `Upsilon Initial Title` from
+    // the `A. Smith` line at column 3. Quarto renders NEITHER heading. This change adds the
+    // second spelling at column 4; it does not create the family.
+    expect(
+      names(doc("Initials are not lists.", "", "A. Smith wrote it", "", "   Upsilon Initial Title", "   ===",
+                "", "Mr. Jones replied", "", "    Upsilon Mister Title", "    ===")),
+    ).toEqual(["h1:Upsilon Initial Title", "h1:Upsilon Mister Title"]);
+
+    // ── FAMILY 4 — NOT A DEFECT AT ALL, AND THIS ASSERTION IS WHY IT IS STILL HERE.
+    // The sweep's tenth "new phantom" was `h1:Fir` against quarto's `h1:Fir Underline`, which
+    // reads as a truncation. It was an INSTRUMENT DEFECT IN THE SESSION'S OWN HARNESS: the
+    // heading text contains a TAB, the probe wrote tab-separated values, and the scorer read
+    // only the first two fields — so `Fir\tUnderline` was silently truncated to `Fir`.
+    //
+    // ⚠ The unit test is what caught it: the assertion was written from the PROBE's output and
+    // failed against the MODEL, which emits the full text. Once the probe escaped tabs and both
+    // sides were whitespace-normalised (quarto's extractor already collapsed `\s+`), this
+    // document moved from NEW PHANTOM to RECOVERED HEADING — the pre-build emitted nothing
+    // here at all. Nine new phantoms, not ten; forty-four recoveries, not forty-three.
+    //
+    // The residual is only that we keep the literal tab where pandoc renders a space.
+    expect(names(doc("Bullet column four with a tab inside the title.", "", "-   item", "",
+                     "    Fir\tUnderline", "    ==="))).toEqual(["h1:Fir\tUnderline"]);
+    expect(names(doc("Bullet column four with a tab inside the title.", "", "-   item", "",
+                     "    Fir\tUnderline", "==="))).toEqual(["h1:Fir\tUnderline"]); // CONTROL
+
+    // ── FAMILY 5 — THE THREE GENUINELY NEW PHANTOMS: a new consumer of the `contentColumns`
+    // stack, whose arithmetic this change leaves untouched. Their column-0 controls show NO
+    // divergence at all (quarto and both builds agree there), so unlike families 1-4 these
+    // are only reachable through a container column.
+    //
+    // (a) A RAGGED stack: a shallower sibling marker does not pop the deeper column, because
+    // the pop is suppressed while a paragraph is open. We keep column 4 live; pandoc does not.
+    expect(
+      names(doc("Ragged stack probe.", "", "  - deep first item", "- shallow next item", "",
+                "  Eta Ragged Title", "    ===", "", "- plain item", "", "  Eta Plain Title", "  ===")),
+    ).toEqual(["h1:Eta Ragged Title", "h1:Eta Plain Title"]);
+    // CONTROL — at column 0 quarto renders BOTH and so do we: no divergence, which is what
+    // makes this one NEW rather than newly-visible.
+    expect(
+      names(doc("Ragged stack probe.", "", "  - deep first item", "- shallow next item", "",
+                "  Eta Ragged Title", "===", "", "- plain item", "", "  Eta Plain Title", "===")),
+    ).toEqual(["h1:Eta Ragged Title", "h1:Eta Plain Title"]);
+
+    // (b) A TAB inside the container MARKER, where our content column is arithmetic on the
+    // marker's spaces. Quarto renders no heading; we place one at the computed column.
+    expect(
+      names(doc("Footnote at indent two with a tab.", "", "See[^1] for the note.", "",
+                "  [^1]:\tnote body", "", "      Tamarack Underline", "      ===")),
+    ).toEqual(["h1:Tamarack Underline"]);
+    expect(
+      names(doc("Vanilla term", "", "  ~\tdefinition text", "", "      Vanilla Underline", "      ===")),
+    ).toEqual(["h1:Vanilla Underline"]);
+  });
 });

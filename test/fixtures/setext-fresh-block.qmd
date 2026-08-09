@@ -22,3 +22,17 @@ An indented code block is block-level, so `Recovered Setext` starts a fresh para
 and its underline promotes it — quarto renders it as a real heading. `Not A Heading`
 is the second line of an open paragraph, and pandoc's `markdown` does not promote a
 multi-line paragraph, so its underline is literal text.
+
+## Setext In A List (Session 192)
+
+-   A wide list item, whose content column is four.
+
+    Recovered In A List
+    -------------------
+
+Prose that opens a fresh paragraph at column zero.
+
+Phantom Underline
+   ===
+
+Tail prose.

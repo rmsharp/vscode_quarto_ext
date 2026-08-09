@@ -289,9 +289,12 @@ describe("Quarto: Document outline (symbols)", () => {
     // of the real provider; this proves a heading quarto really renders is put back IN.
     //
     // The fixture's premise is MEASURED, not assumed: `quarto render --to html` on these
-    // exact bytes emits `Real Section` (h1), `Recovered Setext` (h1), `Genuine Child` (h2)
-    // and `Below A Thematic Break` (h1), and NO `Not A Heading` — that underline follows a
-    // two-line paragraph, which pandoc's `markdown` never promotes.
+    // exact bytes emits `Real Section` (h1), `Recovered Setext` (h1), `Genuine Child` (h2),
+    // `Below A Thematic Break` (h1) and — since Session 192 extended this fixture —
+    // `Setext In A List (Session 192)` (h2) and `Recovered In A List` (h2), and NO
+    // `Not A Heading`: that underline follows a two-line paragraph, which pandoc's
+    // `markdown` never promotes. RE-RENDERED at Session 192, not carried over; the two new
+    // headings are h2s and so nest below, which is why this test's TOP-LEVEL set is unchanged.
     //
     // Against the pre-Session-181 build this same document produced the outline
     //   [{ Real Section -> children: ["Genuine Child"] }]
@@ -318,6 +321,54 @@ describe("Quarto: Document outline (symbols)", () => {
       !flatten(symbols).includes("Not A Heading"),
       "a 2+-line paragraph must not promote at any depth of the outline",
     );
+  });
+
+  it("anchors a setext underline at the containing block's content column, through the real provider (Session 192)", async () => {
+    // THE WIRING EVIDENCE for Session 192, on the provider the Outline view, breadcrumbs,
+    // sticky scroll and Ctrl+T all really call. The change moves the outline in BOTH
+    // directions at once, so one document carries a control for each.
+    //
+    // The fixture's premise is MEASURED, not assumed — these exact bytes were re-rendered
+    // through `quarto render --to html` this session, and quarto emits SIX headings:
+    // `Real Section`, `Recovered Setext`, `Genuine Child`, `Below A Thematic Break`,
+    // `Setext In A List (Session 192)` and `Recovered In A List` — and NO `Phantom Underline`.
+    //
+    // Against the pre-Session-192 build this same document produced, at the same provider:
+    //   … `Setext In A List (Session 192)`, `Phantom Underline` (h1)
+    // — the real `Recovered In A List` MISSING outright and a phantom top-level section in
+    // its place. Both are measured, not argued: the pre-build's answer was read off the same
+    // probe as the post-build's.
+    const symbols = await symbolsFor(SETEXT_FRESH_BLOCK);
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const all = flatten(symbols);
+
+    // PRESENT control — a setext underline at the list's own content column (4) IS an
+    // underline. The pre-Session-192 ` {0,3}` cap could not reach column 4 at all, so this
+    // heading was DELETED from the outline. This is the recovering direction.
+    assert.ok(
+      all.includes("Recovered In A List"),
+      "a setext underline at the container's content column must reach the real provider",
+    );
+
+    // ABSENT control — a setext underline at column 3 with NO container open is NOT an
+    // underline, and quarto renders no heading for it. The pre-Session-192 build emitted one.
+    // This is the phantom-removing direction, and it is the assertion that fails if anyone
+    // restores the ` {0,3}` cap.
+    assert.ok(
+      !all.includes("Phantom Underline"),
+      "an underline at a column no open block starts at must not invent a section",
+    );
+
+    // The EXACT set, so a regression in either direction fails rather than only a widening.
+    assert.deepStrictEqual(all, [
+      "Real Section",
+      "Recovered Setext",
+      "Genuine Child",
+      "Below A Thematic Break",
+      "Setext In A List (Session 192)",
+      "Recovered In A List",
+    ]);
   });
 
   it("keeps an `=` run and an open-paragraph thematic break out, and puts the ATX sibling back (Session 182)", async () => {

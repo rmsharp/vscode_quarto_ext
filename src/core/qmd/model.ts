@@ -680,7 +680,12 @@ const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
  * alone on a line, any length, at **column 0**, for the ATX-adjacency rule in
  * `closesParagraph` below.
  *
- * ⚠ **Deliberately NARROWER than `SETEXT_H1`/`SETEXT_H2`, which allow 0-3 spaces of indent.**
+ * ⚠ **Deliberately UNCONDITIONAL at column 0, where `setextUnderlineLevel` accepts the
+ * containing block's content column too.** Until Session 192 the contrast was with a ` {0,3}`
+ * cap, and this docstring said so; the setext rows are now an EQUALITY against
+ * `[0, ...contentColumns]`, so the two are no longer wide-versus-narrow but different
+ * questions. This one asks where pandoc's ATX-SWALLOW fires, and that is column 0 only — the
+ * swallow was never measured inside a container, so nothing here is claimed about one.
  * The swallow is measured to need zero indent: `# Heading Above` / `===` renders
  * `<h1># Heading Above</h1>` and makes the heading below it real, while the same document
  * with even ONE leading space renders `<h1>Heading Above</h1>` plus a plain paragraph, and
