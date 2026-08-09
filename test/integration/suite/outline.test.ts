@@ -413,8 +413,13 @@ describe("Quarto: Document outline (symbols)", () => {
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
     // WIRING EVIDENCE, through the provider the Outline view, breadcrumbs, sticky scroll and
     // Ctrl+T actually call. The fixture's premise is MEASURED, not assumed: `quarto render` on
-    // these exact bytes emits ELEVEN headings, and renders the `Not A Heading` line and both
-    // `Residual Phantom` lines as ordinary paragraph text.
+    // these exact bytes emits THIRTEEN headings, and renders both `Not A Heading` lines and
+    // both `Residual Phantom` lines as ordinary paragraph text.
+    //
+    // ⚠ The count in this sentence read "ELEVEN" until Session 190 re-rendered the fixture.
+    // It was written when the fixture had eleven and was not updated when Session 189 added a
+    // twelfth; Session 190 adds the thirteenth. The exact-set assertion at the foot of this
+    // test is what actually pins it — this sentence is prose and drifted silently.
     //
     // The document discriminates the pre-Session-184 build in BOTH directions, which is what
     // makes it evidence rather than decoration. Against that build it shows:
@@ -460,9 +465,25 @@ describe("Quarto: Document outline (symbols)", () => {
       // heading (re-rendered on these exact bytes). Session 184 built the literal-column-0
       // rule, measured it deleting THIS heading, and rejected the change on it.
       "Below An Indented Macro At Its Item Column",
+      // Below An Indented Class A Macro — Session 190, and the one control in this list whose
+      // row was WIDENED rather than narrowed. `\maketitle` four spaces under an open paragraph
+      // interrupts it at the INLINE level, where no column rule exists, so quarto renders the
+      // heading (re-rendered on these exact bytes). The ` {0,3}` cap this row used to carry
+      // deleted it, along with 437 others across a 774-document class x indent sweep.
+      "Below An Indented Class A Macro",
     ]) {
       assert.ok(names.includes(real), `${real} is a real heading and must survive the narrowing`);
     }
+
+    // ⚠ THE CONTROL THAT DECIDES SESSION 190's WIDENING, and it points the other way. Class B
+    // at the SAME indent, under an equally open paragraph, is INLINE — quarto renders no
+    // heading. If this name ever appears, the widening has been carried across to the class-B
+    // row, which restores the 1,043 phantoms Session 189 removed. The two raw-TeX rows need
+    // OPPOSITE indent rules and the word "indent" hides it.
+    assert.ok(
+      !names.includes("Not A Heading — Indented Class B Macro"),
+      "Session 190: class B is inline against an open paragraph at EVERY indent, so this must NOT reach the Outline",
+    );
 
     // …and the real child still nests under its real parent, so the TREE is right and not
     // merely the set. A deleted parent silently re-parents its children.
@@ -516,6 +537,7 @@ describe("Quarto: Document outline (symbols)", () => {
       "Below A Lone Plus",
       "Genuine Child",
       "Below An Indented Macro At Its Item Column",
+      "Below An Indented Class A Macro",
     ]);
   });
 

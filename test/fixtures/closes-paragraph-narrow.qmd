@@ -86,3 +86,20 @@ Session 184 until Session 189; it is kept as a control and must stay prose.
 
    \clearpage
 # Not A Heading — Indented Macro At Top Level
+
+A class-A raw-TeX macro is INDENT-INSENSITIVE (Session 190). It interrupts an open paragraph
+by making pandoc's `inlineCommand'` fail, which happens at the INLINE level where no column
+rule exists — so the heading below it is real at EVERY indent, and the ` {0,3}` cap this row
+used to carry deleted it. Measured over the full 0-8 sweep plus three tab spellings.
+
+This paragraph is still open.
+    \maketitle
+# Below An Indented Class A Macro
+
+The class-B control at the SAME indent must stay prose, and it is what separates "the cap is
+wrong for class A" from "the cap is wrong for this file's raw TeX". Class B is block only
+where no paragraph is open, so against this one it is inline at every indent 0-7.
+
+This paragraph is still open too.
+    \clearpage
+# Not A Heading — Indented Class B Macro
