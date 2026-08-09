@@ -2627,6 +2627,109 @@ describe("a raw-TeX block starts at the CONTAINING BLOCK's content column (Sessi
   });
 });
 
+describe("a class-A raw-TeX macro is INDENT-INSENSITIVE (Session 190)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("RED->GREEN: class A interrupts an open paragraph at ANY indent, class B at none", () => {
+    // The filed item's own three documents, ALL re-rendered against the current build before a
+    // line of code was written (Learning #251), and all three hold. Class A interrupts an open
+    // paragraph by making pandoc's `inlineCommand'` FAIL —
+    //
+    //     guard $ isInlineCommand name || not (isBlockCommand name)
+    //
+    // — and that guard runs at the INLINE level, reached through `inline`'s `'\\'` dispatch on
+    // a paragraph's continuation line. There is no `skipNonindentSpaces` on that path and no
+    // column rule anywhere near it, so the indent is simply not part of the question. Measured
+    // over the whole 0-8 sweep plus three tab spellings: `\maketitle` releases the heading at
+    // EVERY one of them.
+    for (const indent of ["    ", "     ", "      ", "       ", "        ", "\t", "\t\t", " \t"]) {
+      expect(
+        findHeadings(doc("This paragraph is still open.", indent + "\\maketitle", "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+    // CONTROL — indent 0-3 was already right, and this must not disturb it.
+    for (const indent of ["", " ", "  ", "   "]) {
+      expect(
+        findHeadings(doc("This paragraph is still open.", indent + "\\maketitle", "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+    // CONTROL — and it is the control that DECIDES the item, because it separates "the cap is
+    // wrong for class A" from "the cap is wrong for this file's raw TeX". Class B against an
+    // OPEN paragraph is INLINE at every indent 0-7 (measured, one document each), so widening
+    // it here would fabricate a heading rather than recover one. ⚠ The two raw-TeX rows need
+    // OPPOSITE indent rules: class B carries the containing block's content column (Session
+    // 189), class A carries no cap at all.
+    for (const indent of ["", " ", "  ", "   ", "    ", "       "]) {
+      expect(
+        findHeadings(doc("This paragraph is still open.", indent + "\\clearpage", "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual([]);
+    }
+    // CONTROL — class C is inline in every context, indented or not.
+    for (const indent of ["", "    "]) {
+      expect(
+        findHeadings(doc("This paragraph is still open.", indent + "\\textbf{bold}", "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual([]);
+    }
+    // CONTROL — the ARITY split survives the widening. `\par` is a block and `\par{x}` is not;
+    // `\section{x}` is a block and a bare `\section` is nothing at all. All four re-rendered at
+    // indent 4 this session, and they answer oppositely in pairs.
+    for (const macro of ["\\par", "\\section{x}", "\\usepackage{amsmath}"]) {
+      expect(
+        findHeadings(doc("This paragraph is still open.", "    " + macro, "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+    for (const macro of ["\\par{x}", "\\section"]) {
+      expect(
+        findHeadings(doc("This paragraph is still open.", "    " + macro, "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual([]);
+    }
+    // CONTROL — the TAIL rule survives it too (Learning #252: a per-line predicate anchored at
+    // the line's HEAD cannot self-test its tail, so the tail is pinned here explicitly). All
+    // three re-rendered at indent 4: prose, a full stop, and a trailing class-C macro each kill
+    // the block exactly as they do at column 0.
+    for (const tail of [" and more prose", ".", " \\textbf{b}"]) {
+      expect(
+        findHeadings(doc("This paragraph is still open.", "    \\maketitle" + tail, "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual([]);
+    }
+  });
+
+  it("test-after (KNOWN RESIDUALS): an indented class-A macro inside an UNTRACKED raw region", () => {
+    // The three phantoms this session's widening makes reachable, found by a 240-document
+    // blind adversarial sweep and disclosed rather than hidden. All three are the SAME defect:
+    // a raw region this per-line scanner does not track at all — a multi-line inline code
+    // span, an RCDATA element, and a CDATA section — with a class-A macro indented inside it.
+    //
+    // ⚠ THE CAP WAS MASKING, NOT GUARDING, AND THE CONTROL BELOW IS WHAT ESTABLISHES IT.
+    // Each pair is the same document twice, differing only in the macro's indent. The PRE-S190
+    // build ALREADY emitted the phantom at column 0 — so ` {0,3}` never modelled these regions;
+    // it merely happened to stop the class-A row firing on the indented spelling of a document
+    // the scanner was getting wrong anyway. Fixing them means tracking the regions, which is a
+    // different capability and a separate filed item (FM #26), not a narrower indent rule.
+    const regions: ReadonlyArray<readonly [string, (m: string) => string]> = [
+      ["multi-line inline code span", (m) => doc("Para opens a span here `raw", m, "# ATX Below", "` and it closed above.")],
+      ["RCDATA <textarea>", (m) => doc("Before.", "", '<textarea rows="4" cols="40">', m, "# ATX Below", "</textarea>")],
+      ["CDATA section", (m) => doc("Before.", "", "<![CDATA[", m, "# ATX Below", "]]>")],
+    ];
+    for (const [, build] of regions) {
+      // The residual, at indent 4 and at a tab — quarto renders NO heading in any of these.
+      expect(findHeadings(build("    \\maketitle")).map((h) => h.text)).toEqual(["ATX Below"]);
+      expect(findHeadings(build("\t\\maketitle")).map((h) => h.text)).toEqual(["ATX Below"]);
+      // CONTROL — the identical document at COLUMN 0, which the pre-S190 build got wrong too.
+      // If this ever stops reporting the phantom, the region IS being tracked and the two
+      // assertions above should be re-measured rather than simply updated.
+      expect(findHeadings(build("\\maketitle")).map((h) => h.text)).toEqual(["ATX Below"]);
+    }
+  });
+});
+
 describe("buildOutline — against the sample.qmd fixture", () => {
   const fixture = readFileSync(
     path.resolve(__dirname, "../fixtures/sample.qmd"),
