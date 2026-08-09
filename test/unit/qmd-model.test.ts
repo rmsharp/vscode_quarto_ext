@@ -3145,20 +3145,23 @@ describe("a SETEXT underline is anchored at the containing block's CONTENT COLUM
   });
 
   it("test-after (KNOWN RESIDUALS): five families this anchor makes REACHABLE, and which of them are new", () => {
-    // A 240-document BLIND adversarial sweep (eight lenses, none of which saw the corpora
-    // above) scored PRE vs POST against the real quarto render path. The trade:
+    // A 270-document BLIND adversarial sweep — eight lenses plus a completeness critic, none of
+    // which saw the corpora above — scored PRE vs POST against the real quarto render path:
     //
-    //   recovered headings   44        drained phantoms   31
+    //   recovered headings   47        drained phantoms   33
     //   NEW LOST              0   <-- the expensive direction for a narrowing, and it is EMPTY
-    //   NEW PHANTOM           9
+    //   NEW PHANTOM          11
     //
-    // ⚠ THE PRE-EXISTENCE CONTROL WAS RUN ON ALL NINE, not on the suspicious ones (Learning
+    // The critic earned its place: two of the eleven are its, and both are family 3 reached as
+    // PROSE rather than as marker arithmetic — a shape no arithmetic-driven lens produced.
+    //
+    // ⚠ THE PRE-EXISTENCE CONTROL WAS RUN ON ALL ELEVEN, not on the suspicious ones (Learning
     // #269). This session's trigger is "a NON-ZERO column being an accepted underline column",
     // so the control is the same document with every underline moved to COLUMN 0 — a column
     // BOTH builds accept. Where the pre-build fabricates the identical heading there, the
     // defect is not the column rule; the column rule only opened a door onto it.
     //
-    // Five of the nine are proven pre-existing that way (families 1-4 below), one is classified
+    // Seven of the eleven are proven pre-existing that way (families 1-4 below), one is classified
     // into a family proven on its siblings, and THREE are a genuinely new doorway (family 5).
     // ⚠ Family 5's root cause is the `contentColumns` ARITHMETIC, which this change does not
     // modify — the diff touches two regexes, one new function and one call site, and reads the
@@ -3177,6 +3180,24 @@ describe("a SETEXT underline is anchored at the containing block's CONTENT COLUM
     expect(
       names(doc("Intro for the yankee probe.", "", "Yankee Term", "", ":   Colon Definition Title", "---")),
     ).toEqual(["h2::   Colon Definition Title"]);
+    // The `~` spelling, same mechanism, same control result.
+    expect(
+      names(doc("Intro for the zulu probe.", "", "Zulu Term Line", "", "~   Tilde Definition Title", "    ---")),
+    ).toEqual(["h2:~   Tilde Definition Title"]);
+    //
+    // ⚠ THE ONE FINDING OF ELEVEN THAT RESTS ON INFERENCE, AND IT IS LABELLED RATHER THAN
+    // COUNTED AS PROVEN (Learning #274). The footnote-definition spelling belongs to this same
+    // family by mechanism, but its own column-0 control CANNOT FIRE: at column 0 quarto stops
+    // treating the line as a footnote definition and renders `[^2]: Footnote Setext Candidate`
+    // itself — agreeing with us — so the control compares two different questions rather than
+    // isolating one. A control that cannot fire is not a control that passed. The family is
+    // proven by its `:` and `~` siblings above; this document is CLASSIFIED into it.
+    expect(
+      names(doc("Intro for the xray probe[^2].", "", "[^2]: Footnote Setext Candidate", "    ---")),
+    ).toEqual(["h2:[^2]: Footnote Setext Candidate"]);
+    expect(
+      names(doc("Intro for the xray probe[^2].", "", "[^2]: Footnote Setext Candidate", "---")),
+    ).toEqual(["h2:[^2]: Footnote Setext Candidate"]); // quarto AGREES here — the control cannot fire
 
     // ── FAMILY 2 — an INDENTED CODE line read as a list opener, so its content column enters
     // the stack. Already filed as `INDENTED_CODE_LINE`'s column blindness. PROVEN PRE-EXISTING:
@@ -3188,15 +3209,31 @@ describe("a SETEXT underline is anchored at the containing block's CONTENT COLUM
     expect(names(chi("      ===", "     ==="))).toEqual(["h1:Chi Code Title", "h1:Chi Three Title"]);
     expect(names(chi("===", "==="))).toEqual(["h1:Chi Code Title", "h1:Chi Three Title"]); // CONTROL
 
-    // ── FAMILY 3 — `A. x` / `Mr. x` read as an ordered-list marker, which is the already-filed
-    // "a single capital and exactly one space is not a list" item. PROVEN PRE-EXISTING BY THE
-    // PRE-BUILD'S OWN OUTPUT ON THIS DOCUMENT: it already emits `Upsilon Initial Title` from
-    // the `A. Smith` line at column 3. Quarto renders NEITHER heading. This change adds the
-    // second spelling at column 4; it does not create the family.
+    // ── FAMILY 3 — ordinary PROSE read as an ordered-list marker, which opens a content column
+    // that then legitimises an indented underline further down. This is the already-filed
+    // "`A. x` — a single capital and EXACTLY one space — is not a list" item, and this session
+    // MEASURED THAT THE FILED DESCRIPTION UNDERSTATES ITS OWN RULE: `listItemContentColumn`
+    // matches `[a-zA-Z]{1,9}` before a `.` or `)`, so `Mr.` and `xyz.` are markers too. It is
+    // the largest of the new-phantom families — four of the eleven.
+    //
+    // PROVEN PRE-EXISTING BY THE PRE-BUILD'S OWN OUTPUT ON THE FIRST DOCUMENT: it already emits
+    // `Upsilon Initial Title` from the `A. Smith` line at column 3. Quarto renders NO heading in
+    // any of these three. The change adds spellings at deeper columns; it does not create them.
     expect(
       names(doc("Initials are not lists.", "", "A. Smith wrote it", "", "   Upsilon Initial Title", "   ===",
                 "", "Mr. Jones replied", "", "    Upsilon Mister Title", "    ===")),
     ).toEqual(["h1:Upsilon Initial Title", "h1:Upsilon Mister Title"]);
+    // The COMPLETENESS CRITIC's two, which all eight lenses missed: the same defect reached as
+    // PROSE rather than as marker arithmetic. `Mr.` opens column 4 and `xyz.` opens column 5,
+    // and each legitimises the underline of a paragraph further down. Quarto renders neither.
+    expect(
+      names(doc("Mr. Halloran signed the charter in March.", "", "    Lima Addendum", "    ===",
+                "", "The addendum was never countersigned.")),
+    ).toEqual(["h1:Lima Addendum"]);
+    expect(
+      names(doc("xyz. A stray label found in the margin notes.", "", "     Oscar Digest", "     ===",
+                "", "Nobody could explain the label.")),
+    ).toEqual(["h1:Oscar Digest"]);
 
     // ── FAMILY 4 — NOT A DEFECT AT ALL, AND THIS ASSERTION IS WHY IT IS STILL HERE.
     // The sweep's tenth "new phantom" was `h1:Fir` against quarto's `h1:Fir Underline`, which
