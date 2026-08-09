@@ -7,6 +7,39 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 193 — IMPLEMENTATION: an INDENTED CODE line is measured from the containing block's CONTENT COLUMN (SHIPPED)
+
+`INDENTED_CODE_LINE` tested a literal four spaces. Pandoc re-parses a container's content
+DEDENTED, so the indented-code threshold inside a container is four past THAT container's
+content column. The new `indentedCodeLine(line, columns)` measures the line's indent in
+COLUMNS — tabs advancing to the next 4-column stop, absolutely — and compares it against
+`base + 4`, where `base` is the deepest open content column at or below the line's own.
+Measured over 300 ground documents before any code changed: the threshold is exactly
+`contentColumn + 4` in every container — top level 4, `- ` 6, `1. ` 7, `-   ` 8,
+footnote/definition 8, three-deep nest 10.
+
+**The row had THREE consumers and the filed item named one.** `CLOSES_PARAGRAPH` removes
+phantom ATX headings (the one described); `OPENS_FRESH_BLOCK` and the code-RUN exception
+both move headings the other way, so each was swept in its own right and all three
+returned the same threshold. The run exception carried the largest single effect —
+**80 recovered headings**, where a title at its container's own content column had been
+read as the second line of a code run — attributed by ABLATION (a build with only that
+call site reverted scores the setext sweep at 98/0/86 against 178/0/6 as shipped).
+
+**The filed magnitude was overstated by 80%.** Re-scoring Session 189's seven cached
+corpora (4,124 documents) measured 61 residual phantoms, of which this drains 20 — not
+the 36 claimed. The 16 survivors all have an INDENTED ATX heading line and belong to
+`ATX_HEADING`'s cap.
+
+5,352 documents scored (1,254 rendered fresh, 4,124 re-scored), plus 33 hand-compared controls. **NEW LOST = 0 on every
+corpus**, as an empty set; NEW PHANTOM = 2, both proven by substitution to be the
+`contentColumns` stack's spaces-only pop rather than this rule. 106 phantoms drained,
+107 headings recovered. Repo control byte-identical over 113 tracked documents, proven
+effective by injection (4 moved / 4 stayed). `test:integration` 501 passing, exit 0.
+Six residual families pinned, each with its control; one of them — a blank line inside an
+indented code block re-arming the next code line as a setext title — is new and was
+previously unfiled. **Model:** Claude Opus 5.
+
 ### 2026-08-09 · [ad hoc] Session 192 — recorded its own Phase 0 health snapshot
 
 One appended `dashboard_history.jsonl` row from the mandated Phase 0 step 5
