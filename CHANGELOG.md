@@ -7,6 +7,19 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 191 — recorded its own Phase 0 health snapshot
+
+One appended `dashboard_history.jsonl` row from the mandated Phase 0 step 5
+`methodology_dashboard.py` run: `2026-08-09T09:09`, v2.13.0, health **76**, risk **high** ×1,
+1,019 commits, 6 vulns. Health flat at 76 across the last four snapshots; the single high-risk
+flag remains the standing `npm audit` count of 6 (5 high + 1 moderate, **devDependency-only**,
+so none reaches a shipped artifact), open since Session 186.
+
+Logged rather than waved through, which is the same position this session's Phase 0 reconcile
+took against `47d9514` an hour earlier: the append is an action, `SESSION_RUNNER.md` permits
+exactly two reconcile no-ops, and "protocol telemetry" is not one of them. Its own commit
+because the close-out commit was already at the 5-file blast-radius cap.
+
 ### 2026-08-09 · [ad hoc] Session 191 — IMPLEMENTATION: a class-A raw-TeX macro OPENS a fresh block (SHIPPED)
 
 `opensFreshBlock` now tests `RAW_TEX_BLOCK_MACRO` beside `HTML_BLOCK_OPEN`, ahead of its
