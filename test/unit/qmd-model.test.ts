@@ -3647,6 +3647,38 @@ describe("a container's content column is closed by a line's COLUMN, not its SPA
       names(doc("Intro.", "", "-   line one", "    line two", "",
                 "    # Victor Four Column ATX", "", "    Body text.")),
     ).toEqual([]); // quarto: h1:Victor Four Column ATX — the single-container spelling
+
+    // ── FAMILY 3 — NEW, AND FOUND BY THIS SESSION'S OWN COMPLETENESS PASS rather than by the
+    // eight lenses (the delegated critic stalled and the role was run firsthand). It is the
+    // SAME spaces-only class again, in the two places this session did NOT touch:
+    // `listItemContentColumn` and `CONTENT_COLUMN_4_OPEN` both anchor on `^( *)`, so a
+    // TAB-INDENTED list marker or footnote definition opens NO tracked column at all.
+    // PROVEN BY CONTROL and PRE-EXISTING (the pre-S194 build answers identically).
+    expect(
+      names(doc("Intro.", "", "- outer", "  - middle", "    line two", "",
+                "\t- tab marker sibling", "", "\t  Golf Tab Sibling Title", "\t  ===")),
+    ).toEqual([]); // quarto: h1:Golf Tab Sibling Title — a LOST heading
+    // CONTROL — the same shape written in spaces IS tracked, and the heading is found. (Both
+    // sides of this pair are what makes the marker's own indent class the mechanism, rather
+    // than anything about the sibling relationship.)
+    expect(
+      names(doc("Intro.", "", "- outer", "  - middle", "    - inner", "      line two", "",
+                "  - sibling at two", "", "    Foxtrot Sibling Title", "    ===")),
+    ).toEqual(["h1:Foxtrot Sibling Title"]); // quarto agrees — this one is right
+
+    // ── FAMILY 4 — RE-CONFIRMED, not new: a FOUR-SPACE-indented list marker or footnote
+    // definition is INDENTED CODE to pandoc, not a container, but both openers admit it and
+    // push a column anyway. Session 192 named this as the pre-existence control for the
+    // indented-code item; it now has its own rendered control, and the TAB spelling of the
+    // same shape AGREES (quarto reads it as code too, and so do we).
+    expect(
+      names(doc("Intro.", "", "    - space indented item", "      line two", "",
+                "      Bravo Space Marker Title", "      ===")),
+    ).toEqual(["h1:Bravo Space Marker Title"]); // quarto: NO heading — a PHANTOM
+    expect(
+      names(doc("Intro.", "", "\t- tab indented item", "\t  line two", "",
+                "\t  Alpha Tab Marker Title", "\t  ===")),
+    ).toEqual([]); // CONTROL — the tab spelling is code to BOTH of us, and agrees
   });
 });
 
