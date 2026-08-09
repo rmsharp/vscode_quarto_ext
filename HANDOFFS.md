@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S191
+date: 2026-08-09
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD) -- `opensFreshBlock` has NO class-A raw-TeX pre-bail path, so a SETEXT heading below a class-A macro is invisible: 216 lost headings over 648 documents S190 rendered, the largest single loss family on the board. The function tests HTML_BLOCK_OPEN ahead of its `paragraphOpen` bail but reaches the raw-TeX rows only BEHIND it, via `rawTexMacroLineIsBlock` -- the class-B row -- so a class-A macro never sets `pendingFreshBlock`, `consecutiveBody` never returns to 1, and the `===` below is never a setext underline. ⚠ ADDING polarity: a pattern wrongly present here INVENTS a heading into the outline, breadcrumbs, sticky scroll, workspace symbols AND the crossref index, so it needs its own two-direction score and must NOT be inferred from S190's CLOSES_PARAGRAPH measurement. SCOPE declared at claim (FM #26): the class-A row in `opensFreshBlock` ONLY.
+```
+
+```handoff
 session: S190
 date: 2026-08-09
 status: complete

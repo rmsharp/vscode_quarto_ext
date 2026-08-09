@@ -5,6 +5,26 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 191 — IMPLEMENTATION (strict TDD): `opensFreshBlock` has NO class-A raw-TeX pre-bail path, so a SETEXT heading below a class-A macro is invisible — 216 lost headings, the largest loss family on the board.**
+**Started:** 2026-08-09
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**The deliverable.** ONE capability — `opensFreshBlock` gains a class-A raw-TeX pre-bail path, structurally what `HTML_BLOCK_OPEN` already does in that same function. Operator-selected via `AskUserQuestion` at Phase 0; it was S190's ranked #1 and the only HIGH item on the board.
+
+**⚠ SCOPE, declared at claim (FM #26).** The capability ships for the **class-A raw-TeX row in `opensFreshBlock` only**. `INDENTED_CODE_LINE`'s column blindness, `ATX_HEADING`'s own ` {0,3}`, and the three disclosed S190 residuals are each a SEPARATE capability and are OUT OF SCOPE however tempting once the hoist exists.
+
+**⚠ TDD gate — FIRES.** RED→GREEN→REFACTOR, one behaviour at a time, each RED confirmed to fail for the RIGHT reason, each `it()` carrying its control assertions in the same test (Learning #242). No declarative-edit exemption.
+
+**⚠ DIRECTION OF HAZARD — this is the ADDING polarity, the opposite of S190's.** `OPENS_FRESH_BLOCK`'s docstring states that a pattern wrongly present here INVENTS a heading into the outline, breadcrumbs, sticky scroll, workspace symbols *and the cross-reference index*. It must be measured in its own right — **do NOT infer safety from S190's `CLOSES_PARAGRAPH` score**, which is the deleting polarity of a different function.
+
+**⚠ The filed item is a HYPOTHESIS until re-rendered (Learning #251).** It names an exact document — `This paragraph is still open.` / `\maketitle` / `ATX Below` / `===` claims `<h1>ATX Below</h1>` from quarto and nothing from us, at every indent 0–8 across 12 containers. It gets re-rendered against the CURRENT build before a line of code is written; S190 changed the adjacent class-A row underneath it.
+
+**⚠ Quarto's auto-generated `<h2>Footnotes</h2>` is NOT a source heading** (Learning #264) — it is 27 of the item's own raw 270, which is why the filed figure is 216. Any scorer this session uses excludes it.
+
+---
+
+## Session 190 ACTIVE TASK (superseded by Session 191 — full entry preserved below)
 **Task:** **Session 190 — IMPLEMENTATION (strict TDD): `RAW_TEX_BLOCK_MACRO`'s ` {0,3}` indent cap is too NARROW and DELETES real headings — class A raw TeX is indent-INSENSITIVE, so the cap comes OFF.**
 **Started:** 2026-08-09 · **Closed:** 2026-08-09
 **Status:** **DONE. SHIPPED — 556 real headings recovered across 2,772 scored documents, ZERO new losses at set level, and the recovered heading is asserted at the real Outline provider.** **HEADLINE 1 — the cap never modelled anything.** Class A does not reach pandoc's `rawTeXBlock` on the path that matters: it interrupts an open paragraph by making `inlineCommand'` FAIL, at the INLINE level, where the leading whitespace has already been eaten as inter-word space and no column rule exists. ` {0,3}` was not CommonMark's indented-code rule in disguise — it simply lost the class-A test on indented lines, and S183's `paragraphOpen` bail then deleted the heading below every one. **HEADLINE 2 — the three new phantoms are a MASK being lifted, not a defect being introduced, and that is proven rather than argued.** The pre-S190 build already emits all three with the macro at **column 0**. A cap that appears to guard a construct may only be hiding a blindness; the control that tells them apart is the same document with the construct un-indented (Learning #263). **HEADLINE 3 — measuring the "unchanged" setext context in its own right found a 216-heading loss family nobody had characterized**, and 31% of this family's residual "losses" turned out to be quarto's auto-generated `<h2>Footnotes</h2>` (Learning #264).
