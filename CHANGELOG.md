@@ -7,6 +7,76 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-08 · [ad hoc] Session 188 — IMPLEMENTATION: pandoc classifies raw TeX by macro NAME too, in three classes (SHIPPED)
+
+Replaced the bare `/^ {0,3}\\[a-zA-Z]/` row with pandoc's own raw-TeX macro classification,
+transcribed from `Text.Pandoc.Readers.LaTeX` at **pandoc 3.6.3** (the build quarto 1.7.33
+bundles) and then **measured entry by entry** — 736 candidate names in three contexts,
+**5,680 documents** rendered through the real `quarto render` path.
+
+**NEITHER GATE IS THE ONE THE FILED ITEM ASSUMED.** `endline` in the markdown reader carries
+no raw-TeX guard at all; a paragraph is interrupted iff `inlineCommand'` FAILS, and its guard
+is `isInlineCommand name || not (isBlockCommand name)`.
+
+**736 names collapsed into exactly SIX measured behaviours — three classes:**
+
+- **A — block in EVERY context** (73 names), the only class that interrupts an open paragraph.
+  It splits three ways by **arity**: 20 block bare or with arguments, 46 block ONLY with an
+  argument (`\section{x}` is a block; a bare `\section` is nothing), 7 block ONLY without one
+  (`\par` is a block and `\par{x}` is NOT — the leftover group opens a paragraph).
+- **B — block only where no paragraph is open.** The five names pandoc puts in BOTH lists on
+  purpose (`clearpage hspace newpage pagebreak vspace`) plus every unknown macro. It is the
+  default and needs no list.
+- **C — inline in EVERY context** (294 names after arity re-verification).
+
+**RESOLVES AN APPARENT CONTRADICTION ON THIS PROJECT'S OWN RECORD.** `RAW_TEX_ENV_OPEN`'s
+docstring measured a bare macro INLINE against an open paragraph; `BACKLOG.md` measured the
+same names as BLOCKS. Both were right — they measured different contexts.
+
+**A CORPUS DEFECT CAUGHT BY A CONTROL, NOT BY A SWEEP.** The discovery probe gave every macro
+a single `{x}`, which is malformed for a multi-argument macro, so `\newcommand` measured as
+class C. Re-rendering all 316 class-C candidates at realistic arity (1,264 documents) found
+**22** that are blocks at their true arity — `newcommand`, `renewcommand`, `providecommand`,
+`parbox`, `rule`, `hypertarget`, `newtheorem`, `epigraph` and 14 more. Every one would have
+been a deleted heading; `\newcommand{\foo}{bar}` is one of the eleven spellings the filed item
+names. This is the class of error S184 shipped and needed a post-hoc sweep to find.
+
+**SCORE, per heading, two directions separate:**
+
+| corpus | PRE | **SHIPPED** |
+|---|---|---|
+| item — the filed item's own 11 spellings | 35 / 6 / **3** | **43 / 1 / 0** |
+| env — environments | 4 / 4 / **2** | **6 / 2 / 2** |
+| tail — 8 macros × 12 tails × 2 contexts | 114 / 61 / **17** | **154 / 38 / 0** |
+| advflat — blind adversarial, 223 docs, 8 lenses | 135 / 47 / **41** | **164 / 38 / 21** |
+| **TOTAL** (agree / phantom / LOST) | **296 / 119 / 63** | **375 / 80 / 23** |
+
+**40 headings RECOVERED, 39 phantoms removed, and the new-loss set is EMPTY at set level** —
+all 23 remaining losses are a strict subset of the 63 pre-existing.
+
+**BOTH of the project's disclosed raw-TeX residuals are now closed.** Three unit assertions and
+one INTEGRATION assertion inverted rather than deleted, each verified end to end — the crossref
+one against quarto's own `Unable to resolve crossref @sec-tex` warning and rendered `?@sec-tex`
+marker. `test/fixtures/closes-paragraph-narrow.qmd` re-rendered: quarto and this model now agree
+on all 11 headings exactly.
+
+**Two instrument defects found and fixed before scoring** (the fifth and sixth in this family,
+both pointing the direction that makes a change look safe): macOS's case-insensitive filesystem
+collapsed 62 name pairs and mislabelled the survivors; the inherited model-side probe filters to
+`.qmd`, so a repo control over `.md` files silently covered 45 of 113 and still reported
+"byte-identical".
+
+**Scope split held (FM #26):** the adjacent ` {0,3}` INDENT item was declared out of scope at
+claim and stayed out — and the adversarial sweep confirmed the cut, since its
+container-content-column family is 7 of the 23 residual losses.
+
+**Verification:** `check-types` 0 · `npm test` **1765 passed / 65 files** · `test:oracle`
+**131 documents / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to
+S180–S187) · `check-package` OK 42 files / **5.52 MB** (up from 5.51 — the 294-name list) · `test:integration` **499 passing / 0
+failing / 0 pending, exit 0**, run BEFORE the close-out commit on the operator's go-ahead.
+Repo control over all 113 tracked md/qmd files in all four views moves on exactly one, a
+phantom removal quarto's own render confirms; proven effective by injection.
+
 ### 2026-08-08 · [ad hoc] Session 188 pre-flight — commit the methodology sync (v2.8.0 → v2.13.0), and close the packaging leak it opened
 
 Committed the 11-file methodology framework sync that was sitting uncommitted in the working
