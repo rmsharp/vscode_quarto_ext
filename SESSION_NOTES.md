@@ -5,6 +5,28 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 194 — IMPLEMENTATION (strict TDD): the `contentColumns` STACK's own arithmetic — the POP measures a line's indent with `/^ */`, SPACES ONLY, so a TAB-indented line looks shallower than it is and pops a column that is still open. The stack is now read by THREE rows (raw TeX S189, setext S192, indented code S193), so one defect is visible three times over.**
+**Started:** 2026-08-09 · **Closed:** —
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**The item, as filed — TWO measured shapes, and they may or may not be one defect.** (a) **The TAB POP**, measured by S193: the pop compares a line's indent, computed with `/^ */` (spaces only), against the open columns — so a tab-indented line reads as column 0, pops a column that is still open, and the heading rule downstream then measures against the wrong base. These are S193's ONLY two new phantoms, and S193 proved by trigger-removal SUBSTITUTION that they are the stack's arithmetic and not the `indentedCodeLine` rule it shipped: the identical column written in eight spaces agrees with quarto. (b) **The RAGGED-STACK POP**, measured by S192: a SHALLOWER sibling marker does not pop the DEEPER column, because `paragraphOpen` suppresses the pop. Whether (a) and (b) share a root cause is **an open question this session must answer by measurement, not assume** — they are filed as one board item but were found by different sessions through different surfaces.
+
+**⚠ The filed item is a HYPOTHESIS until re-rendered (Learning #251).** Both shapes name exact documents. Every one is re-rendered against the CURRENT build before a line of code changes. S192 is why this is not ceremony — its filed item's measurement was right and its prescribed fix would have deleted a heading in every list, footnote and definition (Learning #271) — and S193 then found the same class of surprise from the other side (Learning #275). **The axis an item's evidence never varies is the one to vary first.**
+
+**⚠ DIRECTION OF HAZARD — BOTH, and that is what makes this one different from S191/S192/S193.** Those three each shipped a single polarity. The stack sits UNDER three consumers with three different polarities: `CLOSES_PARAGRAPH` (narrowing REMOVES phantom ATX headings), `OPENS_FRESH_BLOCK` (narrowing DELETES setext headings) and the code-RUN exception in `computeRegions` (narrowing ADDS them). A change to the base column therefore moves headings in BOTH directions simultaneously, and the sign of any net count is meaningless. Per-heading, two-direction scoring with the NEW-ERROR **SET** computed rather than the delta of totals (Learning #272, `scratchpad/s192/newerr.py` reusable as-is), and **all three consumers scored separately** (Learning #275).
+
+**⚠ SHARED MACHINERY — three consumers, and a corpus per consumer that is PROVEN ABLE TO SPEAK.** S193's `cc/` corpus was 196 documents in which quarto emits no heading anywhere: a clean 0/0/0 that could not have detected a total regression of the consumer it was built to isolate (Learning #277). Before any row of zeros is read as safety this session, the renderer's own column must be shown non-empty somewhere in that corpus. Ablation — reverting one call site and re-scoring — is the technique S193 used to attribute effect to a consumer, and it applies here directly.
+
+**⚠ SCOPE, declared at claim (FM #26).** The capability ships for **the `contentColumns` stack's own push/pop arithmetic only**. The `listItemContentColumn` MARKER CLASS (`[a-zA-Z]{1,9}` before `.`/`)`, still open from S192), the BLOCK QUOTE as a container with its own content column, the QUARTO FENCED DIV / CALLOUT as an untracked container, `ATX_HEADING`'s own ` {0,3}`, the blank-line-in-indented-code setext re-arm (S193's new find), and `rawTexMacroLineIsBlock`'s spaces-only tab blindness are each a SEPARATE capability and are OUT OF SCOPE however tempting once the stack is in hand. ⚠ The tab asymmetry in particular will be adjacent to the work and is NOT this session's row.
+
+**⚠ TDD gate — FIRES.** RED→GREEN→REFACTOR, one behaviour at a time, each RED confirmed to fail for the RIGHT reason, each `it()` carrying its control assertions in the same test (Learning #242).
+
+**⚠ RUN THE TRIGGER-REMOVAL CONTROL ON EVERY NEW ERROR** (Learnings #269/#263), in both polarities — for a new PHANTOM the control is the document with the trigger removed, which must still fabricate it; for a new LOSS the control is the document with the container removed, which must still emit the heading.
+
+---
+
+## Session 193 ACTIVE TASK (superseded by Session 194 — full entry preserved below)
 **Task:** **Session 193 — IMPLEMENTATION (strict TDD): `INDENTED_CODE_LINE` tests a LITERAL four spaces and is therefore COLUMN-BLIND — inside a container the indented-code threshold is four past the CONTAINER's content column, so ordinary list content is read as code and fabricates a heading below it (36 of Session 189's 41 residual phantoms).**
 **Started:** 2026-08-09 · **Closed:** 2026-08-09
 **Status:** **DONE. SHIPPED — 106 phantoms drained and 107 real headings recovered across 5,352 scored documents, the NEW-LOST set EMPTY on every corpus, and both directions asserted at the real Outline provider.**

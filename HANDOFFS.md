@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S194
+date: 2026-08-09
+status: pending
+active_task: IMPLEMENTATION (strict TDD) -- the contentColumns STACK's own push/pop arithmetic. Two measured shapes: (a) the POP measures a line's indent with /^ */, SPACES ONLY, so a tab-indented line looks shallower than it is and pops a column that is still open (S193's only two new phantoms, proven by trigger-removal substitution to be the stack and not the indentedCodeLine rule); (b) the RAGGED-STACK pop, where a shallower sibling marker does not pop the deeper column because paragraphOpen suppresses it (S192). Whether they share a root cause is an OPEN QUESTION to be answered by measurement. The stack is read by THREE rows with THREE polarities -- raw TeX (S189), setext (S192), indented code (S193) -- so this moves headings in BOTH directions at once and every consumer needs its own two-direction score plus a corpus proven able to speak. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S193's ranked #1. SCOPE DECLARED AT CLAIM (FM #26): the listItemContentColumn marker class, the block quote as a container, the fenced div / callout as a container, ATX_HEADING's own ` {0,3}`, the blank-line-in-indented-code setext re-arm, and rawTexMacroLineIsBlock's spaces-only tab blindness are each a SEPARATE capability and are out of scope.
+```
+
+```handoff
 session: S193
 date: 2026-08-09
 status: complete
