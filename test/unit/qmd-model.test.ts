@@ -3455,5 +3455,21 @@ describe("an INDENTED CODE line is measured from the containing block's CONTENT 
     // ` {0,3}` tolerance that then invents the heading. Already filed as `ATX_HEADING`'s cap.
     expect(names(doc("    \\clearpage", " # ATX Below"))).toEqual(["h1:ATX Below"]); // quarto: NO heading
     expect(names(doc("    \\clearpage", "# ATX Below"))).toEqual(["h1:ATX Below"]); // CONTROL — column 0 is real
+
+    // ── FAMILY 6 — A BLANK LINE INSIDE AN INDENTED CODE BLOCK RE-ARMS THE NEXT CODE LINE AS A
+    // SETEXT TITLE. Found by this session's completeness pass, PREVIOUSLY UNFILED, and
+    // PRE-EXISTING (the pre-build answers identically). A blank line does not end an indented
+    // code block for pandoc, but it does reset `consecutiveBody` to 0 here — and the next code
+    // line then increments it straight back to the eligible 1, so the run exception never gets
+    // to speak. PROVEN BY CONTROL: delete the blank and the run exception fires correctly.
+    expect(
+      names(doc("Intro.", "", "    zzz", "", "    India Run Title", "===")),
+    ).toEqual(["h1:India Run Title"]); // quarto: NO heading — one code block, blank line and all
+    expect(
+      names(doc("Intro.", "", "    zzz", "    India Run Title", "===")),
+    ).toEqual([]); // CONTROL — no blank, so the run exception fires and quarto agrees
+    expect(
+      names(doc("Intro.", "", "    India Run Title", "===")),
+    ).toEqual(["h1:India Run Title"]); // CONTROL — a LONE indented line really IS a setext title
   });
 });
