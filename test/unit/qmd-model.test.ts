@@ -3589,6 +3589,65 @@ describe("a container's content column is closed by a line's COLUMN, not its SPA
     expect(names(codeDoc("top", "\t", "Alfa TOP 04 Tabmax"))).toEqual(["h1:Alfa TOP 04 Tabmax"]);
     expect(names(codeDoc("top", " ".repeat(4), "Alfa TOP 04 Sp"))).toEqual(["h1:Alfa TOP 04 Sp"]);
   });
+
+  it("KNOWN RESIDUAL (test-after, labelled): two families this change does NOT close", () => {
+    // ⚠ WRITTEN AFTER THE FACT and labelled as such — these are NOT the TDD behaviour above.
+    // Both families were found by a 240-document BLIND adversarial sweep from eight lenses that
+    // never saw this session's designed corpus, and both are PROVEN PRE-EXISTING: the
+    // pre-Session-194 build answers identically on every document below. Each carries the
+    // control that proves the claim, and the KIND of evidence is stated (Learning #274).
+    //
+    // ⚠ Both are the SAME RULE as the two this session shipped — indentation is COLUMNS — in
+    // two more places. They are FILED, NOT FIXED, and the distinction from the raw-TeX row
+    // beside them is exact: that row was a REGRESSION this change caused and had to be closed
+    // to ship honestly, while these two are pre-existing and closing them would be a second
+    // capability (FM #26). The new-error SET on the blind corpus is empty in both directions.
+
+    // ── FAMILY 1 — A SETEXT UNDERLINE WRITTEN WITH A TAB, and it CORRECTS A CONCLUSION
+    // RECORDED IN THIS FILE'S OWN SOURCE. `setextUnderlineLevel` captures the underline's
+    // indent with ` *` (spaces only), so a tab-prefixed underline matches NOTHING at all.
+    // Session 192 justified that with a measurement — `- item` / `  Some Title` / `\t===`
+    // renders no heading — and the measurement is correct but the CONCLUSION ("a tab is not
+    // the content column") over-generalises from a container whose column is 2: a tab reaches
+    // column 4, and 4 is simply not 2. Inside a container whose content column IS 4, the tab
+    // lands exactly on it and quarto renders the heading. PROVEN BY CONTROL, both ways.
+    expect(
+      names(doc("Intro sentence.", "", "-   line one", "    line two", "",
+                "    Papa Tab Underline", "\t===")),
+    ).toEqual([]); // quarto: h1:Papa Tab Underline — a LOST heading
+    expect(
+      names(doc("Intro sentence.", "", "-   line one", "    line two", "",
+                "    Quebec Space Underline", "    ===")),
+    ).toEqual(["h1:Quebec Space Underline"]); // CONTROL — the space spelling of the same column
+    // CONTROL — Session 192's OWN document, which still agrees: column 2 container, tab at 4.
+    expect(
+      names(doc("Intro sentence.", "", "- line one", "  line two", "",
+                "  Romeo Column Two", "\t===")),
+    ).toEqual([]); // quarto: no heading either — 4 is not 2, and both of us decline
+    expect(
+      names(doc("Intro sentence.", "", "- line one", "  line two", "",
+                "  Sierra Column Two Spaces", "  ===")),
+    ).toEqual(["h1:Sierra Column Two Spaces"]); // CONTROL — the space spelling at column 2
+
+    // ── FAMILY 2 — AN ATX HEADING AT ITS CONTAINER'S OWN CONTENT COLUMN IS LOST, because
+    // `ATX_HEADING` still carries a literal ` {0,3}` cap of its own. This was already on the
+    // board, but as a PHANTOM family (Session 193 attributed all 16 survivors in Session 189's
+    // corpus to it); the blind sweep shows it is ALSO the largest LOSS family here, which makes
+    // it simultaneously too wide and too narrow — the exact shape that makes both one-directional
+    // edits wrong, as Session 192 found for the setext row. PROVEN BY CONTROL.
+    expect(
+      names(doc("Intro.", "", "- Site logistics", "  - Access road status", "",
+                "    # Tango Indented ATX", "", "    Body text.")),
+    ).toEqual([]); // quarto: h1:Tango Indented ATX — a LOST heading at the inner item's column 4
+    expect(
+      names(doc("Intro.", "", "- Site logistics", "  - Access road status", "",
+                "# Uniform Column Zero ATX", "", "Body text.")),
+    ).toEqual(["h1:Uniform Column Zero ATX"]); // CONTROL — the same heading at column 0
+    expect(
+      names(doc("Intro.", "", "-   line one", "    line two", "",
+                "    # Victor Four Column ATX", "", "    Body text.")),
+    ).toEqual([]); // quarto: h1:Victor Four Column ATX — the single-container spelling
+  });
 });
 
 describe("a raw-TeX block macro's indent is a COLUMN too, so a TAB can reach it (Session 194)", () => {
