@@ -7,6 +7,57 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 192 — IMPLEMENTATION: a SETEXT underline is anchored at the containing block's CONTENT COLUMN (SHIPPED)
+
+`SETEXT_H1`/`SETEXT_H2` carried ` {0,3}`, transcribed from CommonMark §4.3. Pandoc's
+markdown reader is not CommonMark here: `setextHeader` applies `skipNonindentSpaces` to
+the TITLE line and then reads the underline run with no leading-space parser at all, so
+the run must begin exactly where the enclosing block's content begins. The new
+`setextUnderlineLevel(line, columns)` tests that indent for **equality** against
+`[0, ...contentColumns]` — Session 189's machinery, reused, not a second column model.
+
+**The filed item's MEASUREMENT was right and its PRESCRIBED FIX was wrong, in the
+heading-DELETING direction.** It says the underline is "anchored at column 0" and names
+`SETEXT_UNDERLINE_RUN` as the model to copy; every document behind that claim — Session
+182's original rows and Session 191's 27-document factorial alike — has **no container**.
+Re-rendered before a line of code changed (Learning #251): a `- ` item renders the heading
+at underline column 2, a `1. ` item at 3, a `-   ` item at 4, and three-deep nested bullets
+at 0, 2, 4 **and** 6. The prescription would have deleted every one of those.
+
+**511 documents scored** against the real `quarto render` path — 54 ground (underline
+indent / title indent / both, as three separate corpora), 162 container, 17 environment,
+8 re-measuring Session 191's FAMILY 1, 10 trigger-removal controls, and **270 BLIND
+adversarial from nine lenses** (eight plus a completeness critic). Per heading, two
+directions separate; the polarity is INVERTED from Session 191's, so a LOST heading is the
+expensive error here.
+
+| corpus | scored | PRE (agree/phantom/LOST) | SHIPPED |
+|---|---|---|---|
+| designed (ground + container + env + fam1) | 241 | 50 / 66 / 15 | **63 / 0 / 2** |
+| advflat (BLIND, 9 lenses) | 270 | 142 / 82 / 115 | **189 / 60 / 68** |
+
+**97 phantoms drained, 57 headings recovered, and NEW LOST = 0 on both corpora — an empty
+SET, not a smaller number.** The 2 residual designed losses are the block-quote cell,
+byte-identical on the pre-build and already filed. Eleven new phantoms are disclosed and
+pinned in five families, each with its control: seven proven pre-existing, one classified
+by family and labelled as inference, three a genuinely new consumer of the `contentColumns`
+arithmetic — which this change does not modify, only reads.
+
+**Phase 3E ran GREEN BEFORE this commit**, on the operator's explicit go-ahead sought in
+advance: `test:integration` **500 passing / 0 failing / 0 pending, exit 0**, the new
+assertion watched BY NAME at line 310 of the log. Repo control: all four views over all
+**113** tracked `md`/`qmd` documents BYTE-IDENTICAL, proven EFFECTIVE BY INJECTION.
+
+Verification: `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` **1777 passed
+/ 65 files** (baseline 1775, +2) · `test:oracle` **131 / 124 / 4 / 3 / 0** (byte-identical
+to S180–S191) · `check-package` **OK 42 files / 5.52 MB**. `test:lsp` not run — no LSP
+surface touched.
+
+Commits: `5bcea8d` (1B claim), `ac1ee38` (the equality rule + RED→GREEN), `9d7aa38` (the
+provider controls + eleven disclosed residuals), `c728ad0` (the footnote-spelling pin a
+Phase 3F cross-reference check found dangling), and this close-out.
+**Model:** Claude Opus 5.
+
 ### 2026-08-09 · [ad hoc] Session 191 — recorded its own Phase 0 health snapshot
 
 One appended `dashboard_history.jsonl` row from the mandated Phase 0 step 5
