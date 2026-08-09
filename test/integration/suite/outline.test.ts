@@ -361,6 +361,8 @@ describe("Quarto: Document outline (symbols)", () => {
     );
 
     // The EXACT set, so a regression in either direction fails rather than only a widening.
+    // Session 193 extended this fixture with two more headings and RE-RENDERED it; quarto
+    // emits all eight on these exact bytes.
     assert.deepStrictEqual(all, [
       "Real Section",
       "Recovered Setext",
@@ -368,7 +370,46 @@ describe("Quarto: Document outline (symbols)", () => {
       "Below A Thematic Break",
       "Setext In A List (Session 192)",
       "Recovered In A List",
+      "Indented Code In A List (Session 193)",
+      "Code Column In A List",
     ]);
+  });
+
+  it("measures the indented-code threshold from the container's content column, through the real provider (Session 193)", async () => {
+    // THE WIRING EVIDENCE for Session 193, on the provider the Outline view, breadcrumbs,
+    // sticky scroll and Ctrl+T all really call. Like Session 192's, this change moves the
+    // outline in BOTH directions, so one fixture carries a control for each.
+    //
+    // The fixture's premise is MEASURED, not assumed — these exact bytes were re-rendered
+    // through `quarto render --to html` this session and quarto emits EIGHT headings,
+    // including `Code Column In A List` and NOT `Phantom Below Indented Text`.
+    //
+    // Against the pre-Session-193 build, the same probe over the same bytes produced a set
+    // that DIFFERED IN BOTH DIRECTIONS: `Code Column In A List` was missing outright, and
+    // `Phantom Below Indented Text` was present in its place. Both are measured, not argued.
+    const symbols = await symbolsFor(SETEXT_FRESH_BLOCK);
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const all = flatten(symbols);
+
+    // PRESENT control — inside a `-   ` item (content column 4) a line at column 8 really IS
+    // an indented code block, so the line below it starts a fresh paragraph and its underline
+    // promotes it. Before this session BOTH lines were read as code, which made the title
+    // "the second line of a code run" and deleted the heading from the outline entirely.
+    assert.ok(
+      all.includes("Code Column In A List"),
+      "a title at the container's content column, under a genuine code block, must reach the real provider",
+    );
+
+    // ABSENT control — inside a `- ` item (content column 2) a line at column 4 is only two
+    // columns past the item's content, which is ordinary paragraph text. The heading below it
+    // would interrupt that open paragraph, and `blank_before_header` forbids it. The
+    // pre-Session-193 build read the four spaces as code and invented a top-level section.
+    // This is the assertion that fails if anyone restores the literal-4 test.
+    assert.ok(
+      !all.includes("Phantom Below Indented Text"),
+      "four spaces inside a column-2 item is not code, and must not invent a section",
+    );
   });
 
   it("keeps an `=` run and an open-paragraph thematic break out, and puts the ATX sibling back (Session 182)", async () => {

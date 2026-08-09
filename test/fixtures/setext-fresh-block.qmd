@@ -35,4 +35,17 @@ Prose that opens a fresh paragraph at column zero.
 Phantom Underline
    ===
 
+## Indented Code In A List (Session 193)
+
+-   A wide list item, whose content column is four.
+
+        an indented code block, at column eight
+    Code Column In A List
+    ---------------------
+
+- A narrow list item, whose content column is two.
+
+    not code here, only two columns past the item
+# Phantom Below Indented Text
+
 Tail prose.
