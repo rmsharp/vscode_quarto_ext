@@ -2344,6 +2344,59 @@ describe("the HTML block-tag rule is pandoc's, and it is CONTEXT-DEPENDENT (Sess
   });
 });
 
+describe("the raw-TeX macro rule is pandoc's, and it has THREE classes (Session 188)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("RED->GREEN: a class-A macro INTERRUPTS an open paragraph; a class-B macro does not", () => {
+    // Pandoc's markdown reader has NO raw-TeX guard in `endline` — a newline never ends a
+    // paragraph on account of TeX below it. What ends the paragraph is that no INLINE parser
+    // consumes the backslash, and the guard that decides it is `inlineCommand'`:
+    //
+    //     guard $ isInlineCommand name || not (isBlockCommand name)
+    //
+    // which FAILS only for a name in `blockSet \ inlineSet`. That set is class A, and it is
+    // the ONLY class that interrupts an open paragraph. Measured, one rendered document per
+    // name, over 736 candidate names in three contexts (4,416 documents):
+    for (const macro of ["\\maketitle", "\\usepackage{amsmath}", "\\listoffigures",
+                         "\\addcontentsline{toc}{section}{x}", "\\markboth{L}{R}",
+                         "\\section{Heading}", "\\par"]) {
+      expect(findHeadings(doc("prose one", "prose two", macro, "# ATX Below")).map((h) => h.text))
+        .toEqual(["ATX Below"]);
+    }
+    // CONTROL — class B is block only where NO paragraph is open, so against an OPEN one these
+    // are INLINE and the `#` line below them is paragraph text. Five names sit in BOTH of
+    // pandoc's lists on purpose (`clearpage hspace newpage pagebreak vspace`), and an UNKNOWN
+    // macro behaves the same way. Widening class A to cover them deletes nothing but fabricates
+    // a heading under every one of them.
+    for (const macro of ["\\clearpage", "\\newpage", "\\vspace{1em}", "\\hspace{1em}",
+                         "\\pagebreak", "\\setlength{\\parindent}{0pt}", "\\foobarbazqux"]) {
+      expect(findHeadings(doc("prose one", "prose two", macro, "# ATX Below")).map((h) => h.text))
+        .toEqual([]);
+    }
+    // CONTROL — class C is inline in EVERY context.
+    for (const macro of ["\\textbf{bold}", "\\emph{x}", "\\noindent", "\\index{x}"]) {
+      expect(findHeadings(doc("prose one", "prose two", macro, "# ATX Below")).map((h) => h.text))
+        .toEqual([]);
+    }
+  });
+
+  it("test-after (KNOWN RESIDUAL): arity beyond the first argument group is not modelled", () => {
+    // The ONE phantom this session's class-A widening introduced, disclosed rather than hidden.
+    // `\usepackage` takes exactly one braced argument, so a SECOND group is left over, opens a
+    // paragraph, and swallows the heading — quarto renders none. `\maketitle` reaches the same
+    // bytes through `treatAsBlock`, whose raw grab takes the group, so there its heading is
+    // real. Both measured; the pair is why per-macro arity, not brace-counting, is what would
+    // be needed, and that is beyond a per-line predicate.
+    expect(
+      findHeadings(doc("prose one", "prose two", "\\usepackage{amsmath}{}", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]); // quarto: NO heading — the disclosed phantom
+    expect(
+      findHeadings(doc("prose one", "prose two", "\\maketitle{}", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]); // quarto: heading — agreement
+  });
+});
+
 describe("buildOutline — against the sample.qmd fixture", () => {
   const fixture = readFileSync(
     path.resolve(__dirname, "../fixtures/sample.qmd"),

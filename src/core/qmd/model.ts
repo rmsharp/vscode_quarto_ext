@@ -392,6 +392,135 @@ const SETEXT_UNDERLINE_RUN = /^(?:=+|-+)[ \t]*$/;
  */
 const THEMATIC_BREAK = /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/;
 /**
+ * Pandoc's raw-TeX macro classification — the NAME lists, and the three classes they form.
+ *
+ * ⚠ **PANDOC CLASSIFIES RAW TeX BY MACRO NAME, AND THE RULE IS CONTEXT-DEPENDENT — exactly
+ * as it is for HTML tags (Session 187), and for the same reason: one list cannot express it.**
+ * Transcribed from `Text.Pandoc.Readers.LaTeX` at **pandoc 3.6.3** (the build quarto 1.7.33
+ * bundles, `quarto pandoc --version`) and then MEASURED entry by entry — 736 candidate names
+ * in three contexts, 4,416 documents rendered through the real `quarto render` path.
+ *
+ * TWO gates decide it, and NEITHER is the one the filed item assumed:
+ *
+ *   1. `endline` in the markdown reader carries **no raw-TeX guard at all**. A newline never
+ *      ends a paragraph on account of TeX below it. What ends the paragraph is that no INLINE
+ *      parser consumes the backslash — `inline` dispatches `'\\' -> math <|> escapedNewline
+ *      <|> escapedChar <|> rawLaTeXInline'`, and `symbol`, the last resort, refuses a
+ *      backslash where `rawTeXBlock` would match.
+ *   2. So an open paragraph is interrupted **iff `inlineCommand'` FAILS**, and its guard is
+ *      `isInlineCommand name || not (isBlockCommand name)` — false only for a name in
+ *      `blockSet \ inlineSet`, where `blockSet = keys(blockCommands) ∪ treatAsBlock` and
+ *      `inlineSet = keys(inlineCommands) ∪ treatAsInline`.
+ *
+ * The measurement collapsed all 736 names into just SIX behaviours, which are these classes:
+ *
+ *   **A — block in EVERY context** (`blockSet \ inlineSet`), the only class that interrupts an
+ *     open paragraph. It splits three ways by ARITY, and the split is measured, not reasoned:
+ *       `…_ANY`  (20) block bare or with arguments — `\maketitle`, `\usepackage{amsmath}`
+ *       `…_ARG`  (46) block ONLY with an argument — `\section{x}` is a block, a bare
+ *                     `\section` is nothing at all, because the map's own parser needs the
+ *                     argument, fails without it, and the token falls through to the inline path
+ *       `…_BARE` (7)  block ONLY without one — `\par` is a block and `\par{x}` is NOT: the
+ *                     parser consumes `\par` and the leftover `{x}` opens a paragraph that
+ *                     then swallows the heading below it
+ *   **B — block only where NO paragraph is already open.** `blockSet ∩ inlineSet` — the five
+ *     names `clearpage hspace newpage pagebreak vspace`, which pandoc puts in BOTH lists on
+ *     purpose — plus every UNKNOWN macro. This class is why the project's own record appeared
+ *     to contradict itself: `RAW_TEX_ENV_OPEN`'s docstring measured these in the PARAGRAPH
+ *     context (inline) and `BACKLOG.md` measured the same names in the FRESH context (block).
+ *     Both were right. It needs no list — it is the default.
+ *   **C — inline in EVERY context** (`inlineSet \ blockSet`, 316 names). `\textbf{bold}`,
+ *     `\emph{x}`, `\noindent`, `\index{x}`. This is the list the wide row was missing, and
+ *     matching it is the phantom the filed item was about.
+ *
+ * ⚠ **THE TAIL OF THE LINE IS PART OF THE RULE, and it was measured, not assumed** (Learning
+ * #252 — a per-line predicate anchored at the line's HEAD cannot self-test its tail, so this
+ * axis was probed separately: 8 macros × 12 tails × 2 contexts). A macro line is a block only
+ * when what follows the macro and its arguments is whitespace, or FURTHER NON-INLINE MACROS.
+ * Every one of these kills it, in every class (measured):
+ *
+ *     \clearpage and more prose      \clearpage.        \clearpage % a comment
+ *     \maketitle \textbf{b}          ← a trailing class-C macro kills it too
+ *
+ * …while `\clearpage\newpage` and `\clearpage \newpage` really are blocks, which is why the
+ * tail admits a run of non-inline macros rather than demanding end-of-line.
+ *
+ * ⚠ **KNOWN RESIDUAL, disclosed rather than hidden: arity beyond the first argument group is
+ * not modelled.** `\usepackage{amsmath}{}` is measured NOT a block (its parser takes exactly
+ * one group, and the leftover `{}` opens a paragraph) while `\maketitle{}` IS one. Encoding
+ * per-macro arity is beyond a per-line predicate; the residual is a phantom on a shape no real
+ * document writes, which is the permitted direction.
+ */
+const PANDOC_BLOCK_MACROS_ANY =
+  "bibliographystyle|addcontentsline|addtocontents|listoffigures|addtocounter|listoftables|" +
+  "makeglossary|pdfstringdef|usepackage|makeindex|maketitle|markright|hyperdef|markboth|" +
+  "markleft|pdfannot|include|special|subfile|ignore";
+const PANDOC_BLOCK_MACROS_ARG =
+  "setdefaultlanguage|lstinputlisting|setmainlanguage|addbibresource|lowertitleback|" +
+  "subsubsection\\*|uppertitleback|framesubtitle|subparagraph\\*|subsubsection|bibliography|" +
+  "frontispiece|subparagraph|theoremstyle|fancybreak\\*|plainbreak\\*|subsection\\*|blockquote|" +
+  "centerline|dedication|extratitle|fancybreak|frametitle|paragraph\\*|plainbreak|publishers|" +
+  "subsection|paragraph|signature|titlehead|chapter\\*|section\\*|subtitle|address|caption|" +
+  "chapter|closing|opening|section|subject|author|part\\*|title|write|date|part";
+const PANDOC_BLOCK_MACROS_BARE =
+  "raggedright|pfbreak\\*|pfbreak|hrule|strut|item|par";
+const PANDOC_INLINE_MACROS =
+  "DeclareRobustCommand|DeclareMathOperator|foreignblockcquote|provideenvironment|" +
+  "textogonekcentered|MakeTextLowercase|MakeTextUppercase|foreignblockquote|hyphenblockcquote|" +
+  "textquotedblright|hyphenblockquote|plainfancybreak\\*|renewenvironment|textquotedblleft|" +
+  "foreignlanguage|includegraphics|plainfancybreak|textasciicircum|textsuperscript|" +
+  "listfigurename|lstlistingname|newenvironment|providecommand|texorpdfstring|textasciitilde|" +
+  "textquoteright|Footcitetexts|GLSdescplural|Glsdescplural|MakeLowercase|MakeUppercase|" +
+  "addabbrvspace|documentclass|footcitetexts|foreignquote\\*|glsdescplural|listtablename|" +
+  "mkbibbrackets|textbackslash|textquoteleft|textsubscript|Footcitetext|PackageError|" +
+  "abstractname|contentsname|footcitetext|foreignquote|glossaryname|graphicspath|hyphenquote\\*|" +
+  "renewcommand|Citeyearpar|adddotspace|blockcquote|chaptername|citeyearpar|hypertarget|" +
+  "hyphenquote|inputminted|mkbibitalic|mkbibparens|passthrough|prefacename|seealsoname|" +
+  "textcircled|textgreater|titleformat|togglefalse|Parencite\\*|Parencites|Supercites|" +
+  "citeauthor|ensuremath|figurename|headtoname|ifstrequal|includesvg|mintinline|mkbibquote|" +
+  "newcommand|newtheorem|nhttfamily|parencite\\*|parencites|supercites|textnormal|toggletrue|" +
+  "Autocite\\*|Autocites|Footcites|Parencite|Smartcite|Supercite|Textcites|autocite\\*|" +
+  "autocites|backslash|bibstring|copyright|footcites|hyperlink|indexname|lowercase|lstinline|" +
+  "mkbibbold|mkbibemph|newtoggle|nohyphens|nolinkurl|parencite|proofname|smartcite|supercite|" +
+  "tablename|textcites|textcolor|underline|uppercase|Acrshort|Autocite|Citeyear|Footcite|" +
+  "Textcite|acrshort|autocite|bfseries|citealp\\*|citealt\\*|citetext|citeyear|colonhyp|" +
+  "colorbox|enclname|endinput|enquote\\*|epigraph|footcite|footnote|hyperref|iftoggle|lettrine|" +
+  "noindent|numrange|pagename|partname|qtyrange|textcite|textless|textnhtt|Acrfull|Acrlong|" +
+  "GLSdesc|Glsdesc|SIrange|acrfull|acrlong|autocap|autoref|bibname|citealp|citealt|enquote|" +
+  "faCheck|faClose|glsdesc|itshape|numlist|qtylist|refname|scshape|seename|slshape|SIlist|" +
+  "adddot|ccname|citeal|citep\\*|citet\\*|dothyp|global|hyphen|newtie|nocite|parbox|pounds|" +
+  "textbf|textit|textmd|textrm|textsc|textsf|textsl|texttt|textup|thanks|Cite\\*|Cites|Glspl|" +
+  "LaTeX|alert|begin|bshyp|cite\\*|citep|cites|citet|eqref|fshyp|glspl|ifdim|index|label|ldots|" +
+  "mdots|newif|slash|today|uline|vdots|Acfp|Aclp|Acsp|Cite|Cref|Verb|acfp|aclp|acsp|cite|cref|" +
+  "dots|edef|emph|euro|gdef|hbox|href|mbox|rule|sout|unit|vbox|verb|vref|xdef|Acf|Acl|Acp|Acs|" +
+  "Gls|TeX|acf|acl|acp|acs|and|ang|bar|def|end|gls|hyp|let|num|qed|qty|ref|sep|sim|url|AA|AE|Ac|" +
+  "OE|RN|Rn|SI|aa|ac|ae|bf|em|hl|it|lq|oe|ps|rm|rq|si|sl|ss|st|tt|ul|G|H|L|O|P|S|U|b|c|d|f|h|i|" +
+  "j|k|l|o|r|t|u|v";
+/** A control-sequence NAME ends at the first non-letter: `\vspace2` is `vspace` then `2`. */
+const MACRO_NAME_END = "(?![a-zA-Z])";
+/** One argument group, optional (`[…]`) or braced (`{…}`), tolerating one level of nesting
+ *  so `\newcommand{\foo}{a{b}c}` is still recognised as consuming its arguments. */
+const MACRO_ARG_GROUP = "(?:\\[[^\\]]*\\]|\\{(?:[^{}]|\\{[^{}]*\\})*\\})";
+/** A macro that is NOT class C — the only thing (besides whitespace) allowed to follow a
+ *  block macro on its line without turning the line into prose. */
+const NON_INLINE_MACRO =
+  "\\\\(?!(?:" + PANDOC_INLINE_MACROS + ")" + MACRO_NAME_END + ")[a-zA-Z]+" + MACRO_ARG_GROUP + "*";
+/** What may follow a block macro's own arguments: a run of non-inline macros, then only
+ *  whitespace to end of line. Measured — see the tail note above. */
+const MACRO_LINE_TAIL = "(?:[ \\t]*" + NON_INLINE_MACRO + ")*[ \\t]*$";
+/**
+ * Class A — a raw-TeX macro that opens a block in EVERY context, so it is tested AHEAD of the
+ * `paragraphOpen` bail beside `RAW_TEX_ENV_OPEN`. This is the heading-RECOVERING direction:
+ * before it, `prose` / `prose` / `\maketitle` / `# ATX Below` lost its heading outright.
+ */
+const RAW_TEX_BLOCK_MACRO = new RegExp(
+  "^ {0,3}\\\\(?:" + PANDOC_BLOCK_MACROS_ANY + ")" + MACRO_NAME_END +
+    MACRO_ARG_GROUP + "*" + MACRO_LINE_TAIL +
+  "|^ {0,3}\\\\(?:" + PANDOC_BLOCK_MACROS_ARG + ")" + MACRO_NAME_END +
+    MACRO_ARG_GROUP + "+" + MACRO_LINE_TAIL +
+  "|^ {0,3}\\\\(?:" + PANDOC_BLOCK_MACROS_BARE + ")" + MACRO_NAME_END + MACRO_LINE_TAIL,
+);
+/**
  * A raw TeX ENVIRONMENT delimiter — `\begin{…}` / `\end{…}`.
  *
  * ⚠ **Deliberately narrower than `CLOSES_PARAGRAPH`'s `/^ {0,3}\\[a-zA-Z]/` row**, because
@@ -509,7 +638,12 @@ function closesParagraph(
   if (prevWasAtxHeading && SETEXT_UNDERLINE_RUN.test(line)) {
     return true;
   }
-  if (HTML_BLOCK_OPEN.test(line) || RAW_TEX_ENV_OPEN.test(line) || CLOSER_LINE.test(line)) {
+  if (
+    HTML_BLOCK_OPEN.test(line) ||
+    RAW_TEX_ENV_OPEN.test(line) ||
+    RAW_TEX_BLOCK_MACRO.test(line) ||
+    CLOSER_LINE.test(line)
+  ) {
     return true;
   }
   if (paragraphOpen && !paragraphQuoted) {
