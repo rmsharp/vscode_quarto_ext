@@ -7,6 +7,75 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 190 — IMPLEMENTATION: a class-A raw-TeX macro is INDENT-INSENSITIVE (SHIPPED)
+
+Removed `RAW_TEX_BLOCK_MACRO`'s ` {0,3}` indent cap. Its leading-whitespace class is now
+`[ \t]*`, unbounded.
+
+**THE CAP NEVER MODELLED ANYTHING.** Class A does not reach pandoc's `rawTeXBlock` on the path
+that matters here. It interrupts an open paragraph by making `inlineCommand'` FAIL —
+`guard $ isInlineCommand name || not (isBlockCommand name)` — and that guard runs at the
+**inline** level, reached through `inline`'s `'\\'` dispatch on a paragraph's continuation
+line, where the leading whitespace has already been consumed as inter-word space. There is no
+`skipNonindentSpaces` on that path and no column rule anywhere near it. So ` {0,3}` was not
+CommonMark's indented-code rule in disguise; it simply lost the class-A test on indented
+lines, and Session 183's `paragraphOpen` bail then **deleted the heading below every one of
+them**. `HTML_BLOCK_OPEN` made this identical repair at Session 185 for the identical reason.
+
+**⚠ THE TWO RAW-TeX ROWS MUST STAY INCONSISTENT WITH EACH OTHER.** Class B carries the
+containing block's content column exactly (Session 189); class A carries no cap at all.
+Measured in both directions: giving class A the content column deletes every heading under an
+indented `\maketitle`, and giving class B no cap restores the 1,043 phantoms S189 removed. The
+word "indent" names two rows that fail in opposite directions (Learning #260).
+
+**THE MEASUREMENT — 2,772 documents rendered through the real `quarto render` path** (plus 240
+blind adversarial ones from eight lenses that had never seen this session's corpora, and 498
+re-scored from two predecessors' corpora), scored **per heading with the two error directions
+kept separate**:
+
+| corpus | docs | PRE (agree/phantom/LOST) | **SHIPPED** |
+|---|---|---|---|
+| gnd — the filed item's own documents | 30 | 6 / 0 / 11 | **17 / 0 / 0** |
+| cls — 73 class-A names × 9 indents | 774 | 219 / 0 / 438 | **657 / 0 / 0** |
+| ctx — 20 containers × 3 classes | 540 | 178 / 28 / 102 | **253 / 28 / 27** |
+| fresh — no paragraph open | 540 | 389 / 49 / 27 | **389 / 49 / 27** |
+| sx — the SETEXT polarity, both spellings | 648 | 0 / 0 / 270 | **0 / 0 / 270** |
+| advflat — BLIND adversarial, 8 lenses | 240 | 60 / 21 / 70 | **92 / 25 / 38** |
+| **TOTAL** | **2,772** | **852 / 98 / 918** | **1408 / 102 / 362** |
+
+**556 real headings recovered. The NEW-LOSS set is EMPTY at set level, not merely by count.**
+The `fresh` and setext corpora are byte-identical, measured in their own right rather than
+reasoned about (Learning #233) — and measuring the setext one is what turned up the
+216-heading `opensFreshBlock` gap now filed in `BACKLOG.md`.
+
+**FOUR NEW PHANTOMS, EVERY ONE CHARACTERIZED FIRSTHAND, AND ONE IS NOT REAL.** The fourth is a
+document `quarto render` **exits 1** on — the known `...` front-matter item — so it has no
+heading truth at all. The other three are one defect: an indented class-A macro inside a raw
+region this scanner does not track (a multi-line inline code span, an RCDATA `<textarea>`, a
+CDATA section). **The cap was MASKING those, not guarding them** — the pre-S190 build already
+emits all three with the macro at **column 0**, re-rendered and pinned as a control beside each
+residual (Learning #263).
+
+**REPO CONTROL:** all four views (headings, cells, outline, crossref labels) over all **115**
+tracked `md`/`qmd` files are **byte-identical** across the change, and the control is proven
+**effective by injection** — exactly 3 of 6 deliberately divergent documents move while the
+115 do not.
+
+**CORRECTION TO THE FILED ITEM's own magnitude, published rather than quietly dropped.** S189
+ranked this item #1 on "8 of the 21 losses on S188's corpus". Re-scored after shipping, it
+drains **5** — identical whether counted by heading, by document, or by
+document-carrying-a-drained-loss. Mechanism and polarity were right; the size was overstated.
+
+**Verification** (run at every checkpoint boundary): `check-types` 0 · `compile` 0 ·
+`compile-tests` 0 · `npm test` **1773 passed / 65 files** (baseline 1771 — 2 new tests, no
+regressions) · `test:oracle` **131 documents / 124 agree / 4 lost TP / 3 CARDINAL FP / 0
+unrelated** (byte-identical to S180–S189) · `check-package` **OK 42 files / 5.52 MB**.
+**Phase 3E:** `test:integration` **499 passing / 0 failing / 0 pending, exit 0**, run on the
+operator's explicit go-ahead **before** the close-out commit. NOT RUN: `test:lsp` — no LSP
+surface touched.
+
+**Model:** Claude Opus 5.
+
 ### 2026-08-09 · [ad hoc] Session 189 — IMPLEMENTATION: a raw-TeX block starts at the CONTAINING BLOCK's content column (SHIPPED)
 
 Replaced the raw-TeX row's literal ` {0,3}` indent with a test against the containing block's
