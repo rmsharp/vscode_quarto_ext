@@ -361,8 +361,8 @@ describe("Quarto: Document outline (symbols)", () => {
     );
 
     // The EXACT set, so a regression in either direction fails rather than only a widening.
-    // Session 193 extended this fixture with two more headings and RE-RENDERED it; quarto
-    // emits all eight on these exact bytes.
+    // Session 194 extended this fixture with three more headings and RE-RENDERED it; quarto
+    // emits all ELEVEN on these exact bytes, and emits NO heading for `Phantom Below A Tab`.
     assert.deepStrictEqual(all, [
       "Real Section",
       "Recovered Setext",
@@ -372,6 +372,9 @@ describe("Quarto: Document outline (symbols)", () => {
       "Recovered In A List",
       "Indented Code In A List (Session 193)",
       "Code Column In A List",
+      "Content Column And Tabs (Session 194)",
+      "Tab Macro In A List",
+      "Tab Column Kept Open",
     ]);
   });
 
@@ -409,6 +412,57 @@ describe("Quarto: Document outline (symbols)", () => {
     assert.ok(
       !all.includes("Phantom Below Indented Text"),
       "four spaces inside a column-2 item is not code, and must not invent a section",
+    );
+  });
+
+  it("measures a line's indentation in COLUMNS, so a TAB reaches the container it reaches (Session 194)", async () => {
+    // THE WIRING EVIDENCE for Session 194, on the provider the Outline view, breadcrumbs,
+    // sticky scroll, Ctrl+T and the cross-reference index all really call.
+    //
+    // The container stack closed containers by comparing a COUNT OF SPACES against the open
+    // content columns, while every other column-aware rule in the model expands a tab to the
+    // next 4-column stop. A tab-indented line therefore looked shallower than it is and popped
+    // a container that was still open — and because the stack sits under readers of OPPOSITE
+    // polarity, that single defect both INVENTED and DELETED headings.
+    //
+    // The fixture's premise is MEASURED, not assumed: `quarto render --to html` on these exact
+    // bytes emits ELEVEN headings, including `Tab Macro In A List` and `Tab Column Kept Open`
+    // and NOT `Phantom Below A Tab`. Against the pre-Session-194 build the same probe over the
+    // same bytes produced TEN, differing in BOTH directions — the two present controls below
+    // were missing outright, and the absent control was present in their place.
+    const symbols = await symbolsFor(SETEXT_FRESH_BLOCK);
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const all = flatten(symbols);
+
+    // PRESENT control 1 — a TAB-indented `\clearpage` sits at column 4, which is exactly the
+    // `-   ` item's content column, so pandoc reads it as a raw-TeX BLOCK and the title below
+    // it starts a fresh paragraph. This is the assertion that fails if the raw-TeX row is
+    // returned to counting spaces; it is also the REGRESSION the container fix would have
+    // shipped on its own, so it guards the pair rather than either half.
+    assert.ok(
+      all.includes("Tab Macro In A List"),
+      "a tab-indented macro at the container's content column must reach the real provider",
+    );
+
+    // PRESENT control 2 — the LOSS direction of the container stack itself. Two tabs reach
+    // column 8, which is deeper than the innermost item's content column 6, so the item stays
+    // OPEN and the setext underline at column 6 below still promotes its title. The pre-S194
+    // build read the two tabs as column 0, popped all three containers, and the underline then
+    // matched no open column at all — the heading vanished from the outline entirely.
+    assert.ok(
+      all.includes("Tab Column Kept Open"),
+      "a tab-indented line deeper than the container must not close it, through the real provider",
+    );
+
+    // ABSENT control — the PHANTOM direction, and the exact shape Session 193 filed as its own
+    // only two new errors. Four spaces then a tab reaches column 8; the innermost item's
+    // content column is 6, so the code threshold there is 10 and this line is ordinary content.
+    // `blank_before_header` then forbids the heading below it. The pre-S194 build popped
+    // column 6, measured against a base of 4, and invented a top-level section.
+    assert.ok(
+      !all.includes("Phantom Below A Tab"),
+      "a line short of the container's code threshold must not invent a section",
     );
   });
 

@@ -49,3 +49,31 @@ Phantom Underline
 # Phantom Below Indented Text
 
 Tail prose.
+
+## Content Column And Tabs (Session 194)
+
+-   A wide list item, whose content column is four.
+
+	\clearpage
+    Tab Macro In A List
+    -------------------
+
+- outer
+  - middle
+    - inner
+      line two
+
+		an indented code block, at column eight
+
+      Tab Column Kept Open
+      --------------------
+
+- outer two
+  - middle two
+    - inner two
+      line two
+
+    	not code here, only two columns past the inner item
+# Phantom Below A Tab
+
+Closing prose.
