@@ -16,6 +16,7 @@ your-projects/                        <-- parent directory (portfolio level)
 ├── project-a/                        <-- each project gets methodology files:
 │   ├── CLAUDE.md (or equivalent)     ← Your agent instructions (see CLAUDE_TEMPLATE.md)
 │   ├── SESSION_RUNNER.md             ← Cockpit checklist (synced from methodology)
+│   ├── FRAMEWORK_LEARNINGS.md        ← The framework's learnings (synced, read on demand)
 │   ├── SAFEGUARDS.md                 ← Safety rails (synced from methodology)
 │   ├── SESSION_NOTES.md              ← Session continuity (copied from starter kit)
 │   ├── BACKLOG.md                    ← Open work items only (you create this)
@@ -23,6 +24,7 @@ your-projects/                        <-- parent directory (portfolio level)
 │   ├── HANDOFFS.md                   ← Durable close-out receipts (copied from starter kit)
 │   ├── ROADMAP.md                    ← Feature inventory & future plans (copied from starter kit)
 │   ├── methodology_dashboard.py      ← Health scanner (synced from methodology)
+│   ├── methodology_trim.py           ← Ledger trimmer (synced from methodology)
 │   │
 │   └── docs/methodology/             ← The framework (copied from parent dir)
 │       ├── ITERATIVE_METHODOLOGY.md
@@ -67,7 +69,7 @@ If you have a local `methodology/` checkout (sibling to your projects), use the 
 ../methodology/bin/sync your-project/ --source=github
 ```
 
-`bin/sync` copies the full methodology corpus into the target: the operating files (`SESSION_RUNNER.md`, `SAFEGUARDS.md`, `RECOMMENDED_SKILLS.md`, `CONTEXT_TEMPLATE.md`, `CLAUDE_TEMPLATE.md`, `BOOTSTRAP.md`, `methodology_dashboard.py`) at the project root and the framework (`ITERATIVE_METHODOLOGY.md`, `HOW_TO_USE.md`, `workstreams/`) under `docs/methodology/`, creating subdirectories as needed. `SESSION_NOTES.md`, `CHANGELOG.md`, `HANDOFFS.md`, and `ROADMAP.md` are *seeded* at the root only when absent and are never overwritten afterward — once created they are yours to edit. The complete mapping is defined once in `bin/_manifest.py`. In `--mode=ignore` it also adds `.gitignore` entries for the tracked files (not the seeded ones, which you commit) and warns (non-destructively) if any tracked file is currently tracked by git.
+`bin/sync` copies the full methodology corpus into the target: the operating files (`SESSION_RUNNER.md`, `FRAMEWORK_LEARNINGS.md`, `SAFEGUARDS.md`, `RECOMMENDED_SKILLS.md`, `CONTEXT_TEMPLATE.md`, `CLAUDE_TEMPLATE.md`, `BOOTSTRAP.md`, `methodology_dashboard.py`, `methodology_trim.py`) at the project root and the framework (`ITERATIVE_METHODOLOGY.md`, `HOW_TO_USE.md`, `workstreams/`) under `docs/methodology/`, creating subdirectories as needed. `SESSION_NOTES.md`, `CHANGELOG.md`, `HANDOFFS.md`, and `ROADMAP.md` are *seeded* at the root only when absent and are never overwritten afterward — once created they are yours to edit. The complete mapping is defined once in `bin/_manifest.py`. In `--mode=ignore` it also adds `.gitignore` entries for the tracked files (not the seeded ones, which you commit) and warns (non-destructively) if any tracked file is currently tracked by git.
 
 **Drift safety:** `bin/sync` refuses to overwrite a file that has local modifications not matching canonical or any historical version. The recommended pattern is to move per-project customizations into your CLAUDE.md's "Project-Specific Methodology Adaptations" section (see Step 5), then run sync. If you really need to discard local edits, pass `--force`.
 
@@ -99,12 +101,14 @@ From the methodology `starter-kit/` directory:
 | File | Purpose |
 |------|---------|
 | `SESSION_RUNNER.md` | The operating procedure — every session follows this |
+| `FRAMEWORK_LEARNINGS.md` | The framework's own learnings — reference the runner links to, read on demand |
 | `SAFEGUARDS.md` | Safety rails — commit discipline, blast radius limits, mode switching |
 | `SESSION_NOTES.md` | Session continuity — where handoff notes live between sessions |
 | `CHANGELOG.md` | Completed work history — add entries as work is finished |
 | `HANDOFFS.md` | Durable close-out receipts — one machine-checkable block per session |
 | `ROADMAP.md` | Feature inventory and future plans — what's built, what's next |
 | `methodology_dashboard.py` | Health scanner — scores project health and methodology compliance |
+| `methodology_trim.py` | Ledger trimmer — archives the oldest records out of `CHANGELOG.md` / `HANDOFFS.md` once they outgrow what an agent can read, and refuses unless the move is provably lossless. Dry-run by default; `--check` reports without writing |
 
 This table is the minimum manual set. The **authoritative, complete distribution list** — which also includes `RECOMMENDED_SKILLS.md` and the `CONTEXT_TEMPLATE.md`/`CLAUDE_TEMPLATE.md` templates at the project root, plus the framework under `docs/methodology/` — is defined once in `bin/_manifest.py` and applied by `bin/sync`. Copy those too for the full set; the templates are renamed to `CONTEXT.md`/`CLAUDE.md` (see Step 5).
 
@@ -188,7 +192,7 @@ for every session. It tells you what to read, when to stop, and how to close out
 
 ## Step 5: Customizations Go in CLAUDE.md, Not in Synced Files
 
-When a project needs to extend the base methodology — add a custom task mapping, an extra Phase 0 step, a project-specific Learning — those additions go in your **CLAUDE.md "Project-Specific Methodology Adaptations" section**, not in edits to `SESSION_RUNNER.md`.
+When a project needs to extend the base methodology — add a custom task mapping, an extra Phase 0 step, a project-specific Learning — those additions go in your **CLAUDE.md "Project-Specific Methodology Adaptations" section**, not in edits to `SESSION_RUNNER.md` or `FRAMEWORK_LEARNINGS.md`.
 
 Why: edits to synced files become drift. When the methodology updates, you either merge conflicts, miss the update, or lose your customization. Keeping synced files byte-identical to canonical means updates are friction-free, and your project's additions remain visible where agents already read them (CLAUDE.md is loaded every session).
 
@@ -196,7 +200,7 @@ Why: edits to synced files become drift. When the methodology updates, you eithe
 
 > *Project Learnings live in [`PROJECT_LEARNINGS.md`](PROJECT_LEARNINGS.md) — read it when a task resembles earlier work (a workstream or problem you've hit before).*
 
-This is the same discipline as the three-file `BACKLOG`/`CHANGELOG`/`ROADMAP` split above: the always-read file stays scannable; the accumulated record moves to a sibling read only when relevant. `PROJECT_LEARNINGS.md` is project-owned (committed, never synced), so it needs no tooling changes. Most projects never need this — extract only when the file actually approaches its budget.
+This is the same discipline as the three-file `BACKLOG`/`CHANGELOG`/`ROADMAP` split above — and as `SESSION_RUNNER.md` → `FRAMEWORK_LEARNINGS.md`, where the framework applies it to itself: the always-read file stays scannable; the accumulated record moves to a sibling read only when relevant. `PROJECT_LEARNINGS.md` is project-owned (committed, never synced), so it needs no tooling changes. Most projects never need this — extract only when the file actually approaches its budget.
 
 Template section (from `CLAUDE_TEMPLATE.md`):
 
@@ -264,11 +268,22 @@ This is where session output documents go if you use them. The methodology works
 
 ## Step 9: Set Up the Methodology Dashboard (Recommended)
 
-The methodology includes a health scanner that scores projects on 5 dimensions (activity, testing, documentation, CI/CD, methodology compliance) and generates an HTML dashboard that auto-refreshes every 60 seconds.
+The methodology includes a health scanner that scores projects on 5 dimensions (activity, testing, documentation, CI/CD, methodology) and generates an HTML dashboard that auto-refreshes every 60 seconds. Two of those five adapt to the kind of repo being scored, so the rubric doesn't penalize a project for something it has no reason to have: **testing** becomes a render/verification score for a document-only repo (nothing to unit-test), and **methodology** becomes a framework-integrity score for a repo that *publishes* the methodology rather than adopting it. Most projects are neither and see the plain five.
 
 The dashboard auto-detects its context:
 - **Inside a git repo** → single-project mode (also scans git submodules as separate entries)
 - **Above git repos** → portfolio mode (scans all sibling repos)
+
+It also infers the two repo classes above structurally, and the inference now survives installation *through your source count*: the scanner excludes its own installed copies — both `methodology_dashboard.py` and, since dashboard 2.13.0, `methodology_trim.py` — from that count, so a document-only project still reads as `doc-only` after `bin/sync` rather than being scored on tests it has no reason to have. (It did not always — before `methodology_dashboard.py` 2.10.1 the ~3,000-line file it copies to your root counted as *your* code and pushed you past the doc-only source cap. If your dashboard predates that version, either update it or declare the class explicitly.) The exclusion runs **both ways** — the markdown `bin/sync` installs is discounted too when the scanner asks whether yours is a *document* project, so installing the framework cannot flip a code repo into `doc-only`. **One gap remains:** four of the discounted names are *seeds* (`CHANGELOG.md`, `SESSION_NOTES.md`, `HANDOFFS.md`, `ROADMAP.md`) that `bin/sync` leaves alone when you already have your own, and the scanner cannot yet tell your file from a seed it wrote — so a document project whose corpus lives mostly in those filenames can still read as `code` after installation. Declaring the class fixes it. **Declaring is still worth doing for a document-only project** — a declaration is exact where a heuristic is a guess, and it is the supported escape hatch whenever the structural inference disagrees with you.
+
+Declare the class by creating a **`.methodology-profile`** file at the repo root. Its **first line that is neither blank nor a comment** is the declaration; that line holds whitespace-separated tokens — `doc-only` or `code` for the corpus axis, `framework` or `adopter` for the role axis (set either, or both, in any order). A declaration overrides the structural guess; two conflicting tokens on one axis cancel, and the structural guess stands.
+
+**Comment your explanation.** The declaration line is read as *tokens*, not prose — every word on it counts — and a leading `#` comment does not consume the declaration slot, so an explanation is safe above or below as long as it is commented. An *uncommented* sentence placed first does declare: a file starting `We follow the framework conventions for this paper.` is graded **framework**, and a `doc-only` on the next line is ignored.
+
+```
+doc-only                      # ← the declaration: first non-blank, non-comment line
+# No code here — this is a Quarto book. Scored on render/verification, not tests.
+```
 
 ### Per-Project Setup
 
@@ -327,7 +342,42 @@ If `status` shows `locally modified`, sync will refuse to overwrite. Extract tho
 
 ### Without `bin/sync`
 
-Tell your agent: *"Update methodology using https://github.com/KJ5HST/methodology"*. It will fetch the latest starter-kit files and overlay them.
+Tell your agent: *"Update methodology using https://github.com/KJ5HST/methodology"*.
+
+**Give it these three rules with the instruction. The first one protects your history.**
+
+**1. Overlay the tracked files; never overwrite the adopter-owned ones.** The distribution splits in
+two, and the split is not cosmetic:
+
+| Class | Files | On update |
+|---|---|---|
+| **Tracked** (canonical owns them) | `SESSION_RUNNER.md`, `FRAMEWORK_LEARNINGS.md`, `SAFEGUARDS.md`, `RECOMMENDED_SKILLS.md`, `BOOTSTRAP.md`, the `*_TEMPLATE.md` files, `methodology_dashboard.py`, `methodology_trim.py`, and everything under `docs/methodology/` | **overlay** — replace with the latest |
+| **Adopter-owned** | `CHANGELOG.md`, `HANDOFFS.md`, `SESSION_NOTES.md`, `ROADMAP.md` | **never overwrite** — these hold *your* history |
+
+Overlaying the second row replaces your action ledger and your close-out receipts with empty
+templates. `bin/sync` refuses to do it by construction; an agent working from prose has only this
+sentence to stop it. Say it explicitly.
+
+**2. Reconcile the adopter-owned files by hand, because nothing else will.** Since they are never
+overwritten, a project moving up from an earlier methodology keeps its ledgers *in their old
+format* — gaining the new behaviour while silently missing the new structure. Diff your
+`CHANGELOG.md` and `HANDOFFS.md` front matter against the current seeds in `starter-kit/` and bring
+across whatever is missing above your first record. Nothing below your first record is touched: this
+is a front-matter merge, never a rewrite of history. As of the ledger-doctrine release that means
+the **`## Size, and when to archive`** section in both files — the size norm, the archive trigger and
+the shard convention.
+
+**3. Verify afterwards, don't assume.** From a full methodology checkout,
+`../methodology/bin/status your-project/` lists every file as `current`, `N versions behind`,
+`locally modified`, `missing`, or — for a ledger whose *format* predates the current methodology —
+`present (stale format)`, with a migration note beneath the table. A seed still reading
+`present (stale format)` after an update means rule 2 has not been done yet.
+
+**A note on `--source=github`.** `bin/sync --source=github` reads the distribution straight from the
+upstream repository, which is the closest mechanical equivalent of the instruction above. It reads
+every file before writing anything, so if that repository is behind this manifest it will name the
+missing files and stop rather than install a partial tree — sync from a full local checkout in that
+case.
 
 ---
 

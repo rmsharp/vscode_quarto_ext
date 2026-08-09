@@ -7,6 +7,48 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-08 · [ad hoc] Session 188 pre-flight — commit the methodology sync (v2.8.0 → v2.13.0), and close the packaging leak it opened
+
+Committed the 11-file methodology framework sync that was sitting uncommitted in the working
+tree at Session 188's Orient — 9 modified (`SESSION_RUNNER.md`, `BOOTSTRAP.md`,
+`CLAUDE_TEMPLATE.md`, `RECOMMENDED_SKILLS.md`, four under `docs/methodology/`, and
+`methodology_dashboard.py` **v2.8.0 → v2.13.0**) plus 2 new root files
+(`FRAMEWORK_LEARNINGS.md`, `methodology_trim.py`). Not this session's deliverable — a
+pre-flight action taken on operator instruction so the tree was clean and the release gate
+green before work began (SAFEGUARDS Pre-Flight Checklist).
+
+**⚠ PROVENANCE: this is a methodology-repo User Acceptance Test, written into this project
+BEFORE being pushed upstream.** The committed copies are a **pre-release** canonical state.
+If canonical changes before it is pushed, these files drift from the eventual released
+version and `bin/sync` will refuse to overwrite them (BOOTSTRAP "Drift safety") until
+re-synced with `--force` or reconciled by hand.
+
+**The sync broke the release gate, and S174's gate caught it.** `node check-package.js`
+**FAILED** at Orient: the two new root files are not named in `.vscodeignore`, which is a
+**denylist** that names each methodology artifact individually (`SESSION_RUNNER.md`,
+`methodology_dashboard.py`, …), so both would have shipped inside the `.vsix` — 44 files /
+5.61 MB against a real extension of 42 / 5.51 MB. This is the third instance of the exact
+class S174 built the deny-by-default gate for (`tsconfig.unit.json` at S173, `scratchpad/`
+at S174), and the first where the new root files arrived from *outside* the project. Fixed by
+adding the two missing denylist lines; `check-package` is **OK — 42 files, 5.51 MB**, byte-for-byte
+S185/S186/S187's figures.
+
+**This is itself a UAT finding for canonical:** adding root-level files to the distribution
+silently breaks any adopter whose packaging gate is a top-level allowlist, and neither
+`BOOTSTRAP.md` nor the sync guidance mentions the packaging surface.
+
+**What the sync changes for sessions here:** the framework's learnings table moved out of
+`SESSION_RUNNER.md` into the new `FRAMEWORK_LEARNINGS.md` (read on demand, not every
+session); Phase 3D gains a requirement that the two **forward-looking** handoff fields
+("What's next", "Gotchas") be derived or explicitly labelled a guess, since re-reading
+cannot check a prediction; Phase 3F gains an optional **Model:** bullet convention; and
+the dashboard's stale-version flag that S186 and S187 both carried is resolved.
+`methodology_trim.py` is a new ledger trimmer (dry-run by default) for `CHANGELOG.md` /
+`HANDOFFS.md` — installed, not yet used.
+
+**Verification:** `check-types` 0 · `npm test` 1762 passed / 65 files · `check-package` OK
+42 files / 5.51 MB. No source file touched.
+
 ### 2026-08-08 · [ad hoc] Session 187 — IMPLEMENTATION: pandoc classifies by tag NAME, in two sets, and the set names are the rule (SHIPPED)
 
 Replaced CommonMark §4.6's tag list in `src/core/qmd/model.ts` with pandoc's own classification,

@@ -32,6 +32,7 @@ vitest.config.ts
 
 # Methodology / project-management artifacts (not part of the extension)
 SESSION_RUNNER.md
+FRAMEWORK_LEARNINGS.md
 SAFEGUARDS.md
 SESSION_NOTES.md
 BOOTSTRAP.md
@@ -46,6 +47,7 @@ ROADMAP.md
 PROJECT_LEARNINGS.md
 HANDOFFS.md
 methodology_dashboard.py
+methodology_trim.py
 dashboard.html
 dashboard_history.jsonl
 **/.DS_Store
