@@ -7,6 +7,14 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 194 — recorded its own Phase 0 health snapshot
+
+One appended `dashboard_history.jsonl` row from the mandated Phase 0 step 5
+`methodology_dashboard.py` run: v2.13.0, health **76**, risk **high** ×1, issues **0**,
+vulns **6** (5 high + 1 moderate, devDependency-only), 1,038 commits. Unchanged from
+Session 193's snapshot on every axis except the commit count. Logged as its own action
+because the run mutates a tracked file (failure mode #27). **Model:** Claude Opus 5.
+
 ### 2026-08-09 · [ad hoc] Session 194 — IMPLEMENTATION: a line's indentation is measured in COLUMNS, not in spaces (SHIPPED)
 
 The `contentColumns` stack closed containers by comparing a count of leading SPACES against
