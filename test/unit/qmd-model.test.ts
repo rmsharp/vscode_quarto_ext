@@ -3392,4 +3392,68 @@ describe("an INDENTED CODE line is measured from the containing block's CONTENT 
       names(doc("Intro sentence.", "", "    zzz", "    Some Title", "===", "", "Tail sentence.")),
     ).toEqual([]);
   });
+
+  it("test-after (DISCLOSED RESIDUALS): five families this change leaves standing, each with its control", () => {
+    // ⚠ RECORD WHICH KIND OF EVIDENCE EACH RESIDUAL HAS (Learning #274). Family 1 is the only
+    // one this session INTRODUCED; families 2-5 are proven pre-existing by running the same
+    // probe against the pre-Session-193 build, which answered identically on every document
+    // below. "Proven by control" below means a trigger-removal substitution was rendered and
+    // scored, not that the shape was argued about.
+
+    // ── FAMILY 1 — THE ONLY NEW ERRORS: 2 phantoms, and they are the `contentColumns` STACK's
+    // arithmetic, not this row's rule. The stack's pop measures a line's indent with `/^ */` —
+    // SPACES ONLY — so a tab-indented line looks shallower than it is and pops a column that
+    // is still open. Here the innermost item's column 6 is popped by a line whose real column
+    // is 8, leaving a base of 4 and a threshold of 8, which the line then meets.
+    // PROVEN BY CONTROL: the identical column written in EIGHT SPACES agrees with quarto.
+    const nest = ["Intro sentence.", "", "- outer", "  - middle", "    - inner", "      line two", ""];
+    expect(names(doc(...nest, "    \tzzz", "# ATX Below"))).toEqual(["h1:ATX Below"]); // quarto: NO heading
+    expect(names(doc(...nest, "        zzz", "# ATX Below"))).toEqual([]); // CONTROL — same column, spaces
+    expect(names(doc(...nest, "          zzz", "# ATX Below"))).toEqual(["h1:ATX Below"]); // 6+4, real code
+    // ⚠ The stack is now read by THREE rows (raw TeX, setext, indented code), so a fix here
+    // moves all three and needs all three scored. That is a separate capability (FM #26).
+
+    // ── FAMILY 2 — a TAB-indented raw-TeX macro at a container's content column is invisible,
+    // because `rawTexMacroLineIsBlock` counts SPACES ONLY. Session 189 documented that choice
+    // deliberately and left the tab to the indented-code row; now that the indented-code row
+    // measures columns properly, a tab at the content column falls between the two. 6 losses in
+    // the 392-document setext sweep. PROVEN PRE-EXISTING (the pre-build answers identically)
+    // and PROVEN BY CONTROL: the same macro at FOUR SPACES is found.
+    expect(
+      names(doc("Intro sentence.", "", "-   line one", "    line two", "",
+                "\t\\clearpage", "    Some Title", "    ===", "", "Tail sentence.")),
+    ).toEqual([]); // quarto: h1:Some Title
+    expect(
+      names(doc("Intro sentence.", "", "-   line one", "    line two", "",
+                "    \\clearpage", "    Some Title", "    ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Some Title"]); // CONTROL — the spaces spelling is found
+
+    // ── FAMILY 3 — a BLOCK QUOTE suspends the column rule entirely (`quoteOpen` passes `null`),
+    // because this model carries no block-quote container. It is the single largest residual
+    // family a 240-document blind adversarial sweep found: 11 of its 24 losses. Both directions
+    // are reachable and both are pre-existing.
+    expect(
+      names(doc("> Foxtrot quote opener.", ">", ">     boxed sample text", "> # Foxtrot Quoted Heading",
+                "", "Tail sentence.")),
+    ).toEqual([]); // quarto: h1:Foxtrot Quoted Heading — 4 past the quote's own content column IS code
+    expect(
+      names(doc("> Beacon quoted opener line", "    lazy indented continuation", "# Beacon Lazy Heading",
+                "", "Tail sentence.")),
+    ).toEqual(["h1:Beacon Lazy Heading"]); // quarto: NO heading — a lazy continuation keeps the paragraph open
+
+    // ── FAMILY 4 — a QUARTO FENCED DIV / CALLOUT is a container `contentColumns` never pushes.
+    // Session 192's completeness critic NAMED this and could not measure it; this session's
+    // blind sweep MEASURED it, so it is promoted from a lead to a finding. Quarto consumes a
+    // callout's `##` line as the callout's own title and emits no heading element for it.
+    expect(
+      names(doc("::: {.callout-note}", "   ## Larkspur Callout Title", "Body text follows the title.", ":::")),
+    ).toEqual(["h2:Larkspur Callout Title"]); // quarto: NO heading
+
+    // ── FAMILY 5 — an INDENTED ATX HEADING line below a code block. All 16 phantoms that
+    // survive in Session 189's own 656-document container corpus have this one shape, and none
+    // of them is this row's: the code line is correctly judged, and it is the heading line's own
+    // ` {0,3}` tolerance that then invents the heading. Already filed as `ATX_HEADING`'s cap.
+    expect(names(doc("    \\clearpage", " # ATX Below"))).toEqual(["h1:ATX Below"]); // quarto: NO heading
+    expect(names(doc("    \\clearpage", "# ATX Below"))).toEqual(["h1:ATX Below"]); // CONTROL — column 0 is real
+  });
 });
