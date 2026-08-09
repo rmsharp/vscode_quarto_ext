@@ -7,6 +7,107 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 191 — IMPLEMENTATION: a class-A raw-TeX macro OPENS a fresh block (SHIPPED)
+
+`opensFreshBlock` now tests `RAW_TEX_BLOCK_MACRO` beside `HTML_BLOCK_OPEN`, ahead of its
+`paragraphOpen` bail. One line.
+
+**A PREDICATE WITH AN EARLY BAIL HAS TWO ANSWER SETS, AND NOTHING CROSS-CHECKED THE PRE-BAIL
+ONE.** `closesParagraph` and `opensFreshBlock` ask nearly the same question and both bail on
+`paragraphOpen`. Session 188 put the class-A raw-TeX macro ahead of `closesParagraph`'s bail,
+because class A interrupts a paragraph in every context. Nothing put it ahead of
+`opensFreshBlock`'s, which reached raw TeX only *behind* the bail via `rawTexMacroLineIsBlock` —
+the class-A∪B row gated on the containing block's content column. So `pendingFreshBlock` stayed
+false, `consecutiveBody` never returned to 1, and the `===` below the macro's successor was never
+read as a setext underline:
+
+    This paragraph is still open.
+    \maketitle
+    ATX Below
+    ===
+
+renders `<h1>ATX Below</h1>` and this model produced **nothing at all**. Not mis-levelled, not
+mis-named — absent. **A setext heading is a strictly stronger test than an ATX one** (ATX needs
+only the paragraph CLOSED; setext additionally needs the line below to START a fresh paragraph),
+which is how an eight-session-old divergence survived a 499-test integration suite.
+
+**THE MEASUREMENT — 2,555 documents rendered through the real `quarto render` path this session,
+plus 2,780 re-scored from Session 190's five corpora**, scored per heading with the two error
+directions kept separate. ⚠ The polarity is INVERTED from Session 190's: `OPENS_FRESH_BLOCK`
+ADDS headings, so a PHANTOM is the expensive error here.
+
+| corpus | docs scored | PRE (agree/phantom/LOST) | **SHIPPED** |
+|---|---|---|---|
+| gnd — the filed item's own document, 3 classes × 9 indents × 2 underlines × 2 contexts | 108 | 34 / 0 / 24 | **58 / 0 / 0** |
+| ctx — 20 containers × 3 classes × 9 indents × 2 underlines × 2 contexts | 2,159 | 848 / 98 / 436 | **1272 / 98 / 12** |
+| advflat — 240 BLIND adversarial documents, 8 lenses | 238 | 36 / 14 / 89 | **89 / 24 / 36** |
+| S190 ctx (re-scored) | 1,728 | 642 / 77 / 216 | **858 / 77 / 0** |
+| S190 advflat (re-scored) | 239 | 92 / 24 / 35 | **97 / 25 / 30** |
+| S190 gnd / cls / mask (re-scored) | 813 | 674 / 9 / 0 | **674 / 9 / 0** |
+
+**722 REAL HEADINGS RECOVERED, and the NEW-LOSS set is EMPTY at set level in every corpus.**
+The filed magnitude was **exactly right** — 216 filed, 216 drained on the predecessor's own
+corpus, the first exact one in three sessions. The same hoist also fixed a second family the
+item never mentioned: class A at indent 1–3 with **no** paragraph open, falling in the gap
+between the content-column row (indent 0) and `INDENTED_CODE_LINE` (indent 4+).
+
+**ELEVEN NEW PHANTOMS, TEN OF THEM PROVEN PRE-EXISTING RATHER THAN ARGUED.** Learning #263's
+control was applied to *every* one, not only the suspicious ones (Learning #269): take the same
+document, replace this session's trigger with `<div>` — an opener `HTML_BLOCK_OPEN` already
+tested ahead of the same bail on the pre-build — and re-run on the OLD build. Nine of ten
+fabricate the identical heading there. They are two already-filed defects reached through a
+fourth doorway: `SETEXT_H1`/`SETEXT_H2`'s own ` {0,3}` indent (Session 182's item, now the
+largest phantom family on the board and re-measured through three independent openers at
+underline columns 1, 2 and 3), and raw regions this scanner does not track (Session 190's item,
+now with a SETEXT spelling and two new region kinds). The one that is not explained is a TEXT
+divergence rather than a fabrication — `\maketitle` followed by a line opening with `[` has that
+bracket group consumed as its optional argument across the newline, so quarto's heading text is
+`: https://example.com` where ours keeps the bracket. Read off the rendered HTML directly. All
+three families are pinned in the unit suite, each beside the control that proves it.
+**Narrowing back would have hidden them while re-deleting 722 real headings.**
+
+⚠ **THE `\hrule` SCARE WAS NOT ABOUT `\hrule`** (Learning #268). A 27-document full-factorial
+sweep over macro × macro-indent × payload showed the macro and its indent are both irrelevant
+and the *underline's* indent is everything. Naming the family after the construct just changed
+would have produced a fix to the wrong row, in the heading-deleting direction.
+
+⚠ **`RAW_TEX_ENV_OPEN` is also absent from `opensFreshBlock`, and it is MEASURED INERT** — 12 of
+12 documents agree; quarto renders no setext heading after a closed, unclosed or orphan
+environment in either context. Recorded so no successor re-investigates it as a gap.
+
+**TDD gate — satisfied.** ONE behaviour driven RED→GREEN with the RED confirmed to fail for the
+right reason (`expected [] to deeply equal [ 'h1:ATX Below' ]` at the filed item's own document),
+carrying class-B and class-C control groups in the same `it()` at all nine indents and both
+underline spellings (Learning #242). Labelled test-after in the file: the three disclosed
+residual families with their pre-existence controls.
+
+**⚠ SCOPE held (FM #26).** `SETEXT_H1`/`SETEXT_H2`'s ` {0,3}` is a one-row change I could have
+made in five minutes, and it is **filed, not fixed** — it is a NARROWING and needs its own
+two-direction score.
+
+**⚠ Phase 3E — run BEFORE the close-out commit on the operator's explicit go-ahead sought in
+advance, and GREEN:** `test:integration` **499 passing / 0 failing / 0 pending, exit 0**, with
+`narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)` watched by name at
+line 312 of `scratchpad/s191/integration.log`. The fixture gained a PRESENT control (the setext
+heading the missing hoist deleted) and an ABSENT control (the class-B case that decides the
+change); re-rendered first — quarto emits fourteen headings on those exact bytes and this model
+emits exactly those fourteen.
+
+**Repo control:** all four views over all **113** tracked `md`/`qmd` documents are
+BYTE-IDENTICAL, and the control is proven EFFECTIVE BY INJECTION — exactly the 2 of 6
+deliberately-divergent documents that should move do, while class B, class C, class-A-with-ATX
+and plain prose do not.
+
+**Verification at every checkpoint boundary:** `check-types` **0** · `compile` **0** ·
+`compile-tests` **0** · `npm test` **1775 passed / 65 files** (baseline 1773 — 2 new tests, no
+regressions) · `test:oracle` **131 documents / 124 agree / 4 lost TP / 3 CARDINAL FP / 0
+unrelated** (BYTE-IDENTICAL to S180–S190) · `check-package` **OK 42 files / 5.52 MB**. NOT RUN:
+`test:lsp` — no LSP surface touched.
+
+Commits: `2ed1a5b` (1B claim), `da505ad` (C1 — the hoist + RED→GREEN), `07e5ce2` (C2 — fixture,
+integration controls, residual pins), and this close-out. `PROJECT_LEARNINGS.md` #267–270.
+`BACKLOG.md`: 1 item shipped out, 3 extended with measured evidence, 2 filed.
+
 ### 2026-08-09 · [ad hoc] Backfilled (reconcile-on-read): undocumented commit `47d9514` — two Phase 0 dashboard snapshots
 
 Session 191's Phase 0 step 6 found exactly one commit past the `CHANGELOG.md` frontier
