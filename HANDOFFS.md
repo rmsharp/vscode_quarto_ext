@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S190
+date: 2026-08-09
+status: pending
+active_task: IMPLEMENTATION (strict TDD) -- `RAW_TEX_BLOCK_MACRO`'s ` {0,3}` indent cap is too NARROW and DELETES real headings; class A raw TeX is indent-INSENSITIVE (it interrupts an open paragraph by making pandoc's `inlineCommand'` FAIL, at the INLINE level, where no column rule exists), so the cap comes OFF. ONE row. SCOPE declared at claim (FM #26): `INDENTED_CODE_LINE`'s column blindness and `ATX_HEADING`'s own ` {0,3}` are separate filed items and are OUT; the class-B row S189 shipped is not touched. MUST NOT reuse `contentColumns` -- the two raw-TeX rows need OPPOSITE indent rules and giving class A the content column deletes every heading under an indented `\maketitle`. HAZARD INVERTS from the last three sessions: this is a WIDENING of a PRE-BAIL row, so the live risk is NEW PHANTOMS, not deletions, and both directions get a per-heading score against the real `quarto render` path.
+```
+
+```handoff
 session: S189
 date: 2026-08-09
 status: complete
