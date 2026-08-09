@@ -2818,19 +2818,25 @@ describe("a class-A raw-TeX macro OPENS A FRESH BLOCK, not only closes a paragra
     // RE-MEASURED against quarto rather than simply updated to match.
 
     // ── FAMILY 1 — the SETEXT UNDERLINE's own indent, not this session's row at all.
-    // `SETEXT_H1`/`SETEXT_H2` accept ` {0,3}`; pandoc accepts column 0 only. Filed by Session
-    // 182 as MEASURED and PRE-EXISTING, and this session re-measured it at underline columns
-    // 1, 2 and 3 through three independent openers. Quarto renders NO heading in any of these.
+    // ✅ **CLOSED BY SESSION 192, and these assertions were RE-MEASURED against quarto rather
+    // than updated to match the code** — which is what the ⚠ above requires when a residual
+    // stops reproducing. These eight documents (both triggers × underline columns 0-3) were
+    // rendered through the real quarto path on the S192 build: at columns 1, 2 and 3 quarto
+    // renders NO heading for EITHER trigger, and at column 0 it renders `h1:Some Title` for
+    // both. `setextUnderlineLevel` now tests the underline's indent for EQUALITY against
+    // `[0, ...contentColumns]`, so with no container open only column 0 is an underline.
     for (const under of [" ===", "  ===", "   ==="]) {
       expect(
         findHeadings(doc("This paragraph is still open.", "\\maketitle", "Some Title", under))
           .map((h) => h.text),
-      ).toEqual(["Some Title"]);
-      // CONTROL — the same document with the trigger removed. The PRE build fabricates this too.
+      ).toEqual([]);
+      // CONTROL — the same document with the trigger removed. It tracked the residual while the
+      // residual was live and it tracks the fix now: both go to [] together, which is what
+      // establishes that the family was never about the class-A macro at all.
       expect(
         findHeadings(doc("This paragraph is still open.", "<div>", "Some Title", under))
           .map((h) => h.text),
-      ).toEqual(["Some Title"]);
+      ).toEqual([]);
     }
     // CONTROL — at column 0 the underline is REAL and quarto agrees, so the family above is
     // about the indent and nothing else.
@@ -3023,5 +3029,118 @@ describe("scanRegions memoization contract", () => {
     expect(findAllCells(withCells)).toEqual(findAllCells(withCells));
     expect(findHeadings(withCells)).not.toBe(findHeadings(withCells));
     expect(findBodyLines(withCells)).not.toBe(findBodyLines(withCells));
+  });
+});
+
+describe("a SETEXT underline is anchored at the containing block's CONTENT COLUMN (Session 192)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: the underline is recognized at column 0 and at every LIVE container column, and nowhere else", () => {
+    // `SETEXT_H1`/`SETEXT_H2` carried ` {0,3}`, transcribed from CommonMark 4.3. Pandoc's
+    // markdown reader is not CommonMark here: its `setextHeader` parser applies
+    // `skipNonindentSpaces` to the TITLE line and then reads the underline run with NO leading
+    // -space parser at all, so the underline must begin exactly where the enclosing block's
+    // content begins. At the top level that is column 0; inside a container it is that
+    // container's content column — and inside NESTED containers it is ANY column in the stack.
+    //
+    // ⚠ THE FILED ITEM PRESCRIBED THE WRONG FIX, IN THE HEADING-DELETING DIRECTION. It says
+    // the underline is "anchored at column 0" and points at `SETEXT_UNDERLINE_RUN` as the
+    // model. That is true only for a document with no container, which is all the filed item
+    // measured. A 162-document container sweep (9 container kinds × 9 underline indents × 2
+    // spellings) plus 17 hand-built environment documents were rendered through the real
+    // quarto path BEFORE any code changed (Learning #251), and they refute it: a `- ` item
+    // renders the heading at underline column 2, a `1. ` item at 3, a `-   ` item at 4, and
+    // three-deep nested bullets render it at 0, 2, 4 AND 6. Anchoring at source column 0 would
+    // have deleted every one of those. The rule is `[0, ...contentColumns]` — precisely the
+    // machinery Session 189 already built for the raw-TeX row, reused here.
+    //
+    // Both error directions are in this one test because the change moves both:
+    // the ` {0,3}` cap was simultaneously TOO WIDE (columns 1-3 are phantoms everywhere) and
+    // TOO NARROW (a container whose content column is 4+ lost its heading entirely).
+
+    // ── (a) NO CONTAINER — the filed item's own claim. Measured: quarto renders the heading
+    // at underline column 0 and at NO other column, 0-8, in both spellings.
+    for (const [ul, level] of [["===", 1], ["---", 2]] as const) {
+      expect(names(doc("Intro sentence.", "", "Some Title", ul, "", "Tail."))).toEqual([
+        `h${level}:Some Title`,
+      ]);
+      for (const indent of [" ", "  ", "   ", "    ", "     ", "      ", "       ", "        "]) {
+        expect(names(doc("Intro sentence.", "", "Some Title", indent + ul, "", "Tail."))).toEqual([]);
+      }
+    }
+
+    // ── (b) INSIDE A CONTAINER — the direction the filed item missed. Each container renders
+    // the heading at column 0 and at its own content column, and nowhere between or beyond.
+    const containers: ReadonlyArray<readonly [string, readonly string[], number]> = [
+      ["bullet, content column 2", ["- item one", ""], 2],
+      ["ordered, content column 3", ["1. item one", ""], 3],
+      ["wide bullet, content column 4", ["-   item one", ""], 4],
+      ["wide ordered, content column 4", ["10. item one", ""], 4],
+    ];
+    for (const [, opener, col] of containers) {
+      for (const [ul, level] of [["===", 1], ["---", 2]] as const) {
+        for (let u = 0; u <= 8; u++) {
+          const text = doc(
+            "Intro sentence.",
+            "",
+            ...opener,
+            " ".repeat(col) + "Some Title",
+            " ".repeat(u) + ul,
+            "",
+            "Tail.",
+          );
+          // Quarto renders the heading at column 0 and at the content column only.
+          expect(names(text)).toEqual(u === 0 || u === col ? [`h${level}:Some Title`] : []);
+        }
+      }
+    }
+
+    // ── (c) NESTED containers expose the STACK, not just the innermost column. Three-deep
+    // bullets open columns 2, 4 and 6; quarto renders the heading at 0, 2, 4 and 6 — measured
+    // on all four (env e11-e14) — and at 1, 3, 5, 7 and 8 it renders none.
+    for (let u = 0; u <= 8; u++) {
+      const text = doc(
+        "Intro sentence.",
+        "",
+        "- a",
+        "  - b",
+        "    - c",
+        "",
+        "      Some Title",
+        " ".repeat(u) + "===",
+        "",
+        "Tail.",
+      );
+      expect(names(text)).toEqual([0, 2, 4, 6].includes(u) ? ["h1:Some Title"] : []);
+    }
+
+    // ── (d) CONTROL — a container that has CLOSED no longer offers its column. A column-0
+    // paragraph closes the list, so the underline at column 2 is a phantom and only column 0
+    // still renders (env e03/e04, both measured).
+    expect(
+      names(doc("Intro.", "", "- item one", "", "Back at top level.", "", "Some Title", "  ===", "", "Tail.")),
+    ).toEqual([]);
+    expect(
+      names(doc("Intro.", "", "- item one", "", "Back at top level.", "", "Some Title", "===", "", "Tail.")),
+    ).toEqual(["h1:Some Title"]);
+
+    // ── (e) CONTROL — a TAB is not the content column. `- item` opens column 2, and a
+    // tab-indented underline renders NO heading (env e01), where the two-space spelling does
+    // (env e02, which also shows trailing whitespace is still fine).
+    expect(names(doc("Intro.", "", "- item one", "", "  Some Title", "\t===", "", "Tail."))).toEqual([]);
+    expect(names(doc("Intro.", "", "- item one", "", "  Some Title", "  ===   ", "", "Tail."))).toEqual([
+      "h1:Some Title",
+    ]);
+
+    // ── (f) CONTROL — the TITLE's own indent is irrelevant, so this change must not touch it.
+    // Measured over 18 documents (title indent 0-8 × both spellings), every one renders the
+    // heading with the underline at column 0. That includes indents 4-8, which look like
+    // indented code and are not.
+    for (let t = 0; t <= 8; t++) {
+      expect(names(doc("Intro sentence.", "", " ".repeat(t) + "Some Title", "===", "", "Tail."))).toEqual([
+        "h1:Some Title",
+      ]);
+    }
   });
 });

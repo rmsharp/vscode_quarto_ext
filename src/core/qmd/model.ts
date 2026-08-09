@@ -113,10 +113,10 @@ const HEADING_ATTRIBUTE = /(?:^|[ \t]+)\{[^}]*\}[ \t]*$/;
  */
 const ATTR_ID = /#([^\s}]+)/;
 /**
- * A setext heading underline (CommonMark §4.3): up to 3 spaces of indentation,
- * then one or more of a SINGLE char (no spaces between, unlike a thematic break),
- * then optional trailing whitespace. `=` underlines a level-1 heading; `-`
- * underlines level-2. Recognized only when it immediately follows exactly one
+ * A setext heading underline: leading spaces CAPTURED for the column test in
+ * `setextUnderlineLevel` below, then one or more of a SINGLE char (no spaces between,
+ * unlike a thematic break), then optional trailing whitespace. `=` underlines a level-1
+ * heading; `-` underlines level-2. Recognized only when it immediately follows exactly one
  * fresh, non-blank paragraph line (`consecutiveBody === 1` in the scanner below)
  * — empirically confirmed against Quarto's own installed CLI (`pandoc -f
  * markdown`, not `gfm`/`commonmark`) that a 2+-line paragraph does NOT promote to
@@ -142,9 +142,52 @@ const ATTR_ID = /#([^\s}]+)/;
  *     the paragraph open in all three positions where that entry is reachable, so the
  *     heading is a phantom. That entry is Session 180's and is filed, not fixed here.
  */
-const SETEXT_H1 = /^ {0,3}=+[ \t]*$/;
+const SETEXT_H1 = /^( *)=+[ \t]*$/;
 /** A setext level-2 underline — see `SETEXT_H1`. */
-const SETEXT_H2 = /^ {0,3}-+[ \t]*$/;
+const SETEXT_H2 = /^( *)-+[ \t]*$/;
+/**
+ * The level of the setext underline on `line`, or null if it is not one HERE (Session 192).
+ *
+ * ⚠ **The underline's indent is not a 0-3 tolerance — it is an EQUALITY against the enclosing
+ * block's content column**, and `columns` is `[0, ...contentColumns]`: column 0 plus every
+ * column in the open container stack. Pandoc's `setextHeader` applies `skipNonindentSpaces`
+ * to the TITLE line and then reads the underline run with no leading-space parser at all, so
+ * the run must begin exactly where the enclosing block's content begins.
+ *
+ * Both former `{0,3}` regexes were simultaneously TOO WIDE and TOO NARROW, which is why this
+ * is an equality and not a widened or narrowed cap. Measured over 162 container documents
+ * (9 kinds × 9 underline indents × 2 spellings) and 17 environment documents:
+ *
+ *   - top level             heading at column 0 only; 1-8 render NO heading (the filed item)
+ *   - `- item`   (col 2)    heading at 0 and 2 — column 3 was a phantom we emitted
+ *   - `1. item`  (col 3)    heading at 0 and 3
+ *   - `-   item` (col 4)    heading at 0 and 4 — column 4 was a heading we DELETED
+ *   - `- a` / `  - b` / `    - c`   heading at 0, 2, 4 AND 6 — the whole stack, not the innermost
+ *
+ * ⚠ **Anchoring at source column 0 — which the filed item prescribed, pointing at
+ * `SETEXT_UNDERLINE_RUN` as the model — deletes every container heading above.** That
+ * anchor is right for `SETEXT_UNDERLINE_RUN` because pandoc's ATX-swallow really is
+ * column-0-only (measured separately, Session 182); it is wrong here.
+ *
+ * ⚠ A TAB is not the content column: `- item` / `  Some Title` / `\t===` renders no heading,
+ * where the two-space spelling does. Hence ` *` on the indent (spaces only) while the TRAILING
+ * class stays `[ \t]*` — trailing whitespace of either kind is fine, measured.
+ *
+ * A container that has CLOSED no longer offers its column, and that falls out of
+ * `contentColumns` maintenance rather than being special-cased here: a column-0 paragraph
+ * pops the list, so the underline at column 2 below it is correctly not an underline.
+ */
+function setextUnderlineLevel(line: string, columns: readonly number[]): 1 | 2 | null {
+  const h1 = SETEXT_H1.exec(line);
+  if (h1) {
+    return columns.includes(h1[1].length) ? 1 : null;
+  }
+  const h2 = SETEXT_H2.exec(line);
+  if (h2) {
+    return columns.includes(h2[1].length) ? 2 : null;
+  }
+  return null;
+}
 /** A line with no non-whitespace content. */
 const BLANK_LINE = /^[ \t]*$/;
 /**
@@ -1523,11 +1566,18 @@ function computeRegions(text: string): Regions {
 
     // A setext underline (`===`/`---`-only line) immediately following exactly
     // one fresh paragraph line converts THAT line into a heading — see
-    // `SETEXT_H1`'s docstring for the disambiguation rule.
-    if (consecutiveBody === 1 && (SETEXT_H1.test(line) || SETEXT_H2.test(line))) {
+    // `SETEXT_H1`'s docstring for the disambiguation rule, and
+    // `setextUnderlineLevel`'s for the column rule that decides whether these bytes
+    // are an underline HERE at all. A run at a column no open block starts at is
+    // ordinary paragraph text, so it falls through to the body handling below —
+    // which is what pandoc does with it (measured: the title and the run render as
+    // one `<p>`, so the paragraph stays OPEN across it).
+    const setextLevel =
+      consecutiveBody === 1 ? setextUnderlineLevel(line, [0, ...contentColumns]) : null;
+    if (setextLevel !== null) {
       const prev = bodyLines[bodyLines.length - 1];
       if (!BULLET_LIST_MARKER.test(prev.text)) {
-        const heading = parseSetextHeadingLine(SETEXT_H1.test(line) ? 1 : 2, prev.text, prev.line);
+        const heading = parseSetextHeadingLine(setextLevel, prev.text, prev.line);
         if (heading) {
           headings.push(heading);
         }
