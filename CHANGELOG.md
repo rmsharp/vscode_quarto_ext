@@ -7,6 +7,54 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 189 — IMPLEMENTATION: a raw-TeX block starts at the CONTAINING BLOCK's content column (SHIPPED)
+
+Replaced the raw-TeX row's literal ` {0,3}` indent with a test against the containing block's
+**content column**, the scanner-state capability the filed item named and Session 184 lacked.
+
+**THE ROW WAS WRONG IN BOTH DIRECTIONS, AND THE TWO ARE NOT SYMMETRIC.** Pandoc's
+`rawTeXBlock` begins `lookAhead $ try $ char '\' >> letter` with no `skipNonindentSpaces`
+before it, so the backslash must sit at the **current parse column**. At top level that column
+is 0, and ` \clearpage` is ordinary paragraph text — three phantom headings per macro. But
+inside a list item pandoc re-parses the item's content **dedented**, so the item's content
+column IS that sub-document's column 0; demanding a literal 0 deletes the heading under every
+raw-TeX block anyone indents inside a list. Session 184 built exactly that literal-0 form,
+measured **3 phantoms removed against 1 real heading deleted**, and rejected it. The column is
+not a constant, so `computeRegions` now carries it.
+
+**THE MARKER → COLUMN RULE, MEASURED EXHAUSTIVELY** (2,394 documents: 19 marker spellings × 7
+spacings × 2 marker indents × a 0–8 indent sweep) is
+`markerIndent + markerLength + spacesAfter`, with three corrections no reading of CommonMark
+would give: **five or more spaces collapse to one** (`-     x` is column 2, not 6, while
+`-    x` really is 5); a **tab expands to the next multiple of 4 columns** (`-\tx` → 4,
+`100.\tx` → 8); and a marker **alone** on its line gives `marker + 0`, so `-` is column 1, not
+CommonMark's 2. Footnote definitions and definition-list definitions are always column **4**.
+Every ancestor container's column stays open, blank lines preserve them, a shallower line
+closes them — and a **lazy continuation** does not, because a shallow line under an open
+paragraph belongs to that paragraph.
+
+**A BLOCK QUOTE SUSPENDS THE RULE, AND THAT IS THE LARGEST DELETION TRAP IN THE CHANGE.**
+`> q` / `>` / `   \clearpage` renders the heading **inside** the blockquote at every indent
+0–8 (verified against rendered HTML, not inferred). This model carries no block-quote
+container, so while one may be open the old ` {0,3}` width is kept — phantoms, never deletions.
+
+**MEASURED — 4,125 documents** through the real `quarto render` path, scored per heading with
+the two error directions separate: item 30/15/4 → 30/**0**/4; content-column 129/171/83 →
+129/36/83; lifetime 51/46/23 → 51/**0**/23; block-quote 52/37/38 → 52/4/38; marker table
+314/750/206 → 314/**1**/206; **setext** (the opposite polarity, measured in its own right)
+36/60/36 → 36/**0**/36; and **275 blind adversarial documents from eight lenses** 58/25/49 →
+58/20/49. **1,043 phantoms removed, ZERO new losses and ZERO new phantoms — proven at set
+level, not by comparing counts.** Repo control: all four views over all 113 tracked md/qmd
+files move on exactly one — the fixture this session edited — and the control is proven
+**effective by injection**.
+
+**FILED, NOT FIXED.** `INDENTED_CODE_LINE` tests a literal 4 spaces and is column-blind the
+same way this row was, which accounts for 36 of the 41 residual phantoms; `ATX_HEADING`'s own
+` {0,3}` loses an indented heading at column 4+; `A. x` is pandoc's initial-in-a-name rule and
+we admit its column on purpose. Each is a real `- [ ]` line in `BACKLOG.md`.
+
+- **Model:** claude-opus-5
+
 ### 2026-08-08 · [ad hoc] Session 188 — IMPLEMENTATION: pandoc classifies raw TeX by macro NAME too, in three classes (SHIPPED)
 
 Replaced the bare `/^ {0,3}\\[a-zA-Z]/` row with pandoc's own raw-TeX macro classification,
