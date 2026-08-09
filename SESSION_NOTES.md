@@ -5,6 +5,28 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 195 — `BACKLOG.md` holds only OPEN work, and a deny-by-default check keeps it that way. (a) Drain the re-accumulated completed-work records, verifying each firsthand against `CHANGELOG.md` / `PROJECT_LEARNINGS.md` and salvaging anything not durably recorded elsewhere; (b) ship the missing backstop, because shipping (a) alone is the experiment Session 150 already ran and it regressed within a few sessions.** (IN PROGRESS)
+**Started:** 2026-08-09
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Selected by the operator via `AskUserQuestion` at Phase 0 from an empty Active section.** It was Session 194's ranked #0 and is operator-designated — raised after S194's close-out on reading `- [ ] **REMOVED — SHIPPED Session 182.**`.
+
+**⚠ SCOPE, declared at claim AFTER a coupling survey rather than before it (S194's own self-assessment names writing the scope first as what forced its mid-flight amendment).** IN: every completed-work record in `BACKLOG.md`, and the backstop that detects the practice recurring — a deny-by-default checker in the shape and location of `check-package.js` (there is no `bin/` and no `.githooks/` in this repo; the root-script + npm-script + `vscode:prepublish` wiring is the established pattern), built strict-TDD, plus the project-owned documented moment it fires at. OUT: re-ranking, rewording or merging `BACKLOG.md`'s genuinely OPEN items; any edit to a SYNCED methodology file (`SESSION_RUNNER.md`, `SAFEGUARDS.md`, `docs/methodology/**` — customizations go in `CLAUDE.md`, per that file's own note); `src/` and every open `qmd` model row; the historical `BACKLOG:NNN` citations, which Session 150 deliberately left alone in append-only history; the `.vscode-test/` / `npm audit` housekeeping row.
+
+**⚠ TWO COUPLINGS THE FILED ITEM DOES NOT NAME, both surveyed firsthand before this claim was written.**
+1. **A naive checker reds on legitimate OPEN items.** Measured: **35** lines in `BACKLOG.md` contain `SHIPPED Session`, of which only **17** are `- [ ] **REMOVED` tombstones. The rest include genuinely open items whose prose *cites* shipped work (`⚠ CORRECTED BY SESSION 189, WHICH SHIPPED …`). The filed item's proposed rule — "no `- [ ] ` line contains REMOVED/SHIPPED" — also cannot see the **10** completed records that open with `***` and carry no checkbox at all. A rule that cannot separate a RECORD from a REFERENCE gets disabled, which is the same outcome as having none.
+2. **Deleting a block can dangle a citation.** This file's own header records that Session 150 rewrote 194 positional citations into `BACKLOG: <item title>` form in live artifacts. Every title deleted must be grepped across `src/`, `test/`, `docs/` first (Phase 3F's cross-reference gate, Learning #7).
+
+**⚠ TDD gate — FIRES.** The checker has logic, so it is RED→GREEN→REFACTOR one behaviour at a time, each RED confirmed to fail for the RIGHT reason. The `BACKLOG.md` prose edits are documentation and are exempt from a unit test, but not from verification.
+
+**⚠ Counts at claim, measured firsthand, and they already differ from the filed item's.** 119 unchecked boxes (the item says 114, as of S194's close), 17 `- [ ] **REMOVED` tombstones, 10 `***`-opening completed records, 35 `SHIPPED Session` lines, 428 lines / 169 KB. Treat every filed figure as a hypothesis to re-measure (Learning #251); three consecutive sessions have found filed magnitudes wrong.
+
+**Build at claim, verified firsthand rather than inherited:** `npm run compile` clean, `npm test` **1782 passed / 65 files** — matching S194's recorded baseline exactly.
+
+---
+
+## Session 194 ACTIVE TASK (superseded by Session 195 — full entry preserved below)
 **Task:** **Session 194 — IMPLEMENTATION (strict TDD): the `contentColumns` STACK's own arithmetic — the POP measures a line's indent with `/^ */`, SPACES ONLY, so a TAB-indented line looks shallower than it is and pops a column that is still open. The stack is now read by THREE rows (raw TeX S189, setext S192, indented code S193), so one defect is visible three times over.**
 **Started:** 2026-08-09 · **Closed:** 2026-08-09
 **Status:** **DONE. SHIPPED — 55 phantoms drained and 136 real headings recovered across 1,932 scored documents, the NEW-ERROR SET empty in BOTH directions on every corpus, and both directions asserted at the real Outline provider.**

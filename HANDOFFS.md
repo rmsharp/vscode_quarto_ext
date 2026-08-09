@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S195
+date: 2026-08-09
+status: pending
+active_task: IN PROGRESS. `BACKLOG.md` holds only OPEN work, and a deny-by-default check keeps it that way. TWO HALVES: (a) drain the re-accumulated completed-work records, verifying each firsthand against CHANGELOG.md / PROJECT_LEARNINGS.md and salvaging anything not durably recorded elsewhere; (b) ship the missing backstop -- shipping (a) alone is the experiment Session 150 already ran, and it regressed within a few sessions because nothing detects it. Operator-designated after S194's close-out and operator-selected via AskUserQuestion at Phase 0 from an empty Active section. SCOPE declared at claim AFTER a coupling survey: OUT are re-ranking or rewording the genuinely OPEN items, any edit to a SYNCED methodology file (customizations go in CLAUDE.md), src/ and every open qmd model row, the historical BACKLOG:NNN citations, and the .vscode-test/ / npm audit housekeeping row. TWO COUPLINGS THE FILED ITEM DOES NOT NAME, both surveyed firsthand: (1) 35 lines contain `SHIPPED Session` but only 17 are `- [ ] **REMOVED` tombstones, and 10 completed records carry no checkbox at all, so the filed rule ("no `- [ ] ` line contains REMOVED/SHIPPED") both false-positives on open items that CITE shipped work and misses a third of the records; (2) deleting a block can dangle a `BACKLOG: <item title>` citation in a live artifact, so every deleted title is grepped across src/, test/, docs/ first.
+```
+
+```handoff
 session: S194
 date: 2026-08-09
 status: complete
