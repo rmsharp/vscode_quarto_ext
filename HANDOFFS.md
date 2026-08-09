@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S189
+date: 2026-08-08
+status: pending
+active_task: IMPLEMENTATION (strict TDD) -- the raw-TeX row's ` {0,3}` indent is WRONG at top level and REQUIRED inside a list item; replace it with a test against the CONTAINING BLOCK'S CONTENT COLUMN. ONE capability: content-column state in the scanner, consulted by the raw-TeX row only. SCOPE declared at claim (FM #26): wiring the same column into the HTML/setext/other rows is a SECOND capability and is OUT. The naive column-0 form was implemented and REJECTED by Session 184 on measurement (3 phantoms removed vs 1 real heading DELETED), so the deletion direction is live from the first line.
+```
+
+```handoff
 session: S188
 date: 2026-08-08
 status: complete

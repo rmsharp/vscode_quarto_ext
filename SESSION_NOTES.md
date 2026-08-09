@@ -5,6 +5,26 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 189 — IMPLEMENTATION (strict TDD): the raw-TeX row's ` {0,3}` indent is WRONG at top level and REQUIRED inside a list item — replace it with a test against the CONTAINING BLOCK'S CONTENT COLUMN.**
+**Started:** 2026-08-08
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**The deliverable.** ONE capability — **the containing block's content column**, tracked by the scanner and consulted by the raw-TeX row in place of its literal ` {0,3}`. Operator-selected via `AskUserQuestion` at Phase 0; it was S188's ranked #1, and its residual-loss family is the largest of the four S188's eight-lens sweep left behind (7 of 23). The filed item states the fix in its own words: "A real fix tracks the containing block's content column, which is the same missing capability as the two items below."
+
+**⚠ SCOPE, declared at claim (FM #26).** The capability ships **for the raw-TeX row only**. Wiring the same content column into the HTML rows, the setext rows, or any other `CLOSES_PARAGRAPH` / `OPENS_FRESH_BLOCK` entry is a **second capability** and is OUT OF SCOPE, however tempting once the state exists. The two adjacent items the filed item says share this capability are named, not drained.
+
+**⚠ TDD gate — FIRES. This is scanner state, the most logic-bearing change in this family so far.** RED→GREEN→REFACTOR, one behaviour at a time, each RED confirmed to fail for the RIGHT reason, each `it()` carrying its control assertion in the same test (Learning #242). No declarative-edit exemption.
+
+**⚠ Direction of hazard — this item was IMPLEMENTED ONCE AND REJECTED, on measurement.** Session 184 built the column-0 form, measured **3 phantoms removed against 1 real heading DELETED**, and rejected it on that basis. The naive fix is known-bad; the whole point of the content column is to get the phantoms *without* the deletion. Every candidate ships only with a per-heading, two-direction score against the real `quarto render` path.
+
+**⚠ The filed item is a HYPOTHESIS until re-rendered (Learning #251).** It names two exact documents — ` \newpage` / `# ATX Below` at top level (claims: one paragraph, no heading, we emit a phantom) and `- line one` / `  line two` / blank / `  \clearpage` / `  # ATX Below` in a list item (claims: quarto renders the heading, column-0 matching deletes it). **Both get re-rendered before a line of code is written**, and against the CURRENT build — S188 changed this exact row underneath the item.
+
+**⚠ A per-line predicate cannot self-test the axis it has no state for (Learnings #252, #256).** The corpus must vary the CONTAINER (top level, list item, nested list, block quote, div, indented code, footnote), the INDENT within each, and the macro CLASS (S188's A/B/C). Delegate the adversarial corpus; do not design it alone.
+
+---
+
+## Session 188 ACTIVE TASK (superseded by Session 189 — full entry preserved below)
 **Task:** **Session 188 — IMPLEMENTATION (strict TDD): transcribe pandoc's raw-TeX block-MACRO classification and measure every entry, replacing the bare `/^ {0,3}\\[a-zA-Z]/` row in `CLOSES_PARAGRAPH` and `OPENS_FRESH_BLOCK`.**
 **Started:** 2026-08-08 · **Closed:** 2026-08-08
 **Status:** **DONE. SHIPPED — 40 headings recovered, 39 phantoms removed, ZERO deletions, and BOTH of the project's two disclosed raw-TeX residuals are now closed.** **HEADLINE 1 — pandoc's raw-TeX rule has THREE classes, not two, and neither gate is the one the filed item assumed.** `endline` in the markdown reader carries **no raw-TeX guard at all**; a paragraph is interrupted iff `inlineCommand'` FAILS, whose guard is `isInlineCommand name || not (isBlockCommand name)`. 736 candidate names measured in three contexts collapsed into exactly **SIX** behaviours: class **A** block everywhere (73 names, splitting three ways by ARITY — `\par` is a block and `\par{x}` is NOT), class **B** block only where no paragraph is open (the five names pandoc puts in BOTH lists on purpose, plus every unknown macro — the default), class **C** inline everywhere. **HEADLINE 2 — the project's own record appeared to contradict itself and did not.** `RAW_TEX_ENV_OPEN`'s docstring measured a bare macro INLINE against an open paragraph; `BACKLOG.md` measured the same names as BLOCKS. Both were right — they measured different CONTEXTS. Class B is the answer, and one list could never have expressed it. **HEADLINE 3 — my own corpus was defective in the ARGUMENT axis, and the controls caught it before it shipped.** The discovery probe gave every macro a single `{x}`, which is MALFORMED for a multi-argument macro, so `\newcommand` measured class C. `\newcommand{\foo}{bar}` — one of the eleven spellings the filed item names — is a real BLOCK. Re-rendering all 316 class-C candidates at realistic arity (1,264 more documents) found **22** that are blocks at their true arity. Every one would have been a deleted heading. This is Learning #252's blind spot on a new axis.
