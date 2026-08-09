@@ -413,13 +413,15 @@ describe("Quarto: Document outline (symbols)", () => {
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
     // WIRING EVIDENCE, through the provider the Outline view, breadcrumbs, sticky scroll and
     // Ctrl+T actually call. The fixture's premise is MEASURED, not assumed: `quarto render` on
-    // these exact bytes emits THIRTEEN headings, and renders both `Not A Heading` lines and
-    // both `Residual Phantom` lines as ordinary paragraph text.
+    // these exact bytes emits FOURTEEN headings, and renders all three `Not A Heading` lines
+    // and both `Residual Phantom` lines as ordinary paragraph text.
     //
     // ⚠ The count in this sentence read "ELEVEN" until Session 190 re-rendered the fixture.
     // It was written when the fixture had eleven and was not updated when Session 189 added a
-    // twelfth; Session 190 adds the thirteenth. The exact-set assertion at the foot of this
-    // test is what actually pins it — this sentence is prose and drifted silently.
+    // twelfth; Session 190 added the thirteenth and Session 191 the fourteenth, each
+    // re-rendering the fixture rather than trusting the sentence. The exact-set assertion at
+    // the foot of this test is what actually pins it — this sentence is prose and drifted
+    // silently once already.
     //
     // The document discriminates the pre-Session-184 build in BOTH directions, which is what
     // makes it evidence rather than decoration. Against that build it shows:
@@ -471,6 +473,14 @@ describe("Quarto: Document outline (symbols)", () => {
       // heading (re-rendered on these exact bytes). The ` {0,3}` cap this row used to carry
       // deleted it, along with 437 others across a 774-document class x indent sweep.
       "Below An Indented Class A Macro",
+      // Setext Below A Class A Macro — Session 191, and it is a strictly STRONGER control than
+      // the one above it. An ATX heading below the macro needs only the paragraph CLOSED;
+      // a SETEXT heading additionally needs the line below the macro to START A FRESH
+      // PARAGRAPH, which is `opensFreshBlock`'s question and was answered wrongly. That
+      // function tested the HTML opener ahead of its `paragraphOpen` bail but reached the
+      // raw-TeX rows only behind it, so this heading was not mis-levelled — it was absent.
+      // 216 of them on Session 190's own container corpus, 424 on this session's.
+      "Setext Below A Class A Macro",
     ]) {
       assert.ok(names.includes(real), `${real} is a real heading and must survive the narrowing`);
     }
@@ -523,6 +533,18 @@ describe("Quarto: Document outline (symbols)", () => {
       "Session 189: an indented macro at TOP level is prose, so this phantom must NOT reach the Outline",
     );
 
+    // ⚠ THE CONTROL THAT DECIDES SESSION 191's HOIST, and like Session 190's it points the
+    // other way. Class B in the SAME position, under an equally open paragraph: the paragraph
+    // simply runs on, pandoc's setext rule claims exactly ONE line, and quarto renders no
+    // heading. If this name ever appears, the hoist has been carried across to the class-B row
+    // — which sits behind the bail precisely because class B is a block only where NO
+    // paragraph is open. Re-rendered on these exact bytes: quarto emits fourteen headings and
+    // this name is not among them.
+    assert.ok(
+      !names.includes("Not A Heading — Setext Below A Class B Macro"),
+      "Session 191: class B does not open a fresh block against an open paragraph, so this must NOT reach the Outline",
+    );
+
     // Nothing else at all — the exact set, which no per-name assertion can say.
     assert.deepStrictEqual(names, [
       "Real Section",
@@ -538,6 +560,7 @@ describe("Quarto: Document outline (symbols)", () => {
       "Genuine Child",
       "Below An Indented Macro At Its Item Column",
       "Below An Indented Class A Macro",
+      "Setext Below A Class A Macro",
     ]);
   });
 

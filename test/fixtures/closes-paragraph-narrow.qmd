@@ -103,3 +103,23 @@ where no paragraph is open, so against this one it is inline at every indent 0-7
 This paragraph is still open too.
     \clearpage
 # Not A Heading — Indented Class B Macro
+
+A class-A macro also OPENS A FRESH BLOCK, so the line below it starts a new paragraph and a
+SETEXT underline can claim it (Session 191). `opensFreshBlock` tested the HTML opener ahead of
+its `paragraphOpen` bail but reached the raw-TeX rows only behind it, so this heading was not
+mis-levelled — it was absent. 216 of them on Session 190's own container corpus alone.
+
+This paragraph is still open as well.
+\maketitle
+Setext Below A Class A Macro
+===
+
+The class-B control at the same place must stay prose, and it is what decides the change.
+Class B is a block only where NO paragraph is open, so against this one it is inline: the
+paragraph runs on for three lines, pandoc's setext rule claims exactly ONE line, and quarto
+renders no heading at all.
+
+This paragraph is still open yet again.
+\clearpage
+Not A Heading — Setext Below A Class B Macro
+---

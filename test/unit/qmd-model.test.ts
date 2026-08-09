@@ -2804,6 +2804,79 @@ describe("a class-A raw-TeX macro OPENS A FRESH BLOCK, not only closes a paragra
       }
     }
   });
+
+  it("test-after (KNOWN RESIDUALS): three families this hoist makes REACHABLE, none of them new", () => {
+    // A blind 240-document adversarial sweep from eight lenses produced TEN new phantoms.
+    // NINE are proven PRE-EXISTING by the control that Session 190 established (Learning #263):
+    // take the same document, replace THIS session's trigger — the class-A macro — with
+    // `<div>`, which `HTML_BLOCK_OPEN` already tested AHEAD of the `paragraphOpen` bail on the
+    // PRE build, and the PRE build fabricates the identical heading. The hoist opened a fourth
+    // doorway onto defects that were already behind the other three; it did not create them.
+    //
+    // ⚠ EACH RESIDUAL IS PINNED WITH THAT `<div>` CONTROL BESIDE IT. If a control ever stops
+    // fabricating, the underlying row HAS been fixed and the residual above it must be
+    // RE-MEASURED against quarto rather than simply updated to match.
+
+    // ── FAMILY 1 — the SETEXT UNDERLINE's own indent, not this session's row at all.
+    // `SETEXT_H1`/`SETEXT_H2` accept ` {0,3}`; pandoc accepts column 0 only. Filed by Session
+    // 182 as MEASURED and PRE-EXISTING, and this session re-measured it at underline columns
+    // 1, 2 and 3 through three independent openers. Quarto renders NO heading in any of these.
+    for (const under of [" ===", "  ===", "   ==="]) {
+      expect(
+        findHeadings(doc("This paragraph is still open.", "\\maketitle", "Some Title", under))
+          .map((h) => h.text),
+      ).toEqual(["Some Title"]);
+      // CONTROL — the same document with the trigger removed. The PRE build fabricates this too.
+      expect(
+        findHeadings(doc("This paragraph is still open.", "<div>", "Some Title", under))
+          .map((h) => h.text),
+      ).toEqual(["Some Title"]);
+    }
+    // CONTROL — at column 0 the underline is REAL and quarto agrees, so the family above is
+    // about the indent and nothing else.
+    expect(
+      findHeadings(doc("This paragraph is still open.", "\\maketitle", "Some Title", "===")).map(
+        (h) => h.text,
+      ),
+    ).toEqual(["Some Title"]);
+
+    // ── FAMILY 2 — a raw region this per-line scanner does not track, now reachable in the
+    // SETEXT spelling as well as Session 190's ATX one. Two region kinds here are NEW to the
+    // filed item — a DOUBLE-backtick code span and `<title>` — and were produced by lenses that
+    // had never seen this session's corpora. Quarto renders no heading in any of the five.
+    const regions: ReadonlyArray<readonly [string, (opener: string) => string]> = [
+      ["single-backtick span", (o) => doc("Prose with `an open span", o, "Some Title", "===", "` and now the span is closed.")],
+      ["double-backtick span", (o) => doc("Prose with ``a span holding a ` backtick", o, "Some Title", "===", "`` and now the span is closed.")],
+      ["CDATA section", (o) => doc("Intro text.", "", "<![CDATA[", o, "Some Title", "===", "]]>", "", "Tail sentence.")],
+      ["RCDATA <textarea>", (o) => doc("Intro text.", "", "<textarea>", o, "Some Title", "===", "</textarea>", "", "Tail sentence.")],
+      ["RCDATA <title>", (o) => doc("Intro text.", "", "<title>", o, "Some Title", "===", "</title>", "", "Tail sentence.")],
+    ];
+    for (const [, build] of regions) {
+      expect(findHeadings(build("\\maketitle")).map((h) => h.text)).toEqual(["Some Title"]);
+      // CONTROL — trigger removed; the PRE build fabricates the identical heading.
+      expect(findHeadings(build("<div>")).map((h) => h.text)).toEqual(["Some Title"]);
+    }
+
+    // ── FAMILY 3 — the ONE new phantom the trigger-removal control does NOT explain, and it is
+    // a TEXT divergence rather than a fabricated heading: quarto renders an `<h1>` here too.
+    // `\maketitle` is followed by a line opening with `[`, and pandoc's raw-LaTeX block consumes
+    // it as the macro's OPTIONAL BRACKET ARGUMENT across the newline, so quarto's heading text
+    // is `: https://example.com` where ours keeps the bracket group. Verified by reading the
+    // rendered HTML directly, not inferred from the extractor: quarto emits
+    // `<h1>: https://example.com</h1>`. This is the already-filed multi-line-argument family —
+    // a raw block spanning two source lines — in a new spelling.
+    expect(
+      findHeadings(doc("This paragraph is already open.", "\\maketitle", "[Some Title]: https://example.com", "===", "", "Trailing body text."))
+        .map((h) => h.text),
+    ).toEqual(["[Some Title]: https://example.com"]);
+    // CONTROL — with the trigger removed there is no optional-argument grab, and quarto's own
+    // heading text becomes the one we produce. So the divergence is the macro's argument
+    // parsing, not the setext rule.
+    expect(
+      findHeadings(doc("This paragraph is already open.", "<div>", "[Some Title]: https://example.com", "===", "", "Trailing body text."))
+        .map((h) => h.text),
+    ).toEqual(["[Some Title]: https://example.com"]);
+  });
 });
 
 describe("buildOutline — against the sample.qmd fixture", () => {
