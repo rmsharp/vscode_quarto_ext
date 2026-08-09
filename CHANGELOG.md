@@ -7,6 +7,15 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 192 — recorded its own Phase 0 health snapshot
+
+One appended `dashboard_history.jsonl` row from the mandated Phase 0 step 5
+`methodology_dashboard.py` run: v2.13.0, health **76**, risk **high** ×1, issues **0**,
+vulns **6** (5 high + 1 moderate, devDependency-only), 1,025 commits. Unchanged from
+Session 191's snapshot on every axis. Logged as its own action because the run mutates a
+tracked file (failure mode #27: an action is owed a ledger line even when it is one row).
+**Model:** Claude Opus 5.
+
 ### 2026-08-09 · [ad hoc] Session 192 — IMPLEMENTATION: a SETEXT underline is anchored at the containing block's CONTENT COLUMN (SHIPPED)
 
 `SETEXT_H1`/`SETEXT_H2` carried ` {0,3}`, transcribed from CommonMark §4.3. Pandoc's
