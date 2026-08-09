@@ -3400,18 +3400,18 @@ describe("an INDENTED CODE line is measured from the containing block's CONTENT 
     // below. "Proven by control" below means a trigger-removal substitution was rendered and
     // scored, not that the shape was argued about.
 
-    // ── FAMILY 1 — THE ONLY NEW ERRORS: 2 phantoms, and they are the `contentColumns` STACK's
-    // arithmetic, not this row's rule. The stack's pop measures a line's indent with `/^ */` —
-    // SPACES ONLY — so a tab-indented line looks shallower than it is and pops a column that
-    // is still open. Here the innermost item's column 6 is popped by a line whose real column
-    // is 8, leaving a base of 4 and a threshold of 8, which the line then meets.
-    // PROVEN BY CONTROL: the identical column written in EIGHT SPACES agrees with quarto.
+    // ── FAMILY 1 — CLOSED BY SESSION 194, and RE-RENDERED rather than flipped to match the
+    // code. These were Session 193's only two new errors: the stack's pop measured a line's
+    // indent as a count of SPACES, so a tab-indented line looked shallower than it is and
+    // popped a column that is still open. Here the innermost item's column 6 was popped by a
+    // line whose real column is 8, leaving a base of 4 and a threshold of 8 the line then met.
+    // Session 194 measures the pop in COLUMNS; the first document below is now `[]`, and that
+    // is QUARTO's answer on those exact bytes re-rendered this session, not the new code's.
+    // PROVEN BY CONTROL, unchanged: the identical column written in EIGHT SPACES always agreed.
     const nest = ["Intro sentence.", "", "- outer", "  - middle", "    - inner", "      line two", ""];
-    expect(names(doc(...nest, "    \tzzz", "# ATX Below"))).toEqual(["h1:ATX Below"]); // quarto: NO heading
+    expect(names(doc(...nest, "    \tzzz", "# ATX Below"))).toEqual([]); // quarto: NO heading — now agreed
     expect(names(doc(...nest, "        zzz", "# ATX Below"))).toEqual([]); // CONTROL — same column, spaces
     expect(names(doc(...nest, "          zzz", "# ATX Below"))).toEqual(["h1:ATX Below"]); // 6+4, real code
-    // ⚠ The stack is now read by THREE rows (raw TeX, setext, indented code), so a fix here
-    // moves all three and needs all three scored. That is a separate capability (FM #26).
 
     // ── FAMILY 2 — a TAB-indented raw-TeX macro at a container's content column is invisible,
     // because `rawTexMacroLineIsBlock` counts SPACES ONLY. Session 189 documented that choice
@@ -3471,5 +3471,120 @@ describe("an INDENTED CODE line is measured from the containing block's CONTENT 
     expect(
       names(doc("Intro.", "", "    India Run Title", "===")),
     ).toEqual(["h1:India Run Title"]); // CONTROL — a LONE indented line really IS a setext title
+  });
+});
+
+describe("a container's content column is closed by a line's COLUMN, not its SPACE COUNT (Session 194)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  // The six containers of the ground sweep, each with the content column it opens.
+  const HEAD: Record<string, { head: string[]; inner: number }> = {
+    top: { head: ["Intro sentence."], inner: 0 },
+    b2: { head: ["Intro sentence.", "", "- outer", "  line two"], inner: 2 },
+    o3: { head: ["Intro sentence.", "", "1. outer", "   line two"], inner: 3 },
+    b4: { head: ["Intro sentence.", "", "-   outer", "    line two"], inner: 4 },
+    n6: {
+      head: ["Intro sentence.", "", "- outer", "  - middle", "    - inner", "      line two"],
+      inner: 6,
+    },
+    fn4: {
+      head: ["Intro sentence.", "", "See[^1] for the note.", "", "[^1]: note body"],
+      inner: 4,
+    },
+  };
+  /** The whitespace prefixes that reach column `c` — spaces, then the tab spellings. */
+  const spellings = (c: number): string[] => {
+    const out = [" ".repeat(c)];
+    if (c >= 4) {
+      out.push("\t".repeat(Math.floor(c / 4)) + " ".repeat(c % 4));
+      out.push(" \t" + " ".repeat(c - 4));
+      if (c >= 8) out.push("\t" + " ".repeat(c - 4));
+    }
+    return out;
+  };
+  /** Family A — the INDENTED-CODE reader. The probe line is the code candidate. */
+  const codeDoc = (k: string, prefix: string, title: string) =>
+    doc(...HEAD[k].head, "", prefix + "zzz", `# ${title}`);
+  /** Family B — the SETEXT reader. The title and underline sit AT the innermost column. */
+  const setextDoc = (k: string, prefix: string, title: string) => {
+    const pad = " ".repeat(HEAD[k].inner);
+    return doc(...HEAD[k].head, "", prefix + "zzz", "", pad + title, pad + "===");
+  };
+
+  it("RED->GREEN: a TAB-indented line closes the containers its COLUMN closes, in both error directions", () => {
+    // The stack in `computeRegions` closed containers by comparing `/^ */.exec(line)[0].length`
+    // — a count of SPACES — against the open content columns. Every other column-aware rule in
+    // this file expands a tab to the next 4-column stop, so a tab-indented line looked
+    // SHALLOWER than it is and popped a container that is still open.
+    //
+    // ⚠ THE MEASUREMENT IS AN EQUIVALENCE, NOT A THRESHOLD, because a threshold sweep would
+    // presuppose the answer. 432 ground documents were rendered through the real `quarto render`
+    // path BEFORE any code changed (Learning #251), pairing every tab spelling against the SPACE
+    // spelling that reaches the same column — 6 containers x 13 columns x up to 4 spellings x
+    // two consumer families. Quarto answered IDENTICALLY in 276 of 276 pairs. Indentation is
+    // columns; the tab is never special. (Contrast Session 192, whose filed prescription was
+    // REFUTED by exactly this kind of sweep — confirmation is not the default.)
+    //
+    // ⚠ THE STACK SITS UNDER READERS OF OPPOSITE POLARITY, so both directions are asserted here
+    // and the sign of a net count means nothing (Learning #272). Measured PRE: family A (the
+    // indented-code reader) 40 PHANTOM / 0 lost; family B (the setext reader) 0 phantom /
+    // 111 LOST. Every one of those 151 errors is a tab spelling: the space spellings scored
+    // 0/0 in both families, which is what makes this a MEASUREMENT defect and not a rule defect.
+
+    // ── (a) THE FILED DOCUMENT — Session 193's only two new phantoms, and its own control.
+    // `    \tzzz` reaches column 8. The innermost item's column is 6, so the code threshold is
+    // 10 and this line is ordinary content; `blank_before_header` then forbids the heading.
+    // We read the indent as 4, popped the still-open column 6, and measured against a base of
+    // 4 — a threshold of 8, which the line meets. Re-rendered this session: quarto emits NO
+    // heading, confirming the pin.
+    const nest = ["Intro sentence.", "", "- outer", "  - middle", "    - inner", "      line two", ""];
+    expect(names(doc(...nest, "    \tzzz", "# ATX Below"))).toEqual([]);
+    // CONTROL — the identical column written in EIGHT SPACES already agreed with quarto, which
+    // is what proves the defect is the MEASUREMENT and not the code rule above it.
+    expect(names(doc(...nest, "        zzz", "# ATX Below"))).toEqual([]);
+    // CONTROL — one container deeper still (6 + 4) really IS code, and the heading is real.
+    expect(names(doc(...nest, "          zzz", "# ATX Below"))).toEqual(["h1:ATX Below"]);
+
+    // ── (b) THE PHANTOM DIRECTION, at the real Outline model's own answer. Both documents are
+    // from the rendered ground corpus, so these are quarto's measured answers, not derivations.
+    expect(names(codeDoc("b2", "\t", "Alfa B2 04 Tabmax"))).toEqual([]);
+    expect(names(codeDoc("b2", " ".repeat(4), "Alfa B2 04 Sp"))).toEqual([]); // CONTROL
+    expect(names(codeDoc("n6", "\t\t", "Alfa N6 08 Tabmax"))).toEqual([]);
+    expect(names(codeDoc("n6", " ".repeat(8), "Alfa N6 08 Sp"))).toEqual([]); // CONTROL
+
+    // ── (c) THE LOSS DIRECTION — the EXPENSIVE one, and the larger of the two. A tab-indented
+    // line popped a container that is still open, so the setext underline at that container's
+    // own content column stopped being an underline and the heading vanished from the outline,
+    // breadcrumbs, sticky scroll, workspace symbols and the cross-reference index.
+    expect(names(setextDoc("b2", "\t\t", "Bravo B2 08 Tabmax"))).toEqual(["h1:Bravo B2 08 Tabmax"]);
+    expect(names(setextDoc("b2", " ".repeat(8), "Bravo B2 08 Sp"))).toEqual(["h1:Bravo B2 08 Sp"]); // CONTROL
+    expect(names(setextDoc("o3", "\t", "Bravo O3 04 Tabmax"))).toEqual(["h1:Bravo O3 04 Tabmax"]);
+    expect(names(setextDoc("n6", "\t\t\t", "Bravo N6 12 Tabmax"))).toEqual(["h1:Bravo N6 12 Tabmax"]);
+
+    // ── (d) THE EQUIVALENCE ITSELF, swept — the generalisation the 276 rendered pairs support,
+    // asserted as a property rather than as a list of cells. For every container and every
+    // column, each tab spelling must give the model the SAME answer as the space spelling that
+    // reaches the same column. This is the assertion that fails for a tab in ANY position, not
+    // only the two positions the filed item happened to name.
+    for (const k of Object.keys(HEAD)) {
+      for (let c = 0; c <= 12; c++) {
+        const [sp, ...tabs] = spellings(c);
+        for (const t of tabs) {
+          expect(names(codeDoc(k, t, "Sweep Code Title"))).toEqual(
+            names(codeDoc(k, sp, "Sweep Code Title")),
+          );
+          expect(names(setextDoc(k, t, "Sweep Setext Title"))).toEqual(
+            names(setextDoc(k, sp, "Sweep Setext Title")),
+          );
+        }
+      }
+    }
+
+    // ── (e) THE NO-CONTAINER CONTROL — with no column on the stack there is nothing to pop, so
+    // this change must be INERT at top level. Measured: the `top` row scored 0 phantoms and
+    // 0 losses on both families before the change as well as after.
+    expect(names(codeDoc("top", "\t", "Alfa TOP 04 Tabmax"))).toEqual(["h1:Alfa TOP 04 Tabmax"]);
+    expect(names(codeDoc("top", " ".repeat(4), "Alfa TOP 04 Sp"))).toEqual(["h1:Alfa TOP 04 Sp"]);
   });
 });

@@ -879,11 +879,31 @@ function closesParagraph(
  * `    \t` matched NOTHING, because the `\S` after the space run rejects a tab — a real
  * heading lost at top level, in 9 of this corpus's 18 pre-existing losses.
  */
-function indentedCodeLine(line: string, columns: readonly number[] | null): boolean {
+/**
+ * The COLUMN a line's leading whitespace reaches — a tab advancing to the next 4-column stop,
+ * absolutely, from the start of the line (Session 194).
+ *
+ * ⚠ **This is the one definition of "how deep is this line", and it is shared on purpose.**
+ * Session 193 gave `indentedCodeLine` this arithmetic and left the container stack in
+ * `computeRegions` measuring a leading-SPACE run only. The two then disagreed about every
+ * tab-indented line, and the disagreement was not academic: the stack popped a container that
+ * was still open, and BOTH readers of that stack went wrong, in OPPOSITE directions. Measured
+ * over 432 ground documents rendered through the real `quarto render` path: the indented-code
+ * reader gained 40 phantom headings and the setext reader LOST 111 real ones — 151 errors, and
+ * every single one of them a tab spelling, with the space spellings scoring 0/0 in both.
+ *
+ * The rule itself is an EQUIVALENCE, and it was measured as one rather than assumed: for every
+ * container (none, `- `, `1. `, `-   `, a three-deep nest, a footnote/definition) and every
+ * column 0-12, each tab spelling was paired against the SPACE spelling that reaches the same
+ * column. Quarto answered identically in **276 of 276** pairs. A tab is worth the columns it
+ * spans and nothing else; it is never "shallow" and never "deep enough".
+ *
+ * ⚠ The stop is 4, not 8, and it is measured from the START OF THE LINE rather than from the
+ * containing block's column — both differ from the answers a terminal or an editor would give.
+ */
+function indentColumn(line: string): number {
   let col = 0;
-  let i = 0;
-  for (; i < line.length; i++) {
-    const ch = line[i];
+  for (const ch of line) {
     if (ch === " ") {
       col += 1;
     } else if (ch === "\t") {
@@ -892,9 +912,13 @@ function indentedCodeLine(line: string, columns: readonly number[] | null): bool
       break;
     }
   }
-  if (i === line.length) {
+  return col;
+}
+function indentedCodeLine(line: string, columns: readonly number[] | null): boolean {
+  if (BLANK_LINE.test(line)) {
     return false; // whitespace only — the old row's `\S` requirement, kept
   }
+  const col = indentColumn(line);
   let base = 0;
   if (columns !== null) {
     for (const c of columns) {
@@ -1526,7 +1550,14 @@ function computeRegions(text: string): Regions {
     // two and three blanks all keep a `- ` item's column 2 alive), which is exactly why this
     // sits above the blank-line branch rather than inside the body handling.
     if (!BLANK_LINE.test(line)) {
-      const indentWidth = /^ */.exec(line)![0].length;
+      // ⚠ The line's indent is measured in COLUMNS, not in a count of SPACES (Session 194).
+      // A tab advances to the next 4-column stop, so `\t\t` is column 8 — and the row this
+      // replaced, `/^ */`, read it as 0 and closed every container deeper than the page edge.
+      // Measured as an EQUIVALENCE over 432 ground documents rendered through the real
+      // `quarto render` path: every tab spelling and the SPACE spelling reaching the same
+      // column render IDENTICALLY, 276 of 276 pairs, across six containers, columns 0-12 and
+      // both consumer families. See `indentColumn`.
+      const indentWidth = indentColumn(line);
       // A non-blank line at a SHALLOWER column closes every container deeper than itself —
       // but ONLY where no paragraph is open above it, because a shallow-looking line under an
       // open paragraph is that paragraph's LAZY CONTINUATION and closes nothing. Measured
