@@ -476,9 +476,15 @@ describe("Quarto: Document outline (symbols)", () => {
       !names.includes("Residual Phantom — Inline Tag"),
       "Session 187: `<span>inline</span>` is prose, so this phantom must NO LONGER reach the Outline",
     );
+    // ⚠ AND NOW THE SECOND ONE IS GONE (Session 188) — assertion INVERTED, not deleted, so the
+    // change of decision stays on the record exactly as S187's did. The block-MACRO list that
+    // S184 said this model lacked and S187 left "deliberately out of scope" is now transcribed
+    // from `Text.Pandoc.Readers.LaTeX` at pandoc 3.6.3 and MEASURED entry by entry over 5,680
+    // rendered documents. `\textbf{bold}` is class C — inline in every context — so quarto
+    // renders no heading there and neither does the real provider any more.
     assert.ok(
-      names.includes("Residual Phantom — Inline TeX"),
-      "KNOWN RESIDUAL: the raw-TeX row still needs pandoc's block-MACRO list",
+      !names.includes("Residual Phantom — Inline TeX"),
+      "Session 188: `\\textbf{bold}` is prose, so this phantom must NO LONGER reach the Outline",
     );
 
     // Nothing else at all — the exact set, which no per-name assertion can say.
@@ -494,7 +500,6 @@ describe("Quarto: Document outline (symbols)", () => {
       "Below A Bare Macro",
       "Below A Lone Plus",
       "Genuine Child",
-      "Residual Phantom — Inline TeX",
     ]);
   });
 
