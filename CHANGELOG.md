@@ -7,6 +7,33 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 194 — GROOMING DECISION: `BACKLOG.md`'s re-accumulated completed work is filed as the next deliverable
+
+A non-commit action recorded per failure mode #27 (a grooming decision escapes a commit-only
+reflex). After Session 194's close-out the operator pointed at `- [ ] **REMOVED — SHIPPED
+Session 182.**` and asked how completed records had got into an open-items file.
+
+**Measured firsthand, not estimated:** 17 unchecked checkboxes whose body is a
+`REMOVED — SHIPPED Session N` tombstone, plus 19 further completed-work records — **36 blocks,
+~24 KB, 15% of the 165 KB file**, contributed by **30 sessions between S137 and S194**.
+**Session 194's own close-out (`aa930d0`) added one**, so this is a live practice rather than
+historical drift. The defect is the `- [ ] ` marker rather than the prose: a completed record
+wearing an open-task checkbox, so 17 of the file's 114 unchecked boxes are not work.
+
+**Session 150 already ran the deletion half** — 115 KB, 46% of the file, with a "keep it clean"
+note preserved at lines 95–99 — and the practice regressed within a few sessions, because
+nothing detects the regression. The ledger has a Phase 3F write-gate **and** Phase 0
+reconcile-on-read; `check-package.js` is deny-by-default; `BACKLOG.md` has the instruction and
+neither backstop.
+
+Filed as the first item under "Up Next" with both halves stated: verify each block against
+`CHANGELOG.md` and `PROJECT_LEARNINGS.md` before deleting (spot-checked — the learnings the
+tombstones cite all exist and the sessions they name all have ledger entries, so most are
+redundant, but the tombstones carry post-hoc corrections of the shipped items' own claims, which
+is why sessions kept them), then add the missing gate. **No cleanup was performed in this
+session** — it is a separate deliverable, and shipping the deletion without the gate is the
+experiment Session 150 already ran. **Model:** Claude Opus 5.
+
 ### 2026-08-09 · [ad hoc] Session 194 — recorded its own Phase 0 health snapshot
 
 One appended `dashboard_history.jsonl` row from the mandated Phase 0 step 5
