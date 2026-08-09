@@ -938,15 +938,35 @@ const HTML_BLOCK_OPEN = new RegExp(
  * `paragraphOpen` is load-bearing, not a refinement: against an OPEN paragraph these same
  * bytes are a LAZY CONTINUATION of it, and treating them as a block would fabricate a
  * heading. Measured — `prose` / `    indented` / `Title` / `===` renders NO heading, while
- * the identical document without the `prose` line renders `<h1>Title</h1>`. Raw HTML is
- * the single measured exception and is tested before the bail.
+ * the identical document without the `prose` line renders `<h1>Title</h1>`.
+ *
+ * ⚠ **THERE ARE TWO PRE-BAIL CONSTRUCTS, NOT ONE, AND THE SECOND WAS MISSING FOR EIGHT
+ * SESSIONS (Session 191).** Raw HTML was tested here from the start; the class-A raw-TeX
+ * macro was not, and it is block in EVERY context for the same reason — `closesParagraph`
+ * has carried both above its own bail since Session 188. The row this function DID reach,
+ * `rawTexMacroLineIsBlock`, is the class-A∪B row gated on the containing block's content
+ * column, and it sits BEHIND the bail. So `This paragraph is still open.` / `\maketitle` /
+ * `ATX Below` / `===` rendered `<h1>ATX Below</h1>` and this model produced nothing at all:
+ * `pendingFreshBlock` stayed false, `consecutiveBody` never returned to 1, and the `===`
+ * was never read as an underline. Measured over 108 documents (3 classes × 9 indents × 2
+ * underline spellings × 2 paragraph contexts, all quarto exit 0) — **24 lost headings, in
+ * two families**: all 18 class-A-against-an-open-paragraph documents, and the 6 where no
+ * paragraph is open and the macro sits at indent 1-3, which fell in the gap between the
+ * content-column row (indent 0) and `INDENTED_CODE_LINE` (indent 4+).
+ *
+ * ⚠ **CLASS B IS THE CONTROL THAT DECIDES THIS, AND WIDENING THE HOIST TO IT FABRICATES
+ * HEADINGS.** Class B is a block only where no paragraph is open, so against an open one it
+ * must stay behind the bail: measured, `\clearpage` releases the heading at NO indent 0-8 in
+ * that context. With no paragraph open its boundary is asymmetric and is preserved by the
+ * untouched row below — quarto renders at indent 0 (a raw block) and at 4-8 (an indented
+ * CODE block, a different construct), never at 1-3. Class C is inline everywhere.
  */
 function opensFreshBlock(
   line: string,
   paragraphOpen: boolean,
   contentColumns: readonly number[] | null,
 ): boolean {
-  if (HTML_BLOCK_OPEN.test(line)) {
+  if (HTML_BLOCK_OPEN.test(line) || RAW_TEX_BLOCK_MACRO.test(line)) {
     return true;
   }
   if (paragraphOpen) {

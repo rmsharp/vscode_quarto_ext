@@ -2730,6 +2730,82 @@ describe("a class-A raw-TeX macro is INDENT-INSENSITIVE (Session 190)", () => {
   });
 });
 
+describe("a class-A raw-TeX macro OPENS A FRESH BLOCK, not only closes a paragraph (Session 191)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("RED->GREEN: a SETEXT heading below a class-A macro is visible at EVERY indent, in BOTH contexts", () => {
+    // `opensFreshBlock` tests `HTML_BLOCK_OPEN` AHEAD of its `paragraphOpen` bail but reaches
+    // the raw-TeX rows only BEHIND it, via `rawTexMacroLineIsBlock` — which is the class-A∪B
+    // row gated on the containing block's content column. So a class-A macro, which interrupts
+    // an open paragraph in EVERY context, never set `pendingFreshBlock`, `consecutiveBody`
+    // never returned to 1, and the `===` below the macro's successor was never a setext
+    // underline. The heading was not mis-levelled or mis-named: it was absent.
+    //
+    // Re-rendered before a line of code was written (Learning #251) — 108 documents, 3 macro
+    // classes × 9 indents × 2 underline spellings × 2 paragraph contexts, every one quarto
+    // exit 0. The filed item's own document (`\maketitle` at indent 0 against an open
+    // paragraph) reproduced exactly: quarto `h1:ATX Below`, this model nothing at all.
+    //
+    // ⚠ The setext TITLE and its UNDERLINE are held at column 0 while only the MACRO's indent
+    // sweeps (Learning #261). `SETEXT_H1`/`SETEXT_H2` carry their own ` {0,3}` cap, so a corpus
+    // that indents both measures neither axis.
+    const INDENTS = ["", " ", "  ", "   ", "    ", "     ", "      ", "       ", "        "];
+    for (const indent of INDENTS) {
+      for (const [ul, level] of [["===", 1], ["---", 2]] as const) {
+        // (a) against an OPEN paragraph — the filed item's own document. Measured: quarto
+        // renders the heading at every one of the nine indents, in both spellings.
+        expect(
+          findHeadings(doc("This paragraph is still open.", indent + "\\maketitle", "ATX Below", ul))
+            .map((h) => `h${h.level}:${h.text}`),
+        ).toEqual([`h${level}:ATX Below`]);
+        // (b) with NO paragraph open — a SECOND loss family the filed item does not mention,
+        // found by this session's ground corpus. Behind the bail the row demands the containing
+        // block's content column (0 at top level), and indents 4-8 were rescued only
+        // incidentally by `INDENTED_CODE_LINE`; indents 1-3 fell in the gap between the two and
+        // lost the heading. Quarto renders it at all nine.
+        expect(
+          findHeadings(doc(indent + "\\maketitle", "ATX Below", ul)).map((h) => `h${h.level}:${h.text}`),
+        ).toEqual([`h${level}:ATX Below`]);
+      }
+    }
+    // CONTROL — CLASS B, and it is the control that DECIDES the change, exactly as it was for
+    // Session 190. Class B is a block only where NO paragraph is open, so against an open one
+    // it must open nothing at ANY indent. Widening the hoist to class B fabricates a heading
+    // here rather than recovering one. Measured: quarto renders NOTHING in all 18.
+    for (const indent of INDENTS) {
+      for (const ul of ["===", "---"]) {
+        expect(
+          findHeadings(doc("This paragraph is still open.", indent + "\\clearpage", "ATX Below", ul)),
+        ).toEqual([]);
+      }
+    }
+    // CONTROL — CLASS B with no paragraph open is where the boundary actually sits, and it is
+    // asymmetric: quarto renders the heading at indent 0 (a raw block) and at indents 4-8 (an
+    // indented CODE block, a different construct entirely) but NOT at 1-3, where the macro is
+    // merely the first line of an ordinary paragraph. This must survive unchanged.
+    for (const [i, indent] of INDENTS.entries()) {
+      for (const [ul, level] of [["===", 1], ["---", 2]] as const) {
+        const got = findHeadings(doc(indent + "\\clearpage", "ATX Below", ul))
+          .map((h) => `h${h.level}:${h.text}`);
+        expect(got).toEqual(i === 0 || i >= 4 ? [`h${level}:ATX Below`] : []);
+      }
+    }
+    // CONTROL — CLASS C is inline in every context. Against an open paragraph it opens nothing
+    // at any indent; with none open it opens a block only at 4+, and there it is the indented
+    // code rule doing it, not the macro.
+    for (const [i, indent] of INDENTS.entries()) {
+      for (const [ul, level] of [["===", 1], ["---", 2]] as const) {
+        expect(
+          findHeadings(doc("This paragraph is still open.", indent + "\\textbf{bold}", "ATX Below", ul)),
+        ).toEqual([]);
+        const got = findHeadings(doc(indent + "\\textbf{bold}", "ATX Below", ul))
+          .map((h) => `h${h.level}:${h.text}`);
+        expect(got).toEqual(i >= 4 ? [`h${level}:ATX Below`] : []);
+      }
+    }
+  });
+});
+
 describe("buildOutline — against the sample.qmd fixture", () => {
   const fixture = readFileSync(
     path.resolve(__dirname, "../fixtures/sample.qmd"),
