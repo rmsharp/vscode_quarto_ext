@@ -2472,6 +2472,159 @@ describe("a raw-TeX block starts at the CONTAINING BLOCK's content column (Sessi
       ).toEqual([]);
     }
   });
+
+  it("test-after: the marker->column table, and every row of it was measured", () => {
+    // 2,394 rendered documents — 19 marker spellings × 7 spacings × 2 marker indents × a 0–8
+    // indent sweep. The rule is `markerIndent + markerLength + spacesAfter`, and the three
+    // corrections below are the entire reason it is a function rather than arithmetic.
+    // ⚠ The heading rides at column 0 while the MACRO sweeps, deliberately: pandoc's
+    // `rawTeXBlock` ends with `spaces`, which swallows the NEXT line's leading whitespace, so
+    // the heading's own indent is measured irrelevant once the macro has made a block. Holding
+    // it at 0 isolates the axis under test from `ATX_HEADING`'s own ` {0,3}`, which is a
+    // different row with a different (pre-existing, filed) defect — an indented heading at
+    // column 4+ is lost whatever this row decides. Every shape below re-rendered in this form.
+    const at = (first: string, col: number) =>
+      findHeadings(doc(first, "", " ".repeat(col) + "\\clearpage", "# ATX Below")).map((h) => h.text);
+    // The plain cases: one space after the marker, and the marker's own length.
+    expect(at("- line one", 2)).toEqual(["ATX Below"]);
+    expect(at("1. line one", 3)).toEqual(["ATX Below"]);
+    expect(at("100. line one", 5)).toEqual(["ATX Below"]);
+    // FIVE or more spaces after the marker COLLAPSE to one — the content is a code block
+    // inside the item and the item's own column is `marker + 1`. Four spaces is the last that
+    // counts, and the pair below is the boundary:
+    expect(at("-    line one", 5)).toEqual(["ATX Below"]); // four spaces -> column 5
+    expect(at("-     line one", 2)).toEqual(["ATX Below"]); // five spaces -> column 2, not 6
+    // ⚠ Column 6 is NOT this row's to refuse and the first draft of this pin asserted that it
+    // was — quarto renders the heading here (re-rendered). Six spaces inside a column-2 item
+    // is four past that item's own column, which is an INDENTED CODE BLOCK, and a code block
+    // is a block: the heading below it is real. It reaches the Outline through
+    // `INDENTED_CODE_LINE`, a different row, whatever this one decides.
+    expect(at("-     line one", 6)).toEqual(["ATX Below"]);
+    // A TAB after the marker expands to the next multiple of 4 COLUMNS, not to a fixed count:
+    expect(at("-\tline one", 4)).toEqual(["ATX Below"]);
+    expect(at("100.\tline one", 8)).toEqual(["ATX Below"]);
+    // A marker ALONE on its line gobbles nothing, so `-` gives column 1 — not CommonMark's 2.
+    expect(at("-", 1)).toEqual(["ATX Below"]);
+    expect(at("-", 2)).toEqual([]);
+    // ⚠ The FANCY list markers CommonMark does not have. A scanner written against CommonMark
+    // opens no container for these and DELETES the heading in every one — `iv.` did exactly
+    // that in this session's own first draft, and the corpus score caught it.
+    expect(at("iv. line one", 4)).toEqual(["ATX Below"]);
+    expect(at("a. line one", 3)).toEqual(["ATX Below"]);
+    expect(at("(1) line one", 4)).toEqual(["ATX Below"]);
+    expect(at("#. line one", 3)).toEqual(["ATX Below"]);
+    // A footnote definition and a definition-list definition both give their content exactly
+    // 4 columns. ⚠ Measured with a LIVE `See[^1]` reference: an UNREFERENCED footnote is
+    // dropped from the rendered output entirely, so a corpus that omits the reference reads
+    // "no heading" at every indent and concludes the container does not exist. It does.
+    expect(at("[^1]: note one", 4)).toEqual(["ATX Below"]);
+    expect(at(":   definition one", 4)).toEqual(["ATX Below"]);
+  });
+
+  it("test-after: a BLOCK QUOTE suspends the column rule, because we cannot compute its column", () => {
+    // The single largest deletion trap in this change, and it is why `quoteOpen` exists.
+    // `> quoted` / `>` / `   \clearpage` / `   # ATX Below` renders the heading INSIDE the
+    // <blockquote> at EVERY indent 0–8 — verified against the rendered HTML at three indents,
+    // not inferred — because pandoc strips the quote's markers and re-parses what is left.
+    // This model carries no block-quote container, so rather than guess a column it keeps the
+    // OLD ` {0,3}` width here: phantoms, never deletions.
+    for (const indent of ["", " ", "  ", "   "]) {
+      expect(
+        findHeadings(doc("> quoted one", ">", indent + "\\clearpage", indent + "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+    // CONTROL — a TRULY blank line ends the quote (measured), and the column rule resumes, so
+    // the same indents are dead again. If this ever starts passing at indent 1–3, `quoteOpen`
+    // has stopped being cleared and the top-level phantoms are back.
+    for (const indent of [" ", "  ", "   "]) {
+      expect(
+        findHeadings(doc("> quoted one", "", indent + "\\clearpage", indent + "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual([]);
+    }
+    expect(
+      findHeadings(doc("> quoted one", "", "\\clearpage", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+  });
+
+  it("test-after: a container's column survives blank lines and dies at a shallower line", () => {
+    // Measured: one, two and three blank lines all keep a `- ` item's column 2 alive…
+    for (const blanks of [[""], ["", ""], ["", "", ""]]) {
+      expect(
+        findHeadings(doc("- line one", ...blanks, "  \\clearpage", "  # ATX Below"))
+          .map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+    // …a paragraph at column 0 closes the item, so column 2 is dead below it…
+    expect(
+      findHeadings(doc("- line one", "", "top level para", "", "  \\clearpage", "  # ATX Below"))
+        .map((h) => h.text),
+    ).toEqual([]);
+    // …but a LAZY CONTINUATION does not, because a shallow line under an OPEN paragraph is
+    // that paragraph's, not a new block. The two documents differ only by a blank line.
+    expect(
+      findHeadings(doc("- line one", "line two lazy", "", "  \\clearpage", "  # ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    // Every ANCESTOR column stays open, not merely the innermost — measured [0,2,4,6].
+    const nested = ["- a", "", "  - b", "", "    - c", "      c two", ""];
+    for (const col of [0, 2, 4, 6]) {
+      expect(
+        findHeadings(doc(...nested, " ".repeat(col) + "\\clearpage", "# ATX Below")).map((h) => h.text),
+      ).toEqual(["ATX Below"]);
+    }
+    // …and an indent BETWEEN two open columns is dead, so this really is the COLUMNS and not
+    // "anything deep enough". Quarto renders nothing at 1, 3 or 5 on these same bytes.
+    for (const col of [1, 3]) {
+      expect(
+        findHeadings(doc(...nested, " ".repeat(col) + "\\clearpage", "# ATX Below")).map((h) => h.text),
+      ).toEqual([]);
+    }
+    // ⚠ KNOWN RESIDUAL, and PRE-EXISTING — column 5 is a between-columns indent quarto also
+    // refuses, but 5 ≥ 4 so `INDENTED_CODE_LINE` claims the line as a code block and closes the
+    // paragraph before this row is consulted. Identical on the pre-Session-189 build, so it is
+    // not this session's to fix; it belongs to the indented-code row, which cannot know that a
+    // container's column moves the 4-space threshold with it. Disclosed, not hidden.
+    expect(
+      findHeadings(doc(...nested, "     \\clearpage", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]); // quarto: NO heading
+  });
+
+  it("test-after (KNOWN RESIDUAL, PRE-EXISTING): the indented-code row is column-blind", () => {
+    // Named once, in one place, because it accounts for every residual phantom this session's
+    // corpus score left standing outside the `A. x` push (36 of 41 across 4,125 documents).
+    // `INDENTED_CODE_LINE` tests a LITERAL 4 spaces. Inside a container the code threshold is
+    // 4 past the CONTAINER's column, so a line that is merely 4 from the page edge is ordinary
+    // content there — quarto renders no heading below it and we do. The fix is the same
+    // `contentColumns` state this session added, applied to a row that is out of scope here:
+    // one capability, one row (FM #26).
+    expect(
+      findHeadings(doc("- line one", "  line two", "", "    \\clearpage", "# ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]); // quarto: NO heading — 4 spaces is +2 inside a column-2 item
+    // CONTROL — at TOP level the same four spaces really ARE indented code, and the heading
+    // below really is rendered. The row is not wrong, it is column-blind.
+    expect(
+      findHeadings(doc("    \\clearpage", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+  });
+
+  it("test-after (KNOWN RESIDUAL): `A. x` is not a list, and we admit its column anyway", () => {
+    // The ONE phantom this session's push rule introduces, disclosed rather than hidden.
+    // `A. x` — a single capital with EXACTLY one space — is pandoc's initial-in-a-name rule
+    // ("B. Russell") and opens no list, so quarto renders no heading at column 3. Refusing the
+    // column would cost a real heading if the rule is ever narrower than measured, and this
+    // function is required to fail in the phantom direction, so the column is admitted.
+    expect(
+      findHeadings(doc("A. line one", "", "   \\clearpage", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]); // quarto: NO heading (re-rendered) — the disclosed phantom
+    // CONTROL — with TWO spaces it really is a list, and column 4 is real. The two documents
+    // differ by ONE space and quarto answers them oppositely.
+    expect(
+      findHeadings(doc("A.  line one", "", "    \\clearpage", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+  });
 });
 
 describe("buildOutline — against the sample.qmd fixture", () => {

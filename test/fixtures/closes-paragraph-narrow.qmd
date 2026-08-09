@@ -56,6 +56,17 @@ An empty bullet marker really is block-level, whatever it looks like.
 
 ## Genuine Child
 
+A raw TeX block must start at the CONTAINING BLOCK's content column (Session 189).
+Inside a list item that column is the item's, not the line's, so the macro below really
+is at its block's column 0 and quarto really does render the heading. Requiring a literal
+column 0 deletes it — Session 184 measured exactly that and rejected the change.
+
+- a list item
+  its continuation
+
+  \clearpage
+  # Below An Indented Macro At Its Item Column
+
 No disclosed residual remains here, down from two. Quarto renders neither line below as
 a heading, and neither does this model any more. Session 187 transcribed pandoc's TAG
 classification and MEASURED it, which closed the inline-TAG line; Session 188 did the
@@ -68,3 +79,10 @@ Both lines are kept as controls: each must stay prose.
 
 \textbf{bold}
 # Residual Phantom — Inline TeX
+
+At TOP level the content column is 0, so an indented macro is ordinary paragraph text and
+the line below it is that paragraph's continuation. This was a disclosed phantom from
+Session 184 until Session 189; it is kept as a control and must stay prose.
+
+   \clearpage
+# Not A Heading — Indented Macro At Top Level

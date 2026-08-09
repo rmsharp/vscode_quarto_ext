@@ -454,6 +454,12 @@ describe("Quarto: Document outline (symbols)", () => {
       "Below A Braced Macro",
       "Below A Bare Macro",
       "Below A Lone Plus",
+      // Below An Indented Macro At Its Item Column — Session 189, and the sharpest control in
+      // this list: `\clearpage` two spaces under `- a list item` sits at the ITEM's content
+      // column, which pandoc treats as that sub-document's column 0. Quarto renders the
+      // heading (re-rendered on these exact bytes). Session 184 built the literal-column-0
+      // rule, measured it deleting THIS heading, and rejected the change on it.
+      "Below An Indented Macro At Its Item Column",
     ]) {
       assert.ok(names.includes(real), `${real} is a real heading and must survive the narrowing`);
     }
@@ -486,6 +492,15 @@ describe("Quarto: Document outline (symbols)", () => {
       !names.includes("Residual Phantom — Inline TeX"),
       "Session 188: `\\textbf{bold}` is prose, so this phantom must NO LONGER reach the Outline",
     );
+    // ⚠ AND THE THIRD DISCLOSED PHANTOM IS GONE (Session 189) — the one S184 filed as
+    // "the raw-TeX row's ` {0,3}` indent is WRONG at top level". At top level the containing
+    // block's content column is 0, so `   \clearpage` is ordinary paragraph text and the `#`
+    // line below it is that paragraph's continuation. Re-rendered on these exact bytes: quarto
+    // emits twelve headings and this name is not among them.
+    assert.ok(
+      !names.includes("Not A Heading — Indented Macro At Top Level"),
+      "Session 189: an indented macro at TOP level is prose, so this phantom must NOT reach the Outline",
+    );
 
     // Nothing else at all — the exact set, which no per-name assertion can say.
     assert.deepStrictEqual(names, [
@@ -500,6 +515,7 @@ describe("Quarto: Document outline (symbols)", () => {
       "Below A Bare Macro",
       "Below A Lone Plus",
       "Genuine Child",
+      "Below An Indented Macro At Its Item Column",
     ]);
   });
 
