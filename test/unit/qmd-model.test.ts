@@ -1550,7 +1550,7 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
     ).toEqual(["ATX Below"]);
   });
 
-  it("KNOWN RESIDUAL: the raw-TeX row's 0-3 space indent is WRONG at top level and REQUIRED in a list", () => {
+  it("RESOLVED BY SESSION 189: the raw-TeX row's 0-3 space indent was wrong at top level", () => {
     // The mutation pass proposed forbidding the ` {0,3}` indent on the raw-TeX row — it
     // survived the whole suite — and Learning #232's question, is the MUTANT more correct,
     // measured YES at top level. A raw-TeX block must begin at column 0; indent it and pandoc
@@ -1565,16 +1565,21 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
     // heading, and column-0 matching DELETES it. Measured across 597 rendered documents the
     // narrowing removed 3 phantoms and deleted this 1 real heading.
     //
-    // A per-line predicate cannot see a containing block's content column, so the wider row
-    // stays and its top-level phantoms are the price. Deleting is never the acceptable side.
-    // This assertion is what kills the mutant: it fails the moment the indent is forbidden.
+    // ⚠ **RESOLVED BY SESSION 189, and the resolution is that BOTH readings were right.** The
+    // sentence this test used to end on — "a per-line predicate cannot see a containing block's
+    // content column" — was true of a per-line predicate and false of this file, which is a
+    // SCANNER. `computeRegions` now carries `contentColumns`, so the row is neither ` {0,3}`
+    // nor column 0: it is the containing block's own column. The list document below is
+    // UNCHANGED and still asserts a heading — it is the control that rejected the column-0
+    // form in Session 184 and it still holds. What changed is the line under it.
     expect(
       findHeadings(doc("- line one", "  line two", "", "  \\clearpage", "  # ATX Below"))
         .map((h) => h.text),
     ).toEqual(["ATX Below"]);
-    // …and the disclosed top-level phantoms the row keeps in exchange.
+    // INVERTED — the disclosed top-level phantom is GONE. Quarto renders no heading here and
+    // now neither do we (measured, and the assertion is the phantom's own epitaph).
     expect(findHeadings(doc("   \\clearpage", "# ATX Below")).map((h) => h.text))
-      .toEqual(["ATX Below"]);
+      .toEqual([]);
     // `RAW_TEX_ENV_OPEN` keeps its own ` {0,3}` and is a DIFFERENT predicate, tested ahead of
     // the paragraph bail; its tolerance is unmeasured on this question and is not touched.
     expect(
@@ -2428,6 +2433,44 @@ describe("the raw-TeX macro rule is pandoc's, and it has THREE classes (Session 
     expect(
       findHeadings(doc("prose one", "prose two", "\\maketitle{}", "# ATX Below")).map((h) => h.text),
     ).toEqual(["ATX Below"]); // quarto: heading — agreement
+  });
+});
+
+describe("a raw-TeX block starts at the CONTAINING BLOCK's content column (Session 189)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+
+  it("RED->GREEN: at top level the column is 0, and inside a list item it is the item's", () => {
+    // The filed item's two claims, BOTH re-rendered this session before a line of code was
+    // written (Learning #251), and both hold. `\clearpage` is class B — a raw BLOCK only where
+    // no paragraph is open — and pandoc's `rawTeXBlock` requires the backslash at the CURRENT
+    // parse column, which after a newline is column 0. So at top level 1, 2 and 3 spaces are
+    // not a block at all; the macro opens a PARAGRAPH and `blank_before_header` then swallows
+    // the `#` line. Three phantoms per macro, measured:
+    for (const indent of [" ", "  ", "   "]) {
+      expect(findHeadings(doc(indent + "\\clearpage", "# ATX Below")).map((h) => h.text))
+        .toEqual([]);
+    }
+    // CONTROL — column 0 is still a block. This is the whole reason the row exists, and a
+    // narrowing that took it would delete a real heading under every raw-TeX block.
+    expect(findHeadings(doc("\\clearpage", "# ATX Below")).map((h) => h.text))
+      .toEqual(["ATX Below"]);
+    // CONTROL — and the column is NOT literally 0: inside a list item pandoc re-parses the
+    // item's content DEDENTED, so the item's own content column is that item's column 0.
+    // `- ` gives 2. Session 184 implemented the column-0 form WITHOUT this, measured it
+    // removing 3 phantoms against 1 REAL HEADING DELETED, and rejected it on that basis —
+    // this control is that rejection, kept as an assertion.
+    expect(
+      findHeadings(doc("- line one", "  line two", "", "  \\clearpage", "  # ATX Below"))
+        .map((h) => h.text),
+    ).toEqual(["ATX Below"]);
+    // CONTROL — and it really is the item's column, not "any indent inside a list": 1 and 3
+    // are as dead inside the item as they are at top level (measured, both directions).
+    for (const indent of [" ", "   "]) {
+      expect(
+        findHeadings(doc("- line one", "  line two", "", indent + "\\clearpage", indent + "# ATX Below"))
+          .map((h) => h.text),
+      ).toEqual([]);
+    }
   });
 });
 

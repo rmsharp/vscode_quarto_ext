@@ -420,8 +420,102 @@ const RAW_TEX_BLOCK_MACRO = new RegExp(
  * most of the macros anyone writes.
  */
 const RAW_TEX_BLOCK_OR_MACRO_LINE = new RegExp(
-  "^ {0,3}\\\\(?!(?:" + PANDOC_INLINE_MACROS + ")" + MACRO_NAME_END + ")[a-zA-Z]",
+  "^( *)\\\\(?!(?:" + PANDOC_INLINE_MACROS + ")" + MACRO_NAME_END + ")[a-zA-Z]",
 );
+/**
+ * Whether a raw-TeX macro line is a BLOCK at this point in the document — the row above,
+ * plus the INDENT question the row cannot answer alone (Session 189).
+ *
+ * ⚠ **`^ {0,3}` was wrong in BOTH directions, and the two are not symmetric.** Pandoc's
+ * `rawTeXBlock` begins `lookAhead $ try $ char '\\' >> letter` with no `skipNonindentSpaces`
+ * before it, so the backslash must sit at the CURRENT PARSE COLUMN. At top level that column
+ * is 0 and ` \clearpage` is ordinary paragraph text — three phantom headings per macro,
+ * measured. But inside a list item pandoc re-parses the item's content DEDENTED, so the
+ * item's content column IS that sub-document's column 0, and demanding a literal 0 DELETES
+ * the heading under every raw-TeX block anyone indents inside a list.
+ *
+ * Session 184 built exactly the literal-0 form, measured it at 3 phantoms removed against
+ * **1 real heading deleted**, and rejected it. This is that rejection, repaired: the column
+ * is not a constant, it is the containing block's, so the scanner has to carry it.
+ *
+ * `columns` is `null` where the containing block's column cannot be known — see
+ * `contentColumns` in `computeRegions`. Null keeps the OLD ` {0,3}` width, which is the
+ * fail-safe direction: an indent we wrongly admit costs a pre-existing phantom, an indent we
+ * wrongly refuse costs a real heading.
+ *
+ * ⚠ Only SPACES count. A leading tab is left to `INDENTED_CODE_LINE`, exactly as ` {0,3}`
+ * did — every tab-indented line already reaches that row, and routing it here instead would
+ * be a change this session did not measure.
+ */
+function rawTexMacroLineIsBlock(line: string, columns: readonly number[] | null): boolean {
+  const m = RAW_TEX_BLOCK_OR_MACRO_LINE.exec(line);
+  if (m === null) {
+    return false;
+  }
+  const indent = m[1].length;
+  return columns === null ? indent <= 3 : columns.includes(indent);
+}
+/**
+ * The content column a LIST ITEM opened by `line` gives its content, or `null` if the line
+ * opens no list item (Session 189). Measured exhaustively — 2,394 rendered documents over 19
+ * marker spellings × 7 spacings × 2 marker indents × a 0–8 indent sweep:
+ *
+ *     content column = markerIndent + markerLength + spacesAfterMarker
+ *
+ * with two corrections that are the whole reason this is a function and not arithmetic at
+ * the call site:
+ *
+ *   - **five or more spaces after the marker collapse to one.** `-     x` gives column 2,
+ *     not 6 — the content is a code block inside the item, and the item's own column is
+ *     `marker + 1`. Four spaces is the last that counts: `-    x` really is column 5.
+ *   - **a TAB after the marker expands to the next multiple of 4 COLUMNS**, not to a fixed
+ *     number of spaces. `-\tx` is column 4 and `10.\tx` is column 4, but `100.\tx` is 8.
+ *
+ * ⚠ **This function is deliberately WIDER than pandoc, and the asymmetry is load-bearing.**
+ * A column pushed that pandoc does not open merely re-admits an indent that was already
+ * admitted before this session — a pre-existing phantom. A column NOT pushed that pandoc DOES
+ * open deletes a real heading. So every marker shape pandoc has is here, including the fancy
+ * lists CommonMark lacks (`a.` `A)` `i.` `iv.` `#.` `(1)` `(a)`) — a scanner written against
+ * CommonMark would open no container for those and delete the heading in every one.
+ *
+ * The one measured spelling that is NOT a list is kept anyway for the same reason: `A. x`,
+ * a single capital with EXACTLY one space, is pandoc's initial-in-a-name rule ("B. Russell")
+ * and opens nothing. Admitting its column costs a phantom; refusing it would cost a heading
+ * if the rule is ever narrower than measured.
+ */
+function listItemContentColumn(line: string): number | null {
+  // ⚠ The letter run is `{1,9}`, not a single letter, and a single letter is what the first
+  // draft had. It cost a real heading in the corpus score: `iv.` is a ROMAN NUMERAL — a list
+  // marker pandoc accepts and a one-letter pattern does not — so no column was pushed and the
+  // heading under `   \clearpage` at its column 3 was DELETED. Accepting a whole letter run
+  // also accepts `Mr. Smith`, which is not a list; that costs a phantom at one indent and is
+  // the direction this function is required to fail in.
+  const m = /^( *)([-+*]|\(?(?:\d{1,9}|[a-zA-Z]{1,9}|#)[.)])([ \t]|$)/.exec(line);
+  if (m === null) {
+    return null;
+  }
+  const markerEnd = m[1].length + m[2].length;
+  const after = line.slice(markerEnd);
+  if (after.startsWith("\t")) {
+    return markerEnd + 4 - (markerEnd % 4);
+  }
+  const spaces = /^ */.exec(after)![0].length;
+  return markerEnd + (spaces === 0 || spaces >= 5 ? (after === "" ? 0 : 1) : spaces);
+}
+/**
+ * A FOOTNOTE definition or a DEFINITION-LIST definition, both of which give their content a
+ * content column of exactly **4** past the marker's own indent — measured, and independent of
+ * the label's length (`[^1]:` and `[^averylonglabel]:` both give 4).
+ *
+ * ⚠ The footnote row was very nearly measured wrong, and the way it failed is worth keeping:
+ * an UNREFERENCED footnote definition is dropped from the rendered output ENTIRELY, so a
+ * corpus that never cites its own footnote reads "no heading" for every indent and concludes
+ * the container does not exist. It does. The corpus rows behind this line all carry a live
+ * `See[^1]` reference (Learning #253 — validate the instrument before scoring with it).
+ *
+ * `:::` is excluded because a fenced div gives its content column 0, not 4 (measured).
+ */
+const CONTENT_COLUMN_4_OPEN = /^( *)(?:\[\^[^\]\s]+\]:|[:~](?![:~])[ \t])/;
 /**
  * Body lines that do NOT leave a paragraph open, so an ATX heading may follow one
  * directly (Session 180). Pandoc's `blank_before_header` — on by default in the
@@ -492,7 +586,9 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
   /^ {0,3}\[(?!\^[^\s^\]]+\]:)[^\]]*\]:/, //                 a link reference — NOT a `[^1]:` footnote
   HTML_BLOCK_OR_INLINE_OPEN, //                              a raw HTML block — see the note below
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
-  RAW_TEX_BLOCK_OR_MACRO_LINE, //                            a raw TeX block — pandoc's macro NAMES
+  // ⚠ The raw-TeX macro row is NOT here — it needs the containing block's content column,
+  // which no RegExp in an array can see. `closesParagraph` tests it via
+  // `rawTexMacroLineIsBlock` instead (Session 189).
   /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator
 ];
 /**
@@ -650,6 +746,7 @@ function closesParagraph(
   prevWasAtxHeading: boolean,
   paragraphQuoted: boolean,
   lineBlockAbove: boolean,
+  contentColumns: readonly number[] | null,
 ): boolean {
   if (lineBlockAbove && LINE_BLOCK_CONTINUATION.test(line)) {
     return true;
@@ -668,7 +765,11 @@ function closesParagraph(
   if (paragraphOpen && !paragraphQuoted) {
     return false;
   }
-  return THEMATIC_BREAK.test(line) || CLOSES_PARAGRAPH.some((re) => re.test(line));
+  return (
+    THEMATIC_BREAK.test(line) ||
+    rawTexMacroLineIsBlock(line, contentColumns) ||
+    CLOSES_PARAGRAPH.some((re) => re.test(line))
+  );
 }
 /**
  * An indented code block (CommonMark §4.4) — 4+ spaces or a tab, then content.
@@ -713,7 +814,10 @@ const OPENS_FRESH_BLOCK: readonly RegExp[] = [
   /^ {0,3}\[[^\^\]][^\]]*\]:/, //                            a link-reference definition — NOT `[^1]:`
   /^ {0,3}\|/, //                                            a pipe-table ROW; a bare `a | b` is prose
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
-  RAW_TEX_BLOCK_OR_MACRO_LINE, //                            a raw TeX block, class A or B (not C)
+  // ⚠ The raw-TeX macro row is NOT here either — same reason, and `opensFreshBlock` tests it
+  // via `rawTexMacroLineIsBlock` with the SAME columns. Measured in THIS context in its own
+  // right (Learning #233): the polarity here ADDS setext headings, so a narrowing proven on
+  // `CLOSES_PARAGRAPH`'s question is unmeasured on this one.
   HTML_BLOCK_OR_INLINE_OPEN, //                              pandoc's eitherBlockOrInline class
 ];
 /**
@@ -811,14 +915,20 @@ const HTML_BLOCK_OPEN = new RegExp(
  * the identical document without the `prose` line renders `<h1>Title</h1>`. Raw HTML is
  * the single measured exception and is tested before the bail.
  */
-function opensFreshBlock(line: string, paragraphOpen: boolean): boolean {
+function opensFreshBlock(
+  line: string,
+  paragraphOpen: boolean,
+  contentColumns: readonly number[] | null,
+): boolean {
   if (HTML_BLOCK_OPEN.test(line)) {
     return true;
   }
   if (paragraphOpen) {
     return false;
   }
-  return OPENS_FRESH_BLOCK.some((re) => re.test(line));
+  return (
+    rawTexMacroLineIsBlock(line, contentColumns) || OPENS_FRESH_BLOCK.some((re) => re.test(line))
+  );
 }
 /**
  * A fence opener: up to 3 spaces of indentation (CommonMark §4.5 — 4+ spaces is
@@ -1181,6 +1291,25 @@ function computeRegions(text: string): Regions {
   // Whether the line above was an indented code line, so a run of 2+ can be told from a
   // lone indented line. Same reasoning as above for why the resets need not clear it.
   let prevIndentedCode = false;
+  // The content column of every CONTAINER open above this line, ascending, EXCLUDING the
+  // document root's own 0 which is always available (Session 189). This is the state the
+  // raw-TeX row's ` {0,3}` was standing in for: pandoc re-parses a container's content
+  // DEDENTED, so the container's content column is that sub-document's column 0, and a raw
+  // TeX block must start exactly there. See `rawTexMacroLineIsBlock`.
+  //
+  // ⚠ **Push liberally, pop conservatively — the two errors are not symmetric.** A column
+  // pushed that pandoc does not open merely re-admits an indent this file already admitted
+  // before this session (a pre-existing phantom). A column missing that pandoc DOES open
+  // deletes a real heading. Every rule below is written to fail in the first direction.
+  let contentColumns: number[] = [];
+  // Whether a BLOCK QUOTE may still be open, which suspends the column rule entirely — see
+  // the assignment at the foot of the loop. Measured, and the single largest deletion trap in
+  // this change: `> quoted` / `>` / `   \clearpage` / `   # ATX Below` renders the heading
+  // INSIDE the blockquote at EVERY indent 0–8 (verified against the rendered HTML, not
+  // inferred), because pandoc strips the quote's markers and re-parses what is left. This
+  // model carries no block-quote container, so while one may be open the raw-TeX row keeps
+  // its old ` {0,3}` width rather than guess a column — phantoms, never deletions.
+  let quoteOpen = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -1238,11 +1367,44 @@ function computeRegions(text: string): Regions {
       }
       continue;
     }
+    // ── The containing block's content column (Session 189) ──────────────────────────────
+    // Placed here, above every remaining `continue`, so a line that ends a container still
+    // closes it on its way past: a heading, a thematic break, a fence opener and an HTML
+    // comment were each measured ENDING a list whose column would otherwise have outlived
+    // them. Blank lines do nothing — a container survives any number of them (measured: one,
+    // two and three blanks all keep a `- ` item's column 2 alive), which is exactly why this
+    // sits above the blank-line branch rather than inside the body handling.
+    if (!BLANK_LINE.test(line)) {
+      const indentWidth = /^ */.exec(line)![0].length;
+      // A non-blank line at a SHALLOWER column closes every container deeper than itself —
+      // but ONLY where no paragraph is open above it, because a shallow-looking line under an
+      // open paragraph is that paragraph's LAZY CONTINUATION and closes nothing. Measured
+      // both ways: `- one` / `line two lazy` / (blank) keeps column 2, while
+      // `- one` / (blank) / `top level para` / (blank) drops it.
+      if (!paragraphOpen) {
+        while (contentColumns.length > 0 && contentColumns[contentColumns.length - 1] > indentWidth) {
+          contentColumns.pop();
+        }
+      }
+      const opened = listItemContentColumn(line);
+      if (opened !== null) {
+        contentColumns.push(opened);
+      } else if (CONTENT_COLUMN_4_OPEN.test(line)) {
+        // A footnote definition and a definition-list definition both give their content
+        // exactly 4 columns past their own indent — measured, and independent of label length.
+        contentColumns.push(indentWidth + 4);
+      }
+      if (BLOCK_QUOTE_MARKER.test(line)) {
+        quoteOpen = true;
+      }
+    }
+
     // A whole-line single-line comment renders to nothing — skip it entirely.
     if (COMMENT_FULL_LINE.test(line)) {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
+      quoteOpen = false;
       continue;
     }
     if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line)) {
@@ -1250,6 +1412,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
+      quoteOpen = false;
       continue;
     }
 
@@ -1294,6 +1457,7 @@ function computeRegions(text: string): Regions {
         consecutiveBody = 0;
         paragraphOpen = false;
         inPipeTable = false;
+        quoteOpen = false;
         continue;
       }
       // Otherwise the line is ordinary body — the pre-S178 behaviour, unchanged.
@@ -1307,6 +1471,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
+      quoteOpen = false;
       continue;
     }
 
@@ -1325,6 +1490,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
+      quoteOpen = false;
       continue;
     }
 
@@ -1341,6 +1507,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
+      quoteOpen = false;
       prevWasAtxHeading = true;
     } else {
       // A block line makes the line BELOW it a paragraph start; it does NOT reset the
@@ -1357,7 +1524,10 @@ function computeRegions(text: string): Regions {
       consecutiveBody = pendingFreshBlock && !insideIndentedCode ? 1 : consecutiveBody + 1;
       // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
       // whether these bytes open a block or merely continue a paragraph depends on it.
-      pendingFreshBlock = opensFreshBlock(line, paragraphOpen);
+      // The columns a raw-TeX block may start at on THIS line: the document root's own 0
+      // plus every open container's. `null` while a block quote may be open — see `quoteOpen`.
+      const rawTexColumns = quoteOpen ? null : [0, ...contentColumns];
+      pendingFreshBlock = opensFreshBlock(line, paragraphOpen, rawTexColumns);
       prevIndentedCode = indented;
       // A paragraph's "quotedness" is decided by the line that STARTS it, so it is computed
       // only when no paragraph is open — see `closesParagraph`. Reading it here, before
@@ -1375,6 +1545,7 @@ function computeRegions(text: string): Regions {
         prevLineWasAtxHeading,
         paragraphQuoted,
         lineBlockAbove,
+        rawTexColumns,
       );
       // A line block stays open across its own continuations, so the arm re-arms on one; but
       // it can only be OPENED where no paragraph already is. Measured: a line block does not
