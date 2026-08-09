@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S188
+date: 2026-08-08
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD) -- transcribe pandoc's raw-TeX block-MACRO classification from the pandoc the installed quarto bundles, MEASURE every entry on the real quarto render path in all four contexts, and ship it at the two sites carrying the wide bare row: CLOSES_PARAGRAPH's /^ {0,3}\\[a-zA-Z]/ (src/core/qmd/model.ts:347) and OPENS_FRESH_BLOCK's identical row (:563). Operator selected it via AskUserQuestion at Phase 0; it was S187's ranked #1 and is the last blocker on the filed raw-TeX width item. SCOPE SPLIT declared at claim (FM #26): the adjacent ` {0,3}` INDENT item is OUT -- by its own words it needs container content-column tracking, a scanner-state capability, not a transcription. TDD gate FIRES. Two standing hazards: narrowing this row is the heading-DELETING direction and S184 already narrowed it, scored ZERO lost over 476 documents, then measured it deleting 11 real headings and REVERTED (Learning #239); and the project's own record already CONTRADICTS itself -- RAW_TEX_ENV_OPEN's docstring says a bare macro is INLINE against an open paragraph while the filed item says the same macros are BLOCKS -- which can only be reconciled by the context-dependence S187 found for HTML. Pre-flight action on operator instruction, not the deliverable: commit the 11-file methodology sync (a pre-push methodology-repo UAT) plus the two missing .vscodeignore lines, because check-package FAILED at Orient on the two new root files.
+```
+
+```handoff
 session: S187
 date: 2026-08-08
 status: complete
