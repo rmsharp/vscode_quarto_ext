@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S192
+date: 2026-08-09
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD) -- `SETEXT_H1`/`SETEXT_H2` accept ` {0,3}` of leading indent and pandoc does NOT; the setext underline is anchored at column 0. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S191's ranked #1 and the largest disclosed phantom family on the board, promoted by a 27-document full-factorial sweep that proved the underline's indent decisive and the opener irrelevant, and re-measured PRE-EXISTING at underline columns 1, 2 and 3 through three independent openers. NARROWING / heading-DELETING polarity -- needs its own two-direction score; do NOT infer safety from S191's ADDING-polarity numbers. Live confound: `   ---` after a single prose line makes pandoc render a TABLE, so `---` and `===` are swept as separate axes. SCOPE: the SETEXT leading-whitespace class only -- ATX_HEADING's own ` {0,3}`, INDENTED_CODE_LINE's column blindness, the line-block container and the SETEXT_H1 docstring defect are each out of scope.
+```
+
+```handoff
 session: S191
 date: 2026-08-09
 status: complete

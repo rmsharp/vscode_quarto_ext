@@ -5,6 +5,26 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 192 — IMPLEMENTATION (strict TDD): `SETEXT_H1`/`SETEXT_H2` accept ` {0,3}` of indent and pandoc does NOT — the underline is anchored at column 0, closing the largest disclosed phantom family on the board.**
+**Started:** 2026-08-09
+**Status:** **Session claimed. Work beginning.** Operator-selected via `AskUserQuestion` at Phase 0; it was S191's ranked #1, the only item on the board promoted with a full-factorial measurement, and the root cause of 4 of S191's 10 disclosed phantoms.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**⚠ DIRECTION OF HAZARD — this is the NARROWING / heading-DELETING polarity, the OPPOSITE of S191's.** S191 shipped the ADDING polarity and its score says nothing about this one. A pattern wrongly narrowed here DELETES a real heading from the outline, breadcrumbs, sticky scroll, workspace symbols and the cross-reference index. **S184 already got a similar narrowing wrong once.** It gets its own two-direction score, per heading, with phantom and LOST counted separately.
+
+**⚠ The filed item is a HYPOTHESIS until re-rendered (Learning #251).** It names exact documents — `one line` / `   ===` claims `<p>one line ===</p>` from quarto and `<h1>` from us; `# Heading Above` / ` ===` (even ONE space) claims no ATX-swallow. Both get re-rendered against the CURRENT build before a line of code changes. S190 and S191 both moved rows adjacent to this one.
+
+**⚠ LIVE CONFOUND, named by the filed item itself: `   ---` after a single prose line makes pandoc render a TABLE, not a paragraph and not a heading.** `---` and `===` are therefore swept as SEPARATE axes; a corpus that pools them will read the table rows as agreement or as loss depending only on the extractor.
+
+**⚠ SCOPE, declared at claim (FM #26).** The capability ships for the **`SETEXT_H1`/`SETEXT_H2` leading-whitespace class only**. `ATX_HEADING`'s own ` {0,3}` (a separate filed item, deleting direction), `INDENTED_CODE_LINE`'s column blindness, the line-block container, and the `SETEXT_H1` docstring defect filed directly beneath this item are each a SEPARATE capability and are OUT OF SCOPE however tempting once the anchor exists.
+
+**⚠ TDD gate — FIRES.** RED→GREEN→REFACTOR, one behaviour at a time, each RED confirmed to fail for the RIGHT reason, each `it()` carrying its control assertions in the same test (Learning #242). No declarative-edit exemption.
+
+**⚠ RUN THE TRIGGER-REMOVAL CONTROL ON EVERY NEW ERROR** (Learning #269/#263) — and note the polarity inverts here: the new errors this session risks are **LOSSES**, so the control is the same document with the underline moved to column 0, which must still produce the heading.
+
+---
+
+## Session 191 ACTIVE TASK (superseded by Session 192 — full entry preserved below)
 **Task:** **Session 191 — IMPLEMENTATION (strict TDD): `opensFreshBlock` has NO class-A raw-TeX pre-bail path, so a SETEXT heading below a class-A macro is invisible — 216 lost headings, the largest loss family on the board.**
 **Started:** 2026-08-09 · **Closed:** 2026-08-09
 **Status:** **DONE. SHIPPED — 722 real headings recovered, the NEW-LOSS set EMPTY at set level in every corpus, and the recovered SETEXT heading asserted at the real Outline provider.** **HEADLINE 1 — a predicate with an early bail has TWO answer sets, and nothing cross-checked the pre-bail one.** `closesParagraph` and `opensFreshBlock` ask nearly the same question and both bail on `paragraphOpen`. S188 put the class-A macro ahead of `closesParagraph`'s bail; nothing put it ahead of `opensFreshBlock`'s, which reached raw TeX only *behind* the bail via the class-B-gated row. **A setext heading is a STRICTLY STRONGER test than an ATX one** — ATX needs only the paragraph CLOSED, setext additionally needs the line below to START a fresh paragraph — which is how an eight-session-old divergence survived a 499-test integration suite. **HEADLINE 2 — eleven new phantoms, ten proven pre-existing rather than argued**, by applying Learning #263's trigger-removal control to EVERY one instead of only the suspicious ones (Learning #269). Nine of ten fabricate the identical heading on the pre-build once the class-A macro is swapped for `<div>`. **HEADLINE 3 — the `\hrule` scare was not about `\hrule`.** A 27-document full-factorial sweep showed the macro and its indent are both irrelevant and the *underline's* indent is everything; the root cause is S182's filed `SETEXT_H1` ` {0,3}` item (Learning #268). Naming the family after the construct just changed would have produced a fix to the wrong row, in the heading-DELETING direction.
