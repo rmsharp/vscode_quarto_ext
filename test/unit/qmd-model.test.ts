@@ -3413,16 +3413,18 @@ describe("an INDENTED CODE line is measured from the containing block's CONTENT 
     expect(names(doc(...nest, "        zzz", "# ATX Below"))).toEqual([]); // CONTROL — same column, spaces
     expect(names(doc(...nest, "          zzz", "# ATX Below"))).toEqual(["h1:ATX Below"]); // 6+4, real code
 
-    // ── FAMILY 2 — a TAB-indented raw-TeX macro at a container's content column is invisible,
-    // because `rawTexMacroLineIsBlock` counts SPACES ONLY. Session 189 documented that choice
-    // deliberately and left the tab to the indented-code row; now that the indented-code row
-    // measures columns properly, a tab at the content column falls between the two. 6 losses in
-    // the 392-document setext sweep. PROVEN PRE-EXISTING (the pre-build answers identically)
-    // and PROVEN BY CONTROL: the same macro at FOUR SPACES is found.
+    // ── FAMILY 2 — CLOSED BY SESSION 194, and RE-RENDERED rather than flipped to match the
+    // code. A TAB-indented raw-TeX macro at a container's content column was invisible, because
+    // `rawTexMacroLineIsBlock` counted SPACES ONLY — 6 losses in the 392-document setext sweep.
+    // Session 194 measures that indent in COLUMNS with the same `indentColumn` the container
+    // stack now uses, and the document below is quarto's own answer on those exact bytes,
+    // re-rendered this session. It was NOT closed for its own sake: correcting the container
+    // stack's pop turned this residual into 6 NEW LOST headings, because the old wrong pop had
+    // been masking it. See the Session 194 describe below.
     expect(
       names(doc("Intro sentence.", "", "-   line one", "    line two", "",
                 "\t\\clearpage", "    Some Title", "    ===", "", "Tail sentence.")),
-    ).toEqual([]); // quarto: h1:Some Title
+    ).toEqual(["h1:Some Title"]); // quarto: h1:Some Title — now agreed
     expect(
       names(doc("Intro sentence.", "", "-   line one", "    line two", "",
                 "    \\clearpage", "    Some Title", "    ===", "", "Tail sentence.")),
@@ -3586,5 +3588,73 @@ describe("a container's content column is closed by a line's COLUMN, not its SPA
     // 0 losses on both families before the change as well as after.
     expect(names(codeDoc("top", "\t", "Alfa TOP 04 Tabmax"))).toEqual(["h1:Alfa TOP 04 Tabmax"]);
     expect(names(codeDoc("top", " ".repeat(4), "Alfa TOP 04 Sp"))).toEqual(["h1:Alfa TOP 04 Sp"]);
+  });
+});
+
+describe("a raw-TeX block macro's indent is a COLUMN too, so a TAB can reach it (Session 194)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: a TAB-indented macro at the containing block's content column IS a block", () => {
+    // ⚠ THIS IS A SCOPE AMENDMENT, AND IT IS HERE BECAUSE THE MEASUREMENT FORCED IT — not
+    // because it was adjacent. Session 194 declared `rawTexMacroLineIsBlock`'s tab blindness
+    // OUT of scope at claim, as its own capability. Re-scoring Session 193's own corpora after
+    // the container-column fix then measured **6 NEW LOST headings** there, all of this shape:
+    // the old, WRONG pop happened to clear the stack, which let `indentedCodeLine` fire and
+    // produce the right answer for the wrong reason. Correcting the pop removed the accident
+    // and exposed the pre-existing blindness underneath as a REGRESSION in the expensive
+    // direction. Shipping the container fix alone would have deleted those six headings.
+    //
+    // Session 189 left this row spaces-only DELIBERATELY, documenting that "a leading tab is
+    // left to `INDENTED_CODE_LINE`, exactly as ` {0,3}` did". That reasoning was sound when the
+    // indented-code row hard-coded `\t` as "deep enough"; Session 193 replaced that row with
+    // real column arithmetic, and the tab has fallen between the two rows ever since. This is
+    // the same one rule as the container fix beside it — indentation is COLUMNS — applied to
+    // the third and last place in this file that measured it in spaces.
+    //
+    // All eight documents below were rendered through the real `quarto render` path this
+    // session. Re-scored: Session 193's `gnd` corpus 167/12/0 -> 167/0/0 and its `cb` corpus
+    // 178/0/6 -> 184/0/0, with the new-error SET empty in both directions on every corpus.
+
+    // ── (a) THE REGRESSION ITSELF — the setext spelling, which is Session 193's own FAMILY 2
+    // pin, and the ATX spelling beside it. quarto renders the heading; the container fix alone
+    // deleted it.
+    expect(
+      names(doc("Intro sentence.", "", "-   line one", "    line two", "",
+                "\t\\clearpage", "    Some Title", "    ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Some Title"]);
+    expect(
+      names(doc("Intro sentence.", "", "-   line one", "    line two", "",
+                "\t\\clearpage", "# Tango ATX Below")),
+    ).toEqual(["h1:Tango ATX Below"]);
+    // CONTROL — the FOUR-SPACE spelling of the same column was always found, on every build.
+    expect(
+      names(doc("Intro sentence.", "", "-   line one", "    line two", "",
+                "    \\clearpage", "    Some Title", "    ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Some Title"]);
+
+    // ── (b) THE COLUMN MUST STILL MATCH — this is not blanket tab acceptance, and t08 is the
+    // control that proves it. A `1. ` item's content column is 3; a lone tab reaches 4, which
+    // is not 3, so the macro is NOT a block there and quarto renders NO heading.
+    expect(
+      names(doc("Intro sentence.", "", "1. line one", "   line two", "",
+                "\t\\clearpage", "# Yankee Ordered")),
+    ).toEqual([]);
+
+    // ── (c) DEEPER NESTS, where the tab lands on an OUTER container's column rather than the
+    // innermost one. `\t` reaches 4 (the middle item's column) and `\t  ` reaches 6 (the inner
+    // item's); both are open, and quarto renders a heading for both.
+    const nest = ["Intro sentence.", "", "- outer", "  - middle", "    - inner", "      line two", ""];
+    expect(names(doc(...nest, "\t\\clearpage", "# Whiskey Nested"))).toEqual(["h1:Whiskey Nested"]);
+    expect(names(doc(...nest, "\t  \\clearpage", "# Xray Nested Six"))).toEqual(["h1:Xray Nested Six"]);
+
+    // ── (d) TOP LEVEL IS UNCHANGED — with no container open the `null`/`indent <= 3` fail-safe
+    // and column 0 both behave exactly as before. Both spellings were found on every build.
+    expect(names(doc("Intro sentence.", "", "\t\\clearpage", "# Uniform Top Level"))).toEqual([
+      "h1:Uniform Top Level",
+    ]);
+    expect(names(doc("Intro sentence.", "", "    \\clearpage", "# Victor Top Level Spaces"))).toEqual([
+      "h1:Victor Top Level Spaces",
+    ]);
   });
 });

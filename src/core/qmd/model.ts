@@ -489,7 +489,7 @@ const RAW_TEX_BLOCK_MACRO = new RegExp(
  * most of the macros anyone writes.
  */
 const RAW_TEX_BLOCK_OR_MACRO_LINE = new RegExp(
-  "^( *)\\\\(?!(?:" + PANDOC_INLINE_MACROS + ")" + MACRO_NAME_END + ")[a-zA-Z]",
+  "^([ \\t]*)\\\\(?!(?:" + PANDOC_INLINE_MACROS + ")" + MACRO_NAME_END + ")[a-zA-Z]",
 );
 /**
  * Whether a raw-TeX macro line is a BLOCK at this point in the document — the row above,
@@ -512,16 +512,27 @@ const RAW_TEX_BLOCK_OR_MACRO_LINE = new RegExp(
  * fail-safe direction: an indent we wrongly admit costs a pre-existing phantom, an indent we
  * wrongly refuse costs a real heading.
  *
- * ⚠ Only SPACES count. A leading tab is left to `INDENTED_CODE_LINE`, exactly as ` {0,3}`
- * did — every tab-indented line already reaches that row, and routing it here instead would
- * be a change this session did not measure.
+ * ⚠ **The indent is a COLUMN, and a TAB reaches one (Session 194).** Session 189 wrote this row
+ * spaces-only on purpose — "a leading tab is left to `INDENTED_CODE_LINE`, exactly as ` {0,3}`
+ * did" — and that was sound while the indented-code row hard-coded `\t` as "deep enough".
+ * Session 193 replaced that row with real column arithmetic, and from then on a tab-indented
+ * macro fell between the two rows and was invisible to both. It stayed hidden only because the
+ * container stack's own pop was ALSO spaces-only: the wrong pop cleared the stack, which let
+ * the indented-code row fire and give the right answer for the wrong reason. Session 194 fixed
+ * the pop and re-scored Session 193's corpora, which measured the accident's removal as **6
+ * lost headings** — so this row and that one are one rule, and are now measured by one
+ * function. Re-scored after: `gnd` 167/12/0 -> 167/0/0, `cb` 178/0/6 -> 184/0/0.
+ *
+ * ⚠ The column must still MATCH — this is not blanket tab acceptance. A `1. ` item's content
+ * column is 3 and a lone tab reaches 4, so the macro is NOT a block there, and quarto renders
+ * no heading (measured).
  */
 function rawTexMacroLineIsBlock(line: string, columns: readonly number[] | null): boolean {
   const m = RAW_TEX_BLOCK_OR_MACRO_LINE.exec(line);
   if (m === null) {
     return false;
   }
-  const indent = m[1].length;
+  const indent = indentColumn(line);
   return columns === null ? indent <= 3 : columns.includes(indent);
 }
 /**
