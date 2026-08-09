@@ -5,6 +5,28 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 193 — IMPLEMENTATION (strict TDD): `INDENTED_CODE_LINE` tests a LITERAL four spaces and is therefore COLUMN-BLIND — inside a container the indented-code threshold is four past the CONTAINER's content column, so ordinary list content is read as code and fabricates a heading below it (36 of Session 189's 41 residual phantoms).**
+**Started:** 2026-08-09 · **Closed:** —
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**The item, as filed.** `- line one` / `  line two` / (blank) / `    \clearpage` / `# ATX Below` renders NO heading from quarto and we emit one. The control that distinguishes column-blindness from a simply-wrong row: the identical macro at TOP LEVEL really IS indented code, and the heading below it really IS rendered. The filed prescription is **the `contentColumns` state Session 189 already added, applied to this row** — held out then as a second capability (FM #26), and now a one-row change rather than a new capability. Pinned in `test/unit/qmd-model.test.ts` as a KNOWN RESIDUAL, and Session 192 re-measured it with a proven pre-existence control (`    - looks like an item` is itself read as a list opener, pushing a column that legitimises a phantom).
+
+**⚠ The filed item is a HYPOTHESIS until re-rendered (Learning #251).** It names exact documents. Every one is re-rendered against the CURRENT build before a line of code changes — and S192 is the reason this is not ceremony: that session's filed item had a correct measurement and a prescribed fix that would have deleted a heading in every list, footnote and definition (Learning #271). **The axis this item's evidence never varies is the one to vary first.**
+
+**⚠ DIRECTION OF HAZARD — this is the NARROWING direction, where a wrong edit DELETES a real heading** from the outline, breadcrumbs, sticky scroll, workspace symbols and the cross-reference index. Same polarity as S192, opposite to S191. It gets its own two-direction score, per heading, phantom and LOST counted separately, with the NEW-ERROR **SET** computed rather than the delta of totals (Learning #272, `scratchpad/s192/newerr.py` reusable as-is).
+
+**⚠ SCOPE, declared at claim (FM #26).** The capability ships for the **`INDENTED_CODE_LINE` row's column awareness only**. The `listItemContentColumn` marker class (`[a-zA-Z]{1,9}` before `.`/`)`), the `contentColumns` RAGGED-STACK pop, the container-marker-in-heading-text family, `ATX_HEADING`'s own ` {0,3}`, and Quarto fenced divs as an untracked container are each a SEPARATE capability and are OUT OF SCOPE however tempting once the column is in hand.
+
+**⚠ SHARED MACHINERY — the `contentColumns` stack is already read by TWO rows** (raw TeX, S189; setext, S192) and this makes it three. A defect in the stack's arithmetic is visible three times over; conversely, do not "fix" the stack here — that is item #3 on the board, not this one.
+
+**⚠ TDD gate — FIRES.** RED→GREEN→REFACTOR, one behaviour at a time, each RED confirmed to fail for the RIGHT reason, each `it()` carrying its control assertions in the same test (Learning #242).
+
+**⚠ RUN THE TRIGGER-REMOVAL CONTROL ON EVERY NEW ERROR** (Learnings #269/#263). Polarity note: the new errors this session risks are **LOSSES**, so the control is the same document with the container removed, which must still suppress the heading.
+
+---
+
+## Session 192 ACTIVE TASK (superseded by Session 193 — full entry preserved below)
 **Task:** **Session 192 — IMPLEMENTATION (strict TDD): `SETEXT_H1`/`SETEXT_H2` accept ` {0,3}` of indent and pandoc does NOT — the underline is anchored at column 0, closing the largest disclosed phantom family on the board.**
 **Started:** 2026-08-09 · **Closed:** 2026-08-09
 **Status:** **DONE. SHIPPED — 97 phantoms drained and 57 real headings recovered across 511 scored documents, the NEW-LOSS set EMPTY everywhere, and both directions asserted at the real Outline provider.** **HEADLINE 1 — the filed item's MEASUREMENT was right and its PRESCRIBED FIX was wrong, in the heading-deleting direction.** It says the underline is "anchored at column 0" and names `SETEXT_UNDERLINE_RUN` as the model to copy. Every document behind that claim — S182's original rows and S191's 27-document factorial alike — has **no container**. Inside one, pandoc accepts the underline at the containing block's **content column**: a `- ` item at 2, a `1. ` item at 3, a `-   ` item at 4, and three-deep nested bullets at 0, 2, 4 **and** 6. The rule is an EQUALITY against `[0, ...contentColumns]` — S189's machinery, reused — and the prescription would have deleted every container heading. **HEADLINE 2 — the cap was simultaneously TOO WIDE and TOO NARROW, so both one-directional edits are wrong.** It emitted phantoms at columns 1–3 everywhere and deleted real headings at container columns 4+; the sign of a net count cannot see that, only the two-direction SET difference can (Learning #272). **HEADLINE 3 — my own probe lied, and the unit test caught it.** A heading containing a TAB broke the tab-separated probe and was truncated from `Fir\tUnderline` to `Fir`, which reads exactly like a text-truncation defect; the pin had been written from the instrument and failed against the model. Fixed, that document is a RECOVERED heading, not a phantom (Learning #273).

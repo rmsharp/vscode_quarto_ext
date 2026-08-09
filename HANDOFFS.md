@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S193
+date: 2026-08-09
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD) -- `INDENTED_CODE_LINE` tests a LITERAL four spaces and is COLUMN-BLIND: inside a container the indented-code threshold is four past the CONTAINER's content column, so ordinary list content is read as indented code and fabricates a heading below it. 36 of Session 189's 41 residual phantoms. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; it was S191's ranked #2 and S192's ranked #1, re-measured there with a proven pre-existence control. SCOPE DECLARED AT CLAIM (FM #26): the `INDENTED_CODE_LINE` row's column awareness ONLY -- the listItemContentColumn marker class, the contentColumns ragged-stack pop, the container-marker-in-heading-text family, ATX_HEADING's own ` {0,3}` and Quarto fenced divs as an untracked container are each a SEPARATE capability and are out of scope. NARROWING polarity: a wrong edit DELETES a real heading, so the full two-direction per-heading score applies and the NEW-ERROR SET is computed, not the delta of totals.
+```
+
+```handoff
 session: S192
 date: 2026-08-09
 status: complete
