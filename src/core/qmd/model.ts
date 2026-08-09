@@ -651,13 +651,13 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
   /\|/, //                                                   a pipe-table row, anywhere on the line
   /^ {0,3}\+[-+=: ]*$/, //                                   a grid-table border, which carries NO pipe
   /^ {0,3}:{3,}/, //                                         a fenced-div / callout fence
-  /^(?: {4,}|\t)\S/, //                                      an indented code block, spaces OR tab
   /^ {0,3}\[(?!\^[^\s^\]]+\]:)[^\]]*\]:/, //                 a link reference — NOT a `[^1]:` footnote
   HTML_BLOCK_OR_INLINE_OPEN, //                              a raw HTML block — see the note below
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
-  // ⚠ The raw-TeX macro row is NOT here — it needs the containing block's content column,
-  // which no RegExp in an array can see. `closesParagraph` tests it via
-  // `rawTexMacroLineIsBlock` instead (Session 189).
+  // ⚠ Neither the raw-TeX macro row NOR the indented-code row is here — each needs the
+  // containing block's content column, which no RegExp in an array can see. `closesParagraph`
+  // tests them via `rawTexMacroLineIsBlock` (Session 189) and `indentedCodeLine` (Session 193)
+  // instead. The indented-code row's literal was `/^(?: {4,}|\t)\S/` and sat right here.
   /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator
 ];
 /**
@@ -842,15 +842,69 @@ function closesParagraph(
   return (
     THEMATIC_BREAK.test(line) ||
     rawTexMacroLineIsBlock(line, contentColumns) ||
+    indentedCodeLine(line, contentColumns) ||
     CLOSES_PARAGRAPH.some((re) => re.test(line))
   );
 }
 /**
- * An indented code block (CommonMark §4.4) — 4+ spaces or a tab, then content.
- * Only ever a code block where no paragraph is already open; against an open
- * paragraph the same bytes are a LAZY CONTINUATION of it (measured).
+ * Whether `line` is an indented code line (CommonMark §4.4) at this point in the document —
+ * four columns past the CONTAINING BLOCK's content column, not four past the page edge
+ * (Session 193).
+ *
+ * Only ever a code block where no paragraph is already open; against an open paragraph the
+ * same bytes are a LAZY CONTINUATION of it (measured). Both callers that ask the block
+ * question sit behind their own `paragraphOpen` bail; the third caller — the code-RUN
+ * exception in `computeRegions` — deliberately does not, and is discussed there.
+ *
+ * ⚠ **The row tested a LITERAL four spaces, and that is only right at the top level.** Pandoc
+ * re-parses a container's content DEDENTED, so the container's content column is that
+ * sub-document's column 0 and the code threshold moves with it. Measured over 300 ground
+ * documents rendered through the real `quarto render` path, the threshold is exactly
+ * `contentColumn + 4` in every container measured: top level 4, a `- ` item 6, a `1. ` item 7,
+ * a `-   ` item 8, a footnote or definition-list definition 8, three-deep nested bullets 10.
+ * `- line one` / `  line two` / (blank) / `    \clearpage` / `# ATX Below` renders NO heading,
+ * because four spaces is +2 inside a column-2 item — ordinary paragraph content, which
+ * `blank_before_header` then forbids the heading from interrupting.
+ *
+ * `columns` is `[0, ...contentColumns]` — the same array `rawTexMacroLineIsBlock` reads, and
+ * the base is the DEEPEST open column at or above which this line starts. `null` where the
+ * containing block's column cannot be known (a block quote may be open), which keeps the base
+ * at 0 and therefore the old literal-4 threshold.
+ *
+ * ⚠ **A TAB IS INDENTATION, MEASURED IN COLUMNS, AND ABSOLUTE.** It advances to the next
+ * 4-column stop from the START OF THE LINE, not from the container's column — measured, and
+ * the two answers differ: a lone tab inside a column-2 item reaches column 4, short of that
+ * item's threshold of 6, and quarto renders no heading there. The old row could not express
+ * this at all: `\t` was hard-coded as "deep enough" (wrong inside every container) while
+ * `    \t` matched NOTHING, because the `\S` after the space run rejects a tab — a real
+ * heading lost at top level, in 9 of this corpus's 18 pre-existing losses.
  */
-const INDENTED_CODE_LINE = /^(?: {4,}|\t)\S/;
+function indentedCodeLine(line: string, columns: readonly number[] | null): boolean {
+  let col = 0;
+  let i = 0;
+  for (; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === " ") {
+      col += 1;
+    } else if (ch === "\t") {
+      col += 4 - (col % 4);
+    } else {
+      break;
+    }
+  }
+  if (i === line.length) {
+    return false; // whitespace only — the old row's `\S` requirement, kept
+  }
+  let base = 0;
+  if (columns !== null) {
+    for (const c of columns) {
+      if (c <= col && c > base) {
+        base = c;
+      }
+    }
+  }
+  return col >= base + 4;
+}
 /**
  * Lines that begin a FRESH BLOCK, so the line *below* them starts a new paragraph
  * and may therefore be claimed by a setext underline (Session 181).
@@ -883,15 +937,16 @@ const INDENTED_CODE_LINE = /^(?: {4,}|\t)\S/;
  * lost — a true positive nothing in this file was looking for.
  */
 const OPENS_FRESH_BLOCK: readonly RegExp[] = [
-  INDENTED_CODE_LINE, //                                     an indented code block, spaces OR tab
   /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/, //  a thematic break
   /^ {0,3}\[[^\^\]][^\]]*\]:/, //                            a link-reference definition — NOT `[^1]:`
   /^ {0,3}\|/, //                                            a pipe-table ROW; a bare `a | b` is prose
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
-  // ⚠ The raw-TeX macro row is NOT here either — same reason, and `opensFreshBlock` tests it
-  // via `rawTexMacroLineIsBlock` with the SAME columns. Measured in THIS context in its own
-  // right (Learning #233): the polarity here ADDS setext headings, so a narrowing proven on
-  // `CLOSES_PARAGRAPH`'s question is unmeasured on this one.
+  // ⚠ Neither the raw-TeX macro row nor the indented-code row is here either — same reason,
+  // and `opensFreshBlock` tests them via `rawTexMacroLineIsBlock` and `indentedCodeLine` with
+  // the SAME columns. Each is measured in THIS context in its own right (Learning #233): the
+  // polarity here ADDS setext headings, so a narrowing proven on `CLOSES_PARAGRAPH`'s question
+  // is unmeasured on this one. The indented-code sweep was run separately for exactly that
+  // reason and returned the SAME threshold, `contentColumn + 4` (Session 193, 392 documents).
   HTML_BLOCK_OR_INLINE_OPEN, //                              pandoc's eitherBlockOrInline class
 ];
 /**
@@ -1021,7 +1076,9 @@ function opensFreshBlock(
     return false;
   }
   return (
-    rawTexMacroLineIsBlock(line, contentColumns) || OPENS_FRESH_BLOCK.some((re) => re.test(line))
+    rawTexMacroLineIsBlock(line, contentColumns) ||
+    indentedCodeLine(line, contentColumns) ||
+    OPENS_FRESH_BLOCK.some((re) => re.test(line))
   );
 }
 /**
@@ -1620,14 +1677,24 @@ function computeRegions(text: string): Regions {
       // a setext title, but the second and later lines of a run are firmly code and can
       // never be one — `    a` / `    b` / `===` renders no heading (measured), while
       // `    a` / `===` renders `<h1>a</h1>`.
-      const indented = INDENTED_CODE_LINE.test(line);
+      //
+      // ⚠ This is the ONE consumer of `indentedCodeLine` that is NOT behind a `paragraphOpen`
+      // bail, and it is the one whose polarity RECOVERS headings (Session 193). Before the
+      // column, a title sitting at its container's own content column was read as the second
+      // line of a code run whenever the line above it was genuinely code, so it could never be
+      // a setext title — `-   line one` / … / `        zzz` / `    Some Title` / `    ===`
+      // renders `<h1>Some Title</h1>` and this model produced nothing. 86 such losses in a
+      // 392-document sweep. The columns are computed first for that reason.
+      //
+      // The columns a raw-TeX block or an indented code block may start at on THIS line: the
+      // document root's own 0 plus every open container's. `null` while a block quote may be
+      // open — see `quoteOpen`.
+      const rawTexColumns = quoteOpen ? null : [0, ...contentColumns];
+      const indented = indentedCodeLine(line, rawTexColumns);
       const insideIndentedCode = indented && prevIndentedCode;
       consecutiveBody = pendingFreshBlock && !insideIndentedCode ? 1 : consecutiveBody + 1;
       // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
       // whether these bytes open a block or merely continue a paragraph depends on it.
-      // The columns a raw-TeX block may start at on THIS line: the document root's own 0
-      // plus every open container's. `null` while a block quote may be open — see `quoteOpen`.
-      const rawTexColumns = quoteOpen ? null : [0, ...contentColumns];
       pendingFreshBlock = opensFreshBlock(line, paragraphOpen, rawTexColumns);
       prevIndentedCode = indented;
       // A paragraph's "quotedness" is decided by the line that STARTS it, so it is computed

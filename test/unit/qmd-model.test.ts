@@ -2581,30 +2581,39 @@ describe("a raw-TeX block starts at the CONTAINING BLOCK's content column (Sessi
         findHeadings(doc(...nested, " ".repeat(col) + "\\clearpage", "# ATX Below")).map((h) => h.text),
       ).toEqual([]);
     }
-    // ⚠ KNOWN RESIDUAL, and PRE-EXISTING — column 5 is a between-columns indent quarto also
-    // refuses, but 5 ≥ 4 so `INDENTED_CODE_LINE` claims the line as a code block and closes the
-    // paragraph before this row is consulted. Identical on the pre-Session-189 build, so it is
-    // not this session's to fix; it belongs to the indented-code row, which cannot know that a
-    // container's column moves the 4-space threshold with it. Disclosed, not hidden.
+    // ⚠ This WAS a KNOWN RESIDUAL and Session 193 CLOSED it — RE-RENDERED, not flipped to match
+    // the code. Column 5 is a between-columns indent quarto refuses, but 5 ≥ 4 so the old
+    // literal-4 indented-code row claimed the line as a code block and closed the paragraph
+    // before this row was consulted. `indentedCodeLine` measures from the deepest open column
+    // (6 here is above 5, so the base is 4) and the threshold is 8, which 5 does not reach.
     expect(
       findHeadings(doc(...nested, "     \\clearpage", "# ATX Below")).map((h) => h.text),
-    ).toEqual(["ATX Below"]); // quarto: NO heading
+    ).toEqual([]); // quarto: NO heading (re-rendered — pins/p01)
+    // …and the two indents NO pin had ever covered, which is where the code threshold and the
+    // raw-TeX columns come apart. 7 is past every open column and still short of code; 10 is
+    // 6 + 4 and really IS an indented code block inside the innermost item, so the heading
+    // below it is real. Both re-rendered (pins/p05, pins/p06).
+    expect(
+      findHeadings(doc(...nested, "       \\clearpage", "# ATX Below")).map((h) => h.text),
+    ).toEqual([]);
+    expect(
+      findHeadings(doc(...nested, "          \\clearpage", "# ATX Below")).map((h) => h.text),
+    ).toEqual(["ATX Below"]);
   });
 
-  it("test-after (KNOWN RESIDUAL, PRE-EXISTING): the indented-code row is column-blind", () => {
-    // Named once, in one place, because it accounts for every residual phantom this session's
-    // corpus score left standing outside the `A. x` push (36 of 41 across 4,125 documents).
-    // `INDENTED_CODE_LINE` tests a LITERAL 4 spaces. Inside a container the code threshold is
-    // 4 past the CONTAINER's column, so a line that is merely 4 from the page edge is ordinary
-    // content there — quarto renders no heading below it and we do. The fix is the same
-    // `contentColumns` state this session added, applied to a row that is out of scope here:
-    // one capability, one row (FM #26).
+  it("the indented-code row WAS column-blind — Session 189 disclosed it, Session 193 closed it", () => {
+    // Kept where Session 189 filed it, as the record of a residual that was disclosed rather
+    // than hidden and then fixed. It accounted for 36 of the 41 residual phantoms Session 189's
+    // own corpus score left standing across 4,125 documents, and its fix was exactly what the
+    // pin predicted: the same `contentColumns` state, applied to one more row. The full
+    // threshold sweep lives in the Session 193 describe at the foot of this file; these two
+    // documents are the pin's own, re-rendered (pins/p07, pins/p08).
     expect(
       findHeadings(doc("- line one", "  line two", "", "    \\clearpage", "# ATX Below"))
         .map((h) => h.text),
-    ).toEqual(["ATX Below"]); // quarto: NO heading — 4 spaces is +2 inside a column-2 item
+    ).toEqual([]); // quarto: NO heading — 4 spaces is +2 inside a column-2 item
     // CONTROL — at TOP level the same four spaces really ARE indented code, and the heading
-    // below really is rendered. The row is not wrong, it is column-blind.
+    // below really is rendered. The row was never wrong, it was column-blind.
     expect(
       findHeadings(doc("    \\clearpage", "# ATX Below")).map((h) => h.text),
     ).toEqual(["ATX Below"]);
@@ -3280,5 +3289,107 @@ describe("a SETEXT underline is anchored at the containing block's CONTENT COLUM
     expect(
       names(doc("Vanilla term", "", "  ~\tdefinition text", "", "      Vanilla Underline", "      ===")),
     ).toEqual(["h1:Vanilla Underline"]);
+  });
+});
+
+describe("an INDENTED CODE line is measured from the containing block's CONTENT COLUMN (Session 193)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: the code threshold is the containing block's content column + 4, on every consumer of the row", () => {
+    // `INDENTED_CODE_LINE` tested a LITERAL four spaces. Pandoc re-parses a container's content
+    // DEDENTED, so the indented-code threshold inside a container is four past THAT container's
+    // content column — a line merely four from the page edge is ordinary content there.
+    //
+    // 300 ground documents were rendered through the real `quarto render` path BEFORE any code
+    // changed (Learning #251) and the threshold is exactly `contentColumn + 4` in every one:
+    // top level 4, a `- ` item 6, a `1. ` item 7, a `-   ` item 8, a footnote/definition 8, and
+    // three-deep nested bullets 10. The filed document's own reading is confirmed — quarto
+    // renders NO heading and we emitted one — and so is the control that makes it column
+    // blindness rather than a wrong row: the identical bytes at top level really ARE code.
+    //
+    // ⚠ THE FILED ITEM NAMES ONE CONSUMER AND THE ROW HAS THREE, WITH DIFFERENT POLARITIES.
+    // `CLOSES_PARAGRAPH` (an ATX heading may follow a code line) is the phantom-REMOVING one it
+    // describes; `OPENS_FRESH_BLOCK` (a setext underline may claim the line below) and the
+    // indented-code RUN exception in `computeRegions` (the 2nd+ line of a code run can never be
+    // a setext title) both move headings the OTHER way. A rule proven on one is unmeasured on
+    // the others (Learning #233), so all three are swept here and asserted in this one test.
+    // The setext surface's own 392-document sweep gives the SAME threshold, which is the
+    // evidence that this is one rule and not three coincidences.
+    //
+    // ⚠ The filed document uses `\clearpage`, which `rawTexMacroLineIsBlock` ALSO matches — so
+    // it cannot distinguish "the indented-code row fired" from "the raw-TeX row fired". `zzz`
+    // carries no second block reading and is what the sweeps below use; the filed spelling is
+    // kept as its own case.
+
+    // ── (a) THE FILED DOCUMENT. Quarto renders NO heading: four spaces is +2 inside a
+    // column-2 item, which is ordinary paragraph content, so `# ATX Below` would interrupt an
+    // open paragraph and `blank_before_header` forbids it.
+    expect(names(doc("- line one", "  line two", "", "    \\clearpage", "# ATX Below"))).toEqual([]);
+    // CONTROL — the identical four spaces at TOP level really are indented code, and the
+    // heading below really is rendered. The row was never wrong, it was column-blind.
+    expect(names(doc("    \\clearpage", "# ATX Below"))).toEqual(["h1:ATX Below"]);
+    // CONTROL — the same macro at the item's OWN content column is a raw-TeX block (Session
+    // 189's row), so the heading below it is real. This is what the filed document would have
+    // deleted had the threshold been raised without the column.
+    expect(names(doc("- line one", "  line two", "", "  \\clearpage", "# ATX Below"))).toEqual([
+      "h1:ATX Below",
+    ]);
+
+    // ── (b) THE THRESHOLD SWEEP, on the ATX surface (`closesParagraph`). Payload `zzz`, indent
+    // 0-12, one row per container. Heading present iff indent >= contentColumn + 4 — measured,
+    // cell by cell, on all five.
+    const containers: ReadonlyArray<readonly [string, readonly string[], number]> = [
+      ["top level", [], 0],
+      ["bullet, content column 2", ["- line one", "  line two"], 2],
+      ["ordered, content column 3", ["1. line one", "   line two"], 3],
+      ["wide bullet, content column 4", ["-   line one", "    line two"], 4],
+      ["three-deep nest, content column 6", ["- outer", "  - middle", "    - inner", "      line two"], 6],
+    ];
+    for (const [, opener, col] of containers) {
+      for (let ind = 0; ind <= 12; ind++) {
+        const text = doc("Intro sentence.", "", ...opener, "", " ".repeat(ind) + "zzz", "# ATX Below");
+        expect(names(text)).toEqual(ind >= col + 4 ? ["h1:ATX Below"] : []);
+      }
+    }
+
+    // ── (c) THE SAME THRESHOLD ON THE SETEXT SURFACE — the two consumers the filed item never
+    // names. The payload line must open a fresh block for `Some Title` below it to be claimed
+    // by the underline, and `Some Title` (sitting at the content column) must not itself be
+    // read as the 2nd line of a code run. Quarto's answer is the same threshold, measured over
+    // 392 documents in both spellings.
+    for (const [, opener, col] of containers) {
+      for (const [ul, level] of [["===", 1], ["---", 2]] as const) {
+        for (let ind = 0; ind <= 12; ind++) {
+          const text = doc(
+            "Intro sentence.",
+            "",
+            ...opener,
+            "",
+            " ".repeat(ind) + "zzz",
+            " ".repeat(col) + "Some Title",
+            " ".repeat(col) + ul,
+            "",
+            "Tail sentence.",
+          );
+          expect(names(text)).toEqual(ind >= col + 4 ? [`h${level}:Some Title`] : []);
+        }
+      }
+    }
+
+    // ── (d) THE RUN EXCEPTION IS THE ONE THAT RECOVERS HEADINGS, and it is worth its own case
+    // because its polarity is the opposite of (a)'s. With the payload at a genuine code indent
+    // and the title at the container's content column, the pre-fix build read BOTH as code,
+    // so the title was "the 2nd line of a run" and could never be a setext title — a real
+    // heading quarto renders, deleted. 86 such losses in the 392-document sweep.
+    expect(
+      names(doc("Intro sentence.", "", "-   line one", "    line two", "",
+                "        zzz", "    Some Title", "    ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Some Title"]);
+    // CONTROL — at TOP level the identical two-line shape really IS a code run, and quarto
+    // renders no heading. The run exception is not removed, it is measured from the column.
+    expect(
+      names(doc("Intro sentence.", "", "    zzz", "    Some Title", "===", "", "Tail sentence.")),
+    ).toEqual([]);
   });
 });
