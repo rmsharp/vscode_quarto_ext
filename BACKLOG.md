@@ -25,6 +25,25 @@
 
 *(empty — pick the next item from "Up Next" below.*
 
+***The `contentColumns` stack's spaces-only measurement — SHIPPED Session 194.** A line's
+indentation is now measured in COLUMNS (`indentColumn`, tabs advancing to the next 4-stop,
+absolute), at three call sites: the container-closing pop in `computeRegions`,
+`indentedCodeLine`, and `rawTexMacroLineIsBlock`. Measured as an EQUIVALENCE over 432 rendered
+ground documents — every tab spelling paired against the SPACE spelling reaching the same
+column — and quarto answered identically in **276 of 276** pairs. 1,915 documents scored with
+both directions separate, **new-error SET empty in both directions on every corpus**, 54
+phantoms drained and 134 real headings recovered. ⚠ The `rawTexMacroLineIsBlock` half was a
+**disclosed scope amendment**: it was out of scope at claim, and re-scoring Session 193's own
+corpora measured 6 NEW LOST headings there once the pop was corrected — the old wrong pop had
+been masking that row's pre-existing tab blindness. See `CHANGELOG.md`.*
+
+***⚠ THE SAME RULE IS STILL WRONG IN TWO MORE PLACES, and both are now pinned with rendered
+controls in `test/unit/qmd-model.test.ts`.** `listItemContentColumn` and
+`CONTENT_COLUMN_4_OPEN` both anchor on `^( *)`, so a TAB-INDENTED list marker or footnote
+definition opens no tracked column at all. SIX places in that file measure indentation for the
+container-column machinery; three now share `indentColumn` and three still count spaces —
+`SETEXT_H1`/`SETEXT_H2`, `listItemContentColumn` and `CONTENT_COLUMN_4_OPEN`.*
+
 ***PREREQUISITE P3 — the escape-decoding FP — SHIPPED Session 151**, **format-name Combo 3
 (the `_quarto.yml` top-level scalar `format:` NAME) — SHIPPED Session 152**, the **`.qmd`
 sibling-enumerator OLD arming fix — SHIPPED Session 153**, and the **`findCellOptionLines`

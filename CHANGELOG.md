@@ -7,6 +7,49 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 194 — IMPLEMENTATION: a line's indentation is measured in COLUMNS, not in spaces (SHIPPED)
+
+The `contentColumns` stack closed containers by comparing a count of leading SPACES against
+the open content columns, while every other column-aware rule in `src/core/qmd/model.ts`
+expands a tab to the next 4-column stop. A tab-indented line therefore looked shallower than
+it is and popped a container that was still open. Because that stack sits under readers of
+OPPOSITE polarity, the one defect both invented and deleted headings.
+
+Measured as an **equivalence**, not a threshold, so the answer was not presupposed (Learning
+#279): 432 ground documents rendered through the real `quarto render` path, pairing every tab
+spelling against the SPACE spelling reaching the same column — 6 containers × 13 columns ×
+up to 4 spellings × 2 consumer families. Quarto answered identically in **276 of 276** pairs.
+
+`indentColumn` is now the one definition of "how deep is this line" and is shared by three
+call sites. The second, `rawTexMacroLineIsBlock`, is a **disclosed scope amendment**: it was
+declared out of scope at claim, and re-scoring Session 193's own corpora (Learning #276) then
+measured **6 NEW LOST headings** there — the old wrong pop had been masking a pre-existing tab
+blindness in that row, and correcting the pop exposed it (Learning #280). Shipping the
+container fix alone would have deleted six real headings, so the row was closed in the same
+session and the amendment recorded rather than the regression filed (Learning #281).
+
+**1,932 documents scored** with the two error directions separate — 704 rendered fresh this
+session and 1,228 re-scored from Session 193's cached renders (a 705th, the extended fixture,
+was rendered and compared by hand). **NEW PHANTOM 0 and NEW LOST 0
+on every corpus, as empty SETS rather than smaller numbers.** 55 phantoms drained and 136 real
+headings recovered. Blind adversarial: 240 documents from eight lenses that never saw the
+designed corpus — 0 new errors either way, 13 headings recovered. Repo control: all four views
+over all 113 tracked `md`/`qmd` documents byte-identical, proven effective by injection
+(8 injected, exactly 4 moved / 4 stayed).
+
+`check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` **1782 passed / 65 files**
+(baseline 1779, +3) · `test:oracle` **131 / 124 / 4 / 3 / 0**, byte-identical to S180–S193 ·
+`check-package` OK, 42 files / 5.52 MB · **`test:integration` 502 passing / 0 failing /
+0 pending, exit 0** (baseline 501), the new assertion watched by name at line 312.
+NOT RUN: `test:lsp` — no LSP surface touched. **Model:** Claude Opus 5.
+
+Filed, not fixed — four families of the SAME rule, each pinned with a rendered control: the
+setext underline's tab (which corrects a conclusion recorded in this file's own source,
+Learning #282), `ATX_HEADING`'s own ` {0,3}` (now measured as a LOSS family too, not only a
+phantom family), and the two remaining spaces-only openers `listItemContentColumn` and
+`CONTENT_COLUMN_4_OPEN`. Also left open, both re-confirmed and both distinct mechanisms
+bundled under the same board item: the RAGGED-stack pop and the marker-tab push.
+
 ### 2026-08-09 · [ad hoc] Session 193 — recorded its own Phase 0 health snapshot
 
 One appended `dashboard_history.jsonl` row from the mandated Phase 0 step 5
