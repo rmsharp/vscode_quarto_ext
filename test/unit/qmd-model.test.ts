@@ -3650,9 +3650,11 @@ describe("a container's content column is closed by a line's COLUMN, not its SPA
 
     // ── FAMILY 3 — NEW, AND FOUND BY THIS SESSION'S OWN COMPLETENESS PASS rather than by the
     // eight lenses (the delegated critic stalled and the role was run firsthand). It is the
-    // SAME spaces-only class again, in the two places this session did NOT touch:
+    // SAME spaces-only class again, in two of the three places this session did NOT touch:
     // `listItemContentColumn` and `CONTENT_COLUMN_4_OPEN` both anchor on `^( *)`, so a
-    // TAB-INDENTED list marker or footnote definition opens NO tracked column at all.
+    // TAB-INDENTED list marker or footnote definition opens NO tracked column at all. (SIX
+    // places in this file measure indentation for the container-column machinery; three now
+    // share `indentColumn`, and the third laggard is FAMILY 1 above, the setext underline.)
     // PROVEN BY CONTROL and PRE-EXISTING (the pre-S194 build answers identically).
     expect(
       names(doc("Intro.", "", "- outer", "  - middle", "    line two", "",
