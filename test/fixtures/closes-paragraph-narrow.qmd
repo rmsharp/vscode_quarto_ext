@@ -56,11 +56,12 @@ An empty bullet marker really is block-level, whatever it looks like.
 
 ## Genuine Child
 
-One disclosed residual follows, down from two. Quarto renders neither line below as
-a heading. Session 187 transcribed pandoc's TAG classification and MEASURED it, so the
-inline-TAG line is now correctly prose to us as well; the inline-MACRO line still is
-not, because that needs pandoc's block-MACRO list — a different artefact from a
-different reader, deliberately left for its own session.
+No disclosed residual remains here, down from two. Quarto renders neither line below as
+a heading, and neither does this model any more. Session 187 transcribed pandoc's TAG
+classification and MEASURED it, which closed the inline-TAG line; Session 188 did the
+same for the block-MACRO classification — the different artefact from the different
+reader that S187 left for its own session — which closes the inline-MACRO line.
+Both lines are kept as controls: each must stay prose.
 
 <span>inline</span>
 # Residual Phantom — Inline Tag

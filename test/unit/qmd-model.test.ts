@@ -1533,10 +1533,14 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
     // `\newpage{}`, `\clearpage\newpage` and `\vspace2` are all raw BLOCKS on the real render
     // path. Pandoc decides by MACRO NAME, not by whether braces are present, and this scanner
     // has no such table. So the row stays wide and keeps its two phantoms.
+    // ⚠ BOTH ASSERTIONS INVERTED BY SESSION 188. The row is no longer wide: pandoc's macro
+    // NAME lists are transcribed and measured, `textbf` and `emph` are class C (inline in
+    // every context), and quarto renders no heading under either. These were the two phantoms
+    // this comment called "the price"; the price has now been paid.
     expect(findHeadings(doc("\\textbf{bold}", "# ATX Below")).map((h) => h.text))
-      .toEqual(["ATX Below"]);
+      .toEqual([]);
     expect(findHeadings(doc("\\emph{a} and more prose", "# ATX Below")).map((h) => h.text))
-      .toEqual(["ATX Below"]);
+      .toEqual([]);
     // The controls that must survive whatever happens to this row.
     expect(findHeadings(doc("\\clearpage", "# ATX Below")).map((h) => h.text))
       .toEqual(["ATX Below"]);
@@ -1630,10 +1634,11 @@ describe("CLOSES_PARAGRAPH's patterns are narrowed to the construct (Session 184
       expect(findHeadings(doc("Intro prose.", "", macro, "# ATX Below")).map((h) => h.text))
         .toEqual(["ATX Below"]);
     }
-    // (c) …while the two shapes that motivated the raw-TeX narrowing stay phantoms, because
-    // the row is wide again. Disclosed, not hidden: this is the permitted direction.
+    // (c) ⚠ INVERTED BY SESSION 188 — the shape that motivated the raw-TeX narrowing is no
+    // longer a phantom. The row is narrowed by NAME rather than by shape, which is what this
+    // test's own title said was required, and `\textbf{bold}` is class C.
     expect(findHeadings(doc("\\textbf{bold}", "# ATX Below")).map((h) => h.text))
-      .toEqual(["ATX Below"]);
+      .toEqual([]);
   });
 
   it("RED->GREEN: only a VALID footnote label suppresses the link-reference row", () => {
@@ -2377,6 +2382,35 @@ describe("the raw-TeX macro rule is pandoc's, and it has THREE classes (Session 
     for (const macro of ["\\textbf{bold}", "\\emph{x}", "\\noindent", "\\index{x}"]) {
       expect(findHeadings(doc("prose one", "prose two", macro, "# ATX Below")).map((h) => h.text))
         .toEqual([]);
+    }
+  });
+
+  it("RED->GREEN: a class-C macro is not a block even where NO paragraph is open", () => {
+    // The narrowing the filed item asked for, and the DELETING direction. Session 184 already
+    // narrowed this row once — to a bare macro alone on its line — scored ZERO headings lost
+    // over 476 rendered documents, and was then measured deleting 11 real headings. A clean
+    // corpus score is evidence about the corpus (Learning #239), so every name here has a
+    // rendered document that decides it.
+    //
+    // Class C is `inlineSet \ blockSet` (316 names). With no paragraph open these open a
+    // PARAGRAPH, which then swallows the `#` line under pandoc's `blank_before_header`:
+    for (const macro of ["\\textbf{bold}", "\\emph{x}", "\\noindent", "\\index{x}",
+                         "\\textit{x}", "\\footnote{x}", "\\cite{x}", "\\ref{x}"]) {
+      expect(findHeadings(doc(macro, "# ATX Below")).map((h) => h.text)).toEqual([]);
+    }
+    // CONTROL — the eleven spellings the filed item names, EVERY ONE re-rendered this session
+    // (Learning #251: an item labelled MEASURED can still be false). All eleven really are raw
+    // BLOCKS where no paragraph is open, and narrowing must not touch one of them:
+    for (const macro of ["\\vspace{1em}", "\\vspace*{1em}", "\\usepackage{amsmath}",
+                         "\\newcommand{\\foo}{bar}", "\\setlength{\\parindent}{0pt}",
+                         "\\definecolor{mycol}{RGB}{0,0,0}", "\\newpage[2]", "\\newpage{}",
+                         "\\clearpage\\newpage", "\\clearpage \\newpage", "\\vspace2"]) {
+      expect(findHeadings(doc(macro, "# ATX Below")).map((h) => h.text)).toEqual(["ATX Below"]);
+    }
+    // CONTROL — an UNKNOWN macro is class B, not class C. Defaulting the other way would
+    // delete a heading under every macro pandoc has never heard of, which is most of them.
+    for (const macro of ["\\foobarbazqux", "\\myCustomMacro{a}"]) {
+      expect(findHeadings(doc(macro, "# ATX Below")).map((h) => h.text)).toEqual(["ATX Below"]);
     }
   });
 

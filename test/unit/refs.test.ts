@@ -518,13 +518,30 @@ describe("indexLabels — narrowing CLOSES_PARAGRAPH reaches the crossref index 
       indexLabels(["<span>inline</span>", "# Phantom {#sec-span}", "", "See @sec-span."].join("\n"))
         .map((l) => l.id),
     ).toEqual([]);
-    // …and the RAW-TeX row is untouched by this session and still invents its target. That row
-    // needs pandoc's block-MACRO list, a different artefact from a different reader, and it is
-    // deliberately out of scope here (FM #26). Pinned so the remaining cost stays visible.
+    // …and the RAW-TeX row's phantom target is GONE TOO (Session 188). ⚠ ASSERTION INVERTED —
+    // Session 184 pinned `["sec-tex"]` and Session 187 kept it, both stating in the same breath
+    // that it was a phantom awaiting pandoc's block-MACRO list. That list is now transcribed and
+    // measured, `textbf` is class C (inline in every context), and the target was never real.
+    // Verified END TO END against the RENDERED LINK, not inferred: quarto logs
+    //   WARNING (main.lua) Unable to resolve crossref @sec-tex
+    // and emits `<p> # Phantom {#sec-tex}</p>` plus `See <strong>?@sec-tex</strong>.` — the
+    // heading is a paragraph and the reference is quarto's unresolved marker.
     expect(
       indexLabels(["\\textbf{bold}", "# Phantom {#sec-tex}", "", "See @sec-tex."].join("\n"))
         .map((l) => l.id),
-    ).toEqual(["sec-tex"]);
+    ).toEqual([]);
+    // CONTROL — a REAL raw-TeX target must still be indexed, in class B and in the macro-def
+    // shape that exposed a corpus defect this session (`\newcommand` measured class C only
+    // because a one-argument probe is malformed for a two-argument macro). Both RESOLVED on
+    // the real render path (`href="#sec-…"`, no warning).
+    for (const [above, id] of [
+      ["\\clearpage", "sec-clear"],
+      ["\\newcommand{\\foo}{bar}", "sec-newcmd"],
+    ] as const) {
+      expect(
+        indexLabels([above, `# Real {#${id}}`, "", `See @${id}.`].join("\n")).map((l) => l.id),
+      ).toEqual([id]);
+    }
     // CONTROL — a REAL target below a real block opener must still be indexed, in both the
     // `blockTags` and the `eitherBlockOrInline` classes. Losing these is the deleting
     // direction and it would break go-to-definition on a link that works.

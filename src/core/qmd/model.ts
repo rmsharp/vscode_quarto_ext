@@ -275,123 +275,6 @@ const HTML_BLOCK_OR_INLINE_OPEN = new RegExp(
   "i",
 );
 /**
- * Body lines that do NOT leave a paragraph open, so an ATX heading may follow one
- * directly (Session 180). Pandoc's `blank_before_header` — on by default in the
- * `markdown` dialect quarto renders with — forbids a heading only where it would
- * interrupt an OPEN PARAGRAPH; a block-level construct leaves none open.
- *
- * ⚠ **This list is deliberately PERMISSIVE, and that asymmetry is load-bearing.**
- * A line this list misses is treated as prose, and the heading below it is DROPPED
- * — deleting a heading quarto really renders, which is the direction that must never
- * happen. A line it matches too eagerly merely retains a pre-existing phantom. So
- * when in doubt, add the pattern: the cost is a residual, not a regression.
- *
- * ⚠ **The asymmetry is not a licence to add anything — Session 182 removed a row from here.**
- * A pattern belongs only if the construct really does leave no paragraph open. Session 180's
- * `/^ {0,3}=+[ \t]*$/` did not: an `=` run that is NOT consumed as a setext underline is
- * ordinary paragraph TEXT, in every position where that entry was reachable (measured — 30
- * phantom headings). "When in doubt, add it" applies to constructs you have not measured,
- * not to ones you have measured to be paragraph content.
- *
- * ⚠ **A row must match the CONSTRUCT, not merely a byte the construct happens to contain
- * (Session 184).** Session 183 fixed *when* these rows apply; three of them still matched
- * things that were not the construct at all, and each narrowing below is scored on its own
- * against the real render path in BOTH directions — because narrowing is the DELETING
- * direction and a row that is one character too narrow drops a real heading. Two narrowings
- * that look obvious are MEASURED WRONG and are deliberately absent:
- *
- *   - the pipe row cannot require a LEADING pipe (`OPENS_FRESH_BLOCK`'s form). Pandoc pipe
- *     tables need neither leading nor trailing pipes, so a table's last row can be `c | d`;
- *     requiring one deletes 4 real headings. A single pipe-bearing line is a table only if a
- *     DELIMITER row follows, which no per-line predicate can see — so the row stays wide and
- *     its phantoms are the price of having no table state.
- *   - the grid-border row must keep matching a LONE `+`. A bare `+` is an EMPTY LIST ITEM,
- *     which really is block-level: `+` / `# ATX Below` renders `<ul>` then `<h1>ATX Below</h1>`
- *     (measured). Excluding it — the "obvious" reading of a bullet marker as a defect —
- *     deletes 6 real headings.
- *   - the raw-HTML row cannot be narrowed to a TAG LIST, and the raw-TeX row cannot be
- *     narrowed to a BARE MACRO. Session 184 shipped both narrowings, scored ZERO headings
- *     lost over 476 rendered documents, and an adversarial sweep then measured them deleting
- *     THIRTY-ONE real headings on shapes no corpus held: `<meta>`, `<svg>`, `<button>`,
- *     `<video>`, `<audio>`, `<canvas>`, `<object>`, `<embed>`, `<noscript>`, `<map>`,
- *     `<output>`, `<progress>`, `<area>`, `<applet>`, `<ins>`, `<del>` all open raw HTML
- *     blocks while sitting outside CommonMark §4.6; `\vspace{1em}`, `\usepackage{…}`,
- *     `\newcommand{…}`, `\setlength{…}`, `\definecolor{…}`, `\newpage[2]`, `\newpage{}`
- *     and `\clearpage\newpage` are all raw BLOCKS despite carrying braces. Pandoc classifies
- *     both by NAME — `<ins>` opens a block and `<em>` does not; `\vspace` is a block and
- *     `\textbf` is not — and nothing in the SHAPE of the line distinguishes them. Both rows
- *     therefore stay wide, keeping their `<span>` / `\textbf{}` phantoms, until someone
- *     transcribes those tables and measures them.
- *
- * The ONE narrowing that survived is the link-reference row, because its rule really is
- * decided by the line's shape and was derived from an exhaustive sweep of 17 label spellings:
- * a pandoc footnote label is `^` followed by one or more characters that are neither
- * whitespace nor another `^`.
- *
- *   footnote (absorbs the line below) `[^1]` `[^note]` `[^a-b]` `[^1a]` `[^n_1]` `[^A]` `[^a.b]` `[^-]` `[^très]`
- *   link reference (closes)           `[^]` `[^ 1]` `[^a b]` `[^^1]` `[^1^]` `[^1 ]` `[x]` `[]`
- *
- * A bare `(?!\^)` rejects the whole second row and deletes four real headings;
- * `OPENS_FRESH_BLOCK`'s `\[[^\^\]][^\]]*\]:` additionally rejects `[]:` and deletes a fifth
- * (Learning #233 — a fragment borrowed from the other list is unmeasured on THIS predicate's
- * question, whatever it proved on its own).
- */
-const CLOSES_PARAGRAPH: readonly RegExp[] = [
-  /\|/, //                                                   a pipe-table row, anywhere on the line
-  /^ {0,3}\+[-+=: ]*$/, //                                   a grid-table border, which carries NO pipe
-  /^ {0,3}:{3,}/, //                                         a fenced-div / callout fence
-  /^(?: {4,}|\t)\S/, //                                      an indented code block, spaces OR tab
-  /^ {0,3}\[(?!\^[^\s^\]]+\]:)[^\]]*\]:/, //                 a link reference — NOT a `[^1]:` footnote
-  HTML_BLOCK_OR_INLINE_OPEN, //                              a raw HTML block — see the note below
-  /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
-  /^ {0,3}\\[a-zA-Z]/, //                                    a raw TeX block — see the note below
-  /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator
-];
-/**
- * A front-matter `from:` key, at ANY indentation so a per-format
- * `format:`/`  html:`/`    from: …` is caught too.
- *
- * `blank_before_header` is a pandoc DEFAULT, not an invariant: a document that selects a
- * different reader dialect really does render a heading pressed against prose. Measured on
- * the real render path — `markdown-blank_before_header`, `markdown_strict`, `gfm` and
- * `commonmark` each render the heading, while plain `markdown` and no key at all do not.
- *
- * The bail keys on the key's PRESENCE, not on resolving the dialect, so it fails CLOSED:
- * the cost is that `from: markdown` retains the phantom, which is the permitted direction.
- * `reader:` is deliberately absent — quarto REJECTS that key outright (exit 1), so no such
- * document ever renders a heading.
- */
-const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
-/**
- * A setext underline run that pandoc will swallow the ATX line above into — `=`s or `-`s
- * alone on a line, any length, at **column 0**, for the ATX-adjacency rule in
- * `closesParagraph` below.
- *
- * ⚠ **Deliberately NARROWER than `SETEXT_H1`/`SETEXT_H2`, which allow 0-3 spaces of indent.**
- * The swallow is measured to need zero indent: `# Heading Above` / `===` renders
- * `<h1># Heading Above</h1>` and makes the heading below it real, while the same document
- * with even ONE leading space renders `<h1>Heading Above</h1>` plus a plain paragraph, and
- * the heading below is not a heading at all. Widening this to ` {0,3}` invents that heading.
- * Trailing whitespace is fine (measured); trailing anything else is not — `=== junk` is not
- * an underline, so the `$` anchor is load-bearing too.
- */
-const SETEXT_UNDERLINE_RUN = /^(?:=+|-+)[ \t]*$/;
-/**
- * A thematic break (CommonMark §4.1) — 3+ of `*`, `-` or `_`, optionally space-separated.
- *
- * ⚠ **Held OUT of `CLOSES_PARAGRAPH` on purpose (Session 182): it closes a paragraph only
- * where none is open.** Against an OPEN paragraph these same bytes are a LAZY CONTINUATION
- * of it — `one` / `two` / `***` / `# ATX Below` renders one `<p>` containing all four lines
- * and NO heading, and the `---` spelling proves it outright by rendering as an em dash,
- * which only happens to paragraph TEXT (measured; 34 phantom headings before the gate).
- *
- * This is the identical rule `INDENTED_CODE_LINE` documents and `opensFreshBlock` already
- * applies. It is stated here rather than folded into either because `CLOSES_PARAGRAPH`'s
- * remaining rows are UNMEASURED against an open paragraph — gating the whole list would be
- * the heading-deleting direction on nine rows nobody has scored.
- */
-const THEMATIC_BREAK = /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/;
-/**
  * Pandoc's raw-TeX macro classification — the NAME lists, and the three classes they form.
  *
  * ⚠ **PANDOC CLASSIFIES RAW TeX BY MACRO NAME, AND THE RULE IS CONTEXT-DEPENDENT — exactly
@@ -465,34 +348,30 @@ const PANDOC_BLOCK_MACROS_ARG =
 const PANDOC_BLOCK_MACROS_BARE =
   "raggedright|pfbreak\\*|pfbreak|hrule|strut|item|par";
 const PANDOC_INLINE_MACROS =
-  "DeclareRobustCommand|DeclareMathOperator|foreignblockcquote|provideenvironment|" +
-  "textogonekcentered|MakeTextLowercase|MakeTextUppercase|foreignblockquote|hyphenblockcquote|" +
-  "textquotedblright|hyphenblockquote|plainfancybreak\\*|renewenvironment|textquotedblleft|" +
-  "foreignlanguage|includegraphics|plainfancybreak|textasciicircum|textsuperscript|" +
-  "listfigurename|lstlistingname|newenvironment|providecommand|texorpdfstring|textasciitilde|" +
-  "textquoteright|Footcitetexts|GLSdescplural|Glsdescplural|MakeLowercase|MakeUppercase|" +
-  "addabbrvspace|documentclass|footcitetexts|foreignquote\\*|glsdescplural|listtablename|" +
-  "mkbibbrackets|textbackslash|textquoteleft|textsubscript|Footcitetext|PackageError|" +
-  "abstractname|contentsname|footcitetext|foreignquote|glossaryname|graphicspath|hyphenquote\\*|" +
-  "renewcommand|Citeyearpar|adddotspace|blockcquote|chaptername|citeyearpar|hypertarget|" +
-  "hyphenquote|inputminted|mkbibitalic|mkbibparens|passthrough|prefacename|seealsoname|" +
-  "textcircled|textgreater|titleformat|togglefalse|Parencite\\*|Parencites|Supercites|" +
-  "citeauthor|ensuremath|figurename|headtoname|ifstrequal|includesvg|mintinline|mkbibquote|" +
-  "newcommand|newtheorem|nhttfamily|parencite\\*|parencites|supercites|textnormal|toggletrue|" +
-  "Autocite\\*|Autocites|Footcites|Parencite|Smartcite|Supercite|Textcites|autocite\\*|" +
-  "autocites|backslash|bibstring|copyright|footcites|hyperlink|indexname|lowercase|lstinline|" +
-  "mkbibbold|mkbibemph|newtoggle|nohyphens|nolinkurl|parencite|proofname|smartcite|supercite|" +
-  "tablename|textcites|textcolor|underline|uppercase|Acrshort|Autocite|Citeyear|Footcite|" +
-  "Textcite|acrshort|autocite|bfseries|citealp\\*|citealt\\*|citetext|citeyear|colonhyp|" +
-  "colorbox|enclname|endinput|enquote\\*|epigraph|footcite|footnote|hyperref|iftoggle|lettrine|" +
-  "noindent|numrange|pagename|partname|qtyrange|textcite|textless|textnhtt|Acrfull|Acrlong|" +
-  "GLSdesc|Glsdesc|SIrange|acrfull|acrlong|autocap|autoref|bibname|citealp|citealt|enquote|" +
-  "faCheck|faClose|glsdesc|itshape|numlist|qtylist|refname|scshape|seename|slshape|SIlist|" +
-  "adddot|ccname|citeal|citep\\*|citet\\*|dothyp|global|hyphen|newtie|nocite|parbox|pounds|" +
-  "textbf|textit|textmd|textrm|textsc|textsf|textsl|texttt|textup|thanks|Cite\\*|Cites|Glspl|" +
-  "LaTeX|alert|begin|bshyp|cite\\*|citep|cites|citet|eqref|fshyp|glspl|ifdim|index|label|ldots|" +
-  "mdots|newif|slash|today|uline|vdots|Acfp|Aclp|Acsp|Cite|Cref|Verb|acfp|aclp|acsp|cite|cref|" +
-  "dots|edef|emph|euro|gdef|hbox|href|mbox|rule|sout|unit|vbox|verb|vref|xdef|Acf|Acl|Acp|Acs|" +
+  "textogonekcentered|MakeTextLowercase|MakeTextUppercase|textquotedblright|textquotedblleft|" +
+  "foreignlanguage|includegraphics|textasciicircum|textsuperscript|listfigurename|" +
+  "lstlistingname|texorpdfstring|textasciitilde|textquoteright|Footcitetexts|GLSdescplural|" +
+  "Glsdescplural|MakeLowercase|MakeUppercase|addabbrvspace|documentclass|footcitetexts|" +
+  "foreignquote\\*|glsdescplural|listtablename|mkbibbrackets|textbackslash|textquoteleft|" +
+  "textsubscript|Footcitetext|abstractname|contentsname|footcitetext|foreignquote|glossaryname|" +
+  "graphicspath|hyphenquote\\*|Citeyearpar|adddotspace|chaptername|citeyearpar|hyphenquote|" +
+  "mkbibitalic|mkbibparens|passthrough|prefacename|seealsoname|textcircled|textgreater|" +
+  "titleformat|togglefalse|Parencite\\*|Parencites|Supercites|citeauthor|ensuremath|figurename|" +
+  "headtoname|ifstrequal|includesvg|mintinline|mkbibquote|nhttfamily|parencite\\*|parencites|" +
+  "supercites|textnormal|toggletrue|Autocite\\*|Autocites|Footcites|Parencite|Smartcite|" +
+  "Supercite|Textcites|autocite\\*|autocites|backslash|bibstring|copyright|footcites|hyperlink|" +
+  "indexname|lowercase|lstinline|mkbibbold|mkbibemph|newtoggle|nohyphens|nolinkurl|parencite|" +
+  "proofname|smartcite|supercite|tablename|textcites|textcolor|underline|uppercase|Acrshort|" +
+  "Autocite|Citeyear|Footcite|Textcite|acrshort|autocite|bfseries|citealp\\*|citealt\\*|" +
+  "citetext|citeyear|colonhyp|colorbox|enclname|endinput|enquote\\*|footcite|footnote|hyperref|" +
+  "iftoggle|lettrine|noindent|numrange|pagename|partname|qtyrange|textcite|textless|textnhtt|" +
+  "Acrfull|Acrlong|GLSdesc|Glsdesc|SIrange|acrfull|acrlong|autocap|autoref|bibname|citealp|" +
+  "citealt|enquote|faCheck|faClose|glsdesc|itshape|numlist|qtylist|refname|scshape|seename|" +
+  "slshape|SIlist|adddot|ccname|citeal|citep\\*|citet\\*|dothyp|global|hyphen|newtie|nocite|" +
+  "pounds|textbf|textit|textmd|textrm|textsc|textsf|textsl|texttt|textup|thanks|Cite\\*|Cites|" +
+  "Glspl|LaTeX|alert|begin|bshyp|cite\\*|citep|cites|citet|eqref|fshyp|glspl|ifdim|index|label|" +
+  "ldots|mdots|newif|slash|today|uline|vdots|Acfp|Aclp|Acsp|Cite|Cref|Verb|acfp|aclp|acsp|cite|" +
+  "cref|dots|edef|emph|euro|gdef|hbox|href|mbox|sout|unit|vbox|verb|vref|xdef|Acf|Acl|Acp|Acs|" +
   "Gls|TeX|acf|acl|acp|acs|and|ang|bar|def|end|gls|hyp|let|num|qed|qty|ref|sep|sim|url|AA|AE|Ac|" +
   "OE|RN|Rn|SI|aa|ac|ae|bf|em|hl|it|lq|oe|ps|rm|rq|si|sl|ss|st|tt|ul|G|H|L|O|P|S|U|b|c|d|f|h|i|" +
   "j|k|l|o|r|t|u|v";
@@ -520,6 +399,146 @@ const RAW_TEX_BLOCK_MACRO = new RegExp(
     MACRO_ARG_GROUP + "+" + MACRO_LINE_TAIL +
   "|^ {0,3}\\\\(?:" + PANDOC_BLOCK_MACROS_BARE + ")" + MACRO_NAME_END + MACRO_LINE_TAIL,
 );
+/**
+ * A raw-TeX macro line that is block where NO paragraph is open — classes A and B, i.e.
+ * everything EXCEPT class C. Used by `CLOSES_PARAGRAPH` and `OPENS_FRESH_BLOCK`, both of
+ * which sit BEHIND the `paragraphOpen` bail.
+ *
+ * ⚠ **Narrowing this row is the heading-DELETING direction, and Session 184 already got it
+ * wrong once.** It narrowed the row to a BARE macro alone on its line, scored ZERO headings
+ * lost over 476 rendered documents, and was then measured deleting ELEVEN real headings —
+ * `\vspace{1em}`, `\usepackage{amsmath}`, `\newcommand{…}`, `\setlength{…}`,
+ * `\definecolor{…}`, `\newpage[2]`, `\newpage{}`, `\clearpage\newpage`, `\vspace2` and
+ * the starred forms are all raw BLOCKS despite carrying braces. A clean corpus score is
+ * evidence about the corpus, not about the rule (Learning #239). All eleven were RE-RENDERED
+ * this session and all eleven still hold, so they are pinned as controls on the narrowing.
+ *
+ * The rule is not about braces at all: it is the NAME, and the default matters more than the
+ * list. An UNKNOWN macro is class B — a BLOCK here — so the exclusion is expressed as a
+ * negative lookahead over class C rather than an allowlist of block names. Defaulting the
+ * other way would delete the heading under every macro pandoc has never heard of, which is
+ * most of the macros anyone writes.
+ */
+const RAW_TEX_BLOCK_OR_MACRO_LINE = new RegExp(
+  "^ {0,3}\\\\(?!(?:" + PANDOC_INLINE_MACROS + ")" + MACRO_NAME_END + ")[a-zA-Z]",
+);
+/**
+ * Body lines that do NOT leave a paragraph open, so an ATX heading may follow one
+ * directly (Session 180). Pandoc's `blank_before_header` — on by default in the
+ * `markdown` dialect quarto renders with — forbids a heading only where it would
+ * interrupt an OPEN PARAGRAPH; a block-level construct leaves none open.
+ *
+ * ⚠ **This list is deliberately PERMISSIVE, and that asymmetry is load-bearing.**
+ * A line this list misses is treated as prose, and the heading below it is DROPPED
+ * — deleting a heading quarto really renders, which is the direction that must never
+ * happen. A line it matches too eagerly merely retains a pre-existing phantom. So
+ * when in doubt, add the pattern: the cost is a residual, not a regression.
+ *
+ * ⚠ **The asymmetry is not a licence to add anything — Session 182 removed a row from here.**
+ * A pattern belongs only if the construct really does leave no paragraph open. Session 180's
+ * `/^ {0,3}=+[ \t]*$/` did not: an `=` run that is NOT consumed as a setext underline is
+ * ordinary paragraph TEXT, in every position where that entry was reachable (measured — 30
+ * phantom headings). "When in doubt, add it" applies to constructs you have not measured,
+ * not to ones you have measured to be paragraph content.
+ *
+ * ⚠ **A row must match the CONSTRUCT, not merely a byte the construct happens to contain
+ * (Session 184).** Session 183 fixed *when* these rows apply; three of them still matched
+ * things that were not the construct at all, and each narrowing below is scored on its own
+ * against the real render path in BOTH directions — because narrowing is the DELETING
+ * direction and a row that is one character too narrow drops a real heading. Two narrowings
+ * that look obvious are MEASURED WRONG and are deliberately absent:
+ *
+ *   - the pipe row cannot require a LEADING pipe (`OPENS_FRESH_BLOCK`'s form). Pandoc pipe
+ *     tables need neither leading nor trailing pipes, so a table's last row can be `c | d`;
+ *     requiring one deletes 4 real headings. A single pipe-bearing line is a table only if a
+ *     DELIMITER row follows, which no per-line predicate can see — so the row stays wide and
+ *     its phantoms are the price of having no table state.
+ *   - the grid-border row must keep matching a LONE `+`. A bare `+` is an EMPTY LIST ITEM,
+ *     which really is block-level: `+` / `# ATX Below` renders `<ul>` then `<h1>ATX Below</h1>`
+ *     (measured). Excluding it — the "obvious" reading of a bullet marker as a defect —
+ *     deletes 6 real headings.
+ *   - the raw-HTML row cannot be narrowed to a TAG LIST, and the raw-TeX row cannot be
+ *     narrowed to a BARE MACRO. Session 184 shipped both narrowings, scored ZERO headings
+ *     lost over 476 rendered documents, and an adversarial sweep then measured them deleting
+ *     THIRTY-ONE real headings on shapes no corpus held: `<meta>`, `<svg>`, `<button>`,
+ *     `<video>`, `<audio>`, `<canvas>`, `<object>`, `<embed>`, `<noscript>`, `<map>`,
+ *     `<output>`, `<progress>`, `<area>`, `<applet>`, `<ins>`, `<del>` all open raw HTML
+ *     blocks while sitting outside CommonMark §4.6; `\vspace{1em}`, `\usepackage{…}`,
+ *     `\newcommand{…}`, `\setlength{…}`, `\definecolor{…}`, `\newpage[2]`, `\newpage{}`
+ *     and `\clearpage\newpage` are all raw BLOCKS despite carrying braces. Pandoc classifies
+ *     both by NAME — `<ins>` opens a block and `<em>` does not; `\vspace` is a block and
+ *     `\textbf` is not — and nothing in the SHAPE of the line distinguishes them. Both rows
+ *     therefore stay wide, keeping their `<span>` / `\textbf{}` phantoms, until someone
+ *     transcribes those tables and measures them.
+ *
+ * The ONE narrowing that survived is the link-reference row, because its rule really is
+ * decided by the line's shape and was derived from an exhaustive sweep of 17 label spellings:
+ * a pandoc footnote label is `^` followed by one or more characters that are neither
+ * whitespace nor another `^`.
+ *
+ *   footnote (absorbs the line below) `[^1]` `[^note]` `[^a-b]` `[^1a]` `[^n_1]` `[^A]` `[^a.b]` `[^-]` `[^très]`
+ *   link reference (closes)           `[^]` `[^ 1]` `[^a b]` `[^^1]` `[^1^]` `[^1 ]` `[x]` `[]`
+ *
+ * A bare `(?!\^)` rejects the whole second row and deletes four real headings;
+ * `OPENS_FRESH_BLOCK`'s `\[[^\^\]][^\]]*\]:` additionally rejects `[]:` and deletes a fifth
+ * (Learning #233 — a fragment borrowed from the other list is unmeasured on THIS predicate's
+ * question, whatever it proved on its own).
+ */
+const CLOSES_PARAGRAPH: readonly RegExp[] = [
+  /\|/, //                                                   a pipe-table row, anywhere on the line
+  /^ {0,3}\+[-+=: ]*$/, //                                   a grid-table border, which carries NO pipe
+  /^ {0,3}:{3,}/, //                                         a fenced-div / callout fence
+  /^(?: {4,}|\t)\S/, //                                      an indented code block, spaces OR tab
+  /^ {0,3}\[(?!\^[^\s^\]]+\]:)[^\]]*\]:/, //                 a link reference — NOT a `[^1]:` footnote
+  HTML_BLOCK_OR_INLINE_OPEN, //                              a raw HTML block — see the note below
+  /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
+  RAW_TEX_BLOCK_OR_MACRO_LINE, //                            a raw TeX block — pandoc's macro NAMES
+  /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator
+];
+/**
+ * A front-matter `from:` key, at ANY indentation so a per-format
+ * `format:`/`  html:`/`    from: …` is caught too.
+ *
+ * `blank_before_header` is a pandoc DEFAULT, not an invariant: a document that selects a
+ * different reader dialect really does render a heading pressed against prose. Measured on
+ * the real render path — `markdown-blank_before_header`, `markdown_strict`, `gfm` and
+ * `commonmark` each render the heading, while plain `markdown` and no key at all do not.
+ *
+ * The bail keys on the key's PRESENCE, not on resolving the dialect, so it fails CLOSED:
+ * the cost is that `from: markdown` retains the phantom, which is the permitted direction.
+ * `reader:` is deliberately absent — quarto REJECTS that key outright (exit 1), so no such
+ * document ever renders a heading.
+ */
+const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
+/**
+ * A setext underline run that pandoc will swallow the ATX line above into — `=`s or `-`s
+ * alone on a line, any length, at **column 0**, for the ATX-adjacency rule in
+ * `closesParagraph` below.
+ *
+ * ⚠ **Deliberately NARROWER than `SETEXT_H1`/`SETEXT_H2`, which allow 0-3 spaces of indent.**
+ * The swallow is measured to need zero indent: `# Heading Above` / `===` renders
+ * `<h1># Heading Above</h1>` and makes the heading below it real, while the same document
+ * with even ONE leading space renders `<h1>Heading Above</h1>` plus a plain paragraph, and
+ * the heading below is not a heading at all. Widening this to ` {0,3}` invents that heading.
+ * Trailing whitespace is fine (measured); trailing anything else is not — `=== junk` is not
+ * an underline, so the `$` anchor is load-bearing too.
+ */
+const SETEXT_UNDERLINE_RUN = /^(?:=+|-+)[ \t]*$/;
+/**
+ * A thematic break (CommonMark §4.1) — 3+ of `*`, `-` or `_`, optionally space-separated.
+ *
+ * ⚠ **Held OUT of `CLOSES_PARAGRAPH` on purpose (Session 182): it closes a paragraph only
+ * where none is open.** Against an OPEN paragraph these same bytes are a LAZY CONTINUATION
+ * of it — `one` / `two` / `***` / `# ATX Below` renders one `<p>` containing all four lines
+ * and NO heading, and the `---` spelling proves it outright by rendering as an em dash,
+ * which only happens to paragraph TEXT (measured; 34 phantom headings before the gate).
+ *
+ * This is the identical rule `INDENTED_CODE_LINE` documents and `opensFreshBlock` already
+ * applies. It is stated here rather than folded into either because `CLOSES_PARAGRAPH`'s
+ * remaining rows are UNMEASURED against an open paragraph — gating the whole list would be
+ * the heading-deleting direction on nine rows nobody has scored.
+ */
+const THEMATIC_BREAK = /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/;
 /**
  * A raw TeX ENVIRONMENT delimiter — `\begin{…}` / `\end{…}`.
  *
@@ -694,7 +713,7 @@ const OPENS_FRESH_BLOCK: readonly RegExp[] = [
   /^ {0,3}\[[^\^\]][^\]]*\]:/, //                            a link-reference definition — NOT `[^1]:`
   /^ {0,3}\|/, //                                            a pipe-table ROW; a bare `a | b` is prose
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
-  /^ {0,3}\\[a-zA-Z]/, //                                    a raw TeX block (`\clearpage`, `\newpage`)
+  RAW_TEX_BLOCK_OR_MACRO_LINE, //                            a raw TeX block, class A or B (not C)
   HTML_BLOCK_OR_INLINE_OPEN, //                              pandoc's eitherBlockOrInline class
 ];
 /**
