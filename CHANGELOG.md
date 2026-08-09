@@ -7,6 +7,27 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Backfilled (reconcile-on-read): undocumented commit `47d9514` — two Phase 0 dashboard snapshots
+
+Session 191's Phase 0 step 6 found exactly one commit past the `CHANGELOG.md` frontier
+(`c6b1663`) with no ledger entry: **`47d9514`, `chore(dashboard)`** — two appended
+`dashboard_history.jsonl` rows (`2026-08-08T23:34` and `2026-08-09T01:10`; both v2.13.0,
+health **76**, risk **high**, **6** vulns), the first inherited uncommitted from Session 189's
+Orient and the second Session 190's own. One file, 2 insertions; no source, test, build or
+packaging file is touched, so no verification figure moves.
+
+**Its commit message declines a ledger entry in as many words** — *"No CHANGELOG entry: this is
+telemetry appended by the protocol's own orientation step, not a project action."* Recorded here
+regardless. `SESSION_RUNNER.md` Phase 0 permits exactly **two** reconcile no-ops (a non-empty
+frontier with an empty `<frontier>..HEAD`, or a project that records a "no CHANGELOG" opt-out in
+`CLAUDE.md`), and a per-commit self-exemption is neither — "too small to log" is failure mode #27
+rather than an exception to it. **This file's own precedent is split, which is itself the argument
+for logging it:** the identical telemetry commit was logged at Session 187 (`fe1e05b`, "Action 2")
+and left unlogged at Session 188 (`6f3b0d3`). A ledger whose coverage depends on which session
+touched the file is not an authoritative ledger.
+
+Backfill only — it records a commit that already exists, and is not this session's deliverable.
+
 ### 2026-08-09 · [ad hoc] Session 190 — IMPLEMENTATION: a class-A raw-TeX macro is INDENT-INSENSITIVE (SHIPPED)
 
 Removed `RAW_TEX_BLOCK_MACRO`'s ` {0,3}` indent cap. Its leading-whitespace class is now
