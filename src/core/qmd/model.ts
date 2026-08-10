@@ -1775,11 +1775,15 @@ const COMMONMARK_HTML_TYPE7_OPEN =
  * interrupts a paragraph just as type 6 does — and only the END condition tells them apart.
  * Leaving it in type 6 deletes the heading after `</textarea>`.
  *
- * ⚠ **The closer test is deliberately a bare `indexOf`-style match anywhere on the line, not an
- * anchored tag parse, and the sloppiness is the SAFE direction.** A closer seen where there is
- * none (inside an attribute value, say) ends the block early and leaves a phantom — this
- * project's permitted direction. A closer MISSED keeps the block open and deletes every heading
- * below it, to the end of the document.
+ * ⚠ **The closer test is unanchored — it matches anywhere on the line — but the TAG SPELLING is
+ * exact, and both halves are measured.** Unanchored is the safe direction: a closer seen where
+ * there is none ends the block early and leaves a phantom, this project's permitted direction,
+ * where a closer MISSED deletes every heading to the end of the document. The spelling, though,
+ * is not a judgement call — two blind-lens documents pin it (`scratchpad/s204/adv/bnd`):
+ *
+ *   `</pre >` — a space before the `>` — does NOT close. Quarto runs the block to end of
+ *   document and renders no heading below it (`bnd_07`), so the `>` must be immediate.
+ *   `</PRE>` in upper case DOES close (`bnd_08`), which is what the `i` flag is for.
  */
 const COMMONMARK_HTML_TYPE1_OPEN = /^ {0,3}<(?:pre|script|style|textarea)(?=[ \t/>]|$)/i;
 const COMMONMARK_HTML_TYPE1_CLOSE = /<\/(?:pre|script|style|textarea)>/i;

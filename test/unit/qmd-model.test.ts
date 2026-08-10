@@ -5357,4 +5357,38 @@ describe("a raw HTML BLOCK swallows the headings inside it under a CommonMark re
       ),
     ).toEqual(["h1:Gnd Below"]);
   });
+  // ⚠ LABELLED TEST-AFTER. The two assertions below pin the type-1 END CONDITION, which GREEN 4
+  // implemented but RED 4 (an UNCLOSED `<pre>`) did not force. Both bytes are rendered on their
+  // own bytes as `scratchpad/s204/pins`, and each clause is proven load-bearing by mutation:
+  // deleting the `COMMONMARK_HTML_TYPE1_CLOSE` clear turns the first into
+  // `expected [] to deeply equal [ 'h1:End Inside', 'h1:End Below' ]` -- two real headings lost.
+  it("the type-1 CLOSER ends the block on its own line, so the heading below it is REAL", () => {
+    // `scratchpad/s204/end` — `e_gfm_pre_after`, rendered this session: there is no blank line
+    // anywhere in this document, and quarto renders BOTH headings. A blank-line-only end
+    // condition would delete them, which is why type 1 is not folded into type 6.
+    expect(
+      names(
+        doc(
+          "---", "from: gfm", "---", "",
+          "<pre>", "raw code line", "</pre>", "# End Inside", "", "# End Below",
+        ),
+      ),
+    ).toEqual(["h1:End Inside", "h1:End Below"]);
+  });
+
+  it("`</pre >` with a space is NOT a closer — the block runs to end of document", () => {
+    // `scratchpad/s204/adv/bnd` — `bnd_07`, a BLIND lens document: quarto renders only the
+    // heading ABOVE the block. The `>` must follow the tag name immediately, so the closer regex
+    // is exact in its spelling even though it is unanchored in its position. `</PRE>` in upper
+    // case DOES close (`bnd_08`), which is what the `i` flag carries.
+    expect(
+      names(
+        doc(
+          "---", "from: gfm", "---", "",
+          "# Bnd Golf Pre Spaced Closer", "", "<pre>", "code here", "</pre >", "",
+          "## Bnd Golf After Fake Closer",
+        ),
+      ),
+    ).toEqual(["h1:Bnd Golf Pre Spaced Closer"]);
+  });
 });
