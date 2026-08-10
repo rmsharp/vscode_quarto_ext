@@ -5782,18 +5782,27 @@ describe("a front-matter `from:` is resolved as YAML, not as one line shape (Ses
   });
 
   it("…and a reader this scanner cannot resolve keeps today's behaviour exactly", () => {
-    // A nested per-format `from:` is a separately filed item and is deliberately NOT resolved
-    // here. ⚠ **MEASURED, `scratchpad/s206/ctl5`, and the pair is the whole argument:** the
-    // `gfm` twin `z_nest_gfm` RENDERS this heading and the `markdown` twin `z_nest_md` renders
-    // none. So narrowing on the ABSENCE of a CommonMark resolution would delete a real heading,
-    // while narrowing only on a POSITIVE markdown resolution cannot — an unresolved document
-    // takes neither branch.
+    // ⚠ **THE EXAMPLE THIS TEST USED HAS BEEN CLOSED, AND THE GUARANTEE IT ASSERTS HAS NOT.**
+    // Session 206 wrote this case as `format:`/`  html:`/`    from: markdown` and pinned it as
+    // a DELIBERATE PHANTOM — the disclosed cost of narrowing only on a POSITIVE resolution —
+    // saying in this comment that closing it "is the filed per-format item's to close". Session
+    // 207 closed it: that path is now resolved, so the document reports no heading and the case
+    // moved to the Session 207 describe below (`a per-format `from: markdown` is RESOLVED`).
     //
-    // ⚠ This case is therefore a PHANTOM that is pinned deliberately, not an agreement:
-    // `scratchpad/s206/pins` `p_colnest` renders nothing and this model reports a heading. It
-    // is the disclosed cost of the safe direction, and it is the filed per-format item's to
-    // close — that item needs NESTED value resolution, which this session does not ship.
-    expect(names(atColumn3('title: "T"', "format:", "  html:", "    from: markdown"))).toEqual([
+    // The guarantee still needs a witness, and the example that carries it now is a resolved
+    // POSITION with an unresolvable VALUE: `format:`/`  html:`/`    from: rst` puts the key
+    // where Session 207 reads it, so `dialectOverride` fires — but `rst` is in neither measured
+    // allowlist, so the column set is neither narrowed to markdown's nor confirmed as
+    // CommonMark's, and the 0-3 window survives. That is precisely "an unresolved document
+    // takes neither branch".
+    //
+    // ⚠ This remains a PINNED PHANTOM, not an agreement, and it is a LARGER one than Session
+    // 206's was: `scratchpad/s207/ctl` `z_nestrst` renders NO heading at all — nor does the
+    // top-level `z_toprst` (`from: rst`) or `z_textile`. A reader outside the markdown family
+    // does not parse `#` as a heading in the first place, so every heading this model reports
+    // for one is invented. That is the separately filed non-markdown-reader item, pre-existing
+    // and untouched here; what this test pins is only that the narrowing does not fire.
+    expect(names(atColumn3('title: "T"', "format:", "  html:", "    from: rst"))).toEqual([
       "h1:Indented Heading Here",
     ]);
   });
@@ -5897,6 +5906,126 @@ describe("a front-matter `from:` is resolved by its YAML PATH, not by its indent
           "from: gfm",
         ),
       ),
+    ).toEqual(["h1:Col Baseline", "h1:Col Indented"]);
+  });
+
+  it("a per-format `from: markdown` is RESOLVED, and takes back the 0-3 column tolerance", () => {
+    // MEASURED, `scratchpad/s207/cal` `c_fmhm_col3`: quarto renders the BASELINE ONLY, exactly
+    // as a top-level `from: markdown` does (`c_topm_col3`). Before this session the nested key
+    // set `dialectOverride` and its VALUE was never read, so the document kept CommonMark's
+    // 0-3 window and this model INVENTED `h1:Col Indented`.
+    expect(names(atColumn3('title: "T"', "format:", "  html:", "    from: markdown"))).toEqual([
+      "h1:Col Baseline",
+    ]);
+  });
+
+  it("a NON-HTML format's `from:` is refused, and refusing it happens to be right here", () => {
+    // MEASURED, `scratchpad/s207/cal2` `q_pdfg_col3` and `scratchpad/s207/ctl` `z_pdfm` /
+    // `z_pdfg2`: all three render the BASELINE ONLY — identically to the no-`from:` control
+    // `z_nofrom` — because a per-format `from:` belongs to the format being RENDERED and these
+    // corpora render `--to html`. `q_htmlm_pdfg` and `q_htmlg_pdfm` settle the two-format case
+    // in both directions: the html block's `from:` is the one that applies.
+    //
+    // ⚠ **What is NOT measured, and is disclosed rather than assumed:** a document whose ONLY
+    // format is pdf, previewed as pdf. `render207.sh` passes `--to html` and so forces html
+    // active, so this corpus cannot speak for that document. Refusing keeps today's behaviour
+    // (a phantom); resolving a non-active format's reader could DELETE. The refusal is the
+    // direction that cannot delete, and the residual is filed.
+    expect(names(atColumn3('title: "T"', "format:", "  pdf:", "    from: gfm"))).toEqual([
+      "h1:Col Baseline",
+    ]);
+  });
+
+  /** The `set0` shape — a title at a list item's content column, underlined at COLUMN 0. */
+  const column0Setext = (...fm: string[]) =>
+    doc("---", ...fm, "---", "", "Intro paragraph.", "", "- outer one", "", "  probe title", "===", "", "Tail.");
+
+  it("…and the SAME resolution reaches the setext row, where a wrong answer DELETES", () => {
+    // PINS of the same change, on the OTHER flag. `commonmarkDialect` is read at the setext
+    // underline column set, and there a wrong resolution deletes a real heading rather than
+    // inventing one — which is why the nested path had to be measured on this row too.
+    // MEASURED, `scratchpad/s207/cal`: `c_fmhg_set0` renders NO title (gfm) and `c_fmhm_set0`
+    // renders `h1:probe title` (markdown). The pair is what proves the value was read.
+    expect(names(column0Setext('title: "T"', "format:", "  html:", "    from: gfm"))).toEqual([]);
+    expect(names(column0Setext('title: "T"', "format:", "  html:", "    from: markdown"))).toEqual([
+      "h1:probe title",
+    ]);
+  });
+
+  it("…and the paragraph bail, the third flag the same resolution feeds", () => {
+    // MEASURED, `scratchpad/s207/cal` `c_fmhm_bail`: quarto renders only the baseline, because
+    // a resolved `markdown` keeps `blank_before_header`. Before this session the nested key
+    // switched the bail off and its value was never read, so the pressed heading was INVENTED.
+    const pressed = (...fm: string[]) =>
+      doc("---", ...fm, "---", "", "# Baseline", "", "Prose opens a paragraph.", "# Pressed");
+    expect(names(pressed('title: "T"', "format:", "  html:", "    from: markdown"))).toEqual([
+      "h1:Baseline",
+    ]);
+  });
+
+  it("the PER-FORMAT declaration OUTRANKS the top-level one, in both directions", () => {
+    // ⚠ **MEASURED IN BOTH DIRECTIONS AND IN BOTH FILE ORDERS — four documents, and the last
+    // two are what make the rule "the nested one wins" rather than "the first one wins".**
+    // `scratchpad/s207/cal` `c_fmhg_topm` (nested gfm, top-level markdown) renders as gfm and
+    // `c_fmhm_topg` renders as markdown, but in both of those the nested key comes FIRST, so
+    // the two explanations predict the same output. `scratchpad/s207/cal2` `q_topm_fmhg` and
+    // `q_topg_fmhm` put the top-level key first and render the same way — precedence is by
+    // POSITION, not by order.
+    //
+    // ⚠ Three of these six assertions were heading-DELETING before this session: quarto renders
+    // under the nested reader and this model suppressed under the top-level one.
+    expect(names(atColumn3("from: markdown", "format:", "  html:", "    from: gfm"))).toEqual([
+      "h1:Col Baseline",
+      "h1:Col Indented",
+    ]);
+    expect(names(atColumn3("from: gfm", "format:", "  html:", "    from: markdown"))).toEqual([
+      "h1:Col Baseline",
+    ]);
+    expect(names(atColumn3("format:", "  html:", "    from: gfm", "from: markdown"))).toEqual([
+      "h1:Col Baseline",
+      "h1:Col Indented",
+    ]);
+    expect(names(atColumn3("format:", "  html:", "    from: markdown", "from: gfm"))).toEqual([
+      "h1:Col Baseline",
+    ]);
+    expect(names(column0Setext("from: markdown", "format:", "  html:", "    from: gfm"))).toEqual([]);
+    expect(names(column0Setext("from: gfm", "format:", "  html:", "    from: markdown"))).toEqual([
+      "h1:probe title",
+    ]);
+  });
+
+  it("…and a per-format block with NO `from:` leaves the top-level one in charge", () => {
+    // The fall-through, and the control that keeps the rule above from becoming "a `format:`
+    // key disables the top-level declaration". MEASURED, `scratchpad/s207/cal2` `q_fmscalar_*`
+    // (a scalar `format: html` beside a top-level `from: gfm`) renders as gfm.
+    expect(names(atColumn3('title: "T"', "format:", "  html:", "    toc: true", "from: gfm"))).toEqual([
+      "h1:Col Baseline",
+      "h1:Col Indented",
+    ]);
+    expect(names(atColumn3("format: html", "from: gfm"))).toEqual([
+      "h1:Col Baseline",
+      "h1:Col Indented",
+    ]);
+  });
+
+  it("the nested VALUE may be written in any spelling the top-level one may", () => {
+    // MEASURED, `scratchpad/s207/cal2`: `q_quoted_*` (a quoted nested key) and `q_nextline_*`
+    // (the value on the following line) each render as gfm, and `q_late_*` / `q_i4_*` show the
+    // key need not be first under the format and the indent step need not be 2.
+    expect(names(atColumn3('title: "T"', "format:", "  html:", '    "from": gfm'))).toEqual([
+      "h1:Col Baseline",
+      "h1:Col Indented",
+    ]);
+    expect(names(atColumn3('title: "T"', "format:", "  html:", "    from:", "      gfm"))).toEqual([
+      "h1:Col Baseline",
+      "h1:Col Indented",
+    ]);
+    expect(names(atColumn3('title: "T"', "format:", "    html:", "        from: gfm"))).toEqual([
+      "h1:Col Baseline",
+      "h1:Col Indented",
+    ]);
+    expect(
+      names(atColumn3('title: "T"', "format:", "  html:", "    toc-location: left", "    from: gfm")),
     ).toEqual(["h1:Col Baseline", "h1:Col Indented"]);
   });
 });

@@ -1310,41 +1310,66 @@ const BLOCK_SCALAR_INDICATOR = /^[ \t]*[|>][+-]?[0-9]?[ \t]*(?:#.*)?$/;
  * canonicalised. A synthesised line is produced only for a spelling that had no line to match.
  */
 function frontMatterFromValueLine(lines: readonly string[]): string | null {
-  if (lines.length === 0 || !FRONTMATTER_OPEN.test(lines[0])) {
+  const content = frontMatterContent(lines);
+  if (content === null) {
     return null;
-  }
-  const content: string[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    if (FRONTMATTER_CLOSE.test(lines[i])) {
-      break;
-    }
-    content.push(lines[i]);
   }
   const top = topLevelIndent(content);
   if (top === null) {
     return null;
   }
-  for (let i = 0; i < content.length; i++) {
-    if (leadingWhitespace(content[i]) !== top || FRONTMATTER_NOT_CONTENT.test(content[i])) {
+  // ⚠ **THE PER-FORMAT DECLARATION OUTRANKS THE TOP-LEVEL ONE, and that is MEASURED in both
+  // directions and in both file orders** (Session 207). `scratchpad/s207/cal` `c_fmhg_topm`
+  // (nested `gfm` beside a top-level `markdown`) renders as gfm and `c_fmhm_topg` renders as
+  // markdown; `scratchpad/s207/cal2` `q_topm_fmhg` and `q_topg_fmhm` write the top-level key
+  // FIRST and render the same way. Those last two are why the rule is "the nested one wins"
+  // rather than "the first one wins" — `cal` alone cannot tell those apart, because in both of
+  // its collision rows the nested key happens to come first.
+  const nested = perFormatBlock(content, top);
+  if (nested !== null) {
+    const value = mappingFromValueLine(nested.block, nested.indent, false);
+    if (value !== null) {
+      return value;
+    }
+  }
+  return mappingFromValueLine(content, top, true);
+}
+/**
+ * The `from:` declaration made by the mapping whose own keys sit at `indent`, rewritten as the
+ * canonical line `from: <value>`, or `null` when that mapping declares none — or declares one
+ * this scanner will not resolve with confidence.
+ *
+ * `topLevelForms` admits the two spellings measured only at the front matter's own top level:
+ * a whole front matter written as one FLOW mapping, and a value that is a YAML ALIAS (whose
+ * anchor `topLevelAnchor` looks for at the top level alone). Neither is measured nested, so
+ * neither is resolved there — and refusing is always today's behaviour.
+ */
+function mappingFromValueLine(
+  block: readonly string[],
+  indent: number,
+  topLevelForms: boolean,
+): string | null {
+  for (let i = 0; i < block.length; i++) {
+    if (leadingWhitespace(block[i]) !== indent || FRONTMATTER_NOT_CONTENT.test(block[i])) {
       continue;
     }
-    const key = TOP_LEVEL_FROM_KEY.exec(content[i].slice(top));
+    const key = TOP_LEVEL_FROM_KEY.exec(block[i].slice(indent));
     if (key === null) {
       // A whole front matter may be one FLOW mapping, whose `from:` sits after a `{` or `,`
       // rather than at the line's start — `scratchpad/s206/gnd` `g_flow_markdown` suppresses
       // the pressed heading and `g_flow_gfm` renders it. The value ends at the next separator.
-      if (FRONTMATTER_FLOW_OPEN.test(content[i])) {
-        const flow = FLOW_FROM_ENTRY.exec(content[i]);
+      if (topLevelForms && FRONTMATTER_FLOW_OPEN.test(block[i])) {
+        const flow = FLOW_FROM_ENTRY.exec(block[i]);
         if (flow !== null) {
           return `from: ${flow[2].trim()}`;
         }
       }
       continue;
     }
-    const value = content[i].slice(top + key[0].length);
+    const value = block[i].slice(indent + key[0].length);
     const alias = YAML_ALIAS_VALUE.exec(value);
     if (alias !== null) {
-      const anchored = topLevelAnchor(content, top, alias[1]);
+      const anchored = topLevelForms ? topLevelAnchor(block, indent, alias[1]) : null;
       return anchored === null ? null : `from: ${anchored}`;
     }
     if (!FRONTMATTER_NOT_CONTENT.test(value) && !BLOCK_SCALAR_INDICATOR.test(value)) {
@@ -1354,9 +1379,10 @@ function frontMatterFromValueLine(lines: readonly string[]): string | null {
     // following line, indented past the key. `scratchpad/s206/gnd` `g_nextline_markdown`,
     // `g_foldm_markdown`, `g_fold_markdown` and `g_litm_markdown` all render only their
     // baseline, so each is `from: markdown`. A one-line block scalar folds to that one line,
-    // which is the only shape a reader name can take.
-    const next = nextContentLine(content, i + 1);
-    if (next !== null && leadingWhitespace(next) > top) {
+    // which is the only shape a reader name can take. ⚠ Measured NESTED too, and it behaves
+    // identically: `scratchpad/s207/cal2` `q_nextline_*` renders as gfm.
+    const next = nextContentLine(block, i + 1);
+    if (next !== null && leadingWhitespace(next) > indent) {
       return `from: ${next.trim()}`;
     }
     return null;
