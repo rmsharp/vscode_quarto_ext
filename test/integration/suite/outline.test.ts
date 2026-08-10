@@ -1531,4 +1531,58 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `an unresolved nested \`from:\` must keep today's behaviour: ${nestedNames.join(", ")}`,
     );
   });
+  it("resolves a `from:` by its YAML PATH on the user-visible outline (Session 207)", async () => {
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — the TENTH
+    // consecutive session to avoid the exact-set fixture coupling that cost Sessions 196 and 197
+    // a full screen-taking run each. The exact-set grep ran BEFORE this was written:
+    // `grep -c "assert.deepStrictEqual" test/integration/suite/outline.test.ts` = 32 raw, but the
+    // real CALL count is 21 (the rest are comment text citing the grep by name — Session 204's
+    // gotcha 7). `openInMemory` keeps these documents out of every exact-set pin here and in
+    // every other suite file, and this test adds no exact-set pin of its own.
+    //
+    // All three premises were rendered through the real `quarto render --to html` path this
+    // session, quarto 1.7.33 (`scratchpad/s207/cal`, 33 documents):
+    //   `c_fmhg_topm_bail` -> BOTH headings — the nested `gfm` OUTRANKS the top-level `markdown`
+    //   `c_parg_bail`      -> the BASELINE only — `params:`/`from:` is not a reader selection
+    //   `c_topg_bail`      -> BOTH headings — the control spelling, unchanged by this session
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const body = ["", "# Baseline", "", "Prose opens a paragraph.", "# Pressed"];
+
+    // PRESENT — PRECEDENCE, and this one was heading-DELETING before this session. The document
+    // declares `from: markdown` at the top level and `from: gfm` under `format:`/`html:`, and
+    // quarto honours the NESTED one. This model resolved only the top level, applied markdown's
+    // paragraph bail, and dropped a section the rendered document has.
+    const precedence = await openInMemory(
+      ["---", "from: markdown", "format:", "  html:", "    from: gfm", "---", ...body].join("\n"),
+    );
+    const precedenceNames = flatten(await symbolsForDoc(precedence));
+    assert.ok(
+      precedenceNames.includes("Pressed") && precedenceNames.includes("Baseline"),
+      `a nested \`from: gfm\` must outrank a top-level \`from: markdown\` and keep BOTH headings: ${precedenceNames.join(", ")}`,
+    );
+
+    // ABSENT — a `params:` / `from:` is a report parameter, not a reader. Before this session the
+    // any-indent key fired on it, switched the paragraph bail off for the whole document, and
+    // INVENTED a section the rendered document does not have.
+    const params = await openInMemory(
+      ["---", "title: t", "params:", "  from: gfm", "---", ...body].join("\n"),
+    );
+    const paramsNames = flatten(await symbolsForDoc(params));
+    assert.ok(
+      !paramsNames.includes("Pressed") && paramsNames.includes("Baseline"),
+      `a \`params:\`/\`from:\` must not select a reader, so only the baseline survives: ${paramsNames.join(", ")}`,
+    );
+
+    // THE GUARD — a plain top-level `from: gfm`. Without this the ABSENT case above would pass
+    // for a build that had simply stopped reading front matter altogether, which is precisely
+    // the deletion this session's narrowing had to avoid.
+    const topLevel = await openInMemory(["---", "from: gfm", "title: t", "---", ...body].join("\n"));
+    const topNames = flatten(await symbolsForDoc(topLevel));
+    assert.ok(
+      topNames.includes("Pressed") && topNames.includes("Baseline"),
+      `a top-level \`from: gfm\` must still select gfm and keep BOTH headings: ${topNames.join(", ")}`,
+    );
+  });
 });
