@@ -7,6 +7,96 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 197 — a SETEXT UNDERLINE's own indent is measured in COLUMNS (SHIPPED)
+
+The LAST of the six places in `src/core/qmd/model.ts` that measured a line's indentation as a
+count of characters. `SETEXT_H1`/`SETEXT_H2` were `/^( *)=+[ \t]*$/` and `setextUnderlineLevel`
+compared `m[1].length` — a count of leading SPACES — against a set of COLUMNS. A tab-indented run
+therefore did not match the regex at all and could never be an underline at any column, in any
+container. Both regexes now take `[ \t]*` and the column comes from `indentColumn`, the one
+definition the container pop, `indentedCodeLine`, `rawTexMacroLineIsBlock`, `listItemContentColumn`
+and `CONTENT_COLUMN_4_OPEN` already share.
+
+Operator-selected via `AskUserQuestion` at Phase 0 from an empty Active section; Session 196's
+ranked #1 and Session 195's ranked #2. **Strict TDD: two RED→GREEN**, one per row — the `=` row,
+then the `-` row, which needed its own measurement because a dash run is also the shape of a
+thematic break, a table delimiter and a front-matter fence.
+
+**⚠ IT CORRECTS A CONCLUSION RECORDED IN THE MODEL'S OWN SOURCE, and the correction is measured
+twice over.** `setextUnderlineLevel`'s docstring said "⚠ A TAB is not the content column", citing
+`- item` / `  Some Title` / `\t===`, which renders no heading. The measurement was right and the
+rule inferred from it was not: that container's content column is **2** and a tab reaches **4**, so
+the document shows only that 4 ≠ 2 (Learning #282). Re-rendered at a container whose column IS 4,
+the tab lands exactly on it and quarto renders the heading. ⚠ And the cited document's own control
+does not hold either — re-rendered, the SPACE spelling of those exact bytes renders no heading
+either, because `  Some Title` is a lazy continuation and a 2-line paragraph never promotes. Both
+halves of a ⚠ note were wrong in a way only a render could show.
+
+**THE KEY NUMBER IS THE EQUIVALENCE, NOT THE ERROR COUNT** (Learning #286). Quarto answers
+identically for a tab-indented underline and the spaces reaching the same column in **762 of 762**
+pairs with no counterexample — 540 from a systematic sweep whose spellings were enumerated
+mechanically rather than hand-picked, and 222 from a corpus built by nine agents trying to refute
+the change. This build went **468/540 → 540/540**.
+
+| corpus | scored | PRE (agree/phantom/LOST) | SHIPPED | new LOST | new phantom |
+|---|---|---|---|---|---|
+| gnd — the systematic EQUIVALENCE sweep | 864 | 660 / 0 / 72 | **732 / 0 / 0** | **0** | **0** |
+| crit — the session's OWN completeness pass | 27 | 3 / 0 / 16 | 15 / 3 / 4 | **0** | 3 |
+| adv — 222 BLIND adversarial, 8 lenses + a critic | 222 | 179 / 3 / 46 | 169 / 234 / 56 | 30 | 232 |
+| repo — all 113 tracked `md`/`qmd` documents, four views | 113 | — | **BYTE-IDENTICAL** | 0 | 0 |
+
+**⚠ THE BLIND SWEEP MEASURED 262 NEW ERRORS AND EVERY ONE IS PRE-EXISTING — decided mechanically,
+per document, against the real renderer.** Expanding every leading tab to the spaces reaching the
+same column produces the exact twin of a document; render both and ask what the PRE build did on
+the twin. All 232 new phantoms and all 30 new LOSSES — the expensive direction — came back
+pre-existing: the pre-session build was right by ACCIDENT, matching no tab-indented underline at
+all, which masked defects the far more common space spelling already has (Learning #280 seen from
+the other side). Hand-verified on five, including the realistic field-notes document whose
+all-spaces twin fabricates the identical phantom on the pre-session build. **The instrument was
+itself checked for effectiveness**: fed a synthetic twin-PRE that agrees with quarto everywhere it
+returns 228 INTRODUCED, so it can say something other than "pre-existing".
+
+**⚠ SHIPPED ON AN EXPLICIT OPERATOR DECISION, with the exposure measured and presented first.** The
+1B claim declared the rule in advance — *would this defect exist if my change did not ship?* — and
+all 262 answered NO CHANGE, so by that rule they are pinned and filed rather than closed here. The
+magnitude was put to the operator anyway, with the attribution: on a candidate build (a patched
+COPY, never production code) that also narrows the filed prose-as-list-marker rule, the exposure
+drops from 232 phantoms to 104 and 30 losses to 22 — so **55% of it traces to that one already-filed
+rule**. Narrowing it here would have been a second capability (FM #26) and its own two-directional
+score is unmeasured, so it was declined and filed.
+
+**Closed in place, each RE-RENDERED rather than flipped:** Session 194's FAMILY 1 (`h1:Papa Tab
+Underline`) and Session 194's FAMILY 3 (`h1:Golf Tab Sibling Title`) — the latter being the document
+Session 196 recorded as unable to demonstrate its own fix, because it needed BOTH sessions' changes
+at once.
+
+**Filed, not fixed — five families, each pinned with rendered controls in
+`test/unit/qmd-model.test.ts` and each a real `- [ ]` line in `BACKLOG.md`** (grep counts pasted at
+close-out, per Session 196's gotcha 6): the two KNOWN RESIDUALS already in `SETEXT_H1`'s docstring;
+`BULLET_LIST_MARKER`'s own ` {0,3}` cap; **NEW — `FENCE_OPEN`'s ` {0,3}` cap is not
+container-relative**, so a fence at a container's content column is not a fence and the title after
+its closer is lost (proven independent of this change by control, in all spaces); and **NEW — the
+container pop is ARMED by a consumed underline**, because the setext branch sets
+`paragraphOpen = false`, so a column-0 line below closes a list pandoc keeps open.
+
+**Two instrument defects found and fixed before their results were read as data** (Learning #235,
+now five and six in this project's lineage). (a) The equivalence script compared heading SETS while
+every probe title embeds its own document name, so twins could never compare equal — it reported
+the premise refuted on exactly the 72 pairs where it holds, and "confirmed" only where both answers
+were empty. (b) The scorer compared quarto's HTML-decoded text against this model's source text, so
+a heading containing `>` counted as a phantom AND a loss on a heading both renderers produce.
+
+**Verification.** `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` **1794 passed / 66
+files** (baseline 1791, +3) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0
+unrelated** (BYTE-IDENTICAL to S180–S196) · `check-package` **OK 42 files / 5.52 MB** ·
+`check-backlog` **OK**. Repo control: all four views over all 113 tracked documents BYTE-IDENTICAL,
+proven **EFFECTIVE BY INJECTION** — 8 injected documents split exactly 4 moved / 4 stayed with the
+113 verified unchanged in the same run. ~1,350 documents rendered fresh through the real
+`quarto render` path (quarto 1.7.33). NOT RUN: `test:lsp` — no LSP surface touched.
+
+- **Model:** Claude Opus 5 (implementation, measurement and adjudication); the blind adversarial
+  corpus was generated by nine delegated agents and rendered and scored by the session itself.
+
 ### 2026-08-09 · [ad hoc] Session 196 — a container OPENER's own indent is measured in COLUMNS, and an opener at code depth opens nothing (SHIPPED)
 
 The last two of the six places in `src/core/qmd/model.ts` that measure a line's indentation for

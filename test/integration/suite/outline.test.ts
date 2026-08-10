@@ -361,9 +361,17 @@ describe("Quarto: Document outline (symbols)", () => {
     );
 
     // The EXACT set, so a regression in either direction fails rather than only a widening.
-    // Session 196 extended this fixture again and RE-RENDERED it; quarto emits all FOURTEEN on
-    // these exact bytes, and emits NO heading for `Phantom Below A Tab` or for
-    // `Phantom At Code Depth`.
+    // Session 197 extended this fixture again and RE-RENDERED it; quarto emits all SIXTEEN on
+    // these exact bytes, and emits NO heading for `Phantom Below A Tab`, `Phantom At Code
+    // Depth` or `Tab Underline Past The Column`.
+    //
+    // ⚠ THIS IS THE ASSERTION A SESSION EXTENDING THE FIXTURE MUST FIND, and finding it by
+    // running the suite costs a full screen-taking Extension Development Host run. Session 196
+    // hit the OTHER exact-set pin (the top-level list at the top of this file) and recorded
+    // "add `##`, not `#`" as the countermeasure; Session 197 followed that and hit THIS one
+    // anyway, because any heading at any level extends the FLATTENED list. The countermeasure
+    // that actually works is `grep -n "assert.deepStrictEqual" test/integration/suite/*.ts`
+    // before touching a fixture, not a rule about heading levels.
     assert.deepStrictEqual(all, [
       "Real Section",
       "Recovered Setext",
@@ -379,6 +387,8 @@ describe("Quarto: Document outline (symbols)", () => {
       "Container Opener Columns (Session 196)",
       "Tab Opened Column",
       "Code Depth Kept The Block",
+      "Setext Underline Tabs (Session 197)",
+      "Tab Underline At The Column",
     ]);
   });
 
