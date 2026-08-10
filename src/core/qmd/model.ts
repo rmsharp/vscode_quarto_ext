@@ -1597,13 +1597,31 @@ function computeRegions(text: string): Regions {
           contentColumns.pop();
         }
       }
-      const opened = listItemContentColumn(line);
-      if (opened !== null) {
-        contentColumns.push(opened);
-      } else if (CONTENT_COLUMN_4_OPEN.test(line)) {
-        // A footnote definition and a definition-list definition both give their content
-        // exactly 4 columns past their own indent — measured, and independent of label length.
-        contentColumns.push(indentWidth + 4);
+      // ⚠ AN OPENER AT CODE DEPTH OPENS NOTHING (Session 196), because it is not an opener at
+      // all — a line 4 or more columns past the enclosing block's content column is INDENTED
+      // CODE to pandoc, and `- inner` inside a code block is the literal text `- inner`. The
+      // condition is exactly `indentedCodeLine`, reused rather than re-derived, so the depth at
+      // which a container stops being a container and the depth at which a line becomes code
+      // can never drift apart.
+      //
+      // ⚠ This guard is a SCOPE AMENDMENT, and it is here because the measurement forced it —
+      // not because it was adjacent. This session's own 1,265-document ground corpus scored the
+      // opener change at NEW LOST = 0, because it reads the column stack through ONE consumer:
+      // the setext underline, where this family can only ever show up as a phantom. A BLIND
+      // 240-document adversarial sweep then measured 39 NEW LOST through the OTHER consumer,
+      // `indentedCodeLine` — a tab-indented opener at top level is at column 4, and pushing a
+      // column for it lifts the code base so the code block below it becomes an open paragraph,
+      // which deletes the ATX heading underneath. Shipping the opener change alone would have
+      // deleted 39 real headings.
+      if (!indentedCodeLine(line, contentColumns)) {
+        const opened = listItemContentColumn(line);
+        if (opened !== null) {
+          contentColumns.push(opened);
+        } else if (CONTENT_COLUMN_4_OPEN.test(line)) {
+          // A footnote definition and a definition-list definition both give their content
+          // exactly 4 columns past their own indent — measured, and independent of label length.
+          contentColumns.push(indentWidth + 4);
+        }
       }
       if (BLOCK_QUOTE_MARKER.test(line)) {
         quoteOpen = true;

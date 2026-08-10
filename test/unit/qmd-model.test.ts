@@ -3216,8 +3216,16 @@ describe("a SETEXT underline is anchored at the containing block's CONTENT COLUM
     const chi = (u1: string, u2: string) =>
       doc("Marker depth boundary.", "", "    - looks like an item", "", "      Chi Code Title", u1,
           "", "Divider paragraph.", "", "   - real item at three", "", "     Chi Three Title", u2);
-    expect(names(chi("      ===", "     ==="))).toEqual(["h1:Chi Code Title", "h1:Chi Three Title"]);
-    expect(names(chi("===", "==="))).toEqual(["h1:Chi Code Title", "h1:Chi Three Title"]); // CONTROL
+    // ⚠ HALF CLOSED BY SESSION 196, and re-rendered rather than flipped. The code-depth guard
+    // in `computeRegions` stops the column-4 marker opening a container at all, so the indented
+    // underline no longer finds a column to sit on. Re-rendered this session: quarto emits
+    // `h1:Chi Three Title` ALONE on these exact bytes, and this model now emits exactly that.
+    expect(names(chi("      ===", "     ==="))).toEqual(["h1:Chi Three Title"]);
+    // CONTROL — STILL OPEN, and it is a different mechanism: the underline here is at column 0,
+    // which is always in the stack, so no container column is needed to legitimise it. Only the
+    // INDENTED-underline half of this family was the container column's doing. Re-rendered:
+    // quarto still emits `h1:Chi Three Title` alone, so `Chi Code Title` is still a phantom.
+    expect(names(chi("===", "==="))).toEqual(["h1:Chi Code Title", "h1:Chi Three Title"]);
 
     // ── FAMILY 3 — ordinary PROSE read as an ordered-list marker, which opens a content column
     // that then legitimises an indented underline further down. This is the already-filed
@@ -3669,15 +3677,21 @@ describe("a container's content column is closed by a line's COLUMN, not its SPA
                 "  - sibling at two", "", "    Foxtrot Sibling Title", "    ===")),
     ).toEqual(["h1:Foxtrot Sibling Title"]); // quarto agrees — this one is right
 
-    // ── FAMILY 4 — RE-CONFIRMED, not new: a FOUR-SPACE-indented list marker or footnote
-    // definition is INDENTED CODE to pandoc, not a container, but both openers admit it and
-    // push a column anyway. Session 192 named this as the pre-existence control for the
-    // indented-code item; it now has its own rendered control, and the TAB spelling of the
-    // same shape AGREES (quarto reads it as code too, and so do we).
+    // ── FAMILY 4 — ⚠ CLOSED BY SESSION 196, and re-rendered rather than flipped. A
+    // FOUR-SPACE-indented list marker or footnote definition is INDENTED CODE to pandoc, not a
+    // container, and both openers used to admit it and push a column anyway. Session 196's
+    // code-depth guard in `computeRegions` declines it, because the condition it reuses is
+    // `indentedCodeLine` itself. Re-rendered this session on these exact bytes: quarto emits NO
+    // heading, and this model now emits none either.
+    //
+    // It was closed as a SCOPE AMENDMENT, not as an adjacent tidy-up: a blind 240-document
+    // adversarial sweep measured 39 real headings DELETED by the opener change without it,
+    // because pushing a column for a code-depth opener lifts the indented-code base and turns
+    // the code block below into an open paragraph. Same rule, opposite direction of error.
     expect(
       names(doc("Intro.", "", "    - space indented item", "      line two", "",
                 "      Bravo Space Marker Title", "      ===")),
-    ).toEqual(["h1:Bravo Space Marker Title"]); // quarto: NO heading — a PHANTOM
+    ).toEqual([]); // quarto: NO heading — the phantom is gone
     expect(
       names(doc("Intro.", "", "\t- tab indented item", "\t  line two", "",
                 "\t  Alpha Tab Marker Title", "\t  ===")),
@@ -3805,5 +3819,103 @@ describe("a container OPENER's own indent is a COLUMN too, so a TAB can open one
                 "    bravo body", "", "    [^n1]: note body", "",
                 "        Probe Title", "        ===", "", "Tail sentence.")),
     ).toEqual(["h1:Probe Title"]);
+  });
+
+  it("RED->GREEN: an opener at CODE DEPTH opens no container, so the code block below it survives", () => {
+    // ⚠ THIS IS A SCOPE AMENDMENT, AND THE MEASUREMENT FORCED IT. The two behaviours above
+    // were declared complete by this session's own 1,265-document ground corpus: NEW LOST = 0,
+    // 21 headings recovered, and every one of the 24 new phantoms proven per document to be
+    // its SPACE twin's pre-existing error. A BLIND adversarial sweep — 240 documents from
+    // eight lenses, none of which saw that corpus — then measured **39 NEW LOST**.
+    //
+    // The reason is Learning #280 from the other side. The ground corpus reads the column
+    // stack through ONE consumer, the setext underline, so it could only ever see this family
+    // as a PHANTOM. The blind lenses reached the OTHER consumer, `indentedCodeLine`, where the
+    // same family is a LOSS: a TAB-indented opener at top level sits at column 4, which is
+    // indented CODE to pandoc. Pushing a column for it RAISES the code base, so the column-8
+    // line below stops being code and becomes an open paragraph — and `blank_before_header`
+    // then suppresses the ATX heading underneath. A corpus that probes one consumer of a
+    // shared structure has not measured the structure.
+    //
+    // The rule shipped here is the one the ground corpus had ALREADY measured exactly, and it
+    // explains every residual list-marker phantom in all five of its contexts: an opener whose
+    // OWN column is >= base + 4 is indented code and opens NO container.
+    //
+    // Rendered through the real `quarto render` path this session (corpus `advflat`, documents
+    // l3d01 / l5d01 / l4d01). Each was found on the pre-session build, LOST by this session's
+    // own first commit, and is restored here.
+    expect(
+      names(doc("Lens3 Doc01 lead paragraph.", "", "\t- marker at column four",
+                "\t\tsecond line at column eight", "# Lens3 Doc01 Alfa")),
+    ).toEqual(["h1:Lens3 Doc01 Alfa"]);
+    // the footnote opener at the same depth, which is the other half of the amendment
+    expect(
+      names(doc("See[^1] for the note.", "", "\t[^1]: note body text", "",
+                "        eight column continuation", "# Lens4 Doc01 Alpha")),
+    ).toEqual(["h1:Lens4 Doc01 Alpha"]);
+    // CONTROL — the SPACE spelling of the same shape. Found on every build, before and after;
+    // it is what makes the depth, not the tab, the mechanism.
+    expect(
+      names(doc("Lens3 lead paragraph.", "", "    - marker at column four",
+                "        second line at column eight", "# Space Spelled Alfa")),
+    ).toEqual(["h1:Space Spelled Alfa"]);
+    // CONTROL — the shipped behaviour is UNTOUCHED by the amendment. The same tab-indented
+    // marker one column shallower than code, because a container is open at 2, still opens
+    // its column 6 and still finds the heading quarto renders there.
+    expect(
+      names(doc("Intro sentence.", "", "- outer item", "  outer body", "",
+                "\t- inner", "", "      Probe Title", "      ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Probe Title"]);
+  });
+
+  it("LABELLED TEST-AFTER — the two residual families, both PRE-EXISTING and both pinned", () => {
+    // ⚠ NOT TDD. These pin behaviour this session did NOT change and deliberately did not
+    // fix: they are a DIFFERENT rule (which column an opener opens) from the two shipped above
+    // (how an opener's own indent is MEASURED, and whether a code-depth line is an opener at
+    // all). Every document below was rendered through the real `quarto render` path this
+    // session, and every assertion states what THIS MODEL does today, with quarto's real answer
+    // in the comment beside it. The rule that would close both is stated exactly, because the
+    // corpus measured it rather than guessing:
+    //
+    //   a footnote/definition-list definition's content column is `base + 4`, NOT `its own
+    //   indent + 4`, where `base` is the enclosing block's content column AFTER the pop.
+    //   Together with the code-depth guard shipped above, this explains ALL TWENTY footnote
+    //   rows of the ground corpus EXACTLY — every context, every marker column, both spellings.
+    //
+    // (The corpus's third residual family, an opener at code depth opening a container anyway,
+    // is not here because this session SHIPPED it — see the scope amendment above. It was
+    // Session 194's FAMILY 4 and the indented half of Session 193's FAMILY 2, both re-rendered
+    // and closed in place.)
+
+    // ── FAMILY B — RULE 2, and it is NEW: not on the board before this session. The same
+    // document is wrong in BOTH directions at once, which is why a one-directional edit here
+    // would be wrong: we push column 8 (the marker's own indent + 4) where quarto opens 6
+    // (the enclosing item's column 2, + 4). So we DELETE the heading quarto renders at 6 and
+    // FABRICATE one at 8. This family is the whole of the corpus's residual LOST column.
+    expect(
+      names(doc("Intro sentence with a live reference[^n1].", "", "- outer item", "  outer body",
+                "", "    [^n1]: note body", "",
+                "      Probe Title", "      ===", "", "Tail sentence.")),
+    ).toEqual([]); // quarto: h1:Probe Title — a LOST heading at the real column 6
+    expect(
+      names(doc("Intro sentence with a live reference[^n1].", "", "- outer item", "  outer body",
+                "", "    [^n1]: note body", "",
+                "        Probe Title", "        ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Probe Title"]); // quarto: NO heading — the phantom at our wrong column 8
+
+    // ── FAMILY C — a DEFINITION-LIST marker at column 0 inside an open list item closes the
+    // item and opens NOTHING; quarto accepts an underline at column 0 only. We open column 4
+    // and emit a heading there. Measured, and distinct from FAMILY B: here the definition is
+    // not indented at all, so RULE 2's `base + 4` would still give 4 and would NOT close it.
+    expect(
+      names(doc("Intro sentence.", "", "- outer item", "  outer body", "", ": definition body",
+                "", "    Probe Title", "    ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Probe Title"]); // quarto: NO heading — a phantom, PRE-EXISTING
+    // CONTROL — the same document with the underline at the list's own column 2. Quarto
+    // renders no heading there either, and neither do we; the divergence is column 4 alone.
+    expect(
+      names(doc("Intro sentence.", "", "- outer item", "  outer body", "", ": definition body",
+                "", "  Probe Title", "  ===", "", "Tail sentence.")),
+    ).toEqual([]); // quarto agrees — no heading
   });
 });
