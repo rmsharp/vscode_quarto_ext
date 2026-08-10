@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S201
+date: 2026-08-10
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD) — `BULLET_LIST_MARKER`'s own literal ` {0,3}` cap, the LAST of the three sites of this class. The row `/^ {0,3}[-*+][ \t]/` is tested against the setext TITLE line, so inside a container whose content column is 4 the marker sits at column 4, the guard does not fire, and `    - marker title` / `===` reaches the outline as `h1:- marker title` where quarto renders `h1:marker title`. ⚠ THE FILED READING IS THE ONE I SUSPECT: the guard DECLINES the heading rather than correcting its text, so making it container-relative would convert a TEXT divergence into a heading DELETION — and if quarto emits `h1:marker title` at columns 0–3 too, the decline has been a LOST heading since the beginning. Three candidates written down before rendering: widen the decline, STRIP the marker and emit, or something else again (marker char / tight-vs-loose / marker arity / underline level). Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S200's ranked #1. The item IS filed in BACKLOG.md, verified firsthand at Phase 0, line 65.
+```
+
+```handoff
 session: S200
 date: 2026-08-10
 status: complete
