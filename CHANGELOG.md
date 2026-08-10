@@ -7,6 +7,73 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 207 — a front-matter `from:` selects the reader by its YAML PATH (SHIPPED)
+
+Both ends of one question were wrong, and one mechanism answers both: *where in the YAML does
+this `from:` sit, and does that position select the reader?* The KEY predicate matched at ANY
+indent, so a block scalar's ordinary prose selected a reader; the VALUE resolver read the TOP
+level only, so a per-format `format:`/`html:`/`from:` — which quarto really does honour — had its
+value thrown away. `FRONTMATTER_FROM_KEY` is gone, replaced by `frontMatterSelectsReader`, and
+Session 206's value loop is now `mappingFromValueLine(block, indent, topLevelForms)`, run over the
+per-format mapping and then over the top level.
+
+⚠ **THE NESTED DECLARATION OUTRANKS THE TOP-LEVEL ONE.** Measured in both directions AND in both
+file orders — four documents. `cal` `c_fmhg_topm` / `c_fmhm_topg` put the nested key first;
+`cal2` `q_topm_fmhg` / `q_topg_fmhm` put the top-level key first and render the same way, which is
+what separates "the nested one wins" from "the first one wins". `cal` alone cannot tell those
+apart. Three of the six precedence assertions were **heading-DELETING** before this session:
+quarto renders under the nested reader and this model suppressed under the top-level one.
+
+⚠ **THE NARROWING'S POLARITY IS THE INVERSE OF THE THREE SESSIONS THAT WIDENED THIS KEY**, and
+that shaped the whole design. Firing wrongly costs a phantom; failing to fire where quarto DID
+select re-engages the paragraph bail *and* collapses the heading column set to `[0]`, and both
+delete a real heading. So the guard block was written before the narrowing, and only positions
+measured NOT to select are refused: `params:`, `website:`, `execute:`, a block scalar's interior.
+
+⚠ **Only `html:` is resolved, and that refusal is a measured fail-safe with a precisely bounded
+gap.** A per-format `from:` belongs to the format being RENDERED (`q_pdfg`, `q_htmlm_pdfg`,
+`q_htmlg_pdfm`), and the corpus renders `--to html`, so it cannot speak for a pdf-only document
+previewed as pdf. Refusing keeps a phantom where resolving could delete. Filed as the residual.
+
+**Measurement.** 386 documents rendered fresh through the real `quarto render` path (quarto
+1.7.33), each scored PER DOCUMENT against the pre-session build on identical bytes.
+**INTRODUCED 0 across all 368 scored documents.**
+
+| corpus | scored | pre → post | adjudication |
+|---|---|---|---|
+| designed (`cal` `cal2` `ctl` `comp` `pins`) | 118 | 63 → **114** | INTRODUCED 0 · FIXED 51 · CARRIED 4 |
+| blind (`path` `fmt` `real` `bnd`, 4 lenses) | 63 | 32 → **57** | INTRODUCED 0 · FIXED 25 · CARRIED 6 |
+| predecessors' own named corpora, re-measured | 187 | 152 → **169** | INTRODUCED 0 · FIXED 17 · CARRIED 18 |
+
+`comp` is the budgeted completeness pass — one probe per CONSUMER SITE, all five enumerated in
+the 1B claim before any result was seen, each written in the NEW spellings. It scored 25/25.
+Session 206's own `cmk` and `gnd` reach 32/32, and every blind lens returned INTRODUCED 0.
+
+**Instrument proven effective in the same run.** The repo control — all 115 tracked
+markdown-family documents, all four views (headings, cells, outline, refs) — is byte-identical
+across the two builds, and the injection control fired exactly as designed: 5 designed movers
+moved, 5 designed stayers and all 115 real documents held.
+
+⚠ **Two harness defects found and closed, both of which produced numbers that looked like
+catastrophic regressions.** (1) Merging per-corpus probe files into one dict silently overwrote
+colliding document basenames — `yaml_01` and `real_01` exist in several sessions' blind corpora,
+38 of 198 staged documents collided, and two whole corpora scored `0/16`. `score207.py` now
+REFUSES a duplicate name rather than relying on remembering to score per corpus. (2) A
+`bibliography:` key grows a trailing `h2:References`; the realistic blind corpus scored 8/16 until
+it was normalised, and it is now proven by the feature-free control pair `ctl2` `y_bib`/`y_nobib`.
+That is the SEVENTH distinct piece of quarto furniture found across S205–S207, and like all six before it
+pointed in the direction that makes a heading-deleting change look safe.
+
+**Verification.** `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` **1,895 passed /
+66 files** (baseline 1,883) · `test:integration` **514 passing / 0 failing / exit 0** (baseline
+513, green first time, on the operator's go-ahead sought in advance) · `test:oracle` **131 / 124
+agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (byte-identical to S180–S206) · `check-package`
+OK 42 files / 5.54 MB · `check-backlog` OK 138 open items. NOT RUN: `test:lsp` — no LSP surface
+touched.
+
+Commits: `02c036a` (1B claim) · `a2feb37` (the path-aware key) · `9b51a83` (the per-format value
+and its precedence) · `19430ff` (the outline surface) · close-out.
+
 ### 2026-08-10 · [ad hoc] Session 206 — a front-matter `from:` is resolved as YAML, not as one line shape (SHIPPED)
 
 A YAML value has many spellings and a line regex has one. `FRONTMATTER_FROM_KEY` could never
