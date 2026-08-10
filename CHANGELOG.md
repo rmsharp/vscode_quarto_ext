@@ -7,6 +7,86 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 196 — a container OPENER's own indent is measured in COLUMNS, and an opener at code depth opens nothing (SHIPPED)
+
+The last two of the six places in `src/core/qmd/model.ts` that measure a line's indentation for
+the container-column machinery. `listItemContentColumn` and `CONTENT_COLUMN_4_OPEN` both anchored
+on `( *)` — spaces only — so a TAB-indented list marker, footnote definition or definition-list
+definition matched nothing and opened NO tracked content column at all. Operator-selected via
+`AskUserQuestion` at Phase 0 from an empty Active section; Session 195's ranked #1, and the family
+Session 194 filed from its own firsthand completeness pass.
+
+**⚠ ONE DISCLOSED SCOPE AMENDMENT, and the measurement forced it.** The opener change alone was
+declared complete by this session's own 1,265-document ground corpus — NEW LOST = 0, 21 headings
+recovered, all 24 new phantoms proven per document to be their space twin's pre-existing error. A
+BLIND 240-document adversarial sweep from eight lenses, none of which saw that corpus, then
+measured **39 NEW LOST**. `contentColumns` has three consumers and the ground corpus's probe was a
+setext underline, through which pushing a column can only ADD a heading; the lenses reached
+`indentedCodeLine`, where pushing a column RAISES the code base, turns a code block into an open
+paragraph, and `blank_before_header` deletes the ATX heading below. So an opener at code depth now
+opens nothing — the guard is `indentedCodeLine` itself, reused rather than re-derived. Shipping the
+opener change alone would have deleted 39 real headings (Learning #285).
+
+**THE measurement.** 1,519 documents rendered fresh through the real `quarto render` path
+(1,265 ground + 240 blind + 240 blind space-twins − overlap; plus 14 critic documents, 5 isolation
+documents, 4 inherited pins and the extended fixture), scored per heading with the two error
+directions separate:
+
+| corpus | scored | PRE (agree/phantom/LOST) | **SHIPPED** | new LOST | new phantom |
+|---|---|---|---|---|---|
+| gnd — the EQUIVALENCE sweep, 5 contexts × 24 openers × 11 columns | 1,265 | 241 / 35 / 35 | **262 / 30 / 14** | **0** | 9 |
+| advflat — 240 BLIND adversarial, 8 lenses, none of which saw `gnd` | 240 | 181 / 42 / 58 | **226 / 23 / 13** | 2 | 14 |
+| crit — the completeness critic's own 7 predicted regressions | 14 | — | — | **0** | **0** |
+
+**68 headings recovered, 47 phantoms drained.** Every one of the 25 remaining new errors —
+including BOTH losses — was checked MECHANICALLY against its own space twin, rendered: all 25 are
+PRE-EXISTING in the space spelling, from three separately-filed rules (prose read as a list marker,
+the footnote content column, the marker-TAB push). Zero introduced defects (Learning #286).
+
+**The falsifiable property.** The design is an EQUIVALENCE, not a threshold: every tab spelling is
+paired against the space spelling reaching the same column, so it could refute the change as easily
+as confirm it. Quarto answers identically in **495/495** ground pairs and **240/240** blind pairs —
+735 with no counterexample. Our build went 450/495 and 114/240 before to **495/495 and 240/240**
+after: the change achieves exactly that property and nothing else.
+
+**Closed in place, each re-rendered rather than flipped:** Session 194's FAMILY 4 (a four-space
+marker is code, not a container) and the indented half of Session 193's FAMILY 2. ⚠ Session 194's
+FAMILY 4 was reported as "filed, not fixed" and ranked #6 in its What's-Next, but `grep` finds it
+was **never in `BACKLOG.md`** — it existed only as a test pin and as handoff prose (Learning #288).
+
+**Filed, not fixed — one NEW family, with a complete measured answer.** A footnote or
+definition-list definition's content column is `base + 4`, not its own indent + 4. Together with the
+code-depth guard this explains **all twenty** footnote rows of the ground corpus exactly. Pinned with
+rendered controls as FAMILY B and FAMILY C. Also confirmed with rendered documents, both
+pre-existing and both already on the backlog: a callout inside a list item, and a `\begin{center}`
+environment at a container's content column — by-catch from the critic whose own thesis was refuted
+(Learning #287).
+
+**TDD gate — satisfied, three times**, each RED confirmed to fail on the BEHAVIOUR:
+`expected [] to deeply equal [ 'h1:Probe Title' ]` for the list marker, again for the footnote
+definition, and `expected [] to deeply equal [ 'h1:Lens3 Doc01 Alfa' ]` for the amendment.
+
+**⚠ Phase 3E — RUN on the operator's explicit go-ahead sought in advance, and GREEN:**
+`test:integration` **503 passing / 0 failing / exit 0** (baseline 502, +1), the new assertion watched
+BY NAME at line 313 of `scratchpad/s196/integration2.log`. The fixture was re-rendered FIRST: quarto
+emits fourteen headings on the new bytes and this model emits exactly those fourteen; the pre-session
+build emits fourteen too but a DIFFERENT fourteen, differing in both directions — a count could not
+have told the builds apart, the SET can.
+
+**Verification at close.** `check-types` **0** · `compile` **0** · `compile-tests` **0** ·
+`npm test` **1791 passed / 66 files** (baseline 1787, +4) · `test:oracle` **131 / 124 agree / 4 lost
+TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S195) · `check-package` **OK 42 files /
+5.52 MB** · `check-backlog` **OK, 103 open items**. Repo control: all four views over all 113 tracked
+`md`/`qmd` documents BYTE-IDENTICAL, proven EFFECTIVE BY INJECTION — 8 injected documents split
+exactly 4 moved / 4 stayed, with the 113 verified unchanged in the same probe run. NOT RUN:
+`test:lsp` — no LSP surface touched.
+
+**Commits.** 1B claim `0e51409`. **C1** `713db69` — the two openers measured in columns, two
+RED→GREEN. **C2** `5beb7bc` — the scope amendment, its RED→GREEN, and the two inherited pins closed
+in place. **C3** `77f1e08` — the fixture extended and re-rendered, three named controls at the real
+Outline provider, exact set eleven → fourteen. Close-out (this commit). Every commit at or under the
+5-file cap.
+
 ### 2026-08-09 · [ad hoc] Session 195 — `BACKLOG.md` holds only OPEN work, and a deny-by-default check keeps it that way (SHIPPED)
 
 Both halves of the operator-designated item: the re-accumulated completed work is drained, and
