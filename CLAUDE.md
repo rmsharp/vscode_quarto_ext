@@ -74,6 +74,7 @@ edge is why even a bare `npx vsce package`, which touches none of our npm script
 | `test:lsp` | same chain → `out/test/lsp/runTest.js` | Extension Development Host with a throwaway extensions dir holding only `ms-python.python` + Pylance, copied from the user's own install. Deliberately not in CI (Pylance licensing). **Takes over the screen.** |
 | `test:lsp:workspace` | `QMD_LSP_DIAGMODE=workspace npm run test:lsp` | The workspace-diagnostics variant of the same harness. |
 | `check-package` | `node check-package.js` | Deny-by-default allowlist over `vsce ls` output, so a new top-level file **reds** instead of silently shipping. Read its docstring before changing it. |
+| `check-backlog` | `node check-backlog.js` | Reds if `BACKLOG.md` holds a completed-work record. Also asserted by `test/unit/backlog-hygiene-gate.test.ts`, so it runs on **every `npm test`** — the script is the readable form (it prints every offending line at once). Read its docstring before widening the rule. |
 | `package` | `compile` + `vsce package` | The release gate — see above. |
 
 For any Quarto-document fixture the doc-build equivalent is `quarto render`; `test:oracle` is the
@@ -95,6 +96,11 @@ automated form of that check.
   Session 173, and the `scratchpad/` `.vsix` packaging leak, Session 174.
 - **`test:integration` and `test:lsp` take over the screen** — each launches a real VS Code
   Extension Development Host window. Get the operator's explicit go-ahead before running either.
+- **A red `check-backlog` is not fixed by deleting the block.** It means a completed record is
+  sitting in an open-work file: record the outcome in `CHANGELOG.md` and anything worth carrying
+  forward in `PROJECT_LEARNINGS.md` **first**, then delete. ⚠ Verify per block — Session 195 found
+  an OPEN, operator-pending decision (the lone `+` gate suspension, 2 recovered against 32 new
+  phantoms) buried inside a tombstone, recorded in no other tracked file.
 
 ---
 

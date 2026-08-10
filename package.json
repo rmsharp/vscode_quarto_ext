@@ -577,6 +577,7 @@
     "test:integration": "npm run compile && npm run compile-tests && node ./out/test/integration/runTest.js",
     "package": "npm run compile && vsce package",
     "check-package": "node check-package.js",
+    "check-backlog": "node check-backlog.js",
     "vscode:prepublish": "npm run compile && npm run check-package",
     "test:lsp": "npm run compile && npm run compile-tests && node ./out/test/lsp/runTest.js",
     "test:lsp:workspace": "QMD_LSP_DIAGMODE=workspace npm run test:lsp"

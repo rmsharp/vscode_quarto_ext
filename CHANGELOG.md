@@ -7,6 +7,78 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 195 — `BACKLOG.md` holds only OPEN work, and a deny-by-default check keeps it that way (SHIPPED)
+
+Both halves of the operator-designated item: the re-accumulated completed work is drained, and
+the missing backstop exists. Shipping the drain alone is the experiment Session 150 already ran,
+and it regressed within a few sessions.
+
+**The measurement, taken firsthand, and it corrects the filed figures in both directions.** The
+item said "17 tombstone lines plus 19 further completed-work records — 36 blocks, ~24 KB, 15% of
+the 165 KB file". Measured by a rule applied to the file: **24 blocks, 33 KB, 20% of it** — fewer
+blocks and more bytes. The "36" counted the sessions named inside the blocks rather than the
+blocks: one 4.3 KB block alone rolls up eleven sessions (S151–S161). `BACKLOG.md` goes from
+169,019 to 135,182 bytes, 429 lines to 238, and from 119 unchecked boxes to 103 real open items —
+17 of those boxes were never work.
+
+**Every block was verified against `CHANGELOG.md` and `PROJECT_LEARNINGS.md` before deletion, and
+each `FULLY_REDUNDANT` verdict was then adversarially attacked.** 24 blocks verified, the 10
+judged fully redundant re-attacked by an independent skeptic told to assume the verdict wrong; 2
+came back refuted. Both refutations were then checked by hand and both turned out to be the same
+shape: the **measurement** is in the ledger and the **correction of the original filing's own
+wording** is not. That is the root cause of the whole re-accumulation, and it is now
+`PROJECT_LEARNINGS.md` #283.
+
+**One block held OPEN work, and nothing else in the repository recorded it.** Inside the Session
+183 tombstone: the lone `+` inside a list item, whose candidate gate suspension is measured at 2
+recovered headings against 32 new phantoms — an operator decision, never shipped. `32 new
+phantoms` had exactly **one** hit across all tracked files, and Learning #236 mentions the lone
+`+` only as a corpus example. It is restored to "Up Next" as an open item. This is the single
+strongest argument against the bulk deletion the item's own headline proposed.
+
+**Salvaged, because it is recorded nowhere else and would change a future session's decision:**
+
+- **The `scratchpad/` residual is deliberately NOT disposable.** Session 186 pruned 2,332 MB (91%)
+  of regenerable `quarto render` byproduct back to 212 MB; the remainder is the cited, non-
+  regenerable set and re-pruning it would break tracked citations. `.vscodeignore` records the
+  prune and its gate, but not that the residual is load-bearing.
+- **Session 186's own prescribed grep was a ~29% sample.** "grep `docs/planning/` for
+  `scratchpad/`" reaches only **23 of the 78** paths cited across all tracked files, so following
+  the item's own instruction would have worked from under a third of the citation set.
+- **`basefont` and nine other CommonMark-§4.6-only names are not in pandoc's sets at all**, and 47
+  pandoc names CommonMark lacks are in. `test/unit/qmd-model.test.ts` cites `BACKLOG.md` for
+  `<basefont size="3">` as the measured case; that citation now resolves here.
+- **Session 187's central refutation:** `<ins>x</ins>` and `<em>x</em>` render BYTE-IDENTICALLY
+  against an open paragraph. The filed item asserted the opposite and listed thirteen
+  `eitherBlockOrInline` names as block openers on the strength of it, conflating pandoc's two
+  sets. Of the sixteen it named, only `meta`, `canvas` and `output` are in `blockTags`. The
+  mechanism is in `src/core/qmd/model.ts`'s docstring; the refuted claim itself was held only by
+  the tombstone.
+- **A filed SEVERITY or RARITY rating is a hypothesis** — corrected in 7 of the 24 blocks, in
+  every case toward "worse than filed". `PROJECT_LEARNINGS.md` #284.
+
+**Deliberately NOT salvaged, with the reason:** figures that CONTRADICT the ledger rather than
+extend it. The Session 194 block records "1,915 documents scored, 54 phantoms drained, 134
+headings recovered" where this file records 1,932 / 55 / 136 for the same measurement; the Session
+193 block says the threshold "held in all ten containers measured" where both the ledger and
+`src/core/qmd/model.ts` enumerate six. Copying a superseded figure forward would install a
+contradiction in the authoritative record. Credit-attribution nuances ("the item's own warning was
+RIGHT") were also dropped: the measurements they attach to are all recorded, and attribution
+changes no future decision.
+
+**The gate.** `check-backlog.js` at the repo root beside `check-package.js`, `npm run
+check-backlog`, and asserted by `test/unit/backlog-hygiene-gate.test.ts` so it runs on **every
+`npm test`** — deliberately the always-run path rather than the release path, because the practice
+it catches happens at close-out, many sessions between releases. It reads a block's **LEAD**, not
+the block: MEASURED, 35 lines contain `SHIPPED Session` and only 17 are records, so a whole-block
+search reds on ~18 open items that legitimately cite shipped work — and a gate that cries wolf
+gets deleted. Parenthetical asides are stripped for the same reason, from a real document.
+
+**Strict TDD**, five behaviours, each RED before GREEN and each RED confirmed to fail on the
+behaviour rather than the plumbing. **Verification:** `check-types` 0 · `compile` 0 · `npm test`
+1785 passed / 66 files (baseline 1782, +3 files→+5 tests) · `check-package` **OK 42 files /
+5.52 MB, byte-identical to the baseline** — the two new root files are excluded in `.vscodeignore`.
+
 ### 2026-08-09 · [ad hoc] Session 194 — GROOMING DECISION: `BACKLOG.md`'s re-accumulated completed work is filed as the next deliverable
 
 A non-commit action recorded per failure mode #27 (a grooming decision escapes a commit-only
