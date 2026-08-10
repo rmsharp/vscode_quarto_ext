@@ -504,6 +504,60 @@ describe("Quarto: Document outline (symbols)", () => {
     );
   });
 
+  it("reads a FENCE's indent as CONTAINER-RELATIVE, through the real provider (Session 200)", async () => {
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — the third
+    // consecutive session to avoid the exact-set fixture coupling that cost Sessions 196 and
+    // 197 a full screen-taking run each. `grep -n "assert.deepStrictEqual"
+    // test/integration/suite/*.ts` was run BEFORE this was written and finds no such pin in
+    // this file; `openInMemory` keeps these documents out of every one elsewhere.
+    //
+    // All three documents were rendered through the real `quarto render --to html` path this
+    // session and every premise below is MEASURED, not assumed:
+    //   `scratchpad/s200/pins/s197_famC_loss.qmd`  -> quarto emits `h1:Title After Fence`
+    //   `scratchpad/s200/hdg/b4_i04_inside.qmd`    -> quarto emits NO heading
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+
+    // PRESENT — the LOSS direction, and the shape the BACKLOG item was filed on. The
+    // pre-Session-200 build lost this outright: `FENCE_OPEN`'s ` {0,3}` cap could not reach
+    // column 4, so the fence was never a fence, the title below its closer was line four of
+    // one long paragraph, and the underline had nothing at `consecutiveBody === 1` to promote.
+    const recovered = await openInMemory(
+      ["Intro.", "", "-   line one", "", "    ```", "    code", "    ```",
+       "    Title After Fence", "    ==="].join("\n"),
+    );
+    const recoveredNames = flatten(await symbolsForDoc(recovered));
+    assert.ok(
+      recoveredNames.includes("Title After Fence"),
+      `a title below a fence at the item's column 4 must reach the outline: ${recoveredNames.join(", ")}`,
+    );
+
+    // ABSENT — the PHANTOM direction, which the filed item did not name and this session's
+    // corpus measured. With the fence recognised, everything between the runs is literal code;
+    // the pre-Session-200 build read those lines as ordinary markdown and, since Session 199
+    // accepts a heading AT a container's content column, emitted a `Inside Probe` section
+    // quarto does not render. A fix that only widened the loss direction leaves this in place.
+    const drained = await openInMemory(
+      ["-   item one", "", "    ```", "", "    # Inside Probe", "", "    ```"].join("\n"),
+    );
+    const drainedNames = flatten(await symbolsForDoc(drained));
+    assert.ok(
+      !drainedNames.includes("Inside Probe"),
+      `a heading inside a recognised fence must not reach the outline: ${drainedNames.join(", ")}`,
+    );
+    // CONTROL — the same probe text as a real heading at column 0. Without it the assertion
+    // above passes for a build that has stopped finding headings altogether.
+    const control = await openInMemory(
+      ["-   item one", "", "# Inside Probe", "", "Tail body line."].join("\n"),
+    );
+    const controlNames = flatten(await symbolsForDoc(control));
+    assert.ok(
+      controlNames.includes("Inside Probe"),
+      `the column-0 control must still be a heading: ${controlNames.join(", ")}`,
+    );
+  });
+
   it("measures the indented-code threshold from the container's content column, through the real provider (Session 193)", async () => {
     // THE WIRING EVIDENCE for Session 193, on the provider the Outline view, breadcrumbs,
     // sticky scroll and Ctrl+T all really call. Like Session 192's, this change moves the
