@@ -76,8 +76,14 @@ gets deleted. Parenthetical asides are stripped for the same reason, from a real
 
 **Strict TDD**, five behaviours, each RED before GREEN and each RED confirmed to fail on the
 behaviour rather than the plumbing. **Verification:** `check-types` 0 · `compile` 0 · `npm test`
-1785 passed / 66 files (baseline 1782, +3 files→+5 tests) · `check-package` **OK 42 files /
-5.52 MB, byte-identical to the baseline** — the two new root files are excluded in `.vscodeignore`.
+**1787 passed / 66 files** (baseline 1782 / 65 — one new file, five new tests, no regressions) ·
+`check-package` **OK 42 files / 5.52 MB, byte-identical to the baseline** — the two new root files
+are excluded in `.vscodeignore` · `check-backlog` **OK, 103 open items**.
+
+**Phase 3E — no runtime surface changed, verified rather than asserted.** `src/` carries no
+functional edit, so `dist/` behaviour is unchanged and `test:integration` was not run; the
+byte-identical packaged artifact above is the evidence. `test:lsp` and `test:oracle` likewise not
+run — no `src/` surface touched.
 
 ### 2026-08-09 · [ad hoc] Session 194 — GROOMING DECISION: `BACKLOG.md`'s re-accumulated completed work is filed as the next deliverable
 

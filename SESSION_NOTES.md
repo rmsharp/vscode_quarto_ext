@@ -6,9 +6,39 @@
 
 ## ACTIVE TASK
 **Task:** **Session 195 — `BACKLOG.md` holds only OPEN work, and a deny-by-default check keeps it that way. (a) Drain the re-accumulated completed-work records, verifying each firsthand against `CHANGELOG.md` / `PROJECT_LEARNINGS.md` and salvaging anything not durably recorded elsewhere; (b) ship the missing backstop, because shipping (a) alone is the experiment Session 150 already ran and it regressed within a few sessions.** (IN PROGRESS)
-**Started:** 2026-08-09
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Started:** 2026-08-09 · **Closed:** 2026-08-09
+**Status:** **DONE. SHIPPED — 24 records / 33 KB drained after per-block verification, one buried OPEN item recovered, and a deny-by-default gate that runs on every `npm test`.**
+
+**HEADLINE 1 — ONE OF THE 24 BLOCKS CONTAINED OPEN WORK, AND NOTHING ELSE IN THE REPOSITORY RECORDED IT.** Inside the Session 183 tombstone: the lone `+` inside a list item, whose candidate gate suspension is measured at **2 recovered headings against 32 new phantoms** — an operator decision, never shipped. Verified firsthand: `32 new phantoms` had **exactly one hit across all tracked files**, and Learning #236 mentions the lone `+` only as a corpus example. It is restored to "Up Next". **The bulk deletion the filed item's own headline proposed would have destroyed it** — which is the single strongest vindication of the "verify each block" half the operator insisted on.
+
+**HEADLINE 2 — THE FILED FIGURES WERE WRONG IN BOTH DIRECTIONS, AND SO WAS THE PROPOSED RULE.** The item said "36 blocks, ~24 KB, 15%". Measured: **24 blocks, 33 KB, 20%** — fewer blocks, more bytes. The "36" counted the sessions named *inside* the blocks; one 4.3 KB block alone rolls up eleven (S151–S161). The item's proposed rule — "no `- [ ] ` line contains REMOVED/SHIPPED" — is wrong twice over, and both are measured: it is **blind to 7 of the 24** records (they carry no checkbox), and it would **red on ~18 genuinely open items** that merely cite shipped work. Fifth consecutive filed magnitude to need correcting (Learning #276, now #284).
+
+**HEADLINE 3 — THE ROOT CAUSE, AND WHY SESSION 150's DELETION REGRESSED.** Every record is a gutted item whose body was replaced by a post-hoc **correction of what the item originally asserted**. The ledger records what a session DID; the learnings table records lessons; **neither has a slot for "the item I just shipped was filed wrong"**, so sessions kept the bullet rather than lose it. That is now Learning #283, and it is what both surviving adversarial refutations turned out to be — the *measurement* was in the ledger, the *correction of the filing's own wording* was not.
+
+**THE measurement.** 24 blocks verified against `CHANGELOG.md` and `PROJECT_LEARNINGS.md`, per distinct factual claim rather than per session. The 10 judged FULLY_REDUNDANT were then handed to an independent skeptic **told to assume the verdict wrong**; 2 came back refuted, and **both were checked by hand and both over-claimed** — the substantive measurement was in the ledger in each case (CHANGELOG:735 for the `[]:` link-ref form; CHANGELOG:2277-2282 for S158's live grounding). One agent claim was overturned outright by firsthand grep: `manyTill anyChar endAngle` was reported as held only by the record and is in fact in `src/core/qmd/model.ts:299` — the agents had searched two files, and the source docstrings are a third home.
+
+| | |
+|---|---|
+| blocks audited | **24** (17 checkbox tombstones + 7 `***`-emphasised) |
+| verdicts | 14 PARTIALLY_UNIQUE · 10 FULLY_REDUNDANT |
+| adversarial refutations | 10 attacked, **2 refuted**, both over-claimed on hand-check |
+| open work recovered | **1** (the lone `+` decision) |
+| file | 169,019 → 135,182 bytes · 429 → 238 lines · 119 boxes → **103 real open items** |
+| agent claims overturned firsthand | **1** (`manyTill`, recorded in the source, not missing) |
+
+**Salvaged, each verified absent from both durable files first:** the `scratchpad/` residual is deliberately NOT disposable; Session 186's own prescribed grep reached **23 of 78** citations (~29%); the `basefont` name set; Session 187's `<ins>`/`<em>` refutation. **Deliberately NOT salvaged, with the reason stated in the ledger:** figures that CONTRADICT it rather than extend it — the S194 block says 1,915 documents / 54 / 134 where the ledger says 1,932 / 55 / 136, and the S193 block says "all ten containers" where both the ledger and the source enumerate six. Copying a superseded figure forward installs a contradiction in the authoritative record. Credit attributions were dropped too: the measurements they attach to are all recorded, and attribution changes no future decision.
+
+**The gate.** `check-backlog.js` at the repo root beside `check-package.js` · `npm run check-backlog` · asserted by `test/unit/backlog-hygiene-gate.test.ts` so it runs on **every `npm test`**. That is deliberately the always-run path rather than the release path, because the practice it catches happens at **close-out**, many sessions between releases. ⚠ **It reads a block's LEAD, not the block** — the measured reason above — and strips parenthetical asides, from a real document (`the CONTAINER half (the leaf half SHIPPED Session 159)` is still open). Run against the pre-drain file it reds on exactly the 24 records found by hand, independently of that inventory.
+
+**TDD gate — satisfied, five times.** Each RED confirmed to fail on the BEHAVIOUR, not the plumbing (a null implementation was created first so the first RED read `expected [] to deeply equal [ "REMOVED — SHIPPED Session 182." ]` rather than a module-resolution error): (1) a record wearing a checkbox, (2) a record with no checkbox, (3) an open item whose lead parenthetically cites shipped work, (4) the real `BACKLOG.md` is clean, (5) the npm script exists and points at a file on disk.
+
+**⚠ Phase 3E — NO RUNTIME SURFACE CHANGED, and that is verified rather than asserted.** `src/` carries no functional edit this session (one comment line in `test/unit/qmd-model.test.ts`, nothing in `src/`), so `dist/` behaviour is unchanged and `test:integration` was NOT run — it takes over the screen and nothing it exercises was touched. The evidence that the packaged artifact is unaffected is `check-package` **OK 42 files / 5.52 MB, byte-identical to Session 194's baseline**, with the two new root files excluded in `.vscodeignore`.
+
+**Verification at close.** `check-types` **0** · `compile` **0** · `npm test` **1787 passed / 66 files** (baseline 1782 / 65 — one new file, five new tests, no regressions) · `check-package` **OK 42 files / 5.52 MB** · `check-backlog` **OK, 103 open items**. NOT RUN: `test:integration`, `test:lsp`, `test:oracle` — no `src/` surface touched.
+
+**Ledger:** `CHANGELOG: 2026-08-09 · [ad hoc] Session 195` written with the drain commit, paired with the `BACKLOG.md` removal of this session's own item. **Phase 0 reconcile found NOTHING owed** — both frontiers WERE `HEAD` (gap 0), `grep -c "^status: pending" HANDOFFS.md` = 0.
+
+**What was done (commits).** 1B claim `5dff248`. **C1** `69cdba2` — the gate and its three logic tests, RED→GREEN each, plus the `.vscodeignore` exclusion. **C2** `7019b60` — the drain, the recovered open item, the ledger entry with the salvage, the npm script and the CLAUDE.md documentation. **C3** `faf11b9` — Learnings #283/#284 and the two citations the drain broke. Close-out (this commit). Every commit at or under the 5-file cap.
 
 **Selected by the operator via `AskUserQuestion` at Phase 0 from an empty Active section.** It was Session 194's ranked #0 and is operator-designated — raised after S194's close-out on reading `- [ ] **REMOVED — SHIPPED Session 182.**`.
 
@@ -23,6 +53,48 @@
 **⚠ Counts at claim, measured firsthand, and they already differ from the filed item's.** 119 unchecked boxes (the item says 114, as of S194's close), 17 `- [ ] **REMOVED` tombstones, 10 `***`-opening completed records, 35 `SHIPPED Session` lines, 428 lines / 169 KB. Treat every filed figure as a hypothesis to re-measure (Learning #251); three consecutive sessions have found filed magnitudes wrong.
 
 **Build at claim, verified firsthand rather than inherited:** `npm run compile` clean, `npm test` **1782 passed / 65 files** — matching S194's recorded baseline exactly.
+
+**Key files.** `check-backlog.js` (**new**, repo root, CommonJS beside `check-package.js`) — `findCompletedRecords(markdown)` splits the file into blocks, takes each block's first bold span as its LEAD, strips parenthetical asides, and flags a lead that either opens with a completion word or names the session that finished the work. `check-backlog.d.ts` (**new**) — types for the unit import only; `.vscodeignore` excludes every TypeScript file so it never ships. `test/unit/backlog-hygiene-gate.test.ts` (**new**) — 5 tests: 3 logic, 1 asserting the real `BACKLOG.md` is clean (the backstop), 1 pinning the npm wiring. `.vscodeignore` — `check-backlog.js` added beside `check-package.js`. `package.json` — `check-backlog` script. `CLAUDE.md` — the script table row plus a gotcha saying a red gate is NOT fixed by deleting the block. `BACKLOG.md` — 24 blocks gone, the lone-`+` item restored, the file-history note rewritten to record the second drain. `CHANGELOG.md`, `PROJECT_LEARNINGS.md` #283/#284. Harness: `scratchpad/s195/` — `blocks/` (the 24 extracted records), `blocks.txt`, `records.json`, `verify.txt`, `BACKLOG.drained.md`.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.*
+
+**#1 — THE SAME RULE, IN THE TWO REMAINING SPACES-ONLY OPENERS** (now a proper Up Next item rather than a note stranded in the Active section, where this session found it). `listItemContentColumn` and `CONTENT_COLUMN_4_OPEN` both anchor on `^( *)`, so a TAB-indented list marker or footnote definition opens no tracked column at all — **MEASURED** by S194 and pinned with controls. Effort **derived** small: `indentColumn` exists and is already shared by three readers. ⚠ It touches the PUSH side, which S194 did not, so the ragged-stack and marker-TAB families may move with it. **#2 — THE SETEXT UNDERLINE'S TAB**, which corrects a ⚠ note in `model.ts`'s own source (Learning #282); highest-consequence of the open heading rows, since S192 shipped 97 phantom drains on that surface. **#3 — `ATX_HEADING`'s own ` {0,3}`**, measured as BOTH a loss and a phantom family. **#4 — the RAGGED-stack pop**; **#5 — the marker-TAB push**; **#6 — a four-space-indented list marker is CODE, not a container**. **#7 — the BLOCK QUOTE container**, still the largest open item and still **estimate**, because it needs new scanner state. **#8 — the fenced div / callout container.** **#9 — the lone `+` operator decision, RECOVERED THIS SESSION** — it is a decision, not a defect, so it needs an operator call rather than a measurement. **#10 — still open from S186:** promote the scratchpad harness, `.vscode-test/` at 18 GB, `npm audit` 5 high + 1 moderate, devDependency-only.
+
+**Gotchas for the next session.**
+1. **The gate is live and runs on every `npm test`.** If it reds, **do not fix it by deleting the block** — record the outcome in `CHANGELOG.md` and the correction in `PROJECT_LEARNINGS.md` first. That order is the whole point (Learning #283).
+2. **⚠ A COMPLETED RECORD CAN CONTAIN OPEN WORK.** One of 24 did, and no other tracked file held it. Before deleting any block, grep its most distinctive string repo-wide — `git grep -c "<phrase>"` returning 1 means this file is the only record.
+3. **⚠ A DELEGATED VERIFIER SEARCHES WHERE YOU TELL IT TO.** The agents here were pointed at `CHANGELOG.md` and `PROJECT_LEARNINGS.md`, so a claim living in a **source docstring** came back as "uniquely held" and was wrong (`manyTill anyChar endAngle` is at `src/core/qmd/model.ts:299`). Name every durable home in the prompt, and hand-check before acting.
+4. **⚠ AN ADVERSARIAL REFUTER OVER-CLAIMS IN THE OTHER DIRECTION.** Both refutations here were technically true and practically wrong — the measurement was in the ledger; only the credit attribution was unique. Ask "does losing this change a decision?", not "is this string absent?".
+5. **⚠ A GLOB CONTAINING A STAR-SLASH BREAKS A BLOCK COMMENT**, exactly as S194's regex did. It cost a build here in `check-backlog.d.ts`. The gotcha is not about regexes; it is about the two characters.
+6. **A new file at the REPO ROOT must be added to `.vscodeignore`** or it ships — `check-package` catches it, but only if you run it. `npm test` does not.
+7. **⚠ `npm test` passing is still not evidence that `test/unit` type-checks.** It happened again here: 3 tests green while `tsc` had three errors. `npm run check-types` is the gate.
+8. **Pinned to pandoc 3.6.3 / quarto 1.7.33** for every heading row; unchanged this session, which ran no renders.
+
+---
+
+### Session 194 Handoff Evaluation (by Session 195)
+
+**Score: 8/10.** The framing was excellent and the two things it prescribed were both measurably wrong.
+
+**What helped.** (a) **Filing the item as ranked #0 with the S150 precedent attached is what made this session possible in one sitting** — "Session 150 already did the deletion half and it regressed, because nothing detects it", together with the contrast against the ledger's write-gate + reconcile-on-read and `check-package.js`'s deny-by-default, is the entire argument for the deliverable's shape. I did not have to derive it. (b) It measured firsthand rather than estimating, and said so, including the line numbers of all 17 tombstones. (c) Gotcha 5 (`*/` inside a block comment) named a real edge that I then hit in a different spelling — a glob rather than a regex — and recognised instantly because of it. (d) It disclosed that S194's own close-out had added one of the records, which is the fact that makes this a live practice rather than drift.
+
+**What was wrong.** Two things, both load-bearing. (1) **The magnitude**: "36 blocks, ~24 KB, 15%" against a measured 24 blocks, 33 KB, 20% — wrong in both directions, because it counted sessions named inside blocks rather than blocks. Fifth consecutive filed magnitude to need correcting. (2) **The prescribed rule** — "a `bin/check-backlog` asserting no `- [ ] ` line contains REMOVED/SHIPPED" — is blind to 7 of the 24 records and would red on ~18 open items. Building it as filed would have produced a gate that misses a third of the problem and cries wolf on the rest, which is the failure mode the item itself warns about elsewhere.
+
+**What was missing.** **That a completed record can contain OPEN work.** The handoff said the tombstones "carry post-hoc corrections of the shipped items' OWN claims" — true, and it is why they were kept — but not that one carried an unshipped operator decision recorded nowhere else. That is the difference between "salvage some prose" and "do not bulk-delete", and one sentence would have carried it. It also did not name the citation coupling, though the file's own header does.
+
+**ROI.** Strongly positive. The framing saved more than the two wrong prescriptions cost, because both were caught by measuring before building — which the handoff's own culture is what taught.
+
+### Session 195 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.** Measured the file before designing the rule, which is what caught both of the filed prescription's defects and produced a gate with 0 false positives and 0 false negatives against a hand inventory of all 24 records. Wrote the scope declaration AFTER a coupling survey rather than before — directly applying S194's own self-criticism — and it held all session with no amendment. Verified every block per distinct claim rather than per session, then attacked every "safe to delete" verdict adversarially, and then hand-checked the attacks: that third layer is what stopped two over-claimed refutations from bloating the ledger. Recovered an open decision that bulk deletion would have destroyed. Overturned one agent claim firsthand. Applied Learning #281's caused-by-me test per citation site and got opposite answers for different sites in the same file, closing the two I broke and filing the ones that already dangled. Did not touch a synced methodology file.
+
+**What went wrong.** (1) **I let `npm test` stand in for verification and shipped three type errors into a run** — the CLAUDE.md gotcha says exactly this, in bold, and I read it at Phase 0. (2) **I hit the star-slash-in-a-block-comment edge that the predecessor's handoff had warned about**, one gotcha I had read forty minutes earlier; recognising it instantly is not the same as avoiding it. (3) I pointed the verification agents at two files when the repository has at least four durable homes for a claim, which produced one wrong "uniquely held" verdict that only a hand-check caught — the prompt was under-specified and I wrote it. (4) The workflow's refute phase ran against `FULLY_REDUNDANT` verdicts only; the 14 `PARTIALLY_UNIQUE` ones were never adversarially attacked in the *other* direction, so a salvage that was not actually needed could have survived — I mitigated by hand-checking each salvage claim, but the harness was asymmetric by construction.
+
+**Stakeholder corrections needed: 0.** One operator decision was requested — the task choice at Phase 0.
+
+**Against the bar.** Meets the recent sessions' discipline on measure-before-build, per-item verification and adversarial checking, and adds a durable mechanism rather than a one-off cleanup. Below a 9 because two of the four things that went wrong were failures to apply written guidance I had already read this session, which is the erosion pattern the protocol exists to prevent.
 
 ---
 
