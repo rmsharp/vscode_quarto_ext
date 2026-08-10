@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S200
+date: 2026-08-10
+status: pending
+active_task: IN PROGRESS. FENCE_OPEN's own literal ` {0,3}` cap -- a CommonMark tolerance measured from SOURCE column 0, so a plain fenced code block at a container's content column is not a fence at all: the region never opens, its content is scanned as ordinary markdown, and the title after its closer is never at consecutiveBody === 1. The LAST of the three sites of this class still unmeasured. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S199's ranked #1 and S197's ranked #2. The item IS filed in BACKLOG.md (verified firsthand at Phase 0, line 57), so Learning #288 does not fire. ⚠ SCOPE INCLUDES THE CLOSER: widening the opener alone is a measurable NO-OP on the very documents the item is about, because a fence opens only if hasCloserBelow finds a closer and FENCE_CLOSE carries the same cap -- one capability, not two. ⚠ The hypothesis is NOT inherited from S199: its equality may not generalise to a different construct, so the corpus sweeps past c+3 and scores three observables (does the content render as <pre><code>, does a `#` inside surface as a heading, does the setext title after the closer become one) separately. Completeness pass and sub-agent delegation both budgeted in the claim, before any result is seen.
+```
+
+```handoff
 session: S199
 date: 2026-08-10
 status: complete
