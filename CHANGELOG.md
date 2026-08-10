@@ -7,6 +7,101 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-09 · [ad hoc] Session 198 — the container POP's SUPPRESSION CONDITION (SHIPPED)
+
+`computeRegions` closed every container column deeper than a shallow non-blank line whenever
+`!paragraphOpen`. That flag was a PROXY for "this line is a lazy continuation, so it closes
+nothing", and it is false for TWO different reasons: no paragraph is open, or the line above is
+a BLOCK. A consumed setext underline, an ATX heading, a thematic break, a fence, an HTML comment
+and an indented code line each set it false and so each armed a pop pandoc does not make. The
+setext underline was the expensive one — that branch `continue`s, so a column-0 line below closed
+a list pandoc keeps OPEN and the underline further down matched no column at all, DELETING its
+heading. Session 197's blind 222-document adversarial sweep found it by four independent lenses
+and ranked it #1; it was the largest single loss mechanism in that sweep.
+
+The condition is now `the line above was BLANK, or this line is a LIST START`. That one condition
+answers BOTH separately-filed items, which is why they were done together as Session 197's own
+item instructed: the pop-armed-by-a-consumed-underline (heading-DELETING) and Session 192's
+RAGGED-STACK pop (phantom direction), the same line of code read in opposite directions.
+
+Operator-selected via `AskUserQuestion` at Phase 0 from an empty Active section. **Strict TDD:
+THREE RED→GREEN**, each RED confirmed to fail on the behaviour rather than the plumbing —
+`h1:Real Title` missing, `h1:Eta Ragged Title` surviving, and `h1:Probe Title` missing.
+
+**⚠ THE THIRD RED IS THE POINT OF THE SESSION: the first two halves, shipped alone, DELETE REAL
+HEADINGS, and the designed corpus said they were clean.** A 203-document sweep built from the
+mechanism scored them at zero new errors in either direction. A 300-document completeness pass
+aimed at the OTHER TWO readers of `contentColumns` then measured THREE NEW LOSSES, every one the
+same shape: a footnote or definition-list container, a shallow LIST START, and a probe at the
+container's own content column that quarto still honours. Each was adjudicated against the
+pre-session build on identical bytes — PRE agreed with quarto, POST did not — so by the decision
+rule this session's 1B claim declared in advance they are CAUSED by the change and were closed
+here rather than filed. Pandoc breaks a LIST ITEM's lazy absorption at a sibling marker; a
+definition body has no siblings and absorbs the marker like any other line. The stack now carries
+a KIND per column, because a column alone cannot answer it. **Third session running in which a
+clean designed corpus was wrong** (S196: 0 → 39 blind losses; S197: 0/0 → 262; S198: 0/0 → 3) —
+recorded as Learning #298.
+
+**THE MEASUREMENT.** ~1,000 documents rendered fresh through the real `quarto render` path
+(quarto 1.7.33), over eight corpora.
+
+| corpus | documents | what it measures |
+|---|---|---|
+| pop | 64 | the rule's SHAPE — 8 spellings of the line above x 4 shallow x 2 body |
+| pop2 / pop3 / pop4 | 139 | WHICH spellings close a container, and at what depth |
+| adv | 300 | the completeness pass, aimed at the other two readers |
+| reg / nest | 72 | the three regressions minimised, and the two container kinds nested |
+| pins | 17 | every inherited pin, re-rendered on its exact bytes before being flipped |
+
+Scored against the pre-session build on all 592 scorable documents: **documents agreeing
+335 → 468**, **phantom headings 102 → 14**, **lost headings 139 → 78**, and **not one document's
+error set grew in either direction**.
+
+**⚠ A CORRECTION TO THIS SESSION'S OWN FIRST FIGURE.** The residual loss count was first computed
+as 135. Fifty-seven of those are `h2:Footnotes` — a section quarto GENERATES for any document
+carrying a footnote, which appears in no source document and which this model can never emit. The
+honest residual is 78 (pre-session 139). Seventh extractor/scorer defect in this lineage and the
+first that inflated the number against the change rather than concealing one (Learning #297).
+
+**⚠ THE MARKER TEST IS DELIBERATELY NARROWER THAN `listItemContentColumn`, and reusing that
+function would have deleted headings.** That function accepts `Dr.` and `Mr.` ON PURPOSE, because
+on the PUSH side a column wrongly opened is a cheap phantom. The POP inverts the cost. Measured:
+`Dr. Vasquez logged it.` at column 0 leaves the enclosing item OPEN in quarto. All 24 marker
+spellings were measured rather than inherited — 18 close, 6 do not (Learning #295).
+
+**⚠ THE FIRST MARKER CORPUS SCORED SIX OF 24 WRONG AND THE ERROR WAS THE PROBE, NOT THE DATA.**
+It asked whether a container at content column 4 survives, using a setext probe at column 4 — and
+`10.`, `iv.`, `IV.`, `(1)`, `(a)` and `-	` all open their OWN column 4, so the probe rendered
+from the NEW container. Re-run at a three-deep geometry probing column 6, which no column-0
+marker can reach, all six flipped (Learning #296).
+
+**Closed in place, each RE-RENDERED before the flip:** Session 197's FAMILY D (both spellings) and
+Session 192's FAMILY 5(a). **Also re-rendered and confirmed ACCURATE rather than flipped:** the
+`model.ts:1587` comment claiming a heading, thematic break, fence opener and HTML comment each END
+a list — all four do, when a blank precedes them, and this model already agreed on all eight
+shapes.
+
+**Phase 3E — RUN on the operator's explicit go-ahead sought IN ADVANCE, and GREEN:**
+`test:integration` **505 passing / 0 failing / exit 0** (baseline 504, +1), the new assertion
+watched BY NAME at line 311 of `scratchpad/s198/integration.log`. ⚠ It touches
+`test/fixtures/setext-fresh-block.qmd` NOT AT ALL — it opens its own in-memory documents through
+the suite's existing `openInMemory` helper, so no exact-set `assert.deepStrictEqual` over that
+fixture can be extended by it. Sessions 196 and 197 each lost a full screen-taking run to exactly
+that coupling; this is the first of the three not to (Learning #299).
+
+**Verification at close.** `check-types` **0** · `compile` **0** · `compile-tests` **0** ·
+`npm test` **1797 passed / 66 files** (baseline 1794, +3) · `test:oracle` **131 / 124 agree /
+4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S197) · `check-package` **OK
+42 files / 5.52 MB** · `check-backlog` **OK**. **Repo control:** all four views over all 113
+tracked `md`/`qmd` documents BYTE-IDENTICAL, proven **EFFECTIVE BY INJECTION** — 4 injected
+documents moved and 4 untouched ones did not, in the same run. ⚠ The FIRST injection attempt
+split 2/4 and the fault was the EXPECTATION, not the control: two of the four shapes chosen as
+"movers" are shapes both builds agree on — one of them precisely because the third RED→GREEN
+restored the pre-build's answer there. Verified in isolation before the injection was re-run.
+NOT RUN: `test:lsp` — no LSP surface touched.
+
+**Model:** Claude Opus 5.
+
 ### 2026-08-09 · [ad hoc] Session 197 — a SETEXT UNDERLINE's own indent is measured in COLUMNS (SHIPPED)
 
 The LAST of the six places in `src/core/qmd/model.ts` that measured a line's indentation as a
