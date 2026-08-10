@@ -5272,3 +5272,56 @@ describe("a setext TITLE may be MULTI-LINE under a CommonMark reader (Session 20
     ).toEqual([]);
   });
 });
+
+describe("a raw HTML BLOCK swallows the headings inside it under a CommonMark reader (Session 204)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("a TYPE 6 opener swallows every heading until the next BLANK line", () => {
+    // `scratchpad/s204/gnd` — `g_gfm_div_d1_atx`, rendered this session: under `from: gfm`
+    // an HTML block opened by a known block-tag name runs to the next BLANK line, so quarto
+    // renders NO heading for `Gnd Inside` and this model reports one. The `Gnd Below` probe
+    // is what proves the block ENDS — the change must delete the first and keep the second.
+    expect(
+      names(
+        doc("---", "from: gfm", "---", "", "<div>", "# Gnd Inside", "", "# Gnd Below"),
+      ),
+    ).toEqual(["h1:Gnd Below"]);
+  });
+  it("a TYPE 7 opener — any complete tag — swallows where NO paragraph is open", () => {
+    // `scratchpad/s204/gnd` — `g_gfm_span_d1_atx`, rendered this session: `<span>` is NOT a
+    // type-6 name and is not in pandoc's `blockTags` either, but CommonMark type 7 accepts ANY
+    // complete tag on a line by itself. Measured over all 65 names in `scratchpad/s204/name`:
+    // in the fresh context EVERY one swallows, including `foo` and `mytag`.
+    expect(
+      names(
+        doc("---", "from: gfm", "---", "", "<span>", "# Gnd Inside", "", "# Gnd Below"),
+      ),
+    ).toEqual(["h1:Gnd Below"]);
+  });
+  it("a TYPE 7 opener may NOT interrupt an open paragraph, so the heading below it is REAL", () => {
+    // `scratchpad/s204/intr` — `n_gfm_span_para_i0`, rendered this session: with a paragraph
+    // open above it, `<span>` is ordinary inline content and the ATX heading below interrupts
+    // that paragraph normally, so quarto renders BOTH headings. This model already agreed here
+    // before Session 204 — so this is a test the change had to avoid BREAKING, not one it makes
+    // pass. ⚠ RED established by MUTATION rather than by writing it first: deleting the
+    // `!paragraphOpen` clause from the type-7 test in `computeRegions` turns this into
+    // `expected [ 'h1:Intr Below' ] to deeply equal [ 'h1:Intr Inside', 'h1:Intr Below' ]` —
+    // a real heading DELETED, which is this row's forbidden direction.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: gfm",
+          "---",
+          "",
+          "open paragraph line",
+          "<span>",
+          "# Intr Inside",
+          "",
+          "# Intr Below",
+        ),
+      ),
+    ).toEqual(["h1:Intr Inside", "h1:Intr Below"]);
+  });
+});

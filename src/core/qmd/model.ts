@@ -1689,6 +1689,72 @@ function commonmarkParagraphInterrupt(
  */
 const COMMONMARK_RUN_OPENS_BLOCK = /^[ \t]*(`{3,}|~{3,}|<|>|:[ \t])/;
 /**
+ * CommonMark §4.6 **type 6** — the tag names that open a raw HTML block running to the next
+ * BLANK line, for the heading suppression in the scanner below (Session 204).
+ *
+ * ⚠ **THIS IS NOT `PANDOC_BLOCK_OPEN_TAGS`, AND SUBSTITUTING THAT LIST DELETES REAL HEADINGS.**
+ * The two lists were measured against each other over 130 rendered documents
+ * (`scratchpad/s204/name`), and the decisive context is an OPEN PARAGRAPH: with no paragraph
+ * open CommonMark type 7 accepts ANY complete tag, so every name swallows and the lists cannot
+ * be told apart. Against an open paragraph only type 6 may interrupt. Measured there:
+ *
+ *   24 of the 25 pandoc-only names tested are NOT type 6 — `para`, `note`, `task`, `screen`,
+ *   `synopsis`, `canvas`, `sidebar`, `warning`, `tip`, `example`, `output`, `switch`,
+ *   `epigraph`, `procedure`, `simpara`, `programlisting`, `informaltable`, `mediaobject`,
+ *   `isindex`, `msgset`, `caution`, `important`, `case`, `default`, `equation`. Each renders
+ *   its heading, so a suppression keyed on pandoc's list would DELETE 24 real headings.
+ *   (`center` is the ONE that is in both, and it is here.)
+ *
+ *   15 names CommonMark has and pandoc's `blockTags` lacks DO swallow — `base`, `basefont`,
+ *   `dialog`, `frame`, `iframe`, `legend`, `link`, `menuitem`, `optgroup`, `option`, `param`,
+ *   `search`, `track`, `title`, `textarea`. Omitting them would only leave a phantom, the
+ *   permitted direction, but they are measured and so they are here.
+ *
+ * ⚠ **The indent is ` {0,3}`, NOT `HTML_BLOCK_OPEN`'s `[ \t]*`, and that inversion is
+ * measured.** Session 185 widened `HTML_BLOCK_OPEN` because pandoc's html-block rule does not
+ * look at the indent at all. A CommonMark reader has an indented-code rule instead: at 4
+ * spaces every opener kind stops being a block and the heading below it RENDERS
+ * (`scratchpad/s204/intr` — `n_gfm_div_fresh_i4`, `n_gfm_span_fresh_i4`, `n_gfm_pre_fresh_i4`,
+ * `n_gfm_close_fresh_i4`, and the same four with a paragraph open). Reusing the wider class
+ * would delete the heading in every one.
+ *
+ * ⚠ **A CLOSER opens a block too** — `</div>` behaves exactly as `<div>` does
+ * (`n_gfm_close_fresh_i0`, `n_gfm_close_para_i0`), which is why the `/?` is here and not a
+ * second list.
+ */
+const COMMONMARK_HTML_TYPE6 =
+  "address|article|aside|base|basefont|blockquote|body|caption|center|colgroup|col|dd|details|" +
+  "dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frameset|frame|h[1-6]|head|" +
+  "header|hr|html|iframe|legend|li|link|main|menuitem|menu|nav|noframes|ol|optgroup|option|" +
+  "param|p|search|section|summary|table|tbody|td|textarea|tfoot|thead|th|title|tr|track|ul";
+const COMMONMARK_HTML_TYPE6_OPEN = new RegExp(
+  "^ {0,3}</?(?:" + COMMONMARK_HTML_TYPE6 + ")(?=[ \\t/>]|$)",
+  "i",
+);
+/**
+ * CommonMark §4.6 **type 7** — a COMPLETE open or closing tag, of ANY name, alone on its line.
+ * It also runs to the next blank line, so it shares type 6's end condition and differs only in
+ * what may open it (Session 204).
+ *
+ * ⚠ **THE NAME IS UNRESTRICTED, AND THAT IS MEASURED RATHER THAN READ OFF THE SPEC.** In the
+ * fresh context all 65 names in `scratchpad/s204/name` swallow their heading — including `span`,
+ * `em`, `strong`, `button`, `video`, `del`, and the two invented names `foo` and `mytag`. So a
+ * tag-NAME list cannot express this row at all; the tag GRAMMAR is the whole rule.
+ *
+ * ⚠ **AND IT MAY NOT INTERRUPT AN OPEN PARAGRAPH — the guard is load-bearing, not tidiness.**
+ * `n_gfm_span_para_i0` and `n_gfm_span_para_i3` render their heading where the `fresh` twins do
+ * not: against an open paragraph a type-7 line is ordinary inline content, and the ATX heading
+ * below it then interrupts the paragraph normally. This model ALREADY agreed with quarto on
+ * both rows before this session, so a type-7 test that ignored `paragraphOpen` would not merely
+ * miss an improvement — it would DELETE two real headings that were previously right. That is
+ * the whole reason type 6 and type 7 are two constants here and not one.
+ *
+ * The attribute grammar is CommonMark's own: an unquoted value may not contain whitespace,
+ * quotes, `=`, `<`, `>` or a backtick.
+ */
+const COMMONMARK_HTML_TYPE7_OPEN =
+  /^ {0,3}(?:<[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:"[^"]*"|'[^']*'|[^ \t"'=<>`]+))?)*[ \t]*\/?>|<\/[A-Za-z][A-Za-z0-9-]*[ \t]*>)[ \t]*$/;
+/**
  * A fence opener: leading whitespace of EITHER KIND, then ≥3 of ONE fence char (backtick or
  * tilde), then anything. Capturing the char lets the scanner require the closer to use the
  * same char, so a backtick run can't close a tilde block and vice versa. Shared with cell
@@ -2138,6 +2204,12 @@ function computeRegions(text: string): Regions {
   // title below; it needs no clearing at the resets for the same reason as the two above.
   // See `COMMONMARK_RUN_OPENS_BLOCK` for why this is NOT the interrupt list.
   let bodyRunOpensNonParagraph = false;
+  // Whether a raw HTML BLOCK is open above this line under a CommonMark-family reader, where
+  // such a block swallows every line it covers — so no heading inside one may be reported
+  // (Session 204). `null` means no block is open; otherwise it names the END CONDITION, which
+  // is what the block's CommonMark TYPE decides and what `prevOpenedHtmlBlock` above (a
+  // one-line lookback) cannot express. See `COMMONMARK_HTML_TYPE6_OPEN`.
+  let commonmarkHtmlBlock: "blank" | null = null;
   // The content column of every CONTAINER open above this line, ascending, EXCLUDING the
   // document root's own 0 which is always available (Session 189). This is the state the
   // raw-TeX row's ` {0,3}` was standing in for: pandoc re-parses a container's content
@@ -2452,6 +2524,12 @@ function computeRegions(text: string): Regions {
       paragraphOpen = false;
       inPipeTable = false;
       quoteOpen = false;
+      // A blank line ends a CommonMark type-6 or type-7 raw HTML block — and ONLY those two
+      // types, which is why the state names its end condition rather than being a boolean
+      // (Session 204).
+      if (commonmarkHtmlBlock === "blank") {
+        commonmarkHtmlBlock = null;
+      }
       continue;
     }
 
@@ -2581,9 +2659,10 @@ function computeRegions(text: string): Regions {
     // A live content line (prose or a heading) — outside every skip-region.
     bodyLines.push({ line: i, text: line });
 
-    // An ATX heading — but only where no paragraph is open above it.
+    // An ATX heading — but only where no paragraph is open above it, and never inside a raw
+    // HTML block under a CommonMark reader, where the block swallows it (Session 204).
     const m =
-      paragraphOpen && !dialectOverride
+      commonmarkHtmlBlock !== null || (paragraphOpen && !dialectOverride)
         ? null
         : atxHeadingMatch(
             line,
@@ -2649,6 +2728,21 @@ function computeRegions(text: string): Regions {
       // whether these bytes open a block or merely continue a paragraph depends on it.
       pendingFreshBlock = opensFreshBlock(line, paragraphOpen, rawTexColumns);
       prevOpenedHtmlBlock = HTML_BLOCK_OPEN.test(line);
+      // Does THIS line open a raw HTML block the reader will swallow? Only under a
+      // CommonMark-family reader — pandoc's own reader parses markdown inside such a block
+      // (`markdown_in_html_blocks` / `native_divs`) and really does render the heading there,
+      // measured over the whole `md`/`nofrom` half of `scratchpad/s204/gnd` (Session 204).
+      // ⚠ `paragraphOpen` here is still the line ABOVE's — it is overwritten further down — which
+      // is exactly the state type 7 needs: a complete tag may open a block only where no
+      // paragraph is already open, while a type-6 name interrupts one freely.
+      if (
+        commonmarkDialect &&
+        commonmarkHtmlBlock === null &&
+        (COMMONMARK_HTML_TYPE6_OPEN.test(line) ||
+          (!paragraphOpen && COMMONMARK_HTML_TYPE7_OPEN.test(line)))
+      ) {
+        commonmarkHtmlBlock = "blank";
+      }
       prevIndentedCode = indented;
       // A paragraph's "quotedness" is decided by the line that STARTS it, so it is computed
       // only when no paragraph is open — see `closesParagraph`. Reading it here, before
