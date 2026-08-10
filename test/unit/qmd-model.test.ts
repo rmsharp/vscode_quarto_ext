@@ -5668,4 +5668,78 @@ describe("a front-matter `from:` is resolved as YAML, not as one line shape (Ses
     // MEASURED, `scratchpad/s206/cmk` `c_fromage`: quarto renders `h1:probe title`.
     expect(names(column0Setext('title: "T"', "fromage: gfm"))).toEqual(["h1:probe title"]);
   });
+
+  it("the VALUE may sit on the NEXT line as a plain scalar", () => {
+    // MEASURED, `scratchpad/s206/gnd` `g_nextline_markdown`: quarto renders ONLY the baseline,
+    // because `from:` / `  markdown` really is `from: markdown` and pandoc's markdown HAS
+    // `blank_before_header`. Today the KEY fires and the VALUE never resolves, so the bail is
+    // switched off and the pressed heading is reported — a phantom.
+    expect(names(pressed('title: "T"', "from:", "  markdown"))).toEqual(["h1:Baseline"]);
+  });
+
+  it.each([
+    ["a FOLDED block scalar, chomped", ">-"],
+    ["a FOLDED block scalar", ">"],
+    ["a LITERAL block scalar, chomped", "|-"],
+  ])("the VALUE may sit in %s", (_what, indicator) => {
+    // MEASURED, `scratchpad/s206/gnd` `g_foldm_markdown` / `g_fold_markdown` /
+    // `g_litm_markdown`: quarto renders ONLY the baseline for each. A block scalar carrying one
+    // short line folds to exactly that line, so `from: >-` / `  markdown` is `from: markdown`.
+    // ⚠ The `gfm` twins render BOTH headings, which is what proves the indicator is not simply
+    // making quarto ignore the key.
+    expect(names(pressed('title: "T"', `from: ${indicator}`, "  markdown"))).toEqual([
+      "h1:Baseline",
+    ]);
+  });
+
+  it.each([[1, " "], [2, "  "]])(
+    "a whole mapping indented %i space(s) is still the front matter's TOP level",
+    (_n, pad) => {
+      // MEASURED, `scratchpad/s206/gnd` `g_indent1_markdown` / `g_indent2_markdown`: quarto
+      // renders ONLY the baseline. A uniformly indented mapping is ordinary YAML and its keys
+      // are top-level keys; the column-0 anchor alone cannot see them.
+      //
+      // ⚠ This is NOT "accept any indent", and the guard block above is what says so. A block
+      // scalar's content is ALSO indented, and reading it as a key deletes a real heading. The
+      // distinguishing fact is document-wide rather than per-line: here EVERY content line is
+      // indented, where a block scalar always has its own key sitting at a shallower indent.
+      expect(names(pressed(`${pad}title: "T"`, `${pad}from: markdown`))).toEqual(["h1:Baseline"]);
+    },
+  );
+
+  it("the VALUE may be an ALIAS of an anchor declared on another top-level key", () => {
+    // MEASURED, `scratchpad/s206/gnd` `g_alias_markdown`: quarto renders ONLY the baseline, so
+    // `preferred-reader: &rdr markdown` / `from: *rdr` really is `from: markdown`. Its `gfm`
+    // twin `g_alias_gfm` renders both, which is what proves the alias is being RESOLVED rather
+    // than the key ignored.
+    expect(
+      names(pressed('title: "T"', "preferred-reader: &rdr markdown", "from: *rdr")),
+    ).toEqual(["h1:Baseline"]);
+  });
+
+  it("…and an alias with NO matching anchor resolves nothing", () => {
+    // The guard for the case above, and it passes in BOTH directions: an unresolvable alias
+    // must fall through to today's behaviour (the pressed heading is reported) rather than
+    // resolve to some default. There is no reader named `*nope`, and inventing one here would
+    // feed a flag whose wrong direction deletes a heading.
+    expect(names(pressed('title: "T"', "from: *nope"))).toEqual(["h1:Baseline", "h1:Pressed"]);
+  });
+
+  it("a FLOW mapping's `from:` carries a VALUE as well as a key", () => {
+    // MEASURED, `scratchpad/s206/gnd` `g_flow_markdown`: quarto renders ONLY the baseline. The
+    // key half of this spelling already suspends the bail; without the VALUE half the document
+    // keeps a pressed heading quarto does not render.
+    expect(names(pressed('{from: markdown, title: "T"}'))).toEqual(["h1:Baseline"]);
+    // …and the value must stop at the flow separator rather than swallowing the rest.
+    expect(names(pressed('{title: "T", from: markdown}'))).toEqual(["h1:Baseline"]);
+  });
+
+  it("a FLOW mapping selecting gfm suppresses the setext title, where markdown keeps it", () => {
+    // MEASURED, `scratchpad/s206/cmk` `k_flow_gfm` renders NO heading and `k_flow_markdown`
+    // renders `h1:probe title`. This is the DELETING row, so the pair is asserted together:
+    // the first case alone would pass for a build that had stopped reporting the title
+    // entirely.
+    expect(names(column0Setext('{from: gfm, title: "T"}'))).toEqual([]);
+    expect(names(column0Setext('{from: markdown, title: "T"}'))).toEqual(["h1:probe title"]);
+  });
 });

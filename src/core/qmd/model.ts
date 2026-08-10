@@ -1123,6 +1123,11 @@ const FRONTMATTER_FROM_KEY = /^[ \t]*(["']?)from\1[ \t]*:/;
 const FRONTMATTER_FLOW_OPEN = /^[ \t]*\{/;
 const FRONTMATTER_FLOW_FROM_KEY = /[{,][ \t]*(["']?)from\1[ \t]*:/;
 /**
+ * The same entry with its VALUE captured — everything up to the next flow separator (`,` or the
+ * closing `}`), which is where a YAML flow scalar ends.
+ */
+const FLOW_FROM_ENTRY = /[{,][ \t]*(["']?)from\1[ \t]*:([^,}]*)/;
+/**
  * A front-matter `from:` whose VALUE names a reader of the **CommonMark family** (Session 202).
  *
  * ⚠ **This is a different question from `FRONTMATTER_FROM_KEY` above and must stay one, because
@@ -1243,6 +1248,171 @@ function fromKeepsBlankBeforeHeader(line: string): boolean {
     FRONTMATTER_MARKDOWN_VARIANT_FROM.test(line) &&
     FRONTMATTER_FROM_ENABLES_BLANK_BEFORE_HEADER.test(line)
   );
+}
+/** A front-matter line that is blank or holds nothing but a comment — never YAML content. */
+const FRONTMATTER_NOT_CONTENT = /^[ \t]*(?:#.*)?$/;
+/**
+ * A `from:` key at the front matter's own TOP LEVEL, key and separator only, so the VALUE is
+ * whatever follows the match. The quote is captured and back-referenced, so `"from":` and
+ * `'from':` resolve while a half-quoted `"from:` does not.
+ *
+ * ⚠ **Anchored at column 0, and that anchor is load-bearing rather than conservative.** An
+ * `abstract: |` block scalar's content is ordinary prose that may wrap across the words
+ * `from: gfm …`, and reading it as a reader DELETES a real heading — `scratchpad/s206/cmk`
+ * `c_abs_only` renders `h1:probe title`, and its collision twin `c_abs_coll` (the same prose
+ * beside a real top-level `from: gfm`) renders none. YAML requires a block scalar's content to
+ * be indented past its key, so column 0 makes that hazard unreachable by construction.
+ */
+const TOP_LEVEL_FROM_KEY = /^(["']?)from\1[ \t]*:/;
+/**
+ * A YAML **block scalar** header — `|` or `>` with an optional chomping/indentation indicator
+ * and an optional trailing comment. Such a value is not on this line at all: it is the indented
+ * block below, and a reader name is short enough that the block is one line, which both `|` and
+ * `>` fold to that line unchanged.
+ */
+const BLOCK_SCALAR_INDICATOR = /^[ \t]*[|>][+-]?[0-9]?[ \t]*(?:#.*)?$/;
+/**
+ * The front matter's TOP-LEVEL `from:` declaration, rewritten as the single canonical LINE
+ * `from: <value>` so the MEASURED value predicates above can classify it unchanged (Session 206).
+ *
+ * ⚠ **This exists because a YAML value has many spellings and a line regex has one.** Every
+ * spelling below is quarto-honoured, measured on the real render path over two independent
+ * observables — `scratchpad/s206/gnd` (the `blank_before_header` bail) and `scratchpad/s206/cmk`
+ * (the setext COLUMN row) — with a `gfm` row and a `markdown` row for each, because it is the
+ * two rows DISAGREEING that proves quarto read the spelling rather than ignored the front matter.
+ *
+ * ⚠ **Returning `null` is always today's behaviour, so every unhandled shape falls through to a
+ * phantom.** That is the required direction: both flags this feeds DELETE a heading when they
+ * fire wrongly (`FRONTMATTER_COMMONMARK_FROM` at setext underline column 0,
+ * `fromKeepsBlankBeforeHeader` at a pressed ATX heading). Where the value cannot be resolved
+ * with confidence, resolve nothing.
+ *
+ * ⚠ **For a plain top-level `from:` the returned line is BYTE-IDENTICAL to the source line**,
+ * which is what keeps Sessions 202's and 205's allowlists from moving: the value text is passed
+ * through verbatim — quotes, trailing comment, extension list and all — and only the KEY is
+ * canonicalised. A synthesised line is produced only for a spelling that had no line to match.
+ */
+function frontMatterFromValueLine(lines: readonly string[]): string | null {
+  if (lines.length === 0 || !FRONTMATTER_OPEN.test(lines[0])) {
+    return null;
+  }
+  const content: string[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (FRONTMATTER_CLOSE.test(lines[i])) {
+      break;
+    }
+    content.push(lines[i]);
+  }
+  const top = topLevelIndent(content);
+  if (top === null) {
+    return null;
+  }
+  for (let i = 0; i < content.length; i++) {
+    if (leadingWhitespace(content[i]) !== top || FRONTMATTER_NOT_CONTENT.test(content[i])) {
+      continue;
+    }
+    const key = TOP_LEVEL_FROM_KEY.exec(content[i].slice(top));
+    if (key === null) {
+      // A whole front matter may be one FLOW mapping, whose `from:` sits after a `{` or `,`
+      // rather than at the line's start — `scratchpad/s206/gnd` `g_flow_markdown` suppresses
+      // the pressed heading and `g_flow_gfm` renders it. The value ends at the next separator.
+      if (FRONTMATTER_FLOW_OPEN.test(content[i])) {
+        const flow = FLOW_FROM_ENTRY.exec(content[i]);
+        if (flow !== null) {
+          return `from: ${flow[2].trim()}`;
+        }
+      }
+      continue;
+    }
+    const value = content[i].slice(top + key[0].length);
+    const alias = YAML_ALIAS_VALUE.exec(value);
+    if (alias !== null) {
+      const anchored = topLevelAnchor(content, top, alias[1]);
+      return anchored === null ? null : `from: ${anchored}`;
+    }
+    if (!FRONTMATTER_NOT_CONTENT.test(value) && !BLOCK_SCALAR_INDICATOR.test(value)) {
+      return `from:${value}`;
+    }
+    // An EMPTY value, or a BLOCK SCALAR indicator: either way YAML puts the scalar on the
+    // following line, indented past the key. `scratchpad/s206/gnd` `g_nextline_markdown`,
+    // `g_foldm_markdown`, `g_fold_markdown` and `g_litm_markdown` all render only their
+    // baseline, so each is `from: markdown`. A one-line block scalar folds to that one line,
+    // which is the only shape a reader name can take.
+    const next = nextContentLine(content, i + 1);
+    if (next !== null && leadingWhitespace(next) > top) {
+      return `from: ${next.trim()}`;
+    }
+    return null;
+  }
+  return null;
+}
+/**
+ * A value that is nothing but a YAML **alias** — `*name`, optionally with a trailing comment.
+ * The name charset excludes YAML's flow indicators, which an anchor name may not contain.
+ */
+const YAML_ALIAS_VALUE = /^[ \t]*\*([^\s,[\]{}]+)[ \t]*(?:#.*)?$/;
+/**
+ * The value carried by the top-level key that declares the anchor `&name`, or `null` when no
+ * top-level key declares it.
+ *
+ * ⚠ **Top-level only, and that is a fail-closed choice rather than a claim about YAML.** An
+ * anchor may legally be declared at any depth; resolving one this scanner cannot see with
+ * confidence would feed a flag whose wrong direction DELETES a heading, so an unresolvable alias
+ * returns `null` and the document keeps today's behaviour. Measured for the top-level shape:
+ * `scratchpad/s206/gnd` `g_alias_markdown` suppresses the pressed heading and `g_alias_gfm`
+ * renders it.
+ */
+function topLevelAnchor(content: readonly string[], top: number, name: string): string | null {
+  for (const line of content) {
+    if (leadingWhitespace(line) !== top) {
+      continue;
+    }
+    const m = TOP_LEVEL_ANCHOR_DECL.exec(line.slice(top));
+    if (m !== null && m[2] === name) {
+      return m[3].trim();
+    }
+  }
+  return null;
+}
+/** A top-level `key: &anchor value` declaration — the key, the anchor name, and the value. */
+const TOP_LEVEL_ANCHOR_DECL = /^(["']?)[^:]*\1[ \t]*:[ \t]*&([^\s,[\]{}]+)[ \t]+(.*)$/;
+/** How many leading space/tab characters `line` carries. */
+function leadingWhitespace(line: string): number {
+  return (/^[ \t]*/.exec(line) as RegExpExecArray)[0].length;
+}
+/**
+ * The indent of the front matter's own TOP LEVEL — the SHALLOWEST content line in the block, or
+ * `null` when the block holds no content at all.
+ *
+ * ⚠ **This is what makes a uniformly indented mapping reachable WITHOUT making a block scalar's
+ * interior reachable, and the two really are distinguishable.** YAML requires a block scalar's
+ * content to be indented past its own key, so that key is always a shallower content line and
+ * the minimum can never land inside the scalar. `scratchpad/s206/gnd` `g_indent1_markdown` and
+ * `g_indent2_markdown` (every line indented — top level is 1 and 2) suppress the pressed heading
+ * where `scratchpad/s206/cmk` `c_abs_only` (an `abstract: |` at column 0 whose prose wraps across
+ * `from: gfm …`) renders its heading and must keep it.
+ */
+function topLevelIndent(content: readonly string[]): number | null {
+  let min: number | null = null;
+  for (const line of content) {
+    if (FRONTMATTER_NOT_CONTENT.test(line)) {
+      continue;
+    }
+    const n = leadingWhitespace(line);
+    if (min === null || n < min) {
+      min = n;
+    }
+  }
+  return min;
+}
+/** The next line holding YAML content, or `null` at the end of the block. */
+function nextContentLine(content: readonly string[], from: number): string | null {
+  for (let j = from; j < content.length; j++) {
+    if (!FRONTMATTER_NOT_CONTENT.test(content[j])) {
+      return content[j];
+    }
+  }
+  return null;
 }
 /**
  * A setext underline run that pandoc will swallow the ATX line above into — `=`s or `-`s
@@ -2335,12 +2505,19 @@ function computeRegions(text: string): Regions {
   // rather than a refinement of it: that one keys on the KEY's presence and is read by the
   // ATX row at two sites, where its fail-open direction is a measured phantom. Here the
   // fail-open direction is a DELETION, so the two cannot share a flag.
-  let commonmarkDialect = false;
+  // ⚠ Both VALUE flags are resolved ONCE from the whole front-matter block rather than line by
+  // line (Session 206), because a YAML value is not always on its key's line: it may sit on the
+  // next line, inside a block scalar, behind an alias, or in a flow mapping. Hoisting is
+  // behaviour-preserving — every consumer of these flags sits BELOW the front matter, which the
+  // loop `continue`s straight through — and for a plain top-level `from:` the line the resolver
+  // hands over is byte-identical to the source line, so neither allowlist can move.
+  const fromValueLine = frontMatterFromValueLine(lines);
+  let commonmarkDialect = fromValueLine !== null && FRONTMATTER_COMMONMARK_FROM.test(fromValueLine);
   // Whether the front-matter `from:` names a reader that KEEPS `blank_before_header` — see
-  // `FRONTMATTER_BLANK_BEFORE_HEADER_FROM`. A THIRD flag beside the two above, read by the
+  // `fromKeepsBlankBeforeHeader`. A THIRD flag beside the two above, read by the
   // ATX paragraph bail alone: `dialectOverride`'s other consumer (the heading COLUMN set) asks
   // a different question and must not move with this one.
-  let blankBeforeHeaderDialect = false;
+  let blankBeforeHeaderDialect = fromValueLine !== null && fromKeepsBlankBeforeHeader(fromValueLine);
   // Whether the line ABOVE began a fresh block, making this line a paragraph start
   // (Session 181). Deliberately a one-line deferral rather than a reset — see the loop.
   // It needs no clearing at the region-boundary resets below: those set `consecutiveBody`
@@ -2446,12 +2623,8 @@ function computeRegions(text: string): Regions {
       ) {
         dialectOverride = true;
       }
-      if (FRONTMATTER_COMMONMARK_FROM.test(line)) {
-        commonmarkDialect = true;
-      }
-      if (fromKeepsBlankBeforeHeader(line)) {
-        blankBeforeHeaderDialect = true;
-      }
+      // ⚠ The two VALUE flags are NOT set here — they are resolved once from the whole block
+      // above, because a YAML value need not sit on its key's line (Session 206).
       if (FRONTMATTER_CLOSE.test(line)) {
         inFrontmatter = false;
         frontMatter = { startLine: 0, endLine: i, terminated: true };
