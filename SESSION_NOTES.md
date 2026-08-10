@@ -5,6 +5,55 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 207 — IMPLEMENTATION (strict TDD): a DEPTH-AWARE front-matter `from:` reader. Today the KEY predicate matches at ANY indent and the VALUE resolver only at the TOP level, so the model gets both ends of the same question wrong: a block scalar's ordinary PROSE selects a reader it should not, and a per-format `format:`/`  html:`/`    from:` — which quarto really does honour — selects one it should. One mechanism answers both: *where in the YAML does this `from:` sit, and does that position select the reader?***
+**Started:** 2026-08-10
+**Status:** Session claimed. Work beginning.
+
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Selected by the operator via `AskUserQuestion` at Phase 0 from an empty Active section.** It was Session 206's ranked **#1 and #2**, which that session **derived** to be ONE capability — "a depth-aware front-matter reader … `frontMatterFromValueLine` is the worked example of the value half; what it lacks is a path". **Both items ARE filed** in `BACKLOG.md` — verified firsthand at Phase 0, "Up Next" lines 56 (the any-indent KEY, filed by S206) and 94 (the per-format nested `from:`, filed by S202) — so Learning #288 does not fire.
+
+**⚠ THE SLICE TEST (FM #26), APPLIED BEFORE THE CLAIM.** Two filed items, ONE capability. The KEY half and the VALUE half are not two rules that happen to be adjacent — they are the *same* unanswered question asked from two ends. `FRONTMATTER_FROM_KEY` fires wherever the five characters appear because nothing tells it what YAML path it is standing on; `frontMatterFromValueLine` refuses everything below the top level for exactly the same reason. Give the scanner a path and both are answered by one walk of one block, feeding the four existing flags at their five existing sites, with no new consumer. The test is whether a single mechanism answers all of it, and it does.
+
+**⚠ SCOPE, declared AFTER a coupling survey rather than before it.**
+
+**IN — the two halves, each MEASURED by a prior session:**
+
+| # | half | what is wrong today | corpus document |
+|---|---|---|---|
+| A | the per-format **VALUE** — `format:` / `  html:` / `    from: gfm` | quarto honours it and this scanner resolves nothing, so all three VALUE flags stay off | `s206/ctl5` `z_nest_gfm` (renders at column 3) vs `z_nest_md` (renders none); `s206/cmk` `c_nested`; `s202/adv/dialect/dialect_01` |
+| B | the any-indent **KEY** — a block scalar's PROSE | `abstract: |` wrapping across the words `from: …` sets `dialectOverride`, a phantom at heading columns 1-3 | SEVEN blind documents across three sessions: `s206/adv/real` `real_01` `real_05` `real_07` `real_12` `real_15`, `s206/adv/yaml` `yaml_05` `yaml_16`, `s205/adv/yaml` `yaml_03`; designed controls `s206/gnd` `c_abs_only`, `c_params` |
+
+**OUT, each with the reason it is a different rule rather than a smaller piece of this one:**
+- **A blank line before the opening `---`** — `findFrontMatter` and the scan's `i === 0`, whose consumers include the outline's front-matter span, the citation reader and the completion gate. Filed; S206 scoped it out for this reason and I inherit that.
+- **A mid-document `---`/`from:`/`---`** — the front-matter BLOCK opens at `i === 0` alone; separately filed, both halves.
+- **A YAML MERGE KEY (`<<: *defaults`)** — filed by S206 as two halves, and it explicitly says the *phantom* half is this row's KEY item. ⚠ So `s206/adv/yaml` `yaml_11` may improve as a CONSEQUENCE of half B; **resolving the merge itself is OUT** and the item is rewritten, not drained, unless re-measurement says otherwise.
+- **An escaped-unicode key (`{"from": gfm}`)** — needs a YAML parser to decode; filed, VERY LOW.
+- **The extension list being LAST-WINS** — a VALUE-classification bug inside `fromKeepsBlankBeforeHeader`, orthogonal to where the key sits. Filed, LOW.
+- **`_quarto.yml` project-level `from:`** — filed; this scanner sees one document's bytes.
+- Every other backlog item, and every synced methodology file.
+
+**⚠ FIVE COUPLINGS, surveyed firsthand before this claim was written.**
+
+1. **⚠ THE NARROWING'S POLARITY IS THE EXACT INVERSE OF SESSION 206'S WIDENING, AND THAT IS THE WHOLE HAZARD OF HALF B.** S206's docstring says widening the KEY is safe because firing wrongly costs a phantom. **Narrowing it is not**: if `dialectOverride` stops firing on a document where quarto really did select a reader, the paragraph bail re-engages (`model.ts:3039`) *and* the column set collapses to `[0]` (`:3051`) — **both DELETE a real heading.** So half B must be keyed on a POSITIVE proof that this `from:` is NOT a reader selection (it sits inside a block scalar's interior, or under a parent that is not `format:`), never on failing to prove that it is. Ambiguity keeps today's behaviour. This is S206's own Learning applied in the opposite direction, and it is the sentence I expect to be tempted to shave.
+2. **⚠ `model.ts` IS A LEAF BY CONSTRUCTION — `grep -c "^import" src/core/qmd/model.ts` returns 0**, and `yaml-context.ts:20` imports FROM it, so the repo's existing quote-/flow-aware YAML enumerator (`src/core/yaml-frontmatter-values.ts`) still cannot be reused without an import cycle. Verified firsthand at Phase 1, not inherited. The path walker must be self-contained in `model.ts`, beside `topLevelIndent`.
+3. **⚠ A UNIT TEST PINS THE DELIBERATE PHANTOM THIS ROW EXISTS TO CLOSE, AND IT MUST MOVE.** `test/unit/qmd-model.test.ts:5783` — *"…and a reader this scanner cannot resolve keeps today's behaviour exactly"* — asserts that a nested `format:`/`  html:`/`    from: markdown` still reports `h1:Indented Heading Here`, and its own comment says so: *"`scratchpad/s206/pins` `p_colnest` renders nothing and this model reports a heading. It is the disclosed cost of the safe direction, and it is the filed per-format item's to close."* That is this session. ⚠ **A second pin at `:950` must STAY GREEN and asserts real quarto behaviour** — a nested `from: markdown_strict` keeps a heading pressed against prose — so half A must set `dialectOverride` for the per-format path, not merely resolve its value.
+4. **⚠ HALF A MOVES THREE FLAGS AT FIVE SITES, TWO OF WHICH DELETE WHEN THEY FIRE WRONGLY.** Resolving a nested value feeds `commonmarkDialect` (setext underline column 0 — DELETES), `blankBeforeHeaderDialect` (a pressed ATX heading — DELETES) and `markdownFamilyDialect` (the column set — DELETES at columns 1-3). So the nested VALUE stays an exact measured allowlist exactly as the top-level one is, and an unresolvable nested value returns `null`.
+5. **⚠ SUPPRESSING OR ADMITTING A HEADING IS NOT FREE — the `if (m)` branch is a state machine** (`consecutiveBody`, `paragraphOpen`, `inPipeTable`, `quoteOpen`, `prevWasAtxHeading`). Every corpus row carries a probe BELOW the line whose fate changes — the half that bit S202 and S203, carried by S204, S205 and S206.
+
+**⚠ THE COMPLETENESS PASS IS BUDGETED HERE, BEFORE ANY RESULT IS SEEN, AND ITS CONSUMER LIST IS ENUMERATED NOW.** S206's ground corpus scored INTRODUCED 0 on a regression its completeness pass caught at INTRODUCED 2, because every ground document read the flag through ONE consumer. The four flags have **five distinct consumer sites**, greped firsthand: the ATX **paragraph bail** (`:3039`, reads `dialectOverride` and `blankBeforeHeaderDialect`), the ATX **heading COLUMN set** (`:3051`, reads `dialectOverride` and `markdownFamilyDialect`), the setext **title LINE COUNT** (`:2940`, `commonmarkDialect`), the setext **underline COLUMN set** (`:2962`, `commonmarkDialect`), and the **CommonMark HTML-BLOCK region** (`:3116`, `commonmarkDialect`). One probe per site, each written in the NEW spellings rather than the plain one (Learning #327).
+
+**⚠ THE DECISION RULE FOR ANY SCOPE AMENDMENT, DECLARED IN ADVANCE** (S194's test, as S196–S206 applied it): *would this defect exist if my change did not ship?* A new error CAUSED by this change is closed here and disclosed; one that is pre-existing and merely made reachable is pinned with a rendered control and FILED, with the grep count pasted at Phase 3F.
+
+**⚠ TDD gate — FIRES.** The path walker is logic. RED → GREEN → REFACTOR, one behaviour at a time, each RED confirmed to fail on the BEHAVIOUR rather than the plumbing. ⚠ **S204's Gotcha 5, inherited a FOURTH time: any guard's test is written BEFORE the guard**, and — as S206 found — deliberately on the row where a wrong answer DELETES rather than merely invents.
+
+**⚠ SUB-AGENTS: this session WILL delegate the adversarial corpus**, per the operator's standing directive (Session 183). Every agent claim is to be verified firsthand before it is acted on. ⚠ **Learning #330 is honoured at the brief**: each lens is told to write half its corpus as DECOYS, because S206's lenses wrote exotic YAML around `gfm` — where the answer already came out right for the wrong reason — and returned FIXED 0.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **1883 passed / 66 files**, matching Session 206's recorded close-out exactly; `check-backlog` **OK, 138 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`c4341b4`, gap 0) and `grep -c "^status: pending" HANDOFFS.md` = 0. No ghost sessions. ⚠ `methodology_dashboard.py` v2.13.0 vs canonical v2.14.0, noted for the NINTH session and not acted on.
+
+---
+
+## Session 206 ACTIVE TASK (superseded by Session 207 — full entry preserved below)
 **Task:** **Session 206 — IMPLEMENTATION (strict TDD): a YAML-AWARE resolution of the top-level front-matter `from:` DECLARATION. A quoted key (`"from": gfm`) is invisible to `FRONTMATTER_FROM_KEY`, and `FRONTMATTER_COMMONMARK_FROM` misses several valid YAML spellings of the very value it looks for — both heading-DELETING, both MEASURED by prior sessions, and both the same missing capability.**
 **Started:** 2026-08-10 · **Closed:** 2026-08-10
 **Status:** **DONE. SHIPPED — a YAML value has many spellings and a line regex has one, so the fix was to NORMALISE the input rather than loosen the matcher. 287 rendered documents: designed agreement 78/120 → 116/120, the predecessors' own corpora 14/28 → 22/28, and the per-error adjudication returns INTRODUCED 0 / FIXED 48 after the one regression this session caused was closed.**

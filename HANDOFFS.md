@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S207
+date: 2026-08-10
+status: pending
+active_task: IN PROGRESS. A DEPTH-AWARE front-matter `from:` reader. The KEY predicate matches at ANY indent and the VALUE resolver only at the TOP level, so the model gets both ends of one question wrong: a block scalar's ordinary PROSE selects a reader it should not (SEVEN blind witnesses across three sessions), and a per-format `format:`/`  html:`/`    from:` -- which quarto really does honour (S206 measured `ctl5` `z_nest_gfm` rendering at column 3 against `z_nest_md` rendering none) -- selects one it should. One mechanism answers both: where in the YAML does this `from:` sit, and does that position select the reader? Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S206's ranked #1 and #2, which that session DERIVED to be one capability. ⚠ THE HAZARD, declared at claim: narrowing the KEY is the exact INVERSE polarity of S206's widening -- a `dialectOverride` that stops firing where quarto really did select a reader re-engages the paragraph bail AND collapses the column set to [0], and BOTH delete a real heading. So the narrowing is keyed on a POSITIVE proof that the key is at a non-selecting position, never on failing to prove it is at a selecting one.
+```
+
+```handoff
 session: S206
 date: 2026-08-10
 status: complete
