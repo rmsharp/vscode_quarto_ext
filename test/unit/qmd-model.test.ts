@@ -4143,4 +4143,31 @@ describe("the container POP's SUPPRESSION CONDITION is a BLANK LINE, not an open
                 "  Eta Ragged Title", "===", "", "- plain item", "", "  Eta Plain Title", "===")),
     ).toEqual(["h1:Eta Ragged Title", "h1:Eta Plain Title"]);
   });
+
+  it("RED->GREEN: a list start closes a LIST ITEM container, never a DEFINITION one", () => {
+    // ⚠ THIS TEST EXISTS BECAUSE THE TWO HALVES ABOVE, SHIPPED ALONE, DELETE REAL HEADINGS.
+    // The designed 203-document sweep scored them at zero new errors in either direction; a
+    // 300-document completeness pass aimed at the OTHER TWO readers of `contentColumns` then
+    // measured THREE NEW LOSSES, and all three are this shape — a container opened by a
+    // footnote or definition-list marker, a shallow LIST START, and a probe at the container's
+    // own content column that quarto still honours. Every one was decided against the
+    // pre-session build on identical bytes: PRE agreed with quarto, POST did not, so they are
+    // CAUSED by this change and are closed here rather than filed (the decision rule this
+    // session's 1B claim declared in advance).
+    //
+    // Measured over 40 documents (`scratchpad/s198/reg`), container KIND x shallow spelling:
+    // a footnote or definition container survives a shallow list start in all four spellings,
+    // and a list item container survives only prose. The stack therefore has to carry a KIND
+    // per column — a column alone cannot answer this.
+    expect(
+      names(doc("## Ledger", "", "Term here", "", ":   the definition body", "",
+                "    Body prose line.", "* shallow star", "", "    Probe Title", "    ===")),
+    ).toEqual(["h2:Ledger", "h1:Probe Title"]);
+    // CONTROL — the identical shape whose container is a LIST ITEM, which the same list start
+    // DOES close. This is the assertion that fails if the fix is "a list start pops nothing".
+    expect(
+      names(doc("## Ledger", "", "-   Item alpha.", "",
+                "    Body prose line.", "* shallow star", "", "    Probe Title", "    ===")),
+    ).toEqual(["h2:Ledger"]);
+  });
 });

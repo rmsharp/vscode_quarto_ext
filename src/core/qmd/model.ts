@@ -1579,6 +1579,17 @@ function computeRegions(text: string): Regions {
   // before this session (a pre-existing phantom). A column missing that pandoc DOES open
   // deletes a real heading. Every rule below is written to fail in the first direction.
   let contentColumns: number[] = [];
+  // What OPENED each of those columns, index for index with `contentColumns` (Session 198).
+  // Only the container POP reads it, and only in its no-blank branch: a shallow LIST START
+  // closes a LIST ITEM container and does NOT close a FOOTNOTE or DEFINITION-LIST one, so a
+  // column alone cannot answer the question. Measured over 40 documents through the real
+  // `quarto render` path (`scratchpad/s198/reg`) — container kind x four shallow spellings:
+  // a definition container survives all four, a list item container survives prose only.
+  // ⚠ Kept as a PARALLEL array rather than folding the pair into one object: `contentColumns`
+  // is handed to `setextUnderlineLevel`, `indentedCodeLine` and `rawTexMacroLineIsBlock` as a
+  // plain `readonly number[]` (twice as `[0, ...contentColumns]`), and changing its element
+  // type would touch all three readers for a fact none of them uses.
+  const columnKinds: ("list" | "definition")[] = [];
   // Whether a BLOCK QUOTE may still be open, which suspends the column rule entirely — see
   // the assignment at the foot of the loop. Measured, and the single largest deletion trap in
   // this change: `> quoted` / `>` / `   \clearpage` / `   # ATX Below` renders the heading
@@ -1689,9 +1700,28 @@ function computeRegions(text: string): Regions {
       // line x 2 body shapes. The answer separates PERFECTLY on two facts and on nothing
       // else — the line above being blank, and the shallow line being a LIST START. All eight
       // "above" spellings behave identically once the blank is controlled for.
-      if (prevLineBlank || popsEnclosingContainer(line)) {
+      //
+      // ⚠ **A LIST START CLOSES A LIST ITEM AND NOTHING ELSE, and that qualification is not a
+      // refinement — without it this row DELETES REAL HEADINGS.** The two facts above, shipped
+      // alone, scored zero new errors over the 203-document designed sweep and then lost three
+      // headings in a 300-document completeness pass, every one of them this shape: a footnote
+      // or definition-list container, a shallow list start, and a probe at the container's own
+      // content column that quarto still honours. Pandoc breaks a LIST ITEM's lazy absorption
+      // at a sibling marker; a definition body has no siblings and absorbs the marker like any
+      // other line. Measured per container kind (`scratchpad/s198/reg`) — a definition
+      // container survives all four shallow spellings, a list item survives prose only.
+      //
+      // The test is over EVERY column being popped, not just the top one: with a definition
+      // column below a list column, quarto keeps BOTH across a shallow marker
+      // (`scratchpad/s198/nest`, `defthenlist`), so stopping at the first non-list from the top
+      // would still delete the deeper heading.
+      const deeperColumnsAreAllLists = contentColumns.every(
+        (c, idx) => c <= indentWidth || columnKinds[idx] === "list",
+      );
+      if (prevLineBlank || (deeperColumnsAreAllLists && popsEnclosingContainer(line))) {
         while (contentColumns.length > 0 && contentColumns[contentColumns.length - 1] > indentWidth) {
           contentColumns.pop();
+          columnKinds.pop();
         }
       }
       // ⚠ AN OPENER AT CODE DEPTH OPENS NOTHING (Session 196), because it is not an opener at
@@ -1714,10 +1744,12 @@ function computeRegions(text: string): Regions {
         const opened = listItemContentColumn(line);
         if (opened !== null) {
           contentColumns.push(opened);
+          columnKinds.push("list");
         } else if (CONTENT_COLUMN_4_OPEN.test(line)) {
           // A footnote definition and a definition-list definition both give their content
           // exactly 4 columns past their own indent — measured, and independent of label length.
           contentColumns.push(indentWidth + 4);
+          columnKinds.push("definition");
         }
       }
       if (BLOCK_QUOTE_MARKER.test(line)) {
