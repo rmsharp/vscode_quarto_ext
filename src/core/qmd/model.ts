@@ -199,7 +199,7 @@ const ATTR_ID = /#([^\s}]+)/;
  * at all render it at 0 only. Applying the equality under those two keys DELETES real
  * headings, which is how this session's completeness pass found it. The suspension keys on
  * the key's PRESENCE rather than on resolving the dialect — the same fail-open
- * `FRONTMATTER_FROM_KEY` already documents for the `paragraphOpen` bail — so the measured
+ * `frontMatterSelectsReader` documents for the `paragraphOpen` bail — so the measured
  * cost is a phantom at columns 1-3 under the three non-CommonMark keys, this project's
  * permitted direction. A container column still resolves normally under a `from:` key
  * (measured), because column 0 is not the only column in the set.
@@ -1071,50 +1071,37 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
   /^ {0,3}\.\.\.[ \t]*$/, //                                 a mid-document YAML block's `...` terminator
 ];
 /**
- * A front-matter `from:` key, at ANY indentation so a per-format
- * `format:`/`  html:`/`    from: …` is caught too.
+ * ⚠ **`FRONTMATTER_FROM_KEY` — the any-indent `from:` key regex — LIVED HERE AND IS GONE
+ * (Session 207).** It was `/^[ \t]*(["']?)from\1[ \t]*:/`, and its docstring disclosed the
+ * depth-blindness as deliberate: *"a `from: markdown` nested under `format:`/`  html:` … and an
+ * `abstract: |` block scalar whose prose merely begins `from: …` both keep the phantom."*
+ * Both of those sentences are now false, so the regex could not stay — whether a `from:`
+ * selects the reader is a question about its YAML PATH, and no line regex can carry one.
+ * See `frontMatterSelectsReader` below, which is the replacement and holds the measurement.
+ *
+ * The facts that regex's docstring recorded and that remain true are kept here, because each
+ * is a rendered result no later session should have to re-measure:
  *
  * `blank_before_header` is a pandoc DEFAULT, not an invariant: a document that selects a
  * different reader dialect really does render a heading pressed against prose. Measured on
  * the real render path — `markdown-blank_before_header`, `markdown_strict`, `gfm` and
  * `commonmark` each render the heading, while plain `markdown` and no key at all do not.
  *
- * The bail keys on the key's PRESENCE, not on resolving the dialect, so it fails CLOSED.
- * `reader:` is deliberately absent — quarto REJECTS that key outright (exit 1), so no such
- * document ever renders a heading.
- *
- * ⚠ **Session 205 paid down the cost this docstring used to disclose** — it read "the cost is
- * that `from: markdown` retains the phantom, which is the permitted direction", and that
- * sentence is now false for the paragraph bail. `fromKeepsBlankBeforeHeader` below resolves the
- * VALUE for that one row and hands the bail back to the readers measured to keep the extension,
- * so `from: markdown` behaves like no key at all. Two things did NOT change and are the reason
- * this row survives: the flag itself is untouched, so `dialectOverride`'s OTHER consumer — the
- * heading COLUMN set — keeps this presence-keying and its own permitted phantom at columns 1-3;
- * and the depth-blindness here is still deliberate, so a `from: markdown` nested under
- * `format:`/`  html:` (measured to suppress, `scratchpad/s205/spl` `s_nested`) and an
- * `abstract: |` block scalar whose prose merely begins `from: …` (`s_scalaronly`) both keep the
- * phantom. That second one is why `fromKeepsBlankBeforeHeader` is anchored at column 0 where
- * this row is not: firing on a block scalar's prose while a real `from: gfm` sits at column 0
- * DELETES the heading quarto renders (`s_collide`, measured — not inherited from Session 202's
- * anchor).
+ * `reader:` is deliberately not a spelling of this key — quarto REJECTS it outright (exit 1),
+ * so no such document ever renders a heading to agree with.
  *
  * ⚠ **The key may be QUOTED, and Session 206 measured that quarto honours it.** YAML permits a
  * quoted key anywhere a plain one is allowed, so `"from": gfm` and `'from': gfm` really do
- * select gfm — `scratchpad/s206/gnd` `g_qkeyd_gfm` / `g_qkeys_gfm` render the pressed heading,
- * and this regex could never match a line beginning with a quote, so the bail DELETED it. The
- * quote is captured and back-referenced, so a half-quoted `"from:` (which YAML rejects) does
- * not match. ⚠ Widening this row is safe in a way that widening the VALUE predicates below is
- * NOT: firing here wrongly costs a phantom at heading columns 1-3, where firing one of those
- * wrongly deletes a real heading.
+ * select gfm — `scratchpad/s206/gnd` `g_qkeyd_gfm` / `g_qkeys_gfm` render the pressed heading.
+ * `TOP_LEVEL_FROM_KEY` below carries the quote capture that expresses it.
  */
-const FRONTMATTER_FROM_KEY = /^[ \t]*(["']?)from\1[ \t]*:/;
 /**
  * The same key, written inside a YAML **flow mapping** — `{from: gfm, title: "T"}`.
  *
  * A whole front matter may legally be one flow mapping, and quarto reads the `from:` in it:
  * `scratchpad/s206/gnd` `g_flow_gfm` renders the pressed heading and `g_flow_markdown` does
- * not, which is what proves the mapping is being READ rather than ignored. `FRONTMATTER_FROM_KEY`
- * above is anchored past leading whitespace, so a key sitting after `{` or `,` is invisible to it.
+ * not, which is what proves the mapping is being READ rather than ignored. `TOP_LEVEL_FROM_KEY`
+ * is anchored to the start of the key, so a key sitting after `{` or `,` is invisible to it.
  *
  * Two parts rather than one regex so the flow OPENER is tested against the line's start while
  * the key is tested anywhere inside it, and so a `from:` inside a flow value on some OTHER key's
@@ -1130,9 +1117,9 @@ const FLOW_FROM_ENTRY = /[{,][ \t]*(["']?)from\1[ \t]*:([^,}]*)/;
 /**
  * A front-matter `from:` whose VALUE names a reader of the **CommonMark family** (Session 202).
  *
- * ⚠ **This is a different question from `FRONTMATTER_FROM_KEY` above and must stay one, because
- * the two rows fail in OPPOSITE directions.** That row keys on the key's PRESENCE and never
- * resolves the value, deliberately: for the ATX row the cost of firing on a document that is not
+ * ⚠ **This is a different question from `frontMatterSelectsReader` below and must stay one,
+ * because the two rows fail in OPPOSITE directions.** That one keys on the key's POSITION and
+ * never resolves the value: for the ATX row the cost of firing on a document that is not
  * CommonMark is a phantom, which this project permits. The setext row's own dialect rule DELETES
  * the heading at underline column 0, so firing it on a `markdown` document costs a real heading —
  * measured, `scratchpad/s202/gnd` `g_markdown_b2_u00` renders `h1:gnd probe title` where
@@ -1159,8 +1146,8 @@ const FLOW_FROM_ENTRY = /[{,][ \t]*(["']?)from\1[ \t]*:([^,}]*)/;
  * ⚠ `GFM` in upper case is absent because quarto REFUSES to render such a document (exit 1),
  * so it has no heading truth to agree with — the same reasoning `reader:` gets above.
  *
- * ⚠ **ANCHORED AT COLUMN 0 — a TOP-LEVEL key only, where `FRONTMATTER_FROM_KEY` above accepts
- * any indent. Found by a BLIND adversarial lens that had seen none of this session's corpora,
+ * ⚠ **ANCHORED AT THE FRONT MATTER'S OWN TOP LEVEL — never at an arbitrary indent. Found by a
+ * BLIND adversarial lens that had seen none of Session 202's corpora,
  * and it is the one direction this rule must never fail in.** `abstract: |` opens a YAML BLOCK
  * SCALAR whose content is ordinary prose, so a sentence wrapping across `from: gfm sources
  * published last year.` is not a reader selection — and firing on it DELETED the heading quarto
@@ -1173,11 +1160,13 @@ const FLOW_FROM_ENTRY = /[{,][ \t]*(["']?)from\1[ \t]*:([^,}]*)/;
  * (`adv/dialect/dialect_01` renders no heading, so gfm is genuinely in effect), and this rule
  * now misses it and keeps the default set — an underline at column 0 we report and quarto does
  * not. Telling that apart from `params:` / `from: 2024-01-01` needs a YAML parser, not a line
- * regex. ⚠ Note `FRONTMATTER_FROM_KEY` has the SAME depth-blindness and keeps it deliberately:
- * its consequence is a phantom either way, so the anchor buys it nothing.
+ * regex. ⚠ **SESSION 207 CLOSED THIS, and the paragraph above is now history rather than a
+ * live trade:** `perFormatBlock` resolves `format:`/`html:`/`from:` as a real path and
+ * `frontMatterSelectsReader` refuses `params:`, so the value predicate is reached for the
+ * former and not for the latter. What it needed was a path, not a parser.
  *
  * ⚠ A `from:` in a PROJECT file (`_quarto.yml`) is invisible here, exactly as it is to
- * `FRONTMATTER_FROM_KEY`: this scanner sees one document's bytes. Such a document keeps the
+ * `frontMatterSelectsReader`: this scanner sees one document's bytes. Such a document keeps the
  * default-dialect rule, which is the non-deleting direction.
  */
 const FRONTMATTER_COMMONMARK_FROM =
@@ -1441,6 +1430,165 @@ function nextContentLine(content: readonly string[], from: number): string | nul
     }
   }
   return null;
+}
+/**
+ * The front matter's own CONTENT lines — everything between the opening `---` and its
+ * terminator — or `null` when the document opens no front matter at all.
+ */
+function frontMatterContent(lines: readonly string[]): string[] | null {
+  if (lines.length === 0 || !FRONTMATTER_OPEN.test(lines[0])) {
+    return null;
+  }
+  const content: string[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (FRONTMATTER_CLOSE.test(lines[i])) {
+      break;
+    }
+    content.push(lines[i]);
+  }
+  return content;
+}
+/**
+ * The lines nested UNDER the key at `block[from - 1]`, whose own indent is `parentIndent` —
+ * every following line indented past the parent, up to the first content line that is not.
+ *
+ * Blank and comment lines are carried through rather than ending the block, because YAML
+ * permits either inside a mapping; `topLevelIndent` skips them when it measures the child
+ * level, so carrying them cannot move that measurement.
+ */
+function subBlock(block: readonly string[], from: number, parentIndent: number): string[] {
+  const out: string[] = [];
+  for (let i = from; i < block.length; i++) {
+    if (FRONTMATTER_NOT_CONTENT.test(block[i])) {
+      out.push(block[i]);
+      continue;
+    }
+    if (leadingWhitespace(block[i]) <= parentIndent) {
+      break;
+    }
+    out.push(block[i]);
+  }
+  return out;
+}
+/** A `format:` key, and the ONE per-format key whose `from:` this scanner resolves. */
+const FORMAT_KEY = /^(["']?)format\1[ \t]*:/;
+const HTML_FORMAT_KEY = /^(["']?)html\1[ \t]*:/;
+/**
+ * The mapping written under `format:` / `html:` — its own lines and the indent its keys sit
+ * at — or `null` when the front matter has no such path.
+ *
+ * ⚠ **`html:` and no other format key, and that is a MEASURED fail-safe rather than an
+ * oversight.** A per-format `from:` belongs to the format being RENDERED:
+ * `scratchpad/s207/cal2` `q_pdfg` declares `format:`/`  pdf:`/`    from: gfm` and renders as
+ * MARKDOWN when html is the active format, and the two-format rows settle it in both
+ * directions — `q_htmlm_pdfg` (html says markdown, pdf says gfm) renders as markdown and
+ * `q_htmlg_pdfm` renders as gfm. So the html block's `from:` is the one that applies here.
+ *
+ * ⚠ **What that corpus does NOT measure is a document whose only format is pdf**, because
+ * `render207.sh` passes `--to html` and so forces html active. Resolving a non-html format's
+ * reader could therefore delete a heading; REFUSING one keeps today's behaviour, which is a
+ * phantom. The refusal is the direction that cannot delete, and the residual is filed.
+ *
+ * ⚠ Keyed on relative DEPTH rather than on a column: `q_i4` writes the same path with 4-space
+ * steps and renders identically, and `q_late` puts another key above the `from:` and renders
+ * identically too.
+ */
+function perFormatBlock(
+  content: readonly string[],
+  top: number,
+): { block: readonly string[]; indent: number } | null {
+  for (let i = 0; i < content.length; i++) {
+    if (leadingWhitespace(content[i]) !== top || FRONTMATTER_NOT_CONTENT.test(content[i])) {
+      continue;
+    }
+    if (!FORMAT_KEY.test(content[i].slice(top))) {
+      continue;
+    }
+    const formats = subBlock(content, i + 1, top);
+    const formatIndent = topLevelIndent(formats);
+    if (formatIndent === null) {
+      continue;
+    }
+    for (let j = 0; j < formats.length; j++) {
+      if (leadingWhitespace(formats[j]) !== formatIndent || FRONTMATTER_NOT_CONTENT.test(formats[j])) {
+        continue;
+      }
+      if (!HTML_FORMAT_KEY.test(formats[j].slice(formatIndent))) {
+        continue;
+      }
+      const inner = subBlock(formats, j + 1, formatIndent);
+      const innerIndent = topLevelIndent(inner);
+      if (innerIndent !== null) {
+        return { block: inner, indent: innerIndent };
+      }
+    }
+  }
+  return null;
+}
+/**
+ * The index of the `from:` key written by the mapping whose keys sit at `indent`, or `-1`.
+ *
+ * ⚠ **An EQUALITY on the indent, never a minimum.** That is what separates a mapping's own
+ * key from anything nested under a sibling key — including a block scalar's prose, which YAML
+ * requires to be indented PAST its own key and which therefore can never satisfy this.
+ */
+function mappingFromKeyIndex(block: readonly string[], indent: number): number {
+  for (let i = 0; i < block.length; i++) {
+    if (leadingWhitespace(block[i]) !== indent || FRONTMATTER_NOT_CONTENT.test(block[i])) {
+      continue;
+    }
+    if (TOP_LEVEL_FROM_KEY.test(block[i].slice(indent))) {
+      return i;
+    }
+  }
+  return -1;
+}
+/**
+ * Whether the front matter declares a `from:` at a position that really SELECTS the reader.
+ *
+ * ⚠ **This NARROWS `FRONTMATTER_FROM_KEY`, and the polarity is the exact inverse of the three
+ * sessions that widened it.** That regex matches at ANY indent, so an `abstract: |` block
+ * scalar whose prose wraps across the words `from: gfm …` selects a reader — measured as a
+ * phantom by SEVEN independent blind documents across Sessions 205 and 206. But a key that
+ * stops firing where quarto DID select re-engages the paragraph bail (`model.ts`, the ATX
+ * `paragraphOpen` branch) *and* collapses the heading column set to `[0]`, and **both of those
+ * DELETE a real heading**. So this returns `true` for every position measured to select and
+ * refuses only positions measured NOT to:
+ *
+ *   selects      the front matter's own TOP LEVEL — `scratchpad/s207/cal` `c_topg_*`
+ *                a top-level FLOW mapping — S206's `g_flow_gfm`
+ *                `format:` / `html:` / `from:` — `cal` `c_fmhg_*`, three observables
+ *   refuses      `params:` / `from:`         — `cal` `c_parg_*`
+ *                `website:` / `from:`        — `cal2` `q_web_*`
+ *                `execute:` / `from:`        — `cal2` `q_exec_*`
+ *                an `abstract: |` block scalar's prose — `cal` `c_absg_*`
+ *
+ * Every refusal above is a rendered pair, never an argument: the document renders exactly as
+ * its no-`from:` twin does.
+ */
+function frontMatterSelectsReader(lines: readonly string[]): boolean {
+  const content = frontMatterContent(lines);
+  if (content === null) {
+    return false;
+  }
+  const top = topLevelIndent(content);
+  if (top === null) {
+    return false;
+  }
+  if (mappingFromKeyIndex(content, top) >= 0) {
+    return true;
+  }
+  for (const line of content) {
+    if (
+      leadingWhitespace(line) === top &&
+      FRONTMATTER_FLOW_OPEN.test(line) &&
+      FRONTMATTER_FLOW_FROM_KEY.test(line)
+    ) {
+      return true;
+    }
+  }
+  const nested = perFormatBlock(content, top);
+  return nested !== null && mappingFromKeyIndex(nested.block, nested.indent) >= 0;
 }
 /**
  * A setext underline run that pandoc will swallow the ATX line above into — `=`s or `-`s
@@ -2526,8 +2674,12 @@ function computeRegions(text: string): Regions {
   // whether what follows the boundary is a line block or another table body row.
   let inPipeTable = false;
   // A front-matter `from:` disables the paragraph rule for the whole document — see
-  // `FRONTMATTER_FROM_KEY`. Without this the change DELETES headings quarto renders.
-  let dialectOverride = false;
+  // `frontMatterSelectsReader`. Without this the change DELETES headings quarto renders.
+  // ⚠ Resolved ONCE from the whole front-matter block (Session 207), because whether a `from:`
+  // selects the reader is a question about its YAML PATH and no single line carries one. The
+  // hoist is behaviour-preserving for the same reason Session 206's was: every consumer of
+  // this flag sits BELOW the front matter, which the loop `continue`s straight through.
+  const dialectOverride = frontMatterSelectsReader(lines);
   // Whether the front-matter `from:` names a reader of the CommonMark FAMILY — see
   // `FRONTMATTER_COMMONMARK_FROM`. Deliberately a SECOND flag beside `dialectOverride`
   // rather than a refinement of it: that one keys on the KEY's presence and is read by the
@@ -2650,14 +2802,10 @@ function computeRegions(text: string): Regions {
       continue;
     }
     if (inFrontmatter) {
-      if (
-        FRONTMATTER_FROM_KEY.test(line) ||
-        (FRONTMATTER_FLOW_OPEN.test(line) && FRONTMATTER_FLOW_FROM_KEY.test(line))
-      ) {
-        dialectOverride = true;
-      }
-      // ⚠ The two VALUE flags are NOT set here — they are resolved once from the whole block
-      // above, because a YAML value need not sit on its key's line (Session 206).
+      // ⚠ NEITHER the key flag NOR the two value flags are set here — all of them are resolved
+      // once from the whole block above. A YAML value need not sit on its key's line (Session
+      // 206), and whether a key selects the reader at all is a question about its PATH, which
+      // no single line carries (Session 207).
       if (FRONTMATTER_CLOSE.test(line)) {
         inFrontmatter = false;
         frontMatter = { startLine: 0, endLine: i, terminated: true };

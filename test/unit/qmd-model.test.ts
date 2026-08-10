@@ -4352,8 +4352,8 @@ describe("an ATX heading's own indent is a COLUMN EQUALITY, not a ` {0,3}` cap (
     //     from: markdown-blank_before_header   heading at 0 and 4 only
     //     (no key)                             heading at 0 and 4 only
     //
-    // The suspension keys on the KEY'S PRESENCE, not on resolving which dialect it names —
-    // the same fail-open `FRONTMATTER_FROM_KEY` already documents for the `paragraphOpen`
+    // The suspension keys on the KEY'S POSITION, not on resolving which dialect it names —
+    // the same fail-open `frontMatterSelectsReader` documents for the `paragraphOpen`
     // bail, and resolving the dialect would be a different capability. The measured cost is
     // that the three non-CommonMark keys retain a phantom at indents 1-3, which is this
     // project's permitted direction; the alternative is deleting real headings under `gfm`.
@@ -5399,8 +5399,9 @@ describe("`blank_before_header` survives an explicitly declared reader that has 
 
   it("`from: markdown` keeps the paragraph bail, where any `from:` key used to suspend it", () => {
     // `scratchpad/s205/gnd` — `g_md_prose`, rendered this session. The bail is `dialectOverride`
-    // at model.ts:2703, and it keys on the PRESENCE of a `from:` key: Session 180 took that
-    // trade knowingly and wrote the cost into `FRONTMATTER_FROM_KEY`'s own docstring. Quarto
+    // and it keyed on the mere PRESENCE of a `from:` key: Session 180 took that trade
+    // knowingly and wrote the cost into the docstring of the any-indent key regex Session 207
+    // has since removed (see `frontMatterSelectsReader`). Quarto
     // renders only `Gnd Below` here, and the identical document with NO front matter
     // (`g_nofm_prose`) is already reported correctly — which is what shows the rule is
     // implemented and merely switched off, not missing.
@@ -5592,8 +5593,8 @@ describe("a front-matter `from:` is resolved as YAML, not as one line shape (Ses
   it("a QUOTED `from:` key selects the reader, where the plain-key regex cannot see it", () => {
     // MEASURED, `scratchpad/s206/gnd` `g_qkeyd_gfm` / `g_qkeys_gfm`: quarto renders BOTH
     // headings, because `"from": gfm` really does select gfm and CommonMark has no
-    // `blank_before_header`. `FRONTMATTER_FROM_KEY` is `/^[ \t]*from[ \t]*:/`, which can never
-    // match a line beginning with a quote, so the bail suppressed a heading quarto renders —
+    // `blank_before_header`. The key regex then in force was `/^[ \t]*from[ \t]*:/`, which could
+    // never match a line beginning with a quote, so the bail suppressed a heading quarto renders —
     // heading-DELETING, the direction this project does not permit.
     expect(names(pressed('"from": gfm'))).toEqual(["h1:Baseline", "h1:Pressed"]);
     expect(names(pressed("'from': gfm"))).toEqual(["h1:Baseline", "h1:Pressed"]);
@@ -5795,5 +5796,107 @@ describe("a front-matter `from:` is resolved as YAML, not as one line shape (Ses
     expect(names(atColumn3('title: "T"', "format:", "  html:", "    from: markdown"))).toEqual([
       "h1:Indented Heading Here",
     ]);
+  });
+});
+
+describe("a front-matter `from:` is resolved by its YAML PATH, not by its indent (Session 207)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  /**
+   * The `col3` shape — an ATX heading at COLUMN 3, with a baseline above it.
+   *
+   * ⚠ Measured, `scratchpad/s207/cal`: the CommonMark family renders BOTH headings and the
+   * pandoc markdown family renders the baseline ONLY. So on this row a `from:` that is read
+   * when it should not be INVENTS `h1:Col Indented`, and one that is NOT read when it should
+   * be DELETES it — the row fails in both directions, which is why the guard lives here.
+   */
+  const atColumn3 = (...fm: string[]) =>
+    doc("---", ...fm, "---", "", "# Col Baseline", "", "   # Col Indented", "", "Tail.");
+
+  // ── THE GUARD BLOCK, WRITTEN BEFORE THE NARROWING IT GUARDS ──
+  // Session 204's gotcha 5, inherited by S205 and S206 and honoured a FOURTH time here.
+  //
+  // ⚠ This session NARROWS a predicate where its three predecessors WIDENED one, and the
+  // polarity is exactly inverted: the any-indent key regex firing wrongly cost a phantom, but
+  // FAILING to fire where quarto really did select a reader re-engages the paragraph bail AND
+  // collapses the heading column set to [0] — and both of those DELETE a real heading. Every
+  // case below therefore asserts a heading that must SURVIVE the narrowing. Each passes on the
+  // pre-narrowing build; each goes RED the moment the walker refuses a position quarto honours.
+  it("GUARD: every position quarto is MEASURED to honour still relaxes the column set", () => {
+    // Each of the five is a rendered fact, not an argument — `scratchpad/s207/cal` `c_topg_col3`
+    // and `scratchpad/s207/cal2` `q_quoted_col3` / `q_i4_col3` / `q_late_col3`, plus S206's
+    // own flow-mapping and indented-mapping rows re-measured here.
+    expect(names(atColumn3("from: gfm"))).toEqual(["h1:Col Baseline", "h1:Col Indented"]);
+    expect(names(atColumn3('"from": gfm'))).toEqual(["h1:Col Baseline", "h1:Col Indented"]);
+    expect(names(atColumn3('{from: gfm, title: "T"}'))).toEqual([
+      "h1:Col Baseline",
+      "h1:Col Indented",
+    ]);
+    // a UNIFORMLY indented whole mapping — top level is 1, not column 0 (S206's V3)
+    expect(names(atColumn3(" title: t", " from: gfm"))).toEqual([
+      "h1:Col Baseline",
+      "h1:Col Indented",
+    ]);
+    // the per-format path, which quarto honours and this session must keep honouring
+    expect(names(atColumn3('title: "T"', "format:", "  html:", "    from: gfm"))).toEqual([
+      "h1:Col Baseline",
+      "h1:Col Indented",
+    ]);
+  });
+
+  it("GUARD: …and the paragraph bail keeps the heading those same positions render", () => {
+    // The SECOND consumer of the same flag, and the one S206's ground corpus could not see a
+    // regression through (Learning #327). `scratchpad/s207/cal` `c_topg_bail`, `c_fmhg_bail`.
+    const pressed = (...fm: string[]) =>
+      doc("---", ...fm, "---", "", "# Baseline", "", "Prose opens a paragraph.", "# Pressed");
+    expect(names(pressed("from: gfm"))).toEqual(["h1:Baseline", "h1:Pressed"]);
+    expect(names(pressed('title: "T"', "format:", "  html:", "    from: gfm"))).toEqual([
+      "h1:Baseline",
+      "h1:Pressed",
+    ]);
+  });
+
+  it("a `params:` / `from:` is not a reader selection and must not relax the column set", () => {
+    // MEASURED, `scratchpad/s207/cal` `c_parg_col3`: quarto renders the BASELINE ONLY, so the
+    // document is not CommonMark — `params:` / `  from: 2024-01-01` is a report parameter that
+    // happens to be spelled `from`. The key regex this session replaced matched at ANY indent,
+    // so it fired here and handed the 0-3 tolerance to a document that has none.
+    expect(names(atColumn3('title: "T"', "params:", "  from: gfm"))).toEqual(["h1:Col Baseline"]);
+  });
+
+  it("…and nor is a `website:` / `execute:` / block-scalar `from:` — the same narrowing", () => {
+    // PINS of the SAME change as the case above (one path walker answers all four), each a
+    // rendered pair rather than an argument: `scratchpad/s207/cal2` `q_web_col3` / `q_exec_col3`
+    // and `scratchpad/s207/cal` `c_absg_col3` each render the BASELINE ONLY, exactly as their
+    // no-`from:` twin `c_nofrom_col3` does. All four diverged on the pre-session build.
+    expect(names(atColumn3('title: "T"', "website:", "  from: gfm"))).toEqual(["h1:Col Baseline"]);
+    expect(names(atColumn3('title: "T"', "execute:", "  from: gfm"))).toEqual(["h1:Col Baseline"]);
+    expect(
+      names(
+        atColumn3(
+          'title: "T"',
+          "abstract: |",
+          "  A long abstract that wraps across",
+          "  from: gfm sources published last year.",
+        ),
+      ),
+    ).toEqual(["h1:Col Baseline"]);
+  });
+
+  it("…and a REAL top-level key still wins over that prose — the direction check", () => {
+    // MEASURED, `scratchpad/s207/cal` `c_absm_topg_col3`: quarto renders BOTH headings. Without
+    // this the case above would pass for a build that had simply stopped reading front matter,
+    // which is the deletion this narrowing must never become.
+    expect(
+      names(
+        atColumn3(
+          'title: "T"',
+          "abstract: |",
+          "  A long abstract that wraps across",
+          "  from: markdown sources published last year.",
+          "from: gfm",
+        ),
+      ),
+    ).toEqual(["h1:Col Baseline", "h1:Col Indented"]);
   });
 });

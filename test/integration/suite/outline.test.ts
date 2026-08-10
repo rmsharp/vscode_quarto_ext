@@ -1496,8 +1496,9 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
     const body = ["", "# Baseline", "", "Prose opens a paragraph.", "# Pressed"];
 
-    // PRESENT — a QUOTED key. `FRONTMATTER_FROM_KEY` could never match a line beginning with a
-    // quote, so the paragraph bail DELETED this heading: the user-visible outline was missing a
+    // PRESENT — a QUOTED key. The key regex then in force could never match a line beginning
+    // with a quote, so the paragraph bail DELETED this heading: the user-visible outline was
+    // missing a
     // section the rendered document has.
     const quoted = await openInMemory(['---', '"from": gfm', 'title: t', '---', ...body].join("\n"));
     const quotedNames = flatten(await symbolsForDoc(quoted));
