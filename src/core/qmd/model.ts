@@ -1585,6 +1585,69 @@ function opensFreshBlock(
   );
 }
 /**
+ * The constructs that INTERRUPT an open paragraph under a CommonMark-family reader, for the
+ * multi-line setext title in the scanner below (Session 203).
+ *
+ * ⚠ **THIS LIST HAS THE OPPOSITE SAFETY POLARITY TO `OPENS_FRESH_BLOCK`, WHICH SITS DIRECTLY
+ * ABOVE IT, AND THE TWO MUST NOT BE UNIFIED EITHER.** That list ADDS a heading when a pattern
+ * is wrongly present, so its rule is "when in doubt, leave it out". This one DECLINES a
+ * multi-line title when a pattern is present — which is the pre-Session-203 behaviour, a
+ * residual — and JOINS ACROSS A BLOCK when a pattern is missing, fabricating a heading whose
+ * text is stitched from two different blocks. So its rule is the exact inverse: **when in
+ * doubt, put it in.** Two lists, both answering "is this line block-level?", with opposite
+ * defaults; a third row would need its own measurement again (Learning #303).
+ *
+ * Measured over 128 rendered documents (`scratchpad/s203/ilk` 32 continuation kinds x 2
+ * readers, `scratchpad/s203/grd` 22 boundary shapes x 2, `scratchpad/s203/unc` 10 x 2), every
+ * one scored on the heading TEXT rather than its presence. The set is CommonMark's own, and
+ * four of its edges are counter-intuitive enough to be worth naming:
+ *
+ *   `1. x` interrupts and `2. x` does NOT   — CommonMark admits only a list starting at 1
+ *   `- x` interrupts and a bare `-` does NOT — an EMPTY item may not interrupt (and a lone
+ *                                             `-` is this model's own h2 underline anyway)
+ *   `# x` interrupts and `#x` does NOT       — `gfm` keeps `space_in_atx_header`
+ *   `| a | b |` does NOT interrupt, WITH OR WITHOUT its delimiter row — a GFM table cannot
+ *                                             interrupt a paragraph, so `|` is absent here
+ *                                             even though `OPENS_FRESH_BLOCK` carries it
+ *
+ * ⚠ The `<` row is deliberately BROADER than any HTML-block tag list in this file, and that is
+ * the deny-by-default rule doing its job: `<!DOCTYPE`, `<?php` and `<![CDATA[` are all measured
+ * interrupts, and enumerating CommonMark's seven HTML-block types to admit `<span>` would put a
+ * fabrication one unlisted spelling away. The measured cost is two rows — `<span>inline</span>`
+ * and a bare `<https://…>` autolink, both of which quarto joins and this model now declines.
+ * That is a residual in the safe direction and is disclosed rather than optimised away.
+ */
+const COMMONMARK_PARAGRAPH_INTERRUPT: readonly RegExp[] = [
+  /^[ \t]*#{1,6}([ \t]|$)/, //                             an ATX heading — `#x` is NOT one
+  /^[ \t]*(`{3,}|~{3,})/, //                               a fence, either char, any length
+  /^[ \t]*>/, //                                           a block quote, space or not
+  /^[ \t]*((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/, // a thematic break
+  /^[ \t]*[-*+][ \t]+\S/, //                               a NON-EMPTY bullet item
+  /^[ \t]*1[.)][ \t]+\S/, //                               a non-empty ordered item, AT 1 ONLY
+  /^[ \t]*</, //                                           any HTML-ish opener — see above
+  /^[ \t]*\[\^[^\]]*\]:/, //                               a footnote definition
+];
+/**
+ * Whether `line` interrupts an open paragraph under a CommonMark-family reader — see
+ * `COMMONMARK_PARAGRAPH_INTERRUPT`.
+ *
+ * ⚠ **At code depth NOTHING interrupts**, because indented code cannot interrupt a paragraph
+ * at all: measured as a clean boundary in both directions, at top level and inside a container
+ * (`scratchpad/s203/grd` — `bul_i1`/`i2`/`i3`, `atx_i3` and `fence_i3` interrupt where
+ * `bul_i4`, `atx_i4`, `fence_i4` and the container's own `cont_code` are joined verbatim). The
+ * condition is `indentedCodeLine`, REUSED rather than re-derived, for the same reason
+ * `setextTitleText` reuses it (Sessions 196, 200 and 201).
+ */
+function commonmarkParagraphInterrupt(
+  line: string,
+  contentColumns: readonly number[] | null,
+): boolean {
+  if (indentedCodeLine(line, contentColumns)) {
+    return false;
+  }
+  return COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line));
+}
+/**
  * A fence opener: leading whitespace of EITHER KIND, then ≥3 of ONE fence char (backtick or
  * tilde), then anything. Capturing the char lets the scanner require the closer to use the
  * same char, so a backtick run can't close a tilde block and vice versa. Shared with cell
@@ -2023,6 +2086,11 @@ function computeRegions(text: string): Regions {
   // Whether the line above was an indented code line, so a run of 2+ can be told from a
   // lone indented line. Same reasoning as above for why the resets need not clear it.
   let prevIndentedCode = false;
+  // Whether the body run this line belongs to STARTED on an indented code line — decided by
+  // the run's FIRST line and then carried, because indented code cannot INTERRUPT an open
+  // paragraph while it can certainly START a block (Session 203). It bounds the multi-line
+  // title below; it needs no clearing at the resets for the same reason as the two above.
+  let bodyRunIsIndentedCode = false;
   // The content column of every CONTAINER open above this line, ascending, EXCLUDING the
   // document root's own 0 which is always available (Session 189). This is the state the
   // raw-TeX row's ` {0,3}` was standing in for: pandoc re-parses a container's content
@@ -2371,8 +2439,26 @@ function computeRegions(text: string): Regions {
         break;
       }
     }
+    // HOW MANY body lines this underline may claim as its TITLE — 0 meaning "not a title here".
+    // Quarto's default reader admits exactly ONE; a CommonMark reader admits the WHOLE open
+    // paragraph (Session 203).
+    const defaultTitleLineCount = consecutiveBody === 1 ? 1 : 0;
+    const wholeParagraph =
+      commonmarkDialect && !bodyRunIsIndentedCode ? consecutiveBody : defaultTitleLineCount;
+    // Every line the join would swallow BELOW the first has to be an ordinary continuation:
+    // a construct that interrupts the paragraph ends the title above it, and stitching across
+    // one fabricates a heading out of two different blocks — see
+    // `COMMONMARK_PARAGRAPH_INTERRUPT`, whose default is the inverse of `OPENS_FRESH_BLOCK`'s.
+    const titleLineCount =
+      wholeParagraph > 1 &&
+      bodyLines
+        .slice(-wholeParagraph)
+        .slice(1)
+        .some((l) => commonmarkParagraphInterrupt(l.text, [0, ...contentColumns]))
+        ? defaultTitleLineCount
+        : wholeParagraph;
     const setextLevel =
-      consecutiveBody === 1
+      titleLineCount >= 1
         ? setextUnderlineLevel(
             line,
             commonmarkDialect
@@ -2381,7 +2467,8 @@ function computeRegions(text: string): Regions {
           )
         : null;
     if (setextLevel !== null) {
-      const prev = bodyLines[bodyLines.length - 1];
+      const titleLines = bodyLines.slice(-titleLineCount);
+      const prev = titleLines[0];
       // A bullet marker on the title line is STRIPPED, not a reason to decline the heading
       // (Session 201) — see `setextTitleText`. `buildHeading` already drops a title with nothing
       // displayable left, so a marker-only line still produces no heading.
@@ -2394,7 +2481,33 @@ function computeRegions(text: string): Regions {
       // grid confirms both sides of the boundary rather than leaving it to that argument.
       const heading = parseSetextHeadingLine(
         setextLevel,
-        setextTitleText(prev.text, [0, ...contentColumns]),
+        [
+          setextTitleText(prev.text, [0, ...contentColumns]),
+          ...titleLines.slice(1).map((l) => l.text),
+        ]
+          // A trailing `\` is a HARD LINE BREAK, which quarto renders as `<br>` rather than as
+          // a literal character, so it is not part of the heading's text (measured,
+          // `scratchpad/s203/mix` — `m_gfm_hardbs`). The two-space spelling of the same break
+          // needs no rule of its own: the trim already removes it.
+          //
+          // ⚠ **On every line BUT THE LAST**, because a break needs a line below it to break
+          // onto — and a single-line title is every title the default reader has, so stripping
+          // there would change a reader this session does not touch. Measured on all four
+          // corners (`scratchpad/s203/hb`, 10 documents): under `gfm` a trailing `\` SURVIVES
+          // on a solo title (`b_gfm_solo` → `h1:Solo Hard Title\`) and on the LAST line of a
+          // pair (`b_gfm_pair_last`), and is dropped only between two joined lines
+          // (`b_gfm_pair`). An ESCAPED `\\` renders as one literal backslash and is not a
+          // break, which this single-character strip reproduces exactly (`b_gfm_double_bs`).
+          //
+          // ⚠ `b_markdown_solo` renders `h1:Solo Hard Title` where we report the backslash —
+          // pandoc's own reader drops a trailing `\` on a solo title where `gfm` keeps it. That
+          // divergence is PRE-EXISTING and identical on the pre-session build; it belongs to
+          // the default reader, which this row does not touch, and is filed rather than fixed.
+          .map((t, k, all) => {
+            const trimmed = t.trim();
+            return k === all.length - 1 ? trimmed : trimmed.replace(/\\$/, "").trim();
+          })
+          .join(" "),
         prev.line,
       );
       if (heading) {
@@ -2461,6 +2574,11 @@ function computeRegions(text: string): Regions {
       const indented = indentedCodeLine(line, rawTexColumns);
       const insideIndentedCode = indented && prevIndentedCode;
       consecutiveBody = pendingFreshBlock && !insideIndentedCode ? 1 : consecutiveBody + 1;
+      if (consecutiveBody === 1) {
+        // The run STARTS here, so this line decides whether it is a paragraph at all — see
+        // `bodyRunIsIndentedCode`.
+        bodyRunIsIndentedCode = indented;
+      }
       // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
       // whether these bytes open a block or merely continue a paragraph depends on it.
       pendingFreshBlock = opensFreshBlock(line, paragraphOpen, rawTexColumns);

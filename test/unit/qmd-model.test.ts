@@ -4870,3 +4870,104 @@ describe("a setext underline's column is DIALECT-DEPENDENT (Session 202)", () =>
     ).toEqual([]); // quarto: h1:quote title — CARRIED, the filed block-quote item
   });
 });
+
+describe("a setext TITLE may be MULTI-LINE under a CommonMark reader (Session 203)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("under a CommonMark dialect the title is the WHOLE open paragraph, joined", () => {
+    // `scratchpad/s203/gnd` — `g_gfm_top_n2`, rendered this session: under `from: gfm` a
+    // setext heading's content may span several lines where pandoc's own `markdown` reader
+    // admits exactly one, so quarto renders `h1:Gnd Probe Title second wrapped line` and
+    // this model reports nothing at all.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: gfm",
+          "---",
+          "",
+          "Gnd Probe Title",
+          "second wrapped line",
+          "====================",
+        ),
+      ),
+    ).toEqual(["h1:Gnd Probe Title second wrapped line"]);
+  });
+
+  it("an INDENTED CODE RUN is not a paragraph, so it is not a title either", () => {
+    // `scratchpad/s203/code` — `c_gfm_run2`, rendered this session: quarto renders
+    // `<pre><code>` and NO heading. The counter already sits at 2 here for the code-run
+    // reason (`insideIndentedCode` suppresses the reset to 1), so admitting the whole open
+    // paragraph promotes CODE to a heading — this project's forbidden direction, and one
+    // no document in the filed evidence can see.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: gfm",
+          "---",
+          "",
+          "    code alpha",
+          "    code bravo",
+          "====================",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("a line that INTERRUPTS the paragraph may not be joined into the title", () => {
+    // `scratchpad/s203/ilk` — `i_gfm_quote`, rendered this session: under a CommonMark reader a
+    // block quote INTERRUPTS an open paragraph, so quarto renders
+    // `<p>…</p><blockquote>…</blockquote><p>====</p>` and NO heading at all. Joining across it
+    // invents `h1:Ilk Probe Title > interrupting quote`.
+    //
+    // ⚠ This guard's safety polarity is the INVERSE of `OPENS_FRESH_BLOCK`'s: a kind wrongly
+    // treated as an interrupt only DECLINES, which is today's behaviour and a residual, while a
+    // kind wrongly treated as a continuation FABRICATES a heading into the outline, the
+    // breadcrumbs and the cross-reference index. Deny-by-default, and the two lists must not be
+    // unified for exactly that reason (Learning #227's shape, in the opposite direction).
+    //
+    // ⚠ A BULLET is deliberately NOT the probe here even though it is the most obvious
+    // interrupt: `- interrupting item` pushes a container content column, so Session 202's
+    // column rule already declines the underline at column 0 and the row cannot go RED. The
+    // guard must be driven by a kind that reaches the join.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: gfm",
+          "---",
+          "",
+          "Ilk Probe Title",
+          "> interrupting quote",
+          "====================",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("a HARD LINE BREAK's trailing backslash is not part of the joined text", () => {
+    // `scratchpad/s203/mix` — `m_gfm_hardbs`, rendered this session: a line ending in `\` is a
+    // HARD line break, which quarto renders as `<br>` and not as a literal character, so the
+    // heading text is `Mix Probe Title second wrapped line`. The pre-session build reported no
+    // heading at all here, so this divergence is one THIS change makes reachable — closed here
+    // rather than filed (the 1B claim's decision rule).
+    //
+    // The two-space spelling of the same break needs no rule: each joined line is trimmed
+    // before it is joined, so `Mix Probe Title  ` already loses its trailing spaces.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: gfm",
+          "---",
+          "",
+          "Mix Probe Title\\",
+          "second wrapped line",
+          "====================",
+        ),
+      ),
+    ).toEqual(["h1:Mix Probe Title second wrapped line"]);
+  });
+});
