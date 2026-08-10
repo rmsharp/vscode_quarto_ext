@@ -558,6 +558,58 @@ describe("Quarto: Document outline (symbols)", () => {
     );
   });
 
+  it("STRIPS a bullet marker from a setext title rather than declining it, through the real provider (Session 201)", async () => {
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — the fourth
+    // consecutive session to avoid the exact-set fixture coupling that cost Sessions 196 and 197
+    // a full screen-taking run each. `grep -n "assert.deepStrictEqual"
+    // test/integration/suite/*.ts` was run BEFORE this was written and finds no such pin in this
+    // file; `openInMemory` keeps these documents out of every one elsewhere.
+    //
+    // Every premise below was rendered through the real `quarto render --to html` path this
+    // session, quarto 1.7.33:
+    //   `scratchpad/s201/pins/p0_dash_solo.qmd` -> `<ul><li><h2 id="solo-item">solo item</h2></li></ul>`
+    //   `scratchpad/s201/cd/t_top_i04_u0.qmd`   -> `<h1>- cd probe title</h1>`, marker KEPT
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+
+    // PRESENT — the direction the filed BACKLOG item never named. It described a text divergence
+    // at a container's content column and proposed widening the ` {0,3}` guard; at columns 0-3,
+    // where that guard DID fire, the heading was being deleted outright. This document has no
+    // container at all and the pre-Session-201 build produced NOTHING for it.
+    const recovered = await openInMemory(["- solo item", "---", "", "Tail body line."].join("\n"));
+    const recoveredNames = flatten(await symbolsForDoc(recovered));
+    assert.ok(
+      recoveredNames.includes("solo item"),
+      `a bullet-marker setext title must reach the outline with its marker stripped: ${recoveredNames.join(", ")}`,
+    );
+    // ...and the marker must not survive INTO the name, which is the half the item did file.
+    assert.ok(
+      !recoveredNames.includes("- solo item"),
+      `the marker must not survive into the outline name: ${recoveredNames.join(", ")}`,
+    );
+
+    // ABSENT — the boundary a BLIND adversarial lens found after this session's own designed
+    // corpora had scored clean on it. At indented-code depth pandoc never parses the line as a
+    // list item, so the marker belongs to the heading text and stripping it is wrong. Without
+    // this row the change would have shipped a text divergence at every column past code depth.
+    const deep = await openInMemory(["    - cd probe title", "===", "", "Tail body line."].join("\n"));
+    const deepNames = flatten(await symbolsForDoc(deep));
+    assert.ok(
+      deepNames.includes("- cd probe title"),
+      `at code depth the marker must SURVIVE into the name: ${deepNames.join(", ")}`,
+    );
+
+    // CONTROL — a marker-free setext heading. Without it the two assertions above would both
+    // pass for a build that had stopped finding setext headings altogether.
+    const control = await openInMemory(["plain probe title", "===", "", "Tail body line."].join("\n"));
+    const controlNames = flatten(await symbolsForDoc(control));
+    assert.ok(
+      controlNames.includes("plain probe title"),
+      `the marker-free control must still be a heading: ${controlNames.join(", ")}`,
+    );
+  });
+
   it("measures the indented-code threshold from the container's content column, through the real provider (Session 193)", async () => {
     // THE WIRING EVIDENCE for Session 193, on the provider the Outline view, breadcrumbs,
     // sticky scroll and Ctrl+T all really call. Like Session 192's, this change moves the

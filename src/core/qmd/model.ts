@@ -321,16 +321,9 @@ const BLANK_LINE = /^[ \t]*$/;
  * `<h1>marker title</h1>`, so the decline DELETED it (Learning #300 — the docstring's
  * "Confirmed against the real Quarto CLI" confirmed the nesting, never the emptiness).
  */
+/** The three bullet-list marker characters, shared by the trigger above and `setextTitleText`. */
+const BULLET_CHARS = "-*+";
 const BULLET_LIST_MARKER = /^[ \t]*[-*+][ \t]/;
-/**
- * The run of leading bullet markers that Pandoc's list nesting consumes — REPEATED, because
- * every level of nesting consumes one. Measured: `- - - marker title` / `===` renders
- * `<h1>marker title</h1>` (all three gone), `- 1. marker title` renders `<h1>1. marker title</h1>`
- * and `- > marker title` renders `<h1>&gt; marker title</h1>` — so the run stops at the first
- * thing that is not a bullet marker, and an ordered marker or a quote marker below one is kept
- * literal exactly as it is when it appears alone.
- */
-const BULLET_MARKER_RUN = /^[ \t]*(?:[-*+][ \t]+)+/;
 /**
  * What is left when the run above consumed every marker but the LAST, which carries no content —
  * `- -`, `-   -`, `- * -`, `+ + +`. The innermost list item is EMPTY, and an empty item yields no
@@ -401,14 +394,53 @@ const BULLET_THEMATIC_BREAK = /^[ \t]*(?:-[ \t]*){3,}$|^[ \t]*(?:\*[ \t]*){3,}$/
  * not enough (Learning #298).
  */
 function setextTitleText(rawText: string, columns: readonly number[] | null): string {
-  if (
-    !BULLET_LIST_MARKER.test(rawText) ||
-    BULLET_THEMATIC_BREAK.test(rawText) ||
-    indentedCodeLine(rawText, columns)
-  ) {
+  if (!BULLET_LIST_MARKER.test(rawText) || BULLET_THEMATIC_BREAK.test(rawText)) {
     return rawText;
   }
-  const stripped = rawText.replace(BULLET_MARKER_RUN, "");
+  // ⚠ ONE MARKER AT A TIME, carrying the content column each one opens — NOT a single
+  // `(?:[-*+][ \t]+)+` run. A regex run has no notion of where the markers SIT, and a marker can
+  // be at code depth INSIDE the item its predecessor opened: measured over `scratchpad/s201/gap`,
+  // `-` + 1..4 spaces + `- title` strips BOTH markers while `-` + 5..7 spaces + `- title` strips
+  // only the FIRST, because a gap wider than four puts the item's content in indented code.
+  let cut: number | null = null; // index just past the last marker actually stripped
+  let index = 0;
+  let column = 0;
+  let base: readonly number[] | null = columns;
+  for (;;) {
+    // the indent before this marker, measured in COLUMNS (tab stop 4 — see `indentColumn`)
+    let at = index;
+    let atColumn = column;
+    while (at < rawText.length && (rawText[at] === " " || rawText[at] === "\t")) {
+      atColumn = rawText[at] === "\t" ? atColumn + 4 - (atColumn % 4) : atColumn + 1;
+      at += 1;
+    }
+    if (at >= rawText.length || !BULLET_CHARS.includes(rawText[at])) {
+      break; // whitespace only, or the next thing is not a bullet character
+    }
+    if (columnIsCodeDepth(atColumn, base)) {
+      break; // this marker is INDENTED CODE, so it is not a marker at all — keep it verbatim
+    }
+    // the gap after the marker, and the column its content therefore starts at
+    let after = at + 1;
+    let contentColumn = atColumn + 1;
+    while (after < rawText.length && (rawText[after] === " " || rawText[after] === "\t")) {
+      contentColumn = rawText[after] === "\t" ? contentColumn + 4 - (contentColumn % 4) : contentColumn + 1;
+      after += 1;
+    }
+    if (after === at + 1) {
+      break; // no whitespace after it — `-text` is not a marker (and `-` alone is the filed item)
+    }
+    // CommonMark: a gap wider than FOUR is indented code, and then the item's content column is
+    // one past the marker rather than at the content. This is the whole of `cont_12`.
+    base = [contentColumn - (atColumn + 1) > 4 ? atColumn + 2 : contentColumn];
+    cut = after;
+    index = after;
+    column = contentColumn;
+  }
+  if (cut === null) {
+    return rawText;
+  }
+  const stripped = rawText.slice(cut);
   return BARE_BULLET_TAIL.test(stripped) ? "" : stripped;
 }
 /**

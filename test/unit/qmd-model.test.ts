@@ -4592,4 +4592,103 @@ describe("a BULLET MARKER on a setext title is STRIPPED, not a reason to decline
       names(doc("Intro.", "", "-   line one", "", "        - cd probe title", "    ===")),
     ).toEqual(["h1:- cd probe title"]); // quarto: h1:- cd probe title
   });
+
+  it("RED->GREEN: the REPEATED strip stops at a marker that is itself at code depth INSIDE its item", () => {
+    // ⚠ THE THIRD ERROR THIS SESSION'S CHANGE INTRODUCED, and the second one found by a BLIND
+    // lens rather than by any corpus of mine (`scratchpad/s201/adv/cont`, `cont_12`). The
+    // repeated strip was a single regex — `(?:[-*+][ \t]+)+` — which has no notion of where the
+    // markers SIT, so it ate a second marker that pandoc reads as indented code.
+    //
+    // CommonMark: a gap WIDER THAN FOUR after a marker puts the item's content in indented code,
+    // so the item's content column is one past the marker rather than at the content itself.
+    // Measured over a 14-document gap sweep (`scratchpad/s201/gap`), and the threshold is exact:
+    //
+    //   `-`+1..4 spaces+`- title`   both markers stripped   content column 2..5
+    //   `-`+5..7 spaces+`- title`   only the FIRST stripped  content column 2, second marker >= 6
+    //
+    // So the strip has to walk the markers one at a time, carrying the content column each one
+    // opens, and stop at the first marker that is at code depth relative to it. That is the same
+    // `columnIsCodeDepth` question asked once per marker instead of once per line.
+    expect(names(doc("Intro prose.", "", "-     - gap probe title", "==="))).toEqual([
+      "h1:- gap probe title",
+    ]); // quarto: h1:- gap probe title — the second marker is code, not a marker
+    // CONTROL — one space narrower is the last gap that still nests, so BOTH markers go.
+    expect(names(doc("Intro prose.", "", "-    - gap probe title", "==="))).toEqual([
+      "h1:gap probe title",
+    ]); // quarto: h1:gap probe title
+    // CONTROL — the ordinary one-space nesting is unchanged, at any depth.
+    expect(names(doc("- - - marker title", "==="))).toEqual(["h1:marker title"]);
+  });
+
+  it("LABELLED TEST-AFTER — the disclosed residuals, each PRE-EXISTING and proven so by a MARKER-FREE control", () => {
+    // Every divergence below is one this change made REACHABLE through a marker title rather than
+    // one it introduced, and that is a rendered result rather than an argument: for each family,
+    // the same document with the bullet marker DELETED from the title errs identically on the
+    // PRE-SESSION build (`scratchpad/s201/ctl`, `scratchpad/s201/dia2`). Both families are FILED
+    // in `BACKLOG.md`. The decision rule was declared in this session's 1B claim before any
+    // result was seen: an error CAUSED here is closed here; one merely made reachable is pinned
+    // with a rendered control and filed.
+
+    // ── FAMILY A — a LAZY setext underline is not an underline under a CommonMark dialect.
+    // `from: gfm` / `from: commonmark` follow CommonMark, where a setext underline may not be a
+    // lazy continuation of a list item; pandoc's own `markdown` reader allows it. Measured over
+    // the 15-document `scratchpad/s201/dia` grid: under gfm and commonmark the underline must sit
+    // at or past the item's content column (2), and at column 0 quarto renders NO heading.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "- dia probe title", "===")),
+    ).toEqual(["h1:dia probe title"]); // quarto: NO heading — the underline is lazy
+    // ⚠ THE CONTROL THAT MAKES THIS PRE-EXISTING RATHER THAN MINE: no marker anywhere, so this
+    // change cannot reach it, and the PRE-SESSION build emits the identical phantom.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "Intro.", "", "- outer one", "",
+                "  inner title", "===")),
+    ).toEqual(["h1:inner title"]); // quarto: NO heading — pre-build errs identically
+    // ⚠ AND THE ROW THAT SHOWS IT IS THE UNDERLINE'S RULE, NOT THE MARKER'S: at the item's own
+    // content column the dialect renders the heading and strips the marker, exactly as
+    // `markdown` does — so the two dialects differ only in whether a LAZY underline counts.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "- dia probe title", "  ===")),
+    ).toEqual(["h1:dia probe title"]); // quarto agrees exactly
+
+    // ── FAMILY B — an ORDERED marker at the item's content column IS stripped, and we keep it.
+    // A text divergence, PRE-EXISTING and unchanged by this session in either direction, and it
+    // completes the picture the `ord_*` rows only half-showed: with the underline at column 0 the
+    // ordered marker survives into the heading (14 of 14 rows agree, unchanged here), but with
+    // the underline at the item's CONTENT column pandoc parses the list and strips it.
+    expect(names(doc("1. dia2 ord title", "==="))).toEqual(["h1:1. dia2 ord title"]); // quarto agrees
+    expect(names(doc("1. dia2 ord title", "   ==="))).toEqual(["h1:1. dia2 ord title"]);
+    // quarto: h1:dia2 ord title — the ordered marker is stripped there. Identical on the
+    // pre-session build; this change touches only bullet markers.
+
+    // ── FAMILY C — a region this model does not track hides its content from quarto entirely,
+    // and a marker title inside one is now a reachable spelling of an already-filed defect. The
+    // `<style>` RCDATA element, an unclosed `<textarea>` and a `\begin{center}` environment each
+    // render no heading; we emit one. Found by the blind `adv/reg` lens.
+    expect(names(doc("<style>", "- Reg Kilo Probe", "===", "</style>"))).toEqual([
+      "h1:Reg Kilo Probe",
+    ]); // quarto: NO heading — the element's content is CSS text
+    // ⚠ THE MARKER-FREE CONTROL, rendered: the pre-session build fabricates the identical
+    // heading, so the defect is the untracked region and not the strip (`ctl/reg_11_nomk`).
+    expect(names(doc("<style>", "Reg Kilo Probe", "===", "</style>"))).toEqual([
+      "h1:Reg Kilo Probe",
+    ]); // quarto: NO heading — pre-build errs identically
+    expect(names(doc("\\begin{center}", "", "- Reg Mike Probe", "===", "", "\\end{center}"))).toEqual(
+      ["h1:Reg Mike Probe"],
+    ); // quarto: NO heading — control `ctl/reg_13_nomk` errs identically on the pre-build
+    expect(names(doc("<textarea>", "", "- Reg Oscar Probe", "==="))).toEqual([
+      "h1:Reg Oscar Probe",
+    ]); // quarto: NO heading — control `ctl/reg_14_nomk` errs identically on the pre-build
+
+    // ── FAMILY D — a fenced div's CLOSER does not pop a container opened INSIDE it, so the stale
+    // column survives the div and legitimises an underline below it. Found by the blind `adv/cont`
+    // lens (`cont_11`). Quarto closes the list with the div; we keep column 2 alive.
+    expect(
+      names(doc("::: {.aside}", "- alpha item", ":::", "", "  - Cont Kilo Probe", "  ===")),
+    ).toEqual(["h1:Cont Kilo Probe"]); // quarto: NO heading
+    // ⚠ THE MARKER-FREE CONTROL, rendered (`ctl2/cont_11_nomk`): the pre-session build fabricates
+    // the identical heading, so the defect is the stale column and not the strip.
+    expect(
+      names(doc("::: {.aside}", "- alpha item", ":::", "", "  Cont Kilo Probe", "  ===")),
+    ).toEqual(["h1:Cont Kilo Probe"]); // quarto: NO heading — pre-build errs identically
+  });
 });
