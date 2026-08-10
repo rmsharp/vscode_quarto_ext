@@ -383,9 +383,29 @@ const BULLET_THEMATIC_BREAK = /^[ \t]*(?:-[ \t]*){3,}$|^[ \t]*(?:\*[ \t]*){3,}$/
  * bullet marker line is returned untouched — an ordered marker, a block-quote marker, ordinary
  * prose — which is what quarto does with them (14 of 14 ordered-marker rows agree unchanged,
  * `scratchpad/s201/ax`, `ord_*`).
+ *
+ * ⚠ **`columns` is what makes this container-relative, and it is the ONLY column question this
+ * row asks: is the title line INDENTED CODE?** At code depth pandoc never parses the line as a
+ * list item, so there is no nesting to strip and the marker belongs to the heading's text —
+ * measured as a clean boundary over 15 documents (`scratchpad/s201/cd`): at top level indents
+ * 0–3 strip and 4+ keep; inside a `-   item` (content column 4) indents 4–7 strip and 8+ keep.
+ * The condition is `indentedCodeLine`, REUSED rather than re-derived, so the depth at which a
+ * marker stops being a marker cannot drift from the depth at which a container stops being a
+ * container (Session 196) or a fence stops being a fence (Session 200).
+ *
+ * ⚠ **This is what the old ` {0,3}` cap was actually approximating** — code depth counted from
+ * source column 0 instead of from the enclosing block — which is why it was accidentally RIGHT at
+ * top level and wrong at every container column. The cap was a correct rule with a wrong origin.
+ * It was found by a BLIND adversarial lens (`adv/ws`, `ws_02`) after this session's own designed
+ * corpora had scored clean on it, which is the fifth session running that a designed corpus was
+ * not enough (Learning #298).
  */
-function setextTitleText(rawText: string): string {
-  if (!BULLET_LIST_MARKER.test(rawText) || BULLET_THEMATIC_BREAK.test(rawText)) {
+function setextTitleText(rawText: string, columns: readonly number[] | null): string {
+  if (
+    !BULLET_LIST_MARKER.test(rawText) ||
+    BULLET_THEMATIC_BREAK.test(rawText) ||
+    indentedCodeLine(rawText, columns)
+  ) {
     return rawText;
   }
   const stripped = rawText.replace(BULLET_MARKER_RUN, "");
@@ -2145,7 +2165,18 @@ function computeRegions(text: string): Regions {
       // A bullet marker on the title line is STRIPPED, not a reason to decline the heading
       // (Session 201) — see `setextTitleText`. `buildHeading` already drops a title with nothing
       // displayable left, so a marker-only line still produces no heading.
-      const heading = parseSetextHeadingLine(setextLevel, setextTitleText(prev.text), prev.line);
+      //
+      // ⚠ The columns handed over are the SAME array the underline test above reads, and the
+      // title's OWN marker has already pushed its content column by the time we get here (the
+      // container block runs at the top of every iteration). That is harmless for the one
+      // question asked of them — a pushed column is strictly DEEPER than the marker's own indent,
+      // so it can never make that indent look like code depth — and the `scratchpad/s201/cd`
+      // grid confirms both sides of the boundary rather than leaving it to that argument.
+      const heading = parseSetextHeadingLine(
+        setextLevel,
+        setextTitleText(prev.text, [0, ...contentColumns]),
+        prev.line,
+      );
       if (heading) {
         headings.push(heading);
       }

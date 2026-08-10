@@ -4559,4 +4559,37 @@ describe("a BULLET MARKER on a setext title is STRIPPED, not a reason to decline
       names(doc("Intro.", "", "-   line one", "", "    - - -", "    ===")),
     ).toEqual(["h1:- - -"]); // quarto: h1:- - -
   });
+
+  it("RED->GREEN: at INDENTED-CODE DEPTH the line is not a list item, so the marker SURVIVES", () => {
+    // ⚠ THE SECOND ERROR THIS SESSION'S CHANGE INTRODUCED — found by a BLIND adversarial lens
+    // (`scratchpad/s201/adv/ws`, `ws_02`), not by any designed corpus of mine, and then measured
+    // as a clean boundary over its own 15-document grid (`scratchpad/s201/cd`).
+    //
+    // A line 4 or more columns past the enclosing block's content column is INDENTED CODE, so
+    // pandoc never parses it as a list item and there is no nesting to strip. The `===` below it
+    // still makes it a setext heading — of the RAW line, marker included:
+    //
+    //   top level, underline at 0:   indents 0-3  strip  ·  indents 4,5,6,8  KEEP
+    //   inside `-   line one` (c=4), underline at 4:   4-7  strip  ·  8,9,10  KEEP
+    //
+    // ⚠ THE OLD ` {0,3}` CAP WAS THIS RULE, MIS-MEASURED. It is exactly code depth counted from
+    // source column 0 instead of from the container — which is why it was accidentally RIGHT at
+    // top level and wrong at every container column. So the cap was never arbitrary; it was a
+    // correct rule with a wrong origin, and replacing it with `indentedCodeLine` makes the depth
+    // at which a marker stops being a marker the same one definition as the depth at which a
+    // container stops being a container (Session 196) and a fence stops being a fence (Session
+    // 200). Three rows, one notion of code depth.
+    expect(names(doc("    - Ws Delta Probe", "==="))).toEqual(["h1:- Ws Delta Probe"]);
+    // the tab spelling of the same column, which is how the blind lens found it
+    expect(names(doc(" \t- Ws Charlie Probe", "==="))).toEqual(["h1:- Ws Charlie Probe"]);
+    // CONTROL — one column shallower is NOT code depth, so the marker goes
+    expect(names(doc("   - cd probe title", "==="))).toEqual(["h1:cd probe title"]);
+    // CONTAINER-RELATIVE, both sides of the boundary: c=4, so 7 strips and 8 keeps
+    expect(
+      names(doc("Intro.", "", "-   line one", "", "       - cd probe title", "    ===")),
+    ).toEqual(["h1:cd probe title"]); // quarto: h1:cd probe title
+    expect(
+      names(doc("Intro.", "", "-   line one", "", "        - cd probe title", "    ===")),
+    ).toEqual(["h1:- cd probe title"]); // quarto: h1:- cd probe title
+  });
 });
