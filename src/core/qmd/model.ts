@@ -620,6 +620,20 @@ const HTML_BLOCK_OR_INLINE_OPEN = new RegExp(
   "|^</?(?:" + PANDOC_EITHER_TAGS + ")(?=[ \\t/>]|$)" + TAG_LINE_TAIL +
   // A processing instruction, opener `<?…` or closer `</?…`.
   "|^ {0,3}</?\\?" + TAG_LINE_TAIL +
+  // ⚠ …and its REAL closer, `?>`, which the row above cannot reach: a processing instruction
+  // does not close with `</?`, it closes with `?>`, and that begins with no `<` at all
+  // (Session 205). `<?php echo 1;` / `?>` / `# End Inside` renders BOTH headings under
+  // `from: markdown` — the block ENDS at the closer, so the heading below it is fresh —
+  // and without this row the `?>` line is ordinary body that leaves a paragraph open.
+  // ⚠ The gap was INVISIBLE until Session 205 restored the paragraph bail under an explicitly
+  // declared reader: before that a `from:` key switched the bail off, the suppressed heading was
+  // reported anyway, and the right answer came out for the wrong reason (`scratchpad/s204/end`
+  // `e_md_pi_after`, re-scored against the new build).
+  // ⚠ ALONE ON ITS LINE, and that is the measured boundary, not tidiness: `]]>` closes a CDATA
+  // section the same way and must NOT be added beside it — `<![CDATA[` / `raw data` / `]]>` /
+  // heading renders only the heading BELOW (`e_md_cdata_after`), so pandoc does not end that
+  // block at its closer. Two closers, two answers; this list gets only the measured one.
+  "|^ {0,3}\\?>[ \\t]*$" +
   // A COMPLETE HTML comment. An unterminated one is measured NOT to be a block.
   "|^ {0,3}<!--.*-->[ \\t]*$",
   "i",

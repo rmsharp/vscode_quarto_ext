@@ -5540,4 +5540,44 @@ describe("`blank_before_header` survives an explicitly declared reader that has 
       buildOutline(withFrom).map((s) => s.name),
     );
   });
+  /**
+   * RED->GREEN, and this one is a REGRESSION THIS SESSION CAUSED — found by re-measuring the
+   * filed item's OWN named documents against the new build, which is the only reason it was seen.
+   *
+   * `scratchpad/s204/end` `e_md_pi_after`, rendered by Session 204 and re-scored here: quarto
+   * renders BOTH headings, because `<?php …` / `?>` is a raw HTML block that ENDS at its closer,
+   * so the heading below it is fresh. This model never recognised `?>` — `HTML_BLOCK_OR_INLINE_OPEN`
+   * carries a row commented "a processing instruction, opener `<?…` or closer `</?…`", and `</?`
+   * is not how a processing instruction closes; the real closer is `?>`, which begins with no `<`
+   * and so matched nothing. That gap was INVISIBLE while a `from:` key switched the paragraph bail
+   * off: the `?>` line left a paragraph open, the heading below was suppressed by nothing, and the
+   * right answer came out for the wrong reason. Restoring the bail exposed it.
+   *
+   * ⚠ Every OTHER closer in that 24-row corpus was already right and must stay right — `</pre>`,
+   * `</script>`, `</style>`, `</textarea>`, `-->`, `]]>` and `<!DOCTYPE …>`. The CDATA row is the
+   * sharp control: `<![CDATA[` / `raw data` / `]]>` / heading renders only the heading BELOW, so
+   * `]]>` does NOT end a block for this purpose and must not be added alongside `?>`.
+   */
+  it("a `?>` line ENDS a processing instruction, so the heading below it is fresh", () => {
+    expect(
+      names(
+        doc(
+          "---", "from: markdown", "---", "",
+          "<?php echo 1;", "?>", "# End Inside", "", "# End Below",
+        ),
+      ),
+    ).toEqual(["h1:End Inside", "h1:End Below"]);
+  });
+
+  it("…and `]]>` does NOT — the CDATA control that keeps the row from being widened", () => {
+    // `scratchpad/s204/end` `e_md_cdata_after`: quarto renders ONLY `End Below`.
+    expect(
+      names(
+        doc(
+          "---", "from: markdown", "---", "",
+          "<![CDATA[", "raw data", "]]>", "# End Inside", "", "# End Below",
+        ),
+      ),
+    ).toEqual(["h1:End Below"]);
+  });
 });

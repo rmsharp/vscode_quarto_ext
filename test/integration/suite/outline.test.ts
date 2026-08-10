@@ -1424,4 +1424,56 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `the default reader must keep BOTH headings: ${mdNames.join(", ")}`,
     );
   });
+  it("keeps `blank_before_header` under an explicitly declared `from: markdown` (Session 205)", async () => {
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — the EIGHTH
+    // consecutive session to avoid the exact-set fixture coupling that cost Sessions 196 and 197
+    // a full screen-taking run each. The exact-set grep ran BEFORE this was written:
+    // `grep -c "assert.deepStrictEqual" test/integration/suite/outline.test.ts` = 30 raw, but the
+    // real CALL count is 21 (the rest are comment text citing the grep by name — Session 204's
+    // gotcha 7, which is why the two numbers are recorded separately). `openInMemory` keeps these
+    // documents out of every exact-set pin here and in every other suite file, and this test adds
+    // no exact-set pin of its own.
+    //
+    // All three premises were rendered through the real `quarto render --to html` path this
+    // session, quarto 1.7.33 (`scratchpad/s205/gnd`, 120 documents; `pins`, 26):
+    //   `g_md_prose`    -> `<h1>Gnd Below</h1>` ONLY — `blank_before_header` is ON for `markdown`
+    //   `g_nofm_prose`  -> the same, with no front matter at all — already correct before this
+    //   `g_gfm_prose`   -> BOTH headings — CommonMark lets an ATX heading interrupt a paragraph
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const body = ["Prose opens the paragraph.", "# Gnd Inside", "", "# Gnd Below"];
+
+    const declared = await openInMemory(
+      ["---", "title: t", "from: markdown", "---", "", ...body].join("\n"),
+    );
+    const mdNames = flatten(await symbolsForDoc(declared));
+
+    // ABSENT — the heading pressed against the paragraph. The reader named here really does have
+    // `blank_before_header`, so quarto renders no heading for it; the `from:` key had been
+    // switching that rule off for the whole document.
+    assert.ok(
+      !mdNames.includes("Gnd Inside"),
+      `a heading pressed against prose under \`from: markdown\` must not reach the outline: ${mdNames.join(", ")}`,
+    );
+    // PRESENT — the heading after the blank line. Without this the first assertion would pass for
+    // a build that had simply stopped reporting headings after any paragraph.
+    assert.ok(
+      mdNames.includes("Gnd Below"),
+      `the heading after the blank line must survive: ${mdNames.join(", ")}`,
+    );
+
+    // THE DIALECT GUARD — the identical bytes under a CommonMark-family reader, where an ATX
+    // heading MAY interrupt a paragraph and quarto really does render it. Without this, both
+    // assertions above would still pass for a build that had started suppressing every pressed
+    // heading in every dialect — which is precisely the deletion this change had to avoid.
+    const commonmark = await openInMemory(
+      ["---", "title: t", "from: gfm", "---", "", ...body].join("\n"),
+    );
+    const cmNames = flatten(await symbolsForDoc(commonmark));
+    assert.ok(
+      cmNames.includes("Gnd Inside") && cmNames.includes("Gnd Below"),
+      `a CommonMark reader must keep BOTH headings: ${cmNames.join(", ")}`,
+    );
+  });
 });
