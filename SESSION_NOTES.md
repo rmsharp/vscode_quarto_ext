@@ -5,6 +5,53 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 204 — IMPLEMENTATION (strict TDD): under a CommonMark-family reader a RAW HTML BLOCK swallows the lines below it, so no heading — ATX or setext — may be reported inside one. This model has no notion of being inside such a block at all.** (IN PROGRESS)
+**Started:** 2026-08-10
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Selected by the operator via `AskUserQuestion` at Phase 0 from an empty Active section.** It was Session 203's ranked **#2**. **The item IS filed** in `BACKLOG.md` — verified firsthand at Phase 0, the FIRST bullet of "Up Next" (line 36), "An HTML-BLOCK opener releases the line below it as a fresh paragraph, and that is a DEFAULT-READER rule that a CommonMark reader contradicts", filed by Session 203 — so Learning #288 does not fire.
+
+**⚠ HEADLINE OF THE PRE-CLAIM SURVEY — THE FILED ITEM NAMES THE SYMPTOM ONE LINE WIDE, AND THE DEFECT IS A MISSING SCANNER STATE THAT HAS NO WIDTH LIMIT AT ALL.** The item is written as "the line BELOW an opener", which is the shape Session 203 needed for its own row and closed with a one-line `prevOpenedHtmlBlock` flag. But the measured cause is not adjacency: under a CommonMark reader `<div>` opens a block that runs to the next **BLANK** line, so EVERY line until that blank is raw HTML — the third one as much as the first. This model tracks no such state anywhere, which is why the ATX row errs identically on both builds. ⚠ **So the pattern S203 says is "already proven and there to copy" is exactly the pattern that must NOT be copied**: a one-line lookback answers a question about an unbounded region. Fourth session running where the filed item's proposed shape is wrong (S200, S201, S202 each proposed a fix by analogy; S203 proposed none) — this one proposes a fix that is right for one row and wrong for this one.
+
+**⚠ THE DEFECT, MEASURED BEFORE THE CLAIM RATHER THAN ASSERTED** — from Session 203's own rendered corpus, re-read firsthand at Phase 1:
+
+| document | bytes | quarto 1.7.33 renders | both builds report |
+|---|---|---|---|
+| `scratchpad/s203/ctl2/html_atx_gfm` | `from: gfm` / `<div>` / `# Ctl Html Heading` | **NOTHING** (`div>p`) | `h1:Ctl Html Heading` |
+| `scratchpad/s203/ctl2/html_atx_md` | the SAME bytes, `from: markdown` | `h1:Ctl Html Heading` | `h1:Ctl Html Heading` |
+
+The `markdown` row is the CONTROL that proves the direction is dialect-conditional and not a blanket bug: pandoc's own reader has `markdown_in_html_blocks`/`native_divs` and really does render that heading. **PHANTOM direction; the fix DELETES headings, so the forbidden direction here is deleting a REAL one.**
+
+**⚠ THREE CANDIDATE RULES for what a CommonMark HTML block swallows, to be separated by RENDERING and explicitly NOT inherited from `HTML_BLOCK_OPEN`'s existing tag lists** (Learning #303 — adjacent rows have disagreed five times running):
+- **(a) SWALLOW TO THE BLANK LINE** — any line matching `HTML_BLOCK_OPEN` starts a region that ends at the next `BLANK_LINE`; report no heading inside it. The literal reading of the filed item, widened from one line to the region.
+- **(b) SWALLOW BY COMMONMARK TYPE** — CommonMark's seven HTML-block types have DIFFERENT end conditions and different opener sets. Types 6/7 end at a blank line; **type 1 (`<pre>`/`<script>`/`<style>`/`<textarea>`) ends at its own closer ON that line**, so a heading on the line after `</pre>` with no blank between is REAL and rule (a) would delete it; types 2-5 end at `-->`, `?>`, `>`, `]]>`. And the opener SETS differ from pandoc's `blockTags`: **type 7 is any complete tag alone on a line but MAY NOT interrupt a paragraph**, so `prose` / `<span>` / `# H` may keep a real heading that (a) deletes.
+- **(c) SOMETHING ELSE** — the rule may turn on the container (a `<div>` at a list item's content column); on quarto's own `native_divs`/`raw_html` extension set per dialect rather than on the family; on whether the opener is a CLOSER line (`</div>`, which `HTML_BLOCK_OPEN` also matches); or ATX and setext may not be swallowed identically.
+
+**⚠ SCOPE, declared AFTER a coupling survey rather than before it.** **IN:** a NEW scan-state flag tracking "inside a raw HTML block under a CommonMark-family reader", set from a measured opener test, cleared at a measured end condition, and consumed at the ONE heading-emission site (`src/core/qmd/model.ts:2598`) so neither an ATX nor a setext heading is reported inside such a block. **OUT:** `HTML_BLOCK_OPEN` itself and all THREE of its existing consumers — `closesParagraph:1291`, `opensFreshBlock:1575` and `prevOpenedHtmlBlock:2651` — which are measured for the DEFAULT reader (S183/S184/S185/S187, 20 + 51 real headings) and whose fail-open directions differ per row exactly as `dialectOverride`'s did (Learning #312); Session 203's `prevOpenedHtmlBlock` row, which stays exactly as it is; `FRONTMATTER_COMMONMARK_FROM`'s six missing YAML spellings (filed, and it now gates THREE shipped rows); the container column stack and its disclosed phantoms (filed, largest residual); `OPENS_FRESH_BLOCK`'s missing bullet row (filed); the lone-indented-line title (filed); the source-vs-rendered text gap (filed); every synced methodology file.
+
+**⚠ FIVE COUPLINGS, surveyed firsthand before this claim was written.**
+1. **`HTML_BLOCK_OPEN` has exactly THREE consumers** — `grep -rn "HTML_BLOCK_OPEN" src` reaches `closesParagraph:1291`, `opensFreshBlock:1575` and the scanner's `prevOpenedHtmlBlock` assignment `:2651`; every other hit in `src` is a docstring. **Touching the regex moves all three at once**, which is FM #26 in a one-line-change costume. A new flag is ADDITIVE and moves none.
+2. **`commonmarkDialect` already exists and this row is its THIRD consumer** — declared `:2121`, set `:2219` from `FRONTMATTER_COMMONMARK_FROM`, read at `:2494` (S203's line count) and `:2511` (S202's underline column). It keys on the VALUE where `dialectOverride` keys on PRESENCE, deliberately (S202). ⚠ It therefore inherits the six missing YAML spellings filed by S203 — a heading-DELETING miss on the OTHER two rows and a heading-KEEPING miss on this one, i.e. the same hole fails SAFE here and unsafe there.
+3. **⚠ SUPPRESSING A HEADING IS NOT FREE — the `if (m)` branch is a state machine, not a report.** On a match it does `consecutiveBody = 0`, `paragraphOpen = false`, `inPipeTable = false`, `quoteOpen = false`, `prevWasAtxHeading = true` (`:2603`–`:2607`). A line that stops being a heading instead falls through to body handling, which runs `indentedCodeLine`, `opensFreshBlock`, `closesParagraph`, the line-block arm and the `pendingFreshBlock`/`prevIndentedCode` deferrals. **Every corpus row must carry a probe BELOW the suppressed heading**, or the corpus cannot see this half. Same shape as S202's coupling 4 and S203's, and it has bitten twice.
+4. **⚠ THE SAFETY POLARITY IS THE INVERSE OF SESSION 203'S INTERRUPT LIST, WHICH IS SIX LINES FROM WHERE THIS WILL LIVE.** That list's rule is "when in doubt, put it in" — a missing pattern fabricates. This one's is the opposite: a pattern wrongly PRESENT, or an end condition missed, **DELETES a real heading**. So the opener set must be NARROW and the end condition EARLY where the measurement is ambiguous. Third list in this file answering "is this line block-level?", third different default (Learning #317).
+5. **The DEFAULT reader is measured RIGHT and must not move at all.** `html_atx_md` renders the heading and both builds report it. The whole change sits behind `commonmarkDialect`, and the corpus carries the `markdown` twin of every row as its control.
+
+⚠ **The observable is heading PRESENCE and what happens BELOW the suppressed line** (coupling 3). Text is not at issue here, so `H_BODY` scoring carries over from S203 unchanged; the entity normalization stays because the corpus contains literal `<` and `>` by construction.
+
+**⚠ THE DECISION RULE FOR ANY SCOPE AMENDMENT, DECLARED IN ADVANCE** (S194's test, as S196–S203 applied it): *would this defect exist if my change did not ship?* A new error CAUSED by this change is closed here and disclosed; one that is pre-existing and merely made reachable is pinned with a rendered control and FILED in `BACKLOG.md`, with the grep count pasted at Phase 3F.
+
+**⚠ TDD gate — FIRES.** The block rule is logic. RED → GREEN → REFACTOR, one behaviour at a time, each RED confirmed to fail on the BEHAVIOUR rather than the plumbing.
+
+**⚠ THE COMPLETENESS PASS IS BUDGETED HERE, BEFORE ANY RESULT IS SEEN.** Eight sessions running, a clean designed corpus was wrong (S196 scored 0 and a blind sweep found 39; S197 found 262; S198 found 3 it had caused; S199 found 4; S200's first scoring corpus could not fail at all; S201's missed the code-depth boundary; S202's 597 documents missed all three deletions it introduced; S203's 279 designed documents scored clean on three heading-fabricating defects the blind sweep found). Each probe will name which consumer it targets.
+
+**⚠ SUB-AGENTS: this session WILL delegate the adversarial corpus**, per the operator's standing directive (Session 183). Every agent claim is to be verified firsthand before it is acted on.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **1828 passed / 66 files**, matching Session 203's recorded close-out exactly; `check-backlog` **OK, 123 open items**; `quarto --version` **1.7.33**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`366ca0e`, gap 0) and `grep -c "^status: pending" HANDOFFS.md` = 0. No ghost sessions.
+
+---
+
+## Session 203 ACTIVE TASK (superseded by Session 204 — full entry preserved below)
 **Task:** **Session 203 — IMPLEMENTATION (strict TDD): under a CommonMark reader a MULTI-LINE paragraph can still be a setext title, and `consecutiveBody === 1` is dialect-blind.** (IN PROGRESS)
 **Started:** 2026-08-10 · **Closed:** 2026-08-10
 **Status:** **DONE. SHIPPED — a setext title is the WHOLE OPEN PARAGRAPH under a CommonMark reader, and SEVEN EIGHTHS of the work was guarding the join rather than making it. 484 rendered documents: designed agreement 229 → 324, blind agreement 34 → 69, and the per-error adjudication returns INTRODUCED 0 / REACHABLE 29 / CARRIED 62 / FIXED 130.**

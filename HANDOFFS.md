@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S204
+date: 2026-08-10
+status: pending
+active_task: IMPLEMENTATION (strict TDD) -- under a CommonMark-family reader a RAW HTML BLOCK swallows the lines below it, so no heading (ATX or setext) may be reported inside one; this model has no notion of being inside such a block at all. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S203's ranked #2, and the item IS filed in BACKLOG.md (verified firsthand at Phase 0, the first bullet of "Up Next"). ⚠ The filed item names the symptom ONE LINE wide and the defect has no width limit: `<div>` opens a block that runs to the next BLANK line, so the one-line `prevOpenedHtmlBlock` pattern S203 says is "there to copy" is exactly the pattern that must NOT be copied. Measured before the claim: `<div>` / `# Ctl Html Heading` renders NOTHING under `from: gfm` and `h1:Ctl Html Heading` under `from: markdown`, and both builds report the heading in both cases. Phantom direction; the fix DELETES headings, so deleting a REAL one is the forbidden direction.
+```
+
+```handoff
 session: S203
 date: 2026-08-10
 status: complete
