@@ -113,8 +113,10 @@ const HEADING_ATTRIBUTE = /(?:^|[ \t]+)\{[^}]*\}[ \t]*$/;
  */
 const ATTR_ID = /#([^\s}]+)/;
 /**
- * A setext heading underline: leading spaces CAPTURED for the column test in
- * `setextUnderlineLevel` below, then one or more of a SINGLE char (no spaces between,
+ * A setext heading underline: leading whitespace of EITHER KIND — its COLUMN is what the
+ * test in `setextUnderlineLevel` below reads, taken from `indentColumn` rather than from a
+ * capture group here (Session 197; the capture existed only to be counted, and counting
+ * characters is the bug) — then one or more of a SINGLE char (no spaces between,
  * unlike a thematic break), then optional trailing whitespace. `=` underlines a level-1
  * heading; `-` underlines level-2. Recognized only when it immediately follows exactly one
  * fresh, non-blank paragraph line (`consecutiveBody === 1` in the scanner below)
@@ -142,9 +144,9 @@ const ATTR_ID = /#([^\s}]+)/;
  *     the paragraph open in all three positions where that entry is reachable, so the
  *     heading is a phantom. That entry is Session 180's and is filed, not fixed here.
  */
-const SETEXT_H1 = /^( *)=+[ \t]*$/;
+const SETEXT_H1 = /^[ \t]*=+[ \t]*$/;
 /** A setext level-2 underline — see `SETEXT_H1`. */
-const SETEXT_H2 = /^( *)-+[ \t]*$/;
+const SETEXT_H2 = /^[ \t]*-+[ \t]*$/;
 /**
  * The level of the setext underline on `line`, or null if it is not one HERE (Session 192).
  *
@@ -169,22 +171,33 @@ const SETEXT_H2 = /^( *)-+[ \t]*$/;
  * anchor is right for `SETEXT_UNDERLINE_RUN` because pandoc's ATX-swallow really is
  * column-0-only (measured separately, Session 182); it is wrong here.
  *
- * ⚠ A TAB is not the content column: `- item` / `  Some Title` / `\t===` renders no heading,
- * where the two-space spelling does. Hence ` *` on the indent (spaces only) while the TRAILING
- * class stays `[ \t]*` — trailing whitespace of either kind is fine, measured.
+ * ⚠ **A TAB IS THE CONTENT COLUMN WHENEVER IT REACHES ONE (Session 197), and this note used to
+ * say the opposite.** Session 192 wrote "a tab is not the content column", citing `- item` /
+ * `  Some Title` / `\t===`, which renders no heading. The measurement was right and the rule
+ * inferred from it was not: that container's content column is **2** and a tab reaches **4**, so
+ * the document shows only that 4 ≠ 2 — the one axis that would vary the claim was never varied
+ * (Learning #282). Re-rendered this session at a container whose column IS 4 (`-   item`), the
+ * tab lands exactly on it and quarto renders the heading, which this model then lost. So the
+ * indent class is `[ \t]*` and the column comes from `indentColumn`, the same one definition the
+ * pop, `indentedCodeLine`, `rawTexMacroLineIsBlock`, `listItemContentColumn` and
+ * `CONTENT_COLUMN_4_OPEN` read — the last of the six sites to stop counting characters.
+ *
+ * ⚠ And the cited document's OWN control does not hold either: re-rendered, `- item` /
+ * `  Some Title` / `  ===` renders no heading in the SPACE spelling too, because `  Some Title`
+ * is a lazy continuation of `- item` and a 2-line paragraph never promotes. The note's "where
+ * the two-space spelling does" needed a blank line to be true. State a document's parameters
+ * beside a ⚠ note, and render its control as well as its subject.
  *
  * A container that has CLOSED no longer offers its column, and that falls out of
  * `contentColumns` maintenance rather than being special-cased here: a column-0 paragraph
  * pops the list, so the underline at column 2 below it is correctly not an underline.
  */
 function setextUnderlineLevel(line: string, columns: readonly number[]): 1 | 2 | null {
-  const h1 = SETEXT_H1.exec(line);
-  if (h1) {
-    return columns.includes(h1[1].length) ? 1 : null;
+  if (SETEXT_H1.test(line)) {
+    return columns.includes(indentColumn(line)) ? 1 : null;
   }
-  const h2 = SETEXT_H2.exec(line);
-  if (h2) {
-    return columns.includes(h2[1].length) ? 2 : null;
+  if (SETEXT_H2.test(line)) {
+    return columns.includes(indentColumn(line)) ? 2 : null;
   }
   return null;
 }

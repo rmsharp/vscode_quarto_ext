@@ -3620,10 +3620,15 @@ describe("a container's content column is closed by a line's COLUMN, not its SPA
     // the content column") over-generalises from a container whose column is 2: a tab reaches
     // column 4, and 4 is simply not 2. Inside a container whose content column IS 4, the tab
     // lands exactly on it and quarto renders the heading. PROVEN BY CONTROL, both ways.
+    //
+    // ⚠ CLOSED BY SESSION 197, and RE-RENDERED rather than flipped. These exact bytes went
+    // back through the real `quarto render` path before the assertion changed (corpus `pins2`,
+    // document q01): quarto emits `h1:Papa Tab Underline`, and this model now emits it too.
+    // Session 194's prediction in the paragraph above was confirmed, not merely inherited.
     expect(
       names(doc("Intro sentence.", "", "-   line one", "    line two", "",
                 "    Papa Tab Underline", "\t===")),
-    ).toEqual([]); // quarto: h1:Papa Tab Underline — a LOST heading
+    ).toEqual(["h1:Papa Tab Underline"]); // quarto agrees — the LOST heading is recovered
     expect(
       names(doc("Intro sentence.", "", "-   line one", "    line two", "",
                 "    Quebec Space Underline", "    ===")),
@@ -3665,10 +3670,18 @@ describe("a container's content column is closed by a line's COLUMN, not its SPA
     // places in this file measure indentation for the container-column machinery; three now
     // share `indentColumn`, and the third laggard is FAMILY 1 above, the setext underline.)
     // PROVEN BY CONTROL and PRE-EXISTING (the pre-S194 build answers identically).
+    //
+    // ⚠ CLOSED BY SESSION 197, and it took BOTH halves. Session 196 shipped the marker's own
+    // indent and recorded that this document still could not show that fix, because its
+    // underline `\t  ===` is tab-spelled and `setextUnderlineLevel` was spaces-only — the last
+    // of the six sites. With the underline measured in columns too, the marker opens column 6
+    // and the underline is tested AT column 6. RE-RENDERED on these exact bytes before the
+    // assertion changed (corpus `pins2`, document q05): quarto emits `h1:Golf Tab Sibling
+    // Title`, and so do we. It is the one document that required two sessions' fixes at once.
     expect(
       names(doc("Intro.", "", "- outer", "  - middle", "    line two", "",
                 "\t- tab marker sibling", "", "\t  Golf Tab Sibling Title", "\t  ===")),
-    ).toEqual([]); // quarto: h1:Golf Tab Sibling Title — a LOST heading
+    ).toEqual(["h1:Golf Tab Sibling Title"]); // quarto agrees — the LOST heading is recovered
     // CONTROL — the same shape written in spaces IS tracked, and the heading is found. (Both
     // sides of this pair are what makes the marker's own indent class the mechanism, rather
     // than anything about the sibling relationship.)
@@ -3917,5 +3930,64 @@ describe("a container OPENER's own indent is a COLUMN too, so a TAB can open one
       names(doc("Intro sentence.", "", "- outer item", "  outer body", "", ": definition body",
                 "", "  Probe Title", "  ===", "", "Tail sentence.")),
     ).toEqual([]); // quarto agrees — no heading
+  });
+});
+
+describe("a SETEXT UNDERLINE's own indent is a COLUMN too, so a TAB can reach one (Session 197)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: a TAB-indented `=` underline at the block's content column IS an underline", () => {
+    // The LAST of the six sites in `model.ts` that measured indentation in a count of SPACES.
+    // `SETEXT_H1`/`SETEXT_H2` were `/^( *)=+[ \t]*$/` and `setextUnderlineLevel` compared
+    // `m[1].length` against a set of COLUMNS — so a tab-indented run did not match the regex
+    // AT ALL (`^( *)` matches empty, then `=+` meets `\t` and fails) and could never be an
+    // underline at any column, in any container.
+    //
+    // Both documents below were rendered through the real `quarto render` path this session
+    // BEFORE any code changed (corpus `pins`, documents p05 and p06). They are a PAIR: the
+    // same container, the same column, the same probe — differing only in whether the
+    // underline's indent is written as one TAB or as four SPACES. `-   ` is a marker plus
+    // three spaces, so the item's content column is 4 and a tab reaches exactly it.
+    expect(
+      names(doc("Intro.", "", "-   line one", "", "    Delta Tab Col Four Title", "\t===")),
+    ).toEqual(["h1:Delta Tab Col Four Title"]);
+    // CONTROL — the SPACE spelling reaching the same column 4. Found on every build, before
+    // and after; it is what makes the underline's own indent SPELLING the mechanism rather
+    // than anything about the container.
+    expect(
+      names(doc("Intro.", "", "-   line one", "", "    Delta Tab Col Four Title", "    ===")),
+    ).toEqual(["h1:Delta Tab Col Four Title"]);
+  });
+
+  it("RED->GREEN: the `-` underline is the SAME rule, and it needed its own measurement", () => {
+    // ⚠ A DASH RUN IS NOT THE SAME PROBE AS AN `=` RUN, which is why this is a second
+    // RED->GREEN rather than a free ride on the first. `SETEXT_H2`'s bytes are also the shape
+    // of a THEMATIC BREAK, and `SETEXT_H1`'s `=` run carries its own filed `CLOSES_PARAGRAPH`
+    // residual — so a corpus built only from `===` would have measured one of the two rows and
+    // generalised to both (Learning #285's mechanism, applied to the row rather than to the
+    // column stack). Every `=` document in this session's pin corpus therefore has a dash twin,
+    // and all twelve were rendered through the real `quarto render` path (corpus `pins2`).
+    //
+    // Rendered: q07 (TAB, container column 4) → h2, q11 (TAB, the three-deep sibling) → h2.
+    // The dash row answers exactly as the `=` row does, in all four positions.
+    expect(
+      names(doc("Intro sentence.", "", "-   line one", "    line two", "",
+                "    Tango Dash Tab Underline", "\t---")),
+    ).toEqual(["h2:Tango Dash Tab Underline"]);
+    // CONTROL — the SPACE spelling reaching the same column 4 (rendered: q08). Found on every
+    // build, before and after.
+    expect(
+      names(doc("Intro sentence.", "", "-   line one", "    line two", "",
+                "    Uniform Dash Space Underline", "    ---")),
+    ).toEqual(["h2:Uniform Dash Space Underline"]);
+    // ⚠ THE GUARD, and it is the document Session 192 measured (rendered: q09). The container's
+    // content column is 2 and a tab reaches 4, so there is no heading here — for quarto or for
+    // us, before this change or after. This is the assertion that would fail if the fix had
+    // been "a tab is deep enough" rather than "a tab is worth the columns it spans".
+    expect(
+      names(doc("Intro sentence.", "", "- line one", "  line two", "",
+                "  Victor Dash Column Two", "\t---")),
+    ).toEqual([]); // quarto: no heading — 4 is not 2, and both of us decline
   });
 });
