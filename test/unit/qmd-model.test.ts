@@ -3689,10 +3689,14 @@ describe("a container's content column is closed by a line's COLUMN, not its SPA
     // corpus to it); the blind sweep shows it is ALSO the largest LOSS family here, which makes
     // it simultaneously too wide and too narrow — the exact shape that makes both one-directional
     // edits wrong, as Session 192 found for the setext row. PROVEN BY CONTROL.
+    //
+    // ⚠ **CLOSED IN PLACE BY SESSION 199, and this family's own "too wide AND too narrow"
+    // sentence is why that session shipped a column EQUALITY rather than a wider cap.**
+    // Re-rendered on these exact bytes before the flip (`scratchpad/s199/ax/pin_s194_fam2.qmd`).
     expect(
       names(doc("Intro.", "", "- Site logistics", "  - Access road status", "",
                 "    # Tango Indented ATX", "", "    Body text.")),
-    ).toEqual([]); // quarto: h1:Tango Indented ATX — a LOST heading at the inner item's column 4
+    ).toEqual(["h1:Tango Indented ATX"]); // quarto agrees — the inner item's content column is 4
     expect(
       names(doc("Intro.", "", "- Site logistics", "  - Access road status", "",
                 "# Uniform Column Zero ATX", "", "Body text.")),
@@ -3700,7 +3704,7 @@ describe("a container's content column is closed by a line's COLUMN, not its SPA
     expect(
       names(doc("Intro.", "", "-   line one", "    line two", "",
                 "    # Victor Four Column ATX", "", "    Body text.")),
-    ).toEqual([]); // quarto: h1:Victor Four Column ATX — the single-container spelling
+    ).toEqual(["h1:Victor Four Column ATX"]); // agreed since S199 — the single-container spelling
 
     // ── FAMILY 3 — NEW, AND FOUND BY THIS SESSION'S OWN COMPLETENESS PASS rather than by the
     // eight lenses (the delegated critic stalled and the role was run firsthand). It is the
@@ -4282,5 +4286,31 @@ describe("an ATX heading's own indent is a COLUMN EQUALITY, not a ` {0,3}` cap (
     expect(names(doc("Intro paragraph.", "", "# Probe Title", "", "Tail body line."))).toEqual([
       "h1:Probe Title",
     ]);
+  });
+
+  it("RED->GREEN: a heading AT its container's content column is a heading, at any depth", () => {
+    // The WIDENING half. With the column test in place the leading class can be opened without
+    // over-accepting anywhere: ` {0,3}` cannot even SEE column 4, so every heading a container
+    // offers past column 3 was unreachable regardless of what the column test decided.
+    //
+    // Session 194's FAMILY 2, re-rendered on these exact bytes before being flipped
+    // (`scratchpad/s199/ax/pin_s194_fam2.qmd`): the inner item's content column is 4 and quarto
+    // renders the heading there.
+    expect(
+      names(doc("Intro.", "", "- Site logistics", "  - Access road status", "",
+                "    # Tango Indented ATX", "", "    Body text.")),
+    ).toEqual(["h1:Tango Indented ATX"]);
+    // CONTROL — the same heading at column 0, which both builds have always agreed on
+    // (`pin_s194_ctl.qmd`).
+    expect(
+      names(doc("Intro.", "", "- Site logistics", "  - Access road status", "",
+                "# Uniform Column Zero ATX", "", "Body text.")),
+    ).toEqual(["h1:Uniform Column Zero ATX"]);
+    // The SINGLE-container spelling of the same column, which S194 pinned beside it
+    // (`pin_s194_fam2b.qmd`).
+    expect(
+      names(doc("Intro.", "", "-   line one", "    line two", "",
+                "    # Victor Four Column ATX", "", "    Body text.")),
+    ).toEqual(["h1:Victor Four Column ATX"]);
   });
 });

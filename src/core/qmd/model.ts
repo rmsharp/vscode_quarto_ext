@@ -87,11 +87,20 @@ export interface OutlineSymbol {
 }
 
 /**
- * A single-line ATX heading (CommonMark §4.2): up to 3 spaces of indentation,
- * then 1–6 `#`, then at least one space/tab, then the text. Requiring the space
- * after the hashes is what rejects `#hashtag`; capping at 6 rejects `#######`.
+ * A single-line ATX heading: leading whitespace of EITHER KIND, then 1–6 `#`, then at
+ * least one space/tab, then the text. Requiring the space after the hashes is what rejects
+ * `#hashtag`; capping at 6 rejects `#######`.
+ *
+ * ⚠ **The leading class is NOT a heading rule and this regex does not decide the indent —
+ * `atxHeadingMatch` below does, against the enclosing block's content column.** Until
+ * Session 199 the class was CommonMark §4.2's ` {0,3}`, which was wrong in both directions at
+ * once: it accepted columns 1–3, which quarto renders as literal paragraph text, and it could
+ * not reach column 4 at all, where a container offers a real heading. The two capture groups
+ * are unchanged and `parseHeadingLine` still reads them — `m[1].length` counts `#`, not
+ * whitespace, so it is not the character-counting bug Sessions 194–197 removed from six other
+ * sites.
  */
-const ATX_HEADING = /^ {0,3}(#{1,6})[ \t]+(.+)$/;
+const ATX_HEADING = /^[ \t]*(#{1,6})[ \t]+(.+)$/;
 /**
  * An optional closing sequence: a run of `#` at end of line, preceded by
  * whitespace OR the start of the (already separator-stripped) text. Anchoring to
