@@ -7,6 +7,76 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 201 — a bullet marker on a setext title is STRIPPED, not declined (SHIPPED)
+
+`BULLET_LIST_MARKER` was `/^ {0,3}[-*+][ \t]/`, tested against the setext TITLE line, and it
+gated a blanket DECLINE: if the title began with a bullet marker, no heading was emitted at all.
+It was filed for three sessions as the last of the three ` {0,3}` caps — "too narrow at a
+container column" — and both prior sessions' receipts ranked it as a text divergence that "can
+neither delete nor fabricate a heading".
+
+**It was a heading DELETION, at every column, since this model's first commit.** Rendered
+through the real `quarto render` path, `- solo item` / `---` produces
+`<ul><li><h2 id="solo-item">solo item</h2></li></ul>` and this model produced nothing. The
+guard's own docstring described that HTML correctly — "Pandoc strips the marker and nests the
+heading INSIDE the `<li>`" — and then concluded the model "must decline (a false negative)". The
+fact was right and the inference wrong: the heading exists and its text is obtainable.
+
+**So the filed fix would have spread the harm.** `ATX_HEADING` (S199) and `FENCE_OPEN` (S200)
+decide whether a construct is RECOGNISED; this row decided whether to EMIT AT ALL. Making it
+container-relative would have converted a text divergence into a deletion on top of the deletion
+already there. The three candidate rules were written into the 1B claim before any render, and
+the calibration refuted the filed one in six documents.
+
+**And this row carries no column rule for recognition — a third answer where the two adjacent
+rows already disagreed.** By the time it runs, `setextUnderlineLevel` has ruled on the
+underline's column and a title past code depth is code, so the only column question left is "is
+the title INDENTED CODE?" — which is also, exactly, what the old ` {0,3}` was: code depth
+counted from source column 0 instead of from the container, accidentally right at top level and
+wrong at every container column.
+
+Five measured behaviours, each shipped through its own RED:
+
+1. The marker run is STRIPPED — `- - - x` renders `h1:x`; the run stops at the first non-bullet,
+   so `- 1. x` keeps `1. x` and `- > x` keeps `> x`.
+2. A title that is ONLY markers has an EMPTY innermost item and yields no heading (`- -`,
+   `-   -`, `- * -`, `+ + +`). The old decline covered these by accident.
+3. A bullet-spelled THEMATIC BREAK keeps its markers LITERALLY — `- - -` renders `h1:- - -`.
+   `+ + +` does not, because `+` is not a break character: one character apart, opposite answers.
+4. At INDENTED-CODE DEPTH the line is not a list item, so the marker survives. Top level strips
+   0-3 and keeps 4+; inside a `-   item` (content column 4) strips 4-7 and keeps 8+.
+5. The strip walks ONE MARKER AT A TIME, carrying the content column each opens — a gap wider
+   than four spaces puts the next marker in code, so `-` + 5 spaces + `- x` strips only the first.
+
+Behaviours 4 and 5 are errors this change introduced, both found by BLIND adversarial lenses
+after the designed corpora had scored clean on them, and both closed here rather than filed.
+
+**Measurement.** 474 documents rendered through the real `quarto render` path (quarto 1.7.33):
+365 designed + 109 blind from nine independent lenses, each scored per document against the
+pre-session build on identical bytes. Designed agreement 214 → 332; blind agreement 20 → 51.
+Per-error adjudication: **INTRODUCED 0 · REACHABLE 10 · CARRIED 43 · FIXED 159.** Every one of
+the 10 reachable rows carries a rendered MARKER-FREE twin on which the pre-session build errs
+identically, in three pre-existing families: a lazy setext underline under `from: gfm` /
+`from: commonmark`, an untracked region (`<style>`, an unclosed `<textarea>`, a `\begin{center}`
+environment), and a stale container column outliving a closed fenced div. Both instruments were
+proven effective — the repo control by injection against the final build, the adjudicator by
+argument swap.
+
+**Verification.** `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` 1810 passed / 66
+files · `test:oracle` 131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated (byte-identical
+to S180–S200) · `test:integration` **508 passing / 0 failing / exit 0** on the operator's
+go-ahead sought in advance, green first time · `check-package` OK 42 files / 5.52 MB ·
+`check-backlog` OK 116 open items. Repo control byte-identical across all four views over 115
+tracked documents. Not run: `test:lsp` — no LSP surface touched.
+
+Three pins closed in place, each re-rendered on its own bytes first: the two FOUNDING decline
+tests (wrong since the project's first commit) and Session 197's FAMILY B. Eight findings filed,
+one backlog item drained, and one stale cross-reference to this guard corrected in the item that
+carried it.
+
+- **Model:** Claude Opus 5, with nine blind adversarial sub-agents whose 112 documents were
+  adjudicated mechanically rather than on their claims.
+
 ### 2026-08-10 · [ad hoc] Session 200 — a FENCE's indent is CONTAINER-RELATIVE (SHIPPED)
 
 `FENCE_OPEN` was `/^ {0,3}(([`~])\2{2,})(.*)$/` and `FENCE_CLOSE` the matching closer —
