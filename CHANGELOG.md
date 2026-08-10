@@ -7,6 +7,46 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 204 — a CommonMark raw HTML BLOCK swallows the headings inside it (SHIPPED)
+
+Under a CommonMark-family reader (`gfm`, `commonmark`, `commonmark_x`) a raw HTML block covers
+every line until its end condition, and quarto renders no heading — ATX or setext — inside one.
+This model had no notion of being inside such a block, so it reported them: `<div>` /
+`# Ctl Html Heading` under `from: gfm` rendered nothing and we reported a heading.
+
+The state shipped is a REGION whose type names its END CONDITION, which is what the filed item's
+one-line framing could not express. CommonMark type 6 (a known block-tag name) and type 7 (any
+complete tag alone on a line, and only where no paragraph is open) end at a blank line; type 1 —
+`<pre>`, `<script>`, `<style>`, `<textarea>` — ends at its OWN closing tag, ignores blank lines
+entirely, and when unclosed runs to end of document. Types 2 to 5 already behaved correctly and
+are deliberately untouched.
+
+Three obvious-looking answers were refuted by rendering before any of them shipped:
+
+- **"Swallow to the next blank line"** fails in BOTH directions. An unclosed `<pre>` swallows
+  past blanks to end of document, and a heading directly below `</pre>` — with no blank line
+  anywhere — is real.
+- **Reusing `PANDOC_BLOCK_OPEN_TAGS`**, already in this file and answering the same question,
+  would DELETE 24 real headings: pandoc's list carries DocBook names CommonMark lacks. The two
+  lists are indistinguishable with no paragraph open, because type 7 accepts any complete tag —
+  only an OPEN PARAGRAPH separates them.
+- **Widening the dialect allowlist** to `markdown_strict` / `_github` / `_mmd` / `_phpextra`,
+  which a blind lens and a 20-document control both suggested, would have deleted 22 real
+  headings per reader and silently moved Sessions 202 and 203's rows, which read the same flag.
+  A 144-document grid showed those four agree with `gfm` on only 14 of 36 cells.
+
+Measured over 766 documents rendered through the real `quarto render` path (quarto 1.7.33), 686
+designed plus 80 from four blind lenses, each scored per document against the pre-session build
+on identical bytes: designed agreement 236 → 310, blind 35 → 57, per-error adjudication
+INTRODUCED **0** / FIXED 96 / REACHABLE 1 / CARRIED 71. All 113 tracked markdown-family documents
+in the repo are byte-identical across all four views, proven effective by injection in the same
+run. `npm test` 1835 (+7), `test:integration` 511 (+1), `test:oracle` unchanged since Session 180.
+
+Seven findings filed, none of them fixed here: the container-column blindness of the new indent
+test, the default reader's own HTML-block rule, two comment-region defects, the refuted dialect
+widening, a `<!DOCTYPE html>` residual of Session 203's interrupt list, and a block-quote
+deletion. Learnings #319–#322.
+
 ### 2026-08-10 · [ad hoc] Session 203 — a setext TITLE is the WHOLE OPEN PARAGRAPH under a CommonMark reader (SHIPPED)
 
 `consecutiveBody === 1` gated the setext underline unconditionally, so a title could be exactly
