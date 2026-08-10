@@ -5722,6 +5722,12 @@ describe("a front-matter `from:` is resolved as YAML, not as one line shape (Ses
     // must fall through to today's behaviour (the pressed heading is reported) rather than
     // resolve to some default. There is no reader named `*nope`, and inventing one here would
     // feed a flag whose wrong direction deletes a heading.
+    //
+    // ⚠ **This pin has NO rendered truth and is the one case in this block that cannot have
+    // one.** An alias with no anchor is invalid YAML, so quarto REFUSES the document
+    // (`scratchpad/s206/pins` `p_noanchor`, exit 1). What is asserted is therefore this
+    // scanner's own robustness — that it declines rather than resolves — and not an agreement
+    // with a render.
     expect(names(pressed('title: "T"', "from: *nope"))).toEqual(["h1:Baseline", "h1:Pressed"]);
   });
 
@@ -5776,9 +5782,16 @@ describe("a front-matter `from:` is resolved as YAML, not as one line shape (Ses
 
   it("…and a reader this scanner cannot resolve keeps today's behaviour exactly", () => {
     // A nested per-format `from:` is a separately filed item and is deliberately NOT resolved
-    // here. Narrowing on an ABSENCE of resolution would delete the heading quarto renders for
-    // it; narrowing only on a POSITIVE resolution cannot. `scratchpad/s206/cmk` `c_nested`
-    // shows quarto really does honour that key, which is why this direction matters.
+    // here. ⚠ **MEASURED, `scratchpad/s206/ctl5`, and the pair is the whole argument:** the
+    // `gfm` twin `z_nest_gfm` RENDERS this heading and the `markdown` twin `z_nest_md` renders
+    // none. So narrowing on the ABSENCE of a CommonMark resolution would delete a real heading,
+    // while narrowing only on a POSITIVE markdown resolution cannot — an unresolved document
+    // takes neither branch.
+    //
+    // ⚠ This case is therefore a PHANTOM that is pinned deliberately, not an agreement:
+    // `scratchpad/s206/pins` `p_colnest` renders nothing and this model reports a heading. It
+    // is the disclosed cost of the safe direction, and it is the filed per-format item's to
+    // close — that item needs NESTED value resolution, which this session does not ship.
     expect(names(atColumn3('title: "T"', "format:", "  html:", "    from: markdown"))).toEqual([
       "h1:Indented Heading Here",
     ]);

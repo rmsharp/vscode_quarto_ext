@@ -1476,4 +1476,58 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `a CommonMark reader must keep BOTH headings: ${cmNames.join(", ")}`,
     );
   });
+  it("resolves a `from:` written as YAML rather than as one line shape (Session 206)", async () => {
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — the NINTH
+    // consecutive session to avoid the exact-set fixture coupling that cost Sessions 196 and 197
+    // a full screen-taking run each. The exact-set grep ran BEFORE this was written:
+    // `grep -c "assert.deepStrictEqual" test/integration/suite/outline.test.ts` = 31 raw, but the
+    // real CALL count is 21 (the rest are comment text citing the grep by name — Session 204's
+    // gotcha 7, which is why the two numbers are recorded separately). `openInMemory` keeps these
+    // documents out of every exact-set pin here and in every other suite file, and this test adds
+    // no exact-set pin of its own.
+    //
+    // All three premises were rendered through the real `quarto render --to html` path this
+    // session, quarto 1.7.33 (`scratchpad/s206/gnd`, 32 documents; `pins`, 24):
+    //   `g_qkeyd_gfm`      -> BOTH headings — a QUOTED key really does select gfm
+    //   `g_nextline_markdown` -> the BASELINE only — a next-line scalar really is `from: markdown`
+    //   `g_plain_gfm`      -> BOTH headings — the control spelling, unchanged by this session
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const body = ["", "# Baseline", "", "Prose opens a paragraph.", "# Pressed"];
+
+    // PRESENT — a QUOTED key. `FRONTMATTER_FROM_KEY` could never match a line beginning with a
+    // quote, so the paragraph bail DELETED this heading: the user-visible outline was missing a
+    // section the rendered document has.
+    const quoted = await openInMemory(['---', '"from": gfm', 'title: t', '---', ...body].join("\n"));
+    const quotedNames = flatten(await symbolsForDoc(quoted));
+    assert.ok(
+      quotedNames.includes("Pressed") && quotedNames.includes("Baseline"),
+      `a quoted \`"from": gfm\` must select gfm and keep BOTH headings: ${quotedNames.join(", ")}`,
+    );
+
+    // ABSENT — the value on the NEXT line. Without this the case above would pass for a build
+    // that had simply stopped applying the bail at all, which is the opposite defect.
+    const nextLine = await openInMemory(
+      ["---", "title: t", "from:", "  markdown", "---", ...body].join("\n"),
+    );
+    const nextNames = flatten(await symbolsForDoc(nextLine));
+    assert.ok(
+      !nextNames.includes("Pressed") && nextNames.includes("Baseline"),
+      `a next-line \`from: markdown\` must keep the bail and drop only the pressed heading: ${nextNames.join(", ")}`,
+    );
+
+    // THE UNRESOLVED GUARD — a nested per-format `from:` this scanner deliberately does NOT
+    // resolve. Measured (`scratchpad/s206/ctl5` `z_nest_gfm`): quarto honours it, so a build that
+    // narrowed on the ABSENCE of a resolution would delete the heading it renders. Without this
+    // assertion both cases above would pass for exactly that build.
+    const nested = await openInMemory(
+      ["---", "title: t", "format:", "  html:", "    from: gfm", "---", ...body].join("\n"),
+    );
+    const nestedNames = flatten(await symbolsForDoc(nested));
+    assert.ok(
+      nestedNames.includes("Pressed") && nestedNames.includes("Baseline"),
+      `an unresolved nested \`from:\` must keep today's behaviour: ${nestedNames.join(", ")}`,
+    );
+  });
 });
