@@ -5,6 +5,28 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 196 — IMPLEMENTATION (strict TDD): a container OPENER's own indent is measured in COLUMNS, at the two remaining spaces-only sites. `listItemContentColumn` and `CONTENT_COLUMN_4_OPEN` both anchor on `^( *)`, so a TAB-INDENTED list marker or footnote/definition marker opens NO tracked column at all — the last two of the six places in `src/core/qmd/model.ts` that measure indentation, minus the setext underline which is its own filed item.** (IN PROGRESS)
+**Started:** 2026-08-09
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` removal in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Selected by the operator via `AskUserQuestion` at Phase 0 from an empty Active section.** It was Session 195's ranked #1 and Session 194's own filed FAMILY 3 — found by S194's firsthand completeness pass, not by its eight delegated lenses.
+
+**⚠ SCOPE, declared AFTER a coupling survey rather than before it** (S195's practice, adopted from S194's self-criticism). **IN:** `listItemContentColumn`'s and `CONTENT_COLUMN_4_OPEN`'s own leading-whitespace measurement, so a TAB-indented opener pushes the same content column as the SPACE spelling reaching the same column — one capability, the same rule `indentColumn` already carries for the pop, `indentedCodeLine` and `rawTexMacroLineIsBlock`. **OUT:** `SETEXT_H1`/`SETEXT_H2`'s spaces-only indent (S195 ranked #2, its own filed item); `ATX_HEADING`'s ` {0,3}`; the ragged-stack pop; the marker-TAB push arithmetic *after* the marker (already column-correct); the "four-space marker is CODE" rule; the block quote and fenced-div containers; every synced methodology file.
+
+**⚠ TWO COUPLINGS THE FILED ITEM DOES NOT NAME, both surveyed firsthand before this claim was written.**
+1. **The filed item's own pinned document CANNOT show this fix, because its setext underline is ALSO tab-indented.** FAMILY 3's control at `test/unit/qmd-model.test.ts` ends `"\t  Golf Tab Sibling Title", "\t  ==="`, and `setextUnderlineLevel` reads `SETEXT_H1 = /^( *)=+[ \t]*$/` — spaces only. So that document is blocked on FAMILY 1, which is a DIFFERENT filed item and is OUT of scope here. The observable consumers of a newly-pushed column are `indentedCodeLine`, `rawTexMacroLineIsBlock`, and a SPACE-spelled underline at the tab-opened column. **To be confirmed by measurement, not by reading the regex.**
+2. **Widening the opener admits the tab spelling of a shape pandoc reads as CODE.** A lone tab is column 4; `\t- item` is the tab spelling of `    - item`, which pandoc reads as indented code and which this file already admits as a container (S194's FAMILY 4, a filed pre-existing phantom). Today the tab spelling agrees with quarto **by accident** — no match, no push. After the fix it will behave like the space spelling, so the pre-existing phantom becomes reachable through a second spelling. **The decision rule is declared in advance (S194's test): *would this defect exist if my change did not ship?* If a new phantom is CAUSED by this change it is handled here and disclosed; if it is pre-existing and merely re-spelled, it is pinned with a control and filed.**
+
+**⚠ TDD gate — FIRES.** `listItemContentColumn` is logic. RED→GREEN→REFACTOR, one behaviour at a time, each RED confirmed to fail on the BEHAVIOUR rather than the plumbing.
+
+**⚠ Both directions are scored separately** (Learning #272's NEW-ERROR SET, `newerr.py` reusable verbatim). This touches the PUSH side, which S194 did not: a pushed column both SUPPRESSES `indentedCodeLine` (removing headings) and ADMITS a raw-TeX block and a setext underline (adding them), so the sign of any net count is meaningless.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **1787 passed / 66 files** and `check-backlog` **OK, 103 open items**, both matching S195's recorded close-out exactly. Phase 0 reconcile found **NOTHING owed** — both frontiers were `HEAD` (`a1a6845`, gap 0), `grep -c "^status: pending" HANDOFFS.md` = 0.
+
+---
+
+## Session 195 ACTIVE TASK (superseded by Session 196 — full entry preserved below)
 **Task:** **Session 195 — `BACKLOG.md` holds only OPEN work, and a deny-by-default check keeps it that way. (a) Drain the re-accumulated completed-work records, verifying each firsthand against `CHANGELOG.md` / `PROJECT_LEARNINGS.md` and salvaging anything not durably recorded elsewhere; (b) ship the missing backstop, because shipping (a) alone is the experiment Session 150 already ran and it regressed within a few sessions.** (IN PROGRESS)
 **Started:** 2026-08-09 · **Closed:** 2026-08-09
 **Status:** **DONE. SHIPPED — 24 records / 33 KB drained after per-block verification, one buried OPEN item recovered, and a deny-by-default gate that runs on every `npm test`.**

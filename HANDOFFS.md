@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S196
+date: 2026-08-09
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD) -- a container OPENER's own indent is measured in COLUMNS, at the two remaining spaces-only sites. `listItemContentColumn` and `CONTENT_COLUMN_4_OPEN` both anchor on `^( *)`, so a TAB-INDENTED list marker or footnote/definition marker opens no tracked column at all. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S195's ranked #1 and S194's filed FAMILY 3. SCOPE declared at claim after a coupling survey: IN the two openers' own leading-whitespace measurement; OUT SETEXT_H1/H2's spaces-only indent (its own filed item), ATX_HEADING's ` {0,3}`, the ragged-stack pop, the four-space-marker-is-CODE rule, the block quote and fenced-div containers, every synced methodology file.
+```
+
+```handoff
 session: S195
 date: 2026-08-09
 status: complete
