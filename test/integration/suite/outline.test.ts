@@ -451,6 +451,59 @@ describe("Quarto: Document outline (symbols)", () => {
     );
   });
 
+  it("reads an ATX heading's indent as a COLUMN EQUALITY, through the real provider (Session 199)", async () => {
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — same reason as
+    // the Session 198 test above, and the `grep -n "assert.deepStrictEqual"
+    // test/integration/suite/*.ts` that finds the exact-set pins was run BEFORE this was
+    // written. `openInMemory` keeps these documents out of every such pin's scope.
+    //
+    // Both documents were rendered through the real `quarto render --to html` path this
+    // session and the premises are measured, not assumed: quarto emits `Tango Indented ATX`
+    // for the first (`scratchpad/s199/ax/pin_s194_fam2.qmd`) and NO heading at all for the
+    // second (`scratchpad/s199/gnd/top_i01_h1.qmd`, whose raw HTML is the literal paragraph
+    // `<p># Probe Title</p>`).
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+
+    // PRESENT — a heading AT its container's content column. The pre-Session-199 build lost
+    // this outright: ` {0,3}` cannot see column 4, so the inner item's own heading was never a
+    // heading at all. This was Session 194's filed FAMILY 2.
+    const recovered = await openInMemory(
+      ["Intro.", "", "- Site logistics", "  - Access road status", "",
+       "    # Tango Indented ATX", "", "    Body text."].join("\n"),
+    );
+    const recoveredNames = flatten(await symbolsForDoc(recovered));
+    assert.ok(
+      recoveredNames.includes("Tango Indented ATX"),
+      `a heading at the inner item's column 4 must reach the outline: ${recoveredNames.join(", ")}`,
+    );
+
+    // ABSENT — the same one rule in the other direction, and the half no cap could express.
+    // An indent matching NO open column is not a heading: quarto renders `<p># Probe Title</p>`
+    // here, and the pre-Session-199 build emitted a phantom `Probe Title` section because
+    // CommonMark's 0-3 tolerance accepted column 1. A fix that merely widened the cap would
+    // leave this in place.
+    const drained = await openInMemory(
+      ["Intro paragraph.", "", " # Probe Title", "", " Tail body line."].join("\n"),
+    );
+    const drainedNames = flatten(await symbolsForDoc(drained));
+    assert.ok(
+      !drainedNames.includes("Probe Title"),
+      `an indent matching no open column is not a heading: ${drainedNames.join(", ")}`,
+    );
+    // CONTROL — the identical body at column 0, which must still be a heading. Without it the
+    // assertion above passes for a build that has stopped finding headings altogether.
+    const control = await openInMemory(
+      ["Intro paragraph.", "", "# Probe Title", "", "Tail body line."].join("\n"),
+    );
+    const controlNames = flatten(await symbolsForDoc(control));
+    assert.ok(
+      controlNames.includes("Probe Title"),
+      `the column-0 control must still be a heading: ${controlNames.join(", ")}`,
+    );
+  });
+
   it("measures the indented-code threshold from the container's content column, through the real provider (Session 193)", async () => {
     // THE WIRING EVIDENCE for Session 193, on the provider the Outline view, breadcrumbs,
     // sticky scroll and Ctrl+T all really call. Like Session 192's, this change moves the
