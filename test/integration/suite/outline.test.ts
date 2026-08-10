@@ -392,6 +392,65 @@ describe("Quarto: Document outline (symbols)", () => {
     ]);
   });
 
+  it("keeps a container open across a lazy line, and closes it at a list start, through the real provider (Session 198)", async () => {
+    // THE WIRING EVIDENCE for Session 198, on the provider the Outline view, breadcrumbs,
+    // sticky scroll and Ctrl+T all really call. The change moves the outline in BOTH
+    // directions, so there is one document for each and the ABSENT case is asserted as
+    // explicitly as the PRESENT one.
+    //
+    // ⚠ THIS TEST DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd`.
+    // Sessions 196 and 197 each lost a full screen-taking Extension Development Host run by
+    // extending that fixture and tripping an exact-set `assert.deepStrictEqual` over it — S196
+    // the top-level list, S197 the FLATTENED list one comment above this file's line 375.
+    // `openInMemory` gives this session's two documents their own scope, so no exact-set pin
+    // can be extended by them at all. The grep that finds those pins is
+    // `grep -n "assert.deepStrictEqual" test/integration/suite/*.ts`; it was run before this
+    // test was written, not after it failed.
+    //
+    // Both documents were rendered through the real `quarto render --to html` path this
+    // session (`scratchpad/s198/pins/famD_tab.qmd` and `ragged.qmd`) and the premises are
+    // measured, not assumed: quarto emits `Ledger`, `Line one here.` AND `Real Title` for the
+    // first, and `Eta Plain Title` ALONE for the second.
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+
+    // PRESENT — a consumed setext underline must not arm the container pop. Against the
+    // pre-Session-198 build this document produced `Ledger` and `Line one here.` only, with
+    // `Real Title` deleted outright: the column-0 line below the underline closed a list
+    // pandoc keeps open, so the underline at column 4 matched no column at all.
+    const recovered = await openInMemory(
+      ["## Ledger", "", "-   Item alpha.", "", "\tLine one here.", "\t---",
+       "back at zero, lazily", "", "    Real Title", "    ==="].join("\n"),
+    );
+    const recoveredNames = flatten(await symbolsForDoc(recovered));
+    assert.ok(
+      recoveredNames.includes("Real Title"),
+      `a consumed underline must not close the item below it: ${recoveredNames.join(", ")}`,
+    );
+    assert.ok(
+      recoveredNames.includes("Line one here."),
+      `the underline itself must still make its own heading: ${recoveredNames.join(", ")}`,
+    );
+
+    // ABSENT — the same one condition in the other direction. A shallower LIST START does
+    // close the deeper column, so the underline at column 4 below it must match nothing. The
+    // pre-Session-198 build emitted `Eta Ragged Title` here, a phantom section quarto does not
+    // render; a fix that simply stopped popping would leave it in place.
+    const drained = await openInMemory(
+      ["Ragged stack probe.", "", "  - deep first item", "- shallow next item", "",
+       "  Eta Ragged Title", "    ===", "", "- plain item", "", "  Eta Plain Title", "  ==="].join("\n"),
+    );
+    const drainedNames = flatten(await symbolsForDoc(drained));
+    assert.ok(
+      !drainedNames.includes("Eta Ragged Title"),
+      `a shallower list marker must close the deeper column: ${drainedNames.join(", ")}`,
+    );
+    assert.ok(
+      drainedNames.includes("Eta Plain Title"),
+      `the control heading must survive the same edit: ${drainedNames.join(", ")}`,
+    );
+  });
+
   it("measures the indented-code threshold from the container's content column, through the real provider (Session 193)", async () => {
     // THE WIRING EVIDENCE for Session 193, on the provider the Outline view, breadcrumbs,
     // sticky scroll and Ctrl+T all really call. Like Session 192's, this change moves the
