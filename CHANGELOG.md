@@ -7,6 +7,62 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 199 — an ATX heading's indent is a COLUMN EQUALITY (SHIPPED)
+
+`ATX_HEADING` was `/^ {0,3}(#{1,6})[ \t]+(.+)$/` — CommonMark §4.2's 0-3 space tolerance,
+measured from SOURCE column 0. It was wrong in BOTH directions at once, which is why neither
+widening nor narrowing it alone was the fix.
+
+**The surprise, and it was hand-verified against the raw HTML rather than through an
+extractor: quarto's pandoc gives an ATX heading NO leading-space tolerance at all.** At top
+level `   ### Indented three` renders the literal `<p>### Indented three</p>`, while
+`### No indent first` renders `<h3>`. Measured over a 121-document grid — 8 container shapes ×
+11 indents × 2 levels, every one quarto exit 0 — the rule that fits all 121 rows is the one
+`setextUnderlineLevel` has carried since Session 192: the indent must EQUAL a column in
+`[0, ...contentColumns]`. A `- item` offers 0 and 2; `-   item` offers 0 and 4; three-deep
+bullets offer 0, 2, 4 AND 6 — the whole stack, not the innermost. The sweep runs past `c+3`
+into `c+4`, where the line is indented code, because a corpus stopping at `c+3` cannot tell a
+correct rule from one that never refuses.
+
+Shipped as narrowing FIRST, then widening: opening the leading class before the column test
+existed would have left a window where the row over-accepts at every indent. Four RED→GREEN,
+each RED confirmed to fail on the behaviour rather than the plumbing.
+
+**Two fail-safes, both found by measurement rather than by design.** A BLOCK QUOTE suspends
+the rule entirely — the first draft argued no quote gate was needed and a Session 189 pin
+refuted it within the minute, since a block inside the quote clears `paragraphOpen` without
+clearing `quoteOpen`, and pandoc strips the quote's markers and re-parses. A `from:` FRONT
+MATTER KEY relaxes it to CommonMark's own bounded 0-3 set: `gfm` and `commonmark` genuinely
+DO have the tolerance, so applying the equality there DELETED real headings. That regression
+was caused by this session and found by its own completeness pass; the first fix for it
+suspended the rule outright and fabricated a heading at column 4 under all five keys, because
+`null` had become wider than the ` {0,3}` fallback it replaced.
+
+**Measurement.** 189 documents rendered fresh through the real `quarto render` path (quarto
+1.7.33) across three corpora, scored per document against the pre-session build on identical
+bytes: 99 → 181 agreeing, phantoms 30 → 6, losses 11 → 2. Per-error adjudication returns
+**INTRODUCED 1, CARRIED 7, FIXED 54, changed-in-place 0**. Repo control: all four views over
+all 113 tracked documents BYTE-IDENTICAL, proven effective by injection (4 measured movers
+moved, 4 measured stayers stayed, the 113 verified unchanged in the same run).
+
+**The one introduced error is disclosed, not closed:** the ATX-swallow's TEXT at a container
+column. Pandoc swallows an ATX line into a setext heading below it keeping the literal `#`;
+this model strips it on purpose (Session 182's filed decision — an outline row reading
+`# Heading Above` is noise). The pre-session build was right there BY ACCIDENT, because
+` {0,3}` never saw the heading, so the `===` claimed the line as a setext title with the `#`
+intact. What ships is uniform: the `#` is now stripped at column 0 and column 4 alike, where
+the two columns previously disagreed with each other. No heading is deleted or fabricated —
+both renderers emit one `h1` and only the text differs. Reversing it is a separate capability
+(FM #26), and the filed item is extended with this container spelling.
+
+Closes the filed item "`ATX_HEADING`'s own ` {0,3}` deletes a real heading at column 4 or
+deeper" (Session 189), and closes in place four inherited pins: Session 194's FAMILY 2 in both
+spellings, Session 193's FAMILY 5, and the original CommonMark indentation test — which
+asserted the 0-3 tolerance and was **wrong from the start**, written from the spec rather than
+from a render.
+
+- **Model:** claude-opus-5
+
 ### 2026-08-09 · [ad hoc] Session 198 — the container POP's SUPPRESSION CONDITION (SHIPPED)
 
 `computeRegions` closed every container column deeper than a shallow non-blank line whenever
