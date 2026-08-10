@@ -2084,7 +2084,8 @@ describe("the HTML block-tag rule is pandoc's, and it is CONTEXT-DEPENDENT (Sess
     //
     // (i)  NOT IN PANDOC'S SETS AT ALL — `base`, `basefont`, `dialog`, `frame`, `legend`,
     //      `link`, `menuitem`, `optgroup`, `option`, `param`. CommonMark §4.6 lists them;
-    //      pandoc does not. `BACKLOG.md` names `<basefont size="3">` as the measured case.
+    //      pandoc does not. `<basefont size="3">` is the measured case (CHANGELOG: BACKLOG.md
+    //      holds only open work, Session 195 — salvaged there when the S187 record was drained).
     //
     // (ii) IN `eitherBlockOrInline`, WHICH IS NOT `blockTags` — `iframe`, `source`, `track`,
     //      `ins`, `del`, `button`, `svg`, `video`, `audio`, `object`, `embed`, `noscript`,
@@ -2093,7 +2094,7 @@ describe("the HTML block-tag rule is pandoc's, and it is CONTEXT-DEPENDENT (Sess
     //      first-context answer is asserted here; RED->GREEN 5 asserts the other context.
     //
     // ⚠ THIS REFUTES THE FILED ITEM'S CENTRAL CLAIM, and the refutation is measured.
-    // `BACKLOG.md` states "the rule is not a shape: `<ins>x</ins>` opens a block and
+    // The filed item stated "the rule is not a shape: `<ins>x</ins>` opens a block and
     // `<em>x</em>` does not", and lists `<svg>`, `<button>`, `<video>`, `<audio>`,
     // `<object>`, `<embed>`, `<noscript>`, `<map>`, `<progress>`, `<area>`, `<applet>`,
     // `<ins>` and `<del>` as block openers. Rendered on the real path, quarto 1.7.33:
