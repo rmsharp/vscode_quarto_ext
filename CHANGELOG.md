@@ -7,6 +7,61 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 205 — `blank_before_header` belongs to the READER, not to the presence of a `from:` key (SHIPPED)
+
+Pandoc's `blank_before_header` makes an ATX heading pressed against an open paragraph not a
+heading. This model implements it — and `dialectOverride` switched it off for the whole document
+the moment ANY `from:` key appeared, so `from: markdown` lost a rule that no front matter at all
+already got. Session 180 took that trade knowingly and wrote its cost into `FRONTMATTER_FROM_KEY`'s
+own docstring; this session paid it down.
+
+**⚠ The filed item said the rule was UNMODELLED, and the tell that it wasn't sat in the item's own
+cited evidence, in a column the item never compared.** Session 204's ground grid carries a `nofrom`
+twin of every `from: markdown` row. Quarto renders the twins identically; this model did not — all
+7 phantom `md` rows had an agreeing `nofrom` twin. Diagnosing from the symptom would have produced
+a second HTML-block rule; the defect was one boolean, in the `from:` scan.
+
+- `fromKeepsBlankBeforeHeader` resolves the `from:` VALUE for the ATX paragraph bail alone — a
+  THIRD flag beside `dialectOverride` and `commonmarkDialect`, never a refinement of either.
+  `dialectOverride`'s other consumer (the heading COLUMN set) asks a different question, keeps its
+  presence-keying and its own permitted phantom, and its rows are measured unmoved.
+- **The extension outranks the base in BOTH directions, and both are measured.**
+  `markdown+emoji-blank_before_header` renders the pressed heading; `markdown_strict+blank_before_header`
+  suppresses it on a base that renders it unadorned. So the rule is: base exactly `markdown`, or any
+  measured `markdown_*` base carrying `+blank_before_header`, minus anything carrying
+  `-blank_before_header`.
+- **`markdown_strict` is the trap.** It, `markdown_mmd`, `markdown_phpextra` and `markdown_github`
+  each RENDER the pressed heading, so a prefix match on `markdown` — the obvious way to widen for
+  `markdown+emoji` — deletes four readers' worth of real headings.
+- Anchored at column 0. Measured, not inherited: with a real `from: gfm` at column 0 and an
+  `abstract: |` block scalar whose prose begins `from: markdown`, firing on the scalar deletes the
+  heading quarto renders (`spl` `s_collide`).
+- **A regression this session CAUSED, and closed under its own declared decision rule:** restoring
+  the bail exposed that `?>` was matched by nothing. `HTML_BLOCK_OR_INLINE_OPEN` carried a row
+  commented "closer `</?…`", which is not how a processing instruction closes. It was invisible
+  while the bail was off — the right answer came out for the wrong reason. Found only by
+  re-measuring the filed item's own named documents against the new build. `]]>` is the control
+  that keeps the row from being widened: CDATA does not end at its closer.
+
+**Measurement.** 262 documents rendered fresh through the real `quarto render` path (quarto 1.7.33),
+198 designed + 64 blind, 15 excluded for quarto exit 1; each scored per document against the
+pre-session build on identical bytes. Designed agreement 99/153 → 147/153 and the pins 10/26 → 26/26;
+blind agreement 29/64 → 45/64. **INTRODUCED 0 · FIXED 64 · REACHABLE 0** across all corpora, and
+Session 204's own corpora re-scored on the new build improve too — its `end` 67/72 → 72/72 and its
+`gnd` 155/180 → 162/180, both INTRODUCED 0. Repo control byte-identical across all four views over
+all 115 tracked markdown documents, proven effective by injection in the same run (4 movers moved,
+5 stayers stayed). `test:oracle` byte-identical to S180–S204 at 124/131.
+
+**Two harness artifacts found and disclosed, each proven by a feature-free control rather than by
+argument:** quarto's alternate-formats sidebar prepends `h2:Other Formats` to any document naming a
+non-HTML `format:`, and a footnote definition appends a generated `h2:Footnotes`. Both were scoring
+as headings this model had lost; the second was masking a genuine two-heading recovery.
+
+Filed: 6 new items (a quoted `from:` KEY, a mid-document YAML `from:`, `-space_in_atx_header`
+readers, callout-title consumption, non-markdown readers, and the heading COLUMN set left
+deliberately unmoved). Session 204's default-reader item is rewritten down to its residual half
+(a closed `<pre>`'s literal interior), not drained — that half is still open.
+
 ### 2026-08-10 · [ad hoc] Session 204 — a CommonMark raw HTML BLOCK swallows the headings inside it (SHIPPED)
 
 Under a CommonMark-family reader (`gfm`, `commonmark`, `commonmark_x`) a raw HTML block covers
