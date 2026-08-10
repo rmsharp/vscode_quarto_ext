@@ -4423,4 +4423,41 @@ describe("a FENCE's own indent is CONTAINER-RELATIVE, not a ` {0,3}` cap (Sessio
                 "    Title After Fence", "    ===")),
     ).toEqual(["h1:Title After Fence"]);
   });
+
+  it("RED->GREEN: an OPEN PARAGRAPH above the opener keeps the old ` {0,3}` width, so this change cannot reach it", () => {
+    // ⚠ THE ONE ERROR THIS SESSION'S OWN CHANGE INTRODUCED, found by the completeness pass
+    // budgeted in the 1B claim and closed here. `-   item one` / `    paragraph line` /
+    // `    ```` ``` ```` renders NO heading: quarto reads the whole item as ONE paragraph and
+    // the backtick pair as an INLINE code span — `<li>item one paragraph line <code>qqq
+    // code body</code></li>`, read off the raw HTML. A plain fence does not, in general,
+    // interrupt an open paragraph.
+    //
+    // ⚠ THE OBVIOUS FIX — a `paragraphOpen` bail on the whole branch — IS MEASURABLY WRONG,
+    // which is why it is not what shipped. At column 0 the fence DOES interrupt (measured:
+    // `scratchpad/s200/par`, `par_top_i00` renders `<pre class="qqq">`), and bailing there
+    // deletes `h1:Para Direct Title` from a document both builds get right today. Whether a
+    // fence interrupts a paragraph is a SEPARATE rule with its own two-directional cost — it
+    // is not the indent question, it turns on the fence CHAR (a `~~~` opener at column 0 does
+    // NOT interrupt where ```` ``` ```` does), and it is left filed rather than guessed.
+    //
+    // So what ships is the narrow, honest boundary: while a paragraph is open the fence rows
+    // keep the width they had BEFORE this session, and this change simply does not apply. Every
+    // error it introduces there disappears; every error already there is carried unchanged.
+    expect(
+      names(doc("-   item one", "    paragraph line", "    ```", "    code", "    ```",
+                "    Para Direct Title", "    ===")),
+    ).toEqual([]); // quarto: no heading — one paragraph, the backticks an inline code span
+    // CONTROL — the column-0 shape the naive bail would have broken. Both builds find it and
+    // so does quarto (`scratchpad/s200/twin`, `twin_i00`, rendered).
+    expect(
+      names(doc("Intro paragraph.", "```", "code", "```", "Para Direct Title", "===")),
+    ).toEqual(["h1:Para Direct Title"]); // quarto: h1:Para Direct Title
+    // CONTROL — the same document with a BLANK LINE above the opener, which is what puts the
+    // fence back in this session's scope: no paragraph is open, so the container column
+    // applies and the title below the closer is recovered.
+    expect(
+      names(doc("-   item one", "", "    ```", "    code", "    ```",
+                "    Para Blank Title", "    ===")),
+    ).toEqual(["h1:Para Blank Title"]); // quarto agrees exactly
+  });
 });

@@ -1970,7 +1970,26 @@ function computeRegions(text: string): Regions {
     // When CommonMark's 0–3-space rule declines, quarto's unbounded CELL opener gets a
     // second look — but ONLY when the info string really is a cell, so a plain fence
     // keeps the CommonMark cap (Session 178).
-    const fenceColumns = [0, ...contentColumns];
+    // ⚠ AN OPEN PARAGRAPH ABOVE THE OPENER KEEPS THE PRE-SESSION-200 WIDTH, and the narrowness
+    // of that is the point: a plain fence does NOT in general interrupt an open paragraph, and
+    // what quarto does there is a SEPARATE rule this session did not measure. Rendered:
+    // `-   item one` / `    paragraph line` / `    ```` ``` ```` is ONE paragraph whose backtick
+    // pair is an INLINE code span, and treating it as a fence fabricates the heading below it.
+    //
+    // ⚠ The obvious `paragraphOpen` bail on the whole branch is MEASURABLY WRONG — at column 0
+    // the fence really does interrupt (`scratchpad/s200/par`, `par_top_i00`), and bailing there
+    // DELETES a heading both builds get right. The interrupt rule also turns on the fence CHAR
+    // (a `~~~` opener at column 0 does not interrupt where a backtick one does), which is
+    // conclusive that it is a different question from this row's indent. So the boundary drawn
+    // here is "this session's change does not apply", not a new rule invented to fit the diff.
+    //
+    // ⚠ `[0]` rather than a `null` SUSPENSION, deliberately (Learning #301). The regexes above
+    // widened to `[ \t]*` in the same commit, so a sentinel meaning "return the bare match"
+    // would now mean ANY indent whatsoever — the exact fallback drift that fabricated five
+    // headings in Session 199. `[0]` is a bounded value that reproduces CommonMark's ` {0,3}`
+    // cap exactly through the shared predicate: base 0, so columns 0-3 pass and 4 is code. It
+    // covers tabs correctly for free, since one tab already reaches column 4.
+    const fenceColumns = paragraphOpen ? [0] : [0, ...contentColumns];
     const plainFence = fenceMatchAt(FENCE_OPEN, line, fenceColumns);
     const fence = plainFence ?? indentedCellFenceAt(line);
     if (fence) {
