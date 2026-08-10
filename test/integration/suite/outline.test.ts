@@ -523,6 +523,46 @@ describe("Quarto: Document outline (symbols)", () => {
     );
   });
 
+  it("tests a TAB-indented setext underline at the COLUMN it reaches (Session 197)", async () => {
+    // THE WIRING EVIDENCE for Session 197, on the provider the Outline view, breadcrumbs,
+    // sticky scroll, Ctrl+T and the cross-reference index all really call.
+    //
+    // `SETEXT_H1`/`SETEXT_H2` were `/^( *)=+[ \t]*$/` and `setextUnderlineLevel` compared
+    // `m[1].length` — a COUNT OF SPACES — against a set of COLUMNS. A tab-indented run
+    // therefore did not match the regex at all and could never be an underline at any column,
+    // in any container: the last of the six sites in the model that measured indentation in
+    // characters. Both regexes now take `[ \t]*` and the column comes from `indentColumn`.
+    //
+    // The fixture's premise is MEASURED, not assumed: `quarto render --to html` on these exact
+    // bytes emits SIXTEEN headings, including `Tab Underline At The Column` and NOT `Tab
+    // Underline Past The Column`. Against the pre-Session-197 build the same probe over the
+    // same bytes produced FIFTEEN — the recovered heading missing outright, with no
+    // compensating phantom, so this row moves the outline in one direction only.
+    const symbols = await symbolsFor(SETEXT_FRESH_BLOCK);
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const all = flatten(symbols);
+
+    // PRESENT control — the RECOVERY. Inside a `-   ` item the content column is 4, and a TAB
+    // reaches exactly 4, so the underline begins where the enclosing block's content begins and
+    // pandoc promotes the title above it. The pre-S197 build could not match a tab-prefixed
+    // underline at all, so this heading was absent from the outline entirely.
+    assert.ok(
+      all.includes("Tab Underline At The Column"),
+      "a tab-indented underline at the container's content column must reach the real provider",
+    );
+
+    // ABSENT control — and it is the document Session 192 measured when it wrote "a TAB is not
+    // the content column" in the model's own source. Inside a `- ` item the content column is
+    // 2 and a tab reaches 4, so there is no underline here — for quarto or for us, before this
+    // change or after. This is the assertion that fails if the fix is ever mistaken for "a tab
+    // is deep enough" rather than "a tab is worth the columns it spans".
+    assert.ok(
+      !all.includes("Tab Underline Past The Column"),
+      "a tab reaching past the container's content column must not promote a title",
+    );
+  });
+
   it("keeps an `=` run and an open-paragraph thematic break out, and puts the ATX sibling back (Session 182)", async () => {
     // THE WIRING EVIDENCE for Session 182, through the provider the Outline view, breadcrumbs,
     // sticky scroll and Ctrl+T all really call. This session's change moves the outline in
