@@ -610,6 +610,54 @@ describe("Quarto: Document outline (symbols)", () => {
     );
   });
 
+  it("reads a setext underline's column per the document's `from:` DIALECT, through the real provider (Session 202)", async () => {
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — the fifth
+    // consecutive session to avoid the exact-set fixture coupling that cost Sessions 196 and 197
+    // a full screen-taking run each. `grep -n "assert.deepStrictEqual"
+    // test/integration/suite/*.ts` was run BEFORE this was written and finds no such pin in this
+    // file; `openInMemory` keeps these documents out of every one elsewhere.
+    //
+    // Every premise below was rendered through the real `quarto render --to html` path this
+    // session, quarto 1.7.33 (`scratchpad/s202/gnd`, 264 documents, and `dax`, 51):
+    //   `g_gfm_b2_u00`      -> NO heading (the underline is a LAZY continuation)
+    //   `g_gfm_b2_u03`      -> `<h1>gnd probe title</h1>` at the tolerance column
+    //   `g_markdown_b2_u00` -> `<h1>gnd probe title</h1>` — the guard that makes the VALUE matter
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const body = (u: number) =>
+      ["- outer one", "", "  dialect probe title", " ".repeat(u) + "===", "", "Tail body line."];
+
+    // ABSENT — the phantom half. Under a CommonMark-family reader an underline at column 0
+    // inside an open list item continues the item's paragraph, and quarto renders no heading.
+    const lazy = await openInMemory(["---", "from: gfm", "---", "", ...body(0)].join("\n"));
+    const lazyNames = flatten(await symbolsForDoc(lazy));
+    assert.ok(
+      !lazyNames.includes("dialect probe title"),
+      `a lazy underline must not reach the outline under gfm: ${lazyNames.join(", ")}`,
+    );
+
+    // PRESENT — the recovery half, in the SAME dialect and one column further out, so the two
+    // assertions cannot both be satisfied by a build that has simply stopped finding setext
+    // headings under a `from:` key.
+    const tolerated = await openInMemory(["---", "from: gfm", "---", "", ...body(3)].join("\n"));
+    const toleratedNames = flatten(await symbolsForDoc(tolerated));
+    assert.ok(
+      toleratedNames.includes("dialect probe title"),
+      `the 0-3 tolerance must reach the outline under gfm: ${toleratedNames.join(", ")}`,
+    );
+
+    // GUARD — the same bytes under `from: markdown`, where quarto DOES render the heading at
+    // column 0. This is the row that makes the rule key on the `from:` VALUE rather than on the
+    // key's presence: firing here would delete a real heading.
+    const dflt = await openInMemory(["---", "from: markdown", "---", "", ...body(0)].join("\n"));
+    const dfltNames = flatten(await symbolsForDoc(dflt));
+    assert.ok(
+      dfltNames.includes("dialect probe title"),
+      `the default reader must keep its column-0 heading: ${dfltNames.join(", ")}`,
+    );
+  });
+
   it("measures the indented-code threshold from the container's content column, through the real provider (Session 193)", async () => {
     // THE WIRING EVIDENCE for Session 193, on the provider the Outline view, breadcrumbs,
     // sticky scroll and Ctrl+T all really call. Like Session 192's, this change moves the
