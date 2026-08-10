@@ -5522,4 +5522,22 @@ describe("`blank_before_header` survives an explicitly declared reader that has 
       ),
     ).toEqual(["h1:Spl Below"]);
   });
+  it("the OUTLINE loses the phantom section under `from: markdown` and keeps the real one", () => {
+    // TEST-AFTER (labelled) — the user-visible surface. `buildOutline` is pure, so this half
+    // needs no Extension Development Host; the provider path is covered by the integration test.
+    // Measured (`scratchpad/s205/gnd` `g_md_prose` and its `nofm` twin): quarto renders ONE body
+    // heading here. Before this session the outline, breadcrumbs, sticky scroll and workspace
+    // symbols all carried `Phantom` too as a sibling section, so every node below it was filed
+    // under a heading that does not exist in the rendered document — and the IDENTICAL document
+    // without the `from:` line was already correct, which is the whole shape of the defect.
+    const body = ["Prose that opens a paragraph.", "## Phantom", "more prose", "", "## Genuine"];
+    const withFrom = doc("---", "title: t", "from: markdown", "---", "", "# Real", "", ...body);
+    const withoutFrom = doc("---", "title: t", "---", "", "# Real", "", ...body);
+    expect(buildOutline(withFrom).map((s) => s.name)).toEqual(["Real"]);
+    expect(buildOutline(withFrom)[0].children.map((s) => s.name)).toEqual(["Genuine"]);
+    // the control that makes the assertion above mean something
+    expect(buildOutline(withoutFrom).map((s) => s.name)).toEqual(
+      buildOutline(withFrom).map((s) => s.name),
+    );
+  });
 });
