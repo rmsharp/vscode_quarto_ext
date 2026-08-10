@@ -4170,4 +4170,49 @@ describe("the container POP's SUPPRESSION CONDITION is a BLANK LINE, not an open
                 "    Body prose line.", "* shallow star", "", "    Probe Title", "    ===")),
     ).toEqual(["h2:Ledger"]);
   });
+
+  it("LABELLED TEST-AFTER — the two residual families, both PRE-EXISTING and pinned", () => {
+    // ⚠ NOT TDD. These pin behaviour this session did NOT change and deliberately did not fix.
+    // Both were adjudicated against the PRE-SESSION build on identical bytes: the pre-build
+    // makes the identical error, so they are defects this change neither caused nor cured, and
+    // by the decision rule the 1B claim declared in advance they are FILED rather than closed.
+    // Every document below was rendered through the real `quarto render` path this session.
+    //
+    // ⚠ quarto emits an `h2:Footnotes` section for any document carrying a footnote. It is
+    // GENERATED — no source line produces it — so this model neither emits it nor should, and
+    // it is excluded from the quarto sets quoted below. Counting it as a lost heading is what
+    // first made this session's residual figure 135 instead of 78 (Learning #297).
+
+    // ── FAMILY A — a BARE `-` is a one-character dash run, and `SETEXT_H2` promotes the line
+    // above it. Pandoc reads the `-` as a list marker with an empty item and promotes nothing.
+    // Rendered as `scratchpad/s198/pop3/m_para_dashonly.qmd`.
+    expect(
+      names(doc("## Ledger", "", "-   Item alpha.", "", "    Body line here.", "-", "",
+                "    Probe Title", "    ===")),
+    ).toEqual(["h2:Ledger", "h2:Body line here."]); // quarto: h2:Ledger alone
+    // CONTROL — the same document whose shallow line is a bullet with CONTENT. Here the dash
+    // really is a marker for both of us, and neither promotes the line above.
+    expect(
+      names(doc("## Ledger", "", "-   Item alpha.", "", "    Body line here.", "- with text", "",
+                "    Probe Title", "    ===")),
+    ).toEqual(["h2:Ledger"]);
+
+    // ── FAMILY B — a list marker ABSORBED LAZILY into a definition body opens its content
+    // column relative to the DOCUMENT, not to that body. Pandoc parses the bullet INSIDE the
+    // note, where its content column is 2 relative to a body that starts at 4 — absolute 6, not
+    // the absolute 2 this model pushes. Rendered as `scratchpad/s198/nest/n_defonly_dash_2.qmd`.
+    expect(
+      names(doc("## Ledger", "", "See[^1] for it.", "", "[^1]: the note body", "",
+                "    body line.", "- shallow bullet", "", "  Probe Title", "  ===")),
+    ).toEqual(["h2:Ledger", "h1:Probe Title"]); // quarto: h2:Ledger alone (plus its Footnotes section)
+    // CONTROL — the SAME shape probed at column 6, which is where pandoc really does open the
+    // absorbed bullet's content. Quarto renders the heading there and so do we, which is what
+    // makes this a column-arithmetic defect rather than a pop defect
+    // (`scratchpad/s198/nest/n_defthenlist_dash_6.qmd`).
+    expect(
+      names(doc("## Ledger", "", "See[^1] for it.", "", "[^1]: the note body", "",
+                "    - inner item", "", "      inner body line.", "- shallow bullet", "",
+                "      Probe Title", "      ===")),
+    ).toEqual(["h2:Ledger", "h1:Probe Title"]);
+  });
 });
