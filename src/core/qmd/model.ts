@@ -1097,8 +1097,31 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
  * this row is not: firing on a block scalar's prose while a real `from: gfm` sits at column 0
  * DELETES the heading quarto renders (`s_collide`, measured — not inherited from Session 202's
  * anchor).
+ *
+ * ⚠ **The key may be QUOTED, and Session 206 measured that quarto honours it.** YAML permits a
+ * quoted key anywhere a plain one is allowed, so `"from": gfm` and `'from': gfm` really do
+ * select gfm — `scratchpad/s206/gnd` `g_qkeyd_gfm` / `g_qkeys_gfm` render the pressed heading,
+ * and this regex could never match a line beginning with a quote, so the bail DELETED it. The
+ * quote is captured and back-referenced, so a half-quoted `"from:` (which YAML rejects) does
+ * not match. ⚠ Widening this row is safe in a way that widening the VALUE predicates below is
+ * NOT: firing here wrongly costs a phantom at heading columns 1-3, where firing one of those
+ * wrongly deletes a real heading.
  */
-const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
+const FRONTMATTER_FROM_KEY = /^[ \t]*(["']?)from\1[ \t]*:/;
+/**
+ * The same key, written inside a YAML **flow mapping** — `{from: gfm, title: "T"}`.
+ *
+ * A whole front matter may legally be one flow mapping, and quarto reads the `from:` in it:
+ * `scratchpad/s206/gnd` `g_flow_gfm` renders the pressed heading and `g_flow_markdown` does
+ * not, which is what proves the mapping is being READ rather than ignored. `FRONTMATTER_FROM_KEY`
+ * above is anchored past leading whitespace, so a key sitting after `{` or `,` is invisible to it.
+ *
+ * Two parts rather than one regex so the flow OPENER is tested against the line's start while
+ * the key is tested anywhere inside it, and so a `from:` inside a flow value on some OTHER key's
+ * line cannot fire this: the line must itself begin the flow mapping.
+ */
+const FRONTMATTER_FLOW_OPEN = /^[ \t]*\{/;
+const FRONTMATTER_FLOW_FROM_KEY = /[{,][ \t]*(["']?)from\1[ \t]*:/;
 /**
  * A front-matter `from:` whose VALUE names a reader of the **CommonMark family** (Session 202).
  *
@@ -2417,7 +2440,10 @@ function computeRegions(text: string): Regions {
       continue;
     }
     if (inFrontmatter) {
-      if (FRONTMATTER_FROM_KEY.test(line)) {
+      if (
+        FRONTMATTER_FROM_KEY.test(line) ||
+        (FRONTMATTER_FLOW_OPEN.test(line) && FRONTMATTER_FLOW_FROM_KEY.test(line))
+      ) {
         dialectOverride = true;
       }
       if (FRONTMATTER_COMMONMARK_FROM.test(line)) {

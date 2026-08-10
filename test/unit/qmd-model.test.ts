@@ -5581,3 +5581,91 @@ describe("`blank_before_header` survives an explicitly declared reader that has 
     ).toEqual(["h1:End Below"]);
   });
 });
+
+describe("a front-matter `from:` is resolved as YAML, not as one line shape (Session 206)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  /** The `gnd` shape: a BASELINE heading, prose, and a heading PRESSED against it. */
+  const pressed = (...fm: string[]) =>
+    doc("---", ...fm, "---", "", "# Baseline", "", "Prose opens a paragraph.", "# Pressed");
+
+  it("a QUOTED `from:` key selects the reader, where the plain-key regex cannot see it", () => {
+    // MEASURED, `scratchpad/s206/gnd` `g_qkeyd_gfm` / `g_qkeys_gfm`: quarto renders BOTH
+    // headings, because `"from": gfm` really does select gfm and CommonMark has no
+    // `blank_before_header`. `FRONTMATTER_FROM_KEY` is `/^[ \t]*from[ \t]*:/`, which can never
+    // match a line beginning with a quote, so the bail suppressed a heading quarto renders —
+    // heading-DELETING, the direction this project does not permit.
+    expect(names(pressed('"from": gfm'))).toEqual(["h1:Baseline", "h1:Pressed"]);
+    expect(names(pressed("'from': gfm"))).toEqual(["h1:Baseline", "h1:Pressed"]);
+  });
+
+  it("a FLOW-MAPPING front matter selects the reader too", () => {
+    // MEASURED, `scratchpad/s206/gnd` `g_flow_gfm`: quarto renders BOTH headings for a front
+    // matter written as a single YAML flow mapping. The key regex is anchored to the start of
+    // the line past whitespace, so a `from:` sitting INSIDE `{…}` was invisible and the bail
+    // deleted the pressed heading. ⚠ The `markdown` twin `g_flow_markdown` renders only the
+    // baseline, which is what proves quarto is reading the flow mapping rather than ignoring
+    // the whole front matter.
+    expect(names(pressed('{from: gfm, title: "T"}'))).toEqual(["h1:Baseline", "h1:Pressed"]);
+  });
+
+  // ── THE GUARD BLOCK, WRITTEN BEFORE THE VALUE RESOLVER IT GUARDS ──
+  // Session 204's gotcha 5, inherited by Session 205 and again here: the guard's test comes
+  // FIRST. Every case below PASSES on the pre-resolver build, and each one goes RED the moment
+  // a resolver reads a `from:` at any indent instead of at the front matter's own TOP LEVEL.
+  //
+  // ⚠ The observable is the SETEXT COLUMN row (`commonmarkDialect`), not the paragraph bail,
+  // and that is deliberate: on this row resolving a reader wrongly DELETES a heading, where on
+  // the bail it only costs a phantom. The guard has to be written where the failure hurts.
+  /** The `cmk` shape: a title at a list item's content column, underlined at COLUMN 0. */
+  const column0Setext = (...fm: string[]) =>
+    doc("---", ...fm, "---", "", "Intro paragraph.", "", "- outer one", "", "  probe title", "===", "", "Tail.");
+
+  it("an `abstract:` block scalar whose PROSE contains `from: gfm` selects nothing", () => {
+    // MEASURED, `scratchpad/s206/cmk` `c_abs_only`: quarto renders `h1:probe title`, so the
+    // document is NOT commonmark — the sentence merely wraps across the words `from: gfm`.
+    // This is the hazard that put the column-0 anchor on `FRONTMATTER_COMMONMARK_FROM` in the
+    // first place (Session 202's `dialect_04`), and reading it as a reader DELETES this heading.
+    expect(
+      names(
+        column0Setext(
+          'title: "T"',
+          "abstract: |",
+          "  A long abstract that wraps across",
+          "  from: gfm sources published last year.",
+        ),
+      ),
+    ).toEqual(["h1:probe title"]);
+  });
+
+  it("…and a REAL top-level `from: gfm` still wins over that prose", () => {
+    // MEASURED, `scratchpad/s206/cmk` `c_abs_coll`: quarto renders NO heading. The block
+    // scalar's prose says `from: markdown` and the real top-level key says `gfm`; a resolver
+    // that takes the FIRST `from:` it sees at any indent reads `markdown` here and reports a
+    // heading quarto does not render. The pair is the measurement — neither case alone.
+    expect(
+      names(
+        column0Setext(
+          'title: "T"',
+          "abstract: |",
+          "  A long abstract that wraps across",
+          "  from: markdown sources published last year.",
+          "from: gfm",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("a nested `params:` / `from:` whose value is a DATE selects nothing", () => {
+    // MEASURED, `scratchpad/s206/cmk` `c_params`: quarto renders `h1:probe title`.
+    // `from: 2024-01-01` is not a reader, and it is not at the front matter's top level either.
+    expect(names(column0Setext('title: "T"', "params:", "  from: 2024-01-01"))).toEqual([
+      "h1:probe title",
+    ]);
+  });
+
+  it("a key that merely STARTS with `from` selects nothing", () => {
+    // MEASURED, `scratchpad/s206/cmk` `c_fromage`: quarto renders `h1:probe title`.
+    expect(names(column0Setext('title: "T"', "fromage: gfm"))).toEqual(["h1:probe title"]);
+  });
+});
