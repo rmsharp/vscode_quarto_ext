@@ -1375,4 +1375,53 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       await config.update("symbols.showCodeCellsInOutline", undefined, vscode.ConfigurationTarget.Global);
     }
   });
+  it("reports no heading inside a raw HTML BLOCK, per the document's `from:` DIALECT (Session 204)", async () => {
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — the SEVENTH
+    // consecutive session to avoid the exact-set fixture coupling that cost Sessions 196 and 197
+    // a full screen-taking run each. `grep -c "assert.deepStrictEqual"
+    // test/integration/suite/*.ts` was run BEFORE this was written (outline.test.ts: 29), and
+    // `openInMemory` keeps these documents out of every exact-set pin in this file and in every
+    // other suite file. This test adds no exact-set pin of its own.
+    //
+    // Both premises were rendered through the real `quarto render --to html` path this session,
+    // quarto 1.7.33 (`scratchpad/s204/gnd`, 180 documents):
+    //   `g_gfm_div_d1_atx` -> `<h1>Gnd Below</h1>` ONLY — the block swallows `Gnd Inside`
+    //   `g_md_div_d1_atx`  -> BOTH headings — the identical bytes, one reader away
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const body = ["<div>", "# Gnd Inside", "", "# Gnd Below"];
+
+    const commonmark = await openInMemory(
+      ["---", "from: gfm", "---", "", ...body].join("\n"),
+    );
+    const cmNames = flatten(await symbolsForDoc(commonmark));
+
+    // ABSENT — the heading INSIDE the block. Under a CommonMark-family reader the block runs to
+    // the next blank line and quarto renders no heading for it at all.
+    assert.ok(
+      !cmNames.includes("Gnd Inside"),
+      `a heading inside a CommonMark HTML block must not reach the outline: ${cmNames.join(", ")}`,
+    );
+    // PRESENT — the heading BELOW the blank line that ENDS the block. Without this the first
+    // assertion would pass for a build that had simply stopped reporting headings after a
+    // `<div>` for the rest of the document.
+    assert.ok(
+      cmNames.includes("Gnd Below"),
+      `the heading after the block's blank line must survive: ${cmNames.join(", ")}`,
+    );
+
+    // THE DIALECT GUARD — the identical bytes under the DEFAULT reader, which parses markdown
+    // inside such a block (`markdown_in_html_blocks` / `native_divs`) and really does render the
+    // heading. Without this, both assertions above would still pass for a build that had started
+    // swallowing every `<div>` it met, in every dialect.
+    const defaultReader = await openInMemory(
+      ["---", "from: markdown", "---", "", ...body].join("\n"),
+    );
+    const mdNames = flatten(await symbolsForDoc(defaultReader));
+    assert.ok(
+      mdNames.includes("Gnd Inside") && mdNames.includes("Gnd Below"),
+      `the default reader must keep BOTH headings: ${mdNames.join(", ")}`,
+    );
+  });
 });
