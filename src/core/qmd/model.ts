@@ -607,6 +607,66 @@ function listItemContentColumn(line: string): number | null {
   return markerEndColumn + (spaces === 0 || spaces >= 5 ? (after === "" ? 0 : 1) : spaces);
 }
 /**
+ * Whether `line` CLOSES the containers deeper than its own indent even though the line above
+ * it is not blank (Session 198). Pandoc absorbs a shallow non-blank line into the enclosing
+ * item LAZILY — whatever it says — with exactly one exception: a LIST START always closes the
+ * deeper item. This is that exception, and it is the second half of the container pop's
+ * suppression test in `computeRegions`.
+ *
+ * ⚠ **This is deliberately NARROWER than `listItemContentColumn`, and the asymmetry is the
+ * REVERSE of that function's.** There, a column pushed that pandoc does not open costs a
+ * pre-existing phantom while one not pushed DELETES a heading — so that function accepts
+ * `Dr.` and `Mr.` on purpose. Here the polarity is inverted: a container POPPED that pandoc
+ * keeps open deletes a heading (it is the very defect this session repairs), while one not
+ * popped costs a phantom. Reusing `listItemContentColumn` would therefore import its
+ * deliberate over-acceptance into the direction that cannot afford it — measured, and not
+ * argued: `Dr. Vasquez logged it.` at column 0 leaves the enclosing item OPEN in quarto, so
+ * popping on it would delete the heading below.
+ *
+ * ⚠ **The whole set was measured, because a rule assembled from the six spellings that
+ * happened to be in the first corpus is a rule with an untested tail.** 24 spellings x 2
+ * shapes of the line above x 2 container geometries, rendered through the real `quarto
+ * render` path (`scratchpad/s198/pop3`, `pop4`). Eighteen close and six do not:
+ *
+ *     CLOSES      -  *  +  -\t  -(bare)  1.  1)  10.  100.  a.  a)  A)  i.  iv.  IV.  #.
+ *                 (1)  (a)
+ *     KEEPS OPEN  A.  Dr.  Mr.  Elephants.  -item  (prose)
+ *
+ * The two rules behind that split are pandoc's own. A multi-letter run is a marker only where
+ * it is a ROMAN NUMERAL (`iv.`, `IV.` close; `Dr.`, `Mr.` do not). And a marker delimited by a
+ * PERIOD whose number is a single capital is pandoc's initial-in-a-name rule — `A. item text`
+ * needs two spaces to be a list, so with one it is not one; the same letter delimited by a
+ * PAREN has no such ambiguity and `A) item text` closes.
+ *
+ * ⚠ The first corpus scored SIX of these wrong, and the reason is worth keeping: its probe was
+ * a setext heading at column 4 and `10. `, `iv. `, `IV. `, `(1) `, `(a) ` and `-\t` all open
+ * their OWN content column 4, so the probe rendered from the NEW container and was read as the
+ * old one surviving. A probe that cannot tell its hypothesis from the alternative has measured
+ * nothing (Learning #289). The geometry above it uses columns 2/4/6 and probes at 6, which no
+ * column-0 marker can reach.
+ */
+function popsEnclosingContainer(line: string): boolean {
+  const m = /^[ \t]*(?:([-+*])|\(?(\d{1,9}|#|[a-zA-Z]{1,9})([.)]))(?:[ \t]|$)/.exec(line);
+  if (m === null) {
+    return false;
+  }
+  if (m[1] !== undefined) {
+    return true; // a bullet is a marker in every spelling measured, including a bare `-`
+  }
+  const num = m[2];
+  const delim = m[3];
+  if (num === "#" || /^\d+$/.test(num)) {
+    return true; // a decimal or an example-list marker, at any width
+  }
+  if (delim === ")") {
+    return num.length === 1; // `a)` and `A)` close; a multi-letter run in parens is not a marker
+  }
+  if (num.length === 1) {
+    return num >= "a" && num <= "z"; // `a.` closes; `A.` is an initial in a name
+  }
+  return /^[ivxlcdm]+$/.test(num) || /^[IVXLCDM]+$/.test(num);
+}
+/**
  * A FOOTNOTE definition or a DEFINITION-LIST definition, both of which give their content a
  * content column of exactly **4** past the marker's own indent — measured, and independent of
  * the label's length (`[^1]:` and `[^averylonglabel]:` both give 4).
@@ -1545,6 +1605,13 @@ function computeRegions(text: string): Regions {
     // round trip as a circular inference (TS7022) unless one end of it is annotated.
     const lineBlockAbove: boolean = lineBlockOpen;
     lineBlockOpen = false;
+    // Whether the line ABOVE this one is blank — the container pop's suppression test
+    // (Session 198). Read from the raw line rather than carried in a flag on purpose: every
+    // `continue` path below would have to maintain such a flag, and the two that skip a whole
+    // region (an open fence, a block comment) never reach the pop at all, so a flag would
+    // record a line the pop never sees. The first line of a document has nothing above it and
+    // no container can be open there, so `true` is the reading that costs nothing.
+    const prevLineBlank = i === 0 || BLANK_LINE.test(lines[i - 1]);
 
     // YAML front matter — only a `---` on the very first line opens it. Record
     // the span as it opens (provisionally unterminated, ending at EOF) and refine
@@ -1601,11 +1668,28 @@ function computeRegions(text: string): Regions {
       // both consumer families. See `indentColumn`.
       const indentWidth = indentColumn(line);
       // A non-blank line at a SHALLOWER column closes every container deeper than itself —
-      // but ONLY where no paragraph is open above it, because a shallow-looking line under an
-      // open paragraph is that paragraph's LAZY CONTINUATION and closes nothing. Measured
-      // both ways: `- one` / `line two lazy` / (blank) keeps column 2, while
+      // but ONLY where the line ABOVE IT IS BLANK, because a shallow line that directly
+      // follows a non-blank one is absorbed LAZILY by the enclosing item and closes nothing.
+      // Measured both ways: `- one` / `line two lazy` / (blank) keeps column 2, while
       // `- one` / (blank) / `top level para` / (blank) drops it.
-      if (!paragraphOpen) {
+      //
+      // ⚠ **THE TEST IS THE BLANK LINE, NOT `paragraphOpen` (Session 198).** `paragraphOpen`
+      // was a PROXY for "this line is a lazy continuation" and it is false wherever the line
+      // above is non-blank but is not a PARAGRAPH — a consumed setext underline, an ATX
+      // heading, a thematic break, a fence, an HTML comment, an indented code line. Each of
+      // those armed a pop pandoc does not make. The setext underline is the expensive one and
+      // it is why this row changed: that branch sets `paragraphOpen = false` and `continue`s,
+      // so a column-0 line below closed a list pandoc keeps OPEN and the underline further
+      // down matched no column at all, DELETING its heading. Session 197's blind 222-document
+      // adversarial sweep found this by four independent lenses; it was the largest single
+      // loss mechanism in it.
+      //
+      // Measured as a 64-document sweep through the real `quarto render` path
+      // (`scratchpad/s198/pop`): 8 spellings of the line ABOVE x 4 spellings of the shallow
+      // line x 2 body shapes. The answer separates PERFECTLY on two facts and on nothing
+      // else — the line above being blank, and the shallow line being a LIST START. All eight
+      // "above" spellings behave identically once the blank is controlled for.
+      if (prevLineBlank || popsEnclosingContainer(line)) {
         while (contentColumns.length > 0 && contentColumns[contentColumns.length - 1] > indentWidth) {
           contentColumns.pop();
         }

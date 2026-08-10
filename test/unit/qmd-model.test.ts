@@ -3278,10 +3278,17 @@ describe("a SETEXT underline is anchored at the containing block's CONTENT COLUM
     //
     // (a) A RAGGED stack: a shallower sibling marker does not pop the deeper column, because
     // the pop is suppressed while a paragraph is open. We keep column 4 live; pandoc does not.
+    //
+    // ✅ CLOSED BY SESSION 198 — `popsEnclosingContainer` makes a LIST START close the deeper
+    // column whether or not a paragraph is open above it, which is the same one condition that
+    // stopped a consumed setext underline arming the pop. RE-RENDERED on these exact bytes
+    // before the flip (`scratchpad/s198/pins/ragged.qmd`): quarto emits `h1:Eta Plain Title`
+    // and nothing else. The live RED->GREEN for this behaviour is in the Session 198 describe
+    // at the foot of this file.
     expect(
       names(doc("Ragged stack probe.", "", "  - deep first item", "- shallow next item", "",
                 "  Eta Ragged Title", "    ===", "", "- plain item", "", "  Eta Plain Title", "  ===")),
-    ).toEqual(["h1:Eta Ragged Title", "h1:Eta Plain Title"]);
+    ).toEqual(["h1:Eta Plain Title"]);
     // CONTROL — at column 0 quarto renders BOTH and so do we: no divergence, which is what
     // makes this one NEW rather than newly-visible.
     expect(
@@ -4055,18 +4062,23 @@ describe("a SETEXT UNDERLINE's own indent is a COLUMN too, so a TAB can reach on
     // same document with every leading tab expanded to the spaces reaching the same column
     // loses `Real Title` on the PRE-SESSION build too. It is the pop-suppression family
     // already on the board, reached through the setext branch instead of through the stack.
+    //
+    // ✅ CLOSED BY SESSION 198 — the pop's suppression test is the BLANK LINE above, not
+    // `paragraphOpen`, so a consumed underline no longer arms it. Both documents were
+    // RE-RENDERED on these exact bytes before the flip (`scratchpad/s198/pins/famD_tab.qmd`
+    // and `famD_space.qmd`); quarto emits all three headings for each. The live RED->GREEN
+    // for this behaviour is in the Session 198 describe at the foot of this file — these two
+    // stay here as the family's own record, now agreeing with the renderer.
     expect(
       names(doc("## Ledger", "", "-   Item alpha.", "", "\tLine one here.", "\t---",
                 "back at zero, lazily", "", "    Real Title", "    ===")),
-    ).toEqual(["h2:Ledger", "h2:Line one here."]);
-    // quarto: h2:Ledger, h2:Line one here. AND h1:Real Title — the last one is the LOST heading
-    // CONTROL — the SPACE spelling of the same document, which loses the identical heading on
-    // this build and on the pre-session build. This is what makes the pop, not the tab, the
-    // mechanism.
+    ).toEqual(["h2:Ledger", "h2:Line one here.", "h1:Real Title"]);
+    // CONTROL — the SPACE spelling of the same document. It lost the identical heading on the
+    // pre-S198 build, which is what made the pop, not the tab, the mechanism.
     expect(
       names(doc("## Ledger", "", "-   Item alpha.", "", "    Line one here.", "    ---",
                 "back at zero, lazily", "", "    Real Title", "    ===")),
-    ).toEqual(["h2:Ledger", "h2:Line one here."]);
+    ).toEqual(["h2:Ledger", "h2:Line one here.", "h1:Real Title"]);
 
     // ── FAMILY E — the REALISTIC shape, kept because it is the one a reader will meet: an
     // ASCII table indented under a paragraph whose first word is `Dr.`. `listItemContentColumn`
@@ -4079,5 +4091,56 @@ describe("a SETEXT UNDERLINE's own indent is a COLUMN too, so a TAB can reach on
                 "Dr. Vasquez logged the following at station 4.", "",
                 "    Station", "\t-------", "    A-14", "", "We repeat next week.")),
     ).toEqual(["h2:Station log", "h2:Station"]); // quarto: h2:Station log only — `Station` is a phantom
+  });
+});
+
+describe("the container POP's SUPPRESSION CONDITION is a BLANK LINE, not an open paragraph (Session 198)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: a CONSUMED setext underline must not arm the pop for the line below it", () => {
+    // Session 197's FAMILY D, re-rendered on these exact bytes before being flipped
+    // (`scratchpad/s198/pins/famD_tab.qmd` and `famD_space.qmd`): quarto emits THREE headings
+    // and this model emitted two. The setext branch sets `paragraphOpen = false` and
+    // `continue`s, which ARMS the `if (!paragraphOpen)` pop; the column-0 line below then
+    // closes the item, and the underline at column 4 further down matches no column at all.
+    //
+    // Pandoc closes a list item at a non-blank line only where that line is a LIST START —
+    // any other non-blank line is absorbed lazily, whatever the line above it was. Measured
+    // as a 64-document sweep (`scratchpad/s198/pop`): 8 spellings of the line ABOVE x 4 of
+    // the column-0 line x 2 body shapes, and the answer separates perfectly on those two
+    // facts and on nothing else.
+    expect(
+      names(doc("## Ledger", "", "-   Item alpha.", "", "\tLine one here.", "\t---",
+                "back at zero, lazily", "", "    Real Title", "    ===")),
+    ).toEqual(["h2:Ledger", "h2:Line one here.", "h1:Real Title"]);
+    // CONTROL — the SPACE spelling of the same document, which quarto answers identically.
+    expect(
+      names(doc("## Ledger", "", "-   Item alpha.", "", "    Line one here.", "    ---",
+                "back at zero, lazily", "", "    Real Title", "    ===")),
+    ).toEqual(["h2:Ledger", "h2:Line one here.", "h1:Real Title"]);
+  });
+
+  it("RED->GREEN: a shallower LIST START does close the deeper column, blank line or not", () => {
+    // The other half of the same condition, and the second separately-filed item it answers
+    // (Session 192's RAGGED-STACK pop). Pandoc absorbs a shallow non-blank line lazily —
+    // EXCEPT where it is a list start, which always closes the deeper item. Replacing
+    // `paragraphOpen` with the blank-line test alone would therefore trade this session's
+    // recovered headings for a fresh crop of phantoms: `  - deep first item` opens column 4,
+    // `- shallow next item` must close it, and the underline at column 4 below must then
+    // match nothing.
+    //
+    // Re-rendered on these exact bytes before the flip (`scratchpad/s198/pins/ragged.qmd`):
+    // quarto emits `h1:Eta Plain Title` and nothing else.
+    expect(
+      names(doc("Ragged stack probe.", "", "  - deep first item", "- shallow next item", "",
+                "  Eta Ragged Title", "    ===", "", "- plain item", "", "  Eta Plain Title", "  ===")),
+    ).toEqual(["h1:Eta Plain Title"]);
+    // CONTROL — the same document with the underline at column 0, where quarto renders BOTH
+    // and so do we, before this change and after (`scratchpad/s198/pins/ragged_ctl.qmd`).
+    expect(
+      names(doc("Ragged stack probe.", "", "  - deep first item", "- shallow next item", "",
+                "  Eta Ragged Title", "===", "", "- plain item", "", "  Eta Plain Title", "===")),
+    ).toEqual(["h1:Eta Ragged Title", "h1:Eta Plain Title"]);
   });
 });
