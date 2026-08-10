@@ -1249,6 +1249,34 @@ function fromKeepsBlankBeforeHeader(line: string): boolean {
     FRONTMATTER_FROM_ENABLES_BLANK_BEFORE_HEADER.test(line)
   );
 }
+/**
+ * Whether the resolved `from:` line names a reader of the **pandoc markdown family**, every
+ * member of which is MEASURED to give an ATX heading NO column tolerance at all (Session 206).
+ *
+ * ⚠ **This is the third question a resolved `from:` answers, and it is not either of the other
+ * two.** `fromKeepsBlankBeforeHeader` asks about one EXTENSION and splits this same family down
+ * the middle; this asks about the BASE, and every base below behaves alike. Measured over the 56
+ * documents of `scratchpad/s206/col` and `scratchpad/s206/col2` (reader × indent 0-3):
+ * `commonmark`, `commonmark_x` and `gfm` render a heading at columns 0, 1, 2 and 3, while
+ * `markdown`, `markdown+emoji`, `markdown_strict`, `markdown_mmd`, `markdown_github`,
+ * `markdown_phpextra` — and no front matter at all — render one at column 0 ONLY.
+ *
+ * ⚠ **Keyed on a POSITIVE resolution, never on the absence of one, and that is what keeps it
+ * from deleting.** The column set it narrows is otherwise relaxed by the mere PRESENCE of a
+ * `from:` key, including keys this scanner cannot resolve (a nested per-format `from:`, which
+ * quarto really does honour — `scratchpad/s206/cmk` `c_nested`). Narrowing on "not resolved to
+ * CommonMark" would delete the heading those documents render; narrowing on "resolved to a
+ * measured markdown base" cannot, because an unresolved document takes neither branch.
+ *
+ * ⚠ `markdown_strict` is in the list on a RE-MEASUREMENT. Its first grid row read "no heading at
+ * any column", which is an extractor artifact rather than a rule: strict turns
+ * `intraword_underscores` off, so the underscore-bearing document names in the heading text
+ * became `<em>` and the nesting-safe extractor could not match them. `scratchpad/s206/ctl2` is
+ * the feature-free control pair that showed it — the underscore-free twin renders normally.
+ */
+function fromIsMarkdownFamily(line: string): boolean {
+  return FRONTMATTER_MARKDOWN_BASE_FROM.test(line) || FRONTMATTER_MARKDOWN_VARIANT_FROM.test(line);
+}
 /** A front-matter line that is blank or holds nothing but a comment — never YAML content. */
 const FRONTMATTER_NOT_CONTENT = /^[ \t]*(?:#.*)?$/;
 /**
@@ -2518,6 +2546,11 @@ function computeRegions(text: string): Regions {
   // ATX paragraph bail alone: `dialectOverride`'s other consumer (the heading COLUMN set) asks
   // a different question and must not move with this one.
   let blankBeforeHeaderDialect = fromValueLine !== null && fromKeepsBlankBeforeHeader(fromValueLine);
+  // Whether the resolved reader is of the pandoc MARKDOWN family, which gives an ATX heading no
+  // column tolerance — see `fromIsMarkdownFamily`. A FOURTH flag rather than a refinement of
+  // `dialectOverride`, for the same reason the two above are: it answers its own question, and
+  // it is read at ONE site (the heading column set) where the other three are not.
+  const markdownFamilyDialect = fromValueLine !== null && fromIsMarkdownFamily(fromValueLine);
   // Whether the line ABOVE began a fresh block, making this line a paragraph start
   // (Session 181). Deliberately a one-line deferral rather than a reset — see the loop.
   // It needs no clearing at the region-boundary resets below: those set `consecutiveBody`
@@ -3007,11 +3040,15 @@ function computeRegions(text: string): Regions {
         ? null
         : atxHeadingMatch(
             line,
-            // A block quote suspends the rule entirely; a `from:` key relaxes it to
+            // A block quote suspends the rule entirely; an UNRESOLVED `from:` key relaxes it to
             // CommonMark's own tolerance. Both still offer every open container column.
+            // ⚠ A `from:` this scanner RESOLVED to the pandoc markdown family takes that
+            // tolerance back (Session 206): the 0-3 window belongs to the CommonMark readers,
+            // and the relaxation is keyed on the key's mere presence only because the value was
+            // unreadable before. Measured, `scratchpad/s206/col` + `col2`, 56 documents.
             quoteOpen
               ? null
-              : dialectOverride
+              : dialectOverride && !markdownFamilyDialect
                 ? [...COMMONMARK_HEADING_COLUMNS, ...contentColumns]
                 : [0, ...contentColumns],
           );

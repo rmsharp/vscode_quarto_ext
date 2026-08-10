@@ -5742,4 +5742,45 @@ describe("a front-matter `from:` is resolved as YAML, not as one line shape (Ses
     expect(names(column0Setext('{from: gfm, title: "T"}'))).toEqual([]);
     expect(names(column0Setext('{from: markdown, title: "T"}'))).toEqual(["h1:probe title"]);
   });
+
+  // ── THE REGRESSION THIS SESSION CAUSED, CLOSED HERE ──
+  // Widening the KEY predicate fed `dialectOverride`'s OTHER consumer — the ATX heading COLUMN
+  // set — for two spellings that had never reached it, and the session's own completeness pass
+  // caught it as INTRODUCED 2 (`scratchpad/s206/comp` `p_col_qkey_markdown`, `p_col_flow_markdown`).
+  //
+  // ⚠ MEASURED, `scratchpad/s206/col` and `scratchpad/s206/col2` — 56 documents, reader x
+  // indent 0-3. The 0-3 tolerance belongs to the COMMONMARK FAMILY, not to the presence of a
+  // `from:` key: `commonmark`, `commonmark_x` and `gfm` render a heading at all four columns,
+  // while `markdown`, `markdown+emoji`, `markdown_strict`, `markdown_mmd`, `markdown_github`,
+  // `markdown_phpextra` and no front matter at all render one at column 0 ONLY.
+  //
+  // ⚠ `markdown_strict` had to be re-measured to learn that. Its first grid row read "no
+  // heading at any column", which is an EXTRACTOR artifact and not a rule: strict turns
+  // `intraword_underscores` OFF, so the document names in the heading text became `<em>` and
+  // the nesting-safe extractor could not see them (`scratchpad/s206/ctl2`, the feature-free
+  // control pair — the underscore-free twin renders normally).
+  const atColumn3 = (...fm: string[]) =>
+    doc("---", ...fm, "---", "", "Intro paragraph.", "", "   # Indented Heading Here", "", "Tail.");
+
+  it("a resolved markdown-family reader takes back CommonMark's 0-3 column tolerance", () => {
+    expect(names(atColumn3('"from": markdown'))).toEqual([]);
+    expect(names(atColumn3('{from: markdown, title: "T"}'))).toEqual([]);
+  });
+
+  it("…and a resolved CommonMark reader keeps it — the control that stops this deleting", () => {
+    // Without this the case above would pass for a build that had simply stopped admitting
+    // indented headings, which is the deletion this narrowing must not become.
+    expect(names(atColumn3('"from": gfm'))).toEqual(["h1:Indented Heading Here"]);
+    expect(names(atColumn3('{from: gfm, title: "T"}'))).toEqual(["h1:Indented Heading Here"]);
+  });
+
+  it("…and a reader this scanner cannot resolve keeps today's behaviour exactly", () => {
+    // A nested per-format `from:` is a separately filed item and is deliberately NOT resolved
+    // here. Narrowing on an ABSENCE of resolution would delete the heading quarto renders for
+    // it; narrowing only on a POSITIVE resolution cannot. `scratchpad/s206/cmk` `c_nested`
+    // shows quarto really does honour that key, which is why this direction matters.
+    expect(names(atColumn3('title: "T"', "format:", "  html:", "    from: markdown"))).toEqual([
+      "h1:Indented Heading Here",
+    ]);
+  });
 });
