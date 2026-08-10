@@ -5,6 +5,36 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 197 — IMPLEMENTATION (strict TDD): a SETEXT UNDERLINE's own indent is measured in COLUMNS. `SETEXT_H1`/`SETEXT_H2` are `/^( *)=+[ \t]*$/` and `setextUnderlineLevel` compares `m[1].length` — a COUNT OF SPACES — against the content-column set, so a TAB-indented underline matches the regex NOT AT ALL and can never be an underline at any column. It is the LAST of the six sites in `src/core/qmd/model.ts` that measure indentation still doing it in spaces.** (IN PROGRESS)
+**Started:** 2026-08-09
+
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Selected by the operator via `AskUserQuestion` at Phase 0 from an empty Active section.** It was Session 196's ranked **#1** and Session 195's ranked **#2**.
+
+**⚠ THE ITEM WAS NOT FILED IN `BACKLOG.md`, AND THAT IS THIS PROJECT'S OWN NAMED FAILURE (Learning #288).** Session 196 closed out ranking it #1 and warning, in its gotcha 6, that *"filed, not fixed" in a handoff is not filed* — about **S194's FAMILY 4**, which it had just found missing. Its own #1 was missing the same way. Verified firsthand at Phase 0 before this claim: `grep -c "spaces-only" BACKLOG.md` = **0**; `git grep -n "SETEXT_H1" -- '*.md'` reaches `CHANGELOG.md`, `HANDOFFS.md`, `SESSION_NOTES.md` and `PROJECT_LEARNINGS.md` but **no `- [ ]` line in `BACKLOG.md`**. It is filed in this claim commit so the record is true even if this session crashes, and removed at Phase 3F if it ships.
+
+**⚠ SCOPE, declared AFTER a coupling survey rather than before it** (S195's and S196's practice). **IN:** `SETEXT_H1`/`SETEXT_H2`'s own leading-whitespace class and `setextUnderlineLevel`'s measurement of it, so a TAB-indented underline is tested at the COLUMN it reaches — the same rule `indentColumn` already carries for the container pop, `indentedCodeLine`, `rawTexMacroLineIsBlock`, `listItemContentColumn` and `CONTENT_COLUMN_4_OPEN`; and the ⚠ note in `setextUnderlineLevel`'s own docstring that this measurement contradicts. **OUT:** `SETEXT_UNDERLINE_RUN` (line 725) — a DIFFERENT regex, deliberately anchored at source column 0 with no leading-whitespace class at all, for the ATX-swallow closure; `ATX_HEADING`'s ` {0,3}`; the footnote/definition `base + 4` rule; the ragged-stack pop; the prose-as-list-marker letter run; the block quote and fenced-div containers; the `SETEXT_H1` docstring's four KNOWN RESIDUALS; every synced methodology file.
+
+**⚠ THREE COUPLINGS, surveyed firsthand before this claim was written.**
+1. **`setextUnderlineLevel` has exactly ONE call site** (`computeRegions` line 1716, `consecutiveBody === 1 ? setextUnderlineLevel(line, [0, ...contentColumns]) : null`), and `SETEXT_H1`/`SETEXT_H2` are read ONLY inside it — verified by grep over all of `src/`. So the blast radius is that one branch.
+2. **⚠ THIS IS A READ of `contentColumns`, NOT A PUSH — but the SCANNER STATE still moves, and that is where a DELETION could come from.** The change cannot move the column stack (the maintenance block at line 1581 runs for every non-blank line and is untouched), so unlike Session 196 the other two consumers of the stack are not reachable through the stack. But the setext branch **`continue`s**, skipping the whole body-handling block below it — `pendingFreshBlock`, `prevIndentedCode`, `paragraphOpen`, `paragraphQuoted`, `lineBlockOpen`, `closesParagraph`. A run that today falls through to that block and tomorrow is consumed as an underline therefore changes the state the LINES BELOW are read in. **Both directions must be scored separately** (Learning #272); a net count is meaningless.
+3. **⚠ THE `-` SPELLING IS NOT THE SAME PROBE AS THE `=` SPELLING.** `SETEXT_H2` is a run of dashes, which is also the shape of a thematic break and (at column 0, line 1) a YAML delimiter; `SETEXT_H1`'s `=` run has its own filed `CLOSES_PARAGRAPH` residual. A corpus built only from `===` has measured one of the two rows (Learning #285's mechanism, applied to the row rather than to the stack).
+
+**⚠ THE DECISION RULE FOR ANY SCOPE AMENDMENT, DECLARED IN ADVANCE** (S194's test, as S196 applied it): *would this defect exist if my change did not ship?* If a new error is CAUSED by this change it is closed here and disclosed; if it is pre-existing and merely made reachable through a second spelling, it is pinned with a rendered control and FILED — in `BACKLOG.md`, with the grep count pasted at Phase 3F, per gotcha 6 above.
+
+**⚠ THE DOCSTRING THIS CORRECTS IS A MEASURED FACT WITH A WRONG RULE INFERRED FROM IT (Learning #282), and the correction must be re-rendered, not assumed.** `setextUnderlineLevel`'s docstring says "⚠ A TAB is not the content column", citing `- item` / `  Some Title` / `\t===`, which renders no heading. Both halves are true and the inference does not follow: that container's content column is **2** and a tab reaches **4**, so the document shows only that 4 ≠ 2. The prediction under test is that inside a `-   ` item, whose content column IS 4, the tab lands exactly on it and quarto renders the heading. **To be confirmed by rendering, not by reading the regex.**
+
+**⚠ TDD gate — FIRES.** `setextUnderlineLevel` is logic. RED→GREEN→REFACTOR, one behaviour at a time, each RED confirmed to fail on the BEHAVIOUR rather than the plumbing.
+
+**A pinned RED already exists and it is another session's.** `test/unit/qmd-model.test.ts:3668` — Session 194's FAMILY 3, `"\t- tab marker sibling", "", "\t  Golf Tab Sibling Title", "\t  ==="` → `[]` where quarto renders `h1:Golf Tab Sibling Title`. Session 196 recorded that this document *"cannot show THIS session's fix because its underline is tab-spelled"* — it is blocked on exactly this item. To be re-rendered before it is used as a RED.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **1791 passed / 66 files**, matching Session 196's recorded close-out exactly. **Phase 0 reconcile found NOTHING owed** — both frontiers WERE `HEAD` (`005a08a`, gap 0), `grep -c "^status: pending" HANDOFFS.md` = 0.
+
+---
+
+## Session 196 ACTIVE TASK (superseded by Session 197 — full entry preserved below)
 **Task:** **Session 196 — IMPLEMENTATION (strict TDD): a container OPENER's own indent is measured in COLUMNS, at the two remaining spaces-only sites. `listItemContentColumn` and `CONTENT_COLUMN_4_OPEN` both anchor on `^( *)`, so a TAB-INDENTED list marker or footnote/definition marker opens NO tracked column at all — the last two of the six places in `src/core/qmd/model.ts` that measure indentation, minus the setext underline which is its own filed item.** (IN PROGRESS)
 **Started:** 2026-08-09 · **Closed:** 2026-08-09
 **Status:** **DONE. SHIPPED — the two openers measure columns, an opener at code depth opens nothing, and both directions are asserted at the real Outline provider. 68 headings recovered, 47 phantoms drained, 0 defects introduced.**

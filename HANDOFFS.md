@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S197
+date: 2026-08-09
+status: pending
+active_task: IMPLEMENTATION (strict TDD) -- a SETEXT UNDERLINE's own indent is measured in COLUMNS. SETEXT_H1/SETEXT_H2 are /^( *)=+[ \t]*$/ and setextUnderlineLevel compares m[1].length -- a COUNT OF SPACES -- against the content-column set, so a TAB-indented underline does not match the regex at all and can never be an underline at any column. It is the LAST of the six sites in src/core/qmd/model.ts that measure indentation still doing it in spaces. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S196's ranked #1 and S195's ranked #2. THE ITEM WAS NOT IN BACKLOG.md -- Learning #288 firing on S196's own #1, one gotcha after S196 warned about it; filed in this claim commit, verified by grep first.
+```
+
+```handoff
 session: S196
 date: 2026-08-09
 status: complete
