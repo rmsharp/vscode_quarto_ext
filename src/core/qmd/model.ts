@@ -297,16 +297,100 @@ function setextUnderlineLevel(line: string, columns: readonly number[]): 1 | 2 |
 const BLANK_LINE = /^[ \t]*$/;
 /**
  * A bullet-list item marker (`-`/`*`/`+` then a space/tab) at the start of a
- * line. Confirmed against the real Quarto CLI: a lone bullet-list item
- * immediately followed by a setext underline does NOT become a top-level
- * heading — Pandoc strips the marker and nests the heading INSIDE the `<li>`.
- * This model tracks no list context, so it must decline (a false negative)
- * rather than emit a wrong top-level heading whose text includes the literal
- * marker. An ordered-list marker (`1.`) or a block quote (`>`) does NOT
- * trigger this — Pandoc keeps those literal with no nesting, so the general
- * mechanism already matches real behavior for them, unguarded.
+ * line — the TRIGGER for `setextTitleText`, and deliberately NOT a column rule.
+ *
+ * ⚠ **The leading class is `[ \t]*`, and this row carries no indent rule at all — which is a
+ * THIRD answer, not either of the two adjacent rows' (Session 201).** Session 199 measured an
+ * ATX heading's indent as an EQUALITY against the enclosing block's content column; Session 200
+ * measured a fence's as a TOLERANCE relative to the same column. Both had to pick a column rule
+ * because both rows decide *whether a construct is recognised*. This row decides nothing of the
+ * kind: by the time it is consulted, `setextUnderlineLevel` has already ruled on the underline's
+ * own column, and a title line 4+ columns past the enclosing content column is INDENTED CODE, so
+ * no heading forms there whatever this row says. What is left is a pure TEXT transform, and a
+ * text transform has no column to be right or wrong about. Measured over 198 ground documents
+ * (`scratchpad/s201/gnd` — 6 container shapes x 11 indents x 3 marker characters): in every one
+ * of the 36 rows where quarto emits a heading it emits the marker-stripped text, and in every row
+ * where it emits nothing the reason is the underline's column or code depth, never the marker.
+ *
+ * ⚠ **The previous ` {0,3}` was not merely too narrow — the DECLINE it gated was wrong at every
+ * column, and had been since this model's first commit.** Its docstring said Pandoc "strips the
+ * marker and nests the heading INSIDE the `<li>`" and concluded that this model "must decline (a
+ * false negative) rather than emit a wrong top-level heading whose text includes the literal
+ * marker". The first half is correct; the conclusion does not follow, because the heading Pandoc
+ * nests is a real heading with obtainable text. Rendered: `- marker title` / `===` renders
+ * `<h1>marker title</h1>`, so the decline DELETED it (Learning #300 — the docstring's
+ * "Confirmed against the real Quarto CLI" confirmed the nesting, never the emptiness).
  */
-const BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/;
+const BULLET_LIST_MARKER = /^[ \t]*[-*+][ \t]/;
+/**
+ * The run of leading bullet markers that Pandoc's list nesting consumes — REPEATED, because
+ * every level of nesting consumes one. Measured: `- - - marker title` / `===` renders
+ * `<h1>marker title</h1>` (all three gone), `- 1. marker title` renders `<h1>1. marker title</h1>`
+ * and `- > marker title` renders `<h1>&gt; marker title</h1>` — so the run stops at the first
+ * thing that is not a bullet marker, and an ordered marker or a quote marker below one is kept
+ * literal exactly as it is when it appears alone.
+ */
+const BULLET_MARKER_RUN = /^[ \t]*(?:[-*+][ \t]+)+/;
+/**
+ * What is left when the run above consumed every marker but the LAST, which carries no content —
+ * `- -`, `-   -`, `- * -`, `+ + +`. The innermost list item is EMPTY, and an empty item yields no
+ * heading text: all four render NO heading (measured, `scratchpad/s201/tbrk` and `tb2`).
+ * Returning `""` for them routes into `buildHeading`'s existing "nothing displayable remains"
+ * `null`, so this adds no new decision — it stops the strip pretending a bare marker is content.
+ *
+ * ⚠ These four are rows the OLD blanket decline covered BY ACCIDENT, and the strip alone broke
+ * all four. They are the first error this session's change introduced and they are closed here,
+ * not filed: the decision rule is *would this defect exist if my change did not ship*, and it
+ * would not.
+ *
+ * ⚠ A BARE `-` with no trailing whitespace never reaches here — it fails `BULLET_LIST_MARKER`, so
+ * `-` / `===` still reports `h1:-` where quarto reports nothing. That is a SEPARATE pre-existing
+ * phantom on a row this guard has never covered, and it is left FILED rather than fixed as
+ * by-catch.
+ */
+const BARE_BULLET_TAIL = /^[-*+][ \t]*$/;
+/**
+ * A THEMATIC BREAK spelled with a bullet character — the one shape where the marker SURVIVES into
+ * the heading text, which is why the strip has to know about it.
+ *
+ * Three or more of the SAME character, `-` or `*`, whitespace permitted between and around them
+ * and nothing else on the line. Such a line is a thematic break rather than a list, so pandoc's
+ * setext parse claims it whole and the heading text is the line LITERALLY. Measured
+ * (`scratchpad/s201/tbrk`, `scratchpad/s201/tb2`), and BOTH boundaries matter:
+ *
+ *   `- - -`   `* * *`   `- - - -`   `-  -  -`   →  heading, text literal
+ *   `- - - x`                                   →  `h1:x` — content makes it a LIST after all
+ *   `+ + +`                                     →  NO heading
+ *   `- -`   `-   -`   `- * -`                   →  NO heading
+ *
+ * ⚠ `+` is excluded on purpose and the exclusion is MEASURED, not transcribed: it is a bullet
+ * character but not one of CommonMark's thematic-break characters, so `+ + +` falls through to
+ * `BARE_BULLET_TAIL` and renders nothing. `- - -` and `+ + +` differ by one character and quarto
+ * answers them oppositely — which is the same lesson as Session 200's fence-char finding, in a
+ * different row: a family that looks uniform in the source is not necessarily uniform in pandoc.
+ *
+ * ⚠ This row is deliberately NOT a general thematic-break recogniser and must not be reused as
+ * one. It is reached only for a line that already matched `BULLET_LIST_MARKER`, so the `_` break
+ * spelling and the run-together `---` / `***` spellings never come here — and `---` reaching here
+ * would be actively wrong, since that IS this model's setext underline.
+ */
+const BULLET_THEMATIC_BREAK = /^[ \t]*(?:-[ \t]*){3,}$|^[ \t]*(?:\*[ \t]*){3,}$/;
+/**
+ * The DISPLAY TEXT of a setext title line, once Pandoc's list nesting has been accounted for.
+ *
+ * Replaces a blanket decline (see `BULLET_LIST_MARKER`) with the measured answer, so a bullet
+ * marker on a title line costs neither the heading nor a wrong text. Everything that is not a
+ * bullet marker line is returned untouched — an ordered marker, a block-quote marker, ordinary
+ * prose — which is what quarto does with them (14 of 14 ordered-marker rows agree unchanged,
+ * `scratchpad/s201/ax`, `ord_*`).
+ */
+function setextTitleText(rawText: string): string {
+  if (!BULLET_LIST_MARKER.test(rawText) || BULLET_THEMATIC_BREAK.test(rawText)) {
+    return rawText;
+  }
+  const stripped = rawText.replace(BULLET_MARKER_RUN, "");
+  return BARE_BULLET_TAIL.test(stripped) ? "" : stripped;
+}
 /**
  * A balanced RCDATA element written entirely on ONE line — `<title>Hello</title>`.
  *
@@ -2058,11 +2142,12 @@ function computeRegions(text: string): Regions {
       consecutiveBody === 1 ? setextUnderlineLevel(line, [0, ...contentColumns]) : null;
     if (setextLevel !== null) {
       const prev = bodyLines[bodyLines.length - 1];
-      if (!BULLET_LIST_MARKER.test(prev.text)) {
-        const heading = parseSetextHeadingLine(setextLevel, prev.text, prev.line);
-        if (heading) {
-          headings.push(heading);
-        }
+      // A bullet marker on the title line is STRIPPED, not a reason to decline the heading
+      // (Session 201) — see `setextTitleText`. `buildHeading` already drops a title with nothing
+      // displayable left, so a marker-only line still produces no heading.
+      const heading = parseSetextHeadingLine(setextLevel, setextTitleText(prev.text), prev.line);
+      if (heading) {
+        headings.push(heading);
       }
       bodyLines.push({ line: i, text: line });
       consecutiveBody = 0;

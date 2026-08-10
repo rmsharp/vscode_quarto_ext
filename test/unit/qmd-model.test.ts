@@ -160,21 +160,44 @@ describe("findHeadings — setext headings", () => {
     expect(findHeadings(text)).toEqual([{ level: 1, text: "Heading ##", line: 0 }]);
   });
 
-  it("declines to promote a single bullet-list item into a heading", () => {
-    // Confirmed against the real Quarto CLI: `- solo item\n---` renders as
-    // `<li><h2>solo item</h2></li>` — Pandoc strips the "- " marker and nests
-    // the heading INSIDE the list. This model tracks no list context, so
-    // emitting a top-level heading here would be wrong on two counts: the
-    // literal "- " marker would leak into the text, and the heading wouldn't
-    // really be a document-level section. Declining (a false negative) is the
-    // safe direction, consistent with this project's established preference.
+  it("STRIPS the marker of a single bullet-list item and promotes it (Session 201)", () => {
+    // ⚠ FLIPPED BY SESSION 201, AND THE OLD ASSERTION'S OWN COMMENT IS WHY. It read:
+    //
+    //   "Confirmed against the real Quarto CLI: `- solo item\n---` renders as
+    //    `<li><h2>solo item</h2></li>` — Pandoc strips the "- " marker and nests the heading
+    //    INSIDE the list. This model tracks no list context, so emitting a top-level heading
+    //    here would be wrong on two counts: the literal "- " marker would leak into the text,
+    //    and the heading wouldn't really be a document-level section. Declining (a false
+    //    negative) is the safe direction, consistent with this project's established preference."
+    //
+    // The HTML in that comment is EXACTLY RIGHT — re-rendered on these same bytes through
+    // quarto 1.7.33 (`scratchpad/s201/pins`, `p0_dash_solo`), the raw output is
+    // `<ul><li><h2 id="solo-item" class="anchored">solo item</h2></li></ul>`. What does not
+    // follow is the conclusion. Both stated costs were avoidable: the marker leaks only if the
+    // text is passed through unstripped, and "not really a document-level section" is a claim
+    // about the OUTLINE's shape that this model does not make anywhere else (it reports headings
+    // inside block quotes, fenced divs and callouts without qualification). What was actually
+    // shipped for eleven sessions' worth of setext work was a DELETED heading — one quarto
+    // renders, in a document with no container at all.
+    //
+    // The safe-direction argument is the part worth keeping and it points the other way: a
+    // heading quarto renders and we do not is exactly the false negative this project's doctrine
+    // spends phantoms to avoid.
     const text = ["- solo item", "---"].join("\n");
-    expect(findHeadings(text)).toEqual([]);
+    expect(findHeadings(text)).toEqual([{ level: 2, text: "solo item", line: 0 }]);
   });
 
-  it("declines for `*` and `+` bullet markers too", () => {
-    expect(findHeadings(["* solo item", "---"].join("\n"))).toEqual([]);
-    expect(findHeadings(["+ solo item", "---"].join("\n"))).toEqual([]);
+  it("STRIPS `*` and `+` bullet markers too (Session 201)", () => {
+    // Re-rendered on these exact bytes: `p1_star_solo` and `p2_plus_solo` both render
+    // `<h2>solo item</h2>`, so the marker CHARACTER makes no difference to the strip. (It does
+    // make one to the thematic-break exception below — `- - -` and `* * *` are breaks where
+    // `+ + +` is not — which is why that is a separate, separately measured rule.)
+    expect(findHeadings(["* solo item", "---"].join("\n"))).toEqual([
+      { level: 2, text: "solo item", line: 0 },
+    ]);
+    expect(findHeadings(["+ solo item", "---"].join("\n"))).toEqual([
+      { level: 2, text: "solo item", line: 0 },
+    ]);
   });
 
   it("still promotes an ordered-list-marker-shaped line (Pandoc keeps it literal, no nesting)", () => {
@@ -4061,16 +4084,16 @@ describe("a SETEXT UNDERLINE's own indent is a COLUMN too, so a TAB can reach on
       names(doc("Intro.", "", "-   line one", "", "    \\clearpage", "\t===")),
     ).toEqual(["h1:\\clearpage"]); // quarto: NO heading — pre-existing, same twin verdict
 
-    // ── FAMILY B — the guard that keeps a LIST MARKER out of a heading's text is itself capped
-    // at three spaces: `BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/`. Inside a container whose
-    // content column is 4 the marker sits at column 4, the guard does not fire, and the marker
-    // survives into the outline row. Quarto strips it. A TEXT divergence, not a fabricated
-    // heading — both renderers emit an h1 here. It extends the family already on the board
-    // ("a container OPENER line used as a setext title keeps its MARKER in the heading text")
-    // with the exact mechanism, which is a THIRD site carrying the same ` {0,3}` cap.
+    // ── FAMILY B — CLOSED IN PLACE BY SESSION 201, which replaced the guard's blanket DECLINE
+    // with the measured strip. RE-RENDERED on these exact bytes first (`scratchpad/s201/pins`,
+    // `p5_s197_famB`): quarto emits `h1:marker title`, so the pin's comment was right about this
+    // document. What it was wrong about is the FIX it implied — it read the defect as
+    // `BULLET_LIST_MARKER`'s ` {0,3}` cap being too narrow, i.e. as a guard that should have
+    // fired here, when in fact the guard should not have existed in this form at any column: at
+    // columns 0–3, where it DID fire, it was deleting the same heading outright.
     expect(
       names(doc("Intro.", "", "-   line one", "", "    - marker title", "\t===")),
-    ).toEqual(["h1:- marker title"]); // quarto: h1:marker title — the marker is stripped
+    ).toEqual(["h1:marker title"]); // quarto agrees exactly — recovered by Session 201
 
     // ── FAMILY C — CLOSED IN PLACE BY SESSION 200, which made both fence rows
     // container-relative. It was BY-CATCH here and a LOSS rather than a phantom: a fenced code
@@ -4459,5 +4482,81 @@ describe("a FENCE's own indent is CONTAINER-RELATIVE, not a ` {0,3}` cap (Sessio
       names(doc("-   item one", "", "    ```", "    code", "    ```",
                 "    Para Blank Title", "    ===")),
     ).toEqual(["h1:Para Blank Title"]); // quarto agrees exactly
+  });
+});
+
+describe("a BULLET MARKER on a setext title is STRIPPED, not a reason to decline (Session 201)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: a bullet-marker title at COLUMN 0 is a heading, with the marker stripped", () => {
+    // ⚠ THE FILED ITEM WAS HALF THE PICTURE, AND ITS OWN RECOMMENDED FIX POINTS THE WRONG WAY.
+    // It described a TEXT divergence at a container's content column — `    - marker title` /
+    // `===` reaching the outline as `h1:- marker title` where quarto renders `h1:marker title`
+    // — and concluded that `BULLET_LIST_MARKER`'s ` {0,3}` cap should be made
+    // container-relative, as Sessions 199 and 200 did for the ATX and fence rows.
+    //
+    // But this guard does not CORRECT the text; it DECLINES the heading entirely. So widening
+    // it would have converted that text divergence into a heading DELETION — and it would have
+    // done so on top of a deletion that was already there, unmeasured, since the beginning:
+    //
+    //   `- marker title` / `===`   →   quarto renders `<h1>marker title</h1>`   we rendered NOTHING
+    //
+    // Rendered firsthand through the real `quarto render` path, quarto 1.7.33
+    // (`scratchpad/s201/cal`, then 198 documents in `scratchpad/s201/gnd`): pandoc strips the
+    // marker and nests the heading inside the `<li>`, so a heading DOES exist at every column a
+    // bullet can sit at — 36 of 36 heading-bearing ground rows, all three marker characters,
+    // six container shapes, both underline levels. The guard's docstring called its decline "a
+    // false negative" it "must" take; the false negative was never necessary, because the text
+    // it was avoiding is obtainable by stripping the marker (Learning #300 — the docstring said
+    // "Confirmed against the real Quarto CLI", and the half it confirmed was the nesting, not
+    // the emptiness).
+    expect(names(doc("- marker title", "==="))).toEqual(["h1:marker title"]);
+  });
+
+  it("RED->GREEN: a title that is ONLY markers has an EMPTY innermost item, so there is no heading", () => {
+    // ⚠ THE FIRST ERROR THIS SESSION'S OWN CHANGE INTRODUCED, and it is an error the OLD guard
+    // did not have: the blanket decline covered these rows by accident. Stripping alone leaves
+    // the last, contentless marker behind and reports it as a heading.
+    //
+    // Rendered (`scratchpad/s201/tbrk`, `scratchpad/s201/tb2`): all four render NO heading,
+    // because the innermost list item has no content and an empty item has no heading text.
+    // Returning `""` routes them into `buildHeading`'s existing `null`, so nothing new decides
+    // this — the strip just has to stop pretending a bare marker is content.
+    expect(names(doc("- -", "==="))).toEqual([]); // quarto: no heading
+    expect(names(doc("-   -", "==="))).toEqual([]); // quarto: no heading
+    expect(names(doc("- * -", "==="))).toEqual([]); // quarto: no heading — mixed chars, still a list
+    expect(names(doc("+ + +", "==="))).toEqual([]); // quarto: no heading — `+` is not a break char
+    // CONTROL — the same three-marker shape WITH content is a heading, so this rule must not be
+    // "three markers means nothing". `- - x -` keeps the text AFTER the run, `-` included.
+    expect(names(doc("- - - x", "==="))).toEqual(["h1:x"]); // quarto: h1:x
+    expect(names(doc("- - x -", "==="))).toEqual(["h1:x -"]); // quarto: h1:x -
+  });
+
+  it("RED->GREEN: a THEMATIC BREAK spelled with bullet characters keeps its markers LITERALLY", () => {
+    // ⚠ THE ONE SHAPE WHERE THE MARKER SURVIVES, and both the old decline and a plain strip get
+    // it wrong — in opposite ways. `- - -` is a thematic BREAK, not a list, so pandoc's setext
+    // parse claims the line whole and the heading text is the line as written. The old guard
+    // declined it (a deleted heading); the strip alone reported `h1:-` (a wrong text).
+    //
+    // Rendered (`scratchpad/s201/tbrk`, `scratchpad/s201/tb2`) — the family separates on the
+    // MARKER CHARACTER and on the COUNT, and both boundaries are measured rather than
+    // transcribed from CommonMark §4.1:
+    //
+    //   `- - -`  `* * *`  `- - - -`  `-  -  -`  →  heading, text LITERAL   3+ of one break char
+    //   `+ + +`                                 →  NO heading             `+` is not a break char
+    //   `- -`  `-   -`                          →  NO heading             two is not a break
+    //   `- * -`                                 →  NO heading             mixed is not a break
+    //   `- - - x`                               →  h1:x                   content makes it a LIST
+    expect(names(doc("- - -", "==="))).toEqual(["h1:- - -"]); // quarto: h1:- - -
+    expect(names(doc("* * *", "==="))).toEqual(["h1:* * *"]); // quarto: h1:* * *
+    expect(names(doc("- - - -", "==="))).toEqual(["h1:- - - -"]); // quarto: h1:- - - -
+    expect(names(doc("-  -  -", "==="))).toEqual(["h1:-  -  -"]); // quarto: h1:- - - (HTML collapses runs)
+    expect(names(doc("- - - ", "==="))).toEqual(["h1:- - -"]); // quarto: h1:- - - — trailing space
+    // ⚠ CONTROL — the same break INSIDE a container, which is the row that already agreed before
+    // this session and must still agree after it (`scratchpad/s201/tbrk`, `t5_dash3_b4`).
+    expect(
+      names(doc("Intro.", "", "-   line one", "", "    - - -", "    ===")),
+    ).toEqual(["h1:- - -"]); // quarto: h1:- - -
   });
 });
