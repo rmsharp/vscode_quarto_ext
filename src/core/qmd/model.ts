@@ -113,6 +113,64 @@ const HEADING_ATTRIBUTE = /(?:^|[ \t]+)\{[^}]*\}[ \t]*$/;
  */
 const ATTR_ID = /#([^\s}]+)/;
 /**
+ * The ATX heading match on `line`, or null if these bytes are not a heading HERE
+ * (Session 199). `columns` is `[0, ...contentColumns]` — column 0 plus every column in the
+ * open container stack, the same array `setextUnderlineLevel` reads.
+ *
+ * ⚠ **The indent is an EQUALITY against the enclosing block's content column, NOT
+ * CommonMark's 0-3 tolerance** — and the tolerance was wrong in BOTH directions at once,
+ * which is why this is neither a widening nor a narrowing of it. Pandoc's markdown reader
+ * does not give an ATX heading the leading-space slack CommonMark does. Measured over a
+ * 121-document grid (8 container shapes × 11 indents × 2 levels, all quarto exit 0) and
+ * hand-verified against the raw HTML rather than through the extractor:
+ *
+ *   - top level             heading at column 0 only; 1, 2 and 3 render the LITERAL
+ *                           `<p># Probe Title</p>`, which the ` {0,3}` cap read as a heading
+ *   - `- item`   (col 2)    heading at 0 and 2
+ *   - `1. item`  (col 3)    heading at 0 and 3
+ *   - `-   item` (col 4)    heading at 0 and 4 — the cap could not reach column 4 at all
+ *   - `- a` / `  - b`       heading at 0, 2 AND 4 — the whole stack, not the innermost
+ *   - `- a` / `  - b` / `    - c`   heading at 0, 2, 4 and 6
+ *   - a footnote or definition body, and both levels `#`/`##`, answer identically
+ *
+ * At `column + 4` the line is an indented CODE block in every context, so the sweep past
+ * `c + 3` is what separates this rule from a tolerance: a corpus that stops at `c + 3`
+ * cannot tell a correct rule from one that never refuses.
+ *
+ * ⚠ **The tab is the column, not the character count** — `indentColumn` is the one shared
+ * definition (quarto's tab stop is 4), so inside `-   item` a TAB-indented heading lands
+ * exactly on content column 4 and IS a heading, while the same tab inside `- item` (column 2)
+ * overshoots and is not. Both measured; this is the sixth site on that definition.
+ *
+ * ⚠ **`null` columns SUSPEND the rule and return the bare match — the block-quote fail-safe,
+ * and it is here because the first draft of this function argued its way out of it and a
+ * Session 189 pin refuted the argument within the minute.** That draft reasoned: a `> # x`
+ * line cannot match `ATX_HEADING` at all, and the only way these bytes are seen inside a
+ * quote is as a lazy continuation, where `paragraphOpen` is true and the call site has
+ * already bailed. The reasoning is sound and the conclusion is false — a BLOCK inside the
+ * quote (`> quoted` / `>` / `   \clearpage` / `   # ATX Below`) clears `paragraphOpen`
+ * without clearing `quoteOpen`, so the row IS reached with a column stack that describes the
+ * document rather than the quote. Session 189 measured that document rendering the heading at
+ * EVERY indent 0-8, because pandoc strips the quote's markers and re-parses what is left.
+ * Applying an absolute column equality there DELETES it. So while a quote may be open this
+ * row keeps the old ` {0,3}` width, exactly as `rawTexMacroLineIsBlock` and `indentedCodeLine`
+ * do: phantoms, never deletions.
+ *
+ * A container that has CLOSED no longer offers its column, and that falls out of
+ * `contentColumns` maintenance rather than being special-cased here — the same property
+ * `setextUnderlineLevel` documents.
+ */
+function atxHeadingMatch(
+  line: string,
+  columns: readonly number[] | null,
+): RegExpExecArray | null {
+  const m = ATX_HEADING.exec(line);
+  if (m === null || columns === null) {
+    return m;
+  }
+  return columns.includes(indentColumn(line)) ? m : null;
+}
+/**
  * A setext heading underline: leading whitespace of EITHER KIND — its COLUMN is what the
  * test in `setextUnderlineLevel` below reads, taken from `indentColumn` rather than from a
  * capture group here (Session 197; the capture existed only to be counted, and counting
@@ -1863,7 +1921,10 @@ function computeRegions(text: string): Regions {
     bodyLines.push({ line: i, text: line });
 
     // An ATX heading — but only where no paragraph is open above it.
-    const m = paragraphOpen && !dialectOverride ? null : ATX_HEADING.exec(line);
+    const m =
+      paragraphOpen && !dialectOverride
+        ? null
+        : atxHeadingMatch(line, quoteOpen ? null : [0, ...contentColumns]);
     if (m) {
       const heading = parseHeadingLine(m, i);
       if (heading) {

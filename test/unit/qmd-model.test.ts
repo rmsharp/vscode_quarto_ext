@@ -38,10 +38,24 @@ describe("findHeadings — basic ATX parsing", () => {
 });
 
 describe("findHeadings — ATX edge rules (CommonMark)", () => {
-  it("allows up to 3 spaces of leading indentation", () => {
+  it("refuses 1-3 spaces of leading indentation — quarto is NOT CommonMark here (Session 199)", () => {
+    // ⚠ THIS TEST ASSERTED THE OPPOSITE UNTIL SESSION 199, AND IT WAS WRONG FROM THE START:
+    // it was written from the CommonMark spec (§4.2 allows up to 3 spaces) rather than from a
+    // render. Quarto's pandoc markdown reader gives an ATX heading NO leading-space slack at
+    // all. RE-RENDERED on these exact bytes before the flip and read off the raw HTML, not
+    // through an extractor (`scratchpad/s199/cm/cm_first3.qmd`):
+    //
+    //     `   ### Indented three`   ->   <p>### Indented three</p>      LITERAL TEXT
+    //     `### No indent first`     ->   <h3>No indent first</h3>       a heading
+    //
+    // 1, 2 and 3 spaces all render the paragraph, as the whole document and equally with a
+    // paragraph above (`cm_first1`, `cm_first2`, `cm_after3`). The indent must EQUAL an open
+    // content column — see `atxHeadingMatch`.
     const text = ["   ### Indented three"].join("\n");
-    expect(findHeadings(text)).toEqual([
-      { level: 3, text: "Indented three", line: 0 },
+    expect(findHeadings(text)).toEqual([]);
+    // CONTROL — the same heading at column 0, which quarto DOES render.
+    expect(findHeadings(["### No indent first"].join("\n"))).toEqual([
+      { level: 3, text: "No indent first", line: 0 },
     ]);
   });
 
@@ -3463,15 +3477,34 @@ describe("an INDENTED CODE line is measured from the containing block's CONTENT 
     // Session 192's completeness critic NAMED this and could not measure it; this session's
     // blind sweep MEASURED it, so it is promoted from a lead to a finding. Quarto consumes a
     // callout's `##` line as the callout's own title and emits no heading element for it.
+    //
+    // ⚠ **SESSION 199 CHANGED THIS DOCUMENT'S ANSWER WITHOUT CLOSING THE FAMILY, and the
+    // distinction is the whole point of re-rendering rather than re-running.** The title here
+    // sits at indent 3, which matches no open content column, so the heading row now declines
+    // it and we agree with quarto — for a DIFFERENT REASON than quarto's (quarto consumes the
+    // callout title; we simply do not see an indented heading). Move the title to column 0 and
+    // the phantom is untouched, because column 0 is always open: measured this session, quarto
+    // renders NO heading and this model still emits `h2:Larkspur Callout Title`
+    // (`scratchpad/s199/co/co_i0.qmd` and `co_i3.qmd`, both rendered, ours probed firsthand).
+    // The column-0 spelling is therefore the one pinned as the live defect, and the filed item
+    // STAYS filed.
     expect(
       names(doc("::: {.callout-note}", "   ## Larkspur Callout Title", "Body text follows the title.", ":::")),
-    ).toEqual(["h2:Larkspur Callout Title"]); // quarto: NO heading
+    ).toEqual([]); // quarto: NO heading — and since S199 neither do we, at THIS indent
+    expect(
+      names(doc("::: {.callout-note}", "## Larkspur Callout Title", "Body text follows the title.", ":::")),
+    ).toEqual(["h2:Larkspur Callout Title"]); // quarto: NO heading — the LIVE defect, at column 0
 
     // ── FAMILY 5 — an INDENTED ATX HEADING line below a code block. All 16 phantoms that
     // survive in Session 189's own 656-document container corpus have this one shape, and none
     // of them is this row's: the code line is correctly judged, and it is the heading line's own
     // ` {0,3}` tolerance that then invents the heading. Already filed as `ATX_HEADING`'s cap.
-    expect(names(doc("    \\clearpage", " # ATX Below"))).toEqual(["h1:ATX Below"]); // quarto: NO heading
+    //
+    // ⚠ **CLOSED IN PLACE BY SESSION 199 — this is that filed item, and the indent-1 heading is
+    // gone.** Re-rendered on these exact bytes before the flip (`scratchpad/s199/co/co_fam5.qmd`
+    // and `co_fam5ctl.qmd`): quarto renders no heading at indent 1 and does render one at
+    // column 0, which is now what this model answers in both.
+    expect(names(doc("    \\clearpage", " # ATX Below"))).toEqual([]); // quarto: NO heading — agreed since S199
     expect(names(doc("    \\clearpage", "# ATX Below"))).toEqual(["h1:ATX Below"]); // CONTROL — column 0 is real
 
     // ── FAMILY 6 — A BLANK LINE INSIDE AN INDENTED CODE BLOCK RE-ARMS THE NEXT CODE LINE AS A
@@ -4214,5 +4247,40 @@ describe("the container POP's SUPPRESSION CONDITION is a BLANK LINE, not an open
                 "    - inner item", "", "      inner body line.", "- shallow bullet", "",
                 "      Probe Title", "      ===")),
     ).toEqual(["h2:Ledger", "h1:Probe Title"]);
+  });
+});
+
+describe("an ATX heading's own indent is a COLUMN EQUALITY, not a ` {0,3}` cap (Session 199)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: an indent that matches NO open content column is not a heading at all", () => {
+    // ⚠ THE SURPRISE, AND IT IS WHY THIS ROW WAS WRONG IN BOTH DIRECTIONS: pandoc's markdown
+    // reader does NOT give an ATX heading CommonMark's 0-3 space tolerance. Measured over a
+    // 121-document grid (`scratchpad/s199/gnd` — 8 container shapes x 11 indents x 2 levels,
+    // every one quarto exit 0) and hand-verified against the raw HTML rather than through the
+    // extractor: at top level `# Probe Title` renders `<h1>` at column 0 and the literal
+    // paragraph `<p># Probe Title</p>` at columns 1, 2 AND 3.
+    //
+    // The rule that fits all 121 rows is the one `setextUnderlineLevel` already carries — the
+    // indent must EQUAL a column in `[0, ...contentColumns]`:
+    //
+    //   top   (col 0)      heading at 0 only
+    //   - x   (col 2)      heading at 0 and 2
+    //   1. x  (col 3)      heading at 0 and 3
+    //   -   x (col 4)      heading at 0 and 4
+    //   nested 2/4         heading at 0, 2 AND 4 — the whole stack, not the innermost
+    //   nested 2/4/6       heading at 0, 2, 4 AND 6
+    //
+    // This half is the NARROWING, and it lands FIRST on purpose: widening the leading class
+    // before the column test exists would open a window in which the row over-accepts at every
+    // indent, and an over-accepting heading row fabricates sections in the outline.
+    expect(names(doc("Intro paragraph.", "", " # Probe Title", "", " Tail body line."))).toEqual([]);
+    // CONTROL — the identical document at column 0, where quarto DOES render the heading. It is
+    // what makes this a column defect rather than "an indented line is never a heading"
+    // (`scratchpad/s199/gnd/top_i01_h1.qmd` and `top_i00_h1.qmd`, both rendered).
+    expect(names(doc("Intro paragraph.", "", "# Probe Title", "", "Tail body line."))).toEqual([
+      "h1:Probe Title",
+    ]);
   });
 });
