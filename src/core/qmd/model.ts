@@ -1065,10 +1065,24 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
  * the real render path — `markdown-blank_before_header`, `markdown_strict`, `gfm` and
  * `commonmark` each render the heading, while plain `markdown` and no key at all do not.
  *
- * The bail keys on the key's PRESENCE, not on resolving the dialect, so it fails CLOSED:
- * the cost is that `from: markdown` retains the phantom, which is the permitted direction.
+ * The bail keys on the key's PRESENCE, not on resolving the dialect, so it fails CLOSED.
  * `reader:` is deliberately absent — quarto REJECTS that key outright (exit 1), so no such
  * document ever renders a heading.
+ *
+ * ⚠ **Session 205 paid down the cost this docstring used to disclose** — it read "the cost is
+ * that `from: markdown` retains the phantom, which is the permitted direction", and that
+ * sentence is now false for the paragraph bail. `fromKeepsBlankBeforeHeader` below resolves the
+ * VALUE for that one row and hands the bail back to the readers measured to keep the extension,
+ * so `from: markdown` behaves like no key at all. Two things did NOT change and are the reason
+ * this row survives: the flag itself is untouched, so `dialectOverride`'s OTHER consumer — the
+ * heading COLUMN set — keeps this presence-keying and its own permitted phantom at columns 1-3;
+ * and the depth-blindness here is still deliberate, so a `from: markdown` nested under
+ * `format:`/`  html:` (measured to suppress, `scratchpad/s205/spl` `s_nested`) and an
+ * `abstract: |` block scalar whose prose merely begins `from: …` (`s_scalaronly`) both keep the
+ * phantom. That second one is why `fromKeepsBlankBeforeHeader` is anchored at column 0 where
+ * this row is not: firing on a block scalar's prose while a real `from: gfm` sits at column 0
+ * DELETES the heading quarto renders (`s_collide`, measured — not inherited from Session 202's
+ * anchor).
  */
 const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
 /**
@@ -1126,6 +1140,73 @@ const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
  */
 const FRONTMATTER_COMMONMARK_FROM =
   /^from[ \t]*:[ \t]*["']?(?:commonmark(?:_x)?|gfm)(?![a-zA-Z0-9_])/;
+/**
+ * A front-matter `from:` whose base reader is **exactly `markdown`**, with any extension list —
+ * the one base measured to carry `blank_before_header` by DEFAULT (Session 205).
+ *
+ * ⚠ **`markdown` and nothing that merely starts with it.** The extension list is `[+-]name`
+ * repeated, so `markdown_strict` cannot match: `_strict` is neither an extension nor a
+ * terminator. That is not a stylistic choice — `markdown_strict`, `markdown_mmd`,
+ * `markdown_phpextra` and `markdown_github` are each MEASURED to render a heading pressed
+ * against prose (`scratchpad/s205/gnd` `g_mdstrict_prose`, `g_mdmmd_prose`, `g_mdphp_prose`,
+ * `g_mdgh_prose`), so a prefix match DELETES four readers' worth of real headings. Pandoc
+ * documents `markdown_github` as a deprecated synonym for `gfm` and it behaves like neither
+ * `gfm` nor `markdown` on this row — a classifier reasoning from the NAME gets it wrong.
+ *
+ * The quote is captured and back-referenced so `"markdown"` and `'markdown'` resolve while a
+ * half-quoted `"markdown` does not; a trailing YAML comment is consumed. `from:markdown` with
+ * no space is absent because quarto REJECTS it (exit 1, `spl` `s_nospace`), so it has no
+ * heading truth — the same reasoning `reader:` and upper-case `GFM` get elsewhere in this file.
+ */
+const FRONTMATTER_MARKDOWN_BASE_FROM =
+  /^from[ \t]*:[ \t]*(["']?)markdown(?:[+-][a-zA-Z_]+)*\1[ \t]*(?:#.*)?$/;
+/**
+ * The same, for the four `markdown_*` bases measured WITHOUT `blank_before_header`. Matched
+ * only so `+blank_before_header` can be honoured on them (Session 205) — on its own this
+ * predicate must never fire the bail.
+ */
+const FRONTMATTER_MARKDOWN_VARIANT_FROM =
+  /^from[ \t]*:[ \t]*(["']?)markdown(?:_strict|_mmd|_phpextra|_github)(?:[+-][a-zA-Z_]+)*\1[ \t]*(?:#.*)?$/;
+/**
+ * A `from:` whose extension list turns `blank_before_header` ON, and one that turns it OFF.
+ *
+ * ⚠ **The extension outranks the base, in BOTH directions, and both directions are measured.**
+ * `markdown+emoji-blank_before_header` renders the pressed heading (`spl` `s_offlast`) and so
+ * does `markdown-blank_before_header+emoji` (`s_offfirst`), so position in the list is
+ * irrelevant; and `markdown_strict+blank_before_header` SUPPRESSES it (`gnd` `g_strictbbh_*`)
+ * on a base that renders it unadorned. A rule keyed on the base name alone is wrong four ways.
+ *
+ * ⚠ These two scan the whole VALUE rather than parsing the list, which is why each is paired
+ * with a base predicate above: alone, `+blank_before_header` would fire on `gfm`, where quarto
+ * REFUSES to render at all (exit 1, all 12 such documents in `gnd`) and there is no truth.
+ */
+const FRONTMATTER_FROM_ENABLES_BLANK_BEFORE_HEADER =
+  /^from[ \t]*:.*\+blank_before_header(?![a-zA-Z0-9_])/;
+const FRONTMATTER_FROM_DISABLES_BLANK_BEFORE_HEADER =
+  /^from[ \t]*:.*-blank_before_header(?![a-zA-Z0-9_])/;
+/**
+ * Whether this front-matter line declares a reader that keeps pandoc's `blank_before_header`,
+ * so an ATX heading pressed against an open paragraph is not a heading (Session 205).
+ *
+ * ⚠ **The safety polarity is the INVERSE of Session 204's.** That session's change deleted
+ * headings, so its opener set had to be narrow. This one RESTORES a suppression that the mere
+ * presence of a `from:` key had been switching off, so returning `true` for a reader that does
+ * NOT have the extension DELETES a real heading. Hence exact measured bases only, and every
+ * unmeasured spelling falls through to today's behaviour — a phantom, this project's permitted
+ * direction.
+ */
+function fromKeepsBlankBeforeHeader(line: string): boolean {
+  if (FRONTMATTER_FROM_DISABLES_BLANK_BEFORE_HEADER.test(line)) {
+    return false;
+  }
+  if (FRONTMATTER_MARKDOWN_BASE_FROM.test(line)) {
+    return true;
+  }
+  return (
+    FRONTMATTER_MARKDOWN_VARIANT_FROM.test(line) &&
+    FRONTMATTER_FROM_ENABLES_BLANK_BEFORE_HEADER.test(line)
+  );
+}
 /**
  * A setext underline run that pandoc will swallow the ATX line above into — `=`s or `-`s
  * alone on a line, any length, at **column 0**, for the ATX-adjacency rule in
@@ -2218,6 +2299,11 @@ function computeRegions(text: string): Regions {
   // ATX row at two sites, where its fail-open direction is a measured phantom. Here the
   // fail-open direction is a DELETION, so the two cannot share a flag.
   let commonmarkDialect = false;
+  // Whether the front-matter `from:` names a reader that KEEPS `blank_before_header` — see
+  // `FRONTMATTER_BLANK_BEFORE_HEADER_FROM`. A THIRD flag beside the two above, read by the
+  // ATX paragraph bail alone: `dialectOverride`'s other consumer (the heading COLUMN set) asks
+  // a different question and must not move with this one.
+  let blankBeforeHeaderDialect = false;
   // Whether the line ABOVE began a fresh block, making this line a paragraph start
   // (Session 181). Deliberately a one-line deferral rather than a reset — see the loop.
   // It needs no clearing at the region-boundary resets below: those set `consecutiveBody`
@@ -2322,6 +2408,9 @@ function computeRegions(text: string): Regions {
       }
       if (FRONTMATTER_COMMONMARK_FROM.test(line)) {
         commonmarkDialect = true;
+      }
+      if (fromKeepsBlankBeforeHeader(line)) {
+        blankBeforeHeaderDialect = true;
       }
       if (FRONTMATTER_CLOSE.test(line)) {
         inFrontmatter = false;
@@ -2700,7 +2789,8 @@ function computeRegions(text: string): Regions {
     // An ATX heading — but only where no paragraph is open above it, and never inside a raw
     // HTML block under a CommonMark reader, where the block swallows it (Session 204).
     const m =
-      commonmarkHtmlBlock !== null || (paragraphOpen && !dialectOverride)
+      commonmarkHtmlBlock !== null ||
+      (paragraphOpen && (!dialectOverride || blankBeforeHeaderDialect))
         ? null
         : atxHeadingMatch(
             line,

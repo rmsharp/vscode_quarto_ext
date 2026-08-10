@@ -5392,3 +5392,134 @@ describe("a raw HTML BLOCK swallows the headings inside it under a CommonMark re
     ).toEqual(["h1:Bnd Golf Pre Spaced Closer"]);
   });
 });
+
+describe("`blank_before_header` survives an explicitly declared reader that has it (Session 205)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("`from: markdown` keeps the paragraph bail, where any `from:` key used to suspend it", () => {
+    // `scratchpad/s205/gnd` — `g_md_prose`, rendered this session. The bail is `dialectOverride`
+    // at model.ts:2703, and it keys on the PRESENCE of a `from:` key: Session 180 took that
+    // trade knowingly and wrote the cost into `FRONTMATTER_FROM_KEY`'s own docstring. Quarto
+    // renders only `Gnd Below` here, and the identical document with NO front matter
+    // (`g_nofm_prose`) is already reported correctly — which is what shows the rule is
+    // implemented and merely switched off, not missing.
+    expect(
+      names(
+        doc(
+          "---", "title: t", "from: markdown", "---", "",
+          "Prose opens the paragraph.", "# Gnd Inside", "", "# Gnd Below",
+        ),
+      ),
+    ).toEqual(["h1:Gnd Below"]);
+  });
+  /**
+   * RED->GREEN: the SAME reader value, differently spelled. Every case below rendered this
+   * session in `scratchpad/s205/spl` and quarto suppresses the pressed heading in all of them,
+   * so each is `from: markdown` and must reach the bail.
+   *
+   * ⚠ `from:markdown` with NO space is deliberately ABSENT: quarto REJECTS it (exit 1,
+   * `s_nospace`), so it has no heading truth to agree with — the same reasoning `reader:` and
+   * upper-case `GFM` already get elsewhere in this file.
+   */
+  it.each([
+    ['a double-quoted value', 'from: "markdown"'],
+    ["a single-quoted value", "from: 'markdown'"],
+    ["a wide gap after the colon", "from:     markdown"],
+    ["trailing whitespace", "from: markdown   "],
+    ["a trailing YAML comment", "from: markdown  # the default reader"],
+    ["a TAB after the colon", "from:\tmarkdown"],
+  ])("%s still keeps the paragraph bail", (_what, fromLine) => {
+    expect(
+      names(
+        doc(
+          "---", "title: t", fromLine, "---", "",
+          "Prose opens the paragraph.", "# Spl Inside", "", "# Spl Below",
+        ),
+      ),
+    ).toEqual(["h1:Spl Below"]);
+  });
+  /**
+   * ⚠ THE GUARD, WRITTEN BEFORE THE WIDENING IT GUARDS (Session 204's gotcha 5). Every value
+   * below rendered this session and quarto KEEPS the pressed heading in all of them, so firing
+   * on any one of them DELETES a real heading — this rule's forbidden direction.
+   *
+   * `markdown_strict` is the trap: it is a `markdown`-prefixed name whose reader does NOT have
+   * `blank_before_header` (`scratchpad/s205/gnd` `g_mdstrict_prose`, `spl` `s_strict`), so a
+   * prefix match on `markdown` — the obvious way to widen for `markdown+emoji` — deletes it.
+   * `markdown_mmd`, `markdown_phpextra` and `markdown_github` are three more of the same shape.
+   */
+  it.each([
+    ["markdown_strict", "from: markdown_strict"],
+    ["a QUOTED markdown_strict", 'from: "markdown_strict"'],
+    ["markdown_mmd", "from: markdown_mmd"],
+    ["markdown_phpextra", "from: markdown_phpextra"],
+    ["markdown_github", "from: markdown_github"],
+    ["markdown-blank_before_header", "from: markdown-blank_before_header"],
+    ["the extension turned off LAST", "from: markdown+emoji-blank_before_header"],
+    ["the extension turned off FIRST", "from: markdown-blank_before_header+emoji"],
+    ["gfm", "from: gfm"],
+    ["commonmark_x", "from: commonmark_x"],
+  ])("%s does NOT get the bail — quarto renders that heading", (_what, fromLine) => {
+    expect(
+      names(
+        doc(
+          "---", "title: t", fromLine, "---", "",
+          "Prose opens the paragraph.", "# Spl Inside", "", "# Spl Below",
+        ),
+      ),
+    ).toEqual(["h1:Spl Inside", "h1:Spl Below"]);
+  });
+  /**
+   * RED->GREEN: an EXTENSION LIST on the `markdown` base. `blank_before_header` is a property
+   * of the base reader, so `+emoji` or `-raw_html` leaves it on — measured this session over
+   * `scratchpad/s205/gnd` (`g_mdemoji_*`, `g_mdnoraw_*`) and `spl` (`s_twoext`, `s_plusminus`),
+   * where quarto suppresses the pressed heading in every one.
+   *
+   * ⚠ The list may contain the extension that turns the rule OFF, at any position, and the guard
+   * above already pins both spellings of that — they must stay green through this widening.
+   */
+  it.each([
+    ["one added extension", "from: markdown+emoji"],
+    ["one removed extension", "from: markdown-raw_html"],
+    ["two added extensions", "from: markdown+emoji+footnotes"],
+    ["a removal then an addition", "from: markdown-raw_html+emoji"],
+    ["a QUOTED extension list", 'from: "markdown+emoji"'],
+  ])("%s still keeps the paragraph bail", (_what, fromLine) => {
+    expect(
+      names(
+        doc(
+          "---", "title: t", fromLine, "---", "",
+          "Prose opens the paragraph.", "# Spl Inside", "", "# Spl Below",
+        ),
+      ),
+    ).toEqual(["h1:Spl Below"]);
+  });
+  /**
+   * RED->GREEN: `+blank_before_header` bolted onto a base measured WITHOUT it. This is the
+   * half that shows the rule belongs to the EXTENSION and not to the reader's name: every base
+   * below renders the pressed heading on its own (the guard block pins `markdown_strict`,
+   * `markdown_mmd`, `markdown_phpextra` and `markdown_github` doing exactly that), and adding
+   * the extension suppresses it — `scratchpad/s205/gnd` `g_strictbbh_*` and `spl` `s_mmdon`,
+   * `s_phpon`, `s_ghon`, all rendered this session.
+   *
+   * ⚠ `gfm+blank_before_header` and `commonmark+blank_before_header` are ABSENT because quarto
+   * REJECTS them (exit 1 — all 12 such documents in `gnd`), so the extension's reach outside the
+   * pandoc-markdown family has no truth to agree with and must not be guessed at.
+   */
+  it.each([
+    ["markdown_strict", "from: markdown_strict+blank_before_header"],
+    ["markdown_mmd", "from: markdown_mmd+blank_before_header"],
+    ["markdown_phpextra", "from: markdown_phpextra+blank_before_header"],
+    ["markdown_github", "from: markdown_github+blank_before_header"],
+  ])("%s+blank_before_header gets the bail its base does not have", (_what, fromLine) => {
+    expect(
+      names(
+        doc(
+          "---", "title: t", fromLine, "---", "",
+          "Prose opens the paragraph.", "# Spl Inside", "", "# Spl Below",
+        ),
+      ),
+    ).toEqual(["h1:Spl Below"]);
+  });
+});
