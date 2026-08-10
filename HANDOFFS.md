@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S198
+date: 2026-08-09
+status: pending
+active_task: IMPLEMENTATION (strict TDD): the container POP's SUPPRESSION CONDITION in computeRegions. A non-blank line at a shallower column pops every deeper container column whenever `!paragraphOpen` -- and paragraphOpen is a PROXY. When a setext underline is consumed the branch sets paragraphOpen = false and continues, ARMING the pop for the next line; a column-0 line below then closes a list pandoc keeps OPEN and the underline further down matches no column, DELETING its heading. Two separately-filed items are the SAME condition read in opposite directions -- the pop ARMED by a consumed underline (heading-DELETING, S197's ranked #1 and the largest loss mechanism its blind 222-document sweep found) and the RAGGED-STACK pop (phantom direction, filed by S192) -- and S197's item says in its own text to do them together. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section. Claimed before any technical work; this block is the crash breadcrumb.
+```
+
+```handoff
 session: S197
 date: 2026-08-09
 status: complete
