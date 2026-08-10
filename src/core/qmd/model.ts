@@ -570,17 +570,28 @@ function listItemContentColumn(line: string): number | null {
   // heading under `   \clearpage` at its column 3 was DELETED. Accepting a whole letter run
   // also accepts `Mr. Smith`, which is not a list; that costs a phantom at one indent and is
   // the direction this function is required to fail in.
-  const m = /^( *)([-+*]|\(?(?:\d{1,9}|[a-zA-Z]{1,9}|#)[.)])([ \t]|$)/.exec(line);
+  // ⚠ The MARKER'S OWN INDENT is a COLUMN, not a count of spaces (Session 196). The class was
+  // `( *)`, so a TAB-indented marker matched nothing at all and opened NO container — while the
+  // arithmetic AFTER the marker had measured columns since Session 189. See `indentColumn`: a
+  // tab advances to the next 4-column stop, so `\t- inner` inside a `- outer` item is a marker
+  // at column 4 whose content column is 6, exactly as `    - inner` is (measured — a paired
+  // TAB/SPACE equivalence over the real `quarto render` path).
+  const m = /^([ \t]*)([-+*]|\(?(?:\d{1,9}|[a-zA-Z]{1,9}|#)[.)])([ \t]|$)/.exec(line);
   if (m === null) {
     return null;
   }
-  const markerEnd = m[1].length + m[2].length;
-  const after = line.slice(markerEnd);
+  // Two different measures of the same point, and they are NOT interchangeable: `after` is a
+  // SLICE, so it needs the marker's end as a character OFFSET, while every column returned
+  // below is arithmetic on the marker's end as a COLUMN. They coincide only while the indent
+  // is spaces-only, which is exactly the assumption this change removes.
+  const markerEndOffset = m[1].length + m[2].length;
+  const markerEndColumn = indentColumn(line) + m[2].length;
+  const after = line.slice(markerEndOffset);
   if (after.startsWith("\t")) {
-    return markerEnd + 4 - (markerEnd % 4);
+    return markerEndColumn + 4 - (markerEndColumn % 4);
   }
   const spaces = /^ */.exec(after)![0].length;
-  return markerEnd + (spaces === 0 || spaces >= 5 ? (after === "" ? 0 : 1) : spaces);
+  return markerEndColumn + (spaces === 0 || spaces >= 5 ? (after === "" ? 0 : 1) : spaces);
 }
 /**
  * A FOOTNOTE definition or a DEFINITION-LIST definition, both of which give their content a
@@ -594,8 +605,15 @@ function listItemContentColumn(line: string): number | null {
  * `See[^1]` reference (Learning #253 — validate the instrument before scoring with it).
  *
  * `:::` is excluded because a fenced div gives its content column 0, not 4 (measured).
+ *
+ * ⚠ **The leading class is `[ \t]*`, and the capture group is gone (Session 196).** It was
+ * `( *)`, so a TAB-indented definition matched nothing and opened no container at all — while
+ * the call site had computed `indentColumn(line) + 4` since Session 194. The capture was never
+ * read: the +4 is measured from the line's COLUMN, which the call site takes from
+ * `indentColumn`, not from the length of this match. Measured as a TAB/SPACE pair over the real
+ * `quarto render` path — inside a two-deep nest, `\t[^n1]:` and `    [^n1]:` both give 8.
  */
-const CONTENT_COLUMN_4_OPEN = /^( *)(?:\[\^[^\]\s]+\]:|[:~](?![:~])[ \t])/;
+const CONTENT_COLUMN_4_OPEN = /^[ \t]*(?:\[\^[^\]\s]+\]:|[:~](?![:~])[ \t])/;
 /**
  * Body lines that do NOT leave a paragraph open, so an ATX heading may follow one
  * directly (Session 180). Pandoc's `blank_before_header` — on by default in the

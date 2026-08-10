@@ -3752,3 +3752,58 @@ describe("a raw-TeX block macro's indent is a COLUMN too, so a TAB can reach it 
     ]);
   });
 });
+
+describe("a container OPENER's own indent is a COLUMN too, so a TAB can open one (Session 196)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: a TAB-indented LIST MARKER opens the container column its own column implies", () => {
+    // ⚠ THE UNDERLINE IS SPELLED IN SPACES ON PURPOSE, and that is not cosmetic. Session 194
+    // filed this family with a pinned document whose underline was `\t  ===`, and
+    // `setextUnderlineLevel` reads `SETEXT_H1 = /^( *)=+[ \t]*$/` — spaces only. That row is a
+    // SEPARATE filed item, out of scope here, so a tab-spelled underline would measure THAT
+    // rule and not this one: the filed document cannot show this fix at all, and stays red
+    // after it. The coupling was surveyed before this session's scope was written and is
+    // recorded in its 1B claim.
+    //
+    // Both documents below were rendered through the real `quarto render` path this session
+    // (corpus `gnd`, documents g0293 and g0282). They are a PAIR: the same container, the same
+    // column, the same probe — differing only in whether the inner marker's indent is written
+    // as one TAB or as four SPACES. Quarto renders the heading for both.
+    expect(
+      names(doc("Intro sentence.", "", "- outer item", "  outer body", "",
+                "\t- inner", "", "      Probe Title", "      ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Probe Title"]);
+    // CONTROL — the SPACE spelling reaching the same column 4. Found on every build, before
+    // and after; it is what makes the marker's own indent SPELLING the mechanism rather than
+    // anything about the nesting.
+    expect(
+      names(doc("Intro sentence.", "", "- outer item", "  outer body", "",
+                "    - inner", "", "      Probe Title", "      ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Probe Title"]);
+  });
+
+  it("RED->GREEN: a TAB-indented FOOTNOTE definition opens its content column too", () => {
+    // The `CONTENT_COLUMN_4_OPEN` half. Its PUSH arithmetic was already correct — Session 194
+    // made the call site `contentColumns.push(indentWidth + 4)` where `indentWidth` is
+    // `indentColumn(line)` — so only the regex's own leading class was blind. That is why this
+    // half is a one-character-class change and not arithmetic.
+    //
+    // ⚠ THE LIVE REFERENCE IS LOAD-BEARING (Learning #253). An UNREFERENCED footnote definition
+    // is dropped from quarto's rendered output ENTIRELY, so a corpus without one reads "no
+    // heading" for every indent and concludes the container does not exist.
+    //
+    // Rendered this session: corpus `gnd`, documents g1197 (TAB) and g1186 (SPACE).
+    expect(
+      names(doc("Intro sentence with a live reference[^n1].", "", "- alpha", "  - bravo",
+                "    bravo body", "", "\t[^n1]: note body", "",
+                "        Probe Title", "        ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Probe Title"]);
+    // CONTROL — the SPACE spelling of the same column 4. Found on every build.
+    expect(
+      names(doc("Intro sentence with a live reference[^n1].", "", "- alpha", "  - bravo",
+                "    bravo body", "", "    [^n1]: note body", "",
+                "        Probe Title", "        ===", "", "Tail sentence.")),
+    ).toEqual(["h1:Probe Title"]);
+  });
+});
