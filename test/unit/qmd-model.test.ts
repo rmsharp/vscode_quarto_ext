@@ -4970,4 +4970,129 @@ describe("a setext TITLE may be MULTI-LINE under a CommonMark reader (Session 20
       ),
     ).toEqual(["h1:Mix Probe Title second wrapped line"]);
   });
+
+  // ⚠ LABELLED TEST-AFTER. Everything below pins behaviour this session MEASURED rather than
+  // behaviour it drove: the four cycles above are the RED->GREEN record. Every document here
+  // was rendered on ITS OWN BYTES as `scratchpad/s203/pins` (18 documents) before the
+  // assertion was written — S202's gotcha 9, after two near-twin pins behaved differently
+  // from the grid rows they resembled.
+  it("pins the reader keying, the guard's edges and the disclosed residuals", () => {
+    // ── FAMILY B — the reader keying is Session 202's allowlist, inherited UNCHANGED.
+    // A row this session must not widen: the join is CommonMark-only, and two readers that
+    // look like they should get it do not.
+    const two = (from: string, ...body: string[]) =>
+      names(doc("---", `from: ${from}`, "---", "", ...body, "===================="));
+    expect(two("markdown_strict", "Pin Strict Title", "second line")).toEqual([]); // `b_strict`
+    expect(two("markdown_github", "Pin Github Title", "second line")).toEqual([]); // `b_github`
+    // ⚠ `markdown_github` is pandoc's DEPRECATED SYNONYM for gfm and behaves like `markdown`
+    // (Learning #313, measured again here) — a pattern-shaped classifier would join it.
+    expect(two("gfm+footnotes", "Pin Ext Title", "second line")) //                  `b_gfm_ext`
+      .toEqual(["h1:Pin Ext Title second line"]);
+    // A `from:` inside a YAML BLOCK SCALAR is prose, not a reader — Session 202's column-0
+    // anchor, still holding with a multi-line title below it (`b_abstract`).
+    expect(
+      names(
+        doc(
+          "---",
+          'title: "Pin Abstract"',
+          "abstract: |",
+          "  A survey of documents whose metadata was taken",
+          "  from: gfm sources published last year.",
+          "---",
+          "",
+          "Pin Abstract Title",
+          "second line",
+          "====================",
+        ),
+      ),
+    ).toEqual([]);
+
+    // ── FAMILY C — the guard's measured edges, each a place where the obvious rule is wrong.
+    // An ordered item interrupts ONLY at the number 1 (`c_ord1` renders nothing, and the
+    // `c_ord2` twin below is quarto's own counter-example — see FAMILY D for why we decline
+    // it anyway).
+    expect(two("gfm", "Pin Ord One Title", "1. an interrupting item")).toEqual([]);
+    // `#x` with no space is NOT an ATX heading under gfm, so it is ordinary title text.
+    expect(two("gfm", "Pin Hash Title", "#nospace is not a heading")) //       `c_hash_nospace`
+      .toEqual(["h1:Pin Hash Title #nospace is not a heading"]);
+    // ⚠ A GFM TABLE DOES NOT INTERRUPT A PARAGRAPH — with its delimiter row and all — which is
+    // why `|` is absent from the interrupt list even though `OPENS_FRESH_BLOCK` carries it
+    // (`c_table`). Measured, not reasoned: `scratchpad/s203/unc` — `u_gfm_pipe_delim`.
+    expect(two("gfm", "Pin Table Title", "| a | b |", "|---|---|")) //                 `c_table`
+      .toEqual(["h1:Pin Table Title | a | b | |---|---|"]);
+    // At CODE DEPTH nothing interrupts — a bullet four columns in is title text (`c_code_depth`).
+    expect(two("gfm", "Pin Depth Title", "    - four spaces is code depth"))
+      .toEqual(["h1:Pin Depth Title - four spaces is code depth"]);
+    // A fence does interrupt, at any length and either char (`c_fence`).
+    expect(two("gfm", "Pin Fence Title", "```")).toEqual([]);
+
+    // ── FAMILY D — the DISCLOSED RESIDUALS, each with the control that proves its provenance.
+    // (1) The broad `<` costs a `<span>` the reader would have joined (`d_span`). It is the
+    //     deny-by-default rule paying for itself: `<!DOCTYPE`, `<?php` and `<![CDATA[` are all
+    //     measured interrupts, and enumerating tags to admit `<span>` puts a FABRICATION one
+    //     unlisted spelling away. ⚠ The pre-session build reported nothing here either, so
+    //     this residual costs nothing AGAINST THAT BUILD — it is a heading not yet recovered,
+    //     not a heading lost.
+    expect(two("gfm", "Pin Span Title", "<span>inline</span> tail")).toEqual([]);
+    // (2) An ordered marker other than 1, and an EMPTY `1.`, are joined by quarto and declined
+    //     here — but NOT by this row's guard. The marker pushes a container content column, so
+    //     Session 202's column rule refuses the underline at column 0 before the guard is even
+    //     reached. That is the FILED container-stack item, and the CONTROL is that the
+    //     pre-session build reports the identical nothing (`c_ord2`, `c_empty_dash_ord`).
+    expect(two("gfm", "Pin Ord Title", "2. not a one so may not interrupt")).toEqual([]);
+    expect(two("gfm", "Pin Empty Ord Title", "1.")).toEqual([]);
+    // (3) `gfm` has no `header_attributes`, so quarto keeps `{#sec-…}` LITERALLY in the text
+    //     where we strip it and index the id. ⚠ PROVEN PRE-EXISTING through TWO controls this
+    //     session never touches: the SOLO setext title (`d_attr_solo`, one line, identical on
+    //     the pre-session build) and the ATX row (`scratchpad/s203/ctl` — `attr_atx`, likewise
+    //     identical). Already filed by Session 202; this is a new SHAPE of it, not a new
+    //     defect.
+    expect(names(doc("---", "from: gfm", "---", "", "Pin Attr Solo {#sec-pin-attr}", "====")))
+      .toEqual(["h1:Pin Attr Solo"]); // quarto: `h1:Pin Attr Solo {#sec-pin-attr}`
+    expect(two("gfm", "Pin Attr Pair", "second line {#sec-pin-pair}"))
+      .toEqual(["h1:Pin Attr Pair second line"]); // quarto keeps the braces — same family
+    // (4) A LONE indented line under a CommonMark reader is still reported as a title, and
+    //     quarto renders none there (`d_code_run1`). PRE-EXISTING and out of this row's scope:
+    //     it is the question of whether indented code can be a title AT ALL, not of how many
+    //     lines it may be. The CONTROL is the `markdown` twin (`d_code_run1_md`), which quarto
+    //     really does render as `h1:pin code alpha` — so the default reader is right and only
+    //     the CommonMark one is wrong.
+    expect(names(doc("---", "from: gfm", "---", "", "    pin code alpha", "===="))).toEqual([
+      "h1:pin code alpha",
+    ]); // quarto: NO heading — pre-build errs identically
+    expect(names(doc("---", "from: markdown", "---", "", "    pin code alpha", "===="))).toEqual([
+      "h1:pin code alpha",
+    ]); // quarto: h1:pin code alpha — the control, and we agree
+
+    // ── FAMILY E — the CONSUMER. A multi-line heading's `line` is the FIRST title line, which
+    // is what `buildOutline`'s section spans read (`e_span`, and the outline VIEW was checked
+    // rather than only the heading list).
+    const outline = buildOutline(
+      doc(
+        "---",
+        "from: gfm",
+        "---",
+        "",
+        "Pin Outline Alpha",
+        "second line of alpha",
+        "====================",
+        "",
+        "Body of alpha.",
+      ),
+    );
+    expect(outline).toEqual([
+      {
+        kind: "heading",
+        name: "Pin Outline Alpha second line of alpha",
+        level: 1,
+        // 4 is the FIRST title line (`Pin Outline Alpha`), NOT the underline and not the
+        // second title line — that is what makes the section span start where the heading's
+        // text starts, uniformly with an ATX heading. 9 is the document's trailing line.
+        startLine: 4,
+        endLine: 9,
+        selectionLine: 4,
+        children: [],
+      },
+    ]);
+  });
 });
