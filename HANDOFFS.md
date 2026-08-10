@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S199
+date: 2026-08-09
+status: pending
+active_task: IMPLEMENTATION (strict TDD) -- ATX_HEADING's own literal ` {0,3}` cap. The row is /^ {0,3}(#{1,6})[ \t]+(.+)$/, a CommonMark tolerance measured from SOURCE column 0, so inside a container whose content begins at column 4 it refuses the heading quarto renders there and after a block at column 4+ it accepts one quarto does not. Simultaneously TOO NARROW and TOO WIDE. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S198's ranked #1 (which MEASURED it as 66 of its 78 residual losses), S197's #4, S196's #3. The item IS filed in BACKLOG.md, verified by grep at Phase 0, so Learning #288 does not fire. IN: ATX_HEADING:94 and its single call site computeRegions:1866. OUT: FENCE_OPEN's cap (a second capability, FM #26), BULLET_LIST_MARKER's cap, the bare-## rows in CLOSES_PARAGRAPH:758 and OPENS_FRESH_BLOCK:1069 (same bytes, different question, opposite polarity), and pandoc's rawTeXBlock whitespace-swallow rule.
+```
+
+```handoff
 session: S198
 date: 2026-08-09
 status: complete
