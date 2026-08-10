@@ -4072,20 +4072,20 @@ describe("a SETEXT UNDERLINE's own indent is a COLUMN too, so a TAB can reach on
       names(doc("Intro.", "", "-   line one", "", "    - marker title", "\t===")),
     ).toEqual(["h1:- marker title"]); // quarto: h1:marker title — the marker is stripped
 
-    // ── FAMILY C — BY-CATCH, and it is a LOSS rather than a phantom: a fenced code block at a
-    // container's content column is not recognised as a fence at all, because `FENCE_OPEN`
-    // carries the same literal ` {0,3}` cap and is not container-relative. The title after its
-    // closer is therefore never at `consecutiveBody === 1`. ⚠ PROVEN INDEPENDENT OF THIS
-    // CHANGE BY CONTROL, in all spaces: the identical document with the underline written as
-    // four SPACES loses the same heading, on this build and on the pre-session build, and the
-    // same document at top level finds it on both.
+    // ── FAMILY C — CLOSED IN PLACE BY SESSION 200, which made both fence rows
+    // container-relative. It was BY-CATCH here and a LOSS rather than a phantom: a fenced code
+    // block at a container's content column was not recognised as a fence at all, because
+    // `FENCE_OPEN` carried the same literal ` {0,3}` cap, so the title after its closer was
+    // never at `consecutiveBody === 1`. RE-RENDERED on these exact bytes before the flip
+    // (`scratchpad/s200/pins`): quarto emits `h1:Title After Fence` in the space spelling, the
+    // tab spelling and the top-level control alike.
     expect(
       names(doc("Intro.", "", "-   line one", "", "    ```", "    code", "    ```",
                 "    Title After Fence", "    ===")),
-    ).toEqual([]); // quarto: h1:Title After Fence — a LOST heading, the space spelling
+    ).toEqual(["h1:Title After Fence"]); // quarto agrees exactly — recovered by Session 200
     expect(
       names(doc("Intro.", "", "```", "code", "```", "Title After Fence", "===")),
-    ).toEqual(["h1:Title After Fence"]); // CONTROL — the same shape at top level is found
+    ).toEqual(["h1:Title After Fence"]); // CONTROL — the same shape at top level, found on both builds
 
     // ── FAMILY D — THE LOSS MECHANISM THE BLIND SWEEP FOUND, and the only one of these that
     // costs a real heading. When a run IS consumed as an underline the scanner `continue`s,
@@ -4403,5 +4403,24 @@ describe("an ATX heading's own indent is a COLUMN EQUALITY, not a ` {0,3}` cap (
     expect(
       names(doc("Intro paragraph.", "", " # Indented Heading Above", "===", "", "Body tail.")),
     ).toEqual(["h1:# Indented Heading Above"]); // quarto agrees exactly — recovered by this change
+  });
+});
+
+describe("a FENCE's own indent is CONTAINER-RELATIVE, not a ` {0,3}` cap (Session 200)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: a fence at a container's content column IS a fence, so the title below its closer is a heading", () => {
+    // Session 197's FAMILY C, closed in place. RE-RENDERED on these exact bytes before being
+    // flipped (`scratchpad/s200/pins`): quarto emits `h1:Title After Fence` here, in the space
+    // spelling AND the tab spelling, and the pin's comment was right.
+    //
+    // The fence is never recognised, so its three lines are ordinary paragraph text, the title
+    // is line four of a paragraph that opened at the fence, and `consecutiveBody === 1` is
+    // never true when the underline arrives. The heading is DELETED.
+    expect(
+      names(doc("Intro.", "", "-   line one", "", "    ```", "    code", "    ```",
+                "    Title After Fence", "    ===")),
+    ).toEqual(["h1:Title After Fence"]);
   });
 });

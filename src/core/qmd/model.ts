@@ -1116,11 +1116,25 @@ function indentColumn(line: string): number {
   }
   return col;
 }
-function indentedCodeLine(line: string, columns: readonly number[] | null): boolean {
-  if (BLANK_LINE.test(line)) {
-    return false; // whitespace only — the old row's `\S` requirement, kept
-  }
-  const col = indentColumn(line);
+/**
+ * Whether `col` is four or more columns past the content column of the innermost open block
+ * that could still contain it — i.e. whether a line at that column is INDENTED CODE.
+ *
+ * Extracted from `indentedCodeLine` by Session 200 so the fence rows can ask the question of
+ * a bare COLUMN rather than of a line: `buildCloserIndex` has to enumerate the columns a
+ * closer would be accepted at, and there is no line to hand it. One definition, so the
+ * "where does code start" rule cannot drift between the row that reads it off a line and the
+ * row that enumerates it (Learning #14).
+ *
+ * `base` is the DEEPEST open column not exceeding `col`, so the accepted region is the UNION
+ * of `[c, c+3]` over the open stack rather than the single span `[0, max+3]`. The two differ
+ * only when consecutive open columns are more than four apart — a `- ` with four spaces after
+ * it opens content at column 5, leaving a hole at column 4 — and `scratchpad/s200/ax`'s `gap`
+ * rows measure that hole as REJECTED. ⚠ Those rows do not by themselves refute the `[0,
+ * max+3]` reading, because the container pops before the shallow line is read and both
+ * readings then agree; they are recorded as consistent-with, not as a discriminator.
+ */
+function columnIsCodeDepth(col: number, columns: readonly number[] | null): boolean {
   let base = 0;
   if (columns !== null) {
     for (const c of columns) {
@@ -1130,6 +1144,12 @@ function indentedCodeLine(line: string, columns: readonly number[] | null): bool
     }
   }
   return col >= base + 4;
+}
+function indentedCodeLine(line: string, columns: readonly number[] | null): boolean {
+  if (BLANK_LINE.test(line)) {
+    return false; // whitespace only — the old row's `\S` requirement, kept
+  }
+  return columnIsCodeDepth(indentColumn(line), columns);
 }
 /**
  * Lines that begin a FRESH BLOCK, so the line *below* them starts a new paragraph
@@ -1308,14 +1328,17 @@ function opensFreshBlock(
   );
 }
 /**
- * A fence opener: up to 3 spaces of indentation (CommonMark §4.5 — 4+ spaces is
- * indented code, not a fence), then ≥3 of ONE fence char (backtick or tilde),
- * then anything. Capturing the char lets the scanner require the closer to use
- * the same char, so a backtick run can't close a tilde block and vice versa.
- * The 0–3 cap matches the ATX heading rule so the two never disagree on what
- * counts as indented code. Shared with cell detection below.
+ * A fence opener: leading whitespace of EITHER KIND, then ≥3 of ONE fence char (backtick or
+ * tilde), then anything. Capturing the char lets the scanner require the closer to use the
+ * same char, so a backtick run can't close a tilde block and vice versa. Shared with cell
+ * detection below.
+ *
+ * ⚠ **The leading class is NOT the fence rule and this regex does not decide the indent —
+ * `fenceMatchAt` below does, against the enclosing block's content column.** Until Session
+ * 200 the class was CommonMark §4.5's ` {0,3}`, a tolerance measured from SOURCE column 0,
+ * which inside a container refused the fence quarto builds there.
  */
-const FENCE_OPEN = /^ {0,3}(([`~])\2{2,})(.*)$/;
+const FENCE_OPEN = /^[ \t]*(([`~])\2{2,})(.*)$/;
 /**
  * Quarto's OWN cell opener, whose leading whitespace is **unbounded** — `^\s*`, tabs
  * included — where CommonMark's fence rule, and so `FENCE_OPEN` above, caps it at 3
@@ -1331,8 +1354,12 @@ const FENCE_OPEN = /^ {0,3}(([`~])\2{2,})(.*)$/;
  * string parses as a cell. See `CELL_FENCE_CLOSE` for the matching closer rule.
  */
 const INDENTED_CELL_FENCE_OPEN = /^\s*((`)\2{2,})(.*)$/;
-/** A closing fence: 0–3 spaces, ≥3 of one fence char only, optional trailing space. */
-const FENCE_CLOSE = /^ {0,3}(([`~])\2{2,})[ \t]*$/;
+/**
+ * A closing fence: leading whitespace of either kind, ≥3 of one fence char only, optional
+ * trailing space. Its indent is decided by `fenceMatchAt` exactly as the opener's is, and
+ * against the SAME column stack — measured, not assumed to match the opener's own column.
+ */
+const FENCE_CLOSE = /^[ \t]*(([`~])\2{2,})[ \t]*$/;
 /**
  * Quarto's `endCodeRegEx` — the same closer with UNBOUNDED leading whitespace. Used only
  * for a fence that opened as a CELL, so a plain fence keeps CommonMark's 0–3 cap exactly
@@ -1343,6 +1370,58 @@ const FENCE_CLOSE = /^ {0,3}(([`~])\2{2,})[ \t]*$/;
  * document — which is how this session's FIRST pin went green for the wrong reason.
  */
 const CELL_FENCE_CLOSE = /^\s*(([`~])\2{2,})[ \t]*$/;
+/**
+ * A PLAIN fence match on `line` — opener or closer — or null if these bytes are not a fence
+ * HERE (Session 200). `columns` is `[0, ...contentColumns]`, the same array the ATX heading,
+ * the setext underline and the raw-TeX row read.
+ *
+ * ⚠ **The rule is a TOLERANCE relative to the enclosing block's content column, and that is
+ * NOT what Session 199 measured one line of markup away.** An ATX heading's indent is an
+ * EQUALITY — quarto's pandoc gives it no leading-space slack at all — while a fence keeps
+ * CommonMark §4.5's 0-3 slack and merely measures it from the container rather than from
+ * source column 0. Two adjacent rows, two different answers; the ATX result was deliberately
+ * NOT generalised here (S199's own gotcha 1). Measured over a 96-document grid
+ * (`scratchpad/s200/gnd`, 8 container shapes x 12 indents, every one quarto exit 0):
+ *
+ *   top            (col 0)   fence at 0-3, not 4      `<pre class="qqq">` vs `<pre><code>`
+ *   - x            (col 2)   fence at 0-5, not 6
+ *   1. x           (col 3)   fence at 0-6, not 7
+ *   -   x          (col 4)   fence at 0-7, not 8
+ *   - a / ⎵⎵- b    (col 4)   fence at 0-7, not 8
+ *   three-deep     (col 6)   fence at 0-9, not 10
+ *   footnote body  (col 4)   fence at 0-7, not 8      — and a definition body identically
+ *
+ * That is exactly the complement of `indentedCodeLine`: a fence is a fence wherever the line
+ * is not indented CODE. So the rule is not re-derived here — it reuses the one predicate, and
+ * the depth at which a line becomes code and the depth at which a fence stops being a fence
+ * can never drift apart. The same reuse the container-opener guard already relies on.
+ *
+ * ⚠ **The observable had to be the INFO STRING, not `<pre>`.** An unrecognised fence at
+ * indent 4+ is an indented code block, which renders `<pre><code>` exactly as a recognised
+ * one does and emits no heading either — so neither `<pre>` nor the heading set can tell the
+ * two apart. A recognised fence puts its info string in a CLASS; an unrecognised one leaves
+ * the literal backticks in the code TEXT.
+ *
+ * ⚠ **There is deliberately NO `null` SUSPENSION HERE.** The obvious shape — a sentinel that
+ * returns the bare match — would now mean "any indent whatsoever", because the regexes above
+ * widened to `[ \t]*` in the same commit. That is Session 199's Learning #301 exactly: a
+ * `null` fail-safe is relative to its fallback, and it fabricated five headings there when
+ * the fallback moved underneath it. Every caller passes a real column set.
+ *
+ * ⚠ **`\s` vs `[ \t]` is a real distinction on the CELL rows and is left alone.** Session 178
+ * measured a FORM FEED, a VERTICAL TAB and a NO-BREAK SPACE each opening a cell, which is why
+ * `INDENTED_CELL_FENCE_OPEN` and `CELL_FENCE_CLOSE` keep `\s`. Those rows carry quarto's own
+ * indentation-blind cell partitioner and are NOT container-relative; this row governs the
+ * PLAIN fence only, and S178's deliberate asymmetry between the two survives unchanged.
+ */
+function fenceMatchAt(
+  re: RegExp,
+  line: string,
+  columns: readonly number[],
+): RegExpExecArray | null {
+  const m = re.exec(line);
+  return m !== null && !columnIsCodeDepth(indentColumn(line), columns) ? m : null;
+}
 /** The `---` line that opens a YAML front-matter block — only valid at line 0. */
 const FRONTMATTER_OPEN = /^---[ \t]*$/;
 /** A YAML front-matter terminator: `---` or `...` (YAML's document-end marker). */
@@ -1446,6 +1525,19 @@ interface OpenCellFence extends OpenFence {
   readonly isCell: boolean;
   readonly lang: string;
   readonly startLine: number;
+  /**
+   * The column stack in force where this fence OPENED, carried so the closer is judged
+   * against the same containers the opener was (Session 200).
+   *
+   * ⚠ Carrying it is not a convenience — it is the only place the stack is still available.
+   * While a fence is open the scanner `continue`s ABOVE the container-maintenance block, so
+   * `contentColumns` is frozen for the whole region and is never recomputed for the closer's
+   * own line. Measured: quarto accepts a closer at any non-code column of the OPENER's
+   * containers and does NOT require it to match the opener's own column — a fence opened at
+   * column 7 inside `-   item` closes at 0 through 7 alike, and refuses at 8
+   * (`scratchpad/s200/cls`, 72 documents, opener column x closer column).
+   */
+  readonly columns: readonly number[];
 }
 
 /** A document line that is live content — outside front matter, comments, and code fences. */
@@ -1878,7 +1970,8 @@ function computeRegions(text: string): Regions {
     // When CommonMark's 0–3-space rule declines, quarto's unbounded CELL opener gets a
     // second look — but ONLY when the info string really is a cell, so a plain fence
     // keeps the CommonMark cap (Session 178).
-    const plainFence = FENCE_OPEN.exec(line);
+    const fenceColumns = [0, ...contentColumns];
+    const plainFence = fenceMatchAt(FENCE_OPEN, line, fenceColumns);
     const fence = plainFence ?? indentedCellFenceAt(line);
     if (fence) {
       const char = fence[2];
@@ -1889,6 +1982,7 @@ function computeRegions(text: string): Regions {
         isCell: info !== null,
         lang: info ? info[1] : "",
         startLine: i,
+        columns: fenceColumns,
       };
       // A FENCE OPENS ONLY IF IT IS CLOSED BELOW — both kinds, for two different measured
       // reasons that happen to agree (Session 179; Session 178 applied this test to
@@ -2676,7 +2770,9 @@ function indentedCellFenceAt(line: string): RegExpExecArray | null {
  * into one comparison reintroduces one of the two measured cardinal false positives.
  */
 function isCloser(line: string, open: OpenCellFence): boolean {
-  const m = (open.isCell ? CELL_FENCE_CLOSE : FENCE_CLOSE).exec(line);
+  const m = open.isCell
+    ? CELL_FENCE_CLOSE.exec(line)
+    : fenceMatchAt(FENCE_CLOSE, line, open.columns);
   if (m === null || m[2] !== open.char) {
     return false;
   }
@@ -2721,9 +2817,23 @@ function buildCloserIndex(lines: readonly string[]): Map<string, number[]> {
     // A plain fence closes on any run at least as long, so this line is a candidate closer
     // for every shorter opener too. Fence runs are ≥3 and openers longer than this line's
     // run can never be closed by it, so the loop is bounded by the run's own length.
+    //
+    // ⚠ THE PLAIN KEY CARRIES THE CLOSER'S COLUMN (Session 200), because whether a run at
+    // that column really closes anything depends on the CONTAINER STACK — state this pre-pass
+    // does not have and cannot get: it runs once, before the scan, at `computeRegions`'s top.
+    // Keying by column lets `hasCloserBelow` ask the exact question later, when the opener's
+    // frozen stack IS known, instead of guessing here.
+    //
+    // ⚠ The obvious cheaper shape — index every run and let `isCloser` reject the bad columns
+    // during the scan — is WRONG IN THE HEADING-DELETING DIRECTION, which is why it was not
+    // taken. An over-accepting lookahead opens a fence whose only candidate closers sit at
+    // code depth; `isCloser` then never fires, the region runs to end of document, and every
+    // heading below it is swallowed. Quarto renders those documents as ordinary paragraphs
+    // with their headings intact (measured: `scratchpad/s200/ax`, `unt_b4_i04`).
     if (FENCE_CLOSE.test(lines[i])) {
+      const col = indentColumn(lines[i]);
       for (let n = 3; n <= len; n++) {
-        push(`p|${char}|${n}`, i);
+        push(`p|${char}|${n}|${col}`, i);
       }
     }
   }
@@ -2742,11 +2852,31 @@ function buildCloserIndex(lines: readonly string[]): Map<string, number[]> {
  * indent) with every row measured against `quarto pandoc -f markdown`.
  */
 function hasCloserBelow(index: Map<string, number[]>, from: number, open: OpenCellFence): boolean {
-  const bucket = index.get(`${open.isCell ? "c" : "p"}|${open.char}|${open.len}`);
+  if (open.isCell) {
+    return bucketReaches(index.get(`c|${open.char}|${open.len}`), from);
+  }
+  // A plain closer is accepted at every column that is not code depth for the OPENER's frozen
+  // stack — the same predicate `fenceMatchAt` applies to the line itself, asked here of bare
+  // columns because the pre-pass had no line to hand. Beyond `max + 3` every column is code,
+  // so the enumeration terminates at the deepest open container rather than at the document's
+  // widest line; the set is the union of `[c, c+3]` over the stack and can have holes in it.
+  const deepest = Math.max(...open.columns);
+  for (let col = 0; col <= deepest + 3; col++) {
+    if (columnIsCodeDepth(col, open.columns)) {
+      continue;
+    }
+    if (bucketReaches(index.get(`p|${open.char}|${open.len}|${col}`), from)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Whether `bucket` holds a line at or below `from` — binary search; buckets are ascending. */
+function bucketReaches(bucket: number[] | undefined, from: number): boolean {
   if (bucket === undefined) {
     return false;
   }
-  // First entry ≥ `from`, by binary search — the buckets are built in ascending order.
   let lo = 0;
   let hi = bucket.length;
   while (lo < hi) {
