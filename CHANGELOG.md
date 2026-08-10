@@ -7,6 +7,53 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 203 — a setext TITLE is the WHOLE OPEN PARAGRAPH under a CommonMark reader (SHIPPED)
+
+`consecutiveBody === 1` gated the setext underline unconditionally, so a title could be exactly
+one line under every reader. Quarto's default reader really does admit exactly one; a
+CommonMark-family reader (`gfm`, `commonmark`, `commonmark_x`) admits the WHOLE open paragraph,
+all its lines trimmed and joined with single spaces, in every container and with no cap.
+
+⚠ The filed item named no fix — it stated that the counter is dialect-blind and stopped. The
+join itself was ONE RED→GREEN cycle; the other NINE were GUARDS against fabrications the item
+never mentions. An indented code RUN already sits at `consecutiveBody === 2`, so admitting the
+whole paragraph promotes CODE to a heading. A construct that INTERRUPTS a paragraph stitches a
+title out of two different blocks. A FENCE can OPEN the run — reachable precisely because an
+unclosed fence is deliberately not treated as a region (Session 179). `(1)` is a list under
+`commonmark_x` and plain text everywhere else.
+
+Two new block-classification lists were added, and the DEFAULT of each is the inverse of its
+neighbour's: `COMMONMARK_PARAGRAPH_INTERRUPT` declines a title when a pattern is present (a
+residual) and fabricates when one is missing, so it is "when in doubt, put it in" — the exact
+opposite of `OPENS_FRESH_BLOCK` six lines above it. `COMMONMARK_RUN_OPENS_BLOCK` is a separate
+FIRST-line list, because a bullet or ordered marker opens a run whose content IS a paragraph.
+
+Four measured edges, none guessed: `1. x` interrupts and `2. x` does not; `- x` interrupts and a
+bare `-` does not; `# x` interrupts and `#x` does not; and a GFM table does not interrupt a
+paragraph with or without its delimiter row.
+
+TEN RED→GREEN cycles. SIX closed fabrications this change itself introduced — three found by
+BLIND adversarial lenses that had seen none of the designed corpora, three by the session's own
+completeness pass.
+
+MEASURED: 484 documents rendered through the real `quarto render` path, quarto 1.7.33 — 366
+designed + 118 blind (+2 excluded, quarto exit 1). Designed agreeing 229 → 324. Blind agreeing
+34 → 69. Per-error adjudication against the pre-session build on identical bytes: INTRODUCED 0,
+REACHABLE 29, CARRIED 62, FIXED 130. The two remaining root causes — a definition body's
+container column and an HTML-block opener releasing the line below it — are proven PRE-EXISTING
+through the ATX row, a consumer this session never touches, and filed. That control also
+CORRECTS what Session 202 filed: the definition column is wrong under all four readers, not the
+two the item named.
+
+Verification: check-types 0 · compile 0 · compile-tests 0 · npm test 1828 passed / 66 files ·
+test:oracle 131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated (byte-identical to
+S180–S202) · test:integration 510 passing / 0 failing / exit 0 · check-package OK 42 files /
+5.53 MB · check-backlog OK 123 open items. Repo control: all 115 tracked markdown-family
+documents byte-identical across all four views, proven effective by injection against the final
+build. Not run: test:lsp — no LSP surface touched.
+
+- **Model:** Claude Opus 5
+
 ### 2026-08-10 · [ad hoc] Session 202 — a setext underline's column is DIALECT-DEPENDENT (SHIPPED)
 
 `setextUnderlineLevel` was handed `[0, ...contentColumns]` unconditionally and had no
