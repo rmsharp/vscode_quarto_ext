@@ -1624,6 +1624,8 @@ const COMMONMARK_PARAGRAPH_INTERRUPT: readonly RegExp[] = [
   /^[ \t]*((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/, // a thematic break
   /^[ \t]*[-*+][ \t]+\S/, //                               a NON-EMPTY bullet item
   /^[ \t]*1[.)][ \t]+\S/, //                               a non-empty ordered item, AT 1 ONLY
+  /^[ \t]*\(1\)[ \t]+\S/, //                               pandoc's PAREN-WRAPPED one, likewise
+  /^[ \t]*:{3,}[ \t]*\S/, //                               a fenced div WITH an attribute
   /^[ \t]*</, //                                           any HTML-ish opener — see above
   /^[ \t]*\[\^[^\]]*\]:/, //                               a footnote definition
 ];
@@ -1647,6 +1649,45 @@ function commonmarkParagraphInterrupt(
   }
   return COMMONMARK_PARAGRAPH_INTERRUPT.some((re) => re.test(line));
 }
+/**
+ * A line that OPENS a block whose content is not a paragraph, for the FIRST line of a body run
+ * — the multi-line setext title below may not start on one (Session 203).
+ *
+ * ⚠ **This is a different question from `COMMONMARK_PARAGRAPH_INTERRUPT` above, and the
+ * difference is the whole reason it is a separate list: on the first line a construct OPENS the
+ * run rather than interrupting it, and some constructs open a run whose content IS a
+ * paragraph.** A BULLET or ORDERED marker is exactly that — `- First Bul One` / `  First Bul
+ * Two` / `  ===` renders `h1:First Bul One First Bul Two`, marker stripped, and the ordered
+ * spelling answers identically (measured, `scratchpad/s203/first` — `f_gfm_bullet`,
+ * `f_gfm_ord1`). Testing the first line with the interrupt list would delete both.
+ *
+ * A FENCE, an HTML block and a block quote open a run whose content is not a paragraph at all,
+ * and all three render NO heading (`f_gfm_fence`, `f_gfm_fence_info`, `f_gfm_html`,
+ * `f_gfm_quote`). The indented code line is the fourth member and is tested separately, by
+ * `indentedCodeLine`, because it needs the container's content column.
+ *
+ * ⚠ Found by a BLIND adversarial lens (`scratchpad/s203/adv/code` — `code_06`) after 279 of
+ * this session's own designed documents had scored clean on it, which is the seventh session
+ * running that a designed corpus was not enough. The path there is worth keeping: an UNCLOSED
+ * fence has no closer, so this scanner deliberately declines to open a region for it (Session
+ * 179) and the fence line falls through to ordinary body — which is precisely what made it the
+ * first line of a run. A construct this file goes out of its way NOT to treat as a block is the
+ * one most likely to turn up where a block is not expected.
+ *
+ * A DEFINITION-BODY marker (`:` + a space) is the fifth member, and it earns its place from
+ * the OPPOSITE direction: this model pushes a container content column for one, which is what
+ * makes an underline four columns in acceptable at all, and quarto renders no heading there
+ * under gfm, commonmark OR commonmark_x. The column is wrong and is the FILED container-stack
+ * item — proven pre-existing through the ATX row in every reader (`scratchpad/s203/ctl2` —
+ * `defcol_atx_gfm`, `_cmx`, `_md`) and deliberately not narrowed, because Session 202 measured
+ * that narrowing WORSE. What is closed here is only the new fabrication the join would add.
+ *
+ * A THEMATIC BREAK and a LINK-REFERENCE DEFINITION are deliberately absent: both are already in
+ * `OPENS_FRESH_BLOCK`, so the run restarts on the line BELOW them and they can never be a run's
+ * first line. Measured to confirm rather than assumed (`f_gfm_tbreak`, `f_gfm_linkref` — quarto
+ * starts the paragraph below them too, and this model already agrees).
+ */
+const COMMONMARK_RUN_OPENS_BLOCK = /^[ \t]*(`{3,}|~{3,}|<|>|:[ \t])/;
 /**
  * A fence opener: leading whitespace of EITHER KIND, then ≥3 of ONE fence char (backtick or
  * tilde), then anything. Capturing the char lets the scanner require the closer to use the
@@ -2086,11 +2127,17 @@ function computeRegions(text: string): Regions {
   // Whether the line above was an indented code line, so a run of 2+ can be told from a
   // lone indented line. Same reasoning as above for why the resets need not clear it.
   let prevIndentedCode = false;
-  // Whether the body run this line belongs to STARTED on an indented code line — decided by
-  // the run's FIRST line and then carried, because indented code cannot INTERRUPT an open
+  // Whether the line above was an HTML-BLOCK opener. Read only by the multi-line setext title
+  // below, and only under a CommonMark reader, where such a block runs to the next blank line
+  // instead of releasing the line under it as a fresh paragraph (Session 203).
+  let prevOpenedHtmlBlock = false;
+  // Whether the body run this line belongs to was OPENED by a construct whose content is not a
+  // paragraph — an indented code line, a fence, an HTML block or a block quote. Decided by the
+  // run's FIRST line and then carried, because such a construct cannot INTERRUPT an open
   // paragraph while it can certainly START a block (Session 203). It bounds the multi-line
   // title below; it needs no clearing at the resets for the same reason as the two above.
-  let bodyRunIsIndentedCode = false;
+  // See `COMMONMARK_RUN_OPENS_BLOCK` for why this is NOT the interrupt list.
+  let bodyRunOpensNonParagraph = false;
   // The content column of every CONTAINER open above this line, ascending, EXCLUDING the
   // document root's own 0 which is always available (Session 189). This is the state the
   // raw-TeX row's ` {0,3}` was standing in for: pandoc re-parses a container's content
@@ -2444,7 +2491,7 @@ function computeRegions(text: string): Regions {
     // paragraph (Session 203).
     const defaultTitleLineCount = consecutiveBody === 1 ? 1 : 0;
     const wholeParagraph =
-      commonmarkDialect && !bodyRunIsIndentedCode ? consecutiveBody : defaultTitleLineCount;
+      commonmarkDialect && !bodyRunOpensNonParagraph ? consecutiveBody : defaultTitleLineCount;
     // Every line the join would swallow BELOW the first has to be an ordinary continuation:
     // a construct that interrupts the paragraph ends the title above it, and stitching across
     // one fabricates a heading out of two different blocks — see
@@ -2505,7 +2552,17 @@ function computeRegions(text: string): Regions {
           // the default reader, which this row does not touch, and is filed rather than fixed.
           .map((t, k, all) => {
             const trimmed = t.trim();
-            return k === all.length - 1 ? trimmed : trimmed.replace(/\\$/, "").trim();
+            // ⚠ …and NOT when the line left a CODE SPAN open, where a `\` is ordinary content
+            // (measured under all three CommonMark readers, `scratchpad/s203/ext` — the
+            // `codespan` row; found by a blind lens, `adv/text` — `text_06`). An ODD number of
+            // backticks is a labelled HEURISTIC for "opened a span it did not close": exact for
+            // the measured shape, approximate for a doubled `` `` `` delimiter, and its failure
+            // direction is to KEEP a backslash — a text divergence in a rare shape rather than
+            // a heading gained or lost.
+            const opensCodeSpan = (trimmed.match(/`/g)?.length ?? 0) % 2 === 1;
+            return k === all.length - 1 || opensCodeSpan
+              ? trimmed
+              : trimmed.replace(/\\$/, "").trim();
           })
           .join(" "),
         prev.line,
@@ -2576,12 +2633,22 @@ function computeRegions(text: string): Regions {
       consecutiveBody = pendingFreshBlock && !insideIndentedCode ? 1 : consecutiveBody + 1;
       if (consecutiveBody === 1) {
         // The run STARTS here, so this line decides whether it is a paragraph at all — see
-        // `bodyRunIsIndentedCode`.
-        bodyRunIsIndentedCode = indented;
+        // `bodyRunOpensNonParagraph` and `COMMONMARK_RUN_OPENS_BLOCK`.
+        //
+        // ⚠ …and so does the line ABOVE it, for the ONE construct that makes the next line a
+        // fresh block without being one itself: an HTML-block opener. Under pandoc's own
+        // reader `<div>` / `Title` / `===` really does render a heading (Session 187, and that
+        // is why `HTML_BLOCK_OPEN` sits ahead of the `paragraphOpen` bail in `opensFreshBlock`
+        // above); under a CommonMark reader the block runs to the next BLANK line and swallows
+        // all three. Two readers, two rules — the same shape as the column rule, in a third
+        // place. Measured: `scratchpad/s203/first` — `f_gfm_html`.
+        bodyRunOpensNonParagraph =
+          indented || COMMONMARK_RUN_OPENS_BLOCK.test(line) || prevOpenedHtmlBlock;
       }
       // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
       // whether these bytes open a block or merely continue a paragraph depends on it.
       pendingFreshBlock = opensFreshBlock(line, paragraphOpen, rawTexColumns);
+      prevOpenedHtmlBlock = HTML_BLOCK_OPEN.test(line);
       prevIndentedCode = indented;
       // A paragraph's "quotedness" is decided by the line that STARTS it, so it is computed
       // only when no paragraph is open — see `closesParagraph`. Reading it here, before

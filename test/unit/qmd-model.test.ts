@@ -5095,4 +5095,180 @@ describe("a setext TITLE may be MULTI-LINE under a CommonMark reader (Session 20
       },
     ]);
   });
+
+  it("a run OPENED by a block construct is not a paragraph, so it may not be joined", () => {
+    // `scratchpad/s203/adv/code` — `code_06`, from a BLIND lens, rendered this session: an
+    // UNCLOSED fence has no closer, so this scanner declines to open a region for it (Session
+    // 179) and the fence line becomes ordinary body — which made it the FIRST line of the run
+    // my join then stitched together. Quarto renders ONE heading in that document; the
+    // pre-session build reported two and this change reported three.
+    //
+    // ⚠ The guard walks lines 2..n, so the run's FIRST line was never tested. It cannot simply
+    // be tested the same way: a BULLET or ORDERED marker on the first line opens a list item
+    // whose content IS a paragraph, and quarto joins those (measured, `scratchpad/s203/first`
+    // — `f_gfm_bullet` and `f_gfm_ord1` both render the joined text with the marker stripped).
+    // What may not open a joinable run is a construct whose content is not a paragraph at all:
+    // a fence, an HTML block, a block quote — and the indented code line already handled above.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: gfm",
+          "---",
+          "",
+          "```text",
+          "Cod Foxtrot inside unclosed fence",
+          "Cod Foxtrot fake title never closed",
+          "===",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("a PANDOC FANCY LIST interrupts too, and only the paren-wrapped ONE does", () => {
+    // `scratchpad/s203/adv/interrupt` — `interrupt_11`, from a BLIND lens: under
+    // `commonmark_x` a `(1)` item is a list and INTERRUPTS the paragraph, so quarto renders no
+    // heading and the join invented one. The 24-document `scratchpad/s203/ext` grid then
+    // separated it from its neighbours across three readers, and the answer is narrow:
+    //
+    //   `(1) x`  interrupts under commonmark_x ONLY — gfm and commonmark join it as text
+    //   `(a) x`  `a. x`  `i. x`  `#. x`   join under ALL THREE readers
+    //
+    // ⚠ So the entry is the paren-wrapped ONE and nothing else — the same "only the number 1"
+    // rule the bare `1.` spelling follows, which is CommonMark's, not an accident of pandoc's.
+    // The measured COST is a residual in the safe direction: under `gfm` and `commonmark` the
+    // same bytes render `h1:Ext Probe Title (1) an ordered item wrapped in parens third line`
+    // and this model now declines them (`x_gfm_paren1`, `x_commonmark_paren1`, both rendered).
+    // Deny-by-default: one fabrication removed under one reader costs one residual under two.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: commonmark_x",
+          "---",
+          "",
+          "Nijuuichi Intr Uniform",
+          "(1) an ordered item wrapped in parens",
+          "Nijuuni Intr Victor",
+          "---",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("a FENCED DIV with an attribute interrupts, and a bare `:::` does not", () => {
+    // `scratchpad/s203/adv/interrupt` — `interrupt_09`, from the same BLIND lens: under
+    // `commonmark_x` a `::: {.plainbox}` opener is a real fenced div and ENDS the paragraph, so
+    // quarto's heading is only the line BELOW it. We stitched the div's opener into the title.
+    //
+    // ⚠ The `scratchpad/s203/ext` grid separates the two spellings, and the split is not the
+    // one a reader of the source would guess: `::: {.plainbox}` interrupts under commonmark_x
+    // and is ordinary text under gfm and commonmark (`x_cmx_div` vs `x_gfm_div`,
+    // `x_commonmark_div`), while a BARE `:::` is ordinary text under ALL THREE, including
+    // commonmark_x (`x_cmx_div_bare` renders `h1:Ext Probe Title ::: third line`). Hence the
+    // trailing `\S`: three or more colons FOLLOWED BY CONTENT.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: commonmark_x",
+          "---",
+          "",
+          "Juunana Intr Quebec",
+          "::: {.plainbox}",
+          "Juuhachi Intr Romeo",
+          "---",
+          ":::",
+        ),
+      ),
+    ).toEqual([]); // quarto: h1:Juuhachi Intr Romeo — the filed div-container item owns that half
+  });
+
+  it("a trailing backslash inside a CODE SPAN is content, not a hard line break", () => {
+    // `scratchpad/s203/adv/text` — `text_06`, from a BLIND lens, and confirmed across all three
+    // CommonMark readers by `scratchpad/s203/ext` (`x_gfm_codespan`, `x_commonmark_codespan`,
+    // `x_cmx_codespan` — every one keeps the backslash). A code span may straddle the line
+    // break now that a title can, and inside one a `\` is ordinary content.
+    //
+    // ⚠ The guard is a HEURISTIC and is labelled one: the strip is skipped when the line holds
+    // an ODD number of backticks, i.e. it opened a span it did not close. That is exactly right
+    // for the measured shape and knowingly approximate for a span opened with a doubled `` `` ``
+    // delimiter. Its failure direction is to KEEP a backslash, which is a text divergence in a
+    // rare shape rather than a heading gained or lost.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: commonmark_x",
+          "---",
+          "",
+          "Txt06a code `alpha\\",
+          "beta  gamma` tail",
+          "===",
+        ),
+      ),
+      // ⚠ TWO spaces between `beta` and `gamma`, because this model reports the SOURCE
+      // text and the source has two. Quarto's rendered HTML collapses them, which is the
+      // pre-existing source-vs-rendered gap (Learning #310) and not this row's question --
+      // the scorer normalizes whitespace on BOTH sides and prints the verdicts it changed.
+    ).toEqual(["h1:Txt06a code `alpha\\ beta  gamma` tail"]);
+  });
+
+  it("the run BELOW an HTML block opener is inside the block, not a paragraph under it", () => {
+    // `scratchpad/s203/first` — `f_gfm_html`, my own completeness grid: under a CommonMark
+    // reader an HTML block runs to the next BLANK line, so `<div>` swallows both title lines
+    // and the underline, and quarto renders NO heading. This model treats an HTML-block opener
+    // as making the line below it a FRESH paragraph — measured and correct for pandoc's own
+    // reader (Session 187: `prose` / `<div>` / `Title` / `===` really does render `<h1>`) and
+    // wrong for this one, which is the same two-readers-two-rules shape as the column rule.
+    //
+    // ⚠ The ROOT CAUSE is PRE-EXISTING and is proven through the ATX row, a consumer this
+    // session never touches: `scratchpad/s203/ctl2` — `html_atx_gfm` is `<div>` / `# Ctl Html
+    // Heading`, where BOTH builds report `h1:Ctl Html Heading` and quarto renders none. What
+    // is closed here is only the NEW fabrication the join adds on top of it; the ATX half is
+    // filed, not fixed (Learning #315).
+    expect(
+      names(
+        doc(
+          "---",
+          "from: gfm",
+          "---",
+          "",
+          "<div>",
+          "First Html Second",
+          "third line",
+          "====================",
+        ),
+      ),
+    ).toEqual([]);
+  });
+
+  it("a DEFINITION-BODY marker does not open a joinable paragraph in any reader", () => {
+    // `scratchpad/s203/ctl2` — `defcol_setext_cmx`, and `scratchpad/s203/first` — `f_gfm_colon`.
+    // A `:   body` line pushes a container content column in this model, and that column is the
+    // reason the underline four columns in is accepted at all. Quarto renders NO heading for
+    // either document, under gfm, commonmark OR commonmark_x.
+    //
+    // ⚠ THE ROOT CAUSE IS THE COLUMN, NOT THE JOIN, AND IT IS PRE-EXISTING IN EVERY READER —
+    // proven through the ATX row, which this session never touches: `ctl2/defcol_atx_gfm`,
+    // `_cmx` and `_md` are all `:   Ctl Def One` / `    # Ctl Def Heading`, and BOTH builds
+    // report `h1:Ctl Def Heading` where quarto renders none, in all three. That is the filed
+    // container-stack item and Session 202 measured that narrowing the stack to hide it is
+    // WORSE (it trades phantoms under two readers for a deletion under a third, Learning #315).
+    // So the stack is left alone and only the NEW fabrication is closed, here, where it is
+    // cheap: a definition body is not a run this row may join.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: commonmark_x",
+          "---",
+          "",
+          ":   Ctl Def Two",
+          "    second def line",
+          "    ====================",
+        ),
+      ),
+    ).toEqual([]);
+  });
 });
