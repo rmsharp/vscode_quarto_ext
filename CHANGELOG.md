@@ -7,6 +7,71 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 206 — a front-matter `from:` is resolved as YAML, not as one line shape (SHIPPED)
+
+A YAML value has many spellings and a line regex has one. `FRONTMATTER_FROM_KEY` could never
+match a line beginning with a quote, and `FRONTMATTER_COMMONMARK_FROM` demanded the value sit on
+the key's own line at column 0 — so a quoted `"from": gfm`, a flow mapping, a next-line scalar, a
+block scalar, a uniformly indented mapping and an anchor/alias pair were each invisible. Two
+filed items (Session 205's ranked #2 and #3), one capability, one resolver.
+
+**The design, and why it is shaped this way.** `frontMatterFromValueLine` resolves the front
+matter's TOP-LEVEL `from:` once, from the whole block, and rewrites it as the canonical line
+`from: <value>` for Sessions 202's and 205's MEASURED allowlists to classify unchanged. For a
+plain top-level key the line handed over is byte-identical to the source line, so those
+allowlists cannot move by construction. The KEY question fails OPEN (not firing suppresses a
+heading quarto renders) and stays a set of cheap line regexes at ANY indent; every VALUE question
+fails CLOSED (firing wrongly DELETES) and returns `null` — today's behaviour — whenever it cannot
+resolve with confidence. "Top level" is the SHALLOWEST content line, not column 0, which is what
+makes a uniformly indented mapping reachable while leaving an `abstract: |` block scalar's prose
+unreachable: YAML requires that content to be indented past its own key.
+
+**⚠ The session shipped a regression and closed it, and the budgeted completeness pass is what
+caught it.** Widening the KEY fed `dialectOverride`'s OTHER consumer — the ATX heading COLUMN set
+— for two spellings that had never reached it. The 64-document ground corpus scored INTRODUCED 0
+because every one of its documents reads that flag through the paragraph bail; the completeness
+pass, one probe per CONSUMER written with the NEW spellings, returned INTRODUCED 2 at once.
+Measured over 56 further documents: the 0-3 column window belongs to the COMMONMARK FAMILY, not
+to the presence of a `from:` key. The narrowing is keyed on a POSITIVE resolution to a measured
+markdown base, never on the absence of a CommonMark one — a nested per-format `from: gfm` really
+is honoured by quarto, so narrowing on absence would have deleted headings (Learning #327).
+
+**Measurement.** **287 documents** rendered fresh through the real `quarto render` path (quarto
+1.7.33) — 193 designed, 30 re-measured from predecessors, 64 blind; 10 excluded for quarto exit
+1 — each scored PER DOCUMENT against the pre-session build on identical bytes. The four scored
+corpora: gnd 20/32 → 30/32 (the paragraph bail), cmk 21/32 → 31/32 (the setext COLUMN row, where
+a wrong resolution DELETES), comp 28/33 → 33/33 (one probe per consumer), pins 9/23 → 22/23 (the
+exact asserted bytes, on their own bytes). **INTRODUCED 0, FIXED 48** after the regression close.
+The other 72 designed documents are the two column grids (56) that decided the regression fix and
+16 controls in five feature-free sets. The predecessors' OWN named
+corpora improve too and introduce nothing: Session 203's `yaml` 5/12 → 10/12 and Session 205's
+`yaml` 9/16 → 12/16. The BLIND sweep — 4 independent lenses, 64 documents, none of which saw the
+designed corpora — returned INTRODUCED 0 and FIXED 0, and delivered three new filings plus five
+independent witnesses to one pre-existing item (Learning #330).
+
+**⚠ Three EXTRACTOR artifacts, all settled by feature-free control pairs rather than by argument**
+(Learning #328): `number-sections: true` wraps the section number in a `<span>`, so every heading
+in such a document vanished from the nesting-safe scan (fixed in `render206.sh`); `markdown_strict`
+turns `intraword_underscores` OFF, so this project's own `snake_case` document NAMES became `<em>`
+and the corpus was invisible to its own extractor for exactly the readers it was testing; and
+quarto's `toc:`, `citation:`, `license:` and `copyright:` keys each grow a generated heading, now
+normalised on both the scoring and adjudication paths.
+
+- TDD: 8 RED→GREEN, each RED confirmed to fail on the BEHAVIOUR. The 4-case GUARD block was
+  written BEFORE the value resolver it guards (S204's gotcha 5, inherited a third time) and pins
+  the block-scalar hazard on the DELETING row, where the failure hurts.
+- Verification: `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` 1883 passed / 66
+  files (baseline 1864, +19) · `test:oracle` 131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0
+  unrelated (BYTE-IDENTICAL to S180–S205) · `check-package` OK 42 files / 5.53 MB ·
+  `check-backlog` OK, 138 open items · `test:integration` **513 passing / 0 failing / exit 0**
+  (baseline 512, +1). Repo control: all four views over all 115 tracked markdown-family documents
+  BYTE-IDENTICAL, proven EFFECTIVE BY INJECTION in the same run (4 designed movers moved, 6
+  stayers stayed). NOT RUN: `test:lsp` — no LSP surface touched.
+- Backlog: the quoted-key item is DRAINED; the six-spellings item is REWRITTEN to its residual (a
+  blank line before the opening `---` is front-matter BLOCK detection, not the reader question),
+  and four items are newly filed.
+- Model: Claude Opus 5.
+
 ### 2026-08-10 · [ad hoc] Session 205 — `blank_before_header` belongs to the READER, not to the presence of a `from:` key (SHIPPED)
 
 Pandoc's `blank_before_header` makes an ATX heading pressed against an open paragraph not a
