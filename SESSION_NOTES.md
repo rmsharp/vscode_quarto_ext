@@ -5,6 +5,47 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 205 — IMPLEMENTATION (strict TDD): the DEFAULT reader's own HTML-block rule, which turns out NOT to be an HTML-block rule at all — `blank_before_header` is switched OFF by the mere PRESENCE of a `from:` key, so an explicitly-declared `from: markdown` loses a rule this model already implements correctly.** (IN PROGRESS)
+**Started:** 2026-08-10
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Selected by the operator via `AskUserQuestion` at Phase 0 from an empty Active section.** It was Session 204's ranked **#2**. **The item IS filed** in `BACKLOG.md` — verified firsthand at Phase 0, line 60 of "Up Next", "The DEFAULT reader's own HTML-block rule is unmodelled, and Session 204 measured its shape without shipping it", filed by Session 204 — so Learning #288 does not fire.
+
+**⚠ HEADLINE OF THE PRE-CLAIM SURVEY — THE FILED ITEM SAYS THE RULE IS *UNMODELLED*, AND IT IS MODELLED AND THEN SWITCHED OFF. THE TELL IS IN THE ITEM'S OWN CITED EVIDENCE, IN A COLUMN THE ITEM NEVER COMPARES.** Session 204's `gnd` grid carries a `nofrom` twin of every `md` row. Quarto renders those twins **identically** — and this model does not:
+
+| document | bytes | quarto 1.7.33 renders | this model reports |
+|---|---|---|---|
+| `scratchpad/s204/gnd/g_md_div_d2_atx` | `from: markdown` / `<div>` / `ordinary body line` / `# Gnd Inside` | `h1:Gnd Below` | `h1:Gnd Inside`, `h1:Gnd Below` ✗ |
+| `scratchpad/s204/gnd/g_nofrom_div_d2_atx` | **no front matter**, otherwise identical | `h1:Gnd Below` | `h1:Gnd Below` ✓ |
+
+All **7** phantom `md` rows in that grid have an agreeing `nofrom` twin (`div_d2`, `pre_d2`, `span_d1`, `span_d2`, `doctype_d1`, `doctype_d2`, `close_d2`; scored firsthand at Phase 1, `python3 score204.py gnd.quarto.tsv gnd.now.tsv --only g_md_ --diverge` = 13 divergences vs `--only g_nofrom` = 6, and the 6 are the separately-filed `<!--` family). **The rule the item calls unmodelled is `blank_before_header`, this model implements it, and `dialectOverride` disables it for the whole document the moment ANY `from:` key appears** (`src/core/qmd/model.ts:2703`, `paragraphOpen && !dialectOverride`). `<span>` and `<!DOCTYPE html>` are not block openers, so they leave a paragraph open; `<div>` / `ordinary body line` opens one on the line below. Every cited row is that one bail, not a block rule.
+
+**⚠ AND THE COST WAS DISCLOSED IN ADVANCE BY THE SESSION THAT WROTE IT.** `FRONTMATTER_FROM_KEY`'s docstring (`:1063`–`:1071`) says it: *"The bail keys on the key's PRESENCE, not on resolving the dialect, so it fails CLOSED: the cost is that `from: markdown` retains the phantom, which is the permitted direction."* This session pays that debt down with a measurement Session 180 did not have. It is a **recovery of a knowingly-taken trade**, not a defect being discovered.
+
+**⚠ SCOPE, declared AFTER a coupling survey rather than before it.** **IN:** a NEW value-keyed predicate naming the reader spellings MEASURED to keep `blank_before_header` ON, consumed at **exactly ONE site** — the ATX bail at `model.ts:2703` — so an explicitly-declared pandoc-markdown reader keeps the rule that no-front-matter already gets. **OUT:** `dialectOverride`'s OTHER consumer, the heading COLUMN set at `:2711`–`:2713`, which asks a different question (the 0-3 tolerance) with its own measurement and its own permitted phantom — moving one flag would silently move both, which is FM #26 in a one-line-change costume; the `<pre>`-content-literal family (`adv/hdg/hdg_10`, where a CLOSED `<pre>`…`</pre>` under the default reader keeps its content literal and BOTH heading-looking lines inside are reported) — a genuinely different rule, to be FILED; the `<!--` comment-region items (filed, 2 of them); `FRONTMATTER_COMMONMARK_FROM`'s six missing YAML spellings (filed); the container column stack (filed, largest residual); every synced methodology file.
+
+**⚠ FOUR COUPLINGS, surveyed firsthand before this claim was written.**
+1. **`dialectOverride` has exactly TWO consumers** — `grep -rn "dialectOverride" src` reaches the declaration `:2214`, the set `:2321`, the bail `:2703` and the column set `:2711`; every other hit is a docstring. **Refining the flag itself moves both rows at once.** A THIRD flag is additive and moves one — the shape `commonmarkDialect` already established at `:2220`, whose own comment says why it is a second flag and not a refinement.
+2. **⚠ THE SAFETY POLARITY IS THE INVERSE OF SESSION 204's.** That session's fix DELETED headings, so its opener set had to be narrow. This one RESTORES a suppression, so a reader wrongly listed as "keeps `blank_before_header`" **DELETES a real heading**. The allowlist must therefore be **exact measured spellings only**, and every unmeasured spelling must fall through to today's suspension (a phantom). ⚠ `markdown_strict` is the trap: it is measured to render the heading (bail OFF), so a prefix match on `markdown` deletes it.
+3. **⚠ AN EXISTING UNIT TEST ALREADY PINS THE FIVE SPELLINGS THAT MUST NOT MOVE** — `test/unit/qmd-model.test.ts:945`–`:954`, five `it.each` cases (`markdown-blank_before_header`, `markdown_strict`, `gfm`, `commonmark`, and a NESTED per-format `format:`/`  html:`/`    from: markdown_strict`), each asserting the heading IS kept. The nested case is the one that constrains the anchor: `FRONTMATTER_COMMONMARK_FROM` is anchored at column 0 against the `abstract: |` block-scalar hazard, and this rule shares that deleting polarity, so it must be anchored too — which makes the nested case fall through to today's behaviour and keeps that test green. Read as a REQUIREMENT, not as a test to update.
+4. **⚠ SUPPRESSING A HEADING IS NOT FREE — the `if (m)` branch is a state machine, not a report** (`:2715`–`:2724`: `consecutiveBody`, `paragraphOpen`, `inPipeTable`, `quoteOpen`, `prevWasAtxHeading`). A line that stops being a heading falls through to body handling instead. **Every corpus row must carry a probe BELOW the suppressed heading** — the half that bit S202 and S203, and S204 carried it too.
+
+⚠ **The observable is heading PRESENCE and what happens BELOW the suppressed line.** `H_BODY` scoring and the entity normalization carry over from S204 unchanged.
+
+**⚠ THE DECISION RULE FOR ANY SCOPE AMENDMENT, DECLARED IN ADVANCE** (S194's test, as S196–S204 applied it): *would this defect exist if my change did not ship?* A new error CAUSED by this change is closed here and disclosed; one that is pre-existing and merely made reachable is pinned with a rendered control and FILED in `BACKLOG.md`, with the grep count pasted at Phase 3F.
+
+**⚠ TDD gate — FIRES.** The bail is logic. RED → GREEN → REFACTOR, one behaviour at a time, each RED confirmed to fail on the BEHAVIOUR rather than the plumbing. ⚠ **And Gotcha 5 from S204 is inherited explicitly: the guard's test is written BEFORE the guard.**
+
+**⚠ THE COMPLETENESS PASS IS BUDGETED HERE, BEFORE ANY RESULT IS SEEN.** Nine sessions running, a clean designed corpus was wrong. Each probe will name which consumer it targets.
+
+**⚠ SUB-AGENTS: this session WILL delegate the adversarial corpus**, per the operator's standing directive (Session 183). Every agent claim is to be verified firsthand before it is acted on.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **1835 passed / 66 files**, matching Session 204's recorded close-out exactly; `check-backlog` **OK, 129 open items**; `quarto --version` **1.7.33**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`0247980`, gap 0) and `grep -c "^status: pending" HANDOFFS.md` = 0. No ghost sessions.
+
+---
+
+## Session 204 ACTIVE TASK (superseded by Session 205 — full entry preserved below)
 **Task:** **Session 204 — IMPLEMENTATION (strict TDD): under a CommonMark-family reader a RAW HTML BLOCK swallows the lines below it, so no heading — ATX or setext — may be reported inside one. This model has no notion of being inside such a block at all.** (IN PROGRESS)
 **Started:** 2026-08-10 · **Closed:** 2026-08-10
 **Status:** **DONE. SHIPPED — a raw HTML block is a REGION with a type-specific end condition, not an adjacency, and the predecessor's "the pattern to copy exists" was the most expensive sentence in its handoff. 766 rendered documents: designed agreement 236 → 310, blind agreement 35 → 57, and the per-error adjudication returns INTRODUCED 0 / FIXED 96 / REACHABLE 1 / CARRIED 71.**

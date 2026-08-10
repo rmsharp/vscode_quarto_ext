@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S205
+date: 2026-08-10
+status: pending
+active_task: IMPLEMENTATION (strict TDD) — the DEFAULT reader's own HTML-block rule, BACKLOG.md "Up Next" line 60, filed by Session 204 and operator-selected via AskUserQuestion at Phase 0 from an empty Active section (S204's ranked #2). ⚠ THE PRE-CLAIM SURVEY CORRECTS THE ITEM'S OWN DIAGNOSIS: the rule is not unmodelled, it is modelled and then switched OFF. `blank_before_header` is implemented and correct — every `nofrom` twin in S204's own gnd grid agrees — and `dialectOverride` (src/core/qmd/model.ts:2703, `paragraphOpen && !dialectOverride`) disables it for the whole document the moment ANY `from:` key appears, so an explicitly-declared `from: markdown` loses it. All 7 phantom `md` rows have an agreeing `nofrom` twin. The cost was disclosed IN ADVANCE by FRONTMATTER_FROM_KEY's own docstring (:1063-:1071, "the cost is that `from: markdown` retains the phantom, which is the permitted direction"), so this is a recovery of a knowingly-taken trade. Deliverable: a NEW value-keyed predicate naming the reader spellings MEASURED to keep blank_before_header ON, consumed at exactly ONE site. ⚠ SAFETY POLARITY IS THE INVERSE OF S204's — restoring a suppression DELETES a real heading when a reader is wrongly listed, and `markdown_strict` is the trap (measured bail-OFF, so a prefix match on `markdown` deletes it).
+```
+
+```handoff
 session: S204
 date: 2026-08-10
 status: complete
