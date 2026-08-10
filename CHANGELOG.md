@@ -7,6 +7,58 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 200 — a FENCE's indent is CONTAINER-RELATIVE (SHIPPED)
+
+`FENCE_OPEN` was `/^ {0,3}(([`~])\2{2,})(.*)$/` and `FENCE_CLOSE` the matching closer —
+CommonMark §4.5's 0-3 space tolerance, measured from SOURCE column 0. Inside a container it
+refused the fenced code block quarto builds there, so the region never opened, its content was
+scanned as ordinary markdown, and the title below its closer was never at
+`consecutiveBody === 1`. The last of the three sites of this class.
+
+**The rule is a TOLERANCE relative to the enclosing block's content column — deliberately NOT
+the EQUALITY Session 199 measured one row away for ATX headings.** Two adjacent rows, two
+different answers: quarto's pandoc gives an ATX heading no leading-space slack at all, while a
+fence keeps CommonMark's 0-3 slack and merely measures it from the container. Measured over a
+96-document grid (8 container shapes × 12 indents, every one quarto exit 0): top level accepts
+0-3, `- item` accepts 0-5, `-   item` accepts 0-7, a three-deep list accepts 0-9. That is
+exactly the complement of `indentedCodeLine`, so the rule is REUSED rather than re-derived and
+the two cannot drift. ⚠ The observable had to be the fence's INFO STRING in a class attribute:
+an unrecognised fence at indent 4+ is an INDENTED code block, which renders `<pre><code>`
+exactly as a recognised one does and emits no heading either way.
+
+**The CLOSER shipped in the same commit because widening the opener alone is a measurable
+no-op.** A fence opens only if `hasCloserBelow` finds a closer (S179), and `FENCE_CLOSE`
+carried the same cap — so on the very documents the item was filed on, the widened opener still
+declined. Measured independently over 72 documents: the closer follows the identical rule and
+does NOT have to match the opener's own column. The pre-pass index now keys plain closers by
+COLUMN, because an over-accepting lookahead would open a region that runs to end of document
+and swallow every heading below it.
+
+**One error this change introduced, found by the completeness pass and closed here:** a plain
+fence does not in general interrupt an open PARAGRAPH. The obvious `paragraphOpen` bail is
+measurably wrong — at column 0 the fence does interrupt — so what ships is the narrow boundary
+"this change does not apply while a paragraph is open", as a bounded `[0]` rather than a `null`
+suspension (Learning #301). The interrupt rule itself is filed, not guessed.
+
+**Measurement.** 513 documents rendered fresh through the real `quarto render` path (quarto
+1.7.33); 270 of them scored per document against the pre-session build on identical bytes.
+Agreeing 214 → 246, lost headings 45 → 19, phantoms 11 → 5. Per-error adjudication:
+**INTRODUCED 0, REACHABLE 0, CARRIED 24, FIXED 32.** The adversarial half was BLIND — 110
+documents from eight independent lenses plus a completeness critic, none of which had seen the
+designed corpora — and the adjudicator was itself proven effective by argument swap. Repo
+control: all four views over all 113 tracked documents BYTE-IDENTICAL, proven effective by
+injection (4 measured movers moved, 4 stayers stayed).
+
+**Verification.** `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` 1804 passed /
+66 files (baseline 1802) · `test:oracle` 131 / 124 agree / 4 lost TP / 3 CARDINAL FP
+(BYTE-IDENTICAL to S180–S199) · `check-package` OK 42 files / 5.52 MB · `check-backlog` OK 109
+open items (106 − 1 completed + 4 filed by the adversarial sweep) · `test:integration` 507
+passing / 0 failing / exit 0 (baseline 506), green first time. NOT RUN: `test:lsp` — no LSP surface touched.
+
+Commits: `528f943` (1B claim) · `7c1768c` (C1 the container-relative rule, opener + closer) ·
+`a020105` (C2 the open-paragraph boundary) · `c598261` (C3 the runtime wiring evidence) ·
+close-out (this commit).
+
 ### 2026-08-10 · [ad hoc] Session 199 — an ATX heading's indent is a COLUMN EQUALITY (SHIPPED)
 
 `ATX_HEADING` was `/^ {0,3}(#{1,6})[ \t]+(.+)$/` — CommonMark §4.2's 0-3 space tolerance,
