@@ -5324,4 +5324,37 @@ describe("a raw HTML BLOCK swallows the headings inside it under a CommonMark re
       ),
     ).toEqual(["h1:Intr Inside", "h1:Intr Below"]);
   });
+  it("a TYPE 1 opener runs past BLANK lines — an unclosed `<pre>` swallows to end of document", () => {
+    // `scratchpad/s204/gnd` — `g_gfm_pre_blank_atx`, rendered this session: quarto renders NO
+    // heading at all, not even the one two blank lines below the opener. A `<pre>` block ends
+    // at its OWN closer and a blank line does not touch it, so an unclosed one really does run
+    // to the end of the document. This is the single row that refutes "swallow to the blank
+    // line" as the whole rule.
+    expect(
+      names(
+        doc("---", "from: gfm", "---", "", "<pre>", "# Gnd Inside", "", "# Gnd Below"),
+      ),
+    ).toEqual([]);
+  });
+  it("the SETEXT site is suppressed too — an underline inside the block claims nothing", () => {
+    // `scratchpad/s204/gnd` — `g_gfm_div_d1_setext`, rendered this session: quarto renders only
+    // `Gnd Below`. Guarding the ATX site alone leaves this half open, and it is not the same
+    // half Session 203 closed: `prevOpenedHtmlBlock` stops a MULTI-LINE title being joined
+    // across the opener, where this is a single-line title wholly INSIDE the block.
+    expect(
+      names(
+        doc(
+          "---",
+          "from: gfm",
+          "---",
+          "",
+          "<div>",
+          "Gnd Inside",
+          "====================",
+          "",
+          "# Gnd Below",
+        ),
+      ),
+    ).toEqual(["h1:Gnd Below"]);
+  });
 });

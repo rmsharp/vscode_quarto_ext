@@ -1726,7 +1726,7 @@ const COMMONMARK_HTML_TYPE6 =
   "address|article|aside|base|basefont|blockquote|body|caption|center|colgroup|col|dd|details|" +
   "dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frameset|frame|h[1-6]|head|" +
   "header|hr|html|iframe|legend|li|link|main|menuitem|menu|nav|noframes|ol|optgroup|option|" +
-  "param|p|search|section|summary|table|tbody|td|textarea|tfoot|thead|th|title|tr|track|ul";
+  "param|p|search|section|summary|table|tbody|td|tfoot|thead|th|title|tr|track|ul";
 const COMMONMARK_HTML_TYPE6_OPEN = new RegExp(
   "^ {0,3}</?(?:" + COMMONMARK_HTML_TYPE6 + ")(?=[ \\t/>]|$)",
   "i",
@@ -1754,6 +1754,35 @@ const COMMONMARK_HTML_TYPE6_OPEN = new RegExp(
  */
 const COMMONMARK_HTML_TYPE7_OPEN =
   /^ {0,3}(?:<[A-Za-z][A-Za-z0-9-]*(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:"[^"]*"|'[^']*'|[^ \t"'=<>`]+))?)*[ \t]*\/?>|<\/[A-Za-z][A-Za-z0-9-]*[ \t]*>)[ \t]*$/;
+/**
+ * CommonMark §4.6 **type 1** — the four RCDATA-ish tags whose block ends at its OWN closing tag
+ * and which a BLANK LINE does not touch (Session 204).
+ *
+ * ⚠ **THIS IS THE ROW THAT REFUTES "SWALLOW TO THE NEXT BLANK LINE" AS THE WHOLE RULE, IN BOTH
+ * DIRECTIONS AT ONCE.** Measured:
+ *
+ *   `<pre>` / `# Gnd Inside` / (blank) / `# Gnd Below` renders NOTHING — an unclosed type-1
+ *   block runs to end of document, so a blank-line end condition would report a heading quarto
+ *   does not (`scratchpad/s204/gnd` — `g_gfm_pre_blank_atx`, and `g_gfm_pre_d1/d2`).
+ *
+ *   `<pre>` / `raw code line` / `</pre>` / `# End Inside` renders the heading, with no blank
+ *   line anywhere — so a blank-line end condition would DELETE a real one. All four names
+ *   behave identically (`scratchpad/s204/end` — `e_gfm_pre_after`, `e_gfm_script_after`,
+ *   `e_gfm_style_after`, `e_gfm_textarea_after`).
+ *
+ * ⚠ **`textarea` is therefore NOT in the type-6 list above, even though the name corpus shows it
+ * swallowing against an open paragraph.** That corpus cannot separate the two types — type 1
+ * interrupts a paragraph just as type 6 does — and only the END condition tells them apart.
+ * Leaving it in type 6 deletes the heading after `</textarea>`.
+ *
+ * ⚠ **The closer test is deliberately a bare `indexOf`-style match anywhere on the line, not an
+ * anchored tag parse, and the sloppiness is the SAFE direction.** A closer seen where there is
+ * none (inside an attribute value, say) ends the block early and leaves a phantom — this
+ * project's permitted direction. A closer MISSED keeps the block open and deletes every heading
+ * below it, to the end of the document.
+ */
+const COMMONMARK_HTML_TYPE1_OPEN = /^ {0,3}<(?:pre|script|style|textarea)(?=[ \t/>]|$)/i;
+const COMMONMARK_HTML_TYPE1_CLOSE = /<\/(?:pre|script|style|textarea)>/i;
 /**
  * A fence opener: leading whitespace of EITHER KIND, then ≥3 of ONE fence char (backtick or
  * tilde), then anything. Capturing the char lets the scanner require the closer to use the
@@ -2209,7 +2238,7 @@ function computeRegions(text: string): Regions {
   // (Session 204). `null` means no block is open; otherwise it names the END CONDITION, which
   // is what the block's CommonMark TYPE decides and what `prevOpenedHtmlBlock` above (a
   // one-line lookback) cannot express. See `COMMONMARK_HTML_TYPE6_OPEN`.
-  let commonmarkHtmlBlock: "blank" | null = null;
+  let commonmarkHtmlBlock: "blank" | "type1" | null = null;
   // The content column of every CONTAINER open above this line, ascending, EXCLUDING the
   // document root's own 0 which is always available (Session 189). This is the state the
   // raw-TeX row's ` {0,3}` was standing in for: pandoc re-parses a container's content
@@ -2582,8 +2611,13 @@ function computeRegions(text: string): Regions {
         .some((l) => commonmarkParagraphInterrupt(l.text, [0, ...contentColumns]))
         ? defaultTitleLineCount
         : wholeParagraph;
+    // ⚠ The HTML-block guard is needed at BOTH heading sites, and this is not the half Session
+    // 203 closed. `prevOpenedHtmlBlock` stops a MULTI-LINE title being JOINED across an opener;
+    // this stops a title that lies wholly INSIDE the block from being claimed at all
+    // (`scratchpad/s204/gnd` — `g_gfm_div_d1_setext`, and the `pre` rows, where the block
+    // reaches past a blank line).
     const setextLevel =
-      titleLineCount >= 1
+      titleLineCount >= 1 && commonmarkHtmlBlock === null
         ? setextUnderlineLevel(
             line,
             commonmarkDialect
@@ -2735,13 +2769,21 @@ function computeRegions(text: string): Regions {
       // ⚠ `paragraphOpen` here is still the line ABOVE's — it is overwritten further down — which
       // is exactly the state type 7 needs: a complete tag may open a block only where no
       // paragraph is already open, while a type-6 name interrupts one freely.
-      if (
-        commonmarkDialect &&
-        commonmarkHtmlBlock === null &&
-        (COMMONMARK_HTML_TYPE6_OPEN.test(line) ||
-          (!paragraphOpen && COMMONMARK_HTML_TYPE7_OPEN.test(line)))
-      ) {
-        commonmarkHtmlBlock = "blank";
+      if (commonmarkDialect && commonmarkHtmlBlock === null) {
+        // Type 1 is tested FIRST because `<pre>` satisfies type 7's grammar too, and the two
+        // disagree about the end condition — which is the only thing that separates them.
+        commonmarkHtmlBlock = COMMONMARK_HTML_TYPE1_OPEN.test(line)
+          ? "type1"
+          : COMMONMARK_HTML_TYPE6_OPEN.test(line) ||
+              (!paragraphOpen && COMMONMARK_HTML_TYPE7_OPEN.test(line))
+            ? "blank"
+            : null;
+      }
+      // The closer is tested on the OPENING line too, so a one-line `<pre>x</pre>` opens and
+      // closes where it stands. The line carrying the closer is INSIDE the block; the line
+      // below it is not (measured — `e_gfm_pre_after` renders its heading).
+      if (commonmarkHtmlBlock === "type1" && COMMONMARK_HTML_TYPE1_CLOSE.test(line)) {
+        commonmarkHtmlBlock = null;
       }
       prevIndentedCode = indented;
       // A paragraph's "quotedness" is decided by the line that STARTS it, so it is computed
