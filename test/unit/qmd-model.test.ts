@@ -4728,4 +4728,108 @@ describe("a setext underline's column is DIALECT-DEPENDENT (Session 202)", () =>
                 "===")),
     ).toEqual([]);
   });
+
+  // ── TEST-AFTER (labelled): regression pins over behaviour the three cycles above already
+  // shipped, and the disclosed residuals. Every row is a RENDERED document, not a derivation.
+  it("pins the measured grid, the guards and the disclosed residuals", () => {
+    // ── THE GUARD THAT MAKES THE `from:` VALUE LOAD-BEARING. Every row here renders a heading
+    // at underline column 0 that the CommonMark rule would DELETE, which is why this rule
+    // cannot key on the key's presence the way `atxHeadingMatch`'s does (`scratchpad/s202/dax`).
+    for (const value of ["markdown", "markdown_strict", "markdown_mmd", "markdown_phpextra",
+                         "markdown-blank_before_header", "markdown+emoji"]) {
+      expect(
+        names(doc("---", `from: ${value}`, "---", "", "- outer one", "", "  probe title", "===")),
+      ).toEqual(["h1:probe title"]); // quarto agrees — a real heading the rule must not delete
+    }
+    // ⚠ `markdown_github` is the row that cannot be guessed: pandoc documents it as a
+    // deprecated SYNONYM for `gfm`, and quarto 1.7.33 renders it exactly like `markdown` —
+    // verified against the raw HTML (`<h1 id="dax-probe-title">` nested in the `<li>`), not
+    // through the extractor. A classifier keyed on "not markdown" would delete this heading.
+    expect(
+      names(doc("---", "from: markdown_github", "---", "", "- outer one", "", "  probe title",
+                "===")),
+    ).toEqual(["h1:probe title"]);
+    // …and a document with NO front matter at all keeps the default rule.
+    expect(names(doc("- outer one", "", "  probe title", "==="))).toEqual(["h1:probe title"]);
+    // A `from:` in ORDINARY BODY TEXT must not reach the front-matter test (`comp/body_from`).
+    expect(
+      names(doc("Intro paragraph.", "", "from: gfm", "", "- outer one", "", "  probe title",
+                "   ===")),
+    ).toEqual([]); // quarto: no heading — the default reader refuses column 3
+
+    // ── THE CommonMark SET IS THE INNERMOST COLUMN'S TOLERANCE, NOT THE WHOLE STACK.
+    // `scratchpad/s202/gnd` `g_gfm_n24_u*`: a 2-deep stack (columns 2 and 4) accepts 4-7 and
+    // REFUSES 2, where the default reader accepts 0, 2 and 4. This is the row that separates
+    // the shipped rule from the obvious "widen every column by 3" reading.
+    const nested = (u: number) =>
+      names(doc("---", "from: gfm", "---", "", "- outer one", "  - inner one", "",
+                "    probe title", " ".repeat(u) + "==="));
+    expect(nested(2)).toEqual([]); // quarto: no heading — column 2 is a lazy continuation
+    expect(nested(4)).toEqual(["h1:probe title"]);
+    expect(nested(7)).toEqual(["h1:probe title"]);
+    expect(nested(8)).toEqual([]); // quarto: no heading — column 8 is indented code
+    // ⚠ "Innermost" is measured AFTER the container pop: the same stack with the title at
+    // column 2 closes the inner item, and the set becomes that of column 2 (`ax/pop_gfm_*`).
+    const popped = (u: number) =>
+      names(doc("---", "from: gfm", "---", "", "- alpha one", "  - bravo one", "",
+                "  probe title", " ".repeat(u) + "==="));
+    expect(popped(2)).toEqual(["h1:probe title"]);
+    expect(popped(5)).toEqual(["h1:probe title"]);
+    expect(popped(6)).toEqual([]); // quarto: no heading
+
+    // ── THE `-` SPELLING ANSWERS IDENTICALLY — 120 rendered documents (`scratchpad/s202/lvl`),
+    // held out of the ground grid because a `-` run at a new column can also be a fresh list
+    // item or a thematic break, so that the two levels agreeing is measured rather than assumed.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "- outer one", "", "  probe title", "---")),
+    ).toEqual([]);
+    expect(
+      names(doc("---", "from: gfm", "---", "", "- outer one", "", "  probe title", "   ---")),
+    ).toEqual(["h2:probe title"]);
+
+    // ── A DECLINED RUN DOES NOT VANISH — it falls through to `CLOSES_PARAGRAPH`, which closes
+    // the paragraph, so an ATX heading directly below it IS reported. Under a CommonMark reader
+    // quarto reports it too, because CommonMark lets an ATX heading interrupt a paragraph
+    // (`scratchpad/s202/cp`, 20 CommonMark rows of 20 agreeing).
+    expect(
+      names(doc("---", "from: gfm", "---", "", "Intro.", "", "- outer one", "", "  probe title",
+                "===", "# Below Heading")),
+    ).toEqual(["h1:Below Heading"]);
+
+    // ── DISCLOSED RESIDUAL — 6 PHANTOMS THIS CHANGE INTRODUCES, all one family, and the cause
+    // is a column that was ALREADY WRONG rather than the rule that now reads it. Under `gfm`
+    // and `commonmark` a DEFINITION LIST is not a construct at all, so `:   body` opens no
+    // content column and everything four columns in is indented code — but `contentColumns`
+    // pushes 4 for it under every dialect. The old set `[0, 4]` was wrong at both of its
+    // members; the new set `[4…7]` is wrong at four.
+    const defList = (u: number) =>
+      names(doc("---", "from: gfm", "---", "", "Term one", "", ":   the definition body", "",
+                "    probe title", " ".repeat(u) + "==="));
+    expect(defList(4)).toEqual(["h1:probe title"]); // quarto: NO heading — CARRIED from before
+    expect(defList(5)).toEqual(["h1:probe title"]); // quarto: NO heading — INTRODUCED here
+    expect(defList(7)).toEqual(["h1:probe title"]); // quarto: NO heading — INTRODUCED here
+    // ⚠ THE CONTROL THAT PROVES THE COLUMN PRE-EXISTING, reached through a row this session
+    // never touches: an ATX heading at the same column, under the same container, renders NO
+    // heading in quarto and one here — on the PRE-SESSION build as well (`ctl/defatx_gfm`,
+    // `ctl/deftilde_gfm`). So the defect is "which containers exist under which reader", which
+    // is the container STACK's question and belongs to three other consumers besides this one.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "Term one", "", ":   the definition body", "",
+                "    # Def Atx Heading")),
+    ).toEqual(["h1:Def Atx Heading"]); // quarto: NO heading — identical on the pre-build
+    // …and the twin that separates it from "no `:`-shaped opener opens a column": a FOOTNOTE
+    // definition's column IS real under gfm, so the same tolerance is correct there and this
+    // change RECOVERS two headings (`ax/fn_gfm_u5`, `fn_gfm_u7`).
+    expect(
+      names(doc("---", "from: gfm", "---", "", "See[^1] for it.", "", "[^1]: the note body", "",
+                "    probe title", "     ===")),
+    ).toEqual(["h1:probe title"]); // quarto agrees — recovered by this change
+
+    // ── UNCHANGED, and pinned so a future change to the container stack is detectable: a BLOCK
+    // QUOTE carries no content column here, so both directions of the already-filed quote item
+    // survive under a CommonMark reader too (`comp/quote_gfm`).
+    expect(
+      names(doc("---", "from: gfm", "---", "", "> Quote intro.", ">", "> quote title", "> ==")),
+    ).toEqual([]); // quarto: h1:quote title — CARRIED, the filed block-quote item
+  });
 });
