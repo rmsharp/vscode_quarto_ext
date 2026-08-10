@@ -19,6 +19,7 @@ media/screenshots/**
 **/*.ts
 esbuild.js
 check-package.js
+check-backlog.js
 # One line per tsconfig, NOT a `tsconfig*.json` glob, so adding a project is a
 # deliberate decision here rather than a silent inheritance. `tsconfig.unit.json`
 # (CHANGELOG: the test/unit type-check gate, Session 173) shipped INSIDE the .vsix
