@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S202
+date: 2026-08-10
+status: pending
+active_task: Session 202 — IMPLEMENTATION (strict TDD): the LAZY setext underline under a CommonMark dialect. `setextUnderlineLevel` is handed `[0, ...contentColumns]` unconditionally and has NO `dialectOverride` consumer where `atxHeadingMatch` got one in S199, so under `from: gfm`/`commonmark` we emit a heading for an underline at column 0 inside an open list item (CommonMark forbids a setext underline on a LAZY CONTINUATION line — quarto renders none) and we DELETE one at the item's content column + 1..3 (those dialects carry CommonMark's own 0-3 tolerance PAST that column). ⚠ THE FILED FIX IS UNSAFE AS STATED, found in the pre-claim survey: S199's relaxation keys on the PRESENCE of a `from:` key and never on its VALUE — deliberate, because for the ATX row the fail-open cost is a phantom — but S201's own `dia` grid records `from: markdown` and `from: markdown_strict` rendering the heading at column 0 where `gfm`/`commonmark` render none, so a presence-keyed decline DELETES a real heading under the two non-CommonMark keys. Either the dialect VALUE is resolved or the decline half does not ship. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S201's ranked #1; the item IS filed in BACKLOG.md (verified firsthand at Phase 0, line 52).
+```
+
+```handoff
 session: S201
 date: 2026-08-10
 status: complete
