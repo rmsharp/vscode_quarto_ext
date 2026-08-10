@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S203
+date: 2026-08-10
+status: pending
+active_task: IN PROGRESS. Under a CommonMark reader a MULTI-LINE paragraph can still be a setext title, and `consecutiveBody === 1` is dialect-blind. `from: gfm` with `Free Wrapped Release Heading` / `for the 2.4 series` / `====` renders `h1:Free Wrapped Release Heading for the 2.4 series` and this model reports nothing. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; S202's ranked #2, found independently by three of its eight blind lenses. ⚠ The filed item names NO fix, so the rule is unmeasured in every particular; three candidate rules and five couplings are written into the 1B claim in SESSION_NOTES.md before any render.
+```
+
+```handoff
 session: S202
 date: 2026-08-10
 status: complete
