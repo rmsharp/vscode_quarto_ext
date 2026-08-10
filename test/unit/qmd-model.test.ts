@@ -3990,4 +3990,94 @@ describe("a SETEXT UNDERLINE's own indent is a COLUMN too, so a TAB can reach on
                 "  Victor Dash Column Two", "\t---")),
     ).toEqual([]); // quarto: no heading — 4 is not 2, and both of us decline
   });
+
+  it("LABELLED TEST-AFTER — the residual families, every one PRE-EXISTING and pinned", () => {
+    // ⚠ NOT TDD. These pin behaviour this session did NOT change and deliberately did not fix.
+    // Every document was rendered through the real `quarto render` path this session, and each
+    // was adjudicated by the MECHANICAL SPACE TWIN (Learning #286) rather than by argument:
+    // expand every leading tab to the spaces reaching the same column, render both, and ask
+    // what the PRE-SESSION build did on the twin. All three phantom families below came back
+    // PRE-EXISTING — the pre-session build makes the identical error on the space spelling —
+    // so they are a defect this change made REACHABLE through a second spelling, not one it
+    // introduced. That is the decision rule this session's 1B claim declared in advance.
+    //
+    // They were found by the session's OWN completeness pass, not by its designed corpus: the
+    // ground sweep varies context x column x spelling x row x tail and holds the TITLE's shape
+    // and the absence of a quote/fence/raw block FIXED, so it cannot see any of these
+    // (Learning #278 — run the completeness role firsthand).
+
+    // ── FAMILY A — the two KNOWN RESIDUALS that `SETEXT_H1`'s own docstring already lists,
+    // now reachable through the tab spelling too. A raw HTML block and a raw TeX line each
+    // open a fresh block, so the line below them is a setext title; we then report the block's
+    // LITERAL TEXT as the heading, where quarto renders the block and no heading at all.
+    expect(
+      names(doc("Intro.", "", "-   line one", "", "    <div>", "\t===")),
+    ).toEqual(["h1:<div>"]); // quarto: NO heading — pre-existing, the twin errs identically
+    expect(
+      names(doc("Intro.", "", "-   line one", "", "    \\clearpage", "\t===")),
+    ).toEqual(["h1:\\clearpage"]); // quarto: NO heading — pre-existing, same twin verdict
+
+    // ── FAMILY B — the guard that keeps a LIST MARKER out of a heading's text is itself capped
+    // at three spaces: `BULLET_LIST_MARKER = /^ {0,3}[-*+][ \t]/`. Inside a container whose
+    // content column is 4 the marker sits at column 4, the guard does not fire, and the marker
+    // survives into the outline row. Quarto strips it. A TEXT divergence, not a fabricated
+    // heading — both renderers emit an h1 here. It extends the family already on the board
+    // ("a container OPENER line used as a setext title keeps its MARKER in the heading text")
+    // with the exact mechanism, which is a THIRD site carrying the same ` {0,3}` cap.
+    expect(
+      names(doc("Intro.", "", "-   line one", "", "    - marker title", "\t===")),
+    ).toEqual(["h1:- marker title"]); // quarto: h1:marker title — the marker is stripped
+
+    // ── FAMILY C — BY-CATCH, and it is a LOSS rather than a phantom: a fenced code block at a
+    // container's content column is not recognised as a fence at all, because `FENCE_OPEN`
+    // carries the same literal ` {0,3}` cap and is not container-relative. The title after its
+    // closer is therefore never at `consecutiveBody === 1`. ⚠ PROVEN INDEPENDENT OF THIS
+    // CHANGE BY CONTROL, in all spaces: the identical document with the underline written as
+    // four SPACES loses the same heading, on this build and on the pre-session build, and the
+    // same document at top level finds it on both.
+    expect(
+      names(doc("Intro.", "", "-   line one", "", "    ```", "    code", "    ```",
+                "    Title After Fence", "    ===")),
+    ).toEqual([]); // quarto: h1:Title After Fence — a LOST heading, the space spelling
+    expect(
+      names(doc("Intro.", "", "```", "code", "```", "Title After Fence", "===")),
+    ).toEqual(["h1:Title After Fence"]); // CONTROL — the same shape at top level is found
+
+    // ── FAMILY D — THE LOSS MECHANISM THE BLIND SWEEP FOUND, and the only one of these that
+    // costs a real heading. When a run IS consumed as an underline the scanner `continue`s,
+    // which sets `paragraphOpen = false` and so ARMS the container pop for the next line. A
+    // column-0 line below then closes the list — but pandoc keeps it open, so the underline
+    // further down no longer matches any column and its heading is deleted. The document below
+    // recovers `Line one here.` and loses `Real Title` at the same time, which is why a net
+    // count says nothing here and the SET is what was scored (Learning #272).
+    //
+    // ⚠ PRE-EXISTING, and that is the mechanical twin's verdict rather than an argument: the
+    // same document with every leading tab expanded to the spaces reaching the same column
+    // loses `Real Title` on the PRE-SESSION build too. It is the pop-suppression family
+    // already on the board, reached through the setext branch instead of through the stack.
+    expect(
+      names(doc("## Ledger", "", "-   Item alpha.", "", "\tLine one here.", "\t---",
+                "back at zero, lazily", "", "    Real Title", "    ===")),
+    ).toEqual(["h2:Ledger", "h2:Line one here."]);
+    // quarto: h2:Ledger, h2:Line one here. AND h1:Real Title — the last one is the LOST heading
+    // CONTROL — the SPACE spelling of the same document, which loses the identical heading on
+    // this build and on the pre-session build. This is what makes the pop, not the tab, the
+    // mechanism.
+    expect(
+      names(doc("## Ledger", "", "-   Item alpha.", "", "    Line one here.", "    ---",
+                "back at zero, lazily", "", "    Real Title", "    ===")),
+    ).toEqual(["h2:Ledger", "h2:Line one here."]);
+
+    // ── FAMILY E — the REALISTIC shape, kept because it is the one a reader will meet: an
+    // ASCII table indented under a paragraph whose first word is `Dr.`. `listItemContentColumn`
+    // reads `Dr.` as an ordered-list marker and opens content column 4 that pandoc never opens;
+    // the table's rule line then sits exactly on it. ⚠ PRE-EXISTING and hand-verified: the
+    // all-spaces twin of this document fabricates the identical heading on the PRE-SESSION
+    // build, so an author who indents with spaces — the common case — already sees it today.
+    expect(
+      names(doc("## Station log", "", "Wind was steady from the northwest.",
+                "Dr. Vasquez logged the following at station 4.", "",
+                "    Station", "\t-------", "    A-14", "", "We repeat next week.")),
+    ).toEqual(["h2:Station log", "h2:Station"]); // quarto: h2:Station log only — `Station` is a phantom
+  });
 });
