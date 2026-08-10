@@ -1298,6 +1298,64 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
     );
   });
 
+  it("joins a MULTI-LINE setext title per the document's `from:` DIALECT, through the real provider (Session 203)", async () => {
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — the sixth
+    // consecutive session to avoid the exact-set fixture coupling that cost Sessions 196 and
+    // 197 a full screen-taking run each. `grep -c "assert.deepStrictEqual"
+    // test/integration/suite/*.ts` was run BEFORE this was written; `openInMemory` keeps these
+    // documents out of every exact-set pin in this file and in every other suite file.
+    //
+    // Every premise below was rendered through the real `quarto render --to html` path this
+    // session, quarto 1.7.33 (`scratchpad/s203/gnd`, 45 documents, and `scratchpad/s203/ilk`, 64):
+    //   `g_gfm_top_n2`      -> `<h1>Gnd Probe Title second wrapped line</h1>` — the JOIN
+    //   `g_markdown_top_n2` -> NO heading — the same bytes, one reader away
+    //   `i_gfm_quote`       -> NO heading — a block quote INTERRUPTS the paragraph
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const body = (second: string) => [
+      "Gnd Probe Title",
+      second,
+      "====================",
+      "",
+      "Tail body line.",
+    ];
+
+    // PRESENT — the recovery half. Under a CommonMark-family reader the title is the WHOLE open
+    // paragraph, joined with single spaces, and it must reach the outline as ONE symbol.
+    const joined = await openInMemory(
+      ["---", "from: gfm", "---", "", ...body("second wrapped line")].join("\n"),
+    );
+    const joinedNames = flatten(await symbolsForDoc(joined));
+    assert.ok(
+      joinedNames.includes("Gnd Probe Title second wrapped line"),
+      `the joined title must reach the outline whole under gfm: ${joinedNames.join(", ")}`,
+    );
+
+    // ABSENT — the guard, in the SAME dialect. A block quote interrupts the paragraph, so
+    // quarto renders no heading and stitching across it would invent one.
+    const interrupted = await openInMemory(
+      ["---", "from: gfm", "---", "", ...body("> interrupting quote")].join("\n"),
+    );
+    const interruptedNames = flatten(await symbolsForDoc(interrupted));
+    assert.ok(
+      !interruptedNames.some((n) => n.startsWith("Gnd Probe Title")),
+      `no title may be stitched across an interrupt: ${interruptedNames.join(", ")}`,
+    );
+
+    // THE DIALECT GUARD — the identical bytes under the DEFAULT reader, which admits exactly one
+    // title line and therefore no heading at all here. Without this the first two assertions
+    // would both pass for a build that had simply started joining every paragraph it met.
+    const defaultReader = await openInMemory(
+      ["---", "from: markdown", "---", "", ...body("second wrapped line")].join("\n"),
+    );
+    const defaultNames = flatten(await symbolsForDoc(defaultReader));
+    assert.ok(
+      !defaultNames.some((n) => n.startsWith("Gnd Probe Title")),
+      `the default reader must still admit exactly one title line: ${defaultNames.join(", ")}`,
+    );
+  });
+
   it("does not invoke the stand-in at all when quarto.symbols.showCodeCellsInOutline is off", async () => {
     registerSymbolStandIn();
     const config = vscode.workspace.getConfiguration("quarto");
