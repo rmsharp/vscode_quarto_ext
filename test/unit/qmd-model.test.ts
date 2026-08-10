@@ -4729,6 +4729,43 @@ describe("a setext underline's column is DIALECT-DEPENDENT (Session 202)", () =>
     ).toEqual([]);
   });
 
+  it("the key must be a TOP-LEVEL one — a `from:` in YAML prose is not a reader", () => {
+    // Found by a BLIND adversarial lens that had seen none of this session's corpora, and it
+    // is the one direction this change must never fail in: `abstract: |` opens a YAML BLOCK
+    // SCALAR whose content is ordinary prose, and a sentence that happens to wrap across
+    // `from: gfm sources` is not a reader selection. Quarto renders the heading
+    // (`scratchpad/s202/adv/dialect/dialect_04`); firing there DELETES it.
+    expect(
+      names(doc("---", "title: Dialect Four", "abstract: |", "  Figures were taken",
+                "  from: gfm sources published last year.", "---", "",
+                "-   Dialect Delta Probe", "===")),
+    ).toEqual(["h1:Dialect Delta Probe"]);
+  });
+
+  it("the underline's OWN line cannot be the container it is measured against", () => {
+    // Found by the BLIND `ws` lens (`adv/ws/ws_08`). A lone `-` is BOTH a level-2 underline and
+    // a list marker, and the container-maintenance block runs at the top of every iteration —
+    // so by the time the setext test reads the stack, the underline has opened a column of its
+    // own, and the innermost column is no longer the one containing the title. Quarto renders
+    // `h2:Ws Hotel Three`; reading the pushed column DELETES it.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "Ws Hotel Three", "-")),
+    ).toEqual(["h2:Ws Hotel Three"]);
+  });
+
+  it("a container CommonMark has no marker for is not the innermost column", () => {
+    // Found by the BLIND `nest` lens (`adv/nest/nest_05`). `a. ` is a pandoc fancy-list marker
+    // and NOT a CommonMark one, so under `from: gfm` it opens nothing and the innermost column
+    // is the footnote's own 4 — where quarto renders `h1:a. Nest Echo Probe`, marker and all.
+    // Reading the phantom column 7 that `listItemContentColumn` pushes for it DELETED that
+    // heading. ⚠ The phantom column itself is PRE-EXISTING and deliberate (that function is
+    // required to fail toward phantoms); what this closes is only this row reading it.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "See the note[^n1].", "",
+                "[^n1]: Note body text", "", "    a. Nest Echo Probe", "    ==================")),
+    ).toEqual(["h1:a. Nest Echo Probe"]);
+  });
+
   // ── TEST-AFTER (labelled): regression pins over behaviour the three cycles above already
   // shipped, and the disclosed residuals. Every row is a RENDERED document, not a derivation.
   it("pins the measured grid, the guards and the disclosed residuals", () => {

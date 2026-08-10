@@ -123,6 +123,21 @@ const COMMONMARK_HEADING_COLUMNS: readonly number[] = [0, 1, 2, 3];
  */
 const COMMONMARK_INDENT_OFFSETS: readonly number[] = [0, 1, 2, 3];
 /**
+ * A list marker CommonMark itself has: a bullet, or a DECIMAL ordinal followed by `.` or `)`
+ * (Session 202). Deliberately much narrower than `listItemContentColumn`'s own marker class,
+ * which also accepts letter runs (`a.`, `iv)`, and `Mr.` with it), `#.`, and the
+ * parenthesised-both-sides form — pandoc's `fancy_lists`, which the CommonMark readers lack.
+ *
+ * ⚠ **Read ONLY to decide which stack column the setext row measures its tolerance from — it
+ * does not change what `contentColumns` holds.** That stack is required to fail toward
+ * phantoms (see `listItemContentColumn`), and two other rows read it; narrowing it here would
+ * move all three for a fact only this one uses. Found by a blind lens: under `from: gfm` a
+ * footnote body containing `    a. Nest Echo Probe` / `    ===` renders `h1:a. Nest Echo
+ * Probe` — the marker is literal text there — and measuring the tolerance from the phantom
+ * column `a. ` pushes DELETED it (`scratchpad/s202/adv/nest/nest_05`).
+ */
+const COMMONMARK_LIST_MARKER = /^[ \t]*(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/;
+/**
  * An optional closing sequence: a run of `#` at end of line, preceded by
  * whitespace OR the start of the (already separator-stripped) text. Anchoring to
  * `^` as well lets an all-hash heading body (`## ##`) collapse to empty so it is
@@ -1088,12 +1103,29 @@ const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
  * ⚠ `GFM` in upper case is absent because quarto REFUSES to render such a document (exit 1),
  * so it has no heading truth to agree with — the same reasoning `reader:` gets above.
  *
+ * ⚠ **ANCHORED AT COLUMN 0 — a TOP-LEVEL key only, where `FRONTMATTER_FROM_KEY` above accepts
+ * any indent. Found by a BLIND adversarial lens that had seen none of this session's corpora,
+ * and it is the one direction this rule must never fail in.** `abstract: |` opens a YAML BLOCK
+ * SCALAR whose content is ordinary prose, so a sentence wrapping across `from: gfm sources
+ * published last year.` is not a reader selection — and firing on it DELETED the heading quarto
+ * renders (`scratchpad/s202/adv/dialect/dialect_04`). A nested `transfer:` / `params:` key does
+ * the same. Column 0 makes every block scalar unreachable by construction: YAML requires a
+ * block scalar's content to be indented past its key.
+ *
+ * ⚠ **The cost of that anchor is measured and is a PHANTOM, which is why it is the right trade:**
+ * a per-format `format:` / `html:` / `from: gfm` really does select the reader
+ * (`adv/dialect/dialect_01` renders no heading, so gfm is genuinely in effect), and this rule
+ * now misses it and keeps the default set — an underline at column 0 we report and quarto does
+ * not. Telling that apart from `params:` / `from: 2024-01-01` needs a YAML parser, not a line
+ * regex. ⚠ Note `FRONTMATTER_FROM_KEY` has the SAME depth-blindness and keeps it deliberately:
+ * its consequence is a phantom either way, so the anchor buys it nothing.
+ *
  * ⚠ A `from:` in a PROJECT file (`_quarto.yml`) is invisible here, exactly as it is to
  * `FRONTMATTER_FROM_KEY`: this scanner sees one document's bytes. Such a document keeps the
  * default-dialect rule, which is the non-deleting direction.
  */
 const FRONTMATTER_COMMONMARK_FROM =
-  /^[ \t]*from[ \t]*:[ \t]*["']?(?:commonmark(?:_x)?|gfm)(?![a-zA-Z0-9_])/;
+  /^from[ \t]*:[ \t]*["']?(?:commonmark(?:_x)?|gfm)(?![a-zA-Z0-9_])/;
 /**
  * A setext underline run that pandoc will swallow the ATX line above into — `=`s or `-`s
  * alone on a line, any length, at **column 0**, for the ATX-adjacency rule in
@@ -2002,6 +2034,15 @@ function computeRegions(text: string): Regions {
   // before this session (a pre-existing phantom). A column missing that pandoc DOES open
   // deletes a real heading. Every rule below is written to fail in the first direction.
   let contentColumns: number[] = [];
+  // How many of those columns were open ABOVE the line being scanned, i.e. before this line
+  // opened one of its own (Session 202). Read only by the setext row — see the assignment in
+  // the container-maintenance block for why that row cannot use the post-push length.
+  let columnsAboveThisLine = 0;
+  // Whether each of those columns was opened by a construct the CommonMark readers actually
+  // have, index for index with `contentColumns` (Session 202). A THIRD parallel array for the
+  // same reason `columnKinds` is a second one: the stack itself is handed to three consumers as
+  // a plain `readonly number[]`, and only this session's row asks this question.
+  const columnIsCommonmark: boolean[] = [];
   // What OPENED each of those columns, index for index with `contentColumns` (Session 198).
   // Only the container POP reads it, and only in its no-blank branch: a shallow LIST START
   // closes a LIST ITEM container and does NOT close a FOOTNOTE or DEFINITION-LIST one, so a
@@ -2148,6 +2189,7 @@ function computeRegions(text: string): Regions {
         while (contentColumns.length > 0 && contentColumns[contentColumns.length - 1] > indentWidth) {
           contentColumns.pop();
           columnKinds.pop();
+          columnIsCommonmark.pop();
         }
       }
       // ⚠ AN OPENER AT CODE DEPTH OPENS NOTHING (Session 196), because it is not an opener at
@@ -2166,16 +2208,34 @@ function computeRegions(text: string): Regions {
       // column for it lifts the code base so the code block below it becomes an open paragraph,
       // which deletes the ATX heading underneath. Shipping the opener change alone would have
       // deleted 39 real headings.
+      // ⚠ **The columns open ABOVE this line, before this line opens one of its own** — read
+      // ONLY by the setext row's CommonMark set (Session 202), and read there because a lone
+      // `-` is BOTH a level-2 underline and a list marker. The container block runs at the top
+      // of every iteration, so by the time that row asks for the INNERMOST column the underline
+      // has already pushed one, and measuring the tolerance from it DELETES the heading quarto
+      // renders (`scratchpad/s202/adv/ws/ws_08`, found by a blind lens). The POP above is
+      // deliberately still applied — `ax/pop_gfm_*` measures that a title closing an inner item
+      // really does move the tolerance out to the surviving column.
+      columnsAboveThisLine = contentColumns.length;
       if (!indentedCodeLine(line, contentColumns)) {
         const opened = listItemContentColumn(line);
         if (opened !== null) {
           contentColumns.push(opened);
           columnKinds.push("list");
+          columnIsCommonmark.push(COMMONMARK_LIST_MARKER.test(line));
         } else if (CONTENT_COLUMN_4_OPEN.test(line)) {
           // A footnote definition and a definition-list definition both give their content
           // exactly 4 columns past their own indent — measured, and independent of label length.
           contentColumns.push(indentWidth + 4);
           columnKinds.push("definition");
+          // ⚠ BOTH spellings count as CommonMark here, and the definition-list half of that is
+          // KNOWN WRONG for `gfm`/`commonmark` and RIGHT for `commonmark_x` — which is exactly
+          // why it is not narrowed. gfm has footnotes (measured, `ax/fn_gfm_u5`), and
+          // `commonmark_x` has definition lists (measured, `ctl/defset_cmx_u4`), so refusing
+          // the `:`/`~` spelling would trade this row's 6 disclosed PHANTOMS under two readers
+          // for a DELETION under a third. Telling the three apart needs a per-reader construct
+          // table, which is the container stack's question and not this row's.
+          columnIsCommonmark.push(true);
         }
       }
       if (BLOCK_QUOTE_MARKER.test(line)) {
@@ -2304,8 +2364,13 @@ function computeRegions(text: string): Regions {
     // paragraph — so the new decline agrees there, 20 rows of 20. The 3 residual phantoms in
     // that corpus are all `from: markdown` rows, unchanged by this change, and are Session
     // 180's already-filed `CLOSES_PARAGRAPH` entry.
-    const innermostColumn =
-      contentColumns.length === 0 ? 0 : contentColumns[contentColumns.length - 1];
+    let innermostColumn = 0;
+    for (let c = columnsAboveThisLine - 1; c >= 0; c--) {
+      if (columnIsCommonmark[c]) {
+        innermostColumn = contentColumns[c];
+        break;
+      }
+    }
     const setextLevel =
       consecutiveBody === 1
         ? setextUnderlineLevel(
