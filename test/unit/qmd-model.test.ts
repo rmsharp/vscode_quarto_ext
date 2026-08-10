@@ -4313,4 +4313,95 @@ describe("an ATX heading's own indent is a COLUMN EQUALITY, not a ` {0,3}` cap (
                 "    # Victor Four Column ATX", "", "    Body text.")),
     ).toEqual(["h1:Victor Four Column ATX"]);
   });
+
+  it("RED->GREEN: a `from:` key SUSPENDS the column rule — gfm and commonmark really are CommonMark", () => {
+    // ⚠ FOUND BY THIS SESSION'S COMPLETENESS PASS, AND CAUSED BY THIS SESSION'S OWN CHANGE.
+    // The equality above is quarto's DEFAULT-dialect rule. A front-matter `from:` key can
+    // select a reader that genuinely has CommonMark's 0-3 tolerance, and then refusing
+    // columns 1-3 DELETES a heading quarto renders. Measured over 29 rendered documents
+    // (`scratchpad/s199/comp`, five keys x four indents plus a container column and a no-key
+    // control), and the split is exact:
+    //
+    //     from: gfm                            heading at 0, 1, 3 — and at container column 4
+    //     from: commonmark                     heading at 0, 1, 3 — and at 4
+    //     from: markdown                       heading at 0 and 4 only
+    //     from: markdown_strict                heading at 0 and 4 only
+    //     from: markdown-blank_before_header   heading at 0 and 4 only
+    //     (no key)                             heading at 0 and 4 only
+    //
+    // The suspension keys on the KEY'S PRESENCE, not on resolving which dialect it names —
+    // the same fail-open `FRONTMATTER_FROM_KEY` already documents for the `paragraphOpen`
+    // bail, and resolving the dialect would be a different capability. The measured cost is
+    // that the three non-CommonMark keys retain a phantom at indents 1-3, which is this
+    // project's permitted direction; the alternative is deleting real headings under `gfm`.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "Intro paragraph.", "", " # Probe Title", "",
+                " Tail body line.")),
+    ).toEqual(["h1:Probe Title"]);
+    // CONTROL — the identical body with NO `from:` key, where quarto renders no heading and
+    // the column rule stands (`scratchpad/s199/comp/dia_none_i1.qmd`).
+    expect(
+      names(doc("Intro paragraph.", "", " # Probe Title", "", " Tail body line.")),
+    ).toEqual([]);
+    // CONTROL — a `from:` key does NOT disable the container column, which still resolves
+    // (`dia_gfm_c4.qmd`, rendered: quarto emits the heading here too).
+    expect(
+      names(doc("---", "from: gfm", "---", "", "-   item one", "", "    # Probe Title", "",
+                "    Tail body line.")),
+    ).toEqual(["h1:Probe Title"]);
+    // ⚠ THE SUSPENSION IS BOUNDED AT 3, AND THE FIRST DRAFT OF IT WAS NOT — it suspended the
+    // rule ENTIRELY, which with the widened leading class accepts EVERY indent and fabricated
+    // a heading at column 4 under all five keys. Column 4 with no container is an indented
+    // CODE block in every dialect measured, `gfm` and `commonmark` included
+    // (`dia_gfm_i4.qmd`, `dia_markdown_i4.qmd` — quarto renders no heading in any of them).
+    // So the fallback is CommonMark's own 0-3 tolerance, not "anything".
+    expect(
+      names(doc("---", "from: gfm", "---", "", "Intro paragraph.", "", "    # Probe Title", "",
+                "    Tail body line.")),
+    ).toEqual([]);
+  });
+
+  it("test-after (DISCLOSED, and the one error this change INTRODUCES): the ATX-SWALLOW's text", () => {
+    // ⚠ **THIS IS THE ONE NEW ERROR OVER 189 RENDERED DOCUMENTS, IT IS INTRODUCED RATHER THAN
+    // PRE-EXISTING, AND IT IS DISCLOSED HERE RATHER THAN CLOSED.** The mechanical per-error
+    // adjudication against the pre-session build on identical bytes
+    // (`scratchpad/s199/newerr199.py`) returns INTRODUCED 1, CARRIED 7, FIXED 54, and this is
+    // the 1.
+    //
+    // The underlying divergence is Session 182's already-filed item: pandoc SWALLOWS an ATX
+    // line into a setext heading below it, keeping the literal `#` in the text, and this model
+    // declines that on purpose — an outline row reading `# Heading Above` is noise. Declining
+    // it is a deliberate product choice, so "closing" this would mean reversing S182's
+    // decision, which is a different capability (FM #26).
+    //
+    // What this change actually did, measured across three builds:
+    //
+    //   indent 0   quarto `h1:# Heading Above`   pre `h1:Heading Above`   ship UNCHANGED
+    //   indent 1   quarto `h1:# Indented …`      pre `h1:Indented …`      ship NOW AGREES
+    //   column 4   quarto `h1:# Container …`     pre AGREED               ship strips the `#`
+    //
+    // ⚠ The pre-session build was right at column 4 BY ACCIDENT — ` {0,3}` could not see the
+    // heading at all, so the line fell through and the `===` below claimed it as a setext
+    // title, literal `#` included. The same accident-shaped result S197 documented for the
+    // tab-indented underline. What ships is UNIFORM: the `#` is now stripped at column 0 and
+    // at column 4 alike, where before the two columns disagreed with each other. No heading is
+    // deleted or fabricated in any row here — both renderers emit exactly one `h1`, and only
+    // the TEXT differs.
+    expect(
+      names(doc("-   item one", "", "    # Container Heading Above", "    ===", "",
+                "    Body tail.")),
+    ).toEqual(["h1:Container Heading Above"]); // quarto: h1:# Container Heading Above
+    // CONTROL — the column-0 spelling, where BOTH builds strip the `#` and always have. It is
+    // what makes this a text-divergence family rather than something this change invented
+    // (`scratchpad/s199/comp/sw_after_i0.qmd`, rendered).
+    expect(
+      names(doc("Intro paragraph.", "", "# Heading Above", "===", "", "Body tail.")),
+    ).toEqual(["h1:Heading Above"]); // quarto: h1:# Heading Above — pre-existing, identical in both builds
+    // CONTROL — indent 1, which this change moved the OTHER way: the ATX row now declines it,
+    // the line falls through, and the underline claims it with quarto's own text
+    // (`sw_after_i1.qmd`).
+    expect(
+      names(doc("Intro paragraph.", "", " # Indented Heading Above", "===", "", "Body tail.")),
+    ).toEqual(["h1:# Indented Heading Above"]); // quarto agrees exactly — recovered by this change
+  });
 });

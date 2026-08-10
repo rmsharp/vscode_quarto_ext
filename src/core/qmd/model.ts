@@ -102,6 +102,14 @@ export interface OutlineSymbol {
  */
 const ATX_HEADING = /^[ \t]*(#{1,6})[ \t]+(.+)$/;
 /**
+ * The columns a CommonMark-dialect document accepts an ATX heading at — §4.2's own 0-3
+ * tolerance, which quarto's DEFAULT dialect does not have (see `atxHeadingMatch`). Used
+ * only under a front-matter `from:` key, where the reader may genuinely be CommonMark.
+ * ⚠ It is a bounded SET, not a suspension: column 4 is an indented code block under every
+ * dialect measured, `gfm` and `commonmark` included.
+ */
+const COMMONMARK_HEADING_COLUMNS: readonly number[] = [0, 1, 2, 3];
+/**
  * An optional closing sequence: a run of `#` at end of line, preceded by
  * whitespace OR the start of the (already separator-stripped) text. Anchoring to
  * `^` as well lets an all-hash heading body (`## ##`) collapse to empty so it is
@@ -151,9 +159,26 @@ const ATTR_ID = /#([^\s}]+)/;
  * exactly on content column 4 and IS a heading, while the same tab inside `- item` (column 2)
  * overshoots and is not. Both measured; this is the sixth site on that definition.
  *
- * ⚠ **`null` columns SUSPEND the rule and return the bare match — the block-quote fail-safe,
- * and it is here because the first draft of this function argued its way out of it and a
- * Session 189 pin refuted the argument within the minute.** That draft reasoned: a `> # x`
+ * ⚠ **`null` columns SUSPEND the rule and return the bare match. There are TWO reasons the
+ * caller passes null, they were found by different means, and neither was in the first
+ * draft.**
+ *
+ * The SECOND is a `from:` FRONT-MATTER KEY (`dialectOverride`), and it is the one this rule
+ * could not have been derived without: the equality above is quarto's DEFAULT-dialect
+ * behaviour, and `gfm` and `commonmark` genuinely DO have CommonMark's 0-3 tolerance.
+ * Measured over 29 rendered documents — `gfm` and `commonmark` render the heading at columns
+ * 0, 1 and 3, while `markdown`, `markdown_strict`, `markdown-blank_before_header` and no key
+ * at all render it at 0 only. Applying the equality under those two keys DELETES real
+ * headings, which is how this session's completeness pass found it. The suspension keys on
+ * the key's PRESENCE rather than on resolving the dialect — the same fail-open
+ * `FRONTMATTER_FROM_KEY` already documents for the `paragraphOpen` bail — so the measured
+ * cost is a phantom at columns 1-3 under the three non-CommonMark keys, this project's
+ * permitted direction. A container column still resolves normally under a `from:` key
+ * (measured), because column 0 is not the only column in the set.
+ *
+ * The FIRST is the block-quote fail-safe, and it is here because the first draft of this
+ * function argued its way out of it and a Session 189 pin refuted the argument within the
+ * minute. That draft reasoned: a `> # x`
  * line cannot match `ATX_HEADING` at all, and the only way these bytes are seen inside a
  * quote is as a lazy continuation, where `paragraphOpen` is true and the call site has
  * already bailed. The reasoning is sound and the conclusion is false — a BLOCK inside the
@@ -853,8 +878,16 @@ const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
  * containing block's content column too.** Until Session 192 the contrast was with a ` {0,3}`
  * cap, and this docstring said so; the setext rows are now an EQUALITY against
  * `[0, ...contentColumns]`, so the two are no longer wide-versus-narrow but different
- * questions. This one asks where pandoc's ATX-SWALLOW fires, and that is column 0 only — the
- * swallow was never measured inside a container, so nothing here is claimed about one.
+ * questions. This one asks where pandoc's ATX-SWALLOW fires, and that is column 0 only for
+ * THIS row's purpose — the block closure below it.
+ *
+ * ⚠ **Session 199 measured the swallow INSIDE a container, which this note previously said
+ * nothing was claimed about, and it DOES fire there**: inside `-   item one`, the document
+ * `    # Container Heading Above` / `    ===` renders `<h1># Container Heading Above</h1>`,
+ * literal `#` and all. That is the same divergence Session 182 filed at column 0 (we strip
+ * the `#` on purpose), now known to have a container spelling too. This row is deliberately
+ * NOT widened for it: the fix is a decision about the swallow's TEXT, not about where this
+ * row fires, and reversing S182's choice is a separate capability.
  * The swallow is measured to need zero indent: `# Heading Above` / `===` renders
  * `<h1># Heading Above</h1>` and makes the heading below it real, while the same document
  * with even ONE leading space renders `<h1>Heading Above</h1>` plus a plain paragraph, and
@@ -1933,7 +1966,16 @@ function computeRegions(text: string): Regions {
     const m =
       paragraphOpen && !dialectOverride
         ? null
-        : atxHeadingMatch(line, quoteOpen ? null : [0, ...contentColumns]);
+        : atxHeadingMatch(
+            line,
+            // A block quote suspends the rule entirely; a `from:` key relaxes it to
+            // CommonMark's own tolerance. Both still offer every open container column.
+            quoteOpen
+              ? null
+              : dialectOverride
+                ? [...COMMONMARK_HEADING_COLUMNS, ...contentColumns]
+                : [0, ...contentColumns],
+          );
     if (m) {
       const heading = parseHeadingLine(m, i);
       if (heading) {
