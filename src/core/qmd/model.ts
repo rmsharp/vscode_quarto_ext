@@ -110,6 +110,19 @@ const ATX_HEADING = /^[ \t]*(#{1,6})[ \t]+(.+)$/;
  */
 const COMMONMARK_HEADING_COLUMNS: readonly number[] = [0, 1, 2, 3];
 /**
+ * CommonMark's own leading-space slack, as OFFSETS from an enclosing block's content column
+ * rather than as absolute columns (Session 202). Deliberately a separate constant from
+ * `COMMONMARK_HEADING_COLUMNS` above even though the four numbers coincide: that one is an
+ * absolute column SET the ATX row spreads into its own, this one is added to a column, and
+ * folding them together would make one row's edit silently move the other's rule.
+ *
+ * ⚠ At `column + 4` the line is an INDENTED CODE block under every dialect measured, so this
+ * tolerance and "any column shallower than code depth" describe the same set here — CommonMark
+ * §4.3's 0-3 slack and §4.4's 4-column code rule are complements by construction. Written as
+ * the slack because that is what pandoc's `commonmark` reader implements.
+ */
+const COMMONMARK_INDENT_OFFSETS: readonly number[] = [0, 1, 2, 3];
+/**
  * An optional closing sequence: a run of `#` at end of line, preceded by
  * whitespace OR the start of the (already separator-stripped) text. Anchoring to
  * `^` as well lets an all-hash heading body (`## ##`) collapse to empty so it is
@@ -247,6 +260,44 @@ const SETEXT_H2 = /^[ \t]*-+[ \t]*$/;
  * column in the open container stack. Pandoc's `setextHeader` applies `skipNonindentSpaces`
  * to the TITLE line and then reads the underline run with no leading-space parser at all, so
  * the run must begin exactly where the enclosing block's content begins.
+ *
+ * ⚠ **…UNDER QUARTO'S DEFAULT READER. Under a CommonMark-family `from:` the rule is the
+ * opposite SHAPE, and the call site builds a different set for it (Session 202).** This
+ * function is unchanged — it still asks only "is the underline's column in this set?" — but
+ * which set it is handed now depends on the document's reader:
+ *
+ *   default (`markdown`, and no key at all)   `[0, ...contentColumns]` — an EQUALITY against
+ *                                             column 0 or ANY open container column
+ *   CommonMark (`gfm`, `commonmark`, …)       `[c … c+3]` where `c` is the INNERMOST open
+ *                                             content column — a TOLERANCE, and column 0 is
+ *                                             NOT in it unless it IS the innermost
+ *
+ * Measured over the 264-document grid `scratchpad/s202/gnd` (4 dialects × 6 container shapes ×
+ * 11 underline columns, all quarto exit 0) plus the 120-document `lvl` grid that repeats it for
+ * the `-` spelling and answers identically. ⚠ **Every divergence in both grids was a
+ * CommonMark-dialect row** — the default-dialect half of the equality above is exactly right,
+ * 192 rows of 192 — and the shipped build agrees on 384 of 384.
+ *
+ *   top level     (c=0)     default `[0]`         CommonMark `[0,1,2,3]`
+ *   `- item`      (c=2)     default `[0,2]`       CommonMark `[2,3,4,5]`
+ *   `1. item`     (c=3)     default `[0,3]`       CommonMark `[3,4,5,6]`
+ *   `-   item`    (c=4)     default `[0,4]`       CommonMark `[4,5,6,7]`
+ *   `- a`/`  - b` (c=2,4)   default `[0,2,4]`     CommonMark `[4,5,6,7]` — NOT the whole stack
+ *   3-deep        (c=2,4,6) default `[0,2,4,6]`   CommonMark `[6,7,8,9]`
+ *
+ * The mechanism is CommonMark's own rule that a setext underline may not be a LAZY
+ * CONTINUATION line: a run shallower than the innermost open container continues the item's
+ * paragraph instead of underlining it. That is why the CommonMark set REFUSES columns the
+ * default set accepts (column 0, and every OUTER column of a nested stack) while ACCEPTING
+ * three the default set refuses. ⚠ **The two halves have OPPOSITE polarity — one removes
+ * phantoms, one recovers headings — and were scored separately** (Learning #272).
+ *
+ * ⚠ **"Innermost" is measured AFTER the container pop, not from the title's own line.**
+ * `scratchpad/s202/ax` `pop_gfm_*`: a 2-deep stack whose title sits at column 2 closes the
+ * inner item, and quarto then accepts `[2,3,4,5]` rather than the inner `[4,7]`. The
+ * `contentColumns` maintenance at the top of the scan already produces exactly that, so this
+ * needed no special case — but it is an axis the ground grid holds fixed, so it was measured
+ * rather than argued.
  *
  * Both former `{0,3}` regexes were simultaneously TOO WIDE and TOO NARROW, which is why this
  * is an equality and not a widened or narrowed cap. Measured over 162 container documents
@@ -1005,6 +1056,44 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
  * document ever renders a heading.
  */
 const FRONTMATTER_FROM_KEY = /^[ \t]*from[ \t]*:/;
+/**
+ * A front-matter `from:` whose VALUE names a reader of the **CommonMark family** (Session 202).
+ *
+ * ⚠ **This is a different question from `FRONTMATTER_FROM_KEY` above and must stay one, because
+ * the two rows fail in OPPOSITE directions.** That row keys on the key's PRESENCE and never
+ * resolves the value, deliberately: for the ATX row the cost of firing on a document that is not
+ * CommonMark is a phantom, which this project permits. The setext row's own dialect rule DELETES
+ * the heading at underline column 0, so firing it on a `markdown` document costs a real heading —
+ * measured, `scratchpad/s202/gnd` `g_markdown_b2_u00` renders `h1:gnd probe title` where
+ * `g_gfm_b2_u00` renders nothing. Sharing one flag between the two rows would have been a
+ * one-line change that silently moved both.
+ *
+ * ⚠ **An ALLOWLIST of measured base names, matched case-sensitively — never a pattern.** Not
+ * firing leaves today's behaviour (a phantom at column 0, a loss at the tolerance columns);
+ * firing wrongly deletes a heading. So an unmeasured spelling must fall through. Measured over
+ * the 51 rendered documents of `scratchpad/s202/dax`, three decisive underline columns each:
+ *
+ *   CommonMark family   `commonmark`, `commonmark_x`, `commonmark_x+footnotes`, `gfm`,
+ *                       `gfm+footnotes`, `gfm-raw_html`, and the `"gfm"` / `'gfm'` /
+ *                       `gfm   ` / `gfm  # comment` spellings of the same values
+ *   pandoc markdown     `markdown`, `markdown+emoji`, `markdown_strict`, `markdown_mmd`,
+ *                       `markdown_phpextra`, `markdown-blank_before_header`
+ *
+ * ⚠ **`markdown_github` is in the SECOND list**, which is the one row that cannot be guessed:
+ * pandoc documents it as a deprecated synonym for `gfm`, and quarto 1.7.33 renders it exactly
+ * like `markdown` — verified against the raw HTML (`<h1 id="dax-probe-title">` nested in the
+ * `<li>` at underline column 0), not through the extractor. A classifier keyed on "contains
+ * github" or "is not markdown" would have deleted that heading.
+ *
+ * ⚠ `GFM` in upper case is absent because quarto REFUSES to render such a document (exit 1),
+ * so it has no heading truth to agree with — the same reasoning `reader:` gets above.
+ *
+ * ⚠ A `from:` in a PROJECT file (`_quarto.yml`) is invisible here, exactly as it is to
+ * `FRONTMATTER_FROM_KEY`: this scanner sees one document's bytes. Such a document keeps the
+ * default-dialect rule, which is the non-deleting direction.
+ */
+const FRONTMATTER_COMMONMARK_FROM =
+  /^[ \t]*from[ \t]*:[ \t]*["']?(?:commonmark(?:_x)?|gfm)(?![a-zA-Z0-9_])/;
 /**
  * A setext underline run that pandoc will swallow the ATX line above into — `=`s or `-`s
  * alone on a line, any length, at **column 0**, for the ATX-adjacency rule in
@@ -1888,6 +1977,12 @@ function computeRegions(text: string): Regions {
   // A front-matter `from:` disables the paragraph rule for the whole document — see
   // `FRONTMATTER_FROM_KEY`. Without this the change DELETES headings quarto renders.
   let dialectOverride = false;
+  // Whether the front-matter `from:` names a reader of the CommonMark FAMILY — see
+  // `FRONTMATTER_COMMONMARK_FROM`. Deliberately a SECOND flag beside `dialectOverride`
+  // rather than a refinement of it: that one keys on the KEY's presence and is read by the
+  // ATX row at two sites, where its fail-open direction is a measured phantom. Here the
+  // fail-open direction is a DELETION, so the two cannot share a flag.
+  let commonmarkDialect = false;
   // Whether the line ABOVE began a fresh block, making this line a paragraph start
   // (Session 181). Deliberately a one-line deferral rather than a reset — see the loop.
   // It needs no clearing at the region-boundary resets below: those set `consecutiveBody`
@@ -1963,6 +2058,9 @@ function computeRegions(text: string): Regions {
     if (inFrontmatter) {
       if (FRONTMATTER_FROM_KEY.test(line)) {
         dialectOverride = true;
+      }
+      if (FRONTMATTER_COMMONMARK_FROM.test(line)) {
+        commonmarkDialect = true;
       }
       if (FRONTMATTER_CLOSE.test(line)) {
         inFrontmatter = false;
@@ -2190,8 +2288,33 @@ function computeRegions(text: string): Regions {
     // ordinary paragraph text, so it falls through to the body handling below —
     // which is what pandoc does with it (measured: the title and the run render as
     // one `<p>`, so the paragraph stays OPEN across it).
+    // Under a CommonMark-family reader the underline may not be a LAZY CONTINUATION of the
+    // enclosing block, so a run shallower than the INNERMOST open content column is ordinary
+    // paragraph text there — where pandoc's own `markdown` reader accepts the whole stack.
+    // See `setextUnderlineLevel` for the 384-document grid, and `FRONTMATTER_COMMONMARK_FROM`
+    // for why this cannot reuse `dialectOverride`.
+    //
+    // ⚠ **A DECLINED run does not simply vanish — it falls through to the body handling, where
+    // `CLOSES_PARAGRAPH` treats an `=` run as CLOSING the paragraph, so an ATX heading written
+    // directly below it IS reported.** Declining can therefore fabricate a DIFFERENT heading
+    // rather than merely lose one, which a corpus with nothing below the underline cannot see.
+    // Measured on purpose (`scratchpad/s202/cp`, 30 documents, each with an `atx` probe and a
+    // `bare` control): under a CommonMark reader quarto renders that ATX heading at every one
+    // of the five sampled columns, because CommonMark lets an ATX heading interrupt a
+    // paragraph — so the new decline agrees there, 20 rows of 20. The 3 residual phantoms in
+    // that corpus are all `from: markdown` rows, unchanged by this change, and are Session
+    // 180's already-filed `CLOSES_PARAGRAPH` entry.
+    const innermostColumn =
+      contentColumns.length === 0 ? 0 : contentColumns[contentColumns.length - 1];
     const setextLevel =
-      consecutiveBody === 1 ? setextUnderlineLevel(line, [0, ...contentColumns]) : null;
+      consecutiveBody === 1
+        ? setextUnderlineLevel(
+            line,
+            commonmarkDialect
+              ? COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o)
+              : [0, ...contentColumns],
+          )
+        : null;
     if (setextLevel !== null) {
       const prev = bodyLines[bodyLines.length - 1];
       // A bullet marker on the title line is STRIPPED, not a reason to decline the heading

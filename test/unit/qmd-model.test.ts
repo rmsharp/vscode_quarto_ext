@@ -4634,15 +4634,17 @@ describe("a BULLET MARKER on a setext title is STRIPPED, not a reason to decline
     // lazy continuation of a list item; pandoc's own `markdown` reader allows it. Measured over
     // the 15-document `scratchpad/s201/dia` grid: under gfm and commonmark the underline must sit
     // at or past the item's content column (2), and at column 0 quarto renders NO heading.
-    expect(
-      names(doc("---", "from: gfm", "---", "", "- dia probe title", "===")),
-    ).toEqual(["h1:dia probe title"]); // quarto: NO heading — the underline is lazy
-    // ⚠ THE CONTROL THAT MAKES THIS PRE-EXISTING RATHER THAN MINE: no marker anywhere, so this
-    // change cannot reach it, and the PRE-SESSION build emits the identical phantom.
+    // ⚠ CLOSED IN PLACE BY SESSION 202, after re-rendering both documents on their own bytes
+    // (`scratchpad/s201/dia/d_gfm_u0` and `dia2/n_gfm_lazy`, byte-identical results to the
+    // rows S201 recorded). Both now AGREE with quarto: the underline at column 0 is a lazy
+    // continuation under a CommonMark-family reader and no heading forms.
+    expect(names(doc("---", "from: gfm", "---", "", "- dia probe title", "==="))).toEqual([]);
+    // The marker-free twin — no marker anywhere, so S201's change could not reach it, and it
+    // is closed by the same dialect rule rather than by anything about markers.
     expect(
       names(doc("---", "from: gfm", "---", "", "Intro.", "", "- outer one", "",
                 "  inner title", "===")),
-    ).toEqual(["h1:inner title"]); // quarto: NO heading — pre-build errs identically
+    ).toEqual([]); // quarto: NO heading — now agreeing
     // ⚠ AND THE ROW THAT SHOWS IT IS THE UNDERLINE'S RULE, NOT THE MARKER'S: at the item's own
     // content column the dialect renders the heading and strips the marker, exactly as
     // `markdown` does — so the two dialects differ only in whether a LAZY underline counts.
@@ -4690,5 +4692,40 @@ describe("a BULLET MARKER on a setext title is STRIPPED, not a reason to decline
     expect(
       names(doc("::: {.aside}", "- alpha item", ":::", "", "  Cont Kilo Probe", "  ===")),
     ).toEqual(["h1:Cont Kilo Probe"]); // quarto: NO heading — pre-build errs identically
+  });
+});
+
+describe("a setext underline's column is DIALECT-DEPENDENT (Session 202)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("under a CommonMark dialect the underline may not be a LAZY continuation", () => {
+    // `scratchpad/s202/gnd` — `g_gfm_b2_u00`, re-rendered this session: under `from: gfm` a
+    // setext underline at column 0 inside an open list item is a LAZY CONTINUATION line, and
+    // CommonMark forbids one there, so quarto renders NO heading. We emit one.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "- outer one", "", "  probe title", "===")),
+    ).toEqual([]);
+  });
+
+  it("under a CommonMark dialect the underline keeps CommonMark's own 0-3 tolerance", () => {
+    // `scratchpad/s202/gnd` — `g_gfm_b2_u03`. The same dialect that REFUSES the underline
+    // below the item's content column ACCEPTS it up to three columns past it, which is
+    // CommonMark's own leading-space slack measured from the container rather than from
+    // source column 0. The two halves have opposite polarity and are scored separately.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "- outer one", "", "  probe title", "   ===")),
+    ).toEqual(["h1:probe title"]);
+  });
+
+  it("the rule keys on the `from:` VALUE, and the family is wider than `gfm`", () => {
+    // `scratchpad/s202/dax` — 51 rendered documents, one per `from:` spelling, each read at
+    // the three decisive columns. `commonmark`, `commonmark_x`, `commonmark_x+footnotes`,
+    // `gfm`, `gfm+footnotes` and `gfm-raw_html` all answer identically to `gfm`, as do the
+    // quoted, trailing-space and trailing-comment spellings of the same values.
+    expect(
+      names(doc("---", "from: commonmark", "---", "", "- outer one", "", "  probe title",
+                "===")),
+    ).toEqual([]);
   });
 });
