@@ -7,6 +7,47 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 202 — a setext underline's column is DIALECT-DEPENDENT (SHIPPED)
+
+`setextUnderlineLevel` was handed `[0, ...contentColumns]` unconditionally and had no
+`dialectOverride` consumer where `atxHeadingMatch` got one in Session 199. Under quarto's
+default reader that set is exactly right — an EQUALITY against column 0 or any open container
+column, 192 rows of 192. Under a CommonMark-family `from:` it is the opposite SHAPE: a
+TOLERANCE of 0-3 past the INNERMOST open content column, with column 0 excluded unless it IS
+the innermost, because CommonMark forbids a setext underline on a lazy continuation line.
+
+⚠ The filed item proposed reusing Session 199's flag. That flag keys on the `from:` key's
+PRESENCE and never on its value — deliberate, because for the ATX row the cost of guessing
+wrong is a phantom. Here it is a DELETION: `from: markdown` and `from: markdown_strict` both
+render the heading at underline column 0 where `gfm` renders none. A second flag was added
+beside it rather than a refinement of it, keyed on a MEASURED allowlist of base names.
+`markdown_github` is in the pandoc-markdown half despite pandoc documenting it as a deprecated
+synonym for `gfm` — verified against the raw HTML.
+
+Six RED→GREEN cycles. Three of them closed errors this change had introduced, each a heading
+deletion, and all three were found by BLIND adversarial lenses that had seen none of the
+designed corpora: a `from:` inside a YAML block scalar (the key is now anchored at column 0);
+the underline's own line opening the container it was measured against (a lone `-` is both);
+and a container CommonMark has no marker for (`a. `) displacing the correct innermost column.
+
+MEASURED: 706 documents rendered through the real `quarto render` path, quarto 1.7.33 — 597
+designed + 109 blind. Designed agreeing 442 → 568. Blind agreeing 30 → 33. Per-error
+adjudication against the pre-session build on identical bytes: INTRODUCED 8, REACHABLE 4,
+CARRIED 90, FIXED 139. All 12 non-CARRIED errors are ONE family — the container stack does not
+know which containers each reader has — proven pre-existing through the ATX row, disclosed, and
+filed rather than hidden by reaching into shared machinery three rows read.
+
+Verification: check-types 0 · compile 0 · compile-tests 0 · npm test 1817 passed / 66 files
+(baseline 1810) · test:integration 509 passing / 0 failing / exit 0 (baseline 508) ·
+test:oracle 131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated (BYTE-IDENTICAL to
+S180–S201) · check-package OK 42 files / 5.52 MB · check-backlog OK 119 open items
+(116 − 1 completed + 4 filed). Repo control: all four views over all 115 tracked
+markdown-family documents BYTE-IDENTICAL, proven effective by INJECTION against the final
+build. NOT RUN: test:lsp — no LSP surface touched.
+
+- **Model:** claude-opus-5
+
+
 ### 2026-08-10 · [ad hoc] Session 201 — a bullet marker on a setext title is STRIPPED, not declined (SHIPPED)
 
 `BULLET_LIST_MARKER` was `/^ {0,3}[-*+][ \t]/`, tested against the setext TITLE line, and it
