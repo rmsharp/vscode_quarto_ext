@@ -361,8 +361,9 @@ describe("Quarto: Document outline (symbols)", () => {
     );
 
     // The EXACT set, so a regression in either direction fails rather than only a widening.
-    // Session 194 extended this fixture with three more headings and RE-RENDERED it; quarto
-    // emits all ELEVEN on these exact bytes, and emits NO heading for `Phantom Below A Tab`.
+    // Session 196 extended this fixture again and RE-RENDERED it; quarto emits all FOURTEEN on
+    // these exact bytes, and emits NO heading for `Phantom Below A Tab` or for
+    // `Phantom At Code Depth`.
     assert.deepStrictEqual(all, [
       "Real Section",
       "Recovered Setext",
@@ -375,6 +376,9 @@ describe("Quarto: Document outline (symbols)", () => {
       "Content Column And Tabs (Session 194)",
       "Tab Macro In A List",
       "Tab Column Kept Open",
+      "Container Opener Columns (Session 196)",
+      "Tab Opened Column",
+      "Code Depth Kept The Block",
     ]);
   });
 
@@ -463,6 +467,59 @@ describe("Quarto: Document outline (symbols)", () => {
     assert.ok(
       !all.includes("Phantom Below A Tab"),
       "a line short of the container's code threshold must not invent a section",
+    );
+  });
+
+  it("opens a container for a TAB-indented marker, and none for one at code depth (Session 196)", async () => {
+    // THE WIRING EVIDENCE for Session 196, on the provider the Outline view, breadcrumbs,
+    // sticky scroll, Ctrl+T and the cross-reference index all really call.
+    //
+    // `listItemContentColumn` and `CONTENT_COLUMN_4_OPEN` measured their own leading indent as
+    // a COUNT OF SPACES, so a TAB-indented list marker or footnote definition opened NO tracked
+    // container at all — the last two of the six sites in the model that measured indentation.
+    // Correcting them alone then DELETED headings through the other consumer of the same stack,
+    // which is why the code-depth guard ships with them; both directions are asserted here.
+    //
+    // The fixture's premise is MEASURED, not assumed: `quarto render --to html` on these exact
+    // bytes emits FOURTEEN headings, including `Tab Opened Column` and `Code Depth Kept The
+    // Block` and NOT `Phantom At Code Depth`. Against the pre-Session-196 build the same probe
+    // over the same bytes produced fourteen too — but a DIFFERENT fourteen, differing in BOTH
+    // directions: `Tab Opened Column` was missing outright and `Phantom At Code Depth` stood in
+    // its place. A count alone could not have told the two builds apart; the SET can.
+    const symbols = await symbolsFor(SETEXT_FRESH_BLOCK);
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const all = flatten(symbols);
+
+    // PRESENT control 1 — the RECOVERY the session shipped. Inside a `- ` item (content column
+    // 2) a TAB reaches column 4, which is two columns past the item's content and so is not
+    // code; the marker there opens content column 6, and the setext underline at column 6 below
+    // promotes its title. The pre-S196 build matched no marker at all on a tab-indented line,
+    // pushed nothing, and the underline then sat at a column no open block started at.
+    assert.ok(
+      all.includes("Tab Opened Column"),
+      "a tab-indented list marker must open its container column, through the real provider",
+    );
+
+    // PRESENT control 2 — the SCOPE AMENDMENT, and the assertion that fails if the code-depth
+    // guard is removed. At top level a lone TAB reaches column 4, which IS indented code, so
+    // the marker is literal code text and opens nothing; the column-8 line below it stays code,
+    // and an ATX heading may follow a code block. Without the guard the opener pushed column 6,
+    // which lifted the code base, turned the code block into an open paragraph, and
+    // `blank_before_header` then deleted this heading — 39 of them across the blind corpus.
+    assert.ok(
+      all.includes("Code Depth Kept The Block"),
+      "an ATX heading below a code block whose opener is at code depth must survive",
+    );
+
+    // ABSENT control — the PHANTOM direction, and the family this session closed rather than
+    // filed. A four-space marker at top level is indented code to pandoc, not a container, so
+    // the underline below it sits at a column nothing opened. Both this and the tab spelling of
+    // it were phantoms before; the guard removes both at once, which is what makes the two
+    // spellings equivalent rather than merely both wrong.
+    assert.ok(
+      !all.includes("Phantom At Code Depth"),
+      "a marker at code depth must not open a container the underline can stand on",
     );
   });
 

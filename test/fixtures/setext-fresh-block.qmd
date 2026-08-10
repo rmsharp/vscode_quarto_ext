@@ -77,3 +77,29 @@ Tail prose.
 # Phantom Below A Tab
 
 Closing prose.
+
+## Container Opener Columns (Session 196)
+
+- outer item
+  outer body
+
+	- inner
+
+      Tab Opened Column
+      -----------------
+
+Prose divider.
+
+	- a marker at code depth is not a marker
+		a line at column eight
+## Code Depth Kept The Block
+
+Prose divider two.
+
+    - a space marker at code depth
+      line two
+
+      Phantom At Code Depth
+      ---------------------
+
+Final closing prose.
