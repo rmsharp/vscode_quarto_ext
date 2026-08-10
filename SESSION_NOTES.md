@@ -5,6 +5,54 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 206 — IMPLEMENTATION (strict TDD): a YAML-AWARE resolution of the top-level front-matter `from:` DECLARATION. A quoted key (`"from": gfm`) is invisible to `FRONTMATTER_FROM_KEY`, and `FRONTMATTER_COMMONMARK_FROM` misses several valid YAML spellings of the very value it looks for — both heading-DELETING, both MEASURED by prior sessions, and both the same missing capability.** (IN PROGRESS)
+**Started:** 2026-08-10
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Selected by the operator via `AskUserQuestion` at Phase 0 from an empty Active section.** It was Session 205's ranked **#2 and #3**, which that session **derived** to be ONE capability — "a YAML-aware front-matter reader … doing them together is probably cheaper than either alone". **Both items ARE filed** in `BACKLOG.md` — verified firsthand at Phase 0, "Up Next" lines 52 (the quoted key, filed by S205) and 80 (the six spellings, filed by S203) — so Learning #288 does not fire.
+
+**⚠ THE SLICE TEST (FM #26), APPLIED BEFORE THE CLAIM.** Two filed items, ONE capability: every spelling below is a different way of writing *the same declaration*, resolved by *one* new resolver, consumed at *exactly one* existing site (the front-matter branch, `model.ts:2419`–`:2428`), feeding the *three existing flags* unchanged. It is not two capabilities wearing one name — the test is whether a single mechanism answers all of them, and it does: *what reader does this document's front matter declare?*
+
+**⚠ SCOPE, declared AFTER a coupling survey rather than before it.**
+
+**IN — the spellings, each MEASURED by a prior session and each a heading-DELETING miss today:**
+
+| # | spelling | corpus document |
+|---|---|---|
+| K1 | a QUOTED key — `"from": gfm` | `scratchpad/s205/adv/yaml/yaml_01` |
+| K2 | a FLOW-MAPPING front matter — `{from: gfm, title: …}` | `s205/adv/yaml/yaml_02`, `s203/adv/yaml/yaml_08` |
+| V1 | a NEXT-LINE plain scalar — `from:` / `  gfm` | `s203/adv/yaml/yaml_05` |
+| V2 | a BLOCK SCALAR — `from: >-` / `  gfm` | `s203/adv/yaml/yaml_06` |
+| V3 | a uniformly INDENTED whole mapping — ` from: gfm` | `s203/adv/yaml/yaml_07` |
+| V4 | an ANCHOR/ALIAS pair — `preferred: &rdr gfm` / `from: *rdr` | `s203/adv/yaml/yaml_09` |
+
+**OUT, each with the reason it is a different rule rather than a smaller piece of this one:**
+- **A blank line before the opening `---`** (`s203/adv/yaml/yaml_11`). That is not the `from:` reader at all — it is `findFrontMatter` and the scan's `i === 0`, whose consumers include the outline's front-matter span, the citation reader and the completion gate. To be **FILED as this item's residual**, and the filed item REWRITTEN rather than drained (S205's Gotcha 3).
+- **A mid-document `---`/`from:`/`---`** — both halves separately filed already (`BACKLOG.md` "Up Next" line 54, and `yaml_12`'s fabrication half under the six-spellings item).
+- **A per-format nested `format:`/`  html:`/`    from:`** — a DELIBERATE Session 202 trade with its own filed item; ⚠ and it is pinned GREEN by `test/unit/qmd-model.test.ts:952`, which must stay green.
+- **`_quarto.yml` project-level `from:`** — filed; this scanner sees one document's bytes.
+- Every other backlog item, and every synced methodology file.
+
+**⚠ FOUR COUPLINGS, surveyed firsthand before this claim was written.**
+1. **⚠ THE OBVIOUS REUSE IS AN IMPORT CYCLE.** `src/core/yaml-frontmatter-values.ts` already does quote-aware, flow-aware, top-level YAML enumeration with `unquoteKey` — exactly K1 and K2 — but it lives OUTSIDE `qmd/model.ts` and its helpers come from `yaml-context.ts`, which **imports from `qmd/model.ts`** (`yaml-context.ts:20`). `grep -n "^import" src/core/qmd/model.ts` returns **nothing**: the model is a leaf by construction. So the resolver must be self-contained in `model.ts`. ⚠ **The one genuine reuse is `scanFlow`, which already LIVES in `model.ts:3445`** and is what `yaml-frontmatter-values.ts` imports for this same job.
+2. **⚠ THE SAFETY POLARITY IS DIFFERENT FOR THE KEY AND FOR THE VALUE, and this row must not treat them alike.** The KEY (`dialectOverride`, `model.ts:2420`) fails OPEN safely: not firing SUPPRESSES a heading quarto renders (the filed defect), firing wrongly costs a phantom at heading columns 1–3. The VALUE predicates fail CLOSED: `commonmarkDialect` firing wrongly DELETES a heading at setext underline column 0 (`FRONTMATTER_COMMONMARK_FROM`'s own docstring, `s202/gnd` `g_markdown_b2_u00`), and `blankBeforeHeaderDialect` firing wrongly DELETES a pressed heading (S205's inverse polarity). **So the key may be widened generously and every VALUE must stay an exact measured allowlist.**
+3. **⚠ THE COLUMN-0 ANCHOR ON THE TWO VALUE PREDICATES IS LOAD-BEARING AND V3 LOOKS LIKE ITS OPPOSITE.** It exists because `abstract: |` opens a block scalar whose prose may wrap across `from: gfm sources published…`, and firing there DELETED a real heading (S202's `dialect_04`; S205 re-measured its own case as `s_collide`). V3 is therefore **not** "relax the indent" — it must be "the whole mapping is uniformly indented", a document-level fact a block scalar's interior can never satisfy, since YAML requires that interior to be indented PAST its key.
+4. **⚠ SUPPRESSING OR ADMITTING A HEADING IS NOT FREE — the `if (m)` branch is a state machine** (`consecutiveBody`, `paragraphOpen`, `inPipeTable`, `quoteOpen`, `prevWasAtxHeading`). Every corpus row must carry a probe BELOW the line whose fate changes — the half that bit S202 and S203, carried by S204 and S205.
+
+**⚠ THE DECISION RULE FOR ANY SCOPE AMENDMENT, DECLARED IN ADVANCE** (S194's test, as S196–S205 applied it): *would this defect exist if my change did not ship?* A new error CAUSED by this change is closed here and disclosed; one that is pre-existing and merely made reachable is pinned with a rendered control and FILED, with the grep count pasted at Phase 3F.
+
+**⚠ TDD gate — FIRES.** The resolver is logic. RED → GREEN → REFACTOR, one behaviour at a time, each RED confirmed to fail on the BEHAVIOUR rather than the plumbing. ⚠ **S204's Gotcha 5 and S205's inheritance of it are inherited again: any guard's test is written BEFORE the guard.**
+
+**⚠ THE COMPLETENESS PASS IS BUDGETED HERE, BEFORE ANY RESULT IS SEEN.** Ten sessions running, a clean designed corpus was wrong. Each probe will name which consumer it targets.
+
+**⚠ SUB-AGENTS: this session WILL delegate the adversarial corpus**, per the operator's standing directive (Session 183). Every agent claim is to be verified firsthand before it is acted on.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **1864 passed / 66 files**, matching Session 205's recorded close-out exactly; `check-backlog` **OK, 135 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`ade469f`, gap 0) and `grep -c "^status: pending" HANDOFFS.md` = 0. No ghost sessions.
+
+---
+
+## Session 205 ACTIVE TASK (superseded by Session 206 — full entry preserved below)
 **Task:** **Session 205 — IMPLEMENTATION (strict TDD): the DEFAULT reader's own HTML-block rule, which turns out NOT to be an HTML-block rule at all — `blank_before_header` is switched OFF by the mere PRESENCE of a `from:` key, so an explicitly-declared `from: markdown` loses a rule this model already implements correctly.** (IN PROGRESS)
 **Started:** 2026-08-10 · **Closed:** 2026-08-10
 **Status:** **DONE. SHIPPED — the rule was never missing, it was switched off, and the proof was a column already sitting in the filed item's own corpus. 262 rendered documents: designed agreement 99/153 → 147/153, pins 10/26 → 26/26, blind 29/64 → 45/64, and the per-error adjudication returns INTRODUCED 0 / FIXED 64 / REACHABLE 0. Session 204's own corpora, re-scored on this build, improve too: its `end` 67/72 → 72/72 and its `gnd` 155/180 → 162/180.**

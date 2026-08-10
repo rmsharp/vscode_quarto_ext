@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S206
+date: 2026-08-10
+status: pending
+active_task: Session 206 — IMPLEMENTATION (strict TDD): a YAML-AWARE resolution of the top-level front-matter `from:` DECLARATION. A quoted key (`"from": gfm`) is invisible to FRONTMATTER_FROM_KEY, and FRONTMATTER_COMMONMARK_FROM misses several valid YAML spellings of the value it looks for. Both heading-DELETING, both MEASURED by prior sessions (S203's and S205's blind `yaml` lenses), both filed in BACKLOG.md, and S205 derived them to be ONE capability. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section (S205's ranked #2 and #3). IN: a quoted key, a flow-mapping front matter, a next-line plain scalar, a block scalar, a uniformly indented whole mapping, an anchor/alias pair. OUT: a blank line before the opening `---` (that is findFrontMatter and the scan's `i === 0`, a different rule with many consumers — to be FILED as the residual), the mid-document `from:` block (filed), the per-format nested `from:` (a deliberate S202 trade, pinned green by an existing unit test), `_quarto.yml` (filed). ⚠ Coupling survey before the claim: model.ts has ZERO imports and yaml-context.ts imports FROM it, so the existing YAML helpers cannot be reused without a cycle — the resolver is self-contained, reusing only `scanFlow`, which already lives in model.ts. ⚠ The KEY fails open safely (a phantom) and every VALUE fails closed (a DELETION), so the key may be widened and every value stays an exact measured allowlist.
+```
+
+```handoff
 session: S205
 date: 2026-08-10
 status: complete
