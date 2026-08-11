@@ -1705,4 +1705,63 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `an extension turning definition lists ON must be honoured: ${gfmPlus.join(", ")}`,
     );
   });
+
+  it("reads front matter that follows a blank line, through the real provider (Session 210)", async () => {
+    // THE WIRING EVIDENCE for Session 210, on the provider the Outline view, breadcrumbs,
+    // sticky scroll and Ctrl+T all really call. The change moves the outline in BOTH
+    // directions, so the ABSENT cases are asserted as explicitly as the PRESENT ones.
+    //
+    // ⚠ THIS TEST DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd`.
+    // Sessions 196 and 197 each lost a full screen-taking Extension Development Host run by
+    // extending that fixture and tripping an exact-set `assert.deepStrictEqual` over it.
+    // `openInMemory` gives these four documents their own scope, so no exact-set pin can be
+    // extended by them at all; the grep (`grep -c "assert.deepStrictEqual"
+    // test/integration/suite/*.ts`, 34 in this file) ran BEFORE this test was written.
+    //
+    // Every premise below was rendered through the real `quarto render --to html` path this
+    // session — `scratchpad/s210/cal` and `cal2`, 51 documents.
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+    const body = ["", "Some prose paragraph.", "# Pressed Heading", "", "## Control Heading"];
+
+    // PRESENT — the heading-DELETING half. `cal/cal_blank1_rdr`: quarto honours the front
+    // matter behind the blank line AND selects gfm, so the pressed heading renders. The
+    // pre-session build reported the control alone, dropping this section from the outline.
+    const lead = await namesFor("", "---", "title: Doc", "from: gfm", "---", ...body);
+    assert.ok(
+      lead.includes("Pressed Heading"),
+      `front matter behind a blank line must still select the reader: ${lead.join(", ")}`,
+    );
+
+    // ABSENT — the heading-FABRICATING half. `cal/cal_blank1_meta`: with the block invisible,
+    // its closing `---` underlined `title: Doc` into a setext heading, putting a section in
+    // the Outline view that the reader never sees.
+    const meta = await namesFor("", "---", "title: Doc", "---", ...body);
+    assert.ok(
+      !meta.includes("title: Doc"),
+      `the YAML must not become a setext section: ${meta.join(", ")}`,
+    );
+
+    // PRESENT — THE GUARD. Without it the ABSENT assertion above would pass for a build that
+    // had stopped reading front matter altogether, which would DELETE real sections
+    // everywhere. `cal/cal_none_rdr` is the byte-0 twin and is unchanged by this session.
+    const byte0 = await namesFor("---", "title: Doc", "from: gfm", "---", ...body);
+    assert.ok(
+      byte0.includes("Pressed Heading"),
+      `the byte-0 twin must be unaffected: ${byte0.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE OVER-WIDENING GUARD, and the assertion that separates the shipped rule
+    // from the obvious wrong one. `cal2/c2_hrgap_meta`: a BLANK line below the opener means
+    // quarto does NOT read the block as front matter — it renders a thematic break and a real
+    // `h2:title: Doc`. So this section MUST survive. A fix that merely skipped leading blanks
+    // would swallow it, and every heading of an unterminated document with it.
+    const hrgap = await namesFor("", "---", "", "title: Doc", "---", ...body);
+    assert.ok(
+      hrgap.includes("title: Doc"),
+      `a blank below the opener is NOT front matter, so this section is real: ${hrgap.join(", ")}`,
+    );
+  });
 });
