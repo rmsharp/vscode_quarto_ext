@@ -1649,4 +1649,60 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `a top-level \`from: gfm\` must still select gfm and keep BOTH headings: ${topNames.join(", ")}`,
     );
   });
+  it("gives a container a content column only when the READER has that container (Session 209)", async () => {
+    // THE WIRING EVIDENCE for Session 209, on the provider the Outline view, breadcrumbs,
+    // sticky scroll, Ctrl+T and the cross-reference index all really call.
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — the same reason as
+    // the four tests above. That fixture is asserted by six other tests as an exact set, and
+    // Sessions 196 and 197 each lost a full integration run to editing it. Everything here goes
+    // through `openInMemory`, so the fixture's byte content and its exact-set assertions are
+    // untouched. The grep ran BEFORE this test was written: 7 raw mentions, 6 real uses,
+    // unchanged by this addition.
+    //
+    // Every premise below is MEASURED through the real `quarto render` path this session
+    // (quarto 1.7.33, `scratchpad/s209/cal` and `cal2`), not assumed.
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const body = ["Term one", "", ":   the definition body", "", "    # Probe Section", "", "Tail."];
+    const fnBody = ["See[^1] for it.", "", "[^1]: the note body", "", "    # Probe Section", "", "Tail."];
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    // ABSENT — `gfm` has NO definition lists, so `:   the definition body` opens nothing and the
+    // line four columns in is indented code. `scratchpad/s209/cal/defterm_gfm_atx` renders no
+    // heading; before this session the outline carried a section that does not exist.
+    const gfmDef = await namesFor("---", "from: gfm", "---", "", ...body);
+    assert.ok(
+      !gfmDef.includes("Probe Section"),
+      `gfm has no definition lists, so no section may reach the outline: ${gfmDef.join(", ")}`,
+    );
+
+    // ABSENT — the other construct. Plain `commonmark` is the one measured base with NEITHER,
+    // so a REFERENCED footnote definition opens nothing either (`cal/fnref_cm_atx`).
+    const cmFn = await namesFor("---", "from: commonmark", "---", "", ...fnBody);
+    assert.ok(
+      !cmFn.includes("Probe Section"),
+      `commonmark has no footnotes, so no section may reach the outline: ${cmFn.join(", ")}`,
+    );
+
+    // PRESENT — the guard, and the whole safety argument for a narrowing. `markdown` HAS
+    // definition lists (`cal/defterm_md_atx` renders the heading), so the section must survive.
+    // Without this assertion the two above would pass for a build that had stopped opening
+    // definition containers at all, which would DELETE real sections.
+    const mdDef = await namesFor("---", "from: markdown", "---", "", ...body);
+    assert.ok(
+      mdDef.includes("Probe Section"),
+      `markdown HAS definition lists, so the section must survive: ${mdDef.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE EXTENSION OUTRANKS THE BASE. `gfm+definition_lists` renders the heading
+    // (`cal2/ext_gfmplusdef_def`), so a predicate keyed on the base name alone would DELETE this
+    // one. This is the assertion that separates the shipped rule from the obvious wrong one.
+    const gfmPlus = await namesFor("---", "from: gfm+definition_lists", "---", "", ...body);
+    assert.ok(
+      gfmPlus.includes("Probe Section"),
+      `an extension turning definition lists ON must be honoured: ${gfmPlus.join(", ")}`,
+    );
+  });
 });
