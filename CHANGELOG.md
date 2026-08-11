@@ -7,6 +7,64 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 209 — the container column stack knows which containers each READER has (SHIPPED)
+
+**Model:** Claude Opus 5.
+
+`contentColumns` pushed a content column of `indent + 4` for a footnote definition (`[^1]: x`)
+and for a definition-list body (`:   x` / `~   x`) under **every** reader. The readers measurably
+differ per construct, so the stack was opening containers that the declared reader does not have —
+and because a container's column is what separates its content from INDENTED CODE, the resulting
+column was wrong in both directions at once. Ranked #1 by every session from S202 through S208 and
+never picked; operator-selected at Phase 0 from an empty Active section.
+
+`CONTENT_COLUMN_4_OPEN` is split into `FOOTNOTE_DEFINITION_OPEN` and `DEFINITION_LIST_BODY_OPEN`,
+and each is gated on its own predicate (`fromHasFootnotes`, `fromHasDefinitionLists`) over eight
+measured reader bases. Keyed on a POSITIVE resolution: an unresolvable `from:`, an unmeasured base
+and no key at all all keep the old unconditional push, which is the phantom direction.
+
+⚠ **The extension list OUTRANKS the base, in both directions and on both constructs, and a
+predicate keyed on the base name alone would DELETE real headings** — `gfm+definition_lists`
+renders a definition list and `markdown-definition_lists` does not. The two extensions are
+independent (`markdown-footnotes` has definition lists and no footnotes), and LAST occurrence wins,
+measured in both orders. The base table has the same trap: `markdown_github` and `markdown_strict`
+are both `markdown_*` and the first has footnotes with no definition lists while the second has
+neither, so no grouping coarser than the exact name is safe.
+
+**Measurement — 246 documents rendered fresh through the real `quarto render` path (quarto
+1.7.33), plus a 37,810-document re-score of every predecessor corpus. INTRODUCED 0 in every
+designed corpus.** Calibration grid 34/72 → 58/72 (FIXED 24); the round-2 grid 36/52 → 45/52; the
+budgeted completeness pass over all seven consumers of the stack 29/42 → 41/42; the adversarial
+pass 13/28 → 27/28. Of the 26 predecessor documents that moved, 22 are clean fixes, three are
+recoveries carrying the already-filed interior-whitespace text gap, and one is a new phantom that
+belongs to an already-filed row — each classified by a feature-free control, not by argument. No
+heading is lost anywhere.
+
+⚠ **The completeness pass earned its keep and took THREE probe designs to do it.** The fence
+column set is invisible to a heading scan when the fence is closed and invisible to the cell view
+because `indentedCellFenceAt` bypasses the column set; the first two probes returned identical
+answers for test and control, which reads as clean coverage and is none. The third found the only
+row in the session that moves in the heading-RECOVERING direction — two real headings.
+
+Discharges the 6 phantoms Session 202 disclosed and named the fix for; that pin is re-asserted in
+the opposite direction rather than deleted. Also corrects two inherited test comments, one of which
+had been inaccurate about its own `_md` control since Session 203.
+
+Backlog: the merged item is drained and **split into three** measured entries (a required TERM
+line, an unreferenced footnote definition, and a container pop inside another container), per
+Learning #340; the lone-indented-line item is strengthened with new evidence. 138 → 140 open.
+
+Verification: `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` **1922 passed**
+(baseline 1909) · `test:oracle` 131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated
+(byte-identical to S180–S208) · `test:integration` **516 passing / 0 failing / exit 0** (baseline
+515) · `check-package` OK 42 files / 5.54 MB · `check-backlog` OK. Repo control over all 115 tracked
+markdown-family documents byte-identical across all four views, proven effective by injection in
+the same run (5 designed movers moved, 5 stayers held). NOT RUN: `test:lsp` — no LSP surface
+touched. ⚠ NOT RUN and it matters: no BLIND sweep — subagent fan-out unavailable under a
+session-level instruction (Learning #338), so the residual list is the author's own.
+
+Learnings #339–#341.
+
 ### 2026-08-10 · [ad hoc] Session 208 — a per-format `from:` written in FLOW style selects the reader (SHIPPED)
 
 Session 207 shipped the BLOCK spelling of the `format:` → `html:` → `from:` path and left the

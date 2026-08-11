@@ -5047,8 +5047,13 @@ describe("a setext TITLE may be MULTI-LINE under a CommonMark reader (Session 20
     // (2) An ordered marker other than 1, and an EMPTY `1.`, are joined by quarto and declined
     //     here — but NOT by this row's guard. The marker pushes a container content column, so
     //     Session 202's column rule refuses the underline at column 0 before the guard is even
-    //     reached. That is the FILED container-stack item, and the CONTROL is that the
-    //     pre-session build reports the identical nothing (`c_ord2`, `c_empty_dash_ord`).
+    //     reached. ⚠ Session 209 split the old "container column STACK" item into three, none of
+    //     which is this: the LIST branch of the push is untouched by that session and this row is
+    //     the ordered-marker column, whose nearest filed neighbours are `BACKLOG: a multi-marker
+    //     run opens ONE container content column where pandoc opens THREE` and `BACKLOG: a
+    //     bullet-spelled THEMATIC BREAK still pushes a container content column`. The CONTROL is
+    //     unchanged: the pre-session build reports the identical nothing (`c_ord2`,
+    //     `c_empty_dash_ord`).
     expect(two("gfm", "Pin Ord Title", "2. not a one so may not interrupt")).toEqual([]);
     expect(two("gfm", "Pin Empty Ord Title", "1.")).toEqual([]);
     // (3) `gfm` has no `header_attributes`, so quarto keeps `{#sec-…}` LITERALLY in the text
@@ -5259,14 +5264,27 @@ describe("a setext TITLE may be MULTI-LINE under a CommonMark reader (Session 20
     // reason the underline four columns in is accepted at all. Quarto renders NO heading for
     // either document, under gfm, commonmark OR commonmark_x.
     //
-    // ⚠ THE ROOT CAUSE IS THE COLUMN, NOT THE JOIN, AND IT IS PRE-EXISTING IN EVERY READER —
-    // proven through the ATX row, which this session never touches: `ctl2/defcol_atx_gfm`,
-    // `_cmx` and `_md` are all `:   Ctl Def One` / `    # Ctl Def Heading`, and BOTH builds
-    // report `h1:Ctl Def Heading` where quarto renders none, in all three. That is the filed
-    // container-stack item and Session 202 measured that narrowing the stack to hide it is
-    // WORSE (it trades phantoms under two readers for a deletion under a third, Learning #315).
-    // So the stack is left alone and only the NEW fabrication is closed, here, where it is
-    // cheap: a definition body is not a run this row may join.
+    // ⚠ THE ROOT CAUSE IS THE COLUMN, NOT THE JOIN — proven through the ATX row, which Session
+    // 203 never touched: `ctl2/defcol_atx_gfm`, `_cmx` and `_md` are all `:   Ctl Def One` /
+    // `    # Ctl Def Heading`, and quarto renders NO heading in any of the three.
+    //
+    // ⚠ **SESSION 209 RE-MEASURED THIS AND THE SENTENCE THAT USED TO STAND HERE WAS WRONG IN
+    // TWO WAYS.** It read "BOTH builds report `h1:Ctl Def Heading` … in all three". They do not,
+    // and they did not then: the `_md` row reported NOTHING on the pre-Session-203 build and
+    // still does, because those two lines carry no blank between them, so the heading is pressed
+    // against an open paragraph and `blank_before_header` suppresses it under `markdown`. That
+    // row agrees with quarto for a reason that has nothing to do with the column, so it was
+    // never evidence about the stack at all. The remaining two now split:
+    //
+    //   `_gfm`  FIXED by Session 209 — gfm has no definition lists, so no column is pushed.
+    //   `_cmx`  still diverges, and it is the filed TERM item, not this one: commonmark_x HAS
+    //           definition lists, and what these documents lack is a TERM LINE above the `:`.
+    //           See `BACKLOG: a definition-list body needs a TERM LINE above it`.
+    //
+    // Session 202's finding that narrowing the stack WHOLESALE is worse still stands
+    // (Learning #315) — Session 209 narrowed it per READER rather than wholesale, which is the
+    // distinction that made it safe. This row is unchanged either way: only the NEW fabrication
+    // is closed here, where it is cheap — a definition body is not a run this row may join.
     expect(
       names(
         doc(
