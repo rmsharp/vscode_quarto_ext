@@ -7221,4 +7221,120 @@ describe("a reader with `space_in_atx_header` OFF accepts `#Heading` (Session 21
     expect(names(withFrom("markdown_strict", "<span>inline</span>", "#Cal Tight Probe"))).toEqual(ACCEPTED);
     expect(names(withFrom("markdown_strict", "<div>", "</div>", "", "#Cal Tight Probe"))).toEqual(ACCEPTED);
   });
+  // ── PINS — one per measured clause. These are pins of the SAME predicate the cycles above
+  // drove out, not additional RED->GREEN cycles, and they are labelled as such.
+
+  it("PIN — the four ACCEPTING spellings, including the one the backlog item never named", () => {
+    // `cal/a_strict`, `a_mmd`, `a_php` (⚠ `markdown_phpextra` is the fourth reader, unnamed by
+    // the item and confirmed on a second shape at `cal2/k1_lvl2_php`), and `cal/b1_md_off`,
+    // which reaches the rule through the EXTENSION rather than the base.
+    for (const reader of ["markdown_strict", "markdown_mmd", "markdown_phpextra"]) {
+      expect(names(withFrom(reader, "#Cal Tight Probe"))).toEqual(ACCEPTED);
+    }
+    expect(names(withFrom("markdown-space_in_atx_header", "#Cal Tight Probe"))).toEqual(ACCEPTED);
+    // `cal2/j1_gh_off` — the extension is honoured on `markdown_github` too, which by DEFAULT
+    // refuses. Base and extension disagreeing is exactly what makes this row worth pinning.
+    expect(names(withFrom("markdown_github-space_in_atx_header", "#Cal Tight Probe"))).toEqual(ACCEPTED);
+    // `cal/b6_md_onoff` — LAST occurrence wins, so `+…-…` leaves the extension OFF.
+    expect(names(withFrom("markdown+space_in_atx_header-space_in_atx_header", "#Cal Tight Probe"))).toEqual(
+      ACCEPTED,
+    );
+  });
+
+  it("PIN — the LEVEL is the hash count, and the text needs no separator of any kind", () => {
+    // `cal/c1_lvl2_strict`, `c2_lvl6_strict`, `c5_word_strict`, `c6_digit_strict`, `c9_punct_strict`.
+    expect(names(withFrom("markdown_strict", "##Cal Tight Two"))).toEqual([
+      "h2:Cal Tight Two",
+      "h2:Cal Spaced Control",
+    ]);
+    expect(names(withFrom("markdown_strict", "######Cal Tight Six"))).toEqual([
+      "h6:Cal Tight Six",
+      "h2:Cal Spaced Control",
+    ]);
+    expect(names(withFrom("markdown_strict", "#Calhashtag"))).toEqual(["h1:Calhashtag", "h2:Cal Spaced Control"]);
+    expect(names(withFrom("markdown_strict", "#5 Cal Tight Digits"))).toEqual([
+      "h1:5 Cal Tight Digits",
+      "h2:Cal Spaced Control",
+    ]);
+    expect(names(withFrom("markdown_strict", "#-Cal Tight Dash"))).toEqual([
+      "h1:-Cal Tight Dash",
+      "h2:Cal Spaced Control",
+    ]);
+  });
+
+  it("PIN — the PARAGRAPH bail and the CONTAINER column both compose with the new rule", () => {
+    // ⚠ `cal/d3_prose_strict` is the row the backlog item means by "opposite sides": it needs
+    // `blank_before_header` OFF *and* `space_in_atx_header` OFF at once, and `markdown_strict`
+    // is the only measured reader with both. `cal/d4_prose_gfm`, `d5_prose_md` are the controls.
+    expect(names(withFrom("markdown_strict", "Cal prose line above.", "#Cal Tight After Prose"))).toEqual([
+      "h1:Cal Tight After Prose",
+      "h2:Cal Spaced Control",
+    ]);
+    expect(names(withFrom("gfm", "Cal prose line above.", "#Cal Tight After Prose"))).toEqual(REFUSED);
+    expect(names(withFrom("markdown", "Cal prose line above.", "#Cal Tight After Prose"))).toEqual(REFUSED);
+    // `cal/d6_list_strict` — a container's content column still offers a heading (column 4).
+    expect(names(withFrom("markdown_strict", "-   Cal item one", "", "    #Cal Tight In List"))).toEqual([
+      "h1:Cal Tight In List",
+      "h2:Cal Spaced Control",
+    ]);
+  });
+
+  it("PIN — the reader reaches this flag through every resolver spelling that exists", () => {
+    // `adv/x3_middoc` (Session 211's mid-document block), `x4_performat` (Session 207's nested
+    // per-format key), `x5_flow` (Session 208's flow mapping), `x6_blockscalar` (Session 206's
+    // block scalar), plus `cal2/l1_quoted` and `l2_comment`. Nothing about the resolver needed
+    // to change — this pins that the SIXTH flag reads all of it for free.
+    expect(names(withFrom('"markdown_strict"', "#Cal Tight Probe"))).toEqual(ACCEPTED);
+    expect(names(withFrom("markdown_strict # a trailing comment", "#Cal Tight Probe"))).toEqual(ACCEPTED);
+    expect(
+      names(doc("---", "format:", "  html:", "    from: markdown_strict", "---", "", "#Cal Tight Probe", ...CONTROL)),
+    ).toEqual(ACCEPTED);
+    expect(
+      names(doc("---", "format: {html: {from: markdown_strict}}", "---", "", "#Cal Tight Probe", ...CONTROL)),
+    ).toEqual(ACCEPTED);
+    expect(names(doc("---", "from: |", "  markdown_strict", "---", "", "#Cal Tight Probe", ...CONTROL))).toEqual(
+      ACCEPTED,
+    );
+  });
+
+  it("PIN — the three declines do not over-fire on text that merely LOOKS like their shape", () => {
+    // `adv/x8_hash_middle` — a hash INSIDE the text is not a closing run.
+    expect(names(withFrom("markdown_strict", "#Adv Tight C#Sharp Notes"))).toEqual([
+      "h1:Adv Tight C#Sharp Notes",
+      "h2:Cal Spaced Control",
+    ]);
+    // `adv/x9_close_spaced` — a closing run WITH a space before it is stripped correctly, so the
+    // heading is accepted rather than declined. `cal2/h6_close_run_strict` is the rendered twin.
+    expect(names(withFrom("markdown_strict", "#Adv Tight Closed ##"))).toEqual([
+      "h1:Adv Tight Closed",
+      "h2:Cal Spaced Control",
+    ]);
+    // `adv/x10_thematic` — a thematic break below is not a setext underline.
+    expect(names(withFrom("markdown_strict", "#Adv Tight Above Break", "***"))).toEqual([
+      "h1:Adv Tight Above Break",
+      "h2:Cal Spaced Control",
+    ]);
+    // `adv/x11_underline_col5` — an underline at a column OUTSIDE the stack is not one either,
+    // and `cal3/m3_indent_underline` is the rendered row where quarto renders the ATX heading.
+    expect(names(withFrom("markdown_strict", "#Adv Tight Above Deep", "     ==="))).toEqual([
+      "h1:Adv Tight Above Deep",
+      "h2:Cal Spaced Control",
+    ]);
+    // `adv/x12_eof` — the tight hash on the LAST line, where there is no next line at all.
+    expect(names(doc("---", "from: markdown_strict", "---", "", "#Adv Tight At Eof"))).toEqual([
+      "h1:Adv Tight At Eof",
+    ]);
+  });
+
+  it("PIN — DISCLOSED RESIDUAL: the attribute decline over-fires on braces that are not one", () => {
+    // ⚠ `adv/x7_braces_text` — quarto renders `#Adv Tight Set {a, b}` as a heading and this
+    // model reports nothing, because `HEADING_ATTRIBUTE` cannot tell a real attribute block from
+    // prose that ends in braces. A LOST TRUE POSITIVE, which is the permitted direction, and it
+    // is the price of the blanket decline (see `tightAtxWouldWorsen`). Filed, with the two rows
+    // a per-reader `header_attributes` table would recover (`cal2/g5`, `cal3/n1`).
+    // ⚠ INSTRUMENT NOTE: that document's rendered truth is scored through a COMMA-joined
+    // heading list, so the comma inside `{a, b}` splits it — the row adjudicates the same either
+    // way (this model reports nothing), but no future corpus should put a comma in heading text.
+    expect(names(withFrom("markdown_strict", "#Adv Tight Set {a, b}"))).toEqual(REFUSED);
+  });
 });
