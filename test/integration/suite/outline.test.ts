@@ -1585,4 +1585,68 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `a top-level \`from: gfm\` must still select gfm and keep BOTH headings: ${topNames.join(", ")}`,
     );
   });
+  it("resolves a per-format `from:` written in FLOW style on the user-visible outline (Session 208)", async () => {
+    //
+    // ⚠ DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd` — the ELEVENTH
+    // consecutive session to avoid the exact-set fixture coupling that cost Sessions 196 and 197
+    // a full screen-taking run each. The exact-set grep ran BEFORE this was written:
+    // `grep -c "assert.deepStrictEqual" test/integration/suite/outline.test.ts` = 33 raw, but the
+    // real CALL count is 21 (the rest are comment text citing the grep by name — Session 204's
+    // gotcha 7). `openInMemory` keeps these documents out of every exact-set pin.
+    //
+    // All four premises were rendered through the real `quarto render --to html` path this
+    // session, quarto 1.7.33 (`scratchpad/s208/cal` and `cal3`):
+    //   `c_f1hg_bail`        -> BOTH headings — a FLOW per-format `from: gfm` selects the reader
+    //   `r_par_then_top_bail`-> BOTH headings — `params:` does not select, the top level does
+    //   `r_par_only_bail`    -> the BASELINE only — `params:` alone selects nothing
+    //   `c_topg_bail`        -> BOTH headings — the control spelling, unchanged by this session
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const body = ["", "# Baseline", "", "Prose opens a paragraph.", "# Pressed"];
+
+    // PRESENT — the filed defect itself, and it was heading-DELETING. `format: {html: {from: gfm}}`
+    // is honoured by quarto; this model walked block mappings only, saw nothing, kept the default
+    // reader, applied markdown's paragraph bail and dropped a section the rendered document has.
+    const flow = await openInMemory(
+      ["---", "title: t", "format: {html: {from: gfm}}", "---", ...body].join("\n"),
+    );
+    const flowNames = flatten(await symbolsForDoc(flow));
+    assert.ok(
+      flowNames.includes("Pressed") && flowNames.includes("Baseline"),
+      `a flow per-format \`from: gfm\` must select gfm and keep BOTH headings: ${flowNames.join(", ")}`,
+    );
+
+    // PRESENT — the PATH half, inside a whole-flow front matter. The first `from:` on the line
+    // sits under `params:` and does not select; the top-level one does. The flat pattern this
+    // session replaced took the first and dropped a section.
+    const path2 = await openInMemory(
+      ["---", "{title: t, params: {from: markdown}, from: gfm}", "---", ...body].join("\n"),
+    );
+    const pathNames = flatten(await symbolsForDoc(path2));
+    assert.ok(
+      pathNames.includes("Pressed") && pathNames.includes("Baseline"),
+      `a flow \`from:\` must be read by PATH, keeping BOTH headings: ${pathNames.join(", ")}`,
+    );
+
+    // ABSENT — the other direction of the same narrowing. `params:` alone declares no reader, and
+    // the flat pattern read its `from: gfm` and INVENTED a section the rendered document lacks.
+    const paramsOnly = await openInMemory(
+      ["---", "{title: t, params: {from: gfm}}", "---", ...body].join("\n"),
+    );
+    const paramsNames = flatten(await symbolsForDoc(paramsOnly));
+    assert.ok(
+      !paramsNames.includes("Pressed") && paramsNames.includes("Baseline"),
+      `a flow \`params:\`/\`from:\` must select nothing, so only the baseline survives: ${paramsNames.join(", ")}`,
+    );
+
+    // THE GUARD — a plain top-level `from: gfm`. Without it the ABSENT case would pass for a
+    // build that had stopped reading front matter altogether, which is the deletion this
+    // session's narrowing of the flow arm had to avoid.
+    const topLevel = await openInMemory(["---", "from: gfm", "title: t", "---", ...body].join("\n"));
+    const topNames = flatten(await symbolsForDoc(topLevel));
+    assert.ok(
+      topNames.includes("Pressed") && topNames.includes("Baseline"),
+      `a top-level \`from: gfm\` must still select gfm and keep BOTH headings: ${topNames.join(", ")}`,
+    );
+  });
 });
