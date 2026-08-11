@@ -4833,27 +4833,37 @@ describe("a setext underline's column is DIALECT-DEPENDENT (Session 202)", () =>
                 "===", "# Below Heading")),
     ).toEqual(["h1:Below Heading"]);
 
-    // ── DISCLOSED RESIDUAL — 6 PHANTOMS THIS CHANGE INTRODUCES, all one family, and the cause
-    // is a column that was ALREADY WRONG rather than the rule that now reads it. Under `gfm`
-    // and `commonmark` a DEFINITION LIST is not a construct at all, so `:   body` opens no
-    // content column and everything four columns in is indented code — but `contentColumns`
-    // pushes 4 for it under every dialect. The old set `[0, 4]` was wrong at both of its
-    // members; the new set `[4…7]` is wrong at four.
+    // ── DISCLOSED RESIDUAL — 6 PHANTOMS THIS CHANGE INTRODUCED, ⚠ **DISCHARGED BY SESSION 209
+    // AND RE-PINNED IN THE OPPOSITE DIRECTION.** The prose below is Session 202's and is kept
+    // because its diagnosis was exactly right: the cause was a column that was ALREADY WRONG
+    // rather than the rule that read it. Under `gfm` and `commonmark` a DEFINITION LIST is not a
+    // construct at all, so `:   body` opens no content column and everything four columns in is
+    // indented code — but `contentColumns` pushed 4 for it under every dialect. The old set
+    // `[0, 4]` was wrong at both of its members; the new set `[4…7]` was wrong at four.
+    //
+    // Session 202 named the fix it could not make — "a per-reader construct table, which is the
+    // container stack's question" — and Session 209 built it: `fromHasDefinitionLists` and
+    // `fromHasFootnotes` gate the push on the eight measured reader bases and their extension
+    // lists. All three rows below now return NO heading, which is what quarto renders. The
+    // assertions are INVERTED rather than deleted, so this block still guards the same three
+    // documents and a regression restoring the phantom turns it red.
     const defList = (u: number) =>
       names(doc("---", "from: gfm", "---", "", "Term one", "", ":   the definition body", "",
                 "    probe title", " ".repeat(u) + "==="));
-    expect(defList(4)).toEqual(["h1:probe title"]); // quarto: NO heading — CARRIED from before
-    expect(defList(5)).toEqual(["h1:probe title"]); // quarto: NO heading — INTRODUCED here
-    expect(defList(7)).toEqual(["h1:probe title"]); // quarto: NO heading — INTRODUCED here
-    // ⚠ THE CONTROL THAT PROVES THE COLUMN PRE-EXISTING, reached through a row this session
-    // never touches: an ATX heading at the same column, under the same container, renders NO
-    // heading in quarto and one here — on the PRE-SESSION build as well (`ctl/defatx_gfm`,
-    // `ctl/deftilde_gfm`). So the defect is "which containers exist under which reader", which
-    // is the container STACK's question and belongs to three other consumers besides this one.
+    expect(defList(4)).toEqual([]); // quarto: NO heading — was CARRIED, now FIXED (S209)
+    expect(defList(5)).toEqual([]); // quarto: NO heading — was INTRODUCED here, now FIXED (S209)
+    expect(defList(7)).toEqual([]); // quarto: NO heading — was INTRODUCED here, now FIXED (S209)
+    // ⚠ THE CONTROL THAT PROVED THE COLUMN PRE-EXISTING, reached through a row Session 202 never
+    // touched: an ATX heading at the same column, under the same container, renders NO heading in
+    // quarto and did so here on the pre-Session-202 build as well (`ctl/defatx_gfm`,
+    // `ctl/deftilde_gfm`). It is the row that located the defect in the container STACK rather
+    // than in the underline rule — and it is therefore the row Session 209's change had to move.
+    // Re-measured: `scratchpad/s209/cal` `defterm_gfm_atx` renders no heading, and this now
+    // agrees.
     expect(
       names(doc("---", "from: gfm", "---", "", "Term one", "", ":   the definition body", "",
                 "    # Def Atx Heading")),
-    ).toEqual(["h1:Def Atx Heading"]); // quarto: NO heading — identical on the pre-build
+    ).toEqual([]); // quarto: NO heading — FIXED by Session 209
     // …and the twin that separates it from "no `:`-shaped opener opens a column": a FOOTNOTE
     // definition's column IS real under gfm, so the same tolerance is correct there and this
     // change RECOVERS two headings (`ax/fn_gfm_u5`, `fn_gfm_u7`).
@@ -6234,5 +6244,175 @@ describe("a per-format `from:` written in FLOW style selects the reader too (Ses
       atColumn3('title: "T"', `preferred: &rdr ${reader}`, "format: {html: {from: *rdr}}");
     expect(names(anchored("markdown"))).toEqual(BASELINE_ONLY);
     expect(names(anchored("gfm"))).toEqual(BOTH);
+  });
+});
+
+describe("the container column stack knows which containers each READER has (Session 209)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  const fm = (...keys: string[]) => (keys.length === 0 ? [] : ["---", ...keys, "---", ""]);
+  /**
+   * The three container shapes, each with an ATX heading at COLUMN 4 — the container's own
+   * content column, and the row on which a wrong answer DELETES rather than merely invents.
+   *
+   * ⚠ **Why column 4 and why ATX.** `contentColumns` is shared state with seven readers, and
+   * Learning #285 was earned by a corpus that read it through only one of them: Session 196's
+   * 1,265-document sweep scored a stack change at NEW LOST = 0 because its probe was a SETEXT
+   * UNDERLINE, through which pushing a column can only ever ADD a heading. A blind sweep then
+   * measured 39 NEW LOST through `indentedCodeLine`, where the same push raises the code base.
+   * An ATX heading at the container's column reads the stack through THAT consumer: with the
+   * column pushed the line is container content and a heading; without it the line is four
+   * columns past the enclosing block and is INDENTED CODE, which renders no heading at all.
+   *
+   * The setext twin of the same row is asserted beside it further down, because the two
+   * consumers have opposite polarity and a corpus that reads one has not measured the other.
+   */
+  const defDoc = (...keys: string[]) =>
+    doc(...fm(...keys), "Term one", "", ":   the definition body", "", "    # Probe Heading", "", "Tail line.");
+  const fnDoc = (...keys: string[]) =>
+    doc(...fm(...keys), "See[^1] for it.", "", "[^1]: the note body", "", "    # Probe Heading", "", "Tail line.");
+  const listDoc = (...keys: string[]) =>
+    doc(...fm(...keys), "-   item text", "", "    # Probe Heading", "", "Tail line.");
+  const PROBE = ["h1:Probe Heading"];
+  const NONE: string[] = [];
+
+  // ── THE GUARD BLOCK, WRITTEN BEFORE THE CHANGE IT GUARDS ──
+  // Session 204's gotcha 5, inherited by S205, S206, S207 and S208 and honoured a SIXTH time.
+  //
+  // ⚠ This session's change is a pure NARROWING of a container push, so every one of its
+  // failure modes is in the DELETING direction and the guard is the whole safety argument.
+  // Learning #331: a narrowing needs a guard per ACCEPTED POSITION. Each assertion below is a
+  // position quarto is MEASURED to honour, so a change that overshoots turns it red rather than
+  // shipping a lost heading. Every row cites the rendered document that proves it, in
+  // `scratchpad/s209/cal` (72 documents), `cal2` (52) and `ctl` (6) — all quarto 1.7.33, exit 0.
+  it("GUARD — every reader measured to HAVE definition lists still opens the container", () => {
+    // cal/defterm_md_atx, ctl/k_nokey, cal/defterm_cmx_atx, cal2/ext_mdmmd_def, ext_mdphp_def
+    expect(names(defDoc("from: markdown"))).toEqual(PROBE);
+    expect(names(defDoc())).toEqual(PROBE); //            no front matter at all — the default reader
+    expect(names(defDoc("from: commonmark_x"))).toEqual(PROBE);
+    expect(names(defDoc("from: markdown_mmd"))).toEqual(PROBE);
+    expect(names(defDoc("from: markdown_phpextra"))).toEqual(PROBE);
+    // ⚠ THE EXTENSION OUTRANKS THE BASE, and this is the assertion that proves a base-name
+    // table alone would DELETE a real heading (cal2/ext_gfmplusdef_def renders it).
+    expect(names(defDoc("from: gfm+definition_lists"))).toEqual(PROBE);
+  });
+
+  it("GUARD — every reader measured to HAVE footnotes still opens the container", () => {
+    // cal/fnref_md_atx, fnref_gfm_atx, fnref_cmx_atx, cal2/ext_mdgh_fn, ext_cmplusfn_fn
+    expect(names(fnDoc("from: markdown"))).toEqual(PROBE);
+    expect(names(fnDoc())).toEqual(PROBE);
+    expect(names(fnDoc("from: gfm"))).toEqual(PROBE);
+    expect(names(fnDoc("from: commonmark_x"))).toEqual(PROBE);
+    expect(names(fnDoc("from: markdown_github"))).toEqual(PROBE);
+    // the extension again, on the other construct (cal2/ext_cmplusfn_fn renders it).
+    expect(names(fnDoc("from: commonmark+footnotes"))).toEqual(PROBE);
+  });
+
+  it("GUARD — a LIST container is untouched by this change, under every reader", () => {
+    // cal/list4_{md,gfm,cm,cmx}_atx all render. This session touches the definition branch of
+    // the push only; the list branch is the control that proves the edit did not reach further.
+    for (const reader of ["markdown", "gfm", "commonmark", "commonmark_x"]) {
+      expect(names(listDoc(`from: ${reader}`))).toEqual(PROBE);
+    }
+    expect(names(listDoc())).toEqual(PROBE);
+  });
+
+  it("GUARD — an UNRESOLVABLE `from:` keeps today's push, never the narrowed one", () => {
+    // Keyed on a POSITIVE resolution, never on the absence of one — the rule Session 206 paid
+    // for. A reader this scanner cannot classify must take neither narrowing branch, because
+    // guessing "no definition lists" for an unknown reader DELETES.
+    expect(names(defDoc("params:", "  from: gfm"))).toEqual(PROBE); //  not a reader declaration
+    expect(names(defDoc("from: some_unmeasured_reader"))).toEqual(PROBE);
+    expect(names(fnDoc("from: some_unmeasured_reader"))).toEqual(PROBE);
+  });
+  // ── RED 1 ──
+  it("a definition-list body opens NO container under a reader that has no definition lists", () => {
+    // cal/defterm_gfm_atx and defterm_cm_atx render NO heading: `:   the definition body` is
+    // ordinary paragraph text to a reader without `definition_lists`, so nothing opens and the
+    // probe four columns in is INDENTED CODE. The pre-session build pushed column 4 for the
+    // `:` spelling under EVERY reader and reported a heading quarto does not render.
+    expect(names(defDoc("from: gfm"))).toEqual(NONE);
+    expect(names(defDoc("from: commonmark"))).toEqual(NONE);
+  });
+  // ── RED 2 ──
+  it("a footnote definition opens NO container under a reader that has no footnotes", () => {
+    // cal/fnref_cm_atx renders NO heading: plain `commonmark` is the one measured base with
+    // NEITHER construct, so a referenced `[^1]:` is ordinary paragraph text there. This is the
+    // half `CONTENT_COLUMN_4_OPEN`'s own comment called out as needing a per-reader table —
+    // `gfm` HAS footnotes, so the two CommonMark-family readers must part company here.
+    expect(names(fnDoc("from: commonmark"))).toEqual(NONE);
+    expect(names(fnDoc("from: markdown_strict"))).toEqual(NONE);
+  });
+  // ── PINS ──
+  // ⚠ Labelled honestly: the blocks below are PINS OF THE SAME CHANGE, not separate RED->GREEN
+  // cycles. The predicate is three lines and the two REDs above drove all three; these assert
+  // the rest of its measured surface — the other extension direction, the other consumer, and
+  // the two rows a name-based classifier gets backwards. Each cites the rendered document that
+  // proves it. Each was confirmed to DIVERGE on the pre-session build, which is what makes it a
+  // pin rather than a restatement.
+  it("PIN — an extension that turns the construct OFF is honoured on a base that has it", () => {
+    // cal2/ext_mdminusdef_def and ext_gfmminusfn_fn both render NO heading.
+    expect(names(defDoc("from: markdown-definition_lists"))).toEqual(NONE);
+    expect(names(defDoc("from: commonmark_x-definition_lists"))).toEqual(NONE);
+    expect(names(fnDoc("from: gfm-footnotes"))).toEqual(NONE);
+  });
+
+  it("PIN — the two extensions are INDEPENDENT on one reader", () => {
+    // cal2/ext_mdminusfn_def renders the definition probe; ext_mdminusfn_fn does not. One
+    // reader, one extension list, opposite answers — which is why there are two predicates.
+    expect(names(defDoc("from: markdown-footnotes"))).toEqual(PROBE);
+    expect(names(fnDoc("from: markdown-footnotes"))).toEqual(NONE);
+  });
+
+  it("PIN — `markdown_github` and `markdown_strict`, the two rows a NAME gets backwards", () => {
+    // cal2/ext_mdgh_def (no) vs ext_mdgh_fn (yes): a `markdown_*` name with gfm's answer on one
+    // construct and markdown's on the other. cal2/ext_mdstrict_* : neither construct.
+    expect(names(defDoc("from: markdown_github"))).toEqual(NONE);
+    expect(names(fnDoc("from: markdown_github"))).toEqual(PROBE);
+    expect(names(defDoc("from: markdown_strict"))).toEqual(NONE);
+    expect(names(fnDoc("from: markdown_strict"))).toEqual(NONE);
+  });
+
+  it("PIN — the OTHER consumer: the same rows read through the SETEXT underline", () => {
+    // Learning #285: a corpus that reads `contentColumns` through one consumer has not measured
+    // it. Every assertion above reads the stack through `indentedCodeLine` (an ATX heading at
+    // the container column becomes indented code when the push is gone). These read it through
+    // `setextUnderlineLevel`, where the same removal merely loses a title instead — opposite
+    // polarity, same documents. cal/defterm_gfm_set, defterm_md_set, fnref_cm_set, fnref_gfm_set.
+    const defSetext = (...keys: string[]) =>
+      doc(...fm(...keys), "Term one", "", ":   the definition body", "",
+        "    Probe Heading", "    ================", "", "Tail line.");
+    const fnSetext = (...keys: string[]) =>
+      doc(...fm(...keys), "See[^1] for it.", "", "[^1]: the note body", "",
+        "    Probe Heading", "    ================", "", "Tail line.");
+    expect(names(defSetext("from: gfm"))).toEqual(NONE);
+    expect(names(defSetext("from: markdown"))).toEqual(PROBE); //   the guard, on this consumer
+    expect(names(fnSetext("from: commonmark"))).toEqual(NONE);
+    expect(names(fnSetext("from: gfm"))).toEqual(PROBE); //         the guard, on this consumer
+  });
+  it("PIN — the FENCE column set, the one consumer that moves in the RECOVERING direction", () => {
+    // ⚠ This block exists because the completeness pass found it and the designed corpus could
+    // not have. Every other assertion in this describe drains a PHANTOM; this one RECOVERS two
+    // real headings, through `fenceColumns` (`[0, ...contentColumns]`) rather than through the
+    // heading column sets. Removing the container column makes a fence at column 4 unrecognised,
+    // so a heading written at column 0 between its opener and closer is no longer swallowed.
+    //
+    // ⚠ It also took THREE probe designs to become observable, and the two that failed are the
+    // reason this is worth a pin (Learning #274 — a control that cannot fire is not a control
+    // that passed). A CLOSED fence at column 4 and indented code at column 4 both render
+    // `<pre><code>` and suppress nothing below, and an UNCLOSED one did not swallow either;
+    // only a heading BETWEEN the opener and the closer separates the two readings.
+    // Measured: scratchpad/s209/comp4 — v_def_fires and v_fn_fires render `h1:Inside Heading`,
+    // v_def_holds renders none, and the pre-session build reported none for all three.
+    const fenced = (reader: string, ...opening: string[]) =>
+      doc("---", `from: ${reader}`, "---", "", ...opening,
+        "    ```qqq", "# Inside Heading", "    ```", "", "Tail line.");
+    const DEF = ["Term one", "", ":   the definition body", ""];
+    const FN = ["See[^1] for it.", "", "[^1]: the note body", ""];
+    expect(names(fenced("gfm", ...DEF))).toEqual(["h1:Inside Heading"]);
+    expect(names(fenced("commonmark", ...FN))).toEqual(["h1:Inside Heading"]);
+    // the guard on this consumer: where the reader HAS the construct the fence is still
+    // recognised at the container column and the heading is still swallowed.
+    expect(names(fenced("markdown", ...DEF))).toEqual([]);
   });
 });

@@ -996,6 +996,18 @@ function popsEnclosingContainer(line: string): boolean {
  */
 const CONTENT_COLUMN_4_OPEN = /^[ \t]*(?:\[\^[^\]\s]+\]:|[:~](?![:~])[ \t])/;
 /**
+ * The two halves of `CONTENT_COLUMN_4_OPEN`, SPLIT because the readers differ per construct
+ * (Session 209). The union above is retained and still tested — it is the right question
+ * wherever the reader is not in play — but the container push now asks the two separately.
+ *
+ * ⚠ **They are independent, and that is measured rather than assumed.**
+ * `scratchpad/s209/cal2` `ext_mdminusfn_def` renders the definition-list probe while
+ * `ext_mdminusfn_fn` does not, on one reader (`markdown-footnotes`). One flag cannot express
+ * that, so there are two predicates below rather than one "has containers" test.
+ */
+const FOOTNOTE_DEFINITION_OPEN = /^[ \t]*\[\^[^\]\s]+\]:/;
+const DEFINITION_LIST_BODY_OPEN = /^[ \t]*[:~](?![:~])[ \t]/;
+/**
  * Body lines that do NOT leave a paragraph open, so an ATX heading may follow one
  * directly (Session 180). Pandoc's `blank_before_header` — on by default in the
  * `markdown` dialect quarto renders with — forbids a heading only where it would
@@ -1267,6 +1279,129 @@ function fromKeepsBlankBeforeHeader(line: string): boolean {
  */
 function fromIsMarkdownFamily(line: string): boolean {
   return FRONTMATTER_MARKDOWN_BASE_FROM.test(line) || FRONTMATTER_MARKDOWN_VARIANT_FROM.test(line);
+}
+/**
+ * A resolved `from:` split into its BASE reader name and its EXTENSION list (Session 209).
+ *
+ * The predicates above each answer their question with a pair of whole-value regexes. This row
+ * needs the two parts separately, because the same extension name has to be read against
+ * several bases and two DIFFERENT extensions have to be read against the same base — see
+ * `fromHasDefinitionLists` and `fromHasFootnotes`, which are independent of each other.
+ */
+const FRONTMATTER_FROM_READER_VALUE =
+  /^from[ \t]*:[ \t]*(["']?)([a-zA-Z][a-zA-Z0-9_]*)((?:[+-][a-zA-Z_]+)*)\1[ \t]*(?:#.*)?$/;
+/** The base reader name of a resolved `from:`, or null if the value is not a reader name. */
+function fromReaderBase(line: string): string | null {
+  const m = FRONTMATTER_FROM_READER_VALUE.exec(line);
+  return m === null ? null : m[2];
+}
+/**
+ * Whether `extension` is turned ON (`true`), OFF (`false`) or left alone (`null`) by the
+ * extension list of a resolved `from:`.
+ *
+ * ⚠ **LAST occurrence wins.** `BACKLOG: the extension list is LAST-WINS` measured that on the
+ * sibling `blank_before_header` row — `markdown-blank_before_header+blank_before_header` takes
+ * the second token — and this session re-measured it for `definition_lists` in both orders
+ * (`scratchpad/s209/adv` `x_deflast`, `x_deffirst`). It costs nothing to honour here and a
+ * first-wins loop would be wrong on a value quarto accepts.
+ */
+function fromExtensionState(line: string, extension: string): boolean | null {
+  const m = FRONTMATTER_FROM_READER_VALUE.exec(line);
+  if (m === null) {
+    return null;
+  }
+  let state: boolean | null = null;
+  for (const token of m[3].match(/[+-][a-zA-Z_]+/g) ?? []) {
+    if (token.slice(1) === extension) {
+      state = token[0] === "+";
+    }
+  }
+  return state;
+}
+/**
+ * The eight reader BASES whose container constructs this project has measured, and which of
+ * them carry each construct (Session 209, `scratchpad/s209/cal` and `cal2`, quarto 1.7.33).
+ *
+ * ⚠ **A CLASSIFIER MAY NOT REASON FROM THE NAME, and two rows below are why.**
+ * `markdown_github` and `markdown_strict` are both spelled `markdown_*`: the first has
+ * footnotes and NO definition lists, the second has neither. `gfm` and `commonmark` are both
+ * CommonMark-family: the first has footnotes, the second does not. Any grouping coarser than
+ * the base name itself gets at least one of these four backwards, and two of the four are the
+ * heading-DELETING direction.
+ *
+ *     reader              definition lists   footnotes
+ *     markdown  (= no `from:` key at all)    YES   YES
+ *     gfm                        no                YES
+ *     commonmark                 no                no
+ *     commonmark_x              YES                YES
+ *     markdown_strict            no                no
+ *     markdown_mmd              YES                YES
+ *     markdown_phpextra         YES                YES
+ *     markdown_github            no                YES
+ *
+ * `ctl/k_key` against `ctl/k_nokey` is the feature-free control pair proving `from: markdown`
+ * and no key at all are the same reader on this question, in both directions.
+ */
+const MEASURED_READER_BASES: ReadonlySet<string> = new Set([
+  "markdown",
+  "gfm",
+  "commonmark",
+  "commonmark_x",
+  "markdown_strict",
+  "markdown_mmd",
+  "markdown_phpextra",
+  "markdown_github",
+]);
+const READER_HAS_DEFINITION_LISTS: ReadonlySet<string> = new Set([
+  "markdown",
+  "commonmark_x",
+  "markdown_mmd",
+  "markdown_phpextra",
+]);
+const READER_HAS_FOOTNOTES: ReadonlySet<string> = new Set([
+  "markdown",
+  "gfm",
+  "commonmark_x",
+  "markdown_mmd",
+  "markdown_phpextra",
+  "markdown_github",
+]);
+/**
+ * Whether the reader this document declares HAS the construct, so a line spelling it really
+ * opens a container (Session 209).
+ *
+ * ⚠ **The polarity is the one Session 206 paid for: keyed on a POSITIVE resolution, never on
+ * the absence of one.** Returning `false` REMOVES a content column, which lowers the code base
+ * so the container's own content becomes INDENTED CODE and its heading is DELETED. So an
+ * unresolvable value and an unmeasured base both return `true` — today's unconditional push,
+ * which costs a phantom, this project's permitted direction. Only the eight measured bases can
+ * reach the narrowing branch.
+ *
+ * ⚠ **The EXTENSION is read before the base and OUTRANKS it, in BOTH directions.** Measured
+ * on both constructs and on bases that answer either way (`scratchpad/s209/cal2`):
+ * `gfm+definition_lists` renders the probe and `markdown-definition_lists` does not;
+ * `commonmark+footnotes` renders it and `gfm-footnotes` does not. A predicate keyed on the base
+ * name alone is wrong four ways, and two of those four DELETE.
+ */
+function fromHasConstruct(
+  line: string,
+  extension: string,
+  bases: ReadonlySet<string>,
+): boolean {
+  const base = fromReaderBase(line);
+  if (base === null || !MEASURED_READER_BASES.has(base)) {
+    return true;
+  }
+  const state = fromExtensionState(line, extension);
+  return state !== null ? state : bases.has(base);
+}
+/** Whether the declared reader has definition lists, so `:   x` / `~   x` opens a container. */
+function fromHasDefinitionLists(line: string): boolean {
+  return fromHasConstruct(line, "definition_lists", READER_HAS_DEFINITION_LISTS);
+}
+/** Whether the declared reader has footnotes, so `[^1]: x` opens a container. */
+function fromHasFootnotes(line: string): boolean {
+  return fromHasConstruct(line, "footnotes", READER_HAS_FOOTNOTES);
 }
 /** A front-matter line that is blank or holds nothing but a comment — never YAML content. */
 const FRONTMATTER_NOT_CONTENT = /^[ \t]*(?:#.*)?$/;
@@ -3024,6 +3159,28 @@ function computeRegions(text: string): Regions {
   // `dialectOverride`, for the same reason the two above are: it answers its own question, and
   // it is read at ONE site (the heading column set) where the other three are not.
   const markdownFamilyDialect = fromValueLine !== null && fromIsMarkdownFamily(fromValueLine);
+  // Whether a line spelling a footnote definition or a definition-list body really OPENS a
+  // container here — see `fromHasDefinitionLists` / `fromHasFootnotes` for the measured
+  // per-reader table, and `CONTENT_COLUMN_4_OPEN` for the two spellings it splits (Session 209).
+  //
+  // ⚠ A FIFTH flag, and like the four above it answers its own question and is read at ONE site
+  // (the container push). It is a PREDICATE rather than a boolean because the two constructs are
+  // measured independent of each other — `markdown-footnotes` has definition lists and no
+  // footnotes — so the answer depends on the LINE as well as on the reader.
+  //
+  // ⚠ `fromValueLine === null` means the document declares no reader this scanner can resolve,
+  // which includes the commonest case of all: no `from:` key at all. That is pandoc's own
+  // `markdown`, which HAS both constructs, so it takes the unconditional push — the same answer
+  // the pre-Session-209 build gave every document, and the non-deleting direction.
+  const definitionContainerOpens = (line: string): boolean => {
+    if (fromValueLine === null) {
+      return CONTENT_COLUMN_4_OPEN.test(line);
+    }
+    if (FOOTNOTE_DEFINITION_OPEN.test(line)) {
+      return fromHasFootnotes(fromValueLine);
+    }
+    return DEFINITION_LIST_BODY_OPEN.test(line) && fromHasDefinitionLists(fromValueLine);
+  };
   // Whether the line ABOVE began a fresh block, making this line a paragraph start
   // (Session 181). Deliberately a one-line deferral rather than a reset — see the loop.
   // It needs no clearing at the region-boundary resets below: those set `consecutiveBody`
@@ -3247,18 +3404,23 @@ function computeRegions(text: string): Regions {
           contentColumns.push(opened);
           columnKinds.push("list");
           columnIsCommonmark.push(COMMONMARK_LIST_MARKER.test(line));
-        } else if (CONTENT_COLUMN_4_OPEN.test(line)) {
+        } else if (definitionContainerOpens(line)) {
           // A footnote definition and a definition-list definition both give their content
           // exactly 4 columns past their own indent — measured, and independent of label length.
+          //
+          // ⚠ **The +4 is now MEASURED rather than asserted, and it survived (Session 209).**
+          // The comment above used to claim independence of label length on the strength of two
+          // documents. `scratchpad/s209/cal2/col_*` renders six spellings — `:   x`, `: x`,
+          // `:     x`, `:\tx`, `[^1]:` and `[^averylonglabelhere]:` — against probe columns
+          // 2, 4 and 6. All six open column 4 exactly and none opens 2 or 6, so spacing after
+          // the marker and label length are both irrelevant and this arithmetic is untouched.
           contentColumns.push(indentWidth + 4);
           columnKinds.push("definition");
-          // ⚠ BOTH spellings count as CommonMark here, and the definition-list half of that is
-          // KNOWN WRONG for `gfm`/`commonmark` and RIGHT for `commonmark_x` — which is exactly
-          // why it is not narrowed. gfm has footnotes (measured, `ax/fn_gfm_u5`), and
-          // `commonmark_x` has definition lists (measured, `ctl/defset_cmx_u4`), so refusing
-          // the `:`/`~` spelling would trade this row's 6 disclosed PHANTOMS under two readers
-          // for a DELETION under a third. Telling the three apart needs a per-reader construct
-          // table, which is the container stack's question and not this row's.
+          // ⚠ BOTH spellings count as CommonMark here, and that used to be KNOWN WRONG for the
+          // definition-list half under `gfm`/`commonmark`. It is now right by construction:
+          // `definitionContainerOpens` refuses the `:`/`~` spelling under exactly the readers
+          // that have no definition lists, so a definition column can only exist where the
+          // declared reader really carries the construct.
           columnIsCommonmark.push(true);
         }
       }
