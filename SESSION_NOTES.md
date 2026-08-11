@@ -5,6 +5,25 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 209 — IMPLEMENTATION (strict TDD): the container column STACK does not know which containers each READER has. `contentColumns` pushes a content column for a definition-list body (`:   x` / `~   x`) and for a footnote definition (`[^1]: x`) under EVERY dialect, but the readers genuinely differ per construct — and Session 203 measured that the definition-BODY column is wrong even under readers where the construct DOES exist. BOTH directions.**
+**Started:** 2026-08-10 · **Status:** IN PROGRESS — session claimed, work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**How this item was selected.** Operator-selected via `AskUserQuestion` at Phase 0 from an empty Active section, per the CLAUDE.md Phase 0 addition. Ranked **#1 by every session from S202 through S208** and never picked, on the stated grounds that it is the largest measured residual in the setext/heading family; the front-matter `from:` area that S205–S208 drained is now largely done, which is why the deferral finally stopped being the right call. ⚠ **Its own filing says it is LARGER than filed** — the per-reader construct table is only half of it; S203's `ctl2` measured the definition-BODY column wrong under all four readers, not only the two the item names.
+
+**Scope declaration (written at claim, before the coupling survey).** The item names a per-reader construct table consulted at PUSH time, and names three consumers of the stack (`indentedCodeLine`, `rawTexMacroLineIsBlock`, `setextUnderlineLevel`). ⚠ **S189 measured 39 heading deletions through `indentedCodeLine` alone the last time this stack moved**, so the hazard is the highest of any item in the backlog. My declared decision rule for this session:
+
+1. **CALIBRATE FIRST, in the S207/S208 discipline** — render the grid before writing a line of code, and write the verdict to `scratchpad/s209/CALIBRATION.md`. Session 202 already disclosed that the OBVIOUS narrowing (refuse the `:`/`~` push) is measured WORSE — it trades 6 phantoms under two readers for a DELETION under `commonmark_x`. Any design that does not survive that measurement is wrong before it is written.
+2. **Build the corpus on which the cheap fix and the honest one DISAGREE** (Learning #335), not more witnesses.
+3. **The guard block is written BEFORE the change and carries BOTH polarities** (S204's gotcha 5, inherited a sixth time), on the rows where a wrong answer DELETES.
+4. **A narrowing needs a guard per ACCEPTED POSITION; a widening needs a completeness probe per CONSUMER** (Learning #331 / #327). This change is a NARROWING of the push, so the three consumer rows are enumerated and probed individually — the stack is shared state, and a corpus that reads it through one row cannot speak for the other two.
+5. **If the honest fix cannot be completed under one deliverable, ship the measured subset and file the residual with its rendered evidence** rather than widening scope (FM #17). Volume alone does not authorize a second capability.
+
+**⚠ Known constraint, disclosed at claim:** blind subagent fan-out is unavailable under a session-level instruction, exactly as in Session 208 (Learning #338). The operator was told this at Phase 1 and did not lift it. So an adversarial pass against my own change is the strongest independent check available, and it is weaker than the blind lenses S205–S207 used — it can only attack assumptions I know I made.
+
+---
+
+## Session 208 ACTIVE TASK (superseded by Session 209 — full entry preserved below)
 **Task:** **Session 208 — IMPLEMENTATION (strict TDD): a per-format block written in FLOW style — `format: {html: {from: commonmark}}` — really does select the reader, and both halves of Session 207's path walk descended through BLOCK mappings only, so it was invisible. Heading-DELETING.**
 **Started:** 2026-08-10 · **Closed:** 2026-08-10
 **Status:** **DONE. SHIPPED — the fix is a PATH WALK, not a pattern, and the corpus that proved that is the one where the cheap implementation and the honest one predict DIFFERENT output. 337 documents rendered: designed 81/153 → 153/153, the completeness pass 12/27 → 27/27, the adversarial pass 1/10 → 10/10, the item's own witness corpus 15/16 → 16/16, and INTRODUCED 0 across all 14 predecessor corpora as well.**

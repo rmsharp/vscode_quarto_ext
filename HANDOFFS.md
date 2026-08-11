@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S209
+date: 2026-08-10
+status: pending
+active_task: IN PROGRESS. The container column STACK does not know which containers each READER has. `contentColumns` pushes a content column for a definition-list body (`:   x` / `~   x`) and for a footnote definition (`[^1]: x`) under EVERY dialect; measured, definition lists exist under `markdown` and `commonmark_x` and NOT under `gfm`/`commonmark`, and footnotes exist under `markdown`, `gfm` and `commonmark_x` and NOT under plain `commonmark`. ⚠ AND THE ITEM IS LARGER THAN FILED: Session 203's `ctl2` measured the definition-BODY column wrong under ALL FOUR readers, so the column is wrong even where the construct exists. BOTH directions (it both deletes and invents). Ranked #1 by every session S202-S208 and never picked; operator-selected via AskUserQuestion at Phase 0 from an empty Active section. ⚠ HIGHEST-HAZARD ITEM IN THE BACKLOG: S189 measured 39 heading deletions through `indentedCodeLine` alone when this stack last moved, and S202 measured that the OBVIOUS narrowing is worse than the defect. Declared decision rule at claim: calibrate by rendering BEFORE designing; build the corpus where the cheap fix and the honest one DISAGREE; guard block first, both polarities, on the DELETING rows; one completeness probe per CONSUMER ROW because the stack is shared state; and ship a measured subset with a filed residual rather than widen scope. ⚠ Blind subagent fan-out unavailable under a session-level instruction (Learning #338), disclosed to the operator at Phase 1.
+```
+
+```handoff
 session: S208
 date: 2026-08-10
 status: complete
