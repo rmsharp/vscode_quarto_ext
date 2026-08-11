@@ -7,6 +7,62 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-11 · [ad hoc] Session 210 — a blank line before the opening `---` no longer hides front matter (SHIPPED)
+
+- **Model:** Claude Opus 5.
+- Quarto renders `\n---\ntitle: t\nfrom: gfm\n---\n` exactly as it renders the same bytes without
+  the leading blank. This model required the opener at line 0, so the block was invisible — which
+  both **FABRICATED** a heading (the closing `---` underlines the last YAML line into a setext
+  `h2`) and **DELETED** the real heading below (the reader was never resolved, so the paragraph
+  bail re-engaged). The residual half of Session 203's six-spellings item; Session 206 shipped the
+  other five and scoped this one out deliberately.
+- **⚠ Quarto has TWO mechanisms here, not one, and they disagree.** Its own front-matter reader
+  handles line 0 — where an unterminated block or a `...` terminator makes it **refuse the
+  document outright (exit 1)**. Pandoc's `yaml_metadata_block` handles what follows a blank —
+  where `...` DOES terminate and an unterminated block is ordinary body. Measured, not assumed.
+- **⚠ The leading run may be any length and any whitespace**, including FOUR spaces, a TAB, a form
+  feed, a vertical tab and a NO-BREAK SPACE (bytes verified, not trusted from probe names). The
+  ` {0,3}` cap that governs nearly every other block rule in `qmd/model.ts` does **not** apply —
+  the instinctive fix would have left four of those spellings broken.
+- **⚠ The cheap fix is wrong in three places and each one DELETES.** Skipping leading blanks and
+  testing `FRONTMATTER_OPEN` regresses `c2_hrgap` and `c3_leadws`, and — worst — opens an
+  unterminated block that runs to end of document, deleting **every heading in it**. The shipped
+  predicate adds a blank-below-opener clause and a terminator clause, both scoped to `i > 0` so
+  the change is **purely ADDITIVE**: a document whose line 0 is `---` is classified
+  byte-identically to before.
+- `frontMatterOpenIndex` is now the single opener predicate, replacing two sites that had drifted
+  apart (the scanner's `i === 0` and `frontMatterContent`'s own `lines[0]` test) — Learning #14
+  restored where it had quietly lapsed.
+- **⚠ A THIRD surface disagrees and is deliberately left alone.** Quarto **validates** front matter
+  only at byte 0 even though it renders it after a blank (Session 171: 10 of 17 keys exit 0 in
+  that shape). S171's own FP-guard pin went red first, exactly as its author predicted;
+  `collectValueSources` now gates both front-matter enumerators on byte 0.
+- **Measurement.** 51 documents rendered as a CALIBRATION **before any code**
+  (`scratchpad/s210/CALIBRATION.md`), then 68 rendered in total. Designed corpora **17/47 → 40/47,
+  FIXED 23, INTRODUCED 0**. Adversarial pass 5/12 → 11/12. Predecessor re-score: **42,753
+  documents across 3,537 corpora**, keyed by directory; 18 rows moved, 8 unique documents, all
+  rendered and adjudicated **0/8 → 8/8, INTRODUCED 0** — two that looked like heading deletions
+  are fixes, and three are this item's own filed witnesses (S203/S205/S206). Repo control: all
+  **115** tracked markdown-family documents BYTE-IDENTICAL across four views, proven EFFECTIVE BY
+  INJECTION in the same run (5 designed movers moved, 5 stayers held).
+- **Completeness pass** over all **15** consumers (Learning #331 — this is a widening): each agrees
+  with its byte-0 twin, differs by exactly the +1 line offset (verified mechanically), or differs
+  by the byte-0 design above. **Three probes were DEAD on first design** and were rebuilt before
+  being read as coverage (Learning #339).
+- **DISCLOSED, filed not fixed:** a blank after a **line-0** opener is still read as front matter
+  (6 rendered rows) — left because `inFrontMatter` gates YAML completion and `---`/*(blank)* is
+  what a user has on screen mid-typing. And a **second YAML block overrides the first**, found by
+  the adversarial pass; proven pre-existing by its byte-0 control and filed onto the mid-document
+  `from:` item.
+- Verification: `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` **1942 passed / 66
+  files** (baseline 1922) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0
+  unrelated** (BYTE-IDENTICAL to S180–S209) · `test:integration` **517 passing / 0 failing / exit
+  0** (baseline 516) · `check-package` OK 42 files / 5.54 MB · `check-backlog` OK 140 open.
+  NOT RUN: `test:lsp` (no LSP surface touched); **no BLIND sweep** — fan-out unavailable under a
+  session-level instruction, the THIRD session running (Learning #338).
+- Commits `c43e87f` (claim) · `4a8f7ba` (the fix) · `92c5567` (pins) · `8c848f5` (adversarial
+  pins) · `7901f32` (integration test) · this close-out.
+
 ### 2026-08-10 · [ad hoc] Session 209 — Phase 0 health snapshot recorded
 
 `methodology_dashboard.py` appended its Phase 0 run to `dashboard_history.jsonl` (health 76/100,
