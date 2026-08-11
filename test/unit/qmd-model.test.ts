@@ -6689,8 +6689,15 @@ describe("a blank line before the opening `---` does not hide the front matter (
     const twoBlocks = (lead: string) =>
       `${lead}---\ntitle: D\nfrom: gfm\n---\n\nBody.\n\n---\nfrom: markdown\n---\n` +
       "\nSome prose paragraph.\n# Pressed Heading\n\n## Control Heading\n";
-    expect(names(twoBlocks(""))).toEqual(["h2:from: markdown", "h2:Control Heading"]);
-    expect(names(twoBlocks("\n"))).toEqual(["h2:from: markdown", "h2:Control Heading"]);
+    // ⚠ **REVERSED A SECOND TIME, by Session 213 — the setext half this comment names.** The
+    // paragraph above predicted exactly this: *"The remaining `h2:from: markdown` is the SETEXT
+    // half of the same backlog entry (Session 204's `yaml_12`), which is filed separately"*, and
+    // *"with the reader resolved to `markdown` its `yaml_metadata_block` extension consumes the
+    // block"*. That is now modelled, so both documents report the `h2:Control Heading` ALONE that
+    // this comment recorded quarto rendering. Re-rendered by Session 213 rather than inherited:
+    // `scratchpad/s213/pin/p1_s210_two` and `p2_s210_two_lead`, both `[h2:Control Heading]`.
+    expect(names(twoBlocks(""))).toEqual(["h2:Control Heading"]);
+    expect(names(twoBlocks("\n"))).toEqual(["h2:Control Heading"]);
     // THE CONTROL that classifies it: with only ONE block there is nothing to override, and
     // both spellings are correct — so the defect is the SECOND block, not the leading blank.
     const oneBlock = (lead: string) =>
@@ -6882,13 +6889,21 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
     // by quarto outright (exit 1, no HTML). Front matter at line 0 is VALIDATED; a mid-document
     // block is merged. Third session running to find two quarto mechanisms disagreeing on one
     // spelling (Session 210's Learning #342).
+    // ⚠ **THE SETEXT TERMS REVERSED BY SESSION 213, and this row is the one that shows the two
+    // halves compose.** An empty `from:` leaves the DEFAULT reader — which is `markdown`, which
+    // CONSUMES a mid-document block — so the block that declares nothing also renders nothing.
+    // The pressed-heading half (this session's) is unchanged; only the phantom setext is gone.
+    // Rendered by Session 213 rather than derived: `scratchpad/s213/pin/p3_empty`.
     const empty = doc(...FM, "", "Prose one.", "", "---", "from:", "---", ...BODY);
-    expect(names(empty)).toEqual(["h2:from:", "h2:Control Heading"]);
+    expect(names(empty)).toEqual(["h2:Control Heading"]);
     // ...and it does NOT fall back to an earlier resolvable block (`cal2/q4_gfm_then_empty`).
+    // ⚠ BOTH blocks lose their setext here, and for the SAME reason rather than by luck: the
+    // resolved reader is the default `markdown`, so every block in the document is consumed.
+    // `scratchpad/s213/pin/p4_gfm_then_empty` renders `[h2:Control Heading]`.
     const gfmThenEmpty = doc(
       ...FM, "", "Prose one.", "", "---", "from: gfm", "---", "", "Prose two.", "", "---", "from:", "---", ...BODY,
     );
-    expect(names(gfmThenEmpty)).toEqual(["h2:from: gfm", "h2:from:", "h2:Control Heading"]);
+    expect(names(gfmThenEmpty)).toEqual(["h2:Control Heading"]);
   });
 
   it("a block whose CONTENT opens a code fence resolves nothing — the port and quarto diverge", () => {
@@ -6983,7 +6998,10 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
       const gfmThenMd = doc(
         "---", "title: Doc", "from: gfm", "---", "", "Prose.", "", "---", "from: markdown", "---", ...BODY,
       );
-      expect(names(gfmThenMd)).toEqual(["h2:from: markdown", "h2:Control Heading"]);
+      // ⚠ Session 213 — the resolved reader here is `markdown`, which CONSUMES every
+      // mid-document block in the document, so the setext phantom goes with the pressed heading.
+      // `scratchpad/s213/pin/p5_gfm_then_md` renders `[h2:Control Heading]`.
+      expect(names(gfmThenMd)).toEqual(["h2:Control Heading"]);
       // three blocks, the LAST declaring one governing (`cal/c02_three_last_gfm`).
       const threeLastGfm = doc(
         "---", "title: Doc", "from: markdown", "---", "", "Prose one.", "", "---", "from: markdown", "---",
@@ -7031,8 +7049,12 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
         "h2:from: gfm",
         ...HONOURED,
       ]);
+      // ⚠ Session 213 — this control declares NO reader anywhere in the document, so the default
+      // `markdown` governs and consumes the block. It is the commonest shape of all and the one
+      // this session's `cal2/d9_nofm_note` measures directly; `scratchpad/s213/pin/p9_nofm_note`
+      // renders `[h2:Control Heading]`. Its `from: gfm` twin above is UNCHANGED, which is what
+      // proves the difference is the resolved reader and not the absent front matter.
       expect(names(doc("Ordinary body prose.", "", "---", "note: x", "---", ...BODY))).toEqual([
-        "h2:note: x",
         "h2:Control Heading",
       ]);
     });
@@ -7336,5 +7358,121 @@ describe("a reader with `space_in_atx_header` OFF accepts `#Heading` (Session 21
     // heading list, so the comma inside `{a, b}` splits it — the row adjudicates the same either
     // way (this model reports nothing), but no future corpus should put a comma in heading text.
     expect(names(withFrom("markdown_strict", "#Adv Tight Set {a, b}"))).toEqual(REFUSED);
+  });
+});
+
+describe("a mid-document YAML metadata block is CONSUMED by the reader (Session 213)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  /**
+   * Every document carries a real ATX heading BELOW the probe, exactly as the rendered corpora
+   * do (`scratchpad/s213/cal`). Without it a document reporting nothing is indistinguishable
+   * from a build that has stopped producing headings altogether (Learning #339).
+   */
+  const BELOW = ["", "## Cal Heading Below"];
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...BELOW);
+  /** The block was CONSUMED — only the real heading below it survives. */
+  const CONSUMED = ["h2:Cal Heading Below"];
+  /** The block RENDERED as a setext heading, as ordinary body. */
+  const RENDERED = ["h2:note: alpha", "h2:Cal Heading Below"];
+  /** The block itself, as three source lines. */
+  const BLOCK = ["---", "note: alpha", "---"];
+
+  /**
+   * ⚠ **THE GUARD BLOCK — written and run GREEN BEFORE the change** (S204's gotcha 5, inherited
+   * a TENTH time), and it carries the polarity that DELETES.
+   *
+   * The three preceding sessions all shipped heading-DELETING items, where the fail-safe
+   * direction is "report it anyway". This one is heading-FABRICATING, so its fix REMOVES
+   * reported headings and its failure mode is over-firing: a suppression that reaches one line
+   * too far drops a section a reader really sees out of the outline, and — via
+   * `src/core/refs.ts` — its `sec-` id out of the cross-reference index.
+   *
+   * Every row below is a document quarto measurably renders the heading FOR, so every row must
+   * answer with that heading present before this session's change and still after it.
+   *
+   * ⚠ Each row states its relationship to quarto, because three of Session 211's guard rows
+   * failed on their first run by asserting quarto's answer where the build's own answer differs
+   * for a separately-filed reason. Every row here is one where the two AGREE.
+   */
+  it("GUARD — a block the resolved reader does NOT consume still renders as a heading", () => {
+    // `cal/a03_gfm`, `a04_cm`, `a05_cmx` — the CommonMark family never consumes.
+    for (const reader of ["gfm", "commonmark", "commonmark_x"]) {
+      expect(names(withFrom(reader, ...BLOCK))).toEqual(RENDERED);
+    }
+    // `cal/a06_strict`, `a07_mmd`, `a08_php`, `a09_gh` — four markdown-family bases that have
+    // `yaml_metadata_block` OFF by default, so the block is ordinary body for them too.
+    for (const reader of ["markdown_strict", "markdown_mmd", "markdown_phpextra", "markdown_github"]) {
+      expect(names(withFrom(reader, ...BLOCK))).toEqual(RENDERED);
+    }
+    // ⚠ `cal/a12_gfm_ymbon` — THE ROW A `fromHasConstruct`-SHAPED PREDICATE GETS BACKWARDS.
+    // The same extension that turns consumption ON for `markdown_strict` (`cal2/c4_ext`) is
+    // INERT on a CommonMark base. Quarto renders the heading here.
+    expect(names(withFrom("gfm+yaml_metadata_block", ...BLOCK))).toEqual(RENDERED);
+    // `cal2/c5_ext`, `cal3/f_cm_ymbon` — the same, on the other two CommonMark bases.
+    expect(names(withFrom("commonmark_x+yaml_metadata_block", ...BLOCK))).toEqual(RENDERED);
+    expect(names(withFrom("commonmark+yaml_metadata_block", ...BLOCK))).toEqual(RENDERED);
+    // `cal2/c3_ext` — with `yaml_metadata_block` off AND both table extensions off, the setext
+    // parse finally wins under a `markdown` base and quarto renders the heading.
+    expect(
+      names(withFrom("markdown-yaml_metadata_block-multiline_tables-simple_tables", ...BLOCK)),
+    ).toEqual(RENDERED);
+  });
+
+  it("GUARD — a block-shaped run the OPENER's precondition excludes still renders", () => {
+    // ⚠ These are the rows that refute the backlog entry's sizing note. Quarto's region grammar
+    // returns a region for each; PANDOC does not consume it, because the `---` is claimed as a
+    // setext underline for the line above instead. All under plain `markdown`, the consuming
+    // reader — so a suppression keyed on the region grammar DELETES every heading below.
+    // `cal4/i_para_md` — a paragraph line directly above the opener.
+    expect(names(withFrom("markdown", "Cal body prose.", ...BLOCK))).toEqual([
+      "h2:Cal body prose.",
+      ...RENDERED,
+    ]);
+    // `cal4/i_listitem_md` — a list item directly above.
+    expect(names(withFrom("markdown", "-   Cal above item", ...BLOCK))).toEqual([
+      "h2:Cal above item",
+      ...RENDERED,
+    ]);
+    // `cal4/i_hr_md` — a thematic break directly above; the underline outranks it.
+    expect(names(withFrom("markdown", "***", ...BLOCK))).toEqual(["h2:***", ...RENDERED]);
+    // `cal2/e7_hrgap_md` — the thematic-break EXEMPTION: `---` with a blank line above AND
+    // below is not a region opener at all, so nothing here is a metadata block. This is the row
+    // that protects this repo's own documents — 53 of the 115 tracked markdown-family files use
+    // exactly this shape as a section separator.
+    expect(names(withFrom("markdown", "---", "", "note: alpha", "---"))).toEqual(RENDERED);
+  });
+
+  it("GUARD — every geometry the region grammar already refuses is untouched", () => {
+    // `cal2/e1_unterm_md` — an UNTERMINATED block resolves nothing and swallows nothing.
+    expect(names(withFrom("markdown", "---", "note: alpha"))).toEqual(CONSUMED);
+    // `cal2/e4_indent_md` — an INDENTED opener is not a region opener.
+    expect(names(withFrom("markdown", "   ---", "note: alpha", "   ---"))).toEqual(CONSUMED);
+    // `cal2/e9_infence_md` — a block inside a code fence is code.
+    expect(names(withFrom("markdown", "```", ...BLOCK, "```"))).toEqual(CONSUMED);
+    // `cal2/e3_comment_md` — a block inside an HTML comment resolves nothing (Session 211).
+    expect(names(withFrom("markdown", "<!--", ...BLOCK, "-->"))).toEqual(CONSUMED);
+  });
+
+  it("a block under a CONSUMING reader is consumed — no heading comes out of it", () => {
+    // `cal/a02_md` — plain `markdown`, the reader quarto resolves by default, renders NOTHING
+    // for `---` / `note: alpha` / `---`. Its feature-free control `cal/b02_md_ctl` (the same
+    // setext geometry with no opening `---`) renders the heading under the same reader, which is
+    // what proves the difference is metadata CONSUMPTION and not the setext parse.
+    expect(names(withFrom("markdown", ...BLOCK))).toEqual(CONSUMED);
+  });
+
+  it("GUARD — the front matter itself and a document with no block are untouched", () => {
+    // The commonest document in the repo: front matter, then headings. Nothing to suppress.
+    expect(names(doc("---", "title: Cal Doc", "---", "", "# Cal One", "", "## Cal Two"))).toEqual([
+      "h1:Cal One",
+      "h2:Cal Two",
+    ]);
+    // `cal/b02_md_ctl` — THE FEATURE-FREE CONTROL: the same setext geometry with NO opening
+    // `---`, so no region opens and the underline is the only thing producing the heading.
+    // Quarto renders it under every reader measured, including the consuming ones.
+    expect(names(withFrom("markdown", "note: alpha", "---"))).toEqual(RENDERED);
   });
 });
