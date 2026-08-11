@@ -5,6 +5,31 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 210 — IMPLEMENTATION (strict TDD): a blank or whitespace-only line BEFORE the opening `---` still makes a document's front matter invisible. Quarto honours that front matter; this model does not — and the miss both FABRICATES a heading (`h2:from: gfm`, the last front-matter line claimed as a setext title by the closing `---`) and DELETES the real heading below it.**
+**Started:** 2026-08-11
+**Status:** Session claimed. Work beginning.
+
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**How this item was selected.** Operator-selected via `AskUserQuestion` at Phase 0 from an empty Active section, per the CLAUDE.md Phase 0 addition. Ranked **#1 by Session 209** and **#2 by Session 208**, on the stated grounds that it is the only remaining entry in this family that is wrong in **both directions at once**. It is the residual half of Session 203's six-spellings item, whose other five spellings Session 206 shipped; S206 scoped this one OUT deliberately, because it is not the `from:` reader question.
+
+**Coupling survey (run BEFORE this claim, read-only).** The backlog entry names "`findFrontMatter`, and the scanner's `i === 0` guard" as if they were two sites. **They are one.** `findFrontMatter` (`model.ts:3825`), `inFrontMatter` (`:3839`) and `frontMatterContentLines` (`:3854`) are all **views over the single `scanRegions` pass** (Learning #14 — the project deliberately has no second `---` parser), so the only opener in the codebase is `model.ts:3277`'s `i === 0 && FRONTMATTER_OPEN.test(line)`. That makes the change surface ONE line and the consumer surface wide: `yaml-frontmatter-values.ts:103` / `yaml-frontmatter-nested-values.ts:75` (both via `findFrontMatter`), `yaml-context.ts:100` (the completion gate, via `inFrontMatter`), the citation reader via `frontMatterContentLines`, the outline's front-matter span, and the whole `from:` reader stack S205–S209 built, which reads the block to decide the reader.
+
+**⚠ Direction of the change, and what that dictates.** This is a **WIDENING** of front-matter detection — more documents will have a front-matter block than before. Per Learning #331 (S207): **a widening needs a completeness probe per CONSUMER**, not a guard per accepted position. Every consumer named above gets its own probe, enumerated before any result is read; and per Learning #339 (S209) each probe must be proven to **DISCRIMINATE** (a `fires`/`holds`/`top` triple that is not all-equal) before it is read as coverage — two of S209's seven probes measured nothing while looking like clean coverage.
+
+**Scope declaration (written at claim).** My declared decision rule for this session:
+
+1. **CALIBRATE FIRST, in the S207/S208/S209 discipline** — render the grid through the real `quarto render` before writing a line of production code, and write the verdict to `scratchpad/s210/CALIBRATION.md`. The open questions the item does NOT answer: how many blank lines quarto tolerates, whether a whitespace-only line (spaces vs tabs) behaves like an empty one, whether the tolerance is the same for reader selection (`from:`) as for ordinary metadata (`title:`), and where the boundary sits — the first non-blank line that is not `---` must NOT open a block, or the fix deletes.
+2. **Build the corpus on which the cheap fix and the honest one DISAGREE** (Learning #335), not more witnesses. The cheap fix is "skip leading blanks, then allow `---`"; if quarto's real tolerance is bounded (or differs by whitespace kind), that fix is wrong somewhere and the corpus must find where.
+3. **A widening needs a completeness probe per CONSUMER** (Learning #331), each proven to DISCRIMINATE before it is read (Learning #339).
+4. **The guard block is written BEFORE the change and carries BOTH polarities** (S204's gotcha 5, inherited a SEVENTH time). Here the deleting direction is the one to fear: any document whose first non-blank line is `---` but which quarto does NOT treat as front matter would lose everything the block swallows.
+5. **If the honest fix cannot be completed under one deliverable, ship the measured subset and file the residual with its rendered evidence** rather than widening scope (FM #17).
+
+**⚠ Known constraint, disclosed at claim — THE THIRD SESSION RUNNING.** Blind subagent fan-out is unavailable under a session-level instruction, exactly as in Sessions 208 and 209 (Learning #338). The operator is told this at Phase 1 and may lift it. If not lifted, an adversarial pass against my own change is the strongest independent check available, and it is **weaker** than the blind lenses S205–S207 used — it can only attack assumptions I know I made. Sessions 205, 206 and 207 each found their most valuable residual through a blind lens.
+
+---
+
+## Session 209 ACTIVE TASK (superseded by Session 210 — full entry preserved below)
 **Task:** **Session 209 — IMPLEMENTATION (strict TDD): the container column STACK does not know which containers each READER has. `contentColumns` pushes a content column for a definition-list body (`:   x` / `~   x`) and for a footnote definition (`[^1]: x`) under EVERY dialect, but the readers genuinely differ per construct — and Session 203 measured that the definition-BODY column is wrong even under readers where the construct DOES exist. BOTH directions.**
 **Started:** 2026-08-10 · **Closed:** 2026-08-10
 **Status:** **DONE. SHIPPED — the item that seven consecutive sessions ranked #1 and never picked turned out to be THREE defects wearing one title, and the render said so before a line of code was written. 246 documents rendered plus a 37,810-document re-score of every predecessor corpus: the designed grid 34/72 → 58/72, the completeness pass 29/42 → 41/42, the adversarial pass 13/28 → 27/28, INTRODUCED 0 in every designed corpus, and no heading lost anywhere.**

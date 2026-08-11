@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S210
+date: 2026-08-11
+status: pending
+active_task: A blank or whitespace-only line BEFORE the opening `---` makes a document's front matter invisible to this model, while quarto honours it. Two-directional: the miss FABRICATES `h2:from: gfm` (the last front-matter line claimed as a setext title by the closing `---`) and DELETES the pressed heading below. The residual half of Session 203's six-spellings item, whose other five Session 206 shipped and which S206 scoped this one OUT of deliberately -- it is NOT the `from:` reader question. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; ranked #1 by S209 and #2 by S208 as the only remaining entry in the family wrong in BOTH directions at once. ⚠ COUPLING SURVEY RUN BEFORE THIS CLAIM: the backlog names `findFrontMatter` and the scanner's `i === 0` as two sites; they are ONE -- findFrontMatter, inFrontMatter and frontMatterContentLines are all VIEWS over the single scanRegions pass (Learning #14), so the only opener is model.ts:3277. Change surface one line, consumer surface wide. ⚠ It is a WIDENING, so per Learning #331 it needs a completeness probe per CONSUMER (not a guard per accepted position), each proven to DISCRIMINATE before being read as coverage (Learning #339).
+```
+
+```handoff
 session: S209
 date: 2026-08-10
 status: complete
