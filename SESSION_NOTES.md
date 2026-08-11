@@ -5,6 +5,27 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 213 — IMPLEMENTATION (strict TDD): the SETEXT half of a mid-document YAML metadata block — the block still renders as an `h2` in this model where quarto emits none. Heading-FABRICATING.**
+**Started:** 2026-08-11
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**How this item was selected.** Operator-selected via `AskUserQuestion` at Phase 0 from an empty Active section. Ranked **#1 by S212** and **#2 by S211** as the highest-value item now open — it is the residual half of S204's `yaml_12` / S205's `yaml_13`, and S211 shipped the reader-selection half of the same item.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **1981 passed / 66 files**, matching Session 212's recorded close-out exactly; `check-backlog` **OK, 143 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`e918352`, gap 0), `grep -c "^status: pending" HANDOFFS.md` = 0, no ghost sessions.
+
+**⚠ THE POLARITY IS THE OPPOSITE OF THE LAST THREE SESSIONS' AND THE GUARD MUST BE BUILT FOR IT.** S210, S211 and S212 all shipped heading-DELETING items, where the fail-safe direction is "report it anyway". This one FABRICATES: the fix REMOVES reported headings, so an over-firing rule deletes sections a reader really sees, and the repo control over 115 tracked documents is a live regression surface rather than a formality. The 1B guard is therefore written on the PRESENCE polarity — the rows where an `h2` must SURVIVE — and run GREEN before any change (S204's gotcha 5, inherited a TENTH time).
+
+**Decision rules carried from the coupling survey run BEFORE this stub** (patterns grepped, not function names — S210's disclosed error):
+1. **`midDocumentMetadataBlocks` (`src/core/qmd/model.ts:1981`) enumerates exactly the blocks in question but returns CONTENT, not SPANS.** Its two consumers (`governingMetadataContent:2025` → `:1638`, `:2434`) read content only. The setext half needs LINE RANGES, so the shared enumeration must be split rather than duplicated — the S211 docstrings are the specification of which blocks count and every ⚠ note in them is load-bearing.
+2. **The suppression is per-READER and quarto's default reader is in scope.** The backlog records that under `markdown` pandoc's `yaml_metadata_block` CONSUMES the block (nothing renders) while under `gfm` the same lines are body and DO render a setext heading. A document with no `from:` at all resolves to `markdown`, so the commonest shape of all is the one that changes — this is not a niche row.
+3. **ALL mid-document blocks are candidates, not just the governing one.** Quarto MERGES every region's metadata; `governingMetadataContent` picks one for the READER question only. Whether pandoc consumes all of them is a measurement, not an inference.
+4. **The scanner already has the shape for a line-set suppression**: `literalHtmlLines` (`:3603`) is a whole-document pre-pass computed only where it can be read, gated at one site (`:4134`). A metadata-line set is the same shape.
+5. **The front-matter block is skipped by a `continue` at `:3722`/`:3727`, which is NOT reusable here** — it is a stateful walk keyed on `frontMatterOpensAt`, and a mid-document block must not disturb container state the way an early `continue` would.
+6. **Nothing is measured until it is rendered.** S212's harness (`scratchpad/s212/`) is `sed`-renamable, and `score.py`'s refused-render fix must be carried with it (S210 gotcha 2 / S211 gotcha 5 / S212 gotcha 5, three confirmations).
+7. **No heading text in any corpus may contain a COMMA** — `render*.sh` joins heading lists with commas (S212 gotcha 3, Learning #350).
+
+## Session 212 ACTIVE TASK (superseded by Session 213 — full entry preserved below)
 **Task:** **Session 212 — IMPLEMENTATION (strict TDD): a reader with `space_in_atx_header` OFF accepts `#Heading` with NO space after the hashes, and `ATX_HEADING` requires one. Heading-DELETING.**
 **Started:** 2026-08-11 · **Closed:** 2026-08-11
 **Status:** **DONE. SHIPPED — and the item's reader list was incomplete in BOTH directions. 118 documents rendered plus a 43,401-document re-score of every predecessor corpus: designed 47/84 → 66/84, adversarial 3/18 → 17/18, controls 6/12 → 11/12, and every one of the 4 predecessor documents that moved is a FIX (0/4 → 4/4). INTRODUCED 0 in every corpus.**

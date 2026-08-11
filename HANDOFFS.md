@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S213
+date: 2026-08-11
+status: pending
+active_task: IN PROGRESS. The SETEXT half of a mid-document YAML metadata block — the residual half of S204's `yaml_12` / S205's `yaml_13`, whose reader-selection half S211 shipped. Such a block still renders as an `h2` in this model where quarto emits none, so the outline carries a section the reader never sees. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; ranked #1 by S212 and #2 by S211. ⚠ HEADING-FABRICATING, the opposite polarity to the last three sessions: the fix REMOVES reported headings, so the guard is written on the PRESENCE polarity and the 115-document repo control is a live regression surface rather than a formality.
+```
+
+```handoff
 session: S212
 date: 2026-08-11
 status: complete
