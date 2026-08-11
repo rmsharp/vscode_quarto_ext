@@ -5,6 +5,7 @@ import {
   hasNoValueLines,
   valueFlags,
 } from "../../src/core/yaml-value-flags";
+import { findFrontMatter } from "../../src/core/qmd/model";
 
 /**
  * The value-flag decision — the product's own, called headlessly.
@@ -264,6 +265,28 @@ describe("valueFlags — leading whitespace hides front matter from us, not from
     expect(fmGroup("   \n---\ntoc: banana\n---\n")).toEqual([]);
     // …while the byte-0 control, which quarto DOES validate, is still flagged.
     expect(fmGroup("---\ntoc: banana\n---\n")).toEqual(["1:toc=banana"]);
+  });
+
+  it("FP GUARD (S210): the pin above now holds against a scanner that CAN see the block", () => {
+    // ⚠ Session 210 taught `scanRegions` the leading-blank rule, because quarto RENDERS such a
+    // block — so the guard above stopped being free. It passed before that change because the
+    // front matter was invisible to everything; it passes now because `collectValueSources`
+    // gates the two front-matter enumerators on byte 0 explicitly. S171's author predicted this
+    // exact red ("if a future change teaches `scanRegions` the trimLeft, this pin goes red
+    // first") and it did.
+    //
+    // The three-way discrimination, so this cannot pass against a dead surface (S163 gotcha 5,
+    // Learning #339): the byte-0 twin IS flagged, the leading-blank document is NOT, and the
+    // scanner genuinely sees the latter's front matter.
+    expect(findFrontMatter("\n---\ntoc: banana\n---\n")).toEqual({ startLine: 1, endLine: 3 });
+    expect(fmGroup("\n---\ntoc: banana\n---\n")).toEqual([]);
+    expect(fmGroup("---\ntoc: banana\n---\n")).toEqual(["1:toc=banana"]);
+    // and the NESTED enumerator is gated by the same byte-0 test — a surface S171's pin does
+    // not reach, and one this session's change would otherwise have opened.
+    const nested = (lead: string) =>
+      collectValueSources(`${lead}---\nformat:\n  html:\n    toc: banana\n---\n`).nestedLines.length;
+    expect(nested("")).toBe(1); // byte 0 — quarto validates, so we enumerate
+    expect(nested("\n")).toBe(0); // behind a blank — quarto does not validate
   });
 });
 

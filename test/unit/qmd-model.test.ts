@@ -6,8 +6,11 @@ import {
   findAllCells,
   findBodyLines,
   findCellAtPosition,
+  findFrontMatter,
   findHeadings,
+  frontMatterContentLines,
   hideCellsInOutline,
+  inFrontMatter,
 } from "../../src/core/qmd/model";
 
 describe("findHeadings — basic ATX parsing", () => {
@@ -6592,4 +6595,75 @@ describe("a blank line before the opening `---` does not hide the front matter (
     expect(names(doc("", ...RDR, ...BODY))).toEqual(HONOURED);
   });
 
+  // ── PINS OF THE SAME CHANGE — labelled as pins, NOT counted as RED cycles ──
+  // Each passed the moment `frontMatterOpenIndex` landed. They are recorded because each is a
+  // distinct MEASURED row, not because each drove a cycle (S208's and S209's honesty rule).
+
+  it("PIN — the FABRICATING half: no setext `h2` is invented out of the YAML", () => {
+    // `cal` cal_blank1_meta. The other direction of the same defect: with the block invisible,
+    // its closing `---` underlined `title: Doc` into a heading the reader never sees. Quarto
+    // renders the control heading alone.
+    expect(names(doc("", ...META, ...BODY))).toEqual(CONSUMED);
+  });
+
+  it("PIN — every leading-whitespace spelling quarto tolerates, and it is NOT ` {0,3}`", () => {
+    // `cal` cal_blank1/2/3, sp1, sp3, sp4, tab, mixed; `cal2` c2_many. Four spaces and a tab are
+    // the rows that matter: nearly every other block rule in this file caps leading indent at
+    // three spaces, and applying that instinct here would have left these broken.
+    for (const lead of [[""], ["", ""], ["", "", ""], [" "], ["   "], ["    "], ["\t"], ["", "   "]]) {
+      expect(names(doc(...lead, ...RDR, ...BODY))).toEqual(HONOURED);
+      expect(names(doc(...lead, ...META, ...BODY))).toEqual(CONSUMED);
+    }
+    // ten blank lines — the tolerance is unbounded, not one line
+    expect(names(doc(...Array(10).fill(""), ...RDR, ...BODY))).toEqual(HONOURED);
+  });
+
+  it("PIN — CRLF endings, since the scanner splits on /\\r?\\n/", () => {
+    // `cal2` c2_crlf_rdr / c2_crlf_meta. A `\r` left on the line would defeat the `trim()` test
+    // for blankness and the column-0 anchor alike.
+    const crlf = (...lines: string[]) => lines.join("\r\n") + "\r\n";
+    expect(names(crlf("", ...RDR, ...BODY))).toEqual(HONOURED);
+    expect(names(crlf("", ...META, ...BODY))).toEqual(CONSUMED);
+  });
+
+  it("PIN — `...` terminates a block that follows a blank, where at line 0 quarto REFUSES it", () => {
+    // `cal4` c4_dotslead_rdr (exit 0, renders both headings) against c4_dots0_rdr (**exit 1**,
+    // quarto refuses the document outright). The two mechanisms genuinely disagree here, and
+    // this row is the one the pre-session build got wrong.
+    expect(names(doc("", "---", "title: Doc", "from: gfm", "...", ...BODY))).toEqual(HONOURED);
+  });
+
+  it("PIN — the span, the completion gate and the outline all shift by EXACTLY one line", () => {
+    // The consumer surfaces, each against its BYTE-0 TWIN rather than against a literal, so the
+    // pin proves agreement rather than recording a number that could drift (Learning #331 — a
+    // widening needs a probe per consumer).
+    const fires = doc("", ...RDR, ...BODY);
+    const holds = doc(...RDR, ...BODY);
+    expect(findFrontMatter(fires)).toEqual({ startLine: 1, endLine: 4 });
+    expect(findFrontMatter(holds)).toEqual({ startLine: 0, endLine: 3 });
+    // the fence lines are excluded at both offsets, and the content lines are inside at both
+    expect([0, 1, 2, 3, 4].map((n) => inFrontMatter(fires, n))).toEqual([false, false, true, true, false]);
+    expect([0, 1, 2, 3].map((n) => inFrontMatter(holds, n))).toEqual([false, true, true, false]);
+    // the citation reader and the preview-format reader read the same block through the same view
+    expect(frontMatterContentLines(fires)).toEqual(["title: Doc", "from: gfm"]);
+    expect(frontMatterContentLines(fires)).toEqual(frontMatterContentLines(holds));
+  });
+
+  it("⚠ DISCLOSED RESIDUAL — a blank after a LINE-0 opener is still read as front matter", () => {
+    // NOT fixed this session, and filed in `BACKLOG.md` with its rendered evidence.
+    // `cal2` c2_line0gap_meta: quarto renders `h2:title: Doc` — it does NOT treat the block as
+    // front matter — and this model does. Two directions, as the `_rdr` twin below shows.
+    //
+    // ⚠ Left deliberately: `inFrontMatter` gates YAML completion, and `---` / *(blank)* is
+    // exactly the shape a user has on screen while typing front matter, so refusing it here
+    // would switch completion off mid-keystroke. No rendered document can adjudicate that
+    // trade-off, because it is an editor state rather than a document.
+    expect(names(doc("---", "", "title: Doc", "---", ...BODY))).toEqual(CONSUMED); // quarto: NOT_CONSUMED
+    // and the fabricating direction of the same row (`c2_line0gap_rdr`): quarto renders the
+    // control alone, this model invents the pressed heading.
+    expect(names(doc("---", "", "title: Doc", "from: gfm", "---", ...BODY))).toEqual(HONOURED);
+    // THE CONTROL that proves this is the line-0 residual and not the shape shipped this
+    // session: the same document with a leading blank is answered correctly.
+    expect(names(doc("", "---", "", "title: Doc", "---", ...BODY))).toEqual(NOT_CONSUMED);
+  });
 });
