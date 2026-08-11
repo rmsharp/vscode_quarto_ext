@@ -6415,4 +6415,48 @@ describe("the container column stack knows which containers each READER has (Ses
     // recognised at the container column and the heading is still swallowed.
     expect(names(fenced("markdown", ...DEF))).toEqual([]);
   });
+  it("DISCLOSED RESIDUAL — this change makes one FILED defect reachable on one more document", () => {
+    // ⚠ Found by re-scoring all 37,810 documents of the predecessor corpora, of which 26 moved.
+    // Twenty-two are clean fixes and three are recoveries; this is the one NEW PHANTOM, and it
+    // is disclosed rather than hidden because the phantom direction is the one this project
+    // permits and closing it belongs to a different row.
+    //
+    // `scratchpad/s209/prior` 005 (= `scratchpad/s202/ax/def_gfm_u0`): under `gfm`, a definition
+    // container followed by `    def probe title` and a `===` at COLUMN 0. Removing the
+    // container column moves `innermostColumn` from 4 to 0, so the CommonMark setext set becomes
+    // [0..3] and the run at column 0 is now accepted — but quarto renders no heading, because
+    // the title line four columns in is INDENTED CODE and a CommonMark reader will not let a
+    // setext underline claim one.
+    //
+    // ⚠ **It is the ALREADY-FILED item `BACKLOG: a LONE indented line is reported as a setext
+    // title under a CommonMark reader`, not a defect of this change** — proven by a feature-free
+    // control with NO container anywhere (`scratchpad/s209/ctl2/p_indented_gfm`), on which the
+    // PRE-SESSION build emits the identical phantom. The container column had merely been
+    // masking it here. Its twin `p_indented_md` renders the heading in quarto, which is why that
+    // item records that the default reader must not move and the fix must be CommonMark-only.
+    const lone = (reader: string) =>
+      names(doc("---", `from: ${reader}`, "---", "", "Intro line.", "",
+        "    def probe title", "===", "", "Tail."));
+    expect(lone("gfm")).toEqual(["h1:def probe title"]); //  quarto: NO heading — filed, pre-existing
+    expect(lone("markdown")).toEqual(["h1:def probe title"]); // quarto agrees — must not move
+  });
+
+  it("DISCLOSED — three recoveries arrive with the already-filed interior-whitespace gap", () => {
+    // The other three movers of the 26. Each RECOVERS a heading the pre-session build lost or
+    // got wrong, and each arrives with source-text whitespace where quarto collapses it — the
+    // filed SOURCE-vs-RENDERED text gap, whose members explicitly include interior space runs.
+    //
+    // ⚠ Proven pre-existing by a control with NO definition marker at all, so this change cannot
+    // be involved (`scratchpad/s209/ctl2/w_plain`): quarto renders `h1:Ilk Probe Title x y` and
+    // BOTH builds report `h1:Ilk Probe Title x   y`.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "Ilk Probe Title", "x   y", "====", "", "Body.")),
+    ).toEqual(["h1:Ilk Probe Title x   y"]); // quarto collapses to `x y` — filed, pre-existing
+    // and the recovery itself: `scratchpad/s203/ilk/i_gfm_deflist`, which the pre build lost
+    // ENTIRELY and which now reports the right heading with the same known whitespace gap.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "Ilk Probe Title", ":   a definition body",
+        "====================", "", "Body prose below.")),
+    ).toEqual(["h1:Ilk Probe Title :   a definition body"]);
+  });
 });
