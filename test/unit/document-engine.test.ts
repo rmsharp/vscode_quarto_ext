@@ -645,8 +645,25 @@ describe("Session 165 §9 — a shape we DECLINE to read must block the fallback
     // being a fence (`----`, `---foo`): those match `startsWith` but not `FRONTMATTER_OPEN`,
     // so the guard still fires for them after the trim. Quarto's `kRegExBeginYAML` rejects
     // them too and falls through to the languages, making that decline a lost TP, not an FP.
-    expect(resolve(`\n${rDoc("engine: markdown\n")}`)).toBeUndefined();
-    expect(resolve(`\n\n  \n${rDoc("")}`)).toBeUndefined();
+    // ⚠ **SESSION 210 — the first two inputs no longer reach the guard at all, and this block's
+    // own note predicted it.** The note above already recorded that quarto's answer for the
+    // first document is `"markdown"` (its partitioner runs `lines(markdown.trimLeft())`) and
+    // that only the caller's trim was making the product agree. S210 taught `scanRegions` the
+    // same leading-blank rule, so the DECISION now reaches quarto's answer directly rather than
+    // via the caller — an agreement, not a skew. The guard's live purpose is unchanged and is
+    // asserted below: first lines that start with `---` WITHOUT being a fence.
+    expect(resolve(`\n${rDoc("engine: markdown\n")}`)).toBe("markdown");
+    // Each leading-whitespace document now answers exactly what its BYTE-0 TWIN answers, which
+    // is the property the change was for. The twin is asserted beside it so the pin proves
+    // agreement rather than merely recording a value — without it, both sides could drift
+    // together and the assertion would still pass.
+    expect(resolve(`\n\n  \n${rDoc("")}`)).toBe(resolve(rDoc("")));
+    expect(resolve(rDoc(""))).toBe("knitr");
+    expect(resolve(`\n${rDoc("engine: markdown\n")}`)).toBe(resolve(rDoc("engine: markdown\n")));
+    // ⚠ The note's `----` / `---foo` examples are NOT assertable here: those documents open no
+    // front matter at all, so this decision never sees one and resolves per-cell exactly like
+    // the no-front-matter documents asserted below. Verified rather than assumed — asserting
+    // `toBeUndefined()` for them returns `"knitr"`.
     // A document that genuinely has no front matter still resolves normally.
     expect(resolve("```{r}\n#| cache: banana\n1\n```\n")).toBe("knitr");
     expect(resolve("just prose\n\n```{python}\nx\n```\n")).toBe("jupyter");

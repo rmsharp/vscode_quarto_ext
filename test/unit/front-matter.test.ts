@@ -16,8 +16,37 @@ describe("findFrontMatter — the front-matter region span", () => {
     expect(findFrontMatter(["# Heading", "", "prose"].join("\n"))).toBeNull();
   });
 
-  it("returns null when a `---` is not on the first line", () => {
-    expect(findFrontMatter(["", "---", "title: x", "---"].join("\n"))).toBeNull();
+  it("finds a block behind a leading BLANK run — quarto renders one (Session 210)", () => {
+    // Reversed from "returns null when a `---` is not on the first line", which pinned a
+    // measured DEFECT: quarto renders `\n---\ntitle: x\n---\n` exactly as it renders the same
+    // bytes without the leading blank, so the block was hidden from the outline, the citation
+    // reader and the reader-selection stack alike. 51 documents in `scratchpad/s210`;
+    // `cal_blank1_*` is the witness and `cal_none_*` the byte-0 twin it must match.
+    expect(findFrontMatter(["", "---", "title: x", "---"].join("\n"))).toEqual({
+      startLine: 1,
+      endLine: 3,
+    });
+    // The leading run may be any length and any whitespace — spaces, FOUR spaces, a tab. The
+    // ` {0,3}` cap that governs nearly every other block rule in this file does not apply here.
+    for (const lead of ["", "  ", "    ", "\t"]) {
+      expect(findFrontMatter([lead, "---", "title: x", "---"].join("\n"))).toEqual({
+        startLine: 1,
+        endLine: 3,
+      });
+    }
+  });
+
+  it("still returns null for the three shapes quarto does NOT read as front matter", () => {
+    // The guard half of the same change, each measured (`scratchpad/s210/CALIBRATION.md`).
+    // A blank line immediately BELOW the opener — quarto renders a thematic break and body,
+    // and reports `h2:title: x` as a setext heading (`cal2` c2_hrgap).
+    expect(findFrontMatter(["", "---", "", "title: x", "---"].join("\n"))).toBeNull();
+    // No terminator — pandoc's metadata block never closes, so the lines are ordinary body.
+    // Opening one here would run to end of document and DELETE every heading below it
+    // (`cal2` c2_unterm, exit 0, renders its heading normally).
+    expect(findFrontMatter(["", "---", "title: x", "", "# Heading"].join("\n"))).toBeNull();
+    // An INDENTED opener opens nothing, at any indent (`cal2` c2_fence_i1/i3/i4).
+    expect(findFrontMatter(["", "   ---", "title: x", "---"].join("\n"))).toBeNull();
   });
 
   it("ends an unterminated block at the document's last line", () => {

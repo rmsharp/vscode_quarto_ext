@@ -86,6 +86,14 @@ export interface GroupedValueFlags {
   readonly nested: ValueFlag[];
 }
 
+/**
+ * A `---` fence on the document's VERY FIRST LINE, with no leading whitespace of any kind —
+ * the shape quarto's front-matter VALIDATOR requires (Session 171, re-pinned by Session 210).
+ * Deliberately NOT `qmd/model`'s opener predicate: that one now tolerates a leading blank run,
+ * because quarto RENDERS such a block, and the two surfaces disagree by measurement.
+ */
+const FRONTMATTER_AT_BYTE_0 = /^---[ \t]*(?:\r?\n|$)/;
+
 /** Enumerate everything derivable from the snapshot. Cheap; needs no schema. */
 export function collectValueSources(text: string): ValueSources {
   // A cell whose opening fence sits inside a quarto YAML region is not a cell to
@@ -97,14 +105,24 @@ export function collectValueSources(text: string): ValueSources {
   // untouched, so completion context and the embedded-LSP virtual documents — its
   // other two consumers — see the cell exactly as before (S177).
   const regions = quartoYamlRegions(text);
+  // ⚠ **Quarto VALIDATES front matter only when the document starts with `---` at BYTE 0, even
+  // though it RENDERS front matter that follows a blank line** (Session 171's measurement: 10 of
+  // 17 swept keys render **exit 0** behind a leading blank, where the byte-0 twin is exit 1).
+  // Session 210 taught `scanRegions` the leading-blank rule, so `findFrontMatter` — and both
+  // front-matter enumerators below, which are views over it — now report a block this surface
+  // must stay silent about. The gate belongs HERE rather than in those enumerators: the
+  // rendering and reader surfaces genuinely want the wider rule, and only the VALIDATION surface
+  // keys on byte 0. S171's own pin (`yaml-value-flags.test.ts`, "FP GUARD") is what caught the
+  // skew, exactly as its author predicted it would.
+  const validatedFrontMatter = FRONTMATTER_AT_BYTE_0.test(text);
   return {
     text,
     lines: text.split(/\r?\n/),
     cellLines: findCellOptionLines(text).filter(
       (o) => !inQuartoYamlRegion(regions, o.cellStartLine),
     ),
-    fmValueLines: findFrontMatterValueLines(text),
-    nestedLines: findNestedFrontMatterValueLines(text),
+    fmValueLines: validatedFrontMatter ? findFrontMatterValueLines(text) : [],
+    nestedLines: validatedFrontMatter ? findNestedFrontMatterValueLines(text) : [],
   };
 }
 

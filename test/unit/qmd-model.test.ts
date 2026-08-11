@@ -6478,3 +6478,118 @@ describe("the container column stack knows which containers each READER has (Ses
     ).toEqual(["h1:Ilk Probe Title :   a definition body"]);
   });
 });
+
+describe("a blank line before the opening `---` does not hide the front matter (Session 210)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  /**
+   * The body every document below shares. Two observables, and the pair is what makes each row
+   * discriminate (Learning #339 — a probe whose test and control answer alike has measured
+   * nothing):
+   *
+   *   `# Pressed Heading`  is jammed against a paragraph with no blank line. A CommonMark-family
+   *        reader renders it; pandoc's default `markdown` suppresses it (`blank_before_header`).
+   *        So it answers *was the front matter honoured AND did its `from:` select the reader*.
+   *   `## Control Heading` has a blank line above it and renders under every reader. Without it a
+   *        document that reports NOTHING would be indistinguishable from one that reports only
+   *        the right thing, and a corpus-wide failure would read as a uniform result.
+   */
+  const BODY = ["", "Some prose paragraph.", "# Pressed Heading", "", "## Control Heading"];
+  /** Front matter that selects a CommonMark-family reader — the PRESSED heading becomes visible. */
+  const RDR = ["---", "title: Doc", "from: gfm", "---"];
+  /** Front matter with no `from:` — the reader stays default, so only the SETEXT observable moves. */
+  const META = ["---", "title: Doc", "---"];
+
+  /** Front matter honoured AND `from: gfm` in effect. */
+  const HONOURED = ["h1:Pressed Heading", "h2:Control Heading"];
+  /** Front matter consumed, reader left at the default — the pressed heading stays suppressed. */
+  const CONSUMED = ["h2:Control Heading"];
+  /** The block was NOT consumed: its closing `---` underlines the line above into a setext `h2`. */
+  const NOT_CONSUMED = ["h2:title: Doc", "h2:Control Heading"];
+
+  // ── THE GUARD BLOCK, WRITTEN AND RUN GREEN BEFORE THE CHANGE IT GUARDS ──
+  // Session 204's gotcha 5, inherited by S205-S209 and honoured a SEVENTH time.
+  //
+  // ⚠ This session's change moves in BOTH directions at once, so a one-polarity guard would
+  // miss half of it. It WIDENS front-matter detection (a block after a blank line now opens),
+  // and the widening's failure mode is catastrophic: an unterminated block runs to end of
+  // document, so opening one wrongly DELETES every heading below it. It also NARROWS detection
+  // (a blank line immediately after the opener now refuses), and a narrowing turns front matter
+  // into body, which FABRICATES setext headings out of YAML keys.
+  //
+  // Every assertion below is a position quarto was MEASURED on, in this session's own corpora,
+  // and every one of them is already correct on the pre-session build.
+  describe("GUARD — positions that must not move", () => {
+    it("line 0, terminated, `from:` honoured — the anchor the whole grid hangs on", () => {
+      // `scratchpad/s210/cal` cal_none_rdr / cal_none_meta, both agreeing pre-session.
+      expect(names(doc(...RDR, ...BODY))).toEqual(HONOURED);
+      expect(names(doc(...META, ...BODY))).toEqual(CONSUMED);
+    });
+
+    it("an INDENTED opener opens nothing, at every indent", () => {
+      // `cal2` c2_fence_i1 / i3 / i4. Both quarto's own `yamlRegEx` and this model's
+      // `FRONTMATTER_OPEN` are anchored at column 0. The risk is a fix that TRIMS the line
+      // instead of skipping whole blank lines.
+      for (const pad of [" ", "   ", "    "]) {
+        expect(names(doc("", `${pad}---`, "title: Doc", "from: gfm", "---", ...BODY))).toEqual(CONSUMED);
+      }
+    });
+
+    it("a NON-BLANK line before the opener is the boundary — never front matter", () => {
+      // `cal` cal_text_meta, agreeing pre-session. This is the row where a fix that skips
+      // arbitrary leading content instead of blank lines would swallow real prose.
+      expect(names(doc("Ordinary prose.", ...META, ...BODY))).toEqual([
+        "h2:Ordinary prose.",
+        "h2:title: Doc",
+        "h2:Control Heading",
+      ]);
+    });
+
+    it("⚠ blank / `---` / BLANK is a thematic break, not front matter — right today by ACCIDENT", () => {
+      // `cal2` c2_hrgap_meta. Correct on the pre-session build only because the model refuses
+      // every opener that is not at line 0; the moment leading blanks are skipped, the naive
+      // fix opens this and swallows `title: Doc`. Measured: quarto renders `h2:title: Doc`.
+      expect(names(doc("", "---", "", "title: Doc", "---", ...BODY))).toEqual(NOT_CONSUMED);
+    });
+
+    it("⚠ blank / `---` / content with NO terminator is BODY — the catastrophic row", () => {
+      // `cal2` c2_unterm_meta / c2_unterm_rdr, both exit 0 and both rendering the control.
+      // An unterminated block runs to end of document, so a fix that opens this one DELETES
+      // EVERY heading in the document. Note the `_rdr` row also proves quarto does not select
+      // the reader from an unterminated block: the pressed heading stays suppressed.
+      expect(names(doc("", "---", "title: Doc", ...BODY))).toEqual(CONSUMED);
+      expect(names(doc("", "---", "title: Doc", "from: gfm", ...BODY))).toEqual(CONSUMED);
+    });
+
+    it("a YAML COMMENT after the opener is content — the block still opens", () => {
+      // `cal3` c3_comafter_rdr, agreeing pre-session. The blank-after-opener clause this
+      // session adds must test BLANKNESS, not "is it a key".
+      expect(names(doc("---", "# a yaml comment", "title: Doc", "from: gfm", "---", ...BODY))).toEqual(HONOURED);
+    });
+
+    it("a blank line LATER in the block is fine — only the line against the opener counts", () => {
+      // `cal3` c3_midgap_rdr, agreeing pre-session.
+      expect(
+        names(doc("---", "title: Doc", "", "author: A", "from: gfm", "---", ...BODY)),
+      ).toEqual(HONOURED);
+    });
+
+    it("⚠ line 0 unterminated still swallows to EOF — DELIBERATE, and quarto refuses the document", () => {
+      // `cal4` c4_unterm0_*, quarto EXIT 1 with no HTML produced, so there is no rendered truth
+      // to contradict this and today's behaviour is retained on purpose. It is also the shape a
+      // user is typing before the closing `---` exists, and `inFrontMatter` gates YAML
+      // completion — requiring a terminator here would switch completion off mid-keystroke.
+      expect(names(doc("---", "title: Doc", "from: gfm", ...BODY))).toEqual([]);
+    });
+  });
+
+  it("RED 1 — a leading blank line must not hide the front matter, and its `from:` still selects", () => {
+    // `scratchpad/s210/cal` cal_blank1_rdr. THE HEADING-DELETING HALF: quarto renders BOTH
+    // headings (the front matter is honoured and `from: gfm` is in effect), and the pre-session
+    // build reports only the control — the pressed heading is DELETED because the reader was
+    // never resolved.
+    expect(names(doc("", ...RDR, ...BODY))).toEqual(HONOURED);
+  });
+
+});

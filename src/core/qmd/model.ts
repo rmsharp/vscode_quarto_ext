@@ -1613,15 +1613,75 @@ function nextContentLine(content: readonly string[], from: number): string | nul
   return null;
 }
 /**
+ * The 0-based index of the line on which the document's front matter OPENS, or `null` when it
+ * opens none. **The single opener predicate** — the scanner's region view and
+ * `frontMatterContent` below both ask it, so the two cannot disagree about what counts as front
+ * matter (Learning #14, which the two sites had drifted from: each carried its own `---` test).
+ *
+ * ⚠ **Quarto has TWO mechanisms here and they are not the same rule** (Session 210, measured
+ * over 51 rendered documents — `scratchpad/s210/CALIBRATION.md`):
+ *
+ *   line 0        quarto's own front-matter reader. An unterminated block or a `...` terminator
+ *                 makes quarto REFUSE the document outright (`cal4` `c4_unterm0_*`, `c4_dots0_*`,
+ *                 both exit 1 with no HTML).
+ *   after a blank pandoc's `yaml_metadata_block`, which is what a leading blank line falls
+ *                 through to. Here `...` DOES terminate (`cal4` `c4_dotslead_*`, exit 0) and an
+ *                 unterminated block is NOT metadata at all — it renders as ordinary body.
+ *
+ * ⚠ **The leading run may be any length and any whitespace.** One, two, three blanks; one space;
+ * three spaces; FOUR spaces; a TAB; ten blanks — all measured to render identically to the
+ * no-leading-blank baseline, metadata honoured and `from:` selecting the reader (`cal`,
+ * `c2_many_*`). The ` {0,3}` cap that governs nearly every other block rule in this file does
+ * NOT apply, which is exactly where the instinctive fix would have been wrong.
+ *
+ * ⚠ **The two clauses below are scoped to `i > 0` ON PURPOSE, so this change is purely
+ * ADDITIVE.** A document whose line 0 is `---` is classified byte-identically to before; only a
+ * document that has no front matter today can gain one. The failure mode of getting this wrong is
+ * catastrophic — an unterminated block runs to end of document, so opening one wrongly deletes
+ * EVERY heading below it — and additive is the only shape that cannot regress an existing
+ * document. It also keeps `inFrontMatter` (which gates YAML completion) true while a user is
+ * still typing `---` / *(blank)* with no closing fence yet; a uniform clause would switch
+ * completion off mid-keystroke.
+ *
+ * ⚠ **A blank line immediately below the opener means it is NOT front matter** — measured in
+ * three spellings (empty `c2_hrgap`, spaces `c3_leadws`, tab `c3_tabafter`). A YAML COMMENT there
+ * is content and still opens (`c3_comafter`), and a blank line LATER in the block is fine
+ * (`c3_midgap`, `c3_leadmid`), so the test is blankness of one specific line, never "is it a key".
+ * The measured residual at line 0 is filed in `BACKLOG.md`, with its completion cost.
+ */
+function frontMatterOpenIndex(lines: readonly string[]): number | null {
+  let i = 0;
+  while (i < lines.length && lines[i].trim() === "") {
+    i++;
+  }
+  if (i >= lines.length || !FRONTMATTER_OPEN.test(lines[i])) {
+    return null;
+  }
+  if (i === 0) {
+    return 0;
+  }
+  // Below here the opener sits after a run of blank lines, so pandoc's rules apply.
+  if (i + 1 >= lines.length || lines[i + 1].trim() === "") {
+    return null;
+  }
+  for (let j = i + 1; j < lines.length; j++) {
+    if (FRONTMATTER_CLOSE.test(lines[j])) {
+      return i;
+    }
+  }
+  return null;
+}
+/**
  * The front matter's own CONTENT lines — everything between the opening `---` and its
  * terminator — or `null` when the document opens no front matter at all.
  */
 function frontMatterContent(lines: readonly string[]): string[] | null {
-  if (lines.length === 0 || !FRONTMATTER_OPEN.test(lines[0])) {
+  const open = frontMatterOpenIndex(lines);
+  if (open === null) {
     return null;
   }
   const content: string[] = [];
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = open + 1; i < lines.length; i++) {
     if (FRONTMATTER_CLOSE.test(lines[i])) {
       break;
     }
@@ -3129,6 +3189,11 @@ function computeRegions(text: string): Regions {
   // table, so a `| …` run below one is a fresh line block and quarto renders the heading
   // whether what follows the boundary is a line block or another table body row.
   let inPipeTable = false;
+  // The line on which front matter opens, or `null` for a document that opens none — the SAME
+  // predicate `frontMatterContent` asks (Session 210), so the region view and the `from:`
+  // resolvers cannot disagree about which lines are front matter. Hoisted out of the loop
+  // because it is a property of the whole document, not of the line being scanned.
+  const frontMatterOpensAt = frontMatterOpenIndex(lines);
   // A front-matter `from:` disables the paragraph rule for the whole document — see
   // `frontMatterSelectsReader`. Without this the change DELETES headings quarto renders.
   // ⚠ Resolved ONCE from the whole front-matter block (Session 207), because whether a `from:`
@@ -3271,12 +3336,15 @@ function computeRegions(text: string): Regions {
     // no container can be open there, so `true` is the reading that costs nothing.
     const prevLineBlank = i === 0 || BLANK_LINE.test(lines[i - 1]);
 
-    // YAML front matter — only a `---` on the very first line opens it. Record
-    // the span as it opens (provisionally unterminated, ending at EOF) and refine
-    // `endLine`/`terminated` when the terminator is seen.
-    if (i === 0 && FRONTMATTER_OPEN.test(line)) {
+    // YAML front matter. Record the span as it opens (provisionally unterminated, ending at
+    // EOF) and refine `endLine`/`terminated` when the terminator is seen.
+    // ⚠ The opener is no longer "line 0" but whatever `frontMatterOpenIndex` measured — a
+    // leading run of blank or whitespace-only lines does not hide the block from quarto
+    // (Session 210). `startLine` is that line rather than a hard 0, so the span the outline,
+    // the citation reader and the completion gate all read stays exact.
+    if (i === frontMatterOpensAt) {
       inFrontmatter = true;
-      frontMatter = { startLine: 0, endLine: lines.length - 1, terminated: false };
+      frontMatter = { startLine: i, endLine: lines.length - 1, terminated: false };
       continue;
     }
     if (inFrontmatter) {
@@ -3286,7 +3354,11 @@ function computeRegions(text: string): Regions {
       // no single line carries (Session 207).
       if (FRONTMATTER_CLOSE.test(line)) {
         inFrontmatter = false;
-        frontMatter = { startLine: 0, endLine: i, terminated: true };
+        // ⚠ `startLine` is the measured opener, NOT a hard 0 — this branch REBUILDS the span
+        // rather than refining it, so a literal here silently discards the opener the branch
+        // above recorded and reports a block that starts on a line the document does not open
+        // one on (Session 210; caught by `front-matter.test.ts`'s span assertion).
+        frontMatter = { startLine: frontMatterOpensAt ?? 0, endLine: i, terminated: true };
       }
       continue;
     }
