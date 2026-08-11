@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S211
+date: 2026-08-11
+status: pending
+active_task: IN PROGRESS. A mid-document YAML metadata block's `from:` really does select the reader, and this model only ever looks at line 0 -- so a heading below such a block is DELETED. Four independent witnesses across four sessions (S205 `adv/yaml` yaml_13; S207 `adv/path` path_04 against its matched pair path_15, and `adv/bnd` bnd_13 / bnd_15; S210 `adv` a13_second_block). ⚠ The item is known at filing time to be TWO changes, not one: read a block that is not at line 0, AND let the LAST block win when several disagree -- S210's a13_second_block renders with the pressed heading SUPPRESSED, proven PRE-EXISTING by its byte-0 control b02_two_block_byte0. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; ranked #1 by S210 and #2 by S209 as the only remaining DELETING entry in this family with multiple independent witnesses.
+```
+
+```handoff
 session: S210
 date: 2026-08-11
 status: complete

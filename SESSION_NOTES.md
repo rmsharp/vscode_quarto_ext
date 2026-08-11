@@ -5,6 +5,30 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 211 — IMPLEMENTATION (strict TDD): a MID-DOCUMENT YAML metadata block's `from:` really does select the reader, and this model only ever looks at line 0. Heading-DELETING.**
+**Started:** 2026-08-11
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**The item, as filed.** A document with ordinary front matter, then `---` / `from: gfm` / `---` mid-body, renders under gfm. Quarto emits BOTH the setext `h2` the block itself becomes AND the pressed heading below it. This model reports the `h2` (the already-filed fabrication half) but SUPPRESSES the pressed heading, because the front-matter scan runs only while `inFrontMatter`, which now opens via `frontMatterOpenIndex` — and that predicate returns early on anything past the leading run. Four witnesses across four sessions: S205 `adv/yaml` `yaml_13`; S207 `adv/path` `path_04` against its matched pair `path_15` (the same block with `from:` nested under `params:`, NOT honoured) and `adv/bnd` `bnd_13`; S210 `adv` `a13_second_block`.
+
+**⚠ Known at claim to be TWO changes, not one.** (a) Read a metadata block that does not begin at the top of the document. (b) When several blocks disagree, the LAST one wins — S210's `a13_second_block` declares `from: gfm` in the front matter and `from: markdown` mid-document, and quarto SUPPRESSES the pressed heading, so the later block governs. Proven PRE-EXISTING (not an S210 regression) by its own byte-0 control `adv2/b02_two_block_byte0`, identical on the pre- and post-S210 builds. The same last-wins shape is already measured for the extension list (a separate open item), so the predicate may be shared.
+
+**⚠ Also folded in by the filing:** `s207/adv/bnd` `bnd_15` — a second `---` block pressed against the first with NO blank line, which quarto reads as metadata and this model reads as body. Filed with this item deliberately, since both turn on where a metadata block may BEGIN.
+
+**Decision rules declared at claim, before any technical work.**
+1. **A COUPLING SURVEY FIRST, AND IT GREPS FOR PATTERNS, NOT FUNCTION NAMES.** S210's own close-out disclosed that its claim-time survey was WRONG — it asserted one opener site and there were three, found only because a grep for the *regex* incidentally showed the second. So this survey enumerates by pattern and records how each site was found. Nothing in this claim asserts a site count; that is the survey's output, not its premise.
+2. **CALIBRATE BEFORE CODE.** Render the grid through the real `quarto render` path and write the verdict to `scratchpad/s211/CALIBRATION.md` BEFORE a line of production code (the S207–S210 discipline, which has refuted the item's own prescribed fix in four consecutive sessions).
+3. **BUILD THE CORPUS WHERE THE CHEAP FIX AND THE HONEST ONE DISAGREE** (Learning #335), not more witnesses. Four witnesses already exist; a fifth proves nothing new.
+4. **THE GUARD BLOCK IS WRITTEN AND RUN GREEN BEFORE THE CHANGE, CARRYING BOTH POLARITIES** (S204's gotcha 5, inherited an EIGHTH time). This change WIDENS what counts as metadata, so its failure modes run in both directions: a block wrongly read as metadata swallows body to its terminator (DELETING), and a `from:` wrongly resolved collapses the heading column set (also DELETING).
+5. **⚠ THE HAZARD IS THE HIGHEST-VARIANCE KIND: AN UNTERMINATED BLOCK.** S210 measured that opening an unterminated block runs it to end of document and deletes every heading in it. A mid-document opener is strictly more exposed than a line-0 one, because any `---` in the body is a candidate. Any design that cannot state what happens to an unterminated mid-document block is wrong before it is written.
+6. **IF THE HONEST FIX CANNOT BE COMPLETED UNDER ONE DELIVERABLE, SHIP THE MEASURED SUBSET AND FILE THE RESIDUAL WITH ITS RENDERED EVIDENCE** rather than widening scope (FM #17). Volume does not authorize a second capability.
+
+**⚠ Known constraint, disclosed to the operator at Phase 1 and recorded here:** blind subagent fan-out is unavailable under a session-level instruction, the FOURTH session running (Learning #338). The operator was told before work began. An adversarial pass against my own change is therefore the strongest independent check available, and it is weaker than the blind lenses S205–S207 used — it can only attack assumptions I know I made.
+
+---
+
+## Session 210 ACTIVE TASK (superseded by Session 211 — full entry preserved below)
 **Task:** **Session 210 — IMPLEMENTATION (strict TDD): a blank or whitespace-only line BEFORE the opening `---` made a document's front matter invisible. Quarto honours it; this model did not — and the miss both FABRICATED a heading and DELETED the real one below.**
 **Started:** 2026-08-11 · **Closed:** 2026-08-11
 **Status:** **DONE. SHIPPED — and the item was one rule in name only: quarto has TWO front-matter mechanisms that disagree with each other, plus a THIRD surface that disagrees with both, and the fix the item's phrasing invites would have deleted every heading of an unterminated document. 68 documents rendered plus a 42,753-document re-score of every predecessor corpus: designed 17/47 → 40/47, adversarial 5/12 → 11/12, predecessor movers 0/8 → 8/8, INTRODUCED 0 everywhere.**
