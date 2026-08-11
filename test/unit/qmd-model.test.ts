@@ -6943,4 +6943,129 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
     );
     expect(names(commentAbove)).toEqual(["h2:from: gfm", ...HONOURED]);
   });
+
+  /**
+   * PINS of the rows this session MEASURED, one `it` per rule. These are not separate RED→GREEN
+   * cycles — they pin the same predicate the two cycles above drove, and are labelled as pins
+   * rather than counted as cycles.
+   */
+  describe("PINS — the measured rule, clause by clause", () => {
+    it("PIN — the LAST `from:` KEY wins, not the last BLOCK", () => {
+      // ⚠ THE HEADLINE FINDING, and it refutes the rule `BACKLOG.md` states. `cal2`
+      // `q1_gfm_then_nofrom`: a later block carrying NO `from:` does not silence an earlier one,
+      // and quarto renders the pressed heading (its control `q1_gfm_then_nofrom_ctl` does not).
+      // Reading "the last block wins" literally would DELETE that heading.
+      const gfmThenNoFrom = doc(
+        ...FM, "", "Prose one.", "", "---", "from: gfm", "---", "", "Prose two.", "",
+        "---", "note: nothing to do with readers", "---", ...BODY,
+      );
+      expect(names(gfmThenNoFrom)).toEqual(["h2:from: gfm", "h2:note: nothing to do with readers", ...HONOURED]);
+      // ...and the same from the FRONT MATTER (`cal2/q1_fmgfm_then_nofrom`).
+      const fmGfmThenNoFrom = doc(
+        "---", "title: Doc", "from: gfm", "---", "", "Prose one.", "", "---", "note: b", "---", ...BODY,
+      );
+      expect(names(fmGfmThenNoFrom)).toEqual(["h2:note: b", ...HONOURED]);
+      // ...and a later `from:` at a REFUSED path does not win either (`cal3/r7_gfm_then_params`).
+      const gfmThenParams = doc(
+        ...FM, "", "Prose one.", "", "---", "from: gfm", "---", "", "Prose two.", "",
+        "---", "params:", "  from: markdown", "---", ...BODY,
+      );
+      expect(names(gfmThenParams)).toEqual(["h2:from: gfm", "h2:params: from: markdown", ...HONOURED]);
+    });
+
+    it("PIN — when two blocks BOTH declare, the later one governs", () => {
+      // `cal/c02_md_then_gfm` and `c02_gfm_then_md`, in both directions. The reversed row is the
+      // one that matters: the pressed heading must DISAPPEAR when the later block says `markdown`.
+      const mdThenGfm = doc(
+        "---", "title: Doc", "from: markdown", "---", "", "Prose.", "", "---", "from: gfm", "---", ...BODY,
+      );
+      expect(names(mdThenGfm)).toEqual(["h2:from: gfm", ...HONOURED]);
+      const gfmThenMd = doc(
+        "---", "title: Doc", "from: gfm", "---", "", "Prose.", "", "---", "from: markdown", "---", ...BODY,
+      );
+      expect(names(gfmThenMd)).toEqual(["h2:from: markdown", "h2:Control Heading"]);
+      // three blocks, the LAST declaring one governing (`cal/c02_three_last_gfm`).
+      const threeLastGfm = doc(
+        "---", "title: Doc", "from: markdown", "---", "", "Prose one.", "", "---", "from: markdown", "---",
+        "", "Prose two.", "", "---", "from: gfm", "---", ...BODY,
+      );
+      expect(names(threeLastGfm)).toEqual(["h2:from: markdown", "h2:from: gfm", ...HONOURED]);
+    });
+
+    it("PIN — `...` terminates a block, and the reader IS selected", () => {
+      // `cal/c08_dots_gfm` and `cal3/r5_dots_then_body`, each against a `note:` control. This is
+      // one of the two directions in which quarto and its own ported grammar disagree: the port
+      // accepts only `---` as a closer, so the region would run to end of document and be refused.
+      // ⚠ No setext appears on this row because `...` is not a setext underline.
+      expect(names(doc(...FM, "", "Prose.", "", "---", "from: gfm", "...", ...BODY))).toEqual(HONOURED);
+      expect(names(doc(...FM, "", "Prose.", "", "---", "note: x", "...", ...BODY))).toEqual(CONSUMED);
+    });
+
+    it("PIN — no blank line is needed above the opener, in either spelling", () => {
+      // `cal/c03_press_prose_gfm` — pressed against prose, whose own `---` doubles as that
+      // prose's setext underline, and the block is STILL read.
+      expect(names(doc(...FM, "", "Ordinary body prose.", "---", "from: gfm", "---", ...BODY))).toEqual([
+        "h2:Ordinary body prose.",
+        "h2:from: gfm",
+        ...HONOURED,
+      ]);
+      // `cal/c04_press_fm_gfm` — pressed straight against the front matter's own terminator.
+      // ⚠ This is Session 207's `bnd_15` geometry, filed WITH this item because both turn on
+      // where a metadata block may BEGIN.
+      expect(names(doc(...FM, "---", "from: gfm", "---", ...BODY))).toEqual(["h2:from: gfm", ...HONOURED]);
+    });
+
+    it("PIN — POSITION is irrelevant; a block BELOW the heading still governs it", () => {
+      // `cal2/q3_block_below`. Metadata is a document-wide property, so the resolver may not be
+      // made positional as an optimisation.
+      expect(names(doc(...FM, ...BODY, "", "Prose after.", "", "---", "from: gfm", "---"))).toEqual([
+        ...HONOURED,
+        "h2:from: gfm",
+      ]);
+    });
+
+    it("PIN — a document with NO front matter at all is covered", () => {
+      // `cal3/r1_nofm_mid_gfm` against `r1_nofm_mid_none`. The filter keys on the first CONTENT
+      // line, so this document's block qualifies even though nothing above it is front matter.
+      expect(names(doc("Ordinary body prose.", "", "---", "from: gfm", "---", ...BODY))).toEqual([
+        "h2:from: gfm",
+        ...HONOURED,
+      ]);
+      expect(names(doc("Ordinary body prose.", "", "---", "note: x", "---", ...BODY))).toEqual([
+        "h2:note: x",
+        "h2:Control Heading",
+      ]);
+    });
+
+    it("PIN — the PATH machinery reaches inside a mid-document block unchanged", () => {
+      // `cal/c12_nested_format` (block per-format) and `cal3/r6_flow_perfmt` (Session 208's FLOW
+      // spelling). Nothing about the path walk needed to change; only the content it reads did.
+      expect(
+        names(doc(...FM, "", "Prose.", "", "---", "format:", "  html:", "    from: gfm", "---", ...BODY)),
+      ).toEqual(["h2:format: html: from: gfm", ...HONOURED]);
+      expect(names(doc(...FM, "", "Prose.", "", "---", "format: {html: {from: gfm}}", "---", ...BODY))).toEqual([
+        "h2:format: {html: {from: gfm}}",
+        ...HONOURED,
+      ]);
+    });
+
+    it("PIN — the thematic-break exemption applies where a region OPENS and nowhere else", () => {
+      // ⚠ `cal3/r4_hr_close_only` — a blank line above the CLOSING `---` still closes the region,
+      // so the block IS read. Quarto's `skipHRs = !inYaml` asymmetry, which no earlier session
+      // had exercised and which this row confirms in the port.
+      expect(names(doc(...FM, "", "Prose.", "", "---", "from: gfm", "", "---", ...BODY))).toEqual(HONOURED);
+    });
+
+    it("PIN — trailing whitespace on the delimiter is tolerated; a block after a CLOSED cell is read", () => {
+      // `cal/c11_trailws_gfm` — `--- ` with a trailing space opens and closes normally.
+      expect(names(doc(...FM, "", "Prose.", "", "--- ", "from: gfm", "--- ", ...BODY))).toEqual([
+        "h2:from: gfm",
+        ...HONOURED,
+      ]);
+      // `cal3/r3_cell_fence` — the fence tracking must RESET, or every block after any cell dies.
+      expect(
+        names(doc(...FM, "", "Prose.", "", "```{r}", "1 + 1", "```", "", "---", "from: gfm", "---", ...BODY)),
+      ).toEqual(["h2:from: gfm", ...HONOURED]);
+    });
+  });
 });
