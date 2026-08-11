@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S212
+date: 2026-08-11
+status: pending
+active_task: IN PROGRESS. A reader with `space_in_atx_header` OFF accepts `#Heading` with NO space after the hashes; `ATX_HEADING` is `/^[ \t]*(#{1,6})[ \t]+(.+)$/` and requires one, so the heading is DELETED. Three witnesses from Session 205's blind `dial` lens (dial_06 `markdown_strict`, dial_07 `markdown-space_in_atx_header`, dial_08 `markdown_mmd`). Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; ranked #1 by S211 and #2 by S210. ⚠ SCOPE DECLARED AT CLAIM, from a coupling survey run BEFORE this stub: (1) the polarity is RECOVERING, so the predicate keys on a POSITIVE resolution to a measured base and never on failure to resolve (Learning #327); (2) a SIXTH flag, not a refinement of the five that exist; (3) `markdown_strict` sits on OPPOSITE sides of this rule and the `blank_before_header` rule, so it must NOT share `fromKeepsBlankBeforeHeader`'s implementation; (4) `COMMONMARK_PARAGRAPH_INTERRUPT`'s `#x` row must not move -- it is read only under CommonMark readers, where the extension is ON; (5) `ATX_HEADING` has ONE match site but THREE downstream consumers (outline, workspace symbols, and the `sec-` cross-reference index via refs.ts findHeadings); (6) the two bare-hash rows are a different question; (7) all eight MEASURED_READER_BASES get rendered -- a classifier may not reason from the name; (8) calibration before code.
+```
+
+```handoff
 session: S211
 date: 2026-08-11
 status: complete

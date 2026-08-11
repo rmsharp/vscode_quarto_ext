@@ -5,6 +5,29 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 212 — IMPLEMENTATION (strict TDD): a reader with `space_in_atx_header` OFF accepts `#Heading` with NO space after the hashes, and `ATX_HEADING` requires one. Heading-DELETING, three named readers.**
+**Started:** 2026-08-11
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` drain in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**How this item was selected.** Operator-selected via `AskUserQuestion` at Phase 0 from an empty Active section. Ranked **#1 by S211** and **#2 by S210** as the smallest remaining heading-DELETING item, against machinery (`fromExtensionState`) that already exists.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **1966 passed / 66 files**, matching S211's recorded close-out exactly; `check-backlog` **OK, 141 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`07612e6`, gap 0), `grep -c "^status: pending" HANDOFFS.md` = **0**, no ghost sessions.
+
+**⚠ SCOPE DECLARED AT CLAIM — eight rules from a coupling survey run BEFORE this stub, each of which constrains the design.**
+
+1. **POLARITY: this is the RECOVERING direction, so over-firing INVENTS.** Today `#Heading` reports nothing at all — a lost true positive. Widening it can only add headings, so the predicate must key on a **POSITIVE resolution** to a measured base that lacks the extension (or to an explicit `-space_in_atx_header`), **never on failure to resolve** (Learning #327; S206 paid for this exact shape).
+2. **A SIXTH flag, not a refinement of the five.** `dialectOverride` (key presence), `commonmarkDialect`, `blankBeforeHeaderDialect`, `markdownFamilyDialect` and `definitionContainerOpens` each answer their own question at their own site. This asks about a THIRD extension and must not move any of them.
+3. **`markdown_strict` sits on OPPOSITE sides of this rule and the `blank_before_header` rule** — bail OFF, tight-hash ON — so sharing an implementation with `fromKeepsBlankBeforeHeader` is measurably wrong. The backlog item's own sizing note says so and it is the reason this is filed separately.
+4. **`COMMONMARK_PARAGRAPH_INTERRUPT`'s `#x` row must NOT move.** Its own comment records `# x` interrupts and `#x` does not, *because* `gfm` keeps `space_in_atx_header`; that list is read only under CommonMark-family readers, where the extension is ON. Out of scope by measurement, not by omission.
+5. **`ATX_HEADING` has exactly ONE match site but THREE downstream consumers.** `atxHeadingMatch` is called once (`src/core/qmd/model.ts:3929`), but `findHeadings` feeds the outline, workspace symbols, AND the `sec-` cross-reference index (`src/core/refs.ts:98`) — so a newly recognised `#Heading {#sec-x}` also creates a new cross-reference label.
+6. **The two bare-hash rows are a DIFFERENT question.** `/^ {0,3}#{1,6}[ \t]*$/` in `CLOSES_PARAGRAPH` (`:1086`) and `OPENS_FRESH_BLOCK` (`:2611`) are about a hash run with NO text; they already accept the no-space case by construction. Untouched unless a render says otherwise.
+7. **THE BASE TABLE WILL BE MEASURED, NOT ASSUMED.** The item names three witnesses (`markdown_strict`, `markdown_mmd`, `markdown-space_in_atx_header`); `markdown_phpextra`, `markdown_github`, `gfm`, `commonmark`, `commonmark_x` and plain `markdown` are UNMEASURED on this axis. All eight `MEASURED_READER_BASES` members get rendered — a classifier may not reason from the name (the `markdown_github`/`markdown_strict` trap, Session 209).
+8. **CALIBRATION BEFORE CODE** (Learning #335), and the corpus is built on rows where the cheap reading and the honest one DISAGREE — not on more witnesses for what is already witnessed.
+
+---
+
+## Session 211 ACTIVE TASK (superseded by Session 212 — full entry preserved below)
 **Task:** **Session 211 — IMPLEMENTATION (strict TDD): a MID-DOCUMENT YAML metadata block's `from:` really does select the reader, and this model only ever looked at the document's opening block. Heading-DELETING.**
 **Started:** 2026-08-11 · **Closed:** 2026-08-11
 **Status:** **DONE. SHIPPED — and the rule the item states is WRONG in the deleting direction. 86 documents rendered plus a 43,176-document re-score of every predecessor corpus: designed 32/70 → 51/70, adversarial 6/18 → 12/18, and every one of the 13 predecessor documents that moved is a FIX (0/13 → 10/13, INTRODUCED 0 everywhere).**
