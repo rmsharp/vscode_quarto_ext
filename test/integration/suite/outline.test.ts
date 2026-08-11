@@ -1827,4 +1827,66 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `the byte-0 twin must be unaffected: ${byte0.join(", ")}`,
     );
   });
+  it("a reader with `space_in_atx_header` OFF reaches the outline (Session 212)", async () => {
+    // ⚠ THIS TEST DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd`, and is
+    // declared with `it(` copied from the test above — Sessions 196/197 each lost a screen-taking
+    // run to that fixture, and Session 211 lost one to `test(` under this suite's bdd interface.
+    // Exact-set pins were counted BEFORE this test was written: 38 `assert.deepStrictEqual` and
+    // 15 `setext-fresh-block` uses in this file, both unchanged by it. Every assertion below was
+    // pre-checked headlessly against the pure `core/` model before this run was requested.
+    //
+    // Every premise was rendered through the real `quarto render --to html` path this session
+    // (`scratchpad/s212/`, 118 documents, quarto 1.7.33) and is measured, not assumed.
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    // PRESENT — the section this item was filed for. `cal/a_strict` renders `h1:Cal Tight Probe`;
+    // before this session the outline DROPPED it, because `ATX_HEADING` demands the space.
+    const strict = await namesFor("---", "from: markdown_strict", "---", "", "#Cal Tight Probe");
+    assert.ok(
+      strict.includes("Cal Tight Probe"),
+      `a reader without \`space_in_atx_header\` must reach the outline: ${strict.join(", ")}`,
+    );
+
+    // ABSENT — the widening guard. `cal/a_md`: plain `markdown` KEEPS the extension and renders
+    // no heading, so inventing one here would put a section in the outline no reader ever sees.
+    const md = await namesFor("---", "from: markdown", "---", "", "#Cal Tight Probe");
+    assert.ok(
+      !md.includes("Cal Tight Probe"),
+      `a reader that keeps the extension must not gain a section: ${md.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE ASSERTION THAT SEPARATES THE SHIPPED RULE FROM A BASE-ONLY TABLE.
+    // `cal2/j1_gh_off`: `markdown_github` REFUSES the tight hash by default (`cal/a_gh`), and
+    // the extension turns it back on. A table keyed on the base name alone gets this backwards.
+    const ghOff = await namesFor(
+      "---", "from: markdown_github-space_in_atx_header", "---", "", "#Cal Tight Probe",
+    );
+    assert.ok(
+      ghOff.includes("Cal Tight Probe"),
+      `the extension must outrank the base: ${ghOff.join(", ")}`,
+    );
+
+    // ABSENT — the regression this session caused and closed, found by its own adversarial pass
+    // and by nothing in the designed corpora. `adv/x18_html` / `ctl2/z1_div_tight`: a CLOSED raw
+    // HTML block renders its content verbatim, so no section exists inside it.
+    const inDiv = await namesFor(
+      "---", "from: markdown_strict", "---", "", "<div>", "#Cal Tight Probe", "</div>",
+    );
+    assert.ok(
+      !inDiv.includes("Cal Tight Probe"),
+      `a closed raw HTML block is literal, so it has no sections: ${inDiv.join(", ")}`,
+    );
+
+    // PRESENT — the guard without which every ABSENT above would pass for a build that had
+    // stopped producing headings altogether. `cal3` scores the spaced form under this same
+    // reader as unchanged throughout.
+    const spaced = await namesFor("---", "from: markdown_strict", "---", "", "# Cal Spaced Control");
+    assert.ok(
+      spaced.includes("Cal Spaced Control"),
+      `the spaced twin must be unaffected: ${spaced.join(", ")}`,
+    );
+  });
 });
