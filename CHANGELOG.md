@@ -7,6 +7,38 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-11 · [ad hoc] Session 211 — a mid-document YAML block's `from:` selects the reader (SHIPPED)
+
+- **Model:** Claude Opus 5.
+- A `---` / `from: gfm` / `---` block below the front matter really does select the reader.
+  Quarto reads EVERY YAML region in a document for metadata and then hands pandoc the whole
+  file, so such a block selects the reader AND — when the resolved reader is gfm — renders as a
+  setext heading. This model resolved only the document's opening block, so the heading below a
+  mid-document block was **deleted**. Four witnesses across four sessions (S205 `yaml_13`; S207
+  `path_04`/`bnd_13`/`bnd_15`; S210 `a13_second_block`).
+- **⚠ The rule the backlog item stated is wrong in the deleting direction.** Both the item and
+  Session 210's handoff say quarto "merges the blocks and the LATER one wins" — generalised from
+  one witness where the cheap and honest readings agree. `cal2/q1_gfm_then_nofrom` is the
+  document where they disagree (a later block carrying **no** `from:`), and quarto renders the
+  pressed heading, so "last block wins" would delete it. The measured rule is **the last block
+  whose `from:` SELECTS**. Found before any code was written (Learning #345).
+- **The scanner this needed was already in the repo.** `src/core/qmd/quarto-yaml-regions.ts` is a
+  verbatim port of quarto's `breakQuartoMd`, mentioned by neither the handoff nor the item;
+  found by grepping for the `---` regex rather than a function name (Learning #346). Reuse was
+  not adoption — the port and quarto were measured to disagree on termination in **both**
+  directions, so `YamlRegion` gained `terminated` (additive) and the walk adds the `...` rule.
+- Made purely **additive** by filtering on the document's first content line, so a block that
+  opens the document keeps exactly its previous classification.
+- Three regressions caused and all three closed in-session — an empty `from:`, a fence inside a
+  block, and a block inside an HTML comment; the last found only by the adversarial pass.
+- **Measured:** 86 documents rendered through quarto 1.7.33 plus a 43,176-document re-score of
+  every predecessor corpus. Designed 32/70 → 51/70 (FIXED 19, INTRODUCED 0); adversarial 6/18 →
+  12/18; all 13 predecessor documents that moved are fixes (0/13 → 10/13, INTRODUCED 0). Repo
+  control over 115 tracked documents byte-identical across four views, proven effective by
+  injection. `npm test` 1966 passed; `test:integration` 518 passing; oracle byte-identical to
+  S180–S210. ⚠ The first integration run was lost to a `test(`/`it(` error (Learning #347).
+- **Scope:** the reader-selection half only. The setext half (S204's `yaml_12`) remains filed.
+
 ### 2026-08-11 · [ad hoc] Session 210 — a blank line before the opening `---` no longer hides front matter (SHIPPED)
 
 - **Model:** Claude Opus 5.
