@@ -1723,6 +1723,42 @@ const YAML_DOCUMENT_END = /^\.\.\.[ \t]*$/;
  */
 const FENCE_ANYWHERE_IN_BLOCK = /^\s*(?:```|~~~)/;
 /**
+ * Whether an HTML comment is still OPEN at 0-based `line` — a mid-document metadata block
+ * inside one resolves nothing (Session 211).
+ *
+ * ⚠ Found by this session's ADVERSARIAL pass, and it is the one finding the designed corpora
+ * structurally could not produce: not one of them wraps a block in anything.
+ * `scratchpad/s211/adv` `a8_html_comment` puts `---` / `from: gfm` / `---` inside `<!--` …
+ * `-->`; quarto does not honour it, and reading it INVENTED the pressed heading. Quarto's ported
+ * region grammar tracks CODE FENCES and knows nothing about comments.
+ *
+ * ⚠ Refusing is strictly safe here in a way a narrowing usually is not. This session's change
+ * only ever ADDS resolutions — a document with no mid-document block is untouched — so refusing
+ * more can only withdraw a resolution this session just added. It cannot take away an answer the
+ * pre-session build gave, which is why this is a closed regression rather than a filed residual.
+ *
+ * Deliberately a LOCAL token count rather than a call into the comment-region machinery: that
+ * machinery has its own measured defects, still open in `BACKLOG.md` (an unterminated `<!--` is
+ * run to end of document where quarto's default reader ends it at the next blank line). Borrowing
+ * a rule that is known wrong to fix a phantom would trade one defect for another. The control
+ * `a8_html_comment_ctl`, and the CLOSED-comment-above row pinned in the tests, are what keep this
+ * from degenerating into "any document containing a comment".
+ */
+function insideHtmlComment(lines: readonly string[], line: number): boolean {
+  let open = false;
+  for (let i = 0; i < line && i < lines.length; i++) {
+    for (let at = 0; at < lines[i].length; ) {
+      const next = open ? lines[i].indexOf("-->", at) : lines[i].indexOf("<!--", at);
+      if (next < 0) {
+        break;
+      }
+      at = next + (open ? 3 : 4);
+      open = !open;
+    }
+  }
+  return open;
+}
+/**
  * The CONTENT lines of every YAML metadata block BELOW the document's opening block, in
  * document order — the blocks quarto measurably merges into the document's metadata.
  *
@@ -1771,7 +1807,7 @@ function midDocumentMetadataBlocks(lines: readonly string[]): string[][] {
   }
   const blocks: string[][] = [];
   for (const region of quartoYamlRegions(lines.join("\n"))) {
-    if (region.startLine <= firstContent) {
+    if (region.startLine <= firstContent || insideHtmlComment(lines, region.startLine)) {
       continue;
     }
     const body = lines.slice(

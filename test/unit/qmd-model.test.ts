@@ -6919,4 +6919,28 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
     const noFence = doc(...FM, "", "Prose one.", "", "---", "from: gfm", "code: x", "---", ...BODY);
     expect(names(noFence)).toEqual(["h2:from: gfm code: x", ...HONOURED]);
   });
+
+  it("a block inside an HTML COMMENT resolves nothing", () => {
+    // ⚠ FOUND BY THE ADVERSARIAL PASS AGAINST THIS SESSION'S OWN CHANGE (`scratchpad/s211/adv`
+    // a8_html_comment), and it is the one finding the designed corpora structurally could not
+    // produce — not one of them wraps a block in anything. Quarto does not honour the `from:`
+    // (pressed heading absent, and no setext either: the whole comment is HTML). This change
+    // read it and INVENTED the pressed heading, because quarto's ported region grammar tracks
+    // CODE FENCES and knows nothing about comments.
+    //
+    // Refusing is strictly safe here in a way a narrowing usually is not: this session's change
+    // only ever ADDS resolutions, so refusing more can only withdraw one it just added — it
+    // cannot take away an answer the pre-session build gave. Its control `a8_html_comment_ctl`
+    // is unaffected either way, which is what says the comment is the variable.
+    const inComment = doc(
+      ...FM, "", "Prose one.", "", "<!--", "---", "from: gfm", "---", "-->", ...BODY,
+    );
+    expect(names(inComment)).toEqual(["h2:Control Heading"]);
+    // THE CONTROL that keeps the rule from being "any document containing a comment": a CLOSED
+    // comment ABOVE the block leaves the block itself outside it, and it still resolves.
+    const commentAbove = doc(
+      ...FM, "", "<!-- an ordinary comment -->", "", "---", "from: gfm", "---", ...BODY,
+    );
+    expect(names(commentAbove)).toEqual(["h2:from: gfm", ...HONOURED]);
+  });
 });
