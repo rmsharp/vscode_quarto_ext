@@ -7,6 +7,61 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 208 — a per-format `from:` written in FLOW style selects the reader (SHIPPED)
+
+Session 207 shipped the BLOCK spelling of the `format:` → `html:` → `from:` path and left the
+FLOW spelling as its own disclosed residual, filed on one blind document. That document was
+heading-DELETING (two real headings lost, one invented), and the item is now closed for every
+flow spelling measured.
+
+⚠ **THE OBVIOUS IMPLEMENTATION IS RIGHT ON THE WITNESS DOCUMENT BY LUCK, AND WRONG ON HALF THE
+GRID.** Reusing the existing flat `FLOW_FROM_ENTRY` pattern — which takes the first `from:` after
+a `{` or `,` — gives the right answer on `format: {html: {from: commonmark}, docx: {from: markdown}}`
+only because html is written first. Writing both format ORDERS against both reader DIRECTIONS
+shows it reads two of four rows backwards, and three rendered refusals
+(`format: {html: {execute: {from: gfm}}}`, `format: {docx: {html: {from: gfm}}}`,
+`website: {html: {from: gfm}}`, each identical to its no-`from:` twin) show the rule is the EXACT
+path and nothing weaker. So the fix is a path walk: `flowEntries` / `flowValue` / `flowPathValue`
+over a flow REGION joined across lines, because a flow mapping may span them and quarto honours
+one that does.
+
+The same walk replaced Session 206's whole-flow front-matter arm, whose two flat patterns
+(`FRONTMATTER_FLOW_FROM_KEY`, `FLOW_FROM_ENTRY`) were wrong in BOTH directions on six of eight
+rows — `{title: t, params: {from: markdown}, from: gfm}` renders as gfm (they read markdown, a
+DELETED heading) and `{title: t, params: {from: gfm}}` renders as the default (they read gfm, an
+INVENTED one). Both are deleted, with a tombstone keeping the measurement they carried.
+
+⚠ **ONE REGRESSION CAUSED AND CLOSED IN-SESSION, found by an adversarial pass written against
+this session's own change.** Resolving the PATH but not a YAML ALIAS left the value unreadable,
+and an unreadable value relaxes the heading column set by design — so a document anchoring
+`markdown` gained a heading quarto does not render. The pre-session build was accidentally right
+there, and every `gfm` row of the 153-document designed corpus scored it clean.
+
+⚠ **TWO NEW QUARTO FURNISHINGS**, the twelfth and thirteenth, each settled by a feature-free
+control pair rather than by argument: `h2:Other Formats` (a document offering more than one
+format) and `h2:Footnotes`. The first made 24 CORRECT documents score as disagreements; the
+second cost Session 207's realistic corpus 12 of 16 rows on re-measurement. Thirteen for
+thirteen, every furnishing has pointed in the direction that makes a heading-deleting change
+look safe.
+
+**Measurement.** 337 documents rendered through the real `quarto render` path (quarto 1.7.33),
+each scored per document against the pre-session build on identical bytes. Designed
+(`cal`/`cal2`/`cal3`, 153 scorable) **81 → 153**, INTRODUCED 0, FIXED 72. The budgeted
+completeness pass, one probe per CONSUMER SITE in the NEW spellings (27) **12 → 27**, INTRODUCED
+0. The adversarial pass (10 scorable of 16; six shapes quarto refuses outright) **1 → 10**.
+Fourteen predecessor corpora re-scored SEPARATELY (Learning #332): **INTRODUCED 0 everywhere**,
+and the item's own witness corpus `s207/adv/fmt` **15/16 → 16/16**. Repo control: all four views
+over all **115** tracked markdown-family documents BYTE-IDENTICAL, proven effective by injection
+in the same run (5 designed movers moved, 5 stayers held, every prediction right first time).
+
+⚠ **NO BLIND SWEEP THIS SESSION** — subagent fan-out was unavailable under a session-level
+instruction, and the adversarial pass is not a substitute for an independent witness. Recorded
+as a gap rather than papered over.
+
+**Backlog:** the item is REWRITTEN to its remaining half (b) — a non-active format's `from:` is
+still refused, a measured fail-safe whose bound (`--to html` in every harness) is undischarged
+and is an adapter-layer question. Nothing drained; 138 open items unchanged.
+
 ### 2026-08-10 · [ad hoc] Session 207 — a front-matter `from:` selects the reader by its YAML PATH (SHIPPED)
 
 Both ends of one question were wrong, and one mechanism answers both: *where in the YAML does
