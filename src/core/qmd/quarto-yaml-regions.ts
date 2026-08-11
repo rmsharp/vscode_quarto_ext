@@ -14,6 +14,16 @@ export interface YamlRegion {
   readonly startLine: number;
   /** 0-based line of the closing `---`, or the document's last line if it never closes. */
   readonly endLine: number;
+  /**
+   * Whether the region actually CLOSED on a delimiter, as against running out of document.
+   *
+   * ⚠ The two are not interchangeable for a consumer that reads the region's CONTENT. Quarto
+   * honours a `from:` in a terminated mid-document block and ignores one in an unterminated
+   * block — measured over `scratchpad/s211/cal` (`c01_mid_gfm` selects; `c06_unterm_gfm`,
+   * `q2_unterm_swallow` do not). Additive in Session 211: the original
+   * consumer (`core/yaml-value-flags.ts`) reads only the two line numbers.
+   */
+  readonly terminated: boolean;
 }
 
 /**
@@ -85,7 +95,7 @@ export function quartoYamlRegions(text: string): YamlRegion[] {
       if (openLine === null) {
         openLine = i;
       } else {
-        regions.push({ startLine: openLine, endLine: i });
+        regions.push({ startLine: openLine, endLine: i, terminated: true });
         openLine = null;
       }
       continue;
@@ -107,7 +117,7 @@ export function quartoYamlRegions(text: string): YamlRegion[] {
   if (openLine !== null) {
     // An unclosed region runs to the end of the document — quarto's `inYaml` is
     // never turned off again, so everything below is swallowed.
-    regions.push({ startLine: openLine, endLine: lines.length - 1 });
+    regions.push({ startLine: openLine, endLine: lines.length - 1, terminated: false });
   }
   return regions;
 }

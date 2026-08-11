@@ -33,6 +33,14 @@
  *    quarto really renders.
  */
 
+// ⚠ **The ONLY import in this module, added in Session 211, and the direction was verified
+// rather than inherited.** `quarto-yaml-regions.ts` has no imports of its own and does not
+// import this file, so there is no cycle. (Session 206 found `yaml-context.ts` unusable for
+// exactly this purpose because it imports FROM here; that constraint does not apply to this
+// module, and the import graph was re-checked before relying on it.) The `vscode`-free
+// guardrail of architecture plan §3.3 is unaffected — the imported module is `core/` too.
+import { quartoYamlRegions } from "./quarto-yaml-regions";
+
 /** An ATX (`#`..`######`) markdown heading outside any code fence / front matter. */
 export interface Heading {
   /** Heading level, 1–6 (number of leading `#`). */
@@ -1447,10 +1455,19 @@ const BLOCK_SCALAR_INDICATOR = /^[ \t]*[|>][+-]?[0-9]?[ \t]*(?:#.*)?$/;
  * canonicalised. A synthesised line is produced only for a spelling that had no line to match.
  */
 function frontMatterFromValueLine(lines: readonly string[]): string | null {
-  const content = frontMatterContent(lines);
-  if (content === null) {
-    return null;
-  }
+  // ⚠ The GOVERNING block, not the front matter — Session 211. The KEY half above resolves
+  // against the same content, and the two must never disagree about WHICH block they read.
+  const content = governingMetadataContent(lines);
+  return content === null ? null : contentFromValueLine(content);
+}
+/**
+ * The VALUE half of the question above, asked of one block's CONTENT rather than of a document.
+ *
+ * Split out in Session 211 as the exact counterpart of `contentSelectsReader`, so the governing
+ * walk can ask BOTH halves of a candidate block. Behaviour is unchanged — this is the original
+ * body, reached with the same content as before for any document with no mid-document block.
+ */
+function contentFromValueLine(content: readonly string[]): string | null {
   const top = topLevelIndent(content);
   if (top === null) {
     return null;
@@ -1688,6 +1705,130 @@ function frontMatterContent(lines: readonly string[]): string[] | null {
     content.push(lines[i]);
   }
   return content;
+}
+/** YAML's document-end marker alone on a line — a terminator the `---` delimiter grammar omits. */
+const YAML_DOCUMENT_END = /^\.\.\.[ \t]*$/;
+/**
+ * A backtick fence opener at ANY indent, which disqualifies a mid-document metadata block from
+ * resolving a reader (Session 211).
+ *
+ * ⚠ This is a KNOWN GAP between quarto and its port, not a rule of its own. `breakQuartoMd`
+ * tracks a code fence inside an open YAML region — `quarto-yaml-regions.ts` records that in its
+ * own comment — but the ported `START_CODE` is anchored at column 0, so the indented fence a
+ * `code: |` block scalar holds is invisible to it and the port then CLOSES the region at a `---`
+ * quarto never treats as a delimiter. `scratchpad/s211/cal4` `s3_fence_in_blk_gfm` is that
+ * document: quarto renders no headings at all, and reading the block invents one. Refusing is
+ * today's answer, which costs a phantom rather than a heading. Its control `s3_fence_in_blk_none`
+ * is unaffected either way, so the fence is the variable and not the shape.
+ */
+const FENCE_ANYWHERE_IN_BLOCK = /^\s*(?:```|~~~)/;
+/**
+ * The CONTENT lines of every YAML metadata block BELOW the document's opening block, in
+ * document order — the blocks quarto measurably merges into the document's metadata.
+ *
+ * ⚠ **A mid-document block really does select the reader** (Session 211, 67 rendered documents
+ * — `scratchpad/s211/CALIBRATION.md`). `cal/c01_mid_gfm` renders the pressed heading that only a
+ * CommonMark-family reader keeps, and its matched control `c01_mid_none` — the same geometry
+ * carrying `note: x` — does not, so the difference is the `from:` and not the shape. Quarto
+ * reads every region for metadata and then hands pandoc the WHOLE document, which is why the
+ * same three lines can be metadata AND render as a setext heading (`c01_mid_gfm` shows both).
+ * That setext half is a separate, already-filed item (Session 204's `yaml_12`) and is untouched.
+ *
+ * ⚠ **The region grammar is quarto's own**, ported verbatim in `quarto-yaml-regions.ts`, and
+ * this session's rows are an independent confirmation of it: a block inside a code fence does
+ * not select (`c07_fence_gfm`, `cal4/s1_infence_gfm`, `s2_incell_gfm`), a blank-surrounded `---`
+ * is a thematic break rather than an opener (`c09_hrgap_gfm`), and — the asymmetry no earlier
+ * session had exercised — that exemption applies only where a region would OPEN, so a
+ * blank-surrounded `---` still CLOSES one (`cal3/r4_hr_close_only` selects, `r4_hr_open_only`
+ * does not). The opener is three dashes at column 0: `----` (`c11_fourdash_gfm`), three spaces
+ * (`c10_indent_gfm`), `> ---` (`cal2/q5_in_quote`) and a list indent (`q5_in_list`) all refuse.
+ *
+ * ⚠ **TERMINATION is required, and it is where the ported grammar and quarto DISAGREE in both
+ * directions.** The port lets an unclosed region run to end of document and would read it —
+ * measured, an unterminated block does NOT select (`c06_unterm_gfm`, `cal2/q2_unterm_swallow`,
+ * — ⚠ NOT `q5_open_at_eof`, which selects nothing for a different reason: its trailing `---`
+ * has a blank line both above and below, so the HR exemption means no region opens at all) and
+ * does not swallow the document either (`c13_unterm_plain` still renders
+ * every heading below the dangling `---`). And the port accepts only `---` as a closer, where
+ * YAML's `...` document-end marker also terminates and the block DOES select (`c08_dots_gfm`,
+ * `cal3/r5_dots_then_body`). Refusing an unterminated block is also the safe direction: a
+ * refusal is today's answer, which costs a phantom, never a heading.
+ *
+ * ⚠ **The filter is the document's FIRST CONTENT LINE, not the front matter's position, and
+ * that is what makes this change purely ADDITIVE.** A block that OPENS the document keeps
+ * exactly today's classification whatever `frontMatterOpenIndex` makes of it. The row that
+ * forced this is `cal5/t1_blankafter_gfm` (`---` / *(blank)* / `from: gfm` / `---` at line 0):
+ * quarto does NOT honour it, `frontMatterOpenIndex` returns `null` for it, and quarto's region
+ * grammar DOES return it as a terminated region — so a "below the front matter" filter would
+ * newly read it and INVENT a heading. Keying on the first content line excludes it, and
+ * excludes the leading-blank spelling Session 210 already handles (`t2_leadblank_gfm`), while
+ * still admitting a document with no front matter at all (`cal3/r1_nofm_mid_gfm`).
+ */
+function midDocumentMetadataBlocks(lines: readonly string[]): string[][] {
+  const firstContent = lines.findIndex((line) => line.trim() !== "");
+  if (firstContent < 0) {
+    return [];
+  }
+  const blocks: string[][] = [];
+  for (const region of quartoYamlRegions(lines.join("\n"))) {
+    if (region.startLine <= firstContent) {
+      continue;
+    }
+    const body = lines.slice(
+      region.startLine + 1,
+      region.terminated ? region.endLine : lines.length,
+    );
+    const end = body.findIndex((line) => YAML_DOCUMENT_END.test(line));
+    const content = end >= 0 ? body.slice(0, end) : region.terminated ? body : null;
+    // A block holding a fence opener is one where the ported region grammar is measured NOT to
+    // mirror quarto — see `FENCE_ANYWHERE_IN_BLOCK`. Resolving nothing from it is today's answer.
+    if (content !== null && !content.some((line) => FENCE_ANYWHERE_IN_BLOCK.test(line))) {
+      blocks.push(content);
+    }
+  }
+  return blocks;
+}
+/**
+ * The metadata block that GOVERNS this document's reader — the content the two `from:`
+ * resolvers below read, in place of the front matter alone.
+ *
+ * ⚠ **The LAST block whose `from:` SELECTS wins — NOT the last block**, and the two differ on a
+ * document that renders. `BACKLOG.md` and Session 210's handoff both say "the later one wins";
+ * read literally that deletes a heading. `cal2/q1_gfm_then_nofrom` declares `from: gfm` in one
+ * block and then opens a LATER block carrying no `from:` at all, and quarto still renders the
+ * pressed heading (its control `q1_gfm_then_nofrom_ctl` does not). Quarto MERGES metadata; a
+ * later block that says nothing about the reader does not silence an earlier one.
+ *
+ * ⚠ The same holds for a later `from:` at a REFUSED path: `cal3/r7_gfm_then_params` puts
+ * `params:`/`from: markdown` after a top-level `from: gfm` and the gfm still governs. So the
+ * walk tests each candidate with the SELECTION predicate rather than for the presence of the
+ * three letters — which is also why an EMPTY `from:` DOES win (`cal2/q4_gfm_then_empty`, pressed
+ * heading absent): it is a declaration, and `contentSelectsReader` is the half that says so.
+ *
+ * Falling through to `frontMatterContent` is today's answer exactly, so a document with no
+ * mid-document metadata block is classified byte-identically to before this session.
+ */
+function governingMetadataContent(lines: readonly string[]): string[] | null {
+  const blocks = midDocumentMetadataBlocks(lines);
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    if (!contentSelectsReader(blocks[i])) {
+      continue;
+    }
+    // ⚠ **A block that DECLARES a reader governs even when its value reads as nothing, and it
+    // does NOT fall back to an earlier block** — the regression this session caused and closed.
+    // An empty `from:` satisfies the KEY half, so the block governs; its VALUE resolves to
+    // nothing, and an unresolved value makes the paragraph bail fail OPEN, which INVENTED the
+    // pressed heading on `cal2/q4_gfm_then_empty` and `ctl2/v1_empty_only` (quarto renders
+    // neither). Returning an empty block says "a reader was declared and it reads as nothing",
+    // which is what quarto does: it reverts to the DEFAULT, never to the previous declaration.
+    //
+    // ⚠ Deliberately NOT the same answer as at line 0, where the identical bytes are REFUSED by
+    // quarto outright (`ctl/u1_empty_from_byte0`, exit 1). Front matter at line 0 is VALIDATED;
+    // a mid-document block is merged. Scoping this to the mid-document walk leaves the line-0
+    // fail-open Session 207 measured exactly as it was.
+    return contentFromValueLine(blocks[i]) === null ? [] : blocks[i];
+  }
+  return frontMatterContent(lines);
 }
 /**
  * The lines nested UNDER the key at `block[from - 1]`, whose own indent is `parentIndent` —
@@ -2076,10 +2217,18 @@ function mappingFromKeyIndex(block: readonly string[], indent: number): number {
  * its no-`from:` twin does.
  */
 function frontMatterSelectsReader(lines: readonly string[]): boolean {
-  const content = frontMatterContent(lines);
-  if (content === null) {
-    return false;
-  }
+  const content = governingMetadataContent(lines);
+  return content !== null && contentSelectsReader(content);
+}
+/**
+ * The KEY half of the question above, asked of one block's CONTENT rather than of a document.
+ *
+ * Split out in Session 211 so `governingMetadataContent` can ask it of each candidate block:
+ * the walk must pick the last block that SELECTS, and "selects" is precisely this predicate,
+ * not the presence of a `from:` anywhere in the text. Behaviour is unchanged — this is the
+ * original body, and the only caller that existed before passes it the same content as before.
+ */
+function contentSelectsReader(content: readonly string[]): boolean {
   const top = topLevelIndent(content);
   if (top === null) {
     return false;

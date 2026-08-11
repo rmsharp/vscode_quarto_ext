@@ -6667,26 +6667,30 @@ describe("a blank line before the opening `---` does not hide the front matter (
     expect(names(doc("", "---", "", "title: Doc", "---", ...BODY))).toEqual(NOT_CONSUMED);
   });
 
-  it("⚠ DISCLOSED — a SECOND YAML block overrides the first, and we honour only the first", () => {
-    // Found by this session's ADVERSARIAL pass (`scratchpad/s210/adv` a13_second_block), which
-    // is the only place it could have been found: the designed corpora all hold exactly one
-    // block. Quarto merges metadata across blocks and the LATER `from: markdown` wins, so the
-    // pressed heading is suppressed; this model resolves the FIRST block and reports it.
+  it("a SECOND YAML block overrides the first — CLOSED by Session 211, pin reversed", () => {
+    // ⚠ **REVERSED, not deleted.** Session 210 disclosed this as a residual and named its owner
+    // exactly: *"it belongs to the already-filed mid-document `from:` item, whose fix is to
+    // resolve the LAST block."* Session 211 is that item. This pin went RED in the first full
+    // `npm test` after the change, which is the outcome its own comment predicted.
     //
-    // ⚠ NOT INTRODUCED BY THIS SESSION, and the control is what proves it rather than the
-    // argument: `scratchpad/s210/adv2` b02_two_block_byte0 is the same document at BYTE 0, and
-    // it is IDENTICAL on the pre- and post-session builds — already wrong, already filed. This
-    // change extends the existing defect to the leading-blank spelling; it does not create a
-    // new one. The pre-session build was right here only by resolving nothing at all.
+    // Found by Session 210's ADVERSARIAL pass (`scratchpad/s210/adv` a13_second_block), the only
+    // place it could have been found: that session's designed corpora all hold exactly one block.
+    // Quarto merges metadata across blocks and the LATER `from: markdown` wins, so the pressed
+    // heading is suppressed. It was proven PRE-EXISTING rather than a Session 210 regression by
+    // its own control `scratchpad/s210/adv2` b02_two_block_byte0 — the same document at BYTE 0,
+    // identical on the pre- and post-Session-210 builds.
     //
-    // Direction: PHANTOM (a heading quarto does not render), never a deletion. It belongs to
-    // the already-filed mid-document `from:` item, whose fix is to resolve the LAST block.
+    // ⚠ PARTIAL, and deliberately so. Quarto renders `h2:Control Heading` ALONE for both
+    // documents (measured, `s210/adv.q.tsv` and `adv2.q.tsv`). The phantom `h1:Pressed Heading`
+    // is gone — that is this session's half. The remaining `h2:from: markdown` is the SETEXT
+    // half of the same backlog entry (Session 204's `yaml_12`), which is filed separately and
+    // untouched here: quarto emits no setext because with the reader resolved to `markdown` its
+    // `yaml_metadata_block` extension consumes the block, and modelling that is a different fix.
     const twoBlocks = (lead: string) =>
       `${lead}---\ntitle: D\nfrom: gfm\n---\n\nBody.\n\n---\nfrom: markdown\n---\n` +
       "\nSome prose paragraph.\n# Pressed Heading\n\n## Control Heading\n";
-    // quarto renders ONLY the control heading for both spellings
-    expect(names(twoBlocks(""))).toEqual(["h2:from: markdown", "h1:Pressed Heading", "h2:Control Heading"]);
-    expect(names(twoBlocks("\n"))).toEqual(["h2:from: markdown", "h1:Pressed Heading", "h2:Control Heading"]);
+    expect(names(twoBlocks(""))).toEqual(["h2:from: markdown", "h2:Control Heading"]);
+    expect(names(twoBlocks("\n"))).toEqual(["h2:from: markdown", "h2:Control Heading"]);
     // THE CONTROL that classifies it: with only ONE block there is nothing to override, and
     // both spellings are correct — so the defect is the SECOND block, not the leading blank.
     const oneBlock = (lead: string) =>
@@ -6719,5 +6723,200 @@ describe("a blank line before the opening `---` does not hide the front matter (
     expect(names(doc("", "---", "", "Intro prose.", "", "---", "", "# Real Heading"))).toEqual([
       "h1:Real Heading",
     ]);
+  });
+});
+
+describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 211)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  /**
+   * The shared body, and the pair is what makes each row discriminate (Learning #339 — a probe
+   * whose test and control answer alike has measured nothing):
+   *
+   *   `# Pressed Heading`  jammed against a paragraph with no blank line. A CommonMark-family
+   *        reader renders it; pandoc's default `markdown` suppresses it (`blank_before_header`).
+   *        So it answers *did a `from:` reach the resolver AND select a CommonMark reader*.
+   *   `## Control Heading` has a blank line above and renders under every reader. Without it a
+   *        document reporting NOTHING would be indistinguishable from one reporting only the
+   *        right thing.
+   */
+  const BODY = ["", "Lead prose line.", "# Pressed Heading", "", "## Control Heading"];
+  const FM = ["---", "title: Doc", "---"];
+  /** `from: gfm` reached the resolver — the pressed heading is visible. */
+  const HONOURED = ["h1:Pressed Heading", "h2:Control Heading"];
+  /** No `from:` in effect — the pressed heading stays folded into the paragraph. */
+  const CONSUMED = ["h2:Control Heading"];
+
+  /**
+   * ⚠ **THE GUARD BLOCK — written and run GREEN BEFORE the change** (S204's gotcha 5, inherited
+   * an EIGHTH time), and it carries the polarity that DELETES.
+   *
+   * This change WIDENS what counts as a reader-selecting block, so its failure mode is
+   * over-firing: a `---` wrongly read as metadata resolves a `from:` that quarto never honoured,
+   * which re-engages the paragraph bail and collapses the heading column set. Both DELETE a real
+   * heading. Every row below is a geometry quarto measurably REFUSES, so every row must answer
+   * `CONSUMED` before this session's change and still answer `CONSUMED` after it.
+   *
+   * Each cites the rendered document that measured it (`scratchpad/s211/`, 67 documents through
+   * quarto 1.7.33, verdict in `CALIBRATION.md`).
+   */
+  describe("GUARD — geometries quarto refuses, which must not start resolving", () => {
+    it("GUARD — the instrument discriminates at all", () => {
+      // Without this row every CONSUMED below is vacuous: a build that had stopped reading
+      // front matter entirely would pass the whole guard. `cal/c00_fmgfm` against `c00_nofrom`.
+      expect(names(doc("---", "title: Doc", "from: gfm", "---", ...BODY))).toEqual(HONOURED);
+      expect(names(doc(...FM, ...BODY))).toEqual(CONSUMED);
+    });
+
+    it("GUARD — a block that OPENS the document is left exactly as it is today", () => {
+      // ⚠ THE ROW THIS SESSION'S FILTER EXISTS FOR, and it is asserting a KNOWN-WRONG answer on
+      // purpose. `cal5/t1_blankafter_gfm` renders with the pressed heading ABSENT — quarto does
+      // NOT honour a `from:` behind a blank line below a line-0 opener. This build honours it,
+      // because `frontMatterOpenIndex` returns 0 from its `i === 0` early return without the
+      // blank-below test the `i > 0` arm applies. That is PRE-EXISTING and separately filed
+      // (Session 210's residual #3, filed with its completion cost — `inFrontMatter` gates YAML
+      // completion, so the honest fix is an editor-level decision, not a predicate change).
+      //
+      // It is guarded HERE because quarto's own region grammar DOES return that span as a
+      // terminated region (its thematic-break exemption never applies at line 0), so a filter of
+      // "any region below the front matter" would newly read it — and `frontMatterOpenIndex`
+      // returns `null` for it, so that filter would not even exclude it. The shipped filter keys
+      // on the document's FIRST CONTENT LINE instead, which leaves this row untouched.
+      expect(names(doc("---", "", "from: gfm", "---", ...BODY))).toEqual(HONOURED);
+      // ...and the same shape one line down, which Session 210 honours as front matter and
+      // quarto agrees with (`cal5/t2_leadblank_gfm`, pressed heading PRESENT).
+      expect(names(doc("", "---", "from: gfm", "---", ...BODY))).toEqual(HONOURED);
+    });
+
+    it("GUARD — a block inside a CODE FENCE is code, not metadata", () => {
+      // `cal/c07_fence_gfm`, `cal4/s1_infence_gfm`, `cal4/s2_incell_gfm`, `cal3/r3_in_cell` —
+      // none select. The fence tracking is load-bearing, not incidental.
+      expect(names(doc(...FM, "", "Prose one.", "", "```", "---", "from: gfm", "---", "```", ...BODY))).toEqual(
+        CONSUMED,
+      );
+      expect(
+        names(doc(...FM, "", "Prose one.", "", "```{r}", "1+1", "---", "from: gfm", "---", "```", ...BODY)),
+      ).toEqual(CONSUMED);
+    });
+
+    it("GUARD — a blank-surrounded `---` is a THEMATIC BREAK, not an opener", () => {
+      // `cal/c09_hrgap_gfm` — the pressed heading is absent in quarto and here. Quarto's
+      // `skipHRs` arm: a `---` with a blank line both above and below cannot OPEN a region.
+      expect(names(doc(...FM, "", "Prose one.", "", "---", "", "from: gfm", "", "---", ...BODY))).toEqual(CONSUMED);
+      // `cal3/r4_hr_open_only` — blank above the opener only. Quarto renders exactly
+      // `h2:from: gfm` + the control and so does this build, so the row already AGREES; it is
+      // guarded because the exemption applies where a region would OPEN and nowhere else, and a
+      // widening that dropped it would start resolving here.
+      expect(names(doc(...FM, "", "Prose one.", "", "---", "", "from: gfm", "---", ...BODY))).toEqual([
+        "h2:from: gfm",
+        "h2:Control Heading",
+      ]);
+    });
+
+    it("GUARD — the opener must be exactly three dashes at COLUMN 0", () => {
+      // The pressed heading is absent on every row below, in quarto and here — the dimension this
+      // session changes. ⚠ Three of the four also carry a phantom `h2:from: gfm` this build emits
+      // and quarto does not; that is the SETEXT half of the same backlog entry, filed separately
+      // (Session 204's `yaml_12`) and deliberately NOT in scope. The guard pins today's whole
+      // answer so neither dimension can move unnoticed.
+      // `cal/c10_indent_gfm` (3 spaces) — no setext either, the indent makes it code.
+      expect(names(doc(...FM, "", "Prose one.", "", "   ---", "   from: gfm", "   ---", ...BODY))).toEqual(CONSUMED);
+      // `cal/c11_fourdash_gfm` (`----`).
+      expect(names(doc(...FM, "", "Prose one.", "", "----", "from: gfm", "----", ...BODY))).toEqual([
+        "h2:from: gfm",
+        "h2:Control Heading",
+      ]);
+      // `cal2/q5_in_quote` (`> ---`).
+      expect(names(doc(...FM, "", "Prose one.", "", "> ---", "> from: gfm", "> ---", ...BODY))).toEqual(CONSUMED);
+      // `cal2/q5_in_list` (2 spaces inside a list item).
+      expect(names(doc(...FM, "", "Prose one.", "", "- item", "", "  ---", "  from: gfm", "  ---", ...BODY))).toEqual([
+        "h2:from: gfm",
+        "h2:Control Heading",
+      ]);
+    });
+
+    it("GUARD — an UNTERMINATED block does not select, and does not swallow the document", () => {
+      // `cal/c06_unterm_gfm` and `cal2/q2_unterm_swallow` — neither selects, and
+      // `cal/c13_unterm_plain` still renders every heading BELOW the dangling `---`. This is the
+      // catastrophic direction the 1B claim's decision rule 5 named in advance.
+      expect(names(doc(...FM, "", "Prose one.", "", "---", "from: gfm", ...BODY))).toEqual(CONSUMED);
+      expect(names(doc(...FM, "", "Prose one.", "", "---", "note: x", "", "## Ordinary Below"))).toEqual([
+        "h2:Ordinary Below",
+      ]);
+    });
+
+    it("GUARD — a `from:` at a REFUSED path inside the block does not select", () => {
+      // `cal/c12_nested_params` — the path sensitivity Session 207 shipped for line 0 holds here
+      // unchanged, which is why this session reuses that machinery rather than writing a rule.
+      expect(names(doc(...FM, "", "Prose one.", "", "---", "params:", "  from: gfm", "---", ...BODY))).toEqual(
+        CONSUMED,
+      );
+    });
+  });
+
+  it("a terminated mid-document block's `from:` selects the reader", () => {
+    // `cal/c01_mid_gfm` — quarto renders `h1:c01_mid_gfm Pressed`, and its matched control
+    // `c01_mid_none` (the same geometry carrying `note: x`) renders none, so the difference is
+    // the `from:` and not the shape. This build resolves only the block at the top of the
+    // document, so the pressed heading below is DELETED.
+    expect(names(doc(...FM, "", "Ordinary body prose.", "", "---", "from: gfm", "---", ...BODY))).toEqual([
+      "h2:from: gfm",
+      ...HONOURED,
+    ]);
+  });
+
+  it("an EMPTY `from:` in the governing block selects NO reader — it does not fall back", () => {
+    // ⚠ A REGRESSION THIS SESSION CAUSED, found by scoring its own corpus rather than by the
+    // change looking wrong. `cal2/q4_gfm_then_empty` and `ctl2/v1_empty_only` both render with
+    // the pressed heading ABSENT, and both are matched against controls.
+    //
+    // The mechanism: an empty `from:` IS a declaration, so the KEY half says the block governs —
+    // but its VALUE resolves to nothing, and an unresolved value makes the paragraph bail fail
+    // OPEN, which INVENTS the pressed heading. At line 0 that fail-open is a deliberate, measured
+    // phantom (Session 207). Here it is reachable for the first time, and quarto's answer is the
+    // opposite: a mid-document block whose `from:` reads as nothing leaves the DEFAULT reader.
+    //
+    // ⚠ The two spellings are NOT the same mechanism, which is why the line-0 twin cannot stand
+    // in for this row: `ctl/u1_empty_from_byte0` — the same empty `from:` at byte 0 — is REFUSED
+    // by quarto outright (exit 1, no HTML). Front matter at line 0 is VALIDATED; a mid-document
+    // block is merged. Third session running to find two quarto mechanisms disagreeing on one
+    // spelling (Session 210's Learning #342).
+    const empty = doc(...FM, "", "Prose one.", "", "---", "from:", "---", ...BODY);
+    expect(names(empty)).toEqual(["h2:from:", "h2:Control Heading"]);
+    // ...and it does NOT fall back to an earlier resolvable block (`cal2/q4_gfm_then_empty`).
+    const gfmThenEmpty = doc(
+      ...FM, "", "Prose one.", "", "---", "from: gfm", "---", "", "Prose two.", "", "---", "from:", "---", ...BODY,
+    );
+    expect(names(gfmThenEmpty)).toEqual(["h2:from: gfm", "h2:from:", "h2:Control Heading"]);
+  });
+
+  it("a block whose CONTENT opens a code fence resolves nothing — the port and quarto diverge", () => {
+    // ⚠ THE SECOND REGRESSION THIS SESSION CAUSED, and the only reason it was seen is that the
+    // corpus was scored per document against the pre-session build. `cal4/s3_fence_in_blk_gfm`
+    // renders NO headings at all in quarto — the whole document is swallowed — while this change
+    // read the block, resolved `gfm` and INVENTED the pressed heading.
+    //
+    // ⚠ The cause is a known gap between quarto and its port, not a new rule. `breakQuartoMd`
+    // tracks a code fence INSIDE an open YAML region (`quarto-yaml-regions.ts` says so in its own
+    // comment: inside YAML the cell opener falls through to the plain-fence arm). But the ported
+    // `START_CODE` is anchored at column 0, so an INDENTED fence — exactly what a `code: |` block
+    // scalar holds — is invisible to it, and the port then closes the region at a `---` that
+    // quarto does not treat as a delimiter at all.
+    //
+    // Refusing to resolve from such a block is today's answer, which costs a phantom rather than
+    // a heading. Its matched control `s3_fence_in_blk_none` renders the control heading and is
+    // unaffected either way, which is what says the fence is the variable and not the shape.
+    // ⚠ The residual is FILED: this row still disagrees with quarto, which renders nothing here.
+    // That disagreement is PRE-EXISTING and untouched — closing it means fixing the port, which
+    // would move the validation partitioner and belongs to its own session.
+    const fenceInBlock = doc(
+      ...FM, "", "Prose one.", "", "---", "from: gfm", "code: |", "  ```", "---", ...BODY,
+    );
+    expect(names(fenceInBlock)).toEqual(["h2:Control Heading"]);
+    // THE CONTROL — the same block with no fence in it resolves normally, so the refusal above
+    // is the fence and not the block scalar.
+    const noFence = doc(...FM, "", "Prose one.", "", "---", "from: gfm", "code: x", "---", ...BODY);
+    expect(names(noFence)).toEqual(["h2:from: gfm code: x", ...HONOURED]);
   });
 });

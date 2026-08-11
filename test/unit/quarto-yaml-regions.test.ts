@@ -133,3 +133,43 @@ describe("inQuartoYamlRegion", () => {
     expect(inQuartoYamlRegion(regions, 0)).toBe(false);
   });
 });
+
+describe("quartoYamlRegions — the `terminated` flag (Session 211)", () => {
+  /** Regions as `start-end(T|U)` — the flag beside the bounds it qualifies. */
+  const marks = (text: string) =>
+    quartoYamlRegions(text).map((r) => `${r.startLine}-${r.endLine}${r.terminated ? "T" : "U"}`);
+
+  it("marks a region that CLOSED on a delimiter", () => {
+    expect(marks("---\ntitle: t\n---\n\nbody\n")).toEqual(["0-2T"]);
+  });
+
+  it("marks a region that merely RAN OUT of document", () => {
+    // The distinction this flag exists for. Both spans look alike to a consumer reading only
+    // the two line numbers, and quarto treats their CONTENT completely differently: it honours
+    // a `from:` in the first and ignores one in the second (`scratchpad/s211/cal`
+    // `c01_mid_gfm` selects, `c06_unterm_gfm` does not).
+    // ⚠ endLine is 4, not 3: the trailing newline makes a fifth, empty line, and an unclosed
+    // region runs to the document's LAST line whatever that line holds.
+    expect(marks("---\ntitle: t\n\nbody\n")).toEqual(["0-4U"]);
+  });
+
+  it("marks each region independently in a document holding several", () => {
+    // A closed front matter, then a closed mid-document block, then a dangling opener.
+    expect(marks("---\na: 1\n---\n\nbody\n\n---\nb: 2\n---\n\nmore\n\n---\nc: 3\n")).toEqual([
+      "0-2T",
+      "6-8T",
+      "12-14U",
+    ]);
+  });
+
+  it("a trailing `---` behind a blank line opens NO region — the HR exemption, not termination", () => {
+    // ⚠ WRITTEN AS A GUESS AND MEASURED WRONG FIRST TIME, and the correction matters because
+    // it re-attributes a citation. `scratchpad/s211/cal2` `q5_open_at_eof` selects no reader,
+    // and the reason is NOT that its region is unterminated — there is no region at all. The
+    // trailing newline leaves an empty final line, so the `---` has a blank line both above and
+    // below and quarto's `skipHRs` arm reads it as a thematic break.
+    expect(marks("body\n\n---\n")).toEqual([]);
+    // ...whereas the same opener with content below it DOES open an unterminated region.
+    expect(marks("body\n\n---\nfrom: gfm\n")).toEqual(["2-4U"]);
+  });
+});
