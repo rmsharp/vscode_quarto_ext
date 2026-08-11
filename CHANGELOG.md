@@ -7,6 +7,12 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-10 · [ad hoc] Session 209 — Phase 0 health snapshot recorded
+
+`methodology_dashboard.py` appended its Phase 0 run to `dashboard_history.jsonl` (health 76/100,
+1 high risk, 6 vulnerabilities — all devDependency-only). Logged as its own action so the ledger
+frontier stays at `HEAD` rather than leaving the file dirty for the next session's Orient.
+
 ### 2026-08-10 · [ad hoc] Session 209 — the container column stack knows which containers each READER has (SHIPPED)
 
 **Model:** Claude Opus 5.
