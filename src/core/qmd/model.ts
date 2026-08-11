@@ -1096,24 +1096,26 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
  * `TOP_LEVEL_FROM_KEY` below carries the quote capture that expresses it.
  */
 /**
- * The same key, written inside a YAML **flow mapping** — `{from: gfm, title: "T"}`.
+ * The line that OPENS a YAML **flow mapping** — `{from: gfm, title: "T"}`.
  *
  * A whole front matter may legally be one flow mapping, and quarto reads the `from:` in it:
  * `scratchpad/s206/gnd` `g_flow_gfm` renders the pressed heading and `g_flow_markdown` does
  * not, which is what proves the mapping is being READ rather than ignored. `TOP_LEVEL_FROM_KEY`
  * is anchored to the start of the key, so a key sitting after `{` or `,` is invisible to it.
  *
- * Two parts rather than one regex so the flow OPENER is tested against the line's start while
- * the key is tested anywhere inside it, and so a `from:` inside a flow value on some OTHER key's
- * line cannot fire this: the line must itself begin the flow mapping.
+ * ⚠ **TOMBSTONE — Session 208 removed the two patterns that used to sit beside this one**,
+ * `FRONTMATTER_FLOW_FROM_KEY` (`/[{,][ \t]*(["']?)from\1[ \t]*:/`) and `FLOW_FROM_ENTRY` (the
+ * same with `([^,}]*)` capturing the value). Their measurement above is still true and is kept
+ * here; what was false was the assumption underneath them — that a `from:` ANYWHERE inside a
+ * flow mapping is the document's reader declaration. Both were flat, so both took the FIRST
+ * `from:` on the line regardless of its PATH, and `scratchpad/s208/cal3` renders them wrong in
+ * BOTH directions on six of eight rows: `{title: t, params: {from: markdown}, from: gfm}`
+ * renders as gfm (they read markdown — a DELETED heading) and `{title: t, params: {from: gfm}}`
+ * renders as the default (they read gfm — an INVENTED one). ⚠ **Do not reintroduce a flat flow
+ * pattern.** `flowPathValue` below answers the same question by walking the path, which is what
+ * the measurement says decides it.
  */
 const FRONTMATTER_FLOW_OPEN = /^[ \t]*\{/;
-const FRONTMATTER_FLOW_FROM_KEY = /[{,][ \t]*(["']?)from\1[ \t]*:/;
-/**
- * The same entry with its VALUE captured — everything up to the next flow separator (`,` or the
- * closing `}`), which is where a YAML flow scalar ends.
- */
-const FLOW_FROM_ENTRY = /[{,][ \t]*(["']?)from\1[ \t]*:([^,}]*)/;
 /**
  * A front-matter `from:` whose VALUE names a reader of the **CommonMark family** (Session 202).
  *
@@ -1329,8 +1331,11 @@ function frontMatterFromValueLine(lines: readonly string[]): string | null {
   // block spelling does, and is measured in both directions and both file orders too —
   // `scratchpad/s208/cal` `c_f1hg_topm` / `c_f1hm_topg` put the nested key first and
   // `c_topm_f1hg` / `c_topg_f1hm` put the top-level one first (Session 208).
+  // ⚠ An EMPTY value resolves nothing HERE while it still counts as a declaration for the KEY
+  // half — `flowPathValue`'s polarity note. The two flags this feeds delete a heading when they
+  // fire wrongly, so an unreadable value must reach neither.
   const flowNested = flowPerFormatFromValue(content, top);
-  if (flowNested !== null) {
+  if (flowNested !== null && flowNested !== "") {
     return `from: ${flowNested}`;
   }
   const nested = perFormatBlock(content, top);
@@ -1366,10 +1371,17 @@ function mappingFromValueLine(
       // A whole front matter may be one FLOW mapping, whose `from:` sits after a `{` or `,`
       // rather than at the line's start — `scratchpad/s206/gnd` `g_flow_markdown` suppresses
       // the pressed heading and `g_flow_gfm` renders it. The value ends at the next separator.
+      // ⚠ Resolved BY PATH, not by the first `from:` on the line (Session 208). The flat
+      // pattern this replaced was wrong in BOTH directions on six of eight measured rows —
+      // `scratchpad/s208/cal3`: `{title: t, params: {from: markdown}, from: gfm}` renders as
+      // gfm (it read markdown, DELETING a heading) and `{title: t, params: {from: gfm}}`
+      // renders as the default (it read gfm, INVENTING one). `params:` inside a flow mapping
+      // is the same non-selecting path it is in a block one.
       if (topLevelForms && FRONTMATTER_FLOW_OPEN.test(block[i])) {
-        const flow = FLOW_FROM_ENTRY.exec(block[i]);
-        if (flow !== null) {
-          return `from: ${flow[2].trim()}`;
+        const region = flowRegion(block, i, indent);
+        const flow = region === null ? null : flowPathValue(region, ["from"]);
+        if (flow !== null && flow !== "") {
+          return `from: ${flow}`;
         }
       }
       continue;
@@ -1717,6 +1729,12 @@ function flowRegion(block: readonly string[], from: number, offset: number): str
  * `website: {html: {from: gfm}}` each EXACTLY as its no-`from:` twin does — quarto honours none
  * of them. So "a `from:` somewhere inside the flow" is the wrong rule and would delete headings
  * on all three; only the path decides.
+ *
+ * ⚠ **`null` means the path is ABSENT; `""` means it is PRESENT with an empty value**, and the
+ * two callers must not be collapsed. The KEY question (`frontMatterSelectsReader`) deletes a
+ * heading when it answers "no" wrongly, so it accepts a present-but-empty declaration; the
+ * VALUE question fails the other way — `FRONTMATTER_COMMONMARK_FROM` deletes when it fires
+ * wrongly — so it resolves nothing from an empty value. That asymmetry is Session 207's, kept.
  */
 function flowPathValue(text: string, path: readonly string[]): string | null {
   let cursor = text;
@@ -1727,7 +1745,7 @@ function flowPathValue(text: string, path: readonly string[]): string | null {
     }
     cursor = next;
   }
-  return cursor === "" ? null : cursor;
+  return cursor;
 }
 /**
  * The `from:` value declared by a per-format block written in FLOW style, or `null`.
@@ -1751,6 +1769,17 @@ function flowPerFormatFromValue(content: readonly string[], top: number): string
     const rest = content[i].slice(top);
     const key = FORMAT_KEY.exec(rest);
     if (key === null) {
+      // (C) a WHOLE front matter written as one flow mapping may carry the per-format path
+      // inside it — `{title: t, from: markdown, format: {html: {from: gfm}}}` renders as gfm
+      // (`scratchpad/s208/cal2` `q_wfm_topm_hg_*`), so the nested declaration outranks the
+      // top-level one here exactly as it does in every other spelling.
+      if (FRONTMATTER_FLOW_OPEN.test(rest)) {
+        const whole = flowRegion(content, i, top);
+        const nested = whole === null ? null : flowPathValue(whole, ["format", "html", "from"]);
+        if (nested !== null) {
+          return nested;
+        }
+      }
       continue;
     }
     // (A) the whole `format:` value is written flow — `format: {html: {from: gfm}}`.
@@ -1837,12 +1866,16 @@ function frontMatterSelectsReader(lines: readonly string[]): boolean {
   if (mappingFromKeyIndex(content, top) >= 0) {
     return true;
   }
-  for (const line of content) {
-    if (
-      leadingWhitespace(line) === top &&
-      FRONTMATTER_FLOW_OPEN.test(line) &&
-      FRONTMATTER_FLOW_FROM_KEY.test(line)
-    ) {
+  for (let i = 0; i < content.length; i++) {
+    if (leadingWhitespace(content[i]) !== top || !FRONTMATTER_FLOW_OPEN.test(content[i])) {
+      continue;
+    }
+    // ⚠ BY PATH (Session 208), for the same measured reason the value half is: a `from:`
+    // nested under `params:` inside a flow mapping does not select, and reading it INVENTS a
+    // heading (`scratchpad/s208/cal3` `r_par_only_*`). An EMPTY value still counts as a
+    // declaration here and not in the value half — see `flowPathValue`'s polarity note.
+    const region = flowRegion(content, i, top);
+    if (region !== null && flowPathValue(region, ["from"]) !== null) {
       return true;
     }
   }

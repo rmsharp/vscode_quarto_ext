@@ -6143,4 +6143,78 @@ describe("a per-format `from:` written in FLOW style selects the reader too (Ses
     // balance. Deleting direction: without this the document loses `h1:Col Indented`.
     expect(names(atColumn3('title: "T"', "format: {html: {", "  from: gfm", "}}"))).toEqual(BOTH);
   });
+
+  it("a WHOLE-FLOW front matter resolves its `from:` by path too, not by first match", () => {
+    // MEASURED, `scratchpad/s208/cal3` `r_par_then_top_col3`: quarto renders BOTH headings —
+    // `params:`'s `from:` is a report parameter and does not select, so the TOP-LEVEL `from: gfm`
+    // is the declaration. Session 206's `FLOW_FROM_ENTRY` takes the FIRST `from:` after a `{` or
+    // `,` on the line regardless of its path, so it reads `markdown` here and DELETES
+    // `h1:Col Indented`. Same defect as the per-format half — a flat pattern where the
+    // measurement says a path — on the same capability, which is why it is fixed here.
+    expect(names(atColumn3("{title: t, params: {from: markdown}, from: gfm}"))).toEqual(BOTH);
+  });
+
+  // ── PINS OF THE SAME CHANGE, labelled honestly rather than counted as RED→GREEN cycles ──
+  // Each cites the rendered pair that proves it and each diverged on the PRE-session build
+  // (`scratchpad/s208/srcpre`, re-probed on its own bytes). They are the rows that separate the
+  // rule this session shipped from the two cheaper rules it could have been mistaken for.
+
+  it("PIN: it is HTML's `from:` that decides, whatever ORDER the formats are written in", () => {
+    // ⚠ THE ROWS THAT REFUTE "the first `from:` wins" — `scratchpad/s208/cal` `c_f1_dm_hg_col3`
+    // and `c_f1_dg_hm_col3`. Writing docx FIRST changes nothing: quarto reads html's declaration
+    // in both. A flat pattern gets exactly these two backwards while agreeing on the other two,
+    // which is why the witness document alone could never have settled the rule (Learning #334).
+    expect(names(atColumn3('title: "T"', "format: {docx: {from: markdown}, html: {from: gfm}}")))
+      .toEqual(BOTH);
+    expect(names(atColumn3('title: "T"', "format: {docx: {from: gfm}, html: {from: markdown}}")))
+      .toEqual(BASELINE_ONLY);
+  });
+
+  it("PIN: the nested flow declaration OUTRANKS a top-level `from:`, in BOTH file orders", () => {
+    // `scratchpad/s208/cal` `c_f1hg_topm_col3` and `c_topm_f1hg_col3`. The SECOND is the one
+    // that matters: with the top-level key written FIRST, "the nested one wins" and "the first
+    // one wins" predict different output, and quarto renders both headings — the nested one.
+    expect(names(atColumn3('title: "T"', "format: {html: {from: gfm}}", "from: markdown")))
+      .toEqual(BOTH);
+    expect(names(atColumn3('title: "T"', "from: markdown", "format: {html: {from: gfm}}")))
+      .toEqual(BOTH);
+    // and the same for the block-format/flow-html spelling — `cal2` `q_topm_f2hg_col3`
+    expect(names(atColumn3('title: "T"', "from: markdown", "format:", "  html: {from: gfm}")))
+      .toEqual(BOTH);
+  });
+
+  it("PIN: a flow `from:` at a NON-selecting path no longer INVENTS a heading", () => {
+    // The other direction of the same narrowing, and the one a corpus of `gfm` rows cannot see.
+    // `scratchpad/s208/cal3` `r_par_only_col3` renders the BASELINE ONLY — `params:` does not
+    // select — and `r_par_then_topm_col3` likewise, because the real top-level declaration
+    // there is `markdown`. The flat pattern read `gfm` in both and invented `h1:Col Indented`.
+    expect(names(atColumn3("{title: t, params: {from: gfm}}"))).toEqual(BASELINE_ONLY);
+    expect(names(atColumn3("{title: t, params: {from: gfm}, from: markdown}"))).toEqual(
+      BASELINE_ONLY,
+    );
+  });
+
+  it("PIN: a NON-ACTIVE format's flow `from:` yields to the top-level one", () => {
+    // `scratchpad/s208/cal3` `r_pdf_then_top_col3` renders BOTH headings: with html active,
+    // `format: {pdf: {from: markdown}}` is not the document's reader, so the top-level
+    // `from: gfm` is — and the flat pattern took pdf's, deleting the heading. ⚠ This inherits
+    // Session 207's disclosed BOUND, not just its rule: the harness renders `--to html`, so no
+    // corpus here has ever measured a document previewed as pdf-only.
+    expect(names(atColumn3("{title: t, format: {pdf: {from: markdown}}, from: gfm}"))).toEqual(
+      BOTH,
+    );
+  });
+
+  it("PIN: the spellings inside a flow mapping that quarto honours", () => {
+    // `scratchpad/s208/cal` `c_f1qhg_col3` / `c_f1lateg_col3` and `cal2` `q_qval_col3` /
+    // `q_sqval_col3` / `q_spacey_col3` — a quoted KEY, a sibling key before the `from:`, a
+    // quoted VALUE in either quote, and generous interior whitespace. All render BOTH headings.
+    expect(names(atColumn3('title: "T"', 'format: {"html": {from: gfm}}'))).toEqual(BOTH);
+    expect(names(atColumn3('title: "T"', "format: {html: {theme: default, from: gfm}}"))).toEqual(
+      BOTH,
+    );
+    expect(names(atColumn3('title: "T"', 'format: {html: {from: "gfm"}}'))).toEqual(BOTH);
+    expect(names(atColumn3('title: "T"', "format: {html: {from: 'gfm'}}"))).toEqual(BOTH);
+    expect(names(atColumn3('title: "T"', "format: {  html:  {  from:  gfm  }  }"))).toEqual(BOTH);
+  });
 });
