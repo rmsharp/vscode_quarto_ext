@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S208
+date: 2026-08-10
+status: pending
+active_task: IN PROGRESS. A per-format block written in FLOW style -- `format: {html: {from: commonmark}}` -- really does select the reader, and BOTH halves of Session 207's path walk see nothing, because `perFormatBlock` descends through BLOCK mappings only. Heading-DELETING (two real headings lost, one invented on the witness document), and the one genuinely new residual Session 207's own change left. Operator-selected via AskUserQuestion at Phase 0 from an empty Active section; Session 207's ranked #1, and half (a) of the item filed at BACKLOG.md "Up Next" line 93. Half (b) -- resolving a NON-`html` format key -- is explicitly OUT, because Session 207's `html:`-only refusal is a measured fail-safe and any fix needs the editor's preview target, which src/core/ deliberately cannot see.
+```
+
+```handoff
 session: S207
 date: 2026-08-10
 status: complete

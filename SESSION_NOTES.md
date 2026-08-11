@@ -5,6 +5,50 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 208 — IMPLEMENTATION (strict TDD): a per-format block written in FLOW style — `format: {html: {from: commonmark}}` — really does select the reader, and BOTH halves of Session 207's path walk see nothing, because `perFormatBlock` descends through BLOCK mappings only. Heading-DELETING: the one genuinely new residual Session 207's own change left.**
+**Started:** 2026-08-10
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Selected by the operator via `AskUserQuestion` at Phase 0 from an empty Active section.** It was Session 207's ranked **#1**, and **half (a)** of the filed item. ⚠ **The item IS filed** — verified firsthand at Phase 0, `BACKLOG.md` "Up Next" line 93 ("Only the `html:` per-format block's `from:` is resolved, and a per-format block written in FLOW style is invisible"), so Learning #288 does not fire. Its **half (b)** — resolving a NON-`html` format key — is explicitly OUT below.
+
+**⚠ THE SLICE TEST (FM #26), APPLIED BEFORE THE CLAIM.** ONE capability, and it is the same question Session 207 shipped, asked of one more YAML spelling: *does the `format:`/`html:` mapping this document writes declare a reader?* One new descent, consumed at **exactly the two existing `perFormatBlock` call sites**, feeding the same two flags unchanged. Not two capabilities wearing one name — a single mechanism answers every shape below.
+
+**⚠ SCOPE, declared AFTER the coupling survey rather than before it.**
+
+**IN — the two flow shapes, each a different way of writing the SAME path Session 207 already resolves in block style:**
+
+| # | shape | example |
+|---|---|---|
+| F1 | the whole `format:` value written FLOW | `format: {html: {from: commonmark}, docx: {from: markdown}}` |
+| F2 | a BLOCK `format:` whose `html:` value is FLOW | `format:` / `  html: {from: commonmark}` |
+
+The MEASURED witness is `scratchpad/s207/adv/fmt` `fmt_11` (F1, found by a BLIND lens): quarto renders the pressed and the 3-space-indented headings and not the setext one, so it honours `commonmark` — and this model keeps the default reader, **DELETING two real headings and INVENTING one**, the worst direction in this family.
+
+**OUT, each with the reason it is a different rule rather than a smaller piece of this one:**
+- **Half (b), a NON-`html` format key.** Session 207's `html:`-only refusal is a **MEASURED fail-safe**, not an oversight — `cal2` `q_htmlm_pdfg`/`q_htmlg_pdfm` settle it in both directions — and any fix needs the editor's actual preview target, which `src/core/` deliberately cannot see. It is an adapter-layer question. My flow arm **inherits the same refusal**, or it silently widens what S207 narrowed.
+- **A flow SEQUENCE of formats** (`format: [html, docx]`) — declares no `from:` at all, so there is nothing to resolve.
+- **A `_quarto.yml` project-level `format:`** — filed separately; this scanner sees one document's bytes.
+- Every other backlog item, and every synced methodology file.
+
+**⚠ FIVE COUPLINGS, surveyed firsthand BEFORE this claim was written.**
+1. **⚠ `perFormatBlock` HAS EXACTLY TWO CONSUMERS AND BOTH MUST GET THE FLOW ARM, or the change is a measurable half-fix.** `frontMatterFromValueLine` `model.ts:1328` (the VALUE) and `frontMatterSelectsReader` `:1616` (the KEY). Greped: the identifier occurs at `:1164` (a docstring), `:1328`, `:1522` (the definition) and `:1616` — two call sites, no more. Fixing the value alone leaves the key refusing, and the value is never consulted.
+2. **⚠ THE RETURN SHAPE CANNOT EXPRESS A FLOW MAPPING, so this is a type change and not a regex.** `perFormatBlock` returns `{ block: readonly string[]; indent: number }`, and **both** of its downstream readers (`mappingFromValueLine` `:1353`, `mappingFromKeyIndex` `:1563`) key on `leadingWhitespace(line) === indent` — a test a flow mapping can never satisfy, because it has neither lines nor an indent.
+3. **⚠ THE OBVIOUS REGEX IS ORDER-DEPENDENT AND WOULD BE RIGHT BY LUCK ON THE WITNESS DOCUMENT.** `FLOW_FROM_ENTRY` `:1116` is flat (`/[{,][ \t]*(["']?)from\1[ \t]*:([^,}]*)/`): on `fmt_11` it matches **html's** `from:` only because html is written FIRST. Write `format: {docx: {from: markdown}, html: {from: commonmark}}` and it takes docx's. So this needs a real nested walk — and **the corpus needs BOTH ORDERS**, which is S207's own Learning #334 arriving one session later on a different mechanism.
+4. **⚠ THE SAFETY POLARITY IS SPLIT BETWEEN THE TWO HALVES, exactly as Session 207 recorded, and this row must not treat them alike.** `frontMatterSelectsReader` returning **false** where quarto DID select re-engages the paragraph bail *and* collapses the heading column set to `[0]` — **both DELETE**. The VALUE predicates fail CLOSED the other way: `FRONTMATTER_COMMONMARK_FROM` firing wrongly DELETES a heading at setext underline column 0. **So the KEY half may be resolved generously and every VALUE must stay an exact measured allowlist.**
+5. **⚠ THE PRECEDENCE RULE SHIPPED LAST SESSION MUST HOLD FOR THE FLOW SPELLING TOO.** `frontMatterFromValueLine` runs the per-format pass FIRST because the nested declaration OUTRANKS the top-level one (measured in both directions and both orders). A flow per-format block that resolves but does not outrank a top-level `from:` would be a new, quieter version of the same defect.
+
+**⚠ BUDGETED COMPLETENESS PASS** (S206's Learning #327, honoured by S207): one probe per **CONSUMER SITE**, written in the **NEW** spellings — the paragraph bail `model.ts:3213` and the heading column set `:3225` — not only in the block spelling that already worked.
+
+**⚠ THE DECISION RULE FOR ANY SCOPE AMENDMENT, DECLARED IN ADVANCE** (S194's test, as S196–S207 applied it): *would this defect exist if my change did not ship?* A new error CAUSED by this change is closed here and disclosed; one that is pre-existing and merely made reachable is pinned with a rendered control and FILED, with the grep count pasted at Phase 3F.
+
+**⚠ TDD gate — FIRES.** The descent is logic. RED → GREEN → REFACTOR, one behaviour at a time, each RED confirmed to fail on the BEHAVIOUR rather than the plumbing. ⚠ **S204's gotcha 5, inherited a FIFTH time: any guard's test is written BEFORE the change it guards**, and on the row where a wrong answer DELETES.
+
+**⚠ MEASURE BEFORE DESIGNING** (S207's gotcha 6): a calibration corpus is rendered through the real `quarto render` path and its verdict written to `scratchpad/s208/CALIBRATION.md` before a line of production code.
+
+---
+
+## Session 207 ACTIVE TASK (superseded by Session 208 — full entry preserved below)
 **Task:** **Session 207 — IMPLEMENTATION (strict TDD): a DEPTH-AWARE front-matter `from:` reader. The KEY predicate matched at ANY indent and the VALUE resolver only at the TOP level, so the model got both ends of one question wrong — a block scalar's ordinary PROSE selected a reader it should not, and a per-format `format:`/`  html:`/`    from:`, which quarto really does honour, selected one it should.**
 **Started:** 2026-08-10 · **Closed:** 2026-08-10
 **Status:** **DONE. SHIPPED — one mechanism answered both halves, because they were the same question asked from two ends: *where in the YAML does this `from:` sit, and does that position select the reader?* 386 documents rendered: designed agreement 63/118 → 114/118, the four BLIND lenses 32/63 → 57/63, the predecessors' own corpora 152/187 → 169/187, and INTRODUCED 0 across all 368 scored documents.**
