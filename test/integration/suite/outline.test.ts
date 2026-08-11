@@ -1889,4 +1889,95 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `the spaced twin must be unaffected: ${spaced.join(", ")}`,
     );
   });
+
+  it("a mid-document YAML metadata block is consumed, so no section comes out of it", async () => {
+    // The user-visible surface of Session 213. A YAML metadata block below the document's first
+    // content line renders NOTHING under the readers that consume it, and this outline was
+    // putting a section there — one the reader never sees, carrying a `sec-` id into the
+    // cross-reference index with it.
+    //
+    // ⚠ `openInMemory` scopes every document below, so no exact-set `assert.deepStrictEqual`
+    // pin can be extended by them and `test/fixtures/setext-fresh-block.qmd` is untouched. The
+    // exact-set grep ran BEFORE this test was written, not after it failed: 21 real
+    // `assert.deepStrictEqual` and 1 real fixture use in this file, both unchanged.
+    //
+    // ⚠ Every assertion below was pre-checked headlessly against the pure `core/` model before
+    // this run was requested (`scratchpad/s213/pre/`), so a screen-taking Extension Development
+    // Host run only ever tests the adapter wiring — Session 211's gotcha 3, which cost that
+    // session a full run and saved Session 212 one.
+    //
+    // Every premise was rendered through the real `quarto render --to html` path this session
+    // (`scratchpad/s213/`, 100 documents plus an 18-document adversarial pass, quarto 1.7.33).
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+    const below = ["", "## Cal Heading Below"];
+    const block = ["---", "note: alpha", "---"];
+
+    // ABSENT — the phantom section this item was filed for. `cal/a02_md`: quarto renders only
+    // the real heading, and its feature-free control `cal/b02_md_ctl` (the same setext geometry
+    // with no opening `---`) renders BOTH under the same reader — which is what proves the
+    // difference is metadata consumption and not the setext parse.
+    const consumed = await namesFor(
+      "---", "from: markdown", "---", "", "Cal body prose.", "", ...block, ...below,
+    );
+    assert.ok(
+      !consumed.includes("note: alpha"),
+      `a consumed metadata block has no section: ${consumed.join(", ")}`,
+    );
+
+    // ABSENT — the DEFAULT reader, with no `from:` key anywhere in the document. `cal2/d9`:
+    // this is the commonest shape of all, and the reason this item is worth more than its
+    // contrived spellings suggest.
+    const dflt = await namesFor("Cal body prose.", "", ...block, ...below);
+    assert.ok(
+      !dflt.includes("note: alpha"),
+      `the default reader consumes too: ${dflt.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE DISCRIMINATOR. `cal/a12_gfm_ymbon`: `+yaml_metadata_block` turns
+    // consumption ON for `markdown_strict` (`cal2/c4_ext`) and is INERT on a CommonMark base.
+    // A predicate shaped like this file's other per-reader rules — extension outranks base,
+    // unconditionally — gets exactly this row backwards and DELETES a section quarto renders.
+    const gfmOn = await namesFor(
+      "---", "from: gfm+yaml_metadata_block", "---", "", "Cal body prose.", "", ...block, ...below,
+    );
+    assert.ok(
+      gfmOn.includes("note: alpha"),
+      `the extension is inert on a CommonMark base: ${gfmOn.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE OPENER'S PRECONDITION, which refutes this item's own backlog entry.
+    // `cal4/i_para_md`: with no blank line above it the `---` is claimed by pandoc as a SETEXT
+    // UNDERLINE for the prose, so nothing is consumed and quarto renders both headings. A
+    // suppression keyed on quarto's region grammar — which the entry recommends — deletes them.
+    const paraAbove = await namesFor(
+      "---", "from: markdown", "---", "", "Cal body prose.", ...block, ...below,
+    );
+    assert.ok(
+      paraAbove.includes("note: alpha"),
+      `no blank above means no metadata block: ${paraAbove.join(", ")}`,
+    );
+
+    // PRESENT — the shape this repository's own documents are written in. `cal2/e7_hrgap_md`:
+    // a `---` with a blank line above AND below is a thematic break, exempted by quarto's own
+    // region grammar. 53 of the 115 tracked markdown-family files use it as a section
+    // separator, so this is the assertion standing between this change and them.
+    const hrgap = await namesFor(
+      "---", "from: markdown", "---", "", "Cal body prose.", "", "---", "", "note: alpha", "---", ...below,
+    );
+    assert.ok(
+      hrgap.includes("note: alpha"),
+      `a blank-surrounded rule is not a metadata block: ${hrgap.join(", ")}`,
+    );
+
+    // PRESENT — the guard without which every ABSENT above would pass for a build that had
+    // stopped producing headings altogether (Learning #339).
+    const control = await namesFor("---", "from: markdown", "---", "", "# Cal Spaced Control");
+    assert.ok(
+      control.includes("Cal Spaced Control"),
+      `ordinary headings must be unaffected: ${control.join(", ")}`,
+    );
+  });
 });
