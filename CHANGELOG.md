@@ -7,6 +7,38 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-11 · [ad hoc] Session 213 — a mid-document YAML metadata block is CONSUMED by its reader (SHIPPED)
+
+- **Model:** Claude Opus 5.
+- Closed the SETEXT half of Session 204's `yaml_12` / Session 205's `yaml_13`, whose
+  reader-selection half Session 211 shipped. A YAML metadata block below the document's first
+  content line renders NOTHING under the readers that consume it; this model read its last content
+  line plus the closing `---` as a setext heading, putting a section in the outline no reader ever
+  sees and a phantom `sec-` id in the cross-reference index.
+- **⚠ The backlog entry's prescribed enumerator was the wrong one, in the DELETING direction.** It
+  named `midDocumentMetadataBlocks` — quarto's YAML *regions*, read for metadata. The consumption
+  is *pandoc's* `yaml_metadata_block`, which requires the opening `---` to start a block; where it
+  does not, pandoc claims it as a setext underline instead. `cal3/h3_above_md` renders both
+  headings and consumes nothing. Ten `cal4` rows bound the precondition (Learning #351).
+- **⚠ The house per-reader predicate shape would have shipped three deletions.**
+  `+yaml_metadata_block` turns consumption on for four markdown-family bases and is inert on the
+  three CommonMark ones, so the base gates the extension rather than the reverse (Learning #352).
+- Three `-yaml_metadata_block` spellings are DECLINED and carry a disclosed phantom: with the
+  extension off, `markdown` reaches "no heading" via a MULTILINE TABLE, a mechanism `cal2/c3_ext`
+  proves switches off (Learning #353).
+- **Measurement:** 118 documents rendered through the real `quarto render` path (quarto 1.7.33),
+  scored per document against the pre-session build. Designed corpora 66/100 → 87/100 (FIXED 21),
+  adversarial 3/18 → 17/18, **INTRODUCED 0 in every corpus**. Predecessor re-score over 43,579
+  documents in 3,574 directories: 52 rows moved, **0/51 → 51/51**, INTRODUCED 0 — including five
+  `s187/adv/L04` documents where the pre-session build was DELETING a heading and now is not.
+- **Verification:** `check-types` 0 · `check-types:unit` 0 · `compile` 0 · `compile-tests` 0 ·
+  `npm test` 1993 passed / 66 files · `test:oracle` 131 / 124 agree / 4 lost TP / 3 CARDINAL FP
+  (byte-identical to S180–S212) · `test:integration` **520 passing / 0 failing / exit 0** ·
+  `check-package` OK 42 files / 5.55 MB · `check-backlog` OK. Repo control over all 115 tracked
+  markdown-family documents BYTE-IDENTICAL across four views, proven effective by injection.
+- Commits: `d19cc04` (rule + four predecessor pin reversals), `7b68173` (six pins),
+  `fe5adca` (integration test), plus the `d01f518` claim and this close-out.
+
 ### 2026-08-11 · [ad hoc] Session 212 — a reader with `space_in_atx_header` OFF accepts `#Heading` (SHIPPED)
 
 - **Model:** Claude Opus 5.
