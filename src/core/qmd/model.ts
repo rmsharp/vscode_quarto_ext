@@ -1762,6 +1762,32 @@ function flowPathValue(text: string, path: readonly string[]): string | null {
  * `cal` `c_f1pg_*` (`format: {pdf: {from: gfm}}`) renders as the default.
  */
 function flowPerFormatFromValue(content: readonly string[], top: number): string | null {
+  const raw = flowPerFormatFromRaw(content, top);
+  return raw === null ? null : dereferenceFlowScalar(raw, content, top);
+}
+/**
+ * A flow scalar with a YAML ALIAS resolved against the front matter's top-level anchors, or
+ * `null` when the alias names no anchor this scanner can see.
+ *
+ * ⚠ **A REGRESSION THIS SESSION CAUSED, and the direction is INVENTING.** Resolving the PATH
+ * but leaving `*rdr` as the value made the value unreadable, and an unreadable value relaxes
+ * the heading column set by design (`frontMatterSelectsReader`'s fail-open, which exists
+ * because the KEY question deletes when it answers "no" wrongly). So a document whose anchor
+ * names a pandoc markdown reader gained a heading quarto does not render: measured,
+ * `scratchpad/s208/adv2` `b01_alias_md` renders the BASELINE ONLY and `b02_alias_gfm` renders
+ * BOTH. The PRE-session build was accidentally right on the first, because it resolved nothing
+ * at all — which is why only an adversarial probe could see it.
+ */
+function dereferenceFlowScalar(
+  raw: string,
+  content: readonly string[],
+  top: number,
+): string | null {
+  const alias = YAML_ALIAS_VALUE.exec(raw);
+  return alias === null ? raw : topLevelAnchor(content, top, alias[1]);
+}
+/** The raw `from:` scalar at the per-format path, before any alias is dereferenced. */
+function flowPerFormatFromRaw(content: readonly string[], top: number): string | null {
   for (let i = 0; i < content.length; i++) {
     if (leadingWhitespace(content[i]) !== top || FRONTMATTER_NOT_CONTENT.test(content[i])) {
       continue;

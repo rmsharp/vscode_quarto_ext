@@ -6217,4 +6217,22 @@ describe("a per-format `from:` written in FLOW style selects the reader too (Ses
     expect(names(atColumn3('title: "T"', "format: {html: {from: 'gfm'}}"))).toEqual(BOTH);
     expect(names(atColumn3('title: "T"', "format: {  html:  {  from:  gfm  }  }"))).toEqual(BOTH);
   });
+
+  it("a flow value that is a YAML ALIAS is RESOLVED, not merely allowed to fail open", () => {
+    // ⚠ A REGRESSION THIS SESSION CAUSED, found by its own adversarial pass and closed here
+    // under the decision rule declared in the 1B claim (would this defect exist if my change
+    // did not ship? — no).
+    //
+    // MEASURED, `scratchpad/s208/adv2`: `b01_alias_md` (`preferred: &rdr markdown` with
+    // `format: {html: {from: *rdr}}`) renders the BASELINE ONLY — quarto resolves the alias and
+    // reads markdown — while `b02_alias_gfm` renders BOTH. Resolving the PATH but not the ALIAS
+    // left the value unreadable, and an unreadable value relaxes the column set by design, so
+    // the first document gained a heading quarto does not render. The PRE-session build was
+    // accidentally right there (it resolved nothing at all), which is exactly why an adversarial
+    // probe was needed to see it: every `gfm` row in the designed corpus scores this clean.
+    const anchored = (reader: string) =>
+      atColumn3('title: "T"', `preferred: &rdr ${reader}`, "format: {html: {from: *rdr}}");
+    expect(names(anchored("markdown"))).toEqual(BASELINE_ONLY);
+    expect(names(anchored("gfm"))).toEqual(BOTH);
+  });
 });
