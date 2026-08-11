@@ -110,6 +110,24 @@ export interface OutlineSymbol {
  */
 const ATX_HEADING = /^[ \t]*(#{1,6})[ \t]+(.+)$/;
 /**
+ * The same row for a reader that has `space_in_atx_header` **OFF**, where the separator between
+ * the hashes and the text is optional and `#Heading` is a real heading (Session 212).
+ *
+ * ⚠ **`(?!#)` is the whole reason this is a second constant rather than a `[ \t]*` edit to the
+ * one above, and it is a heading-INVENTING trap the cheap fix walks straight into.** With the
+ * separator merely optional, `#######Cal Tight Seven` matches: `#{1,6}` takes six of the seven
+ * hashes and the text group takes `#Cal Tight Seven`, so the model reports `h6:#Cal Tight Seven`
+ * for a document quarto renders NO heading for. Today the seventh hash is what refuses the
+ * match — `[ \t]+` cannot match it — and making the separator optional removes that refusal.
+ * Measured on all four accepting spellings, not derived from one document:
+ * `scratchpad/s212/cal3` — `o1_lvl7_strict`, `o1_lvl7_mmd`, `o1_lvl7_php`, `o1_lvl7_mdoff`,
+ * plus `cal/c3_lvl7_strict` and its `markdown` twin.
+ *
+ * The two capture groups are identical to `ATX_HEADING`'s, so `parseHeadingLine` reads this
+ * match unchanged, and `(.+)` still refuses a bare hash run with no text (`cal/c4_bare_strict`).
+ */
+const ATX_HEADING_TIGHT = /^[ \t]*(#{1,6})(?!#)[ \t]*(.+)$/;
+/**
  * The columns a CommonMark-dialect document accepts an ATX heading at — §4.2's own 0-3
  * tolerance, which quarto's DEFAULT dialect does not have (see `atxHeadingMatch`). Used
  * only under a front-matter `from:` key, where the reader may genuinely be CommonMark.
@@ -233,8 +251,9 @@ const ATTR_ID = /#([^\s}]+)/;
 function atxHeadingMatch(
   line: string,
   columns: readonly number[] | null,
+  tight = false,
 ): RegExpExecArray | null {
-  const m = ATX_HEADING.exec(line);
+  const m = (tight ? ATX_HEADING_TIGHT : ATX_HEADING).exec(line);
   if (m === null || columns === null) {
     return m;
   }
@@ -1410,6 +1429,165 @@ function fromHasDefinitionLists(line: string): boolean {
 /** Whether the declared reader has footnotes, so `[^1]: x` opens a container. */
 function fromHasFootnotes(line: string): boolean {
   return fromHasConstruct(line, "footnotes", READER_HAS_FOOTNOTES);
+}
+/**
+ * The bases that keep pandoc's `space_in_atx_header`, so `#Heading` with NO separator is NOT a
+ * heading there (Session 212). Measured one document per reader, each carrying its own spaced
+ * control heading — `scratchpad/s212/cal` `a_none`, `a_md`, `a_gfm`, `a_cm`, `a_cmx`, `a_gh`
+ * (all refuse the tight hash) against `a_strict`, `a_mmd`, `a_php` (all render it).
+ *
+ * ⚠ **THE BACKLOG ITEM NAMED THREE READERS AND THERE ARE FOUR — and a fourth `markdown_*`
+ * reader answers the OPPOSITE way.** `markdown_phpextra` accepts the tight hash and no session
+ * had measured it (confirmed on a second shape, `cal2/k1_lvl2_php`); `markdown_github` is
+ * spelled like the three that accept and REFUSES (second shape, `cal2/k2_lvl2_gh`). This is
+ * Session 209's trap in a new place: a classifier may not reason from the name.
+ *
+ * ⚠ **The extension is INVALID on every CommonMark base — quarto REFUSES the document, exit 1**
+ * (`cal/b2_cmx_off`, `b7_gfm_off`, `b8_cm_off`). Those documents have no heading truth, so they
+ * are deliberately NOT special-cased here: a document that never renders has no answer to be
+ * wrong about. Recorded so the silence is not read as an oversight.
+ */
+const READER_HAS_SPACE_IN_ATX_HEADER: ReadonlySet<string> = new Set([
+  "markdown",
+  "gfm",
+  "commonmark",
+  "commonmark_x",
+  "markdown_github",
+]);
+/**
+ * Whether the declared reader requires a space between the hashes and the text.
+ *
+ * ⚠ **The fail-safe direction is `true`, which is today's behaviour**, and `fromHasConstruct`
+ * already has exactly that polarity: an unresolvable value and an unmeasured base both return
+ * `true`, so the separator stays required and nothing is invented. Only the eight measured bases
+ * can reach the widening branch (Learning #327 — key a widening on what you proved).
+ *
+ * ⚠ **The EXTENSION outranks the base in BOTH directions and the LAST occurrence wins**, measured
+ * here rather than inherited: `markdown-space_in_atx_header` accepts (`cal/b1_md_off`) and
+ * `markdown_github-space_in_atx_header` accepts (`cal2/j1_gh_off`), while
+ * `markdown_strict/_mmd/_phpextra+space_in_atx_header` all refuse (`cal/b3_strict_on`,
+ * `b4_mmd_on`, `cal2/j2_php_on`). Both orders of a repeated token were rendered:
+ * `-space…+space…` refuses (`cal/b5_md_offon`) and `+space…-space…` accepts (`cal/b6_md_onoff`).
+ */
+function fromRequiresSpaceInAtxHeader(line: string): boolean {
+  return fromHasConstruct(line, "space_in_atx_header", READER_HAS_SPACE_IN_ATX_HEADER);
+}
+/**
+ * A trailing `#` run that quarto strips from a heading's text and `ATX_CLOSING` does not
+ * (Session 212) — a run at end of line with no whitespace before it.
+ *
+ * ⚠ **`ATX_CLOSING`'s leading `(?:^|[ \t]+)` is MEASURED WRONG for every reader, and this row is
+ * not the fix.** `# Cal Learning C#` renders `h1:Cal Learning C` under `markdown_strict`
+ * (`scratchpad/s212/cal2/h4_csharp_sp_strict`) **and under plain `markdown`**
+ * (`h5_csharp_sp_md`), while this model reports `Cal Learning C#` on both — contradicting
+ * `ATX_CLOSING`'s own docstring, which claims a `#` that is part of a word is preserved. That is
+ * a pre-existing text divergence on the SPACED spelling, filed separately. This row exists only
+ * so the tight form does not make it reachable on documents that report nothing today.
+ */
+const ATX_CLOSING_UNSPACED = /[^ \t#]#+[ \t]*$/;
+/**
+ * Whether recognising `line` as a TIGHT ATX heading would make this model's answer WORSE than
+ * reporting nothing — in which case the tight form is declined and today's answer is reproduced
+ * byte for byte (Session 212).
+ *
+ * ⚠ **This keeps the change PURELY ADDITIVE at the cost of measured rows, which is Session 210's
+ * Headline 4 applied to a different rule.** Each shape below is a document quarto renders WITH a
+ * heading, so declining leaves the row wrong — but ACCEPTING would report a heading whose TEXT is
+ * wrong, turning one error into two. Every shape is a SEPARATE, pre-existing defect proven by its
+ * SPACED twin, which diverges today with no help from this change:
+ *
+ *   `next` is a SETEXT UNDERLINE — the underline outranks the ATX heading and keeps the literal
+ *        `#` in its text: `#Cal Tight Underlined` / `===` renders `h1:#Cal Tight Underlined`
+ *        (`cal/e1_setext_strict`), which the pre-session build already produces by the accident
+ *        that its ATX row cannot match. Pre-existing on the spaced twin under `markdown` itself
+ *        (`cal2/f1_setext_sp_md`, `f2`, `f4`). ⚠ The column test is what BOUNDS it: a `   ===`
+ *        at column 3 is not an underline here and quarto renders the ATX heading
+ *        (`cal3/m3_indent_underline`), so keying on this model's own underline predicate is
+ *        what keeps the decline from over-firing. It is deliberately NOT gated on
+ *        `consecutiveBody`: with prose above, this model's setext cannot fire and quarto still
+ *        renders `h1:#Cal Tight Underlined` (`cal3/m1_prose_setext_strict`), so accepting there
+ *        would be wrong a second way.
+ *   a trailing ATTRIBUTE BLOCK — `markdown_strict` (`cal/c8_attr_strict`) and `markdown_mmd`
+ *        (`cal2/g4_attr_tight_mmd`) KEEP the braces, and this model strips them unconditionally
+ *        and would additionally enter a phantom `sec-` id in the cross-reference index
+ *        (`src/core/refs.ts`). Pre-existing on the spaced twin, under `gfm` too
+ *        (`cal2/g1_attr_sp_strict`, `g3_attr_sp_gfm`).
+ *   a trailing HASH RUN — see `ATX_CLOSING_UNSPACED` above.
+ *
+ * ⚠ **The last two declines are BLANKET rather than per-reader, and that costs two rendered rows
+ * ON PURPOSE.** `markdown_phpextra` DOES strip the attribute block (`cal2/g5_attr_tight_php`) and
+ * `markdown-space_in_atx_header` strips both (`cal3/n1_attr_md_off`, `n2_close_md_off`), so a
+ * per-reader table would recover those three. That table is the already-filed `header_attributes`
+ * item, whose honest fix covers the spaced spelling too and moves the cross-reference index for
+ * every `gfm` document — a separate session with its own two-directional score. The rows are
+ * named here so that session can collect them.
+ */
+function tightAtxWouldWorsen(
+  line: string,
+  next: string | undefined,
+  columns: readonly number[],
+): boolean {
+  return (
+    (next !== undefined && setextUnderlineLevel(next, columns) !== null) ||
+    HEADING_ATTRIBUTE.test(line) ||
+    ATX_CLOSING_UNSPACED.test(line)
+  );
+}
+/** A raw block-level HTML opener, capturing the tag NAME so its closer can be matched. */
+const RAW_HTML_BLOCK_OPEN_TAG = new RegExp(
+  "^[ \\t]*<(" + PANDOC_BLOCK_OPEN_TAGS + ")(?=[ \\t/>]|$)",
+  "i",
+);
+/**
+ * The line indexes lying inside a **CLOSED** raw block-level HTML element, which a reader with
+ * `markdown_in_html_blocks` OFF renders VERBATIM (Session 212).
+ *
+ * ⚠ **This exists to close a regression THIS session caused, found by its own adversarial pass
+ * (`scratchpad/s212/adv/x18_html`) and not by any designed document.** Recognising the tight
+ * hash inside `<div>` / `#Adv Tight In Div` / `</div>` reports a heading quarto does not render.
+ * The row's SPACED twin already emits the identical phantom on the pre-session build
+ * (`ctl/y1_div_spaced`), so the underlying defect is the already-filed `markdown_in_html_blocks`
+ * item — but the tight row went from RIGHT to WRONG, which the declines above never do, so it
+ * had to be closed rather than disclosed.
+ *
+ * ⚠ **CLOSED is the whole rule, and a BLANK LINE DOES NOT END THE BLOCK.** Measured over the 8
+ * documents of `scratchpad/s212/ctl2`, which is what makes this narrow instead of a blanket
+ * "never fire near a `<`":
+ *
+ *     z1_div_tight       `<div>` / `#T` / `</div>`            no heading — literal
+ *     z2_div_prose       prose between them changes nothing   no heading — literal
+ *     z3_div_blank       a BLANK line between them either     no heading — literal
+ *     z5_pre_tight       `<pre>` behaves identically          no heading — literal
+ *     z4_after_closer    below `</div>`                       RENDERS
+ *     z6_span_tight      `<span>` is INLINE, never a block    RENDERS
+ *     z7_comment_closed  a closed one-line comment            RENDERS
+ *     z8_div_unclosed    an UNCLOSED `<div>`                  RENDERS — never becomes literal
+ *
+ * ⚠ **Read ONLY by the tight-hash gate**, deliberately: `commonmarkHtmlBlock` answers the same
+ * shape of question for the CommonMark readers with a different end condition (a blank line DOES
+ * end a type-6 block there), and the two must not be merged — this project has measured that
+ * family disagreeing four times. Over-firing here costs a lost true positive, which is the
+ * permitted direction; under-firing is a phantom.
+ */
+function closedRawHtmlBlockLines(lines: readonly string[]): ReadonlySet<number> {
+  const inside = new Set<number>();
+  for (let i = 0; i < lines.length; i++) {
+    const open = RAW_HTML_BLOCK_OPEN_TAG.exec(lines[i]);
+    if (open === null) {
+      continue;
+    }
+    const closer = new RegExp("^[ \\t]*</" + open[1] + "(?=[ \\t/>]|$)", "i");
+    for (let j = i + 1; j < lines.length; j++) {
+      if (closer.test(lines[j])) {
+        for (let k = i + 1; k <= j; k++) {
+          inside.add(k);
+        }
+        i = j;
+        break;
+      }
+    }
+  }
+  return inside;
 }
 /** A front-matter line that is blank or holds nothing but a comment — never YAML content. */
 const FRONTMATTER_NOT_CONTENT = /^[ \t]*(?:#.*)?$/;
@@ -3409,6 +3587,20 @@ function computeRegions(text: string): Regions {
   // `dialectOverride`, for the same reason the two above are: it answers its own question, and
   // it is read at ONE site (the heading column set) where the other three are not.
   const markdownFamilyDialect = fromValueLine !== null && fromIsMarkdownFamily(fromValueLine);
+  // Whether the resolved reader has `space_in_atx_header` OFF, so `#Heading` with no separator
+  // IS a heading — see `fromRequiresSpaceInAtxHeader` (Session 212). A SIXTH flag rather than a
+  // refinement of any of the five above, for the reason each of those gives: it answers its own
+  // question, about a THIRD extension, and it is read at ONE site (the ATX row's own regex).
+  //
+  // ⚠ `markdown_strict` sits on the OPPOSITE side of this rule and of `blankBeforeHeaderDialect`
+  // — it drops `blank_before_header` AND drops `space_in_atx_header` — which is exactly why the
+  // two cannot share a predicate. `cal/d3_prose_strict` needs both right at once: a tight hash
+  // pressed against prose renders a heading there and under no other measured reader.
+  const tightAtxDialect = fromValueLine !== null && !fromRequiresSpaceInAtxHeader(fromValueLine);
+  // The lines a CLOSED raw HTML block renders VERBATIM — see `closedRawHtmlBlockLines`. Computed
+  // only where it can be read, because it is a whole-document pre-pass and every other reader
+  // leaves the tight row switched off anyway.
+  const literalHtmlLines = tightAtxDialect ? closedRawHtmlBlockLines(lines) : null;
   // Whether a line spelling a footnote definition or a definition-list body really OPENS a
   // container here — see `fromHasDefinitionLists` / `fromHasFootnotes` for the measured
   // per-reader table, and `CONTENT_COLUMN_4_OPEN` for the two spellings it splits (Session 209).
@@ -3939,6 +4131,9 @@ function computeRegions(text: string): Regions {
               : dialectOverride && !markdownFamilyDialect
                 ? [...COMMONMARK_HEADING_COLUMNS, ...contentColumns]
                 : [0, ...contentColumns],
+            tightAtxDialect &&
+              literalHtmlLines?.has(i) !== true &&
+              !tightAtxWouldWorsen(line, lines[i + 1], [0, ...contentColumns]),
           );
     if (m) {
       const heading = parseHeadingLine(m, i);

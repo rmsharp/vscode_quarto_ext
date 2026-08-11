@@ -7069,3 +7069,156 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
     });
   });
 });
+
+describe("a reader with `space_in_atx_header` OFF accepts `#Heading` (Session 212)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  /**
+   * Every document in this block carries a SPACED control heading below the probe, exactly as
+   * the rendered corpora do (`scratchpad/s212/cal`). Without it a document reporting nothing is
+   * indistinguishable from one reporting only the right thing (Learning #339).
+   */
+  const CONTROL = ["", "## Cal Spaced Control"];
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...CONTROL);
+  /** The tight hash was REFUSED — only the control survives. */
+  const REFUSED = ["h2:Cal Spaced Control"];
+  /** The tight hash was ACCEPTED as an h1. */
+  const ACCEPTED = ["h1:Cal Tight Probe", "h2:Cal Spaced Control"];
+
+  /**
+   * ⚠ **THE GUARD BLOCK — written and run GREEN BEFORE the change** (S204's gotcha 5, inherited
+   * a NINTH time), and it carries the polarity that INVENTS.
+   *
+   * This change WIDENS what counts as an ATX heading, so its failure mode is over-firing: a
+   * `#Heading` recognised under a reader that requires the space puts a section in the outline
+   * that no reader ever sees, and — via `src/core/refs.ts` `findHeadings` — a phantom `sec-` id
+   * in the cross-reference index. Every row below is a document quarto measurably renders
+   * WITHOUT the tight heading, so every row must answer `REFUSED` before this session's change
+   * and still answer `REFUSED` after it.
+   *
+   * ⚠ Each row states its relationship to quarto, because three of Session 211's guard rows
+   * failed on their first run by asserting quarto's answer where the build's own answer
+   * differs for a separately-filed reason. Every row here is one where the two AGREE.
+   */
+  it("GUARD — every reader that KEEPS `space_in_atx_header` still refuses the tight hash", () => {
+    // `cal/a_none` — no key at all is pandoc's own `markdown`, which requires the space.
+    expect(names(withFrom(null, "#Cal Tight Probe"))).toEqual(REFUSED);
+    // `cal/a_md`, `a_gfm`, `a_cm`, `a_cmx`, `a_gh` — five bases, all measured to refuse.
+    for (const reader of ["markdown", "gfm", "commonmark", "commonmark_x", "markdown_github"]) {
+      expect(names(withFrom(reader, "#Cal Tight Probe"))).toEqual(REFUSED);
+    }
+  });
+
+  it("GUARD — the extension turned ON explicitly still refuses it, on a base that lacks it", () => {
+    // `cal/b3_strict_on`, `cal/b4_mmd_on`, `cal2/j2_php_on`, `cal2/j3_gh_on`.
+    for (const reader of [
+      "markdown_strict+space_in_atx_header",
+      "markdown_mmd+space_in_atx_header",
+      "markdown_phpextra+space_in_atx_header",
+      "markdown_github+space_in_atx_header",
+    ]) {
+      expect(names(withFrom(reader, "#Cal Tight Probe"))).toEqual(REFUSED);
+    }
+    // `cal/b5_md_offon` — LAST occurrence wins, so `-…+…` leaves the extension ON.
+    expect(names(withFrom("markdown-space_in_atx_header+space_in_atx_header", "#Cal Tight Probe"))).toEqual(
+      REFUSED,
+    );
+  });
+
+  it("GUARD — a SEVENTH hash is not a heading, on any accepting reader", () => {
+    // `cal3/o1_lvl7_strict`, `o1_lvl7_mmd`, `o1_lvl7_php`, `o1_lvl7_mdoff` plus `cal/c3_lvl7_*`.
+    // ⚠ The trap the cheap fix walks into: `#{1,6}` takes six of the seven hashes and the text
+    // group takes `#Cal…`, inventing `h6:#Cal Tight Seven` where quarto renders nothing.
+    for (const reader of [
+      "markdown_strict",
+      "markdown_mmd",
+      "markdown_phpextra",
+      "markdown-space_in_atx_header",
+      "markdown",
+    ]) {
+      expect(names(withFrom(reader, "#######Cal Tight Seven"))).toEqual(REFUSED);
+    }
+    // `cal/c4_bare_strict` — a bare hash run with no text at all stays refused too.
+    expect(names(withFrom("markdown_strict", "##"))).toEqual(REFUSED);
+  });
+
+  it("GUARD — the COLUMN rule is untouched: a markdown base still takes column 0 only", () => {
+    // `cal/d1_col1_strict`, `cal3/p1_col2_strict`, `p2_col3_strict`, `p3_col3_mmd`, `p4_col4_strict`.
+    for (const indent of [" ", "  ", "   ", "    "]) {
+      expect(names(withFrom("markdown_strict", `${indent}#Cal Tight Probe`))).toEqual(REFUSED);
+      expect(names(withFrom("markdown_mmd", `${indent}#Cal Tight Probe`))).toEqual(REFUSED);
+    }
+  });
+
+  it("GUARD — a fence and a comment region still swallow the tight hash", () => {
+    // `cal3/r1_fence_strict`, `r2_comment_strict`.
+    expect(names(withFrom("markdown_strict", "```", "#Cal Tight Probe", "```"))).toEqual(REFUSED);
+    expect(names(withFrom("markdown_strict", "<!--", "#Cal Tight Probe", "-->"))).toEqual(REFUSED);
+  });
+
+  it("GUARD — a SETEXT underline keeps the line, and keeps its literal hash", () => {
+    // `cal/e1_setext_strict`, `e2_setext_md`, `cal2/f3_setext_tight_h2`, `cal3/m4`, `m5`.
+    // ⚠ These rows are CORRECT on the pre-session build, by the accident that its ATX row
+    // cannot match. Recognising the heading here would REPLACE a right answer with a wrong one.
+    expect(names(withFrom("markdown_strict", "#Cal Tight Underlined", "==="))).toEqual([
+      "h1:#Cal Tight Underlined",
+      "h2:Cal Spaced Control",
+    ]);
+    expect(names(withFrom("markdown", "#Cal Tight Underlined", "==="))).toEqual([
+      "h1:#Cal Tight Underlined",
+      "h2:Cal Spaced Control",
+    ]);
+    expect(names(withFrom("markdown_strict", "#Cal Tight Underlined", "---"))).toEqual([
+      "h2:#Cal Tight Underlined",
+      "h2:Cal Spaced Control",
+    ]);
+    expect(names(withFrom("markdown_strict", "#Cal Tight Underlined", "====="))).toEqual([
+      "h1:#Cal Tight Underlined",
+      "h2:Cal Spaced Control",
+    ]);
+  });
+
+  it("GUARD — the three text shapes whose separate defects this change must not make reachable", () => {
+    // ⚠ Each is a document quarto renders WITH a heading, so `REFUSED` is the WRONG answer —
+    // but it is the answer the pre-session build already gives, and the alternative is to
+    // report a heading whose TEXT is wrong, turning one error into two. Held deliberately, and
+    // filed: see `CALIBRATION.md` §5 and this session's three new BACKLOG entries.
+    // `cal/c8_attr_strict` — `markdown_strict` KEEPS the braces; this model strips them.
+    expect(names(withFrom("markdown_strict", "#Cal Tight Attr {#sec-caltight}"))).toEqual(REFUSED);
+    // `cal/c7_close_strict` — quarto strips the closing `#` with no space before it; we do not.
+    expect(names(withFrom("markdown_strict", "#Cal Tight Closed#"))).toEqual(REFUSED);
+    // `cal3/m1_prose_setext_strict` — quarto renders `h1:#Cal Tight Underlined`; this model's
+    // own setext row cannot fire with prose above, so accepting would be wrong a second way.
+    expect(names(withFrom("markdown_strict", "Cal prose line above.", "#Cal Tight Underlined", "==="))).toEqual(
+      REFUSED,
+    );
+  });
+  it("a reader that LACKS `space_in_atx_header` accepts the tight hash", () => {
+    // `cal/a_strict`, `cal/a_mmd`, `cal/a_php` — the three measured bases, plus the fourth
+    // accepting spelling `cal/b1_md_off`, which reaches it through the EXTENSION.
+    expect(names(withFrom("markdown_strict", "#Cal Tight Probe"))).toEqual(ACCEPTED);
+  });
+  it("a CLOSED raw HTML block keeps its content literal, so no tight heading is reported there", () => {
+    // ⚠ A REGRESSION THIS SESSION CAUSED, found by the adversarial pass (`adv/x18_html`) and
+    // classified by `ctl/y1_div_spaced`: the SPACED twin already emits this phantom on the
+    // pre-session build, so the underlying defect is the filed `markdown_in_html_blocks` item —
+    // but the TIGHT row went from RIGHT to WRONG, which the three declines above do not.
+    // The rule is measured in `ctl2`, 8 documents: a CLOSED block is literal and a blank line
+    // does NOT end it (`z1`, `z2`, `z3`, `z5`), while an UNCLOSED one is not literal at all
+    // (`z8`), and an INLINE tag was never a block (`z6`, `z7`).
+    expect(names(withFrom("markdown_strict", "<div>", "#Cal Tight Probe", "</div>"))).toEqual(REFUSED);
+    expect(names(withFrom("markdown_strict", "<div>", "Cal prose inside.", "#Cal Tight Probe", "</div>"))).toEqual(
+      REFUSED,
+    );
+    expect(names(withFrom("markdown_strict", "<div>", "", "#Cal Tight Probe", "", "</div>"))).toEqual(REFUSED);
+    expect(names(withFrom("markdown_strict", "<pre>", "#Cal Tight Probe", "</pre>"))).toEqual(REFUSED);
+    // ⚠ and the three rows that must still be RECOVERED — an unclosed opener, an inline tag,
+    // and the line below a closer. Without these the fix is indistinguishable from "never fire
+    // near a `<`", which would cost every one of them.
+    expect(names(withFrom("markdown_strict", "<div>", "#Cal Tight Probe"))).toEqual(ACCEPTED);
+    expect(names(withFrom("markdown_strict", "<span>inline</span>", "#Cal Tight Probe"))).toEqual(ACCEPTED);
+    expect(names(withFrom("markdown_strict", "<div>", "</div>", "", "#Cal Tight Probe"))).toEqual(ACCEPTED);
+  });
+});
