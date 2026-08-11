@@ -1764,4 +1764,67 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `a blank below the opener is NOT front matter, so this section is real: ${hrgap.join(", ")}`,
     );
   });
+
+  it("a mid-document YAML block's `from:` reaches the outline (Session 211)", async () => {
+    // ⚠ THIS TEST DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd`.
+    // Sessions 196 and 197 each lost a full screen-taking Extension Development Host run by
+    // extending that fixture and tripping an exact-set `assert.deepStrictEqual` over it.
+    // `openInMemory` scopes these documents so no exact-set pin can be extended by them at
+    // all. The grep that finds those pins is
+    // `grep -n "assert.deepStrictEqual" test/integration/suite/*.ts` — run BEFORE this test was
+    // written (36 in this file, unchanged), not after it failed.
+    //
+    // Every premise below was rendered through the real `quarto render --to html` path this
+    // session (`scratchpad/s211/`, 86 documents, quarto 1.7.33) and is measured, not assumed.
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+    const body = ["", "Lead prose line.", "# Pressed Heading", "", "## Control Heading"];
+
+    // PRESENT — the section this item was filed for. `cal/c01_mid_gfm` renders the pressed
+    // heading; before this session the outline DROPPED it, because the `from:` was never read.
+    const mid = await namesFor(
+      "---", "title: Doc", "---", "", "Ordinary body prose.", "", "---", "from: gfm", "---", ...body,
+    );
+    assert.ok(
+      mid.includes("Pressed Heading"),
+      `a mid-document \`from:\` must reach the outline: ${mid.join(", ")}`,
+    );
+
+    // ABSENT — the same rule in the DELETING direction, which is the half that makes this more
+    // than a widening. `cal/c02_gfm_then_md`: a later block declaring `markdown` overrides the
+    // front matter's `gfm`, and quarto renders no pressed heading. Before this session the
+    // outline INVENTED that section.
+    const overridden = await namesFor(
+      "---", "title: Doc", "from: gfm", "---", "", "Ordinary body prose.", "",
+      "---", "from: markdown", "---", ...body,
+    );
+    assert.ok(
+      !overridden.includes("Pressed Heading"),
+      `a later block must override the front matter: ${overridden.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE GUARD, and it is the assertion that separates the shipped rule from the
+    // one the backlog item states. `cal2/q1_gfm_then_nofrom`: a later block carrying NO `from:`
+    // does NOT silence an earlier one, so this section is real and must survive. An
+    // implementation reading "the LAST BLOCK wins" — the item's own words — deletes it.
+    const laterSilent = await namesFor(
+      "---", "title: Doc", "---", "", "Prose one.", "", "---", "from: gfm", "---", "",
+      "Prose two.", "", "---", "note: nothing to do with readers", "---", ...body,
+    );
+    assert.ok(
+      laterSilent.includes("Pressed Heading"),
+      `a later block with no \`from:\` must not silence an earlier one: ${laterSilent.join(", ")}`,
+    );
+
+    // PRESENT — the second guard, without which every ABSENT above would pass for a build that
+    // had stopped reading front matter altogether and would DELETE real sections everywhere.
+    // `cal/c00_fmgfm` is the plain byte-0 twin and is untouched by this session.
+    const byte0 = await namesFor("---", "title: Doc", "from: gfm", "---", ...body);
+    assert.ok(
+      byte0.includes("Pressed Heading"),
+      `the byte-0 twin must be unaffected: ${byte0.join(", ")}`,
+    );
+  });
 });
