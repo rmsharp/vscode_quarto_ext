@@ -7475,4 +7475,121 @@ describe("a mid-document YAML metadata block is CONSUMED by the reader (Session 
     // Quarto renders it under every reader measured, including the consuming ones.
     expect(names(withFrom("markdown", "note: alpha", "---"))).toEqual(RENDERED);
   });
+
+  /**
+   * PINS — the measured rule, clause by clause. These are pins of the predicate GREEN 1
+   * established, not further RED→GREEN cycles, and are labelled as such (Session 211's and 212's
+   * convention). Every row cites the rendered document it pins.
+   */
+  describe("PINS — the measured rule, clause by clause", () => {
+    it("PIN — the CONSUMING side of the reader table", () => {
+      // `cal/a01_nofm` and `cal2/d9_nofm_note` — no `from:` key at all is quarto's default
+      // reader, and it consumes. The commonest shape of all.
+      expect(names(withFrom(null, ...BLOCK))).toEqual(CONSUMED);
+      // `cal/a02_md`, `a11_md_ymbon`, `cal2/c2_ext` — a `markdown` base, with the extension left
+      // alone, written on, and with an unrelated extension removed.
+      for (const reader of ["markdown", "markdown+yaml_metadata_block", "markdown-multiline_tables"]) {
+        expect(names(withFrom(reader, ...BLOCK))).toEqual(CONSUMED);
+      }
+      // ⚠ `cal2/c4_ext`, `c6_ext`, `cal3/f_php_ymbon`, `f_gh_ymbon` — the four markdown-family
+      // bases that have the extension OFF by default and consume once it is written ON. Their
+      // bare spellings are in the GUARD above, where they must keep RENDERING; the pair is what
+      // makes each of these a measurement rather than a coincidence.
+      for (const base of ["markdown_strict", "markdown_mmd", "markdown_phpextra", "markdown_github"]) {
+        expect(names(withFrom(`${base}+yaml_metadata_block`, ...BLOCK))).toEqual(CONSUMED);
+      }
+    });
+
+    it("PIN — the extension list is LAST-WINS for this extension too", () => {
+      // `cal3/f_md_offon` — off then on: the last token wins, so the block is consumed.
+      expect(names(withFrom("markdown-yaml_metadata_block+yaml_metadata_block", ...BLOCK))).toEqual(CONSUMED);
+      // `cal3/f_strict_offon` — the same, on a base whose default is OFF.
+      expect(
+        names(withFrom("markdown_strict-yaml_metadata_block+yaml_metadata_block", ...BLOCK)),
+      ).toEqual(CONSUMED);
+    });
+
+    it("PIN — DISCLOSED RESIDUAL: `-yaml_metadata_block` declines and carries a phantom", () => {
+      // ⚠ `cal/a10_md_ymboff`, `cal2/c1_ext`, `cal3/f_md_onoff` — quarto renders NO heading for
+      // these, so the phantom below is WRONG. It is carried on purpose: with the extension off,
+      // `markdown` reaches that answer by parsing the block as a MULTILINE TABLE (read firsthand
+      // out of `a10`'s HTML), and `cal2/c3_ext` proves that mechanism switches off — with the two
+      // table extensions also removed the heading RENDERS, and is asserted in the GUARD above.
+      // Suppressing on the base name alone would be right here for the wrong reason and wrong
+      // there. A phantom is this project's permitted direction; a deletion is not.
+      expect(names(withFrom("markdown-yaml_metadata_block", ...BLOCK))).toEqual(RENDERED);
+      expect(names(withFrom("markdown+yaml_metadata_block-yaml_metadata_block", ...BLOCK))).toEqual(RENDERED);
+    });
+
+    it("PIN — the reader is the RESOLVED one, including a block's OWN `from:`", () => {
+      // ⚠ `cal2/d7_selects_gfm` — the block declares `from: gfm`, which does NOT consume, so the
+      // block RENDERS ITSELF. Session 211's half is the input to this one.
+      // ⚠ The leading prose line is LOAD-BEARING and is why this row is written out rather than
+      // built with `withFrom(null, …)`: without something above it, the block IS the front matter
+      // and there is no mid-document block at all. Writing it the short way made this pin fail on
+      // its first run — a claim written from the rule instead of from the rendered document
+      // (Session 211's gotcha 2, inherited).
+      expect(names(withFrom(null, "Cal body prose.", "", "---", "from: gfm", "---"))).toEqual([
+        "h2:from: gfm",
+        "h2:Cal Heading Below",
+      ]);
+      // ⚠ `cal2/d8_selects_md` — the mirror: a front matter saying `gfm` and a block saying
+      // `markdown`. The block selects the reader that consumes it, so it disappears. The two rows
+      // together are what prove the resolved value is the right input and not the front matter's.
+      expect(names(withFrom("gfm", "---", "from: markdown", "---"))).toEqual(CONSUMED);
+    });
+
+    it("PIN — the SPAN is the whole block, not just its setext row", () => {
+      // ⚠ `cal3/g_atxkey_md` — an ATX line INSIDE the block. The pre-session build reported both
+      // an `h1` and an `h2` here and quarto renders neither, which is why the gate is a `continue`
+      // over the block's lines rather than a test on the setext row alone.
+      expect(names(withFrom("markdown", "---", "# Cal Inside Comment", "note: alpha", "---"))).toEqual(CONSUMED);
+      // `cal2/d3_blank_in_md` — a blank line inside the block does not end it.
+      expect(names(withFrom("markdown", "---", "note: alpha", "", "tag: beta", "---"))).toEqual(CONSUMED);
+      // `cal2/d5_two_blocks_md` — two separated blocks, both consumed.
+      expect(
+        names(withFrom("markdown", ...BLOCK, "", "Cal middle prose.", "", "---", "tag: beta", "---")),
+      ).toEqual(CONSUMED);
+      // `adv/x16_title_key` — the content need not be a `note:`; a `title:` key is consumed alike.
+      expect(names(withFrom("markdown", "---", "title: Adv Block Title", "---"))).toEqual(CONSUMED);
+    });
+
+    it("PIN — the span's own edges", () => {
+      // `cal3/h1_pressed_md` — the closer pressed directly against the real heading below it,
+      // which must SURVIVE. The row that would catch a span one line too long.
+      expect(names(doc("---", "from: markdown", "---", "", "Cal body prose.", "", ...BLOCK, "## Cal Heading Below"))).toEqual(
+        CONSUMED,
+      );
+      // `cal3/h2_ateof_md` — the block is the last thing in the document.
+      expect(names(doc("---", "from: markdown", "---", "", "## Cal Heading Below", "", ...BLOCK))).toEqual(CONSUMED);
+      // `adv/x14_only_block` — the block is the ENTIRE document below the front matter, and
+      // quarto renders no headings at all.
+      expect(names(doc("---", "from: markdown", "---", "", ...BLOCK))).toEqual([]);
+      // `cal4/j_wsblank_md` — a WHITESPACE-ONLY line satisfies the blank-above precondition, and
+      // `adv/x13_tab_above` is the tab spelling of the same row.
+      expect(names(doc("---", "from: markdown", "---", "", "Cal body prose.", "   ", ...BLOCK, "", "## Cal Heading Below"))).toEqual(
+        CONSUMED,
+      );
+    });
+
+    it("PIN — DISCLOSED RESIDUALS: the precondition is an UNDER-approximation", () => {
+      // ⚠ Each row below is a block quarto DOES consume and this rule declines, so each carries a
+      // phantom. Declining is the safe direction for a change that removes headings, and the cost
+      // is stated here rather than left to be discovered.
+      //
+      // `cal4/i_fenceclose_md` and `adv/x12_blank_in_fence` — a CLOSED FENCE directly above the
+      // opener. Two independent witnesses.
+      expect(names(withFrom("markdown", "```", "code", "```", ...BLOCK))).toEqual(RENDERED);
+      // `cal4/i_htmlclose_md` — a closed raw HTML block directly above.
+      expect(names(withFrom("markdown", "<div>", "x", "</div>", ...BLOCK))).toEqual(RENDERED);
+      // ⚠ `cal3/g_twounder_md` — a second block opening directly on the first's CLOSER. Quarto
+      // consumes BOTH; this consumes only the first, so the row is a PARTIAL fix rather than a
+      // full one. One rendered witness is not enough to widen a rule whose failure mode is
+      // deletion — which is the lesson `cal3/h3_above_md` had just finished teaching.
+      expect(names(withFrom("markdown", ...BLOCK, "---", "tag: beta", "---"))).toEqual([
+        "h2:tag: beta",
+        "h2:Cal Heading Below",
+      ]);
+    });
+  });
 });
