@@ -7,6 +7,46 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-11 · [ad hoc] Session 212 — a reader with `space_in_atx_header` OFF accepts `#Heading` (SHIPPED)
+
+- **Model:** Claude Opus 5.
+- `#Heading` with no space after the hashes is a real heading under a reader that drops
+  pandoc's `space_in_atx_header`, and `ATX_HEADING` requires the space — so the heading was
+  **deleted**. Three witnesses from Session 205's blind `dial` lens (`dial_06`, `dial_07`,
+  `dial_08`) plus Session 202's `free_05`; all four now agree, 0/4 → 4/4.
+- **⚠ The item named THREE readers and the render says FOUR — and a fourth `markdown_*`
+  reader answers the opposite way.** `markdown_phpextra` accepts the tight hash and no
+  session had measured it; `markdown_github`, spelled like the three that accept, REFUSES.
+  Both confirmed on a second shape. Session 209's "a classifier may not reason from the
+  name" trap in a new place.
+- `fromRequiresSpaceInAtxHeader` reuses `fromHasConstruct`, whose fail-safe (`true` — keep
+  requiring the space) is already today's behaviour, so only a positive resolution to a
+  measured base can widen anything. The extension outranks the base in both directions and
+  the LAST occurrence wins, measured in both orders.
+- **⚠ `ATX_HEADING_TIGHT` carries `(?!#)`.** With the separator merely optional,
+  `#######x` matches six of seven hashes and INVENTS `h6:#x` where quarto renders nothing —
+  the trap the cheap fix walks into, measured on all four accepting spellings.
+- **⚠ Three shapes DECLINE so the change stays purely additive**, each a separate
+  pre-existing defect proven by its SPACED twin: a setext underline below (which outranks
+  the ATX heading and keeps the literal `#`), a trailing attribute block (kept by two of the
+  four accepting readers), and a trailing hash run `ATX_CLOSING` will not strip (wrong for
+  every reader, including plain `markdown`). All three filed.
+- **⚠ One regression caused and closed in-session**, found by the adversarial pass and by no
+  designed document: inside a CLOSED raw HTML block the content is literal, so the tight
+  hash there is a phantom. Bounded by 8 documents — a blank line does NOT end such a block,
+  and an UNCLOSED opener never becomes literal at all.
+- **Measured:** 118 documents rendered through the real `quarto render` path (1.7.33) —
+  designed 47/84 → 66/84, adversarial 3/18 → 17/18, controls 6/12 → 11/12, **INTRODUCED 0
+  in every corpus**. Predecessor re-score over **43,401** documents in 3,562 directories
+  moved 4 rows, all four the filed item's own witnesses. Repo control over all 115 tracked
+  markdown-family documents **byte-identical** across 4 views, proven effective by injection
+  in the same run (5 movers moved, 5 stayers held).
+- **Verification:** `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` 1981
+  passed / 66 files · `test:oracle` 131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0
+  unrelated (byte-identical to S180–S211) · `check-package` OK 42 files / 5.55 MB ·
+  `check-backlog` OK · `test:integration` **519 passing / 0 failing / exit 0** (baseline
+  518, +1). NOT RUN: `test:lsp` — no LSP surface touched.
+
 ### 2026-08-11 · [ad hoc] Session 211 — a mid-document YAML block's `from:` selects the reader (SHIPPED)
 
 - **Model:** Claude Opus 5.
