@@ -6029,3 +6029,118 @@ describe("a front-matter `from:` is resolved by its YAML PATH, not by its indent
     ).toEqual(["h1:Col Baseline", "h1:Col Indented"]);
   });
 });
+
+describe("a per-format `from:` written in FLOW style selects the reader too (Session 208)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  /**
+   * The `col3` shape again — an ATX heading at COLUMN 3, with a baseline above it.
+   *
+   * ⚠ Measured, `scratchpad/s208/cal`: the CommonMark family renders BOTH headings and the
+   * pandoc markdown family renders the baseline ONLY. The row fails in BOTH directions, which
+   * is why every guard and every RED in this block lives on it: a `from:` read when it should
+   * not be INVENTS `h1:Col Indented`, and one NOT read when it should be DELETES it.
+   *
+   * ⚠ And it is the only row that can speak. `scratchpad/s208/CALIBRATION.md` §1: the
+   * `markdown` twins agree BY ACCIDENT, because resolving nothing yields the default and the
+   * default IS the pandoc markdown answer. Only a `gfm` row can move.
+   */
+  const atColumn3 = (...fm: string[]) =>
+    doc("---", ...fm, "---", "", "# Col Baseline", "", "   # Col Indented", "", "Tail.");
+  const BOTH = ["h1:Col Baseline", "h1:Col Indented"];
+  const BASELINE_ONLY = ["h1:Col Baseline"];
+
+  // ── THE GUARD BLOCK, WRITTEN BEFORE THE CHANGE IT GUARDS ──
+  // Session 204's gotcha 5, inherited by S205, S206 and S207 and honoured a FIFTH time here.
+  //
+  // ⚠ This session's change has BOTH polarities at once, which is why the guard has two halves.
+  // It WIDENS (a flow per-format path now resolves where nothing did) and it NARROWS (the flat
+  // `FLOW_FROM_ENTRY` pattern, which takes the FIRST `from:` on a flow line regardless of its
+  // path, is replaced by a path walk). A widening that overshoots INVENTS `h1:Col Indented`; a
+  // narrowing that overshoots DELETES it. Both halves are asserted below, on the same row.
+  it("GUARD: every position quarto is MEASURED to honour still relaxes the column set", () => {
+    // Rendered facts, not arguments — `scratchpad/s208/cal` `c_topg_col3` / `c_blkhg_col3` and
+    // `scratchpad/s208/cal2` `q_ztopg_col3` / `q_wfmg_col3`, plus S206's own flow-mapping row.
+    expect(names(atColumn3("from: gfm"))).toEqual(BOTH);
+    expect(names(atColumn3('"from": gfm'))).toEqual(BOTH);
+    expect(names(atColumn3('{from: gfm, title: "T"}'))).toEqual(BOTH);
+    expect(names(atColumn3(" title: t", " from: gfm"))).toEqual(BOTH);
+    expect(names(atColumn3('title: "T"', "format:", "  html:", "    from: gfm"))).toEqual(BOTH);
+    // a whole-flow front matter carrying the per-format path — right on the pre-session build
+    // only BY LUCK (the flat pattern's first match happens to be the nested one), and it must
+    // stay right for the RIGHT reason after the walk replaces that pattern.
+    expect(names(atColumn3('{title: t, format: {html: {from: gfm}}}'))).toEqual(BOTH);
+  });
+
+  it("GUARD: every position quarto is MEASURED to IGNORE still refuses to relax it", () => {
+    // The narrowing half. Each renders the BASELINE ONLY, exactly as its no-`from:` twin does —
+    // `scratchpad/s208/cal` `c_parflow_col3` / `c_f1pg_col3` and `scratchpad/s208/cal2`
+    // `q_deep_col3` / `q_deepd_col3` / `q_wrongtop_col3` / `q_hscalar_col3`. These are the rows
+    // that make "walk the path" different from "find a `from:` in the flow", and all six are
+    // already correct today — a naive flow implementation turns every one of them red.
+    expect(names(atColumn3('title: "T"', "params: {html: {from: gfm}}"))).toEqual(BASELINE_ONLY);
+    expect(names(atColumn3('title: "T"', "website: {html: {from: gfm}}"))).toEqual(BASELINE_ONLY);
+    expect(names(atColumn3('title: "T"', "format: {html: {execute: {from: gfm}}}"))).toEqual(
+      BASELINE_ONLY,
+    );
+    expect(names(atColumn3('title: "T"', "format: {docx: {html: {from: gfm}}}"))).toEqual(
+      BASELINE_ONLY,
+    );
+    expect(names(atColumn3('title: "T"', "format: {pdf: {from: gfm}}"))).toEqual(BASELINE_ONLY);
+    expect(names(atColumn3('title: "T"', "format: {html: default}"))).toEqual(BASELINE_ONLY);
+  });
+
+  it("GUARD: …and the paragraph bail agrees with the column set on all of them", () => {
+    // The SECOND consumer of the same flag, and the one a corpus written only on the column row
+    // cannot see a regression through (S206's Learning #327). `scratchpad/s208/cal` `*_bail`.
+    const pressed = (...fm: string[]) =>
+      doc("---", ...fm, "---", "", "# Baseline", "", "Prose opens a paragraph.", "# Pressed");
+    expect(names(pressed("from: gfm"))).toEqual(["h1:Baseline", "h1:Pressed"]);
+    expect(names(pressed('title: "T"', "format:", "  html:", "    from: gfm"))).toEqual([
+      "h1:Baseline",
+      "h1:Pressed",
+    ]);
+    expect(names(pressed('title: "T"', "params: {html: {from: gfm}}"))).toEqual(["h1:Baseline"]);
+  });
+
+  it("a `format:` value written as a FLOW mapping selects the reader", () => {
+    // MEASURED, `scratchpad/s208/cal` `c_f1hg_col3`: quarto renders BOTH headings, so the
+    // document really is read as CommonMark — and its `markdown` twin `c_f1hm_col3` renders the
+    // baseline only, which is what proves quarto read the declaration rather than ignored the
+    // whole block. This is the witness shape the item was filed on (`s207/adv/fmt` `fmt_11`,
+    // found by a BLIND lens), where the miss DELETES two real headings and INVENTS one.
+    expect(names(atColumn3('title: "T"', "format: {html: {from: gfm}}"))).toEqual(BOTH);
+  });
+
+  it("…and so does a BLOCK `format:` whose `html:` value alone is flow", () => {
+    // MEASURED, `scratchpad/s208/cal` `c_f2hg_col3` against its twin `c_f2hm_col3`. The two
+    // spellings are one capability rather than two: quarto reads the same path either way, so
+    // a walk that handles only the fully-flow line leaves half the shape deleting headings.
+    expect(names(atColumn3('title: "T"', "format:", "  html: {from: gfm}"))).toEqual(BOTH);
+  });
+
+  it("a flow mapping that SPANS LINES is honoured — the layout the BLOCK arm reaches", () => {
+    // MEASURED, `scratchpad/s208/cal2` `q_mlg_col3`: YAML lets a flow mapping run across lines
+    // and quarto honours the declaration inside it.
+    //
+    // ⚠ LABELLED HONESTLY: this case was written as a RED and passed IMMEDIATELY, for a reason
+    // worth recording rather than papering over. In THIS layout the `html:` key still begins a
+    // line indented under `format:`, so the block-descent arm read it as an indented key whose
+    // value is flow and produced the right answer by a route that was not the flow walk. The
+    // case below is the same YAML with the break one token later, where no block arm can reach
+    // it — THAT one was a genuine RED (`expected [ 'h1:Col Baseline' ] to deeply equal
+    // [ Array(2) ]`) and is what drove the region join. Since that join landed, the flow arm
+    // resolves this document too and returns before the block arm is consulted; the case is
+    // kept because a future narrowing of the region join must not silently hand it back to a
+    // coincidence.
+    expect(names(atColumn3('title: "T"', "format: {", "  html: {from: gfm}", "}"))).toEqual(BOTH);
+  });
+
+  it("…and when the line break falls INSIDE the html mapping, where no block arm can reach", () => {
+    // MEASURED, `scratchpad/s208/cal2` `q_mlg2_col3`: quarto renders BOTH headings. Here the
+    // `from:` line is indented under nothing — its parent key `html:` ended the line before —
+    // so the only way to resolve it is to follow the flow REGION across lines until its braces
+    // balance. Deleting direction: without this the document loses `h1:Col Indented`.
+    expect(names(atColumn3('title: "T"', "format: {html: {", "  from: gfm", "}}"))).toEqual(BOTH);
+  });
+});

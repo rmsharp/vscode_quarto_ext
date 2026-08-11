@@ -1325,6 +1325,14 @@ function frontMatterFromValueLine(lines: readonly string[]): string | null {
   // FIRST and render the same way. Those last two are why the rule is "the nested one wins"
   // rather than "the first one wins" — `cal` alone cannot tell those apart, because in both of
   // its collision rows the nested key happens to come first.
+  // ⚠ The FLOW spelling of that same per-format path outranks the top level exactly as the
+  // block spelling does, and is measured in both directions and both file orders too —
+  // `scratchpad/s208/cal` `c_f1hg_topm` / `c_f1hm_topg` put the nested key first and
+  // `c_topm_f1hg` / `c_topg_f1hm` put the top-level one first (Session 208).
+  const flowNested = flowPerFormatFromValue(content, top);
+  if (flowNested !== null) {
+    return `from: ${flowNested}`;
+  }
   const nested = perFormatBlock(content, top);
   if (nested !== null) {
     const value = mappingFromValueLine(nested.block, nested.indent, false);
@@ -1551,6 +1559,231 @@ function perFormatBlock(
   }
   return null;
 }
+/** One key/value entry of a YAML FLOW mapping, at that mapping's OWN level. */
+interface FlowEntry {
+  key: string;
+  value: string;
+}
+/**
+ * The entries written by the FLOW mapping that opens at the first `{` in `text` — its OWN
+ * entries and no nested one — or `null` when `text` opens no flow mapping, or opens one that
+ * never balances.
+ *
+ * Quote- and depth-aware in the same discipline as `scanFlow` above: a `\`-escaped character
+ * inside a double-quoted scalar and a `''` inside a single-quoted one are consumed, so a
+ * quoted brace never miscounts and an embedded quote never closes a scalar early. Entries
+ * split on a `,` at depth 1 and each entry's key ends at its FIRST `:` at depth 1, so a
+ * nested mapping's own `key: value` pairs are stepped over whole rather than parsed.
+ *
+ * ⚠ **Returning `null` is always today's behaviour**, so every shape this does not handle —
+ * an unbalanced mapping, a flow SEQUENCE, an unrecognised spelling — falls through to the
+ * behaviour that shipped before Session 208.
+ */
+function flowEntries(text: string): FlowEntry[] | null {
+  const open = text.indexOf("{");
+  if (open < 0) {
+    return null;
+  }
+  const out: FlowEntry[] = [];
+  let depth = 1;
+  let quote: '"' | "'" | null = null;
+  let start = open + 1;
+  let colon = -1;
+  const push = (end: number) => {
+    const raw = text.slice(start, end);
+    if (colon < 0) {
+      // An entry with no `:` at this level — a set entry or a sequence element. It declares
+      // no value, so it can never be a `from:` declaration; recorded with an empty value so
+      // the entry list stays positionally honest.
+      if (raw.trim() !== "") {
+        out.push({ key: unquoteFlowKey(raw), value: "" });
+      }
+      return;
+    }
+    out.push({
+      key: unquoteFlowKey(text.slice(start, colon)),
+      value: text.slice(colon + 1, end).trim(),
+    });
+  };
+  for (let i = open + 1; i < text.length; i++) {
+    const ch = text[i];
+    if (quote === '"') {
+      if (ch === "\\") {
+        i++;
+      } else if (ch === '"') {
+        quote = null;
+      }
+      continue;
+    }
+    if (quote === "'") {
+      if (ch === "'") {
+        if (text[i + 1] === "'") {
+          i++;
+        } else {
+          quote = null;
+        }
+      }
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+    if (ch === "{" || ch === "[") {
+      depth++;
+      continue;
+    }
+    if (ch === "}" || ch === "]") {
+      depth--;
+      if (depth === 0) {
+        push(i);
+        return out;
+      }
+      continue;
+    }
+    if (depth !== 1) {
+      continue;
+    }
+    if (ch === ":" && colon < 0) {
+      colon = i;
+    } else if (ch === ",") {
+      push(i);
+      start = i + 1;
+      colon = -1;
+    }
+  }
+  return null; // never balanced — resolve nothing
+}
+/** A flow mapping's key with its surrounding whitespace and its matching quotes removed. */
+function unquoteFlowKey(raw: string): string {
+  const t = raw.trim();
+  const q = t[0];
+  return (q === '"' || q === "'") && t.length > 1 && t[t.length - 1] === q ? t.slice(1, -1) : t;
+}
+/**
+ * The raw value text the FLOW mapping `text` writes for `key` at its OWN level, or `null`.
+ *
+ * ⚠ **The FIRST occurrence wins, and duplicates are UNMEASURED.** YAML forbids a duplicate key
+ * in a mapping and quarto rejects the document outright for one, so no rendered pair could be
+ * built to settle it; first-wins is recorded as the bound rather than claimed as the rule.
+ */
+function flowValue(text: string, key: string): string | null {
+  const entries = flowEntries(text);
+  if (entries === null) {
+    return null;
+  }
+  for (const e of entries) {
+    if (e.key === key) {
+      return e.value;
+    }
+  }
+  return null;
+}
+/**
+ * The text of the flow collection opening in `block[from]` at `offset`, JOINED across the
+ * following lines until its brackets balance — or `null` when it opens none, or never
+ * balances before the block ends.
+ *
+ * ⚠ **A flow mapping may SPAN LINES, and quarto honours one that does.** Measured,
+ * `scratchpad/s208/cal2`: `format: {` / `  html: {from: gfm}` / `}` and
+ * `format: {html: {` / `  from: gfm` / `}}` both render as CommonMark, and their `markdown`
+ * twin renders as markdown. A per-LINE walk misses the second outright — no block arm can
+ * reach a `from:` whose parent key ended the line before — and misses it in the DELETING
+ * direction. Lines are joined with a space, which YAML flow context treats as the line break
+ * it replaces.
+ */
+function flowRegion(block: readonly string[], from: number, offset: number): string | null {
+  let text = block[from].slice(offset);
+  if (!text.includes("{")) {
+    return null;
+  }
+  for (let i = from; i < block.length; i++) {
+    if (flowEntries(text) !== null) {
+      return text;
+    }
+    if (i + 1 < block.length) {
+      text += ` ${block[i + 1]}`;
+    }
+  }
+  return flowEntries(text) === null ? null : text;
+}
+/**
+ * The scalar written at `path` inside the flow mapping `text`, or `null` when the path does
+ * not resolve — because a step is absent, or because a step's value is a plain scalar rather
+ * than the mapping the next step needs.
+ *
+ * ⚠ **An EXACT path, and that is MEASURED rather than conservative.** `scratchpad/s208/cal2`
+ * renders `format: {html: {execute: {from: gfm}}}`, `format: {docx: {html: {from: gfm}}}` and
+ * `website: {html: {from: gfm}}` each EXACTLY as its no-`from:` twin does — quarto honours none
+ * of them. So "a `from:` somewhere inside the flow" is the wrong rule and would delete headings
+ * on all three; only the path decides.
+ */
+function flowPathValue(text: string, path: readonly string[]): string | null {
+  let cursor = text;
+  for (const step of path) {
+    const next = flowValue(cursor, step);
+    if (next === null) {
+      return null;
+    }
+    cursor = next;
+  }
+  return cursor === "" ? null : cursor;
+}
+/**
+ * The `from:` value declared by a per-format block written in FLOW style, or `null`.
+ *
+ * ⚠ **The obvious implementation — the flat `FLOW_FROM_ENTRY` pattern, which takes the first
+ * `from:` after a `{` or `,` on the line — is WRONG ON HALF THE MEASURED ROWS.** It is right on
+ * the witness document (`scratchpad/s207/adv/fmt` `fmt_11`) only because html is written first
+ * there. `scratchpad/s208/cal` writes both format ORDERS against both reader DIRECTIONS:
+ * `{docx: {from: markdown}, html: {from: gfm}}` renders as gfm and
+ * `{docx: {from: gfm}, html: {from: markdown}}` renders as markdown, so it is HTML's `from:`
+ * that decides and the flat pattern reads two of those four rows backwards.
+ *
+ * ⚠ `html:` and no other format key — Session 207's MEASURED fail-safe, re-confirmed in flow:
+ * `cal` `c_f1pg_*` (`format: {pdf: {from: gfm}}`) renders as the default.
+ */
+function flowPerFormatFromValue(content: readonly string[], top: number): string | null {
+  for (let i = 0; i < content.length; i++) {
+    if (leadingWhitespace(content[i]) !== top || FRONTMATTER_NOT_CONTENT.test(content[i])) {
+      continue;
+    }
+    const rest = content[i].slice(top);
+    const key = FORMAT_KEY.exec(rest);
+    if (key === null) {
+      continue;
+    }
+    // (A) the whole `format:` value is written flow — `format: {html: {from: gfm}}`.
+    const region = flowRegion(content, i, top + key[0].length);
+    const whole = region === null ? null : flowPathValue(region, ["html", "from"]);
+    if (whole !== null) {
+      return whole;
+    }
+    // (B) a BLOCK `format:` whose `html:` VALUE alone is flow — `format:` / `  html: {from: …}`.
+    // Measured to render identically (`scratchpad/s208/cal` `c_f2hg_*` against `c_f2hm_*`), so
+    // the two are one capability: a walk that handled only (A) would leave (B) deleting.
+    const formats = subBlock(content, i + 1, top);
+    const formatIndent = topLevelIndent(formats);
+    if (formatIndent === null) {
+      continue;
+    }
+    for (let j = 0; j < formats.length; j++) {
+      if (leadingWhitespace(formats[j]) !== formatIndent || FRONTMATTER_NOT_CONTENT.test(formats[j])) {
+        continue;
+      }
+      const htmlKey = HTML_FORMAT_KEY.exec(formats[j].slice(formatIndent));
+      if (htmlKey === null) {
+        continue;
+      }
+      const inner = flowRegion(formats, j, formatIndent + htmlKey[0].length);
+      const value = inner === null ? null : flowPathValue(inner, ["from"]);
+      if (value !== null) {
+        return value;
+      }
+    }
+  }
+  return null;
+}
 /**
  * The index of the `from:` key written by the mapping whose keys sit at `indent`, or `-1`.
  *
@@ -1612,6 +1845,9 @@ function frontMatterSelectsReader(lines: readonly string[]): boolean {
     ) {
       return true;
     }
+  }
+  if (flowPerFormatFromValue(content, top) !== null) {
+    return true;
   }
   const nested = perFormatBlock(content, top);
   return nested !== null && mappingFromKeyIndex(nested.block, nested.indent) >= 0;
