@@ -5,6 +5,27 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 214 — IMPLEMENTATION (strict TDD): a SETEXT UNDERLINE directly below an ATX heading SWALLOWS it, and quarto keeps the literal `#` in the heading's text. Heading-TEXT-DIVERGING.** (IN PROGRESS)
+**Started:** 2026-08-11
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**How this item was selected.** Operator-selected via `AskUserQuestion` at Phase 0 from an empty Active section. Ranked **#1 by S213** (which added two more rendered witnesses, `cal3/h3_above_md` and `cal4/i_atx_md`) and **#2 by S212**, which filed it.
+
+**Decision rules carried into this session, from a coupling survey run BEFORE this stub.**
+
+1. **⚠ THIS IS THE REVERSAL OF A DELIBERATE SESSION 182 DECISION, NOT AN UNMEASURED GAP — AND SESSION 199 NAMED IT AS A SEPARATE CAPABILITY IN ADVANCE.** `SETEXT_UNDERLINE_RUN`'s docstring (`:2632`) records the swallow as measured at column 0 by S182 and measured INSIDE A CONTAINER by S199 (`-   item one` / `    # Container Heading Above` / `    ===` renders `<h1># Container Heading Above</h1>`, literal `#` and all), and says of the container half: *"This row is deliberately NOT widened for it: the fix is a decision about the swallow's TEXT, not about where this row fires, and reversing S182's choice is a separate capability."* So the prior art is a decision with a stated reason, and the deliverable is that decision reversed — read the reason before overriding it.
+2. **⚠ THE COMPENSATING CLAUSE IS THE COUPLING HAZARD, AND IT IS BUILT ON TOP OF THE DECLINE.** `closesParagraph`'s `prevWasAtxHeading && SETEXT_UNDERLINE_RUN` arm (`:2789`) exists ONLY because this model declines the swallow: without it `# Heading Above` / `===` / `# ATX Below` **loses `ATX Below` outright**. If the ATX row declines the match, `prevWasAtxHeading` is never set, so that arm stops firing — the setext path's own `paragraphOpen = false` / `consecutiveBody = 0` reset (`:4294`) must be proven to replace it. **That three-line document is a mandatory pin, in the DELETING direction.**
+3. **⚠ THE ITEM CLAIMS "EVERY READER" AND COMMONMARK'S SPEC SAYS OTHERWISE — RENDER THE BASE TABLE BEFORE ANY CODE.** The entry's witnesses are `markdown`, `markdown_strict` and the `---` spelling; CommonMark §4.3 requires a setext underline to follow a PARAGRAPH, and an ATX heading is not one, so `gfm`/`commonmark`/`commonmark_x` may not swallow at all. S213's Learning #351/#352 is exactly this failure twice over; one document per reader, rendered, before the predicate is written.
+4. **⚠ THE COLUMN RULE HAS A MEASURED REFUTATION ON EACH SIDE ALREADY.** At top level the swallow needs the underline at column 0 — *"the same document with even ONE leading space renders `<h1>Heading Above</h1>` plus a plain paragraph"* — while inside a container it fires at the container's content column (S199, above). `setextUnderlineLevel(next, [0, ...contentColumns])` is the candidate predicate and matches both, but ⚠ under a CommonMark reader the setext SITE uses a different set (`[c…c+3]` from the innermost column, S202) while the ATX site passes the DEFAULT set to `tightAtxWouldWorsen` today. That mismatch is unmeasured and is a hazard, not a detail.
+5. **⚠ POLARITY: THIS IS A TEXT CHANGE, SO THE 115-DOCUMENT REPO CONTROL CANNOT CATCH A REGRESSION IN IT.** Every previous session's cheapest safety net is a presence-view diff over the tracked corpus; this row moves `h1:Heading` to `h1:# Heading` and that view will not blink. A TEXT-view score over the repo corpus is mandatory, and the injection must be scored against quarto too (S213's gotcha 4).
+6. **⚠ DO NOT MOVE THE TIGHT ROW.** `tightAtxWouldWorsen`'s FIRST clause (`:1600`) is this exact geometry for the tight spelling, where declining already produces quarto's answer by the accident that `ATX_HEADING` cannot match. If the spaced rule ships through the same path, that clause's *justification* changes while its *behaviour* must not — the S212 pins are the check.
+7. **⚠ THE `-` SPELLING IS ENTANGLED WITH TWO OTHER RULES AND MUST BE MEASURED SEPARATELY.** `# H` / `---` is simultaneously a candidate underline, a thematic break, and — after S213 — a possible metadata-block opener. Measure it as its own row rather than assuming it mirrors `===`.
+8. **⚠ TDD GATE: the guard block FIRST, then RED→GREEN** (S204's gotcha 5, an ELEVENTH time), on the polarity that this change alters TEXT: over-firing RENAMES a heading the reader really sees, and a heading's text feeds the `sec-` cross-reference index.
+
+---
+
+## Session 213 ACTIVE TASK (superseded by Session 214 — full entry preserved below)
 **Task:** **Session 213 — IMPLEMENTATION (strict TDD): the SETEXT half of a mid-document YAML metadata block — the block still renders as an `h2` in this model where quarto emits none. Heading-FABRICATING.**
 **Started:** 2026-08-11 · **Closed:** 2026-08-11
 **Status:** **DONE. SHIPPED — and the item's own sizing note names the WRONG enumerator, in the direction that would have DELETED headings. 118 documents rendered plus a 43,579-document re-score of every predecessor corpus: designed 66/100 → 87/100, adversarial 3/18 → 17/18, and every one of the 51 predecessor documents that moved is a FIX (0/51 → 51/51). INTRODUCED 0 in every corpus.**

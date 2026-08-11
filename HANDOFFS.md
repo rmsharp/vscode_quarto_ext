@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S214
+date: 2026-08-11
+status: pending
+active_task: IN PROGRESS. A SETEXT UNDERLINE directly below an ATX heading SWALLOWS it, and quarto keeps the literal `#` in the heading's text -- `# Cal Spaced Underlined` / `===` renders `h1:# Cal Spaced Underlined` while this model reports `h1:Cal Spaced Underlined`. Heading-TEXT-DIVERGING. Filed by S212, ranked #1 by S213 which added two more rendered witnesses; operator-selected via AskUserQuestion at Phase 0 from an empty Active section. ⚠ NOT AN UNMEASURED GAP: Session 182 declined this swallow DELIBERATELY and Session 199 measured its container spelling and deferred it by name -- "reversing S182's choice is a separate capability". ⚠ THE COUPLING HAZARD IS THE COMPENSATING CLAUSE BUILT ON TOP OF THAT DECLINE: `closesParagraph`'s `prevWasAtxHeading && SETEXT_UNDERLINE_RUN` arm exists only because the model declines, and without it `# H` / `===` / `# ATX Below` loses the heading below outright.
+```
+
+```handoff
 session: S213
 date: 2026-08-11
 status: complete
