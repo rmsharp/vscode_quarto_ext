@@ -6666,4 +6666,58 @@ describe("a blank line before the opening `---` does not hide the front matter (
     // session: the same document with a leading blank is answered correctly.
     expect(names(doc("", "---", "", "title: Doc", "---", ...BODY))).toEqual(NOT_CONSUMED);
   });
+
+  it("⚠ DISCLOSED — a SECOND YAML block overrides the first, and we honour only the first", () => {
+    // Found by this session's ADVERSARIAL pass (`scratchpad/s210/adv` a13_second_block), which
+    // is the only place it could have been found: the designed corpora all hold exactly one
+    // block. Quarto merges metadata across blocks and the LATER `from: markdown` wins, so the
+    // pressed heading is suppressed; this model resolves the FIRST block and reports it.
+    //
+    // ⚠ NOT INTRODUCED BY THIS SESSION, and the control is what proves it rather than the
+    // argument: `scratchpad/s210/adv2` b02_two_block_byte0 is the same document at BYTE 0, and
+    // it is IDENTICAL on the pre- and post-session builds — already wrong, already filed. This
+    // change extends the existing defect to the leading-blank spelling; it does not create a
+    // new one. The pre-session build was right here only by resolving nothing at all.
+    //
+    // Direction: PHANTOM (a heading quarto does not render), never a deletion. It belongs to
+    // the already-filed mid-document `from:` item, whose fix is to resolve the LAST block.
+    const twoBlocks = (lead: string) =>
+      `${lead}---\ntitle: D\nfrom: gfm\n---\n\nBody.\n\n---\nfrom: markdown\n---\n` +
+      "\nSome prose paragraph.\n# Pressed Heading\n\n## Control Heading\n";
+    // quarto renders ONLY the control heading for both spellings
+    expect(names(twoBlocks(""))).toEqual(["h2:from: markdown", "h1:Pressed Heading", "h2:Control Heading"]);
+    expect(names(twoBlocks("\n"))).toEqual(["h2:from: markdown", "h1:Pressed Heading", "h2:Control Heading"]);
+    // THE CONTROL that classifies it: with only ONE block there is nothing to override, and
+    // both spellings are correct — so the defect is the SECOND block, not the leading blank.
+    const oneBlock = (lead: string) =>
+      `${lead}---\ntitle: D\nfrom: gfm\n---\n\nBody.\n` +
+      "\nSome prose paragraph.\n# Pressed Heading\n\n## Control Heading\n";
+    expect(names(oneBlock(""))).toEqual(HONOURED);
+    expect(names(oneBlock("\n"))).toEqual(HONOURED);
+  });
+
+  it("PIN — form feed, vertical tab and a NO-BREAK SPACE all count as blank", () => {
+    // `adv` a06_formfeed / a07_vtab / a08_nbsp and `adv2` b01_nbsp_true, byte-verified as
+    // U+000C, U+000B and U+00A0 rather than trusted from their names. Quarto tolerates all
+    // three and `String.prototype.trim` strips all three, so the two agree without special
+    // casing — the assumption `trim()` encodes was attacked rather than assumed.
+    for (const lead of ["\f", "\v", "\u00a0"]) {
+      expect(names(doc(lead, ...RDR, ...BODY))).toEqual(HONOURED);
+    }
+  });
+
+  it("PIN — a `---` far below does NOT swallow prose, because quarto reads it the same way", () => {
+    // `adv` a01_setext_below — the assumption most likely to be wrong and most expensive if it
+    // were: the terminator is found by scanning to end of document. Measured, quarto treats the
+    // block as metadata too and renders only the heading below it, so the pre-session build's
+    // extra `h2:Chapter One` was the error and this is a FIX, not a swallow.
+    expect(names(doc("", "---", "Chapter One", "---", "", "Body prose.", "", "# Real Heading"))).toEqual([
+      "h1:Real Heading",
+    ]);
+    // and an ordinary document that merely OPENS with a rule keeps its heading (a03_two_rules):
+    // the blank line below the opener refuses it, which is the clause that makes this safe.
+    expect(names(doc("", "---", "", "Intro prose.", "", "---", "", "# Real Heading"))).toEqual([
+      "h1:Real Heading",
+    ]);
+  });
 });
