@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S215
+date: 2026-08-11
+status: pending
+active_task: IN PROGRESS. `ATX_CLOSING` refuses to strip a trailing `#` run that has no whitespace before it, and pandoc strips it -- `# Cal Learning C#` renders `h1:Cal Learning C` while this model reports `Cal Learning C#`. Heading-TEXT-DIVERGING. Filed by S212, ranked #1 by S214; operator-selected via AskUserQuestion at Phase 0 from an empty Active section. ⚠ The item claims the strip happens under EVERY reader and CommonMark 4.2 requires the closing sequence to be PRECEDED BY A SPACE, so the nine-reader table is rendered before any code -- the same wording S214's first render refuted. ⚠ `ATX_CLOSING_UNSPACED`'s removal is part of the item and is a behaviour change in the INVENTING direction, not a cleanup.
+```
+
+```handoff
 session: S214
 date: 2026-08-11
 status: complete

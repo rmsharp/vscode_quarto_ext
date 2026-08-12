@@ -5,6 +5,27 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 215 — IMPLEMENTATION (strict TDD): `ATX_CLOSING` refuses to strip a trailing `#` run that has no whitespace before it, and pandoc strips it. `# Cal Learning C#` renders `h1:Cal Learning C` and this model reports `Cal Learning C#`. Heading-TEXT-DIVERGING.**
+**Started:** 2026-08-11
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**How this item was selected.** Operator-selected via `AskUserQuestion` at Phase 0 from an empty Active section. Ranked **#1 by S214** and **#2 by S213**; filed by S212 while bounding its own declines.
+
+**Decision rules carried into this session, from a coupling survey run BEFORE this stub.**
+
+1. **⚠ THE ITEM SAYS "UNDER EVERY READER" AND COMMONMARK §4.2 SAYS THE OPPOSITE — RENDER THE NINE-READER TABLE BEFORE ANY CODE.** S212 measured exactly TWO readers (`markdown_strict` via `cal2/h4_csharp_sp_strict`, plain `markdown` via `h5_csharp_sp_md`) and the entry generalised to "EVERY reader". CommonMark §4.2 requires the closing sequence to be **preceded by a space**, so `gfm`/`commonmark`/`commonmark_x` are predicted NOT to strip. ⚠ S214's Headline 1 was this exact failure on this exact wording (a 6–3 split where the item claimed nine), and Learnings #351/#352 are two more. ⚠ **`markdown_github` gets its own row** — S214 measured it on the *opposite* side from `gfm` despite pandoc documenting it as a deprecated synonym (#348/#352 in a third place).
+2. **⚠ THE STRIP IS SHARED WITH THE SETEXT PATH, AND THE SETEXT ANSWER IS ALREADY MEASURED RIGHT — DO NOT MOVE IT.** `buildHeading` (`:5403`) takes `stripClosingHash`; `parseSetextHeadingLine` passes `false`, and S214 rendered `cal2/e_close` → `h1:# Cal Close Above ##`, i.e. quarto KEEPS a trailing hash run on a setext heading. The change belongs to `ATX_CLOSING` (`:172`) and the ATX call path (`parseHeadingLine` `:5428`, call site `:4429`) only. Moving the setext path regresses a row S214 pinned last session.
+3. **⚠ `ATX_CLOSING_UNSPACED`'s REMOVAL IS PART OF THE ITEM AND IT IS A BEHAVIOUR CHANGE, NOT A CLEANUP.** Its ONE use is `tightAtxWouldWorsen`'s third clause (`:1683`), which DECLINES the tight spelling for this shape so the model reports nothing. Deleting the clause makes those rows report a heading — the **INVENTING** direction, which is S212's own headline trap. It ships only if the tight-dialect readers sit inside the measured strip set, and it needs its own two-directional score.
+4. **⚠ THE ESCAPE IS THE UNMEASURED HAZARD, AND IT POINTS AT DELETION.** `# Heading\#`: today's `(?:^|[ \t]+)` refuses to strip (a backslash is neither anchor), and a bare `#+[ \t]*$` strips it, leaving `Heading\`. Nobody has rendered it. Measure `\#` alongside `# C#`, `# C##`, `# Heading#word#` and `# a # b #`, so the run's boundary is bounded by documents rather than by argument.
+5. **⚠ TWO PINNED BEHAVIOURS SIT ON THIS REGEX AND ONE CARRIES A REVIEW NUMBER.** `## ##` / `### ###` / `#### #` are DROPPED (`test/unit/qmd-model.test.ts:392`, "review #4") by today's `^` alternative — a replacement must keep all three dropped. `# C# language` (`:78`) must keep its `#` because the run is not at end of line. ⚠ That second test's NAME ("keeps a hash that is part of the text") becomes false as a general claim even though its document still passes: Learning #324 — a comment that has become false is part of the change.
+6. **⚠ THE CROSS-REFERENCE INDEX DOES NOT MOVE, AND THIS WAS CHECKED RATHER THAN ASSUMED.** `src/core/refs.ts:97` reads `Heading.id`, which is set ONLY from an explicit `{#sec-…}` attribute block — no id is derived from heading TEXT. So unlike S214's polarity note, a text-only change here cannot move a `sec-` id. Re-verify at implementation time before relying on it.
+7. **⚠ THE TRACKED CORPUS HOLDS ZERO INSTANCES OF THE GEOMETRY, SWEPT AT CLAIM TIME RATHER THAN AT SCORING TIME** (S214's gotcha 5). One `perl` pass over every tracked `.qmd`/`.md`/`.Rmd` matched no heading line ending in an unspaced hash run. So the 115-document repo control is PREDICTED byte-identical and therefore proves nothing on its own — the injection control (S213's gotcha 4, with its "the injected documents must also agree with quarto" clause) is what makes that zero mean anything.
+8. **⚠ TDD GATE: the guard block FIRST, then RED→GREEN** (S204's gotcha 5, a TWELFTH time), on the polarity this rule threatens — over-firing DELETES characters from a heading a reader really sees, and the escape row (rule 4) is where that would land.
+
+---
+
+## Session 214 ACTIVE TASK (superseded by Session 215 — full entry preserved below)
 **Task:** **Session 214 — IMPLEMENTATION (strict TDD): a SETEXT UNDERLINE directly below an ATX heading SWALLOWS it, and quarto keeps the literal `#` in the heading's text. Heading-TEXT-DIVERGING.**
 **Started:** 2026-08-11 · **Closed:** 2026-08-11
 **Status:** **DONE. SHIPPED — and the item's own reader clause is WRONG, refuted by the first render of the session. 207 documents rendered plus a 44,013-document re-score of every predecessor corpus: designed 60/110 → 108/110, adversarial 7/22 → 18/22, and every one of the 75 predecessor documents that moved was rendered — 0/75 → 74/75, ZERO regressions. INTRODUCED 0 in every corpus.**
