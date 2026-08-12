@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S216
+date: 2026-08-11
+status: pending
+active_task: IN PROGRESS. The trailing heading ATTRIBUTE BLOCK is stripped UNCONDITIONALLY and only when whitespace precedes the brace, and quarto's answer is neither. `# Cal November Attr#{#sec-nov}` renders `h1:Cal November Attr` and this model reports the whole literal; under `gfm` quarto renders the whole literal `Cal Mike Attr# {#sec-mike}` and this model strips it AND indexes a `sec-` id. ⚠ SCOPE DECIDED BY MEASUREMENT BEFORE THIS STUB: BACKLOG.md filed the unspaced brace and the `header_attributes` per-reader table separately and told the next session to measure whether they are one item -- THEY ARE. S215's own rendered corpus (scratchpad/s215/cal2) shows the narrow regex fix turns `b_attrtight_gfm` from RIGHT to WRONG, because that row is correct today only by the accident that two wrong rules cancel. So the deliverable is the READER-GATED strip, of which the leading-whitespace regex is one clause. ⚠ The gate is NOT `commonmarkDialect`: `header_attributes` is a pandoc EXTENSION and `markdown_strict` / `markdown_mmd` sit on the same side as `gfm`, a FOUR-WAY split. ⚠ Unlike the item S215 closed, this one CAN move the `sec-` CROSS-REFERENCE INDEX (refs.ts:97).
+```
+
+```handoff
 session: S215
 date: 2026-08-11
 status: complete
