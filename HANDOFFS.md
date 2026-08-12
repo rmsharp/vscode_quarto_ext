@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S217
+date: 2026-08-11
+status: pending
+active_task: IN PROGRESS. This model processes NO markdown escapes anywhere, so a heading keeps every backslash quarto consumes -- AND the two `(?<!\\)` lookbehinds written to work around that gap each look at ONE character, so an escaped backslash before a real construct defeats both. `# Cal Esc \{#sec-esc}` renders `h1:Cal Esc {#sec-esc}` and this model reports the backslash; `# Adv Esc Backslash \\{#sec-advesb}` renders `h1:Adv Esc Backslash \` WITH `id="sec-advesb"` and this model reports the whole literal and indexes nothing. Filed by S215, ranked #1 by S216; operator-selected via AskUserQuestion at Phase 0 from an empty Active section. Deliverable is ONE capability: a heading's text is reported the way quarto renders it with respect to backslash escapes, and a construct preceded by an EVEN run of backslashes is a real construct. Eight decision rules carried from a coupling survey run BEFORE this stub -- the two halves are coupled and either alone ships a wrong row; SEVEN witnesses are already rendered on disk across FOUR predecessor sessions, the oldest (s203/adv/text/text_03) predating the filing by thirteen sessions and measuring BOTH halves in one document; the escapable-set reader split is unmeasured and no existing flag may be reused; decoding cannot move the cross-reference index but PARITY can, in the recovering direction; `tightAtxWouldWorsen` is the second call site and is the one that bit S216 one session ago on this exact pair of functions; `\<space>` and `\<EOL>` are not character escapes; and the decode must run AFTER both strips or it deletes text quarto renders.
+```
+
+```handoff
 session: S216
 date: 2026-08-11
 status: complete
