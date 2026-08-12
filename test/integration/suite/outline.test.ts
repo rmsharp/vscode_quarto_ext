@@ -2275,4 +2275,74 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `ordinary headings must be unaffected: ${setext.join(", ")}`,
     );
   });
+
+  it("a heading's backslash escapes are resolved per reader", async () => {
+    // Session 217. This model processed NO markdown escapes anywhere, so a heading kept every
+    // backslash quarto consumes — and the two `(?<!\\)` lookbehinds written to work around that
+    // each looked at ONE character. Measured over 319 documents rendered through the real quarto
+    // path (`scratchpad/s217/cal`, `cal2`, `cal3`, `cal4`, `cal5`, `cal6`).
+    //
+    // ⚠ Every assertion below was pre-checked headlessly against the pure `core/` model before
+    // this test was written (`scratchpad/s217/pre/precheck217.test.ts`, 10 green) — S211's
+    // gotcha 3, a SIXTH session running. ⚠ `openInMemory` gives these documents their own scope,
+    // so no exact-set pin elsewhere can be extended by them. The grep that finds those pins is
+    // `grep -cE '^\s+assert\.deepStrictEqual\(' test/integration/suite/outline.test.ts`; it was
+    // run BEFORE this test was written and returned 24, unchanged by it (gotcha 8).
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+    const CTL = ["", "## Cal Spaced Control"];
+
+    // PRESENT — the filed defect, on the user-visible outline. `cal/a_none_colon` renders
+    // `h1:Cal Echo Esc:Colon`.
+    const dflt = await namesFor("# Cal Echo Esc\\:Colon", ...CTL);
+    assert.ok(dflt.includes("Cal Echo Esc:Colon"), `the escape is consumed: ${dflt.join(", ")}`);
+    // ABSENT — the literal, in the SAME document, so this is a REPLACEMENT and not an addition.
+    assert.ok(
+      !dflt.includes("Cal Echo Esc\\:Colon"),
+      `the backslash must be gone, not merely joined: ${dflt.join(", ")}`,
+    );
+
+    // PRESENT (with backslash) — ⚠ THE ROW THAT MAKES THIS A SPLIT. `markdown_strict` escapes
+    // only Markdown.pl's 16 characters, and `:` is not one (`cal/a_strict_colon`). Without this
+    // the row above passes for a build that decodes unconditionally — which would DELETE a
+    // character two readers really render.
+    const strict = await namesFor(
+      "---", "from: markdown_strict", "---", "", "# Cal Echo Esc\\:Colon", ...CTL,
+    );
+    assert.ok(
+      strict.includes("Cal Echo Esc\\:Colon"),
+      `markdown_strict keeps it: ${strict.join(", ")}`,
+    );
+
+    // PRESENT / PRESENT-with-backslash — ⚠ THE DISCRIMINATOR between Set A and Set B, and the
+    // only shape that separates them: the two readers agree on all 32 ASCII punctuation
+    // characters and diverge on a non-ASCII SYMBOL (`cal3`).
+    const symA = await namesFor("# Cal Esc\\±End", ...CTL);
+    assert.ok(symA.includes("Cal Esc±End"), `Set A escapes a symbol: ${symA.join(", ")}`);
+    const symB = await namesFor("---", "from: gfm", "---", "", "# Cal Esc\\±End", ...CTL);
+    assert.ok(symB.includes("Cal Esc\\±End"), `Set B is ASCII-only: ${symB.join(", ")}`);
+
+    // PRESENT — PARITY. An EVEN run leaves the attribute block real, so the braces are stripped
+    // and ONE backslash survives (`cal4/d_md_attr2` renders `Cal Par2 Attr \`).
+    const par = await namesFor("# Cal Par2 Attr \\\\{#sec-par2}", ...CTL);
+    assert.ok(par.includes("Cal Par2 Attr \\"), `even parity is a real block: ${par.join(", ")}`);
+
+    // PRESENT (with backslash) — the EXTENSION token overrides the base and LAST WINS
+    // (`cal6/m1_colon`): a disabled `markdown` falls to Set C, not to Set B.
+    const ext = await namesFor(
+      "---", "from: markdown-all_symbols_escapable", "---", "", "# Cal Fb Esc\\:End", ...CTL,
+    );
+    assert.ok(ext.includes("Cal Fb Esc\\:End"), `the token overrides the base: ${ext.join(", ")}`);
+
+    // PRESENT — the SETEXT path, which shares `buildHeading` and is never inherited
+    // (`cal4/g_md_setext_colon`).
+    const setext = await namesFor("Cal St Esc\\:Colon", "===", ...CTL);
+    assert.ok(setext.includes("Cal St Esc:Colon"), `setext takes the rule: ${setext.join(", ")}`);
+
+    // PRESENT — the control heading, without which every assertion above passes for a build
+    // whose outline has stopped working altogether.
+    assert.ok(dflt.includes("Cal Spaced Control"), `control heading: ${dflt.join(", ")}`);
+  });
 });

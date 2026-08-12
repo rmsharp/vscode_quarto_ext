@@ -231,4 +231,44 @@ describe("Quarto: Cross-reference completion + definition", () => {
       `the default reader still defines it: ${JSON.stringify(dflt)}`,
     );
   });
+
+  it("an escaped backslash makes the attribute block real, so the sec- label exists (Session 217)", async () => {
+    // ⚠ THE CONSUMER THE DECODE ALONE CANNOT REACH. This model has no auto-id generation, so
+    // `indexLabels` reads only an explicit `Heading.id` — decoding heading TEXT can never move
+    // the cross-reference index. The PARITY half can: `# Adv Esc Backslash \\{#sec-advesb}`
+    // renders `h1:Adv Esc Backslash \` AND defines `id="sec-advesb"` (rendered firsthand,
+    // `scratchpad/s217/pin/p3_twoslash`), and `(?<!\\)` saw one character and refused it.
+    //
+    // ⚠ Both assertions were pre-checked headlessly against `indexLabels` before this test was
+    // written (`scratchpad/s217/pre/precheck217.test.ts`), per S211's gotcha 3.
+    const labelsAt = async (content: string) => {
+      const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+      await vscode.window.showTextDocument(doc);
+      const line = doc.lineCount - 1;
+      const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        doc.uri,
+        new vscode.Position(line, doc.lineAt(line).text.length),
+        "@",
+      );
+      return (list?.items ?? []).map(labelText);
+    };
+
+    // PRESENT — an EVEN run: the block is real and the target is offered.
+    const even = await labelsAt(["# Adv Esc Backslash \\\\{#sec-advesb}", "", "See @"].join("\n"));
+    assert.ok(
+      even.includes("@sec-advesb"),
+      `an escaped backslash leaves a real block: ${JSON.stringify(even)}`,
+    );
+
+    // ABSENT — ⚠ THE CONTROL, and it is the same bytes minus ONE backslash. `\{` is an escaped
+    // brace, so quarto renders `Adv Esc Backslash {#sec-advesb}` as text and defines no id
+    // (`pin/p3_oneslash`). Without this row the assertion above passes for a build that offers
+    // the label for both spellings — which is what indexing on the brace alone would do.
+    const odd = await labelsAt(["# Adv Esc Backslash \\{#sec-advesb}", "", "See @"].join("\n"));
+    assert.ok(
+      !odd.includes("@sec-advesb"),
+      `an escaped BRACE defines no label: ${JSON.stringify(odd)}`,
+    );
+  });
 });
