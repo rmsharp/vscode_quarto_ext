@@ -7242,8 +7242,16 @@ describe("a reader with `space_in_atx_header` OFF accepts `#Heading` (Session 21
     // but it is the answer the pre-session build already gives, and the alternative is to
     // report a heading whose TEXT is wrong, turning one error into two. Held deliberately, and
     // filed: see `CALIBRATION.md` §5 and this session's three new BACKLOG entries.
-    // `cal/c8_attr_strict` — `markdown_strict` KEEPS the braces; this model strips them.
-    expect(names(withFrom("markdown_strict", "#Cal Tight Attr {#sec-caltight}"))).toEqual(REFUSED);
+    // `cal/c8_attr_strict` — ⚠ **REVERSED BY SESSION 216, WHICH IS THE ITEM THIS ROW FILED, AND
+    // IT IS A FIX.** The comment here used to read "`markdown_strict` KEEPS the braces; this
+    // model strips them" — and the decline existed only because the strip was wrong. It is
+    // reader-gated now, so `markdown_strict` keeps them here too and the row is ACCEPTED with
+    // quarto's exact text. Proven by rendering these very bytes rather than by trusting this
+    // comment (`scratchpad/s216/pin/p3_tightattr_sp` → `h1:Cal Tight Attr {#sec-caltight}`).
+    expect(names(withFrom("markdown_strict", "#Cal Tight Attr {#sec-caltight}"))).toEqual([
+      "h1:Cal Tight Attr {#sec-caltight}",
+      "h2:Cal Spaced Control",
+    ]);
     // `cal/c7_close_strict` — ⚠ REVERSED BY SESSION 215, WHICH IS THE ITEM THIS ROW FILED. The
     // comment here used to read "quarto strips the closing `#` with no space before it; we do
     // not", and the decline existed only because the strip was wrong. It is right now, so the
@@ -7398,9 +7406,17 @@ describe("a reader with `space_in_atx_header` OFF accepts `#Heading` (Session 21
     // is the price of the blanket decline (see `tightAtxWouldWorsen`). Filed, with the two rows
     // a per-reader `header_attributes` table would recover (`cal2/g5`, `cal3/n1`).
     // ⚠ INSTRUMENT NOTE: that document's rendered truth is scored through a COMMA-joined
-    // heading list, so the comma inside `{a, b}` splits it — the row adjudicates the same either
-    // way (this model reports nothing), but no future corpus should put a comma in heading text.
-    expect(names(withFrom("markdown_strict", "#Adv Tight Set {a, b}"))).toEqual(REFUSED);
+    // heading list, so the comma inside `{a, b}` splits it — which is why Session 216 re-rendered
+    // these EXACT bytes and read the `<h1>` out of the HTML directly rather than through any
+    // extractor: `h1:Adv Tight Set {a, b}` / `h2:Cal Spaced Control`.
+    // ⚠ **RECOVERED BY SESSION 216 — this is the LOST TRUE POSITIVE this row filed.** The
+    // blanket decline is now gated on whether the reader honours the block at all, and
+    // `markdown_strict` does not, so there is nothing to strip and nothing to worsen. The filed
+    // item predicted a per-reader `header_attributes` table would recover exactly these rows.
+    expect(names(withFrom("markdown_strict", "#Adv Tight Set {a, b}"))).toEqual([
+      "h1:Adv Tight Set {a, b}",
+      "h2:Cal Spaced Control",
+    ]);
   });
 });
 
@@ -8304,6 +8320,41 @@ describe("the heading ATTRIBUTE block is stripped only where the reader honours 
     expect(
       names(withFrom("markdown+header_attributes-header_attributes", "# Cal Quebec T{#sec-q-ti}")),
     ).toEqual(["h1:Cal Quebec T{#sec-q-ti}", TAIL]);
+  });
+
+  /**
+   * RED 3 — ⚠ **A TRUE REGRESSION THIS SESSION CAUSED, FOUND BY ITS OWN SCOPING CHECK RATHER
+   * THAN BY ANY DESIGNED DOCUMENT, AND NAMED IN ADVANCE BY DECISION RULE 6.**
+   *
+   * `tightAtxWouldWorsen` declines the TIGHT ATX spelling whenever `HEADING_ATTRIBUTE` matches
+   * the line — and this session WIDENED that constant underneath it, so the clause began seeing
+   * lines it had never seen. `#Cal Tight Attr{#sec-tightattr}` under `markdown_strict` and
+   * `markdown_mmd` renders `<h1>Cal Tight Attr{#sec-tightattr}</h1>` (measured,
+   * `scratchpad/s216/tight`); this model reported it CORRECTLY before the widening and reported
+   * NOTHING after it. A heading DELETED — the one direction this project does not accept.
+   *
+   * ⚠ The clause exists only because the strip could not be trusted. Where the reader does not
+   * honour the block there is nothing to strip and nothing to worsen, so the gate belongs on the
+   * clause too. Learning #358 exactly, one session later: ask per SHAPE whether the change makes
+   * THAT shape right, rather than assuming a widened constant improves every clause it feeds.
+   */
+  it("⚠ the TIGHT ATX spelling is not declined where the reader keeps the braces — `tight/`", () => {
+    for (const reader of ["markdown_strict", "markdown_mmd"]) {
+      // The regression: reported correctly BEFORE this session, deleted by the widening.
+      expect(names(withFrom(reader, "#Cal Tight Attr{#sec-tightattr}"))).toEqual([
+        "h1:Cal Tight Attr{#sec-tightattr}",
+        TAIL,
+      ]);
+      // The SPACED twin, which the same gate additionally recovers — it was wrong before too.
+      expect(names(withFrom(reader, "#Cal Tight Attr Sp {#sec-tightattrsp}"))).toEqual([
+        "h1:Cal Tight Attr Sp {#sec-tightattrsp}",
+        TAIL,
+      ]);
+    }
+    // ⚠ THE CONTROL — where the reader DOES honour the block the decline is UNCHANGED, so this
+    // is a narrowing of the clause and not its removal. `markdown_phpextra` still reports
+    // nothing here, which is the already-filed over-fire item, deliberately left filed.
+    expect(names(withFrom("markdown_phpextra", "#Cal Tight Attr{#sec-tightattr}"))).toEqual([TAIL]);
   });
 
   /**

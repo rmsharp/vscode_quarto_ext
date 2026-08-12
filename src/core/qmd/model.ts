@@ -1828,10 +1828,11 @@ function tightAtxWouldWorsen(
   line: string,
   next: string | undefined,
   columns: readonly number[],
+  honoursAttributes: boolean,
 ): boolean {
   return (
     (next !== undefined && setextUnderlineLevel(next, columns) !== null) ||
-    HEADING_ATTRIBUTE.test(line) ||
+    (honoursAttributes && HEADING_ATTRIBUTE.test(line)) ||
     ATX_CLOSING_ESCAPED.test(line)
   );
 }
@@ -4584,7 +4585,12 @@ function computeRegions(text: string): Regions {
                 : [0, ...contentColumns],
             tightAtxDialect &&
               literalHtmlLines?.has(i) !== true &&
-              !tightAtxWouldWorsen(line, lines[i + 1], [0, ...contentColumns]),
+              !tightAtxWouldWorsen(
+                line,
+                lines[i + 1],
+                [0, ...contentColumns],
+                headerAttributesDialect,
+              ),
           );
     if (m) {
       const heading = parseHeadingLine(m, i, commonmarkDialect, headerAttributesDialect);
