@@ -194,14 +194,18 @@ const ATX_CLOSING = /(?:^|[ \t]+)#+[ \t]*$/;
  * though pandoc documents the former as a deprecated synonym for the latter — a table reasoned
  * from the base name puts that row on the wrong side (Learnings #348 / #352, a fourth time).
  *
- * ⚠ **`(?<!\\)` is not defensive coding — it is one rendered row, and without it this rule
- * DELETES a character quarto keeps.** `# Cal Echo Esc\#` renders `<h1>Cal Echo Esc#</h1>` under
- * both a stripping and a non-stripping reader (`cal2/b_esc_md`, `b_esc_gfm`): `\#` is an escaped
- * hash, not a closing run. This model keeps the backslash — it processes no markdown escapes
- * anywhere, a pre-existing gap filed separately — so that row diverges before AND after. What the
- * lookbehind buys is that it may not additionally lose the hash.
+ * ⚠ **The lookbehind counts BACKSLASH PARITY; it is not `(?<!\\)`, and the difference is
+ * measured** (Session 217). An escape needs an ODD run of backslashes before it, so a construct
+ * is real exactly when an EVEN run (including none) precedes it — `(?<=(?:^|[^\\])(?:\\\\)*)`.
+ * `# Cal Echo Esc\#` renders `<h1>Cal Echo Esc#</h1>` (the hash is escaped, no closing run) while
+ * `# Adv Double Esc\\#` renders `<h1>Adv Double Esc\</h1>` — the `\\` is an escaped backslash, so
+ * the `#` after it IS a closing run. `(?<!\\)` sees one character and gets the second row wrong;
+ * the full ladder is `scratchpad/s217/cal4`'s `d_*_run0`–`run3`, three readers.
+ *
+ * ⚠ The surviving backslashes stay in the text — this constant only decides WHERE the run is.
+ * `decodeHeadingEscapes` then halves them, which is why `d_md_run2` ends as one backslash.
  */
-const ATX_CLOSING_PANDOC = /(?<!\\)#+[ \t]*$/;
+const ATX_CLOSING_PANDOC = /(?<=(?:^|[^\\])(?:\\\\)*)#+[ \t]*$/;
 /**
  * The closing-sequence spelling this document's reader uses, or `null` where the construct does
  * not exist at all. Setext headings pass `null`: quarto keeps a trailing hash run there under
@@ -224,14 +228,18 @@ function atxClosingRun(commonmarkDialect: boolean): RegExp {
  * The old `(?:^|[ \t]+)` is the same one-line shape Session 215 removed from `ATX_CLOSING` one
  * constant over.
  *
- * ⚠ **`(?<!\\)` is one rendered row, not defensive coding, and it is the SECOND session running
- * that the obvious widening deletes a character quarto keeps.** `# Cal Esc \{#sec-esc}` renders
- * `<h1>Cal Esc {#sec-esc}</h1>` under BOTH reader families (`s216/cal2/b_esc_md`, `b_esc_gfm`):
- * `\{` is an escaped brace, so quarto consumes the backslash and renders the braces as TEXT — it
- * did not strip anything. Without the lookbehind this rule yields `Cal Esc \`, losing the brace
- * group AND keeping the backslash. This model processes no markdown escapes anywhere (a
- * separately filed item), so the row diverges before and after; what the lookbehind buys is that
- * it may not additionally DELETE text.
+ * ⚠ **The lookbehind counts BACKSLASH PARITY; it is not `(?<!\\)`** (Session 217, and see
+ * `ATX_CLOSING_PANDOC` for the same change one constant over). `# Cal Esc \{#sec-esc}` renders
+ * `<h1>Cal Esc {#sec-esc}</h1>` — `\{` is an escaped brace, so there is no block at all — while
+ * `# Adv Esc Backslash \\{#sec-advesb}` renders `<h1>Adv Esc Backslash \</h1>` **and defines
+ * `id="sec-advesb"`**, because `\\` is an escaped backslash and the block after it is real.
+ * `(?<!\\)` refuses both, which loses that id.
+ *
+ * ⚠ **THIS IS THE ONLY WAY THIS SESSION'S RULE REACHES `src/core/refs.ts`.** Decoding heading TEXT
+ * cannot move the cross-reference index — the model has no auto-id generation, so `indexLabels`
+ * reads only an explicit `Heading.id`. The parity half can, and it moves it in the RECOVERING
+ * direction: an id quarto defines and this model used to miss. Ladder: `scratchpad/s217/cal4`
+ * `d_*_attr0`–`attr3`, three readers, plus `pin/p3_twoslash`.
  *
  * ⚠ **Whether the block is HONOURED is a separate question, and it is `headerAttributesDialect`'s**
  * — see `fromHonoursHeaderAttributes`. This constant only says where a block would be.
@@ -243,13 +251,78 @@ function atxClosingRun(commonmarkDialect: boolean): RegExp {
  * closing sequence and the braces are ordinary text). Only the LAST block on a line is a block:
  * `# Cal Two {#a}{#b}` renders `Cal Two {#a}` (`b_two_md`).
  */
-const HEADING_ATTRIBUTE = /(?<!\\)\{[^}]*\}[ \t]*$/;
+const HEADING_ATTRIBUTE = /(?<=(?:^|[^\\])(?:\\\\)*)\{[^}]*\}[ \t]*$/;
 /**
  * The `#identifier` inside a Pandoc attribute block. Pandoc separates id, classes
  * (`.x`), and key=val pairs by whitespace, so the id runs from `#` to the next
  * whitespace or closing brace: `{#sec-intro .unnumbered}` → `sec-intro`.
  */
 const ATTR_ID = /#([^\s}]+)/;
+/**
+ * The characters a backslash may escape under **CommonMark 6.1** — the 32 ASCII punctuation
+ * characters, and nothing else (Session 217).
+ *
+ * ⚠ **Measured, not transcribed from the spec.** `scratchpad/s217/cal2` renders all 32 against
+ * `gfm`, one document each, and all 32 are escapable; `cal3` renders `\±` and `\€` against every
+ * reader and the CommonMark family leaves BOTH literal, which is the boundary that makes this
+ * "ASCII punctuation" rather than "punctuation".
+ */
+const ESCAPABLE_ASCII_PUNCTUATION = /[!-/:-@[-`{-~]/;
+/**
+ * Markdown.pl's original escapable set — **plus `>`**, which is the one character the
+ * documented set does not contain and the render says is escapable anyway (Session 217).
+ *
+ * ⚠ **16 characters, measured over the full 32 in `scratchpad/s217/cal2`** against BOTH
+ * `markdown_strict` and `markdown_phpextra`, which return byte-identical sets. The other 16 stay
+ * literal, and decoding them would DELETE a character those two readers really render — the
+ * direction that costs text rather than adding it.
+ */
+const ESCAPABLE_LEGACY = /[!#()*+\-.>[\\\]_`{}]/;
+/**
+ * The characters a backslash may escape under pandoc's **`all_symbols_escapable`** — any
+ * PUNCTUATION or SYMBOL, the non-ASCII ranges included (Session 217).
+ *
+ * ⚠ **This is a strict superset of `ESCAPABLE_ASCII_PUNCTUATION`, and the two are separated by
+ * exactly two rendered documents.** `markdown` and `gfm` agree on ALL 32 ASCII punctuation
+ * characters (`scratchpad/s217/cal2`, one document each), so three or thirty-two agreeing rows
+ * would have justified merging them into one set. `cal3` renders `\±` and `\€` against every
+ * one of the nine readers: `markdown`, `markdown_mmd`, `markdown_github` and the default reader
+ * consume the backslash, and the CommonMark family does not. Those two probes exist only to make
+ * a wrong merge visible, and they are the reason this file carries two sets instead of one.
+ */
+const ESCAPABLE_ALL_SYMBOLS = /[\p{P}\p{S}]/u;
+/**
+ * `text` with each backslash escape resolved the way this document's reader resolves it, or
+ * `text` unchanged when it holds no backslash at all (Session 217).
+ *
+ * ⚠ **A LEFT-TO-RIGHT SCAN, WHICH IS WHAT MAKES PARITY FALL OUT FOR FREE.** `\\\\` is consumed as
+ * one complete escape, so the character after it starts a fresh escape — which is exactly why
+ * `# Cal Par2 Attr \\\\{#sec-par2}` renders `Cal Par2 Attr \` WITH the id and
+ * `# Cal Par3 Attr \\\\\\{#sec-par3}` renders the braces literally (`scratchpad/s217/cal4`, the
+ * `d_*` ladder, 0–3 backslashes × two constructs × three readers). A per-character rule cannot
+ * express that; two lookbehinds in this file tried and both were wrong from two backslashes up.
+ *
+ * ⚠ **A backslash before a LETTER is never an escape** — CommonMark 6.1's "backslashes before
+ * other characters are treated as literal backslashes", and pandoc agrees for every reader in
+ * `cal/a_*_letter` but two. The obvious `\\\\(.)` -> `$1` gets this wrong on all nine readers at
+ * once, which is why the escapable set is a membership test and not a wildcard.
+ */
+function decodeHeadingEscapes(text: string, escapable: RegExp): string {
+  if (!text.includes("\\")) {
+    return text;
+  }
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === "\\" && i + 1 < text.length && escapable.test(text[i + 1])) {
+      out += text[i + 1];
+      i++;
+      continue;
+    }
+    out += c;
+  }
+  return out;
+}
 /**
  * The ATX heading match on `line`, or null if these bytes are not a heading HERE
  * (Session 199). `columns` is `[0, ...contentColumns]` — column 0 plus every column in the
@@ -1383,6 +1456,77 @@ const FRONTMATTER_HEADER_ATTRIBUTES_OFF_FROM =
  */
 const FRONTMATTER_FROM_HEADER_ATTRIBUTES_TOKEN = /([+-])(?:header_)?attributes(?![a-zA-Z0-9_])/g;
 /**
+ * The two readers measured to escape only **Markdown.pl's 16 characters** rather than the full
+ * ASCII punctuation range — see `ESCAPABLE_LEGACY` (Session 217).
+ *
+ * ⚠ **`markdown_phpextra` sits here and `markdown_mmd` does NOT, and I predicted the opposite.**
+ * `scratchpad/s217/cal`, nine readers × seven probes with a plain control each: the count (7-2)
+ * was right and the MEMBERSHIP was wrong on two of nine. A predicate written from the prediction
+ * would have decoded 16 characters `markdown_phpextra` renders literally, and kept 16 that
+ * `markdown_mmd` consumes — wrong in both directions at once.
+ *
+ * ⚠ `markdown` may not swallow `markdown_strict`/`markdown_phpextra`, hence the trailing
+ * boundary; and `markdown_github` is deliberately ABSENT — it is on `markdown`'s side here, the
+ * fifth consecutive session that reader splits from the name it is documented as a synonym for.
+ */
+const READER_ESCAPES_ALL_SYMBOLS: ReadonlySet<string> = new Set([
+  "markdown",
+  "markdown_mmd",
+  "markdown_github",
+]);
+/**
+ * Whether the resolved `from:` names a reader carrying pandoc's `all_symbols_escapable`, so a
+ * backslash escapes any punctuation OR symbol rather than a fixed ASCII list (Session 217).
+ *
+ * ⚠ **Consulted only for readers OUTSIDE the CommonMark family** — `commonmarkDialect` answers
+ * those, and quarto REFUSES `gfm+all_symbols_escapable` outright (exit 1,
+ * `scratchpad/s217/cal5/k3_gfm_on`), so the extension cannot reach them anyway.
+ *
+ * ⚠ **`markdown_phpextra` is absent and `markdown_mmd` is present, and I predicted the
+ * opposite.** `scratchpad/s217/cal`, nine readers × seven probes each with its own plain control:
+ * the 7-2 COUNT was right and the MEMBERSHIP was wrong on two of nine. A predicate written from
+ * the prediction would have decoded 16 characters `markdown_phpextra` renders literally — the
+ * text-DELETING direction — and kept 16 that `markdown_mmd` consumes.
+ *
+ * ⚠ `markdown_github` is here, on `markdown`'s side, for the FIFTH consecutive session in which
+ * this reader does not follow the name pandoc documents it as a synonym for.
+ *
+ * ⚠ **The default is TRUE**, so it takes `fromValueLine` itself rather than the `!== null &&`
+ * idiom most flags in this file use: a document with no `from:` at all is the default reader,
+ * which `cal/a_none_*` measures as Set A.
+ */
+function fromEscapesAllSymbols(line: string | null): boolean {
+  if (line === null) {
+    return true;
+  }
+  // LAST occurrence wins, via the shared `fromExtensionState` — re-measured for THIS extension
+  // in both orders rather than inherited: `markdown-all_symbols_escapable+all_symbols_escapable`
+  // escapes a non-ASCII symbol (`cal5/k5_md_offon`) and
+  // `markdown+all_symbols_escapable-all_symbols_escapable` does not (`k6_md_onoff`).
+  // ⚠ A DISABLED reader falls through to the BASE-NAME answer below, which for every pandoc base
+  // is Set C — measured on the four characters that separate Set C from Set B (`cal6`), not
+  // assumed from the base's own default.
+  const state = fromExtensionState(line, "all_symbols_escapable");
+  if (state !== null) {
+    return state;
+  }
+  const base = fromReaderBase(line);
+  return base === null ? true : READER_ESCAPES_ALL_SYMBOLS.has(base);
+}
+/**
+ * The escapable set this document's reader uses — the three-way resolution measured in
+ * `scratchpad/s217/cal`, `cal2` and `cal3` (Session 217). Mirrors `atxClosingRun`'s shape one
+ * question over: a per-reader choice between constants, resolved at the call site where both
+ * flags are live.
+ */
+function headingEscapable(commonmarkDialect: boolean, allSymbolsEscapable: boolean): RegExp {
+  return commonmarkDialect
+    ? ESCAPABLE_ASCII_PUNCTUATION
+    : allSymbolsEscapable
+      ? ESCAPABLE_ALL_SYMBOLS
+      : ESCAPABLE_LEGACY;
+}
+/**
  * Whether the resolved `from:` line names a reader that honours a trailing heading ATTRIBUTE
  * block, so `# Methods {#sec-methods}` is a heading named "Methods" carrying the id `sec-methods`
  * rather than a heading whose text literally ends in braces (Session 216).
@@ -1686,25 +1830,6 @@ function fromConsumesMetadataBlock(line: string | null): boolean {
   return state !== null ? state : base === "markdown";
 }
 /**
- * A trailing `#` run that is **backslash-escaped**, which quarto renders as a literal hash and
- * this model's text pipeline still gets wrong.
- *
- * ⚠ **This replaces Session 212's `ATX_CLOSING_UNSPACED`, and the replacement is a NARROWING
- * that ships two rendered rows rather than a rename.** That constant declined the tight spelling
- * for *every* unspaced hash run, because the strip was wrong for all of them; Session 215 made
- * the strip right, so `#Cal Tight C#` and `#Cal Tight Run###` are now accepted and produce
- * quarto's exact text (`cal3/c_tightcsharp_*`, `c_tightrun_*`, four bases each).
- *
- * ⚠ **What survives is the ESCAPE, and deleting the clause outright would have shipped a
- * regression.** `#Cal Tight Esc\#` renders `h1:Cal Tight Esc#` (`cal3/c_tightesc_*`), and
- * accepting it here would report `Cal Tight Esc\#` — this model keeps the backslash, since it
- * processes no markdown escapes anywhere. That turns *reports nothing* into *reports the wrong
- * text*, one error becoming two, which is precisely what Learning #348 was written for. The
- * SPACED twin (`cal2/b_esc_md`) diverges today with no help from this change, so the underlying
- * escape gap is pre-existing and is filed rather than inherited.
- */
-const ATX_CLOSING_ESCAPED = /\\#+[ \t]*$/;
-/**
  * Whether recognising `line` as a TIGHT ATX heading would make this model's answer WORSE than
  * reporting nothing — in which case the tight form is declined and today's answer is reproduced
  * byte for byte (Session 212).
@@ -1726,22 +1851,32 @@ const ATX_CLOSING_ESCAPED = /\\#+[ \t]*$/;
  *        `consecutiveBody`: with prose above, this model's setext cannot fire and quarto still
  *        renders `h1:#Cal Tight Underlined` (`cal3/m1_prose_setext_strict`), so accepting there
  *        would be wrong a second way.
- *   a trailing ATTRIBUTE BLOCK — `markdown_strict` (`cal/c8_attr_strict`) and `markdown_mmd`
- *        (`cal2/g4_attr_tight_mmd`) KEEP the braces, and this model strips them unconditionally
- *        and would additionally enter a phantom `sec-` id in the cross-reference index
- *        (`src/core/refs.ts`). Pre-existing on the spaced twin, under `gfm` too
- *        (`cal2/g1_attr_sp_strict`, `g3_attr_sp_gfm`).
- *   an ESCAPED trailing HASH RUN — see `ATX_CLOSING_ESCAPED` above. ⚠ Until Session 215 this
- *        bullet read "a trailing HASH RUN" and covered every unspaced run; the strip is now
- *        measured right for the six pandoc bases, so only the escaped spelling still declines.
+ * ⚠ **THE OTHER TWO CLAUSES ARE GONE, AND BOTH REMOVALS ARE FIXES MEASURED PER SHAPE RATHER THAN
+ * A TIDY-UP** (Session 217). Each existed only because this model's TEXT was wrong in a way that
+ * is no longer wrong, so declining had stopped buying anything and was costing rendered rows:
  *
- * ⚠ **The last two declines are BLANKET rather than per-reader, and that costs two rendered rows
- * ON PURPOSE.** `markdown_phpextra` DOES strip the attribute block (`cal2/g5_attr_tight_php`) and
- * `markdown-space_in_atx_header` strips both (`cal3/n1_attr_md_off`, `n2_close_md_off`), so a
- * per-reader table would recover those three. That table is the already-filed `header_attributes`
- * item, whose honest fix covers the spaced spelling too and moves the cross-reference index for
- * every `gfm` document — a separate session with its own two-directional score. The rows are
- * named here so that session can collect them.
+ *   a trailing ATTRIBUTE BLOCK — declined because the strip was unconditional. Session 216 made
+ *        it per-reader, which left this clause reachable for exactly ONE reader:
+ *        `markdown_phpextra`, the only one with BOTH a tight ATX row (`space_in_atx_header` off)
+ *        and attribute honouring. There it was pure loss — `scratchpad/s217/pin/p5_tightattr_php`
+ *        renders `h1:Cal Tight Attr` **and defines `id="sec-tightattr"`**, and `p6_tightattrsp_php`
+ *        likewise, so removing the clause recovers the cross-reference target too. For
+ *        `markdown_strict` and `markdown_mmd` the clause could not fire at all after S216, since
+ *        those readers do not honour the block (`p5_tightattr_{strict,mmd}` keep the braces and
+ *        are unchanged).
+ *   an ESCAPED trailing HASH RUN — declined because accepting reported `Cal Tight Esc\#` where
+ *        quarto renders `Cal Tight Esc#`: "one error becoming two" (Learning #348), correct
+ *        reasoning for a model that processed no escapes. `decodeHeadingEscapes` makes the
+ *        accepted text byte-exact, so the decline became pure loss on all three tight readers
+ *        (`pin/p4_tightesc_{strict,mmd,php}`).
+ *
+ * ⚠ **The removal is what made the parity widening SAFE, and the order matters.** Making
+ * `HEADING_ATTRIBUTE` even-parity newly matches `#Cal Tg2 Attr \\{#sec-tg2}`, which under
+ * `markdown_phpextra` would have made this function DECLINE a heading quarto renders — a
+ * heading-DELETING regression, and the identical shape that cost Session 216 three commits on
+ * this very function. It was found here BEFORE the widening landed, by rendering the call site's
+ * own 18-document corpus (`scratchpad/s217/tight`) rather than by trusting a green suite: all
+ * 2052 unit tests passed while that row was deleted.
  */
 /**
  * Whether the line BELOW an ATX heading is a setext underline that SWALLOWS it — in which case
@@ -1825,16 +1960,10 @@ function setextUnderlineSwallowsAtx(
   );
 }
 function tightAtxWouldWorsen(
-  line: string,
   next: string | undefined,
   columns: readonly number[],
-  honoursAttributes: boolean,
 ): boolean {
-  return (
-    (next !== undefined && setextUnderlineLevel(next, columns) !== null) ||
-    (honoursAttributes && HEADING_ATTRIBUTE.test(line)) ||
-    ATX_CLOSING_ESCAPED.test(line)
-  );
+  return next !== undefined && setextUnderlineLevel(next, columns) !== null;
 }
 /** A raw block-level HTML opener, capturing the tag NAME so its closer can be matched. */
 const RAW_HTML_BLOCK_OPEN_TAG = new RegExp(
@@ -3988,6 +4117,12 @@ function computeRegions(text: string): Regions {
   // default is TRUE: a document with no `from:` at all honours the block, so "unresolved" and
   // "resolved to a keeping reader" are opposite answers here and cannot share the idiom above.
   const headerAttributesDialect = fromHonoursHeaderAttributes(fromValueLine);
+  // Whether the resolved reader escapes only Markdown.pl's 16 characters rather than the full
+  // ASCII punctuation range — see `FRONTMATTER_LEGACY_ESCAPES_FROM` (Session 217). An EIGHTH
+  // flag rather than a refinement of any of the seven around it, for the reason each of those
+  // gives: it answers its own question, and it is read at ONE site (`buildHeading`, shared by
+  // the ATX and setext paths).
+  const escapableSet = headingEscapable(commonmarkDialect, fromEscapesAllSymbols(fromValueLine));
   // Whether the resolved reader has `space_in_atx_header` OFF, so `#Heading` with no separator
   // IS a heading — see `fromRequiresSpaceInAtxHeader` (Session 212). A SIXTH flag rather than a
   // refinement of any of the five above, for the reason each of those gives: it answers its own
@@ -4529,6 +4664,7 @@ function computeRegions(text: string): Regions {
           .join(" "),
         prev.line,
         headerAttributesDialect,
+        escapableSet,
       );
       if (heading) {
         headings.push(heading);
@@ -4585,15 +4721,16 @@ function computeRegions(text: string): Regions {
                 : [0, ...contentColumns],
             tightAtxDialect &&
               literalHtmlLines?.has(i) !== true &&
-              !tightAtxWouldWorsen(
-                line,
-                lines[i + 1],
-                [0, ...contentColumns],
-                headerAttributesDialect,
-              ),
+              !tightAtxWouldWorsen(lines[i + 1], [0, ...contentColumns]),
           );
     if (m) {
-      const heading = parseHeadingLine(m, i, commonmarkDialect, headerAttributesDialect);
+      const heading = parseHeadingLine(
+        m,
+        i,
+        commonmarkDialect,
+        headerAttributesDialect,
+        escapableSet,
+      );
       if (heading) {
         headings.push(heading);
       }
@@ -5590,6 +5727,7 @@ function buildHeading(
   line: number,
   closing: RegExp | null,
   honoursAttributes: boolean,
+  escapable: RegExp,
 ): Heading | null {
   const attribute = honoursAttributes ? HEADING_ATTRIBUTE.exec(rawText) : null;
   const id = attribute ? ATTR_ID.exec(attribute[0])?.[1] : undefined;
@@ -5597,6 +5735,13 @@ function buildHeading(
   if (closing !== null) {
     text = text.replace(closing, "");
   }
+  // ⚠ **AFTER both strips, and the order is a measured constraint rather than a preference**
+  // (Session 217). Decoding first turns `\{#sec-esc}` into `{#sec-esc}`, which the attribute
+  // rule would then strip — deleting text quarto renders as ordinary braces and inventing a
+  // `sec-` cross-reference target the document never defines (`scratchpad/s217/cal4/d_md_attr1`,
+  // where quarto renders `Cal Par1 Attr {#sec-par1}` and defines NO id). Both strips therefore
+  // read the RAW text, and the decode runs on what survives them.
+  text = decodeHeadingEscapes(text, escapable);
   text = text.trim();
   if (!text) {
     return null;
@@ -5624,6 +5769,7 @@ function parseHeadingLine(
   line: number,
   commonmarkDialect: boolean,
   honoursAttributes: boolean,
+  escapable: RegExp,
 ): Heading | null {
   return buildHeading(
     m[1].length,
@@ -5631,6 +5777,7 @@ function parseHeadingLine(
     line,
     atxClosingRun(commonmarkDialect),
     honoursAttributes,
+    escapable,
   );
 }
 
@@ -5647,6 +5794,7 @@ function parseSetextHeadingLine(
   rawText: string,
   line: number,
   honoursAttributes: boolean,
+  escapable: RegExp,
 ): Heading | null {
-  return buildHeading(level, rawText, line, null, honoursAttributes);
+  return buildHeading(level, rawText, line, null, honoursAttributes, escapable);
 }

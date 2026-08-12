@@ -7960,20 +7960,30 @@ describe("a trailing `#` run with no space before it is a CLOSING SEQUENCE (Sess
 
     it("an ESCAPED hash is not a closing sequence — `cal2/b_esc_md`, `b_esc_gfm`", () => {
       // ⚠ THE DELETING HAZARD. Quarto renders `Cal Echo Esc#` under BOTH readers: `\#` is an
-      // escaped hash, not a closing run. This model keeps the backslash (it processes no markdown
-      // escapes anywhere — a pre-existing gap, filed), so the row diverges before AND after. What
-      // it may never do is lose the hash as well, which a bare `#+[ \t]*$` would.
+      // escaped hash, not a closing run. What this may never do is lose the hash as well, which
+      // a bare `#+[ \t]*$` would.
+      //
+      // ⚠ REVERSED BY SESSION 217, AND THE REVERSAL IS A FIX PROVEN BY RENDERING THESE EXACT
+      // BYTES rather than by trusting this comment. Session 215 wrote the sentence "this model
+      // keeps the backslash — a pre-existing gap, filed" and pinned its own wrong answer beside
+      // quarto's right one; that gap is what Session 217 closed, so the pin now records what
+      // quarto actually renders. `scratchpad/s217/pin/p1_eschash_{none,md,gfm}` — all three
+      // render `h1:Cal Echo Esc#`, quarto exit 0.
       for (const reader of [null, "markdown", "gfm"]) {
-        expect(names(withFrom(reader, "# Cal Echo Esc\\#"))).toEqual(["h1:Cal Echo Esc\\#", TAIL]);
+        expect(names(withFrom(reader, "# Cal Echo Esc\\#"))).toEqual(["h1:Cal Echo Esc#", TAIL]);
       }
     });
 
-    it("the TIGHT spelling of that escape still reports NOTHING — `cal3/c_tightesc_*`", () => {
-      // Accepting here would turn "reports nothing" into "reports `Cal Tight Esc\\#`" where quarto
-      // renders `Cal Tight Esc#` — one error becoming two (Learning #348). The decline survives
-      // this session even though its two siblings do not.
+    it("the TIGHT spelling of that escape is now REPORTED — `cal3/c_tightesc_*`", () => {
+      // ⚠ REVERSED BY SESSION 217, AND IT IS THE FIX THIS DECLINE WAS ALWAYS WAITING FOR.
+      // Session 215 declined the tight form here because accepting it would have reported
+      // `Cal Tight Esc\#` where quarto renders `Cal Tight Esc#` — "one error becoming two"
+      // (Learning #348), and that reasoning was correct for a model that processed no escapes.
+      // Session 217 processes them, so the accepted text is now byte-exact and the decline was
+      // pure loss. Proven by rendering these exact bytes, not by the argument:
+      // `scratchpad/s217/pin/p4_tightesc_{strict,mmd,php}` all render `h1:Cal Tight Esc#`.
       for (const reader of ["markdown_strict", "markdown_mmd", "markdown_phpextra"]) {
-        expect(names(withFrom(reader, "#Cal Tight Esc\\#"))).toEqual([TAIL]);
+        expect(names(withFrom(reader, "#Cal Tight Esc\\#"))).toEqual(["h1:Cal Tight Esc#", TAIL]);
       }
     });
 
@@ -8138,10 +8148,13 @@ describe("a trailing `#` run with no space before it is a CLOSING SEQUENCE (Sess
       // then `text.trim()` takes the nbsp with it. Pre-session it kept the `#` instead.
       expect(names(withFrom(null, "# Adv Nbsp Head  #"))).toEqual(["h1:Adv Nbsp Head", TAIL]);
       // `adv/x29_esc_then_run` — an escaped hash mid-text AND a real run at the end. The run is
-      // now correctly stripped; the backslash survives because this model processes no markdown
-      // escapes. Quarto renders `Adv Esc Mid# Run`. Filed.
+      // correctly stripped and quarto renders `Adv Esc Mid# Run`.
+      // ⚠ REVERSED BY SESSION 217 — a FIX, proven by rendering these exact bytes
+      // (`scratchpad/s217/pin/p2_escmidrun` → `h1:Adv Esc Mid# Run`, quarto exit 0). Session 215
+      // filed the surviving backslash as the escape gap; closing that gap is what moved this row,
+      // and the run-stripping half it was really pinning is unchanged.
       expect(names(withFrom(null, "# Adv Esc Mid\\# Run#"))).toEqual([
-        "h1:Adv Esc Mid\\# Run",
+        "h1:Adv Esc Mid# Run",
         TAIL,
       ]);
       // `adv/x22_rst` — a reader outside the markdown family renders NO heading at all, and this
@@ -8351,10 +8364,16 @@ describe("the heading ATTRIBUTE block is stripped only where the reader honours 
         TAIL,
       ]);
     }
-    // ⚠ THE CONTROL — where the reader DOES honour the block the decline is UNCHANGED, so this
-    // is a narrowing of the clause and not its removal. `markdown_phpextra` still reports
-    // nothing here, which is the already-filed over-fire item, deliberately left filed.
-    expect(names(withFrom("markdown_phpextra", "#Cal Tight Attr{#sec-tightattr}"))).toEqual([TAIL]);
+    // ⚠ REVERSED BY SESSION 217 — the clause this control was written for is GONE, and its
+    // removal is a fix on the ID surface as well as the text. `markdown_phpextra` is the one
+    // reader with BOTH a tight ATX row and attribute honouring, so it was the only reader the
+    // decline still cost anything, and Session 216 left it filed as the over-fire item.
+    // Rendered: `scratchpad/s217/pin/p5_tightattr_php` → `h1:Cal Tight Attr` AND
+    // `id="sec-tightattr"`; `p6_tightattrsp_php` likewise. Both are recovered here, so the
+    // filed over-fire item is closed for this reader rather than merely re-described.
+    const php = withFrom("markdown_phpextra", "#Cal Tight Attr{#sec-tightattr}");
+    expect(names(php)).toEqual(["h1:Cal Tight Attr", TAIL]);
+    expect(labels(php)).toEqual(["sec-tightattr"]);
   });
 
   /**
@@ -8397,15 +8416,28 @@ describe("the heading ATTRIBUTE block is stripped only where the reader honours 
     });
 
     it("⚠ DISCLOSED RESIDUAL — an ESCAPED BACKSLASH before a real block defeats the lookbehind", () => {
-      // `adv/x28_escbackslash`. `\\` is an escaped backslash, so `{#sec-advesb}` IS a real
-      // attribute block and quarto renders `h1:Adv Esc Backslash \`. `(?<!\\)` sees only the
-      // one character before the brace and refuses. ⚠ PRE-EXISTING and unchanged — and it is the
-      // same shape Session 215 disclosed one constant over for the closing hash run
-      // (`s215/adv/x28`), so the two want one fix: count the backslashes, do not look at one.
+      // ⚠ SESSION 217: THIS PIN'S BYTES AND ITS OWN COMMENT WERE DIFFERENT DOCUMENTS, AND BOTH
+      // ARE NOW PINNED. The comment cited `adv/x28_escbackslash`, whose source carries TWO
+      // literal backslashes — but the TypeScript literal `"\\{"` produces ONE, so for three
+      // sessions this asserted the one-backslash shape while describing the two-backslash one.
+      // Found by the row going red under this session's decode; settled by extracting both
+      // spellings to `scratchpad/s217/pin/` and rendering them, not by re-reading the comment.
+      //
+      // ONE backslash — `\{` is an escaped BRACE, so there is no attribute block at all and the
+      // braces are ordinary text. `pin/p3_oneslash` → `h1:Adv Esc Backslash {#sec-advesb}`, no
+      // id. REVERSED, and the reversal is a fix.
       expect(names(withFrom(null, "# Adv Esc Backslash \\{#sec-advesb}"))).toEqual([
-        "h1:Adv Esc Backslash \\{#sec-advesb}",
+        "h1:Adv Esc Backslash {#sec-advesb}",
         TAIL,
       ]);
+      // TWO backslashes — the document the comment always meant. `\\` is an escaped backslash,
+      // so `{#sec-advesb}` IS a real attribute block: `pin/p3_twoslash` renders
+      // `h1:Adv Esc Backslash \` AND defines `id="sec-advesb"`. That is the parity half, and it
+      // is asserted on the ID SURFACE too — this is the only way this session's rule reaches
+      // `src/core/refs.ts`.
+      const two = withFrom(null, "# Adv Esc Backslash \\\\{#sec-advesb}");
+      expect(names(two)).toEqual(["h1:Adv Esc Backslash \\", TAIL]);
+      expect(labels(two)).toEqual(["sec-advesb"]);
     });
 
     it("⚠ the reader gate reads a QUOTED and a COMMENTED `from:` — `adv/x14`–`x16`, `x19`", () => {
@@ -8422,5 +8454,195 @@ describe("the heading ATTRIBUTE block is stripped only where the reader honours 
         TAIL,
       ]);
     });
+  });
+});
+
+describe("a heading's backslash escapes are processed per reader (Session 217)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  const ids = (text: string) => findHeadings(text).map((h) => h.id ?? null);
+  const labels = (text: string) => indexLabels(text).map((l) => l.id);
+  /**
+   * Every document carries a real ATX heading BELOW the probe, as the rendered corpora do
+   * (`scratchpad/s217/cal`). Without it a document reporting nothing is indistinguishable from
+   * a build that has stopped producing headings altogether (Learning #339).
+   */
+  const BELOW = ["", "# Cal Alpha Below"];
+  const TAIL = "h1:Cal Alpha Below";
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...BELOW);
+
+  /**
+   * ⚠ THE GUARD, WRITTEN AND RUN GREEN BEFORE THE CHANGE (Session 204's gotcha 5, a FOURTEENTH
+   * session). Its polarity is what this session's rule threatens in BOTH directions: decoding
+   * where the reader does not DELETES a backslash the reader really sees, and the parity half
+   * moves the `sec-` CROSS-REFERENCE INDEX by making a construct real that `(?<!\\)` refused.
+   *
+   * ⚠ Every row below is a document quarto renders and that this model ALREADY reports
+   * correctly, measured in `scratchpad/s217/`. They are the rows a wrong set, a wrong parity
+   * rule, or a wrong gate would break — and three of them (`\z`, the quote, the list) are rows
+   * this model gets WRONG and must go on getting wrong, because fixing them is a different
+   * item and moving them silently would hide a regression inside a real defect.
+   */
+  describe("GUARD — rows the escape pass may not touch", () => {
+    it("Set C keeps a backslash before a character outside its 16 — `cal/a_strict_colon`", () => {
+      // quarto renders `Cal Echo Esc\:Colon`: `:` is not in Markdown.pl's set, so the backslash
+      // is ordinary text. Decoding it here would DELETE a character the reader really sees.
+      expect(names(withFrom("markdown_strict", "# Cal Echo Esc\\:Colon"))).toEqual([
+        "h1:Cal Echo Esc\\:Colon",
+        TAIL,
+      ]);
+    });
+
+    it("`markdown_phpextra` is on Set C's side, NOT Set A's — `cal/a_php_tilde`", () => {
+      // ⚠ The row I predicted wrong before rendering. php is a pandoc-family reader and still
+      // keeps the backslash; grouping it with `markdown` decodes 16 characters it renders.
+      expect(names(withFrom("markdown_phpextra", "# Cal Golf Esc\\~Tilde"))).toEqual([
+        "h1:Cal Golf Esc\\~Tilde",
+        TAIL,
+      ]);
+    });
+
+    it("a backslash before a LETTER is never an escape — `cal/a_gfm_letter`", () => {
+      // CommonMark 6.1: "backslashes before other characters are treated as literal
+      // backslashes". A naive `\\(.)` -> `$1` decode gets this wrong on every reader at once.
+      expect(names(withFrom("gfm", "# Cal Bravo Esc\\zLetter"))).toEqual([
+        "h1:Cal Bravo Esc\\zLetter",
+        TAIL,
+      ]);
+    });
+
+    it("Set B stops at ASCII — a non-ASCII SYMBOL stays literal under `gfm` — `cal3/c_gfm_pm`", () => {
+      // The single row that separates Set A from Set B. If this moves, the two sets were merged.
+      expect(names(withFrom("gfm", "# Cal Esc\\±End"))).toEqual(["h1:Cal Esc\\±End", TAIL]);
+    });
+
+    it("`\\<space>` and a trailing `\\` are LITERAL under Set B — `cal4/e_gfm_nbsp`, `e_gfm_hardbrk`", () => {
+      // Both are Set-A-only special cases. Firing them under a CommonMark reader would put a
+      // U+00A0 in a title that renders an ordinary backslash-space.
+      expect(names(withFrom("gfm", "# Cal Nb A\\ B End"))).toEqual(["h1:Cal Nb A\\ B End", TAIL]);
+      expect(names(withFrom("gfm", "# Cal Hb Trailing \\"))).toEqual(["h1:Cal Hb Trailing \\", TAIL]);
+    });
+
+    it("a spaced attribute block still strips and still indexes its id — `cal4/d_md_attr0`", () => {
+      // ⚠ THE CONSUMER, not just the model: `src/core/refs.ts` is what a `@sec-` reference
+      // resolves against, and the parity half of this change is the only way it can be reached.
+      const text = withFrom("markdown", "# Cal Par0 Attr {#sec-par0}");
+      expect(names(text)).toEqual(["h1:Cal Par0 Attr", TAIL]);
+      expect(ids(text)).toEqual(["sec-par0", null]);
+      expect(labels(text)).toEqual(["sec-par0"]);
+    });
+
+    it("a SPACED closing run under CommonMark still strips — `cal4/d_gfm_run0`", () => {
+      expect(names(withFrom("gfm", "# Cal Par0 Run #"))).toEqual(["h1:Cal Par0 Run", TAIL]);
+    });
+
+    it("a tight ATX heading is reported under `markdown_strict` and NOT under `markdown`", () => {
+      // `cal4/i_strict_tightplain` renders; `i_md_tightplain` renders NOTHING, because
+      // `markdown` keeps `space_in_atx_header`. Removing the escaped-hash decline must not
+      // switch the tight row on for a reader that has no tight row.
+      expect(names(withFrom("markdown_strict", "#Cal Tg Plain"))).toEqual([
+        "h1:Cal Tg Plain",
+        TAIL,
+      ]);
+      expect(names(withFrom("markdown", "#Cal Tg Plain"))).toEqual([TAIL]);
+    });
+
+    it("DISCLOSED-WRONG and frozen: a heading in a QUOTE or LIST is still not reported", () => {
+      // `cal4/h_md_quote`, `h_md_list` — quarto renders both and this model reports neither.
+      // A separate, already-filed item (BACKLOG: a heading inside a BLOCK QUOTE or LIST ITEM is
+      // not reported at all). Pinned so that closing THIS item cannot quietly move it, in
+      // either direction: a change that started reporting them would be an unmeasured widening.
+      expect(names(withFrom("markdown", "> # Cal Cn Quote Esc\\:Colon"))).toEqual([TAIL]);
+      expect(names(withFrom("markdown", "-   # Cal Cn List Esc\\:Colon"))).toEqual([TAIL]);
+    });
+
+    it("DISCLOSED-WRONG and frozen: `\\<letter>` under `markdown` is raw LaTeX quarto DELETES", () => {
+      // `cal/a_md_letter` renders `Cal Bravo Esc` — `\zLetter` is an inline raw-TeX macro,
+      // dropped in HTML. Not an escape and not this item; the model reports the literal before
+      // AND after, because no set decodes a letter. Frozen so the row is visibly unchanged.
+      expect(names(withFrom("markdown", "# Cal Bravo Esc\\zLetter"))).toEqual([
+        "h1:Cal Bravo Esc\\zLetter",
+        TAIL,
+      ]);
+    });
+  });
+
+  /**
+   * RED 1 — the decode itself. `# Cal Echo Esc\\:Colon` with no `from:` renders
+   * `h1:Cal Echo Esc:Colon` (`cal/a_none_colon`) and this model reports the backslash.
+   */
+  it("consumes the backslash before an escapable character — `cal/a_none_colon`", () => {
+    expect(names(withFrom(null, "# Cal Echo Esc\\:Colon"))).toEqual([
+      "h1:Cal Echo Esc:Colon",
+      TAIL,
+    ]);
+  });
+
+  /**
+   * RED 3 — THE SECOND CALL SITE, and the one that cost Session 216 three commits.
+   * `tightAtxWouldWorsen` reads `HEADING_ATTRIBUTE`, and `markdown_phpextra` is the ONLY reader
+   * with BOTH a tight ATX row (`space_in_atx_header` off) and attribute honouring — so making
+   * the constant even-parity newly DECLINES a heading quarto renders. Measured before the
+   * change, not after: `scratchpad/s217/tight/t_php_attr2` renders `h1:Cal Tg2 Attr \`.
+   */
+  it("the tight ATX row survives an even-parity block — `tight/t_php_attr0`, `t_php_attr2`", () => {
+    // Even parity: `\\` is one literal backslash, so the block is REAL and is stripped.
+    const two = withFrom("markdown_phpextra", "#Cal Tg2 Attr \\\\{#sec-tg2}");
+    expect(names(two)).toEqual(["h1:Cal Tg2 Attr \\", TAIL]);
+    // And the plain tight block, which the decline has been costing outright all along.
+    expect(names(withFrom("markdown_phpextra", "#Cal Tg2 Attr {#sec-tg2}"))).toEqual([
+      "h1:Cal Tg2 Attr",
+      TAIL,
+    ]);
+  });
+
+  /**
+   * RED 4 — SET A vs SET B. `cal2` proved `markdown` and `gfm` agree on ALL 32 ASCII punctuation
+   * characters; `cal3` proved they diverge off that range. Pandoc's `all_symbols_escapable`
+   * covers punctuation AND symbols, CommonMark 6.1 covers 32 ASCII punctuation characters only.
+   * The GUARD already pins the `gfm` side, so this row is what forces the two sets apart.
+   */
+  it("Set A escapes a NON-ASCII symbol where Set B does not — `cal3/c_md_pm`, `c_md_euro`", () => {
+    expect(names(withFrom("markdown", "# Cal Esc\\±End"))).toEqual(["h1:Cal Esc±End", TAIL]);
+    expect(names(withFrom("markdown", "# Cal Esc\\€End"))).toEqual(["h1:Cal Esc€End", TAIL]);
+    // ⚠ `markdown_github` is on `markdown`'s side here — the FIFTH consecutive session this
+    // reader splits from the name pandoc documents it as a synonym for.
+    expect(names(withFrom("markdown_github", "# Cal Esc\\±End"))).toEqual(["h1:Cal Esc±End", TAIL]);
+  });
+
+  /**
+   * RED 5 — THE EXTENSION TOKEN OUTRANKS THE BASE, AND LAST WINS. Measured in
+   * `scratchpad/s217/cal5` (8 documents) and `cal6` (12): `all_symbols_escapable` is a real
+   * toggle in both directions, and a DISABLED pandoc reader falls to Set C — not Set B.
+   *
+   * ⚠ This is also a regression this session introduced and then closed: with base names alone,
+   * `markdown-all_symbols_escapable` fell through to the 32-character ASCII set and decoded `\:`
+   * and `\~`, which that spelling renders literally (`cal6/m1_colon`, `m1_tilde`).
+   */
+  it("`all_symbols_escapable` overrides the base and the LAST token wins — `cal5`, `cal6`", () => {
+    // Disabled on a Set A base -> Set C, so `:` and `~` stay literal but `!` still decodes.
+    expect(names(withFrom("markdown-all_symbols_escapable", "# Cal Fb Esc\\:End"))).toEqual([
+      "h1:Cal Fb Esc\\:End",
+      TAIL,
+    ]);
+    expect(names(withFrom("markdown-all_symbols_escapable", "# Cal Fb Esc\\!End"))).toEqual([
+      "h1:Cal Fb Esc!End",
+      TAIL,
+    ]);
+    // Enabled on a Set C base -> Set A, non-ASCII symbols included.
+    expect(names(withFrom("markdown_strict+all_symbols_escapable", "# Cal Ex Esc\\±End"))).toEqual([
+      "h1:Cal Ex Esc±End",
+      TAIL,
+    ]);
+    // LAST WINS, both orders — the pair that distinguishes last-wins from first-wins. The
+    // neighbouring `fromKeepsBlankBeforeHeader` takes the FIRST token and is still an open
+    // BACKLOG defect for exactly this reason, so the bug is not copied one predicate over.
+    expect(
+      names(withFrom("markdown-all_symbols_escapable+all_symbols_escapable", "# Cal Ex Esc\\±End")),
+    ).toEqual(["h1:Cal Ex Esc±End", TAIL]);
+    expect(
+      names(withFrom("markdown+all_symbols_escapable-all_symbols_escapable", "# Cal Ex Esc\\±End")),
+    ).toEqual(["h1:Cal Ex Esc\\±End", TAIL]);
   });
 });
