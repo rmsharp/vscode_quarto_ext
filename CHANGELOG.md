@@ -7,6 +7,19 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-12 · [ad hoc] Session 218 — a trailing brace group is an attribute block only when it is one, per reader (SHIPPED)
+
+- **Model:** Claude Opus 5.
+- **Fixed** the over-fire that this project's own backlog called *"the only open item that FABRICATES a `sec-` label"*: `HEADING_ATTRIBUTE` said only WHERE a heading's trailing `{…}` would be, so prose that merely ended in braces was stripped as though it were an attribute block, and an ESCAPE inside the block — `{#sec-a\:x}`, which quarto renders as ordinary text while defining **no id at all** — was stripped and entered in the `src/core/refs.ts` cross-reference index. The editor offered a completion for a section identifier the rendered document never defines.
+- **Added** `headingAttributesValid` with a quote-aware tokenizer (`headingAttributeTokens`) and four measured token grammars: `ATTR_KEY_VALUE`, `ATTR_ATOM_RUN`, `ATTR_KEY_VALUE_COMMONMARK`, `ATTR_ATOM_COMMONMARK`. `commonmarkDialect` is now threaded into `buildHeading` and so reaches BOTH the ATX and setext paths.
+- **⚠ Validity is READER-SPLIT and the item was filed with no reader clause.** The pandoc three (no `from:`, `markdown`, `markdown_phpextra`) agree on all 68 measured shapes; `commonmark_x` — the only CommonMark-family reader that honours the block — diverges on twelve, eleven by rejecting what the pandoc family accepts (`{-}`, `{}`, `{key=}`, `{#a#b}`, `{.c1.c2}`, a single-quoted value, …) and **one by accepting what it rejects** (`{.1cls}`), so no single tightness dial expresses it. `{-}` alone pays for the split: it is pandoc's documented shorthand for `.unnumbered`.
+- **⚠ The item's own filed grammar would have shipped a regression.** It sketched the fix as "`#id`, `.class`, `key=val`, whitespace-separated", which rejects `{-}` and rejects `{key="a b"}` — both blocks quarto really strips.
+- **Measured:** 605 documents rendered through the real `quarto render` path (quarto 1.7.33) and scored per document against the pre-session build on identical bytes — designed and adversarial **292 → 411 of 473**, with **ZERO TRUE REGRESSIONS** by the explicit `agreed_pre and not agreed_post` check. A 45,543-document re-score of every predecessor corpus moved **13 documents, with `AGREE pre 0/13`**. The 113 tracked markdown documents are BYTE-IDENTICAL across four views. `cal3` was a 24-shape PREDICTION SET called before rendering: **21/24**.
+- **⚠ Disclosed:** this session introduced a text-adding regression in its own character class (`[A-Za-z]` for a class's first character, which keeps `{.クラス}`) and its own adversarial pass caught it two commits later; six rows the character-similarity direction oracle scored as moving AWAY were each adjudicated by reading and are all more correct.
+- **Verification:** `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` **2095 passed / 66 files** · `test:oracle` 131 / 124 agree (byte-identical to S180–S217) · `test:integration` **528 passing / 0 failing / exit 0** · `check-package` OK 42 files · `check-backlog` OK.
+- **Backlog:** closed the brace-group validity item; filed four — which id a multi-id block defines (a reader split, index-affecting), a heading that is only a block reporting nothing, the two-block and closing-run orderings, and `commonmark_x`'s non-ASCII key.
+- Commits `912e23f5` (claim), `f2d7a5cd` (guard), `84e07196`, `46833455`, `ce5f455f`.
+
 ### 2026-08-11 · [ad hoc] Session 217 — a heading's backslash escapes are processed, per reader and by parity (SHIPPED)
 
 - **Model:** Claude Opus 5.
