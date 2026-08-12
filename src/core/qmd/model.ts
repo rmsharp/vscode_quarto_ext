@@ -256,8 +256,170 @@ const HEADING_ATTRIBUTE = /(?<=(?:^|[^\\])(?:\\\\)*)\{[^}]*\}[ \t]*$/;
  * The `#identifier` inside a Pandoc attribute block. Pandoc separates id, classes
  * (`.x`), and key=val pairs by whitespace, so the id runs from `#` to the next
  * whitespace or closing brace: `{#sec-intro .unnumbered}` → `sec-intro`.
+ *
+ * ⚠ **Which id a block with TWO of them defines is a separate, unfixed defect** (Session 218).
+ * Quarto takes the LAST `#` under the pandoc family and the FIRST under `commonmark_x`, and this
+ * takes the first unconditionally: `{#sec-p20a#sec-p20b}` renders with `id="sec-p20b"` and is
+ * indexed here as `sec-p20a#sec-p20b` (`scratchpad/s218/cal/md_p20idtwo`, and `cal2/q08twoid`
+ * for the space-separated spelling). That is a question about a block that IS one, so it is
+ * outside the validity predicate below and needs its own two-directional score. Pinned.
  */
 const ATTR_ID = /#([^\s}]+)/;
+/**
+ * One whitespace-separated token of a heading attribute block, as a `KEY=VALUE` pair.
+ *
+ * ⚠ **The key must start with a LETTER and there may be NO SPACE around the `=`** — measured,
+ * not assumed: `{1key=v}` (`scratchpad/s218/cal3/*_r09keydigit`), `{=val}` (`cal/*_p17nokey`)
+ * and `{key = val}` (`cal/*_p23kvsp`) are all rendered as ordinary TEXT by every reader that
+ * honours attributes at all, because each leaves a bare word the attribute parser cannot place.
+ *
+ * ⚠ The bare-value alternative deliberately admits a QUOTE (`{key=v"al}` → `cal2/*_q18quote1`,
+ * stripped by the pandoc three) and may be EMPTY (`{key=}` → `cal/*_p16kvempty`, likewise).
+ * Both are `commonmark_x` divergences — see `headingAttributesValid`.
+ */
+const ATTR_KEY_VALUE = /^[A-Za-z][^\s}#\\=]*=(?:"[^"]*"|'[^']*'|(?:\\ |[^\s}])*)$/;
+/**
+ * One whitespace-separated token as a run of one or more `#id` / `.class` / `-` ATOMS.
+ *
+ * ⚠ **The atoms CONCATENATE without whitespace, and that is measured rather than tidy.**
+ * `{#sec-p20a#sec-p20b}` and `{--}` are both stripped by the pandoc family (`cal/*_p20idtwo`,
+ * `cal2/*_q04dash2`), so a rule of "one atom per token" would keep braces quarto removes.
+ *
+ * ⚠ **A `.` is an ordinary IDENTIFIER character; the atoms break at `#`, not at `.`.** This was
+ * the sharpest of the three predictions Session 218 got wrong before rendering `cal3`: `{#a.}`
+ * is stripped (`cal3/*_r14iddot`) and `{#sec-q10.cls}` defines the id `sec-q10.cls`, not
+ * `sec-q10` (`cal2/*_q10idcls`) — so `{.c1.c2}` is ONE class named `c1.c2`, not two.
+ *
+ * ⚠ **A CLASS must begin with a letter and an ID need not** — `{.1cls}` is kept and `{#1num}` is
+ * stripped (`cal2/*_q13clsdigit`, `*_q12iddigit`). ⚠ And `\` and `=` are in neither: they are
+ * what makes `{#sec-p13\:x}` and `{#a=b}` invalid, which is the whole cross-reference half of
+ * this rule (`cal/*_p13idesc`, `cal3/*_r08ideq`).
+ */
+const ATTR_ATOM_RUN = /^(?:-|#[^\s}#\\=]+|\.[A-Za-z][^\s}#\\=]*)+$/;
+/**
+ * `commonmark_x`'s spelling of the two token forms above — **ONE atom per token, no `-`, and a
+ * class that may start with anything but may not contain a `.`** (Session 218).
+ *
+ * ⚠ **This is a MEASURED reader split and not a tightness dial.** `commonmark_x` is the only
+ * CommonMark-family reader that honours a heading attribute block at all (S216's 4–5 table), and
+ * it takes it from pandoc's `attributes` extension rather than the pandoc family's
+ * `header_attributes`. Eleven of the 68 shapes in `scratchpad/s218/cal`+`cal2` are stripped by
+ * the pandoc three and kept here — `{-}`, `{}`, `{ }`, `{key=}`, `{#a#b}`, `{key='a b'}`,
+ * `{--}`, `{ - }`, `{#sec-q07 -}`, `{.c1.c2}`, `{key=v"al}` — and **one goes the other way**:
+ * `{.1cls}` is kept by the pandoc three and stripped here (`cal2/*_q13clsdigit`). That single
+ * row is why a shared predicate with a "stricter" flag cannot express this.
+ *
+ * ⚠ `{-}` alone would justify the split: it is pandoc's documented shorthand for `.unnumbered`
+ * and a shape quarto authors write constantly, so a predicate tuned to the pandoc family deletes
+ * the braces from every `{-}` heading in a `commonmark_x` document.
+ */
+const ATTR_ATOM_COMMONMARK = /^(?:#[^\s}#\\=]+|\.[^\s}#\\=.]+)$/;
+/**
+ * `commonmark_x`'s `KEY=VALUE`: no single-quoted value, and a bare value that may hold neither
+ * quote and may not be EMPTY (Session 218). `{key=}` and `{key='a b'}` and `{key=v"al}` are all
+ * stripped by the pandoc three and rendered as text here (`scratchpad/s218/cal/*_p16kvempty`,
+ * `cal2/*_q03single`, `cal2/*_q18quote1`), while `{key=va\l}` and `{key=""}` are stripped by
+ * both (`cal2/*_q14kvesc`, `cal3/*_r16qempty`).
+ */
+const ATTR_KEY_VALUE_COMMONMARK = /^[A-Za-z][^\s}#\\=]*=(?:"[^"]*"|[^\s}"']+)$/;
+/**
+ * A heading attribute block's content split into whitespace-separated tokens, **respecting
+ * quotes** (Session 218).
+ *
+ * ⚠ **THE QUOTE AWARENESS IS THE POINT, AND TWO RENDERED DOCUMENTS ARE THE WHOLE REASON FOR IT.**
+ * `{key="val"}` holds no space, so a naive `split(/\s+/)` handles it by accident; `{key="a b"}`
+ * does, and quarto strips it under all four honouring readers (`scratchpad/s218/cal2/*_q01kvsp`).
+ * A naive split sees `key="a` and `b"`, judges the block invalid, and stops stripping a block the
+ * reader really strips — taking the `sec-q02` id of `cal2/*_q02mixsp` out of the cross-reference
+ * index with it. Same role as Session 217's two non-ASCII probes: the corpus exists to make a
+ * wrong design visible, and here it did.
+ *
+ * ⚠ A quote is honoured wherever it appears, not only after `=`, and an UNTERMINATED one simply
+ * runs to the end of the block. `{key=v"al}` is stripped by the pandoc three, and it stays one
+ * token either way — `ATTR_KEY_VALUE`'s bare-value alternative accepts the quote as content.
+ */
+function headingAttributeTokens(content: string, escapedSpaceJoins: boolean): string[] {
+  const tokens: string[] = [];
+  let token = "";
+  let quote: string | null = null;
+  for (let i = 0; i < content.length; i++) {
+    const ch = content[i];
+    if (quote !== null) {
+      token += ch;
+      if (ch === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    // ⚠ **AN ESCAPED SPACE DOES NOT END A TOKEN — BUT ONLY FOR THE READERS THAT ESCAPE ONE.**
+    // `{key=a\ b}` is the ONE shape in 68 where the pandoc three disagree with each other, and
+    // Session 217's escapable set is why: `\<space>` is a NON-BREAKING SPACE under Set A (no
+    // `from:`, `markdown`) so the pair sits inside the value and quarto strips the block, while
+    // `markdown_phpextra` reads a literal backslash and an ordinary space, which leaves a bare
+    // `b` and no block at all (`scratchpad/s218/cal3/*_r22escsp`, four readers). This rule and
+    // that one are coupled through exactly this line.
+    if (escapedSpaceJoins && ch === "\\" && content[i + 1] === " ") {
+      token += "\\ ";
+      i++;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      token += ch;
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      if (token !== "") {
+        tokens.push(token);
+        token = "";
+      }
+      continue;
+    }
+    token += ch;
+  }
+  if (token !== "") {
+    tokens.push(token);
+  }
+  return tokens;
+}
+/**
+ * Whether `content` — the text BETWEEN a heading's trailing braces — really is a Pandoc
+ * attribute block, rather than prose that merely ends in braces (Session 218).
+ *
+ * ⚠ **THE OVER-FIRE IS TWO-DIRECTIONAL AND ONE DIRECTION FABRICATES A CROSS-REFERENCE TARGET.**
+ * `# Cal Alpha Prose {alpha beta}` renders `<h1>Cal Alpha Prose {alpha beta}</h1>` under every
+ * reader that honours attributes — bare words are not attributes, so the braces are ordinary
+ * text — and stripping them DELETES text the reader really sees. Sharper: `# Cal Id Esc
+ * {#sec-a\:x}` renders the braces as text and defines **no id at all**, because `\` is not an
+ * identifier character, while stripping it enters `sec-a\:x` in the `src/core/refs.ts` index —
+ * a `sec-` label the rendered document never defines (`scratchpad/s218/cal/*_p13idesc`, with
+ * `*_p14idcolon` — the same id without the backslash — as the agreeing control).
+ *
+ * ⚠ **Rejecting is the RISKIER direction and the predicate is written to reject only what is
+ * measured.** `HEADING_ATTRIBUTE` is the only source of `Heading.id`, so a block wrongly called
+ * invalid deletes a `sec-` target the user has a working cross-reference to today; a block
+ * wrongly called valid merely reproduces the pre-Session-218 answer. Every rejection below
+ * therefore stands on a rendered row.
+ *
+ * ⚠ **An EMPTY block is valid for the pandoc family and invalid for `commonmark_x`** — `{}` and
+ * `{ }` are stripped by the pandoc three and rendered as text by `commonmark_x`
+ * (`cal/*_p09empty`, `*_p10space`). That is why the token count is tested rather than only the
+ * tokens.
+ */
+function headingAttributesValid(
+  content: string,
+  commonmarkDialect: boolean,
+  pandocEscapes: boolean,
+): boolean {
+  const tokens = headingAttributeTokens(content, pandocEscapes);
+  if (commonmarkDialect) {
+    return (
+      tokens.length > 0 &&
+      tokens.every((t) => ATTR_ATOM_COMMONMARK.test(t) || ATTR_KEY_VALUE_COMMONMARK.test(t))
+    );
+  }
+  return tokens.every((t) => ATTR_ATOM_RUN.test(t) || ATTR_KEY_VALUE.test(t));
+}
 /**
  * The characters a backslash may escape under **CommonMark 6.1** — the 32 ASCII punctuation
  * characters, and nothing else (Session 217).
@@ -4697,6 +4859,7 @@ function computeRegions(text: string): Regions {
         headerAttributesDialect,
         escapableSet,
         pandocEscapes,
+        commonmarkDialect,
       );
       if (heading) {
         headings.push(heading);
@@ -5762,8 +5925,24 @@ function buildHeading(
   honoursAttributes: boolean,
   escapable: RegExp,
   pandocEscapes: boolean,
+  commonmarkDialect: boolean,
 ): Heading | null {
-  const attribute = honoursAttributes ? HEADING_ATTRIBUTE.exec(rawText) : null;
+  const brace = honoursAttributes ? HEADING_ATTRIBUTE.exec(rawText) : null;
+  // ⚠ **A brace group at the end of a heading is not an attribute block just because it is
+  // there** (Session 218). `HEADING_ATTRIBUTE` says only WHERE a block would be; whether the
+  // content IS one is `headingAttributesValid`'s question, and getting it wrong deletes either
+  // text the reader sees or a `sec-` target the document defines. The content is read RAW, before
+  // `decodeHeadingEscapes` — a predicate run on decoded text would see `{#sec-a:x}` where the
+  // source says `{#sec-a\:x}`, judge it valid, and strip exactly the block quarto keeps.
+  const attribute =
+    brace &&
+    headingAttributesValid(
+      brace[0].replace(/^\{/, "").replace(/\}[ \t]*$/, ""),
+      commonmarkDialect,
+      pandocEscapes,
+    )
+      ? brace
+      : null;
   const id = attribute ? ATTR_ID.exec(attribute[0])?.[1] : undefined;
   let text = attribute ? rawText.replace(HEADING_ATTRIBUTE, "") : rawText;
   if (closing !== null) {
@@ -5814,6 +5993,7 @@ function parseHeadingLine(
     honoursAttributes,
     escapable,
     pandocEscapes,
+    commonmarkDialect,
   );
 }
 
@@ -5832,6 +6012,16 @@ function parseSetextHeadingLine(
   honoursAttributes: boolean,
   escapable: RegExp,
   pandocEscapes: boolean,
+  commonmarkDialect: boolean,
 ): Heading | null {
-  return buildHeading(level, rawText, line, null, honoursAttributes, escapable, pandocEscapes);
+  return buildHeading(
+    level,
+    rawText,
+    line,
+    null,
+    honoursAttributes,
+    escapable,
+    pandocEscapes,
+    commonmarkDialect,
+  );
 }

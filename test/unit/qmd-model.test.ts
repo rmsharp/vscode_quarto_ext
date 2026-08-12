@@ -8943,4 +8943,48 @@ describe("a trailing brace group is a heading attribute block only when it is VA
       expect(labels(t)).toEqual(["sec-p20a#sec-p20b"]);
     });
   });
+
+  describe("prose that merely ENDS IN BRACES is not an attribute block", () => {
+    it("bare words are not attributes — `cal/md_p07words`", () => {
+      // `# Cal P07 Words {alpha beta}` renders `h1:Cal P07 Words {alpha beta}` under EVERY
+      // measured reader: bare words are not valid pandoc attributes, so quarto keeps the braces
+      // as ordinary text and this model deleted them. Text-DELETING, the direction that costs
+      // the reader something they can see.
+      expect(names(withFrom("markdown", "# Cal P07 Words {alpha beta}"))).toEqual([
+        "h1:Cal P07 Words {alpha beta}",
+        TAIL,
+      ]);
+    });
+  });
+
+  describe("VALIDITY IS PER READER — `commonmark_x` and the pandoc family disagree", () => {
+    it("⚠ `{-}` is pandoc-only: `commonmark_x` renders it as TEXT — `cal/cmx_p03dash`", () => {
+      // The row that pays for the whole split. `{-}` is pandoc's shorthand for `.unnumbered`
+      // and the pandoc three strip it (guarded above); `commonmark_x` takes its attributes from
+      // pandoc's `attributes` extension instead, has no such shorthand, and renders
+      // `h1:Cal P03 Dash {-}`. A single reader-independent predicate has to be wrong about one
+      // side or the other, and `{-}` is a shape quarto authors write constantly.
+      expect(names(withFrom("commonmark_x", "# Cal P03 Dash {-}"))).toEqual([
+        "h1:Cal P03 Dash {-}",
+        TAIL,
+      ]);
+    });
+
+    it("⚠ an ESCAPED SPACE joins a token only where the reader escapes one — `cal3/*_r22escsp`", () => {
+      // ⚠ THE ONE SHAPE IN 68 WHERE THE PANDOC THREE DISAGREE WITH EACH OTHER, and the reason is
+      // Session 217's rule one session old: `\<space>` is a NON-BREAKING SPACE under Set A (no
+      // `from:`, `markdown`) and an ordinary backslash under Set C (`markdown_phpextra`). So the
+      // escaped space does not end the token for the first two — `{key=a\ b}` is one `key=value`
+      // pair and quarto strips it — and does end it for the third, leaving a bare `b` that makes
+      // the block invalid. The attribute tokenizer and the escapable set are coupled here.
+      expect(names(withFrom("markdown", "# Cal R22 Escsp {key=a\\ b}"))).toEqual([
+        "h1:Cal R22 Escsp",
+        TAIL,
+      ]);
+      expect(names(withFrom("markdown_phpextra", "# Cal R22 Escsp {key=a\\ b}"))).toEqual([
+        "h1:Cal R22 Escsp {key=a\\ b}",
+        TAIL,
+      ]);
+    });
+  });
 });
