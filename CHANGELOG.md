@@ -7,6 +7,84 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-11 · [ad hoc] Session 217 — a heading's backslash escapes are processed, per reader and by parity (SHIPPED)
+
+- **Model:** Claude Opus 5.
+- This model processed **no markdown escapes anywhere**, so a heading kept every backslash quarto
+  consumes — and the two `(?<!\\)` lookbehinds two prior sessions added to work around that gap
+  each looked at **one character**, so an escaped backslash before a real construct defeated both.
+  `# Cal Echo Esc\#` renders `h1:Cal Echo Esc#` and this model reported the backslash;
+  `# Adv Esc Backslash \\{#sec-advesb}` renders `h1:Adv Esc Backslash \` **and defines
+  `id="sec-advesb"`**, and this model reported the whole literal and indexed nothing.
+- **⚠ The item was filed by two consecutive handoffs as "a general escape pass over heading text",
+  with no reader clause at all, and the escapable set is a THREE-WAY reader split.** Measured over
+  213 documents, nine readers, each with its own plain control:
+
+  | set | rule | readers |
+  |---|---|---|
+  | A | any punctuation **or symbol**, non-ASCII included (pandoc `all_symbols_escapable`) | *(no `from:`)* · `markdown` · `markdown_mmd` · `markdown_github` |
+  | B | the 32 ASCII punctuation characters (CommonMark 6.1) | `gfm` · `commonmark` · `commonmark_x` |
+  | C | `` !#()*+-.>[\]_`{} `` — Markdown.pl's set **plus `>`** | `markdown_strict` · `markdown_phpextra` |
+
+  Set B is exactly `FRONTMATTER_COMMONMARK_FROM`, but A-vs-C cuts the pandoc family 4–2, so no
+  existing flag expresses this and reusing one would decode 16 characters two readers render
+  literally. ⚠ **Two of nine pre-render predictions were wrong** — `markdown_mmd` and
+  `markdown_phpextra` sit on the opposite sides from where they were predicted, in the
+  text-deleting direction. ⚠ `markdown_github` is with `markdown`, the fifth consecutive session
+  it splits from the name pandoc documents it as a synonym for.
+- **⚠ `markdown` and `gfm` agree on all 32 ASCII punctuation characters and diverge on exactly
+  two non-ASCII symbols.** Thirty-two agreeing rows would have justified merging them into one
+  set; the `\±` / `\€` probes existed only to make that merge visibly wrong, and they did.
+- **Parity** replaces both lookbehinds with `(?<=(?:^|[^\\])(?:\\\\)*)`: an escape needs an ODD run
+  of backslashes, so a construct is real after an EVEN run. Confirmed on the full 0–3 ladder ×
+  two constructs × three readers — no predecessor had rendered the ladder, only single rungs.
+  This is the **only** way the rule reaches `src/core/refs.ts`, since the model has no auto-id
+  generation; all 18 predecessor id moves land on quarto's answer.
+- Two Set-A special cases that belong to no set: `\<space>` is a **non-breaking space** and a
+  trailing `\` is a **hard line break**. Both invisible to every predecessor extractor column,
+  which collapses whitespace — so a naive `\\(.)` → `$1` decode would have scored GREEN on the
+  nbsp row while being wrong. ⚠ This also closes a residual **Session 203** filed and could not
+  fix (`b_markdown_solo`).
+- **⚠ Session 216's heading-deleting regression was reproduced exactly — same constant, same
+  function — and its own gotcha is why it cost nothing.** Even-parity newly matches
+  `#Cal Tg2 Attr \\{#sec-tg2}`, and `markdown_phpextra` is the one reader with both a tight ATX
+  row and attribute honouring, so `tightAtxWouldWorsen` began declining a heading quarto renders.
+  **All 2052 unit tests passed while that row was deleted.** The 18-document call-site corpus
+  existed *before* the change because S216's gotcha 1 said to build it. That corpus then justified
+  removing **both** of the function's other clauses, each adjudicated per shape; only the
+  setext-underline clause survives, and `ATX_CLOSING_ESCAPED` is deleted.
+- **Five predecessor pins reversed**, every one proven by extracting its exact bytes and
+  rendering. ⚠ One had been asserting a **different document from the one it cited** for three
+  sessions: the comment names a two-backslash corpus document, the TypeScript literal `"\\{"`
+  produces one. Both spellings are now pinned.
+- **Measurement.** 664 documents rendered through the real `quarto render` path (1.7.33) and
+  scored per document against the pre-session build on identical bytes, plus a **45,259-document**
+  re-score of every predecessor corpus across 3,614 directories. Designed **107 → 309 of 319, with
+  all six per-corpus predictions EXACT** (61, 132, 18, 80, 7, 11 — written to `CALIBRATION.md`
+  before any code). Adversarial 13 → 28 of 33. Predecessors: 284 movers, every one rendered, **279
+  fixed, 0 introduced**. Repo control 115 documents **byte-identical** across four views and proven
+  effective by injection in the same run (5 movers all to quarto, 5 stayers held, 10/10).
+  ⚠ **Zero true regressions**, established mechanically over all ten corpora at once by an explicit
+  `agreed_pre and not agreed_post` check (130 → 644 of 664); the eight re-textings were then scored
+  for **direction** by character similarity, and the two that moved *away* are disclosed, pinned
+  and filed rather than reported as "no regressions".
+- ⚠ **Two instrument defects were built and caught in-session, both in the harness created to avoid
+  instrument defects**: a `|` join chosen precisely because the corpus escapes a comma, then
+  defeated by a corpus that escapes a pipe; and a scorer id-heuristic that ate seven rows whose
+  text legitimately ends in `#`. Both were found only by re-deriving the expected pre-score by
+  hand and reconciling it against the measured one — and both pointed the *safe* way, the first in
+  this family to do so.
+- TDD: 10-block guard written and run green **before** the change, covering `indexLabels` and —
+  a first — three rows this model gets wrong and must go on getting wrong. **Six RED→GREEN cycles,
+  all six authored-first**, no disclosed deviation.
+- Verification: `compile` 0 · `npm test` **2062** (+22) · `test:oracle` 131/124 agree
+  (byte-identical to S180–S216) · `check-package` OK 42 files / 5.55 MB · `check-backlog` OK ·
+  `test:integration` **526 passing / 0 failing** (+2), on the operator's go-ahead sought in advance.
+  Not run: `test:lsp` (no LSP surface touched); no blind sweep (tenth session).
+- `BACKLOG.md`: two items removed (the escape gap and the single-character lookbehind), three
+  filed (the code-span decode, `\<space>` before a closing run, `\<TAB>`), and the brace-validity
+  item augmented with the sharper witness this session found.
+
 ### 2026-08-11 · [ad hoc] Session 217 pre-flight — the methodology dashboard is re-synced from canonical (v2.13.0 → v2.15.2)
 
 - **Model:** Claude Opus 5.
