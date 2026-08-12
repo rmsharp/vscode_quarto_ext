@@ -1998,4 +1998,94 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `ordinary headings must be unaffected: ${control.join(", ")}`,
     );
   });
+
+
+  it("a setext underline swallows the ATX heading above it, literal `#` and all", async () => {
+    // The user-visible surface of Session 214. `# Heading` directly above `===` renders as ONE
+    // heading whose text still carries the `#` and whose LEVEL comes from the underline — so an
+    // outline that reports the un-swallowed ATX heading shows the wrong name at the wrong depth,
+    // and hands the wrong `sec-` id to the cross-reference index.
+    //
+    // ⚠ `openInMemory` scopes every document below, so no exact-set `assert.deepStrictEqual`
+    // pin can be extended by them and `test/fixtures/setext-fresh-block.qmd` is untouched. The
+    // exact-set grep ran BEFORE this test was written, not after it failed: it found 22 real
+    // `assert.deepStrictEqual` and 1 real fixture use, and NONE of them is extended here — the
+    // two exact-set assertions below are this test's own, over in-memory documents.
+    //
+    // ⚠ That 22 was 21 for Sessions 212 and 213. This session's C1 added ONE, to the Session
+    // 182 assertion whose fixture holds the tracked corpus's only occurrence of this geometry;
+    // disclosed here rather than left for the next session's grep to trip over.
+    //
+    // ⚠ Every assertion below was pre-checked headlessly against the pure `core/` model before
+    // this run was requested (`scratchpad/s214/pre/precheck214.test.ts`), so a screen-taking
+    // Extension Development Host run only ever tests the adapter wiring — Session 211's
+    // gotcha 3, which cost that session a full run and has now saved three.
+    //
+    // Every premise was rendered through the real `quarto render --to html` path this session
+    // (`scratchpad/s214/`, 110 designed documents plus a 22-document adversarial pass and a
+    // 75-document predecessor re-render, quarto 1.7.33).
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    // PRESENT — the swallowed heading, with the literal `#` quarto renders. `cal/a_default_eq`:
+    // no `from:` key anywhere, which is the commonest shape any real document has.
+    const dflt = await namesFor("# Cal Alpha Above", "===", "", "# Cal Alpha Below");
+    assert.ok(
+      dflt.includes("# Cal Alpha Above"),
+      `the swallowed heading keeps its literal hash: ${dflt.join(", ")}`,
+    );
+    // ABSENT — and the un-swallowed spelling is gone from that same document, which is what
+    // makes the row above a REPLACEMENT rather than an addition.
+    assert.ok(
+      !dflt.includes("Cal Alpha Above"),
+      `the un-swallowed name must not survive beside it: ${dflt.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE DISCRIMINATOR. `cal/a_gh_eq`: `markdown_github` SWALLOWS, even though
+    // pandoc documents it as a deprecated synonym for `gfm`. A reader table reasoned from the
+    // base name's shape puts this row on the CommonMark side and gets it exactly backwards.
+    const gh = await namesFor("---", "from: markdown_github", "---", "", "# Cal Alpha Above", "===");
+    assert.ok(
+      gh.includes("# Cal Alpha Above"),
+      `markdown_github swallows despite the name: ${gh.join(", ")}`,
+    );
+
+    // ABSENT — `gfm` itself does NOT swallow (`cal/a_gfm_eq`), because CommonMark §4.3 requires
+    // a setext underline to follow a PARAGRAPH and an ATX heading is not one. This is the row
+    // the backlog entry's "under EVERY reader" claim got wrong.
+    const gfm = await namesFor("---", "from: gfm", "---", "", "# Cal Alpha Above", "===");
+    assert.ok(
+      gfm.includes("Cal Alpha Above") && !gfm.includes("# Cal Alpha Above"),
+      `a CommonMark reader keeps the ordinary ATX heading: ${gfm.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE DELETION GUARD, and the one regression this session's adversarial pass
+    // found (`adv/x1_div`). Pressed against a `:::` opener the setext row never fires, so an
+    // ungated decline lost the section from the outline entirely. The heading must still be
+    // here — with the un-swallowed text, which is the disclosed cost of not deleting it.
+    const div = await namesFor("::: {.note}", "# Adv Div Head", "===", ":::");
+    assert.ok(
+      div.includes("Adv Div Head"),
+      `the swallow must never delete a section: ${div.join(", ")}`,
+    );
+
+    // The UNDERLINE sets the level, not the hashes — so `##` under `===` is an h1 and the `##`
+    // below it becomes its CHILD. This is the assertion that fails if only the text moved
+    // (`cal2/d_h2_eq`, rendered as `h1:## Cal Level Two`).
+    const lvl = await symbolsForDoc(
+      await openInMemory(["## Cal Level Two", "===", "", "## Cal Child"].join("\n")),
+    );
+    assert.deepStrictEqual(lvl.map((n) => n.name), ["## Cal Level Two"]);
+    assert.deepStrictEqual(lvl[0].children.map((n) => n.name), ["Cal Child"]);
+
+    // PRESENT — the control without which every ABSENT above would pass for a build that had
+    // stopped producing headings altogether.
+    const control = await namesFor("# Cal Spaced Control");
+    assert.ok(
+      control.includes("Cal Spaced Control"),
+      `ordinary headings must be unaffected: ${control.join(", ")}`,
+    );
+  });
 });
