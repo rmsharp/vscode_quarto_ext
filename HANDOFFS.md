@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S218
+date: 2026-08-11
+status: pending
+active_task: IN PROGRESS. The brace-group rule cannot tell a genuine pandoc attribute block from prose that merely ENDS IN BRACES, so for the four HONOURING readers this model deletes text the reader really sees -- and an ESCAPE inside the block makes the block invalid, so this model strips braces quarto renders as text AND enters a `sec-` label in the cross-reference index that the rendered document never defines. `# Cal Alpha Prose {alpha beta}` renders `h1:Cal Alpha Prose {alpha beta}`; `# Cal Id Esc {#sec-a\:b}` renders `h1:Cal Id Esc {#sec-a:b}` with NO id while this model indexes `sec-a\:b`. Filed by S216, sharpened by S217, ranked #1 by S217 as the only open item that FABRICATES a `sec-` label; operator-selected via AskUserQuestion at Phase 0 from an empty Active section. Deliverable is ONE capability: a trailing `{...}` on a heading is stripped exactly when it is a valid pandoc attribute block for this document's reader, and when it is not, neither the text nor the cross-reference index moves. Eight decision rules carried from a coupling survey run BEFORE this stub -- this is a NARROWING, so the inherited widening guards do not transfer and the guard must be per ACCEPTED shape; the dangerous direction is the INDEX, where over-tightening deletes a `sec-` target quarto really defines; `HEADING_ATTRIBUTE` now has exactly ONE call site because S217 removed the second; `{-}` is pandoc's shorthand for `.unnumbered` and the obvious grammar rejects it; validity is probably reader-dependent among the four honouring readers and `commonmark_x` takes its attributes from a different extension; an escape inside the block invalidates it and the existing strip/decode order already handles the text once it is rejected; the predicate must read RAW text; and the quoted-`}` item is a DIFFERENT open item whose character class must not be touched.
+```
+
+```handoff
 session: S217
 date: 2026-08-11
 status: complete

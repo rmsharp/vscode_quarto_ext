@@ -5,6 +5,40 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 218 — IMPLEMENTATION (strict TDD): the brace-group rule cannot tell a genuine pandoc attribute block from prose that merely ENDS IN BRACES, so for the four HONOURING readers this model deletes text the reader really sees — and, sharper, an ESCAPE inside the block makes the block invalid, so this model strips braces quarto renders as text AND enters a `sec-` label in the cross-reference index that the rendered document never defines. `# Cal Alpha Prose {alpha beta}` renders `h1:Cal Alpha Prose {alpha beta}` and this model reports `h1:Cal Alpha Prose`; `# Cal Id Esc {#sec-a\:b}` renders `h1:Cal Id Esc {#sec-a:b}` with NO id and this model reports `h1:Cal Id Esc` and indexes `sec-a\:b`. Text-DELETING, and the escape half FABRICATES A CROSS-REFERENCE TARGET.**
+**Started:** 2026-08-11
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` drain in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **2062 passed / 66 files**, matching Session 217's recorded close-out exactly; `check-backlog` **OK, 148 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`89a855a5`, gap 0), `grep -c "^status: pending" HANDOFFS.md` = 0, no ghost sessions, no undocumented commits. Dashboard **76/100**.
+
+**How this item was selected.** Operator-selected via `AskUserQuestion` at Phase 0 from an empty Active section. Filed by **Session 216**, sharpened by **Session 217**, and ranked **#1 by S217** — *"derived to be the highest-value item now open … the only open item that FABRICATES a `sec-` label."*
+
+**Deliverable (ONE capability):** *a trailing `{…}` on a heading is stripped exactly when it is a valid pandoc attribute block for this document's reader — and when it is not, neither the text nor the cross-reference index moves.* Layers: the measured validity predicate, its wiring into `buildHeading`'s single call site (which serves BOTH the ATX and setext paths), and the `Heading.id` half that reaches `src/core/refs.ts` — one intent, per-layer checkpoint commits.
+
+---
+
+## Session 218 ACTIVE-TASK decision rules (from the coupling survey run BEFORE the 1B stub)
+
+1. **⚠ THIS IS A NARROWING, SO THE GUARD IS PER *ACCEPTED* SHAPE — THE INHERITED WIDENING GUARDS DO NOT TRANSFER** (Learning #331, and S204's gotcha 5 for a FIFTEENTH time). Sessions 216 and 217 both WIDENED `HEADING_ATTRIBUTE`, and every guard they wrote is of the form *"this block must still be SEEN"* — which a narrowing satisfies while deleting elsewhere. **Write the guard block that asserts every block shape which must STILL strip AND still yield its id, and run it GREEN before the predicate lands.**
+
+2. **⚠ THE DANGEROUS DIRECTION IS THE INDEX, NOT THE TEXT — AND IT IS THE SAME RULE IN BOTH DIRECTIONS.** Grepped, not assumed: `HEADING_ATTRIBUTE` is the ONLY source of `Heading.id` (`buildHeading:5766`–`5767`), which `indexLabels` (`src/core/refs.ts:93`) turns into cross-reference targets, and this model has no auto-id generation. Under-tightening FABRICATES a `sec-` target (the item's own value); over-tightening DELETES one quarto really defines, which breaks a working completion. **Score `indexLabels` in BOTH directions, not only the outline text.**
+
+3. **⚠ `HEADING_ATTRIBUTE` NOW HAS EXACTLY ONE CALL SITE, AND THAT IS A CHANGE SINCE THE ITEM WAS FILED.** Grepped before this stub: `:254` (the definition), `:1900` (a docstring), `:5766` and `:5768` (both inside `buildHeading`). The `tightAtxWouldWorsen` clause that read it — the second call site that cost S216 three commits and that S217 reproduced exactly — was REMOVED by S217, so this session's change cannot reach it. ⚠ **Re-grep at implementation time rather than trusting this line**; the whole lesson of the last two sessions is that a shared constant's reader list is checked, not remembered.
+
+4. **⚠ `{-}` IS PANDOC'S DOCUMENTED SHORTHAND FOR `.unnumbered` AND THE OBVIOUS GRAMMAR REJECTS IT.** A predicate written as "`#id`, `.class`, or `key=val`, whitespace-separated" refuses a bare `-`, which is a REAL attribute block on a heading and one quarto authors use. Same open question for `{}`, `{#}`, `{.}`, and a value-less `key=`. **Render every one of these before the predicate is written** — each is a row where over-tightening deletes a real strip.
+
+5. **⚠ VALIDITY IS PROBABLY READER-DEPENDENT AMONG THE FOUR HONOURING READERS, AND `commonmark_x` IS THE ONE TO WATCH.** The four are no-`from:`, `markdown`, `markdown_phpextra`, `commonmark_x` (S216's 4–5 table), and `commonmark_x` gets attributes from a DIFFERENT pandoc extension (`attributes`) than the pandoc family's `header_attributes` — so it is the likeliest of the four to disagree about what counts as valid. Learnings #327 / #341 / #352: measure per EXACT base name, never by prefix, and never adopt a predicate's shape because it fits the signature. **Render the four honouring readers × the full shape set, each with its own control.**
+
+6. **⚠ AN ESCAPE INSIDE THE BLOCK INVALIDATES THE WHOLE BLOCK, AND THE EXISTING ORDER ALREADY HANDLES THE TEXT ONCE IT IS REJECTED.** S217's `scratchpad/s217/cal4/j_md_idesc`: `# Cal Id Esc {#sec-a\:b}` renders `h1:Cal Id Esc {#sec-a:b}` and defines NO id, with `j_gfm_idesc` the agreeing non-honouring control. `buildHeading` strips on RAW text and decodes on what survives (`:5772`–`:5778`, a measured constraint), so rejecting the block leaves the decode to produce `{#sec-a:b}` for free. **The fix is one predicate and NO reordering — and the reordering direction is already measured wrong.**
+
+7. **⚠ THE PREDICATE MUST READ THE RAW BLOCK TEXT, BEFORE THE DECODE.** Same constraint as both strips, and rule 6 is why: a predicate run on decoded text would see `{#sec-a:b}`, judge it valid, and strip exactly the block quarto keeps. This is the S217 ordering trap arriving one rule over.
+
+8. **⚠ THE QUOTED-`}` ITEM IS A DIFFERENT OPEN ITEM AND MUST NOT BE HALF-FIXED HERE.** S216's `adv/x25_bracequote` (`{#sec-advbq title="a}b"}`) fails on `[^}]*`, and S216 MEASURED that widening the class to admit `}` swallows a genuine two-block line (`cal2/b_two_md`, where `# Cal Two {#a}{#b}` renders `Cal Two {#a}`). **Do not touch the character class.** A quote-aware scan is that item's deliverable, not this one's — but the validity predicate must not silently change its rows either, so pin them.
+
+---
+
+## Session 217 ACTIVE TASK (superseded by Session 218 — full entry preserved below)
 **Task:** **Session 217 — IMPLEMENTATION (strict TDD): this model processes NO markdown escapes anywhere, so a heading keeps every backslash quarto consumes — AND the two `(?<!\\)` lookbehinds written to work around that gap each look at ONE character, so an escaped backslash before a real construct defeats both. `# Cal Esc \{#sec-esc}` renders `h1:Cal Esc {#sec-esc}` and this model reports the backslash; `# Adv Esc Backslash \\{#sec-advesb}` renders `h1:Adv Esc Backslash \` WITH `id="sec-advesb"` and this model reports the whole literal and indexes nothing. Heading-TEXT-DIVERGING, and the parity half moves the CROSS-REFERENCE INDEX.**
 **Started:** 2026-08-11 · **Closed:** 2026-08-11
 **Status:** **DONE. SHIPPED — and the item's own framing was wrong: two handoffs filed it as "a general escape pass over heading text", with no reader clause at all, and the escapable set is a THREE-WAY reader split. 664 documents rendered and scored plus a 45,259-document re-score of every predecessor corpus: designed 107/319 → 309/319 with ALL SIX per-corpus predictions EXACT, adversarial 13/33 → 28/33, predecessors 0/284 → 279/284, and ZERO TRUE REGRESSIONS anywhere, established mechanically. ⚠ I reproduced Session 216's heading-deleting regression EXACTLY — and its gotcha 1 is why I had already built the corpus that caught it, before the change landed.**
