@@ -8740,3 +8740,207 @@ describe("a heading's backslash escapes are processed per reader (Session 217)",
     });
   });
 });
+
+describe("a trailing brace group is a heading attribute block only when it is VALID (Session 218)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  const ids = (text: string) => findHeadings(text).map((h) => h.id ?? null);
+  const labels = (text: string) => indexLabels(text).map((l) => l.id);
+  /**
+   * Every document carries a real ATX heading BELOW the probe, as the rendered corpora do
+   * (`scratchpad/s218/cal`). Without it a document reporting nothing is indistinguishable from
+   * a build that has stopped producing headings altogether (Learning #339).
+   */
+  const BELOW = ["", "# Cal Alpha Below"];
+  const TAIL = "h1:Cal Alpha Below";
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...BELOW);
+
+  /**
+   * ⚠ THE GUARD, WRITTEN AND RUN GREEN BEFORE THE CHANGE (Session 204's gotcha 5, a FIFTEENTH
+   * session) — AND ITS POLARITY IS THE OPPOSITE OF THE LAST TWO SESSIONS' (Learning #331).
+   * Sessions 216 and 217 both WIDENED `HEADING_ATTRIBUTE`, and every guard they wrote asserts
+   * that some block is still SEEN — a shape a NARROWING satisfies while deleting elsewhere.
+   * This session narrows, so the guard is per ACCEPTED shape: every block below is one quarto
+   * really strips, and eleven of them carry a `sec-` id that a wrong predicate would delete
+   * from `src/core/refs.ts` — the direction that breaks a cross-reference the user has today.
+   *
+   * ⚠ Every row is measured in `scratchpad/s218/` and is ALREADY correct on the pre-session
+   * build. The last three are rows this model gets WRONG and must go on getting wrong: their
+   * defects are separate filed items, and moving them silently would hide a regression inside
+   * a real defect (Session 217's precedent).
+   */
+  describe("GUARD — accepted blocks the validity predicate may not reject", () => {
+    it("the ordinary id block still strips and still defines its id — `cal/md_p01id`", () => {
+      const t = withFrom("markdown", "# Cal P01 Id {#sec-p01}");
+      expect(names(t)).toEqual(["h1:Cal P01 Id", TAIL]);
+      expect(ids(t)).toEqual(["sec-p01", null]);
+      expect(labels(t)).toEqual(["sec-p01"]);
+    });
+
+    it("a class-only block still strips — `cal/md_p02cls`", () => {
+      expect(names(withFrom("markdown", "# Cal P02 Cls {.unnumbered}"))).toEqual([
+        "h1:Cal P02 Cls",
+        TAIL,
+      ]);
+    });
+
+    it("id + class + key=value still strips and keeps its id — `cal/md_p06full`", () => {
+      const t = withFrom("markdown", "# Cal P06 Full {#sec-p06 .unnumbered key=val}");
+      expect(names(t)).toEqual(["h1:Cal P06 Full", TAIL]);
+      expect(labels(t)).toEqual(["sec-p06"]);
+    });
+
+    it("⚠ a QUOTED VALUE CONTAINING A SPACE still strips — `cal2/md_q01kvsp`", () => {
+      // The row that decides whether the predicate may tokenize with a naive whitespace split.
+      // Quarto strips this under all four honouring readers; a `split()` tokenizer sees
+      // `key="a` and `b"`, calls the block invalid, and stops stripping it.
+      expect(names(withFrom("markdown", '# Cal Q01 Kvsp {key="a b"}'))).toEqual([
+        "h1:Cal Q01 Kvsp",
+        TAIL,
+      ]);
+    });
+
+    it("⚠ …and the same shape beside an id keeps the id — `cal2/md_q02mixsp`", () => {
+      // The cross-reference half of the row above: a naive tokenizer deletes `sec-q02` from the
+      // index, which is the direction that breaks a completion the user has today.
+      const t = withFrom("markdown", '# Cal Q02 Mixsp {#sec-q02 .cls key="a b"}');
+      expect(names(t)).toEqual(["h1:Cal Q02 Mixsp", TAIL]);
+      expect(labels(t)).toEqual(["sec-q02"]);
+    });
+
+    it("⚠ `{-}`, pandoc's shorthand for `.unnumbered`, still strips — `cal/md_p03dash`", () => {
+      // Decision rule 4: the obvious `#id`/`.class`/`key=val` grammar rejects a bare `-`, and
+      // quarto strips it for every pandoc-family reader.
+      expect(names(withFrom("markdown", "# Cal P03 Dash {-}"))).toEqual([
+        "h1:Cal P03 Dash",
+        TAIL,
+      ]);
+    });
+
+    it("an EMPTY block still strips under the pandoc family — `cal/md_p09empty`", () => {
+      expect(names(withFrom("markdown", "# Cal P09 Empty {}"))).toEqual([
+        "h1:Cal P09 Empty",
+        TAIL,
+      ]);
+    });
+
+    it("a COLON is an ordinary identifier character — `cal/md_p14idcolon`", () => {
+      // ⚠ The control that isolates the escape from the colon: `{#sec-p13\:x}` is invalid and
+      // this one, the same id without the backslash, is not.
+      const t = withFrom("markdown", "# Cal P14 Idcolon {#sec-p14:x}");
+      expect(names(t)).toEqual(["h1:Cal P14 Idcolon", TAIL]);
+      expect(labels(t)).toEqual(["sec-p14:x"]);
+    });
+
+    it("a DOT is an ordinary identifier character too — `cal2/md_q10idcls`", () => {
+      const t = withFrom("markdown", "# Cal Q10 Idcls {#sec-q10.cls}");
+      expect(names(t)).toEqual(["h1:Cal Q10 Idcls", TAIL]);
+      expect(labels(t)).toEqual(["sec-q10.cls"]);
+    });
+
+    it("a percent in a bare value still strips — `cal/md_p24pct`", () => {
+      expect(names(withFrom("markdown", "# Cal P24 Pct {width=50%}"))).toEqual([
+        "h1:Cal P24 Pct",
+        TAIL,
+      ]);
+    });
+
+    it("`commonmark_x` honours the block and keeps its id — `cal/cmx_p01id`", () => {
+      const t = withFrom("commonmark_x", "# Cal P01 Id {#sec-p01}");
+      expect(names(t)).toEqual(["h1:Cal P01 Id", TAIL]);
+      expect(labels(t)).toEqual(["sec-p01"]);
+    });
+
+    it("⚠ `commonmark_x` accepts a class starting with a DIGIT — `cal2/cmx_q13clsdigit`", () => {
+      // The one shape where the CommonMark reader is MORE permissive than the pandoc family,
+      // which is why a single tightness dial cannot express this split.
+      expect(names(withFrom("commonmark_x", "# Cal Q13 Clsdigit {.1cls}"))).toEqual([
+        "h1:Cal Q13 Clsdigit",
+        TAIL,
+      ]);
+    });
+
+    it("⚠ `gfm` honours NO block, valid or not — `cal/gfm_p01id`, `gfm_p07words`", () => {
+      // S216's reader gate. 88 of this session's 388 documents are this column; a narrowing
+      // that moves one of them has broken that gate rather than this item.
+      const t = withFrom("gfm", "# Cal P01 Id {#sec-p01}");
+      expect(names(t)).toEqual(["h1:Cal P01 Id {#sec-p01}", TAIL]);
+      expect(labels(t)).toEqual([]);
+      expect(names(withFrom("gfm", "# Cal P07 Words {alpha beta}"))).toEqual([
+        "h1:Cal P07 Words {alpha beta}",
+        TAIL,
+      ]);
+    });
+
+    it("the SETEXT path strips a valid block and keeps its id — `cal4/md_g02setext_ok`", () => {
+      const t = withFrom("markdown", "Cal G02 OK {#sec-g02}", "===");
+      expect(names(t)).toEqual(["h1:Cal G02 OK", TAIL]);
+      expect(labels(t)).toEqual(["sec-g02"]);
+    });
+
+    it("⚠ the TIGHT ATX row under `markdown_phpextra` — `cal4/php_g06tight_ok`", () => {
+      // The exact pair of functions that cost Session 216 three commits and that Session 217
+      // reproduced: `markdown_phpextra` is the only reader with BOTH a tight ATX row and
+      // attribute honouring, so it is the one place a change to this constant can delete a
+      // heading outright rather than re-text it.
+      const t = withFrom("markdown_phpextra", "#Cal G06 OK {#sec-g06}");
+      expect(names(t)).toEqual(["h1:Cal G06 OK", TAIL]);
+      expect(labels(t)).toEqual(["sec-g06"]);
+    });
+
+    it("inside a fenced DIV the block still strips and keeps its id — `cal4/md_g03div_ok`", () => {
+      // Containers are a standing corpus axis (Learning #355): the only regressions S211, S212
+      // and S214 shipped were each a wrapper row.
+      const div = withFrom("markdown", "::: {.note}", "", "# Cal G03 OK {#sec-g03}", "", ":::");
+      expect(names(div)).toEqual(["h1:Cal G03 OK", TAIL]);
+      expect(labels(div)).toEqual(["sec-g03"]);
+    });
+
+    it("STAYS WRONG — an ATX heading in a QUOTE or LIST is not reported at all", () => {
+      // ⚠ Written as an aspiration first and corrected by running it: quarto renders both
+      // (`cal4/md_g04quote_ok`, `md_g05list_ok` → `h1:Cal G04 OK` WITH `sec-g04`), and this
+      // model reports NEITHER, with or without an attribute block. A pre-existing lost true
+      // positive in the ATX row's container handling — `model.ts`'s own module docstring records
+      // that the scanner tracks no list/blockquote context — and entirely independent of this
+      // item: the CONTROL spellings without any block report nothing either. Pinned so a
+      // predicate that accidentally starts or stops reporting here is visible.
+      expect(names(withFrom("markdown", "> # Cal G04 OK {#sec-g04}"))).toEqual([TAIL]);
+      expect(names(withFrom("markdown", "-   # Cal G05 OK {#sec-g05}"))).toEqual([TAIL]);
+      expect(names(withFrom("markdown", "> # Cal G04 OK"))).toEqual([TAIL]);
+      expect(names(withFrom("markdown", "-   # Cal G05 OK"))).toEqual([TAIL]);
+    });
+
+    it("⚠ Session 217's PARITY still makes an even run a real block — `cal4/md_g07parity_ok`", () => {
+      const t = withFrom("markdown", "# Cal G07 OK \\\\{#sec-g07}");
+      expect(names(t)).toEqual(["h1:Cal G07 OK \\", TAIL]);
+      expect(labels(t)).toEqual(["sec-g07"]);
+    });
+
+    it("⚠ …and an ODD run is no block at all — `cal4/md_g08escaped_ok`", () => {
+      const t = withFrom("markdown", "# Cal G08 OK \\{#sec-g08}");
+      expect(names(t)).toEqual(["h1:Cal G08 OK {#sec-g08}", TAIL]);
+      expect(labels(t)).toEqual([]);
+    });
+
+    it("STAYS WRONG — a `}` inside a quoted value, S216's separate item — `cal2/md_q20brace`", () => {
+      // Quarto STRIPS this (measured, all four honouring readers). `HEADING_ATTRIBUTE`'s
+      // `[^}]*` stops at the inner `}` so the block is never seen, and S216 measured that
+      // widening the class swallows a genuine two-block line. Decision rule 8 — this row must
+      // not move in either direction.
+      expect(names(withFrom("markdown", '# Cal Q20 Brace {key="a}b"}'))).toEqual([
+        'h1:Cal Q20 Brace {key="a}b"}',
+        TAIL,
+      ]);
+    });
+
+    it("STAYS WRONG — WHICH id a two-id block defines — `cal/md_p20idtwo`", () => {
+      // Quarto takes the LAST `#` under the pandoc three (`sec-p20b`) and the FIRST under
+      // `commonmark_x`; `ATTR_ID` takes the first unconditionally. The block IS valid, so this
+      // session's predicate must leave the strip alone — and the wrong id with it.
+      const t = withFrom("markdown", "# Cal P20 Idtwo {#sec-p20a#sec-p20b}");
+      expect(names(t)).toEqual(["h1:Cal P20 Idtwo", TAIL]);
+      expect(labels(t)).toEqual(["sec-p20a#sec-p20b"]);
+    });
+  });
+});
