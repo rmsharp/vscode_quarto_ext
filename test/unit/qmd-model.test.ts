@@ -8667,4 +8667,76 @@ describe("a heading's backslash escapes are processed per reader (Session 217)",
     // same shape after its block is stripped, rendering `Cal Par2 Attr \`).
     expect(names(withFrom("markdown", "# Cal Hb Even \\\\"))).toEqual(["h1:Cal Hb Even \\", TAIL]);
   });
+
+  /**
+   * PINS — the measured boundaries and the DISCLOSED RESIDUALS. Nothing below is a cycle; each
+   * is a rendered row recorded so a later session inherits the measurement rather than the
+   * argument. The two marked ⚠ AWAY moved measurably FURTHER from quarto and are filed.
+   */
+  describe("PINS — measured boundaries and disclosed residuals", () => {
+    it("the escapable set is THREE-way, and Set B is not Set A — `cal2`, `cal3`", () => {
+      // Set C keeps 16 of the 32; Set B takes all 32 ASCII and stops there; Set A goes beyond.
+      expect(names(withFrom("markdown_strict", "# Cal Esc\\~End"))).toEqual(["h1:Cal Esc\\~End", TAIL]);
+      expect(names(withFrom("markdown_strict", "# Cal Esc\\>End"))).toEqual(["h1:Cal Esc>End", TAIL]);
+      expect(names(withFrom("gfm", "# Cal Esc\\~End"))).toEqual(["h1:Cal Esc~End", TAIL]);
+      expect(names(withFrom("commonmark_x", "# Cal Esc\\±End"))).toEqual(["h1:Cal Esc\\±End", TAIL]);
+      expect(names(withFrom("markdown_mmd", "# Cal Esc\\±End"))).toEqual(["h1:Cal Esc±End", TAIL]);
+    });
+
+    it("`>` is in Markdown.pl's set and `<` is not — the one character I mis-transcribed", () => {
+      // Predicted 16 from the spec's history section and named only 15; the render added `>`.
+      expect(names(withFrom("markdown_phpextra", "# Cal Esc\\<End"))).toEqual([
+        "h1:Cal Esc\\<End",
+        TAIL,
+      ]);
+      expect(names(withFrom("markdown_phpextra", "# Cal Esc\\>End"))).toEqual(["h1:Cal Esc>End", TAIL]);
+    });
+
+    it("the parity ladder halves the backslashes — `cal4/d_md_attr0`–`attr3`", () => {
+      const at = (k: number) =>
+        names(withFrom("markdown", `# Cal Par${k} Attr ${"\\".repeat(k)}{#sec-par${k}}`));
+      expect(at(0)).toEqual(["h1:Cal Par0 Attr", TAIL]);
+      expect(at(1)).toEqual(["h1:Cal Par1 Attr {#sec-par1}", TAIL]);
+      expect(at(2)).toEqual(["h1:Cal Par2 Attr \\", TAIL]);
+      expect(at(3)).toEqual(["h1:Cal Par3 Attr \\{#sec-par3}", TAIL]);
+    });
+
+    it("the SETEXT path takes the same rule, including the id — `cal4/g_md_setext_attr`", () => {
+      const text = doc("Cal St Attr \\\\{#sec-stat}", "===", ...BELOW);
+      expect(names(text)).toEqual(["h1:Cal St Attr \\", TAIL]);
+      expect(labels(text)).toEqual(["sec-stat"]);
+    });
+
+    it("⚠ DISCLOSED RESIDUAL — the decode fires INSIDE a code span, where quarto does not", () => {
+      // `adv/x23_codespan`. Quarto renders `Adv Span a\:b End` — inside a code span the
+      // backslash is literal — and this model reports `Adv Span \`a:b\` End`. Wrong BEFORE and
+      // after (the backticks survive either way, because this per-line scanner renders no
+      // inline markup), but the text moved measurably AWAY from quarto: similarity 0.975 ->
+      // 0.962, adjudicated by `noregress.py` rather than by eye.
+      // ⚠ The precedent for a fix exists one rule over: Session 203's hard-break strip carries
+      // an `opensCodeSpan` guard (an ODD backtick count) for exactly this shape. Applying it
+      // here is a separate measurement — the row stays wrong regardless — so it is FILED.
+      expect(names(withFrom("markdown", "# Adv Span `a\\:b` End"))).toEqual([
+        "h1:Adv Span `a:b` End",
+        TAIL,
+      ]);
+    });
+
+    it("⚠ DISCLOSED RESIDUAL — `\\<space>` immediately before a closing run is read as a break", () => {
+      // `adv/x24_esc_before_space_run`. Quarto renders `Adv SpRun  `: the `\ ` is a
+      // non-breaking space and the ` #` after it is the closing run. This model strips the run
+      // FIRST (the order `cal4/d_md_attr1` requires), which leaves a text ending in `\` that the
+      // Set-A rule then reads as a hard break and drops. Wrong before (`Adv SpRun \`) and after
+      // (`Adv SpRun`), and 0.930 -> 0.899 AWAY. Filed: the honest fix needs the strip to record
+      // that the text did not originally end there.
+      expect(names(withFrom("markdown", "# Adv SpRun \\ #"))).toEqual(["h1:Adv SpRun", TAIL]);
+    });
+
+    it("⚠ DISCLOSED RESIDUAL — `\\<TAB>` is a non-breaking space to pandoc and is not decoded", () => {
+      // `adv/x21_esc_tab` renders `Adv Tab A  B`; this model reports the literal backslash
+      // and tab. Unchanged in BOTH directions by this session — the nbsp clause matches a space
+      // only — so it is filed rather than inherited silently.
+      expect(names(withFrom("markdown", "# Adv Tab A\\\tB"))).toEqual(["h1:Adv Tab A\\\tB", TAIL]);
+    });
+  });
 });
