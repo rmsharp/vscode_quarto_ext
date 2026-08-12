@@ -8987,4 +8987,135 @@ describe("a trailing brace group is a heading attribute block only when it is VA
       ]);
     });
   });
+
+  describe("the atom character sets are pandoc's, not an ASCII approximation", () => {
+    it("⚠ a class may be a NON-ASCII word — `adv/md_x12unicls`", () => {
+      // Found by this session's own adversarial pass, as a regression IT introduced: the first
+      // draft required `[A-Za-z]` to start a class, which is right about `{.1cls}` and `{._x}`
+      // and wrong about every non-Latin script. Quarto strips `{.クラス}`; the draft kept the
+      // braces, adding text the reader never sees.
+      expect(names(withFrom("markdown", "# Adv X12 Unicls {.クラス}"))).toEqual([
+        "h1:Adv X12 Unicls",
+        TAIL,
+      ]);
+    });
+
+    it("⚠ `!` is not an identifier character, and stripping it FABRICATES a label — `adv/*_x24bang`", () => {
+      // ⚠ The same defect this whole item is about, one character class deeper, and PRE-EXISTING
+      // rather than introduced: quarto renders `{#sec-x24!}` as ordinary text and defines NO id,
+      // while an id character set of "anything but whitespace" strips it and enters `sec-x24!`
+      // in the cross-reference index. Pandoc's identifier is letters, digits, `-`, `_`, `:` and
+      // `.` — measured across `adv/*_x24bang` (kept) against `adv/*_x11uniid` (`{#sec-café}`,
+      // stripped, so the set is Unicode-aware) and `cal/*_p14idcolon` / `cal2/*_q10idcls`.
+      const t = withFrom("markdown", "# Adv X24 Bang {#sec-x24!}");
+      expect(names(t)).toEqual(["h1:Adv X24 Bang {#sec-x24!}", TAIL]);
+      expect(labels(t)).toEqual([]);
+    });
+  });
+});
+
+describe("PINS — the validity predicate's measured boundary (Session 218)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  const labels = (text: string) => indexLabels(text).map((l) => l.id);
+  const BELOW = ["", "# Cal Alpha Below"];
+  const TAIL = "h1:Cal Alpha Below";
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...BELOW);
+
+  it("⚠ THE HEADLINE — an ESCAPE inside the block invalidates it, and no label is indexed", () => {
+    // `scratchpad/s218/cal/*_p13idesc`: `# Cal P13 Idesc {#sec-p13\:x}` renders
+    // `h1:Cal P13 Idesc {#sec-p13:x}` — the escape is CONSUMED and the braces are ordinary text —
+    // and defines NO id. This model used to strip the block and enter `sec-p13\:x` in the
+    // cross-reference index: a `sec-` target the rendered document never defines, which resolved
+    // here and dangled there. It was the only open item that FABRICATED one.
+    //
+    // ⚠ `*_p14idcolon` is the control that isolates the escape from the colon (guarded above):
+    // the same id WITHOUT the backslash is valid and does define `sec-p14:x`.
+    const t = withFrom("markdown", "# Cal P13 Idesc {#sec-p13\\:x}");
+    expect(names(t)).toEqual(["h1:Cal P13 Idesc {#sec-p13:x}", TAIL]);
+    expect(labels(t)).toEqual([]);
+    // The same shape one character over: an ESCAPED HASH is not an id at all (`cal2/*_q15eschash`
+    // renders `h1:Cal Q15 Eschash {#sec-q15}`), and this used to index `sec-q15`.
+    const u = withFrom("markdown", "# Cal Q15 Eschash {\\#sec-q15}");
+    expect(names(u)).toEqual(["h1:Cal Q15 Eschash {#sec-q15}", TAIL]);
+    expect(labels(u)).toEqual([]);
+  });
+
+  it("a valid ATOM beside a bare word poisons the WHOLE block — `cal/*_p18idword`", () => {
+    // `{#sec-p18 alpha}` renders as text and defines no id, so validity is a property of the
+    // block rather than of any token in it. This is what stops the predicate from being written
+    // as "does it contain an id?".
+    const t = withFrom("markdown", "# Cal P18 Idword {#sec-p18 alpha}");
+    expect(names(t)).toEqual(["h1:Cal P18 Idword {#sec-p18 alpha}", TAIL]);
+    expect(labels(t)).toEqual([]);
+  });
+
+  it("⚠ `commonmark_x` rejects four shapes the pandoc family accepts — `cal`, `cal2`", () => {
+    // Four of the eleven, each with its own rendered row. `{}` and `{key=}` and `{#a#b}` and
+    // `{.c1.c2}` are stripped by the pandoc three (guarded above for `{}`) and rendered as
+    // ordinary text here.
+    expect(names(withFrom("commonmark_x", "# Cal P09 Empty {}"))).toEqual([
+      "h1:Cal P09 Empty {}",
+      TAIL,
+    ]);
+    expect(names(withFrom("commonmark_x", "# Cal P16 Kvempty {key=}"))).toEqual([
+      "h1:Cal P16 Kvempty {key=}",
+      TAIL,
+    ]);
+    const two = withFrom("commonmark_x", "# Cal P20 Idtwo {#sec-p20a#sec-p20b}");
+    expect(names(two)).toEqual(["h1:Cal P20 Idtwo {#sec-p20a#sec-p20b}", TAIL]);
+    expect(labels(two)).toEqual([]);
+    expect(names(withFrom("commonmark_x", "# Cal Q11 Cls2 {.c1.c2}"))).toEqual([
+      "h1:Cal Q11 Cls2 {.c1.c2}",
+      TAIL,
+    ]);
+  });
+
+  it("a quarto SHORTCODE at the end of a heading is not an attribute block — `adv/*_x01shortcode`", () => {
+    // The shape most likely to appear in a real document. `HEADING_ATTRIBUTE` never matches it
+    // (the inner `}` ends the run before end-of-line), so this is a pin rather than a fix — but
+    // it is the row a future widening of that regex would break, and it belongs beside the
+    // validity rule that would then be its only defence.
+    expect(names(withFrom("markdown", "# Adv X01 Short {{< meta title >}}"))).toEqual([
+      "h1:Adv X01 Short {{< meta title >}}",
+      TAIL,
+    ]);
+  });
+
+  it("DISCLOSED RESIDUAL — a heading that is ONLY a valid block reports nothing", () => {
+    // `# {#sec-x05}` renders an EMPTY `<h1>` that still carries `id="sec-x05"`
+    // (`scratchpad/s218/adv/md_x05onlyblock`). `buildHeading` returns null when nothing
+    // displayable survives the strip, so this model reports no heading and no label — a lost
+    // true positive AND a lost id. PRE-EXISTING and unchanged by this session: the block was
+    // stripped before too. Filed; it belongs to the empty-text rule, not to validity.
+    const t = withFrom("markdown", "# {#sec-x05}");
+    expect(names(t)).toEqual([TAIL]);
+    expect(labels(t)).toEqual([]);
+  });
+
+  it("DISCLOSED RESIDUAL — only the LAST of two blocks is stripped — `adv/md_x07twoblocks`", () => {
+    // Quarto strips BOTH and defines BOTH ids under `markdown`; `HEADING_ATTRIBUTE` matches only
+    // the last group on the line (S216's `b_two_md` measured that the last IS the block), so the
+    // first survives as text. PRE-EXISTING and unchanged. ⚠ Under `commonmark_x` quarto keeps
+    // `{#sec-x07a}` as text too but still defines both ids — a second question this row does not
+    // try to answer.
+    const t = withFrom("markdown", "# Adv X07 Two {#sec-x07a} {#sec-x07b}");
+    expect(names(t)).toEqual(["h1:Adv X07 Two {#sec-x07a}", TAIL]);
+    expect(labels(t)).toEqual(["sec-x07b"]);
+  });
+
+  it("DISCLOSED RESIDUAL — raw inline LaTeX keeps braces quarto deletes wholesale", () => {
+    // ⚠ The one place this session's change makes an already-wrong row LONGER. Quarto renders
+    // `# Adv X04 Latex \textbf{bold}` as an EMPTY-tailed `h1:Adv X04 Latex ` — the macro is raw
+    // inline LaTeX and the HTML writer drops it entirely — while this model reported
+    // `Adv X04 Latex \textbf` before (having stripped `{bold}` as an attribute block) and
+    // `Adv X04 Latex \textbf{bold}` now. The braces are now RIGHT and the row is still wrong,
+    // because raw-LaTeX deletion is a separate open item (filed by Session 217). Four
+    // predecessor documents move the same way (`scratchpad/s218/movers`, `\hspace{2em}`).
+    expect(names(withFrom("markdown", "# Adv X04 Latex \\textbf{bold}"))).toEqual([
+      "h1:Adv X04 Latex \\textbf{bold}",
+      TAIL,
+    ]);
+  });
 });

@@ -294,8 +294,17 @@ const ATTR_KEY_VALUE = /^[A-Za-z][^\s}#\\=]*=(?:"[^"]*"|'[^']*'|(?:\\ |[^\s}])*)
  * stripped (`cal2/*_q13clsdigit`, `*_q12iddigit`). ⚠ And `\` and `=` are in neither: they are
  * what makes `{#sec-p13\:x}` and `{#a=b}` invalid, which is the whole cross-reference half of
  * this rule (`cal/*_p13idesc`, `cal3/*_r08ideq`).
+ *
+ * ⚠ **THE CHARACTER SET IS PANDOC'S — letters, digits, `-`, `_`, `:` and `.` — AND WRITING IT AS
+ * "anything but whitespace" IS THIS ITEM'S OWN DEFECT ONE LEVEL DEEPER.** `{#sec-x24!}` renders
+ * as ordinary text and defines NO id (`scratchpad/s218/adv/*_x24bang`), and `{#sec-x09{b}`
+ * likewise (`*_x09nestopen`); an over-wide set strips both and enters `sec-x24!` and `sec-x09{b`
+ * in the cross-reference index — the fabricated-label failure this session exists to remove.
+ * ⚠ The letters are UNICODE letters, not `[A-Za-z]`: `{#sec-café}` is stripped (`*_x11uniid`)
+ * and so is `{.クラス}` (`*_x12unicls`), which the first draft of this rule kept — a regression
+ * its own adversarial pass caught.
  */
-const ATTR_ATOM_RUN = /^(?:-|#[^\s}#\\=]+|\.[A-Za-z][^\s}#\\=]*)+$/;
+const ATTR_ATOM_RUN = /^(?:-|#[\p{L}\p{N}_:.-]+|\.\p{L}[\p{L}\p{N}_:.-]*)+$/u;
 /**
  * `commonmark_x`'s spelling of the two token forms above — **ONE atom per token, no `-`, and a
  * class that may start with anything but may not contain a `.`** (Session 218).
@@ -313,7 +322,7 @@ const ATTR_ATOM_RUN = /^(?:-|#[^\s}#\\=]+|\.[A-Za-z][^\s}#\\=]*)+$/;
  * and a shape quarto authors write constantly, so a predicate tuned to the pandoc family deletes
  * the braces from every `{-}` heading in a `commonmark_x` document.
  */
-const ATTR_ATOM_COMMONMARK = /^(?:#[^\s}#\\=]+|\.[^\s}#\\=.]+)$/;
+const ATTR_ATOM_COMMONMARK = /^(?:#[\p{L}\p{N}_:.-]+|\.[\p{L}\p{N}_:-]+)$/u;
 /**
  * `commonmark_x`'s `KEY=VALUE`: no single-quoted value, and a bare value that may hold neither
  * quote and may not be EMPTY (Session 218). `{key=}` and `{key='a b'}` and `{key=v"al}` are all
