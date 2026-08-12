@@ -2182,4 +2182,97 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `ordinary headings must be unaffected: ${tightEsc.join(", ")}`,
     );
   });
+
+  it("a heading attribute block is stripped only where the reader honours it", async () => {
+    // Session 216. `HEADING_ATTRIBUTE` stripped a trailing `{…}` for EVERY reader and ONLY when
+    // whitespace preceded the brace; quarto's answer is neither. Measured over 119 documents
+    // rendered through the real quarto path (`scratchpad/s216/cal`, `cal2`, `cal3`).
+    //
+    // ⚠ Every assertion below was pre-checked headlessly against the pure `core/` model before
+    // this test was written (`scratchpad/s216/pre/precheck216.test.ts`) — S211's gotcha 3, a
+    // FIFTH session running. ⚠ `openInMemory` gives these documents their own scope, so no
+    // exact-set pin elsewhere can be extended by them. The grep that finds those pins is
+    // `grep -cE '^\s+assert\.deepStrictEqual\(' test/integration/suite/outline.test.ts`; it was
+    // run BEFORE this test was written and returned 24 (Session 215's own recorded count, and
+    // recorded here WITH its command so the next session can compare — gotcha 6).
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+    const CTL = ["", "## Cal Spaced Control"];
+
+    // PRESENT — the filed defect. `cal/a_default_tight` renders
+    // `<section id="sec-alpha-ti"><h1>Cal Alpha Tight</h1>`, read firsthand from the HTML.
+    const tight = await namesFor("# Cal Alpha Tight{#sec-alpha-ti}", ...CTL);
+    assert.ok(
+      tight.includes("Cal Alpha Tight"),
+      `an unspaced block is still a block: ${tight.join(", ")}`,
+    );
+    // ABSENT — the literal, in the SAME document, which makes this a REPLACEMENT rather than an
+    // addition. Without it the row above passes for a build that reports both spellings.
+    assert.ok(
+      !tight.includes("Cal Alpha Tight{#sec-alpha-ti}"),
+      `the literal must be gone, not merely joined: ${tight.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE DISCRIMINATOR. `commonmark_x` HONOURS the block (`cal/a_cmx_tight`) while
+    // `commonmark` and `gfm` do not. The split is therefore NOT `commonmarkDialect`: reusing the
+    // flag Sessions 214 and 215 both measured would put this row on the wrong side.
+    const cmx = await namesFor("---", "from: commonmark_x", "---", "", "# Cal India Tight{#sec-cmx-ti}", ...CTL);
+    assert.ok(
+      cmx.includes("Cal India Tight"),
+      `commonmark_x honours the block despite being a CommonMark reader: ${cmx.join(", ")}`,
+    );
+
+    // PRESENT (with braces) — ⚠ THE CONTROL that makes the row above a SPLIT rather than
+    // "CommonMark strips": plain `commonmark` renders the block LITERALLY (`cal/a_cm_spaced`).
+    const cm = await namesFor("---", "from: commonmark", "---", "", "# Cal Hotel Sp {#sec-cm-sp}", ...CTL);
+    assert.ok(
+      cm.includes("Cal Hotel Sp {#sec-cm-sp}"),
+      `plain commonmark keeps the braces: ${cm.join(", ")}`,
+    );
+
+    // PRESENT (with braces) — `gfm` on the SPACED spelling, the row that was wrong before this
+    // session in the direction that fabricates a cross-reference target (`cal/a_gfm_spaced`).
+    const gfm = await namesFor("---", "from: gfm", "---", "", "# Cal Golf Sp {#sec-gfm-sp}", ...CTL);
+    assert.ok(
+      gfm.includes("Cal Golf Sp {#sec-gfm-sp}"),
+      `gfm has no header_attributes: ${gfm.join(", ")}`,
+    );
+
+    // PRESENT — the EXTENSION outranks the BASE and the LAST occurrence wins (`cal3`). The
+    // neighbouring extension predicate takes the FIRST token and `BACKLOG.md` still carries that
+    // as an open defect, so this row is the one that proves the bug was not copied.
+    const last = await namesFor(
+      "---", "from: markdown-header_attributes+header_attributes", "---", "",
+      "# Cal Papa T{#sec-p-ti}", ...CTL,
+    );
+    assert.ok(last.includes("Cal Papa T"), `last token wins: ${last.join(", ")}`);
+    // PRESENT (with braces) — the SAME two tokens in the opposite order, without which the row
+    // above passes for a rule that simply always strips.
+    const first = await namesFor(
+      "---", "from: markdown+header_attributes-header_attributes", "---", "",
+      "# Cal Quebec T{#sec-q-ti}", ...CTL,
+    );
+    assert.ok(
+      first.includes("Cal Quebec T{#sec-q-ti}"),
+      `the opposite order gives the opposite answer: ${first.join(", ")}`,
+    );
+
+    // PRESENT (with braces) — the SETEXT path takes the same gate. ⚠ The inverse of Session 215,
+    // whose setext side was already right and had to be held still: here it was wrong for five
+    // readers, and a unit pin recorded that wrong answer in its own comment for three sessions.
+    const setext = await namesFor("---", "from: gfm", "---", "", "Cal Golf Set {#sec-gfm-st}", "===", ...CTL);
+    assert.ok(
+      setext.includes("Cal Golf Set {#sec-gfm-st}"),
+      `the setext path is gated too: ${setext.join(", ")}`,
+    );
+
+    // PRESENT — the control, without which every assertion above passes for a build that has
+    // stopped producing headings entirely (Learning #339).
+    assert.ok(
+      setext.includes("Cal Spaced Control"),
+      `ordinary headings must be unaffected: ${setext.join(", ")}`,
+    );
+  });
 });

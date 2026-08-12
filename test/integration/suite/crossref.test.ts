@@ -189,4 +189,46 @@ describe("Quarto: Cross-reference completion + definition", () => {
     assert.ok(locs && locs.length > 0, "prose reference resolves");
     assert.strictEqual(locs[0].range.start.line, 6, "jumps to the heading");
   });
+
+  it("a reader without `header_attributes` defines no sec- label (Session 216)", async () => {
+    // ⚠ THIS IS THE CONSUMER SESSION 215's CHANGE COULD NOT REACH AND THIS ONE CAN.
+    // `HEADING_ATTRIBUTE` is the ONLY source of `Heading.id`, which `src/core/refs.ts` turns
+    // into the `sec-` cross-reference index. Five of the nine measured readers render the block
+    // as ordinary TEXT (`scratchpad/s216/cal`, 63 documents), so before this session a `gfm`
+    // document offered a completion for a section identifier the rendered output never defines —
+    // a reference that resolves in the editor and dangles in the document.
+    //
+    // ⚠ Both assertions were pre-checked headlessly against `indexLabels` before this test was
+    // written (`scratchpad/s216/pre/precheck216.test.ts`), per S211's gotcha 3.
+    const labelsAt = async (content: string) => {
+      const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+      await vscode.window.showTextDocument(doc);
+      const line = doc.lineCount - 1;
+      const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        doc.uri,
+        new vscode.Position(line, doc.lineAt(line).text.length),
+        "@",
+      );
+      return (list?.items ?? []).map(labelText);
+    };
+
+    // ABSENT — `gfm` renders `# Methods {#sec-methods}` with the braces as literal text and
+    // auto-generates a different identifier, so no `sec-methods` target exists.
+    const gfm = await labelsAt(
+      ["---", "from: gfm", "---", "", "# Methods {#sec-methods}", "", "See @"].join("\n"),
+    );
+    assert.ok(
+      !gfm.includes("@sec-methods"),
+      `gfm defines no sec- label: ${JSON.stringify(gfm)}`,
+    );
+
+    // PRESENT — ⚠ THE CONTROL, without which the assertion above passes for a build whose
+    // cross-reference index has stopped working altogether. The same bytes, default reader.
+    const dflt = await labelsAt(["# Methods {#sec-methods}", "", "See @"].join("\n"));
+    assert.ok(
+      dflt.includes("@sec-methods"),
+      `the default reader still defines it: ${JSON.stringify(dflt)}`,
+    );
+  });
 });
