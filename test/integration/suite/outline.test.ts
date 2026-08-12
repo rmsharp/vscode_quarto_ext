@@ -2088,4 +2088,98 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
       `ordinary headings must be unaffected: ${control.join(", ")}`,
     );
   });
+
+  it("a trailing hash run with no space before it is stripped for the pandoc readers", async () => {
+    // The user-visible surface of Session 215. `# Release Notes for C#` shows in the outline as
+    // "Release Notes for C" in every renderer quarto uses for the pandoc markdown family — so an
+    // outline that keeps the hash shows a name the reader never sees, and the fix must NOT apply
+    // it under a CommonMark reader, where quarto really does keep the hash.
+    //
+    // ⚠ `openInMemory` scopes every document below, so no exact-set `assert.deepStrictEqual` pin
+    // can be extended by them and no fixture file is touched. The exact-set grep ran BEFORE this
+    // test was written, not after it failed: `grep -cE '^\s+assert\.deepStrictEqual\('` found 24,
+    // of which 2 are Session 214's own in-memory assertions, and NONE is extended here.
+    //
+    // ⚠ Every assertion below was pre-checked headlessly against the pure `core/` model before
+    // this run was requested (`scratchpad/s215/pre/precheck215.test.ts`) — Session 211's gotcha 3,
+    // which has now saved four consecutive screen-taking runs.
+    //
+    // Every premise was rendered through the real `quarto render --to html` path this session
+    // (`scratchpad/s215/`, 114 designed documents plus a 30-document adversarial pass, a
+    // 10-document injection control and a 44,359-row predecessor re-score, quarto 1.7.33).
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    // PRESENT — the item's own shape under the DEFAULT reader, which is what a document with no
+    // `from:` key gets and is the commonest shape there is. `cal/a_default_csharp`.
+    const dflt = await namesFor("# Cal Alpha C#", "", "# Cal Alpha Below");
+    assert.ok(dflt.includes("Cal Alpha C"), `the closing run is stripped: ${dflt.join(", ")}`);
+    // ABSENT — and the unstripped spelling is gone from that same document, which makes the row
+    // above a REPLACEMENT rather than an addition.
+    assert.ok(
+      !dflt.includes("Cal Alpha C#"),
+      `the unstripped name must not survive beside it: ${dflt.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE DISCRIMINATOR. `cal/a_gh_csharp`: `markdown_github` STRIPS, though pandoc
+    // documents it as a deprecated synonym for `gfm`, which does not. A reader table reasoned
+    // from the base name puts this row on the wrong side — the third session running that this
+    // exact trap has appeared in a different rule.
+    const gh = await namesFor("---", "from: markdown_github", "---", "", "# Cal Alpha C#");
+    assert.ok(gh.includes("Cal Alpha C"), `markdown_github strips despite the name: ${gh.join(", ")}`);
+
+    // PRESENT (the hash) — `gfm` KEEPS it (`cal/a_gfm_csharp`), because CommonMark §4.2 requires
+    // the closing sequence to be preceded by a space. This is the row the backlog entry's "under
+    // EVERY reader" claim got wrong, and getting it wrong would truncate a real heading.
+    const gfm = await namesFor("---", "from: gfm", "---", "", "# Cal Alpha C#");
+    assert.ok(
+      gfm.includes("Cal Alpha C#") && !gfm.includes("Cal Alpha C"),
+      `a CommonMark reader keeps the unspaced hash: ${gfm.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE CONTROL THAT MAKES IT A SPLIT rather than "CommonMark strips nothing":
+    // the SPACED run is stripped by all nine measured readers, `gfm` included
+    // (`cal/a_gfm_spaced`). Without this row the assertion above passes for a build that has
+    // stopped stripping closing sequences altogether.
+    const gfmSpaced = await namesFor("---", "from: gfm", "---", "", "# Cal Bravo Text #");
+    assert.ok(
+      gfmSpaced.includes("Cal Bravo Text"),
+      `a CommonMark reader still strips the SPACED run: ${gfmSpaced.join(", ")}`,
+    );
+
+    // PRESENT — the TIGHT row, which reported NOTHING before this session. Its decline existed
+    // only because the strip was wrong; the strip is right now, so `#Cal Tight C#` is accepted
+    // with quarto's exact text (`cal3/c_tightcsharp_strict`, four bases measured).
+    const tight = await namesFor("---", "from: markdown_strict", "---", "", "#Cal Tight C#");
+    assert.ok(
+      tight.includes("Cal Tight C"),
+      `the tight spelling is accepted once the strip is right: ${tight.join(", ")}`,
+    );
+
+    // ABSENT — ⚠ THE DECLINE THAT SURVIVED. `#Cal Tight Esc\#` renders `Cal Tight Esc#`, and this
+    // model keeps the backslash, so accepting it would turn "reports nothing" into "reports the
+    // wrong text". `cal3/c_tightesc_*`, four bases. The heading below it proves the document
+    // parses at all.
+    const tightEsc = await namesFor(
+      "---",
+      "from: markdown_strict",
+      "---",
+      "",
+      "#Cal Tight Esc\\#",
+      "",
+      "## Cal Spaced Control",
+    );
+    assert.ok(
+      !tightEsc.includes("Cal Tight Esc") && !tightEsc.includes("Cal Tight Esc\\"),
+      `the escaped tight run is still declined: ${tightEsc.join(", ")}`,
+    );
+    // PRESENT — the control, without which every ABSENT above passes for a build that has
+    // stopped producing headings entirely (Learning #339).
+    assert.ok(
+      tightEsc.includes("Cal Spaced Control"),
+      `ordinary headings must be unaffected: ${tightEsc.join(", ")}`,
+    );
+  });
 });
