@@ -7,6 +7,46 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-11 · [ad hoc] Session 214 — a SETEXT UNDERLINE swallows the ATX heading above it (SHIPPED)
+
+- **Model:** Claude Opus 5.
+- **What shipped.** `# Heading` directly above `===` renders as ONE heading in quarto — the
+  underline claims the ATX line, the UNDERLINE's spelling sets the level, and the literal `#`
+  survives into the text. This model matched the ATX row and reported the stripped name at the
+  hashes' level. `setextUnderlineSwallowsAtx` declines the ATX match so the setext row claims the
+  line; nothing downstream changed, because the setext text pipeline was already correct.
+- **⚠ The item's reader clause was wrong and the base table refuted it on the first render.** The
+  entry says "under EVERY reader including plain `markdown`". It is a clean 6–3 split: the whole
+  pandoc `markdown*` family swallows — `markdown_github` included, though pandoc documents it as a
+  deprecated `gfm` synonym — and `gfm` / `commonmark` / `commonmark_x` do not, because CommonMark
+  §4.3 requires a setext underline to follow a PARAGRAPH and an ATX heading is not one.
+- **⚠ This reverses a deliberate Session 182 decision that Session 199 named as a separate
+  capability in advance**, and `closesParagraph` carries an arm built on top of that decline. The
+  setext row's own reset replaces it — pinned on the exact document the arm was written for.
+- **⚠ The adversarial pass found a DELETION and it is closed rather than disclosed.** Pressed
+  against a `:::` opener the setext row never fires, so an ungated decline lost the section
+  entirely. The gate now passes the body-run counter's next value, so the decline fires only when
+  the setext row will accept the line — purely additive by construction.
+- **Measured.** 207 documents rendered through the real `quarto render` path (1.7.33), scored per
+  document against the pre-session build on identical bytes, plus a 44,013-document re-score of
+  every predecessor corpus across 3,584 directories. Designed 60 → 108/110, INTRODUCED 0
+  (cal 24→36, cal2 15→38, cal3 21→34); adversarial 7 → 18/22, INTRODUCED 0; all three per-corpus
+  predictions in `scratchpad/s214/CALIBRATION.md`, written before any code, were exact.
+  Predecessor re-score: 75 rows moved, **0/75 → 74/75, 0 regressions**. Repo control: 114 of 115
+  tracked documents byte-identical across four views, the ONE mover landing on quarto's rendered
+  truth, proven effective by injection (5 moved, 5 held, 10/10 agree with quarto). Three
+  pre-existing red pins all FIXES, rendered rather than reasoned (1/5 → 5/5) — one of them
+  Session 199's disclosed "one error this change INTRODUCES", now closed.
+- **Verification.** `check-types` 0 · `check-types:unit` 0 · `compile` 0 · `compile-tests` 0 ·
+  `npm test` 2007 passed / 66 files (baseline 1993) · `test:oracle` 131 / 124 agree / 4 lost TP /
+  3 CARDINAL FP / 0 unrelated (BYTE-IDENTICAL to S180–S213) · `check-package` OK 42 files /
+  5.55 MB · `check-backlog` OK · `test:integration` **521 passing / 0 failing / exit 0**
+  (baseline 520), green first time. NOT RUN: `test:lsp` — no LSP surface touched.
+- **⚠ Also corrected:** the integration suite's premise comment for
+  `test/fixtures/closes-paragraph.qmd` listed quarto's headings and OMITTED this one; its
+  assertion had the heading at the wrong level and the wrong text. Fixture bytes untouched.
+- Commits `89e33b3` (1B claim) · `8ba237f` (C1) · `a38fc37` (C2) · `afc52fd` (C3) · this close-out.
+
 ### 2026-08-11 · [ad hoc] Session 213 — a mid-document YAML metadata block is CONSUMED by its reader (SHIPPED)
 
 - **Model:** Claude Opus 5.
