@@ -271,4 +271,46 @@ describe("Quarto: Cross-reference completion + definition", () => {
       `an escaped BRACE defines no label: ${JSON.stringify(odd)}`,
     );
   });
+  it("an escape inside the block defines no sec- label (Session 218)", async () => {
+    // ⚠ THE CONSUMER THIS ITEM EXISTS FOR. `HEADING_ATTRIBUTE` is the ONLY source of
+    // `Heading.id`, and it said only WHERE a block would be — so `{#sec-meth\:ods}`, which
+    // quarto renders as ordinary TEXT while defining NO id at all (`scratchpad/s218/cal`,
+    // `*_p13idesc`, with `*_p14idcolon` as the agreeing control), was stripped here and entered
+    // in the cross-reference index. The editor offered a completion for a section identifier the
+    // rendered document never defines: a reference that resolves here and dangles there. It was
+    // the only open item that FABRICATED one.
+    //
+    // ⚠ Both assertions were pre-checked headlessly against `indexLabels` before this test was
+    // written (`scratchpad/s218/pre/precheck218.test.ts`), per S211's gotcha 3.
+    const labelsAt = async (content: string) => {
+      const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+      await vscode.window.showTextDocument(doc);
+      const line = doc.lineCount - 1;
+      const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        doc.uri,
+        new vscode.Position(line, doc.lineAt(line).text.length),
+        "@",
+      );
+      return (list?.items ?? []).map(labelText);
+    };
+
+    // ABSENT — the fabricated target. `\:` is an escaped colon, `\` is not an identifier
+    // character, and the block is therefore not a block.
+    const esc = await labelsAt(["# Methods {#sec-meth\\:ods}", "", "See @"].join("\n"));
+    assert.ok(
+      !esc.some((l) => l.includes("sec-meth")),
+      `an escape defines no sec- label: ${JSON.stringify(esc)}`,
+    );
+
+    // PRESENT — ⚠ THE CONTROL, and it is the same bytes minus ONE backslash. A colon IS an
+    // ordinary identifier character, so this block is valid and the target really exists
+    // (`cal/*_p14idcolon` renders with `id="sec-p14:x"`). Without this row the assertion above
+    // passes for a build whose cross-reference index has stopped working altogether.
+    const plain = await labelsAt(["# Methods {#sec-meth:ods}", "", "See @"].join("\n"));
+    assert.ok(
+      plain.includes("@sec-meth:ods"),
+      `the same id without the escape is defined: ${JSON.stringify(plain)}`,
+    );
+  });
 });

@@ -2345,4 +2345,73 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
     // whose outline has stopped working altogether.
     assert.ok(dflt.includes("Cal Spaced Control"), `control heading: ${dflt.join(", ")}`);
   });
+  it("a trailing brace group is stripped only when it is a VALID attribute block", async () => {
+    // Session 218. `HEADING_ATTRIBUTE` said only WHERE a block would be, so prose that merely
+    // ended in braces was stripped as though it were one — and an ESCAPE inside the block put a
+    // `sec-` label in the cross-reference index the rendered document never defines. Measured
+    // over 473 documents rendered through the real quarto path (`scratchpad/s218/cal`, `cal2`,
+    // `cal3`, `cal4`, `adv`, `movers`).
+    //
+    // ⚠ Every assertion below was pre-checked headlessly against the pure `core/` model before
+    // this test was written (`scratchpad/s218/pre/precheck218.test.ts`, 9 green) — S211's
+    // gotcha 3, a SEVENTH session running. ⚠ `openInMemory` gives these documents their own
+    // scope, so no exact-set pin elsewhere can be extended by them. The grep that finds those
+    // pins is `grep -cE '^\s+assert\.deepStrictEqual\(' test/integration/suite/outline.test.ts`;
+    // it was run BEFORE this test was written and returned 24 (Session 217's own recorded count,
+    // and recorded here WITH its command so the next session can compare — gotcha 8).
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+    const CTL = ["", "## Cal Spaced Control"];
+
+    // PRESENT (with braces) — the filed defect. `cal/*_p07words` renders
+    // `h1:Cal Alpha Prose {alpha beta}` under every reader that honours attributes at all: bare
+    // words are not attributes, so the braces are ordinary text.
+    const prose = await namesFor("# Cal Alpha Prose {alpha beta}", ...CTL);
+    assert.ok(
+      prose.includes("Cal Alpha Prose {alpha beta}"),
+      `prose that ends in braces keeps them: ${prose.join(", ")}`,
+    );
+    // ABSENT — the stripped form, in the SAME document, which makes this a REPLACEMENT rather
+    // than an addition. Without it the row above passes for a build reporting both spellings.
+    assert.ok(
+      !prose.includes("Cal Alpha Prose"),
+      `the stripped form must be gone, not merely joined: ${prose.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE ROW THAT MAKES THIS A NARROWING RATHER THAN A DELETION. A valid block is
+    // still stripped; without it every assertion here passes for a build that has stopped
+    // honouring attribute blocks altogether.
+    const valid = await namesFor("# Cal P01 Id {#sec-p01}", ...CTL);
+    assert.ok(valid.includes("Cal P01 Id"), `a valid block still strips: ${valid.join(", ")}`);
+
+    // PRESENT (with braces) — ⚠ THE DISCRIMINATOR, and the only shape that forces two grammars.
+    // `{-}` is pandoc's shorthand for `.unnumbered`; `commonmark_x` honours attribute blocks but
+    // has no such shorthand and renders `h1:Cal P03 Dash {-}` (`cal/cmx_p03dash`).
+    const cmx = await namesFor(
+      "---", "from: commonmark_x", "---", "", "# Cal P03 Dash {-}", ...CTL,
+    );
+    assert.ok(
+      cmx.includes("Cal P03 Dash {-}"),
+      `commonmark_x has no {-} shorthand: ${cmx.join(", ")}`,
+    );
+    // PRESENT — ⚠ THE CONTROL that makes the row above a SPLIT rather than "{-} is never a
+    // block": the same bytes under `markdown` DO strip (`cal/md_p03dash`).
+    const md = await namesFor("---", "from: markdown", "---", "", "# Cal P03 Dash {-}", ...CTL);
+    assert.ok(md.includes("Cal P03 Dash"), `the pandoc family strips it: ${md.join(", ")}`);
+
+    // PRESENT (with braces) — ⚠ THE HEADLINE. An escape makes the block invalid: quarto renders
+    // `h1:Cal P13 Idesc {#sec-p13:x}` and defines NO id (`cal/*_p13idesc`). The escape is still
+    // CONSUMED by Session 217's decode, so the reported text carries `:` and not `\:`.
+    const esc = await namesFor("# Cal P13 Idesc {#sec-p13\\:x}", ...CTL);
+    assert.ok(
+      esc.includes("Cal P13 Idesc {#sec-p13:x}"),
+      `an escape invalidates the block: ${esc.join(", ")}`,
+    );
+
+    // PRESENT — the control heading, without which every assertion above passes for a build
+    // whose outline has stopped working altogether.
+    assert.ok(prose.includes("Cal Spaced Control"), `control heading: ${prose.join(", ")}`);
+  });
 });
