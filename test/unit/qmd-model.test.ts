@@ -8305,4 +8305,71 @@ describe("the heading ATTRIBUTE block is stripped only where the reader honours 
       names(withFrom("markdown+header_attributes-header_attributes", "# Cal Quebec T{#sec-q-ti}")),
     ).toEqual(["h1:Cal Quebec T{#sec-q-ti}", TAIL]);
   });
+
+  /**
+   * PINS — one per measured clause, all labelled TEST-AFTER. Every document below was rendered
+   * on ITS OWN BYTES before the assertion was written (S202's gotcha 9), in
+   * `scratchpad/s216/cal2` and `adv`.
+   */
+  describe("PINS — the measured boundaries and the disclosed residuals", () => {
+    it("the CONTAINER axis: the block is stripped inside every wrapper that reports a heading", () => {
+      // `adv/x01_div`, `x02_nestdiv`, `x04_list`, `x05_nestlist`, `x07_htmlopen`, `x08_htmlclosed`
+      // — all six were wrong before this session and all six now match quarto exactly. The axis
+      // is generated from the start rather than after a regression (Learning #355): three of the
+      // last four sessions shipped exactly one regression each and every one was a wrapper row.
+      expect(names(withFrom(null, "::: {.note}", "# Adv Div Head{#sec-advdiv}", ":::"))).toEqual([
+        "h1:Adv Div Head",
+        TAIL,
+      ]);
+      expect(names(withFrom(null, "-   item one", "", "    # Adv List Head{#sec-advlist}"))).toEqual(
+        ["h1:Adv List Head", TAIL],
+      );
+    });
+
+    it("a level-6 heading takes the same rule — `adv/x26_lvl6`", () => {
+      expect(names(withFrom(null, "###### Adv Level Six{#sec-advl6}"))).toEqual([
+        "h6:Adv Level Six",
+        TAIL,
+      ]);
+    });
+
+    it("⚠ DISCLOSED RESIDUAL — a `}` inside a QUOTED attribute value defeats `[^}]*`", () => {
+      // `adv/x25_bracequote`. quarto renders `h1:Adv Brace Quote`: it parses the quoted `}` as
+      // part of the value. `[^}]*` stops at that inner brace, so the block no longer reaches end
+      // of line and this model reports the whole literal. ⚠ PRE-EXISTING and UNCHANGED by this
+      // session in either direction — the old regex failed on the same byte for the same reason.
+      // Filed, not fixed: the honest fix needs a quote-aware scan, not a wider character class.
+      expect(names(withFrom(null, '# Adv Brace Quote {#sec-advbq title="a}b"}'))).toEqual([
+        'h1:Adv Brace Quote {#sec-advbq title="a}b"}',
+        TAIL,
+      ]);
+    });
+
+    it("⚠ DISCLOSED RESIDUAL — an ESCAPED BACKSLASH before a real block defeats the lookbehind", () => {
+      // `adv/x28_escbackslash`. `\\` is an escaped backslash, so `{#sec-advesb}` IS a real
+      // attribute block and quarto renders `h1:Adv Esc Backslash \`. `(?<!\\)` sees only the
+      // one character before the brace and refuses. ⚠ PRE-EXISTING and unchanged — and it is the
+      // same shape Session 215 disclosed one constant over for the closing hash run
+      // (`s215/adv/x28`), so the two want one fix: count the backslashes, do not look at one.
+      expect(names(withFrom(null, "# Adv Esc Backslash \\{#sec-advesb}"))).toEqual([
+        "h1:Adv Esc Backslash \\{#sec-advesb}",
+        TAIL,
+      ]);
+    });
+
+    it("⚠ the reader gate reads a QUOTED and a COMMENTED `from:` — `adv/x14`–`x16`, `x19`", () => {
+      for (const spelling of ['"gfm"', "'gfm'", "gfm # a trailing comment", "   gfm"]) {
+        expect(names(withFrom(spelling, "# Adv Quoted Gfm{#sec-advqg}"))).toEqual([
+          "h1:Adv Quoted Gfm{#sec-advqg}",
+          TAIL,
+        ]);
+      }
+      // …and the same resolver on the stripping side, so the rows above are a SPLIT rather than
+      // "the gate never fires" (`adv/x17_quoted_md`).
+      expect(names(withFrom('"markdown"', "# Adv Quoted Md{#sec-advqm}"))).toEqual([
+        "h1:Adv Quoted Md",
+        TAIL,
+      ]);
+    });
+  });
 });
