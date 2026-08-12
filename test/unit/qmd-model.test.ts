@@ -12,6 +12,10 @@ import {
   hideCellsInOutline,
   inFrontMatter,
 } from "../../src/core/qmd/model";
+// Session 216 — the heading ATTRIBUTE block is the ONLY source of `Heading.id`, which this
+// module turns into the `sec-` cross-reference index. That consumer is part of this session's
+// answer (its guard covers it), so it is exercised here rather than assumed.
+import { indexLabels } from "../../src/core/refs";
 
 describe("findHeadings — basic ATX parsing", () => {
   it("returns no headings for plain prose", () => {
@@ -5086,16 +5090,20 @@ describe("a setext TITLE may be MULTI-LINE under a CommonMark reader (Session 20
     //     `c_empty_dash_ord`).
     expect(two("gfm", "Pin Ord Title", "2. not a one so may not interrupt")).toEqual([]);
     expect(two("gfm", "Pin Empty Ord Title", "1.")).toEqual([]);
-    // (3) `gfm` has no `header_attributes`, so quarto keeps `{#sec-…}` LITERALLY in the text
-    //     where we strip it and index the id. ⚠ PROVEN PRE-EXISTING through TWO controls this
-    //     session never touches: the SOLO setext title (`d_attr_solo`, one line, identical on
-    //     the pre-session build) and the ATX row (`scratchpad/s203/ctl` — `attr_atx`, likewise
-    //     identical). Already filed by Session 202; this is a new SHAPE of it, not a new
-    //     defect.
+    // (3) `gfm` has no `header_attributes`, so quarto keeps `{#sec-…}` LITERALLY in the text.
+    //     ⚠ **REVERSED BY SESSION 216, AND BOTH ROWS ARE FIXES — PROVEN BY RENDERING THESE
+    //     EXACT BYTES, NOT BY READING THE COMMENT THAT PREDICTED THEM.** For three sessions
+    //     these two lines pinned an answer their own trailing comments recorded as WRONG. Both
+    //     documents were extracted verbatim to `scratchpad/s216/pin/` and rendered through the
+    //     real quarto path: `p1_solo` → `h1:Pin Attr Solo {#sec-pin-attr}` and `p2_pair` →
+    //     `h1:Pin Attr Pair second line {#sec-pin-pair}`, which is what this build now reports.
+    //     ⚠ The rendered section ids are AUTO-GENERATED from the literal text
+    //     (`pin-attr-solo-sec-pin-attr`), so the output defines no `sec-` target at all — which
+    //     is why the gate had to drop the id and not merely the braces.
     expect(names(doc("---", "from: gfm", "---", "", "Pin Attr Solo {#sec-pin-attr}", "====")))
-      .toEqual(["h1:Pin Attr Solo"]); // quarto: `h1:Pin Attr Solo {#sec-pin-attr}`
+      .toEqual(["h1:Pin Attr Solo {#sec-pin-attr}"]); // = quarto, `s216/pin/p1_solo`
     expect(two("gfm", "Pin Attr Pair", "second line {#sec-pin-pair}"))
-      .toEqual(["h1:Pin Attr Pair second line"]); // quarto keeps the braces — same family
+      .toEqual(["h1:Pin Attr Pair second line {#sec-pin-pair}"]); // = quarto, `p2_pair`
     // (4) A LONE indented line under a CommonMark reader is still reported as a title, and
     //     quarto renders none there (`d_code_run1`). PRE-EXISTING and out of this row's scope:
     //     it is the question of whether indented code can be a title AT ALL, not of how many
@@ -8131,5 +8139,170 @@ describe("a trailing `#` run with no space before it is a CLOSING SEQUENCE (Sess
         names(withFrom(null, "::: {.callout-note}", "", "# Adv Callout Head#", "", ":::")),
       ).toEqual(["h1:Adv Callout Head", TAIL]);
     });
+  });
+});
+
+describe("the heading ATTRIBUTE block is stripped only where the reader honours it (Session 216)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  const ids = (text: string) => findHeadings(text).map((h) => h.id ?? null);
+  const labels = (text: string) => indexLabels(text).map((l) => l.id);
+  /**
+   * Every document carries a real ATX heading BELOW the probe, as the rendered corpora do
+   * (`scratchpad/s216/cal`). Without it a document reporting nothing is indistinguishable from a
+   * build that has stopped producing headings altogether (Learning #339).
+   */
+  const BELOW = ["", "# Cal Alpha Below"];
+  const TAIL = "h1:Cal Alpha Below";
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...BELOW);
+
+  /**
+   * ⚠ THE GUARD, WRITTEN AND RUN GREEN BEFORE THE CHANGE (Session 204's gotcha 5, a THIRTEENTH
+   * session). Its polarity is what this session's rule threatens in BOTH directions: widening
+   * the constant DELETES text from a heading a reader really sees, and gating it moves the
+   * `sec-` CROSS-REFERENCE INDEX — a consumer no predecessor guard in this family has had to
+   * cover, because Session 215's change was text-only and provably could not reach it.
+   * Every row below is a document quarto renders, measured in `scratchpad/s216/`, and every one
+   * must read identically after the change.
+   */
+  describe("GUARD — rows the reader-gated strip may not touch", () => {
+    it("the DEFAULT reader strips a spaced block and indexes its id — text AND cross-reference", () => {
+      // `cal/a_default_spaced`, rendered `<section id="sec-default-sp"><h1>Cal Alpha Spaced</h1>`.
+      const text = withFrom(null, "# Cal Alpha Spaced {#sec-alpha-sp}");
+      expect(names(text)).toEqual(["h1:Cal Alpha Spaced", TAIL]);
+      expect(ids(text)).toEqual(["sec-alpha-sp", null]);
+      // ⚠ THE CONSUMER, not just the model: `src/core/refs.ts` is what a `@sec-` reference
+      // resolves against, and it is reachable from this rule ALONE (decision rule 4).
+      expect(labels(text)).toEqual(["sec-alpha-sp"]);
+    });
+
+    it("a closing run AFTER the block means the block is not a block — `cal2/b_attrrun_md`", () => {
+      // quarto renders `Cal AttrRun {#sec-attrrun}`: the `#` is the closing sequence and the
+      // braces are ordinary text. The block must still END the line to be one.
+      expect(names(withFrom(null, "# Cal AttrRun {#sec-attrrun}#"))).toEqual([
+        "h1:Cal AttrRun {#sec-attrrun}",
+        TAIL,
+      ]);
+      expect(ids(withFrom(null, "# Cal AttrRun {#sec-attrrun}#"))).toEqual([null, null]);
+    });
+
+    it("text after the block, and nested braces, are not blocks — `cal2/b_after_md`, `b_nested_md`", () => {
+      expect(names(withFrom(null, "# Cal After {#sec-after} tail"))).toEqual([
+        "h1:Cal After {#sec-after} tail",
+        TAIL,
+      ]);
+      expect(names(withFrom(null, "# Cal Nest {#sec-nest {inner}}"))).toEqual([
+        "h1:Cal Nest {#sec-nest {inner}}",
+        TAIL,
+      ]);
+    });
+
+    it("an all-hash heading is still DROPPED — the `review #4` rows on the neighbouring rule", () => {
+      expect(names(withFrom(null, "## ##"))).toEqual([TAIL]);
+      expect(names(withFrom(null, "### ###"))).toEqual([TAIL]);
+      expect(names(withFrom(null, "#### #"))).toEqual([TAIL]);
+    });
+
+    it("a `#` that is part of the text survives — the neighbouring closing-run rule", () => {
+      expect(names(withFrom(null, "# C# language"))).toEqual(["h1:C# language", TAIL]);
+    });
+
+    it("EMPTY braces really are a block under a stripping reader — `cal2/b_empty_md`", () => {
+      expect(names(withFrom(null, "# Cal Empty {}"))).toEqual(["h1:Cal Empty", TAIL]);
+    });
+
+    it("the SETEXT path strips and indexes under the default reader — `cal/a_default_setext`", () => {
+      const text = withFrom(null, "Cal Alpha Set {#sec-alpha-st}", "===");
+      expect(names(text)).toEqual(["h1:Cal Alpha Set", TAIL]);
+      expect(labels(text)).toEqual(["sec-alpha-st"]);
+    });
+
+    it("⚠ `gfm` KEEPS an unspaced block, and it is right today only BY ACCIDENT", () => {
+      // `cal/a_gfm_tight` — quarto renders the whole literal, and this model happens to agree
+      // because `HEADING_ATTRIBUTE` demands whitespace before the brace. The moment that
+      // requirement is dropped WITHOUT the reader gate, this row goes from right to wrong.
+      // It is the single row that makes the two filed backlog items one item.
+      expect(names(withFrom("gfm", "# Cal Golf Tight{#sec-golf-ti}"))).toEqual([
+        "h1:Cal Golf Tight{#sec-golf-ti}",
+        TAIL,
+      ]);
+    });
+  });
+
+  /**
+   * RED 1 — the block needs NO whitespace before it. `cal/a_default_tight`, `a_md_tight`,
+   * `a_php_tight`, and the backlog's own witness `s215/cal2/b_attrtight_md`: quarto renders
+   * `<section id="sec-…"><h1>Cal Alpha Tight</h1>`, read firsthand from the HTML rather than
+   * through the extractor. This model reports the whole literal and indexes no id at all.
+   */
+  it("a block pressed against the text is still a block — `cal/a_default_tight`", () => {
+    const text = withFrom(null, "# Cal Alpha Tight{#sec-alpha-ti}");
+    expect(names(text)).toEqual(["h1:Cal Alpha Tight", TAIL]);
+    expect(ids(text)).toEqual(["sec-alpha-ti", null]);
+    expect(labels(text)).toEqual(["sec-alpha-ti"]);
+  });
+
+  /**
+   * RED 2 — the reader GATE, which is what makes the widening above safe. `cal/a_gfm_spaced`
+   * renders `<h1>Cal Golf Spaced {#sec-golf-sp}</h1>`: `gfm` has no `header_attributes`, so the
+   * braces are ORDINARY TEXT and the output defines no `sec-` identifier at all.
+   *
+   * ⚠ The `labels` assertion is the half a text-only test cannot reach. Stripping here does not
+   * merely mis-name a section — it fabricates a cross-reference target (`src/core/refs.ts`)
+   * that quarto never defines, so a `@sec-golf-sp` reference resolves against this model and
+   * dangles in the rendered document.
+   */
+  it("a reader WITHOUT `header_attributes` keeps the braces and defines no id — `cal/a_gfm_spaced`", () => {
+    const text = withFrom("gfm", "# Cal Golf Spaced {#sec-golf-sp}");
+    expect(names(text)).toEqual(["h1:Cal Golf Spaced {#sec-golf-sp}", TAIL]);
+    expect(ids(text)).toEqual([null, null]);
+    expect(labels(text)).toEqual([]);
+  });
+
+  /**
+   * PIN, **not** a RED→GREEN cycle — and labelled honestly because it did not fail when written.
+   * ⚠ **DISCLOSED TDD DEVIATION:** the last-wins extension scan went in as part of GREEN 2, which
+   * is more code than RED 2 required. Strict TDD wanted a third failing test first; this one was
+   * written after the fact and passed on its first run, so this session has **two** genuine
+   * RED→GREEN cycles, not three. Recorded rather than dressed up — a test that never failed is
+   * evidence the code works, never evidence the code was driven by a test.
+   *
+   * What it pins: the EXTENSION outranks the BASE, in both directions, and the LAST occurrence
+   * wins. All rows measured in `scratchpad/s216/cal3` (24 documents, eight extension spellings,
+   * every one quarto exit 0), and all PREDICTED in that generator's docstring before it ran.
+   *
+   * ⚠ The duplicate-token rows are not a curiosity — they are the reason this is a last-wins
+   * scan rather than a first-match test. `fromKeepsBlankBeforeHeader`, the neighbouring
+   * extension predicate whose shape this one otherwise copies, takes the FIRST disabling token
+   * and `BACKLOG.md` still carries that as an open defect found by a blind lens. Measuring the
+   * question here means this rule does not ship the same bug one constant over.
+   */
+  it("the extension list outranks the base, and the LAST occurrence wins — `cal3`", () => {
+    // A stripping base with the extension turned OFF renders the braces literally.
+    expect(names(withFrom("markdown-header_attributes", "# Cal Juliett Sp {#sec-j-sp}"))).toEqual([
+      "h1:Cal Juliett Sp {#sec-j-sp}",
+      TAIL,
+    ]);
+    // …and a keeping base with it turned ON strips them, id and all.
+    const on = withFrom("markdown_strict+header_attributes", "# Cal Kilo Tight{#sec-k-ti}");
+    expect(names(on)).toEqual(["h1:Cal Kilo Tight", TAIL]);
+    expect(labels(on)).toEqual(["sec-k-ti"]);
+    // `gfm`/`commonmark` spell the same lever `attributes`, with no `header_` prefix.
+    expect(names(withFrom("gfm+attributes", "# Cal Mike Tight{#sec-m-ti}"))).toEqual([
+      "h1:Cal Mike Tight",
+      TAIL,
+    ]);
+    expect(names(withFrom("commonmark_x-attributes", "# Cal Oscar Sp {#sec-o-sp}"))).toEqual([
+      "h1:Cal Oscar Sp {#sec-o-sp}",
+      TAIL,
+    ]);
+    // ⚠ LAST WINS — the same two tokens in opposite orders give opposite answers.
+    expect(
+      names(withFrom("markdown-header_attributes+header_attributes", "# Cal Papa T{#sec-p-ti}")),
+    ).toEqual(["h1:Cal Papa T", TAIL]);
+    expect(
+      names(withFrom("markdown+header_attributes-header_attributes", "# Cal Quebec T{#sec-q-ti}")),
+    ).toEqual(["h1:Cal Quebec T{#sec-q-ti}", TAIL]);
   });
 });

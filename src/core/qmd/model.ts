@@ -216,8 +216,34 @@ function atxClosingRun(commonmarkDialect: boolean): RegExp {
  * Quarto renders the heading text without it (and the `#sec-` id drives Phase 6b
  * cross-references), so it is stripped from the outline display name here. Shared
  * by ATX and setext headings — Pandoc accepts a trailing attribute block on both.
+ *
+ * ⚠ **The block needs NO whitespace before it, and requiring it was the filed defect**
+ * (Session 216). `# Cal Alpha Tight{#sec-alpha-ti}` renders
+ * `<section id="sec-alpha-ti"><h1>Cal Alpha Tight</h1>` — read firsthand from the HTML, not
+ * through an extractor — while this model reported the whole literal and indexed no id at all.
+ * The old `(?:^|[ \t]+)` is the same one-line shape Session 215 removed from `ATX_CLOSING` one
+ * constant over.
+ *
+ * ⚠ **`(?<!\\)` is one rendered row, not defensive coding, and it is the SECOND session running
+ * that the obvious widening deletes a character quarto keeps.** `# Cal Esc \{#sec-esc}` renders
+ * `<h1>Cal Esc {#sec-esc}</h1>` under BOTH reader families (`s216/cal2/b_esc_md`, `b_esc_gfm`):
+ * `\{` is an escaped brace, so quarto consumes the backslash and renders the braces as TEXT — it
+ * did not strip anything. Without the lookbehind this rule yields `Cal Esc \`, losing the brace
+ * group AND keeping the backslash. This model processes no markdown escapes anywhere (a
+ * separately filed item), so the row diverges before and after; what the lookbehind buys is that
+ * it may not additionally DELETE text.
+ *
+ * ⚠ **Whether the block is HONOURED is a separate question, and it is `headerAttributesDialect`'s**
+ * — see `fromHonoursHeaderAttributes`. This constant only says where a block would be.
+ *
+ * ⚠ Three measured boundaries this deliberately does NOT match, each with a rendered witness in
+ * `scratchpad/s216/cal2`: a block with text after it (`b_after`, quarto keeps the braces), a
+ * NESTED brace group (`b_nested`, likewise — `[^}]*` cannot cross a `}`, which is correct here
+ * rather than lucky), and a closing hash run AFTER the block (`b_attrrun`, where the `#` is the
+ * closing sequence and the braces are ordinary text). Only the LAST block on a line is a block:
+ * `# Cal Two {#a}{#b}` renders `Cal Two {#a}` (`b_two_md`).
  */
-const HEADING_ATTRIBUTE = /(?:^|[ \t]+)\{[^}]*\}[ \t]*$/;
+const HEADING_ATTRIBUTE = /(?<!\\)\{[^}]*\}[ \t]*$/;
 /**
  * The `#identifier` inside a Pandoc attribute block. Pandoc separates id, classes
  * (`.x`), and key=val pairs by whitespace, so the id runs from `#` to the next
@@ -1319,6 +1345,83 @@ function fromKeepsBlankBeforeHeader(line: string): boolean {
     FRONTMATTER_MARKDOWN_VARIANT_FROM.test(line) &&
     FRONTMATTER_FROM_ENABLES_BLANK_BEFORE_HEADER.test(line)
   );
+}
+/**
+ * The five bases MEASURED to render a trailing `{…}` on a heading as ORDINARY TEXT, because they
+ * do not carry pandoc's `header_attributes` (Session 216). `scratchpad/s216/cal`, 63 documents,
+ * nine readers × seven shapes, every reader with its own plain control:
+ *
+ *   HONOURS THE BLOCK   no `from:` at all · `markdown` · `markdown_phpextra` · `commonmark_x`
+ *   RENDERS IT LITERAL  `markdown_strict` · `markdown_mmd` · `markdown_github` · `gfm`
+ *                       · `commonmark`
+ *
+ * ⚠ **A 4–5 split, and it is NOT `FRONTMATTER_COMMONMARK_FROM` — reusing that flag would have
+ * been precisely, not approximately, wrong.** That predicate matches `commonmark`, `commonmark_x`
+ * and `gfm`, and on THIS question `commonmark_x` sits with `markdown` while the other two do
+ * not. Sessions 214 and 215 each measured a 6–3 split that WAS that flag; a third session
+ * assuming the pattern repeats gets four readers wrong in the deleting direction.
+ *
+ * ⚠ **`markdown_github` behaves like `gfm` here — the OPPOSITE of the trap that caught Sessions
+ * 214 and 215.** Both of those found it on the far side from `gfm` and both recorded "a table
+ * reasoned from the base name puts that row on the wrong side". On this extension the base name
+ * is right and the remembered LEARNING is what misleads. Render the row; do not recall it.
+ *
+ * ⚠ `commonmark` may not swallow `commonmark_x`, hence the trailing boundary — the one-character
+ * difference between the two is the whole 4–5 split.
+ */
+const FRONTMATTER_HEADER_ATTRIBUTES_OFF_FROM =
+  /^from[ \t]*:[ \t]*["']?(?:markdown_(?:strict|mmd|github)|gfm|commonmark)(?![a-zA-Z0-9_])/;
+/**
+ * The `header_attributes` lever in a `from:` extension list, with the sign captured so the LAST
+ * occurrence can decide. Two spellings control one behaviour: the pandoc markdown family names it
+ * `header_attributes`, the commonmark/gfm family `attributes` — both MEASURED
+ * (`scratchpad/s216/cal3`, 24 documents, eight extension spellings, all quarto exit 0).
+ *
+ * ⚠ **`[+-]` immediately before the name is what keeps `attributes` from matching INSIDE
+ * `header_attributes`.** Without that anchor, `markdown-header_attributes` reads as an enabling
+ * `attributes` token and the rule inverts.
+ */
+const FRONTMATTER_FROM_HEADER_ATTRIBUTES_TOKEN = /([+-])(?:header_)?attributes(?![a-zA-Z0-9_])/g;
+/**
+ * Whether the resolved `from:` line names a reader that honours a trailing heading ATTRIBUTE
+ * block, so `# Methods {#sec-methods}` is a heading named "Methods" carrying the id `sec-methods`
+ * rather than a heading whose text literally ends in braces (Session 216).
+ *
+ * ⚠ **The extension OUTRANKS the base, in both directions, and LAST WINS — all four measured**
+ * (`cal3`): `markdown-header_attributes` renders the braces literally on a base that strips,
+ * `markdown_strict+header_attributes` strips on a base that does not, and the two duplicate-token
+ * spellings disagree with each other in the way only a last-wins rule explains —
+ * `markdown-header_attributes+header_attributes` STRIPS while
+ * `markdown+header_attributes-header_attributes` does NOT.
+ *
+ * ⚠ **The last-wins scan is deliberate rather than copied.** `fromKeepsBlankBeforeHeader` above
+ * takes the FIRST disabling token it sees, which `BACKLOG.md` still carries as an open defect
+ * found by a blind lens. Copying its shape would have shipped that same bug one constant over, so
+ * this walks the whole value and keeps the final sign.
+ *
+ * ⚠ **The safety polarity: this is keyed on a POSITIVE resolution of a reader measured to render
+ * the block LITERALLY, never on the absence of one.** Returning `false` for a reader that does
+ * honour the block would keep braces in a title the reader never sees AND drop a real `sec-`
+ * cross-reference target. Every unmeasured spelling — an unresolvable `from:`, a project-level
+ * `_quarto.yml`, a reader outside these nine — therefore falls through to today's behaviour.
+ */
+function fromHonoursHeaderAttributes(line: string | null): boolean {
+  if (line === null) {
+    return true;
+  }
+  let last: string | null = null;
+  FRONTMATTER_FROM_HEADER_ATTRIBUTES_TOKEN.lastIndex = 0;
+  for (
+    let m = FRONTMATTER_FROM_HEADER_ATTRIBUTES_TOKEN.exec(line);
+    m !== null;
+    m = FRONTMATTER_FROM_HEADER_ATTRIBUTES_TOKEN.exec(line)
+  ) {
+    last = m[1];
+  }
+  if (last !== null) {
+    return last === "+";
+  }
+  return !FRONTMATTER_HEADER_ATTRIBUTES_OFF_FROM.test(line);
 }
 /**
  * Whether the resolved `from:` line names a reader of the **pandoc markdown family**, every
@@ -3876,6 +3979,14 @@ function computeRegions(text: string): Regions {
   // `dialectOverride`, for the same reason the two above are: it answers its own question, and
   // it is read at ONE site (the heading column set) where the other three are not.
   const markdownFamilyDialect = fromValueLine !== null && fromIsMarkdownFamily(fromValueLine);
+  // Whether the resolved reader honours a trailing heading ATTRIBUTE block — see
+  // `fromHonoursHeaderAttributes` (Session 216). A SEVENTH flag rather than a refinement of any
+  // of the six around it, for the reason each of those gives: it answers its own question, about
+  // its own extension, and it is read at ONE site (`buildHeading`, shared by the ATX and setext
+  // paths). ⚠ It takes `fromValueLine` ITSELF rather than a `!== null &&` guard, because its
+  // default is TRUE: a document with no `from:` at all honours the block, so "unresolved" and
+  // "resolved to a keeping reader" are opposite answers here and cannot share the idiom above.
+  const headerAttributesDialect = fromHonoursHeaderAttributes(fromValueLine);
   // Whether the resolved reader has `space_in_atx_header` OFF, so `#Heading` with no separator
   // IS a heading — see `fromRequiresSpaceInAtxHeader` (Session 212). A SIXTH flag rather than a
   // refinement of any of the five above, for the reason each of those gives: it answers its own
@@ -4416,6 +4527,7 @@ function computeRegions(text: string): Regions {
           })
           .join(" "),
         prev.line,
+        headerAttributesDialect,
       );
       if (heading) {
         headings.push(heading);
@@ -4475,7 +4587,7 @@ function computeRegions(text: string): Regions {
               !tightAtxWouldWorsen(line, lines[i + 1], [0, ...contentColumns]),
           );
     if (m) {
-      const heading = parseHeadingLine(m, i, commonmarkDialect);
+      const heading = parseHeadingLine(m, i, commonmarkDialect, headerAttributesDialect);
       if (heading) {
         headings.push(heading);
       }
@@ -5452,16 +5564,30 @@ function sectionEndOf(headings: Heading[], k: number, lastLine: number): number 
  * `b_setextsp` → `h1:Cal Sierra Set #`, and Session 214's `s214/cal2/e_close` independently).
  * For ATX it is `atxClosingRun`'s per-reader choice — a boolean until Session 215, when the
  * closing sequence turned out to be spelled differently by the two reader families.
+ *
+ * ⚠ **`honoursAttributes` gates the block for BOTH paths, and the setext path is why it is a
+ * parameter of THIS function rather than of `parseHeadingLine`** (Session 216). Five of the nine
+ * measured readers render a trailing `{…}` as ordinary text, and they do so on setext headings
+ * too — `cal/a_gfm_setext` renders `<h1>Cal Golf Set {#sec-gfm-st}</h1>`. That is the inverse of
+ * Session 215's closing run, where the setext path was already right and had to be held still;
+ * here it was wrong for five readers, and a pre-existing unit pin recorded the wrong answer in
+ * its own comment for three sessions.
+ *
+ * ⚠ **When the reader does not honour the block, NEITHER the text NOR the id may move.** Keeping
+ * the id while leaving the braces in the text would put a `sec-` target in the cross-reference
+ * index (`src/core/refs.ts`) that the rendered document never defines — a reference that resolves
+ * here and dangles there.
  */
 function buildHeading(
   level: number,
   rawText: string,
   line: number,
   closing: RegExp | null,
+  honoursAttributes: boolean,
 ): Heading | null {
-  const attribute = HEADING_ATTRIBUTE.exec(rawText);
+  const attribute = honoursAttributes ? HEADING_ATTRIBUTE.exec(rawText) : null;
   const id = attribute ? ATTR_ID.exec(attribute[0])?.[1] : undefined;
-  let text = rawText.replace(HEADING_ATTRIBUTE, "");
+  let text = attribute ? rawText.replace(HEADING_ATTRIBUTE, "") : rawText;
   if (closing !== null) {
     text = text.replace(closing, "");
   }
@@ -5480,13 +5606,26 @@ function buildHeading(
  * ⚠ `commonmarkDialect` decides WHICH closing-hash spelling applies — the run needs a space
  * before it under `gfm`/`commonmark`/`commonmark_x` and does not under the pandoc `markdown*`
  * family. See `ATX_CLOSING_PANDOC` for the nine-reader table.
+ *
+ * ⚠ **`honoursAttributes` is a SEPARATE reader question and the two answers do not line up** —
+ * `commonmark_x` is a CommonMark dialect that DOES honour the attribute block, while
+ * `markdown_github` is a pandoc-family reader that does not. See
+ * `FRONTMATTER_HEADER_ATTRIBUTES_OFF_FROM` for the 4–5 table; passing one flag for both
+ * questions gets four readers wrong.
  */
 function parseHeadingLine(
   m: RegExpExecArray,
   line: number,
   commonmarkDialect: boolean,
+  honoursAttributes: boolean,
 ): Heading | null {
-  return buildHeading(m[1].length, m[2], line, atxClosingRun(commonmarkDialect));
+  return buildHeading(
+    m[1].length,
+    m[2],
+    line,
+    atxClosingRun(commonmarkDialect),
+    honoursAttributes,
+  );
 }
 
 /**
@@ -5501,6 +5640,7 @@ function parseSetextHeadingLine(
   level: number,
   rawText: string,
   line: number,
+  honoursAttributes: boolean,
 ): Heading | null {
-  return buildHeading(level, rawText, line, null);
+  return buildHeading(level, rawText, line, null, honoursAttributes);
 }
