@@ -84,7 +84,7 @@ from collections import defaultdict
 # Every other copy (portfolio root + per-project) is a synced copy of the canonical and must
 # carry the same value. A copy whose DASHBOARD_VERSION is older than the canonical is stale —
 # re-sync from the canonical. Bump on any change to the canonical script.
-DASHBOARD_VERSION = "2.13.0"
+DASHBOARD_VERSION = "2.15.2"
 
 ROOT = Path(__file__).parent
 # `"methodology"` was here and is deliberately gone (plan D4(c)): the scanner was structurally
@@ -101,7 +101,13 @@ SOURCE_EXTS = {
     ".kt", ".scala", ".lua", ".sh", ".bash", ".zsh", ".pl", ".r",
 }
 TEST_PATTERNS = {"test_", "_test.", ".test.", ".spec.", "tests/", "__tests__/", "test/"}
-DOC_EXTS = {".md", ".txt", ".rst", ".adoc", ".org"}
+# `.qmd`/`.rmd` (Quarto / R Markdown) are literate-document formats, not source — an R package's
+# vignettes and articles are prose-with-embedded-code, the same bucket `.md` already lives in, not
+# `.r`'s. Before this, a file with either extension outside a `docs/` path fell through
+# categorize_file's whole ladder to "other": not source, not docs, not even LOC-counted (LOC is
+# skipped for "other"). BL-34 — found scanning `nprcgenekeepr` (28 `.rmd` + 12 `.qmd`, 11 of the 12
+# invisible with 0 LOC because only one lived under `docs/`).
+DOC_EXTS = {".md", ".txt", ".rst", ".adoc", ".org", ".qmd", ".rmd"}
 CONFIG_FILES = {
     "Dockerfile", "Makefile", "CMakeLists.txt", "Rakefile", "Gemfile",
     "Procfile", "fly.toml", "netlify.toml", "vercel.json",
@@ -125,6 +131,11 @@ LANG_MAP = {
     ".kt": "Kotlin", ".scala": "Scala", ".lua": "Lua", ".sh": "Shell",
     ".bash": "Shell", ".zsh": "Shell", ".html": "HTML", ".css": "CSS",
     ".scss": "SCSS", ".less": "LESS", ".sql": "SQL",
+    # BL-34 — `.r` was already in SOURCE_EXTS (so R LOC always counted toward Source), but had no
+    # LANG_MAP entry, so it never got its own "Code by Language" row. Found against `nprcgenekeepr`
+    # (603 `.r` files, 77,773 LOC — the bulk of that project's Source total — invisible in the
+    # per-language breakdown).
+    ".r": "R",
 }
 
 METHODOLOGY_ITEMS = [
@@ -381,6 +392,11 @@ _TRIM_FENCE_RE = re.compile(r"^(`{3,}|~{3,})(.*)$")
 # Detection is marker-override -> source-cap -> corpus-disjunction (see detect_doc_only). The
 # source cap keeps a mixed tooling repo (real code that should be tested) from being silently
 # exempted; the bidirectional .methodology-profile marker lets an owner force either classification.
+# These three thresholds are deliberate, stated round-number heuristics, not derived from a
+# measured corpus of adopter repos — record that plainly rather than let the round numbers read
+# as calibrated. DOC_ONLY_SOURCE_LOC_MAX in particular decides which of two scoring regimes a
+# repo gets (see the 148-LOC misclassification documented near FRAMEWORK_INSTALLED_DOCS below), so a
+# regression test pins the current value: change it deliberately, not by accident.
 DOC_ONLY_SOURCE_LOC_MAX = 200            # source LOC at/below this is "essentially no real code"
 DOC_ONLY_DOC_LOC_MIN    = 200            # doc LOC at/above this signals a real doc corpus
 DOC_ONLY_DOC_FILES_MIN  = 3              # this many doc files also signals a real doc corpus
@@ -542,12 +558,37 @@ _FRAMEWORK_SIGNATURES = (
 )
 _FRAMEWORK_SIGNATURE_MIN = 2
 
+# Arriving via upstream/main's PR #66 (context-budget gate, FM #28): a version constant, for a
+# copy new enough to carry one (mirrors _VERSION_RE's own shape).
+_CONTEXT_BUDGET_VERSION_RE = re.compile(r'''^VERSION\s*=\s*["']([^"']+)["']''', re.MULTILINE)
+_CONTEXT_BUDGET_SIGNATURES = (
+    "context_budget.py — size budgets",
+    "CONFIG_NAME",
+    "HISTORY_NAME",
+    "growth_run",
+)
+# The seed config has no version constant of its own — signatures are the only way in (see the
+# version_re-is-None guard in is_framework_installed). Structurally unreachable today:
+# is_framework_installed() is only called when category == "source", and categorize_file()
+# always buckets a .json extension as "config" (CONFIG_EXTS), never "source" — so this entry
+# can never affect source-LOC either way. Given a real signature anyway so the completeness
+# test below needs no special case that could hide a future gap if that call-site guard, or
+# this file's extension, ever changes.
+_CONTEXT_BUDGET_JSON_SIGNATURES = (
+    "bytes_per_token",
+    "fixed_harness_tokens",
+    "growth_run",
+    "calibrate_against",
+)
+
 _FRAMEWORK_INSTALLED_CONTENT = {
     "methodology_dashboard.py": (_VERSION_RE, _FRAMEWORK_SIGNATURES),
     # The trimmer has no pre-constant releases in the wild — v1.0.0 is its first shipped version and
     # it has declared TRIM_VERSION since it was written — so it gets no structural fallback. See the
     # empty-tuple paragraph above for why that is a refusal and not a hole.
     TRIM_TOOL_NAME:            (_TRIM_VERSION_RE, ()),
+    "context_budget.py":       (_CONTEXT_BUDGET_VERSION_RE, _CONTEXT_BUDGET_SIGNATURES),
+    ".context-budget.json":    (None, _CONTEXT_BUDGET_JSON_SIGNATURES),
 }
 
 # Derived, never hand-written — see the paragraph above. Order follows the dict, which follows
@@ -657,10 +698,11 @@ def is_framework_installed(rel_path, fpath):
 
     Content-verified, PER NAME: each installed executable proves itself with its own constant —
     the scanner with `DASHBOARD_VERSION` (or, for copies predating it, at least two structural
-    signatures of the scanner), the trimmer with `TRIM_VERSION`. The pairing lives in
-    `_FRAMEWORK_INSTALLED_CONTENT`, which this reads rather than re-stating, and which
-    FRAMEWORK_INSTALLED_SOURCE is derived from — so no name can be excluded without declaring how
-    it identifies itself. Neither tool's constant satisfies the other's entry. The **whole file** is
+    signatures of the scanner), the trimmer with `TRIM_VERSION`, the context-budget gate with its
+    own `VERSION`. The pairing lives in `_FRAMEWORK_INSTALLED_CONTENT`, which this reads rather
+    than re-stating, and which FRAMEWORK_INSTALLED_SOURCE is derived from — so no name can be
+    excluded without declaring how it identifies itself. No tool's constant satisfies another
+    entry's check. The **whole file** is
     read,
     not a fixed prefix — an earlier version searched only the first 4096 bytes, and the real
     constant sits close enough to that boundary that ordinary growth of this module header would
@@ -675,7 +717,7 @@ def is_framework_installed(rel_path, fpath):
 
     **The threat model is accidental miscounting, not an adversarial adopter.** These checks make
     it unlikely that the scanner mistakes an adopter's own work for ours. They do NOT stop someone who
-    deliberately pastes `DASHBOARD_VERSION` into their application to dodge a score — nothing
+    deliberately pastes a version marker into their application to dodge a score — nothing
     file-local could, and the only thing they would win is a wrong dashboard for themselves.
     """
     content = _FRAMEWORK_INSTALLED_CONTENT.get(str(rel_path).replace("\\", "/"))
@@ -687,7 +729,9 @@ def is_framework_installed(rel_path, fpath):
             text = fh.read()
     except OSError:
         return False
-    if version_re.search(text):
+    # version_re is None for a file with no version constant of its own (e.g.
+    # .context-budget.json) — signatures are then the only way in.
+    if version_re is not None and version_re.search(text):
         return True
     hits = sum(1 for sig in signatures if sig in text)
     return hits >= _FRAMEWORK_SIGNATURE_MIN
@@ -763,7 +807,11 @@ def version_key(v):
 
 def check_stale_version():
     """Best-effort staleness check: if a newer canonical exists locally, warn on stderr.
-    Silent when the canonical can't be found or when this copy IS the canonical."""
+    Silent when the canonical can't be found or when this copy IS the canonical.
+
+    Issue #67 point 1: the remedy used to be the portfolio-wide --sync only -- disproportionate
+    for a one-file problem. Now names both: the scoped fix for THIS copy first, the full sweep
+    second."""
     self_path = Path(__file__).resolve()
     canonical = find_canonical(self_path.parent)
     if not canonical or canonical == self_path:
@@ -773,7 +821,9 @@ def check_stale_version():
         sys.stderr.write(
             f"  ⚠ methodology_dashboard.py is stale: this copy is v{DASHBOARD_VERSION}, "
             f"canonical is v{canon_ver}.\n"
-            f"    Re-sync: python3 {canonical} --sync\n"
+            f"    Update just this copy:      python3 {canonical} --sync {self_path.parent}\n"
+            f"    Update the whole portfolio: python3 {canonical} --sync   "
+            f"(writes every discovered project — preview first with --dry-run)\n"
         )
 
 
@@ -986,41 +1036,85 @@ def trim_line_headroom(path, rel_posix, basename):
     return (READ_CAP_LINES - live_lines) * de // dl, None
 
 
-def sync_dashboards(start, dry_run=False):
-    """Copy the canonical dashboard to the portfolio root + every discovered project.
-    In --dry-run mode nothing is written; the planned actions are printed. Returns the
-    count of files that were (or would be) changed.
+_KNOWN_FLAGS = {"--sync", "--dry-run", "--force", "--no-open", "--with-submodules", "--help", "-h"}
+
+
+def _extract_sync_target(args):
+    """First non-flag token in argv (any position, not only after --sync): the optional
+    single-project sync scope. Order-independent — '--sync /path' and '--sync --force /path'
+    both resolve to '/path'. None => sync the whole portfolio (today's unchanged default).
+
+    Issue #67 point 2. Every current flag is dash-prefixed, so this is really just "the first
+    bare word" — a FUTURE value-taking flag (e.g. a hypothetical --out FILE) would have its own
+    value misread as the sync target; `_KNOWN_FLAGS` does no independent filtering against that
+    today. Not a structural guard; any future value-taking flag needs its own dedicated test."""
+    for a in args:
+        if a not in _KNOWN_FLAGS and not a.startswith("-"):
+            return a
+    return None
+
+
+def sync_dashboards(start, dry_run=False, target=None, force=False):
+    """Copy the canonical dashboard to a single TARGET_DIR (if given) or to the portfolio root +
+    every discovered project (target=None, today's default). In --dry-run mode nothing is
+    written; the planned actions — including which targets --force would be needed for — are
+    printed. Returns the count of files ACTUALLY written (0 for a dry run).
 
     NOTE: a live sync writes methodology_dashboard.py into every project, including the
     repos where it is still git-tracked — those need the Phase 3 `git rm --cached` +
-    per-repo commit discipline. Tracked targets are flagged in the output."""
+    per-repo commit discipline. Tracked targets are flagged in the output.
+
+    Issue #67 points 2/3/4 (docs/planning/issue67-fork-side-fix-plan.md, D1-D4): a write is
+    gated (skipped without --force) when the target is already git-tracked, or is a brand-new
+    file landing in a repo whose own .gitignore does not already cover it. The gate is computed
+    BEFORE branching on dry_run, so a --dry-run preview shows [SKIPPED] honestly instead of
+    promising a write --force would still be needed for."""
     canonical = find_canonical(start)
     if not canonical:
         sys.stderr.write("  Cannot locate canonical methodology/starter-kit/"
                          "methodology_dashboard.py — nothing synced.\n")
         return 0
     # .../starter-kit/methodology_dashboard.py -> starter-kit -> methodology -> portfolio root
+    canon_repo = canonical.parent.parent.resolve()           # .../methodology
     portfolio_root = canonical.parent.parent.parent
     canon_text = canonical.read_text()
+    canon_ver_display = parse_version(canonical) or DASHBOARD_VERSION   # see SS6 item 4: never
+                                                                          # DASHBOARD_VERSION alone —
+                                                                          # that's the RUNNING copy's
+                                                                          # own version, not the
+                                                                          # canonical's, whenever a
+                                                                          # local stale copy invokes
+                                                                          # --sync on itself.
 
-    # discover_projects() has TWO consumers — the portfolio scan and this WRITE path — so
-    # widening it widens both. Dropping "methodology" from EXCLUDE_DIRS (D4(c)) is wanted for the
-    # scan and NOT wanted here: it would make --sync create a third copy of this file at the
-    # canonical repo's own root, unignored and beside the two it already authors. The `t ==
-    # canonical` skip below does not catch that, because canonical is .../starter-kit/<name> and
-    # the new target is .../<name>. Skip the authoring repo explicitly.
-    canon_repo = canonical.parent.parent.resolve()          # .../methodology
-    targets = [portfolio_root / "methodology_dashboard.py"]
-    for proj in discover_projects(portfolio_root):
-        if proj.resolve() == canon_repo:
-            continue
-        targets.append(proj / "methodology_dashboard.py")
+    if target is not None:
+        target_dir = Path(target).resolve()
+        if not target_dir.is_dir():
+            sys.stderr.write(f"  Target directory does not exist: {target_dir} — nothing synced.\n")
+            return 0
+        if target_dir == canon_repo or (target_dir / "methodology_dashboard.py") == canonical:
+            sys.stderr.write("  Refusing to sync the canonical's own authoring repo as a target.\n")
+            return 0
+        targets = [target_dir / "methodology_dashboard.py"]
+        scope_label = f"1 target ({target_dir})"
+    else:
+        # discover_projects() has TWO consumers — the portfolio scan and this WRITE path — so
+        # widening it widens both. Dropping "methodology" from EXCLUDE_DIRS (D4(c)) is wanted for
+        # the scan and NOT wanted here: it would make --sync create a third copy of this file at
+        # the canonical repo's own root, unignored and beside the two it already authors. The
+        # `t == canonical` skip below does not catch that, because canonical is
+        # .../starter-kit/<name> and the new target is .../<name>. Skip the authoring repo
+        # explicitly.
+        targets = [portfolio_root / "methodology_dashboard.py"]
+        for proj in discover_projects(portfolio_root):
+            if proj.resolve() == canon_repo:
+                continue
+            targets.append(proj / "methodology_dashboard.py")
+        scope_label = f"portfolio root + {len(targets) - 1} project(s)"
 
-    print(f"Canonical: {canonical} (v{DASHBOARD_VERSION})")
-    print(f"{'DRY RUN — no files written.' if dry_run else 'Syncing.'} "
-          f"Targets: portfolio root + {len(targets) - 1} project(s)\n")
+    print(f"Canonical: {canonical} (v{canon_ver_display})")
+    print(f"{'DRY RUN — no files written.' if dry_run else 'Syncing.'} Targets: {scope_label}\n")
 
-    changed = inspected = 0
+    written = skipped = inspected = 0
     for t in targets:
         t = t.resolve()
         if t == canonical:
@@ -1033,22 +1127,34 @@ def sync_dashboards(start, dry_run=False):
             action = "create"
         else:
             action = "update"
+
+        tracked = bool(git_cmd(t.parent, "ls-files", "--error-unmatch", t.name))
+        ignored = action == "create" and bool(git_cmd(t.parent, "check-ignore", t.name))
+        gated = action != "unchanged" and (tracked or (action == "create" and not ignored))
+
         note = ""
-        if t.exists() and git_cmd(t.parent, "ls-files", "--error-unmatch", t.name):
-            note = "  [git-tracked — needs Phase 3 untrack]"
-        if action != "unchanged":
-            changed += 1
+        if gated and not force:
+            skipped += 1
+            note = ("  [SKIPPED — git-tracked; pass --force, then Phase 3 untrack]" if tracked else
+                    "  [SKIPPED — new, ungitignored file; pass --force to create]")
+        elif action != "unchanged":
             if not dry_run:
                 shutil.copyfile(canonical, t)
+            written += 1
+            if tracked:
+                note = "  [git-tracked — needs Phase 3 untrack]"
+
         try:
             label = t.relative_to(portfolio_root)
         except ValueError:
             label = t
-        print(f"  {action:<9s} {label}{note}")
+        shown = "skip" if (gated and not force) else action
+        print(f"  {shown:<9s} {label}{note}")
 
     verb = "Would change" if dry_run else "Changed"
-    print(f"\n  {verb} {changed} of {inspected} target(s).")
-    return changed
+    tail = f" ({skipped} skipped — rerun with --force to include them)" if skipped else ""
+    print(f"\n  {verb} {written} of {inspected} target(s).{tail}")
+    return 0 if dry_run else written
 
 
 def print_usage():
@@ -1060,13 +1166,58 @@ def print_usage():
     print("  --no-open          Do not open the generated dashboard.html in a browser.")
     print("  --with-submodules  In single-project mode, also scan git submodules as")
     print("                     separate entries (default: scan the project only).")
-    print("  --sync             Copy the canonical dashboard to the portfolio root and")
-    print("                     every discovered project (use --dry-run to preview).")
+    print("  --sync [DIR]       Copy the canonical dashboard to DIR (a single project) if")
+    print("                     given, or to the portfolio root and every discovered")
+    print("                     project if omitted. Combine with --dry-run to preview,")
+    print("                     --force to also write tracked/brand-new targets.")
     print("  --dry-run          With --sync, show planned changes without writing.")
+    print("                     Alone, it is an error (nothing else in this tool writes")
+    print("                     speculatively).")
+    print("  --force            With --sync, also write targets that are git-tracked or")
+    print("                     brand-new (and not already .gitignore'd). Without it,")
+    print("                     those targets are listed but skipped.")
     print("  -h, --help         Show this help and exit.")
 
 
 # === DISCOVERY ===
+
+# BL-29: the two directories this script is actually checked into its OWN home repo at (see
+# bin/_manifest.py — starter-kit/methodology_dashboard.py is the TRACKED distribution source;
+# tools/methodology_dashboard.py is the canonical-only portfolio copy). Every OTHER copy —
+# every adopter-installed copy, the portfolio-root copy — sits directly at the level it is meant
+# to scan (bin/_manifest.py TRACKED dest; sync_dashboards()'s own target list), so
+# resolve_single_project_root() only ever needs to bridge these two specific, known nestings.
+_CANONICAL_IN_REPO_DIRS = ("tools", "starter-kit")
+
+
+def resolve_single_project_root(script_dir):
+    """Return the directory `main()` should treat as "the project to scan".
+
+    Ordinarily `script_dir` (== `ROOT`, `Path(__file__).parent`) IS that directory. The
+    methodology repo's own two checked-in copies are the one exception: `tools/` and
+    `starter-kit/` both file this script one level BELOW the repo it belongs to, so
+    `(script_dir / ".git").exists()` reads false there even while running the framework's own
+    tool against the framework's own home — exactly the case `main()`'s `single_project`
+    title-text branch already assumed could happen, but discovery never bridged. Reproduced live:
+    `python3 tools/methodology_dashboard.py --no-open` printed "No projects found" run from this
+    repo's own root, while the portfolio-root copy scanned this repo correctly.
+
+    Narrow on purpose, not a generic upward walk — a generic walk could let an accidental copy
+    anywhere in an unrelated subdirectory tree claim its ancestor as "the project". The parent is
+    substituted only when its own name is one of the two locations this file is actually checked
+    in at, AND the parent both is a git repo and carries `bin/_manifest.py` — the same structural
+    marker `detect_repo_role()` already trusts to prove "this is the framework's own publishing
+    repo", which no adopter can acquire via `bin/sync` (bin/ ships nothing through it).
+    """
+    if (script_dir / ".git").exists():
+        return script_dir
+    parent = script_dir.parent
+    if (script_dir.name in _CANONICAL_IN_REPO_DIRS
+            and (parent / ".git").exists()
+            and (parent / "bin" / "_manifest.py").is_file()):
+        return parent
+    return script_dir
+
 
 def discover_projects(root, with_submodules=False):
     """Discover projects to scan.
@@ -2568,8 +2719,11 @@ def detect_doc_only(path, files, render):
         return {"is_doc_only": False, "reason": reason}
 
     # 4. Corpus disjunction (only when source is negligible): a real doc corpus OR a render
-    #    toolchain — the latter catches a pure-LaTeX/Quarto repo whose .tex/.qmd are not counted
-    #    as docs (so its doc_loc is ~0), the exact source_loc≈0 research repo that must not be missed.
+    #    toolchain — the latter catches a pure-LaTeX (or other toolchain-only) repo whose .tex
+    #    files are not counted as docs (so its doc_loc is ~0; BL-34 added `.qmd`/`.rmd` to
+    #    DOC_EXTS, so a pure-Quarto/R-Markdown corpus now clears the doc_loc/doc_files arms
+    #    directly and no longer depends on this fallback), the exact source_loc≈0 research repo
+    #    that must not be missed.
     #    Framework-installed markdown is discounted here and ONLY here: bin/sync ships 22 doc
     #    files, which clears DOC_ONLY_DOC_FILES_MIN by itself, so counting them would let the
     #    installer answer the question "is this a document project?" — the mirror of the very
@@ -3921,13 +4075,23 @@ def main():
         return
 
     if "--sync" in args:
-        sync_dashboards(Path(__file__).resolve().parent, dry_run="--dry-run" in args)
+        target = _extract_sync_target(args)
+        sync_dashboards(Path(__file__).resolve().parent, dry_run="--dry-run" in args,
+                         target=target, force="--force" in args)
         return
+
+    if "--dry-run" in args:                                                    # issue #67 pt. 4
+        sys.stderr.write(
+            "  --dry-run only means something together with --sync (nothing else in this\n"
+            "  tool writes speculatively).\n"
+            "  Usage: python3 methodology_dashboard.py --sync [DIR] --dry-run\n"
+        )
+        sys.exit(2)
 
     # Warn (best-effort) if this copy is older than the canonical.
     check_stale_version()
 
-    root = ROOT
+    root = resolve_single_project_root(ROOT)
     with_submodules = "--with-submodules" in args
 
     project_paths = discover_projects(root, with_submodules=with_submodules)

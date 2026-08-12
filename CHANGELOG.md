@@ -7,6 +7,31 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-11 · [ad hoc] Session 217 pre-flight — the methodology dashboard is re-synced from canonical (v2.13.0 → v2.15.2)
+
+- **Model:** Claude Opus 5.
+- `methodology_dashboard.py` had been stale for **eighteen consecutive sessions**, each of which
+  noted it at Phase 0 and correctly declined to act on it (it is not project code and fixing it is
+  not a deliverable). The re-synced copy was found **uncommitted in the working tree** at this
+  session's Phase 0 and is **byte-identical to the canonical**
+  `/Users/rmsharp/Development/methodology/starter-kit/methodology_dashboard.py` at v2.15.2 —
+  verified with `diff -q` before committing, so nothing was hand-edited on the way in and the
+  copy stays syncable (CLAUDE.md, "Customizations Go in CLAUDE.md, Not in Synced Files").
+- Committed **on its own, before any deliverable work**, per SAFEGUARDS' pre-flight rule ("commit
+  everything clean before starting"). It is **not** this session's deliverable; the session was
+  claimed for the markdown-escape item immediately after.
+- What the upstream versions bring, for the record: `.qmd`/`.rmd` added to `DOC_EXTS` and `.r`
+  given a `LANG_MAP` row (BL-34 — both were falling through to "other" and counting no LOC, which
+  matters here since this repo is a Quarto extension); a context-budget gate registered in
+  `_FRAMEWORK_INSTALLED_CONTENT` with a `version_re is not None` guard for the entry that
+  identifies itself by signature alone; `--sync` given an optional single-target directory plus a
+  `--force` gate that refuses to overwrite a git-tracked or newly-`.gitignore`-uncovered target;
+  and the staleness warning now prints the **scoped** re-sync command first rather than only the
+  portfolio-wide sweep.
+- ⚠ **No new root file arrived with this sync**, so `check-package`'s deny-by-default allowlist is
+  unaffected — unlike the v2.8.0 → v2.13.0 sync (`189c77ac`), which had to stop two new root files
+  shipping in the `.vsix`. Re-verified rather than assumed.
+
 ### 2026-08-11 · [ad hoc] Session 216 — the heading attribute block is honoured per reader, and needs no space before it (SHIPPED)
 
 - **Model:** Claude Opus 5.
