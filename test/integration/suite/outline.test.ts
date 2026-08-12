@@ -849,6 +849,21 @@ describe("Quarto: Document outline (symbols)", () => {
     // `Genuine Child` — and renders `=== # Not A Heading At All` and
     // `… *** # Also Not A Heading` as ordinary PARAGRAPH text, with no heading at all.
     //
+    // ⚠ **THAT PREMISE LIST WAS INCOMPLETE, AND SESSION 214 RE-RENDERED THE FIXTURE TO FIND OUT**
+    // (`scratchpad/s214/cal2/f_fixture`, quarto 1.7.33, exit 0). Quarto emits a FIFTH heading the
+    // list above omits: `# Heading Above` / `-` is a setext underline, so the ATX line is
+    // swallowed and rendered as **`h2:# Heading Above`** — level 2 from the `-`, with the literal
+    // `#` carried into the text. The full rendered list, in order, is
+    //   h1:Real Section · h1:Below A Thematic Break · h2:# Heading Above ·
+    //   h1:Recovered Sibling · h2:Genuine Child
+    // and this suite asserted `Heading Above` at level 1 as a TOP-LEVEL sibling — wrong in text
+    // and in level at once. At h2 it is a CHILD of `Below A Thematic Break`, so the top level
+    // holds three names rather than four.
+    //
+    // ⚠ Session 182's own recovery is UNCHANGED and is still what this row exists to prove:
+    // `Recovered Sibling` is present and carries `Genuine Child`. The fixture's BYTES are
+    // untouched — they are Session 182's and Session 183's pins, and only the expectation moved.
+    //
     // Against the pre-Session-182 build this same document produced the outline
     //   [Real Section, Not A Heading At All, Also Not A Heading, Below A Thematic Break,
     //    Heading Above -> children: ["Genuine Child"]]
@@ -858,13 +873,16 @@ describe("Quarto: Document outline (symbols)", () => {
 
     assert.deepStrictEqual(
       symbols.map((s) => s.name),
-      ["Real Section", "Below A Thematic Break", "Heading Above", "Recovered Sibling"],
+      ["Real Section", "Below A Thematic Break", "Recovered Sibling"],
       "both phantoms must be gone and the ATX sibling must be back, at top level",
     );
 
+    // The swallowed heading is an h2 and therefore a CHILD of the section above it, carrying
+    // quarto's own text — literal `#` included (Session 214).
+    assert.deepStrictEqual(symbols[0].children.map((c) => c.name), []);
+    assert.deepStrictEqual(symbols[1].children.map((c) => c.name), ["# Heading Above"]);
     // The recovered sibling takes its rightful child with it.
-    assert.deepStrictEqual(symbols[2].children.map((c) => c.name), []);
-    assert.deepStrictEqual(symbols[3].children.map((c) => c.name), ["Genuine Child"]);
+    assert.deepStrictEqual(symbols[2].children.map((c) => c.name), ["Genuine Child"]);
 
     // Neither phantom may reappear at ANY depth.
     const flat = (nodes: vscode.DocumentSymbol[]): string[] =>

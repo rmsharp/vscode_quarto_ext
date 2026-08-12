@@ -130,15 +130,20 @@ describe("findHeadings — setext headings", () => {
     expect(findHeadings(text)).toEqual([]);
   });
 
-  it("does not re-interpret the line after an ATX heading as setext content", () => {
-    // A deliberate, documented divergence from Pandoc's own surprising
-    // behavior here (verified: Pandoc actually swallows "# Heading\n---" into
-    // a level-2 heading with a literal "#" — see PROJECT_LEARNINGS.md). This
-    // model keeps the already-established, tested ATX heading and leaves the
-    // following underline unclassified rather than risk regressing ATX
-    // detection for a rare, arguably malformed adjacency.
+  it("RE-INTERPRETS the line after an ATX heading as setext content (Session 214 reversed this)", () => {
+    // ⚠ **THIS PIN'S POLARITY WAS REVERSED BY SESSION 214, AND ITS OWN COMMENT PREDICTED IT.**
+    // It used to assert `h1:ATX Heading` and said so knowingly: *"Pandoc actually swallows
+    // `# Heading` / `---` into a level-2 heading with a literal `#`"*, declining the swallow as
+    // a product choice. Session 214 measured that choice against the whole reader table and
+    // reversed it, so this row now asserts what quarto renders.
+    //
+    // ⚠ RE-RENDERED ON THESE EXACT BYTES BEFORE BEING FLIPPED, not inferred from the comment
+    // that predicted the reversal (`scratchpad/s214/pin/p1_atx_dash`, quarto 1.7.33, exit 0):
+    // quarto emits `h2:# ATX Heading` — LEVEL 2 from the `-` underline, and the literal `#`
+    // carried into the text. `After.` is the underlined heading's following paragraph and is
+    // not a heading in either build.
     const text = ["# ATX Heading", "---", "After."].join("\n");
-    expect(findHeadings(text)).toEqual([{ level: 1, text: "ATX Heading", line: 0 }]);
+    expect(findHeadings(text)).toEqual([{ level: 2, text: "# ATX Heading", line: 0 }]);
   });
 
   it("recognizes a setext heading immediately after front matter closes", () => {
@@ -329,13 +334,20 @@ describe("findHeadings — YAML front matter", () => {
   });
 
   it("does not treat a `---` that is not at line 0 as front matter", () => {
+    // ⚠ The point of this row is the FRONT-MATTER refusal, and that half is unchanged: the `---`
+    // at line 1 is not front matter, so `# H2` below it is still a real heading.
+    //
+    // ⚠ What the `---` IS was corrected by Session 214. This comment used to call it a thematic
+    // break; it is a SETEXT UNDERLINE, and it swallows the ATX line above it. RE-RENDERED on
+    // these exact bytes (`scratchpad/s214/pin/p2_h1_dash_h2`, exit 0): quarto emits
+    // `h2:# H1` then `h1:H2`, where this model used to report `h1:H1` then `h1:H2`.
     const text = [
-      "# H1", // 0
-      "---", // 1  thematic break, not front matter
+      "# H1", // 0  swallowed by the underline below it — `h2:# H1`
+      "---", // 1  a setext underline, and NOT front matter at a non-zero line
       "# H2", // 2
     ].join("\n");
     expect(findHeadings(text)).toEqual([
-      { level: 1, text: "H1", line: 0 },
+      { level: 2, text: "# H1", line: 0 },
       { level: 1, text: "H2", line: 2 },
     ]);
   });
@@ -4387,7 +4399,17 @@ describe("an ATX heading's own indent is a COLUMN EQUALITY, not a ` {0,3}` cap (
     ).toEqual([]);
   });
 
-  it("test-after (DISCLOSED, and the one error this change INTRODUCES): the ATX-SWALLOW's text", () => {
+  it("test-after (Session 199's ONE disclosed error — CLOSED by Session 214): the ATX-SWALLOW's text", () => {
+    // ⚠ **SESSION 214 CLOSED THIS ROW, AND SESSION 199 NAMED IT AS THAT SESSION'S JOB IN
+    // ADVANCE** — *"'closing' this would mean reversing S182's decision, which is a different
+    // capability (FM #26)"*. That capability is now shipped, so the three rows below assert
+    // quarto's own answer instead of a disclosed divergence from it.
+    //
+    // ⚠ RE-RENDERED ON THESE EXACT BYTES rather than flipped from the table in the comment
+    // below (`scratchpad/s214/pin/p3_container`, `p3_ctl_col0`, `p3_ctl_indent1`, all exit 0).
+    // Agreement with quarto over the three: 1 of 3 before, 3 of 3 after. The historical
+    // narrative is preserved below as written; only the expectations moved.
+    //
     // ⚠ **THIS IS THE ONE NEW ERROR OVER 189 RENDERED DOCUMENTS, IT IS INTRODUCED RATHER THAN
     // PRE-EXISTING, AND IT IS DISCLOSED HERE RATHER THAN CLOSED.** The mechanical per-error
     // adjudication against the pre-session build on identical bytes
@@ -4416,13 +4438,14 @@ describe("an ATX heading's own indent is a COLUMN EQUALITY, not a ` {0,3}` cap (
     expect(
       names(doc("-   item one", "", "    # Container Heading Above", "    ===", "",
                 "    Body tail.")),
-    ).toEqual(["h1:Container Heading Above"]); // quarto: h1:# Container Heading Above
-    // CONTROL — the column-0 spelling, where BOTH builds strip the `#` and always have. It is
-    // what makes this a text-divergence family rather than something this change invented
-    // (`scratchpad/s199/comp/sw_after_i0.qmd`, rendered).
+    ).toEqual(["h1:# Container Heading Above"]); // quarto agrees exactly — recovered by Session 214
+    // CONTROL — the column-0 spelling. Session 199 recorded that BOTH builds stripped the `#`
+    // here; Session 214 is what stopped stripping it, so this control and the container row now
+    // give the SAME answer, which is the uniformity the note below asks for
+    // (`scratchpad/s199/comp/sw_after_i0.qmd`, re-rendered as `scratchpad/s214/pin/p3_ctl_col0`).
     expect(
       names(doc("Intro paragraph.", "", "# Heading Above", "===", "", "Body tail.")),
-    ).toEqual(["h1:Heading Above"]); // quarto: h1:# Heading Above — pre-existing, identical in both builds
+    ).toEqual(["h1:# Heading Above"]); // quarto agrees exactly — recovered by Session 214
     // CONTROL — indent 1, which this change moved the OTHER way: the ATX row now declines it,
     // the line falls through, and the underline claims it with quarto's own text
     // (`sw_after_i1.qmd`).
@@ -7591,5 +7614,104 @@ describe("a mid-document YAML metadata block is CONSUMED by the reader (Session 
         "h2:Cal Heading Below",
       ]);
     });
+  });
+});
+
+describe("a SETEXT UNDERLINE swallows the ATX heading above it (Session 214)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  /**
+   * Every document carries a real ATX heading BELOW the probe, exactly as the rendered corpora
+   * do (`scratchpad/s214/cal`). Without it a document reporting nothing is indistinguishable
+   * from a build that has stopped producing headings altogether (Learning #339).
+   */
+  const BELOW = ["", "# Cal Alpha Below"];
+  const TAIL = "h1:Cal Alpha Below";
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...BELOW);
+
+  /**
+   * ⚠ THE GUARD, WRITTEN AND RUN GREEN BEFORE THE CHANGE (Session 204's gotcha 5, an ELEVENTH
+   * session). Its polarity is what this session's rule threatens: the change REWRITES a
+   * heading's text and LEVEL, so over-firing renames a section the reader really sees and moves
+   * its `sec-` id in the cross-reference index. Every row below is a document quarto renders
+   * WITHOUT the swallow, and every one must read identically after the change.
+   */
+  describe("GUARD — rows the swallow may not touch", () => {
+    it("a CommonMark-family reader does NOT swallow — the base table's whole right-hand column", () => {
+      // `cal/a_gfm_eq`, `a_cm_eq`, `a_cmx_eq` and their `_dash` twins. CommonMark ss4.3 requires a
+      // setext underline to follow a PARAGRAPH, and an ATX heading is not one.
+      for (const reader of ["gfm", "commonmark", "commonmark_x"]) {
+        expect(names(withFrom(reader, "# Cal Alpha Above", "==="))).toEqual([
+          "h1:Cal Alpha Above",
+          TAIL,
+        ]);
+        expect(names(withFrom(reader, "# Cal Alpha Above", "---"))).toEqual([
+          "h1:Cal Alpha Above",
+          TAIL,
+        ]);
+      }
+    });
+
+    it("an underline OFF the accepted column does not swallow — `cal2/b_col1`..`b_col4`", () => {
+      // At top level the accepted set is [0]. Session 199 recorded that ONE leading space
+      // refutes the swallow; swept to 4 so a rule that stops at 3 cannot look correct.
+      for (const indent of [" ", "  ", "   ", "    ", "\t"]) {
+        expect(names(withFrom(null, "# Cal Alpha Above", `${indent}===`))).toEqual([
+          "h1:Cal Alpha Above",
+          TAIL,
+        ]);
+      }
+    });
+
+    it("an ordinary ATX heading with no underline below it is untouched — `cal/a_*_ctl`", () => {
+      expect(names(withFrom(null, "# Cal Alpha Above", ""))).toEqual(["h1:Cal Alpha Above", TAIL]);
+      expect(names(withFrom("markdown", "# Cal Alpha Above", ""))).toEqual([
+        "h1:Cal Alpha Above",
+        TAIL,
+      ]);
+    });
+
+    it("an ordinary setext heading below PROSE keeps its own text — `cal/a_*_prose`", () => {
+      // The row that fails if the change reaches the setext path's TEXT rather than the ATX
+      // path's decline.
+      expect(names(withFrom(null, "Cal Charlie Above", "==="))).toEqual([
+        "h1:Cal Charlie Above",
+        TAIL,
+      ]);
+    });
+
+    it("an OPEN PARAGRAPH above the ATX line still yields no heading at all — `cal2/g_prose`", () => {
+      // Quarto renders NEITHER the prose line nor the ATX line as a heading here. The ATX row
+      // already declines on `paragraphOpen` and the setext row already declines on a 2-line
+      // title; the change must not turn that double decline into a heading.
+      expect(names(withFrom(null, "Cal Prose Line", "# Cal Prose Above", "==="))).toEqual([TAIL]);
+    });
+  });
+
+  it("RED 1 — the DEFAULT reader swallows the ATX line into the setext heading", () => {
+    // `cal/a_default_eq` — no `from:` anywhere, the commonest shape of all. Quarto renders
+    // `h1:# Cal Alpha Above`: the underline claims the ATX line, its own `=` sets the LEVEL,
+    // and the literal `#` survives into the heading TEXT.
+    expect(names(withFrom(null, "# Cal Alpha Above", "==="))).toEqual([
+      "h1:# Cal Alpha Above",
+      TAIL,
+    ]);
+  });
+
+  it("RED 3 — the decline may NOT fire where the setext row would not claim the line", () => {
+    // ⚠ FOUND BY THE ADVERSARIAL PASS, NOT BY A DESIGNED DOCUMENT (`scratchpad/s214/adv/x1_div`).
+    // Pressed directly against a `:::` opener the setext row does not fire at all, so declining
+    // the ATX match there DELETES the heading outright rather than retexting it.
+    //
+    // ⚠ The gap is PRE-EXISTING and is NOT this rule's to fix: the same document with an
+    // ORDINARY PROSE title reports nothing on the pre-session build too. What this row must do
+    // is refuse to make that gap reachable — quarto renders `h1:# Adv Div Head`, and reporting
+    // the un-swallowed `h1:Adv Div Head` is wrong in its TEXT, but reporting NOTHING loses the
+    // section from the outline entirely.
+    expect(names(withFrom(null, "::: {.note}", "# Adv Div Head", "===", ":::"))).toEqual([
+      "h1:Adv Div Head",
+      TAIL,
+    ]);
   });
 });

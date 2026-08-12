@@ -1591,6 +1591,87 @@ const ATX_CLOSING_UNSPACED = /[^ \t#]#+[ \t]*$/;
  * every `gfm` document — a separate session with its own two-directional score. The rows are
  * named here so that session can collect them.
  */
+/**
+ * Whether the line BELOW an ATX heading is a setext underline that SWALLOWS it — in which case
+ * the ATX row must decline and the setext row below claims the very same line (Session 214).
+ *
+ * `# Cal Alpha Above` / `===` renders **`<h1># Cal Alpha Above</h1>`**: pandoc tries its setext
+ * parser first, so the underline claims the ATX line, the UNDERLINE's spelling sets the level
+ * (`=` → 1, `-` → 2, so `###### x` / `---` is an **h2**), and the literal `#` survives into the
+ * heading's TEXT. Session 182 measured this at column 0 and DECLINED it; Session 199 measured it
+ * inside a container and deferred it in `SETEXT_UNDERLINE_RUN`'s own docstring — *"reversing
+ * S182's choice is a separate capability"*. This is that capability.
+ *
+ * ⚠ **THE WHOLE DELIVERABLE IS THE DECLINE. Nothing downstream needed changing, and that is a
+ * measured fact rather than a happy accident.** `parseSetextHeadingLine` passes
+ * `stripClosingHash: false`, so `buildHeading` already strips a trailing attribute block
+ * (`cal2/e_attr` → `h1:# Cal Attr Above`) and already KEEPS a trailing hash run verbatim
+ * (`e_close` → `h1:# Cal Close Above ##`) — both exactly what quarto does here. The proof that
+ * the setext path needs no help is that it is **already right** on the geometries where the ATX
+ * row happens to decline on its own: `cal2/c_atx1`–`c_atx3` (the `#` line indented 1–3, refused
+ * by Session 199's column equality) and `cal2/e_bare` (`#` alone, which `ATX_HEADING` cannot
+ * match) all agree with quarto on the PRE-session build.
+ *
+ * ⚠ **`commonmarkDialect` is the gate, and it is a MEASURED six-three split rather than a reused
+ * shape.** One matched pair per reader, `scratchpad/s214/cal`, plus a second shape each in
+ * `cal2/h_*`:
+ *
+ *   SWALLOW    no `from:` at all · `markdown` · `markdown_strict` · `markdown_mmd`
+ *              `markdown_phpextra` · `markdown_github`
+ *   DO NOT     `gfm` · `commonmark` · `commonmark_x`
+ *
+ * That is precisely `FRONTMATTER_COMMONMARK_FROM`, and the mechanism is CommonMark §4.3: a
+ * setext underline must follow a **paragraph**, and an ATX heading is not one. The `a_*_prose`
+ * control renders a setext heading under all nine readers, so the CommonMark rows are refusing
+ * *this geometry*, not lacking setext. ⚠ **`markdown_github` swallows** even though pandoc
+ * documents it as a deprecated synonym for `gfm` — reasoning from the base name gets that row
+ * backwards, which is Learning #348 / #352 in a third place.
+ *
+ * ⚠ **The column set is the underline's own, and it is `[0, ...contentColumns]` — the same array
+ * the setext row reads.** Measured on 13 documents (`cal2/b_*`): top level swallows at column 0
+ * and refuses 1–4 (Session 199's "even ONE leading space" confirmed, and swept past 3 so a rule
+ * that stops there cannot look correct); inside `- item` (content column 2) the set is {0, 2};
+ * inside `-   item` (column 4) it is {0, 4}. The ATX line's OWN indent is not part of the rule.
+ *
+ * ⚠ **The hazard is DELETION, and it is bounded by a corpus rather than by argument.** This row
+ * declines and *relies* on the setext row firing on the next line — two rows with two
+ * preconditions, and where both decline a heading quarto renders is lost outright.
+ * `scratchpad/s214/cal3` puts 18 constructs above the ATX line, each with a matched
+ * no-underline control; the four that render no heading at all (an open paragraph or an open
+ * fence) report nothing before and after, and the thirteen that swallow are all recovered.
+ *
+ * ⚠ **`bodyRunLength` is what keeps that hazard from being a live deletion, and it was added
+ * because the ADVERSARIAL pass found one — no designed document produced it.** The caller
+ * passes the value `consecutiveBody` is ABOUT to take on this line, and the swallow is declined
+ * unless that value is 1, which is precisely the setext row's own title-line precondition. In
+ * `scratchpad/s214/adv/x1_div` the pair sits directly against a `:::` opener, where the counter
+ * reaches 2 and the setext row never fires: declining the ATX there DELETED the heading instead
+ * of retexting it.
+ *
+ * ⚠ **That gap is PRE-EXISTING and is deliberately NOT fixed here.** The same document with an
+ * ORDINARY PROSE title reports nothing on the pre-session build too (`div_prose`, isolated in
+ * `scratchpad/s214/probe.test.ts`), so the setext row's refusal to claim a title pressed against
+ * a `:::` opener is a defect of its own with its own polarity — filed, not inherited. What this
+ * gate does is refuse to make it REACHABLE: reporting the un-swallowed `h1:Adv Div Head` is
+ * wrong in its TEXT, and reporting nothing loses the section from the outline entirely.
+ *
+ * ⚠ **The consequence is that this change is PURELY ADDITIVE by construction** (Session 210's
+ * Headline 4 applied again): every row it moves goes from an ATX heading with stripped text to a
+ * setext heading with quarto's exact text, and no row it touches can go to nothing.
+ */
+function setextUnderlineSwallowsAtx(
+  next: string | undefined,
+  columns: readonly number[],
+  commonmarkDialect: boolean,
+  bodyRunLength: number,
+): boolean {
+  return (
+    !commonmarkDialect &&
+    bodyRunLength === 1 &&
+    next !== undefined &&
+    setextUnderlineLevel(next, columns) !== null
+  );
+}
 function tightAtxWouldWorsen(
   line: string,
   next: string | undefined,
@@ -4301,10 +4382,30 @@ function computeRegions(text: string): Regions {
     // A live content line (prose or a heading) — outside every skip-region.
     bodyLines.push({ line: i, text: line });
 
+    // The columns a raw-TeX block or an indented code block may start at on THIS line: the
+    // document root's own 0 plus every open container's. `null` while a block quote may be
+    // open — see `quoteOpen`.
+    //
+    // ⚠ Hoisted above the ATX row by Session 214 so the setext-swallow gate and the body-run
+    // counter below share ONE definition of "this line is the second or later line of an
+    // indented code run" rather than each carrying its own copy. Nothing between here and the
+    // else branch mutates `quoteOpen`, `contentColumns` or `prevIndentedCode` on the path that
+    // reads them: the `if (m)` branch that assigns `quoteOpen` is the branch where the else
+    // never runs.
+    const rawTexColumns = quoteOpen ? null : [0, ...contentColumns];
+    const indented = indentedCodeLine(line, rawTexColumns);
+    const insideIndentedCode = indented && prevIndentedCode;
+
     // An ATX heading — but only where no paragraph is open above it, and never inside a raw
     // HTML block under a CommonMark reader, where the block swallows it (Session 204).
     const m =
       commonmarkHtmlBlock !== null ||
+      setextUnderlineSwallowsAtx(
+        lines[i + 1],
+        [0, ...contentColumns],
+        commonmarkDialect,
+        pendingFreshBlock && !insideIndentedCode ? 1 : consecutiveBody + 1,
+      ) ||
       (paragraphOpen && (!dialectOverride || blankBeforeHeaderDialect))
         ? null
         : atxHeadingMatch(
@@ -4353,12 +4454,9 @@ function computeRegions(text: string): Regions {
       // renders `<h1>Some Title</h1>` and this model produced nothing. 86 such losses in a
       // 392-document sweep. The columns are computed first for that reason.
       //
-      // The columns a raw-TeX block or an indented code block may start at on THIS line: the
-      // document root's own 0 plus every open container's. `null` while a block quote may be
-      // open — see `quoteOpen`.
-      const rawTexColumns = quoteOpen ? null : [0, ...contentColumns];
-      const indented = indentedCodeLine(line, rawTexColumns);
-      const insideIndentedCode = indented && prevIndentedCode;
+      // `rawTexColumns`, `indented` and `insideIndentedCode` are computed ABOVE the ATX row
+      // (Session 214) so the setext-swallow gate reads the same counter arithmetic this line
+      // does — see `setextUnderlineSwallowsAtx`.
       consecutiveBody = pendingFreshBlock && !insideIndentedCode ? 1 : consecutiveBody + 1;
       if (consecutiveBody === 1) {
         // The run STARTS here, so this line decides whether it is a paragraph at all — see
