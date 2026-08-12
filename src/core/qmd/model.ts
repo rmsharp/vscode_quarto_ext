@@ -307,16 +307,42 @@ const ESCAPABLE_ALL_SYMBOLS = /[\p{P}\p{S}]/u;
  * `cal/a_*_letter` but two. The obvious `\\\\(.)` -> `$1` gets this wrong on all nine readers at
  * once, which is why the escapable set is a membership test and not a wildcard.
  */
-function decodeHeadingEscapes(text: string, escapable: RegExp): string {
+function decodeHeadingEscapes(text: string, escapable: RegExp, pandocEscapes: boolean): string {
   if (!text.includes("\\")) {
     return text;
   }
   let out = "";
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
-    if (c === "\\" && i + 1 < text.length && escapable.test(text[i + 1])) {
-      out += text[i + 1];
+    if (c !== "\\") {
+      out += c;
+      continue;
+    }
+    const next = i + 1 < text.length ? text[i + 1] : null;
+    if (next !== null && escapable.test(next)) {
+      out += next;
       i++;
+      continue;
+    }
+    // ⚠ TWO SET-A SPECIAL CASES THAT ARE NOT MEMBERS OF ANY ESCAPABLE SET, because a space is
+    // not punctuation and end-of-text is not a character at all. Both measured across all nine
+    // readers (`scratchpad/s217/cal4/e_*`): under pandoc `\<space>` is a NON-BREAKING SPACE and
+    // a TRAILING `\` is a hard line break, while Sets B and C render both literally.
+    //
+    // ⚠ Neither is visible in any predecessor extractor column — all of them collapse
+    // whitespace, so `a b`, `a\u00a0b` and `a\nb` read identically. That is why this session's
+    // harness scores raw bytes, and why a naive `\\(.)` -> `$1` decode would have SCORED GREEN
+    // on the nbsp row while producing an ordinary space.
+    if (pandocEscapes && next === " ") {
+      out += "\u00a0";
+      i++;
+      continue;
+    }
+    if (pandocEscapes && next === null) {
+      // The hard break has nowhere to break to inside a heading, so quarto drops the backslash
+      // and `trim()` below takes the space that preceded it (`e_md_hardbrk` renders
+      // `Cal Hb Trailing`). ⚠ An EVEN run never reaches here: `\\` is consumed as one complete
+      // escape above, which is why `# Cal Hb Even \\` keeps one literal backslash.
       continue;
     }
     out += c;
@@ -4122,7 +4148,12 @@ function computeRegions(text: string): Regions {
   // flag rather than a refinement of any of the seven around it, for the reason each of those
   // gives: it answers its own question, and it is read at ONE site (`buildHeading`, shared by
   // the ATX and setext paths).
-  const escapableSet = headingEscapable(commonmarkDialect, fromEscapesAllSymbols(fromValueLine));
+  // Whether the resolved reader carries pandoc's escape rules — see `fromEscapesAllSymbols`.
+  // Read TWICE and for two different questions: it picks the escapable SET below, and it gates
+  // the two special cases (`\<space>` -> U+00A0, trailing `\` -> hard break) that belong to no
+  // set at all.
+  const pandocEscapes = fromEscapesAllSymbols(fromValueLine);
+  const escapableSet = headingEscapable(commonmarkDialect, pandocEscapes);
   // Whether the resolved reader has `space_in_atx_header` OFF, so `#Heading` with no separator
   // IS a heading — see `fromRequiresSpaceInAtxHeader` (Session 212). A SIXTH flag rather than a
   // refinement of any of the five above, for the reason each of those gives: it answers its own
@@ -4665,6 +4696,7 @@ function computeRegions(text: string): Regions {
         prev.line,
         headerAttributesDialect,
         escapableSet,
+        pandocEscapes,
       );
       if (heading) {
         headings.push(heading);
@@ -4730,6 +4762,7 @@ function computeRegions(text: string): Regions {
         commonmarkDialect,
         headerAttributesDialect,
         escapableSet,
+        pandocEscapes,
       );
       if (heading) {
         headings.push(heading);
@@ -5728,6 +5761,7 @@ function buildHeading(
   closing: RegExp | null,
   honoursAttributes: boolean,
   escapable: RegExp,
+  pandocEscapes: boolean,
 ): Heading | null {
   const attribute = honoursAttributes ? HEADING_ATTRIBUTE.exec(rawText) : null;
   const id = attribute ? ATTR_ID.exec(attribute[0])?.[1] : undefined;
@@ -5741,7 +5775,7 @@ function buildHeading(
   // `sec-` cross-reference target the document never defines (`scratchpad/s217/cal4/d_md_attr1`,
   // where quarto renders `Cal Par1 Attr {#sec-par1}` and defines NO id). Both strips therefore
   // read the RAW text, and the decode runs on what survives them.
-  text = decodeHeadingEscapes(text, escapable);
+  text = decodeHeadingEscapes(text, escapable, pandocEscapes);
   text = text.trim();
   if (!text) {
     return null;
@@ -5770,6 +5804,7 @@ function parseHeadingLine(
   commonmarkDialect: boolean,
   honoursAttributes: boolean,
   escapable: RegExp,
+  pandocEscapes: boolean,
 ): Heading | null {
   return buildHeading(
     m[1].length,
@@ -5778,6 +5813,7 @@ function parseHeadingLine(
     atxClosingRun(commonmarkDialect),
     honoursAttributes,
     escapable,
+    pandocEscapes,
   );
 }
 
@@ -5795,6 +5831,7 @@ function parseSetextHeadingLine(
   line: number,
   honoursAttributes: boolean,
   escapable: RegExp,
+  pandocEscapes: boolean,
 ): Heading | null {
-  return buildHeading(level, rawText, line, null, honoursAttributes, escapable);
+  return buildHeading(level, rawText, line, null, honoursAttributes, escapable, pandocEscapes);
 }

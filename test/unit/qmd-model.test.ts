@@ -8645,4 +8645,26 @@ describe("a heading's backslash escapes are processed per reader (Session 217)",
       names(withFrom("markdown+all_symbols_escapable-all_symbols_escapable", "# Cal Ex Esc\\±End")),
     ).toEqual(["h1:Cal Ex Esc\\±End", TAIL]);
   });
+
+  /**
+   * RED 6 — THE TWO SET-A SPECIAL CASES, neither of which is "drop the backslash", and both
+   * invisible to every predecessor extractor column because those collapse whitespace.
+   * `scratchpad/s217/cal4` `e_*`, all nine readers: pandoc renders `\<space>` as a NON-BREAKING
+   * SPACE and a TRAILING `\` as a hard line break; Sets B and C leave both literal (pinned in
+   * the GUARD above). Space is not punctuation, so neither can come from the escapable set.
+   */
+  it("Set A renders `\\<space>` as U+00A0 and drops a trailing `\\` — `cal4/e_md_nbsp`, `e_md_hardbrk`", () => {
+    expect(names(withFrom("markdown", "# Cal Nb A\\ B End"))).toEqual([
+      "h1:Cal Nb A B End",
+      TAIL,
+    ]);
+    expect(names(withFrom("markdown", "# Cal Hb Trailing \\"))).toEqual([
+      "h1:Cal Hb Trailing",
+      TAIL,
+    ]);
+    // ⚠ An EVEN run at the end is NOT a hard break — `\\` is a complete escape, so the trailing
+    // position is already consumed and one literal backslash survives (`cal4/d_md_attr2` is the
+    // same shape after its block is stripped, rendering `Cal Par2 Attr \`).
+    expect(names(withFrom("markdown", "# Cal Hb Even \\\\"))).toEqual(["h1:Cal Hb Even \\", TAIL]);
+  });
 });
