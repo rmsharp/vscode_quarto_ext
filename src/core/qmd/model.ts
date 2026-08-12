@@ -164,12 +164,53 @@ const COMMONMARK_INDENT_OFFSETS: readonly number[] = [0, 1, 2, 3];
  */
 const COMMONMARK_LIST_MARKER = /^[ \t]*(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)/;
 /**
- * An optional closing sequence: a run of `#` at end of line, preceded by
- * whitespace OR the start of the (already separator-stripped) text. Anchoring to
- * `^` as well lets an all-hash heading body (`## ##`) collapse to empty so it is
- * dropped, while a `#` that is part of a word (`C#`) is preserved.
+ * An optional closing sequence **as CommonMark §4.2 defines it** — a run of `#` at end of line,
+ * preceded by whitespace OR by the start of the (already separator-stripped) text. Anchoring to
+ * `^` as well lets an all-hash heading body (`## ##`) collapse to empty so it is dropped.
+ *
+ * ⚠ **This is now the CommonMark-dialect spelling only, and the sentence that used to follow —
+ * that a `#` which is part of a word (`C#`) is preserved — was MEASURED FALSE for the pandoc
+ * markdown family** (Session 215; the docstring's own claim is what `BACKLOG` filed). See
+ * `ATX_CLOSING_PANDOC` below for the six readers that do not require the space, and
+ * `atxClosingRun` for the gate between them.
  */
 const ATX_CLOSING = /(?:^|[ \t]+)#+[ \t]*$/;
+/**
+ * The same closing sequence for the pandoc `markdown*` family, which does **not** require a space
+ * before it: `# Cal Learning C#` renders `<h1>Cal Learning C</h1>` (Session 215).
+ *
+ * ⚠ **The reader split is MEASURED over nine readers, one matched set each, and it is 6–3 —
+ * the backlog entry said "under EVERY reader".** `scratchpad/s215/cal`, 45 documents:
+ *
+ *   STRIP UNSPACED   no `from:` at all · `markdown` · `markdown_strict` · `markdown_mmd`
+ *                    `markdown_phpextra` · `markdown_github`
+ *   DO NOT           `gfm` · `commonmark` · `commonmark_x`
+ *
+ * That set is exactly `FRONTMATTER_COMMONMARK_FROM`, so `commonmarkDialect` is the gate by
+ * measurement rather than by convenience. ⚠ The `a_*_spaced` / `a_*_runsp` control column is what
+ * makes this a SPLIT rather than "CommonMark strips nothing": all nine readers strip the run when
+ * a space precedes it, so the right-hand column is applying CommonMark §4.2's *"must be preceded
+ * by a space"*, not lacking the convention. ⚠ **`markdown_github` strips and `gfm` does not**,
+ * though pandoc documents the former as a deprecated synonym for the latter — a table reasoned
+ * from the base name puts that row on the wrong side (Learnings #348 / #352, a fourth time).
+ *
+ * ⚠ **`(?<!\\)` is not defensive coding — it is one rendered row, and without it this rule
+ * DELETES a character quarto keeps.** `# Cal Echo Esc\#` renders `<h1>Cal Echo Esc#</h1>` under
+ * both a stripping and a non-stripping reader (`cal2/b_esc_md`, `b_esc_gfm`): `\#` is an escaped
+ * hash, not a closing run. This model keeps the backslash — it processes no markdown escapes
+ * anywhere, a pre-existing gap filed separately — so that row diverges before AND after. What the
+ * lookbehind buys is that it may not additionally lose the hash.
+ */
+const ATX_CLOSING_PANDOC = /(?<!\\)#+[ \t]*$/;
+/**
+ * The closing-sequence spelling this document's reader uses, or `null` where the construct does
+ * not exist at all. Setext headings pass `null`: quarto keeps a trailing hash run there under
+ * BOTH spellings (`cal2/b_setext` → `h1:Cal Romeo Set#`, `b_setextsp` → `h1:Cal Sierra Set #`),
+ * which is what `parseSetextHeadingLine` has always produced.
+ */
+function atxClosingRun(commonmarkDialect: boolean): RegExp {
+  return commonmarkDialect ? ATX_CLOSING : ATX_CLOSING_PANDOC;
+}
 /**
  * A trailing Pandoc/Quarto heading attribute block — `{#sec-id .class key=val}`.
  * Quarto renders the heading text without it (and the `#sec-` id drives Phase 6b
@@ -1542,18 +1583,24 @@ function fromConsumesMetadataBlock(line: string | null): boolean {
   return state !== null ? state : base === "markdown";
 }
 /**
- * A trailing `#` run that quarto strips from a heading's text and `ATX_CLOSING` does not
- * (Session 212) — a run at end of line with no whitespace before it.
+ * A trailing `#` run that is **backslash-escaped**, which quarto renders as a literal hash and
+ * this model's text pipeline still gets wrong.
  *
- * ⚠ **`ATX_CLOSING`'s leading `(?:^|[ \t]+)` is MEASURED WRONG for every reader, and this row is
- * not the fix.** `# Cal Learning C#` renders `h1:Cal Learning C` under `markdown_strict`
- * (`scratchpad/s212/cal2/h4_csharp_sp_strict`) **and under plain `markdown`**
- * (`h5_csharp_sp_md`), while this model reports `Cal Learning C#` on both — contradicting
- * `ATX_CLOSING`'s own docstring, which claims a `#` that is part of a word is preserved. That is
- * a pre-existing text divergence on the SPACED spelling, filed separately. This row exists only
- * so the tight form does not make it reachable on documents that report nothing today.
+ * ⚠ **This replaces Session 212's `ATX_CLOSING_UNSPACED`, and the replacement is a NARROWING
+ * that ships two rendered rows rather than a rename.** That constant declined the tight spelling
+ * for *every* unspaced hash run, because the strip was wrong for all of them; Session 215 made
+ * the strip right, so `#Cal Tight C#` and `#Cal Tight Run###` are now accepted and produce
+ * quarto's exact text (`cal3/c_tightcsharp_*`, `c_tightrun_*`, four bases each).
+ *
+ * ⚠ **What survives is the ESCAPE, and deleting the clause outright would have shipped a
+ * regression.** `#Cal Tight Esc\#` renders `h1:Cal Tight Esc#` (`cal3/c_tightesc_*`), and
+ * accepting it here would report `Cal Tight Esc\#` — this model keeps the backslash, since it
+ * processes no markdown escapes anywhere. That turns *reports nothing* into *reports the wrong
+ * text*, one error becoming two, which is precisely what Learning #348 was written for. The
+ * SPACED twin (`cal2/b_esc_md`) diverges today with no help from this change, so the underlying
+ * escape gap is pre-existing and is filed rather than inherited.
  */
-const ATX_CLOSING_UNSPACED = /[^ \t#]#+[ \t]*$/;
+const ATX_CLOSING_ESCAPED = /\\#+[ \t]*$/;
 /**
  * Whether recognising `line` as a TIGHT ATX heading would make this model's answer WORSE than
  * reporting nothing — in which case the tight form is declined and today's answer is reproduced
@@ -1581,7 +1628,9 @@ const ATX_CLOSING_UNSPACED = /[^ \t#]#+[ \t]*$/;
  *        and would additionally enter a phantom `sec-` id in the cross-reference index
  *        (`src/core/refs.ts`). Pre-existing on the spaced twin, under `gfm` too
  *        (`cal2/g1_attr_sp_strict`, `g3_attr_sp_gfm`).
- *   a trailing HASH RUN — see `ATX_CLOSING_UNSPACED` above.
+ *   an ESCAPED trailing HASH RUN — see `ATX_CLOSING_ESCAPED` above. ⚠ Until Session 215 this
+ *        bullet read "a trailing HASH RUN" and covered every unspaced run; the strip is now
+ *        measured right for the six pandoc bases, so only the escaped spelling still declines.
  *
  * ⚠ **The last two declines are BLANKET rather than per-reader, and that costs two rendered rows
  * ON PURPOSE.** `markdown_phpextra` DOES strip the attribute block (`cal2/g5_attr_tight_php`) and
@@ -1680,7 +1729,7 @@ function tightAtxWouldWorsen(
   return (
     (next !== undefined && setextUnderlineLevel(next, columns) !== null) ||
     HEADING_ATTRIBUTE.test(line) ||
-    ATX_CLOSING_UNSPACED.test(line)
+    ATX_CLOSING_ESCAPED.test(line)
   );
 }
 /** A raw block-level HTML opener, capturing the tag NAME so its closer can be matched. */
@@ -4426,7 +4475,7 @@ function computeRegions(text: string): Regions {
               !tightAtxWouldWorsen(line, lines[i + 1], [0, ...contentColumns]),
           );
     if (m) {
-      const heading = parseHeadingLine(m, i);
+      const heading = parseHeadingLine(m, i, commonmarkDialect);
       if (heading) {
         headings.push(heading);
       }
@@ -5394,23 +5443,27 @@ function sectionEndOf(headings: Heading[], k: number, lastLine: number): number 
 }
 
 /**
- * Build a `Heading` from a raw heading-text line, or `null` if nothing
- * displayable remains. Strips a trailing Pandoc attribute block (shared by ATX
- * and setext) and, for ATX only, an optional closing-hash run — setext has no
- * such convention, so a literal trailing `##` in setext text is kept verbatim
- * (confirmed against the real Quarto CLI).
+ * Build a `Heading` from a raw heading-text line, or `null` if nothing displayable remains.
+ * Strips a trailing Pandoc attribute block (shared by ATX and setext) and then, when `closing`
+ * is non-null, that reader's closing-hash run.
+ *
+ * `closing` is `null` for setext, which has no such convention: a literal trailing `#` run in
+ * setext text is kept verbatim under BOTH spellings (`s215/cal2/b_setext` → `h1:Cal Romeo Set#`,
+ * `b_setextsp` → `h1:Cal Sierra Set #`, and Session 214's `s214/cal2/e_close` independently).
+ * For ATX it is `atxClosingRun`'s per-reader choice — a boolean until Session 215, when the
+ * closing sequence turned out to be spelled differently by the two reader families.
  */
 function buildHeading(
   level: number,
   rawText: string,
   line: number,
-  stripClosingHash: boolean,
+  closing: RegExp | null,
 ): Heading | null {
   const attribute = HEADING_ATTRIBUTE.exec(rawText);
   const id = attribute ? ATTR_ID.exec(attribute[0])?.[1] : undefined;
   let text = rawText.replace(HEADING_ATTRIBUTE, "");
-  if (stripClosingHash) {
-    text = text.replace(ATX_CLOSING, "");
+  if (closing !== null) {
+    text = text.replace(closing, "");
   }
   text = text.trim();
   if (!text) {
@@ -5420,13 +5473,20 @@ function buildHeading(
 }
 
 /**
- * Build a `Heading` from a matched ATX line, or `null` if nothing displayable
- * remains. The display text drops a trailing Pandoc attribute block and any ATX
- * closing-hash run, so `## Methods {#sec-methods}` → "Methods" and an all-hash
- * `## ##` → dropped.
+ * Build a `Heading` from a matched ATX line, or `null` if nothing displayable remains. The
+ * display text drops a trailing Pandoc attribute block and this reader's ATX closing-hash run,
+ * so `## Methods {#sec-methods}` → "Methods" and an all-hash `## ##` → dropped.
+ *
+ * ⚠ `commonmarkDialect` decides WHICH closing-hash spelling applies — the run needs a space
+ * before it under `gfm`/`commonmark`/`commonmark_x` and does not under the pandoc `markdown*`
+ * family. See `ATX_CLOSING_PANDOC` for the nine-reader table.
  */
-function parseHeadingLine(m: RegExpExecArray, line: number): Heading | null {
-  return buildHeading(m[1].length, m[2], line, true);
+function parseHeadingLine(
+  m: RegExpExecArray,
+  line: number,
+  commonmarkDialect: boolean,
+): Heading | null {
+  return buildHeading(m[1].length, m[2], line, atxClosingRun(commonmarkDialect));
 }
 
 /**
@@ -5442,5 +5502,5 @@ function parseSetextHeadingLine(
   rawText: string,
   line: number,
 ): Heading | null {
-  return buildHeading(level, rawText, line, false);
+  return buildHeading(level, rawText, line, null);
 }

@@ -75,7 +75,11 @@ describe("findHeadings — ATX edge rules (CommonMark)", () => {
     ]);
   });
 
-  it("keeps a hash that is part of the text (not a space-led closing run)", () => {
+  // ⚠ SESSION 215 renamed this test. It used to read "keeps a hash that is part of the text (not
+  // a space-led closing run)", and that general claim is MEASURED FALSE for the pandoc markdown
+  // family: `# Cal Learning C#` renders `h1:Cal Learning C`. What survives is narrower and is
+  // what this document actually shows — the run must be at END of line. The bytes are unchanged.
+  it("keeps a hash inside the text, because a closing run must end the line", () => {
     const text = ["# C# language"].join("\n");
     expect(findHeadings(text)).toEqual([
       { level: 1, text: "C# language", line: 0 },
@@ -7232,8 +7236,16 @@ describe("a reader with `space_in_atx_header` OFF accepts `#Heading` (Session 21
     // filed: see `CALIBRATION.md` §5 and this session's three new BACKLOG entries.
     // `cal/c8_attr_strict` — `markdown_strict` KEEPS the braces; this model strips them.
     expect(names(withFrom("markdown_strict", "#Cal Tight Attr {#sec-caltight}"))).toEqual(REFUSED);
-    // `cal/c7_close_strict` — quarto strips the closing `#` with no space before it; we do not.
-    expect(names(withFrom("markdown_strict", "#Cal Tight Closed#"))).toEqual(REFUSED);
+    // `cal/c7_close_strict` — ⚠ REVERSED BY SESSION 215, WHICH IS THE ITEM THIS ROW FILED. The
+    // comment here used to read "quarto strips the closing `#` with no space before it; we do
+    // not", and the decline existed only because the strip was wrong. It is right now, so the
+    // row is ACCEPTED with quarto's exact text. Proven by rendering these very bytes rather than
+    // by trusting this comment (`scratchpad/s215/pin/p1_tight_closed` → `h1:Cal Tight Closed`),
+    // and re-measured across all four tight bases in `s215/cal3`.
+    expect(names(withFrom("markdown_strict", "#Cal Tight Closed#"))).toEqual([
+      "h1:Cal Tight Closed",
+      "h2:Cal Spaced Control",
+    ]);
     // `cal3/m1_prose_setext_strict` — quarto renders `h1:#Cal Tight Underlined`; this model's
     // own setext row cannot fire with prose above, so accepting would be wrong a second way.
     expect(names(withFrom("markdown_strict", "Cal prose line above.", "#Cal Tight Underlined", "==="))).toEqual(
@@ -7877,5 +7889,121 @@ describe("a SETEXT UNDERLINE swallows the ATX heading above it (Session 214)", (
         TAIL,
       ]);
     });
+  });
+});
+
+describe("a trailing `#` run with no space before it is a CLOSING SEQUENCE (Session 215)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  /**
+   * Every document carries a real ATX heading BELOW the probe, as the rendered corpora do
+   * (`scratchpad/s215/cal`). Without it a document reporting nothing is indistinguishable from a
+   * build that has stopped producing headings altogether (Learning #339).
+   */
+  const BELOW = ["", "# Cal Alpha Below"];
+  const TAIL = "h1:Cal Alpha Below";
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...BELOW);
+
+  /**
+   * ⚠ THE GUARD, WRITTEN AND RUN GREEN BEFORE THE CHANGE (Session 204's gotcha 5, a TWELFTH
+   * session). Its polarity is what this session's rule threatens: the change DELETES characters
+   * from a heading's TEXT, so over-firing silently truncates a section title the reader really
+   * sees. Every row below is a document quarto renders WITHOUT the unspaced strip, and every one
+   * must read identically after the change.
+   */
+  describe("GUARD — rows the widened strip may not touch", () => {
+    it("a CommonMark-family reader KEEPS an unspaced run — the base table's right-hand column", () => {
+      // `cal/a_gfm_csharp`, `a_cm_csharp`, `a_cmx_csharp` and their `_run` twins. CommonMark ss4.2:
+      // "The optional closing sequence of #s must be preceded by a space."
+      for (const reader of ["gfm", "commonmark", "commonmark_x"]) {
+        expect(names(withFrom(reader, "# Cal Alpha C#"))).toEqual(["h1:Cal Alpha C#", TAIL]);
+        expect(names(withFrom(reader, "# Cal Charlie Run###"))).toEqual([
+          "h1:Cal Charlie Run###",
+          TAIL,
+        ]);
+      }
+    });
+
+    it("a CommonMark-family reader still strips the SPACED run — `cal/a_*_spaced`", () => {
+      // The control that makes the row above a SPLIT rather than "CommonMark strips nothing":
+      // all nine measured readers strip the run when a space precedes it.
+      for (const reader of ["gfm", "commonmark", "commonmark_x"]) {
+        expect(names(withFrom(reader, "# Cal Bravo Text #"))).toEqual(["h1:Cal Bravo Text", TAIL]);
+        expect(names(withFrom(reader, "# Cal Delta Run ###"))).toEqual(["h1:Cal Delta Run", TAIL]);
+      }
+    });
+
+    it("an ESCAPED hash is not a closing sequence — `cal2/b_esc_md`, `b_esc_gfm`", () => {
+      // ⚠ THE DELETING HAZARD. Quarto renders `Cal Echo Esc#` under BOTH readers: `\#` is an
+      // escaped hash, not a closing run. This model keeps the backslash (it processes no markdown
+      // escapes anywhere — a pre-existing gap, filed), so the row diverges before AND after. What
+      // it may never do is lose the hash as well, which a bare `#+[ \t]*$` would.
+      for (const reader of [null, "markdown", "gfm"]) {
+        expect(names(withFrom(reader, "# Cal Echo Esc\\#"))).toEqual(["h1:Cal Echo Esc\\#", TAIL]);
+      }
+    });
+
+    it("the TIGHT spelling of that escape still reports NOTHING — `cal3/c_tightesc_*`", () => {
+      // Accepting here would turn "reports nothing" into "reports `Cal Tight Esc\\#`" where quarto
+      // renders `Cal Tight Esc#` — one error becoming two (Learning #348). The decline survives
+      // this session even though its two siblings do not.
+      for (const reader of ["markdown_strict", "markdown_mmd", "markdown_phpextra"]) {
+        expect(names(withFrom(reader, "#Cal Tight Esc\\#"))).toEqual([TAIL]);
+      }
+    });
+
+    it("an interior hash with NO trailing run is untouched — `cal2/b_midonly`", () => {
+      // Agrees with quarto under both readers today and must keep agreeing: the run has to be at
+      // END of line. `# C# language` (`:78` in this file) is the same shape and is pinned there.
+      for (const reader of [null, "markdown", "gfm"]) {
+        expect(names(withFrom(reader, "# Cal India#Word"))).toEqual(["h1:Cal India#Word", TAIL]);
+      }
+      expect(names(withFrom(null, "# #Cal Quebec Lead"))).toEqual(["h1:#Cal Quebec Lead", TAIL]);
+    });
+
+    it("an ALL-HASH body is still dropped — `cal2/b_allhash*`, `b_hashonly`", () => {
+      // Quarto renders an EMPTY heading for each of these under both readers, which this model
+      // reproduces by dropping them. Pinned since review #4 (`:392`); the `^` alternative in
+      // today's regex is what does it, so a replacement must keep all four dropped.
+      for (const body of ["## ##", "### ###", "#### #", "# #"]) {
+        expect(names(withFrom(null, body))).toEqual([TAIL]);
+        expect(names(withFrom("gfm", body))).toEqual([TAIL]);
+      }
+    });
+
+    it("the SETEXT path KEEPS its run in both spellings — `cal2/b_setext`, `b_setextsp`", () => {
+      // ⚠ Decision rule 2. `parseSetextHeadingLine` passes `stripClosingHash: false` and quarto
+      // agrees: a setext heading keeps a trailing hash run whether or not a space precedes it.
+      // Session 214 measured this (`s214/cal2/e_close`) and this session reproduced it
+      // independently. The strip widened here is the ATX path's alone.
+      expect(names(withFrom(null, "Cal Romeo Set#", "==="))).toEqual(["h1:Cal Romeo Set#", TAIL]);
+      expect(names(withFrom(null, "Cal Sierra Set #", "==="))).toEqual([
+        "h1:Cal Sierra Set #",
+        TAIL,
+      ]);
+    });
+  });
+
+  /**
+   * RED 1 — the item's own shape, under the DEFAULT reader (no `from:` at all), which is the
+   * commonest document this extension sees. `cal/a_default_csharp` and `a_default_run`.
+   */
+  it("strips an unspaced trailing hash run under the default reader — `cal/a_default_csharp`", () => {
+    expect(names(withFrom(null, "# Cal Alpha C#"))).toEqual(["h1:Cal Alpha C", TAIL]);
+    expect(names(withFrom(null, "# Cal Charlie Run###"))).toEqual(["h1:Cal Charlie Run", TAIL]);
+  });
+
+  /**
+   * RED 3 — the TIGHT spelling, which `tightAtxWouldWorsen`'s third clause declines today so the
+   * model reports nothing at all. All four tight bases sit inside the STRIP set measured above
+   * (`cal3`, 25 documents), so accepting them now yields quarto's exact text — this is the
+   * INVENTING direction and is a behaviour change, not the cleanup the backlog entry described.
+   */
+  it("accepts the TIGHT spelling once the strip is right — `cal3/c_tightcsharp_*`", () => {
+    for (const reader of ["markdown_strict", "markdown_mmd", "markdown_phpextra"]) {
+      expect(names(withFrom(reader, "#Cal Tight C#"))).toEqual(["h1:Cal Tight C", TAIL]);
+      expect(names(withFrom(reader, "#Cal Tight Run###"))).toEqual(["h1:Cal Tight Run", TAIL]);
+    }
   });
 });
