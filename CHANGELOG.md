@@ -7,6 +7,51 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-11 · [ad hoc] Session 216 — the heading attribute block is honoured per reader, and needs no space before it (SHIPPED)
+
+- **Model:** Claude Opus 5.
+- `HEADING_ATTRIBUTE` stripped a trailing `{…}` for **every** reader and **only** when whitespace
+  preceded the brace. Quarto's answer is neither. `# Cal Alpha Tight{#sec-alpha-ti}` renders
+  `<section id="sec-alpha-ti"><h1>Cal Alpha Tight</h1>` while this model reported the whole literal
+  and indexed no id; and five of the nine measured readers render the block as **ordinary text**,
+  where this model stripped it and put a `sec-` target in the cross-reference index that the
+  rendered document never defines.
+- **⚠ Two filed backlog items turned out to be one, proved from a predecessor's already-rendered
+  TSVs before the session was claimed.** `BACKLOG.md` sized the unspaced brace "LOW for the regex"
+  and filed the `header_attributes` reader table separately, instructing the next session to
+  measure whether they are one. They are: `s215/cal2/b_attrtight_gfm` is correct today only
+  because two wrong rules cancel, so the narrow fix alone turns a right row wrong.
+- **Measured reader table** (`scratchpad/s216/cal`, 63 documents, nine readers × seven shapes) —
+  honours the block: no `from:` · `markdown` · `markdown_phpextra` · `commonmark_x`; renders it
+  literal: `markdown_strict` · `markdown_mmd` · `markdown_github` · `gfm` · `commonmark`.
+  **⚠ A 4–5 split that is NOT `FRONTMATTER_COMMONMARK_FROM`** — `commonmark_x` sits with
+  `markdown` — and **⚠ `markdown_github` behaves like `gfm` here**, the opposite of the trap
+  Sessions 214 and 215 each hit, so the inherited learning rather than the base name was what
+  would have produced the wrong row.
+- **⚠ The extension outranks the base and LAST WINS**, all four rows measured and all eight `cal3`
+  spellings predicted before rendering. The scan takes the final occurrence rather than copying
+  `fromKeepsBlankBeforeHeader`, whose first-match defect remains an open item one constant over.
+- **⚠ A heading-DELETING regression was introduced mid-session and caught before release.**
+  `tightAtxWouldWorsen` declines the tight ATX spelling whenever `HEADING_ATTRIBUTE` matches, and
+  widening that constant made it delete `#Cal Tight Attr{#sec-x}` under `markdown_strict` /
+  `markdown_mmd` — while 2039 unit tests, five corpora, the repo control and the injection control
+  were all green. Found by grepping the widened constant's other call sites at backlog-drain time;
+  fixed by gating that clause too, which **also recovered the three rows the second filed item
+  predicted a reader table would recover**.
+- **Verification.** 210 documents rendered through the real `quarto render` path plus a
+  44,416-document re-score of every predecessor corpus (3,593 directories). Designed 63 → 110/119
+  with all three pre-code predictions exact; adversarial 11 → 21/27; injection 4 → 9/10 with all
+  five designed movers landing on quarto's answer; the 115-document repo control byte-identical
+  across four views; 33 predecessor movers, every one rendered, 0/32 → 24/32. **Zero true
+  regressions**, established mechanically rather than by eye. Four pre-existing pins reversed, all
+  four fixes, all four proven by rendering their exact bytes. `npm test` 2040 passed;
+  `test:integration` 524 passing / 0 failing (baseline 522), run twice because `src/` changed
+  after the first; `test:oracle` byte-identical to S180–S215; `check-package` OK; `check-backlog`
+  OK.
+- **Closes two `BACKLOG.md` items**, each on the evidence that filed it: the `HEADING_ATTRIBUTE`
+  leading-whitespace defect (S215) and the tight-hash attribute decline / `header_attributes`
+  per-reader table (S212). Three new items filed. Learnings #360–#363.
+
 ### 2026-08-11 · [ad hoc] Session 215 — a trailing `#` run needs no space before it in the pandoc readers (SHIPPED)
 
 - **Model:** Claude Opus 5.
