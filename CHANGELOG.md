@@ -7,6 +7,44 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-11 · [ad hoc] Session 215 — a trailing `#` run needs no space before it in the pandoc readers (SHIPPED)
+
+- **Model:** Claude Opus 5.
+- **What shipped.** `# Cal Learning C#` renders `<h1>Cal Learning C</h1>` and this model reported
+  `Cal Learning C#`. `ATX_CLOSING`'s leading `(?:^|[ \t]+)` — and the docstring sentence claiming
+  that a `#` which is part of a word is preserved — were both measured wrong. The ATX path now
+  chooses its closing-sequence spelling per reader (`ATX_CLOSING_PANDOC` / `ATX_CLOSING`, via
+  `atxClosingRun`); the setext path is untouched and still keeps its run verbatim, which is what
+  quarto does there under both spellings.
+- **⚠ The item's reader clause was wrong and the base table refuted it on the first render, for
+  the second session running.** The entry says the strip happens "under EVERY reader", generalising
+  from the two readers Session 212 measured. It is a clean 6–3 split: the pandoc `markdown*`
+  family strips — `markdown_github` included, though pandoc documents it as a deprecated `gfm`
+  synonym — and `gfm` / `commonmark` / `commonmark_x` do not, because CommonMark §4.2 requires the
+  closing sequence to be *preceded by a space*. The `_spaced` control column is what makes this a
+  split rather than a shrug: all nine readers strip when a space precedes the run.
+- **⚠ The obvious regex deletes a character quarto keeps.** `# Cal Echo Esc\#` renders
+  `Cal Echo Esc#` under both reader families — `\#` is an escaped hash, not a closing run — and a
+  bare `#+[ \t]*$` yields `Cal Echo Esc\`. `ATX_CLOSING_PANDOC` carries `(?<!\\)` for that one
+  rendered row.
+- **⚠ "`ATX_CLOSING_UNSPACED` becomes dead code" was true of the constant and false of its clause.**
+  Two of its three measured shapes became correct and are now accepted with quarto's exact text;
+  the third would have turned *reports nothing* into *reports the wrong text*, so the decline was
+  NARROWED to `ATX_CLOSING_ESCAPED` rather than deleted.
+- **Measured.** 199 documents rendered through the real `quarto render` path (1.7.33), scored per
+  document against the pre-session build, plus a 44,359-row re-score of every predecessor corpus
+  across 3,592 directories. Designed 73 → 102/114 with every corpus landing exactly on its
+  pre-code prediction; adversarial 11 → 20/28; injection 5 → 10/10. **Zero true regressions**,
+  established by an explicit agreed-pre-but-not-post check rather than by eye. Of 57 moved
+  predecessor rows, the 7 outside this session's own corpora are all Session 212's — including the
+  two documents the backlog entry cited as its evidence, so the item is closed on the evidence that
+  filed it.
+- **Verification.** `npm test` 2023 passed / 66 files · `test:integration` 522 passing / 0 failing
+  / exit 0 · `test:oracle` 131 / 124 agree (byte-identical to S180–S214) · `check-package` OK ·
+  `check-backlog` OK. Guard-first, 3 RED→GREEN.
+- **Filed, not bundled.** `HEADING_ATTRIBUTE` carries the identical leading-whitespace defect one
+  constant over; and this model processes no markdown escapes anywhere.
+
 ### 2026-08-11 · [ad hoc] Session 214 — a SETEXT UNDERLINE swallows the ATX heading above it (SHIPPED)
 
 - **Model:** Claude Opus 5.
