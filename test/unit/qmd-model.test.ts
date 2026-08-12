@@ -7714,4 +7714,168 @@ describe("a SETEXT UNDERLINE swallows the ATX heading above it (Session 214)", (
       TAIL,
     ]);
   });
+
+  describe("PINS — one per measured clause", () => {
+    it("PIN — the base reader table is a SIX-THREE split, and it is not the base NAME's shape", () => {
+      // `scratchpad/s214/cal`, one matched pair per reader. ⚠ `markdown_github` SWALLOWS even
+      // though pandoc documents it as a deprecated synonym for `gfm` — a table reasoned from the
+      // base name gets that row backwards (Learning #348 / #352 in a third place).
+      for (const reader of [
+        "markdown",
+        "markdown_strict",
+        "markdown_mmd",
+        "markdown_phpextra",
+        "markdown_github",
+      ]) {
+        expect(names(withFrom(reader, "# Cal Alpha Above", "==="))).toEqual([
+          "h1:# Cal Alpha Above",
+          TAIL,
+        ]);
+      }
+      // …and no `from:` key at all, the commonest shape of any real document.
+      expect(names(withFrom(null, "# Cal Alpha Above", "==="))).toEqual([
+        "h1:# Cal Alpha Above",
+        TAIL,
+      ]);
+      // The CommonMark three refuse. Their `a_*_prose` control renders a setext heading under
+      // every reader, so this is "an ATX line may not be a setext title", not "no setext here".
+      for (const reader of ["gfm", "commonmark", "commonmark_x"]) {
+        expect(names(withFrom(reader, "Cal Charlie Above", "==="))).toEqual([
+          "h1:Cal Charlie Above",
+          TAIL,
+        ]);
+      }
+    });
+
+    it("PIN — the column set is the UNDERLINE's own `[0, ...contentColumns]`", () => {
+      // `scratchpad/s214/cal2/b_*`, 13 rendered documents. Top level accepts column 0 only.
+      expect(names(withFrom(null, "# Cal Col Above", "==="))).toEqual([
+        "h1:# Cal Col Above",
+        TAIL,
+      ]);
+      // Inside `- item` the content column is 2, and the set is {0, 2} — NOT a 0-3 tolerance.
+      expect(names(withFrom(null, "- item one", "", "  # Cal Two Above", "  ==="))).toEqual([
+        "h1:# Cal Two Above",
+        TAIL,
+      ]);
+      expect(names(withFrom(null, "- item one", "", "  # Cal Two Above", "   ==="))).toEqual([
+        "h1:Cal Two Above",
+        TAIL,
+      ]);
+      // Inside `-   item` the content column is 4, and the set is {0, 4} — so column 2, which
+      // the shallower container accepted, is refused here. That pair is what separates a
+      // container-relative EQUALITY from any fixed cap.
+      expect(names(withFrom(null, "-   item one", "", "    # Cal Item Above", "    ==="))).toEqual([
+        "h1:# Cal Item Above",
+        TAIL,
+      ]);
+      expect(names(withFrom(null, "-   item one", "", "    # Cal Item Above", "  ==="))).toEqual([
+        "h1:Cal Item Above",
+        TAIL,
+      ]);
+    });
+
+    it("PIN — the UNDERLINE sets the level and the WHOLE source line survives as the text", () => {
+      // `cal2/d_*` and `e_*`. The hashes no longer set the level: `##` under `===` is an h1, and
+      // `######` under `---` is an h2.
+      expect(names(withFrom(null, "## Cal Level Two", "==="))).toEqual([
+        "h1:## Cal Level Two",
+        TAIL,
+      ]);
+      expect(names(withFrom(null, "###### Cal Level Six Dash", "---"))).toEqual([
+        "h2:###### Cal Level Six Dash",
+        TAIL,
+      ]);
+      // ⚠ The two text transforms diverge here, and BOTH match quarto because the setext path
+      // was already right: a trailing attribute block is STRIPPED (`e_attr`)…
+      expect(names(withFrom(null, "# Cal Attr Above {#sec-cal-attr}", "==="))).toEqual([
+        "h1:# Cal Attr Above",
+        TAIL,
+      ]);
+      // …and a trailing hash RUN is KEPT verbatim (`e_close`), because setext has no
+      // closing-hash convention. An ATX heading with the same bytes would drop it.
+      expect(names(withFrom(null, "# Cal Close Above ##", "==="))).toEqual([
+        "h1:# Cal Close Above ##",
+        TAIL,
+      ]);
+    });
+
+    it("PIN — the swallow does NOT depend on the ATX line's own indent (the mechanism's proof)", () => {
+      // `cal2/c_atx1`-`c_atx3` and `e_bare`. These agreed with quarto on the PRE-session build:
+      // the ATX row already declines (Session 199's column equality, and `#` alone which
+      // `ATX_HEADING` cannot match), and the setext path then produces the literal `#` unaided.
+      // They are the evidence that the entire deliverable is the DECLINE.
+      expect(names(withFrom(null, " # Cal Atx Above", "==="))).toEqual(["h1:# Cal Atx Above", TAIL]);
+      expect(names(withFrom(null, "   # Cal Atx Above", "==="))).toEqual([
+        "h1:# Cal Atx Above",
+        TAIL,
+      ]);
+      expect(names(withFrom(null, "#", "==="))).toEqual(["h1:#", TAIL]);
+    });
+
+    it("PIN — Session 182's compensating clause is REPLACED by the setext path's own reset", () => {
+      // ⚠ `closesParagraph`'s `prevWasAtxHeading && SETEXT_UNDERLINE_RUN` arm exists ONLY because
+      // this model used to decline the swallow: without it `# H` / `===` / `# ATX Below` lost the
+      // heading below outright. The decline stops that flag ever being set, so this document is
+      // the one that proves the setext row's own `paragraphOpen = false` / `consecutiveBody = 0`
+      // reset does the same job (`scratchpad/s214/adv/y1_recover`, rendered — quarto emits all
+      // three, and the pressed sibling is a REAL heading).
+      expect(
+        names(
+          withFrom(
+            null,
+            "# Adv Recover Head",
+            "===",
+            "# Adv Recover Sibling",
+            "",
+            "## Adv Recover Child",
+          ),
+        ),
+      ).toEqual([
+        "h1:# Adv Recover Head",
+        "h1:Adv Recover Sibling",
+        "h2:Adv Recover Child",
+        TAIL,
+      ]);
+    });
+
+    it("PIN — the Session 213 interaction: a `---` under an ATX heading is an UNDERLINE first", () => {
+      // ⚠ `# H` / `---` / `tag: alpha` / `---` is simultaneously a candidate underline and a
+      // candidate mid-document YAML metadata block, which Session 213 taught this model to
+      // consume. Rendered (`scratchpad/s214/adv/z1_meta`, `z2_meta_md`): quarto reads the first
+      // `---` as the UNDERLINE, so the block never opens and BOTH headings survive. The two
+      // sessions' rules compose without either being special-cased for the other.
+      expect(names(withFrom(null, "# Adv Meta Head", "---", "tag: alpha", "---"))).toEqual([
+        "h2:# Adv Meta Head",
+        "h2:tag: alpha",
+        TAIL,
+      ]);
+    });
+
+    it("PIN — DISCLOSED RESIDUALS: three rows this rule deliberately does not reach", () => {
+      // ⚠ Each row is a document quarto renders differently, left alone on purpose, so the cost
+      // is on the record rather than discovered later.
+      //
+      // `adv/x1_div` — pressed against a `:::` opener the setext row does not fire, so the
+      // swallow is DECLINED and today's un-swallowed answer is reproduced. Quarto renders
+      // `h1:# Adv Div Head`; this keeps `h1:Adv Div Head`. Wrong in its TEXT, which is strictly
+      // better than the deletion the ungated rule produced. The underlying gap is PRE-EXISTING
+      // and reader-independent — the same document with a PROSE title reports nothing on the
+      // pre-session build too — and is filed as its own item.
+      expect(names(withFrom(null, "::: {.note}", "# Adv Div Head", "===", ":::"))).toEqual([
+        "h1:Adv Div Head",
+        TAIL,
+      ]);
+      // `adv/x5_quote` — inside a BLOCK QUOTE nothing is reported at all, before or after. That
+      // is Session 213's already-filed block-quote item, untouched in either direction.
+      expect(names(withFrom(null, "> # Adv Quote Head", "> ==="))).toEqual([TAIL]);
+      // `adv/z8_rst` — quarto renders NOTHING for a non-markdown reader, and this model reports
+      // the markdown answer with or without the swallow. Same phantom COUNT before and after,
+      // different text; the already-filed "readers outside the markdown family" item.
+      expect(names(withFrom("rst", "# Adv Rst Head", "==="))).toEqual([
+        "h1:# Adv Rst Head",
+        TAIL,
+      ]);
+    });
+  });
 });
