@@ -8006,4 +8006,130 @@ describe("a trailing `#` run with no space before it is a CLOSING SEQUENCE (Sess
       expect(names(withFrom(reader, "#Cal Tight Run###"))).toEqual(["h1:Cal Tight Run", TAIL]);
     }
   });
+
+  /**
+   * ⚠ PINS — one per MEASURED clause, each naming the rendered document behind it. These are
+   * pins of a predicate already driven RED→GREEN above, labelled as such: they are not counted
+   * as TDD cycles.
+   */
+  describe("PINS — the measured clauses", () => {
+    it("PIN the six-three reader table — `cal/a_*_csharp`, `a_*_run`, 45 documents", () => {
+      // The STRIP side. `markdown_github` is here and `gfm` is in the GUARD above: pandoc
+      // documents the former as a deprecated synonym for the latter and they land on OPPOSITE
+      // sides, so a table reasoned from the base name gets this row backwards.
+      for (const reader of [
+        null,
+        "markdown",
+        "markdown_strict",
+        "markdown_mmd",
+        "markdown_phpextra",
+        "markdown_github",
+      ]) {
+        expect(names(withFrom(reader, "# Cal Alpha C#"))).toEqual(["h1:Cal Alpha C", TAIL]);
+        expect(names(withFrom(reader, "# Cal Charlie Run###"))).toEqual([
+          "h1:Cal Charlie Run",
+          TAIL,
+        ]);
+      }
+    });
+
+    it("PIN the run's boundary — `cal2/b_two`, `b_long`, `b_mid`, `b_digit`, `b_lvl6`", () => {
+      // The WHOLE run goes, at every length, and ONLY the run: an interior hash survives.
+      expect(names(withFrom(null, "# Cal Foxtrot Two##"))).toEqual(["h1:Cal Foxtrot Two", TAIL]);
+      expect(names(withFrom(null, "# Cal Golf Long######"))).toEqual(["h1:Cal Golf Long", TAIL]);
+      expect(names(withFrom(null, "# Cal Hotel#Word#"))).toEqual(["h1:Cal Hotel#Word", TAIL]);
+      expect(names(withFrom(null, "# Cal Papa 100#"))).toEqual(["h1:Cal Papa 100", TAIL]);
+      expect(names(withFrom(null, "###### Cal Oscar Six#"))).toEqual(["h6:Cal Oscar Six", TAIL]);
+      // Trailing whitespace after the run is tolerated, tab and space alike.
+      expect(names(withFrom(null, "# Cal Kilo Tab#\t"))).toEqual(["h1:Cal Kilo Tab", TAIL]);
+      expect(names(withFrom(null, "# Cal Lima Space#   "))).toEqual(["h1:Cal Lima Space", TAIL]);
+      // A hash run pressed against a SPACED one earlier in the line strips only the last.
+      expect(names(withFrom(null, "# Cal Juliet # Mid #"))).toEqual(["h1:Cal Juliet # Mid", TAIL]);
+    });
+
+    it("PIN the attribute block beside the run — `adv/x26`, `x27`, `cal2/b_attr_md`", () => {
+      // Quarto strips BOTH, in either order, and so does this model: `HEADING_ATTRIBUTE` runs
+      // first and the closing run is matched against what remains.
+      expect(names(withFrom(null, "# Adv Run Head# {#sec-advrun}"))).toEqual([
+        "h1:Adv Run Head",
+        TAIL,
+      ]);
+      expect(names(withFrom(null, "# Adv Attr Head {#sec-advattr}#"))).toEqual([
+        "h1:Adv Attr Head {#sec-advattr}",
+        TAIL,
+      ]);
+    });
+
+    it("PIN the container axis — `adv/x01`..`x08`, the wrapper set", () => {
+      // ⚠ Learning #355: generate the geometry inside every container the model tracks, as a
+      // standing axis rather than as a thing to remember. Four sessions running, the only
+      // regression each found was a wrapper row.
+      expect(names(withFrom(null, "::: {.note}", "", "# Adv Div Head#", "", ":::"))).toEqual([
+        "h1:Adv Div Head",
+        TAIL,
+      ]);
+      expect(names(withFrom(null, "<div>", "", "# Adv Html Head#", "", "</div>"))).toEqual([
+        "h1:Adv Html Head",
+        TAIL,
+      ]);
+      // A BLOCK QUOTE and a LIST ITEM report nothing at all, before and after — the model's own
+      // module docstring records that the scanner tracks no such context. Quarto renders both
+      // (`adv/x04`, `x06`), so these are CARRIED pre-existing gaps, not this session's.
+      expect(names(withFrom(null, "> # Adv Quote Head#"))).toEqual([TAIL]);
+      expect(names(withFrom(null, "-   # Adv List Head#"))).toEqual([TAIL]);
+    });
+
+    it("PIN the Session 214 swallow's precedence — `adv/x23`, `x25`", () => {
+      // ⚠ The two text rules meet here and the SETEXT path wins: the underline swallows the ATX
+      // line, `parseSetextHeadingLine` passes `null`, and the run is kept verbatim — literal `#`
+      // marker and closing run both. Quarto renders exactly this.
+      expect(names(withFrom(null, "# Adv Swallow Head#", "==="))).toEqual([
+        "h1:# Adv Swallow Head#",
+        TAIL,
+      ]);
+      expect(names(withFrom("markdown_strict", "#Adv Tight Swallow#", "==="))).toEqual([
+        "h1:#Adv Tight Swallow#",
+        TAIL,
+      ]);
+    });
+
+    it("PIN the gate following a MID-DOCUMENT `from:` — `adv/x13`, `x14`", () => {
+      // Session 211 taught this scanner that a mid-document YAML block selects the reader. The
+      // strip follows it in BOTH directions, and quarto agrees on both documents.
+      expect(
+        names(withFrom(null, "# Adv Before Head#", "", "---", "from: gfm", "---", "", "# Adv After Head#")),
+      ).toEqual(["h1:Adv Before Head#", "h2:from: gfm", "h1:Adv After Head#", TAIL]);
+      expect(
+        names(withFrom(null, "# Adv Before Head#", "", "---", "from: markdown", "---", "", "# Adv After Head#")),
+      ).toEqual(["h1:Adv Before Head", "h1:Adv After Head", TAIL]);
+    });
+
+    it("PIN the DISCLOSED residuals — rows this change re-texts but does not fix", () => {
+      // ⚠ Each is a row that was ALREADY wrong and is still wrong, with different text. None
+      // moves from agreeing with quarto to disagreeing — verified mechanically over all 28
+      // adversarial documents and all 44,359 predecessor rows (0 true regressions).
+      //
+      // `adv/x30_nbsp` — a NON-BREAKING space before the run. Quarto renders
+      // `Adv Nbsp Head&nbsp;`, keeping the invisible character; this model strips the run and
+      // then `text.trim()` takes the nbsp with it. Pre-session it kept the `#` instead.
+      expect(names(withFrom(null, "# Adv Nbsp Head  #"))).toEqual(["h1:Adv Nbsp Head", TAIL]);
+      // `adv/x29_esc_then_run` — an escaped hash mid-text AND a real run at the end. The run is
+      // now correctly stripped; the backslash survives because this model processes no markdown
+      // escapes. Quarto renders `Adv Esc Mid# Run`. Filed.
+      expect(names(withFrom(null, "# Adv Esc Mid\\# Run#"))).toEqual([
+        "h1:Adv Esc Mid\\# Run",
+        TAIL,
+      ]);
+      // `adv/x22_rst` — a reader outside the markdown family renders NO heading at all, and this
+      // model reports the markdown answer before and after. Same phantom, different text; the
+      // already-filed "readers outside the markdown family" item.
+      expect(names(withFrom("rst", "# Adv Rst Head#"))).toEqual(["h1:Adv Rst Head", TAIL]);
+      // `adv/x03_callout` — quarto emits NO h-tag for a heading inside a callout (read from the
+      // HTML, not assumed: the render contains one h1 and it is the control). Phantom before and
+      // after; the already-filed callout item.
+      expect(
+        names(withFrom(null, "::: {.callout-note}", "", "# Adv Callout Head#", "", ":::")),
+      ).toEqual(["h1:Adv Callout Head", TAIL]);
+    });
+  });
 });
