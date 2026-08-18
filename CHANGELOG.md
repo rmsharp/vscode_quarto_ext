@@ -7,6 +7,18 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-18 · [ad hoc] Session 219 — which id a multi-id attribute block defines is a reader split, and the ids come from the tokens (SHIPPED)
+
+- **Model:** Claude Opus 5.
+- **The rule, measured before it was written.** 200 documents rendered through the real `quarto render` path (quarto 1.7.33): the pandoc three — no `from:`, `markdown`, `markdown_phpextra` — define the **LAST** `#` in a heading attribute block, and `commonmark_x` defines the **FIRST**. `ATTR_ID` took the first for every reader, so three of the four honouring readers got a cross-reference target the rendered document does not define, and the fourth was right by luck. 20 of 20 predictions on the calibration set were called correctly before rendering, including the three- and four-id rows that make "the last wins" falsifiable against "the second wins".
+- **Two rows carry the value and they point opposite ways,** because `src/core/refs.ts` keeps only `sec-` ids: `{#intro #sec-t16}` really defines `sec-t16` and this model indexed nothing, while `{#sec-t17 #intro}` really defines `intro` — no `sec-` target at all — and this model indexed `sec-t17`, a fabricated one.
+- **⚠ A regression this session shipped and its own adversarial pass caught.** `ATTR_KEY_VALUE`'s bare value admits a `#`, so `{#sec-x01 key=#sec-fake}` is a valid block whose real id is `sec-x01`; C1 scanned the block's raw text and took `sec-fake`. The pre-session build was right on all 12 such rows by accident, established by probing the pre-session source rather than by reading the diff. C3 takes the ids from `headingAttributeTokens` instead, where a key=value token contributes none.
+- **A second layer, predicted before any code:** `idColumn` resolved a label with `lastIndexOf('#' + id)`, which finds the shorter id inside the longer whenever two share a prefix — reachable only through `commonmark_x`, and invisible to the id string. The fix takes the last occurrence ending at an identifier boundary, keeping the trailing-occurrence rule a Session 8 adversarial test depends on.
+- **Measurement.** Calibration 46/100 → **100/100**; adversarial 76/100 → **98/100**; FIXED 76, **INTRODUCED 0**. Predecessor sweep of **46,329 documents** across 4,995 directories: **TEXT moved in ZERO**, 13 id/label rows moved and all 13 were wrong before — 7 land on quarto's rendered answer, 6 delete an id mined out of a quoted value. Repo control **byte-identical** over 113 tracked documents.
+- **Verification.** `check-types` 0 · `compile` 0 · `compile-tests` 0 · `npm test` **2113 passed / 66 files** (baseline 2095) · `test:oracle` 131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated (byte-identical to S180–S218) · `check-package` OK 42 files / 5.55 MB · `check-backlog` OK · `test:integration` **530 passing / 0 failing / exit 0** (baseline 528, +2). NOT RUN: `test:lsp` — no LSP surface touched.
+- **Filed, not fixed:** a reference to an id containing `:`, `.` or a non-ASCII letter cannot be resolved at all — `refIdAt`'s `ID_CHAR` is `[A-Za-z0-9_-]` while the definition side admits pandoc's set, so the extension offers `@sec-meth:ods` in completion and then cannot navigate to it.
+- **Commits:** `3990ddff` (1B claim, eight decision rules), `a4141883` (guard), `9721927a` (C1), `fcf27ea7` (C2), `bdd9381d` (C3), `9c432e4f` (C4).
+
 ### 2026-08-12 · [ad hoc] Session 218 — a trailing brace group is an attribute block only when it is one, per reader (SHIPPED)
 
 - **Model:** Claude Opus 5.
