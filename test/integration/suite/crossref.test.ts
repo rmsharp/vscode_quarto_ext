@@ -313,4 +313,106 @@ describe("Quarto: Cross-reference completion + definition", () => {
       `the same id without the escape is defined: ${JSON.stringify(plain)}`,
     );
   });
+  it("⚠ WHICH id a multi-id block defines is a READER SPLIT, on the completion surface (Session 219)", async () => {
+    // The consumer the unit tests cannot reach: `indexLabels` feeds the cross-reference
+    // COMPLETION, so a wrong id is a suggestion the author accepts and a link that resolves to
+    // nothing in the rendered document.
+    //
+    // ⚠ All four assertions were pre-checked headlessly against `indexLabels` before this test
+    // was written (`scratchpad/s219/pre/precheck219.test.ts`, 6 green), per S211's gotcha 3.
+    const labelsAt = async (content: string) => {
+      const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+      await vscode.window.showTextDocument(doc);
+      const line = doc.lineCount - 1;
+      const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+        "vscode.executeCompletionItemProvider",
+        doc.uri,
+        new vscode.Position(line, doc.lineAt(line).text.length),
+        "@",
+      );
+      return (list?.items ?? []).map(labelText);
+    };
+
+    // PRESENT / ABSENT — the pandoc default defines the LAST id (`id/none_t02sp2` renders
+    // id="sec-t02b"), and this model offered the first.
+    const last = await labelsAt(["# Methods {#sec-first #sec-last}", "", "See @"].join("\n"));
+    assert.ok(
+      last.includes("@sec-last") && !last.some((l) => l.includes("sec-first")),
+      `the pandoc default defines the LAST id: ${JSON.stringify(last)}`,
+    );
+
+    // ⚠ THE SAME BYTES, THE OTHER READER — the row without which one rule looks sufficient.
+    // `commonmark_x` defines the FIRST (`id/cmx_t02sp2`).
+    const first = await labelsAt(
+      ["---", "from: commonmark_x", "---", "", "# Methods {#sec-first #sec-last}", "", "See @"].join("\n"),
+    );
+    assert.ok(
+      first.includes("@sec-first") && !first.some((l) => l.includes("sec-last")),
+      `commonmark_x defines the FIRST id: ${JSON.stringify(first)}`,
+    );
+
+    // ABSENT — a `sec-` id that LOSES to a non-`sec-` one. Quarto defines `intro` here, so the
+    // document has no cross-reference target on that heading at all, and this model offered
+    // `sec-gone` — a fabricated target (`id/*_t17sec1`).
+    const gone = await labelsAt(["# Methods {#sec-gone #intro}", "", "See @"].join("\n"));
+    assert.ok(
+      !gone.some((l) => l.includes("sec-gone")),
+      `a sec- id that loses to a non-sec one defines no target: ${JSON.stringify(gone)}`,
+    );
+
+    // ABSENT — ⚠ the regression this session's own adversarial pass caught. A `#` inside a
+    // key=VALUE is not an identifier (`adv/*_x01kvhash`), and scanning the raw block took it.
+    const kv = await labelsAt(["# Methods {#sec-real key=#sec-fake}", "", "See @"].join("\n"));
+    assert.ok(
+      kv.includes("@sec-real") && !kv.some((l) => l.includes("sec-fake")),
+      `a # inside a key=value is not a target: ${JSON.stringify(kv)}`,
+    );
+  });
+
+  it("⚠ go-to-definition when one id is a PREFIX of the other (Session 219)", async () => {
+    // The SECOND consumer, and the one the completion surface cannot see: the id string is
+    // correct under both readers here and only its COLUMN is wrong, so a test that reads
+    // completion labels passes while go-to-definition puts the cursor inside the other
+    // identifier. Pre-checked headlessly (`precheck219.test.ts`, `findLabel`).
+    const defAt = async (content: string, line: number, character: number) => {
+      const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+      await vscode.window.showTextDocument(doc);
+      const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+        "vscode.executeDefinitionProvider",
+        doc.uri,
+        new vscode.Position(line, character),
+      );
+      return locs?.[0];
+    };
+
+    // `commonmark_x` defines the FIRST id, `sec-t12`, whose text begins at column 19.
+    // `lastIndexOf('#sec-t12')` found the one that OPENS `#sec-t12b` at 27.
+    const cmx = [
+      "---",
+      "from: commonmark_x",
+      "---",
+      "",
+      "# Cal T12 Prefix {#sec-t12 #sec-t12b}",
+      "",
+      "See @sec-t12 here.",
+    ].join("\n");
+    const at = await defAt(cmx, 6, 8);
+    assert.ok(at, "a reference to the first id resolves");
+    assert.deepStrictEqual(
+      { line: at!.range.start.line, character: at!.range.start.character },
+      { line: 4, character: 19 },
+      "go-to-definition lands on the id it names, not inside the other one",
+    );
+
+    // The control on the same shape under the pandoc default, where the id taken is the second
+    // and 28 is the only occurrence — right by construction rather than by care.
+    const md = ["# Cal T12 Prefix {#sec-t12 #sec-t12b}", "", "See @sec-t12b here."].join("\n");
+    const atMd = await defAt(md, 2, 8);
+    assert.ok(atMd, "the control reference resolves");
+    assert.deepStrictEqual(
+      { line: atMd!.range.start.line, character: atMd!.range.start.character },
+      { line: 0, character: 28 },
+      "the pandoc control lands on the last id",
+    );
+  });
 });
