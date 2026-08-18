@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S219
+date: 2026-08-18
+status: pending
+active_task: IN PROGRESS. WHICH id a heading attribute block with TWO of them defines is a READER SPLIT, and this model takes the first unconditionally. `# Cal Q08 Twoid {#sec-q08 #sec-q08b}` renders with id="sec-q08b" under the pandoc three (the LAST `#` wins) and with id="sec-q08" under commonmark_x (the FIRST does), while ATTR_ID takes the first for every reader; the concatenated spelling `{#sec-p20a#sec-p20b}` renders id="sec-p20b" and is indexed here as the literal `sec-p20a#sec-p20b`, a label no reader defines. WRONG-TARGET direction. Filed by S218 and ranked #1 by it; operator-selected at Phase 0 from an empty Active section.
+```
+
+```handoff
 session: S218
 date: 2026-08-12
 status: complete
