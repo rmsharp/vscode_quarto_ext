@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S220
+date: 2026-08-18
+status: pending
+active_task: A reference to an id containing `:`, `.` or a NON-ASCII letter cannot be resolved at all, so go-to-definition is dead on ids this model indexes correctly. src/core/refs.ts holds a NARROW use-side identifier set (ID_CHAR :196 and REF_USAGE :81, both [A-Za-z0-9_-]) and a WIDE definition-side one, so `# Methods {#sec-meth:ods}` is indexed correctly and `@sec-meth:ods` truncates to `sec-meth`, which findLabel resolves to NULL. Filed by S219 and ranked #1 by it; operator-selected at Phase 0 from an empty Active section via AskUserQuestion over the top three candidates plus a catch-all. Deliverable (ONE capability): a cross-reference to an identifier this model already indexes correctly resolves to it, on BOTH consumer surfaces -- go-to-definition and completion.
+```
+
+```handoff
 session: S219
 date: 2026-08-18
 status: complete

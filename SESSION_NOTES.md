@@ -5,6 +5,31 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 220 — IMPLEMENTATION (strict TDD): a reference to an id containing `:`, `.` or a NON-ASCII letter cannot be resolved at all. `src/core/refs.ts` holds a NARROW use-side identifier set (`ID_CHAR` `:196`, `REF_USAGE` `:81`) and a WIDE definition-side one, so `# Methods {#sec-meth:ods}` is indexed correctly and `@sec-meth:ods` truncates to `sec-meth`, which resolves to NULL. DEAD-NAVIGATION direction.**
+**Started:** 2026-08-18
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**How this item was selected.** Operator-selected at Phase 0 from an empty Active section, via `AskUserQuestion` over the top three ranked candidates plus a catch-all. Filed by **Session 219** and ranked **#1 by it** — *"derived to be the highest-value item now open"*.
+
+**Deliverable (ONE capability):** *a cross-reference to an identifier this model already indexes correctly resolves to it* — on BOTH consumer surfaces, go-to-definition and completion. Layers: the measured use-side identifier rule, `refIdAt`'s `REF_USAGE` pattern, and `crossrefCompletionContext`'s two `ID_CHAR` scans (start-of-token and replace-range) — one intent, per-layer checkpoint commits.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **2113 passed / 66 files**, matching Session 219's recorded close-out exactly; `check-backlog` **OK, 151 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`b7f409c8`, gap 0), zero `status: pending` receipts, no ghost sessions. Dashboard **76/100**. `gh issue list` empty.
+
+## Session 220 ACTIVE-TASK decision rules (from the coupling survey run BEFORE the 1B stub)
+
+1. **⚠ THE USE-SIDE RULE MUST BE MEASURED AGAINST REAL QUARTO, NOT INHERITED FROM THE DEFINITION SIDE.** Session 218 measured what a DEFINED identifier may hold (`ATTR_ID_CHAR`). What a `@reference` TOKEN may consume is a different question, governed by pandoc's citation syntax rather than by its attribute grammar. Render it; do not reason from the other side of the file. **This is S219's Learning #372 in its general form** — reusing a predecessor's character set without establishing it answers YOUR question is half a rule.
+2. **`ID_CHAR` HAS TWO CONSUMERS INSIDE ONE FUNCTION AND THEY ANSWER DIFFERENT QUESTIONS.** The backward scan (`:212`) decides whether completion fires at all; the forward scan (`:224`) decides what an accepted completion REPLACES. One widening moves both. Score both directions separately — the filed item's sizing note names only the second.
+3. **⚠ THE WORKED PRECEDENT IS ONE MODULE OVER AND SHOULD BE COPIED, NOT RE-INVENTED.** `src/core/citations.ts:60` hit this exact defect and its docstring names it: `CITEKEY_CHAR` is *"deliberately WIDER than the cross-ref `ID_CHAR`… reusing that class truncated colon/dot keys, breaking completion after a `:` and duplicating the suffix on a mid-token accept."* It carries `CITEKEY_TRAILING_PUNCT` for the trailing half. S217's precedent-one-rule-over pattern, and this one is in the SAME package.
+4. **A TRAILING `.` IS SENTENCE PUNCTUATION AND TWO EXISTING TESTS PIN IT.** `refIdAt("See @sec-intro.", 4)` → `sec-intro` and `crossrefCompletionContext("See @fig-plot.", 5)` → `end: 13`. Any set admitting `.` must exclude a TRAILING one on BOTH surfaces. These are the guard rows, and they are the reason this is not a one-character regex edit.
+5. **⚠ MEASURED ON HEAD BEFORE ANY CODE — THE COMPLETION SURFACE DOES NOT TRUNCATE, IT DIES.** `crossrefCompletionContext("See @sec-meth:o", 15)` returns **`null`**, not a short context: the backward scan stops ON the `:` and never reaches the `@`, so completion offers NOTHING once a colon is typed. The filed item did not carry this. Guard and score it apart from definition. (`scratchpad/s220/pre/probe220.test.ts`.)
+6. **THE EMAIL LOOKBEHIND MUST SURVIVE, AND WIDENING MAKES A NEW SHAPE REACHABLE.** `REF_USAGE`'s `(?<![A-Za-z0-9_])` keeps `user@fig-x.org` a non-reference and is untouched by a group-1 widening. But a leading `@fig-x.org` becomes matchable once `.` is admitted — render what quarto does there rather than guessing.
+7. **SOURCES 2 AND 3 INDEX NARROW IDS AND ARE OUT OF SCOPE — MEASURE, THEN FILE.** `CELL_LABEL_OPTION` (`:63`) and `INLINE_LABEL` (`:73`) both use `[A-Za-z0-9_-]`, so `{#fig-a.b}` is indexed as `fig-a`. That is a DEFINITION-side gap pointing the opposite way from this item. It is not this deliverable (FM #17/#26); measure it and file it.
+8. **`ATTR_ID_CHAR` IS A THIRD SET IN THIS FILE — DO NOT CONFLATE IT.** It is `idColumn`'s boundary test, measured by S219 for the column. Leave it alone. If the measured use-side set turns out equal to it, say so explicitly and keep the constants separate, because they answer different questions and a shared constant would couple two surfaces that have no reason to move together (S219's gotcha 8).
+
+---
+
+## Session 219 ACTIVE TASK (superseded by Session 220 — full entry preserved below)
 **Task:** **Session 219 — IMPLEMENTATION (strict TDD): WHICH id a heading attribute block with TWO of them defines is a READER SPLIT, and this model took the first unconditionally. `{#sec-q08 #sec-q08b}` renders `id="sec-q08b"` under the pandoc three — the LAST `#` wins — and `id="sec-q08"` under `commonmark_x`, where the FIRST does; the concatenated spelling `{#sec-p20a#sec-p20b}` renders `id="sec-p20b"` and this model indexed the literal `sec-p20a#sec-p20b`, a label no reader ever defines. WRONG-TARGET direction.**
 **Started:** 2026-08-18 · **Closed:** 2026-08-18
 **Status:** **DONE. SHIPPED — and ⚠ MY OWN ADVERSARIAL PASS CAUGHT A REGRESSION I HAD SHIPPED TWO COMMITS EARLIER, in the half of a decision rule I followed only half way. 200 documents rendered and scored plus a 46,329-document predecessor sweep: calibration 46/100 → 100/100, adversarial 76/100 → 98/100, FIXED 76 with INTRODUCED 0, and ⚠ the heading TEXT moved in ZERO of 46,329 documents.**
