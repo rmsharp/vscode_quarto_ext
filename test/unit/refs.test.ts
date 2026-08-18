@@ -804,6 +804,23 @@ describe("Session 220 — a reference reaches an id holding ':', '.' or a non-AS
     });
   });
 
+  it("C3a: the kind prefix's own '-' is structural, so the replace range covers it", () => {
+    // ⚠ A REGRESSION THIS SESSION SHIPPED IN C2 AND ITS OWN SWEEP CAUGHT, in the exact class
+    // `core/citations.ts` names: "duplicating the suffix on a mid-token accept". `@sec-` is
+    // what an author types to summon the list. With the cursor right after the '@', C2's
+    // forward scan stopped BEFORE the hyphen — treating it as internal punctuation with no
+    // regchar after it — so accepting `@sec-intro` produced `@sec-intro-`.
+    //
+    // The prefix's '-' is part of a FIXED prefix, not internal punctuation of the name, and
+    // quarto agrees the two are different things: `@sec-` alone is not a reference at all
+    // (scratchpad/s220/cal/cal2.qmd a12) and `@sec-.x` is not one either (a13).
+    expect(crossrefCompletionContext("See @sec-", 5)).toEqual({
+      start: 4,
+      typed: "",
+      end: 9,
+    });
+  });
+
   it("C2-pin: a doubled punctuation run bounds the replace range", () => {
     // The forward scan applies the follower clause, so `end` stops where quarto's token
     // does (cal.qmd t12) rather than running to the end of the line.

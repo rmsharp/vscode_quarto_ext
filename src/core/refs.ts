@@ -235,6 +235,12 @@ const REGCHAR = new RegExp(REF_ID_REGCHAR, "u");
 const PUNCT = new RegExp(REF_ID_PUNCT, "u");
 /** A word character that, immediately before an `@`, marks it as an email — not a reference. */
 const WORD_CHAR = /[A-Za-z0-9_]/;
+/**
+ * A cross-ref kind prefix at the start of an id, INCLUDING its `-`. That hyphen belongs to a
+ * fixed prefix rather than to the name, which is why the completion replace range covers it
+ * unconditionally while every other punctuation character needs a follower.
+ */
+const REF_KIND_PREFIX = /^(?:fig|tbl|sec|eq|lst)-/;
 
 /**
  * Whether the id token continues at `at` on `lineText` — a regchar, or internal
@@ -289,7 +295,14 @@ export function crossrefCompletionContext(
   }
   // Walk forward over the rest of the token the cursor is sitting inside, so the
   // whole `@id` (not just up to the cursor) can be replaced on accept.
-  let end = column;
+  //
+  // ⚠ **THE KIND PREFIX'S OWN `-` IS STRUCTURAL AND IS ALWAYS COVERED.** `@sec-` is what an
+  // author types to summon the list, and the follower rule alone would stop before that
+  // hyphen (nothing follows it yet) — so accepting `@sec-intro` would leave `@sec-intro-`.
+  // That is the mid-token-accept duplication `core/citations.ts` records, and Session 220
+  // shipped it in C2 before its own sweep of 42,657 lines found all 183 occurrences.
+  const prefix = REF_KIND_PREFIX.exec(lineText.slice(i + 1));
+  let end = prefix === null ? column : Math.max(column, i + 1 + prefix[0].length);
   while (end < lineText.length && idContinuesAt(lineText, end)) {
     end++;
   }
