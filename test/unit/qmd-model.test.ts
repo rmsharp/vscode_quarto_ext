@@ -9119,3 +9119,137 @@ describe("PINS — the validity predicate's measured boundary (Session 218)", ()
     ]);
   });
 });
+
+describe("GUARD — the id substitution moves NOTHING it must not (Session 219)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  const ids = (text: string) => findHeadings(text).map((h) => h.id ?? null);
+  const labels = (text: string) => indexLabels(text).map((l) => l.id);
+  const BELOW = ["", "# Cal Alpha Below"];
+  const TAIL = "h1:Cal Alpha Below";
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...BELOW);
+
+  /**
+   * ⚠ WRITTEN AND RUN GREEN BEFORE THE CHANGE (Session 204's gotcha 5, a SIXTEENTH session) —
+   * AND ITS POLARITY MATCHES NEITHER OF THE LAST THREE SESSIONS' (decision rule 1).
+   *
+   * Sessions 216 and 217 WIDENED `HEADING_ATTRIBUTE` and guarded *"this block must still be
+   * SEEN"*; Session 218 NARROWED it and guarded per ACCEPTED shape. This session changes
+   * neither which blocks strip nor how much text survives — it changes only WHICH id a block
+   * that is already valid defines. **Every one of those inherited guard shapes passes while
+   * every multi-id row moves**, so the guard here is per SINGLE-ID shape and per UNMOVED READER:
+   *
+   *   (a) a block with exactly ONE id keeps that id, its text, and its column, under all four
+   *       honouring readers;
+   *   (b) `commonmark_x` takes the FIRST id and is therefore ALREADY RIGHT — measured, 20 of 20
+   *       shapes agree pre-change (`scratchpad/s219/id`) — so the whole reader must be a no-op;
+   *   (c) a block `commonmark_x` rejects still keeps its braces and still defines NO id;
+   *   (d) the TEXT of every pandoc-three row is untouched, because this rule reads the block
+   *       AFTER the validity predicate has already decided the strip.
+   *
+   * Every expected value below is a RENDERED one (`scratchpad/s219/id.quarto.tsv`, quarto
+   * 1.7.33, 100 documents), never a derived one.
+   */
+  it("(a) ONE id is unchanged under every honouring reader — `id/*_t01id1`", () => {
+    for (const reader of [null, "markdown", "markdown_phpextra", "commonmark_x"]) {
+      const t = withFrom(reader, "# Cal T01 Id1 {#sec-t01}");
+      expect(names(t)).toEqual(["h1:Cal T01 Id1", TAIL]);
+      expect(ids(t)).toEqual(["sec-t01", null]);
+      expect(labels(t)).toEqual(["sec-t01"]);
+    }
+  });
+
+  it("(a) `gfm` honours no block at all, so it has no id to choose — `id/gfm_t01id1`", () => {
+    const t = withFrom("gfm", "# Cal T01 Id1 {#sec-t01}");
+    expect(names(t)).toEqual(["h1:Cal T01 Id1 {#sec-t01}", TAIL]);
+    expect(labels(t)).toEqual([]);
+  });
+
+  it("(b) ⚠ `commonmark_x` takes the FIRST id and must not move — nine measured shapes", () => {
+    // The reader that is right by luck today. Every row here agreed with quarto BEFORE this
+    // session's change, so a rule that reaches `commonmark_x` at all has broken it.
+    const first: [string, string][] = [
+      ["# Cal T02 Sp2 {#sec-t02a #sec-t02b}", "sec-t02a"],
+      ["# Cal T03 Sp3 {#sec-t03a #sec-t03b #sec-t03c}", "sec-t03a"],
+      ["# Cal T07 Idclsid {#sec-t07a .cls #sec-t07b}", "sec-t07a"],
+      ["# Cal T09 Kvid2 {key=val #sec-t09a #sec-t09b}", "sec-t09a"],
+      ["# Cal T12 Prefix {#sec-t12 #sec-t12b}", "sec-t12"],
+      ["# Cal T14 Dot {#sec-t14a.x #sec-t14b}", "sec-t14a.x"],
+      ["# Cal T17 Sec1 {#sec-t17 #intro}", "sec-t17"],
+      ["# Cal T18 Uni {#sec-café #sec-t18}", "sec-café"],
+      ["# Cal T20 Cls {#sec-t20a #sec-t20b .unnumbered}", "sec-t20a"],
+    ];
+    for (const [line, id] of first) {
+      expect(ids(withFrom("commonmark_x", line))).toEqual([id, null]);
+    }
+  });
+
+  it("(b) ⚠ a NON-`sec-` first id under `commonmark_x` indexes nothing — `id/cmx_t16nonsec1`", () => {
+    // The `sec-` filter in `src/core/refs.ts` is the reason the id surface and the label
+    // surface are different questions: quarto defines `intro` here, which is a real anchor and
+    // not a cross-reference target, so the heading carries an id and the index stays empty.
+    const t = withFrom("commonmark_x", "# Cal T16 Nonsec1 {#intro #sec-t16}");
+    expect(ids(t)).toEqual(["intro", null]);
+    expect(labels(t)).toEqual([]);
+  });
+
+  it("(b) the SETEXT path under `commonmark_x` is the same rule — `id/cmx_t19setext`", () => {
+    // `buildHeading`'s other caller. A rule wired at the ATX path alone leaves this wrong, and
+    // nothing in the ATX rows can see it.
+    const t = withFrom("commonmark_x", "Cal T19 Setext {#sec-t19a #sec-t19b}", "===");
+    expect(names(t)).toEqual(["h1:Cal T19 Setext", TAIL]);
+    expect(ids(t)).toEqual(["sec-t19a", null]);
+  });
+
+  it("(c) a block `commonmark_x` REJECTS keeps its braces and defines no id — four shapes", () => {
+    // Session 218's divergence table, re-measured here: `commonmark_x` has no atom
+    // concatenation and no bare-dash shorthand, so these four are ordinary text for it. The id
+    // rule must run strictly INSIDE the validity predicate (decision rule 6) — a rule of
+    // "pandoc takes the last, commonmark_x takes the first" applied to the raw block would
+    // invent an id for every one of them.
+    const rejected = [
+      ["# Cal T05 Cat2 {#sec-t05a#sec-t05b}", "h1:Cal T05 Cat2 {#sec-t05a#sec-t05b}"],
+      ["# Cal T06 Cat3 {#sec-t06a#sec-t06b#sec-t06c}", "h1:Cal T06 Cat3 {#sec-t06a#sec-t06b#sec-t06c}"],
+      ["# Cal T13 Mixcat {#sec-t13a#sec-t13b #sec-t13c}", "h1:Cal T13 Mixcat {#sec-t13a#sec-t13b #sec-t13c}"],
+      ["# Cal T15 Dash {#sec-t15a #sec-t15b -}", "h1:Cal T15 Dash {#sec-t15a #sec-t15b -}"],
+    ];
+    for (const [line, text] of rejected) {
+      const t = withFrom("commonmark_x", line);
+      expect(names(t)).toEqual([text, TAIL]);
+      expect(ids(t)).toEqual([null, null]);
+      expect(labels(t)).toEqual([]);
+    }
+  });
+
+  it("(d) ⚠ the TEXT of a pandoc-three row is untouched — the strip is Session 218's rule", () => {
+    // This is the assertion that separates this session's change from its predecessor's. Every
+    // shape below strips under the pandoc three and must go on stripping to exactly this text,
+    // whatever happens to the id.
+    const t = (line: string) => names(withFrom("markdown", line));
+    expect(t("# Cal T02 Sp2 {#sec-t02a #sec-t02b}")).toEqual(["h1:Cal T02 Sp2", TAIL]);
+    expect(t("# Cal T05 Cat2 {#sec-t05a#sec-t05b}")).toEqual(["h1:Cal T05 Cat2", TAIL]);
+    expect(t("# Cal T15 Dash {#sec-t15a #sec-t15b -}")).toEqual(["h1:Cal T15 Dash", TAIL]);
+    expect(t("# Cal T17 Sec1 {#sec-t17 #intro}")).toEqual(["h1:Cal T17 Sec1", TAIL]);
+    expect(names(withFrom("markdown", "Cal T19 Setext {#sec-t19a #sec-t19b}", "==="))).toEqual([
+      "h1:Cal T19 Setext",
+      TAIL,
+    ]);
+  });
+
+  it("(d) Session 218's own boundary is unmoved — prose in braces, `{-}`, and an escape", () => {
+    // A wholesale regression in the validity predicate would show here first.
+    expect(names(withFrom("markdown", "# Cal P07 Words {alpha beta}"))).toEqual([
+      "h1:Cal P07 Words {alpha beta}",
+      TAIL,
+    ]);
+    expect(names(withFrom("markdown", "# Cal P03 Dash {-}"))).toEqual(["h1:Cal P03 Dash", TAIL]);
+    expect(names(withFrom("commonmark_x", "# Cal P03 Dash {-}"))).toEqual([
+      "h1:Cal P03 Dash {-}",
+      TAIL,
+    ]);
+    const esc = withFrom("markdown", "# Cal Id Esc {#sec-a\\:b}");
+    expect(names(esc)).toEqual(["h1:Cal Id Esc {#sec-a:b}", TAIL]);
+    expect(labels(esc)).toEqual([]);
+  });
+});
