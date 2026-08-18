@@ -716,3 +716,60 @@ describe("Session 220 GUARD — shapes a widened use-side id rule must NOT move"
     ]);
   });
 });
+
+// ── Session 220 — the use-side identifier rule ───────────────────────────────
+// Pandoc's `citeKey`, measured over 55 rendered rows (quarto 1.7.33), recorded in
+// `scratchpad/s220/PREDICTIONS.tsv` (38/40) and `PREDICTIONS2.tsv` (15/15, written to
+// discriminate the follower clause from its neighbours):
+//
+//     regchar = [\p{L}\p{N}_]      punct = [:.#$%&+?<>~/-]
+//     token   = regchar ( regchar | punct FOLLOWED-BY regchar )*
+describe("Session 220 — a reference reaches an id holding ':', '.' or a non-ASCII letter", () => {
+  it("C1a: a ':' inside an id is part of the reference token", () => {
+    // `# Methods {#sec-meth:ods}` + `@sec-meth:ods` renders
+    // <a href="#sec-meth:ods" class="quarto-xref">Section 1</a> (scratchpad/s220/cal/rt.qmd R01).
+    expect(refIdAt("See @sec-meth:ods here", 8)).toBe("sec-meth:ods");
+  });
+
+  // ⚠ PINS, NOT CYCLES. The rule above is general, so these passed on their first run after
+  // C1 rather than driving a RED->GREEN of their own. They are declared as pins so the count
+  // of cycles this session claims stays honest (S219's convention).
+  it("C1-pin: a '.' inside an id is part of the token, and a TRAILING one is not", () => {
+    expect(refIdAt("See @sec-a.b here", 8)).toBe("sec-a.b"); // cal/rt.qmd R02 resolves
+    expect(refIdAt("End @sec-a.b.", 8)).toBe("sec-a.b"); // cal/cal.qmd t05/t36
+  });
+
+  it("C1-pin: a non-ASCII letter is part of the token", () => {
+    expect(refIdAt("See @sec-café here", 8)).toBe("sec-café"); // rt.qmd R03 resolves
+    expect(refIdAt("See @sec-日本 here", 8)).toBe("sec-日本"); // cal.qmd t11
+  });
+
+  it("C1-pin: a doubled punctuation run ENDS the token", () => {
+    // ⚠ One of the two rows that corrected this rule from the shape first predicted for it:
+    // punctuation is admitted only when a regchar follows, so `..` breaks at the first dot.
+    expect(refIdAt("See @sec-a..b here", 8)).toBe("sec-a"); // cal.qmd t12
+    expect(refIdAt("See @sec-x::y here", 8)).toBe("sec-x"); // cal2 u04
+    expect(refIdAt("See @sec-x-.y here", 8)).toBe("sec-x"); // cal2 u06
+  });
+
+  it("C1-pin: '_' is a regchar, so it may both follow punctuation and end a token", () => {
+    // ⚠ The other corrected row, and the one cal2 was written to make decisive.
+    expect(refIdAt("See @sec-x_ here", 8)).toBe("sec-x_"); // cal.qmd t21
+    expect(refIdAt("See @sec-x._y here", 8)).toBe("sec-x._y"); // cal2 u02
+  });
+
+  it("C1-pin: a false navigation is removed — quarto resolves @fig-plain.org to NOTHING", () => {
+    // ⚠ THE OPPOSITE DIRECTION FROM THE FILED DEFECT, and it was live: the narrow rule
+    // returned `fig-plain`, which findLabel RESOLVED, so go-to-definition jumped to a label
+    // quarto does not reach from this reference at all (cal/rt.qmd R09 renders ?@fig-plain.org).
+    expect(refIdAt("R09 @fig-plain.org R09e.", 8)).toBe("fig-plain.org");
+    const doc = "![Cap B](b.png){#fig-plain}\n\nR09 @fig-plain.org R09e.";
+    expect(findLabel(doc, refIdAt("R09 @fig-plain.org R09e.", 8) as string)).toBeNull();
+  });
+
+  it("C1-pin: characters outside the measured set still end the token", () => {
+    expect(refIdAt("See @sec-x,y here", 8)).toBe("sec-x"); // cal.qmd t22
+    expect(refIdAt("See @sec-x^y here", 8)).toBe("sec-x"); // cal2 u07
+    expect(refIdAt("See @sec-x{y here", 8)).toBe("sec-x"); // cal2 u08
+  });
+});

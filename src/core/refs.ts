@@ -73,12 +73,49 @@ const CELL_LABEL_OPTION =
  */
 const INLINE_LABEL = /\{#((?:fig|tbl|eq|lst)-[A-Za-z0-9_][A-Za-z0-9_-]*)/g;
 /**
- * A cross-reference *usage* — `@fig-plot`, `@sec-intro`. The negative lookbehind
- * rejects an `@` preceded by a word character (so `user@fig-x.org` is an email,
- * not a reference — the Pandoc rule), and restricting to known kind prefixes
- * leaves bare `@key` citations (Phase 6c) untouched. Group 1 is the id.
+ * A character that may stand alone anywhere in a cross-reference id — Pandoc's
+ * "regchar": a Unicode letter or digit, or `_`.
+ *
+ * ⚠ **UNICODE ON PURPOSE, AND MEASURED.** `# Cafe {#sec-café}` + `@sec-café` renders
+ * `<a href="#sec-café" class="quarto-xref">` (`scratchpad/s220/cal/rt.qmd` R03), and an
+ * undefined `@sec-日本` echoes the whole token back as `?@sec-日本` (`cal/cal.qmd` t11).
  */
-const REF_USAGE = /(?<![A-Za-z0-9_])@((?:fig|tbl|sec|eq|lst)-[A-Za-z0-9_-]+)/g;
+const REF_ID_REGCHAR = String.raw`[\p{L}\p{N}_]`;
+/**
+ * Punctuation a cross-reference id may hold **internally** — Pandoc's internal-punctuation
+ * set, admitted only when a {@link REF_ID_REGCHAR} follows it.
+ *
+ * ⚠ **THE FOLLOWER CLAUSE IS THE WHOLE RULE, NOT A REFINEMENT OF IT.** It is what keeps
+ * a token from eating trailing sentence punctuation (`@sec-intro.` is `sec-intro`,
+ * `cal/cal.qmd` t05/t36) and what breaks a token at a doubled run (`@sec-a..b` is `sec-a`,
+ * t12 — one of the two rows that corrected this rule from the shape first predicted for it).
+ * Session 220 measured all 12 characters of the set individually rather than porting them:
+ * `:` `.` `#` `$` `%` `&` `+` `?` `<` `>` `~` `/` and `-`.
+ */
+const REF_ID_PUNCT = String.raw`[:.#$%&+?<>~/-]`;
+/**
+ * A cross-reference *usage* — `@fig-plot`, `@sec-intro`, `@sec-meth:ods`. The negative
+ * lookbehind rejects an `@` preceded by a word character (so `user@fig-x.org` is an email,
+ * not a reference), and restricting to known kind prefixes leaves bare `@key` citations
+ * (Phase 6c) untouched. Group 1 is the id.
+ *
+ * The id is Pandoc's `citeKey` — a regchar, then any run of (regchar | internal punctuation
+ * immediately followed by a regchar) — measured over 55 rendered rows in Session 220 and
+ * frozen as predictions before rendering (`scratchpad/s220/PREDICTIONS{,2}.tsv`, 38/40 then
+ * 15/15). The kind prefix's own `-` takes the same follower rule, so `@sec-` alone and
+ * `@sec-.x` are not references at all.
+ *
+ * ⚠ **DELIBERATELY NOT THE LOOKBEHIND'S SET.** Pandoc's real precondition is
+ * `notAfterString`, not a character class: `_@sec-x` IS a reference, while `café@sec-x`,
+ * `日本@sec-x` and `.@sec-x` are NOT, and `-@sec-x` is the suppress-author citation form
+ * (all measured, `scratchpad/s220/cal/lb.qmd`). Session 220 left the ASCII class exactly as
+ * it found it so no row moves; the divergence is a separate filed item.
+ */
+const REF_USAGE = new RegExp(
+  String.raw`(?<![A-Za-z0-9_])@((?:fig|tbl|sec|eq|lst)-(?=${REF_ID_REGCHAR})` +
+    String.raw`(?:${REF_ID_REGCHAR}|${REF_ID_PUNCT}(?=${REF_ID_REGCHAR}))*)`,
+  "gu",
+);
 
 /** The cross-ref kind of an id, or `null` if its prefix is not a cross-ref kind. */
 function kindOf(id: string): RefKind | null {
