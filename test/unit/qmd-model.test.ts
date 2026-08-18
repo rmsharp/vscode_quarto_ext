@@ -9350,6 +9350,46 @@ describe("WHICH id a block with more than one defines is a reader split (Session
     ]);
   });
 
+  it("⚠ a `#` inside a key=VALUE is not an id — the atoms come from TOKENS — `adv/md_x01kvhash`", () => {
+    // ⚠ THE REGRESSION THIS SESSION'S OWN ADVERSARIAL PASS CAUGHT, AND IT POINTS THE WORST WAY.
+    // `ATTR_KEY_VALUE`'s bare value is `[^\s}]*`, which ADMITS `#`, so `{#sec-x01 key=#sec-fake}`
+    // is a VALID block whose real id is `sec-x01` (measured, `scratchpad/s219/adv.quarto.tsv`,
+    // all three pandoc readers). Scanning the block's RAW TEXT for the last `#…` takes
+    // `sec-fake` instead — a cross-reference target no document defines, which is the exact
+    // class Session 218 exists to have removed.
+    //
+    // ⚠ AND THE PRE-SESSION BUILD WAS RIGHT HERE BY ACCIDENT: it took the FIRST `#…`, which in
+    // these four shapes IS the real id. Establishing that took a probe against the pre-session
+    // source (`scratchpad/s219/presrc`) — 12 rows, PRE OK and POST wrong.
+    //
+    // The fix is decision rule 3 taken all the way rather than half: the ids come from the
+    // TOKENS `headingAttributeTokens` produces, and a key=value token contributes none.
+    for (const line of [
+      "# Adv X01 Kvhash {#sec-x01 key=#sec-fake}",
+      '# Adv X02 Quoted {#sec-x02 key="#sec-fake"}',
+      '# Adv X03 Quotesp {#sec-x03 key="a #sec-fake b"}',
+      "# Adv X04 Single {#sec-x04 key='#sec-fake'}",
+    ]) {
+      const id = line.match(/#(sec-x\d+) /)![1];
+      expect(ids(withFrom("markdown", line))).toEqual([id, null]);
+    }
+  });
+
+  it("PIN — STAYS WRONG, a DIFFERENT open item: two SPACED blocks, and a closing hash run", () => {
+    // The only two rows of this session's 200 that still disagree with quarto, and both belong
+    // to the item Session 218 filed as "only the LAST of two attribute blocks is stripped, and
+    // under `commonmark_x` a closing hash run after the block defeats the strip entirely".
+    // Unchanged by this session in either direction (pre and post builds identical), pinned so
+    // they cannot move silently, and re-witnessed here: `scratchpad/s219/adv/cmx_x15twoblocks`
+    // and `cmx_x16hashrun`. Fixing them is that item's deliverable, not this one's.
+    const two = withFrom("commonmark_x", "# Adv X15 Twoblocks {#sec-x15a} {#sec-x15b}");
+    expect(names(two)).toEqual(["h1:Adv X15 Twoblocks {#sec-x15a}", TAIL]);
+    expect(ids(two)).toEqual(["sec-x15b", null]);
+    const run = withFrom("commonmark_x", "# Adv X16 Hashrun {#sec-x16a #sec-x16b} ##");
+    expect(names(run)).toEqual(["h1:Adv X16 Hashrun {#sec-x16a #sec-x16b}", TAIL]);
+    expect(ids(run)).toEqual([null, null]);
+  });
+
   it("PIN a non-ASCII identifier survives the atom set — `id/*_t18uni`", () => {
     // Session 218's gotcha 5. The atoms are Unicode letters, so `{#sec-café #sec-t18}` is two
     // ids under both dialects and neither is truncated at the accent.

@@ -296,8 +296,34 @@ const ATTR_ID_ALL = /#([\p{L}\p{N}_:.-]+)/gu;
  * bearing rather than tidy: `commonmark_x` rejects atom CONCATENATION outright, so `{#a#b}` is
  * ordinary text for that reader and must yield no id at all — not its first one.
  */
-function headingAttributeId(block: string, commonmarkDialect: boolean): string | undefined {
-  const found = [...block.matchAll(ATTR_ID_ALL)].map((m) => m[1]);
+function headingAttributeId(
+  content: string,
+  commonmarkDialect: boolean,
+  pandocEscapes: boolean,
+): string | undefined {
+  // ⚠ **THE IDS COME FROM THE TOKENS, NOT FROM THE RAW BLOCK — AND SCANNING THE RAW BLOCK IS A
+  // REGRESSION THIS SESSION SHIPPED FOR TWO COMMITS AND ITS OWN ADVERSARIAL PASS CAUGHT.**
+  // `ATTR_KEY_VALUE`'s bare value is `[^\s}]*`, which ADMITS `#`, so `{#sec-x01 key=#sec-fake}`
+  // is a VALID block whose real id is `sec-x01` — and a `matchAll` over the block text takes
+  // `sec-fake`, a cross-reference target no document defines. Measured over the pandoc three in
+  // four spellings (bare, double-quoted, quoted-with-spaces, single-quoted):
+  // `scratchpad/s219/adv/*_x01kvhash` through `*_x04single`. ⚠ The PRE-session build was right
+  // on all twelve rows by accident, because it took the FIRST `#…` and in these shapes the
+  // first one IS the id — so this was a true regression, not an inherited defect.
+  //
+  // Reusing Session 218's tokenizer is what makes a key=value contribute no ids at all, and it
+  // is the same rule that already decided the block was valid: same split, same quote handling,
+  // same escaped-space branch.
+  const atoms = commonmarkDialect ? ATTR_ATOM_COMMONMARK : ATTR_ATOM_RUN;
+  const found: string[] = [];
+  for (const token of headingAttributeTokens(content, pandocEscapes)) {
+    if (!atoms.test(token)) {
+      continue;
+    }
+    for (const m of token.matchAll(ATTR_ID_ALL)) {
+      found.push(m[1]);
+    }
+  }
   if (found.length === 0) {
     return undefined;
   }
@@ -5990,7 +6016,13 @@ function buildHeading(
     )
       ? brace
       : null;
-  const id = attribute ? headingAttributeId(attribute[0], commonmarkDialect) : undefined;
+  const id = attribute
+    ? headingAttributeId(
+        attribute[0].replace(/^\{/, "").replace(/\}[ \t]*$/, ""),
+        commonmarkDialect,
+        pandocEscapes,
+      )
+    : undefined;
   let text = attribute ? rawText.replace(HEADING_ATTRIBUTE, "") : rawText;
   if (closing !== null) {
     text = text.replace(closing, "");
