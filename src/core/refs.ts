@@ -240,14 +240,54 @@ function dedupeById(labels: RefLabel[]): RefLabel[] {
 }
 
 /**
+ * Pandoc's ATTRIBUTE-BLOCK identifier character set — the same one `ATTR_ID_ALL` matches an atom
+ * with in `src/core/qmd/model.ts`.
+ *
+ * ⚠ **DELIBERATELY NOT `ID_CHAR` ABOVE, WHICH IS A DIFFERENT AND NARROWER SET.** That one scans
+ * the token under the cursor after an `@` and is `[A-Za-z0-9_-]` — no `:`, no `.`, ASCII only.
+ * The two answer different questions (what may a reference token hold as you type it, versus
+ * what may a defined identifier hold), and widening the completion scanner to this set would
+ * silently change which text an accepted completion replaces.
+ */
+const ATTR_ID_CHAR = /[\p{L}\p{N}_:.-]/u;
+
+/**
  * The 0-based column where `#<id>` resolves to the start of `<id>` on `line`, or
  * 0 if it cannot be located (defensive — go-to-definition still lands on the line).
  * Uses the LAST occurrence: the `{#id}` attribute block is trailing, so an
  * identical `#id` substring appearing earlier on the line (e.g. inside an inline
  * code span or quoted in the heading text) must not win.
+ *
+ * ⚠ **BUT ONLY AN OCCURRENCE THAT ENDS AT AN IDENTIFIER BOUNDARY** (Session 219). A bare
+ * `lastIndexOf` is exact until two ids on one heading share a prefix, and then it finds the
+ * shorter one INSIDE the longer: `# Cal T12 Prefix {#sec-t12 #sec-t12b}` under `commonmark_x`
+ * defines `sec-t12`, whose text begins at column 19, and the search matched the `#sec-t12`
+ * that opens `#sec-t12b` at 27 — putting go-to-definition in the middle of the other
+ * identifier (`scratchpad/s219/id/cmx_t12prefix`).
+ *
+ * ⚠ The reader matters, and it is the one Session 219 otherwise left alone: the pandoc family
+ * defines the LAST id, whose only occurrence is already the last, so this row is reachable
+ * ONLY through `commonmark_x` — which takes the FIRST. The id surface cannot see it at all,
+ * because the id string is correct in both readers and only its column is wrong.
+ *
+ * The boundary test keeps the trailing-occurrence rule intact: in
+ * `## Use \`#sec-intro\` here {#sec-intro}` the earlier mention is followed by a backtick,
+ * which is no identifier character, so both occurrences qualify and the LAST still wins
+ * (the Session 8 adversarial row).
  */
 function idColumn(text: string, line: number, id: string): number {
   const lineText = text.split(/\r?\n/)[line] ?? "";
-  const hashIndex = lineText.lastIndexOf(`#${id}`);
-  return hashIndex >= 0 ? hashIndex + 1 : 0;
+  const needle = `#${id}`;
+  let at = lineText.lastIndexOf(needle);
+  while (at >= 0) {
+    const next = lineText[at + needle.length];
+    if (next === undefined || !ATTR_ID_CHAR.test(next)) {
+      return at + 1;
+    }
+    if (at === 0) {
+      break;
+    }
+    at = lineText.lastIndexOf(needle, at - 1);
+  }
+  return 0;
 }

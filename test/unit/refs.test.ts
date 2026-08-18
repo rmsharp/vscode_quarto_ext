@@ -626,3 +626,29 @@ describe("indexLabels — the indented-HTML and line-block repairs reach the cro
     expect(findLabel(underTable, "sec-tbl")).toBeNull();
   });
 });
+
+describe("a label's column when one id is a PREFIX of another on the same heading (Session 219)", () => {
+  it("⚠ `commonmark_x` takes the FIRST id, and `lastIndexOf` finds it inside the SECOND", () => {
+    // `idColumn` resolves a label's position with `lastIndexOf('#' + id)`, which is exact until
+    // two ids share a prefix. `# Cal T12 Prefix {#sec-t12 #sec-t12b}` renders under
+    // `commonmark_x` with id="sec-t12" (measured, `scratchpad/s219/id.quarto.tsv`) — the id text
+    // begins at column 19 — but `#sec-t12` also occurs at 27 as the opening of `#sec-t12b`, so
+    // the search lands there and go-to-definition puts the cursor in the middle of the OTHER
+    // identifier.
+    //
+    // ⚠ The pandoc three are right here by construction rather than by care: they define the
+    // LAST id, `sec-t12b`, whose only occurrence IS the last one. So this row is reachable only
+    // through the reader whose id rule Session 219 left alone — which is why it needs its own
+    // assertion and could not be caught by the id surface.
+    //             0         1         2         3
+    //             0123456789012345678901234567890123456
+    const line = "# Cal T12 Prefix {#sec-t12 #sec-t12b}";
+    const cmx = ["---", "from: commonmark_x", "---", "", line].join("\n");
+    expect(indexLabels(cmx)).toEqual([{ id: "sec-t12", kind: "sec", line: 4, column: 19 }]);
+
+    // The control that makes the assertion above mean something: same bytes, pandoc reader,
+    // where the id taken is the second one and 28 is correct.
+    const md = ["---", "from: markdown", "---", "", line].join("\n");
+    expect(indexLabels(md)).toEqual([{ id: "sec-t12b", kind: "sec", line: 4, column: 28 }]);
+  });
+});
