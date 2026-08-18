@@ -253,18 +253,56 @@ function atxClosingRun(commonmarkDialect: boolean): RegExp {
  */
 const HEADING_ATTRIBUTE = /(?<=(?:^|[^\\])(?:\\\\)*)\{[^}]*\}[ \t]*$/;
 /**
- * The `#identifier` inside a Pandoc attribute block. Pandoc separates id, classes
- * (`.x`), and key=val pairs by whitespace, so the id runs from `#` to the next
- * whitespace or closing brace: `{#sec-intro .unnumbered}` → `sec-intro`.
+ * Every `#identifier` ATOM in a heading attribute block, in source order (Session 219).
  *
- * ⚠ **Which id a block with TWO of them defines is a separate, unfixed defect** (Session 218).
- * Quarto takes the LAST `#` under the pandoc family and the FIRST under `commonmark_x`, and this
- * takes the first unconditionally: `{#sec-p20a#sec-p20b}` renders with `id="sec-p20b"` and is
- * indexed here as `sec-p20a#sec-p20b` (`scratchpad/s218/cal/md_p20idtwo`, and `cal2/q08twoid`
- * for the space-separated spelling). That is a question about a block that IS one, so it is
- * outside the validity predicate below and needs its own two-directional score. Pinned.
+ * ⚠ **THE CHARACTER SET IS SESSION 218's, DELIBERATELY AND NOT INCIDENTALLY.** This replaces an
+ * `ATTR_ID` whose class was `[^\s}]+` — "anything but whitespace or a closing brace" — which is
+ * the same over-wide shape Session 218 removed from the validity predicate one commit earlier,
+ * and it failed the same way: it swallowed the second `#` of `{#sec-t05a#sec-t05b}` and indexed
+ * the literal `sec-t05a#sec-t05b`, a cross-reference target no reader defines, on a document
+ * whose heading text was stripped correctly. Pandoc's identifier is Unicode letters, digits,
+ * `-`, `_`, `:` and `.`, so the atoms break at `#` and NOT at `.` — which is why
+ * `{#sec-q10.cls}` is one id named `sec-q10.cls` (`scratchpad/s218/cal2/*_q10idcls`) and
+ * `{#sec-t14a.x #sec-t14b}` is two (`scratchpad/s219/id/*_t14dot`).
+ *
+ * Both dialects share this set; they differ only in WHICH of the atoms wins — see
+ * `headingAttributeId`.
  */
-const ATTR_ID = /#([^\s}]+)/;
+const ATTR_ID_ALL = /#([\p{L}\p{N}_:.-]+)/gu;
+/**
+ * WHICH id a block carrying more than one of them defines, **per reader** (Session 219).
+ *
+ * ⚠ **THIS IS A MEASURED READER SPLIT, AND THE MODEL TOOK THE FIRST ID FOR EVERY READER.** Over
+ * 100 documents rendered through the real quarto path (`scratchpad/s219/id`, quarto 1.7.33), the
+ * pandoc three — no `from:`, `markdown`, `markdown_phpextra` — define the **LAST** `#` in the
+ * block, and `commonmark_x` defines the **FIRST**:
+ *
+ *   `# Cal T02 Sp2 {#sec-t02a #sec-t02b}`  → `id="sec-t02b"` · `commonmark_x` `id="sec-t02a"`
+ *   `# Cal T03 Sp3 {#sec-t03a #sec-t03b #sec-t03c}` → `sec-t03c` · `commonmark_x` `sec-t03a`
+ *
+ * ⚠ **THREE IDS ARE WHAT MAKE THIS RULE FALSIFIABLE.** "The last wins" and "the second wins" are
+ * the same claim at two ids and different claims at three, so `t03`/`t04` (three and four ids, in
+ * both spellings) are the rows the rule is written against — not the two-id shape it was filed
+ * for.
+ *
+ * ⚠ **AND THE DIRECTION IS BOTH WAYS AT ONCE, WHICH IS WHY IT IS SCORED ON `indexLabels` RATHER
+ * THAN ON THE ID STRING.** `src/core/refs.ts` keeps only ids with a `sec-` prefix, so a block
+ * whose ids differ in KIND moves a cross-reference target in or out of existence:
+ * `{#intro #sec-t16}` really defines `sec-t16` and this model indexed NOTHING, while
+ * `{#sec-t17 #intro}` really defines `intro` — no `sec-` target at all — and this model indexed
+ * `sec-t17`, a fabricated one of exactly the class Session 218 exists to have removed.
+ *
+ * ⚠ Callers pass the block only after `headingAttributesValid` has accepted it, which is load-
+ * bearing rather than tidy: `commonmark_x` rejects atom CONCATENATION outright, so `{#a#b}` is
+ * ordinary text for that reader and must yield no id at all — not its first one.
+ */
+function headingAttributeId(block: string, commonmarkDialect: boolean): string | undefined {
+  const found = [...block.matchAll(ATTR_ID_ALL)].map((m) => m[1]);
+  if (found.length === 0) {
+    return undefined;
+  }
+  return commonmarkDialect ? found[0] : found[found.length - 1];
+}
 /**
  * One whitespace-separated token of a heading attribute block, as a `KEY=VALUE` pair.
  *
@@ -5952,7 +5990,7 @@ function buildHeading(
     )
       ? brace
       : null;
-  const id = attribute ? ATTR_ID.exec(attribute[0])?.[1] : undefined;
+  const id = attribute ? headingAttributeId(attribute[0], commonmarkDialect) : undefined;
   let text = attribute ? rawText.replace(HEADING_ATTRIBUTE, "") : rawText;
   if (closing !== null) {
     text = text.replace(closing, "");

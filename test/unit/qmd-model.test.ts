@@ -8934,13 +8934,18 @@ describe("a trailing brace group is a heading attribute block only when it is VA
       ]);
     });
 
-    it("STAYS WRONG — WHICH id a two-id block defines — `cal/md_p20idtwo`", () => {
-      // Quarto takes the LAST `#` under the pandoc three (`sec-p20b`) and the FIRST under
-      // `commonmark_x`; `ATTR_ID` takes the first unconditionally. The block IS valid, so this
-      // session's predicate must leave the strip alone — and the wrong id with it.
+    it("FIXED BY SESSION 219 — WHICH id a two-id block defines — `cal/md_p20idtwo`", () => {
+      // ⚠ THIS PIN HAS FLIPPED, AND THE FLIP IS THE POINT. Session 218 wrote it as STAYS WRONG:
+      // quarto takes the LAST `#` under the pandoc three (`sec-p20b`) and the FIRST under
+      // `commonmark_x`, while `ATTR_ID` took the first unconditionally — and worse here, its
+      // `[^\s}]+` class swallowed the second `#` and indexed the literal `sec-p20a#sec-p20b`,
+      // a label no reader ever defines. Session 219 measured the split over 100 rendered
+      // documents and `headingAttributeId` now reads it per reader. The STRIP is unmoved, which
+      // is what this pin still guards: the text half is Session 218's rule and must not drift
+      // when the id half changes.
       const t = withFrom("markdown", "# Cal P20 Idtwo {#sec-p20a#sec-p20b}");
       expect(names(t)).toEqual(["h1:Cal P20 Idtwo", TAIL]);
-      expect(labels(t)).toEqual(["sec-p20a#sec-p20b"]);
+      expect(labels(t)).toEqual(["sec-p20b"]);
     });
   });
 
@@ -9251,5 +9256,110 @@ describe("GUARD — the id substitution moves NOTHING it must not (Session 219)"
     const esc = withFrom("markdown", "# Cal Id Esc {#sec-a\\:b}");
     expect(names(esc)).toEqual(["h1:Cal Id Esc {#sec-a:b}", TAIL]);
     expect(labels(esc)).toEqual([]);
+  });
+});
+
+describe("WHICH id a block with more than one defines is a reader split (Session 219)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  const ids = (text: string) => findHeadings(text).map((h) => h.id ?? null);
+  const labels = (text: string) => indexLabels(text).map((l) => l.id);
+  const BELOW = ["", "# Cal Alpha Below"];
+  const TAIL = "h1:Cal Alpha Below";
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...BELOW);
+
+  it("⚠ the pandoc family takes the LAST id, not the first — `id/md_t02sp2`", () => {
+    // The filed shape. `# Cal T02 Sp2 {#sec-t02a #sec-t02b}` renders with `id="sec-t02b"` under
+    // `markdown` (measured, `scratchpad/s219/id.quarto.tsv`), and this model took `sec-t02a` —
+    // a cross-reference target the rendered document does not define.
+    const t = withFrom("markdown", "# Cal T02 Sp2 {#sec-t02a #sec-t02b}");
+    expect(names(t)).toEqual(["h1:Cal T02 Sp2", TAIL]);
+    expect(ids(t)).toEqual(["sec-t02b", null]);
+    expect(labels(t)).toEqual(["sec-t02b"]);
+  });
+
+  it("⚠ the CONCATENATED spelling is the same rule — the atoms break at `#` — `id/md_t05cat2`", () => {
+    // `{#sec-t05a#sec-t05b}` renders `id="sec-t05b"` under the pandoc three. `ATTR_ID`'s class
+    // was "anything but whitespace or `}`", which swallows the second `#` and indexed the
+    // literal `sec-t05a#sec-t05b` — a label no reader ever defines, in a document where the
+    // heading text is stripped correctly. Session 218's `ATTR_ATOM_RUN` already breaks a token
+    // into atoms at `#` and NOT at `.`; the id extraction has to use that same set or it
+    // re-opens the character-set defect that session closed (decision rule 3).
+    const t = withFrom("markdown", "# Cal T05 Cat2 {#sec-t05a#sec-t05b}");
+    expect(names(t)).toEqual(["h1:Cal T05 Cat2", TAIL]);
+    expect(ids(t)).toEqual(["sec-t05b", null]);
+    expect(labels(t)).toEqual(["sec-t05b"]);
+  });
+
+  /**
+   * ⚠ PINS, NOT CYCLES — DECLARED AS SUCH. The two RED->GREEN cycles above implement a rule that
+   * is general over the whole family, so every row below passed on its first run. They are
+   * recorded here because they are the rows the rule was DERIVED from and the rows a future
+   * change would break first — not because this session earned a cycle for each.
+   */
+  it("PIN ⚠ THREE ids are what make the rule falsifiable — `id/*_t03sp3`, `*_t04sp4`", () => {
+    // "The LAST wins" and "the SECOND wins" are the same claim at two ids. Rendered: three ids
+    // define the third and four define the fourth under the pandoc three, and the FIRST under
+    // `commonmark_x` in both.
+    expect(ids(withFrom("markdown", "# Cal T03 Sp3 {#sec-t03a #sec-t03b #sec-t03c}"))).toEqual([
+      "sec-t03c",
+      null,
+    ]);
+    expect(
+      ids(withFrom("markdown", "# Cal T04 Sp4 {#sec-t04a #sec-t04b #sec-t04c #sec-t04d}")),
+    ).toEqual(["sec-t04d", null]);
+    expect(ids(withFrom("commonmark_x", "# Cal T03 Sp3 {#sec-t03a #sec-t03b #sec-t03c}"))).toEqual(
+      ["sec-t03a", null],
+    );
+  });
+
+  it("PIN ⚠ a LOST target and a FABRICATED one, in one rule — `id/*_t16nonsec1`, `*_t17sec1`", () => {
+    // The two rows that make this a cross-reference defect rather than a cosmetic one, because
+    // `src/core/refs.ts` keeps only `sec-` ids. `{#intro #sec-t16}` really defines `sec-t16` and
+    // this model indexed NOTHING — a completion the document deserves and never offered.
+    // `{#sec-t17 #intro}` really defines `intro`, so there is NO `sec-` target on that heading,
+    // and this model indexed `sec-t17` — a fabricated target of exactly the class Session 218
+    // exists to have removed, arriving one rule over.
+    const lost = withFrom("markdown", "# Cal T16 Nonsec1 {#intro #sec-t16}");
+    expect(ids(lost)).toEqual(["sec-t16", null]);
+    expect(labels(lost)).toEqual(["sec-t16"]);
+    const fabricated = withFrom("markdown", "# Cal T17 Sec1 {#sec-t17 #intro}");
+    expect(ids(fabricated)).toEqual(["intro", null]);
+    expect(labels(fabricated)).toEqual([]);
+  });
+
+  it("PIN the SETEXT path is the same call site — `id/*_t19setext`", () => {
+    // `buildHeading` serves both paths, so this needed no separate wiring — and that is exactly
+    // why it is pinned: a future change that reaches only `parseHeadingLine` would leave it.
+    const t = withFrom("markdown", "Cal T19 Setext {#sec-t19a #sec-t19b}", "===");
+    expect(names(t)).toEqual(["h1:Cal T19 Setext", TAIL]);
+    expect(ids(t)).toEqual(["sec-t19b", null]);
+  });
+
+  it("PIN a `.` is an identifier character, so it does NOT break an atom — `id/*_t14dot`", () => {
+    // Session 218's sharpest correction, inherited: `{#sec-t14a.x #sec-t14b}` is TWO ids, not
+    // three atoms. The pandoc three take `sec-t14b`; `commonmark_x` takes `sec-t14a.x` WHOLE.
+    expect(ids(withFrom("markdown", "# Cal T14 Dot {#sec-t14a.x #sec-t14b}"))).toEqual([
+      "sec-t14b",
+      null,
+    ]);
+    expect(ids(withFrom("commonmark_x", "# Cal T14 Dot {#sec-t14a.x #sec-t14b}"))).toEqual([
+      "sec-t14a.x",
+      null,
+    ]);
+  });
+
+  it("PIN a non-ASCII identifier survives the atom set — `id/*_t18uni`", () => {
+    // Session 218's gotcha 5. The atoms are Unicode letters, so `{#sec-café #sec-t18}` is two
+    // ids under both dialects and neither is truncated at the accent.
+    expect(ids(withFrom("markdown", "# Cal T18 Uni {#sec-café #sec-t18}"))).toEqual([
+      "sec-t18",
+      null,
+    ]);
+    expect(ids(withFrom("commonmark_x", "# Cal T18 Uni {#sec-café #sec-t18}"))).toEqual([
+      "sec-café",
+      null,
+    ]);
   });
 });
