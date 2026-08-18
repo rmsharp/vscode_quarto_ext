@@ -652,3 +652,67 @@ describe("a label's column when one id is a PREFIX of another on the same headin
     expect(indexLabels(md)).toEqual([{ id: "sec-t12b", kind: "sec", line: 4, column: 28 }]);
   });
 });
+
+// ── Session 220 GUARD ────────────────────────────────────────────────────────
+// Written and run GREEN **before** the use-side identifier rule was widened.
+//
+// ⚠ S204's gotcha 5, inherited a SEVENTEENTH time and on this change's own polarity:
+// Session 220 WIDENS the token a `@ref` may consume, so the inherited guard shapes from a
+// SUBSTITUTION (S219) or a NARROWING (S218) do not cover it. A widening fails by growing a
+// token past where quarto stops — into trailing sentence punctuation, or into prose — so the
+// guard is per SHAPE THAT MUST NOT GROW and per NON-REFERENCE THAT MUST NOT BECOME ONE.
+describe("Session 220 GUARD — shapes a widened use-side id rule must NOT move", () => {
+  it("G1: a trailing '.' after a plain id is sentence punctuation, not part of the id", () => {
+    expect(refIdAt("See @sec-intro.", 4)).toBe("sec-intro");
+  });
+
+  it("G2: the completion replace range stops BEFORE a trailing '.'", () => {
+    expect(crossrefCompletionContext("See @fig-plot.", 5)).toEqual({
+      start: 4,
+      typed: "",
+      end: 13,
+    });
+  });
+
+  it("G3: an email-shaped @ is not a reference", () => {
+    expect(refIdAt("contact user@fig-x.org now", 14)).toBeNull();
+    expect(crossrefCompletionContext("user@", 5)).toBeNull();
+  });
+
+  it("G4: a bare @key citation has no cross-ref kind prefix and stays out", () => {
+    expect(refIdAt("see @smith2020 here", 8)).toBeNull();
+  });
+
+  it("G5: a plain ASCII id is unchanged on the definition surface", () => {
+    expect(refIdAt("See @fig-plot for details", 8)).toBe("fig-plot");
+    expect(refIdAt("@eq-x", 5)).toBe("eq-x");
+    expect(refIdAt("just prose here", 5)).toBeNull();
+  });
+
+  it("G6: a plain ASCII id is unchanged on the completion surface", () => {
+    expect(crossrefCompletionContext("See @", 5)).toEqual({ start: 4, typed: "", end: 5 });
+    expect(crossrefCompletionContext("See @fig-pl", 11)).toEqual({
+      start: 4,
+      typed: "fig-pl",
+      end: 11,
+    });
+    expect(crossrefCompletionContext("See fig", 7)).toBeNull();
+    expect(crossrefCompletionContext("@ fig", 5)).toBeNull();
+  });
+
+  it("G7: whitespace still ends a token on both surfaces", () => {
+    expect(refIdAt("See @sec-a b", 6)).toBe("sec-a");
+    expect(crossrefCompletionContext("See @sec-a b", 10)).toEqual({
+      start: 4,
+      typed: "sec-a",
+      end: 10,
+    });
+  });
+
+  it("G8: the indexing surface is not this session's — a heading id is untouched", () => {
+    const md = "# Methods {#sec-meth:ods}";
+    expect(indexLabels(md)).toEqual([
+      { id: "sec-meth:ods", kind: "sec", line: 0, column: 12 },
+    ]);
+  });
+});
