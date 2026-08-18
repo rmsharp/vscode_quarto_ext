@@ -229,10 +229,30 @@ export function refIdAt(lineText: string, column: number): string | null {
   return null;
 }
 
-/** A single character that may appear in a cross-ref id (after the `@`). */
-const ID_CHAR = /[A-Za-z0-9_-]/;
+/** {@link REF_ID_REGCHAR} as a testable single-character pattern. */
+const REGCHAR = new RegExp(REF_ID_REGCHAR, "u");
+/** {@link REF_ID_PUNCT} as a testable single-character pattern. */
+const PUNCT = new RegExp(REF_ID_PUNCT, "u");
 /** A word character that, immediately before an `@`, marks it as an email — not a reference. */
 const WORD_CHAR = /[A-Za-z0-9_]/;
+
+/**
+ * Whether the id token continues at `at` on `lineText` — a regchar, or internal
+ * punctuation with a regchar immediately after it (the measured Pandoc rule; see
+ * {@link REF_ID_PUNCT}). This is what stops a token before trailing sentence
+ * punctuation, so the replace range never eats an `@ref`'s closing `.`.
+ */
+function idContinuesAt(lineText: string, at: number): boolean {
+  const ch = lineText[at];
+  if (ch === undefined) {
+    return false;
+  }
+  if (REGCHAR.test(ch)) {
+    return true;
+  }
+  const next = lineText[at + 1];
+  return PUNCT.test(ch) && next !== undefined && REGCHAR.test(next);
+}
 
 /**
  * If 0-based `column` on `lineText` sits at the end of an in-progress `@…`
@@ -240,13 +260,25 @@ const WORD_CHAR = /[A-Za-z0-9_]/;
  * cursor), return where the `@` is and the id typed so far; otherwise `null`.
  * An `@` preceded by a word character is an email address, not a reference.
  * Drives completion (the `start` is where the inserted `@id` replaces from).
+ *
+ * ⚠ **THE TWO SCANS ANSWER DIFFERENT QUESTIONS AND SESSION 220 MEASURED THEM SEPARATELY.**
+ * The BACKWARD scan only has to find the `@`, so it walks any character a token could hold —
+ * over-reaching there costs at most a `typed` that filters to no completions. The FORWARD
+ * scan sets the REPLACE range, so it applies the full rule: an over-wide `end` would make an
+ * accepted completion swallow the sentence's punctuation.
+ *
+ * ⚠ **BEFORE SESSION 220 THIS SURFACE DID NOT TRUNCATE — IT DIED.** The old scanner walked
+ * `[A-Za-z0-9_-]`, so on `@sec-meth:o` the backward walk stopped ON the colon, never reached
+ * the `@`, and returned `null`: once an author typed a `:` they were offered nothing at all.
+ * Measured on the pre-session build (`scratchpad/s220/pre/probe220.test.ts`); the filed item
+ * described only the truncation, and this is the half no id-only comparison can see.
  */
 export function crossrefCompletionContext(
   lineText: string,
   column: number,
 ): RefCompletionContext | null {
   let i = column - 1;
-  while (i >= 0 && ID_CHAR.test(lineText[i])) {
+  while (i >= 0 && (REGCHAR.test(lineText[i]) || PUNCT.test(lineText[i]))) {
     i--;
   }
   if (i < 0 || lineText[i] !== "@") {
@@ -255,10 +287,10 @@ export function crossrefCompletionContext(
   if (i > 0 && WORD_CHAR.test(lineText[i - 1])) {
     return null;
   }
-  // Walk forward over any id characters the cursor is sitting inside, so the
-  // whole `@id` token (not just up to the cursor) can be replaced on accept.
+  // Walk forward over the rest of the token the cursor is sitting inside, so the
+  // whole `@id` (not just up to the cursor) can be replaced on accept.
   let end = column;
-  while (end < lineText.length && ID_CHAR.test(lineText[end])) {
+  while (end < lineText.length && idContinuesAt(lineText, end)) {
     end++;
   }
   return { start: i, typed: lineText.slice(i + 1, column), end };

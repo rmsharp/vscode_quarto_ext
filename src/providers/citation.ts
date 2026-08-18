@@ -53,10 +53,10 @@ class CitationCompletionProvider implements vscode.CompletionItemProvider {
       return undefined;
     }
     const lineText = document.lineAt(position.line).text;
-    // A citekey-aware context (not the cross-ref one): citekeys routinely
-    // contain ':' / '.' (biblatex/DBLP/dotted), which the cross-ref ID_CHAR
-    // scanner would truncate — breaking completion after a ':' and duplicating
-    // the suffix on a mid-token accept.
+    // A citekey-aware context (not the cross-ref one). Both scanners reach ':' / '.' keys
+    // since Session 220, but they answer different questions — a citekey carries no
+    // `fig|tbl|sec|eq|lst-` kind prefix, so the cross-ref context would decline every
+    // bare `@key` citation outright.
     const context = citationCompletionContext(lineText, position.character);
     if (context === null) {
       return undefined;

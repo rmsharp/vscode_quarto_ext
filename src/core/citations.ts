@@ -56,10 +56,15 @@ export interface CitationCompletionContext {
  * citekeys are alphanumerics, `_`, and internal punctuation; this uses the
  * practical subset that real keys use (`:` `.` `+` `/` `-`, e.g. biblatex
  * `Knuth:1984`, DBLP `DBLP:journals/...`, dotted `einstein.1905`) and excludes
- * the exotic Pandoc chars (`#$%&?<>~`) to avoid over-matching prose. This is
- * deliberately WIDER than the cross-ref `ID_CHAR` (`core/refs`), which only
- * needs `[A-Za-z0-9_-]` — reusing that class truncated colon/dot keys, breaking
- * completion after a `:` and duplicating the suffix on a mid-token accept.
+ * the exotic Pandoc chars (`#$%&?<>~`) to avoid over-matching prose.
+ *
+ * ⚠ **THIS IS A FLAT CLASS PLUS {@link CITEKEY_TRAILING_PUNCT}; `core/refs` NOW SPELLS THE
+ * SAME PANDOC RULE THE OTHER WAY.** Session 220 measured `citeKey` directly and expressed it
+ * as "internal punctuation is admitted only when a regchar follows it" (`REF_ID_PUNCT`),
+ * which needs no trailing trim because a trailing punctuation char is never consumed in the
+ * first place. That form also admits the exotic characters excluded here, since the follower
+ * clause — not a narrow class — is what keeps it off prose. The two files agreed before and
+ * still agree; only the spelling differs. Unifying them is unfiled work, not an accident.
  */
 const CITEKEY_CHAR = /[A-Za-z0-9_:.+/-]/;
 /** Punctuation a citekey may not END in (Pandoc) — trimmed from the replace range. */

@@ -772,4 +772,47 @@ describe("Session 220 — a reference reaches an id holding ':', '.' or a non-AS
     expect(refIdAt("See @sec-x^y here", 8)).toBe("sec-x"); // cal2 u07
     expect(refIdAt("See @sec-x{y here", 8)).toBe("sec-x"); // cal2 u08
   });
+
+  it("C2a: completion still fires once a ':' has been typed", () => {
+    // ⚠ MEASURED ON THE PRE-SESSION BUILD BEFORE ANY CODE: this surface does not TRUNCATE,
+    // it DIES. The backward scan stopped ON the ':' and never reached the '@', so
+    // crossrefCompletionContext returned null and the author was offered nothing at all
+    // (scratchpad/s220/pre/probe220.test.ts). The filed item did not carry this.
+    expect(crossrefCompletionContext("See @sec-meth:o", 15)).toEqual({
+      start: 4,
+      typed: "sec-meth:o",
+      end: 15,
+    });
+  });
+
+  it("C2-pin: the replace range covers a ':' id past the cursor, but not a trailing '.'", () => {
+    // The mid-token accept: cursor right after the '@', a ':' id already following. `end`
+    // must span the WHOLE token or accepting duplicates the suffix — the failure
+    // `core/citations.ts` records for the flat-class spelling of this same rule.
+    expect(crossrefCompletionContext("See @sec-meth:ods.", 5)).toEqual({
+      start: 4,
+      typed: "",
+      end: 17,
+    });
+  });
+
+  it("C2-pin: completion fires on a non-ASCII id, which also used to return null", () => {
+    expect(crossrefCompletionContext("See @sec-café", 13)).toEqual({
+      start: 4,
+      typed: "sec-café",
+      end: 13,
+    });
+  });
+
+  it("C2-pin: a doubled punctuation run bounds the replace range", () => {
+    // The forward scan applies the follower clause, so `end` stops where quarto's token
+    // does (cal.qmd t12) rather than running to the end of the line.
+    //              See @sec-a..b
+    //              0123456789012   — cursor at 10 is just past the 'a'
+    expect(crossrefCompletionContext("See @sec-a..b", 10)).toEqual({
+      start: 4,
+      typed: "sec-a",
+      end: 10,
+    });
+  });
 });
