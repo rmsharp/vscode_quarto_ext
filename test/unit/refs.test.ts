@@ -821,6 +821,48 @@ describe("Session 220 — a reference reaches an id holding ':', '.' or a non-AS
     });
   });
 
+  it("C4a: a trailing '-' after a NAME character is covered by the replace range too", () => {
+    // ⚠ THE SAME DEFECT AS C3a AT A DIFFERENT POSITION, found by sweeping 321,236,210 columns
+    // and adjudicating the 34 rows where the replace range still SHRANK. C3a covered the kind
+    // prefix's hyphen; this is a hyphen the author typed while composing the NAME (`@sec-my-`
+    // on the way to `@sec-my-topic`), and with the cursor moved back into the token, accepting
+    // `@sec-x` left the stray `-` behind exactly as before.
+    //
+    // ⚠ `end` IS NOT A PARSE CLAIM — it is "what has the author typed as part of this token",
+    // which is a different question from "what does pandoc consume" (this session's decision
+    // rule 2). `refIdAt` stays exactly faithful: quarto's token for `@sec-x-` IS `sec-x`
+    // (scratchpad/s220/cal/cal.qmd t07), and the C1 pins assert that. Only the REPLACE RANGE
+    // is permissive, and only for `-` — the one punctuation character every cross-ref id
+    // already contains, so an author typing it is always still composing the id.
+    //
+    // The invariant this buys is checkable and was verified over the whole sweep: the replace
+    // range NEVER shrinks against the pre-session build, so no accepted completion can leave
+    // a character behind that the old one would have replaced.
+    //              See @sec-x-
+    //              01234567890
+    expect(crossrefCompletionContext("See @sec-x-", 5)).toEqual({
+      start: 4,
+      typed: "",
+      end: 11,
+    });
+  });
+
+  it("C2-pin: DISCLOSED BOUND — an astral letter reaches definition but not completion", () => {
+    // ⚠ A MEASURED RESIDUAL, DECLARED RATHER THAN FIXED. `refIdAt` is regex-based with the
+    // `u` flag, so it matches a surrogate pair as one letter and agrees with quarto, which
+    // consumes the whole token (scratchpad/s220/adv.qmd a01/a02). The completion scanner
+    // walks UTF-16 CODE UNITS, and a lone surrogate is not \p{L}, so the backward walk stops
+    // inside the pair and returns null.
+    //
+    // ⚠ NOT A REGRESSION — the pre-session build returned null here too (for the different
+    // reason that the character was not in its ASCII class), confirmed against `presrc`. It
+    // is pinned because this session made the two surfaces disagree where they used to fail
+    // together, and because VS Code columns are UTF-16 offsets, so the honest fix is
+    // surrogate-pair-aware scanning rather than a wider class.
+    expect(refIdAt("See @sec-\u{1D400}x here", 8)).toBe("sec-\u{1D400}x");
+    expect(crossrefCompletionContext("See @sec-\u{1D400}x", 15)).toBeNull();
+  });
+
   it("C2-pin: a doubled punctuation run bounds the replace range", () => {
     // The forward scan applies the follower clause, so `end` stops where quarto's token
     // does (cal.qmd t12) rather than running to the end of the line.

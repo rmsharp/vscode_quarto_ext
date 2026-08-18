@@ -235,12 +235,6 @@ const REGCHAR = new RegExp(REF_ID_REGCHAR, "u");
 const PUNCT = new RegExp(REF_ID_PUNCT, "u");
 /** A word character that, immediately before an `@`, marks it as an email — not a reference. */
 const WORD_CHAR = /[A-Za-z0-9_]/;
-/**
- * A cross-ref kind prefix at the start of an id, INCLUDING its `-`. That hyphen belongs to a
- * fixed prefix rather than to the name, which is why the completion replace range covers it
- * unconditionally while every other punctuation character needs a follower.
- */
-const REF_KIND_PREFIX = /^(?:fig|tbl|sec|eq|lst)-/;
 
 /**
  * Whether the id token continues at `at` on `lineText` — a regchar, or internal
@@ -258,6 +252,29 @@ function idContinuesAt(lineText: string, at: number): boolean {
   }
   const next = lineText[at + 1];
   return PUNCT.test(ch) && next !== undefined && REGCHAR.test(next);
+}
+
+/**
+ * Whether the completion REPLACE RANGE should extend over `at` — {@link idContinuesAt}, plus a
+ * `-` unconditionally.
+ *
+ * ⚠ **`end` IS NOT A PARSE CLAIM, AND THIS IS THE ONE PLACE THE TWO QUESTIONS DIVERGE.** It
+ * answers *what has the author typed as part of this token*, so that accepting a completion
+ * replaces all of it; {@link refIdAt} answers *what does Pandoc consume*, and stays exactly
+ * faithful (`@sec-x-` really is the token `sec-x` — `cal/cal.qmd` t07). Only `-` is treated
+ * permissively, because it is the one punctuation character every cross-ref id already
+ * contains — the kind prefix guarantees at least one — so an author who has just typed a
+ * hyphen is still composing the id, while a `.` or `:` at the end of a token is far more
+ * likely to be the sentence's punctuation.
+ *
+ * ⚠ The invariant this buys is mechanical and was checked over 321,236,210 columns: the
+ * replace range NEVER shrinks against the pre-session build, so no accepted completion can
+ * strand a character the old scanner would have replaced. Session 220 shipped that defect
+ * twice — once for the kind prefix's hyphen, once for a name's — and found both only by
+ * sweeping `end` rather than by testing the id.
+ */
+function replaceRangeContinuesAt(lineText: string, at: number): boolean {
+  return lineText[at] === "-" || idContinuesAt(lineText, at);
 }
 
 /**
@@ -296,14 +313,12 @@ export function crossrefCompletionContext(
   // Walk forward over the rest of the token the cursor is sitting inside, so the
   // whole `@id` (not just up to the cursor) can be replaced on accept.
   //
-  // ⚠ **THE KIND PREFIX'S OWN `-` IS STRUCTURAL AND IS ALWAYS COVERED.** `@sec-` is what an
-  // author types to summon the list, and the follower rule alone would stop before that
-  // hyphen (nothing follows it yet) — so accepting `@sec-intro` would leave `@sec-intro-`.
-  // That is the mid-token-accept duplication `core/citations.ts` records, and Session 220
-  // shipped it in C2 before its own sweep of 42,657 lines found all 183 occurrences.
-  const prefix = REF_KIND_PREFIX.exec(lineText.slice(i + 1));
-  let end = prefix === null ? column : Math.max(column, i + 1 + prefix[0].length);
-  while (end < lineText.length && idContinuesAt(lineText, end)) {
+  // ⚠ **A `-` IS ALWAYS COVERED** — see {@link replaceRangeContinuesAt}. `@sec-` is what an
+  // author types to summon the list, and the follower rule alone stops before that hyphen
+  // (nothing follows it yet), so accepting `@sec-intro` would leave `@sec-intro-` behind.
+  // That is the mid-token-accept duplication `core/citations.ts` records.
+  let end = column;
+  while (end < lineText.length && replaceRangeContinuesAt(lineText, end)) {
     end++;
   }
   return { start: i, typed: lineText.slice(i + 1, column), end };

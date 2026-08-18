@@ -415,4 +415,60 @@ describe("Quarto: Cross-reference completion + definition", () => {
       "the pandoc control lands on the last id",
     );
   });
+
+  it("S220: go-to-definition resolves a reference to an id holding a ':'", async () => {
+    // ⚠ THE FILED DEFECT AT THE SURFACE AN AUTHOR MEETS IT ON. `# Methods {#sec-meth:ods}` is
+    // indexed correctly and quarto renders `@sec-meth:ods` as a resolved cross-reference
+    // (scratchpad/s220/cal/rt.qmd R01), but the use-side scanner truncated the token at the
+    // colon, so `findLabel` was handed `sec-meth` and returned null — no navigation at all.
+    // Pre-checked headlessly (`scratchpad/s220/pre/precheck220.test.ts`).
+    const content = ["# Methods {#sec-meth:ods}", "", "See @sec-meth:ods here."].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+      "vscode.executeDefinitionProvider",
+      doc.uri,
+      new vscode.Position(2, 8),
+    );
+    const at = locs?.[0];
+    assert.ok(at, "a reference to an id containing ':' resolves");
+    assert.deepStrictEqual(
+      { line: at!.range.start.line, character: at!.range.start.character },
+      { line: 0, character: 12 },
+      "go-to-definition lands on the id text in the heading's attribute block",
+    );
+  });
+
+  it("S220: completion still fires once a ':' has been typed, and replaces the whole token", async () => {
+    // ⚠ THE SURFACE THAT DID NOT TRUNCATE BUT DIED. The old scanner walked [A-Za-z0-9_-], so
+    // the backward walk stopped ON the colon, never reached the '@', and the provider was
+    // handed a null context — the author was offered nothing at all after typing a ':'.
+    const content = ["# Methods {#sec-meth:ods}", "", "See @sec-meth:o"].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(2, 15),
+      "@",
+    );
+    const items = list?.items ?? [];
+    assert.ok(
+      items.map(labelText).includes("@sec-meth:ods"),
+      `completion should still offer @sec-meth:ods after a ':'; got ${JSON.stringify(items.map(labelText))}`,
+    );
+    // And the replace range must span the whole `@sec-meth:o` token, or accepting duplicates
+    // the part already typed.
+    const item = items.find((i) => labelText(i) === "@sec-meth:ods");
+    const range = replaceRange(item!);
+    assert.ok(range, "the completion item carries a replace range");
+    assert.deepStrictEqual(
+      {
+        start: range!.start.character,
+        end: range!.end.character,
+      },
+      { start: 4, end: 15 },
+      "the replace range covers the '@' through the end of the typed token",
+    );
+  });
 });
