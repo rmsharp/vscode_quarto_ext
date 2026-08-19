@@ -5,11 +5,83 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 226 — IMPLEMENTATION (strict TDD): inside a block quote, a BLOCK CONSTRUCT closes a paragraph pandoc keeps open, and an UNMARKED line below a quote is a LAZY CONTINUATION.** (IN PROGRESS) Closes the item Session 225 filed and ranked #1 — its own 24 introduced phantoms in 46,556 documents, pinned in both directions at `test/unit/qmd-model.test.ts` R1 and R2.
-**Started:** 2026-08-19
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
-**Deliverable (ONE capability):** *a block quote carries its own BLOCK state, so a construct inside it is judged in the quote's context rather than from the line alone* — one intent, per-layer checkpoint commits.
+**Task:** **Session 226 — IMPLEMENTATION (strict TDD): a closer that closes NOTHING is not a closer.** Closes the item Session 225 filed and ranked #1 — its R1/R2 residual pins.
+**Started:** 2026-08-19 · **Closed:** 2026-08-19
+**Status:** **DONE. SHIPPED — and the session's finding is that the filed item was scoped wrong: the defect had nothing to do with block quotes, and my own designed corpus said the change was safe while it was deleting 39 real headings.**
+
+**HEADLINE 1 — THE ITEM WAS FILED "INSIDE A QUOTE" AND THE RENDERS REFUTE THAT.** Session 225 sized it at 24 documents in 46,556 and said *"both need the quote's own BLOCK state — scope as the next slice of the container capability."* Rendered BOTH ways from identical bytes, quarto's answer inside a block quote is **identical** to its answer at top level on **all 13 shapes**, and this model was wrong on the same three constructs in both places. The real size was **405 movers**, ~17× the estimate. The tell cost one round of renders: the item named a container, so the first corpus put the same bytes inside it and outside it. A quote-scoped fix would have been the same code minus one condition, would have left the identical top-level phantom standing, and would have put an arbitrary container test in a rule that has nothing to do with containers. (Learning #398.)
+
+**HEADLINE 2 — ⚠ MY DESIGNED CORPUS SCORED 78/78 WITH INTRODUCED 0 WHILE THE BUILD WAS DELETING 39 REAL HEADINGS.** Four rounds, 78 documents, predictions frozen and SHA-256'd before every render, 27 recoveries, INTRODUCED 0 — and the sweep then found three deletion families my corpus had no shape for: a one-line `\begin{x}…\end{x}` (19), a div opener sharing its line with a LIST MARKER (18), and an `\end{}` matched by DEPTH rather than NAME, so a lookalike inside a `verbatim` block consumed it (2). A corpus I designed from my own model of the rule cannot falsify that model. **The designed corpus proves the rule I wrote is the rule I meant; only the sweep proves it is the rule the tool has.** (Learning #399.)
+
+**HEADLINE 3 — WHEN A PREDICATE'S FAILURE IS A DELETION, EVERY INCOMPLETENESS IN ITS EVIDENCE-GATHERING IS A DELETION TOO.** Three of the four sweep-found deletions were one mistake in three costumes: an index reading the FIRST `\end{}` per line missed `\end{b}\end{a}`; a lookahead asking for a match STRICTLY BELOW missed a one-line environment; a depth counter ignoring names let a lookalike consume a real closer. Over-matching only forgoes a recovery and returns the pre-session answer; **under-matching deletes.** So the scan is global, the test is `>= i`, and the stack holds NAMES. ⚠ One of the three I found by re-reading my own diff and then rendering the row — not by the sweep. (Learning #400.)
+
+**THE measurement.**
+
+| corpus | scale | what it measures | score |
+|---|---|---|---|
+| `r1/` | 29 documents | 13 shapes rendered BOTH ways — the scoping question | **27/29** predicted; ⚠ both misses one rule |
+| `r2/` | 28 documents | the guard: every opener spelling that must stay an opener | 23/28; ⚠ 5 misses, all one rule |
+| `r3/` | 16 documents | can an OPENER interrupt an open paragraph? | 15/16 |
+| `r4/` | 5 documents | the two-`\end` line, and divs in list items | 4/5 |
+| designed total | **78 documents** | this model vs quarto, scored pre and post | **47 → 77, INTRODUCED 0** |
+| repo sweep | 113 documents | every tracked markdown file | **1 mover — a RECOVERY**, verified |
+| corpus sweep | **47,125 documents** | every predecessor corpus | **405 movers, ALL (1 removed, 0 added)** |
+| mover re-render | **454 documents** | every distinct mover, rendered and scored | **39 → 397 correct, 358 recovered, INTRODUCED 0** |
+
+⚠ **ZERO DELETIONS AT SHIP**, reached by fixing four, not by trading them away. The 39 the sweep found are all closed; each was adjudicated by re-rendering the row, never by reasoning.
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** S204's gotcha 5 inherited a TWENTY-FIRST time. This is a **NARROWING**, so the guard is per shape whose heading must NOT disappear. **16 `it()`s green BEFORE the change.** ⚠ **The guard caught a shortcut within the minute** — inferring "a `...` reaching `closesParagraph` terminates nothing" from where the code sits deleted two real headings, because `consumedMetadataLines` reads RAW lines (a quoted block is invisible to it) and recognises only a blank-preceded span. **10 RED→GREEN cycles**, each RED confirmed to fail for the right reason. **3 predecessor pins REVERSED**, each against its own re-rendered witness: S225's R1, S225's R2, and a Session 183 assertion in `test/integration/suite/outline.test.ts`.
+
+**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / 0 failing / exit 0**, the reversed test watched **BY NAME** at line **338** of `scratchpad/s226/integration.log`. Assertions pre-checked headlessly first (`scratchpad/s226/precheck226.test.ts`, S211's gotcha 3 for a FIFTEENTH session). ⚠ Two `failing` grep matches are a CLEAN run — both are the test NAMED "surfaces a failing render" (S205's gotcha 7, an EIGHTEENTH time). ⚠ `src/` did NOT change after the run.
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `compile-tests` **0** · `npm test` **2283 passed / 66 files** (baseline 2257, **+26**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S225) · `check-package` **OK 42 files / 5.57 MB** · `check-backlog` **OK, 163 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** **No BLIND sweep** — subagent fan-out unavailable under a session-level instruction, the **NINETEENTH** session running. And `j05`/`h03` are bounded by measurement and filed, not fixed.
+
+**What was done (commits).** 1B claim `b1233ec0`. **GUARD** `d39545b0` — 16 `it()`s green before the change. **C1** `cdeddcd2` — the `:::` half, plus R1 reversed. **C2** `04588c96` — the `...` half, after the guard refuted the shortcut. **C3+C4** `7e27603d` — the TeX environment halves. **C5** `c0cc18b5` — the line block's own container, plus R2 reversed. **C6** `7cf83f6b` — the two-`\end` line, found by re-reading the diff. **SWEEP FIXES** `10d9377c` — the four deletions the 47,125-document sweep found, plus the reversed integration assertion. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 2 filed), `PROJECT_LEARNINGS.md` (#398–#400), `SESSION_NOTES.md` and `HANDOFFS.md`.
+**Ledger:** `CHANGELOG: 2026-08-19 · [ad hoc] Session 226` — written at close-out with the `BACKLOG.md` drain.
+
+**Deliverable (ONE capability):** *a `:::` / `...` / `\begin{}` / `\end{}` line is judged against the block state, so a closer that closes nothing is ordinary paragraph text* — one intent, per-layer checkpoint commits.
+
+**Gotchas for the next session.**
+1. **⚠ A FILED ITEM'S SCOPE IS AN INHERITED HYPOTHESIS, NOT A MEASUREMENT.** When an item names a container ("inside a quote", "in a list item", "under `commonmark_x`"), render the twin WITHOUT the container before writing a line of code. One round of renders refuted this item's central scoping sentence and changed the shape of the whole session. (Learning #398.)
+2. **⚠ A CORPUS YOU DESIGNED CANNOT FALSIFY THE RULE YOU DESIGNED IT FROM.** 78/78 with INTRODUCED 0 is not evidence of safety. Sweep, render EVERY mover, and re-sweep after each fix — the mover set changes under you. (Learning #399.)
+3. **⚠ OVER-MATCH, NEVER UNDER-MATCH, WHEN THE FAILURE IS A DELETION.** Scan globally, match by name, and prefer `>=` to `>`. Every incompleteness in the evidence is a heading that vanishes. (Learning #400.)
+4. **⚠ THE `unmatchedConstruct` SHORT-CIRCUIT RETURNS `false`, NOT A FALL-THROUGH, AND THAT IS DELIBERATE.** An unmatched fence does not merely fail to close a paragraph — with none open it STARTS one. `r2/g14` (`:::` / `# H`) renders one paragraph containing both lines, and a fall-through would report the heading.
+5. **⚠ `divDepth` IS MAINTAINED ONLY ON BODY LINES, WHICH IS WHY A `:::` INSIDE A CODE FENCE DOES NOT COUNT** (`r3/h09`, rendered). Do not hoist it above the region walk.
+6. **⚠ AN INDENTED DIV CLOSER IS THE NEXT SHAPE TO BREAK IT, AND IT IS FILED.** A closer must sit at its CONTAINER's content column — 0 at top level, 2 inside a `- ` item — and `DIV_FENCE` allows `^ {0,3}` everywhere. `r4/j05` is the phantom, `r4/j04` is the control that forbids the obvious anchor fix. 126 corpus documents carry the shape.
+7. **⚠ THE HARNESS IS REUSABLE AND WAS INHERITED, NOT WRITTEN** — S225's gotcha 7 held exactly. `scratchpad/s226/` — `sweep.test.ts` + `vitest.sweep.config.ts` (point `S226_LIST` at any file list), `presrc/` (`git archive` of the 1B commit), `r1score.test.ts` (set `S226_ROUND=r1|r2|r3|r4`), `allscore.test.ts` + `all/` (454 rendered movers + `TRUTH.json` + `MAP.json`), **`extract.py` (NEW — the heading extractor, VALIDATED 45/45 against S225's own `GROUND.json` before being trusted; do this before believing any extractor)**, `mkr1.py`–`mkr4.py`, `precheck226.test.ts`, `probe.test.ts`. Extend rather than rewrite.
+8. **⚠ ZSH'S PERSISTENT `cd` COST ME TWO COMMANDS AGAIN** — a `python3 -c` with `sys.path.insert(0,'scratchpad/s226')` ran from `scratchpad/s226/r4` and could not import its own extractor. TWENTIETH session running. Use absolute paths.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Every claim below was checked against THIS session's own rendered rows.
+
+**#1 — NEW, and it is this session's own residual: an INDENTED div closer is paragraph text and this model treats it as a closer.** `r4/j05` rendered; 126 corpus documents carry the shape; **PRE-EXISTING and unmoved**, but this session's depth rule makes it more reachable. Effort **estimate** LOW–MEDIUM. ⚠ The fix is the `contentColumns` machinery Sessions 189/193/194 already built — **not** a tighter anchor, which `r4/j04` measures as worse.
+**#2 — NEW: `---` under a ONE-line paragraph is a setext underline; under a TWO-line paragraph it is an EM DASH.** `r3/h03` vs `r1/t_tbreak`, both rendered. LOW.
+**#3 — a SETEXT heading inside a quote**, S225's, blocked on `consumedMetadataBlockLines` reading raw lines. LOW, and ⚠ fix the pre-pass first.
+**#4 — a quote inside a LIST ITEM, and the CommonMark HTML block inside a quote**, S225's. LOW. ⚠ This session closed the *div* half of the list-item anchoring gap (`LIST_MARKER_PREFIX`); the quote half is the same shape and the same one-line fix.
+**#5 — the display-math and table-caption phantoms** (5 measured shapes, S222's, and ⚠ the fix is NOT the attribute-block rule). **#6 — the rest of "a group with nothing in front of it"**. **#7 — a `)` or `]` that closes nothing reads as adjacency**, S222's. **#8 — the `commonmark_x` VALIDITY half, never asked**, S222's. **#9 — the indented-div over-fire whose one-character fix is MEASURED to be worse**, S222's. **#10 — the `sec-` scope decision on a fence**, S223's, VERY LOW. **#11 — a SECOND adjacent attribute block on an image**, S221's. **#12 — the `@`-is-an-email test is `notAfterString`**, S220's. **#13 — the completion scanner walks UTF-16 code units**, S220's. **#14 onward — unchanged from S225's list.** ⚠ **Still open from S186:** promote the scratchpad harness, `.vscode-test/` at 18 GB, `npm audit` 5 high + 1 moderate, devDependency-only.
+
+## Session 225 Handoff Evaluation (by Session 226)
+
+**Score: 8/10.**
+
+**What helped, specifically.** (a) **Gotcha 1 is the reason this session did not ship 39 deleted headings.** "A container strip is two changes and the second is invisible to a designed corpus — sweep for movers in both directions and adjudicate every one against its own render." My designed corpus said 78/78, INTRODUCED 0. The sweep said 39 real deletions. I had the instruction in front of me and still needed it. (b) **Gotcha 7's harness inventory was accurate and complete again** — `sweep.test.ts`, `presrc/`, `allscore.test.ts` and the `S225_LIST` variable all worked after a `sed` rename, which is most of a day's tooling inherited free. (c) **Gotcha 6 paid off directly**: it told me my extractor would be wrong, so I validated mine against S225's own `GROUND.json` (45/45) before trusting it, and never had to debug a scoring artefact. (d) The R1/R2 pins were pinned **in both directions**, so reversing them was a deliberate, visible act rather than a silent drift.
+
+**What was missing.** The item's **sizing note gave no way to test its own scope**. It asserted "both need the quote's own BLOCK state" as if that were measured; it was an inference from a quote-focused session, and it was wrong. One sentence — "the top-level twin was not rendered" — would have flagged it. This is the difference between 8 and 10.
+
+**What was wrong.** The scope and the size. The defect is not quote-specific (13 shapes, rendered both ways, identical answers), and the true size is 405 movers rather than 24 — ~17×. ⚠ Also gotcha 5 ("a decline inside a quote is FREE") stopped being true the moment S225 shipped: its 295 recoveries are now the baseline, so a decline inside a quote can cost one of them. Everything the item said about the *quoted* rows themselves held exactly.
+
+**ROI.** Strongly positive, and concentrated in the method rather than the content: the sweep-and-adjudicate discipline was worth more than the item's own description of the defect, which was half wrong.
+
+## Session 226 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.** (a) **Zero deletions at ship, reached by fixing four rather than trading them away** — and 358 recoveries against 39 correct before. (b) **I rendered every mover (454) rather than sampling**, then RE-SWEPT after each fix and rendered the 2 documents that newly moved; that is the only reason I can state the deletion count rather than estimate it. (c) **Predictions frozen and SHA-256'd before every render** — 69/78 across four rounds, and every single miss became a finding. (d) **I checked in on the scope fork** instead of unilaterally widening or narrowing, and brought measured evidence to the question. (e) **I predicted the div-in-list deletion family before the renders came back**, from the 35 movers carrying an indented `:::`, and said so on the record. (f) **I found one deletion by re-reading my own diff**, then rendered the row to prove it rather than patching on suspicion. (g) The guard earned itself twice in one session.
+
+**What went wrong.** (a) ⚠ **I over-trusted a corpus I designed.** 78 documents, four rounds, INTRODUCED 0 — and 39 real deletions. Three families I had no shape for, because the imagination that wrote the rule also wrote the corpus. (b) ⚠ **I shipped a shortcut into `closesParagraph`** — inferring the `...` rule from where the code sits rather than from block state — and only the guard stopped it deleting two headings. That was a reasoning step where the session's own method said "measure". (c) I lost two commands to zsh's persistent `cd`, twentieth session running, with the gotcha in front of me. (d) The session ran long, because each sweep fix invalidated the sweep and required a full re-render pass.
+
+**Compared to the standard.** Above Session 225 on the deletion metric (0 introduced vs 24) and on adjudication rigour (every mover rendered, then re-swept and re-rendered after each fix — no predecessor has re-run the sweep to fixpoint). At par on measurement discipline. Below the bar I would like on corpus design: the designed corpus was insufficient in a way that would have shipped 39 deletions on its own.
 
 
 ## Session 225 ACTIVE TASK (superseded by Session 226 — full entry preserved below)
