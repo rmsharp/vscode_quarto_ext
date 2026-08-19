@@ -10212,3 +10212,23 @@ describe("Session 227 GUARD — a fence at its container's own column keeps its 
     expect(headings([":::", "# H g14"])).toEqual([]);
   });
 });
+
+// ── Session 227 — a `:::` line is a fence only at its container's own column ───
+//
+// `DIV_FENCE` was anchored at `^ {0,3}`, which is CommonMark's leading-space tolerance for a
+// code fence. A pandoc div has no such tolerance: its colon run must begin exactly where the
+// enclosing block's content begins — the same absolute equality `setextUnderlineLevel` and
+// `atxHeadingMatch` already apply — so ` {0,3}` is wrong in BOTH directions. It accepts a
+// `:::` one to three columns off at the top level (a phantom), and it refuses every fence in a
+// container deeper than column 3 (a DELETED heading).
+//
+// Rows are named for the rendered document that measured them under `scratchpad/s227/`.
+describe("Session 227 — the `:::` line's own column", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("C1: an INDENTED closer at top level closes nothing, so the line below is paragraph text (`r1/k03`)", () => {
+    // Rendered: `<div class="note"><p>body text ::: # H k03</p></div>` — ONE paragraph, the
+    // indented `:::` and the `#` line both absorbed into it as lazy continuations.
+    expect(headings(["::: {.note}", "body text", "  :::", "# H k03"])).toEqual([]);
+  });
+});

@@ -3536,18 +3536,38 @@ const YAML_BLOCK_TERMINATOR = /^ {0,3}\.\.\.[ \t]*$/;
  */
 const YAML_BLOCK_OPENER = /^ {0,3}-{3,}[ \t]*$/;
 /**
- * Whether `line` is a div fence and, if so, whether it opens or closes — see `DIV_FENCE`.
+ * Everything on `line` up to the start of its colon run, so the run's own COLUMN can be
+ * measured (Session 227). `[^:]*` cannot cross a colon, so this stops at the FIRST one — the
+ * start of the run in every spelling `DIV_FENCE` accepts, including the one behind a
+ * `LIST_MARKER_PREFIX`, whose marker carries no colon.
+ */
+const COLON_RUN_START = /^([^:]*):{3,}/;
+/**
+ * Whether `line` is a div fence and, if so, whether it opens or closes, and at WHICH COLUMN
+ * its colon run begins — see `DIV_FENCE`.
+ *
+ * ⚠ **The column is what decides whether this is a fence at all, and the caller applies it**
+ * (Session 227), because only the caller knows the enclosing block's content column. The
+ * column is measured from the run's start rather than from `indentColumn`, so the
+ * `- ::: mydiv` spelling reports the column the colons really sit at (2) rather than the
+ * line's own indent (0).
  */
 function divFenceRole(line: string): {
   role: "open" | "close";
   viaListMarker: boolean;
+  column: number;
 } | null {
   const own = DIV_FENCE.exec(line);
   const m = own ?? DIV_FENCE.exec(line.replace(LIST_MARKER_PREFIX, ""));
   if (m === null) {
     return null;
   }
-  return { role: m[1].trim() === "" ? "close" : "open", viaListMarker: own === null };
+  const before = COLON_RUN_START.exec(line);
+  return {
+    role: m[1].trim() === "" ? "close" : "open",
+    viaListMarker: own === null,
+    column: before === null ? indentColumn(line) : columnAtOffset(line, before[1].length),
+  };
 }
 /**
  * A block-quote marker, for `paragraphQuoted` — see `closesParagraph`.
@@ -3770,6 +3790,20 @@ function indentColumn(line: string): number {
     } else {
       break;
     }
+  }
+  return col;
+}
+/**
+ * The COLUMN at character offset `offset` of `line` (Session 227) — the same tab arithmetic
+ * `indentColumn` applies, but continuing past the first non-whitespace character instead of
+ * stopping there. `divFenceRole` needs it because a `- ::: mydiv` fence's colon run starts
+ * after a marker, not after an indent, and only a column can be compared against the
+ * container stack.
+ */
+function columnAtOffset(line: string, offset: number): number {
+  let col = 0;
+  for (let k = 0; k < offset && k < line.length; k++) {
+    col += line[k] === "\t" ? 4 - (col % 4) : 1;
   }
   return col;
 }
@@ -5728,6 +5762,19 @@ function computeRegions(text: string): Regions {
       // overwritten immediately below.
       const divFence = divFenceRole(line);
       const divRole = divFence?.role ?? null;
+      // ⚠ **A CLOSER MUST SIT AT ITS CONTAINER'S OWN CONTENT COLUMN, AND ` {0,3}` IS NOT THAT**
+      // (Session 227). Rendered, `::: {.note}` / `body text` / `  :::` is ONE paragraph —
+      // `<p>body text ::: # H k03</p>` — because pandoc's `divFenceEnd` reads the colon run
+      // with no leading-space parser at all, so the run must begin exactly where the enclosing
+      // block's content does. The set is `[0, ...contentColumns]`, the same array the setext
+      // underline and the ATX heading are measured against, because a shallow line is absorbed
+      // LAZILY into the open paragraph of the container above it and appended RAW: `- item` /
+      // `  ::: {.note}` / `  body text` / `:::` closes at column 0 (`r1/k17`), and a
+      // three-deep `    :::` closes at the OUTER item's column 2 (`r2/m02`). Column 1 belongs
+      // to no container and closes nothing at either depth (`r1/k18`, `r2/m11`).
+      const divFenceColumns = [0, ...contentColumns];
+      const divAtColumn: boolean =
+        divFence !== null && divFenceColumns.includes(divFence.column);
       // ⚠ **A LIST MARKER BEGINS A FRESH BLOCK, so an opener behind one interrupts nothing.**
       // The last 2 of the sweep's 39 deletions: `- item a` / `- ::: mydiv` / `  line one` /
       // `:::` / `# ATX Below` leaves a paragraph open at the marker line, and declining the
@@ -5781,13 +5828,13 @@ function computeRegions(text: string): Regions {
             : texEndPops > 0;
       const unmatchedConstruct: boolean =
         divRole === "close"
-          ? divDepth === 0
+          ? !divAtColumn || divDepth === 0
           : divRole === "open"
             ? divOpenerInterrupts
             : texEnv !== null
               ? !texEnvMatched
               : yamlTerminates && !metadataBlockOpen;
-      if (divRole === "close" && divDepth > 0) {
+      if (divRole === "close" && divAtColumn && divDepth > 0) {
         divDepth--;
       } else if (divRole === "open" && !divOpenerInterrupts) {
         divDepth++;
