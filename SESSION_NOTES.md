@@ -5,6 +5,17 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 227 — IMPLEMENTATION (strict TDD): an INDENTED `:::` div closer is ordinary paragraph text, not a closer.** Closes the item Session 226 filed and ranked #1 — its own Round 4 residual.
+**Started:** 2026-08-19
+**Status:** Session claimed. Work beginning.
+**Deliverable (ONE capability):** *a `:::` line closes a div only when it sits at its CONTAINER's own content column* — one intent, per-layer checkpoint commits.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**The filed item, as inherited (an inherited hypothesis, not a measurement — S226's gotcha 1).** `::: {.note}` / `body text` / `  :::` renders ONE paragraph (`<p>body text ::: # H j05</p>`), so an indented bare `:::` closes nothing; `DIV_FENCE` allows `^ {0,3}` everywhere. The two agreeing controls are `r2/g08` (a column-0 closer, which DOES close) and `r4/j04` (a closer at a LIST ITEM's own content column, which DOES close). ⚠ The fix is the `contentColumns` machinery Sessions 189/193/194 already built, NOT a tighter `^:::` anchor, which `r4/j04` measures as worse. 126 corpus documents carry the shape.
+
+---
+
+## Session 226 ACTIVE TASK (superseded by Session 227 — full entry preserved below)
 **Task:** **Session 226 — IMPLEMENTATION (strict TDD): a closer that closes NOTHING is not a closer.** Closes the item Session 225 filed and ranked #1 — its R1/R2 residual pins.
 **Started:** 2026-08-19 · **Closed:** 2026-08-19
 **Status:** **DONE. SHIPPED — and the session's finding is that the filed item was scoped wrong: the defect had nothing to do with block quotes, and my own designed corpus said the change was safe while it was deleting 39 real headings.**

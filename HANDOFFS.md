@@ -18,6 +18,18 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S227
+date: 2026-08-19
+status: pending
+self_score: TBD
+predecessor_score: TBD
+active_task: IN PROGRESS. An INDENTED `:::` div closer is ordinary paragraph text and this model treats it as a closer. Closes the item Session 226 filed and ranked #1 (its own Round 4 residual, r4/j05 rendered).
+what_was_done: Session claimed at Phase 1B. Phase 0 reconcile found NOTHING owed -- both frontiers WERE HEAD (911ed697, gap 0), zero `status: pending` receipts, no ghost sessions, 163 open backlog items. Work beginning.
+measurement: pending
+runtime_smoke: pending
+key_files: src/core/qmd/model.ts -- `DIV_FENCE`, `divFenceRole`, `contentColumns` (Sessions 189/193/194), `divDepth` in computeRegions.
+
+```handoff
 session: S226
 date: 2026-08-19
 status: complete
