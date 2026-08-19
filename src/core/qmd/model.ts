@@ -3471,6 +3471,23 @@ const CLOSER_LINE = /^ {0,3}(?::{3,}|\.\.\.[ \t]*$)/;
  */
 const DIV_FENCE = /^ {0,3}:{3,}[ \t]*(.*)$/;
 /**
+ * A mid-document YAML metadata block's `...` terminator, on its own line (Session 226). The
+ * same spelling `CLOSER_LINE` and `CLOSES_PARAGRAPH` each carry, named here because the caller
+ * asks a different question of it — not "is this a terminator?" but "is there a block for it
+ * to terminate?" See `computeRegions`, where reaching the test is itself the answer.
+ */
+const YAML_BLOCK_TERMINATOR = /^ {0,3}\.\.\.[ \t]*$/;
+/**
+ * A mid-document YAML metadata block's OPENING `---` line (Session 226) — three or more
+ * dashes and nothing else.
+ *
+ * ⚠ **Deliberately not `THEMATIC_BREAK` and not `SETEXT_UNDERLINE_RUN`, though the same bytes
+ * satisfy all three.** This one is asked only "could a `...` below have a block to terminate?",
+ * and it never changes what `closesParagraph` answers for the `---` line itself, which stays a
+ * thematic break exactly as before.
+ */
+const YAML_BLOCK_OPENER = /^ {0,3}-{3,}[ \t]*$/;
+/**
  * Whether `line` is a div fence and, if so, whether it opens or closes — see `DIV_FENCE`.
  */
 function divFenceRole(line: string): "open" | "close" | null {
@@ -4865,6 +4882,9 @@ function computeRegions(text: string): Regions {
   // `closesParagraph`'s `unmatchedConstruct`. Maintained only on body lines, so a `:::` inside
   // a fenced CODE block never counts (`scratchpad/s226/r3/h09`, rendered).
   let divDepth = 0;
+  // Whether a mid-document YAML metadata block is open at this line — the same block state,
+  // for the `...` terminator. See `YAML_BLOCK_OPENER`.
+  let metadataBlockOpen = false;
   let quoteOpen = false;
   // Whether a BLOCK QUOTE is open on this line — the state the marker strip at the top of the
   // loop maintains (Session 225). Distinct from `quoteOpen`, which is the pre-session fail-safe
@@ -5636,12 +5656,37 @@ function computeRegions(text: string): Regions {
       // renders the heading (`r3/h04`). `paragraphOpen` is still the line ABOVE's here; it is
       // overwritten immediately below.
       const divRole = divFenceRole(line);
+      // ⚠ **"A `...` THAT REACHES HERE TERMINATES NOTHING" IS REFUTED, AND THE GUARD CAUGHT IT
+      // WITHIN THE MINUTE.** `consumedMetadataLines` does skip a block it recognises — but it
+      // reads RAW lines, so a QUOTED block is invisible to it (`r2/q_g09`, a rendered heading
+      // that rule deleted), and it recognises only a blank-preceded span under a reader that
+      // consumes one, so Session 180's own `intro` / `---` / `subtitle: mid` / `...` / `# foo`
+      // row reaches here too and really does render its heading. So the terminator needs the
+      // same block state the div fence needs, not an inference from where it was tested.
+      const yamlOpens = YAML_BLOCK_OPENER.test(line);
+      const yamlTerminates = YAML_BLOCK_TERMINATOR.test(line);
       const unmatchedConstruct: boolean =
-        divRole === "close" ? divDepth === 0 : divRole === "open" ? paragraphOpen : false;
+        divRole === "close"
+          ? divDepth === 0
+          : divRole === "open"
+            ? paragraphOpen
+            : yamlTerminates && !metadataBlockOpen;
       if (divRole === "close" && divDepth > 0) {
         divDepth--;
       } else if (divRole === "open" && !paragraphOpen) {
         divDepth++;
+      }
+      // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS
+      // OVERLOADED AS `---`.** A `-{3,}` line is already a thematic break to `closesParagraph`
+      // and stays one; all this records is that a metadata block MIGHT be open, so a later
+      // `...` is judged matched rather than unmatched. Against an OPEN paragraph a `---` opens
+      // nothing — rendered, `para one` / `para two` / `---` / `# H` is ONE paragraph with the
+      // dashes as an EM DASH (`r1/t_tbreak`), and `para one` / `---` / `key: v` / `...` / `# H`
+      // renders the setext `<h2>para one</h2>` and no `H` at all (`r3/h03`).
+      if (metadataBlockOpen && (yamlOpens || yamlTerminates)) {
+        metadataBlockOpen = false;
+      } else if (yamlOpens && !paragraphOpen) {
+        metadataBlockOpen = true;
       }
       const wasParagraphOpen: boolean = paragraphOpen;
       paragraphOpen = !closesParagraph(

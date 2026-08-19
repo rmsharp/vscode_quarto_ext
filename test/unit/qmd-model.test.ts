@@ -9964,4 +9964,14 @@ describe("Session 226 — the `:::` / `...` / `\\end{}` family", () => {
     expect(headings(["para one", "para two", ":::", "# H t_div3"])).toEqual([]);
     expect(headings(["> para one", "> para two", "> :::", "> # H q_div3"])).toEqual([]);
   });
+
+  it("C2: a `...` with no metadata block open closes nothing (`r1/t_yamlend`)", () => {
+    // Rendered: `<p>para one para two ... # H t_yamlend</p>`, one paragraph, quoted and not.
+    // ⚠ A `...` that really terminates a mid-document metadata block never reaches
+    // `closesParagraph` at all — `consumedMetadataLines` skips the whole span with a
+    // `continue` — so reaching this point IS the evidence that it terminates nothing. The
+    // guard's `r2/g09` is the row that proves the real terminator still works.
+    expect(headings(["para one", "para two", "...", "# H t_yamlend"])).toEqual([]);
+    expect(headings(["> para one", "> para two", "> ...", "> # H q_yamlend"])).toEqual([]);
+  });
 });
