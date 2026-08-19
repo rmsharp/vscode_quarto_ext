@@ -9794,21 +9794,18 @@ describe("Session 225 — constructs inside a block quote", () => {
     expect(headings(["", "```{#lst-c03 bad}", "", "# Not A Heading", "", "```", ""])).toEqual([]);
   });
 
-  it("R1: ⚠ DISCLOSED RESIDUAL — a block construct inside a quote closes a paragraph pandoc keeps open", () => {
-    // Rendered: `> line one` / `> line two` / `> :::` / `> # ATX Below` renders NO heading —
-    // inside a quote the `:::` is ordinary paragraph text, so `blank_before_header` declines the
-    // ATX below it (`scratchpad/s183/c3/R3div_bq_mark__open`, re-rendered by this session's
-    // mover sweep, with the `...`, grid-border, pipe-row, tab-row, `\begin{}` and line-block
-    // spellings of the same document agreeing). This model reports the heading.
+  it("R1: ⚠ REVERSED BY SESSION 226 — the `:::` closes nothing, so it does not close the paragraph", () => {
+    // ⚠ **This row was Session 225's own disclosed residual and is now CLOSED.** It read
+    // `.toEqual(["Residual One"])`, pinning the phantom in both directions so it could not
+    // move unnoticed; Session 226 re-rendered it (`scratchpad/s226/r1/q_div3`, and the
+    // top-level twin `t_div3`) and the pin is reversed against that render.
     //
-    // ⚠ It is one of 24 documents in 46,556 where this session's strip introduces a phantom,
-    // against 295 it recovers, and every one is a construct whose block-ness this scanner
-    // decides from the line ALONE. Modelling it needs the quote's own block state, which is the
-    // container capability this deliverable is bounded away from. Filed. Pinned in BOTH
-    // directions so a future session cannot move it unnoticed.
-    expect(headings(["> line one", "> line two", "> :::", "> # Residual One", ""])).toEqual([
-      "Residual One",
-    ]);
+    // Rendered: `<p>para one para two ::: # H</p>` — ONE paragraph. Inside a quote the `:::`
+    // is ordinary paragraph text, because no div is open for it to close, so
+    // `blank_before_header` declines the ATX below it. ⚠ **The top-level twin renders
+    // IDENTICALLY** — the construct decides this, not the container, which is why the fix is
+    // `divFenceRole` plus a depth rather than anything quote-specific.
+    expect(headings(["> line one", "> line two", "> :::", "> # Residual One", ""])).toEqual([]);
     // The CONTROL that makes the pin mean something: with the construct gone, quarto and this
     // model agree that no heading is reported either.
     expect(headings(["> line one", "> line two", "> # Residual One", ""])).toEqual([]);
@@ -9942,5 +9939,29 @@ describe("Session 226 GUARD — a closer that really closes keeps its heading", 
     expect(
       headings(["> para one", ">", "> ::: {.note}", "> body text", "> :::", "> # H q_h04"]),
     ).toEqual(["H q_h04"]);
+  });
+});
+
+// ── Session 226 — a closer that closes NOTHING is not a closer ─────────────────
+//
+// `CLOSER_LINE` and `RAW_TEX_ENV_OPEN` are tested AHEAD of `closesParagraph`'s `paragraphOpen`
+// bail because a closer follows its own construct's content, so to a per-line scanner it
+// always looks like it sits against an open paragraph. That is right for a closer that really
+// closes something and wrong for one that does not — and the two are indistinguishable from
+// the line alone, which is the whole defect. Rows are named for the rendered document that
+// measured them under `scratchpad/s226/`.
+//
+// ⚠ **Quarto's answer inside a quote is IDENTICAL to its answer at top level on every one of
+// the 13 shapes rendered both ways** (Round 1). The filed item was scoped to block quotes; the
+// measurement says the construct, not the container, decides it.
+describe("Session 226 — the `:::` / `...` / `\\end{}` family", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("C1: a bare `:::` with no div open is paragraph text, not a closer (`r1/t_div3`)", () => {
+    // Rendered: `<p>para one para two ::: # H t_div3</p>` — ONE paragraph, the `:::` inside
+    // it, so `blank_before_header` declines the ATX below. The quoted twin `r1/q_div3` renders
+    // identically.
+    expect(headings(["para one", "para two", ":::", "# H t_div3"])).toEqual([]);
+    expect(headings(["> para one", "> para two", "> :::", "> # H q_div3"])).toEqual([]);
   });
 });

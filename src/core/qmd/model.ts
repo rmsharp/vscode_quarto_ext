@@ -3458,6 +3458,26 @@ const RAW_TEX_ENV_OPEN = /^ {0,3}\\(?:begin|end)\{[^}]*\}/;
  */
 const CLOSER_LINE = /^ {0,3}(?::{3,}|\.\.\.[ \t]*$)/;
 /**
+ * A fenced-div / callout fence line, split into its colon run and whatever follows it
+ * (Session 226). `null` when the line is not one at all.
+ *
+ * ⚠ **The tail is what separates an OPENER from a CLOSER, and `CLOSER_LINE` cannot see it** —
+ * that pattern is unanchored at its end, so `::: {.note}` and a bare `:::` match it alike and
+ * are treated as the same thing. Measured over `scratchpad/s226/r2`, every spelling with a
+ * non-blank tail is an opener: `::: {.note}` (`g01`), the bare-word class `::: callout-note`
+ * (`g02`), four colons (`g03`), an id-only block `::: {#fig-g05}` (`g05`) and the no-space
+ * `:::{.note}` (`g06`). A colon run followed by nothing but whitespace is a closer, and its
+ * run may be LONGER than the opener's (`g07`: a `::::` closes a `:::`).
+ */
+const DIV_FENCE = /^ {0,3}:{3,}[ \t]*(.*)$/;
+/**
+ * Whether `line` is a div fence and, if so, whether it opens or closes — see `DIV_FENCE`.
+ */
+function divFenceRole(line: string): "open" | "close" | null {
+  const m = DIV_FENCE.exec(line);
+  return m === null ? null : m[1].trim() === "" ? "close" : "open";
+}
+/**
  * A block-quote marker, for `paragraphQuoted` — see `closesParagraph`.
  */
 const BLOCK_QUOTE_MARKER = /^ {0,3}>/;
@@ -3575,12 +3595,25 @@ function closesParagraph(
   paragraphQuoted: boolean,
   lineBlockAbove: boolean,
   contentColumns: readonly number[] | null,
+  unmatchedConstruct: boolean,
 ): boolean {
   if (lineBlockAbove && LINE_BLOCK_CONTINUATION.test(line)) {
     return true;
   }
   if (prevWasAtxHeading && SETEXT_UNDERLINE_RUN.test(line)) {
     return true;
+  }
+  // ⚠ **A CLOSER THAT CLOSES NOTHING IS NOT A CLOSER — IT IS ORDINARY PARAGRAPH TEXT**
+  // (Session 226). The rows below sit ahead of the `paragraphOpen` bail because a closer
+  // follows its own construct's content, so to a per-line scanner it always looks like it sits
+  // against an open paragraph. That is right for a closer that really closes something and
+  // wrong for one that does not, and nothing on the LINE separates the two — the caller
+  // decides it from the block state it maintains. `false` rather than a fall-through, because
+  // an unmatched fence does not merely fail to close a paragraph: with none open it STARTS
+  // one, and `paragraphOpen = !closesParagraph(…)` is what expresses that. Rendered:
+  // `<p>para one para two ::: # H t_div3</p>` and `<p>::: # H g14</p>`, one paragraph each.
+  if (unmatchedConstruct) {
+    return false;
   }
   if (
     HTML_BLOCK_OPEN.test(line) ||
@@ -4826,6 +4859,12 @@ function computeRegions(text: string): Regions {
   // inferred), because pandoc strips the quote's markers and re-parses what is left. This
   // model carries no block-quote container, so while one may be open the raw-TeX row keeps
   // its old ` {0,3}` width rather than guess a column — phantoms, never deletions.
+  // ⚠ **THE BLOCK STATE A PER-LINE SCANNER OTHERWISE LACKS (Session 226)** — how many fenced
+  // divs are open at this line. It is what separates a `:::` that really closes one from a
+  // `:::` that closes nothing and is therefore ordinary paragraph text; see `divFenceRole` and
+  // `closesParagraph`'s `unmatchedConstruct`. Maintained only on body lines, so a `:::` inside
+  // a fenced CODE block never counts (`scratchpad/s226/r3/h09`, rendered).
+  let divDepth = 0;
   let quoteOpen = false;
   // Whether a BLOCK QUOTE is open on this line — the state the marker strip at the top of the
   // loop maintains (Session 225). Distinct from `quoteOpen`, which is the pre-session fail-safe
@@ -5589,6 +5628,21 @@ function computeRegions(text: string): Regions {
       // `paragraphOpen` is read for the line ABOVE before being overwritten for this one.
       // Annotated for the same TS7022 reason as `lineBlockAbove` above — this snapshot feeds
       // the `lineBlockOpen` assignment, which `closesParagraph` reads back on the next line.
+      // ⚠ **READ AGAINST THE LINE ABOVE'S `paragraphOpen`, AND THAT IS THE WHOLE OPENER RULE**
+      // (Session 226). A div fence may open a div only where no paragraph is already open —
+      // rendered, `para one` / `::: {.note}` / `body text` / `:::` / `# H h01` renders NO
+      // heading, because the opener cannot interrupt the paragraph and so its `:::` below
+      // closes nothing (`r3/h01`), while the same document with a blank line after `para one`
+      // renders the heading (`r3/h04`). `paragraphOpen` is still the line ABOVE's here; it is
+      // overwritten immediately below.
+      const divRole = divFenceRole(line);
+      const unmatchedConstruct: boolean =
+        divRole === "close" ? divDepth === 0 : divRole === "open" ? paragraphOpen : false;
+      if (divRole === "close" && divDepth > 0) {
+        divDepth--;
+      } else if (divRole === "open" && !paragraphOpen) {
+        divDepth++;
+      }
       const wasParagraphOpen: boolean = paragraphOpen;
       paragraphOpen = !closesParagraph(
         line,
@@ -5606,6 +5660,7 @@ function computeRegions(text: string): Regions {
         paragraphQuoted && !stripQuote,
         lineBlockAbove,
         rawTexColumns,
+        unmatchedConstruct,
       );
       // A line block stays open across its own continuations, so the arm re-arms on one; but
       // it can only be OPENED where no paragraph already is. Measured: a line block does not
