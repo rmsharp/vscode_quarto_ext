@@ -4229,6 +4229,93 @@ const COMMENT_FULL_LINE = /^[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
  * directions: a `{python3}`-only document would stop resolving jupyter, and a
  * `{=html}`-only one would start.
  */
+/**
+ * Pandoc's RAW ATTRIBUTE block — `{=FORMAT}`, the whole content and nothing else.
+ *
+ * ⚠ Deliberately permissive in the format name: the failure direction here is asymmetric, since
+ * calling a fence a fence is the pre-session answer while refusing one exposes code as prose.
+ * Measured accepted: `html`, `latex`, `html-x`, `html5`, `HTML`. Measured refused: a second
+ * token (`{=html .cls}`), a space after the `=` (`{= html}`) and an empty name (`{=}`).
+ */
+const RAW_ATTRIBUTE = /^=[^\s{}]+$/;
+/**
+ * Whether a PLAIN fence opener's info string really opens a code block.
+ *
+ * ⚠ **WHEN THE INFO STRING DOES NOT PARSE, QUARTO DOES NOT FALL BACK TO A PLAIN CODE BLOCK —
+ * THE FENCE IS NOT A FENCE.** Its opener renders as ordinary text and its contents are live
+ * prose. Measured over 54 rendered rows across five rounds in Session 224
+ * (`scratchpad/s224/`, quarto 1.7.33, predictions frozen and hashed before each round):
+ * ```` ```python extra ```` renders `<p>```python extra</p>` with the `# Heading` below it a
+ * REAL `<h1>` (`b/b01`), and quarto's own crossref filter proves the contents are live by
+ * warning `Unable to resolve crossref @fig-s03` about a use inside such a block (`cal/sv.qmd`).
+ *
+ * ⚠ **THE REFUSAL IS A PANDOC-FAMILY RULE AND IGNORING THE READER WOULD DELETE COMMONMARK
+ * REGIONS WHOLESALE.** Under `from: commonmark_x` the info string is arbitrary text, so ALL
+ * NINE otherwise-refused rows build a code block (`c/`, 9/9) — CommonMark takes the first word
+ * as a class and keeps going. That is why this returns early rather than sharing one grammar.
+ *
+ * ⚠ **A BLANK LINE INSIDE THE BLOCK IS WHY THIS IS WORTH FIXING.** With no blank line a
+ * rejected block collapses into ONE inline code span whose content is literal, so hiding it is
+ * accidentally right (`cal/sv.qmd` s02, s06). A code span cannot cross a blank line, so with
+ * one the backticks are literal text and everything below is live (s03, s07, s08, s09).
+ */
+function fenceInfoOpensBlock(
+  infoString: string,
+  commonmarkDialect: boolean,
+  pandocEscapes: boolean,
+): boolean {
+  if (commonmarkDialect) {
+    return true;
+  }
+  const info = infoString.trim();
+  if (info === "") {
+    return true;
+  }
+  // ⚠ **NO ATTRIBUTE BLOCK ENDING THE INFO STRING MEANS THE WHOLE STRING MUST BE ONE BARE
+  // WORD, AND IT MUST HOLD NO `{` AT ALL.** Pandoc's info string is `[word] [{attrs}]`, so two
+  // bare words leave a token it cannot place: ```` ```python extra ```` (`b/b01`) and
+  // ```` ```python .cls ```` (`b/b11`) are both refused, where the one-word ```` ```python ````
+  // (`d/d07`) and ```` ``` python ```` build a block. ⚠ And an UNCLOSED brace is refused even
+  // when it is the only word — ```` ```{#lst-d03 ```` and ```` ```{bad.x ```` render as text
+  // (`d/d03`, `d/d01`), so the brace test is not subsumed by the word count.
+  const groups = braceGroups(info);
+  const block = groups[groups.length - 1];
+  if (block === undefined || block.end !== info.length - 1) {
+    // ⚠ **NO ATTRIBUTE BLOCK ENDS THE INFO STRING, SO THE WHOLE STRING MUST BE ONE BARE WORD
+    // HOLDING NO `{` AT ALL.** Two bare words leave a token pandoc cannot place —
+    // ```` ```python extra ```` (`b/b01`) and ```` ```python .cls ```` (`b/b11`) are refused
+    // where the one-word ```` ```python ```` (`d/d07`) builds a block. ⚠ And an UNCLOSED brace
+    // is refused even as the only word: ```` ```{#lst-d03 ```` and ```` ```{bad.x ```` render
+    // as text (`d/d03`, `d/d01`), so the brace test is not subsumed by the word count. A block
+    // that does not END the string is this same case — ```` ```{#lst-b09 .cls} x ```` (`b/b09`).
+    return !info.includes("{") && info.split(/\s+/).length === 1;
+  }
+  // ⚠ **AT MOST ONE INFO-STRING WORD MAY PRECEDE THE BLOCK.** Pandoc's info string is
+  // `[word] {attrs}`, so ```` ```{#lst-d05 .cls}{#lst-d05b} ````, whose prefix is TWO
+  // whitespace words, is refused (`d/d05`) where the one-word prefix of
+  // ```` ```{#lst-d06a}{#lst-d06b .cls} ```` is not (`d/d06`).
+  if (info.slice(0, block.start).trim().split(/\s+/).filter(Boolean).length > 1) {
+    return false;
+  }
+  // ⚠ **QUARTO'S OWN STAGE 1, WHICH IS NOT PANDOC'S AND IS WHY THIS IS NOT A PORT.** A
+  // BRACE-LED info string containing neither `.` nor `=` is intercepted whole and becomes a
+  // literal CLASS: ```` ```{#lst-b14} ```` renders `<pre class="{#lst-b14}">` and defines no id
+  // (`b/b14`, and Session 223's `fenceAttributeId`, which carries the same gate for the id).
+  // It is still a FENCE, so a predicate built on attribute validity alone deletes this region.
+  if (block.start === 0 && !/[.=]/.test(info)) {
+    return true;
+  }
+  // ⚠ **A RAW ATTRIBUTE BLOCK IS A FENCE AND IS NOT A VALID `Attr`** — ```` ```{=html} ````
+  // and ```` ```{=latex} ```` are everyday shapes whose lone `=format` token the attribute
+  // parser refuses outright, so without this clause they would stop opening a region
+  // (`d/d11`, `d/d12`, plus `e/e02` `{=html-x}`, `e/e05` `{=html5}` and `e/e07` `{=HTML}`).
+  // ⚠ It is the WHOLE content or nothing: `{=html .cls}`, `{= html}`, `{=}` and
+  // `{#lst-e08 =html}` are all refused (`e/e01`, `e/e03`, `e/e04`, `e/e08`).
+  if (RAW_ATTRIBUTE.test(block.content.trim())) {
+    return true;
+  }
+  return headingAttributesValid(block.content, commonmarkDialect, pandocEscapes);
+}
 const CELL_INFO = /^\{([A-Za-z][=A-Za-z]*)( *[ ,].*)?\}$/;
 /**
  * An inline code span — a run of N backticks closed by the next run of exactly
@@ -4439,6 +4526,9 @@ function computeRegions(text: string): Regions {
   const cells: Cell[] = [];
   const bodyLines: BodyLine[] = [];
   const codeFenceOpeners: CodeFenceOpener[] = [];
+  // Closing fence lines a REFUSED opener above has already swallowed into an inline code span,
+  // so they may not open a region themselves — see `consumedCloserLine` (Session 224).
+  const consumedFenceClosers = new Set<number>();
   let frontMatter: FrontMatterSpan | null = null;
   let inFrontmatter = false;
   let inComment = false;
@@ -4918,7 +5008,7 @@ function computeRegions(text: string): Regions {
     const fenceColumns = paragraphOpen ? [0] : [0, ...contentColumns];
     const plainFence = fenceMatchAt(FENCE_OPEN, line, fenceColumns);
     const fence = plainFence ?? indentedCellFenceAt(line);
-    if (fence) {
+    if (fence && !consumedFenceClosers.has(i)) {
       const char = fence[2];
       const info = char === "`" ? CELL_INFO.exec(fence[3].trim()) : null;
       const candidate: OpenCellFence = {
@@ -4949,7 +5039,30 @@ function computeRegions(text: string): Regions {
       // measured cardinal false positives AND stops the region swallowing the headings
       // below. The uniformity is load-bearing — when only the cell half declined, the
       // leftover mismatched fence opened a PLAIN region instead and swallowed them anyway.
-      if (hasCloserBelow(closerIndex, i + 1, candidate)) {
+      // ⚠ A CELL is never asked — quarto's engine owns `{r, echo=FALSE}`, whose bytes the
+      // attribute parser would refuse outright. `CELL_INFO` has already decided that above.
+      const refused =
+        info === null && !fenceInfoOpensBlock(fence[3], commonmarkDialect, pandocEscapes);
+      // ⚠ **A REFUSED OPENER'S CLOSER MAY HAVE BEEN CONSUMED, AND FAILING TO RECORD THAT
+      // BREAKS THE BLOCK BELOW.** With no blank line between them the two fence lines are read
+      // as ONE INLINE CODE SPAN, so the closer is swallowed and cannot open anything; with a
+      // blank line the span cannot form, the backticks are literal text, and the closer really
+      // does become an OPENER for the block beneath. Measured both ways: `scratchpad/s224/g/g01`
+      // keeps `lst-g01b` while `g02` loses `lst-g02b`, and the rendered `s223/cal/disc.html`
+      // keeps `id="lst-d11"` immediately after the refused `d10`.
+      //
+      // ⚠ The REFUSAL ITSELF is unconditional — it is only the closer's fate that turns on the
+      // blank line. Gating the opener instead restores four phantom headings that quarto does
+      // not render (`scratchpad/s224/f/`, the Session 183 rows): with no blank line the refused
+      // lines continue the PARAGRAPH, so the ATX below them is declined by `blank_before_header`
+      // exactly as quarto declines it.
+      if (refused) {
+        const consumed = consumedCloserLine(lines, i + 1, candidate);
+        if (consumed >= 0) {
+          consumedFenceClosers.add(consumed);
+        }
+      }
+      if (!refused && hasCloserBelow(closerIndex, i + 1, candidate)) {
         open = candidate;
         consecutiveBody = 0;
         paragraphOpen = false;
@@ -5976,6 +6089,31 @@ function buildCloserIndex(lines: readonly string[]): Map<string, number[]> {
   return index;
 }
 
+/**
+ * The line that closes `open` when NO blank line comes first, or `-1` — the fence line a
+ * refused opener has already swallowed into an INLINE CODE SPAN, which therefore may not open
+ * a region of its own (Session 224).
+ *
+ * ⚠ **Scanned rather than indexed, and the bound is why that is safe.** It runs only for an
+ * opener whose info string was already refused AND which `hasCloserBelow` has already said is
+ * closed, and it stops at the FIRST blank line or that closer, whichever comes first — so it
+ * never walks to end of document the way the pre-Session-179 closer search did.
+ */
+function consumedCloserLine(
+  lines: readonly string[],
+  from: number,
+  open: OpenCellFence,
+): number {
+  for (let k = from; k < lines.length; k++) {
+    if (lines[k].trim() === "") {
+      return -1;
+    }
+    if (isCloser(lines[k], open)) {
+      return k;
+    }
+  }
+  return -1;
+}
 /**
  * Whether any line at or below `from` closes `open` — the lookahead every fence now needs,
  * since neither quarto nor pandoc builds a block from an unclosed one (Session 179; Session

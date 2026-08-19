@@ -9509,3 +9509,62 @@ describe("GUARD — fences that must go on opening a code region (Session 224)",
     expect(findHeadings(text).map((h) => h.text)).toEqual(["Guard 14"]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Session 224 — the measured rule, cycle by cycle.
+//
+// Pandoc's fenced-code info string is `[word] [{attrs}]`. When those bytes do not
+// parse, quarto does not fall back to a plain code block — THE FENCE IS NOT A FENCE,
+// and its lines are ordinary prose. Measured over 54 rendered rows across five rounds
+// (`scratchpad/s224/`, quarto 1.7.33, predictions frozen and hashed before each).
+// ---------------------------------------------------------------------------
+describe("a fence opener whose info string quarto refuses opens no region (Session 224)", () => {
+  const doc = (info: string, n: string, front = ""): string =>
+    [
+      "---",
+      `title: c${n}`,
+      ...(front === "" ? [] : [front]),
+      "---",
+      "",
+      info,
+      "",
+      `# Case ${n}`,
+      "",
+      info.startsWith("~") ? "~~~" : "```",
+      "",
+      `tail ${n}`,
+      "",
+    ].join("\n");
+
+  const opensRegion = (info: string, n: string, front = ""): boolean =>
+    !findHeadings(doc(info, n, front)).some((h) => h.text === `Case ${n}`);
+
+  it("a TWO-WORD bare info string is not a fence (`scratchpad/s224/b/b01`)", () => {
+    expect(opensRegion("```python extra", "01")).toBe(false);
+  });
+
+  // ⚠ **WITHOUT A BLANK LINE THE REJECTION IS INVISIBLE, AND ACTING ON IT ANYWAY BREAKS THE
+  // BLOCK BELOW.** A refused opener and its closer are read as ONE inline code span, so the
+  // closer is CONSUMED and the next fence opens normally: `scratchpad/s224/g/g01` keeps
+  // `lst-g01b`, and the rendered `scratchpad/s223/cal/disc.html` keeps `id="lst-d11"` directly
+  // after the refused `d10`. With a blank line the span cannot form, the closer becomes an
+  // OPENER, and the block below IS swallowed — `g02` loses `lst-g02b`, and `cal/sv.qmd` s03's
+  // closer swallows the whole of s04.
+  it("a refused fence's CLOSER is consumed when no blank line intervened, so the fence below it survives (`g/g01`)", () => {
+    const text = [
+      "```{#lst-r02 .cls} x",
+      "payload",
+      "```",
+      "",
+      "```{#lst-r02b .python}",
+      "y = 1",
+      "```",
+      "",
+    ].join("\n");
+    expect(indexLabels(text).map((l) => l.id)).toContain("lst-r02b");
+  });
+
+  it("an attribute block that does not PARSE is not a fence (`scratchpad/s224/b/b06`)", () => {
+    expect(opensRegion("```{#lst-r03 bareword .cls}", "03")).toBe(false);
+  });
+});

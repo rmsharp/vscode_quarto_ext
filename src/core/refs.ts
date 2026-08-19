@@ -335,6 +335,26 @@ export function indexLabels(text: string): RefLabel[] {
         }
         continue;
       }
+      // ⚠ **THE UNVALIDATED FALLBACK DOES NOT APPLY ON A LINE THAT BEGINS WITH A FENCE RUN.**
+      // Such a line is here at all only because the region scanner REFUSED it as a fence
+      // opener (Session 224) — or because it never closed — and quarto renders it as literal
+      // text, defining nothing: ```` ```{#lst-d10 .python} extra ```` is one inline code span
+      // (`s223/cal/disc.qmd` d10) and ```` ```{#lst-b09 .cls} x ```` renders its braces
+      // verbatim (`s224/b/b09`). Without this clause every fence this session newly refuses
+      // mints a phantom, which is the defect it exists to remove seen from the other side.
+      //
+      // ⚠ **ONLY the fallback is withheld, never the line.** A refused fence line is ordinary
+      // prose, so a REAL element on it still defines through the branch above — measured:
+      // ```` ```{#lst-h01 bad .x} ![Cap](a.png){#fig-h01} ```` renders the image and
+      // `id="fig-h01"` with it (`scratchpad/s224/h/h01`).
+      //
+      // ⚠ Tested against the RAW line, not the masked one. `maskInlineCode` rewrites a
+      // three-backtick run into `` ` `` plus two spaces, so the masked text no longer starts
+      // with a fence run at all and the clause silently never fires — measured on this very
+      // row before the fix.
+      if (FENCE_RUN.test(rawText)) {
+        continue;
+      }
       const m = NARROW_LABEL.exec(group.content);
       if (m === null) {
         continue;

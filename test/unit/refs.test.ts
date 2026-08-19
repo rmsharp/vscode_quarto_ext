@@ -1474,23 +1474,20 @@ describe("Session 223 GUARD — shapes that must NOT move when fence openers joi
     expect(indexLabels("```{r #lst-h07r}\nx <- 1\n```")).toEqual([]);
   });
 
-  it("H8: SCOPE PIN — an UNTERMINATED fence line is a PHANTOM this session does not close", () => {
-    // ⚠ Not a guard row: this one was RED when the guard block was written, which is how the
-    // phantom was found. A fence opens only if it is closed below (Session 179's measured
-    // rule), so this line is ordinary BODY text — and quarto renders it as exactly that,
-    // braces included: `<p>```{#lst-q07 .python} x = 7</p>`, defining nothing
-    // (`scratchpad/s223/cal/q7.qmd`).
+  it("H8: ⚠ REVERSED BY SESSION 224 — an UNTERMINATED fence line no longer mints a phantom", () => {
+    // ⚠ **THIS PIN ASSERTED THE PHANTOM, AND SESSION 224 CLOSED IT.** As written by Session 223
+    // it recorded a defect that session deliberately did not fix: a fence opens only if it is
+    // closed below (Session 179's measured rule), so this line is ordinary BODY text — quarto
+    // renders it verbatim, braces included, and defines nothing
+    // (`scratchpad/s223/cal/q7.qmd`) — yet Source 3's unvalidated `NARROW_LABEL` scan minted
+    // `lst-h08` from it.
     //
-    // The label nevertheless appears, and it comes from SOURCE 3, not from this session's
-    // source: the character before the group is a backtick, so `isAttributeBlock` is false and
-    // the unvalidated `NARROW_LABEL` scan mints it. That is precisely the already-filed item
-    // "a `{#fig-…}` group with nothing in front of it to carry attributes is still indexed"
-    // (BACKLOG, filed by Session 222) seen on a fence line, so closing it here would be a
-    // SECOND deliverable. PRE-EXISTING and deliberately unchanged — Source 4 never sees this
-    // line, because it is not a fence opener.
-    expect(indexLabels("```{#lst-h08 .python}\nx = 1\n")).toEqual([
-      { id: "lst-h08", kind: "lst", line: 0, column: 5 },
-    ]);
+    // Session 224 had to withhold that fallback on any line beginning with a FENCE RUN,
+    // because every fence its region change newly refuses becomes such a line and would
+    // otherwise mint exactly this phantom. Closing these two rows is a disclosed CONSEQUENCE
+    // of that clause, not a second deliverable: the filed item they belong to is wider (a bare
+    // `{#fig-g04}` paragraph, display math and table captions) and stays open.
+    expect(indexLabels("```{#lst-h08 .python}\nx = 1\n")).toEqual([]);
   });
 
   it("H9: a fence line inside a WIDER fence, or inside an HTML comment, must never define", () => {
@@ -1514,15 +1511,12 @@ describe("Session 223 GUARD — shapes that must NOT move when fence openers joi
     expect(indexLabels("```{#sec-h11 .python}\nx = 1\n```")).toEqual([]);
   });
 
-  it("H12: SCOPE PIN — a top-level INDENTED fence is a PHANTOM this session does not close", () => {
-    // ⚠ The other row that was RED when the guard was written, and the same mechanism as H8.
-    // A 4-space-indented fence at top level is CommonMark indented code, not a fence: quarto
-    // renders the fence line verbatim inside a `<pre>` (`scratchpad/s223/cal/sv.qmd` s12) and
-    // defines nothing. The line is therefore body text, and Source 3's unvalidated scan mints
-    // the label. PRE-EXISTING, same filed item as H8, deliberately unchanged.
-    expect(indexLabels("    ```{#lst-h12 .python}\n    x = 1\n    ```")).toEqual([
-      { id: "lst-h12", kind: "lst", line: 0, column: 9 },
-    ]);
+  it("H12: ⚠ REVERSED BY SESSION 224 — a top-level INDENTED fence no longer mints a phantom", () => {
+    // ⚠ The other row Session 223 pinned as an open phantom, closed by the same clause and for
+    // the same reason. A 4-space-indented fence at top level is CommonMark indented code, not a
+    // fence: quarto renders the line verbatim inside a `<pre>` (`scratchpad/s223/cal/sv.qmd`
+    // s12) and defines nothing, and the leading `[ \t]*` of `FENCE_RUN` reaches it.
+    expect(indexLabels("    ```{#lst-h12 .python}\n    x = 1\n    ```")).toEqual([]);
   });
 });
 
