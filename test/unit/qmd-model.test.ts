@@ -9652,3 +9652,85 @@ describe("PINS — the refusal's measured boundary (Session 224)", () => {
     );
   });
 });
+
+// ── Session 225 GUARD ──────────────────────────────────────────────────────────
+//
+// Written and run GREEN **before** the block-quote change, on that change's own polarity.
+// This is a **WIDENING** of the recognized set — constructs inside a block quote become
+// visible where nothing was visible before — so every guard row is a shape that must NOT
+// newly appear (the phantom direction), or an existing verdict that must not move. Each row
+// names the rendered document behind it under `scratchpad/s225/`.
+describe("Session 225 guard — block-quote shapes that must NOT move", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+  const cells = (lines: string[]) => findAllCells(lines.join("\n")).map((c) => c.lang);
+
+  it("G1: a block quote may NOT interrupt an open paragraph, so no heading appears (`c/c08`)", () => {
+    // Rendered: `para c08` / `> # H c08` is ONE paragraph — `<p>para c08 &gt; # H c08</p>`.
+    expect(headings(["para g01", "> # Guard One", ""])).toEqual([]);
+  });
+
+  it("G2: content column 1 inside the quote is no heading (`b/b10`)", () => {
+    // Rendered: `>  # H b10` → `<p># H b10</p>`. The quote's content base is column 0 EXACTLY,
+    // the same absolute equality quarto applies at top level.
+    expect(headings(["", ">  # Guard Two", ""])).toEqual([]);
+  });
+
+  it("G3: four content columns inside the quote are indented code (`b/b01`)", () => {
+    expect(headings(["", ">     # Guard Three", ""])).toEqual([]);
+  });
+
+  it("G4: a `>` at indent 4 is indented code, not a marker (`b/b02`)", () => {
+    expect(headings(["", "    > # Guard Four", ""])).toEqual([]);
+  });
+
+  it("G5: a TAB after the marker is not the marker's optional space (`c/c10`)", () => {
+    expect(headings(["", ">\t# Guard Five", ""])).toEqual([]);
+  });
+
+  it("G6: a `>`-prefixed fence run closes NOTHING at top level (`d/d02`)", () => {
+    // Rendered: the whole of `> ``` ` and the lines below it stay inside the one code block.
+    expect(headings(["```", "> ```", "# Guard Six", "```", ""])).toEqual([]);
+  });
+
+  it("G7: a cell info string inside a quote is NOT a cell (`d/d09` vs `d/d10`)", () => {
+    // Rendered: `> ```{ojs}` is `<p><code>{ojs} x = 1</code></p>` — quarto's cell extraction is
+    // line-anchored and the `> ` prefix defeats it — where the top-level twin is a real cell.
+    expect(cells(["", "> ```{ojs}", "> x = 1", "> ```", ""])).toEqual([]);
+  });
+
+  it("G8: the python cell shape inside a quote is NOT a cell either (`d/d09`'s class)", () => {
+    expect(cells(["", "> ```{python}", "> 1 + 1", "> ```", ""])).toEqual([]);
+  });
+
+  it("G9: the UNMOVED reader — a top-level cell is still a cell (`d/d10`)", () => {
+    expect(cells(["", "```{ojs}", "y = 2", "```", ""])).toEqual(["ojs"]);
+  });
+
+  it("G10: the UNMOVED reader — a top-level heading is still a heading", () => {
+    expect(headings(["# Guard Ten", "", "prose", ""])).toEqual(["Guard Ten"]);
+  });
+
+  it("G11: an unclosed quoted fence opens no region, and hides no heading of its own (`b/b06`)", () => {
+    // Rendered: `<p>``` # H b06</p>` — the fence is literal and the ATX is paragraph
+    // continuation, so nothing is reported either way.
+    expect(headings(["", "> ```", "> # Guard Eleven", ">", ""])).toEqual([]);
+  });
+
+  it("G12: a refused quoted fence with NO blank line still hides its contents (`cal/sv.qmd` s03)", () => {
+    // Rendered: `<p><code>{#lst-s03 bad .cls} # Heading s03</code></p>` — one inline code span,
+    // contents literal. Session 224's rule carries into the quote unchanged.
+    expect(headings(["", "> ```{#lst-g12 bad .cls}", "> # Guard Twelve", "> ```", ""])).toEqual([]);
+  });
+
+  it("G13: a label's COLUMN on a quoted body line is the RAW column", () => {
+    // The strip is for classification only — `bodyLines` keep the raw text, so every column a
+    // consumer resolves stays valid.
+    const line = "> ![Cap](a.png){#fig-g13}";
+    const found = indexLabels(["", line, ""].join("\n"));
+    expect(found.map((l) => [l.id, l.column])).toEqual([["fig-g13", line.indexOf("fig-g13")]]);
+  });
+
+  it("G14: a `>` line inside a top-level fence is still invisible (`c/c05`)", () => {
+    expect(headings(["```", "> # Guard Fourteen", "```", ""])).toEqual([]);
+  });
+});
