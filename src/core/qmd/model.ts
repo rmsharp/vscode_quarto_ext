@@ -4288,7 +4288,12 @@ function fenceInfoOpensBlock(
     // is refused even as the only word: ```` ```{#lst-d03 ```` and ```` ```{bad.x ```` render
     // as text (`d/d03`, `d/d01`), so the brace test is not subsumed by the word count. A block
     // that does not END the string is this same case — ```` ```{#lst-b09 .cls} x ```` (`b/b09`).
-    return !info.includes("{") && info.split(/\s+/).length === 1;
+    //
+    // ⚠ **AND A LONE `}` REFUSES TOO, WHICH THIS SESSION'S OWN ADVERSARIAL PASS FOUND RATHER
+    // THAN ANY DESIGNED ROW.** The clause tested for `{` alone because every refused row so far
+    // carried one; ```` ```}bad ```` carries only the closer and quarto renders it as text
+    // (`adv/z05`). Either brace disqualifies the bare word.
+    return !/[{}]/.test(info) && info.split(/\s+/).length === 1;
   }
   // ⚠ **AT MOST ONE INFO-STRING WORD MAY PRECEDE THE BLOCK.** Pandoc's info string is
   // `[word] {attrs}`, so ```` ```{#lst-d05 .cls}{#lst-d05b} ````, whose prefix is TWO

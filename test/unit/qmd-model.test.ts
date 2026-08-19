@@ -9567,4 +9567,88 @@ describe("a fence opener whose info string quarto refuses opens no region (Sessi
   it("an attribute block that does not PARSE is not a fence (`scratchpad/s224/b/b06`)", () => {
     expect(opensRegion("```{#lst-r03 bareword .cls}", "03")).toBe(false);
   });
+
+  it("⚠ a bare word holding a `}` is not a fence either (`scratchpad/s224/adv/z05`)", () => {
+    // Found by this session's own adversarial pass, not by a designed row: the word clause
+    // tested for `{` alone because every refused row so far had one, and ```` ```}bad ````
+    // has only the closer. Quarto renders it as text with the heading below it live.
+    expect(opensRegion("```}bad", "04")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Session 224 PINS — behaviours that came free, declared rather than counted as
+// cycles because each was already green when it was written. Every row carries the
+// rendered witness that settles it.
+// ---------------------------------------------------------------------------
+describe("PINS — the refusal's measured boundary (Session 224)", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("P1: a refused fence inside a LIST ITEM is refused on the same terms (`e/e06`, `adv/z02`)", () => {
+    // The container changes nothing: quarto renders the heading inside the list item, without a
+    // `<section>` wrapper — which is the shape that ate a row of this session's first scorer.
+    expect(
+      headings(["-   item", "", "    ```{#lst-p01 bad .cls}", "", "    # Pin One", "", "    ```", ""]),
+    ).toEqual(["Pin One"]);
+  });
+
+  it("P2: a refused fence INSIDE a wider real fence stays inert (`adv/z06`)", () => {
+    expect(headings(["`````", "```{#lst-p02 bad .cls}", "", "# Pin Two", "", "```", "`````", ""])).toEqual([]);
+  });
+
+  it("P3: ⚠ with NO blank line the refused lines continue the PARAGRAPH, so the ATX below is declined (`f/`, `adv/z11`)", () => {
+    // The Session 183 mechanism, and the reason the blank-line test sits on the CLOSER rather
+    // than on the opener. Quarto renders `<p><code>…</code> # Pin Three</p>` — one paragraph.
+    expect(headings(["```{#lst-p03 bad .cls}", "# Pin Three", "```", "", "tail", ""])).toEqual([]);
+  });
+
+  it("P4: two refused fences in a row both refuse, and the closers re-pair (`adv/z03`)", () => {
+    expect(
+      headings([
+        "```{#lst-p04a bad .cls}", "", "# Pin Four", "", "```", "",
+        "```{#lst-p04b bad .cls}", "", "more", "", "```", "",
+      ]),
+    ).toEqual(["Pin Four"]);
+  });
+
+  it("P5: a TILDE fence refuses on the same terms even with a later `~~~` in the document (`adv/z04`)", () => {
+    expect(
+      headings(["~~~{#lst-p05 bad .cls}", "", "# Pin Five", "", "~~~", "", "middle", "", "~~~", "", "tail", ""]),
+    ).toEqual(["Pin Five"]);
+  });
+
+  it("P6: a `}` inside a QUOTED value does not end the block early (`adv/z07`)", () => {
+    // The quote-aware group scan is what makes this a refusal on `bad` rather than on a block
+    // the scanner truncated at the wrong byte.
+    expect(headings(['```{#lst-p06 bad key="a}b"}', "", "# Pin Six", "", "```", ""])).toEqual(["Pin Six"]);
+  });
+
+  it("P7: a TAB-indented refused fence is refused (`adv/z10`)", () => {
+    expect(headings(["\t```{#lst-p07 bad .cls}", "", "# Pin Seven", "", "\t```", ""])).toEqual(["Pin Seven"]);
+  });
+
+  it("P8: a closer run LONGER than the opener still closes, and still shifts (`adv/z08`)", () => {
+    expect(headings(["```{#lst-p08 bad .cls}", "", "# Pin Eight", "", "````", "", "tail", ""])).toEqual([
+      "Pin Eight",
+    ]);
+  });
+
+  it("P9: a REAL element on a refused fence line still defines its id (`h/h01`)", () => {
+    // ⚠ The row that bounds the Source 3 clause: only the unvalidated narrow fallback is
+    // withheld on a fence-run line, never the line itself. Quarto renders the image and
+    // `id="fig-h01"` with it.
+    const text = ["```{#lst-p09 bad .x} ![Cap](a.png){#fig-p09}", "", "body", "", "```", ""].join("\n");
+    expect(indexLabels(text).map((l) => l.id)).toEqual(["fig-p09"]);
+  });
+
+  it("P10: ⚠ DISCLOSED RESIDUAL — inside a BLOCK QUOTE this model still sees neither the fence nor the heading (`adv/z01`)", () => {
+    // Quarto refuses the fence and renders `<h1>Heading z01</h1>` inside the quote. This model
+    // has no block-quote context anywhere (the same gap Session 183 records for setext
+    // underlines), so `FENCE_OPEN` never matches the `> `-prefixed line and `findHeadings`
+    // never matches the `> # ` one. PRE-EXISTING and unmoved by this session — it is the one
+    // row of 72 the scorer still marks wrong, and it is wrong the same way before and after.
+    expect(headings(["> quote", ">", "> ```{#lst-p10 bad .cls}", ">", "> # Pin Ten", ">", "> ```", ""])).toEqual(
+      [],
+    );
+  });
 });
