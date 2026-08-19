@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S221
+date: 2026-08-18
+status: pending
+active_task: IN PROGRESS. The DEFINITION side truncates a wide id too. `src/core/refs.ts` mines Sources 2 and 3 with `[A-Za-z0-9_-]` (CELL_LABEL_OPTION :65, INLINE_LABEL :74), so `![Cap A](a.png){#fig-a.b}` is indexed as `fig-a` and a cell `#| label: fig-c.d` as `fig-c`, while quarto DEFINES the wide names and resolves references to them. Session 220 fixed the USE side, so `@fig-a.b` is now read correctly and still resolves to NULL -- the failure moved rather than went away. Deliverable: an identifier quarto defines on an image, div, display equation or cell option is indexed under the name quarto gives it. Operator-selected at Phase 0 via AskUserQuestion from an empty Active section; filed by S220 and ranked #1 by it.
+```
+
+```handoff
 session: S220
 date: 2026-08-18
 status: complete

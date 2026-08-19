@@ -5,6 +5,31 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 221 — IMPLEMENTATION (strict TDD): the DEFINITION side truncates a wide id too. `src/core/refs.ts` mines Sources 2 and 3 with `[A-Za-z0-9_-]` (`CELL_LABEL_OPTION` `:65`, `INLINE_LABEL` `:74`), so `![Cap A](a.png){#fig-a.b}` is indexed as `fig-a` and a cell `#| label: fig-c.d` as `fig-c`, while quarto defines the WIDE names and resolves references to them. ⚠ Session 220 fixed the USE side, so `@fig-a.b` is now READ correctly and still resolves to NULL — the failure moved rather than went away. DEAD-NAVIGATION direction.**
+**Started:** 2026-08-18
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` drain in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**How this item was selected.** Operator-selected at Phase 0 from an empty Active section, via `AskUserQuestion` over the top three ranked candidates plus a catch-all. Filed by **Session 220** and ranked **#1 by it** — *"derived to be the highest-value item now open"*.
+
+**Deliverable (ONE capability):** *an identifier quarto DEFINES on an image, div, display equation or cell option is indexed under the name quarto gives it* — so the cross-reference Session 220 taught this model to read now resolves. Layers: the measured attribute-block id rule for Source 3, the measured YAML-scalar id rule for Source 2, and their column arithmetic — one intent, per-layer checkpoint commits.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **2135 passed / 66 files**, matching Session 220's recorded close-out exactly; `check-backlog` **OK, 153 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`ea88e60e`, gap 0), `grep -c '^status: pending' HANDOFFS.md` = **0**, no ghost sessions. Dashboard **76/100**. `gh issue list` empty (no GitHub repo).
+
+## Session 221 ACTIVE-TASK decision rules (from the coupling survey run BEFORE the 1B stub)
+
+1. **⚠ THE TWO SOURCES ARE TWO DIFFERENT GRAMMARS AND MUST BE MEASURED SEPARATELY.** Source 3 (`{#fig-a.b}`) is a pandoc **attribute block** — the grammar S218 measured for headings (`ATTR_ID_ALL`, `model.ts:271`). Source 2 (`#| label: fig-c.d`) is a **YAML scalar** inside a cell option, parsed by quarto's YAML reader and only then used as an id. There is no reason the two admit the same characters. Render both. One shared constant across them is a claim, not a convenience.
+2. **⚠ AN EXISTING TEST PINS THE EXACT ROW THIS WIDENING MOVES, AND IT WAS REASONED RATHER THAN MEASURED.** `test/unit/refs.test.ts` C2 — *"stops the id at trailing punctuation so it matches @ref usage"* — asserts `#| label: fig-plot.` → `fig-plot`. Its stated rationale is about agreeing with the USE side, which S220 has since measured to be a **different question**. Render that exact line before reversing or keeping the pin; the honest answer may be that quarto defines `fig-plot.` and no reference can ever reach it.
+3. **REUSING `ATTR_ID_ALL`'s SET REQUIRES FIRST SAYING THAT IT ANSWERS MY QUESTION** (S220's Learning #377, the generalisation of S219's #372 — and the rule that made S220's own headline). S218 measured that set on **heading** attribute blocks; mine sit on images, divs and display equations. Same pandoc `Attr` parser in principle — establish it by rendering, then either share the constant with a docstring that says so, or keep them separate and say why.
+4. **THE INDEX IS ALSO THE COMPLETION SOURCE, SO EVERY WIDENED ROW MOVES TWO SURFACES AT ONCE.** `providers/crossref.ts:72` offers **every** indexed label. Widening `fig-a` → `fig-a.b` **REMOVES** `@fig-a` from the offered list as well as adding `@fig-a.b`. Score offers-LOST separately from resolves-GAINED — the deletion direction is the dangerous one, and it is what the filed item's sizing note means by "two-directional".
+5. **`INLINE_LABEL` IS AN UNVALIDATED SCAN, NOT A PARSED BLOCK.** Headings gate on `headingAttributesValid` before any id is mined; Source 3 does a bare global `{#…` scan over any prose line. So widening the class also widens what a **malformed** brace group contributes. The guard is per non-label-that-must-not-become-one.
+6. **THE FIRST CHARACTER AFTER THE KIND PREFIX IS A SEPARATE CLAUSE FROM THE TAIL.** Both regexes are `kind-` + `[A-Za-z0-9_]` + `[A-Za-z0-9_-]*`. Widening only the tail leaves `{#fig-.b}` and `{#fig--b}` unmatched. Measure whether quarto defines those before deciding whether the first-character clause moves too — this is the same two-clause shape whose second half cost S220 two commits.
+7. **HEADINGS (SOURCE 1) ARE ALREADY CORRECT AND ARE OUT OF SCOPE.** `Heading.id` comes from the model's own `ATTR_ID_ALL`, measured by S218 and adjudicated by S219. Do not touch `model.ts`. If a heading row moves, that is a regression, not a bonus (FM #17/#26).
+8. **⚠ THE COLUMN IS COMPUTED, NOT SEARCHED, ON BOTH OF THESE PATHS — SO PUT IT IN THE PROBE.** `idColumn` is Source 1's only; Source 2 uses `m[0].length - value.length` and Source 3 uses `m.index + 2`. A wider id changes what those arithmetic expressions produce. Sweep `column` beside `id` (S219's gotcha 4, S220's gotcha 1 — the field that is not the one you changed is where the regression hides).
+
+---
+
+## Session 220 ACTIVE TASK (superseded by Session 221 — full entry preserved below)
 **Task:** **Session 220 — IMPLEMENTATION (strict TDD): a reference to an id containing `:`, `.` or a NON-ASCII letter cannot be resolved at all. `src/core/refs.ts` holds a NARROW use-side identifier set (`ID_CHAR` `:196`, `REF_USAGE` `:81`) and a WIDE definition-side one, so `# Methods {#sec-meth:ods}` is indexed correctly and `@sec-meth:ods` truncates to `sec-meth`, which resolves to NULL. DEAD-NAVIGATION direction.**
 **Started:** 2026-08-18 · **Closed:** 2026-08-18
 **Status:** **DONE. SHIPPED — and ⚠ I SHIPPED THE SAME REGRESSION TWICE, IN A FIELD MY OWN DECISION RULE 2 HAD NAMED AS A DIFFERENT QUESTION BEFORE I WROTE A LINE.** 55 rendered rows plus a 321,236,210-column sweep across 46,336 documents: predictions 38/40 then 15/15, adversarial 5/15 → 14/15 with INTRODUCED 0, and the replace range now provably NEVER shrinks.
