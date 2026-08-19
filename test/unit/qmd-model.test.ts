@@ -10328,4 +10328,17 @@ describe("Session 227 — the `:::` line's own column", () => {
     expect(headings(note([]))).toEqual(["H x"]); // `r2/m07` — quarto renders NOTHING at all
     expect(headings(note(["text[^1]", ""]))).toEqual(["H x"]); // `r4/p02` — quarto agrees here
   });
+
+  it("R2 (residual, PRE-EXISTING and unmoved, PINNED): a closer at a column that belongs to a DIFFERENT container (`r5/q03`, `r5/q06`)", () => {
+    // The stack holds a column per open div but nothing ties that column to the container the
+    // div lives in, so a closer can match a column the div's own container never had. Both
+    // rendered, both phantoms, and both give the SAME answer before and after this session —
+    // measured, not assumed. `q03` closes a TOP-LEVEL div from inside a list item; `q06` closes
+    // a column-2 div that pandoc already auto-closed at the end of its item. Filed; the fix is
+    // a container identity on the stack, not a tighter column.
+    expect(headings(["::: {.note}", "", "- item", "  :::", "# H q03"])).toEqual(["H q03"]);
+    expect(
+      headings(["- item", "", "  ::: {.note}", "  body", "", "para two", ":::", "# H q06"]),
+    ).toEqual(["H q06"]);
+  });
 });
