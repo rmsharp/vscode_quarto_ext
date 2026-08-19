@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S222
+date: 2026-08-18
+status: pending
+active_task: Session 222 -- IMPLEMENTATION (strict TDD): Source 3's `{#...}` scan is not block-aware and is wrong in BOTH directions. INLINE_LABEL (src/core/refs.ts:137) is a bare global scan for the literal `{#`, so an id that is not FIRST in its attribute block is indexed as nothing (`![Cap](a.png){.cls #fig-a03.x}` renders id="fig-a03.x" and resolves; this model indexes []), and the scan never asks whether the brace group IS a block, so ids are minted from groups quarto refuses ({#fig-a$b}, {#fig-a b}, {#fig-a#b}, an unclosed {#fig-a.x, and a second adjacent group). Closes two folded backlog items filed by S221 with one block-validating scan. Operator-selected at Phase 0 via AskUserQuestion from an empty Active section.
+```
+
+```handoff
 session: S221
 date: 2026-08-18
 status: complete
