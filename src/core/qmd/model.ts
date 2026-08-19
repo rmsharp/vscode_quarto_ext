@@ -4200,6 +4200,25 @@ interface OpenCellFence extends OpenFence {
   readonly columns: readonly number[];
 }
 
+/**
+ * The opening fence line of a PLAIN fenced code block — one whose info string is not an
+ * executable-cell language, and which really does open a region (a fence with no closer below
+ * opens nothing, Session 179).
+ *
+ * ⚠ **EMITTED BECAUSE THE LINE IS A REGION BOUNDARY AND SO REACHES NO OTHER CONSUMER.**
+ * `findBodyLines` never yields a fence opener and `findAllCells` covers only cell fences, so
+ * before this the line was invisible to every downstream scanner — which is why a cross-ref id
+ * quarto really defines on a code block (```` ```{#lst-x .python} ```` renders `id="lst-x"`)
+ * could not be indexed at all. `core/refs.ts` consumes this; re-scanning the raw document for
+ * fences there would be a second scanner (Learning #14).
+ */
+export interface CodeFenceOpener {
+  /** 0-based line index of the opening fence. */
+  line: number;
+  /** The raw opener line — indentation, fence run and info string included. */
+  text: string;
+}
+
 /** A document line that is live content — outside front matter, comments, and code fences. */
 export interface BodyLine {
   /** 0-based line index. */
@@ -4294,6 +4313,7 @@ interface Regions {
   headings: Heading[];
   cells: Cell[];
   bodyLines: BodyLine[];
+  codeFenceOpeners: CodeFenceOpener[];
   frontMatter: FrontMatterSpan | null;
 }
 
@@ -4354,6 +4374,7 @@ function computeRegions(text: string): Regions {
   const headings: Heading[] = [];
   const cells: Cell[] = [];
   const bodyLines: BodyLine[] = [];
+  const codeFenceOpeners: CodeFenceOpener[] = [];
   let frontMatter: FrontMatterSpan | null = null;
   let inFrontmatter = false;
   let inComment = false;
@@ -4635,6 +4656,12 @@ function computeRegions(text: string): Regions {
       if (isCloser(line, open)) {
         if (open.isCell) {
           cells.push(makeCell(open, i, lines, true));
+        } else {
+          // ⚠ Recorded HERE, at the closer, rather than at the opener — symmetric with the
+          // cell emit one line up, and for the same reason: a region is only real once it is
+          // closed. The opener line itself is never a body line, so this is the only place a
+          // consumer can learn the line exists.
+          codeFenceOpeners.push({ line: open.startLine, text: lines[open.startLine] });
         }
         open = null;
       }
@@ -5185,7 +5212,7 @@ function computeRegions(text: string): Regions {
     cells.push(makeCell(open, lines.length - 1, lines, false));
   }
 
-  return { headings, cells, bodyLines, frontMatter };
+  return { headings, cells, bodyLines, codeFenceOpeners, frontMatter };
 }
 
 /**
@@ -5761,6 +5788,14 @@ export function scanFlow(s: string, startDepth: number, startQuote: '"' | "'" | 
  */
 export function findBodyLines(text: string): BodyLine[] {
   return scanRegions(text).bodyLines.slice();
+}
+
+/**
+ * Every PLAIN fenced code block opener in `text`, in document order — see
+ * {@link CodeFenceOpener} for why this is exposed at all.
+ */
+export function findCodeFenceOpeners(text: string): CodeFenceOpener[] {
+  return scanRegions(text).codeFenceOpeners.slice();
 }
 
 /**

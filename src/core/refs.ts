@@ -14,13 +14,18 @@
  *   2. `#| label: fig-…` cell options inside `{python}`/`{r}` cells (model cells).
  *   3. Inline `{#fig-…}`/`{#tbl-…}`/`{#eq-…}`/`{#lst-…}` attribute blocks on
  *      images, divs, and display equations in prose (model body lines).
+ *   4. Attribute blocks on PLAIN fenced code block openers — ```` ```{#lst-x .python} ````
+ *      (model {@link findCodeFenceOpeners}). A fence opener is a region BOUNDARY, so it is
+ *      not a body line and Source 3 never sees it.
  */
 
+import type { AttributeBlockReader } from "./qmd/model";
 import {
   attributeBlockId,
   attributeBlockReader,
   findAllCells,
   findBodyLines,
+  findCodeFenceOpeners,
   findHeadings,
   maskInlineCode,
 } from "./qmd/model";
@@ -396,6 +401,24 @@ export function indexLabels(text: string): RefLabel[] {
     }
   }
 
+  // Source 4 — attribute blocks on PLAIN fenced code block openers,
+  // ```` ```{#lst-x .python} ````. The opener is a region boundary rather than a body line, so
+  // Source 3 never reaches it; see `fenceAttributeId` for the two-stage grammar, which is
+  // quarto's own and not `Attr`'s.
+  for (const fence of findCodeFenceOpeners(text)) {
+    const found = fenceAttributeId(fence.text, reader);
+    if (found === undefined) {
+      continue;
+    }
+    const kind = kindOf(found.id);
+    // `sec-` is Source 1's. Quarto really defines it here — ```` ```{#sec-r10 .python} ````
+    // renders `id="sec-r10"` (`r.qmd` r10) — but section labels are owned by headings, which
+    // is the same boundary Source 3 draws. Pinned at `refs.test.ts` H11.
+    if (kind !== null && kind !== "sec") {
+      labels.push({ id: found.id, kind, line: fence.line, column: found.column });
+    }
+  }
+
   // The three sources are collected in source order; present them in document
   // order and keep only the first definition of any repeated id.
   labels.sort((a, b) => a.line - b.line || a.column - b.column);
@@ -623,4 +646,55 @@ function lastIdStart(
  */
 function idColumnIn(lineText: string, group: BraceGroup, id: string): number {
   return lastIdStart(lineText, id, group.end, group.start) ?? group.start + 1;
+}
+
+/** A fenced code block opener's leading run — indentation, the fence characters, and the gap. */
+const FENCE_RUN = /^[ \t]*(?:`{3,}|~{3,})[ \t]*/;
+
+/**
+ * The cross-reference id a PLAIN fenced code block's opener line defines, or `undefined`.
+ *
+ * ⚠ **THIS IS A FOURTH PRODUCTION AND IT HAS A STAGE PANDOC DOES NOT — DO NOT DERIVE IT FROM
+ * `Attr`.** Measured over 51 rendered rows across six rounds in Session 223
+ * (`scratchpad/s223/cal/`, quarto 1.7.33, predictions frozen and hashed before each round):
+ *
+ *   **Stage 1 — quarto's own, and it is the whole reason a port would be wrong.** An info
+ *   string that BEGINS with `{` and contains neither `.` nor `=` is intercepted: the entire
+ *   info string, braces included, becomes a literal CLASS and **no id is defined at all**.
+ *   ```` ```{#lst-s03} ```` renders `<pre class="{#lst-s03}">` (`sv.qmd` s03) — while bare
+ *   pandoc defines `id="lst-s03"` from the same bytes, under `markdown` AND `commonmark_x`,
+ *   and none of eight pandoc reader flavours reproduces quarto's split. Confirmed at AST level:
+ *   `quarto render --to native` shows `CodeBlock ( "" , [ "{#lst-s03}" ] , [] )`.
+ *
+ *   ⚠ The gate is LEXICAL rather than a validity test — `{#lst-t01.b}` is released by a `.`
+ *   that is part of the IDENTIFIER and defines `lst-t01.b` with no class at all (`t.qmd` t01),
+ *   and 23 rows holding `: , _ - é $ ! * / + ; % | ( ) ~`, a space, a bare word or a second
+ *   `#id` atom are all intercepted (`t.qmd`, `u.qmd` 10/10).
+ *
+ *   **Stage 2 — pandoc's `Attr`, which {@link attributeBlockId} already carries measured.** A
+ *   released info string is parsed as `[word] {attrs}`; a FAILED parse means the fence is not a
+ *   fence at all (`{#lst-q05$x .python}` renders as an inline code span, `q.qmd` q05).
+ *
+ * ⚠ **THE GATE APPLIES ONLY TO A BRACE-LED INFO STRING.** ```` ```python {#lst-d09} ```` and
+ * ```` ```.python {#lst-r07} ```` both define although their braces hold neither `.` nor `=`
+ * (`disc.qmd` d09, `r.qmd` r07) — the leading word is itself the non-identifier token.
+ */
+function fenceAttributeId(
+  lineText: string,
+  reader: AttributeBlockReader,
+): { id: string; column: number } | undefined {
+  const run = FENCE_RUN.exec(lineText);
+  if (run === null) {
+    return undefined;
+  }
+  const info = lineText.slice(run[0].length).trimEnd();
+  if (info.startsWith("{") && !/[.=]/.test(info)) {
+    return undefined;
+  }
+  const group = braceGroups(lineText)[0];
+  if (group === undefined) {
+    return undefined;
+  }
+  const id = attributeBlockId(group.content, reader);
+  return id === undefined ? undefined : { id, column: idColumnIn(lineText, group, id) };
 }

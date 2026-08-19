@@ -1267,11 +1267,20 @@ describe("Session 222 GUARD — shapes that must NOT move when the scan becomes 
     ]);
   });
 
-  it("G5: a fenced code block's {#lst-…} is not indexed — pre-existing, out of scope", () => {
-    // ⚠ Quarto DOES define it (`p.qmd` p06 renders id="lst-p06"), but the fence line is a
-    // cell boundary rather than a body line, so Source 3 never sees it. Pinned so the
-    // block-aware scan does not accidentally start or stop reaching it.
-    expect(indexLabels("```{#lst-l .python}\nx = 1\n```")).toEqual([]);
+  it("G5: ⚠ REVERSED BY SESSION 223 — a fenced code block's {#lst-…} IS now indexed", () => {
+    // ⚠ **This pin asserted the DEFECT, deliberately and with its own witness**, and Session
+    // 223 is the session that closes it. As written by Session 222 it read "a fenced code
+    // block's {#lst-…} is not indexed — pre-existing, out of scope" and expected `[]`, noting
+    // that quarto DOES define it (`scratchpad/s222/cal/p.qmd` p06 renders id="lst-p06") while
+    // the fence line is a region boundary Source 3 never sees. Source 4 now sees it.
+    //
+    // The pin is kept rather than deleted because its ROW is still the right row — it is the
+    // shape the whole deliverable turns on — and because a reversed pin is the honest record
+    // that the value changed on purpose (Session 221's precedent, the reversed cell-label pin
+    // in "cell label value robustness (review C)").
+    expect(indexLabels("```{#lst-l .python}\nx = 1\n```")).toEqual([
+      { id: "lst-l", kind: "lst", line: 0, column: 5 },
+    ]);
   });
 
   it("G6: a fenced div keeps its id, with and without the space", () => {
@@ -1513,6 +1522,16 @@ describe("Session 223 GUARD — shapes that must NOT move when fence openers joi
     // the label. PRE-EXISTING, same filed item as H8, deliberately unchanged.
     expect(indexLabels("    ```{#lst-h12 .python}\n    x = 1\n    ```")).toEqual([
       { id: "lst-h12", kind: "lst", line: 0, column: 9 },
+    ]);
+  });
+});
+
+describe("indexLabels — Source 4: cross-ref ids on PLAIN fenced code block openers", () => {
+  it("indexes an lst- id from a fence attribute block, pointing at the id", () => {
+    //                  0123456789...
+    //                  ```{#lst-c1 .python}
+    expect(indexLabels("```{#lst-c1 .python}\nx = 1\n```")).toEqual([
+      { id: "lst-c1", kind: "lst", line: 0, column: 5 },
     ]);
   });
 });
