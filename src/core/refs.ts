@@ -55,16 +55,6 @@ export interface RefLabel {
 /** A label id begins with a recognized cross-ref kind prefix, then `-`, then a name. */
 const KIND_PREFIX = /^(fig|tbl|sec|eq|lst)-/;
 /**
- * A Quarto cell-option line declaring a label: `#| label: fig-plot` (or `//|`
- * for ojs/js cells), with an optional surrounding YAML quote. Group 1 is the id,
- * matched with the same character class as inline labels so it stops at quotes
- * and trailing punctuation (an over-greedy `\S+` kept a stray `.` in the id, or
- * dropped a quoted value whole). Because the pattern is anchored at `^`, the id's
- * column is `match[0].length - id.length`.
- */
-const CELL_LABEL_OPTION =
-  /^\s*(?:#|\/\/)\|\s*label:\s*["']?([A-Za-z0-9_][A-Za-z0-9_-]*)/;
-/**
  * A character a DEFINED cross-reference identifier may hold — Pandoc's attribute-block
  * identifier set: a Unicode letter or digit, `_`, `:`, `.` or `-`.
  *
@@ -92,6 +82,45 @@ const CELL_LABEL_OPTION =
  * share an answer (Learning #377).
  */
 const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
+/**
+ * A Quarto cell-option line declaring a label: `#| label: fig-plot` (or `//|`
+ * for ojs/js cells), with an optional surrounding YAML quote. Group 1 is the id;
+ * because the pattern is anchored at `^`, its column is
+ * `match[0].length - id.length`.
+ *
+ * ⚠ **THIS IS THE SAME CLASS AS {@link INLINE_LABEL} BECAUSE THE TWO WERE MEASURED TO ASK ONE
+ * QUESTION — NOT BECAUSE ONE WAS PORTED TO THE OTHER.** The obvious model, and the one Session
+ * 221 froze as its prediction, is that the label is the YAML scalar verbatim. That scored
+ * **11 of 24** (`scratchpad/s221/cal/cell.qmd`). What actually happens is that quarto's engine
+ * writes the label **verbatim into a Pandoc attribute block**, and Pandoc then accepts or
+ * rejects it: `::: {#tbl-c09a$b .cell tbl-cap='Cap c09'}` appears as LITERAL TEXT in the
+ * rendered HTML, next to quarto's own warning *"The following string was found in the
+ * document: :::"*. So Source 2 inherits Source 3's grammar, and the discriminating round
+ * confirmed it 9/9 (`cell3.qmd`).
+ *
+ * ⚠ **QUOTING IS YAML SYNTAX AND DOES NOT PROTECT AN INVALID ID.** The `["']?` strips the
+ * opening quote and the class excludes quotes, so `"fig-a.b"` yields `fig-a.b` — but
+ * `"tbl-d01a$b"` reaches the attribute block unquoted and defines NOTHING (`cell3.qmd` d01),
+ * so a quote is not a licence to widen the class.
+ *
+ * ⚠ Two things happen before Pandoc, and neither changes the class: a `#` makes the engine
+ * drop the label entirely (`#| label: tbl-c07a#b` emits `{.cell …}` with no id at all), and a
+ * TRAILING `:` is a hard render error — `YAMLException: bad indentation of a mapping entry`.
+ *
+ * ⚠ **THE LEADING `[\p{L}\p{N}_]` IS VESTIGIAL HERE AND IS KEPT ONLY BECAUSE REMOVING IT WOULD
+ * BE AN UNMEASURED CHANGE.** Unlike {@link INLINE_LABEL}, whose kind prefix sits OUTSIDE the
+ * capture, this group starts at the prefix itself — so the `f` of `fig-` always satisfies the
+ * clause and only the tail ever decided anything. That asymmetry is why the pre-session defect
+ * differed in kind between the two sources: here a punctuation-first name yielded the bare
+ * `fig-`, a kind prefix with an empty name, rather than being refused outright.
+ */
+const CELL_LABEL_OPTION = new RegExp(
+  String.raw`^\s*(?:#|//)\|\s*label:\s*["']?(` +
+    String.raw`[\p{L}\p{N}_]` +
+    DEFINED_ID_CHAR_CLASS +
+    String.raw`*)`,
+  "u",
+);
 /**
  * An inline Pandoc attribute block declaring a cross-ref id on an image, div, or
  * display equation: `…){#fig-plot}`, `::: {#tbl-x}`, `$$ … $$ {#eq-y}`. Group 1

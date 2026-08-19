@@ -363,10 +363,21 @@ describe("indexLabels — cell label value robustness (review C)", () => {
     ]);
   });
 
-  it("C2: stops the id at trailing punctuation so it matches @ref usage", () => {
+  it("C2 (REVERSED by Session 221): a trailing dot is part of the id quarto defines", () => {
+    // ⚠ THIS ASSERTION USED TO READ `fig-plot`, on the stated rationale that the id should
+    // "stop at trailing punctuation so it matches @ref usage". That premise is measured
+    // FALSE: quarto defines `fig-plot.`, dot included (`scratchpad/s221/cal/cell.qmd` c17,
+    // and `attr.qmd` t40 for the inline spelling). The id and the reference token are two
+    // different grammars — Session 220 measured the second, Session 221 the first — and
+    // making one agree with the other by truncation invented a target quarto never defines.
+    //
+    // ⚠ AND THE DEFINED ID IS UNREACHABLE, WHICH IS THE HONEST OUTCOME RATHER THAN A GAP:
+    // `@fig-plot.` consumes only `fig-plot`, so quarto itself reports "Unable to resolve
+    // crossref" and echoes `?@fig-plot` (`resolve.qmd` E03). Before this change the model
+    // resolved `@fig-plot` to this label — navigation to a target that does not exist.
     const text = ["```{python}", "#| label: fig-plot.", "x=1", "```"].join("\n");
     expect(indexLabels(text)).toEqual([
-      { id: "fig-plot", kind: "fig", line: 1, column: 10 },
+      { id: "fig-plot.", kind: "fig", line: 1, column: 10 },
     ]);
   });
 });
@@ -1067,5 +1078,61 @@ describe("Session 221 — an inline {#…} label reaches pandoc's whole identifi
     ]) {
       expect(indexLabels(line).map((l) => l.id)).toEqual(["fig-a"]);
     }
+  });
+});
+
+describe("Session 221 — a #| label: cell option reaches the same identifier", () => {
+  it("indexes a dotted cell label under the name quarto defines", () => {
+    // ⚠ SOURCE 2 IS SOURCE 3 IN A YAML COSTUME, AND THAT IS MEASURED RATHER THAN ASSUMED.
+    // The frozen hypothesis — "the label is the YAML scalar verbatim" — scored 11/24
+    // (`scratchpad/s221/cal/cell.qmd`). The engine writes the label VERBATIM INTO A PANDOC
+    // ATTRIBUTE BLOCK, and it is pandoc that accepts or rejects it: `::: {#tbl-c09a$b .cell
+    // tbl-cap='Cap c09'}` appears as LITERAL TEXT in the rendered output, alongside quarto's
+    // own "The following string was found in the document: :::" warning. So the two sources
+    // share one class because they were measured to ask one question, not because one was
+    // ported to the other (Learning #377).
+    const text = ["```{r}", "#| label: fig-c.d", "x", "```"].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-c.d", kind: "fig", line: 1, column: 10 },
+    ]);
+  });
+
+  // The rows below are PINS, not RED->GREEN cycles: each passed on first run.
+
+  it("C2-pin: a punctuation-first name no longer indexes the bare kind prefix", () => {
+    // ⚠ WRITTEN AS A CYCLE AND DEMOTED TO A PIN WHEN ITS RED CAME UP GREEN, WHICH IS WHY IT
+    // IS WORTH KEEPING. Source 3's first-character clause sat AFTER the kind prefix, so it
+    // refused `{#fig-.x}` outright; this one sits at the START OF THE WHOLE ID, where the
+    // prefix's own `f` always satisfies it, so the clause is vestigial here and only the tail
+    // ever mattered. The pre-session defect was therefore different in kind — measured
+    // against `scratchpad/s221/presrc`, `#| label: fig-.d` indexed **`fig-`** and
+    // `#| label: fig-日本b` indexed **`fig-`** too: a kind prefix with an EMPTY NAME, a
+    // target no document can define. `{#fig-.d}` renders id="fig-.d" (cell3.qmd d04).
+    const text = ["```{r}", "#| label: fig-.d", "x", "```"].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-.d", kind: "fig", line: 1, column: 10 },
+    ]);
+  });
+
+  it("C2-pin: the class is Unicode letters here too", () => {
+    const text = ["```{r}", "#| label: fig-日本b", "x", "```"].join("\n");
+    expect(indexLabels(text).map((l) => l.id)).toEqual(["fig-日本b"]);
+  });
+
+  it("C2-pin: doubled punctuation is ONE id on this source as well", () => {
+    const text = ["```{r}", "#| label: fig-a..b", "x", "```"].join("\n");
+    expect(indexLabels(text).map((l) => l.id)).toEqual(["fig-a..b"]);
+  });
+
+  it("C2-pin: DISCLOSED RESIDUAL — quoting does not license a wider id", () => {
+    // ⚠ `#| label: "fig-a$b"` reaches the attribute block UNQUOTED and defines NOTHING
+    // (`cell3.qmd` d01 — the `:::` is rendered as literal text). This model truncates to
+    // `fig-a` instead, at column 11 past the opening quote. PRE-EXISTING and unchanged:
+    // both builds return `fig-a` (`scratchpad/s221/presrc`). Same unvalidated-scan cause as
+    // the Source 3 residual above; filed, not fixed.
+    const text = ["```{r}", '#| label: "fig-a$b"', "x", "```"].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-a", kind: "fig", line: 1, column: 11 },
+    ]);
   });
 });
