@@ -524,4 +524,56 @@ describe("Quarto: Cross-reference completion + definition", () => {
       `completion should offer @fig-c.d; got ${JSON.stringify(items.map(labelText))}`,
     );
   });
+  it("S222: go-to-definition reaches an id that is NOT first in its attribute block", async () => {
+    // The lost-TP half of Session 222. `![p](p.png){.cls #fig-a.x}` renders id="fig-a.x" and
+    // `@fig-a.x` resolves to it (scratchpad/s221/adv/adv.qmd a03, re-rendered as
+    // scratchpad/s222/cal/cal.qmd g03). The old scan looked for the literal two characters
+    // `{#`, so a class atom in front of the id made the whole label invisible.
+    const content = ["![p](p.png){.cls #fig-a.x}", "", "See @fig-a.x"].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+      "vscode.executeDefinitionProvider",
+      doc.uri,
+      new vscode.Position(2, 8),
+    );
+    const at = locs?.[0];
+    assert.ok(at, "a reference to an id behind a class atom resolves");
+    assert.deepStrictEqual(
+      { line: at!.range.start.line, character: at!.range.start.character },
+      { line: 0, character: 18 },
+      "go-to-definition lands on the id text, not on the start of the block",
+    );
+  });
+
+  it("S222: completion no longer offers a label from a brace group quarto refuses", async () => {
+    // The phantom half. `{#fig-a$b}` renders its braces as literal text and defines NO id
+    // (scratchpad/s221/cal/attr.qmd t09, s222 cal.qmd v02), yet the unvalidated scan offered
+    // `@fig-a` — a target the document does not contain. The agreeing control on the same
+    // document is a well-formed block, which must still be offered.
+    const content = [
+      "![p](p.png){#fig-a$b}",
+      "",
+      "![q](q.png){#fig-ok.x}",
+      "",
+      "See @",
+    ].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 5),
+      "@",
+    );
+    const offered = (list?.items ?? []).map(labelText);
+    assert.ok(
+      offered.includes("@fig-ok.x"),
+      `the valid block must still be offered; got ${JSON.stringify(offered)}`,
+    );
+    assert.ok(
+      !offered.includes("@fig-a"),
+      `a refused block must offer nothing; got ${JSON.stringify(offered)}`,
+    );
+  });
 });
