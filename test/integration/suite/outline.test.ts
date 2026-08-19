@@ -2415,3 +2415,40 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
     assert.ok(prose.includes("Cal Spaced Control"), `control heading: ${prose.join(", ")}`);
   });
 });
+
+describe("S224: a heading inside a REFUSED fence reaches the outline", () => {
+  it("reports a section quarto really renders inside a fence it does not build", async () => {
+    // ⚠ The region half of Session 223's fourth production, seen through the outline. When
+    // pandoc's `[word] {attrs}` parse of the info string fails, quarto does not fall back to a
+    // plain code block — the fence is not a fence and its lines are live prose. `bareword` is
+    // not a valid attribute token, so ```{#lst-no bareword .cls} renders as literal text and
+    // the `##` below it is a REAL section (scratchpad/s224/b/b06, 61 rendered rows). Before
+    // Session 224 the whole block was a skip region and the section was missing from the
+    // outline entirely.
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+    const names = await namesFor(
+      "# Real Top",
+      "",
+      "```{#lst-no bareword .cls}",
+      "",
+      "## Inside The Refused Fence",
+      "",
+      "```",
+      "",
+      "tail",
+    );
+
+    // PRESENT — the deliverable.
+    assert.ok(
+      names.includes("Inside The Refused Fence"),
+      `a heading inside a refused fence must reach the outline: ${names.join(", ")}`,
+    );
+
+    // PRESENT — the control, without which the assertion above passes for a build whose
+    // outline has stopped working altogether.
+    assert.ok(names.includes("Real Top"), `control heading: ${names.join(", ")}`);
+  });
+});

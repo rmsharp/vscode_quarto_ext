@@ -635,4 +635,38 @@ describe("Quarto: Cross-reference completion + definition", () => {
       `an info string quarto intercepts must offer nothing; got ${JSON.stringify(offered)}`,
     );
   });
+  it("S224: a cross-reference inside a REFUSED fence is live, and the fence's own id is not", async () => {
+    // ⚠ The region half of the fourth production. When pandoc's `[word] {attrs}` parse of the
+    // info string fails, quarto does not fall back to a plain code block — the fence is not a
+    // fence and its contents are live prose. Measured: `bareword` is not a valid attribute
+    // token, so ```{#lst-no bareword .cls} renders as literal text and the image below it
+    // really does define `id="fig-live"` (scratchpad/s224/, 61 rendered rows). Before Session
+    // 224 every line here was a skip region, so the image was invisible.
+    const content = [
+      "```{#lst-no bareword .cls}",
+      "",
+      "![Cap](a.png){#fig-live}",
+      "",
+      "```",
+      "",
+      "See @",
+    ].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(6, 5),
+      "@",
+    );
+    const offered = (list?.items ?? []).map(labelText);
+    assert.ok(
+      offered.includes("@fig-live"),
+      `an image inside a refused fence must define; got ${JSON.stringify(offered)}`,
+    );
+    assert.ok(
+      !offered.includes("@lst-no"),
+      `a refused fence's own info string must define nothing; got ${JSON.stringify(offered)}`,
+    );
+  });
 });
