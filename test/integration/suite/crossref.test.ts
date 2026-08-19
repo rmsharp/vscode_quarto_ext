@@ -576,4 +576,63 @@ describe("Quarto: Cross-reference completion + definition", () => {
       `a refused block must offer nothing; got ${JSON.stringify(offered)}`,
     );
   });
+
+  it("S223: go-to-definition reaches an lst- id on a fenced code block", async () => {
+    // The whole deliverable, at the surface an author meets it on. ```{#lst-p06 .python}
+    // renders id="lst-p06" in quarto (scratchpad/s222/cal/p.qmd p06, re-rendered this session
+    // as scratchpad/s223/cal/sv.qmd s01), and `lst-` was the only one of the five supported
+    // kinds with no working definition source at all: a fence opener is a region BOUNDARY, so
+    // findBodyLines never yielded it and no source ever saw it.
+    const content = ["```{#lst-p06 .python}", "x = 1", "```", "", "See @lst-p06"].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+      "vscode.executeDefinitionProvider",
+      doc.uri,
+      new vscode.Position(4, 8),
+    );
+    const at = locs?.[0];
+    assert.ok(at, "a reference to a fenced code block's id resolves");
+    assert.deepStrictEqual(
+      { line: at!.range.start.line, character: at!.range.start.character },
+      { line: 0, character: 5 },
+      "go-to-definition lands on the id text inside the info string",
+    );
+  });
+
+  it("S223: completion offers a fence label but not one quarto's own gate refuses", async () => {
+    // ⚠ Both halves of the fourth production on one document. The first fence defines
+    // (`{#lst-ok .python}`), and the second does NOT: an info string that BEGINS with `{` and
+    // holds neither `.` nor `=` is intercepted by quarto itself — ```{#lst-no} renders
+    // <pre class="{#lst-no}"> and defines no id at all (scratchpad/s223/cal/sv.qmd s03), even
+    // though bare pandoc defines it from the same bytes. Offering it would be a phantom.
+    const content = [
+      "```{#lst-ok .python}",
+      "x = 1",
+      "```",
+      "",
+      "```{#lst-no}",
+      "y = 2",
+      "```",
+      "",
+      "See @",
+    ].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(8, 5),
+      "@",
+    );
+    const offered = (list?.items ?? []).map(labelText);
+    assert.ok(
+      offered.includes("@lst-ok"),
+      `a fence-defined listing label must be offered; got ${JSON.stringify(offered)}`,
+    );
+    assert.ok(
+      !offered.includes("@lst-no"),
+      `an info string quarto intercepts must offer nothing; got ${JSON.stringify(offered)}`,
+    );
+  });
 });
