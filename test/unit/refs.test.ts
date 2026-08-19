@@ -1179,3 +1179,113 @@ describe("Session 221 adversarial pins — measured rows this model still gets w
     ]);
   });
 });
+
+describe("Session 222 GUARD — shapes that must NOT move when the scan becomes block-aware", () => {
+  // ⚠ Written and confirmed GREEN **before** the implementation (S204's gotcha 5, inherited a
+  // nineteenth time). This deliverable points mostly in the DELETION direction — a scan that
+  // starts refusing brace groups removes completion offers as well as phantoms — so the guard
+  // is per shape-that-must-keep-defining and per source-that-must-not-move, not per bug fixed.
+  // Every row's value here is the value the PRE-change build produced
+  // (`scratchpad/s222/guardprobe.test.ts`).
+
+  it("G1: Source 1 — a heading's sec- id is untouched", () => {
+    expect(indexLabels("## Methods {#sec-methods}")).toEqual([
+      { id: "sec-methods", kind: "sec", line: 0, column: 13 },
+    ]);
+  });
+
+  it("G2: Source 2 — a cell-option label is untouched", () => {
+    const text = ["```{r}", "#| label: fig-cell", "plot(1)", "```"].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-cell", kind: "fig", line: 1, column: 10 },
+    ]);
+  });
+
+  it("G3: display math keeps its id, with and without the space", () => {
+    // ⚠ Quarto's `eq-` cross-reference is NOT the pandoc attribute parser — measured this
+    // session, `scratchpad/s222/cal/math.qmd`. Both spellings define (m01/m08).
+    expect(indexLabels("$$ y = x $$ {#eq-m}")).toEqual([
+      { id: "eq-m", kind: "eq", line: 0, column: 14 },
+    ]);
+    expect(indexLabels("$$ y = x $${#eq-mn}")).toEqual([
+      { id: "eq-mn", kind: "eq", line: 0, column: 13 },
+    ]);
+  });
+
+  it("G4: a table caption keeps its id, bare and with a trailing class", () => {
+    // Both define in quarto (`cal.qmd` g12, `n.qmd` n06).
+    const bare = ["| a |", "|---|", "| 1 |", "", ": Cap {#tbl-c}"].join("\n");
+    expect(indexLabels(bare)).toEqual([
+      { id: "tbl-c", kind: "tbl", line: 4, column: 8 },
+    ]);
+    const cls = ["| a |", "|---|", "| 1 |", "", ": Cap {#tbl-cc .cls}"].join("\n");
+    expect(indexLabels(cls)).toEqual([
+      { id: "tbl-cc", kind: "tbl", line: 4, column: 8 },
+    ]);
+  });
+
+  it("G5: a fenced code block's {#lst-…} is not indexed — pre-existing, out of scope", () => {
+    // ⚠ Quarto DOES define it (`p.qmd` p06 renders id="lst-p06"), but the fence line is a
+    // cell boundary rather than a body line, so Source 3 never sees it. Pinned so the
+    // block-aware scan does not accidentally start or stop reaching it.
+    expect(indexLabels("```{#lst-l .python}\nx = 1\n```")).toEqual([]);
+  });
+
+  it("G6: a fenced div keeps its id, with and without the space", () => {
+    expect(indexLabels("::: {#fig-d}\nbody\n:::")).toEqual([
+      { id: "fig-d", kind: "fig", line: 0, column: 6 },
+    ]);
+    expect(indexLabels(":::{#fig-dn}\nbody\n:::")).toEqual([
+      { id: "fig-dn", kind: "fig", line: 0, column: 5 },
+    ]);
+  });
+
+  it("G7: an image block with a quoted key=value keeps its id", () => {
+    expect(indexLabels('![Cap](a.png){#fig-ik .cls key="v.w"}')).toEqual([
+      { id: "fig-ik", kind: "fig", line: 0, column: 15 },
+    ]);
+  });
+
+  it("G8: a {#fig-…} inside an inline code span still defines nothing", () => {
+    expect(indexLabels("Use `{#fig-cs}` here")).toEqual([]);
+  });
+
+  it("G9: TWO images on one line both keep their ids", () => {
+    // ⚠ Measured (`disc.qmd` w02): quarto defines BOTH. This is the row that refutes any
+    // "first brace group on the line wins" rule, so it is guarded rather than assumed.
+    expect(
+      indexLabels("![A](a.png){#fig-x} and ![B](b.png){#fig-y}").map((l) => l.id),
+    ).toEqual(["fig-x", "fig-y"]);
+  });
+
+  it("G10: an inline {#sec-…} stays excluded — sections are owned by headings", () => {
+    expect(indexLabels("::: {#sec-aside}")).toEqual([]);
+  });
+
+  it("G11: an indented image keeps its column arithmetic", () => {
+    expect(indexLabels("    ![Cap](a.png){#fig-ind}")).toEqual([
+      { id: "fig-ind", kind: "fig", line: 0, column: 19 },
+    ]);
+  });
+
+  it("G12: document order and first-definition-wins are unchanged", () => {
+    const text = [
+      "![B](b.png){#fig-b}",
+      "![A](a.png){#fig-a}",
+      "![B again](b2.png){#fig-b}",
+    ].join("\n");
+    expect(indexLabels(text).map((l) => `${l.id}@${l.line}`)).toEqual([
+      "fig-b@0",
+      "fig-a@1",
+    ]);
+  });
+
+  it("G13: SCOPE PIN — the second of two adjacent blocks stays indexed", () => {
+    // ⚠ A separate filed backlog item (S221's #3), deliberately NOT in this session's
+    // deliverable. Quarto defines only `fig-a05.x`. Pinned so the block-aware scan is seen
+    // to leave it exactly where it was rather than closing it as a bonus (FM #17/#26).
+    expect(
+      indexLabels("![p](p.png){#fig-a05.x}{#fig-a05b.y}").map((l) => l.id),
+    ).toEqual(["fig-a05.x", "fig-a05b.y"]);
+  });
+});
