@@ -2452,3 +2452,45 @@ describe("S224: a heading inside a REFUSED fence reaches the outline", () => {
     assert.ok(names.includes("Real Top"), `control heading: ${names.join(", ")}`);
   });
 });
+
+describe("S225: a heading inside a BLOCK QUOTE reaches the outline", () => {
+  it("reports a section quarto really renders inside a quote", async () => {
+    // Quarto strips a quote's markers and re-parses what is left, so `> ## Inside The Quote` is
+    // a real `<h2>` inside the blockquote (scratchpad/s225/cal/sv.qmd s01, 45 rendered rows).
+    // Before Session 225 this model had no block-quote context anywhere — `FENCE_OPEN` is
+    // anchored at `^[ \t]*` and `findHeadings` never matched a `> # ` line — so the section was
+    // missing from the outline entirely.
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+    const names = await namesFor(
+      "# Real Top",
+      "",
+      "> ## Inside The Quote",
+      "",
+      "> ```{#lst-q .python}",
+      "> ## Not A Heading",
+      "> ```",
+      "",
+      "tail",
+    );
+
+    // PRESENT — the deliverable.
+    assert.ok(
+      names.includes("Inside The Quote"),
+      `a heading inside a block quote must reach the outline: ${names.join(", ")}`,
+    );
+
+    // ABSENT — the other direction of the same defect: a quoted fence is a fence, so the ATX
+    // between its fences is code, not a section.
+    assert.ok(
+      !names.includes("Not A Heading"),
+      `a quoted fence must still hide its contents: ${names.join(", ")}`,
+    );
+
+    // PRESENT — the control, without which the assertions above pass for a build whose outline
+    // has stopped working altogether.
+    assert.ok(names.includes("Real Top"), `control heading: ${names.join(", ")}`);
+  });
+});

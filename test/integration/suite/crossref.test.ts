@@ -669,4 +669,36 @@ describe("Quarto: Cross-reference completion + definition", () => {
       `a refused fence's own info string must define nothing; got ${JSON.stringify(offered)}`,
     );
   });
+  it("S225: a fence INSIDE a block quote defines its id, and its contents stay hidden", async () => {
+    // Quarto strips a quote's markers and re-parses what is left, so a fence inside a quote is a
+    // real fence: `> ```{#lst-quoted .python}` renders `<div class="sourceCode" id="lst-quoted">`
+    // inside the blockquote and the `{#fig-hidden}` between its fences is literal code
+    // (scratchpad/s225/cal/sv.qmd s02, e/e05). Before Session 225 this model had no block-quote
+    // context anywhere: the fence was invisible, so its own id came from an unvalidated scan and
+    // the id INSIDE it leaked out as a phantom.
+    const content = [
+      "> ```{#lst-quoted .python}",
+      "> ![Cap](a.png){#fig-hidden}",
+      "> ```",
+      "",
+      "See @",
+    ].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(4, 5),
+      "@",
+    );
+    const offered = (list?.items ?? []).map(labelText);
+    assert.ok(
+      offered.includes("@lst-quoted"),
+      `a quoted fence must define its own id; got ${JSON.stringify(offered)}`,
+    );
+    assert.ok(
+      !offered.includes("@fig-hidden"),
+      `a label inside a quoted fence must stay hidden; got ${JSON.stringify(offered)}`,
+    );
+  });
 });
