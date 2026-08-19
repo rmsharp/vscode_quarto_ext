@@ -371,7 +371,13 @@ export function indexLabels(text: string): RefLabel[] {
   // Source 3 never reaches it; see `fenceAttributeId` for the two-stage grammar, which is
   // quarto's own and not `Attr`'s.
   for (const fence of findCodeFenceOpeners(text)) {
-    const found = fenceAttributeId(fence.text, reader);
+    // ⚠ The opener text is RAW so its columns stay real; the PARSE starts past the block-quote
+    // marker and the column is shifted back by the same offset (Session 225).
+    const found = fenceAttributeId(
+      fence.text.slice(fence.contentStart),
+      reader,
+      fence.contentStart === 0,
+    );
     if (found === undefined) {
       continue;
     }
@@ -380,7 +386,12 @@ export function indexLabels(text: string): RefLabel[] {
     // renders `id="sec-r10"` (`r.qmd` r10) — but section labels are owned by headings, which
     // is the same boundary Source 3 draws. Pinned at `refs.test.ts` H11.
     if (kind !== null && kind !== "sec") {
-      labels.push({ id: found.id, kind, line: fence.line, column: found.column });
+      labels.push({
+        id: found.id,
+        kind,
+        line: fence.line,
+        column: found.column + fence.contentStart,
+      });
     }
   }
 
@@ -643,17 +654,24 @@ const FENCE_RUN = /^[ \t]*(?:`{3,}|~{3,})[ \t]*/;
  * ⚠ **THE GATE APPLIES ONLY TO A BRACE-LED INFO STRING.** ```` ```python {#lst-d09} ```` and
  * ```` ```.python {#lst-r07} ```` both define although their braces hold neither `.` nor `=`
  * (`disc.qmd` d09, `r.qmd` r07) — the leading word is itself the non-identifier token.
+ *
+ * ⚠ **STAGE 1 IS QUARTO'S AND QUARTO'S IS LINE-ANCHORED, SO IT DOES NOT REACH INSIDE A BLOCK
+ * QUOTE (Session 225).** ```` > ```{#lst-e01} ```` renders `<pre id="lst-e01">` — a REAL id —
+ * where the identical bytes at top level render `<pre class="{#lst-s03}">` and define none
+ * (`scratchpad/s225/e/e01` against Session 223's `sv.qmd` s03). `quartoIntercepts` is that
+ * difference, and it is the caller's to know because only the region scanner sees the marker.
  */
 function fenceAttributeId(
   lineText: string,
   reader: AttributeBlockReader,
+  quartoIntercepts: boolean,
 ): { id: string; column: number } | undefined {
   const run = FENCE_RUN.exec(lineText);
   if (run === null) {
     return undefined;
   }
   const info = lineText.slice(run[0].length).trimEnd();
-  if (info.startsWith("{") && !/[.=]/.test(info)) {
+  if (quartoIntercepts && info.startsWith("{") && !/[.=]/.test(info)) {
     return undefined;
   }
   // ⚠ **THE BLOCK MUST END THE INFO STRING, AND THAT IS A MEASURED REFUSAL RATHER THAN

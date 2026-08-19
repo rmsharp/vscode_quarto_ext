@@ -1619,6 +1619,19 @@ describe("Session 223 PINS — Source 4 behaviours that came free, declared rath
     ]);
   });
 
+  it("P3b: ⚠ PIN — quarto's stage 1 does NOT reach inside a quote, so an id-only info string defines (`e/e01`)", () => {
+    // Session 225. Rendered: `> ```{#lst-e01} ` renders `<pre id="lst-e01">` inside the quote —
+    // a REAL id — where the identical bytes at top level render `<pre class="{#lst-s03}">` and
+    // define nothing (Session 223's `sv.qmd` s03, pinned two tests down). Quarto's stage-1
+    // intercept is line-anchored and the `> ` prefix defeats it, leaving pandoc's `Attr` alone.
+    // ⚠ Declared a PIN, not a cycle: it came with the offset that fixed P3 above.
+    expect(indexLabels("> ```{#lst-e01}\n> x\n> ```")).toEqual([
+      { id: "lst-e01", kind: "lst", line: 0, column: 7 },
+    ]);
+    // The top-level twin, unmoved.
+    expect(indexLabels("```{#lst-top}\nx\n```")).toEqual([]);
+  });
+
   it("P4: the id need not come first in the block", () => {
     // `{.python #lst-s02}` defines (`sv.qmd` s02) — this production is not the narrow
     // display-math one, where anything beyond a bare id renders as text.

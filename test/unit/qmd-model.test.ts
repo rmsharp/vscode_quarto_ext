@@ -9769,4 +9769,14 @@ describe("Session 225 — constructs inside a block quote", () => {
     // Rendered: `<blockquote><h1 id="heading-s01">Heading s01</h1></blockquote>`.
     expect(headings(["", "> # Quoted One", ""])).toEqual(["Quoted One"]);
   });
+
+  it("C2: a quoted fence with a valid info string opens a region (`e/e05`)", () => {
+    // Rendered: `<blockquote><div class="sourceCode" id="lst-e05"><pre …>` — a real code block,
+    // so the ATX between the blank lines inside it is NOT a heading. The blank lines matter:
+    // without them the fence line holds the paragraph open and the ATX is declined for a
+    // different reason entirely.
+    expect(
+      headings(["", "> ```{#lst-c02 .python}", ">", "> # Not A Heading", ">", "> ```", ""]),
+    ).toEqual([]);
+  });
 });

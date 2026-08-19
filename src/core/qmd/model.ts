@@ -4379,6 +4379,12 @@ interface OpenCellFence extends OpenFence {
    */
   readonly quoted: boolean;
   /**
+   * The offset at which this opener's own content begins — see `CodeFenceOpener.contentStart`.
+   * Carried here because the opener is EMITTED at the closer, by which time the strip that
+   * computed it is many lines behind.
+   */
+  readonly contentStart: number;
+  /**
    * The column stack in force where this fence OPENED, carried so the closer is judged
    * against the same containers the opener was (Session 200).
    *
@@ -4410,6 +4416,16 @@ export interface CodeFenceOpener {
   line: number;
   /** The raw opener line — indentation, fence run and info string included. */
   text: string;
+  /**
+   * The offset within `text` at which a BLOCK QUOTE's own content begins — `0` for every fence
+   * outside a quote (Session 225). `text` stays RAW so the column a consumer resolves from it
+   * remains a real document column; a consumer that PARSES the info string slices from here.
+   *
+   * ⚠ It is also the flag for quarto's line-anchored intercepts, which do NOT fire inside a
+   * quote: rendered, ```` > ```{#lst-e01} ```` defines a real `id="lst-e01"` (`e/e01`) where
+   * the top-level twin renders `<pre class="{#lst-s03}">` and defines nothing at all.
+   */
+  contentStart: number;
 }
 
 /** A document line that is live content — outside front matter, comments, and code fences. */
@@ -4574,6 +4590,7 @@ function scanRegions(text: string): Regions {
 function computeRegions(text: string): Regions {
   const lines = text.split(/\r?\n/);
   const closerIndex = buildCloserIndex(lines);
+  const quoteEnds = blockQuoteEndIndex(lines);
   const headings: Heading[] = [];
   const cells: Cell[] = [];
   const bodyLines: BodyLine[] = [];
@@ -4928,7 +4945,11 @@ function computeRegions(text: string): Regions {
           // cell emit one line up, and for the same reason: a region is only real once it is
           // closed. The opener line itself is never a body line, so this is the only place a
           // consumer can learn the line exists.
-          codeFenceOpeners.push({ line: open.startLine, text: lines[open.startLine] });
+          codeFenceOpeners.push({
+            line: open.startLine,
+            text: lines[open.startLine],
+            contentStart: open.contentStart,
+          });
         }
         open = null;
       }
@@ -5132,6 +5153,7 @@ function computeRegions(text: string): Regions {
       const candidate: OpenCellFence = {
         char,
         quoted: stripQuote,
+        contentStart: stripQuote ? (quoteContentStart as number) : 0,
         len: fence[1].length,
         isCell: info !== null,
         lang: info ? info[1] : "",
@@ -5181,7 +5203,10 @@ function computeRegions(text: string): Regions {
           consumedFenceClosers.add(consumed);
         }
       }
-      if (!refused && hasCloserBelow(closerIndex, i + 1, candidate)) {
+      if (
+        !refused &&
+        hasCloserBelow(closerIndex, i + 1, candidate, stripQuote ? quoteEnds[i] : undefined)
+      ) {
         open = candidate;
         consecutiveBody = 0;
         paragraphOpen = false;
@@ -6236,7 +6261,50 @@ function buildCloserIndex(lines: readonly string[]): Map<string, number[]> {
       }
     }
   }
+  // ⚠ **QUOTED CLOSERS GET THEIR OWN NAMESPACE, AND THAT SEPARATION IS THE WHOLE POINT
+  // (Session 225).** A `>`-prefixed fence run closes NOTHING at top level — rendered, the whole
+  // of `> ``` ` stays inside the code block it sits in (`d/d02`) — so these keys may only be
+  // reached by an opener that is itself inside a quote. Folding them into `p|` would close
+  // every top-level fence early. The LAZY closer needs no key of its own: an UNMARKED closing
+  // fence really does close a fence opened inside a quote (`b/b05`), and it is already in `p|`.
+  for (let i = 0; i < lines.length; i++) {
+    const contentStart = blockQuoteContentStart(lines[i]);
+    if (contentStart === null) {
+      continue;
+    }
+    const content = lines[i].slice(contentStart);
+    const m = FENCE_CLOSE.exec(content);
+    if (m === null) {
+      continue;
+    }
+    const col = indentColumn(content);
+    for (let n = 3; n <= m[1].length; n++) {
+      push(`q|${m[2]}|${n}|${col}`, i);
+    }
+  }
   return index;
+}
+
+/**
+ * For each line, the index of the first line at or below it that ENDS a block quote — an
+ * UNMARKED blank line — or `lines.length` when none does (Session 225).
+ *
+ * ⚠ A fence opened inside a quote may only be closed while the quote is still open. Rendered:
+ * `> ``` ` / `> a c04` / (blank) / ``` ` leaves the fence UNCLOSED and renders it as literal
+ * text (`c/c04`), where the same document without the blank line closes it lazily (`b/b05`).
+ * Without this bound the lazy-closer lookup reaches a run belonging to an entirely different
+ * block further down the document.
+ */
+function blockQuoteEndIndex(lines: readonly string[]): number[] {
+  const ends = new Array<number>(lines.length);
+  let end = lines.length;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (blockQuoteContentStart(lines[i]) === null && BLANK_LINE.test(lines[i])) {
+      end = i;
+    }
+    ends[i] = end;
+  }
+  return ends;
 }
 
 /**
@@ -6275,9 +6343,14 @@ function consumedCloserLine(
  * block at all (Session 179)", whose rows walk all three axes of the key (char, length,
  * indent) with every row measured against `quarto pandoc -f markdown`.
  */
-function hasCloserBelow(index: Map<string, number[]>, from: number, open: OpenCellFence): boolean {
+function hasCloserBelow(
+  index: Map<string, number[]>,
+  from: number,
+  open: OpenCellFence,
+  until = Number.MAX_SAFE_INTEGER,
+): boolean {
   if (open.isCell) {
-    return bucketReaches(index.get(`c|${open.char}|${open.len}`), from);
+    return bucketReaches(index.get(`c|${open.char}|${open.len}`), from, until);
   }
   // A plain closer is accepted at every column that is not code depth for the OPENER's frozen
   // stack — the same predicate `fenceMatchAt` applies to the line itself, asked here of bare
@@ -6289,15 +6362,24 @@ function hasCloserBelow(index: Map<string, number[]>, from: number, open: OpenCe
     if (columnIsCodeDepth(col, open.columns)) {
       continue;
     }
-    if (bucketReaches(index.get(`p|${open.char}|${open.len}|${col}`), from)) {
+    if (bucketReaches(index.get(`p|${open.char}|${open.len}|${col}`), from, until)) {
+      return true;
+    }
+    // A fence opened INSIDE a quote is also closed by a MARKED closer, whose run sits past the
+    // marker and so carries its own column (Session 225).
+    if (open.quoted && bucketReaches(index.get(`q|${open.char}|${open.len}|${col}`), from, until)) {
       return true;
     }
   }
   return false;
 }
 
-/** Whether `bucket` holds a line at or below `from` — binary search; buckets are ascending. */
-function bucketReaches(bucket: number[] | undefined, from: number): boolean {
+/**
+ * Whether `bucket` holds a line at or below `from` and BELOW `until` — binary search; buckets
+ * are ascending. `until` is exclusive and defaults to unbounded; it carries the block-quote
+ * end for a quoted opener (see `blockQuoteEndIndex`).
+ */
+function bucketReaches(bucket: number[] | undefined, from: number, until: number): boolean {
   if (bucket === undefined) {
     return false;
   }
@@ -6311,7 +6393,7 @@ function bucketReaches(bucket: number[] | undefined, from: number): boolean {
       hi = mid;
     }
   }
-  return lo < bucket.length;
+  return lo < bucket.length && bucket[lo] < until;
 }
 
 /**
