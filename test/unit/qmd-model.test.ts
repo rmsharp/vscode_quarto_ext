@@ -9793,4 +9793,38 @@ describe("Session 225 — constructs inside a block quote", () => {
     // The top-level twin, unmoved — still a fence, still hiding its contents.
     expect(headings(["", "```{#lst-c03 bad}", "", "# Not A Heading", "", "```", ""])).toEqual([]);
   });
+
+  it("R1: ⚠ DISCLOSED RESIDUAL — a block construct inside a quote closes a paragraph pandoc keeps open", () => {
+    // Rendered: `> line one` / `> line two` / `> :::` / `> # ATX Below` renders NO heading —
+    // inside a quote the `:::` is ordinary paragraph text, so `blank_before_header` declines the
+    // ATX below it (`scratchpad/s183/c3/R3div_bq_mark__open`, re-rendered by this session's
+    // mover sweep, with the `...`, grid-border, pipe-row, tab-row, `\begin{}` and line-block
+    // spellings of the same document agreeing). This model reports the heading.
+    //
+    // ⚠ It is one of 24 documents in 46,556 where this session's strip introduces a phantom,
+    // against 295 it recovers, and every one is a construct whose block-ness this scanner
+    // decides from the line ALONE. Modelling it needs the quote's own block state, which is the
+    // container capability this deliverable is bounded away from. Filed. Pinned in BOTH
+    // directions so a future session cannot move it unnoticed.
+    expect(headings(["> line one", "> line two", "> :::", "> # Residual One", ""])).toEqual([
+      "Residual One",
+    ]);
+    // The CONTROL that makes the pin mean something: with the construct gone, quarto and this
+    // model agree that no heading is reported either.
+    expect(headings(["> line one", "> line two", "> # Residual One", ""])).toEqual([]);
+  });
+
+  it("R2: ⚠ DISCLOSED RESIDUAL — an unmarked line below a quote is a LAZY continuation this model does not model", () => {
+    // Rendered: `> | line one` / `  continued` (UNMARKED) / `# ATX Below` renders NO heading —
+    // the unmarked line lazily continues the quote's paragraph, so the ATX cannot interrupt it
+    // (`scratchpad/s184/adjudicate/quote_lb_cont__dbceaa6f`'s unmarked twin, `i/m07`). The
+    // MARKED twin renders the heading and this model agrees with it (`i/m02`).
+    expect(headings(["> | line one", "  continued", "# Residual Two", ""])).toEqual([
+      "Residual Two",
+    ]);
+    // The MARKED twin, which quarto and this model agree on.
+    expect(headings(["> | line one", ">   continued", "# Residual Two", ""])).toEqual([
+      "Residual Two",
+    ]);
+  });
 });

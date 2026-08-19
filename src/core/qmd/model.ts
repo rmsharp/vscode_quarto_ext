@@ -4830,6 +4830,18 @@ function computeRegions(text: string): Regions {
   // Whether a BLOCK QUOTE is open on this line — the state the marker strip at the top of the
   // loop maintains (Session 225). Distinct from `quoteOpen`, which is the pre-session fail-safe
   // for an UNMARKED line below a quote and keeps its own meaning untouched.
+  // The OUTER document's container stack while a quote is open, restored when it closes
+  // (Session 225).
+  //
+  // ⚠ **CLEARING INSTEAD OF SAVING DELETED FOUR FAMILIES OF REAL HEADINGS, and the corpus
+  // sweep is what found them.** A quote may sit INSIDE a list item — `- item one` / `  > quoted`
+  // / `  # ATX Below` — and the item's content column is still the coordinate system every line
+  // BELOW the quote is written in. Quarto renders all four (`h/s189_life_l0155`,
+  // `h/s199_ax_quote_inlist`, `h/s198_adv_a0067`, `h/s198_pop2_f1_setext_quote`), and clearing
+  // the stack turned an indented setext title into indented code and an indented ATX into no
+  // heading at all.
+  let outerColumns: { columns: number[]; kinds: ("list" | "definition")[]; commonmark: boolean[] } | null =
+    null;
   let inQuote = false;
   // ⚠ **AND THE PRE-SESSION FLAG IS CLEARED ONLY BY A LINE THE STRIP DID NOT REACH.** Every
   // region-boundary path below writes `quoteOpen = stripQuote` rather than `false` (Session
@@ -4877,17 +4889,26 @@ function computeRegions(text: string): Regions {
       // quote's content base is its own column 0, and an outer list's column describes a
       // coordinate system the stripped line is no longer written in.
       if (!inQuote) {
+        outerColumns = {
+          columns: [...contentColumns],
+          kinds: [...columnKinds],
+          commonmark: [...columnIsCommonmark],
+        };
         contentColumns.length = 0;
         columnKinds.length = 0;
         columnIsCommonmark.length = 0;
       }
       inQuote = true;
     } else if (quoteContentStart === null && BLANK_LINE.test(raw)) {
-      if (inQuote) {
+      if (inQuote && outerColumns !== null) {
         contentColumns.length = 0;
+        contentColumns.push(...outerColumns.columns);
         columnKinds.length = 0;
+        columnKinds.push(...outerColumns.kinds);
         columnIsCommonmark.length = 0;
+        columnIsCommonmark.push(...outerColumns.commonmark);
       }
+      outerColumns = null;
       inQuote = false;
     }
     const line: string = stripQuote ? raw.slice(quoteContentStart as number) : raw;
@@ -5313,8 +5334,21 @@ function computeRegions(text: string): Regions {
     // block-quote context, so accepting the underline here mints an `h2:from: gfm` quarto does
     // not render — measured, on Session 211's own `cal2/q5_in_quote` row. Declining costs the
     // quoted setext heading this model already did not report; it introduces nothing. Filed.
+    // ⚠ **AND NOT WHEN THE TITLE SITS PART-WAY INTO A QUOTE (Session 225), which is where the
+    // two rendered rows part company.** `> quoted f01` / `---` — the title is the quote's FIRST
+    // line — renders `<h2>&gt; quoted f01</h2>` at top level, marker and all, and an inherited
+    // test pins it (`f/f01`). `> Comp quote intro.` / `>` / `> comp quote title` / `  ===`
+    // renders NO heading, and this model reported one whose text still carried the `> `
+    // (`s202/comp/quote_lazy_gfm`, found by the mover sweep). The lazy half of a quoted setext
+    // heading is the same container question the bound above names; declining the part-way case
+    // returns the pre-session answer there and leaves the first-line case untouched.
+    const setextTitle = titleLineCount >= 1 ? bodyLines[bodyLines.length - titleLineCount] : undefined;
+    const setextTitleQuoted =
+      setextTitle !== undefined &&
+      setextTitle.contentStart > 0 &&
+      blockQuoteContentStart(lines[setextTitle.line - 1] ?? "") !== null;
     const setextLevel =
-      titleLineCount >= 1 && commonmarkHtmlBlock === null && !stripQuote
+      titleLineCount >= 1 && commonmarkHtmlBlock === null && !stripQuote && !setextTitleQuoted
         ? setextUnderlineLevel(
             line,
             commonmarkDialect
@@ -5520,7 +5554,13 @@ function computeRegions(text: string): Regions {
       // ⚠ `paragraphOpen` here is still the line ABOVE's — it is overwritten further down — which
       // is exactly the state type 7 needs: a complete tag may open a block only where no
       // paragraph is already open, while a type-6 name interrupts one freely.
-      if (commonmarkDialect && commonmarkHtmlBlock === null) {
+      // ⚠ **AND NOT FROM A LINE THE BLOCK-QUOTE STRIP REACHED (Session 225).** The block would
+      // outlive the quote that contains it, and quarto's does not: rendered under `from: gfm`,
+      // `> <div>` / `# Cnt Golf One` / `# Cnt Golf Two` renders BOTH headings
+      // (`h/s204_adv_cnt_cnt_07`, this session's corpus sweep). Modelling a quote-scoped HTML
+      // block is a container question of its own; declining to open one costs a phantom heading
+      // inside a quoted raw block, never a deletion, and is filed.
+      if (commonmarkDialect && commonmarkHtmlBlock === null && !stripQuote) {
         // Type 1 is tested FIRST because `<pre>` satisfies type 7's grammar too, and the two
         // disagree about the end condition — which is the only thing that separates them.
         commonmarkHtmlBlock = COMMONMARK_HTML_TYPE1_OPEN.test(line)
@@ -5554,7 +5594,16 @@ function computeRegions(text: string): Regions {
         line,
         paragraphOpen,
         prevLineWasAtxHeading,
-        paragraphQuoted,
+        // ⚠ **THE SUSPENSION IS FOR A LINE THE STRIP DID NOT REACH (Session 225)** — the same
+        // boundary `quoteColumnsUnknown` draws, and the corpus sweep is what found it. S183's
+        // suspension exists because a closer inside a quote was invisible; on a MARKED line it
+        // no longer is, and leaving it on made three families of quoted block openers close a
+        // paragraph pandoc keeps open, fabricating the heading on the UNMARKED line below.
+        // Rendered, all three render no heading at all, quoted AND at top level:
+        // `> quoted one` / `> \clearpage`, `> quoted one` / `>     code`, and
+        // `> line one` / `> line two` / `> ##`, each followed by `# ATX Below` (`i/i04`,
+        // `i/i07`, `i/i08`, with their top-level twins `i/j01`-`i/j03`).
+        paragraphQuoted && !stripQuote,
         lineBlockAbove,
         rawTexColumns,
       );
