@@ -1406,3 +1406,113 @@ describe("Session 222 adversarial pins — rows aimed at THIS session's own rule
     expect(indexLabels("(plain paren){#fig-w03}").map((l) => l.id)).toEqual(["fig-w03"]);
   });
 });
+
+// ── Session 223 GUARD ────────────────────────────────────────────────────────
+// Written and confirmed GREEN **before** the implementation (S204's gotcha 5, inherited a
+// TWENTIETH time). This deliverable is a WIDENING — a fourth definition source starts
+// contributing labels — which is the INVERSE polarity of Session 222's, so the guard is per
+// source-that-must-not-move and per shape-that-must-NOT-start-defining. Every expected value
+// below is the value the pre-change build produced, re-run at the moment of writing.
+
+describe("Session 223 GUARD — shapes that must NOT move when fence openers join the index", () => {
+  it("H1: Source 1 — a heading's sec- id is untouched", () => {
+    expect(indexLabels("## Methods {#sec-methods}")).toEqual([
+      { id: "sec-methods", kind: "sec", line: 0, column: 13 },
+    ]);
+  });
+
+  it("H2: Source 2 — a cell-option label is untouched", () => {
+    const text = ["```{r}", "#| label: fig-cell", "plot(1)", "```"].join("\n");
+    expect(indexLabels(text)).toEqual([{ id: "fig-cell", kind: "fig", line: 1, column: 10 }]);
+  });
+
+  it("H3: Source 3 — an image's attribute block is untouched", () => {
+    expect(indexLabels('![Cap](a.png){#fig-i .cls key="v.w"}')).toEqual([
+      { id: "fig-i", kind: "fig", line: 0, column: 15 },
+    ]);
+  });
+
+  it("H4: Source 3 — display math and a table caption are untouched", () => {
+    expect(indexLabels("$$ y = x $$ {#eq-m}")).toEqual([
+      { id: "eq-m", kind: "eq", line: 0, column: 14 },
+    ]);
+    const cap = ["| a |", "|---|", "| 1 |", "", ": Cap {#tbl-c}"].join("\n");
+    expect(indexLabels(cap)).toEqual([{ id: "tbl-c", kind: "tbl", line: 4, column: 8 }]);
+  });
+
+  it("H5: Source 3 — a fenced div is untouched", () => {
+    expect(indexLabels("::: {#fig-d}\nbody\n:::")).toEqual([
+      { id: "fig-d", kind: "fig", line: 0, column: 6 },
+    ]);
+  });
+
+  it("H6: an info string quarto INTERCEPTS must never define", () => {
+    // ⚠ The stage-1 gate, and it is quarto's rather than pandoc's: a brace-LED info string
+    // holding neither `.` nor `=` renders `<pre class="{#lst-h06}">` — the braces become a
+    // literal CLASS and no id exists (rendered, `scratchpad/s223/cal/sv.qmd` s03 and 22 more
+    // rows across `t.qmd`/`u.qmd`). Bare pandoc defines `id="lst-h06"` from the same bytes,
+    // so this row is exactly where porting pandoc's grammar would mint a phantom.
+    expect(indexLabels("```{#lst-h06}\nx = 1\n```")).toEqual([]);
+    expect(indexLabels("```{#lst-h06a #lst-h06b}\nx = 1\n```")).toEqual([]);
+    expect(indexLabels("```{#lst-h06:x}\nx = 1\n```")).toEqual([]);
+  });
+
+  it("H7: a CELL fence carrying an id in its info string must never define", () => {
+    // ⚠ Measured: ```{python #lst-h07} and ```{r #lst-h07r} render with quarto's own cb1/cb2
+    // ids and the `#lst-…` is DROPPED (`scratchpad/s223/cal/q8b.qmd`). Source 2's cell-option
+    // path owns cells; this source is for PLAIN fences only.
+    expect(indexLabels("```{python #lst-h07}\nx = 1\n```")).toEqual([]);
+    expect(indexLabels("```{r #lst-h07r}\nx <- 1\n```")).toEqual([]);
+  });
+
+  it("H8: SCOPE PIN — an UNTERMINATED fence line is a PHANTOM this session does not close", () => {
+    // ⚠ Not a guard row: this one was RED when the guard block was written, which is how the
+    // phantom was found. A fence opens only if it is closed below (Session 179's measured
+    // rule), so this line is ordinary BODY text — and quarto renders it as exactly that,
+    // braces included: `<p>```{#lst-q07 .python} x = 7</p>`, defining nothing
+    // (`scratchpad/s223/cal/q7.qmd`).
+    //
+    // The label nevertheless appears, and it comes from SOURCE 3, not from this session's
+    // source: the character before the group is a backtick, so `isAttributeBlock` is false and
+    // the unvalidated `NARROW_LABEL` scan mints it. That is precisely the already-filed item
+    // "a `{#fig-…}` group with nothing in front of it to carry attributes is still indexed"
+    // (BACKLOG, filed by Session 222) seen on a fence line, so closing it here would be a
+    // SECOND deliverable. PRE-EXISTING and deliberately unchanged — Source 4 never sees this
+    // line, because it is not a fence opener.
+    expect(indexLabels("```{#lst-h08 .python}\nx = 1\n")).toEqual([
+      { id: "lst-h08", kind: "lst", line: 0, column: 5 },
+    ]);
+  });
+
+  it("H9: a fence line inside a WIDER fence, or inside an HTML comment, must never define", () => {
+    // Both render inert (`q.qmd` q12/q13) and both are already region-scanner facts.
+    const nested = ["`````", "```{#lst-h09 .python}", "x = 1", "```", "`````"].join("\n");
+    expect(indexLabels(nested)).toEqual([]);
+    const commented = ["<!--", "```{#lst-h09c .python}", "x = 1", "```", "-->"].join("\n");
+    expect(indexLabels(commented)).toEqual([]);
+  });
+
+  it("H10: an attribute block in a code block's BODY must never define", () => {
+    expect(indexLabels("```{.python}\n![Cap](a.png){#fig-h10}\n```")).toEqual([]);
+  });
+
+  it("H11: SCOPE PIN — a sec- id on a fence stays Source 1's, so it is not indexed", () => {
+    // ⚠ Quarto really DEFINES it: ```{#sec-h11 .python} renders id="sec-h11" (rendered,
+    // `scratchpad/s223/cal/r.qmd` r10). It is excluded for the same reason Source 3 excludes
+    // it — section labels are owned by headings — and the row is pinned rather than silently
+    // absorbed. ⚠ Note the resolve column does NOT argue this: `@sec-r10` renders `?@sec-r10`,
+    // and so does `@fig-r11`, whose kind this source DOES index.
+    expect(indexLabels("```{#sec-h11 .python}\nx = 1\n```")).toEqual([]);
+  });
+
+  it("H12: SCOPE PIN — a top-level INDENTED fence is a PHANTOM this session does not close", () => {
+    // ⚠ The other row that was RED when the guard was written, and the same mechanism as H8.
+    // A 4-space-indented fence at top level is CommonMark indented code, not a fence: quarto
+    // renders the fence line verbatim inside a `<pre>` (`scratchpad/s223/cal/sv.qmd` s12) and
+    // defines nothing. The line is therefore body text, and Source 3's unvalidated scan mints
+    // the label. PRE-EXISTING, same filed item as H8, deliberately unchanged.
+    expect(indexLabels("    ```{#lst-h12 .python}\n    x = 1\n    ```")).toEqual([
+      { id: "lst-h12", kind: "lst", line: 0, column: 9 },
+    ]);
+  });
+});
