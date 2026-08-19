@@ -3506,6 +3506,17 @@ const CLOSER_LINE = /^ {0,3}(?::{3,}|\.\.\.[ \t]*$)/;
  * `:::{.note}` (`g06`). A colon run followed by nothing but whitespace is a closer, and its
  * run may be LONGER than the opener's (`g07`: a `::::` closes a `:::`).
  */
+/**
+ * A LIST ITEM's own marker, so a div fence sharing its line can still be seen (Session 226).
+ *
+ * ⚠ **18 of the 39 headings this session's 47,125-document sweep caught it deleting were
+ * this one shape.** `DIV_FENCE` is anchored at `^ {0,3}`, so `- ::: mydiv` never matched, the
+ * div never opened, and the `:::` below it therefore closed nothing — leaving a paragraph open
+ * across a heading quarto really renders (`scratchpad/s183/R3-fenceddiv-refute/run5/R01_ul_open`
+ * and its ordered-list and indented-closer twins). This is the same anchoring gap
+ * `BLOCK_QUOTE_PREFIX` carries, which Session 225 filed rather than closed.
+ */
+const LIST_MARKER_PREFIX = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+/;
 const DIV_FENCE = /^ {0,3}:{3,}[ \t]*(.*)$/;
 /**
  * A mid-document YAML metadata block's `...` terminator, on its own line (Session 226). The
@@ -3527,9 +3538,16 @@ const YAML_BLOCK_OPENER = /^ {0,3}-{3,}[ \t]*$/;
 /**
  * Whether `line` is a div fence and, if so, whether it opens or closes — see `DIV_FENCE`.
  */
-function divFenceRole(line: string): "open" | "close" | null {
-  const m = DIV_FENCE.exec(line);
-  return m === null ? null : m[1].trim() === "" ? "close" : "open";
+function divFenceRole(line: string): {
+  role: "open" | "close";
+  viaListMarker: boolean;
+} | null {
+  const own = DIV_FENCE.exec(line);
+  const m = own ?? DIV_FENCE.exec(line.replace(LIST_MARKER_PREFIX, ""));
+  if (m === null) {
+    return null;
+  }
+  return { role: m[1].trim() === "" ? "close" : "open", viaListMarker: own === null };
 }
 /**
  * A block-quote marker, for `paragraphQuoted` — see `closesParagraph`.
@@ -4931,7 +4949,12 @@ function computeRegions(text: string): Regions {
   let metadataBlockOpen = false;
   // How many raw-TeX environments are open at this line — the same block state again, for the
   // `\end{}` delimiter. See `lastRawTexEnvEnd` for the half that decides a `\begin{}`.
-  let rawTexEnvDepth = 0;
+  // ⚠ **A STACK OF NAMES, NOT A DEPTH COUNTER.** A counter cannot tell a real closer from a
+  // lookalike: an `\end{center}` sitting inside a `verbatim` block consumed the depth, so the
+  // real `\end{verbatim}` below it found nothing open and deleted the heading beneath it
+  // (`scratchpad/s188/adv/L05/L05-11-verbatim-fake-end-inside`, one of 39 deletions the
+  // 47,125-document sweep caught). Pandoc closes the innermost environment of the SAME name.
+  const rawTexEnvStack: string[] = [];
   const rawTexEnvEnds = lastRawTexEnvEnd(lines);
   let quoteOpen = false;
   // Whether a BLOCK QUOTE is open on this line — the state the marker strip at the top of the
@@ -5703,7 +5726,14 @@ function computeRegions(text: string): Regions {
       // closes nothing (`r3/h01`), while the same document with a blank line after `para one`
       // renders the heading (`r3/h04`). `paragraphOpen` is still the line ABOVE's here; it is
       // overwritten immediately below.
-      const divRole = divFenceRole(line);
+      const divFence = divFenceRole(line);
+      const divRole = divFence?.role ?? null;
+      // ⚠ **A LIST MARKER BEGINS A FRESH BLOCK, so an opener behind one interrupts nothing.**
+      // The last 2 of the sweep's 39 deletions: `- item a` / `- ::: mydiv` / `  line one` /
+      // `:::` / `# ATX Below` leaves a paragraph open at the marker line, and declining the
+      // opener there left the `:::` below closing nothing (`R10_ul_2items_open`, and the
+      // nested `R11_ul_nested_open`). Both render the heading.
+      const divOpenerInterrupts: boolean = paragraphOpen && divFence?.viaListMarker !== true;
       // ⚠ **"A `...` THAT REACHES HERE TERMINATES NOTHING" IS REFUTED, AND THE GUARD CAUGHT IT
       // WITHIN THE MINUTE.** `consumedMetadataLines` does skip a block it recognises — but it
       // reads RAW lines, so a QUOTED block is invisible to it (`r2/q_g09`, a rendered heading
@@ -5716,23 +5746,50 @@ function computeRegions(text: string): Regions {
       const texEnv = RAW_TEX_ENV_DELIM.exec(line);
       // A `\begin{}` is a real opener only when its own `\end{}` appears BELOW it; an `\end{}`
       // is a real closer only when one is open. Everything else in this family is inline text.
+      // ⚠ **A ONE-LINE ENVIRONMENT IS COMPLETE WHERE IT STANDS** — `>= i`, not `> i`. Asking for
+      // the matching delimiter STRICTLY below deleted 19 of the 39 headings this session's
+      // 47,125-document sweep caught: `\begin{center}x\end{center}` / `# ATX Below` found no
+      // `\end{center}` at all and left a paragraph open across a heading quarto renders
+      // (`scratchpad/s183/R8-rawtex-refute/docs/B__env_oneline__at_start`). Such a line opens
+      // and closes at once, so it must NOT move the stack either — see below.
+      const texEnvSelfContained: boolean =
+        texEnv !== null &&
+        texEnv[1] === "begin" &&
+        new RegExp("\\\\end\\{" + texEnv[2].replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\}").test(
+          line.slice(texEnv[0].length),
+        );
+      // ⚠ **EVERY `\end{}` ON THE LINE, MATCHED LIFO** — the same lesson `lastRawTexEnvEnd`
+      // learned, now on the matching side, and the C6 test is what caught it: `\begin{a}` /
+      // `body text` / `\end{b}\end{a}` really does close `a`, so reading only the delimiter
+      // that STARTS the line calls it unmatched and deletes the heading below.
+      let texEndPops = 0;
+      if (texEnv !== null && texEnv[1] === "end") {
+        const probe = [...rawTexEnvStack];
+        const scan = /\\end\{([^}]*)\}/g;
+        for (let m = scan.exec(line); m !== null; m = scan.exec(line)) {
+          if (probe[probe.length - 1] === m[1]) {
+            probe.pop();
+            texEndPops++;
+          }
+        }
+      }
       const texEnvMatched: boolean =
         texEnv === null
           ? false
           : texEnv[1] === "begin"
-            ? (rawTexEnvEnds.get(texEnv[2]) ?? -1) > i
-            : rawTexEnvDepth > 0;
+            ? (rawTexEnvEnds.get(texEnv[2]) ?? -1) >= i
+            : texEndPops > 0;
       const unmatchedConstruct: boolean =
         divRole === "close"
           ? divDepth === 0
           : divRole === "open"
-            ? paragraphOpen
+            ? divOpenerInterrupts
             : texEnv !== null
               ? !texEnvMatched
               : yamlTerminates && !metadataBlockOpen;
       if (divRole === "close" && divDepth > 0) {
         divDepth--;
-      } else if (divRole === "open" && !paragraphOpen) {
+      } else if (divRole === "open" && !divOpenerInterrupts) {
         divDepth++;
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS
@@ -5747,8 +5804,14 @@ function computeRegions(text: string): Regions {
       } else if (yamlOpens && !paragraphOpen) {
         metadataBlockOpen = true;
       }
-      if (texEnvMatched) {
-        rawTexEnvDepth += texEnv![1] === "begin" ? 1 : -1;
+      if (texEnvMatched && !texEnvSelfContained) {
+        if (texEnv![1] === "begin") {
+          rawTexEnvStack.push(texEnv![2]);
+        } else {
+          for (let k = 0; k < texEndPops; k++) {
+            rawTexEnvStack.pop();
+          }
+        }
       }
       const wasParagraphOpen: boolean = paragraphOpen;
       paragraphOpen = !closesParagraph(

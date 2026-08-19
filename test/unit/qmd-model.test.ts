@@ -10029,4 +10029,60 @@ describe("Session 226 — the `:::` / `...` / `\\end{}` family", () => {
     // The single-delimiter control, which never moved (`r4/j02`).
     expect(headings(["\\begin{a}", "body text", "\\end{a}", "# H j02"])).toEqual(["H j02"]);
   });
+
+  it("C7: a ONE-LINE complete environment is complete on its own line (`s183/R8` `B__env_oneline__at_start`)", () => {
+    // ⚠ **A DELETION FOUND BY THE 47,125-DOCUMENT SWEEP, 19 of its 39.** The `\\end{}` lookahead
+    // asked for a matching delimiter STRICTLY BELOW, so `\\begin{center}x\\end{center}` found
+    // none, called itself unmatched, and left a paragraph open across a heading quarto really
+    // renders. The environment is complete where it stands.
+    expect(headings(["\\begin{center}x\\end{center}", "# ATX Below"])).toEqual(["ATX Below"]);
+    // At indent 1, the same (`C__env_ind1__at_start`).
+    expect(headings([" \\begin{center}x\\end{center}", "# ATX Below"])).toEqual(["ATX Below"]);
+  });
+
+  it("C8: an `\\end{}` closes only the environment of its OWN NAME (`s188/adv` `L05-11-verbatim-fake-end-inside`)", () => {
+    // ⚠ **A DELETION FOUND BY THE SWEEP.** A depth COUNTER cannot tell a real closer from a
+    // lookalike: the `\\end{center}` sitting inside a `verbatim` block consumed the depth, so
+    // the real `\\end{verbatim}` below it found nothing open, called itself unmatched, and left
+    // a paragraph open across a heading quarto really renders. A stack of NAMES is what
+    // separates them, and the corpus carries this as a deliberate lookalike probe.
+    expect(
+      headings(["\\begin{verbatim}", "\\end{center}", "\\end{verbatim}", "# ATX Below"]),
+    ).toEqual(["ATX Below"]);
+    // The nested control, which never moved (`r2/g12`).
+    expect(
+      headings(["\\begin{a}", "\\begin{b}", "body text", "\\end{b}", "\\end{a}", "# H g12"]),
+    ).toEqual(["H g12"]);
+  });
+
+  it("C9: a div opener INSIDE A LIST ITEM is still an opener (`s183/R3-fenceddiv-refute` `R01_ul_open`)", () => {
+    // ⚠ **A DELETION FOUND BY THE SWEEP, 18 of its 39, and the shape predicted before the
+    // renders came back.** `DIV_FENCE` is anchored at `^ {0,3}`, so a `:::` sharing its line
+    // with a list marker never matched and the div never opened — leaving the `:::` below it
+    // closing nothing, the paragraph open, and a heading quarto really renders deleted. This
+    // is the same anchoring gap `BLOCK_QUOTE_PREFIX` carries (Session 225's own filed item).
+    expect(headings(["- ::: mydiv", "  line one", ":::", "# ATX Below"])).toEqual(["ATX Below"]);
+    // The closer INSIDE the item, at the item's own content column (`C09_div_in_list_noblank`).
+    expect(headings(["- ::: mydiv", "  line one", "  :::", "# ATX Below"])).toEqual([
+      "ATX Below",
+    ]);
+    // An ORDERED item, the same (`R03_ol_open`).
+    expect(headings(["1. ::: mydiv", "   line one", ":::", "# ATX Below"])).toEqual([
+      "ATX Below",
+    ]);
+  });
+
+  it("C10: a LIST MARKER begins a fresh block, so the opener behind it is not interrupting anything (`R10_ul_2items_open`, `R11_ul_nested_open`)", () => {
+    // ⚠ **The last 2 of the sweep's 39 deletions.** Seeing the opener behind the marker (C9)
+    // was not enough: an opener is declined against an OPEN paragraph, and here one is —
+    // `- item a` above, or the outer item's own text. But a list ITEM MARKER starts a new
+    // block by construction, so the `:::` after it opens at the head of fresh content and the
+    // paragraph above is not its to interrupt. Rendered, both render the heading.
+    expect(
+      headings(["- item a", "- ::: mydiv", "  line one", ":::", "# ATX Below"]),
+    ).toEqual(["ATX Below"]);
+    expect(
+      headings(["- outer", "  - ::: mydiv", "    line one", ":::", "# ATX Below"]),
+    ).toEqual(["ATX Below"]);
+  });
 });
