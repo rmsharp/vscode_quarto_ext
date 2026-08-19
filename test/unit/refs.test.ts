@@ -1573,3 +1573,128 @@ describe("indexLabels — Source 4: cross-ref ids on PLAIN fenced code block ope
     expect(indexLabels("```{#lst-y03a .cls}{#lst-y03b}\nx = 3\n```")).toEqual([]);
   });
 });
+
+describe("Session 223 PINS — Source 4 behaviours that came free, declared rather than cycled", () => {
+  // ⚠ Every row here was measured against a real `quarto render` (quarto 1.7.33,
+  // `scratchpad/s223/cal/` and `adv/`) and every one was ALREADY GREEN when first written:
+  // they fall out of the two layers rather than being separate clauses, so they are declared
+  // PINS, not RED->GREEN cycles (Session 221's convention for a red that comes up green).
+
+  it("P1: ⚠ the READER SPLIT reaches this production, so it is carried rather than declared", () => {
+    // `{#lst-x3a #lst-x3b .python}` defines the LAST atom under the pandoc family and the
+    // FIRST under commonmark_x (rendered: `scratchpad/s223/cal/rd_md.qmd`, `rd_cmx.qmd`) —
+    // the split Session 219 measured on headings and Session 222 on inline blocks. Session
+    // 222 shipped a regression by declaring this one rather than implementing it; here it
+    // comes free, because `attributeBlockId` takes the reader.
+    const pandoc = "```{#lst-x3a #lst-x3b .python}\nx\n```";
+    expect(indexLabels(pandoc)).toEqual([
+      { id: "lst-x3b", kind: "lst", line: 0, column: 14 },
+    ]);
+    const cmx = [
+      "---", "title: T", "format:", "  html:", "    from: commonmark_x", "---", "",
+      "```{#lst-x3a #lst-x3b .python}", "x", "```",
+    ].join("\n");
+    expect(indexLabels(cmx)).toEqual([
+      { id: "lst-x3a", kind: "lst", line: 7, column: 5 },
+    ]);
+  });
+
+  it("P2: the fence CHARACTER and its length are irrelevant", () => {
+    // `~~~{#lst-s08 .python}` and a four-backtick fence both define (`sv.qmd` s08,
+    // `disc.qmd` d11) — this reuses the region scanner's fence geometry rather than
+    // re-deriving it.
+    expect(indexLabels("~~~{#lst-t .python}\nx\n~~~")).toEqual([
+      { id: "lst-t", kind: "lst", line: 0, column: 5 },
+    ]);
+    expect(indexLabels("````{#lst-f .python}\nx\n````")).toEqual([
+      { id: "lst-f", kind: "lst", line: 0, column: 6 },
+    ]);
+  });
+
+  it("P3: a fence inside a blockquote, a list item or a div defines, and the column follows", () => {
+    // Rendered: `q.qmd` q09 (blockquote), `sv.qmd` s09 and `adv.qmd` z11 (list item),
+    // `adv.qmd` z03 (inside a fenced div).
+    expect(indexLabels("> ```{#lst-bq .python}\n> x\n> ```")).toEqual([
+      { id: "lst-bq", kind: "lst", line: 0, column: 7 },
+    ]);
+    expect(indexLabels("- item\n\n  ```{#lst-li .python}\n  x\n  ```")).toEqual([
+      { id: "lst-li", kind: "lst", line: 2, column: 7 },
+    ]);
+    expect(indexLabels("::: {.panel}\n\n```{#lst-dv .python}\nx\n```\n\n:::")).toEqual([
+      { id: "lst-dv", kind: "lst", line: 2, column: 5 },
+    ]);
+  });
+
+  it("P4: the id need not come first in the block", () => {
+    // `{.python #lst-s02}` defines (`sv.qmd` s02) — this production is not the narrow
+    // display-math one, where anything beyond a bare id renders as text.
+    expect(indexLabels("```{.python #lst-pi}\nx\n```")).toEqual([
+      { id: "lst-pi", kind: "lst", line: 0, column: 13 },
+    ]);
+  });
+
+  it("P5: a NON-brace-led info string escapes quarto's stage-1 gate", () => {
+    // ```` ```python {#lst-d09} ```` and ```` ```.python {#lst-r07} ```` both define although
+    // their braces hold neither `.` nor `=` (`disc.qmd` d09, `r.qmd` r07): the gate applies
+    // only when the info string BEGINS with `{`.
+    expect(indexLabels("```python {#lst-wl}\nx\n```")).toEqual([
+      { id: "lst-wl", kind: "lst", line: 0, column: 12 },
+    ]);
+    expect(indexLabels("```.python {#lst-dw}\nx\n```")).toEqual([
+      { id: "lst-dw", kind: "lst", line: 0, column: 13 },
+    ]);
+  });
+
+  it("P6: ⚠ the stage-1 gate is LEXICAL — a `.` inside the IDENTIFIER releases it", () => {
+    // `{#lst-t01.b}` defines `lst-t01.b` with no class at all (`t.qmd` t01), while
+    // `{#lst-t02:b}` — the same shape with a colon — is intercepted and defines nothing
+    // (t02). So the gate cannot be restated as "the block must carry a class or a key".
+    expect(indexLabels("```{#lst-di.b}\nx\n```")).toEqual([
+      { id: "lst-di.b", kind: "lst", line: 0, column: 5 },
+    ]);
+    expect(indexLabels("```{#lst-di:b}\nx\n```")).toEqual([]);
+  });
+
+  it("P7: the group scan is quote-aware, and a `$` fails the whole block", () => {
+    // `{#lst-q06 .python key="a}b"}` defines (`q.qmd` q06): the `}` inside the quoted value
+    // is content. `{#lst-q05$x .python}` defines nothing — the fence is not even a fence
+    // there (q05), the failure shape being an inline code span.
+    expect(indexLabels('```{#lst-qb .python key="a}b"}\nx\n```')).toEqual([
+      { id: "lst-qb", kind: "lst", line: 0, column: 5 },
+    ]);
+    expect(indexLabels("```{#lst-do$x .python}\nx\n```")).toEqual([]);
+  });
+
+  it("P8: the identifier set is the measured one — `.`, `:`, `-` and Unicode all define", () => {
+    // Rendered: `q.qmd` q01/q02/q03/q04. The class is `DEFINED_ID_CHAR_CLASS`, shared with
+    // Sources 2 and 3 because all three were measured to ask one question, not ported.
+    expect(indexLabels("```{#lst-c:x .python}\nx\n```").map((l) => l.id)).toEqual(["lst-c:x"]);
+    expect(indexLabels("```{#lst-ué .python}\nx\n```").map((l) => l.id)).toEqual(["lst-ué"]);
+  });
+
+  it("P9: fig-, tbl- and eq- ids on a fence are indexed too", () => {
+    // Quarto defines them (`sv.qmd` s06, `r.qmd` r11) and the index records DEFINITIONS
+    // rather than reachability — `@fig-r11` does NOT resolve, and neither does `@lst-s01`
+    // without an `lst-cap`, which is exactly the precedent Sessions 221 and 222 set with
+    // `fig-plot.`. Only `sec-` is excluded, and that is Source 1's ownership (H11).
+    expect(indexLabels("```{#fig-fk .python}\nx\n```")).toEqual([
+      { id: "fig-fk", kind: "fig", line: 0, column: 5 },
+    ]);
+    expect(indexLabels("```{#eq-ek .python}\nx\n```")).toEqual([
+      { id: "eq-ek", kind: "eq", line: 0, column: 5 },
+    ]);
+  });
+
+  it("P10: a bare key=value releases the gate, and lst-cap is irrelevant to the id", () => {
+    // `{#lst-d02 key=v}` defines with no class present at all (`disc.qmd` d02), and
+    // `{#lst-d14 lst-cap="Cap d14"}` defines the same id it would without the caption (d14).
+    // ⚠ The caption is what makes the block a RESOLVABLE listing cross-reference — `@lst-s01`
+    // renders `?@lst-s01` while `@lst-r12` renders `Listing 1` — and it changes nothing here.
+    expect(indexLabels("```{#lst-kv key=v}\nx\n```")).toEqual([
+      { id: "lst-kv", kind: "lst", line: 0, column: 5 },
+    ]);
+    expect(indexLabels('```{#lst-kv .python lst-cap="C"}\nx\n```')).toEqual([
+      { id: "lst-kv", kind: "lst", line: 0, column: 5 },
+    ]);
+  });
+});
