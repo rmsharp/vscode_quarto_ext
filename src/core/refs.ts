@@ -65,13 +65,50 @@ const KIND_PREFIX = /^(fig|tbl|sec|eq|lst)-/;
 const CELL_LABEL_OPTION =
   /^\s*(?:#|\/\/)\|\s*label:\s*["']?([A-Za-z0-9_][A-Za-z0-9_-]*)/;
 /**
+ * A character a DEFINED cross-reference identifier may hold — Pandoc's attribute-block
+ * identifier set: a Unicode letter or digit, `_`, `:`, `.` or `-`.
+ *
+ * ⚠ **THE DEFINITION SIDE IS A FLAT CLASS AND THE USE SIDE IS NOT, SO NEITHER RULE MAY BE
+ * PORTED TO THE OTHER.** {@link REF_USAGE} is Pandoc's `citeKey`, where internal punctuation
+ * counts only when a regchar follows it; this set has **no follower rule and no position
+ * clause** — an admitted character may open, sit inside, or end the id. Measured over 36
+ * rendered rows in Session 221 with predictions frozen first (`scratchpad/s221/cal/attr.qmd`,
+ * 36/36): `{#fig-t26a..b}` is ONE id named `fig-t26a..b` (t26), and `{#fig-.t30b}`,
+ * `{#fig--t31b}`, `{#fig-:t32b}`, `{#fig-日t35b}`, `{#fig-t40a.}`, `{#fig-t41a:}` and
+ * `{#fig-t42a-}` all define exactly what they spell.
+ *
+ * ⚠ **AND EVERYTHING OUTSIDE IT FAILS THE BLOCK OUTRIGHT RATHER THAN TRUNCATING IT.**
+ * `$ % + ? / ~ < > & * ! , ; | ' =` and a space each leave a token Pandoc's attribute parser
+ * cannot place, so the braces are rendered as literal text and NO id is defined at all —
+ * `fig-t09a$b}` appears verbatim in the rendered output. A `#` is not in the set either: it
+ * splits the block into two id atoms, and the pandoc family takes the LAST, so
+ * `{#fig-t08a#b}` defines `b` and no `fig-` target exists (t08, and Session 219's measured
+ * last-wins rule).
+ *
+ * This is the same set `ATTR_ID_ALL` matches an atom with in `src/core/qmd/model.ts`, where
+ * Session 218 measured it for HEADING attribute blocks. Session 221 re-measured it here for
+ * images, divs and display equations rather than porting it, because "what may a heading's
+ * identifier hold" and "what may an image's identifier hold" are two questions that happen to
+ * share an answer (Learning #377).
+ */
+const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
+/**
  * An inline Pandoc attribute block declaring a cross-ref id on an image, div, or
  * display equation: `…){#fig-plot}`, `::: {#tbl-x}`, `$$ … $$ {#eq-y}`. Group 1
  * is the id; its column is `match.index + 2` (past the `{#`). `sec-` is excluded
  * on purpose — section labels are owned by headings (Source 1), so a stray
  * inline `{#sec-…}` is not double-counted.
+ *
+ * ⚠ **THE NAME IS ONE FLAT RUN OF {@link DEFINED_ID_CHAR_CLASS}, NOT A FIRST-CHARACTER CLAUSE
+ * PLUS A TAIL.** The two-clause spelling this replaced (`[A-Za-z0-9_][A-Za-z0-9_-]*`) refused
+ * `{#fig-.t30b}` and `{#fig--t31b}` outright, both of which quarto defines
+ * (`scratchpad/s221/cal/attr.qmd` t30/t31) — so widening only the tail would have left half
+ * the defect in place.
  */
-const INLINE_LABEL = /\{#((?:fig|tbl|eq|lst)-[A-Za-z0-9_][A-Za-z0-9_-]*)/g;
+const INLINE_LABEL = new RegExp(
+  String.raw`\{#((?:fig|tbl|eq|lst)-` + DEFINED_ID_CHAR_CLASS + String.raw`+)`,
+  "gu",
+);
 /**
  * A character that may stand alone anywhere in a cross-reference id — Pandoc's
  * "regchar": a Unicode letter or digit, or `_`.
@@ -337,16 +374,15 @@ function dedupeById(labels: RefLabel[]): RefLabel[] {
 }
 
 /**
- * Pandoc's ATTRIBUTE-BLOCK identifier character set — the same one `ATTR_ID_ALL` matches an atom
- * with in `src/core/qmd/model.ts`.
+ * {@link DEFINED_ID_CHAR_CLASS} as a testable single-character pattern — the boundary test
+ * `idColumn` uses to decide whether an `#id` occurrence ends where the identifier ends.
  *
- * ⚠ **DELIBERATELY NOT `ID_CHAR` ABOVE, WHICH IS A DIFFERENT AND NARROWER SET.** That one scans
- * the token under the cursor after an `@` and is `[A-Za-z0-9_-]` — no `:`, no `.`, ASCII only.
- * The two answer different questions (what may a reference token hold as you type it, versus
- * what may a defined identifier hold), and widening the completion scanner to this set would
- * silently change which text an accepted completion replaces.
+ * ⚠ **DELIBERATELY NOT THE USE-SIDE RULE, WHICH IS A DIFFERENT QUESTION.** {@link REF_USAGE}
+ * asks what a reference TOKEN may consume as the author types it; this asks what a DEFINED
+ * identifier may hold. Session 220 measured the first and Session 221 the second, separately,
+ * and they disagree — the use side has a follower clause and this side does not.
  */
-const ATTR_ID_CHAR = /[\p{L}\p{N}_:.-]/u;
+const ATTR_ID_CHAR = new RegExp(DEFINED_ID_CHAR_CLASS, "u");
 
 /**
  * The 0-based column where `#<id>` resolves to the start of `<id>` on `line`, or

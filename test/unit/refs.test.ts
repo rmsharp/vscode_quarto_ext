@@ -981,3 +981,91 @@ describe("Session 221 GUARD — shapes a widened definition-side id rule must NO
     expect(indexLabels(text).map((l) => l.id)).toEqual(["fig-real"]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Session 221 — the DEFINITION side reaches the id quarto actually defines.
+//
+// Measured over 69 rows rendered through the real `quarto render` path (quarto 1.7.33),
+// with predictions frozen and hashed before each render: `scratchpad/s221/cal/attr.qmd`
+// 36/36, `cell.qmd` 11/24 (the hypothesis this REFUTED — see CALIBRATION.md), and the
+// discriminating round `cell3.qmd` + `cell2.qmd` 9/9.
+// ---------------------------------------------------------------------------
+describe("Session 221 — an inline {#…} label reaches pandoc's whole identifier", () => {
+  it("indexes a dotted inline id under the name quarto defines", () => {
+    // `![Cap A](a.png){#fig-a.b}` renders `id="fig-a.b"` and `@fig-a.b` resolves to it
+    // (scratchpad/s221/cal/attr.qmd t01, resolve.qmd E01). This model indexed `fig-a`.
+    //              ![p](p.png){#fig-a.b}
+    //              0123456789012345678901
+    expect(indexLabels("![p](p.png){#fig-a.b}")).toEqual([
+      { id: "fig-a.b", kind: "fig", line: 0, column: 13 },
+    ]);
+  });
+
+  it("indexes an id whose first character after the prefix is punctuation", () => {
+    // The name is a FLAT run, not a first-character class plus a tail: `{#fig-.t30b}` and
+    // `{#fig--t31b}` both render `id="…"` exactly as spelled (attr.qmd t30/t31), and the
+    // two-clause spelling refused them outright rather than truncating them.
+    //              ![p](p.png){#fig-.x}
+    //              01234567890123456789
+    expect(indexLabels("![p](p.png){#fig-.x}")).toEqual([
+      { id: "fig-.x", kind: "fig", line: 0, column: 13 },
+    ]);
+    expect(indexLabels("![p](p.png){#fig--y}").map((l) => l.id)).toEqual([
+      "fig--y",
+    ]);
+  });
+
+  // The rows below are PINS, not RED->GREEN cycles: they passed on first run, because the
+  // rule is general. They are here so a later narrowing cannot delete them silently.
+
+  it("C1-pin: doubled punctuation is ONE id, unlike the use side", () => {
+    // ⚠ THIS IS THE ROW THAT SEPARATES THE TWO RULES. `{#fig-a..b}` defines `fig-a..b`
+    // (attr.qmd t26) while `@sec-a..b` consumes only `sec-a` (S220's cal.qmd t12): the
+    // definition side has no follower clause. Porting either rule to the other is wrong.
+    expect(indexLabels("![p](p.png){#fig-a..b}").map((l) => l.id)).toEqual([
+      "fig-a..b",
+    ]);
+  });
+
+  it("C1-pin: trailing punctuation stays in a DEFINED id", () => {
+    // attr.qmd t40/t41/t42. ⚠ `fig-a.` is a target NO reference can reach — `@fig-a.`
+    // consumes `fig-a` and quarto itself reports "Unable to resolve crossref @fig-e03a"
+    // (resolve.qmd E03). Indexing it is still right: the index records definitions, and the
+    // truncated `fig-a` this used to record was a target quarto never defined.
+    expect(indexLabels("![p](p.png){#fig-a.}").map((l) => l.id)).toEqual([
+      "fig-a.",
+    ]);
+    expect(indexLabels("![p](p.png){#fig-a:}").map((l) => l.id)).toEqual([
+      "fig-a:",
+    ]);
+  });
+
+  it("C1-pin: the class is Unicode letters, not ASCII", () => {
+    expect(indexLabels("![p](p.png){#fig-日本b}").map((l) => l.id)).toEqual([
+      "fig-日本b",
+    ]);
+  });
+
+  it("C1-pin: DISCLOSED RESIDUAL — a block quarto REFUSES is still indexed truncated", () => {
+    // ⚠ THREE ROWS THIS MODEL GETS WRONG AND MUST GO ON GETTING WRONG UNTIL A SEPARATE ITEM
+    // CLOSES THEM. `INLINE_LABEL` is an unvalidated scan, not a parsed block: it never asks
+    // whether the brace group is a well-formed attribute block, so a character outside the
+    // class TRUNCATES the id here where it makes quarto define nothing at all.
+    //
+    //   `{#fig-a$b}`  quarto: braces rendered literally, NO id   (attr.qmd t09)
+    //   `{#fig-a b}`  quarto: braces rendered literally, NO id   (attr.qmd t25)
+    //   `{#fig-a#b}`  quarto: defines `b`, so no fig- target      (attr.qmd t08)
+    //
+    // ⚠ PRE-EXISTING and unchanged by Session 221, established by probing the pre-session
+    // source rather than by reading the diff (`scratchpad/s221/presrc`, git archive of the
+    // 1B commit): PRE and POST both return `fig-a` for all three. Closing them needs block
+    // validation, which is a different deliverable — filed, not fixed.
+    for (const line of [
+      "![p](p.png){#fig-a$b}",
+      "![p](p.png){#fig-a b}",
+      "![p](p.png){#fig-a#b}",
+    ]) {
+      expect(indexLabels(line).map((l) => l.id)).toEqual(["fig-a"]);
+    }
+  });
+});
