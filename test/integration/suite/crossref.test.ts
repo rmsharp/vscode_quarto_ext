@@ -471,4 +471,57 @@ describe("Quarto: Cross-reference completion + definition", () => {
       "the replace range covers the '@' through the end of the typed token",
     );
   });
+
+  it("S221: go-to-definition resolves a reference to a dotted inline label", async () => {
+    // ⚠ THE HALF SESSION 220 LEFT BEHIND. That session taught `refIdAt` to READ `@fig-a.b`;
+    // the definition side still mined `[A-Za-z0-9_-]`, so the label was indexed as `fig-a`
+    // and the reference resolved to nothing. Quarto renders id="fig-a.b" for this exact
+    // document and resolves the reference to it (scratchpad/s221/cal/attr.qmd t01,
+    // resolve.qmd E01).
+    //              ![p](p.png){#fig-a.b}
+    //              0123456789012345678901   — the id text starts at column 13
+    const content = ["![p](p.png){#fig-a.b}", "", "See @fig-a.b"].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const locs = await vscode.commands.executeCommand<vscode.Location[]>(
+      "vscode.executeDefinitionProvider",
+      doc.uri,
+      new vscode.Position(2, 8),
+    );
+    const at = locs?.[0];
+    assert.ok(at, "a reference to a dotted inline id resolves");
+    assert.deepStrictEqual(
+      { line: at!.range.start.line, character: at!.range.start.character },
+      { line: 0, character: 13 },
+      "go-to-definition lands on the id text inside the attribute block",
+    );
+  });
+
+  it("S221: completion offers a dotted CELL label under the name quarto defines", async () => {
+    // The second definition source, and a different grammar reaching the same rule: quarto
+    // writes the YAML label verbatim into a pandoc attribute block, so `#| label: fig-c.d`
+    // defines `fig-c.d` (scratchpad/s221/cal/cell.qmd c01, cell3.qmd 9/9). This model used
+    // to offer `@fig-c`, a target no document defines.
+    const content = [
+      "```{r}",
+      "#| label: fig-c.d",
+      "plot(1)",
+      "```",
+      "",
+      "See @fig-c",
+    ].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(5, 10),
+      "@",
+    );
+    const items = list?.items ?? [];
+    assert.ok(
+      items.map(labelText).includes("@fig-c.d"),
+      `completion should offer @fig-c.d; got ${JSON.stringify(items.map(labelText))}`,
+    );
+  });
 });
