@@ -5,6 +5,63 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 224 — IMPLEMENTATION (strict TDD): a fenced code block whose info string fails pandoc's parse is NOT A FENCE, and our region scanner opens a code region for it anyway.** When a fence opener's info string fails the `[word] {attrs}` parse, quarto does not fall back to a plain code block — the fence is not a fence, and its lines are ordinary prose. `scanRegions` hides them. Closes the item Session 223 filed and ranked #1. **Both directions** — see rule 1 below, which the pre-stub survey found and the filed item did not.
+**Started:** 2026-08-19
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Deliverable (ONE capability):** *a fence opener whose info string quarto refuses does not open a code region* — one intent, per-layer checkpoint commits.
+
+## Session 224 ACTIVE-TASK decision rules (from the survey run BEFORE the 1B stub)
+
+10 rows rendered through real `quarto render` (quarto 1.7.33), predictions frozen and hashed
+(`scratchpad/s224/cal/PREDICTIONS.tsv`, sha256 `a4272330…`) before the render. **Scored 9/10.**
+
+1. ⚠ **THE FILED ITEM DESCRIBES HALF THE DEFECT, AND THE SURVEY FOUND THE OTHER HALF: THE FENCE
+   PAIRING SHIFTS, SO THE ERROR RUNS IN BOTH DIRECTIONS AT ONCE.** The item says content inside a
+   failed-parse fence is hidden here and live in quarto — true (rule 2). But a rejected opener's
+   *closing* ``` then becomes an **opener** in quarto, so the block AFTER it is code to quarto and
+   prose to us. Measured: `sv.qmd` s03's closer opens a `<pre><code>` that swallows the whole of
+   s04 — its `<!-- s04 -->` comment, its opener line and its body all render as literal code —
+   while this model opens a region at s03's opener and another at s04's. Lost-TP **and** phantom.
+2. **Content inside a rejected fence is live prose, and quarto's own crossref filter proves it.**
+   `quarto render` emitted `WARNING … Unable to resolve crossref @fig-s03` and `@fig-s09` — uses
+   this model cannot see at all, because they sit inside what it calls a code region. In the same
+   block a real image DEFINED `id="fig-s03"` and `# Heading Three` rendered as a REAL `<h1>`.
+3. ⚠ **A BLANK LINE INSIDE THE BLOCK IS THE VARIABLE, AND IT IS WHY THIS IS WORTH FIXING.** With no
+   blank line the rejected block collapses to ONE `<p><code>…</code></p>` (s02, s06) — an inline
+   code span whose content is literal, so hiding it is *accidentally* right. A blank line cannot sit
+   inside a code span, so the backticks render as literal text and everything below the blank is
+   live (s03, s07, s08, s09). Do not score the two shapes together.
+4. **The rejection is reader-level, not fence-char-level: `~~~` and four backticks behave exactly
+   as three do.** `~~~{#lst-s07$x .python}` (s07) and ````` ````{#lst-s08$x .python} ````` (s08) both
+   render their opener as literal text with a real `<h1>` below. ⚠ Tildes are NOT a code-span
+   delimiter, so s07's two lines render as two separate paragraphs rather than one `<code>` — the
+   *rendering* differs, the *fence/not-a-fence verdict* does not.
+5. **Stage 1 still holds and must NOT be swept into this change.** ```` ```{#lst-s05} ```` — brace-led,
+   no `.` and no `=` — is a REAL fence with a literal class (`<pre class="{#lst-s05}">`, s05).
+   `fenceAttributeId` already carries that gate measured. A predicate built on "the attribute parse
+   failed" alone deletes this row's region and is the heading-swallowing direction.
+6. **A non-brace-led info string is rejected on the same terms.** ```` ```python {#lst-s06$x} ````
+   renders as an inline code span (s06). So the predicate is about the info string as a whole, not
+   about a leading `{`.
+7. **Declining the opener is expected to reproduce the shift for free — verify, do not assume.**
+   `buildCloserIndex` is an opener-independent pre-pass, so a declined opener leaves the scan to
+   reach the next ``` line, which then asks `hasCloserBelow` for itself. Derived from reading
+   `model.ts:5866-5910`; it predicts quarto's s03/s04 pairing exactly. **A rendered row must confirm
+   it** before any code claims it.
+8. ⚠ **DO NOT WRITE A SECOND GRAMMAR.** `refs.ts` already holds the measured two-stage rule in
+   `fenceAttributeId`. The region scanner needs the same verdict, so the shared shape is a predicate
+   both call — not a regex re-derived in `model.ts`. ⚠ But `fenceAttributeId` returns `undefined`
+   for THREE different reasons (no block, stage-1 intercept, failed parse) and only ONE of them
+   means "not a fence"; reusing its return value directly is rule 5's bug.
+9. **Score the widening AND the narrowing after every GREEN** (S223's gotcha 1). This change moves
+   region boundaries, so a row can move by gaining a label, losing one, or having its LINE change —
+   the scorer must compare whole label sets per document, not counts.
+
+---
+
+### What Session 223 Did (superseded ACTIVE TASK, kept for continuity)
 **Task:** **Session 223 — IMPLEMENTATION (strict TDD): a fenced code block's `{#lst-…}` is never indexed, although quarto defines it.** ```` ```{#lst-p06 .python} ```` renders `id="lst-p06"` and this model indexed NOTHING — `lst-` was one of the five kinds `RefKind` claims to support and the only one with NO working definition source at all, because a fence opener is a region BOUNDARY that `findBodyLines` never yields. LOST-TP direction. Closes the item Session 222 filed and ranked #1.
 **Started:** 2026-08-19 · **Closed:** 2026-08-19
 **Status:** **DONE. SHIPPED — and the session's finding is that this production has a stage pandoc does not have, so the obvious port would have minted a phantom on the commonest shape of all.** 51 rendered rows across six rounds, an 84-row pre/post scorer split by failure kind, and a 46,553-document sweep: **42/84 → 82/84 with lost-TP 40 → 0 and INTRODUCED 0**, adversarial **3/14 → 14/14**, and ⚠ **two phantoms I introduced mid-session — one of them inside a commit — which my own scorer caught and later cycles closed.**

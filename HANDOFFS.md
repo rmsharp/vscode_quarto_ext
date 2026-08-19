@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S224
+date: 2026-08-19
+status: pending
+active_task: IN PROGRESS -- a fenced code block whose info string fails pandoc's `[word] {attrs}` parse is NOT A FENCE, and `scanRegions` opens a code region for it anyway. Closes the item Session 223 filed and ranked #1. Pre-stub survey (10 rendered rows, predictions hashed first, scored 9/10) found the filed item describes HALF the defect: a rejected opener's CLOSING fence becomes an OPENER in quarto, so the pairing SHIFTS and the error runs in both directions -- lost-TP inside the rejected block, phantom in the block after it.
+```
+
+```handoff
 session: S223
 date: 2026-08-19
 status: complete
