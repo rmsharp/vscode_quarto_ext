@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S223
+date: 2026-08-19
+status: pending
+active_task: IN PROGRESS. A fenced code block's `{#lst-...}` is never indexed although quarto defines it -- ```{#lst-p06 .python} renders id="lst-p06" and this model indexes nothing. `lst-` is one of the five kinds RefKind claims to support and the only one with NO working definition source at all, because a fence opener line is a region BOUNDARY that findBodyLines never yields. Filed by Session 222 and ranked #1 by it; operator-selected at Phase 0 from an empty Active section via AskUserQuestion. Claimed with nine decision rules from a coupling survey run BEFORE this stub -- 13 rows rendered, predictions frozen and hashed first, 12/13, and the one miss refutes the obvious port: ```{#lst-s03} (the id ALONE) defines nothing under quarto while bare pandoc defines id="lst-s03" from the same bytes.
+```
+
+```handoff
 session: S222
 date: 2026-08-18
 status: complete
