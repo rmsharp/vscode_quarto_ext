@@ -691,8 +691,31 @@ function fenceAttributeId(
   if (info.startsWith("{") && !/[.=]/.test(info)) {
     return undefined;
   }
-  const group = braceGroups(lineText)[0];
-  if (group === undefined) {
+  // ⚠ **THE BLOCK MUST END THE INFO STRING, AND THAT IS A MEASURED REFUSAL RATHER THAN
+  // TIDINESS.** ```` ```{#lst-d10 .python} extra ```` is not a fenced code block at all —
+  // pandoc's info-string parse fails and the backticks are read as an INLINE CODE SPAN, so the
+  // rendered document holds `<p><code>{#lst-d10 .python} extra x = 10</code></p>` and defines
+  // nothing (`disc.qmd` d10). Our region scanner does open a region on that line, which is a
+  // separate and much wider question, so the refusal is made here where the id is minted.
+  //
+  // ⚠ **AND IT IS THE LAST GROUP, NOT THE FIRST — MEASURED UNDER BOTH READERS.**
+  // ```` ```{#lst-z07a}{#lst-z07b .python} ```` defines `lst-z07b` and renders the FIRST group
+  // as a literal class (`adv.qmd` z07); the `commonmark_x` twin agrees (`adv2.qmd` y01) and a
+  // separating space changes nothing (`adv3.qmd` y02). An earlier group is an info-string
+  // WORD rather than part of the block, which is why the reader split that picks an atom
+  // INSIDE a block never arises between blocks.
+  const groups = braceGroups(lineText);
+  const group = groups[groups.length - 1];
+  if (group === undefined || group.end !== lineText.trimEnd().length - 1) {
+    return undefined;
+  }
+  // ⚠ **AND AT MOST ONE INFO-STRING WORD MAY PRECEDE IT.** Pandoc's info string is
+  // `[word] {attrs}`, so ```` ```{#lst-y03a .cls}{#lst-y03b} ````, whose prefix is TWO words,
+  // is not a fenced code block at all — it renders as an inline code span and defines nothing
+  // (`adv3.qmd` y03). One word is measured three ways and all three define: a language
+  // (`python {#lst-d09}`), a class-looking word (`.python {#lst-r07}`) and an earlier brace
+  // group (`{#lst-z07a}{#lst-z07b .python}`).
+  if (lineText.slice(run[0].length, group.start).trim().split(/\s+/).filter(Boolean).length > 1) {
     return undefined;
   }
   const id = attributeBlockId(group.content, reader);

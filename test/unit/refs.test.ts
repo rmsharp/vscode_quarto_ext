@@ -1534,4 +1534,42 @@ describe("indexLabels — Source 4: cross-ref ids on PLAIN fenced code block ope
       { id: "lst-c1", kind: "lst", line: 0, column: 5 },
     ]);
   });
+
+  it("refuses a block that does not END the info string", () => {
+    // ⚠ Measured: ```` ```{#lst-d10 .python} extra ```` is not a fenced code block AT ALL —
+    // pandoc's parse of the info string fails, so the backticks are read as an inline code
+    // span and the rendered document holds `<p><code>{#lst-d10 .python} extra x = 10</code>`
+    // with no id anywhere (`scratchpad/s223/cal/disc.qmd` d10). Our region scanner does open a
+    // region here, which is a separate and wider question, so the refusal belongs to this
+    // production: an attribute block that does not end the info string is not the block.
+    expect(indexLabels("```{#lst-d10 .python} extra\nx = 10\n```")).toEqual([]);
+  });
+
+  it("takes the LAST brace group when the info string carries two", () => {
+    // ⚠ Measured, and it is the SAME answer under both readers, which is why this is one rule
+    // rather than a reader split: ```` ```{#lst-z07a}{#lst-z07b .python} ```` defines
+    // `lst-z07b` and renders the first group as a literal CLASS
+    // (`<pre class="sourceCode python {#lst-z07a} …">`, `scratchpad/s223/adv/adv.qmd` z07),
+    // and the `commonmark_x` twin does the same (`adv2.qmd` y01 → `lst-y01b`). A separating
+    // SPACE changes nothing (`adv3.qmd` y02 → `lst-y02b`). The earlier group is not part of
+    // the attribute block at all — it is an info-string word — so the reader split that
+    // decides which ATOM wins inside a block never arises between blocks.
+    //                  0         1         2
+    //                  0123456789012345678901234567890
+    //                  ```{#lst-z07a}{#lst-z07b .python}
+    expect(indexLabels("```{#lst-z07a}{#lst-z07b .python}\nx = 7\n```")).toEqual([
+      { id: "lst-z07b", kind: "lst", line: 0, column: 16 },
+    ]);
+  });
+
+  it("refuses a block preceded by MORE than one info-string word", () => {
+    // ⚠ The row that bounds the rule one line above, and it was found by the adversarial pass
+    // rather than designed: ```` ```{#lst-y03a .cls}{#lst-y03b} ```` is not a fenced code
+    // block at all — pandoc's info-string parse fails and the whole thing renders as an
+    // inline code span, `<p><code>{#lst-y03a .cls}{#lst-y03b} x = 3</code></p>`
+    // (`scratchpad/s223/adv/adv3.qmd` y03) — because the text before the block is TWO words.
+    // One word is fine and is measured three ways (`python {#lst-d09}`, `.python {#lst-r07}`,
+    // `{#lst-z07a}{#lst-z07b .python}`); two is not.
+    expect(indexLabels("```{#lst-y03a .cls}{#lst-y03b}\nx = 3\n```")).toEqual([]);
+  });
 });
