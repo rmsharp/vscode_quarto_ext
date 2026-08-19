@@ -5,11 +5,85 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 225 — IMPLEMENTATION (strict TDD): inside a BLOCK QUOTE this model sees neither a fence nor a heading.** Closes the item Session 224 filed and ranked #1 — the ONE row of its 72-row scorer still marked wrong.
-**Started:** 2026-08-19
-**Status:** Session claimed. Work beginning.
-**Deliverable (ONE capability):** *constructs inside a block quote are seen by `computeRegions`* — one intent, per-layer checkpoint commits.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Task:** **Session 225 — IMPLEMENTATION (strict TDD): inside a BLOCK QUOTE this model sees neither a fence nor a heading.** Closes the item Session 224 filed and ranked #1 — the one row of its 72-row scorer still marked wrong.
+**Started:** 2026-08-19 · **Closed:** 2026-08-19
+**Status:** **DONE. SHIPPED — and the session's finding is that the strip itself was the easy half; every defect after the first GREEN came from state the stripped line left for the lines BELOW it, and only a 46,556-document sweep found them.**
+
+**HEADLINE 1 — QUARTO'S TWO LINE-ANCHORED INTERCEPTS DO NOT REACH INSIDE A QUOTE, SO THE SAME BYTES MEAN DIFFERENT THINGS INSIDE AND OUTSIDE ONE.** Quarto owns two rules on a fence's info string — its engine's cell extraction, and the stage-1 rule Session 223 measured — and both are anchored at the start of the line, so a `> ` prefix defeats both and the info string faces pandoc's `Attr` parser ALONE. Rendered both ways from identical bytes: ```` ```{ojs} ```` is a real executable cell at top level and an INLINE CODE SPAN inside a quote (`d/d10` vs `d/d09`); ```` ```{#lst-x bad} ```` is `<pre class="{#lst-x bad}">` at top level, hiding its contents, and not a fence at all inside a quote, where the `# Heading` between the backticks is a real `<h1>` (`g/g04` vs `g/g03`); and ```` ```{#lst-x} ```` defines NO id at top level and a REAL `id` inside a quote (`e/e01`). Reusing the top-level predicate would have minted a cell quarto never executes AND deleted a heading it really renders. (Learning #395.)
+
+**HEADLINE 2 — ⚠ THE STRIP IS TWO CHANGES AND ONLY THE FIRST IS THE ONE I DESIGNED.** The heading and fence half was right at the first GREEN. Then: clearing the container-column stack on entering a quote DELETED four families of real headings (a quote may sit INSIDE a list item whose content column still governs every line below it); Session 183's `CLOSES_PARAGRAPH` suspension made three families of quoted openers close a paragraph pandoc keeps open; a stripped line could open a CommonMark HTML block that OUTLIVED its quote; and a setext title was read RAW, marker and all. **None was visible in the designed corpus.** The sweep found all four and each was adjudicated by re-rendering the row, never by reasoning. (Learning #396.)
+
+**HEADLINE 3 — A SUPPRESSION INSIDE A NEWLY-VISIBLE CONTAINER IS FREE, AND THAT ASYMMETRY IS THE BUDGET FOR AN HONEST BOUND.** The model reported NOTHING inside a quote before this session, so any rule that declines inside one returns exactly the pre-session answer — it can cost a recovery, never a regression. Three bounds were taken on that budget rather than chased, each disclosed in the code with its rendered row and filed. (Learning #397.)
+
+**HEADLINE 4 — BOTH OF THE RULES I PREDICTED WRONG BECAME FINDINGS.** Round 2 scored 11/13: `>  # H` and `>   # H` render NO heading, because the quote's content base is column 0 EXACTLY — the same absolute equality quarto applies at top level, which fell out of the design for free. Round 3 scored 7/9: a block quote may NOT interrupt an open paragraph (`para` / `> # H` is ONE paragraph), which became the strip's own gate, and a TAB after the marker is not the marker's optional space.
+
+**THE measurement.**
+
+| corpus | scale | what it measures | score |
+|---|---|---|---|
+| `cal/sv.qmd` | 14 rows | the survey, run before the guard | 0/6 headings, 2 phantom labels pre |
+| `b/` | 13 documents | the marker grammar and the column base | ⚠ **11/13** — both misses are one rule |
+| `c/` | 9 documents | laziness and the paragraph gate | 7/9 — ⚠ both misses became findings |
+| `d/` | 8 documents | the interactions most likely to regress | 5/6 + ⚠ the cell finding |
+| `e/` `g/` | 8 documents | ⚠ the fence predicate inside a quote | the stage-1 and cell splits |
+| designed total | **45 documents** | this model vs quarto, scored pre and post | **27/45 → 40/45, INTRODUCED 0** |
+| repo sweep | 113 documents | every tracked markdown file | **1 mover — a RECOVERY**, verified |
+| corpus sweep | **46,556 documents** | every predecessor corpus | 385 mover rows |
+| mover re-render | **375 documents** | every distinct mover, rendered and scored | **25 → 296 correct, 295 recovered, 24 introduced** |
+
+⚠ **ZERO REAL DELETIONS.** All 16 removal rows across the corpus sweep are PHANTOM removals, each verified against its own render. The 24 introduced are ONE shape, pinned in both directions at `qmd-model.test.ts` R1/R2 and filed.
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** S204's gotcha 5 inherited a TWENTY-SECOND time. This is a **WIDENING**, so the guard is per shape that must NOT newly appear. **14 `it()`s green BEFORE the change.** ⚠ **G6 caught the blanket strip within the minute** — a `>`-prefixed fence run closes nothing at top level, and stripping inside an open fence closed it early. **5 RED→GREEN cycles**, each RED confirmed to fail for the right reason; two were inherited tests going red (S223's P3, S224's P10). **6 predecessor pins REVERSED**, each against its own re-rendered witness. **2 residuals declared PINS.**
+
+**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / 0 failing / exit 0** (baseline 540, **+2**), both new tests watched **BY NAME** at lines **96** and **366** of `scratchpad/s225/integration.log`. Both assertions pre-checked headlessly first (`scratchpad/s225/precheck225.test.ts`, S211's gotcha 3 for a FOURTEENTH session). ⚠ Two `failing` grep matches are a CLEAN run — both are the test NAMED "surfaces a failing render" (S205's gotcha 7, a SEVENTEENTH time). ⚠ `src/` did NOT change after the run, so no re-run was owed.
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `compile-tests` **0** · `npm test` **2257 passed / 66 files** (baseline 2236, **+21**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S224) · `check-package` **OK 42 files / 5.56 MB** · `check-backlog` **OK, 162 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** **No BLIND sweep** — subagent fan-out unavailable under a session-level instruction, the **EIGHTEENTH** session running. And the 24 introduced phantoms are bounded by measurement and filed, not fixed.
+
+**What was done (commits).** 1B claim `da7defbb`, carrying nine decision rules from a survey run before the guard. **GUARD** `7b9ed94f` — 14 `it()`s green before the change. **C1** `c0314543` — the strip itself, plus six reversed pins. **C2+C3** `ac86a822` — the quoted closer namespace and Source 4's offset. **C4+C5** `614f03d2` — the two intercepts and the fence-run withhold. **SWEEP FIXES** `faa5cc8c` — the container stack, three bounds, and the R1/R2 residual pins. **INTEGRATION** `08995b6c` — both consumers in a real host. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 3 filed), `PROJECT_LEARNINGS.md` (#395–#397), `SESSION_NOTES.md` and `HANDOFFS.md`.
+**Ledger:** `CHANGELOG: 2026-08-19 · [ad hoc] Session 225` — written at close-out with the `BACKLOG.md` drain.
+
+**Deliverable (ONE capability):** *a block quote's marker is stripped so `computeRegions` sees the constructs inside it* — one intent, per-layer checkpoint commits.
+
+**Gotchas for the next session.**
+1. **⚠ A CONTAINER STRIP IS TWO CHANGES AND THE SECOND IS INVISIBLE TO A DESIGNED CORPUS.** What the stripped line MEANS is the one you design; what it LEAVES BEHIND for the lines below is the one that regresses. Sweep for movers in both directions and adjudicate every one against its own render. (Learning #396.)
+2. **⚠ BEFORE REUSING A PREDICATE INSIDE A NEW CONTAINER, ASK WHICH OF THE SURROUNDING TOOL'S RULES ARE LINE-ANCHORED.** The ones that are do not apply inside it, and the shapes they rescue at top level are exactly the shapes that break. (Learning #395.)
+3. **⚠ THE PRE-SESSION FAIL-SAFES READ THE RAW LINE, AND THAT IS DELIBERATE.** `quoteOpen` and `paragraphQuoted` exist for the lines the strip does NOT reach. Reading the stripped line there retires them silently and deletes Session 189's heading; both carry the reason in their comments.
+4. **⚠ `quoteOpen = stripQuote`, NOT `= false`, ON EVERY REGION-BOUNDARY PATH.** A MARKED blank line does not end a quote, and the literal `false` deleted a heading the moment `>` began stripping to `""` and taking the blank branch.
+5. **⚠ A DECLINE INSIDE A QUOTE IS FREE AND A PHANTOM IS NOT.** Nothing was reported inside a quote before Session 225, so any suppression returns the pre-session answer exactly. Spend that budget on bounds rather than on chasing pandoc's laziness model.
+6. **⚠ MY EXTRACTOR WAS WRONG TWICE, IN BOTH DIRECTIONS, WITHIN FIVE MINUTES.** First too narrow (an element allowlist missed a `sec-` id on the `<h2>` itself), then too wide (it scored quarto's own minted `lst-x-1` per-line and `fig-x-caption-<uuid>` ids as losses). S224's Learning #394 covers only the first direction. Re-score every round after each fix.
+7. **⚠ THE HARNESS IS REUSABLE AND WAS INHERITED, NOT WRITTEN.** `scratchpad/s225/` — `sweep.test.ts` + `vitest.sweep.config.ts` (point `S225_LIST` at any file list), `presrc/` (`git archive` of the 1B commit), `score.test.ts` + `GROUND.json` (designed corpus, script-extracted truth), **`allscore.test.ts` + `all/` (NEW — copies every distinct mover document, renders it, and scores post vs quarto; this is what turned "438 movers" into an exact accounting)**, `cal/` `b/` `c/` `d/` `e/` `f/` `g/` `h/` `i/` `k/` `m/` + `PREDICTIONS.tsv`, `precheck225.test.ts`. Extend rather than rewrite.
+8. **⚠ ZSH'S PERSISTENT `cd` COST ME TWO COMMANDS AND MISPLACED A WHOLE CORPUS ROUND** — `mkdir -p scratchpad/s225/e` ran from a previous command's directory and created `s225/d/scratchpad/s225/e`. Nineteenth session running. Use absolute paths.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Every claim below was checked against THIS session's own rendered rows.
+
+**#1 — NEW, filed here and it is this session's own residual: inside a quote a BLOCK CONSTRUCT closes a paragraph pandoc keeps open, and an UNMARKED line below a quote is a lazy continuation.** These are the 24 introduced phantoms, one shape, pinned at R1/R2. Effort **estimate** MEDIUM. ⚠ Both halves need the quote's own BLOCK state, not just its marker — this is the next slice of the same container capability, and taking it is what would make Session 225's change phantom-free.
+**#2 — NEW: a SETEXT heading inside a quote**, blocked on `consumedMetadataBlockLines` reading raw lines. LOW, and ⚠ fix the pre-pass first.
+**#3 — NEW: a quote inside a LIST ITEM, and the CommonMark HTML block inside a quote.** LOW, same capability.
+**#4 — the display-math and table-caption phantoms** (5 measured shapes, S222's, and ⚠ the fix is NOT the attribute-block rule). **#5 — the rest of "a group with nothing in front of it"**. **#6 — a `)` or `]` that closes nothing reads as adjacency**, S222's. **#7 — the `commonmark_x` VALIDITY half, never asked**, S222's. **#8 — the indented-div over-fire whose one-character fix is MEASURED to be worse**, S222's. **#9 — the `sec-` scope decision on a fence**, S223's, VERY LOW. **#10 — a SECOND adjacent attribute block on an image**, S221's. **#11 — the `@`-is-an-email test is `notAfterString`**, S220's. **#12 — the completion scanner walks UTF-16 code units**, S220's. **#13 onward — unchanged from S224's list.** ⚠ **Still open from S186:** promote the scratchpad harness, `.vscode-test/` at 18 GB, `npm audit` 5 high + 1 moderate, devDependency-only.
+
+## Session 224 Handoff Evaluation (by Session 225)
+
+**Score: 9/10.**
+
+**What helped, specifically.** (a) **The filed item was MEASURED and named its own rendered witness** (`scratchpad/s224/adv/z01.qmd`), and re-rendering that exact file in the first ten minutes confirmed both the claim and its blank-line dependency — I never had to reconstruct what it meant. (b) **Its sizing note was right and saved the session**: "this is not a fence question — it is a container-context question that reaches every construct in `computeRegions`, so scope it as its own capability". That sentence is why I built a mover sweep instead of trusting a designed corpus. (c) **Gotcha 7's harness inventory was accurate and complete** — `sweep.test.ts`, `presrc/`, `score.test.ts` and the `S224_LIST` environment variable all worked on the first try after a `sed` rename, which is most of a day's tooling inherited for free. (d) **Gotcha 6 (quarto's engine sniff is wider than pandoc's parse) fired twice**, on `> ```{bad word}` and `> ```{python}`, and I recognised both instantly instead of debugging a render failure.
+
+**What was missing.** The item said the fence and the heading were both invisible but did not say that the two are **coupled in the forbidden direction**: fixing the heading half alone turns every ATX inside a quoted code block into a phantom. I found that at RED 2. One sentence would have shaped my commit plan from the start.
+
+**What was wrong.** Nothing. Every claim I checked held, including the blank-line dependency, which is the subtle one.
+
+**ROI.** Strongly positive. The harness alone saved hours; the sizing note changed the shape of the work.
+
+## Session 225 Self-Assessment
+
+**Score: 7/10.**
+
+**What went right.** (a) **I predicted two rules wrong and both became headlines** — the column-0 base and the paragraph-interrupt gate — because predictions were frozen and hashed before each render. (b) **The guard caught my own blanket strip inside a minute** (G6). (c) **I rendered every mover document rather than sampling** — 375 of them — which turned "438 movers, mostly fine" into an exact accounting and is the only reason I know the deletion count is zero. (d) **Zero real deletions**, each of the 16 removal rows verified against its own render. (e) **An inherited test refuted one of my bounds within the minute** and I re-measured rather than arguing (f01 vs f02).
+
+**What went wrong.** (a) ⚠ **I shipped 24 introduced phantoms.** Session 224's bar was INTRODUCED 0 and I did not meet it. I tried three configurations, measured each, and took the one with the most recoveries (295) rather than the fewest phantoms (17) — a defensible trade under the project's stated "phantoms, never deletions" preference, but it is a trade and I am recording it as a miss, not a decision. (b) ⚠ **I spent a large part of the session tuning that trade** and had to stop by budget rather than by finishing. (c) ⚠ **My extractor was wrong twice in five minutes, in opposite directions** — S224's Learning #394 warned about exactly one of them. (d) I lost commands to zsh's persistent `cd` again, nineteenth session running, with the gotcha in front of me.
+
+**Compared to the standard.** Below Session 224 on the phantom metric, at par on measurement discipline (five rounds, frozen predictions, mechanical ground truth, two sweeps plus a full mover re-render), and above it on sweep rigour — no predecessor session has rendered every mover document before.
 
 ## Session 225 ACTIVE-TASK decision rules (from the coupling survey run BEFORE the guard, 55 rendered rows)
 
