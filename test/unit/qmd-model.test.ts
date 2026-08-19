@@ -9974,4 +9974,33 @@ describe("Session 226 — the `:::` / `...` / `\\end{}` family", () => {
     expect(headings(["para one", "para two", "...", "# H t_yamlend"])).toEqual([]);
     expect(headings(["> para one", "> para two", "> ...", "> # H q_yamlend"])).toEqual([]);
   });
+
+  it("C3: an UNTERMINATED `\\begin{}` is inline text, so it interrupts nothing (`r1/t_texenv`)", () => {
+    // Rendered: `<p>para one para two \\begin{center} # H t_texenv</p>`, one paragraph, quoted
+    // and not. ⚠ The COMPLETE environment is the opposite row and is guarded at G13: with its
+    // matching `\\end{center}` below it, the same `\\begin` DOES interrupt an open paragraph and
+    // the heading is real (`r3/h02`). Pandoc's raw-TeX block parser needs the whole
+    // environment, so what decides this line sits BELOW it.
+    expect(headings(["para one", "para two", "\\begin{center}", "# H t_texenv"])).toEqual([]);
+    expect(
+      headings(["> para one", "> para two", "> \\begin{center}", "> # H q_texenv"]),
+    ).toEqual([]);
+  });
+
+  it("C4: an `\\end{}` with no environment open closes nothing (`r2/g16`, `g17`, `r3/h07`)", () => {
+    // Rendered: `<p>\\end{center} # H g16</p>` — one paragraph, the unmatched `\\end` starting it.
+    expect(headings(["\\end{center}", "# H g16"])).toEqual([]);
+    expect(headings(["para one", "\\end{center}", "# H g17"])).toEqual([]);
+    // An EXTRA `\\end` after a matched pair: the depth is back to 0, so the second one closes
+    // nothing (`r3/h07`). The matched pair itself keeps its heading at G11.
+    expect(
+      headings([
+        "\\begin{center}",
+        "body text",
+        "\\end{center}",
+        "\\end{center}",
+        "# H h07",
+      ]),
+    ).toEqual([]);
+  });
 });

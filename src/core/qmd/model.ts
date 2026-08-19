@@ -3442,6 +3442,37 @@ const THEMATIC_BREAK = /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/;
  * using a bare macro — `\clearpage` — renders `<p>line one line two # ATX Below</p>`, one
  * paragraph with no heading at all. A bare macro is inline; an environment opens a block.
  */
+/**
+ * A raw-TeX environment delimiter, capturing which half it is and the environment NAME
+ * (Session 226) — the two facts `RAW_TEX_ENV_OPEN` throws away.
+ */
+const RAW_TEX_ENV_DELIM = /^ {0,3}\\(begin|end)\{([^}]*)\}/;
+/**
+ * The LAST line on which each environment name is closed by an `\end{name}` (Session 226).
+ *
+ * ⚠ **What decides a `\begin{}` sits BELOW it, which is why this is an index and not a
+ * predicate.** Pandoc's raw-TeX block parser consumes a WHOLE environment or nothing, so a
+ * `\begin{center}` with its matching `\end{center}` below really does interrupt an open
+ * paragraph (`scratchpad/s226/r3/h02`, a rendered heading) while the identical line with no
+ * `\end` below it is inline text and interrupts nothing (`r1/t_texenv`, `r3/h13`, `r3/h14`,
+ * all rendering no heading).
+ *
+ * ⚠ **Scanned with an UNANCHORED match, deliberately.** A quoted `> \end{center}` must count
+ * for the quoted `> \begin{center}` above it (`r2/q_g11`), and the strip is applied per line
+ * inside the walk rather than here. The failure direction of over-matching — an `\end{name}`
+ * that is really inside a code block, say — is to treat the `\begin` as a real opener, which
+ * is this model's answer before this session; it can forgo a recovery, never delete a heading.
+ */
+function lastRawTexEnvEnd(lines: readonly string[]): ReadonlyMap<string, number> {
+  const last = new Map<string, number>();
+  for (let i = 0; i < lines.length; i++) {
+    const m = /\\end\{([^}]*)\}/.exec(lines[i]);
+    if (m !== null) {
+      last.set(m[1], i);
+    }
+  }
+  return last;
+}
 const RAW_TEX_ENV_OPEN = /^ {0,3}\\(?:begin|end)\{[^}]*\}/;
 /**
  * A line that can be a construct's CLOSING delimiter — a fenced-div/callout `:::` or a
@@ -4885,6 +4916,10 @@ function computeRegions(text: string): Regions {
   // Whether a mid-document YAML metadata block is open at this line — the same block state,
   // for the `...` terminator. See `YAML_BLOCK_OPENER`.
   let metadataBlockOpen = false;
+  // How many raw-TeX environments are open at this line — the same block state again, for the
+  // `\end{}` delimiter. See `lastRawTexEnvEnd` for the half that decides a `\begin{}`.
+  let rawTexEnvDepth = 0;
+  const rawTexEnvEnds = lastRawTexEnvEnd(lines);
   let quoteOpen = false;
   // Whether a BLOCK QUOTE is open on this line — the state the marker strip at the top of the
   // loop maintains (Session 225). Distinct from `quoteOpen`, which is the pre-session fail-safe
@@ -5665,12 +5700,23 @@ function computeRegions(text: string): Regions {
       // same block state the div fence needs, not an inference from where it was tested.
       const yamlOpens = YAML_BLOCK_OPENER.test(line);
       const yamlTerminates = YAML_BLOCK_TERMINATOR.test(line);
+      const texEnv = RAW_TEX_ENV_DELIM.exec(line);
+      // A `\begin{}` is a real opener only when its own `\end{}` appears BELOW it; an `\end{}`
+      // is a real closer only when one is open. Everything else in this family is inline text.
+      const texEnvMatched: boolean =
+        texEnv === null
+          ? false
+          : texEnv[1] === "begin"
+            ? (rawTexEnvEnds.get(texEnv[2]) ?? -1) > i
+            : rawTexEnvDepth > 0;
       const unmatchedConstruct: boolean =
         divRole === "close"
           ? divDepth === 0
           : divRole === "open"
             ? paragraphOpen
-            : yamlTerminates && !metadataBlockOpen;
+            : texEnv !== null
+              ? !texEnvMatched
+              : yamlTerminates && !metadataBlockOpen;
       if (divRole === "close" && divDepth > 0) {
         divDepth--;
       } else if (divRole === "open" && !paragraphOpen) {
@@ -5687,6 +5733,9 @@ function computeRegions(text: string): Regions {
         metadataBlockOpen = false;
       } else if (yamlOpens && !paragraphOpen) {
         metadataBlockOpen = true;
+      }
+      if (texEnvMatched) {
+        rawTexEnvDepth += texEnv![1] === "begin" ? 1 : -1;
       }
       const wasParagraphOpen: boolean = paragraphOpen;
       paragraphOpen = !closesParagraph(
