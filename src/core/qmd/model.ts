@@ -3517,7 +3517,18 @@ const CLOSER_LINE = /^ {0,3}(?::{3,}|\.\.\.[ \t]*$)/;
  * `BLOCK_QUOTE_PREFIX` carries, which Session 225 filed rather than closed.
  */
 const LIST_MARKER_PREFIX = /^ {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+/;
-const DIV_FENCE = /^ {0,3}:{3,}[ \t]*(.*)$/;
+/**
+ * ⚠ **`[ \t]*`, NOT ` {0,3}` (Session 227) — the leading run is CAPTURED BY THE COLUMN TEST,
+ * not by this pattern.** ` {0,3}` is CommonMark's tolerance for a CODE fence and a pandoc div
+ * has no such tolerance, so the old anchor was wrong in BOTH directions: it accepted a `:::`
+ * one to three columns off the top level (a phantom, `r1/k02`-`k04`) and it refused EVERY
+ * fence in a container deeper than column 3 — a div inside a two-deep list was never opened,
+ * its closer closed nothing, and the paragraph ran across a real heading (`r2/m01`-`m03`,
+ * rendered). Which columns are legal is `divFenceRole`'s caller's question, because only it
+ * knows the container stack; a line at CODE DEPTH is filtered there too, so a four-space
+ * `:::` at the top level stays the indented code block it has always been (`r1/k10`).
+ */
+const DIV_FENCE = /^[ \t]*:{3,}[ \t]*(.*)$/;
 /**
  * A mid-document YAML metadata block's `...` terminator, on its own line (Session 226). The
  * same spelling `CLOSER_LINE` and `CLOSES_PARAGRAPH` each carry, named here because the caller
@@ -3688,6 +3699,7 @@ function closesParagraph(
   lineBlockAbove: boolean,
   contentColumns: readonly number[] | null,
   unmatchedConstruct: boolean,
+  divFenceHere: boolean,
 ): boolean {
   if (lineBlockAbove && LINE_BLOCK_CONTINUATION.test(line)) {
     return true;
@@ -3711,7 +3723,14 @@ function closesParagraph(
     HTML_BLOCK_OPEN.test(line) ||
     RAW_TEX_ENV_OPEN.test(line) ||
     RAW_TEX_BLOCK_MACRO.test(line) ||
-    CLOSER_LINE.test(line)
+    CLOSER_LINE.test(line) ||
+    // ⚠ **`CLOSER_LINE` IS STILL ` {0,3}`, SO A FENCE DEEPER THAN THAT NEEDS ITS OWN SIGNAL**
+    // (Session 227). The caller has already established that this line is a div fence sitting
+    // at a legal column with something to match; without this clause a `    :::` closing a
+    // two-deep list's div reaches the `paragraphOpen` bail below and the heading under it is
+    // deleted (`r2/m01`). The flag is only ever true where `unmatchedConstruct` is false, so
+    // the two cannot disagree — an unmatched fence has already returned above.
+    divFenceHere
   ) {
     return true;
   }
@@ -5768,7 +5787,18 @@ function computeRegions(text: string): Regions {
       // closes nothing (`r3/h01`), while the same document with a blank line after `para one`
       // renders the heading (`r3/h04`). `paragraphOpen` is still the line ABOVE's here; it is
       // overwritten immediately below.
-      const divFence = divFenceRole(line);
+      // ⚠ **A COLON RUN AT CODE DEPTH IS NOT A FENCE AT ALL, AND DROPPING IT HERE IS WHAT
+      // KEEPS `r1/k10` ALIVE** (Session 227). `::: {.note}` / blank / `body text` / blank /
+      // `    :::` renders `<pre>` and then a real `<h1>`: the four-space line is an INDENTED
+      // CODE BLOCK, which is a block boundary the heading below is entitled to follow. Treating
+      // it as an unmatched closer instead would open a paragraph and delete that heading. The
+      // filter is `columnIsCodeDepth`, reused rather than re-derived, so "where does code
+      // start" cannot drift between this row and `indentedCodeLine` (Learning #14).
+      const divFenceRaw = divFenceRole(line);
+      const divFence =
+        divFenceRaw !== null && columnIsCodeDepth(divFenceRaw.column, [0, ...contentColumns])
+          ? null
+          : divFenceRaw;
       const divRole = divFence?.role ?? null;
       // ⚠ **A CLOSER MUST SIT AT ITS CONTAINER'S OWN CONTENT COLUMN, AND ` {0,3}` IS NOT THAT**
       // (Session 227). Rendered, `::: {.note}` / `body text` / `  :::` is ONE paragraph —
@@ -5900,6 +5930,7 @@ function computeRegions(text: string): Regions {
         lineBlockAbove && lineBlockQuoted === stripQuote,
         rawTexColumns,
         unmatchedConstruct,
+        divRole !== null && divAtColumn,
       );
       // A line block stays open across its own continuations, so the arm re-arms on one; but
       // it can only be OPENED where no paragraph already is. Measured: a line block does not

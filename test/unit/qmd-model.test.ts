@@ -10269,4 +10269,24 @@ describe("Session 227 — the `:::` line's own column", () => {
       headings(["- item", "", "   ::: {.note}", "   body text", "   :::", "# H m14"]),
     ).toEqual([]);
   });
+
+  it("C4: ⚠ a fence DEEPER than column 3 is still a fence, and refusing it DELETES a heading (`r2/m01`-`m03`)", () => {
+    // The lost-TP direction of the same anchor, and the larger one. ` {0,3}` refused every
+    // fence in a container deeper than column 3, so a div inside a two-deep list was never
+    // opened, its closer closed nothing, and the paragraph ran across the heading below.
+    // Rendered — all three emit `<div class="note"><p>body text</p></div>` and then the `<h1>`.
+    const nested = (closer: string) => [
+      "- outer",
+      "",
+      "  - inner",
+      "",
+      "    ::: {.note}",
+      "    body text",
+      closer,
+      "# H m",
+    ];
+    expect(headings(nested("    :::"))).toEqual(["H m"]); // its own column 4
+    expect(headings(nested("  :::"))).toEqual(["H m"]); // the OUTER item's column 2
+    expect(headings(nested(":::"))).toEqual(["H m"]); // absorbed all the way to column 0
+  });
 });
