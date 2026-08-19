@@ -1136,3 +1136,46 @@ describe("Session 221 — a #| label: cell option reaches the same identifier", 
     ]);
   });
 });
+
+describe("Session 221 adversarial pins — measured rows this model still gets wrong", () => {
+  // The adversarial corpus (`scratchpad/s221/adv/adv.qmd`, 9 rows rendered through quarto
+  // 1.7.33) was aimed at THIS IMPLEMENTATION's hypotheses rather than at quarto's behaviour,
+  // and scored 2/9 -> 6/9 with INTRODUCED 0. The three rows below are the ones still wrong.
+  // All three are PRE-EXISTING, established against `scratchpad/s221/presrc`.
+
+  it("A1: an id that is not FIRST in its block is never indexed at all", () => {
+    // ⚠ FOUND BY THE ADVERSARIAL PASS, and the only LOST-TP row of the nine.
+    // `![Cap](a.png){.cls #fig-a03.x}` renders id="fig-a03.x" and `@fig-a03.x` resolves to
+    // it — quarto does not care where the `#` atom sits in the block. `INLINE_LABEL` scans
+    // for the literal two characters `{#`, so an id preceded by a class atom is invisible.
+    // Pre-existing: the pre-session build missed it too, for the same reason.
+    expect(indexLabels("![p](p.png){.cls #fig-a03.x}")).toEqual([]);
+  });
+
+  it("A2: an UNCLOSED brace group is still indexed as a label", () => {
+    // `![Cap](a.png){#fig-a06.x` with no `}` defines nothing in quarto (adv.qmd a06, absent
+    // from the rendered ids). The unvalidated scan indexes it anyway — the same cause as the
+    // `$`/space residuals above, seen from a different side.
+    expect(indexLabels("![p](p.png){#fig-a06.x").map((l) => l.id)).toEqual([
+      "fig-a06.x",
+    ]);
+  });
+
+  it("A3: a SECOND adjacent block is indexed although only the first is the block", () => {
+    // `![Cap](a.png){#fig-a05.x}{#fig-a05b.y}` defines only `fig-a05.x` (adv.qmd a05); the
+    // trailing group is literal text. Both are indexed here.
+    expect(
+      indexLabels("![p](p.png){#fig-a05.x}{#fig-a05b.y}").map((l) => l.id),
+    ).toEqual(["fig-a05.x", "fig-a05b.y"]);
+  });
+
+  it("A4: a div and a display equation DO reach the wide id", () => {
+    // The two rows that prove the fix is not image-only (adv.qmd a01/a02).
+    expect(indexLabels("::: {#fig-a01.x}").map((l) => l.id)).toEqual([
+      "fig-a01.x",
+    ]);
+    expect(indexLabels("$$ y = x $$ {#eq-a02.x}").map((l) => l.id)).toEqual([
+      "eq-a02.x",
+    ]);
+  });
+});
