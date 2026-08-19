@@ -3462,6 +3462,37 @@ const CLOSER_LINE = /^ {0,3}(?::{3,}|\.\.\.[ \t]*$)/;
  */
 const BLOCK_QUOTE_MARKER = /^ {0,3}>/;
 /**
+ * A BLOCK QUOTE's whole marker run, whose match length is the offset at which the quote's own
+ * content begins — the strip `computeRegions` applies before classifying the line (Session 225).
+ *
+ * Quarto strips a quote's markers and re-parses what is left, so every construct inside a quote
+ * is real: `> # Heading s01` renders `<blockquote><h1 id="heading-s01">` (`scratchpad/s225/cal`).
+ * This model had no block-quote context anywhere, so `FENCE_OPEN` (anchored at `^[ \t]*`) and
+ * `findHeadings` alike declined every `> `-prefixed line.
+ *
+ * ⚠ **`>[ ]?` — ONE SPACE, AND A TAB IS NOT IT.** `>\t# H c10` renders `<p># H c10</p>`, no
+ * heading (`c/c10`): the tab is left in the content, which then starts at column 4 rather than
+ * 0. Writing the optional space as `[ \t]?` would fabricate that heading.
+ *
+ * ⚠ **The marker run itself may not begin past column 3** — `    > # H b02` is an indented code
+ * block at top level and the `>` is literal (`b/b02`).
+ *
+ * ⚠ **The strip does NOT relax the column rules on what it uncovers.** The quote's content base
+ * is column 0 EXACTLY, the same absolute equality quarto applies at top level: `>  # H b10` and
+ * `>   # H b11` render NO heading, and `>` + five spaces is indented code inside the quote
+ * (`b/b01`). That falls out for free — a stripped line carries no marker, so `quoteOpen` stays
+ * false and `atxHeadingMatch` sees the ordinary `[0, ...contentColumns]`.
+ */
+const BLOCK_QUOTE_PREFIX = /^ {0,3}(?:>[ ]?)+/;
+/**
+ * The offset at which a block quote's own content begins on `line`, or `null` when the line
+ * carries no marker run at all. See `BLOCK_QUOTE_PREFIX`.
+ */
+function blockQuoteContentStart(line: string): number | null {
+  const m = BLOCK_QUOTE_PREFIX.exec(line);
+  return m === null ? null : m[0].length;
+}
+/**
  * A pandoc LINE BLOCK's own line, and the CONTINUATION of one (Session 185).
  *
  * A line block continues a line by indenting the next one, so its continuation is
@@ -4342,6 +4373,12 @@ interface OpenCellFence extends OpenFence {
   readonly lang: string;
   readonly startLine: number;
   /**
+   * Whether this fence OPENED inside a block quote (Session 225) — which decides whether a
+   * `>`-prefixed line inside the region is stripped before the closer test. A `>`-prefixed
+   * fence run closes nothing at top level, where it is ordinary literal content (`d/d02`).
+   */
+  readonly quoted: boolean;
+  /**
    * The column stack in force where this fence OPENED, carried so the closer is judged
    * against the same containers the opener was (Session 200).
    *
@@ -4381,6 +4418,16 @@ export interface BodyLine {
   line: number;
   /** The raw line text. */
   text: string;
+  /**
+   * The offset within `text` at which a BLOCK QUOTE's own content begins — `0` for every line
+   * outside a quote (Session 225).
+   *
+   * ⚠ `text` stays RAW deliberately: every consumer that resolves a COLUMN from it — the
+   * cross-reference index's go-to-definition ranges above all — would be off by the marker's
+   * width against a pre-stripped string. A consumer that reads the line as MARKDOWN rather
+   * than as coordinates slices from here instead.
+   */
+  contentStart: number;
 }
 
 /**
@@ -4756,9 +4803,70 @@ function computeRegions(text: string): Regions {
   // model carries no block-quote container, so while one may be open the raw-TeX row keeps
   // its old ` {0,3}` width rather than guess a column — phantoms, never deletions.
   let quoteOpen = false;
+  // Whether a BLOCK QUOTE is open on this line — the state the marker strip at the top of the
+  // loop maintains (Session 225). Distinct from `quoteOpen`, which is the pre-session fail-safe
+  // for an UNMARKED line below a quote and keeps its own meaning untouched.
+  let inQuote = false;
+  // ⚠ **AND THE PRE-SESSION FLAG IS CLEARED ONLY BY A LINE THE STRIP DID NOT REACH.** Every
+  // region-boundary path below writes `quoteOpen = stripQuote` rather than `false` (Session
+  // 225), because a MARKED blank line does not end a quote (`d/d01`) — and the old literal
+  // `false` deleted Session 189's heading the moment `>` began stripping to `""` and taking
+  // the blank branch.
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const raw = lines[i];
+    // ⚠ **THE BLOCK-QUOTE STRIP (Session 225).** Quarto strips a quote's markers and re-parses
+    // what is left, so everything below this point classifies the quote's CONTENT rather than
+    // the marker line. See `BLOCK_QUOTE_PREFIX` for the marker grammar and for why the strip
+    // deliberately does not relax the column rules on what it uncovers.
+    //
+    // ⚠ **A BLOCK QUOTE MAY NOT INTERRUPT AN OPEN PARAGRAPH, and that gate is the whole reason
+    // this is not a blanket strip.** Rendered: `para c08` / `> # H c08` is ONE paragraph,
+    // `<p>para c08 &gt; # H c08</p>` (`c/c08`). Stripping there fabricates a heading quarto
+    // does not render — the forbidden direction. Once the quote IS open the gate no longer
+    // applies: `paragraphOpen` then describes a paragraph INSIDE the quote, which its own
+    // marked lines continue (`c/c01`, `c/c09`).
+    //
+    // ⚠ **AN UNMARKED BLANK LINE ENDS THE QUOTE; AN UNMARKED NON-BLANK LINE DOES NOT.** Pandoc
+    // takes lazy continuation for more than paragraphs — an unmarked closing fence really does
+    // close a fence opened inside the quote (`b/b05`) and an unmarked content line joins it
+    // (`c/c03`) — while a real blank line ends the quote and leaves that fence unclosed
+    // (`c/c04`).
+    // ⚠ **INSIDE AN OPEN FENCE THE STRIP FOLLOWS THE FENCE, NOT THE LINE** — a `>`-prefixed
+    // fence run closes NOTHING at top level, where it is literal content (`d/d02`), while a
+    // fence opened INSIDE a quote is closed by its own marked closer. This session's own guard
+    // (G6) went red on the blanket spelling within the minute.
+    const quoteContentStart = blockQuoteContentStart(raw);
+    // ⚠ The explicit annotations on this constant and the two below are load-bearing, not
+    // style — the same TS7022 round trip `lineBlockAbove` documents. `quoteOpen` is assigned
+    // `stripQuote` on every region-boundary path and read back here through
+    // `quoteColumnsUnknown`, which tsc reports as circular inference unless one end is
+    // annotated.
+    const stripQuote: boolean =
+      quoteContentStart !== null && !inFrontmatter && i !== frontMatterOpensAt && !inComment
+        ? open !== null
+          ? open.quoted
+          : inQuote || !paragraphOpen
+        : false;
+    if (stripQuote) {
+      // Entering a quote from outside it abandons the OUTER document's container columns: the
+      // quote's content base is its own column 0, and an outer list's column describes a
+      // coordinate system the stripped line is no longer written in.
+      if (!inQuote) {
+        contentColumns.length = 0;
+        columnKinds.length = 0;
+        columnIsCommonmark.length = 0;
+      }
+      inQuote = true;
+    } else if (quoteContentStart === null && BLANK_LINE.test(raw)) {
+      if (inQuote) {
+        contentColumns.length = 0;
+        columnKinds.length = 0;
+        columnIsCommonmark.length = 0;
+      }
+      inQuote = false;
+    }
+    const line: string = stripQuote ? raw.slice(quoteContentStart as number) : raw;
     // The ATX-adjacency state is consumed by THIS line and by no later one — pandoc
     // swallows the heading only when the run is the line IMMEDIATELY below it. Clearing
     // it here, at the top, is what makes that "immediately" true through every `continue`
@@ -4965,7 +5073,12 @@ function computeRegions(text: string): Regions {
           columnIsCommonmark.push(true);
         }
       }
-      if (BLOCK_QUOTE_MARKER.test(line)) {
+      // ⚠ **THE FAIL-SAFE READS THE RAW LINE, NOT THE STRIPPED ONE (Session 225).** `quoteOpen`
+      // exists for the lines the strip does NOT reach — an UNMARKED line below a quote, where
+      // pandoc has stripped markers this scanner cannot see. Reading the stripped line here
+      // silently retires it, and Session 189's row (`> quoted one` / `>` / `   \clearpage` /
+      // `   # ATX Below`, a heading quarto renders at EVERY indent 0-8) goes with it.
+      if (BLOCK_QUOTE_MARKER.test(raw)) {
         quoteOpen = true;
       }
     }
@@ -4975,7 +5088,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
-      quoteOpen = false;
+      quoteOpen = stripQuote;
       continue;
     }
     if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line)) {
@@ -4983,7 +5096,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
-      quoteOpen = false;
+      quoteOpen = stripQuote;
       continue;
     }
 
@@ -5018,6 +5131,7 @@ function computeRegions(text: string): Regions {
       const info = char === "`" ? CELL_INFO.exec(fence[3].trim()) : null;
       const candidate: OpenCellFence = {
         char,
+        quoted: stripQuote,
         len: fence[1].length,
         isCell: info !== null,
         lang: info ? info[1] : "",
@@ -5072,7 +5186,7 @@ function computeRegions(text: string): Regions {
         consecutiveBody = 0;
         paragraphOpen = false;
         inPipeTable = false;
-        quoteOpen = false;
+        quoteOpen = stripQuote;
         continue;
       }
       // Otherwise the line is ordinary body — the pre-S178 behaviour, unchanged.
@@ -5082,11 +5196,11 @@ function computeRegions(text: string): Regions {
     // follow one (it becomes a thematic break instead, confirmed against the
     // real Quarto CLI). Still recorded as body, matching existing behavior.
     if (BLANK_LINE.test(line)) {
-      bodyLines.push({ line: i, text: line });
+      bodyLines.push({ line: i, text: raw, contentStart: stripQuote ? (quoteContentStart as number) : 0 });
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
-      quoteOpen = false;
+      quoteOpen = stripQuote;
       // A blank line ends a CommonMark type-6 or type-7 raw HTML block — and ONLY those two
       // types, which is why the state names its end condition rather than being a boolean
       // (Session 204).
@@ -5150,8 +5264,18 @@ function computeRegions(text: string): Regions {
     // this stops a title that lies wholly INSIDE the block from being claimed at all
     // (`scratchpad/s204/gnd` — `g_gfm_div_d1_setext`, and the `pre` rows, where the block
     // reaches past a blank line).
+    // ⚠ **THE SETEXT PATH IS DECLINED ON A STRIPPED LINE, AND THAT IS A BOUND ON THIS
+    // DELIVERABLE RATHER THAN A RULE (Session 225).** Quarto really does underline inside a
+    // quote — `> quoted f02` / `> ---` renders `<blockquote><h2>quoted f02</h2></blockquote>`
+    // (`f/f02`) — but the SAME bytes are also a mid-document metadata block, and quarto consumes
+    // a quoted one exactly as it consumes a top-level one: `> ---` / `> from: gfm` / `> ---`
+    // renders an EMPTY `<blockquote>` (`f/f03`). The pre-pass that models that consumption
+    // (`consumedMetadataBlockLines`, and the region walk under it) reads RAW lines and has no
+    // block-quote context, so accepting the underline here mints an `h2:from: gfm` quarto does
+    // not render — measured, on Session 211's own `cal2/q5_in_quote` row. Declining costs the
+    // quoted setext heading this model already did not report; it introduces nothing. Filed.
     const setextLevel =
-      titleLineCount >= 1 && commonmarkHtmlBlock === null
+      titleLineCount >= 1 && commonmarkHtmlBlock === null && !stripQuote
         ? setextUnderlineLevel(
             line,
             commonmarkDialect
@@ -5175,8 +5299,17 @@ function computeRegions(text: string): Regions {
       const heading = parseSetextHeadingLine(
         setextLevel,
         [
-          setextTitleText(prev.text, [0, ...contentColumns]),
-          ...titleLines.slice(1).map((l) => l.text),
+          // ⚠ **THE TITLE IS STRIPPED ONLY WHEN THE UNDERLINE ITSELF IS QUOTED (Session 225),
+          // and an inherited test refuted the simpler spelling within the minute.** Rendered:
+          // `> quoted f02` / `> ---` nests, `<blockquote><h2>quoted f02</h2></blockquote>`,
+          // while `> quoted f01` / `---` — the SAME title line under an UNMARKED underline —
+          // renders `<h2>&gt; quoted f01</h2>` at top level, marker and all, because no quote
+          // ever forms (`f/f01`, `f/f02`).
+          setextTitleText(stripQuote ? prev.text.slice(prev.contentStart) : prev.text, [
+            0,
+            ...contentColumns,
+          ]),
+          ...titleLines.slice(1).map((l) => (stripQuote ? l.text.slice(l.contentStart) : l.text)),
         ]
           // A trailing `\` is a HARD LINE BREAK, which quarto renders as `<br>` rather than as
           // a literal character, so it is not part of the heading's text (measured,
@@ -5220,16 +5353,16 @@ function computeRegions(text: string): Regions {
       if (heading) {
         headings.push(heading);
       }
-      bodyLines.push({ line: i, text: line });
+      bodyLines.push({ line: i, text: raw, contentStart: stripQuote ? (quoteContentStart as number) : 0 });
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
-      quoteOpen = false;
+      quoteOpen = stripQuote;
       continue;
     }
 
     // A live content line (prose or a heading) — outside every skip-region.
-    bodyLines.push({ line: i, text: line });
+    bodyLines.push({ line: i, text: raw, contentStart: stripQuote ? (quoteContentStart as number) : 0 });
 
     // The columns a raw-TeX block or an indented code block may start at on THIS line: the
     // document root's own 0 plus every open container's. `null` while a block quote may be
@@ -5241,7 +5374,16 @@ function computeRegions(text: string): Regions {
     // else branch mutates `quoteOpen`, `contentColumns` or `prevIndentedCode` on the path that
     // reads them: the `if (m)` branch that assigns `quoteOpen` is the branch where the else
     // never runs.
-    const rawTexColumns = quoteOpen ? null : [0, ...contentColumns];
+    // ⚠ **THE SUSPENSION IS FOR THE LINES THE STRIP DOES NOT REACH (Session 225).** `quoteOpen`
+    // means "a quote may be open above this line, and pandoc re-parses its content at a column
+    // this scanner cannot compute". On a line the strip DID reach that column is known exactly —
+    // it is 0 — and suspending there fabricates headings quarto does not render (`b/b10`,
+    // `b/b11`, `b/b01`, `c/c10`; this session's own guard rows G2, G3 and G5 went red on the
+    // spelling that left the suspension in place).
+    const quoteColumnsUnknown: boolean = quoteOpen && !stripQuote;
+    const rawTexColumns: readonly number[] | null = quoteColumnsUnknown
+      ? null
+      : [0, ...contentColumns];
     const indented = indentedCodeLine(line, rawTexColumns);
     const insideIndentedCode = indented && prevIndentedCode;
 
@@ -5265,7 +5407,7 @@ function computeRegions(text: string): Regions {
             // tolerance back (Session 206): the 0-3 window belongs to the CommonMark readers,
             // and the relaxation is keyed on the key's mere presence only because the value was
             // unreadable before. Measured, `scratchpad/s206/col` + `col2`, 56 documents.
-            quoteOpen
+            quoteColumnsUnknown
               ? null
               : dialectOverride && !markdownFamilyDialect
                 ? [...COMMONMARK_HEADING_COLUMNS, ...contentColumns]
@@ -5289,7 +5431,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
-      quoteOpen = false;
+      quoteOpen = stripQuote;
       prevWasAtxHeading = true;
     } else {
       // A block line makes the line BELOW it a paragraph start; it does NOT reset the
@@ -5360,7 +5502,10 @@ function computeRegions(text: string): Regions {
       // only when no paragraph is open — see `closesParagraph`. Reading it here, before
       // `paragraphOpen` is overwritten below, is what makes "the line that starts it" true.
       if (!paragraphOpen) {
-        paragraphQuoted = BLOCK_QUOTE_MARKER.test(line);
+        // ⚠ RAW, for the same reason `quoteOpen` is (Session 225) — this flag suspends the
+        // `CLOSES_PARAGRAPH` gate for a paragraph that began inside a quote, and the lines it
+        // then serves are UNMARKED ones the strip never sees.
+        paragraphQuoted = BLOCK_QUOTE_MARKER.test(raw);
       }
       // `paragraphOpen` is read for the line ABOVE before being overwritten for this one.
       // Annotated for the same TS7022 reason as `lineBlockAbove` above — this snapshot feeds

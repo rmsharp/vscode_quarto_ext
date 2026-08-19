@@ -427,10 +427,10 @@ describe("findBodyLines — content lines outside skip-regions", () => {
       "after", // 12 body
     ].join("\n");
     expect(findBodyLines(text)).toEqual([
-      { line: 3, text: "# Heading" },
-      { line: 4, text: "" },
-      { line: 8, text: "prose line" },
-      { line: 12, text: "after" },
+      { line: 3, text: "# Heading", contentStart: 0 },
+      { line: 4, text: "", contentStart: 0 },
+      { line: 8, text: "prose line", contentStart: 0 },
+      { line: 12, text: "after", contentStart: 0 },
     ]);
   });
 
@@ -438,7 +438,7 @@ describe("findBodyLines — content lines outside skip-regions", () => {
     // Only a WHOLE-line comment is excluded; a line that merely starts and ends
     // with comments but has prose between renders that prose, so it stays body.
     const text = "<!-- a --> mid prose <!-- b -->";
-    expect(findBodyLines(text)).toEqual([{ line: 0, text }]);
+    expect(findBodyLines(text)).toEqual([{ line: 0, text, contentStart: 0 }]);
   });
 
   it("still excludes a genuine whole-line single comment", () => {
@@ -3513,7 +3513,12 @@ describe("an INDENTED CODE line is measured from the containing block's CONTENT 
     expect(
       names(doc("> Foxtrot quote opener.", ">", ">     boxed sample text", "> # Foxtrot Quoted Heading",
                 "", "Tail sentence.")),
-    ).toEqual([]); // quarto: h1:Foxtrot Quoted Heading — 4 past the quote's own content column IS code
+      // ⚠ REVERSED by Session 225 — this is now quarto's own answer, re-rendered as `f/f07`:
+      // `<blockquote><p>Foxtrot quote opener.</p><pre><code>boxed sample text</code></pre>
+      // <h1 id="foxtrot-quoted-heading">Foxtrot Quoted Heading</h1></blockquote>`. The strip
+      // gives the quote its own content column, so the 5-space line IS code inside it and the
+      // ATX below is a real heading.
+    ).toEqual(["h1:Foxtrot Quoted Heading"]);
     expect(
       names(doc("> Beacon quoted opener line", "    lazy indented continuation", "# Beacon Lazy Heading",
                 "", "Tail sentence.")),
@@ -7902,9 +7907,13 @@ describe("a SETEXT UNDERLINE swallows the ATX heading above it (Session 214)", (
         "h1:Adv Div Head",
         TAIL,
       ]);
-      // `adv/x5_quote` — inside a BLOCK QUOTE nothing is reported at all, before or after. That
-      // is Session 213's already-filed block-quote item, untouched in either direction.
-      expect(names(withFrom(null, "> # Adv Quote Head", "> ==="))).toEqual([TAIL]);
+      // `adv/x5_quote` — ⚠ REVERSED by Session 225, which gave the scanner block-quote context.
+      // Re-rendered as `f/f04`: quarto renders `<h1 id="adv-quote-head"># Adv Quote Head</h1>`
+      // inside the quote — the underline swallows the ATX and keeps its literal `#`. This model
+      // declines the setext path on a stripped line (a disclosed bound, see `model.ts`), so it
+      // reports the ATX plainly: ONE heading either way, wrong only in its text, where before
+      // this session it reported none at all. Exactly the div row's trade three lines up.
+      expect(names(withFrom(null, "> # Adv Quote Head", "> ==="))).toEqual(["h1:Adv Quote Head", TAIL]);
       // `adv/z8_rst` — quarto renders NOTHING for a non-markdown reader, and this model reports
       // the markdown answer with or without the swallow. Same phantom COUNT before and after,
       // different text; the already-filed "readers outside the markdown family" item.
@@ -8109,7 +8118,9 @@ describe("a trailing `#` run with no space before it is a CLOSING SEQUENCE (Sess
       // A BLOCK QUOTE and a LIST ITEM report nothing at all, before and after — the model's own
       // module docstring records that the scanner tracks no such context. Quarto renders both
       // (`adv/x04`, `x06`), so these are CARRIED pre-existing gaps, not this session's.
-      expect(names(withFrom(null, "> # Adv Quote Head#"))).toEqual([TAIL]);
+      // ⚠ REVERSED by Session 225 — re-rendered as `f/f05`, quarto renders
+      // `<blockquote><h1 id="adv-quote-head">Adv Quote Head</h1></blockquote>`, text and all.
+      expect(names(withFrom(null, "> # Adv Quote Head#"))).toEqual(["h1:Adv Quote Head", TAIL]);
       expect(names(withFrom(null, "-   # Adv List Head#"))).toEqual([TAIL]);
     });
 
@@ -8553,7 +8564,14 @@ describe("a heading's backslash escapes are processed per reader (Session 217)",
       // A separate, already-filed item (BACKLOG: a heading inside a BLOCK QUOTE or LIST ITEM is
       // not reported at all). Pinned so that closing THIS item cannot quietly move it, in
       // either direction: a change that started reporting them would be an unmeasured widening.
-      expect(names(withFrom("markdown", "> # Cal Cn Quote Esc\\:Colon"))).toEqual([TAIL]);
+      // ⚠ REVERSED by Session 225 — re-rendered as `f/f06`, quarto renders
+      // `<h1 id="cal-cn-quote-esccolon">Cal Cn Quote Esc:Colon</h1>` inside the quote. The LIST
+      // half below is untouched and still stands: this session gave the scanner block-quote
+      // context, not list-item context.
+      expect(names(withFrom("markdown", "> # Cal Cn Quote Esc\\:Colon"))).toEqual([
+        "h1:Cal Cn Quote Esc:Colon",
+        TAIL,
+      ]);
       expect(names(withFrom("markdown", "-   # Cal Cn List Esc\\:Colon"))).toEqual([TAIL]);
     });
 
@@ -8905,9 +8923,13 @@ describe("a trailing brace group is a heading attribute block only when it is VA
       // that the scanner tracks no list/blockquote context — and entirely independent of this
       // item: the CONTROL spellings without any block report nothing either. Pinned so a
       // predicate that accidentally starts or stops reporting here is visible.
-      expect(names(withFrom("markdown", "> # Cal G04 OK {#sec-g04}"))).toEqual([TAIL]);
+      // ⚠ The QUOTE rows are REVERSED by Session 225 and now carry the `sec-` id this pin said
+      // quarto defines; the LIST rows are untouched and still stand.
+      const quoted = withFrom("markdown", "> # Cal G04 OK {#sec-g04}");
+      expect(names(quoted)).toEqual(["h1:Cal G04 OK", TAIL]);
+      expect(labels(quoted)).toEqual(["sec-g04"]);
       expect(names(withFrom("markdown", "-   # Cal G05 OK {#sec-g05}"))).toEqual([TAIL]);
-      expect(names(withFrom("markdown", "> # Cal G04 OK"))).toEqual([TAIL]);
+      expect(names(withFrom("markdown", "> # Cal G04 OK"))).toEqual(["h1:Cal G04 OK", TAIL]);
       expect(names(withFrom("markdown", "-   # Cal G05 OK"))).toEqual([TAIL]);
     });
 
@@ -9641,14 +9663,14 @@ describe("PINS — the refusal's measured boundary (Session 224)", () => {
     expect(indexLabels(text).map((l) => l.id)).toEqual(["fig-p09"]);
   });
 
-  it("P10: ⚠ DISCLOSED RESIDUAL — inside a BLOCK QUOTE this model still sees neither the fence nor the heading (`adv/z01`)", () => {
-    // Quarto refuses the fence and renders `<h1>Heading z01</h1>` inside the quote. This model
-    // has no block-quote context anywhere (the same gap Session 183 records for setext
-    // underlines), so `FENCE_OPEN` never matches the `> `-prefixed line and `findHeadings`
-    // never matches the `> # ` one. PRE-EXISTING and unmoved by this session — it is the one
-    // row of 72 the scorer still marks wrong, and it is wrong the same way before and after.
+  it("P10: ⚠ REVERSED by Session 225 — the fence and the heading inside a BLOCK QUOTE are both seen (`adv/z01`)", () => {
+    // Session 224 pinned this as its one disclosed residual: quarto refuses the fence and
+    // renders `<h1 id="heading-z01">Heading z01</h1>` INSIDE the quote, and this model reported
+    // nothing at all. Session 225 gave the scanner block-quote context, so the refusal now runs
+    // on the quote's own content exactly as it does at top level — the blank lines stop the
+    // opener and closer forming one code span, and the heading between them is live.
     expect(headings(["> quote", ">", "> ```{#lst-p10 bad .cls}", ">", "> # Pin Ten", ">", "> ```", ""])).toEqual(
-      [],
+      ["Pin Ten"],
     );
   });
 });
@@ -9732,5 +9754,19 @@ describe("Session 225 guard — block-quote shapes that must NOT move", () => {
 
   it("G14: a `>` line inside a top-level fence is still invisible (`c/c05`)", () => {
     expect(headings(["```", "> # Guard Fourteen", "```", ""])).toEqual([]);
+  });
+});
+
+// ── Session 225 — inside a BLOCK QUOTE ─────────────────────────────────────────
+//
+// Quarto strips a block quote's markers and re-parses what is left, so every construct
+// inside a quote is real. Rows are named for the rendered document that measured them under
+// `scratchpad/s225/`.
+describe("Session 225 — constructs inside a block quote", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("C1: `> # x` is a heading (`cal/sv.qmd` s01)", () => {
+    // Rendered: `<blockquote><h1 id="heading-s01">Heading s01</h1></blockquote>`.
+    expect(headings(["", "> # Quoted One", ""])).toEqual(["Quoted One"]);
   });
 });
