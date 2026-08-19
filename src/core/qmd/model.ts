@@ -330,6 +330,70 @@ function headingAttributeId(
   return commonmarkDialect ? found[0] : found[found.length - 1];
 }
 /**
+ * A `{ … }` group on a line, located so its geometry can be tested.
+ *
+ * ⚠ Lives HERE rather than in `src/core/refs.ts`, where Session 222 wrote it, because
+ * Session 224 needs the SAME group scan inside `computeRegions` — a fence opener's info
+ * string is judged by the identical grammar. Re-deriving it there would be a second scanner
+ * over the same bytes (Learning #14); moving it down the existing dependency edge is the
+ * shape that keeps one grammar. `refs.ts` imports it back.
+ */
+export interface BraceGroup {
+  /** 0-based column of the `{`. */
+  start: number;
+  /** 0-based column of the matching `}`. */
+  end: number;
+  /** The text between the braces. */
+  content: string;
+}
+
+/**
+ * Every CLOSED brace group on `lineText`, left to right and non-overlapping.
+ *
+ * ⚠ **A `{` WITH NO `}` AFTER IT YIELDS NO GROUP AT ALL** — measured: `![Cap](a.png){#fig-v11`
+ * renders its brace verbatim and defines nothing (`scratchpad/s222/cal/cal.qmd` v11, and
+ * `s221/adv/adv.qmd` a06). Nothing can attach to an unterminated group.
+ *
+ * ⚠ **AND THE CLOSER IS FOUND QUOTE-AWARE, WHICH ONE RENDERED ROW REQUIRES.**
+ * `![Cap](a.png){#fig-w12 key="a}b"}` defines `fig-w12` (`disc.qmd` w12): the `}` inside the
+ * quoted value is content, not the end of the group. A naive scan to the first `}` reads the
+ * block as `#fig-w12 key="a`, judges it invalid, and drops an id quarto really defines. This
+ * is the same quote awareness `headingAttributeTokens` carries, for the same reason, and it is
+ * the other side of the still-open heading item where `[^}]*` loses to that byte.
+ */
+export function braceGroups(lineText: string): BraceGroup[] {
+  const groups: BraceGroup[] = [];
+  let i = 0;
+  while (i < lineText.length) {
+    if (lineText[i] !== "{") {
+      i++;
+      continue;
+    }
+    let quote: string | null = null;
+    let j = i + 1;
+    for (; j < lineText.length; j++) {
+      const ch = lineText[j];
+      if (quote !== null) {
+        if (ch === quote) {
+          quote = null;
+        }
+      } else if (ch === '"' || ch === "'") {
+        quote = ch;
+      } else if (ch === "}") {
+        break;
+      }
+    }
+    if (j >= lineText.length) {
+      i++;
+      continue;
+    }
+    groups.push({ start: i, end: j, content: lineText.slice(i + 1, j) });
+    i = j + 1;
+  }
+  return groups;
+}
+
+/**
  * The identifier a Pandoc attribute block whose content is `content` defines, for the
  * **pandoc-family** readers — or `undefined` when the content is not a well-formed attribute
  * block, or is one that carries no identifier.
