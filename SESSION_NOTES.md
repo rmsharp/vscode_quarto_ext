@@ -5,59 +5,90 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 224 — IMPLEMENTATION (strict TDD): a fenced code block whose info string fails pandoc's parse is NOT A FENCE, and our region scanner opens a code region for it anyway.** When a fence opener's info string fails the `[word] {attrs}` parse, quarto does not fall back to a plain code block — the fence is not a fence, and its lines are ordinary prose. `scanRegions` hides them. Closes the item Session 223 filed and ranked #1. **Both directions** — see rule 1 below, which the pre-stub survey found and the filed item did not.
-**Started:** 2026-08-19
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Task:** **Session 224 — IMPLEMENTATION (strict TDD): a fenced code block whose info string fails pandoc's parse is NOT A FENCE, and our region scanner opened a code region for it anyway.** Closes the item Session 223 filed and ranked #1.
+**Started:** 2026-08-19 · **Closed:** 2026-08-19
+**Status:** **DONE. SHIPPED — and the session's finding is that the filed item's own mechanism sentence contained a contradiction, so implementing it as written cost a true positive and a phantom within one cycle.** 72 rendered rows across seven rounds, a row-by-row pre/post scorer, and a 46,598-document sweep: **36/72 → 71/72 with INTRODUCED 0**, **0 movers across 113 tracked repo files**, and **6 predecessor recoveries**, every one verified against its own render.
+
+**HEADLINE 1 — A REFUSED DELIMITER DOES NOT DISAPPEAR, IT RE-PAIRS, AND THAT IS THE HALF THE FILED ITEM DID NOT HAVE.** The item described lost coverage: content inside a refused fence is hidden here and live in quarto. True — and quarto's own crossref filter proves it, warning `Unable to resolve crossref @fig-s03` about a use this model could not see at all. But a rejected opener's **closing** fence becomes an **opener**, so the block after it is code to quarto and prose to us: `cal/sv.qmd` s03's closer swallows the whole of s04, comment line and opener included. One document, both directions. (Learning #392.)
+
+**HEADLINE 2 — ⚠ THE ITEM'S MECHANISM SENTENCE CONTAINED TWO CLAUSES THAT CANNOT BOTH BE TRUE, AND THE MISSING VARIABLE WAS THE WHOLE RULE.** It said the backticks *"read as an INLINE CODE SPAN **and** the block's contents are prose."* Content inside a code span is LITERAL, not prose. The reconciliation: **a code span cannot cross a blank line.** With no blank line the opener and closer form one span, contents literal, and hiding them is *accidentally right*; with a blank line the backticks are literal text and everything below is live. My first GREEN followed the item as written and immediately lost `lst-d11` (an id quarto really defines) and minted `lst-d10` (one it does not) — caught by the scorer after that GREEN, before either reached a commit. ⚠ The blank-line test then belongs on the **closer**, not the opener: gating the opener restored four phantom headings quarto does not render. (Learning #391.)
+
+**HEADLINE 3 — ⚠ `{=html}` IS A FENCE AND IS NOT A VALID `Attr`, AND THAT ROW ALONE WOULD HAVE SHIPPED A WIDE SILENT REGRESSION.** The rule reads naturally as "the attribute block must parse". A raw attribute block's lone `=format` token is refused outright by pandoc's attribute parser, so a validity-only predicate stops opening a region for **every raw block in every real document** — and no unit test in the repo covered it. It was caught because the round-4 prediction sheet marked it `⚠ UNCERTAIN AND THE ONE THAT WORRIES ME` and rendered it. (Learning #393.)
+
+**HEADLINE 4 — THE REFUSAL IS PANDOC-FAMILY ONLY, AND THAT ROUND SCORED 9/9.** Under `from: commonmark_x` every one of the nine otherwise-refused rows builds a code block — CommonMark's info string is arbitrary text. A reader-blind predicate would have deleted CommonMark regions wholesale. The flags were already in scope in `computeRegions`, so this cost no plumbing.
+
+**THE measurement.**
+
+| corpus | scale | what it measures | score |
+|---|---|---|---|
+| `cal/sv.qmd` | 10 rendered rows | the survey, run BEFORE the 1B stub | **9/10** — the miss is headline 1 |
+| `b/` | 14 documents | the predicate, one row per document so no verdict leaks | 12/14 — ⚠ **both misses are one rule** |
+| `c/` | 9 documents | ⚠ the READER SPLIT | **9/9** |
+| `d/` | 13 documents | the remaining gaps, including raw attributes | 12/13 |
+| `e/` | 8 documents | bounding the raw-attribute branch | **8/8** |
+| `f/` | 4 documents | Session 183's rows, rendered to adjudicate a sweep mover | 4/4 |
+| `g/` | 5 documents | ⚠ the round that found the blank line | 4/5 |
+| `h/` | 2 documents | bounding the Source 3 clause | 2/2 |
+| `adv/` | 11 documents | ⚠ aimed at MY OWN geometry | 10/11 |
+| `GROUND.json` | **72 rows** | this model vs quarto, scored pre and post | **36/72 → 71/72, INTRODUCED 0** |
+| repo sweep | 113 documents | every tracked markdown file — labels, headings AND cells | **0 movers** |
+| corpus sweep | **46,598 documents** | every predecessor corpus | 25 mover rows, **all accounted for** |
+
+⚠ **EVERY MOVER WAS RUN DOWN INDIVIDUALLY.** 19 are this session's own corpora. The 6 predecessor movers are all **recoveries**: four phantom headings in `s183/R1-pipe-refute/` (re-rendered here as `s224/f/` — quarto renders no heading in any of the four) and the two phantom labels Session 223 pinned at H8/H12, each checked against that session's own rendered HTML rather than against its pin text.
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** S204's gotcha 5 inherited a TWENTY-FIRST time. This is a **NARROWING** of the region set, so the guard is per fence-that-must-keep-hiding-its-contents. **14 `it()`s green BEFORE the change.** ⚠ The first spelling of the guard's helper stripped the deliberate blank lines along with an empty front-matter slot, which would have left every row green even when the region was deleted — fixed before committing. **4 RED→GREEN cycles**, each RED confirmed to fail for the right reason; one was an inherited S223 test going red, one was driven by my own adversarial pass. **10 behaviours declared PINS**, one of them a disclosed residual rather than a pass. **2 predecessor pins REVERSED.**
+
+**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **540 passing / 0 failing / exit 0** (baseline 538, **+2**), both new tests watched **BY NAME** at lines **95** and **364** of `scratchpad/s224/integration.log`. Both assertions pre-checked headlessly first (`scratchpad/s224/precheck224.test.ts`, S211's gotcha 3 for a THIRTEENTH session). ⚠ Two `failing` grep matches are a CLEAN run — both are the test NAMED "surfaces a failing render" (S205's gotcha 7, a SIXTEENTH time). ⚠ `src/` did NOT change after the run, so no re-run was owed.
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `compile-tests` **0** · `npm test` **2236 passed / 66 files** (baseline 2208, **+28**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S223) · `check-package` **OK 42 files / 5.56 MB** · `check-backlog` **OK, 160 open items** · `test:integration` **540 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** **No BLIND sweep** — subagent fan-out unavailable under a session-level instruction, the **SEVENTEENTH** session running. And the block-quote residual is bounded by measurement, not fixed.
+
+**What was done (commits).** 1B claim `8053045a`, carrying nine decision rules from a survey run before the stub. **GUARD** `013ac5dd` — 14 `it()`s green before the change. **PLUMBING** `d6abeaab` — `braceGroups` moved down to `model.ts` so there is one grammar, not two; pure move, no behaviour change, committed on its own. **C1–C3** `95241beb` — the predicate, the consumed closer, and the Source 3 fence-run clause with two reversed pins. **C4 + PINS** `90f04cd1` — the `}` row my own adversarial pass found, plus 10 pins. **INTEGRATION** `15b28164` — both consumers in a real host. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 1 filed, 1 updated), `PROJECT_LEARNINGS.md` (#391–#394), `SESSION_NOTES.md` and `HANDOFFS.md`.
+**Ledger:** `CHANGELOG: 2026-08-19 · [ad hoc] Session 224` — written at close-out with the `BACKLOG.md` drain.
 
 **Deliverable (ONE capability):** *a fence opener whose info string quarto refuses does not open a code region* — one intent, per-layer checkpoint commits.
 
-## Session 224 ACTIVE-TASK decision rules (from the survey run BEFORE the 1B stub)
+## Session 224 — how the nine decision rules scored, checked at close
 
-10 rows rendered through real `quarto render` (quarto 1.7.33), predictions frozen and hashed
-(`scratchpad/s224/cal/PREDICTIONS.tsv`, sha256 `a4272330…`) before the render. **Scored 9/10.**
+1 ✓ **and it was the finding** — the survey found the re-pairing half in one render, before the stub was written. 2 ✓ **and quarto's own crossref warning was the sharpest instrument of the session** — it named a use this model could not see, without my having to diff anything. 3 ✓ **and it is the rule the filed item was missing** — the blank line, scored separately throughout. 4 ✓ (the verdict is reader-level, not fence-char-level; `~~~` and four backticks behave as three do). 5 ✓ **and it was load-bearing** — stage 1 stayed out of the refusal, so `{#lst-x}` keeps its region. 6 ✓ (a non-brace-led info string is refused on the same terms). 7 ✓ **and it was verified rather than assumed** — declining the opener does reproduce quarto's shift for free, confirmed by rendered rows before any code claimed it. 8 ✓ **and it cost one commit of plumbing rather than a second grammar** — `braceGroups` moved down instead of being re-derived. 9 ✓ **and it caught both of the defects I introduced** — the scorer compares whole label AND heading sets per document, which is what made the lost TP visible at all.
 
-1. ⚠ **THE FILED ITEM DESCRIBES HALF THE DEFECT, AND THE SURVEY FOUND THE OTHER HALF: THE FENCE
-   PAIRING SHIFTS, SO THE ERROR RUNS IN BOTH DIRECTIONS AT ONCE.** The item says content inside a
-   failed-parse fence is hidden here and live in quarto — true (rule 2). But a rejected opener's
-   *closing* ``` then becomes an **opener** in quarto, so the block AFTER it is code to quarto and
-   prose to us. Measured: `sv.qmd` s03's closer opens a `<pre><code>` that swallows the whole of
-   s04 — its `<!-- s04 -->` comment, its opener line and its body all render as literal code —
-   while this model opens a region at s03's opener and another at s04's. Lost-TP **and** phantom.
-2. **Content inside a rejected fence is live prose, and quarto's own crossref filter proves it.**
-   `quarto render` emitted `WARNING … Unable to resolve crossref @fig-s03` and `@fig-s09` — uses
-   this model cannot see at all, because they sit inside what it calls a code region. In the same
-   block a real image DEFINED `id="fig-s03"` and `# Heading Three` rendered as a REAL `<h1>`.
-3. ⚠ **A BLANK LINE INSIDE THE BLOCK IS THE VARIABLE, AND IT IS WHY THIS IS WORTH FIXING.** With no
-   blank line the rejected block collapses to ONE `<p><code>…</code></p>` (s02, s06) — an inline
-   code span whose content is literal, so hiding it is *accidentally* right. A blank line cannot sit
-   inside a code span, so the backticks render as literal text and everything below the blank is
-   live (s03, s07, s08, s09). Do not score the two shapes together.
-4. **The rejection is reader-level, not fence-char-level: `~~~` and four backticks behave exactly
-   as three do.** `~~~{#lst-s07$x .python}` (s07) and ````` ````{#lst-s08$x .python} ````` (s08) both
-   render their opener as literal text with a real `<h1>` below. ⚠ Tildes are NOT a code-span
-   delimiter, so s07's two lines render as two separate paragraphs rather than one `<code>` — the
-   *rendering* differs, the *fence/not-a-fence verdict* does not.
-5. **Stage 1 still holds and must NOT be swept into this change.** ```` ```{#lst-s05} ```` — brace-led,
-   no `.` and no `=` — is a REAL fence with a literal class (`<pre class="{#lst-s05}">`, s05).
-   `fenceAttributeId` already carries that gate measured. A predicate built on "the attribute parse
-   failed" alone deletes this row's region and is the heading-swallowing direction.
-6. **A non-brace-led info string is rejected on the same terms.** ```` ```python {#lst-s06$x} ````
-   renders as an inline code span (s06). So the predicate is about the info string as a whole, not
-   about a leading `{`.
-7. **Declining the opener is expected to reproduce the shift for free — verify, do not assume.**
-   `buildCloserIndex` is an opener-independent pre-pass, so a declined opener leaves the scan to
-   reach the next ``` line, which then asks `hasCloserBelow` for itself. Derived from reading
-   `model.ts:5866-5910`; it predicts quarto's s03/s04 pairing exactly. **A rendered row must confirm
-   it** before any code claims it.
-8. ⚠ **DO NOT WRITE A SECOND GRAMMAR.** `refs.ts` already holds the measured two-stage rule in
-   `fenceAttributeId`. The region scanner needs the same verdict, so the shared shape is a predicate
-   both call — not a regex re-derived in `model.ts`. ⚠ But `fenceAttributeId` returns `undefined`
-   for THREE different reasons (no block, stage-1 intercept, failed parse) and only ONE of them
-   means "not a fence"; reusing its return value directly is rule 5's bug.
-9. **Score the widening AND the narrowing after every GREEN** (S223's gotcha 1). This change moves
-   region boundaries, so a row can move by gaining a label, losing one, or having its LINE change —
-   the scorer must compare whole label sets per document, not counts.
+**Gotchas for the next session.**
+1. **⚠ WHEN A FILED ITEM'S MECHANISM SENTENCE HOLDS TWO CLAUSES THAT CANNOT BOTH BE TRUE, THE MISSING VARIABLE IS THE DELIVERABLE'S REAL RULE.** "An inline code span **and** the contents are prose" was the tell, and the variable was the blank line. Find it before writing the predicate. (Learning #391.)
+2. **⚠ FOR ANY PAIRED-DELIMITER SCANNER, RENDER A DOCUMENT WITH TWO CONSECUTIVE BLOCKS BEFORE WRITING CODE.** A single-block corpus cannot show re-pairing, and re-pairing is where the phantom direction lives. (Learning #392.)
+3. **⚠ BEFORE REUSING A VALIDITY PREDICATE AS A STRUCTURAL GATE, ENUMERATE THE SHAPES THE SURROUNDING TOOL TREATS SPECIALLY AND RENDER EACH.** Raw blocks, engine cells, tool-owned intercepts — the reused parser has no reason to know about any of them. `{=html}` was one row from a wide silent regression. (Learning #393.)
+4. **⚠ A MECHANICALLY-DERIVED GROUND TRUTH REMOVES TRANSCRIPTION ERROR, NOT EXTRACTION ERROR.** My extractor matched `<h1>Heading X</h1>`, which quarto does not emit inside a list item. Exactly one row contradicted a rule the others agreed on, and the instrument was wrong, not the rule. Re-score every prior round after fixing an extractor. (Learning #394.)
+5. **⚠ `maskInlineCode` REWRITES A THREE-BACKTICK RUN INTO `` ` `` PLUS TWO SPACES.** A clause in `refs.ts` that tests for a fence run must read the RAW line, not the masked one, or it silently never fires. Measured on the d10 row before the fix.
+6. **⚠ QUARTO'S ENGINE SNIFF IS WIDER THAN PANDOC'S PARSE.** ```` ```{bad .x} ```` made `quarto render` try to start a jupyter kernel. Avoid a `{letter…}` info string in a corpus row unless the cell path is what you are measuring — this model's `CELL_INFO` agrees with the sniff, so there is no divergence, only a rendering confound.
+7. **⚠ THE HARNESS IS REUSABLE AND WAS INHERITED, NOT WRITTEN.** `scratchpad/s224/` — `sweep.test.ts` + `vitest.sweep.config.ts` (now compares labels **AND headings AND cells** per document; point `S224_LIST` at any file list), `presrc/` (`git archive` of the 1B commit), `score.test.ts` + `GROUND.json` (row-by-row, two observables, ground truth script-extracted from the renders), `cal/` `b/` `c/` `d/` `e/` `f/` `g/` `h/` `adv/` + `PREDICTIONS*.tsv`, `precheck224.test.ts`. Extend rather than rewrite.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Every claim below was checked against THIS session's own rendered rows.
+
+**#1 — NEW, filed here: inside a BLOCK QUOTE this model sees neither a fence nor a heading.** Rendered: `adv/z01.qmd` — quarto refuses the fence and renders `> # Heading z01` as a real `<h1>` inside the quote; this model reports neither, because `FENCE_OPEN` is anchored at `^[ \t]*` and `findHeadings` likewise never matches a `> # ` line. ⚠ It is the ONE row of 72 still marked wrong, **PRE-EXISTING and unmoved**, so it bounds this deliverable rather than being caused by it. Effort **estimate** MEDIUM, and ⚠ it is a container-context question that reaches every construct in `computeRegions`, not a fence question — scope it as its own capability.
+
+**#2 — the display-math and table-caption phantoms** (5 measured shapes, S222's, and ⚠ the fix is NOT the attribute-block rule). **#3 — the rest of "a group with nothing in front of it"**, now narrowed: the fence-run subset is closed, the bare-paragraph shapes remain. **#4 — a `)` or `]` that closes nothing reads as adjacency**, S222's. **#5 — the `commonmark_x` VALIDITY half, never asked**, S222's. **#6 — the indented-div over-fire whose one-character fix is MEASURED to be worse**, S222's. **#7 — the `sec-` scope decision on a fence**, S223's, VERY LOW. **#8 — a SECOND adjacent attribute block on an image**, S221's. **#9 — the `@`-is-an-email test is `notAfterString`**, S220's. **#10 — the completion scanner walks UTF-16 code units**, S220's. **#11 onward — unchanged from S223's list.** ⚠ **Still open from S186:** promote the scratchpad harness, `.vscode-test/` at 18 GB, `npm audit` 5 high + 1 moderate, devDependency-only. ⚠ **And one unmeasured gap this session leaves:** a refused `~~~` fence with a LATER `~~~` pair further down was rendered (`adv/z04`, and this model agrees), but the mirror case — a refused `~~~` whose only later `~~~` sits *inside* another construct — was never rendered.
+
+## Session 224 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.** (a) **The survey ran before the stub and found the half the filed item did not have** — re-pairing, in one render. (b) **I ran the scorer after every GREEN and it caught both defects I introduced**, neither of which reached a commit — S223's gotcha 1 applied rather than admired. (c) **I moved the blank-line test to the closer when the evidence said so**, rather than defending the first placement: the sweep showed the opener-side gate restoring four phantom headings, and I re-rendered Session 183's own documents to adjudicate rather than reasoning about them. (d) **The `{=html}` row was predicted as the risk and rendered because of it** — the prediction sheet marked it uncertain, which is what made it get measured. (e) **My own adversarial pass found a genuine gap** (`}bad`) that no designed row had. (f) **I checked my own instrument twice** — the guard helper that stripped its blank lines, and the ground-truth extractor that missed a list-item heading — and re-scored every prior round after the second. (g) **The plumbing move was committed on its own**, so the behaviour commits are reviewable. (h) **Every one of the 25 sweep mover rows was run down individually**, and the six predecessor movers were verified against their own renders rather than against the pin text that described them.
+
+**What went wrong.** (a) ⚠ **My first GREEN implemented the filed item as written and was wrong in both directions at once** — a lost TP and a phantom. It never reached a commit, but I had already rendered the row that refutes it (`disc.qmd` d10) in Session 223's corpus and did not consult it before writing the cycle. That is S223's gotcha 2 in a new costume: I checked my own measurements but not my predecessor's. (b) ⚠ **I then put the fix in the wrong place** and only the sweep told me — one full cycle spent on a placement the S183 rows could have settled first. (c) **The guard's first helper stripped the blank lines that make every row falsifiable**, which would have made the whole guard block vacuous. (d) **The ground-truth extractor had a defect** that presented as a failed prediction. (e) **The deliverable is bounded by a defect it does not fix** — the block-quote residual, measured, filed, and arguably wider than what this session closed.
+
+**Against the bar set by S221–S223.** Comparable in instrumentation (72 rendered rows across seven rounds with hashed predictions, an adversarial corpus, a two-observable row-by-row scorer, a 46,598-document sweep extended to headings and cells). **Stronger in one specific way: no defect I introduced reached a commit**, where S222 shipped one to the sweep and S223 shipped one to a commit. **Weaker in that I trusted a predecessor's prose over a predecessor's rendered corpus**, which is the one class of error this project's method exists to prevent. Corrections needed from the operator: zero. Protocol steps skipped: zero.
+
+## Session 223 Handoff Evaluation (by Session 224)
+
+**Score: 7/10.**
+
+**What helped, concretely.** (a) **Gotcha 1 — run the pre/post scorer after every GREEN, not at the end — was decisive and is the reason this session shipped nothing broken.** It caught my first GREEN's lost TP and phantom while they were still uncommitted, and then caught the misplaced blank-line gate a cycle later. (b) **Gotcha 7's claim that the harness is reusable was true and saved well over an hour** — `sweep.test.ts`, the vitest configs and the `presrc` `git archive` pattern all transferred with a `sed`, and extending the sweep to headings and cells was a ten-line edit. (c) **Gotcha 4 (derive ground truth from the render, mechanically) shaped the whole scorer**, and is why the 71/72 claim is checkable rather than asserted. (d) **The item's sizing note was exactly right** — "LOW-MEDIUM, and ⚠ it is a `model.ts` region-scanner change, the widest blast radius in the file" — and the blast-radius warning is why I wrote the guard on the narrowing polarity before touching anything. (e) **Gotcha 2 shaped cycle 1's shape**: when my first branch refused every brace string, I narrowed the clause rather than widening the implementation past what the RED asked.
+
+**What was missing.** (a) ⚠ **The item's mechanism sentence was internally contradictory and I followed it** — *"the backticks read as an INLINE CODE SPAN and the block's contents are prose"* cannot both hold, and the missing blank-line variable is the deliverable's actual rule. This is the one gap that cost real time. (b) **Nothing mentioned the re-pairing** — that a refused closer becomes an opener, which is half the defect and the only half with a phantom direction. (c) ⚠ **Nothing warned that raw attribute blocks are fences and not valid `Attr`s** — the single highest-risk shape in the change, and the item's framing ("pandoc's attribute parse FAILS → not a fence") points straight at deleting every ```` ```{=html} ```` region in every real document. (d) **Nothing said the refusal is reader-dependent**, though that session had just spent its own effort on the `commonmark_x` split one production over. (e) **"Five measured shapes" undercounted the refused set by kind, not just by count** — two-word info strings, unclosed braces and `}`-bearing words are all refused and none was named.
+
+**What was wrong.** Nothing was false. Every named witness re-rendered identically, the `PRE-EXISTING` and `pinned at H8/H12` claims were exact, the ranking was right, and the sizing held. The item is honest about being bounded — "this is the REGION half, which is wider and was deliberately not touched". The deductions are for a mechanism description that misleads and for three unflagged hazards, not for an inaccuracy.
+
+**ROI.** High. Gotcha 1 alone is worth more than the item's framing cost me: two self-inflicted defects caught before either reached a commit. But the item that defined the session was the weakest part of the handoff, and it is the part a successor trusts most.
 
 ---
 
