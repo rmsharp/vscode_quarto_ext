@@ -9403,3 +9403,109 @@ describe("WHICH id a block with more than one defines is a reader split (Session
     ]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Session 224 — a fence opener whose INFO STRING quarto refuses does not open a
+// code region.
+//
+// GUARD, written and run GREEN before any production change. This change's
+// polarity is a NARROWING of the region set — fewer openers open a region, so more
+// lines become body and more headings become real. Every guard shape below is
+// therefore a fence that must GO ON opening a region, and every assertion is a
+// heading, cell or label that must NOT appear or move.
+//
+// ⚠ The reader rows are the load-bearing ones: rounds 3 measured 9/9 that the
+// refusal is a PANDOC-FAMILY rule and `commonmark_x` builds a code block from every
+// info string, so a predicate that ignores the reader deletes CommonMark regions
+// wholesale (`scratchpad/s224/c/`).
+// ---------------------------------------------------------------------------
+describe("GUARD — fences that must go on opening a code region (Session 224)", () => {
+  /** A document whose fence, if it opens a region, hides the `# Guard N` heading inside it. */
+  const doc = (info: string, n: string, front = ""): string =>
+    [
+      "---",
+      `title: g${n}`,
+      ...(front === "" ? [] : [front]),
+      "---",
+      "",
+      info,
+      "",
+      // ⚠ THE BLANK LINES ARE THE INSTRUMENT, NOT FORMATTING. A rejected fence with no
+      // blank line inside it collapses into ONE inline code span whose content is literal
+      // either way (`scratchpad/s224/cal/sv.qmd` s02, s06), so a guard written without them
+      // stays green even when the region is deleted. A code span cannot cross a blank line,
+      // so with them the heading below is REAL prose the moment the fence stops being a
+      // fence (s03, s07, s08, s09) — which is what makes each row falsifiable.
+      `# Guard ${n}`,
+      "",
+      info.startsWith("~") ? "~~~" : "```",
+      "",
+      `tail ${n}`,
+      "",
+    ].join("\n");
+
+  const hides = (info: string, n: string, front = ""): boolean =>
+    !findHeadings(doc(info, n, front)).some((h) => h.text === `Guard ${n}`);
+
+  it("a bare ``` fence still opens a region", () => {
+    expect(hides("```", "01")).toBe(true);
+  });
+
+  it("a one-word info string still opens a region (`scratchpad/s224/d/d07`)", () => {
+    expect(hides("```python", "02")).toBe(true);
+  });
+
+  it("a VALID attribute block still opens a region and still defines its id (`b13`)", () => {
+    const text = doc("```{#lst-g03 .python}", "03");
+    expect(hides("```{#lst-g03 .python}", "03")).toBe(true);
+    expect(indexLabels(text).map((l) => l.id)).toContain("lst-g03");
+  });
+
+  it("a STAGE-1 INTERCEPTED block still opens a region — no `.`, no `=` (`b14`)", () => {
+    expect(hides("```{#lst-g04}", "04")).toBe(true);
+  });
+
+  it("an EMPTY block still opens a region (`b08`)", () => {
+    expect(hides("```{}", "05")).toBe(true);
+  });
+
+  it("a RAW ATTRIBUTE block still opens a region — `{=html}` (`d11`)", () => {
+    expect(hides("```{=html}", "06")).toBe(true);
+  });
+
+  it("a CLASS-ONLY block still opens a region (`b04`)", () => {
+    expect(hides("```{.python}", "07")).toBe(true);
+  });
+
+  it("a KEY=VALUE-ONLY block still opens a region (`b05`)", () => {
+    expect(hides("```{key=val}", "08")).toBe(true);
+  });
+
+  it("a class plus a QUOTED key=value still opens a region (`d13`)", () => {
+    expect(hides('```{.python filename="x.py"}', "09")).toBe(true);
+  });
+
+  it("a TILDE fence with a valid block still opens a region and still defines", () => {
+    const text = doc("~~~{#lst-g10 .python}", "10");
+    expect(hides("~~~{#lst-g10 .python}", "10")).toBe(true);
+    expect(indexLabels(text).map((l) => l.id)).toContain("lst-g10");
+  });
+
+  it("⚠ under `commonmark_x` a TWO-WORD info string still opens a region (`c01`)", () => {
+    expect(hides("```python extra", "11", "from: commonmark_x")).toBe(true);
+  });
+
+  it("⚠ under `commonmark_x` an INVALID block still opens a region (`c06`)", () => {
+    expect(hides("```{#lst-g12 bareword .cls}", "12", "from: commonmark_x")).toBe(true);
+  });
+
+  it("an executable CELL is still a cell, and its `{r, echo=FALSE}` info is not judged as attributes", () => {
+    const text = ["```{r, echo=FALSE}", "x <- 1", "```", ""].join("\n");
+    expect(findAllCells(text).map((c) => c.lang)).toEqual(["r"]);
+  });
+
+  it("an UNCLOSED fence still opens NOTHING, so the heading below it stays visible (Session 179)", () => {
+    const text = ["```{#lst-g14 .python}", "", "# Guard 14", "", "tail"].join("\n");
+    expect(findHeadings(text).map((h) => h.text)).toEqual(["Guard 14"]);
+  });
+});
