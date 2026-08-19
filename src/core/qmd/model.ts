@@ -4294,6 +4294,7 @@ function fenceInfoOpensBlock(
   infoString: string,
   commonmarkDialect: boolean,
   pandocEscapes: boolean,
+  quartoIntercepts: boolean,
 ): boolean {
   if (commonmarkDialect) {
     return true;
@@ -4338,7 +4339,13 @@ function fenceInfoOpensBlock(
   // literal CLASS: ```` ```{#lst-b14} ```` renders `<pre class="{#lst-b14}">` and defines no id
   // (`b/b14`, and Session 223's `fenceAttributeId`, which carries the same gate for the id).
   // It is still a FENCE, so a predicate built on attribute validity alone deletes this region.
-  if (block.start === 0 && !/[.=]/.test(info)) {
+  //
+  // ⚠ **AND IT IS LINE-ANCHORED, SO IT DOES NOT REACH INSIDE A BLOCK QUOTE (Session 225).**
+  // The same bytes rendered both ways: ```` ```{#lst-g04 bad} ```` at top level is
+  // `<pre class="{#lst-g04 bad}">` and hides its contents (`g/g04`), while the `> `-prefixed
+  // twin renders `<p>```{#lst-g03 bad}</p>` with a REAL `<h1>` between the backticks (`g/g03`).
+  // Inside a quote the info string faces pandoc's `Attr` parser alone.
+  if (quartoIntercepts && block.start === 0 && !/[.=]/.test(info)) {
     return true;
   }
   // ⚠ **A RAW ATTRIBUTE BLOCK IS A FENCE AND IS NOT A VALID `Attr`** — ```` ```{=html} ````
@@ -5149,7 +5156,13 @@ function computeRegions(text: string): Regions {
     const fence = plainFence ?? indentedCellFenceAt(line);
     if (fence && !consumedFenceClosers.has(i)) {
       const char = fence[2];
-      const info = char === "`" ? CELL_INFO.exec(fence[3].trim()) : null;
+      // ⚠ **QUARTO'S CELL EXTRACTION IS LINE-ANCHORED TOO, SO A CELL SHAPE INSIDE A QUOTE IS
+      // NOT A CELL (Session 225).** Rendered: ```` > ```{ojs} ```` is `<p><code>{ojs} x = 1</code></p>`
+      // — an inline code span, the shape of a REFUSED fence — where the identical top-level
+      // document is a real executable cell (`d/d09` against `d/d10`). Withholding the cell match
+      // is what lets the refusal below reach these rows at all: with `info` non-null the fence is
+      // never asked whether pandoc accepts it, and pandoc does not.
+      const info = char === "`" && !stripQuote ? CELL_INFO.exec(fence[3].trim()) : null;
       const candidate: OpenCellFence = {
         char,
         quoted: stripQuote,
@@ -5183,7 +5196,8 @@ function computeRegions(text: string): Regions {
       // ⚠ A CELL is never asked — quarto's engine owns `{r, echo=FALSE}`, whose bytes the
       // attribute parser would refuse outright. `CELL_INFO` has already decided that above.
       const refused =
-        info === null && !fenceInfoOpensBlock(fence[3], commonmarkDialect, pandocEscapes);
+        info === null &&
+        !fenceInfoOpensBlock(fence[3], commonmarkDialect, pandocEscapes, !stripQuote);
       // ⚠ **A REFUSED OPENER'S CLOSER MAY HAVE BEEN CONSUMED, AND FAILING TO RECORD THAT
       // BREAKS THE BLOCK BELOW.** With no blank line between them the two fence lines are read
       // as ONE INLINE CODE SPAN, so the closer is swallowed and cannot open anything; with a

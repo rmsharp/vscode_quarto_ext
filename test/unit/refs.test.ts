@@ -1619,6 +1619,16 @@ describe("Session 223 PINS — Source 4 behaviours that came free, declared rath
     ]);
   });
 
+  it("C4: the fence-run withhold reaches a QUOTED refused fence too (`cal/sv.qmd` s03)", () => {
+    // Session 225. Rendered: `<p><code>{#lst-s03 bad .cls} # Heading s03</code></p>` — the
+    // refused opener and its closer form ONE inline code span inside the quote and quarto
+    // defines nothing at all. Session 224's withhold tested the RAW line, which begins with the
+    // block-quote marker rather than a fence run, so the unvalidated fallback still fired.
+    expect(indexLabels("> ```{#lst-c04 bad .cls}\n> # Heading\n> ```")).toEqual([]);
+    // The top-level twin, unmoved.
+    expect(indexLabels("```{#lst-c04 bad .cls}\n# Heading\n```")).toEqual([]);
+  });
+
   it("P3b: ⚠ PIN — quarto's stage 1 does NOT reach inside a quote, so an id-only info string defines (`e/e01`)", () => {
     // Session 225. Rendered: `> ```{#lst-e01} ` renders `<pre id="lst-e01">` inside the quote —
     // a REAL id — where the identical bytes at top level render `<pre class="{#lst-s03}">` and

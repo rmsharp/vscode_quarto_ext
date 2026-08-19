@@ -312,7 +312,7 @@ export function indexLabels(text: string): RefLabel[] {
   // Which atom of a multi-id block wins is a READER question (Session 219, re-measured for
   // inline blocks and divs in Session 222 — `scratchpad/s222/cal/cmx.qmd`).
   const reader = attributeBlockReader(text);
-  for (const { line, text: rawText } of findBodyLines(text)) {
+  for (const { line, text: rawText, contentStart } of findBodyLines(text)) {
     if (headingLines.has(line)) {
       continue;
     }
@@ -352,7 +352,13 @@ export function indexLabels(text: string): RefLabel[] {
       // three-backtick run into `` ` `` plus two spaces, so the masked text no longer starts
       // with a fence run at all and the clause silently never fires — measured on this very
       // row before the fix.
-      if (FENCE_RUN.test(rawText)) {
+      //
+      // ⚠ **AND PAST THE BLOCK-QUOTE MARKER, FOR THE SAME REASON (Session 225).** A refused
+      // fence inside a quote is refused the same way — rendered, `> ```{#lst-s03 bad .cls}` and
+      // its closer form ONE inline code span and quarto defines nothing (`s225/cal/sv.qmd` s03)
+      // — but the raw line begins with the marker, so an unshifted test never fires and the
+      // fallback mints the phantom the withhold exists to stop.
+      if (FENCE_RUN.test(rawText.slice(contentStart))) {
         continue;
       }
       const m = NARROW_LABEL.exec(group.content);

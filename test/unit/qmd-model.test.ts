@@ -9779,4 +9779,18 @@ describe("Session 225 — constructs inside a block quote", () => {
       headings(["", "> ```{#lst-c02 .python}", ">", "> # Not A Heading", ">", "> ```", ""]),
     ).toEqual([]);
   });
+
+  it("C3: quarto's stage-1 intercept does not reach inside a quote, so the fence is refused (`g/g03` vs `g/g04`)", () => {
+    // Rendered BOTH ways from the same bytes. Top level (`g04`): `<pre class="{#lst-g04 bad}">`
+    // — quarto's stage 1 makes the whole info string a literal class and the fence is a fence,
+    // so the ATX inside it is hidden. Inside a quote (`g03`): `<p>```{#lst-g03 bad}</p>` and
+    // `<h1 id="h-g03">H g03</h1>` — the intercept is line-anchored, the `> ` prefix defeats it,
+    // pandoc's `Attr` parser refuses the bare word, and the heading between the backticks is
+    // live. The blank lines are what stop the two fence lines forming one inline code span.
+    expect(
+      headings(["", "> ```{#lst-c03 bad}", ">", "> # Quoted Three", ">", "> ```", ""]),
+    ).toEqual(["Quoted Three"]);
+    // The top-level twin, unmoved — still a fence, still hiding its contents.
+    expect(headings(["", "```{#lst-c03 bad}", "", "# Not A Heading", "", "```", ""])).toEqual([]);
+  });
 });
