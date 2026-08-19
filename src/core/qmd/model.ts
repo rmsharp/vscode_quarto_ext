@@ -5847,13 +5847,13 @@ function computeRegions(text: string): Regions {
         divRole === "close"
           ? !divAtColumn || divColumns.length === 0
           : divRole === "open"
-            ? divOpenerInterrupts
+            ? !divAtColumn || divOpenerInterrupts
             : texEnv !== null
               ? !texEnvMatched
               : yamlTerminates && !metadataBlockOpen;
       if (divRole === "close" && divAtColumn && divColumns.length > 0) {
         divColumns.pop();
-      } else if (divRole === "open" && !divOpenerInterrupts) {
+      } else if (divRole === "open" && divAtColumn && !divOpenerInterrupts) {
         divColumns.push(divFence!.column);
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS

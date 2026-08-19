@@ -10256,4 +10256,17 @@ describe("Session 227 — the `:::` line's own column", () => {
       ]),
     ).toEqual([]);
   });
+
+  it("C3: an INDENTED opener opens nothing — it is literal paragraph text (`r1/k11`-`k13`, `r2/m14`)", () => {
+    // The other half of the same rule, and the half the filed item did not have. Rendered, all
+    // three top-level indents emit `<p>::: {.note}</p>` — no div at all — and the `:::` below
+    // then closes nothing, so the heading is absorbed with it. One column past a `- ` item's
+    // own content column behaves identically (`m14`).
+    for (const pad of [" ", "  ", "   "]) {
+      expect(headings([pad + "::: {.note}", "", "body text", "", ":::", "# H kx"])).toEqual([]);
+    }
+    expect(
+      headings(["- item", "", "   ::: {.note}", "   body text", "   :::", "# H m14"]),
+    ).toEqual([]);
+  });
 });
