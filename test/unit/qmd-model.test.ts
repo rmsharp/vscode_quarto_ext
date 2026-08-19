@@ -10289,4 +10289,43 @@ describe("Session 227 — the `:::` line's own column", () => {
     expect(headings(nested("  :::"))).toEqual(["H m"]); // the OUTER item's column 2
     expect(headings(nested(":::"))).toEqual(["H m"]); // absorbed all the way to column 0
   });
+
+  it("C5: ⚠ an UNMARKED indented closer BELOW A QUOTE still closes — the column is unknowable there (`s183 I06_bq_close_ind1`, `M_bq_closed_ind2`)", () => {
+    // ⚠ **8 REAL DELETIONS, AND ONLY THE 47,711-DOCUMENT SWEEP FOUND THEM.** An unmarked line
+    // below a quote is absorbed into it as a lazy continuation, and pandoc strips that line's
+    // 0-3 leading spaces on the way in — so it lands on the quote's own column 0 and really
+    // does close. That is the OPPOSITE of the list-item lazy line, which is appended RAW and
+    // so closes only at column 0 exactly (`r1/k18`). Rendered: the whole document, heading
+    // included, is inside one `<blockquote>` with the div closed.
+    //
+    // This model cannot compute a column inside a quote, so the rule is the suspension
+    // `quoteColumnsUnknown` already draws for the raw-TeX row — keep the pre-session ` {0,3}`
+    // width where the column is unknowable. Phantoms, never deletions.
+    expect(headings(["> ::: mydiv", "> line one", " :::", "# ATX Below"])).toEqual([
+      "ATX Below",
+    ]);
+    expect(headings(["> ::: mydiv", "> line one", ">", "  :::", "# ATX Below"])).toEqual([
+      "ATX Below",
+    ]);
+  });
+  it("R1 (residual, PINNED in both directions): a heading inside an UNREFERENCED footnote (`r2/m07`, `r4/p02`)", () => {
+    // The ONE row this session's 47,711-document sweep introduced, and it belongs to a family
+    // that has nothing to do with div columns: pandoc DROPS an unreferenced footnote, contents
+    // and all, so `m07` renders an EMPTY document. The pair below is the proof — identical
+    // bytes apart from the reference that makes the note live, and this model gives them the
+    // SAME answer, which is right for the referenced one (quarto renders `H p02` inside its own
+    // `Footnotes` section) and a phantom for the unreferenced one. The defect is the DROP, not
+    // the heading. Filed; not fixed here.
+    const note = (ref: string[]) => [
+      ...ref,
+      "[^1]: note body",
+      "",
+      "    ::: {.note}",
+      "    body text",
+      "    :::",
+      "# H x",
+    ];
+    expect(headings(note([]))).toEqual(["H x"]); // `r2/m07` — quarto renders NOTHING at all
+    expect(headings(note(["text[^1]", ""]))).toEqual(["H x"]); // `r4/p02` — quarto agrees here
+  });
 });

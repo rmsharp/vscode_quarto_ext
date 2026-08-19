@@ -5796,7 +5796,7 @@ function computeRegions(text: string): Regions {
       // start" cannot drift between this row and `indentedCodeLine` (Learning #14).
       const divFenceRaw = divFenceRole(line);
       const divFence =
-        divFenceRaw !== null && columnIsCodeDepth(divFenceRaw.column, [0, ...contentColumns])
+        divFenceRaw !== null && columnIsCodeDepth(divFenceRaw.column, rawTexColumns)
           ? null
           : divFenceRaw;
       const divRole = divFence?.role ?? null;
@@ -5814,14 +5814,28 @@ function computeRegions(text: string): Regions {
       // otherwise the only column that closes is the one the div's own opener sat at. See
       // `divColumns`. `paragraphOpen` is still the line ABOVE's here, which is exactly the
       // question: was a paragraph open for this line to continue?
+      // ⚠ **AND THE COLUMN RULE IS SUSPENDED WHERE THE COLUMN IS UNKNOWABLE — THE SAME
+      // BOUNDARY `quoteColumnsUnknown` ALREADY DRAWS FOR THE RAW-TeX ROW (Session 225).** An
+      // UNMARKED line below a quote is absorbed into it lazily, and pandoc strips that line's
+      // 0-3 leading spaces on the way in, so it lands on the quote's own column 0 and really
+      // does close — the exact OPPOSITE of a list item's lazy line, which is appended RAW and
+      // closes only at column 0 (`r1/k18`). ⚠ **8 real deletions, found by the sweep and by
+      // nothing else** (`scratchpad/s183/R3-fenceddiv-refute/run3/I06_bq_close_ind1` and its
+      // `run4/M_bq_*` twins, each re-rendered: the heading is a real `<h1>` inside the
+      // `<blockquote>`). This model carries no block-quote container, so rather than guess a
+      // column it keeps the pre-session ` {0,3}` width there — the code-depth filter above has
+      // already dropped anything past column 3, since `rawTexColumns` is null under a quote.
+      // Phantoms, never deletions.
       const divFenceColumns = [0, ...contentColumns];
       const divAtColumn: boolean =
         divFence === null
           ? false
-          : divRole === "close"
-            ? divFence.column === divColumns[divColumns.length - 1] ||
-              (paragraphOpen && divFenceColumns.includes(divFence.column))
-            : divFenceColumns.includes(divFence.column);
+          : quoteColumnsUnknown
+            ? true
+            : divRole === "close"
+              ? divFence.column === divColumns[divColumns.length - 1] ||
+                (paragraphOpen && divFenceColumns.includes(divFence.column))
+              : divFenceColumns.includes(divFence.column);
       // ⚠ **A LIST MARKER BEGINS A FRESH BLOCK, so an opener behind one interrupts nothing.**
       // The last 2 of the sweep's 39 deletions: `- item a` / `- ::: mydiv` / `  line one` /
       // `:::` / `# ATX Below` leaves a paragraph open at the marker line, and declining the
