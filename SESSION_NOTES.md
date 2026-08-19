@@ -5,13 +5,88 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 227 — IMPLEMENTATION (strict TDD): an INDENTED `:::` div closer is ordinary paragraph text, not a closer.** Closes the item Session 226 filed and ranked #1 — its own Round 4 residual.
-**Started:** 2026-08-19
-**Status:** Session claimed. Work beginning.
-**Deliverable (ONE capability):** *a `:::` line closes a div only when it sits at its CONTAINER's own content column* — one intent, per-layer checkpoint commits.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Task:** **Session 227 — IMPLEMENTATION (strict TDD): a `:::` is a fence only at its container's own column.** Closes the item Session 226 filed and ranked #1 — its own Round 4 residual.
+**Started:** 2026-08-19 · **Closed:** 2026-08-19
+**Status:** **DONE. SHIPPED — and the session's finding is that one wrong anchor was TWO opposite defects, of which the filed item named the smaller one; the larger half was a family of headings this model had never once been able to see.**
 
-**The filed item, as inherited (an inherited hypothesis, not a measurement — S226's gotcha 1).** `::: {.note}` / `body text` / `  :::` renders ONE paragraph (`<p>body text ::: # H j05</p>`), so an indented bare `:::` closes nothing; `DIV_FENCE` allows `^ {0,3}` everywhere. The two agreeing controls are `r2/g08` (a column-0 closer, which DOES close) and `r4/j04` (a closer at a LIST ITEM's own content column, which DOES close). ⚠ The fix is the `contentColumns` machinery Sessions 189/193/194 already built, NOT a tighter `^:::` anchor, which `r4/j04` measures as worse. 126 corpus documents carry the shape.
+**HEADLINE 1 — `^ {0,3}` WAS COMMONMARK'S TOLERANCE FOR A *CODE* FENCE, BORROWED BY A CONSTRUCT THAT HAS NONE, AND IT WAS WRONG IN BOTH DIRECTIONS.** Pandoc's `divFenceEnd` reads the colon run with no leading-space parser at all, so the run must begin exactly where the enclosing block's content does. The old anchor therefore ACCEPTED a `:::` one to three columns off at the top level (the filed phantom), ACCEPTED an indented OPENER the item never mentioned (rendered, `  ::: {.note}` emits `<p>::: {.note}</p>` — no div at all — at every indent 1–3), and REFUSED every fence in a container deeper than column 3, so a div inside a two-deep list was never opened and the paragraph ran across a real heading. The 47,711-document sweep split 74 movers into 65 removals and **9 ADDITIONS**. (Learning #401.)
+
+**HEADLINE 2 — ⚠ A LIST ITEM AND A BLOCK QUOTE DO NOT ABSORB A LAZY LINE THE SAME WAY, AND ASSUMING THEY DO DELETED 8 REAL HEADINGS.** The item appends the absorbed line RAW, so only a literal column 0 lands on the sub-document's column 0 (`r1/k17` closes, `r1/k18` at column 1 does not). The quote STRIPS the line's 0–3 leading spaces, so `:::`, ` :::`, `  :::` and `   :::` below a quote ALL close the div opened inside it — re-rendered, the heading is a real `<h1>` inside the `<blockquote>` in all eight rows. **My designed corpus had no shape for it and scored 25/25 and 13/14 while the build was deleting every one.** The fix is the suspension `quoteColumnsUnknown` already draws for the raw-TeX row: where a column cannot be computed, keep the pre-session width. (Learning #402.)
+
+**HEADLINE 3 — THE ONE CORPUS ITS OWN AUTHOR IS NOT BLIND TO IS ONE DESIGNED AGAINST THE IMPLEMENTATION, NOT THE RULE.** Round 5 was written from the shape of the code just committed — a stack of columns carrying no container identity — and asked what that structure would get wrong. **5/5 on frozen predictions**, and both suspected weaknesses proved to be real phantoms that were also PRE-EXISTING and unmoved (verified by scoring each row pre AND post), so both are pinned and filed with rendered witnesses rather than chased or shipped unnoticed. (Learning #403.)
+
+**THE measurement.**
+
+| corpus | scale | what it measures | score |
+|---|---|---|---|
+| `r1/` | 25 documents | the closer's column and the opener's, top level and in a `- ` item | **21/25** predicted; ⚠ all 4 misses one rule |
+| `r2/` | 14 documents | nested containers, quotes, tabs, footnote and definition columns | 12/14; ⚠ `m02` refuted a bare equality |
+| `r3/` | 8 documents | is `m07` about divs, or about an unreferenced footnote? | 7/8 |
+| `r4/` | 4 documents | the referenced/unreferenced footnote pair | 3/4 |
+| `r5/` | 5 documents | ⚠ designed against THIS session's own data structure | **5/5** |
+| designed total | **56 documents** | this model vs quarto, scored pre and post | **30 → 51**, 22 recovered, 1 introduced |
+| repo sweep | 113 documents | every tracked markdown file | **0 movers** |
+| corpus sweep | **47,711 documents** | every predecessor corpus | 74 movers (65 removed, 9 ADDED) |
+| mover re-render | **74 documents** | every distinct mover, rendered and scored | **9 → 71 correct, 63 recovered, 0 DELETIONS** |
+
+⚠ **ZERO DELETIONS AT SHIP, and the ONE introduced row is a document THIS SESSION WROTE** (`r2/m07`). 42 inherited predecessor documents moved and every one is correct after. The sweep was re-run to fixpoint after the C5 fix: the new mover set was a strict SUBSET, with no new movers.
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** S204's gotcha 5 inherited a TWENTY-SECOND time. The polarity is MIXED (it refuses fences at the wrong column AND sees fences deeper than column 3), so the guard is one `it()` per shape whose heading must survive plus the phantom rows that must not reappear. **19 `it()`s green BEFORE the change.** **5 RED→GREEN cycles**, each RED confirmed to fail for the right reason. **2 residual pins**, each against its own rendered witness.
+
+**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / 0 failing / exit 0**, both div-touching tests watched **BY NAME** at lines **336** and **337** of `scratchpad/s227/integration.log`. Assertions pre-checked headlessly first (`scratchpad/s227/precheck227.test.ts`, S211's gotcha 3 for a SIXTEENTH session). ⚠ Two `failing` grep matches are a CLEAN run — both are the test NAMED "surfaces a failing render" (S205's gotcha 7, a NINETEENTH time). ⚠ `src/` did NOT change after the run.
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `compile-tests` **0** · `npm test` **2309 passed / 66 files** (baseline 2283, **+26**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S226) · `check-package` **OK 42 files / 5.57 MB** · `check-backlog` **OK, 164 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** **No BLIND sweep** — subagent fan-out unavailable under a session-level instruction, the **TWENTIETH** session running. And `m07`, `q03` and `q06` are bounded by measurement, pinned and filed, not fixed.
+
+**What was done (commits).** 1B claim `c27ee8c9`. **GUARD** `9071a6ba` — 19 `it()`s green before the change. **C1** `26974d31` — the closer's own column. **C2** `e1108ece` — the stack of columns and the lazy precondition. **C3** `a23e608d` — the opener half. **C4** `b86369e8` — the widening, with the code-depth guard and the deep-fence signal into `closesParagraph`. **C5** `0ba88092` — the quote suspension, the 8 sweep-found deletions, plus the R1 pin. **PINS** `3a58f167` — R2, the two pre-existing residuals Round 5 found. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 2 filed), `PROJECT_LEARNINGS.md` (#401–#403), `SESSION_NOTES.md` and `HANDOFFS.md`.
+**Ledger:** `CHANGELOG: 2026-08-19 · [ad hoc] Session 227` — written at close-out with the `BACKLOG.md` drain.
+
+**Deliverable (ONE capability):** *a `:::` line is a div fence — opener or closer — only where its colon run starts at its container's own content column* — one intent, per-layer checkpoint commits.
+
+**Gotchas for the next session.**
+1. **⚠ A WRONG COLUMN TOLERANCE IS TWO DEFECTS, AND ONLY THE PHANTOM HALF EVER GETS FILED.** Ask both questions: what does it now accept that it should not, and what has it never been able to REACH? The second is invisible to a corpus built from the filed item, and here it was the bigger half — 9 of the sweep's 74 movers were headings this model had never seen. (Learning #401.)
+2. **⚠ LAZY ABSORPTION IS PER-CONTAINER, NOT ONE RULE.** A list item appends the absorbed line RAW; a block quote strips its 0–3 leading spaces. Render the same bytes in every container a rule can reach BEFORE the guard. (Learning #402.)
+3. **⚠ DESIGN A ROUND AGAINST YOUR OWN DATA STRUCTURE BEFORE CLOSE-OUT.** Name what you just built, list what it cannot represent, render one document per gap, and score each row PRE and POST — a gap that is pre-existing and unmoved is a pin, one that moved is a defect you introduced. (Learning #403.)
+4. **⚠ `divColumns` CARRIES NO CONTAINER IDENTITY AND IS NEVER TRUNCATED, WHICH IS THE NEXT SHAPE TO BREAK IT — AND IT IS FILED.** `r5/q03` closes a top-level div from inside a list item; `r5/q06` closes a column-2 div pandoc already auto-closed at the end of its item. Both PRE-EXISTING and unmoved, pinned at R2. ⚠ The fix is an identity on the stack, **not** a tighter column — a tighter one refuses `r1/k17` and `r2/m02`, which really do close.
+5. **⚠ THE CODE-DEPTH FILTER IS WHAT KEEPS `r1/k10` ALIVE, AND IT MUST STAY AHEAD OF THE ROLE TEST.** A four-space `:::` under a blank at top level is an INDENTED CODE BLOCK — a block boundary the heading below is entitled to follow. Treating it as an unmatched closer opens a paragraph and deletes that heading. It reuses `columnIsCodeDepth` so the threshold cannot drift from `indentedCodeLine`.
+6. **⚠ `divFenceHere` EXISTS ONLY BECAUSE `CLOSER_LINE` IS STILL ` {0,3}`.** A fence deeper than column 3 would otherwise reach `closesParagraph`'s `paragraphOpen` bail and delete the heading it just closed a div for. If `CLOSER_LINE` is ever widened, the two must be reconciled — they are two spellings of one question today.
+7. **⚠ THE HARNESS IS REUSABLE AND WAS INHERITED, NOT WRITTEN** — S226's gotcha 7 held exactly again. `scratchpad/s227/` — `sweep.test.ts` + `vitest.sweep.config.ts` (point `S227_LIST` at any file list), `presrc/` (`git archive` of the 1B commit), `roundscore.test.ts` (set `S227_ROUND=r1|r2|r3|r4|r5`), `allscore.test.ts` + `all/` (74 rendered movers + `TRUTH.json` + `MAP.json`), `extract.py` (**VALIDATED 78/78 against S226's own `r1`–`r4` `TRUTH.json` before being trusted** — do this before believing any extractor), `mkr1.py`–`mkr5.py`, `mktruth.py`, `precheck227.test.ts`. Extend rather than rewrite.
+8. **⚠ ZSH'S PERSISTENT `cd` — use absolute paths.** Twenty-first session running; no losses this time because every path was absolute from the start.
+9. **⚠ `it("C5: ` MATCHED SESSION 226's C5, NOT MINE, AND PUT A TEST IN THE WRONG `describe`.** The test file now carries several sessions' C-numbered rows. Anchor an insertion on the `describe` title, not on the `it(` prefix — I did this twice and caught it only because the run named the enclosing block.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Every claim below was checked against THIS session's own rendered rows.
+
+**#1 — `---` under a ONE-line paragraph is a setext underline; under a TWO-line paragraph it is an EM DASH.** S226's, still open and unmoved. `scratchpad/s226/r3/h03` vs `r1/t_tbreak`, both rendered. LOW. ⚠ This model gets `t_tbreak` right and `h03` wrong, so the rule that separates them is unmodelled rather than approximate.
+**#2 — a SETEXT heading inside a quote**, S225's, blocked on `consumedMetadataBlockLines` reading raw lines. LOW, and ⚠ fix the pre-pass first.
+**#3 — NEW, this session's own: `divColumns` carries no container identity** (gotcha 4). `r5/q03` and `r5/q06` rendered, both pinned. Effort **estimate** LOW–MEDIUM.
+**#4 — a quote inside a LIST ITEM, and the CommonMark HTML block inside a quote**, S225's. LOW. ⚠ `BLOCK_QUOTE_PREFIX` still carries the `^ {0,3}` anchoring gap that `LIST_MARKER_PREFIX` closed for divs in S226 — and that this session removed for `DIV_FENCE` entirely.
+**#5 — NEW, this session's own: a heading inside an UNREFERENCED footnote** (`r2/m07`, pinned R1). Pandoc drops the note contents and all. LOW, and ⚠ it is a footnote-lifecycle rule, not a div rule.
+**#6 — the display-math and table-caption phantoms** (5 measured shapes, S222's, and ⚠ the fix is NOT the attribute-block rule). **#7 — the rest of "a group with nothing in front of it"**. **#8 — a `)` or `]` that closes nothing reads as adjacency**, S222's. **#9 — the `commonmark_x` VALIDITY half, never asked**, S222's. **#10 — the `sec-` scope decision on a fence**, S223's, VERY LOW. **#11 — a SECOND adjacent attribute block on an image**, S221's. **#12 — the `@`-is-an-email test is `notAfterString`**, S220's. **#13 — the completion scanner walks UTF-16 code units**, S220's. **#14 onward — unchanged from S226's list.** ⚠ **Still open from S186:** promote the scratchpad harness, `.vscode-test/` at 18 GB, `npm audit` 5 high + 1 moderate, devDependency-only.
+
+## Session 226 Handoff Evaluation (by Session 227)
+
+**Score: 9/10.**
+
+**What helped, specifically.** (a) **Gotcha 2 is the reason this session did not ship 8 deleted headings.** "A corpus you designed cannot falsify the rule you designed it from — sweep, render EVERY mover, and re-sweep after each fix." My designed corpus scored 25/25 on Round 1 and 13/14 on Round 2 and said the change was safe; the sweep found a family it had no shape for. I had the instruction in front of me and still needed it, exactly as S226 said of S225's version. (b) **Gotcha 7's harness inventory was accurate and complete for the third session running** — `sweep.test.ts`, `presrc/`, `allscore.test.ts`, `extract.py`, `mktruth.py` and the `S226_LIST`/`S226_ROUND` variables all worked after a `sed` rename, which is most of a day's tooling inherited free. (c) **Gotcha 7 also told me to validate the extractor before trusting it**, and pointed at the artefact to validate against; 78/78 against S226's own `TRUTH.json` took two minutes and removed a whole class of scoring doubt. (d) **The backlog item's ⚠ warning — "the fix is the `contentColumns` machinery, not a tighter anchor" — was correct and load-bearing**, and it named the two controls (`r4/j04`, `r2/g08`) that prove it. Following the obvious `^:::` anchor would have deleted every heading below a div closed inside a list item.
+
+**What was missing.** The item **scoped itself to the closer** and said nothing about the OPENER, though the same regex serves both and the opener is wrong at exactly the same columns — one extra rendered row would have caught it. It also **framed the anchor as too WIDE only**; the deeper half, where ` {0,3}` cannot reach a container's column at all, is the larger defect by rendered impact and went unmentioned. That is the difference between 9 and 10.
+
+**What was wrong.** Nothing measurable. Every rendered claim in the item held: `r4/j05` renders one paragraph, `r4/j04` and `r2/g08` close as described, the `contentColumns` recommendation was right, and "126 corpus documents carry the shape" was the right order of magnitude for what the sweep found. ⚠ One prediction did not hold: the item warned that S226's depth rule "makes this MORE reachable than before", implying the phantom had grown — the sweep measured the item's own shape as **PRE-EXISTING and unmoved**, which the item itself had also said two sentences earlier. The two halves of that note disagree.
+
+**ROI.** Strongly positive. Gotcha 2 alone was worth the whole handoff, and the inherited harness plus the extractor-validation instruction saved most of a session's setup.
+
+## Session 227 Self-Assessment
+
+**Score: 9/10.**
+
+**What went right.** (a) **Zero deletions at ship, and zero introduced phantoms in the inherited corpus** — the single introduced row is a document I wrote this session, and Round 4 was run specifically to establish which family it belongs to rather than to explain it away. (b) **I rendered all 74 movers rather than sampling**, then re-swept after the fix and confirmed the new mover set was a strict subset. (c) **Predictions frozen and SHA-256'd before every render**, 48/56 across five rounds, and every miss became a finding — `m02` refuted a bare-equality rule I was one commit from shipping. (d) **I measured the opener as well as the closer** even though the item named only the closer, and the widening half turned out to be the larger defect. (e) **Round 5 was designed against my own data structure**, which converted two latent surprises into pinned, filed residuals. (f) **I validated the extractor (78/78) before trusting a single score.** (g) The guard's G3 and G5 rows were written specifically because I could name how my own change would break them, and G3 did constrain the C4 design.
+
+**What went wrong.** (a) ⚠ **I over-trusted a corpus I designed, again** — Learning #399 was in front of me, and my 39 designed rows still had no shape for an unmarked lazy line below a quote. The sweep caught it; my design did not. (b) ⚠ **I inserted a test into the wrong `describe` block twice**, because I anchored a text search on `it("C5: ` and the file now carries several sessions' C-numbered rows. Caught only because the failing-test output named the enclosing block — a weaker check than I should be relying on. (c) I predicted `p04` would render a heading and it does not; my model of `blank_before_header` inside a list item was wrong, and the row was a control rather than a load-bearing one, so it cost nothing but it was a real gap in my understanding. (d) The session ran long, because each round of renders is ~7 seconds per document.
+
+**Compared to the standard.** At par with Session 226 on deletion discipline (0 introduced in the inherited corpus vs its 0 at ship) and above it on corpus design: this session's designed corpus missed ONE family rather than three, and Round 5's implementation-directed design is a method Session 226 did not have. Below the bar on edit hygiene — two misplaced test insertions in one session is the kind of thing the guard cannot catch.
+
+---
 
 ---
 
