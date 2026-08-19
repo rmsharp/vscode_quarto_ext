@@ -9828,3 +9828,119 @@ describe("Session 225 — constructs inside a block quote", () => {
     ]);
   });
 });
+
+// ── Session 226 GUARD — the headings a narrowing must NOT delete ───────────────
+//
+// This session makes `closesParagraph` DECLINE for a `:::` / `...` / `\end{}` line that
+// matches nothing open, so its polarity is a NARROWING: the risk is a real heading
+// disappearing, not a phantom appearing. The guard is therefore one `it()` per shape whose
+// heading must SURVIVE, and every one is green BEFORE the change (S204's gotcha 5, inherited
+// a twenty-first time). Rows are named for the rendered document that measured them under
+// `scratchpad/s226/r2` and `r3` — 73 documents rendered through the real `quarto render` path
+// (quarto 1.7.33).
+//
+// ⚠ These are exactly the five real headings `CLOSER_LINE`'s docstring protects, plus the
+// opener spellings that would silently stop being openers if the depth rule missed one. A
+// closer that misses its opener deletes the heading below it, which is the forbidden
+// direction — so each opener spelling gets its own row.
+describe("Session 226 GUARD — a closer that really closes keeps its heading", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("G1: a closed `::: {.note}` div renders the heading below its closer (`r2/g01`)", () => {
+    expect(headings(["::: {.note}", "body text", ":::", "# H g01"])).toEqual(["H g01"]);
+  });
+
+  it("G2: the BARE-WORD class spelling is an opener too (`r2/g02`)", () => {
+    expect(headings(["::: callout-note", "body text", ":::", "# H g02"])).toEqual(["H g02"]);
+  });
+
+  it("G3: a FOUR-colon div is an opener, and its four-colon closer closes it (`r2/g03`)", () => {
+    expect(headings([":::: {.note}", "body text", "::::", "# H g03"])).toEqual(["H g03"]);
+  });
+
+  it("G4: NESTED divs — the outer closer is what reaches the heading (`r2/g04`)", () => {
+    expect(
+      headings(["::::: {.a}", "::: {.b}", "body text", ":::", ":::::", "# H g04"]),
+    ).toEqual(["H g04"]);
+  });
+
+  it("G5: an id-only attribute block is an opener (`r2/g05`)", () => {
+    expect(headings(["::: {#fig-g05}", "body text", ":::", "# H g05"])).toEqual(["H g05"]);
+  });
+
+  it("G6: NO SPACE between the colons and the attributes (`r2/g06`)", () => {
+    expect(headings([":::{.note}", "body text", ":::", "# H g06"])).toEqual(["H g06"]);
+  });
+
+  it("G7: a closer LONGER than its opener still closes (`r2/g07`)", () => {
+    expect(headings(["::: {.note}", "body text", "::::", "# H g07"])).toEqual(["H g07"]);
+  });
+
+  it("G8: blank lines inside the div do not lose the opener (`r2/g08`)", () => {
+    expect(headings(["::: {.note}", "", "body text", "", ":::", "# H g08"])).toEqual(["H g08"]);
+  });
+
+  it("G9: a mid-document YAML block closed by `...` (`r2/g09`)", () => {
+    expect(headings(["---", "key: v", "...", "# H g09"])).toEqual(["H g09"]);
+  });
+
+  it("G10: the same block closed by `---` (`r2/g10`)", () => {
+    expect(headings(["---", "key: v", "---", "# H g10"])).toEqual(["H g10"]);
+  });
+
+  it("G11: a closed TeX environment (`r2/g11`)", () => {
+    expect(headings(["\\begin{center}", "body text", "\\end{center}", "# H g11"])).toEqual([
+      "H g11",
+    ]);
+  });
+
+  it("G12: NESTED TeX environments (`r2/g12`)", () => {
+    expect(
+      headings([
+        "\\begin{a}",
+        "\\begin{b}",
+        "body text",
+        "\\end{b}",
+        "\\end{a}",
+        "# H g12",
+      ]),
+    ).toEqual(["H g12"]);
+  });
+
+  it("G13: ⚠ a COMPLETE TeX environment DOES interrupt an open paragraph (`r3/h02`)", () => {
+    // The one construct in this family that can. `r3/h13`/`h14` are the control: without the
+    // matching `\end` below it, the same `\begin` is inline text and the heading is declined.
+    expect(
+      headings(["para one", "\\begin{center}", "body text", "\\end{center}", "# H h02"]),
+    ).toEqual(["H h02"]);
+  });
+
+  it("G14: a div opened after a BLANK line keeps the heading below its closer (`r3/h04`)", () => {
+    expect(
+      headings(["para one", "", "::: {.note}", "body text", ":::", "# H h04"]),
+    ).toEqual(["H h04"]);
+  });
+
+  it("G15: a raw HTML block DOES interrupt an open paragraph, quoted and not (`r1/*_html`)", () => {
+    expect(headings(["para one", "para two", "<div>", "# H t_html"])).toEqual(["H t_html"]);
+    expect(headings(["> para one", "> para two", "> <div>", "> # H q_html"])).toEqual([
+      "H q_html",
+    ]);
+  });
+
+  it("G16: every guarded shape holds INSIDE A QUOTE too (`r2/q_g01`, `q_g02`, `q_g09`, `q_g11`, `r3/q_h04`)", () => {
+    expect(headings(["> ::: {.note}", "> body text", "> :::", "> # H q_g01"])).toEqual([
+      "H q_g01",
+    ]);
+    expect(headings(["> ::: callout-note", "> body text", "> :::", "> # H q_g02"])).toEqual([
+      "H q_g02",
+    ]);
+    expect(headings(["> ---", "> key: v", "> ...", "> # H q_g09"])).toEqual(["H q_g09"]);
+    expect(
+      headings(["> \\begin{center}", "> body text", "> \\end{center}", "> # H q_g11"]),
+    ).toEqual(["H q_g11"]);
+    expect(
+      headings(["> para one", ">", "> ::: {.note}", "> body text", "> :::", "> # H q_h04"]),
+    ).toEqual(["H q_h04"]);
+  });
+});
