@@ -4977,7 +4977,15 @@ function computeRegions(text: string): Regions {
   // `:::` that closes nothing and is therefore ordinary paragraph text; see `divFenceRole` and
   // `closesParagraph`'s `unmatchedConstruct`. Maintained only on body lines, so a `:::` inside
   // a fenced CODE block never counts (`scratchpad/s226/r3/h09`, rendered).
-  let divDepth = 0;
+  //
+  // ⚠ **A STACK OF COLUMNS RATHER THAN A COUNTER (Session 227), because the lazy rule has a
+  // PRECONDITION and the counter cannot express it.** A shallow closer reaches a deeper div
+  // only by being absorbed into the container's OPEN PARAGRAPH; under a blank line there is no
+  // paragraph to absorb it, it ends the container instead, and at the top level it closes
+  // nothing. Rendered — `- item` / `  ::: {.note}` / blank / `  body text` / blank / `:::`
+  // renders the div complete and NO heading (`r1/k25`), against `r1/k17` where the identical
+  // closer with no blank above it does close. Each entry is the column its own opener sat at.
+  const divColumns: number[] = [];
   // Whether a mid-document YAML metadata block is open at this line — the same block state,
   // for the `...` terminator. See `YAML_BLOCK_OPENER`.
   let metadataBlockOpen = false;
@@ -5772,9 +5780,18 @@ function computeRegions(text: string): Regions {
       // `  ::: {.note}` / `  body text` / `:::` closes at column 0 (`r1/k17`), and a
       // three-deep `    :::` closes at the OUTER item's column 2 (`r2/m02`). Column 1 belongs
       // to no container and closes nothing at either depth (`r1/k18`, `r2/m11`).
+      // ⚠ **AND THE LAZY HALF NEEDS AN OPEN PARAGRAPH TO BE ABSORBED INTO** (Session 227) —
+      // otherwise the only column that closes is the one the div's own opener sat at. See
+      // `divColumns`. `paragraphOpen` is still the line ABOVE's here, which is exactly the
+      // question: was a paragraph open for this line to continue?
       const divFenceColumns = [0, ...contentColumns];
       const divAtColumn: boolean =
-        divFence !== null && divFenceColumns.includes(divFence.column);
+        divFence === null
+          ? false
+          : divRole === "close"
+            ? divFence.column === divColumns[divColumns.length - 1] ||
+              (paragraphOpen && divFenceColumns.includes(divFence.column))
+            : divFenceColumns.includes(divFence.column);
       // ⚠ **A LIST MARKER BEGINS A FRESH BLOCK, so an opener behind one interrupts nothing.**
       // The last 2 of the sweep's 39 deletions: `- item a` / `- ::: mydiv` / `  line one` /
       // `:::` / `# ATX Below` leaves a paragraph open at the marker line, and declining the
@@ -5828,16 +5845,16 @@ function computeRegions(text: string): Regions {
             : texEndPops > 0;
       const unmatchedConstruct: boolean =
         divRole === "close"
-          ? !divAtColumn || divDepth === 0
+          ? !divAtColumn || divColumns.length === 0
           : divRole === "open"
             ? divOpenerInterrupts
             : texEnv !== null
               ? !texEnvMatched
               : yamlTerminates && !metadataBlockOpen;
-      if (divRole === "close" && divAtColumn && divDepth > 0) {
-        divDepth--;
+      if (divRole === "close" && divAtColumn && divColumns.length > 0) {
+        divColumns.pop();
       } else if (divRole === "open" && !divOpenerInterrupts) {
-        divDepth++;
+        divColumns.push(divFence!.column);
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS
       // OVERLOADED AS `---`.** A `-{3,}` line is already a thematic break to `closesParagraph`

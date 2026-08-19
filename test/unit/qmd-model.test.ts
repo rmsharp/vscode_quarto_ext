@@ -10231,4 +10231,29 @@ describe("Session 227 — the `:::` line's own column", () => {
     // indented `:::` and the `#` line both absorbed into it as lazy continuations.
     expect(headings(["::: {.note}", "body text", "  :::", "# H k03"])).toEqual([]);
   });
+
+  it("C2: a column-0 closer under a BLANK line closes no deeper div — there is no paragraph to absorb it (`r1/k25`, `r2/m04`)", () => {
+    // The lazy half of C1 has a precondition C1 does not test: absorption needs an OPEN
+    // paragraph. With a blank line above it, the shallow `:::` is not absorbed at all — it
+    // ends the container and lands at the TOP level, where it closes nothing. Rendered, `k25`
+    // renders the div complete and no heading; `m04` renders `<p>::: # H m04</p>` at top
+    // level, outside the list, with the div auto-closed at the end of its container.
+    expect(
+      headings(["- item", "", "  ::: {.note}", "", "  body text", "", ":::", "# H k25"]),
+    ).toEqual([]);
+    expect(
+      headings([
+        "- outer",
+        "",
+        "  - inner",
+        "",
+        "    ::: {.note}",
+        "",
+        "    body text",
+        "",
+        ":::",
+        "# H m04",
+      ]),
+    ).toEqual([]);
+  });
 });
