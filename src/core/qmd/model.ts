@@ -361,19 +361,47 @@ function headingAttributeId(
  * here for a different element). A `#` inside a `key=value` still contributes no id at all
  * (`{#fig-s04 key=#fig-s04fake}` → `fig-s04`).
  *
- * ⚠ **THE `commonmark_x` HALF IS DELIBERATELY NOT OFFERED HERE, AND THAT IS A DECLARED
- * BOUNDARY RATHER THAN AN OVERSIGHT.** The reader split Session 219 measured for headings holds
- * for inline blocks too — rendered with `from: commonmark_x`,
+ * ⚠ **THE READER SPLIT IS CARRIED HERE RATHER THAN DECLARED AWAY, BECAUSE IGNORING IT WOULD
+ * HAVE SHIPPED A FRESH REGRESSION.** The split Session 219 measured on headings holds for
+ * inline blocks too — rendered with `from: commonmark_x`,
  * `![Cap](a.png){#fig-x01a #fig-x01b}` defines the FIRST id and `::: {#fig-x03a #fig-x03b}`
- * likewise (`scratchpad/s222/cal/cmx.qmd`). Source 3 has no reader plumbing: the dialect is
- * computed inside this module's scan and never reaches `findBodyLines`, so threading it out is
- * a cross-module change (`SAFEGUARDS.md` §Blast Radius). The divergence affects only blocks
- * carrying MORE THAN ONE `#` atom; it is pinned in `test/unit/refs.test.ts` and filed.
+ * likewise (`scratchpad/s222/cal/cmx.qmd`). Session 222 first shipped the pandoc-family rule
+ * alone and its own 46,530-document sweep caught the consequence: the OLD scan took the first
+ * `{#…}` on the line, which is accidentally correct for that reader, so a last-atom rule made
+ * a working document worse. Hence {@link AttributeBlockReader}.
  */
-export function pandocAttributeBlockId(content: string): string | undefined {
-  return headingAttributesValid(content, false, true)
-    ? headingAttributeId(content, false, true)
+export function attributeBlockId(
+  content: string,
+  reader: AttributeBlockReader,
+): string | undefined {
+  return headingAttributesValid(content, reader.commonmarkDialect, reader.pandocEscapes)
+    ? headingAttributeId(content, reader.commonmarkDialect, reader.pandocEscapes)
     : undefined;
+}
+
+/** The two reader flags an attribute block's parse depends on. */
+export interface AttributeBlockReader {
+  /** Whether the document's `from:` names a reader of the CommonMark family. */
+  commonmarkDialect: boolean;
+  /** Whether `\<space>` joins a token rather than ending it — see `headingAttributeTokens`. */
+  pandocEscapes: boolean;
+}
+
+/**
+ * Resolve {@link AttributeBlockReader} for a whole document, from its front-matter `from:`.
+ *
+ * ⚠ **BOTH FLAGS COME FROM THE SAME `fromValueLine` AS THE HEADING PATH's, AND THAT IS THE
+ * POINT.** This is the identical pair `buildHeading` is handed, resolved the identical way, so
+ * an attribute block on an image cannot be judged by a different reader than one on a heading
+ * in the same document.
+ */
+export function attributeBlockReader(text: string): AttributeBlockReader {
+  const fromValueLine = frontMatterFromValueLine(text.split(/\r?\n/));
+  return {
+    commonmarkDialect:
+      fromValueLine !== null && FRONTMATTER_COMMONMARK_FROM.test(fromValueLine),
+    pandocEscapes: fromEscapesAllSymbols(fromValueLine),
+  };
 }
 /**
  * One whitespace-separated token of a heading attribute block, as a `KEY=VALUE` pair.

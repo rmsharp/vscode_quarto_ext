@@ -1194,6 +1194,35 @@ describe("Session 221 adversarial pins — measured rows this model still gets w
   });
 });
 
+describe("Session 222 — the reader split reaches Source 3", () => {
+  it("C3: under commonmark_x the FIRST atom of a block wins, not the last", () => {
+    // ⚠ **THIS ROW IS A REGRESSION THIS SESSION INTRODUCED AND ITS OWN SWEEP CAUGHT.** The
+    // pre-change scan took the first `{#…}` on the line, which is accidentally the right
+    // answer for `commonmark_x`; taking the block's LAST atom is right for the pandoc family
+    // and wrong here, so the fix for one reader broke the other.
+    //
+    // Measured (`scratchpad/s222/cal/cmx.qmd`, rendered with `from: commonmark_x`):
+    // `![Cap x01](a.png){#fig-x01a #fig-x01b}` renders id="fig-x01a", and the div spelling
+    // `::: {#fig-x03a #fig-x03b}` renders id="fig-x03a" — the same split Session 219
+    // measured on headings, holding for inline blocks and divs too.
+    const doc = [
+      "---",
+      "title: T",
+      "format:",
+      "  html:",
+      "    from: commonmark_x",
+      "---",
+      "",
+      "![Cap](a.png){#fig-x01a #fig-x01b}",
+      "",
+      "::: {#fig-x03a #fig-x03b}",
+      "body",
+      ":::",
+    ].join("\n");
+    expect(indexLabels(doc).map((l) => l.id)).toEqual(["fig-x01a", "fig-x03a"]);
+  });
+});
+
 describe("Session 222 GUARD — shapes that must NOT move when the scan becomes block-aware", () => {
   // ⚠ Written and confirmed GREEN **before** the implementation (S204's gotcha 5, inherited a
   // nineteenth time). This deliverable points mostly in the DELETION direction — a scan that

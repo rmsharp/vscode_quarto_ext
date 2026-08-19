@@ -17,11 +17,12 @@
  */
 
 import {
+  attributeBlockId,
+  attributeBlockReader,
   findAllCells,
   findBodyLines,
   findHeadings,
   maskInlineCode,
-  pandocAttributeBlockId,
 } from "./qmd/model";
 
 /** The cross-reference kinds Quarto recognizes that this index supports. */
@@ -357,6 +358,10 @@ export function indexLabels(text: string): RefLabel[] {
   // blocks on prose body lines (images, divs, display equations). Heading lines
   // are body lines too, but a non-sec id on a heading is not a figure/table —
   // headings contribute labels only through Source 1, so skip them here.
+  // ⚠ Resolved ONCE per document, from the same front-matter `from:` the heading path uses.
+  // Which atom of a multi-id block wins is a READER question (Session 219, re-measured for
+  // inline blocks and divs in Session 222 — `scratchpad/s222/cal/cmx.qmd`).
+  const reader = attributeBlockReader(text);
   for (const { line, text: rawText } of findBodyLines(text)) {
     if (headingLines.has(line)) {
       continue;
@@ -371,7 +376,7 @@ export function indexLabels(text: string): RefLabel[] {
       // and `disc.qmd` w04 shows quarto agrees: an invalid adjacent group does not hand the
       // element on to the next group.
       if (isAttributeBlock(lineText, group)) {
-        const id = pandocAttributeBlockId(group.content);
+        const id = attributeBlockId(group.content, reader);
         const kind = id === undefined ? null : kindOf(id);
         // `sec-` is Source 1's, even when a block on an image really defines one
         // (`p.qmd` p04 renders id="sec-p04"); indexing it here would double-count.
