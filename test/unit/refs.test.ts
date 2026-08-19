@@ -875,3 +875,109 @@ describe("Session 220 — a reference reaches an id holding ':', '.' or a non-AS
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Session 221 GUARD — written and run GREEN BEFORE the definition-side widening.
+//
+// ⚠ THE POLARITY IS A WIDENING, so the guard is per shape-that-must-not-GROW and per
+// non-label-that-must-not-BECOME one. A widening fails by growing an id past where pandoc's
+// attribute parser stops, or by admitting a brace group that defines nothing at all — and
+// neither failure is visible in a test that only checks the ids we mean to add.
+//
+// ⚠ AND `INLINE_LABEL` IS AN UNVALIDATED SCAN, not a parsed block: headings gate on
+// `headingAttributesValid` before any id is mined, while Source 3 scans any prose line for
+// `{#`. So widening its class also widens what a MALFORMED brace group contributes, which is
+// why half these rows are about text that must keep defining nothing.
+//
+// ⚠ THE COLUMN IS COMPUTED, NOT SEARCHED, on both of these paths (`m[0].length - value.length`
+// for Source 2, `m.index + 2` for Source 3), so every row asserts the column too — the field
+// that is not the one being changed is where Sessions 219 and 220 each found their regression.
+// ---------------------------------------------------------------------------
+describe("Session 221 GUARD — shapes a widened definition-side id rule must NOT move", () => {
+  it("G1: a plain inline label is unchanged, id and column", () => {
+    //              ![p](p.png){#fig-plot}
+    //              0123456789012345678901
+    expect(indexLabels("![p](p.png){#fig-plot}")).toEqual([
+      { id: "fig-plot", kind: "fig", line: 0, column: 13 },
+    ]);
+  });
+
+  it("G2: a class atom after the id is NOT swallowed into it", () => {
+    // A space is not an identifier character, so the id stops before `.cls`.
+    expect(indexLabels("![p](p.png){#fig-plot .cls}").map((l) => l.id)).toEqual([
+      "fig-plot",
+    ]);
+  });
+
+  it("G3: two adjacent blocks stay two labels, not one", () => {
+    expect(indexLabels("![p](p.png){#fig-a}{#fig-b}").map((l) => l.id)).toEqual([
+      "fig-a",
+      "fig-b",
+    ]);
+  });
+
+  it("G4: a `{#fig-…}` inside an inline code span still defines nothing", () => {
+    expect(indexLabels("Write `{#fig-myplot}` after the image.")).toEqual([]);
+  });
+
+  it("G5: a non-cross-ref kind prefix still defines nothing", () => {
+    expect(indexLabels("![p](p.png){#note-a.b}")).toEqual([]);
+  });
+
+  it("G6: a bare `{#` with no kind prefix still defines nothing", () => {
+    expect(indexLabels("![p](p.png){#a.b}")).toEqual([]);
+  });
+
+  it("G7: a non-sec id carried on a HEADING line is still not a label", () => {
+    // Headings contribute through Source 1 only; Source 3 must keep skipping them.
+    expect(indexLabels("## Figures {#fig-overview}")).toEqual([]);
+  });
+
+  it("G8: a heading's own sec- id is untouched by this change", () => {
+    //              ## Methods {#sec-m.x}
+    //              0123456789012 3456789
+    expect(indexLabels("## Methods {#sec-m.x}")).toEqual([
+      { id: "sec-m.x", kind: "sec", line: 0, column: 13 },
+    ]);
+  });
+
+  it("G9: a quoted cell label still stops at the closing quote", () => {
+    const text = ['```{r}', '#| label: "fig-quoted"', "x", "```"].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-quoted", kind: "fig", line: 1, column: 11 },
+    ]);
+  });
+
+  it("G10: a cell label's trailing YAML comment is not part of the id", () => {
+    // ` #` opens a YAML comment; a space is not an identifier character either way.
+    const text = ["```{r}", "#| label: fig-plot # note", "x", "```"].join("\n");
+    expect(indexLabels(text).map((l) => l.id)).toEqual(["fig-plot"]);
+  });
+
+  it("G11: the `//|` cell-option spelling still indexes, at the same column", () => {
+    const text = ["```{ojs}", "//| label: fig-chart", "d = []", "```"].join(
+      "\n",
+    );
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-chart", kind: "fig", line: 1, column: 11 },
+    ]);
+  });
+
+  it("G12: a repeated id is still deduped to its first definition", () => {
+    const text = ["![](a){#fig-dup}", "![](b){#fig-dup}"].join("\n");
+    expect(indexLabels(text)).toEqual([
+      { id: "fig-dup", kind: "fig", line: 0, column: 8 },
+    ]);
+  });
+
+  it("G13: labels in non-prose regions still define nothing", () => {
+    const text = [
+      "---",
+      "subtitle: '![](x){#fig-frontmatter}'",
+      "---",
+      "<!-- ![](c){#fig-comment} -->",
+      "![](z){#fig-real}",
+    ].join("\n");
+    expect(indexLabels(text).map((l) => l.id)).toEqual(["fig-real"]);
+  });
+});
