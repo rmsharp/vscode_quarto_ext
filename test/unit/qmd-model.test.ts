@@ -9811,15 +9811,17 @@ describe("Session 225 — constructs inside a block quote", () => {
     expect(headings(["> line one", "> line two", "> # Residual One", ""])).toEqual([]);
   });
 
-  it("R2: ⚠ DISCLOSED RESIDUAL — an unmarked line below a quote is a LAZY continuation this model does not model", () => {
-    // Rendered: `> | line one` / `  continued` (UNMARKED) / `# ATX Below` renders NO heading —
-    // the unmarked line lazily continues the quote's paragraph, so the ATX cannot interrupt it
-    // (`scratchpad/s184/adjudicate/quote_lb_cont__dbceaa6f`'s unmarked twin, `i/m07`). The
-    // MARKED twin renders the heading and this model agrees with it (`i/m02`).
-    expect(headings(["> | line one", "  continued", "# Residual Two", ""])).toEqual([
-      "Residual Two",
-    ]);
-    // The MARKED twin, which quarto and this model agree on.
+  it("R2: ⚠ REVERSED BY SESSION 226 — the unmarked line is a LAZY continuation after all", () => {
+    // ⚠ **Session 225's second disclosed residual, now CLOSED.** It read
+    // `.toEqual(["Residual Two"])`, pinning the phantom in both directions; Session 226
+    // re-rendered it (`scratchpad/s226/r1/lz1`) and the pin is reversed against that render.
+    //
+    // `> | line one` / `  continued` / `# H` renders NO heading: the unmarked line lazily
+    // continues the QUOTE's paragraph rather than the line block, so the ATX cannot interrupt
+    // it. `lineBlockQuoted` is what lets this model see the difference — a line block takes a
+    // continuation only from its own container.
+    expect(headings(["> | line one", "  continued", "# Residual Two", ""])).toEqual([]);
+    // The MARKED twin, which quarto and this model agreed on before and still do (`r1/lz2`).
     expect(headings(["> | line one", ">   continued", "# Residual Two", ""])).toEqual([
       "Residual Two",
     ]);
@@ -10002,5 +10004,15 @@ describe("Session 226 — the `:::` / `...` / `\\end{}` family", () => {
         "# H h07",
       ]),
     ).toEqual([]);
+  });
+
+  it("C5: an UNMARKED line below a quote is a LAZY continuation, not a line-block one (`r1/lz1`)", () => {
+    // Rendered: `> | line one` / `  continued` / `# H lz1` renders NO heading — the unmarked
+    // line lazily continues the QUOTE's paragraph, so the ATX below cannot interrupt it.
+    // ⚠ The MARKED twin is the control and renders the heading (`r1/lz2`): there the
+    // continuation is inside the quote with the line block that takes it, so the block really
+    // does close and the ATX is real. The marker is the whole difference.
+    expect(headings(["> | line one", "  continued", "# H lz1"])).toEqual([]);
+    expect(headings(["> | line one", ">   continued", "# H lz2"])).toEqual(["H lz2"]);
   });
 });

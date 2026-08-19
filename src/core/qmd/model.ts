@@ -4728,6 +4728,13 @@ function computeRegions(text: string): Regions {
   // and then re-assigned FROM an expression reading that snapshot, which tsc reports as a
   // circular inference (TS7022) without it.
   let lineBlockOpen: boolean = false;
+  // ⚠ **WHICH CONTAINER THE OPEN LINE BLOCK LIVES IN (Session 226).** A line block takes a
+  // continuation only from its OWN container: rendered, `> | line one` / `  continued` /
+  // `# H` renders NO heading, because the unmarked line lazily continues the QUOTE's paragraph
+  // rather than the line block (`scratchpad/s226/r1/lz1`), while the MARKED twin `>   continued`
+  // renders it (`lz2`). The marker is the whole difference, and `LINE_BLOCK_CONTINUATION` — a
+  // bare leading-whitespace test — cannot see it.
+  let lineBlockQuoted: boolean = false;
   // Whether a pipe TABLE's delimiter row has been seen in the current block, which disarms
   // the line-block rule for the table's remaining body rows — see `TABLE_RULE_ROW`.
   // ⚠ Unlike `lineBlockOpen` this one is STICKY across the table's body rows, so it cannot be
@@ -5752,7 +5759,12 @@ function computeRegions(text: string): Regions {
         // `> line one` / `> line two` / `> ##`, each followed by `# ATX Below` (`i/i04`,
         // `i/i07`, `i/i08`, with their top-level twins `i/j01`-`i/j03`).
         paragraphQuoted && !stripQuote,
-        lineBlockAbove,
+        // ⚠ **A LINE BLOCK TAKES A CONTINUATION ONLY FROM ITS OWN CONTAINER (Session 226)** —
+        // see `lineBlockQuoted`. An UNMARKED line below a quoted line block is pandoc's LAZY
+        // continuation of the quote's paragraph, so it closes nothing and the ATX below it is
+        // not a heading (`r1/lz1`); the MARKED twin closes the block and its ATX is real
+        // (`r1/lz2`). This reverses Session 225's R2 residual pin.
+        lineBlockAbove && lineBlockQuoted === stripQuote,
         rawTexColumns,
         unmatchedConstruct,
       );
@@ -5765,8 +5777,11 @@ function computeRegions(text: string): Regions {
       }
       lineBlockOpen =
         !inPipeTable &&
-        ((lineBlockAbove && LINE_BLOCK_CONTINUATION.test(line)) ||
+        ((lineBlockAbove && lineBlockQuoted === stripQuote && LINE_BLOCK_CONTINUATION.test(line)) ||
           (!wasParagraphOpen && LINE_BLOCK_LINE.test(line)));
+      if (lineBlockOpen) {
+        lineBlockQuoted = stripQuote;
+      }
     }
   }
 
