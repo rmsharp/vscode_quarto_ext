@@ -10015,4 +10015,18 @@ describe("Session 226 — the `:::` / `...` / `\\end{}` family", () => {
     expect(headings(["> | line one", "  continued", "# H lz1"])).toEqual([]);
     expect(headings(["> | line one", ">   continued", "# H lz2"])).toEqual(["H lz2"]);
   });
+
+  it("C6: the `\\end{}` index must see EVERY delimiter on a line, not the first (`r4/j01`)", () => {
+    // ⚠ **A DELETION THIS SESSION INTRODUCED AND THEN MEASURED AWAY.** `lastRawTexEnvEnd`
+    // first read one `\\end{}` per line, so `\\begin{a}` / `body text` / `\\end{b}\\end{a}` /
+    // `# H j01` found no `\\end{a}` at all, called the `\\begin` unmatched, and left the
+    // paragraph open across a heading quarto really renders (`<h1>H j01</h1>`). Under-matching
+    // this index is the DELETING direction; over-matching only forgoes a recovery. 43 corpus
+    // documents carry two `\\end{}` on one line, so the shape is not contrived.
+    expect(
+      headings(["\\begin{a}", "body text", "\\end{b}\\end{a}", "# H j01"]),
+    ).toEqual(["H j01"]);
+    // The single-delimiter control, which never moved (`r4/j02`).
+    expect(headings(["\\begin{a}", "body text", "\\end{a}", "# H j02"])).toEqual(["H j02"]);
+  });
 });

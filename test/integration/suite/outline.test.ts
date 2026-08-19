@@ -930,17 +930,24 @@ describe("Quarto: Document outline (symbols)", () => {
     assert.ok(parent, "Below A Quoted Setext must be a top-level section");
     assert.deepStrictEqual(parent.children.map((c) => c.name), ["Genuine Child"]);
 
-    // TWO DISCLOSED RESIDUALS, asserted so they are a decision on the record rather than a
-    // surprise. (1) We still emit `Below A Div Closer`: a `:::` is exempt from the gate
-    // because a real div's closer follows its own body text, and gating it was measured to
-    // delete four real headings — so this phantom is the permitted side of that trade.
+    // ⚠ **RESIDUAL (1) IS CLOSED BY SESSION 226 AND THIS ASSERTION IS REVERSED.** It read
+    // `assert.ok(flat(symbols).includes("Below A Div Closer"))` — the `:::` was exempt from
+    // the gate because a real div's closer follows its own body text, and gating it outright
+    // was measured to delete four real headings, so the phantom was the permitted side of
+    // that trade. Session 226 removed the trade instead of taking it: the fixture's div is
+    // opened against an OPEN paragraph (`prose with a paragraph OPEN above the div`), so
+    // pandoc never opens it and the `:::` below closes nothing. ⚠ Re-rendered to adjudicate
+    // rather than reasoned: `quarto render` on these exact bytes emits `Real Section`,
+    // `Below Indented Code`, `Below A TeX Environment`, `quoted one`, `Below A Quoted Setext`
+    // and `Genuine Child` — and NO `Below A Div Closer`. The fixture's own heading text was
+    // named for an assumption the render refutes.
     assert.ok(
-      flat(symbols).includes("Below A Div Closer"),
-      "KNOWN RESIDUAL: the closer-line exemption retains this phantom on purpose",
+      !flat(symbols).includes("Below A Div Closer"),
+      "Session 226: the div is opened against an open paragraph, so its `:::` closes nothing",
     );
     // (2) We do NOT emit quarto's `quoted one` — a SETEXT heading formed inside a block
-    // quote's lazy continuation, which this model cannot see, having no block-quote context.
-    // PRE-EXISTING and unchanged by this session.
+    // quote's lazy continuation. PRE-EXISTING and unchanged by Session 226 too, which leaves
+    // this fixture disagreeing with its own render on exactly ONE heading instead of two.
     assert.ok(
       !flat(symbols).includes("quoted one"),
       "KNOWN RESIDUAL: a setext heading inside a block quote is invisible to this model",

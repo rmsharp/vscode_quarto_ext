@@ -3465,9 +3465,15 @@ const RAW_TEX_ENV_DELIM = /^ {0,3}\\(begin|end)\{([^}]*)\}/;
  */
 function lastRawTexEnvEnd(lines: readonly string[]): ReadonlyMap<string, number> {
   const last = new Map<string, number>();
+  // ⚠ **EVERY delimiter on the line, not the first** — a deletion this session introduced and
+  // then measured away. Reading one per line made `\\begin{a}` / `body text` /
+  // `\\end{b}\\end{a}` / `# H j01` find no `\\end{a}`, call the `\\begin` unmatched, and leave a
+  // paragraph open across a heading quarto really renders (`scratchpad/s226/r4/j01`).
+  // Under-matching this index DELETES; over-matching only forgoes a recovery.
+  const scan = /\\end\{([^}]*)\}/g;
   for (let i = 0; i < lines.length; i++) {
-    const m = /\\end\{([^}]*)\}/.exec(lines[i]);
-    if (m !== null) {
+    scan.lastIndex = 0;
+    for (let m = scan.exec(lines[i]); m !== null; m = scan.exec(lines[i])) {
       last.set(m[1], i);
     }
   }
