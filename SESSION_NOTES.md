@@ -5,6 +5,14 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 226 — IMPLEMENTATION (strict TDD): inside a block quote, a BLOCK CONSTRUCT closes a paragraph pandoc keeps open, and an UNMARKED line below a quote is a LAZY CONTINUATION.** (IN PROGRESS) Closes the item Session 225 filed and ranked #1 — its own 24 introduced phantoms in 46,556 documents, pinned in both directions at `test/unit/qmd-model.test.ts` R1 and R2.
+**Started:** 2026-08-19
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Deliverable (ONE capability):** *a block quote carries its own BLOCK state, so a construct inside it is judged in the quote's context rather than from the line alone* — one intent, per-layer checkpoint commits.
+
+
+## Session 225 ACTIVE TASK (superseded by Session 226 — full entry preserved below)
 **Task:** **Session 225 — IMPLEMENTATION (strict TDD): inside a BLOCK QUOTE this model sees neither a fence nor a heading.** Closes the item Session 224 filed and ranked #1 — the one row of its 72-row scorer still marked wrong.
 **Started:** 2026-08-19 · **Closed:** 2026-08-19
 **Status:** **DONE. SHIPPED — and the session's finding is that the strip itself was the easy half; every defect after the first GREEN came from state the stripped line left for the lines BELOW it, and only a 46,556-document sweep found them.**

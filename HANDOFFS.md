@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S226
+date: 2026-08-19
+status: pending
+active_task: Inside a block quote, a BLOCK CONSTRUCT closes a paragraph pandoc keeps open, and an UNMARKED line below a quote is a LAZY CONTINUATION. Closes the item Session 225 filed and ranked #1 -- its own 24 introduced phantoms in 46,556 documents, pinned in both directions at test/unit/qmd-model.test.ts R1 and R2.
+```
+
+```handoff
 session: S225
 date: 2026-08-19
 status: complete
