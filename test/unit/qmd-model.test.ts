@@ -10086,3 +10086,129 @@ describe("Session 226 — the `:::` / `...` / `\\end{}` family", () => {
     ).toEqual(["ATX Below"]);
   });
 });
+
+// ── Session 227 GUARD — the headings a div-column rule must NOT delete ─────────
+//
+// This session gives the `:::` line a COLUMN: it is a div fence — opener or closer — only
+// where its colon run starts at its container's own content column, and `DIV_FENCE`'s
+// ` {0,3}` anchor is replaced by that test. The polarity is MIXED (it refuses fences at the
+// wrong column AND sees fences deeper than column 3), so the guard is one `it()` per shape
+// whose heading must SURVIVE, plus the phantom rows that must not reappear. Every one is
+// green BEFORE the change (S204's gotcha 5, inherited a twenty-second time).
+//
+// Rows are named for the rendered document that measured them — `scratchpad/s227/r1` and
+// `r2` (39 documents rendered through the real `quarto render` path, quarto 1.7.33), plus
+// Session 226's own `scratchpad/s226/r2` and `r3` for the shapes it already measured.
+describe("Session 227 GUARD — a fence at its container's own column keeps its heading", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("G1: a top-level div closed at column 0, no blank lines (`r1/k01`)", () => {
+    expect(headings(["::: {.note}", "body text", ":::", "# H k01"])).toEqual(["H k01"]);
+  });
+
+  it("G2: the same with blank lines around the body (`r1/k06`)", () => {
+    expect(headings(["::: {.note}", "", "body text", "", ":::", "# H k06"])).toEqual(["H k06"]);
+  });
+
+  it("G3: ⚠ a four-space `:::` under a blank is INDENTED CODE, and the heading below it is REAL (`r1/k10`)", () => {
+    // The row a widened fence anchor is most likely to delete: at code depth the line is not a
+    // fence at all, it is a code block, and a code block is a block boundary that lets the
+    // heading below it through. Rendered — quarto emits `<pre>` and then `<h1>H k10</h1>`.
+    expect(headings(["::: {.note}", "", "body text", "", "    :::", "# H k10"])).toEqual([
+      "H k10",
+    ]);
+  });
+
+  it("G4: a div inside a `- ` item, opened and closed at the item's column 2 (`r1/k16`)", () => {
+    expect(
+      headings(["- item", "", "  ::: {.note}", "  body text", "  :::", "# H k16"]),
+    ).toEqual(["H k16"]);
+  });
+
+  it("G5: ⚠ a LAZY column-0 closer against an open paragraph closes a column-2 div (`r1/k17`)", () => {
+    // Pandoc absorbs an under-indented line into the open paragraph of the item above it, and
+    // the absorbed line is appended RAW — so at column 0 it lands on the sub-document's own
+    // column 0 and really does close. This is why the rule cannot be a bare equality.
+    expect(
+      headings(["- item", "", "  ::: {.note}", "  body text", ":::", "# H k17"]),
+    ).toEqual(["H k17"]);
+  });
+
+  it("G6: the `- ::: mydiv` opener with a column-0 closer (`r1/k22`)", () => {
+    expect(headings(["- ::: mydiv", "  line one", ":::", "# H k22"])).toEqual(["H k22"]);
+  });
+
+  it("G7: the same opener with a column-2 closer (`r1/k23`)", () => {
+    expect(headings(["- ::: mydiv", "  line one", "  :::", "# H k23"])).toEqual(["H k23"]);
+  });
+
+  it("G8: a `- ` item whose div has blank lines, closed at column 2 (`r1/k24`)", () => {
+    expect(
+      headings(["- item", "", "  ::: {.note}", "", "  body text", "", "  :::", "# H k24"]),
+    ).toEqual(["H k24"]);
+  });
+
+  it("G9: a div INSIDE A QUOTE, whose columns are measured on the STRIPPED line (`r2/m06`)", () => {
+    expect(headings(["> ::: {.note}", "> body text", "> :::", "> # H m06"])).toEqual(["H m06"]);
+  });
+
+  it("G10: trailing whitespace does not stop a closer being one (`r2/m10`)", () => {
+    expect(headings(["::: {.note}", "body text", ":::   ", "# H m10"])).toEqual(["H m10"]);
+  });
+
+  it("G11: two sibling `- ` items, the first carrying a closed div (`r2/m12`)", () => {
+    expect(
+      headings([
+        "- item one",
+        "",
+        "  ::: {.note}",
+        "  body text",
+        "  :::",
+        "",
+        "- item two",
+        "",
+        "# H m12",
+      ]),
+    ).toEqual(["H m12"]);
+  });
+
+  it("G12: a LIST inside a top-level div does not move the closer's column (`r2/m13`)", () => {
+    expect(headings(["::: {.note}", "", "- list item", "", ":::", "# H m13"])).toEqual([
+      "H m13",
+    ]);
+  });
+
+  it("G13: a FOUR-colon div opens and closes (`s226 r2/g03`)", () => {
+    expect(headings([":::: {.note}", "body text", "::::", "# H g03"])).toEqual(["H g03"]);
+  });
+
+  it("G14: NESTED divs — the outer closer is what reaches the heading (`s226 r2/g04`)", () => {
+    expect(
+      headings(["::::: {.a}", "::: {.b}", "body text", ":::", ":::::", "# H g04"]),
+    ).toEqual(["H g04"]);
+  });
+
+  it("G15: a closer LONGER than its opener still closes (`s226 r2/g07`)", () => {
+    expect(headings(["::: {.note}", "body text", "::::", "# H g07"])).toEqual(["H g07"]);
+  });
+
+  it("G16: ⚠ a `:::` inside a CODE FENCE opens nothing, so the one below closes nothing (`s226 r3/h09`)", () => {
+    // `divDepth` is maintained on BODY lines only. The negative direction of the guard: this
+    // row must keep reporting NO heading.
+    expect(headings(["```", ":::", "```", "para one", ":::", "# H h09"])).toEqual([]);
+  });
+
+  it("G17: the `...` metadata terminator is untouched by a div-column rule (`s226 r2/g09`)", () => {
+    expect(headings(["---", "key: v", "...", "# H g09"])).toEqual(["H g09"]);
+  });
+
+  it("G18: the `\\begin{}` / `\\end{}` family is untouched too (`s226 r2/g11`)", () => {
+    expect(headings(["\\begin{center}", "body text", "\\end{center}", "# H g11"])).toEqual([
+      "H g11",
+    ]);
+  });
+
+  it("G19: an unmatched `:::` at top level still STARTS a paragraph (`s226 r2/g14`)", () => {
+    expect(headings([":::", "# H g14"])).toEqual([]);
+  });
+});
