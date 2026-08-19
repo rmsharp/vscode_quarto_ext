@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S225
+date: 2026-08-19
+status: pending
+active_task: IN PROGRESS. Inside a BLOCK QUOTE this model sees neither a fence nor a heading -- `FENCE_OPEN` is anchored at `^[ \t]*` and `findHeadings` never matches a `> # ` line, so the model has no block-quote context anywhere. Closes the item Session 224 filed and ranked #1.
+```
+
+```handoff
 session: S224
 date: 2026-08-19
 status: complete

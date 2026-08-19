@@ -5,6 +5,25 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 225 — IMPLEMENTATION (strict TDD): inside a BLOCK QUOTE this model sees neither a fence nor a heading.** Closes the item Session 224 filed and ranked #1 — the ONE row of its 72-row scorer still marked wrong.
+**Started:** 2026-08-19
+**Status:** Session claimed. Work beginning.
+**Deliverable (ONE capability):** *constructs inside a block quote are seen by `computeRegions`* — one intent, per-layer checkpoint commits.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 225 ACTIVE-TASK decision rules (from the coupling survey run BEFORE the guard, 55 rendered rows)
+
+1. **The marker is `^ {0,3}(>[ ]?)+`** — `>` at indent 0–3, each marker taking at most ONE space. ⚠ A **TAB** after `>` is NOT that space and the construct is declined (`c/c10`). A `>` at indent 4 is indented code, not a marker (`b/b02`).
+2. **The stripped remainder is re-parsed with the quote's own content column base at 0.** An ATX heading needs column 0 EXACTLY inside the quote, exactly as at top level — `>  # H` and `>   # H` render NO heading (`b/b10`, `b/b11`), and `>` + 5 spaces is indented code inside the quote (`b/b01`).
+3. **⚠ A BLOCK QUOTE MAY NOT INTERRUPT AN OPEN PARAGRAPH** (`c/c08`: `para` / `> # H` is ONE paragraph, `para > # H`). The gate is `!inQuote && paragraphOpen`; a blank line above clears it (`d/d04`).
+4. **An unmarked BLANK line ends the quote; an unmarked NON-blank line does not** (`b/b05`, `c/c03`, `c/c04`, `c/c09`).
+5. **A fence inside a quote closes on a MARKED or a LAZY closer, but only before the quote ends** (`b/b05` lazy closer accepted, `c/c03` lazy content line swallowed, `c/c04` blank line leaves it unclosed → not a fence). ⚠ The control is `d/d02`: a `>`-prefixed run closes NOTHING at top level, so the quoted closer keys must be their own namespace.
+6. **⚠ INSIDE A QUOTE, QUARTO'S TWO LINE-ANCHORED INTERCEPTS DO NOT FIRE — the predicate is pandoc's `Attr` alone.** No executable cell (`d/d09`: `> ```{ojs}` is an inline code span where the top-level twin `d/d10` is a real cell), and no stage 1 (`e/e01`: `> ```{#lst-e01}` renders `<pre id="lst-e01">` — a REAL id — where S223 measured the top-level twin rendering `<pre class="{#lst-s03}">` with no id at all).
+7. **`{=html}` is still a fence inside a quote and its contents are RAW** (`e/e02` — the heading inside it is passed through, not rendered).
+8. **Session 224's refusal→code-span rule carries in unchanged, blank line and all** (`cal/sv.qmd` s03 hides its heading with no blank line; S224's own `adv/z01` shows it live with one).
+9. **`bodyLines` keep the RAW text so every label column stays valid** — only classification sees the stripped line.
+
+## Session 224 ACTIVE TASK (superseded by Session 225 — full entry preserved below)
 **Task:** **Session 224 — IMPLEMENTATION (strict TDD): a fenced code block whose info string fails pandoc's parse is NOT A FENCE, and our region scanner opened a code region for it anyway.** Closes the item Session 223 filed and ranked #1.
 **Started:** 2026-08-19 · **Closed:** 2026-08-19
 **Status:** **DONE. SHIPPED — and the session's finding is that the filed item's own mechanism sentence contained a contradiction, so implementing it as written cost a true positive and a phantom within one cycle.** 72 rendered rows across seven rounds, a row-by-row pre/post scorer, and a 46,598-document sweep: **36/72 → 71/72 with INTRODUCED 0**, **0 movers across 113 tracked repo files**, and **6 predecessor recoveries**, every one verified against its own render.
