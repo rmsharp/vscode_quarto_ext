@@ -5,6 +5,21 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 228 — IMPLEMENTATION (strict TDD): `---` under a ONE-line paragraph is a setext underline; under a TWO-line paragraph it is an EM DASH.** Closes the item Session 226 filed and Session 227 ranked #1.
+**Started:** 2026-08-19 · **Closed:** —
+**Status:** Session claimed. Work beginning.
+
+**Deliverable (ONE capability):** *the rule that decides whether a `---` line below a paragraph is a setext underline (heading) or an em-dash continuation of that paragraph* — one intent, per-layer checkpoint commits.
+
+**The filed evidence.** `scratchpad/s226/r3/h03` renders `<h2>para one</h2>`; `scratchpad/s226/r1/t_tbreak` renders `<p>para one para two — # H</p>`, the `---` becoming U+2014. PRE-EXISTING and unmoved. Phantom direction on `h03` — this model reports a heading BELOW the dashes that quarto does not. ⚠ The item's own warning: this model gets `t_tbreak` right and `h03` wrong, so the separating rule is **unmodelled rather than approximate** — do not fold it into the thematic-break row without rendering the one-line/two-line pair first.
+
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+---
+
+---
+
+## Session 227 ACTIVE TASK (superseded by Session 228 — full entry preserved below)
 **Task:** **Session 227 — IMPLEMENTATION (strict TDD): a `:::` is a fence only at its container's own column.** Closes the item Session 226 filed and ranked #1 — its own Round 4 residual.
 **Started:** 2026-08-19 · **Closed:** 2026-08-19
 **Status:** **DONE. SHIPPED — and the session's finding is that one wrong anchor was TWO opposite defects, of which the filed item named the smaller one; the larger half was a family of headings this model had never once been able to see.**
@@ -85,11 +100,6 @@
 **What went wrong.** (a) ⚠ **I over-trusted a corpus I designed, again** — Learning #399 was in front of me, and my 39 designed rows still had no shape for an unmarked lazy line below a quote. The sweep caught it; my design did not. (b) ⚠ **I inserted a test into the wrong `describe` block twice**, because I anchored a text search on `it("C5: ` and the file now carries several sessions' C-numbered rows. Caught only because the failing-test output named the enclosing block — a weaker check than I should be relying on. (c) I predicted `p04` would render a heading and it does not; my model of `blank_before_header` inside a list item was wrong, and the row was a control rather than a load-bearing one, so it cost nothing but it was a real gap in my understanding. (d) The session ran long, because each round of renders is ~7 seconds per document.
 
 **Compared to the standard.** At par with Session 226 on deletion discipline (0 introduced in the inherited corpus vs its 0 at ship) and above it on corpus design: this session's designed corpus missed ONE family rather than three, and Round 5's implementation-directed design is a method Session 226 did not have. Below the bar on edit hygiene — two misplaced test insertions in one session is the kind of thing the guard cannot catch.
-
----
-
----
-
 ## Session 226 ACTIVE TASK (superseded by Session 227 — full entry preserved below)
 **Task:** **Session 226 — IMPLEMENTATION (strict TDD): a closer that closes NOTHING is not a closer.** Closes the item Session 225 filed and ranked #1 — its R1/R2 residual pins.
 **Started:** 2026-08-19 · **Closed:** 2026-08-19

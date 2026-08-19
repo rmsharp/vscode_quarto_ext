@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S228
+date: 2026-08-19
+status: pending
+active_task: Session 228 -- IMPLEMENTATION (strict TDD): `---` under a ONE-line paragraph is a setext underline; under a TWO-line paragraph it is an EM DASH. Closes the item Session 226 filed and Session 227 ranked #1.
+```
+
+```handoff
 session: S227
 date: 2026-08-19
 status: complete
