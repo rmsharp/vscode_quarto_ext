@@ -1332,3 +1332,77 @@ describe("Session 222 GUARD — shapes that must NOT move when the scan becomes 
     ).toEqual(["fig-a05.x", "fig-a05b.y"]);
   });
 });
+
+describe("Session 222 adversarial pins — rows aimed at THIS session's own rule", () => {
+  // The adversarial corpus (`scratchpad/s222/adv/adv.qmd`, 9 rows + 3 follow-ups in
+  // `adv2.qmd`, rendered through quarto 1.7.33) was written against the GEOMETRY this session
+  // introduced rather than against quarto. It scored 7/9 -> 7/9: FIXED 0, INTRODUCED 0, and
+  // the same two rows wrong before and after — both phantoms, both pre-existing.
+
+  it("Z1: the adjacency test computes the right `)`, on three shapes designed to fool it", () => {
+    // A link TITLE before the closer, an image nested inside a link, and a `)` inside the URL
+    // itself. All three define in quarto (adv.qmd z01/z02/z07) and all three are found here.
+    expect(indexLabels('![Cap](a.png "A title"){#fig-z01}').map((l) => l.id)).toEqual([
+      "fig-z01",
+    ]);
+    expect(
+      indexLabels("[![Cap](a.png)](https://example.com){#fig-z02}").map((l) => l.id),
+    ).toEqual(["fig-z02"]);
+    expect(indexLabels("[Cap](a(b).png){#fig-z07}").map((l) => l.id)).toEqual([
+      "fig-z07",
+    ]);
+  });
+
+  it("Z2: a div opener with FOUR colons, and one with trailing spaces, both keep their id", () => {
+    // `:{3,}` and the `\s*$` tail are both measured (adv.qmd z03/z08), not defensive slack.
+    expect(indexLabels(":::: {#fig-z03}\nbody\n::::").map((l) => l.id)).toEqual([
+      "fig-z03",
+    ]);
+    expect(indexLabels("::: {#fig-z08}   \nbody\n:::").map((l) => l.id)).toEqual([
+      "fig-z08",
+    ]);
+  });
+
+  it("Z3: an ESCAPED closing brace inside a value does not end the group", () => {
+    // ⚠ This row was written expecting a MISS — the group scanner is quote-aware but not
+    // escape-aware, so it ends the group at the `\}`. It passes anyway, because the truncated
+    // content `#fig-z06 key=a\` is still a valid token pair (`ATTR_KEY_VALUE`'s bare value
+    // admits a backslash). Quarto defines `fig-z06` (adv.qmd z06) and so does this. Pinned
+    // BECAUSE it is right for a reason the rule does not state: a value whose escaped brace is
+    // followed by something that breaks the token would diverge, and no rendered row covers
+    // that yet.
+    expect(indexLabels("![Cap](a.png){#fig-z06 key=a\\}b}").map((l) => l.id)).toEqual([
+      "fig-z06",
+    ]);
+  });
+
+  it("Z4: DISCLOSED RESIDUAL — a top-level INDENTED div opener is a phantom", () => {
+    // ⚠ **AND THE FIX IS MEASURED TO BE WORSE, WHICH IS WHY THIS IS PINNED RATHER THAN
+    // CLOSED.** `  ::: {#fig-z11}` and `   ::: {#fig-z12}` at top level render their braces
+    // as literal text and define nothing (`adv.qmd` z04, `adv2.qmd` z11/z12), so the leading
+    // `\s*` in `isAttributeBlock` over-fires. But an indented div INSIDE A LIST ITEM does
+    // define — `- item` / blank / `  ::: {#fig-z10}` renders id="fig-z10" (`adv2.qmd` z10) —
+    // and that is an everyday quarto shape. The distinguishing fact is the enclosing block,
+    // which this per-line scanner cannot see, so the honest choice is an approximation with a
+    // DECLARED failure direction: over-fire into the phantom direction (a spurious completion
+    // offer) rather than under-fire into the lost-TP direction (a real target that navigation
+    // cannot reach). PRE-EXISTING and unchanged — both builds return `fig-z11`.
+    expect(indexLabels("  ::: {#fig-z11}\nbody\n:::").map((l) => l.id)).toEqual([
+      "fig-z11",
+    ]);
+    expect(indexLabels("- item\n\n  ::: {#fig-z10}\n  body\n  :::").map((l) => l.id)).toEqual([
+      "fig-z10",
+    ]);
+  });
+
+  it("Z5: DISCLOSED RESIDUAL — a `]` that closes no span still reads as adjacency", () => {
+    // `plain z05]{#fig-z05}` defines nothing in quarto (adv.qmd z05) — there is no bracketed
+    // span, so the braces are text. `isAttributeBlock` tests only the character before the
+    // group, so it treats the `]` as a span's closer. The same shape one production over is
+    // `(plain paren){#fig-w03}` (`cal/disc.qmd` w03). Closing either needs real bracket/link
+    // matching, which is a different deliverable. PRE-EXISTING and unchanged in effect — both
+    // builds index it, the pre-change build through the unvalidated scan instead.
+    expect(indexLabels("plain z05]{#fig-z05}").map((l) => l.id)).toEqual(["fig-z05"]);
+    expect(indexLabels("(plain paren){#fig-w03}").map((l) => l.id)).toEqual(["fig-w03"]);
+  });
+});
