@@ -21,6 +21,7 @@ import {
   findBodyLines,
   findHeadings,
   maskInlineCode,
+  pandocAttributeBlockId,
 } from "./qmd/model";
 
 /** The cross-reference kinds Quarto recognizes that this index supports. */
@@ -88,8 +89,11 @@ const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
  * because the pattern is anchored at `^`, its column is
  * `match[0].length - id.length`.
  *
- * ⚠ **THIS IS THE SAME CLASS AS {@link INLINE_LABEL} BECAUSE THE TWO WERE MEASURED TO ASK ONE
- * QUESTION — NOT BECAUSE ONE WAS PORTED TO THE OTHER.** The obvious model, and the one Session
+ * ⚠ **THIS IS THE SAME CLASS AS THE ATTRIBUTE-BLOCK PATH BECAUSE THE TWO WERE MEASURED TO ASK
+ * ONE QUESTION — NOT BECAUSE ONE WAS PORTED TO THE OTHER.** (Session 222 split Source 3 into
+ * a validated {@link isAttributeBlock} path, whose ids come from `ATTR_ID_ALL` in
+ * `core/qmd/model.ts`, and the older {@link NARROW_LABEL} scan for the productions quarto owns
+ * itself; the identifier SET is the same across all three, which is what this note is about.) The obvious model, and the one Session
  * 221 froze as its prediction, is that the label is the YAML scalar verbatim. That scored
  * **11 of 24** (`scratchpad/s221/cal/cell.qmd`). What actually happens is that quarto's engine
  * writes the label **verbatim into a Pandoc attribute block**, and Pandoc then accepts or
@@ -108,7 +112,7 @@ const DEFINED_ID_CHAR_CLASS = String.raw`[\p{L}\p{N}_:.-]`;
  * TRAILING `:` is a hard render error — `YAMLException: bad indentation of a mapping entry`.
  *
  * ⚠ **THE LEADING `[\p{L}\p{N}_]` IS VESTIGIAL HERE AND IS KEPT ONLY BECAUSE REMOVING IT WOULD
- * BE AN UNMEASURED CHANGE.** Unlike {@link INLINE_LABEL}, whose kind prefix sits OUTSIDE the
+ * BE AN UNMEASURED CHANGE.** Unlike {@link NARROW_LABEL}, whose kind prefix sits OUTSIDE the
  * capture, this group starts at the prefix itself — so the `f` of `fig-` always satisfies the
  * clause and only the tail ever decided anything. That asymmetry is why the pre-session defect
  * differed in kind between the two sources: here a punctuation-first name yielded the bare
@@ -122,11 +126,29 @@ const CELL_LABEL_OPTION = new RegExp(
   "u",
 );
 /**
- * An inline Pandoc attribute block declaring a cross-ref id on an image, div, or
- * display equation: `…){#fig-plot}`, `::: {#tbl-x}`, `$$ … $$ {#eq-y}`. Group 1
- * is the id; its column is `match.index + 2` (past the `{#`). `sec-` is excluded
- * on purpose — section labels are owned by headings (Source 1), so a stray
- * inline `{#sec-…}` is not double-counted.
+ * A cross-ref id at the very start of a brace group's content — `{#fig-plot …}`. Group 1 is
+ * the id; its column is the group's `start + 2` (past the `{#`). `sec-` is excluded on
+ * purpose: section labels are owned by headings (Source 1), so a stray inline `{#sec-…}` is
+ * not double-counted.
+ *
+ * ⚠ **THIS IS THE OLDER, UNVALIDATED SCAN, AND IT IS KEPT FOR THE GROUPS THAT ARE NOT PANDOC
+ * ATTRIBUTE BLOCKS — WHICH IS A MEASURED CATEGORY, NOT A FALLBACK OF CONVENIENCE.** Session
+ * 222 rendered the two productions quarto owns itself and neither is Pandoc's `Attr` parser:
+ *
+ *   **display math.** `$$ y = x $$ {#eq-m01}` defines `eq-m01`, but `{#eq-m02 .cls}`,
+ *   `{#eq-m04a #eq-m04b}`, `{#eq-m05 key=v}`, `{ #eq-n02}` and even `{#eq-n01 }` all render
+ *   their braces as LITERAL TEXT — anything beyond the bare id fails. And the id is taken
+ *   VERBATIM: `{#eq-m06$x}` renders `id="eq-m06$x"`, a `$` the attribute parser categorically
+ *   refuses (`scratchpad/s222/cal/math.qmd`, `n.qmd`).
+ *
+ *   **table captions.** `: Cap {#tbl-g12}` and `: Cap {#tbl-n06 .cls}` both define, a LEADING
+ *   class does not (`{.cls #tbl-n07}`), and an invalid character is SANITISED rather than
+ *   refused — `{#tbl-n05$x}` renders `id="tbl-n05x"` (`cal.qmd` g12, `n.qmd` n05–n07).
+ *
+ * Three productions, three grammars. Running the attribute-block rule over them would delete
+ * `eq-` and `tbl-` targets that quarto really defines, which is the dangerous direction, so
+ * they keep the scan they had. The rows where this scan and quarto still disagree are pinned
+ * in `test/unit/refs.test.ts` and filed rather than fixed.
  *
  * ⚠ **THE NAME IS ONE FLAT RUN OF {@link DEFINED_ID_CHAR_CLASS}, NOT A FIRST-CHARACTER CLAUSE
  * PLUS A TAIL.** The two-clause spelling this replaced (`[A-Za-z0-9_][A-Za-z0-9_-]*`) refused
@@ -134,10 +156,108 @@ const CELL_LABEL_OPTION = new RegExp(
  * (`scratchpad/s221/cal/attr.qmd` t30/t31) — so widening only the tail would have left half
  * the defect in place.
  */
-const INLINE_LABEL = new RegExp(
-  String.raw`\{#((?:fig|tbl|eq|lst)-` + DEFINED_ID_CHAR_CLASS + String.raw`+)`,
-  "gu",
+const NARROW_LABEL = new RegExp(
+  String.raw`^#((?:fig|tbl|eq|lst)-` + DEFINED_ID_CHAR_CLASS + String.raw`+)`,
+  "u",
 );
+
+/** A `{ … }` group on a body line, located so its geometry can be tested. */
+interface BraceGroup {
+  /** 0-based column of the `{`. */
+  start: number;
+  /** 0-based column of the matching `}`. */
+  end: number;
+  /** The text between the braces. */
+  content: string;
+}
+
+/**
+ * Every CLOSED brace group on `lineText`, left to right and non-overlapping.
+ *
+ * ⚠ **A `{` WITH NO `}` AFTER IT YIELDS NO GROUP AT ALL** — measured: `![Cap](a.png){#fig-v11`
+ * renders its brace verbatim and defines nothing (`scratchpad/s222/cal/cal.qmd` v11, and
+ * `s221/adv/adv.qmd` a06). Nothing can attach to an unterminated group.
+ *
+ * ⚠ **AND THE CLOSER IS FOUND QUOTE-AWARE, WHICH ONE RENDERED ROW REQUIRES.**
+ * `![Cap](a.png){#fig-w12 key="a}b"}` defines `fig-w12` (`disc.qmd` w12): the `}` inside the
+ * quoted value is content, not the end of the group. A naive scan to the first `}` reads the
+ * block as `#fig-w12 key="a`, judges it invalid, and drops an id quarto really defines. This
+ * is the same quote awareness `headingAttributeTokens` carries, for the same reason, and it is
+ * the other side of the still-open heading item where `[^}]*` loses to that byte.
+ */
+function braceGroups(lineText: string): BraceGroup[] {
+  const groups: BraceGroup[] = [];
+  let i = 0;
+  while (i < lineText.length) {
+    if (lineText[i] !== "{") {
+      i++;
+      continue;
+    }
+    let quote: string | null = null;
+    let j = i + 1;
+    for (; j < lineText.length; j++) {
+      const ch = lineText[j];
+      if (quote !== null) {
+        if (ch === quote) {
+          quote = null;
+        }
+      } else if (ch === '"' || ch === "'") {
+        quote = ch;
+      } else if (ch === "}") {
+        break;
+      }
+    }
+    if (j >= lineText.length) {
+      i++;
+      continue;
+    }
+    groups.push({ start: i, end: j, content: lineText.slice(i + 1, j) });
+    i = j + 1;
+  }
+  return groups;
+}
+
+/**
+ * Whether `group` is the Pandoc ATTRIBUTE BLOCK of the element it sits on, rather than a brace
+ * group that merely appears on the line.
+ *
+ * ⚠ **THE RULE IS ADJACENCY, AND TWO RENDERED ROWS REFUTE EVERY SIMPLER ONE.** "The first
+ * group on the line wins" and "the first VALID group wins" both explain the whole calibration
+ * corpus, and both are wrong: `x {#fig-w01a} ![Cap](a.png){#fig-w01b}` defines `fig-w01b` and
+ * renders `{#fig-w01a}` as text, and `![A](a.png){#fig-w02a} and ![B](b.png){#fig-w02b}`
+ * defines BOTH (`scratchpad/s222/cal/disc.qmd` w01/w02).
+ *
+ * The two admitting geometries were each measured:
+ *
+ *   **inline** — the group opens IMMEDIATELY after the `)` of an image or link, or the `]` of
+ *   a bracketed span. One space breaks it (`![Cap](a.png) {#fig-g02}` defines nothing, g02) and
+ *   so does any other character (`![Cap](a.png)x{#fig-g15}`, g15). A `)` that closes no link
+ *   carries nothing (`(plain paren){#fig-w03}`, w03). Text AFTER the group does not unattach it
+ *   (`{#fig-g14}extra` and `{#fig-p07}.` both define, g14/p07).
+ *
+ *   **fenced div** — the line opens a div and the group is ALL that follows it. `::: {#fig-g08}`
+ *   and `:::{#fig-g09}` both define; `::: {#fig-p05a}{#fig-p05b}` defines NOTHING, so the
+ *   trailing-content clause is measured rather than tidy (g08/g09/p05).
+ *
+ * ⚠ **AN INVALID ADJACENT GROUP DOES NOT HAND THE ELEMENT TO THE NEXT ONE.**
+ * `![Cap](a.png){bareword}{#fig-w04}` defines nothing at all (w04) — the image takes the
+ * adjacent group, fails to parse it, and the second group is then ordinary text. That is why
+ * an attribute block is CONSUMED here whether or not it yields an id.
+ *
+ * ⚠ **DISPLAY MATH AND TABLE CAPTIONS ARE DELIBERATELY NOT LISTED, BECAUSE THEY ARE NOT THIS
+ * PRODUCTION.** See {@link NARROW_LABEL}'s docstring for what they are and why they keep the
+ * older scan.
+ */
+function isAttributeBlock(lineText: string, group: BraceGroup): boolean {
+  const before = lineText[group.start - 1];
+  if (before === ")" || before === "]") {
+    return true;
+  }
+  return (
+    /^\s*:{3,}\s*$/.test(lineText.slice(0, group.start)) &&
+    /^\s*$/.test(lineText.slice(group.end + 1))
+  );
+}
 /**
  * A character that may stand alone anywhere in a cross-reference id — Pandoc's
  * "regchar": a Unicode letter or digit, or `_`.
@@ -244,13 +364,29 @@ export function indexLabels(text: string): RefLabel[] {
     // Mask inline code spans (length-preserving) so a `{#fig-…}` shown literally
     // in backticks is not indexed; column offsets stay valid.
     const lineText = maskInlineCode(rawText);
-    INLINE_LABEL.lastIndex = 0;
-    let m: RegExpExecArray | null;
-    while ((m = INLINE_LABEL.exec(lineText)) !== null) {
-      const id = m[1];
-      const kind = kindOf(id);
+    for (const group of braceGroups(lineText)) {
+      // ⚠ **AN ATTRIBUTE BLOCK IS CONSUMED WHETHER OR NOT IT YIELDS AN ID.** A group the
+      // element owns but Pandoc refuses must NOT fall through to the narrow scan — that
+      // fall-through is exactly the phantom this deliverable removes (`{#fig-a$b}` etc.),
+      // and `disc.qmd` w04 shows quarto agrees: an invalid adjacent group does not hand the
+      // element on to the next group.
+      if (isAttributeBlock(lineText, group)) {
+        const id = pandocAttributeBlockId(group.content);
+        const kind = id === undefined ? null : kindOf(id);
+        // `sec-` is Source 1's, even when a block on an image really defines one
+        // (`p.qmd` p04 renders id="sec-p04"); indexing it here would double-count.
+        if (id !== undefined && kind !== null && kind !== "sec") {
+          labels.push({ id, kind, line, column: idColumnIn(lineText, group, id) });
+        }
+        continue;
+      }
+      const m = NARROW_LABEL.exec(group.content);
+      if (m === null) {
+        continue;
+      }
+      const kind = kindOf(m[1]);
       if (kind !== null) {
-        labels.push({ id, kind, line, column: m.index + 2 });
+        labels.push({ id: m[1], kind, line, column: group.start + 2 });
       }
     }
   }
@@ -439,9 +575,24 @@ const ATTR_ID_CHAR = new RegExp(DEFINED_ID_CHAR_CLASS, "u");
  */
 function idColumn(text: string, line: number, id: string): number {
   const lineText = text.split(/\r?\n/)[line] ?? "";
+  return lastIdStart(lineText, id, lineText.length, 0) ?? 0;
+}
+
+/**
+ * Where the `#<id>` occurrence that ENDS at an identifier boundary starts on `lineText`,
+ * searching backwards from `searchFrom` and refusing to look before `floor`; `null` if there
+ * is none. The trailing-occurrence rule and the boundary test are {@link idColumn}'s, and
+ * both are Session 219's — see that docstring for the two rendered rows behind them.
+ */
+function lastIdStart(
+  lineText: string,
+  id: string,
+  searchFrom: number,
+  floor: number,
+): number | null {
   const needle = `#${id}`;
-  let at = lineText.lastIndexOf(needle);
-  while (at >= 0) {
+  let at = lineText.lastIndexOf(needle, searchFrom);
+  while (at >= floor) {
     const next = lineText[at + needle.length];
     if (next === undefined || !ATTR_ID_CHAR.test(next)) {
       return at + 1;
@@ -451,5 +602,20 @@ function idColumn(text: string, line: number, id: string): number {
     }
     at = lineText.lastIndexOf(needle, at - 1);
   }
-  return 0;
+  return null;
+}
+
+/**
+ * The 0-based column where the identifier text of `id` begins INSIDE `group`.
+ *
+ * ⚠ **THE SEARCH IS BOUNDED BY THE GROUP, WHICH IS THE WHOLE REASON IT IS NOT
+ * {@link idColumn}.** An attribute block's id is now selected from the block's ATOMS rather
+ * than found by scanning the line, so the same `#id` text may well appear earlier on the line
+ * outside the block — in a previous element's block on a line carrying two of them
+ * (`disc.qmd` w02), or in prose the reader sees as text (`w01`). Searching the whole line
+ * would send go-to-definition to the wrong one. Falls back to just past the `{` — defensive,
+ * so navigation still lands on the right line.
+ */
+function idColumnIn(lineText: string, group: BraceGroup, id: string): number {
+  return lastIdStart(lineText, id, group.end, group.start) ?? group.start + 1;
 }

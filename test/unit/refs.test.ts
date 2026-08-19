@@ -895,10 +895,12 @@ describe("Session 220 — a reference reaches an id holding ':', '.' or a non-AS
 // attribute parser stops, or by admitting a brace group that defines nothing at all — and
 // neither failure is visible in a test that only checks the ids we mean to add.
 //
-// ⚠ AND `INLINE_LABEL` IS AN UNVALIDATED SCAN, not a parsed block: headings gate on
-// `headingAttributesValid` before any id is mined, while Source 3 scans any prose line for
-// `{#`. So widening its class also widens what a MALFORMED brace group contributes, which is
-// why half these rows are about text that must keep defining nothing.
+// ⚠ AND AT THE TIME THESE ROWS WERE WRITTEN Source 3 WAS AN UNVALIDATED SCAN, not a parsed
+// block: headings gated on `headingAttributesValid` before any id was mined, while Source 3
+// scanned any prose line for `{#`. So widening its class also widened what a MALFORMED brace
+// group contributed, which is why half these rows are about text that must keep defining
+// nothing. ⚠ Session 222 closed that gap for the groups that ARE attribute blocks — see the
+// reversed C1/A1/A2 pins below — and the rows here are the ones it left standing.
 //
 // ⚠ THE COLUMN IS COMPUTED, NOT SEARCHED, on both of these paths (`m[0].length - value.length`
 // for Source 2, `m.index + 2` for Source 3), so every row asserts the column too — the field
@@ -1057,26 +1059,28 @@ describe("Session 221 — an inline {#…} label reaches pandoc's whole identifi
     ]);
   });
 
-  it("C1-pin: DISCLOSED RESIDUAL — a block quarto REFUSES is still indexed truncated", () => {
-    // ⚠ THREE ROWS THIS MODEL GETS WRONG AND MUST GO ON GETTING WRONG UNTIL A SEPARATE ITEM
-    // CLOSES THEM. `INLINE_LABEL` is an unvalidated scan, not a parsed block: it never asks
-    // whether the brace group is a well-formed attribute block, so a character outside the
-    // class TRUNCATES the id here where it makes quarto define nothing at all.
+  it("C1-pin: a block quarto REFUSES defines nothing — CLOSED by Session 222", () => {
+    // ⚠ **PIN REVERSED against the measurement**, and it is the phantom half of Session 222's
+    // deliverable. Session 221 recorded these three as residuals of an UNVALIDATED scan: a
+    // character outside the identifier class truncated the id here where it makes quarto
+    // define nothing at all. Validating the group closes all three, and each fails for its
+    // own measured reason:
     //
-    //   `{#fig-a$b}`  quarto: braces rendered literally, NO id   (attr.qmd t09)
-    //   `{#fig-a b}`  quarto: braces rendered literally, NO id   (attr.qmd t25)
-    //   `{#fig-a#b}`  quarto: defines `b`, so no fig- target      (attr.qmd t08)
+    //   `{#fig-a$b}`  the `$` leaves a token no atom form matches   (attr.qmd t09, s222 v02)
+    //   `{#fig-a b}`  the bare `b` is neither an atom run nor k=v   (attr.qmd t25, s222 v03)
+    //   `{#fig-a#b}`  a VALID block whose LAST atom is `b`, which
+    //                 carries no cross-ref kind prefix, so quarto
+    //                 defines `b` and no `fig-` target exists       (attr.qmd t08, S219)
     //
-    // ⚠ PRE-EXISTING and unchanged by Session 221, established by probing the pre-session
-    // source rather than by reading the diff (`scratchpad/s221/presrc`, git archive of the
-    // 1B commit): PRE and POST both return `fig-a` for all three. Closing them needs block
-    // validation, which is a different deliverable — filed, not fixed.
+    // ⚠ The third is the one that shows validation alone is not the whole rule: that block
+    // parses fine, and it yields no label only because the atom the pandoc family selects is
+    // not a cross-reference id.
     for (const line of [
       "![p](p.png){#fig-a$b}",
       "![p](p.png){#fig-a b}",
       "![p](p.png){#fig-a#b}",
     ]) {
-      expect(indexLabels(line).map((l) => l.id)).toEqual(["fig-a"]);
+      expect(indexLabels(line)).toEqual([]);
     }
   });
 });
@@ -1143,22 +1147,32 @@ describe("Session 221 adversarial pins — measured rows this model still gets w
   // and scored 2/9 -> 6/9 with INTRODUCED 0. The three rows below are the ones still wrong.
   // All three are PRE-EXISTING, established against `scratchpad/s221/presrc`.
 
-  it("A1: an id that is not FIRST in its block is never indexed at all", () => {
-    // ⚠ FOUND BY THE ADVERSARIAL PASS, and the only LOST-TP row of the nine.
-    // `![Cap](a.png){.cls #fig-a03.x}` renders id="fig-a03.x" and `@fig-a03.x` resolves to
-    // it — quarto does not care where the `#` atom sits in the block. `INLINE_LABEL` scans
-    // for the literal two characters `{#`, so an id preceded by a class atom is invisible.
-    // Pre-existing: the pre-session build missed it too, for the same reason.
-    expect(indexLabels("![p](p.png){.cls #fig-a03.x}")).toEqual([]);
+  it("A1: an id that is not FIRST in its block IS indexed — CLOSED by Session 222", () => {
+    // ⚠ **PIN REVERSED against the measurement**, and it is the lost-TP half of Session 222's
+    // deliverable — the only LOST-TP row of Session 221's nine adversarial rows.
+    // `![Cap](a.png){.cls #fig-a03.x}` renders id="fig-a03.x" and `@fig-a03.x` resolves to it
+    // (`s221/adv/adv.qmd` a03; re-rendered this session as `cal.qmd` g03, with `s05`
+    // `{.cls #fig-s05 .cls2}` and `s07` `{#nots07 #fig-s07}` as two more). Quarto does not
+    // care where the `#` atom sits, because the block is TOKENISED rather than scanned.
+    //
+    // ⚠ **DISCLOSURE — THIS ROW WENT GREEN WITHOUT A CYCLE OF ITS OWN, AND THAT IS RECORDED
+    // RATHER THAN DRESSED UP.** It was to be Session 222's third RED→GREEN cycle. The second
+    // cycle's own third row, `{#fig-a#b}`, is a VALID block whose last atom carries no kind
+    // prefix, so nothing but atom SELECTION can make it yield no label — and once the block's
+    // atoms are read instead of its first two characters, position-independence is not a
+    // further clause but the absence of one. Demoted to a pin, as Session 221 demoted a RED
+    // that came up green.
+    expect(indexLabels("![p](p.png){.cls #fig-a03.x}")).toEqual([
+      { id: "fig-a03.x", kind: "fig", line: 0, column: 18 },
+    ]);
   });
 
-  it("A2: an UNCLOSED brace group is still indexed as a label", () => {
-    // `![Cap](a.png){#fig-a06.x` with no `}` defines nothing in quarto (adv.qmd a06, absent
-    // from the rendered ids). The unvalidated scan indexes it anyway — the same cause as the
-    // `$`/space residuals above, seen from a different side.
-    expect(indexLabels("![p](p.png){#fig-a06.x").map((l) => l.id)).toEqual([
-      "fig-a06.x",
-    ]);
+  it("A2: an UNCLOSED brace group defines nothing — CLOSED by Session 222", () => {
+    // ⚠ **PIN REVERSED against the measurement.** `![Cap](a.png){#fig-a06.x` with no `}`
+    // defines nothing in quarto (adv.qmd a06, and re-rendered this session as `cal.qmd` v11,
+    // whose braces appear verbatim in the output). With no closing brace there is no group at
+    // all, so nothing can attach and the `{` is ordinary text — Session 222's M4, rendered.
+    expect(indexLabels("![p](p.png){#fig-a06.x")).toEqual([]);
   });
 
   it("A3: a SECOND adjacent block is indexed although only the first is the block", () => {

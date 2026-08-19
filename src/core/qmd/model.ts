@@ -330,6 +330,52 @@ function headingAttributeId(
   return commonmarkDialect ? found[0] : found[found.length - 1];
 }
 /**
+ * The identifier a Pandoc attribute block whose content is `content` defines, for the
+ * **pandoc-family** readers — or `undefined` when the content is not a well-formed attribute
+ * block, or is one that carries no identifier.
+ *
+ * Exported for `src/core/refs.ts`, whose Source 3 asks this question about the blocks on
+ * IMAGES, LINKS, BRACKETED SPANS and FENCED DIVS rather than on headings.
+ *
+ * ⚠ **THE SHARED GRAMMAR IS ESTABLISHED BY RENDERING, NOT BY PORTING** (Learning #377). Every
+ * clause of `headingAttributesValid` / `headingAttributeId` that could have differed for an
+ * inline element was re-measured in Session 222 against the real quarto path
+ * (`scratchpad/s222/cal/`, quarto 1.7.33), and each gave the heading answer:
+ *
+ *   `{#fig-v01 bareword}` → no id, braces literal   a bare word is neither atom-run nor k=v
+ *   `{#fig-v02$x}`        → no id, braces literal   `$` is outside the identifier set
+ *   `{#fig-v07 .1cls}`    → no id, braces literal   a CLASS must begin with a letter
+ *   `{#fig-v09 =bad}`     → no id, braces literal   a key must begin with a letter
+ *   `{#fig-v04 key=v}`    → `fig-v04`               bare key=value
+ *   `{#fig-v05 key="a b"}`→ `fig-v05`               a QUOTED value holding a space is one token
+ *   `{#fig-q02 key='a b'}`→ `fig-q02`               and a SINGLE-quoted one likewise
+ *   `{#fig-q01 key=a\ b}` → `fig-q01`               an ESCAPED space joins the token
+ *   `{#fig-v06 -}`        → `fig-v06`               the `-` atom
+ *   `{#fig-q08café}`      → `fig-q08café`           the letters are Unicode
+ *   `{#fig-w12 key="a}b"}`→ `fig-w12`               a `}` inside a quoted value stays inside
+ *
+ * ⚠ **AND SO IS THE SELECTION RULE, WHICH IS WHY THIS TAKES THE LAST ATOM.**
+ * `![Cap](a.png){#fig-s01a #fig-s01b}` renders `id="fig-s01b"` and the three-atom row
+ * `{#fig-s02a #fig-s02b #fig-s02c}` renders `id="fig-s02c"` — three atoms being what makes
+ * "the last wins" falsifiable against "the second wins" (Session 219's own argument, re-run
+ * here for a different element). A `#` inside a `key=value` still contributes no id at all
+ * (`{#fig-s04 key=#fig-s04fake}` → `fig-s04`).
+ *
+ * ⚠ **THE `commonmark_x` HALF IS DELIBERATELY NOT OFFERED HERE, AND THAT IS A DECLARED
+ * BOUNDARY RATHER THAN AN OVERSIGHT.** The reader split Session 219 measured for headings holds
+ * for inline blocks too — rendered with `from: commonmark_x`,
+ * `![Cap](a.png){#fig-x01a #fig-x01b}` defines the FIRST id and `::: {#fig-x03a #fig-x03b}`
+ * likewise (`scratchpad/s222/cal/cmx.qmd`). Source 3 has no reader plumbing: the dialect is
+ * computed inside this module's scan and never reaches `findBodyLines`, so threading it out is
+ * a cross-module change (`SAFEGUARDS.md` §Blast Radius). The divergence affects only blocks
+ * carrying MORE THAN ONE `#` atom; it is pinned in `test/unit/refs.test.ts` and filed.
+ */
+export function pandocAttributeBlockId(content: string): string | undefined {
+  return headingAttributesValid(content, false, true)
+    ? headingAttributeId(content, false, true)
+    : undefined;
+}
+/**
  * One whitespace-separated token of a heading attribute block, as a `KEY=VALUE` pair.
  *
  * ⚠ **The key must start with a LETTER and there may be NO SPACE around the `=`** — measured,
