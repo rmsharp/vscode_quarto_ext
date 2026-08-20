@@ -10942,4 +10942,60 @@ describe("Session 231 — a metadata block inside a block quote", () => {
     // …and the EQUAL-depth twin still strips completely (`r4/c03`).
     expect(headings(["> > Delta Title", "> > ===", "", "Prose after."])).toEqual(["Delta Title"]);
   });
+
+  it("R1 (residual, PRE-EXISTING and unmoved, PINNED): a LAZILY-CONTINUED closer is consumed by quarto and not by this walk (`r5/d01`)", () => {
+    // Rendered: only the control — quarto consumes the block even though its closing `---`
+    // carries no marker. `blockQuoteRuns` ends the run at that unmarked line, so the region is
+    // unterminated here and nothing is consumed; the ATX inside it is reported and quarto
+    // renders nothing for it. ⚠ PRE-EXISTING: the pre-session build reports the identical
+    // phantom (`scratchpad/s231/presrc`, scored this session), so this is a bound disclosed
+    // rather than a regression introduced. A lazily-continued closer is a claim about the
+    // quote's paragraph state that this whole-document pre-pass does not carry, and
+    // over-consuming DELETES — so the phantom is kept. Filed.
+    expect(
+      headings([
+        "Prose one.",
+        "",
+        "> ---",
+        "> # Lazy Closer Heading",
+        "> note: alpha",
+        "---",
+        "",
+        "## Control d01",
+      ]),
+    ).toEqual(["Lazy Closer Heading", "Control d01"]);
+    // The MARKED twin, which this session fixes (`r5/d02`) — the control that makes the pin
+    // mean "the closer's marker decides it" rather than "quoted blocks are not consumed".
+    expect(
+      headings([
+        "Prose one.",
+        "",
+        "> ---",
+        "> # Marked Closer Heading",
+        "> note: alpha",
+        "> ---",
+        "",
+        "## Control d02",
+      ]),
+    ).toEqual(["Control d02"]);
+  });
+
+  it("R2 (residual, PRE-EXISTING and unmoved, PINNED): ⚠ a LOST heading — the UNMARKED lazy underline is a different mechanism (`s183`)", () => {
+    // ⚠ **This is the row that shows Session 183's filed item is NOT a duplicate of Session
+    // 225's, which this session closes.** Rendered, `> quoted one` / `    ---` /
+    // `# Below A Quoted Setext` renders `<blockquote><h2>quoted one</h2><h1>Below A Quoted
+    // Setext</h1></blockquote>` and this model still reports only the ATX. The underline
+    // carries NO marker, so `stripQuote` is false and nothing this session changed is reached:
+    // what blocks it is the 4-space indent being read at CODE DEPTH inside the quote, where
+    // pandoc treats the line as lazy continuation of the quote's open paragraph and lets the
+    // underline claim it. ⚠ The TOP-LEVEL twin is measured RIGHT and must not move — the same
+    // bytes with no quote render one absorbed paragraph and no heading — which is why this is
+    // a container/lazy question and not a setext one. Same answer before and after this
+    // session (`scratchpad/s231/presrc`, scored). Filed separately.
+    expect(headings(["> quoted one", "    ---", "# Below A Quoted Setext"])).toEqual([
+      "Below A Quoted Setext",
+    ]);
+    // The top-level twin, unmoved and correct.
+    expect(headings(["quoted one", "    ---", "# Below A Quoted Setext"])).toEqual([]);
+  });
 });
