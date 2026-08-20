@@ -10976,6 +10976,20 @@ describe("Session 231 — a metadata block inside a block quote", () => {
     // rather than a regression introduced. A lazily-continued closer is a claim about the
     // quote's paragraph state that this whole-document pre-pass does not carry, and
     // over-consuming DELETES — so the phantom is kept. Filed.
+    // ⚠ **SESSION 237 WIDENED THIS PHANTOM BY ONE HEADING, AND THE ROOT IS UNCHANGED.** Because
+    // the block is not consumed, `note: alpha` remains an ordinary quoted paragraph line to this
+    // model — and Session 237 makes an unmarked underline below such a line form a heading at
+    // EVERY column, so the trailing `---` now underlines it too. ⚠ The phantom is NOT a new
+    // class: the identical `h2:note: alpha` already shipped whenever that closer sat at CODE
+    // DEPTH (`scratchpad/s237/r4/d01deep`, measured wrong on the PRE-session build), so Session
+    // 237 extends the reach of this filed bound from columns 4+ down to 0 rather than creating
+    // one. ⚠ And it is the METADATA BLOCK that is wrong, not the underline: the same document
+    // with a `> ***` opener, where no block forms, renders `h1:Lazy Closer Heading` AND
+    // `h2:note: alpha` — and this model answers it exactly right post-fix (`r4/d01noyaml`,
+    // RECOVERED). Re-rendered from these same bytes on Session 237's starting build
+    // (`scratchpad/s237/r4/d01`) before this line was touched. Weight: the corpus sweep over
+    // 47,748 documents moved exactly ONE row, `scratchpad/s231/r1/a14`, this bound's own
+    // witness. Still filed; over-consuming still DELETES.
     expect(
       headings([
         "Prose one.",
@@ -10987,7 +11001,7 @@ describe("Session 231 — a metadata block inside a block quote", () => {
         "",
         "## Control d01",
       ]),
-    ).toEqual(["Lazy Closer Heading", "Control d01"]);
+    ).toEqual(["Lazy Closer Heading", "note: alpha", "Control d01"]);
     // The MARKED twin, which this session fixes (`r5/d02`) — the control that makes the pin
     // mean "the closer's marker decides it" rather than "quoted blocks are not consumed".
     expect(
@@ -11560,14 +11574,21 @@ describe("Session 234 guard — answers around the `=` band of the lazy quoted u
     expect(names([">> quoted one", " > ==="])).toEqual(["h1:> quoted one"]);
   });
 
-  it("G16: ⚠ the already-open quote at COLUMN 0 stays at its known loss (`r1/b0`)", () => {
-    // ⚠ Rendered, `> intro` / `>` / `> quoted title` / `===` / `# Probe A` renders
-    // `h1:quoted title` INSIDE the blockquote plus `h1:Probe A`, and this model renders
-    // nothing. Its `-` twin (`s232/r2/h0`) is a deletion too, so column 0 with an already-open
-    // quote is a SEPARATE axis — the quote's own presence above the title, not the `=`
-    // spelling — and it is filed rather than fixed here. Pinned so the band's floor is proven
-    // to sit above it.
-    expect(names(["> intro", ">", "> quoted title", "===", "# Probe A"])).toEqual([]);
+  it("G16: ⚠ REVERSED BY SESSION 237 — the already-open quote at COLUMN 0 is recovered (`r1/b0`)", () => {
+    // ⚠ **THIS ASSERTION PINNED A KNOWN LOSS AND SESSION 237 IS THE CHANGE THAT CLOSES IT.**
+    // Session 234 wrote it as `.toEqual([])` with its own comment already recording the
+    // rendered answer — `h1:quoted title` INSIDE the blockquote plus `h1:Probe A` — and filed
+    // the axis rather than fixing it, so the `=` band could be proven to stop above it.
+    //
+    // ⚠ RE-RENDERED FROM THE SAME BYTES on Session 237's starting build before being touched
+    // (`scratchpad/s237/r0/s234_r1_b0`, and again as `r1/ae0` in that session's Round 1): the
+    // answer is unchanged, so this is a fix landing on a measured pin and not a moved goalpost.
+    // The separate axis Session 234 named is exactly what shipped — the quote's presence ABOVE
+    // the title, read off `setextTitleQuoted`, rather than any column.
+    expect(names(["> intro", ">", "> quoted title", "===", "# Probe A"])).toEqual([
+      "h1:quoted title",
+      "h1:Probe A",
+    ]);
   });
 });
 
@@ -12271,8 +12292,26 @@ describe("Session 237 — guards around the COLUMN-0 axis of a quoted setext und
     );
   });
 
-  it("G15: a `> ---` above the underline leaves no title to claim (`r2/meta`)", () => {
-    expect(names(["> intro", ">", "> ---", "---", "# Probe A"])).toEqual(["h1:Probe A"]);
+  it("G15: ⚠ THIS GUARD FIRED — the fix mints a phantom on a quoted METADATA block (`r2/meta`)", () => {
+    // ⚠ **WRITTEN AS `["h1:Probe A"]` — quarto's true answer — AND IT WENT RED.** Quarto consumes
+    // `> ---` … `---` as a metadata block even though the closer carries no marker, so the quote
+    // holds only `intro` and the probe is the document's one heading. This model does not consume
+    // it (`blockQuoteRuns` ends the run at the unmarked closer, the disclosed bound pinned as
+    // Session 231's R1), so `---` is still an ordinary quoted body line here — and this session
+    // makes an unmarked underline claim such a line at EVERY column, which underlines it.
+    //
+    // ⚠ **KEPT, AND THE EVIDENCE FOR KEEPING IT IS MEASURED, NOT ARGUED.** (1) It is NOT a new
+    // class — the identical `h2:---` already ships whenever that closer sits at CODE DEPTH
+    // (`r4/q_hr_deep`, wrong on the PRE-session build), so this widens a filed bound's reach from
+    // columns 4+ down to 0. (2) The narrowing that looked principled — require the quote's
+    // paragraph to be open — is REFUTED: `> ***` in the same position renders `h2:***` (`r4/
+    // q_star`, `tl_hr2`), which that rule would decline, and this session RECOVERS it. (3) The
+    // real-world weight is one row: the sweep over 47,748 documents moved exactly ONE document,
+    // `scratchpad/s231/r1/a14` — the filed bound's own witness — and no real content at all.
+    // Fixing it properly means consuming the lazily-closed quoted block, which is that filed
+    // item's job and whose failure direction is DELETION. Annotated there; pinned AT the phantom
+    // here so a later change is measured against it rather than blamed for it.
+    expect(names(["> intro", ">", "> ---", "---", "# Probe A"])).toEqual(["h2:---", "h1:Probe A"]);
   });
 
   it("G16: the top-level setext heading, with no quote anywhere, is unmoved (`r2/noquote`)", () => {
@@ -12319,6 +12358,40 @@ describe("Session 237 — guards around the COLUMN-0 axis of a quoted setext und
     // being carried forward: `h1:&gt; quoted one` at top level plus the probe.
     expect(names(["> quoted one", "===", "# Probe A"])).toEqual([
       "h1:> quoted one",
+      "h1:Probe A",
+    ]);
+  });
+});
+
+describe("Session 237 — a quote already open above the title makes the underline lazy at ANY column", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: an `=` at column 0 under an already-open quote underlines INSIDE it (`r1/ae0`)", () => {
+    // ⚠ THE RED→GREEN ROW. Rendered, this is `<blockquote><p>intro</p><h1>quoted title</h1>
+    // <h1>Probe A</h1></blockquote>` — the underline is a lazy continuation of the quote's open
+    // paragraph, so the heading forms inside the quote with the marker stripped, and the ATX
+    // below it is a fresh heading rather than paragraph text.
+    //
+    // ⚠ TWO headings are lost pre-fix, not one: a REFUSED `=` run leaves the quote's paragraph
+    // OPEN, so the ATX below is swallowed with it. The `-` twin loses only one, because a
+    // refused `-` run still closes the paragraph as a thematic break.
+    expect(names(["> intro", ">", "> quoted title", "===", "# Probe A"])).toEqual([
+      "h1:quoted title",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("C2: a lazily-continued underline does NOT close the quote (`r3/inq1`)", () => {
+    // ⚠ THE SECOND RED→GREEN ROW, and the round is what found it. Rendered, an ATX below this
+    // heading is a heading at EVERY indent 0-4 (`scratchpad/s237/r3/inq0`-`inq4`), because it is
+    // still a lazy continuation line of the quote — where the SAME probe at top level, or after
+    // an ordinary heading, renders only at indent 0 (`r3/top1`-`top4`, `aft1`-`aft4`, both no
+    // heading). ⚠ Without this the fix TRADES one heading for another: the setext row is
+    // recovered and the indented ATX below it is DELETED, which the round measured on five
+    // documents before any of it was pinned.
+    expect(names(["> intro", ">", "> quoted title", "---", " # Probe A"])).toEqual([
+      "h2:quoted title",
       "h1:Probe A",
     ]);
   });

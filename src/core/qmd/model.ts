@@ -6008,12 +6008,35 @@ function computeRegions(text: string): Regions {
       setextTitle !== undefined &&
       SETEXT_H1.test(line) &&
       indentColumn(line) > indentColumn(lines[setextTitle.line] ?? "");
+    // ⚠ **AND A QUOTE THAT WAS ALREADY OPEN ABOVE THE TITLE MAKES THE UNDERLINE LAZY AT EVERY
+    // COLUMN, WHICH IS WHY THE FLOOR IS NOT A COLUMN AT ALL (Session 237).** The two terms
+    // above are both COLUMN rules — code depth, and past the marker's own column — and they
+    // leave the whole band at and below the marker declined. Rendered across columns 0-5, both
+    // spellings, at top level (`s237/r1/ae0`-`ae5`, `ad0`-`ad5`), one container in
+    // (`r1/le0`-`le3`, `ld0`-`ld3`), two quotes deep (`r1/q2e0`, `q2d0`) and with the quote
+    // away from the document start (`r1/te0`, `td0`), the heading forms INSIDE the quote at
+    // EVERY one of them. `setextTitleQuoted` is exactly that condition — a marked line directly
+    // above the title — so it is reused as the trigger rather than re-derived, and the term it
+    // gates in `setextLevel` below is the same flag (Learning #14).
+    //
+    // ⚠ **AND IT IS THE LINE ABOVE THE TITLE THAT DECIDES, NOT THE TITLE'S OWN MARKER.** Where
+    // the title line OPENS the quote, the setext parse claims the RAW line before any quote is
+    // parsed and the marker survives into the heading text — `> quoted title` / `===` renders
+    // `h1:&gt; quoted title` at TOP level (`r1/ce0`), and so does the `-` spelling at column 0
+    // (`r1/cd0`). ⚠ Only ONE column in does `-` instead form a pandoc SIMPLE TABLE that renders
+    // no heading at all (`r1/cd1`), which is the already-filed bound and is NOT reached here:
+    // no quote is open above that title either. Both are pinned, G1/G2 against G3.
+    //
+    // ⚠ **AND AN UNMARKED BLANK LINE IS WHAT ENDS "ALREADY OPEN".** `> intro` / (blank) /
+    // `> quoted title` / `---` renders the marker-kept top-level heading, because the blank
+    // closed the first quote and the title opens a second (`r2/reopen`, pinned G12). A rule
+    // spelled "the title is quoted" rather than "a quote was open ABOVE it" breaks that row.
     const lazyQuotedUnderline =
       inQuote &&
       !stripQuote &&
       !commonmarkDialect &&
       !BLANK_LINE.test(line) &&
-      (columnIsCodeDepth(indentColumn(line), contentColumns) || lazyEqualsBand);
+      (setextTitleQuoted || columnIsCodeDepth(indentColumn(line), contentColumns) || lazyEqualsBand);
     const setextLevel =
       titleLineCount >= 1 &&
       commonmarkHtmlBlock === null &&
@@ -6152,7 +6175,19 @@ function computeRegions(text: string): Regions {
       paragraphOpen = false;
       inPipeTable = false;
       tableRowsOpen = false;
-      quoteOpen = stripQuote;
+      // ⚠ **A LAZILY-CONTINUED UNDERLINE DOES NOT CLOSE THE QUOTE, AND THE PLAIN
+      // `quoteOpen = stripQuote` HERE SAID IT DID (Session 237).** Every other region-boundary
+      // path writes that assignment because an unmarked line there really is outside the quote;
+      // on THIS path the whole premise of `lazyQuotedUnderline` is that the unmarked line is a
+      // lazy continuation INSIDE it. Clearing the fail-safe made the next line's columns look
+      // like the document root's, so an ATX one column in was read as too deep and DELETED.
+      // Rendered, that ATX is a heading at every indent 0-4 below such an underline
+      // (`scratchpad/s237/r3/inq0`-`inq4`), where the same probe at top level or under an
+      // ordinary heading renders only at indent 0 (`r3/top1`-`top4`, `aft1`-`aft4`). ⚠ Without
+      // this the change TRADES one heading for another — the setext row recovered, the ATX below
+      // it lost — which is why five of the round's rows moved without being recovered until it
+      // was measured. Pinned as C2.
+      quoteOpen = stripQuote || lazyQuotedUnderline;
       continue;
     }
 
