@@ -6049,10 +6049,22 @@ function computeRegions(text: string): Regions {
       // `  ::: {.note}` / `  body text` / `:::` closes at column 0 (`r1/k17`), and a
       // three-deep `    :::` closes at the OUTER item's column 2 (`r2/m02`). Column 1 belongs
       // to no container and closes nothing at either depth (`r1/k18`, `r2/m11`).
-      // ⚠ **AND THE LAZY HALF NEEDS AN OPEN PARAGRAPH TO BE ABSORBED INTO** (Session 227) —
-      // otherwise the only column that closes is the one the div's own opener sat at. See
-      // `divColumns`. `paragraphOpen` is still the line ABOVE's here, which is exactly the
-      // question: was a paragraph open for this line to continue?
+      // ⚠ **AND THE LAZY HALF NEEDS SOMETHING ABOVE IT TO BE ABSORBED INTO — WHICH IS THE
+      // CONTAINER, NOT THE PARAGRAPH (Session 233).** Session 227 read the absorption off the
+      // open PARAGRAPH, because a paragraph is the only container this scanner carries. It is
+      // the LIST ITEM that absorbs: pandoc's list continuation takes every contiguous non-blank
+      // line into the item regardless of indent, so what ENDS the absorption is the blank line,
+      // and an open paragraph is one common symptom of there not being one. `paragraphOpen`
+      // implies `!prevLineBlank`, never the reverse, so this is a pure widening — and it
+      // recovered **13 rendered rows** the proxy was deleting, in seven shapes that leave no
+      // paragraph open: an inner div's own closer (the filed `s229/r2/b09`), an ATX heading, a
+      // fenced code block's closer, a thematic break, a pipe table, an HTML comment, and a
+      // setext heading (`scratchpad/s233/r1`, `r2`, 42 documents rendered).
+      // ⚠ The blank line's own work is done ABOVE, by the container pop and the div auto-close
+      // it carries — by the time a post-blank closer reaches here the stack is usually already
+      // empty. This condition is what keeps the rows that pop leaves behind: `r2/g01` (a
+      // SIBLING marker ended the item) and `r2/g02` (a top-level paragraph, absorbed but not by
+      // the div's container) both render no heading and both still answer correctly.
       // ⚠ **AND THE LAZY HALF HAS ONE DIRECTION: DOWNWARD (Session 229).** Absorption carries a
       // SHALLOW line INTO the open paragraph of a container below it; there is no upward move,
       // so a closer DEEPER than its div's own opener column can never be the line that closes
@@ -6083,7 +6095,7 @@ function computeRegions(text: string): Regions {
             : divRole === "close"
               ? (divColumns.length > 0 &&
                   divFence.column === divColumns[divColumns.length - 1].column) ||
-                (paragraphOpen &&
+                (!prevLineBlank &&
                   divFenceColumns.includes(divFence.column) &&
                   divColumns.length > 0 &&
                   divFence.column <= divColumns[divColumns.length - 1].column)

@@ -10648,13 +10648,15 @@ describe("Session 229 — a div's column belongs to a container", () => {
     expect(headings(["> ::: {.note}", "> body", "", ":::", "# H b11"])).toEqual(["H b11"]);
   });
 
-  it("R6 (residual, PRE-EXISTING and unmoved, PINNED): ⚠ a LOST heading — two divs at one column, the outer closed lazily (`r2/b09`)", () => {
-    // ⚠ The one residual in the DELETION direction, which is why it is ranked above the other
-    // two. Rendered, quarto renders `H b09`; this model renders nothing. Two divs open at the
-    // item's column 2, the inner closed at column 2 and the outer by a column-0 `:::`, which
-    // arrives with no paragraph open above it (the line above is the inner closer) — so
-    // neither branch of the closer rule fires and the outer div is left open across the
-    // heading. Same answer before and after this session. Filed.
+  it("R6 (CLOSED by Session 233 — assertion REVERSED): two divs at one column, the outer closed lazily (`r2/b09`)", () => {
+    // ⚠ **This assertion recorded a KNOWN LOSS and is now reversed.** It was the one residual
+    // in the DELETION direction, which is why Session 232 ranked it first: quarto rendered
+    // `H b09` and this model rendered nothing, because the column-0 `:::` arrives with no
+    // paragraph open above it (the line above is the inner closer) and so failed the lazy
+    // branch's `paragraphOpen` precondition. Session 233 replaced that precondition with the
+    // blank line it was standing in for. Re-rendered from these same bytes on the shipping
+    // build before the reversal — `<div class="a"><div class="b"><p>body</p></div></div>`
+    // then `<h1 id="h-b09">H b09</h1>`, all inside the `<li>`. See this file's Session 233 C1.
     expect(
       headings([
         "- item",
@@ -10666,7 +10668,7 @@ describe("Session 229 — a div's column belongs to a container", () => {
         ":::",
         "# H b09",
       ]),
-    ).toEqual([]);
+    ).toEqual(["H b09"]);
   });
 });
 
@@ -11327,5 +11329,29 @@ describe("Session 233 guard — the shallow div closer's absorption precondition
     expect(headings(["- item", "", "  ::: {.a}", "  - sub item", ":::", "# H a05"])).toEqual([
       "H a05",
     ]);
+  });
+});
+
+// ── Session 233 — what the shallow closer is absorbed BY ───────────────────────────────
+//
+// Session 227 gave the lazy closer branch a `paragraphOpen` precondition, correctly: a
+// shallow `:::` closes a deeper div only where something above it absorbed the line. It read
+// that absorption off the open PARAGRAPH, because a paragraph is the only container this
+// scanner carries. Measured across 42 rendered documents, the absorbing container is the
+// LIST ITEM, not the paragraph — pandoc's list continuation takes every contiguous non-blank
+// line into the item regardless of indent, so what ends the absorption is the BLANK LINE, and
+// an open paragraph is merely one common symptom of there not being one.
+describe("Session 233 — the shallow div closer's absorption is ended by a BLANK line", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("C1: ⚠ a shallow closer under an INNER CLOSER still closes the outer div (`r1/b01`, `s229/r2/b09`)", () => {
+    // The filed row, and the reason `paragraphOpen` is the wrong reading: the line above the
+    // shallow `:::` is the inner div's own closer, which closes the paragraph — so the
+    // precondition fails on a line pandoc absorbs like any other. Rendered, the whole tail is
+    // inside the `<li>`: `<div class="a"><div class="b"><p>body</p></div></div>` and then
+    // `<h1 id="h-b09">H b09</h1>`.
+    expect(
+      headings(["- item", "", "  ::: {.a}", "  ::: {.b}", "  body", "  :::", ":::", "# H b09"]),
+    ).toEqual(["H b09"]);
   });
 });
