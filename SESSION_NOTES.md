@@ -5,6 +5,14 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 234 — IMPLEMENTATION (strict TDD): the `===` HALF of Session 232's disclosed bound — a quoted setext title underlined with `===` at indents 1–3, where no pandoc simple table can form.** Session 233's ranked #1; the operator picked it at Phase 0 from the AskUserQuestion candidate list.
+**Started:** 2026-08-20
+**Status:** Session claimed. Work beginning.
+**Deliverable (ONE capability):** the `===` spelling of the lazy quoted underline accepted at indents 1–3. ⚠ **The `-` half is NOT this item** — a `-` underline at those indents can form a pandoc SIMPLE TABLE that eats the heading, and firing there would mint phantoms on `s232/r1/a1`–`a3` and `r2/g1`–`g3`.
+**Build at claim, verified firsthand rather than inherited:** `npm test` **2385 passed / 66 files**, matching Session 233's recorded close-out exactly; `check-backlog` **OK, 171 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`3f891655`, gap 0), `grep -c "^status: pending" HANDOFFS.md` = 0 against 196 complete, no ghost sessions, 0 open GitHub issues so `BACKLOG.md` governs.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 233 ACTIVE TASK (superseded by Session 234 — full entry preserved below)
 **Task:** **Session 233 — IMPLEMENTATION (strict TDD): a LOST HEADING — two divs at ONE column inside a list item, the outer closed lazily, left the div open across the heading below.** Session 232's ranked #1, filed by Session 229, the oldest unfixed DELETION on the list; the operator picked it at Phase 0.
 **Started:** 2026-08-20 · **Closed:** 2026-08-20
 **Status:** **DONE. SHIPPED — and the finding is that the inherited warning was about the CONDITION when it should have been about the condition's NAME.**

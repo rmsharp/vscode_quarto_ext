@@ -18,6 +18,12 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S234
+date: 2026-08-20
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- the `===` HALF of Session 232's disclosed bound: a quoted setext title underlined with `===` at indents 1-3. The clean half, because no pandoc simple table can form under `=`. Rendered witnesses already exist from Session 232 (s232/r1/b1-b3, r3/p1, p3, p4). The `-` half is deliberately NOT in scope.
+```
+```handoff
 session: S233
 date: 2026-08-20
 status: complete
