@@ -12647,4 +12647,21 @@ describe("Session 238 — the `-` half of the lazily-continued quoted underline"
     // then a thematic break, both inside the quote.
     expect(names(["> quoted one", " ---", " ---"])).toEqual(["h2:quoted one"]);
   });
+
+  it("C3 (test-after): a dash rule with an INTERNAL SPACE ends the table too (`r1/d10`)", () => {
+    // ⚠ KILLS THE MUTANT that spells the terminator `SETEXT_H2` — which allows no internal space
+    // — instead of `DASH_RULE_ROW`. A simple table's terminating rule carries one dash group per
+    // column, so ` - -` ends a two-column table exactly as ` ---` ends a one-column one.
+    // Rendered, `> quoted one` / ` ---` / ` - -` renders `<blockquote><h2>quoted one</h2>` and
+    // then the empty bullets; the mutant reads ` - -` as a body row and DELETES the heading. The
+    // whole suite stayed green against it until this row was written.
+    expect(names(["> quoted one", " ---", " - -"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("C4 (test-after): and a single dash, at column 0 or inside the band (`r1/d08`, `r1/d09`)", () => {
+    // The same terminator at its shortest. Rendered, both render the heading and then an empty
+    // list item — `<ul><li></li></ul>` — so the dashes below never become table content.
+    expect(names(["> quoted one", " ---", " -"])).toEqual(["h2:quoted one"]);
+    expect(names(["> quoted one", " ---", "-"])).toEqual(["h2:quoted one"]);
+  });
 });

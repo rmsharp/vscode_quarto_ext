@@ -6054,6 +6054,19 @@ function computeRegions(text: string): Regions {
     // of Session 234's G3. At column 0 the same thing happens at top level and the model DOES
     // form it, marker and all (`r1/c01`, `c02`, pinned G17): a band reaching down to 0 would
     // overwrite `> quoted title` with `quoted title` and invent a blockquote for it.
+    //
+    // ⚠ **`SETEXT_H2.test(line)` IS REDUNDANT TODAY AND IS KEPT ON PURPOSE — no test can kill
+    // it.** The mutation hunt found this: replacing it with `true` leaves the whole suite green,
+    // 65,536 enumerated four-line documents identical, and 0 movers over 48,412 corpus documents.
+    // The reason is structural rather than lucky — every consumer of `lazyQuotedUnderline` is
+    // reached only when `setextUnderlineLevel` has already accepted `line` as an underline, and
+    // for the `=` spelling `lazyEqualsBand` above accepts the same rows with a weaker condition.
+    // ⚠ **It is kept because the redundancy is one edit deep.** Session 237 added
+    // `quoteOpen = stripQuote || lazyQuotedUnderline` and that assignment is what makes this flag
+    // mean "the line is inside the quote" rather than only "it may underline"; the next reader
+    // added off the accept path turns a term that is inert here into a live one, in the phantom
+    // direction. Recorded rather than pinned — a test asserting an unobservable difference would
+    // be asserting nothing.
     const belowUnderline = i + 1 < lines.length ? lines[i + 1] : null;
     const lazyDashesBand =
       setextTitle !== undefined &&
