@@ -18,6 +18,12 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S238
+date: 2026-08-20
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- the `-` HALF of the lazy quoted underline, sub-item (a) of the entry Session 237 closed the other half of. What sits BELOW the underline decides: a body row turns the shape into a pandoc SIMPLE TABLE that renders no heading at all, and Session 237 narrowed the table band to indents 1-3 only.
+```
+```handoff
 session: S237
 date: 2026-08-20
 status: complete

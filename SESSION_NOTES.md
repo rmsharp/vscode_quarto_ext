@@ -5,6 +5,12 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 238 — IMPLEMENTATION (strict TDD): THE `-` HALF OF THE LAZY QUOTED UNDERLINE** (sub-item (a), the last open half of the entry Session 237 closed). Session 237's ranked #1; the operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
+**Started:** 2026-08-20
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 237 ACTIVE TASK (superseded by Session 238 — full entry preserved below)
 **Task:** **Session 237 — IMPLEMENTATION (strict TDD): THE COLUMN-0 AXIS OF THE QUOTED-SETEXT UNDERLINE FAMILY.** Session 234's rescope (b) and Session 236's ranked #1; the operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
 **Started:** 2026-08-20 · **Closed:** 2026-08-20
 **Status:** **DONE. SHIPPED — and the finding is that the quantity three sessions kept adjusting was never the quantity that decides.**
