@@ -7,6 +7,15 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-19 · [ad hoc] Session 229 addendum (post-close-out) — the appendix-heading artifact fixed, and 903 archive rows checked for regression
+
+- **Model:** Claude Opus 5. Operator-requested verification after Session 229's close-out. No `src/` change.
+- **ZERO REGRESSIONS across 903 rows of rendered ground truth.** The three mover archives (`scratchpad/s225/all`, `s226/all`, `s227/all`) were re-scored against **their own sessions' close-out builds** (`git archive` of `bb4fd6a4`, `911ed697`, `3717e624`) and against HEAD. Each **reproduced that session's recorded wrong-count exactly** — 79/79, 57/57, 3/3 — which is what validates the method rather than the verdict; then **0 rows** were correct-at-close and wrong-today. 18 rows were *fixed* by later sessions, 10 of them by Session 227's div-column work. The 10 designed-round disagreements were likewise all already wrong at their own session's close.
+- **⚠ The finding is UNFILED BACKLOG, not decay.** Of the 121 archive rows that still disagree with HEAD, 3 are the empty-heading omission `SETEXT_H1` documents, 2 were the appendix artifact below, and **116 are real model↔quarto divergences** — the largest body of measured, known-wrong behaviour in the project, and most of it is not individually filed. Filed as a backlog item and ranked #1 for the next session.
+- **`extract.py` — quarto's own appendix headings are no longer scored as document content.** Quarto MINTS `<h2 class="anchored quarto-appendix-heading">Footnotes</h2>` for a referenced footnote, and a `References` heading for a bibliography; neither exists in any source file. Scored as content they read as a model miss that no model change can ever fix, and they cost **three separate sessions** a prediction "miss" each (`s227/r3/n03`, `s227/r4/p02`, `s229/r2/b06`) before anyone noticed it was ONE row three times. The filter is the CLASS, not the text, so `References` needs no wordlist. Diffed old against new over **all 3,969 stored renders: exactly 7 rows change, every one a `Footnotes` removal, and no document heading is touched.**
+- **⚠ Recorded `TRUTH.json` files were deliberately NOT rewritten** — a session's measurements stand as it made them, and Session 229's reported 12/13 and 8→9 for Round 2 stand with `b06` flagged as the artifact it already was. The consequence is documented as gotcha 8: re-validating the extractor against S227's `TRUTH.json` now gives **54/56**, and the two misses must be exactly `r3/n03` and `r4/p02` — which names the rows and is a stronger check than the old bare 56/56.
+- **Verification.** `npm test` **2335 passed / 66 files** (unchanged) · `check-backlog` OK, **166 open items**. No `src/` file changed, so `test:integration` and `test:lsp` were not warranted.
+
 ### 2026-08-19 · [ad hoc] Session 229 — a div's column belongs to a container, and dies with it (SHIPPED)
 
 - **Model:** Claude Opus 5.
