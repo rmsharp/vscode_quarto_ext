@@ -11155,3 +11155,177 @@ describe("Session 232 — a setext underline lazily continued into a block quote
     expect(names(["> intro", ">", "> > deep title", "    ---"])).toEqual(["h2:> deep title"]);
   });
 });
+
+// ── Session 233 GUARD — the answers a wider lazy div-closer must NOT move ─────────────
+//
+// This session replaces the lazy closer branch's `paragraphOpen` precondition, which is a
+// PROXY for "was this shallow line absorbed by the container above it", with the thing the
+// proxy stands in for. The polarity is a pure WIDENING of the set of lines that close a div:
+// `paragraphOpen` implies the new condition, never the reverse. A wider "closes" recovers the
+// heading BELOW the closer — but it also POPS the stack, so an over-close deletes a heading
+// further down by leaving a later, genuine closer with nothing to match. That is the
+// dangerous direction, and this block is weighted to it: nine of the fourteen rows are
+// answers that must stay NEGATIVE.
+//
+// Every row is named for the document that measured it, rendered through the real
+// `quarto render` path (quarto 1.7.33) — `scratchpad/s233/r1` (27 documents) and `r2` (15),
+// predictions frozen and SHA-256'd before each render. Green BEFORE any `src/` change
+// (Session 204's gotcha 5, inherited a twenty-seventh time).
+describe("Session 233 guard — the shallow div closer's absorption precondition", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("G1: a BLANK line above the shallow closer still closes nothing (`r1/a02`, `s227/r1/k25`)", () => {
+    // The row the `paragraphOpen` precondition was written for, and the one the replacement
+    // has to keep. After a blank the container is over: the shallow `:::` lands at the top
+    // level, where the div it would have closed no longer exists. Rendered: no heading.
+    expect(headings(["- item", "", "  ::: {.a}", "  body text", "", ":::", "# H a02"])).toEqual([]);
+  });
+
+  it("G2: a BLANK line above it closes nothing with TWO divs open either (`r1/b04`)", () => {
+    // The b09 shape with one blank line inserted — the discriminator this session is fixing,
+    // pinned from its negative side. Rendered: no heading.
+    expect(
+      headings(["- item", "", "  ::: {.a}", "  ::: {.b}", "  body", "  :::", "", ":::", "# H b04"]),
+    ).toEqual([]);
+  });
+
+  it("G3: ⚠ COLUMN 1 belongs to no container and closes nothing, blank line or not (`r1/b02`, `s227/r1/k18`)", () => {
+    // A list item's lazy line is appended RAW, so only column 0 exactly reaches the top level.
+    // This is the b09 shape at column 1 — a new witness for a rule the widening must not touch,
+    // because the widening changes WHEN a shallow line is absorbed, never WHICH columns are
+    // legal. Rendered: no heading.
+    expect(
+      headings(["- item", "", "  ::: {.a}", "  ::: {.b}", "  body", "  :::", " :::", "# H b02"]),
+    ).toEqual([]);
+  });
+
+  it("G4: ⚠ a STRAY shallow closer with an empty stack closes nothing (`r1/e01`, `r1/e03`)", () => {
+    // The over-close direction's floor. The div is already closed at its own column, so the
+    // `:::` below has nothing to match and is ordinary text that absorbs the heading with it —
+    // and the line above it is NON-blank, which is exactly the condition being widened.
+    // Rendered: `<p>::: # H</p>` in both, no heading.
+    expect(
+      headings(["- item", "", "  ::: {.a}", "  body", "  :::", ":::", "# H e01"]),
+    ).toEqual([]);
+    expect(
+      headings([
+        "- item",
+        "",
+        "  ::: {.a}",
+        "  ::: {.b}",
+        "  body",
+        "  :::",
+        "  :::",
+        ":::",
+        "# H e03",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("G5: ⚠ the closer may not reach DOWNWARD to a div opened above it (`r1/f01`, `s229/r1/a02`)", () => {
+    // Absorption carries a SHALLOW line into the container below it and has no upward move, so
+    // a closer DEEPER than its div's opener column can never close it. Rendered: the colon run
+    // is emitted as ordinary text inside the item and the heading goes with it.
+    expect(headings(["::: {.a}", "", "- item", "  :::", "# H f01"])).toEqual([]);
+  });
+
+  it("G6: ⚠ a SIBLING list marker above the closer ends the container first (`r2/g01`)", () => {
+    // Non-blank above, legal column, non-empty stack — every surface condition of the widening
+    // is met, and quarto still renders no heading, because the new item ended the one holding
+    // the div. Rendered: no heading.
+    expect(
+      headings(["- item", "", "  ::: {.a}", "  body", "- item two", ":::", "# H g01"]),
+    ).toEqual([]);
+  });
+
+  it("G7: a TOP-LEVEL paragraph above the closer is not the div's container (`r2/g02`)", () => {
+    // The blank two lines up ended the item; the paragraph above the closer is a top-level one,
+    // so the closer is absorbed into IT and reaches no div. Rendered: no heading.
+    expect(
+      headings(["- item", "", "  ::: {.a}", "  body", "", "top level para", ":::", "# H g02"]),
+    ).toEqual([]);
+  });
+
+  it("G8: an INDENTED opener at top level opens nothing, so its closers close nothing (`r2/g13`)", () => {
+    // A definition list ends at its own blank, leaving the `::: {.a}` at column 2 sitting at the
+    // TOP level, where an indented opener is literal text (Session 227's C3). Rendered, the
+    // whole tail is ONE paragraph — `<p>::: {.a} ::: {.b} body ::: ::: # H</p>` — and the
+    // widening must not resurrect a div that was never opened.
+    expect(
+      headings([
+        "term",
+        "",
+        "  ~ definition",
+        "",
+        "  ::: {.a}",
+        "  ::: {.b}",
+        "  body",
+        "  :::",
+        ":::",
+        "# H g13",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("G9: ⚠ a QUOTE inside the item absorbs the shallow closer before any div sees it (`r2/g14`)", () => {
+    // Rendered, the `:::` is a lazy continuation of the BLOCK QUOTE and becomes text inside it
+    // — `<p>::: # H</p>` within the `<blockquote>` — so the div, which the quote already
+    // closed, is not what the closer reaches. This model carries no quote container, and the
+    // answer it happens to give is the right one; the widening must not disturb it.
+    expect(
+      headings(["- item", "", "  > ::: {.a}", "  > body", "  > :::", ":::", "# H g14"]),
+    ).toEqual([]);
+  });
+
+  it("G10: ⚠ PRE-EXISTING PHANTOM, pinned AT the phantom — an outer top-level div plus an inner one (`r2/g08`)", () => {
+    // Rendered, quarto renders NO heading: the tail is `<p>::: # H</p>` outside both divs. This
+    // model renders one, and has since before this session — pinned here at its CURRENT answer
+    // so the widening is measured against it rather than blamed for it. ⚠ Do not read this pin
+    // as the right answer; it records a divergence, and it is filed.
+    expect(
+      headings(["::: {.outer}", "", "- item", "", "  ::: {.inner}", "  body", ":::", ":::", "# H g08"]),
+    ).toEqual(["H g08"]);
+  });
+
+  it("G11: an OPEN paragraph above the closer keeps closing, at every depth (`r1/a01`, `s227/r1/k17`, `r1/d03`)", () => {
+    // The positive half the precondition already got right. `paragraphOpen` implies the new
+    // condition, so no row in this class may move.
+    expect(headings(["- item", "", "  ::: {.a}", "  body text", ":::", "# H a01"])).toEqual([
+      "H a01",
+    ]);
+    expect(
+      headings(["- outer", "", "  - inner", "", "    ::: {.a}", "    body", "  :::", "# H d03"]),
+    ).toEqual(["H d03"]);
+  });
+
+  it("G12: the QUOTE suspension still closes on an unknowable column (`r2/g11`, `g12`, `s227` C5)", () => {
+    // `quoteColumnsUnknown` keeps the pre-session ` {0,3}` width where no column can be
+    // computed. Both rendered rows really do render their heading, and the widening runs
+    // BEHIND that suspension, so neither may move.
+    expect(headings(["> ::: {.a}", "> ::: {.b}", "> body", "> :::", ">:::", "# H g11"])).toEqual([
+      "H g11",
+    ]);
+    expect(headings(["> ::: mydiv", "> line one", " :::", "# H g12"])).toEqual(["H g12"]);
+  });
+
+  it("G13: an OFF-COLUMN inner closer is text, and the outer div stays open across the heading (`r2/g15`)", () => {
+    // Rendered, the column-1 `:::` is absorbed as text (`<p>body :::</p>`), the column-0 one
+    // closes `.b`, and the heading renders INSIDE `.a`, which is never closed at all. A heading
+    // under an OPEN div is still a heading — the widening must not start suppressing one.
+    expect(
+      headings(["- item", "", "  ::: {.a}", "  ::: {.b}", "  body", " :::", ":::", "# H g15"]),
+    ).toEqual(["H g15"]);
+  });
+
+  it("G14: a shallow line at top level, absorbed lazily, still closes (`r2/g03`, `r1/a05`)", () => {
+    // Two rows this model already answers correctly through the `paragraphOpen` branch, kept
+    // as the widening's regression floor: a column-0 thematic break absorbed into the div's
+    // paragraph, and a nested list marker inside the div.
+    expect(headings(["- item", "", "  ::: {.a}", "  body", "***", ":::", "# H g03"])).toEqual([
+      "H g03",
+    ]);
+    expect(headings(["- item", "", "  ::: {.a}", "  - sub item", ":::", "# H a05"])).toEqual([
+      "H a05",
+    ]);
+  });
+});
