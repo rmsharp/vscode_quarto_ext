@@ -1021,6 +1021,30 @@ describe("Quarto: Document outline (symbols)", () => {
       flat(symbols).includes("Below A Real Pipe Table"),
       "Session 235: a REAL pipe table's heading must still reach the Outline provider",
     );
+
+    // Session 236 appended ten more lines, and the whole fixture was RE-RENDERED rather than
+    // assumed: the ten headings above are byte-identical and in the same order, and exactly ONE
+    // is added. After a `> ` marker a TAB begins at absolute column 2 and reaches the next
+    // 4-column stop at 4 — indenting the quote's content by TWO columns, which is prose — so
+    // the ATX pressed against it is a lazy continuation and quarto renders NOTHING. Under the
+    // wider `  > ` marker the SAME tab begins at column 4 and reaches 8, which really is
+    // indented code, so the heading below it is real.
+    //
+    // Both directions matter here, and the second is the one that guards the dangerous one: the
+    // fix makes a tab land SHALLOWER, so a mistake in its arithmetic stops closing the paragraph
+    // and DELETES a heading the Outline should show.
+    //
+    // ⚠ **THIS IS THE WIRING EVIDENCE FOR SESSION 236**, through the provider the Outline view,
+    // breadcrumbs, sticky scroll and Ctrl+T actually call — the core-level recovery is pinned in
+    // `test/unit/qmd-model.test.ts` (Session 236 C1-C6), and this asserts it reaches the editor.
+    assert.ok(
+      !flat(symbols).includes("Not A Heading Below A Quoted Tab"),
+      "Session 236: a tab lands two columns into the quote, so the ATX below it is not a heading",
+    );
+    assert.ok(
+      flat(symbols).includes("Below A Quoted Tab At Code Depth"),
+      "Session 236: under a wider marker the same tab IS code, and its heading must survive",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {

@@ -52,3 +52,15 @@ a | b
 --|--
 c | d
 # Below A Real Pipe Table
+
+> f08 quote line one
+> f08 quote line two
+>
+> 	only two columns into the quote, so this is prose
+> # Not A Heading Below A Quoted Tab
+
+  > wide marker line one
+  > wide marker line two
+  >
+  > 	really code, at column eight
+  > # Below A Quoted Tab At Code Depth
