@@ -11841,14 +11841,34 @@ describe("Session 235 guard — answers around the fresh-block discriminator tha
     ]);
   });
 
-  it("G18: ⚠ PINNED AT A PHANTOM — a grid border ENDS a pipe table and this model keeps it (`r3/h09`)", () => {
+  it("G18: ⚠ A GRID BORDER ENDS A PIPE TABLE — and this pin was written WRONG (`r3/h09`)", () => {
     // Rendered, `a | b` / `--|--` / `c | d` / `+---+---+` / `# ATX Below` renders the table and
     // then ONE paragraph holding the border and the heading — the border is not a row of a PIPE
-    // table, so it ends it. This model carries one "a table is open" flag and cannot tell a
-    // pipe table from a grid one, so the phantom survives this session's narrowing. Disclosed
-    // and filed rather than guessed at.
-    expect(names(["a | b", "--|--", "c | d", "+---+---+", "# ATX Below"])).toEqual([
-      "h1:ATX Below",
-    ]);
+    // table, so it ends it.
+    //
+    // ⚠ **THIS ROW WAS PINNED AT THE PHANTOM AND THE IMPLEMENTATION REFUTED THE PIN.** It was
+    // written from reasoning — "this model carries one table flag and cannot tell a pipe table
+    // from a grid one, so the phantom survives" — and that reasoning was wrong about its own
+    // code: part 5 is `tableOpen && line.includes("|")`, and a grid border carries no `|`, so
+    // the border never reaches part 5 at all. It falls to part 3, finds no partner border in
+    // either direction, and is prose. The row is RECOVERED, and the assertion below is the
+    // rendered answer rather than the predicted one. The only guard of the eighteen that came
+    // up red, and it was the guard that was wrong, not the fix.
+    expect(names(["a | b", "--|--", "c | d", "+---+---+", "# ATX Below"])).toEqual([]);
+  });
+});
+
+describe("Session 235 — a table-shaped line standing alone is prose, not a fresh block", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: the filed witness — a bare `a | b` forms no table, so the ATX below it is not one", () => {
+    // `docs/MODEL-DIVERGENCE-FAMILIES.md` family F07, witness
+    // `scratchpad/s183/c3/R1pipe_bq_mark__closed`. Rendered on the shipping build, quarto emits
+    // `<blockquote><p>line one line two</p><p>a | b # ATX Below</p></blockquote>` — one
+    // paragraph holding both lines — because a single pipe-bearing line is a table only when a
+    // DELIMITER row follows it, and none does. `CLOSES_PARAGRAPH`'s pipe row matches a pipe
+    // ANYWHERE, so this model closed the paragraph and reported a heading quarto never renders.
+    expect(names(["> line one", "> line two", "", "> a | b", "> # ATX Below"])).toEqual([]);
   });
 });

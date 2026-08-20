@@ -1636,8 +1636,13 @@ const DEFINITION_LIST_BODY_OPEN = /^[ \t]*[:~](?![:~])[ \t]/;
  * question, whatever it proved on its own).
  */
 const CLOSES_PARAGRAPH: readonly RegExp[] = [
-  /\|/, //                                                   a pipe-table row, anywhere on the line
-  /^ {0,3}\+[-+=: ]*$/, //                                   a grid-table border, which carries NO pipe
+  // ⚠ **THE PIPE ROW AND THE GRID-BORDER ROW LIVED HERE AND ARE GONE (Session 235).** They were
+  // `/\|/` — a pipe ANYWHERE on the line — and `/^ {0,3}\+[-+=: ]*$/`, and this docstring
+  // disclosed the price above: *"a single pipe-bearing line is a table only if a DELIMITER row
+  // follows, which no per-line predicate can see — so the row stays wide and its phantoms are
+  // the price of having no table state."* This model now has that state, so the question is
+  // asked by `tableShapedLineIsBlock` instead, which `closesParagraph` takes as a parameter
+  // because the answer needs the neighbouring LINES and not only this one.
   /^ {0,3}:{3,}/, //                                         a fenced-div / callout fence
   /^ {0,3}\[(?!\^[^\s^\]]+\]:)[^\]]*\]:/, //                 a link reference — NOT a `[^1]:` footnote
   HTML_BLOCK_OR_INLINE_OPEN, //                              a raw HTML block — see the note below
@@ -3780,6 +3785,188 @@ const LINE_BLOCK_CONTINUATION = /^[ \t]+/;
 const TABLE_RULE_ROW =
   /^ {0,3}(?:\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?|\+[-+=: ]*)\s*$/;
 /**
+ * The four shapes a TABLE-SHAPED line can have, for `tableShapedLineIsBlock` (Session 235).
+ *
+ * ⚠ **`LINE_BLOCK_START` IS NOT `LINE_BLOCK_LINE`, AND THE DIFFERENCE IS MEASURED.** That row
+ * arms the CONTINUATION machinery and requires content after the bar; this one answers "is this
+ * line block-level", and a bar with nothing after it is still a block: rendered, both `|` and
+ * `| ` emit `<div class="line-block">` and the heading below them (`scratchpad/s235/r1/a09`,
+ * `a10`). ⚠ **Neither tolerates an indent** — ` | a | b |` at ONE space renders no heading at
+ * all, and the same at two and three (`r2/i01`-`i03`), which is why the leading `^\|` carries no
+ * ` {0,3}` where every other row in this file does. Session 185 measured the same boundary from
+ * the other side and `LINE_BLOCK_LINE`'s docstring records it.
+ *
+ * ⚠ **`GRID_TABLE_BORDER` REQUIRES A `-`, `=` OR `:` AND FORBIDS A SPACE, AND BOTH HALVES ARE
+ * THE `+` PROBLEM.** The row this replaces was `/^ {0,3}\+[-+=: ]*$/`, which matches far more
+ * than a border: a BARE `+` is an EMPTY LIST ITEM, and `CLOSES_PARAGRAPH`'s docstring records
+ * that excluding it deletes 6 real headings — hence the `[-=:]`. ⚠ **The space was the other
+ * half, and the corpus sweep is what found it: `+ - + - +`, `+ + +`, `+   +`, `+ ---` and `+ -`
+ * are all BULLET ITEMS whose content is itself an empty marker or a thematic break, so they open
+ * no paragraph and the heading below each one is real** — five deletions, every one rendered
+ * (`scratchpad/s235/adj`). A grid border never carries a space, so forbidding one keeps the
+ * whole family block-level while `+---+---+` (`r1/a06`) still becomes prose.
+ */
+const LINE_BLOCK_START = /^\|([ \t]|$)/;
+const GRID_TABLE_BORDER = /^\+[-+=:]*[-=:][-+=:]*[ \t]*$/;
+const GRID_TABLE_ROW = /^\|/;
+const PLUS_ONLY_ROW = /^\+[-+=: ]*$/;
+const BULLET_MARKER = /^[-*+][ \t]+/;
+/**
+ * Whether a TABLE-SHAPED line is block-level — the fresh-block discriminator, family F07
+ * (Session 235). This is the question `CLOSES_PARAGRAPH`'s pipe row and grid-border row used to
+ * answer with a per-line RegExp, and its own docstring recorded why that could not be right:
+ * *"a single pipe-bearing line is a table only if a DELIMITER row follows, which no per-line
+ * predicate can see."* So this one reads its NEIGHBOURS — `neighbour(k)` returns the line `k`
+ * away in the SAME coordinate space as `line` (quote markers already stripped), or `null` past
+ * either end of the document.
+ *
+ * ⚠ **THE POLARITY IS `CLOSES_PARAGRAPH`'s, WHICH MEANS EVERY `false` HERE CAN DELETE A REAL
+ * HEADING.** A line that stops being block-level becomes prose, and the ATX heading pressed
+ * against it is then a lazy continuation that `blank_before_header` eats. Each rule below is a
+ * rendered answer over `scratchpad/s235/r1`-`r3` — 87 documents on quarto 1.7.33, predictions
+ * frozen and SHA-256'd before each render, 80 of the 87 predicted — and the rows that must keep
+ * closing are pinned as the Session 235 guard block.
+ *
+ * The measured rule, in four parts:
+ *
+ *   1. A pandoc **LINE BLOCK** — `|` followed by whitespace or end of line, at column 0 exactly.
+ *      `| a | b |`, `| a | b`, `|` and `| ` all render the heading below them; `|a|b|` and
+ *      `|---|---|` do NOT, because neither is a line block, and ` | a | b |` at one, two or
+ *      three spaces does not either. ⚠ A line block cannot interrupt an open paragraph, so this
+ *      arm is gated on there being none (`r1/d02`, which renders one paragraph and no heading).
+ *   2. An **EMPTY LIST ITEM** — a bare `+`. Block-level, and spelled by the same characters as a
+ *      grid border, which is why `GRID_TABLE_BORDER` had to require a `-`, `=` or `:`.
+ *   3. A **GRID TABLE's border** — a border that reaches another border through `|` rows only,
+ *      in EITHER direction. Both directions are needed and neither is redundant: a grid's
+ *      opening border finds its partner below (`r1/c03`), its closing border finds one above,
+ *      and two borders back to back are a table with no body at all (`r3/h11`, this round's only
+ *      Round 3 prediction miss). ⚠ A border that reaches neither is prose — that is two of the
+ *      three filed F07 witnesses, including the one whose border sits directly under a LINE
+ *      BLOCK (`r1/c04`, rendered `<p>+—+—+ # ATX Below</p>`).
+ *   4. A **PIPE TABLE's delimiter row** directly under a header row that carries a `|` of its
+ *      own — see `pipeTableOpensHere`, which holds the measurement and the two readings this
+ *      one replaced. ⚠ The delimiter must contain a `|` too: every measured one does (`--|--`,
+ *      `|---|---|`, `:---|---:`, `- | -`), and requiring it keeps a bare `---` — which
+ *      `TABLE_RULE_ROW` also matches — on the SETEXT path this session does not touch
+ *      (`r3/h14`).
+ *
+ * `tableOpen` then carries part 4 forward across the table's body rows, which is what keeps a
+ * bare `c | d` block-level: `CLOSES_PARAGRAPH`'s docstring records that requiring a leading pipe
+ * there deletes 4 real headings, and this is where that row is paid for instead.
+ *
+ * ⚠ **A GRID BORDER ENDS A PIPE TABLE, AND PART 5 GETS THAT RIGHT BY ACCIDENT.** Rendered,
+ * `a | b` / `--|--` / `c | d` / `+---+---+` / `# ATX Below` ends the pipe table AT the border and
+ * renders no heading (`r3/h09`). Part 5 is `tableOpen && line.includes("|")` and a grid border
+ * carries no `|`, so the border never reaches it: it falls to part 3, finds no partner border in
+ * either direction, and is prose. ⚠ The row is right for a reason this docstring did not intend
+ * — one flag really cannot tell a pipe table from a grid one, and a shape that IS pipe-bearing
+ * would still be misread. Guard G18 records both the answer and the refuted prediction.
+ */
+function tableShapedLineIsBlock(
+  line: string,
+  neighbour: (offset: number) => string | null,
+  paragraphOpen: boolean,
+  tableOpen: boolean,
+  contentColumns: readonly number[] | null,
+): boolean {
+  const base = containerContentColumn(indentColumn(line), contentColumns);
+  const shape = (other: string, window: number): string | null => {
+    const col = indentColumn(other);
+    return col >= base && col <= base + window ? other.trimStart() : null;
+  };
+  const here = shape(line, 0);
+  if (!paragraphOpen && here !== null) {
+    // ⚠ The bullet variant is the one row a marker hides: `- | a | b |` / `# ATX Below` renders
+    // the heading (`scratchpad/s235/adj`, `a577b91b1529`), because the item's content is a LINE
+    // BLOCK and a line block opens no paragraph. The marker moves the bar off the container's
+    // content column, where nothing else in this function can see it.
+    if (LINE_BLOCK_START.test(here) || LINE_BLOCK_START.test(here.replace(BULLET_MARKER, ""))) {
+      return true;
+    }
+  }
+  const loose = shape(line, 3);
+  if (loose !== null && PLUS_ONLY_ROW.test(loose)) {
+    if (!GRID_TABLE_BORDER.test(loose)) {
+      // ⚠ **EVERY OTHER `+` ROW STAYS BLOCK-LEVEL, WHICH IS WHERE THE OLD ROW'S BREADTH GOES.**
+      // A bare `+` is an EMPTY LIST ITEM, and so are `+ -`, `+ + +`, `+   +` and `+ - + - +` —
+      // items whose content is itself an empty marker, opening no paragraph — while `+ ---`
+      // holds a thematic break. All six render the heading below them, all six were DELETED by
+      // the first spelling of this rule, and the corpus sweep is what found them.
+      return true;
+    }
+    for (const step of [-1, 1]) {
+      for (let k = step; ; k += step) {
+        const other = neighbour(k);
+        if (other === null) {
+          break;
+        }
+        const otherShape = shape(other, 3);
+        if (otherShape === null) {
+          break;
+        }
+        if (GRID_TABLE_BORDER.test(otherShape)) {
+          return true;
+        }
+        if (!GRID_TABLE_ROW.test(otherShape)) {
+          break;
+        }
+      }
+    }
+    return false;
+  }
+  // ⚠ Part 4 is NOT tested here — `closesParagraph` asks `pipeTableOpensHere` AHEAD of its own
+  // `paragraphOpen` bail, because a pipe table's delimiter has to INTERRUPT the paragraph its
+  // own header line opened. Rendered, `a | b` / `--|--` / `c | d` / `# ATX Below` renders the
+  // table and the heading (`scratchpad/s235/r3/h02`), and with the test behind the bail the
+  // header's paragraph swallows everything below it — six of this session's own guard rows went
+  // red on exactly that within the minute.
+  return tableOpen && line.includes("|");
+}
+/**
+ * Whether `line` is a pipe table's DELIMITER row in a position where a table really forms — see
+ * `tableShapedLineIsBlock` part 4, whose arming this is (Session 235).
+ *
+ * One definition rather than two, because the scanner asks the same question twice: once to
+ * decide whether this line closes a paragraph, and once to decide whether the rows BELOW it are
+ * table rows. A `| --- |` is both a valid delimiter and a valid line block, so "it was
+ * block-level for some reason" is not the same question and must not be used as the arm.
+ *
+ * **Three conditions, and the corpus sweep refuted a spelling of each before this one held.**
+ *
+ *   - **The delimiter carries a `|`.** Keeps a bare `---`, which `TABLE_RULE_ROW` also matches,
+ *     on the SETEXT path this session does not touch (`r3/h14`).
+ *   - **The header carries a `|` too.** ⚠ `line one` / `|---|---|` / `# ATX Below` renders NO
+ *     table (`scratchpad/s235/adj`, `162f5ced6906`) — a delimiter alone does not make the prose
+ *     above it a header row.
+ *   - **No paragraph was open when the HEADER line began.** ⚠ **A PIPE TABLE CANNOT INTERRUPT AN
+ *     OPEN PARAGRAPH, and this is the condition two earlier spellings got wrong in opposite
+ *     directions.** "The delimiter is the SECOND line of its block", read as *the line two above
+ *     is blank*, DELETED five real headings: a `\maketitle` or `\clearpage` above the header is
+ *     a class-A raw-TeX block that closes the paragraph itself, and so does an ATX heading, so
+ *     the header really does open a fresh block without a blank line in sight
+ *     (`03572f04bd2f`, `896e6ffc0959`, `d73518fc1b35`, `5d50291460a1`, `c397aa697045`). Dropping
+ *     the condition instead minted 26 phantoms: `prose one` / `prose two` / `| a | b |` /
+ *     `|---|---|` / `| 1 | 2 |` / `# ATX Below` renders no heading at all (`01bfd0d98679`), and
+ *     so does the same table under `\vspace{1em}` — a class-B macro, block only where no
+ *     paragraph is open — where `\maketitle` renders it (`26d48dc6dea6` against `03572f04bd2f`).
+ *     The discriminator is not a blank line and not a tag list: it is whether a paragraph was
+ *     open, which this scanner already tracks per line. Asking it directly is what makes all 31
+ *     of those documents agree at once.
+ */
+function pipeTableOpensHere(
+  line: string,
+  neighbour: (offset: number) => string | null,
+  paragraphOpenAboveHeader: boolean,
+): boolean {
+  if (!TABLE_RULE_ROW.test(line) || !line.includes("|")) {
+    return false;
+  }
+  const header = neighbour(-1);
+  return (
+    header !== null && !BLANK_LINE.test(header) && header.includes("|") && !paragraphOpenAboveHeader
+  );
+}
+/**
  * Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`.
  *
  * `prevWasAtxHeading` recovers a block closure this model would otherwise lose. Pandoc
@@ -3801,6 +3988,8 @@ function closesParagraph(
   contentColumns: readonly number[] | null,
   unmatchedConstruct: boolean,
   divFenceHere: boolean,
+  tableShapedIsBlock: boolean,
+  pipeTableOpens: boolean,
 ): boolean {
   if (lineBlockAbove && LINE_BLOCK_CONTINUATION.test(line)) {
     return true;
@@ -3835,6 +4024,14 @@ function closesParagraph(
   ) {
     return true;
   }
+  // ⚠ **A PIPE TABLE'S DELIMITER INTERRUPTS THE PARAGRAPH ITS OWN HEADER OPENED (Session 235)**,
+  // so it sits ahead of the bail with the other two pre-bail constructs. `a | b` opens a
+  // paragraph — it is prose until something makes it a table — and the delimiter on the next
+  // line is what retroactively makes both a table. See `pipeTableOpensHere` for why the arm is
+  // the delimiter's own question rather than "this line turned out to be block-level".
+  if (pipeTableOpens) {
+    return true;
+  }
   if (paragraphOpen && !paragraphQuoted) {
     return false;
   }
@@ -3842,6 +4039,10 @@ function closesParagraph(
     THEMATIC_BREAK.test(line) ||
     rawTexMacroLineIsBlock(line, contentColumns) ||
     indentedCodeLine(line, contentColumns) ||
+    // ⚠ Sits exactly where the two RegExp rows it replaces sat — BEHIND the `paragraphOpen`
+    // bail above — so the narrowing changes which table-shaped lines close a paragraph and
+    // not WHEN the question is asked (Session 235).
+    tableShapedIsBlock ||
     CLOSES_PARAGRAPH.some((re) => re.test(line))
   );
 }
@@ -3945,7 +4146,7 @@ function columnAtOffset(line: string, offset: number): number {
  * max+3]` reading, because the container pops before the shallow line is read and both
  * readings then agree; they are recorded as consistent-with, not as a discriminator.
  */
-function columnIsCodeDepth(col: number, columns: readonly number[] | null): boolean {
+function containerContentColumn(col: number, columns: readonly number[] | null): number {
   let base = 0;
   if (columns !== null) {
     for (const c of columns) {
@@ -3954,7 +4155,10 @@ function columnIsCodeDepth(col: number, columns: readonly number[] | null): bool
       }
     }
   }
-  return col >= base + 4;
+  return base;
+}
+function columnIsCodeDepth(col: number, columns: readonly number[] | null): boolean {
+  return col >= containerContentColumn(col, columns) + 4;
 }
 function indentedCodeLine(line: string, columns: readonly number[] | null): boolean {
   if (BLANK_LINE.test(line)) {
@@ -4926,6 +5130,21 @@ function computeRegions(text: string): Regions {
   // table, so a `| …` run below one is a fresh line block and quarto renders the heading
   // whether what follows the boundary is a line block or another table body row.
   let inPipeTable = false;
+  // `paragraphOpen` as the PREVIOUS line began — the one fact `pipeTableOpensHere` needs that a
+  // neighbour view cannot supply, because "did this header open a fresh block" is a question
+  // about the scanner's own state and not about the header's bytes (Session 235). Snapshotted at
+  // the very top of the loop body so every `continue` path below is covered.
+  let paragraphOpenAtPrevLineStart = false;
+  // Whether a REAL table's body rows are still running — armed by `tableShapedLineIsBlock`'s
+  // pipe-delimiter arm and read back by it on the rows below (Session 235). ⚠ Separate from
+  // `inPipeTable` above ON PURPOSE, and the two must not be merged: that flag arms on ANY
+  // `TABLE_RULE_ROW`, including a lone `--|--` that forms no table at all, because its job is
+  // to DISARM the line-block rule where over-arming can only forgo a recovery. This one feeds
+  // `CLOSES_PARAGRAPH`'s question, where over-arming keeps a phantom and under-arming deletes a
+  // heading — the opposite polarity, so it needs the tighter arming. Cleared at exactly the
+  // same six region boundaries, which is what keeps `scratchpad/s235/r2/p03` right: a blank
+  // line between a table and a lone `e | f` makes the second one prose again.
+  let tableRowsOpen = false;
   // The line on which front matter opens, or `null` for a document that opens none — the SAME
   // predicate `frontMatterContent` asks (Session 210), so the region view and the `from:`
   // resolvers cannot disagree about which lines are front matter. Hoisted out of the loop
@@ -5248,6 +5467,8 @@ function computeRegions(text: string): Regions {
     // record a line the pop never sees. The first line of a document has nothing above it and
     // no container can be open there, so `true` is the reading that costs nothing.
     const prevLineBlank = i === 0 || BLANK_LINE.test(lines[i - 1]);
+    const paragraphOpenAboveHeader = paragraphOpenAtPrevLineStart;
+    paragraphOpenAtPrevLineStart = paragraphOpen;
 
     // YAML front matter. Record the span as it opens (provisionally unterminated, ending at
     // EOF) and refine `endLine`/`terminated` when the terminator is seen.
@@ -5465,6 +5686,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
+      tableRowsOpen = false;
       quoteOpen = stripQuote;
       continue;
     }
@@ -5473,6 +5695,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
+      tableRowsOpen = false;
       quoteOpen = stripQuote;
       continue;
     }
@@ -5574,6 +5797,7 @@ function computeRegions(text: string): Regions {
         consecutiveBody = 0;
         paragraphOpen = false;
         inPipeTable = false;
+        tableRowsOpen = false;
         quoteOpen = stripQuote;
         continue;
       }
@@ -5588,6 +5812,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
+      tableRowsOpen = false;
       quoteOpen = stripQuote;
       // A blank line ends a CommonMark type-6 or type-7 raw HTML block — and ONLY those two
       // types, which is why the state names its end condition rather than being a boolean
@@ -5884,6 +6109,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
+      tableRowsOpen = false;
       quoteOpen = stripQuote;
       continue;
     }
@@ -5958,6 +6184,7 @@ function computeRegions(text: string): Regions {
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
+      tableRowsOpen = false;
       quoteOpen = stripQuote;
       prevWasAtxHeading = true;
     } else {
@@ -6220,6 +6447,33 @@ function computeRegions(text: string): Regions {
         }
       }
       const wasParagraphOpen: boolean = paragraphOpen;
+      // ⚠ **THE NEIGHBOUR VIEW IS IN THE STRIPPED LINE'S OWN COORDINATE SPACE (Session 235).**
+      // `line` has had any block-quote marker removed, so a neighbour read raw would be a
+      // different document from the one this line belongs to — `> +---+---+` would never match
+      // a grid border and the table would go unseen, which is the DELETING direction. An
+      // UNMARKED line inside an open quote is returned as-is, which is what a lazy continuation
+      // is. Bounds return `null` rather than `""` so "past the end of the document" and "a
+      // blank line" stay distinguishable — part 4 needs exactly that distinction.
+      const tableNeighbour = (offset: number): string | null => {
+        const j = i + offset;
+        if (j < 0 || j >= lines.length) {
+          return null;
+        }
+        const other = lines[j];
+        if (!stripQuote) {
+          return other;
+        }
+        const otherContent = blockQuoteContentStart(other);
+        return otherContent === null ? other : other.slice(otherContent);
+      };
+      const pipeTableOpens = pipeTableOpensHere(line, tableNeighbour, paragraphOpenAboveHeader);
+      const tableShapedIsBlock = tableShapedLineIsBlock(
+        line,
+        tableNeighbour,
+        paragraphOpen,
+        tableRowsOpen,
+        rawTexColumns,
+      );
       paragraphOpen = !closesParagraph(
         line,
         paragraphOpen,
@@ -6243,7 +6497,15 @@ function computeRegions(text: string): Regions {
         rawTexColumns,
         unmatchedConstruct,
         divRole !== null && divAtColumn,
+        tableShapedIsBlock,
+        pipeTableOpens,
       );
+      // Armed on the DELIMITER's own question rather than on "this line was block-level", so a
+      // `| --- |` that is a line block rather than a delimiter cannot arm it — see
+      // `pipeTableOpensHere`.
+      if (pipeTableOpens) {
+        tableRowsOpen = true;
+      }
       // A line block stays open across its own continuations, so the arm re-arms on one; but
       // it can only be OPENED where no paragraph already is. Measured: a line block does not
       // interrupt a paragraph, with or without a continuation, so arming against an open one
