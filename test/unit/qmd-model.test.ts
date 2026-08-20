@@ -10999,3 +10999,107 @@ describe("Session 231 — a metadata block inside a block quote", () => {
     expect(headings(["quoted one", "    ---", "# Below A Quoted Setext"])).toEqual([]);
   });
 });
+
+describe("Session 232 guard — answers around the lazily-continued quoted underline that must NOT move", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("G1: under a CommonMark reader the lazy underline forms NO heading at all (`r4/v2`, `r4/v3`)", () => {
+    // ⚠ **THE SINGLE MOST DANGEROUS DIRECTION OF THIS SESSION'S CHANGE.** CommonMark's own rule
+    // is that a setext underline may not be a LAZY CONTINUATION line, and quarto follows it:
+    // rendered, the `from: gfm` twin of this session's witness renders NOTHING — no heading, in
+    // either the first-line or the already-open shape — where the default reader renders
+    // `h2:quoted one` for the identical bytes below the front matter (`r1/a4`). A change that
+    // fires on the run alone, without asking which reader is selected, mints a phantom on every
+    // gfm document in the corpus.
+    expect(headings(["---", "from: gfm", "---", "", "> quoted one", "    ---"])).toEqual([]);
+    expect(
+      headings(["---", "from: gfm", "---", "", "> intro", ">", "> quoted title", "    ---"]),
+    ).toEqual([]);
+  });
+
+  it("G2: at indent 0 the heading is a TOP-LEVEL one that KEEPS its markers (`r1/a0`, `r1/c0`, `r2/i0`)", () => {
+    // Rendered, `> quoted one` / `---` renders `<h2>&gt; quoted one</h2>` at top level — no
+    // blockquote forms at all — and `>> quoted one` / `---` keeps BOTH markers. This model is
+    // already right on all three rows, and the strip this session adds must not reach them.
+    expect(names(["> quoted one", "---", "# Probe A"])).toEqual([
+      "h2:> quoted one",
+      "h1:Probe A",
+    ]);
+    expect(names(["> quoted one", "---"])).toEqual(["h2:> quoted one"]);
+    expect(names([">> quoted one", "---"])).toEqual(["h2:>> quoted one"]);
+  });
+
+  it("G3: a 2-line quoted paragraph promotes NOTHING, at any indent (`r1/e0`, `e4`, `e8`)", () => {
+    // Rendered, `> quoted one` / `> quoted two` / `<indent>---` renders ONE paragraph inside the
+    // quote whose text ends `quoted one quoted two — # Probe A`: the run is absorbed as an
+    // em-dash and even the ATX below it is swallowed. So the single-title-line precondition is
+    // measured, not inherited, and this session must not widen it. ⚠ The `h1:Probe A` below is
+    // a PRE-EXISTING phantom of a different rule (the run closing the paragraph); it is pinned
+    // here as the CURRENT answer so that any movement is visible, not as quarto's answer.
+    expect(headings(["> quoted one", "> quoted two", "---", "# Probe A"])).toEqual(["Probe A"]);
+    expect(headings(["> quoted one", "> quoted two", "    ---", "# Probe A"])).toEqual(["Probe A"]);
+  });
+
+  it("G4: ⚠ at indents 1-3 with a body row below, quarto renders a TABLE and no heading (`r1/a1`-`a3`)", () => {
+    // ⚠ **THE PHANTOM THIS SESSION'S GATE IS SHAPED TO AVOID.** `> quoted one` / `   ---` /
+    // `# Probe A` renders a pandoc SIMPLE TABLE — `<th>uoted one</th>` over `<td>robe A</td>`,
+    // the `>` and `#` eaten as column material — and NO heading whatever. The same bytes with a
+    // blank line before the probe (`r2/g3`) render `h2:quoted one`, so the discriminator is the
+    // table's body row and not the indent. Firing on "deeper than the content column" would put
+    // a heading on all three of these; firing at CODE DEPTH does not reach them.
+    expect(headings(["> quoted one", " ---", "# Probe A"])).toEqual(["Probe A"]);
+    expect(headings(["> quoted one", "  ---", "# Probe A"])).toEqual(["Probe A"]);
+    expect(headings(["> quoted one", "   ---", "# Probe A"])).toEqual(["Probe A"]);
+  });
+
+  it("G5: an underline at the enclosing CONTENT COLUMN is not this session's row (`r3/s1`)", () => {
+    // Rendered, `- item` / (blank) / `  > quoted one` / `  ---` renders `h2:&gt; quoted one` —
+    // the heading forms at the LIST's level with the quote marker kept as text, which is the
+    // same shape as G2 one container in. This model reports nothing there. ⚠ Pinned as the
+    // CURRENT answer: it is a retained pre-existing LOSS and a disclosed bound of this session,
+    // not an agreement.
+    expect(headings(["- item", "", "  > quoted one", "  ---"])).toEqual([]);
+  });
+
+  it("G6: a blank line ENDS the quote, so the run below it underlines nothing (`r1/f0`-`f8`)", () => {
+    // Rendered, `> quoted one` / (blank) / `<indent>---` / `# Probe A` renders ONLY `h1:Probe A`
+    // at every indent — the quote is closed and the run is a thematic break or a code block.
+    // This model agrees today, and the lazy path must stay behind the same blank-line rule.
+    expect(headings(["> quoted one", "", "---", "# Probe A"])).toEqual(["Probe A"]);
+    expect(headings(["> quoted one", "", "    ---", "# Probe A"])).toEqual(["Probe A"]);
+  });
+
+  it("G7: a non-setext rule character at code depth stays absorbed (`r2/v4`)", () => {
+    // `    ***` is not a setext run, so nothing this session adds may claim it. ⚠ The
+    // `h1:Probe A` is again a PRE-EXISTING phantom pinned as the current answer — rendered,
+    // quarto renders NOTHING for these bytes.
+    expect(headings(["> quoted one", "    ***", "# Probe A"])).toEqual(["Probe A"]);
+  });
+
+  it("G8: the MARKED underline Session 231 shipped is unmoved (`s225/f/f02`)", () => {
+    // `> quoted f02` / `> ---` — the underline carries its own marker, so it is Session 231's
+    // row and not this one. The two paths must stay disjoint.
+    expect(headings(["Prose one.", "", "> quoted a06", "> ---", "", "## Control a06"])).toEqual([
+      "quoted a06",
+      "Control a06",
+    ]);
+  });
+
+  it("G9: a quoted METADATA triple is still consumed, so no underline is minted from it (`s231/r1/a01`)", () => {
+    // Session 231's C1. A quoted `---` / key / `---` is consumed exactly as a top-level one is,
+    // and the run this session teaches to underline must not resurrect it.
+    expect(
+      headings(["Prose one.", "", "> ---", "> note: alpha", "> ---", "", "## Control a01"]),
+    ).toEqual(["Control a01"]);
+  });
+
+  it("G10: the TOP-LEVEL twin of the witness renders nothing, and must not move (`r4/w2`)", () => {
+    // The identical bytes with no quote: `quoted one` / `    ---` / `# Below A Quoted Setext`
+    // renders NO heading — the run is absorbed lazily and the ATX cannot interrupt the open
+    // paragraph. This is the control that makes the session's row a CONTAINER question.
+    expect(headings(["quoted one", "    ---", "# Below A Quoted Setext"])).toEqual([]);
+    expect(headings(["quoted one", "   ---", "# Probe A"])).toEqual([]);
+  });
+});
