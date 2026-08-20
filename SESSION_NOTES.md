@@ -5,6 +5,21 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 236 — IMPLEMENTATION (strict TDD): F08, THE TAB-INDENTED QUOTED LINE — a TAB-indented line inside a block quote is a block here and a PARAGRAPH to pandoc, where its 4-SPACE twin is measured the other way.** Session 235's ranked #1 and the ONLY divergence left in its 87-document round set; the operator picked it at Phase 0 from the ranked candidate list.
+**Started:** 2026-08-20
+**Status:** Session claimed. Work beginning.
+
+**The filed claim, to be re-rendered before any code is written.** `> line one` / `> line two` / (blank) / `> <TAB>code` / `> # ATX Below` renders NO heading and this model reports one, while the 4-SPACE twin `>     code` renders the heading and this model agrees. Filed by Session 230's family audit; witness `scratchpad/s225/all/7df5a4f1add3.qmd` (`s183/c3/R4tab_bq_mark__closed`) against its matched control `R4indent_bq_mark__closed`. Session 235 re-rendered the row on its shipping build and it is UNMOVED and still the phantom (`scratchpad/s235/r1/e02`, scored pre and post), pinned AT the phantom as `test/unit/qmd-model.test.ts` Session 235 guard G17.
+
+**Derived, NOT yet measured (S235's handoff):** quarto splits the tab from the spaces — after the `> ` marker a tab reaches the next 4-column stop and lands 2 columns into the quote's content (a paragraph), where four spaces land 4 in (indented code, which IS a block).
+
+**⚠ The item's own standing instruction, carried by the backlog entry and unchanged:** size the fix against the two other "counts SPACES ONLY" items in `BACKLOG.md` (`contentColumns`'s pop and `rawTexMacroLineIsBlock`) rather than special-casing the quote. See `docs/MODEL-DIVERGENCE-FAMILIES.md` family F08.
+
+**⚠ Inherited gotcha 1 from Session 235, which governs this session's shape:** a green round set is not evidence a change is safe — 86/87 rendered documents and 2,428 green tests coexisted with 13 deleted headings. This item is column ARITHMETIC touching multiple call sites, so the 47,748-document corpus sweep is where the rule is measured, not a victory lap at the end.
+
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 235 ACTIVE TASK (superseded by Session 236 — full entry preserved below)
 **Task:** **Session 235 — IMPLEMENTATION (strict TDD): F07, THE FRESH-BLOCK DISCRIMINATOR — what separates `a | b` (suppresses the heading below it) from `| a | b |` (renders it).** Session 234's ranked #1 and left by five straight sessions (S230, S231, S232, S233, S234); the operator picked it at Phase 0 from the `AskUserQuestion` candidate list.
 **Started:** 2026-08-20 · **Closed:** 2026-08-20
 **Status:** **DONE. SHIPPED — and the finding is that a green round set is not evidence a narrowing is safe.**

@@ -18,6 +18,12 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S236
+date: 2026-08-20
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- family F08, the TAB-indented quoted line: `> line one` / `> line two` / blank / `> <TAB>code` / `> # ATX Below` renders NO heading and this model reports one, while the 4-SPACE twin renders the heading and this model agrees. Session 235's ranked #1 and the only divergence left in its 87-document round set; pinned AT the phantom as Session 235 guard G17. Operator picked it at Phase 0 from the ranked candidate list.
+```
+```handoff
 session: S235
 date: 2026-08-20
 status: complete
