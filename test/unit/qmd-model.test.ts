@@ -11396,3 +11396,155 @@ describe("Session 233 — the shallow div closer's absorption is ended by a BLAN
     ).toEqual(["H h10"]);
   });
 });
+
+describe("Session 234 guard — answers around the `=` band of the lazy quoted underline that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("G1: ⚠ AT COLUMN 0 the underline claims the RAW line and the marker STAYS (`r1/a0`)", () => {
+    // The direction that makes this session's widening dangerous. Rendered, `> quoted one` /
+    // `===` / `# Probe A` renders `<h1>&gt; quoted one</h1>` at TOP LEVEL — marker and all,
+    // outside any `<blockquote>` — so the lazy strip must not reach column 0. A band written as
+    // "any indent at all" turns this text into `quoted one` and invents a blockquote for it.
+    expect(names(["> quoted one", "===", "# Probe A"])).toEqual([
+      "h1:> quoted one",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G2: ⚠ and COLUMN 0 is not the rule — the QUOTE MARKER's own column is (`r2/pS`)", () => {
+    // The same answer one container in. Rendered, `- item` / `` / `  > quoted one` / `===`
+    // renders `<h1>&gt; quoted one</h1>` with NO blockquote (`ul>p>h1`), because the underline
+    // is SHALLOWER than the `>` it would have to reach into. Column 0 and "shallower than the
+    // marker" agree here and part company in G3 — this row is why the band is written against
+    // the marker's column rather than against 0.
+    expect(names(["- item", "", "  > quoted one", "==="])).toEqual(["h1:> quoted one"]);
+  });
+
+  it("G3: ⚠ AT the quote marker's own column, PINNED AT A KNOWN LOSS (`r2/p0`)", () => {
+    // ⚠ Rendered, `- item` / `` / `  > quoted one` / `  ===` renders `<h1>&gt; quoted one</h1>`
+    // (`ul>p>h1`, marker kept, no blockquote) and this model renders NOTHING. A PRE-EXISTING
+    // divergence, filed rather than fixed: recovering it needs the LIST's content column, which
+    // the blank line above has already popped off `contentColumns` by the time this line is
+    // read. It is pinned here because the band's floor sits exactly on it — a band of `>= the
+    // marker's column` rather than `> it` would answer `h1:quoted one`, trading a silent loss
+    // for a wrong-text heading.
+    expect(names(["- item", "", "  > quoted one", "  ==="])).toEqual([]);
+  });
+
+  it("G4: ⚠ AT TOP LEVEL an indented `=` run underlines NOTHING (`r1/j1`, `r1/j3`)", () => {
+    // The control that shows the quote is load-bearing rather than incidental. Rendered, both
+    // documents render the single paragraph `<p>para one === # Probe A</p>` — pandoc's own
+    // setext underline must start at column 0, and the 0-3 tolerance CommonMark grants it is
+    // simply not this reader's rule. Whatever the band accepts inside a quote, it may not leak
+    // out to a document that has none.
+    expect(names(["para one", " ===", "# Probe A"])).toEqual([]);
+    expect(names(["para one", "   ===", "# Probe A"])).toEqual([]);
+  });
+
+  it("G5: and the column-0 underline at top level is untouched", () => {
+    // The positive half of G4, so a band that accidentally narrows instead of widening is
+    // caught here rather than by the corpus.
+    expect(names(["para one", "===", "# Probe A"])).toEqual(["h1:para one", "h1:Probe A"]);
+  });
+
+  it("G6: ⚠ under a CommonMark reader the `=` band forms NO heading (`r1/k1`, `r1/k2`)", () => {
+    // Session 232's G1 in this session's spelling, and the direction that would mint a phantom
+    // on every gfm document in the corpus. Rendered, the `from: gfm` twin renders `h1:Probe A`
+    // alone in the first-line shape and NOTHING in the already-open shape.
+    // ⚠ The first row is pinned AT a pre-existing phantom — this model reports the quoted title
+    // too, which quarto does not render — so it records a known divergence, not agreement.
+    expect(names(["---", "from: gfm", "---", "", "> quoted one", " ===", "# Probe A"])).toEqual([
+      "h1:> quoted one",
+      "h1:Probe A",
+    ]);
+    expect(
+      names(["---", "from: gfm", "---", "", "> intro", ">", "> quoted title", "  ==="]),
+    ).toEqual([]);
+  });
+
+  it("G7: ⚠ the `-` SPELLING at the same indents stays refused — a TABLE eats the heading (`r1/n1`, `r1/n3`)", () => {
+    // ⚠ **THE HALF THIS SESSION DELIBERATELY DOES NOT SHIP.** Rendered, `> quoted one` /
+    // ` ---` / `# Probe A` is a pandoc SIMPLE TABLE and renders NO heading at all, while the
+    // identical bytes with `===` render two. Only `-` underlines a table, which is why the band
+    // is keyed to the `=` spelling; a band written on the run alone puts a second phantom on
+    // each of these rows. The single `h1:Probe A` below is itself pre-existing and unmoved.
+    expect(names(["> quoted one", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["> quoted one", "   ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+  });
+
+  it("G8: ⚠ and the `-` spelling stays refused where quarto DOES render it (`r2/v1`)", () => {
+    // The other side of G7, pinned at a known loss so the `-` half's size stays honest.
+    // Rendered, `- item` / `` / `  > quoted one` / `   ---` renders `h2:quoted one` — no table
+    // can form without a body row below — and this model renders nothing. Recovering it is the
+    // `-` half's own question (what sits BELOW decides), and this session does not answer it.
+    expect(names(["- item", "", "  > quoted one", "   ---"])).toEqual([]);
+  });
+
+  it("G9: a TWO-LINE quoted paragraph is never a title (`r1/c1`, `r1/c3`, `r2/t1`)", () => {
+    // Quarto's default reader admits exactly ONE body line as a setext title, and the band must
+    // not change which lines may be claimed — only which underlines may claim them. Rendered,
+    // all three render a single `<blockquote><p>`, no heading. The third row's second line is
+    // itself an unmarked lazy continuation, which is the shape most likely to slip through a
+    // rule written about the underline alone.
+    expect(names(["> quoted one", "> quoted two", " ===", "# Probe A"])).toEqual([]);
+    expect(names(["> quoted one", "> quoted two", "   ===", "# Probe A"])).toEqual([]);
+    expect(names(["> quoted one", "lazy two", " ===", "# Probe A"])).toEqual([]);
+  });
+
+  it("G10: ⚠ a CLOSED paragraph offers nothing to underline (`r1/i1`, `r1/i2`)", () => {
+    // The band's precondition is a LAZY CONTINUATION, and a continuation needs an open
+    // paragraph above it. Rendered, both render `<blockquote><p>…</p></blockquote>` followed by
+    // a separate paragraph and no heading: the `>`-only line ends the quote's paragraph, and the
+    // blank line ends the quote itself. A band that asks only "is a quote open" fires on both.
+    expect(names(["> quoted one", ">", " ===", "# Probe A"])).toEqual([]);
+    expect(names(["> quoted one", "", " ===", "# Probe A"])).toEqual([]);
+  });
+
+  it("G11: a `=` run with a space inside it is not a run (`r1/f4`)", () => {
+    // The grammar's own floor, pinned so the band cannot be widened by loosening `SETEXT_H1`.
+    expect(names(["> quoted one", " = =", "# Probe A"])).toEqual([]);
+  });
+
+  it("G12: a quoted FENCED CODE block above the underline underlines nothing (`r2/y1`)", () => {
+    // Rendered: `<blockquote><pre>…</pre><p>…</p></blockquote>`, no heading. A closed fence
+    // leaves no paragraph open, and this is the shape Session 233 found beside six others that
+    // leave none.
+    expect(names(["> ```", "> code", "> ```", " ===", "# Probe A"])).toEqual([]);
+  });
+
+  it("G13: a DEPTH CHANGE directly above the underline underlines nothing (`r2/u1`)", () => {
+    // Rendered: one `<blockquote><p>`, no heading. The nested `> >` line opens a deeper quote
+    // whose paragraph the shallower underline cannot reach.
+    expect(names(["> quoted one", "> > nested", " ==="])).toEqual([]);
+  });
+
+  it("G14: the shipped CODE-DEPTH rows are unchanged (`r1/a4`, `r1/b4`, `r2/z4`)", () => {
+    // Session 232's own deliverable. The new band overlaps it for the `=` spelling, so these
+    // rows prove the overlap agrees rather than double-answers.
+    expect(names(["> quoted one", "    ===", "# Probe A"])).toEqual([
+      "h1:quoted one",
+      "h1:Probe A",
+    ]);
+    expect(names(["> intro", ">", "> quoted title", "    ==="])).toEqual([
+      "h1:quoted title",
+    ]);
+  });
+
+  it("G15: a MARKED underline still takes the Session 231 path (`r2/w1`)", () => {
+    // The band is for lines the quote strip never reached. Rendered, `>> quoted one` /
+    // ` > ===` renders `h1:&gt; quoted one`; this model already agrees, through
+    // `stripQuote`, and the band must not intercept it.
+    expect(names([">> quoted one", " > ==="])).toEqual(["h1:> quoted one"]);
+  });
+
+  it("G16: ⚠ the already-open quote at COLUMN 0 stays at its known loss (`r1/b0`)", () => {
+    // ⚠ Rendered, `> intro` / `>` / `> quoted title` / `===` / `# Probe A` renders
+    // `h1:quoted title` INSIDE the blockquote plus `h1:Probe A`, and this model renders
+    // nothing. Its `-` twin (`s232/r2/h0`) is a deletion too, so column 0 with an already-open
+    // quote is a SEPARATE axis — the quote's own presence above the title, not the `=`
+    // spelling — and it is filed rather than fixed here. Pinned so the band's floor is proven
+    // to sit above it.
+    expect(names(["> intro", ">", "> quoted title", "===", "# Probe A"])).toEqual([]);
+  });
+});
