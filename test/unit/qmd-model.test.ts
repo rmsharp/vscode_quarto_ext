@@ -10329,17 +10329,19 @@ describe("Session 227 — the `:::` line's own column", () => {
     expect(headings(note(["text[^1]", ""]))).toEqual(["H x"]); // `r4/p02` — quarto agrees here
   });
 
-  it("R2 (residual, PRE-EXISTING and unmoved, PINNED): a closer at a column that belongs to a DIFFERENT container (`r5/q03`, `r5/q06`)", () => {
-    // The stack holds a column per open div but nothing ties that column to the container the
-    // div lives in, so a closer can match a column the div's own container never had. Both
-    // rendered, both phantoms, and both give the SAME answer before and after this session —
-    // measured, not assumed. `q03` closes a TOP-LEVEL div from inside a list item; `q06` closes
-    // a column-2 div that pandoc already auto-closed at the end of its item. Filed; the fix is
-    // a container identity on the stack, not a tighter column.
-    expect(headings(["::: {.note}", "", "- item", "  :::", "# H q03"])).toEqual(["H q03"]);
+  it("R2 (residual — ⚠ CLOSED BY SESSION 229, now pinned at quarto's own answer): a closer at a column that belongs to a DIFFERENT container (`r5/q03`, `r5/q06`)", () => {
+    // ⚠ **THIS PIN RECORDED A DEFECT AND NOW RECORDS ITS FIX — the expectations are INVERTED
+    // from what Session 227 wrote here, and that inversion is the deliverable.** Session 227
+    // measured both rows as phantoms and pinned them AT the phantom, which is the right thing
+    // to do for a residual you are not fixing: it stops the defect drifting unnoticed. Session
+    // 229 gave every `divColumns` entry a container identity, and both rows now answer as
+    // quarto renders them — `<div class="note"><ul><li><p>item</p><p>::: # H q03</p></li></ul>`
+    // for `q03` (the colon run is text inside the item), and for `q06` the div CLOSED inside
+    // the `<li>` followed by `<p>para two ::: # H q06</p>`. Neither renders a heading.
+    expect(headings(["::: {.note}", "", "- item", "  :::", "# H q03"])).toEqual([]);
     expect(
       headings(["- item", "", "  ::: {.note}", "  body", "", "para two", ":::", "# H q06"]),
-    ).toEqual(["H q06"]);
+    ).toEqual([]);
   });
 });
 
@@ -10558,5 +10560,37 @@ describe("Session 229 GUARD — container identity must not cost a heading", () 
 
   it("G14: a closer DEEPER than its own div in the same container closes nothing (`r1/a18`)", () => {
     expect(headings(["- item", "", "  ::: {.note}", "  body", "    :::", "# H a18"])).toEqual([]);
+  });
+});
+
+// ── Session 229 — a div closer may only match a column that belongs to its OWN ──
+// ── container ─────────────────────────────────────────────────────────────────
+//
+// `divColumns` held one column per open div and nothing tied that column to the container the
+// div lived in, so a stale column outlived the container that produced it and a `:::` in a
+// SIBLING or DEEPER container matched it. Closes the item Session 227 filed from its own Round
+// 5 and Session 228 ranked #1 (`scratchpad/s227/r5/q03` and `r5/q06`, both rendered).
+//
+// Every row below is a rendered document under `scratchpad/s229/r1`, quarto 1.7.33.
+describe("Session 229 — a div's column belongs to a container", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("R1: ⚠ a div left open when its item ends is AUTO-CLOSED, so the later `:::` closes nothing (`r1/a01`, `s227/r5/q06`)", () => {
+    // Rendered: `<li><p>item</p><div class="note"><p>body</p></div></li>` then
+    // `<p>para two ::: # H a01</p>`. Pandoc closes the div at the end of the item that hosts
+    // it; the column-0 `:::` below therefore matches nothing and is ordinary paragraph text,
+    // which absorbs the heading. The old stack still held column 2 and popped it.
+    expect(
+      headings(["- item", "", "  ::: {.note}", "  body", "", "para two", ":::", "# H a01"]),
+    ).toEqual([]);
+  });
+
+  it("R2: ⚠ a closer in a DEEPER container cannot reach a shallower div (`r1/a02`, `s227/r5/q03`)", () => {
+    // Rendered: `<div class="note"><ul><li><p>item</p><p>::: # H a02</p></li></ul></div>` —
+    // the `:::` at the item's column 2 is ordinary text INSIDE the item, and the heading is
+    // absorbed with it. The lazy rule that lets a SHALLOW closer through (`r1/a05`) is
+    // absorption DOWNWARD into the container's open paragraph; it has no upward direction, so
+    // a closer deeper than its div's own column can never be the one that closes it.
+    expect(headings(["::: {.note}", "", "- item", "  :::", "# H a02"])).toEqual([]);
   });
 });

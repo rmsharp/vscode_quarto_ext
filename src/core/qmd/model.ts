@@ -5004,7 +5004,17 @@ function computeRegions(text: string): Regions {
   // nothing. Rendered — `- item` / `  ::: {.note}` / blank / `  body text` / blank / `:::`
   // renders the div complete and NO heading (`r1/k25`), against `r1/k17` where the identical
   // closer with no blank above it does close. Each entry is the column its own opener sat at.
-  const divColumns: number[] = [];
+  // ⚠ **AND EACH ENTRY CARRIES THE CONTAINER IT WAS OPENED IN (Session 229), because a
+  // column alone outlives the container that produced it.** `containerDepth` is
+  // `contentColumns.length` at the opener's line. Pandoc closes a div at the end of the
+  // container that hosts it, so when that container is popped the div goes with it — rendered,
+  // `- item` / `  ::: {.note}` / `  body` / blank / `para two` / `:::` emits the div CLOSED
+  // inside the `<li>` and then `<p>para two ::: # H a01</p>`, so the column-0 closer matched
+  // nothing at all (`scratchpad/s229/r1/a01`, and Session 227's own `s227/r5/q06`). Without the
+  // identity a stale column also let a SIBLING container's `:::` match (`r1/a03`, `r1/a14`,
+  // `r1/a20`) and let a closer in a DEEPER container reach a shallower div (`r1/a02`,
+  // `s227/r5/q03`).
+  const divColumns: { column: number; containerDepth: number }[] = [];
   // Whether a mid-document YAML metadata block is open at this line — the same block state,
   // for the `...` terminator. See `YAML_BLOCK_OPENER`.
   let metadataBlockOpen = false;
@@ -5260,6 +5270,19 @@ function computeRegions(text: string): Regions {
           contentColumns.pop();
           columnKinds.pop();
           columnIsCommonmark.pop();
+        }
+        // ⚠ **A DIV IS AUTO-CLOSED BY THE CONTAINER THAT HOSTS IT (Session 229).** The columns
+        // just popped ended their containers, and pandoc closes any div opened inside one at
+        // that boundary — so the entry must leave `divColumns` here or a later `:::` matches a
+        // column whose container is gone. Deliberately INSIDE this branch and ABOVE the push
+        // below: the quote coordinate switch clears `contentColumns` without ending any
+        // container of the outer document, and a SIBLING container pushed on this same line
+        // must not resurrect the div the pop just orphaned (`r1/a03`, `r1/a14`, `r1/a20`).
+        while (
+          divColumns.length > 0 &&
+          divColumns[divColumns.length - 1].containerDepth > contentColumns.length
+        ) {
+          divColumns.pop();
         }
       }
       // ⚠ AN OPENER AT CODE DEPTH OPENS NOTHING (Session 196), because it is not an opener at
@@ -5814,6 +5837,15 @@ function computeRegions(text: string): Regions {
       // otherwise the only column that closes is the one the div's own opener sat at. See
       // `divColumns`. `paragraphOpen` is still the line ABOVE's here, which is exactly the
       // question: was a paragraph open for this line to continue?
+      // ⚠ **AND THE LAZY HALF HAS ONE DIRECTION: DOWNWARD (Session 229).** Absorption carries a
+      // SHALLOW line INTO the open paragraph of a container below it; there is no upward move,
+      // so a closer DEEPER than its div's own opener column can never be the line that closes
+      // it. Rendered, `::: {.note}` / blank / `- item` / `  :::` emits the colon run as
+      // ordinary text INSIDE the item — `<p>::: # H a02</p>` — and the heading goes with it
+      // (`scratchpad/s229/r1/a02`, and Session 227's own `s227/r5/q03`). The bound is the
+      // COLUMN, not the container depth: at the closer's line the list container of `r1/a04` is
+      // still open, yet its column-0 closer really does reach the top-level div, so a depth
+      // comparison deletes that heading while the column comparison keeps it.
       // ⚠ **AND THE COLUMN RULE IS SUSPENDED WHERE THE COLUMN IS UNKNOWABLE — THE SAME
       // BOUNDARY `quoteColumnsUnknown` ALREADY DRAWS FOR THE RAW-TeX ROW (Session 225).** An
       // UNMARKED line below a quote is absorbed into it lazily, and pandoc strips that line's
@@ -5833,8 +5865,12 @@ function computeRegions(text: string): Regions {
           : quoteColumnsUnknown
             ? true
             : divRole === "close"
-              ? divFence.column === divColumns[divColumns.length - 1] ||
-                (paragraphOpen && divFenceColumns.includes(divFence.column))
+              ? (divColumns.length > 0 &&
+                  divFence.column === divColumns[divColumns.length - 1].column) ||
+                (paragraphOpen &&
+                  divFenceColumns.includes(divFence.column) &&
+                  divColumns.length > 0 &&
+                  divFence.column <= divColumns[divColumns.length - 1].column)
               : divFenceColumns.includes(divFence.column);
       // ⚠ **A LIST MARKER BEGINS A FRESH BLOCK, so an opener behind one interrupts nothing.**
       // The last 2 of the sweep's 39 deletions: `- item a` / `- ::: mydiv` / `  line one` /
@@ -5898,7 +5934,7 @@ function computeRegions(text: string): Regions {
       if (divRole === "close" && divAtColumn && divColumns.length > 0) {
         divColumns.pop();
       } else if (divRole === "open" && divAtColumn && !divOpenerInterrupts) {
-        divColumns.push(divFence!.column);
+        divColumns.push({ column: divFence!.column, containerDepth: contentColumns.length });
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS
       // OVERLOADED AS `---`.** A `-{3,}` line is already a thematic break to `closesParagraph`
