@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S230
+date: 2026-08-19
+status: pending
+active_task: IN PROGRESS. AUDIT -- group the 116 measured model-vs-quarto divergences held in the three mover archives (scratchpad/s225/all, s226/all, s227/all; 903 rows of rendered ground truth) into families, and cross-check every family against BACKLOG.md. Session 229 filed this from its own post-close-out verification and ranked it #1; the operator picked it at Phase 0. Deliverable: a family grouping with a rendered witness per family, each family either matched to an existing backlog item or filed as a new one. ⚠ AUDIT, not implementation -- no src/ change this session; a cheap-looking fix gets FILED, not made.
+```
+
+```handoff
 session: S229
 date: 2026-08-19
 status: complete

@@ -5,6 +5,18 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 230 — AUDIT: group the 116 measured model↔quarto divergences held in the mover archives into families, and cross-check every family against `BACKLOG.md`.** The item Session 229 filed from its own post-close-out verification and ranked #1; the operator picked it at Phase 0.
+**Started:** 2026-08-19
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **2335 passed / 66 files**, matching Session 229's recorded close-out EXACTLY; `check-backlog` **OK, 166 open items** (S229 recorded 165 at its close-out commit; its own addendum `ebaf7460` filed the 166th, which is this item). **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`ebaf7460`, gap 0), no live `status: pending` receipt, no ghost sessions, and the GitHub repo carries **0 open issues** so `BACKLOG.md` governs.
+
+**Deliverable (ONE capability):** *a family grouping of the 116 measured divergences, each family carrying a rendered witness, each family either matched to an existing `BACKLOG.md` item or filed as a new one* — one intent. The family COUNT is unknown before the work and is the point of doing it.
+
+**Scope boundary, declared at claim.** This is an AUDIT, not an implementation. **No `src/` change this session.** If the grouping surfaces a fix that looks cheap, it gets FILED with its witness — fixing it is a later session (failure mode #2, #8).
+
+## Session 229 ACTIVE TASK (superseded by Session 230 — full entry preserved below)
 **Task:** **Session 229 — IMPLEMENTATION (strict TDD): a div closer may only match a column that belongs to its OWN container.** The item Session 227 filed from its own Round 5 and Session 228 ranked #1.
 **Started:** 2026-08-19 · **Closed:** 2026-08-19
 **Status:** **DONE. SHIPPED — and the finding is that ONE filed item was TWO rules, only one of which is about identity; the fix the item itself prescribed deletes a real heading on the first guard row.**
