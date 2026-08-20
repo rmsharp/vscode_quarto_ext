@@ -984,6 +984,28 @@ describe("Quarto: Document outline (symbols)", () => {
       flat(symbols).includes("Below A Lazy Div Closer"),
       "Session 233: a shallow closer absorbed by the list item closes the div above the heading",
     );
+    // ⚠ **SESSION 234 EXTENDED THIS FIXTURE AGAIN, AND ITS PREMISE WAS RE-RENDERED, NOT
+    // ASSUMED.** The three appended lines are a one-line block quote whose unmarked `=` run
+    // sits ONE column in. Rendered on quarto 1.7.33, these exact bytes now emit NINE headings —
+    // the seven above, unchanged, plus `a quoted title for the equals band` and
+    // `Below An Equals Band`, both inside the `<blockquote>`. Every assertion above was
+    // re-checked against the EXTENDED document.
+    //
+    // Session 232 accepted such an underline only at CODE DEPTH, because a `-` run in the
+    // shallower band can form a pandoc simple table that eats the heading. Only `-` underlines
+    // a table, so for the `=` spelling the band reaches down to the quote MARKER's own column —
+    // and stopping there is what keeps `> quoted one` / `===` claiming the raw line instead.
+    // Refusing the underline left the quote's paragraph open, so BOTH headings were lost.
+    //
+    // ⚠ **THIS IS THE WIRING EVIDENCE FOR SESSION 234**, through the provider the Outline view,
+    // breadcrumbs, sticky scroll and Ctrl+T actually call — the core-level recovery is pinned in
+    // `test/unit/qmd-model.test.ts` (Session 234 C1-C6), and this asserts it reaches the editor.
+    for (const real of ["a quoted title for the equals band", "Below An Equals Band"]) {
+      assert.ok(
+        flat(symbols).includes(real),
+        `Session 234: the \`=\` band's heading ${real} must reach the Outline provider`,
+      );
+    }
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {

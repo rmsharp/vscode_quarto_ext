@@ -37,3 +37,7 @@ a fenced div's body
   :::
 :::
 # Below A Lazy Div Closer
+
+> a quoted title for the equals band
+ ===
+# Below An Equals Band
