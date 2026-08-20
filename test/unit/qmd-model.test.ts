@@ -12129,3 +12129,197 @@ describe("Session 236 — a tab inside a quote is a column, not a character", ()
     ]);
   });
 });
+
+describe("Session 237 — guards around the COLUMN-0 axis of a quoted setext underline", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ THE DANGEROUS DIRECTION. Session 237 makes an unmarked underline form a heading where the
+  // model reports none today, so the risk is a PHANTOM — and the specific way to mint one is to
+  // reach for the column ("accept 0-3 too") when the discriminator measured here is whether a
+  // quote was ALREADY OPEN above the title. Fifteen of the twenty-one guards below pin an answer
+  // that a column-shaped fix would destroy: eleven pin a row with NO quoted heading at all, and
+  // four pin the marker-KEPT answer a band reaching down to 0 would overwrite. Every answer is
+  // the RENDERED one, measured through the real `quarto render` path over `scratchpad/s237/r1`
+  // (70 documents), `r2` (25 danger probes) and `r3` (20 sensor probes) before any `src/` change.
+
+  it("G1: the title line OPENS the quote, so an `=` at column 0 claims the RAW line (`r1/ce0`)", () => {
+    // The row this session must NOT move, and the reason the fix is not a band. With no quote
+    // open above it, `> quoted title` is claimed by the setext parse before any quote is parsed,
+    // so the marker survives into the heading text and the heading forms at TOP level.
+    expect(names(["> quoted title", "===", "# Probe A"])).toEqual([
+      "h1:> quoted title",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G2: and a `-` at column 0 does the SAME — there is no table there (`r1/cd0`)", () => {
+    // ⚠ NEW MEASUREMENT. The backlog entry reads as though a `-` underline under a quoted title
+    // forms a pandoc SIMPLE TABLE; rendered, that is true only at indents 1-3 (G3). At column 0
+    // the dashes claim the raw line exactly as `===` does.
+    expect(names(["> quoted title", "---", "# Probe A"])).toEqual([
+      "h2:> quoted title",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G3: ONE column in, the same `-` really is a simple table and renders NO heading (`r1/cd1`)", () => {
+    // Pinned AT a KNOWN phantom (the already-filed `-` half): quarto renders a one-column simple
+    // table, `<th>quoted title</th>` over `<td>Probe A</td>`, and no heading at all, while this
+    // model reports the ATX. Pinned so a later change is measured against it rather than blamed
+    // for it — and so this session is shown not to move it.
+    expect(names(["> quoted title", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+  });
+
+  it("G4: a TWO-LINE quoted paragraph is not underlined at all (`r1/be0`)", () => {
+    // Quarto's default reader admits exactly ONE title line, which `defaultTitleLineCount`
+    // already encodes: rendered, this whole document is one `<p>intro quoted title === # Probe
+    // A</p>` inside the quote — the underline AND the ATX are swallowed as continuation text.
+    expect(names(["> intro", "> quoted title", "===", "# Probe A"])).toEqual([]);
+  });
+
+  it("G5: the `-` twin of G4 keeps its pre-existing phantom (`r1/bd0`)", () => {
+    // Same document, `---`: quarto still renders one paragraph and NO heading, while this model
+    // closes the paragraph on the run and reports the ATX. A pre-existing phantom of a different
+    // family, pinned here so this session is shown not to move it.
+    expect(names(["> intro", "> quoted title", "---", "# Probe A"])).toEqual(["h1:Probe A"]);
+  });
+
+  it("G6: under a CommonMark reader the `=` underline stays declined at column 0 (`r1/ge0`)", () => {
+    // CommonMark forbids a setext underline from being a lazy continuation line and quarto
+    // follows it. This is the direction that would mint a phantom on every gfm document in the
+    // corpus, which is why `commonmarkDialect` gates the whole lazy branch.
+    expect(
+      names(["---", "from: gfm", "---", "", "> intro", ">", "> quoted title", "===", "# Probe A"]),
+    ).toEqual(["h1:Probe A"]);
+  });
+
+  it("G7: and the `-` spelling is declined there too (`r1/gd0`)", () => {
+    expect(
+      names(["---", "from: gfm", "---", "", "> intro", ">", "> quoted title", "---", "# Probe A"]),
+    ).toEqual(["h1:Probe A"]);
+  });
+
+  it("G8: the CommonMark decline holds at CODE DEPTH as well (`r2/gfm4`)", () => {
+    expect(
+      names([
+        "---",
+        "from: gfm",
+        "---",
+        "",
+        "> intro",
+        ">",
+        "> quoted title",
+        "    ---",
+        "# Probe A",
+      ]),
+    ).toEqual(["h1:Probe A"]);
+  });
+
+  it("G9: and past the marker column, where the shipped `=` band would otherwise reach (`r2/gfm5`)", () => {
+    expect(
+      names([
+        "---",
+        "from: gfm",
+        "---",
+        "",
+        "> intro",
+        ">",
+        "> quoted title",
+        "     ===",
+        "# Probe A",
+      ]),
+    ).toEqual(["h1:Probe A"]);
+  });
+
+  it("G10: a MARKED underline is already right and must not move (`r1/me0`)", () => {
+    // The underline carries its own `>`, so the Session 225 strip reaches it and the whole
+    // construct is inside the quote. `setextTitleQuoted` has nothing to say about this row.
+    expect(names(["> intro", ">", "> quoted title", "> ===", "# Probe A"])).toEqual([
+      "h1:quoted title",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G11: and its `-` twin (`r1/md0`)", () => {
+    expect(names(["> intro", ">", "> quoted title", "> ---", "# Probe A"])).toEqual([
+      "h2:quoted title",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G12: an UNMARKED BLANK line ends the quote, so the title below OPENS a new one (`r2/reopen`)", () => {
+    // The discriminator this session ships reads the line ABOVE the title. Here that line is a
+    // bare blank, so no quote is open, the marker is kept and the heading forms at top level —
+    // the same answer as G1 from different bytes. ⚠ A fix that read "is the TITLE quoted" rather
+    // than "was a quote open ABOVE it" would break exactly this row.
+    expect(names(["> intro", "", "> quoted title", "---", "# Probe A"])).toEqual([
+      "h2:> quoted title",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G13: a blank line between the title and the underline underlines nothing (`r2/blankb`)", () => {
+    expect(names(["> intro", ">", "> quoted title", "", "---", "# Probe A"])).toEqual([
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G14: an underline INSIDE a fenced code block in the quote underlines nothing (`r2/fence`)", () => {
+    expect(names(["> intro", ">", "> ```", "> quoted title", "---", "> ```", "# Probe A"])).toEqual(
+      ["h1:Probe A"],
+    );
+  });
+
+  it("G15: a `> ---` above the underline leaves no title to claim (`r2/meta`)", () => {
+    expect(names(["> intro", ">", "> ---", "---", "# Probe A"])).toEqual(["h1:Probe A"]);
+  });
+
+  it("G16: the top-level setext heading, with no quote anywhere, is unmoved (`r2/noquote`)", () => {
+    expect(names(["intro", "", "quoted title", "---", "# Probe A"])).toEqual([
+      "h2:quoted title",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G17: a quote followed by a real blank line and an ATX reports only the ATX (`r1/sen1`)", () => {
+    expect(names(["> intro", ">", "> quoted title", "", "# Probe A"])).toEqual(["h1:Probe A"]);
+  });
+
+  it("G18: Session 232's CODE-DEPTH half still answers column 6 (`r2/ul6`)", () => {
+    expect(names(["> intro", ">", "> quoted title", "      ---", "# Probe A"])).toEqual([
+      "h2:quoted title",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G19: Session 234's `=` BAND still answers column 8 (`r2/ul8`)", () => {
+    expect(names(["> intro", ">", "> quoted title", "        ===", "# Probe A"])).toEqual([
+      "h1:quoted title",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G20: and the code-depth half still answers one container in (`r2/lcode`)", () => {
+    expect(
+      names([
+        "- item",
+        "",
+        "  > intro",
+        "  >",
+        "  > quoted title",
+        "      ---",
+        "# Probe A",
+      ]),
+    ).toEqual(["h2:quoted title", "h1:Probe A"]);
+  });
+
+  it("G21: Session 234's own G1 row, re-rendered this session and unmoved (`s234/r1/a0`)", () => {
+    // The inherited pin, on the same bytes, re-rendered on this session's starting build before
+    // being carried forward: `h1:&gt; quoted one` at top level plus the probe.
+    expect(names(["> quoted one", "===", "# Probe A"])).toEqual([
+      "h1:> quoted one",
+      "h1:Probe A",
+    ]);
+  });
+});
