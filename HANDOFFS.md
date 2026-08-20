@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S229
+date: 2026-08-19
+status: pending
+active_task: Session 229 -- IMPLEMENTATION (strict TDD): a div closer may only match a column that belongs to its OWN container. Closes the item Session 227 filed from its own Round 5 (divColumns holds one column per open div but nothing ties that column to the container the div lives in, and the stack is never truncated when a container ends) and Session 228 ranked #1. Witnesses scratchpad/s227/r5/q03 and r5/q06, both rendered, both pinned at test/unit/qmd-model.test.ts R2, both PRE-EXISTING and unmoved. The fix is a container identity on the stack, NOT a tighter column (a tighter one refuses r1/k17 and r2/m02, which really do close).
+```
+
+```handoff
 session: S228
 date: 2026-08-19
 status: complete

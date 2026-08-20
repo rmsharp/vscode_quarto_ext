@@ -5,6 +5,21 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 229 — IMPLEMENTATION (strict TDD): a div closer may only match a column that belongs to its OWN container.** Closes the item Session 227 filed from its own Round 5 and Session 228 ranked #1.
+**Started:** 2026-08-19
+**Status:** Session claimed. Work beginning. (IN PROGRESS)
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**The item, as filed.** `divColumns` holds one column per open div but nothing ties that column to the container the div lives in, and the stack is never truncated when a container ends. Two rendered witnesses, both PRE-EXISTING and unmoved by Session 227 (verified by scoring each pre and post), both pinned at `test/unit/qmd-model.test.ts` R2: `scratchpad/s227/r5/q03` closes a TOP-LEVEL div from inside a list item; `scratchpad/s227/r5/q06` closes a column-2 div pandoc had already auto-closed at the end of its item. Phantom direction both ways.
+
+**⚠ The constraint the fix must not break.** A tighter column is NOT the fix — it would refuse `scratchpad/s227/r1/k17` (a column-0 closer really does close a column-2 div, via lazy absorption into the item's open paragraph) and `scratchpad/s227/r2/m02` (a three-deep closer closes at the OUTER item's column 2). The fix is a container identity carried on the stack.
+
+**⚠ First action, per S228's gotcha 1.** Re-run the item's own cited witnesses against the FILING session's build (`git archive` of Session 227's close-out `3717e624`) AND against HEAD, and read `scratchpad/s227/r5/PREDICTIONS.json`, BEFORE writing any code. A filed item is a hypothesis about the model; S228's whole session was spent discovering that the previous #1 pick was a misread prediction.
+
+---
+
+
+## Session 228 ACTIVE TASK (superseded by Session 229 — full entry preserved below)
 **Task:** **Session 228 — the setext one-line boundary: `---` under a ONE-line paragraph is a setext underline; under a TWO-line paragraph it is an EM DASH.** The item Session 226 filed and Session 227 ranked #1.
 **Started:** 2026-08-19 · **Closed:** 2026-08-19
 **Status:** **DONE. CLOSED — and the finding is that the item was REFUTED, not fixed: the model was already right on both cited witnesses, and the "defect" was Session 226's own frozen PREDICTION.**
