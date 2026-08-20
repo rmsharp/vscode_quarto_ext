@@ -5717,12 +5717,36 @@ function computeRegions(text: string): Regions {
     // may not be a lazy continuation line, and quarto follows it: the `from: gfm` twin of the
     // witness renders NOTHING (`r4/v2`, `r4/v3`). Pinned as G1 — this is the direction that
     // would mint a phantom on every gfm document in the corpus.
+    //
+    // ⚠ **AND CODE DEPTH IS NOT THE FLOOR FOR AN `=` RUN — THE QUOTE MARKER'S OWN COLUMN IS
+    // (Session 234).** Session 232 shipped the code-depth half and disclosed the 1-3 band as a
+    // bound because a `-` underline there can form a pandoc SIMPLE TABLE that eats the heading
+    // (`s232/r1/a1`-`a3`, pinned G7). Only `-` underlines a table, so the `=` spelling has no
+    // such question and every indent below code depth renders the heading too: rendered,
+    // `> quoted one` / ` ===` / `# Probe A` renders TWO headings inside the blockquote and this
+    // model reported neither — the refused underline left the quote's paragraph open, so the ATX
+    // below was swallowed with it. The floor is NOT column 0, and this is the row that says so:
+    // one container in, `- item` / `` / `  > quoted one` / `===` renders `h1:&gt; quoted one`
+    // with NO blockquote at all (`r2/pS`), exactly as the top-level `r1/a0` does. What separates
+    // the two answers is whether the underline reaches PAST the `>` it would have to strip —
+    // at or above the marker's column the underline claims the RAW line at the container's own
+    // level, marker and all, and below it the quote absorbs it as a lazy continuation.
+    //
+    // ⚠ **AND `contentColumns` CANNOT ANSWER IT.** The blank line above `  > quoted one` has
+    // already popped the list, so the base there is 0 and `columnIsCodeDepth` reads column 4 as
+    // code — which is why the code-depth term above answers `r2/p4` correctly and `r2/p0`,
+    // three columns shallower, not at all. The marker's column is read off the TITLE line
+    // itself, where it cannot be popped.
+    const lazyEqualsBand =
+      setextTitle !== undefined &&
+      SETEXT_H1.test(line) &&
+      indentColumn(line) > indentColumn(lines[setextTitle.line] ?? "");
     const lazyQuotedUnderline =
       inQuote &&
       !stripQuote &&
       !commonmarkDialect &&
       !BLANK_LINE.test(line) &&
-      columnIsCodeDepth(indentColumn(line), contentColumns);
+      (columnIsCodeDepth(indentColumn(line), contentColumns) || lazyEqualsBand);
     const setextLevel =
       titleLineCount >= 1 &&
       commonmarkHtmlBlock === null &&

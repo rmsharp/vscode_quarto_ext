@@ -10741,12 +10741,34 @@ describe("Session 231 guard — quoted-metadata and quoted-setext answers that m
     ]);
   });
 
-  it("G6: a title PART-WAY into a quote under an UNMARKED underline is still declined (`s202/comp/quote_lazy_gfm`)", () => {
-    // Rendered: NO heading. The unmarked `  ===` lazily continues the QUOTE's paragraph.
-    // ⚠ The other half of `setextTitleQuoted`, and the half that must survive this session's
-    // refinement of it — the underline here carries no marker, so the flag still applies.
+  it("G6: ⚠ REVERSED BY SESSION 234 — these bytes are the DEFAULT reader's, and it renders the heading", () => {
+    // ⚠ **THE ASSERTION BELOW WAS THE GFM ANSWER WRITTEN AGAINST A DOCUMENT WITH NO FRONT
+    // MATTER.** The witness it cites is NAMED `quote_lazy_gfm`, and re-rendered from these exact
+    // six lines on the shipping build the two readers disagree:
+    //
+    //   default          -> `<blockquote><p>Comp quote intro.</p><h1>comp quote title</h1></blockquote>`
+    //   `from: gfm`      -> `<blockquote><p>Comp quote intro.</p><p>comp quote title ===</p></blockquote>`
+    //
+    // So the original "Rendered: NO heading" is true of the witness and false of the test. Both
+    // rows are pinned below, which is what the entry should have carried in the first place —
+    // this is the THIRD session to find a reader-dependent rule recorded dialect-free (Session
+    // 232's gotcha 2, and Session 231's own G12 before it).
     expect(
       headings(["> Comp quote intro.", ">", "> comp quote title", "  ===", "", "End."]),
+    ).toEqual(["comp quote title"]);
+    expect(
+      headings([
+        "---",
+        "from: gfm",
+        "---",
+        "",
+        "> Comp quote intro.",
+        ">",
+        "> comp quote title",
+        "  ===",
+        "",
+        "End.",
+      ]),
     ).toEqual([]);
   });
 
@@ -11546,5 +11568,20 @@ describe("Session 234 guard — answers around the `=` band of the lazy quoted u
     // spelling — and it is filed rather than fixed here. Pinned so the band's floor is proven
     // to sit above it.
     expect(names(["> intro", ">", "> quoted title", "===", "# Probe A"])).toEqual([]);
+  });
+});
+
+describe("Session 234 — the `=` band of the lazily-continued quoted underline", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: a `=` run one column past the quote's marker underlines the line above (`r1/a1`)", () => {
+    // Rendered: `<blockquote><h1>quoted one</h1><h1>Probe A</h1></blockquote>`. Two headings,
+    // and this model reported neither — the underline was refused for its column, which left
+    // the quote's paragraph open so the ATX below was swallowed into it as well.
+    expect(names(["> quoted one", " ===", "# Probe A"])).toEqual([
+      "h1:quoted one",
+      "h1:Probe A",
+    ]);
   });
 });
