@@ -834,6 +834,22 @@ const SETEXT_H1 = /^[ \t]*=+[ \t]*$/;
 /** A setext level-2 underline — see `SETEXT_H1`. */
 const SETEXT_H2 = /^[ \t]*-+[ \t]*$/;
 /**
+ * A line of DASHES AND SPACES — the row that ENDS a pandoc simple table rather than filling it,
+ * read only by `lazyDashesBand` (Session 238).
+ *
+ * ⚠ **THIS IS DELIBERATELY WIDER THAN `SETEXT_H2`, WHICH ALLOWS NO INTERNAL SPACE.** A simple
+ * table's terminating rule is one dash group per column, so `- -` ends a two-column table exactly
+ * as `---` ends a one-column one — and rendered, both leave the underline above them free to form
+ * the heading (`scratchpad/s238/r1/d02`, `d10`). Using `SETEXT_H2` here would classify ` - -` as a
+ * body row and lose the heading it recovers.
+ *
+ * ⚠ **AND THE CALLER TESTS THE COLUMN SEPARATELY, BECAUSE THE INDENT IS WHERE IT STOPS.** A dash
+ * rule four columns in is a BODY ROW, not a terminator — rendered, `> quoted one` / ` ---` /
+ * `    ---` really does render the table (`<td>—</td>`) and no heading, and so does the TAB that
+ * reaches the same column (`r1/d05`, `r1/d06`). Both are pinned as G5.
+ */
+const DASH_RULE_ROW = /^[ \t]*-[- \t]*$/;
+/**
  * The level of the setext underline on `line`, or null if it is not one HERE (Session 192).
  *
  * ⚠ **The underline's indent is not a 0-3 tolerance — it is an EQUALITY against the enclosing
@@ -6008,6 +6024,45 @@ function computeRegions(text: string): Regions {
       setextTitle !== undefined &&
       SETEXT_H1.test(line) &&
       indentColumn(line) > indentColumn(lines[setextTitle.line] ?? "");
+    // ⚠ **AND THE `-` SPELLING REACHES THE SAME BAND — WHAT DECIDES IS THE LINE BELOW THE
+    // DASHES, NOT THEIR COLUMN (Session 238).** Session 234 shipped the band for `=` alone and
+    // disclosed this half as a bound, because only `-` can be a pandoc SIMPLE TABLE's separator:
+    // rendered, `> quoted one` / ` ---` / `# Probe A` is a one-column table — `<th>quoted one</th>`
+    // over `<td>Probe A</td>`, no `<blockquote>` and no heading anywhere — while the identical
+    // bytes with `===` render two headings. ⚠ **A table needs a BODY ROW, and with none the same
+    // dashes underline:** `> quoted one` / ` ---` alone renders `<blockquote><h2>quoted one</h2>`
+    // (`r1/a01`), and so does the filed witness one container in (`r1/e01`, Session 234's G8,
+    // reversed by this session). So the question the backlog entry asked — how far down does the
+    // band reach — has the same answer as the `=` half; it is the NEXT LINE that separates the
+    // two outcomes, which is why this term is the only one in the disjunction that reads one.
+    //
+    // ⚠ **AND ANY NON-BLANK LINE IS A BODY ROW — its own block kind is irrelevant.** Measured
+    // across prose, an ATX heading, a bullet, a fence, a `:::` closer, an HTML comment, a `===`
+    // run, a `***` run, an underscore rule and a body five columns deep: every one renders the
+    // table and no heading (`r1/a03`, `a05`, `b03`, `b04`, `d13`, `d14`, `d16`, and the probe
+    // round behind them). Hence `BLANK_LINE` rather than any structural test.
+    //
+    // ⚠ **AND IT IS THE RAW NEXT LINE, NOT A QUOTE-STRIPPED ONE.** `>`, `> ` and `> more` are all
+    // body rows, and so is a MARKED `> ---` — the table forms over the marker (`r1/j01`-`j03`,
+    // `r1/d15`). Reading the stripped line would make the first three look blank and mint three
+    // phantoms.
+    //
+    // ⚠ **THE COLUMN TERM STAYS `>` THE TITLE'S, FOR THE REASON SESSION 234 RECORDED.** At the
+    // marker's own column the underline claims the RAW line at the container's level with the
+    // marker kept, and this model cannot form that heading because the blank line above the quote
+    // has already popped the list off `contentColumns` — pinned at the loss as G22, the `-` twin
+    // of Session 234's G3. At column 0 the same thing happens at top level and the model DOES
+    // form it, marker and all (`r1/c01`, `c02`, pinned G17): a band reaching down to 0 would
+    // overwrite `> quoted title` with `quoted title` and invent a blockquote for it.
+    const belowUnderline = i + 1 < lines.length ? lines[i + 1] : null;
+    const lazyDashesBand =
+      setextTitle !== undefined &&
+      SETEXT_H2.test(line) &&
+      indentColumn(line) > indentColumn(lines[setextTitle.line] ?? "") &&
+      (belowUnderline === null ||
+        BLANK_LINE.test(belowUnderline) ||
+        (!columnIsCodeDepth(indentColumn(belowUnderline), contentColumns) &&
+          DASH_RULE_ROW.test(belowUnderline)));
     // ⚠ **AND A QUOTE THAT WAS ALREADY OPEN ABOVE THE TITLE MAKES THE UNDERLINE LAZY AT EVERY
     // COLUMN, WHICH IS WHY THE FLOOR IS NOT A COLUMN AT ALL (Session 237).** The two terms
     // above are both COLUMN rules — code depth, and past the marker's own column — and they
@@ -6036,7 +6091,10 @@ function computeRegions(text: string): Regions {
       !stripQuote &&
       !commonmarkDialect &&
       !BLANK_LINE.test(line) &&
-      (setextTitleQuoted || columnIsCodeDepth(indentColumn(line), contentColumns) || lazyEqualsBand);
+      (setextTitleQuoted ||
+        columnIsCodeDepth(indentColumn(line), contentColumns) ||
+        lazyEqualsBand ||
+        lazyDashesBand);
     const setextLevel =
       titleLineCount >= 1 &&
       commonmarkHtmlBlock === null &&

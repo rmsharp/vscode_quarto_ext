@@ -11509,12 +11509,17 @@ describe("Session 234 guard — answers around the `=` band of the lazy quoted u
     expect(names(["> quoted one", "   ---", "# Probe A"])).toEqual(["h1:Probe A"]);
   });
 
-  it("G8: ⚠ and the `-` spelling stays refused where quarto DOES render it (`r2/v1`)", () => {
-    // The other side of G7, pinned at a known loss so the `-` half's size stays honest.
-    // Rendered, `- item` / `` / `  > quoted one` / `   ---` renders `h2:quoted one` — no table
-    // can form without a body row below — and this model renders nothing. Recovering it is the
-    // `-` half's own question (what sits BELOW decides), and this session does not answer it.
-    expect(names(["- item", "", "  > quoted one", "   ---"])).toEqual([]);
+  it("G8: ⚠ REVERSED BY SESSION 238 — the `-` spelling is recovered where quarto DOES render it (`r2/v1`)", () => {
+    // ⚠ **THIS ASSERTION PINNED A KNOWN LOSS AND SESSION 238 IS THE CHANGE THAT CLOSES IT.**
+    // Session 234 wrote it as `.toEqual([])` with its own comment already recording the rendered
+    // answer — `h2:quoted one` — and naming what would have to be answered first: *"Recovering
+    // it is the `-` half's own question (what sits BELOW decides), and this session does not
+    // answer it."* That is exactly the question Session 238 answers.
+    //
+    // ⚠ RE-RENDERED FROM THE SAME BYTES on Session 238's starting build (`scratchpad/s238/r1/e01`,
+    // and again as the top-level `r1/a01`): the answer is unchanged, so this is a fix landing on
+    // a measured pin and not a moved goalpost. No table can form without a body row below.
+    expect(names(["- item", "", "  > quoted one", "   ---"])).toEqual(["h2:quoted one"]);
   });
 
   it("G9: a TWO-LINE quoted paragraph is never a title (`r1/c1`, `r1/c3`, `r2/t1`)", () => {
@@ -12620,5 +12625,26 @@ describe("Session 238 guard — answers around the `-` half of the lazy quoted u
     // column` rather than `> it` answers `h2:quoted one` here — a wrong-text heading traded for
     // a silent loss.
     expect(names(["- item", "", "  > quoted one", "  ---"])).toEqual([]);
+  });
+});
+
+describe("Session 238 — the `-` half of the lazily-continued quoted underline", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: with NOTHING below it, a `-` run past the quote's marker underlines the line above (`r1/a01`)", () => {
+    // Rendered: `<blockquote><h2>quoted one</h2></blockquote>`. Session 234 shipped this band for
+    // the `=` spelling alone and disclosed the `-` half as a bound, because a `-` run CAN be a
+    // pandoc simple table's separator and eat the whole construct. What decides is not the
+    // column but what sits BELOW: a table needs a body row, and here there is none.
+    expect(names(["> quoted one", " ---"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("C2: ⚠ and a DASH RULE below the dashes is not a body row either (`r1/d02`)", () => {
+    // The one exception, and it is measured rather than reasoned. A simple table needs at least
+    // one body row, and a line of dashes ENDS a table instead of filling it — so `> quoted one` /
+    // ` ---` / ` ---` renders `<blockquote><h2>quoted one</h2><hr></blockquote>`, the heading and
+    // then a thematic break, both inside the quote.
+    expect(names(["> quoted one", " ---", " ---"])).toEqual(["h2:quoted one"]);
   });
 });
