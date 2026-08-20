@@ -12304,8 +12304,8 @@ describe("Session 237 — guards around the COLUMN-0 axis of a quoted setext und
     // class — the identical `h2:---` already ships whenever that closer sits at CODE DEPTH
     // (`r4/q_hr_deep`, wrong on the PRE-session build), so this widens a filed bound's reach from
     // columns 4+ down to 0. (2) The narrowing that looked principled — require the quote's
-    // paragraph to be open — is REFUTED: `> ***` in the same position renders `h2:***` (`r4/
-    // q_star`, `tl_hr2`), which that rule would decline, and this session RECOVERS it. (3) The
+    // paragraph to be open — is REFUTED: `> ***` in the same position renders `h2:***`
+    // (`r4/q_star`, `r4/tl_hr2`), which that rule would decline, and this session RECOVERS it. (3)
     // real-world weight is one row: the sweep over 47,748 documents moved exactly ONE document,
     // `scratchpad/s231/r1/a14` — the filed bound's own witness — and no real content at all.
     // Fixing it properly means consuming the lazily-closed quoted block, which is that filed
