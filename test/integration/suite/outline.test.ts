@@ -1045,6 +1045,30 @@ describe("Quarto: Document outline (symbols)", () => {
       flat(symbols).includes("Below A Quoted Tab At Code Depth"),
       "Session 236: under a wider marker the same tab IS code, and its heading must survive",
     );
+
+    // Session 237 appended five more lines, and the whole fixture was RE-RENDERED rather than
+    // assumed: the ELEVEN headings above are byte-identical and in the same order, and exactly
+    // TWO are added. The appended block is a quote whose title has a marked line ABOVE it and
+    // whose `---` underline sits at COLUMN 0 — the band Sessions 232 and 234 both stopped short
+    // of, because each expressed the rule as a column (code depth, then the marker's own).
+    // Rendered, the underline is a lazy continuation of the quote's open paragraph at every
+    // column, so the heading forms INSIDE the quote with the marker stripped, and the ATX below
+    // it is a fresh heading rather than paragraph text.
+    //
+    // Both directions matter here. The fix CREATES headings, so the first assertion is the
+    // recovery; the second is what catches it deleting the ATX below — which an earlier spelling
+    // of this change really did, by clearing the quote fail-safe on the accept path and making a
+    // one-column-indented ATX look too deep to be a heading (pinned as Session 237 C2).
+    //
+    // ⚠ **THIS IS THE WIRING EVIDENCE FOR SESSION 237**, through the provider the Outline view,
+    // breadcrumbs, sticky scroll and Ctrl+T actually call — the core-level recovery is pinned in
+    // `test/unit/qmd-model.test.ts` (Session 237 C1-C6), and this asserts it reaches the editor.
+    for (const real of ["a title with the quote already open", "Below A Column Zero Underline"]) {
+      assert.ok(
+        flat(symbols).includes(real),
+        `Session 237: the column-0 underline's heading ${real} must reach the Outline provider`,
+      );
+    }
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {

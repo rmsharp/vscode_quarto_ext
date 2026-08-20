@@ -64,3 +64,9 @@ c | d
   >
   > 	really code, at column eight
   > # Below A Quoted Tab At Code Depth
+
+> a quote line above the title
+>
+> a title with the quote already open
+---
+# Below A Column Zero Underline
