@@ -28,3 +28,12 @@ a fenced div's body
 # Below A Quoted Setext
 
 ## Genuine Child
+
+- a list item
+
+  ::: {.a}
+  ::: {.b}
+  a nested div's body
+  :::
+:::
+# Below A Lazy Div Closer

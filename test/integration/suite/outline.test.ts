@@ -964,6 +964,26 @@ describe("Quarto: Document outline (symbols)", () => {
       flat(symbols).includes("quoted one"),
       "Session 232: a setext underline lazily continued into a block quote is a real heading",
     );
+    // ⚠ **SESSION 233 EXTENDED THIS FIXTURE, AND ITS PREMISE WAS RE-RENDERED, NOT ASSUMED.**
+    // The four appended lines are a list item holding two divs at column 2, the inner closed at
+    // its own column and the outer by a column-0 `:::`. Rendered on quarto 1.7.33, these exact
+    // bytes now emit SEVEN headings — `Real Section`, `Below Indented Code`, `Below A TeX
+    // Environment`, `quoted one`, `Below A Quoted Setext`, `Genuine Child` and
+    // `Below A Lazy Div Closer` — with the last inside the `<li>`, under a closed `<div
+    // class="a">`. Every assertion above was re-checked against the EXTENDED document.
+    //
+    // The blocker was the lazy closer branch's `paragraphOpen` precondition: the line above the
+    // column-0 closer is the inner div's own closer, which closes the paragraph, so a line
+    // pandoc absorbs like any other failed the test and the outer div was left open across the
+    // heading. Session 233 replaced the proxy with the blank line it stood in for.
+    //
+    // ⚠ **THIS IS THE WIRING EVIDENCE FOR SESSION 233**, through the provider the Outline view,
+    // breadcrumbs, sticky scroll and Ctrl+T actually call — the core-level recovery is pinned in
+    // `test/unit/qmd-model.test.ts` (Session 233 C1), and this asserts it reaches the editor.
+    assert.ok(
+      flat(symbols).includes("Below A Lazy Div Closer"),
+      "Session 233: a shallow closer absorbed by the list item closes the div above the heading",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
