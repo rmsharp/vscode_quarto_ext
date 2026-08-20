@@ -4129,6 +4129,48 @@ function columnAtOffset(line: string, offset: number): number {
   return col;
 }
 /**
+ * The content of a block-quoted line, with its leading whitespace re-expressed in the quote's
+ * OWN column coordinates (Session 236).
+ *
+ * ⚠ **SLICING A MARKER OFF A LINE DESTROYS THE ONE THING A TAB DEPENDS ON — ITS ABSOLUTE
+ * COLUMN.** Every other indent is translation-invariant: four spaces mean four columns wherever
+ * they sit, so `raw.slice(contentStart)` was exact for them and had been since the quote path
+ * was written. A tab is not. It advances to the next 4-column stop counted from the START OF
+ * THE RAW LINE, so after a `> ` marker it begins at column 2 and reaches 4 — indenting the
+ * quote's content by TWO columns, not the four an indented code block needs. Measured, quarto
+ * renders `> line one` / `> line two` / `>` / `> \tcode` / `> # ATX Below` as a single
+ * paragraph with NO heading, and this model reported one for as long as it sliced
+ * (`scratchpad/s236/r1/aT`, family F08).
+ *
+ * ⚠ **THE FIX CANNOT BE A RULE ABOUT THE TAB CHARACTER, AND ONE PAIR OF RENDERED DOCUMENTS IS
+ * WHY.** The same `\tcode` bytes are PROSE under `> ` (base column 2, tab reaches 4) and are
+ * INDENTED CODE under `  > ` (base column 4, tab reaches 8) — `r1/b1` against `r1/b4`, and
+ * `> > ` gives the same answer as `  > ` at `r1/b6`. Only the marker's width differs. Anything
+ * that special-cases the tab, or that counts characters instead of columns, gets one of those
+ * two rows wrong. The whole marker sweep `b0`-`b7` is pinned for that reason.
+ *
+ * Returning a STRING rather than a column keeps the change at the one place the coordinate
+ * system is lost, so every downstream consumer — `indentedCodeLine`, `rawTexMacroLineIsBlock`,
+ * the container pop, `setextUnderlineLevel` — reads a correct indent without being told about
+ * quotes at all. It is a NO-OP on spaces by construction: with no tab in the run, `col - base`
+ * is exactly the number of spaces consumed and the line is rebuilt byte-identical.
+ *
+ * ⚠ Shared with `buildCloserIndex`, which slices the same way to key a quoted fence CLOSER by
+ * its column. The two must agree or a tab-indented quoted fence is opened at one column and
+ * closed at another, never closes, and swallows every heading below it — the heading-DELETING
+ * direction. One definition, so they cannot drift (Learning #14).
+ */
+function quoteContentLine(raw: string, contentStart: number): string {
+  const base = columnAtOffset(raw, contentStart);
+  let col = base;
+  let k = contentStart;
+  while (k < raw.length && (raw[k] === " " || raw[k] === "\t")) {
+    col = raw[k] === "\t" ? col + 4 - (col % 4) : col + 1;
+    k += 1;
+  }
+  return k === contentStart ? raw.slice(contentStart) : " ".repeat(col - base) + raw.slice(k);
+}
+/**
  * Whether `col` is four or more columns past the content column of the innermost open block
  * that could still contain it — i.e. whether a line at that column is INDENTED CODE.
  *
@@ -5444,7 +5486,7 @@ function computeRegions(text: string): Regions {
       outerColumns = null;
       inQuote = false;
     }
-    const line: string = stripQuote ? raw.slice(quoteContentStart as number) : raw;
+    const line: string = stripQuote ? quoteContentLine(raw, quoteContentStart as number) : raw;
     // The ATX-adjacency state is consumed by THIS line and by no later one — pandoc
     // swallows the heading only when the run is the line IMMEDIATELY below it. Clearing
     // it here, at the top, is what makes that "immediately" true through every `continue`
@@ -7237,7 +7279,7 @@ function buildCloserIndex(lines: readonly string[]): Map<string, number[]> {
     if (contentStart === null) {
       continue;
     }
-    const content = lines[i].slice(contentStart);
+    const content = quoteContentLine(lines[i], contentStart);
     const m = FENCE_CLOSE.exec(content);
     if (m === null) {
       continue;

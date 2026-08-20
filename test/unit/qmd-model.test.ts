@@ -11830,15 +11830,18 @@ describe("Session 235 guard — answers around the fresh-block discriminator tha
     ]);
   });
 
-  it("G17: ⚠ PINNED AT A PHANTOM — F08, the TAB-indented quoted line, is a SEPARATE item (`r1/e02`)", () => {
+  it("G17: ⚠ REVERSED BY SESSION 236 — F08 is FIXED, and this pin recorded the loss (`r1/e02`)", () => {
     // Rendered, this renders NO heading: after `> ` a tab reaches the next 4-column stop and
     // lands 2 columns into the quote's content, which is a paragraph, where four spaces land 4
-    // in and are indented code. It is filed as family F08 — column ARITHMETIC, not line shape —
-    // and it is deliberately NOT in this session's scope. Pinned so a later change is measured
-    // against it rather than blamed for it.
-    expect(names(["> line one", "> line two", "", "> \tcode", "> # ATX Below"])).toEqual([
-      "h1:ATX Below",
-    ]);
+    // in and are indented code. It is filed as family F08 — column ARITHMETIC, not line shape.
+    //
+    // ⚠ **SESSION 235 PINNED THIS AT THE PHANTOM ON PURPOSE** — its own comment above said the
+    // rendered answer is NO heading while the assertion demanded one, so that a later change
+    // would be measured against the pin rather than blamed for it. Session 236 is that change.
+    // The bytes were RE-RENDERED on the shipping build before this assertion was touched
+    // (`scratchpad/s236/r1/g1`, quarto emits one paragraph and no heading), so the reversal is
+    // a fresh measurement and not a convenient reading of an inherited record.
+    expect(names(["> line one", "> line two", "", "> \tcode", "> # ATX Below"])).toEqual([]);
   });
 
   it("G18: ⚠ A GRID BORDER ENDS A PIPE TABLE — and this pin was written WRONG (`r3/h09`)", () => {
@@ -12061,5 +12064,22 @@ describe("Session 236 — guards around the TAB's column inside a block quote", 
     expect(names(["> prose one", ">", "> \t# Probe A"])).toEqual([]);
     expect(names(["prose one", "", " # Probe A"])).toEqual([]);
     expect(names(["prose one", "", "\t# Probe A"])).toEqual([]);
+  });
+});
+
+describe("Session 236 — a tab inside a quote is a column, not a character", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: the filed witness — a tab after `> ` lands 2 columns in, which is prose (`r1/aT`)", () => {
+    // `docs/MODEL-DIVERGENCE-FAMILIES.md` family F08. Rendered, quarto emits ONE paragraph
+    // holding `code # ATX Below` inside the quote and NO heading: after the `> ` marker the
+    // tab starts at absolute column 2 and reaches the next 4-column stop at 4, so it indents
+    // the quote's content by TWO columns — not the four an indented code block needs.
+    //
+    // The model sliced the marker off and then measured the tab from column 0 of what was
+    // left, where it reaches 4 and looks like code. The slice is where the line's absolute
+    // column was lost, and a tab is the one indent whose width depends on it.
+    expect(names(["> line one", "> line two", ">", "> \tcode", "> # ATX Below"])).toEqual([]);
   });
 });
