@@ -5,6 +5,15 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 235 — IMPLEMENTATION (strict TDD): F07, THE FRESH-BLOCK DISCRIMINATOR — what separates `a | b` (suppresses the heading below it) from `| a | b |` (renders it).** Session 234's ranked #1 and left by five straight sessions (S230, S231, S232, S233, S234); the operator picked it at Phase 0 from the `AskUserQuestion` candidate list.
+**Started:** 2026-08-20
+**Status:** Session claimed. Work beginning.
+**Deliverable (ONE capability):** the discriminator between a table-shaped line that opens a fresh block and one that is an ordinary paragraph, RENDERED first and then — only if the render settles it — fixed in `src/core/qmd/model.ts`. ⚠ **F08 (the TAB-indented quoted line) is NOT this item** — it is column arithmetic, not line shape, and `docs/MODEL-DIVERGENCE-FAMILIES.md` files it separately for that reason.
+**⚠ The measurement comes BEFORE the code, by the item's own instruction.** `docs/MODEL-DIVERGENCE-FAMILIES.md` F07 states the discriminator is "unresolved by this audit and needs its own render before anyone codes it", and the S230 audit explicitly did NOT run a fresh `quarto render`. ⚠ **TWO MATCHED CONTROLS ARE MEASURED RIGHT AND MUST NOT MOVE:** `s183/c3/R1row_bq_mark__closed` (`> | a | b |`) and `R4indent_bq_mark__closed` (`>     ---`).
+**Build at claim, verified firsthand rather than inherited:** `npm test` **2409 passed / 66 files**, matching Session 234's recorded close-out exactly; `check-backlog` **OK, 173 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`5e24e630`, gap 0), `grep -c "^status: pending" HANDOFFS.md` = 0 against 197 complete, no ghost sessions, 0 open GitHub issues so `BACKLOG.md` governs.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 234 ACTIVE TASK (superseded by Session 235 — full entry preserved below)
 **Task:** **Session 234 — IMPLEMENTATION (strict TDD): the `===` HALF of Session 232's disclosed bound.** Session 233's ranked #1; the operator picked it at Phase 0 from the `AskUserQuestion` candidate list.
 **Started:** 2026-08-20 · **Closed:** 2026-08-20
 **Status:** **DONE. SHIPPED — and the finding is that the bound was filed as an INDENT band when it is a SPELLING band, whose floor is a column the item never mentions.**

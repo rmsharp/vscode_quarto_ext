@@ -18,6 +18,12 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S235
+date: 2026-08-20
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- F07, the fresh-block discriminator: `> a | b` suppresses the ATX heading below it and `> | a | b |` renders it, and what separates them is UNRESOLVED. The S230 family audit ran no fresh render and said so; five sessions have left it. Render both shapes first, then fix src/core/qmd/model.ts only if the render settles it. ⚠ Two matched controls are measured RIGHT and must not move (s183/c3/R1row_bq_mark__closed, R4indent_bq_mark__closed). F08 (the TAB-indented quoted line) is deliberately NOT in scope -- it is column arithmetic, not line shape.
+```
+```handoff
 session: S234
 date: 2026-08-20
 status: complete
