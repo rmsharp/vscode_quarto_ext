@@ -945,12 +945,24 @@ describe("Quarto: Document outline (symbols)", () => {
       !flat(symbols).includes("Below A Div Closer"),
       "Session 226: the div is opened against an open paragraph, so its `:::` closes nothing",
     );
-    // (2) We do NOT emit quarto's `quoted one` — a SETEXT heading formed inside a block
-    // quote's lazy continuation. PRE-EXISTING and unchanged by Session 226 too, which leaves
-    // this fixture disagreeing with its own render on exactly ONE heading instead of two.
+    // ⚠ **RESIDUAL (2) IS CLOSED BY SESSION 232 AND THIS ASSERTION IS REVERSED TOO.** It read
+    // `assert.ok(!flat(symbols).includes("quoted one"))` and recorded a real heading this model
+    // could not see: quarto renders `<blockquote><h2>quoted one</h2><h1>Below A Quoted
+    // Setext</h1></blockquote>` for these exact bytes. ⚠ Re-rendered to adjudicate rather than
+    // reasoned about, on the same build as the reversal (quarto 1.7.33).
+    //
+    // The blocker was never the setext rule: the underline `    ---` carries no quote marker, so
+    // the Session 225 strip never reaches it and it arrived at the setext row four columns past
+    // the quote's content base — CODE DEPTH, where no underline may form. Pandoc reads it as a
+    // LAZY CONTINUATION of the quote's open paragraph instead, where indented code cannot form.
+    //
+    // ⚠ **THIS IS THE WIRING EVIDENCE FOR SESSION 232**, through the provider the Outline view,
+    // breadcrumbs, sticky scroll and Ctrl+T actually call — the core-level recovery is pinned in
+    // `test/unit/qmd-model.test.ts`, and this asserts it reaches the editor. With it, the
+    // fixture now AGREES with its own render on every heading.
     assert.ok(
-      !flat(symbols).includes("quoted one"),
-      "KNOWN RESIDUAL: a setext heading inside a block quote is invisible to this model",
+      flat(symbols).includes("quoted one"),
+      "Session 232: a setext underline lazily continued into a block quote is a real heading",
     );
   });
 
