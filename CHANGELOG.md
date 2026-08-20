@@ -7,6 +7,18 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-20 · [ad hoc] Session 230 — the 116 measured divergences are 25 documents in 16 families, and 12 were already filed
+
+- **Model:** Claude Opus 5. AUDIT. No `src/` change — `src/` is byte-identical to `ebaf7460`.
+- **Deliverable:** `docs/MODEL-DIVERGENCE-FAMILIES.md` — all 903 archive rows scored, all 116 real divergences classified into **16 families**, 0 unassigned, each with a rendered witness re-extracted firsthand from its stored HTML.
+- ⚠ **Both halves of the commissioning item's premise are corrected.** (1) The 116 rows are **25 distinct documents** by content hash, and two of them are 87 of the rows — the archives are corpus unions, so the row count measures re-sweep overlap, not defect volume. (2) The item said `BACKLOG.md` names *"roughly a dozen model defects"*; **12 of the 16 families were already filed**, several by items broader than the families themselves.
+- **Filed: 3 new defects** — a table-shaped line standing alone read as a fresh block (F07, 3 rendered witnesses, ⚠ with two matched controls measured RIGHT that a naive fix would break); a TAB-indented line inside a quote against its 4-space twin (F08); a CLOSED raw-TeX environment with a paragraph open above it (F11, the third case beside the already-filed unclosed and orphan ones).
+- **Filed: 1 record-hygiene finding** — **three duplicate clusters** in `BACKLOG.md`: the quoted setext filed twice (S183, S225), the unreferenced-footnote drop filed **three** times (S201, S209, S227), and a superseded S192 lead beside its own S193 measured promotion. ⚠ Reported for an operator decision, **not merged**.
+- **Refined 4 existing items** with measured facts they did not carry: the ATX-swallow item (the swallow IS implemented at top level; the residual is quote-scoped), the marker-in-setext-title item (`>` is a fifth marker class, `gfm` only), `listItemContentColumn` (the spurious column admits a setext UNDERLINE, isolated by probe), and the block-quote container item (two new spellings, plus the caution that only 4 of 9 quote-witnessed families are actually caused by the quote).
+- ⚠ **Two of this audit's own candidate findings were REFUTED by its own probes** before filing — an indented-underline hypothesis (the model refuses those at every indent 1–8) and a block-quote attribution (three of four reproduce unquoted). Both would have been wrong filings.
+- **Verification:** `check-types` 0 · `check-types:unit` 0 · `compile` 0 · `npm test` **2335 passed / 66 files** (identical to S229) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S229) · `check-package` OK 42 files / 5.57 MB · `check-backlog` OK, **169 open items** (166 − 1 completed + 4 filed). NOT RUN: `test:integration`, `test:lsp` — no runtime surface changed, stated rather than skipped.
+- **Backlog:** 1 closed, 4 filed, 166 → 169. Learnings #410–#413.
+
 ### 2026-08-19 · [ad hoc] Session 229 addendum (post-close-out) — the appendix-heading artifact fixed, and 903 archive rows checked for regression
 
 - **Model:** Claude Opus 5. Operator-requested verification after Session 229's close-out. No `src/` change.
