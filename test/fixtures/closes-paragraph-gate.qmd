@@ -70,3 +70,12 @@ c | d
 > a title with the quote already open
 ---
 # Below A Column Zero Underline
+
+> a title for the dashes band
+ ---
+
+# Below A Dashes Band
+
+> a title the table eats
+ ---
+# Not A Heading Below A Simple Table

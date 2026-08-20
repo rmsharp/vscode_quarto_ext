@@ -12664,4 +12664,19 @@ describe("Session 238 — the `-` half of the lazily-continued quoted underline"
     expect(names(["> quoted one", " ---", " -"])).toEqual(["h2:quoted one"]);
     expect(names(["> quoted one", " ---", "-"])).toEqual(["h2:quoted one"]);
   });
+
+  it("R1: ⚠ DISCLOSED BOUND — inside a container the terminator's own column is read from 0 (`r2/t04`)", () => {
+    // ⚠ **PINNED AT A LOSS THIS SESSION DOES NOT FIX, and it is the one place the code-depth
+    // reuse is approximate.** Rendered, `- item` / `` / `  > quoted one` / `   ---` / `    ---`
+    // renders `h2:quoted one`: the terminating rule sits at column 4, which is NON-indented
+    // relative to the list item's own content column of 2, so no table forms. This model reads
+    // `columnIsCodeDepth(4, contentColumns)` and `contentColumns` is already EMPTY — the blank
+    // line above the quote popped the list off it, the same data-structure gap Session 234's G3
+    // records — so 4 is measured from the document root, called code depth, and the terminator is
+    // read as a body row. ⚠ The direction is a LOSS, never a phantom: a terminator misread as a
+    // body row only ever declines. One column shallower the same document is recovered (`r2/t05`,
+    // pinned below), which is what bounds this to the container case.
+    expect(names(["- item", "", "  > quoted one", "   ---", "    ---"])).toEqual([]);
+    expect(names(["- item", "", "  > quoted one", "   ---", "   ---"])).toEqual(["h2:quoted one"]);
+  });
 });

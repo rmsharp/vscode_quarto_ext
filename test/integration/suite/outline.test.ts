@@ -1069,6 +1069,33 @@ describe("Quarto: Document outline (symbols)", () => {
         `Session 237: the column-0 underline's heading ${real} must reach the Outline provider`,
       );
     }
+
+    // Session 238 appended eight more lines, and the whole fixture was RE-RENDERED rather than
+    // assumed: the THIRTEEN headings above are byte-identical and in the same order, and exactly
+    // TWO are added. The appended block is the `-` half of the same band — a quote whose title
+    // has NO quote open above it and whose `---` underline sits one column past the marker, the
+    // half Session 234 deliberately did not ship because only `-` can be a pandoc SIMPLE TABLE's
+    // separator. What decides is what sits BELOW the dashes: the first appended quote has a
+    // blank line under its underline, so no table can form and the heading is real; the second
+    // has an ATX line, so quarto renders a one-column table and NO heading at all.
+    //
+    // Both directions are asserted because this fix CREATES headings. The first is the recovery;
+    // the second is the phantom the widening would mint if it reached for the column instead of
+    // the line below.
+    //
+    // ⚠ **THIS IS THE WIRING EVIDENCE FOR SESSION 238**, through the provider the Outline view,
+    // breadcrumbs, sticky scroll and Ctrl+T actually call — the core-level recovery is pinned in
+    // `test/unit/qmd-model.test.ts` (Session 238 C1-C4), and this asserts it reaches the editor.
+    for (const real of ["a title for the dashes band", "Below A Dashes Band"]) {
+      assert.ok(
+        flat(symbols).includes(real),
+        `Session 238: the dashes band's heading ${real} must reach the Outline provider`,
+      );
+    }
+    assert.ok(
+      !flat(symbols).includes("a title the table eats"),
+      "Session 238: a body row below the dashes makes a simple table, so the quoted line is not a title",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
