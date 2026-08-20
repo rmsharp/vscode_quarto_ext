@@ -11871,4 +11871,71 @@ describe("Session 235 — a table-shaped line standing alone is prose, not a fre
     // ANYWHERE, so this model closed the paragraph and reported a heading quarto never renders.
     expect(names(["> line one", "> line two", "", "> a | b", "> # ATX Below"])).toEqual([]);
   });
+
+  // ⚠ **C2-C6 ARE TEST-AFTER, AND THEY EXIST BECAUSE THE MUTATION HUNT FOUND FOUR CONDITIONS
+  // SHIPPING UNEXERCISED.** Seven mutants were run against the finished fix; M3 (the grid
+  // lookahead's backward direction), M5 (the non-border `+` row) and M7 (the line-block arm)
+  // died on 4, 2 and 13 existing tests. Four survived with the whole suite green — the
+  // open-paragraph test on a pipe table's header, the header-carries-a-pipe test, the grid
+  // border's ban on interior spaces, and the bullet-marker line block. Every one of the four
+  // was put there by a RENDERED sweep witness, so each row below names the document that
+  // demanded it. Session 232 recorded the same shape of finding one condition at a time; this
+  // is four at once, in a change whose every OTHER row was measured first.
+
+  it("C2: ⚠ kills M1 — a pipe table cannot interrupt an OPEN paragraph (`01bfd0d98679`)", () => {
+    // Rendered, `prose one` / `prose two` / `| a | b |` / `|---|---|` / `| 1 | 2 |` /
+    // `# ATX Below` renders NO heading — the table never forms, because a paragraph was already
+    // open when its header line began. Drop `!paragraphOpenAboveHeader` and 26 documents in the
+    // corpus gain a phantom, with the whole suite still green.
+    expect(names(["prose one", "prose two", "| a | b |", "|---|---|", "| 1 | 2 |", "# ATX Below"])).toEqual(
+      [],
+    );
+  });
+
+  it("C3: ⚠ and its twin, where a CLASS-A macro closes that paragraph first (`03572f04bd2f`)", () => {
+    // The other side of C2, and the row that refuted "the header is the block's SECOND line":
+    // `\maketitle` is block in every context, so it closes the paragraph and the header below it
+    // really does open a fresh block — with no blank line anywhere. Rendered, this renders the
+    // heading. ⚠ Its class-B twin does NOT: `\vspace{1em}` in the same position leaves the
+    // paragraph open and quarto renders nothing (`26d48dc6dea6`), which is why the condition is
+    // the scanner's own paragraph state and not a macro list.
+    expect(
+      names([
+        "Prose that opens a paragraph and keeps going.",
+        "\\maketitle",
+        "| Name | Value |",
+        "|-------|-------|",
+        "| Alpha | 1 |",
+        "# ATX Below",
+      ]),
+    ).toEqual(["h1:ATX Below"]);
+  });
+
+  it("C4: ⚠ kills M2 — a delimiter alone does not make the prose above it a header (`162f5ced6906`)", () => {
+    // Rendered, `line one` / `|---|---|` / `# ATX Below` renders NO heading. This was the corpus
+    // sweep's only ADDITION under an earlier spelling of the rule — the one row that moved in
+    // the phantom direction while everything else moved the other way.
+    expect(names(["line one", "|---|---|", "# ATX Below"])).toEqual([]);
+  });
+
+  it("C5: ⚠ kills M4 — a grid border carries no INTERIOR space, but may carry a trailing one", () => {
+    // Five `+` rows that a space-tolerant border regex swallows, every one a list item whose
+    // content opens no paragraph, every one rendering the heading below it (`020fab1f93fa`,
+    // `5eb80c114917`, `75cc833b36d4`, `9d4062907e66`, `a5a8872be95c`).
+    for (const plus of ["+ - + - +", "+ + +", "+   +", "+ ---", "+ -"]) {
+      expect(names([plus, "# ATX Below"])).toEqual(["h1:ATX Below"]);
+    }
+    // ⚠ And the other end of the same regex: a real border with TRAILING whitespace is still a
+    // border, so the grid still forms (`228c992fe10b`, rendered).
+    expect(names(["+---+---+ ", "| a | b |", "+---+---+  ", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("C6: ⚠ kills M6 — a BULLET MARKER can hide a line block (`a577b91b1529`)", () => {
+    // Rendered, `- | a | b |` / `# ATX Below` renders the heading: the item's content is a line
+    // block, which opens no paragraph. The marker moves the bar off the container's content
+    // column, where the plain line-block test cannot see it.
+    expect(names(["- | a | b |", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+  });
 });
