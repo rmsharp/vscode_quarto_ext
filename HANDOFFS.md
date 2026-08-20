@@ -18,6 +18,12 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S237
+date: 2026-08-20
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- the COLUMN-0 axis of the quoted-setext underline family, Session 234's rescope (b). With a block quote ALREADY OPEN above the title, an underline at column 0 forms the heading INSIDE the quote and this model reports nothing; the discriminator is setextTitleQuoted, not the underline's spelling. Six named witnesses (s234/r1/b0 for `===`; s232/r2/h0, h3, s232/r3/r1, r2, r4 for `---`), all to be RE-RENDERED before any code. ⚠ s234/r1/a0 is measured RIGHT and must not move -- pinned G1, with the loss pinned G16.
+```
+```handoff
 session: S236
 date: 2026-08-20
 status: complete

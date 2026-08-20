@@ -5,6 +5,23 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 237 — IMPLEMENTATION (strict TDD): THE COLUMN-0 AXIS OF THE QUOTED-SETEXT UNDERLINE FAMILY — Session 234's rescope (b).** With a block quote ALREADY OPEN above the title, an underline at column 0 forms the heading INSIDE the quote and this model reports nothing; the discriminator is `setextTitleQuoted`, not the underline's spelling. Session 236's ranked #1; the operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
+**Started:** 2026-08-20
+**Status:** Session claimed. Work beginning.
+
+**The filed claim, to be re-rendered before any code is written.** Six witnesses are named in the backlog entry, all MEASURED on earlier builds and all heading-DELETING: `scratchpad/s234/r1/b0` (the `===` spelling) and `s232/r2/h0`, `h3`, `s232/r3/r1`, `r2`, `r4` (the `---` spelling). Quarto renders the heading inside the quote; this model reports nothing.
+
+**⚠ The row that must NOT move, pinned in the entry and in the suite.** `scratchpad/s234/r1/a0` — column 0 with NO quote open above the title — is measured RIGHT today: the underline claims the RAW line and KEEPS the `>` marker. Session 234 pinned it as G1 and pinned the loss as G16. A band that simply reaches down to column 0 breaks `a0`, which is why the entry says the discriminator is `setextTitleQuoted` rather than the column.
+
+**Derived, NOT yet measured:** the floor Session 234 shipped is the quote MARKER's own column, so these rows sit exactly one column below what the current rule can reach.
+
+**⚠ Inherited gotcha 2 from Session 236, which governs this session's shape:** PIN THE SENSOR, NOT JUST THE SUBJECT. Four of five of S236's Round 1 prediction misses were the `# ATX Below` probe failing at nonzero indent rather than the rule under test. Calibrate the probe before trusting the round's arithmetic. And gotcha 1: a backlog item's cross-references age independently of the item — re-render a cited sibling before letting it widen scope.
+
+**⚠ Inherited gotcha 1 from Session 235, still governing:** a green round set is not evidence a widening is safe. This change is heading-CREATING in direction, so the risk is PHANTOMS, and the 47,748-document corpus sweep is where the rule is measured — not a victory lap at the end.
+
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 236 ACTIVE TASK (superseded by Session 237 — full entry preserved below)
 **Task:** **Session 236 — IMPLEMENTATION (strict TDD): F08, THE TAB-INDENTED QUOTED LINE.** Session 235's ranked #1 and the only divergence left in its 87-document round set; the operator picked it at Phase 0 from the ranked candidate list.
 **Started:** 2026-08-20 · **Closed:** 2026-08-20
 **Status:** **DONE. SHIPPED — and the finding is that the defect survived 235 sessions because every OTHER indent is translation-invariant.**
