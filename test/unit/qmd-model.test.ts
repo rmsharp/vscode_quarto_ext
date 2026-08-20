@@ -11939,3 +11939,127 @@ describe("Session 235 — a table-shaped line standing alone is prose, not a fre
     expect(names(["- | a | b |", "# ATX Below"])).toEqual(["h1:ATX Below"]);
   });
 });
+
+describe("Session 236 — guards around the TAB's column inside a block quote", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ THE DANGEROUS DIRECTION. Session 236 makes a TAB inside a quote land SHALLOWER than the
+  // model reads it today, so the risk is a tab that GENUINELY reaches code depth being read as
+  // prose — which stops closing the paragraph and DELETES a real heading. Ten of the fourteen
+  // guards below pin a tab-indented line that must KEEP being a block. Every answer is the
+  // RENDERED one, measured through the real `quarto render` path over `scratchpad/s236/r1`
+  // (47 documents) and `r2` (16 probes) before any `src/` change.
+
+  it("G1: a tab under a TWO-COLUMN-indented quote marker really is code (`r1/b4`)", () => {
+    // `  > ` puts the quote's content base at column 4; the tab there reaches column 8, which
+    // is 4 past the base — indented code, a block, so the ATX below it is a fresh heading.
+    // ⚠ The SAME `\tcode` bytes as G12's phantom row: only the marker's width differs, which
+    // is exactly why the fix cannot be a rule about the tab character.
+    expect(names(["  > line one", "  > line two", "  >", "  > \tcode", "  > # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G2: the same tab one quote deeper is also code (`r1/b6`)", () => {
+    expect(names(["> > line one", "> > line two", "> >", "> > \tcode", "> > # ATX Below"])).toEqual(
+      ["h1:ATX Below"],
+    );
+  });
+
+  it("G3: a quote INSIDE a list item — base column 4, tab reaches 8 (`r1/f1`)", () => {
+    expect(
+      names(["- item", "", "  > line one", "  > line two", "  >", "  > \tcode", "  > # ATX Below"]),
+    ).toEqual(["h1:ATX Below"]);
+  });
+
+  it("G4: TWO tabs after `> ` reach column 8 (`r1/aTT`)", () => {
+    expect(names(["> line one", "> line two", ">", "> \t\tcode", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G5: two spaces then a tab reach column 8 (`r1/aSST`)", () => {
+    expect(names(["> line one", "> line two", ">", ">   \tcode", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G6: three spaces then a tab also reach column 8 (`r1/aSSST`)", () => {
+    expect(names(["> line one", "> line two", ">", ">    \tcode", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G7: an UNQUOTED tab is untouched — no strip happens at all (`r1/e1`)", () => {
+    expect(names(["line one", "line two", "", "\tcode", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+  });
+
+  it("G8: an unquoted two-space-then-tab line is untouched (`r1/e3`)", () => {
+    expect(names(["line one", "line two", "", "  \tcode", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G9: the SPACE spelling at the quote's code depth is untouched (`r1/a4`)", () => {
+    expect(names(["> line one", "> line two", ">", ">     code", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G10: the `contentColumns` POP sibling item is ALREADY FIXED, both spellings (`r1/d1t`, `d1s`)", () => {
+    // ⚠ RE-RENDERED THIS SESSION. `BACKLOG.md` tells this session to size the fix against two
+    // other "counts SPACES ONLY" items. Both were closed by Session 194 and the entries are
+    // stale: the pop reads `indentColumn`, not `/^ */`. Measured, the tab spelling and its
+    // eight-space twin render IDENTICALLY and the model agrees with both.
+    const tab = ["- a", "  - b", "    - c", "", "    \tzzz", "", "    Some Title", "    ==="];
+    const spaces = ["- a", "  - b", "    - c", "", "        zzz", "", "    Some Title", "    ==="];
+    expect(names(tab)).toEqual(["h1:Some Title"]);
+    expect(names(spaces)).toEqual(["h1:Some Title"]);
+  });
+
+  it("G11: the `rawTexMacroLineIsBlock` sibling item is ALREADY FIXED, both spellings (`r1/d2t`, `d2s`)", () => {
+    // The second stale sibling — its own recorded witness, re-rendered this session.
+    expect(
+      names(["-   line one", "    line two", "", "\t\\clearpage", "    Some Title", "    ==="]),
+    ).toEqual(["h1:Some Title"]);
+    expect(
+      names(["-   line one", "    line two", "", "    \\clearpage", "    Some Title", "    ==="]),
+    ).toEqual(["h1:Some Title"]);
+  });
+
+  it("G12: the FOUR-SPACE marker sweep is translation-invariant and must not move (`r1/b*s`)", () => {
+    // Four spaces mean four columns wherever they sit, so every one of these is code today and
+    // must stay code. ⚠ `b0s` and `b2s` render NO heading for a reason that is NOT the column:
+    // the quote marker eats one following space, so `>    code` is indent 3 (prose), and in
+    // `b2s` the ATX below sits at indent 1, which pandoc refuses (G14).
+    expect(names(["> line one", "> line two", ">", ">     code", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+    expect(names([" > line one", " > line two", " >", " >     code", " > # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+    expect(names(["> > line one", "> > line two", "> >", "> >     code", "> > # ATX Below"])).toEqual(
+      ["h1:ATX Below"],
+    );
+  });
+
+  it("G13: ⚠ THE FILED CONTROL — `>     ---` still renders its heading (`r1/g2`)", () => {
+    // The matched control the filed item names as measured RIGHT. It must not move.
+    expect(names(["> line one", "> line two", "", ">     ---", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G14: pandoc refuses an INDENTED ATX heading, quoted or not — the model already agrees (`r2`)", () => {
+    // ⚠ Measured over 16 probes: an ATX heading renders ONLY at indent 0, quoted or unquoted,
+    // blank line above or not. This is the sensor every round in this session leans on, and it
+    // is why four of Round 1's five prediction misses were the PROBE failing rather than the
+    // rule. Pinned so a column change cannot quietly start minting indented headings.
+    expect(names(["> prose one", ">", "> # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["> prose one", ">", ">  # Probe A"])).toEqual([]);
+    expect(names(["> prose one", ">", "> \t# Probe A"])).toEqual([]);
+    expect(names(["prose one", "", " # Probe A"])).toEqual([]);
+    expect(names(["prose one", "", "\t# Probe A"])).toEqual([]);
+  });
+});
