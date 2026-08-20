@@ -10665,3 +10665,163 @@ describe("Session 229 — a div's column belongs to a container", () => {
     ).toEqual([]);
   });
 });
+
+// ── Session 231 GUARD — the answers a quote-aware metadata pre-pass must NOT move ─────
+//
+// This session gives the CONSUMED-metadata pre-pass block-quote context and then lets a
+// setext underline that carries its own `>` marker form a heading. Its polarity is MIXED:
+// the setext half is a WIDENING of the heading set (safe direction), the consumption half
+// is a WIDENING of a SUPPRESSION (the deleting direction, and the dangerous one). So the
+// guard is one `it()` per answer that must survive, weighted towards the suppression, and
+// every one is green BEFORE any `src/` change (S204's gotcha 5, inherited a twenty-fifth
+// time).
+//
+// Rows are named for the rendered document that measured them. `a01`–`a17` are this
+// session's own Round 1 — 17 documents rendered through the real `quarto render` path
+// (quarto 1.7.33, `scratchpad/s231/r1`, predictions frozen and SHA-256'd before the render,
+// 13/17). The rest are inherited renders re-extracted this session from their stored HTML.
+describe("Session 231 guard — quoted-metadata and quoted-setext answers that must NOT move", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("G1: a TOP-LEVEL metadata triple is still consumed under the default reader (`r1/a13`)", () => {
+    // Rendered: only the control renders. The whole point of the pre-pass, unchanged — the
+    // quoted walk this session adds must not disturb the top-level one it reuses.
+    expect(headings(["Prose one.", "", "---", "note: alpha", "---", "", "## Control a13"])).toEqual(
+      ["Control a13"],
+    );
+  });
+
+  it("G2: a TOP-LEVEL triple whose own `from:` selects a NON-consuming reader still renders itself", () => {
+    // `cal2/d7_selects_gfm`: the block declares `from: gfm`, gfm does not consume, so the
+    // block renders ITSELF and the closing `---` is a setext underline over the key line.
+    expect(headings(["Prose one.", "", "---", "from: gfm", "---", "", "Tail."])).toEqual([
+      "from: gfm",
+    ]);
+  });
+
+  it("G3: a quoted `---` with a PARAGRAPH line above it is NOT a metadata block (`r1/a03`)", () => {
+    // Rendered, quarto renders THREE headings — `h2:quoted para`, `h2:note: alpha` and the
+    // control. Nothing is consumed, because the opener does not start a block inside the
+    // quote. ⚠ The control is what this guard protects: a precondition that swallowed here
+    // would delete two real headings and the control with them.
+    expect(
+      headings([
+        "Prose one.",
+        "",
+        "> quoted para",
+        "> ---",
+        "> note: alpha",
+        "> ---",
+        "",
+        "## Control a03",
+      ]),
+    ).toContain("Control a03");
+  });
+
+  it("G4: an UNTERMINATED quoted opener consumes nothing (`r1/a09`)", () => {
+    // Rendered: only the control. An unterminated region yields no span at top level and must
+    // yield none inside a quote either — `midDocumentMetadataRegions` withholds it.
+    expect(headings(["Prose one.", "", "> ---", "> note: alpha", "", "## Control a09"])).toEqual([
+      "Control a09",
+    ]);
+  });
+
+  it("G5: an UNMARKED underline below a quote's FIRST line still forms the TOP-LEVEL heading (`s225/f/f01`)", () => {
+    // Rendered: `<h2>&gt; quoted f01</h2>` — no quote ever forms, so the heading is top level
+    // and its text keeps the marker. ⚠ This is the row Session 225's `setextTitleQuoted`
+    // exists to keep, and the refinement this session makes to that flag must not reach it.
+    expect(headings(["top f01", "", "> quoted f01", "---", "", "tail f01"])).toEqual([
+      "> quoted f01",
+    ]);
+  });
+
+  it("G6: a title PART-WAY into a quote under an UNMARKED underline is still declined (`s202/comp/quote_lazy_gfm`)", () => {
+    // Rendered: NO heading. The unmarked `  ===` lazily continues the QUOTE's paragraph.
+    // ⚠ The other half of `setextTitleQuoted`, and the half that must survive this session's
+    // refinement of it — the underline here carries no marker, so the flag still applies.
+    expect(
+      headings(["> Comp quote intro.", ">", "> comp quote title", "  ===", "", "End."]),
+    ).toEqual([]);
+  });
+
+  it("G7: the LAZY 4-space underline shape keeps the ATX below it (`s183`, the 45-row document)", () => {
+    // Rendered: `<blockquote><h2>quoted one</h2><h1>Below A Quoted Setext</h1></blockquote>`.
+    // ⚠ This model reports only the ATX and that is a filed, PRE-EXISTING loss in a DIFFERENT
+    // mechanism (the underline is unmarked, so the strip never reaches it — see the Session
+    // 231 residual pin). The guard is that the ATX it does report must not disappear.
+    expect(headings(["> quoted one", "    ---", "# Below A Quoted Setext"])).toContain(
+      "Below A Quoted Setext",
+    );
+  });
+
+  it("G8: a plain quoted ATX heading is untouched (`cal/sv.qmd` s01)", () => {
+    expect(headings(["", "> # Quoted One", ""])).toEqual(["Quoted One"]);
+  });
+
+  it("G9: a quote INSIDE a list item keeps the outer item's column (`h/s199_ax_quote_inlist`)", () => {
+    // One of the four families Session 225 measured itself deleting when the strip cleared the
+    // container stack instead of saving it. The pre-pass added here must not disturb it.
+    expect(
+      headings(["- item one", "", "  > Quoted inside the item.", "", "  # Probe Title"]),
+    ).toEqual(["Probe Title"]);
+  });
+
+  it("G10: a quoted FENCE still hides its contents (`e/e05`)", () => {
+    expect(
+      headings(["", "> ```{#lst-c02 .python}", ">", "> # Not A Heading", ">", "> ```", ""]),
+    ).toEqual([]);
+  });
+
+  it("G11: a quoted triple under `from: markdown` renders NOTHING for the block (`s213/cal2/e5_quote_md`)", () => {
+    // Rendered: an EMPTY `<blockquote>`, then the control. Green BEFORE this session because
+    // the setext path is declined inside a quote outright; it must stay green AFTER, when
+    // that decline is gone and the quoted CONSUMPTION is the only thing holding it up.
+    expect(
+      headings([
+        "---",
+        "from: markdown",
+        "---",
+        "",
+        "Cal body prose.",
+        "",
+        "> ---",
+        "> note: alpha",
+        "> ---",
+        "",
+        "## Cal Heading Below",
+      ]),
+    ).toEqual(["Cal Heading Below"]);
+  });
+
+  it("G12: a quoted `from: gfm` triple does NOT govern the document's reader (`s225/f/f03`, `r1/a16`)", () => {
+    // Rendered: an EMPTY `<blockquote>`, and `# Pressed Heading` stays inside its paragraph —
+    // so quarto CONSUMED the quoted block without letting its `from:` select gfm. ⚠ Both
+    // halves matter: the consumption is what this session adds, and the reader resolution is
+    // what it must NOT extend, because `governingMetadataContent` reading a quoted block would
+    // switch this document to gfm and mint the pressed heading.
+    expect(
+      headings([
+        "Prose one.",
+        "",
+        "> ---",
+        "> from: gfm",
+        "> ---",
+        "",
+        "Lead prose line.",
+        "# Pressed Heading",
+        "",
+        "## Control Heading",
+      ]),
+    ).toEqual(["Control Heading"]);
+  });
+
+  it("G13: this project's own `---` section separator is not a metadata block", () => {
+    // 53 of the 115 tracked markdown-family files carry a blank-preceded `---` below their
+    // first content line. Quarto's region grammar exempts it as a thematic break
+    // (`cal2/e7_hrgap_md`), and the repo control has been byte-identical since Session 213.
+    expect(headings(["# Title", "", "Body prose.", "", "---", "", "## Section Two"])).toEqual([
+      "Title",
+      "Section Two",
+    ]);
+  });
+});
