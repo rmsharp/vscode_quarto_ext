@@ -10342,3 +10342,92 @@ describe("Session 227 — the `:::` line's own column", () => {
     ).toEqual(["H q06"]);
   });
 });
+
+describe("Session 228 — the setext boundary: how many paragraph lines an underline may claim", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  // ⚠ **THE ITEM THIS BLOCK CLOSES WAS REFUTED, NOT FIXED — no `src/` line changed.** Session
+  // 226 filed *"`---` under a ONE-line paragraph is a setext underline; under a TWO-line
+  // paragraph it is an EM DASH"* as a model defect in the phantom direction, citing
+  // `scratchpad/s226/r3/h03` and `r1/t_tbreak`. Re-run against the build of that very session
+  // (`git archive 911ed697`) and against HEAD, this model answers BOTH rows exactly as quarto
+  // renders them. The two rows were Session 226's own frozen PREDICTIONS.json misses — that
+  // file records `h03: []` against a rendered `["para one"]` — and the item's prose turned a
+  // wrong prediction into a claim about the model. The rule was never unmodelled: it is
+  // `consecutiveBody === 1`, and it has been in `SETEXT_H1`'s docstring since Session 181.
+  //
+  // Session 228 re-measured the boundary over **46 freshly rendered documents** (quarto 1.7.33,
+  // `scratchpad/s228/r1`–`r3`, predictions frozen and SHA-256'd before every render) and the
+  // model scores **43/46**. All three misses are pre-existing and none belongs to this rule:
+  // `r1/a15` is Session 225's already-filed quoted-setext residual (documented at the
+  // `stripQuote` comment above); `r3/c03` is the deliberate empty-heading omission `SETEXT_H1`
+  // documents; `r3/c11` is this model's file-wide convention of carrying LITERAL source text
+  // (`# *em*` reports `*em*` too — measured, not specific to setext).
+  //
+  // These pins exist because the boundary was only HALF covered: the 2+-line rule above is
+  // pinned in the `=` spelling alone (`["Line one", "Line two", "========"]`), and the `---`
+  // spelling the item actually named — the one whose dashes become U+2014 — was pinned nowhere.
+
+  it("P1: the boundary itself, in the `---` spelling the filed item named (`r1/a01`, `a02`, `a03`)", () => {
+    // Rendered: `a01` → `<h2>para one</h2>` then `<h1>H a01</h1>`; `a02` → the ONE paragraph
+    // `<p>para one para two — # H a02</p>`, the dashes rendered as U+2014 and the `#` line
+    // absorbed with them; `a03` the same with three lines above.
+    expect(headings(["para one", "---", "# H a01"])).toEqual(["para one", "H a01"]);
+    expect(headings(["para one", "para two", "---", "# H a02"])).toEqual([]);
+    expect(headings(["para one", "para two", "para three", "---", "# H a03"])).toEqual([]);
+  });
+
+  it("P2: run length does not move the boundary — `-`, `--` and `----` all behave as `---` (`r1/a09`, `a10`, `a17`, `a18`)", () => {
+    expect(headings(["para one", "-", "# H a10"])).toEqual(["para one", "H a10"]);
+    expect(headings(["para one", "----", "# H a17"])).toEqual(["para one", "H a17"]);
+    expect(headings(["para one", "para two", "--", "# H a09"])).toEqual([]);
+    expect(headings(["para one", "para two", "----", "# H a18"])).toEqual([]);
+  });
+
+  it("P3: the underline's indent is an EQUALITY against the container's column, not CommonMark's 0-3 window (`r1/a19`, `a20`)", () => {
+    // ⚠ The row that most looks like a bug and is not. `   ---` three columns in, under a
+    // ONE-line paragraph at top level, renders NO heading at all — quarto absorbs it into the
+    // paragraph exactly as it absorbs the two-line case. A `^ {0,3}` tolerance here would mint
+    // `h2:para one` on both rows. See `setextUnderlineLevel` (Sessions 192/197).
+    expect(headings(["para one", "   ---", "# H a19"])).toEqual([]);
+    expect(headings(["para one", "para two", "   ---", "# H a20"])).toEqual([]);
+  });
+
+  it("P4: what an underline may claim as a TITLE is wider than prose (`r2/b02`, `r2/b13`, `r3/c07`)", () => {
+    // ⚠ Three rows where the rendered answer contradicted this session's frozen prediction and
+    // the model was right. An `=` run that no underline consumed is an ordinary body line and
+    // the `---` below claims it (`b02` renders `<h1>para one</h1>`, `<h2>===</h2>`, `<h1>H
+    // b02</h1>`). A `***` — a thematic break by every other measure — is claimed as a title by
+    // the `---` under it (`b13` renders `<h2>***</h2>`). And a 4-space INDENTED line, which is
+    // indented CODE anywhere else, is claimed too (`c07` renders `<h2>para one</h2>`).
+    expect(headings(["para one", "===", "===", "---", "# H b02"])).toEqual([
+      "para one",
+      "===",
+      "H b02",
+    ]);
+    expect(headings(["***", "---", "# H b13"])).toEqual(["***", "H b13"]);
+    expect(headings(["    para one", "---", "# H c07"])).toEqual(["para one", "H c07"]);
+  });
+
+  it("P5: absorbed dashes do NOT make the line below them fresh, but a real block above DOES (`r2/b06`, `r3/c01`, `r3/c02`)", () => {
+    // `opensFreshBlock` bails on `paragraphOpen`, which is what keeps `b06` empty: the `---` is
+    // swallowed by the open paragraph, so `para three` is body line 4 and the `===` under it
+    // claims nothing. With no paragraph open the same position is fresh — a pipe-table row
+    // (`c01`) and a link-reference definition (`c02`) each let the line below them be a title.
+    expect(headings(["para one", "para two", "---", "para three", "===", "# H b06"])).toEqual([]);
+    expect(headings(["| a | b |", "para one", "---", "# H c01"])).toEqual(["para one", "H c01"]);
+    expect(headings(["[ref]: http://x", "para one", "---", "# H c02"])).toEqual([
+      "para one",
+      "H c02",
+    ]);
+  });
+
+  it("P6: the two witnesses the filed item cited, pinned at the answer quarto renders (`s226/r3/h03`, `s226/r1/t_tbreak`)", () => {
+    // The refutation itself. `h03` is NOT a bare setext row — its `---` opens a mid-document
+    // metadata block closed by `...`, so quarto renders `<h2>para one</h2>` and then absorbs
+    // `# H h03` into the `key: v` paragraph below it. `t_tbreak` is the two-line case. This
+    // model has produced both answers since before the item was filed.
+    expect(headings(["para one", "---", "key: v", "...", "# H h03"])).toEqual(["para one"]);
+    expect(headings(["para one", "para two", "---", "# H t_tbreak"])).toEqual([]);
+  });
+});
