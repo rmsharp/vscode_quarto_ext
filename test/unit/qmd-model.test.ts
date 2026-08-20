@@ -12395,4 +12395,40 @@ describe("Session 237 — a quote already open above the title makes the underli
       "h1:Probe A",
     ]);
   });
+
+  it("C3 (test-after): a TOP-LEVEL setext heading must NOT suspend the column rules (`r5/m4a`)", () => {
+    // ⚠ KILLS THE MUTANT that writes `quoteOpen = true` on this path. The fail-safe means "a
+    // quote may be open above this line and its columns are unknowable", so setting it
+    // unconditionally makes an indented line below ANY setext heading stop being code. Rendered,
+    // this document has ONE heading; the mutant mints `h1:Not A Heading` beside it. That is why
+    // the assignment keeps `stripQuote ||` rather than becoming a constant.
+    expect(names(["title", "---", "    # Not A Heading"])).toEqual(["h2:title"]);
+  });
+
+  it("C4 (test-after): and the same one container in (`r5/m4d`)", () => {
+    // The container twin of C3 — the mutant mints the same phantom at the list's own depth.
+    expect(names(["- item", "", "  title", "  ---", "      # Not A Heading"])).toEqual([
+      "h2:title",
+    ]);
+  });
+
+  it("C5 (test-after): a lazy underline keeps the quote open even when the title OPENS it (`r5/m6a`)", () => {
+    // ⚠ KILLS THE MUTANT that writes `quoteOpen = stripQuote || setextTitleQuoted`. On the accept
+    // path `setextTitleQuoted` implies `lazyQuotedUnderline`, so the two spellings differ ONLY
+    // here: the title line opens the quote, so `setextTitleQuoted` is FALSE while the code-depth
+    // underline above is still lazy. Rendered, the ATX one column in IS a heading; the mutant
+    // DELETES it. The flag that belongs here is "was this underline lazy", not "was the title
+    // already inside a quote".
+    expect(names(["> quoted one", "    ---", " # Probe A"])).toEqual([
+      "h2:quoted one",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("C6 (test-after): and its `=`-band twin, which reaches the same path by the other term (`r5/m6b`)", () => {
+    expect(names(["> quoted one", " ===", " # Probe A"])).toEqual([
+      "h1:quoted one",
+      "h1:Probe A",
+    ]);
+  });
 });
