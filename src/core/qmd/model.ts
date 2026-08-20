@@ -6060,11 +6060,17 @@ function computeRegions(text: string): Regions {
       // paragraph open: an inner div's own closer (the filed `s229/r2/b09`), an ATX heading, a
       // fenced code block's closer, a thematic break, a pipe table, an HTML comment, and a
       // setext heading (`scratchpad/s233/r1`, `r2`, 42 documents rendered).
-      // ⚠ The blank line's own work is done ABOVE, by the container pop and the div auto-close
-      // it carries — by the time a post-blank closer reaches here the stack is usually already
-      // empty. This condition is what keeps the rows that pop leaves behind: `r2/g01` (a
-      // SIBLING marker ended the item) and `r2/g02` (a top-level paragraph, absorbed but not by
-      // the div's container) both render no heading and both still answer correctly.
+      // ⚠ **AND THE BLANK LINE'S OWN WORK IS ALMOST ENTIRELY DONE ABOVE — MUTATION-CHECKED,
+      // BECAUSE NOTHING ELSE REACHED IT.** With `!prevLineBlank` replaced by `true`, all 2382
+      // unit tests stayed green, both designed rounds were unchanged, and **0 of 47,748 corpus
+      // documents moved**: the container pop and the div auto-close it carries have already
+      // emptied `divColumns` before a post-blank closer arrives here, which is what really
+      // answers `r2/g01` (a SIBLING marker ended the item) and `r2/g02` (a top-level paragraph
+      // above the closer). The condition is live in exactly ONE place — the quote switch, where
+      // that auto-close is deliberately suspended because `inQuote` no longer matches the
+      // stack's entry. A brute-force enumeration of 234,256 five-line documents found 6 shapes
+      // there, all rendered, ALL of them rendering no heading: keeping the condition keeps 6
+      // phantoms out. Pinned at this file's Session 233 C2, which fails against the mutant.
       // ⚠ **AND THE LAZY HALF HAS ONE DIRECTION: DOWNWARD (Session 229).** Absorption carries a
       // SHALLOW line INTO the open paragraph of a container below it; there is no upward move,
       // so a closer DEEPER than its div's own opener column can never be the line that closes

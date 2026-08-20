@@ -11354,4 +11354,45 @@ describe("Session 233 — the shallow div closer's absorption is ended by a BLAN
       headings(["- item", "", "  ::: {.a}", "  ::: {.b}", "  body", "  :::", ":::", "# H b09"]),
     ).toEqual(["H b09"]);
   });
+
+  it("C2: ⚠ the blank line is LOAD-BEARING ONLY ACROSS THE QUOTE SWITCH, and there it stops 6 phantoms (`r3/h01`-`h06`)", () => {
+    // ⚠ **MUTATION-CHECKED, because nothing else reached this condition.** Replacing
+    // `!prevLineBlank` with `true` left all 2382 unit tests green, both designed rounds
+    // unchanged (27/27 and 14/15), and **0 of 47,748 corpus documents** moved — the blank
+    // line's work is normally done further up, by the container pop and the div auto-close it
+    // carries, which have already emptied `divColumns` before a post-blank closer arrives here.
+    //
+    // The exception is the ONE place that auto-close is deliberately suspended: a switch
+    // between quoted and unquoted, where `inQuote` no longer matches the stack's entry. A
+    // brute-force enumeration of 234,256 five-line documents over the construct alphabet found
+    // exactly 6 shapes where the two builds disagree, all of them there — a div opened inside
+    // a quote, a second opened outside it at column 2, a blank, then a shallow closer.
+    // Rendered, ALL SIX render no heading, so the condition's answer is the right one and the
+    // mutant's is wrong. Without this row the rule would ship unexercised.
+    for (const closer of [":::", "> :::", "  > :::"]) {
+      for (const opener of ["> ::: {.a}", "  > ::: {.a}"]) {
+        expect(headings([opener, "  ::: {.a}", "", closer, "# H probe"])).toEqual([]);
+      }
+    }
+  });
+
+  it("C3: the SAME shapes without the blank, and without the quote, still render (`r3/h07`-`h09`)", () => {
+    // C2's controls, and the reason it is a rule about the blank line rather than about the
+    // quote. Remove the blank and the shallow closer is absorbed exactly as it is anywhere
+    // else; remove the quote and the auto-close is no longer suspended, so the stack is empty
+    // by other means. Rendered, all three render their heading, and this model agrees.
+    expect(headings(["> ::: {.a}", "  ::: {.a}", ":::", "# H h07"])).toEqual(["H h07"]);
+    expect(headings(["  > ::: {.a}", "  ::: {.a}", ":::", "# H h08"])).toEqual(["H h08"]);
+    expect(headings(["::: {.a}", "  ::: {.a}", "", ":::", "# H h09"])).toEqual(["H h09"]);
+  });
+
+  it("R1 (residual, PRE-EXISTING and unmoved, PINNED): a div opened inside a QUOTE, closed outside it (`r3/h10`)", () => {
+    // Rendered, quarto renders NO heading; this model renders one. The same mechanism as
+    // Session 229's `r2/b11`, which is already filed — this session met it while bounding the
+    // blank-line rule and did not move it (scored pre and post over `r3`: 0 movers). Pinned
+    // here as a second witness for the filed item, not as a new one.
+    expect(
+      headings(["- item", "", "  > ::: {.a}", "  > body", "", ":::", "# H h10"]),
+    ).toEqual(["H h10"]);
+  });
 });
