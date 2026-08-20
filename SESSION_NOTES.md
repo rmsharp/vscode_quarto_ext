@@ -5,17 +5,82 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 233 — IMPLEMENTATION (strict TDD): a LOST HEADING — two divs at ONE column inside a list item, the outer closed lazily, leaves the div open across the heading below.** Session 232's ranked #1, filed by Session 229; the operator picked it at Phase 0.
-**Started:** 2026-08-20
-**Status:** Session claimed. Work beginning.
+**Task:** **Session 233 — IMPLEMENTATION (strict TDD): a LOST HEADING — two divs at ONE column inside a list item, the outer closed lazily, left the div open across the heading below.** Session 232's ranked #1, filed by Session 229, the oldest unfixed DELETION on the list; the operator picked it at Phase 0.
+**Started:** 2026-08-20 · **Closed:** 2026-08-20
+**Status:** **DONE. SHIPPED — and the finding is that the inherited warning was about the CONDITION when it should have been about the condition's NAME.**
 
-**The filed shape.** `- item` / blank / `  ::: {.a}` / `  ::: {.b}` / `  body` / `  :::` / `:::` — the inner div closes at column 2, then the outer's column-0 `:::` arrives with NO paragraph open above it (the line above is the inner closer), so neither branch of the closer rule fires and the div is left open across the heading. Rendered, `scratchpad/s229/r2/b09` renders `H b09`; this model renders nothing. DELETION direction. Pinned at `test/unit/qmd-model.test.ts` R6 (Session 229).
+**HEADLINE 1 — THE FILED WARNING WAS HALF RIGHT IN A WAY THAT WOULD HAVE BLOCKED THE FIX.** The item said the lazy branch's `paragraphOpen` precondition "is measured and load-bearing, so the fix is not to drop it". It IS load-bearing. But replacing it with the thing it stands FOR is neither dropping it nor keeping it. Session 227 read the absorption off the open PARAGRAPH because a paragraph is the only container this scanner carries; the absorbing container is the **LIST ITEM**, whose continuation takes every contiguous non-blank line regardless of indent. What ends absorption is the **BLANK LINE** — an open paragraph is merely one common symptom of there not being one. ⚠ The generalisable form: **when a precondition stands in for a container the model does not carry, the rows that expose it are the ones where the container's content is present but the proxy's SYMPTOM is absent.** (Learning #421.)
 
-**⚠ Inherited constraint, measured and load-bearing:** the lazy branch's `paragraphOpen` precondition is pinned by `s227/r1/k25` — the fix is NOT to drop it.
+**HEADLINE 2 — ONE FILED WITNESS WAS THIRTEEN ROWS, AND SESSION 232's GOTCHA 1 IS WHAT FOUND THEM.** Varying the axis the item held fixed — not a column this time but WHAT SITS ABOVE the shallow closer — turned a one-row fix into a 10-row deletion family in Round 1 alone. Seven shapes leave no paragraph open above the closer and every one was being deleted: an inner div's own closer (the filed row), an ATX heading, a fenced code block's closer, a thematic break, a pipe table, an HTML comment, a setext heading. (Learning #423.)
 
-**Build at claim, verified firsthand rather than inherited:** `npm test` **2367 passed / 66 files**, matching Session 232's recorded close-out exactly; `check-backlog` **OK, 171 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`a47b6b4b`, gap 0), `grep -c '^status: pending' HANDOFFS.md` = 0, and the `CHANGELOG: pending` hits in this file are preserved historical text in superseded sections rather than live breadcrumbs.
+**HEADLINE 3 — THE NEW CONDITION SHIPPED UNEXERCISED, AND ONLY THE MUTANT FOUND IT.** With `!prevLineBlank` mutated to `true`, all 2385 unit tests stayed green, both designed rounds were unchanged, and **0 of 47,748 corpus documents moved** — the container pop and the div auto-close it carries had already emptied `divColumns` before a post-blank closer arrives. That reads as dead code and the tempting edit is to delete it. A brute-force enumeration of **234,256 five-line documents** found exactly **6** shapes where the two builds disagree, every one in the single region that auto-close is deliberately SUSPENDED — the quote switch. Rendered, **all six render NO heading**, so the condition is right and the mutant is wrong: keeping it keeps 6 phantoms out. ⚠ **A condition can be redundant with a rule that has a documented exception and still be the only thing covering the exception.** (Learning #422.)
 
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**THE measurement.**
+
+| corpus | scale | what it measures | model pre → post | my predictions |
+|---|---|---|---|---|
+| `r1/` | 27 documents | the axis the filed item held fixed — WHAT SITS ABOVE the closer | 17 → **27** | **26/27** |
+| `r2/` | 15 documents | the RISK SURFACE — where non-blank-above must NOT close | 11 → **14** | **9/15** |
+| `r3/` | 10 documents | the 6 shapes the mutation hunt found, plus their controls | 9 → **9** (0 movers) | **7/10** |
+| **all three** | **52 documents** | | **37 → 50 · +13 · 0 new divergences** | **42/52** |
+| corpus sweep | **47,748 documents** | every predecessor corpus | **1 mover row** — the filed witness, recovered | — |
+| repo sweep | 114 tracked files | this project's own markdown | **0 movers** | — |
+| mutation hunt | **234,256 documents** | is `!prevLineBlank` live anywhere? | 6 differing shapes, all rendered, all NO heading | — |
+
+⚠ **ZERO DELETIONS AND ZERO NEW PHANTOMS AT SHIP.** The two divergences that remain on the rounds (`r2/g08`, `r3/h10`) were each scored PRE and POST and are unmoved.
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** S204's gotcha 5 inherited a **twenty-seventh** time. **14 `it()`s green BEFORE any `src/` change**, weighted to the dangerous direction (this change widens the set of lines that CLOSE, and a close POPS the stack, so an over-close deletes further down): **9 of the 14 are answers that must stay negative**. **1 RED→GREEN cycle**, the RED confirmed to fail for the right reason (`expected [] to deeply equal [ 'H b09' ]`). **1 inherited assertion REVERSED** (R6), re-rendered from the same bytes on the shipping build first. ⚠ `src/core/qmd/model.ts` restored **byte-identical (SHA-256 verified)** after each mutant.
+
+**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / exit 0**. Assertions pre-checked headlessly first (`scratchpad/s233/precheck233.test.ts` — S211's gotcha 3 for a TWENTIETH session), and the extended fixture's premise was **re-rendered, not assumed**. ⚠ `src/` did NOT change after the run (`git diff HEAD -- src` empty).
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `npm test` **2385 passed / 66 files** (baseline 2367, **+18**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S232) · `check-package` **OK 42 files / 5.57 MB** · `check-backlog` **OK, 171 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** **`r2/g08` is a disclosed bound, not a fix** — rendered, BOTH divs are closed and quarto still has one `:::` left over outside them, so pandoc reaches the outer div's end a line later than this model does; PRE-EXISTING, filed, pinned AT the phantom. **`r3/h10`** is the already-filed `s229/r2/b11` item one container deeper and is annotated onto it rather than re-filed. And **no BLIND sweep / subagent fan-out**, unavailable under a session-level instruction for the **TWENTY-SIXTH** session running.
+
+**What was done (commits).** 1B claim `c9ef3b75`. **GUARD** `c0cc32e3` — 14 `it()`s, test-only, green before any `src/` change. **FIX** `b7fbb486` — the precondition replaced, R6 reversed. **PINS** `b93ad40f` — C2/C3/R1 plus the comment correction the mutation forced. **WIRING** `8b5c9c32` — the gate fixture extended and re-rendered, pre-checked headlessly. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 1 filed, 1 annotated), `PROJECT_LEARNINGS.md` (#421–#423), `SESSION_NOTES.md`, `HANDOFFS.md` and `dashboard_history.jsonl`.
+**Ledger:** `CHANGELOG: 2026-08-20 · [ad hoc] Session 233` — written at close-out with the `BACKLOG.md` drain.
+
+**Deliverable (ONE capability):** *a shallow div closer is absorbed by the container, not by a paragraph* — one intent, `src/core/qmd/model.ts`.
+
+**Gotchas for the next session.**
+1. ⚠ **A WARNING ABOUT A CONDITION IS NOT A WARNING ABOUT ITS NAME.** The inherited "do not drop `paragraphOpen`" was true and still pointed away from the fix. When a handoff protects a condition, ask what the condition is a SYMPTOM of before believing it is the rule.
+2. ⚠ **MUTATE ANY CONDITION YOUR SUITE CANNOT FAIL ON, AND WHEN THE MUTANT SURVIVES, ENUMERATE BEFORE DELETING.** `!prevLineBlank` survived 2385 tests, 2 rounds and 47,748 documents. The brute-force hunt (`scratchpad/s233/hunt.test.ts`, 4 slots over a 22-line alphabet, ~90 seconds) found its 6 live rows in the one place another rule is suspended. Deleting it would have shipped 6 phantoms.
+3. ⚠ **THE CONTAINER POP AND ITS DIV AUTO-CLOSE DO MOST OF THE BLANK LINE'S WORK, AND THEY ARE SUSPENDED ACROSS THE QUOTE SWITCH.** Any future work on `divColumns` should assume the stack is already empty after a blank EXCEPT when `inQuote` changed. That suspension is where this family's remaining divergences live (`r3/h10`, `s229/r2/b11`, `b13`).
+4. ⚠ **A PIPE TABLE, AN HTML COMMENT AND A FENCED CODE CLOSER ALL LEAVE NO PARAGRAPH OPEN.** Any rule in this file keyed on `paragraphOpen` as a stand-in for "the container above is still taking lines" has the same defect this session fixed. Worth a grep before the next closer-family item.
+5. ⚠ **THE HARNESS IS REUSABLE AND EVERYTHING NAMED RAN UNMODIFIED:** `render233.sh` (from S232's `render232.sh`), `dump.sh`, `renderlist.sh`, `sweep.test.ts` + `presrc/`, `score.test.ts`. Written this session, `scratchpad/s233/`: `hunt.test.ts` (brute-force differential between two builds over an alphabet of construct lines — the tool that saved the condition), `precheck233.test.ts`, and three frozen prediction files with their SHA-256s.
+6. ⚠ **S232's gotcha 4 still applies and was honoured:** the pre-source was verified PRE by `grep -c` for a symbol the change introduces (count 0) before any sweep was trusted. Absolute paths, twenty-seventh session running.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Every claim below was checked against a rendered row on the SHIPPED build.
+
+**#1 — THE `===` HALF OF SESSION 232's DISCLOSED BOUND.** Unchanged and still open. At indents 1–3 an `===` underline renders the quoted heading and no pandoc simple table can form under it, so the table question that blocked the `-` half is simply absent. Rendered witnesses already exist: `s232/r1/b1`–`b3`, `r3/p1`, `p3`, `p4`. ⚠ **The `-` half is NOT this item** — keep them apart or the table rows come back as phantoms. Effort **estimate** LOW.
+**#2 — F07/F08, THE TWO FRESH-BLOCK ITEMS — ⚠ AND THE F07 DISCRIMINATOR IS STILL UNRENDERED AFTER FOUR SESSIONS.** `> a | b` suppresses the heading below it and `> | a | b |` renders it; two matched controls are measured RIGHT and a naive fix breaks them. S230, S231, S232 and this session each left it. **Render both before writing any code** — two documents, ninety seconds. Effort **estimate** LOW plus one render round.
+**#3 — THE LAZILY-CONTINUED CLOSER**, Session 231's disclosed bound (`s231/r5/d01`, pinned R1). Over-consuming DELETES. Effort **estimate** LOW–MEDIUM.
+**#4 — ⚠ THE QUOTE-SWITCH FAMILY, NOW WITH THREE MEASURED WITNESSES AND A COMMON ROOT.** `s229/r2/b11` (filed, R5), `s233/r3/h10` (annotated onto it, R1) and `s229/r2/b13` (filed, R4) are all the same gap: this scanner carries no block-quote container, so `divColumns`'s auto-close is suspended across the switch and cannot tell a container that really ended from one the coordinate change merely hid. ⚠ **Session 229 measured that the naive fix DELETES `r2/b01`** — the two are indistinguishable at that point in the scan. Effort **estimate** MEDIUM, and it is a data-structure change, not a condition.
+**#5 — `r2/g08`, THIS SESSION'S FILED PHANTOM.** Rendered, both divs are closed and a `:::` is still left over outside them. VERY LOW to investigate, unknown to fix.
+**#6 — THE OPERATOR DECISION on the remaining TWO duplicate clusters.** Unchanged from S232: the unreferenced-footnote drop is filed **three** times (S201, S209, S227) and the superseded S192 lead still sits beside its S193 promotion. ⚠ Apply S231's gotcha 1 before merging either. VERY LOW.
+**#7 onward — unchanged from S232's list.** ⚠ **Still open from S186:** promote the scratchpad harness, `.vscode-test/` at 18 GB, `npm audit` 5 high + 1 moderate, devDependency-only. ⚠ **`scratchpad/` is now ~2.2 GB and untracked.**
+
+## Session 232 Handoff Evaluation (by Session 233)
+
+**Score: 9/10.**
+
+**What helped.** (a) **The ranked "What's next" list was specific enough to start work from without discovery** — it named the witness path, the direction (DELETION), the pin (R6) and an effort estimate, and every one of those was accurate. (b) ⚠ **Gotcha 1 — "a one-witness item reads as a one-answer item; vary the axis the filed item holds fixed" — is the single most valuable thing this session inherited.** Applied to a completely different family it turned a 1-row fix into a 13-row one, and Round 1 is what proved the rule was about the blank line rather than about div closers. (c) **Gotcha 4 (verify the pre-source is pre) was honoured and cost ten seconds**; without it a silently-post `presrc/` would have reported a clean sweep. (d) **Gotcha 5's harness inventory was exact** — `render232.sh`, `dump.sh`, `sweep.test.ts` and `score.test.ts` all ran unmodified, and `dump.sh` is what turned every surprising row into a two-second answer. (e) **Gotcha 6 (`buildOutline` carries `name`, not `text`)** was applied directly in the pre-check and saved a silently-passing assertion.
+
+**What was missing.** Nothing that cost real time. The handoff did not say that the b09 item's own inherited warning was pointing away from the fix — but it could not have known that, and it did flag the warning as *measured*, which is what made me go and check what it was measured ON.
+
+**What was wrong.** ⚠ **One claim, and it is the one that mattered: "the lazy branch's `paragraphOpen` precondition is measured and load-bearing — do not just drop it."** It is load-bearing, and the sentence is defensible. But it framed the choice as drop-versus-keep, when the fix was to replace the proxy with the thing it stands for. Taken literally it protects the defect. That is a **half-point** deduction, not a full one, because the same sentence is what sent me to `s227/r1/k25` — and reading k25 beside k17 is exactly what exposed the blank line.
+
+**ROI.** Strongly positive. Gotcha 1 alone multiplied the deliverable by thirteen; gotchas 4, 5 and 6 each removed a known failure. Net 9 — a 10 would have said what the precondition was a symptom of, which is the question its own warning invites and does not answer.
+
+## Session 233 Self-Assessment
+
+**Score: 9/10.**
+
+**What went right.** (a) ⚠ **I did not take the inherited warning at face value, and I did not ignore it either** — I went and read the row it cited (`k25`) beside its twin (`k17`), which is what produced the whole session. (b) **I varied the axis before writing the gate**, per the predecessor's gotcha 1, and found 12 rows the filed item did not carry. (c) ⚠ **I mutation-checked a condition my own suite could not fail on, and when the mutant survived everything I had, I enumerated instead of deleting** — 234,256 documents, six live shapes, all rendered before deciding. Deleting would have shipped 6 phantoms and nothing in the project would have caught it. (d) **The guard block was weighted to the dangerous direction** — 9 of 14 rows negative — and written from rendered witnesses, not from reasoning. (e) **Every mover was adjudicated against its own fresh render**, and both remaining divergences were scored pre and post before being called pre-existing. (f) **The source was restored byte-identical (SHA-256) after each mutant**, so no mutation could leak into the shipped build.
+
+**What went wrong.** (a) ⚠ **My first version of the model.ts comment asserted that the new condition answers `r2/g01` and `r2/g02` — and the mutation measured five minutes later showed the container pop answers both.** I wrote a mechanism claim from reasoning while a measurement was one command away, in the same session whose headline is about exactly that mistake. I corrected it in the PINS commit, but it was committed wrong first. (b) **Round 2 scored 9/15**, my weakest round, and three of the six misses were shapes I had reasoned about confidently (`g08`, `g13`, `g14`). The reasoning was worth less than the render, again. (c) **My first probe of `k17` omitted its blank line** and briefly told me a pinned row was failing; I caught it by reading the pinned test rather than trusting my transcription.
+
+**Compared to the standard.** At the measurement and adjudication standard of Sessions 226–232 and above them on one axis: **no previous session in this project has mutation-tested a condition it had just introduced**, and it is the only reason this one did not ship either an unexercised rule or six phantoms. Below S232 on prediction accuracy (42/52 against its 52/81 at a harder axis) and below its own standard on the comment defect above — hence 9 rather than 10.
 
 ## Session 232 Self-Assessment
 

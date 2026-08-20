@@ -11388,7 +11388,7 @@ describe("Session 233 — the shallow div closer's absorption is ended by a BLAN
 
   it("R1 (residual, PRE-EXISTING and unmoved, PINNED): a div opened inside a QUOTE, closed outside it (`r3/h10`)", () => {
     // Rendered, quarto renders NO heading; this model renders one. The same mechanism as
-    // Session 229's `r2/b11`, which is already filed — this session met it while bounding the
+    // Session 229's `s229/r2/b11`, which is already filed — this session met it while bounding the
     // blank-line rule and did not move it (scored pre and post over `r3`: 0 movers). Pinned
     // here as a second witness for the filed item, not as a new one.
     expect(
