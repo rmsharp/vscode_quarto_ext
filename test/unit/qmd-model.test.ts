@@ -10858,4 +10858,15 @@ describe("Session 231 — a metadata block inside a block quote", () => {
       ]),
     ).toEqual(["Control a05"]);
   });
+
+  it("C2: a setext underline that carries its own `>` marker forms a heading (`r1/a06`, `s225/f/f02`)", () => {
+    // Rendered: `<blockquote><h2>quoted a06</h2></blockquote>`, then the control. This is the
+    // heading Session 225 declined outright and filed as its own bound — the decline existed
+    // only because the consumption pre-pass above was quote-blind, so accepting the underline
+    // minted an `h2:from: gfm` on `s225/f/f03`. With the pre-pass fixed, the underline may be
+    // accepted (`s225/f/f02`, and `sv.qmd` s11 is the same shape).
+    expect(
+      headings(["Prose one.", "", "> quoted a06", "> ---", "", "## Control a06"]),
+    ).toEqual(["quoted a06", "Control a06"]);
+  });
 });

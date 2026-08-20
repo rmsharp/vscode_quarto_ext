@@ -5628,16 +5628,17 @@ function computeRegions(text: string): Regions {
     // this stops a title that lies wholly INSIDE the block from being claimed at all
     // (`scratchpad/s204/gnd` — `g_gfm_div_d1_setext`, and the `pre` rows, where the block
     // reaches past a blank line).
-    // ⚠ **THE SETEXT PATH IS DECLINED ON A STRIPPED LINE, AND THAT IS A BOUND ON THIS
-    // DELIVERABLE RATHER THAN A RULE (Session 225).** Quarto really does underline inside a
-    // quote — `> quoted f02` / `> ---` renders `<blockquote><h2>quoted f02</h2></blockquote>`
-    // (`f/f02`) — but the SAME bytes are also a mid-document metadata block, and quarto consumes
-    // a quoted one exactly as it consumes a top-level one: `> ---` / `> from: gfm` / `> ---`
-    // renders an EMPTY `<blockquote>` (`f/f03`). The pre-pass that models that consumption
-    // (`consumedMetadataBlockLines`, and the region walk under it) reads RAW lines and has no
-    // block-quote context, so accepting the underline here mints an `h2:from: gfm` quarto does
-    // not render — measured, on Session 211's own `cal2/q5_in_quote` row. Declining costs the
-    // quoted setext heading this model already did not report; it introduces nothing. Filed.
+    // ⚠ **THE STRIPPED-LINE DECLINE IS GONE, AND THE PRE-PASS IS WHY (Session 231).** Session
+    // 225 declined the setext path on a stripped line and filed it as its own bound: quarto
+    // really does underline inside a quote — `> quoted f02` / `> ---` renders
+    // `<blockquote><h2>quoted f02</h2></blockquote>` (`f/f02`) — but the SAME bytes are also a
+    // mid-document metadata block, and quarto consumes a quoted one exactly as it consumes a
+    // top-level one: `> ---` / `> from: gfm` / `> ---` renders an EMPTY `<blockquote>`
+    // (`f/f03`). While `consumedMetadataBlockLines` read RAW lines, accepting the underline
+    // here minted an `h2:from: gfm` quarto does not render (`cal2/q5_in_quote`). That pre-pass
+    // now walks each quote's stripped content, so the consumed block is skipped before this
+    // row is ever reached and the underline may be accepted. Both rows are pinned — `f/f02`
+    // as C2, `f/f03` and `q5_in_quote` as the guard's G12 and G11.
     // ⚠ **AND NOT WHEN THE TITLE SITS PART-WAY INTO A QUOTE (Session 225), which is where the
     // two rendered rows part company.** `> quoted f01` / `---` — the title is the quote's FIRST
     // line — renders `<h2>&gt; quoted f01</h2>` at top level, marker and all, and an inherited
@@ -5652,7 +5653,7 @@ function computeRegions(text: string): Regions {
       setextTitle.contentStart > 0 &&
       blockQuoteContentStart(lines[setextTitle.line - 1] ?? "") !== null;
     const setextLevel =
-      titleLineCount >= 1 && commonmarkHtmlBlock === null && !stripQuote && !setextTitleQuoted
+      titleLineCount >= 1 && commonmarkHtmlBlock === null && !setextTitleQuoted
         ? setextUnderlineLevel(
             line,
             commonmarkDialect
