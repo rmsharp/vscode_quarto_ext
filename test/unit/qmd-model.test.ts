@@ -12082,4 +12082,50 @@ describe("Session 236 — a tab inside a quote is a column, not a character", ()
     // column was lost, and a tab is the one indent whose width depends on it.
     expect(names(["> line one", "> line two", ">", "> \tcode", "> # ATX Below"])).toEqual([]);
   });
+
+  // ⚠ C2-C6 are TEST-AFTER. The mutation hunt ran seven mutants against the finished code and
+  // TWO SURVIVED with the whole suite green — conditions that were shipping unexercised. Each
+  // row below names the rendered document that demanded it; none was reachable from the round
+  // that drove the design, because the round varied the indent and the marker and never varied
+  // what the indented line WAS.
+
+  it("C2: SPACE-then-TAB — the run must be walked, not just its tabs (`r3/m1`)", () => {
+    // ⚠ KILLS THE MUTANT that consumes only tabs in the leading run. Rendered, this is ONE
+    // paragraph and no heading: from base column 2 the space reaches 3 and the tab reaches 4,
+    // so the content is indented TWO columns. A walk that stops at the first space returns the
+    // line untouched, where `indentColumn` reads the space as column 1 and the tab as reaching
+    // 4 — indented code, and a phantom heading.
+    //
+    // ⚠ Its two-space twin is the OPPOSITE answer and is pinned at C6, so the rule cannot be
+    // "spaces before a tab mean prose" either.
+    expect(names(["> line one", "> line two", ">", ">  \tcode", "> # ATX Below"])).toEqual([]);
+  });
+
+  it("C3: a TAB-indented quoted fence CLOSER really closes its fence (`r3/k1`)", () => {
+    // ⚠ KILLS THE MUTANT that reverts `buildCloserIndex` to a raw slice. That pre-pass keys a
+    // quoted closer by its COLUMN so the scan can ask later whether it closes the opener. Keyed
+    // from an unnormalised slice the tab reads as column 4 instead of 2, no acceptable closer is
+    // found, the fence runs to end of document and every heading below it is swallowed — the
+    // heading-DELETING direction, and the reason both call sites share one definition.
+    expect(names(["> ```", "> some code", "> \t```", "> # ATX Below"])).toEqual(["h1:ATX Below"]);
+  });
+
+  it("C4: the FOUR-SPACE closer does NOT close it, and that must not move (`r3/k2`)", () => {
+    // The matched control for C3: at content indent 4 the run is code CONTENT, not a closer, so
+    // the fence stays open and the heading really is swallowed. Rendered.
+    expect(names(["> ```", "> some code", ">     ```", "> # ATX Below"])).toEqual([]);
+  });
+
+  it("C5: the same tab under a wider marker is code content, not a closer (`r3/k4`)", () => {
+    // `  > ` puts the base at column 4, so the tab reaches 8 and the run sits 4 columns in —
+    // the same answer as C4's four spaces, from a tab. The pair C3/C5 is the closer-index twin
+    // of the b1/b4 pair the fix's docstring cites.
+    expect(names(["  > ```", "  > some code", "  > \t```", "  > # ATX Below"])).toEqual([]);
+  });
+
+  it("C6: TWO spaces then a tab reach column 8 and ARE code (`r3/m2`)", () => {
+    expect(names(["> line one", "> line two", ">", ">   \tcode", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
 });
