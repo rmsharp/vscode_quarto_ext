@@ -5,15 +5,80 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 228 — IMPLEMENTATION (strict TDD): `---` under a ONE-line paragraph is a setext underline; under a TWO-line paragraph it is an EM DASH.** Closes the item Session 226 filed and Session 227 ranked #1.
-**Started:** 2026-08-19 · **Closed:** —
-**Status:** Session claimed. Work beginning.
+**Task:** **Session 228 — the setext one-line boundary: `---` under a ONE-line paragraph is a setext underline; under a TWO-line paragraph it is an EM DASH.** The item Session 226 filed and Session 227 ranked #1.
+**Started:** 2026-08-19 · **Closed:** 2026-08-19
+**Status:** **DONE. CLOSED — and the finding is that the item was REFUTED, not fixed: the model was already right on both cited witnesses, and the "defect" was Session 226's own frozen PREDICTION.**
 
-**Deliverable (ONE capability):** *the rule that decides whether a `---` line below a paragraph is a setext underline (heading) or an em-dash continuation of that paragraph* — one intent, per-layer checkpoint commits.
+**HEADLINE 1 — THE ITEM RECORDED A *PREDICTION* MISS AS A MODEL DEFECT, AND IT SURVIVED TWO SESSIONS OF RANKING.** The item read *"this model reports the heading BELOW the dashes that quarto does not"*. Re-run against the build of the session that filed it (`git archive 911ed697`) **and** against HEAD, this model answers both cited rows exactly as quarto renders them — `s226/r3/h03` → `["para one"]`, `s226/r1/t_tbreak` → `[]`. The miss is in `scratchpad/s226/r3/PREDICTIONS.json`, which records `h03: []` against a rendered `["para one"]`. A round scorer prints three columns — prediction, model, quarto — and a misread of which one lost turns a wrong guess into a defect report. (Learning #404.)
 
-**The filed evidence.** `scratchpad/s226/r3/h03` renders `<h2>para one</h2>`; `scratchpad/s226/r1/t_tbreak` renders `<p>para one para two — # H</p>`, the `---` becoming U+2014. PRE-EXISTING and unmoved. Phantom direction on `h03` — this model reports a heading BELOW the dashes that quarto does not. ⚠ The item's own warning: this model gets `t_tbreak` right and `h03` wrong, so the separating rule is **unmodelled rather than approximate** — do not fold it into the thematic-break row without rendering the one-line/two-line pair first.
+**HEADLINE 2 — THE ITEM'S SECOND CLAIM WAS CHECKABLE IN ONE GREP AND ALSO WRONG.** It said the separating rule was *"unmodelled rather than approximate"*. It is `consecutiveBody === 1`, in `SETEXT_H1`'s docstring since Session 181, citing the same `pandoc -f markdown` measurement the item re-derived. ⚠ **Grep the docstring before designing a corpus** — an item that claims a rule is unmodelled is the cheapest of all claims to check.
 
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**HEADLINE 3 — REFUTING IS NOT LEAVING NOTHING BEHIND: THE BOUNDARY WAS HALF-PINNED, AND ONLY A MUTANT PROVES A PIN IS NOT VACUOUS.** The 2+-line rule was pinned in the `=` spelling alone (`["Line one", "Line two", "========"]`); the `---` spelling the item actually named was pinned **nowhere**, so the rule it accused could have regressed silently. Six pins now cover it, and each was **mutation-checked**: `consecutiveBody === 1` → `>= 1` kills P1/P2/P5/P6; the column equality → CommonMark's `0-3` window kills P3; barring a thematic-break-shaped or indented line from being a TITLE kills P4/P5. `src/core/qmd/model.ts` restored byte-identical (SHA-256 verified) after each mutant. (Learning #405.)
+
+**THE measurement.**
+
+| corpus | scale | what it measures | model vs quarto | my predictions |
+|---|---|---|---|---|
+| `r1/` | 22 documents | the boundary itself: 1/2/3 lines, run length, indent, containers | **21/22** | 14/22 |
+| `r2/` | 12 documents | ⚠ designed against the IMPLEMENTATION — the integer counter and the `paragraphOpen` bail | **12/12** | 9/12 |
+| `r3/` | 12 documents | adversarial: every `OPENS_FRESH_BLOCK` member as the line above the title | **10/12** | 10/12 |
+| total | **46 documents** | rendered through the real `quarto render` path, quarto 1.7.33 | **43/46**, identical pre and post | **33/46** |
+
+⚠ **All three model misses are PRE-EXISTING and none belongs to this rule.** `r1/a15` is Session 225's already-filed quoted-setext residual (documented at the `stripQuote` comment in `model.ts`); `r3/c03` is the deliberate empty-heading omission `SETEXT_H1` documents; `r3/c11` is this model's file-wide convention of carrying LITERAL source text — measured, `# *em*` reports `*em*` too, so it is not a setext fact at all.
+
+⚠ **On every row where the model and I disagreed, the model was right.** Three facts the rounds established that nothing recorded before: an `=` run that no underline consumed is claimed as a TITLE by the `---` below it (`<h2>===</h2>`); a `***`, a thematic break by every other measure, is claimed as a title too; and a 4-space INDENTED line, indented code anywhere else, is claimed as well. (Learning #406.)
+
+**TDD gate — no RED→GREEN, and why.** There was no defect to fix, and the gate's scope is *"anything with logic"*; `src/` is byte-identical to HEAD. The analogue applied instead is the mutation check above: each pin was shown to FAIL against a mutant expressing its own axis before being trusted. **Stated, not skipped.**
+
+**⚠ Phase 3E — no runtime surface changed.** `src/` byte-identical to HEAD (SHA-256 verified), so `test:integration` and `test:lsp` were NOT run and no screen-taking action was proposed. This is a statement, not a silent skip.
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `npm test` **2315 passed / 66 files** (baseline 2309, **+6**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S227) · `check-package` **OK 42 files / 5.57 MB** · `check-backlog` **OK, 163 open items**.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** **No sweep** — a sweep finds *movers*, and with no `src/` change nothing can move; it cannot find pre-existing divergence, which needs quarto ground truth per document and does not exist for the 47,711-document corpus. So the bound on this refutation is **46 rendered rows**, not the corpus. And **no BLIND sweep / subagent fan-out**, unavailable under a session-level instruction for the **TWENTY-FIRST** session running.
+
+**What was done (commits).** 1B claim `f32fda8a`. **PINS** `5026182f` — six mutation-checked pins, test-only, `src/` untouched. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 0 filed), `PROJECT_LEARNINGS.md` (#404–#406), `SESSION_NOTES.md` and `HANDOFFS.md`.
+**Ledger:** `CHANGELOG: 2026-08-19 · [ad hoc] Session 228` — written at close-out with the `BACKLOG.md` drain.
+
+**Deliverable (ONE capability):** *the setext one-line boundary — measured, refuted as a defect, and pinned* — one intent.
+
+**Gotchas for the next session.**
+1. **⚠ A FILED ITEM IS A HYPOTHESIS ABOUT THE MODEL, AND THE CHEAPEST TEST IS TO RE-RUN ITS OWN CITED WITNESSES AGAINST THE FILING SESSION'S BUILD.** `git archive <that session's close-out> src` into `presrc/`, score both builds, and read that session's `PREDICTIONS.json`. Two minutes. It would have saved this whole session's premise — and S226's item had been ranked #1 by two successive handoffs without anyone doing it.
+2. **⚠ SCORE THE MODEL AND YOUR PREDICTIONS AS TWO SEPARATE LINES, AND NAME WHICH ONE A FINDING CAME FROM.** They were 43/46 and 33/46 here. The scorer already prints both; the backlog item that started this session exists because one was read as the other.
+3. **⚠ A GREEN PIN PROVES NOTHING — WRITE THE MUTANT THAT SHOULD KILL IT.** This project's own §9 review lens once mutated `lua: ["--"]` and watched 330 tests stay green. Record which mutant killed which pin in the commit message; a pin no mutant kills is testing the corpus, not the code.
+4. **⚠ TWO COLUMN-0 `---` LINES IN ONE DOCUMENT DO NOT RENDER.** `para one` / `---` / `para two` / `---` exits 1 with `YAMLException: can not read a block mapping entry` — quarto reads the pair as a mid-document metadata block. It cost two rounds-worth of renders here. Vary the spelling (`===` for one of them) when a corpus needs two underlines in one file.
+5. **⚠ THE `---` AND `===` SPELLINGS OF ONE RULE ARE NOT ONE PIN.** The 2+-line rule had been pinned for eight sessions in `=` only. When pinning a rule with two spellings, pin both — the unpinned spelling is exactly where a regression hides, and it is the spelling users actually write.
+6. **⚠ ZSH'S PERSISTENT `cd` — use absolute paths.** Twenty-second session running; no losses, every path absolute from the start.
+7. **⚠ THE HARNESS IS REUSABLE AND WAS INHERITED, NOT WRITTEN** — S227's gotcha 7 held again. `scratchpad/s228/` — `roundscore.test.ts` (set `S228_ROUND=r1|r2|r3`), `presrc/` and `presrc226/` (`git archive` of the 1B commit and of S226's close-out), `mkr1.py`–`mkr3.py`, `probe.test.ts`, `model.ts.orig` (the byte-identical restore point used between mutants). `extract.py` was reused from `s227/` and **VALIDATED 130/130 against S227's own recorded `TRUTH.json` before being trusted** — do this before believing any extractor.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Every claim below was checked against a rendered row.
+
+**#1 — `divColumns` carries no container identity.** S227's own, ranked #3 by it and now the strongest candidate: `scratchpad/s227/r5/q03` and `r5/q06` rendered, both pinned at R2, both PRE-EXISTING and unmoved. ⚠ The fix is an identity on the stack, **not** a tighter column — a tighter one refuses `r1/k17` and `r2/m02`, which really do close. Effort **estimate** LOW–MEDIUM.
+**#2 — a SETEXT heading inside a quote**, S225's, blocked on `consumedMetadataBlockLines` reading raw lines. LOW, and ⚠ fix the pre-pass first. **This session's `r1/a15` is a third rendered witness for it** — `> para one` / `> ---` / `> # H` renders `["para one","H a15"]` and this model reports `[]`, so BOTH halves (the quoted setext AND the ATX below it) are lost on one document.
+**#3 — a quote inside a LIST ITEM, and the CommonMark HTML block inside a quote**, S225's. LOW. ⚠ `BLOCK_QUOTE_PREFIX` still carries the `^ {0,3}` anchoring gap that S227 removed for `DIV_FENCE` entirely.
+**#4 — a heading inside an UNREFERENCED footnote** (`s227/r2/m07`, pinned R1). LOW, and ⚠ it is a footnote-lifecycle rule, not a div rule.
+**#5 — the display-math and table-caption phantoms** (5 measured shapes, S222's, and ⚠ the fix is NOT the attribute-block rule). **#6 — the rest of "a group with nothing in front of it"**. **#7 — a `)` or `]` that closes nothing reads as adjacency**, S222's. **#8 — the `commonmark_x` VALIDITY half, never asked**, S222's. **#9 — the `sec-` scope decision on a fence**, S223's, VERY LOW. **#10 — a SECOND adjacent attribute block on an image**, S221's. **#11 — the `@`-is-an-email test is `notAfterString`**, S220's. **#12 — the completion scanner walks UTF-16 code units**, S220's. **#13 onward — unchanged from S227's list.** ⚠ **Still open from S186:** promote the scratchpad harness, `.vscode-test/` at 18 GB, `npm audit` 5 high + 1 moderate, devDependency-only.
+
+## Session 227 Handoff Evaluation (by Session 228)
+
+**Score: 8/10.**
+
+**What helped, specifically.** (a) **Gotcha 7's harness inventory was accurate for the fourth session running** — `roundscore.test.ts` needed only an `S227_ROUND`→`S228_ROUND` rename, `presrc/` was one `git archive`, and the `mkrN.py` shape transferred verbatim. That is most of a day's tooling inherited free. (b) **Gotcha 7 also said to validate the extractor before trusting it and named the artefact to validate against** — 130/130 against S227's own `TRUTH.json` took two minutes and removed a whole class of scoring doubt. (c) **Learning #403's method — design a round against your own implementation rather than the rule — transferred directly** and became Round 2, which is where the model's 12/12 was established against shapes I would not have thought to write from the rule alone. (d) **The `What's next` list was ranked, each item carried a rendered witness path, and every path resolved.**
+
+**What was missing — and it is the whole session.** The `#1` recommendation was **an item whose premise nobody had re-run**. S227 inherited it from S226's close-out, ranked it first, wrote *"S226's, still open and unmoved"* — and *unmoved* was measured (correctly) against **S227's own change**, not against the item's claim. Two minutes of `git archive 911ed697` + score would have shown the model already agreed with quarto on both cited rows. ⚠ **The handoff even carried the evidence that should have prompted the check**: it says *"this model gets `t_tbreak` right and `h03` wrong"*, and `h03` is the row S226's own `PREDICTIONS.json` records as a **prediction** miss. A ranked recommendation inherits the filing session's error unless someone re-runs it.
+
+**What was wrong.** The item's two factual claims, both inherited verbatim into the handoff: that the model reports a phantom heading on `h03` (it does not, on either build), and that the separating rule is *"unmodelled rather than approximate"* (it is `consecutiveBody === 1`, documented since Session 181). Nothing else in the handoff failed to hold — the six other `What's next` entries all resolved to real, rendered witnesses.
+
+**ROI.** Positive on tooling and method, negative on direction. The harness and the extractor-validation instruction saved most of a session's setup; the #1 ranking cost this session its premise. Net 8, and it would have been a 9 with one `presrc` score.
+
+## Session 228 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.** (a) **I re-ran the filed witnesses against the filing session's own build before writing a line of code**, which is the only reason the refutation was found rather than a "fix" being applied to code that was already right. (b) **I did not stop at the refutation.** Two witnesses agreeing does not prove a rule correct, so I measured 46 rendered rows across three rounds — including Round 2 designed against the data structure — before concluding, and the conclusion is bounded by that number rather than by the two rows the item named. (c) **Every pin is mutation-checked**, with the killing mutant recorded per pin in the commit message; `src/` was restored byte-identical (SHA-256) after each. (d) **Predictions frozen and SHA-256'd before every render**, and my 33/46 is reported as prominently as the model's 43/46 — which is the discipline whose absence created the item in the first place. (e) **I classified rather than filed both remaining misses**: `c11` looked like a setext text defect until I rendered `# *em*` and found it file-wide, so nothing spurious was added to the backlog.
+
+**What went wrong.** (a) ⚠ **My own prediction rate was poor — 33/46, and 14/22 on Round 1**, the round I designed from the rule I had just read. I mispredicted the entire "does an ATX heading below a setext heading render?" family (7 rows) because I assumed `blank_before_header` applied after a closed block; one rendered row before freezing would have caught it. (b) **Round 2 lost two documents to a corpus-design trap** — two column-0 `---` lines pair into a mid-document metadata block and quarto exits 1 — which cost a redesign and a re-render. It is now gotcha 4, but S226's own `h03` had exactly that shape and I had already read it. (c) I did not check `PREDICTIONS.json` until after Round 1 was rendered; had I opened it during Orient, the refutation would have been established in ten minutes rather than two rounds.
+
+**Compared to the standard.** Below Sessions 226 and 227 in scale — 46 documents against their 78 and 56-plus-47,711 — which is proper for a refutation, since a sweep cannot measure pre-existing divergence and would have been ceremony. Above them on one axis: **no previous session in this project mutation-checked its pins**, and the §9 review lens that found the vacuous-pin problem in `LANG_COMMENT_CHARS` filed it rather than adopting the countermeasure. Below Session 227 on prediction accuracy (33/46 against its 48/56).
 
 ---
 
