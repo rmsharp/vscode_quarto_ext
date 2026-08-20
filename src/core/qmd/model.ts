@@ -5014,7 +5014,19 @@ function computeRegions(text: string): Regions {
   // identity a stale column also let a SIBLING container's `:::` match (`r1/a03`, `r1/a14`,
   // `r1/a20`) and let a closer in a DEEPER container reach a shallower div (`r1/a02`,
   // `s227/r5/q03`).
-  const divColumns: { column: number; containerDepth: number }[] = [];
+  // ⚠ **AND THE QUOTE CONTEXT IT WAS OPENED IN (Session 229), because entering a quote CLEARS
+  // `contentColumns` without ending a single container of the outer document** — the quote's
+  // content base is its own column 0, so the stack is stashed in `outerColumns` and restored
+  // on the way out. Read as a depth, that switch looks exactly like every container closing at
+  // once, and the auto-close below closed a div whose list item was still wide open
+  // (`scratchpad/s229/r2/b01`, rendered: the `<div class="note">` is complete inside the `<li>`
+  // and the heading follows it). ⚠ It cannot be told apart by the indent — by the time the
+  // auto-close runs the line is the STRIPPED one, and `indentWidth` is 0 both for `b01`, whose
+  // item survives, and for `r2/b13`, whose item really does end. So the auto-close is
+  // SUSPENDED across a switch, which is the same boundary `quoteColumnsUnknown` draws for the
+  // raw-TeX row and for the same reason: where the column cannot be computed, keep the phantom
+  // rather than risk the deletion (Learning #402). `r2/b13` is that kept phantom — filed.
+  const divColumns: { column: number; containerDepth: number; inQuote: boolean }[] = [];
   // Whether a mid-document YAML metadata block is open at this line — the same block state,
   // for the `...` terminator. See `YAML_BLOCK_OPENER`.
   let metadataBlockOpen = false;
@@ -5280,6 +5292,7 @@ function computeRegions(text: string): Regions {
         // must not resurrect the div the pop just orphaned (`r1/a03`, `r1/a14`, `r1/a20`).
         while (
           divColumns.length > 0 &&
+          divColumns[divColumns.length - 1].inQuote === inQuote &&
           divColumns[divColumns.length - 1].containerDepth > contentColumns.length
         ) {
           divColumns.pop();
@@ -5934,7 +5947,11 @@ function computeRegions(text: string): Regions {
       if (divRole === "close" && divAtColumn && divColumns.length > 0) {
         divColumns.pop();
       } else if (divRole === "open" && divAtColumn && !divOpenerInterrupts) {
-        divColumns.push({ column: divFence!.column, containerDepth: contentColumns.length });
+        divColumns.push({
+          column: divFence!.column,
+          containerDepth: contentColumns.length,
+          inQuote,
+        });
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS
       // OVERLOADED AS `---`.** A `-{3,}` line is already a thematic break to `closesParagraph`

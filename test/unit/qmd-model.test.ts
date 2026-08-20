@@ -10593,4 +10593,75 @@ describe("Session 229 — a div's column belongs to a container", () => {
     // a closer deeper than its div's own column can never be the one that closes it.
     expect(headings(["::: {.note}", "", "- item", "  :::", "# H a02"])).toEqual([]);
   });
+
+  it("R3: ⚠ A QUOTE STASHES THE OUTER DOCUMENT'S CONTAINERS, IT DOES NOT END THEM (`r2/b01`)", () => {
+    // ⚠ **THE ONE DELETION THIS SESSION INTRODUCED, AND ROUND 2 IS THE ONLY THING THAT FOUND
+    // IT** — no document in the 47,857-document sweep has this shape. Entering a quote CLEARS
+    // `contentColumns` (the quote's content base is its own column 0), so the auto-close above
+    // read a depth of 0 and closed a div whose list item is still wide open. Rendered, quarto
+    // emits the `<div class="note">` complete inside the `<li>` with the heading after it.
+    //
+    // ⚠ The fix cannot be computed from the indent: by the time this row runs, the line is the
+    // STRIPPED one — measured, `indentWidth` is 0 for BOTH this row and `r2/b13`, whose item
+    // really does end. So the entry carries the quote context it was opened in and the
+    // auto-close is SUSPENDED across a switch — the same boundary `quoteColumnsUnknown` draws,
+    // and for the same reason: where the column cannot be computed, keep the phantom rather
+    // than risk the deletion (Learning #402).
+    expect(
+      headings([
+        "- item",
+        "",
+        "  ::: {.note}",
+        "",
+        "  > quoted",
+        "",
+        "  body",
+        "",
+        "  :::",
+        "# H b01",
+      ]),
+    ).toEqual(["H b01"]);
+  });
+
+  it("R4 (residual, PRE-EXISTING and unmoved, PINNED): the kept phantom the quote suspension buys (`r2/b13`)", () => {
+    // The price of R3, paid deliberately and measured both ways. Here the item really DOES end
+    // — `> quoted` sits at column 0 — so the div is orphaned and quarto renders no heading, and
+    // an auto-close that fired across the quote switch would get this row right. It would also
+    // delete `r2/b01`. The two are indistinguishable at this point in the scan (both arrive as
+    // the stripped line at indent 0), so the suspension keeps the phantom and gives up the
+    // recovery. ⚠ Scored PRE and POST: identical, so this session moved it in neither
+    // direction. Filed.
+    expect(
+      headings(["- item", "", "  ::: {.note}", "  body", "", "> quoted", ":::", "# H b13"]),
+    ).toEqual(["H b13"]);
+  });
+
+  it("R5 (residual, PRE-EXISTING and unmoved, PINNED): a div opened INSIDE a quote, closed outside it (`r2/b11`)", () => {
+    // Rendered, quarto renders NO heading: the quote ends, pandoc closes the div with it, and
+    // the bare `:::` below opens a paragraph that absorbs the heading. This model closes it
+    // instead. The same family as R3/R4 — a container this scanner does not carry — and the
+    // same answer before and after this session. Filed.
+    expect(headings(["> ::: {.note}", "> body", "", ":::", "# H b11"])).toEqual(["H b11"]);
+  });
+
+  it("R6 (residual, PRE-EXISTING and unmoved, PINNED): ⚠ a LOST heading — two divs at one column, the outer closed lazily (`r2/b09`)", () => {
+    // ⚠ The one residual in the DELETION direction, which is why it is ranked above the other
+    // two. Rendered, quarto renders `H b09`; this model renders nothing. Two divs open at the
+    // item's column 2, the inner closed at column 2 and the outer by a column-0 `:::`, which
+    // arrives with no paragraph open above it (the line above is the inner closer) — so
+    // neither branch of the closer rule fires and the outer div is left open across the
+    // heading. Same answer before and after this session. Filed.
+    expect(
+      headings([
+        "- item",
+        "",
+        "  ::: {.a}",
+        "  ::: {.b}",
+        "  body",
+        "  :::",
+        ":::",
+        "# H b09",
+      ]),
+    ).toEqual([]);
+  });
 });
