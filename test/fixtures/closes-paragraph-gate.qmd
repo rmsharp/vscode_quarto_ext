@@ -41,3 +41,14 @@ a fenced div's body
 > a quoted title for the equals band
  ===
 # Below An Equals Band
+
+> line one of a quote
+> line two
+
+> a | b
+# Not A Heading Below A Lone Pipe
+
+a | b
+--|--
+c | d
+# Below A Real Pipe Table

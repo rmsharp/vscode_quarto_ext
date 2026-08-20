@@ -1006,6 +1006,21 @@ describe("Quarto: Document outline (symbols)", () => {
         `Session 234: the \`=\` band's heading ${real} must reach the Outline provider`,
       );
     }
+
+    // Session 235 appended four more lines, and the whole fixture was RE-RENDERED rather than
+    // assumed: the nine headings above are unchanged and exactly one is added. A lone `> a | b`
+    // forms no table, so the ATX pressed against it is a lazy continuation and quarto renders
+    // NOTHING — while `a | b` / `--|--` / `c | d` really is a table and the heading below it is
+    // real. Both directions matter here: the fix NARROWS which lines close a paragraph, so the
+    // second assertion is the one that would catch it deleting a heading the Outline should show.
+    assert.ok(
+      !flat(symbols).includes("Not A Heading Below A Lone Pipe"),
+      "Session 235: a lone pipe-bearing line forms no table, so the ATX below it is not a heading",
+    );
+    assert.ok(
+      flat(symbols).includes("Below A Real Pipe Table"),
+      "Session 235: a REAL pipe table's heading must still reach the Outline provider",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
