@@ -113,6 +113,20 @@ containing `|` is a paragraph" — the discriminator between `a | b` (suppresses
 Witnesses: `s183/c3/R1pipe_bq_mark__closed`, `s183/c3/R2grid_bq_mark__closed`,
 `s183/R2-gridborder-refute/work/p12_bqpipe`.
 
+> **RESOLVED by Session 235 — and the discriminator this audit left open is not the leading pipe.**
+> Rendered across 87 purpose-built documents in three rounds plus 123 adjudicated sweep movers
+> (`scratchpad/s235/`), a table-shaped line is block-level in exactly four cases: it is a pandoc
+> **line block** (`|` then whitespace or end of line, at the container's content column — so
+> `| a | b |` renders and `|a|b|` does not, and neither does the same line indented one space); it
+> is a **grid table's border** that reaches another border through `|` rows in one direction or the
+> other; it is a **pipe table's delimiter** under a header carrying a `|` of its own, with no
+> paragraph open when that header began; or it is any other `+` row — `+`, `+ -`, `+ + +`,
+> `+   +`, `+ - + - +`, `+ ---` — all list items whose content opens no paragraph. Both matched
+> controls this audit flagged are unmoved. ⚠ The audit's own framing (`a | b` versus `| a | b |`)
+> named only the pipe half; the grid border is two of the three witnesses and needed a separate,
+> two-directional lookahead. See `tableShapedLineIsBlock` in `src/core/qmd/model.ts` and the
+> Session 235 guard block.
+
 ### F08 — a TAB-indented line inside a quote
 
 `> line one` / `> line two` / *(blank)* / `> \t code` / `> # ATX Below` renders **no heading**;

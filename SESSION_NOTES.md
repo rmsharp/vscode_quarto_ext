@@ -6,12 +6,84 @@
 
 ## ACTIVE TASK
 **Task:** **Session 235 — IMPLEMENTATION (strict TDD): F07, THE FRESH-BLOCK DISCRIMINATOR — what separates `a | b` (suppresses the heading below it) from `| a | b |` (renders it).** Session 234's ranked #1 and left by five straight sessions (S230, S231, S232, S233, S234); the operator picked it at Phase 0 from the `AskUserQuestion` candidate list.
-**Started:** 2026-08-20
-**Status:** Session claimed. Work beginning.
-**Deliverable (ONE capability):** the discriminator between a table-shaped line that opens a fresh block and one that is an ordinary paragraph, RENDERED first and then — only if the render settles it — fixed in `src/core/qmd/model.ts`. ⚠ **F08 (the TAB-indented quoted line) is NOT this item** — it is column arithmetic, not line shape, and `docs/MODEL-DIVERGENCE-FAMILIES.md` files it separately for that reason.
-**⚠ The measurement comes BEFORE the code, by the item's own instruction.** `docs/MODEL-DIVERGENCE-FAMILIES.md` F07 states the discriminator is "unresolved by this audit and needs its own render before anyone codes it", and the S230 audit explicitly did NOT run a fresh `quarto render`. ⚠ **TWO MATCHED CONTROLS ARE MEASURED RIGHT AND MUST NOT MOVE:** `s183/c3/R1row_bq_mark__closed` (`> | a | b |`) and `R4indent_bq_mark__closed` (`>     ---`).
-**Build at claim, verified firsthand rather than inherited:** `npm test` **2409 passed / 66 files**, matching Session 234's recorded close-out exactly; `check-backlog` **OK, 173 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`5e24e630`, gap 0), `grep -c "^status: pending" HANDOFFS.md` = 0 against 197 complete, no ghost sessions, 0 open GitHub issues so `BACKLOG.md` governs.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Started:** 2026-08-20 · **Closed:** 2026-08-20
+**Status:** **DONE. SHIPPED — and the finding is that a green round set is not evidence a narrowing is safe.**
+
+**HEADLINE 1 — THE ROUNDS WERE GREEN WHILE THE CHANGE DELETED 13 REAL HEADINGS.** Three rounds, 87 purpose-built documents, predictions frozen and SHA-256'd before each render, 80/87 predicted. The first implementation scored **86/87 on those rounds with all 2,428 unit tests green — and the 47,748-document sweep found it deleting 13 real headings.** The second attempt deleted 7 and minted 26 phantoms. Only the third was clean. Every one of the four conditions separating attempt three from attempt one was **invisible in the rounds**, because a round holds the shapes you thought to write: `+ - + - +` and `+   +` (bullet items whose content is an empty marker), `- | a | b |` (a marker hiding a line block), `+---+---+ ` with a trailing space, and a pipe table under `\maketitle`. ⚠ Generalisable form: **for a NARROWING, the round tells you the rule and the sweep tells you the rule's edges — budget for both, and never read a green round as licence to ship.** (Learning #427.)
+
+**HEADLINE 2 — THE CONDITION I NEEDED WAS ALREADY IN THE SCANNER, AND TWO PROXIES FOR IT FAILED IN OPPOSITE DIRECTIONS.** The rule is *a pipe table cannot interrupt an open paragraph*. Spelled positionally — "the header is the block's second line, so the line two above is blank" — it **deleted 5 real headings**, because `\maketitle`, `\clearpage` and an ATX heading each close the paragraph with no blank line in sight. Dropped altogether it **minted 26 phantoms**, because prose above a well-formed pipe table really does swallow it. The discriminator is neither a blank line nor a macro list: it is `paragraphOpen` as the header line began, which `computeRegions` had tracked per line all along and which needed a one-line lagged snapshot to read. ⚠ **The tell that you are building a proxy is a growing list of SHAPES to special-case** (`\maketitle` yes, `\vspace{1em}` no — class A against class B, a distinction this file already encodes). (Learning #428.)
+
+**HEADLINE 3 — THE ONE GUARD I WROTE FROM REASONING WAS THE ONE GUARD THAT WAS WRONG.** The guard block was 18 `it()`s green before any `src/` change; 17 were rendered answers and the eighteenth, G18, pinned a row AT a phantom on the reasoning "this model carries one table flag and cannot tell a pipe table from a grid one, so the phantom survives". The finished code answers it correctly — a grid border carries no `|`, so it never reaches that flag. It was the only guard to come up red and the guard was wrong, not the fix. ⚠ The mutation hunt then found **four conditions shipping unexercised**, every one forced in by the sweep and none reachable from the rounds. (Learning #429.)
+
+**THE measurement.**
+
+| corpus | scale | what it measures | model pre → post | my predictions |
+|---|---|---|---|---|
+| `r1/` | 47 documents | 16 line shapes × quoted/unquoted, real tables, open-paragraph controls | 24 → 46 | **45/47** |
+| `r2/` | 26 documents | grid-border behaviour, delimiter behaviour, indent, S185's own controls | 11 → 26 | **22/26** |
+| `r3/` | 14 documents | the last implementation-critical boundaries | 9 → 14 | **13/14** |
+| **all three** | **87 documents** | | **44 → 86 · 42 rows moved, ALL 42 RECOVERED, 0 BROKEN** | **80/87** |
+| corpus sweep | **47,748 documents** | every predecessor corpus | 195 mover rows / **123 distinct documents, every one RE-RENDERED**: 121 fully recovered, **0 broken**, 2 partial | — |
+| repo sweep | 114 tracked files | this project's own markdown | **0 movers** | — |
+| mutation hunt | **7 mutants** | is each new condition exercised? | 3 died on existing tests; **4 SURVIVED** and are now pinned as C2–C6 | — |
+
+⚠ **ZERO DELETIONS AT SHIP, and that is a measured claim rather than a hopeful one** — it is what the 123-document adjudication was for. The one remaining round divergence is family **F08**, held out by design and pinned as G17.
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** S204's gotcha 5 inherited a **twenty-ninth** time. **18 `it()`s green BEFORE any `src/` change**, weighted to the dangerous direction (this change NARROWS which lines close a paragraph, so the risk is a DELETED heading): 12 of the 18 pin a line that must KEEP closing. **1 RED→GREEN cycle**, the RED confirmed to fail for the right reason. **5 test-after rows (C2–C6)** added to kill the four mutation survivors, each labelled test-after and each naming the rendered document that demanded it. ⚠ `src/core/qmd/model.ts` restored **byte-identical (SHA-256 verified)** after each of the 7 mutants.
+
+**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / exit 0**. All assertions pre-checked headlessly first (`scratchpad/s235/precheck235.test.ts` — S211's gotcha 3 for a TWENTY-SECOND session), and the extended fixture's premise was **re-rendered, not assumed**: the nine prior headings byte-identical, exactly one added. ⚠ `src/` did NOT change after the run (`git diff HEAD -- src` empty).
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `npm test` **2433 passed / 66 files** (baseline 2409, **+24**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S234) · `check-package` **OK 42 files / 5.57 MB** · `check-backlog` **OK, 172 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** **F08 is untouched by design** — it is column ARITHMETIC where F07 is line SHAPE, and `docs/MODEL-DIVERGENCE-FAMILIES.md` files them apart for that reason. It is now the ONLY divergence left in the 87-document round set. And **no BLIND sweep / subagent fan-out**, unavailable under a session-level instruction for the **TWENTY-EIGHTH** session running.
+
+**What was done (commits).** 1B claim `3954976b`. **GUARD** `dca70f7f` — 18 `it()`s, test-only, green before any `src/` change. **FIX** `6f6dd4b4` — the predicate, its four parts, and the lagged paragraph snapshot. **PINS** `8803ce67` — the four mutation survivors. **WIRING** `d8aa66a0` — the gate fixture extended and re-rendered, pre-checked headlessly. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 2 annotated), `PROJECT_LEARNINGS.md` (#427–#429), `docs/MODEL-DIVERGENCE-FAMILIES.md` (F07 marked resolved), `SESSION_NOTES.md`, `HANDOFFS.md` and `dashboard_history.jsonl`.
+**Ledger:** `CHANGELOG: 2026-08-20 · [ad hoc] Session 235` — written at close-out with the `BACKLOG.md` update.
+
+**Deliverable (ONE capability):** *a table-shaped line is block-level only when a table really forms* — one intent, `src/core/qmd/model.ts`.
+
+**Gotchas for the next session.**
+1. ⚠ **A GREEN ROUND SET IS NOT EVIDENCE A NARROWING IS SAFE.** 86/87 rendered documents and 2,428 green tests coexisted with 13 deleted headings. If your change makes a permissive predicate stricter, the corpus sweep is not a victory lap at the end — it is where the rule is actually measured, and you should expect to rewrite after it.
+2. ⚠ **ADJUDICATE SWEEP MOVERS BY CONTENT HASH, NOT BY ROW.** 195 mover rows were 123 distinct documents; the archives are corpus UNIONS (S230's Learning #410). Hash first, render the distinct set, and the adjudication is one render round rather than three.
+3. ⚠ **`dump.sh` IS STILL THE FASTEST WAY TO SEE WHY A ROW SURPRISED YOU.** It is what showed that `| a | b |` becomes a `<div class="line-block">` whose leading bar is CONSUMED — which is the entire discriminator, and which no amount of staring at heading counts would have revealed.
+4. ⚠ **THE MUTATION HUNT IS NOT OPTIONAL WHEN THE SWEEP DROVE THE DESIGN.** Four conditions here were forced in by rendered sweep witnesses and were unreachable from the rounds, so nothing in the round-derived tests exercised them. `git checkout src/...` between mutants and verify the SHA-256 at the end.
+5. ⚠ **THE HARNESS IS REUSABLE AND EVERYTHING NAMED RAN UNMODIFIED:** `render235.sh` (S234's, byte-identical), `dump.sh`, `sweep.test.ts` + `presrc/`, `score.test.ts`. Written this session, `scratchpad/s235/`: `adj.test.ts` (pre/post per document against a fresh render — the adjudication harness, the piece that caught both bad implementations), `precheck235.test.ts`, and three frozen prediction files with their SHA-256s.
+6. ⚠ **S232's gotcha 4 still applies and was honoured:** the pre-source was verified PRE by `grep -c` for two symbols the change introduces (count 0) AND by SHA-256 against the session's starting build, before any sweep was trusted. Absolute paths, twenty-ninth session running.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Every claim below was checked against a rendered row on the SHIPPED build.
+
+**#1 — F08, THE TAB-INDENTED QUOTED LINE — now the ONLY divergence left in this session's 87-document round set.** `> line one` / `> line two` / blank / `> <TAB>code` / `> # ATX Below` renders NO heading and this model reports one, while its 4-SPACE twin renders the heading and this model agrees. **Derived:** quarto splits the tab from the spaces — after `> ` a tab reaches the next 4-column stop and lands 2 columns into the quote's content (a paragraph), where four spaces land 4 in (indented code). ⚠ **Size it against the two other "counts SPACES ONLY" items in `BACKLOG.md`** (`contentColumns`'s pop and `rawTexMacroLineIsBlock`) rather than special-casing the quote — the entry says so and it is still true. Pinned at the phantom as G17. Effort **estimate** LOW–MEDIUM. ⚠ **And heed gotcha 1 above:** this one is column arithmetic touching three call sites, so the sweep matters more than the round.
+**#2 — THE COLUMN-0 AXIS OF THE UNDERLINE FAMILY**, S234's rescope (b). Six rendered witnesses exist; the discriminator is `setextTitleQuoted`, not the spelling. ⚠ `s234/r1/a0` is measured RIGHT and must not move. Pinned both ways (S234 G16, G1). Effort **estimate** LOW–MEDIUM.
+**#3 — THE `-` HALF OF THE LAZY QUOTED UNDERLINE**, S234's rescope (a). Needs the table question answered: what sits BELOW decides. ⚠ **This session answers part of it** — `tableShapedLineIsBlock` now knows when a pipe table really forms, which is the state that question was missing. Effort **estimate** MEDIUM.
+**#4 — THE QUOTE UNDER A DIV OPENER** (`s234/r2/q1`, `q4`, pinned S234 R1). A heading DELETION at every column; the blocker is `consecutiveBody`, not the band. ⚠ Cross-check `OPENS_FRESH_BLOCK`'s docstring first. Effort **estimate** LOW to investigate.
+**#5 — THE LAZILY-CONTINUED CLOSER**, Session 231's disclosed bound (`s231/r5/d01`, pinned R1). Over-consuming DELETES. Effort **estimate** LOW–MEDIUM.
+**#6 — ⚠ THE QUOTE-SWITCH FAMILY**, unchanged: `s229/r2/b11`, `s233/r3/h10`, `s229/r2/b13`, one root — no block-quote container. ⚠ S229 measured that the naive fix DELETES `r2/b01`. Effort **estimate** MEDIUM, a data-structure change.
+**#7 — THE OPERATOR DECISION on the remaining TWO duplicate clusters.** Unchanged. VERY LOW.
+**#8 onward — unchanged from S234's list.** ⚠ **Still open from S186:** promote the scratchpad harness, `.vscode-test/` at 18 GB, `npm audit` 5 high + 1 moderate, devDependency-only. ⚠ **`scratchpad/` is now ~2.3 GB and untracked.**
+
+## Session 234 Handoff Evaluation (by Session 235)
+
+**Score: 9/10.**
+
+**What helped, concretely.** The harness section (gotcha 5) was worth the whole handoff: `render234.sh` became `render235.sh` **byte-identical**, `sweep.test.ts` + `presrc/` needed one `sed` rename, and `dump.sh` answered the two prediction misses that mattered in about ninety seconds each. Gotcha 6 (verify the pre-source PRE by grepping for a symbol the change introduces) was run as written and returned 0 — and I added a SHA-256 check beside it. The ranked "What's next" list put F07 at #1 with the standing warning that its discriminator was unrendered, which is exactly what made this session's shape obvious at Phase 0.
+
+**What was WRONG — one claim, and it was material.** The effort estimate: *"Render both before writing any code — two documents, ninety seconds. Effort estimate LOW plus one render round."* The discriminator really did cost about two documents. The **fix** cost three render rounds (87 documents), a 123-document adjudication round, two full rewrites after the sweep caught 13 then 7 deleted headings, and a 7-mutant hunt — against a predicate whose own docstring warns that narrowing it is the deleting direction. ⚠ **The estimate sized the QUESTION and was read as sizing the WORK**, and nothing in the entry distinguished the two. This is S234's own gotcha 1 ("a filed numeric band is a hypothesis, not a measurement") applied to its own effort figure.
+
+**What was MISSING.** The entry inherited the backlog item's framing — `a | b` versus `| a | b |` — and never noted that **two of F07's three witnesses are the grid border**, which obeys a different rule entirely and needs a two-directional lookahead. A reader sizing the work from the handoff would have budgeted for one rule and met two.
+
+**ROI: strongly positive.** The harness alone saved hours. The one wrong claim cost nothing that measurement did not immediately correct — which is the point of measuring.
+
+## Session 235 Self-Assessment
+
+**Score: 9/10.**
+
+**What went right.** The item's own instruction — render before coding — was honoured, after five sessions had not, and the render answered it cleanly (80/87 predicted). The guard block went in first, 18 `it()`s green before any `src/` change, weighted 12-of-18 to the direction that could delete. When the sweep caught 13 deletions I fixed and re-swept; when the second attempt was worse (7 deletions, 26 phantoms) I **stopped rather than patching a third time**, went back to the rendered documents, and found the single condition that explains all 31 of them. Zero deletions at ship is measured over 47,748 documents with every distinct mover re-rendered, not asserted. The mutation hunt found four unexercised conditions and all four are now pinned.
+
+**What went wrong, and it is the same thing twice.** My first two implementation rules — "the header is the block's second line" and "a grid border carries no space" — were **reasoned, not measured**. I had measured the *discriminator* carefully and then wrote the *implementation rule* from inference, which is precisely the error this project has recorded against filed backlog items (Learnings #414, #421, #424) now committed by me against my own code. The rounds could not catch it because I wrote the rounds. Two rework cycles is the workstream's anti-pattern #5 threshold; I stopped exactly at it, which is the countermeasure working rather than a clean run.
+
+**Also wrong, smaller.** G18 was pinned at a phantom from reasoning about code I had not yet written, and the code refuted it — caught by my own guard block, corrected in place with the prediction recorded rather than quietly overwritten.
+
+**Against the bar.** S234 shipped 23 recovered rows over 54 documents with 0 deletions; this session shipped 42 recovered over 87 plus 121 over the adjudicated sweep, also 0 deletions, with a wider blast radius (a removed predicate row, a new state variable, a changed function signature). Comparable rigour, more rework, and one genuinely new methodological finding about the limits of a purpose-built round.
 
 ## Session 234 ACTIVE TASK (superseded by Session 235 — full entry preserved below)
 **Task:** **Session 234 — IMPLEMENTATION (strict TDD): the `===` HALF of Session 232's disclosed bound.** Session 233's ranked #1; the operator picked it at Phase 0 from the `AskUserQuestion` candidate list.
