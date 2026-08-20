@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S232
+date: 2026-08-20
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD) -- an UNMARKED, 4-space-indented setext underline inside a BLOCK QUOTE (the quote's own lazy continuation) must form a heading. Session 231's ranked #1 and the unfixed half of its own item; the operator picked it at Phase 0. Heading-DELETING direction, pinned in both directions at test/unit/qmd-model.test.ts R2.
+```
+
+```handoff
 session: S231
 date: 2026-08-20
 status: complete

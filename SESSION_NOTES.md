@@ -5,6 +5,16 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 232 — IMPLEMENTATION (strict TDD): an UNMARKED, 4-space-indented setext underline inside a BLOCK QUOTE — the quote's own LAZY CONTINUATION — is not reported, where quarto renders a real heading.** Session 231's ranked #1 and the unfixed half of its own backlog item (`BACKLOG.md` line 242, filed by Session 183, rescoped and re-measured by Session 231); the operator picked it at Phase 0.
+**Started:** 2026-08-20
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**The witness (inherited, to be re-measured before any code).** `> quoted one` / `    ---` / `# Below A Quoted Setext` renders `<blockquote><h2>quoted one</h2><h1>Below A Quoted Setext</h1></blockquote>`; this model reports only the ATX. ⚠ The blocker is NOT the setext rule — the 4-space indent is read at CODE DEPTH inside the quote, where pandoc treats the line as lazy continuation of the quote's open paragraph. ⚠ The TOP-LEVEL twin is measured RIGHT and must not move.
+
+**Phase 0 findings.** Both ledger frontiers were HEAD (`98c2bed8`, gap 0); 194 `complete` receipts and **0 `pending`**; no ghost sessions; nothing backfilled. 0 open GitHub issues, so `BACKLOG.md` governs — 168 open items, Active section empty. Dashboard 76/100, 1 high risk, 6 devDependency-only vulns. Build verified at Orient: `check-types` 0 · `npm test` 2355 passed / 66 files · `check-backlog` OK.
+
+## Session 231 ACTIVE TASK (superseded by Session 232 — full entry preserved below)
 **Task:** **Session 231 — IMPLEMENTATION (strict TDD): a SETEXT heading formed inside a BLOCK QUOTE is invisible to this model, where quarto renders a real heading.** The largest family in Session 230's audit (F01) and the item it ranked #1; the operator picked it at Phase 0.
 **Started:** 2026-08-20 · **Closed:** 2026-08-20
 **Status:** **DONE. SHIPPED — and the finding is that the two items Session 230 filed as DUPLICATES are two different mechanisms, so closing both would have marked a live heading deletion as fixed.**
