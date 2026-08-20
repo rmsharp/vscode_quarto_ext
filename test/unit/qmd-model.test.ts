@@ -11687,3 +11687,168 @@ describe("Session 234 — the `=` band of the lazily-continued quoted underline"
     expect(names(["> # Quoted ATX", " ===", "# Probe A"])).toEqual(["h1:Quoted ATX"]);
   });
 });
+
+describe("Session 235 guard — answers around the fresh-block discriminator that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ EVERY ROW IN THIS BLOCK IS A RENDERED ANSWER, `scratchpad/s235/r1`-`r3` (87 documents,
+  // quarto 1.7.33, predictions frozen and SHA-256'd before each render). This session NARROWS
+  // `CLOSES_PARAGRAPH`'s pipe row and grid-border row, which is the DELETING direction: a
+  // table-shaped line this predicate stops matching becomes prose, and the ATX heading pressed
+  // against it is dropped. So the guard is weighted to the lines that must KEEP closing.
+
+  it("G1: a LINE BLOCK closes the paragraph — `| a | b |` (`r1/a02`, `r1/b02`)", () => {
+    // Rendered: `<div class="line-block">a | b |</div>` then `<h1>ATX Below</h1>`. A pandoc
+    // line block is `|` followed by whitespace, and it is block-level, so the heading is real.
+    // ⚠ This is the row a naive "a lone pipe line is prose" narrowing deletes.
+    expect(names(["line one", "line two", "", "| a | b |", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+    expect(names(["> line one", "> line two", "", "> | a | b |", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G2: the TRAILING pipe is not what makes it one — `| a | b` (`r1/a04`)", () => {
+    expect(names(["line one", "line two", "", "| a | b", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G3: a BARE `|` and a `| ` are line blocks too (`r1/a09`, `r1/a10`)", () => {
+    // Rendered, both emit `<div class="line-block">` and the heading below it. The line-block
+    // form therefore cannot require CONTENT after the bar — only whitespace or end of line.
+    expect(names(["line one", "line two", "", "|", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+    expect(names(["line one", "line two", "", "| ", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+  });
+
+  it("G4: a BARE `+` is an EMPTY LIST ITEM and stays block-level (`r1/a07`, `r2/n01`)", () => {
+    // ⚠ `CLOSES_PARAGRAPH`'s docstring already records that excluding it deletes 6 real
+    // headings. It is spelled by the same `+[-+=: ]*` the grid-border row uses, so this
+    // session's narrowing has to carve it back out explicitly.
+    expect(names(["line one", "line two", "", "+", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+    expect(names(["+", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+  });
+
+  it("G5: ⚠ but `+ item` renders NO heading, and that inverts the obvious reading (`r1/a08`)", () => {
+    // One of only two prediction misses across Round 1's 47 documents. A NON-EMPTY bullet opens
+    // a paragraph INSIDE the item, so the `#` below it is a lazy continuation and
+    // `blank_before_header` eats it — rendered, `<ul>` and no heading at all. The EMPTY item of
+    // G4 has no paragraph to continue, which is the whole difference between the two rows.
+    expect(names(["line one", "line two", "", "+ item", "# ATX Below"])).toEqual([]);
+  });
+
+  it("G6: a REAL pipe table's last row closes, even spelled `c | d` (`r1/c01`, `r2/p06`)", () => {
+    // ⚠ THE ROW THE WIDE `/\|/` EXISTS FOR. `CLOSES_PARAGRAPH`'s docstring records that
+    // requiring a leading pipe here deletes 4 real headings, and this is the shape: a pipe
+    // table needs neither leading nor trailing pipes, so its body rows are bare.
+    expect(names(["line one", "line two", "", "a | b", "--|--", "c | d", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+    expect(names(["| a | b |", "|---|---|", "| c | d |", "| e | f |", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G7: a REAL grid table closes, and its last line is a BORDER (`r1/c03`, `r1/c08`)", () => {
+    // The grid border is the other row this session narrows, and here it must keep closing.
+    expect(names(["> +---+---+", "> | a | b |", "> +---+---+", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+    expect(
+      names(["+---+---+", "| a | b |", "+---+---+", "| c | d |", "+---+---+", "# ATX Below"]),
+    ).toEqual(["h1:ATX Below"]);
+  });
+
+  it("G8: a header row plus a DELIMITER is a table with no body at all (`r1/c05`, `r1/c07`)", () => {
+    expect(names(["| a | b |", "|---|---|", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+    expect(names(["line one", "line two", "", "a | b", "--|--", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G9: the delimiter may be INDENTED and may be spelled thinly (`r2/i07`, `r2/p04`, `r2/p05`)", () => {
+    expect(names(["a | b", " --|--", "c | d", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+    expect(names(["a | b", ":---|---:", "c | d", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+    expect(names(["a | b", "- | -", "c | d", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+  });
+
+  it("G10: TWO BORDERS back to back are a grid table with no body (`r3/h11`)", () => {
+    // ⚠ Round 3's only prediction miss, and it is the row that decides how the grid lookahead
+    // is written: a border that finds another border with no body between them still forms a
+    // table, so the scan may not require a `|` row in between.
+    expect(names(["+---+---+", "+---+---+", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+  });
+
+  it("G11: a line block INSIDE a list item, and a grid table inside one (`r3/h06`, `r3/h13`)", () => {
+    expect(names(["- item", "", "  | a | b |", "  # ATX Below"])).toEqual(["h1:ATX Below"]);
+    expect(
+      names(["- item", "", "  +---+---+", "  | a | b |", "  +---+---+", "  # ATX Below"]),
+    ).toEqual(["h1:ATX Below"]);
+  });
+
+  it("G12: Session 185's own two documents, which only the delimiter separates (`r2/n03`, `r2/n04`)", () => {
+    // Quoted verbatim from `TABLE_RULE_ROW`'s docstring. The first is a line block plus a
+    // continuation and renders the heading; the second is a TABLE and renders none.
+    expect(names(["| a | b |", "| 1 | 2 |", "  continued", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+    expect(names(["| a | b |", "|---|---|", "| 1 | 2 |", "  continued", "# ATX Below"])).toEqual([]);
+  });
+
+  it("G13: an OPEN paragraph above disarms the line block (`r1/d01`, `r1/d02`, `r1/d03`)", () => {
+    // A line block cannot interrupt a paragraph, so all three of these render one paragraph and
+    // no heading — and this model already answers them right. The narrowing must not reach up
+    // and turn any of them into a heading.
+    expect(names(["> line one", "> a | b", "> # ATX Below"])).toEqual([]);
+    expect(names(["> line one", "> | a | b |", "> # ATX Below"])).toEqual([]);
+    expect(names(["> line one", "> +---+---+", "> # ATX Below"])).toEqual([]);
+  });
+
+  it("G14: a delimiter is a table only as the SECOND line of its block (`r3/h01` against `r3/h02`)", () => {
+    // ⚠ The row that fixes the header test. `line one` / `line two` / `--|--` / `c | d` renders
+    // ONE paragraph — a pipe table's header is a single line and it must open the block — while
+    // the same delimiter one line later, with a blank above the header, renders the table.
+    expect(names(["line one", "line two", "--|--", "c | d", "# ATX Below"])).toEqual([]);
+    expect(names(["line one", "line two", "", "a | b", "--|--", "c | d", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G15: INDENTED CODE still closes, at four spaces and at a TAB (`r2/i04`, `r3/h08`)", () => {
+    expect(names(["line one", "line two", "", "    | a | b |", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+    expect(names(["line one", "line two", "", "\ta | b", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+  });
+
+  it("G16: Session 183's own matched control, `>     ---`, still renders (`r1/e01`)", () => {
+    // The second of the two controls the filed item named as measured RIGHT.
+    expect(names(["> line one", "> line two", "", ">     ---", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G17: ⚠ PINNED AT A PHANTOM — F08, the TAB-indented quoted line, is a SEPARATE item (`r1/e02`)", () => {
+    // Rendered, this renders NO heading: after `> ` a tab reaches the next 4-column stop and
+    // lands 2 columns into the quote's content, which is a paragraph, where four spaces land 4
+    // in and are indented code. It is filed as family F08 — column ARITHMETIC, not line shape —
+    // and it is deliberately NOT in this session's scope. Pinned so a later change is measured
+    // against it rather than blamed for it.
+    expect(names(["> line one", "> line two", "", "> \tcode", "> # ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+
+  it("G18: ⚠ PINNED AT A PHANTOM — a grid border ENDS a pipe table and this model keeps it (`r3/h09`)", () => {
+    // Rendered, `a | b` / `--|--` / `c | d` / `+---+---+` / `# ATX Below` renders the table and
+    // then ONE paragraph holding the border and the heading — the border is not a row of a PIPE
+    // table, so it ends it. This model carries one "a table is open" flag and cannot tell a
+    // pipe table from a grid one, so the phantom survives this session's narrowing. Disclosed
+    // and filed rather than guessed at.
+    expect(names(["a | b", "--|--", "c | d", "+---+---+", "# ATX Below"])).toEqual([
+      "h1:ATX Below",
+    ]);
+  });
+});
