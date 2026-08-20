@@ -10980,7 +10980,7 @@ describe("Session 231 — a metadata block inside a block quote", () => {
     ).toEqual(["Control d02"]);
   });
 
-  it("R2 (residual, PRE-EXISTING and unmoved, PINNED): ⚠ a LOST heading — the UNMARKED lazy underline is a different mechanism (`s183`)", () => {
+  it("R2 (⚠ CLOSED BY SESSION 232 — the lost heading is recovered, and the top-level twin is unmoved): the UNMARKED lazy underline is a different mechanism (`s183`)", () => {
     // ⚠ **This is the row that shows Session 183's filed item is NOT a duplicate of Session
     // 225's, which this session closes.** Rendered, `> quoted one` / `    ---` /
     // `# Below A Quoted Setext` renders `<blockquote><h2>quoted one</h2><h1>Below A Quoted
@@ -10992,7 +10992,16 @@ describe("Session 231 — a metadata block inside a block quote", () => {
     // bytes with no quote render one absorbed paragraph and no heading — which is why this is
     // a container/lazy question and not a setext one. Same answer before and after this
     // session (`scratchpad/s231/presrc`, scored). Filed separately.
+    //
+    // ⚠ **SESSION 232 CLOSED IT, AND THIS EXPECTATION IS REVERSED.** It recorded a LOSS —
+    // quarto renders the quoted `h2` this line asserted away — so the reversal restores
+    // agreement rather than changing an answer. The same bytes were RE-RENDERED before the
+    // reversal (`scratchpad/s232/r4/w1`, quarto 1.7.33): `<blockquote><h2>quoted one</h2>
+    // <h1>Below A Quoted Setext</h1></blockquote>`, the ATX lazily continued into the quote
+    // too. The mechanism is the one this comment already names — the 4-space indent read at
+    // CODE DEPTH — and that is now the TRIGGER for the lazy path rather than a blocker.
     expect(headings(["> quoted one", "    ---", "# Below A Quoted Setext"])).toEqual([
+      "quoted one",
       "Below A Quoted Setext",
     ]);
     // The top-level twin, unmoved and correct.
@@ -11101,5 +11110,31 @@ describe("Session 232 guard — answers around the lazily-continued quoted under
     // paragraph. This is the control that makes the session's row a CONTAINER question.
     expect(headings(["quoted one", "    ---", "# Below A Quoted Setext"])).toEqual([]);
     expect(headings(["quoted one", "   ---", "# Probe A"])).toEqual([]);
+  });
+});
+
+describe("Session 232 — a setext underline lazily continued into a block quote", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: an UNMARKED underline at CODE DEPTH underlines the quote's own paragraph (`r4/w1`, `r1/a4`)", () => {
+    // ⚠ **THE FILED WITNESS, RE-RENDERED THIS SESSION RATHER THAN INHERITED.** `> quoted one` /
+    // `    ---` / `# Below A Quoted Setext` renders
+    // `<blockquote><h2>quoted one</h2><h1>Below A Quoted Setext</h1></blockquote>` — the ATX is
+    // lazily continued into the quote too — and this model reported only the ATX.
+    //
+    // ⚠ **The blocker was never the setext rule.** The underline carries no marker, so the
+    // Session 225 strip does not reach it and the line arrives at the setext row as the raw
+    // `    ---`, four columns past the quote's own content base — which is exactly CODE DEPTH,
+    // where no underline may form. Pandoc reads the same line as a LAZY CONTINUATION of the
+    // quote's open paragraph, and indented code cannot form in a paragraph continuation.
+    //
+    // ⚠ This REVERSES the R2 residual pin Session 231 left, which recorded the loss. The same
+    // bytes were re-rendered before the reversal (`scratchpad/s232/r4/w1`), not reasoned about.
+    expect(headings(["> quoted one", "    ---", "# Below A Quoted Setext"])).toEqual([
+      "quoted one",
+      "Below A Quoted Setext",
+    ]);
   });
 });

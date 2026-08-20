@@ -5695,23 +5695,86 @@ function computeRegions(text: string): Regions {
       setextTitle !== undefined &&
       setextTitle.contentStart > 0 &&
       blockQuoteContentStart(lines[setextTitle.line - 1] ?? "") !== null;
+    // ⚠ **AN UNMARKED RUN AT CODE DEPTH INSIDE AN OPEN QUOTE IS THE QUOTE'S OWN LAZY
+    // CONTINUATION, AND IT UNDERLINES (Session 232).** Rendered, `> quoted one` / `    ---`
+    // renders `<blockquote><h2>quoted one</h2></blockquote>`: the underline carries no marker,
+    // so the Session 225 strip never reaches it and it arrives here as the raw `    ---`, four
+    // columns past the quote's content base — CODE DEPTH, where `setextUnderlineLevel` must
+    // refuse. Pandoc reads it as a lazy continuation of the quote's open paragraph instead, and
+    // indented code cannot form in a paragraph continuation. So this is the one place the column
+    // rule is answered by the CONTAINER rather than by the column: `columnIsCodeDepth` is reused
+    // as the TRIGGER, not re-derived, so the two rows cannot drift apart (Learning #14).
+    //
+    // ⚠ **CODE DEPTH, NOT "DEEPER THAN THE CONTENT COLUMN" — and the difference is three
+    // phantoms.** At indents 1-3 with a body row below, quarto renders a pandoc SIMPLE TABLE and
+    // no heading at all (`r1/a1`-`a3`: `<th>uoted one</th>` over `<td>robe A</td>`, the `>` and
+    // `#` eaten as column material), while the same bytes with a blank line before the probe
+    // render the heading (`r2/g1`-`g3`). The discriminator there is the table's body row, not
+    // the indent, so those columns are left to the pre-existing decline and disclosed as a
+    // bound. Pinned as G4.
+    //
+    // ⚠ **AND ONLY UNDER THE DEFAULT READER.** CommonMark's own rule is that a setext underline
+    // may not be a lazy continuation line, and quarto follows it: the `from: gfm` twin of the
+    // witness renders NOTHING (`r4/v2`, `r4/v3`). Pinned as G1 — this is the direction that
+    // would mint a phantom on every gfm document in the corpus.
+    const lazyQuotedUnderline =
+      inQuote &&
+      !stripQuote &&
+      !commonmarkDialect &&
+      !BLANK_LINE.test(line) &&
+      columnIsCodeDepth(indentColumn(line), contentColumns);
     const setextLevel =
       titleLineCount >= 1 &&
       commonmarkHtmlBlock === null &&
-      !setextTitleQuoted &&
+      (!setextTitleQuoted || lazyQuotedUnderline) &&
       !setextTitleTooShallow
         ? setextUnderlineLevel(
             line,
             commonmarkDialect
               ? COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o)
-              : [0, ...contentColumns],
+              : lazyQuotedUnderline
+                ? [0, ...contentColumns, indentColumn(line)]
+                : [0, ...contentColumns],
           )
         : null;
+    // How many of the TITLE's markers a lazily-continued underline removes (Session 232).
+    //
+    // ⚠ **IT IS THE DEPTH OF THE QUOTE THAT WAS ALREADY OPEN ABOVE THE TITLE, NOT THE TITLE'S
+    // OWN** — and the two disagree on exactly the rows that carry a nested quote. Measured on
+    // eight documents:
+    //
+    //   `>> quoted one` / `    ---`            -> `h2:> quoted one`   ONE marker  (`r2/i4`)
+    //   `>>> quoted one` / `    ---`           -> `h2:>> quoted one`  ONE          (`r3/q1`)
+    //   `> > quoted one` / `    ---`           -> `h2:> quoted one`   ONE          (`r3/q3`)
+    //   `>>quoted one` / `    ---`             -> `h2:>quoted one`    ONE          (`r3/q4`)
+    //   `>> intro` / `>>` / `>> title` / `…`   -> `h2:title`          TWO          (`r3/q2`)
+    //   `>>> intro` / `>>>` / `>>> title`      -> `h2:title`          THREE        (`r4/u1`)
+    //   `> intro` / `>` / `> > deep title`     -> `h2:> deep title`   ONE of two   (`r4/u2`)
+    //   `> # QH` / `> quoted title` / `…`      -> `h2:quoted title`   ONE          (`r4/u3`)
+    //
+    // The mechanism is pandoc's own recursion: the outer quote strips ONE level and re-parses,
+    // and whichever construct claims the title line at THAT level decides. Where the title line
+    // opens the quote itself there is no already-open depth, and the setext parse claims the
+    // line before any deeper quote is parsed — which is the same thing that happens at top level
+    // in G2, one container in. So the floor is 1 and the ceiling is the title's own depth.
+    const lazyStripDepth =
+      lazyQuotedUnderline && setextLevel !== null && setextTitle !== undefined
+        ? Math.min(
+            Math.max(1, blockQuoteMarkerOffsets(lines[setextTitle.line - 1] ?? "").length),
+            blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "").length,
+          )
+        : 0;
     // The text of a title line, with the quote markers the UNDERLINE also carries removed and
     // any deeper ones kept as content — see the call site (Session 231).
     const quotedTitleText = (l: { text: string; contentStart: number }): string => {
       if (!stripQuote) {
-        return l.text;
+        if (lazyStripDepth === 0) {
+          return l.text;
+        }
+        const lazyOffsets = blockQuoteMarkerOffsets(l.text);
+        return lazyOffsets.length === 0
+          ? l.text
+          : l.text.slice(lazyOffsets[Math.min(lazyStripDepth, lazyOffsets.length) - 1]);
       }
       const offsets = blockQuoteMarkerOffsets(l.text);
       return l.text.slice(
