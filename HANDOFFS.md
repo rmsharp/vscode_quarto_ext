@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S231
+date: 2026-08-20
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION (strict TDD) -- a SETEXT heading formed inside a BLOCK QUOTE is invisible to this model where quarto renders a real heading. Family F01 of Session 230's audit, 46 of the 116 archive rows, the largest measured family and the DELETION direction. Filed TWICE (Session 225 and Session 183); both entries must close together.
+```
+
+```handoff
 session: S230
 date: 2026-08-20
 status: complete

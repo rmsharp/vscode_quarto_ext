@@ -5,6 +5,16 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 231 — IMPLEMENTATION (strict TDD): a SETEXT heading formed inside a BLOCK QUOTE is invisible to this model, where quarto renders a real heading.** The largest family in Session 230's audit (F01, 46 of the 116 archive rows) and the item it ranked #1; the operator picked it at Phase 0 via `AskUserQuestion`. (IN PROGRESS)
+**Started:** 2026-08-20
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+⚠ **The item is filed TWICE** — the Session 225 entry ("the blocker is a raw-line pre-pass") and the Session 183 entry — and Session 230's record-hygiene finding names the pair. Both must be closed together.
+⚠ **Read the Session 213 `gfm` item BEFORE changing anything** — same shape, opposite verdict, and its `markdown` twin agrees with this model, so a fix keyed on the quote container alone breaks a row that is currently right.
+⚠ **DELETION direction** — this model reports nothing where a heading really renders.
+
+## Session 230 ACTIVE TASK (superseded by Session 231 — full entry preserved below)
 **Task:** **Session 230 — AUDIT: group the 116 measured model↔quarto divergences held in the mover archives into families, and cross-check every family against `BACKLOG.md`.** The item Session 229 filed from its own post-close-out verification and ranked #1; the operator picked it at Phase 0.
 **Started:** 2026-08-19 · **Closed:** 2026-08-20
 **Status:** **DONE. CLOSED — and the finding is that BOTH halves of the item's own premise were wrong: the 116 rows are 25 documents, and 12 of the 16 families were already filed.**
