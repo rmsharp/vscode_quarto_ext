@@ -2834,14 +2834,27 @@ interface MetadataBlock {
   /** The closing `---`, 0-based and INCLUSIVE, or `null` where no span may be claimed. */
   readonly endLine: number | null;
 }
-function midDocumentMetadataRegions(lines: readonly string[]): MetadataBlock[] {
+function midDocumentMetadataRegions(
+  lines: readonly string[],
+  atTopLevel = true,
+): MetadataBlock[] {
   const firstContent = lines.findIndex((line) => line.trim() !== "");
   if (firstContent < 0) {
     return [];
   }
   const blocks: MetadataBlock[] = [];
   for (const region of quartoYamlRegions(lines.join("\n"))) {
-    if (region.startLine <= firstContent || insideHtmlComment(lines, region.startLine)) {
+    // ⚠ **THE FIRST-CONTENT FILTER IS ABOUT FRONT MATTER, AND A BLOCK QUOTE HAS NONE
+    // (Session 231).** At top level a block that OPENS the document is front matter, which
+    // quarto VALIDATES and this scanner resolves elsewhere — hence the skip. The content of a
+    // quote is re-parsed as ordinary blocks, so a triple on the quote's FIRST line is an
+    // ordinary mid-document block there and pandoc consumes it: rendered, `r1/a01` (`> ---` /
+    // `> note: alpha` / `> ---` as the whole quote) renders an EMPTY `<blockquote>`. Passing
+    // `false` lifts only that filter; every other exclusion documented above applies unchanged.
+    if (
+      (atTopLevel && region.startLine <= firstContent) ||
+      insideHtmlComment(lines, region.startLine)
+    ) {
       continue;
     }
     const body = lines.slice(
@@ -2921,7 +2934,71 @@ function consumedMetadataBlockLines(lines: readonly string[]): ReadonlySet<numbe
       consumed.add(i);
     }
   }
+  // ⚠ **AND THE SAME WALK OVER EACH BLOCK QUOTE'S OWN CONTENT (Session 231).** Quarto strips a
+  // quote's markers and re-parses what is left, and `yaml_metadata_block` is a BLOCK-level
+  // construct — so the triple is consumed inside a quote exactly as it is outside one.
+  // Measured, `scratchpad/s231/r1`, 17 documents rendered through the real `quarto render`
+  // path: `a01` (the quote's first line), `a02` (a marked-blank line above the opener), `a05`
+  // (an ATX INSIDE the block) and `a11` (a `>>` nested quote) all render an EMPTY
+  // `<blockquote>`, and `a10` proves the lines really are skipped rather than merely
+  // heading-free — the `> # Below a10` under the closer is a REAL heading this model could not
+  // reach while the block's paragraph was still open.
+  //
+  // ⚠ **The BLANK-ABOVE precondition is the quote's own, not the document's, and Round 1
+  // measures both sides of it.** Where the opener does NOT start a block inside the quote,
+  // nothing is consumed and the `---` is a setext underline instead: `a03` (a quoted paragraph
+  // line above) renders `h2:quoted para`, `a04` (a quoted ATX above) renders `h2:# Quoted Head
+  // a04`, marker and all, and `a12` (a quoted list item above) renders `h2:item`. Reading the
+  // STRIPPED run makes both answers fall out of the test already written above — a `>` alone
+  // strips to `""` and is blank, and the run's first line has no line above it at all.
+  //
+  // ⚠ A quoted block whose body holds a FENCE is excluded by the enumeration, and that is not
+  // a nicety: `r1/a08` does not render AT ALL (exit 1, `YAML parse exception` out of quarto's
+  // own `readqmd.lua`), so there is no verdict to model.
+  for (const run of blockQuoteRuns(lines)) {
+    for (const block of midDocumentMetadataRegions(run.content, false)) {
+      if (block.endLine === null || !BLANK_LINE.test(run.content[block.startLine - 1] ?? "")) {
+        continue;
+      }
+      for (let i = block.startLine; i <= block.endLine; i++) {
+        consumed.add(run.source[i]);
+      }
+    }
+  }
   return consumed;
+}
+/**
+ * Every maximal run of consecutive BLOCK-QUOTE lines, as the content left when each line's
+ * markers are stripped plus the SOURCE line index that content came from (Session 231).
+ *
+ * ⚠ The run is what a quote's own coordinate system is defined over, so it ends at the first
+ * line carrying no marker at all — including a LAZY continuation line, which pandoc joins to
+ * the quote's open paragraph but which cannot open a metadata block there. `r1/a14` is the
+ * rendered row: `> ---` / `> note: alpha` / `---` with an UNMARKED closer is consumed by
+ * quarto, and this walk declines it because the run ends before the closer. That is a
+ * disclosed under-approximation in the phantom direction, pinned as R1 — a lazily-continued
+ * closer is a claim about paragraph state this walk does not carry, and over-consuming
+ * DELETES.
+ */
+function blockQuoteRuns(
+  lines: readonly string[],
+): { source: number[]; content: string[] }[] {
+  const runs: { source: number[]; content: string[] }[] = [];
+  let current: { source: number[]; content: string[] } | null = null;
+  for (let i = 0; i < lines.length; i++) {
+    const start = blockQuoteContentStart(lines[i]);
+    if (start === null) {
+      current = null;
+      continue;
+    }
+    if (current === null) {
+      current = { source: [], content: [] };
+      runs.push(current);
+    }
+    current.source.push(i);
+    current.content.push(lines[i].slice(start));
+  }
+  return runs;
 }
 /**
  * The metadata block that GOVERNS this document's reader — the content the two `from:`

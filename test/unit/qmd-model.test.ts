@@ -10825,3 +10825,37 @@ describe("Session 231 guard — quoted-metadata and quoted-setext answers that m
     ]);
   });
 });
+
+// ── Session 231 — a block quote's own metadata block, and the setext heading below it ──
+//
+// Quarto strips a quote's markers and re-parses what is left (Session 225), and pandoc's
+// `yaml_metadata_block` is a BLOCK-level construct — so a `---`/key/`---` triple that starts
+// a block INSIDE a quote is consumed there exactly as it is at top level. Measured over this
+// session's Round 1 (`scratchpad/s231/r1`, 17 documents, quarto 1.7.33).
+//
+// ⚠ **Consumption is pandoc's; reader SELECTION is quarto's, and they part company here.**
+// `r1/a16` puts `from: gfm` inside the quoted triple: quarto renders an EMPTY `<blockquote>`
+// — the block IS consumed — and yet the pressed heading below stays inside its paragraph, so
+// gfm was NOT selected. `governingMetadataContent` therefore keeps reading RAW lines and only
+// the consumption walk gains quote context (pinned as G12).
+describe("Session 231 — a metadata block inside a block quote", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("C1: an ATX heading INSIDE a quoted metadata block renders nothing (`r1/a05`)", () => {
+    // Rendered: only the control. The block is consumed whole, so the `#` line inside it is
+    // not a heading — the quoted twin of `cal3/g_atxkey_md`, which settled the same question
+    // at top level in Session 213.
+    expect(
+      headings([
+        "Prose one.",
+        "",
+        "> ---",
+        "> # Inside a05",
+        "> note: alpha",
+        "> ---",
+        "",
+        "## Control a05",
+      ]),
+    ).toEqual(["Control a05"]);
+  });
+});
