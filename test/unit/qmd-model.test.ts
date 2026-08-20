@@ -11584,4 +11584,106 @@ describe("Session 234 — the `=` band of the lazily-continued quoted underline"
       "h1:Probe A",
     ]);
   });
+
+  it("C2: the band releases a title the quote was ALREADY OPEN above (`r1/b1`, `r1/b3`)", () => {
+    // `setextTitleQuoted` declines a title part-way into a quote, and the band is what lifts it
+    // — the same lift Session 232 gave the code-depth row, now reaching the shallower band.
+    // Rendered: `<blockquote><p>intro</p><h1>quoted title</h1><h1>Probe A</h1></blockquote>`.
+    expect(names(["> intro", ">", "> quoted title", " ===", "# Probe A"])).toEqual([
+      "h1:quoted title",
+      "h1:Probe A",
+    ]);
+    expect(names(["> intro", ">", "> quoted title", "   ===", "# Probe A"])).toEqual([
+      "h1:quoted title",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("C3: ⚠ the floor is the MARKER's column, so a quote inside a list item moves it (`r2/p1`)", () => {
+    // The row that separates "deeper than column 0" from "deeper than the marker". The quote
+    // opens at column 2, so the underline at column 3 is one past ITS marker even though it is
+    // three past the document's left edge. Rendered: `ul>p>blockquote>h1`, the heading inside a
+    // real blockquote. Its floor twin at column 2 is guard G3 and stays refused.
+    expect(names(["- item", "", "  > quoted one", "   ==="])).toEqual(["h1:quoted one"]);
+  });
+
+  it("C4: the marker DEPTH the title keeps is Session 232's, unchanged by the band (`r1/g1`-`g3`, `r2/s1`)", () => {
+    // The band decides WHETHER the line underlines; `lazyStripDepth` decides how much of the
+    // title's own marker run survives, and it is measured at ONE level for a title that opens
+    // its quote. Rendered, each of these keeps exactly one marker fewer than it carries.
+    expect(names([">> quoted one", " ===", "# Probe A"])).toEqual([
+      "h1:> quoted one",
+      "h1:Probe A",
+    ]);
+    expect(names(["> > quoted one", " ===", "# Probe A"])).toEqual([
+      "h1:> quoted one",
+      "h1:Probe A",
+    ]);
+    expect(names([">>> quoted one", "  ===", "# Probe A"])).toEqual([
+      "h1:>> quoted one",
+      "h1:Probe A",
+    ]);
+    expect(names(["> intro", ">", "> > deep title", " ==="])).toEqual(["h1:> deep title"]);
+  });
+
+  it("C5: the `=` RUN's own grammar, and what sits below it (`r1/f1`-`f3`, `d1`, `e1`, `l1`, `r2/x1`)", () => {
+    // A single `=` is a run; trailing whitespace is allowed; and the underline is claimed on
+    // its own line, so what follows it — nothing, a blank, more prose, or the quote resuming —
+    // changes only what comes after the heading. All rendered.
+    expect(names(["> quoted one", " =", "# Probe A"])).toEqual(["h1:quoted one", "h1:Probe A"]);
+    expect(names(["> quoted one", " ===   ", "# Probe A"])).toEqual([
+      "h1:quoted one",
+      "h1:Probe A",
+    ]);
+    expect(names(["> quoted one", " ==="])).toEqual(["h1:quoted one"]);
+    expect(names(["> quoted one", " ===", "", "# Probe A"])).toEqual([
+      "h1:quoted one",
+      "h1:Probe A",
+    ]);
+    expect(names(["> quoted one", " ===", "more prose"])).toEqual(["h1:quoted one"]);
+    expect(names(["> quoted one", " ===", "> back in"])).toEqual(["h1:quoted one"]);
+  });
+
+  it("C6: the corpus shapes Session 192 designed for this band (`s192/adv/l06/a17`, `a18`, `a28`)", () => {
+    // The three documents the 47,748-document sweep moved, each adjudicated against its own
+    // fresh render rather than assumed. Their names — "One Space Lazy", "Three Space Lazy",
+    // "Quoted Title" — say Session 192 built exactly this shape and no session had answered it.
+    expect(names(["> Whiskey One Space Lazy", " ===", "", "Prose after the quoted block."])).toEqual(
+      ["h1:Whiskey One Space Lazy"],
+    );
+    expect(
+      names(["> Xray Three Space Lazy", "   ===", "", "Prose after the quoted block."]),
+    ).toEqual(["h1:Xray Three Space Lazy"]);
+    expect(
+      names([
+        "- Kilo item text",
+        "",
+        "> Lima Quoted Title",
+        "  ===",
+        "",
+        "Prose after the quoted block.",
+      ]),
+    ).toEqual(["h1:Lima Quoted Title"]);
+  });
+
+  it("R1 (residual, PRE-EXISTING and unmoved, PINNED): a quote directly under a DIV OPENER (`r2/q1`, `r2/q4`)", () => {
+    // ⚠ Rendered, `::: {.note}` / `> quoted one` / ` ===` / `:::` renders
+    // `div>blockquote>h1` — the heading is real — and this model reports nothing, at the
+    // shallow band AND at code depth. So it is not this band: the SAME document with one blank
+    // line after the opener is answered correctly, which places the blocker in how many body
+    // lines the fence leaves above the title, not in which underlines may claim them. Scored
+    // pre and post: unmoved. Filed.
+    expect(names(["::: {.note}", "> quoted one", " ===", ":::"])).toEqual([]);
+    expect(names(["::: {.note}", "> quoted one", "    ===", ":::"])).toEqual([]);
+    expect(names(["::: {.note}", "", "> quoted one", " ===", ":::"])).toEqual(["h1:quoted one"]);
+  });
+
+  it("R2 (residual, PRE-EXISTING and unmoved, PINNED): a quoted ATX line swallowed as a TITLE (`r1/i3`)", () => {
+    // ⚠ Rendered, `> # Quoted ATX` / ` ===` / `# Probe A` renders `h1:# Quoted ATX` — pandoc
+    // swallows the ATX line into the setext title, literal `#` and all — plus `h1:Probe A`.
+    // This model reports the ATX as a heading in its own right and loses the probe below it.
+    // The swallow is declined deliberately (see `SETEXT_H1`), so this row records the cost of
+    // that decline rather than a defect of the band; the `-` twin (`s232/r2/s4`) is the same.
+    expect(names(["> # Quoted ATX", " ===", "# Probe A"])).toEqual(["h1:Quoted ATX"]);
+  });
 });
