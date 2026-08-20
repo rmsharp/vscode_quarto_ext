@@ -5648,7 +5648,16 @@ function computeRegions(text: string): Regions {
     // heading is the same container question the bound above names; declining the part-way case
     // returns the pre-session answer there and leaves the first-line case untouched.
     const setextTitle = titleLineCount >= 1 ? bodyLines[bodyLines.length - titleLineCount] : undefined;
+    // ⚠ **AND ONLY WHERE THE UNDERLINE ITSELF IS UNMARKED (Session 231).** Both rows that drew
+    // this flag carry an unmarked underline, which is what makes the title's position within
+    // the quote decide anything at all. Where the underline carries its own marker the whole
+    // construct is inside the quote and the flag has nothing to say: rendered, `r1/a03` renders
+    // `h2:quoted para` AND `h2:note: alpha`, the second title sitting directly under a `> ---`
+    // line, and `r1/a07` renders `h2:note: alpha` for the same shape under a reader that does
+    // not consume the triple. `f/f01` and `s202/comp/quote_lazy_gfm` are unmoved — both are
+    // unmarked — and both are pinned (G5, G6).
     const setextTitleQuoted =
+      !stripQuote &&
       setextTitle !== undefined &&
       setextTitle.contentStart > 0 &&
       blockQuoteContentStart(lines[setextTitle.line - 1] ?? "") !== null;

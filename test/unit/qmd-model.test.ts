@@ -4911,12 +4911,16 @@ describe("a setext underline's column is DIALECT-DEPENDENT (Session 202)", () =>
                 "    probe title", "     ===")),
     ).toEqual(["h1:probe title"]); // quarto agrees — recovered by this change
 
-    // ── UNCHANGED, and pinned so a future change to the container stack is detectable: a BLOCK
-    // QUOTE carries no content column here, so both directions of the already-filed quote item
-    // survive under a CommonMark reader too (`comp/quote_gfm`).
+    // ── ⚠ REVERSED BY SESSION 231 — this is now quarto's own answer. The pin read
+    // `.toEqual([])` and carried the comment "quarto: h1:quote title — CARRIED, the filed
+    // block-quote item", so it recorded a KNOWN LOSS rather than an agreement, and that item is
+    // the one Session 231 closes. Re-rendered this session from the same bytes (quarto 1.7.33,
+    // `scratchpad/s231/r2/b01`): `<blockquote><p>…</p><h1>comp quote title</h1><p>…</p>`. The
+    // underline carries its own marker, so the whole construct is inside the quote — the
+    // container stack this row was written to watch is unmoved.
     expect(
       names(doc("---", "from: gfm", "---", "", "> Quote intro.", ">", "> quote title", "> ==")),
-    ).toEqual([]); // quarto: h1:quote title — CARRIED, the filed block-quote item
+    ).toEqual(["h1:quote title"]); // quarto agrees — RECOVERED by Session 231
   });
 });
 
@@ -10868,5 +10872,45 @@ describe("Session 231 — a metadata block inside a block quote", () => {
     expect(
       headings(["Prose one.", "", "> quoted a06", "> ---", "", "## Control a06"]),
     ).toEqual(["quoted a06", "Control a06"]);
+  });
+
+  it("C3: `setextTitleQuoted` is about an UNMARKED underline, so a marked one is not declined (`r1/a03`, `a07`)", () => {
+    // Session 225's flag declines a title that sits PART-WAY into a quote, and both rows that
+    // drew it carry an UNMARKED underline: `f/f01` (`> quoted f01` / `---`) renders a TOP-LEVEL
+    // `<h2>&gt; quoted f01</h2>`, marker and all, and `s202/comp/quote_lazy_gfm` renders NO
+    // heading. Where the underline carries its own marker the whole construct is inside the
+    // quote and the title's position within it decides nothing — rendered, `r1/a03` renders
+    // `h2:quoted para` AND `h2:note: alpha`, the second title sitting directly under a `> ---`
+    // line. Both f01 and quote_lazy_gfm are pinned as G5 and G6, and neither moves: the flag
+    // still applies wherever the underline is unmarked.
+    expect(
+      headings([
+        "Prose one.",
+        "",
+        "> quoted para",
+        "> ---",
+        "> note: alpha",
+        "> ---",
+        "",
+        "## Control a03",
+      ]),
+    ).toEqual(["quoted para", "note: alpha", "Control a03"]);
+    // `a07` is the same rule reached the other way: under `from: gfm` the reader does NOT
+    // consume the triple, so the block renders ITSELF and its closer is a setext underline.
+    expect(
+      headings([
+        "---",
+        "from: gfm",
+        "---",
+        "",
+        "Prose one.",
+        "",
+        "> ---",
+        "> note: alpha",
+        "> ---",
+        "",
+        "## Control a07",
+      ]),
+    ).toEqual(["note: alpha", "Control a07"]);
   });
 });
