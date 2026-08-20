@@ -11137,4 +11137,21 @@ describe("Session 232 — a setext underline lazily continued into a block quote
       "Below A Quoted Setext",
     ]);
   });
+
+  it("C2: the strip is the depth of the quote ALREADY OPEN ABOVE the title (`r3/q2`, `r4/u1`, `r4/u2`)", () => {
+    // ⚠ **A NESTED QUOTE OPENED BY THE TITLE LINE STRIPS ONE MARKER; ONE OPENED ABOVE IT STRIPS
+    // ITS FULL DEPTH.** The mechanism is pandoc's own recursion — the outer quote removes ONE
+    // level and re-parses, and whichever construct claims the title line at that level decides.
+    // Where the title opens the quote itself, the setext parse claims the line before any deeper
+    // quote is parsed, exactly as it does at top level in G2.
+    //
+    //   `>> intro` / `>>` / `>> quoted title` / `    ---`     -> `h2:quoted title`   (`r3/q2`)
+    //   `>>> intro` / `>>>` / `>>> quoted title` / `    ---`  -> `h2:quoted title`   (`r4/u1`)
+    //   `> intro` / `>` / `> > deep title` / `    ---`        -> `h2:> deep title`   (`r4/u2`)
+    expect(names([">> intro", ">>", ">> quoted title", "    ---"])).toEqual(["h2:quoted title"]);
+    expect(names([">>> intro", ">>>", ">>> quoted title", "    ---"])).toEqual([
+      "h2:quoted title",
+    ]);
+    expect(names(["> intro", ">", "> > deep title", "    ---"])).toEqual(["h2:> deep title"]);
+  });
 });
