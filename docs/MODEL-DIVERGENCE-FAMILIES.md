@@ -78,7 +78,7 @@ renders a heading the model does not report; **text** = same headings, different
 | F05 | A **fence inside a quote** is invisible to the fence rows | 4 | 2 | phantom | `scratchpad/s225/all/03890ac7b86c.qmd` | FILED — L182 (names the witness by path) |
 | F06 | A whole-line **HTML comment / HTML block inside a quote** | 2 | 2 | phantom | `scratchpad/s225/all/451cbd737154.qmd` | FILED — L224 (comment), L65 / L130 (`<div>`) |
 | F07 | A **table-shaped line standing alone** is a fresh block here and a paragraph to pandoc | 3 | 3 | phantom | `scratchpad/s225/all/a45bbabe2b16.qmd` | **NEW** |
-| F08 | A **TAB-indented line inside a quote** is a block here and a paragraph to pandoc | 1 | 1 | phantom | `scratchpad/s225/all/7df5a4f1add3.qmd` | **NEW** |
+| F08 | A **TAB-indented line inside a quote** is a block here and a paragraph to pandoc | 1 | 1 | phantom | `scratchpad/s225/all/7df5a4f1add3.qmd` | ✅ **RESOLVED — Session 236** |
 | F09 | Prose read as an **ordered-list marker** opens a column that admits an indented underline | 2 | 2 | phantom | `scratchpad/s225/all/59a103bf11ff.qmd` | FILED — L238, **new witness shape** |
 | F10 | A **block quote at column 0 does not pop** the open list's content columns | 1 | 1 | phantom | `scratchpad/s225/all/9cd4f31f5ce6.qmd` | FILED — L208 (new spelling: the quote as a *pop*) |
 | F11 | A **CLOSED raw-TeX environment with a paragraph OPEN above it** is treated as a block | 2 | 1 | phantom | `scratchpad/s225/all/b4f8e8f0c741.qmd` | **NEW** (L196 covers only *unclosed*) |
@@ -127,13 +127,22 @@ Witnesses: `s183/c3/R1pipe_bq_mark__closed`, `s183/c3/R2grid_bq_mark__closed`,
 > two-directional lookahead. See `tableShapedLineIsBlock` in `src/core/qmd/model.ts` and the
 > Session 235 guard block.
 
-### F08 — a TAB-indented line inside a quote
+### F08 — a TAB-indented line inside a quote ✅ RESOLVED (Session 236)
 
 `> line one` / `> line two` / *(blank)* / `> \t code` / `> # ATX Below` renders **no heading**;
 this model reports one. ⚠ Its 4-space twin `R4indent_bq_mark__closed` renders the heading and the
 model agrees — so quarto splits tab from spaces here, and the model does not. Filed separately from
 F07 because it is column arithmetic, not line shape, and because the project already has two
 "counts spaces only" items (L206(a), L214) that a fix should be scored against together.
+
+⚠ **RESOLVED BY SESSION 236.** The cause was `raw.slice(quoteContentStart)`: slicing the marker
+off destroys the line's absolute column, and a tab is the one indent that depends on it. After
+`> ` a tab begins at column 2 and reaches 4 — two columns of content indent, not four.
+`quoteContentLine` re-expresses the leading run in the quote's own coordinates at the single
+site where the coordinate system is lost. ⚠ **The two "counts spaces only" siblings this entry
+says to score against were BOTH already fixed by Session 194** and were re-rendered to confirm
+it (Learning #431). Round 1: 47 documents, model 35 → 47 agreeing, 12 recovered, 0 broken.
+Corpus sweep: 6 mover rows / **2 distinct documents, both re-rendered and both RECOVERED**.
 
 ### F11 — a CLOSED raw-TeX environment with a paragraph OPEN above it
 
