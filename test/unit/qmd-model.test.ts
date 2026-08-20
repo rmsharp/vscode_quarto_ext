@@ -10913,4 +10913,33 @@ describe("Session 231 — a metadata block inside a block quote", () => {
       ]),
     ).toEqual(["note: alpha", "Control a07"]);
   });
+
+  it("C4: an underline DEEPER than its title forms no heading at all (`r4/c02`)", () => {
+    // Rendered: `<blockquote><p>Charlie Title</p><p>Prose after.</p></blockquote>` — TWO
+    // paragraphs and no heading. The underline sits in a nested quote the title is not in, so
+    // there is no paragraph there for it to underline. ⚠ This phantom is one THIS session
+    // introduced — the pre-session build declined every quoted underline outright — and it is
+    // the reason the depth is compared rather than only the marker being stripped.
+    expect(findHeadings(["> Charlie Title", "> > ===", "", "Prose after."].join("\n"))).toEqual([]);
+  });
+
+  it("C5: the title is stripped to the UNDERLINE's depth, so a deeper title keeps its markers (`r4/c01`, `c04`, `c05`)", () => {
+    // Rendered, all three inside ONE `<blockquote>` with the marker kept as literal text:
+    // `c01` (`> > India Nested Title` / `> ===`) renders `<h1>&gt; India Nested Title</h1>`,
+    // `c04` (the tight `>> Echo Title`) renders `<h1>&gt; Echo Title</h1>`, and `c05`
+    // (three levels under a one-level underline) renders `<h1>&gt; &gt; Foxtrot Title</h1>`.
+    // The title belongs to the quote the UNDERLINE is in, so the markers below that level are
+    // ordinary text — the same rule `f/f01` shows at depth 0, where an unmarked underline keeps
+    // the whole `> ` (pinned as G5).
+    const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+    expect(headings(["> > India Nested Title", "> ===", "", "Prose after."])).toEqual([
+      "> India Nested Title",
+    ]);
+    expect(headings([">> Echo Title", "> ===", "", "Prose after."])).toEqual(["> Echo Title"]);
+    expect(headings(["> > > Foxtrot Title", "> ===", "", "Prose after."])).toEqual([
+      "> > Foxtrot Title",
+    ]);
+    // …and the EQUAL-depth twin still strips completely (`r4/c03`).
+    expect(headings(["> > Delta Title", "> > ===", "", "Prose after."])).toEqual(["Delta Title"]);
+  });
 });

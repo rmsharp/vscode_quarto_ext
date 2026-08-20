@@ -3688,6 +3688,30 @@ const BLOCK_QUOTE_PREFIX = /^ {0,3}(?:>[ ]?)+/;
  * The offset at which a block quote's own content begins on `line`, or `null` when the line
  * carries no marker run at all. See `BLOCK_QUOTE_PREFIX`.
  */
+/**
+ * The offset at which each of `line`'s block-quote markers hands over to the next — so
+ * `offsets[n - 1]` is where the content of the quote `n` levels in begins, and the array's
+ * LENGTH is the line's quote depth (Session 231).
+ *
+ * ⚠ **A DEPTH, not a column, because the two disagree on the tight spelling.** `>> Echo Title`
+ * and `> > India Nested Title` are the same depth and different widths, and quarto's answer
+ * follows the depth: stripped to one level they render `> Echo Title` and
+ * `> India Nested Title` respectively (`r4/c04`, `r4/c01`), which a column slice cannot
+ * produce for both.
+ */
+function blockQuoteMarkerOffsets(line: string): number[] {
+  const match = BLOCK_QUOTE_PREFIX.exec(line);
+  if (match === null) {
+    return [];
+  }
+  const offsets: number[] = [];
+  for (let i = 0; i < match[0].length; i++) {
+    if (match[0][i] === ">") {
+      offsets.push(match[0][i + 1] === " " ? i + 2 : i + 1);
+    }
+  }
+  return offsets;
+}
 function blockQuoteContentStart(line: string): number | null {
   const m = BLOCK_QUOTE_PREFIX.exec(line);
   return m === null ? null : m[0].length;
@@ -5656,13 +5680,26 @@ function computeRegions(text: string): Regions {
     // line, and `r1/a07` renders `h2:note: alpha` for the same shape under a reader that does
     // not consume the triple. `f/f01` and `s202/comp/quote_lazy_gfm` are unmoved — both are
     // unmarked — and both are pinned (G5, G6).
+    // ⚠ **AND AN UNDERLINE DEEPER THAN ITS TITLE UNDERLINES NOTHING (Session 231).** The
+    // underline sits in a nested quote the title is not in, so no paragraph is open there for
+    // it to claim: rendered, `r4/c02` (`> Charlie Title` / `> > ===`) renders TWO paragraphs
+    // inside one `<blockquote>` and no heading at all. ⚠ This phantom is one THIS session
+    // introduced — the pre-session build declined every quoted underline outright — so the
+    // comparison is part of the same change rather than a separate refinement.
+    const underlineQuoteDepth = stripQuote ? blockQuoteMarkerOffsets(raw).length : 0;
+    const setextTitleTooShallow =
+      setextTitle !== undefined &&
+      underlineQuoteDepth > blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "").length;
     const setextTitleQuoted =
       !stripQuote &&
       setextTitle !== undefined &&
       setextTitle.contentStart > 0 &&
       blockQuoteContentStart(lines[setextTitle.line - 1] ?? "") !== null;
     const setextLevel =
-      titleLineCount >= 1 && commonmarkHtmlBlock === null && !setextTitleQuoted
+      titleLineCount >= 1 &&
+      commonmarkHtmlBlock === null &&
+      !setextTitleQuoted &&
+      !setextTitleTooShallow
         ? setextUnderlineLevel(
             line,
             commonmarkDialect
@@ -5670,6 +5707,19 @@ function computeRegions(text: string): Regions {
               : [0, ...contentColumns],
           )
         : null;
+    // The text of a title line, with the quote markers the UNDERLINE also carries removed and
+    // any deeper ones kept as content — see the call site (Session 231).
+    const quotedTitleText = (l: { text: string; contentStart: number }): string => {
+      if (!stripQuote) {
+        return l.text;
+      }
+      const offsets = blockQuoteMarkerOffsets(l.text);
+      return l.text.slice(
+        underlineQuoteDepth > 0 && offsets.length >= underlineQuoteDepth
+          ? offsets[underlineQuoteDepth - 1]
+          : l.contentStart,
+      );
+    };
     if (setextLevel !== null) {
       const titleLines = bodyLines.slice(-titleLineCount);
       const prev = titleLines[0];
@@ -5692,11 +5742,14 @@ function computeRegions(text: string): Regions {
           // while `> quoted f01` / `---` — the SAME title line under an UNMARKED underline —
           // renders `<h2>&gt; quoted f01</h2>` at top level, marker and all, because no quote
           // ever forms (`f/f01`, `f/f02`).
-          setextTitleText(stripQuote ? prev.text.slice(prev.contentStart) : prev.text, [
-            0,
-            ...contentColumns,
-          ]),
-          ...titleLines.slice(1).map((l) => (stripQuote ? l.text.slice(l.contentStart) : l.text)),
+          // ⚠ **STRIPPED TO THE UNDERLINE'S DEPTH, NOT TO THE TITLE'S OWN (Session 231).** The
+          // title belongs to the quote the UNDERLINE is in, so any marker below that level is
+          // ordinary text: rendered, `r4/c01` (`> > India Nested Title` / `> ===`) renders
+          // `<h1>&gt; India Nested Title</h1>` and `r4/c05` keeps two markers under a
+          // one-level underline. `quotedTitleText` falls back to the line's own content start
+          // when the depths match, which is every row measured before this session.
+          setextTitleText(quotedTitleText(prev), [0, ...contentColumns]),
+          ...titleLines.slice(1).map((l) => quotedTitleText(l)),
         ]
           // A trailing `\` is a HARD LINE BREAK, which quarto renders as `<br>` rather than as
           // a literal character, so it is not part of the heading's text (measured,
