@@ -5,6 +5,29 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 233 — IMPLEMENTATION (strict TDD): a LOST HEADING — two divs at ONE column inside a list item, the outer closed lazily, leaves the div open across the heading below.** Session 232's ranked #1, filed by Session 229; the operator picked it at Phase 0.
+**Started:** 2026-08-20
+**Status:** Session claimed. Work beginning.
+
+**The filed shape.** `- item` / blank / `  ::: {.a}` / `  ::: {.b}` / `  body` / `  :::` / `:::` — the inner div closes at column 2, then the outer's column-0 `:::` arrives with NO paragraph open above it (the line above is the inner closer), so neither branch of the closer rule fires and the div is left open across the heading. Rendered, `scratchpad/s229/r2/b09` renders `H b09`; this model renders nothing. DELETION direction. Pinned at `test/unit/qmd-model.test.ts` R6 (Session 229).
+
+**⚠ Inherited constraint, measured and load-bearing:** the lazy branch's `paragraphOpen` precondition is pinned by `s227/r1/k25` — the fix is NOT to drop it.
+
+**Build at claim, verified firsthand rather than inherited:** `npm test` **2367 passed / 66 files**, matching Session 232's recorded close-out exactly; `check-backlog` **OK, 171 open items**. **Phase 0 reconcile found NOTHING owed** — both frontiers ARE `HEAD` (`a47b6b4b`, gap 0), `grep -c '^status: pending' HANDOFFS.md` = 0, and the `CHANGELOG: pending` hits in this file are preserved historical text in superseded sections rather than live breadcrumbs.
+
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+## Session 232 Self-Assessment
+
+**Score: 9/10.**
+
+**What went right.** (a) **I varied the axis the filed item held fixed before writing any code**, and it changed the fix: the indent grid is what exposed pandoc's simple-table parse, and without it the natural reading of the item ("deeper than the content column") would have shipped three phantoms on rendered documents. (b) **I checked the reader dimension against an inherited docstring's claim rather than accepting it**, which is what kept the gfm guard in the change instead of after it. (c) **I rendered rather than reasoned wherever an answer was needed** — 81 documents across four rounds, predictions frozen and SHA-256'd first — and every one of the four misses taught the rule something. (d) **Every sweep mover was adjudicated against its own fresh render**, 28 of 28, so "0 deletions, 0 phantoms" is a measurement and not an inference. (e) **I caught my own TDD slip and reverted it in-session** rather than writing it up as a footnote.
+
+**What went wrong.** (a) ⚠ **The TDD slip itself.** I wrote the general strip-depth rule during C1's GREEN because I already knew the measurement — which is precisely the "tests of imagined behavior" the project's TDD directive exists to prevent. Reverting cost two minutes; not noticing would have cost the discipline. (b) ⚠ **I broke gotcha 6 the same session I inherited it.** A `cd` inside an `&&` chain failed silently and left `presrc/` holding the POST-change source; I caught it only because I grepped the directory for a symbol the change introduces. Had I not, the sweep would have compared the new build against itself and reported ZERO movers — a clean-looking result on a change that moves 27 documents. That is the most dangerous near-miss of the session and it is now gotcha 4. (c) **My `buildOutline` pre-check read the wrong field name** and produced an array of `undefined`s; it failed loudly, but a `.includes()` assertion against that array would have passed silently.
+
+**Compared to the standard.** At the measurement standard of Sessions 229–231: 81 rendered documents against S231's 25, four rounds against three, and the same 100%-mover-adjudication discipline S231 established. Below S231 on blast radius (one gate and one text rule against its five cycles) and on corpus scale where it swept the same 47,748. The distinguishing contribution is the **indent grid** — the axis no predecessor varied, which turned a one-witness item into a four-answer shape and is what made the gate defensible rather than lucky.
+
+## Session 232 ACTIVE TASK (superseded by Session 233 — full entry preserved below)
 **Task:** **Session 232 — IMPLEMENTATION (strict TDD): an UNMARKED, 4-space-indented setext underline inside a BLOCK QUOTE — the quote's own LAZY CONTINUATION — is invisible to this model, where quarto renders a real heading.** Session 231's ranked #1 and the unfixed half of its own item; the operator picked it at Phase 0.
 **Started:** 2026-08-20 · **Closed:** 2026-08-20
 **Status:** **DONE. SHIPPED — and the finding is that the rule which normally FORBIDS the construct is the one that identifies it.**
@@ -61,15 +84,6 @@
 **#6 — THE OPERATOR DECISION on the remaining TWO duplicate clusters.** The unreferenced-footnote drop is filed **three** times (S201, S209, S227) and the superseded S192 lead still sits beside its S193 promotion. ⚠ Apply S231's gotcha 1 before merging either. VERY LOW.
 **#7 — F11, a CLOSED raw-TeX environment with a paragraph OPEN above it** (⚠ the UNQUOTED twin is still unrendered). **#8 — a quote inside a LIST ITEM and the CommonMark HTML block inside a quote** (S225's). **#9 — the display-math and table-caption phantoms** (5 measured shapes, S222's; ⚠ the fix is NOT the attribute-block rule). **#10 onward — unchanged from S231's list.** ⚠ **Still open from S186:** promote the scratchpad harness, `.vscode-test/` at 18 GB, `npm audit` 5 high + 1 moderate, devDependency-only. ⚠ **`scratchpad/` is now 2.2 GB and untracked.**
 
-## Session 232 Self-Assessment
-
-**Score: 9/10.**
-
-**What went right.** (a) **I varied the axis the filed item held fixed before writing any code**, and it changed the fix: the indent grid is what exposed pandoc's simple-table parse, and without it the natural reading of the item ("deeper than the content column") would have shipped three phantoms on rendered documents. (b) **I checked the reader dimension against an inherited docstring's claim rather than accepting it**, which is what kept the gfm guard in the change instead of after it. (c) **I rendered rather than reasoned wherever an answer was needed** — 81 documents across four rounds, predictions frozen and SHA-256'd first — and every one of the four misses taught the rule something. (d) **Every sweep mover was adjudicated against its own fresh render**, 28 of 28, so "0 deletions, 0 phantoms" is a measurement and not an inference. (e) **I caught my own TDD slip and reverted it in-session** rather than writing it up as a footnote.
-
-**What went wrong.** (a) ⚠ **The TDD slip itself.** I wrote the general strip-depth rule during C1's GREEN because I already knew the measurement — which is precisely the "tests of imagined behavior" the project's TDD directive exists to prevent. Reverting cost two minutes; not noticing would have cost the discipline. (b) ⚠ **I broke gotcha 6 the same session I inherited it.** A `cd` inside an `&&` chain failed silently and left `presrc/` holding the POST-change source; I caught it only because I grepped the directory for a symbol the change introduces. Had I not, the sweep would have compared the new build against itself and reported ZERO movers — a clean-looking result on a change that moves 27 documents. That is the most dangerous near-miss of the session and it is now gotcha 4. (c) **My `buildOutline` pre-check read the wrong field name** and produced an array of `undefined`s; it failed loudly, but a `.includes()` assertion against that array would have passed silently.
-
-**Compared to the standard.** At the measurement standard of Sessions 229–231: 81 rendered documents against S231's 25, four rounds against three, and the same 100%-mover-adjudication discipline S231 established. Below S231 on blast radius (one gate and one text rule against its five cycles) and on corpus scale where it swept the same 47,748. The distinguishing contribution is the **indent grid** — the axis no predecessor varied, which turned a one-witness item into a four-answer shape and is what made the gate defensible rather than lucky.
 
 ## Session 231 Handoff Evaluation (by Session 232)
 

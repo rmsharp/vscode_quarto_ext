@@ -18,6 +18,12 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S233
+date: 2026-08-20
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- a LOST HEADING: two divs at ONE column inside a list item, the outer closed lazily, leaves the div open across the heading below. `- item` / blank / `  ::: {.a}` / `  ::: {.b}` / `  body` / `  :::` / `:::`. Rendered, scratchpad/s229/r2/b09 renders `H b09` and this model renders nothing. Session 229's filing, Session 232's ranked #1, operator-picked at Phase 0. Pinned at test/unit/qmd-model.test.ts R6.
+```
+```handoff
 session: S232
 date: 2026-08-20
 status: complete
