@@ -10431,3 +10431,132 @@ describe("Session 228 — the setext boundary: how many paragraph lines an under
     expect(headings(["para one", "para two", "---", "# H t_tbreak"])).toEqual([]);
   });
 });
+
+// ── Session 229 GUARD — the answers a container-identity rule must NOT change ──
+//
+// This session gives each entry on `divColumns` a CONTAINER IDENTITY: a div opened inside a
+// list or definition container is auto-closed when that container ends, and a closer sitting
+// in a container DEEPER than the div's own cannot reach it. The polarity is one-directional
+// on paper — it only ever REFUSES a close — but refusing a close leaves a paragraph open, and
+// an open paragraph DELETES the heading below it. So the guard is one `it()` per shape whose
+// answer must be unchanged, and every one is green BEFORE the change (S204's gotcha 5,
+// inherited a twenty-third time).
+//
+// Rows are named for the rendered document that measured them — `scratchpad/s229/r1`, 21
+// documents rendered through the real `quarto render` path, quarto 1.7.33, with this
+// session's predictions frozen and SHA-256'd (`fe0b279c…`) before the first render.
+describe("Session 229 GUARD — container identity must not cost a heading", () => {
+  const headings = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("G1: ⚠ a column-0 closer reaches a top-level div while a list is open (`r1/a04`)", () => {
+    // The row the depth rule is most likely to break: the list container is open at the
+    // closer's line, so a naive "closer depth must equal the div's depth" refuses it. Rendered,
+    // quarto closes the div and the heading is real.
+    expect(headings(["::: {.note}", "- item", ":::", "# H a04"])).toEqual(["H a04"]);
+  });
+
+  it("G2: ⚠ the LAZY column-0 closer of a column-2 div still closes (`r1/a05`, `s227/r1/k17`)", () => {
+    expect(headings(["- item", "", "  ::: {.note}", "  body text", ":::", "# H a05"])).toEqual([
+      "H a05",
+    ]);
+  });
+
+  it("G3: ⚠ a three-deep div closes at the OUTER item's column 2 (`r1/a06`, `s227/r2/m02`)", () => {
+    expect(
+      headings([
+        "- outer",
+        "",
+        "  - inner",
+        "",
+        "    ::: {.note}",
+        "    body text",
+        "  :::",
+        "# H a06",
+      ]),
+    ).toEqual(["H a06"]);
+  });
+
+  it("G4: a container that ends BEFORE the div opens leaves an ordinary top-level div (`r1/a09`)", () => {
+    expect(headings(["- item", "", "::: {.note}", "body", ":::", "# H a09"])).toEqual(["H a09"]);
+  });
+
+  it("G5: a nested div closed inside its item, the outer closed at column 0 (`r1/a11`)", () => {
+    expect(
+      headings([
+        "::: {.a}",
+        "",
+        "- item",
+        "",
+        "  ::: {.b}",
+        "  body",
+        "  :::",
+        "",
+        ":::",
+        "# H a11",
+      ]),
+    ).toEqual(["H a11"]);
+  });
+
+  it("G6: ⚠ the container does NOT end when the paragraph is inside the item (`r1/a13`)", () => {
+    // The near-twin of the stale-stack row: no blank line, so `para two` at column 2 is still
+    // the item's content and the div is still live when the column-0 closer arrives.
+    expect(
+      headings(["- item", "", "  ::: {.note}", "  body", "  para two", ":::", "# H a13"]),
+    ).toEqual(["H a13"]);
+  });
+
+  it("G7: ⚠ a TOP-LEVEL div survives a container opening and closing beneath it (`r1/a16`)", () => {
+    // The auto-close must fire on the container's own depth, not on any container ending: this
+    // div was opened at depth 0 and the list under it must not take it down.
+    expect(headings(["::: {.note}", "", "- item", "", "para two", ":::", "# H a16"])).toEqual([
+      "H a16",
+    ]);
+  });
+
+  it("G8: an inner container opens and closes INSIDE the div, which then closes (`r1/a17`)", () => {
+    expect(
+      headings(["- item", "", "  ::: {.note}", "", "  - inner", "", "  body", "  :::", "# H a17"]),
+    ).toEqual(["H a17"]);
+  });
+
+  it("G9: a DEFINITION container's div, closed lazily at column 0 (`r1/a19`)", () => {
+    expect(
+      headings(["term", ":   definition", "", "    ::: {.note}", "    body", ":::", "# H a19"]),
+    ).toEqual(["H a19"]);
+  });
+
+  it("G10: the plain open/close with no container anywhere (`r1/a21`)", () => {
+    expect(headings(["::: {.note}", "body", ":::", "# H a21"])).toEqual(["H a21"]);
+  });
+
+  it("G11: a deeper closer under a BLANK closes nothing, and the heading stays gone (`r1/a10`)", () => {
+    expect(headings(["::: {.note}", "", "- item", "", "  :::", "# H a10"])).toEqual([]);
+  });
+
+  it("G12: two orphaned divs and two column-0 closers (`r1/a12`)", () => {
+    expect(
+      headings([
+        "- item",
+        "",
+        "  ::: {.a}",
+        "  ::: {.b}",
+        "  body",
+        "",
+        "para two",
+        ":::",
+        ":::",
+        "# H a12",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("G13: column 1 belongs to no container and closes nothing (`r1/a15`, `s227/r1/k18`)", () => {
+    expect(headings(["- item", "", "  ::: {.note}", "  body text", " :::", "# H a15"])).toEqual(
+      [],
+    );
+  });
+
+  it("G14: a closer DEEPER than its own div in the same container closes nothing (`r1/a18`)", () => {
+    expect(headings(["- item", "", "  ::: {.note}", "  body", "    :::", "# H a18"])).toEqual([]);
+  });
+});
