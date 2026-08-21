@@ -13388,3 +13388,176 @@ describe("Session 240 — the container column the quote switch stashed, and nev
     expect(names(["- item", "", "  >", "  ---"])).toEqual([]);
   });
 });
+
+describe("Session 241 guard — answers around the lazy band's floor that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ THE DANGEROUS DIRECTION. Session 240 shipped the marker-KEPT half of one measured set —
+  // an unmarked underline below an open quote claims the RAW line at exactly the columns in
+  // `[0, ...outerColumns]`. This session ships its COMPLEMENT: at every OTHER column the
+  // underline is absorbed INTO the quote and the markers are stripped. So this change makes
+  // `lazyQuotedUnderline` TRUE on rows where it is false today, and that flag does four things
+  // besides pick a column set — it gates `setextTitleQuoted`, it holds `quoteOpen` open across
+  // the underline, it suppresses the stash restore in the quote-end block, and it decides how
+  // many markers `setextTitleText` strips. Every mistake it can make is therefore a PHANTOM
+  // here or a DELETION one line below.
+  //
+  // Every answer below is the RENDERED one, measured through the real `quarto render` path over
+  // `scratchpad/s241/r0` and `r1` (121 documents) BEFORE any `src/` change.
+  //
+  // ⚠ **THE SET IS `{0} ∪ {the container content column}` AND THE COLUMN SWEEP IS WHAT SAYS SO.**
+  // Rendered across four container stacks and 25 columns (`r0`): the marker is KEPT at column 0
+  // and at the enclosing container's content column, and at NO other column. At top level the
+  // stack is empty, the set is `[0]`, and today's "deeper than the title's own column" rule is
+  // exactly its complement — which is why every top-level row below is unmoved and why five
+  // sessions could measure this family without meeting the container half.
+
+  it("G1: top level, `-`, the marker is KEPT at column 0 and STRIPPED at 1-3", () => {
+    // `r0/top_d0`-`top_d3`. The rows five sessions measured; the complement rule must reproduce
+    // all four unchanged.
+    expect(names(["> quoted one", "---"])).toEqual(["h2:> quoted one"]);
+    expect(names(["> quoted one", " ---"])).toEqual(["h2:quoted one"]);
+    expect(names(["> quoted one", "  ---"])).toEqual(["h2:quoted one"]);
+    expect(names(["> quoted one", "   ---"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("G2: top level, `=`, the same four answers one level up", () => {
+    // `r0/top_e0`-`top_e3`.
+    expect(names(["> quoted one", "==="])).toEqual(["h1:> quoted one"]);
+    expect(names(["> quoted one", " ==="])).toEqual(["h1:quoted one"]);
+    expect(names(["> quoted one", "  ==="])).toEqual(["h1:quoted one"]);
+    expect(names(["> quoted one", "   ==="])).toEqual(["h1:quoted one"]);
+  });
+
+  it("G3: a bullet at content column 2 KEEPS the marker at 0 and at 2 — Session 240's half", () => {
+    // `r0/ul_d0`, `ul_d2`. ⚠ Column 2 is the row that proves the set is not monotone: it sits
+    // BETWEEN two stripped columns and is kept.
+    expect(names(["- item", "", "  > quoted one", "---"])).toEqual(["h2:> quoted one"]);
+    expect(names(["- item", "", "  > quoted one", "  ---"])).toEqual(["h2:> quoted one"]);
+  });
+
+  it("G4: the same bullet STRIPS at 3, 4 and 5 — the rows today's `>` rule already reaches", () => {
+    // `r0/ul_d3`-`ul_d5`.
+    expect(names(["- item", "", "  > quoted one", "   ---"])).toEqual(["h2:quoted one"]);
+    expect(names(["- item", "", "  > quoted one", "    ---"])).toEqual(["h2:quoted one"]);
+    expect(names(["- item", "", "  > quoted one", "     ---"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("G5: an ordered list at content column 3 KEEPS at 0 and 3, both spellings", () => {
+    // `r0/ol_d0`, `ol_d3`, `ol_e0`, `ol_e3`.
+    expect(names(["1. item", "", "   > quoted one", "---"])).toEqual(["h2:> quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", "   ---"])).toEqual(["h2:> quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", "==="])).toEqual(["h1:> quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", "   ==="])).toEqual(["h1:> quoted one"]);
+  });
+
+  it("G6: that ordered list STRIPS at 4, 5 and 6", () => {
+    // `r0/ol_d4`-`ol_d6`.
+    expect(names(["1. item", "", "   > quoted one", "    ---"])).toEqual(["h2:quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", "     ---"])).toEqual(["h2:quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", "      ---"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("G7: a bullet at 2 KEEPS at 0 and 2 for `=` too — one set, both spellings", () => {
+    // `r0/ul_e0`, `ul_e2`, `ul_e3`.
+    expect(names(["- item", "", "  > quoted one", "==="])).toEqual(["h1:> quoted one"]);
+    expect(names(["- item", "", "  > quoted one", "  ==="])).toEqual(["h1:> quoted one"]);
+    expect(names(["- item", "", "  > quoted one", "   ==="])).toEqual(["h1:quoted one"]);
+  });
+
+  // ── THE PHANTOM DIRECTION: a `-` rule 1-3 past the content column with a BODY ROW below it is
+  // a pandoc SIMPLE TABLE and no heading forms anywhere. This session widens the column term of
+  // `lazyDashesBand`; its body-row term is what still has to decline all six of these.
+
+  it("G8: an ATX directly below the dashes is a table body row — NO heading (`r1/A_d_x2`)", () => {
+    expect(names(["1. item", "", "   > quoted one", " ---", "# Probe A"])).toEqual([]);
+  });
+
+  it("G9: prose below the dashes is a body row too — NO heading (`r1/A_d_x4`)", () => {
+    expect(names(["1. item", "", "   > quoted one", " ---", "prose below"])).toEqual([]);
+  });
+
+  it("G10: a MARKED line below the dashes is a body row (`r1/A_d_x5`)", () => {
+    expect(names(["1. item", "", "   > quoted one", " ---", "   > still quoted"])).toEqual([]);
+  });
+
+  it("G11: a body row at the container's own content column (`r1/A_d_x7`)", () => {
+    expect(names(["1. item", "", "   > quoted one", " ---", "   body row"])).toEqual([]);
+  });
+
+  it("G12: a body row at column 0 (`r1/A_d_x8`)", () => {
+    expect(names(["1. item", "", "   > quoted one", " ---", "body row"])).toEqual([]);
+  });
+
+  it("G13: a fenced div below the dashes is a body row (`r1/A_d_x10`)", () => {
+    expect(
+      names(["1. item", "", "   > quoted one", " ---", "::: {.note}", "body", ":::"]),
+    ).toEqual([]);
+  });
+
+  it("G14: the table Session 239 shipped, one container in, still forms (`r1/tbl_a`, `tbl_c`)", () => {
+    expect(names(["1. item", "", "   > quoted one", "    ---", "   body row"])).toEqual([]);
+    expect(names(["- item", "", "  > quoted one", "   ---", "  body row"])).toEqual([]);
+  });
+
+  it("G15: and the ATX below that table is real (`r1/tbl_b`)", () => {
+    expect(
+      names(["1. item", "", "   > quoted one", "    ---", "   body row", "", "# Probe A"]),
+    ).toEqual(["h1:Probe A"]);
+  });
+
+  // ── ROWS THAT BELONG TO OTHER, ALREADY-FILED ITEMS. Each is pinned AT its current answer so
+  // that this change is measured against it rather than blamed for it.
+
+  it("G16: a quote already OPEN above the title is lazy at EVERY column — Session 237", () => {
+    // `r1/q_open0`-`q_open4`. Rendered: quarto forms NO heading on any of the five, because a
+    // TWO-LINE quoted paragraph takes the dash run as a lazy continuation (Session 239's filed
+    // phantom item, pinned negative). ⚠ `setextTitleQuoted` short-circuits the band entirely, so
+    // the complement rule must not reach these rows at all.
+    for (const indent of ["", " ", "  ", "   ", "    "]) {
+      expect(names(["1. item", "", "   > intro", "   > quoted one", `${indent}---`])).toEqual([]);
+    }
+  });
+
+  it("G17: ⚠ the CommonMark branch's own phantom, UNMOVED — Session 240 G27's item", () => {
+    // `r1/gfm1`, `gfm2`. Rendered under `from: gfm`, quarto forms NOTHING (CommonMark forbids a
+    // setext underline from being a lazy continuation line) and this model reports the raw line.
+    // ⚠ It is pinned so a later session cannot widen both branches at once and call it symmetry:
+    // `commonmarkDialect` excludes these rows from `lazyQuotedUnderline` altogether.
+    expect(names(["---", "from: gfm", "---", "", "1. item", "", "   > quoted one", " ---"])).toEqual(
+      ["h2:> quoted one"],
+    );
+    expect(names(["---", "from: gfm", "---", "", "1. item", "", "   > quoted one", "  ---"])).toEqual(
+      ["h2:> quoted one"],
+    );
+  });
+
+  it("G18: ⚠ the `^ {0,3}` anchor rows, UNMOVED — Session 240's filed item, not this one", () => {
+    // `r1/anchor1`-`anchor6`. `-   item` opens content at column 4, so the quote marker sits at
+    // column 4 and `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` anchor does not recognise it AT ALL — `inQuote`
+    // is never set and no band, old or new, can reach these lines. Rendered, quarto forms
+    // `h2:quoted one` at every one of them. ⚠ Pinned AT THE LOSS: this session recovers none of
+    // them, and saying so here is what keeps the two items apart.
+    for (const indent of [" ", "  ", "   ", "     ", "      "]) {
+      expect(names(["-   item", "", "    > quoted one", `${indent}---`])).toEqual([]);
+    }
+    // The control on the same stack: at 0 and at 4 the model DOES answer, because the marker is
+    // ordinary text there and the underline claims the raw line for an unrelated reason.
+    expect(names(["-   item", "", "    > quoted one", "---"])).toEqual(["h2:> quoted one"]);
+    expect(names(["-   item", "", "    > quoted one", "    ---"])).toEqual(["h2:> quoted one"]);
+  });
+
+  it("G19: the controls with NO quote in the document at all", () => {
+    // `r1/noquote1`-`noquote3`. The shape that refuted the filed root cause in Session 240: the
+    // container column is NOT popped by the blank line, so the underline at the content column
+    // underlines and the two shallower columns do not.
+    expect(names(["1. item", "", "   para one", " ---"])).toEqual([]);
+    expect(names(["1. item", "", "   para one", "  ---"])).toEqual([]);
+    expect(names(["1. item", "", "   para one", "   ---"])).toEqual(["h2:para one"]);
+  });
+
+  it("G20: a MARKED underline inside the quote is not this rule's business (`r1/marked`)", () => {
+    expect(names(["1. item", "", "   > quoted one", "   > ---"])).toEqual(["h2:quoted one"]);
+  });
+});
