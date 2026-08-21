@@ -4126,7 +4126,30 @@ function simpleTableOpensHere(
     return false;
   }
   const body = neighbour(1);
-  return body !== null && !BLANK_LINE.test(body) && !simpleTableRuleEnds(body, contentColumns);
+  if (body === null || BLANK_LINE.test(body) || simpleTableRuleEnds(body, contentColumns)) {
+    return false;
+  }
+  // ⚠ **A LIST START SHALLOWER THAN THE ENCLOSING ITEM ENDS IT, AND AN ENDED CONTAINER HAS NO
+  // BODY ROW TO GIVE (Session 240).** This became reachable for the first time when the window
+  // above started measuring from the container's own content column: at a base of 0 a separator
+  // four columns in was read as code depth and no table was ever attempted here.
+  //
+  // ⚠ **IT IS THE LIST START SPECIFICALLY, NOT THE COLUMN, and it is measured** — ten body-row
+  // kinds at two columns (`scratchpad/s240/r3/k_*`). A bullet, an ordered marker, a `*` and a `+`
+  // below the item's content column end it and no table forms; prose, a block quote, an ATX
+  // heading, a `:::`, a `***` rule and a fence at column 0 are all ordinary body rows and the
+  // table forms over them. `popsEnclosingContainer` is the same predicate the container
+  // maintenance uses for exactly this question — reused, not re-derived, so the two can never
+  // drift apart about which markers close an item.
+  //
+  // ⚠ **AT TOP LEVEL THE BASE IS 0 AND NOTHING IS SHALLOWER THAN IT**, so every top-level row is
+  // untouched — measured on the same ten kinds (`r3/t_*`), where the table forms over all of
+  // them including a bare `- item`.
+  //
+  // ⚠ Found by a brute-force enumeration of 59,049 documents, NOT by the 103-document rounds and
+  // NOT by the 48,844-document corpus sweep, both of which were green while this deleted two
+  // real headings. Pinned as C2.
+  return !(popsEnclosingContainer(body) && indentColumn(body) < base);
 }
 /**
  * Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`.
@@ -6143,6 +6166,15 @@ function computeRegions(text: string): Regions {
     // can be true on lines the `inQuote` machinery never entered, and there `outerColumns` is
     // `null`; falling back to `contentColumns` keeps every such row byte-identical rather than
     // guessing at a stack that was never taken.
+    // ⚠ **TWO OF THESE THREE TERMS ARE UNOBSERVABLE TODAY AND ARE KEPT ON PURPOSE, WITH THE
+    // PROOF (Session 240).** The mutation hunt could not kill `quoteOpen` (M3 — it can, and is
+    // pinned as C3 through the `!stripQuote` half) nor the `contentColumns` fallback (M4): 0
+    // disagreements over 248,832 enumerated documents AND 0 movers over 48,941 corpus documents.
+    // They are kept because each is right BY CONSTRUCTION rather than by luck. `quoteOpen &&
+    // !stripQuote` is `quoteColumnsUnknown`'s own spelling, character for character, and the two
+    // must not drift — they answer the same question about the same line. And where no stash was
+    // taken, `contentColumns` IS the document root's stack, so it is the correct answer there and
+    // `[]` would merely be a coincidence that holds while nothing has pushed a column.
     const rawLineColumns: readonly number[] =
       quoteOpen && !stripQuote && outerColumns !== null ? outerColumns.columns : contentColumns;
     // A pandoc SIMPLE TABLE consumes this line — see `simpleTableOpensHere` (Session 239).
@@ -6600,6 +6632,18 @@ function computeRegions(text: string): Regions {
       // below it lost, because `quoteOpen` goes false here while `contentColumns` is still the
       // quote's empty inner stack, so an ATX at the container's column is read as too deep.
       // Session 239's C3 is the pinned witness and it went red on the spelling without this.
+      // ⚠ **`inQuote` HERE IS REDUNDANT BY CONSTRUCTION AND IS KEPT AS THE INVARIANT'S NAME
+      // (Session 240).** `outerColumns` is assigned only on the `!inQuote` edge of a quote entry
+      // and nulled only where `inQuote` is cleared, so `outerColumns !== null` already implies
+      // it; the mutant that drops it (M13) is unkillable — 0 disagreements over 248,832
+      // enumerated documents. It stays because the implication is one edit deep in a variable
+      // three separate branches assign.
+      // ⚠ **AND THE THREE ARRAYS ARE RESTORED AS A UNIT.** Dropping the `contentColumns` restore
+      // is observable and pinned (M16 died); dropping either parallel array's restore is not
+      // (M17, M18, 0 disagreements) only because nothing downstream reads `columnKinds` or
+      // `columnIsCommonmark` after this path yet. They are index-for-index parallel with
+      // `contentColumns` — see its declaration — so restoring two of three would desynchronise
+      // them, which is a landmine rather than a saving.
       if (!lazyQuotedUnderline && !stripQuote && inQuote && outerColumns !== null) {
         contentColumns.length = 0;
         contentColumns.push(...outerColumns.columns);

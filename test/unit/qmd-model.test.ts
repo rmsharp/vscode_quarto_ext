@@ -13277,4 +13277,83 @@ describe("Session 240 — the container column the quote switch stashed, and nev
     // (`scratchpad/s240/r0/w_g5`). This model reported nothing.
     expect(names(["- item", "", "  > quoted one", "  ---"])).toEqual(["h2:> quoted one"]);
   });
+  it("C2: a LIST START shallower than the container is not a body row, so no table forms", () => {
+    // ⚠ **THE DELETION THIS SESSION INTRODUCED, and neither the 103-document rounds nor the
+    // 48,844-document corpus sweep saw it** — a brute-force enumeration of 59,049 documents did
+    // (`scratchpad/s240/hunt`, mutant M8). Re-basing the separator's window on the stash makes
+    // `    ---` a +2 separator where it used to be read as code depth, so the table became
+    // reachable for the first time — and its body-row test admitted a line that ENDS the list
+    // item. Rendered, `- item` / `` / `  > quoted one` / `    ---` / `- item` renders
+    // `h2:quoted one` and no table at all (`r2/w_m8_0`).
+    expect(names(["- item", "", "  > quoted one", "    ---", "- item"])).toEqual(["h2:quoted one"]);
+    // ⚠ **AND IT IS THE LIST START SPECIFICALLY, NOT THE COLUMN.** Measured over ten body-row
+    // kinds at columns 0 and 2 (`r3/k_*`): only a bullet, an ordered marker, a `*` and a `+`
+    // shallower than the item's content column end it — prose, a quote, an ATX heading, a `:::`,
+    // a `***` rule and a fence at column 0 are all ordinary body rows and the table forms.
+    expect(names(["- item", "", "  > quoted one", "   ---", "body row"])).toEqual([]);
+    expect(names(["- item", "", "  > quoted one", "   ---", "# ATX"])).toEqual([]);
+    // ⚠ AT THE CONTENT COLUMN OR DEEPER a list start is a CELL, not a sibling (`r3/c_ul2`).
+    expect(names(["- item", "", "  > quoted one", "   ---", "  - item"])).toEqual([]);
+    // ⚠ AT TOP LEVEL nothing pops, so the same body row is a cell there (`r3/t_ul`).
+    expect(names(["> quoted one", " ---", "- item"])).toEqual([]);
+  });
+  // ── THE MUTATION SURVIVORS. Twenty-one mutants over the terms this session changed; seven
+  // died against the tests above. Of the fourteen survivors, SEVEN are live and are pinned here,
+  // each found by enumerating 248,832 documents over an alphabet drawn from the lines that reach
+  // the suppressed paths and then RENDERING the disagreements (`scratchpad/s240/hunt2`).
+  // ⚠ "No test kills it" is a statement about the tests. Six of the seven had a witness where
+  // this build is RIGHT; the seventh is pinned at a pre-existing divergence and says so.
+
+  it("C3: a MARKED underline is in the quote's own space, not the document root's (kills M3)", () => {
+    // The `!stripQuote` term of `rawLineColumns`. Rendered `h2:item` (`hunt2/M3_0`).
+    expect(names(["  > ---", "  > ---", "- item", "  ---", "- item"])).toEqual(["h2:item"]);
+  });
+
+  it("C4: the TERMINATOR's own column is read against the stash too (kills M6)", () => {
+    // ⚠ The one row that reaches `simpleTableEndsHere` with the two stacks disagreeing: the
+    // table opens at `   ---`, and `    ---` four columns in is +2 past the container column, so
+    // it TERMINATES rather than being a cell. Rendered: no heading (`hunt2/M6_0`), where the
+    // pre-session build reported `h1:Probe A`.
+    expect(names(["  > quoted one", "   ---", "- item", "    ---", "  # Probe A"])).toEqual([]);
+  });
+
+  it("C5: with a stash present the separator's base is the container column, not 0 (kills M8)", () => {
+    // The `outerColumns === null` term of `containerColumnsUnknown`. Rendered: no heading —
+    // `    ---` is +2 past the item's content column and really is a separator (`hunt2/M8_0`),
+    // where the pre-session build read it from the root as +4 code depth and underlined.
+    expect(names(["- item", "", "  > quoted one", "    ---", "  > quoted one"])).toEqual([]);
+  });
+
+  it("C6: ⚠ PINNED AT A PRE-EXISTING DIVERGENCE — the quote-end block needs its lazy term (M11)", () => {
+    // ⚠ **THE ONE SURVIVOR WITH NO WITNESS WHERE THIS BUILD IS RIGHT**, of eight rendered.
+    // Quarto renders `h2:quoted one` alone; this model adds an `h2:---` phantom. That phantom is
+    // PRE-EXISTING and UNMOVED — byte-identical on `scratchpad/s240/presrc` — and belongs to a
+    // different family (a dash rule read as its own setext title). It is pinned anyway, because
+    // it is what stops `!lazyQuotedUnderline` being dropped from the quote-end block: without
+    // that term a LAZY underline would end a quote that pandoc keeps open, which is the exact
+    // trade Session 237 measured at this site in the opposite direction (`hunt2/M11_0`).
+    expect(names(["  > quoted one", "   ---", "   ---", "    ---", "- item"])).toEqual([
+      "h2:quoted one",
+      "h2:---",
+    ]);
+  });
+
+  it("C7: a MARKED underline does not end the quote either (kills M12)", () => {
+    // The `!stripQuote` term of the quote-end block. Rendered `h2:quoted one` and `h2:body row`
+    // (`hunt2/M12_5`) — the quote stays open across its own marked underline, so the second
+    // title still underlines inside it.
+    expect(names(["  > quoted one", "  > ---", "  body row", "    ---", "- item"])).toEqual([
+      "h2:quoted one",
+      "h2:body row",
+    ]);
+  });
+
+  it("C8: the list-start body-row guard is bounded by the base, both ways (kills M20 and M21)", () => {
+    // ⚠ Two mutants, one row: dropping the column term (M20) and relaxing `<` to `<=` (M21) each
+    // change this answer, and both are wrong. Rendered: no heading (`hunt2/M20_0`). The `- item`
+    // body row sits at column 0, below the `    - sib` container's content column, so it ends the
+    // container — but the SEPARATOR here is `   ---` at column 3, whose own base is 0, and at a
+    // base of 0 nothing is shallower. Pinned with C2's five rows, which fix the other boundary.
+    expect(names(["    - sib", "   ---", "- item", "  ---", "- item"])).toEqual([]);
+  });
 });
