@@ -6110,6 +6110,41 @@ function computeRegions(text: string): Regions {
       const otherContent = blockQuoteContentStart(other);
       return otherContent === null ? other : other.slice(otherContent);
     };
+    // ── The columns the RAW line is written in (Session 240) ────────────────────────────────
+    // ⚠ **THE CONTAINER COLUMN WAS NEVER LOST, AND FOUR SESSIONS RECORDED THAT IT WAS.** The
+    // filed entry behind this row — and Session 234's G3, Session 238's R1 and Session 239's C3
+    // with it — says "the blank line above the quote has already popped the list off
+    // `contentColumns`". It has not. The pop above fires only for columns strictly DEEPER than
+    // the line's own indent, so a list's column 2 survives any number of blank lines under a
+    // line at column 2; with no quote in the document at all, `- item` / `` / `  para one` /
+    // `  ---` underlines correctly for exactly that reason (guards G10, G11).
+    //
+    // What empties the stack is the QUOTE COORDINATE SWITCH far above, which stashes the outer
+    // document's columns in `outerColumns` and clears `contentColumns` so the quote's content
+    // is measured from its own column 0. On a line the strip DID reach that is right. On a line
+    // it did NOT reach — an UNMARKED line below an open quote — the line is still written in the
+    // DOCUMENT ROOT's coordinates, and the stash is exactly the stack it is written against.
+    // It was sitting there unread.
+    //
+    // ⚠ **THE SET IS AN EQUALITY, `[0, ...outer]`, AND IT IS MEASURED, NOT ARGUED.** Rendered
+    // across four different container stacks and 21 columns (`scratchpad/s240/r0` c_d0-c_d5,
+    // `r1` a_nest0-6, b_ol0-5, c_def0-6, f_e0-6, k_top0-5): the underline claims the RAW line
+    // with the quote marker KEPT at column 0 and at every enclosing container content column,
+    // and at NO other column, where it is instead absorbed into the quote as a lazy
+    // continuation and the markers are stripped. A list at 2 keeps 0 and 2; an ordered list at
+    // 3 keeps 0 and 3; a definition at 4 keeps 0 and 4; a nested pair keeps 0, 2 and 4. Both
+    // spellings, one set.
+    //
+    // ⚠ **AT TOP LEVEL THE STASH IS EMPTY AND THIS IS EXACTLY TODAY'S RULE** — `[0]` — which is
+    // why every top-level row is unmoved (G5-G9) and why five sessions could measure this family
+    // at top level without ever seeing the container half.
+    //
+    // ⚠ **AND WHERE THERE IS NO STASH THE OLD READING STANDS.** `quoteOpen` is a fail-safe that
+    // can be true on lines the `inQuote` machinery never entered, and there `outerColumns` is
+    // `null`; falling back to `contentColumns` keeps every such row byte-identical rather than
+    // guessing at a stack that was never taken.
+    const rawLineColumns: readonly number[] =
+      quoteOpen && !stripQuote && outerColumns !== null ? outerColumns.columns : contentColumns;
     // A pandoc SIMPLE TABLE consumes this line — see `simpleTableOpensHere` (Session 239).
     //
     // ⚠ **THE TERMINATOR IS CONSUMED TOO, AND THAT IS WHAT RECOVERS THE HEADING BELOW IT.**
@@ -6125,8 +6160,11 @@ function computeRegions(text: string): Regions {
     // is DEAD CODE. It was written, the mutation hunt could not kill it, and it was removed
     // rather than left in as an untestable branch: a condition no test can reach is a claim
     // nothing checks. The blank-line end is exercised by C2 and G16 through that clear instead.
+    // ⚠ `rawLineColumns`, not `contentColumns` — Session 238's R1 was exactly this reader
+    // measuring an unmarked terminator's column from the document root while the stack it was
+    // compared against had been swapped for the quote's own. See `rawLineColumns`.
     const simpleTableEndsHere =
-      simpleTableRowsOpen && simpleTableRuleEnds(line, contentColumns);
+      simpleTableRowsOpen && simpleTableRuleEnds(line, rawLineColumns);
     if (simpleTableEndsHere) {
       simpleTableRowsOpen = false;
     } else if (
@@ -6134,11 +6172,17 @@ function computeRegions(text: string): Regions {
       simpleTableOpensHere(
         line,
         tableNeighbour,
-        contentColumns,
+        // ⚠ `rawLineColumns` (Session 240). Both readers inside the predicate need it — the
+        // separator's own 1-3 window AND the body-row test, which asks whether the line below is
+        // itself a terminator. Session 238's R1 turned on the second of those.
+        rawLineColumns,
         // `quoteColumnsUnknown`'s own condition, read here because the simple table is decided
         // ABOVE the setext row where that flag is computed. `quoteOpen` still carries the value
         // every region-boundary path above left it, which is the same one that flag reads.
-        quoteOpen && !stripQuote,
+        // ⚠ **AND ONLY WHERE THERE IS NO STASH TO READ (Session 240).** Where the quote switch
+        // took one, `rawLineColumns` above IS the container stack this line is written against,
+        // so the columns are no longer unknown and the base is no longer a guess of 0.
+        quoteOpen && !stripQuote && outerColumns === null,
         paragraphOpenAboveHeader,
         tableRowsOpen,
         // The header row CONTINUES a quote that opened above it — see the predicate. Read from
@@ -6347,7 +6391,10 @@ function computeRegions(text: string): Regions {
       indentColumn(line) > indentColumn(lines[setextTitle.line] ?? "") &&
       (belowUnderline === null ||
         BLANK_LINE.test(belowUnderline) ||
-        (!columnIsCodeDepth(indentColumn(belowUnderline), contentColumns) &&
+        // ⚠ `rawLineColumns` (Session 240). `belowUnderline` is a RAW line — the term asks
+        // whether it is a table TERMINATOR, which is `simpleTableRuleEnds`'s question, so it must
+        // read the same stack that predicate does or the two disagree about the same bytes.
+        (!columnIsCodeDepth(indentColumn(belowUnderline), rawLineColumns) &&
           DASH_RULE_ROW.test(belowUnderline)));
     // ⚠ **AND A QUOTE THAT WAS ALREADY OPEN ABOVE THE TITLE MAKES THE UNDERLINE LAZY AT EVERY
     // COLUMN, WHICH IS WHY THE FLOOR IS NOT A COLUMN AT ALL (Session 237).** The two terms
@@ -6397,7 +6444,11 @@ function computeRegions(text: string): Regions {
               ? COMMONMARK_INDENT_OFFSETS.map((o) => innermostColumn + o)
               : lazyQuotedUnderline
                 ? [0, ...contentColumns, indentColumn(line)]
-                : [0, ...contentColumns],
+                : // ⚠ `rawLineColumns`, not `contentColumns` — see its definition. This is the
+                  // ONE reader of the widened set that can add a heading, and it can only ever
+                  // add the marker-KEPT shape, because the lazy branch above already accepts
+                  // every column through `indentColumn(line)`.
+                  [0, ...rawLineColumns],
           )
         : null;
     // How many of the TITLE's markers a lazily-continued underline removes (Session 232).
@@ -6537,6 +6588,28 @@ function computeRegions(text: string): Regions {
       // this the change TRADES one heading for another — the setext row recovered, the ATX below
       // it lost — which is why five of the round's rows moved without being recovered until it
       // was measured. Pinned as C2.
+      // ⚠ **AND THE MIRROR CASE ENDS THE QUOTE OUTRIGHT (Session 240).** Where the underline was
+      // NOT lazy it claimed the RAW line at an enclosing container's own content column, markers
+      // and all — and quarto forms NO `<blockquote>` at all for those bytes. Rendered,
+      // `- item` / `` / `  > quoted one` / `  ---` / `  # Probe A` emits
+      // `<li><p>item</p><h2>&gt; quoted one</h2><h1>Probe A</h1></li>` (`scratchpad/s240/r0/w_c3`):
+      // the quote never existed, so the document-root stack the switch stashed has to come back
+      // before the next line is measured against it.
+      // ⚠ **WITHOUT THIS THE CHANGE TRADES ONE HEADING FOR ANOTHER, exactly as Session 237's
+      // note above describes in the opposite direction** — the setext row recovered and the ATX
+      // below it lost, because `quoteOpen` goes false here while `contentColumns` is still the
+      // quote's empty inner stack, so an ATX at the container's column is read as too deep.
+      // Session 239's C3 is the pinned witness and it went red on the spelling without this.
+      if (!lazyQuotedUnderline && !stripQuote && inQuote && outerColumns !== null) {
+        contentColumns.length = 0;
+        contentColumns.push(...outerColumns.columns);
+        columnKinds.length = 0;
+        columnKinds.push(...outerColumns.kinds);
+        columnIsCommonmark.length = 0;
+        columnIsCommonmark.push(...outerColumns.commonmark);
+        outerColumns = null;
+        inQuote = false;
+      }
       quoteOpen = stripQuote || lazyQuotedUnderline;
       continue;
     }

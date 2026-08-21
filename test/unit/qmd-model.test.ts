@@ -11111,10 +11111,14 @@ describe("Session 232 guard — answers around the lazily-continued quoted under
   it("G5: an underline at the enclosing CONTENT COLUMN is not this session's row (`r3/s1`)", () => {
     // Rendered, `- item` / (blank) / `  > quoted one` / `  ---` renders `h2:&gt; quoted one` —
     // the heading forms at the LIST's level with the quote marker kept as text, which is the
-    // same shape as G2 one container in. This model reports nothing there. ⚠ Pinned as the
-    // CURRENT answer: it is a retained pre-existing LOSS and a disclosed bound of this session,
-    // not an agreement.
-    expect(headings(["- item", "", "  > quoted one", "  ---"])).toEqual([]);
+    // same shape as G2 one container in. This model reported nothing there.
+    // ⚠ **REVERSED BY SESSION 240 — the LOSS this recorded is now RECOVERED.** Re-rendered from
+    // these same bytes before the assertion was touched (`scratchpad/s240/r0/w_g5`): quarto emits
+    // `<li><p>item</p><h2>&gt; quoted one</h2></li>`, no `<blockquote>` anywhere. The comment's
+    // diagnosis — that the blank line popped the list off `contentColumns` — was wrong; the pop
+    // fires only for columns strictly deeper than the line's indent, and what emptied the stack
+    // was the quote coordinate switch, which stashed it in `outerColumns`. See `rawLineColumns`.
+    expect(headings(["- item", "", "  > quoted one", "  ---"])).toEqual(["> quoted one"]);
   });
 
   it("G6: a blank line ENDS the quote, so the run below it underlines nothing (`r1/f0`-`f8`)", () => {
@@ -11466,13 +11470,14 @@ describe("Session 234 guard — answers around the `=` band of the lazy quoted u
 
   it("G3: ⚠ AT the quote marker's own column, PINNED AT A KNOWN LOSS (`r2/p0`)", () => {
     // ⚠ Rendered, `- item` / `` / `  > quoted one` / `  ===` renders `<h1>&gt; quoted one</h1>`
-    // (`ul>p>h1`, marker kept, no blockquote) and this model renders NOTHING. A PRE-EXISTING
-    // divergence, filed rather than fixed: recovering it needs the LIST's content column, which
-    // the blank line above has already popped off `contentColumns` by the time this line is
-    // read. It is pinned here because the band's floor sits exactly on it — a band of `>= the
-    // marker's column` rather than `> it` would answer `h1:quoted one`, trading a silent loss
-    // for a wrong-text heading.
-    expect(names(["- item", "", "  > quoted one", "  ==="])).toEqual([]);
+    // (`ul>p>h1`, marker kept, no blockquote) and this model rendered NOTHING.
+    // ⚠ **REVERSED BY SESSION 240 — RECOVERED.** Re-rendered from these same bytes before the
+    // assertion was touched (`scratchpad/s240/r0/w_g3`). This entry named the fix exactly right —
+    // "recovering it needs the LIST's content column" — and was wrong only about where that
+    // column had gone: the blank line never popped it, the quote coordinate switch stashed it in
+    // `outerColumns`. ⚠ Its warning is preserved in the shipped rule: the set is an EQUALITY
+    // against `[0, ...outer]`, not a `>=` band, which is exactly what keeps the TEXT right here.
+    expect(names(["- item", "", "  > quoted one", "  ==="])).toEqual(["h1:> quoted one"]);
   });
 
   it("G4: ⚠ AT TOP LEVEL an indented `=` run underlines NOTHING (`r1/j1`, `r1/j3`)", () => {
@@ -12642,13 +12647,15 @@ describe("Session 238 guard — answers around the `-` half of the lazy quoted u
   });
 
   it("G22: ⚠ AT the quote marker's own column, PINNED AT A KNOWN LOSS (`r1/e04`)", () => {
-    // The `-` twin of Session 234's G3, and it must stay a loss for the same reason: rendered,
-    // `- item` / `` / `  > quoted one` / `  ---` renders `h2:&gt; quoted one` at the LIST's level
-    // with the marker kept, and recovering it needs the list's content column, which the blank
-    // line above has already popped off `contentColumns`. A band written as `>= the marker's
-    // column` rather than `> it` answers `h2:quoted one` here — a wrong-text heading traded for
-    // a silent loss.
-    expect(names(["- item", "", "  > quoted one", "  ---"])).toEqual([]);
+    // The `-` twin of Session 234's G3: rendered, `- item` / `` / `  > quoted one` / `  ---`
+    // renders `h2:&gt; quoted one` at the LIST's level with the marker kept. This session pinned
+    // it AT the loss because recovering it needs the list's content column.
+    // ⚠ **REVERSED BY SESSION 240 — RECOVERED.** Re-rendered from these same bytes first
+    // (`scratchpad/s240/r0/w_g5`). ⚠ This entry's own warning still stands and is why the fix is
+    // an EQUALITY rather than a band: a rule written `>= the marker's column` answers
+    // `h2:quoted one` here, the wrong TEXT, and the measured set is `[0, ...outer]` — column 0
+    // and every enclosing container column, and no other. Guards G6-G8 pin the columns between.
+    expect(names(["- item", "", "  > quoted one", "  ---"])).toEqual(["h2:> quoted one"]);
   });
 });
 
@@ -12700,7 +12707,13 @@ describe("Session 238 — the `-` half of the lazily-continued quoted underline"
     // read as a body row. ⚠ The direction is a LOSS, never a phantom: a terminator misread as a
     // body row only ever declines. One column shallower the same document is recovered (`r2/t05`,
     // pinned below), which is what bounds this to the container case.
-    expect(names(["- item", "", "  > quoted one", "   ---", "    ---"])).toEqual([]);
+    // ⚠ **REVERSED BY SESSION 240 — the bound this disclosed is CLOSED.** Re-rendered from these
+    // same bytes first (`scratchpad/s240/r0/w_r1`): quarto emits `h2:quoted one` and an `<hr>`,
+    // no table. The diagnosis here was right that `contentColumns` is empty and wrong about why —
+    // the blank line did not pop the list, the quote coordinate switch stashed it. The terminator
+    // now reads its column against that stash. Guards G18-G21 pin the whole 0-3 window and the
+    // two columns past it, so the window cannot drift while nobody is looking.
+    expect(names(["- item", "", "  > quoted one", "   ---", "    ---"])).toEqual(["h2:quoted one"]);
     expect(names(["- item", "", "  > quoted one", "   ---", "   ---"])).toEqual(["h2:quoted one"]);
   });
 });
@@ -12964,10 +12977,17 @@ describe("Session 239 — the pandoc simple table", () => {
     // with NO table — the dashes sit at the list item's content column, where they underline —
     // and the blank line has already popped that column off `contentColumns`, so the window
     // measured from the document root would call column 2 a +2 separator and DELETE both. The
-    // `h1:Probe A` below is this model's pre-existing partial answer, unmoved by this session and
-    // scored as such against `scratchpad/s239/presrc`; the missing `h2` is the already-filed
-    // container content-column item.
-    expect(names(["- item", "", "  > quoted one", "  ---", "  # Probe A"])).toEqual(["h1:Probe A"]);
+    // ⚠ **REVERSED BY SESSION 240, WHICH CLOSED THE CONTAINER CONTENT-COLUMN ITEM THIS COMMENT
+    // NAMES.** The `h1:Probe A` alone was this model's PARTIAL answer; re-rendered from the same
+    // bytes (`scratchpad/s240/r0/w_c3`), quarto emits `<li><p>item</p><h2>&gt; quoted one</h2>
+    // <h1>Probe A</h1></li>` — BOTH headings, at the LIST's level, with no `<blockquote>`
+    // anywhere. The premise about the popped column was wrong (the quote switch stashed it, the
+    // blank line never popped it); the workaround this test pins is still correct and still
+    // kills its mutant, and the full answer is now reported.
+    expect(names(["- item", "", "  > quoted one", "  ---", "  # Probe A"])).toEqual([
+      "h2:> quoted one",
+      "h1:Probe A",
+    ]);
     // ⚠ ONE COLUMN DEEPER the same document IS a table and renders neither (`probe2/x10`).
     expect(names(["- item", "", "  > quoted one", "   ---", "  # Probe A"])).toEqual([]);
   });
@@ -13243,5 +13263,18 @@ describe("Session 240 guard — answers around the container's stashed column th
     expect(names(["---", "from: gfm", "---", "", "- item", "", "  > quoted one", "  ---"])).toEqual(
       ["h2:> quoted one"],
     ); // r1/e_gfm — quarto renders [] ; PRE-EXISTING phantom, filed
+  });
+});
+
+describe("Session 240 — the container column the quote switch stashed, and never lost", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: an unmarked underline AT the enclosing container's content column claims the RAW line", () => {
+    // Rendered, `- item` / `` / `  > quoted one` / `  ---` renders
+    // `<li><p>item</p><h2>&gt; quoted one</h2></li>` — the heading forms at the LIST's level with
+    // the quote marker kept as literal text, and no `<blockquote>` is created at all
+    // (`scratchpad/s240/r0/w_g5`). This model reported nothing.
+    expect(names(["- item", "", "  > quoted one", "  ---"])).toEqual(["h2:> quoted one"]);
   });
 });
