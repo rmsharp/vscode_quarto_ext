@@ -11096,9 +11096,16 @@ describe("Session 232 guard — answers around the lazily-continued quoted under
     // blank line before the probe (`r2/g3`) render `h2:quoted one`, so the discriminator is the
     // table's body row and not the indent. Firing on "deeper than the content column" would put
     // a heading on all three of these; firing at CODE DEPTH does not reach them.
-    expect(headings(["> quoted one", " ---", "# Probe A"])).toEqual(["Probe A"]);
-    expect(headings(["> quoted one", "  ---", "# Probe A"])).toEqual(["Probe A"]);
-    expect(headings(["> quoted one", "   ---", "# Probe A"])).toEqual(["Probe A"]);
+    //
+    // ⚠ **REVERSED BY SESSION 239, WHICH MODELS THE TABLE THIS COMMENT DESCRIBES.** The three
+    // `["Probe A"]` answers below were the MODEL's, pinned at a divergence this session's gate
+    // could not reach; the rendered answer — stated in the comment above from the day it was
+    // written — is no heading at all. RE-RENDERED FROM THE SAME BYTES on Session 239's starting
+    // build (`scratchpad/s239/rev01`, `rev02`, `rev03`): all three still render a one-column
+    // simple table and nothing else, so this is a fix landing on an already-correct measurement.
+    expect(headings(["> quoted one", " ---", "# Probe A"])).toEqual([]);
+    expect(headings(["> quoted one", "  ---", "# Probe A"])).toEqual([]);
+    expect(headings(["> quoted one", "   ---", "# Probe A"])).toEqual([]);
   });
 
   it("G5: an underline at the enclosing CONTENT COLUMN is not this session's row (`r3/s1`)", () => {
@@ -11504,9 +11511,14 @@ describe("Session 234 guard — answers around the `=` band of the lazy quoted u
     // ` ---` / `# Probe A` is a pandoc SIMPLE TABLE and renders NO heading at all, while the
     // identical bytes with `===` render two. Only `-` underlines a table, which is why the band
     // is keyed to the `=` spelling; a band written on the run alone puts a second phantom on
-    // each of these rows. The single `h1:Probe A` below is itself pre-existing and unmoved.
-    expect(names(["> quoted one", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
-    expect(names(["> quoted one", "   ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    // each of these rows.
+    //
+    // ⚠ **REVERSED BY SESSION 239.** The `h1:Probe A` this row called "pre-existing and unmoved"
+    // is the phantom the table eats, and Session 239 is the change that removes it. RE-RENDERED
+    // FROM THE SAME BYTES on that session's starting build (`scratchpad/s239/rev01`, `rev03`):
+    // both still render a table and no heading, which is what this comment already said.
+    expect(names(["> quoted one", " ---", "# Probe A"])).toEqual([]);
+    expect(names(["> quoted one", "   ---", "# Probe A"])).toEqual([]);
   });
 
   it("G8: ⚠ REVERSED BY SESSION 238 — the `-` spelling is recovered where quarto DOES render it (`r2/v1`)", () => {
@@ -12194,7 +12206,10 @@ describe("Session 237 — guards around the COLUMN-0 axis of a quoted setext und
     // table, `<th>quoted title</th>` over `<td>Probe A</td>`, and no heading at all, while this
     // model reports the ATX. Pinned so a later change is measured against it rather than blamed
     // for it — and so this session is shown not to move it.
-    expect(names(["> quoted title", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    // ⚠ **REVERSED BY SESSION 239** — the `h1:Probe A` was the model's, not quarto's, and this
+    // row's own title says the bytes "really are a simple table". RE-RENDERED FROM THE SAME BYTES
+    // on Session 239's starting build (`scratchpad/s239/rev04`): a table, no heading.
+    expect(names(["> quoted title", " ---", "# Probe A"])).toEqual([]);
   });
 
   it("G4: a TWO-LINE quoted paragraph is not underlined at all (`r1/be0`)", () => {
@@ -12454,14 +12469,20 @@ describe("Session 238 guard — answers around the `-` half of the lazy quoted u
   it("G1: ⚠ a BODY ROW below the dashes makes a SIMPLE TABLE and no heading at all (`r1/a03`)", () => {
     // The row the whole session is bounded by. Rendered, `> quoted one` / ` ---` / `# Probe A`
     // is a one-column simple table — `<th>quoted one</th>` over `<td>Probe A</td>` — with no
-    // `<blockquote>` and no heading anywhere. Pinned AT the pre-existing phantom (this model
-    // reports the ATX), so a second phantom shows up here rather than in the corpus.
-    expect(names(["> quoted one", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    // `<blockquote>` and no heading anywhere.
+    //
+    // ⚠ **REVERSED BY SESSION 239, WHICH MODELS THE CONSTRUCT THIS ROW IS BOUNDED BY.** Session
+    // 238 pinned it AT the pre-existing phantom — its own words: *"this model reports the ATX,
+    // so a second phantom shows up here rather than in the corpus"* — and named the table as the
+    // thing that would have to be modelled to remove it. RE-RENDERED FROM THE SAME BYTES on
+    // Session 239's starting build (`scratchpad/s239/rev01`): unchanged, a table and no heading.
+    expect(names(["> quoted one", " ---", "# Probe A"])).toEqual([]);
   });
 
   it("G2: and at every other column of the band, 2 and 3 (`r1/b03`, `r1/b04`)", () => {
-    expect(names(["> quoted one", "  ---", "# Probe A"])).toEqual(["h1:Probe A"]);
-    expect(names(["> quoted one", "   ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    // ⚠ REVERSED BY SESSION 239 with G1, and re-rendered with it (`rev02`, `rev03`).
+    expect(names(["> quoted one", "  ---", "# Probe A"])).toEqual([]);
+    expect(names(["> quoted one", "   ---", "# Probe A"])).toEqual([]);
   });
 
   it("G3: ⚠ ANY non-blank line is a body row — prose, a fence, a bullet, a closer (`r1/a05`)", () => {
@@ -12497,8 +12518,11 @@ describe("Session 238 guard — answers around the `-` half of the lazy quoted u
   it("G7: the CONTAINER rows carry the same bound (`r1/e02`, `r1/e07`)", () => {
     // One list container in, and one quote deeper. Both render a table and no heading; both are
     // pinned AT the same pre-existing ATX phantom as G1.
-    expect(names(["- item", "", "  > quoted one", "   ---", "# Probe A"])).toEqual(["h1:Probe A"]);
-    expect(names([">> quoted one", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    // ⚠ REVERSED BY SESSION 239 with G1 — the same phantom one container in and two quotes
+    // deep, re-rendered from the same bytes (`scratchpad/s239/rev05`, `rev06`): both still
+    // render a simple table and no heading.
+    expect(names(["- item", "", "  > quoted one", "   ---", "# Probe A"])).toEqual([]);
+    expect(names([">> quoted one", " ---", "# Probe A"])).toEqual([]);
   });
 
   it("G8: a quote with NO blank line above it is not a quote at all (`r1/e08`)", () => {
@@ -12896,5 +12920,21 @@ describe("Session 239 guard — answers around the pandoc simple table that must
     // Whitespace-defined columns are the shape no other table rule in this file models, and the
     // answer is already right at top level. Pinned so the column arithmetic stays out of scope.
     expect(names(["col a   col b", " --- ---", "x       y", "# Probe A"])).toEqual([]);
+  });
+});
+
+describe("Session 239 — the pandoc simple table", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: a table's BODY ROW is a cell, not a heading (`r0/c_atx`, `probe2/x01`)", () => {
+    // ⚠ **THE FILED DEFECT.** Rendered, `> quoted one` / ` ---` / `# Probe A` is a one-column
+    // pandoc SIMPLE TABLE — `<th>quoted one</th>` over `<td>Probe A</td>`, no `<blockquote>` and
+    // no heading anywhere — and this model reported `h1:Probe A`. The `>` and the `#` are eaten
+    // as column material: the separator starts at column 1, so each row's cell is its own line
+    // from column 1 onward.
+    expect(names(["> quoted one", " ---", "# Probe A"])).toEqual([]);
+    // ⚠ And EVERY row below the separator is a cell, not just the first.
+    expect(names(["> quoted one", " ---", "row one", "row two", "# Probe A"])).toEqual([]);
   });
 });

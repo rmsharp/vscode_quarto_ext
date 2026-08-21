@@ -3983,6 +3983,134 @@ function pipeTableOpensHere(
   );
 }
 /**
+ * Whether `line` is the dash rule that ENDS a pandoc simple table rather than filling it — the
+ * same shape `lazyDashesBand` reads, asked in the same coordinate space (Session 239).
+ *
+ * ⚠ **ONE DEFINITION, BECAUSE THE TWO ROWS ARE THE SAME QUESTION AND MUST NOT DRIFT** (Learning
+ * #14). Session 238 measured this exactly: a run of dashes and spaces at 0-3 past the enclosing
+ * content column terminates a table, and the SAME run at +4 — or after a tab that reaches +4 —
+ * is a body row again. `lazyDashesBand` reads it to decide that no table forms below an
+ * underline; this reads it to decide that an open one ends here. Both call it.
+ */
+function simpleTableRuleEnds(line: string, contentColumns: readonly number[] | null): boolean {
+  return DASH_RULE_ROW.test(line) && !columnIsCodeDepth(indentColumn(line), contentColumns);
+}
+/**
+ * Whether a pandoc SIMPLE TABLE opens at `line` — the separator row that makes the line ABOVE a
+ * header and every line BELOW a table cell (Session 239). Family F07's fourth shape, and the
+ * only one whose columns are whitespace-defined rather than drawn with `|` or `+`.
+ *
+ * `neighbour(k)` returns the line `k` away in the SAME coordinate space as `line` (quote markers
+ * already stripped), or `null` past either end — the view `tableShapedLineIsBlock` already uses.
+ *
+ * The measured rule, in four parts, over 128 documents rendered through the real `quarto render`
+ * path (quarto 1.7.33, `scratchpad/s239/r0` + `probe2`-`probe4`):
+ *
+ *   1. **The separator is a run of dashes and SPACES** — one dash group per column. That is
+ *      `DASH_RULE_ROW`, Session 238's constant, reused rather than re-derived: ` -`, ` --`,
+ *      ` - - -`, `  -  ` and ` ---<TAB>` all separate, while ` --- x`, ` -=-` and ` ===` do not.
+ *      ⚠ Only `-` can separate a simple table, which is the whole reason Session 234 could ship
+ *      the `=` half of the lazy quoted band with no table question to answer at all.
+ *   2. **Its indent is 1-3 columns PAST the enclosing content column.** At +0 the setext parse
+ *      claims the pair first (`b_u0`, `b_q0`, and one list in, `v09`); at +4 it is code depth,
+ *      where Session 238's band claims it and renders the quoted heading (`b_q4`, `b_qtab`).
+ *      ⚠ The window is measured from the CONTAINER's column, not the document root: `>  ---`
+ *      through `>    ---` separate and `>     ---` does not (`v01`-`v04`), and inside a list
+ *      item the same three columns sit at 3-5 (`v05`-`v08`).
+ *   3. **The header row is a single non-blank line that OPENED A FRESH BLOCK**, and is not
+ *      outranked (see `SIMPLE_TABLE_HEADER_OUTRANKED`). ⚠ A simple table's header is exactly
+ *      ONE line: `line one` / `line two` / ` ---` renders one paragraph and no table, and so
+ *      does the quoted twin `> a` / `> b` (`x17`, `a_blockq2`). That is
+ *      `paragraphOpenAboveHeader` — the same flag `pipeTableOpensHere` reads for the same
+ *      reason, one line above.
+ *   4. **At least one BODY ROW follows.** With none the same dashes UNDERLINE the line above:
+ *      `> quoted one` / ` ---` renders `<blockquote><h2>quoted one</h2></blockquote>`, and so
+ *      does the same document whose next line is blank or is itself a terminating rule
+ *      (`c_none`, `c_blank`, `t07`). ⚠ This is the exact complement of `lazyDashesBand`'s own
+ *      third term, which is why both are spelled with `simpleTableRuleEnds` and `BLANK_LINE`.
+ */
+function simpleTableOpensHere(
+  line: string,
+  neighbour: (offset: number) => string | null,
+  contentColumns: readonly number[] | null,
+  paragraphOpenAboveHeader: boolean,
+  pipeTableRowsOpen: boolean,
+  headerContinuesQuote: boolean,
+): boolean {
+  if (headerContinuesQuote) {
+    // ⚠ **A BLOCK QUOTE THAT WAS ALREADY OPEN ABOVE THE HEADER ROW HAS ALREADY CLAIMED IT, AND
+    // `paragraphOpenAboveHeader` CANNOT SEE THAT.** `table` is tried at the start of a BLOCK, and
+    // when an unmarked separator sits under a quote that opened earlier, the block began at the
+    // quote's first line — not at the header. Rendered, `> intro` / `>` / `> quoted title` /
+    // ` ---` / `# Probe A` renders `h2:quoted title` and `h1:Probe A` INSIDE the blockquote with
+    // no table anywhere, because the `>` line continues the quote without opening a paragraph;
+    // the same document with an UNMARKED blank in place of the `>` reopens the quote at the
+    // title and really is a table (`probe5/q01` against `q02`, and `q07`-`q09` two deep, one
+    // container in, and with a trailing space on the marker).
+    //
+    // ⚠ **AND ONLY FOR AN UNMARKED SEPARATOR** — the caller supplies `!stripQuote` as part of
+    // this flag. Where the separator carries its own marker the whole construct is inside the
+    // quote, the block starts at the title in the quote's own coordinate space, and a table
+    // really does form: `> intro` / `>` / `> quoted title` / `>  ---` / `> # Probe A` renders one
+    // (`q04`, `q05`, `q06`).
+    //
+    // ⚠ This is Session 237's `setextTitleQuoted` condition — a marked line directly above the
+    // title — asked about the HEADER row instead. It is spelled from `blockQuoteContentStart` at
+    // the call site rather than reusing that flag because this row is answered BEFORE the setext
+    // block computes it. Session 238's G21 went red on the spelling that omitted it, and the
+    // answer it deleted was two real headings.
+    return false;
+  }
+  if (pipeTableRowsOpen) {
+    // ⚠ **A PIPE TABLE'S BODY ROW IS NOT A FRESH HEADER ROW, AND `paragraphOpenAboveHeader`
+    // CANNOT SEE THAT.** Pandoc's `table` parser consumed the row above as part of the table it
+    // already opened, so the dashes below it start a block position with no header line at all:
+    // rendered, `| a | b |` / `|---|---|` / `| c | d |` / ` ---` / `# Probe A` renders the pipe
+    // table, an `<hr>`, and then `<h1>Probe A</h1>` (`probe3/y08`). Guard G7 went red on the
+    // spelling that omitted this, and the answer it deleted was a real heading. `tableRowsOpen`
+    // is Session 235's flag, armed only by `pipeTableOpensHere` — deliberately not `inPipeTable`,
+    // which any `TABLE_RULE_ROW` arms, including this separator itself.
+    return false;
+  }
+  if (!DASH_RULE_ROW.test(line)) {
+    return false;
+  }
+  const column = indentColumn(line);
+  const base = containerContentColumn(column, contentColumns);
+  if (column <= base || column >= base + 4) {
+    return false;
+  }
+  const header = neighbour(-1);
+  if (header !== null && column === indentColumn(header)) {
+    // ⚠ **AT THE HEADER ROW'S OWN COLUMN THE DASHES UNDERLINE IT, AND THAT OUTRANKS `table`.**
+    // The window above is measured from `contentColumns`, which a BLANK LINE has already emptied
+    // by the time a quote inside a list item is reached — Session 234's G3 and Session 238's R1
+    // are the two other symptoms of that same gap. Rendered, `- item` / blank / `  > quoted one` /
+    // `  ---` / `  # Probe A` renders `h2:&gt; quoted one` and `h1:Probe A` with no table
+    // (`probe2/x11`), and reading the separator's column 2 from the document root instead of from
+    // the item's own content column made it look like a +2 separator and DELETED both.
+    //
+    // ⚠ **THE HEADER'S OWN INDENT IS A PROXY FOR THE BLOCK'S CONTENT COLUMN, NOT A SECOND
+    // WINDOW, AND IT IS DELIBERATELY ONLY AN EQUALITY.** A header row may be indented FURTHER
+    // than its separator and still be one: `    indented code` / ` ---` / `# Probe A` renders a
+    // table whose `<th>` is `indented code` (`r0/a_code4`) — `codeBlockIndented` sits BELOW
+    // `table` in pandoc's order, so four spaces buy the header nothing. Only the equality is
+    // measured, so only the equality is tested. One container in, the row directly above this
+    // one at +1 is still a table (`probe2/x10`, `probe4/v05`).
+    return false;
+  }
+  if (
+    header === null ||
+    BLANK_LINE.test(header) ||
+    paragraphOpenAboveHeader ||
+    SIMPLE_TABLE_HEADER_OUTRANKED.some((re) => re.test(header))
+  ) {
+    return false;
+  }
+  const body = neighbour(1);
+  return body !== null && !BLANK_LINE.test(body) && !simpleTableRuleEnds(body, contentColumns);
+}
+/**
  * Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`.
  *
  * `prevWasAtxHeading` recovers a block closure this model would otherwise lose. Pandoc
@@ -4719,6 +4847,54 @@ const COMMENT_CLOSE = /-->/;
  */
 const COMMENT_FULL_LINE = /^[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
 /**
+ * The constructs pandoc's block parser tries BEFORE `table`, so a line of one of them above a
+ * dash run is NOT a simple table's header row (Session 239).
+ *
+ * ⚠ **THE LIST IS PANDOC'S OWN PARSE ORDER, NOT A JUDGEMENT ABOUT WHAT LOOKS BLOCK-LEVEL.**
+ * `Text.Pandoc.Readers.Markdown.parseBlock` tries `codeBlockFenced`, `yamlMetaBlock`, `header`,
+ * `divFenced` and `htmlBlock` AHEAD of `table`, and `codeBlockIndented`, `rawTeXBlock`,
+ * `lineBlock`, `blockQuote`, `hrule`, `bulletList`, `orderedList` and `para` BEHIND it. So the
+ * five above become their own block and the dashes below them are a THEMATIC BREAK, while the
+ * eight below become table header TEXT. Every one of the thirteen has a rendered document:
+ *
+ *   `# ATX Header` / ` ---` / `# Probe A`   →  `<h1>`, `<hr>`, `<h1>`      no table  (`r0/a_atx`)
+ *   `other` / `===` / ` ---` / …            →  two headings                no table  (`y06`)
+ *   ` ``` ` / `code` / ` ``` ` / ` ---`     →  `<pre>`, `<hr>`, `<h1>`      no table  (`w09`)
+ *   `::: {.note}` / ` ---` / …              →  `<div>`, `<hr>`, `<h1>`      no table  (`y01`)
+ *   `<div>` / ` ---` / …                    →  `<div>`, `<hr>`, `<h1>`      no table  (`a_html`)
+ *   `---` / `title: t` / `---` / ` ---`     →  `<hr>`, `<h1>`               no table  (`y07`)
+ *   prose · `- item` · `1. item` · `> q`
+ *   `***` · `| line` · `\clearpage` · code  →  a one-column TABLE, no heading anywhere
+ *
+ * ⚠ **DECLINING HERE IS THE SAFE DIRECTION AND THAT IS WHY THE LIST IS INCLUSIVE.** A header row
+ * wrongly ACCEPTED deletes a heading the outline shows; one wrongly REFUSED keeps a phantom this
+ * model already had. So `DIV_FENCE` covers a `:::` CLOSER as well as an opener and `FENCE_OPEN`
+ * covers both delimiters, neither of which was measured in this position.
+ *
+ * ⚠ **`HTML_BLOCK_OPEN` COSTS ONE MEASURED PHANTOM AND IS KEPT ANYWAY.** `<div>x</div>` — a
+ * BALANCED one-line tag — is consumed whole, and the dash run below it then opens a HEADERLESS
+ * simple table whose only row is the ATX (`<tbody>` with `<td>Probe A</td>`, no `<thead>`);
+ * quarto renders no heading and this model reports one (`probe4/w03`). Admitting it would need a
+ * headless-table model that still declines the UNBALANCED `<div>` one line away, which renders
+ * the heading — so the phantom is disclosed, pinned as R1 and filed rather than guessed at.
+ */
+const SIMPLE_TABLE_HEADER_OUTRANKED: readonly RegExp[] = [
+  ATX_HEADING, //                  an ATX heading with text
+  /^[ \t]*#{1,6}[ \t]*$/, //       and a bare `##`, which pandoc reads as an EMPTY one
+  SETEXT_H1, //                    an `=` underline — and the `-` spelling below covers a
+  SETEXT_H2, //                    front-matter terminator and a `---` thematic break with it
+  FENCE_OPEN, //                   either fence delimiter (`FENCE_CLOSE` is a subset of this)
+  DIV_FENCE, //                    either `:::` fence
+  HTML_BLOCK_OPEN, //              a raw HTML block — see the ⚠ note above
+  // ⚠ An HTML COMMENT is a raw block too and `HTML_BLOCK_OPEN`'s tag list does NOT hold it —
+  // that list is pandoc's `blockTags`, which are element names. Rendered, `<!-- c -->` / ` ---` /
+  // `# Probe A` renders the heading with no table (`probe3/y03`), and guard G3 went red on the
+  // spelling that left this row out. The scanner skips a whole-line comment entirely, so the
+  // line simply arrives here as the neighbour above the separator.
+  COMMENT_FULL_LINE,
+  COMMENT_OPEN,
+];
+/**
  * A brace info string for an *executable* cell: `{` then a language identifier,
  * optionally followed by knitr-style options, then `}`.
  *
@@ -5203,6 +5379,14 @@ function computeRegions(text: string): Regions {
   // same six region boundaries, which is what keeps `scratchpad/s235/r2/p03` right: a blank
   // line between a table and a lone `e | f` makes the second one prose again.
   let tableRowsOpen = false;
+  // Whether a pandoc SIMPLE TABLE's rows are still running — armed by `simpleTableOpensHere`
+  // and read back on every line below it (Session 239). ⚠ A THIRD table flag beside
+  // `inPipeTable` and `tableRowsOpen`, and it is not merged with either: those two answer
+  // `CLOSES_PARAGRAPH`'s question about a `|`- or `+`-drawn table, while this one answers
+  // "these bytes are a CELL" — it emits no heading at all, which neither of the others does.
+  // Cleared at the same region boundaries they are, plus its own two ends (a blank line and a
+  // terminating dash rule).
+  let simpleTableRowsOpen = false;
   // The line on which front matter opens, or `null` for a document that opens none — the SAME
   // predicate `frontMatterContent` asks (Session 210), so the region view and the `from:`
   // resolvers cannot disagree about which lines are front matter. Hoisted out of the loop
@@ -5745,6 +5929,7 @@ function computeRegions(text: string): Regions {
       paragraphOpen = false;
       inPipeTable = false;
       tableRowsOpen = false;
+      simpleTableRowsOpen = false;
       quoteOpen = stripQuote;
       continue;
     }
@@ -5754,6 +5939,7 @@ function computeRegions(text: string): Regions {
       paragraphOpen = false;
       inPipeTable = false;
       tableRowsOpen = false;
+      simpleTableRowsOpen = false;
       quoteOpen = stripQuote;
       continue;
     }
@@ -5856,6 +6042,7 @@ function computeRegions(text: string): Regions {
         paragraphOpen = false;
         inPipeTable = false;
         tableRowsOpen = false;
+        simpleTableRowsOpen = false;
         quoteOpen = stripQuote;
         continue;
       }
@@ -5871,6 +6058,7 @@ function computeRegions(text: string): Regions {
       paragraphOpen = false;
       inPipeTable = false;
       tableRowsOpen = false;
+      simpleTableRowsOpen = false;
       quoteOpen = stripQuote;
       // A blank line ends a CommonMark type-6 or type-7 raw HTML block — and ONLY those two
       // types, which is why the state names its end condition rather than being a boolean
@@ -5880,6 +6068,63 @@ function computeRegions(text: string): Regions {
       }
       continue;
     }
+
+    // ⚠ **THE NEIGHBOUR VIEW IS IN THE STRIPPED LINE'S OWN COORDINATE SPACE (Session 235).**
+    // `line` has had any block-quote marker removed, so a neighbour read raw would be a
+    // different document from the one this line belongs to — `> +---+---+` would never match a
+    // grid border and the table would go unseen, which is the DELETING direction. An UNMARKED
+    // line inside an open quote is returned as-is, which is what a lazy continuation is. Bounds
+    // return `null` rather than `""` so "past the end of the document" and "a blank line" stay
+    // distinguishable — `tableShapedLineIsBlock` part 4 and `simpleTableOpensHere` part 4 each
+    // need exactly that distinction.
+    // ⚠ **HOISTED HERE BY SESSION 239** from the `closesParagraph` block far below, because the
+    // simple table has to be known BEFORE the setext row rather than after it. One definition,
+    // two readers (Learning #14).
+    const tableNeighbour = (offset: number): string | null => {
+      const j = i + offset;
+      if (j < 0 || j >= lines.length) {
+        return null;
+      }
+      const other = lines[j];
+      if (!stripQuote) {
+        return other;
+      }
+      const otherContent = blockQuoteContentStart(other);
+      return otherContent === null ? other : other.slice(otherContent);
+    };
+    // A pandoc SIMPLE TABLE consumes this line — see `simpleTableOpensHere` (Session 239).
+    //
+    // ⚠ **THE TERMINATOR IS CONSUMED TOO, AND THAT IS WHAT RECOVERS THE HEADING BELOW IT.**
+    // Rendered, `> quoted one` / ` ---` / `row` / `-` / `# Probe A` renders the table and THEN
+    // `<h1>Probe A</h1>` (`probe3/t01`, `t02`, `t03`, `t08`), where this model reported nothing
+    // at all: the rule row left a paragraph open across it and `blank_before_header` ate the
+    // ATX. Ending the table here — and holding `paragraphOpen` false across the whole
+    // construct — makes the block below it FRESH, which is the half of this change that ADDS
+    // headings rather than removing them.
+    const simpleTableEndsHere =
+      simpleTableRowsOpen && (BLANK_LINE.test(line) || simpleTableRuleEnds(line, contentColumns));
+    if (simpleTableEndsHere) {
+      simpleTableRowsOpen = false;
+    } else if (
+      !simpleTableRowsOpen &&
+      simpleTableOpensHere(
+        line,
+        tableNeighbour,
+        contentColumns,
+        paragraphOpenAboveHeader,
+        tableRowsOpen,
+        // The header row CONTINUES a quote that opened above it — see the predicate. Read from
+        // the raw lines because the question is about the markers themselves, in the document's
+        // own coordinate space rather than the stripped one.
+        !stripQuote &&
+          i >= 2 &&
+          blockQuoteContentStart(lines[i - 1]) !== null &&
+          blockQuoteContentStart(lines[i - 2]) !== null,
+      )
+    ) {
+      simpleTableRowsOpen = true;
+    }
+    const inSimpleTable = simpleTableRowsOpen || simpleTableEndsHere;
 
     // A setext underline (`===`/`---`-only line) immediately following exactly
     // one fresh paragraph line converts THAT line into a heading — see
@@ -6111,6 +6356,11 @@ function computeRegions(text: string): Regions {
     const setextLevel =
       titleLineCount >= 1 &&
       commonmarkHtmlBlock === null &&
+      // ⚠ A line inside a simple table is a CELL, and a cell underlines nothing (Session 239).
+      // Rendered, `> quoted one` / ` ---` / `title` / `===` renders the table and no heading at
+      // all (`probe2/x06`, `x07`); the same document with a BLANK line before `title` renders
+      // `h1:title`, because the blank ends the table (`x08`). Both are pinned.
+      !inSimpleTable &&
       (!setextTitleQuoted || lazyQuotedUnderline) &&
       !setextTitleTooShallow
         ? setextUnderlineLevel(
@@ -6246,6 +6496,7 @@ function computeRegions(text: string): Regions {
       paragraphOpen = false;
       inPipeTable = false;
       tableRowsOpen = false;
+      simpleTableRowsOpen = false;
       // ⚠ **A LAZILY-CONTINUED UNDERLINE DOES NOT CLOSE THE QUOTE, AND THE PLAIN
       // `quoteOpen = stripQuote` HERE SAID IT DID (Session 237).** Every other region-boundary
       // path writes that assignment because an unmarked line there really is outside the quote;
@@ -6292,6 +6543,11 @@ function computeRegions(text: string): Regions {
     // HTML block under a CommonMark reader, where the block swallows it (Session 204).
     const m =
       commonmarkHtmlBlock !== null ||
+      // ⚠ The filed defect: an ATX heading below a simple table's separator is a CELL, not a
+      // heading (Session 239). `> quoted one` / ` ---` / `# Probe A` renders `<th>quoted one</th>`
+      // over `<td>Probe A</td>` — the `>` and the `#` eaten as column material — and this model
+      // reported `h1:Probe A`.
+      inSimpleTable ||
       setextUnderlineSwallowsAtx(
         lines[i + 1],
         [0, ...contentColumns],
@@ -6333,6 +6589,7 @@ function computeRegions(text: string): Regions {
       paragraphOpen = false;
       inPipeTable = false;
       tableRowsOpen = false;
+      simpleTableRowsOpen = false;
       quoteOpen = stripQuote;
       prevWasAtxHeading = true;
     } else {
@@ -6595,25 +6852,6 @@ function computeRegions(text: string): Regions {
         }
       }
       const wasParagraphOpen: boolean = paragraphOpen;
-      // ⚠ **THE NEIGHBOUR VIEW IS IN THE STRIPPED LINE'S OWN COORDINATE SPACE (Session 235).**
-      // `line` has had any block-quote marker removed, so a neighbour read raw would be a
-      // different document from the one this line belongs to — `> +---+---+` would never match
-      // a grid border and the table would go unseen, which is the DELETING direction. An
-      // UNMARKED line inside an open quote is returned as-is, which is what a lazy continuation
-      // is. Bounds return `null` rather than `""` so "past the end of the document" and "a
-      // blank line" stay distinguishable — part 4 needs exactly that distinction.
-      const tableNeighbour = (offset: number): string | null => {
-        const j = i + offset;
-        if (j < 0 || j >= lines.length) {
-          return null;
-        }
-        const other = lines[j];
-        if (!stripQuote) {
-          return other;
-        }
-        const otherContent = blockQuoteContentStart(other);
-        return otherContent === null ? other : other.slice(otherContent);
-      };
       const pipeTableOpens = pipeTableOpensHere(line, tableNeighbour, paragraphOpenAboveHeader);
       const tableShapedIsBlock = tableShapedLineIsBlock(
         line,
@@ -6648,6 +6886,18 @@ function computeRegions(text: string): Regions {
         tableShapedIsBlock,
         pipeTableOpens,
       );
+      if (inSimpleTable) {
+        // ⚠ **A TABLE CELL IS NOT PARAGRAPH CONTENT, AND THIS IS THE HALF OF SESSION 239 THAT
+        // ADDS HEADINGS RATHER THAN REMOVING THEM.** Every line from the separator through the
+        // terminator belongs to the table, so the block BELOW it is fresh. Rendered,
+        // `> quoted one` / ` ---` / `row` / `-` / `# Probe A` renders the table and then
+        // `<h1>Probe A</h1>` (`probe3/t01`-`t03`, `t08`, `probe2/x03`, `x04`), where this model
+        // reported nothing at all: the rule row left a paragraph open across it and
+        // `blank_before_header` ate the ATX. Six measured recoveries, against the phantom
+        // removals that are the rest of this change.
+        paragraphOpen = false;
+        consecutiveBody = 0;
+      }
       // Armed on the DELIMITER's own question rather than on "this line was block-level", so a
       // `| --- |` that is a line block rather than a delimiter cannot arm it — see
       // `pipeTableOpensHere`.
