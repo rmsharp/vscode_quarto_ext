@@ -4033,6 +4033,7 @@ function simpleTableOpensHere(
   line: string,
   neighbour: (offset: number) => string | null,
   contentColumns: readonly number[] | null,
+  containerColumnsUnknown: boolean,
   paragraphOpenAboveHeader: boolean,
   pipeTableRowsOpen: boolean,
   headerContinuesQuote: boolean,
@@ -4076,7 +4077,24 @@ function simpleTableOpensHere(
     return false;
   }
   const column = indentColumn(line);
-  const base = containerContentColumn(column, contentColumns);
+  // ⚠ **A CONTAINER COLUMN MAY NOT BE THE BASE WHEN THIS LINE AND THAT COLUMN ARE MEASURED IN
+  // DIFFERENT COORDINATE SPACES.** `containerColumnsUnknown` is `quoteColumnsUnknown`'s own
+  // condition — a quote may be open above this line and the line carries no marker of its own —
+  // and under it the columns in `contentColumns` were measured INSIDE the quote while
+  // `indentColumn(line)` is measured from the document root, the two differing by the marker's
+  // width. Rendered, `> - item` / `    ---` / `# ATX Below` renders `h2:item` and `h1:ATX Below`
+  // inside the quote with no table: in the quote's own space the dashes sit at 2, which is the
+  // list item's content column, so they UNDERLINE. Reading 4 against a `contentColumns` of `[2]`
+  // made it look like a +2 separator and DELETED both headings — the two `partial` rows of the
+  // 48,692-document sweep, `scratchpad/s232/r2/t4` and `scratchpad/s183/…/M__bq_in_li/doc`, and
+  // the only rows in it that were not a clean recovery.
+  //
+  // ⚠ Falling back to 0 rather than declining outright is what keeps the whole top-level quoted
+  // family: `> quoted one` / ` ---` / `# Probe A` has no container column at all, so 0 is the
+  // right base and the row is a table. This is the same data-structure gap Session 234's G3,
+  // Session 238's R1 and the filed container-column item all name; a base of 0 is its
+  // conservative reading, and its failure direction here is a phantom rather than a deletion.
+  const base = containerColumnsUnknown ? 0 : containerContentColumn(column, contentColumns);
   if (column <= base || column >= base + 4) {
     return false;
   }
@@ -6101,8 +6119,14 @@ function computeRegions(text: string): Regions {
     // ATX. Ending the table here — and holding `paragraphOpen` false across the whole
     // construct — makes the block below it FRESH, which is the half of this change that ADDS
     // headings rather than removing them.
+    // ⚠ **A BLANK LINE ENDS THE TABLE TOO, AND IT IS NOT TESTED HERE BECAUSE IT CANNOT REACH
+    // HERE.** The blank-line branch far above `continue`s, and it clears `simpleTableRowsOpen`
+    // with the five other region boundaries — so a `BLANK_LINE.test(line)` arm in this expression
+    // is DEAD CODE. It was written, the mutation hunt could not kill it, and it was removed
+    // rather than left in as an untestable branch: a condition no test can reach is a claim
+    // nothing checks. The blank-line end is exercised by C2 and G16 through that clear instead.
     const simpleTableEndsHere =
-      simpleTableRowsOpen && (BLANK_LINE.test(line) || simpleTableRuleEnds(line, contentColumns));
+      simpleTableRowsOpen && simpleTableRuleEnds(line, contentColumns);
     if (simpleTableEndsHere) {
       simpleTableRowsOpen = false;
     } else if (
@@ -6111,6 +6135,10 @@ function computeRegions(text: string): Regions {
         line,
         tableNeighbour,
         contentColumns,
+        // `quoteColumnsUnknown`'s own condition, read here because the simple table is decided
+        // ABOVE the setext row where that flag is computed. `quoteOpen` still carries the value
+        // every region-boundary path above left it, which is the same one that flag reads.
+        quoteOpen && !stripQuote,
         paragraphOpenAboveHeader,
         tableRowsOpen,
         // The header row CONTINUES a quote that opened above it — see the predicate. Read from
@@ -6895,8 +6923,16 @@ function computeRegions(text: string): Regions {
         // reported nothing at all: the rule row left a paragraph open across it and
         // `blank_before_header` ate the ATX. Six measured recoveries, against the phantom
         // removals that are the rest of this change.
+        //
+        // ⚠ **A `consecutiveBody = 0` STOOD HERE AND WAS DELETED, WITH THE PROOF.** It survived
+        // the mutation hunt alone, and the reason is that the setext gate's `!inSimpleTable`
+        // already carries it: dropping BOTH kills five documents, dropping either alone kills
+        // none. Proven redundant rather than assumed — 0 disagreements over 66,429 enumerated
+        // documents (`scratchpad/s239/m21hunt.test.ts`, a nine-line alphabet chosen to reach the
+        // setext path inside a table body) and 0 over the 48,692-document corpus, on headings AND
+        // cells. ⚠ The five documents the PAIR does move were rendered before either was touched
+        // and the shipped answer is quarto's, so what remains is pinned as C9, not guessed at.
         paragraphOpen = false;
-        consecutiveBody = 0;
       }
       // Armed on the DELIMITER's own question rather than on "this line was block-level", so a
       // `| --- |` that is a line block rather than a delimiter cannot arm it — see

@@ -12937,4 +12937,144 @@ describe("Session 239 — the pandoc simple table", () => {
     // ⚠ And EVERY row below the separator is a cell, not just the first.
     expect(names(["> quoted one", " ---", "row one", "row two", "# Probe A"])).toEqual([]);
   });
+
+  it("C2: the table ENDS at a dash rule, and the heading below it is real (`probe3/t01`-`t03`)", () => {
+    // ⚠ **THE HALF OF THIS CHANGE THAT ADDS HEADINGS.** Rendered, `> quoted one` / ` ---` /
+    // `row` / `-` / `# Probe A` renders the table and THEN `<h1>Probe A</h1>` — the rule row ends
+    // the table rather than filling it — and this model reported NOTHING at all: the dashes left
+    // a paragraph open across the ATX and `blank_before_header` ate it. Four terminator spellings
+    // and two body-row counts, all rendered.
+    for (const term of ["-", " - -", "  ---  ", " ---"]) {
+      expect(names(["> quoted one", " ---", "row", term, "# Probe A"])).toEqual(["h1:Probe A"]);
+    }
+    expect(names(["> quoted one", " ---", "row one", "row two", " ---", "# Probe A"])).toEqual([
+      "h1:Probe A",
+    ]);
+    // ⚠ …and a SETEXT heading below the terminator is recovered too (`probe6/m08`), which the
+    // pre-session build reported as nothing at all.
+    expect(names(["header one", " ---", "row", " ---", "title", "==="])).toEqual(["h1:title"]);
+    // ⚠ …and a rule at +4 is a BODY ROW again, not a terminator, so the ATX below it stays a
+    // cell (`probe3/t04`). This is `simpleTableRuleEnds`, the same shape `lazyDashesBand` reads.
+    expect(names(["> quoted one", " ---", "row", "\t---", "# Probe A"])).toEqual([]);
+  });
+
+  it("C3 (test-after): the separator may not sit at the HEADER ROW's own column (`probe2/x11`)", () => {
+    // ⚠ KILLS THE MUTANT that drops the header-column equality. Rendered, `- item` / blank /
+    // `  > quoted one` / `  ---` / `  # Probe A` renders `h2:&gt; quoted one` and `h1:Probe A`
+    // with NO table — the dashes sit at the list item's content column, where they underline —
+    // and the blank line has already popped that column off `contentColumns`, so the window
+    // measured from the document root would call column 2 a +2 separator and DELETE both. The
+    // `h1:Probe A` below is this model's pre-existing partial answer, unmoved by this session and
+    // scored as such against `scratchpad/s239/presrc`; the missing `h2` is the already-filed
+    // container content-column item.
+    expect(names(["- item", "", "  > quoted one", "  ---", "  # Probe A"])).toEqual(["h1:Probe A"]);
+    // ⚠ ONE COLUMN DEEPER the same document IS a table and renders neither (`probe2/x10`).
+    expect(names(["- item", "", "  > quoted one", "   ---", "  # Probe A"])).toEqual([]);
+  });
+
+  it("C4 (test-after): a LIST inside a QUOTE keeps its heading — the columns are in two spaces", () => {
+    // ⚠ KILLS THE MUTANT that measures the window from `contentColumns` even when this line and
+    // those columns are in different coordinate spaces. Rendered, `> - item one` / `    ---` /
+    // `# Probe A` renders `h2:item one` and `h1:Probe A` inside the blockquote with no table: in
+    // the quote's OWN space the dashes sit at 2, the list item's content column, so they
+    // underline. Measuring 4 against a `contentColumns` of `[2]` made it a +2 separator and
+    // deleted both — these two were the only non-recoveries in the 48,692-document sweep
+    // (`scratchpad/s232/r2/t4`, `scratchpad/s183/…/M__bq_in_li/doc`). The `h1` below is the
+    // pre-existing answer, unmoved; the missing `h2` is the already-filed list-marker item.
+    expect(names(["> - item one", "    ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["> - item", "    ---", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+  });
+
+  it("C5 (test-after): the separator is DASHES AND SPACES, not `SETEXT_H2` (`probe3/z03`, `z05`)", () => {
+    // ⚠ KILLS THE MUTANT that spells the separator `SETEXT_H2`, which allows no internal space.
+    // A simple table's separator carries one dash group per column, so ` - - -` separates a
+    // three-column table exactly as ` ---` separates a one-column one, and a TRAILING TAB does
+    // not disqualify it. Both render a table and no heading; the mutant reports `h1:Probe A` on
+    // each. This is `DASH_RULE_ROW`, Session 238's constant, reused rather than re-derived.
+    expect(names(["> quoted one", " - - -", "# Probe A"])).toEqual([]);
+    expect(names(["> quoted one", " ---\t", "# Probe A"])).toEqual([]);
+  });
+
+  it("C6 (test-after): a SETEXT underline inside the table body underlines nothing (`probe2/x06`)", () => {
+    // ⚠ KILLS THE MUTANT that suppresses only the ATX row and leaves the setext one live.
+    // Rendered, `> quoted one` / ` ---` / `title` / `===` renders the table and no heading at
+    // all, and the `-` spelling of the fourth line answers identically (`x07`). ⚠ The control is
+    // the same document with a BLANK line before `title`, which ENDS the table and really does
+    // render `h1:title` (`x08`) — so this pins the suppression and its boundary together.
+    expect(names(["> quoted one", " ---", "title", "==="])).toEqual([]);
+    expect(names(["> quoted one", " ---", "title", "---"])).toEqual([]);
+    expect(names(["> quoted one", " ---", "row one", "", "title", "==="])).toEqual(["h1:title"]);
+  });
+
+  it("C7 (test-after): a BLANK header row is no header row, even with no paragraph open", () => {
+    // ⚠ KILLS THE MUTANT that drops the blank-header check. G8's three rows do NOT kill it:
+    // in each of them a paragraph was open when the blank line began, so
+    // `paragraphOpenAboveHeader` declines for the other reason. An ATX heading above the blank
+    // closes the paragraph, and then only the blank test is left. Rendered, `# ATX` / blank /
+    // ` ---` / `# Probe A` renders BOTH headings and no table (`probe6/m04`); the mutant reads
+    // the blank line as a header row, opens a table, and deletes `h1:Probe A`.
+    expect(names(["# ATX", "", " ---", "# Probe A"])).toEqual(["h1:ATX", "h1:Probe A"]);
+  });
+
+  it("C8 (test-after): a TWO-LINE header row is no header row, with a terminator below", () => {
+    // ⚠ KILLS THE MUTANT that drops `paragraphOpenAboveHeader`. G9's rows do not kill it either:
+    // there the answer is `[]` whether or not a table forms. Adding a TERMINATOR separates them —
+    // with a table the ATX below the rule would be a fresh heading, and without one the
+    // paragraph runs on and swallows it. Rendered, `line one` / `line two` / ` ---` / `row` /
+    // ` ---` / `# Probe A` renders NO heading at all (`probe6/m01`), and the quoted twin answers
+    // identically (`m02`); the mutant reports `h1:Probe A` on both.
+    expect(names(["line one", "line two", " ---", "row", " ---", "# Probe A"])).toEqual([]);
+    expect(names(["> a", "> b", " ---", "row", " ---", "# Probe A"])).toEqual([]);
+  });
+
+  it("C9 (test-after): the SETEXT gate's own suppression, found by brute force (`probe7/n01`)", () => {
+    // ⚠ KILLS THE MUTANT PAIR that drops the setext gate's `!inSimpleTable` and the table's
+    // `consecutiveBody = 0` reset — SEPARATELY AND TOGETHER. Neither could be killed by any
+    // test in this file, so the pair was enumerated instead: 66,429 documents over a nine-line
+    // alphabet chosen to reach the setext path inside a table body, of which exactly FIVE
+    // disagree, all sharing one prefix. ⚠ **They were then RENDERED, not assumed** — quarto
+    // answers `h2:&gt; quoted one` alone on all five, so the shipped build is right and the
+    // mutant reproduces the PRE-session error (a second `h2` for the header row that the table
+    // consumes). Five more recoveries, and the reason the two terms are kept rather than deleted
+    // as inert: the mutation hunt said inert, the enumeration said observable, and the render
+    // said which answer was correct.
+    expect(names(["> quoted one", "-", "> quoted one", " ---", "# Probe A"])).toEqual([
+      "h2:> quoted one",
+    ]);
+    for (const tail of ["> quoted one", "title", "===", "row"]) {
+      expect(names(["> quoted one", "-", "> quoted one", " ---", tail])).toEqual([
+        "h2:> quoted one",
+      ]);
+    }
+  });
+
+  it("R1: ⚠ DISCLOSED BOUND — a HEADERLESS table below a balanced one-line HTML block", () => {
+    // ⚠ **PINNED AT A PHANTOM THIS SESSION DOES NOT FIX.** Rendered, `<div>x</div>` / ` ---` /
+    // `# Probe A` renders the div and then a table with NO `<thead>` at all — a `<tbody>` whose
+    // single `<td>` is `Probe A` — so quarto renders no heading and this model reports one
+    // (`probe4/w03`, `probe3/y04`). Pandoc consumes the balanced tag whole, and the dash run
+    // below it then opens a HEADLESS simple table, a variant this session does not model.
+    // ⚠ **IT CANNOT BE ADMITTED BY WIDENING THE HEADER RULE**, which is why it is disclosed
+    // rather than fixed: the UNBALANCED `<div>` one line away renders the heading (G3), and the
+    // two differ only in whether the tag closes. ⚠ PRE-EXISTING and unmoved — byte-identical on
+    // this session's starting build, scored against `scratchpad/s239/presrc`.
+    expect(names(["<div>x</div>", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    // ⚠ **AND IT NEEDS NO HTML BLOCK AT ALL** — the same headless table forms under a plain
+    // blank line when a body row and a terminator follow. Rendered, `# ATX` / blank / ` ---` /
+    // `row` / ` ---` / `# Probe A` renders `h1:ATX`, a `<tbody>`-only table, and `h1:Probe A`;
+    // this model reports only the first (`probe6/m06`). ⚠ Contrast C7 one row up, whose only
+    // difference is the missing body row — so the headless variant is bounded by the same
+    // "at least one body row" rule as the headed one. PRE-EXISTING and unmoved.
+    expect(names(["# ATX", "", " ---", "row", " ---", "# Probe A"])).toEqual(["h1:ATX"]);
+  });
+
+  it("R2: ⚠ DISCLOSED — a TWO-LINE quoted paragraph takes the dashes as a lazy continuation", () => {
+    // ⚠ Not a table at all, and not this session's defect. Rendered, `> a` / `> b` / ` ---` /
+    // `# Probe A` renders `<blockquote><p>a b — # Probe A</p></blockquote>`: the header row is
+    // the SECOND line of its paragraph so no table forms, and the quote then swallows both the
+    // dashes and the ATX. This model reports `h1:Probe A`. ⚠ PRE-EXISTING and unmoved — G9 pins
+    // the same shape from the table side, and the defect belongs to the quote's lazy
+    // continuation. Filed rather than fixed.
+    expect(names(["> a", "> b", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+  });
 });
