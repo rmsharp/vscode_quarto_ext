@@ -6,18 +6,154 @@
 
 ## ACTIVE TASK
 **Task:** **Session 240 — IMPLEMENTATION (strict TDD): A CONTAINER CONTENT COLUMN THAT SURVIVES A BLANK LINE** — the data-structure gap under FOUR measured symptoms (Session 232 G5, Session 234 G3, Session 238 R1, Session 239 C3). Session 239's ranked #1; the operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
-**Started:** 2026-08-20
-**Status:** Session claimed. Work beginning.
+**Started:** 2026-08-20 · **Closed:** 2026-08-20
+**Status:** **DONE. SHIPPED — and there was never a missing data structure.**
 
-**The item, as filed.** A blank line between a container's marker line and the block below it pops the container off `contentColumns`, so every column read below that blank is measured from the DOCUMENT ROOT instead of from the container's content column. Four readers are corrupted by it and, per the entry, **all four close together and none closes alone**:
-1. **S232 G5** — `- item` / blank / `  > quoted one` / `  ---` renders `h2:&gt; quoted one` (the heading forms at the LIST's level, quote marker kept as literal text) and this model reports nothing. Heading-DELETING.
-2. **S234 G3** — the `=` twin of the same shape behaves identically (`h1:&gt; quoted one`, no blockquote), and its one-column-deeper twin IS recovered (S234 C3). So it is neither a spelling nor a setext question.
-3. **S238 R1** — the column of the dash rule that TERMINATES a pandoc simple table: `columnIsCodeDepth(4, contentColumns)` against an EMPTY stack measures 4 from the root, calls it code depth and reads the terminator as a body row. Direction is a LOSS, never a phantom.
-4. **S239 C3** — the simple table's separator window (1-3 past the enclosing content column) measured from the root looked like +2 and DELETED two headings. Shipped with a WORKAROUND: an equality against the header row's own indent. ⚠ That is the first time this gap has cost a workaround in shipped code rather than a declined row, which is the argument for spending a session on the data structure.
+**HEADLINE 1 — THE FILED ROOT CAUSE WAS WRONG, AND FOUR SESSIONS HAD COPIED IT FORWARD.** The entry and the three assertion comments citing it all said *"the blank line above the quote has already popped the list off `contentColumns`"*. It never did. The pop is guarded `contentColumns[last] > indentWidth`, so a list's column 2 is **not deeper than** a line at column 2 and survives any number of blank lines. ⚠ **The control costs one render and refutes it outright:** with no quote in the document at all, `- item` / blank / `  para one` / `  ---` underlines correctly — which is impossible if a blank line popped the column (guards G10, G11). What actually empties the stack is the **QUOTE COORDINATE SWITCH**, which stashes the outer stack in `outerColumns` and clears `contentColumns` so the quote's content is measured from its own column 0. An UNMARKED line below the quote is still written in the DOCUMENT ROOT's coordinates, so the stash was the right stack all along — sitting there unread. ⚠ **The cost of believing it was the SHAPE of the work:** the entry called for a data-structure change and the fix reads a variable that already existed. (Learning #442.)
 
-**Deliverable (ONE capability):** *a container column that survives the blank line* — one data-structure change in `src/core/qmd/model.ts`.
+**HEADLINE 2 — THE BOUND FIVE SESSIONS KEPT RE-MEASURING IS A SET, NOT A COMPARISON.** S232 said code depth, S234 said past the quote marker's own column, S237 said no floor at all, S238 said a band of unknown reach — each right about its own witness. Rendered across **four container stacks and 21 columns**, the underline claims the RAW line with the marker **KEPT** at column 0 and at every enclosing container content column, and at **NO other column**, where it is absorbed into the quote and the markers stripped. A list at 2 keeps 0 and 2; an ordered list at 3 keeps 0 and 3; a definition at 4 keeps 0 and 4; a nested pair keeps 0, 2 and 4. ⚠ **Column 1 behaves like column 3, not like 0 or 2** — which no monotone bound can express, and which is the row that proves it is `[0, ...outer]`. ⚠ At top level the stash is EMPTY and `[0, ...outer]` **is** `[0]` — today's rule exactly — which is why every top-level row is unmoved and why five sessions could measure this family without ever meeting the container half. (Learning #443.)
 
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**HEADLINE 3 — 103 RENDERED PROBES AND A 48,844-DOCUMENT SWEEP WERE BOTH GREEN WHILE MY CHANGE DELETED TWO REAL HEADINGS.** A brute-force enumeration of **59,049 documents** found them — and it was aimed at a surviving MUTANT, not at correctness. Re-basing the separator's window made the simple table reachable for the first time on a shape whose body row ENDS the list item: `- item` / blank / `  > quoted one` / `    ---` / `- item` renders `h2:quoted one` and no table. ⚠ **The axis every one of my probes held fixed was the BODY ROW's own kind and column** — all of them used `  body row` at the container's content column. Measured afterwards over ten kinds at two columns, only a bullet, an ordered marker, a `*` and a `+` shallower than the item's content column end it; prose, a quote, an ATX heading, a `:::`, a `***` and a fence are all cells. Fixed and pinned as C2, reusing `popsEnclosingContainer`. (Learning #444.)
+
+**THE measurement.**
+
+| corpus | scale | what it measures | model pre → post |
+|---|---|---|---|
+| `r0/` | 33 documents | the four filed witnesses × the column sweep × container kinds × the table windows | — |
+| `r1/` | 70 documents | the DANGER round — four container stacks, both spellings, readers, phantom controls, terminators | — |
+| `r2/`, `r3/` | 67 documents | the body-row axis my own probes had held fixed: its column, then its ten block KINDS | — |
+| `hunt/` + `hunt2/` | 71 documents | every mutation survivor's disagreements, rendered rather than reasoned about | — |
+| **all rendered** | **185 documents** | | **119 → 149 · 48 moved, 48 RECOVERED, 0 BROKEN, 0 partial** |
+| corpus sweep | **48,941 documents** | every predecessor corpus | 69 rows → **37 distinct, ALL RENDERED, 37 RECOVERED, 0 cells** |
+| repo sweep | 114 tracked files | this project's own markdown | **0 movers** |
+| mutation hunt | **21 mutants** | is each term exercised? | 14 survived → **7 pinned** → **7 survivors, each proven inert** |
+| brute force | **248,832 documents** | the survivors' observability — and it found a DELETION | 7 live → rendered → pinned |
+
+⚠ **ZERO BROKEN ROWS at close**, and every divergence still standing is **byte-identical on the pre-session build**.
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** **27 `it()`s green BEFORE any `src/` change**: 18 pin a heading that must SURVIVE, 8 pin "no heading" against the phantom direction this change opens. **4 RED→GREEN cycles**, each RED confirmed to fail for the right reason (the first: `expected [] to deeply equal [ 'h2:> quoted one' ]`). **8 test-after pins (C1–C8)**, **2 residual pins (R1, R2)**, and **4 inherited assertions REVERSED** — S232 G5, S234 G3, S238 G22 and S238 R1, all four pins AT the loss, each re-rendered from the same bytes first. ⚠ `src/core/qmd/model.ts` restored **byte-identical (SHA-256)** after each of the 21 mutants.
+
+**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / exit 0**. All assertions pre-checked headlessly first (`scratchpad/s240/precheck240.test.ts` — S211's gotcha 3 for a **TWENTY-SEVENTH** session), including an exact-set check against the rendered heading list in order and a re-check of every prior session's assertion on this shared fixture, both directions. The fixture's premise was **re-rendered, not assumed**: sixteen prior headings byte-identical and in the same order, exactly two added. ⚠ `src/` did NOT change after the run.
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `npm test` **2579 passed / 66 files** (baseline 2542, **+37**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S239) · `check-package` **OK 42 files / 5.58 MB** · `check-backlog` **OK, 174 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** It ships the marker-KEPT half only — the **STRIPPED** half (the complement of the same set) is disclosed, pinned as R1 and filed. It does not reach any container whose content column is **4 or more**, because `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` anchor means no quote is recognised there at all — 11 measured rows, annotated onto that already-filed item rather than duplicated. It leaves the empty-quote-line title (R2), the dash-rule-under-dash-rule phantom (filed), and the CommonMark branch's opposite-direction phantom (annotated, pinned as G27). And **no BLIND sweep / subagent fan-out**, unavailable under a session-level instruction for the **THIRTY-THIRD** session running.
+
+**What was done (commits).** 1B claim `69e26119`. **GUARD** `caf0edff` — 27 `it()`s, test-only, green before any `src/` change. **FIX** `c07c7e26` — `rawLineColumns`, its four readers, the quote-end block, and the four reversals. **PINS** `a0bfd660` — C2 (the deletion the sweep could not see) and C3–C8 killing the live survivors. **WIRING** `d3e3cf65` — the gate fixture extended and re-rendered, three assertions, both directions. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 3 filed, 3 annotated), `PROJECT_LEARNINGS.md` (#442–#444), `SESSION_NOTES.md`, `HANDOFFS.md` and `dashboard_history.jsonl`.
+**Ledger:** `CHANGELOG: 2026-08-20 · [ad hoc] Session 240` — written at close-out with the `BACKLOG.md` update.
+
+**Deliverable (ONE capability):** *a container column that survives the blank line* — `src/core/qmd/model.ts`.
+
+**Gotchas for the next session.**
+1. ⚠ **WHEN A FILED ENTRY EXPLAINS *WHY* AS WELL AS *WHAT*, THE *WHY* IS THE HALF TO RE-DERIVE.** The what here was rendered; the why was inferred from a symptom and then quoted forward by four sessions. One trace of four documents refuted it more cheaply than one probe round. `scratchpad/s240/dbg/` is the instrumented copy — a `console.log` inserted at the top of the scan loop; rebuild it with the two-line Python patch rather than reading the control flow.
+2. ⚠ **A CORPUS IS A SAMPLE OF SHAPES SOMEONE THOUGHT TO WRITE, AND 48,941 OF THEM SHARE THE AUTHORSHIP OF THE PROBE ROUNDS THAT MADE THEM.** The enumeration covers the CROSS PRODUCT, which is exactly where a fix that makes a construct *newly reachable* does its damage. Run it even when the sweep is green — here it was a by-product of the mutation hunt, not a planned step.
+3. ⚠ **`scratchpad/s240/mutate240.py` IS S239's GUARDED RUNNER, UNCHANGED, AND ITS ANCHOR-ABORT EARNED ITS KEEP** — it refused to run when an M16 anchor matched twice (my new block and the blank-line branch share five lines). Reuse it; do not rewrite the unguarded version.
+4. ⚠ **`hunt.test.ts` IS THE PATTERN FOR "IS THIS TERM OBSERVABLE?"** — build the survivors as importable module copies under `mut/<Mn>/`, then enumerate one alphabet against all of them at once. 14 survivors cost one 50-second run. ⚠ Choose the alphabet from the lines that reach the SUPPRESSED path.
+5. ⚠ **THE HARNESS RAN UNMODIFIED:** `render240.sh` is S239's with one `sed`; `dump.sh`, `score.test.ts`, `prescore.test.ts` + `presrc/` and the sweep each needed one rename. New this session and worth keeping: `mutate240.py`, `hunt.test.ts`, `sweep.test.ts`/`reposweep.test.ts` (pre-vs-post over a file list, headings AND cells), `precheck240.test.ts`, `dbg/` (the instrumented model).
+6. ⚠ **NEVER `git add -A` AT THIS REPO'S ROOT.** `scratchpad/` is untracked but NOT in `.gitignore`, so my first close-out commit staged **85,636** scratchpad paths (~2.4 GB) alongside the 6 intended files. Caught by reading the commit's own file list (`git show --name-only | wc -l`), `git reset --soft`-ed and rebuilt before any push. ⚠ **No gate can see this** — `check-package` reads `vsce ls`, which obeys `.vscodeignore`, not `.gitignore`. Stage close-out files by NAME. Filed as its own backlog item.
+7. ⚠ **`git status` DRIFT COST ME SEVERAL MINUTES:** the Bash tool's working directory persists between calls, so a `cd scratchpad/s239` early on silently re-rooted every later relative path. Prefix long sessions' commands with an absolute `cd`.
+8. ⚠ **QUARTO SMART-QUOTES AN APOSTROPHE IN FIXTURE TEXT** (`item's` → `item’s`), which a literal integration assertion then misses. The gate fixture's new lines deliberately carry none.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Each was checked against a rendered row or a read file on the SHIPPED build.
+
+**#1 — THE OTHER HALF OF THE SET THIS SESSION MEASURED**, filed by this session and pinned as R1: the STRIPPED direction is still spelled as a comparison (`indentColumn(line) > indentColumn(title)`) where the measurement says it is the complement of `[0, ...outer]`. ⚠ **It is heading-DELETING and it is four measured rows** (`r1/b_ol1`, `b_ol2`, `r0/c_d1`, `c_e1`, both spellings). ⚠ **Sizing: it touches every top-level row five sessions measured**, so it wants its own guard block — do not bolt a widening onto the shipped half. **Derived** from four rendered rows. Effort **estimate** MEDIUM.
+**#2 — `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` ANCHOR**, now with **11 newly measured rows** across two container kinds, and newly load-bearing: it is the reason this session's recovery stops at content column 3. ⚠ **Two of this session's own guards (G22, G23) are right today for a reason that fix removes** — re-render them when the anchor moves. Effort **estimate** MEDIUM.
+**#3 — THE HEADERLESS SIMPLE TABLE**, S239's filed #2, untouched here and re-measured as unmoved (0 of the 37 distinct movers touched it). Costs both a phantom and a loss. Effort **estimate** MEDIUM.
+**#4 — THE QUOTED METADATA BLOCK WHOSE CLOSER IS LAZILY CONTINUED**, S237's disclosed bound, unchanged and re-measured as such. ⚠ Over-consuming DELETES. Effort **estimate** MEDIUM.
+**#5 — THE DASH-RULE-UNDER-DASH-RULE PHANTOM**, filed by this session, pinned AT the phantom as C6. ⚠ A heading whose text is `---` is trivially recognisable, so the first move is cheap — but check the direction before declining. Effort **estimate** LOW.
+**#6 — THE TWO-LINE QUOTED PARAGRAPH PHANTOM**, S239's filed item, pinned negative here as G4 and unmoved. Effort **estimate** LOW.
+⚠ Still open from S186: promote the scratchpad harness, `.vscode-test/` large, `npm audit` devDependency-only (dashboard reports 6); `scratchpad/` is now ~2.4 GB and untracked.
+
+---
+
+## Session 239 Handoff Evaluation (by Session 240)
+
+**Score: 9/10.** A handoff that did the next session's research for it, and whose one flaw is
+inherited rather than authored.
+
+**What helped, specifically.**
+- **Gotcha 1 — "a filed witness set that is uniform on one axis is evidence about the filer's
+  probes, not about the rule" — was the single most valuable line in it, and it fired TWICE.**
+  Once as written: my item's four symptoms all had a quote inside a container, so I rendered the
+  unquoted control first, and that control is what refuted the entry's root cause in one minute.
+  And once against ME: it is the reason I went looking for the axis my OWN probes had held fixed
+  after the enumeration found a deletion — the body row's kind and column.
+- **Gotcha 2's guarded `mutate.py` was reusable verbatim and its anchor-abort earned its keep
+  within the hour** — it refused to run when my M16 anchor matched twice, because my new block
+  shares five lines with the blank-line branch. An unguarded runner would have mutated the wrong
+  site and reported a confident verdict about it.
+- **Gotcha 3 — "run a brute force to LOOK for a disagreement" — is the reason this session did not
+  ship two heading deletions.** The enumeration was aimed at a surviving mutant; it found a
+  correctness defect the 103 rendered probes and the 48,844-document sweep had both cleared.
+- **Gotcha 4 — "render every predecessor mover, do not reason about them" — was followed exactly
+  and produced 37 renders**, all recoveries. Cheap insurance, and I would have been tempted to
+  reason about the five predecessor documents without it.
+- **Gotcha 5's harness inventory was accurate**: `render240.sh` really is `render239.sh` with one
+  `sed`, and the four renames were exactly the four named. Perhaps two hours saved.
+- **Gotcha 6 named `quoteColumnsUnknown` as "the name for these two columns are in different
+  coordinate spaces" and told me to look for the concept before inventing one.** I did, and the
+  concept was not only present but had the stash hanging off it.
+
+**What was missing — and it is the one point off.**
+- **The handoff repeated the filed item's root cause verbatim** ("the popped stack forced a
+  *workaround*", "the same data-structure gap") and ranked the work as a data-structure change of
+  MEDIUM effort on that basis. The premise was four sessions old and had never been measured; the
+  handoff inherited it rather than introducing it, but it also did not flag it as unverified, and
+  its own gotcha 1 is the tool that would have caught it. ⚠ Cost: I began by looking for where to
+  ADD a structure. Fifteen minutes, not more, because gotcha 1 sent me to the control first.
+
+**What was wrong: nothing else.** Every rendered claim I re-checked held — all four symptoms
+reproduced exactly as filed, `test:oracle` was byte-identical, `npm test` matched 2542 exactly,
+and the S239 C3 comment's description of its own workaround was accurate.
+
+**ROI:** very high. Four of its six gotchas were load-bearing in this session, and two of them
+(the mutation-runner guard and the brute force) directly prevented shipped defects.
+
+---
+
+## Session 240 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I refuted a four-session-old diagnosis with one trace and one control render, before writing
+  any code.** Instrumenting the scanner over four documents showed the blank-line pop never fires
+  there; the no-quote control proved it independently. That turned a "data-structure change" into
+  reading a variable that already existed.
+- **I measured the rule as a SET and let the data say so.** Column 1 behaving like column 3 rather
+  than like 0 or 2 is not expressible as any floor or band, and it is what identifies
+  `[0, ...outer]`. 21 columns across four container stacks, both spellings, and the rule held on
+  every one.
+- **The guard block earned its keep in the deletion direction.** 27 `it()`s green before any
+  `src/` change, and the four inherited pins that went red were exactly the four filed symptoms —
+  each re-rendered from its own bytes before I touched the assertion.
+- **I attributed the unreachable rows correctly instead of widening at them.** The nested and
+  definition containers fail for a DIFFERENT, already-filed reason (`^ {0,3}`), which one trace
+  showed; I annotated that item with 11 measured rows rather than filing a duplicate, and pinned
+  the two rows that are right today for a reason its fix will remove.
+- **Every mutation survivor was disposed of honestly** — 7 pinned against rendered witnesses, 7
+  kept with the proof written into the code, and the one survivor with no witness where this build
+  is right says exactly that in its test name.
+
+**What went wrong — and the one that matters.**
+- ⚠ **MY CHANGE DELETED TWO REAL HEADINGS AND MY OWN 185-DOCUMENT ROUND SET COULD NOT SEE IT.**
+  Every table probe I wrote used `  body row` at the container's content column, so the body row's
+  kind and column — a live axis — went unsampled. The enumeration that found it was aimed at a
+  mutant, not at correctness; had that mutant died, I would have shipped the deletion. ⚠ This is
+  Session 239's gotcha 1 happening to me, in my own probes, one round after I used it to refute
+  someone else's. (Learning #444.)
+- **I wrote the fix's first version reading only the setext column set**, and it traded one heading
+  for another — the setext row recovered, the ATX below it lost. Session 237 records that exact
+  trade at that exact site, six lines above where I was editing, and I did not read it until the
+  inherited C3 pin went red.
+- **Working-directory drift cost several minutes** across three separate commands, because the
+  Bash tool's cwd persists and an early `cd` into a scratchpad silently re-rooted later paths.
+
+**Against the bar.** Meets it on measurement (185 rendered, 48,941-document sweep, 21-mutant hunt,
+248,832-document enumeration), on TDD discipline (guard block first, 4 REDs each confirmed for the
+right reason, four inherited assertions re-rendered before reversal) and on honest disposal of
+survivors. Two points off for the probe-coverage gap: I had the tool to find it and used it for
+another purpose.
 
 ---
 
