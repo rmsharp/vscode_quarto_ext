@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S241
+date: 2026-08-20
+status: pending
+active_task: IMPLEMENTATION, strict TDD -- THE LAZY BAND'S FLOOR IS THE CONTAINER STACK, NOT THE TITLE'S COLUMN. The COMPLEMENT of the set Session 240 shipped and filed as its own R1: an unmarked underline below an open quote claims the RAW line with the quote marker KEPT at exactly the columns in [0, ...outerColumns], and is absorbed INTO the quote at every other column. Session 240 shipped the marker-KEPT half; lazyDashesBand and lazyEqualsBand still spell the complement as a comparison (indentColumn(line) > indentColumn(title)). Four measured heading-DELETING rows (scratchpad/s240/r1/b_ol1, b_ol2, r0/c_d1, c_e1, both spellings). Operator-picked at Phase 0 from the ranked AskUserQuestion candidate list. Deliverable: src/core/qmd/model.ts, one capability.
+```
+
+```handoff
 session: S240
 date: 2026-08-20
 status: complete
