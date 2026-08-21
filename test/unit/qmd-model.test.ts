@@ -13356,4 +13356,35 @@ describe("Session 240 — the container column the quote switch stashed, and nev
     // base of 0 nothing is shallower. Pinned with C2's five rows, which fix the other boundary.
     expect(names(["    - sib", "   ---", "- item", "  ---", "- item"])).toEqual([]);
   });
+  // ── THE TWO BOUNDS THIS SESSION LEAVES OPEN, pinned so they cannot drift unnoticed.
+
+  it("R1: ⚠ DISCLOSED BOUND — the lazy band's floor is still the TITLE's column, not the stash", () => {
+    // ⚠ **THE OTHER HALF OF THE SAME MEASURED RULE, DELIBERATELY NOT SHIPPED HERE.** The set
+    // `[0, ...outer]` decides the marker-KEPT direction, and this session ships exactly that. Its
+    // complement decides the STRIPPED direction — at any column NOT in the set the underline is
+    // absorbed into the quote — and the model still spells that as "deeper than the title's own
+    // column" (`lazyDashesBand`, `lazyEqualsBand`). The two agree at top level, where the title
+    // sits at column 0, and part company one container in.
+    // ⚠ Rendered, `1. item` / `` / `   > quoted one` / ` ---` renders `h2:quoted one` — column 1
+    // is not a container column, so the underline is lazy — and this model reports nothing
+    // (`scratchpad/s240/r1/b_ol1`, and `b_ol2` at column 2). PRE-EXISTING and UNMOVED by this
+    // session, scored pre and post against `scratchpad/s240/presrc`. Direction is a LOSS.
+    // ⚠ Sizing note: changing those two terms touches every top-level row five sessions measured,
+    // so it wants its own session and its own guard block, not a widening bolted on here.
+    expect(names(["1. item", "", "   > quoted one", " ---"])).toEqual([]);
+    expect(names(["1. item", "", "   > quoted one", "  ---"])).toEqual([]);
+    // The control that shows the shipped half IS right on the same document (`r1/b_ol3`).
+    expect(names(["1. item", "", "   > quoted one", "   ---"])).toEqual(["h2:> quoted one"]);
+  });
+
+  it("R2: ⚠ DISCLOSED BOUND — an EMPTY quote line is a title quarto underlines and this does not", () => {
+    // Rendered, `- item` / `` / `  >` / `  ---` renders `<h2>&gt;</h2>` — the bare marker is the
+    // title text and the underline claims it at the item's own column, exactly like every other
+    // row this session recovers (`scratchpad/s240/r1/d_empty`). This model reports nothing,
+    // because the stripped line is BLANK and so never becomes a body line to be titled.
+    // ⚠ PRE-EXISTING and UNMOVED by this session, scored pre and post against `presrc`. Direction
+    // is a LOSS, and the heading it loses is a single `>` character — filed, not fixed, because
+    // the fix is in `consecutiveBody`'s accounting rather than in any column rule.
+    expect(names(["- item", "", "  >", "  ---"])).toEqual([]);
+  });
 });
