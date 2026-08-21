@@ -1096,6 +1096,32 @@ describe("Quarto: Document outline (symbols)", () => {
       !flat(symbols).includes("a title the table eats"),
       "Session 238: a body row below the dashes makes a simple table, so the quoted line is not a title",
     );
+
+    // ⚠ **SESSION 239 — THE SIMPLE TABLE ITSELF, IN BOTH DIRECTIONS.** Session 238 appended the
+    // block above knowing the ATX under it was a PHANTOM, and named it in the fixture:
+    // `# Not A Heading Below A Simple Table`. It really is not a heading — quarto renders that
+    // whole block as a one-column table — and this session is the change that stops reporting
+    // it. So the ABSENT case here is a phantom REMOVED, asserted through the same provider.
+    //
+    // The appended block is the other direction, which is the one no earlier session could
+    // reach: a table ENDS at a dash rule, and the ATX below the terminator is a real heading
+    // that this model reported as nothing at all. ⚠ The fixture's premise was RE-RENDERED
+    // rather than assumed — `quarto render` on the extended bytes emits the fifteen prior
+    // headings byte-identical and in the same order, plus exactly one more.
+    for (const eaten of [
+      "Not A Heading Below A Simple Table",
+      "a title a terminated table eats",
+      "a body row the table eats",
+    ]) {
+      assert.ok(
+        !flat(symbols).includes(eaten),
+        `Session 239: ${eaten} is a simple table's cell, not a heading`,
+      );
+    }
+    assert.ok(
+      flat(symbols).includes("Below A Simple Table Terminator"),
+      "Session 239: a dash rule ENDS the table, so the heading below it must reach the Outline provider",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {

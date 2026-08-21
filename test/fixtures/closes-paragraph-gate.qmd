@@ -79,3 +79,9 @@ c | d
 > a title the table eats
  ---
 # Not A Heading Below A Simple Table
+
+> a title a terminated table eats
+ ---
+a body row the table eats
+ ---
+# Below A Simple Table Terminator
