@@ -5656,8 +5656,23 @@ function computeRegions(text: string): Regions {
   // `h/s199_ax_quote_inlist`, `h/s198_adv_a0067`, `h/s198_pop2_f1_setext_quote`), and clearing
   // the stack turned an indented setext title into indented code and an indented ATX into no
   // heading at all.
-  let outerColumns: { columns: number[]; kinds: ("list" | "definition")[]; commonmark: boolean[] } | null =
-    null;
+  let outerColumns: {
+    columns: number[];
+    // ⚠ **THE COLUMNS THE RAW LINE IS WRITTEN IN, WHICH ARE NOT ALWAYS THE STASHED ONES
+    // (Session 241).** The stash is taken at the quote-entry line, BEFORE that line's own
+    // container maintenance has run — so when the marker sits shallower than an open container,
+    // its own line CLOSES that container and `columns` keeps the column anyway. Rendered,
+    // `- Kilo item text` / `` / `> Lima Quoted Title` / `  ===` renders `h1:Lima Quoted Title`:
+    // the list closed at the quote, so column 2 is not a container column and the underline is
+    // lazy (`scratchpad/s241/r2/pop_e2`, `pop_d2`, `olpop_e3`, `mid_e2`, and the corpus row
+    // `s192/adv/l06/a28` that Session 234 pinned as C6).
+    // ⚠ **`columns` IS LEFT ALONE ON PURPOSE.** It is what the quote-end block restores into
+    // `contentColumns`, a path Session 240 shipped and this session does not touch; the two
+    // answer different questions about the same stash.
+    rawColumns: number[];
+    kinds: ("list" | "definition")[];
+    commonmark: boolean[];
+  } | null = null;
   let inQuote = false;
   // ⚠ **AND THE PRE-SESSION FLAG IS CLEARED ONLY BY A LINE THE STRIP DID NOT REACH.** Every
   // region-boundary path below writes `quoteOpen = stripQuote` rather than `false` (Session
@@ -5707,6 +5722,10 @@ function computeRegions(text: string): Regions {
       if (!inQuote) {
         outerColumns = {
           columns: [...contentColumns],
+          // The pop rule this line is about to apply, applied to the stash instead: a container
+          // whose content column is strictly DEEPER than the marker's own column is closed by
+          // this line (Session 241 — see the field's own note).
+          rawColumns: contentColumns.filter((c) => c <= indentColumn(raw)),
           kinds: [...columnKinds],
           commonmark: [...columnIsCommonmark],
         };
@@ -6175,8 +6194,10 @@ function computeRegions(text: string): Regions {
     // must not drift — they answer the same question about the same line. And where no stash was
     // taken, `contentColumns` IS the document root's stack, so it is the correct answer there and
     // `[]` would merely be a coincidence that holds while nothing has pushed a column.
+    // ⚠ `rawColumns`, not `columns` (Session 241) — the stash keeps containers the quote's own
+    // line closed, and this reader is the only one that can see the difference. See the field.
     const rawLineColumns: readonly number[] =
-      quoteOpen && !stripQuote && outerColumns !== null ? outerColumns.columns : contentColumns;
+      quoteOpen && !stripQuote && outerColumns !== null ? outerColumns.rawColumns : contentColumns;
     // A pandoc SIMPLE TABLE consumes this line — see `simpleTableOpensHere` (Session 239).
     //
     // ⚠ **THE TERMINATOR IS CONSUMED TOO, AND THAT IS WHAT RECOVERS THE HEADING BELOW IT.**
@@ -6369,10 +6390,28 @@ function computeRegions(text: string): Regions {
     // code — which is why the code-depth term above answers `r2/p4` correctly and `r2/p0`,
     // three columns shallower, not at all. The marker's column is read off the TITLE line
     // itself, where it cannot be popped.
+    // ⚠ **AND THE FLOOR IS THE CONTAINER STACK, NOT THE TITLE'S OWN COLUMN — the two agree at
+    // top level and part company one container in (Session 241).** Session 240 measured that an
+    // unmarked underline below an open quote claims the RAW line, marker KEPT, at exactly the
+    // columns in `[0, ...rawLineColumns]`, and is absorbed INTO the quote everywhere else. This
+    // is that set's COMPLEMENT, spelled as one membership test rather than as a second
+    // comparison, so the two branches cannot drift about the same line.
+    //
+    // ⚠ **`columns.includes(indentColumn(line))` IS `setextUnderlineLevel`'s OWN TEST, character
+    // for character** — the KEPT branch below passes it exactly this array. A rule and its
+    // complement written as two different shapes is how the model came to answer neither at
+    // column 1: today's `indentColumn(line) > indentColumn(title)` is a monotone bound, and the
+    // rendered set is not monotone. A bullet at content column 2 keeps the marker at 0 and at 2
+    // and strips it at 1, so column 1 behaves like column 3, which no floor can express.
+    //
+    // ⚠ **AT TOP LEVEL THIS IS TODAY'S RULE EXACTLY.** The stack is empty, the set is `[0]`, and
+    // its complement is every column at or past 1 — which is what `> indentColumn(title)` says
+    // when the title sits at column 0. Rendered across 25 columns and four container stacks
+    // (`scratchpad/s241/r0`), every top-level row is unmoved (G1, G2) and the rows that move are
+    // exactly the columns strictly between 0 and the container's content column (G3-G7).
+    const lazyBelowContainerColumn = ![0, ...rawLineColumns].includes(indentColumn(line));
     const lazyEqualsBand =
-      setextTitle !== undefined &&
-      SETEXT_H1.test(line) &&
-      indentColumn(line) > indentColumn(lines[setextTitle.line] ?? "");
+      setextTitle !== undefined && SETEXT_H1.test(line) && lazyBelowContainerColumn;
     // ⚠ **AND THE `-` SPELLING REACHES THE SAME BAND — WHAT DECIDES IS THE LINE BELOW THE
     // DASHES, NOT THEIR COLUMN (Session 238).** Session 234 shipped the band for `=` alone and
     // disclosed this half as a bound, because only `-` can be a pandoc SIMPLE TABLE's separator:
@@ -6420,7 +6459,10 @@ function computeRegions(text: string): Regions {
     const lazyDashesBand =
       setextTitle !== undefined &&
       SETEXT_H2.test(line) &&
-      indentColumn(line) > indentColumn(lines[setextTitle.line] ?? "") &&
+      // ⚠ The SAME term as the `=` spelling above (Session 241) — one set, both spellings, which
+      // is what `r0`'s column sweep measures. The body-row test below is what still separates
+      // the two outcomes here, and it is untouched.
+      lazyBelowContainerColumn &&
       (belowUnderline === null ||
         BLANK_LINE.test(belowUnderline) ||
         // ⚠ `rawLineColumns` (Session 240). `belowUnderline` is a RAW line — the term asks

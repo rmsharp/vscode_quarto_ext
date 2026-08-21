@@ -13358,22 +13358,20 @@ describe("Session 240 — the container column the quote switch stashed, and nev
   });
   // ── THE TWO BOUNDS THIS SESSION LEAVES OPEN, pinned so they cannot drift unnoticed.
 
-  it("R1: ⚠ DISCLOSED BOUND — the lazy band's floor is still the TITLE's column, not the stash", () => {
-    // ⚠ **THE OTHER HALF OF THE SAME MEASURED RULE, DELIBERATELY NOT SHIPPED HERE.** The set
-    // `[0, ...outer]` decides the marker-KEPT direction, and this session ships exactly that. Its
-    // complement decides the STRIPPED direction — at any column NOT in the set the underline is
-    // absorbed into the quote — and the model still spells that as "deeper than the title's own
-    // column" (`lazyDashesBand`, `lazyEqualsBand`). The two agree at top level, where the title
-    // sits at column 0, and part company one container in.
-    // ⚠ Rendered, `1. item` / `` / `   > quoted one` / ` ---` renders `h2:quoted one` — column 1
-    // is not a container column, so the underline is lazy — and this model reports nothing
-    // (`scratchpad/s240/r1/b_ol1`, and `b_ol2` at column 2). PRE-EXISTING and UNMOVED by this
-    // session, scored pre and post against `scratchpad/s240/presrc`. Direction is a LOSS.
-    // ⚠ Sizing note: changing those two terms touches every top-level row five sessions measured,
-    // so it wants its own session and its own guard block, not a widening bolted on here.
-    expect(names(["1. item", "", "   > quoted one", " ---"])).toEqual([]);
-    expect(names(["1. item", "", "   > quoted one", "  ---"])).toEqual([]);
-    // The control that shows the shipped half IS right on the same document (`r1/b_ol3`).
+  it("R1: ⚠ REVERSED BY SESSION 241 — the floor IS the stash, and the two rows are recovered", () => {
+    // ⚠ **THIS SESSION PINNED THE LOSS; SESSION 241 CLOSED IT.** The set `[0, ...outer]` decides
+    // the marker-KEPT direction and this session shipped exactly that; its COMPLEMENT decides the
+    // STRIPPED direction, and the model still spelled that as "deeper than the title's own
+    // column". Session 241 replaced both bands' column term with the one membership test, so the
+    // rule and its complement are now the same array read twice.
+    // ⚠ RE-RENDERED FROM THE SAME BYTES BEFORE THE ASSERTION WAS TOUCHED (`scratchpad/s241/r0`
+    // `w_b_ol1`, `w_b_ol2`, and the column sweep `ol_d1`, `ol_d2` behind them): quarto renders
+    // `h2:quoted one` at both columns, exactly as this session recorded.
+    expect(names(["1. item", "", "   > quoted one", " ---"])).toEqual(["h2:quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", "  ---"])).toEqual(["h2:quoted one"]);
+    // The control that shows the shipped half is STILL right on the same document (`r1/b_ol3`) —
+    // the container's own content column keeps the marker, and it is the row that proves the set
+    // is not monotone.
     expect(names(["1. item", "", "   > quoted one", "   ---"])).toEqual(["h2:> quoted one"]);
   });
 
@@ -13559,5 +13557,58 @@ describe("Session 241 guard — answers around the lazy band's floor that must N
 
   it("G20: a MARKED underline inside the quote is not this rule's business (`r1/marked`)", () => {
     expect(names(["1. item", "", "   > quoted one", "   > ---"])).toEqual(["h2:quoted one"]);
+  });
+});
+
+describe("Session 241 — the lazy band's floor is the container stack, not the title's column", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: an underline SHALLOWER than the quote marker is absorbed into the quote", () => {
+    // ⚠ The first of the four rows Session 240 filed and pinned as its R1. Rendered,
+    // `1. item` / `` / `   > quoted one` / ` ---` renders `h2:quoted one` — column 1 is not a
+    // container column, so the underline is a LAZY continuation of the quote and the marker is
+    // stripped — and this model reported nothing (`scratchpad/s241/r0/w_b_ol1`, re-rendered from
+    // the same bytes this session).
+    expect(names(["1. item", "", "   > quoted one", " ---"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("C2: a container the QUOTE'S OWN LINE closed is not a column the raw line is written in", () => {
+    // ⚠ **THE STASH WAS STALE, AND ONLY THIS SESSION'S READER COULD SEE IT.** `outerColumns` is
+    // filled at the quote-entry line with `contentColumns` exactly as it stands — before that
+    // line's own container maintenance runs. When the quote marker sits SHALLOWER than an open
+    // container, its own line closes that container, and the stash keeps the column anyway.
+    // ⚠ Session 240 could not meet this: the KEPT branch is only consulted where the band
+    // declines, and the old floor ("deeper than the title's column") had already sent every one
+    // of these rows down the lazy path.
+    // Rendered (`scratchpad/s241/r2`): `- Kilo item text` / `` / `> Lima Quoted Title` / `  ===`
+    // renders `h1:Lima Quoted Title` — the list closed at the quote, so column 2 is NOT a
+    // container column and the underline is lazy (`pop_e2`, `pop_d2`).
+    expect(names(["- Kilo item text", "", "> Lima Quoted Title", "  ==="])).toEqual([
+      "h1:Lima Quoted Title",
+    ]);
+    expect(names(["- Kilo item text", "", "> Lima Quoted Title", "  ---"])).toEqual([
+      "h2:Lima Quoted Title",
+    ]);
+    // An ordered list at content column 3, closed the same way (`olpop_e3`).
+    expect(names(["1. Kilo item text", "", "> Lima Quoted Title", "   ==="])).toEqual([
+      "h1:Lima Quoted Title",
+    ]);
+    // A PARTIAL pop: the marker at column 1 closes a container whose content column is 2
+    // (`mid_e2`), and the same stack KEEPS the marker at column 0 (`mid_e0`).
+    expect(names(["- Kilo item text", "", " > Lima Quoted Title", "  ==="])).toEqual([
+      "h1:Lima Quoted Title",
+    ]);
+    expect(names(["- Kilo item text", "", " > Lima Quoted Title", "==="])).toEqual([
+      "h1:> Lima Quoted Title",
+    ]);
+    // ⚠ The control that shows the filter is a POP and not a blanket clear: with the quote INSIDE
+    // the item the column survives and the marker is kept at 2 (`in_e2`, `in_e0`).
+    expect(names(["- Kilo item text", "", "  > Lima Quoted Title", "  ==="])).toEqual([
+      "h1:> Lima Quoted Title",
+    ]);
+    expect(names(["- Kilo item text", "", "  > Lima Quoted Title", "==="])).toEqual([
+      "h1:> Lima Quoted Title",
+    ]);
   });
 });
