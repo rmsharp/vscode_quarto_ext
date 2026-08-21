@@ -6,16 +6,154 @@
 
 ## ACTIVE TASK
 **Task:** **Session 239 — IMPLEMENTATION (strict TDD): MODEL THE PANDOC SIMPLE TABLE** — the construct that BOUNDS the rule Session 238 shipped, filed by that session as its own ranked #1. The operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
-**Started:** 2026-08-20
-**Status:** Session claimed. Work beginning.
+**Started:** 2026-08-20 · **Closed:** 2026-08-20
+**Status:** **DONE. SHIPPED — and the defect was never about quotes at all.**
 
-**The defect, as filed and measured by Session 238.** `> quoted one` / ` ---` / `# Probe A` renders a one-column pandoc SIMPLE TABLE — `<th>quoted one</th>` over `<td>Probe A</td>`, no `<blockquote>` and no heading anywhere — and this model reports `h1:Probe A`. Seven measured witnesses (`scratchpad/s238/r1/a03`, `b03`, `b04`, `e02`, `e07`, `r2/t22`, `t25`), PRE-EXISTING and unmoved by Session 238, every row scored pre and post against `scratchpad/s238/presrc`.
+**HEADLINE 1 — ALL SEVEN FILED WITNESSES SHARED AN AXIS THAT IS NOT IN THE RULE.** Every witness Session 238 filed was QUOTED, and five sessions read this family as belonging to the quoted setext underline. The first probe batch rendered the identical shape with **no quote** — `header one` / ` ---` / `# Probe A` — and quarto formed the same one-column table. What decides is **pandoc's block-parser priority order**: `table` is tried after `header`, `codeBlockFenced`, `divFenced`, `htmlBlock` and the YAML meta block, and before `codeBlockIndented`, `rawTeXBlock`, `lineBlock`, `blockQuote`, `hrule`, `bulletList` and `para`. So a quote line is a header row for exactly the same reason `***`, `| line one`, `\clearpage` and an indented code line are — thirteen shapes, one rule. ⚠ The axis looked load-bearing because the model AGREED at top level **for an unrelated reason** (the dashes leave a paragraph open, so `blank_before_header` already ate the ATX): an agreement by coincidence, which is invisible to any scorer that only compares answers. (Learning #441.)
 
-**⚠ Direction is DELETION** — the fix REMOVES headings this model currently reports — so the corpus sweep is mandatory before it ships, and every candidate row needs scoring pre and post.
+**HEADLINE 2 — MY MUTATION HUNT REPORTED 0 SURVIVORS AND IT WAS FALSE.** The runner crashed on an output-parsing bug **after** writing its first mutant and **before** restoring it, so the mutation stayed in the file; the next run read that file as its baseline and cleared a build that was not the build under test. Re-run from a verified baseline, the same mutants left **five survivors**, three of which are now pinned by tests that did not previously exist. ⚠ The failure direction is the reassuring one: a leaked mutation makes surviving mutants *die*, so the harness under-reports exactly what it exists to find. Three guards now: assert a clean baseline at startup, abort on a bad anchor, restore in a `finally`. (Learning #439.)
 
-**⚠ Cross-check `tableShapedLineIsBlock` (Session 235) FIRST.** It already models PIPE, GRID and LINE-BLOCK shapes and deliberately leaves a bare `---` on the setext path. A simple table is the FOURTH shape and the only one whose columns are whitespace-defined; it must not disturb the other three.
+**HEADLINE 3 — "NO TEST KILLS IT" WAS TWICE MISTAKEN FOR "IT IS INERT".** Three survivors were believed inert. Enumerating **66,429 documents** found 5 disagreements, all sharing one prefix, and RENDERING those five showed the shipped build correct and the mutant reproducing the PRE-session error — so two were live and are now pinned (C9). The third was cleared honestly (0 disagreements over the same 66,429 enumerated *and* 48,692 corpus documents, on headings **and** cells) and **DELETED with its proof**, along with a `BLANK_LINE` arm proven DEAD. Run the enumeration to look for a disagreement, not to confirm its absence. (Learning #440.)
 
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**THE measurement.**
+
+| corpus | scale | what it measures | model pre → post |
+|---|---|---|---|
+| `r0/` | 59 documents | the header-row axis × separator indent × body-row kind, quoted and not | — |
+| `probe2`–`probe7` | 94 documents | extent, terminator, containers, parse priority, separator shape, the quote boundary, brute-force witnesses | — |
+| `rev/` + `sweepchk/` | 42 documents | the six inherited pins, and every predecessor mover | — |
+| **all rendered** | **195 documents** | | **122 → 188 · 66 moved, 66 RECOVERED, 0 BROKEN, 0 partial** |
+| corpus sweep | **48,692 documents** | every predecessor corpus | 60 rows, **0 labels, 0 cells** |
+| repo sweep | 45 tracked documents | this project's own `.qmd` files | 1 mover — the gate fixture, S238's own disclosed phantom |
+| mutation hunt | **19 mutants** | is each condition exercised? | **0 survivors** |
+| brute force | **66,429 documents** | two suspected-inert terms | 5 disagreements → rendered → pinned |
+
+⚠ **ZERO BROKEN ROWS**, and every one of the 7 divergences still standing is **byte-identical on the pre-session build**. ⚠ **6 of the 66 recoveries ADD a heading** — the loss direction the filed entry did not name: a dash rule TERMINATES a table, and the ATX below it is real.
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** **24 `it()`s green BEFORE any `src/` change**, weighted to the dangerous direction (this change DELETES headings): **20 pin a heading that must SURVIVE, and 13 of those sit one byte from a shape that really does form a table**. **1 RED→GREEN cycle**, the RED confirmed to fail for the right reason (`expected [ 'h1:Probe A' ] to deeply equal []`). ⚠ **Three further terms were driven by RED GUARDS rather than by a new cycle, and each was deleting a real heading** — G3 (an HTML comment is not in `HTML_BLOCK_OPEN`), G7 (a pipe table's body row is not a fresh header row) and Session 238's G21 (a quote already open above the header has claimed it). A fourth came from the corpus sweep, not a test. **8 test-after pins (C2–C9)**, **2 residual pins (R1, R2)**, and **6 inherited assertions REVERSED**, each re-rendered from the same bytes first. ⚠ `src/core/qmd/model.ts` restored **byte-identical (SHA-256)** after each of the 19 mutants.
+
+**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / exit 0**. All assertions pre-checked headlessly first (`scratchpad/s239/precheck239.test.ts` — S211's gotcha 3 for a TWENTY-SIXTH session), including an exact-set check against the rendered heading list in order and a re-check of every prior session's assertion on this shared fixture, both directions. The extended fixture's premise was **re-rendered, not assumed**: fifteen prior headings byte-identical and in the same order, exactly one added. ⚠ `src/` did NOT change after the run (`git diff HEAD -- src` empty).
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `npm test` **2542 passed / 66 files** (baseline 2507, **+35**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S238) · `check-package` **OK 42 files / 5.58 MB** · `check-backlog` **OK, 172 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** It models the HEADED simple table only — the **HEADERLESS** variant is disclosed, pinned in both directions and filed (a `<tbody>`-only table below a balanced one-line HTML block, and again below a plain blank line, costing a phantom AND a loss). It did not fix the two-line quoted paragraph phantom (filed), the container content-column root (annotated, now with a FOURTH symptom), or the list-inside-a-quote coordinate switch (annotated). And **no BLIND sweep / subagent fan-out**, unavailable under a session-level instruction for the **THIRTY-SECOND** session running.
+
+**What was done (commits).** 1B claim `0fa9c1a5`. **GUARD** `3d54fb7d` — 24 `it()`s, test-only, green before any `src/` change. **FIX** `7992badf` — `simpleTableOpensHere`, `simpleTableRuleEnds`, `SIMPLE_TABLE_HEADER_OUTRANKED`, `simpleTableRowsOpen`, and the six reversals. **PINS** `1c494257` — C7–C9 killing the survivors, plus two proven deletions. **WIRING** `9b340de7` — the gate fixture extended and re-rendered, both directions asserted. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 2 filed, 2 annotated), `PROJECT_LEARNINGS.md` (#439–#441), `SESSION_NOTES.md`, `HANDOFFS.md` and `dashboard_history.jsonl`.
+**Ledger:** `CHANGELOG: 2026-08-20 · [ad hoc] Session 239` — written at close-out with the `BACKLOG.md` update.
+
+**Deliverable (ONE capability):** *the pandoc simple table* — one construct, `src/core/qmd/model.ts`.
+
+**Gotchas for the next session.**
+1. ⚠ **A FILED WITNESS SET THAT IS UNIFORM ON ONE AXIS IS EVIDENCE ABOUT THE FILER'S PROBES, NOT ABOUT THE RULE.** All seven witnesses here were quoted and the quote is not in the rule. One render with the axis removed cost a minute and doubled the shape space. Do it before sizing, not after.
+2. ⚠ **A MUTATION RUNNER THAT CAN LEAK A MUTATION LIES IN THE REASSURING DIRECTION.** `scratchpad/s239/mutate.py` now asserts a clean baseline at startup (`assert 'false &&' not in orig`), aborts on a bad anchor, and restores in a `finally`. Reuse it; do not rewrite the unguarded version.
+3. ⚠ **RUN A BRUTE FORCE TO LOOK FOR A DISAGREEMENT, NOT TO CONFIRM ITS ABSENCE** — and choose the alphabet from the lines that reach the SUPPRESSED path, not the lines the feature is about. The five witnesses needed a bare `-` on line 1, a token no hand-written probe here used. `m21hunt.test.ts` is the pattern.
+4. ⚠ **RENDER EVERY PREDECESSOR MOVER, DO NOT REASON ABOUT THEM.** The sweep's 31 non-probe movers were rendered and 2 of them were rows this change was silently BREAKING. Reasoning would have called them "the same family". `sweepchk/` + `sweepchk.names.json` do it in one pass.
+5. ⚠ **THE HARNESS RAN UNMODIFIED:** `render239.sh` is S238's `render238.sh` with one `sed`; `dump.sh`, `score.test.ts`, `prescore.test.ts`, `sweep.test.ts` + `presrc/` each needed one rename. Written this session and worth keeping: `mutate.py` (guarded mutation runner), `m21hunt.test.ts` (enumerates a term's observability), `m17sweep.test.ts` (corpus-compares two builds on headings AND cells), `movers239.py`, `cmp2.py`, `precheck239.test.ts`.
+6. ⚠ **`quoteColumnsUnknown` IS THE NAME FOR "THESE TWO COLUMNS ARE IN DIFFERENT COORDINATE SPACES."** When an unmarked line sits under an open quote, `contentColumns` was measured inside the quote and `indentColumn(line)` from the document root; arithmetic across them is meaningless and its failure direction here was a DELETION. The file already had the concept — look for it before inventing one.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Each was checked against a rendered row or a read file on the SHIPPED build.
+
+**#1 — THE CONTAINER COLUMN THAT DOES NOT SURVIVE A BLANK LINE**, now with **FOUR** measured symptoms on one root: S234's G3, the "enclosing CONTENT COLUMN" item, S238's R1, and this session's C3 — where the popped stack forced a *workaround* (an equality against the header row's own indent) to avoid deleting two headings. ⚠ **This is the first time the gap has cost a WORKAROUND in shipped code rather than a declined row**, which is the argument for spending a session on the data structure. ⚠ **Derived** from the four pinned tests, all re-rendered this session. Effort **estimate** MEDIUM, a data-structure change.
+**#2 — THE HEADERLESS SIMPLE TABLE**, filed by this session and the natural continuation, because it is the other half of the construct just shipped and the reason 3 of the 7 remaining divergences stand. ⚠ **It costs BOTH directions** — a phantom (`<div>x</div>` / ` ---` / `# Probe A`) and a LOSS (`# ATX` / blank / ` ---` / `row` / ` ---` / `# Probe A` loses `h1:Probe A`). ⚠ **It cannot be reached by widening the headed rule** — the entry says why, with the one-byte control. ⚠ What is NOT measured is which line a headless separator's block may start after; that is the research. Effort **estimate** MEDIUM.
+**#3 — THE QUOTED METADATA BLOCK WHOSE CLOSER IS LAZILY CONTINUED**, S237's disclosed bound, **unchanged by this session and re-measured as such** (0 movers in the corpus sweep touched it). ⚠ Over-consuming DELETES. Effort **estimate** MEDIUM.
+**#4 — THE QUOTE UNDER A DIV OPENER** (`consecutiveBody`, not the spelling — S238 re-rendered both). ⚠ Cross-check `OPENS_FRESH_BLOCK`'s docstring first. **Derived**, not re-rendered here. Effort **estimate** LOW to investigate.
+**#5 — THE TWO-LINE QUOTED PARAGRAPH PHANTOM**, filed by this session with its unquoted control already pinned as G9. ⚠ It is a lazy-continuation item, NOT a table one — size it against the other lazy-continuation entries. Effort **estimate** LOW.
+**#6 — `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` ANCHOR** — S238's measurement, unchanged here. Effort **estimate** MEDIUM.
+⚠ Still open from S186: promote the scratchpad harness, `.vscode-test/` large, `npm audit` devDependency-only (dashboard reports 6); `scratchpad/` is now ~2.3 GB and untracked.
+
+---
+
+## Session 238 Handoff Evaluation (by Session 239)
+
+**Score: 10/10.** The best kind of handoff: it did not just describe its own work, it *named the
+next session's deliverable and did the research for it*.
+
+**What helped, specifically.**
+- **The backlog entry it filed WAS the specification.** The rule — header line, dash separator at
+  indents 1-3, at least one body row, with the dash-RULE exception already encoded as
+  `DASH_RULE_ROW` — was measured over ~35 rendered probes and written out in full. I re-derived
+  none of it; I spent my probe budget on the parts it had NOT measured (the parse-priority order,
+  the terminator's recovery half, the already-open-quote boundary) instead of re-measuring the
+  parts it had.
+- **`DASH_RULE_ROW` was already the right shape and already had a docstring saying why.** The
+  separator and the terminator are the same regex; I reused it rather than writing a second one,
+  which is exactly what its docstring asked the next session to do.
+- **Gotcha 1 — "when a filed bound keeps moving, the quantity is not the bound" — paid off in a
+  DIFFERENT direction than it was written for.** It taught me to ask what construct claims the
+  bytes, and that is how I found that the defect is not quote-specific at all: the identical
+  shape at top level (`header one` / ` ---` / `# Probe A`) forms the same table.
+- **Gotcha 5's two-way pre-source check** (SHA-256 *and* a grep for symbols the change
+  introduces) caught nothing, which is the point — it is cheap and it is the check that would
+  have caught a stale `presrc`.
+- **The harness ran unmodified.** `render239.sh` is `render238.sh` with one `sed`; `dump.sh`,
+  `score.test.ts`, `sweep.test.ts` and `presrc/` all needed one rename. That is perhaps two hours
+  saved, every session, compounding.
+
+**What was missing — and it is small.**
+- The entry said "phantom direction" and listed seven witnesses, all phantoms. The construct also
+  has a **LOSS** direction it did not mention: when a table's terminator ends it, the ATX below is
+  a REAL heading this model reported as nothing. Six measured rows. Not a criticism of the
+  measurement — those probes all ended at the body row — but a session sizing the work from the
+  entry alone would have under-scoped it, and I did at first.
+- Its own G21 assertion was the one row my first implementation broke. It was RIGHT and the guard
+  caught it in seconds; I mention it only because nothing in the prose flagged that the
+  already-open-quote case interacts with the table rule.
+
+**What was wrong: nothing.** Every claim I checked held. The seven witnesses all re-rendered to
+exactly what the entry said. The six inherited assertions it and its predecessors pinned AT this
+phantom were all correctly described in their own comments *from the day they were written* — I
+re-rendered all six and changed no measurement, only the assertion.
+
+**ROI:** very high. The research it did is the reason this session could spend its probes on the
+parse-order question rather than on the rule it had already measured.
+
+---
+
+## Session 239 Self-Assessment
+
+**Score: 9/10.**
+
+**What went right.**
+- **The guard block earned its keep twice, in the deletion direction, within seconds.** G3 and G7
+  went red on my first implementation, and each was a REAL heading being deleted (an HTML comment
+  is not in `HTML_BLOCK_OPEN`'s tag list; a pipe table's body row is not a fresh header row).
+  Session 238's G21 caught a third. Three deletions caught by tests written before the code.
+- **I looked for the construct rather than the symptom, and it was not where the entry said.** The
+  filed witnesses were all quoted; the defect is not quote-specific. The actual rule is pandoc's
+  block-parser priority order, which explains all thirteen header-row shapes at once instead of
+  listing them.
+- **I found the loss direction the entry did not mention** and shipped it: 6 of the 66 recoveries
+  ADD a heading rather than removing one.
+- **Every removal was verified against a fresh render.** 60 mover rows over 48,692 documents, and
+  I rendered all 31 predecessor witnesses rather than reasoning about them — which is how I found
+  the two rows my change was silently BREAKING.
+- **Two terms were deleted with proof rather than kept as decoration** — a dead `BLANK_LINE` arm
+  and a redundant `consecutiveBody` reset, the second proven redundant over 66,429 enumerated and
+  48,692 corpus documents on headings *and* cells.
+
+**What went wrong — and the one that matters.**
+- ⚠ **MY MUTATION HUNT REPORTED 0 SURVIVORS AND IT WAS FALSE.** The first run of the script
+  crashed on an output-parsing bug *after* writing mutant M1 and before restoring, so the file
+  kept that mutation; the next run read the mutated file as its baseline and every verdict in it
+  was against the wrong build. I noticed only because the M1 anchor then reported "count 0". On a
+  verified baseline the same mutants left FIVE survivors, three of which are now pinned by tests
+  that did not exist. A verification harness that can leak a mutation reports confident nonsense —
+  and it reported it in the reassuring direction. (Learning #439.)
+- **I twice let the mutation hunt's silence stand in for a proof.** It said the setext suppression
+  and the `consecutiveBody` reset were inert, alone and together. Enumerating 66,429 documents
+  found five where they are not, and rendering those five showed the shipped build is right and
+  the mutant reproduces the pre-session error. "No test kills it" is a statement about the tests.
+- **My first design read the separator's window from `contentColumns` alone**, which the corpus
+  sweep showed deleting two real headings where a list sits inside a quote and the two columns are
+  in different coordinate spaces. Caught by the sweep, not by me.
+- Several avoidable shell errors (`cd` into a directory I was already in) cost a few minutes and
+  once wrote a probe directory to the repo root.
+
+**Against the bar.** Meets it on measurement (195 rendered documents, 48,692-document sweep,
+19-mutant hunt, 66,429-document enumeration) and on TDD discipline (guard block first, RED
+confirmed for the right reason, six inherited assertions re-rendered before being touched). The
+point off is the mutation-hunt harness: I built a verification tool that could silently lie, and
+it did.
 
 ---
 
