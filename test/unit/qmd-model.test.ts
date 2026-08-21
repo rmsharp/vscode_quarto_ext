@@ -12680,3 +12680,221 @@ describe("Session 238 — the `-` half of the lazily-continued quoted underline"
     expect(names(["- item", "", "  > quoted one", "   ---", "   ---"])).toEqual(["h2:quoted one"]);
   });
 });
+
+describe("Session 239 guard — answers around the pandoc simple table that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ THE DANGEROUS DIRECTION. This session teaches the model a construct that EATS headings, so
+  // every mistake it can make is a DELETION: a separator recognised where quarto forms no table
+  // silently removes a heading the outline shows today. Twenty of the twenty-four guards below
+  // pin a heading that must SURVIVE, and thirteen of those sit one byte away from a shape that
+  // really does form a table. Every answer is the RENDERED one, measured through the real
+  // `quarto render` path over `scratchpad/s239/r0`, `probe2`-`probe4` (128 documents) before any
+  // `src/` change.
+  //
+  // ⚠ **THE RULE IS PANDOC'S OWN BLOCK-PARSER PRIORITY ORDER, AND THAT IS WHAT THESE PIN.**
+  // `table` is tried AFTER `header`, `codeBlockFenced`, `divFenced`, `htmlBlock` and the YAML
+  // meta block, and BEFORE `codeBlockIndented`, `rawTeXBlock`, `lineBlock`, `blockQuote`,
+  // `hrule`, `bulletList` and `para`. So the six constructs above it keep their heading and the
+  // seven below it become table header text — which is the whole of G1-G8.
+
+  it("G1: an ATX heading above the separator keeps BOTH headings — `header` outranks `table`", () => {
+    // Rendered, `# ATX Header` / ` ---` / `# Probe A` renders `<h1>ATX Header</h1>`, then an
+    // `<hr>` for the dashes, then `<h1>Probe A</h1>`. No table anywhere (`r0/a_atx`).
+    expect(names(["# ATX Header", " ---", "# Probe A"])).toEqual(["h1:ATX Header", "h1:Probe A"]);
+  });
+
+  it("G2: and a SETEXT heading above it does the same (`r0/a_setext`, `probe3/y06`)", () => {
+    // `other` / `===` / ` ---` / `# Probe A` renders `h1:other` and `h1:Probe A` — the setext
+    // parse claims the pair first and the dashes below are a thematic break.
+    expect(names(["other", "===", " ---", "# Probe A"])).toEqual(["h1:other", "h1:Probe A"]);
+    // ⚠ And the SEPARATOR at column 0 is a setext underline itself, not a separator — at top
+    // level and one quote in (`r0/b_u0`, `r0/b_q0`). This is the floor of the 1-3 window.
+    expect(names(["header one", "---", "# Probe A"])).toEqual(["h2:header one", "h1:Probe A"]);
+    expect(names(["> quoted one", "---", "# Probe A"])).toEqual([
+      "h2:> quoted one",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G3: a raw HTML block above it keeps the heading — `htmlBlock` outranks `table`", () => {
+    // `<div>` / ` ---` / `# Probe A` renders `<div><hr><h1>Probe A</h1></div>` (`r0/a_html`), and
+    // an HTML COMMENT block answers the same way (`probe3/y03`).
+    expect(names(["<div>", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["<!-- c -->", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+  });
+
+  it("G4: a CLOSED fence above it keeps the heading — `codeBlockFenced` outranks `table`", () => {
+    // ⚠ The line directly above the separator is the fence's CLOSER, which is exactly the shape
+    // a header-row rule that looked only at "is this line non-blank and fresh" would claim.
+    // Rendered, `<pre><code>code</code></pre>`, `<hr>`, `<h1>Probe A</h1>` (`r0/a_fencecl`,
+    // `probe4/w09`).
+    expect(names(["```", "code", "```", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+  });
+
+  it("G5: a `:::` DIV OPENER above it keeps the heading — `divFenced` outranks `table`", () => {
+    // `::: {.note}` / ` ---` / `# Probe A` / `:::` renders `<div class="note"><hr><h1>Probe
+    // A</h1></div>` (`probe3/y01`). ⚠ Contrast `r0/a_divopen`, where a BODY line sits between the
+    // opener and the separator and a table really does form — the div opener is excluded, the
+    // line under it is not.
+    expect(names(["::: {.note}", " ---", "# Probe A", ":::"])).toEqual(["h1:Probe A"]);
+  });
+
+  it("G6: a FRONT-MATTER terminator above it keeps the heading (`probe3/y07`)", () => {
+    expect(names(["---", "title: t", "---", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+  });
+
+  it("G7: a PIPE TABLE above it keeps the heading (`probe3/y08`)", () => {
+    // The construct Session 235 models must not be disturbed: the delimiter row opens a pipe
+    // table, its body row closes it, and the dashes below are a thematic break.
+    expect(names(["| a | b |", "|---|---|", "| c | d |", " ---", "# Probe A"])).toEqual([
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G8: a BLANK line above the separator leaves no header row at all", () => {
+    // Three positions, all rendering the heading: the separator on line 0 (`probe3/y11`), after
+    // a blank (`probe4/w02`), and one blank below a quote (`probe3/y10`).
+    expect(names([" ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["para", "", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["> quoted one", "", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
+  });
+
+  it("G9: a header row that is the SECOND line of its paragraph forms no table", () => {
+    // ⚠ A simple table's header is exactly ONE line. `line one` / `line two` / ` ---` /
+    // `# Probe A` renders one paragraph and no table (`probe2/x17`), and so does the quoted
+    // twin `> a` / `> b` (`r0/a_blockq2`) — this is `paragraphOpenAboveHeader`, the same flag
+    // `pipeTableOpensHere` reads. The lazy continuation eats the ATX in both, so the assertion
+    // is a phantom pin rather than a survival one; see R2 for the quoted half.
+    expect(names(["line one", "line two", " ---", "# Probe A"])).toEqual([]);
+    expect(names(["- item", "  header one", "   ---", "  # Probe A"])).toEqual([]);
+  });
+
+  it("G10: the separator's indent WINDOW is 1-3 past the content column, and +4 is not one", () => {
+    // At +4 and beyond the dashes are code depth, where Session 238's lazy band claims them and
+    // renders the quoted heading (`r0/b_q4`, `b_q5`, `b_qtab`). A window that reached +4 would
+    // DELETE both headings on every one of these.
+    expect(names(["> quoted one", "    ---", "# Probe A"])).toEqual(["h2:quoted one", "h1:Probe A"]);
+    expect(names(["> quoted one", "     ---", "# Probe A"])).toEqual([
+      "h2:quoted one",
+      "h1:Probe A",
+    ]);
+    expect(names(["> quoted one", "\t---", "# Probe A"])).toEqual(["h2:quoted one", "h1:Probe A"]);
+  });
+
+  it("G11: and the window is measured from the CONTAINER's content column (`probe4/v04`, `v08`)", () => {
+    // One quote in, `>     ---` is +4 past the quote's content and forms no table; one list in,
+    // `      ---` is +4 past the item's column 2 and forms none either. Both render no heading,
+    // so these pin the CEILING rather than a survival — the loss they guard against is at G10.
+    expect(names(["> quoted one", ">     ---", "> # Probe A"])).toEqual([]);
+    expect(names(["- item", "", "  header one", "      ---", "  # Probe A"])).toEqual([]);
+  });
+
+  it("G12: at +0 inside a CONTAINER the setext parse still wins (`probe4/v09`)", () => {
+    // `- item` / blank / `  header one` / `  ---` / `  # Probe A` renders `h2:header one` and
+    // `h1:Probe A`. A window spelled `<= 3` from the document root rather than from the
+    // container's column would claim this and delete both.
+    expect(names(["- item", "", "  header one", "  ---", "  # Probe A"])).toEqual([
+      "h2:header one",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G13: a separator with NO body row below it is Session 238's underline, not a table", () => {
+    // The row Session 238 shipped, and the boundary this session must not move: `> quoted one` /
+    // ` ---` renders `<blockquote><h2>quoted one</h2></blockquote>` (`r0/c_none`, `c_blank`), and
+    // so does the same document whose next line is a dash RULE (`probe3/t07`).
+    expect(names(["> quoted one", " ---"])).toEqual(["h2:quoted one"]);
+    expect(names(["> quoted one", " ---", ""])).toEqual(["h2:quoted one"]);
+    expect(names(["> quoted one", " ---", " ---"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("G14: an `=` run is NEVER a separator, at any indent (`r0/z07`)", () => {
+    // ⚠ Only `-` can separate a simple table — the whole reason Session 234 could ship the `=`
+    // half of the lazy band with no table question to answer. `> quoted one` / ` ===` /
+    // `# Probe A` renders TWO headings, and a rule that read `SETEXT_H1` as a separator too
+    // would delete both.
+    expect(names(["> quoted one", " ===", "# Probe A"])).toEqual(["h1:quoted one", "h1:Probe A"]);
+  });
+
+  it("G15: dashes with TRAILING JUNK are not a separator either (`r0/z04`, `z06`)", () => {
+    // ` --- x` and ` -=-` both render one paragraph and no table. `DASH_RULE_ROW` already
+    // declines them, which is why it is reused rather than re-derived.
+    expect(names(["> quoted one", " --- x", "# Probe A"])).toEqual([]);
+    expect(names(["> quoted one", " -=-", "# Probe A"])).toEqual([]);
+  });
+
+  it("G16: a heading AFTER the table's blank line is real, and stays real", () => {
+    // The table ends at the blank and the ATX below it is a heading (`probe2/x02`, `x16`). ⚠ Two
+    // headings in `x16`, which is what catches an arming that never disarms.
+    expect(names(["> quoted one", " ---", "row one", "", "# Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["> quoted one", " ---", "row one", "", "# Probe A", "", "# Probe B"])).toEqual([
+      "h1:Probe A",
+      "h1:Probe B",
+    ]);
+  });
+
+  it("G17: a SETEXT heading after the table's blank line is real too (`probe2/x08`)", () => {
+    expect(names(["> quoted one", " ---", "row one", "", "title", "==="])).toEqual(["h1:title"]);
+  });
+
+  it("G18: a BULLET header row already agrees, and must keep agreeing (`probe3/y09`)", () => {
+    // ⚠ `bulletList` sits BELOW `table` in pandoc's order, so `- item` really is a header row:
+    // rendered, `- item` / ` ---` / `# Probe A` is a one-column table whose `<th>` is `item` and
+    // whose `<td>` is `Probe A`, with no list and no heading anywhere. This model already reports
+    // nothing — the marker line leaves a paragraph open — so the construct model must reach the
+    // same answer by its own route rather than move the row. The ORDERED twin answers identically
+    // (`r0/a_ordered`).
+    expect(names(["- item", " ---", "# Probe A"])).toEqual([]);
+    expect(names(["1. item one", " ---", "# Probe A"])).toEqual([]);
+  });
+
+  it("G19: the top-level table already agrees, and must keep agreeing (`r0/b_u1`-`b_u3`)", () => {
+    // ⚠ These three are the reason a naive `paragraphOpen` fix is not enough and also the reason
+    // it is not needed: at top level the dashes leave the paragraph OPEN, so `blank_before_header`
+    // already suppresses the ATX. The construct model must reach the same answer by a different
+    // route without disturbing them.
+    for (const sep of [" ---", "  ---", "   ---"]) {
+      expect(names(["header one", sep, "# Probe A"])).toEqual([]);
+    }
+  });
+
+  it("G20: and so do the CONTAINER tables (`probe4/v01`-`v03`, `v05`-`v07`)", () => {
+    for (const sep of [">  ---", ">   ---", ">    ---"]) {
+      expect(names(["> quoted one", sep, "> # Probe A"])).toEqual([]);
+    }
+    for (const sep of ["   ---", "    ---", "     ---"]) {
+      expect(names(["- item", "", "  header one", sep, "  # Probe A"])).toEqual([]);
+    }
+  });
+
+  it("G21: a MARKED separator inside a quote at +0 is Session 238's underline (`probe2/x13`)", () => {
+    // `> quoted one` / `> ---` / `> # Probe A` renders `h2:quoted one` and `h1:Probe A`, both
+    // inside the blockquote — the separator sits AT the quote's content column, so no table.
+    expect(names(["> quoted one", "> ---", "> # Probe A"])).toEqual([
+      "h2:quoted one",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("G22: a bare FENCE opener directly above the separator is a code region, untouched", () => {
+    // ⚠ Rendered, quarto forms a TABLE here (`probe4/w08`, `w10`, `w11`) — the fence never opens
+    // — and this model reads the separator as fence CONTENT and reports nothing. The two answers
+    // agree by different routes, and the row is pinned so a change that makes the model look
+    // INSIDE such a fence is caught.
+    expect(names(["```", " ---", "# Probe A"])).toEqual([]);
+    expect(names(["~~~", " ---", "# Probe A"])).toEqual([]);
+    expect(names(["```r", " ---", "# Probe A"])).toEqual([]);
+  });
+
+  it("G23: an UNCLOSED fence WITH content keeps the separator inside the code (`probe4/w07`)", () => {
+    expect(names(["```", "code", " ---", "# Probe A"])).toEqual([]);
+  });
+
+  it("G24: a two-column separator and its body row form one table (`r0/a_prose`, `probe2/x15`)", () => {
+    // Whitespace-defined columns are the shape no other table rule in this file models, and the
+    // answer is already right at top level. Pinned so the column arithmetic stays out of scope.
+    expect(names(["col a   col b", " --- ---", "x       y", "# Probe A"])).toEqual([]);
+  });
+});
