@@ -13078,3 +13078,170 @@ describe("Session 239 — the pandoc simple table", () => {
     expect(names(["> a", "> b", " ---", "# Probe A"])).toEqual(["h1:Probe A"]);
   });
 });
+
+describe("Session 240 guard — answers around the container's stashed column that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ THE DANGEROUS DIRECTION. This session WIDENS the set of columns at which an unmarked
+  // underline below an open quote may claim the RAW line, so every mistake it can make is a
+  // PHANTOM — a heading reported where quarto renders none — and, through the simple-table
+  // window it also re-bases, a DELETION. Every answer below is the RENDERED one, measured
+  // through the real `quarto render` path over `scratchpad/s240/r0` and `r1` (103 documents)
+  // before any `src/` change.
+  //
+  // ⚠ **THE FILED ROOT CAUSE IS WRONG, AND G10/G11 ARE THE ROWS THAT SAY SO.** Four sessions
+  // recorded that "the blank line above the quote has already popped the list off
+  // `contentColumns`". It has not: the pop only fires for columns strictly DEEPER than the
+  // line's own indent, so a list's column 2 survives a blank line under a line at column 2.
+  // What empties the stack is the QUOTE COORDINATE SWITCH, which stashes the outer stack in
+  // `outerColumns` — where it is still sitting, unread, at the underline.
+
+  it("G1: a blank line ENDS the quote, and the dashes below it are an `<hr>`", () => {
+    // Rendered, `- item` / `` / `  > quoted one` / `` / `  ---` renders the blockquote and an
+    // `<hr>` — no heading anywhere (`r1/d_blank`).
+    expect(names(["- item", "", "  > quoted one", "", "  ---"])).toEqual([]);
+  });
+
+  it("G2: a `***` run at the container's column is a thematic break, not an underline", () => {
+    expect(names(["- item", "", "  > quoted one", "  ***"])).toEqual([]); // r1/d_star
+  });
+
+  it("G3: an `___` run at the container's column is a thematic break, not an underline", () => {
+    expect(names(["- item", "", "  > quoted one", "  ___"])).toEqual([]); // r1/d_hr
+  });
+
+  it("G4: a TWO-LINE quoted paragraph takes the dashes as a lazy continuation — no heading", () => {
+    // Rendered, `- item` / `` / `  > quoted one` / `  > quoted two` / `  ---` renders one
+    // paragraph inside the blockquote and no heading (`r1/d_twoline`). ⚠ This is the shape
+    // Session 239 filed as its own backlog item; it must stay negative across this change.
+    expect(names(["- item", "", "  > quoted one", "  > quoted two", "  ---"])).toEqual([]);
+  });
+
+  // ── The TOP-LEVEL controls. With no container, the stash is EMPTY and `[0, ...outer]` is
+  // `[0]` — which is exactly the rule this model already applies. All five must be unmoved.
+  it("G5: top level, column 0 — the underline claims the RAW line, marker KEPT", () => {
+    expect(names(["> quoted one", "---"])).toEqual(["h2:> quoted one"]); // r1/k_top0
+  });
+
+  it("G6: top level, column 1 — lazy continuation INTO the quote, marker stripped", () => {
+    expect(names(["> quoted one", " ---"])).toEqual(["h2:quoted one"]); // r1/k_top1
+  });
+
+  it("G7: top level, column 2 — still lazy, still stripped", () => {
+    expect(names(["> quoted one", "  ---"])).toEqual(["h2:quoted one"]); // r1/k_top2
+  });
+
+  it("G8: top level, column 3 — still lazy, still stripped", () => {
+    expect(names(["> quoted one", "   ---"])).toEqual(["h2:quoted one"]); // r1/k_top3
+  });
+
+  it("G9: top level, the `=` spelling at column 0 keeps the marker too", () => {
+    expect(names(["> quoted one", "==="])).toEqual(["h1:> quoted one"]); // r0/a_top_e
+  });
+
+  // ── The rows that REFUTE the filed root cause: no quote, so no coordinate switch, and the
+  // blank line demonstrably does NOT pop the list's column.
+  it("G10: NO QUOTE — the blank line does not pop the list column, and the underline forms", () => {
+    // Rendered, `- item` / `` / `  para one` / `  ---` renders `<h2>para one</h2>` INSIDE the
+    // list item (`r0/a_noq_d`). If a blank line popped column 2, this row could not work.
+    expect(names(["- item", "", "  para one", "  ---"])).toEqual(["h2:para one"]);
+  });
+
+  it("G11: NO QUOTE, the `=` spelling — same answer, same reason", () => {
+    expect(names(["- item", "", "  para one", "  ==="])).toEqual(["h1:para one"]); // r0/a_noq_e
+  });
+
+  // ── The column sweep one container in. 0 and 2 are container columns and KEEP the marker;
+  // 1, 3, 4 and 5 are not and are absorbed into the quote. G12 and G13-G15 already agree.
+  it("G12: one container in, column 0 — a container column, so the marker is KEPT", () => {
+    expect(names(["- item", "", "  > quoted one", "---"])).toEqual(["h2:> quoted one"]); // r0/c_d0
+  });
+
+  it("G13: one container in, column 3 — not a container column, so the marker is stripped", () => {
+    expect(names(["- item", "", "  > quoted one", "   ---"])).toEqual(["h2:quoted one"]); // r0/c_d3
+  });
+
+  it("G14: one container in, column 4 — code depth inside the quote, still stripped", () => {
+    expect(names(["- item", "", "  > quoted one", "    ---"])).toEqual(["h2:quoted one"]); // r0/c_d4
+  });
+
+  it("G15: one container in, column 5 — still stripped", () => {
+    expect(names(["- item", "", "  > quoted one", "     ---"])).toEqual(["h2:quoted one"]); // r0/c_d5
+  });
+
+  // ── The SIMPLE TABLE windows this session re-bases. Each pins a table that must still form,
+  // or a heading a wrongly-widened window would delete.
+  it("G16: separator +1 past the container column really is a TABLE — no heading", () => {
+    // Rendered, `- item` / `` / `  > quoted one` / `   ---` / `  body row` renders a one-column
+    // table with `quoted one` as its header (`r0/t_sep3`).
+    expect(names(["- item", "", "  > quoted one", "   ---", "  body row"])).toEqual([]);
+  });
+
+  it("G17: separator +4 past the container column is CODE DEPTH — the dashes underline", () => {
+    expect(names(["- item", "", "  > quoted one", "      ---", "  body row"])).toEqual([
+      "h2:quoted one",
+    ]); // r0/t_sep6
+  });
+
+  it("G18: a terminator +0 past the container column ends the table — the dashes underline", () => {
+    expect(names(["- item", "", "  > quoted one", "   ---", "  ---"])).toEqual(["h2:quoted one"]);
+  }); // r1/h_term2
+
+  it("G19: a terminator +1 past the container column ends it too", () => {
+    expect(names(["- item", "", "  > quoted one", "   ---", "   ---"])).toEqual(["h2:quoted one"]);
+  }); // r1/h_term3
+
+  it("G20: a terminator +4 past the container column is a BODY ROW — the table forms", () => {
+    expect(names(["- item", "", "  > quoted one", "   ---", "      ---"])).toEqual([]);
+  }); // r1/h_term6
+
+  it("G21: a terminator +5 past it is a body row too", () => {
+    expect(names(["- item", "", "  > quoted one", "   ---", "       ---"])).toEqual([]);
+  }); // r1/h_term7
+
+  // ── The rows where the quote is NEVER RECOGNISED, because `BLOCK_QUOTE_PREFIX` is anchored
+  // `^ {0,3}` and the marker sits at column 4. There is no coordinate switch and no stash, so
+  // `contentColumns` still holds `[2, 4]` and the model already answers them correctly — BY A
+  // DIFFERENT ROUTE than the one this session changes. ⚠ They must not move.
+  it("G22: a quote at column 4 is not a quote here — column 2 keeps the marker anyway", () => {
+    expect(names(["- outer", "", "  - inner", "", "    > quoted one", "  ---"])).toEqual([
+      "h2:> quoted one",
+    ]); // r1/a_nest2
+  });
+
+  it("G23: …and so does column 4, the inner item's own content column", () => {
+    expect(names(["- outer", "", "  - inner", "", "    > quoted one", "    ---"])).toEqual([
+      "h2:> quoted one",
+    ]); // r1/a_nest4
+  });
+
+  it("G24: a container opened INSIDE the quote leaves the outer stash empty — still stripped", () => {
+    // Rendered, `> - inner item` / `>` / `> quoted one` / `---` renders `h2:quoted one` — the
+    // marker IS stripped at column 0, because a quote was already open above the title
+    // (`r1/i_inner2`). The stash is `[]` here, so the widened set is `[0]` and unchanged.
+    expect(names(["> - inner item", ">", "> quoted one", "---"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("G25: once a blank line has ended the quote, the stash is gone and the list column rules", () => {
+    expect(names(["- item", "", "  > quoted one", "", "  para two", "  ---"])).toEqual([
+      "h2:para two",
+    ]); // r1/j_ended
+  });
+
+  it("G26: an ordered list at column 0 keeps the marker — the stash's `0` is not new", () => {
+    expect(names(["1. item", "", "   > quoted one", "---"])).toEqual(["h2:> quoted one"]);
+  }); // r1/b_ol0
+
+  // ⚠ **PINNED AT A PRE-EXISTING PHANTOM, DELIBERATELY.** Under `from: gfm` quarto renders NO
+  // heading for these bytes — CommonMark forbids a setext underline from being a lazy
+  // continuation line — and this model reports one. That phantom is PRE-EXISTING and is filed;
+  // it is pinned HERE because the CommonMark branch reads a DIFFERENT column set
+  // (`COMMONMARK_INDENT_OFFSETS` from `innermostColumn`) and widening that branch alongside the
+  // default one would make this worse rather than better.
+  it("G27: the CommonMark branch is NOT the one being widened — its answer must not move", () => {
+    expect(names(["---", "from: gfm", "---", "", "- item", "", "  > quoted one", "  ---"])).toEqual(
+      ["h2:> quoted one"],
+    ); // r1/e_gfm — quarto renders [] ; PRE-EXISTING phantom, filed
+  });
+});
