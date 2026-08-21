@@ -5,6 +5,21 @@
 ---
 
 ## ACTIVE TASK
+**Task:** **Session 239 — IMPLEMENTATION (strict TDD): MODEL THE PANDOC SIMPLE TABLE** — the construct that BOUNDS the rule Session 238 shipped, filed by that session as its own ranked #1. The operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
+**Started:** 2026-08-20
+**Status:** Session claimed. Work beginning.
+
+**The defect, as filed and measured by Session 238.** `> quoted one` / ` ---` / `# Probe A` renders a one-column pandoc SIMPLE TABLE — `<th>quoted one</th>` over `<td>Probe A</td>`, no `<blockquote>` and no heading anywhere — and this model reports `h1:Probe A`. Seven measured witnesses (`scratchpad/s238/r1/a03`, `b03`, `b04`, `e02`, `e07`, `r2/t22`, `t25`), PRE-EXISTING and unmoved by Session 238, every row scored pre and post against `scratchpad/s238/presrc`.
+
+**⚠ Direction is DELETION** — the fix REMOVES headings this model currently reports — so the corpus sweep is mandatory before it ships, and every candidate row needs scoring pre and post.
+
+**⚠ Cross-check `tableShapedLineIsBlock` (Session 235) FIRST.** It already models PIPE, GRID and LINE-BLOCK shapes and deliberately leaves a bare `---` on the setext path. A simple table is the FOURTH shape and the only one whose columns are whitespace-defined; it must not disturb the other three.
+
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+---
+
+## Session 238 ACTIVE TASK (superseded by Session 239 — full entry preserved below)
 **Task:** **Session 238 — IMPLEMENTATION (strict TDD): THE `-` HALF OF THE LAZY QUOTED UNDERLINE** (sub-item (a), the last open half of the entry Session 237 closed). Session 237's ranked #1; the operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
 **Started:** 2026-08-20 · **Closed:** 2026-08-20
 **Status:** **DONE. SHIPPED — and the entry closes outright, because the thing bounding this band was never a number.**

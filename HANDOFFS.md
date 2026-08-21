@@ -18,6 +18,12 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S239
+date: 2026-08-20
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- MODEL THE PANDOC SIMPLE TABLE, the construct that BOUNDS the rule Session 238 shipped and which that session filed as its own ranked #1. `> quoted one` / ` ---` / `# Probe A` renders a one-column simple table (<th>quoted one</th> over <td>Probe A</td>, no blockquote and no heading anywhere) and this model reports h1:Probe A. Seven measured witnesses, PRE-EXISTING and unmoved by S238. ⚠ Direction is DELETION, so the corpus sweep is mandatory. ⚠ Cross-check tableShapedLineIsBlock (S235) first -- it models PIPE, GRID and LINE-BLOCK and deliberately leaves a bare `---` on the setext path.
+```
+```handoff
 session: S238
 date: 2026-08-20
 status: complete
