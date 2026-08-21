@@ -13611,4 +13611,133 @@ describe("Session 241 — the lazy band's floor is the container stack, not the 
       "h1:> Lima Quoted Title",
     ]);
   });
+
+  // ── THE MUTATION SURVIVORS. 11 of 13 mutants died on the suite as it stood; the two that
+  // lived are the two RESTORE sites, and an enumeration of 537,824 documents proved both
+  // OBSERVABLE rather than inert (15 and 25 disagreements). Their disagreements were RENDERED,
+  // and the shipped spelling is right on 21 of the 36 — so the restores keep reading the
+  // UNFILTERED stash, and the rows where that is wrong are pinned as R1 below rather than
+  // guessed at.
+
+  it("C3: the QUOTE-END restore reads the unfiltered stash (kills N12)", () => {
+    // Rendered `['h2:item', 'h2:> quoted one', 'h1:Probe A']` (`scratchpad/s241/hunt/N12_2`).
+    // Reading `rawColumns` here instead loses the ATX: the `- item` container really is open
+    // again below a quote that ended without a blank line, so its column has to come back whole.
+    expect(names(["- item", "  ---", "> quoted one", "---", "  # Probe A"])).toEqual([
+      "h2:item",
+      "h2:> quoted one",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("C4: the BLANK-LINE restore reads the unfiltered stash too (kills N13)", () => {
+    // Rendered `['h2:item', 'h1:Probe A']` (`hunt/N12N13_1`, `N12N13_3`). Same conclusion by the
+    // other quote-end path, and the pair is why the filter is a field of its own rather than a
+    // rewrite of `columns`.
+    expect(names(["- item", "---", "> quoted one", "", "  # Probe A"])).toEqual([
+      "h2:item",
+      "h1:Probe A",
+    ]);
+  });
+
+  // ── THE PHANTOM THIS CHANGE MAKES NEWLY REACHABLE, pinned AT the phantom so a later session
+  // measures against it rather than discovering it.
+
+  it("C5: ⚠ a `-` RULE ROW used as a title, inside a lazily-open quote, is a PHANTOM", () => {
+    // ⚠ **THE ONE DIRECTION THIS CHANGE MAKES WORSE, AND THE BRUTE FORCE IS WHAT FOUND IT.** The
+    // 155 rendered probes, the 49,193-document corpus sweep and the 114-file repo sweep were all
+    // clean; an enumeration of 331,776 documents produced 6,124 movers in 61 classes, and 4 of
+    // those classes are this. Rendered, `> quoted one` / ` ---` / ` ---` / ` ---` renders
+    // `h2:quoted one` ALONE — a `---` row is an HRULE, not a title — and this model now reports
+    // `h2:---` beside it (`scratchpad/s241/r4/b09`, `b12`, `b22`, `b26`, `q_dd`).
+    // ⚠ **IT IS AN ALREADY-FILED DEFECT WHOSE REACH MOVED, NOT A NEW ONE** — Session 240 filed
+    // "a dash rule directly under another dash rule is read as its own setext TITLE" and pinned
+    // it as its C6. What this session changes is the door: the old floor blocked these rows BY
+    // ACCIDENT, because the second rule row sits at the same column as the title it underlines
+    // and `indentColumn(line) > indentColumn(title)` is false there.
+    // ⚠ **WEIGHT, MEASURED: zero.** No document in the 49,193-document corpus and none of the
+    // 114 tracked repo files moves for this; every witness is a synthetic run of three rules.
+    expect(names(["> quoted one", " ---", " ---", " ---"])).toEqual(["h2:quoted one", "h2:---"]);
+    expect(names(["> - item one", " ---", " ---", " ---"])).toEqual(["h2:item one", "h2:---"]);
+  });
+
+  it("C6: ⚠ and the CHEAP FIX for it is REFUTED — a rule row IS a real title, six ways", () => {
+    // ⚠ Session 240's filed entry proposes "ask whether `setextTitleText` should ever return a
+    // run that is itself an underline", and calls it a cheap first move. Rendered, it would
+    // DELETE a real heading in every one of these (`scratchpad/s241/r4/iso_ed`, `iso_ee`,
+    // `iso_sd`, `iso_se`, `iso_ud`, `iso_ue`) — quarto forms the heading and this model already
+    // agrees with it.
+    expect(names(["prose", "", "===", "---"])).toEqual(["h2:==="]);
+    expect(names(["prose", "", "===", "==="])).toEqual(["h1:==="]);
+    expect(names(["prose", "", "***", "---"])).toEqual(["h2:***"]);
+    expect(names(["prose", "", "___", "---"])).toEqual(["h2:___"]);
+    // ⚠ **AND THE DISCRIMINATOR IS THE `-` SPELLING OF THE TITLE ROW, WHICH THIS MODEL ALREADY
+    // HAS OUTSIDE A QUOTE** (`iso_dd` against `iso_de`): a `---` title under a `---` underline is
+    // an hrule pair and no heading forms, while the same title under a `===` underline IS a
+    // heading. That localises the filed fix to the lazy path, where the rule is not reached.
+    expect(names(["prose", "", "---", "---"])).toEqual([]);
+    expect(names(["prose", "", "---", "==="])).toEqual(["h1:---"]);
+  });
+
+  it("C7: ⚠ a `:::` OPENER used as a title is the same phantom, one class over", () => {
+    // Rendered, `::: {.note}` / `---` / ` > quoted one` / ` ---` renders NOTHING — the div is
+    // open and eats the lot — and this model reports both the opener-as-title and, since this
+    // change, the quoted line beside it (`scratchpad/s241/r4/div46`, `div50`, `div16`).
+    // ⚠ The `h2::::` half is PRE-EXISTING and unmoved; only the second heading is new.
+    expect(names(["::: {.note}", "---", " > quoted one", " ---"])).toEqual(["h2::::", "h2:quoted one"]);
+    expect(names([" > quoted one", " ===", "::: {.note}", "---"])).toEqual([
+      "h1:quoted one",
+      "h2::::",
+    ]);
+  });
+
+  // ── THE THREE BOUNDS THIS SESSION LEAVES OPEN, each measured and filed.
+
+  it("R1: ⚠ DISCLOSED BOUND — the quote-end restore brings back a container the quote closed", () => {
+    // ⚠ **FOUND BY THE MUTATION SURVIVORS, AND PRE-EXISTING: all 36 rendered rows are
+    // BYTE-IDENTICAL on the pre-session build.** The stash filter this session adds is read only
+    // by `rawLineColumns`; the two RESTORE sites still push `columns`, so when a quote's own
+    // marker column closed an outer container, that container comes back when the quote ends.
+    // Rendered, `- item` / `` / `> quoted one` / `` / `  # Probe A` renders NOTHING — the list
+    // closed at the quote, so the ATX at column 2 is indented text — and this model reports
+    // `h1:Probe A` (`scratchpad/s241/hunt/N13_0`, `N12N13_0`, `N13_5`, and 12 more).
+    // ⚠ **AND THE OBVIOUS FIX IS REFUTED:** making both restores read the filtered stash is
+    // exactly mutants N12/N13, and each is WRONG on rows the shipped spelling gets right (C3,
+    // C4). The two questions are not the same question. Direction is a PHANTOM.
+    expect(names(["- item", "", "> quoted one", "", "  # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["- item", "", "> quoted one", "---", "  # Probe A"])).toEqual([
+      "h2:> quoted one",
+      "h1:Probe A",
+    ]);
+  });
+
+  it("R2: ⚠ DISCLOSED BOUND — `setextTitleQuoted` reads only the line IMMEDIATELY above", () => {
+    // Session 237's rule is "a quote was already OPEN above the title", and its spelling is "the
+    // line directly above the title carries a marker". The two part company once a LAZY underline
+    // sits between them, which is a position this session's change newly reaches.
+    // ⚠ Rendered, ` > quoted one` / ` ===` / `> quoted one` / `---` renders `h1:quoted one` and
+    // `h2:quoted one` — markers STRIPPED on both — and this model reports the second with the
+    // marker KEPT (`scratchpad/s241/r4/keep23`, `keep27`, `keep54`).
+    // ⚠ **IT IS A NET RECOVERY, NOT A LOSS:** the pre-session build reported NEITHER heading, so
+    // the row goes from 0 of 2 right to 1 of 2. Pinned at the divergence, and filed.
+    expect(names([" > quoted one", " ===", "> quoted one", "---"])).toEqual([
+      "h1:quoted one",
+      "h2:> quoted one",
+    ]);
+    expect(names([" > quoted one", " ===", "> - item one", "---"])).toEqual([
+      "h1:quoted one",
+      "h2:> - item one",
+    ]);
+  });
+
+  it("R3: ⚠ DISCLOSED BOUND — heading TEXT keeps runs of spaces that quarto collapses", () => {
+    // Rendered, ` > quoted one` / ` ===` / `:   def item` / `---` renders `h2:: def item` — one
+    // space — and this model reports `h2::   def item` (`scratchpad/s241/r4/ws15`). ⚠ Orthogonal
+    // to this session's rule and PRE-EXISTING as a transform; it is newly VISIBLE only because
+    // the heading itself is newly formed. A heading-COUNT scorer reports this row as agreement.
+    expect(names([" > quoted one", " ===", ":   def item", "---"])).toEqual([
+      "h1:quoted one",
+      "h2::   def item",
+    ]);
+  });
 });
