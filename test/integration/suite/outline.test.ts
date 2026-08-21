@@ -1122,6 +1122,31 @@ describe("Quarto: Document outline (symbols)", () => {
       flat(symbols).includes("Below A Simple Table Terminator"),
       "Session 239: a dash rule ENDS the table, so the heading below it must reach the Outline provider",
     );
+
+    // ⚠ **SESSION 240 — THE CONTAINER COLUMN THE QUOTE SWITCH STASHED.** Four sessions recorded
+    // this as a data-structure gap: "the blank line above the quote has already popped the list
+    // off contentColumns". It never did. The quote coordinate switch stashes the outer stack in
+    // `outerColumns`, and an UNMARKED line below the quote is still written in the document
+    // root's coordinates — so the stash was the right stack all along, sitting unread.
+    //
+    // Rendered, `- a list item holding a quote` / blank / `  > a title at the container column` /
+    // `  ---` emits `<li><p>…</p><h2>&gt; a title at the container column</h2></li>`: the heading
+    // forms at the LIST's level with the quote marker KEPT as literal text, and NO `<blockquote>`
+    // is created at all. This model reported nothing there. ⚠ The fixture's premise was
+    // RE-RENDERED rather than assumed — `quarto render` on the extended bytes emits the sixteen
+    // prior headings byte-identical and in the same order, plus exactly these two.
+    assert.ok(
+      flat(symbols).includes("> a title at the container column"),
+      "Session 240: the marker-KEPT heading at the container's own column must reach the Outline provider",
+    );
+    assert.ok(
+      !flat(symbols).includes("a title at the container column"),
+      "Session 240: the quote marker is KEPT, so the stripped spelling must NOT appear",
+    );
+    assert.ok(
+      flat(symbols).includes("Below A Container Stashed Column"),
+      "Session 240: the ATX below it is a heading too — the quote never formed, so the item's column still governs",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
