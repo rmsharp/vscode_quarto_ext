@@ -5,61 +5,19 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 239 — IMPLEMENTATION (strict TDD): MODEL THE PANDOC SIMPLE TABLE** — the construct that BOUNDS the rule Session 238 shipped, filed by that session as its own ranked #1. The operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
-**Started:** 2026-08-20 · **Closed:** 2026-08-20
-**Status:** **DONE. SHIPPED — and the defect was never about quotes at all.**
+**Task:** **Session 240 — IMPLEMENTATION (strict TDD): A CONTAINER CONTENT COLUMN THAT SURVIVES A BLANK LINE** — the data-structure gap under FOUR measured symptoms (Session 232 G5, Session 234 G3, Session 238 R1, Session 239 C3). Session 239's ranked #1; the operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
+**Started:** 2026-08-20
+**Status:** Session claimed. Work beginning.
 
-**HEADLINE 1 — ALL SEVEN FILED WITNESSES SHARED AN AXIS THAT IS NOT IN THE RULE.** Every witness Session 238 filed was QUOTED, and five sessions read this family as belonging to the quoted setext underline. The first probe batch rendered the identical shape with **no quote** — `header one` / ` ---` / `# Probe A` — and quarto formed the same one-column table. What decides is **pandoc's block-parser priority order**: `table` is tried after `header`, `codeBlockFenced`, `divFenced`, `htmlBlock` and the YAML meta block, and before `codeBlockIndented`, `rawTeXBlock`, `lineBlock`, `blockQuote`, `hrule`, `bulletList` and `para`. So a quote line is a header row for exactly the same reason `***`, `| line one`, `\clearpage` and an indented code line are — thirteen shapes, one rule. ⚠ The axis looked load-bearing because the model AGREED at top level **for an unrelated reason** (the dashes leave a paragraph open, so `blank_before_header` already ate the ATX): an agreement by coincidence, which is invisible to any scorer that only compares answers. (Learning #441.)
+**The item, as filed.** A blank line between a container's marker line and the block below it pops the container off `contentColumns`, so every column read below that blank is measured from the DOCUMENT ROOT instead of from the container's content column. Four readers are corrupted by it and, per the entry, **all four close together and none closes alone**:
+1. **S232 G5** — `- item` / blank / `  > quoted one` / `  ---` renders `h2:&gt; quoted one` (the heading forms at the LIST's level, quote marker kept as literal text) and this model reports nothing. Heading-DELETING.
+2. **S234 G3** — the `=` twin of the same shape behaves identically (`h1:&gt; quoted one`, no blockquote), and its one-column-deeper twin IS recovered (S234 C3). So it is neither a spelling nor a setext question.
+3. **S238 R1** — the column of the dash rule that TERMINATES a pandoc simple table: `columnIsCodeDepth(4, contentColumns)` against an EMPTY stack measures 4 from the root, calls it code depth and reads the terminator as a body row. Direction is a LOSS, never a phantom.
+4. **S239 C3** — the simple table's separator window (1-3 past the enclosing content column) measured from the root looked like +2 and DELETED two headings. Shipped with a WORKAROUND: an equality against the header row's own indent. ⚠ That is the first time this gap has cost a workaround in shipped code rather than a declined row, which is the argument for spending a session on the data structure.
 
-**HEADLINE 2 — MY MUTATION HUNT REPORTED 0 SURVIVORS AND IT WAS FALSE.** The runner crashed on an output-parsing bug **after** writing its first mutant and **before** restoring it, so the mutation stayed in the file; the next run read that file as its baseline and cleared a build that was not the build under test. Re-run from a verified baseline, the same mutants left **five survivors**, three of which are now pinned by tests that did not previously exist. ⚠ The failure direction is the reassuring one: a leaked mutation makes surviving mutants *die*, so the harness under-reports exactly what it exists to find. Three guards now: assert a clean baseline at startup, abort on a bad anchor, restore in a `finally`. (Learning #439.)
+**Deliverable (ONE capability):** *a container column that survives the blank line* — one data-structure change in `src/core/qmd/model.ts`.
 
-**HEADLINE 3 — "NO TEST KILLS IT" WAS TWICE MISTAKEN FOR "IT IS INERT".** Three survivors were believed inert. Enumerating **66,429 documents** found 5 disagreements, all sharing one prefix, and RENDERING those five showed the shipped build correct and the mutant reproducing the PRE-session error — so two were live and are now pinned (C9). The third was cleared honestly (0 disagreements over the same 66,429 enumerated *and* 48,692 corpus documents, on headings **and** cells) and **DELETED with its proof**, along with a `BLANK_LINE` arm proven DEAD. Run the enumeration to look for a disagreement, not to confirm its absence. (Learning #440.)
-
-**THE measurement.**
-
-| corpus | scale | what it measures | model pre → post |
-|---|---|---|---|
-| `r0/` | 59 documents | the header-row axis × separator indent × body-row kind, quoted and not | — |
-| `probe2`–`probe7` | 94 documents | extent, terminator, containers, parse priority, separator shape, the quote boundary, brute-force witnesses | — |
-| `rev/` + `sweepchk/` | 42 documents | the six inherited pins, and every predecessor mover | — |
-| **all rendered** | **195 documents** | | **122 → 188 · 66 moved, 66 RECOVERED, 0 BROKEN, 0 partial** |
-| corpus sweep | **48,692 documents** | every predecessor corpus | 60 rows, **0 labels, 0 cells** |
-| repo sweep | 45 tracked documents | this project's own `.qmd` files | 1 mover — the gate fixture, S238's own disclosed phantom |
-| mutation hunt | **19 mutants** | is each condition exercised? | **0 survivors** |
-| brute force | **66,429 documents** | two suspected-inert terms | 5 disagreements → rendered → pinned |
-
-⚠ **ZERO BROKEN ROWS**, and every one of the 7 divergences still standing is **byte-identical on the pre-session build**. ⚠ **6 of the 66 recoveries ADD a heading** — the loss direction the filed entry did not name: a dash rule TERMINATES a table, and the ATX below it is real.
-
-**TDD gate — the guard block FIRST, then RED→GREEN.** **24 `it()`s green BEFORE any `src/` change**, weighted to the dangerous direction (this change DELETES headings): **20 pin a heading that must SURVIVE, and 13 of those sit one byte from a shape that really does form a table**. **1 RED→GREEN cycle**, the RED confirmed to fail for the right reason (`expected [ 'h1:Probe A' ] to deeply equal []`). ⚠ **Three further terms were driven by RED GUARDS rather than by a new cycle, and each was deleting a real heading** — G3 (an HTML comment is not in `HTML_BLOCK_OPEN`), G7 (a pipe table's body row is not a fresh header row) and Session 238's G21 (a quote already open above the header has claimed it). A fourth came from the corpus sweep, not a test. **8 test-after pins (C2–C9)**, **2 residual pins (R1, R2)**, and **6 inherited assertions REVERSED**, each re-rendered from the same bytes first. ⚠ `src/core/qmd/model.ts` restored **byte-identical (SHA-256)** after each of the 19 mutants.
-
-**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / exit 0**. All assertions pre-checked headlessly first (`scratchpad/s239/precheck239.test.ts` — S211's gotcha 3 for a TWENTY-SIXTH session), including an exact-set check against the rendered heading list in order and a re-check of every prior session's assertion on this shared fixture, both directions. The extended fixture's premise was **re-rendered, not assumed**: fifteen prior headings byte-identical and in the same order, exactly one added. ⚠ `src/` did NOT change after the run (`git diff HEAD -- src` empty).
-
-**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `npm test` **2542 passed / 66 files** (baseline 2507, **+35**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S238) · `check-package` **OK 42 files / 5.58 MB** · `check-backlog` **OK, 172 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
-
-**⚠ WHAT THIS SESSION COULD NOT DO.** It models the HEADED simple table only — the **HEADERLESS** variant is disclosed, pinned in both directions and filed (a `<tbody>`-only table below a balanced one-line HTML block, and again below a plain blank line, costing a phantom AND a loss). It did not fix the two-line quoted paragraph phantom (filed), the container content-column root (annotated, now with a FOURTH symptom), or the list-inside-a-quote coordinate switch (annotated). And **no BLIND sweep / subagent fan-out**, unavailable under a session-level instruction for the **THIRTY-SECOND** session running.
-
-**What was done (commits).** 1B claim `0fa9c1a5`. **GUARD** `3d54fb7d` — 24 `it()`s, test-only, green before any `src/` change. **FIX** `7992badf` — `simpleTableOpensHere`, `simpleTableRuleEnds`, `SIMPLE_TABLE_HEADER_OUTRANKED`, `simpleTableRowsOpen`, and the six reversals. **PINS** `1c494257` — C7–C9 killing the survivors, plus two proven deletions. **WIRING** `9b340de7` — the gate fixture extended and re-rendered, both directions asserted. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 2 filed, 2 annotated), `PROJECT_LEARNINGS.md` (#439–#441), `SESSION_NOTES.md`, `HANDOFFS.md` and `dashboard_history.jsonl`.
-**Ledger:** `CHANGELOG: 2026-08-20 · [ad hoc] Session 239` — written at close-out with the `BACKLOG.md` update.
-
-**Deliverable (ONE capability):** *the pandoc simple table* — one construct, `src/core/qmd/model.ts`.
-
-**Gotchas for the next session.**
-1. ⚠ **A FILED WITNESS SET THAT IS UNIFORM ON ONE AXIS IS EVIDENCE ABOUT THE FILER'S PROBES, NOT ABOUT THE RULE.** All seven witnesses here were quoted and the quote is not in the rule. One render with the axis removed cost a minute and doubled the shape space. Do it before sizing, not after.
-2. ⚠ **A MUTATION RUNNER THAT CAN LEAK A MUTATION LIES IN THE REASSURING DIRECTION.** `scratchpad/s239/mutate.py` now asserts a clean baseline at startup (`assert 'false &&' not in orig`), aborts on a bad anchor, and restores in a `finally`. Reuse it; do not rewrite the unguarded version.
-3. ⚠ **RUN A BRUTE FORCE TO LOOK FOR A DISAGREEMENT, NOT TO CONFIRM ITS ABSENCE** — and choose the alphabet from the lines that reach the SUPPRESSED path, not the lines the feature is about. The five witnesses needed a bare `-` on line 1, a token no hand-written probe here used. `m21hunt.test.ts` is the pattern.
-4. ⚠ **RENDER EVERY PREDECESSOR MOVER, DO NOT REASON ABOUT THEM.** The sweep's 31 non-probe movers were rendered and 2 of them were rows this change was silently BREAKING. Reasoning would have called them "the same family". `sweepchk/` + `sweepchk.names.json` do it in one pass.
-5. ⚠ **THE HARNESS RAN UNMODIFIED:** `render239.sh` is S238's `render238.sh` with one `sed`; `dump.sh`, `score.test.ts`, `prescore.test.ts`, `sweep.test.ts` + `presrc/` each needed one rename. Written this session and worth keeping: `mutate.py` (guarded mutation runner), `m21hunt.test.ts` (enumerates a term's observability), `m17sweep.test.ts` (corpus-compares two builds on headings AND cells), `movers239.py`, `cmp2.py`, `precheck239.test.ts`.
-6. ⚠ **`quoteColumnsUnknown` IS THE NAME FOR "THESE TWO COLUMNS ARE IN DIFFERENT COORDINATE SPACES."** When an unmarked line sits under an open quote, `contentColumns` was measured inside the quote and `indentColumn(line)` from the document root; arithmetic across them is meaningless and its failure direction here was a DELETION. The file already had the concept — look for it before inventing one.
-
-**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Each was checked against a rendered row or a read file on the SHIPPED build.
-
-**#1 — THE CONTAINER COLUMN THAT DOES NOT SURVIVE A BLANK LINE**, now with **FOUR** measured symptoms on one root: S234's G3, the "enclosing CONTENT COLUMN" item, S238's R1, and this session's C3 — where the popped stack forced a *workaround* (an equality against the header row's own indent) to avoid deleting two headings. ⚠ **This is the first time the gap has cost a WORKAROUND in shipped code rather than a declined row**, which is the argument for spending a session on the data structure. ⚠ **Derived** from the four pinned tests, all re-rendered this session. Effort **estimate** MEDIUM, a data-structure change.
-**#2 — THE HEADERLESS SIMPLE TABLE**, filed by this session and the natural continuation, because it is the other half of the construct just shipped and the reason 3 of the 7 remaining divergences stand. ⚠ **It costs BOTH directions** — a phantom (`<div>x</div>` / ` ---` / `# Probe A`) and a LOSS (`# ATX` / blank / ` ---` / `row` / ` ---` / `# Probe A` loses `h1:Probe A`). ⚠ **It cannot be reached by widening the headed rule** — the entry says why, with the one-byte control. ⚠ What is NOT measured is which line a headless separator's block may start after; that is the research. Effort **estimate** MEDIUM.
-**#3 — THE QUOTED METADATA BLOCK WHOSE CLOSER IS LAZILY CONTINUED**, S237's disclosed bound, **unchanged by this session and re-measured as such** (0 movers in the corpus sweep touched it). ⚠ Over-consuming DELETES. Effort **estimate** MEDIUM.
-**#4 — THE QUOTE UNDER A DIV OPENER** (`consecutiveBody`, not the spelling — S238 re-rendered both). ⚠ Cross-check `OPENS_FRESH_BLOCK`'s docstring first. **Derived**, not re-rendered here. Effort **estimate** LOW to investigate.
-**#5 — THE TWO-LINE QUOTED PARAGRAPH PHANTOM**, filed by this session with its unquoted control already pinned as G9. ⚠ It is a lazy-continuation item, NOT a table one — size it against the other lazy-continuation entries. Effort **estimate** LOW.
-**#6 — `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` ANCHOR** — S238's measurement, unchanged here. Effort **estimate** MEDIUM.
-⚠ Still open from S186: promote the scratchpad harness, `.vscode-test/` large, `npm audit` devDependency-only (dashboard reports 6); `scratchpad/` is now ~2.3 GB and untracked.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ---
 
@@ -156,6 +114,64 @@ point off is the mutation-hunt harness: I built a verification tool that could s
 it did.
 
 ---
+
+## Session 239 ACTIVE TASK (superseded by Session 240 — full entry preserved below)
+**Task:** **Session 239 — IMPLEMENTATION (strict TDD): MODEL THE PANDOC SIMPLE TABLE** — the construct that BOUNDS the rule Session 238 shipped, filed by that session as its own ranked #1. The operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
+**Started:** 2026-08-20 · **Closed:** 2026-08-20
+**Status:** **DONE. SHIPPED — and the defect was never about quotes at all.**
+
+**HEADLINE 1 — ALL SEVEN FILED WITNESSES SHARED AN AXIS THAT IS NOT IN THE RULE.** Every witness Session 238 filed was QUOTED, and five sessions read this family as belonging to the quoted setext underline. The first probe batch rendered the identical shape with **no quote** — `header one` / ` ---` / `# Probe A` — and quarto formed the same one-column table. What decides is **pandoc's block-parser priority order**: `table` is tried after `header`, `codeBlockFenced`, `divFenced`, `htmlBlock` and the YAML meta block, and before `codeBlockIndented`, `rawTeXBlock`, `lineBlock`, `blockQuote`, `hrule`, `bulletList` and `para`. So a quote line is a header row for exactly the same reason `***`, `| line one`, `\clearpage` and an indented code line are — thirteen shapes, one rule. ⚠ The axis looked load-bearing because the model AGREED at top level **for an unrelated reason** (the dashes leave a paragraph open, so `blank_before_header` already ate the ATX): an agreement by coincidence, which is invisible to any scorer that only compares answers. (Learning #441.)
+
+**HEADLINE 2 — MY MUTATION HUNT REPORTED 0 SURVIVORS AND IT WAS FALSE.** The runner crashed on an output-parsing bug **after** writing its first mutant and **before** restoring it, so the mutation stayed in the file; the next run read that file as its baseline and cleared a build that was not the build under test. Re-run from a verified baseline, the same mutants left **five survivors**, three of which are now pinned by tests that did not previously exist. ⚠ The failure direction is the reassuring one: a leaked mutation makes surviving mutants *die*, so the harness under-reports exactly what it exists to find. Three guards now: assert a clean baseline at startup, abort on a bad anchor, restore in a `finally`. (Learning #439.)
+
+**HEADLINE 3 — "NO TEST KILLS IT" WAS TWICE MISTAKEN FOR "IT IS INERT".** Three survivors were believed inert. Enumerating **66,429 documents** found 5 disagreements, all sharing one prefix, and RENDERING those five showed the shipped build correct and the mutant reproducing the PRE-session error — so two were live and are now pinned (C9). The third was cleared honestly (0 disagreements over the same 66,429 enumerated *and* 48,692 corpus documents, on headings **and** cells) and **DELETED with its proof**, along with a `BLANK_LINE` arm proven DEAD. Run the enumeration to look for a disagreement, not to confirm its absence. (Learning #440.)
+
+**THE measurement.**
+
+| corpus | scale | what it measures | model pre → post |
+|---|---|---|---|
+| `r0/` | 59 documents | the header-row axis × separator indent × body-row kind, quoted and not | — |
+| `probe2`–`probe7` | 94 documents | extent, terminator, containers, parse priority, separator shape, the quote boundary, brute-force witnesses | — |
+| `rev/` + `sweepchk/` | 42 documents | the six inherited pins, and every predecessor mover | — |
+| **all rendered** | **195 documents** | | **122 → 188 · 66 moved, 66 RECOVERED, 0 BROKEN, 0 partial** |
+| corpus sweep | **48,692 documents** | every predecessor corpus | 60 rows, **0 labels, 0 cells** |
+| repo sweep | 45 tracked documents | this project's own `.qmd` files | 1 mover — the gate fixture, S238's own disclosed phantom |
+| mutation hunt | **19 mutants** | is each condition exercised? | **0 survivors** |
+| brute force | **66,429 documents** | two suspected-inert terms | 5 disagreements → rendered → pinned |
+
+⚠ **ZERO BROKEN ROWS**, and every one of the 7 divergences still standing is **byte-identical on the pre-session build**. ⚠ **6 of the 66 recoveries ADD a heading** — the loss direction the filed entry did not name: a dash rule TERMINATES a table, and the ATX below it is real.
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** **24 `it()`s green BEFORE any `src/` change**, weighted to the dangerous direction (this change DELETES headings): **20 pin a heading that must SURVIVE, and 13 of those sit one byte from a shape that really does form a table**. **1 RED→GREEN cycle**, the RED confirmed to fail for the right reason (`expected [ 'h1:Probe A' ] to deeply equal []`). ⚠ **Three further terms were driven by RED GUARDS rather than by a new cycle, and each was deleting a real heading** — G3 (an HTML comment is not in `HTML_BLOCK_OPEN`), G7 (a pipe table's body row is not a fresh header row) and Session 238's G21 (a quote already open above the header has claimed it). A fourth came from the corpus sweep, not a test. **8 test-after pins (C2–C9)**, **2 residual pins (R1, R2)**, and **6 inherited assertions REVERSED**, each re-rendered from the same bytes first. ⚠ `src/core/qmd/model.ts` restored **byte-identical (SHA-256)** after each of the 19 mutants.
+
+**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / exit 0**. All assertions pre-checked headlessly first (`scratchpad/s239/precheck239.test.ts` — S211's gotcha 3 for a TWENTY-SIXTH session), including an exact-set check against the rendered heading list in order and a re-check of every prior session's assertion on this shared fixture, both directions. The extended fixture's premise was **re-rendered, not assumed**: fifteen prior headings byte-identical and in the same order, exactly one added. ⚠ `src/` did NOT change after the run (`git diff HEAD -- src` empty).
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `npm test` **2542 passed / 66 files** (baseline 2507, **+35**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S238) · `check-package` **OK 42 files / 5.58 MB** · `check-backlog` **OK, 172 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** It models the HEADED simple table only — the **HEADERLESS** variant is disclosed, pinned in both directions and filed (a `<tbody>`-only table below a balanced one-line HTML block, and again below a plain blank line, costing a phantom AND a loss). It did not fix the two-line quoted paragraph phantom (filed), the container content-column root (annotated, now with a FOURTH symptom), or the list-inside-a-quote coordinate switch (annotated). And **no BLIND sweep / subagent fan-out**, unavailable under a session-level instruction for the **THIRTY-SECOND** session running.
+
+**What was done (commits).** 1B claim `0fa9c1a5`. **GUARD** `3d54fb7d` — 24 `it()`s, test-only, green before any `src/` change. **FIX** `7992badf` — `simpleTableOpensHere`, `simpleTableRuleEnds`, `SIMPLE_TABLE_HEADER_OUTRANKED`, `simpleTableRowsOpen`, and the six reversals. **PINS** `1c494257` — C7–C9 killing the survivors, plus two proven deletions. **WIRING** `9b340de7` — the gate fixture extended and re-rendered, both directions asserted. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 2 filed, 2 annotated), `PROJECT_LEARNINGS.md` (#439–#441), `SESSION_NOTES.md`, `HANDOFFS.md` and `dashboard_history.jsonl`.
+**Ledger:** `CHANGELOG: 2026-08-20 · [ad hoc] Session 239` — written at close-out with the `BACKLOG.md` update.
+
+**Deliverable (ONE capability):** *the pandoc simple table* — one construct, `src/core/qmd/model.ts`.
+
+**Gotchas for the next session.**
+1. ⚠ **A FILED WITNESS SET THAT IS UNIFORM ON ONE AXIS IS EVIDENCE ABOUT THE FILER'S PROBES, NOT ABOUT THE RULE.** All seven witnesses here were quoted and the quote is not in the rule. One render with the axis removed cost a minute and doubled the shape space. Do it before sizing, not after.
+2. ⚠ **A MUTATION RUNNER THAT CAN LEAK A MUTATION LIES IN THE REASSURING DIRECTION.** `scratchpad/s239/mutate.py` now asserts a clean baseline at startup (`assert 'false &&' not in orig`), aborts on a bad anchor, and restores in a `finally`. Reuse it; do not rewrite the unguarded version.
+3. ⚠ **RUN A BRUTE FORCE TO LOOK FOR A DISAGREEMENT, NOT TO CONFIRM ITS ABSENCE** — and choose the alphabet from the lines that reach the SUPPRESSED path, not the lines the feature is about. The five witnesses needed a bare `-` on line 1, a token no hand-written probe here used. `m21hunt.test.ts` is the pattern.
+4. ⚠ **RENDER EVERY PREDECESSOR MOVER, DO NOT REASON ABOUT THEM.** The sweep's 31 non-probe movers were rendered and 2 of them were rows this change was silently BREAKING. Reasoning would have called them "the same family". `sweepchk/` + `sweepchk.names.json` do it in one pass.
+5. ⚠ **THE HARNESS RAN UNMODIFIED:** `render239.sh` is S238's `render238.sh` with one `sed`; `dump.sh`, `score.test.ts`, `prescore.test.ts`, `sweep.test.ts` + `presrc/` each needed one rename. Written this session and worth keeping: `mutate.py` (guarded mutation runner), `m21hunt.test.ts` (enumerates a term's observability), `m17sweep.test.ts` (corpus-compares two builds on headings AND cells), `movers239.py`, `cmp2.py`, `precheck239.test.ts`.
+6. ⚠ **`quoteColumnsUnknown` IS THE NAME FOR "THESE TWO COLUMNS ARE IN DIFFERENT COORDINATE SPACES."** When an unmarked line sits under an open quote, `contentColumns` was measured inside the quote and `indentColumn(line)` from the document root; arithmetic across them is meaningless and its failure direction here was a DELETION. The file already had the concept — look for it before inventing one.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Each was checked against a rendered row or a read file on the SHIPPED build.
+
+**#1 — THE CONTAINER COLUMN THAT DOES NOT SURVIVE A BLANK LINE**, now with **FOUR** measured symptoms on one root: S234's G3, the "enclosing CONTENT COLUMN" item, S238's R1, and this session's C3 — where the popped stack forced a *workaround* (an equality against the header row's own indent) to avoid deleting two headings. ⚠ **This is the first time the gap has cost a WORKAROUND in shipped code rather than a declined row**, which is the argument for spending a session on the data structure. ⚠ **Derived** from the four pinned tests, all re-rendered this session. Effort **estimate** MEDIUM, a data-structure change.
+**#2 — THE HEADERLESS SIMPLE TABLE**, filed by this session and the natural continuation, because it is the other half of the construct just shipped and the reason 3 of the 7 remaining divergences stand. ⚠ **It costs BOTH directions** — a phantom (`<div>x</div>` / ` ---` / `# Probe A`) and a LOSS (`# ATX` / blank / ` ---` / `row` / ` ---` / `# Probe A` loses `h1:Probe A`). ⚠ **It cannot be reached by widening the headed rule** — the entry says why, with the one-byte control. ⚠ What is NOT measured is which line a headless separator's block may start after; that is the research. Effort **estimate** MEDIUM.
+**#3 — THE QUOTED METADATA BLOCK WHOSE CLOSER IS LAZILY CONTINUED**, S237's disclosed bound, **unchanged by this session and re-measured as such** (0 movers in the corpus sweep touched it). ⚠ Over-consuming DELETES. Effort **estimate** MEDIUM.
+**#4 — THE QUOTE UNDER A DIV OPENER** (`consecutiveBody`, not the spelling — S238 re-rendered both). ⚠ Cross-check `OPENS_FRESH_BLOCK`'s docstring first. **Derived**, not re-rendered here. Effort **estimate** LOW to investigate.
+**#5 — THE TWO-LINE QUOTED PARAGRAPH PHANTOM**, filed by this session with its unquoted control already pinned as G9. ⚠ It is a lazy-continuation item, NOT a table one — size it against the other lazy-continuation entries. Effort **estimate** LOW.
+**#6 — `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` ANCHOR** — S238's measurement, unchanged here. Effort **estimate** MEDIUM.
+⚠ Still open from S186: promote the scratchpad harness, `.vscode-test/` large, `npm audit` devDependency-only (dashboard reports 6); `scratchpad/` is now ~2.3 GB and untracked.
+
 
 ## Session 238 ACTIVE TASK (superseded by Session 239 — full entry preserved below)
 **Task:** **Session 238 — IMPLEMENTATION (strict TDD): THE `-` HALF OF THE LAZY QUOTED UNDERLINE** (sub-item (a), the last open half of the entry Session 237 closed). Session 237's ranked #1; the operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.

@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S240
+date: 2026-08-20
+status: pending
+active_task: IMPLEMENTATION (strict TDD) -- A CONTAINER CONTENT COLUMN THAT SURVIVES A BLANK LINE. The data-structure gap under FOUR measured symptoms of one root (Session 232 G5, Session 234 G3, Session 238 R1, Session 239 C3); the filed entry states that all four close together and none closes alone. src/core/qmd/model.ts. Session 239's ranked #1, picked by the operator at Phase 0 from the ranked AskUserQuestion candidate list.
+```
+
+```handoff
 session: S239
 date: 2026-08-20
 status: complete
