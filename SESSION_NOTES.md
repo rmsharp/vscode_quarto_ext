@@ -6,22 +6,161 @@
 
 ## ACTIVE TASK
 **Task:** **Session 241 — IMPLEMENTATION (strict TDD): THE LAZY BAND'S FLOOR IS THE CONTAINER STACK, NOT THE TITLE'S COLUMN** — the COMPLEMENT of the set Session 240 shipped, filed by that session and pinned as its R1. Session 240's ranked #1; the operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
-**Started:** 2026-08-20
-**Status:** Session claimed. Work beginning.
+**Started:** 2026-08-20 · **Closed:** 2026-08-21
+**Status:** **DONE. SHIPPED — and the gap was the set that neither branch claimed.**
 
-**The item, as filed.** Session 240 measured that an unmarked underline below an open quote claims the RAW line with the quote marker **KEPT** at exactly the columns in `[0, ...outerColumns]` — column 0 plus every enclosing container content column — and is absorbed **INTO** the quote, markers stripped, at every other column. It shipped that half only. ⚠ **The COMPLEMENT is still spelled as a COMPARISON:** `lazyDashesBand` and `lazyEqualsBand` both test `indentColumn(line) > indentColumn(title)`.
+**HEADLINE 1 — A RULE AND ITS COMPLEMENT WERE WRITTEN IN TWO DIFFERENT SHAPES, AND THE GAP WAS THE SET BOTH DECLINED.** Session 240 shipped the marker-KEPT direction as a membership test, `[0, ...rawLineColumns].includes(indentColumn(line))`; the STRIPPED direction stayed a comparison, `indentColumn(line) > indentColumn(title)`. Neither is wrong alone. Together they left every column strictly BETWEEN 0 and the container's content column answered by **neither branch** — the membership test says "not mine", the comparison says "not deep enough" — so the model reported no heading at all where quarto renders one. ⚠ **The two AGREE at top level**, where the stack is empty, the set is `[0]`, and its complement is exactly "deeper than a title sitting at column 0". That is why six sessions measured this family without meeting it, and why every top-level probe round confirms both spellings. The fix is the same array read twice. (Learning #445.)
 
-**The four filed witnesses (all rendered by Session 240, all heading-DELETING).**
-1. `scratchpad/s240/r1/b_ol1` — `1. item` / blank / `   > quoted one` / ` ---` renders `h2:quoted one` and this model reports NOTHING. Column 1 is not a container column, so the underline is lazy — and the comparison against the title's own column does not see it.
-2. `scratchpad/s240/r1/b_ol2` — the same shape at column 2.
-3. `scratchpad/s240/r0/c_d1` and `c_e1` — for a list at content column 2 the missing column is 1, in BOTH spellings (`-` and `=`).
+**HEADLINE 2 — THE STASH WAS STALE, AND ONLY THIS SESSION'S READER COULD SEE IT.** `outerColumns` is filled at the quote-entry line **before that line's own container maintenance runs**, so when the quote marker sits shallower than an open container, the stash keeps a column its own line CLOSED. ⚠ **Six rows broke on my first spelling** — including the corpus document Session 234 pinned as its C6, which went red in the same run as the intended change. `outerColumns.rawColumns` now carries the popped stack beside `columns`; the two RESTORE sites are deliberately untouched, and a **537,824-document enumeration proves reading the filtered stash there is WRONG** on rows the shipped spelling gets right. ⚠ The generalisable point: adding a new READER of an old cache puts the cache's FILL site back in scope even though you did not touch it. (Learning #446.)
 
-⚠ **Sizing, as filed:** this touches the top-level rows FIVE sessions measured (S232, S234, S237, S238 and S240's own G5–G9), so it wants **its own guard block** rather than a widening bolted onto the shipped half — the shipped set is an EQUALITY and its complement must be spelled as one too, not as a second comparison.
+**HEADLINE 3 — THE ONLY REGRESSION WAS FOUND BY THE BRUTE FORCE, AND THREE OTHER CHECKS WERE GREEN.** 155 rendered probes, a **49,193-document corpus sweep** and a 114-file repo sweep all scored 0 broken. Enumerating **331,776 documents** produced **6,124 movers** — unrenderable — which clustering by the `(pre → post)` transition pair collapsed to **61 classes**, one representative each, rendered in 40 seconds: **43 RECOVERED, 4 BROKEN, 14 partial**. All four broken classes are one family, and the corpus weight of that family is **measured at zero**. (Learning #447.)
+
+**THE measurement.**
+
+| corpus | scale | what it measures | model pre → post |
+|---|---|---|---|
+| `r0/` | 54 documents | the premise check × the column sweep, four container stacks × 25 columns × both spellings | — |
+| `r1/` | 67 documents | the DANGER round — what follows the underline, ten kinds; the anchor, gfm, table and quote-open controls | — |
+| `r2/` | 34 documents | the popped-container question the first spelling broke | — |
+| `r3/` | 61 documents | one representative of every brute-force transition class | — |
+| `r4/`, `r5/` | 38 documents | the phantom family's discriminator, and the four adjacent filed items re-measured | — |
+| **probe rounds** | **155 documents** | | **94 → 132 · 38 moved, 38 RECOVERED, 0 BROKEN, 0 partial** |
+| corpus sweep | **49,193 documents** | every predecessor corpus | 57 rows → **18 distinct, ALL RENDERED, 18 RECOVERED (one a phantom REMOVED), 0 broken** |
+| repo sweep | 114 tracked files | this project's own markdown | **0 movers** |
+| mutation hunt | **13 mutants** | is each term exercised? | 11 died → 2 survivors proven OBSERVABLE → pinned → **13 of 13 die** |
+| brute force | **331,776 documents** | pre vs post, the cross product | 6,124 movers → **61 classes** → 43 recovered, **4 BROKEN**, 14 partial |
+| enumeration | **537,824 documents** | are the two survivors inert? | **no** — 15 and 25 disagreements, all rendered |
+
+⚠ **ZERO BROKEN ROWS in every rendered corpus except the enumeration**, and the four broken classes there are an already-filed defect whose reach this change moves.
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** **20 `it()`s green BEFORE any `src/` change** (`84494fc4`), measured over `r0` and `r1` and weighted to the phantom direction this change opens. **2 RED→GREEN cycles**, each RED confirmed to fail for the right reason (`expected [] to deeply equal [ 'h2:quoted one' ]`, then `expected [ 'h1:> Lima Quoted Title' ] to deeply equal [ 'h1:Lima Quoted Title' ]`). **5 test-after pins (C3–C7)**, **3 residual pins (R1–R3)**, and **Session 240's R1 REVERSED**, re-rendered from the same bytes first. ⚠ `src/core/qmd/model.ts` restored **byte-identical (SHA-256)** after each of the 13 mutants.
+
+**⚠ Phase 3E — green first time, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / exit 0**. All assertions pre-checked headlessly first (`scratchpad/s241/precheck241.test.ts` — S211's gotcha 3 for a **TWENTY-EIGHTH** session), including an exact heading-list-in-order match against quarto's own render and a re-check of every prior session's assertion on this shared fixture, both directions. The fixture's premise was **re-rendered, not assumed**: eighteen prior headings byte-identical and in the same order, exactly two added. ⚠ `src/` did NOT change after the run (`git diff HEAD -- src` empty).
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `npm test` **2609 passed / 66 files** (baseline 2579, **+30**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S240) · `check-package` **OK 42 files / 5.58 MB** · `check-backlog` **OK, 177 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** It ships the COLUMN term of both bands and deliberately leaves the `-` band's **BODY-ROW** term alone — three measured rows where a bullet ends the container and the underline should fire (filed). It recovers **nothing** on any container whose content column is 4 or more, because `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` anchor means no quote is recognised there — 5 newly measured rows, annotated onto that already-filed item and pinned as G18. It leaves the quote-end RESTORE reading the unfiltered stash (filed, R1), `setextTitleQuoted`'s immediately-above spelling (filed, R2), and the heading-text whitespace collapse (filed, R3). And **no BLIND sweep / subagent fan-out**, unavailable under a session-level instruction for the **THIRTY-FOURTH** session running.
+
+**What was done (commits).** 1B claim `79904158`. **GUARD** `84494fc4` — 20 `it()`s, test-only, green before any `src/` change. **FIX** `1202d101` — `lazyBelowContainerColumn`, its two readers, `outerColumns.rawColumns`, and the S240 R1 reversal. **PINS** `d0759970` — C3/C4 killing the survivors, C5/C6/C7 the phantom and its refuted fix, R1–R3 the disclosed bounds. **WIRING** `07abbc99` — the gate fixture extended and re-rendered, three assertions, both directions. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 4 filed, 3 annotated), `PROJECT_LEARNINGS.md` (#445–#448), `SESSION_NOTES.md`, `HANDOFFS.md` and `dashboard_history.jsonl`.
+**Ledger:** `CHANGELOG: 2026-08-21 · [ad hoc] Session 241` — written at close-out with the `BACKLOG.md` update.
 
 **Deliverable (ONE capability):** *the lazy band's floor becomes the container stack* — `src/core/qmd/model.ts`.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Gotchas for the next session.**
+1. ⚠ **WHEN A PREDICATE AND ITS NEGATION ARE SPELLED DIFFERENTLY IN THE SAME FILE, THE ROWS BETWEEN THEM ARE ANSWERED BY NEITHER.** Write the negation as `!<the same expression>` and re-render the columns in the gap. The tell here was that both spellings agree at top level, so six sessions' top-level probes confirmed both. ⚠ Grep `src/core/qmd/model.ts` for other comparison/membership pairs before assuming this was the only one.
+2. ⚠ **A HARNESS DEFECT COST ME A WRONG PRE/POST TABLE AND I NEARLY BELIEVED IT.** `vitest.score.config.ts` (inherited from S240) includes BOTH `score.test.ts` and `prescore.test.ts`, and they write the **same** `$S241_OUT` path — so one build's answers land in both columns and every row reads "unmoved". Caught only because a unit test had just proven one of those rows different. **Use `scratchpad/s241/rescore.sh <round>`**, which drives the two split configs; never re-merge them.
+3. ⚠ **CLUSTER THE ENUMERATION'S MOVERS BEFORE RENDERING.** 6,124 movers is unrenderable and sampling is how a coverage hole survives. Keying by `JSON.stringify([pre, post])` gave 61 classes — `scratchpad/s241/brute.test.ts` + `bruteclass.test.ts` are the pattern, and `r3/` is the rendered result. The class count, not the mover count, is the size of the question.
+4. ⚠ **THE MUTATION RUNNER'S ANCHOR-ABORT EARNED ITS KEEP AGAIN, TWICE IN ONE SESSION** — it refused an anchor that matched 0 times and then one that matched 2 (the two restore sites share three lines). `scratchpad/s241/mutate241.py` is S240's runner with only the MUTANTS list replaced. Reuse it.
+5. ⚠ **RENDER A FILED ITEM'S PROPOSED FIX, NOT ONLY ITS ROOT CAUSE.** S240's dash-rule entry called its remedy "a cheap first move"; one round refuted it — the decline deletes a real heading six ways. The entry is now annotated with the refutation and the real discriminator. (Learning #448.)
+6. ⚠ **THE HARNESS RAN OTHERWISE UNMODIFIED:** `render241.sh` is S240's with one `sed`; `dump.sh`, `score.test.ts`, `prescore.test.ts` + `presrc/`, `sweep.test.ts`, `reposweep.test.ts` and `hunt.test.ts` each needed one rename. New this session and worth keeping: `rescore.sh`, `tsv2json.py`, `movers.py`, `brute.test.ts`, `bruteclass.test.ts`, `huntscore.test.ts`, `precheck241.test.ts`.
+7. ⚠ **NEVER `git add -A` AT THIS REPO'S ROOT** — `scratchpad/` is untracked but NOT in `.gitignore` (S240's item, still open). Stage close-out files BY NAME; no gate can see this.
+8. ⚠ **THE BASH TOOL'S WORKING DIRECTORY PERSISTS BETWEEN CALLS.** Prefix long sessions' commands with absolute paths. (Not hit this session — every command ran from the repo root.)
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Each was checked against a rendered row or a read file on the SHIPPED build.
+
+**#1 — THE `-` BAND'S BODY-ROW TERM, the other half of the term this session fixed** — filed by this session. `1. item` / blank / `   > quoted one` / ` ---` / `- item` renders `h2:quoted one` and this model reports nothing, because `lazyDashesBand`'s terminator arm asks only "blank, absent, or a dash rule" while `simpleTableOpensHere` already knows the fuller answer through `popsEnclosingContainer`. ⚠ **Reuse that predicate; do not re-derive it** — Session 240 added it one term over for exactly this question. **Derived** from three rendered rows (`r1/A_d_x6`, `B_d_x6`, `C_d_x6`, re-measured as `r5/x6a`-`x6c`). Effort **estimate** LOW, and it is the natural continuation.
+**#2 — THE QUOTE-END RESTORE**, filed by this session and pinned as R1: 15 rendered rows where a container the quote's own line closed comes back when the quote ends, and an ATX below it is reported where quarto renders none. ⚠ **The obvious fix is already REFUTED** — it is mutants N12/N13, each wrong on rows C3/C4 pin. Phantom direction. Effort **estimate** MEDIUM.
+**#3 — THE DASH-RULE-UNDER-DASH-RULE PHANTOM**, S240's item, now with its reach widened by this session (4 classes, corpus weight zero), its proposed fix REFUTED, and a real discriminator measured: it is a `-` rule underlined by a `-` rule, a pair this model **already declines outside a quote**. ⚠ That localises the fix to the lazy path rather than to `setextTitleText`. Effort **estimate** LOW, and it is now much better specified than when it was filed.
+**#4 — `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` ANCHOR**, now **16 measured rows across three container kinds** — this session added five on a SINGLE-container stack, which removes the last doubt that nesting is involved. ⚠ It is the reason two consecutive sessions' recoveries stop at content column 3. Effort **estimate** MEDIUM.
+**#5 — `setextTitleQuoted` READS ONLY THE LINE IMMEDIATELY ABOVE**, filed by this session as R2. ⚠ Net recovery, not a loss (0 of 2 right → 1 of 2). Effort **estimate** LOW.
+**#6 — THE HEADERLESS SIMPLE TABLE**, S239's filed item, untouched and unmoved here. Costs both a phantom and a loss. Effort **estimate** MEDIUM.
+⚠ Still open from S186: promote the scratchpad harness, `.vscode-test/` large, `npm audit` devDependency-only (dashboard reports 6); `scratchpad/` is now ~2.5 GB and untracked.
 
 ---
+
+## Session 240 Handoff Evaluation (by Session 241)
+
+**Score: 10/10.** It named this session's deliverable, sized it correctly, warned about the one
+mistake I would otherwise have made, and every rendered claim in it held.
+
+**What helped, specifically.**
+- **It told me what NOT to do, and that was the single most valuable line.** "Sizing: it touches
+  every top-level row five sessions measured, so it wants its own guard block — do not bolt a
+  widening onto the shipped half." I wrote the guard block first because of that sentence, and
+  it is what caught the six broken rows within one test run instead of at the corpus sweep.
+- **All four filed witnesses reproduced EXACTLY as recorded**, re-rendered from their own bytes
+  in the first probe round. `r1/b_ol1`, `b_ol2`, `r0/c_d1`, `c_e1` — four for four, both
+  spellings, same answers.
+- **Gotcha 3's guarded `mutate240.py` was reusable with only its MUTANTS list replaced, and its
+  anchor-abort fired TWICE within ten minutes** — once on an anchor matching zero times and once
+  on one matching two (the two restore sites share three lines). An unguarded runner would have
+  mutated one site and reported a confident verdict about the other.
+- **Gotcha 4's `hunt.test.ts` pattern — survivors as importable module copies under `mut/<Nn>/`,
+  one alphabet enumerated against all of them at once — transferred verbatim** and is what proved
+  both survivors observable rather than inert.
+- **Gotcha 2 ("a corpus is a sample of shapes someone thought to write; run the enumeration even
+  when the sweep is green") is the reason this session found its own regression.** The corpus
+  sweep over 49,193 documents was clean. The enumeration was not.
+- **Gotcha 6 and 8 were both accurate and both saved me from a defect I would have shipped** —
+  I staged every close-out file by name, and the fixture lines I appended carry no apostrophe.
+- **The `[0, ...outer]` measurement was correct on every one of the 25 columns I re-rendered**,
+  across four container stacks. I did not find a single row where its set was wrong.
+
+**What was missing — and it is not enough to cost a point.**
+- The handoff could not have known that `outerColumns` is stashed before the quote line's own
+  container pop, because its own reader never reached the rows that expose it. It records
+  `rawLineColumns` as "the columns the RAW line is written in", which is the right concept with a
+  fill-site bug underneath. ⚠ I would not call this a gap in the handoff: it is the thing the
+  next session is FOR, and the inherited pin it left behind (Session 234's C6, which it kept
+  green) is exactly what caught it.
+
+**What was wrong: nothing.** `npm test` matched 2579 exactly, `test:oracle` was byte-identical,
+`check-backlog` reported the 174 it recorded, and every gotcha held.
+
+**ROI:** very high. Six of its eight gotchas were load-bearing, two of them prevented shipped
+defects, and its "what's next" entry was accurate enough that Phase 1 took one read.
+
+---
+
+## Session 241 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I wrote the complement as the SAME expression rather than as a second bound**, which is the
+  whole point of the item and the reason the two branches can no longer drift. `[0,
+  ...rawLineColumns].includes(indentColumn(line))` is `setextUnderlineLevel`'s own test, character
+  for character.
+- **The guard block earned its keep in the direction that matters.** 20 `it()`s green before any
+  `src/` change, and when the fix landed the only two failures were the inherited pin this
+  session closes and the inherited pin that caught my stale-stash bug — both in the first run.
+- **I rendered rather than reasoned at every fork.** The six broken rows got their own round
+  (`r2`, 34 documents) before I touched the code; the 18 distinct corpus movers were rendered
+  rather than classified by eye; the four adjacent filed items were re-measured (`r5`) instead of
+  assumed unmoved, which is how I learned the S232 item narrows rather than closes.
+- **I disposed of both mutation survivors honestly.** Neither was declared inert: a 537,824-
+  document enumeration found 15 and 25 disagreements, all were rendered, the shipped spelling won
+  21 of 36, and the 15 rows where it loses are filed with the refutation of the obvious fix
+  written into the entry.
+- **I refuted a filed item's proposed remedy by measurement instead of inheriting it**, and
+  replaced it with a discriminator the model already implements one path over.
+- **I sought the screen-taking go-ahead in advance**, with every assertion pre-checked headlessly
+  first, and the run was green first time.
+
+**What went wrong.**
+- ⚠ **MY FIRST SPELLING BROKE SIX ROWS, AND WHAT CAUGHT THEM WAS ANOTHER SESSION'S PIN, NOT MY
+  OWN GUARD BLOCK.** My 20 guards covered the columns and the phantom direction; none of them put
+  a quote marker SHALLOWER than an open container, so the axis "does the quote's own line close
+  the container?" went unsampled — the same coverage-shape failure Session 240 recorded as
+  Learning #444, one session later, in my own probes. Session 234's C6 is what went red.
+- ⚠ **I READ A PRE/POST TABLE THAT WAS WRONG AND ALMOST DREW A CONCLUSION FROM IT.** The inherited
+  scorer config writes both builds to one path. Every row said "unmoved" and I only disbelieved it
+  because a unit test had just proven one of those rows different. A harness whose two columns
+  share an output file cannot report a difference — the same shape as Session 187's guard whose
+  two sides shared an input.
+- **I shipped a widened phantom.** Four transition classes that the old floor blocked by accident
+  are now reachable. It is an already-filed defect, its corpus weight is measured at zero, and it
+  is pinned — but it is still the one direction this change makes worse, and I chose disclosure
+  over a fix on scope grounds.
+
+**Against the bar.** Meets it on measurement (179 rendered, 49,193-document sweep, 331,776- and
+537,824-document enumerations, 13-mutant hunt with 0 survivors), on TDD discipline (guard block
+first, 2 REDs each confirmed for the right reason, an inherited pin re-rendered before reversal)
+and on honest disclosure (four items filed, three annotated, one proposed fix refuted). Two points
+off: the unsampled axis in my own guard block, and believing a broken harness for several minutes.
+
+---
+
 
 ## Session 239 Handoff Evaluation (by Session 240)
 
