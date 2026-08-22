@@ -14444,3 +14444,141 @@ describe("Session 243 — the block-quote marker's window is the container's, no
     expect(names(["-   item", "", "    > quoted one", " ---"])).toEqual(["h2:quoted one"]);
   });
 });
+
+describe("Session 244 guard — answers around the marked-blank quote line that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ **THIS BLOCK IS WRITTEN BEFORE THE CHANGE AND IS GREEN ON THE PRE-SESSION BUILD.** Every
+  // row below is a document rendered through the real `quarto render` path (quarto 1.7.33) in
+  // `scratchpad/s244/r0` and `r1`, and every one of them ALREADY agrees. The change this session
+  // makes — keeping a quote line whose stripped content is EMPTY available as a setext title —
+  // has two dangerous directions and the block is weighted to both:
+  //
+  //   PHANTOM   the marked-blank line steals a title, or underlines where quarto opens a
+  //             SIMPLE TABLE, a thematic break, or nothing at all      (G4-G6, G11-G22)
+  //   DELETING  the line stops behaving like a blank INSIDE the quote, so the block below it
+  //             joins the one above and the heading that was there is lost   (G1-G3, G7-G10,
+  //             G23, G24)
+
+  it("G1: a marked blank ABOVE a marked title does not steal it — the title is still the title", () => {
+    // ⚠ **THE ROW MOST LIKELY TO BREAK, and it is Session 243's R5 control.** If the marked-blank
+    // line simply became an ordinary body line, `consecutiveBody` would reach 2 at `    > title`
+    // and the default reader admits a setext title only at 1 — so this heading would VANISH.
+    // Rendered `h2:title` (`scratchpad/s244/r1/g03_ctr_bare_title`, block structure
+    // `ul>p>blockquote>h2`), and the top-level twin below with it (`r1/b04_bare_title`).
+    expect(names(["-   item", "", "    >", "    > title", "    ---"])).toEqual(["h2:title"]);
+    expect(names([">", "> title", "---"])).toEqual(["h2:title"]);
+    expect(names([">", "> title", "> ---"])).toEqual(["h2:title"]);
+  });
+
+  it("G2: a SECOND marked blank is an ordinary blank, and underlines nothing", () => {
+    // The first `>` opens the quote and the setext parse may claim the RAW line; the second is
+    // INSIDE the quote, where it is genuinely blank. Rendered: both documents produce
+    // `blockquote>hr` and NO heading (`r1/b01_two_bare`, `b02_three_bare`, `r1/g02_ctr_two_bare`).
+    expect(names([">", ">", "---"])).toEqual([]);
+    expect(names([">", ">", ">", "---"])).toEqual([]);
+    expect(names(["-   item", "", "    >", "    >", "    ---"])).toEqual([]);
+  });
+
+  it("G3: a quote ALREADY OPEN above the marked blank keeps it a blank", () => {
+    // `> para one` / `>` / `---` renders `blockquote>p>hr` — the quote holds one paragraph and
+    // the unmarked dashes are a top-level thematic break (`r0/t12_para_bare_dash`,
+    // `t13_para_bare_eq`, and the container twin `r0/c07`/`r1/g05_ctr_para_bare`). ⚠ This is the
+    // row that says the rule is "the line ENTERS the quote", not "the line is marked and blank".
+    expect(names(["> para one", ">", "---"])).toEqual([]);
+    expect(names(["> title", ">", "---"])).toEqual([]);
+    expect(names(["-   item", "", "    > para one", "    >", "    ---"])).toEqual([]);
+  });
+
+  it("G4: an UNMARKED blank between the marker and the underline ends it", () => {
+    // `>` / (blank) / `---` renders `blockquote>hr`, no heading (`r1/b07_bare_blank_dash`) — the
+    // blank closes the quote and the dashes underline nothing. And a truly blank line was never a
+    // title at all (`r0/n01_empty_dash`).
+    expect(names([">", "", "---"])).toEqual([]);
+    expect(names(["", "---"])).toEqual([]);
+  });
+
+  it("G5: a MARKED underline underlines nothing, because inside the quote the title IS blank", () => {
+    // `>` / `> ---` renders `blockquote>hr` (`r0/t14_bare_mk_dash`, `t15_bare_mk_eq`, and the
+    // container twin `r0/c08_bare_mk_dash`). The underline carries its own marker, so the title is
+    // read in the QUOTE's coordinates where `>` strips to the empty string.
+    expect(names([">", "> ---"])).toEqual([]);
+    expect(names([">", "> ==="])).toEqual([]);
+    expect(names(["-   item", "", "    >", "    > ---"])).toEqual([]);
+  });
+
+  it("G6: an OPEN PARAGRAPH above means the strip never reaches the line", () => {
+    // `prose one` / `>` / `---` renders one `<p>` and no heading at all (`r0/t20_prose_bare_dash`)
+    // — with a paragraph open, `stripQuote` is false and the `>` is ordinary body text.
+    expect(names(["prose one", ">", "---"])).toEqual([]);
+  });
+
+  it("G7: an ATX below the marked blank still renders, marked or not", () => {
+    // The marked blank must keep ENDING the block inside the quote: `>` / `# Probe Z` renders
+    // `blockquote>h1` and `>` / `> # Probe Z` likewise (`r1/c01_bare_atx`, `c02_bare_mk_atx`, and
+    // the container twin `r1/g04_ctr_bare_atx`). A change that leaves a paragraph open here
+    // DELETES all three.
+    expect(names([">", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names([">", "> # Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   item", "", "    >", "    # Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("G8: the CONTENT-carrying twin is unmoved at both depths", () => {
+    // The whole family is localised to the EMPTY marker run precisely because these are already
+    // right — marker KEPT, Session 240's `[0, ...outerColumns]` set (`r0/t10_txt_dash`,
+    // `r0/c05_txt_dash`, `r1/j01_ctr_txt`, `r1/j02_top_txt_body`).
+    expect(names(["> quoted one", "---"])).toEqual(["h2:> quoted one"]);
+    expect(names(["> quoted one", "==="])).toEqual(["h1:> quoted one"]);
+    expect(names(["-   item", "", "    > quoted one", "    ---"])).toEqual(["h2:> quoted one"]);
+    expect(names(["> quoted one", "---", "body row"])).toEqual(["h2:> quoted one"]);
+  });
+
+  it("G9: under a CommonMark reader the marked blank underlines NOTHING", () => {
+    // ⚠ **THE DIALECT HALF, AND IT IS THE DIRECTION THAT MINTS PHANTOMS.** CommonMark parses `>`
+    // as a block quote before any setext parse can claim the raw line, so quarto renders
+    // `blockquote>hr` and no heading under `gfm` AND under `commonmark` (`r1/f01_gfm_dash`,
+    // `f02_gfm_eq`, `f04_cm_dash`). The default reader renders `h2:>` for the identical bytes.
+    const fm = (from: string) => ["---", "format: html", `from: ${from}`, "---", ""];
+    expect(names([...fm("gfm"), ">", "---"])).toEqual([]);
+    expect(names([...fm("gfm"), ">", "==="])).toEqual([]);
+    expect(names([...fm("commonmark"), ">", "---"])).toEqual([]);
+  });
+
+  it("G10: at columns 1-3 the dashes are a SIMPLE TABLE's separator, not an underline", () => {
+    // `>` / ` ---` / `# Probe Z` renders a one-column `<table>` and no heading whatever — the `>`
+    // is the header cell and the `#` line is the body row (`r0/t31_ul_c1`-`t33_ul_c3`,
+    // `r1/a05_i1_body`). The container twin declines at 1-3 and again at 5-7
+    // (`r0/c2_01_ul`-`c2_03_ul`, `c2_05_ul`-`c2_07_ul`).
+    expect(names([">", " ---", "# Probe Z"])).toEqual([]);
+    expect(names([">", "   ---", "# Probe Z"])).toEqual([]);
+    expect(names(["-   item", "", "    >", " ---", "# Probe Z"])).toEqual([]);
+    expect(names(["-   item", "", "    >", "     ---", "# Probe Z"])).toEqual([]);
+  });
+
+  it("G11: past the container's own window the underline claims nothing and the ATX below survives", () => {
+    // At columns 8-9 one container in, quarto renders `blockquote>hr>h1` — the dashes are a rule
+    // inside the quote and `# Probe Z` is a real heading below it (`r0/c2_08_ul`, `c2_09_ul`).
+    // ⚠ The DELETING direction: a change that lets the marked blank swallow this row loses a
+    // heading quarto renders.
+    expect(names(["-   item", "", "    >", "        ---", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   item", "", "    >", "         ---", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names([">", "    ---", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("G12: an entry line SHALLOWER than its container ends the container, and no title survives", () => {
+    // `-   item` / `` / `   >` / `    ---` / `# Probe Z` renders `ul>blockquote>hr>h1` — the
+    // entry at column 3 pops the list, so the quote is TOP-LEVEL and `    ---` is four columns
+    // past its content base (`r1/g06_ctr_entry3`). Only `h1:Probe Z` is real.
+    expect(names(["-   item", "", "   >", "    ---", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("G13: at top level a marker at column 4 is INDENTED CODE and the row is already right", () => {
+    // `    >` / `---` / `# Probe Z` renders `h2:>` and `h1:Probe Z` (`r1/d4_entry`) — but by a
+    // different route: no quote is recognised at column 4 at top level, so the raw line reaches
+    // the setext path as ordinary body. ⚠ This row is right on the PRE-session build and must
+    // stay right; it is the control that separates "the strip changed" from "the title path
+    // changed".
+    expect(names(["    >", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+  });
+});
