@@ -1201,6 +1201,28 @@ describe("Quarto: Document outline (symbols)", () => {
       flat(symbols).includes("Below A Popped Body Row"),
       "Session 242: the ATX below the ended container is a heading too",
     );
+
+    // ⚠ **SESSION 243 — THE QUOTE MARKER THAT WAS NEVER SEEN AT ALL.** Sessions 238 through 242
+    // each taught the band one more term, and every one of them stopped at content column 3,
+    // because `BLOCK_QUOTE_PREFIX` was anchored at an ABSOLUTE `^ {0,3}` — so inside a container
+    // whose content column is 4 the marker was not a marker, `inQuote` was never set, and no
+    // band of either spelling could reach the row. The window is now the container's own.
+    //
+    // ⚠ The fixture premise is MEASURED, not assumed: `quarto render` on these exact bytes emits
+    // TWENTY-FOUR headings, the twenty-two above byte-identical and in the same order, and the
+    // two below added (`scratchpad/s243/gate.before.tsv` against `gate.after.tsv`).
+    assert.ok(
+      flat(symbols).includes("a title behind the anchor"),
+      "Session 243: the heading behind the `^ {0,3}` anchor must reach the Outline provider",
+    );
+    assert.ok(
+      !flat(symbols).includes("> a title behind the anchor"),
+      "Session 243: the underline is lazy here, so the marker-KEPT spelling must NOT appear",
+    );
+    assert.ok(
+      flat(symbols).includes("Below The Anchor"),
+      "Session 243: the ATX below the recovered heading survives",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
