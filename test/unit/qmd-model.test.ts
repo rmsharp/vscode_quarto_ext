@@ -13982,3 +13982,155 @@ describe("Session 242 — the `-` band's body row is the simple table's, read on
     expect(names(["- item", " ---", "- item", "---", "# Probe Z"])).toEqual(["h1:Probe Z"]);
   });
 });
+
+describe("Session 243 guard — answers around the block-quote marker's own column that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ THE DANGEROUS DIRECTION, AND THERE ARE TWO OF THEM. This session replaces
+  // `BLOCK_QUOTE_PREFIX`'s absolute `^ {0,3}` anchor with a CONTAINER-RELATIVE window, so every
+  // mistake it can make is a line newly read as a QUOTE that quarto reads as something else —
+  // ordinary text, or indented code. That direction mints PHANTOM headings. And the metadata
+  // pre-pass half points the OTHER way: `blockQuoteRuns` feeds `consumedMetadataBlockLines`, and
+  // a run that is too wide CONSUMES a block quarto does not, which DELETES every heading inside
+  // it. The guard is weighted to both — rows where no quote may be recognised, and rows where no
+  // block may be consumed.
+  //
+  // Every answer below is the RENDERED one, measured through the real `quarto render` path
+  // (quarto 1.7.33) over `scratchpad/s243/r0`–`r5` (395 documents) BEFORE any `src/` change.
+  //
+  // ⚠ **THE WINDOW IS `[c, c+3]` OVER THE OPEN STACK, AND FIVE CONTAINER KINDS SAY SO.** Swept
+  // 0–13 against an ATX-inside-the-quote probe: a bullet at content column 2 accepts 0–5, one at
+  // 4 accepts 0–7, a nested pair (2 and 4) accepts 0–7, three deep (2, 4, 6) accepts 0–9, an
+  // ordered `10.` at 4 accepts 0–7, a definition list at 4 accepts 0–7 — and `-       item`,
+  // whose seven spaces COLLAPSE to content column 2, accepts 0–5 rather than 0–11
+  // (`scratchpad/s243/r0` B/C/D/E/F/G/H, `r2` N). That union is exactly `columnIsCodeDepth`.
+
+  it("G1: at TOP LEVEL the window is 0–3 and column 4 is indented code — unchanged", () => {
+    // `scratchpad/s243/r0/C_c0_00`–`C_c0_05`: the quote renders at 0, 1, 2 and 3; at 4 and 5 the
+    // whole line is a `<pre>` and quarto renders no heading at all. This is the half of the old
+    // anchor that was always right, and the new window must reproduce it exactly.
+    expect(names(["> # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names([" > # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["  > # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["   > # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["    > # Probe A"])).toEqual([]);
+    expect(names(["     > # Probe A"])).toEqual([]);
+  });
+
+  it("G2: a TAB indent reaches column 4, so at top level it is never a marker", () => {
+    // ⚠ A tab from columns 0–3 always lands ON 4, so the tab rows are DECIDED by the window
+    // rather than excluded by a spaces-only character class — which is why widening the indent
+    // class to `[ \t]` is byte-identical at top level. `r2/V2_t5`, `V2_t6` render no heading.
+    expect(names(["\t> # Probe A"])).toEqual([]);
+    expect(names(["  \t> # Probe A"])).toEqual([]);
+  });
+
+  it("G3: the strip does NOT relax the quote's OWN content-column rules", () => {
+    // `r2/U2_c1`, `U2_c2`, `U2_c4` and `r3/X_x0`–`X_x2`: inside the quote the content base is
+    // column 0 EXACTLY, so one extra space already refuses the ATX and five make it code. That
+    // must stay true when the marker itself is found four columns in.
+    expect(names(["-   item", "", "    >  # Probe A"])).toEqual([]);
+    expect(names(["-   item", "", "    >   # Probe A"])).toEqual([]);
+    expect(names(["-   item", "", "    >     # Probe A"])).toEqual([]);
+    expect(names(["-   item", "", "    >\t# Probe A"])).toEqual([]);
+  });
+
+  it("G4: a DIV container pushes no content column, so its window stays 0–3", () => {
+    // `r1/Z_div_00`–`Z_div_07`: a `::: {.note}` really does render the quote at 0–3 and a `<pre>`
+    // at 4–7 — the div is not a container this window may widen. The stack this reads is
+    // `contentColumns`, which a div never pushes, so the row is right by construction; it is
+    // pinned because a later session reaching for "any open block" would break it.
+    expect(names(["::: {.note}", "", "   > # Probe A", "", ":::"])).toEqual(["h1:Probe A"]);
+    expect(names(["::: {.note}", "", "    > # Probe A", "", ":::"])).toEqual([]);
+  });
+
+  it("G5: a container CLOSED above the marker takes its column with it", () => {
+    // `r1/T_closed_00`–`T_closed_07`: the column-0 paragraph ends the list, so the window is back
+    // to 0–3 and `    > # Probe A` is a `<pre>` again. The pop runs on the paragraph line, one
+    // iteration ABOVE the marker, which is what makes the stale-stack reading safe here.
+    expect(names(["-   item", "", "plain para", "", "   > # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["-   item", "", "plain para", "", "    > # Probe A"])).toEqual([]);
+  });
+
+  it("G6: a quote may not interrupt an OPEN paragraph, at any column", () => {
+    // `r1/AB_para_00`–`AB_para_07` all render NOTHING: the marker line is a lazy continuation of
+    // the paragraph above it. The gate is `paragraphOpen`, not the column, and widening the
+    // column must not reach past it.
+    expect(names(["-   item", "", "    para line", "    > # Probe A"])).toEqual([]);
+    expect(names(["-   item", "", "    para line", "     > # Probe A"])).toEqual([]);
+  });
+
+  it("G7: the marker at base+4 is indented code at EVERY container depth", () => {
+    // `r2/N_b2_o4`, `N_b4_o4`, `N_b6_o4` — the row that bounds the window from above. A bullet at
+    // content column 2 refuses column 6, one at 4 refuses 8, and three deep refuses 10.
+    expect(names(["- item", "", "      > # Probe A"])).toEqual([]);
+    expect(names(["-   item", "", "        > # Probe A"])).toEqual([]);
+    expect(names(["- a", "", "  - b", "", "    - c", "", "          > # Probe A"])).toEqual([]);
+  });
+
+  it("G8: the marker-KEPT underline still wins at 0 and at the container's own column", () => {
+    // Session 240's set, `[0, ...outerColumns]`, re-rendered one container further out than that
+    // session could reach: `r1/W_ul_00` and `W_ul_04` render `h2:> quoted one` with the marker
+    // KEPT, where every other column strips it. ⚠ This is the row a widened marker window breaks
+    // first — the title's own markers become findable, so a lazy strip that fires here deletes
+    // the `>` quarto keeps.
+    expect(names(["-   item", "", "    > quoted one", "---"])).toEqual(["h2:> quoted one"]);
+    expect(names(["-   item", "", "    > quoted one", "    ---"])).toEqual(["h2:> quoted one"]);
+  });
+
+  it("G9: a `>`-marked YAML block inside genuine INDENTED CODE is not consumed", () => {
+    // ⚠ THE METADATA PRE-PASS'S DELETING DIRECTION. `r4/A_code0`, `A_code2`, `L_deep0`: with no
+    // container open, `    > ---` is a `<pre>` and quarto consumes nothing — so the heading below
+    // must survive. Consuming here would delete `h1:Probe Z`.
+    expect(
+      names(["para", "", "    > ---", "    > # Inside Code", "    > note: alpha", "    > ---", "", "# Probe Z"]),
+    ).toEqual(["h1:Probe Z"]);
+    expect(
+      names(["para", "", "        > ---", "        > # Deep", "        > note: alpha", "        > ---", "", "# Probe Z"]),
+    ).toEqual(["h1:Probe Z"]);
+  });
+
+  it("G10: a `>`-marked YAML block inside a FENCE is not consumed either", () => {
+    // `r4/B_fence0`, `B_fence1` — the fence region is skipped before any of this is reached, and
+    // the heading below the fence renders. The pre-pass must not reach into it.
+    expect(names(["```", "> ---", "> # Inside Fence", "> note: alpha", "> ---", "```", "", "# Probe Z"])).toEqual([
+      "h1:Probe Z",
+    ]);
+  });
+
+  it("G11: a real top-level quoted metadata block is still consumed", () => {
+    // `r5/dash_top` and `r4/C_run0`: the block quarto really does consume renders only the probe.
+    // This is the answer a NARROWER pre-pass would break, and it is what stops the fix for G9
+    // from being "never consume anything".
+    expect(names(["> ---", "> # Inside", "> note: alpha", "> ---", "", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("G12: front matter above the container changes none of this", () => {
+    // `r3/R_markdown_2`: the DEFAULT reader, declared explicitly, answers the marker-KEPT row
+    // exactly as G8 does with no front matter at all. Pinned because the front-matter pre-pass
+    // and the metadata pre-pass this session widens read the same lines, and a run that reached
+    // into line 0 would move this row rather than the ones it is aimed at.
+    expect(
+      names(["---", "format: html", "from: markdown", "---", "", "-   item", "", "    > quoted one", "    ---"]),
+    ).toEqual(["h2:> quoted one"]);
+  });
+
+  it("G13: a marker at the container's column with NOTHING quotable below stays empty", () => {
+    // `r2/X2_p0`, `X2_p1` and `r3/S_tab2`: recognising the quote must not by itself invent a
+    // heading. These are the rows that would go red if the strip started reporting its own
+    // content as a title.
+    expect(names(["-   item", "", "    > just prose"])).toEqual([]);
+    expect(names(["-   item", "", "    > just prose", "    > more prose"])).toEqual([]);
+  });
+
+  it("G14: a heading BELOW a container-depth quote is unaffected in both directions", () => {
+    // `r3/P_p2`, `r4/F_after1`: the ATX after the quote ends renders today and must keep
+    // rendering. A change that leaves a paragraph — or a metadata block — open across the blank
+    // line would swallow it, which is how this family has broken before.
+    expect(names(["-   item", "", "    > quoted one", "", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   item", "", "    > ---", "    > note: alpha", "    > ---", "", "# Probe Z"])).toEqual([
+      "h1:Probe Z",
+    ]);
+  });
+});
