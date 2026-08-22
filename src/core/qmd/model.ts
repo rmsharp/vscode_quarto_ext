@@ -5908,6 +5908,10 @@ function computeRegions(text: string): Regions {
           ? open.quoted
           : inQuote || !paragraphOpen
         : false;
+    // Whether THIS line is the one that opens the quote — read by the blank branch far below,
+    // where `inQuote` has already been set and the distinction is no longer recoverable
+    // (Session 244). See `markedBlankOpensQuote` at that branch for what it decides.
+    const quoteOpensHere: boolean = stripQuote && !inQuote;
     if (stripQuote) {
       // Entering a quote from outside it abandons the OUTER document's container columns: the
       // quote's content base is its own column 0, and an outer list's column describes a
@@ -6307,7 +6311,40 @@ function computeRegions(text: string): Regions {
     // real Quarto CLI). Still recorded as body, matching existing behavior.
     if (BLANK_LINE.test(line)) {
       bodyLines.push({ line: i, text: raw, contentStart: stripQuote ? (quoteContentStart as number) : 0 });
-      consecutiveBody = 0;
+      // ⚠ **A MARKED LINE WHOSE STRIPPED CONTENT IS EMPTY IS BLANK INSIDE THE QUOTE AND A SETEXT
+      // TITLE OUTSIDE IT, AND BOTH READINGS ARE REAL (Session 244).** `>` / `---` renders `h2:>`
+      // — the underline claims the RAW line before any quote is parsed, so the marker survives as
+      // the whole heading text, which is Session 240's G1/G2 rule and is exactly what this model
+      // already does for the CONTENT-carrying twin (`> quoted one` / `---` → `h2:> quoted one`).
+      // The empty marker run was the one spelling that could not reach it: the strip turns `>`
+      // into `""`, this branch consumed it, and no title line survived to be underlined.
+      //
+      // ⚠ **THE TRIGGER IS "THIS LINE OPENS THE QUOTE", NOT "THIS LINE IS MARKED AND BLANK", and
+      // the difference is the whole of the phantom direction.** Pandoc offers a line to
+      // `setextHeader` only at the start of a block; once a quote is already open above it the
+      // line is INSIDE that quote, where it is genuinely blank. Rendered: `>` / `---` renders
+      // `h2:>` while `> para one` / `>` / `---` renders `blockquote>p>hr` and NO heading, and a
+      // SECOND `>` in a row likewise (`scratchpad/s244/r0/t01_bare_dash`, `t12_para_bare_dash`;
+      // `r1/b01_two_bare`, `b06_title_bare`). ⚠ An UNMARKED blank ENDS "already open", so
+      // `> para one` / (blank) / `>` / `---` renders the heading again (`r1/b03_para_blank_bare`)
+      // — which falls out for free, because that blank clears `inQuote` above.
+      //
+      // ⚠ **AND UNDER A CommonMark READER IT NEVER FIRES.** CommonMark parses `>` as a block
+      // quote before any setext parse can claim the raw line: `from: gfm` and `from: commonmark`
+      // both render `blockquote>hr` and no heading for the identical bytes the default reader
+      // answers `h2:>` (`r1/f01_gfm_dash`, `f02_gfm_eq`, `f04_cm_dash`). Guarded at G9.
+      //
+      // ⚠ **`pendingFreshBlock`, NOT A BARE `consecutiveBody = 1` — the counter has to be 1 HERE
+      // and 1 AGAIN on the line below.** The default reader admits a setext title only at
+      // `consecutiveBody === 1`, so leaving the run to accumulate would push the NEXT line to 2
+      // and DELETE the heading it carries: `>` / `> title` / `---` renders `h2:title`, and one
+      // container in that document is Session 243's R5 control (`r1/b04_bare_title`,
+      // `g03_ctr_bare_title`). Deferring through `pendingFreshBlock` is the mechanism this
+      // scanner already uses for a block line that makes the line BELOW it a paragraph start —
+      // reused rather than re-derived (Learning #14). Guarded at G1.
+      const markedBlankOpensQuote = quoteOpensHere && !commonmarkDialect;
+      consecutiveBody = markedBlankOpensQuote ? 1 : 0;
+      pendingFreshBlock = markedBlankOpensQuote;
       paragraphOpen = false;
       inPipeTable = false;
       tableRowsOpen = false;

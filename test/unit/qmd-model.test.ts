@@ -13385,15 +13385,23 @@ describe("Session 240 — the container column the quote switch stashed, and nev
     expect(names(["1. item", "", "   > quoted one", "   ---"])).toEqual(["h2:> quoted one"]);
   });
 
-  it("R2: ⚠ DISCLOSED BOUND — an EMPTY quote line is a title quarto underlines and this does not", () => {
+  it("R2 (CLOSED by Session 244 — assertion REVERSED): an EMPTY quote line IS a title", () => {
     // Rendered, `- item` / `` / `  >` / `  ---` renders `<h2>&gt;</h2>` — the bare marker is the
     // title text and the underline claims it at the item's own column, exactly like every other
-    // row this session recovers (`scratchpad/s240/r1/d_empty`). This model reports nothing,
-    // because the stripped line is BLANK and so never becomes a body line to be titled.
-    // ⚠ PRE-EXISTING and UNMOVED by this session, scored pre and post against `presrc`. Direction
-    // is a LOSS, and the heading it loses is a single `>` character — filed, not fixed, because
-    // the fix is in `consecutiveBody`'s accounting rather than in any column rule.
-    expect(names(["- item", "", "  >", "  ---"])).toEqual([]);
+    // row this session recovers (`scratchpad/s240/r1/d_empty`).
+    // ⚠ **THIS PIN WAS THIS DEFECT'S OBITUARY, AND ITS OWN COMMENT NAMED THE FIX** — "the fix is
+    // in `consecutiveBody`'s accounting rather than in any column rule". That is exactly what
+    // Session 244 changed: a marked line whose stripped content is empty and which OPENS the
+    // quote leaves `consecutiveBody` at 1 and defers the run through `pendingFreshBlock`.
+    // ⚠ Re-rendered from its own bytes before reversal rather than trusted — `h2:>`, block
+    // structure `ul>p>h2` (`scratchpad/s244/r2/a_s240_r2`), and the underline sweep beside it
+    // confirms Session 240's own `[0, ...outerColumns]` set is what admits it: column 0 and
+    // column 2 render the heading, columns 1 and 3 render a SIMPLE TABLE instead
+    // (`r2/c_s240_r2_ul0`, `b_s240_r2_atx` against `d_s240_r2_ul1`, `e_s240_r2_ul3`).
+    expect(names(["- item", "", "  >", "  ---"])).toEqual(["h2:>"]);
+    expect(names(["- item", "", "  >", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(["- item", "", "  >", " ---", "# Probe Z"])).toEqual([]);
+    expect(names(["- item", "", "  >", "   ---", "# Probe Z"])).toEqual([]);
   });
 });
 
@@ -14333,7 +14341,7 @@ describe("Session 243 — the block-quote marker's window is the container's, no
     expect(names(["-   item", "", "    > ---", "    >  ---", "# Probe Z", "-   item"])).toEqual([]);
   });
 
-  it("R6: ⚠ DISCLOSED RESIDUAL — a MARKED-BLANK quote line used as a setext title", () => {
+  it("R6 (CLOSED by Session 244 — assertion REVERSED): a MARKED-BLANK quote line IS a title", () => {
     // ⚠ **PRE-EXISTING AT TOP LEVEL, AND THAT IS MEASURED RATHER THAN ASSERTED.** `>` / `---`
     // renders `h2:>` — the underline claims the RAW line before any quote is parsed, so the
     // marker survives as the whole heading text (Session 240's G1/G2 rule) — and the PRE-SESSION
@@ -14346,8 +14354,14 @@ describe("Session 243 — the block-quote marker's window is the container's, no
     // ⚠ Corpus weight measured at ZERO over 51,382 documents; the heading it loses has the
     // literal text `>`. The CONTENT-carrying twin is answered correctly at both depths
     // (`top_txt`, `ctr_txt`), which localises it to the EMPTY marker run.
-    expect(names([">", "---"])).toEqual([]);
-    expect(names(["-   item", "", "    >", "    ---"])).toEqual([]);
+    // ⚠ **CLOSED BY SESSION 244, which took Session 243's own localisation as its starting point
+    // and found the fix exactly where Session 240's R2 said it was — in `consecutiveBody`'s
+    // accounting, not in any column rule.** Both depths are one rule, as this entry predicted.
+    // Re-rendered from these very bytes before the reversal (`scratchpad/s244/r0/t01_bare_dash`,
+    // `c01_bare_dash`), and the ONE rule is guarded in both dangerous directions at Session 244
+    // G1-G13.
+    expect(names([">", "---"])).toEqual(["h2:>"]);
+    expect(names(["-   item", "", "    >", "    ---"])).toEqual(["h2:>"]);
     // The content-carrying twins, right at both depths.
     expect(names(["> quoted one", "---"])).toEqual(["h2:> quoted one"]);
     expect(names(["-   item", "", "    > quoted one", "    ---"])).toEqual(["h2:> quoted one"]);
@@ -14580,5 +14594,22 @@ describe("Session 244 guard — answers around the marked-blank quote line that 
     // stay right; it is the control that separates "the strip changed" from "the title path
     // changed".
     expect(names(["    >", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+  });
+});
+
+describe("Session 244 — a marked-blank quote line stays available as a setext title", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: `>` under an unmarked underline is a setext title whose text is the marker", () => {
+    // ⚠ **THE UNDERLINE CLAIMS THE RAW LINE BEFORE ANY QUOTE IS PARSED, so the marker survives as
+    // the WHOLE heading text** — Session 240's G1/G2 rule, which this model already applies to the
+    // content-carrying twin (`> quoted one` / `---` renders `h2:> quoted one`). The empty marker
+    // run was the one spelling it could not reach: the strip turns `>` into `""`, the blank branch
+    // consumed it, and no title line survived to be underlined.
+    // Rendered `h2:>` and `h1:>` (`scratchpad/s244/r0/t01_bare_dash`, `t02_bare_eq`; block
+    // structure `section>h2`, so no `<blockquote>` forms at all).
+    expect(names([">", "---"])).toEqual(["h2:>"]);
+    expect(names([">", "==="])).toEqual(["h1:>"]);
   });
 });
