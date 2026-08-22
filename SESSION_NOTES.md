@@ -5,14 +5,155 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 243 — IMPLEMENTATION (strict TDD): `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` ANCHOR — A QUOTE MARKER AT COLUMN 4 OR DEEPER IS NOT RECOGNISED AT ALL** — filed by Session 225, annotated by Sessions 238, 240, 241 and 242, and pinned by Session 242 as its ranked #1 and as R1. The operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
-**Started:** 2026-08-22
-**Status:** Session claimed. Work beginning.
+**Task:** **Session 243 — IMPLEMENTATION (strict TDD): `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` ANCHOR — A QUOTE MARKER AT COLUMN 4 OR DEEPER WAS NOT RECOGNISED AT ALL** — filed by Session 225, annotated by Sessions 238, 240, 241 and 242 with 164 measured rows, and named by Session 242 the SOLE blocker on the whole quoted-underline family. The operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
+**Started:** 2026-08-22 · **Closed:** 2026-08-22
+**Status:** **DONE. SHIPPED — and two gates that every predecessor also runs are the only reason it is correct.**
 
-**The witness (filed, MEASURED, rendered by four prior sessions).** `-   item` opens content at column 4 with ONE container, so the quote marker at column 4 is past the `^ {0,3}` anchor and `inQuote` is never set: `-   item` / blank / `    > quoted one` / an underline renders `h2:quoted one` at underline columns 1, 2, 3, 5 and 6, and this model reports nothing (`scratchpad/s241/r1/anchor1`–`anchor6`, pinned AT the loss as Session 241 G18). ⚠ **164 measured rows across four container kinds**, 148 of them Session 242's entire residual. ⚠ **Spelling-blind** — the `=` twins fail on identical bytes (`s242/r1/C_e1`–`C_e3`), which is what proves the anchor and not the underline is the blocker. ⚠ **Session 240's G22/G23 pins are right today for a reason this fix removes** — re-render them rather than trusting them.
+**HEADLINE 1 — THE ANCHOR WAS ONLY EVER RIGHT AT TOP LEVEL, AND THE FIX IS A PREDICATE THIS FILE ALREADY HAD.** `^ {0,3}` is an ABSOLUTE column, and column 4 means "indented code" only where nothing is open. Inside a container whose content column is 4 the same bytes are a quote — so `inQuote` was never set and no band of either spelling could reach the row. The window is now `[c, c+3]` over the open stack, which is exactly `columnIsCodeDepth`, **reused rather than re-derived**. Measured over five container kinds with an ATX-inside-the-quote probe swept 0–13: a bullet at 2 accepts 0–5, one at 4 accepts 0–7, `10.` at 4 accepts 0–7, a definition list at 4 accepts 0–7, a nested 2/4/6 stack accepts 0–9 — the UNION. ⚠ `-       item`, whose seven spaces COLLAPSE to content column 2, accepts 0–5 and **not** 0–11, which is what proves the rule is the model's own content column. At top level the new window is the old anchor character for character, which is why no top-level row moves.
 
-**Deliverable (ONE capability):** a quote marker deeper than three columns is recognised when a container is open above it — `src/core/qmd/model.ts`.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**HEADLINE 2 — ONE QUESTION WAS SPELLED THREE WAYS, AND THE THIRD SPELLING WAS NOT IN THE FILED ITEM.** `grep '{0,3}'` found `BLOCK_QUOTE_MARKER = /^ {0,3}>/` thirty lines above `BLOCK_QUOTE_PREFIX`, driving the `quoteOpen` fail-safe and `paragraphQuoted`. Both accept exactly the same lines, so folding them is an identity at the document root — and leaving them apart would have made this model say "quote" at the strip and "not a quote" at the fail-safe on the same bytes. **Grep for a predicate's other spellings by SHAPE, not by name.** (Learning #454.)
+
+**HEADLINE 3 — WIDENING THE PREDICATE PUT ALL ELEVEN OF ITS READERS BACK IN SCOPE, AND MEASUREMENT — NOT CONSISTENCY — DECIDED WHICH FOLLOWED.** Nine took the container-relative stack; **two did not**, each scored separately. `paragraphQuoted` SUSPENDS the paragraph bail, so the block rules below it are then evaluated against a `contentColumns` the quote entry CLEARED while the line's column is measured from the document root — the wide window cost **16 rendered rows**. `tableNeighbour` reads lines at `i ± offset`, possibly in a different container entirely — the wide window cost **5 more**. Both kept narrow, scored (593 agree vs 588 over 633 rendered documents) and documented AT each site. (Learning #455.)
+
+**HEADLINE 4 — THE MUTATION HUNT AND THE ENUMERATION EACH CHANGED WHAT SHIPPED, AFTER EVERY OTHER GATE WAS GREEN.** Survivor **N10** was not merely unexercised but wrong-in-the-other-direction: the shipped spelling had a phantom on 16 rendered documents that 51,382 corpus documents and 571 rendered probes all passed. Survivor **N8**'s witness, produced by the 12,287,081-document pre/post enumeration, **DELETES a real heading** — with the quote entered SHALLOWER than its container, that entry line ends the container, so a continuation marker four columns in is indented code and the ATX below renders. `outerColumns.rawColumns` is the field Session 241 added for exactly that pop, and it had one reader.
+
+**THE measurement.**
+
+| corpus | scale | what it measures | result |
+|---|---|---|---|
+| `r0`–`r12` | 633 documents | the window, the danger shapes, the pre-pass, the readers | agree **331 → 588** |
+| corpus sweep | **51,382 documents** | every corpus document, pre vs post | 356 movers, **EVERY ONE RENDERED**; the 174 from predecessor corpora: **163 RECOVERED, 0 BROKEN, 11 PARTIAL**; 0 cell movers |
+| repo sweep | 114 tracked files | this project's own markdown | 1 mover — this session's own extended gate fixture |
+| enumeration | **12,287,081 documents ×2** | pre vs post, three alphabets, before AND after each narrowing | 2,162 class members rendered; real heading losses **98 → 56**, every survivor an already-pinned family |
+| mutation hunt | **20 mutants** | is each term exercised? | **19 died** |
+| survivor hunt | **18,578,112 documents** | is the last survivor inert? | **0 disagreements**, three alphabets |
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** **14 `it()`s green BEFORE any `src/` change** (`9ec81ba0`), weighted to BOTH dangerous directions — a container-relative window mints phantoms, and a too-wide metadata pre-pass CONSUMES and DELETES. **3 RED→GREEN cycles**, each RED confirmed for the right reason (`expected [] to deeply equal [ 'h2:quoted one' ]`, then the guard itself going red at G8/G12, then at G14). **11 test-after pins (C2–C11)**, **7 residual pins (R1–R7)**, and **3 inherited pins REVERSED**, each re-rendered from its own bytes first. ⚠ `src/core/qmd/model.ts` restored **byte-identical (SHA-256)** after each of the 20 mutants.
+
+**⚠ Phase 3E — GREEN FIRST TIME, on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / exit 0**. All assertions pre-checked headlessly first (`scratchpad/s243/precheck243.test.ts` — S211's gotcha 3 for a **THIRTIETH** session), including an exact heading-list-in-order match against quarto's own render and a re-check of every prior session's assertion on this shared fixture, both directions. The fixture's premise was **re-rendered, not assumed**: twenty-two prior headings byte-identical and in the same order, exactly two added. `src/` did NOT change after the run.
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `npm test` **2659 passed / 66 files** (baseline 2627, **+32**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S242) · `check-package` **OK 42 files / 5.59 MB** · `check-backlog` **OK, 181 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** It leaves `paragraphQuoted` and `tableNeighbour` on the document-root window (filed, R4/R7), the marked-blank setext title lost at every depth (filed, R6 — and **PRE-EXISTING at top level**, which is what makes it a reach change), a quote inside an open simple table read as a quote (filed, R5, corpus weight zero), Session 240's marker-KEPT set missing a constant 2 on a bullet-inner two-level stack (filed, R1, mechanism named), and the **CommonMark HTML block** half of Session 225's item untouched. And **no BLIND sweep / subagent fan-out**, unavailable under a session-level instruction for the **THIRTY-SIXTH** session running.
+
+**What was done (commits).** 1B claim `8199afa3`. **GUARD** `9ec81ba0` — 14 `it()`s, test-only, green before any `src/` change. **FIX** `aff7f128` — `blockQuotePrefix` and its readers. **PINS** `41a6e07b` — C2–C9, R1–R3. **NARROWING** `ed734f46` — `paragraphQuoted` kept narrow, R4/R5. **POP** `10951f3b` — `rawColumns`, C10/R6. **NARROWING** `868a09c3` — `tableNeighbour` kept narrow, C11/R7. **PROOF** `79db550b` — the inert term documented. **WIRING** `119d0a77` — the gate fixture extended and re-rendered, three assertions. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (2 closed, 5 filed, 2 annotated, 1 narrowed), `PROJECT_LEARNINGS.md` (#454–#459), `SESSION_NOTES.md`, `HANDOFFS.md` and `dashboard_history.jsonl`.
+**Ledger:** `CHANGELOG: 2026-08-22 · [ad hoc] Session 243` — written at close-out with the `BACKLOG.md` update.
+
+**Deliverable (ONE capability):** *the block-quote marker's window is its container's, not the document's* — `src/core/qmd/model.ts`.
+
+**Gotchas for the next session.**
+1. ⚠ **A TRANSITION CLASS IS NOT A VERDICT — RENDER EVERY MEMBER YOU CAN AFFORD, NOT ONE PER CLASS.** Sessions 241/242 clustered movers by `(pre, post)` and rendered one representative. I did the same for the corpus sweep and then rendered all 174 anyway: 11 rows the representative scored as clean recoveries are marker-TEXT divergences, and one it scored BROKEN is a recovery. Keep up to N members per class at enumeration time (`brute.test.ts` keeps 4) so the choice exists later. (Learning #456.)
+2. ⚠ **A MUTATION SURVIVOR CAN BE RIGHT, NOT MERELY UNEXERCISED.** N10 survived the whole suite and, rendered, was correct where the shipped build was not — 16 documents. Do not report survivors as "kept, unobservable" until an alphabet built from **what the term READS** has failed to reach it: four of mine needed a SECOND alphabet carrying MARKED underlines, because all four live on `stripQuote` lines an unmarked-underline alphabet can never reach. Three of the four then produced thousands of disagreements. (Learning #457.)
+3. ⚠ **BEFORE PINNING A REGRESSION, RENDER THE SHAPE ONE CONTAINER OUT.** 182 of my enumeration's heading-losing rows looked like a new deletion; `>` / `---` at TOP LEVEL is wrong on the PRE-session build too, so it is a reach change on a defect this model always had. One render, one round, and it reclassified the largest family. (Learning #458.)
+4. ⚠ **WHEN AN INHERITED TEST GOES RED, RE-RENDER ITS BYTES BEFORE ASSUMING YOU BROKE IT.** Three went red; two were pins of the defect I removed, and the third — Session 239's C4 — was a filed item's obituary. Its own comment said "the missing `h2` is the already-filed list-marker item", and that item is now CLOSED. (Learning #459.)
+5. ⚠ **A PROBE WITH NO KNOWN-POSITIVE CONTROL IS A NULL RESULT ABOUT THE PROBE — AND `blank_before_header` IS THIS FAMILY'S FAVOURITE WAY TO BLIND ONE.** My first continuation probe put an ATX under an open paragraph inside the quote, so it rendered nothing whatever the marker did, and twenty documents read "agree". `r2/ctl_noblank` vs `ctl_blank` is the control pair; a MARKED BLANK line (`    >`) is what keeps the quote open and satisfies the rule. This is S242's gotcha 3 recurring one session later.
+6. ⚠ **THE HARNESS RAN OTHERWISE UNMODIFIED:** `render243.sh` is S242's byte-for-byte; `score/prescore` + `presrc/`, `rescore.sh`, `sweep`, `reposweep`, `hunt`, `mutate243.py`, `tsv2json.py`, `movers.py` each needed one rename or a MUTANTS-list swap. ⚠ **`rescore.sh` writes `<round>.model.json` from the WORKING TREE — re-run it after every `src/` change or you will read a stale table and think you broke something you fixed.** I did exactly that and spent ten minutes on it. New and worth keeping: `cmp.py` (pre/post/quarto verdicts + residual list), `expscore` variants `exp/`…`exp9/` (scratch spellings scored against each other), `brute.test.ts` (keeps 4 members per class), `hunt2`/`hunt3` (survivor alphabets), `precheck243.test.ts`.
+7. ⚠ **NEVER `git add -A` AT THIS REPO'S ROOT** — `scratchpad/` is untracked but NOT in `.gitignore` (S240's item, still open). Stage close-out files BY NAME; no gate can see this.
+8. ⚠ **`zsh` ABORTS A COMMAND ON A GLOB THAT MATCHES NOTHING** (`rm -f dir/*.qmd` on an empty dir kills the whole `&&` chain), and **the Bash tool's working directory persists between calls.** Do directory resets in Python, and prefix with absolute paths after any `cd`.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Each was checked against a rendered row or a read file on the SHIPPED build.
+
+**#1 — THE MARKED-BLANK SETEXT TITLE, and it is the largest measured family left.** `>` / `---` renders `h2:>` and this model reports nothing — at TOP LEVEL, on the pre-session build too, so it is not this session's doing. The strip turns `>` into `""`, the blank branch consumes it, and no title line survives. ⚠ **182 of the 238 heading-losing rows in a 12,287,081-document enumeration**, and ONE rule fixes both depths. **Derived** from `scratchpad/s243/r11` (six rendered rows, three top-level and three one container in) and pinned as R6. ⚠ The CONTENT-carrying twin is right at both depths, which localises it to the EMPTY marker run. Effort **estimate** LOW–MEDIUM; the risk is that keeping such a line available as a title also keeps it available to everything else that reads body lines.
+**#2 — SESSION 240'S MARKER-KEPT SET IS MISSING A CONSTANT 2**, filed by this session and pinned as R1, **with the mechanism already named**: only a BULLET inner list on a two-level stack produces it, and `1. `, `10. `, `100. ` inner markers keep exactly `[0, ...contentColumns]` on all thirty rendered rows. **Derived** from `scratchpad/s243/r7`/`r8`/`r9` (five stacks × ten columns, both spellings). Phantom-free direction — it is a marker-TEXT divergence on rows that were reporting NOTHING before. Effort **estimate** LOW.
+**#3 — `paragraphQuoted`'s COORDINATE MISMATCH**, filed and pinned R4. ⚠ **The obvious fix is already REFUTED** — gating the suspension on the raw line's own code depth (`scratchpad/s243/exp7`) is a NO-OP on all 16 rows. The real question is which stack `closesParagraph` measures an unmarked line against while a quote is open. Effort **estimate** MEDIUM, and it is the same shape of question as `tableNeighbour`'s (R7), so the two may fall together.
+**#4 — A QUOTE INSIDE AN OPEN SIMPLE TABLE**, filed and pinned R5, with four controls that localise it to the table rather than the window. Corpus weight measured at ZERO. Effort **estimate** MEDIUM; belongs to the family Sessions 239–242 own.
+**#5 — THE QUOTE-END RESTORE**, S241's item, untouched here: 15 rendered rows. ⚠ The obvious fix is already REFUTED (mutants N12/N13). Effort **estimate** MEDIUM.
+**#6 — THE HEADERLESS SIMPLE TABLE**, S239's item, untouched and unmoved. Effort **estimate** MEDIUM.
+⚠ Still open from S186: promote the scratchpad harness, `.vscode-test/` large, `npm audit` devDependency-only (dashboard reports 6); `scratchpad/` is now ~3 GB and untracked.
+
+---
+
+## Session 242 Handoff Evaluation (by Session 243)
+
+**Score: 9/10.** It named this session's deliverable, sized it honestly, and every rendered
+claim in it held. The point comes off for one omission that cost real time and that the handoff
+was in a position to have caught.
+
+**What helped, specifically.**
+- **Its gotcha 1 — "RUN THE ENUMERATION EVEN WHEN EVERY OTHER GATE IS GREEN — THAT IS THE WHOLE
+  OF IT" — is the single reason this session did not ship a heading-deleting change.** My first
+  spelling passed 2,655 unit tests, a byte-identical oracle, a 51,382-document corpus sweep and
+  571 rendered probes. The enumeration found 24 rows that DELETE a real ATX. That sentence is
+  worth more than the rest of the handoff put together.
+- **Its ranked #1 was correct, complete and correctly sized.** "The sole blocker on the whole
+  quoted-underline family — 164 measured rows across four container kinds, four consecutive
+  sessions' recoveries each stop at content column 3, spelling-blind." Every part of that
+  reproduced. Effort MEDIUM was right.
+- **Its gotcha 2 — build a filed item's own proposal and SCORE it — transferred directly.** I
+  built five scratch variants (`exp`…`exp9`) and every design decision in this session came from
+  a number rather than an argument. `exp7` in particular refuted a fix that reads as obviously
+  correct, in ten minutes.
+- **Its warning that Session 240's G22/G23 "will need re-rendering when the anchor moves" was
+  exactly right to flag** — I re-rendered both, and they are unmoved. Knowing to check cost
+  nothing; not knowing would have cost a confused half-hour.
+- **Gotcha 7 (never `git add -A`) and gotcha 8 (the bash cwd persists) were both accurate**, and
+  I staged every close-out file by name because of the first.
+- **`npm test` matched the recorded 2627 exactly** and `test:oracle` was byte-identical, so the
+  baseline it handed over was true.
+
+**What was missing — and this is the point that comes off.**
+- ⚠ **It never mentioned `BLOCK_QUOTE_MARKER`, the SECOND spelling of the very anchor it was
+  handing over.** The item is titled after `BLOCK_QUOTE_PREFIX` and describes only that regex,
+  but `/^ {0,3}>/` sits thirty lines above it and drives both the `quoteOpen` fail-safe and
+  `paragraphQuoted`. I found it with `grep '{0,3}'`, not from the handoff. A session that
+  annotated this item four times running was well placed to notice, and a successor trusting the
+  entry's scope would have shipped a model that answers the same bytes two ways.
+- Its "what's next" did not anticipate that the fix would put ELEVEN readers back in scope, two
+  of which measurement says must NOT follow. That is genuinely the thing this session was for,
+  so it is not a fault — but it is why LOW would have been wrong and MEDIUM was only just right.
+
+**What was wrong: nothing.** Every witness reproduced, every count matched, every gotcha held.
+
+**ROI:** very high. Six of its eight gotchas were load-bearing and one of them — the enumeration
+— is the difference between this session shipping a fix and shipping a regression.
+
+---
+
+## Session 243 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I ran both slow gates even though everything else was green, and each one changed what
+  shipped.** The mutation hunt found a survivor that was not merely unexercised but RIGHT where
+  my build was wrong (16 rendered rows). The enumeration found a witness that deletes a real
+  heading (24 rows). Neither was reachable from any corpus.
+- **I refused to let "one predicate, all readers" be an argument.** The instinct was to hand all
+  eleven readers the new window; I scored each and two of them came back worse, with the numbers
+  recorded at the call site. That asymmetry is now documented rather than discovered later.
+- **I rendered every corpus mover instead of one per transition class — and it mattered.** The
+  representative method would have reported 11 partials as clean recoveries and one recovery as
+  a break. I distrusted a shortcut two prior sessions had used successfully, and it paid.
+- **I separated "newly broken" from "newly reachable" by measurement.** 182 of the enumeration's
+  heading-losing rows looked like a new deletion; one round of top-level twins proved the model
+  has always been wrong there. That reclassification is the difference between an honest handoff
+  and an alarming one.
+- **The guard block came first and was weighted to BOTH dangerous directions** — the phantom
+  direction the window opens and the DELETING direction the metadata pre-pass opens. G8/G12 and
+  G14 caught two regressions within one test run, which is precisely what a guard block is for.
+- **Phase 3E was green first time, on a go-ahead sought in advance**, with every assertion
+  pre-checked headlessly and the fixture's premise re-rendered rather than assumed.
+
+**What went wrong.**
+- ⚠ **I read a stale scoring table and briefly believed I had broken rows I had just fixed.**
+  `rescore.sh` writes from the working tree; I changed `src/` and compared against JSON written
+  before the change. Ten minutes, and it is now gotcha 6 so nobody repeats it.
+- ⚠ **My first continuation probe could not detect its own hypothesis** — an ATX under an open
+  paragraph inside a quote renders nothing whatever the marker does, so twenty documents read
+  "agree". This is Learning #452 recurring one session after Session 242 recorded it, which is
+  the second time this family has blinded a probe the same way.
+- ⚠ **I wrote one pin from the wrong rendered row** (R7's second assertion), and the test caught
+  it immediately — but it was avoidable: I transcribed from a scrolled-past summary instead of
+  re-reading the scored JSON.
+- **I mis-classified a guard as a must-not-move row (G12) when it was asserting a recovery**, and
+  only found out by running it. Cheap, but it means the guard block was not fully thought through
+  before it was written.
+
+**Against the bar.** Sessions 238–242 each shipped one measured term of this family with a full
+pre/post matrix, a mutation hunt and an enumeration; this session matches that and adds two
+methodological corrections the predecessors' own methods needed (render every class member; a
+survivor can be right). Where it falls short of a 9 is probe hygiene and one stale-data slip,
+both of which cost time rather than correctness.
 
 ---
 
