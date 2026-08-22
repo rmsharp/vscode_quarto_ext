@@ -6342,7 +6342,16 @@ function computeRegions(text: string): Regions {
       if (!stripQuote) {
         return other;
       }
-      const otherContent = blockQuoteContentStart(other, rawMarkerColumns);
+      // ⚠ **AND THIS ONE KEEPS THE DOCUMENT-ROOT WINDOW (Session 243), MEASURED LIKE
+      // `paragraphQuoted` AND FOR THE SAME KIND OF REASON.** `other` is a line at `i ± offset`,
+      // which may sit in an entirely different container from this one, so handing it THIS
+      // line's stack is a guess rather than an answer. Scored across 633 rendered documents in
+      // fifteen rounds, the narrow window agrees on 593 against 588 for the wide one, and 17
+      // broken against 22 — the difference is a phantom heading whose text is a dash run
+      // (`scratchpad/s243/hunt2docs/N19_2`-`N19_7`), the already-filed dash-rule-under-dash-rule
+      // family. Mutant N19 is therefore the shipped spelling, and it is OBSERVABLE: 613
+      // disagreements over 7,529,536 enumerated documents, not an inert term.
+      const otherContent = blockQuoteContentStart(other);
       return otherContent === null ? other : other.slice(otherContent);
     };
     // ── The columns the RAW line is written in (Session 240) ────────────────────────────────

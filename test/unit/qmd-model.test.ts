@@ -14301,6 +14301,38 @@ describe("Session 243 — the block-quote marker's window is the container's, no
     ).toEqual([]);
   });
 
+  it("C11: the marker DEPTH at container depth is read, and one level is stripped", () => {
+    // ⚠ **KILLS THE TWO MUTANTS THE FIRST HUNT ALPHABET COULD NOT REACH.** `quotedTitleText`'s
+    // STRIP branch and `underlineQuoteDepth` both live on a line whose own markers were stripped,
+    // so an alphabet of UNMARKED underlines never reaches them; a MARKED one does. Rendered,
+    // `-   item` / `` / `    >> quoted one` / `    > ---` renders `h2:> quoted one` — the
+    // underline is one level deep, so ONE of the title's two markers is removed and the other
+    // survives into the text — and dropping the columns from either reader strips both
+    // (`scratchpad/s243/hunt2docs/N16_0`, `N20_0`; 7,528 and 20,675 disagreements over 7,529,536
+    // enumerated documents).
+    expect(names(["-   item", "", "    >> quoted one", "    > ---", "-   item", "-   item"])).toEqual([
+      "h2:> quoted one",
+    ]);
+  });
+
+  it("R7: ⚠ `tableNeighbour` KEEPS THE DOCUMENT-ROOT WINDOW, and it is measured too", () => {
+    // ⚠ **THE SECOND READER MEASUREMENT SAYS TO LEAVE NARROW, AND THE REASON IS THE SAME SHAPE OF
+    // REASON AS R4's.** `other` is a line at `i ± offset`, which may sit in an entirely different
+    // container from the one this line is written in — so handing it THIS line's stack is a guess.
+    // Scored across 633 rendered documents in fifteen rounds, the narrow window agrees on 593
+    // against 588 and breaks 17 against 22. What the wide one adds is a phantom heading whose
+    // text is a DASH RUN — the already-filed dash-rule-under-dash-rule family (Session 240's item,
+    // Session 241 C5): `-   item` / `` / `    > ---` / `    >  ---` / `    > ===` / `-   item`
+    // renders NOTHING and the wide spelling reports `h1:---`
+    // (`scratchpad/s243/hunt2docs/N19_2`-`N19_7`).
+    // ⚠ Mutant N19 is the SHIPPED spelling and it is OBSERVABLE rather than inert — 613
+    // disagreements over 7,529,536 enumerated documents — so this row is what pins it.
+    expect(
+      names(["-   item", "", "    > ---", "    >  ---", "    > ===", "-   item"]),
+    ).toEqual([]);
+    expect(names(["-   item", "", "    > ---", "    >  ---", "# Probe Z", "-   item"])).toEqual([]);
+  });
+
   it("R6: ⚠ DISCLOSED RESIDUAL — a MARKED-BLANK quote line used as a setext title", () => {
     // ⚠ **PRE-EXISTING AT TOP LEVEL, AND THAT IS MEASURED RATHER THAN ASSERTED.** `>` / `---`
     // renders `h2:>` — the underline claims the RAW line before any quote is parsed, so the
