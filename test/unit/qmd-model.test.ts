@@ -14159,6 +14159,164 @@ describe("Session 243 — the block-quote marker's window is the container's, no
   const names = (lines: string[]) =>
     findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
 
+  it("C2: the EVERYDAY shape — a quote indented four inside a plain `- item`", () => {
+    // ⚠ **THE DEFECT WAS NEVER CONFINED TO EXOTIC CONTAINERS.** A bullet at content column 2
+    // accepts a marker at 0–5, so an ordinary four-space-indented quote inside an ordinary list
+    // was invisible too. Rendered, `- item` / `` / `    > # Probe A` renders `h1:Probe A`
+    // (`scratchpad/s243/r0/D_c2_04`, `D_c2_05`), and the underline family with it
+    // (`r1/Y_ul2_04`, `Y_ul2_05`).
+    expect(names(["- item", "", "    > # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["- item", "", "     > # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["- item", "", "    > quoted one", "    ---"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("C3: the window is the UNION over the stack, across five container kinds", () => {
+    // `r0` B/E/F/H and `r2/N`: an ordered `10.` at content column 4, a definition list at 4, a
+    // nested `2, 4` pair and a `2, 4, 6` stack all accept the marker up to base+3 and refuse it
+    // at base+4. One expression — `columnIsCodeDepth` — answers all of them.
+    expect(names(["10. item", "", "    > # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["term", "", ":   def item", "", "    > # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["- a", "", "  - b", "", "    > # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["- a", "", "  - b", "", "    - c", "", "         > # Probe A"])).toEqual([
+      "h1:Probe A",
+    ]);
+  });
+
+  it("C4: a CONTINUATION line reads the OUTER stack, which the quote entry cleared", () => {
+    // ⚠ **THE TERM THAT WOULD HAVE BEEN MISSED BY READING `contentColumns`.** Entering the quote
+    // CLEARS that array, so a continuation line compared against it would stop at column 3 —
+    // rendered, the marker sweep over `-   item` / `` / `    > alpha` / `    >` / `<n>> # Probe A`
+    // renders at 0–7 and not at 8, exactly the OUTER container's window (`r2/P2_cont_*`).
+    // ⚠ The control that makes this measurable at all is the MARKED BLANK line: without it
+    // pandoc's `blank_before_header` suppresses the ATX whatever the marker does, which made the
+    // first spelling of this probe a null result about the probe (`r2/ctl_noblank` vs `ctl_blank`).
+    expect(names(["-   item", "", "    > alpha", "    >", "       > # Probe A"])).toEqual([
+      "h1:Probe A",
+    ]);
+    expect(names(["-   item", "", "    > alpha", "    >", "        > # Probe A"])).toEqual([]);
+  });
+
+  it("C5: a list opened INSIDE the quote does NOT widen the marker window", () => {
+    // `r2/R2_in_*`: the same sweep under `    > -   inner` still renders 0–7 and not 8–11. The
+    // quote's inner containers govern what sits inside the markers; they say nothing about where
+    // the markers themselves may sit. This is the row that says `rawMarkerColumns` is the OUTER
+    // stash and not "the innermost stack of any kind".
+    expect(names(["-   item", "", "    > -   inner", "    >", "       > # Probe A"])).toEqual([
+      "h1:Probe A",
+    ]);
+    expect(names(["-   item", "", "    > -   inner", "    >", "        > # Probe A"])).toEqual([]);
+  });
+
+  it("C6: a TAB indent is now DECIDED by the window rather than excluded by the class", () => {
+    // `r2/V2_t0`-`t3`, `t7` — a tab reaches column 4, which is inside a container at content
+    // column 4 and outside one at top level. ⚠ The top-level rows are unmoved (G2), so widening
+    // the indent class from ` ` to `[ \t]` costs nothing there; `t4`/`t8` show two tabs (column 8)
+    // still refused.
+    expect(names(["-   item", "", "\t> # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["-   item", "", "   \t> # Probe A"])).toEqual(["h1:Probe A"]);
+    expect(names(["-   item", "", "\t\t> # Probe A"])).toEqual([]);
+    expect(names(["-   item", "", "\t> quoted one", " ---"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("C7: a quoted METADATA block at container depth is consumed, headings and all", () => {
+    // ⚠ **THE PRE-PASS HALF, AND ITS FAILURE DIRECTION IS DELETION.** `r2/M_meta0`, `M_meta3`,
+    // `r3/M_a`, `M_b`, `M_e`: quarto consumes the block and renders NOTHING, and leaving
+    // `blockQuoteRuns` on the document-root window reported both headings inside it. The
+    // over-consuming direction is pinned in the guard at G9/G10.
+    expect(
+      names(["-   item", "", "    > ---", "    > # Inside Meta", "    > note: alpha", "    > ---"]),
+    ).toEqual([]);
+    expect(
+      names(["- item", "", "    > ---", "    > # Inside Meta", "    > note: alpha", "    > ---"]),
+    ).toEqual([]);
+    expect(names(["-   item", "", "    > ---", "    > # Inside Meta", "    > ---"])).toEqual([]);
+  });
+
+  it("C8: the `=` spelling recovers identically — the window is spelling-blind", () => {
+    // ⚠ **THIS IS WHAT PROVED THE ATTRIBUTION FOR FOUR SESSIONS AND IT STILL HOLDS.** Session 242
+    // used the `=` twins failing on identical bytes to show the blocker was upstream of the
+    // underline; with the anchor gone both spellings recover together (`r1/X_eq_*`, `r7/two_eq_*`).
+    expect(names(["-   item", "", "    > quoted one", " ==="])).toEqual(["h1:quoted one"]);
+    expect(names(["-   item", "", "    > quoted one", "     ==="])).toEqual(["h1:quoted one"]);
+  });
+
+  it("C9: the CommonMark reader's own phantom is REMOVED where the quote is now seen", () => {
+    // `r3/R_commonmark_2`, `R_gfm_2`: `-   item` / `` / `    > quoted one` / `    ---` under a
+    // CommonMark reader renders NOTHING — that dialect forbids a setext underline from being a
+    // lazy continuation — and this model used to report `h2:> quoted one`. Recognising the quote
+    // is what lets the dialect branch decline it. ⚠ The same change widens that branch's OTHER
+    // phantom by one container; see R2.
+    expect(
+      names(["---", "format: html", "from: gfm", "---", "", "-   item", "", "    > quoted one", "    ---"]),
+    ).toEqual([]);
+    expect(
+      names(["---", "format: html", "from: commonmark", "---", "", "-   item", "", "    > quoted one", "    ---"]),
+    ).toEqual([]);
+  });
+
+  it("R1: ⚠ DISCLOSED RESIDUAL — a BULLET inner list also keeps the marker at column 2", () => {
+    // ⚠ **SESSION 240'S `[0, ...outerColumns]` SET IS MISSING A CONSTANT 2, AND ONLY A TWO-LEVEL
+    // STACK CAN SHOW IT.** Rendered across five stacks (`scratchpad/s243/r8`): with content
+    // columns `[3,5]` quarto keeps the marker at 0, **2**, 3 and 5; with `[4,6]` at 0, **2**, 4
+    // and 6; with `[5,7]` at 0, **2**, 5 and 7. The extra column is a literal 2 — it does NOT
+    // track the OUTER marker's width, which those three rows vary from 3 to 5.
+    // ⚠ **AND IT IS THE INNER MARKER THAT PRODUCES IT.** Holding the outer at `1. ` and varying
+    // the inner (`scratchpad/s243/r9`): a BULLET inner list keeps 0, 2, 3, 5, while `1. `, `10. `
+    // and `100. ` inner markers keep exactly `[0, ...contentColumns]` and this model is RIGHT on
+    // all thirty of those rows. So the extra column is the BULLET's own content width measured
+    // from the document root instead of from its container — one hypothesis, one probe away.
+    // ⚠ Newly REACHABLE, not newly created: the pre-session build reported NOTHING on these rows,
+    // so each goes from 0 of 2 right to 1 of 2. Both spellings diverge identically (`r7/two_eq_2`),
+    // which is the spelling-blind tell again. 11 corpus rows of 51,382 (`scratchpad/s242/r2/N_s2_*`).
+    // ⚠ Session 240's set is otherwise EXACT: `[4]` keeps 0 and 4, `[2,4,6]` keeps 0, 2, 4 and 6,
+    // and this model matches on every one (`r7/one_ul_*`, `three_ul_*`).
+    expect(names(["1. item", "", "   - inner", "", "     > quoted one", "  ---"])).toEqual([
+      "h2:quoted one",
+    ]);
+    // The ORDERED inner twin, where the same column is right — the discriminator.
+    expect(names(["1. item", "", "   1. inner", "", "      > quoted one", "  ---"])).toEqual([
+      "h2:quoted one",
+    ]);
+    // And the one-level stack, where Session 240's set is exact and unmoved.
+    expect(names(["-   item", "", "    > quoted one", "    ---"])).toEqual(["h2:> quoted one"]);
+  });
+
+  it("R2: ⚠ DISCLOSED RESIDUAL — the CommonMark underline phantom reaches one container in", () => {
+    // ⚠ **AN ALREADY-FILED DEFECT WHOSE REACH THIS WIDENS, SAID HERE RATHER THAN LEFT TO BE
+    // FOUND.** The CommonMark branch reads `COMMONMARK_INDENT_OFFSETS` as a 0–3 window from
+    // `innermostColumn`, which inside a quote is 0 — so it admits column 1 with no container
+    // column anywhere near it. Rendered under `gfm`, `-   item` / `` / `    > quoted one` /
+    // ` ---` renders NOTHING and this model reports `h2:> quoted one` (`r3/R_gfm_1`,
+    // `R_commonmark_1`). Session 234 pinned the top-level form at G6 and Session 240 pinned the
+    // one-container form at G27, deliberately declining to widen both branches at once; this row
+    // is that same phantom now reachable because the quote is SEEN at column 4.
+    // ⚠ Its twin at the container's own column is a RECOVERY (C9), so the family nets to zero.
+    expect(
+      names(["---", "format: html", "from: gfm", "---", "", "-   item", "", "    > quoted one", " ---"]),
+    ).toEqual(["h2:> quoted one"]);
+  });
+
+  it("R3: ⚠ DISCLOSED RESIDUAL — the `...`-terminated quoted block, PRE-EXISTING", () => {
+    // ⚠ **PROVEN PRE-EXISTING BY ITS OWN TWINS RATHER THAN ASSERTED.** A `---`-opened block
+    // closed by `...` is consumed by quarto and not by this model — and the pre-session build has
+    // the identical phantom at TOP LEVEL (`scratchpad/s243/r5/dots_top`, `dots_top2`) and even
+    // UNQUOTED (`dots_unq`), where no container and no quote is involved at all. This session
+    // makes it reachable one container in as well (`r4/I_dots0`, `r5/dots_ctr`).
+    // ⚠ The `---`-closed twin is answered correctly at BOTH depths (`dash_top`, `dash_ctr`),
+    // which localises it to the terminator spelling and not to the marker window.
+    expect(names(["> ---", "> # Inside", "> note: alpha", "> ...", "", "# Probe Z"])).toEqual([
+      "h1:Inside",
+      "h1:Probe Z",
+    ]);
+    expect(
+      names(["-   item", "", "    > ---", "    > # Inside", "    > note: alpha", "    > ...", "", "# Probe Z"]),
+    ).toEqual(["h1:Inside", "h1:Probe Z"]);
+    // The `---`-closed control, right at both depths.
+    expect(names(["> ---", "> # Inside", "> note: alpha", "> ---", "", "# Probe Z"])).toEqual([
+      "h1:Probe Z",
+    ]);
+  });
+
   it("C1: THE FILED WITNESS — a quote marker at the container's own content column", () => {
     // ⚠ **THE ITEM SESSION 225 FILED AND SESSIONS 238, 240, 241 AND 242 EACH ANNOTATED, and by
     // Session 242 the SOLE blocker on the whole quoted-underline family — 164 measured rows.**
