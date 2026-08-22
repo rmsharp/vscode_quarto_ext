@@ -4114,6 +4114,7 @@ function simpleTableOpensHere(
   neighbour: (offset: number) => string | null,
   contentColumns: readonly number[] | null,
   containerColumnsUnknown: boolean,
+  columnsAreQuoteStash: boolean,
   paragraphOpenAboveHeader: boolean,
   pipeTableRowsOpen: boolean,
   headerContinuesQuote: boolean,
@@ -4239,10 +4240,24 @@ function simpleTableOpensHere(
   // ⚠ **AND THE FIRST THREE ARMS MOVED INTO THE SAME PREDICATE (Session 242).** `lazyDashesBand`
   // had spelled them out a second time and was missing this fourth one; they are one question
   // about the same bytes, so they are now one definition. See `simpleTableBodyRowAbsent`.
+  //
+  // ⚠ **AND THE INNERMOST READING IS RESTRICTED TO THE QUOTE'S STASHED STACK, BECAUSE THE
+  // ENUMERATION SAID SO (Session 242).** Applying it to a line's OWN document-root stack DELETES
+  // a real heading: `- item` / ` ---` / `- item` / `---` / `# Probe Z` renders `h2:item` and
+  // `h1:Probe Z`, and reading the innermost column there declines the table, which leaves the
+  // paragraph open across the terminator and swallows the ATX — 506 of 650 movers in a
+  // 3,200,000-document pre/post enumeration, found by NEITHER the 49,348-document corpus sweep
+  // NOR 1,613 rendered probes, both of which scored 0 broken (`scratchpad/s242/r5/cls00`).
+  // ⚠ So `base` — Session 240's reading — stays wherever the columns are the line's own, which
+  // is every non-quote row and is what the 654-document `s242/r3` family measures.
   return !simpleTableBodyRowAbsent(
     neighbour(1),
     contentColumns,
-    containerColumnsUnknown ? 0 : innermostContentColumn(contentColumns),
+    containerColumnsUnknown
+      ? 0
+      : columnsAreQuoteStash
+        ? innermostContentColumn(contentColumns)
+        : base,
   );
 }
 /**
@@ -6344,6 +6359,9 @@ function computeRegions(text: string): Regions {
         // took one, `rawLineColumns` above IS the container stack this line is written against,
         // so the columns are no longer unknown and the base is no longer a guess of 0.
         rawColumnsUnknown,
+        // Whether `rawLineColumns` above IS the quote's stashed outer stack rather than this
+        // line's own — the condition that filled it. See the body-row floor inside the predicate.
+        quoteOpen && !stripQuote && outerColumns !== null,
         paragraphOpenAboveHeader,
         tableRowsOpen,
         // The header row CONTINUES a quote that opened above it — see the predicate. Read from

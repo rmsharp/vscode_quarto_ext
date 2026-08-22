@@ -13947,4 +13947,38 @@ describe("Session 242 — the `-` band's body row is the simple table's, read on
     expect(names(["10. item", "", "    > quoted one", " ---", "- item"])).toEqual([]);
     expect(names(["10. item", "", "    > quoted one", " ==="])).toEqual([]);
   });
+
+  it("R2: ⚠ DISCLOSED BOUND — a PHANTOM where the ordered marker was eaten by its own underline", () => {
+    // ⚠ **NEWLY REACHABLE, PRE-EXISTING, AND FOUND ONLY BY THE ENUMERATION.** `1. item` /
+    // `---` renders `h2:1. item` — the underline claims the RAW line and the marker survives into
+    // the heading text, so NO list opens — and this model keeps the ordered list's content column
+    // 3 on `contentColumns` anyway. The quote below it is therefore top-level in quarto and one
+    // container in for this model, so this session's floor fires where it should not: quarto
+    // renders `h2:1. item` alone and this model adds `h2:quoted one`.
+    // ⚠ **THE BULLET TWIN IS A CORRECT RECOVERY, WHICH IS WHAT LOCALISES IT** — `- item` /
+    // `---` renders `h2:item`, marker STRIPPED, so a list really is open there and quarto renders
+    // both headings (`scratchpad/s242/r5/cls04`, `cls02`). The divergence is about whether the
+    // marker was consumed, not about this session's term. Filed.
+    // 28 of 3,200,000 enumerated documents; corpus weight measured at ZERO over 49,348 documents.
+    expect(names(["1. item", "---", "   > quoted one", " ---", "- item"])).toEqual([
+      "h2:1. item",
+      "h2:quoted one",
+    ]);
+    // The bullet twin, where the same two headings are BOTH right.
+    expect(names(["- item", "---", "   > quoted one", " ---", "- item"])).toEqual([
+      "h2:item",
+      "h2:quoted one",
+    ]);
+  });
+
+  it("R3: ⚠ DISCLOSED BOUND — the non-quote stack keeps Session 240's `base`, and must", () => {
+    // ⚠ **THE ENUMERATION'S OTHER FINDING, AND IT IS WHY THE INNERMOST READING IS RESTRICTED
+    // TO THE QUOTE'S STASH.** `- item` / ` ---` / `- item` / `---` / `# Probe Z` renders
+    // `h2:item` and `h1:Probe Z`. Reading the innermost open column here declines the table,
+    // which leaves the paragraph open across the terminator and swallows the ATX — 506 of 650
+    // movers, a REAL heading deleted, found by neither the corpus sweep nor 1,613 rendered
+    // probes (`scratchpad/s242/r5/cls00`). The shipped spelling leaves this row where Session 240
+    // put it: the ATX is reported and the `h2:item` above it is a PRE-EXISTING miss, unmoved.
+    expect(names(["- item", " ---", "- item", "---", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
 });
