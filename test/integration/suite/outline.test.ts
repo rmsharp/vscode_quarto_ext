@@ -1147,6 +1147,32 @@ describe("Quarto: Document outline (symbols)", () => {
       flat(symbols).includes("Below A Container Stashed Column"),
       "Session 240: the ATX below it is a heading too — the quote never formed, so the item's column still governs",
     );
+
+    // ⚠ **SESSION 241 — THE COMPLEMENT OF THAT SAME SET.** Session 240 shipped the marker-KEPT
+    // direction; at every column NOT in `[0, ...outerColumns]` the underline is absorbed INTO the
+    // quote instead and the markers are STRIPPED. The two agree at top level and part company one
+    // container in, which is why five sessions measured this family without meeting this half.
+    //
+    // Rendered, `1. an ordered item holding a quote` / blank /
+    // `   > a title below the container column` / ` ---` emits `<h2>a title below the container
+    // column</h2>` INSIDE the blockquote — column 1 is not a container column, so the underline
+    // is a lazy continuation — and this model reported NOTHING there. ⚠ The fixture's premise was
+    // RE-RENDERED rather than assumed: `quarto render` on the extended bytes emits the eighteen
+    // prior headings byte-identical and in the same order, plus exactly these two.
+    // ⚠ Both directions are asserted, because a presence-only check passes on a heading whose
+    // TEXT is wrong — and the wrong text here is precisely Session 240's spelling.
+    assert.ok(
+      flat(symbols).includes("a title below the container column"),
+      "Session 241: the STRIPPED heading below the container column must reach the Outline provider",
+    );
+    assert.ok(
+      !flat(symbols).includes("> a title below the container column"),
+      "Session 241: the underline is lazy here, so the marker-KEPT spelling must NOT appear",
+    );
+    assert.ok(
+      flat(symbols).includes("Below A Container Floor"),
+      "Session 241: the ATX below the lazy underline survives — the quote ends at the blank line",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
