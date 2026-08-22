@@ -18,6 +18,14 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S242
+date: 2026-08-21
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- THE `-` BAND'S BODY-ROW TERM DOES NOT KNOW `popsEnclosingContainer`. Filed by Session 241 as the OTHER HALF of the term it shipped and pinned as its ranked #1; operator picked it at Phase 0 from the ranked AskUserQuestion candidate list. Witness: `1. item` / blank / `   > quoted one` / ` ---` / `- item` renders h2:quoted one and this model reports nothing, because lazyDashesBand's terminator arm asks only "blank, absent, or a dash rule" while simpleTableOpensHere already knows the fuller answer through popsEnclosingContainer. Deliverable: src/core/qmd/model.ts.
+```
+
+
+```handoff
 session: S241
 date: 2026-08-21
 status: complete
