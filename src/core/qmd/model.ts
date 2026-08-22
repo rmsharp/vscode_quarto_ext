@@ -3996,6 +3996,86 @@ function simpleTableRuleEnds(line: string, contentColumns: readonly number[] | n
   return DASH_RULE_ROW.test(line) && !columnIsCodeDepth(indentColumn(line), contentColumns);
 }
 /**
+ * The DEEPEST open container content column — the column a body row must reach to still be
+ * inside the container that holds the table (Session 242).
+ *
+ * ⚠ **DELIBERATELY NOT `containerContentColumn`, which the separator's own window uses.** That
+ * one answers "the deepest column not exceeding THIS line's indent", which is the right question
+ * for a line whose depth is being classified and the wrong one for a line being asked whether it
+ * is still inside a container. The two agree wherever the separator sits at or past the deepest
+ * open column — every geometry Session 240 measured — and part company where it sits SHALLOWER,
+ * which is the whole of this session's family: `1. item` / `` / `   > quoted one` / ` ---` /
+ * `- item` has an open container at column 3 and a separator at 1, so `containerContentColumn`
+ * reports 0 and nothing is below it (`scratchpad/s242/r1/A_s1_bul_b0`).
+ *
+ * ⚠ **DEEPEST RATHER THAN SHALLOWEST IS UNOBSERVABLE TODAY AND IS KEPT ON PURPOSE, WITH THE
+ * PROOF.** The mutation hunt could not kill it (M10): taking the SHALLOWEST open column instead
+ * leaves the whole suite green and produces 0 disagreements over 565,774 enumerated documents,
+ * across two alphabets aimed at the only geometry that can tell them apart. That geometry needs
+ * TWO open columns with the body row's own column between them, and the band's reader cannot
+ * reach it at all — `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` anchor caps the innermost column at 3, and
+ * no stack of two container columns fits at or below 3 (the shallowest list content column is 2,
+ * and anything nested inside it starts at 4 or more). Kept because "the innermost open
+ * container" is the concept the callers mean, not because a test defends it.
+ */
+function innermostContentColumn(columns: readonly number[] | null): number {
+  let deepest = 0;
+  if (columns !== null) {
+    for (const c of columns) {
+      if (c > deepest) {
+        deepest = c;
+      }
+    }
+  }
+  return deepest;
+}
+/**
+ * Whether the line below a dash rule DENIES it a pandoc simple table body row (Session 242).
+ *
+ * ⚠ **ONE DEFINITION, BECAUSE THE TWO CALLERS ASK THE SAME QUESTION ABOUT THE SAME BYTES**
+ * (Learning #14). `simpleTableOpensHere` reads it to decide that no table opens here;
+ * `lazyDashesBand` reads it to decide that the dashes UNDERLINE instead. Those are the two
+ * halves of one outcome, and Session 242 found them disagreeing: the band knew only the first
+ * three arms, so a body row that ended the container left the band declining a heading quarto
+ * renders. Rendered, `- item` / `` / `  > quoted one` / `   ---` / `- item` renders
+ * `h2:quoted one` and this model reported nothing (`scratchpad/s242/r1/B_p1_bul_b0`).
+ *
+ * `containerColumn` is the depth a body row must reach to be inside the container — see
+ * `innermostContentColumn`. Each caller supplies it, because each has its own answer where the
+ * columns and the line are measured in DIFFERENT coordinate spaces: a quote open above an
+ * unmarked line with no stash to read leaves the columns unknown, and both callers spell that
+ * case as a threshold of 0, which is the conservative reading (nothing is below 0, so the arm
+ * cannot fire and the row is byte-identical to what it was).
+ *
+ * ⚠ **THE FOURTH ARM IS A LIST START SPECIFICALLY, AND IT IS MEASURED.** Six other body-row
+ * kinds at the same column — prose, an ATX heading, a block quote, a `:::`, a `***` rule and a
+ * fence — are ordinary body rows and the table forms over every one of them (`r1/A_s1_*_b0`).
+ * `popsEnclosingContainer` is the same predicate the container maintenance and
+ * `simpleTableOpensHere` already use for exactly this question, reused rather than re-derived.
+ *
+ * ⚠ **BOTH `containerColumn` GUARDS ARE UNOBSERVABLE TODAY AND ARE KEPT ON PURPOSE, WITH THE
+ * PROOF.** Dropping the unknown-columns guard at either caller — M12 at the table, M13 at the
+ * band — leaves the whole suite green and produces 0 disagreements over the same 565,774
+ * enumerated documents. Each is kept because it is right BY CONSTRUCTION rather than by luck:
+ * where a quote is open above an unmarked line and no stash was taken, the columns were measured
+ * INSIDE the quote while the line is measured from the document root, so a comparison between
+ * them is comparing two coordinate spaces. A threshold of 0 makes the arm unable to fire, which
+ * leaves every such row byte-identical to what it was — and it is the same spelling
+ * `simpleTableOpensHere` already uses one line up for its own `base`.
+ */
+function simpleTableBodyRowAbsent(
+  body: string | null,
+  contentColumns: readonly number[] | null,
+  containerColumn: number,
+): boolean {
+  return (
+    body === null ||
+    BLANK_LINE.test(body) ||
+    simpleTableRuleEnds(body, contentColumns) ||
+    (popsEnclosingContainer(body) && indentColumn(body) < containerColumn)
+  );
+}
+/**
  * Whether a pandoc SIMPLE TABLE opens at `line` — the separator row that makes the line ABOVE a
  * header and every line BELOW a table cell (Session 239). Family F07's fourth shape, and the
  * only one whose columns are whitespace-defined rather than drawn with `|` or `+`.
@@ -4125,10 +4205,6 @@ function simpleTableOpensHere(
   ) {
     return false;
   }
-  const body = neighbour(1);
-  if (body === null || BLANK_LINE.test(body) || simpleTableRuleEnds(body, contentColumns)) {
-    return false;
-  }
   // ⚠ **A LIST START SHALLOWER THAN THE ENCLOSING ITEM ENDS IT, AND AN ENDED CONTAINER HAS NO
   // BODY ROW TO GIVE (Session 240).** This became reachable for the first time when the window
   // above started measuring from the container's own content column: at a base of 0 a separator
@@ -4148,8 +4224,26 @@ function simpleTableOpensHere(
   //
   // ⚠ Found by a brute-force enumeration of 59,049 documents, NOT by the 103-document rounds and
   // NOT by the 48,844-document corpus sweep, both of which were green while this deleted two
-  // real headings. Pinned as C2.
-  return !(popsEnclosingContainer(body) && indentColumn(body) < base);
+  // real headings. Pinned as Session 240's C2.
+  //
+  // ⚠ **AND THE DEPTH IS THE INNERMOST OPEN COLUMN, NOT `base` (Session 242).** `base` above is
+  // the window's own coordinate — the deepest column not exceeding the SEPARATOR's indent — and
+  // where the separator sits SHALLOWER than the container it is written inside, that collapses
+  // to 0 and this whole guard goes inert. Rendered, `1. item` / `` / `   > quoted one` / ` ---` /
+  // `- item` renders `h2:quoted one` with no table at all: the bullet at column 0 ends an item
+  // whose content column is 3, and reading `base` there reported 0, opened a table, and DELETED
+  // the heading (`scratchpad/s242/r1/A_s1_bul_b0`, the filed witness). ⚠ The two agree wherever
+  // the separator sits at or past the deepest open column — every geometry Session 240 measured
+  // — and the 654-document non-quote family is unmoved, row for row (`s242/r3`, G10 and G11).
+  //
+  // ⚠ **AND THE FIRST THREE ARMS MOVED INTO THE SAME PREDICATE (Session 242).** `lazyDashesBand`
+  // had spelled them out a second time and was missing this fourth one; they are one question
+  // about the same bytes, so they are now one definition. See `simpleTableBodyRowAbsent`.
+  return !simpleTableBodyRowAbsent(
+    neighbour(1),
+    contentColumns,
+    containerColumnsUnknown ? 0 : innermostContentColumn(contentColumns),
+  );
 }
 /**
  * Whether `line` ends any open paragraph — see `CLOSES_PARAGRAPH`.
@@ -6198,6 +6292,20 @@ function computeRegions(text: string): Regions {
     // line closed, and this reader is the only one that can see the difference. See the field.
     const rawLineColumns: readonly number[] =
       quoteOpen && !stripQuote && outerColumns !== null ? outerColumns.rawColumns : contentColumns;
+    // The columns above and THIS line are in different coordinate spaces, and no stash was taken
+    // to reconcile them — `quoteColumnsUnknown`'s own condition, minus the stash. Both readers of
+    // `simpleTableBodyRowAbsent` spell the container's depth as 0 here, which is the
+    // conservative reading: nothing is below 0, so the body-row arm cannot fire.
+    // ⚠ **THIS FLAG AND BOTH CONSTS THAT REACH IT ARE ANNOTATED, AND ALL THREE ANNOTATIONS ARE
+    // LOAD-BEARING (Session 242).** `quoteOpen` is assigned `stripQuote || lazyQuotedUnderline`
+    // further down, so reading it here puts the whole setext row's initializer chain —
+    // `rawColumnsUnknown` → `lazyDashesBand` → `lazyQuotedUnderline` → `quoteOpen` — into a cycle
+    // tsc reports as TS7022, and it reports it at EACH un-annotated link in turn: annotating one
+    // moves the error to the next rather than clearing it. That is the same reason
+    // `rawLineColumns` above carries its own annotation.
+    // ⚠ **`npm test` CANNOT SEE THIS.** Vitest transpiles with esbuild and type-checks nothing;
+    // the whole suite was green on all four errors. `npm run check-types` is the gate.
+    const rawColumnsUnknown: boolean = quoteOpen && !stripQuote && outerColumns === null;
     // A pandoc SIMPLE TABLE consumes this line — see `simpleTableOpensHere` (Session 239).
     //
     // ⚠ **THE TERMINATOR IS CONSUMED TOO, AND THAT IS WHAT RECOVERS THE HEADING BELOW IT.**
@@ -6235,7 +6343,7 @@ function computeRegions(text: string): Regions {
         // ⚠ **AND ONLY WHERE THERE IS NO STASH TO READ (Session 240).** Where the quote switch
         // took one, `rawLineColumns` above IS the container stack this line is written against,
         // so the columns are no longer unknown and the base is no longer a guess of 0.
-        quoteOpen && !stripQuote && outerColumns === null,
+        rawColumnsUnknown,
         paragraphOpenAboveHeader,
         tableRowsOpen,
         // The header row CONTINUES a quote that opened above it — see the predicate. Read from
@@ -6456,20 +6564,29 @@ function computeRegions(text: string): Regions {
     // direction. Recorded rather than pinned — a test asserting an unobservable difference would
     // be asserting nothing.
     const belowUnderline = i + 1 < lines.length ? lines[i + 1] : null;
-    const lazyDashesBand =
+    // ⚠ The `: boolean` is load-bearing — see `rawColumnsUnknown`, which this initializer reads.
+    const lazyDashesBand: boolean =
       setextTitle !== undefined &&
       SETEXT_H2.test(line) &&
       // ⚠ The SAME term as the `=` spelling above (Session 241) — one set, both spellings, which
       // is what `r0`'s column sweep measures. The body-row test below is what still separates
       // the two outcomes here, and it is untouched.
       lazyBelowContainerColumn &&
-      (belowUnderline === null ||
-        BLANK_LINE.test(belowUnderline) ||
-        // ⚠ `rawLineColumns` (Session 240). `belowUnderline` is a RAW line — the term asks
-        // whether it is a table TERMINATOR, which is `simpleTableRuleEnds`'s question, so it must
-        // read the same stack that predicate does or the two disagree about the same bytes.
-        (!columnIsCodeDepth(indentColumn(belowUnderline), rawLineColumns) &&
-          DASH_RULE_ROW.test(belowUnderline)));
+      // ⚠ `rawLineColumns` (Session 240). `belowUnderline` is a RAW line — the term asks whether
+      // the table below this underline gets a BODY ROW, which is `simpleTableOpensHere`'s own
+      // question, so it must read the same stack that predicate does or the two disagree about
+      // the same bytes.
+      // ⚠ **AND IT IS NOW THE SAME PREDICATE, NOT THE SAME SHAPE (Session 242).** The three arms
+      // written here were `simpleTableBodyRowAbsent`'s first three, spelled out; the fourth — a
+      // LIST START shallower than the container, which ends it and takes its body row away — was
+      // missing, and the band declined a heading quarto renders on every row that reached it.
+      simpleTableBodyRowAbsent(
+        belowUnderline,
+        rawLineColumns,
+        // The same flag `simpleTableOpensHere` is handed above — one spelling, so the two
+        // readers of this predicate cannot drift about the same line.
+        rawColumnsUnknown ? 0 : innermostContentColumn(rawLineColumns),
+      );
     // ⚠ **AND A QUOTE THAT WAS ALREADY OPEN ABOVE THE TITLE MAKES THE UNDERLINE LAZY AT EVERY
     // COLUMN, WHICH IS WHY THE FLOOR IS NOT A COLUMN AT ALL (Session 237).** The two terms
     // above are both COLUMN rules — code depth, and past the marker's own column — and they
@@ -6493,7 +6610,9 @@ function computeRegions(text: string): Regions {
     // `> quoted title` / `---` renders the marker-kept top-level heading, because the blank
     // closed the first quote and the title opens a second (`r2/reopen`, pinned G12). A rule
     // spelled "the title is quoted" rather than "a quote was open ABOVE it" breaks that row.
-    const lazyQuotedUnderline =
+    // ⚠ The `: boolean` is load-bearing — see `rawColumnsUnknown`, which this chain reaches
+    // through `lazyDashesBand`.
+    const lazyQuotedUnderline: boolean =
       inQuote &&
       !stripQuote &&
       !commonmarkDialect &&

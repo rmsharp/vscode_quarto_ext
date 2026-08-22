@@ -13878,3 +13878,73 @@ describe("Session 242 guard — answers around the simple table's body row that 
     expect(names(["header", " ---", "- item", "", "# Probe Z"])).toEqual(["h1:Probe Z"]);
   });
 });
+
+describe("Session 242 — the `-` band's body row is the simple table's, read once", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: a list start below the dashes ends the container, so the dashes underline", () => {
+    // ⚠ **THE FILED DIAGNOSIS, AND IT IS THE HALF OF THE ANSWER THAT WAS RIGHT.**
+    // `lazyDashesBand`'s terminator arm asked only whether the line below is blank, absent, or a
+    // dash rule; `simpleTableOpensHere` already declined this row through `popsEnclosingContainer`
+    // and the band did not know. Rendered, `- item` / `` / `  > quoted one` / `   ---` /
+    // `- item` renders `h2:quoted one` — the bullet at column 0 is shallower than the item's
+    // content column 2, so it ENDS the item, no table forms and the dashes underline
+    // (`scratchpad/s242/r1/B_p1_bul_b0`, and its `1.`, `*` and `+` twins).
+    expect(names(["- item", "", "  > quoted one", "   ---", "- item"])).toEqual(["h2:quoted one"]);
+    expect(names(["- item", "", "  > quoted one", "   ---", "1. item"])).toEqual(["h2:quoted one"]);
+    expect(names(["- item", "", "  > quoted one", "   ---", "* item"])).toEqual(["h2:quoted one"]);
+    expect(names(["- item", "", "  > quoted one", "   ---", "+ item"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("C2: the FILED witness — the separator shallower than the container it sits in", () => {
+    // ⚠ **THE HALF OF THE FILED DIAGNOSIS THAT WAS WRONG, AND IT IS THE WITNESS THE ENTRY ITSELF
+    // NAMED.** `simpleTableOpensHere` does NOT already know the answer here: its body-row guard
+    // measures the container from the SEPARATOR's own column, and with the separator at 1 and
+    // the container's content column at 3, `containerContentColumn` reports 0 and nothing is
+    // below it — so the table opens, `inSimpleTable` suppresses the setext row, and the band is
+    // never consulted at all. Rendered, `1. item` / `` / `   > quoted one` / ` ---` / `- item`
+    // renders `h2:quoted one` (`scratchpad/s242/r1/A_s1_bul_b0`, the entry's own `x6a`).
+    // ⚠ Measured, not argued: the band-only fix recovers 4 of this session's 28 rows and this
+    // row is in the other 24 (`scratchpad/s242/exp2`).
+    expect(names(["1. item", "", "   > quoted one", " ---", "- item"])).toEqual(["h2:quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", "  ---", "- item"])).toEqual(["h2:quoted one"]);
+    expect(names(["- item", "", "  > quoted one", " ---", "- item"])).toEqual(["h2:quoted one"]);
+    // The `1.` twin of the filed witness (`r5/x6c`), and its bullet-container twin (`x6b`).
+    expect(names(["1. item", "", "   > quoted one", " ---", "1. item"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("C3: Session 240's OWN body-row rows, whose heading it never got back", () => {
+    // ⚠ **THE PREDICATE WAS ALREADY THERE AND THE HEADING WAS STILL LOST.** Session 240 rendered
+    // exactly these documents when it taught `simpleTableOpensHere` about `popsEnclosingContainer`
+    // — `scratchpad/s240/r3/k_ul_0`, `k_ol_0`, `k_star_0`, `k_plus_0`, `c_ul0`, `c_ul1` — and
+    // made the table decline on all six. It measured the TABLE and not the HEADING, so all six
+    // stayed at "no heading reported" for two more sessions. The 49,348-document corpus sweep
+    // found them as six of this session's twelve movers, and all twelve re-rendered as clean
+    // recoveries.
+    expect(names(["- item", "", "  > quoted one", "   ---", "- item"])).toEqual(["h2:quoted one"]);
+    expect(names(["- item", "", "  > quoted one", "   ---", " - item"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("C4: the terminator arm still answers, now from inside the shared predicate", () => {
+    // The three arms `lazyDashesBand` used to spell out by hand. If moving them into
+    // `simpleTableBodyRowAbsent` dropped one, these go red rather than the guard block.
+    // Absent (`r1/A_s1_none`), blank (`A_s1_blank`), and a terminating dash rule below.
+    expect(names(["1. item", "", "   > quoted one", " ---"])).toEqual(["h2:quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", " ---", ""])).toEqual(["h2:quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", " ---", " ---"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("R1: ⚠ DISCLOSED BOUND — a container whose content column is 4 recovers NOTHING", () => {
+    // ⚠ **THE ALREADY-FILED `BLOCK_QUOTE_PREFIX` `^ {0,3}` ANCHOR, AND IT IS THE WHOLE OF THIS
+    // SESSION'S RESIDUAL.** Every one of the 148 rows still disagreeing after this change — 45
+    // in `scratchpad/s242/r1` and 103 in `r2` — is a document whose quote marker sits at column
+    // 4 or deeper, where no quote is recognised at all and so no band of either spelling can
+    // fire. Rendered, `10. item` / `` / `    > quoted one` / ` ---` / `- item` renders
+    // `h2:quoted one` (`r1/C_s1_bul_b0`) and this model reports nothing.
+    // ⚠ The `=` spelling fails identically (`r1/C_e1`), which is what proves the anchor rather
+    // than this session's term is the cause: the `=` band reads no body row at all.
+    expect(names(["10. item", "", "    > quoted one", " ---", "- item"])).toEqual([]);
+    expect(names(["10. item", "", "    > quoted one", " ==="])).toEqual([]);
+  });
+});
