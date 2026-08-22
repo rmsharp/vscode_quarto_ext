@@ -3007,7 +3007,24 @@ function blockQuoteRuns(
   const runs: { source: number[]; content: string[] }[] = [];
   let current: { source: number[]; content: string[] } | null = null;
   for (let i = 0; i < lines.length; i++) {
-    const start = blockQuoteContentStart(lines[i]);
+    // ⚠ **THIS WALK HAS NO CONTAINER STACK, SO IT ASKS THE MARKER QUESTION AT THE LINE'S OWN
+    // COLUMN (Session 243)** — i.e. "does this line carry a marker run at ANY indent". Widening
+    // the strip to a container-relative window without widening this one leaves a quoted
+    // metadata block at container depth UNCONSUMED, and every heading inside it is then reported
+    // where quarto renders none: `-   item` / `` / `    > ---` / `    > # Inside Meta` /
+    // `    > note: alpha` / `    > ---` renders NOTHING and reported two headings
+    // (`scratchpad/s243/r2/M_meta0`, `M_meta3`, `r3/M_a`, `M_b`, `M_e`). ⚠ **7 of 22 rows in the
+    // adversarial round broke on the narrow spelling and 1 on this one.**
+    //
+    // ⚠ **AND THE PERMISSIVE READING'S OWN FAILURE DIRECTION — over-consuming, which DELETES —
+    // IS MEASURED, NOT ARGUED.** A `>`-marked YAML block sitting in genuine indented code, or in
+    // a fence, is not consumed by quarto, and consuming it would swallow the heading below.
+    // Rendered at 4, 5 and 8 columns with no container open at all, inside a fence at top level
+    // and inside one at container depth: every heading survives (`r4/A_code0`, `A_code1`,
+    // `A_code2`, `B_fence0`, `B_fence1`, `L_deep0`, `G_plain0`, `G_plain1`, pinned as G9/G10).
+    // The reason is structural rather than lucky — a heading inside indented code or a fence is
+    // not reported either way, so consuming those lines changes no answer.
+    const start = blockQuoteContentStart(lines[i], [indentColumn(lines[i])]);
     if (start === null) {
       current = null;
       continue;
@@ -3679,10 +3696,6 @@ function divFenceRole(line: string): {
   };
 }
 /**
- * A block-quote marker, for `paragraphQuoted` — see `closesParagraph`.
- */
-const BLOCK_QUOTE_MARKER = /^ {0,3}>/;
-/**
  * A BLOCK QUOTE's whole marker run, whose match length is the offset at which the quote's own
  * content begins — the strip `computeRegions` applies before classifying the line (Session 225).
  *
@@ -3695,8 +3708,29 @@ const BLOCK_QUOTE_MARKER = /^ {0,3}>/;
  * heading (`c/c10`): the tab is left in the content, which then starts at column 4 rather than
  * 0. Writing the optional space as `[ \t]?` would fabricate that heading.
  *
- * ⚠ **The marker run itself may not begin past column 3** — `    > # H b02` is an indented code
- * block at top level and the `>` is literal (`b/b02`).
+ * ⚠ **THE MARKER RUN MAY NOT BEGIN AT INDENTED-CODE DEPTH, AND THAT IS A COLUMN MEASURED FROM
+ * THE OPEN CONTAINER STACK — NOT THE ABSOLUTE `^ {0,3}` THIS ROW USED TO SPELL (Session 243).**
+ * `    > # H b02` is an indented code block AT TOP LEVEL and the `>` is literal (`b/b02`) — but
+ * top level is the only place column 4 means that. Inside a container whose content column is 4
+ * the very same bytes are a quote, and the old anchor made this model blind to every one of
+ * them: `inQuote` was never set, so no term at the underline could reach the row at all. That
+ * was the whole of Session 242's residual and the sole blocker on the quoted-underline family,
+ * filed by Session 225 and annotated by Sessions 238, 240, 241 and 242 with 164 measured rows.
+ *
+ * ⚠ **THE WINDOW IS `[c, c+3]` OVER THE OPEN STACK — `columnIsCodeDepth`, REUSED RATHER THAN
+ * RE-DERIVED (Learning #14).** Measured over five container kinds with an ATX-inside-the-quote
+ * probe swept 0–13 (`scratchpad/s243/r0` B–H, `r2/N`): a bullet at content column 2 accepts
+ * 0–5, one at 4 accepts 0–7, an ordered `10.` at 4 accepts 0–7, a definition list at 4 accepts
+ * 0–7, and a nested `2, 4, 6` stack accepts 0–9 — the UNION, which is exactly what
+ * `containerContentColumn` computes. ⚠ `-       item`, whose seven spaces COLLAPSE to content
+ * column 2, accepts 0–5 and not 0–11 (`r0/G_c8_*`), so the rule really is the model's own
+ * content column and not "the marker's indent".
+ *
+ * ⚠ **AT TOP LEVEL THE NEW WINDOW IS THE OLD ANCHOR, CHARACTER FOR CHARACTER**, which is why no
+ * top-level row moves: with an empty stack the base is 0 and the window is 0–3. ⚠ And the indent
+ * class may therefore widen from ` ` to `[ \t]` for free — a tab from columns 0–3 always lands
+ * ON 4, so at top level it is still refused, while inside a container it is DECIDED by the
+ * window rather than excluded by the character class (`r2/V2_t0`-`t8`, rendered).
  *
  * ⚠ **The strip does NOT relax the column rules on what it uncovers.** The quote's content base
  * is column 0 EXACTLY, the same absolute equality quarto applies at top level: `>  # H b10` and
@@ -3704,7 +3738,23 @@ const BLOCK_QUOTE_MARKER = /^ {0,3}>/;
  * (`b/b01`). That falls out for free — a stripped line carries no marker, so `quoteOpen` stays
  * false and `atxHeadingMatch` sees the ordinary `[0, ...contentColumns]`.
  */
-const BLOCK_QUOTE_PREFIX = /^ {0,3}(?:>[ ]?)+/;
+const BLOCK_QUOTE_INDENT = /^[ \t]*/;
+const BLOCK_QUOTE_MARKERS = /^(?:>[ ]?)+/;
+/**
+ * The whole marker run `line` opens a block quote with, or `null` when it opens none — the ONE
+ * definition of "is this a block-quote marker HERE", read by every row that used to spell it as
+ * `BLOCK_QUOTE_PREFIX` or `BLOCK_QUOTE_MARKER` (Session 243). `columns` is the container stack
+ * the line is written against; `null` is the document root, which reproduces the old absolute
+ * anchor exactly. See `BLOCK_QUOTE_PREFIX` above for the window and for what measures it.
+ */
+function blockQuotePrefix(line: string, columns: readonly number[] | null): string | null {
+  const indent = BLOCK_QUOTE_INDENT.exec(line)![0];
+  if (columnIsCodeDepth(indentColumn(line), columns)) {
+    return null;
+  }
+  const m = BLOCK_QUOTE_MARKERS.exec(line.slice(indent.length));
+  return m === null ? null : indent + m[0];
+}
 /**
  * The offset at which a block quote's own content begins on `line`, or `null` when the line
  * carries no marker run at all. See `BLOCK_QUOTE_PREFIX`.
@@ -3720,22 +3770,28 @@ const BLOCK_QUOTE_PREFIX = /^ {0,3}(?:>[ ]?)+/;
  * `> India Nested Title` respectively (`r4/c04`, `r4/c01`), which a column slice cannot
  * produce for both.
  */
-function blockQuoteMarkerOffsets(line: string): number[] {
-  const match = BLOCK_QUOTE_PREFIX.exec(line);
+function blockQuoteMarkerOffsets(
+  line: string,
+  columns: readonly number[] | null = null,
+): number[] {
+  const match = blockQuotePrefix(line, columns);
   if (match === null) {
     return [];
   }
   const offsets: number[] = [];
-  for (let i = 0; i < match[0].length; i++) {
-    if (match[0][i] === ">") {
-      offsets.push(match[0][i + 1] === " " ? i + 2 : i + 1);
+  for (let i = 0; i < match.length; i++) {
+    if (match[i] === ">") {
+      offsets.push(match[i + 1] === " " ? i + 2 : i + 1);
     }
   }
   return offsets;
 }
-function blockQuoteContentStart(line: string): number | null {
-  const m = BLOCK_QUOTE_PREFIX.exec(line);
-  return m === null ? null : m[0].length;
+function blockQuoteContentStart(
+  line: string,
+  columns: readonly number[] | null = null,
+): number | null {
+  const m = blockQuotePrefix(line, columns);
+  return m === null ? null : m.length;
 }
 /**
  * A pandoc LINE BLOCK's own line, and the CONTINUATION of one (Session 185).
@@ -5812,7 +5868,22 @@ function computeRegions(text: string): Regions {
     // fence run closes NOTHING at top level, where it is literal content (`d/d02`), while a
     // fence opened INSIDE a quote is closed by its own marked closer. This session's own guard
     // (G6) went red on the blanket spelling within the minute.
-    const quoteContentStart = blockQuoteContentStart(raw);
+    // The container stack the RAW line's own MARKER RUN is measured against (Session 243).
+    // ⚠ **IT IS THE OUTER DOCUMENT'S STACK WHENEVER A QUOTE IS OPEN, NOT `contentColumns`**, and
+    // the two are never the same there: entering a quote CLEARS `contentColumns` so the quote's
+    // content is measured from its own column 0, while the marker run is still written in the
+    // DOCUMENT ROOT's coordinates. Measured — `-   item` / `` / `    > alpha` / `    >` / a
+    // marker swept 0-9 renders the heading at 0-7 and not at 8, exactly the OUTER container's
+    // window (`scratchpad/s243/r2/P2_cont_*`); reading the quote's own cleared stack would stop
+    // at 3 and leave every continuation line of a container-depth quote unrecognised.
+    // ⚠ **AND A LIST OPENED INSIDE THE QUOTE DOES NOT WIDEN IT** — the same sweep under
+    // `    > -   inner` still renders 0-7 and not 8-11 (`r2/R2_in_*`). The quote's inner
+    // containers govern what is inside the markers; they say nothing about where the markers
+    // themselves may sit. This is `rawLineColumns`' question one line earlier, before the strip
+    // has decided anything — see that const for the same distinction on an UNMARKED line.
+    const rawMarkerColumns: readonly number[] =
+      outerColumns !== null ? outerColumns.columns : contentColumns;
+    const quoteContentStart = blockQuoteContentStart(raw, rawMarkerColumns);
     // ⚠ The explicit annotations on this constant and the two below are load-bearing, not
     // style — the same TS7022 round trip `lineBlockAbove` documents. `quoteOpen` is assigned
     // `stripQuote` on every region-boundary path and read back here through
@@ -6087,7 +6158,7 @@ function computeRegions(text: string): Regions {
       // pandoc has stripped markers this scanner cannot see. Reading the stripped line here
       // silently retires it, and Session 189's row (`> quoted one` / `>` / `   \clearpage` /
       // `   # ATX Below`, a heading quarto renders at EVERY indent 0-8) goes with it.
-      if (BLOCK_QUOTE_MARKER.test(raw)) {
+      if (quoteContentStart !== null) {
         quoteOpen = true;
       }
     }
@@ -6258,7 +6329,7 @@ function computeRegions(text: string): Regions {
       if (!stripQuote) {
         return other;
       }
-      const otherContent = blockQuoteContentStart(other);
+      const otherContent = blockQuoteContentStart(other, rawMarkerColumns);
       return otherContent === null ? other : other.slice(otherContent);
     };
     // ── The columns the RAW line is written in (Session 240) ────────────────────────────────
@@ -6369,8 +6440,8 @@ function computeRegions(text: string): Regions {
         // own coordinate space rather than the stripped one.
         !stripQuote &&
           i >= 2 &&
-          blockQuoteContentStart(lines[i - 1]) !== null &&
-          blockQuoteContentStart(lines[i - 2]) !== null,
+          blockQuoteContentStart(lines[i - 1], rawMarkerColumns) !== null &&
+          blockQuoteContentStart(lines[i - 2], rawMarkerColumns) !== null,
       )
     ) {
       simpleTableRowsOpen = true;
@@ -6465,15 +6536,18 @@ function computeRegions(text: string): Regions {
     // inside one `<blockquote>` and no heading at all. ⚠ This phantom is one THIS session
     // introduced — the pre-session build declined every quoted underline outright — so the
     // comparison is part of the same change rather than a separate refinement.
-    const underlineQuoteDepth = stripQuote ? blockQuoteMarkerOffsets(raw).length : 0;
+    const underlineQuoteDepth = stripQuote
+      ? blockQuoteMarkerOffsets(raw, rawMarkerColumns).length
+      : 0;
     const setextTitleTooShallow =
       setextTitle !== undefined &&
-      underlineQuoteDepth > blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "").length;
+      underlineQuoteDepth >
+        blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "", rawMarkerColumns).length;
     const setextTitleQuoted =
       !stripQuote &&
       setextTitle !== undefined &&
       setextTitle.contentStart > 0 &&
-      blockQuoteContentStart(lines[setextTitle.line - 1] ?? "") !== null;
+      blockQuoteContentStart(lines[setextTitle.line - 1] ?? "", rawMarkerColumns) !== null;
     // ⚠ **AN UNMARKED RUN AT CODE DEPTH INSIDE AN OPEN QUOTE IS THE QUOTE'S OWN LAZY
     // CONTINUATION, AND IT UNDERLINES (Session 232).** Rendered, `> quoted one` / `    ---`
     // renders `<blockquote><h2>quoted one</h2></blockquote>`: the underline carries no marker,
@@ -6636,7 +6710,18 @@ function computeRegions(text: string): Regions {
       !commonmarkDialect &&
       !BLANK_LINE.test(line) &&
       (setextTitleQuoted ||
-        columnIsCodeDepth(indentColumn(line), contentColumns) ||
+        // ⚠ `rawLineColumns`, NOT `contentColumns` (Session 243) — this is Session 238's R1 one
+        // more time, in the term that decides whether the underline is LAZY. The line is an
+        // UNMARKED one below an open quote, so its column is measured from the document root
+        // while `contentColumns` has been swapped for the quote's own cleared stack; comparing
+        // the two calls EVERY column past 3 code depth, which makes the underline lazy at the
+        // container's own content column and STRIPS the marker quarto keeps there. Rendered,
+        // `-   item` / `` / `    > quoted one` / `    ---` renders `h2:> quoted one` — marker
+        // KEPT, Session 240's `[0, ...outerColumns]` set — and reading the quote's stack
+        // reports `h2:quoted one` (`scratchpad/s243/r1/W_ul_04`, `r1/X_eq_04`, `r0/A_anchor4`;
+        // pinned as G8 and G12). ⚠ **At top level the two arrays ARE the same object**, which is
+        // why Session 237 could measure this term across six rounds without meeting it.
+        columnIsCodeDepth(indentColumn(line), rawLineColumns) ||
         lazyEqualsBand ||
         lazyDashesBand);
     const setextLevel =
@@ -6685,8 +6770,11 @@ function computeRegions(text: string): Regions {
     const lazyStripDepth =
       lazyQuotedUnderline && setextLevel !== null && setextTitle !== undefined
         ? Math.min(
-            Math.max(1, blockQuoteMarkerOffsets(lines[setextTitle.line - 1] ?? "").length),
-            blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "").length,
+            Math.max(
+              1,
+              blockQuoteMarkerOffsets(lines[setextTitle.line - 1] ?? "", rawMarkerColumns).length,
+            ),
+            blockQuoteMarkerOffsets(lines[setextTitle.line] ?? "", rawMarkerColumns).length,
           )
         : 0;
     // The text of a title line, with the quote markers the UNDERLINE also carries removed and
@@ -6696,12 +6784,12 @@ function computeRegions(text: string): Regions {
         if (lazyStripDepth === 0) {
           return l.text;
         }
-        const lazyOffsets = blockQuoteMarkerOffsets(l.text);
+        const lazyOffsets = blockQuoteMarkerOffsets(l.text, rawMarkerColumns);
         return lazyOffsets.length === 0
           ? l.text
           : l.text.slice(lazyOffsets[Math.min(lazyStripDepth, lazyOffsets.length) - 1]);
       }
-      const offsets = blockQuoteMarkerOffsets(l.text);
+      const offsets = blockQuoteMarkerOffsets(l.text, rawMarkerColumns);
       return l.text.slice(
         underlineQuoteDepth > 0 && offsets.length >= underlineQuoteDepth
           ? offsets[underlineQuoteDepth - 1]
@@ -6994,7 +7082,7 @@ function computeRegions(text: string): Regions {
         // ⚠ RAW, for the same reason `quoteOpen` is (Session 225) — this flag suspends the
         // `CLOSES_PARAGRAPH` gate for a paragraph that began inside a quote, and the lines it
         // then serves are UNMARKED ones the strip never sees.
-        paragraphQuoted = BLOCK_QUOTE_MARKER.test(raw);
+        paragraphQuoted = quoteContentStart !== null;
       }
       // `paragraphOpen` is read for the line ABOVE before being overwritten for this one.
       // Annotated for the same TS7022 reason as `lineBlockAbove` above — this snapshot feeds

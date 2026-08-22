@@ -13000,9 +13000,19 @@ describe("Session 239 — the pandoc simple table", () => {
     // underline. Measuring 4 against a `contentColumns` of `[2]` made it a +2 separator and
     // deleted both — these two were the only non-recoveries in the 48,692-document sweep
     // (`scratchpad/s232/r2/t4`, `scratchpad/s183/…/M__bq_in_li/doc`). The `h1` below is the
-    // pre-existing answer, unmoved; the missing `h2` is the already-filed list-marker item.
-    expect(names(["> - item one", "    ---", "# Probe A"])).toEqual(["h1:Probe A"]);
-    expect(names(["> - item", "    ---", "# ATX Below"])).toEqual(["h1:ATX Below"]);
+    // pre-existing answer, unmoved; the missing `h2` was the already-filed list-marker item.
+    // ⚠ **THE `h2` IS BACK AS OF SESSION 243, AND THIS TEST IS WHERE IT SURFACED.** That session
+    // gave `lazyQuotedUnderline`'s code-depth arm `rawLineColumns` instead of `contentColumns` —
+    // and this row is exactly the coordinate-space mismatch the filed item described: the `    ---`
+    // is UNMARKED, so its column 4 is measured from the document ROOT, while `contentColumns` held
+    // `[2]` measured INSIDE the quote. Against the root's own (empty) stack the run IS at code
+    // depth, the underline is lazy, and both headings form. Re-rendered from these exact bytes
+    // before the assertion was flipped (`scratchpad/s243/r6/s239_C4_a`, `s239_C4_b`): quarto
+    // renders `h2:item one` / `h1:Probe A` and `h2:item` / `h1:ATX Below`.
+    // ⚠ The mutant this test was written to kill is unaffected — the two coordinate spaces are
+    // still not interchangeable; what changed is which array the arm reads.
+    expect(names(["> - item one", "    ---", "# Probe A"])).toEqual(["h2:item one", "h1:Probe A"]);
+    expect(names(["> - item", "    ---", "# ATX Below"])).toEqual(["h2:item", "h1:ATX Below"]);
   });
 
   it("C5 (test-after): the separator is DASHES AND SPACES, not `SETEXT_H2` (`probe3/z03`, `z05`)", () => {
@@ -13531,14 +13541,19 @@ describe("Session 241 guard — answers around the lazy band's floor that must N
     );
   });
 
-  it("G18: ⚠ the `^ {0,3}` anchor rows, UNMOVED — Session 240's filed item, not this one", () => {
+  it("G18: ⚠ REVERSED BY SESSION 243 — the `^ {0,3}` anchor rows, now RECOVERED", () => {
     // `r1/anchor1`-`anchor6`. `-   item` opens content at column 4, so the quote marker sits at
-    // column 4 and `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` anchor does not recognise it AT ALL — `inQuote`
-    // is never set and no band, old or new, can reach these lines. Rendered, quarto forms
-    // `h2:quoted one` at every one of them. ⚠ Pinned AT THE LOSS: this session recovers none of
-    // them, and saying so here is what keeps the two items apart.
+    // column 4 and `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` anchor did not recognise it AT ALL — `inQuote`
+    // was never set and no band, old or new, could reach these lines. Session 241 pinned all five
+    // AT THE LOSS, correctly, and named the item that owned them.
+    // ⚠ **SESSION 243 REPLACED THAT ANCHOR WITH A CONTAINER-RELATIVE WINDOW AND ALL FIVE COME
+    // BACK.** Re-rendered from these exact bytes before the assertion was flipped, not inferred
+    // from the old comment: quarto forms `h2:quoted one` at every one of them and so does this
+    // model (`scratchpad/s243/r6/s241_G18_1`-`_6`, and `r0/A_anchora1`-`a6`).
     for (const indent of [" ", "  ", "   ", "     ", "      "]) {
-      expect(names(["-   item", "", "    > quoted one", `${indent}---`])).toEqual([]);
+      expect(names(["-   item", "", "    > quoted one", `${indent}---`])).toEqual([
+        "h2:quoted one",
+      ]);
     }
     // The control on the same stack: at 0 and at 4 the model DOES answer, because the marker is
     // ordinary text there and the underline claims the raw line for an unrelated reason.
@@ -13935,17 +13950,22 @@ describe("Session 242 — the `-` band's body row is the simple table's, read on
     expect(names(["1. item", "", "   > quoted one", " ---", " ---"])).toEqual(["h2:quoted one"]);
   });
 
-  it("R1: ⚠ DISCLOSED BOUND — a container whose content column is 4 recovers NOTHING", () => {
+  it("R1: ⚠ REVERSED BY SESSION 243 — the container at content column 4 now recovers", () => {
     // ⚠ **THE ALREADY-FILED `BLOCK_QUOTE_PREFIX` `^ {0,3}` ANCHOR, AND IT IS THE WHOLE OF THIS
     // SESSION'S RESIDUAL.** Every one of the 148 rows still disagreeing after this change — 45
     // in `scratchpad/s242/r1` and 103 in `r2` — is a document whose quote marker sits at column
     // 4 or deeper, where no quote is recognised at all and so no band of either spelling can
     // fire. Rendered, `10. item` / `` / `    > quoted one` / ` ---` / `- item` renders
     // `h2:quoted one` (`r1/C_s1_bul_b0`) and this model reports nothing.
-    // ⚠ The `=` spelling fails identically (`r1/C_e1`), which is what proves the anchor rather
-    // than this session's term is the cause: the `=` band reads no body row at all.
-    expect(names(["10. item", "", "    > quoted one", " ---", "- item"])).toEqual([]);
-    expect(names(["10. item", "", "    > quoted one", " ==="])).toEqual([]);
+    // ⚠ The `=` spelling failed identically (`r1/C_e1`), which is what proved the anchor rather
+    // than that session's term was the cause: the `=` band reads no body row at all.
+    // ⚠ **SESSION 243 REMOVED THE ANCHOR AND BOTH ROWS COME BACK, BOTH SPELLINGS.** Re-rendered
+    // from these exact bytes before the assertion was flipped (`scratchpad/s243/r6/s242_R1_a`,
+    // `s242_R1_b`): quarto renders `h2:quoted one` and `h1:quoted one`, and so does this model.
+    expect(names(["10. item", "", "    > quoted one", " ---", "- item"])).toEqual([
+      "h2:quoted one",
+    ]);
+    expect(names(["10. item", "", "    > quoted one", " ==="])).toEqual(["h1:quoted one"]);
   });
 
   it("R2: ⚠ DISCLOSED BOUND — a PHANTOM where the ordered marker was eaten by its own underline", () => {
@@ -14132,5 +14152,20 @@ describe("Session 243 guard — answers around the block-quote marker's own colu
     expect(names(["-   item", "", "    > ---", "    > note: alpha", "    > ---", "", "# Probe Z"])).toEqual([
       "h1:Probe Z",
     ]);
+  });
+});
+
+describe("Session 243 — the block-quote marker's window is the container's, not the document's", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: THE FILED WITNESS — a quote marker at the container's own content column", () => {
+    // ⚠ **THE ITEM SESSION 225 FILED AND SESSIONS 238, 240, 241 AND 242 EACH ANNOTATED, and by
+    // Session 242 the SOLE blocker on the whole quoted-underline family — 164 measured rows.**
+    // `-   item` opens content at column 4, so the marker sits at column 4, past the old
+    // `^ {0,3}` anchor; `inQuote` was never set and NO band of either spelling could fire.
+    // Rendered, `-   item` / `` / `    > quoted one` / ` ---` renders `h2:quoted one`
+    // (`scratchpad/s241/r1/anchor1`, re-rendered this session as `s243/r0/A_anchora1`).
+    expect(names(["-   item", "", "    > quoted one", " ---"])).toEqual(["h2:quoted one"]);
   });
 });
