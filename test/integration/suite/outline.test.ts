@@ -1173,6 +1173,34 @@ describe("Quarto: Document outline (symbols)", () => {
       flat(symbols).includes("Below A Container Floor"),
       "Session 241: the ATX below the lazy underline survives — the quote ends at the blank line",
     );
+
+    // ⚠ **SESSION 242 — THE BODY ROW THAT ENDS THE CONTAINER IT WOULD HAVE FED.** Sessions 238
+    // through 241 taught the `-` band which COLUMNS reach it; this is the other term, the one
+    // that reads the line BELOW the dashes. A pandoc simple table needs a body row, and a list
+    // start shallower than the container ENDS that container — so there is no body row, no table
+    // forms, and the dashes underline instead.
+    //
+    // Rendered, `1. an ordered item holding a body row` / blank /
+    // `   > a title the body row cannot feed` / ` ---` / `- a bullet that ends the item` emits
+    // `<h2>a title the body row cannot feed</h2>` inside the blockquote, and this model reported
+    // NOTHING there. ⚠ The fixture's premise was RE-RENDERED rather than assumed: `quarto render`
+    // on the extended bytes emits the twenty prior headings byte-identical and in the same order,
+    // plus exactly these two.
+    // ⚠ Both directions again — the marker-KEPT spelling is what this row would emit if the
+    // band's COLUMN term were wrong instead of its body-row term, and a presence-only check
+    // cannot tell those apart.
+    assert.ok(
+      flat(symbols).includes("a title the body row cannot feed"),
+      "Session 242: the heading the popped body row leaves behind must reach the Outline provider",
+    );
+    assert.ok(
+      !flat(symbols).includes("> a title the body row cannot feed"),
+      "Session 242: the underline is lazy here, so the marker-KEPT spelling must NOT appear",
+    );
+    assert.ok(
+      flat(symbols).includes("Below A Popped Body Row"),
+      "Session 242: the ATX below the ended container is a heading too",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
