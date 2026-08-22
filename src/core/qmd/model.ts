@@ -6462,6 +6462,17 @@ function computeRegions(text: string): Regions {
         // own coordinate space rather than the stripped one.
         !stripQuote &&
           i >= 2 &&
+          // ⚠ **THE COLUMNS HERE ARE UNOBSERVABLE TODAY AND ARE KEPT ON PURPOSE, WITH THE PROOF
+          // (Session 243).** The mutation hunt could not kill them: 0 disagreements over
+          // 18,578,112 enumerated documents across THREE alphabets, the last of which
+          // (`scratchpad/s243/hunt3.test.ts`) was built from what this term actually reads — a
+          // separator sitting under TWO marked header rows at container depth, `!stripQuote` and
+          // `i >= 2`. They are kept because the term is right BY CONSTRUCTION rather than by
+          // luck: these are the same raw lines the strip decision above reads, so leaving them on
+          // the document-root window would let this row and that one disagree about the same
+          // bytes the moment some other term makes the difference reachable. That is Session
+          // 241's Learning #445 — the rows between two spellings of one predicate are answered by
+          // neither — and it is exactly what this session had to repair elsewhere.
           blockQuoteContentStart(lines[i - 1], rawMarkerColumns) !== null &&
           blockQuoteContentStart(lines[i - 2], rawMarkerColumns) !== null,
       )
