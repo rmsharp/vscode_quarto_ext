@@ -7082,7 +7082,22 @@ function computeRegions(text: string): Regions {
         // ⚠ RAW, for the same reason `quoteOpen` is (Session 225) — this flag suspends the
         // `CLOSES_PARAGRAPH` gate for a paragraph that began inside a quote, and the lines it
         // then serves are UNMARKED ones the strip never sees.
-        paragraphQuoted = quoteContentStart !== null;
+        // ⚠ **AND IT KEEPS THE DOCUMENT-ROOT WINDOW WHERE EVERY OTHER MARKER READER TOOK THE
+        // CONTAINER-RELATIVE ONE (Session 243), WHICH IS MEASURED RATHER THAN CHOSEN.** Handing
+        // it `rawMarkerColumns` like the rest costs 16 RENDERED rows, and the mutation hunt is
+        // the only gate that found them — 51,382 corpus documents and 571 rendered probes were
+        // all clean. The mechanism: this flag SUSPENDS the `paragraphOpen` bail, so the block
+        // rules below it are then evaluated against `contentColumns` — which the quote entry
+        // CLEARED — while the line's own column is still measured from the document root. An
+        // unmarked `    body row` under a container-depth quote is therefore read as indented
+        // code, closes the paragraph, and the ATX below it becomes a heading quarto does not
+        // render: `-   item` / `` / `    > quoted one` / `    body row` / `# Probe Z` renders
+        // NOTHING and reported `h1:Probe Z` (`scratchpad/s243/huntdocs/N10_3`, and 15 more).
+        // ⚠ The honest fix is the coordinate mismatch itself, not this flag — and it was tried:
+        // gating the suspension on the raw line's own code depth (`scratchpad/s243/exp7`) is a
+        // NO-OP on all 16, because `    body row` is not at code depth against `[4]` either. So
+        // the narrow window here is kept and the widening is filed, with the row pinned as R4.
+        paragraphQuoted = blockQuoteContentStart(raw) !== null;
       }
       // `paragraphOpen` is read for the line ABOVE before being overwritten for this one.
       // Annotated for the same TS7022 reason as `lineBlockAbove` above — this snapshot feeds

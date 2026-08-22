@@ -14281,6 +14281,51 @@ describe("Session 243 — the block-quote marker's window is the container's, no
     expect(names(["-   item", "", "    > quoted one", "    ---"])).toEqual(["h2:> quoted one"]);
   });
 
+  it("R4: ⚠ `paragraphQuoted` KEEPS THE DOCUMENT-ROOT WINDOW, and the mutation hunt is why", () => {
+    // ⚠ **16 RENDERED ROWS THAT 51,382 CORPUS DOCUMENTS AND 571 RENDERED PROBES ALL CALLED
+    // CLEAN.** Handing this one flag the container-relative window like every other marker reader
+    // costs them: it SUSPENDS the `paragraphOpen` bail, and the block rules below it are then
+    // evaluated against `contentColumns` — which the quote entry CLEARED — while the line's own
+    // column is still measured from the document root. An unmarked `    body row` under a
+    // container-depth quote is read as indented code, closes the paragraph, and the ATX below
+    // becomes a heading quarto does not render.
+    // ⚠ Rendered: `-   item` / `` / `    > quoted one` / `    body row` / `# Probe Z` renders
+    // NOTHING (`scratchpad/s243/huntdocs/N10_3`), and the `---`/`===` variants render only the
+    // setext heading above (`N10_4`, `N10_5`). Mutant N10 is the shipped spelling; it survived
+    // the unit suite and was killed by a 1,048,576-document enumeration.
+    // ⚠ **The honest fix is the coordinate mismatch, not this flag, and it was TRIED and is a
+    // NO-OP** — gating the suspension on the raw line's own code depth (`scratchpad/s243/exp7`)
+    // scores identically to not gating it, because `    body row` is not at code depth against
+    // `[4]` either. Filed. These rows are what a later widening must re-render first.
+    expect(names(["-   item", "", "    > quoted one", "    body row", "# Probe Z"])).toEqual([]);
+    expect(names(["-   item", "    ---", "    > quoted one", "    body row", "# Probe Z"])).toEqual([
+      "h2:item",
+    ]);
+    expect(names(["-   item", "", "     > deeper", "     ---", "# Probe Z"])).toEqual([]);
+  });
+
+  it("R5: ⚠ DISCLOSED RESIDUAL — a quote inside an OPEN simple table is still read as a quote", () => {
+    // ⚠ **THE ONE NEW PHANTOM FAMILY THIS CHANGE CREATES, FOUND BY THE ENUMERATION AND LOCALISED
+    // BY ITS OWN CONTROLS.** `-   item` / ` ---` opens a pandoc SIMPLE TABLE inside the list item
+    // — rendered, the block structure is literally `ul>table` — so everything below is a CELL and
+    // quarto renders no heading at all. Recognising the marker at column 4 makes this model open a
+    // quote inside that table and underline its content (`scratchpad/s243/r10/a_witness`,
+    // `f_deepsep`).
+    // ⚠ **IT IS THE TABLE AND NOT THE WINDOW, AND FOUR CONTROLS SAY SO.** The same document with a
+    // BLANK line instead of the separator renders `h2:title` and this model agrees (`b_nosep`);
+    // with a blank line AFTER the separator, which ends the table, both agree again (`h_blankdiv`);
+    // the identical shape with NO quote marker is answered correctly (`e_noquote`); and so is the
+    // top-level twin (`g_topsep`). So `inSimpleTable` already suppresses this row — it just does
+    // not reach a setext row the newly-recognised quote owns.
+    // ⚠ Phantom direction; corpus weight measured at ZERO over 51,382 documents. Belongs to the
+    // simple-table family Sessions 239-242 own, not to the marker window. Filed.
+    expect(names(["-   item", " ---", "    >", "    > title", "    ---"])).toEqual(["h2:title"]);
+    // The control that localises it: a blank line instead of the separator, where quarto agrees.
+    expect(names(["-   item", "", "    >", "    > title", "    ---"])).toEqual(["h2:title"]);
+    // And the no-quote twin, answered correctly by the existing table machinery.
+    expect(names(["-   item", " ---", "    plain", "    title", "    ---"])).toEqual([]);
+  });
+
   it("R2: ⚠ DISCLOSED RESIDUAL — the CommonMark underline phantom reaches one container in", () => {
     // ⚠ **AN ALREADY-FILED DEFECT WHOSE REACH THIS WIDENS, SAID HERE RATHER THAN LEFT TO BE
     // FOUND.** The CommonMark branch reads `COMMONMARK_INDENT_OFFSETS` as a 0–3 window from
