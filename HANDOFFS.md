@@ -18,6 +18,14 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S243
+date: 2026-08-22
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` ANCHOR: A QUOTE MARKER AT COLUMN 4 OR DEEPER IS NOT RECOGNISED AT ALL. Filed by Session 225, annotated by Sessions 238/240/241/242, pinned by Session 242 as its ranked #1 and as R1; operator picked it at Phase 0 from the ranked AskUserQuestion candidate list. Witness: `-   item` opens content at column 4 with ONE container, so the quote marker at column 4 is past the anchor and `inQuote` is never set -- `-   item` / blank / `    > quoted one` / an underline renders h2:quoted one at underline columns 1, 2, 3, 5 and 6 and this model reports nothing (s241/r1/anchor1-anchor6, pinned as Session 241 G18). 164 measured rows across four container kinds, 148 of them Session 242's entire residual; spelling-blind, which is what proves the anchor and not the underline is the blocker. Deliverable: src/core/qmd/model.ts.
+```
+
+
+```handoff
 session: S242
 date: 2026-08-22
 status: complete
