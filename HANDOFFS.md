@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S244
+date: 2026-08-22
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- A MARKED-BLANK QUOTE LINE USED AS A SETEXT TITLE IS LOST, AT EVERY DEPTH. Filed by Session 243 from its 12,287,081-document enumeration and proven PRE-EXISTING by its own top-level twin; 182 of the 238 heading-losing rows, the largest single family left; pinned at both depths as Session 243 R6. Operator picked it at Phase 0 from the ranked AskUserQuestion candidate list. Deliverable: a quote line whose stripped content is EMPTY stays available as a setext title -- one rule for both depths -- in src/core/qmd/model.ts.
+```
+
+```handoff
 session: S243
 date: 2026-08-22
 status: complete
