@@ -13741,3 +13741,140 @@ describe("Session 241 — the lazy band's floor is the container stack, not the 
     ]);
   });
 });
+describe("Session 242 guard — answers around the simple table's body row that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ THE DANGEROUS DIRECTION. This session teaches the "does the table get a BODY ROW"
+  // question one more way to answer NO, and every new NO is a table that does not form. A table
+  // that does not form lets the dashes UNDERLINE the line above — so every mistake this change
+  // can make is a PHANTOM heading, on a row that renders none. The guard is therefore weighted
+  // to rows where a table SHOULD form and today does.
+  //
+  // Every answer below is the RENDERED one, measured through the real `quarto render` path over
+  // `scratchpad/s242/r1` and `r3` (1,270 documents) BEFORE any `src/` change.
+  //
+  // ⚠ **THE PREDICATE IS `popsEnclosingContainer` AND THE BODY-KIND SWEEP IS WHAT SAYS SO.** Ten
+  // body-row kinds at three columns, under three container geometries: only a LIST START ends
+  // the container, and only when it is shallower than that container's content column. Prose, an
+  // ATX heading, a block quote, a `:::`, a `***` rule and a fence are ordinary body rows at every
+  // column, and the table forms over all of them.
+
+  it("G1: top level, the `-` band is unmoved at all four columns", () => {
+    // `r1/T_s0_bul`-`T_s3_bul`. At top level the stack is EMPTY, so no body row can be shallower
+    // than it and nothing this session adds can fire. The marker is KEPT at column 0 and the
+    // table forms at 1-3 — the rows five sessions measured.
+    expect(names(["> quoted one", "---", "- item"])).toEqual(["h2:> quoted one"]);
+    expect(names(["> quoted one", " ---", "- item"])).toEqual([]);
+    expect(names(["> quoted one", "  ---", "- item"])).toEqual([]);
+    expect(names(["> quoted one", "   ---", "- item"])).toEqual([]);
+  });
+
+  it("G2: top level, a prose and an ATX body row keep the table too", () => {
+    // `r1/T_s1_pro`, `T_s1_atx`. The body KIND is irrelevant at top level, because the threshold
+    // is 0 and no column is below it.
+    expect(names(["> quoted one", " ---", "prose row"])).toEqual([]);
+    expect(names(["> quoted one", " ---", "# Probe A"])).toEqual([]);
+  });
+
+  it("G3: one container in, a NON-list body row keeps the table at every kind", () => {
+    // `r1/A_s1_{pro,atx,quo,div,rul,fen}_b0` — six kinds at column 0, under `1. item` whose
+    // content column is 3, with the separator SHALLOWER than that column. ⚠ These are the rows
+    // this session must NOT move: the body row is shallower than the container, but it does not
+    // START a list, so the container stays open and the table forms over it.
+    const doc = (body: string) => ["1. item", "", "   > quoted one", " ---", body];
+    expect(names(doc("prose row"))).toEqual([]);
+    expect(names(doc("# Probe A"))).toEqual([]);
+    expect(names(doc("> q row"))).toEqual([]);
+    expect(names(doc(":::"))).toEqual([]);
+    expect(names(doc("***"))).toEqual([]);
+    expect(names(doc("```"))).toEqual([]);
+  });
+
+  it("G4: a list start AT the container's content column is a body row, not a pop", () => {
+    // `r1/A_s1_bul_b3`, `B_s1_bul_b2`. The threshold is a STRICT inequality: at the container's
+    // own content column the bullet is item content, the container survives, and the table forms.
+    expect(names(["1. item", "", "   > quoted one", " ---", "   - item"])).toEqual([]);
+    expect(names(["- item", "", "  > quoted one", " ---", "  - item"])).toEqual([]);
+  });
+
+  it("G5: the marker-KEPT columns are Session 241's set and are unmoved", () => {
+    // `r1/A_s0_bul_b0`, `A_s3_bul_b0`, `B_s0_bul_b0`, `B_s2_bul_b0`. At column 0 and at the
+    // container's own content column the underline claims the RAW line, marker and all — the
+    // membership test Session 240 shipped and Session 241 read twice. A body row that pops the
+    // container must not reach these rows at all.
+    expect(names(["1. item", "", "   > quoted one", "---", "- item"])).toEqual(["h2:> quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", "   ---", "- item"])).toEqual([
+      "h2:> quoted one",
+    ]);
+    expect(names(["- item", "", "  > quoted one", "---", "- item"])).toEqual(["h2:> quoted one"]);
+    expect(names(["- item", "", "  > quoted one", "  ---", "- item"])).toEqual(["h2:> quoted one"]);
+  });
+
+  it("G6: with NO body row at all the band already reaches these rows", () => {
+    // `r1/A_s1_none`, `A_s1_blank`. Session 241's floor plus the terminator arm that already
+    // exists. If either of these goes red, the change has broken the arm it was extending.
+    expect(names(["1. item", "", "   > quoted one", " ---"])).toEqual(["h2:quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", " ---", ""])).toEqual(["h2:quoted one"]);
+  });
+
+  it("G7: at CODE DEPTH the old column term already answers, body row or not", () => {
+    // `r1/A_p1_bul_b0`, `B_p2_bul_b0`. Four columns past an emptied stack is code depth, where
+    // `lazyQuotedUnderline`'s FIRST column term fires and the body row is never consulted. These
+    // rows are why the filed witness needed a container whose content column is 2 or 3.
+    expect(names(["1. item", "", "   > quoted one", "    ---", "- item"])).toEqual([
+      "h2:quoted one",
+    ]);
+    expect(names(["- item", "", "  > quoted one", "    ---", "- item"])).toEqual(["h2:quoted one"]);
+  });
+
+  it("G8: Session 240's geometry — a body row AT the container column keeps its table", () => {
+    // `r1/A_p1_bul_b3`. The separator one column PAST the container, the bullet at the
+    // container's own content column: the container survives and the table forms.
+    expect(names(["1. item", "", "   > quoted one", "    ---", "   - item"])).toEqual([]);
+  });
+
+  it("G9: the `=` spelling has no table question and must stay where Session 241 put it", () => {
+    // `r1/A_e1`, `A_e2`. Only `-` can separate a pandoc simple table, so the `=` band never
+    // reads a body row. Any movement here means the change leaked out of the `-` arm.
+    expect(names(["1. item", "", "   > quoted one", " ===", "- item"])).toEqual(["h1:quoted one"]);
+    expect(names(["1. item", "", "   > quoted one", "  ===", "- item"])).toEqual(["h1:quoted one"]);
+  });
+
+  it("G10: a NON-QUOTE simple table inside a container is unmoved", () => {
+    // `r3/Q_s1_bul_b0`, `Q_s1_pro_b0`, `Q_s3_bul_b0`, `Q_s4_bul_b0`, `P_s1_bul_b0`,
+    // `P_s3_bul_b0`. ⚠ **THE 654-DOCUMENT FAMILY THAT AGREES TODAY, ROW FOR ROW.** This session
+    // changes `simpleTableOpensHere`, which every one of these rows reaches with no quote
+    // anywhere — the `# Probe Z` below the construct is the probe that a heading is still
+    // reported where quarto reports one.
+    expect(names(["1. item", "   header", " ---", "- item", "", "# Probe Z"])).toEqual([
+      "h1:Probe Z",
+    ]);
+    expect(names(["1. item", "   header", " ---", "prose row", "", "# Probe Z"])).toEqual([
+      "h1:Probe Z",
+    ]);
+    expect(names(["1. item", "   header", "   ---", "- item", "", "# Probe Z"])).toEqual([
+      "h1:Probe Z",
+    ]);
+    expect(names(["1. item", "   header", "    ---", "- item", "", "# Probe Z"])).toEqual([
+      "h1:Probe Z",
+    ]);
+    expect(names(["- item", "  header", " ---", "- item", "", "# Probe Z"])).toEqual([
+      "h1:Probe Z",
+    ]);
+    expect(names(["- item", "  header", "   ---", "- item", "", "# Probe Z"])).toEqual([
+      "h1:Probe Z",
+    ]);
+  });
+
+  it("G11: a NON-QUOTE simple table at TOP LEVEL is unmoved, both directions", () => {
+    // `r3/Z_s0_bul`, `Z_s1_bul`. At column 0 the dashes UNDERLINE `header` and the ATX below is
+    // real; one column in they separate a table that eats the bullet. The pair is the
+    // discriminator that says the top-level threshold is still 0.
+    expect(names(["header", "---", "- item", "", "# Probe Z"])).toEqual([
+      "h2:header",
+      "h1:Probe Z",
+    ]);
+    expect(names(["header", " ---", "- item", "", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+});
