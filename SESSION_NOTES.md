@@ -5,15 +5,146 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 242 — IMPLEMENTATION (strict TDD): THE `-` BAND'S BODY-ROW TERM DOES NOT KNOW `popsEnclosingContainer`** — filed by Session 241 as the OTHER HALF of the term it fixed, and pinned as its ranked #1. The operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
-**Started:** 2026-08-21
-**Status:** Session claimed. Work beginning.
+**Task:** **Session 242 — IMPLEMENTATION (strict TDD): THE `-` BAND'S BODY-ROW TERM DOES NOT KNOW `popsEnclosingContainer`** — filed by Session 241 as the OTHER HALF of the term it shipped and pinned as its ranked #1. The operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
+**Started:** 2026-08-21 · **Closed:** 2026-08-22
+**Status:** **DONE. SHIPPED — and the filed diagnosis was half the answer.**
 
-**The witness (filed, MEASURED, rendered).** `1. item` / blank / `   > quoted one` / ` ---` / `- item` renders `h2:quoted one` — a bullet shallower than the item's content column ENDS the container, so no simple table forms and the dashes underline — and this model reports nothing. `lazyDashesBand`'s terminator arm asks only whether the line below is blank, absent, or a dash rule; `simpleTableOpensHere` already knows the fuller answer through `popsEnclosingContainer`, which Session 240 added one term over for exactly this question. ⚠ Reuse the predicate; do not re-derive it.
+**HEADLINE 1 — THE FILED ENTRY NAMED A PREDICATE THAT WAS ALREADY THERE AND WAS INERT ON THE ENTRY'S OWN WITNESS.** The item said `lazyDashesBand` knows only three answers while `simpleTableOpensHere` "already knows the fuller answer through `popsEnclosingContainer`". Session 240 did add that predicate, one term over. But its guard compares the body row's column against `base` — `containerContentColumn(separatorColumn, columns)`, the deepest open column not exceeding the SEPARATOR's indent — so where the separator sits SHALLOWER than the container it is written inside, `base` collapses to 0, nothing is below it, and the guard cannot fire. ⚠ **The filed witness is exactly that shape.** Measured rather than argued: I built the entry's own proposal as a scratch variant and scored it — it recovers **4 of the 28 rows** and the witness the entry named is in the other 24 (`scratchpad/s242/exp2` against `exp`). (Learning #449.)
 
-**Deliverable (ONE capability):** the `-` band's body-row term learns `popsEnclosingContainer` — `src/core/qmd/model.ts`.
+**HEADLINE 2 — A 3,200,000-DOCUMENT ENUMERATION FOUND A 506-MOVER REGRESSION THAT FIVE OTHER GATES CALLED CLEAN.** My first spelling applied the innermost-open-column floor to every stack. It scored **0 broken** on 1,613 rendered probes, on a 49,348-document corpus sweep, on 2,625 unit tests, on a byte-identical `test:oracle`, and on a green `test:integration`. The enumeration then produced 650 movers in **5 transition classes**, and rendering one representative of each found **534 of them wrong**: `- item` / ` ---` / `- item` / `---` / `# Probe Z` renders `h2:item` and `h1:Probe Z`, and declining the table there leaves the paragraph open across the terminator and **swallows a real ATX heading**. ⚠ The response was to NARROW the change to the family actually measured rather than widen it into the paragraph-closing path it exposed. (Learning #453.)
 
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**HEADLINE 3 — SESSION 240 MADE THE TABLE DECLINE ON SIX OF ITS OWN RENDERED ROWS AND THE HEADING STAYED LOST FOR TWO SESSIONS.** `scratchpad/s240/r3/{k_ul_0,k_ol_0,k_star_0,k_plus_0,c_ul0,c_ul1}` are six of this session's twelve corpus movers. That session measured the TABLE; this one measured the HEADING, on identical documents. ⚠ When a change makes a construct stop forming, ask what the bytes render as INSTEAD. (Learning #450.)
+
+**THE measurement.**
+
+| corpus | scale | what it measures | model pre → post |
+|---|---|---|---|
+| `r1/` | 616 documents | the body-kind × body-column × separator-column sweep, three container geometries | 543 → 571 agree, **28 moved, 28 RECOVERED** |
+| `r2/` | 301 documents | nested stacks and a gap geometry — all blocked behind the `^ {0,3}` anchor | 198 → 198, **0 moved** |
+| `r3/` | 654 documents | the NON-QUOTE simple table, which `simpleTableOpensHere` reaches with no quote anywhere | 654 → 654, **0 moved** |
+| `r4/` | 30 documents | is the separator's own 1-3 WINDOW wrong the same way? (probe sensitive to table-openness) | 28 → 30, **2 RECOVERED**; no second defect |
+| `r5/` | 5 documents | one representative of every enumeration transition class | **3 recovered, 1 broken, 1 regressed partial** — the narrowing |
+| corpus sweep | **49,348 documents** | every predecessor corpus | 12 movers → **all 12 RENDERED, 12 RECOVERED, 0 broken**, 0 cell movers |
+| repo sweep | 116 tracked files | this project's own markdown | 1 mover — this session's own extended gate fixture |
+| mutation hunt | **16 mutants** | is each term exercised? | **13 died**; 3 survivors proven unobservable |
+| survivor hunt | **565,774 documents** | are the 3 survivors inert? | **0 disagreements**, two targeted alphabets |
+| enumeration | **3,200,000 documents ×2** | pre vs post, the cross product, before AND after the narrowing | 650 movers / 5 classes → **144 movers / 4 classes** |
+
+**TDD gate — the guard block FIRST, then RED→GREEN.** **11 `it()`s green BEFORE any `src/` change** (`284ffefa`), measured over `r1` and `r3` (1,270 documents) and weighted to the phantom direction this change opens. **2 RED→GREEN cycles**, each RED confirmed to fail for the right reason (`expected [] to deeply equal [ 'h2:quoted one' ]`, twice, on two different geometries — the first needing only the band, the second needing the table too). **2 test-after pins (C3, C4)** and **3 residual pins (R1–R3)**. ⚠ `src/core/qmd/model.ts` restored **byte-identical (SHA-256)** after each of the 16 mutants.
+
+**⚠ Phase 3E — RUN TWICE, both green, both on a go-ahead sought IN ADVANCE.** `test:integration` **542 passing / exit 0**. The first run attested the pre-narrowing build; the enumeration then changed `src/`, so it was re-run and the second run attests the build that ships. All assertions pre-checked headlessly first (`scratchpad/s242/precheck242.test.ts` — S211's gotcha 3 for a **TWENTY-NINTH** session), including an exact heading-list-in-order match against quarto's own render and a re-check of every prior session's assertion on this shared fixture. The fixture's premise was **re-rendered, not assumed**: twenty prior headings byte-identical and in the same order, exactly two added.
+
+**Verification at close.** `check-types` **0** · `check-types:unit` **0** · `compile` **0** · `npm test` **2627 passed / 66 files** (baseline 2609, **+18**) · `test:oracle` **131 / 124 agree / 4 lost TP / 3 CARDINAL FP / 0 unrelated** (BYTE-IDENTICAL to S180–S241) · `check-package` **OK 42 files / 5.58 MB** · `check-backlog` **OK, 177 open items** · `test:integration` **542 passing / exit 0**. NOT RUN: `test:lsp` — no LSP surface touched.
+
+**⚠ WHAT THIS SESSION COULD NOT DO.** It ships the body-row floor for the QUOTE'S STASHED STACK only, and deliberately leaves every non-quote row on Session 240's `base` — the enumeration proved widening it deletes a real heading, and the deleted-heading row is pinned as R3 so it cannot be widened silently. It leaves the ordered-marker phantom the narrowing exposed (filed, pinned R2, corpus weight zero). It recovers **nothing** on any container whose content column is 4 or more — 148 newly measured rows, annotated onto the already-filed `^ {0,3}` anchor item, pinned as R1. And **no BLIND sweep / subagent fan-out**, unavailable under a session-level instruction for the **THIRTY-FIFTH** session running.
+
+**What was done (commits).** 1B claim `6b1aba43`. **GUARD** `284ffefa` — 11 `it()`s, test-only, green before any `src/` change. **FIX** `ddcd96ec` — `simpleTableBodyRowAbsent`, `innermostContentColumn`, both callers, and three load-bearing `: boolean` annotations. **WIRING** `a396e400` — the gate fixture extended and re-rendered, three assertions, both directions. **NARROWING** `8769ff05` — the innermost floor restricted to the quote's stash, plus R2/R3. Close-out commit carries `CHANGELOG.md`, `BACKLOG.md` (1 closed, 1 filed, 1 annotated), `PROJECT_LEARNINGS.md` (#449–#453), `SESSION_NOTES.md`, `HANDOFFS.md` and `dashboard_history.jsonl`.
+**Ledger:** `CHANGELOG: 2026-08-22 · [ad hoc] Session 242` — written at close-out with the `BACKLOG.md` update.
+
+**Deliverable (ONE capability):** *the `-` band's body row is the simple table's, read once* — `src/core/qmd/model.ts`.
+
+**Gotchas for the next session.**
+1. ⚠ **RUN THE ENUMERATION EVEN WHEN EVERY OTHER GATE IS GREEN — THAT IS THE WHOLE OF IT.** Five gates called my first spelling clean and it deleted a real heading in 506 of 650 movers. Corpora are shapes somebody chose to write; the regressed shape is not one anybody had reason to write down. `scratchpad/s242/brute.test.ts` is the pattern — key by `JSON.stringify([pre, post])`, render one representative per class. 650 movers is one render at 5 classes.
+2. ⚠ **A FILED ITEM'S "X ALREADY HANDLES THIS" IS A CLAIM ABOUT A CODE PATH ON SPECIFIC BYTES, AND THE BYTES ARE IN THE ENTRY.** Build the entry's own proposal as a scratch `src` copy and SCORE it before adopting it — `scratchpad/s242/exp2` cost ten minutes and changed the shape of the whole session. This is Learning #448 applied to the half of an entry that reads as established fact rather than as a suggestion.
+3. ⚠ **A PROBE WITH NO KNOWN-POSITIVE CONTROL IS A NULL RESULT ABOUT THE PROBE.** My first directed survivor probe put a blank line above its ATX, which ENDS a pandoc simple table — so the heading was reported whether or not a table opened, and nine documents read "no disagreement". Before believing a null result, check the probe reports DIFFERENT answers on a pair you already know differ.
+4. ⚠ **`: boolean` CAN BE LOAD-BEARING, AND TS7022 MOVES RATHER THAN CLEARS.** Reading `quoteOpen` from the setext row's initializer chain made three consts circular; annotating one moved the error to the next, and two cascade errors 400 lines away never named the cause. **`npm test` was green on all four.** The diagnostic that worked: `git stash` → `npx tsc --noEmit -p tsconfig.json` → `git stash pop`, which separates "mine" from "pre-existing" in one command.
+5. ⚠ **INSTRUMENT A COPY, NOT `src/`.** `scratchpad/s242/dbg/` is a full `src` copy with two `console.error` probes behind `process.env.S242_DBG`; it is what showed that the filed diagnosis was wrong (the table was opening, so the band was never consulted). Reusable — change the two anchors.
+6. ⚠ **THE HARNESS RAN OTHERWISE UNMODIFIED:** `render242.sh` is S241's byte-for-byte; `score.test.ts`, `prescore.test.ts` + `presrc/`, `sweep.test.ts`, `reposweep.test.ts`, `hunt.test.ts`, `tsv2json.py` and `mutate242.py` each needed one rename or a MUTANTS-list swap. New this session and worth keeping: `dbg/`, `exp/`, `exp2/`, `exp3/` (scratch variants scored against each other), `brute.test.ts`, `direct.test.ts`, `precheck242.test.ts`.
+7. ⚠ **NEVER `git add -A` AT THIS REPO'S ROOT** — `scratchpad/` is untracked but NOT in `.gitignore` (S240's item, still open). Stage close-out files BY NAME; no gate can see this.
+8. ⚠ **THE BASH TOOL'S WORKING DIRECTORY PERSISTS BETWEEN CALLS** — I `cd`-ed into `scratchpad/s241` early and the next command would have resolved relative paths from there. Prefix with absolute paths after any `cd`.
+
+**What's next.** ⚠ *Forward-looking claims are marked **derived** or **estimate**.* Each was checked against a rendered row or a read file on the SHIPPED build.
+
+**#1 — `BLOCK_QUOTE_PREFIX`'s `^ {0,3}` ANCHOR, now the SOLE BLOCKER on the whole quoted-underline family.** This session added **148 measured rows** (45 of 616 in `r1`, 103 of 301 in `r2`) — every document still disagreeing after the fix — bringing the item to **164 rows across four container kinds**. ⚠ **Four consecutive sessions' recoveries (238, 240, 241, 242) each stop at content column 3**, and no further term at the underline can move a row the anchor never lets `inQuote` reach. **Derived** from the residual sets of both rounds and confirmed spelling-blind (`r1/C_e1`–`C_e3`, the `=` twins, fail identically). Effort **estimate** MEDIUM. ⚠ Session 240's G22/G23 pins will need re-rendering when it moves — they are right today for a reason the fix removes.
+**#2 — THE ORDERED MARKER EATEN BY ITS OWN UNDERLINE**, filed by this session and pinned as R2. `1. item` / `---` renders `h2:1. item` with the marker in the heading TEXT, so NO list opens, but this model still pushes content column 3. ⚠ **The bullet twin is a correct recovery** (`- item` / `---` strips the marker and a list really is open), which is what localises it. **Derived** from `r5/cls03` against `cls04`. Phantom direction, corpus weight measured at zero. Effort **estimate** LOW.
+**#3 — THE QUOTE-END RESTORE**, S241's item, untouched here: 15 rendered rows where a container the quote's own line closed comes back when the quote ends. ⚠ **The obvious fix is already REFUTED** — mutants N12/N13, each wrong on rows S241's C3/C4 pin. Effort **estimate** MEDIUM.
+**#4 — THE DASH-RULE-UNDER-DASH-RULE PHANTOM**, S240's item with S241's refutation and discriminator. Effort **estimate** LOW, and it is well specified.
+**#5 — `setextTitleQuoted` READS ONLY THE LINE IMMEDIATELY ABOVE**, S241's R2. Net recovery, not a loss. Effort **estimate** LOW.
+**#6 — THE HEADERLESS SIMPLE TABLE**, S239's item, untouched and unmoved here. Effort **estimate** MEDIUM.
+⚠ Still open from S186: promote the scratchpad harness, `.vscode-test/` large, `npm audit` devDependency-only (dashboard reports 6); `scratchpad/` is now ~2.6 GB and untracked.
+
+---
+
+## Session 241 Handoff Evaluation (by Session 242)
+
+**Score: 8/10.** A handoff that set this session up correctly on every operational point and was
+half wrong on the one technical claim its successor would build on.
+
+**What helped, specifically.**
+- **Gotcha 5 — "render a filed item's proposed fix, not only its root cause" — is the single
+  reason this session found what it found.** I built the entry's own proposal as `exp2` and
+  scored it: 4 of 28 rows. Without that habit I would have shipped the band-only change, watched
+  the filed witness stay red, and spent the session confused.
+- **Gotcha 2's split scorer configs were correct and I copied both from the start.** The trap it
+  describes — two configs writing one path, so every row reads "unmoved" — would have been fatal
+  here, because "unmoved" is exactly the answer a pre/post table produces when it is broken.
+- **`mutate241.py` was reusable with only its MUTANTS list replaced**, exactly as gotcha 4 said,
+  and the anchor-abort held me honest twice when I edited the anchors after the narrowing.
+- **Gotcha 7 (never `git add -A`) and gotcha 8 (the bash cwd persists) were both accurate**, and
+  I hit the second one: I `cd`-ed into `scratchpad/s241` to read the harness and the next command
+  would have resolved from there.
+- **The witness bytes and the rendered answers were exact.** `r5/x6a`-`x6c` and `r1/A_d_x6` and
+  siblings reproduced byte-for-byte, four for four, first try.
+- **`npm test` matched the recorded 2609 exactly** and `test:oracle` was byte-identical.
+
+**What was wrong.**
+- ⚠ **The entry's central technical claim does not hold on its own witness.** "`simpleTableOpensHere`
+  already knows the fuller answer through `popsEnclosingContainer`" is true about the source and
+  false about the bytes: that guard's threshold collapses to 0 when the separator sits shallower
+  than the container, which is precisely the filed shape. The instruction that followed it —
+  "reuse the predicate; do not re-derive it" — was right, but the sizing built on top of it was not.
+- **The effort estimate of LOW was wrong.** The change needed a second call site, a new shared
+  predicate, three load-bearing type annotations, and a narrowing forced by a 3.2-million-document
+  enumeration. MEDIUM would have been fair.
+
+**What was missing — and it is not enough to cost more.**
+- The handoff could not have known that its own predecessor (Session 240) had left six of its
+  rendered rows with the heading still lost. That is the thing this session was for.
+
+**ROI:** high. Five of its eight gotchas were load-bearing and one of them determined the shape of
+the session. The two points come off for a diagnosis a successor is invited to trust and build on.
+
+---
+
+## Session 242 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I refuted the filed diagnosis by building it rather than by reasoning about it.** `exp2` took
+  ten minutes and produced a number — 4 of 28 — that no amount of code reading would have settled.
+- **I ran the enumeration even though five other gates were green, and it is the only reason this
+  session did not ship a heading-deleting regression.** 1,613 rendered probes, 49,348 corpus
+  documents, 2,625 unit tests, a byte-identical oracle and a green integration run all said 0
+  broken. The enumeration said 534 of 650 movers wrong.
+- **I narrowed rather than widened.** The regression exposed a real weakness in the paragraph
+  handling below a declined table. Fixing that is a second capability; I restricted this change to
+  the family I had measured, pinned the deleted-heading row (R3) so nobody can widen it silently,
+  and added the mutant (M16) that kills the widening.
+- **Every corpus mover was RENDERED, not reasoned about** — all 12, plus one representative of
+  every enumeration transition class.
+- **The guard block came first and it was weighted correctly** — 11 `it()`s green before any
+  `src/` change, six of them on the non-quote family that this change reaches with no quote
+  anywhere. Those six are what made the narrowing decision legible instead of a guess.
+- **I sought the operator's go-ahead BEFORE each screen takeover, twice**, including the second
+  one I did not want to need.
+
+**What went wrong.**
+- ⚠ **I ran the integration suite before the enumeration, and had to burn a second screen takeover
+  because of it.** The cheap ordering is: enumerate, THEN spend the operator's screen. I had the
+  harness for it and ran it last out of habit.
+- ⚠ **My first directed survivor probe could not detect its own hypothesis.** A blank line above
+  the ATX ended the table either way, so nine documents read "no disagreement" and I nearly
+  recorded a null result. This is Learning #289 recurring one session after Session 241 recorded
+  its own version of it.
+- **I did not anticipate that `check-types` would reject a change `npm test` was green on.** The
+  gotcha is in CLAUDE.md for `test/unit`; I met its `src/` twin and spent three cycles chasing an
+  error that moved rather than cleared.
+
+**Against the bar.** Sessions 238-241 each shipped one measured term of this family with a full
+pre/post matrix; this session matches that and adds the enumeration-before-integration lesson.
+Where it falls short of a 9 is ordering and probe hygiene, both of which cost real time and one
+of which cost the operator's screen twice.
 
 ---
 
