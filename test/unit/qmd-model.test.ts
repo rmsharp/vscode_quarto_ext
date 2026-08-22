@@ -14281,6 +14281,46 @@ describe("Session 243 — the block-quote marker's window is the container's, no
     expect(names(["-   item", "", "    > quoted one", "    ---"])).toEqual(["h2:> quoted one"]);
   });
 
+  it("C10: a quote entered SHALLOWER than its container measures continuations from the pop", () => {
+    // ⚠ **THE DELETING FAMILY THE ENUMERATION FOUND, AND THE ONE TERM THAT REMOVES IT.** With the
+    // quote entered at column 3 inside a container whose content column is 4, the entry line is
+    // SHALLOWER than the item — so it ENDS the list and opens a TOP-LEVEL quote. A continuation
+    // marker at 4–7 is then indented code: it ends the quote, and the ATX below RENDERS.
+    // Rendered, `-   item` / `` / `   > quoted one` / `    > quoted one` / `# Probe Z` / `-   item`
+    // renders `h1:Probe Z` (`scratchpad/s243/r12/e3_4`-`e3_7`), and reading the UNPOPPED stash
+    // keeps the quote open across it and swallows that heading — 24 deleting rows of a
+    // 12,287,081-document enumeration, on which 51,382 corpus documents and 571 rendered probes
+    // were all clean. `outerColumns.rawColumns` is the field that already knows this.
+    expect(
+      names(["-   item", "", "   > quoted one", "    > quoted one", "# Probe Z", "-   item"]),
+    ).toEqual(["h1:Probe Z"]);
+    // ⚠ The entry-at-4 control, UNMOVED by that term — there the pop keeps the column, the
+    // continuation really is inside the quote, and `blank_before_header` eats the ATX (`r12/e4_4`).
+    expect(
+      names(["-   item", "", "    > quoted one", "    > quoted one", "# Probe Z", "-   item"]),
+    ).toEqual([]);
+  });
+
+  it("R6: ⚠ DISCLOSED RESIDUAL — a MARKED-BLANK quote line used as a setext title", () => {
+    // ⚠ **PRE-EXISTING AT TOP LEVEL, AND THAT IS MEASURED RATHER THAN ASSERTED.** `>` / `---`
+    // renders `h2:>` — the underline claims the RAW line before any quote is parsed, so the
+    // marker survives as the whole heading text (Session 240's G1/G2 rule) — and the PRE-SESSION
+    // build reports NOTHING there (`scratchpad/s243/r11/top_bare`, `top_bare2`, `top_bare_sp`).
+    // The strip turns `>` into `""`, the blank branch consumes it, and no title line survives.
+    // ⚠ This session makes the same wrongness reachable one container in, where the pre-session
+    // build was accidentally RIGHT because no quote was recognised at column 4 at all
+    // (`r11/ctr_bare`, `ctr_bare2`, `ctr_bare_sp`). So it is a REACH change on a defect this
+    // model already had, not a new defect — and the fix is one rule for both depths.
+    // ⚠ Corpus weight measured at ZERO over 51,382 documents; the heading it loses has the
+    // literal text `>`. The CONTENT-carrying twin is answered correctly at both depths
+    // (`top_txt`, `ctr_txt`), which localises it to the EMPTY marker run.
+    expect(names([">", "---"])).toEqual([]);
+    expect(names(["-   item", "", "    >", "    ---"])).toEqual([]);
+    // The content-carrying twins, right at both depths.
+    expect(names(["> quoted one", "---"])).toEqual(["h2:> quoted one"]);
+    expect(names(["-   item", "", "    > quoted one", "    ---"])).toEqual(["h2:> quoted one"]);
+  });
+
   it("R4: ⚠ `paragraphQuoted` KEEPS THE DOCUMENT-ROOT WINDOW, and the mutation hunt is why", () => {
     // ⚠ **16 RENDERED ROWS THAT 51,382 CORPUS DOCUMENTS AND 571 RENDERED PROBES ALL CALLED
     // CLEAN.** Handing this one flag the container-relative window like every other marker reader

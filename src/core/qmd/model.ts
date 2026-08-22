@@ -5881,8 +5881,21 @@ function computeRegions(text: string): Regions {
     // containers govern what is inside the markers; they say nothing about where the markers
     // themselves may sit. This is `rawLineColumns`' question one line earlier, before the strip
     // has decided anything — see that const for the same distinction on an UNMARKED line.
+    // ⚠ **`rawColumns`, NOT `columns` (Session 243), AND THE ENUMERATION IS WHAT SAYS SO.** The
+    // stash keeps containers the quote's OWN ENTRY LINE closed, and a continuation marker is
+    // measured against what is still open after that pop. Rendered: with the quote ENTERED at
+    // column 3 inside a container whose content column is 4, the entry line is SHALLOWER than
+    // the item, so it ends the list and opens a TOP-LEVEL quote — and a continuation marker at
+    // 4-7 is then indented code, ends the quote, and the ATX below it RENDERS
+    // (`scratchpad/s243/r12/e3_4`-`e3_7`). Reading the unpopped `columns` keeps the quote open
+    // across it and SWALLOWS that heading — 24 deleting rows of a 12,287,081-document
+    // enumeration, on which the 51,382-document corpus sweep and 571 rendered probes were all
+    // clean. ⚠ The entry-at-4 control is unmoved by the change, because there the pop keeps the
+    // column (`r12/e4_*`): the two spellings differ ONLY where the entry line was shallower than
+    // its container. This is the field Session 241 added and read from `rawLineColumns` alone;
+    // the marker question needs it too.
     const rawMarkerColumns: readonly number[] =
-      outerColumns !== null ? outerColumns.columns : contentColumns;
+      outerColumns !== null ? outerColumns.rawColumns : contentColumns;
     const quoteContentStart = blockQuoteContentStart(raw, rawMarkerColumns);
     // ⚠ The explicit annotations on this constant and the two below are load-bearing, not
     // style — the same TS7022 round trip `lineBlockAbove` documents. `quoteOpen` is assigned
