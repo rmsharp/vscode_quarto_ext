@@ -4703,10 +4703,13 @@ describe("a BULLET MARKER on a setext title is STRIPPED, not a reason to decline
     // completes the picture the `ord_*` rows only half-showed: with the underline at column 0 the
     // ordered marker survives into the heading (14 of 14 rows agree, unchanged here), but with
     // the underline at the item's CONTENT column pandoc parses the list and strips it.
+    // ⚠ **CLOSED BY SESSION 247, AND SESSION 201 HAD ALREADY NAMED THE RULE EXACTLY.** The two
+    // sentences above are the whole mechanism — 46 sessions early — and the second row below is
+    // its obituary: re-rendered on its own bytes (`scratchpad/s247/r4/s201_famB_u0`,
+    // `s201_famB_uc`), quarto answers `h1:1. dia2 ord title` at column 0 and
+    // `h1:dia2 ord title` at the content column 3, and this build now agrees with BOTH.
     expect(names(doc("1. dia2 ord title", "==="))).toEqual(["h1:1. dia2 ord title"]); // quarto agrees
-    expect(names(doc("1. dia2 ord title", "   ==="))).toEqual(["h1:1. dia2 ord title"]);
-    // quarto: h1:dia2 ord title — the ordered marker is stripped there. Identical on the
-    // pre-session build; this change touches only bullet markers.
+    expect(names(doc("1. dia2 ord title", "   ==="))).toEqual(["h1:dia2 ord title"]); // quarto agrees
 
     // ── FAMILY C — a region this model does not track hides its content from quarto entirely,
     // and a marker title inside one is now a reachable spelling of an already-filed defect. The
@@ -15202,15 +15205,18 @@ describe("Session 246 — a sibling list marker starts a fresh block", () => {
     ).toEqual(["h1:Reg Lima Probe"]);
   });
 
-  it("R2: an ORDERED marker is kept in the heading TEXT where quarto strips it", () => {
-    // PRE-EXISTING and unmoved in kind: `1.  bravo` / `    ---` renders `h2:bravo` and every build
-    // back to Session 243 reports `h2:1.  bravo` (`r6/t_ol_single`, `t_ol_single2`, `t_ol_paren`,
-    // `t_ol_blank`). `setextTitleText` strips a BULLET marker (Session 201) and no ordered one.
-    // ⚠ **THIS CHANGE MAKES 35 MORE ROWS REACH IT** — heading FOUND where none was reported before,
-    // but carrying its marker — which is why a set-comparison scores them as regressions and a
-    // per-heading reading does not. Filed as this session's ranked #1.
-    expect(names(["1.  bravo", "    ---"])).toEqual(["h2:1.  bravo"]); // quarto: h2:bravo
-    expect(names(["1.  alpha", "2.  bravo", "    ---"])).toEqual(["h2:2.  bravo"]); // quarto: h2:bravo
+  it("R2 (CLOSED by Session 247): an ORDERED marker is stripped where the list it opens formed", () => {
+    // Session 246 filed this as a residual: `1.  bravo` / `    ---` renders `h2:bravo` and every
+    // build back to Session 243 reported `h2:1.  bravo` (`r6/t_ol_single`, `t_ol_single2`,
+    // `t_ol_paren`, `t_ol_blank`); `setextTitleText` had stripped a BULLET marker since Session
+    // 201 and never an ordered one. ⚠ Session 246 made 35 more corpus rows reach it — heading
+    // FOUND where none was reported before but carrying its marker — which is why a set
+    // comparison scored those rows as regressions and a per-heading reading did not.
+    // ⚠ **CLOSED BY SESSION 247 ON RE-RENDERED BYTES** (`scratchpad/s247/r4/s246_R2_a`,
+    // `s246_R2_b`, `s246_R2_ctl`): both rows now carry quarto's own answer, and the bullet
+    // control is byte-identical to what it has been since Session 201.
+    expect(names(["1.  bravo", "    ---"])).toEqual(["h2:bravo"]); // quarto agrees
+    expect(names(["1.  alpha", "2.  bravo", "    ---"])).toEqual(["h2:bravo"]); // quarto agrees
     // The BULLET twin, which Session 201 already strips and which this change leaves right.
     expect(names(["-   alpha", "-   bravo", "    ---"])).toEqual(["h2:bravo"]);
   });
@@ -15507,5 +15513,18 @@ describe("Session 247 guard — answers around the ordered-marker strip that mus
     // the one `setextTitleText` already carries; this row is what says it must not shift.
     expect(names(["1.     bravo", "       ---"])).toEqual([]);
     expect(names(["-     bravo", "      ---"])).toEqual([]);
+  });
+});
+
+describe("Session 247 — an ordered marker is stripped where the list it opens really formed", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: the marker is stripped when the underline reaches the item's own content column", () => {
+    // ⚠ **THE RED→GREEN ROW.** `1.  bravo` / `    ---` renders `ol>h2` and `h2:bravo` — a real
+    // ordered list forms and the heading is nested inside its `<li>`, exactly as the bullet twin
+    // has been since Session 201 (`scratchpad/s247/r0/a_ol_single`, `b_ul_single`). Every build
+    // back to Session 243 reported `h2:1.  bravo`.
+    expect(names(["1.  bravo", "    ---"])).toEqual(["h2:bravo"]);
   });
 });

@@ -1017,13 +1017,67 @@ const BARE_BULLET_TAIL = /^[-*+][ \t]*$/;
  */
 const BULLET_THEMATIC_BREAK = /^[ \t]*(?:-[ \t]*){3,}$|^[ \t]*(?:\*[ \t]*){3,}$/;
 /**
+ * The ORDERED half of the one list-item marker grammar (`LIST_ITEM_MARKER_SRC`, Session 246),
+ * named here so the strip below can ask for an ordered marker ALONE without respelling the
+ * alternation (Session 247, Learning #14). Defined at this point rather than beside its sibling
+ * because the two regexes under it are built at module load and `setextTitleText` is above it.
+ *
+ * ⚠ It inherits that grammar's DELIBERATE over-acceptance — `Dr.`, `Mr.`, `Elephants.` all match
+ * a multi-letter run — and that is safe HERE for a reason worth stating rather than assuming: a
+ * marker is only ever stripped when the underline reaches the column its content opens, and the
+ * columns an underline may sit at come from `listItemContentColumn`, which reads only the FIRST
+ * marker of a line. A run's SECOND marker therefore opens a column no underline is accepted at,
+ * so its gate declines on every reachable row. Measured, not argued — `scratchpad/s247/r4`.
+ */
+const ORDERED_MARKER_SRC = "\\(?(?:\\d{1,9}|[a-zA-Z]{1,9}|#)[.)]";
+/** Whether a line STARTS with an ordered marker — the trigger, the twin of `BULLET_LIST_MARKER`. */
+const ORDERED_LIST_MARKER = new RegExp("^[ \\t]*" + ORDERED_MARKER_SRC + "([ \\t]|$)");
+/** The same marker anchored at the walk's current position, used to read its WIDTH. */
+const ORDERED_MARKER_HERE = new RegExp("^" + ORDERED_MARKER_SRC);
+/**
  * The DISPLAY TEXT of a setext title line, once Pandoc's list nesting has been accounted for.
  *
  * Replaces a blanket decline (see `BULLET_LIST_MARKER`) with the measured answer, so a bullet
- * marker on a title line costs neither the heading nor a wrong text. Everything that is not a
- * bullet marker line is returned untouched — an ordered marker, a block-quote marker, ordinary
- * prose — which is what quarto does with them (14 of 14 ordered-marker rows agree unchanged,
- * `scratchpad/s201/ax`, `ord_*`).
+ * marker on a title line costs neither the heading nor a wrong text. A block-quote marker and
+ * ordinary prose are returned untouched, which is what quarto does with them.
+ *
+ * ⚠ **AN ORDERED MARKER IS STRIPPED TOO, BUT ONLY WHERE THE LIST IT OPENS REALLY FORMED — and
+ * that asymmetry with the bullet is pandoc's, not ours (Session 247).** Pandoc offers a line to
+ * its bullet-list parser BEFORE the header parser and to its ordered-list parser AFTER it
+ * (Session 246's Headline 3), so a bullet-led title is always inside an `<li>` and always
+ * strips, while an ordered-led one is claimed by the setext parse wherever the setext parse can
+ * have it — and then no `<ol>` is born at all and the marker is heading TEXT. The rendered block
+ * structure says so and is unambiguous:
+ *
+ *   `1.  bravo` / `    ---`   ->  `ol>h2`       `h2:bravo`      STRIPPED — a list really formed
+ *   `1.  bravo` / `---`       ->  `section>h2`  `h2:1. bravo`   KEPT — no list exists
+ *   `-   bravo` / `---`       ->  `ul>h2`       `h2:bravo`      STRIPPED — bullets always are
+ *
+ * ⚠ **THE DISCRIMINATOR IS THE UNDERLINE'S OWN COLUMN, ASKED PER MARKER**, which is why it is a
+ * parameter rather than something re-derived from `columns`: the marker survives unless the
+ * underline reaches the column that marker's content opens. Measured as a full column sweep in
+ * four geometries — top level, a wide `100.` marker, an indented marker, and one container in,
+ * of each kind — 91 rendered documents in `scratchpad/s247/r1`, plus 53 in `r0` and 30 in `r2`.
+ * At top level `1.  bravo` forms the heading at underline columns 0 and 4 and NOWHERE else, and
+ * those two columns answer oppositely; `100.  bravo` moves the strip column to 6 and `  1.  bravo`
+ * to 6 as well, so it tracks the CONTENT column and not a constant code depth.
+ * ⚠ **PER MARKER, not per line, and `-   1.  bravo` / `    ---` is the row that says so**: it
+ * renders `ul>h2` with the text `1. bravo` — the bullet strips and the ordered marker survives,
+ * because the underline at 4 is the bullet item's content column and is OUTER to the inner
+ * ordered item's 8 (`r2/d_ul_ol_u4`, guarded at G4).
+ * ⚠ **AND THE `underlineColumn` MUST BE IN THIS TEXT'S OWN COORDINATE SPACE** — see the call
+ * site, where `line` is already quote-stripped exactly as `quotedTitleText` strips the title.
+ *
+ * ⚠ **WHAT THIS ROW DOES NOT ASK IS WHETHER AN ORDERED LIST WAS ALREADY OPEN ABOVE**, and that
+ * is a disclosed residual rather than an oversight (Session 247 R1). Where a list is already
+ * open, its own parser claims a sibling marker before the header parser sees it, so the marker
+ * strips at EVERY underline column: `1.  alpha` / `2.  bravo` / `---` renders `ol>h2` and
+ * `h2:bravo` where this row keeps `2.`. Answering it needs the KIND and DELIMITER of the open
+ * list — `-   alpha` / `1.  bravo` / `---` and `1.  alpha` / `1)  bravo` / `---` both start a NEW
+ * list and both KEEP the marker (`r2/a_kind_ul_ol`, `a_kind_dot_par`) — and `columnKinds` carries
+ * only `list`/`definition`, so it is a container-state change with its own measurement. Seven
+ * rendered witnesses, pinned as R1; no heading is gained or lost by leaving it, since every one of
+ * those rows already reported the marker before this session.
  *
  * ⚠ **`columns` is what makes this container-relative, and it is the ONLY column question this
  * row asks: is the title line INDENTED CODE?** At code depth pandoc never parses the line as a
@@ -1041,8 +1095,16 @@ const BULLET_THEMATIC_BREAK = /^[ \t]*(?:-[ \t]*){3,}$|^[ \t]*(?:\*[ \t]*){3,}$/
  * corpora had scored clean on it, which is the fifth session running that a designed corpus was
  * not enough (Learning #298).
  */
-function setextTitleText(rawText: string, columns: readonly number[] | null): string {
-  if (!BULLET_LIST_MARKER.test(rawText) || BULLET_THEMATIC_BREAK.test(rawText)) {
+function setextTitleText(
+  rawText: string,
+  columns: readonly number[] | null,
+  underlineColumn: number,
+): string {
+  if (BULLET_LIST_MARKER.test(rawText)) {
+    if (BULLET_THEMATIC_BREAK.test(rawText)) {
+      return rawText;
+    }
+  } else if (!ORDERED_LIST_MARKER.test(rawText)) {
     return rawText;
   }
   // ⚠ ONE MARKER AT A TIME, carrying the content column each one opens — NOT a single
@@ -1062,25 +1124,47 @@ function setextTitleText(rawText: string, columns: readonly number[] | null): st
       atColumn = rawText[at] === "\t" ? atColumn + 4 - (atColumn % 4) : atColumn + 1;
       at += 1;
     }
-    if (at >= rawText.length || !BULLET_CHARS.includes(rawText[at])) {
-      break; // whitespace only, or the next thing is not a bullet character
+    if (at >= rawText.length) {
+      break; // whitespace only
     }
+    // ⚠ **A BULLET MARKER IS ONE CHARACTER AND AN ORDERED ONE IS A RUN, so the marker's WIDTH is
+    // read here rather than assumed to be 1 (Session 247).** `ORDERED_MARKER_SRC` is the ordered
+    // half of the one `LIST_ITEM_MARKER_SRC` grammar, REUSED and not respelled (Learning #14).
+    const bullet = BULLET_CHARS.includes(rawText[at]);
+    const ordered = bullet ? null : ORDERED_MARKER_HERE.exec(rawText.slice(at));
+    if (!bullet && ordered === null) {
+      break; // the next thing is neither a bullet character nor an ordered marker
+    }
+    const markerWidth = ordered === null ? 1 : ordered[0].length;
     if (columnIsCodeDepth(atColumn, base)) {
       break; // this marker is INDENTED CODE, so it is not a marker at all — keep it verbatim
     }
     // the gap after the marker, and the column its content therefore starts at
-    let after = at + 1;
-    let contentColumn = atColumn + 1;
+    let after = at + markerWidth;
+    let contentColumn = atColumn + markerWidth;
     while (after < rawText.length && (rawText[after] === " " || rawText[after] === "\t")) {
       contentColumn = rawText[after] === "\t" ? contentColumn + 4 - (contentColumn % 4) : contentColumn + 1;
       after += 1;
     }
-    if (after === at + 1) {
+    // ⚠ An ordered marker at END OF LINE is an EMPTY item and still a marker — `1.` / `  ===`
+    // renders no heading at all, where `1.` / `===` renders `h1:1.` (`scratchpad/s247/r3`,
+    // `a_empty_u0`..`a_empty_u3`). The BULLET arm keeps its own answer here: a bare `-` never
+    // reached this walk before and must not start now (guarded at G9).
+    if (after === at + markerWidth && !(ordered !== null && after === rawText.length)) {
       break; // no whitespace after it — `-text` is not a marker (and `-` alone is the filed item)
     }
     // CommonMark: a gap wider than FOUR is indented code, and then the item's content column is
     // one past the marker rather than at the content. This is the whole of `cont_12`.
-    base = [contentColumn - (atColumn + 1) > 4 ? atColumn + 2 : contentColumn];
+    const opens =
+      contentColumn - (atColumn + markerWidth) > 4 ? atColumn + markerWidth + 1 : contentColumn;
+    // ⚠ **THE ORDERED MARKER SURVIVES UNLESS THE UNDERLINE REACHES THE COLUMN THIS MARKER'S OWN
+    // CONTENT STARTS AT, AND THE BULLET NEVER ASKS (Session 247).** See the docstring above: the
+    // question is whether pandoc's ordered-list parser ever saw this line, and where the setext
+    // parse could claim it first there is no `ol` and no nesting to strip.
+    if (ordered !== null && underlineColumn < opens) {
+      break;
+    }
+    base = [opens];
     cut = after;
     index = after;
     column = contentColumn;
@@ -1472,7 +1556,7 @@ function rawTexMacroLineIsBlock(line: string, columns: readonly number[] | null)
  * list marker?" — and the second exists only to add "…with nothing after it". Spelling the
  * alternation twice is how the pair would come to disagree (Learning #14).
  */
-const LIST_ITEM_MARKER_SRC = "([-+*]|\\(?(?:\\d{1,9}|[a-zA-Z]{1,9}|#)[.)])";
+const LIST_ITEM_MARKER_SRC = "([-+*]|" + ORDERED_MARKER_SRC + ")";
 const LIST_ITEM_OPEN = new RegExp("^([ \\t]*)" + LIST_ITEM_MARKER_SRC + "([ \\t]|$)");
 /**
  * An EMPTY list item — a marker with no content at all (Session 246). Pandoc opens an item for it
@@ -7059,7 +7143,15 @@ function computeRegions(text: string): Regions {
           // `<h1>&gt; India Nested Title</h1>` and `r4/c05` keeps two markers under a
           // one-level underline. `quotedTitleText` falls back to the line's own content start
           // when the depths match, which is every row measured before this session.
-          setextTitleText(quotedTitleText(prev), [0, ...contentColumns]),
+          // ⚠ **THE THIRD ARGUMENT IS THE UNDERLINE'S OWN COLUMN, and `line` is already
+          // quote-STRIPPED here, so it is in the same coordinate space as the title text beside
+          // it (Session 247).** `line` is `stripQuote ? quoteContentLine(raw, …) : raw`, and
+          // `quotedTitleText` strips the title to the same depth — measured on the pair
+          // `> 1.  bravo` / `> ---` (quote-relative column 0, marker KEPT) and `>     ---`
+          // (column 4, marker STRIPPED), which the RAW column cannot tell apart at all: both
+          // underline lines begin at source column 0 (`scratchpad/s247/r2/g_quote_u0`,
+          // `g_quote_u4`).
+          setextTitleText(quotedTitleText(prev), [0, ...contentColumns], indentColumn(line)),
           ...titleLines.slice(1).map((l) => quotedTitleText(l)),
         ]
           // A trailing `\` is a HARD LINE BREAK, which quarto renders as `<br>` rather than as
