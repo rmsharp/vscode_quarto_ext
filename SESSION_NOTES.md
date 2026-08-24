@@ -5,15 +5,111 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 247 — IMPLEMENTATION, strict TDD: an ORDERED list marker is kept in the setext heading TEXT where quarto strips it.** `setextTitleText` strips a BULLET marker from a title line (Session 201) and no ordered one, so `1.  bravo` / `    ---` reports `h2:1.  bravo` where quarto renders `h2:bravo`. Operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list — it was Session 246's own ranked #1.
-**Status:** IN PROGRESS — session claimed 2026-08-24 09:50 EDT. Work beginning.
+**Task:** **NONE — Session 247 closed out. The next session picks from `BACKLOG.md` (188 open items, Active section empty) via the ranked `AskUserQuestion` step.**
+**Last shipped:** Session 247 — an ordered marker is stripped where the list it opens really formed. Closed Session 246's ranked #1 and, as by-catch on re-rendered bytes, Session 201's Family B residual, open since Session 201.
+**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0.
 
-### What Session 247 Did
-**Deliverable:** The ordered-marker text strip in `src/core/qmd/model.ts` — one capability, "what text does a setext title line contribute to the heading". (IN PROGRESS)
-**Started:** 2026-08-24 09:50 EDT
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
-**Phase 0 reconcile found NOTHING owed:** both frontiers were HEAD (`b73e6bbc`, gap 0); 211 receipts — 208 complete, 2 reconciled, **0** line-anchored `status: pending`; no ghost session; 0 open GitHub issues so `BACKLOG.md` governs, 186 open items with an empty Active section. Baseline re-run firsthand: `check-types` 0, `npm test` **2734 passed / 66 files**.
+---
+
+## Session 246 Handoff Evaluation (by Session 247)
+
+**Score: 9/10.** It named this session's deliverable, sized it correctly, handed over a scratchpad
+that worked with a `sed` rename, and every rendered claim in it reproduced firsthand. The point
+comes off for one thing it could have found for free and did not.
+
+**What helped, specifically.**
+- **Its ranked #1 was correct, complete, correctly sized and correctly diagnosed.** All five of the
+  filed witnesses in `scratchpad/s246/r6` reproduced byte-for-byte on the first render — quarto
+  emits `h2:bravo` and every build reported `h2:1.  bravo`. Nothing needed reconstructing.
+- **Its warning to size the item as a TEXT rule with its own reader matrix was exactly right**, and
+  it is why the CommonMark arm got its own probes (`r5/dia_*`) instead of being assumed. Both
+  CommonMark-family readers moved, and both moved correctly.
+- **Its separation of the SET count from the PER-HEADING count (gotcha 4) is the reason this
+  session's corpus number is honest.** Scoring 208 corpus movers by set equality calls 99 of them
+  unchanged-but-different; per heading, the answer is 109 better, 0 worse, net -183 → +53, and the
+  99 are phantoms in both builds. I reported both, as it asked.
+- **Gotcha 1 — NEVER RUN `npx prettier` ON THIS REPO — cost me nothing precisely because it was
+  written down.** I read `git diff --stat` after every edit instead.
+- **Gotcha 5 (stratify the enumeration) and gotcha 6 (run the mutation hunt before believing your
+  pins) were both load-bearing.** The stratification is what made 15,751 transition classes
+  affordable; the hunt found 8 survivors against 2,747 tests, and every one named a witness I had
+  measured and not written down — exactly as it predicted.
+- **The scratchpad inherited cleanly.** `render246.sh`, `tsv2json.py`, `sweep.test.ts`,
+  `brute.test.ts`, `mutate246.py` and `corpusfiles.txt` all worked with a rename or a MUTANTS swap.
+
+**What was missing — and this is the point that comes off.**
+- ⚠ **THE RULE IT ASKED FOR WAS ALREADY WRITTEN OUT, EXACTLY, IN A TEST COMMENT IT HAD READ.**
+  Session 201's Family B residual in `test/unit/qmd-model.test.ts` says in two sentences: *"with the
+  underline at column 0 the ordered marker survives into the heading, but with the underline at the
+  item's CONTENT column pandoc parses the list and strips it."* That is the whole mechanism. The
+  filed item does not cite it, and I re-derived the same rule from 174 fresh renders before the
+  first GREEN turned that residual red and handed me its own specification. One `grep` would have
+  saved a third of a session (Learning #470).
+- It did not mention that the item had a **second, older backlog entry** (Session 201's, filed
+  separately), so closing one left the other open. Both are closed now.
+
+**What was wrong: nothing.** Every witness reproduced, every count matched, every gotcha held.
+
+**ROI:** very high. Six of its ten gotchas were load-bearing and two of them decided how a number
+got reported.
+
+---
+
+## Session 247 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I found the rule by rendering a column sweep rather than by reasoning, and it is not the rule
+  I would have guessed.** The strip turns on the UNDERLINE's column, asked PER MARKER — measured in
+  four geometries over 91 documents. My first hypothesis (a constant code depth of 4) was refuted
+  by the `100.  bravo` row within one round, which is what a grid is for.
+- **The guard block earned its cost twice.** G4 — two markers on one line answered per marker, not
+  per line — is the row a whole-line gate breaks, and I wrote it BEFORE writing the gate because
+  the r2 render had already shown me `-   1.  bravo` / `    ---` keeping its ordered marker.
+- **I ran the enumeration even though seven gates were green, and it changed what shipped.**
+  2,760 unit tests, a byte-identical oracle, 60,998 corpus documents with 0 worse, a clean repo
+  sweep, 174 rendered probes and a mutation hunt were all green on a build that lost the marker on
+  a three-line document. 5,200,000 enumerated documents found it.
+- **I instrumented instead of arguing about coordinate spaces.** The two rows that decide between
+  narrowing and declining reach the call site with identical state; twenty lines of `console.log`
+  turned that into a table, and the decline was then priced against the alternative over 2,634
+  rendered documents — 1,197 exactly right with ZERO regressions against 1,190 with 13.
+- **I built both grammar spellings as `src` copies and SCORED them.** Reasoning favoured the
+  narrow, measured set; the score favoured the wide one by exactly one row, and that row
+  (`A.  bravo`, two spaces) is a real list `popsEnclosingContainer` misses because its `A.` rule is
+  width-blind. I shipped the measurement, not the argument.
+- **I re-rendered every inherited pin before reversing it**, and closed two residuals that way —
+  Session 246's R2 and Session 201's Family B, the latter open for 46 sessions.
+- **I re-verified every subagent claim firsthand**, which was necessary: of the four lens reports,
+  two were refuted by their own refuters, one probe I rebuilt did not reproduce at all (its
+  definition-list shape was not the shape I built), and one "divergence" was my own probe naming
+  collision. Three claims did survive and two of them are now filed residuals.
+- **Phase 3E green first time on a go-ahead sought IN ADVANCE**, with all six assertions pre-checked
+  headlessly including an EXACT heading-list-in-order match against quarto's own 32-heading render.
+
+**What went wrong.**
+- ⚠ **I did not grep the residual pins before building a probe grid, and the answer was sitting in
+  one.** Session 201 had named the rule 46 sessions ago. I found it only when the first GREEN turned
+  its test red. That is the single biggest avoidable cost of the session.
+- ⚠ **I transcribed a pin's indent from a count in my head and it went red immediately** — C6
+  asserted an 11-space underline where the witness has 12. Session 246's gotcha 7 verbatim, one
+  session after reading it. I fixed it from the witness bytes.
+- ⚠ **My first precheck harness asserted against `undefined`** — `buildOutline` nodes carry `name`,
+  not `text` — and separately guessed two prior sessions' assertion strings from the FIXTURE rather
+  than from the integration test that makes them. Both were caught in the same headless run, which
+  is what the headless run is for, but both were avoidable by reading the destination.
+- ⚠ **Two probe documents collided on a case-insensitive filesystem** and the survivor answered for
+  both, on the very axis under test. I caught it because the merged row contradicted an earlier
+  round; had it agreed, I would have published it.
+- **The first survivor-hunt alphabet scored 0 without containing a single shape that reaches the
+  mutated line.** I only noticed by asking what a reaching shape would look like.
+
+**Against the bar.** Sessions 238-246 each shipped one measured term with a full pre/post matrix, a
+corpus sweep, an enumeration and a mutation hunt; this session matches that and adds a scored
+comparison of two grammar spellings, an instrumented call-site table to choose between narrowing
+and declining, and a nine-agent adversarial fan-out whose every claim was re-verified firsthand.
+Where it falls short of a 9 is the ungrepped residual and three self-inflicted harness defects.
 
 ---
 
