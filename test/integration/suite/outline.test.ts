@@ -1223,6 +1223,29 @@ describe("Quarto: Document outline (symbols)", () => {
       flat(symbols).includes("Below The Anchor"),
       "Session 243: the ATX below the recovered heading survives",
     );
+
+    // ⚠ **SESSION 245 — THE HEADING SESSION 244 DELETED.** That session made every quote-opening
+    // marked-blank line hand `consecutiveBody === 1` to the line below. Where the line below is
+    // NOT an underline the open stack offers, pandoc opens a REAL block quote that lazily
+    // swallows everything under it — so these four lines are inside the quote, `    ===` is the
+    // title there, `===` underlines it, and the ATX below is a heading in its own right. Both
+    // were lost. Rendered `blockquote>h1>h1` (`scratchpad/s245/gate3`).
+    //
+    // ⚠ The fixture premise is MEASURED, not assumed: `quarto render` on these exact bytes emits
+    // TWENTY-SIX headings, the twenty-four above byte-identical and in the same order, and the
+    // two below added (`scratchpad/s245/fixbefore.tsv` against `fixafter.tsv`).
+    assert.ok(
+      flat(symbols).includes("Below The Lazily Opened Quote"),
+      "Session 245: the ATX the lazily opened quote holds must reach the Outline provider",
+    );
+    assert.ok(
+      flat(symbols).includes("==="),
+      "Session 245: the setext title INSIDE that quote is a heading too",
+    );
+    assert.ok(
+      !flat(symbols).includes(">"),
+      "Session 245: the marker line does NOT become a title here — a real quote opened instead",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {

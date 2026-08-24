@@ -113,3 +113,11 @@ a body row the table eats
  ---
 
 # Below The Anchor
+
+> a marked blank whose underline the stack does not offer
+
+>
+    ===
+===
+
+# Below The Lazily Opened Quote
