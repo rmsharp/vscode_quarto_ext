@@ -18,6 +18,21 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S247
+date: 2026-08-24
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- AN ORDERED LIST MARKER IS KEPT IN THE SETEXT HEADING TEXT WHERE QUARTO STRIPS IT. `setextTitleText` strips a BULLET marker from a setext title line (Session 201) and no ordered one, so `1.  bravo` / `    ---` reports `h2:1.  bravo` where quarto renders `h2:bravo`. PRE-EXISTING and provable on a ONE-item document Session 246 does not touch, but Session 246 makes 35 MORE corpus rows reach it -- which is why a set comparison scored 37 of its corpus documents worse when 35 were recoveries. Operator picked it at Phase 0 from the ranked AskUserQuestion candidate list; it was Session 246's own ranked #1. Deliverable: the ordered-marker strip in src/core/qmd/model.ts -- one capability, "what text does a setext title line contribute to the heading".
+what_was_done: Phase 1B claim only. Phase 0 reconcile found NOTHING owed -- both frontiers WERE HEAD (b73e6bbc, gap 0), 0 line-anchored `status: pending` receipts against 208 complete and 2 reconciled, no ghost session, 0 open GitHub issues so BACKLOG.md governs, 186 open items with an empty Active section.
+measurement: pending
+runtime_smoke: pending
+key_files: src/core/qmd/model.ts (`setextTitleText`), test/unit/qmd-model.test.ts
+whats_next: pending
+gotchas: pending
+```
+
+```handoff
 session: S246
 date: 2026-08-24
 status: complete

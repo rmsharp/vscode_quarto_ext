@@ -5,9 +5,15 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 246 closed out. The next session picks from `BACKLOG.md` (186 open items, Active section empty) via the ranked `AskUserQuestion` step.**
-**Last shipped:** Session 246 — a sibling list marker starts a fresh block. Closed Session 245's ranked #1 and, without aiming at it, Session 198's bare-`-` residual.
-**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0.
+**Task:** **Session 247 — IMPLEMENTATION, strict TDD: an ORDERED list marker is kept in the setext heading TEXT where quarto strips it.** `setextTitleText` strips a BULLET marker from a title line (Session 201) and no ordered one, so `1.  bravo` / `    ---` reports `h2:1.  bravo` where quarto renders `h2:bravo`. Operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list — it was Session 246's own ranked #1.
+**Status:** IN PROGRESS — session claimed 2026-08-24 09:50 EDT. Work beginning.
+
+### What Session 247 Did
+**Deliverable:** The ordered-marker text strip in `src/core/qmd/model.ts` — one capability, "what text does a setext title line contribute to the heading". (IN PROGRESS)
+**Started:** 2026-08-24 09:50 EDT
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Phase 0 reconcile found NOTHING owed:** both frontiers were HEAD (`b73e6bbc`, gap 0); 211 receipts — 208 complete, 2 reconciled, **0** line-anchored `status: pending`; no ghost session; 0 open GitHub issues so `BACKLOG.md` governs, 186 open items with an empty Active section. Baseline re-run firsthand: `check-types` 0, `npm test` **2734 passed / 66 files**.
 
 ---
 
