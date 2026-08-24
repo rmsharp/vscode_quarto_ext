@@ -5558,6 +5558,20 @@ function computeRegions(text: string): Regions {
   // a blank line between the heading and the run ends it. That is why it is snapshotted
   // and cleared at the TOP of the loop rather than at the foot. Pinned.
   let prevWasAtxHeading = false;
+  // ⚠ **WHETHER THE LINE ABOVE OPENED AN ORDERED LIST THAT WAS NOT ALREADY OPEN (Session 246), and
+  // it decides whether a bare `-` beneath it is that list's sibling ITEM or a setext UNDERLINE.**
+  // Pandoc offers the line to its BULLET-list parser before the header parser and to its
+  // ORDERED-list parser after it, and the two answers part company exactly there. Measured over a
+  // 7-kind x 4-marker matrix (`scratchpad/s246/r12/k_*`, 28 documents): under `-   alpha`,
+  // `*   alpha` and `+   alpha` a bare `-` renders `ul>h1` — an ITEM, no heading promoted — while
+  // under `1.  alpha`, `1)  alpha`, `a.  alpha` and `10. alpha` the SAME bytes render
+  // `section>h2>section>h1` with the marker kept in the heading TEXT and no list at all.
+  // ⚠ **AND ONLY WHERE THAT LINE OPENED THE LIST.** Once an ordered list is established the
+  // header parser no longer sees its lines first: `1.  alpha` / `2.  bravo` / `-` renders
+  // `ol>ul>h1` — the `-` is an ITEM again (`r12/t_ol_two_dash`), exactly as the bullet twin is
+  // (`t_ul_two_dash`). Snapshotted and cleared at the top of the loop for the same reason
+  // `prevWasAtxHeading` is: every `continue` path below must end the adjacency.
+  let prevOpenedOrderedList = false;
   // Whether the line ABOVE belonged to a pandoc LINE BLOCK, so an indented line below it is
   // that block's continuation rather than the start of a paragraph (Session 185). Like
   // `prevWasAtxHeading` — and unlike `pendingFreshBlock` — it is snapshotted and cleared at
@@ -5971,6 +5985,8 @@ function computeRegions(text: string): Regions {
     // without reaching the assignment at the foot of the loop. Measured — `# Heading` /
     // (blank) / `===` / `# ATX Below` renders NO heading below, where the same document
     // without the blank renders one.
+    const prevLineOpenedOrderedList = prevOpenedOrderedList;
+    prevOpenedOrderedList = false;
     const prevLineWasAtxHeading = prevWasAtxHeading;
     prevWasAtxHeading = false;
     // ⚠ The explicit annotation is load-bearing, not style: this snapshot is read by the
@@ -6231,7 +6247,17 @@ function computeRegions(text: string): Regions {
           // opens nothing, so it cannot start a block either: `para` / `` / `    -   alpha` /
           // `    -   bravo` / `        ---` renders `p>pre` (`r3/cd_incode`). Guarded at G6.
           siblingListItemOpensHere = listOpenAboveThisLine;
+          // ⚠ **`listOpenAboveThisLine` HERE IS UNOBSERVABLE AND IS KEPT BECAUSE IT IS RIGHT BY
+          // CONSTRUCTION, NOT BY LUCK (Session 246, mutant N15).** `siblingMarkerColumnAbove`
+          // already requires a `list` column to exist, which is exactly what the conjunct tests,
+          // so the two cannot disagree — a proof, not the 0 disagreements over 300,000 enumerated
+          // documents that also failed to reach it. It is spelled out so this reader and
+          // `siblingListItemOpensHere` above answer their shared premise the same way.
           siblingItemAtMarkerColumn = listOpenAboveThisLine && siblingMarkerColumnAbove;
+          // ⚠ The marker's KIND is read off the SAME match `listItemContentColumn` uses, through
+          // the shared `LIST_ITEM_OPEN` grammar — see `prevOpenedOrderedList`.
+          prevOpenedOrderedList =
+            !listOpenAboveThisLine && !/^[-+*]$/.test(LIST_ITEM_OPEN.exec(line)?.[2] ?? "");
         } else if (definitionContainerOpens(line)) {
           // A footnote definition and a definition-list definition both give their content
           // exactly 4 columns past their own indent — measured, and independent of label length.
@@ -6940,7 +6966,7 @@ function computeRegions(text: string): Regions {
       // ⚠ This term also RETIRES A PRE-EXISTING PHANTOM this session did not set out to fix:
       // `-   alpha` / `-` / `# Probe Z` rendered `ul>h1` and every build back to Session 243
       // reported `h2:alpha` beside it (`r4/n_len1`, `r3/p_bare`). Pinned as C6.
-      !siblingItemAtMarkerColumn &&
+      !(siblingItemAtMarkerColumn && !prevLineOpenedOrderedList) &&
       (!setextTitleQuoted || lazyQuotedUnderline) &&
       !setextTitleTooShallow
         ? setextUnderlineLevel(
@@ -7177,6 +7203,17 @@ function computeRegions(text: string): Regions {
     const emptySiblingItem: boolean =
       siblingItemAtMarkerColumn && LIST_ITEM_EMPTY.test(line);
 
+    // Whether the line BELOW is an empty list item at a marker column an open list would accept
+    // — the same question `siblingItemAtMarkerColumn` asks of THIS line, asked one line ahead so
+    // the swallow gate below cannot disagree with the setext row about it.
+    const nextLineIsEmptySiblingItem =
+      lines[i + 1] !== undefined &&
+      LIST_ITEM_EMPTY.test(lines[i + 1]) &&
+      contentColumns.some(
+        (_, idx) =>
+          columnKinds[idx] === "list" &&
+          (idx === 0 ? 0 : contentColumns[idx - 1]) === indentColumn(lines[i + 1]),
+      );
     // An ATX heading — but only where no paragraph is open above it, and never inside a raw
     // HTML block under a CommonMark reader, where the block swallows it (Session 204).
     const m =
@@ -7186,12 +7223,27 @@ function computeRegions(text: string): Regions {
       // over `<td>Probe A</td>` — the `>` and the `#` eaten as column material — and this model
       // reported `h1:Probe A`.
       inSimpleTable ||
-      setextUnderlineSwallowsAtx(
+      (setextUnderlineSwallowsAtx(
         lines[i + 1],
         [0, ...contentColumns],
         commonmarkDialect,
+        // ⚠ **THE `freshBlockHere` ARM HERE IS UNOBSERVABLE TODAY AND IS KEPT ON PURPOSE
+        // (Session 246, mutant N22): 0 disagreements over 300,000 enumerated documents on an
+        // alphabet built from what this gate reads — an ATX directly above every underline shape,
+        // at every list column.** It is kept because Session 214 put the counter arithmetic in
+        // both places precisely so this gate and the setext row cannot answer the same question
+        // two ways, and the row directly below is what happens when they do.
         freshBlockHere ? 1 : consecutiveBody + 1,
-      ) ||
+      ) &&
+        // ⚠ **AND THE LINE BELOW MUST STILL BE AN UNDERLINE WHEN IT GETS THERE (Session 246).**
+        // This gate and the setext row are two readers of ONE question — Session 214 put the
+        // counter arithmetic in both for exactly that reason — and the bare-marker decline was
+        // visible to only one of them. Where the line below is an EMPTY list item at an open
+        // list's marker column it is that list's next ITEM, so it swallows nothing: rendered,
+        // `-   alpha` / `-` / `# Probe Z` / `-` renders `ul>h1` and this build reported NOTHING,
+        // the ATX declined here as about-to-be-swallowed and the `-` below declined there as a
+        // list marker (`scratchpad/s246/r13/z4`, `z0`, `z6`). Pinned as C12.
+        !nextLineIsEmptySiblingItem) ||
       (paragraphOpen && (!dialectOverride || blankBeforeHeaderDialect))
         ? null
         : atxHeadingMatch(

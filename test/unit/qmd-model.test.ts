@@ -15066,4 +15066,277 @@ describe("Session 246 — a sibling list marker starts a fresh block", () => {
     // defect is the SECOND marker.
     expect(names(["-   alpha", "-   bravo", "    ---"])).toEqual(["h2:bravo"]);
   });
+
+  it("C2: the sibling reset fires at ANY depth — a NESTED item interrupts its parent too", () => {
+    // `-   alpha` / `    -   bravo` / `        ---` renders `ul>ul>h2` (`scratchpad/s246/r2/j_deep`)
+    // and a two-level stack `- a` / `  - b` / `  - c` / `    ---` renders `ul>ul>h2` with the text
+    // `c` (`r2/j_nest`). A reset restricted to SIBLING markers loses both.
+    expect(names(["-   alpha", "    -   bravo", "        ---"])).toEqual(["h2:bravo"]);
+    expect(names(["- a", "  - b", "  - c", "    ---"])).toEqual(["h2:c"]);
+    expect(names(["-   alpha", "-   bravo", "-   charlie", "    ---"])).toEqual(["h2:charlie"]);
+  });
+
+  it("C3: a BARE marker at the item's CONTENT column is an underline, not a nested empty item", () => {
+    // ⚠ **THE ROW THAT BOUNDS THE BARE-MARKER DECLINE, and the mutation hunt is what demanded it.**
+    // `-   alpha` / `    -` / `# Probe Z` renders `ul>h2>h1` — the `-` at column 4 sits INSIDE
+    // alpha's paragraph, where an empty item may not interrupt, so it underlines (`r7/y_deepdash`).
+    // Reading the wide `siblingListItemOpensHere` here deletes `h2:alpha`, which every build back
+    // to Session 243 reported. Kills mutants N8, N13 and N15.
+    expect(names(["-   alpha", "    -", "# Probe Z"])).toEqual(["h2:alpha", "h1:Probe Z"]);
+    // CONTROL — with an INNER list open at that same column the marker IS a sibling of it, and
+    // quarto renders `ul>ul>h1` with no `h2:bravo` at all (`r7/y_nested`).
+    expect(names(["-   alpha", "    -   bravo", "    -", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("C4: an EMPTY sibling item opens no paragraph, so the ATX below it is not swallowed", () => {
+    // `-   alpha` / `-` / `# Probe Z` renders `ul>h1` (`r7/u_atx`, `r6/z_empty_atx`). Every build
+    // through Session 245 reached this answer BY ACCIDENT — it read the `-` as a setext underline,
+    // minting `h2:alpha`, and cleared `paragraphOpen` on its way past. Kills mutants N16 and N19.
+    expect(names(["-   alpha", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   alpha", "-", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    // …and INSIDE a quote, where the stripped content is the same three lines (`r7/q_empty`).
+    expect(names(["> -   alpha", "> -", "> # Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("C5: an EMPTY sibling item starts a fresh block BELOW itself", () => {
+    // `-   alpha` / `-` / `text below` / `===` renders `ul>h1` with the text `text below`
+    // (`r7/u_und`): the empty item ends, and the line under it begins a run of 1 that the `===`
+    // may claim. Kills mutant N18 — closing the paragraph alone is not enough.
+    expect(names(["-   alpha", "-", "text below", "==="])).toEqual(["h1:text below"]);
+  });
+
+  it("C6: every marker SPELLING of an empty item behaves the same, with or without trailing space", () => {
+    // Rendered for `-`, `- `, `*`, `+`, `1.`, `10.`, `1)` and `a.`, each with and without trailing
+    // whitespace — fourteen of fourteen render `ul>h1` or `ul>ol>h1` (`r7/v_*`). ⚠ `"- "` and
+    // `"1. "` carry trailing whitespace ON PURPOSE.
+    for (const mk of ["-", "- ", "*", "+", "1.", "1. ", "10.", "1)", "a."]) {
+      expect(names(["-   alpha", mk, "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    }
+  });
+
+  it("C7: a NON-EMPTY sibling item keeps its paragraph open, and the ATX below is still swallowed", () => {
+    // `-   alpha` / `-   bravo` / `# Probe Z` renders a bare `ul` (`r7/w_nonempty`), and so does
+    // the setext twin (`w_nonempty2`). This is the row that makes the term read `LIST_ITEM_EMPTY`
+    // rather than `siblingItemAtMarkerColumn` alone.
+    expect(names(["-   alpha", "-   bravo", "# Probe Z"])).toEqual([]);
+    expect(names(["-   alpha", "-   bravo", "text below", "==="])).toEqual([]);
+  });
+
+  it("C8: the filed witness — both headings, at every indent the item was filed with", () => {
+    // The four documents Session 245 filed from Session 244's rendered loss set: `>` / `---` /
+    // `-   item` / `>` / `-   item` / `    ---` renders `h2:>` AND `h2:item`, and the marker
+    // indent is inert across all four (`scratchpad/s246/r0/L0132_0`..`L0132_3`, re-rendered this
+    // session). Every build through Session 245 reported exactly one of the two.
+    for (const a of [">", "   >"]) {
+      for (const b of [">", "   >"]) {
+        expect(names([a, "---", "-   item", b, "-   item", "    ---"])).toEqual(["h2:>", "h2:item"]);
+      }
+    }
+  });
+
+  it("C9: the marked-blank title above a TIGHT list reports both, at three items too", () => {
+    // `>` / `---` / `-   alpha` / `>` / `-   bravo` / `    ---` renders `section>h2>ul>h2`
+    // (`r2/h_full`), and the three-item form renders `h2:>` with `h2:charlie` (`r2/h_two_q`).
+    expect(names([">", "---", "-   alpha", ">", "-   bravo", "    ---"])).toEqual([
+      "h2:>",
+      "h2:bravo",
+    ]);
+    expect(
+      names([">", "---", "-   alpha", ">", "-   bravo", ">", "-   charlie", "    ---"]),
+    ).toEqual(["h2:>", "h2:charlie"]);
+  });
+
+  it("C10: the ATX below a recovered underline is reported too", () => {
+    // `-   alpha` / `-   bravo` / `    ---` / `# Probe Z` renders `ul>h2>h1` and the pre-session
+    // build reported NEITHER heading (`r2/g_probe`); with a blank line before the probe it
+    // reported only the ATX (`r2/g_probe2`, `r3/k_probe_blank`).
+    expect(names(["-   alpha", "-   bravo", "    ---", "# Probe Z"])).toEqual([
+      "h2:bravo",
+      "h1:Probe Z",
+    ]);
+    expect(names(["-   alpha", "-   bravo", "    ---", "", "# Probe Z"])).toEqual([
+      "h2:bravo",
+      "h1:Probe Z",
+    ]);
+  });
+
+  it("C11: Session 198's Family A residual is CLOSED — a bare `-` promotes nothing", () => {
+    // Filed as its own backlog item since Session 198 and pinned as a labelled residual in that
+    // session's test-after block, which this session REVERSED on re-rendered bytes
+    // (`scratchpad/s246/r5/famA`, `section>h2>ul>p>p>p` — `h2:Ledger` alone). The CONTROL, a
+    // bullet with CONTENT, was always right and is unmoved (`r5/famA_ctl`).
+    expect(
+      names([
+        "## Ledger", "", "-   Item alpha.", "", "    Body line here.", "-", "",
+        "    Probe Title", "    ===",
+      ]),
+    ).toEqual(["h2:Ledger"]);
+  });
+
+  // ── RESIDUALS — measured, disclosed, and pinned so a later session is told when they move ──
+
+  it("R1: PRICED — an INDENTED FENCE inside a list item is not recognised, and this change reaches it", () => {
+    // ⚠ **THE ONLY COST OF THIS CHANGE IN A 60,998-DOCUMENT CORPUS SWEEP: 2 rendered rows, one
+    // document duplicated** (`scratchpad/s201/adv/reg/reg_12.qmd` and `s201/advall/reg_12.qmd`),
+    // against 585 recovered. Quarto renders NO heading — the ```` ``` ```` pair at indent 4 is a
+    // fenced code block — and this build now reports `h1:Reg Lima Probe`.
+    // ⚠ **THE FENCE GAP IS PRE-EXISTING AND INDEPENDENT, AND THE PROBE THAT SAYS SO USES AN ATX,
+    // which needs no body run at all:** `-   item one` / `    ``` ` / (blank) / `    # ATX Inside` /
+    // `    ``` ` renders NOTHING and the Session 243 build ALSO reports `h1:ATX Inside`
+    // (`scratchpad/s246/r11/h_blank_atx`); the top-level twin is correct in both
+    // (`r11/h_top_blank`), which localises it to the INDENT. Filed. Removing the fences from the
+    // corpus document makes quarto render the heading and this build is then RIGHT (`r9/g_nofence`,
+    // `g_para_nest`, `g_onefence`, `g_fence_only`, `g_para_sib` — five of five).
+    expect(
+      names([
+        "-   item one", "    paragraph line keeps it open", "    ```",
+        "    - Reg Lima Probe", "    ===", "    ```", "", "Tail prose for reg_12.",
+      ]),
+    ).toEqual(["h1:Reg Lima Probe"]); // quarto: no heading
+    // The fence-free twin, where quarto DOES render it and this build is right.
+    expect(
+      names([
+        "-   item one", "    paragraph line keeps it open",
+        "    - Reg Lima Probe", "    ===",
+      ]),
+    ).toEqual(["h1:Reg Lima Probe"]);
+  });
+
+  it("R2: an ORDERED marker is kept in the heading TEXT where quarto strips it", () => {
+    // PRE-EXISTING and unmoved in kind: `1.  bravo` / `    ---` renders `h2:bravo` and every build
+    // back to Session 243 reports `h2:1.  bravo` (`r6/t_ol_single`, `t_ol_single2`, `t_ol_paren`,
+    // `t_ol_blank`). `setextTitleText` strips a BULLET marker (Session 201) and no ordered one.
+    // ⚠ **THIS CHANGE MAKES 35 MORE ROWS REACH IT** — heading FOUND where none was reported before,
+    // but carrying its marker — which is why a set-comparison scores them as regressions and a
+    // per-heading reading does not. Filed as this session's ranked #1.
+    expect(names(["1.  bravo", "    ---"])).toEqual(["h2:1.  bravo"]); // quarto: h2:bravo
+    expect(names(["1.  alpha", "2.  bravo", "    ---"])).toEqual(["h2:2.  bravo"]); // quarto: h2:bravo
+    // The BULLET twin, which Session 201 already strips and which this change leaves right.
+    expect(names(["-   alpha", "-   bravo", "    ---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("R3: a marker sharing its parent's LINE never opens the inner content column", () => {
+    // PRE-EXISTING, unmoved, and found by an independent agent this session: `- - b` / `    -`
+    // renders `ul>ul>h2` with the text `b` and no build reports it (`scratchpad/s246/r8/n2_i4`,
+    // `n2_i4d`). The inner item's content column is 4 and this model pushes 5; the wide spelling
+    // `-   -   b` / `        ---` needs 8 and the model never pushes it at all (`r8/n4_i8`).
+    // Every other indent in both sweeps is right (`r8/n2_i0`, `n2_i2`, `n4_i0`, `n4_i4`). Filed.
+    expect(names(["- - b", "    -"])).toEqual([]); // quarto: h2:b
+    expect(names(["-   -   b", "        ---"])).toEqual([]); // quarto: h2:b
+    expect(names(["- - b", "---"])).toEqual(["h2:b"]); // the control, right in every build
+  });
+
+  it("R4: a bare marker with NO list open above it is still not a block start", () => {
+    // PRE-EXISTING and unmoved: `-` / `# Probe Z` renders `ul>h1` and no build reports the ATX
+    // (`r7/x_nolist`, `x_nolist_p`, `r6/z_empty_first`). The reset is gated on a list being open
+    // ABOVE the line — G1's nine rendered indents are why — so the FIRST marker of a list is
+    // outside this change by construction. Filed.
+    expect(names(["-", "# Probe Z"])).toEqual([]); // quarto: h1:Probe Z
+    expect(names(["alpha", "", "-", "# Probe Z"])).toEqual([]); // quarto: h1:Probe Z
+  });
+
+  it("C12: the ATX-swallow gate and the setext row agree about the line between them", () => {
+    // ⚠ **TWO READERS OF ONE QUESTION, AND THE DECLINE WAS VISIBLE TO ONLY ONE (Session 246).**
+    // `-   alpha` / `-` / `# Probe Z` / `-` renders `ul>h1` (`scratchpad/s246/r13/z4`). The ATX
+    // was declined here as about-to-be-swallowed by the `-` below it, and that `-` was declined
+    // there as a list marker, so the heading vanished between them. Session 214 already required
+    // these two sites to share the counter arithmetic; this is the same requirement for the
+    // bare-marker decline. Found by the enumeration, not by any corpus.
+    expect(names(["-   alpha", "-", "# Probe Z", "-"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   alpha", "  ---", "-   alpha", "-", "# Probe Z", "-"])).toEqual([
+      "h1:Probe Z",
+    ]);
+  });
+
+  it("C13: a bare `-` under a list the line above OPENED as ORDERED still underlines", () => {
+    // ⚠ **PANDOC OFFERS THE LINE TO ITS BULLET-LIST PARSER BEFORE THE HEADER PARSER AND TO ITS
+    // ORDERED-LIST PARSER AFTER IT**, and a 7-kind x 4-marker matrix says so — 28 rendered
+    // documents (`scratchpad/s246/r12/k_*`). Under `-`, `*` and `+` a bare `-` renders `ul>h1`,
+    // an ITEM; under `1.`, `1)`, `a.` and `10.` the same bytes render `section>h2>section>h1`
+    // with the marker kept as heading TEXT and no list at all.
+    expect(names(["10. alpha", "-", "# Probe Z"])).toEqual(["h2:10. alpha", "h1:Probe Z"]);
+    expect(names(["-   alpha", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["*   alpha", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["+   alpha", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    // ⚠ …and ONLY where that line OPENED the list. Once an ordered list is established the header
+    // parser no longer sees its lines first, and the `-` is an ITEM again (`r12/t_ol_two_dash`,
+    // `ol>ul>h1`), exactly as the bullet twin is (`t_ul_two_dash`).
+    expect(names(["1.  alpha", "2.  bravo", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   alpha", "-   bravo", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("R5: a bare `-` under an ordered item that did NOT open its list is read as that list's item", () => {
+    // ⚠ **THE DISCLOSED BOUND OF C13, and the enumeration is the only gate that reaches it.**
+    // `prevOpenedOrderedList` asks "did the line above open an ordered list that was not already
+    // open", and it reads `listOpenAboveThisLine` — ANY list — where the exact question is "an
+    // ORDERED list AT THIS MARKER COLUMN". The two part company when a list of the OTHER kind is
+    // open above: `*   alpha` / `    ---` / `# Probe Z` / `    ---` / `1.  bravo` / `-` renders
+    // `h2:1. bravo` as its third heading and this build reports only the first two
+    // (`scratchpad/s246/r12/e_E0101`; also `e_E0102`, `e_E0086`). Closing it needs the
+    // bullet-vs-ordered kind of each open column, which `columnKinds` does not carry, so it is
+    // FILED rather than guessed at.
+    // ⚠ **CORPUS WEIGHT ZERO** — 60,998 documents swept, 628 movers rendered, and this family is
+    // in none of them; every document that shows it is a synthetic string of bare markers.
+    expect(
+      names(["*   alpha", "    ---", "# Probe Z", "    ---", "1.  bravo", "-"]),
+    ).toEqual(["h2:alpha", "h2:# Probe Z"]); // quarto: + h2:1. bravo
+    expect(names(["# Probe Z", "1.", "-", "[^1]: note", "-", "*   alpha"])).toEqual([
+      "h1:Probe Z",
+      "h2:1.",
+    ]); // quarto: + h2:[^1]: note
+  });
+
+  it("R6: heading TEXT keeps a run of internal spaces quarto collapses to one", () => {
+    // PRE-EXISTING (Session 241 filed it) and unmoved in kind, but this change makes it visible on
+    // the whole C13 matrix: `1.  alpha` / `-` renders `h2:1. alpha` — ONE space — where this model
+    // keeps the two the source carries (`r12/k_ol_dot_dash`). The `10. alpha` spelling has a single
+    // space and is exactly right, which is what separates this from R2's marker strip.
+    expect(names(["1.  alpha", "-", "# Probe Z"])).toEqual(["h2:1.  alpha", "h1:Probe Z"]);
+    expect(names(["10. alpha", "-", "# Probe Z"])).toEqual(["h2:10. alpha", "h1:Probe Z"]);
+  });
+
+  it("C14: a DEFINITION column offers no sibling marker column, and a bare `-` under one underlines", () => {
+    // Kills mutants N12 and N32, which drop the `list` KIND test from the marker-column
+    // derivation and from the swallow gate's next-line twin. Rendered:
+    // `:   charlie` / `-` / `:   charlie` renders `section>h2>section>h2>p` — the `-` UNDERLINES
+    // the definition line — and the footnote spelling behaves identically
+    // (`scratchpad/s246/huntdocs/N12_0`, `N12_1`, `N12_4`, `N12_5`, `N32_0`, `N32_1`).
+    // ⚠ The heading TEXT below keeps the source's internal spaces; that is R6, not this row.
+    expect(names([":   charlie", "-", ":   charlie", "-", ":   charlie"])).toEqual([
+      "h2::   charlie",
+      "h2::   charlie",
+    ]);
+    expect(names(["[^1]: note", "-", "# Probe Z"])).toEqual(["h2:[^1]: note", "h1:Probe Z"]);
+  });
+
+  it("C15: the line above a bare marker does not have to be an item line", () => {
+    // Rendered five ways, every one an ITEM (`scratchpad/s246/r14`): the line above may be the
+    // item's indented content (`c_cont`), its LAZY content (`c_lazy`), an ATX (`c_atxab`), a
+    // consumed setext underline (`c_rule`), or a shallow rule (`c_rule2`). A narrowing that
+    // required the line directly above to BE a list item breaks all five.
+    expect(names(["-   alpha", "    cont", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   alpha", "cont", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   alpha", "# Head", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   alpha", "---", "-", "# Probe Z"])).toEqual(["h2:alpha", "h1:Probe Z"]);
+    expect(names(["-   alpha", "  ---", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("R7: a list column SURVIVES a line the setext parse consumed as a title, and R5 is its symptom", () => {
+    // ⚠ **THE ROOT OF R5, FOUND BY THE SURVIVOR HUNT AND NAMED BY RENDERING ITS WITNESSES.**
+    // `1.  alpha` / `---` / `---` / `-` / `1.  alpha` renders `h2:1. alpha` and `h2:—` — the
+    // second `---` is a TITLE the `-` underlines — and both prior builds reported both, where
+    // this one reports only the first (`scratchpad/s246/huntdocs/N29_0`..`N29_5`, six witnesses,
+    // and `r14/c_n29`). Pandoc never opened an ordered list at all there: the setext parse claimed
+    // `1.  alpha` as heading TEXT, so no `ol` exists above the `-` and the marker cannot be
+    // anyone's sibling. THIS model pushed a list column at that line and never popped it, so the
+    // bare marker looks like a sibling of a list that was never born.
+    // ⚠ The control that localises it: `-   alpha` / `---` / `-` / `# Probe Z` has the SAME
+    // consumed-title shape and is RIGHT (`r14/c_rule`, pinned as C15) — because there the answer
+    // the phantom column produces happens to be the correct one. Closing this needs the column to
+    // be popped when a setext underline consumes the line that pushed it; that is a container-state
+    // change with its own measurement, so it is FILED.
+    // ⚠ **CORPUS WEIGHT ZERO** — 60,998 documents swept and 628 movers rendered; not one.
+    expect(names(["1.  alpha", "---", "---", "-", "1.  alpha"])).toEqual(["h2:1.  alpha"]);
+    // quarto: h2:1. alpha AND h2:— (the `---` title, smart-punctuated)
+  });
 });
