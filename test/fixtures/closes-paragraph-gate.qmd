@@ -127,3 +127,13 @@ a body row the table eats
     ---
 
 # Below The Sibling Marker
+
+1.  an ordered item the underline claims
+    ---
+
+# Below The Ordered Strip
+
+1.  an ordered title at the outer column
+===
+
+# Below The Kept Ordered Marker

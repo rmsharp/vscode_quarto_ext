@@ -1270,6 +1270,39 @@ describe("Quarto: Document outline (symbols)", () => {
       !flat(symbols).includes("an item that opens the list"),
       "Session 246: the FIRST item is not a title — only the marker the underline follows is",
     );
+
+    // ⚠ **SESSION 247 — THE ORDERED MARKER IN THE HEADING TEXT.** `setextTitleText` has stripped
+    // a BULLET marker since Session 201 and never an ordered one, so `1.  item` / `    ---`
+    // reported the marker in the heading text where quarto renders `ol>h2` and strips it. The
+    // asymmetry is pandoc's: it offers a line to its bullet-list parser BEFORE the header parser
+    // and to its ordered-list parser AFTER it, so where the setext parse can claim the raw line
+    // it does, no `ol` is born, and the marker really is heading TEXT. BOTH directions are wired
+    // here, because the rule is only half a rule without the second.
+    // Rendered `ol>h2` then `section>h1` (`scratchpad/s247/r1/a_ol_u4`, `g_eq_u0`).
+    //
+    // ⚠ The fixture premise is MEASURED, not assumed: `quarto render` on these exact bytes emits
+    // THIRTY-TWO headings, the twenty-eight above byte-identical and in the same order, and the
+    // four below added (`scratchpad/s247/fixbefore.tsv` against `fixafter.tsv`).
+    assert.ok(
+      flat(symbols).includes("an ordered item the underline claims"),
+      "Session 247: the ordered marker is STRIPPED where its own underline claims the item",
+    );
+    assert.ok(
+      !flat(symbols).includes("1.  an ordered item the underline claims"),
+      "Session 247: the marker-KEPT spelling must NOT appear where the list really formed",
+    );
+    assert.ok(
+      flat(symbols).includes("Below The Ordered Strip"),
+      "Session 247: the ATX below the stripped title is a heading too",
+    );
+    assert.ok(
+      flat(symbols).includes("1.  an ordered title at the outer column"),
+      "Session 247: at an OUTER underline column no list is born, so the marker SURVIVES",
+    );
+    assert.ok(
+      flat(symbols).includes("Below The Kept Ordered Marker"),
+      "Session 247: the ATX below the marker-kept title is a heading too",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
