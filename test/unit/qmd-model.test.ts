@@ -4274,10 +4274,17 @@ describe("the container POP's SUPPRESSION CONDITION is a BLANK LINE, not an open
     // ── FAMILY A — a BARE `-` is a one-character dash run, and `SETEXT_H2` promotes the line
     // above it. Pandoc reads the `-` as a list marker with an empty item and promotes nothing.
     // Rendered as `scratchpad/s198/pop3/m_para_dashonly.qmd`.
+    // ⚠ **REVERSED BY SESSION 246 — THIS RESIDUAL IS CLOSED.** The bytes were RE-RENDERED
+    // rather than assumed (`scratchpad/s246/r5/famA`, `section>h2>ul>p>p>p`): quarto renders
+    // `h2:Ledger` alone, exactly as the comment below the expectation always said, and this
+    // model now agrees. A bare bullet marker inside an already-open list is a new EMPTY ITEM
+    // and underlines nothing — see `setextLevel`'s `siblingListItemOpensHere` term. The CONTROL
+    // directly below is unmoved, and so is the `-` / `===` shape at top level, which is a
+    // DIFFERENT filed item (the marker as the TITLE, not as the underline).
     expect(
       names(doc("## Ledger", "", "-   Item alpha.", "", "    Body line here.", "-", "",
                 "    Probe Title", "    ===")),
-    ).toEqual(["h2:Ledger", "h2:Body line here."]); // quarto: h2:Ledger alone
+    ).toEqual(["h2:Ledger"]); // quarto: h2:Ledger alone
     // CONTROL — the same document whose shallow line is a bullet with CONTENT. Here the dash
     // really is a marker for both of us, and neither promotes the line above.
     expect(
@@ -15043,5 +15050,20 @@ describe("Session 246 guard — answers around the sibling list marker that must
     ];
     expect(names(doc("gfm", "---"))).toEqual([]);
     expect(names(doc("commonmark", "---"))).toEqual([]);
+  });
+});
+
+describe("Session 246 — a sibling list marker starts a fresh block", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: the second item of a TIGHT list is a title its own underline claims", () => {
+    // ⚠ **THE MINIMAL WITNESS, AND IT CARRIES NO QUOTE AT ALL.** `-   alpha` / `-   bravo` /
+    // `    ---` renders `ul>h2` with the text `bravo` (`scratchpad/s246/r2/a_u4`), and every
+    // build through Session 245 reported nothing: the marker line joined the previous item's
+    // paragraph, so the body run reached 2 and the default reader's one-line setext title was
+    // no longer on offer. The one-item twin has always worked (G11), which is what says the
+    // defect is the SECOND marker.
+    expect(names(["-   alpha", "-   bravo", "    ---"])).toEqual(["h2:bravo"]);
   });
 });

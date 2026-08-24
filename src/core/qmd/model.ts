@@ -6043,6 +6043,25 @@ function computeRegions(text: string): Regions {
     if (consumedMetadataLines?.has(i) === true) {
       continue;
     }
+    // ⚠ **WHETHER THIS LINE STARTS A NEW ITEM OF A LIST THAT WAS ALREADY OPEN ABOVE IT
+    // (Session 246), which is a BLOCK START and returns the setext body run to 1.** Pandoc ends
+    // the previous item's paragraph at a sibling marker, so the marker's own line is the first
+    // line of a fresh block and the line below it may underline it: rendered, `-   alpha` /
+    // `-   bravo` / `    ---` renders `ul>h2` with the text `bravo`, and every build through
+    // Session 245 reported nothing because the run had already reached 2
+    // (`scratchpad/s246/r2/a_u4`). The ONE-item twin has always worked — the run is 1 there —
+    // which is what localises the defect to the SECOND marker rather than to the underline.
+    // ⚠ **AND IT IS GATED ON A LIST BEING OPEN ABOVE, WHICH IS NOT A REFINEMENT.** Pandoc will
+    // not start a list from an open paragraph without a blank line above it, so the identical
+    // marker below plain prose is lazy paragraph TEXT and underlines nothing: `alpha` /
+    // `-   bravo` / `<u>---` renders a bare `<p>` at every indent 0-8, nine of nine
+    // (`r3/p_para_u0`..`p_para_u8`). An ungated reset mints a heading on all nine. Guarded at G1.
+    // ⚠ **A LIST, NOT ANY CONTAINER.** A definition body and a footnote definition have no
+    // siblings and absorb a following marker like any other line — `:   term body` /
+    // `-   bravo` / `    ---` renders a bare `<p>` and the footnote twin renders nothing at all
+    // (`r3/p_defthen`, `p_fn`) — which is the same asymmetry Session 198 measured for the pop
+    // rule directly above, read off the same `columnKinds` array. Guarded at G7.
+    let siblingListItemOpensHere = false;
     // ── The containing block's content column (Session 189) ──────────────────────────────
     // Placed here, above every remaining `continue`, so a line that ends a container still
     // closes it on its way past: a heading, a thematic break, a fence opener and an HTML
@@ -6059,6 +6078,15 @@ function computeRegions(text: string): Regions {
       // column render IDENTICALLY, 276 of 276 pairs, across six containers, columns 0-12 and
       // both consumer families. See `indentColumn`.
       const indentWidth = indentColumn(line);
+      // ⚠ **READ BEFORE THE POP, BECAUSE THE POP IS WHAT DESTROYS THE ANSWER (Session 246).** A
+      // sibling marker CLOSES the item it is a sibling of, so by the time the push below runs
+      // the list that made this line a block start is gone — `columnsAboveThisLine` is 0 on the
+      // witness and on its `alpha` / `-   bravo` control alike, and cannot tell them apart. The
+      // marker at column 0 under `  -   alpha` is the row that says the pop must not gate this:
+      // it ends the outer item, opens content column 4, and quarto still renders the heading
+      // (`r2/c_m0`), where the same marker at 1-5 opens a column the underline misses and
+      // renders nothing (`c_m1`-`c_m5`, guarded at G4).
+      const listOpenAboveThisLine = columnKinds.includes("list");
       // A non-blank line at a SHALLOWER column closes every container deeper than itself —
       // but ONLY where the line ABOVE IT IS BLANK, because a shallow line that directly
       // follows a non-blank one is absorbed LAZILY by the enclosing item and closes nothing.
@@ -6151,6 +6179,12 @@ function computeRegions(text: string): Regions {
           contentColumns.push(opened);
           columnKinds.push("list");
           columnIsCommonmark.push(COMMONMARK_LIST_MARKER.test(line));
+          // ⚠ Set HERE, inside the arm that has already decided this line opens a list item and
+          // behind the `indentedCodeLine` guard above it, rather than re-asking the question at
+          // the counter (Learning #14). A marker four columns past its container is code and
+          // opens nothing, so it cannot start a block either: `para` / `` / `    -   alpha` /
+          // `    -   bravo` / `        ---` renders `p>pre` (`r3/cd_incode`). Guarded at G6.
+          siblingListItemOpensHere = listOpenAboveThisLine;
         } else if (definitionContainerOpens(line)) {
           // A footnote definition and a definition-list definition both give their content
           // exactly 4 columns past their own indent — measured, and independent of label length.
@@ -6840,6 +6874,26 @@ function computeRegions(text: string): Regions {
       // all (`probe2/x06`, `x07`); the same document with a BLANK line before `title` renders
       // `h1:title`, because the blank ends the table (`x08`). Both are pinned.
       !inSimpleTable &&
+      // ⚠ **A BARE BULLET MARKER INSIDE AN ALREADY-OPEN LIST IS A NEW EMPTY ITEM, NOT AN
+      // UNDERLINE (Session 246), and this is the PRICE OF THE RESET DIRECTLY ABOVE — paid here
+      // rather than re-masked.** A lone `-` is both a level-2 underline and a list marker, and
+      // with the body run back at 1 on the sibling marker above it the underline reading wins
+      // and mints a heading quarto does not render: `-   alpha` / `-   bravo` / `-` /
+      // `    ---` renders `ul>hr` and NO heading (`scratchpad/s246/r4/g5`, `g5_dash_sp`,
+      // `n_len1_two`). Guarded at G5.
+      // ⚠ **THE RUN LENGTH IS THE DISCRIMINATOR, AND IT IS MEASURED, NOT ARGUED.** One dash is
+      // a marker; TWO OR MORE are an underline, because `--` is no list marker at all —
+      // rendered at lengths 1-4 with a list open, quarto renders the heading at 2, 3 and 4 and
+      // not at 1 (`r4/n_len1`..`n_len4`, `n_len1_two`..`n_len4_two`). That is exactly the
+      // question `listItemContentColumn` already answers, so the flag is REUSED rather than a
+      // second dash-run pattern being written here (Learning #14).
+      // ⚠ **AND ONLY WHERE A LIST WAS OPEN ABOVE.** With no list open there is no item for the
+      // marker to be, and one dash IS the underline: `alpha` / `-` / `# Probe Z` renders
+      // `section>h2>section>h1` at every run length 1-4 (`r4/n_para_len1`..`n_para_len4`).
+      // ⚠ This term also RETIRES A PRE-EXISTING PHANTOM this session did not set out to fix:
+      // `-   alpha` / `-` / `# Probe Z` rendered `ul>h1` and every build back to Session 243
+      // reported `h2:alpha` beside it (`r4/n_len1`, `r3/p_bare`). Pinned as C6.
+      !siblingListItemOpensHere &&
       (!setextTitleQuoted || lazyQuotedUnderline) &&
       !setextTitleTooShallow
         ? setextUnderlineLevel(
@@ -7058,6 +7112,11 @@ function computeRegions(text: string): Regions {
       : [0, ...contentColumns];
     const indented = indentedCodeLine(line, rawTexColumns);
     const insideIndentedCode = indented && prevIndentedCode;
+    // Whether the body run RESTARTS at this line — one definition, read by the counter below and
+    // by the setext-swallow gate above it, which Session 214 already required to share this
+    // arithmetic. Spelling it twice is what would let the two drift (Learning #14).
+    const freshBlockHere: boolean =
+      (pendingFreshBlock || siblingListItemOpensHere) && !insideIndentedCode;
 
     // An ATX heading — but only where no paragraph is open above it, and never inside a raw
     // HTML block under a CommonMark reader, where the block swallows it (Session 204).
@@ -7072,7 +7131,7 @@ function computeRegions(text: string): Regions {
         lines[i + 1],
         [0, ...contentColumns],
         commonmarkDialect,
-        pendingFreshBlock && !insideIndentedCode ? 1 : consecutiveBody + 1,
+        freshBlockHere ? 1 : consecutiveBody + 1,
       ) ||
       (paragraphOpen && (!dialectOverride || blankBeforeHeaderDialect))
         ? null
@@ -7134,7 +7193,7 @@ function computeRegions(text: string): Regions {
       // `rawTexColumns`, `indented` and `insideIndentedCode` are computed ABOVE the ATX row
       // (Session 214) so the setext-swallow gate reads the same counter arithmetic this line
       // does — see `setextUnderlineSwallowsAtx`.
-      consecutiveBody = pendingFreshBlock && !insideIndentedCode ? 1 : consecutiveBody + 1;
+      consecutiveBody = freshBlockHere ? 1 : consecutiveBody + 1;
       if (consecutiveBody === 1) {
         // The run STARTS here, so this line decides whether it is a paragraph at all — see
         // `bodyRunOpensNonParagraph` and `COMMONMARK_RUN_OPENS_BLOCK`.
