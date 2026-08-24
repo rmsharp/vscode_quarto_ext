@@ -1068,6 +1068,24 @@ const ORDERED_MARKER_HERE = new RegExp("^" + ORDERED_MARKER_SRC);
  * ⚠ **AND THE `underlineColumn` MUST BE IN THIS TEXT'S OWN COORDINATE SPACE** — see the call
  * site, where `line` is already quote-stripped exactly as `quotedTitleText` strips the title.
  *
+ * ⚠ **`null` MEANS THE GATE CANNOT BE ANSWERED HERE, AND THE MARKER SURVIVES — which is the
+ * LAZY line inside an open block quote, found by the enumeration after six other gates were
+ * green (Session 247).** Three lines, `>` / `1.  bravo` / `    ---`, render in raw HTML as
+ * `<blockquote><h2 id="bravo">1. bravo</h2></blockquote>`: no `<ol>` is born anywhere and the
+ * marker is heading TEXT, yet the underline sits exactly on the marker's content column and the
+ * column gate alone says STRIP. A lazy line is already committed to being paragraph text, so
+ * pandoc's ordered-list parser never gets first refusal on it.
+ * ⚠ **NO STATE AT THIS CALL SITE CAN SEPARATE IT FROM A ROW THAT DOES STRIP, WHICH IS WHY THE
+ * ANSWER IS A DECLINE RATHER THAN A NARROWER COLUMN.** `>` / `1.  bravo` / `    ---` (KEEP) and
+ * `> 1.  alpha` / `1.  bravo` / `    ---` (STRIP, `blockquote>ol>h2`) reach it with IDENTICAL
+ * `inQuote`, `stripQuote`, `contentColumns` and `rawLineColumns` — instrumented and read off,
+ * `scratchpad/s247/dbg`. What separates them is whether a list was already open INSIDE the
+ * quote, which is the same missing term as R1 below. Declining costs the second row, which was
+ * already wrong before this session; it recovers the first, which was RIGHT.
+ * ⚠ **PRICED AGAINST THE ALTERNATIVE RATHER THAN ASSUMED**: over 2,634 rendered documents the
+ * ungated spelling scores 1,190 exactly right with 13 rows made WORSE than the pre-session
+ * build, and this one 1,197 with ZERO (`scratchpad/s247/expC`, scored by `three.test.ts`).
+ *
  * ⚠ **WHAT THIS ROW DOES NOT ASK IS WHETHER AN ORDERED LIST WAS ALREADY OPEN ABOVE**, and that
  * is a disclosed residual rather than an oversight (Session 247 R1). Where a list is already
  * open, its own parser claims a sibling marker before the header parser sees it, so the marker
@@ -1098,7 +1116,7 @@ const ORDERED_MARKER_HERE = new RegExp("^" + ORDERED_MARKER_SRC);
 function setextTitleText(
   rawText: string,
   columns: readonly number[] | null,
-  underlineColumn: number,
+  underlineColumn: number | null,
 ): string {
   if (BULLET_LIST_MARKER.test(rawText)) {
     if (BULLET_THEMATIC_BREAK.test(rawText)) {
@@ -1161,7 +1179,7 @@ function setextTitleText(
     // CONTENT STARTS AT, AND THE BULLET NEVER ASKS (Session 247).** See the docstring above: the
     // question is whether pandoc's ordered-list parser ever saw this line, and where the setext
     // parse could claim it first there is no `ol` and no nesting to strip.
-    if (ordered !== null && underlineColumn < opens) {
+    if (ordered !== null && (underlineColumn === null || underlineColumn < opens)) {
       break;
     }
     base = [opens];
@@ -7151,7 +7169,11 @@ function computeRegions(text: string): Regions {
           // (column 4, marker STRIPPED), which the RAW column cannot tell apart at all: both
           // underline lines begin at source column 0 (`scratchpad/s247/r2/g_quote_u0`,
           // `g_quote_u4`).
-          setextTitleText(quotedTitleText(prev), [0, ...contentColumns], indentColumn(line)),
+          setextTitleText(
+            quotedTitleText(prev),
+            [0, ...contentColumns],
+            inQuote && !stripQuote ? null : indentColumn(line),
+          ),
           ...titleLines.slice(1).map((l) => quotedTitleText(l)),
         ]
           // A trailing `\` is a HARD LINE BREAK, which quarto renders as `<br>` rather than as

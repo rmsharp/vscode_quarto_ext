@@ -15527,4 +15527,15 @@ describe("Session 247 — an ordered marker is stripped where the list it opens 
     // back to Session 243 reported `h2:1.  bravo`.
     expect(names(["1.  bravo", "    ---"])).toEqual(["h2:bravo"]);
   });
+
+  it("C2: a LAZY line inside an open quote keeps its marker, because no list is born there", () => {
+    // ⚠ **THE SECOND RED→GREEN ROW, AND THE ENUMERATION IS THE ONLY GATE THAT FOUND IT.** Three
+    // lines: `>` / `1.  bravo` / `    ---` renders, in raw HTML,
+    // `<blockquote><h2 id="bravo">1. bravo</h2></blockquote>` — no `<ol>` anywhere, and the
+    // marker is heading TEXT. The quote swallows the two lines below it lazily, and a lazy line
+    // is already committed to being paragraph text, so pandoc's ordered-list parser never gets
+    // first refusal on it. The underline still lands on the marker's content column, so the
+    // column gate alone says STRIP and is wrong (`scratchpad/s247/r7/m4_quote_only`).
+    expect(names([">", "1.  bravo", "    ---"])).toEqual(["h2:1.  bravo"]);
+  });
 });
