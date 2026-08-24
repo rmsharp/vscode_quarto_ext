@@ -14863,4 +14863,29 @@ describe("Session 245 — the marked-blank title needs an underline the containe
     // than a heading newly lost — and against it the narrowing recovers 1,262 rows in the same set.
     expect(names([">", "    ---", "    > title", "---", "    >", "    ---"])).toEqual(["h2:>"]);
   });
+
+  it("C4: a THIRD marker after two titles is still free to be one — the run never latches", () => {
+    // ⚠ **THE ROW THE MUTATION HUNT ADDED.** A pre-pass that never cleared `open` on a titled
+    // marked line survived 2,695 unit tests and disagreed on 1,176 of 746,496 enumerated
+    // documents; a pre-pass that cleared only for the EMPTY marker run disagreed on 392. Both
+    // shapes are rendered here: `section>h2>section>h2>blockquote` — two real headings, and only
+    // the LAST `>` opens a quote (`scratchpad/s245/r9/n21_a`, `n21_b`, `n21_c`, `n25_a`).
+    expect(names([">", "---", ">", "---", ">"])).toEqual(["h2:>", "h2:>"]);
+    expect(names(["> title", "---", ">", "---", ">"])).toEqual(["h2:> title", "h2:>"]);
+    expect(names([">", "===", ">", "---", ">"])).toEqual(["h1:>", "h2:>"]);
+    expect(names(["> title", "===", ">", "---", ">"])).toEqual(["h1:> title", "h2:>"]);
+  });
+
+  it("R6 (RESIDUAL, PRE-EXISTING): the underline's TEXT below a popped container", () => {
+    // ⚠ **DISCLOSED, NOT FIXED, and it is what kills the `columns`-instead-of-`rawColumns`
+    // mutant** — that mutant survived the whole suite and disagreed on 80 of 746,496 enumerated
+    // documents, so the stash choice is exercised here and nowhere else in the unit tests.
+    // `-   item` / `---` / `>` / `    ---` / `---` renders `ul>h2>h2>hr`: quarto's second heading
+    // is `h2:>`, and this model reports `h2:---` — the same TEXT divergence Session 243's build
+    // reported, identical row for row (`scratchpad/s245/r9/n5_a`, `n5_b`, `n5_c`). Session 244's
+    // build dropped the second heading entirely.
+    expect(names(["-   item", "---", ">", "    ---", "---"])).toEqual(["h2:item", "h2:---"]);
+    expect(names(["-   item", "===", ">", "    ---", "---"])).toEqual(["h1:item", "h2:---"]);
+    expect(names(["-   item", "  ---", ">", "    ---", "---"])).toEqual(["h2:---"]);
+  });
 });
