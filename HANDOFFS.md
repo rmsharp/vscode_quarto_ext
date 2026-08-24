@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S245
+date: 2026-08-23
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- THE MARKED-BLANK SETEXT TITLE DELETES A HEADING WHEN THE LINE BELOW IT IS AN INDENTED UNDERLINE. Narrow Session 244's fix (a3c8987f) so it keeps its 1,760 correct rendered rows and stops the 968 it breaks. THE REGRESSION IS ON master AND EVERY FAST GATE IS GREEN ON IT. Found by S244's own 9,157,952-document enumeration, whose 3,617 rendered loss documents that session never scored; scored at this session's Phase 0. Operator picked "narrow the regression" at Phase 0 from the ranked AskUserQuestion candidate list, over a revert. Deliverable: `markedBlankOpensQuote` in src/core/qmd/model.ts narrowed to the rows quarto agrees with.
+```
+
+```handoff
 session: S244
 date: 2026-08-22
 status: reconciled

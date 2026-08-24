@@ -5,10 +5,12 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 244 — IMPLEMENTATION (strict TDD): A MARKED-BLANK QUOTE LINE USED AS A SETEXT TITLE IS LOST, AT EVERY DEPTH** — filed by Session 243 from its 12,287,081-document enumeration and proven PRE-EXISTING by its own top-level twin. `>` over `---` renders `h2:>` and this model reports nothing. 182 of the 238 heading-losing rows in that enumeration — the largest single family left. Pinned at both depths as Session 243 R6. The operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
-**Started:** 2026-08-22
+**Task:** **Session 245 — IMPLEMENTATION (strict TDD): THE MARKED-BLANK SETEXT TITLE DELETES A HEADING WHEN THE LINE BELOW IT IS AN INDENTED UNDERLINE** — narrow Session 244's fix (`a3c8987f`) so it keeps what it recovers and stops what it breaks. ⚠ **THE REGRESSION IS ON `master` AND EVERY FAST GATE IS GREEN ON IT.** Found by S244's own 9,157,952-document enumeration, whose 3,617 rendered loss documents that session never scored; scored at this session's Phase 0: **1,760 rows / 622 classes where the new build is RIGHT**, **968 rows / 333 classes where it LOSES a heading quarto really renders**. The operator picked "narrow the regression" at Phase 0 from the ranked `AskUserQuestion` candidate list, over a revert.
+**Started:** 2026-08-23
 **Status:** Session claimed. Work beginning. (IN PROGRESS)
-**Deliverable (ONE capability):** a quote line whose stripped content is EMPTY stays available as a setext title — one rule covering top level and one container in — in `src/core/qmd/model.ts`.
+**Deliverable (ONE capability):** `markedBlankOpensQuote` in `src/core/qmd/model.ts` narrowed to the rows quarto agrees with — the marked-blank line stays a setext title where it opens the quote AND the line below is a fresh block, and stops handing `consecutiveBody === 1` to a line quarto reads as the quote's own content.
+**Witnesses (re-rendered firsthand at Phase 0, quarto 1.7.33):** `scratchpad/s245/w/W1.qmd` = `>` / `    ===` / `===` / `# Probe Z` / list → quarto `h1:===`, `h1:Probe Z`; pre-S244 build BOTH; **HEAD nothing** (the regression). `W2.qmd` = the `    ---` twin → quarto `h1:—`, `h1:Probe Z` (quarto smart-punctuates the title text). `W3.qmd` = `>` / `---` → quarto `h2:>`; pre-S244 nothing; **HEAD `h2:>`** (the recovery that must survive).
+**Baseline at claim:** `check-types` 0 · `check-types:unit` 0 · `npm test` **2673 passed / 66 files** · `check-backlog` OK **181 open items**. Phase 0 reconcile committed as `15d609f4` (ledger backfill + S244 receipt marked `reconciled`).
 **Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 242 Handoff Evaluation (by Session 243)
