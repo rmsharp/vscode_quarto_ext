@@ -15340,3 +15340,172 @@ describe("Session 246 — a sibling list marker starts a fresh block", () => {
     // quarto: h2:1. alpha AND h2:— (the `---` title, smart-punctuated)
   });
 });
+
+describe("Session 247 guard — answers around the ordered-marker strip that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ **THIS BLOCK IS WRITTEN BEFORE THE CHANGE AND IS GREEN ON THE PRE-SESSION BUILD.** Every
+  // row is a document rendered through the real `quarto render` path (quarto 1.7.33) in
+  // `scratchpad/s247/r0`, `r1`, `r2` and `r3` — 209 documents — and every one of them ALREADY
+  // agrees.
+  //
+  // This session strips an ORDERED list marker from a setext title's TEXT where quarto strips it:
+  // `1.  bravo` / `    ---` renders `ol>h2` with the text `bravo` and every build back to Session
+  // 243 reports `h2:1.  bravo` (`r0/a_ol_single`). `setextTitleText` has stripped a BULLET marker
+  // since Session 201 and has never stripped an ordered one.
+  //
+  // ⚠ **THE MARKER SURVIVES ON A WHOLE FAMILY OF ROWS AND THE STRIP MUST NOT REACH THEM**, which
+  // is the direction this block is weighted to. Pandoc offers a line to its bullet-list parser
+  // BEFORE the header parser and to its ordered-list parser AFTER it (Session 246's Headline 3),
+  // so where the setext parse can claim the raw line it does, no `ol` is born at all, and the
+  // marker is heading TEXT. The rendered block structure is what says so and it is unambiguous:
+  //
+  //   `1.  bravo` / `    ---`   ->  `ol>h2`        `h2:bravo`      STRIPPED — a list really formed
+  //   `1.  bravo` / `---`       ->  `section>h2`   `h2:1. bravo`   KEPT — no list exists
+  //   `-   bravo` / `---`       ->  `ul>h2`        `h2:bravo`      STRIPPED — bullets always are
+  //
+  // The two dangerous directions:
+  //
+  //   OVER-STRIP  the marker is removed on a row where quarto keeps it, so the heading loses
+  //               text it should carry                                            (G1-G7)
+  //   BULLET DRIFT / NEW HEADING  the bullet family or the accepted underline column set moves,
+  //               which costs a heading or mints one                              (G8-G12)
+
+  it("G1: at an underline column of 0 the marker SURVIVES, at every width and both delimiters", () => {
+    // The setext parse claims the raw line before any ordered list is born, so quarto renders
+    // `section>h2` and the marker is heading TEXT — rendered at every marker spelling this model
+    // recognises (`r1/f_*_u0`, ten of ten, plus `r0/d_ol_col0`, `r3/b_gap*_u0`, `e_zero_u0`).
+    expect(names(["1.  bravo", "---"])).toEqual(["h2:1.  bravo"]);
+    expect(names(["10. bravo", "---"])).toEqual(["h2:10. bravo"]);
+    expect(names(["100.  bravo", "---"])).toEqual(["h2:100.  bravo"]);
+    expect(names(["1)  bravo", "---"])).toEqual(["h2:1)  bravo"]);
+    expect(names(["(1)  bravo", "---"])).toEqual(["h2:(1)  bravo"]);
+    expect(names(["a.  bravo", "---"])).toEqual(["h2:a.  bravo"]);
+    expect(names(["iv.  bravo", "---"])).toEqual(["h2:iv.  bravo"]);
+    expect(names(["#.  bravo", "---"])).toEqual(["h2:#.  bravo"]);
+    expect(names(["01.  bravo", "---"])).toEqual(["h2:01.  bravo"]);
+    // the h1 spelling answers identically (`r1/g_eq_u0`)
+    expect(names(["1.  bravo", "==="])).toEqual(["h1:1.  bravo"]);
+  });
+
+  it("G2: a list of a DIFFERENT kind open above does not make this marker a sibling", () => {
+    // A bullet list open above an ordered marker starts a NEW list, so the header parser still
+    // gets first refusal and the marker survives: `-   alpha` / `1.  bravo` / `---` renders
+    // `ul>section>h2` and `h2:1. bravo` (`r2/a_kind_ul_ol`, `f_ul_open_ol`). ⚠ So does a
+    // different DELIMITER — `1.` then `1)` is a new list, not a sibling (`r2/a_kind_dot_par`).
+    expect(names(["-   alpha", "1.  bravo", "---"])).toEqual(["h2:1.  bravo"]);
+    expect(names(["-   alpha", "-   beta", "1.  bravo", "---"])).toEqual(["h2:1.  bravo"]);
+    expect(names(["1.  alpha", "1)  bravo", "---"])).toEqual(["h2:1)  bravo"]);
+  });
+
+  it("G3: a NESTED ordered marker keeps its own marker while the underline is at an OUTER column", () => {
+    // The inner list is born only where the underline reaches the inner item's content column.
+    // At 0 and at the OUTER item's content column the inner `ol` never forms and the marker is
+    // text: `1.  alpha` / `    1.  bravo` / `---` and its `    ---` twin both render `ol>h2` with
+    // `h2:1. bravo` (`r2/c_inner_first_u0`, `c_inner_first_u4`, `r1/d_inul_u0`, `d_inul_u4`).
+    expect(names(["1.  alpha", "    1.  bravo", "---"])).toEqual(["h2:1.  bravo"]);
+    expect(names(["1.  alpha", "    1.  bravo", "    ---"])).toEqual(["h2:1.  bravo"]);
+    expect(names(["-   alpha", "    1.  bravo", "---"])).toEqual(["h2:1.  bravo"]);
+    expect(names(["-   alpha", "    1.  bravo", "    ---"])).toEqual(["h2:1.  bravo"]);
+  });
+
+  it("G4: two markers on ONE line are answered PER MARKER, not per line", () => {
+    // ⚠ **THE ROW A WHOLE-LINE GATE BREAKS.** `-   1.  bravo` / `    ---` renders `ul>h2` and
+    // `h2:1. bravo` — the BULLET strips and the ORDERED one survives, because the underline at 4
+    // is the bullet item's content column and is OUTER to the inner ordered item's 8
+    // (`r2/d_ul_ol_u0`, `d_ul_ol_u4`). A gate computed from the outermost marker alone says
+    // "strip" on that row and deletes `1.` from the text.
+    expect(names(["-   1.  bravo", "---"])).toEqual(["h2:1.  bravo"]);
+    expect(names(["-   1.  bravo", "    ---"])).toEqual(["h2:1.  bravo"]);
+    // and with the underline at an outer column BOTH markers survive (`r2/d_ol_ol_u0`,
+    // `d_ol_ul_u0`)
+    expect(names(["1.  1.  bravo", "---"])).toEqual(["h2:1.  1.  bravo"]);
+    expect(names(["1.  -   bravo", "---"])).toEqual(["h2:1.  -   bravo"]);
+  });
+
+  it("G5: an EMPTY ordered item is the heading's whole TEXT, where the bullet twin renders nothing", () => {
+    // `1.` / `===` renders `section>h1` and `h1:1.` — the marker IS the text (`r3/a_empty_u0`,
+    // `a_empty10_u0`). ⚠ This is the row an ordered `BARE_BULLET_TAIL` analogue applied
+    // unconditionally deletes: for a BULLET, `- -` and friends yield no heading at all and the
+    // strip returns `""` on purpose (Session 201), and doing the same here loses a real heading.
+    expect(names(["1.", "==="])).toEqual(["h1:1."]);
+    expect(names(["10.", "==="])).toEqual(["h1:10."]);
+  });
+
+  it("G6: a marker with no whitespace after it is not a marker, and neither is an escaped one", () => {
+    // `1.bravo` / `---` renders `section>h2` with the text intact (`r3/d_nospace0`), and
+    // `1\.  bravo` / `    ---` renders nothing at all (`r0/k_escaped`).
+    expect(names(["1.bravo", "---"])).toEqual(["h2:1.bravo"]);
+    expect(names(["1\\.  bravo", "    ---"])).toEqual([]);
+  });
+
+  it("G7: inside a quote the same asymmetry holds, in the quote's own coordinates", () => {
+    // `> 1.  bravo` / `> ---` renders `blockquote>h2` and `h2:1. bravo` — quote-relative column 0,
+    // so no `ol` is born (`r2/g_quote_u0`). Its `>     ---` twin renders `blockquote>ol>h2` and is
+    // the STRIP side, pinned as a C-row.
+    expect(names(["> 1.  bravo", "> ---"])).toEqual(["h2:1.  bravo"]);
+  });
+
+  it("G8: the whole BULLET family is byte-identical — Session 201's answer must not drift", () => {
+    // Rendered across all three marker characters, both underline levels, both underline columns,
+    // the nested and the across-a-blank shapes and gaps 1-4 (`r0/b_ul_*`, `c_ul_eq`, `d_ul_col0*`,
+    // `e_ul_gap*`, `r1/a_ul_u0`, `a_ul_u4`). Every one strips, and this session must not move one
+    // of them.
+    for (const m of ["-", "*", "+"]) {
+      expect(names([m + "   bravo", "    ---"])).toEqual(["h2:bravo"]);
+      expect(names([m + "   bravo", "---"])).toEqual(["h2:bravo"]);
+    }
+    expect(names(["-   bravo", "==="])).toEqual(["h1:bravo"]);
+    expect(names(["-   alpha", "", "-   bravo", "    ---"])).toEqual(["h2:bravo"]);
+    expect(names(["-   alpha", "    -   bravo", "        ---"])).toEqual(["h2:bravo"]);
+    expect(names(["1.  alpha", "-   bravo", "---"])).toEqual(["h2:bravo"]);
+    for (const g of [1, 2, 3, 4]) {
+      expect(names(["-" + " ".repeat(g) + "bravo", " ".repeat(1 + g) + "---"])).toEqual([
+        "h2:bravo",
+      ]);
+    }
+  });
+
+  it("G9: the bare-`-` phantom and the bullet thematic break are unchanged", () => {
+    // `-` / `===` reports `h1:-` where quarto renders nothing — the pre-existing phantom
+    // `BULLET_LIST_MARKER`'s docstring names and leaves FILED (`r3/a_ubare_u0`). A rewrite of the
+    // walk onto the shared `LIST_ITEM_OPEN` grammar, which accepts a marker at end-of-line, closes
+    // it as by-catch; that is a BULLET row and it is out of this session's scope.
+    expect(names(["-", "==="])).toEqual(["h1:-"]);
+    // the thematic-break spelling still survives into the text whole (Session 201)
+    expect(names(["- - -", "==="])).toEqual(["h1:- - -"]);
+    expect(names(["* * *", "==="])).toEqual(["h1:* * *"]);
+  });
+
+  it("G10: the accepted underline column set is unchanged — only 0 and a content column form one", () => {
+    // Rendered at all eight columns under `1.  bravo` (`r1/a_ol_u0`..`a_ol_u7`): quarto forms the
+    // heading at 0 and at 4 and NOWHERE else. This session changes the heading's TEXT, never the
+    // set of columns that can form it, and a spelling that widened the set would mint six phantoms
+    // per document.
+    for (const u of [1, 2, 3, 5, 6, 7]) {
+      expect(names(["1.  bravo", " ".repeat(u) + "---"])).toEqual([]);
+    }
+    // and the marker's own indent is not one of them (`r3/c_ind1_ui`..`c_ind3_ui`)
+    for (const i of [1, 2, 3]) {
+      expect(names([" ".repeat(i) + "1.  bravo", " ".repeat(i) + "---"])).toEqual([]);
+    }
+  });
+
+  it("G11: an ordered marker at INDENTED-CODE depth is not a marker at all", () => {
+    // Indents 4-8 render nothing whatever the underline says (`r0/g_ind4`..`g_ind8`,
+    // `l_code4`, `l_code8`) — the line is code, so there is no nesting to strip.
+    for (const i of [4, 5, 6, 7, 8]) {
+      expect(names([" ".repeat(i) + "1.  bravo", " ".repeat(i + 4) + "---"])).toEqual([]);
+    }
+    expect(names(["    1.  bravo", "    ---"])).toEqual([]);
+  });
+
+  it("G12: a gap wider than four puts the item's content in code, and no heading forms", () => {
+    // `1.` + five spaces + `bravo` / seven-space `---` renders nothing (`r0/e_ol_gap5`), exactly
+    // as the bullet twin does (`e_ul_gap5`). The content column arithmetic this session reads is
+    // the one `setextTitleText` already carries; this row is what says it must not shift.
+    expect(names(["1.     bravo", "       ---"])).toEqual([]);
+    expect(names(["-     bravo", "      ---"])).toEqual([]);
+  });
+});
