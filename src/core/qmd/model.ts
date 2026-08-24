@@ -1466,6 +1466,24 @@ function rawTexMacroLineIsBlock(line: string, columns: readonly number[] | null)
  * and opens nothing. Admitting its column costs a phantom; refusing it would cost a heading
  * if the rule is ever narrower than measured.
  */
+/**
+ * The MARKER grammar of a list item, named once so `listItemContentColumn` and `LIST_ITEM_EMPTY`
+ * cannot drift apart (Session 246). The two ask the same question of the same bytes — "is this a
+ * list marker?" — and the second exists only to add "…with nothing after it". Spelling the
+ * alternation twice is how the pair would come to disagree (Learning #14).
+ */
+const LIST_ITEM_MARKER_SRC = "([-+*]|\\(?(?:\\d{1,9}|[a-zA-Z]{1,9}|#)[.)])";
+const LIST_ITEM_OPEN = new RegExp("^([ \\t]*)" + LIST_ITEM_MARKER_SRC + "([ \\t]|$)");
+/**
+ * An EMPTY list item — a marker with no content at all (Session 246). Pandoc opens an item for it
+ * and puts nothing in it, so it starts no paragraph: `-   alpha` / `-` / `# Probe Z` renders
+ * `ul>h1`, and so do the `*`, `+`, `1.`, `10.`, `1)` and `a.` spellings, with and without
+ * trailing whitespace — fourteen of fourteen (`scratchpad/s246/r7/v_*`). Every build through
+ * Session 245 read the marker as a setext UNDERLINE instead, which promoted the line above to a
+ * heading quarto does not render AND, by clearing `paragraphOpen` on its way past, recovered the
+ * ATX below it by accident. Both halves are this constant's business — see `emptySiblingItem`.
+ */
+const LIST_ITEM_EMPTY = new RegExp("^[ \\t]*" + LIST_ITEM_MARKER_SRC + "[ \\t]*$");
 function listItemContentColumn(line: string): number | null {
   // ⚠ The letter run is `{1,9}`, not a single letter, and a single letter is what the first
   // draft had. It cost a real heading in the corpus score: `iv.` is a ROMAN NUMERAL — a list
@@ -1479,7 +1497,7 @@ function listItemContentColumn(line: string): number | null {
   // tab advances to the next 4-column stop, so `\t- inner` inside a `- outer` item is a marker
   // at column 4 whose content column is 6, exactly as `    - inner` is (measured — a paired
   // TAB/SPACE equivalence over the real `quarto render` path).
-  const m = /^([ \t]*)([-+*]|\(?(?:\d{1,9}|[a-zA-Z]{1,9}|#)[.)])([ \t]|$)/.exec(line);
+  const m = LIST_ITEM_OPEN.exec(line);
   if (m === null) {
     return null;
   }
@@ -6062,6 +6080,27 @@ function computeRegions(text: string): Regions {
     // (`r3/p_defthen`, `p_fn`) — which is the same asymmetry Session 198 measured for the pop
     // rule directly above, read off the same `columnKinds` array. Guarded at G7.
     let siblingListItemOpensHere = false;
+    // ⚠ **AND WHETHER IT LANDS AT A COLUMN THE OPEN LIST WOULD ACCEPT A SIBLING MARKER AT, which
+    // is a NARROWER question with two different readers (Session 246).** The reset above fires at
+    // ANY depth — a NESTED item interrupts its parent's paragraph and starts a fresh block just as
+    // a sibling does (`r2/j_deep`, `j_nest`). The two readers below instead ask whether a BARE
+    // marker is an ITEM or an UNDERLINE, and there the column decides:
+    //
+    //   `-   alpha` / `-`                        marker at 0 = the list's own    ITEM      `ul>h1`
+    //   `-   alpha` / `    -`                    marker at 4, INSIDE the item    UNDERLINE `ul>h2>h1`
+    //   `-   alpha` / `    -   bravo` / `    -`  marker at 4 = the INNER list's  ITEM      `ul>ul>h1`
+    //
+    // (`r7/v_dash`, `y_deepdash`, `y_nested`.) CommonMark's rule is that an EMPTY item may not
+    // interrupt a paragraph — already spelled in `COMMONMARK_PARAGRAPH_INTERRUPT` and measured by
+    // Session 203 — and a marker at its own list's marker column is not interrupting anything: it
+    // ENDS the item it is a sibling of. ⚠ Reading the WIDER flag here DELETES a real heading, and
+    // `y_deepdash` is the row that says so: quarto renders `h2:alpha` there and every build back
+    // to Session 243 reported it.
+    // ⚠ **A list's marker column is its PARENT's content column, or 0 for the outermost**, so it
+    // is derived from the stack already kept rather than carried in a FOURTH parallel array. That
+    // derivation is exact wherever a nested marker sits ON its parent's content column, and is
+    // disclosed as a residual (R2) where it sits one to three columns past it.
+    let siblingItemAtMarkerColumn = false;
     // ── The containing block's content column (Session 189) ──────────────────────────────
     // Placed here, above every remaining `continue`, so a line that ends a container still
     // closes it on its way past: a heading, a thematic break, a fence opener and an HTML
@@ -6087,6 +6126,13 @@ function computeRegions(text: string): Regions {
       // (`r2/c_m0`), where the same marker at 1-5 opens a column the underline misses and
       // renders nothing (`c_m1`-`c_m5`, guarded at G4).
       const listOpenAboveThisLine = columnKinds.includes("list");
+      // The columns at which an ALREADY-OPEN list would accept a sibling marker — read before the
+      // pop for the same reason `listOpenAboveThisLine` is. See `siblingItemAtMarkerColumn`.
+      const siblingMarkerColumnAbove = contentColumns.some(
+        (_, idx) =>
+          columnKinds[idx] === "list" &&
+          (idx === 0 ? 0 : contentColumns[idx - 1]) === indentWidth,
+      );
       // A non-blank line at a SHALLOWER column closes every container deeper than itself —
       // but ONLY where the line ABOVE IT IS BLANK, because a shallow line that directly
       // follows a non-blank one is absorbed LAZILY by the enclosing item and closes nothing.
@@ -6185,6 +6231,7 @@ function computeRegions(text: string): Regions {
           // opens nothing, so it cannot start a block either: `para` / `` / `    -   alpha` /
           // `    -   bravo` / `        ---` renders `p>pre` (`r3/cd_incode`). Guarded at G6.
           siblingListItemOpensHere = listOpenAboveThisLine;
+          siblingItemAtMarkerColumn = listOpenAboveThisLine && siblingMarkerColumnAbove;
         } else if (definitionContainerOpens(line)) {
           // A footnote definition and a definition-list definition both give their content
           // exactly 4 columns past their own indent — measured, and independent of label length.
@@ -6893,7 +6940,7 @@ function computeRegions(text: string): Regions {
       // ⚠ This term also RETIRES A PRE-EXISTING PHANTOM this session did not set out to fix:
       // `-   alpha` / `-` / `# Probe Z` rendered `ul>h1` and every build back to Session 243
       // reported `h2:alpha` beside it (`r4/n_len1`, `r3/p_bare`). Pinned as C6.
-      !siblingListItemOpensHere &&
+      !siblingItemAtMarkerColumn &&
       (!setextTitleQuoted || lazyQuotedUnderline) &&
       !setextTitleTooShallow
         ? setextUnderlineLevel(
@@ -7117,6 +7164,18 @@ function computeRegions(text: string): Regions {
     // arithmetic. Spelling it twice is what would let the two drift (Learning #14).
     const freshBlockHere: boolean =
       (pendingFreshBlock || siblingListItemOpensHere) && !insideIndentedCode;
+    // ⚠ **AN EMPTY SIBLING ITEM IS A COMPLETE BLOCK — IT OPENS NO PARAGRAPH AND THE LINE BELOW IT
+    // STARTS A FRESH ONE (Session 246).** Pandoc opens an item and puts nothing in it. Read by
+    // two sites below: `pendingFreshBlock`, so the line beneath begins a run of 1 —
+    // `-   alpha` / `-` / `text below` / `===` renders `h1:text below` (`r7/u_und`) — and
+    // `paragraphOpen`, so an ATX beneath it is not swallowed — `-   alpha` / `-` / `# Probe Z`
+    // renders `ul>h1` (`r7/u_atx`). ⚠ Every build through Session 245 reached BOTH answers by
+    // ACCIDENT: it read the bare marker as a setext underline, which minted `h2:alpha` — a
+    // heading quarto does not render — and cleared `paragraphOpen` on its way past. Declining
+    // that underline without these two terms keeps the phantom's cure and gives the ATX back
+    // with it, a heading DELETED on four measured rows. The three land together or not at all.
+    const emptySiblingItem: boolean =
+      siblingItemAtMarkerColumn && LIST_ITEM_EMPTY.test(line);
 
     // An ATX heading — but only where no paragraph is open above it, and never inside a raw
     // HTML block under a CommonMark reader, where the block swallows it (Session 204).
@@ -7210,7 +7269,8 @@ function computeRegions(text: string): Regions {
       }
       // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
       // whether these bytes open a block or merely continue a paragraph depends on it.
-      pendingFreshBlock = opensFreshBlock(line, paragraphOpen, rawTexColumns);
+      pendingFreshBlock =
+        emptySiblingItem || opensFreshBlock(line, paragraphOpen, rawTexColumns);
       prevOpenedHtmlBlock = HTML_BLOCK_OPEN.test(line);
       // Does THIS line open a raw HTML block the reader will swallow? Only under a
       // CommonMark-family reader — pandoc's own reader parses markdown inside such a block
@@ -7454,32 +7514,40 @@ function computeRegions(text: string): Regions {
         tableRowsOpen,
         rawTexColumns,
       );
-      paragraphOpen = !closesParagraph(
-        line,
-        paragraphOpen,
-        prevLineWasAtxHeading,
-        // ⚠ **THE SUSPENSION IS FOR A LINE THE STRIP DID NOT REACH (Session 225)** — the same
-        // boundary `quoteColumnsUnknown` draws, and the corpus sweep is what found it. S183's
-        // suspension exists because a closer inside a quote was invisible; on a MARKED line it
-        // no longer is, and leaving it on made three families of quoted block openers close a
-        // paragraph pandoc keeps open, fabricating the heading on the UNMARKED line below.
-        // Rendered, all three render no heading at all, quoted AND at top level:
-        // `> quoted one` / `> \clearpage`, `> quoted one` / `>     code`, and
-        // `> line one` / `> line two` / `> ##`, each followed by `# ATX Below` (`i/i04`,
-        // `i/i07`, `i/i08`, with their top-level twins `i/j01`-`i/j03`).
-        paragraphQuoted && !stripQuote,
-        // ⚠ **A LINE BLOCK TAKES A CONTINUATION ONLY FROM ITS OWN CONTAINER (Session 226)** —
-        // see `lineBlockQuoted`. An UNMARKED line below a quoted line block is pandoc's LAZY
-        // continuation of the quote's paragraph, so it closes nothing and the ATX below it is
-        // not a heading (`r1/lz1`); the MARKED twin closes the block and its ATX is real
-        // (`r1/lz2`). This reverses Session 225's R2 residual pin.
-        lineBlockAbove && lineBlockQuoted === stripQuote,
-        rawTexColumns,
-        unmatchedConstruct,
-        divRole !== null && divAtColumn,
-        tableShapedIsBlock,
-        pipeTableOpens,
-      );
+      // ⚠ **AN EMPTY SIBLING ITEM OPENS NO PARAGRAPH** — see `emptySiblingItem`, where the term
+      // and its measurement live, and which the `pendingFreshBlock` assignment above reads too.
+      // ⚠ **A NON-EMPTY item is untouched** — its content IS a paragraph and the ATX below it is
+      // swallowed exactly as before: `-   alpha` / `-   bravo` / `# Probe Z` renders a bare `ul`
+      // (`r7/w_nonempty`, `w_nonempty2`). That row is what makes the flag read `LIST_ITEM_EMPTY`
+      // and not `siblingItemAtMarkerColumn` alone. Pinned as C7.
+      paragraphOpen =
+        !emptySiblingItem &&
+        !closesParagraph(
+          line,
+          paragraphOpen,
+          prevLineWasAtxHeading,
+          // ⚠ **THE SUSPENSION IS FOR A LINE THE STRIP DID NOT REACH (Session 225)** — the same
+          // boundary `quoteColumnsUnknown` draws, and the corpus sweep is what found it. S183's
+          // suspension exists because a closer inside a quote was invisible; on a MARKED line it
+          // no longer is, and leaving it on made three families of quoted block openers close a
+          // paragraph pandoc keeps open, fabricating the heading on the UNMARKED line below.
+          // Rendered, all three render no heading at all, quoted AND at top level:
+          // `> quoted one` / `> \clearpage`, `> quoted one` / `>     code`, and
+          // `> line one` / `> line two` / `> ##`, each followed by `# ATX Below` (`i/i04`,
+          // `i/i07`, `i/i08`, with their top-level twins `i/j01`-`i/j03`).
+          paragraphQuoted && !stripQuote,
+          // ⚠ **A LINE BLOCK TAKES A CONTINUATION ONLY FROM ITS OWN CONTAINER (Session 226)** —
+          // see `lineBlockQuoted`. An UNMARKED line below a quoted line block is pandoc's LAZY
+          // continuation of the quote's paragraph, so it closes nothing and the ATX below it is
+          // not a heading (`r1/lz1`); the MARKED twin closes the block and its ATX is real
+          // (`r1/lz2`). This reverses Session 225's R2 residual pin.
+          lineBlockAbove && lineBlockQuoted === stripQuote,
+          rawTexColumns,
+          unmatchedConstruct,
+          divRole !== null && divAtColumn,
+          tableShapedIsBlock,
+          pipeTableOpens,
+        );
       if (inSimpleTable) {
         // ⚠ **A TABLE CELL IS NOT PARAGRAPH CONTENT, AND THIS IS THE HALF OF SESSION 239 THAT
         // ADDS HEADINGS RATHER THAN REMOVING THEM.** Every line from the separator through the
