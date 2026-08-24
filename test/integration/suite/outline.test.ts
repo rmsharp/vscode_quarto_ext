@@ -1246,6 +1246,30 @@ describe("Quarto: Document outline (symbols)", () => {
       !flat(symbols).includes(">"),
       "Session 245: the marker line does NOT become a title here — a real quote opened instead",
     );
+
+    // ⚠ **SESSION 246 — THE SECOND ITEM OF A TIGHT LIST.** Pandoc ends the previous item's
+    // paragraph at a sibling marker, so the marker's own line is the first line of a fresh block
+    // and the line below may underline it. Every build through Session 245 kept counting the
+    // first item's paragraph, so the body run reached 2 and the default reader's one-line setext
+    // title was no longer on offer — the heading was lost, and the ATX under it with it. The
+    // ONE-item twin has always worked, which is what localises the defect to the SECOND marker.
+    // Rendered `ul>h2` then the ATX (`scratchpad/s246/r2/a_u4`, `g_probe`).
+    //
+    // ⚠ The fixture premise is MEASURED, not assumed: `quarto render` on these exact bytes emits
+    // TWENTY-EIGHT headings, the twenty-six above byte-identical and in the same order, and the
+    // two below added (`scratchpad/s246/fixbefore.tsv` against `fixafter.tsv`).
+    assert.ok(
+      flat(symbols).includes("a title its own underline claims"),
+      "Session 246: the second item of a tight list must reach the Outline provider as a heading",
+    );
+    assert.ok(
+      flat(symbols).includes("Below The Sibling Marker"),
+      "Session 246: the ATX below the recovered underline is a heading too",
+    );
+    assert.ok(
+      !flat(symbols).includes("an item that opens the list"),
+      "Session 246: the FIRST item is not a title — only the marker the underline follows is",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
