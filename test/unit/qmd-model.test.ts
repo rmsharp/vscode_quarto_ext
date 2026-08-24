@@ -14782,4 +14782,20 @@ describe("Session 245 — the marked-blank title needs an underline the containe
       "h1:Probe Z",
     ]);
   });
+
+  it("RED->GREEN: a SECOND marked-blank line inside an already-open quote claims nothing", () => {
+    // ⚠ **FOUND BY THE ENUMERATION AFTER EVERY OTHER GATE WAS GREEN** — 9,157,952 documents,
+    // 330 transition classes no prior build produced, 1,147 of their members rendered.
+    // `>` / ` ===` / `===` / `>` / `===` / `>` renders `h1:===` and NOTHING else: the FIRST `>`
+    // is not underlined (` ===` sits at column 1, which the top-level set `[0]` does not offer),
+    // so a real block quote opens there, and pandoc's email-style quote runs to the next BLANK
+    // line — every marked line below is inside it, where it cannot be a title
+    // (`scratchpad/s245/r6/N0000_0`, `N0002_0`, `N0008_0`, `N0010_0` and 296 more).
+    //
+    // The narrowing above answers "does the line below underline this one"; it cannot answer
+    // "is a quote already open here", because `inQuote` is cleared at every setext row.
+    expect(names([">", " ===", "===", ">", "===", ">"])).toEqual(["h1:==="]);
+    expect(names([">", " ===", "---", ">", "===", ">"])).toEqual(["h2:==="]);
+    expect(names([">", "  ===", "===", ">", "---", ">"])).toEqual(["h1:==="]);
+  });
 });

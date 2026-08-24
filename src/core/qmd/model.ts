@@ -5501,6 +5501,7 @@ function computeRegions(text: string): Regions {
   const lines = text.split(/\r?\n/);
   const closerIndex = buildCloserIndex(lines);
   const quoteEnds = blockQuoteEndIndex(lines);
+  const quoteAlreadyOpen = blockQuoteAlreadyOpen(lines);
   const headings: Heading[] = [];
   const cells: Cell[] = [];
   const bodyLines: BodyLine[] = [];
@@ -6376,7 +6377,10 @@ function computeRegions(text: string): Regions {
           0,
           ...(outerColumns !== null ? outerColumns.rawColumns : []),
         ]) !== null;
-      const markedBlankOpensQuote = quoteOpensHere && !commonmarkDialect && belowUnderlinesRawLine;
+      // ⚠ And the quote must not ALREADY be open — see `blockQuoteAlreadyOpen`, which answers
+      // the half `inQuote` cannot because the scan clears it at every setext row. Guarded at G15.
+      const markedBlankOpensQuote =
+        quoteOpensHere && !commonmarkDialect && belowUnderlinesRawLine && !quoteAlreadyOpen[i];
       consecutiveBody = markedBlankOpensQuote ? 1 : 0;
       pendingFreshBlock = markedBlankOpensQuote;
       paragraphOpen = false;
@@ -8185,6 +8189,62 @@ function buildCloserIndex(lines: readonly string[]): Map<string, number[]> {
     }
   }
   return index;
+}
+
+/**
+ * For each line, whether pandoc's email-style block quote is ALREADY OPEN there — the second
+ * half of "does this marked-blank line open the quote", and the half the per-line scan cannot
+ * answer for itself (Session 245).
+ *
+ * ⚠ **`inQuote` IS NOT THIS ANSWER, because it is cleared at every setext row.** The scan sets
+ * `inQuote = false` when a setext heading closes the region, so a marked line further down looks
+ * like a fresh opening even though pandoc's quote — which runs unbroken to the next UNMARKED
+ * blank line — is still holding it. Rendered: `>` / ` ===` / `===` / `>` / `===` / `>` renders
+ * `h1:===` and NOTHING else, where reading `inQuote` mints a second `h1:>`
+ * (`scratchpad/s245/r6/N0000_0`, and 299 more the enumeration found).
+ *
+ * ⚠ **A MARKED LINE THE NEXT LINE UNDERLINES DOES NOT OPEN A QUOTE AT ALL**, so it must not set
+ * this flag: pandoc's setext parse claims the RAW line first and no `<blockquote>` forms — which
+ * is Session 240's G1/G2 rule for the content-carrying spelling and Session 244's for the empty
+ * one. ⚠ Both spellings, not only the empty one: `> title` / `---` / `>` / `---` renders
+ * `h2:> title` AND `h2:>`, and treating the first line as opening a quote loses the second
+ * (`scratchpad/s244/lossdocs/L0303_1`, 20 rendered rows — the measured difference between this
+ * and the variant that tested the empty spelling only, `scratchpad/s245/exp`).
+ *
+ * ⚠ **The underline test is `SETEXT_UNDERLINE_RUN` — column 0, REUSED not re-derived** (Learning
+ * #14). This pre-pass has no container stack, exactly as `blockQuoteEndIndex` below has none, so
+ * it cannot ask `setextUnderlineLevel`'s container-relative question; anchoring at column 0 is
+ * the same choice its sibling makes. Measured: over the 330 enumeration classes no prior build
+ * produced, this spelling scores 738 of 1,147 rendered documents right against 468 for the
+ * ungated build, with heading LOSS 74 against 113 and phantoms 317 against 613 — and it costs
+ * NOTHING on Session 244's 3,501-document loss set, where it is identical to the ungated build
+ * row for row (2,340 right, 206 losing).
+ */
+function blockQuoteAlreadyOpen(lines: readonly string[]): boolean[] {
+  const out = new Array<boolean>(lines.length).fill(false);
+  let open = false;
+  for (let i = 0; i < lines.length; i++) {
+    const marked = blockQuoteContentStart(lines[i]) !== null;
+    if (!marked && BLANK_LINE.test(lines[i])) {
+      open = false;
+      continue;
+    }
+    out[i] = open;
+    if (marked) {
+      const next = i + 1 < lines.length ? lines[i + 1] : null;
+      // ⚠ The `: boolean` is LOAD-BEARING, not style — `titled` is read by the assignment to
+      // `open` and `open` is read back by `titled`'s own initializer, which tsc reports as
+      // circular inference (TS7022) unless one end is annotated. `npm test` is green on it
+      // (Learning #451, for a second session running).
+      const titled: boolean = !open && next !== null && SETEXT_UNDERLINE_RUN.test(next);
+      open = !titled;
+      // The underline belongs to the title above it and opens nothing of its own.
+      if (titled) {
+        i += 1;
+      }
+    }
+  }
+  return out;
 }
 
 /**
