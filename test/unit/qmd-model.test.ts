@@ -14889,3 +14889,159 @@ describe("Session 245 — the marked-blank title needs an underline the containe
     expect(names(["-   item", "  ---", ">", "    ---", "---"])).toEqual(["h2:---"]);
   });
 });
+
+describe("Session 246 guard — answers around the sibling list marker that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ **THIS BLOCK IS WRITTEN BEFORE THE CHANGE AND IS GREEN ON THE PRE-SESSION BUILD.** Every
+  // row is a document rendered through the real `quarto render` path (quarto 1.7.33) in
+  // `scratchpad/s246/r1`, `r2` and `r3`, and every one of them ALREADY agrees.
+  //
+  // This session makes a list-item marker that lands in an ALREADY-OPEN list start a fresh
+  // block, so the body run returns to 1 and the line below may underline it. Rendered,
+  // `-   alpha` / `-   bravo` / `    ---` renders `ul>h2` with the text `bravo` and this model
+  // reports nothing (`r2/a_u4`); the same shape one item shorter has always worked
+  // (`r3/k_single`). The change has two dangerous directions and the block is weighted to both:
+  //
+  //   PHANTOM   the run returns to 1 on a line pandoc does NOT treat as a block start, so an
+  //             underline below it mints a heading quarto never renders     (G1-G10)
+  //   DELETING  the reset displaces a title line that is already being claimed correctly, or
+  //             disturbs the marked-blank family Sessions 244/245 shipped   (G11-G15)
+
+  it("G1: a list marker below a PLAIN PARAGRAPH opens no list, so nothing underlines — all nine indents", () => {
+    // ⚠ **THE ROW THE CHANGE IS MOST LIKELY TO BREAK, AND THE WHOLE REASON THE RESET IS GATED
+    // ON A LIST BEING OPEN ABOVE.** Pandoc will not start a list from an open paragraph without
+    // a blank line, so `-   bravo` there is lazy paragraph TEXT and the run below it underlines
+    // nothing: `alpha` / `-   bravo` / `<u>---` renders a bare `<p>` at every indent 0-8, nine
+    // of nine (`scratchpad/s246/r3/p_para_u0`..`p_para_u8`). An ungated reset mints a heading on
+    // all nine.
+    for (let u = 0; u <= 8; u++) {
+      expect(names(["alpha", "-   bravo", " ".repeat(u) + "---"])).toEqual([]);
+    }
+  });
+
+  it("G2: the default reader admits exactly ONE title line, so a second body line declines it", () => {
+    // `-   alpha` / `-   bravo` / `    more` / `    ---` renders a bare `ul` — the item's
+    // paragraph is two lines and the default reader's setext title is one (`r3/p_two_body`,
+    // `p_three_body`).
+    expect(names(["-   alpha", "-   bravo", "    more", "    ---"])).toEqual([]);
+    expect(names(["-   alpha", "-   bravo", "    more", "    yet", "    ---"])).toEqual([]);
+  });
+
+  it("G3: the accepted underline columns are unchanged — only 0 and the content column form it", () => {
+    // Rendered across all nine indents (`r2/a_u0`..`a_u8`): quarto forms the heading at 0 and at
+    // 4 and at NO other column. This change moves the body RUN, not the column set, and a
+    // spelling that widened the set would mint seven phantoms per document.
+    for (const u of [1, 2, 3, 5, 6, 7, 8]) {
+      expect(names(["-   alpha", "-   bravo", " ".repeat(u) + "---"])).toEqual([]);
+    }
+  });
+
+  it("G4: a marker at its OWN indent moves the content column with it, and the underline must follow", () => {
+    // `  -   alpha` opens content column 6; a sibling marker at indent 1-5 opens 5, 6, 7, 8 or 9,
+    // and an underline left at 4 matches none of them — quarto renders a bare `ul` for all five
+    // (`r2/c_m1`..`c_m5`). Only the marker at 0, which closes the outer item and opens content
+    // column 4, renders the heading (`r2/c_m0`, pinned as this session's C-row).
+    for (const m of [1, 2, 3, 4, 5]) {
+      expect(names(["  -   alpha", " ".repeat(m) + "-   bravo", "    ---"])).toEqual([]);
+    }
+  });
+
+  it("G5: an EMPTY item is not a block start — a lone `-` below a sibling marker underlines nothing", () => {
+    // `-   alpha` / `-   bravo` / `-` / `    ---` renders `ul>hr` and NO heading (`r3/p_bare2`).
+    // ⚠ This is the row an unqualified "any list marker resets the run" spelling breaks: with the
+    // run back at 1 on `-   bravo`, the lone `-` below it is itself a level-2 underline and would
+    // claim `bravo`. CommonMark's own rule — an empty item may not interrupt a paragraph — is
+    // already spelled in `COMMONMARK_PARAGRAPH_INTERRUPT`, measured by Session 203.
+    expect(names(["-   alpha", "-   bravo", "-", "    ---"])).toEqual([]);
+  });
+
+  it("G6: a list marker inside INDENTED CODE is not a list marker at all", () => {
+    // `para` / `` / `    -   alpha` / `    -   bravo` / `        ---` renders `p>pre` — the whole
+    // block is code and no container opens (`r3/cd_incode`, `cd_incode2`).
+    expect(names(["para", "", "    -   alpha", "    -   bravo", "        ---"])).toEqual([]);
+    expect(names(["-   alpha", "", "        -   bravo", "            ---"])).toEqual([]);
+  });
+
+  it("G7: a DEFINITION container above a list marker is not a list, and nothing underlines", () => {
+    // A definition body and a footnote definition each open a container whose kind is
+    // `definition`, and pandoc absorbs a following marker into it rather than starting a sibling
+    // item: `:   term body` / `-   bravo` / `    ---` renders a bare `<p>` and `[^1]: note` /
+    // `-   bravo` / `    ---` renders nothing at all (`r3/p_defthen`, `p_fn`).
+    expect(names([":   term body", "-   bravo", "    ---"])).toEqual([]);
+    expect(names(["[^1]: note", "-   bravo", "    ---"])).toEqual([]);
+  });
+
+  it("G8: an ATX at the item's content column below a sibling marker is a lazy continuation", () => {
+    // `-   alpha` / `-   bravo` / `    # Probe Z` renders a bare `ul` (`r3/k_atx`). The reset
+    // moves the setext body run; it must not make the ATX below the marker visible.
+    expect(names(["-   alpha", "-   bravo", "    # Probe Z"])).toEqual([]);
+  });
+
+  it("G9: a blank line before the run, and the `*` spelling, both still decline", () => {
+    // `-   alpha` / `-   bravo` / `` / `    ---` renders `ul>p>p>hr` (`r3/p_tb`) — the blank ends
+    // the run, so the rule dividing them is the run and not the marker. `    ***` is a thematic
+    // break and underlines nothing in any reader (`r3/p_tb_star`).
+    expect(names(["-   alpha", "-   bravo", "", "    ---"])).toEqual([]);
+    expect(names(["-   alpha", "-   bravo", "    ***"])).toEqual([]);
+  });
+
+  it("G10: inside a quote the accepted column is the quote's own, and a run that misses it declines", () => {
+    // `> -   alpha` / `> -   bravo` / `>   ---` renders `blockquote>ul` and no heading — the
+    // item's content column inside the quote is 4 and the run arrives at 2 (`r3/q_lazy`).
+    // The deeper twin at column 4 renders the heading and is pinned as a C-row.
+    expect(names(["> -   alpha", "> -   bravo", ">   ---"])).toEqual([]);
+  });
+
+  it("G11: a list of ONE item has always underlined, and must be untouched", () => {
+    // `-   bravo` / `    ---` renders `ul>h2` and this model already reports it (`r3/k_single`,
+    // `r2/a6` in round r1). It is the row that proves the defect is the SECOND item, not the
+    // underline.
+    expect(names(["-   bravo", "    ---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("G12: a LOOSE list — blank-separated items — already works and must not move", () => {
+    // `-   alpha` / `` / `-   bravo` / `    ---` renders `ul>p>h2` (`r3/k_blank`). The blank line
+    // already returns the run to 0, so this row reaches the same answer by the pre-existing path
+    // and is the control that says the change is about TIGHT lists.
+    expect(names(["-   alpha", "", "-   bravo", "    ---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("G13: Sessions 244/245's marked-blank title is unmoved, at top level and one container in", () => {
+    // `>` / `---` / `# Probe Z` renders `section>h2>section>h1` (`r3/k_s245`), and the
+    // container twin `-   item one` / `` / `    >` / `    ---` / `# Probe Z` renders `ul>p>h2>h1`
+    // (`r3/k_s245_ctr`). Both are this session's inheritance and neither may move.
+    expect(names([">", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(["-   item one", "", "    >", "    ---", "# Probe Z"])).toEqual([
+      "h2:>",
+      "h1:Probe Z",
+    ]);
+  });
+
+  it("G14: a marked-blank title above a ONE-item list already reports both headings", () => {
+    // `>` / `---` / `-   bravo` / `    ---` renders `section>h2>ul>h2` and this model already
+    // reports both (`r2/h_qfirst`). It is the filed witness with the first item removed, and it
+    // is what localises that witness to the sibling marker rather than to the quote.
+    expect(names([">", "---", "-   bravo", "    ---"])).toEqual(["h2:>", "h2:bravo"]);
+  });
+
+  it("G15: under a CommonMark reader an underline at column 0 is a THEMATIC BREAK, not a title", () => {
+    // ⚠ The reset fires under every reader — `from: gfm` and `from: commonmark` both render
+    // `ul>h2` for the column-4 spelling (`r3/dia_gfm_u4`, `dia_commonmark_u4`) — but at column 0
+    // those readers render `ul>hr` and NO heading where the default reader renders the heading
+    // (`dia_gfm_u0`, `dia_commonmark_u0` against `dia_markdown_u0`). That asymmetry is
+    // `COMMONMARK_INDENT_OFFSETS`' existing job and the reset must not disturb it.
+    const doc = (reader: string, und: string) => [
+      "---",
+      `from: ${reader}`,
+      "---",
+      "",
+      "-   alpha",
+      "-   bravo",
+      und,
+    ];
+    expect(names(doc("gfm", "---"))).toEqual([]);
+    expect(names(doc("commonmark", "---"))).toEqual([]);
+  });
+});
