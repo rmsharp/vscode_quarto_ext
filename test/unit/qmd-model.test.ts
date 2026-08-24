@@ -14798,4 +14798,69 @@ describe("Session 245 — the marked-blank title needs an underline the containe
     expect(names([">", " ===", "---", ">", "===", ">"])).toEqual(["h2:==="]);
     expect(names([">", "  ===", "===", ">", "---", ">"])).toEqual(["h1:==="]);
   });
+
+  it("C2: BOTH marked spellings clear `already open`, not only the EMPTY one", () => {
+    // `> title` / `---` / `>` / `---` renders `section>h2>section>h2` — TWO headings. The first
+    // line is a CONTENT-carrying marked line the underline claims, so no block quote opens there
+    // either, and the `>` below it is free to be a title of its own
+    // (`scratchpad/s244/lossdocs/L0303_1`, `scratchpad/s245/r8/top_both`, `ctr_both`).
+    // ⚠ A pre-pass that cleared only for the EMPTY marker run costs 20 rendered rows here
+    // (`scratchpad/s245/exp`, scored against the shipped spelling).
+    expect(names(["> title", "---", ">", "---"])).toEqual(["h2:> title", "h2:>"]);
+    expect(names(["-   item one", "", "    > title", "    ---", "    >", "    ---"])).toEqual([
+      "h2:> title",
+      "h2:>",
+    ]);
+  });
+
+  it("C3: the pre-pass is COLUMN-ANCHORED, so it never narrows one container in", () => {
+    // `blockQuoteContentStart` with no columns falls back to `^[ \t]{0,3}>`, so a marker at a
+    // container's content column is not `marked` in the pre-pass and no quote is ever recorded as
+    // already open there. Rendered `ul>p>h2>h2` — TWO `h2:>` headings, both of which this model
+    // reports (`scratchpad/s245/r8/ctr_two_blank`). A depth-aware pre-pass would delete the second.
+    expect(names(["-   item one", "", "    >", "    ---", "    >", "    ---"])).toEqual([
+      "h2:>",
+      "h2:>",
+    ]);
+    expect(names([">", "---", ">", "---"])).toEqual(["h2:>", "h2:>"]);
+  });
+
+  it("R1 (RESIDUAL, PRE-EXISTING): a `-` rule underlined by a `-` rule inside a quote", () => {
+    // ⚠ **DISCLOSED, NOT FIXED — and Session 244 masked it by accident.** `>` / `    ---` / `---` /
+    // `# Probe Z` renders `blockquote>h1`: only `h1:Probe Z` is real, and this model also emits
+    // `h2:---` (`scratchpad/s245/r3/x_quote_dd`). Session 243's build emitted it too; Session 244's
+    // `consecutiveBody = 1` happened to suppress it, and the narrowing hands it back.
+    // ⚠ Its TOP-LEVEL twin is CORRECT bar typography — `    ---` / `---` / `# Probe Z` renders
+    // `h1:—` and `h1:Probe Z`, which is this model's `h2:---` only in that quarto smart-punctuates
+    // the heading TEXT and levels differ (`r3/y_bare_dd`) — so the defect is the QUOTE's, and it is
+    // the already-filed dash-rule-under-dash-rule family. Re-render before changing this row.
+    expect(names([">", "    ---", "---", "# Probe Z"])).toEqual(["h2:---", "h1:Probe Z"]);
+  });
+
+  it("R2 (RESIDUAL, PRE-EXISTING): a marked TITLE below a marked blank inside an open quote", () => {
+    // `    >` / `>` / `    > title` / `    ---` renders NOTHING (`scratchpad/s245/r4/n05_tail`), and
+    // this model emits `h2:> title`. ⚠ Isolated from its own document before being pinned: the
+    // phantom needs none of the lines above it, and Session 243's build emits it too — so it is not
+    // the marked-blank rule's, and no narrowing of that rule reaches it.
+    expect(names(["    >", ">", "    > title", "    ---"])).toEqual(["h2:> title"]);
+  });
+
+  it("R3/R4 (RESIDUAL, PRE-EXISTING): two shapes where the quote swallows the ATX and we do not", () => {
+    // `>` / `    ===` / `# Probe Z` renders `blockquote>p` and NO heading — the quote opens for real
+    // and the ATX is inside a paragraph (`scratchpad/s245/r0/b_u4eq`). `>` / `- - -` / `# Probe Z`
+    // renders nothing either, because the SPACED dash rule is a simple table (`r1/und_spc`). Both
+    // builds before this one emit `h1:Probe Z` too.
+    expect(names([">", "    ===", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names([">", "- - -", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("R5 (RESIDUAL): the 20 rendered rows this narrowing costs against Session 244's build", () => {
+    // ⚠ **THE MEASURED PRICE OF THE NARROWING, PINNED SO IT CANNOT GROW SILENTLY.** `>` /
+    // `    ---` / `    > title` / `---` / `    >` / `    ---` renders `h2:> title`; Session 244's
+    // build reported it and this one reports `h2:>` instead
+    // (`scratchpad/s244/lossdocs/L0182_0`, 20 rows across the 3,501-document loss set).
+    // Session 243's build reported `h2:>` here as well, so this is a recovery handed back rather
+    // than a heading newly lost — and against it the narrowing recovers 1,262 rows in the same set.
+    expect(names([">", "    ---", "    > title", "---", "    >", "    ---"])).toEqual(["h2:>"]);
+  });
 });

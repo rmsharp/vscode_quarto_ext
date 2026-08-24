@@ -8214,7 +8214,18 @@ function buildCloserIndex(lines: readonly string[]): Map<string, number[]> {
  * ⚠ **The underline test is `SETEXT_UNDERLINE_RUN` — column 0, REUSED not re-derived** (Learning
  * #14). This pre-pass has no container stack, exactly as `blockQuoteEndIndex` below has none, so
  * it cannot ask `setextUnderlineLevel`'s container-relative question; anchoring at column 0 is
- * the same choice its sibling makes. Measured: over the 330 enumeration classes no prior build
+ * the same choice its sibling makes.
+ *
+ * ⚠ **AND THE MARKER TEST IS COLUMN-ANCHORED TOO, WHICH IS WHY THIS COSTS NOTHING ONE CONTAINER
+ * IN.** `blockQuoteContentStart` with no `columns` falls back to `^[ \t]{0,3}>`, so a marker at a
+ * container's content column of 4 is not `marked` here at all and this pre-pass never says
+ * "already open" about it — it can only ever DECLINE to narrow, never narrow wrongly. Measured
+ * rather than assumed: `-   item one` / (blank) / `    >` / `    ---` / `    >` / `    ---`
+ * renders `ul>p>h2>h2`, TWO `h2:>` headings, and this model reports both
+ * (`scratchpad/s245/r8/ctr_two_blank`), where a depth-aware pre-pass would have blocked the
+ * second. The narrow, top-level-only answer is the whole of the gain measured below.
+ *
+ * Measured: over the 330 enumeration classes no prior build
  * produced, this spelling scores 738 of 1,147 rendered documents right against 468 for the
  * ungated build, with heading LOSS 74 against 113 and phantoms 317 against 613 — and it costs
  * NOTHING on Session 244's 3,501-document loss set, where it is identical to the ungated build
