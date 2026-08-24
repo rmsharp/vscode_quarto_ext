@@ -6342,7 +6342,41 @@ function computeRegions(text: string): Regions {
       // `g03_ctr_bare_title`). Deferring through `pendingFreshBlock` is the mechanism this
       // scanner already uses for a block line that makes the line BELOW it a paragraph start —
       // reused rather than re-derived (Learning #14). Guarded at G1.
-      const markedBlankOpensQuote = quoteOpensHere && !commonmarkDialect;
+      //
+      // ⚠ **AND IT FIRES ONLY WHEN THE LINE BELOW REALLY IS AN UNDERLINE THE OPEN STACK OFFERS
+      // (Session 245).** Opening the quote is not sufficient: where the next line does NOT
+      // underline the raw marker line, pandoc's email-style block quote opens for real and
+      // **LAZILY SWALLOWS EVERY LINE BELOW IT**, so the document below is inside the quote and
+      // not a fresh block at all. `>` / `    ===` / `===` / `# Probe Z` / a list renders
+      // `blockquote>h1>h1>ul` — `    ===` is the title INSIDE the quote, `===` underlines it, and
+      // `# Probe Z` is a heading in its own right; handing `consecutiveBody === 1` to the line
+      // below lost BOTH (`scratchpad/s245/r0/c_u4eq`, `c_u3eq`, `d_u3eq`, `d_u4eq`, `b_u1eq`,
+      // `b_u3eq`). Measured across 968 rendered rows in 333 transition classes of Session 244's
+      // own 9,157,952-document enumeration, which that session rendered and never scored.
+      //
+      // ⚠ **THE ACCEPTED COLUMNS ARE `[0, ...rawColumns]` — `setextUnderlineLevel`'s own set,
+      // REUSED rather than re-derived (Learning #14) — and NOT source column 0.** At top level
+      // the stash is empty and the set is `[0]`, which is why an underline at 1-4 forms nothing
+      // (`r0/a_u1da`..`a_u4da`); one container in, `-   item one` offers 0 AND 4 (`r2/deep_u0`,
+      // `deep_u4`) and a two-level `- a` / `  - b` stack offers 0, 2 and 4 — the WHOLE stack, not
+      // the innermost (`r2/stack_u0`, `stack_u2`, `stack_u4`). Anchoring at column 0 would delete
+      // every container row; this is the same contrast `SETEXT_UNDERLINE_RUN`'s docstring draws
+      // against itself. Guarded at G5, G6, G10.
+      //
+      // ⚠ **`rawColumns`, NOT `columns` — the entry line's own pop decides what is on offer**
+      // (Session 243's field, for exactly this). A marker at column 0 or 2 inside a list whose
+      // content column is 4 CLOSES that list, and quarto then renders `ul>blockquote>hr>h1`: the
+      // underline at 4 claims nothing and only `# Probe Z` is real (`r2/pop0_u4`, `pop2_u4`).
+      // Reading the unpopped stack here invents `h2:>` and loses that heading. Guarded at G11.
+      // ⚠ `outerColumns` is non-null whenever `quoteOpensHere` is true — the branch above assigns
+      // it on exactly that condition — but the `null` arm is spelled out because tsc cannot see it.
+      const belowUnderlinesRawLine =
+        i + 1 < lines.length &&
+        setextUnderlineLevel(lines[i + 1], [
+          0,
+          ...(outerColumns !== null ? outerColumns.rawColumns : []),
+        ]) !== null;
+      const markedBlankOpensQuote = quoteOpensHere && !commonmarkDialect && belowUnderlinesRawLine;
       consecutiveBody = markedBlankOpensQuote ? 1 : 0;
       pendingFreshBlock = markedBlankOpensQuote;
       paragraphOpen = false;

@@ -14762,3 +14762,24 @@ describe("Session 245 guard — answers around the marked-blank setext title tha
     expect(names(["-   item", "", "    > quoted one", "    ---"])).toEqual(["h2:> quoted one"]);
   });
 });
+
+describe("Session 245 — the marked-blank title needs an underline the container actually offers", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: an underline at a column the stack does not offer opens a REAL block quote", () => {
+    // ⚠ **THE FILED WITNESS.** `>` / `    ===` / `===` / `# Probe Z` / a list renders
+    // `blockquote>h1>h1>ul` — the underline four columns in does NOT claim the raw marker line,
+    // so a real block quote opens and LAZILY SWALLOWS every line below it. Inside that quote
+    // `    ===` is the title and `===` underlines it, and `# Probe Z` is a heading in its own
+    // right (`scratchpad/s245/r0/c_u4eq`, and `c_u3eq` at column 3).
+    //
+    // Session 244 handed `consecutiveBody === 1` to the line below on EVERY quote-opening
+    // marked-blank line, which made this document start a fresh block that quarto never starts —
+    // and both headings were lost.
+    expect(names([">", "    ===", "===", "# Probe Z", "-   item", "-   item"])).toEqual([
+      "h1:===",
+      "h1:Probe Z",
+    ]);
+  });
+});
