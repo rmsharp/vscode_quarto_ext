@@ -1118,6 +1118,12 @@ function setextTitleText(
   columns: readonly number[] | null,
   underlineColumn: number | null,
 ): string {
+  // ⚠ The ORDERED arm of this trigger is a FAST PATH and cannot change an answer (Session 247,
+  // mutant N2): where the line does not begin with an ordered marker the walk's first iteration
+  // breaks on the same grammar, `cut` stays `null`, and the function returns `rawText` — which is
+  // what the trigger returns. Kept for symmetry with the bullet arm, which is NOT redundant: it
+  // gates `BULLET_THEMATIC_BREAK`. 0 disagreements over 1,000,000 documents on an alphabet that
+  // varies the head of every line (`scratchpad/s247/hunt.test.ts`).
   if (BULLET_LIST_MARKER.test(rawText)) {
     if (BULLET_THEMATIC_BREAK.test(rawText)) {
       return rawText;
@@ -1168,6 +1174,17 @@ function setextTitleText(
     // renders no heading at all, where `1.` / `===` renders `h1:1.` (`scratchpad/s247/r3`,
     // `a_empty_u0`..`a_empty_u3`). The BULLET arm keeps its own answer here: a bare `-` never
     // reached this walk before and must not start now (guarded at G9).
+    //
+    // ⚠ **THE BULLET HALF OF THIS CONDITION IS REDUNDANT, AND IT IS KEPT BECAUSE IT IS RIGHT BY
+    // CONSTRUCTION RATHER THAN BY LUCK (Session 247, mutant N12).** Admitting a bare bullet here
+    // changes no answer: as the line's FIRST marker it never arrives, because `BULLET_LIST_MARKER`
+    // above requires whitespace after the bullet; and as a LATER one — `1.  -`, `-   -` — the
+    // two spellings agree anyway, since the leftover `-` this arm declines to strip is exactly
+    // what `BARE_BULLET_TAIL` maps to `""` at the end of the function. Measured, not argued: an
+    // alphabet dense in bare markers of both kinds, at several indents, with `1.  -` and `-   -`
+    // in it, gives 0 disagreements over 1,000,000 documents (`scratchpad/s247/hunt.test.ts`).
+    // ⚠ The first alphabet tried scored 0 without containing a single reaching shape, and was
+    // wrong to be believed; the letters above are what make the run evidence.
     if (after === at + markerWidth && !(ordered !== null && after === rawText.length)) {
       break; // no whitespace after it — `-text` is not a marker (and `-` alone is the filed item)
     }

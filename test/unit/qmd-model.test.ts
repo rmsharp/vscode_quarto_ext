@@ -15538,4 +15538,161 @@ describe("Session 247 — an ordered marker is stripped where the list it opens 
     // column gate alone says STRIP and is wrong (`scratchpad/s247/r7/m4_quote_only`).
     expect(names([">", "1.  bravo", "    ---"])).toEqual(["h2:1.  bravo"]);
   });
+
+  // ── TEST-AFTER PINS. Every row below is rendered; each was written because the mutation hunt
+  // named a term whose witness had been measured and simply not written down (Session 246's
+  // gotcha 6, and it fired again here: 8 of 22 mutants survived 2,747 tests).
+
+  it("C3: the strip fires at EVERY marker spelling the grammar admits, not just decimals", () => {
+    // Rendered at the content column, ten of ten (`scratchpad/s247/r1/f_*_u4`), plus `0.` and
+    // the lowercase single letter (`r5/lex_zero_uc`, `r6/lower_a_one_uc`). N15-N18 each remove
+    // one arm of the grammar and each is killed by a row here.
+    for (const mk of ["1.", "1)", "a.", "a)", "A)", "iv.", "IV.", "#.", "0.", "10."]) {
+      const gap = " ".repeat(Math.max(1, 4 - mk.length));
+      expect(names([mk + gap + "bravo", "    ---"])).toEqual(["h2:bravo"]);
+    }
+    // the WRAPPED spellings, which need the optional open paren (`r1/f_wrap_u4`, `f_wrapa_u4`)
+    expect(names(["(1)  bravo", "     ---"])).toEqual(["h2:bravo"]);
+    expect(names(["(a)  bravo", "     ---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("C4: an EMPTY ordered item at the content column leaves nothing displayable", () => {
+    // `1.` / `  ===` renders `ol` and NO heading, where `1.` / `===` renders `section>h1` and
+    // `h1:1.` (`scratchpad/s247/r3/a_empty_u0`..`a_empty_u3`, `a_empty10_u3`, `a_emptypar_u2`).
+    // Both are RECOVERIES: the pre-session build reported `h1:1.` on all four. The marker at end
+    // of line is still a marker, which is what N11 removes.
+    expect(names(["1.", "  ==="])).toEqual([]);
+    expect(names(["10.", "   ==="])).toEqual([]);
+    expect(names(["1)", "  ==="])).toEqual([]);
+    expect(names(["1.", "==="])).toEqual(["h1:1."]);
+  });
+
+  it("C5: inside a MARKED quote the gate is answered in the quote's own coordinates", () => {
+    // `> 1.  bravo` / `>     ---` renders `blockquote>ol>h2` and `h2:bravo`; its `> ---` twin
+    // renders `blockquote>h2` and keeps the marker (`scratchpad/s247/r2/g_quote_u4`,
+    // `g_quote_u0`). ⚠ The RAW columns cannot tell these apart at all — both underline lines
+    // begin at source column 0 — which is what N20 exposes by passing `indentColumn(raw)`.
+    expect(names(["> 1.  bravo", ">     ---"])).toEqual(["h2:bravo"]);
+    expect(names(["> 1.  bravo", "> ---"])).toEqual(["h2:1.  bravo"]);
+  });
+
+  it("C6: the marker width is READ, and a wide marker moves the strip column with it", () => {
+    // `100.  bravo` opens content column 6 and strips only there (`scratchpad/s247/r1/b_w100_u6`
+    // against `b_w100_u0`); `  1.  bravo` opens 6 as well (`c_ind2_u6`). N9 assumes width 1 and
+    // N10 reads it one short; both die here.
+    expect(names(["100.  bravo", "      ---"])).toEqual(["h2:bravo"]);
+    expect(names(["100.  bravo", "---"])).toEqual(["h2:100.  bravo"]);
+    expect(names(["  1.  bravo", "      ---"])).toEqual(["h2:bravo"]);
+    expect(names(["123456789.  bravo", "            ---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("C7: the strip is right under the CommonMark-family readers too", () => {
+    // ⚠ Those readers have no header-before-list ordering at all: `1.  bravo` / `---` renders
+    // `ol>hr` and NO heading under both `gfm` and `commonmark`, where the default reader renders
+    // `section>h2` and keeps the marker. At the content column all three readers agree on
+    // `h2:bravo` (`scratchpad/s247/r5/dia_*`). The bullet twin is unmoved in every reader.
+    for (const rd of ["gfm", "commonmark"]) {
+      const fm = ["---", "format: html", `from: ${rd}`, "---", ""];
+      expect(names([...fm, "1.  bravo", "    ---"])).toEqual(["h2:bravo"]);
+      expect(names([...fm, "-   bravo", "    ---"])).toEqual(["h2:bravo"]);
+      expect(names([...fm, "1.  bravo", "---"])).toEqual([]);
+    }
+  });
+
+  it("C8: a pseudo-marker's own content column is unreachable, so a run's SECOND marker declines", () => {
+    // ⚠ **THE ROW THAT MAKES THE GRAMMAR'S DELIBERATE OVER-ACCEPTANCE SAFE HERE.**
+    // `1.  Elephants.  bravo` / `    ---` renders `ol>h2` with `h2:Elephants. bravo` — the
+    // ordered marker strips and `Elephants.`, which the grammar also matches, does NOT, because
+    // the underline column an item is formed at comes from `listItemContentColumn`, which reads
+    // only the FIRST marker of a line (`scratchpad/s247/r4/inner_word`). N22 unanchors the read
+    // and dies here.
+    expect(names(["1.  Elephants.  bravo", "    ---"])).toEqual(["h2:Elephants.  bravo"]);
+    // and the same for a real inner marker one container in (`r4/inner_two_u8`)
+    expect(names(["-   alpha", "    -   1.  bravo", "        ---"])).toEqual(["h2:1.  bravo"]);
+  });
+
+  it("C9: a gap wider than FOUR collapses the content column, and the gate must read THAT", () => {
+    // ⚠ CommonMark: with five or more spaces after the marker the item's content column is one
+    // past the MARKER, not at the content. `1.     bravo` / `   ---` renders `ol>h2` and
+    // `h2:bravo` — the underline sits at 3, while the text begins at 7 (`scratchpad/s247/r8`,
+    // `n6_gap5`, `n6_gap6`, and `n6_gap4` for the four-space twin where the two coincide). A gate
+    // that read the gap's end instead keeps the marker on all three, which is mutant N6.
+    expect(names(["1.     bravo", "   ---"])).toEqual(["h2:bravo"]);
+    expect(names(["1.      bravo", "   ---"])).toEqual(["h2:bravo"]);
+    expect(names(["1.    bravo", "      ---"])).toEqual(["h2:bravo"]);
+    // and four past the collapsed column is INDENTED CODE, so no heading forms (`n6_gap5_deep`)
+    expect(names(["1.     bravo", "       ---"])).toEqual([]);
+  });
+
+  it("C10: the marker is read AT the walk's position, never found later in the line", () => {
+    // `1.  xy 1. z` / `    ---` renders `ol>h2` and `h2:xy 1. z` — the LEADING marker strips and
+    // the `1.` inside the text does not (`scratchpad/s247/r8/n22_tail`, with `n22_tail2` the
+    // outer-underline twin that keeps both and `n22_bul` the bullet control). An unanchored read
+    // finds the inner `1.` and takes its width for the outer position, which is mutant N22.
+    expect(names(["1.  xy 1. z", "    ---"])).toEqual(["h2:xy 1. z"]);
+    expect(names(["1.  xy 1. z", "---"])).toEqual(["h2:1.  xy 1. z"]);
+    expect(names(["-   xy 1. z", "    ---"])).toEqual(["h2:xy 1. z"]);
+  });
+
+  it("R1: the strip does not ask whether an ordered list was ALREADY OPEN above", () => {
+    // ⚠ **THE ONE DISCLOSED GAP IN THE RULE, and it is a container-state change rather than an
+    // oversight.** Where a list is already open its own parser claims a sibling marker before
+    // the header parser sees it, so quarto strips at EVERY underline column and this build keeps
+    // the marker whenever the underline is at an outer one. Seven rendered witnesses
+    // (`scratchpad/s247/r2/a_second_same`, `a_second_blank`, `a_third`, `a_same_num`,
+    // `f_ol_open_ol`, `c_inner_sib_u0`, `c_inner_sib_u4`).
+    // ⚠ Answering it needs the KIND and DELIMITER of the open list, because a marker of a
+    // DIFFERENT kind or delimiter starts a NEW list and keeps its marker — and `columnKinds`
+    // carries only `list`/`definition`. Those two rows are guarded at G2, so a fix must keep them.
+    // ⚠ NO HEADING IS GAINED OR LOST by leaving it: every one of these rows reported the marker
+    // before this session too. Corpus weight: 0 of 60,998 documents swept.
+    expect(names(["1.  alpha", "2.  bravo", "---"])).toEqual(["h2:2.  bravo"]); // quarto: h2:bravo
+    expect(names(["1.  alpha", "", "2.  bravo", "---"])).toEqual(["h2:2.  bravo"]); // quarto: h2:bravo
+    expect(names(["1.  alpha", "    1.  bravo", "    2.  charlie", "---"])).toEqual([
+      "h2:2.  charlie",
+    ]); // quarto: h2:charlie
+  });
+
+  it("R2: an UPPERCASE letter with a PERIOD and ONE space is an initial in a name, not a marker", () => {
+    // PRE-EXISTING as a phantom and moved only in its TEXT: `A. bravo` / `   ---` renders a bare
+    // `<p>` and NO heading, and this model reports a heading in both builds — before this session
+    // with the `A.` and after it without (`scratchpad/s247/r6/capA_one_uc`, `capI_one_uc`).
+    // ⚠ **THE TWO-SPACE SPELLING REALLY IS A LIST and is a RECOVERY**, which is exactly why the
+    // shared wide grammar is used here rather than `popsEnclosingContainer`'s narrower measured
+    // set: built as a candidate `src` copy and scored, the narrow spelling loses `A.  bravo` and
+    // gains nothing, 308 exactly right against 309 over 430 rendered documents
+    // (`scratchpad/s247/expB`). The 102 other rows they differ on are phantoms in both.
+    expect(names(["A.  bravo", "    ---"])).toEqual(["h2:bravo"]); // quarto agrees — a real list
+    expect(names(["a. bravo", "   ---"])).toEqual(["h2:bravo"]); // quarto agrees — lowercase is a list
+    expect(names(["A. bravo", "   ---"])).toEqual(["h2:bravo"]); // quarto: NO heading at all
+    expect(names(["Dr. bravo", "    ---"])).toEqual(["h2:bravo"]); // quarto: NO heading at all
+  });
+
+  it("R3: a marker longer than NINE characters is not in the shared grammar at all", () => {
+    // PRE-EXISTING and unmoved: pandoc opens a list for a 10-digit ordinal and a 10-letter roman
+    // numeral, and `LIST_ITEM_MARKER_SRC`'s `{1,9}` runs do not, so no content column is pushed
+    // and NO heading is reported at all — a heading LOST, not a text divergence
+    // (`scratchpad/s247/r5/lex_d10_uc`, `lex_rom10_uc`; found by an independent agent and
+    // verified firsthand). ⚠ It belongs to `listItemContentColumn`, which every container rule
+    // reads, so widening it is a container change and not a strip change.
+    expect(names(["1234567890.  bravo", "             ---"])).toEqual([]); // quarto: h2:bravo
+    expect(names(["mmmdcccxxx.  bravo", "             ---"])).toEqual([]); // quarto: h2:bravo
+    // the 9-character twins, which this build gets right in both directions
+    expect(names(["123456789.  bravo", "            ---"])).toEqual(["h2:bravo"]);
+    expect(names(["123456789.  bravo", "---"])).toEqual(["h2:123456789.  bravo"]);
+  });
+
+  it("R4: a marker-only line above a ONE-line title deletes the heading, for BOTH marker kinds", () => {
+    // PRE-EXISTING and unmoved, and NOT an ordered-marker defect: `1.` / `bravo` / `---` renders
+    // `ol>h2` with `h2:bravo` and this model reports nothing, and the BULLET spelling
+    // `-` / `bravo` / `---` fails identically (`scratchpad/s247/r5/ttl_ol_del`, `ttl_ul_del`,
+    // `ttl_ol_del2`). Pandoc consumes the marker-only line as an EMPTY item, after which `bravo`
+    // is the item's first and only body line; this model counts it as a body line, so the run
+    // reaches 2 and the default reader's one-line title is no longer on offer.
+    // ⚠ Found by an independent agent and verified firsthand; the bullet control is what says it
+    // is the body-run rule and not this session's. Filed.
+    expect(names(["1.", "bravo", "---"])).toEqual([]); // quarto: h2:bravo
+    expect(names(["-", "bravo", "---"])).toEqual([]); // quarto: h2:bravo
+    expect(names(["1.", "bravo", "==="])).toEqual([]); // quarto: h1:bravo
+  });
 });
