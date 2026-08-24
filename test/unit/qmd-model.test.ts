@@ -14613,3 +14613,152 @@ describe("Session 244 — a marked-blank quote line stays available as a setext 
     expect(names([">", "==="])).toEqual(["h1:>"]);
   });
 });
+
+describe("Session 245 guard — answers around the marked-blank setext title that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ **THIS BLOCK IS WRITTEN BEFORE THE CHANGE AND IS GREEN ON THE PRE-SESSION BUILD.** Every
+  // row is a document rendered through the real `quarto render` path (quarto 1.7.33) in
+  // `scratchpad/s245/r0`, `r1` and `r2`, and every one of them ALREADY agrees.
+  //
+  // This session NARROWS Session 244's marked-blank rule, which currently fires on every line
+  // that opens a quote with empty stripped content. The narrowing has two dangerous directions
+  // and the block is weighted to both:
+  //
+  //   DELETING  the rule stops firing where quarto really does form the title, and the
+  //             recovery Session 244 shipped is given back      (G1-G9)
+  //   PHANTOM   the rule keeps firing where quarto opens a REAL block quote that lazily
+  //             swallows everything below it                    (G10-G14)
+
+  it("G1: the core recovery — an unmarked underline at column 0 claims the raw marker line", () => {
+    // `>` / `---` / `# Probe Z` renders `section>h2>section>h1`: no `<blockquote>` forms at all,
+    // because the setext parse claims the raw line before any quote is parsed
+    // (`scratchpad/s245/r1/mk0_da`, `mk0_eq`).
+    expect(names([">", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names([">", "===", "# Probe Z"])).toEqual(["h1:>", "h1:Probe Z"]);
+  });
+
+  it("G2: the marker line's OWN indent does not gate it — columns 1-3 form the title too", () => {
+    // ⚠ The narrowing is a rule about the line BELOW, not about the marker line. At top level a
+    // marker at 1, 2 or 3 renders `section>h2>section>h1` exactly as column 0 does
+    // (`r1/mk1_da`, `mk2_da`, `mk3_da`).
+    expect(names([" >", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(["  >", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(["   >", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+  });
+
+  it("G3: the whole marker RUN is the title text, however long and however spaced", () => {
+    // `>>` / `---` renders `h2:&gt;&gt;` — the underline takes the raw line entire, so the run
+    // length and any internal space are heading TEXT (`r1/run2`, `run3`, `runsp`, `mksp`,
+    // `mktab`). ⚠ `"> "` and `">\t"` carry trailing whitespace ON PURPOSE.
+    expect(names([">>", "---", "# Probe Z"])).toEqual(["h2:>>", "h1:Probe Z"]);
+    expect(names([">>>", "---", "# Probe Z"])).toEqual(["h2:>>>", "h1:Probe Z"]);
+    expect(names(["> >", "---", "# Probe Z"])).toEqual(["h2:> >", "h1:Probe Z"]);
+    expect(names(["> ", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names([">\t", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+  });
+
+  it("G4: every underline SHAPE quarto accepts still forms the title", () => {
+    // One character is enough, any length is fine, and trailing whitespace of either kind is
+    // allowed (`r1/und_1`, `und_1eq`, `und_long`, `und_sp`, `und_tab`). ⚠ `"---   "` and
+    // `"---\t"` carry trailing whitespace ON PURPOSE.
+    expect(names([">", "-", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names([">", "=", "# Probe Z"])).toEqual(["h1:>", "h1:Probe Z"]);
+    expect(names([">", "----------", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names([">", "---   ", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names([">", "---\t", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+  });
+
+  it("G5: ONE CONTAINER IN, the underline is accepted at the container's content column TOO", () => {
+    // ⚠ **THE ROW THE NARROWING IS MOST LIKELY TO BREAK.** Inside `-   item one` (content column
+    // 4) quarto forms the title from an underline at 0 AND at 4, rendering `ul>p>h2>h1`
+    // (`r2/deep_u0`, `deep_u4`, `deep_e0`, `deep_e4`). A narrowing anchored at source column 0
+    // deletes the second of each pair.
+    expect(names(["-   item one", "", "    >", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(["-   item one", "", "    >", "    ---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(["-   item one", "", "    >", "===", "# Probe Z"])).toEqual(["h1:>", "h1:Probe Z"]);
+    expect(names(["-   item one", "", "    >", "    ===", "# Probe Z"])).toEqual(["h1:>", "h1:Probe Z"]);
+  });
+
+  it("G6: on a TWO-LEVEL stack the accepted set is the WHOLE stack, not the innermost column", () => {
+    // `- a` / `  - b` opens content columns 2 and 4; the underline forms the title at 0, 2 AND 4,
+    // all three rendering `ul>ul>p>h2>h1` (`r2/stack_u0`, `stack_u2`, `stack_u4`).
+    const doc = (und: string) => ["- a", "  - b", "", "    >", und, "# Probe Z"];
+    expect(names(doc("---"))).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(doc("  ---"))).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(doc("    ---"))).toEqual(["h2:>", "h1:Probe Z"]);
+  });
+
+  it("G7: an ORDERED container offers its column the same way, and a TAB reaches it", () => {
+    // `1.  item one` has content column 4 (`r2/ol_u0`, `ol_u4`), and a tab from column 0 lands
+    // exactly on 4, which quarto accepts (`r2/tab_on4`, `ul>p>h2>h1`).
+    expect(names(["1.  item one", "", "    >", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(["1.  item one", "", "    >", "    ---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(["-   item one", "", "    >", "\t---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+  });
+
+  it("G8: an entry line that POPS its container still forms the title at column 0", () => {
+    // A marker at column 0 or 2 inside a list whose content column is 4 CLOSES that list, and the
+    // title still forms from an underline at 0 — rendered `ul>section>h2>section>h1`
+    // (`r2/pop0_u0`, `pop2_u0`, `pop0_e0`, `pop2_e0`).
+    expect(names(["-   item one", "", ">", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(["-   item one", "", "  >", "---", "# Probe Z"])).toEqual(["h2:>", "h1:Probe Z"]);
+    expect(names(["-   item one", "", ">", "===", "# Probe Z"])).toEqual(["h1:>", "h1:Probe Z"]);
+  });
+
+  it("G9: the underline may be the LAST line in the document", () => {
+    // `>` / `---` with nothing after it renders `section>h2` (`r2/eof_und`). ⚠ A narrowing that
+    // reads `lines[i + 1]` must not fall off the end here, nor fire at true EOF (`r2/eof_bare`,
+    // which renders a bare `<blockquote>` and no heading).
+    expect(names([">", "---"])).toEqual(["h2:>"]);
+    expect(names([">"])).toEqual([]);
+  });
+
+  it("G10: at a column the container does NOT offer, nothing is claimed", () => {
+    // Inside `-   item one` the underline at 2 and at 5 forms no title — quarto renders a simple
+    // `<table>` at 2 and nothing at 5 (`r1/ctr_u2`, `ctr_u5`, `r2/deep_u2`, `ol_u3`), and on the
+    // two-level stack column 6 is past the whole stack (`r2/stack_u6`).
+    expect(names(["-   item one", "", "    >", "  ---", "# Probe Z"])).toEqual([]);
+    expect(names(["-   item one", "", "    >", "     ---", "# Probe Z"])).toEqual([]);
+    expect(names(["1.  item one", "", "    >", "   ---", "# Probe Z"])).toEqual([]);
+    expect(names(["- a", "  - b", "", "    >", "      ---", "# Probe Z"])).toEqual([]);
+  });
+
+  it("G11: a POPPED container's column is no longer offered, and the ATX below survives", () => {
+    // ⚠ **THE ROW THAT SEPARATES `rawColumns` FROM `columns`.** A marker at column 0 or 2 pops the
+    // list, so the underline at 4 claims NOTHING and quarto renders `ul>blockquote>hr>h1` — only
+    // `# Probe Z` is real (`r2/pop0_u4`, `pop2_u4`, `pop0_u2`). Reading the UNPOPPED stack here
+    // would invent `h2:>` and lose the heading.
+    expect(names(["-   item one", "", ">", "    ---", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   item one", "", "  >", "    ---", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["-   item one", "", ">", "  ---", "# Probe Z"])).toEqual([]);
+  });
+
+  it("G12: a line that is not an underline at all claims nothing", () => {
+    // `-=-` is neither spelling and renders `blockquote>p` (`r1/und_mix`); `***` is a thematic
+    // break INSIDE the quote, rendering `blockquote>hr>h1` (`r1/und_star`).
+    expect(names([">", "-=-", "# Probe Z"])).toEqual([]);
+    expect(names([">", "***", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("G13: Session 244's own two directions are unmoved", () => {
+    // The S243 R5 control (`>` / `> title` / `---` renders `h2:title`), the already-open quote
+    // (`> para one` / `>` / `---` renders nothing), and the dialect arm — all three are Session
+    // 244's guard rows, re-asserted here because the narrowing edits the same expression.
+    expect(names([">", "> title", "---"])).toEqual(["h2:title"]);
+    expect(names(["-   item", "", "    >", "    > title", "    ---"])).toEqual(["h2:title"]);
+    expect(names(["> para one", ">", "---"])).toEqual([]);
+    expect(names(["---", "format: html", "from: gfm", "---", "", ">", "---", "# Probe Z"])).toEqual([
+      "h1:Probe Z",
+    ]);
+  });
+
+  it("G14: the CONTENT-carrying twin is not reached by a rule about the EMPTY marker run", () => {
+    // `> quoted one` / `---` renders `h2:> quoted one` at both depths and on the pre-S244 build
+    // (`r1/ctl_title` is its marked-title sibling; Session 244's G8 is the same family). This row
+    // never enters the branch the narrowing edits, and proves it.
+    expect(names(["> quoted one", "---"])).toEqual(["h2:> quoted one"]);
+    expect(names(["-   item", "", "    > quoted one", "    ---"])).toEqual(["h2:> quoted one"]);
+  });
+});
