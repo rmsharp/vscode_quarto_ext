@@ -5,18 +5,109 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **A RECOVERED MARKED-BLANK TITLE COSTS A CONTAINER UNDERLINE FURTHER DOWN THE SAME DOCUMENT.** Implementation, strict TDD. Session 245's ranked #1, filed from its scoring of Session 244's 3,617-document rendered loss set; **MEASURED, 146 rendered rows, heading-DELETING**. Operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
-**Status:** IN PROGRESS — Session 246 claimed.
+**Task:** **NONE — Session 246 closed out. The next session picks from `BACKLOG.md` (186 open items, Active section empty) via the ranked `AskUserQuestion` step.**
+**Last shipped:** Session 246 — a sibling list marker starts a fresh block. Closed Session 245's ranked #1 and, without aiming at it, Session 198's bare-`-` residual.
+**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0.
 
 ---
 
-### What Session 246 Did
-**Deliverable:** The lost container underline — `>` / `---` / `-   item` / `>` / `-   item` / `    ---` renders `h2:>` AND `h2:item`; every build so far reports exactly one of them, and Session 243's build reports the OTHER one. Localised by that opposition to the scanner's container state rather than to either rule. (IN PROGRESS)
-**Started:** 2026-08-23
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 245 Handoff Evaluation (by Session 246)
 
-**Phase 0 findings (2026-08-23).** Branch `master`, clean but for two appended `dashboard_history.jsonl` lines and the untracked `scratchpad/`. Ledger reconcile found NOTHING owed: both frontiers ARE HEAD (`1cd018dd`, gap 0), 0 line-anchored `status: pending` receipts against 207 complete and 2 reconciled, no ghost session. 0 open GitHub issues, so `BACKLOG.md` governs — 183 open items, Active section empty. Baseline re-measured firsthand rather than inherited: `check-types` 0, `check-types:unit` 0, `compile` 0, `npm test` 2697 passed / 66 files, `check-backlog` OK 183 — all three matching Session 245's recorded close-out exactly. Dashboard health 76/100, 1 high risk, 6 devDependency-only vulns.
+**Score: 9/10.** It named this session's deliverable, sized it honestly, handed over a harness that
+worked unchanged, and every rendered claim in it reproduced firsthand. The point comes off for a
+framing that was accurate in every particular and pointed one container away from the mechanism.
+
+**What helped, specifically.**
+- **Its ranked #1 was correct, complete, and correctly sized at MEDIUM.** The four witness
+  documents reproduced byte-for-byte on the first render: quarto emits `h2:>` and `h2:item`,
+  S243 reports the second, S244 and S245 the first. Four for four, no reconstruction needed.
+- **Gotcha 2 — score (S243, S244, NOW) against quarto per row, never pre/post — is the single
+  reason this session's numbers are trustworthy.** I extended it to FOUR builds and it is what
+  separated "my build is wrong" from "every build is wrong here", which is the difference
+  between 37 apparent corpus regressions and the 2 that are real.
+- **Gotcha 3 (normalise typography before counting) fired on my very first corpus score.** Quarto
+  smart-punctuates `---` to an em dash and collapses double spaces; without the normaliser 35
+  correct rows would have read as mismatches, and I would have gone hunting for a defect in my
+  own change that is a pre-existing text rule.
+- **Gotcha 10 was load-bearing and I obeyed it without testing it** — I ran the survivor hunt at
+  N=5 and it finished comfortably. Not learning that the hard way cost nothing.
+- **The scratchpad inherited cleanly.** `render244.sh`, `tsv2json.py`, `three.test.ts`,
+  `sweep.test.ts`, `brute.test.ts`, `hunt.test.ts` and `mutate245.py` all worked with a rename or
+  a MUTANTS swap, exactly as promised. `presrc/` was byte-identical to the session-start build
+  when I checked its SHA-256.
+- **`npm test` matched the recorded 2697 exactly**, `test:oracle` was byte-identical, and
+  `check-backlog` matched at 183, so the baseline it handed over was true in every particular.
+
+**What was missing — and this is the point that comes off.**
+- ⚠ **IT FILED THE ITEM AS A QUOTE DEFECT AND THE MINIMAL WITNESS HAS NO QUOTE IN IT.** The entry
+  says the defect is "in the scanner's container state rather than in either rule", reasoning
+  from the fact that S243 reports the OTHER heading. That inference is sound and the conclusion
+  is wrong: S243's answer is an accident of a quote misparse, and it reports NOTHING on the same
+  document with the `>` lines deleted. The real witness is `-   alpha` / `-   bravo` / `    ---`
+  — three lines, no quote, no marked blank. ⚠ **And the tell was inside the entry itself:** it
+  records that the ONE-item twin has always worked. A defect that appears on the second item of a
+  list and not the first is about the second marker, whatever else is in the document.
+- It did not anticipate that the fix would put the item-versus-underline reading of a bare `-`
+  back in scope, which is where two thirds of this session went. That is genuinely what the
+  session was for, so it is not a fault — but it is why MEDIUM was only just right.
+
+**What was wrong: nothing.** Every witness reproduced, every count matched, every gotcha held.
+
+**ROI:** very high. Six of its ten gotchas were load-bearing, two of them (the three-build score
+and the typography normaliser) are the difference between an honest measurement and a confident
+wrong one.
+
+---
+
+## Session 246 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I deleted the filed item's premise before believing it, and that is the whole session.** The
+  entry named a quote; I removed every `>` from its witness and rendered what was left. Three
+  lines, no quote, same defect. Everything after that was measuring a rule about list markers
+  instead of chasing container state through a block quote.
+- **The guard block earned its cost within one run.** G5 — an empty item is not a block start —
+  went RED on the first GREEN, catching a phantom my change had introduced on exactly the row it
+  was written for. I had predicted that row in advance and written the guard for it, which is
+  what a guard block is supposed to be.
+- **I paid the price of my own change instead of pinning it.** Declining the bare-marker underline
+  deleted an ATX on four measured rows, because the wrong rule had been clearing `paragraphOpen`
+  as a side effect. Rather than disclose that as a residual I added the two terms that replace
+  what the accident was doing — and they recover rows no build has ever got right.
+- **I ran the enumeration even though six gates were green, and it changed what shipped twice.**
+  2,731 unit tests, a byte-identical oracle, a 60,998-document corpus sweep, a clean repo sweep
+  and 175 rendered probes were all green on a build that got the marker's KIND wrong on 8 of 28
+  matrix rows and dropped a heading between two readers of one question.
+- **I ran the mutation hunt twice and treated it as a coverage oracle.** Eight survivors named
+  terms whose rendered witnesses I had already measured and simply not written down; five pins
+  killed five of them, and the second run took 32 mutants to 27 dead.
+- **I reported the set count and the per-heading count separately and said which is which**, so
+  "37 corpus documents got worse" and "35 of those are recoveries" are both on the record.
+- **Phase 3E green first time on a go-ahead sought in advance**, with an EXACT heading-list-in-
+  order match against quarto's own 28-heading render pre-checked headlessly first.
+
+**What went wrong.**
+- ⚠ **I ran `npx prettier --write` on `model.ts` and it reformatted the entire 8,600-line file**
+  at the wrong print width — 701 insertions where my change was 91. The repo has no prettier
+  config; its formatting is hand-maintained. I restored from HEAD and re-applied by hand, but it
+  cost twenty minutes and could have buried the change in noise had I not read the diff.
+- ⚠ **I transcribed a pin from a summary instead of the witness bytes and it went red immediately**
+  — C14 asserted a three-line document where the witness is five. Exactly Session 243's slip, one
+  session after reading it in the handoff.
+- ⚠ **My first ordered-marker term reads `!listOpenAboveThisLine` where the exact question is "an
+  ORDERED list at THIS marker column".** It is right on every row of the 28-document matrix and
+  wrong where a list of the other kind is open above, which is R5, filed. I shipped the
+  approximation knowingly and pinned it, but the enumeration had already shown me the rows.
+- **I let the enumeration's stratified rate look like a corpus rate for a few minutes** before
+  separating them. 228 of 878 and 2 of 628 are both true and answer different questions.
+
+**Against the bar.** Sessions 238-245 each shipped one measured term with a full pre/post matrix,
+a mutation hunt and an enumeration; this session matches that and adds a re-derivation of the
+filed item's own premise, a four-build comparison, and a per-heading scoring method the
+predecessors' set comparison would have scored backwards. Where it falls short of a 9 is the
+prettier accident and a pin transcribed from a summary — both self-inflicted, both cheap.
 
 ---
 
