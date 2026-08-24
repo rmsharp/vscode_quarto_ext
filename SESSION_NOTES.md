@@ -5,9 +5,18 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 245 closed out. The next session picks from `BACKLOG.md` (183 open items, Active section empty) via the ranked `AskUserQuestion` step.**
-**Last shipped:** Session 245 — the marked-blank setext title needs an underline the open stack offers. Narrowed Session 244's `a3c8987f`, which had shipped a heading-deleting regression to `master`.
-**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0.
+**Task:** **A RECOVERED MARKED-BLANK TITLE COSTS A CONTAINER UNDERLINE FURTHER DOWN THE SAME DOCUMENT.** Implementation, strict TDD. Session 245's ranked #1, filed from its scoring of Session 244's 3,617-document rendered loss set; **MEASURED, 146 rendered rows, heading-DELETING**. Operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list.
+**Status:** IN PROGRESS — Session 246 claimed.
+
+---
+
+### What Session 246 Did
+**Deliverable:** The lost container underline — `>` / `---` / `-   item` / `>` / `-   item` / `    ---` renders `h2:>` AND `h2:item`; every build so far reports exactly one of them, and Session 243's build reports the OTHER one. Localised by that opposition to the scanner's container state rather than to either rule. (IN PROGRESS)
+**Started:** 2026-08-23
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Phase 0 findings (2026-08-23).** Branch `master`, clean but for two appended `dashboard_history.jsonl` lines and the untracked `scratchpad/`. Ledger reconcile found NOTHING owed: both frontiers ARE HEAD (`1cd018dd`, gap 0), 0 line-anchored `status: pending` receipts against 207 complete and 2 reconciled, no ghost session. 0 open GitHub issues, so `BACKLOG.md` governs — 183 open items, Active section empty. Baseline re-measured firsthand rather than inherited: `check-types` 0, `check-types:unit` 0, `compile` 0, `npm test` 2697 passed / 66 files, `check-backlog` OK 183 — all three matching Session 245's recorded close-out exactly. Dashboard health 76/100, 1 high risk, 6 devDependency-only vulns.
 
 ---
 

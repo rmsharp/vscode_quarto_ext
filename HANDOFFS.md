@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S246
+date: 2026-08-23
+status: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- A RECOVERED MARKED-BLANK TITLE COSTS A CONTAINER UNDERLINE FURTHER DOWN THE SAME DOCUMENT. Session 245's ranked #1, filed from its scoring of Session 244's 3,617-document rendered loss set; MEASURED, 146 rendered rows, heading-DELETING. `>` / `---` / `-   item` / `>` / `-   item` / `    ---` renders h2:> AND h2:item; every build so far reports exactly one, and Session 243's build reports the OTHER one -- which localises it to the scanner's container state rather than to either rule. Operator picked it at Phase 0 from the ranked AskUserQuestion candidate list.
+```
+
+```handoff
 session: S245
 date: 2026-08-23
 status: complete
