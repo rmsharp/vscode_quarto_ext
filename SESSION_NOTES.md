@@ -5,13 +5,102 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 245 — IMPLEMENTATION (strict TDD): THE MARKED-BLANK SETEXT TITLE DELETES A HEADING WHEN THE LINE BELOW IT IS AN INDENTED UNDERLINE** — narrow Session 244's fix (`a3c8987f`) so it keeps what it recovers and stops what it breaks. ⚠ **THE REGRESSION IS ON `master` AND EVERY FAST GATE IS GREEN ON IT.** Found by S244's own 9,157,952-document enumeration, whose 3,617 rendered loss documents that session never scored; scored at this session's Phase 0: **1,760 rows / 622 classes where the new build is RIGHT**, **968 rows / 333 classes where it LOSES a heading quarto really renders**. The operator picked "narrow the regression" at Phase 0 from the ranked `AskUserQuestion` candidate list, over a revert.
-**Started:** 2026-08-23
-**Status:** Session claimed. Work beginning. (IN PROGRESS)
-**Deliverable (ONE capability):** `markedBlankOpensQuote` in `src/core/qmd/model.ts` narrowed to the rows quarto agrees with — the marked-blank line stays a setext title where it opens the quote AND the line below is a fresh block, and stops handing `consecutiveBody === 1` to a line quarto reads as the quote's own content.
-**Witnesses (re-rendered firsthand at Phase 0, quarto 1.7.33):** `scratchpad/s245/w/W1.qmd` = `>` / `    ===` / `===` / `# Probe Z` / list → quarto `h1:===`, `h1:Probe Z`; pre-S244 build BOTH; **HEAD nothing** (the regression). `W2.qmd` = the `    ---` twin → quarto `h1:—`, `h1:Probe Z` (quarto smart-punctuates the title text). `W3.qmd` = `>` / `---` → quarto `h2:>`; pre-S244 nothing; **HEAD `h2:>`** (the recovery that must survive).
-**Baseline at claim:** `check-types` 0 · `check-types:unit` 0 · `npm test` **2673 passed / 66 files** · `check-backlog` OK **181 open items**. Phase 0 reconcile committed as `15d609f4` (ledger backfill + S244 receipt marked `reconciled`).
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Task:** **NONE — Session 245 closed out. The next session picks from `BACKLOG.md` (183 open items, Active section empty) via the ranked `AskUserQuestion` step.**
+**Last shipped:** Session 245 — the marked-blank setext title needs an underline the open stack offers. Narrowed Session 244's `a3c8987f`, which had shipped a heading-deleting regression to `master`.
+**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0.
+
+---
+
+## Session 244 Handoff Evaluation (by Session 245)
+
+**Score: 2/10.** There was no handoff. Session 244 wrote a Phase 1B claim, made two commits, ran
+two hours of verification, and ended — no `CHANGELOG` entry, no `HANDOFFS` receipt beyond the
+`status: pending` stub, no self-assessment, no notes. It is a ghost session in the precise sense
+`SESSION_RUNNER.md` failure mode #14 defines, and the two points it earns are for the two
+structural controls that did fire.
+
+**What helped, specifically — and it is entirely the protocol, not the session.**
+- **The Phase 1B stub is worth its whole cost, and this session is the proof.** The committed
+  claim `a4a7e8c3` named the deliverable, the filed item, and the operator's Phase 0 choice. That
+  is the only reason I knew what the two commits were *for* without reconstructing it from the
+  diff.
+- **The commit messages are genuinely good.** `a3c8987f`'s message names the mechanism, the
+  trigger, the CommonMark arm and the reason for `pendingFreshBlock`, and cites its rendered
+  witnesses by path. Every claim in it that I checked held. A session that writes commits this
+  well and then writes no handoff is a striking shape.
+- **The scratchpad is well-formed and inherited cleanly.** `render244.sh`, `presrc/`, `cmp.py`,
+  `brute.test.ts` and `mutate244.py` were all reusable with a `sed` rename, and `presrc/` was
+  byte-identical to the S243 build when I checked its SHA-256 — so the baseline it left was true.
+
+**What was missing — and it is nearly everything.**
+- ⚠ **IT RENDERED 3,617 DOCUMENTS THROUGH THE REAL QUARTO CLI AND NEVER SCORED THEM.** The
+  measurement that would have caught its own regression was complete on disk at 16:57. The
+  comparison is ten lines of Python. Scoring it found the shipped build losing a real heading on
+  **40.2%** of those documents.
+- ⚠ **IT LEFT A HEADING-DELETING REGRESSION ON `master` WITH EVERY FAST GATE GREEN** — `check-types`
+  0, 2,673 unit tests, `check-backlog` OK. This is precisely the failure Session 242's gotcha 1
+  warned its successors about, landing on the session that inherited the warning, one step short
+  of the scoring.
+- **No `CHANGELOG` entry (failure mode #27), no completed receipt (failure mode #6), no residual
+  pins, no backlog movement** — Session 243's R6 was still open in `BACKLOG.md` with a shipped fix
+  sitting on `master`, and Session 240's R2 pin had been reversed with nothing recording it.
+- **No `test:integration`, no `test:oracle`, no `check-package`, no Phase 3E.**
+
+**What was wrong:** nothing it *wrote* was wrong. Everything it wrote was true; the failure is
+entirely in what it did not write.
+
+**ROI:** low, and it cost its successor about a third of a session in reconstruction — which is
+exactly the tax failure mode #14 predicts. But the 1B stub and the scratchpad hygiene together
+turned "zero context" into "a well-labelled pile of evidence", which is the difference between a
+recoverable ghost and an unrecoverable one.
+
+---
+
+## Session 245 Self-Assessment
+
+**Score: 9/10.**
+
+**What went right.**
+- **I scored the dead session's own unread measurement at Phase 0, before the operator chose a
+  task.** That is the whole session: the regression was on `master`, every fast gate was green on
+  it, and the choice between narrowing and reverting could be made on numbers instead of a guess.
+- **I ran the enumeration even though six gates were green — and it changed what shipped, twice.**
+  2,697 unit tests, a byte-identical oracle, a 58,137-document corpus sweep with zero new defects,
+  a clean repo sweep and 114 rendered probes all passed the first narrowing. The enumeration found
+  426 rows emitting a phantom no prior build emitted.
+- **I refused to let "is my build right" stand in for "is my build wrong in a way no prior build
+  was".** The three-build comparison turned 604 apparent corpus breaks into 0, and I proved it two
+  independent ways — heading-set containment, and isolating the shape one document out so the
+  phantom reproduced without the recovering prefix.
+- **I built the three candidate spellings and SCORED them rather than arguing.** They differ by
+  270 rendered rows, and the ranking is not one reasoning would produce: the middle candidate is
+  no better than no narrowing at all.
+- **I priced the narrowing's own cost and pinned it** — 20 rendered rows, against 1,262 recovered
+  — rather than re-masking a pre-existing phantom to make a table look better.
+- **Every mutation survivor was chased with an alphabet built from what its term reads**, and the
+  three that disagreed (1,176, 392 and 80 rows) became pins that now kill them.
+- **Phase 3E green first time on a go-ahead sought in advance**, with all assertions pre-checked
+  headlessly and the fixture premise re-rendered rather than assumed.
+
+**What went wrong.**
+- ⚠ **I reported un-normalised counts in the Phase 0 backfill and a subagent caught it, not me.**
+  quarto smart-punctuates a heading text of `---` into an em dash; 114 correct rows scored as
+  mismatches. The backfill entry says "1,760 right / 968 losing" where the honest figures are
+  1,874 and 1,408. Corrected in this session's ledger entry rather than by rewriting history.
+- ⚠ **`npm test` was green on a TS7022 type error again** — Learning #451, one session after it was
+  recorded, and I hit it in exactly the shape the learning describes.
+- ⚠ **My first further-narrowing candidate was too strict and my second too lax**, and I only found
+  the middle by measuring all three. The first cost 20 rows I had already measured as valuable.
+- **I let a shell loop swallow three scoring runs** (`for pair in ...; set -- $pair` under zsh) and
+  briefly read it as an `exp2` build failure.
+
+**Against the bar.** Sessions 238–243 each shipped one measured term with a full pre/post matrix,
+a mutation hunt and an enumeration; this session matches that and adds a Phase 0 recovery of a
+ghost session's unscored measurement, a three-build comparison method the predecessors did not
+have, and a priced-and-pinned regression cost. Where it falls short of a 10 is the un-normalised
+counts I published before a subagent corrected them.
+
+---
 
 ## Session 242 Handoff Evaluation (by Session 243)
 
