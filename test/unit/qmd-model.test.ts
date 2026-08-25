@@ -15970,4 +15970,31 @@ describe("Session 248 — a marker-only line is a complete empty item", () => {
     // localises the residual to the CommonMark whole-paragraph title (`z_resid/fst_body_rule`)
     expect(names(["1.", "alpha", "   -", "alpha", "1."])).toEqual([]); // quarto: no heading — agrees
   });
+
+  it("C10: only a marker pandoc really takes opens an empty item — `Etc.` is prose", () => {
+    // ⚠ **THE THIRD RED→GREEN ROW, AND IT IS A COST THIS SESSION'S OWN CHANGE CREATED.** Found by
+    // an independent agent reading the grammar rather than the renders, and verified firsthand on
+    // 12 rendered documents (`scratchpad/s248/z_prose`). `LIST_ITEM_EMPTY` is built on
+    // `LIST_ITEM_MARKER_SRC`, whose ordered half accepts `[a-zA-Z]{1,9}` before a `.` or `)` — a
+    // DELIBERATE over-acceptance that is safe for the strip (`ORDERED_MARKER_SRC`'s own docstring
+    // says why) and is NOT safe here: it made every 1-9 letter prose token ending in a period,
+    // alone on a line, a complete empty list item. `Etc.` / `bravo` / `---` renders a bare `<p>`
+    // and this change reported `h2:bravo` — 7 measured phantoms, `Etc.`, `Ibid.`, `Mr.`, `xyz.`,
+    // `Etc)`, and the two ATX spellings.
+    // ⚠ **THE PREDICATE IS `popsEnclosingContainer`'S MEASURED RULE MINUS ITS INITIAL-IN-A-NAME
+    // EXCLUSION**, which cannot apply where the marker is ALONE on its line: `A.` / `bravo` /
+    // `---` renders `ol>h2` (`z_core/m_upper`), where `A. item text` with one space is an initial.
+    // Scored, not argued: 12 of 12 on the prose grid against 5, and IDENTICAL on all eight other
+    // grids — 479 of 851 on the enumeration corpus, 39/40, 29/30, 22/22, 16/17, 13/22, 15/22, 6/6.
+    for (const prose of ["Etc.", "Ibid.", "Mr.", "xyz.", "Etc)"]) {
+      expect(names([prose, "bravo", "---"])).toEqual([]);
+    }
+    expect(names(["Etc.", "# Probe Z"])).toEqual([]);
+    expect(names(["Mr.", "# Probe Z"])).toEqual([]);
+    // ⚠ and the markers pandoc DOES take are all kept — a ROMAN numeral, an example-list `#.`, a
+    // single letter of either case, and a decimal (`z_prose/p_iv`, `p_hash`, `p_a`, `p_upA`)
+    for (const marker of ["iv.", "#.", "a.", "A.", "1.", "10.", "-", "*", "+"]) {
+      expect(names([marker, "bravo", "---"])).toEqual(["h2:bravo"]);
+    }
+  });
 });

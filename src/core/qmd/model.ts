@@ -1672,6 +1672,43 @@ function listItemContentColumn(line: string): number | null {
  * nothing (Learning #289). The geometry above it uses columns 2/4/6 and probes at 6, which no
  * column-0 marker can reach.
  */
+/**
+ * Whether a MARKER-ONLY line's marker is one pandoc really takes as a list marker (Session 248).
+ *
+ * ⚠ **`LIST_ITEM_EMPTY` IS DELIBERATELY WIDER THAN THIS, AND THAT WIDTH IS SAFE WHERE IT IS AND
+ * NOT SAFE HERE.** Its ordered half accepts `[a-zA-Z]{1,9}` before a `.`/`)` — see
+ * `ORDERED_MARKER_SRC`, which states why the over-acceptance costs nothing for the STRIP: a marker
+ * is stripped only where an underline reaches the column its content opens, and a pseudo-marker
+ * opens a column no underline is accepted at. An EMPTY item has no such second gate, so the same
+ * width made every 1-9 letter prose token ending in a period, alone on a line, a complete list
+ * item: `Etc.` / `bravo` / `---` renders a bare `<p>` and the first spelling of this session's
+ * change reported `h2:bravo`. Seven measured phantoms — `Etc.`, `Ibid.`, `Mr.`, `xyz.`, `Etc)` and
+ * two ATX spellings (`scratchpad/s248/z_prose`, 12 rendered documents).
+ *
+ * ⚠ **IT IS `popsEnclosingContainer`'S MEASURED RULE (Session 198, 24 rendered documents) MINUS
+ * ITS INITIAL-IN-A-NAME EXCLUSION**, which cannot apply where the marker is ALONE on its line:
+ * `A. item text` needs two spaces to be a list, but a bare `A.` has no text to be ambiguous with,
+ * and `A.` / `bravo` / `---` renders `ol>h2` (`z_core/m_upper`). A multi-letter run is a marker
+ * only where it is a ROMAN NUMERAL — `iv.` and `IV.` are, `Dr.` and `Mr.` are not.
+ *
+ * ⚠ Scored against the wider spelling rather than argued: 12 of 12 on the prose grid against 5,
+ * and IDENTICAL on all eight other grids, including 479 of 851 on the enumeration corpus.
+ * Guarded at C10.
+ */
+function emptyItemMarkerIsPandocs(line: string): boolean {
+  const m = /^[ \t]*(?:([-+*])|\(?(\d{1,9}|#|[a-zA-Z]{1,9})[.)])[ \t]*$/.exec(line);
+  if (m === null) {
+    return false;
+  }
+  if (m[1] !== undefined) {
+    return true; // a bullet, in every spelling `LIST_ITEM_EMPTY` admits
+  }
+  const num = m[2];
+  if (num === "#" || /^\d+$/.test(num) || num.length === 1) {
+    return true; // an example-list marker, a decimal at any width, or a single letter
+  }
+  return /^[ivxlcdm]+$/.test(num) || /^[IVXLCDM]+$/.test(num);
+}
 function popsEnclosingContainer(line: string): boolean {
   const m = /^[ \t]*(?:([-+*])|\(?(\d{1,9}|#|[a-zA-Z]{1,9})([.)]))(?:[ \t]|$)/.exec(line);
   if (m === null) {
@@ -7407,7 +7444,10 @@ function computeRegions(text: string): Regions {
     // built to reach it (`scratchpad/s248/hunt.test.ts`, `reach.test.ts`). It is spelled out so
     // this term and the `indentedCodeLine` guard answer their shared premise the same way.
     const emptySiblingItem: boolean =
-      (siblingItemAtMarkerColumn || (listItemOpensHere && !paragraphOpen)) &&
+      (siblingItemAtMarkerColumn ||
+        // ⚠ The third conjunct is NOT redundant with `LIST_ITEM_EMPTY` below — see
+        // `emptyItemMarkerIsPandocs`, and the seven measured phantoms that made it necessary.
+        (listItemOpensHere && !paragraphOpen && emptyItemMarkerIsPandocs(line))) &&
       LIST_ITEM_EMPTY.test(line);
 
     // Whether the line BELOW is an empty list item at a marker column an open list would accept
