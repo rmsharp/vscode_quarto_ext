@@ -5,9 +5,15 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 247 closed out. The next session picks from `BACKLOG.md` (188 open items, Active section empty) via the ranked `AskUserQuestion` step.**
-**Last shipped:** Session 247 — an ordered marker is stripped where the list it opens really formed. Closed Session 246's ranked #1 and, as by-catch on re-rendered bytes, Session 201's Family B residual, open since Session 201.
-**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0.
+**Task:** **Session 248 — IMPLEMENTATION, strict TDD: a MARKER-ONLY line above a ONE-line setext title deletes the heading, for BOTH marker kinds.** `1.` / `bravo` / `---` renders `ol>h2` with `h2:bravo` and this model reports NO heading at all; `-` / `bravo` / `---` fails identically. Pandoc consumes the marker-only line as an EMPTY item, after which `bravo` is the item's first and only body line; this model counts the marker line as a body line, so `consecutiveBody` reaches 2 and the default reader's one-line title is no longer on offer. Operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list — it was Session 247's ranked #2, promoted to #1 here because it DELETES a heading where Session 247's own #1 is a TEXT divergence with zero measured corpus weight. Pinned as Session 247 R4.
+**Status:** IN PROGRESS — session claimed 2026-08-24 20:50 EDT. Work beginning.
+
+### What Session 248 Did
+**Deliverable:** The marker-only-line body-run rule in `src/core/qmd/model.ts` — one capability, "does a marker-only line count as a body line of the item it opens". (IN PROGRESS)
+**Started:** 2026-08-24 20:50 EDT
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Phase 0 reconcile found NOTHING owed:** both frontiers were HEAD (`48c41742`, gap 0); 211 receipts — 209 complete, 2 reconciled, **0** line-anchored `status: pending`; no ghost session; 0 open GitHub issues so `BACKLOG.md` governs, 188 open items with an empty Active section. Baseline re-run firsthand: `check-types` exit 0, `npm test` **2760 passed / 66 files**.
 
 ---
 

@@ -18,6 +18,21 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S248
+date: 2026-08-24
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- A MARKER-ONLY LINE ABOVE A ONE-LINE SETEXT TITLE DELETES THE HEADING, FOR BOTH MARKER KINDS. `1.` / `bravo` / `---` renders `ol>h2` with `h2:bravo` and this model reports NO heading at all; the bullet spelling `-` / `bravo` / `---` fails identically, and THAT CONTROL is what says it is the body-run rule and not a marker-kind defect. Pandoc consumes the marker-only line as an EMPTY item, after which `bravo` is the item's first and only body line; this model counts the marker line as a body line, so `consecutiveBody` reaches 2 and the default reader's one-line title is no longer on offer. PRE-EXISTING and unmoved. heading-DELETING. Witnesses `scratchpad/s247/r5/ttl_ol_del`, `ttl_ul_del`, `ttl_ol_del2`. Adjacent to Session 246's `emptySiblingItem`, which already teaches an empty item to open no paragraph; size against the body-run rows Sessions 214 and 246 own. Operator picked it at Phase 0 from the ranked AskUserQuestion candidate list -- Session 247's ranked #2, promoted here because it DELETES a heading. Pinned as Session 247 R4. Deliverable: the body-run rule in src/core/qmd/model.ts -- one capability, "does a marker-only line count as a body line of the item it opens".
+what_was_done: Phase 1B claim only. Phase 0 reconcile found NOTHING owed -- both frontiers WERE HEAD (48c41742, gap 0), 0 line-anchored `status: pending` receipts against 209 complete and 2 reconciled, no ghost session, 0 open GitHub issues so BACKLOG.md governs, 188 open items with an empty Active section. Baseline re-run firsthand: check-types exit 0, npm test 2760 passed / 66 files.
+measurement: pending
+runtime_smoke: pending
+key_files: src/core/qmd/model.ts (the body-run / `consecutiveBody` rule and `emptySiblingItem`), test/unit/qmd-model.test.ts
+whats_next: pending
+gotchas: pending
+```
+
+```handoff
 session: S247
 date: 2026-08-24
 status: complete
