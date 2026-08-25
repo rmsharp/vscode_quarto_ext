@@ -5,9 +5,16 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 249 closed out. The next session picks from `BACKLOG.md` (191 open items, Active section empty) via the ranked `AskUserQuestion` step.**
-**Last shipped:** Session 249 — a marker's ordinal run is as long as its reader takes. Closed Session 247's R3 (the operator's pick); the decimal run is UNBOUNDED and the letter half is pandoc's roman parser, neither of them the cap the item described, and the nine-character cap is CORRECT for three of the nine readers.
-**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0 on the shipping build.
+**Task:** **Session 250 (IN PROGRESS) — Session 249 R4: the roman post-filter in `popsEnclosingContainer` and `emptyItemMarkerIsPandocs` is a character class, not pandoc's parser.**
+**Started:** 2026-08-25
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+### What Session 250 Did
+**Deliverable:** Replace the `/^[ivxlcdm]+$/ || /^[IVXLCDM]+$/` character-class post-filter at `src/core/qmd/model.ts:1789` (`popsEnclosingContainer`) and `:1827` (`emptyItemMarkerIsPandocs`) with pandoc's order-respecting roman parse, already present in the same file as `ROMAN_RUN_LOWER`/`ROMAN_RUN_UPPER` (`:1046-1047`). (IN PROGRESS)
+**Started:** 2026-08-25
+**Status:** Session claimed. Work beginning.
+**Predecessor:** Session 249 (`bdfe69bf`), which filed this item and verified it firsthand (`scratchpad/s249/r5`, 19 documents, all exit 0).
 
 ---
 

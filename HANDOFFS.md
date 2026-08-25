@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S250
+date: 2026-08-25
+status: pending
+active_task: Session 249 R4 -- the roman post-filter in `popsEnclosingContainer` (src/core/qmd/model.ts:1789) and `emptyItemMarkerIsPandocs` (:1827) is the character class /^[ivxlcdm]+$/ || /^[IVXLCDM]+$/, not pandoc's order-respecting roman parser. It accepts eleven tokens quarto rejects (cmcm, dd, ic, iiv, ivx, ixix, ixixix, ll, mim, vv, vvvv). For popsEnclosingContainer this is the heading-DELETING direction. The correct parse already exists in the same file as ROMAN_RUN_LOWER/ROMAN_RUN_UPPER (:1046-1047).
+```
+
+```handoff
 session: S249
 date: 2026-08-25
 status: complete
