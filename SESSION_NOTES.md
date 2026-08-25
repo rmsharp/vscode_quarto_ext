@@ -5,9 +5,15 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 248 closed out. The next session picks from `BACKLOG.md` (187 open items, Active section empty) via the ranked `AskUserQuestion` step.**
-**Last shipped:** Session 248 — a marker-only line is a complete empty item, first marker too. Closed Session 247's R4 (the operator's pick) and, as free by-catch on the same conjunct, Session 246's R4, plus two Session 182 pins that asserted an answer quarto does not give.
-**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0, re-run on the shipping build.
+**Task:** **Session 249 — IMPLEMENTATION, strict TDD: a LIST MARKER LONGER THAN NINE CHARACTERS is not in the shared grammar at all, so its heading is LOST.** `1234567890.  bravo` / `             ---` renders `ol>h2` with `h2:bravo` and no build reports anything at all; the 10-letter roman `mmmdcccxxx.  bravo` behaves identically — pandoc opens a list for both. `LIST_ITEM_MARKER_SRC`'s `\d{1,9}` and `[a-zA-Z]{1,9}` runs stop at nine, so no content column is pushed and the underline matches nothing. ⚠ The NINE-character twins are RIGHT in both directions, which is what localises it to the run length. ⚠ Size it as a `listItemContentColumn` change, not a strip change: every container rule reads that function, and `popsEnclosingContainer` carries the same cap independently — as does Session 248's `emptyItemMarkerIsPandocs`, so a fix must move all of them or disclose why not. Operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list — Session 248's ranked #3, promoted to #1 here on Session 248's own tiebreaker (a heading DELETED outranks a text divergence) at the lowest filed effort of the heading-deleting candidates. Pinned as Session 247 R3.
+**Status:** IN PROGRESS — session claimed 2026-08-25 11:32 EDT. Work beginning.
+
+### What Session 249 Did
+**Deliverable:** The marker run-length cap in `src/core/qmd/model.ts` — one capability, "how long may a list marker's ordinal run be before the model stops seeing a marker at all". (IN PROGRESS)
+**Started:** 2026-08-25 11:32 EDT
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Phase 0 reconcile found NOTHING owed:** both frontiers were HEAD (`c23e4a9f`, gap 0); 212 receipts — 210 complete, 2 reconciled, **0** line-anchored `status: pending`; no ghost session; 0 open GitHub issues so `BACKLOG.md` governs, 187 open items with an empty Active section. Baseline re-run firsthand: `check-types` exit 0, `npm test` **2779 passed / 66 files**, `check-backlog` OK.
 
 ---
 

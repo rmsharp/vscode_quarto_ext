@@ -18,6 +18,21 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S249
+date: 2026-08-25
+status: pending
+self_score: pending
+predecessor_score: pending
+active_task: IN PROGRESS. IMPLEMENTATION, strict TDD -- A LIST MARKER LONGER THAN NINE CHARACTERS IS NOT IN THE SHARED GRAMMAR AT ALL, SO ITS HEADING IS LOST. `1234567890.  bravo` / `             ---` renders `ol>h2` with `h2:bravo` and NO build reports anything at all, and the 10-letter roman `mmmdcccxxx.  bravo` behaves identically -- pandoc opens a list for both. `LIST_ITEM_MARKER_SRC`'s `\d{1,9}` and `[a-zA-Z]{1,9}` runs stop at nine, so no content column is pushed and the underline matches nothing. PRE-EXISTING and unmoved. heading-DELETING. Witnesses `scratchpad/s247/r5/lex_d10_uc`, `lex_rom10_uc`, and the nine-character twins in `r8`. The NINE-character twins are RIGHT IN BOTH DIRECTIONS, which localises it to the run length. Size it as a `listItemContentColumn` change, not a strip change -- every container rule reads that function, `popsEnclosingContainer` carries the same cap independently, and so does Session 248's `emptyItemMarkerIsPandocs`; a fix must move all of them or disclose why not. Operator picked it at Phase 0 from the ranked AskUserQuestion candidate list -- Session 248's ranked #3, promoted here on Session 248's own tiebreaker (a heading DELETED outranks a TEXT divergence) at the lowest filed effort among the heading-deleting candidates. Pinned as Session 247 R3, guarded at test/unit/qmd-model.test.ts:15685. Deliverable: the marker run-length cap in src/core/qmd/model.ts -- one capability, "how long may a list marker's ordinal run be before the model stops seeing a marker at all".
+what_was_done: Phase 1B claim only. Phase 0 reconcile found NOTHING owed -- both frontiers WERE HEAD (c23e4a9f, gap 0), 0 line-anchored `status: pending` receipts against 210 complete and 2 reconciled, no ghost session, 0 open GitHub issues so BACKLOG.md governs, 187 open items with an empty Active section. Baseline re-run firsthand: check-types exit 0, npm test 2779 passed / 66 files, check-backlog OK.
+measurement: pending
+runtime_smoke: pending
+key_files: src/core/qmd/model.ts (LIST_ITEM_MARKER_SRC, listItemContentColumn, popsEnclosingContainer, emptyItemMarkerIsPandocs), test/unit/qmd-model.test.ts (the Session 247 R3 pin)
+whats_next: pending
+gotchas: pending
+```
+
+```handoff
 session: S248
 date: 2026-08-25
 status: complete
