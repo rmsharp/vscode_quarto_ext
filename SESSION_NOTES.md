@@ -5,15 +5,116 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 249 — IMPLEMENTATION, strict TDD: a LIST MARKER LONGER THAN NINE CHARACTERS is not in the shared grammar at all, so its heading is LOST.** `1234567890.  bravo` / `             ---` renders `ol>h2` with `h2:bravo` and no build reports anything at all; the 10-letter roman `mmmdcccxxx.  bravo` behaves identically — pandoc opens a list for both. `LIST_ITEM_MARKER_SRC`'s `\d{1,9}` and `[a-zA-Z]{1,9}` runs stop at nine, so no content column is pushed and the underline matches nothing. ⚠ The NINE-character twins are RIGHT in both directions, which is what localises it to the run length. ⚠ Size it as a `listItemContentColumn` change, not a strip change: every container rule reads that function, and `popsEnclosingContainer` carries the same cap independently — as does Session 248's `emptyItemMarkerIsPandocs`, so a fix must move all of them or disclose why not. Operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list — Session 248's ranked #3, promoted to #1 here on Session 248's own tiebreaker (a heading DELETED outranks a text divergence) at the lowest filed effort of the heading-deleting candidates. Pinned as Session 247 R3.
-**Status:** IN PROGRESS — session claimed 2026-08-25 11:32 EDT. Work beginning.
+**Task:** **NONE — Session 249 closed out. The next session picks from `BACKLOG.md` (191 open items, Active section empty) via the ranked `AskUserQuestion` step.**
+**Last shipped:** Session 249 — a marker's ordinal run is as long as its reader takes. Closed Session 247's R3 (the operator's pick); the decimal run is UNBOUNDED and the letter half is pandoc's roman parser, neither of them the cap the item described, and the nine-character cap is CORRECT for three of the nine readers.
+**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0 on the shipping build.
 
-### What Session 249 Did
-**Deliverable:** The marker run-length cap in `src/core/qmd/model.ts` — one capability, "how long may a list marker's ordinal run be before the model stops seeing a marker at all". (IN PROGRESS)
-**Started:** 2026-08-25 11:32 EDT
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F, paired with the `BACKLOG.md` update in the close-out commit (Learning #213's ordering). Until close-out, this line is the crash breadcrumb for the next session's reconcile.
-**Phase 0 reconcile found NOTHING owed:** both frontiers were HEAD (`c23e4a9f`, gap 0); 212 receipts — 210 complete, 2 reconciled, **0** line-anchored `status: pending`; no ghost session; 0 open GitHub issues so `BACKLOG.md` governs, 187 open items with an empty Active section. Baseline re-run firsthand: `check-types` exit 0, `npm test` **2779 passed / 66 files**, `check-backlog` OK.
+---
+
+## Session 248 Handoff Evaluation (by Session 249)
+
+**Score: 9/10.** It named this session's deliverable, ranked it honestly against four alternatives,
+and — the part that decides the score — **its `whats_next` predicted, in advance and by name, the
+two terms that turned out to be the price of the fix.** The point comes off for one thing it could
+not have known but which its own framing made easier to walk into.
+
+**What helped, specifically.**
+- ⚠ **IT NAMED BOTH HIDDEN COSTS BEFORE I STARTED.** Its ranked #3 said *"this session's
+  `emptyItemMarkerIsPandocs` carries the SAME `{1,9}` cap independently, so a fix must move both or
+  disclose why not."* Both did have to move, both were found by enumeration rather than by
+  reasoning, and both were exactly where it said. That sentence is worth more than the rest of the
+  document combined.
+- **Gotcha 1 — RUN THE ENUMERATION BEFORE THE FIRST CHECKPOINT COMMIT — was load-bearing and I
+  followed it.** The first build passed unit tests, oracle, a 60,998-document corpus sweep, a repo
+  sweep and a 222-document design grid, and the enumeration still found 485 worse classes. Had I
+  committed on the green matrix as Session 248 admits doing, I would have shipped it.
+- **Gotcha 3 (grep the residual pins first) paid off in under a minute** — `test/unit/qmd-model.test.ts:15685`
+  held all four witnesses, the mechanism and the two nine-character controls that localise it.
+- **Gotcha 9 (an empty item's content column is the marker's own WIDTH, one left of a populated
+  item's) is the single fact this session's fixture and C3/C4 rest on.** It predicted `r6/nest_k10`
+  and `deep_k10` before I rendered them, and both came back exactly as it said.
+- **Gotcha 7 (read the EXIT CODE) discarded 32 enumeration rows** that otherwise read as
+  heading-deleting regressions, and gotcha 12 shaped the Phase 3E ask.
+- **Gotcha 8 (verify the write landed before trusting the run) caught a real one within the hour** —
+  a persisted `cd` sent a generated grid into a nested `scratchpad/s249/scratchpad/s249/`, and the
+  reflex to check the path rather than the exit code is what found it.
+- **The scratchpad inherited cleanly:** `render248.sh`, `tsv2json.py`, `corpusfiles.txt` and
+  `repofiles.txt` all worked with a rename.
+
+**What was missing.**
+- Its `whats_next` framed R3 as *"a `listItemContentColumn` change"* sized **LOW-MEDIUM** on the
+  strength of the item's own "raise the cap" diagnosis. The owner was right; the sizing was not.
+  Neither half is a cap, the reader split doubles the term count, and the two respellings it DID
+  predict are two more RED→GREEN cycles. Realistically MEDIUM-HIGH. In fairness this is inherited
+  from Session 247's filing, not invented by Session 248 — but it repeated it without re-rendering.
+- Nothing in it warned that the LETTER half has a reader axis of its own. Not knowable from its
+  vantage point; noted forward as R3.
+
+**What was wrong: nothing.** Every witness reproduced. Every count matched. Every gotcha held.
+
+**ROI: high.** Two of its twelve gotchas were worth an hour each, and one sentence in `whats_next`
+saved this session from shipping a half-fix and calling it done.
+
+---
+
+## Session 249 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I re-derived the RULE instead of trusting the filed diagnosis, and both halves of it were
+  wrong.** Sweeping run length to 100 digits and roman length to 15 — past where I expected the
+  answer to stop changing — is what turned "raise the cap" into "the run is unbounded and the
+  letter half is a parser". A session that had raised the cap to 15 would have been green on every
+  test it thought to write (Learning #482).
+- **I measured the reader split BEFORE writing the fix, and it changed the shape of the fix.** 72
+  documents, nine readers, all exit 0, producing a 6–3 split identical to a flag the file already
+  had. Widening unconditionally would have been wrong for a third of the readers.
+- **The guard block was written BEFORE the gate, from rendered bytes** — six `it()`s, all green
+  before any `src` change — and two more (G7, G8) were added later when the mutation hunt proved
+  the first six too weak.
+- **FIVE RED→GREEN cycles, every RED confirmed to fail for the right reason**, and three of the
+  five were regressions my own change created and my own gates caught.
+- **I caught a sign error in my own measurement.** The first enumeration verdict said 313 worse
+  against 144 better; it was my own per-category sampling, not the change. Rendering all 1,587
+  classes reversed it to +132 classes / +14,926 documents (Learning #485).
+- **I refused to accept "pre-existing in kind" as an answer and built the control that proved it.**
+  `r4` and `r6` render the SAME shapes at `1.`, `123456789.` and `-`, and the model is wrong on all
+  of them in the pre-change build. That is what makes the residual disclosure a measurement rather
+  than an excuse.
+- **I scored three candidate `src` copies rather than arguing**, and one of them contradicted me:
+  I expected the reader gates to be observable through the heading columns and they are observable
+  ONLY through a container geometry no grid of mine contained (Learning #486).
+- **I verified the fan-out's strongest claim firsthand and it held**, and I verified my own probe
+  was sound enough to say so — the r5 heading column never fired, so I scored the BLOCKS skeleton
+  and said which column carried the evidence.
+- **Phase 3E green on a go-ahead sought IN ADVANCE**, with every assertion pre-checked headlessly
+  first including an EXACT 40-name outline-vs-quarto match in order, and the fixture premise
+  re-rendered rather than assumed.
+
+**What went wrong.**
+- ⚠ **I wrote a test that asserted a defect out of scope, and only the control caught it.** The
+  first C3 asserted `[]` for a stack of empty items — true of quarto, false of this model at EVERY
+  marker width including `1.`. I had written it from the enumeration's "before" column without
+  first asking what the SHORT spelling does. One control render (`r6`) turned it from a regression
+  into a pre-existing family. The reflex should have been to render the short twin FIRST.
+- ⚠ **My first enumeration score was biased by my own sampling and I nearly acted on it.** I spent
+  a real stretch diagnosing a "regression" whose sign was an artifact of rendering every LOSS class
+  and a fifth of the GAIN classes.
+- ⚠ **A guard block I called complete missed two of nine mutants.** G1–G6 were written from three
+  grids that all shared one geometry; the container-pop geometry that observes the reader gates was
+  not in any of them until the mutation hunt forced it.
+- ⚠ **I let a persisted `cd` write a grid to a nested path** and only caught it because the render
+  step failed loudly. Session 248's gotcha 8 in a new costume.
+- **I filed one item (R5) I did not verify firsthand** — an agent's claim about `LIST_MARKER_PREFIX`.
+  It is labelled as such in the backlog entry, but it is the only unverified item on that list.
+
+**Against the bar.** Sessions 238–248 each shipped one measured term with a full pre/post matrix, a
+corpus sweep, an enumeration and a mutation hunt. This session matches that and adds a nine-reader
+split measured before implementation, an upstream parser transcribed rather than approximated,
+three scored `src`-copy comparisons, and two residual families localised to short markers by
+control renders. It falls short of a 9 on the out-of-scope test, the sampling bias, and a guard
+block that needed the mutation hunt to finish it.
 
 ---
 
