@@ -5,15 +5,120 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 248 — IMPLEMENTATION, strict TDD: a MARKER-ONLY line above a ONE-line setext title deletes the heading, for BOTH marker kinds.** `1.` / `bravo` / `---` renders `ol>h2` with `h2:bravo` and this model reports NO heading at all; `-` / `bravo` / `---` fails identically. Pandoc consumes the marker-only line as an EMPTY item, after which `bravo` is the item's first and only body line; this model counts the marker line as a body line, so `consecutiveBody` reaches 2 and the default reader's one-line title is no longer on offer. Operator picked it at Phase 0 from the ranked `AskUserQuestion` candidate list — it was Session 247's ranked #2, promoted to #1 here because it DELETES a heading where Session 247's own #1 is a TEXT divergence with zero measured corpus weight. Pinned as Session 247 R4.
-**Status:** IN PROGRESS — session claimed 2026-08-24 20:50 EDT. Work beginning.
+**Task:** **NONE — Session 248 closed out. The next session picks from `BACKLOG.md` (187 open items, Active section empty) via the ranked `AskUserQuestion` step.**
+**Last shipped:** Session 248 — a marker-only line is a complete empty item, first marker too. Closed Session 247's R4 (the operator's pick) and, as free by-catch on the same conjunct, Session 246's R4, plus two Session 182 pins that asserted an answer quarto does not give.
+**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0, re-run on the shipping build.
 
-### What Session 248 Did
-**Deliverable:** The marker-only-line body-run rule in `src/core/qmd/model.ts` — one capability, "does a marker-only line count as a body line of the item it opens". (IN PROGRESS)
-**Started:** 2026-08-24 20:50 EDT
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
-**Phase 0 reconcile found NOTHING owed:** both frontiers were HEAD (`48c41742`, gap 0); 211 receipts — 209 complete, 2 reconciled, **0** line-anchored `status: pending`; no ghost session; 0 open GitHub issues so `BACKLOG.md` governs, 188 open items with an empty Active section. Baseline re-run firsthand: `check-types` exit 0, `npm test` **2760 passed / 66 files**.
+---
+
+## Session 247 Handoff Evaluation (by Session 248)
+
+**Score: 10/10.** The first 10 I have had cause to give. It named this session's deliverable, ranked
+five candidates with honest effort estimates, and — the part that decides the score — its **gotcha 1
+was the single highest-value sentence in the whole document, and it paid off within the first ten
+minutes**.
+
+**What helped, specifically.**
+- ⚠ **GOTCHA 1 — "GREP THE RESIDUAL PINS BEFORE BUILDING A PROBE GRID" — SAVED THE SESSION'S FIRST
+  HOUR.** One `grep` found `test/unit/qmd-model.test.ts:15685`, an R4 pin that already carried three
+  rendered witnesses AND the mechanism in two sentences: *"pandoc consumes the marker-only line as an
+  EMPTY item… this model counts it as a body line, so the run reaches 2."* That is the entire
+  diagnosis. Session 247 paid a third of a session to learn this lesson and wrote it down well
+  enough that I did not have to.
+- **Its ranked list was correct AND its ranking was worth arguing with.** It ranked R1 first and R4
+  second; I promoted R4 because it DELETES a heading where R1 is a text divergence with measured
+  corpus weight zero, and said so in the `AskUserQuestion`. Both facts came from its own filed text.
+  A handoff good enough to disagree with precisely is better than one you must first reconstruct.
+- **The effort estimate was right.** It said MEDIUM and labelled it an estimate. The core fix was one
+  conjunct; the session went long on the two costs that conjunct created, which is exactly what
+  MEDIUM should mean here.
+- **Gotcha 5 (read the EXIT CODE, not just the heading column) caught real garbage twice** — `r_len3`
+  in the design grid and 34 of 885 enumeration documents, all of them column-0 `---` pairs quarto
+  parses as YAML. Without it those rows read as heading-deleting regressions.
+- **Gotchas 6 and 7 shaped the two gates that mattered.** Stratifying the enumeration by direction is
+  what made 11,107 transition classes affordable (96 LOSS rendered in full, 389 TEXT in full, a
+  stepped GAIN sample); and "name the shape that reaches the mutated line before believing a clean
+  survivor run" is exactly how N4 was retired as redundant-by-construction rather than by luck.
+- **Gotcha 9 (subagent reports carry real errors AND real findings) was load-bearing in both
+  directions.** One agent's claim about marker-width columns I re-verified and it held; another
+  agent's "MADE WORSE" section found a 7-phantom family nine rendered grids had missed.
+- **Gotcha 2 (never `npx prettier`) and gotcha 10 (never `git add -A`) cost nothing because they were
+  written down.** Every close-out file was staged by name.
+- **The scratchpad inherited cleanly:** `render247.sh`, `tsv2json.py`, `sweep.test.ts`,
+  `brute.test.ts`, `mutate247.py`, `corpusfiles.txt` and `repofiles.txt` all worked with a rename.
+
+**What was missing — and it is genuinely small.**
+- The filed R4 item said "size it against the body-run rows Sessions 214 and 246 own", which is
+  sound, but nothing warned that the term is read by a THIRD consumer — the simple-table header
+  test — through `paragraphOpen`. That cost the session's largest detour. In fairness this was not
+  knowable from S247's vantage point; it only becomes visible once the flag actually goes false.
+- Its own ranked #5 ("the OPENS_FRESH_BLOCK item, almost certainly closed, free evidence") was not
+  picked up, so it is still open. Noted forward.
+
+**What was wrong: nothing.** Every witness reproduced. Every count matched. Every gotcha held.
+
+**ROI: the highest of any handoff I have read.** Seven of its ten gotchas were load-bearing, and one
+of them replaced an hour of probe-grid work with a single `grep`.
+
+---
+
+## Session 248 Self-Assessment
+
+**Score: 9/10.**
+
+**What went right.**
+- **I grepped the residual pins FIRST, and the finished analysis was sitting in one.** Session 247's
+  most expensive lesson cost me nothing. Its R4 pin named the mechanism, the three witnesses and the
+  bullet control that proves it is a body-run rule and not a marker-kind defect.
+- **I read the NEIGHBOURING filed items before designing anything, and it closed a second item for
+  free.** Session 246's R4 and Session 247's R4 were filed a session apart under different symptoms
+  and are one missing conjunct. Both closed together (Learning #477).
+- **The guard block was written BEFORE the gate, from rendered bytes** — 8 `it()`s, all green before
+  any `src/` change, and G1 (an empty item may not interrupt a paragraph) is the row the whole
+  design rests on.
+- **THREE RED→GREEN cycles, each RED confirmed to fail for the right reason**, and two of the three
+  were regressions my own change created and my own gates caught.
+- **The enumeration earned its cost for a SEVENTH consecutive session.** Seven gates were green —
+  2,778 unit tests, a byte-identical oracle, 60,998 corpus documents with 0 worse, a clean repo
+  sweep, 93 rendered probes, a release-gate package and a green integration run — on a build that
+  deleted a heading. 6,200,000 enumerated documents found it as 53 of 120 heading-losing classes.
+- **I instrumented instead of reasoning about it.** The two traces were identical through
+  `titleLineCount` and diverged on `inSimpleTable` alone; twenty lines of `console.log` in two `src`
+  copies turned a puzzle into a one-word answer, and the repair was a sentence already written one
+  screen away for block quotes (Learning #478).
+- **I built candidate spellings as `src` copies and SCORED them, three times, and the score
+  contradicted my reasoning twice.** The NARROW arm I expected to fix the table regression loses on
+  every grid (467 vs 479) because the one-line lag puts it out of reach; the pandoc-marker narrowing
+  I was unsure about is 12/12 against 5 and free everywhere else.
+- **The fan-out found what nine of my own grids could not, and I re-verified it by rendering.** An
+  agent that READ the grammar rather than the renders found that `LIST_ITEM_EMPTY` admits `Etc.`,
+  `Ibid.`, `Mr.` — 7 phantoms my change created. All 7 reproduced firsthand (Learnings #479, #480).
+- **Phase 3E green twice, both times on go-ahead sought IN ADVANCE**, with every assertion pre-checked
+  headlessly first including an EXACT 36-name outline-vs-quarto match in order.
+
+**What went wrong.**
+- ⚠ **I shipped a commit that deleted headings, and only the last gate caught it.** `1159f9fa` was
+  committed with seven gates green and 53 heading-losing enumeration classes in it. The commit was a
+  checkpoint and the enumeration ran before close-out, so nothing unsound reached the deliverable —
+  but I committed on a green matrix I already knew to be insufficient, having just written Session
+  247's gotcha 1 into my own plan. The enumeration should have run BEFORE the first checkpoint.
+- ⚠ **I designed nine rendered grids and not one contained a multi-letter prose token.** The `Etc.`
+  family is not exotic — `Ibid.` and `Mr.` occur in real prose far more often than a five-line stack
+  of marker-only lines at four indents. A subagent reading the regex found it; my measurement plan,
+  built from shapes I had already imagined, could not.
+- ⚠ **A `Bash` call was blocked by a transient classifier timeout and I re-ran only the second half
+  of the compound command**, so a heredoc append silently did not happen and the test I then ran
+  reported "1074 skipped" rather than a failure. I caught it by checking the file, but the correct
+  reflex is to verify the WRITE landed before trusting the run.
+- **I did not pick up Session 247's ranked #5** (the `OPENS_FRESH_BLOCK` item it flagged as free
+  evidence), so it stays open. Disclosed, not silently dropped.
+
+**Against the bar.** Sessions 238–247 each shipped one measured term with a full pre/post matrix, a
+corpus sweep, an enumeration and a mutation hunt. This session matches that and adds three scored
+`src`-copy comparisons, call-site instrumentation to localise a regression, an agent-found cost
+class no grid contained, and two Session 182 pins corrected on re-rendered bytes. It falls short of
+a 10 on the checkpoint-before-enumeration slip and on a measurement plan that only contained shapes
+I had already thought of.
 
 ---
 
