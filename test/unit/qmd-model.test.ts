@@ -16238,3 +16238,100 @@ describe("Session 249 — a marker's ordinal run is as long as pandoc's reader t
     ]);
   });
 });
+
+describe("Session 250 — a roman marker is pandoc's PARSE, not the roman character set", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // Every row below was RENDERED through the real quarto CLI 1.7.33 before it was written, and
+  // the comment on each states what quarto emitted. The grids are `scratchpad/s250/g1` (443, the
+  // container-pop geometry) and `g2` (444, the empty-item geometry) — every lowercase two- and
+  // three-character run over `[ivxlcdm]` plus every uppercase two-character run, EXHAUSTIVELY,
+  // and every one of the 887 exited 0.
+
+  it("R1: a run of ROMAN LETTERS that pandoc's parser does not take opens no EMPTY item", () => {
+    // ⚠ **THE DEFECT, MEASURED EXHAUSTIVELY.** `emptyItemMarkerIsPandocs` ends in the character
+    // class `/^[ivxlcdm]+$/ || /^[IVXLCDM]+$/`, which calls every run over the roman SET a
+    // numeral. Pandoc's parser is ORDER-RESPECTING — the same fact `LONG_ROMAN_SRC` already
+    // encodes one screen up — so `dd`, `ll`, `vv`, `ic`, `mim`, `ixix` and `cmcm` are NOT
+    // numerals and quarto opens no list for any of them: `dd.` / `bravo` / `---` renders the
+    // bare paragraph `<p>dd. bravo —</p>` (`g2/tL2_dd`), where `iv.` renders
+    // `<ol start="4" type="i"><li><h2>bravo</h2></li></ol>` (`g2/tL2_iv`).
+    for (const tok of ["dd", "ll", "vv", "ic", "iiv", "ivx", "ixix", "ixixix", "mim", "cmcm", "vvvv"]) {
+      expect(names([tok + ".", "bravo", "---"])).toEqual([]);
+    }
+    // and the UPPERCASE half of the same defect — `DD.` renders `<p>DD. bravo —</p>` too
+    // (`g2/tU2_DD`), where `IV.` renders `<ol start="4" type="I">` (`g2/tU2_IV`).
+    for (const tok of ["DD", "LL", "VV", "IC"]) {
+      expect(names([tok + ".", "bravo", "---"])).toEqual([]);
+    }
+  });
+
+  it("R2: the runs pandoc's parser DOES take still open an empty item, in both cases", () => {
+    // The control that localises R1 to the PARSE rather than to the letter run. Every one of
+    // these renders `<ol>` with the marker consumed and `h2:bravo` inside it — `iv` decomposes
+    // as the `(?:iv)?` tier, `xl` as `(?:xl)?`, `mmm` as `m*`, `xix` as `x*(?:ix)?`, `viv` as
+    // `v?(?:iv)?` and `xi` as `x*i*` (`g2/tL2_iv`, `tL2_xl`, `tL3_mmm`, `tL3_xix`, `tL3_viv`,
+    // `tL2_xi`). ⚠ Without this row a narrowing that rejected EVERYTHING would pass R1.
+    for (const tok of ["iv", "xl", "mmm", "xix", "viv", "xi", "IV", "XL", "MMM"]) {
+      expect(names([tok + ".", "bravo", "---"])).toEqual(["h2:bravo"]);
+    }
+  });
+
+  it("R3: the CONTAINER-POP predicate keeps the over-acceptance, and that is MEASURED", () => {
+    // ⚠ **THE HALF OF SESSION 249's R4 THAT MUST NOT MOVE, AND THE MEASUREMENT THAT SAYS SO.**
+    // The filed item asked for the SAME narrowing in `popsEnclosingContainer`. It was built as
+    // a candidate `src` copy and scored, not argued: over the 4,729 documents (of 1,679,616
+    // enumerated across 36 line kinds) whose answer the narrowing moves, it is **461 BETTER and
+    // 4,178 WORSE**, class-weighted against 643 rendered witnesses (`scratchpad/s250/g4`, all
+    // exit 0).
+    //
+    // ⚠ **THE REASON IS STRUCTURAL, NOT A TUNING ACCIDENT.** The two post-filters ask DIFFERENT
+    // questions of the same bytes. `emptyItemMarkerIsPandocs` asks what the line MEANS — is it
+    // an empty item? — and pandoc's parse is the whole answer. `popsEnclosingContainer` asks
+    // whether this marker CLOSES the container above, and that answer must mirror the PUSH
+    // `listItemContentColumn` performs on the same line. That push deliberately over-accepts
+    // `[a-zA-Z]{1,9}` — G4 pins `Elephants.` and `Dr.` for exactly this reason — and it pushes
+    // a column for `ixix.`, `dd.` and `cmcm.` just as it does for those two (measured
+    // firsthand). Narrowing only the POP de-synchronises the pair and strands the outer
+    // container's column, so a later underline AT that column invents a heading.
+    //
+    // Quarto renders NO heading for any of these; this model reports none, and the narrowed
+    // copy reports `h2:ixix. shallow` (`g4/w0000`-`w0004`).
+    for (const outer of ["-   outer", "1.  outer", "*   outer", ">   quoted"]) {
+      expect(names(["-   outer", outer, "ixix. shallow", "    ---"])).toEqual([]);
+      expect(names(["-   outer", outer, "cmcm. shallow", "    ---"])).toEqual([]);
+    }
+    // ⚠ **AND THE PRICE OF DECLINING, PINNED SO IT IS NOT FORGOTTEN.** This is the direction
+    // Session 249's R4 named — a heading quarto RENDERS that this model does not report. Quarto
+    // emits `h2:shallow` here and this model reports nothing; the narrowed copy got it right
+    // (`g4`, the 461-document BETTER set). It is left wrong on purpose because the same change
+    // costs 4,178 the other way. Re-filed with this measurement.
+    expect(names(["-   outer", "ixix. shallow", "    iv. shallow", "        ---"])).toEqual([]);
+    expect(names(["-   outer", "cmcm. shallow", "    iv. shallow", "        ---"])).toEqual([]);
+  });
+
+  it("R4: the residual R1 inherits is the PROSE family's, and the control says so", () => {
+    // ⚠ **THE MEASURED COST OF R1, PINNED SO IT IS NOT MISREAD AS NEW.** Over the 45,573
+    // documents (of 4,100,625 enumerated across 45 line kinds) whose answer R1 moves, it is
+    // **42,569 BETTER and 1,072 WORSE**, class-weighted against 1,861 rendered witnesses
+    // (`scratchpad/s250/g5`, all exit 0). The largest WORSE class is 308 documents of this
+    // shape, where quarto renders NO heading and this model now reports `h1:ATX`.
+    //
+    // ⚠ **IT IS PRE-EXISTING IN KIND, AND THE CONTROL IS WHAT PROVES IT — not an argument.**
+    // `Etc.` and `Dr.` are prose tokens `emptyItemMarkerIsPandocs` ALREADY rejected before this
+    // session, and they report `h1:ATX` on these same bytes in the PRE-CHANGE build. R1 does not
+    // create this phantom; it moves `dd.` and `ll.` out of the marker family and into the prose
+    // family, which already had it. The true markers are unmoved and still report nothing.
+    for (const prose of ["Etc.", "Dr."]) {
+      expect(names([prose, ">   quoted", prose, "# ATX"])).toEqual(["h1:ATX"]);
+    }
+    for (const tok of ["dd.", "ll."]) {
+      expect(names([tok, ">   quoted", tok, "# ATX"])).toEqual(["h1:ATX"]);
+    }
+    // and the markers pandoc really takes are NOT in that family, before or after
+    for (const marker of ["iv.", "1.", "a.", "10."]) {
+      expect(names([marker, ">   quoted", marker, "# ATX"])).toEqual([]);
+    }
+  });
+});

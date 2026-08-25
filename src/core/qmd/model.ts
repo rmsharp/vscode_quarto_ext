@@ -1056,6 +1056,45 @@ const ROMAN_RUN_UPPER = "M*(?:CM)?D?(?:CD)?C*(?:XC)?L?(?:XL)?X*(?:IX)?V?(?:IV)?I
  */
 const LONG_ROMAN_SRC =
   "(?:(?=[ivxlcdm]{10})" + ROMAN_RUN_LOWER + "|(?=[IVXLCDM]{10})" + ROMAN_RUN_UPPER + ")";
+/**
+ * **The same parser above, asked of a WHOLE token** — "is this run a roman numeral pandoc would
+ * take?" (Session 250). `LONG_ROMAN_SRC` asks it of a marker ten characters or longer, mid-line
+ * and behind a lookahead; the two `[a-zA-Z]{1,9}` post-filters below ask it of a run of one to
+ * nine, already captured.
+ *
+ * ⚠ **ONLY ONE OF THE TWO POST-FILTERS TAKES IT, AND THAT IS MEASURED (Session 250).**
+ * `emptyItemMarkerIsPandocs` asks what the line MEANS — is it an empty item? — and pandoc's
+ * parse is the whole answer, so it uses this. `popsEnclosingContainer` asks whether the marker
+ * CLOSES the container above, an answer that must mirror the PUSH `listItemContentColumn`
+ * performs on the same line; that push deliberately over-accepts `[a-zA-Z]{1,9}`, so the pop
+ * must over-accept with it and keeps its character class. See that function's own docstring for
+ * the 461-BETTER / 4,178-WORSE measurement that decided it.
+ *
+ * ⚠ **THE CHARACTER CLASS WAS WRONG ON 274 OF 441 EXHAUSTIVELY ENUMERATED TOKENS** — every
+ * lowercase two- and three-character run over the roman set plus every uppercase two-character
+ * run, rendered through quarto 1.7.33 in both geometries, all 887 documents exit 0
+ * (`scratchpad/s250/g1`, `g2`). `dd`, `ll`, `vv`, `ic`, `mim`, `ixix` and `cmcm` are drawn
+ * entirely from `[ivxlcdm]` and pandoc opens NO list for any of them, because its parser is
+ * ORDER-RESPECTING: `dd.` / `bravo` / `---` renders the bare paragraph `<p>dd. bravo —</p>`
+ * where `iv.` renders `<ol start="4" type="i"><li><h2>bravo</h2></li></ol>`. The tiers agree
+ * with quarto on all 441; the character class does not.
+ *
+ * ⚠ **THE LENGTH GUARD IS UNOBSERVABLE TODAY AND IS KEPT ON PURPOSE, WITH THE PROOF (mutant N4,
+ * the one survivor of this session's seven).** Every tier of the run is optional, so the
+ * anchored pattern MATCHES THE EMPTY STRING — measured, not assumed. The one caller cannot
+ * hand it one: `num` is `EMPTY_ITEM_MARKER`'s second group, and the two alternatives that could
+ * capture nothing cannot. `[a-zA-Z]{1,9}` has a `{1,` floor, and `LONG_ROMAN_SRC` is guarded by
+ * `(?=[ivxlcdm]{10})`, so an empty capture there would need the very next character to be the
+ * `[.)]` delimiter while the lookahead has just guaranteed ten ROMAN LETTERS stand in that
+ * position — and no character is both. A proof, not the passing suite that also failed to reach
+ * it. It is kept because the predicate is now a general question about a token, and the answer
+ * for `""` has to be "no" wherever a later caller asks it (Learning #14).
+ */
+const ROMAN_TOKEN_LOWER = new RegExp("^" + ROMAN_RUN_LOWER + "$");
+const ROMAN_TOKEN_UPPER = new RegExp("^" + ROMAN_RUN_UPPER + "$");
+function isPandocsRoman(num: string): boolean {
+  return num.length > 0 && (ROMAN_TOKEN_LOWER.test(num) || ROMAN_TOKEN_UPPER.test(num));
+}
 const ORDERED_MARKER_SRC = "\\(?(?:\\d+|" + LONG_ROMAN_SRC + "|[a-zA-Z]{1,9}|#)[.)]";
 /**
  * The same ordered half **capped the way CommonMark caps it** — an ordinal of one to NINE digits
@@ -1786,7 +1825,8 @@ function emptyItemMarkerIsPandocs(line: string, commonmarkDialect: boolean): boo
   if (num === "#" || /^\d+$/.test(num) || num.length === 1) {
     return true; // an example-list marker, a decimal at any width, or a single letter
   }
-  return /^[ivxlcdm]+$/.test(num) || /^[IVXLCDM]+$/.test(num);
+  // ⚠ **PANDOC'S PARSE, NOT THE ROMAN CHARACTER SET (Session 250).** See `isPandocsRoman`.
+  return isPandocsRoman(num);
 }
 const POPS_MARKER = new RegExp(
   "^[ \\t]*(?:([-+*])|\\(?(\\d+|#|" + LONG_ROMAN_SRC + "|[a-zA-Z]{1,9})([.)]))(?:[ \\t]|$)",
@@ -1824,6 +1864,23 @@ function popsEnclosingContainer(line: string, commonmarkDialect: boolean): boole
   if (num.length === 1) {
     return num >= "a" && num <= "z"; // `a.` closes; `A.` is an initial in a name
   }
+  // ⚠ **THIS CHARACTER CLASS IS DELIBERATE, AND IT IS THE HALF OF SESSION 249's R4 THAT WAS
+  // MEASURED AND DECLINED (Session 250).** `isPandocsRoman` is one screen up and this line looks
+  // exactly like the defect it repaired in `emptyItemMarkerIsPandocs`. It is NOT the same
+  // question. That predicate asks what a line MEANS; this one asks whether the marker CLOSES the
+  // container above, and that answer must mirror the PUSH `listItemContentColumn` performs on
+  // the same bytes — which deliberately over-accepts `[a-zA-Z]{1,9}` (its own docstring says
+  // why, and G4 pins `Elephants.` and `Dr.`). It pushes a column for `ixix.`, `dd.` and `cmcm.`
+  // just as it does for those two, so narrowing only the POP strands the outer container's
+  // column and a later underline AT that column invents a heading.
+  // ⚠ **SCORED AS A CANDIDATE `src` COPY, NOT ARGUED.** Over the 4,729 documents (of 1,679,616
+  // enumerated across 36 line kinds) whose answer the narrowing moves, it is **461 BETTER and
+  // 4,178 WORSE**, class-weighted against 643 rendered witnesses (`scratchpad/s250/g4`, all exit
+  // 0). Guarded at R3, which mutant N7 — the narrowing itself — fails against.
+  // ⚠ The 461 are real and are the direction Session 249's R4 named: `-   outer` /
+  // `ixix. shallow` / `    iv. shallow` / `        ---` renders `h2:shallow` and this model
+  // reports nothing. Left wrong on purpose, and RE-FILED with this measurement — the way to
+  // close it is to make the PUSH and the POP narrow together, not the pop alone.
   return /^[ivxlcdm]+$/.test(num) || /^[IVXLCDM]+$/.test(num);
 }
 /**
