@@ -149,3 +149,14 @@ a title under an empty bullet item
  ---
 
 # Below The Empty Bullet Marker
+
+1234567890.  a long ordered title
+             ---
+
+# Below The Long Ordered Marker
+
+mmmdcccxxx.
+a title under a long empty item
+           ---
+
+# Below The Long Empty Roman Item

@@ -1340,6 +1340,43 @@ describe("Quarto: Document outline (symbols)", () => {
       !flat(symbols).includes("1.") && !flat(symbols).includes("-"),
       "Session 248: the marker-only line is the ITEM, never the title text",
     );
+
+    // ⚠ **SESSION 249 — THE ORDINAL RUN IS AS LONG AS THE READER TAKES.** A marker longer than
+    // nine characters was not in the shared grammar at all, so no content column was pushed, the
+    // underline matched nothing and the heading was DELETED. The decimal run is UNBOUNDED (rendered
+    // to 100 digits) and the letter half is pandoc's ORDER-RESPECTING roman parser, not a length
+    // rule — `mmmmmmmmmm` is a marker and `ixixixixix` is not (`scratchpad/s249/r1`, `r2`).
+    //
+    // ⚠ The two underline columns differ ON PURPOSE and they are what pin the arithmetic: the
+    // POPULATED item `1234567890.  ...` opens content column 13 (marker 11 + two spaces), while the
+    // marker-only `mmmdcccxxx.` opens column 11 — its marker's own width, one LEFT of a populated
+    // item's (Session 248 gotcha 9). A column-0 `---` would pair with an existing one in this
+    // fixture and fail the render with exit 1.
+    //
+    // ⚠ The fixture premise is MEASURED, not assumed: `quarto render` on these exact bytes emits
+    // FORTY headings, the thirty-six above byte-identical and in the same order, and the four below
+    // added (`scratchpad/s249/fix.tsv`, before against after).
+    assert.ok(
+      flat(symbols).includes("a long ordered title"),
+      "Session 249: a marker of ten digits opens a list, so its title is a heading",
+    );
+    assert.ok(
+      flat(symbols).includes("Below The Long Ordered Marker"),
+      "Session 249: the ATX below the recovered long-marker title is a heading too",
+    );
+    assert.ok(
+      flat(symbols).includes("a title under a long empty item"),
+      "Session 249: a ten-letter ROMAN marker alone on its line is a complete empty item",
+    );
+    assert.ok(
+      flat(symbols).includes("Below The Long Empty Roman Item"),
+      "Session 249: the ATX below the recovered roman title is a heading too",
+    );
+    assert.ok(
+      !flat(symbols).includes("1234567890.  a long ordered title") &&
+        !flat(symbols).includes("mmmdcccxxx."),
+      "Session 249: the long marker is stripped from the title, and is never the title itself",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
