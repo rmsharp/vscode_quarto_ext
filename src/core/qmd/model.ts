@@ -6215,6 +6215,14 @@ function computeRegions(text: string): Regions {
     // (`r3/p_defthen`, `p_fn`) — which is the same asymmetry Session 198 measured for the pop
     // rule directly above, read off the same `columnKinds` array. Guarded at G7.
     let siblingListItemOpensHere = false;
+    // ⚠ **AND WHETHER A LIST ITEM OPENS HERE AT ALL, sibling or not (Session 248).** The two flags
+    // beside this one both carry `listOpenAboveThisLine`, so neither can answer for the FIRST
+    // marker of a list — and pandoc consumes a marker-only FIRST marker as an EMPTY item exactly
+    // as it does a sibling one: `1.` / `bravo` / `---` renders `ol>h2` with `h2:bravo`
+    // (`scratchpad/s248/z_core/w_ol_u0`). Set inside the same arm as those two, so it inherits the
+    // `indentedCodeLine` guard: `    1.` at top level is CODE and opens nothing, and the heading
+    // below it forms at top level instead (`z_core/i_ol_i4`, guarded at G4).
+    let listItemOpensHere = false;
     // ⚠ **AND WHETHER IT LANDS AT A COLUMN THE OPEN LIST WOULD ACCEPT A SIBLING MARKER AT, which
     // is a NARROWER question with two different readers (Session 246).** The reset above fires at
     // ANY depth — a NESTED item interrupts its parent's paragraph and starts a fresh block just as
@@ -6366,6 +6374,10 @@ function computeRegions(text: string): Regions {
           // opens nothing, so it cannot start a block either: `para` / `` / `    -   alpha` /
           // `    -   bravo` / `        ---` renders `p>pre` (`r3/cd_incode`). Guarded at G6.
           siblingListItemOpensHere = listOpenAboveThisLine;
+          // See `listItemOpensHere` — the same arm, the same `indentedCodeLine` guard, and no
+          // `listOpenAboveThisLine` conjunct, because the FIRST marker of a list is precisely the
+          // case the other two flags cannot reach.
+          listItemOpensHere = true;
           // ⚠ **`listOpenAboveThisLine` HERE IS UNOBSERVABLE AND IS KEPT BECAUSE IT IS RIGHT BY
           // CONSTRUCTION, NOT BY LUCK (Session 246, mutant N15).** `siblingMarkerColumnAbove`
           // already requires a `list` column to exist, which is exactly what the conjunct tests,
@@ -7331,8 +7343,25 @@ function computeRegions(text: string): Regions {
     // heading quarto does not render — and cleared `paragraphOpen` on its way past. Declining
     // that underline without these two terms keeps the phantom's cure and gives the ATX back
     // with it, a heading DELETED on four measured rows. The three land together or not at all.
+    // ⚠ **AND SO IS THE FIRST MARKER OF A LIST, WHERE NO PARAGRAPH IS OPEN ABOVE IT
+    // (Session 248).** Session 246's term is gated on a list being open ABOVE the line, so the
+    // opening marker of a list was outside it by construction — `1.` / `bravo` / `---` renders
+    // `ol>h2` and every build through Session 247 reported NOTHING, because the marker line
+    // counted as a body line and the run reached 2 (`z_core/w_ol_u0`, `w_ul_u0`, and the ATX
+    // spelling `w_ol_atx`, `w_ul_atx`, which is Session 246's own R4).
+    // ⚠ **THE SECOND ARM IS GATED ON `paragraphOpen` AND THE FIRST IS NOT, AND THAT ASYMMETRY IS
+    // MEASURED, NOT TIDINESS.** CommonMark forbids an EMPTY item from interrupting a paragraph, so
+    // with prose open above it a lone `-` is a level-2 UNDERLINE and a lone `1.` is ordinary text:
+    // `alpha` / `-` / `bravo` / `---` renders BOTH headings and `alpha` / `1.` / `bravo` / `---`
+    // renders a bare `<p>` (`z_gate/p_ul_para`, `p_ol_para`; guarded at G1, and one container in
+    // at G2). A SIBLING marker interrupts nothing — it ENDS the item it is a sibling of — so it
+    // is an empty item even with a paragraph open, which is why the arms cannot be merged:
+    // `-   alpha` / `-` / `bravo` / `===` renders `ul>h1` with the paragraph open (G3).
+    // ⚠ `paragraphOpen` here is still the line ABOVE's — it is overwritten further down — which is
+    // exactly the state the interrupt question needs.
     const emptySiblingItem: boolean =
-      siblingItemAtMarkerColumn && LIST_ITEM_EMPTY.test(line);
+      (siblingItemAtMarkerColumn || (listItemOpensHere && !paragraphOpen)) &&
+      LIST_ITEM_EMPTY.test(line);
 
     // Whether the line BELOW is an empty list item at a marker column an open list would accept
     // — the same question `siblingItemAtMarkerColumn` asks of THIS line, asked one line ahead so

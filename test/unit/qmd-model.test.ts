@@ -1282,7 +1282,13 @@ describe("an `=`/`-` run and a thematic break do NOT close a paragraph (Session 
       .toContain("ATX Below");
     expect(findHeadings(doc("# Heading Above", "===   ", "# ATX Below")).map((h) => h.text))
       .toContain("ATX Below"); // trailing WHITESPACE is still an underline (measured)
-    for (const run of [" ===", "   ===", "   -", "=== junk"]) {
+    // ⚠ **`"   -"` WAS IN THIS LOOP AND WAS WRONG — REMOVED BY SESSION 248, ON RENDERED BYTES.**
+    // Every measured example in the comment above is an `=` run; the dash spelling was added by
+    // analogy and never rendered. It is not an underline at all — it is an EMPTY LIST ITEM, and
+    // `# Heading Above` / `   -` / `# ATX Below` renders `section>h1>ul>h1` with BOTH headings
+    // (`scratchpad/s248/z_s182/m9_sp3_dash`, with `s_i1`/`s_i2`/`s_i3` sweeping the indent and
+    // `s_o0`/`s_o3` the ordered twin). It is pinned with its family at Session 248's C8.
+    for (const run of [" ===", "   ===", "=== junk"]) {
       expect(findHeadings(doc("# Heading Above", run, "# ATX Below")).map((h) => h.text))
         .not.toContain("ATX Below");
     }
@@ -1300,8 +1306,14 @@ describe("an `=`/`-` run and a thematic break do NOT close a paragraph (Session 
       .toContain("ATX Below");
     expect(findHeadings(doc("# Heading Above", "", "===", "# ATX Below")).map((h) => h.text))
       .not.toContain("ATX Below");
+    // ⚠ **THIS ROW ASSERTED `.not.toContain` AND WAS WRONG — FLIPPED BY SESSION 248, ON RENDERED
+    // BYTES.** Same story as M9/M10's `"   -"`: the two measured examples in the comment above are
+    // both `=` runs, and the dash spelling was added by analogy. A lone `-` after a blank line is
+    // an EMPTY LIST ITEM, not an underline, so it swallows nothing —
+    // `# Heading Above` / `` / `-` / `# ATX Below` renders `section>h1>ul>h1` with BOTH headings
+    // (`scratchpad/s248/z_s182/m13_blank_dash`, `b_i0`, `b_i3`, `b_o0`). Pinned at Session 248's C8.
     expect(findHeadings(doc("# Heading Above", "", "-", "# ATX Below")).map((h) => h.text))
-      .not.toContain("ATX Below");
+      .toContain("ATX Below");
     // …and it must not survive a fenced region either.
     expect(findHeadings(doc("# Heading Above", "", "```", "code", "```", "===", "# ATX Below"))
       .map((h) => h.text)).not.toContain("ATX Below");
@@ -15232,13 +15244,15 @@ describe("Session 246 — a sibling list marker starts a fresh block", () => {
     expect(names(["- - b", "---"])).toEqual(["h2:b"]); // the control, right in every build
   });
 
-  it("R4: a bare marker with NO list open above it is still not a block start", () => {
-    // PRE-EXISTING and unmoved: `-` / `# Probe Z` renders `ul>h1` and no build reports the ATX
-    // (`r7/x_nolist`, `x_nolist_p`, `r6/z_empty_first`). The reset is gated on a list being open
-    // ABOVE the line — G1's nine rendered indents are why — so the FIRST marker of a list is
-    // outside this change by construction. Filed.
-    expect(names(["-", "# Probe Z"])).toEqual([]); // quarto: h1:Probe Z
-    expect(names(["alpha", "", "-", "# Probe Z"])).toEqual([]); // quarto: h1:Probe Z
+  it("R4: a bare marker with NO list open above it IS a block start — CLOSED by Session 248", () => {
+    // ⚠ **THIS RESIDUAL IS FIXED.** Session 246 filed it and left it outside its own change by
+    // construction: its reset is gated on a list being open ABOVE the line (G1's nine rendered
+    // indents are why), so the FIRST marker of a list could never reach it. Session 248 added the
+    // second arm — a marker-only line that OPENS a list, where no paragraph is open above it — and
+    // both witnesses now answer the way quarto renders them (`r7/x_nolist`, `x_nolist_p`,
+    // `r6/z_empty_first`, re-rendered at `scratchpad/s248/z_core/w_ul_atx` and `z_gate/z_blank_atx`).
+    expect(names(["-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["alpha", "", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
   });
 
   it("C12: the ATX-swallow gate and the setext row agree about the line between them", () => {
@@ -15690,9 +15704,216 @@ describe("Session 247 — an ordered marker is stripped where the list it opens 
     // is the item's first and only body line; this model counts it as a body line, so the run
     // reaches 2 and the default reader's one-line title is no longer on offer.
     // ⚠ Found by an independent agent and verified firsthand; the bullet control is what says it
-    // is the body-run rule and not this session's. Filed.
-    expect(names(["1.", "bravo", "---"])).toEqual([]); // quarto: h2:bravo
-    expect(names(["-", "bravo", "---"])).toEqual([]); // quarto: h2:bravo
-    expect(names(["1.", "bravo", "==="])).toEqual([]); // quarto: h1:bravo
+    // is the body-run rule and not this session's.
+    // ⚠ **CLOSED BY SESSION 248**, which was right: the bullet control named the term. The fix is
+    // the second arm of `emptySiblingItem` — a marker-only line that OPENS a list, where no
+    // paragraph is open above it — and it closes Session 246's R4 with it. All three witnesses
+    // now answer the way quarto renders them.
+    expect(names(["1.", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["-", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["1.", "bravo", "==="])).toEqual(["h1:bravo"]);
+  });
+});
+
+describe("Session 248 guard — answers around the marker-only line that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ **WRITTEN BEFORE THE GATE, FROM RENDERED BYTES.** Every row below was rendered through the
+  // real `quarto render` path in `scratchpad/s248/z_core` and `z_gate` (71 documents, every exit
+  // code read — `r_len3` exited 1 and was DISCARDED as not-data, gotcha 5) and every one of them
+  // this build ALREADY answers the way quarto does. They are the price list for widening
+  // `emptySiblingItem`, and the reason the widening is gated on `paragraphOpen` and not on the
+  // marker's kind or its column.
+
+  it("G1: an EMPTY item may not interrupt an open paragraph — the lone marker stays an UNDERLINE", () => {
+    // ⚠ **THE ROW THE WHOLE GATE RESTS ON.** CommonMark forbids an empty list item from
+    // interrupting a paragraph, so with prose open above it a lone `-` is a level-2 underline and
+    // nothing else: `alpha` / `-` / `bravo` / `---` renders `section>h2>section>h2` with BOTH
+    // headings (`z_gate/p_ul_para`). The ORDERED spelling cannot even be an underline, so it is
+    // ordinary paragraph text and NOTHING renders — `alpha` / `1.` / `bravo` / `---` renders a
+    // bare `<p>` (`p_ol_para`). Reading `paragraphOpen` for the line ABOVE is what keeps both.
+    expect(names(["alpha", "-", "bravo", "---"])).toEqual(["h2:alpha", "h2:bravo"]);
+    expect(names(["alpha", "1.", "bravo", "---"])).toEqual([]);
+    // and the ATX spellings of the same pair (`p_ul_para_atx`, `p_ol_para_atx`)
+    expect(names(["alpha", "-", "# Probe Z"])).toEqual(["h2:alpha", "h1:Probe Z"]);
+    expect(names(["alpha", "1.", "# Probe Z"])).toEqual([]);
+    // ⚠ and a NON-EMPTY item does not rescue it either — `1.  item` and `-   item` under prose
+    // both render a bare `<p>` (`p_ol_full`, `p_ul_full`, `p_ol2_full`)
+    expect(names(["alpha", "1.  item", "bravo", "---"])).toEqual([]);
+    expect(names(["alpha", "-   item", "bravo", "---"])).toEqual([]);
+  });
+
+  it("G2: an INNER marker under an OPEN paragraph is that paragraph's underline, at column 4", () => {
+    // The same gate one container in, and it is the row that says the widening must not be keyed
+    // on "a list is open above". `-   alpha` / `    -` / `bravo` / `---` renders `ul>h2>h2` with
+    // `h2:alpha` AND `h2:bravo` — the indented `-` underlines `alpha` (`z_gate/n_inner_04`).
+    expect(names(["-   alpha", "    -", "bravo", "---"])).toEqual(["h2:alpha", "h2:bravo"]);
+  });
+
+  it("G3: the SIBLING empty item Session 246 already ships is unchanged", () => {
+    // `-   alpha` / `-` / `bravo` / `===` renders `ul>h1` with `h1:bravo`, and
+    // `-   alpha` / `-` / `# Probe Z` renders `ul>h1` (`z_core/s_sib_und`, `s_sib_atx`).
+    // ⚠ Note the paragraph IS open on both — `alpha` is prose — so the sibling arm can never be
+    // folded into G1's `paragraphOpen` gate. The two arms are disjoint and both are needed.
+    expect(names(["-   alpha", "-", "bravo", "==="])).toEqual(["h1:bravo"]);
+    expect(names(["-   alpha", "-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    // and a lone marker BETWEEN two real items renders no heading at all (`z_gate/z_between`)
+    expect(names(["-   alpha", "-", "-   charlie", "bravo", "---"])).toEqual([]);
+  });
+
+  it("G4: FOUR columns of indent is INDENTED CODE, and the marker opens nothing", () => {
+    // `    1.` / `bravo` / `---` renders `pre>section>h2` — the marker line is a code block and
+    // the heading below it forms at TOP LEVEL, not inside any list (`z_core/i_ol_i4`, `i_ul_i4`).
+    // The container arm that would set the new flag already sits behind `indentedCodeLine`, so
+    // this row is right by construction rather than by a second indent test.
+    expect(names(["    1.", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["    -", "bravo", "---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("G5: a TWO-line title is not on offer to the default reader, marker-only line or not", () => {
+    // `1.` / `bravo` / `charlie` / `---` renders a bare `<ol>` and NO heading, and the bullet twin
+    // renders a bare `<ul>` (`z_core/t_two_line`, `t_two_ul`). Whatever the marker line does to
+    // the body run, quarto's default reader still admits exactly ONE title line.
+    expect(names(["1.", "bravo", "charlie", "---"])).toEqual([]);
+    expect(names(["-", "bravo", "charlie", "---"])).toEqual([]);
+  });
+
+  it("G6: a run of two or more is no marker at all, and neither is a spaced break", () => {
+    // `--` renders a pandoc simple TABLE and no heading (`z_gate/r_len2`); `**` renders a bare
+    // `<p>` (`r_star2`); `***` is a thematic break and the heading below it is top-level
+    // (`z_core/k_tb_star`). ⚠ `- - -` renders a TABLE with no heading and this model reports
+    // `h2:bravo` — a PRE-EXISTING phantom of the already-filed headerless-simple-table family
+    // (Session 239), measured here at `z_core/k_tb_spaced` and deliberately left where it is.
+    expect(names(["--", "bravo", "---"])).toEqual([]);
+    expect(names(["**", "bravo", "---"])).toEqual([]);
+    expect(names(["***", "bravo", "---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("G7: a marker-only line with nothing below it, and one behind a fence, stay inert", () => {
+    // `alpha` / `` / `-` renders `p>ul` and no heading (`z_gate/z_last_ul`, `z_last_ol`), and a
+    // marker inside a fenced code block is code (`f_code`).
+    expect(names(["alpha", "", "-"])).toEqual([]);
+    expect(names(["alpha", "", "1."])).toEqual([]);
+    expect(names(["```", "-", "bravo", "---", "```"])).toEqual([]);
+  });
+
+  it("G8: the rows a marker-only line ALREADY gets right, because a sibling or a blank saved them", () => {
+    // These are the near-twins of the defect that happen to be correct today, and each is correct
+    // for a DIFFERENT reason — a second marker makes the first one's successor a sibling
+    // (`z_core/d_two_ol`, `d_two_ul`), and a blank line resets the run on its own
+    // (`b_blank_ol`, `b_blank_ul`, `z_gate/n_sib_blank`, `z_blank_atx`).
+    expect(names(["1.", "2.", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["-", "-", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["1.", "", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["-", "", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["-   alpha", "", "-", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["-", "", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+});
+
+describe("Session 248 — a marker-only line is a complete empty item", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: the FIRST marker of a list, alone on its line, starts a fresh block below it", () => {
+    // ⚠ **THE RED→GREEN ROW.** `1.` / `bravo` / `---` renders `ol>h2` with `h2:bravo` — pandoc
+    // consumes the marker-only line as an EMPTY item, after which `bravo` is the item's FIRST and
+    // only body line, so the default reader's ONE-line setext title is on offer
+    // (`scratchpad/s248/z_core/w_ol_u0`). Every build through Session 247 counted the marker line
+    // itself as a body line, so the run reached 2 and NO heading was reported at all.
+    expect(names(["1.", "bravo", "---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("C2: the ATX below a marker-only line is a heading — Session 246's own R4, closed here", () => {
+    // `-` / `# Probe Z` renders `ul>h1` and `1.` / `# Probe Z` renders `ol>h1`
+    // (`z_core/w_ul_atx`, `w_ol_atx`). Session 246 filed this as R4 and left it outside its change
+    // by construction, because its `emptySiblingItem` needs a list open ABOVE the line. The empty
+    // item opens no paragraph, so `closesParagraph` is never asked and the ATX is not swallowed —
+    // the SAME second consumer Session 246 already wired, now reached by the first marker too.
+    expect(names(["-", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["1.", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+  });
+
+  it("C3: EVERY marker kind opens the item, ordered and bullet alike", () => {
+    // Rendered one per kind, all `ol>h2` or `ul>h2` with `h2:bravo` (`z_core/m_star`, `m_plus`,
+    // `m_paren`, `m_two`, `m_ten`, `m_alpha`, `m_upper`, `w_ul_u0`, `w_ol_u0`, `z_gate/r_star1`).
+    // ⚠ The kind is NOT the discriminator anywhere in this change — the flag is set off the shared
+    // `listItemContentColumn` grammar, so a kind this model already parses is covered for free and
+    // a kind it does not (`1234567890.`, ten characters — Session 247's R3) stays lost either way.
+    for (const marker of ["-", "*", "+", "1.", "1)", "2.", "10.", "a.", "A."]) {
+      expect(names([marker, "bravo", "---"])).toEqual(["h2:bravo"]);
+    }
+    // and the level-1 spelling of the same (`z_core/w_ol_h1`, `w_ul_h1`, `z_gate/e_ul_h1`)
+    expect(names(["1.", "bravo", "==="])).toEqual(["h1:bravo"]);
+    expect(names(["-", "bravo", "==="])).toEqual(["h1:bravo"]);
+    // ⚠ and TRAILING WHITESPACE after the marker is still a marker-only line (`z_core/w_trail_ul`)
+    expect(names(["-   ", "bravo", "---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("C4: ONE, TWO and THREE columns of indent open it; FOUR is code and is guarded at G4", () => {
+    // `z_core/i_ol_i1`..`i_ol_i3` and `i_ul_i1`..`i_ul_i3` all render `ol>h2` / `ul>h2`.
+    for (const pad of [" ", "  ", "   "]) {
+      expect(names([pad + "1.", "bravo", "---"])).toEqual(["h2:bravo"]);
+      expect(names([pad + "-", "bravo", "---"])).toEqual(["h2:bravo"]);
+    }
+  });
+
+  it("C5: the underline must still reach a column the item was formed at", () => {
+    // ⚠ **THE ROW THAT SAYS THIS CHANGE DID NOT SIMPLY TURN THE BODY RUN OFF.** `1.` / `bravo` /
+    // `   ---` renders a bare `<ol>` and NO heading, and the bullet twin renders a bare `<ul>`
+    // (`z_core/u_ol_uc`, `u_ul_uc`) — an underline at the item's CONTENT column claims nothing
+    // here, where at column 0 it claims the title. Both builds are right on these two and the
+    // change leaves them where they were; they are pinned because the obvious wider spelling of
+    // the fix moves them.
+    expect(names(["1.", "bravo", "   ---"])).toEqual([]);
+    expect(names(["-", "bravo", "  ---"])).toEqual([]);
+  });
+
+  it("C6: a marker-only line inside a QUOTE and inside a fenced DIV opens the item too", () => {
+    // `> -` / `> bravo` / `> ---` renders `blockquote>ul>h2` and the ordered twin
+    // `blockquote>ol>h2`; `> -` / `> # Probe Z` renders `blockquote>ul>h1`
+    // (`z_gate/q_ul`, `q_ol`, `q_ul_atx`). The div spelling renders `div>ol>h2` (`v_ol`).
+    expect(names(["> -", "> bravo", "> ---"])).toEqual(["h2:bravo"]);
+    expect(names(["> 1.", "> bravo", "> ---"])).toEqual(["h2:bravo"]);
+    expect(names(["> -", "> # Probe Z"])).toEqual(["h1:Probe Z"]);
+    expect(names(["::: {.note}", "1.", "bravo", "---", ":::"])).toEqual(["h2:bravo"]);
+  });
+
+  it("C7: an INNER marker-only line after a blank opens the inner item, one container in", () => {
+    // `-   alpha` / `` / `    -` / `bravo` / `---` renders `ul>p>ul>h2` with `h2:bravo`
+    // (`z_gate/n_inner_b4`, and `n_inner_b4c` with the body indented too). ⚠ This is the row that
+    // says the widening must NOT carry a `!listOpenAboveThisLine` conjunct: a list IS open here
+    // and the marker is still the first marker of a NEW, inner list. The blank line is what makes
+    // it an item rather than `alpha`'s underline — compare G2, which has no blank and renders
+    // `h2:alpha` instead.
+    expect(names(["-   alpha", "", "    -", "bravo", "---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("C8: a marker-only line under an ATX heading — Session 182's M9/M10 and M13 rows, re-rendered", () => {
+    // ⚠ **TWO PINS IN SESSION 182'S BLOCK ASSERTED AN ANSWER QUARTO DOES NOT GIVE, and they went
+    // red here.** Both were added as `-` spellings inside loops whose measured examples in the
+    // comment are all `=` runs; the dash rows were never rendered. Re-rendered on the exact bytes:
+    //   `# Heading Above` / `   -` / `# ATX Below`      -> `section>h1>ul>h1`, BOTH headings
+    //   `# Heading Above` / `` / `-` / `# ATX Below`    -> `section>h1>ul>h1`, BOTH headings
+    // (`z_s182/m9_sp3_dash`, `m13_blank_dash`, with `s_i1`, `s_i2`, `s_i3`, `b_i0`, `b_i3`, `b_o0`
+    // sweeping the indent and the ordered twin — 22 documents, 22 exactly right after this change
+    // and 13 of them wrong before it.) The `=` rows those loops really do measure are untouched.
+    expect(names(["# Heading Above", "   -", "# ATX Below"])).toEqual([
+      "h1:Heading Above",
+      "h1:ATX Below",
+    ]);
+    expect(names(["# Heading Above", "", "-", "# ATX Below"])).toEqual([
+      "h1:Heading Above",
+      "h1:ATX Below",
+    ]);
+    // ⚠ **AND AT COLUMN 0 WITH NO BLANK IT IS THE ATX LINE'S OWN UNDERLINE, NOT AN ITEM** —
+    // `# Heading Above` / `-` / `# ATX Below` renders `section>h2>section>h1` with the `#` KEPT in
+    // the title text (`z_s182/s_i0`). Both builds get this right; it is pinned because it is the
+    // one row in the sweep where the marker-only line is not an item at all.
+    expect(names(["# Heading Above", "-", "# ATX Below"])).toEqual([
+      "h2:# Heading Above",
+      "h1:ATX Below",
+    ]);
   });
 });
