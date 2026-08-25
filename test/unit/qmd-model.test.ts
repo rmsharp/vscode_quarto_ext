@@ -15916,4 +15916,58 @@ describe("Session 248 — a marker-only line is a complete empty item", () => {
       "h1:ATX Below",
     ]);
   });
+
+  it("C9: a list already open above the header row outranks the simple table", () => {
+    // ⚠ **THE SECOND RED→GREEN ROW, AND IT WAS FOUND BY ENUMERATION ALONE.** Seven gates were
+    // green — 2,776 unit tests, a byte-identical oracle, 60,998 corpus documents with 0 worse, a
+    // clean repo sweep and 93 rendered probes — on a build that deleted a heading here.
+    // 6,200,000 enumerated documents found it: 53 of the 120 heading-LOSING transition classes.
+    // ⚠ **THE MECHANISM IS THE PRICE OF THE EMPTY ITEM.** An empty item opens no paragraph, which
+    // is the whole point of the change — but `simpleTableOpensHere` reads `paragraphOpenAboveHeader`
+    // as "no block above has claimed this header row", and with the paragraph legitimately gone a
+    // marker-only line became eligible as a simple table's HEADER. Instrumented at the call site
+    // rather than argued about: the traces are identical through `titleLineCount`, and diverge on
+    // `inSimpleTable` alone (`scratchpad/s248/dbg`).
+    // ⚠ **THE TERM IS THE ONE `headerContinuesQuote` ALREADY WRITES FOR A QUOTE.** A list that was
+    // already open above the header row has claimed it, and `paragraphOpenAboveHeader` cannot see
+    // that. Rendered: ` 1.` / `  1.` / `   -` / `1.` / `---` renders `ol>ul>section>h2` with
+    // `h2:1.` and NO table (`z_bisect/b5_full`), while the SAME document without its first line
+    // really is a table and renders nothing (`b4_drop0`, `g_hdr_empty`) — a list is open above the
+    // header in the first and not in the second, and that is the whole difference.
+    expect(names([" 1.", "  1.", "   -", "1.", "---"])).toEqual(["h2:1."]);
+    // the control: no list open above the header row, so the table still forms and no heading does
+    expect(names(["  1.", "   -", "1.", "---"])).toEqual([]);
+    // ⚠ and a REAL table inside a list item is untouched — `1.` / `colA colB` / `----- -----` /
+    // `x     y` renders `ol>table` (`z_bisect/g_tbl_after_marker`), because its header row is
+    // prose the open list never claimed
+    expect(names(["1.", "colA colB", "----- -----", "x     y"])).toEqual([]);
+  });
+
+  it("R1: the disclosed residual — an empty item's BODY line is still eligible as a table header", () => {
+    // ⚠ **THE DISCLOSED RESIDUAL OF THIS SESSION. MEASURED, NOT GUESSED — and it is the OTHER
+    // half of C9's mechanism, left where it is on purpose.** `simpleTableOpensHere` reads
+    // `paragraphOpenAboveHeader` as a proxy for "some block above has already claimed this header
+    // row". C9 repaired the case where the header row IS an item of an open list. The case where
+    // the header row is an empty item's own BODY line is not repaired: an empty item legitimately
+    // opens no paragraph, so the proxy reads false one line further down too.
+    // ⚠ **PRE-EXISTING IN KIND, not created here.** Session 246's sibling arm already opens no
+    // paragraph, and quarto really does build a table under one: `-   alpha` / `-` / `bravo` /
+    // `   -` / `charlie` renders `ul>table` and BOTH builds report nothing (`z_resid/sib_body_rule`).
+    // The proxy was already approximate before this session; this session widened what reaches it.
+    // ⚠ **CORPUS WEIGHT ZERO** — 60,998 corpus documents and the repo's own 114 both show it not
+    // once. It is visible only to enumeration: 55 of 11,107 transition classes over 6,200,000
+    // documents, and 32 of those 55 sit behind a CommonMark-family `from:` prefix, where the whole
+    // paragraph is on offer as a title.
+    // ⚠ Its OTHER leg is an INDENTED CODE line as the header row, which is measured to be a real
+    // header (`simpleTableOpensHere`'s own docstring, `r0/a_code4`), so the two legs cannot be
+    // closed by one term. Filed.
+    // ` 1.` / `alpha` / `   -` / `alpha` / `1.` under `from: gfm` renders `ol>section>h2>p` with
+    // `h2:alpha` (`z_brute2/loss0028`); this model reports nothing.
+    expect(
+      names(["---", "format: html", "from: gfm", "---", "", "1.", "alpha", "   -", "alpha", "1."]),
+    ).toEqual([]); // quarto: h2:alpha
+    // and the plain-reader twin of the same bytes really is a bare list in BOTH — the row that
+    // localises the residual to the CommonMark whole-paragraph title (`z_resid/fst_body_rule`)
+    expect(names(["1.", "alpha", "   -", "alpha", "1."])).toEqual([]); // quarto: no heading — agrees
+  });
 });

@@ -4311,7 +4311,27 @@ function simpleTableOpensHere(
   paragraphOpenAboveHeader: boolean,
   pipeTableRowsOpen: boolean,
   headerContinuesQuote: boolean,
+  headerIsItemOfOpenList: boolean,
 ): boolean {
+  if (headerIsItemOfOpenList) {
+    // ⚠ **A LIST THAT WAS ALREADY OPEN ABOVE THE HEADER ROW HAS ALREADY CLAIMED IT, AND
+    // `paragraphOpenAboveHeader` CANNOT SEE THAT (Session 248)** — the same sentence
+    // `headerContinuesQuote` below writes for a block quote, and true for the same reason: `table`
+    // is tried at the start of a BLOCK, and where a list opened earlier the block began at the
+    // list, not at this header. It became reachable when Session 248 taught a marker-only line to
+    // open an EMPTY item, which by design opens no paragraph — so the flag that used to stand in
+    // for "some block above claimed this row" went false and a bare marker became eligible as a
+    // header. Rendered: ` 1.` / `  1.` / `   -` / `1.` / `---` renders `ol>ul>section>h2` with
+    // `h2:1.` and NO table, while the SAME document without its first line really is a table and
+    // renders nothing at all (`scratchpad/s248/z_bisect/b5_full` against `b4_drop0`,
+    // `g_hdr_empty`). A list open above the header is the whole difference between them.
+    // ⚠ **AND ONLY THE HEADER'S OWN CLAIM — a table inside a list item is untouched.**
+    // `1.` / `colA colB` / `----- -----` / `x     y` renders `ol>table` (`g_tbl_after_marker`):
+    // its header row is prose, which the open list never claimed. Guarded at C9.
+    // ⚠ Found by ENUMERATION ALONE — 53 of 120 heading-losing transition classes over 6,200,000
+    // documents, on a build where seven other gates were green.
+    return false;
+  }
   if (headerContinuesQuote) {
     // ⚠ **A BLOCK QUOTE THAT WAS ALREADY OPEN ABOVE THE HEADER ROW HAS ALREADY CLAIMED IT, AND
     // `paragraphOpenAboveHeader` CANNOT SEE THAT.** `table` is tried at the start of a BLOCK, and
@@ -5727,6 +5747,13 @@ function computeRegions(text: string): Regions {
   // about the scanner's own state and not about the header's bytes (Session 235). Snapshotted at
   // the very top of the loop body so every `continue` path below is covered.
   let paragraphOpenAtPrevLineStart = false;
+  // Whether the line ABOVE this one opened a list item with a list ALREADY OPEN above IT — the
+  // one-line lag `simpleTableOpensHere`'s `headerIsItemOfOpenList` reads, kept the same way
+  // `paragraphOpenAtPrevLineStart` is because the separator asks a question about its HEADER row
+  // rather than about itself. Captured and cleared at the top of every iteration, so a line that
+  // `continue`s out before the container block leaves it false — which is right: such a line
+  // opened no item.
+  let listItemOpensAtPrevLine = false;
   // Whether a REAL table's body rows are still running — armed by `tableShapedLineIsBlock`'s
   // pipe-delimiter arm and read back by it on the rows below (Session 235). ⚠ Separate from
   // `inPipeTable` above ON PURPOSE, and the two must not be merged: that flag arms on ANY
@@ -6122,6 +6149,8 @@ function computeRegions(text: string): Regions {
     const prevLineBlank = i === 0 || BLANK_LINE.test(lines[i - 1]);
     const paragraphOpenAboveHeader = paragraphOpenAtPrevLineStart;
     paragraphOpenAtPrevLineStart = paragraphOpen;
+    const listItemAboveHeader = listItemOpensAtPrevLine;
+    listItemOpensAtPrevLine = false;
 
     // YAML front matter. Record the span as it opens (provisionally unterminated, ending at
     // EOF) and refine `endLine`/`terminated` when the terminator is seen.
@@ -6374,6 +6403,10 @@ function computeRegions(text: string): Regions {
           // opens nothing, so it cannot start a block either: `para` / `` / `    -   alpha` /
           // `    -   bravo` / `        ---` renders `p>pre` (`r3/cd_incode`). Guarded at G6.
           siblingListItemOpensHere = listOpenAboveThisLine;
+          // The SAME premise, carried one line forward for the separator below — see
+          // `listItemOpensAtPrevLine`. Set from the same arm so this reader and
+          // `siblingListItemOpensHere` cannot answer it two ways (Learning #14).
+          listItemOpensAtPrevLine = listOpenAboveThisLine;
           // See `listItemOpensHere` — the same arm, the same `indentedCodeLine` guard, and no
           // `listOpenAboveThisLine` conjunct, because the FIRST marker of a list is precisely the
           // case the other two flags cannot reach.
@@ -6788,6 +6821,8 @@ function computeRegions(text: string): Regions {
           // neither — and it is exactly what this session had to repair elsewhere.
           blockQuoteContentStart(lines[i - 1], rawMarkerColumns) !== null &&
           blockQuoteContentStart(lines[i - 2], rawMarkerColumns) !== null,
+        // Whether an already-open list claimed the HEADER row — see `headerIsItemOfOpenList`.
+        listItemAboveHeader,
       )
     ) {
       simpleTableRowsOpen = true;
@@ -7359,6 +7394,18 @@ function computeRegions(text: string): Regions {
     // `-   alpha` / `-` / `bravo` / `===` renders `ul>h1` with the paragraph open (G3).
     // ⚠ `paragraphOpen` here is still the line ABOVE's — it is overwritten further down — which is
     // exactly the state the interrupt question needs.
+    // ⚠ **`listItemOpensHere` IS UNOBSERVABLE TODAY AND IS KEPT BECAUSE IT IS RIGHT BY
+    // CONSTRUCTION, NOT BY LUCK (Session 248, mutant N4).** Dropping it — leaving
+    // `siblingItemAtMarkerColumn || !paragraphOpen` behind `LIST_ITEM_EMPTY` — survived the whole
+    // unit suite. The only lines it can reach are those where `LIST_ITEM_EMPTY` matches and NO
+    // item opens, which is exactly the `indentedCodeLine` guard on the arm above (and a marker too
+    // deep for its container); and an indented code line ALREADY opens a fresh block, because
+    // `opensFreshBlock` carries `INDENTED_CODE_LINE`, and already closes any open paragraph. The
+    // two spellings therefore cannot disagree — a proof, checked against seven directly NAMED
+    // reaching shapes (`    -` / `# Probe Z` at line 0, the too-deep-for-its-item twin, the quoted
+    // twin, and their setext spellings) and 362,144 enumerated documents across two alphabets
+    // built to reach it (`scratchpad/s248/hunt.test.ts`, `reach.test.ts`). It is spelled out so
+    // this term and the `indentedCodeLine` guard answer their shared premise the same way.
     const emptySiblingItem: boolean =
       (siblingItemAtMarkerColumn || (listItemOpensHere && !paragraphOpen)) &&
       LIST_ITEM_EMPTY.test(line);
