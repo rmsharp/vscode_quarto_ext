@@ -15689,8 +15689,14 @@ describe("Session 247 — an ordered marker is stripped where the list it opens 
     // (`scratchpad/s247/r5/lex_d10_uc`, `lex_rom10_uc`; found by an independent agent and
     // verified firsthand). ⚠ It belongs to `listItemContentColumn`, which every container rule
     // reads, so widening it is a container change and not a strip change.
-    expect(names(["1234567890.  bravo", "             ---"])).toEqual([]); // quarto: h2:bravo
-    expect(names(["mmmdcccxxx.  bravo", "             ---"])).toEqual([]); // quarto: h2:bravo
+    // ⚠ **CLOSED BY SESSION 249**, and the pin was right about the mechanism and right to name
+    // `listItemContentColumn` as the owner. It was incomplete in one way worth recording: the
+    // decimal half is not a longer CAP but an UNBOUNDED run (rendered to 100 digits), the letter
+    // half is not a length rule at all but pandoc's ORDER-RESPECTING roman parser, and the cap
+    // is CORRECT — and must stay — for the three CommonMark-family readers. See the Session 249
+    // guard, G1-G6.
+    expect(names(["1234567890.  bravo", "             ---"])).toEqual(["h2:bravo"]);
+    expect(names(["mmmdcccxxx.  bravo", "             ---"])).toEqual(["h2:bravo"]);
     // the 9-character twins, which this build gets right in both directions
     expect(names(["123456789.  bravo", "            ---"])).toEqual(["h2:bravo"]);
     expect(names(["123456789.  bravo", "---"])).toEqual(["h2:123456789.  bravo"]);
@@ -15996,5 +16002,239 @@ describe("Session 248 — a marker-only line is a complete empty item", () => {
     for (const marker of ["iv.", "#.", "a.", "A.", "1.", "10.", "-", "*", "+"]) {
       expect(names([marker, "bravo", "---"])).toEqual(["h2:bravo"]);
     }
+  });
+});
+
+describe("Session 249 guard — answers around the marker run-length cap that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // Every row below was RENDERED through the real quarto CLI 1.7.33 before it was written, and
+  // the comment on each states what quarto emitted. 222 documents across three grids:
+  // `scratchpad/s249/r1` (100, the run-length sweep), `r2` (50, roman validity), `r3` (72, the
+  // nine-reader split). Every row exited 0 — read the EXIT CODE, not just the heading column
+  // (Session 247 gotcha 7): a column-0 `---` that pairs with another is parsed as YAML and fails
+  // exit 1, which reads exactly like a heading-deleting regression.
+
+  it("G1: the NINE-character twins are right in both directions and stay right", () => {
+    // The control that localises the defect to the RUN LENGTH rather than to the marker kind.
+    // `r1/dec009`, `r1/c0_09` — quarto renders `ol>h2` with `h2:bravo` at the content column,
+    // and `section>h2` carrying the whole line at column 0.
+    expect(names(["123456789.  bravo", " ".repeat(12) + "---"])).toEqual(["h2:bravo"]);
+    expect(names(["123456789.  bravo", "---"])).toEqual(["h2:123456789.  bravo"]);
+  });
+
+  it("G2: a NON-ROMAN letter run is not a marker at ANY length, and must not become one", () => {
+    // ⚠ THIS IS THE ROW THAT DECIDES THE SPELLING. Widening the letter run to an unbounded
+    // `[a-zA-Z]+` would make every long prose token ending in a period a marker; quarto opens
+    // NO list for any of these — all four render a bare `<p>` (`r2/nr10`, `nr11`, `nr12`,
+    // `nrz10`). The model is right here today only because the `{1,9}` cap happens to stop
+    // short, so the widening must be additive in the ROMAN direction alone.
+    expect(names(["Elephantss.  bravo", " ".repeat(13) + "---"])).toEqual([]);
+    expect(names(["Furthermore.  bravo", " ".repeat(14) + "---"])).toEqual([]);
+    expect(names(["Nevertheless.  bravo", " ".repeat(15) + "---"])).toEqual([]);
+    expect(names(["z".repeat(10) + ".  bravo", " ".repeat(13) + "---"])).toEqual([]);
+  });
+
+  it("G3: a run of ROMAN LETTERS that pandoc's parser does not take is not a marker", () => {
+    // `ixixixixix.` is ten characters drawn entirely from `[ivxlcdm]` and quarto renders a bare
+    // `<p>` (`r2/badmix10`), because pandoc's roman parser is ORDER-RESPECTING: it takes `ix`
+    // and then wants the delimiter, which is not there. A `[ivxlcdm]{10,}` character-class
+    // widening would report a heading here; the faithful parser spelling declines.
+    expect(names(["ixixixixix.  bravo", " ".repeat(13) + "---"])).toEqual([]);
+  });
+
+  it("G4: the two PRE-EXISTING short-run phantoms stay exactly as they are", () => {
+    // `Elephants.` (9 letters) and `Dr.` are NOT markers in quarto — both render a bare `<p>`
+    // (`r2/nr09`, and Session 198's own 24-spelling table) — and this model reports a heading for
+    // both. That over-acceptance is deliberate and load-bearing: `listItemContentColumn`'s
+    // docstring says a column pushed that pandoc does not open costs a phantom while one NOT
+    // pushed DELETES a heading, so this is the direction it is required to fail in. Pinned here
+    // so a widening cannot quietly turn into a narrowing. `Dr.` is also Session 247's R2.
+    expect(names(["Elephants.  bravo", " ".repeat(12) + "---"])).toEqual(["h2:bravo"]);
+    expect(names(["Dr. bravo", "    ---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("G5: the CommonMark-family readers really do cap at NINE, and must keep capping", () => {
+    // ⚠ THE READER GATE IS MEASURED, NOT ASSUMED — `r3`, nine readers x eight markers, 72
+    // documents, all exit 0. The decimal split is exactly `FRONTMATTER_COMMONMARK_FROM`:
+    //
+    //   UNBOUNDED   no `from:` · markdown · markdown_strict · markdown_mmd
+    //               markdown_phpextra · markdown_github
+    //   CAPS AT 9   gfm · commonmark · commonmark_x
+    //
+    // so a widening applied unconditionally would report a heading quarto does not render under
+    // three of the nine readers.
+    const gfm = (...body: string[]) => ["---", "from: gfm", "---", "", ...body];
+    expect(names(gfm("1234567890.  bravo", " ".repeat(13) + "---"))).toEqual([]);
+    expect(names(gfm("123456789.  bravo", " ".repeat(12) + "---"))).toEqual(["h2:bravo"]);
+    const cm = (...body: string[]) => ["---", "from: commonmark", "---", "", ...body];
+    expect(names(cm("1234567890.  bravo", " ".repeat(13) + "---"))).toEqual([]);
+    const cmx = (...body: string[]) => ["---", "from: commonmark_x", "---", "", ...body];
+    expect(names(cmx("cclxxxviii.  bravo", " ".repeat(13) + "---"))).toEqual([]);
+  });
+
+  it("G6: the content COLUMN a long marker opens is the marker's width plus its spaces", () => {
+    // The arithmetic in `listItemContentColumn` is already right; only the grammar's cap keeps
+    // the line from reaching it. `1234567890.  bravo` opens column 13 exactly — quarto renders
+    // `ol>h2` at 13 and `ol` with NO heading at 12 and at 14 (`r2/colD0`, `colDm`, `colDp`).
+    // Both neighbours are already silent in this model and must stay silent.
+    expect(names(["1234567890.  bravo", " ".repeat(12) + "---"])).toEqual([]);
+    expect(names(["1234567890.  bravo", " ".repeat(14) + "---"])).toEqual([]);
+  });
+
+  it("G7: under the CommonMark family a long marker CLOSES nothing, and that keeps a heading", () => {
+    // ⚠ THE ROW THAT KILLS THE UNGATED `popsEnclosingContainer`. Session 198's 2/4/6 geometry:
+    // dropping the reader gate there DELETES this heading under all three CommonMark readers —
+    // 6 rendered rows, the only place any of the three gates is observable at all
+    // (`scratchpad/s249/r8`, 25 documents; `scratchpad/s249/expN`, a candidate `src` copy with
+    // all three gates removed, scored over 1,867 rendered documents: 6 disagreements, the gated
+    // build right on all 6).
+    // Under `gfm` the shallow long marker opens NO list, so it pops nothing, the lines stay one
+    // lazy paragraph and the underline makes the whole run a heading — quarto renders
+    // `ul>ul>h2`, where under no `from:` at all the same bytes render `ul>ul>ol` and no heading.
+    const gfm = (...body: string[]) => ["---", "from: gfm", "---", "", ...body];
+    const geom = (tok: string) => [
+      "-   outer",
+      "    -   inner",
+      "        prose body",
+      tok + " shallow",
+      "        Probe Title",
+      "        ---",
+    ];
+    expect(names(gfm(...geom("1234567890.")))).toEqual([
+      "h2:inner prose body 1234567890. shallow Probe Title",
+    ]);
+    expect(names(gfm(...geom("mmmdcccxxx.")))).toEqual([
+      "h2:inner prose body mmmdcccxxx. shallow Probe Title",
+    ]);
+    // and the no-front-matter control, where the marker DOES open a list and pops
+    expect(names(geom("1234567890."))).toEqual([]);
+    expect(names(geom("123456789."))).toEqual([]);
+  });
+
+  it("G8: a bare `.` or `)` at the start of a line is not a marker, at any indent", () => {
+    // ⚠ THE ROW THAT KILLS THE MISSING `{10}` LOOKAHEAD. Every tier of the roman parser is
+    // OPTIONAL, so the run matches the EMPTY string; without the lookahead in `LONG_ROMAN_SRC`
+    // a line starting with a bare delimiter becomes a list marker whose content column is 3.
+    // Quarto renders a bare `<p>` for all four spellings (`scratchpad/s249/r9`).
+    expect(names([".  bravo", "   ---"])).toEqual([]);
+    expect(names([")  bravo", "   ---"])).toEqual([]);
+    expect(names([".", "bravo", "---"])).toEqual([]);
+    expect(names(["(.  bravo", "    ---"])).toEqual([]);
+  });
+});
+
+describe("Session 249 — a marker's ordinal run is as long as pandoc's reader takes", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("C1: a DECIMAL run longer than nine opens a list, so its heading is reported", () => {
+    // The filed witness (Session 247 R3, `scratchpad/s247/r5/lex_d10_uc`; re-rendered this
+    // session as `r1/dec010`). `LIST_ITEM_MARKER_SRC`'s `\d{1,9}` run stopped at nine, so no
+    // content column was pushed and the underline at 13 matched nothing at all — a heading
+    // DELETED, not a text divergence.
+    // ⚠ The decimal run is UNBOUNDED in pandoc, not merely longer: `r1` renders the same shape
+    // at every width from 1 to 24 and at 30, 40, 50, 64 and 100 digits, and all 29 open an
+    // `<ol>` and form the heading.
+    expect(names(["1234567890.  bravo", " ".repeat(13) + "---"])).toEqual(["h2:bravo"]);
+    expect(names(["1".repeat(20) + ".  bravo", " ".repeat(23) + "---"])).toEqual(["h2:bravo"]);
+    expect(names(["9".repeat(100) + ".  bravo", " ".repeat(103) + "---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("C2: a ROMAN NUMERAL longer than nine is a marker too, at any length pandoc parses", () => {
+    // The filed witness's twin (`scratchpad/s247/r5/lex_rom10_uc`; re-rendered as `r2/bl_rom10`).
+    // ⚠ The letter half is NOT a length rule the way the decimal half is — it is pandoc's own
+    // ROMAN PARSER. `r2` renders the shortest valid numeral of every length from 1 to 15 in both
+    // cases (30 documents) and all 30 open an `<ol>`, and so do the INVALID repetition runs
+    // `mmmmmmmmmm`, `iiiiiiiiii`, twelve, fifteen and twenty `m`s — pandoc's parser takes an
+    // unbounded run in each tier. G3 holds the other side: `ixixixixix.` is ten roman LETTERS and
+    // is NOT a marker, because the parser takes `ix` and then wants its delimiter.
+    expect(names(["mmmdcccxxx.  bravo", " ".repeat(13) + "---"])).toEqual(["h2:bravo"]);
+    expect(names(["cclxxxviii.  bravo", " ".repeat(13) + "---"])).toEqual(["h2:bravo"]);
+    expect(names(["mmmdccclxxxviii.  bravo", " ".repeat(18) + "---"])).toEqual(["h2:bravo"]);
+    expect(names(["CCLXXXVIII.  bravo", " ".repeat(13) + "---"])).toEqual(["h2:bravo"]);
+    expect(names(["m".repeat(10) + ".  bravo", " ".repeat(13) + "---"])).toEqual(["h2:bravo"]);
+    expect(names(["i".repeat(10) + ".  bravo", " ".repeat(13) + "---"])).toEqual(["h2:bravo"]);
+  });
+
+  it("C3: a long marker ALONE on its line is an empty item, at the column it opens", () => {
+    // ⚠ THE PRICE OF C1 AND C2, and the Session 248 handoff named it in advance:
+    // `emptyItemMarkerIsPandocs` carries the `{1,9}` cap INDEPENDENTLY of the shared grammar, so
+    // widening `LIST_ITEM_MARKER_SRC` alone left `LIST_ITEM_EMPTY` matching a marker-only long
+    // line while the predicate beside it still answered "not a marker pandoc takes". The two now
+    // agree. Found by ENUMERATION, not by the design grid.
+    //
+    // ⚠ **AN EMPTY ITEM'S CONTENT COLUMN IS ITS MARKER'S OWN WIDTH** (Session 248 gotcha 9), so
+    // the long marker's is 11 where `1.`'s is 2 — and quarto separates the two shapes cleanly:
+    // four `1234567890.` items with a title at column 11 renders `ol>h2` (`r6/deep_k10`), and the
+    // SAME title at column 2 renders `ol` with NO heading (`r6/nest_k10`). The `1.` twins are the
+    // mirror image (`deep_k1` renders `ol>pre`, `nest_k1` renders `ol>h2`), which is what says
+    // this is the column and not the marker kind.
+    const long4 = ["1234567890.", "1234567890.", "1234567890.", "1234567890."];
+    expect(names([...long4, " ".repeat(11) + "probe title", " ".repeat(11) + "---"])).toEqual([
+      "h2:probe title",
+    ]);
+    expect(names(["1234567890.", "1234567890.", "  probe title", "  ---"])).toEqual([]);
+    // the `1.` twins, unmoved
+    expect(names(["1.", "1.", "1.", "1.", " ".repeat(11) + "probe title", " ".repeat(11) + "---"])).toEqual([]);
+    expect(names(["1.", "1.", "  probe title", "  ---"])).toEqual(["h2:probe title"]);
+  });
+
+  it("C4: Session 248's empty-item title works at a LONG marker too", () => {
+    // ⚠ THIS is the row that made `emptyItemMarkerIsPandocs` widen, and it is the reason C3 alone
+    // did not justify it: with that predicate left at `{1,9}` the model reports NOTHING here,
+    // measured over 54,225 enumerated documents on a marker-only alphabet — 817 disagreements,
+    // this family the largest of them (`scratchpad/s249/expA`, a candidate `src` copy scored
+    // rather than argued).
+    // Session 248 taught a marker-only line to be a complete empty item, so `1.` / `bravo` /
+    // `---` renders `ol>h2`. Every marker width and delimiter does the same — 14 of 14 rendered
+    // (`scratchpad/s249/r7`: `t_*` for `---`, `e_*` for `===`).
+    expect(names(["1234567890.", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["1234567890.", "bravo", "==="])).toEqual(["h1:bravo"]);
+    expect(names(["mmmdcccxxx.", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["1234567890)", "bravo", "---"])).toEqual(["h2:bravo"]);
+    expect(names(["(1234567890)", "bravo", "---"])).toEqual(["h2:bravo"]);
+    // ⚠ AND THE TWO CONTROLS, which is what says this is the marker grammar and not the shape:
+    // a non-roman letter run and a roman-LETTER run pandoc's parser will not take both render a
+    // bare `<p>` (`r7/t_nonrom`, `t_badrom`), and neither may gain a heading here.
+    expect(names(["Elephantss.", "bravo", "---"])).toEqual([]);
+    expect(names(["ixixixixix.", "bravo", "---"])).toEqual([]);
+    // an empty item's content column is its MARKER'S OWN WIDTH: 11 for `1234567890.`, 10 for the
+    // nine-digit twin, 12 for the wrapped form — so the SAME underline column separates them
+    // (`r7/u_k10` renders `ol>h2`; `u_k9` and `u_kwrap` render `ol` and no heading).
+    expect(names(["1234567890.", "bravo", " ".repeat(11) + "---"])).toEqual(["h2:bravo"]);
+    expect(names(["123456789.", "bravo", " ".repeat(11) + "---"])).toEqual([]);
+    expect(names(["(1234567890)", "bravo", " ".repeat(11) + "---"])).toEqual([]);
+  });
+
+  it("C5: a long marker CLOSES the containers deeper than it, like every other marker", () => {
+    // ⚠ THE SECOND PRICE OF C1 AND C2, and the Session 248 handoff named this one too:
+    // `popsEnclosingContainer` carries the `{1,9}` cap INDEPENDENTLY as well, and its own comment
+    // has said "a decimal or an example-list marker, at ANY width" since Session 198 while the
+    // regex capped at nine. While it lagged, a long marker pushed a content column but closed
+    // nothing, so columns ACCUMULATED (`[11,11,11,11]` where `1.` holds `[2]`) and the stale ones
+    // matched later underlines — extra headings quarto does not render.
+    // Rendered: `1234567890)  x` / `---` / `(1234567890)  x` / 13 spaces + `---` / `# ATX`
+    // renders `section>h2>ol` with `h2:1234567890) x` and NOTHING else
+    // (`scratchpad/s249/e2/a5_gain_0075`, `a5_gain_0176`).
+    // ⚠ Scored as a candidate `src` copy rather than argued (`scratchpad/s249/expB`): over 1,543
+    // rendered documents it is 13 BETTER and 0 WORSE.
+    expect(names(["1234567890)  x", "---", "(1234567890)  x", " ".repeat(13) + "---", "# ATX"])).toEqual([
+      "h2:1234567890)  x",
+    ]);
+    expect(names(["1234567890.  x", "---", "(1234567890)  x", " ".repeat(13) + "---", "# ATX"])).toEqual([
+      "h2:1234567890.  x",
+    ]);
+    // ⚠ AND THE READER CONTROL. Under the CommonMark family a long marker opens no list at all,
+    // so it closes nothing — measured by the BLOCKS skeleton, which is what separates the two:
+    // Session 198's 2/4/6 geometry renders `ul>ul>ol` under no front matter and under `markdown`
+    // (the marker opened a list, so it popped) and `ul>ul>h2` under `gfm`, `commonmark` and
+    // `commonmark_x` (`scratchpad/s249/r8`, 25 documents, all exit 0).
+    const gfm = (...body: string[]) => ["---", "from: gfm", "---", "", ...body];
+    expect(names(gfm("1234567890)  x", "---", "(1234567890)  x", " ".repeat(13) + "---", "# ATX"))).toEqual([
+      "h2:1234567890)  x",
+      "h1:ATX",
+    ]);
   });
 });

@@ -1029,7 +1029,51 @@ const BULLET_THEMATIC_BREAK = /^[ \t]*(?:-[ \t]*){3,}$|^[ \t]*(?:\*[ \t]*){3,}$/
  * marker of a line. A run's SECOND marker therefore opens a column no underline is accepted at,
  * so its gate declines on every reachable row. Measured, not argued — `scratchpad/s247/r4`.
  */
-const ORDERED_MARKER_SRC = "\\(?(?:\\d{1,9}|[a-zA-Z]{1,9}|#)[.)]";
+/**
+ * **Pandoc's roman-numeral parser, transcribed as a regex** — the letter half's real rule
+ * (Session 249). It is NOT a character class over `[ivxlcdm]` and it is NOT a length cap: it is
+ * ORDER-RESPECTING with an UNBOUNDED run in each tier, which is exactly what the measurements
+ * say. `mmmmmmmmmm` (ten `m`s), `iiiiiiiiii` and twenty `m`s are all markers even though none is
+ * a valid numeral, while `ixixixixix` — ten characters drawn entirely from the roman set — is
+ * NOT, because the parser takes `ix` and then wants its delimiter (`scratchpad/s249/r2`:
+ * `badm10`, `badi10`, `badm20` render `ol>h2`; `badmix10` renders a bare `<p>`).
+ *
+ * ⚠ **A `[ivxlcdm]{10,}` character class would be the obvious spelling and it is MEASURABLY
+ * WRONG** — it reports a heading on `ixixixixix.`, which G3 pins. The tiers below are pandoc's
+ * own order: thousands, then 900/500/400, then hundreds, then 90/50/40, then tens, then 9/5/4,
+ * then ones.
+ */
+const ROMAN_RUN_LOWER = "m*(?:cm)?d?(?:cd)?c*(?:xc)?l?(?:xl)?x*(?:ix)?v?(?:iv)?i*";
+const ROMAN_RUN_UPPER = "M*(?:CM)?D?(?:CD)?C*(?:XC)?L?(?:XL)?X*(?:IX)?V?(?:IV)?I*";
+/**
+ * The roman parser above, admitted ONLY at ten characters or more, so the widening is STRICTLY
+ * ADDITIVE: every run of one to nine letters is still matched by the `[a-zA-Z]{1,9}` alternative
+ * beside it, deliberate over-acceptance (`Dr.`, `Mr.`, `Elephants.`) and all — see
+ * `listItemContentColumn`, and G4, which pins both of those phantoms unmoved.
+ *
+ * ⚠ The lookahead is what keeps the tiers from matching the EMPTY string, every one of which is
+ * optional. Without it a line beginning with a bare `.` or `)` would be a list marker.
+ */
+const LONG_ROMAN_SRC =
+  "(?:(?=[ivxlcdm]{10})" + ROMAN_RUN_LOWER + "|(?=[IVXLCDM]{10})" + ROMAN_RUN_UPPER + ")";
+const ORDERED_MARKER_SRC = "\\(?(?:\\d+|" + LONG_ROMAN_SRC + "|[a-zA-Z]{1,9}|#)[.)]";
+/**
+ * The same ordered half **capped the way CommonMark caps it** — an ordinal of one to NINE digits
+ * (§5.3), which is the cap this grammar used to carry unconditionally (Session 249).
+ *
+ * ⚠ **The split is MEASURED over nine readers, one matched set each, and it is 6–3**
+ * (`scratchpad/s249/r3`, 72 documents, every one exit 0):
+ *
+ *   UNBOUNDED   no `from:` at all · `markdown` · `markdown_strict` · `markdown_mmd`
+ *               `markdown_phpextra` · `markdown_github`
+ *   CAPS AT 9   `gfm` · `commonmark` · `commonmark_x`
+ *
+ * That set is exactly `FRONTMATTER_COMMONMARK_FROM`, so `commonmarkDialect` is the gate by
+ * measurement rather than by convenience — the same six-three split `atxClosingRun` already
+ * turns on, arrived at independently. Widening the run unconditionally would report a heading
+ * quarto does not render under three of the nine readers.
+ */
+const ORDERED_MARKER_SRC_COMMONMARK = "\\(?(?:\\d{1,9}|[a-zA-Z]{1,9}|#)[.)]";
 /** Whether a line STARTS with an ordered marker — the trigger, the twin of `BULLET_LIST_MARKER`. */
 const ORDERED_LIST_MARKER = new RegExp("^[ \\t]*" + ORDERED_MARKER_SRC + "([ \\t]|$)");
 /** The same marker anchored at the walk's current position, used to read its WIDTH. */
@@ -1593,6 +1637,10 @@ function rawTexMacroLineIsBlock(line: string, columns: readonly number[] | null)
  */
 const LIST_ITEM_MARKER_SRC = "([-+*]|" + ORDERED_MARKER_SRC + ")";
 const LIST_ITEM_OPEN = new RegExp("^([ \\t]*)" + LIST_ITEM_MARKER_SRC + "([ \\t]|$)");
+/** The CommonMark-capped twin, read by `listItemContentColumn` — see `ORDERED_MARKER_SRC_COMMONMARK`. */
+const LIST_ITEM_OPEN_COMMONMARK = new RegExp(
+  "^([ \\t]*)([-+*]|" + ORDERED_MARKER_SRC_COMMONMARK + ")([ \\t]|$)",
+);
 /**
  * An EMPTY list item — a marker with no content at all (Session 246). Pandoc opens an item for it
  * and puts nothing in it, so it starts no paragraph: `-   alpha` / `-` / `# Probe Z` renders
@@ -1603,7 +1651,14 @@ const LIST_ITEM_OPEN = new RegExp("^([ \\t]*)" + LIST_ITEM_MARKER_SRC + "([ \\t]
  * ATX below it by accident. Both halves are this constant's business — see `emptySiblingItem`.
  */
 const LIST_ITEM_EMPTY = new RegExp("^[ \\t]*" + LIST_ITEM_MARKER_SRC + "[ \\t]*$");
-function listItemContentColumn(line: string): number | null {
+function listItemContentColumn(line: string, commonmarkDialect: boolean): number | null {
+  // ⚠ The ORDINAL run is capped at nine only for the CommonMark family, and the split is
+  // MEASURED — see `ORDERED_MARKER_SRC_COMMONMARK`. Under every other reader the run is
+  // UNBOUNDED: `1234567890.  bravo` / 13 spaces + `---` renders `ol>h2` with `h2:bravo`, and
+  // this function returning `null` there pushed no content column at all, so the underline
+  // matched nothing and the heading was DELETED (Session 247's R3, closed in Session 249).
+  // Rendered at every width from 1 to 24 and at 30, 40, 50, 64 and 100 digits — all open a list
+  // (`scratchpad/s249/r1`, 29 rows).
   // ⚠ The letter run is `{1,9}`, not a single letter, and a single letter is what the first
   // draft had. It cost a real heading in the corpus score: `iv.` is a ROMAN NUMERAL — a list
   // marker pandoc accepts and a one-letter pattern does not — so no column was pushed and the
@@ -1616,7 +1671,7 @@ function listItemContentColumn(line: string): number | null {
   // tab advances to the next 4-column stop, so `\t- inner` inside a `- outer` item is a marker
   // at column 4 whose content column is 6, exactly as `    - inner` is (measured — a paired
   // TAB/SPACE equivalence over the real `quarto render` path).
-  const m = LIST_ITEM_OPEN.exec(line);
+  const m = (commonmarkDialect ? LIST_ITEM_OPEN_COMMONMARK : LIST_ITEM_OPEN).exec(line);
   if (m === null) {
     return null;
   }
@@ -1695,8 +1750,32 @@ function listItemContentColumn(line: string): number | null {
  * and IDENTICAL on all eight other grids, including 479 of 851 on the enumeration corpus.
  * Guarded at C10.
  */
-function emptyItemMarkerIsPandocs(line: string): boolean {
-  const m = /^[ \t]*(?:([-+*])|\(?(\d{1,9}|#|[a-zA-Z]{1,9})[.)])[ \t]*$/.exec(line);
+const EMPTY_ITEM_MARKER = new RegExp(
+  "^[ \\t]*(?:([-+*])|\\(?(\\d+|#|" + LONG_ROMAN_SRC + "|[a-zA-Z]{1,9})[.)])[ \\t]*$",
+);
+/** The CommonMark-capped twin — see `ORDERED_MARKER_SRC_COMMONMARK`. */
+const EMPTY_ITEM_MARKER_COMMONMARK =
+  /^[ \t]*(?:([-+*])|\(?(\d{1,9}|#|[a-zA-Z]{1,9})[.)])[ \t]*$/;
+function emptyItemMarkerIsPandocs(line: string, commonmarkDialect: boolean): boolean {
+  // ⚠ **THIS RUN MUST TRACK `LIST_ITEM_MARKER_SRC`'s, AND IT IS A SEPARATE SPELLING ON PURPOSE
+  // — so when that one widened in Session 249 this one had to widen WITH it.** The two ask
+  // different questions of the same bytes (see the docstring above), but they must agree on what
+  // a MARKER is. While they disagreed, `LIST_ITEM_EMPTY` matched a marker-only long line and this
+  // predicate said "not a marker pandoc takes", so the line fell through to the setext path and
+  // reported a heading quarto does not render — 485 enumeration classes, the heaviest 1,995
+  // documents (`scratchpad/s249/e2/a2_gain_0000`). Guarded at C3.
+  // ⚠ The comment below has said "a decimal at any width" since Session 248 while the regex
+  // capped at nine; it is true now.
+  // ⚠ **THE READER GATE HERE IS UNOBSERVABLE TODAY AND IS KEPT ON PURPOSE, WITH THE PROOF
+  // (mutant N7, the one survivor of Session 249's nine).** This predicate is read at exactly one
+  // place, conjoined with `listItemOpensHere` — which is set only inside the arm where
+  // `listItemContentColumn(line, commonmarkDialect)` returned non-null. Under a CommonMark reader
+  // that call uses the CAPPED grammar, so a marker longer than nine never sets the flag and this
+  // predicate's answer for such a line cannot be reached. The two therefore cannot disagree — a
+  // proof, not the 0 disagreements over 1,867 rendered documents that also failed to reach it
+  // (`scratchpad/s249/expN`). It is spelled out so this reader and `listItemContentColumn` answer
+  // their shared premise the same way (Learning #14).
+  const m = (commonmarkDialect ? EMPTY_ITEM_MARKER_COMMONMARK : EMPTY_ITEM_MARKER).exec(line);
   if (m === null) {
     return false;
   }
@@ -1709,8 +1788,25 @@ function emptyItemMarkerIsPandocs(line: string): boolean {
   }
   return /^[ivxlcdm]+$/.test(num) || /^[IVXLCDM]+$/.test(num);
 }
-function popsEnclosingContainer(line: string): boolean {
-  const m = /^[ \t]*(?:([-+*])|\(?(\d{1,9}|#|[a-zA-Z]{1,9})([.)]))(?:[ \t]|$)/.exec(line);
+const POPS_MARKER = new RegExp(
+  "^[ \\t]*(?:([-+*])|\\(?(\\d+|#|" + LONG_ROMAN_SRC + "|[a-zA-Z]{1,9})([.)]))(?:[ \\t]|$)",
+);
+/** The CommonMark-capped twin — see `ORDERED_MARKER_SRC_COMMONMARK`. */
+const POPS_MARKER_COMMONMARK =
+  /^[ \t]*(?:([-+*])|\(?(\d{1,9}|#|[a-zA-Z]{1,9})([.)]))(?:[ \t]|$)/;
+function popsEnclosingContainer(line: string, commonmarkDialect: boolean): boolean {
+  // ⚠ **THE THIRD SPELLING OF THE SAME RUN, AND IT HAD TO WIDEN WITH THE OTHER TWO (Session
+  // 249).** While it lagged, a marker longer than nine PUSHED a content column and CLOSED
+  // nothing, so the columns accumulated — `[11,11,11,11]` where `1.` holds `[2]` — and the stale
+  // ones matched later underlines as extra headings. Guarded at C5, and scored as a candidate
+  // `src` copy rather than argued: 13 BETTER, 0 WORSE over 1,543 rendered documents
+  // (`scratchpad/s249/expB`).
+  // ⚠ The comment below has read "at any width" since Session 198; it is true now.
+  // ⚠ The CommonMark gate is MEASURED here too, by the BLOCKS skeleton rather than by a heading:
+  // Session 198's 2/4/6 geometry renders `ul>ul>ol` under no `from:` and under `markdown` — the
+  // long marker opened a list, so it popped — and `ul>ul>h2` under `gfm`, `commonmark` and
+  // `commonmark_x`, where it opened nothing (`scratchpad/s249/r8`, 25 documents, all exit 0).
+  const m = (commonmarkDialect ? POPS_MARKER_COMMONMARK : POPS_MARKER).exec(line);
   if (m === null) {
     return false;
   }
@@ -4297,12 +4393,13 @@ function simpleTableBodyRowAbsent(
   body: string | null,
   contentColumns: readonly number[] | null,
   containerColumn: number,
+  commonmarkDialect: boolean,
 ): boolean {
   return (
     body === null ||
     BLANK_LINE.test(body) ||
     simpleTableRuleEnds(body, contentColumns) ||
-    (popsEnclosingContainer(body) && indentColumn(body) < containerColumn)
+    (popsEnclosingContainer(body, commonmarkDialect) && indentColumn(body) < containerColumn)
   );
 }
 /**
@@ -4349,6 +4446,7 @@ function simpleTableOpensHere(
   pipeTableRowsOpen: boolean,
   headerContinuesQuote: boolean,
   headerIsItemOfOpenList: boolean,
+  commonmarkDialect: boolean,
 ): boolean {
   if (headerIsItemOfOpenList) {
     // ⚠ **A LIST THAT WAS ALREADY OPEN ABOVE THE HEADER ROW HAS ALREADY CLAIMED IT, AND
@@ -4508,6 +4606,7 @@ function simpleTableOpensHere(
       : columnsAreQuoteStash
         ? innermostContentColumn(contentColumns)
         : base,
+    commonmarkDialect,
   );
 }
 /**
@@ -6382,7 +6481,8 @@ function computeRegions(text: string): Regions {
       const deeperColumnsAreAllLists = contentColumns.every(
         (c, idx) => c <= indentWidth || columnKinds[idx] === "list",
       );
-      if (prevLineBlank || (deeperColumnsAreAllLists && popsEnclosingContainer(line))) {
+      if (prevLineBlank ||
+        (deeperColumnsAreAllLists && popsEnclosingContainer(line, commonmarkDialect))) {
         while (contentColumns.length > 0 && contentColumns[contentColumns.length - 1] > indentWidth) {
           contentColumns.pop();
           columnKinds.pop();
@@ -6429,7 +6529,7 @@ function computeRegions(text: string): Regions {
       // really does move the tolerance out to the surviving column.
       columnsAboveThisLine = contentColumns.length;
       if (!indentedCodeLine(line, contentColumns)) {
-        const opened = listItemContentColumn(line);
+        const opened = listItemContentColumn(line, commonmarkDialect);
         if (opened !== null) {
           contentColumns.push(opened);
           columnKinds.push("list");
@@ -6860,6 +6960,8 @@ function computeRegions(text: string): Regions {
           blockQuoteContentStart(lines[i - 2], rawMarkerColumns) !== null,
         // Whether an already-open list claimed the HEADER row — see `headerIsItemOfOpenList`.
         listItemAboveHeader,
+        // The reader gate the pop predicate inside needs — see `popsEnclosingContainer`.
+        commonmarkDialect,
       )
     ) {
       simpleTableRowsOpen = true;
@@ -7096,6 +7198,7 @@ function computeRegions(text: string): Regions {
         // The same flag `simpleTableOpensHere` is handed above — one spelling, so the two
         // readers of this predicate cannot drift about the same line.
         rawColumnsUnknown ? 0 : innermostContentColumn(rawLineColumns),
+        commonmarkDialect,
       );
     // ⚠ **AND A QUOTE THAT WAS ALREADY OPEN ABOVE THE TITLE MAKES THE UNDERLINE LAZY AT EVERY
     // COLUMN, WHICH IS WHY THE FLOOR IS NOT A COLUMN AT ALL (Session 237).** The two terms
@@ -7447,7 +7550,9 @@ function computeRegions(text: string): Regions {
       (siblingItemAtMarkerColumn ||
         // ⚠ The third conjunct is NOT redundant with `LIST_ITEM_EMPTY` below — see
         // `emptyItemMarkerIsPandocs`, and the seven measured phantoms that made it necessary.
-        (listItemOpensHere && !paragraphOpen && emptyItemMarkerIsPandocs(line))) &&
+        (listItemOpensHere &&
+          !paragraphOpen &&
+          emptyItemMarkerIsPandocs(line, commonmarkDialect))) &&
       LIST_ITEM_EMPTY.test(line);
 
     // Whether the line BELOW is an empty list item at a marker column an open list would accept
