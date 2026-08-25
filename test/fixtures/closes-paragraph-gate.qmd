@@ -137,3 +137,15 @@ a body row the table eats
 ===
 
 # Below The Kept Ordered Marker
+
+1.
+a title under an empty ordered item
+  ---
+
+# Below The Empty Ordered Item
+
+-
+a title under an empty bullet item
+ ---
+
+# Below The Empty Bullet Marker

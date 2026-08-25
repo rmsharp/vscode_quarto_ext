@@ -1303,6 +1303,43 @@ describe("Quarto: Document outline (symbols)", () => {
       flat(symbols).includes("Below The Kept Ordered Marker"),
       "Session 247: the ATX below the marker-kept title is a heading too",
     );
+
+    // ⚠ **SESSION 248 — THE MARKER-ONLY LINE.** Pandoc consumes a line that is nothing but a list
+    // marker as an EMPTY item, after which the line below it is the item's FIRST body line and the
+    // default reader's one-line setext title is on offer. Session 246 taught that to an empty
+    // SIBLING item but gated it on a list being open ABOVE the line, so the FIRST marker of a list
+    // was outside it by construction and its heading was DELETED — for BOTH marker kinds, which is
+    // what says it is the body-run rule and not a marker-kind defect. Rendered `ol>h2` and `ul>h2`
+    // (`scratchpad/s248/z_core/w_ol_u0`, `w_ul_u0`).
+    //
+    // ⚠ The underline sits at the marker's own WIDTH here (2 for `1.`, 1 for `-`), not at a
+    // populated item's content column — an empty item's content column is one to the left, which a
+    // 155-document independent column sweep confirmed and which `z_core/u_ol_uc` pins. A column-0
+    // `---` would also pair with an existing one in this fixture and fail the render with exit 1.
+    //
+    // ⚠ The fixture premise is MEASURED, not assumed: `quarto render` on these exact bytes emits
+    // THIRTY-SIX headings, the thirty-two above byte-identical and in the same order, and the four
+    // below added (`scratchpad/s248/fixbefore.tsv` against `fixafter.tsv`).
+    assert.ok(
+      flat(symbols).includes("a title under an empty ordered item"),
+      "Session 248: the body line of an empty ORDERED item is a setext title",
+    );
+    assert.ok(
+      flat(symbols).includes("Below The Empty Ordered Item"),
+      "Session 248: the ATX below the recovered ordered title is a heading too",
+    );
+    assert.ok(
+      flat(symbols).includes("a title under an empty bullet item"),
+      "Session 248: the BULLET spelling behaves identically — it is the body-run rule",
+    );
+    assert.ok(
+      flat(symbols).includes("Below The Empty Bullet Marker"),
+      "Session 248: the ATX below the recovered bullet title is a heading too",
+    );
+    assert.ok(
+      !flat(symbols).includes("1.") && !flat(symbols).includes("-"),
+      "Session 248: the marker-only line is the ITEM, never the title text",
+    );
   });
 
   it("narrowing CLOSES_PARAGRAPH reaches the real Outline provider (Session 184)", async () => {
