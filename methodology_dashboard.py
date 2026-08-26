@@ -818,6 +818,16 @@ def check_stale_version():
         return
     canon_ver = parse_version(canonical)
     if canon_ver and version_key(canon_ver) > version_key(DASHBOARD_VERSION):
+        # The remedy must be PROPORTIONATE TO THE FINDING (issue #67). The finding is "this one
+        # copy is old"; the old remedy was `--sync`, which is scoped from the CANONICAL's location
+        # rather than the working directory, so it rewrites every discovered sibling — measured at
+        # 26 files across 25 repos, including 7 creates in repos that do not gitignore the path and
+        # 1 target where the file is git-tracked. An adopter who follows a one-line instruction
+        # verbatim should not dirty eight unrelated repositories.
+        #
+        # A disproportionate remedy is one mechanism behind an IGNORED warning: in one adopter this
+        # staleness line rode ~28 consecutive handoffs unacted-on. The measurement was never the
+        # missing part — the safe per-project action is one `cp`, and the message never printed it.
         sys.stderr.write(
             f"  ⚠ methodology_dashboard.py is stale: this copy is v{DASHBOARD_VERSION}, "
             f"canonical is v{canon_ver}.\n"
@@ -4080,6 +4090,12 @@ def main():
                          target=target, force="--force" in args)
         return
 
+    # A flag named --dry-run must never write (issue #67). It is consulted ONLY inside the --sync
+    # branch above, so bare `--dry-run` used to fall straight through to a full scan that wrote
+    # dashboard.html AND appended to dashboard_history.jsonl — the exact opposite of what the name
+    # promises, and silently, since nothing said the flag had been ignored. Refuse rather than
+    # no-op: a silent no-op leaves the caller unable to tell "nothing to do" from "flag ignored",
+    # which is the same class of unreadable signal as the defect above.
     if "--dry-run" in args:                                                    # issue #67 pt. 4
         sys.stderr.write(
             "  --dry-run only means something together with --sync (nothing else in this\n"

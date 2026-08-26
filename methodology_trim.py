@@ -47,7 +47,44 @@ import sys
 import tempfile
 from pathlib import Path
 
-TRIM_VERSION = "1.1.1"   # 1.1.0: GRAMMAR_MISMATCH — a grammar this tool cannot read
+TRIM_VERSION = "1.3.0"   # 1.3.0: BL-41 — the shard name is derived from a RECORD DATE while
+                         # the cut is POSITIONAL, so it is NOT injective: whenever two records share
+                         # a date, distinct cuts derive one name. The write-once rule then refused
+                         # every admissible cut, and the tool's own advice ("Disambiguate with
+                         # --cut") had no solution — that date both selects the records AND becomes
+                         # the key, so there is no second knob. A live ledger sat 14,317 B over its
+                         # ceiling with no reachable remedy. A taken name is now DISAMBIGUATED with
+                         # a numeric suffix instead of refused. MINOR: nothing is ever overwritten
+                         # (write-once is unchanged, and still REFUSES past SHARD_SUFFIX_MAX), but
+                         # a run that previously exited 2 now writes a shard, and its name can
+                         # carry a suffix — so a reader comparing two archives must be able to tell
+                         # which rule each ran under.
+                         #
+                         # 1.2.0: BL-36 — the GENERATED .verify.sh identified the records the trim
+                         # COMMIT added by a constant baked in at generation time (`INJECTED`, a
+                         # 0/1 flag) and skipped that many POSITIONS. A commit bundling any second
+                         # ledger write therefore failed by construction with zero data loss — four
+                         # of this repo's six shipped proofs did. The injected set is now measured
+                         # from record CONTENT at verification time and `INJECTED` is gone from the
+                         # template. MINOR, not patch: what a generated proof reports changes (a
+                         # bundled add is no longer a failure; missing/added records are named), so
+                         # a reader comparing two proofs must be able to tell which rules each ran
+                         # under. Losses, edits and reorders still fail, unchanged.
+                         #
+                         # 1.1.3: BL-28 — the GENERATED .verify.sh's L2 "missing front-matter line"
+                         # check compared by substring (`ln not in afront`) instead of exact-line-
+                         # set membership, so an append-style edit that kept the original line as a
+                         # literal prefix of the new one evaded detection. No new finding code or
+                         # exit-code change: patch, not minor — a correctness fix to what the tool
+                         # WRITES, same class as 1.1.2.
+                         # 1.1.2: BL-27 — the GENERATED .verify.sh had two false-positive triggers
+                         # the internal --check/--write assertions do not share: a declared
+                         # front-matter regen field (e.g. HANDOFFS.md's receipt count) read as L2
+                         # data loss, and a same-commit close-out bundling (this repo's own
+                         # established practice) read as an unqualified L1/L3 record alteration.
+                         # No new finding code on the TOOL's own CLI and no exit-code change, so:
+                         # patch, not minor — this is a correctness fix to what the tool WRITES.
+                         # 1.1.0: GRAMMAR_MISMATCH — a grammar this tool cannot read
                          # is no longer reported as an empty file (UAT F1). New finding code and
                          # a new exit status on a distributed tool, so: minor, not patch.
 
@@ -60,6 +97,7 @@ BYTE_STOP_FRACTION = 0.5       # hysteresis — stops a trim re-firing on the ne
 SRF_RED = 1.00                 # plan §3.3 H3: at or above this, a reset is the wrong move
 ARCHIVE_DIR = "docs/archive"
 REBASE_PREFIX = "../../"       # docs/archive/<shard>.md -> repo root is exactly two levels
+SHARD_SUFFIX_MAX = 99          # BL-41 — bound on collision disambiguation; past it, refuse
 
 # --- "is this plausibly a fresh seed?" — a DIFFERENT question from "is it over its budget" ----
 # Deliberately its own literal rather than an alias of DEFAULT_BUDGET_BYTES, and deliberately not
@@ -362,6 +400,17 @@ def classify_zones(text, spec, result):
 def _safe_cut_key(key):
     """A cut key must be a flat filename fragment — no separator, no leading dot."""
     return bool(re.match(r"^[A-Za-z0-9][A-Za-z0-9._-]*$", key or ""))
+
+
+def shard_name_taken(shard_path):
+    """True if EITHER half of the pair this name would write already exists.
+
+    A trim writes `<shard>.md` and `<shard>.md.verify.sh` together. An interrupted or partially
+    reverted run can leave the proof behind without its shard, and a check that looked only at the
+    shard would then report the name free and overwrite a frozen proof — the same corruption the
+    write-once rule exists to exclude, one file over. The pair is the unit, so the pair is the test.
+    """
+    return shard_path.exists() or Path(str(shard_path) + ".verify.sh").exists()
 
 
 def _indent(s, pad="    | "):
@@ -1021,17 +1070,23 @@ set -u
 cd "$(git rev-parse --show-toplevel)" || exit 3
 LIVE=@@LIVE@@
 SHARD=@@SHARD@@
-INJECTED=@@INJECTED@@
 TRIM_SHA="$(git log --diff-filter=A -1 --format=%H -- "$SHARD" 2>/dev/null)"
-export LIVE SHARD INJECTED TRIM_SHA
+export LIVE SHARD TRIM_SHA
 python3 - <<'PYEOF_VERIFY'
 import os, re, subprocess, sys
+from collections import Counter
 
 RECORD_KIND = "@@KIND@@"
 RECORD_START = r"@@START@@"
 FENCE_INFO = "@@INFO@@"
 FOOTER_MODE = "@@FOOTER@@"
 PREFIX = "../../"
+
+# BL-27 fix 1: the same declared front-matter fields assert_L2's reversal exception already knows
+# about (design's regenerated-field table), so a line that changed ONLY inside one of these spans
+# is not "lost" — every OTHER line still must survive verbatim, unchanged from before this fix.
+REGEN_PATTERNS = @@REGEN@@
+REGEN = [re.compile(p) for p in REGEN_PATTERNS]
 
 FENCE = re.compile(r"^(`{3,}|~{3,})(.*)$")
 LINK = re.compile(r"\]\(([^)\s]*)\)")
@@ -1159,7 +1214,7 @@ def readf(path):
 
 
 LIVE, SHARD = os.environ["LIVE"], os.environ["SHARD"]
-TRIM, INJ = os.environ["TRIM_SHA"], int(os.environ["INJECTED"])
+TRIM = os.environ["TRIM_SHA"]
 if TRIM:
     before, after, shard = show(TRIM + "^", LIVE), show(TRIM, LIVE), show(TRIM, SHARD)
     origin = "the trim commit " + TRIM[:7]
@@ -1170,13 +1225,77 @@ else:
 bfront, br, bfoot = zones(before)
 afront, ar, afoot = zones(after)
 sfront, sr, _sfoot = zones(shard)
-ar_cmp = ar[INJ:]
+sr_inv = [invert(r) for r in sr]
 fails = []
 ran = []
 
+
+def anchor(rec):
+    # The record's own first content line — its heading for a heading-kind ledger, its first
+    # key: value line for a fence-kind one. Used only to LABEL records in the report; nothing
+    # below decides pass or fail from it.
+    for ln in rec.splitlines():
+        s = ln.rstrip()
+        if s.strip() and not FENCE.match(s):
+            return s.strip()
+    return ""
+
+
+# --- What the TRIM COMMIT introduced, MEASURED rather than assumed (BL-36) -------------------
+#
+# This script re-derives from git at commit granularity, and a commit may legitimately carry more
+# than the trim: this repository's own close-out practice writes the trim's ledger entry, that
+# session's other entries, and the archive move in one commit. Those extra records are new
+# content. They were never in `before`, so they make no claim whatsoever about whether an
+# archived record survived — and they must not be able to fail a losslessness proof.
+#
+# The shipped versions of this script skipped them POSITIONALLY, via a constant `INJECTED` baked
+# in at generation time as `1 if trims_the_ledger else 0`. That is a 0/1 flag, not a count: it is
+# structurally incapable of modelling a commit that lands two records instead of one, so every
+# bundled trim failed by construction with zero data loss. Four of this repo's six shipped proofs
+# failed exactly that way while an independent identity-keyed re-derivation measured 0 records
+# missing at every trim (docs/audits/2026-08-15-bl36-archive-losslessness.md).
+#
+# So the injected set is measured HERE, from record content: the records present in
+# `after + shard` and absent from `before`. This is a different function of the same three
+# artifacts — never the difference L1/L3 are about to assert on — so it cannot make those
+# assertions vacuous: delete an archived record and it is missing from `have` no matter what else
+# the commit added. Occurrences are removed one-for-one, preserving order, so L1 still compares
+# bytes in sequence and a REORDER is still a failure.
+#
+# It deliberately does NOT excuse a record EDITED inside the trim commit. Such a record's
+# pre-trim bytes exist nowhere afterwards; it is reported as MISSING and the proof stays red,
+# which is BL-27's judgement and is still correct — a real loss has that same shape.
+# NAMES: `absent_records` / `added_records`, not the obvious `missing` / `added`. This is a flat
+# script -- every binding here is a module global -- and L2's front-matter clause below already
+# binds `missing` for its own, unrelated meaning (front-matter LINES that vanished). Calling this
+# one `missing` silently rebinds it before L3 reads it, and because L2 usually finds nothing the
+# rebind is to [], so L3 skips its own clause and reports a downstream symptom instead. That is
+# not hypothetical: it is what the first build of this fix did, and the narrowed loss control
+# caught it. Anything added here needs the same namespace check.
+have = Counter(ar) + Counter(sr_inv)
+added_records = list((have - Counter(br)).elements())
+absent_records = list((Counter(br) - have).elements())
+
+
+def drop_added(seq, remaining):
+    out = []
+    for r in seq:
+        if remaining.get(r, 0) > 0:
+            remaining[r] -= 1
+        else:
+            out.append(r)
+    return out
+
+
+still_to_drop = dict(Counter(added_records))
+ar_cmp = drop_added(ar, still_to_drop)
+sr_cmp = drop_added(sr_inv, still_to_drop)
+
 # --- L1: records-zone concatenation ---------------------------------------------------------
 ran.append("L1")
-if "".join(ar_cmp) + "".join(invert(r) for r in sr) != "".join(br):
+rebuilt = ar_cmp + sr_cmp
+if "".join(rebuilt) != "".join(br):
     fails.append("L1 records-zone concatenation is not byte-identical")
 
 # --- L2: zone pinning. BOTH halves — footer AND front matter. -------------------------------
@@ -1193,8 +1312,36 @@ if bfoot.strip():
 ran.append("L2/front-matter")
 # Front matter may GAIN declared blocks (the shard pointer, a new month heading); it may not lose
 # or reword anything. Every non-blank line of the original must survive verbatim in the new front
-# matter, and none of it may have travelled into the shard.
-missing = [ln for ln in bfront.splitlines() if ln.strip() and ln not in afront]
+# matter, and none of it may have travelled into the shard — UNLESS the only change is confined to
+# a declared regenerated field's own value (BL-27 fix 1), the same exception assert_L2 already
+# applies via its reversal loop. This is a narrower carve-out than assert_L2's, on purpose: it
+# excuses a specific LINE only when it has a same-shaped partner line in the new front matter with
+# identical bytes everywhere outside the declared span — an actual reword just outside the field's
+# own parens still fails, same as an edit anywhere else in front matter.
+def field_reversible(missing_line):
+    for rx in REGEN:
+        m = rx.search(missing_line)
+        if not m:
+            continue
+        prefix, suffix = m.group(1), m.group(3)
+        residue = missing_line[:m.start()] + missing_line[m.end():]
+        for al in afront.splitlines():
+            am = rx.search(al)
+            if (am and am.group(1) == prefix and am.group(3) == suffix
+                    and al[:am.start()] + al[am.end():] == residue):
+                return True
+    return False
+
+
+# BL-28 fix: exact-line-set membership, not substring containment. `ln not in afront` tested
+# whether `ln` occurs anywhere in the whole front-matter TEXT — an append-style edit that keeps
+# the original line as a literal prefix of a new, longer line leaves that substring intact and
+# reads as "found," so a real change to the line evaded detection. Comparing against the SET of
+# exact lines in the new front matter closes that gap without touching field_reversible's own
+# separate, correct line-by-line carve-out for the declared regenerated fields.
+afront_lines = set(afront.splitlines())
+missing = [ln for ln in bfront.splitlines()
+           if ln.strip() and ln not in afront_lines and not field_reversible(ln)]
 if missing:
     fails.append("L2 FRONT MATTER lost %d line(s), first: %r" % (len(missing), missing[0][:70]))
 leaked = [ln for ln in bfront.splitlines()
@@ -1205,20 +1352,59 @@ if leaked:
 
 # --- L3: record partition ---------------------------------------------------------------------
 ran.append("L3")
-rebuilt = list(ar_cmp) + [invert(r) for r in sr]
-if len(rebuilt) != len(br):
-    fails.append("L3 record count %d != %d" % (len(rebuilt), len(br)))
+bad = None
+if absent_records:
+    # The only way a record from `before` fails to appear in `after + shard`: it was dropped, or
+    # it was edited (in which case its pre-trim bytes are gone and an edited twin shows up in
+    # `added_records`). Both are real; neither is excused. A count mismatch cannot occur here
+    # without this firing first — len(rebuilt) is len(br) - len(absent_records) by construction —
+    # so there is no separate count clause to state, and none that could ever run.
+    fails.append("L3 %d record(s) present before the trim are MISSING from live+shard afterwards"
+                 % len(absent_records))
 else:
     bad = [i for i, (x, y) in enumerate(zip(br, rebuilt)) if x != y]
     if bad:
-        fails.append("L3 record(s) not byte-identical across the move: %s" % bad)
+        fails.append("L3 record(s) out of order across the move: %s" % bad)
+
+# BL-27 fix 2: a same-commit close-out bundling (this repo's own established practice — a
+# session's own frontier receipt going status: pending -> complete, committed together with the
+# archive write) makes position 0 (newest) legitimately differ between this commit's parent and
+# itself. NOT an exemption — this stays a FAIL, loud, because a real loss can have this exact
+# shape too — only a NOTE naming the known pattern, so a reader does not mistake it for an
+# unqualified loss. Narrow on purpose: any OTHER record differing (bad != [0]) gets no such note.
+#
+# BL-36 re-expressed the gate in the new vocabulary. It was `bad == [0]` — the record-ALTERED
+# shape under the old positional comparison — which is why it never fired for the busier ledger,
+# whose bundling produced a count mismatch instead and so failed with no explanation at all
+# (audit Finding #4). Additions no longer fail, so that half is gone; what remains is the edit,
+# which now presents as exactly one MISSING record that was the frontier, paired with an added
+# record carrying the same anchor. Still narrow on purpose: an edit to any other record, or one
+# whose anchor changed, gets no such note.
+notes = []
+frontier_edit = (len(absent_records) == 1 and br and absent_records[0] == br[0]
+                 and anchor(absent_records[0]) != ""
+                 and any(anchor(a) == anchor(absent_records[0]) for a in added_records))
+if fails and frontier_edit:
+    notes.append(
+        "the only missing record is the frontier one (position 0, newest), and an added record "
+        "carries the same anchor -- matches a known, accepted pattern (BL-27): this repository's "
+        "own practice bundles a session's close-out finalize edit into the same commit as an "
+        "archive write, so the frontier record can legitimately differ between this commit's "
+        "parent and itself. This does NOT confirm losslessness -- manually diff record 0 by hand "
+        "to be sure it is a receipt finalize, not real data loss.")
 
 print("source : %s" % origin)
-print("records: %d before = %d retained + %d archived (%d entry injected by the trim)"
-      % (len(br), len(ar_cmp), len(sr), INJ))
+print("records: %d before = %d retained + %d archived; added by the trim commit: %d"
+      % (len(br), len(ar_cmp), len(sr_cmp), len(added_records)))
+for m in absent_records:
+    print("   MISSING: %s" % anchor(m)[:100])
+for a in added_records:
+    print("   added  : %s" % anchor(a)[:100])
 print("checked: %s" % ", ".join(ran))
 for f in fails:
     print("FAIL:", f)
+for n in notes:
+    print("NOTE:", n)
 if fails:
     sys.exit(1)
 # State what actually ran, never a blanket claim: on a ledger with no footer the footer clause is
@@ -1228,12 +1414,20 @@ PYEOF_VERIFY
 """
 
 
-def build_verify(spec, live_rel, shard_rel, injected):
+def build_verify(spec, live_rel, shard_rel):
+    # REGEN travels as a repr()'d list of plain (non-raw) pattern strings, not a wrapped r-string
+    # like @@START@@ — spec.regenerated is 0-or-more patterns, and an r-string wrapper only ever
+    # holds one. repr() doubles each backslash; the generated script parses that back as a normal
+    # (non-raw) Python string literal, which un-doubles it — the round trip restores the exact
+    # pattern .compile() would see. Safe only because no config pattern contains a quote character
+    # (true of both entries in LEDGERS today); a pattern that did would need a different encoding.
+    regen_patterns = repr([rx.pattern for _name, rx, _fn in spec.regenerated])
     out = VERIFY_TEMPLATE
     for key, val in (("@@SHARD@@", shard_rel), ("@@LIVE@@", live_rel), ("@@VER@@", TRIM_VERSION),
-                     ("@@INJECTED@@", str(injected)), ("@@KIND@@", spec.record_kind),
+                     ("@@KIND@@", spec.record_kind),
                      ("@@START@@", spec.record_start.pattern if spec.record_start else ""),
-                     ("@@INFO@@", spec.fence_info or ""), ("@@FOOTER@@", spec.footer_mode)):
+                     ("@@INFO@@", spec.fence_info or ""), ("@@FOOTER@@", spec.footer_mode),
+                     ("@@REGEN@@", regen_patterns)):
         out = out.replace(key, val)
     return out
 
@@ -1572,20 +1766,45 @@ def evaluate(path, opts, result):
             "--cut <earlier date> if you want a clean calendar seam." % cut_key)
 
     stem = spec.basename[:-3]
-    shard_rel = "%s/%s-through-%s.md" % (ARCHIVE_DIR, stem, cut_key)
+    base_rel = "%s/%s-through-%s.md" % (ARCHIVE_DIR, stem, cut_key)
+
+    # Write-once, and it stays write-once: overwriting would destroy the earlier shard's records
+    # while L1/L2/L3 all still pass — they quantify only over THIS run's triple, so it is the one
+    # corruption the three assertions cannot see.
+    #
+    # But REFUSING was the wrong way to enforce it (BL-41). The name is a function of a RECORD
+    # DATE while the cut is POSITIONAL, so it is not injective: when two records share a date,
+    # distinct cuts derive one name. The old advice — "Disambiguate with --cut" — had no solution,
+    # because a date cut key both SELECTS the records and BECOMES the key; there is no second knob
+    # to turn. On this repo's own receipt ledger every admissible cut derived the same taken name,
+    # and the file sat 14,317 B over its ceiling with no reachable remedy.
+    #
+    # So a taken name is resolved, not refused. Nothing is overwritten — the loop only ever moves
+    # to a name that does not exist — and the rename is REPORTED, because a shard whose name no
+    # longer uniquely says "through this date" must not arrive silently.
+    shard_rel, suffix = base_rel, 1
+    while shard_name_taken(repo / shard_rel):
+        suffix += 1
+        if suffix > SHARD_SUFFIX_MAX:
+            result.add("SHARD_EXISTS",
+                       "%s and every disambiguation up to -%d are taken. Refusing to overwrite: a "
+                       "collision destroys the earlier shard's records while all three assertions "
+                       "still pass, because none of them quantifies over any other file in %s. "
+                       "Archive by hand, or clear the stale names."
+                       % (base_rel, SHARD_SUFFIX_MAX, ARCHIVE_DIR), exit_code=2)
+            return result
+        shard_rel = "%s/%s-through-%s-%d.md" % (ARCHIVE_DIR, stem, cut_key, suffix)
+
+    if shard_rel != base_rel:
+        result.add("SHARD_NAME_DISAMBIGUATED",
+                   "%s was taken, so this shard is %s. The date in a shard name is a SPAN LABEL, "
+                   "not a unique key — cuts are positional (§2.3) and two records can share a "
+                   "date, so more than one shard may legitimately end on the same day. The "
+                   "earlier shard is untouched."
+                   % (base_rel, shard_rel))
+
     shard_path = repo / shard_rel
     verify_rel = shard_rel + ".verify.sh"
-
-    # Write-once. Two runs can resolve to the same cut key, and overwriting would destroy the first
-    # shard's records while L1/L2/L3 all still pass — they quantify only over THIS run's triple.
-    # The one corruption the three assertions cannot see, so it is excluded by construction.
-    if shard_path.exists():
-        result.add("SHARD_EXISTS",
-                   "%s already exists. Refusing to overwrite: a collision destroys the earlier "
-                   "shard's records while all three assertions still pass, because none of them "
-                   "quantifies over any other file in %s. Disambiguate with --cut."
-                   % (shard_rel, ARCHIVE_DIR), exit_code=2)
-        return result
 
     live_rel = path.relative_to(repo).as_posix()
     plan = TrimPlan()
@@ -1637,8 +1856,7 @@ def evaluate(path, opts, result):
                        "the new entry before committing — the tool will not reorder a heading it "
                        "cannot prove is safe to move, and it never commits."
                        % (month_heading.strip(), prior[-1]))
-    plan.verify_text = build_verify(spec, live_rel, shard_rel,
-                                    injected=1 if trims_the_ledger else 0)
+    plan.verify_text = build_verify(spec, live_rel, shard_rel)
     result.plan = plan
 
     # --- THE ASSERTIONS RUN ON THE ARTIFACTS, NOT ON THE INPUT PARTITION ------------------------
@@ -1659,6 +1877,14 @@ def evaluate(path, opts, result):
                    "the text this run would write does not parse under its own declared grammar — "
                    "refusing to write something the proof could not read back.", exit_code=2)
         return result
+    # BL-36 replaced the EXPORTED proof's identically-shaped constant with a measured set, and
+    # deliberately left this one alone. The two look alike and are not the same claim. Here the
+    # operand is `plan.live_after` — text this function just built — so the count is not an
+    # estimate of what some commit will contain: this run injects exactly one ledger entry when
+    # it trims the ledger and none otherwise, and it knows which. The exported script has no such
+    # knowledge, because it re-derives from a commit that may carry a whole session's other
+    # writes. Do not "make this consistent" with the template; consistency here would replace a
+    # fact with an inference.
     injected = 1 if trims_the_ledger else 0
     after_records = live_zones.records()[injected:]
     shard_records = shard_zones.records()
