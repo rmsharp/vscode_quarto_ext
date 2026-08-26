@@ -62,7 +62,7 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
   headings outside it are present, and the same document with a non-callout class keeps its
   heading. Commits (7): `e7dd276e` claim, `a80a6de8` the rule, `ae9e8d94` the empty-title
   correction plus guards and gate, `c89b9608` the runtime test, `27485730` the records
-  (BACKLOG/learnings), `2e6cab8c` close-out, and this ledger commit.
+  (BACKLOG/learnings), `2e6cab8c` close-out, `45e1e515` the commit list, and this both-ledgers commit.
 
 ### 2026-08-26 · [ad hoc] `SESSION_NOTES.md` is TRANSIENT, not append-only — retention rule added to `CLAUDE.md`
 
