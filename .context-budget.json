@@ -1,0 +1,116 @@
+{
+  "_": "Project config for vscode-quarto-ext. Seeded from canonical at Session 255 and tuned the same session. Ceilings below are canonical's own numbers where an analogue exists (65,536 B for a read-mandated ledger is the SAME number methodology_trim.py budgets to, deliberately: the two tools are a pair). Re-derive with: python3 context_budget.py --calibrate",
+  "bytes_per_token": 2.93,
+  "_bytes_per_token": "How many bytes of dense markdown cost one token. 2.93 was calibrated on one project by a natural experiment: a commit moved 156,574 B out of CLAUDE.md and the next session's opening context fell 53,520 tokens. Run --calibrate to derive your own; do not inherit this number if you can measure it.",
+  "fixed_harness_tokens": 35700,
+  "_fixed_harness_tokens": "The part of opening context you do NOT control — system prompt, tool schemas, skill listings. Budget your documents as a fraction of this. --calibrate prints it as the regression intercept.",
+  "growth_run": 10,
+  "_growth_run": "Consecutive non-shrinking measurements before this warns, INDEPENDENT of absolute size. This is the trigger that matters: the 38-session run that motivated this tool never tripped a ceiling, because every individual step was small. It is also the only check that survives someone raising a ceiling to silence a warning.",
+  "calibrate_against": "CLAUDE.md",
+  "classes": {
+    "resident": {
+      "total_bytes": 34000,
+      "warn_bytes": 30000,
+      "_": "Everything your harness injects in full before the session starts. 34,000 B / 2.93 = 11,604 tok = about a third of the 35,700-tok fixed floor. If your CLAUDE.md is bigger than this today, do not raise the ceiling to make it green — that records the problem as the standard."
+    }
+  },
+  "files": [
+    {
+      "path": "CLAUDE.md",
+      "class": "resident",
+      "max_bytes": 28000,
+      "warn_bytes": 24000,
+      "protected_fence": "budget:protected",
+      "protected_min_bytes": 700,
+      "_": "Auto-loaded in full by Claude Code every session. 13,116 B at Session 255, 47% of ceiling -- healthy, and the reason it is healthy is Session 39, which moved a 159 KB learnings table out to PROJECT_LEARNINGS.md. Keep it that way.",
+      "_protected_min_bytes": "Derived, not inherited. This project's statement of purpose measures 732 B at Session 255; the seed shipped 800, which this file could never satisfy. 700 leaves the fence real (a compaction cannot cut more than ~4% of it) without being unsatisfiable on day one."
+    },
+    {
+      "path": "SESSION_NOTES.md",
+      "class": "read-mandated",
+      "max_lines": 400,
+      "max_bytes": 120000,
+      "max_line_bytes": 280,
+      "structure": [
+        {
+          "pattern": "^## ACTIVE TASK",
+          "max": 1,
+          "why": "Phase 3D says UPDATE the active task. Sessions read that as ADD one; three had accumulated on the project this came from, at lines 7, 10005 and 10218."
+        },
+        {
+          "pattern": "^## ",
+          "expect_min": 2,
+          "why": "if this matches nothing the file has been restructured and every other check here is silently measuring the wrong thing"
+        }
+      ],
+      "_": "Phase 0 step 2 ORDERS a read of this file. ⚠ MEASURED 3,946,063 B / 13,912 lines at Session 255 -- 33x this ceiling, and larger than BOTH ledgers were before the Session 254 trim. Sessions 254 and 255 each read ~160 lines of it and inferred the rest, which is failure mode #28 committed twice by the session that then wrote the finding down. The ceiling is canonical's, kept deliberately rather than raised to make this green -- raising it would record the problem as the standard. Reducing this file is a NAMED next deliverable, not housekeeping."
+    },
+    {
+      "path": "CHANGELOG.md",
+      "class": "read-mandated",
+      "max_bytes": 65536,
+      "_": "The authoritative ledger. Phase 0 step 6 reconciles against it and Phase 3F writes to it, so it is read every session. 65,536 B is methodology_trim.py's own budget for this file -- same number on purpose, so context_budget.py REPORTS what the trimmer would ACT on. 51,879 B after the Session 254 trim (was 831,830)."
+    },
+    {
+      "path": "HANDOFFS.md",
+      "class": "read-mandated",
+      "max_bytes": 65536,
+      "_": "The durable receipt ledger; Phase 0 reconciles it and Phase 3D writes to it. Same 65,536 B as the trimmer. 62,521 B after the Session 254 trim (was 1,801,150 -- 27x over, refusing to trim at all because of a stale bootstrap seed footer). ⚠ Now at 95% of ceiling: the next trim is close. Run `python3 methodology_trim.py --check --file HANDOFFS.md`."
+    },
+    {
+      "path": "BACKLOG.md",
+      "class": "read-mandated",
+      "max_bytes": 65536,
+      "_": "Phase 0 step 3 mandates reading this when there is no GitHub repo, which is this project's case -- so it is read every session. 284,130 B / 193 open items at Session 255. No trimmer governs it; open items are not archivable the way records are, so over-budget here means CLOSE or DOWNGRADE items, not shard them."
+    },
+    {
+      "path": "PROJECT_LEARNINGS.md",
+      "class": "on-demand",
+      "max_bytes": 65536,
+      "_": "This project's learnings live here, not in CLAUDE.md (moved at Session 39). CLAUDE.md instructs sessions to GREP it rather than read it whole, so it is on-demand -- but a file a pointer sends you to still has a budget. 950,857 B at Session 255, 502 rows. Ceiling matches canonical's for its own FRAMEWORK_LEARNINGS.md."
+    }
+  ],
+  "synced": [
+    {
+      "path": "SESSION_RUNNER.md",
+      "canonical": "../methodology/starter-kit/SESSION_RUNNER.md",
+      "_": "⚠ ALL BUT TWO OF THESE WERE SILENTLY BEHIND CANONICAL UNTIL SESSION 255. An adopter may not edit these files, so zero local edits means `git diff` shows nothing and drift is invisible -- SESSION_RUNNER.md, FRAMEWORK_LEARNINGS.md, RECOMMENDED_SKILLS.md, BOOTSTRAP.md, methodology_dashboard.py and methodology_trim.py had ALL drifted, and context_budget.py plus .context-budget.json were never installed at all. This block is the check that makes that visible. Adjust the paths if the methodology checkout moves."
+    },
+    {
+      "path": "SAFEGUARDS.md",
+      "canonical": "../methodology/starter-kit/SAFEGUARDS.md"
+    },
+    {
+      "path": "FRAMEWORK_LEARNINGS.md",
+      "canonical": "../methodology/starter-kit/FRAMEWORK_LEARNINGS.md"
+    },
+    {
+      "path": "RECOMMENDED_SKILLS.md",
+      "canonical": "../methodology/starter-kit/RECOMMENDED_SKILLS.md"
+    },
+    {
+      "path": "BOOTSTRAP.md",
+      "canonical": "../methodology/starter-kit/BOOTSTRAP.md"
+    },
+    {
+      "path": "CLAUDE_TEMPLATE.md",
+      "canonical": "../methodology/starter-kit/CLAUDE_TEMPLATE.md"
+    },
+    {
+      "path": "CONTEXT_TEMPLATE.md",
+      "canonical": "../methodology/starter-kit/CONTEXT_TEMPLATE.md"
+    },
+    {
+      "path": "methodology_dashboard.py",
+      "canonical": "../methodology/starter-kit/methodology_dashboard.py"
+    },
+    {
+      "path": "methodology_trim.py",
+      "canonical": "../methodology/starter-kit/methodology_trim.py"
+    },
+    {
+      "path": "context_budget.py",
+      "canonical": "../methodology/starter-kit/context_budget.py"
+    }
+  ]
+}

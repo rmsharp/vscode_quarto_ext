@@ -49,6 +49,9 @@ PROJECT_LEARNINGS.md
 HANDOFFS.md
 methodology_dashboard.py
 methodology_trim.py
+context_budget.py
+.context-budget.json
+.context-budget-history.jsonl
 dashboard.html
 dashboard_history.jsonl
 **/.DS_Store
