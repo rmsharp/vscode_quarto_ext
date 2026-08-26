@@ -13,6 +13,56 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-08
 
+### 2026-08-26 · [BACKLOG: A heading inside a CALLOUT is consumed as the callout's title] The callout title slot — 44 authored documents fixed, 0 regressions
+
+- **The defect.** Quarto's callout filter lifts a callout div's FIRST BLOCK, when it is a header,
+  into the title bar: it emits no `<hN>`, no `<section>` and no `sec-` anchor for it. An `@sec-`
+  reference to such a heading renders as quarto's unresolved `<strong>?@sec-hotel</strong>`.
+  `findHeadings` reported the heading anyway, putting a section in the Outline the reader never
+  sees — and offering a cross-reference target quarto cannot resolve. Filed by Session 205, ranked
+  #1 by real-document reach by the Session 251 audit, unfixed for 52 sessions.
+- **The measured result, over Session 251's 3,383-document authored corpus.** Structural
+  divergence **124 → 80 documents**; structural agreement **94.91% → 96.72%**. **44 documents
+  fixed, 0 regressed.** At heading granularity: **138 headings removed, 0 added, and 0 of the
+  removals are headings quarto actually renders** — no deletion in the forbidden direction. 29 of
+  the 138 sit in 20 documents quarto itself refuses to render (exit ≠ 0), so they are unscorable
+  and disclosed rather than counted. Baseline regenerated from the parent commit in a throwaway
+  worktree rather than read from S251's stored census, which was several model changes stale.
+- **The rule is narrow, and every boundary was rendered before it was coded.** It fires only when
+  the heading is the callout's own first block: a paragraph, code block, thematic break, HTML
+  comment or nested div above it all defeat the lift, and only the FIRST heading is taken — a
+  second one in the same callout is a real heading. It keys on a closed set of types
+  (`note`/`tip`/`warning`/`caution`/`important`) plus **bare `.callout`**, which renders
+  `callout-none` chrome and lifts a title exactly as the named five do — the one member Quarto's
+  own documentation would not predict. `.callout-bogus` and `.note` are not callouts at all.
+  ⚠ **A NON-EMPTY `title=` takes the slot and the heading then SURVIVES**, but `title=""` and
+  `title=''` do not, and `title="   "` does — the gate is an empty quoted value, not the presence
+  of the attribute. That last one was found by an adversarial verifier attacking the first cut of
+  the predicate, and re-measured firsthand before it was believed.
+- **Disclosed residual, declined on a measurement.** The filed item names two spellings and this
+  closes one. The RAW-HTML form (`<div class="callout-note">`) really does render a callout and is
+  still a phantom — but **244 of the 3,383 authored documents carry a fenced callout div and ZERO
+  carry a raw-HTML one**, and closing it needs a `<div>`/`</div>` container the scanner does not
+  have. Re-filed in `BACKLOG.md` with that measurement and pinned live as guard G12, so the
+  phantom is asserted rather than forgotten.
+- Also closes **two disclosed-residual pins** that Sessions 193 and 215 each filed against this
+  exact phantom, and files two new items: the format-gated `.content-hidden` / `.content-visible`
+  divs (NEW, unfiled — quarto deletes the whole block, but the answer is target-format-dependent,
+  so the decision is the hard part) and the negative result recording the twelve div classes
+  measured NOT to consume a heading, `.tabset` among them.
+- Strict TDD: R1–R4 each shown RED before GREEN, R4 twice. 19 new assertions plus a drift gate
+  asserting `model.ts`'s `CALLOUT_TYPES` equals `notebook-callout.ts`'s `CALLOUT_TITLES` key set.
+  `npm test` 2817 / 66 files; `compile` clean; `check-package` OK 42 files / 5.60 MB;
+  `check-backlog` OK 195 open.
+- **The runtime gate was SATISFIED, not waived** — operator-authorised, since it takes over the
+  screen. `npm run test:integration` launched a real VS Code Extension Development Host:
+  **543 passing, exit 0**, including a new `outline.test.ts` row that drives
+  `vscode.executeDocumentSymbolProvider` — the command the Outline view itself calls — and
+  asserts the lifted heading is absent, a SECOND heading in the same callout is present, the
+  headings outside it are present, and the same document with a non-callout class keeps its
+  heading. Commits: `e7dd276e` claim, `a80a6de8` the rule, `ae9e8d94` the empty-title correction
+  plus guards and gate, `c89b9608` the runtime test, and this close-out.
+
 ### 2026-08-26 · [ad hoc] `SESSION_NOTES.md` is TRANSIENT, not append-only — retention rule added to `CLAUDE.md`
 
 - A reduction with no rule attached regrows; this file had already been drained twice under an
