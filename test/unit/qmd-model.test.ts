@@ -16765,3 +16765,777 @@ describe("Session 257 gate — the two callout type sets may not drift apart", (
     expect("callout" in CALLOUT_TITLES).toBe(false);
   });
 });
+
+describe("Session 258 — a `.panel-tabset` div's TAB-LEVEL headings are tab labels, not headings", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // Every row below was RENDERED through the real quarto CLI 1.7.33 BEFORE it was written, and
+  // each comment states what quarto emitted. Sources: `scratchpad/s258/probes/<name>.qmd`, the
+  // matching render in `scratchpad/s258/html/<name>.html`, and the census in
+  // `scratchpad/s258/render1.out` / `render2.out` / `render3.out` / `render4.out`.
+  //
+  // ⚠ **THE RULE, IN ONE SENTENCE, AND IT IS QUARTO'S OWN CODE, NOT AN INFERENCE.**
+  // `parse_tabset_contents` (`/Applications/quarto/share/filters/main.lua:21643`) takes the
+  // FIRST `Header` among the div's DIRECT blocks, freezes its level, and makes a tab of every
+  // direct-child `Header` at EXACTLY that level. Everything else in the div passes through as
+  // tab content. `render_tabset` then removes each tab's own header and puts its inlines in the
+  // `<a role="tab">` nav link (`main.lua:21713`), so no `<hN>` survives for a tab label.
+
+  it("R1: every heading at the tabset's tab level is consumed as a tab label", () => {
+    // ⚠ **THE DEFECT.** Rendered (`probes/t01_baseline`): `## Tango Before` /
+    // `::: {.panel-tabset}` / `## Tango Alpha` / `## Tango Bravo` / `:::` / `## Tango After`
+    // emits exactly `h2:Tango Before` and `h2:Tango After`, with the two tab names appearing
+    // only inside `<a class="nav-link" role="tab">`.
+    //
+    // ⚠ **EVERY tab-level heading, not just the first** — which is what separates this from the
+    // callout rule shipped in Session 257, where only the div's FIRST BLOCK is consumed. A rule
+    // derived from that code would leave every tab after the first as a phantom.
+    expect(
+      names([
+        "## Tango Before",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "## Tango Alpha",
+        "",
+        "alpha text.",
+        "",
+        "## Tango Bravo",
+        "",
+        "bravo text.",
+        "",
+        ":::",
+        "",
+        "## Tango After",
+      ]),
+    ).toEqual(["h2:Tango Before", "h2:Tango After"]);
+  });
+
+  it("R2: the tab level is the FIRST heading's level — NOT the shallowest one present", () => {
+    // ⚠ **THE ROW THAT DECIDES THE WHOLE PREDICATE, AND THE TWO READINGS AGREE ON EVERY OTHER
+    // PROBE.** Rendered (`probes/l09_first_deeper`): `::: {.panel-tabset}` / `### Foxtrot
+    // First` / `## Foxtrot Second` / `:::` emits `h2:Foxtrot Second` — the DEEPER, FIRST
+    // heading is the tab and the SHALLOWER one below it survives as a real `<h2>`. Reading the
+    // tab level as the minimum inverts this row and DELETES a heading quarto renders.
+    expect(
+      names([
+        "## Foxtrot Before",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "### Foxtrot First",
+        "",
+        "a.",
+        "",
+        "## Foxtrot Second",
+        "",
+        "b.",
+        "",
+        ":::",
+        "",
+        "## Foxtrot After",
+      ]),
+    ).toEqual(["h2:Foxtrot Before", "h2:Foxtrot Second", "h2:Foxtrot After"]);
+  });
+
+  it("R3: a heading DEEPER than the tab level is real, and keeps its own level", () => {
+    // Rendered (`probes/l11_all_mixed`): a tabset whose first heading is `## Hotel TabA`
+    // consumes `## Hotel TabA` and `## Hotel TabB` and emits `h3:Hotel SubA`,
+    // `h4:Hotel SubSubA` and `h3:Hotel SubB` unchanged.
+    expect(
+      names([
+        "## Hotel Before",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "## Hotel TabA",
+        "",
+        "### Hotel SubA",
+        "",
+        "#### Hotel SubSubA",
+        "",
+        "## Hotel TabB",
+        "",
+        "### Hotel SubB",
+        "",
+        ":::",
+        "",
+        "## Hotel After",
+      ]),
+    ).toEqual([
+      "h2:Hotel Before",
+      "h3:Hotel SubA",
+      "h4:Hotel SubSubA",
+      "h3:Hotel SubB",
+      "h2:Hotel After",
+    ]);
+  });
+
+  it("R4: a heading SHALLOWER than the tab level is real too — the test is EQUALITY", () => {
+    // ⚠ **`level <= tabLevel` IS THE OBVIOUS ENCODING OF *deeper headings survive* AND IT IS
+    // WRONG.** Rendered (`probes/a_shallower_h1_inside_tabset`): a tabset whose tab level is 2
+    // and which contains `# Cobalt Egret Ferrix` between two tabs emits that `h1` as a real
+    // heading — the document's most structural one. `probes/l08_shallower` is the same answer
+    // with the levels the other way up.
+    expect(
+      names([
+        "## Anchor Pangolin Bly",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "## Cobalt Dingo Ferrix",
+        "",
+        "alpha text",
+        "",
+        "# Cobalt Egret Ferrix",
+        "",
+        "bravo text",
+        "",
+        "## Cobalt Finch Ferrix",
+        "",
+        "charlie text",
+        "",
+        ":::",
+        "",
+        "## Trailing Pangolin Bly",
+      ]),
+    ).toEqual(["h2:Anchor Pangolin Bly", "h1:Cobalt Egret Ferrix", "h2:Trailing Pangolin Bly"]);
+  });
+
+  it("R5: POSITION does not protect a tab — unlike a callout's first-block heading", () => {
+    // ⚠ **THE SHARPEST CONTRAST WITH SESSION 257.** A paragraph standing above a CALLOUT's
+    // heading defeats the title lift and the heading survives (`s257/probes/p4`). Above a
+    // TAB it protects nothing: rendered (`probes/p01_leading_para`), the leading paragraph is
+    // DISCARDED along with everything else before the first tab, and both tabs are still tabs.
+    // `p02_codefence_first`, `p03_hrule_first` and `p04_comment_first` are the same answer for
+    // a fenced code block, a thematic break and an HTML comment.
+    expect(
+      names([
+        "## Kilo Before",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "a leading paragraph before any tab.",
+        "",
+        "## Kilo Alpha",
+        "",
+        "a.",
+        "",
+        "## Kilo Bravo",
+        "",
+        "b.",
+        "",
+        ":::",
+        "",
+        "## Kilo After",
+      ]),
+    ).toEqual(["h2:Kilo Before", "h2:Kilo After"]);
+  });
+
+  it("R6: a SETEXT heading is a tab, and sets the tab level, on the same terms", () => {
+    // The filter reads the AST, where setext and ATX are the same `Header` node. Rendered
+    // (`probes/x15_setext_first`): `Xo SetextTab` / `------------` sets the tab level to 2 and
+    // is itself a tab, and the `## Xo AtxSame` below it is a tab too — output is
+    // `h2:Xo Before` and `h2:Xo After` alone. `probes/e01_setext` is the one-tab spelling.
+    expect(
+      names([
+        "## Xo Before",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "Xo SetextTab",
+        "------------",
+        "",
+        "body.",
+        "",
+        "## Xo AtxSame",
+        "",
+        "b.",
+        "",
+        ":::",
+        "",
+        "## Xo After",
+      ]),
+    ).toEqual(["h2:Xo Before", "h2:Xo After"]);
+  });
+
+  it("R7: all six heading levels can be the tab level", () => {
+    // Rendered, `probes/l01_h1` … `l06_h6`: a tabset containing a single heading at level N
+    // emits nothing for it, for every N in 1..6.
+    for (let lvl = 1; lvl <= 6; lvl++) {
+      expect(
+        names([
+          "## Lima Before",
+          "",
+          "::: {.panel-tabset}",
+          "",
+          `${"#".repeat(lvl)} Lima Level${lvl}`,
+          "",
+          "body text.",
+          "",
+          ":::",
+          "",
+          "## Lima After",
+        ]),
+      ).toEqual(["h2:Lima Before", "h2:Lima After"]);
+    }
+  });
+
+  it("R8: a NESTED tabset learns its OWN tab level, independently of the outer one", () => {
+    // Rendered (`probes/n03_tabset_in_tabset`): an outer tabset at level 2 containing an inner
+    // tabset also at level 2 consumes all four names — each div runs `find_if` over its own
+    // `div.content`. `probes/a_nested_tabsets_independent_levels` is the row where the two
+    // levels DIFFER, and each div keeps its own.
+    expect(
+      names([
+        "## Jackal Before",
+        "",
+        ":::: {.panel-tabset}",
+        "",
+        "## Jackal OuterA",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "## Jackal InnerA",
+        "",
+        "a.",
+        "",
+        "## Jackal InnerB",
+        "",
+        "b.",
+        "",
+        ":::",
+        "",
+        "## Jackal OuterB",
+        "",
+        "c.",
+        "",
+        "::::",
+        "",
+        "## Jackal After",
+      ]),
+    ).toEqual(["h2:Jackal Before", "h2:Jackal After"]);
+  });
+
+  it("R9: SIBLING tabsets each learn their own tab level", () => {
+    // Rendered (`probes/x18_siblings_diff_levels`): the first tabset's level is 2, the second's
+    // is 3 — so the second's `## Xr SecondShallow` is NOT a tab and survives. A tab level
+    // remembered across divs would delete it.
+    expect(
+      names([
+        "## Xr Before",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "## Xr FirstA",
+        "",
+        "a.",
+        "",
+        ":::",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "### Xr SecondA",
+        "",
+        "b.",
+        "",
+        "## Xr SecondShallow",
+        "",
+        "c.",
+        "",
+        ":::",
+        "",
+        "## Xr After",
+      ]),
+    ).toEqual(["h2:Xr Before", "h2:Xr SecondShallow", "h2:Xr After"]);
+  });
+
+  it("R10: an UNCLOSED tabset runs to the end of the document", () => {
+    // Rendered (`probes/e03_unclosed`): with no closing `:::`, pandoc's div extends to EOF and
+    // both names are tabs — only `h2:Quokka Before` reaches the output.
+    expect(
+      names([
+        "## Quokka Before",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "## Quokka Alpha",
+        "",
+        "a.",
+        "",
+        "## Quokka Bravo",
+        "",
+        "b.",
+      ]),
+    ).toEqual(["h2:Quokka Before"]);
+  });
+
+  it("R11: every spelling of the opener that quarto accepts", () => {
+    // Each opener below was rendered on its own and consumed the heading beneath it:
+    //   `:::{.panel-tabset}`              probes/s01_nospace
+    //   `::: panel-tabset`                probes/s02_bareword   (pandoc's `::: foo` ≡ `{.foo}`)
+    //   `:::: {.panel-tabset}`            probes/s03_fourcolon
+    //   `::: {.panel-tabset #tsid}`       probes/s04_withid
+    //   `::: {.panel-tabset .extra}`      probes/s05_extraclass
+    //   `::: {.panel-tabset group="lang"}` probes/s06_group
+    //   `::: {#tsid2 .panel-tabset}`      probes/s07_idfirst
+    //   `::: {.panel-tabset title="…"}`   probes/s13_titleattr  — NO `title=` escape hatch,
+    //                                     unlike a callout, where a non-empty title releases
+    //                                     the heading (Session 257 R4)
+    //   `::: {#fig-xu .panel-tabset}`     probes/x21_crossref_div
+    for (const opener of [
+      ":::{.panel-tabset}",
+      "::: panel-tabset",
+      "::: {.panel-tabset #tsid}",
+      "::: {.panel-tabset .extra}",
+      '::: {.panel-tabset group="lang"}',
+      "::: {#tsid2 .panel-tabset}",
+      '::: {.panel-tabset title="Grouse Title"}',
+      "::: {#fig-xu .panel-tabset}",
+    ]) {
+      expect(
+        names(["## Spell Before", "", opener, "", "## Spell Alpha", "", "a.", "", ":::", "", "## Spell After"]),
+      ).toEqual(["h2:Spell Before", "h2:Spell After"]);
+    }
+    // The four-colon opener needs a four-colon closer of its own.
+    expect(
+      names([
+        "## Spell Before",
+        "",
+        ":::: {.panel-tabset}",
+        "",
+        "## Spell Alpha",
+        "",
+        "a.",
+        "",
+        "::::",
+        "",
+        "## Spell After",
+      ]),
+    ).toEqual(["h2:Spell Before", "h2:Spell After"]);
+  });
+
+  it("R12: a tabset inside a LIST ITEM or a BLOCK QUOTE still consumes its tabs", () => {
+    // Rendered, `probes/n05_tabset_in_list` and `probes/x13_quote_tabset_clean`: the enclosing
+    // container changes nothing about tab-hood — what it changes is the DEPTH the div's own
+    // content sits at, which is why the rule compares against the div entry's own
+    // `containerDepth`/`inQuote` rather than against zero.
+    expect(
+      names([
+        "## Lemur Before",
+        "",
+        "-   list item one",
+        "",
+        "    ::: {.panel-tabset}",
+        "",
+        "    ## Lemur TabA",
+        "",
+        "    a.",
+        "",
+        "    ## Lemur TabB",
+        "",
+        "    b.",
+        "",
+        "    :::",
+        "",
+        "## Lemur After",
+      ]),
+    ).toEqual(["h2:Lemur Before", "h2:Lemur After"]);
+    expect(
+      names([
+        "## Xm Before",
+        "",
+        "> ::: {.panel-tabset}",
+        ">",
+        "> ## Xm TabA",
+        ">",
+        "> alpha body text",
+        ">",
+        "> ## Xm TabB",
+        ">",
+        "> bravo body text",
+        ">",
+        "> :::",
+        "",
+        "## Xm After",
+      ]),
+    ).toEqual(["h2:Xm Before", "h2:Xm After"]);
+  });
+});
+
+describe("Session 258 guard — answers around the panel-tabset rule that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+  /** The same document with a PLAIN div, so a narrowing that rejected everything cannot pass. */
+  const withDiv = (opener: string) => [
+    "## Guard Before",
+    "",
+    opener,
+    "",
+    "## Guard Inside",
+    "",
+    "a.",
+    "",
+    ":::",
+    "",
+    "## Guard After",
+  ];
+  const ALL = ["h2:Guard Before", "h2:Guard Inside", "h2:Guard After"];
+
+  // ⚠ Each row names the MUTANT it kills. `scratchpad/s258/mutate.py` applies these defects one
+  // at a time and re-scores the 91-probe rendered grid; all seven flip at least one probe into
+  // DELETING a heading quarto renders. A guard never shown to go red is an assertion.
+
+  it("G1: a PLAIN fenced div consumes nothing", () => {
+    // Rendered, `probes/t03_plaindiv_ctl`.
+    expect(names(withDiv("::: {.myclass}"))).toEqual(ALL);
+  });
+
+  it("G2: bare `.tabset` is NOT a tabset", () => {
+    // Rendered, `probes/t04_bare_tabset`, and Session 257's `p28` before it. Quarto's handler
+    // is registered for the class `panel-tabset` alone; `.tabset` names a different construct
+    // (`probes/a_dashboard_tabset_on_a_heading` keeps its two `h3` tab names as real headings).
+    expect(names(withDiv("::: {.tabset}"))).toEqual(ALL);
+  });
+
+  it("G3-G6: near-miss CLASS names are not the class — kills mutant M2", () => {
+    // Rendered: `probes/s09_plural` `.panel-tabsets`, `s10_case` `.Panel-Tabset`,
+    // `s11_suffix` `.panel-tabset-x`, `s12_prefix` `.xpanel-tabset`. Every one renders its
+    // heading as a real `<h2>`. Dropping the `(?![\w-])` whole-word guard deletes two of them.
+    for (const cls of [".panel-tabsets", ".Panel-Tabset", ".panel-tabset-x", ".xpanel-tabset"]) {
+      expect(names(withDiv(`::: {${cls}}`))).toEqual(ALL);
+    }
+  });
+
+  it("G7: near-miss BAREWORDS are not the class — kills mutant M7", () => {
+    // Rendered, `probes/x23_bareword_suffix` and `x24_bareword_prefix`. Reading the bareword
+    // with `includes` rather than equality deletes both.
+    for (const word of ["panel-tabsetx", "xpanel-tabset", "PANEL-TABSET"]) {
+      expect(names(withDiv(`::: ${word}`))).toEqual(ALL);
+    }
+  });
+
+  it("G8-G9: the class name inside an ATTRIBUTE VALUE is not a class — kills mutant M1", () => {
+    // ⚠ **THE FORBIDDEN DIRECTION, AND THE CHEAPEST REGEX GETS IT WRONG.** Rendered,
+    // `probes/x01_titleattr_value` and `x05_data_attr`: both render `h2:… Inside` as a real
+    // heading. A `/\.panel-tabset(?![\w-])/` with no token boundary in front matches the `.`
+    // inside the quoted value and deletes it.
+    expect(names(withDiv('::: {.myclass title=".panel-tabset"}'))).toEqual(ALL);
+    expect(names(withDiv('::: {.myclass data-x=".panel-tabset"}'))).toEqual(ALL);
+  });
+
+  it("G10-G12: an ID, and a bareword carrying a leading dot, are not the class", () => {
+    // Rendered: `probes/x02_id_named` `{#panel-tabset}`, `x03_class_in_id`
+    // `{.myclass #panel-tabset}`, `x04_bareword_dot` `::: .panel-tabset` — pandoc's bareword
+    // shorthand takes a WORD, and a leading dot makes the spec neither a word nor a `{…}`
+    // block, so quarto opens a plain div and the heading survives.
+    expect(names(withDiv("::: {#panel-tabset}"))).toEqual(ALL);
+    expect(names(withDiv("::: {.myclass #panel-tabset}"))).toEqual(ALL);
+    expect(names(withDiv("::: .panel-tabset"))).toEqual(ALL);
+    expect(names(withDiv("::: {}"))).toEqual(ALL);
+  });
+
+  it("G13: a heading inside a NESTED DIV is not a tab, even at the tab level — kills M3's cousin", () => {
+    // ⚠ **TAB-HOOD IS A TEST ON THE DIV'S DIRECT BLOCKS.** Rendered
+    // (`probes/n04_plaindiv_in_tabset`): `h2:Koala Nested` reaches the output at the very level
+    // its two sibling tab labels were consumed at. A rule spelled `divColumns.some(d =>
+    // d.isTabset)` — the tempting one for a line scanner — deletes it.
+    expect(
+      names([
+        "## Koala Before",
+        "",
+        ":::: {.panel-tabset}",
+        "",
+        "## Koala TabA",
+        "",
+        "::: {.myclass}",
+        "",
+        "## Koala Nested",
+        "",
+        "nested text.",
+        "",
+        ":::",
+        "",
+        "## Koala TabB",
+        "",
+        "b.",
+        "",
+        "::::",
+        "",
+        "## Koala After",
+      ]),
+    ).toEqual(["h2:Koala Before", "h2:Koala Nested", "h2:Koala After"]);
+  });
+
+  it("G14: a heading inside a LIST ITEM inside a tab is not a tab — kills mutant M3", () => {
+    // Rendered, `probes/x11_list_in_tabset`: `h2:Xk InList` is a real `<h2>` inside the `<li>`.
+    // Removing the `contentColumns` depth test deletes it, and deletes
+    // `probes/e02_tight`'s `h2:Possum Bravo` with it.
+    expect(
+      names([
+        "## Xk Before",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "## Xk TabA",
+        "",
+        "-   list item text",
+        "",
+        "    ## Xk InList",
+        "",
+        "    nested body.",
+        "",
+        "## Xk TabB",
+        "",
+        "b.",
+        "",
+        ":::",
+        "",
+        "## Xk After",
+      ]),
+    ).toEqual(["h2:Xk Before", "h2:Xk InList", "h2:Xk After"]);
+  });
+
+  it("G15: a heading inside a BLOCK QUOTE inside a tab is not a tab — kills mutant M4", () => {
+    // ⚠ **THE QUOTE PATH IS THE ONE THAT ARRIVES LOOKING IDENTICAL TO A TOP-LEVEL HEADING.**
+    // `computeRegions` replaces the line with its stripped content before the ATX site is
+    // reached, so `> ## Xl InQuote` reaches the gate byte-for-byte like a tab while the div
+    // stack still has the tabset on top. Rendered, `probes/x12_quote_in_tabset`: quarto emits
+    // it as a real `<h2>` inside the `<blockquote>`. Only the `inQuote` comparison separates
+    // them; dropping it deletes this heading.
+    expect(
+      names([
+        "## Xl Before",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "## Xl TabA",
+        "",
+        "> ## Xl InQuote",
+        ">",
+        "> quoted body.",
+        "",
+        "## Xl TabB",
+        "",
+        "b.",
+        "",
+        ":::",
+        "",
+        "## Xl After",
+      ]),
+    ).toEqual(["h2:Xl Before", "h2:Xl InQuote", "h2:Xl After"]);
+  });
+
+  it("G16: the Session 257 callout rule still composes both ways round", () => {
+    // ⚠ **A CALLOUT WITH AN EXPLICIT TITLE, SITTING INSIDE A TAB, KEEPS ITS HEADING** — a
+    // heading this project deliberately kept three sessions ago, and the row a
+    // `some(isTabset)` rule would silently take back. Rendered,
+    // `probes/a_nested_div_and_callout_shield`: `h2:Inside Callout Tanglewood Fen` and
+    // `h2:Inside Plain Div Quillon Marsh` both reach the output.
+    expect(
+      names([
+        ":::: {.panel-tabset}",
+        "",
+        "## Tab Marlowe Thistledown",
+        "",
+        '::: {.callout-note title="Explicit Ravensworth"}',
+        "",
+        "## Inside Callout Tanglewood Fen",
+        "",
+        "callout body",
+        "",
+        ":::",
+        "",
+        "## Tab Selwyn Harrowgate",
+        "",
+        "second tab body",
+        "",
+        "::::",
+        "",
+        "## After Nested Ambrose Dell",
+      ]),
+    ).toEqual([
+      "h2:Inside Callout Tanglewood Fen",
+      "h2:After Nested Ambrose Dell",
+    ]);
+    // And the other way round: a callout with NO title inside a tab loses its heading to the
+    // CALLOUT rule, not to this one (rendered, `probes/n02_callout_in_tabset`).
+    expect(
+      names([
+        "## Ibis Before",
+        "",
+        ":::: {.panel-tabset}",
+        "",
+        "## Ibis TabA",
+        "",
+        "::: {.callout-note}",
+        "",
+        "## Ibis CalloutTitle",
+        "",
+        "body.",
+        "",
+        ":::",
+        "",
+        "## Ibis TabB",
+        "",
+        "b.",
+        "",
+        "::::",
+        "",
+        "## Ibis After",
+      ]),
+    ).toEqual(["h2:Ibis Before", "h2:Ibis After"]);
+  });
+
+  it("G17: a tabset opener written inside a VERBATIM region opens nothing", () => {
+    // Rendered, `probes/e06_fence_in_code` and `e07_inline_code`: the heading below a literal
+    // `::: {.panel-tabset}` inside a fenced code block, or beside one in inline code, is a real
+    // heading. If a verbatim opener could push a div entry, the rest of the document would be
+    // suppressed from that point on.
+    expect(
+      names([
+        "## Tapir Before",
+        "",
+        "```",
+        "::: {.panel-tabset}",
+        "```",
+        "",
+        "## Tapir Alpha",
+        "",
+        "a.",
+        "",
+        "## Tapir After",
+      ]),
+    ).toEqual(["h2:Tapir Before", "h2:Tapir Alpha", "h2:Tapir After"]);
+    expect(
+      names([
+        "## Uakari Before",
+        "",
+        "A paragraph mentioning `::: {.panel-tabset}` inline.",
+        "",
+        "## Uakari Alpha",
+        "",
+        "a.",
+        "",
+        "## Uakari After",
+      ]),
+    ).toEqual(["h2:Uakari Before", "h2:Uakari Alpha", "h2:Uakari After"]);
+  });
+
+  it("G18: headings after the tabset's CLOSER are untouched", () => {
+    // Rendered, `probes/e04_after_last_tab`. The suppression must end with the div.
+    expect(
+      names([
+        "## Rabbit Before",
+        "",
+        "::: {.panel-tabset}",
+        "",
+        "## Rabbit Alpha",
+        "",
+        "a.",
+        "",
+        ":::",
+        "",
+        "trailing paragraph outside the tabset.",
+        "",
+        "## Rabbit After",
+      ]),
+    ).toEqual(["h2:Rabbit Before", "h2:Rabbit After"]);
+  });
+
+  it("G19: DISCLOSED RESIDUAL — a raw-HTML `<div class=\"panel-tabset\">` still reports phantoms", () => {
+    // ⚠ **MEASURED, DECLINED, AND PINNED SO IT IS ASSERTED RATHER THAN FORGOTTEN.** Rendered
+    // (`probes/x06_raw_html_div`, `a_raw_html_div_panel_tabset`), a raw-HTML div with blank
+    // lines around its content really does become a quarto tabset and quarto emits NO heading
+    // for the tab. This model reports one. Closing it needs a `<div>`/`</div>` container that
+    // `divColumns` does not have — it tracks `:::` fences only — which is the same wider blast
+    // radius that made Session 257 decline the raw-HTML CALLOUT. And the same measurement
+    // declines it: of the 51 documents in the 3,383-document authored corpus that contain
+    // `panel-tabset`, **ZERO use the raw-HTML spelling**.
+    //
+    // ⚠ THIS ROW FAILS IF SOMEONE FIXES IT. That is the point — read this comment, then move
+    // the expectation and delete the `BACKLOG.md` bullet in the same commit.
+    expect(
+      names([
+        "## Xf Before",
+        "",
+        '<div class="panel-tabset">',
+        "",
+        "## Xf Inside",
+        "",
+        "a.",
+        "",
+        "</div>",
+        "",
+        "## Xf After",
+      ]),
+    ).toEqual(["h2:Xf Before", "h2:Xf Inside", "h2:Xf After"]);
+  });
+
+  it("G20: DISCLOSED RESIDUAL — a heading BEFORE the first tab is dropped by quarto and kept here", () => {
+    // ⚠ Quarto's populate loop discards every block until the first tab exists
+    // (`main.lua:21657`, the `elseif tab ~= nil` arm), so the nested div's heading below
+    // reaches no output at all — rendered, `probes/p05_nesteddiv_first` contains neither
+    // `Quebec Nested` nor the `myclass` div. This model keeps it.
+    //
+    // The residual is bounded and its direction is safe: a heading in that region is
+    // NECESSARILY nested inside some container, because a heading among the div's own direct
+    // blocks would BE the first tab. So what is kept is always a phantom, never a deletion.
+    expect(
+      names([
+        "## Quebec Before",
+        "",
+        ":::: {.panel-tabset}",
+        "",
+        "::: {.myclass}",
+        "",
+        "## Quebec Nested",
+        "",
+        "nested text.",
+        "",
+        ":::",
+        "",
+        "## Quebec Alpha",
+        "",
+        "a.",
+        "",
+        "::::",
+        "",
+        "## Quebec After",
+      ]),
+    ).toEqual(["h2:Quebec Before", "h2:Quebec Nested", "h2:Quebec After"]);
+  });
+
+  it("G21: DISCLOSED RESIDUAL — inside a QUOTE, a stale container column keeps later tabs", () => {
+    // ⚠ **A COMPOUND OF TWO PRE-EXISTING DEFECTS, NEITHER OF THEM THIS RULE'S.** `> a.` is read
+    // by this model as an ordered-list marker with empty content (the already-filed
+    // letter/roman marker over-acceptance), and inside a quote the shallower heading below it
+    // does not pop that column (the already-filed block-quote container family). The tab
+    // therefore arrives at a container depth the tabset entry does not match, and is kept.
+    // Rendered, `probes/n06_tabset_in_quote`: quarto emits `h2:Marten Before` and
+    // `h2:Marten After` only.
+    //
+    // ⚠ The CLEAN quote case is correct and is pinned as R12 — swap `a.`/`b.` for ordinary
+    // prose and both tabs are consumed. Phantom direction; safe.
+    expect(
+      names([
+        "## Marten Before",
+        "",
+        "> ::: {.panel-tabset}",
+        ">",
+        "> ## Marten TabA",
+        ">",
+        "> a.",
+        ">",
+        "> ## Marten TabB",
+        ">",
+        "> b.",
+        ">",
+        "> :::",
+        "",
+        "## Marten After",
+      ]),
+    ).toEqual(["h2:Marten Before", "h2:Marten TabB", "h2:Marten After"]);
+  });
+});

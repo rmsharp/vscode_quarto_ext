@@ -4103,6 +4103,40 @@ function divCalloutTitleSlot(attrs: string): boolean {
   return false;
 }
 /**
+ * Whether a fenced div's attribute spec names a `.panel-tabset`, whose TAB-LEVEL headings
+ * Quarto turns into tab labels rather than headings — see `tabsetTabTakes`'s callers.
+ *
+ * ⚠ **THE CLASS NAME IS MATCHED EXACTLY AND CASE-SENSITIVELY, BECAUSE QUARTO MATCHES IT THAT
+ * WAY.** The tabset AST handler is registered with `class_name = { "panel-tabset" }`
+ * (`/Applications/quarto/share/filters/main.lua:21738`), which is an exact membership test
+ * against the div's class list. Measured, and every one of these renders its heading as a real
+ * `<h2>`: `.panel-tabsets` (`probes/s09_plural`), `.Panel-Tabset` (`s10_case`),
+ * `.panel-tabset-x` (`s11_suffix`), `.xpanel-tabset` (`s12_prefix`) — and bare `.tabset`, which
+ * is NOT a tabset at all (`t04_bare_tabset`, and Session 257's `p28` before it).
+ *
+ * ⚠ **THE TOKEN BOUNDARY IN FRONT IS WHAT KEEPS AN ATTRIBUTE *VALUE* FROM MATCHING.** A class
+ * is `{`- or whitespace-preceded; `title=".panel-tabset"` is neither, and reading it as a class
+ * would DELETE a heading quarto renders — the forbidden direction.
+ *
+ * Both spellings Pandoc accepts are covered because both really do produce a tabset: the `{…}`
+ * attribute block (`::: {.panel-tabset}`, `:::{.panel-tabset}`, with a further class, an id, a
+ * `group=` or a `title=`) and the BARE WORD (`::: panel-tabset`), Pandoc's `::: foo` ≡
+ * `::: {.foo}` shorthand — measured, `probes/s01`–`s08` and `s13`.
+ */
+function divPanelTabset(attrs: string): boolean {
+  if (attrs === "") {
+    return false;
+  }
+  // The bare-word spelling: the whole spec is one word, read as a single class.
+  if (/^[\p{L}\p{N}_-]+$/u.test(attrs)) {
+    return attrs === "panel-tabset";
+  }
+  if (!/^\{[^}]*\}$/.test(attrs)) {
+    return false;
+  }
+  return /(?:^|[\s{])\.panel-tabset(?![\w-])/.test(attrs);
+}
+/**
  * A BLOCK QUOTE's whole marker run, whose match length is the offset at which the quote's own
  * content begins — the strip `computeRegions` applies before classifying the line (Session 225).
  *
@@ -6248,12 +6282,18 @@ function computeRegions(text: string): Regions {
   // rather than risk the deletion (Learning #402). `r2/b13` is that kept phantom — filed.
   // ⚠ **AND WHETHER IT IS A CALLOUT WHOSE TITLE BAR IS STILL UNCLAIMED (Session 257)** —
   // `calloutTitleSlot`, set from the opener's own attribute spec by `divCalloutTitleSlot`.
+  // ⚠ **AND WHETHER IT IS A `.panel-tabset`, WHOSE TAB LEVEL IS LEARNED FROM ITS OWN FIRST
+  // TOP-LEVEL HEADING (Session 258)** — `isTabset` from the opener's attribute spec by
+  // `divPanelTabset`, and `tabLevel` filled in by the first heading that reaches
+  // `tabsetTabTakes` at this div's own container depth. `null` until then.
   const divColumns: {
     column: number;
     containerDepth: number;
     inQuote: boolean;
     calloutTitleSlot: boolean;
     firstContentLine: number | null;
+    isTabset: boolean;
+    tabLevel: number | null;
   }[] = [];
   // Whether a mid-document YAML metadata block is open at this line — the same block state,
   // for the `...` terminator. See `YAML_BLOCK_OPENER`.
@@ -6433,6 +6473,51 @@ function computeRegions(text: string): Regions {
       divColumns.length > 0 &&
       divColumns[divColumns.length - 1].calloutTitleSlot &&
       divColumns[divColumns.length - 1].firstContentLine === startLine;
+    /**
+     * Whether a heading of `level` is a TAB LABEL of the innermost `.panel-tabset` — and, when
+     * it is the first one this div has seen, RECORDS the tab level on the way past.
+     *
+     * ⚠ **THE TAB LEVEL IS THE LEVEL OF THE DIV'S FIRST TOP-LEVEL HEADING, AND "FIRST" IS NOT
+     * "SHALLOWEST".** Quarto's filter reads
+     * `local heading = div.content:find_if(el.t == "Header"); local level = heading.level`
+     * (`/Applications/quarto/share/filters/main.lua:21643-21646`), then makes a tab of every
+     * `Header` whose `level == level` and leaves every other level alone. The discriminating
+     * render is `probes/l09_first_deeper`: `::: {.panel-tabset}` / `### Foxtrot First` /
+     * `## Foxtrot Second` / `:::` emits `h2:Foxtrot Second` — the SHALLOWER heading survives and
+     * the deeper FIRST one is the tab. Reading the level as the minimum inverts that row and
+     * deletes a heading quarto renders. `l07`, `l08`, `l10` and `l11` pin the rest of the grid.
+     *
+     * ⚠ **AND IT IS THE DIV'S OWN TOP-LEVEL BLOCKS, WHICH IS A CONTAINER TEST, NOT A LEVEL
+     * TEST.** `find_if` walks `div.content` — the direct block list — so a header inside a
+     * nested div, a list item or a quote opened INSIDE the tabset is not a tab and renders as a
+     * real heading: `probes/n04_plaindiv_in_tabset` emits `h2:Koala Nested` at the very level
+     * its two tab labels were consumed at. The depth comparison against the entry's own
+     * `containerDepth`/`inQuote` is what expresses that, and without it this rule deletes
+     * `Koala Nested` and `probes/e02_tight`'s `h2:Possum Bravo`.
+     *
+     * ⚠ **A HEADING BEFORE THE FIRST TAB IS DROPPED BY QUARTO, AND THIS MODEL KEEPS IT.** The
+     * filter's populate loop discards every block until the first tab exists (`elseif tab ~=
+     * nil`, `main.lua:21657`), so a nested div's heading standing above the first tab vanishes
+     * (`probes/p05_nesteddiv_first`, where `Quebec Nested` reaches no output at all). Such a
+     * heading is necessarily nested — a TOP-LEVEL one would BE the first tab — so the residual
+     * is a kept phantom, the safe direction. Disclosed, and pinned as a guard.
+     */
+    const tabsetTabTakes = (level: number): boolean => {
+      const div = divColumns.length > 0 ? divColumns[divColumns.length - 1] : null;
+      if (
+        div === null ||
+        !div.isTabset ||
+        div.inQuote !== inQuote ||
+        contentColumns.length !== div.containerDepth
+      ) {
+        return false;
+      }
+      if (div.tabLevel === null) {
+        div.tabLevel = level;
+        return true;
+      }
+      return div.tabLevel === level;
+    };
     // The ATX-adjacency state is consumed by THIS line and by no later one — pandoc
     // swallows the heading only when the run is the line IMMEDIATELY below it. Clearing
     // it here, at the top, is what makes that "immediately" true through every `continue`
@@ -7596,7 +7681,7 @@ function computeRegions(text: string): Regions {
       // `prev` is `titleLines[0]` — the FIRST title line, which is where the heading's block
       // begins and therefore the line the callout's title slot was marked at. A MULTI-LINE
       // setext title is joined into one heading and still starts there.
-      if (heading && !calloutTitleTakes(prev.line)) {
+      if (heading && !calloutTitleTakes(prev.line) && !tabsetTabTakes(heading.level)) {
         headings.push(heading);
       }
       bodyLines.push({ line: i, text: raw, contentStart: stripQuote ? (quoteContentStart as number) : 0 });
@@ -7801,7 +7886,7 @@ function computeRegions(text: string): Regions {
         escapableSet,
         pandocEscapes,
       );
-      if (heading && !calloutTitleTakes(i)) {
+      if (heading && !calloutTitleTakes(i) && !tabsetTabTakes(heading.level)) {
         headings.push(heading);
       }
       consecutiveBody = 0;
@@ -8065,6 +8150,8 @@ function computeRegions(text: string): Regions {
           inQuote,
           calloutTitleSlot: divCalloutTitleSlot(divFence!.attrs),
           firstContentLine: null,
+          isTabset: divPanelTabset(divFence!.attrs),
+          tabLevel: null,
         });
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS
