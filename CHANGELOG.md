@@ -13,6 +13,18 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-08
 
+### 2026-08-26 · [ad hoc] Relocate Session 257's 28 ground-truth witnesses to the path they are cited at
+
+- ⚠ **The 23 distinct `scratchpad/s257/probes/p<N>` citations written into `src/`, the tests and all
+  three record files pointed at files that did not exist** — the probes had been rendered in `/tmp`,
+  which would have erased them before the next session read a word. Found by executing Phase 3F's
+  *verify cross-references added this session* bullet literally, **after** the close-out commit.
+  `git diff` cannot surface this: it shows the citation added, never the destination not created
+  (Learning #7's shape; recorded as #514).
+- All 28 `.qmd` sources plus their rendered `.html` now sit at the cited path with a `README.md`
+  table naming what each one pins. Every cited name verified to resolve. The witnesses are
+  untracked, matching this project's long-standing convention for `scratchpad/` evidence.
+
 ### 2026-08-26 · [BACKLOG: A heading inside a CALLOUT is consumed as the callout's title] The callout title slot — 44 authored documents fixed, 0 regressions
 
 - **The defect.** Quarto's callout filter lifts a callout div's FIRST BLOCK, when it is a header,
