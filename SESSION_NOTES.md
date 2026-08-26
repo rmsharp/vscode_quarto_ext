@@ -5,10 +5,16 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 252 closed out. The next session picks from `BACKLOG.md` (193 open items, Active section empty) via the ranked `AskUserQuestion` step — and the ranking guidance is now IN the file, beside the Active section.**
-**Last shipped:** Session 252 — the 90 items Session 251 measured at 0 of 3,383 authored documents moved from "Up Next" to a new `### Enumeration-only` subsection of "Polish / deferred", each tagged with the measurement and its detector. Up Next **157 → 67**; Polish **36 → 126**; total unchanged at 193.
-**Status:** DONE (SHIPPED). `check-backlog` OK 193 open items; `npm test` 2796 passed / 66 files; all 193 item texts verified preserved byte-for-byte as a SET.
-**⚠ OPEN QUESTION FOR THE OPERATOR:** the mirror-image case was deliberately left alone — **4 items that DO reach real documents are sitting in "Polish / deferred"** (L437 mid-line HTML comments, 13 real docs; L447 indented code blocks as a skip-region, **180 real docs — the highest count of all 192**; L441; L453). Promoting them is the opposite action to the one asked for, so it was not done unilaterally.
+**Task:** **Session 253 (IN PROGRESS) — annotate the `Indented (4-space) code blocks as a skip-region` item: its "uncommon construct" severity justification is contradicted by measurement (180 of 3,383 authored documents, 5.3%).**
+**Started:** 2026-08-25
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+### What Session 253 Did
+**Deliverable:** One annotation on one `BACKLOG.md` item. Operator directive: *"Do not promote and make that one annotation."* (IN PROGRESS)
+**Started:** 2026-08-25
+**Scope:** ⚠ **ANNOTATION ONLY — the item does NOT move and is NOT promoted.** It stays in "Polish / deferred". The annotation records that one of its two stated justifications is measurably wrong, and — equally important — that the audit which found this measured HEADINGS while the item describes a CROSS-REFERENCE defect, so the 180 is construct presence and the defect itself remains unmeasured.
+**Predecessor:** Session 252 (`b0da9dea`). This is the residue of a promotion question the operator asked and I answered NO to, after reading the four candidate items and finding my own earlier flag overstated.
 
 ---
 

@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S253
+date: 2026-08-25
+status: pending
+active_task: Annotate the "Indented (4-space) code blocks as a skip-region" item in BACKLOG.md "Polish / deferred": its "Low severity (uncommon construct)" justification is contradicted by Session 251's measurement -- the construct appears in 180 of 3,383 authored documents (5.3%). ANNOTATION ONLY: the item does NOT move and is NOT promoted. The annotation must also record that the audit measured HEADINGS while this item describes a CROSS-REFERENCE defect, so 180 is construct presence and the defect itself is unmeasured. Operator directive after declining promotion for all four candidates.
+```
+
+```handoff
 session: S252
 date: 2026-08-25
 status: complete
