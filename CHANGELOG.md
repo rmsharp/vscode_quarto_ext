@@ -13,6 +13,22 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-08
 
+### 2026-08-26 · [ad hoc] `SESSION_NOTES.md` is TRANSIENT, not append-only — retention rule added to `CLAUDE.md`
+
+- A reduction with no rule attached regrows; this file had already been drained twice under an
+  instruction to *"keep it clean"*. `CLAUDE.md` now carries the rule: **at Phase 3D, after writing
+  your own close-out pair, delete the oldest so the live file holds at most three.** Three is the
+  steady state, not a target — you write one and drop one, so the count never moves (~240 of the
+  400-line ceiling).
+- ⚠ **The root cause is a contradiction in canonical's own seed**, not local sloppiness.
+  `../methodology/starter-kit/SESSION_NOTES.md` says at line 5 *"This file is transient — it is
+  overwritten every session"* and at line 27 *"Session history accumulates below this line."* Those
+  cannot both be followed. This project followed line 27 for **256 sessions**. Canonical's own repo,
+  110 sessions of dogfooding, has **no `SESSION_NOTES.md` at all**, and its manifest
+  (`bin/_manifest.py:120`) states the file *"is rewritten wholesale every session"*.
+- Learnings `PROJECT_LEARNINGS.md` #506–#508 recorded. Session 256 close-out; predecessor scored
+  7/10, self-score 8/10.
+
 ### 2026-08-26 · [ad hoc] Deny `__pycache__/` in the packaging and git ignore lists
 
 - ⚠ **The 5th instance of the new-root-file class** (Sessions 173, 174, 188, 255): `check-package`
