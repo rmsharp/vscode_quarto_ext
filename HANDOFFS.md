@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S252
+date: 2026-08-25
+status: pending
+active_task: Downgrade the 90 items Session 251 measured as ENUMERATION-ONLY (0 of 3,383 authored documents) from BACKLOG.md "Up Next" to "Polish / deferred", each annotated with the measurement and its detector, so the reason travels with the item instead of the demotion being silent. Operator directive after reading docs/REAL-DOCUMENT-TRIAGE.md. Move + annotate only -- no deletions, no item text altered. NOT in scope: promoting the 4 REACHES_REAL items already sitting in Polish/deferred.
+```
+
+```handoff
 session: S251
 date: 2026-08-25
 status: complete

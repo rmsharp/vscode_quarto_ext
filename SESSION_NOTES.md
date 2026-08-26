@@ -5,10 +5,18 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 251 closed out. The next session picks from `BACKLOG.md` (193 open items, Active section empty) via the ranked `AskUserQuestion` step — but see the ranking guidance below, which this session's audit changes.**
-**Last shipped:** Session 251 — an AUDIT, not an implementation. `docs/REAL-DOCUMENT-TRIAGE.md` classifies all 192 open backlog items by whether they reach a document a human wrote. **90 do not, 68 are not document items, 34 do.**
-**Status:** DONE (SHIPPED). `npm run compile` exit 0; `npm test` 2796 passed / 66 files; `check-backlog` OK, 193 open items. No `src/` change.
-**⚠ RANKING GUIDANCE FOR THE NEXT PHASE 0:** rank by **real-document reach**, not by enumerated document count — the two orderings are close to uncorrelated. Session 250's ranked #1–#5 are all **0 real documents**. The measured top of the list is the `:::` div family: **L268 (52 divergent real documents) + L180 (50)**, both filed, both previously unranked, plus this session's new **panel-tabset** item (Session 251 R1).
+**Task:** **Session 252 (IN PROGRESS) — downgrade the 90 items Session 251 measured as ENUMERATION-ONLY from `BACKLOG.md`'s "Up Next" to "Polish / deferred", each annotated with the measurement that justifies the move.**
+**Started:** 2026-08-25
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+### What Session 252 Did
+**Deliverable:** One `BACKLOG.md` re-section. Operator directive after reading Session 251's audit: *"downgrade them to Polish / deferred"*, with the annotation requirement stated as a question — *"will these include information that they do not touch documents in our inventory?"* — answered YES. (IN PROGRESS)
+**Started:** 2026-08-25
+**Status:** Session claimed. Work beginning.
+**Scope:** The 90 items with `verdict_final == "PROBE_ONLY"` in `scratchpad/s251/final.json`. All 90 are currently in "Up Next"; all 90 have a calibrated detector in `scratchpad/s251/det/`. **Move + annotate only — no item deleted, no item's own text altered.**
+**⚠ Deliberately NOT in scope:** the 4 `REACHES_REAL` items that sit in "Polish / deferred" (the mirror-image problem). Promoting them is the opposite action and was not asked for; raised at close-out instead.
+**Predecessor:** Session 251 (`b50e5f6b`), whose audit produced the measurement this move acts on.
 
 ---
 
