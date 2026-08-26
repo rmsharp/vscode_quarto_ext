@@ -8,28 +8,29 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 257 closed out.** `BACKLOG.md`'s "Active" section is empty, so Phase 0
-must present ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**Last shipped:** Session 257 — **the callout title slot**. A heading that is a `::: {.callout-*}`
-div's FIRST BLOCK is quarto's title bar, not a heading; `findHeadings` no longer reports it.
-**Measured over the 3,383-document authored corpus: 124 → 80 divergent documents, 94.91% →
-96.72% structural agreement, 44 fixed, 0 regressed.** At heading granularity 138 removed, 0 added,
-and **0 of the removals are headings quarto renders**.
-**Status:** DONE (SHIPPED). `compile` clean · `npm test` **2817** / 66 files · `test:integration`
-**543 passing, exit 0** (operator-authorised; it takes over the screen) · `check-package` OK 42 /
-5.60 MB · `check-backlog` OK **195** open.
-**⚠ The RAW-HTML half of that item was DECLINED on a measurement and is re-filed** — a raw
-`<div class="callout-note">` really does render a callout, but **244 of 3,383 authored documents
-carry a fenced callout div and ZERO carry a raw-HTML one**. Pinned live as guard G12.
-**⚠ `context_budget.py` is now RED on FOUR files, and I TIPPED THE FOURTH.** `CHANGELOG.md` was
-GREEN at my Phase 0 and my ledger entry pushed it to 67,279 B against a 65,536 B ceiling. ⚠ Unlike
-`SESSION_NOTES.md`, it IS supported by the trimmer: `python3 methodology_trim.py --file
-CHANGELOG.md --cut <date>`, clean calendar seam, and RECORD BEFORE YOU TRIM (Learning #498).
-Also still red: `HANDOFFS.md` (a FOURTH consecutive session, and this receipt pushes it further),
-`BACKLOG.md`, `PROJECT_LEARNINGS.md`. Measure them; do not trust a number written inside the file
-it measures.
-**⚠ The three synced tools are 1–2 commits behind canonical.** Sync at the START of a session.
-**⚠ `scratchpad/` is untracked but NOT ignored** — a bare `git add -A` stages ~85,000 files.
+**Task:** **Session 258 IN PROGRESS** — the **panel-tabset tab-label divergence**: EVERY heading at
+a `::: {.panel-tabset}` div's tab level is a TAB LABEL, not a heading — quarto's tabset filter
+consumes all of them — and `findHeadings` reports every one, so the Outline shows sections the
+reader never sees. `BACKLOG.md` "Up Next" (Session 251 R1), operator-picked at Phase 0.
+**Why this one:** highest measured real-document reach of the open items — **11 of the 16 divergent
+authored documents that no filed item explained** (`docs/REAL-DOCUMENT-TRIAGE.md` F5).
+**Status:** CLAIMED. Work beginning. Strict TDD (CLAUDE.md operator directive) — RED before GREEN.
+**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
+Until close-out this line is the crash breadcrumb for the next session's reconcile.
+**⚠ DO NOT DERIVE THIS FROM S257's CALLOUT CODE.** S257's adversarial lens measured FOUR ways a
+tabset is wider: ALL SIX levels; ANY position (a leading paragraph does not protect a tab heading,
+where it does protect a callout's); EVERY tab-level heading, not just the first; and NO `title=`
+escape hatch. Headings nested DEEPER than the tab level DO survive. Bare `.tabset` is NOT a tabset.
+**Phase 0 findings (S258).** Tree clean; `scratchpad/` untracked and NOT ignored — a bare
+`git add -A` stages ~85,000 files. Both ledger frontiers are `HEAD` (`a61c36f8`); zero undocumented
+commits; no ghost sessions; no `pending` receipt. `gh issue list` genuinely empty, so `BACKLOG.md`
+governs — 195 open (69 "Up Next", 126 "Polish / deferred"). Dashboard 76/100, risk high.
+**⚠ `context_budget.py` is RED on FOUR files** — measured this session, not quoted: `CHANGELOG.md`
+68,316 B, `HANDOFFS.md` 86,879 B (a **FIFTH** consecutive session), `BACKLOG.md` 288,039 B,
+`PROJECT_LEARNINGS.md` 964,905 B, all against a 65,536 B ceiling. The first two are
+trimmer-supported; the last two are not (upstream BL-32: a backlog's reduction axis is STATUS).
+**⚠ FOUR synced files are behind canonical** — `methodology_dashboard.py` and `methodology_trim.py`
+3 commits, `context_budget.py` 2, `FRAMEWORK_LEARNINGS.md` 1. Sync at the START of a session.
 
 ---
 

@@ -31,6 +31,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S258
+date: 2026-08-26
+status: pending
+active_task: The panel-tabset tab-label divergence (BACKLOG "Up Next", Session 251 R1) -- EVERY heading at a `::: {.panel-tabset}` div's TAB LEVEL is a tab label, not a heading; quarto's tabset filter consumes all of them and findHeadings reports every one. Operator-picked at Phase 0 from the ranked AskUserQuestion; highest measured real-document reach of the open items (11 of the 16 divergent authored documents no filed item explained, docs/REAL-DOCUMENT-TRIAGE.md F5). Strict TDD -- RED before GREEN.
+```
+
+```handoff
 session: S257
 date: 2026-08-26
 status: complete
