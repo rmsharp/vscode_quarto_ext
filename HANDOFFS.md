@@ -31,6 +31,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S257
+date: 2026-08-26
+status: pending
+active_task: Fix the callout-title divergence -- a heading inside a `::: {.callout-*}` div is consumed by quarto as the callout's TITLE, so no heading reaches the output, and findHeadings reports one anyway. BACKLOG.md "Up Next" (filed by S205); operator-picked at Phase 0 from the ranked AskUserQuestion. Ranked #1 by real-document reach: 50 of the 124 structurally divergent authored documents (docs/REAL-DOCUMENT-TRIAGE.md F4), all-phantom direction. Strict TDD per CLAUDE.md.
+```
+
+```handoff
 session: S256
 date: 2026-08-26
 status: complete

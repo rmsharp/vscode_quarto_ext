@@ -8,21 +8,35 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 256 closed out.** Pick from `BACKLOG.md` "Up Next", or take one of the
-three named items under *What's next* below. `BACKLOG.md`'s "Active" section is empty, so Phase 0
-must present ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**Last shipped:** Session 256 — reduced `SESSION_NOTES.md` from **3,949,501 B / 13,942 lines** to
-**13,454 B / 172 lines** (99.66%), archiving 738 records to
-[`docs/archive/SESSION_NOTES-through-S253.md`](docs/archive/SESSION_NOTES-through-S253.md) with a
-hand-written identity-keyed proof. Also denied `__pycache__/` in both ignore lists.
-**Status:** DONE (SHIPPED). `compile` clean · `npm test` 2796 / 66 files · `check-package` OK 42 /
-5.59 MB · `check-backlog` OK 193 · all three archive `verify.sh` OK.
-**⚠ `context_budget.py` is still RED on three files** — `HANDOFFS.md` (its ceiling is
-65,536 B; this session's receipt pushed it further, so measure it, do not trust a number written
-here), `BACKLOG.md` (284,130 B) and `PROJECT_LEARNINGS.md` (954,418 B). `SESSION_NOTES.md` is now
-green. Run `python3 context_budget.py`.
-**⚠ Three synced tools went 1 commit behind DURING this session** — canonical committed at 08:43
-(`84abc60`, its S111). Deliberately not re-synced mid-session; see gotcha 4.
+**Task:** **Session 257 IN PROGRESS** — fix the callout-title divergence: a heading inside a
+`::: {.callout-*}` div is consumed by quarto as the callout's TITLE, so no heading reaches the
+output, and `findHeadings` reports one anyway. `BACKLOG.md` "Up Next", operator-picked at Phase 0.
+**Why this one:** ranked #1 by real-document reach — 50 of the 124 structurally divergent authored
+documents (`docs/REAL-DOCUMENT-TRIAGE.md` F4), all-phantom direction. Filed by S205, never ranked.
+**Status:** CLAIMED. Work beginning. Strict TDD (CLAUDE.md operator directive) — RED before GREEN.
+**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
+Until close-out this line is the crash breadcrumb for the next session's reconcile.
+**Phase 0 findings (S257).** Tree clean but `scratchpad/` is untracked and NOT ignored — a bare
+`git add -A` stages ~85,000 files (BACKLOG, found by S240 the hard way). Both ledger frontiers are
+`HEAD`; zero undocumented commits; no ghost sessions. `gh issue list` is genuinely empty (gh is
+authenticated), so `BACKLOG.md` governs. Build green: `compile` clean, `npm test` 2796 / 66 files.
+**⚠ `context_budget.py` is still RED on three files** — `HANDOFFS.md` (77,441 B against a 65,536 B
+ceiling, over for a THIRD consecutive session), `BACKLOG.md` (284,130 B), `PROJECT_LEARNINGS.md`
+(958,735 B). Measure them; do not trust a number written inside the file it measures.
+**⚠ The three synced tools drifted FURTHER during S256** — `methodology_dashboard.py` and
+`methodology_trim.py` are now 2 commits behind canonical, `context_budget.py` 1. Sync at the START
+of a session, never mid-flight (S256 gotcha 4).
+
+---
+
+### What Session 257 Did
+**Deliverable:** Fix the callout-title divergence — a heading inside a `::: {.callout-*}` div is
+quarto's callout TITLE, not a heading, and `findHeadings` must stop reporting it. (IN PROGRESS)
+**Started:** 2026-08-26
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in
+`CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next
+session's reconcile.
 
 ---
 
