@@ -5,59 +5,79 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 255 IN PROGRESS — bring this project's methodology adoption current, and file the upstream findings.**
-**Started:** 2026-08-26
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; recorded in `CHANGELOG.md` at Phase 3F. ⚠ **But see the P1 rule (Learning #498): if any trim runs this session, the ledger entry must be written BEFORE it.**
-
-**Operator directive:** *"do it all in one session"*, answering the S254 close-out's open question,
-plus: *"should we place a backlog item in ../methodology to create a PR for its upstream repo to
-correct, or are the corrections already in ../methodology?"*
-
-**Origin — what S254's close-out question uncovered.** Asked whether corrective actions existed, I
-compared this repo against `../methodology/bin/_manifest.py` (26 rows) and found **we are not a
-current adopter**:
-- **2 manifest files MISSING outright:** `context_budget.py` (TRACKED) and `.context-budget.json` (SEED).
-- **6 TRACKED files DRIFTED** — canonical owns these and they are supposed to be byte-identical:
-  `SESSION_RUNNER.md`, `FRAMEWORK_LEARNINGS.md`, `RECOMMENDED_SKILLS.md`, `BOOTSTRAP.md`,
-  `methodology_dashboard.py`, `methodology_trim.py`. (The 4 differing SEED files are *supposed* to
-  diverge. 14 rows are byte-identical.)
-- ⚠ **`context_budget.py` IS THE ANSWER TO LEARNING #499, AND IT ALREADY EXISTED.** Its docstring:
-  *"MEASUREMENT ALONE WAS ALREADY PRESENT AND DID NOT WORK … So this tool GATES … rather than a
-  second thing to print."* Canonical's own `.context-budget.json` governs `CHANGELOG.md` and
-  `HANDOFFS.md` at **`max_bytes: 65536`** — the same number `methodology_trim.py` uses. Upstream the
-  two tools are a PAIR; we had one of them.
-
-**Deliverable (ONE intent: make this project a current, gated adopter).**
-1. `bin/sync` — update the 6 drifted TRACKED files, install the 2 missing ones.
-2. Configure `.context-budget.json` for THIS project, including the two ledgers at 65,536 B.
-3. Wire the new root files into `.vscodeignore` (**predicted gate break** — it is a DENYLIST naming
-   each methodology artifact individually; new root files broke `check-package` at S173/S174/S188).
-4. File the **4 novel findings** as backlog items in `../methodology/docs/planning/BACKLOG.md`
-   (max is BL-46, so BL-47+).
-
-**⚠ Sync facts established at claim, correcting my own earlier statement to the operator:**
-- `bin/sync --dry-run` reports **"would write"** for all 8 — **no `--force` needed.** It distinguishes
-  *behind canonical* from *locally modified*; these are behind. I had told the operator `--force`
-  would be required, inferring it from BOOTSTRAP's drift-safety text plus my own byte comparison.
-- Canonical is at `v3.7-398-gf5edc4e`. All 6 drifted files are committed and clean, so the sync is
-  fully revertible by git.
-- ⚠ **`SESSION_RUNNER.md` IS MY OWN OPERATING PROCEDURE AND IT CHANGES MID-SESSION.** Diff and read
-  what changed before continuing under it.
-
-**Upstream question, answered: BOTH.** Already fixed in `../methodology` and flowing on a push —
-**BL-27** (the `verify.sh` false FAIL, with a named regression test) and **BL-41** (shard-name
-collision). NOT fixed anywhere, hence the 4 new items — the seed footer that makes an adopter's
-trimmer inert from their first receipt; the seed's missing count sentence; the seed budget config
-omitting the two ledgers; and `content_probe` being consulted only at zero records.
-⚠ **Nothing flows automatically: `../methodology` is 398 commits ahead of `upstream/main`, `origin`
-is the fork, `upstream` is `KJ5HST/methodology`. A PR needs a push — OUTWARD-FACING, operator's
-explicit call, NOT taken this session.**
-
-**TDD gate:** no logic authored — tool invocation, config, denylist lines, markdown. Exempt from a
-unit test per `CLAUDE.md`; owes the full verification matrix.
+**Task:** **NONE — Session 255 closed out.** ⚠ **The next deliverable is NAMED and is not a backlog pick: reduce `SESSION_NOTES.md`.** It is **3,946,063 B / 13,912 lines** against a 120,000 B ceiling — the file Phase 0 step 2 *orders* every session to read, and larger than both ledgers were combined before the S254 trim. `PROJECT_LEARNINGS.md` (950,857 B) and `BACKLOG.md` (284,130 B) are also over. ⚠ And `HANDOFFS.md` went **over budget in this very close-out** — 69,002 B against 65,536 B, because this session's receipt tipped it. Its trigger now fires and a trim is due. Run `python3 context_budget.py`.
+**Last shipped:** Session 255 — this project was not a current adopter. Synced 6 stale canonical-owned files, installed `context_budget.py` + `.context-budget.json` (never present), configured both, fenced CLAUDE.md's purpose, fixed the packaging denylist, regenerated both shard proofs from trimmer v1.3.0 (**both now pass**), and filed BL-47/48/49 upstream while closing BL-46's half (1).
+**Status:** DONE (SHIPPED). `compile` clean · `npm test` 2796 / 66 files · `check-package` OK 42 / 5.59 MB · `check-backlog` OK 193 · both ledger triggers stand down · both `verify.sh` OK · upstream `BACKLOG-DETAIL.md.verify.sh` C1–C5 green.
+**⚠ NOTHING WAS PUSHED.** `../methodology` is 398 commits ahead of `upstream/main`. A PR is outward-facing and needs the operator's explicit go-ahead.
 
 ---
+
+## Session 254 Handoff Evaluation (by Session 255)
+
+**Score: 6/10.** Written by me, one session earlier, and scored on what it actually did for its
+successor rather than on how thorough it felt. Its `key_files` block was genuinely excellent — line
+numbers into both tool versions (`methodology_trim.py:1231` vs canonical `:1417`) that resolved
+exactly and made the root-cause diff a two-minute job. Its `whats_next` **#1 is what produced this
+session's first half**, precisely scoped and correct.
+
+**It loses four points for forward-looking claims that were wrong in the direction that causes
+wasted work.**
+- ⚠ **`whats_next` #2 SENT ITS SUCCESSOR TO BUILD SOMETHING THAT ALREADY EXISTED.** *"WIRE THE
+  TRIMMER TO SOMETHING THAT READS IT … it is a methodology change, so it belongs in CLAUDE.md's
+  adaptations, not in a synced file."* The methodology already ships `context_budget.py` for exactly
+  this, listed in the manifest as an adopter file. Had I followed my own instruction I would have
+  hand-built a worse copy of a distributed tool. (Learning #503.)
+- ⚠ **Two risk claims were inferred from documentation rather than measured.** *"`bin/sync` REFUSES
+  to overwrite drifted files"* — it does not; `--dry-run` said "would write" for all eight, no
+  `--force`. And *"v1.3.0 ALSO CHANGES SHARD NAMING (BL-41), so this is its own deliverable, NOT a
+  drive-by"* — BL-41 changes only *collision* handling and renames nothing existing. Both claims
+  made the correct action look riskier than it was, which is the direction that causes a successor
+  to defer.
+- **It never asked the general question.** It cited `../methodology` six times and never diffed this
+  repo against the manifest — the check that found two missing files and six stale ones in a single
+  command.
+
+**What was right:** every measurement reproduced exactly, and its gotchas 1–4 all held.
+
+**ROI: high for #1, negative for #2** — the whole point of the score.
+
+---
+
+## Session 255 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **The operator's four-word question — *"Did you look at ../methodology"* — was worth more than my
+  entire prior analysis, and I treated it as a real question rather than defending the work.** The
+  answer was "yes, but never at the one question that mattered," and running that comparison
+  reframed the whole task from *invent a gate* to *you are missing the gate that exists*.
+- **I checked upstream before filing and it stopped me duplicating BL-46**, which had been raised
+  the day before from a sweep naming this very repo. Then I read it properly and found its remedy
+  would not have fired here — a correction only the site that reproduced the defect could supply.
+- **I diffed `SESSION_RUNNER.md` before continuing under it**, since a sync changes the protocol
+  mid-session. It added FM #28, which is the general form of what S254 had just fixed by hand.
+- **I let the new gate report three files over budget rather than tuning ceilings to green**, and
+  said so explicitly — including that the worst offender is a file *I* skimmed at Phase 0 twice.
+- **I corrected two of my own wrong claims to the operator** (the `--force` requirement, the BL-41
+  risk) as soon as measurement contradicted them, in the record and not only in conversation.
+- **I predicted the `check-package` break at claim time** and it failed exactly as predicted.
+
+**What went wrong.**
+- ⚠ **THE WRONG CLAIMS I CORRECTED WERE MINE, AND I MADE THEM BY READING DOCUMENTATION INSTEAD OF
+  RUNNING A DRY RUN THAT COSTS ONE COMMAND.** I reported a `--force` requirement to the operator as
+  fact. `bin/sync --dry-run` was available the entire time.
+- ⚠ **I ALMOST FILED A DUPLICATE UPSTREAM ITEM.** I had drafted four findings and only checked the
+  tracker at the last step. One was already BL-46.
+- **This session is large** — two repos, ten commits, a protocol change adopted mid-flight. It is
+  one coherent intent and the operator authorised it explicitly, but the blast radius is the widest
+  of any session in this stretch and a crash midway would have left a genuinely confusing tree.
+- **`HANDOFFS.md` is near its ceiling and this receipt pushes it closer**, which I noted rather than
+  pre-emptively trimmed — correct for 1-and-done, but it hands a near-full file to the next session.
+
+**Against the bar.** S254 fixed two files. This one fixed why they were broken and why nobody
+noticed, then reported both back to the upstream that would otherwise ship the same defect to the
+next adopter. What it did not do is reduce the 3.9 MB file it just proved nobody can read.
 
 ## Session 253 Handoff Evaluation (by Session 254)
 
