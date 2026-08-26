@@ -7,6 +7,18 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-25 · [ad hoc] Session 253 — a severity premise the audit refuted, annotated in place
+
+- **Session span:** 2026-08-25 (commits `aed7c9e1`..close-out); dated by close-out.
+- **Model:** Claude Opus 5. **BACKLOG annotation.** Operator directive: *"Do not promote and make that one annotation."*
+- **Deliverable:** one annotation on the `Indented (4-space) code blocks as a skip-region` item in "Polish / deferred". **Nothing moved, nothing promoted, nothing filed** — Up Next 67, Polish 126, total 193, all unchanged.
+- **What it records.** The item justifies its severity as *"Low severity (uncommon construct)"*. Session 251's audit measures that construct in **180 of 3,383 authored documents (5.3%) — the highest construct count of all 192 items**. That half of the justification is refuted, and the original words are struck through rather than deleted so the supersession is visible.
+- ⚠ **THE ANNOTATION ARGUES AGAINST ITS OWN HEADLINE NUMBER, WHICH IS THE POINT.** 180 is **construct presence measured with the WRONG INSTRUMENT for this item**: Session 251 scored `findHeadings` against `quarto render`, and this item describes a **CROSS-REFERENCE** defect (`{#fig-…}` inside an indented block indexed as a phantom label). The cross-ref surface was never measured, so the defect's real incidence is **UNKNOWN, not 180**. The 22 heading-divergent documents the construct co-occurs with are mixed-direction (12 phantom / 8 lost / 2 level) — the shape of coincidence, not cause. The annotation states what is owed before anyone sizes the item: measure the cross-ref behaviour over the real corpus the way headings were measured.
+- **Origin — a flag of mine that did not survive reading the items.** At Session 252's close-out I raised 4 `REACHES_REAL` items sitting in "Polish / deferred" as a possible promotion, on their presence counts. Asked for the motivation, I read them: **three have ZERO divergent documents** (L437 13/0, L453 2/0 and explicitly *"accepted/documented Session 116"*, L441 0/0 and a cross-module refactor that `SAFEGUARDS.md` requires to go through plan mode — arguably mis-classified as `parser` by the audit). Only this one had any signal, and its signal is the wrong instrument. **Recommendation reversed to do-not-promote before the operator acted on it**; the operator confirmed. What survived is this annotation. (Learning #497.)
+- **Phase 3E: NOT APPLICABLE**, stated rather than skipped — one sentence added to one markdown item; no runtime behaviour, no `src/` change.
+- **Verification.** `check-backlog` **OK, 193 open items** · `npm test` **2796 passed / 66 files** · section counts unchanged at 67 + 126 = 193, confirming nothing moved.
+- **Backlog:** 193 → **193** (0 closed, 0 filed, 0 moved, 1 annotated).
+
 ### 2026-08-25 · [ad hoc] Session 252 — the 90 enumeration-only items, downgraded with their measurement attached
 
 - **Session span:** 2026-08-25 (commits `0d042777`..close-out); dated by close-out.

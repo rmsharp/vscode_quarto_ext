@@ -5,16 +5,70 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 253 (IN PROGRESS) — annotate the `Indented (4-space) code blocks as a skip-region` item: its "uncommon construct" severity justification is contradicted by measurement (180 of 3,383 authored documents, 5.3%).**
-**Started:** 2026-08-25
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Task:** **NONE — Session 253 closed out. The next session picks from `BACKLOG.md` (193 open items, Active section empty) via the ranked `AskUserQuestion` step; the ranking guidance sits beside the Active section.**
+**Last shipped:** Session 253 — one annotation on the `Indented (4-space) code blocks as a skip-region` item, recording that its "uncommon construct" severity premise is refuted (180 of 3,383 authored documents, 5.3%) **and** that the number was taken with the wrong instrument for it. Nothing moved, nothing promoted.
+**Status:** DONE (SHIPPED). `check-backlog` OK 193 open items; `npm test` 2796 passed / 66 files; sections unchanged at 67 + 126.
+**⚠ The promotion question is CLOSED.** The operator declined promotion for all four candidates after I reversed my own recommendation. Do not re-raise it on presence counts.
 
-### What Session 253 Did
-**Deliverable:** One annotation on one `BACKLOG.md` item. Operator directive: *"Do not promote and make that one annotation."* (IN PROGRESS)
-**Started:** 2026-08-25
-**Scope:** ⚠ **ANNOTATION ONLY — the item does NOT move and is NOT promoted.** It stays in "Polish / deferred". The annotation records that one of its two stated justifications is measurably wrong, and — equally important — that the audit which found this measured HEADINGS while the item describes a CROSS-REFERENCE defect, so the 180 is construct presence and the defect itself remains unmeasured.
-**Predecessor:** Session 252 (`b0da9dea`). This is the residue of a promotion question the operator asked and I answered NO to, after reading the four candidate items and finding my own earlier flag overstated.
+---
+
+## Session 252 Handoff Evaluation (by Session 253)
+
+**Score: 8/10.** Same model, one task earlier. Its gotchas 1–3 are the strongest part — the
+positional-line-number hazard, "when a guard fails on a strange fraction ask why that fraction",
+and "a count is not a postcondition for a bulk edit" are all reusable well beyond this repo. Its
+`whats_next` **#0 is what produced this session**: it raised the 4 unpromoted items as an open
+question in the right place and did not act on them.
+
+**What helped.** #0 flagged the open question with its numbers attached, so answering the
+operator's "what is the motivation?" was a matter of reading four items rather than re-deriving a
+set. Gotcha 6 (the 90 are not retired and not declared wrong) framed the annotation's wording
+directly — this session's annotation makes the same distinction for a different item.
+
+**What was missing — and it is the one that mattered.** ⚠ **#0 RANKED THE FOUR BY PRESENCE COUNT
+AND LED WITH "180 real docs — THE HIGHEST COUNT OF ALL 192", WITHOUT CHECKING THAT THE COUNT WAS
+TAKEN WITH THE RIGHT INSTRUMENT.** It is a cross-reference item; the 180 came from a heading audit.
+Three of the four have zero divergent documents. Had the operator said "promote them" instead of
+"what is the motivation?", a wrong action would have followed a correct-looking number. The caveat
+that would have caught it — *"construct presence is an upper bound on impact"* — was written by the
+same session, two documents earlier, into the audit's own findings.
+
+**What was wrong:** the framing of #0, as above. Every count in it reproduced exactly.
+
+**ROI: high, with the sharpest lesson coming from its weakest sentence.**
+
+---
+
+## Session 253 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I read the four items before defending my own flag, and reversed it.** The operator asked for a
+  motivation, not a change; the honest answer was that three of the four have no case at all and
+  the fourth rests on a number measured with the wrong instrument.
+- **The annotation argues against its own headline number.** It leads with the refutation (5.3%, not
+  "uncommon") and then spends more words telling the reader NOT to size the item at 180. An
+  annotation that only carried the exciting half would have re-created the error one level down.
+- **It records what is owed** — measure the cross-ref surface over the real corpus — so the next
+  session inherits a question with a method rather than a contradiction.
+- **Strikethrough rather than deletion**, so the superseded claim stays visible and auditable.
+- **Scope held exactly:** section counts verified unchanged at 67 + 126, confirming mechanically
+  that nothing moved.
+
+**What went wrong.**
+- ⚠ **THE ERROR THIS SESSION FIXED WAS MINE, ONE TASK OLD, AND I HAD ALREADY WRITTEN THE CAVEAT
+  THAT FORBADE IT.** "Construct presence is an upper bound on impact" is in the Session 251 audit in
+  those words; I then ranked promotion candidates on presence. Writing a caveat is not the same as
+  applying it, and the gap was one task wide.
+- **It took an operator question to trigger the check.** Had they said "yes, promote", I would have
+  acted on the bad flag. The self-check should have fired when I wrote the flag.
+- **This is a very small deliverable** carrying a full protocol cycle. Correct per the runner —
+  an action is an action — but the ceremony-to-substance ratio is the highest of the four sessions.
+
+**Against the bar.** Trivial in size next to Sessions 251–252. What it adds is a reversal made
+before the operator acted on the bad recommendation, and an annotation deliberately built to
+resist the misreading that produced it.
 
 ---
 
