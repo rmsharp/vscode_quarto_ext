@@ -13,6 +13,48 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-08
 
+### 2026-08-26 · [ad hoc] Deny `__pycache__/` in the packaging and git ignore lists
+
+- ⚠ **The 5th instance of the new-root-file class** (Sessions 173, 174, 188, 255): `check-package`
+  went RED at 43 files. Establishing *why* `methodology_trim.py` refuses `SESSION_NOTES.md` meant
+  importing it as a module rather than shelling out, which drops a `__pycache__/` at the repo root.
+  `vsce ls` obeys `.vscodeignore`, not `.gitignore`, so it was packaged.
+- Denied in **both** ignore files rather than merely deleted — the three methodology tools at the
+  root are Python, so the next session that imports one recreates it. Back to OK: 42 files,
+  5.59 MB, roots unchanged.
+
+### 2026-08-26 · [ad hoc] Reduce `SESSION_NOTES.md` → `docs/archive/SESSION_NOTES-through-S253.md` (738 record(s), 3,949,501 B → 13,454 B)
+
+- The file Phase 0 step 2 **orders every session to read** stood at 3,949,501 B / 13,942 lines
+  against a 120,000 B / 400-line ceiling — 33x over, and larger than both ledgers combined before
+  the Session 254 trim. Now **13,454 B / 172 lines**, a 99.66% reduction. Retained: front matter,
+  `## ACTIVE TASK`, and the two most recent close-out pairs (Session 255's and Session 254's).
+- ⚠ **`methodology_trim.py` could not do this, and that is a property of the tool, not an omission.**
+  `--file SESSION_NOTES.md --check` exits 3 with `NO_CONFIG`: its `LEDGERS` table
+  (`methodology_trim.py:186`) holds exactly two entries and it reads **no config of any kind** —
+  no env var, no config file, no plugin hook (searched exhaustively). Nor could a `LedgerSpec` be
+  written for it: `date_of_record` is REQUIRED and `evaluate()` freezes the oldest **by date**,
+  while **458 of the file's 740 records carry no date at all** and only 88 of 740 headings carry
+  one. Its reduction axis is the **session number**. And the tool is canonical-owned (TRACKED in
+  `bin/_manifest.py:50`), so the table cannot be edited locally anyway.
+- **This is upstream BL-32, already open and undecided** (raised 2026-08-11) — *not* filed as new.
+  Canonical met the identical wall on its own `BACKLOG.md` and answered it the same way: reduce by
+  hand, prove it with an **identity-keyed** check. This shard is a second data point under BL-32.
+- **Losslessness proved by a hand-written, self-locating check** —
+  `docs/archive/SESSION_NOTES-through-S253.md.verify.sh`, C0–C6, modelled on canonical's
+  `BACKLOG-archive-2026-08-15.md.verify.sh`. It is keyed on each record's own heading identity,
+  never on position, so it cannot fail the way four of six upstream proofs do (BL-36). Records are
+  byte-identical — deliberately **not** link-rebased, so C2/C3 are true byte identity rather than
+  identity-modulo-a-transform; stated cost is that relative links inside archived records resolve
+  against the repo root.
+- **Written test-first.** The proof was authored before the split existed and driven RED through six
+  injected defect classes (dropped record, edited record, duplicated record, swapped halves,
+  false count, tampered front matter). That RED pass found **three real defects in this session's
+  own tooling** — an off-by-one trailing newline that gave the last archived record a byte the
+  original never had, a proof that crashed instead of reporting FAIL, and a corruption mode that
+  never reached the check it targeted. All three fixed, then GREEN: C0–C6 pass, 743 records =
+  5 retained + 738 archived, byte accounting exact.
+
 ### 2026-08-26 · [ad hoc] Session 255 — this project was not a current adopter; sync, install, gate, and file upstream
 
 - **Session span:** 2026-08-26 (commits `3aea788e`..close-out). **Model:** Claude Opus 5. **Methodology adoption.** Operator directive: *"do it all in one session"*, plus the question *"should we place a backlog item in `../methodology` … or are the corrections already there?"*

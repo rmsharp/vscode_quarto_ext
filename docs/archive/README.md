@@ -1,16 +1,48 @@
 # Ledger archive
 
-Frozen shards of the two grow-and-must-be-read ledgers, written by
-[`methodology_trim.py`](../../methodology_trim.py). Same format, same newest-on-top order as the
-live files — a shard is the same ledger, continued. Nothing here is edited by hand.
+Frozen shards of the grow-and-must-be-read files. Same format, same newest-on-top order as the
+live files — a shard is the same file, continued.
 
-| Shard | Records | Span |
-|---|---|---|
-| [`CHANGELOG-through-2026-08-24.md`](CHANGELOG-through-2026-08-24.md) | 230 records (+6 untagged entries, see below) | **2026-06-27** → 2026-08-24 |
-| [`HANDOFFS-through-2026-08-24.md`](HANDOFFS-through-2026-08-24.md) | 211 | 2026-07-09 → 2026-08-24 |
+| Shard | Records | Span | Written by |
+|---|---|---|---|
+| [`CHANGELOG-through-2026-08-24.md`](CHANGELOG-through-2026-08-24.md) | 230 records (+6 untagged entries, see below) | **2026-06-27** → 2026-08-24 | `methodology_trim.py` |
+| [`HANDOFFS-through-2026-08-24.md`](HANDOFFS-through-2026-08-24.md) | 211 | 2026-07-09 → 2026-08-24 | `methodology_trim.py` |
+| [`SESSION_NOTES-through-S253.md`](SESSION_NOTES-through-S253.md) | 738 | Sessions **0** → 253 | by hand (S256) |
 
-Both were written by Session 254 — the project's first trim. `methodology_trim.py` had been
+The first two were written by Session 254 — the project's first trim. `methodology_trim.py` had been
 installed since Session 188 and recorded there as *"installed, not yet used"*.
+
+## ⚠ One of these three was NOT written by the tool, and could not have been
+
+`SESSION_NOTES-through-S253.md` was cut **by hand** by Session 256. That is not a shortcut taken
+around the tool; it is the only path the tool leaves open. `methodology_trim.py` exits 3 with
+`NO_CONFIG` on this file because its `LEDGERS` table (`methodology_trim.py:186`) holds exactly two
+entries and it reads no config of any kind — *"There is deliberately no generic fallback: a generic
+rule is what would mis-zone a differently-shaped ledger."* And a `LedgerSpec` could not be authored
+for `SESSION_NOTES.md` even if that table were locally editable (it is canonical-owned, so it is
+not): `date_of_record` is a REQUIRED parameter and `evaluate()` freezes the oldest **by date**,
+while **458 of the file's 740 records carry no date at all** and only 88 of 740 headings carry one.
+Its reduction axis is the **session number**, not the calendar.
+
+Canonical hit this same wall on its own `BACKLOG.md` and reached the same answer — reduce by hand,
+prove it with an **identity-keyed** check rather than a positional one. That is upstream **BL-32**,
+raised 2026-08-11 and **still open and undecided**; this shard is a second data point under it, not
+a fix for it. The proof here is modelled on canonical's
+`docs/planning/BACKLOG-archive-2026-08-15.md.verify.sh`.
+
+**Why identity-keyed matters.** The tool's generated proofs compare records by POSITION, with a 0/1
+`injected` flag standing in for *"how many records did this commit add"*. Positional identity
+therefore breaks **by construction** whenever a trim commit is bundled with any other edit to the
+same file — which is why four of six shipped proofs upstream report FAIL over archives that are
+provably intact (BL-36). An identity-keyed check cannot fail that way: it asks *"is THIS record's
+content still exactly what it was"*. Keep any future trim commit free of unrelated same-file edits
+regardless — the two defences are independent.
+
+**This shard's records are byte-identical to the text they replaced, deliberately NOT link-rebased.**
+The tool prefixes `../../` onto in-domain relative links when it moves a record; this shard does
+not, which is what makes its `C2`/`C3` a true byte-identity proof instead of a proof-modulo-a-
+transform. Stated cost: a relative markdown link inside an archived record resolves against the
+repository root, not against `docs/archive/`.
 
 ## ⚠ The CHANGELOG shard's own span label says `2026-06-30`; its true oldest entry is `2026-06-27`
 
