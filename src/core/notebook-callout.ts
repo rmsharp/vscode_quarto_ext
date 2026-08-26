@@ -40,7 +40,7 @@ const TILDE = 0x7e; // "~"
  * a `.callout-<type>` class only when `<type>` is a key here, and the renderer
  * reads its title from here.
  */
-const CALLOUT_TITLES: Record<string, string> = {
+export const CALLOUT_TITLES: Record<string, string> = {
   note: "Note",
   tip: "Tip",
   warning: "Warning",

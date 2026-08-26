@@ -4039,7 +4039,7 @@ function divFenceRole(line: string): {
  * what stops the two drifting (Learning #14's rule, paid for with a test instead of a
  * dependency).
  */
-const CALLOUT_TYPES: ReadonlySet<string> = new Set([
+export const CALLOUT_TYPES: ReadonlySet<string> = new Set([
   "note",
   "tip",
   "warning",
@@ -4065,8 +4065,18 @@ function divCalloutTitleSlot(attrs: string): boolean {
   if (attrs === "") {
     return false;
   }
-  // An explicit title is already the title bar's content; the heading below it is untouched.
-  if (/(?:^|[\s{])title[ \t]*=/.test(attrs)) {
+  // ⚠ **AN EXPLICIT TITLE TAKES THE SLOT — BUT AN *EMPTY* ONE SUPPLIES NO TITLE, AND QUARTO
+  // FALLS BACK TO THE HEADER.** Rendered: `title=""` and `title=''` both still lift the heading
+  // (`probes/p21`, `p22`), while `title="   "` — whitespace, not empty — supplies a
+  // blank-looking title and the heading below it survives as a real `<h2>`. So the test is on
+  // the quoted value being EMPTY, never on it looking blank, and never on the attribute merely
+  // being present. Found by an adversarial verifier against the first cut of this predicate,
+  // which read the presence alone and kept a phantom on every `title=""` callout.
+  // The value ends at its own closing quote (or at the next space / `}` when unquoted), so a
+  // FOLLOWING attribute cannot make an empty title look non-empty — rendered, `title=""
+  // collapse="true"` still lifts the heading (`probes/p24`).
+  const title = /(?:^|[\s{])title[ \t]*=[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s}]*))/.exec(attrs);
+  if (title !== null && (title[1] ?? title[2] ?? title[3] ?? "") !== "") {
     return false;
   }
   // The bare-word spelling: the whole spec is one word, read as a single class.

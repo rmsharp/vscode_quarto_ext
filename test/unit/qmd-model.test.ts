@@ -1,8 +1,13 @@
 import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
+// Session 257 — the callout type set is duplicated in `notebook-callout.ts` rather than shared
+// by import (that module is the browser notebook-renderer's markdown-it plugin). The gate at the
+// end of this file is what stops the two copies drifting.
+import { CALLOUT_TITLES } from "../../src/core/notebook-callout";
 import {
   buildOutline,
+  CALLOUT_TYPES,
   findAllCells,
   findBodyLines,
   findCellAtPosition,
@@ -16428,5 +16433,335 @@ describe("Session 257 — a callout's FIRST BLOCK heading is its TITLE, not a he
         "## After India",
       ]),
     ).toEqual(["h2:Before India", "h2:After India"]);
+  });
+
+  it("R4: an EMPTY `title=` does not take the slot — the heading is lifted anyway", () => {
+    // ⚠ **THE GATE IS A NON-EMPTY TITLE, NOT THE PRESENCE OF THE ATTRIBUTE**, and the two are
+    // easy to conflate. Rendered (`probes/p21`, `p22`): `title=""` and `title=''` both still
+    // lift the heading into the title bar — the rendered `<div class="callout-title-container">`
+    // reads `Inside Uniform`, and the document's only headings are the two sentinels. An empty
+    // attribute supplies no title, so the filter falls back to the header exactly as if the
+    // attribute were absent.
+    for (const attr of ['title=""', "title=''"]) {
+      expect(names([`::: {.callout-note ${attr}}`, "", "## Inside Uniform", "", ":::"])).toEqual([]);
+    }
+    // ⚠ **AND WHITESPACE IS NOT EMPTY.** `title="   "` supplies a title — a blank-looking one —
+    // and the heading below it survives as a real `<h2>` (`probes/p22`, first div). So the test
+    // is on the QUOTED VALUE being empty, not on it being blank.
+    expect(names(['::: {.callout-note title="   "}', "", "## Inside Victor", "", ":::"])).toEqual([
+      "h2:Inside Victor",
+    ]);
+    // and the UNQUOTED spelling, which renders the title bar `Bare` and keeps the heading
+    // (`probes/p23`)
+    expect(names(["::: {.callout-note title=Bare}", "", "## Inside Whiskey", "", ":::"])).toEqual([
+      "h2:Inside Whiskey",
+    ]);
+    // ⚠ **AND THE VALUE ENDS AT ITS OWN CLOSING QUOTE, NOT AT THE END OF THE BLOCK.** A first
+    // cut of this predicate read `title=` to the end of the attribute spec, so a FOLLOWING
+    // attribute made an empty title look non-empty. Rendered (`probes/p24`): the first div
+    // below lifts `Inside Xray` into the title bar and the second keeps its heading beside the
+    // explicit title `Real X`.
+    expect(
+      names(['::: {.callout-note title="" collapse="true"}', "", "## Inside Xray", "", ":::"]),
+    ).toEqual([]);
+    expect(
+      names(['::: {.callout-note title="Real X" collapse="true"}', "", "## Inside Xray Two", "", ":::"]),
+    ).toEqual(["h2:Inside Xray Two"]);
+  });
+});
+
+describe("Session 257 guard — answers around the callout title slot that must NOT move", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+  const labels = (lines: string[]) => indexLabels(lines.join("\n")).map((l) => l.id);
+
+  // Every row below was RENDERED through the real quarto CLI 1.7.33 and the comment states what
+  // quarto emitted. The four G1-G4 rows are the ones a rule keyed on "a callout is open" gets
+  // WRONG — each would DELETE a heading quarto really renders, which is the forbidden direction.
+
+  it("G1: a heading that is NOT the first block survives — a paragraph above it defeats the lift", () => {
+    // Rendered (`probes/p4`): `::: {.callout-note}` / `para first delta` / `## Inside Delta` /
+    // `:::` emits a real `<h2 id="inside-delta">Inside Delta</h2>` inside the callout body, with
+    // the title bar carrying quarto's DEFAULT title instead. The filter reads the first block.
+    expect(
+      names(["::: {.callout-note}", "", "para first delta", "", "## Inside Delta", "", ":::"]),
+    ).toEqual(["h2:Inside Delta"]);
+  });
+
+  it("G2: a heading inside a div NESTED in the callout survives", () => {
+    // Rendered (`probes/p5`): the callout's first block is the inner `<div>`, not a header, so
+    // nothing is lifted and `## Inside Echo` is a real heading. The slot belongs to the div the
+    // heading actually sits in — here a plain one — which is why the test reads the INNERMOST
+    // entry rather than scanning the stack for any callout.
+    expect(
+      names(["::: {.callout-note}", "", "::: {.plaindiv}", "", "## Inside Echo", "", ":::", "", ":::"]),
+    ).toEqual(["h2:Inside Echo"]);
+  });
+
+  it("G3: an explicit `title=` takes the slot, and then the heading is a REAL heading", () => {
+    // Rendered (`probes/p6`): `::: {.callout-note title="Explicit Fox"}` renders the ATTRIBUTE in
+    // the title container AND `<section id="inside-fox" class="level2 callout-body-container">`
+    // with `<h2>Inside Fox</h2>` inside it. Reading the class alone deletes that heading.
+    expect(
+      names(['::: {.callout-note title="Explicit Fox"}', "", "## Inside Fox", "", ":::"]),
+    ).toEqual(["h2:Inside Fox"]);
+  });
+
+  it("G4: an UNKNOWN callout type is not a callout at all", () => {
+    // Rendered (`probes/p7`): `::: {.callout-bogus}` produces NO callout chrome anywhere in the
+    // output — it is a plain `<div class="callout-bogus">` — so its heading is untouched. The
+    // closed set in `CALLOUT_TYPES` is what quarto's own filter keys on.
+    expect(names(["::: {.callout-bogus}", "", "## Inside Golf", "", ":::"])).toEqual([
+      "h2:Inside Golf",
+    ]);
+    // and the whole-word guard the suffixed form carries
+    for (const cls of [".callout-notes", ".callout-note-2", ".callouts"]) {
+      expect(names([`::: {${cls}}`, "", "## Guarded Head", "", ":::"])).toEqual(["h2:Guarded Head"]);
+    }
+  });
+
+  it("G5: a CODE BLOCK, a THEMATIC BREAK or an HTML COMMENT above the heading defeats the lift", () => {
+    // The three block kinds the scanner `continue`s past, each rendered: `probes/p11` (a fenced
+    // `r` cell), `p12` (`---`) and `p13` (`<!-- a comment -->`) all emit a real `<h2>` for the
+    // heading below. This is why the slot is marked ABOVE every skip-region `continue`.
+    expect(
+      names(["::: {.callout-note}", "", "```r", "1 + 1", "```", "", "## Inside Kilo", "", ":::"]),
+    ).toEqual(["h2:Inside Kilo"]);
+    expect(names(["::: {.callout-note}", "", "---", "", "## Inside Lima", "", ":::"])).toEqual([
+      "h2:Inside Lima",
+    ]);
+    expect(
+      names(["::: {.callout-note}", "", "<!-- a comment -->", "", "## Inside Mike", "", ":::"]),
+    ).toEqual(["h2:Inside Mike"]);
+  });
+
+  it("G6: every fence spelling that really renders a callout takes the title", () => {
+    // Rendered (`probes/p10`): all three emit `class="callout callout-style-default callout-*
+    // callout-titled"` with the heading text in `<div class="callout-title-container">`.
+    expect(names([":::{.callout-tip}", "", "## Inside Juliet", "", ":::"])).toEqual([]);
+    expect(names(["::: callout-warning", "", "## Inside Juliet Two", "", ":::"])).toEqual([]);
+    expect(names([":::: {.callout-important}", "", "## Inside Juliet Three", "", "::::"])).toEqual([]);
+    // and an id or an extra class alongside the callout class does not change the answer
+    expect(names(["::: {.callout-note #note-x .extra}", "", "## Inside Attr", "", ":::"])).toEqual([]);
+    // ⚠ **THE CONTROL, WITHOUT WHICH A NARROWING THAT REJECTED EVERYTHING WOULD PASS.** The same
+    // four spellings carrying a NON-callout class each report their heading, so what suppresses
+    // is the class and not the fence.
+    expect(names([":::{.plaintip}", "", "## Inside Juliet", "", ":::"])).toEqual(["h2:Inside Juliet"]);
+    expect(names(["::: plainword", "", "## Inside Juliet Two", "", ":::"])).toEqual(["h2:Inside Juliet Two"]);
+    expect(names([":::: {.plainimp}", "", "## Inside Juliet Three", "", "::::"])).toEqual(["h2:Inside Juliet Three"]);
+    expect(names(["::: {.plain #note-x .extra}", "", "## Inside Attr", "", ":::"])).toEqual(["h2:Inside Attr"]);
+  });
+
+  it("G7: a bare `.callout` with NO type suffix is a callout, and this is the surprising member", () => {
+    // Rendered (`probes/p16`): `::: {.callout}` emits `class="callout callout-style-simple
+    // callout-none no-icon callout-titled"` — real callout chrome — and lifts the heading. A set
+    // built from Quarto's documented five types alone would miss it and keep the phantom.
+    expect(names(["::: {.callout}", "", "## Inside Papa", "", ":::"])).toEqual([]);
+    // the control: an ordinary class in the same position keeps its heading
+    expect(names(["::: {.plain}", "", "## Inside Papa", "", ":::"])).toEqual(["h2:Inside Papa"]);
+  });
+
+  it("G8: `appearance` and `collapse` do not change the answer", () => {
+    // Rendered (`probes/p14`): both still lift the heading. `appearance="minimal"` is the one
+    // worth naming — it renders without the default title styling and still consumes the header.
+    expect(
+      names(['::: {.callout-note appearance="minimal"}', "", "## Inside November", "", ":::"]),
+    ).toEqual([]);
+    expect(
+      names(['::: {.callout-note collapse="true"}', "", "## Inside November Two", "", ":::"]),
+    ).toEqual([]);
+    // the control — the same attribute on a non-callout div changes nothing either way
+    expect(
+      names(['::: {.plain appearance="minimal"}', "", "## Inside November", "", ":::"]),
+    ).toEqual(["h2:Inside November"]);
+  });
+
+  it("G9: blank lines are not required, and a heading after the callout CLOSES is untouched", () => {
+    // Rendered (`probes/p15`): the tight spelling with no blank line anywhere renders exactly
+    // `h2:Before Oscar` and `h2:After Oscar`.
+    expect(
+      names([
+        "## Before Oscar",
+        "::: {.callout-note}",
+        "## Inside Oscar",
+        "body oscar",
+        ":::",
+        "## After Oscar",
+      ]),
+    ).toEqual(["h2:Before Oscar", "h2:After Oscar"]);
+  });
+
+  it("G10: the callout's own container does not matter — a QUOTE and a LIST ITEM both lift", () => {
+    // Rendered (`probes/p17`, `p18`): both emit the full callout chrome with the heading in the
+    // title container. The slot rides `divColumns`, which already carries the quote and the
+    // container depth, so neither needed a rule of its own.
+    expect(
+      names(["> ::: {.callout-note}", ">", "> ## Inside Quebec", ">", "> body q", ">", "> :::"]),
+    ).toEqual([]);
+    expect(
+      names(["- item romeo", "", "  ::: {.callout-note}", "", "  ## Inside Romeo", "", "  :::"]),
+    ).toEqual([]);
+    // ⚠ **AND THE CONTROLS THAT PROVE IT IS THE CALLOUT AND NOT THE CONTAINER.** Both shapes
+    // report their heading with a plain class, so neither `[]` above is this model simply
+    // failing to see a heading inside a quote or a list item.
+    expect(
+      names(["> ::: {.plaindiv}", ">", "> ## Inside Quebec", ">", "> body q", ">", "> :::"]),
+    ).toEqual(["h2:Inside Quebec"]);
+    expect(
+      names(["- item romeo", "", "  ::: {.plaindiv}", "", "  ## Inside Romeo", "", "  :::"]),
+    ).toEqual(["h2:Inside Romeo"]);
+  });
+
+  it("G11: the lifted heading's `sec-` id goes with it, and that MATCHES quarto", () => {
+    // ⚠ **THE BLAST-RADIUS ROW.** `findHeadings` is the only source of `sec-` cross-reference
+    // targets (`refs.ts` source 1), so dropping the heading also drops the target. That is
+    // CORRECT, not a regression: rendered (`probes/p8`), `## Inside Hotel {#sec-hotel}` inside a
+    // callout renders no anchor at all and an `@sec-hotel` below it comes out as quarto's
+    // unresolved `<strong>?@sec-hotel</strong>`. The model was offering a completion for a
+    // target quarto cannot resolve.
+    const doc = [
+      "## Before Hotel {#sec-before}",
+      "",
+      "::: {.callout-note}",
+      "",
+      "## Inside Hotel {#sec-hotel}",
+      "",
+      "body hotel",
+      "",
+      ":::",
+      "",
+      "## After Hotel {#sec-after}",
+    ];
+    expect(names(doc)).toEqual(["h2:Before Hotel", "h2:After Hotel"]);
+    expect(labels(doc)).toEqual(["sec-before", "sec-after"]);
+  });
+
+  it("G13: NESTING resolves per div, in both directions", () => {
+    // Rendered (`probes/p25`): a callout holding `## Juliet Outer` and then a PLAIN div holding
+    // `## Juliet Inner` emits `h2:Juliet Before | h2:Juliet Inner | h2:Juliet After` — the
+    // callout's own first block is lifted, the plain div's heading is untouched.
+    expect(
+      names([
+        "## Juliet Before",
+        "",
+        ":::: {.callout-note}",
+        "",
+        "## Juliet Outer",
+        "",
+        "::: {.plaindiv}",
+        "",
+        "## Juliet Inner",
+        "",
+        ":::",
+        "",
+        "::::",
+        "",
+        "## Juliet After",
+      ]),
+    ).toEqual(["h2:Juliet Before", "h2:Juliet Inner", "h2:Juliet After"]);
+    // and a callout INSIDE a callout lifts BOTH, each into its own title bar (`probes/p26`)
+    expect(
+      names([
+        "## Lima Before",
+        "",
+        ":::: {.callout-note}",
+        "",
+        "## Lima Outer",
+        "",
+        "::: {.callout-tip}",
+        "",
+        "## Lima Inner",
+        "",
+        ":::",
+        "",
+        "::::",
+        "",
+        "## Lima After",
+      ]),
+    ).toEqual(["h2:Lima Before", "h2:Lima After"]);
+  });
+
+  it("G14: every ATX level is lifted, and a DEEPER heading below the lifted one survives", () => {
+    // All six levels measured (the fan-out's `cal_d1_h1`..`cal_d6_h6`, rendered): the filter
+    // reads a `Header` node and does not look at its level.
+    for (const hashes of ["#", "##", "###", "####", "#####", "######"]) {
+      expect(names(["::: {.callout-note}", "", `${hashes} Delta Level`, "", ":::"])).toEqual([]);
+    }
+    // and only the FIRST is the title — an `###` below a lifted `##` is a real `h3`
+    // (`cal_m1_h2thenh3`: quarto emits `h2:Mike Before | h3:Mike Two | h2:Mike After`)
+    expect(
+      names([
+        "## Mike Before",
+        "",
+        "::: {.callout-note}",
+        "",
+        "## Mike One",
+        "",
+        "### Mike Two",
+        "",
+        ":::",
+        "",
+        "## Mike After",
+      ]),
+    ).toEqual(["h2:Mike Before", "h3:Mike Two", "h2:Mike After"]);
+  });
+
+  it("G15: a class that merely LOOKS like a callout is not one", () => {
+    // `.note` with no `callout-` prefix renders no callout chrome at all and keeps its heading
+    // (the fan-out's `cal_e_note_EchoBareNote`, rendered). The prefix is load-bearing.
+    expect(names(["::: {.note}", "", "## Echo Bare Note", "", ":::"])).toEqual([
+      "h2:Echo Bare Note",
+    ]);
+  });
+
+  it("G12: the RAW-HTML spelling is a DISCLOSED RESIDUAL, measured at zero real-document reach", () => {
+    // ⚠ **STILL WRONG, ON PURPOSE, AND PINNED SO IT IS NOT MISREAD AS FIXED.** The filed item
+    // names both spellings, and the raw-HTML one really does render a callout: rendered
+    // (`probes/p19`), `<div class="callout-note">` with blank lines around its content emits
+    // `class="callout callout-style-default callout-note callout-titled"` and lifts the heading;
+    // `p20` does the same for `<div class="callout">` under `from: markdown`.
+    //
+    // ⚠ **IT IS DECLINED ON A MEASUREMENT, NOT ON EFFORT.** Over Session 251's 3,383-document
+    // authored corpus (`scratchpad/s251/real.pkl`), **244 documents carry a FENCED callout div
+    // and ZERO carry a raw-HTML one**. Closing it needs a `<div>`/`</div>` container the scanner
+    // does not have, for a construct no authored document in the corpus uses. Re-filed with that
+    // measurement; the phantom below is what it costs.
+    expect(
+      names([
+        "## Before Sierra",
+        "",
+        '<div class="callout-note">',
+        "",
+        "## Inside Sierra",
+        "",
+        "body s",
+        "",
+        "</div>",
+        "",
+        "## After Sierra",
+      ]),
+    ).toEqual(["h2:Before Sierra", "h2:Inside Sierra", "h2:After Sierra"]);
+  });
+});
+
+describe("Session 257 gate — the two callout type sets may not drift apart", () => {
+  it("model.ts's CALLOUT_TYPES equals notebook-callout.ts's CALLOUT_TITLES key set", () => {
+    // ⚠ **A DUPLICATED CLOSED SET IS A DRIFT HAZARD, AND THIS IS THE PRICE PAID FOR NOT SHARING
+    // IT BY IMPORT.** `notebook-callout.ts` is the markdown-it plugin for the browser
+    // notebook-renderer bundle and carries a 214-name HTML attribute table; importing it into
+    // `model.ts` to read five strings would pull that into the extension bundle. So the set is
+    // written twice and asserted equal here — Learning #14's "one definition, two readers" rule
+    // paid for with a test instead of a dependency. If quarto adds a callout type, BOTH move.
+    expect([...CALLOUT_TYPES].sort()).toEqual(Object.keys(CALLOUT_TITLES).sort());
+  });
+
+  it("and the bare `.callout` is deliberately NOT a member of either set", () => {
+    // ⚠ It is a callout to QUARTO (`::: {.callout}` renders `callout-none` chrome and lifts a
+    // title — `probes/p16`) but it has no default TITLE, which is what `CALLOUT_TITLES` maps.
+    // `divCalloutTitleSlot` handles it as its own clause on purpose; a reader who "fixed" the
+    // asymmetry by adding a `callout` key here would give the notebook renderer a callout type
+    // quarto does not name.
+    expect(CALLOUT_TYPES.has("callout")).toBe(false);
+    expect("callout" in CALLOUT_TITLES).toBe(false);
   });
 });
