@@ -2925,4 +2925,72 @@ describe("S225: a heading inside a BLOCK QUOTE reaches the outline", () => {
     // has stopped working altogether.
     assert.ok(names.includes("Real Top"), `control heading: ${names.join(", ")}`);
   });
+  // ⚠ **THE RUNTIME GATE FOR SESSION 257.** Everything else about the callout title slot is
+  // proved headlessly over `src/core`, which is `vscode`-free by design. This is the row that
+  // proves the Outline the USER sees actually loses the phantom entry: it goes through
+  // `vscode.executeDocumentSymbolProvider`, the same command the Outline view and breadcrumbs
+  // call, against the built extension in a real Extension Development Host.
+  // ⚠ `it(`, NOT `test(` — this suite runs mocha's BDD interface, where `test` is undefined and
+  // the whole FILE fails to load. Session 211 lost a row to exactly this; the note at the
+  // "kept as its own row" comment above says so, and I hit it anyway on the first run.
+  it("a callout's first-block heading is absent from the OUTLINE, and only that one", async () => {
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    const names = await namesFor(
+      "## Before Alpha",
+      "",
+      "::: {.callout-note}",
+      "",
+      "## Inside Alpha",
+      "",
+      "body alpha",
+      "",
+      "## Second Alpha",
+      "",
+      ":::",
+      "",
+      "## After Alpha",
+    );
+
+    // ABSENT — the deliverable. Quarto lifts this into the callout's title bar and emits no
+    // heading element, so the Outline must not offer it as a section (rendered, `probes/p1`).
+    assert.ok(
+      !names.includes("Inside Alpha"),
+      `a callout's first-block heading must not reach the outline: ${names.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ THE DELETION GUARD. Only the FIRST heading is the title; a second one inside
+    // the same callout is a real `<h2>` and losing it would be the forbidden direction
+    // (rendered, `probes/p2`).
+    assert.ok(
+      names.includes("Second Alpha"),
+      `a later heading inside the callout must survive: ${names.join(", ")}`,
+    );
+
+    // PRESENT — the controls, without which the ABSENT assertion passes for a build whose
+    // outline has stopped working altogether.
+    assert.ok(
+      names.includes("Before Alpha") && names.includes("After Alpha"),
+      `control headings: ${names.join(", ")}`,
+    );
+
+    // PRESENT — the class control. The identical document with a NON-callout class keeps every
+    // heading, so what the Outline loses is the callout rule and not the `:::` fence.
+    const plain = await namesFor(
+      "## Before Alpha",
+      "",
+      "::: {.plaindiv}",
+      "",
+      "## Inside Alpha",
+      "",
+      ":::",
+    );
+    assert.ok(
+      plain.includes("Inside Alpha"),
+      `a plain div's heading must still reach the outline: ${plain.join(", ")}`,
+    );
+  });
 });
