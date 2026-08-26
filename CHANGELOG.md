@@ -60,8 +60,9 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
   `vscode.executeDocumentSymbolProvider` — the command the Outline view itself calls — and
   asserts the lifted heading is absent, a SECOND heading in the same callout is present, the
   headings outside it are present, and the same document with a non-callout class keeps its
-  heading. Commits: `e7dd276e` claim, `a80a6de8` the rule, `ae9e8d94` the empty-title correction
-  plus guards and gate, `c89b9608` the runtime test, and this close-out.
+  heading. Commits (7): `e7dd276e` claim, `a80a6de8` the rule, `ae9e8d94` the empty-title
+  correction plus guards and gate, `c89b9608` the runtime test, `27485730` the records
+  (BACKLOG/learnings), `2e6cab8c` close-out, and this ledger commit.
 
 ### 2026-08-26 · [ad hoc] `SESSION_NOTES.md` is TRANSIENT, not append-only — retention rule added to `CLAUDE.md`
 
