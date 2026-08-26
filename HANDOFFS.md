@@ -31,6 +31,19 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S255
+date: 2026-08-26
+status: pending
+active_task: Bring this project's methodology adoption current (sync 6 drifted TRACKED files, install context_budget.py + .context-budget.json, configure ledger budgets, wire .vscodeignore) and file 4 novel findings in ../methodology. Phase 1B claim.
+what_was_done: pending
+commit: pending
+```
+Phase 1B stub. Found at S254 close-out: this repo is not a current adopter -- 2 manifest files
+missing (`context_budget.py`, `.context-budget.json`) and 6 TRACKED files drifted. `context_budget.py`
+is the already-existing answer to Learning #499 and its config governs both ledgers at the same
+65,536 B the trimmer uses. `bin/sync --dry-run` says "would write" for all 8, no `--force` needed.
+
+```handoff
 session: S254
 date: 2026-08-26
 status: complete

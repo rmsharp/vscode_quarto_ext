@@ -5,10 +5,57 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 254 closed out. The next session picks from `BACKLOG.md` (193 open items, Active section empty) via the ranked `AskUserQuestion` step; the ranking guidance sits beside the Active section.**
-**Last shipped:** Session 254 — the project's **first ledger trim**, both files. `CHANGELOG.md` **831,830 → 44,190 B** (230 records archived); `HANDOFFS.md` **1,801,150 → 52,850 B** (211 receipts archived). Shards under `docs/archive/`. Three pre-existing defects fixed to get there.
-**Status:** DONE (SHIPPED). `compile` clean · `npm test` 2796 passed / 66 files · `check-package` OK 42 files / 5.59 MB · `check-backlog` OK 193 items · both trim triggers now **do not fire**.
-**⚠ ONE KNOWN-BAD ARTIFACT, DELIBERATELY SHIPPED:** `docs/archive/HANDOFFS-through-2026-08-24.md.verify.sh` **reports FAIL**. It is a known upstream bug (**BL-27, fixed in canonical v1.3.0**); this project runs v1.1.1. The archive is intact — see `docs/archive/README.md`, which explains it beside the artifact. **Do not "fix" it by editing `methodology_trim.py`; that file is synced.**
+**Task:** **Session 255 IN PROGRESS — bring this project's methodology adoption current, and file the upstream findings.**
+**Started:** 2026-08-26
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; recorded in `CHANGELOG.md` at Phase 3F. ⚠ **But see the P1 rule (Learning #498): if any trim runs this session, the ledger entry must be written BEFORE it.**
+
+**Operator directive:** *"do it all in one session"*, answering the S254 close-out's open question,
+plus: *"should we place a backlog item in ../methodology to create a PR for its upstream repo to
+correct, or are the corrections already in ../methodology?"*
+
+**Origin — what S254's close-out question uncovered.** Asked whether corrective actions existed, I
+compared this repo against `../methodology/bin/_manifest.py` (26 rows) and found **we are not a
+current adopter**:
+- **2 manifest files MISSING outright:** `context_budget.py` (TRACKED) and `.context-budget.json` (SEED).
+- **6 TRACKED files DRIFTED** — canonical owns these and they are supposed to be byte-identical:
+  `SESSION_RUNNER.md`, `FRAMEWORK_LEARNINGS.md`, `RECOMMENDED_SKILLS.md`, `BOOTSTRAP.md`,
+  `methodology_dashboard.py`, `methodology_trim.py`. (The 4 differing SEED files are *supposed* to
+  diverge. 14 rows are byte-identical.)
+- ⚠ **`context_budget.py` IS THE ANSWER TO LEARNING #499, AND IT ALREADY EXISTED.** Its docstring:
+  *"MEASUREMENT ALONE WAS ALREADY PRESENT AND DID NOT WORK … So this tool GATES … rather than a
+  second thing to print."* Canonical's own `.context-budget.json` governs `CHANGELOG.md` and
+  `HANDOFFS.md` at **`max_bytes: 65536`** — the same number `methodology_trim.py` uses. Upstream the
+  two tools are a PAIR; we had one of them.
+
+**Deliverable (ONE intent: make this project a current, gated adopter).**
+1. `bin/sync` — update the 6 drifted TRACKED files, install the 2 missing ones.
+2. Configure `.context-budget.json` for THIS project, including the two ledgers at 65,536 B.
+3. Wire the new root files into `.vscodeignore` (**predicted gate break** — it is a DENYLIST naming
+   each methodology artifact individually; new root files broke `check-package` at S173/S174/S188).
+4. File the **4 novel findings** as backlog items in `../methodology/docs/planning/BACKLOG.md`
+   (max is BL-46, so BL-47+).
+
+**⚠ Sync facts established at claim, correcting my own earlier statement to the operator:**
+- `bin/sync --dry-run` reports **"would write"** for all 8 — **no `--force` needed.** It distinguishes
+  *behind canonical* from *locally modified*; these are behind. I had told the operator `--force`
+  would be required, inferring it from BOOTSTRAP's drift-safety text plus my own byte comparison.
+- Canonical is at `v3.7-398-gf5edc4e`. All 6 drifted files are committed and clean, so the sync is
+  fully revertible by git.
+- ⚠ **`SESSION_RUNNER.md` IS MY OWN OPERATING PROCEDURE AND IT CHANGES MID-SESSION.** Diff and read
+  what changed before continuing under it.
+
+**Upstream question, answered: BOTH.** Already fixed in `../methodology` and flowing on a push —
+**BL-27** (the `verify.sh` false FAIL, with a named regression test) and **BL-41** (shard-name
+collision). NOT fixed anywhere, hence the 4 new items — the seed footer that makes an adopter's
+trimmer inert from their first receipt; the seed's missing count sentence; the seed budget config
+omitting the two ledgers; and `content_probe` being consulted only at zero records.
+⚠ **Nothing flows automatically: `../methodology` is 398 commits ahead of `upstream/main`, `origin`
+is the fork, `upstream` is `KJ5HST/methodology`. A PR needs a push — OUTWARD-FACING, operator's
+explicit call, NOT taken this session.**
+
+**TDD gate:** no logic authored — tool invocation, config, denylist lines, markdown. Exempt from a
+unit test per `CLAUDE.md`; owes the full verification matrix.
 
 ---
 
