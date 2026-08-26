@@ -5,18 +5,98 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 252 (IN PROGRESS) — downgrade the 90 items Session 251 measured as ENUMERATION-ONLY from `BACKLOG.md`'s "Up Next" to "Polish / deferred", each annotated with the measurement that justifies the move.**
-**Started:** 2026-08-25
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Task:** **NONE — Session 252 closed out. The next session picks from `BACKLOG.md` (193 open items, Active section empty) via the ranked `AskUserQuestion` step — and the ranking guidance is now IN the file, beside the Active section.**
+**Last shipped:** Session 252 — the 90 items Session 251 measured at 0 of 3,383 authored documents moved from "Up Next" to a new `### Enumeration-only` subsection of "Polish / deferred", each tagged with the measurement and its detector. Up Next **157 → 67**; Polish **36 → 126**; total unchanged at 193.
+**Status:** DONE (SHIPPED). `check-backlog` OK 193 open items; `npm test` 2796 passed / 66 files; all 193 item texts verified preserved byte-for-byte as a SET.
+**⚠ OPEN QUESTION FOR THE OPERATOR:** the mirror-image case was deliberately left alone — **4 items that DO reach real documents are sitting in "Polish / deferred"** (L437 mid-line HTML comments, 13 real docs; L447 indented code blocks as a skip-region, **180 real docs — the highest count of all 192**; L441; L453). Promoting them is the opposite action to the one asked for, so it was not done unilaterally.
 
-### What Session 252 Did
-**Deliverable:** One `BACKLOG.md` re-section. Operator directive after reading Session 251's audit: *"downgrade them to Polish / deferred"*, with the annotation requirement stated as a question — *"will these include information that they do not touch documents in our inventory?"* — answered YES. (IN PROGRESS)
-**Started:** 2026-08-25
-**Status:** Session claimed. Work beginning.
-**Scope:** The 90 items with `verdict_final == "PROBE_ONLY"` in `scratchpad/s251/final.json`. All 90 are currently in "Up Next"; all 90 have a calibrated detector in `scratchpad/s251/det/`. **Move + annotate only — no item deleted, no item's own text altered.**
-**⚠ Deliberately NOT in scope:** the 4 `REACHES_REAL` items that sit in "Polish / deferred" (the mirror-image problem). Promoting them is the opposite action and was not asked for; raised at close-out instead.
-**Predecessor:** Session 251 (`b50e5f6b`), whose audit produced the measurement this move acts on.
+---
+
+## Session 251 Handoff Evaluation (by Session 252)
+
+**Score: 7/10.** Written by the same model one task earlier, and scored on what it actually did
+for its successor rather than on how it felt to write. It is thorough — twelve gotchas, a
+`key_files` block naming every artifact, an explicit "this audit closed nothing" — and its
+gotcha 3 (construct presence is an upper bound) was load-bearing in how I worded all 90 tags.
+**It loses three points for one omission that nearly corrupted this session's deliverable.**
+
+**What helped, specifically.**
+- ⚠ **`final.json` AS A MACHINE-READABLE PER-ITEM RECORD IS WHAT MADE THIS SESSION MECHANICAL
+  RATHER THAN MANUAL.** 90 items selected by `verdict_final == "PROBE_ONLY"` in one line. A prose
+  audit would have meant re-deriving the set by hand.
+- **Gotcha 3 (construct presence is an upper bound, not proof of breakage)** is the reason the
+  subsection note says what the claim is NOT, in as many words. Without it the 90 tags would have
+  read as "these are wrong", which is not what was measured.
+- **Gotcha 12 ("this audit closed nothing")** framed the whole task correctly: this was a
+  re-section, not a retirement, and nothing needed re-litigating about that.
+- **The `--check` habit and the control-calibration discipline transferred** — I dry-ran the move
+  before writing, which is the only reason the mis-targeting was caught before the file changed.
+
+**What was missing.**
+- ⚠ **NOTHING IN IT WARNED THAT `final.json`'s `line` FIELD IS POSITIONAL AND KEYED TO
+  `b85626f3`, NOT TO ITS OWN CLOSE-OUT COMMIT.** Session 251 read the backlog, THEN filed a new
+  item at line 52, shifting every line below it by two — so its own artifact's line numbers do not
+  resolve against its own close-out. Items in this file sit exactly two lines apart, so resolving
+  against the wrong commit lands on a *different item that is still a valid item start*: it fails
+  silently. **83 of 90 items would have been mis-tagged**, and the "is it an item start" guard
+  caught only the 7 that happened to land on blanks. This is the exact hazard the audit itself
+  quoted from `BACKLOG.md`'s header. A one-line note — *"`line` is keyed to b85626f3, before this
+  session's own filing"* — would have removed the risk entirely.
+- Its `whats_next` ranked what to FIX next but said nothing about what to do with the 90, even
+  though its own recommendation #5 raised retiring-or-downgrading them. The operator had to ask.
+
+**What was wrong: nothing.** Every count reproduced — 90 PROBE_ONLY, all in "Up Next", all with a
+detector file, 193 items total.
+
+**ROI: high**, but the missing note nearly cost more than the rest saved.
+
+---
+
+## Session 252 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I dry-ran a 90-item bulk edit before writing a byte, and it is the only reason the deliverable
+  is correct.** The `--check` pass aborted on 7 unresolvable targets; investigating those 7 is what
+  exposed that the other 83 were resolving silently onto the wrong items.
+- **I did not trust the abort that fired — I asked why it fired.** Seven failures out of ninety is
+  a suspicious shape: a wholesale base-commit error should break everything. Understanding *why
+  only seven* is what revealed the two-line item spacing, and turned a partial guard into a real
+  one (an independent title cross-check against `final.json`).
+- **The postcondition compares SETS OF ITEM TEXT, not counts.** No gate in this repo can see a lost
+  backlog item — `check-backlog.js` counts `- [ ]` lines and would report 192 as contentedly as
+  193. All 193 texts verified byte-for-byte.
+- **The annotation carries its own falsifiability.** Each tag names the detector; the section note
+  states what the claim is NOT, the corpus's limits, and the route back to "Up Next" — so a future
+  session can overturn a downgrade rather than inherit it as settled.
+- **The Phase 3F cross-reference sweep found a real stale pointer** (the Active section recommends
+  two items I had just downgraded) and I verified it against the pre-move copy, so "made stale by
+  me" is a measurement rather than an assumption — the other three named candidates are unmoved.
+- **I held scope.** The 4 REACHES_REAL items sitting in Polish are the mirror-image problem and
+  obviously tempting; promoting them is the opposite action to the one asked for, so I raised it
+  instead of doing it.
+
+**What went wrong.**
+- ⚠ **I NEARLY MIS-TAGGED 83 OF 90 ITEMS, AND THE CAUSE WAS MY OWN PREVIOUS TASK'S ARTIFACT.** I
+  wrote `final.json` and then reached for the wrong base commit to interpret it — one task later.
+  The guard that saved me was one I had written for a different reason.
+- ⚠ **MY FIRST POSTCONDITION CRIED WOLF.** It reported 1 item lost / 1 gained on an item that was
+  byte-identical for all 842 of its own characters, because my block parser treated only `## ` as a
+  terminator and the last item swallowed the `###` subsection I had just appended. I had to
+  hand-diff to prove it benign. A postcondition that produces a false alarm on its first real run
+  is a postcondition the next session will learn to ignore.
+- ⚠ **I LEFT A DUPLICATED "the" AT THE EDIT SEAM** in the Active section and only caught it by
+  reading the rendered result back. A surgical text replacement needs its seam read, not just its
+  payload.
+- **The subsection note first cited the wrong base commit** (`b50e5f6b`), the very error I had just
+  diagnosed, and I corrected it before writing. Caught, but it shows how sticky the wrong number was.
+
+**Against the bar.** This is a small deliverable next to Sessions 238–251 — one markdown file
+re-sectioned, no `src/` change, no new measurement. What it adds is a verification standard
+appropriate to a bulk edit that no repo gate can check, and a stale cross-reference found and
+fixed rather than left. It falls short of a 9 on three self-inflicted defects, all caught, none
+shipped.
 
 ---
 
