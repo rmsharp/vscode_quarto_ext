@@ -5,43 +5,90 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 254 IN PROGRESS — lossless trim of `CHANGELOG.md` and `HANDOFFS.md` via `methodology_trim.py`.**
-**Started:** 2026-08-25
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
-
-**Operator directive:** *"lossless trim of CHANGELOG.md and HANDOFFS.md"*, followed by the diagnosis
-*"vscode_quarto_ext's trimmer has been inert since bootstrap — the seed-sentinel line was never
-deleted, so it refuses with [ZONE_UNCLASSIFIED]. 1.78 MB behind a one-line bootstrap miss, with the
-tool installed and reporting to nobody."*
-
-**Phase 0 findings that scope this task.**
-- `python3 methodology_trim.py --check --file CHANGELOG.md --file HANDOFFS.md` at claim time:
-  - `CHANGELOG.md` — `[TRIGGER_BYTES] 826,389 B against a 65,536 B budget`, **trigger FIRES** (12.6x).
-  - `HANDOFFS.md` — **`[ZONE_UNCLASSIFIED]`, refuses outright.** 1,799,957 B, **27x** the budget.
-- The refusal: the spec declares `footer_mode='none'`, but line 3794 is a standalone `---` with
-  108 B after it the config cannot classify — the orphaned seed comment
-  `<!-- Receipts go below, newest on top. Delete the seed-sentinel line above when you add the first one. -->`.
-- ⚠ **It has been there since the file was born.** `git show 9f119c73:HANDOFFS.md` (2026-07-09,
-  Session 38's sync) already ends with that `---` + comment, in the same commit that added the
-  first receipt. The `METHODOLOGY-SEED-SENTINEL` token itself is GONE — greps clean on both
-  ledgers — so the sentinel line WAS deleted and its `---` + comment were not. A half-finished
-  bootstrap, which is why it read as finished.
-- `methodology_trim.py` was installed by Session 188's sync and recorded there as
-  **"installed, not yet used"**. `docs/archive/` does not exist. This is the first trim.
-
-**Plan (one deliverable, three ordered parts; separate commits per the tool's own rule).**
-1. Remove the stale seed footer from `HANDOFFS.md` so the grammar classifies.
-2. `--write` trim each ledger into `docs/archive/`, ONE `--file` per run — the tool refuses to
-   batch: *"A batched trim has a rollback that cannot be expressed as one revert."*
-3. Verify losslessness INDEPENDENTLY of the tool's own L1/L2/L3 assertions.
-
-**TDD gate:** no logic is authored this session — an installed tool is run and 3 lines of markdown
-scaffolding are deleted. Per `CLAUDE.md`, pure doc/scaffolding edits are exempt from a unit test but
-still owe the normal verification matrix (`npm run compile`, `npm test`, `check-package`,
-`check-backlog`).
+**Task:** **NONE — Session 254 closed out. The next session picks from `BACKLOG.md` (193 open items, Active section empty) via the ranked `AskUserQuestion` step; the ranking guidance sits beside the Active section.**
+**Last shipped:** Session 254 — the project's **first ledger trim**, both files. `CHANGELOG.md` **831,830 → 44,190 B** (230 records archived); `HANDOFFS.md` **1,801,150 → 52,850 B** (211 receipts archived). Shards under `docs/archive/`. Three pre-existing defects fixed to get there.
+**Status:** DONE (SHIPPED). `compile` clean · `npm test` 2796 passed / 66 files · `check-package` OK 42 files / 5.59 MB · `check-backlog` OK 193 items · both trim triggers now **do not fire**.
+**⚠ ONE KNOWN-BAD ARTIFACT, DELIBERATELY SHIPPED:** `docs/archive/HANDOFFS-through-2026-08-24.md.verify.sh` **reports FAIL**. It is a known upstream bug (**BL-27, fixed in canonical v1.3.0**); this project runs v1.1.1. The archive is intact — see `docs/archive/README.md`, which explains it beside the artifact. **Do not "fix" it by editing `methodology_trim.py`; that file is synced.**
 
 ---
+
+## Session 253 Handoff Evaluation (by Session 254)
+
+**Score: 7/10.** Well-formed, honest, and complete on all six Minimum Handoff Requirements. It had
+**almost zero ROI for this session**, because the operator redirected to a ledger trim that no part
+of it anticipated — that is a property of what task came next, not a flaw, and I have not docked it
+for that.
+
+**What helped.** Its `active_task` line saved me real time at Phase 0: *"the promotion question is
+CLOSED — do not re-raise it on presence counts"* is exactly the kind of closed-door marker that stops
+a fresh session from reopening a settled argument, and I did not. Its gotcha 1 — *a presence count is
+not a priority signal until you check it was measured with the instrument the item needs* — is the
+best sentence in the file and generalises well past its own subject; it is the same shape as the
+error I nearly made when I wrote **219** into a front-matter count sentence from a bare grep.
+
+**What was missing — one omission, and it is squarely in scope.** ⚠ **IT WAS TRACKING REPOSITORY
+BLOAT AND POINTED THE LENS EVERYWHERE EXCEPT AT THE TWO FILES IT WAS ITSELF WRITING.** Its
+`whats_next` carries a standing housekeeping flag — *"`.vscode-test/` 18 GB, `scratchpad/` ~2.9 GB and
+untracked"* — so size was actively on its mind. Meanwhile `HANDOFFS.md`, the file that receipt was
+being appended to, stood at **1.8 MB against a documented 65,536 B budget (27×)**, with a tool
+installed in the repo that reports exactly that in one command. Not one of the 66 handoffs since
+Session 188 mentions it. **This is not really S253's failure alone — it is a 66-session blind spot
+(Learning #499) — but the handoff is where "what's next" lives, so it is where the miss shows.**
+
+**What was wrong: nothing.** Every claim I checked reproduced.
+
+**ROI: low for this task, through no fault of its own; its gotcha 1 still earned its place.**
+
+---
+
+## Session 254 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I did not stop at the task as stated.** The ask was a trim. Getting there required finding and
+  fixing **three separate pre-existing defects**, each of which had survived every prior session:
+  the stale seed footer that made the tool refuse outright, **two receipts written with no closing
+  fence**, and a declared front-matter field the file never had.
+- ⚠ **THE FENCE REPAIR HAD TO HAPPEN BEFORE THE TRIM, AND ALMOST DIDN'T.** S227 and S226 are dated
+  2026-08-19 — *inside* the archive cut. Trimming first would have **frozen a wrong partition into
+  an immutable shard**. I found them only because a count sentence I was writing disagreed with the
+  tool by 3, and I chased the discrepancy instead of trusting either number.
+- **Losslessness was established three ways, one sharing no code with the tool.** The independent
+  verifier re-implements the fence scanner, record splitter, code-span finder and link inverter,
+  and compares the **ordered record list byte-for-byte** against the baseline commit. 8/8 on both
+  files. I also ran a four-lens adversarial pass whose explicit job was to *refute* the claim.
+- **I proved the seam on the artifacts, not from the absence of a warning** — retained ∩ archived
+  dates empty, newest archived == the shard's name key, oldest retained strictly newer. The
+  canonical repo's S107 receipt names this exact trap and I applied it deliberately.
+- **I read both tool versions before believing either verdict** when the emitted `verify.sh`
+  contradicted the in-process assertion, and found the real cause — a fixed upstream bug — rather
+  than accepting the FAIL or waving it away.
+- **I chose the clean calendar seam over the tool's default cut**, so both shard names are true
+  statements rather than span labels, at a cost of ~10 KB of live file.
+- **I did not edit the synced tool**, even though a two-line fix was obvious and tempting.
+
+**What went wrong.**
+- ⚠ **I WROTE 219 INTO THE FRONT MATTER FROM A BARE GREP, AND THE FILE I WAS EDITING WAS THE ONE
+  THAT PROVES BARE GREPS DON'T WORK ON IT.** Caught before commit only because the tool's own count
+  disagreed. Had the numbers happened to match, I would have shipped it and the recount advice
+  attached to it would have propagated the error to whoever ran it next.
+- ⚠ **I HIT THE P1 PRECONDITION TWICE.** The first time was legitimate discovery. The second was
+  after my own fence-repair commit, and by then I knew the rule — I simply did not re-check before
+  reaching for the dry run.
+- **The two repaired receipts are still incomplete** — S227 and S226 lack `gotchas:` and
+  `whats_next:` entirely. I fixed the structure and could not fix the content without fabricating
+  it, so those two receipts are now well-formed and still hollow.
+- **I shipped a known-broken artifact.** `verify.sh` for the HANDOFFS shard reports FAIL. Correct
+  call given the alternative was editing a synced file, but the repo now contains a proof script
+  that fails on a good archive, mitigated only by a README a reader has to notice.
+
+**Against the bar.** Larger blast radius than Sessions 251–253, which touched one markdown file
+each. This one rewrote both durable ledgers, deleted content from an append-only record, and
+created a new archive directory — and every one of those steps is independently reversible by a
+single `git revert`. What it adds to the project is not the 2.5 MB; it is that the tool is now
+**wired and firing** rather than installed and mute, and that the next session inherits a Phase 0
+that reads two small files instead of two huge ones.
 
 ## Session 252 Handoff Evaluation (by Session 253)
 

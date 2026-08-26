@@ -6,11 +6,35 @@ live files — a shard is the same ledger, continued. Nothing here is edited by 
 
 | Shard | Records | Span |
 |---|---|---|
-| [`CHANGELOG-through-2026-08-24.md`](CHANGELOG-through-2026-08-24.md) | 230 | 2026-06-30 → 2026-08-24 |
+| [`CHANGELOG-through-2026-08-24.md`](CHANGELOG-through-2026-08-24.md) | 230 records (+6 untagged entries, see below) | **2026-06-27** → 2026-08-24 |
 | [`HANDOFFS-through-2026-08-24.md`](HANDOFFS-through-2026-08-24.md) | 211 | 2026-07-09 → 2026-08-24 |
 
 Both were written by Session 254 — the project's first trim. `methodology_trim.py` had been
 installed since Session 188 and recorded there as *"installed, not yet used"*.
+
+## ⚠ The CHANGELOG shard's own span label says `2026-06-30`; its true oldest entry is `2026-06-27`
+
+The shard's `h1`, its "Holds **230 record(s)**" sentence, and the pointer block left in
+`CHANGELOG.md` all give the span as **2026-06-30 → 2026-08-24**. **The content actually reaches back
+to 2026-06-27.** Nothing is missing — this is a labelling artifact, and the earlier entries are
+present verbatim.
+
+**Why.** The record grammar is `^### \d{4}-\d{2}-\d{2} · \[` — a dated heading *plus* a source tag.
+The project's six earliest entries were written before that tagging convention existed:
+
+    ### 2026-06-27      ### 2026-06-28      ### 2026-06-29
+    ### 2026-06-30      ### 2026-06-30 (later)      ### 2026-06-30 (latest)
+
+None carries a `· [tag]`, so none is a *record start*. A record runs to the next record start, so
+these six ride inside the span of the oldest tagged record and moved with it — bytes intact — while
+contributing nothing to the count or to the computed span. That is why the shard holds **230
+records** but **236 dated `###` headings**.
+
+**Verified, not assumed:** four independent audit lenses (byte accounting, per-record identity,
+non-record scaffolding, and reconstruction from git history) each confirmed that concatenating the
+live records zone with the shard's reproduces the pre-trim records zone byte-for-byte. The bootstrap
+entries — the Phase 1 walking skeleton, the Phase 2 grammar, the Phase 3 render work, the TDD
+directive — are all in this shard. **Search it for `2026-06-27`, not the span label.**
 
 ## ⚠ `HANDOFFS-through-2026-08-24.md.verify.sh` FAILS, and the failure is spurious
 
