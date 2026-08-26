@@ -5,16 +5,123 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 250 (IN PROGRESS) — Session 249 R4: the roman post-filter in `popsEnclosingContainer` and `emptyItemMarkerIsPandocs` is a character class, not pandoc's parser.**
-**Started:** 2026-08-25
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**Task:** **NONE — Session 250 closed out. The next session picks from `BACKLOG.md` (192 open items, Active section empty) via the ranked `AskUserQuestion` step.**
+**Last shipped:** Session 250 — a roman marker is pandoc's parse, not the roman character set. Closed the EMPTY-ITEM half of Session 249's R4 (the operator's pick); measured the CONTAINER-POP half at 461 BETTER / 4,178 WORSE and DECLINED it, re-filing it with the number.
+**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0 on the shipping build.
 
-### What Session 250 Did
-**Deliverable:** Replace the `/^[ivxlcdm]+$/ || /^[IVXLCDM]+$/` character-class post-filter at `src/core/qmd/model.ts:1789` (`popsEnclosingContainer`) and `:1827` (`emptyItemMarkerIsPandocs`) with pandoc's order-respecting roman parse, already present in the same file as `ROMAN_RUN_LOWER`/`ROMAN_RUN_UPPER` (`:1046-1047`). (IN PROGRESS)
-**Started:** 2026-08-25
-**Status:** Session claimed. Work beginning.
-**Predecessor:** Session 249 (`bdfe69bf`), which filed this item and verified it firsthand (`scratchpad/s249/r5`, 19 documents, all exit 0).
+---
+
+## Session 249 Handoff Evaluation (by Session 250)
+
+**Score: 9/10.** It ranked this session's deliverable fourth of five, named the fix by constant,
+and — the part that decides the score — **two of its twelve gotchas predicted, in advance and by
+name, the two things that actually shaped this session**: the empty-string hazard in the fix I was
+about to write, and the fact that the grid I was about to inherit cannot see what I needed to
+score. The point comes off for a sizing that was wrong in a way its own framing encouraged.
+
+**What helped, specifically.**
+- ⚠ **GOTCHA 4 PREDICTED MY ONE SURVIVING MUTANT BEFORE I WROTE THE CODE.** It says *"ask what an
+  all-optional regex does against the EMPTY string before shipping it."* `ROMAN_RUN_LOWER` is all
+  optional tiers, so `new RegExp("^" + ROMAN_RUN_LOWER + "$").test("")` is TRUE. I checked that in
+  the first minute *because that sentence told me to*, put the length guard in the helper, and N4
+  — the mutant that drops it — is the one of seven that survived. Without the sentence I would have
+  written the obvious anchored test and shipped a predicate that calls the empty string a numeral.
+- ⚠ **GOTCHA 11 TOLD ME THE INHERITED GRID WAS BLIND, AND I STILL HAD TO REDISCOVER WHAT THAT MEANT.**
+  It says `r5`'s heading column was empty on all 19 documents and the BLOCKS skeleton is what
+  answered the question. That is exactly right, and it is why my re-render of r5 reproduced its
+  claim perfectly while the same grid scored the MODEL 443/443 both before and after any change.
+  The handoff gave me the fact; the consequence — that the grid cannot fail, which reads exactly
+  like passing — is Learning #490.
+- **GOTCHA 6 (run the enumeration before the first checkpoint commit) earned its keep for the third
+  session running.** Unit tests, oracle, the 60,998-document corpus, the repo sweep and both
+  exhaustive render grids were ALL green on a build whose enumeration then moved 45,573 documents
+  — and it was the enumeration that found the pop regression at 4,178 worse. I committed nothing
+  until it had run.
+- **GOTCHA 2 (render the short twin before believing a regression) is the whole basis of R4.** The
+  residual looked like a phantom my change created; one control render of `Etc.` and `Dr.` in the
+  pre-change build turned it into a pre-existing family my change merely widened.
+- **GOTCHA 9 (absolute paths, verify the write landed) — I used absolute paths in every generator
+  and renderer from the start and hit none of the nested-path trouble it warns about.**
+- **Its `key_files` named `EMPTY_ITEM_MARKER` + `emptyItemMarkerIsPandocs` and `POPS_MARKER` +
+  `popsEnclosingContainer` together with the `ROMAN_RUN_*` constants**, so the whole edit surface
+  was one grep away, and the scratchpad inherited cleanly: `render249.sh`, `corpusfiles.txt` and
+  `repofiles.txt` all worked with a rename.
+
+**What was missing.**
+- Its #4 sized this **LOW-MEDIUM** on the strength of *"THE FIX ALREADY EXISTS IN THIS FILE"*. The
+  fix does exist and dropping it in took one edit — but the sentence frames both call sites as one
+  mechanical swap, and the second one is a measured 4,178-document regression. Establishing that
+  cost a candidate `src` copy, two enumerations totalling 5.8M documents and 6,098 renders.
+  Realistically MEDIUM-HIGH. In fairness its own text carries the warning that made me measure
+  ("the DANGEROUS direction for the pop") — it just did not connect that to the effort estimate.
+- Nothing in it hinted that the pop predicate's roman branch had **zero test coverage**, so a
+  green suite after that change means nothing. Not knowable from its vantage point.
+
+**What was wrong: nothing.** Every witness reproduced — all 19 r5 documents, all exit 0, the same
+`ul>ul>ol` / `ul>ul` split it reported.
+
+**ROI: high.** One sentence in gotcha 4 prevented a defect in the shipped helper, and gotcha 6
+stopped me committing a build I had five green gates on.
+
+---
+
+## Session 250 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I measured the filed item instead of implementing it, and the measurement changed the
+  deliverable.** The item asked for one narrowing in two functions. Exhaustive rendering says the
+  defect is far bigger than filed (2,756 wrong tokens, not eleven) and that the second function
+  must NOT be narrowed. Shipping both — the obvious reading — would have been a net regression on
+  the pop half that no gate in this repo except the enumeration could see.
+- **I built the declined change rather than arguing it away** (Learning #488). The over-acceptance
+  argument was available before any measurement; I still built the candidate `src` copy and scored
+  it, which is what makes the re-filed backlog item actionable and the decline auditable.
+- **Ground truth was EXHAUSTIVE where it could be afforded, not sampled**: every lowercase 2-, 3-
+  and 4-character run and every uppercase 2-character run over `[ivxlcdm]`, in both geometries —
+  6,098 rendered documents, every one exit 0. Character class wrong on 2,756, tier parser on 0.
+- **I validated the instrument before scoring with it, twice.** I read the raw HTML for the taken
+  and not-taken empty-item cases rather than trusting my own predicted heading shape — and my
+  predicted shape WAS wrong (I expected `h2:<tok>. bravo`; it is `<p>dd. bravo —</p>` with no
+  heading). And I established that the inherited r5 grid is heading-blind before drawing any
+  conclusion from its 443/443.
+- **The RED was written first and confirmed to fail for the right reason**, and the guard block
+  that followed has teeth: 6 of 7 mutants killed, each by the intended guard, with N7 — the very
+  narrowing I declined — killed by R3.
+- **I verified the fan-out's strongest claims firsthand** rather than taking them: I re-rendered
+  all 19 of Session 249's r5 witnesses myself before trusting the filed item, and read both call
+  sites myself before accepting the agents' impact analysis.
+- **The residual is localised by a control, not excused.** `Etc.` and `Dr.` show the phantom in the
+  PRE-CHANGE build on the same bytes, which is what makes "pre-existing and widened" a measurement.
+- **Phase 3E green on a go-ahead sought IN ADVANCE**, with all 22 integration fixtures pre-checked
+  headlessly first and `closes-paragraph-gate.qmd` confirmed at the same 40 headings.
+
+**What went wrong.**
+- ⚠ **I predicted the wrong direction for the pop half and only the measurement corrected me.** I
+  reasoned from the docstring that narrowing would RESTORE deleted headings, said so, and the
+  enumeration said 4,178 worse. The reasoning was not silly — the docstring's polarity claim is
+  true of that call site — but I stated a direction before measuring it, which is the habit
+  Learning #488 exists to break.
+- ⚠ **I wasted a stretch on a hand-built table geometry that produced no heading in ANY case,**
+  including the control that should have. I was deriving the geometry from a docstring instead of
+  copying a rendered fixture. The enumeration found in one run what four hand-built grids could not.
+- ⚠ **My first empty-item scorer carried a wrong prediction as an anomaly guard** — it expected the
+  not-taken heading to be `h2:<tok>. bravo` and flagged all 274 correct rows as "unexpected". The
+  scoring itself was right, so no verdict moved, but I shipped a guard I had not checked against
+  one rendered document first. An adversarial agent independently caught the same thing.
+- ⚠ **The g1 grid cost 443 renders and two minutes of wall clock to produce no scoreable signal.**
+  Session 249's gotcha 11 had already told me its heading column was empty; I rendered it anyway
+  and only noticed when the model scored 443/443.
+- **One deliverable claim I want stated plainly:** the pop half of R4 is NOT closed. It is measured,
+  declined and re-filed. A reader of the commit subject alone could think the whole item shipped.
+
+**Against the bar.** Sessions 238–249 each shipped one measured term with a full pre/post matrix, a
+corpus sweep, an enumeration and a mutation hunt. This session matches that and adds exhaustive
+rather than sampled ground truth over 6,098 renders, a candidate `src` copy built specifically to
+be REJECTED with a number, and the first test coverage the pop predicate's roman branch has ever
+had. It falls short of a 9 on the wrong predicted direction, the wasted geometry work, and an
+anomaly guard I did not calibrate before using.
 
 ---
 
