@@ -5,24 +5,115 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 251 (IN PROGRESS) — AUDIT: sort the 192 open `BACKLOG.md` items by whether they affect REAL documents or only ENUMERATED ones, so the operator can see how many actually matter.**
-**Started:** 2026-08-25
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
-
-### What Session 251 Did
-**Deliverable:** One audit report classifying all 192 open `BACKLOG.md` items on a REAL-DOCUMENT-IMPACT axis. Operator's words: *“Sort the 192 BL items by whether they affect real documents versus enumeration-only, so I can see how many actually matter.”* Not one of the five ranked candidates — a triage instrument over the whole file. (IN PROGRESS)
-**Started:** 2026-08-25
-**Status:** Session claimed. Work beginning.
-**Workstream:** `docs/methodology/workstreams/AUDIT_WORKSTREAM.md`.
-**Instrument available:** the 60,998-document real corpus (`scratchpad/s249/corpusfiles.txt`) plus the 114-document repo list, swept by the `scratchpad/s250/corpus.test.ts` harness — so the axis can be MEASURED for the parser family rather than read off each item's own prose.
-**Predecessor:** Session 250 (`b85626f3`), which left a five-item ranked list; the operator declined all five in favour of this triage.
+**Task:** **NONE — Session 251 closed out. The next session picks from `BACKLOG.md` (193 open items, Active section empty) via the ranked `AskUserQuestion` step — but see the ranking guidance below, which this session's audit changes.**
+**Last shipped:** Session 251 — an AUDIT, not an implementation. `docs/REAL-DOCUMENT-TRIAGE.md` classifies all 192 open backlog items by whether they reach a document a human wrote. **90 do not, 68 are not document items, 34 do.**
+**Status:** DONE (SHIPPED). `npm run compile` exit 0; `npm test` 2796 passed / 66 files; `check-backlog` OK, 193 open items. No `src/` change.
+**⚠ RANKING GUIDANCE FOR THE NEXT PHASE 0:** rank by **real-document reach**, not by enumerated document count — the two orderings are close to uncorrelated. Session 250's ranked #1–#5 are all **0 real documents**. The measured top of the list is the `:::` div family: **L268 (52 divergent real documents) + L180 (50)**, both filed, both previously unranked, plus this session's new **panel-tabset** item (Session 251 R1).
 
 ---
 
-## ACTIVE TASK (superseded — Session 250, for reference)
-**Last shipped:** Session 250 — a roman marker is pandoc's parse, not the roman character set. Closed the EMPTY-ITEM half of Session 249's R4; measured the CONTAINER-POP half at 461 BETTER / 4,178 WORSE and DECLINED it, re-filing it with the number.
-**Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0 on the shipping build.
+## Session 250 Handoff Evaluation (by Session 251)
+
+**Score: 8/10.** It is a strong, honest handoff — twelve gotchas, a ranked list with sizings and
+provenance labels, and a `key_files` block that made every edit surface one grep away. It loses
+two points for something no single session could see, but which its own framing made harder to
+see: **every item it ranked is measured at zero real-document reach, and the handoff presents
+enumerated document counts as if they were impact.**
+
+**What helped, specifically.**
+- ⚠ **GOTCHA 12 IS THE REASON THIS AUDIT DID NOT MIS-STATE THE BACKLOG.** It says plainly *"the
+  commit subject says 'a roman marker is pandoc's parse' AND ONLY HALF THE FILED ITEM SHIPPED …
+  do not read S249 R4 as closed."* I reported exactly that in Phase 0, and L58 (the declined pop
+  half) went into the audit as an open item rather than a closed one. A handoff that warns you
+  about how its own commit subject reads is doing the rare thing.
+- **GOTCHA 3 (an inherited grid is validated for the question it was built for, not yours) is the
+  single most transferable sentence in the document, and it predicted my session's biggest
+  instrument problem** — not the grid it was about, but the same failure one level up. My first
+  extractor was `render250.sh`'s `H_DIRECT`, validated across four documented defects on probe
+  corpora and **unsound on the first authored document I tried it on**. The gotcha's shape is
+  exactly right; only its example was too narrow.
+- **GOTCHA 2 (build the change you intend to decline and score it)** is why L58 arrives with a
+  number (461 BETTER / 4,178 WORSE) rather than a paragraph, which made it cheap to audit.
+- **`whats_next` #5 flagged L62 as the one item never verified firsthand.** I checked it; the
+  detector and the adversary both put it at 0 real documents. The flag was honest and useful.
+- **The scratchpad inherited cleanly.** `scratchpad/s249/corpusfiles.txt` and `repofiles.txt`
+  worked immediately, and `scratchpad/s250/corpus.test.ts` is the harness this session's census
+  is modelled on.
+
+**What was missing.**
+- ⚠ **THE RANKED LIST IS ORDERED BY ENUMERATED DOCUMENT COUNT AND PRESENTED AS PRIORITY.** #1 is
+  justified as *"8,323 of 12,447 documents … the single biggest remaining term in this family."*
+  Measured against 3,383 authored documents it is **zero**, as are #2, #3, #4 and #5. Nothing in
+  the handoff is false — the 8,323 are real enumerated documents — but the number reads as impact
+  and is not. This is not a criticism the session could have levelled at itself: the instrument
+  that shows it did not exist until this session built it.
+- **It repeats "corpus weight ZERO" without noting what the corpus is.** Fair — every session
+  since ~s181 has used the phrase the same way.
+- Nothing in it hinted that the `:::` div family (L180/L268) is where real documents actually
+  break. Not knowable from its vantage point.
+
+**What was wrong: nothing.** Every claim I checked reproduced — the two call sites, the
+`isPandocsRoman` location, the 192-item count, the empty Active section, both frontiers at HEAD.
+
+**ROI: high.** Gotcha 12 shaped my Phase 0 report and gotcha 3 named, in advance, the class of
+mistake that cost this session two re-renders.
+
+---
+
+## Session 251 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- **I built the instrument the question needed instead of answering it from the item text.** Only
+  9 of 192 items record a corpus weight at all, so for 183 the operator's question was
+  unanswerable from `BACKLOG.md`. Finding 4,910 authored documents on the machine and reducing
+  them to a 3,383-document corpus is what turned a prose triage into a measurement.
+- **I checked what the inherited corpus WAS before using it, and that check is the audit's
+  headline.** All 60,998 paths are under `scratchpad/`; median document 51 bytes. I verified it by
+  reading sample documents, not by inferring from path names.
+- **I found three artifacts of my own instrument and removed them all, and every one had been
+  making the model look worse.** 272 → 151 → 136 → 124. The honest number is the one that
+  survived adversarial treatment of my own extractor, and the progression is in the report.
+- **I re-ran all 147 agent-written detectors myself** rather than reporting their numbers. Seven
+  disagreed; five verdicts moved as a result, three of them DOWN from `REACHES_REAL` — i.e.
+  against the more interesting story.
+- **The fan-out's adversarial stage was designed around the dangerous direction and it worked.**
+  A wrongly-confident `PROBE_ONLY` tells the operator an item is safe to ignore when it is not, so
+  every zero was re-attacked by an agent forbidden the original detector. Six overturns, one of
+  them (L66) a defect outside the attacking agent's own batch, with a minimal pair.
+- **A genuinely new, unfiled defect** — `.panel-tabset` — found only because the corpus became
+  real, with both halves of its minimal pair measured firsthand and its distinction from the two
+  filed callout items worked out explicitly before filing.
+- **Two of my own hypotheses were wrong and I caught both before they reached the report** (the
+  196 zero-heading documents; the `\x01`).
+
+**What went wrong.**
+- ⚠ **I SHIPPED A CORPUS BUILDER THAT HUNG, AND THE CAUSE WAS A HAZARD I SHOULD HAVE ANTICIPATED.**
+  Cloud-storage placeholders answer `getsize()` from metadata and block forever on read; a thread
+  pool starves once its workers are consumed. I lost roughly ten minutes and one killed job before
+  moving to subprocess-with-timeout.
+- ⚠ **I RENDERED 3,383 DOCUMENTS TWICE.** The first pass used an extractor I had validated on ONE
+  document — and validated for the wrong property (does it find the headings?) rather than the one
+  that mattered (does it find ONLY the headings?). Quarto's page chrome cost a full 25-minute
+  re-render. The fix — caching the HTML — is what made the second and third extractor corrections
+  free, and I should have cached from the start.
+- ⚠ **MY OWN CENSUS WRITER EMITTED AN INVISIBLE SEPARATOR I DID NOT INTEND** (`\x01` where I
+  believed I had written `""`), and I briefly suspected the model of leaking a control character
+  into the Outline. Caught in minutes by probing `findHeadings` directly, but it is exactly the
+  "verify your extractor against a document whose answer you know" rule applied to my own writer.
+- **The audit classifies but closes nothing.** 90 items are now measured as enumeration-only and
+  all 90 remain open. That is correct for an audit deliverable — retiring them is an operator
+  decision, not mine — but the backlog is one item LONGER than when I started.
+- **5 of 124 divergent documents remain unattributed**, and the 242 text-only divergences were
+  counted but not classified beyond a spot check.
+
+**Against the bar.** Sessions 238–250 each shipped one measured term with a full pre/post matrix.
+This session ships no `src/` change at all, which is the right shape for an audit but makes it
+incomparable on that axis. Against the closest precedent — Session 230's `MODEL-DIVERGENCE-FAMILIES.md`
+audit — this one covers 192 items rather than 116 rows, builds a new instrument rather than
+re-scoring an inherited one, and adversarially attacks its own verdicts. It falls short of a 9 on
+the double render and the hung builder, both of which were avoidable with more care up front.
 
 ---
 
