@@ -36,45 +36,37 @@ live records zone with the shard's reproduces the pre-trim records zone byte-for
 entries — the Phase 1 walking skeleton, the Phase 2 grammar, the Phase 3 render work, the TDD
 directive — are all in this shard. **Search it for `2026-06-27`, not the span label.**
 
-## ⚠ `HANDOFFS-through-2026-08-24.md.verify.sh` FAILS, and the failure is spurious
+## Both verify scripts pass — RESOLVED at Session 255
 
-Running it prints:
+**Run them.** Both re-derive L1/L2/L3 from git against the trim commit that produced their shard:
 
 ```
-FAIL: L2 FRONT MATTER lost 1 line(s), first:
-'**Older receipts are archived.** This file currently holds **218**; th'
+$ bash docs/archive/CHANGELOG-through-2026-08-24.md.verify.sh
+source : the trim commit 8326cdd
+records: 237 before = 7 retained + 230 archived; added by the trim commit: 1
+OK: L1, L2/front-matter, L3 hold for docs/archive/CHANGELOG-through-2026-08-24.md
+
+$ bash docs/archive/HANDOFFS-through-2026-08-24.md.verify.sh
+source : the trim commit 867e0fa
+records: 218 before = 7 retained + 211 archived; added by the trim commit: 0
+OK: L1, L2/front-matter, L3 hold for docs/archive/HANDOFFS-through-2026-08-24.md
 ```
 
-**The archive is not corrupt and nothing was lost.** This is a known upstream bug, **already fixed
-in canonical `methodology_trim.py` v1.3.0 as BL-27**. This project runs **v1.1.1**, the pre-release
-UAT copy Session 188 installed.
+**History, because the fix is more interesting than the bug.** As written at Session 254 the
+HANDOFFS script reported `FAIL: L2 FRONT MATTER lost 1 line(s)` on an intact archive. `HANDOFFS.md`
+declares a *regenerated* front-matter field — the receipt count, rewritten to the retained count on
+every trim (`218` → `7`). The trimmer's in-process `assert_L2` is handed a `reversals` list and
+replays it backwards, so it correctly confined the diff to declared changes and passed. But
+**v1.1.1's `build_verify()` never received `spec.regenerated`**, so the *exported* proof could not
+tell a declared regeneration from a lost line — it was strictly weaker than the check it claimed to
+reproduce, and it failed in the direction that looks like corruption. It could not fire on
+`CHANGELOG.md`, which declares zero regenerated fields; that asymmetry was the whole tell.
 
-**Why it fires.** `HANDOFFS.md`'s config declares a *regenerated* front-matter field — the receipt
-count, which the trimmer rewrites to the retained count on every run (here `218` → `7`). The
-in-process `assert_L2` is given the `reversals` list and replays it backwards, so it correctly
-confines the front-matter diff to declared changes and passes. But v1.1.1's `build_verify()`
-substitutes only `SHARD/LIVE/VER/INJECTED/KIND/START/INFO/FOOTER` into the emitted script — it
-never passes `spec.regenerated`. The standalone script therefore has no way to know that the
-changed line is a declared regeneration, and reports it as lost. v1.3.0 adds an `@@REGEN@@`
-substitution plus a line-by-line carve-out for exactly these fields.
-
-**It cannot affect the CHANGELOG shard.** `CHANGELOG.md` declares **zero** regenerated fields,
-which is precisely why [`CHANGELOG-through-2026-08-24.md.verify.sh`](CHANGELOG-through-2026-08-24.md.verify.sh)
-passes and this one does not.
-
-**Do not fix it by editing `methodology_trim.py`** — it is a synced file, and a local edit blocks
-future syncs (`CLAUDE.md`; `BOOTSTRAP.md` drift safety). The fix is to sync the tool to v1.3.0 and
-regenerate the script. Note that v1.3.0 also changes shard naming (BL-41), so that sync is its own
-deliverable, not a drive-by.
-
-**What was verified instead**, for this shard:
-
-1. the tool's in-process `L1_OK` / `L2_OK` / `L3_OK` / `P1A_OK`;
-2. an independent verifier sharing no code with the tool — its own fence scanner, record splitter,
-   code-span finder and link inverter — 8/8 passing, including the ordered record list compared
-   byte-for-byte against `git show 8326cdd9:HANDOFFS.md`;
-3. the front-matter diff read by hand: exactly two changes, both declared — the regenerated count
-   and the inserted pointer block.
+Known upstream as **BL-27** and fixed in **v1.3.0**, which passes the patterns in via an `@@REGEN@@`
+substitution plus a line-by-line carve-out, and carries a regression test named for the symptom
+(`TestVerifyShHandoffFalsePositives`). Session 255 synced the tool `v1.1.1 → v1.3.0` and regenerated
+both scripts from it. **The HANDOFFS archive was never damaged** — Session 254 established that four
+independent ways before shipping it; what changed is that the tool's own exported proof now agrees.
 
 ## Re-verifying a shard later
 
