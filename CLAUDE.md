@@ -130,6 +130,51 @@ automated form of that check.
 
 *Origin: operator directive, Session 75 (2026-07-11) — formalizes a pattern already used ad hoc in Sessions 71/73/74 into a standing procedural step, so it fires automatically at every future Phase 0 rather than being re-derived per session. See also the standing `feedback` memory `candidate-list-selection` (general interaction preference: arrow+enter selection over a typed-digit prose list).*
 
+### `SESSION_NOTES.md` retention — it is TRANSIENT, not append-only (Session 256)
+
+**At Phase 3D, after writing your own close-out pair, DELETE the oldest pair so the live file holds
+at most three. Do not append indefinitely.** A close-out pair is what one closing session writes:
+its `## Session N-1 Handoff Evaluation (by Session N)` plus its `## Session N Self-Assessment`.
+Three is the steady state, not a target to grow into: you write one, so you hold your own plus the
+two you inherited, and you drop one — the count never moves. Roughly 65 lines per pair, so ~240 of
+the 400-line ceiling, leaving real headroom instead of the next session inheriting a full file.
+
+**A dropped pair is not lost — it is one command away**, and the file is small enough that this is
+trivial: `git show <sha>:SESSION_NOTES.md`. Records through Session 253 additionally live in
+[`docs/archive/SESSION_NOTES-through-S253.md`](docs/archive/SESSION_NOTES-through-S253.md). The
+live file's job is only to answer *"what is the active task, and whose handoff am I scoring?"* The
+durable record is `HANDOFFS.md` (the receipts), `CHANGELOG.md` (the ledger) and git.
+
+**Why this rule exists, because the reason is not obvious and the canonical seed argues both sides.**
+`../methodology/starter-kit/SESSION_NOTES.md` says at line 5 *"This file is transient — it is
+overwritten every session"* and then at line 27 *"Session history accumulates below this line.
+Newest session at the top."* Those cannot both be followed. This project followed line 27 for **256
+sessions** and reached **3,949,501 B / 13,942 lines** — 33x its declared ceiling, and larger than
+both ledgers combined before the Session 254 trim — in the one file Phase 0 step 2 *orders* every
+session to read. Sessions 254 and 255 each read ~160 of its ~13,900 lines and inferred the rest,
+which is failure mode #28 committed by the sessions that documented it. Canonical's own repo, 110
+sessions of dogfooding, has **no `SESSION_NOTES.md` at all**.
+
+**Two things that make this rule non-obvious in practice:**
+- ⚠ **`methodology_trim.py` cannot enforce it.** `--file SESSION_NOTES.md` exits 3 with `NO_CONFIG`
+  by design, and a `LedgerSpec` cannot be authored for this file at all: `date_of_record` is
+  required and `evaluate()` freezes the oldest **by date**, while **458 of 740 records carried no
+  date**. The reduction axis here is the **session number**. Upstream **BL-32** (open, undecided)
+  is this exact gap; do not re-file it. Reduce by hand and prove it identity-keyed, the way
+  `docs/archive/SESSION_NOTES-through-S253.md.verify.sh` does.
+- ⚠ **A trim commit must contain no other edit to the file being trimmed.** Positional proofs break
+  by construction otherwise (upstream BL-36). Rewrite `## ACTIVE TASK` in the close-out commit, not
+  the trim commit.
+
+**The gate that actually catches regrowth is `python3 context_budget.py`** — `max_lines: 400`,
+`max_bytes: 120000`, `max_line_bytes: 280`. The line ceiling binds ~4.7x harder than the byte one,
+and `max_line_bytes` is the one that stays red after a trim: keep every ACTIVE TASK line under
+280 B rather than writing one 620 B paragraph.
+
+*Origin: Session 256 (2026-08-26), the session that performed the reduction. A reduction with no
+rule attached regrows — this file had already been drained twice under an instruction to "keep it
+clean", which is what `BACKLOG.md`'s own header records about itself.*
+
 ### Additional task-to-workstream mappings
 
 (none)
