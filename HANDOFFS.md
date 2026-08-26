@@ -3805,7 +3805,3 @@ not exist until this session's own sync created it. `predecessor_score: 9` — S
 Handoff Requirement and was immediately legible; docked one point only because its content (b2-iii-
 value prep) had zero ROI for this session's actual (unrelated, operator-redirected) task — a
 property of what task the operator picked next, not a flaw in the handoff itself.
-
----
-
-<!-- Receipts go below, newest on top. Delete the seed-sentinel line above when you add the first one. -->
