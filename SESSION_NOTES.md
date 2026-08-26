@@ -5,10 +5,41 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 253 closed out. The next session picks from `BACKLOG.md` (193 open items, Active section empty) via the ranked `AskUserQuestion` step; the ranking guidance sits beside the Active section.**
-**Last shipped:** Session 253 — one annotation on the `Indented (4-space) code blocks as a skip-region` item, recording that its "uncommon construct" severity premise is refuted (180 of 3,383 authored documents, 5.3%) **and** that the number was taken with the wrong instrument for it. Nothing moved, nothing promoted.
-**Status:** DONE (SHIPPED). `check-backlog` OK 193 open items; `npm test` 2796 passed / 66 files; sections unchanged at 67 + 126.
-**⚠ The promotion question is CLOSED.** The operator declined promotion for all four candidates after I reversed my own recommendation. Do not re-raise it on presence counts.
+**Task:** **Session 254 IN PROGRESS — lossless trim of `CHANGELOG.md` and `HANDOFFS.md` via `methodology_trim.py`.**
+**Started:** 2026-08-25
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+**Operator directive:** *"lossless trim of CHANGELOG.md and HANDOFFS.md"*, followed by the diagnosis
+*"vscode_quarto_ext's trimmer has been inert since bootstrap — the seed-sentinel line was never
+deleted, so it refuses with [ZONE_UNCLASSIFIED]. 1.78 MB behind a one-line bootstrap miss, with the
+tool installed and reporting to nobody."*
+
+**Phase 0 findings that scope this task.**
+- `python3 methodology_trim.py --check --file CHANGELOG.md --file HANDOFFS.md` at claim time:
+  - `CHANGELOG.md` — `[TRIGGER_BYTES] 826,389 B against a 65,536 B budget`, **trigger FIRES** (12.6x).
+  - `HANDOFFS.md` — **`[ZONE_UNCLASSIFIED]`, refuses outright.** 1,799,957 B, **27x** the budget.
+- The refusal: the spec declares `footer_mode='none'`, but line 3794 is a standalone `---` with
+  108 B after it the config cannot classify — the orphaned seed comment
+  `<!-- Receipts go below, newest on top. Delete the seed-sentinel line above when you add the first one. -->`.
+- ⚠ **It has been there since the file was born.** `git show 9f119c73:HANDOFFS.md` (2026-07-09,
+  Session 38's sync) already ends with that `---` + comment, in the same commit that added the
+  first receipt. The `METHODOLOGY-SEED-SENTINEL` token itself is GONE — greps clean on both
+  ledgers — so the sentinel line WAS deleted and its `---` + comment were not. A half-finished
+  bootstrap, which is why it read as finished.
+- `methodology_trim.py` was installed by Session 188's sync and recorded there as
+  **"installed, not yet used"**. `docs/archive/` does not exist. This is the first trim.
+
+**Plan (one deliverable, three ordered parts; separate commits per the tool's own rule).**
+1. Remove the stale seed footer from `HANDOFFS.md` so the grammar classifies.
+2. `--write` trim each ledger into `docs/archive/`, ONE `--file` per run — the tool refuses to
+   batch: *"A batched trim has a rollback that cannot be expressed as one revert."*
+3. Verify losslessness INDEPENDENTLY of the tool's own L1/L2/L3 assertions.
+
+**TDD gate:** no logic is authored this session — an installed tool is run and 3 lines of markdown
+scaffolding are deleted. Per `CLAUDE.md`, pure doc/scaffolding edits are exempt from a unit test but
+still owe the normal verification matrix (`npm run compile`, `npm test`, `check-package`,
+`check-backlog`).
 
 ---
 

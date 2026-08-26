@@ -18,6 +18,21 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S254
+date: 2026-08-25
+status: pending
+active_task: Lossless trim of CHANGELOG.md and HANDOFFS.md via methodology_trim.py. Phase 1B claim; work beginning.
+what_was_done: pending
+commit: pending
+```
+Phase 1B stub. Operator directive: "lossless trim of CHANGELOG.md and HANDOFFS.md", with the
+diagnosis that this project's trimmer has been inert since bootstrap. At claim: `--check` reports
+`CHANGELOG.md` **TRIGGER_BYTES 826,389 B / 65,536 B budget, FIRES**, and `HANDOFFS.md`
+**ZONE_UNCLASSIFIED, refusing** — 1,799,957 B, 27x budget, blocked by a standalone `---` at line
+3794 with the orphaned seed comment after it, present since `9f119c73` (2026-07-09). `docs/archive/`
+does not exist; this is the project's first trim.
+
+```handoff
 session: S253
 date: 2026-08-25
 status: complete
