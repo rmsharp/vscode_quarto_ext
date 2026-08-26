@@ -7,6 +7,17 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 
 ## [Unreleased]
 
+### 2026-08-25 · [ad hoc] Session 254 — the trimmer was inert since bootstrap; both ledgers trimmed
+
+- **Session span:** 2026-08-25 (commits `fe4d029d`..close-out); dated by close-out.
+- **Model:** Claude Opus 5. **Records maintenance.** Operator directive: *"lossless trim of `CHANGELOG.md` and `HANDOFFS.md`"*, with the diagnosis *"the trimmer has been inert since bootstrap — the seed-sentinel line was never deleted, so it refuses with `[ZONE_UNCLASSIFIED]`. 1.78 MB behind a one-line bootstrap miss, with the tool installed and reporting to nobody."*
+- ⚠ **THIS ENTRY IS WRITTEN BEFORE THE TRIM, NOT AT CLOSE-OUT, AND THE TOOL IS WHY.** `methodology_trim.py` has a **P1 precondition** that refuses to trim while the undocumented set is non-empty: *"the undocumented set is non-empty (2 commit(s) since the ledger frontier `e8edafa`). A trim commit advances that frontier and would hide them PERMANENTLY. Reconcile first, then trim."* A trim moves the oldest records out of the live file, so the ledger frontier jumps — and any commit not yet recorded when that happens is not merely late, it is **unrecoverable by the Phase 0 reconcile**, whose whole method is `<frontier>..HEAD`. **Phase 3F's "record at close-out" and the trimmer's P1 are in direct tension, and P1 wins.** (Learning #498.)
+- **The defect.** `HANDOFFS.md` ended with a standalone `---` and 113 B of orphaned seed comment — `<!-- Receipts go below, newest on top. Delete the seed-sentinel line above when you add the first one. -->` — sitting *below the oldest receipt*. The spec declares `footer_mode='none'` for this file and **asserts that declaration rather than assuming it**, so trailing content set apart by a separator is content the config cannot name, and the tool refused rather than sweeping it into a record that was about to move.
+- ⚠ **IT HAS BEEN THERE SINCE THE FILE WAS BORN.** `git show 9f119c73:HANDOFFS.md` (2026-07-09, Session 38's methodology sync) already ends with that `---` + comment — **in the same commit that added the first receipt**, which is exactly the moment the comment instructs its own deletion. The `METHODOLOGY-SEED-SENTINEL` token itself is **already gone** from both ledgers, so the sentinel line *was* deleted and its separator and comment were not. A half-finished bootstrap, which is why it read as finished for 216 sessions.
+- **Nothing was lost by deleting it.** Of the comment's two sentences, *"Delete the seed-sentinel line above"* is unsatisfiable (no sentinel exists) and *"Receipts go below, newest on top"* is already stated in the front matter — *"One `handoff` block per session (not per commit), newest on top."*
+- ⚠ **THE TOOL WAS INSTALLED, FIRING, AND REPORTING TO NOBODY.** Session 188's sync recorded it verbatim as **"installed, not yet used"** and no session ran it in the 66 sessions since. Nothing in Phase 0 reads it, no test asserts it, and the dashboard does not surface it — so a refusal aimed at a one-line defect sat unread while both ledgers grew past their budget. **`CHANGELOG.md` 826,389 B (12.6×) and `HANDOFFS.md` 1,800,590 B (27×) against a 65,536 B budget**, both read at every Phase 0.
+- **Commits so far:** `fe4d029d` claim · `263521e1` the seed-footer fix.
+
 ### 2026-08-25 · [ad hoc] Session 253 — a severity premise the audit refuted, annotated in place
 
 - **Session span:** 2026-08-25 (commits `aed7c9e1`..close-out); dated by close-out.
