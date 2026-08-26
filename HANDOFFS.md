@@ -31,6 +31,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S256
+date: 2026-08-26
+status: pending
+active_task: Reduce SESSION_NOTES.md -- 3,948,210 B / 13,933 lines against a 120,000 B ceiling (33x over). Named by Session 255 as the next deliverable, not a backlog pick; operator confirmed at Phase 0. Claim-time note: `methodology_trim.py --file SESSION_NOTES.md --check` returns [NO_CONFIG] -- the file has no entry in the trimmer's config table and the tool refuses by design, so the record grammar must be established before any trim.
+```
+
+```handoff
 session: S255
 date: 2026-08-26
 status: complete
