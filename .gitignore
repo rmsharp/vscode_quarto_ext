@@ -57,3 +57,7 @@ test/oracle/.quarto-cache.json
 # test/integration/suite/embedded-vdoc.test.ts — never by a clean worktree.
 .quarto/vdoc-mit/
 test/fixtures/project/.quarto/vdoc-mit/
+
+# Python bytecode caches from importing the root methodology tools (Session 256).
+__pycache__/
+*.pyc

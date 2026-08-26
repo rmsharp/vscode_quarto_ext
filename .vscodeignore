@@ -52,6 +52,14 @@ methodology_trim.py
 context_budget.py
 .context-budget.json
 .context-budget-history.jsonl
+# Python bytecode caches. The three methodology tools at the repo root are Python, so ANY
+# session that imports one (rather than shelling out to it) drops a __pycache__/ at the root.
+# Session 256 did exactly that while establishing why methodology_trim.py refuses
+# SESSION_NOTES.md, and check-package caught it as a 43rd packaged file — the 5th instance of
+# the new-root-file class after Sessions 173, 174, 188 and 255. Denied here rather than merely
+# deleted, because the next import recreates it and `vsce ls` obeys THIS file, not .gitignore.
+**/__pycache__/**
+**/*.pyc
 dashboard.html
 dashboard_history.jsonl
 **/.DS_Store
