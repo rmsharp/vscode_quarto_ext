@@ -5,8 +5,23 @@
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 250 closed out. The next session picks from `BACKLOG.md` (192 open items, Active section empty) via the ranked `AskUserQuestion` step.**
-**Last shipped:** Session 250 — a roman marker is pandoc's parse, not the roman character set. Closed the EMPTY-ITEM half of Session 249's R4 (the operator's pick); measured the CONTAINER-POP half at 461 BETTER / 4,178 WORSE and DECLINED it, re-filing it with the number.
+**Task:** **Session 251 (IN PROGRESS) — AUDIT: sort the 192 open `BACKLOG.md` items by whether they affect REAL documents or only ENUMERATED ones, so the operator can see how many actually matter.**
+**Started:** 2026-08-25
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in `CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+
+### What Session 251 Did
+**Deliverable:** One audit report classifying all 192 open `BACKLOG.md` items on a REAL-DOCUMENT-IMPACT axis. Operator's words: *“Sort the 192 BL items by whether they affect real documents versus enumeration-only, so I can see how many actually matter.”* Not one of the five ranked candidates — a triage instrument over the whole file. (IN PROGRESS)
+**Started:** 2026-08-25
+**Status:** Session claimed. Work beginning.
+**Workstream:** `docs/methodology/workstreams/AUDIT_WORKSTREAM.md`.
+**Instrument available:** the 60,998-document real corpus (`scratchpad/s249/corpusfiles.txt`) plus the 114-document repo list, swept by the `scratchpad/s250/corpus.test.ts` harness — so the axis can be MEASURED for the parser family rather than read off each item's own prose.
+**Predecessor:** Session 250 (`b85626f3`), which left a five-item ranked list; the operator declined all five in favour of this triage.
+
+---
+
+## ACTIVE TASK (superseded — Session 250, for reference)
+**Last shipped:** Session 250 — a roman marker is pandoc's parse, not the roman character set. Closed the EMPTY-ITEM half of Session 249's R4; measured the CONTAINER-POP half at 461 BETTER / 4,178 WORSE and DECLINED it, re-filing it with the number.
 **Status:** DONE (SHIPPED). Full gate green; `test:integration` 542 passing / exit 0 on the shipping build.
 
 ---

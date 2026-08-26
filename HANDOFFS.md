@@ -18,6 +18,13 @@ reconcile-on-read backstop — this makes a skipped handoff *detectable* rather 
 > well-formed but hollow receipt passes the check and is caught only by that human judgement.
 
 ```handoff
+session: S251
+date: 2026-08-25
+status: pending
+active_task: AUDIT -- sort the 192 open BACKLOG.md items by whether they affect REAL documents or only ENUMERATED ones, so the operator can see how many actually matter. Operator declined all five of Session 250's ranked candidates in favour of this triage. Workstream: docs/methodology/workstreams/AUDIT_WORKSTREAM.md. Instrument: the 60,998-document real corpus (scratchpad/s249/corpusfiles.txt) + 114-document repo list, swept by scratchpad/s250/corpus.test.ts -- so the axis can be MEASURED for the parser family, not read off each item's own prose.
+```
+
+```handoff
 session: S250
 date: 2026-08-25
 status: complete
