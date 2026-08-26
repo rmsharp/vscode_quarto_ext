@@ -27,7 +27,8 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
   110 sessions of dogfooding, has **no `SESSION_NOTES.md` at all**, and its manifest
   (`bin/_manifest.py:120`) states the file *"is rewritten wholesale every session"*.
 - Learnings `PROJECT_LEARNINGS.md` #506–#508 recorded. Session 256 close-out; predecessor scored
-  7/10, self-score 8/10.
+  7/10, self-score 8/10. Five commits: `3e1cf42f` claim, `b06ac6b2` trim (deliberately pure),
+  `75bddb56` packaging guard, `b688d8b3` close-out, and this ledger commit.
 
 ### 2026-08-26 · [ad hoc] Deny `__pycache__/` in the packaging and git ignore lists
 
