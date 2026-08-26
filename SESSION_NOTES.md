@@ -8,37 +8,115 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 257 IN PROGRESS** — fix the callout-title divergence: a heading inside a
-`::: {.callout-*}` div is consumed by quarto as the callout's TITLE, so no heading reaches the
-output, and `findHeadings` reports one anyway. `BACKLOG.md` "Up Next", operator-picked at Phase 0.
-**Why this one:** ranked #1 by real-document reach — 50 of the 124 structurally divergent authored
-documents (`docs/REAL-DOCUMENT-TRIAGE.md` F4), all-phantom direction. Filed by S205, never ranked.
-**Status:** CLAIMED. Work beginning. Strict TDD (CLAUDE.md operator directive) — RED before GREEN.
-**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
-Until close-out this line is the crash breadcrumb for the next session's reconcile.
-**Phase 0 findings (S257).** Tree clean but `scratchpad/` is untracked and NOT ignored — a bare
-`git add -A` stages ~85,000 files (BACKLOG, found by S240 the hard way). Both ledger frontiers are
-`HEAD`; zero undocumented commits; no ghost sessions. `gh issue list` is genuinely empty (gh is
-authenticated), so `BACKLOG.md` governs. Build green: `compile` clean, `npm test` 2796 / 66 files.
-**⚠ `context_budget.py` is still RED on three files** — `HANDOFFS.md` (77,441 B against a 65,536 B
-ceiling, over for a THIRD consecutive session), `BACKLOG.md` (284,130 B), `PROJECT_LEARNINGS.md`
-(958,735 B). Measure them; do not trust a number written inside the file it measures.
-**⚠ The three synced tools drifted FURTHER during S256** — `methodology_dashboard.py` and
-`methodology_trim.py` are now 2 commits behind canonical, `context_budget.py` 1. Sync at the START
-of a session, never mid-flight (S256 gotcha 4).
+**Task:** **NONE — Session 257 closed out.** `BACKLOG.md`'s "Active" section is empty, so Phase 0
+must present ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**Last shipped:** Session 257 — **the callout title slot**. A heading that is a `::: {.callout-*}`
+div's FIRST BLOCK is quarto's title bar, not a heading; `findHeadings` no longer reports it.
+**Measured over the 3,383-document authored corpus: 124 → 80 divergent documents, 94.91% →
+96.72% structural agreement, 44 fixed, 0 regressed.** At heading granularity 138 removed, 0 added,
+and **0 of the removals are headings quarto renders**.
+**Status:** DONE (SHIPPED). `compile` clean · `npm test` **2817** / 66 files · `test:integration`
+**543 passing, exit 0** (operator-authorised; it takes over the screen) · `check-package` OK 42 /
+5.60 MB · `check-backlog` OK **195** open.
+**⚠ The RAW-HTML half of that item was DECLINED on a measurement and is re-filed** — a raw
+`<div class="callout-note">` really does render a callout, but **244 of 3,383 authored documents
+carry a fenced callout div and ZERO carry a raw-HTML one**. Pinned live as guard G12.
+**⚠ `context_budget.py` is now RED on FOUR files, and I TIPPED THE FOURTH.** `CHANGELOG.md` was
+GREEN at my Phase 0 and my ledger entry pushed it to 67,279 B against a 65,536 B ceiling. ⚠ Unlike
+`SESSION_NOTES.md`, it IS supported by the trimmer: `python3 methodology_trim.py --file
+CHANGELOG.md --cut <date>`, clean calendar seam, and RECORD BEFORE YOU TRIM (Learning #498).
+Also still red: `HANDOFFS.md` (a FOURTH consecutive session, and this receipt pushes it further),
+`BACKLOG.md`, `PROJECT_LEARNINGS.md`. Measure them; do not trust a number written inside the file
+it measures.
+**⚠ The three synced tools are 1–2 commits behind canonical.** Sync at the START of a session.
+**⚠ `scratchpad/` is untracked but NOT ignored** — a bare `git add -A` stages ~85,000 files.
 
 ---
 
-### What Session 257 Did
-**Deliverable:** Fix the callout-title divergence — a heading inside a `::: {.callout-*}` div is
-quarto's callout TITLE, not a heading, and `findHeadings` must stop reporting it. (IN PROGRESS)
-**Started:** 2026-08-26
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — set at claim; this session's actions are recorded in
-`CHANGELOG.md` at Phase 3F. Until close-out, this line is the crash breadcrumb for the next
-session's reconcile.
+## Session 256 Handoff Evaluation (by Session 257)
 
----
+**Score: 8/10.** Complete on all six Minimum Handoff Requirements, and honest about its own
+misses in a way that made them usable. Its ROI for THIS session was mostly indirect — the
+operator picked feature work, which S256 explicitly listed as `whats_next` #4 and did not rank —
+but three of its gotchas fired anyway and one of them changed how I ran the session.
+
+**What helped, specifically.**
+- ⚠ **Gotcha 1 — *"RUN THE TOOL AGAINST THE TARGET BEFORE PLANNING THE WORK"* — generalised
+  past its own subject and is the reason this session's shape was right.** S256 meant a python
+  trimmer. I read it as *measure the target before designing the fix*, rendered the minimal pair
+  through the real quarto CLI at claim time, and the second probe (a paragraph before the
+  heading) inverted the filed item's own wording: the rule is FIRST BLOCK, not FIRST HEADING. A
+  session that trusted the filed sentence would have deleted a heading quarto renders.
+- **Gotcha 7 — *"MY OWN FAN-OUT PRODUCED TWO CONFIDENT WRONG REFUTATIONS"*** — is why I verified
+  every agent claim firsthand before acting on it. Two mattered: the raw-HTML callout (true, and
+  I re-measured it) and `title=""` (true, and sharper than reported — whitespace is NOT empty).
+- **Its `whats_next` #4 named the `:::` div family with the F4 counts**, which is what let Phase 0
+  present a ranked `AskUserQuestion` in one pass instead of re-deriving the ranking.
+
+**What was missing.** ⚠ **Its context-budget warning was written as a static list and has now
+been true for three sessions running with no owner.** `HANDOFFS.md` has been over budget since
+S255 named it, each close-out pushes it further, and every handoff since has repeated the warning
+rather than either fixing it or saying who should. Mine is the fourth. That is a warning
+decaying into furniture.
+
+**What was wrong: nothing.** Every measurement I re-checked reproduced.
+
+**ROI: medium-high** — indirect for the task, but gotcha 1 shaped the method.
+
+## Session 257 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **I RENDERED THE PROBE THAT DISAGREES BETWEEN THE TWO READINGS OF THE FILED ITEM, BEFORE
+  WRITING ANY CODE.** The item says quarto lifts *"the first heading inside a callout"*. That
+  sentence admits two predicates — *first heading in the div* and *first BLOCK is a header* —
+  which agree on the obvious probe. One render separated them, and four more boundary shapes fell
+  out of the correct reading (a nested div, a code block, a thematic break, an HTML comment above
+  the heading all defeat the lift). A rule built on the other reading deletes a real heading in
+  every one of those.
+- ⚠ **I SCORED THE CHANGE OVER 3,383 AUTHORED DOCUMENTS AND REPORTED THE DIRECTION THAT MATTERS,
+  NOT JUST THE HEADLINE.** 124 → 80 divergent, 44 fixed, 0 regressed — and then the stronger
+  check: 138 headings removed, 0 added, and **0 of the removals are headings quarto renders**.
+  A document-level "0 regressions" would have hidden a deletion inside a still-divergent document.
+- ⚠ **I DISTRUSTED MY OWN GREEN RESULT WHEN ITS ARITHMETIC DID NOT RECONCILE.** The first scoring
+  pass said *0 regressions* AND *57 headings added* — impossible for a suppression-only change.
+  Two real instrument defects were behind it: a stored baseline several model changes stale, and
+  a TSV separator I had assumed (`\x1f`) rather than read (`\x01`). Rebuilding the baseline in a
+  throwaway worktree at the parent commit made it reconcile exactly.
+- **The adversarial verifier earned its cost.** It found `title=""` — my predicate read the
+  attribute's PRESENCE where quarto reads its VALUE — in code that already passed every test I
+  had written. I re-measured firsthand and found it sharper still: `title="   "` is not empty.
+- **I declined half the filed item on a measurement and pinned the residual as a live test.** The
+  raw-HTML spelling really is still a phantom; **244 of 3,383 documents use a fenced callout and
+  ZERO use raw HTML**. It is measured, disclosed, pinned as a failing-if-fixed assertion, and
+  re-filed — which is what separates partial delivery from scope-shaving.
+- **I asked before taking the operator's screen**, and once authorised I did not stop at "the
+  extension runs": I added an outline row that drives the real `DocumentSymbolProvider`, so the
+  runtime gate proves THIS change rather than the build.
+- **Every `[]` expectation carries a plain-div control**, so a narrowing that rejected everything
+  could not pass.
+
+**What went wrong.**
+- ⚠ **I USED `test(` IN A BDD SUITE AND FAILED THE WHOLE FILE AT LOAD — IN A FILE THAT DOCUMENTS
+  THAT EXACT TRAP.** Session 211 lost a row to it and left a comment saying so, ~200 lines above
+  where I was typing. I had read that file. That is a wasted 2-minute Extension Host run on the
+  operator's screen, which is the expensive kind of avoidable.
+- ⚠ **I SHIPPED A PREDICATE THAT WAS WRONG TWICE AND A VERIFIER FOUND BOTH, NOT ME.** Presence vs
+  value, then a value that read past its own closing quote. My probes were all shapes I had
+  already thought of; I did not probe the empty case at all until told to.
+- **I mis-parsed the divergence file on the first attempt** and briefly reported 150/92 with two
+  regressions, all artifacts of a path heuristic that matched non-path lines. Caught within the
+  minute because the numbers disagreed with the scorer, but I had already printed them.
+- **`HANDOFFS.md` is over budget for a fourth session and my receipt pushes it further.** Correct
+  for 1-and-done, and I am now the fourth session to say so instead of fixing it.
+
+**Against the bar.** S254–S256 were records maintenance. This is the first feature change in that
+stretch, and it moves the model's agreement with quarto on real authored documents by 1.81 points
+with zero measured regressions — the highest-reach item on the ranked list, filed 52 sessions ago
+by S205 and unranked until S251 measured it. What it did not do is close the raw-HTML half, or
+touch the three files that are still over budget.
+
 
 ## Session 255 Handoff Evaluation (by Session 256)
 
@@ -191,82 +269,3 @@ wasted work.**
 **Against the bar.** S254 fixed two files. This one fixed why they were broken and why nobody
 noticed, then reported both back to the upstream that would otherwise ship the same defect to the
 next adopter. What it did not do is reduce the 3.9 MB file it just proved nobody can read.
-
-## Session 253 Handoff Evaluation (by Session 254)
-
-**Score: 7/10.** Well-formed, honest, and complete on all six Minimum Handoff Requirements. It had
-**almost zero ROI for this session**, because the operator redirected to a ledger trim that no part
-of it anticipated — that is a property of what task came next, not a flaw, and I have not docked it
-for that.
-
-**What helped.** Its `active_task` line saved me real time at Phase 0: *"the promotion question is
-CLOSED — do not re-raise it on presence counts"* is exactly the kind of closed-door marker that stops
-a fresh session from reopening a settled argument, and I did not. Its gotcha 1 — *a presence count is
-not a priority signal until you check it was measured with the instrument the item needs* — is the
-best sentence in the file and generalises well past its own subject; it is the same shape as the
-error I nearly made when I wrote **219** into a front-matter count sentence from a bare grep.
-
-**What was missing — one omission, and it is squarely in scope.** ⚠ **IT WAS TRACKING REPOSITORY
-BLOAT AND POINTED THE LENS EVERYWHERE EXCEPT AT THE TWO FILES IT WAS ITSELF WRITING.** Its
-`whats_next` carries a standing housekeeping flag — *"`.vscode-test/` 18 GB, `scratchpad/` ~2.9 GB and
-untracked"* — so size was actively on its mind. Meanwhile `HANDOFFS.md`, the file that receipt was
-being appended to, stood at **1.8 MB against a documented 65,536 B budget (27×)**, with a tool
-installed in the repo that reports exactly that in one command. Not one of the 66 handoffs since
-Session 188 mentions it. **This is not really S253's failure alone — it is a 66-session blind spot
-(Learning #499) — but the handoff is where "what's next" lives, so it is where the miss shows.**
-
-**What was wrong: nothing.** Every claim I checked reproduced.
-
-**ROI: low for this task, through no fault of its own; its gotcha 1 still earned its place.**
-
----
-
-## Session 254 Self-Assessment
-
-**Score: 8/10.**
-
-**What went right.**
-- **I did not stop at the task as stated.** The ask was a trim. Getting there required finding and
-  fixing **three separate pre-existing defects**, each of which had survived every prior session:
-  the stale seed footer that made the tool refuse outright, **two receipts written with no closing
-  fence**, and a declared front-matter field the file never had.
-- ⚠ **THE FENCE REPAIR HAD TO HAPPEN BEFORE THE TRIM, AND ALMOST DIDN'T.** S227 and S226 are dated
-  2026-08-19 — *inside* the archive cut. Trimming first would have **frozen a wrong partition into
-  an immutable shard**. I found them only because a count sentence I was writing disagreed with the
-  tool by 3, and I chased the discrepancy instead of trusting either number.
-- **Losslessness was established three ways, one sharing no code with the tool.** The independent
-  verifier re-implements the fence scanner, record splitter, code-span finder and link inverter,
-  and compares the **ordered record list byte-for-byte** against the baseline commit. 8/8 on both
-  files. I also ran a four-lens adversarial pass whose explicit job was to *refute* the claim.
-- **I proved the seam on the artifacts, not from the absence of a warning** — retained ∩ archived
-  dates empty, newest archived == the shard's name key, oldest retained strictly newer. The
-  canonical repo's S107 receipt names this exact trap and I applied it deliberately.
-- **I read both tool versions before believing either verdict** when the emitted `verify.sh`
-  contradicted the in-process assertion, and found the real cause — a fixed upstream bug — rather
-  than accepting the FAIL or waving it away.
-- **I chose the clean calendar seam over the tool's default cut**, so both shard names are true
-  statements rather than span labels, at a cost of ~10 KB of live file.
-- **I did not edit the synced tool**, even though a two-line fix was obvious and tempting.
-
-**What went wrong.**
-- ⚠ **I WROTE 219 INTO THE FRONT MATTER FROM A BARE GREP, AND THE FILE I WAS EDITING WAS THE ONE
-  THAT PROVES BARE GREPS DON'T WORK ON IT.** Caught before commit only because the tool's own count
-  disagreed. Had the numbers happened to match, I would have shipped it and the recount advice
-  attached to it would have propagated the error to whoever ran it next.
-- ⚠ **I HIT THE P1 PRECONDITION TWICE.** The first time was legitimate discovery. The second was
-  after my own fence-repair commit, and by then I knew the rule — I simply did not re-check before
-  reaching for the dry run.
-- **The two repaired receipts are still incomplete** — S227 and S226 lack `gotchas:` and
-  `whats_next:` entirely. I fixed the structure and could not fix the content without fabricating
-  it, so those two receipts are now well-formed and still hollow.
-- **I shipped a known-broken artifact.** `verify.sh` for the HANDOFFS shard reports FAIL. Correct
-  call given the alternative was editing a synced file, but the repo now contains a proof script
-  that fails on a good archive, mitigated only by a README a reader has to notice.
-
-**Against the bar.** Larger blast radius than Sessions 251–253, which touched one markdown file
-each. This one rewrote both durable ledgers, deleted content from an append-only record, and
-created a new archive directory — and every one of those steps is independently reversible by a
-single `git revert`. What it adds to the project is not the 2.5 MB; it is that the tool is now
-**wired and firing** rather than installed and mute, and that the next session inherits a Phase 0
-that reads two small files instead of two huge ones.
-
