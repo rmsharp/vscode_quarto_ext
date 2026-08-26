@@ -3554,9 +3554,14 @@ describe("an INDENTED CODE line is measured from the containing block's CONTENT 
     expect(
       names(doc("::: {.callout-note}", "   ## Larkspur Callout Title", "Body text follows the title.", ":::")),
     ).toEqual([]); // quarto: NO heading — and since S199 neither do we, at THIS indent
+    // ⚠ **CLOSED BY SESSION 257.** The column-0 spelling this row pinned as the live defect is
+    // the one that moved: the heading is the callout's FIRST BLOCK, so quarto lifts it into the
+    // title bar and emits no heading element, and this model now agrees for quarto's own reason
+    // rather than by accident. The indent-3 row above still agrees for the other reason, and is
+    // deliberately left as the control that keeps the two reasons distinguishable.
     expect(
       names(doc("::: {.callout-note}", "## Larkspur Callout Title", "Body text follows the title.", ":::")),
-    ).toEqual(["h2:Larkspur Callout Title"]); // quarto: NO heading — the LIVE defect, at column 0
+    ).toEqual([]); // quarto: NO heading — and since S257 neither do we, for quarto's reason
 
     // ── FAMILY 5 — an INDENTED ATX HEADING line below a code block. All 16 phantoms that
     // survive in Session 189's own 656-document container corpus have this one shape, and none
@@ -8199,11 +8204,14 @@ describe("a trailing `#` run with no space before it is a CLOSING SEQUENCE (Sess
       // already-filed "readers outside the markdown family" item.
       expect(names(withFrom("rst", "# Adv Rst Head#"))).toEqual(["h1:Adv Rst Head", TAIL]);
       // `adv/x03_callout` — quarto emits NO h-tag for a heading inside a callout (read from the
-      // HTML, not assumed: the render contains one h1 and it is the control). Phantom before and
-      // after; the already-filed callout item.
+      // HTML, not assumed: the render contains one h1 and it is the control).
+      // ⚠ **CLOSED BY SESSION 257**, which is why this row now expects the TAIL alone. The
+      // closing-run strip this block is really pinning is unchanged — the heading is dropped
+      // one step later, as the callout's title, so the row still exercises the strip and now
+      // agrees with quarto instead of disclosing a phantom.
       expect(
         names(withFrom(null, "::: {.callout-note}", "", "# Adv Callout Head#", "", ":::")),
-      ).toEqual(["h1:Adv Callout Head", TAIL]);
+      ).toEqual([TAIL]);
     });
   });
 });
@@ -16333,5 +16341,92 @@ describe("Session 250 — a roman marker is pandoc's PARSE, not the roman charac
     for (const marker of ["iv.", "1.", "a.", "10."]) {
       expect(names([marker, ">   quoted", marker, "# ATX"])).toEqual([]);
     }
+  });
+});
+
+describe("Session 257 — a callout's FIRST BLOCK heading is its TITLE, not a heading", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // Every row below was RENDERED through the real quarto CLI 1.7.33 before it was written, and
+  // the comment on each states what quarto emitted. Probes: `scratchpad/s257/probes`.
+
+  it("R1: the heading that opens a `.callout-note` is consumed as its title bar", () => {
+    // ⚠ **THE DEFECT.** Quarto's callout filter lifts the callout's first block, when it is a
+    // header, into the title bar — and emits NO `<hN>` and NO `<section>` for it at all.
+    // Rendered: `## Before Alpha` / `::: {.callout-note}` / `## Inside Alpha` / `body alpha` /
+    // `:::` / `## After Alpha` emits exactly `h2:Before Alpha` and `h2:After Alpha`, with
+    // `Inside Alpha` appearing only inside `<div class="callout-title-container">`. This model
+    // reported all three, putting a section in the Outline the reader never sees.
+    expect(
+      names([
+        "## Before Alpha",
+        "",
+        "::: {.callout-note}",
+        "",
+        "## Inside Alpha",
+        "",
+        "body alpha",
+        "",
+        ":::",
+        "",
+        "## After Alpha",
+      ]),
+    ).toEqual(["h2:Before Alpha", "h2:After Alpha"]);
+  });
+
+  it("R2: only the FIRST heading is the title — a SECOND one inside the same callout is real", () => {
+    // ⚠ **THE RULE IS POSITIONAL, AND THIS IS THE ROW THAT SAYS SO.** Quarto's filter reads the
+    // div's FIRST BLOCK, not "every header in the div" — which is precisely what separates this
+    // item from the panel-tabset item filed beside it, where EVERY heading is a tab label.
+    // Rendered: `::: {.callout-note}` / `## Inside Bravo One` / `body one` / `## Inside Bravo
+    // Two` / `body two` / `:::` emits `h2:Before Bravo`, `h2:Inside Bravo Two`, `h2:After Bravo`
+    // — the second heading is a real `<h2>` inside the callout body. A rule that suppressed
+    // every heading while a callout is open would DELETE it, which is the forbidden direction.
+    expect(
+      names([
+        "## Before Bravo",
+        "",
+        "::: {.callout-note}",
+        "",
+        "## Inside Bravo One",
+        "",
+        "body one",
+        "",
+        "## Inside Bravo Two",
+        "",
+        "body two",
+        "",
+        ":::",
+        "",
+        "## After Bravo",
+      ]),
+    ).toEqual(["h2:Before Bravo", "h2:Inside Bravo Two", "h2:After Bravo"]);
+  });
+
+  it("R3: a SETEXT heading is lifted into the title bar too", () => {
+    // The filter reads the AST, where a setext header and an ATX header are the same `Header`
+    // node — so the spelling cannot matter, and it does not. Rendered: `::: {.callout-note}` /
+    // `Inside India` / `------------` / `body india` / `:::` emits `h2:Before India` and
+    // `h2:After India` only (`probes/p9`), with `Inside India` in the title container.
+    //
+    // ⚠ This is the row that forces the slot to be a LINE NUMBER: a setext heading is emitted
+    // on its UNDERLINE, one line below the title that claimed the callout's first block.
+    expect(
+      names([
+        "## Before India",
+        "",
+        "::: {.callout-note}",
+        "",
+        "Inside India",
+        "------------",
+        "",
+        "body india",
+        "",
+        ":::",
+        "",
+        "## After India",
+      ]),
+    ).toEqual(["h2:Before India", "h2:After India"]);
   });
 });

@@ -4009,6 +4009,7 @@ function divFenceRole(line: string): {
   role: "open" | "close";
   viaListMarker: boolean;
   column: number;
+  attrs: string;
 } | null {
   const own = DIV_FENCE.exec(line);
   const m = own ?? DIV_FENCE.exec(line.replace(LIST_MARKER_PREFIX, ""));
@@ -4020,7 +4021,76 @@ function divFenceRole(line: string): {
     role: m[1].trim() === "" ? "close" : "open",
     viaListMarker: own === null,
     column: before === null ? indentColumn(line) : columnAtOffset(line, before[1].length),
+    // The opener's attribute spec — a `{…}` block or a bare word — kept so the caller can ask
+    // whether the div is a CALLOUT. `""` for a closer, which carries none by definition.
+    attrs: m[1].trim(),
   };
+}
+/**
+ * The Quarto callout types whose div gets a TITLE BAR, as a closed set. `.callout` with no
+ * suffix is one of them — it renders `callout-none` chrome and lifts a title exactly as the
+ * five named types do (measured, `scratchpad/s257/probes/p16`), which is the one member a
+ * reader of Quarto's own documentation would not predict.
+ *
+ * ⚠ **A SECOND COPY OF THIS SET LIVES IN `src/core/notebook-callout.ts` (`CALLOUT_TITLES`),
+ * and they are asserted equal by a gate test** rather than shared by import: that module is
+ * a markdown-it plugin for the browser notebook-renderer bundle, and importing it here would
+ * drag a 36 KB attribute table into the extension bundle to read five strings. The gate is
+ * what stops the two drifting (Learning #14's rule, paid for with a test instead of a
+ * dependency).
+ */
+const CALLOUT_TYPES: ReadonlySet<string> = new Set([
+  "note",
+  "tip",
+  "warning",
+  "caution",
+  "important",
+]);
+/**
+ * Whether a fenced div's attribute spec names a callout whose FIRST-BLOCK heading Quarto will
+ * lift into the title bar — see `divCalloutTitleSlot`'s callers.
+ *
+ * Both spellings Pandoc accepts are covered, because both really do produce a callout:
+ * the `{…}` attribute block (`::: {.callout-note}`, `:::{.callout-tip}`, with further classes
+ * or an id) and the BARE WORD (`::: callout-warning`), which is Pandoc's `::: foo` ≡
+ * `::: {.foo}` shorthand. Measured through quarto 1.7.33: `p10` renders all three spellings
+ * as real callouts with the heading in `<div class="callout-title-container">`.
+ *
+ * ⚠ **AN EXPLICIT `title=` TAKES THE SLOT, AND THEN THE HEADING SURVIVES AS A REAL HEADING.**
+ * `::: {.callout-note title="Explicit Fox"}` / `## Inside Fox` renders the attribute as the
+ * title bar AND `<h2 id="inside-fox">Inside Fox</h2>` inside the callout body (`p6`). Reading
+ * the class alone would delete a heading quarto really emits — the forbidden direction.
+ */
+function divCalloutTitleSlot(attrs: string): boolean {
+  if (attrs === "") {
+    return false;
+  }
+  // An explicit title is already the title bar's content; the heading below it is untouched.
+  if (/(?:^|[\s{])title[ \t]*=/.test(attrs)) {
+    return false;
+  }
+  // The bare-word spelling: the whole spec is one word, read as a single class.
+  if (/^[\p{L}\p{N}_-]+$/u.test(attrs)) {
+    return attrs === "callout" || (attrs.startsWith("callout-") && CALLOUT_TYPES.has(attrs.slice(8)));
+  }
+  if (!/^\{[^}]*\}$/.test(attrs)) {
+    return false;
+  }
+  // A bare `.callout` class, with the same whole-word guard the suffixed form uses so
+  // `.callouts` and `.callout-bogus` are not mistaken for it.
+  if (/\.callout(?![\w-])/.test(attrs)) {
+    return true;
+  }
+  // ⚠ The whole-word guard is what keeps `.callout-notes` and `.callout-note-2` out, and the
+  // FIRST known type wins so a later unknown class cannot mask a valid one — the same two
+  // rules `notebook-callout.ts`'s `calloutType` states, kept identical on purpose.
+  const classPattern = /\.callout-([a-z]+)(?![\w-])/g;
+  for (let m = classPattern.exec(attrs); m !== null; m = classPattern.exec(attrs)) {
+    if (CALLOUT_TYPES.has(m[1])) {
+      return true;
+    }
+  }
+  return false;
 }
 /**
  * A BLOCK QUOTE's whole marker run, whose match length is the offset at which the quote's own
@@ -6166,7 +6236,15 @@ function computeRegions(text: string): Regions {
   // SUSPENDED across a switch, which is the same boundary `quoteColumnsUnknown` draws for the
   // raw-TeX row and for the same reason: where the column cannot be computed, keep the phantom
   // rather than risk the deletion (Learning #402). `r2/b13` is that kept phantom — filed.
-  const divColumns: { column: number; containerDepth: number; inQuote: boolean }[] = [];
+  // ⚠ **AND WHETHER IT IS A CALLOUT WHOSE TITLE BAR IS STILL UNCLAIMED (Session 257)** —
+  // `calloutTitleSlot`, set from the opener's own attribute spec by `divCalloutTitleSlot`.
+  const divColumns: {
+    column: number;
+    containerDepth: number;
+    inQuote: boolean;
+    calloutTitleSlot: boolean;
+    firstContentLine: number | null;
+  }[] = [];
   // Whether a mid-document YAML metadata block is open at this line — the same block state,
   // for the `...` terminator. See `YAML_BLOCK_OPENER`.
   let metadataBlockOpen = false;
@@ -6316,6 +6394,35 @@ function computeRegions(text: string): Regions {
       inQuote = false;
     }
     const line: string = stripQuote ? quoteContentLine(raw, quoteContentStart as number) : raw;
+    // ⚠ **A CALLOUT'S FIRST-BLOCK HEADING IS ITS TITLE BAR, NOT A HEADING (Session 257).**
+    // Quarto's callout filter lifts it out of the body entirely: no `<hN>`, no `<section>`,
+    // and no `sec-` anchor — an `@sec-` reference to one renders as the unresolved
+    // `<strong>?@sec-hotel</strong>` (measured, `scratchpad/s257/probes/p8`).
+    //
+    // ⚠ **"FIRST BLOCK" IS THE WHOLE RULE, AND IT IS RECORDED AS A LINE NUMBER RATHER THAN A
+    // FLAG BECAUSE A SETEXT HEADING STARTS ON A LINE THIS SCANNER HAS ALREADY PASSED.** The
+    // title line marks the slot; the underline BELOW it is where the heading is emitted, so a
+    // consumed-on-first-content flag would have been spent by the title itself. Marking the
+    // line and comparing against each heading's own START line answers both paths with one
+    // piece of state.
+    //
+    // ⚠ **AND IT IS MARKED HERE, ABOVE EVERY SKIP-REGION `continue`, ON PURPOSE.** A code
+    // block, a thematic break or an HTML comment standing before the heading all defeat the
+    // lift — rendered, `::: {.callout-note}` / a fenced `r` cell / `## Inside Kilo` / `:::`
+    // emits a real `h2:Inside Kilo` (`probes/p11`, and `p12`/`p13` for the other two). Marking
+    // any lower would miss exactly those lines, because the scanner `continue`s past them, and
+    // the model would DELETE three headings quarto renders.
+    if (!BLANK_LINE.test(line) && divColumns.length > 0) {
+      const innermostDiv = divColumns[divColumns.length - 1];
+      if (innermostDiv.firstContentLine === null) {
+        innermostDiv.firstContentLine = i;
+      }
+    }
+    /** Whether a heading STARTING at `startLine` is the innermost callout's title bar. */
+    const calloutTitleTakes = (startLine: number): boolean =>
+      divColumns.length > 0 &&
+      divColumns[divColumns.length - 1].calloutTitleSlot &&
+      divColumns[divColumns.length - 1].firstContentLine === startLine;
     // The ATX-adjacency state is consumed by THIS line and by no later one — pandoc
     // swallows the heading only when the run is the line IMMEDIATELY below it. Clearing
     // it here, at the top, is what makes that "immediately" true through every `continue`
@@ -7476,7 +7583,10 @@ function computeRegions(text: string): Regions {
         pandocEscapes,
         commonmarkDialect,
       );
-      if (heading) {
+      // `prev` is `titleLines[0]` — the FIRST title line, which is where the heading's block
+      // begins and therefore the line the callout's title slot was marked at. A MULTI-LINE
+      // setext title is joined into one heading and still starts there.
+      if (heading && !calloutTitleTakes(prev.line)) {
         headings.push(heading);
       }
       bodyLines.push({ line: i, text: raw, contentStart: stripQuote ? (quoteContentStart as number) : 0 });
@@ -7681,7 +7791,7 @@ function computeRegions(text: string): Regions {
         escapableSet,
         pandocEscapes,
       );
-      if (heading) {
+      if (heading && !calloutTitleTakes(i)) {
         headings.push(heading);
       }
       consecutiveBody = 0;
@@ -7943,6 +8053,8 @@ function computeRegions(text: string): Regions {
           column: divFence!.column,
           containerDepth: contentColumns.length,
           inQuote,
+          calloutTitleSlot: divCalloutTitleSlot(divFence!.attrs),
+          firstContentLine: null,
         });
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS
