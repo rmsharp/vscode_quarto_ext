@@ -13,6 +13,60 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-08
 
+### 2026-08-26 · [BACKLOG: EVERY heading inside a `::: {.panel-tabset}` is a TAB LABEL] The panel-tabset tab-label divergence — 21 authored documents fixed, 0 regressions
+
+- **Shipped the rule.** Every heading at a `.panel-tabset` div's TAB LEVEL is a tab label, not a
+  heading: quarto's filter puts its inlines in an `<a role="tab">` nav link and emits no `<hN>`.
+  `findHeadings` reported all of them, so the Outline offered sections the reader never sees.
+- **The rule is quarto's own code, not an inference.** `parse_tabset_contents`
+  (`/Applications/quarto/share/filters/main.lua:21643`) takes the FIRST `Header` among the div's
+  DIRECT blocks, freezes its level, and makes a tab of every direct-child `Header` at EXACTLY that
+  level. Three consequences the filed item did not state, each rendered before any code was written:
+  the tab level is the FIRST heading's level and **not** the shallowest (`### First` / `## Second`
+  renders `h2:Second`); the test is EQUALITY and not `level <= tabLevel` (a `#` between two `##`
+  tabs renders as a real `h1`); and tab-hood is a CONTAINER test, so a heading inside a nested div,
+  list item or quote is real at the very level its siblings were consumed at.
+- **Measured over Session 251's 3,383-document authored corpus**, baseline regenerated from the
+  parent commit in a throwaway worktree: structural divergence **80 → 59 documents**, agreement
+  **96.72% → 97.58%**, **21 fixed / 0 regressed**; at heading granularity **151 removed, 0 added,
+  and 0 of the removals are headings quarto renders**, with 0 newly-introduced losses across all
+  2,438 scored documents.
+- ⚠ **My own adversarial pass found ELEVEN category-A defects in code that had already passed a
+  90-document rendered grid, 2,844 unit tests and the corpus score.** The shape: S257's callout rule
+  claims ONE line, so every pre-existing "the div stack is wrong here" defect cost at most one
+  heading — a tabset claims EVERY heading at its tab level for as long as the entry lives, which
+  turns each of them into an unbounded deletion. Four fixes, each driven RED first: a div opened
+  inside a QUOTE now dies with the quote (it was deleting headings in *later* quotes, three in one
+  witness); a div naming BOTH a callout and a tabset is resolved by CLASS ORDER; the tab level is
+  learned only from the div's FIRST CONTENT LINE (the fail-safe against a phantom heading, or a real
+  `Header` this model cannot see, setting the wrong level); and the six readers without
+  `fenced_divs` have no div to suppress.
+- **Closed two long-standing pinned residuals as a side effect**, re-rendered to confirm: Session
+  229 R5 and Session 233 R1 — a div opened inside a quote and "closed" outside it. Both assertions
+  are reversed in place.
+- **Evidence.** A 117-document rendered grid (103 agree, **0 lost**, 12 disclosed phantoms, 2 quarto
+  errors) and TWELVE mutants that each redden the shipped rows — `scratchpad/s258/mutate.py`,
+  `mutate_tests.py`. Runtime gate satisfied: `npm run test:integration` **544 passing, exit 0**,
+  including a new `outline.test.ts` row driving `vscode.executeDocumentSymbolProvider`.
+- **Model:** Claude Opus 5.
+
+### 2026-08-26 · [ad hoc] File four items and annotate two, from Session 258's measurements
+
+- **Two are HIGH and both are heading-DELETING defects in code that already ships** (Session 257's
+  callout rule), each rendered firsthand and neither fixed here, to hold 1-and-done:
+  `divCalloutTitleSlot` matches its class name inside an attribute VALUE
+  (`::: {.note data-x=".callout-note"}` deletes a real heading; the `title=` spelling is masked,
+  which is why it survived review), and the callout rule fires under the six readers that have no
+  `fenced_divs`. Session 258 fixed its own half of the second one and left the flag ready to read.
+- Also filed: the tabset PREAMBLE residual (a decision, with the 0-of-68 measurement behind it), and
+  the `divColumns` pushes for `:::` lines that are not divs.
+- Annotated the raw-HTML div item to cover BOTH rules rather than being filed twice, and the
+  format-gated `.content-hidden` item with the measurement that a tabset's labels ARE real headings
+  under `--to latex` and `--to gfm` — a second member of that same undecided question, already
+  shipped.
+- **Model:** Claude Opus 5.
+
+
 ### 2026-08-26 · [ad hoc] Relocate Session 257's 28 ground-truth witnesses to the path they are cited at
 
 - ⚠ **The 23 distinct `scratchpad/s257/probes/p<N>` citations written into `src/`, the tests and all
