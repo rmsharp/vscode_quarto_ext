@@ -4111,6 +4111,13 @@ function divCalloutTitleSlot(attrs: string): boolean {
   if (attrs === "") {
     return false;
   }
+  // ⚠ **THE MASK IS COMPUTED FIRST BECAUSE THE TITLE READ NEEDS IT TOO (Session 259).** A
+  // `title=` written inside another attribute's quoted VALUE is not the title attribute, and
+  // reading it as one frees a heading quarto really consumes — rendered,
+  // `{.callout-note data-x="a title=zz"}` is a plain callout whose heading IS the title bar
+  // (`probes/i1_title_in_value`), and Session 257's predicate reported a phantom for it. So the
+  // KEY is located in the masked spec and only its VALUE is read back out of `attrs`.
+  const spec = maskQuotedValues(attrs);
   // ⚠ **AN EXPLICIT TITLE TAKES THE SLOT — BUT AN *EMPTY* ONE SUPPLIES NO TITLE, AND QUARTO
   // FALLS BACK TO THE HEADER.** Rendered: `title=""` and `title=''` both still lift the heading
   // (`probes/p21`, `p22`), while `title="   "` — whitespace, not empty — supplies a
@@ -4121,9 +4128,14 @@ function divCalloutTitleSlot(attrs: string): boolean {
   // The value ends at its own closing quote (or at the next space / `}` when unquoted), so a
   // FOLLOWING attribute cannot make an empty title look non-empty — rendered, `title=""
   // collapse="true"` still lifts the heading (`probes/p24`).
-  const title = /(?:^|[\s{])title[ \t]*=[ \t]*(?:"([^"]*)"|'([^']*)'|([^\s}]*))/.exec(attrs);
-  if (title !== null && (title[1] ?? title[2] ?? title[3] ?? "") !== "") {
-    return false;
+  const titleKey = /(?:^|[\s{])title[ \t]*=[ \t]*/.exec(spec);
+  if (titleKey !== null) {
+    const value = /^(?:"([^"]*)"|'([^']*)'|([^\s}]*))/.exec(
+      attrs.slice(titleKey.index + titleKey[0].length),
+    );
+    if (value !== null && (value[1] ?? value[2] ?? value[3] ?? "") !== "") {
+      return false;
+    }
   }
   // The bare-word spelling: the whole spec is one word, read as a single class.
   if (/^[\p{L}\p{N}_-]+$/u.test(attrs)) {
@@ -4132,12 +4144,11 @@ function divCalloutTitleSlot(attrs: string): boolean {
   if (!/^\{[^}]*\}$/.test(attrs)) {
     return false;
   }
-  // ⚠ **EVERY CLASS READ BELOW IS TAKEN FROM THE MASKED SPEC, NEVER FROM `attrs` (Session 259).**
-  // A quoted attribute VALUE may contain anything, including a token that is whitespace-delimited
-  // on both sides and spelled exactly like a class — and a boundary test cannot tell the two
-  // apart. Rendered: `::: {.note data-x="a .callout-note b"}` is a PLAIN div and emits a real
-  // `<h2>` (`probes/j1_val_space_both`), which Session 257's predicate deleted.
-  const spec = maskQuotedValues(attrs);
+  // ⚠ **EVERY CLASS READ BELOW IS TAKEN FROM THE MASKED SPEC, NEVER FROM `attrs`.** A quoted
+  // attribute VALUE may contain anything, including a token that is whitespace-delimited on both
+  // sides and spelled exactly like a class — and a boundary test cannot tell the two apart.
+  // Rendered: `::: {.note data-x="a .callout-note b"}` is a PLAIN div and emits a real `<h2>`
+  // (`probes/j1_val_space_both`), which Session 257's predicate deleted.
   // ⚠ **AND THE OTHER HALF OF THE CLASS-ORDER RULE (Session 258).** A div may name both a
   // callout and a `.panel-tabset`, and the class written FIRST is the handler that fires.
   // Where the tabset wins, this div has no title bar at all and its first heading is a TAB —

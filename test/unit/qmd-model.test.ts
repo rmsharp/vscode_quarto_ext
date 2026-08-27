@@ -18008,4 +18008,42 @@ describe("Session 259 — a `.callout` class is only a class where a class can S
       names(['::: {.note data-x="a .callout-note}', "", "## Inside", "", "body.", "", ":::"]),
     ).toEqual([]);
   });
+
+  it("R6: a `title=` INSIDE a quoted value is not the title attribute — the other direction", () => {
+    // ⚠ **THE SAME DEFECT POINTING THE OTHER WAY, AND IT IS WHY THE MASK IS COMPUTED BEFORE THE
+    // TITLE READ AND NOT AFTER IT.** Session 257's title escape hatch also matched inside a
+    // value, so `data-x="a title=zz"` looked like an explicit title, freed the heading, and left
+    // a PHANTOM. Rendered (`i1_title_in_value`): the div really is a callout —
+    // `<div class="callout callout-style-default callout-note callout-titled" data-x="a title=zz">`
+    // with `I1 Inside` in the `callout-title-container` and no `<h2>` anywhere.
+    expect(
+      names([
+        '::: {.callout-note data-x="a title=zz"}',
+        "",
+        "## Inside",
+        "",
+        "body.",
+        "",
+        ":::",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("R7: the REAL `title=` escape hatch still works, and an EMPTY one still falls back", () => {
+    // The controls for R6 — Session 257's own rendered rows, restated here because R6 moves the
+    // code that decides them. `title="Explicit Fox"` frees the heading (`s257/probes/p6`);
+    // `title=""` supplies no title so quarto falls back to the header (`p21`); `title="   "` is
+    // whitespace, NOT empty, and the heading below it survives (`p23`).
+    expect(
+      names(['::: {.callout-note title="Explicit Fox"}', "", "## Inside", "", ":::"]),
+    ).toEqual(["h2:Inside"]);
+    expect(names(['::: {.callout-note title=""}', "", "## Inside", "", ":::"])).toEqual([]);
+    expect(
+      names(['::: {.callout-note title="   "}', "", "## Inside", "", ":::"]),
+    ).toEqual(["h2:Inside"]);
+    // A FOLLOWING attribute cannot make an empty title look non-empty (`p24`).
+    expect(
+      names(['::: {.callout-note title="" collapse="true"}', "", "## Inside", "", ":::"]),
+    ).toEqual([]);
+  });
 });
