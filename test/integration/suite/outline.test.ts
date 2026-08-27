@@ -2993,4 +2993,89 @@ describe("S225: a heading inside a BLOCK QUOTE reaches the outline", () => {
       `a plain div's heading must still reach the outline: ${plain.join(", ")}`,
     );
   });
+  // ⚠ **THE RUNTIME GATE FOR SESSION 258.** Everything else about the panel-tabset rule is
+  // proved headlessly over `src/core`, which is `vscode`-free by design. This row proves the
+  // Outline the USER sees actually loses the tab entries, through
+  // `vscode.executeDocumentSymbolProvider` — the same command the Outline view and breadcrumbs
+  // call — against the built extension in a real Extension Development Host.
+  // ⚠ `it(`, NOT `test(` — mocha's BDD interface; `test` is undefined and the whole FILE fails
+  // to load. Session 211 lost a row to this and Session 257 hit it again.
+  it("a panel-tabset's tab-level headings are absent from the OUTLINE, and only those", async () => {
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    const names = await namesFor(
+      "## Before Tabset",
+      "",
+      ":::: {.panel-tabset}",
+      "",
+      "## Tab Alpha",
+      "",
+      "### Deeper Alpha",
+      "",
+      "::: {.plaindiv}",
+      "",
+      "## Nested Alpha",
+      "",
+      ":::",
+      "",
+      "## Tab Bravo",
+      "",
+      "body bravo",
+      "",
+      "::::",
+      "",
+      "## After Tabset",
+    );
+
+    // ABSENT — the deliverable. Quarto turns BOTH of these into tab labels and emits no heading
+    // element for either, so the Outline must not offer them as sections (rendered,
+    // `scratchpad/s258/probes/t01_baseline`).
+    assert.ok(
+      !names.includes("Tab Alpha") && !names.includes("Tab Bravo"),
+      `tab-level headings must not reach the outline: ${names.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ DELETION GUARD 1. A heading DEEPER than the tab level is a real heading
+    // (rendered, `probes/l07_deeper`). Losing it is the forbidden direction.
+    assert.ok(
+      names.includes("Deeper Alpha"),
+      `a heading deeper than the tab level must survive: ${names.join(", ")}`,
+    );
+
+    // PRESENT — ⚠ DELETION GUARD 2, and the sharper one. `Nested Alpha` sits at the VERY LEVEL
+    // the two tab labels were consumed at, and survives only because it is inside a nested div
+    // — quarto's filter reads the tabset's DIRECT blocks (rendered, `probes/n04`).
+    assert.ok(
+      names.includes("Nested Alpha"),
+      `a heading inside a nested div must survive at the tab level: ${names.join(", ")}`,
+    );
+
+    // PRESENT — the controls, without which the ABSENT assertion passes for a build whose
+    // outline has stopped working altogether.
+    assert.ok(
+      names.includes("Before Tabset") && names.includes("After Tabset"),
+      `control headings: ${names.join(", ")}`,
+    );
+
+    // PRESENT — the class control. The identical document with the near-miss class
+    // `.panel-tabsets` keeps every heading, so what the Outline loses is the tabset rule and
+    // not the `:::` fence (rendered, `probes/s09_plural`).
+    const plural = await namesFor(
+      "## Before Tabset",
+      "",
+      "::: {.panel-tabsets}",
+      "",
+      "## Tab Alpha",
+      "",
+      ":::",
+    );
+    assert.ok(
+      plural.includes("Tab Alpha"),
+      `a near-miss class must keep its heading in the outline: ${plural.join(", ")}`,
+    );
+  });
+
 });

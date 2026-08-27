@@ -2466,6 +2466,33 @@ function fromHasFootnotes(line: string): boolean {
   return fromHasConstruct(line, "footnotes", READER_HAS_FOOTNOTES);
 }
 /**
+ * The bases that carry pandoc's `fenced_divs`, so a `:::` line opens a DIV rather than being
+ * ordinary prose (Session 258). Measured one document per reader, each a `.panel-tabset` whose
+ * two tab headings quarto consumes only where the div exists — `scratchpad/s258/rdr` `r_none`,
+ * `r_markdown`, `r_commonmark_x` (all consume) against `r_commonmark`, `r_gfm`,
+ * `r_markdown_strict`, `r_markdown_mmd`, `r_markdown_phpextra`, `r_markdown_github` (all render
+ * every heading).
+ *
+ * ⚠ **THE SAME THREE-SIX SPLIT AS THE LETTER/ROMAN LIST-MARKER ROW, AND IT IS NOT
+ * `commonmarkDialect`.** That flag groups `commonmark`, `commonmark_x` and `gfm` together, and
+ * this axis cuts straight through them: `commonmark_x` HAS fenced divs and the other two do
+ * not. Keying on it would delete two headings per tabset under `commonmark_x` or keep them
+ * under `gfm` — which is why this is its own set, as `BACKLOG: LETTER/ROMAN list markers` says
+ * for its own case.
+ */
+const READER_HAS_FENCED_DIVS: ReadonlySet<string> = new Set(["markdown", "commonmark_x"]);
+/**
+ * Whether the declared reader has fenced divs, so `::: {.panel-tabset}` is a div at all.
+ *
+ * ⚠ **The extension list outranks the base in BOTH directions, and both are measured** —
+ * `gfm+fenced_divs` consumes the tabs (`rdr/e_ext_gfm_plus`) while `markdown-fenced_divs` and
+ * `commonmark_x-fenced_divs` render every heading (`e_ext_md_minus`, `e_ext_cmx_minus`).
+ * `fromHasConstruct` already spells that, last-occurrence-wins and all.
+ */
+function fromHasFencedDivs(line: string): boolean {
+  return fromHasConstruct(line, "fenced_divs", READER_HAS_FENCED_DIVS);
+}
+/**
  * The bases that keep pandoc's `space_in_atx_header`, so `#Heading` with NO separator is NOT a
  * heading there (Session 212). Measured one document per reader, each carrying its own spaced
  * control heading — `scratchpad/s212/cal` `a_none`, `a_md`, `a_gfm`, `a_cm`, `a_cmx`, `a_gh`
@@ -4086,6 +4113,20 @@ function divCalloutTitleSlot(attrs: string): boolean {
   if (!/^\{[^}]*\}$/.test(attrs)) {
     return false;
   }
+  // ⚠ **AND THE OTHER HALF OF THE CLASS-ORDER RULE (Session 258).** A div may name both a
+  // callout and a `.panel-tabset`, and the class written FIRST is the handler that fires.
+  // Where the tabset wins, this div has no title bar at all and its first heading is a TAB —
+  // rendered, `{.panel-tabset .callout-note}` emits neither of its headings (`fix/c3`), which it
+  // could not do if the callout rule had already claimed the first one. This is the narrowest
+  // possible narrowing of Session 257's predicate: it can only fire on a div naming BOTH, so no
+  // ordinary callout is reachable by it.
+  const tabsetFirst = /(?:^|[\s{])\.panel-tabset(?![\w-])/.exec(attrs);
+  if (tabsetFirst !== null) {
+    const callout = calloutClassIndex(attrs);
+    if (callout < 0 || callout > tabsetFirst.index) {
+      return false;
+    }
+  }
   // A bare `.callout` class, with the same whole-word guard the suffixed form uses so
   // `.callouts` and `.callout-bogus` are not mistaken for it.
   if (/\.callout(?![\w-])/.test(attrs)) {
@@ -4134,7 +4175,43 @@ function divPanelTabset(attrs: string): boolean {
   if (!/^\{[^}]*\}$/.test(attrs)) {
     return false;
   }
-  return /(?:^|[\s{])\.panel-tabset(?![\w-])/.test(attrs);
+  const tabset = /(?:^|[\s{])\.panel-tabset(?![\w-])/.exec(attrs);
+  if (tabset === null) {
+    return false;
+  }
+  // ⚠ **A DIV CAN NAME BOTH HANDLERS, AND THE ONE WRITTEN FIRST WINS (Session 258).** Quarto
+  // registers an AST handler per class name and resolves a div naming two of them in the order
+  // the classes appear. Rendered: `{.callout-tip .panel-tabset title="…"}` is a CALLOUT and
+  // emits BOTH its headings (`fix/c1`); with the classes swapped, `{.panel-tabset
+  // .callout-note}` is a TABSET and emits neither (`fix/c3`). The first cut of this predicate
+  // read `.panel-tabset` wherever it stood and DELETED two headings out of a real callout —
+  // found by this session's adversarial pass, not by any test written for the rule.
+  const callout = calloutClassIndex(attrs);
+  return callout < 0 || callout > tabset.index;
+}
+/**
+ * Where the FIRST class naming a real Quarto callout begins inside `attrs`, or `-1` for none.
+ * Used to resolve a div that names both a callout and a tabset — see `divPanelTabset`.
+ *
+ * ⚠ **THE CLASS MUST BE TOKEN-INITIAL, so an attribute VALUE cannot masquerade as one.** The
+ * membership rules are `divCalloutTitleSlot`'s, deliberately: bare `.callout` counts, a
+ * `.callout-<type>` counts only for a type in `CALLOUT_TYPES` (rendered — `.callout-bogus` names
+ * no callout and the tabset behind it wins, `fix/c5`), and the whole-word guard keeps
+ * `.callouts` and `.callout-note-2` out.
+ */
+function calloutClassIndex(attrs: string): number {
+  let best = -1;
+  const bare = /(?:^|[\s{])\.callout(?![\w-])/.exec(attrs);
+  if (bare !== null) {
+    best = bare.index;
+  }
+  const typed = /(?:^|[\s{])\.callout-([a-z]+)(?![\w-])/g;
+  for (let m = typed.exec(attrs); m !== null; m = typed.exec(attrs)) {
+    if (CALLOUT_TYPES.has(m[1]) && (best < 0 || m.index < best)) {
+      best = m.index;
+    }
+  }
+  return best;
 }
 /**
  * A BLOCK QUOTE's whole marker run, whose match length is the offset at which the quote's own
@@ -6114,6 +6191,16 @@ function computeRegions(text: string): Regions {
   // `dialectOverride`, for the same reason the two above are: it answers its own question, and
   // it is read at ONE site (the heading column set) where the other three are not.
   const markdownFamilyDialect = fromValueLine !== null && fromIsMarkdownFamily(fromValueLine);
+  // ⚠ **WHETHER A `:::` LINE IS A DIV AT ALL, FOR THE TABSET RULE ONLY (Session 258).** Six of
+  // the nine measured readers have no `fenced_divs`, so their `:::` lines are ordinary prose and
+  // every heading between them renders — this model still pushes a `divColumns` entry there,
+  // which is PRE-EXISTING (`Session 257`'s callout rule loses a heading on the same documents,
+  // filed, not fixed here) but which the tabset rule would turn from a one-heading error into an
+  // every-heading-at-the-tab-level one.
+  // ⚠ **`null` MEANS "no key, or a key this scanner cannot resolve", AND MUST READ AS TRUE.**
+  // Almost every document declares no `from:` at all, and that reader is `markdown`, which HAS
+  // fenced divs; reading null as false would switch the whole rule off for the entire corpus.
+  const fencedDivsDialect = fromValueLine === null || fromHasFencedDivs(fromValueLine);
   // Whether the resolved reader honours a trailing heading ATTRIBUTE block — see
   // `fromHonoursHeaderAttributes` (Session 216). A SEVENTH flag rather than a refinement of any
   // of the six around it, for the reason each of those gives: it answers its own question, about
@@ -6440,6 +6527,24 @@ function computeRegions(text: string): Regions {
         columnIsCommonmark.length = 0;
         columnIsCommonmark.push(...outerColumns.commonmark);
       }
+      // ⚠ **A FENCED DIV OPENED INSIDE A QUOTE IS CLOSED BY THE END OF THE QUOTE (Session 258).**
+      // Pandoc cannot close it outside — the `:::` would be a different block — so an entry
+      // still on the stack here describes a div that no longer exists. Nothing else could pop
+      // it: the container auto-close below only fires while
+      // `divColumns[last].inQuote === inQuote`, and crossing a quote boundary flips `inQuote`,
+      // so a quote-scoped entry was unreachable by it for good.
+      //
+      // ⚠ **IT WAS HARMLESS UNTIL THIS SESSION, AND THE SAFETY ARGUMENT INVERTS SIGN FOR A
+      // TABSET.** A callout entry claims ONE line, so a stale one costs at most one heading. A
+      // tabset entry claims EVERY heading at its tab level for as long as it lives — and the
+      // NEXT quote in the document restores exactly the snapshot the entry recorded (`inQuote`
+      // true again, `contentColumns` empty again, because quote entry clears the stack), so its
+      // guards match and it deletes real headings arbitrarily far below. Found by this
+      // session's own adversarial pass, against code that passed every test written for it;
+      // pinned as `Session 258 R13`.
+      while (divColumns.length > 0 && divColumns[divColumns.length - 1].inQuote) {
+        divColumns.pop();
+      }
       outerColumns = null;
       inQuote = false;
     }
@@ -6502,17 +6607,41 @@ function computeRegions(text: string): Regions {
      * heading is necessarily nested — a TOP-LEVEL one would BE the first tab — so the residual
      * is a kept phantom, the safe direction. Disclosed, and pinned as a guard.
      */
-    const tabsetTabTakes = (level: number): boolean => {
+    const tabsetTabTakes = (startLine: number, level: number): boolean => {
       const div = divColumns.length > 0 ? divColumns[divColumns.length - 1] : null;
       if (
         div === null ||
         !div.isTabset ||
+        !fencedDivsDialect ||
         div.inQuote !== inQuote ||
         contentColumns.length !== div.containerDepth
       ) {
         return false;
       }
       if (div.tabLevel === null) {
+        // ⚠ **THE FAIL-SAFE: THE LEVEL IS LEARNED ONLY FROM THE DIV'S FIRST CONTENT LINE.**
+        // Everything below rests on this model's first heading being quarto's first `Header`,
+        // and where the two differ the level is learned wrong — which DELETES real headings at
+        // whatever level it lands on. Both directions were found by this session's adversarial
+        // pass, against code that passed every test written for it: a PHANTOM heading emitted
+        // from inside a raw-HTML block or a raw-TeX environment (`R15a`, `R15d`), and a real
+        // `Header` this model does not emit at all — an attribute-only `## {#sec-install}`
+        // (`R15b`) or a SEVEN-hash line, which is a pandoc level-7 header no `<hN>` scan can
+        // even see (`R15c`).
+        //
+        // So the rule declines outright unless the heading that would set the level IS the
+        // div's first content: if anything precedes it, this model cannot vouch for its own
+        // reading of the div's blocks, and a kept phantom is the right way to be wrong.
+        //
+        // ⚠ **MEASURED BEFORE IT WAS CHOSEN, AND IT COSTS NOTHING ON REAL DOCUMENTS.** Of the
+        // 68 tabset openers in the 51 authored corpus documents that contain `panel-tabset`,
+        // **0** have a first non-blank line that is not a heading. What it gives up is the
+        // measured-but-exotic preamble shapes — a paragraph, a code block, a rule or a comment
+        // standing above the first tab, which quarto discards along with the heading
+        // (`probes/p01`-`p04`, now kept as disclosed phantoms and pinned as `G22`).
+        if (div.firstContentLine !== startLine) {
+          return false;
+        }
         div.tabLevel = level;
         return true;
       }
@@ -7681,7 +7810,7 @@ function computeRegions(text: string): Regions {
       // `prev` is `titleLines[0]` — the FIRST title line, which is where the heading's block
       // begins and therefore the line the callout's title slot was marked at. A MULTI-LINE
       // setext title is joined into one heading and still starts there.
-      if (heading && !calloutTitleTakes(prev.line) && !tabsetTabTakes(heading.level)) {
+      if (heading && !calloutTitleTakes(prev.line) && !tabsetTabTakes(prev.line, heading.level)) {
         headings.push(heading);
       }
       bodyLines.push({ line: i, text: raw, contentStart: stripQuote ? (quoteContentStart as number) : 0 });
@@ -7886,7 +8015,7 @@ function computeRegions(text: string): Regions {
         escapableSet,
         pandocEscapes,
       );
-      if (heading && !calloutTitleTakes(i) && !tabsetTabTakes(heading.level)) {
+      if (heading && !calloutTitleTakes(i) && !tabsetTabTakes(i, heading.level)) {
         headings.push(heading);
       }
       consecutiveBody = 0;

@@ -10675,12 +10675,19 @@ describe("Session 229 — a div's column belongs to a container", () => {
     ).toEqual(["H b13"]);
   });
 
-  it("R5 (residual, PRE-EXISTING and unmoved, PINNED): a div opened INSIDE a quote, closed outside it (`r2/b11`)", () => {
-    // Rendered, quarto renders NO heading: the quote ends, pandoc closes the div with it, and
-    // the bare `:::` below opens a paragraph that absorbs the heading. This model closes it
-    // instead. The same family as R3/R4 — a container this scanner does not carry — and the
-    // same answer before and after this session. Filed.
-    expect(headings(["> ::: {.note}", "> body", "", ":::", "# H b11"])).toEqual(["H b11"]);
+  it("R5 (CLOSED by Session 258 — assertion REVERSED): a div opened INSIDE a quote, closed outside it (`r2/b11`)", () => {
+    // ⚠ **This assertion recorded a KNOWN PHANTOM and is now reversed.** Rendered, quarto
+    // renders NO heading: the quote ends, pandoc closes the div with it, and the bare `:::`
+    // below opens a paragraph that absorbs the heading. This model used to close the div at the
+    // `:::` instead, so the heading survived.
+    //
+    // Session 258 taught `divColumns` that a div opened inside a quote dies at the quote
+    // boundary — see the pop beside the quote-exit branch in `findHeadings`, and `Session 258
+    // R13` for why a stale quote-scoped entry became dangerous rather than merely untidy. The
+    // bare `:::` below now closes nothing, is therefore paragraph text, and absorbs the
+    // heading exactly as pandoc does. RE-RENDERED from these same bytes through quarto 1.7.33
+    // at the reversal: no heading, and the model now reports none (`scratchpad/s258/fix/b11`).
+    expect(headings(["> ::: {.note}", "> body", "", ":::", "# H b11"])).toEqual([]);
   });
 
   it("R6 (CLOSED by Session 233 — assertion REVERSED): two divs at one column, the outer closed lazily (`r2/b09`)", () => {
@@ -11468,14 +11475,15 @@ describe("Session 233 — the shallow div closer's absorption is ended by a BLAN
     expect(headings(["::: {.a}", "  ::: {.a}", "", ":::", "# H h09"])).toEqual(["H h09"]);
   });
 
-  it("R1 (residual, PRE-EXISTING and unmoved, PINNED): a div opened inside a QUOTE, closed outside it (`r3/h10`)", () => {
-    // Rendered, quarto renders NO heading; this model renders one. The same mechanism as
-    // Session 229's `s229/r2/b11`, which is already filed — this session met it while bounding the
-    // blank-line rule and did not move it (scored pre and post over `r3`: 0 movers). Pinned
-    // here as a second witness for the filed item, not as a new one.
+  it("R1 (CLOSED by Session 258 — assertion REVERSED): a div opened inside a QUOTE, closed outside it (`r3/h10`)", () => {
+    // ⚠ **Reversed with its twin.** This was pinned as a second witness for the same filed item
+    // as Session 229's `r2/b11`, and the same Session 258 change closes both: a div opened
+    // inside a quote is closed by the END of the quote, so the `:::` below closes nothing and
+    // absorbs the heading. RE-RENDERED at the reversal — quarto emits no heading and the model
+    // now reports none (`scratchpad/s258/fix/h10`).
     expect(
       headings(["- item", "", "  > ::: {.a}", "  > body", "", ":::", "# H h10"]),
-    ).toEqual(["H h10"]);
+    ).toEqual([]);
   });
 });
 
@@ -16903,13 +16911,23 @@ describe("Session 258 — a `.panel-tabset` div's TAB-LEVEL headings are tab lab
     ).toEqual(["h2:Anchor Pangolin Bly", "h1:Cobalt Egret Ferrix", "h2:Trailing Pangolin Bly"]);
   });
 
-  it("R5: POSITION does not protect a tab — unlike a callout's first-block heading", () => {
-    // ⚠ **THE SHARPEST CONTRAST WITH SESSION 257.** A paragraph standing above a CALLOUT's
-    // heading defeats the title lift and the heading survives (`s257/probes/p4`). Above a
-    // TAB it protects nothing: rendered (`probes/p01_leading_para`), the leading paragraph is
-    // DISCARDED along with everything else before the first tab, and both tabs are still tabs.
-    // `p02_codefence_first`, `p03_hrule_first` and `p04_comment_first` are the same answer for
-    // a fenced code block, a thematic break and an HTML comment.
+  it("R5: POSITION does not protect a tab in QUARTO — but this model declines to act on that", () => {
+    // ⚠ **THE SHARPEST CONTRAST WITH SESSION 257, AND THE ONE PLACE THIS MODEL DELIBERATELY
+    // DOES NOT FOLLOW QUARTO.** A paragraph standing above a CALLOUT's heading defeats the
+    // title lift and the heading survives (`s257/probes/p4`). Above a TAB it protects nothing:
+    // rendered (`probes/p01_leading_para`), quarto DISCARDS the leading paragraph along with
+    // everything else before the first tab, and both tabs are still tabs — quarto emits
+    // `h2:Kilo Before` and `h2:Kilo After` alone. `p02_codefence_first`, `p03_hrule_first` and
+    // `p04_comment_first` are the same answer for a fenced code block, a thematic break and an
+    // HTML comment.
+    //
+    // ⚠ **THIS MODEL KEEPS ALL FOUR HEADINGS HERE, ON PURPOSE — see `R15` for why.** The tab
+    // level may be learned only from the div's FIRST CONTENT LINE, because where anything
+    // precedes the first heading this model can no longer vouch that its heading set matches
+    // quarto's, and a level learned wrong DELETES real headings. Measured cost before the
+    // choice: of the 68 tabset openers in the 51 authored corpus documents containing
+    // `panel-tabset`, **0** have a first non-blank line that is not a heading. So this residual
+    // is a phantom in a shape no real document in the corpus writes.
     expect(
       names([
         "## Kilo Before",
@@ -16930,7 +16948,7 @@ describe("Session 258 — a `.panel-tabset` div's TAB-LEVEL headings are tab lab
         "",
         "## Kilo After",
       ]),
-    ).toEqual(["h2:Kilo Before", "h2:Kilo After"]);
+    ).toEqual(["h2:Kilo Before", "h2:Kilo Alpha", "h2:Kilo Bravo", "h2:Kilo After"]);
   });
 
   it("R6: a SETEXT heading is a tab, and sets the tab level, on the same terms", () => {
@@ -17482,6 +17500,12 @@ describe("Session 258 guard — answers around the panel-tabset rule that must N
     // The residual is bounded and its direction is safe: a heading in that region is
     // NECESSARILY nested inside some container, because a heading among the div's own direct
     // blocks would BE the first tab. So what is kept is always a phantom, never a deletion.
+    //
+    // ⚠ **AND THE TAB ITSELF IS KEPT TOO, because the nested div's opener is this div's first
+    // content line and `R15`'s fail-safe therefore declines to learn a tab level at all.** That
+    // is the intended answer, not an oversight: a raw-HTML block in this position made the
+    // model learn the WRONG level and delete a rendered heading (`R15a`), and the model cannot
+    // tell the two situations apart from the inside.
     expect(
       names([
         "## Quebec Before",
@@ -17504,7 +17528,12 @@ describe("Session 258 guard — answers around the panel-tabset rule that must N
         "",
         "## Quebec After",
       ]),
-    ).toEqual(["h2:Quebec Before", "h2:Quebec Nested", "h2:Quebec After"]);
+    ).toEqual([
+      "h2:Quebec Before",
+      "h2:Quebec Nested",
+      "h2:Quebec Alpha",
+      "h2:Quebec After",
+    ]);
   });
 
   it("G21: DISCLOSED RESIDUAL — inside a QUOTE, a stale container column keeps later tabs", () => {
@@ -17537,5 +17566,350 @@ describe("Session 258 guard — answers around the panel-tabset rule that must N
         "## Marten After",
       ]),
     ).toEqual(["h2:Marten Before", "h2:Marten TabB", "h2:Marten After"]);
+  });
+});
+
+describe("Session 258 R13 — a div opened INSIDE a block quote dies with the quote", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  it("R13: a quote-scoped tabset does not eat the headings of a LATER quote", () => {
+    // ⚠ **FOUND BY THIS SESSION'S OWN ADVERSARIAL PASS, AGAINST CODE THAT ALREADY PASSED EVERY
+    // TEST ABOVE.** A fenced div opened inside a block quote is closed by the END OF THE QUOTE —
+    // pandoc cannot close it outside — but `divColumns` had no way to learn that: the container
+    // auto-close only pops while `divColumns[last].inQuote === inQuote`, and entering or leaving
+    // a quote flips `inQuote`, so a quote-scoped entry could never be popped by it.
+    //
+    // ⚠ **THE STALE ENTRY WAS HARMLESS UNTIL THIS SESSION AND THE SAFETY ARGUMENT INVERTS SIGN.**
+    // A callout claims one line, so a stale callout entry costs at most one heading and usually
+    // nothing. A tabset claims EVERY heading at its tab level for as long as the entry lives —
+    // and the NEXT quote restores exactly the snapshot the entry recorded (`inQuote` true again,
+    // and `contentColumns` empty again, because quote entry clears the column stack), so the
+    // guards match and the deletion fires arbitrarily far away.
+    //
+    // Rendered: quarto emits `h2:Intro`, `h2:Methods` AND `h2:Aside Delta`; the tabs `R` and
+    // `Python` are the only things it consumes.
+    expect(
+      names([
+        "## Intro",
+        "",
+        "> ::: {.panel-tabset}",
+        ">",
+        "> ## R",
+        ">",
+        "> Use `sessionInfo()`.",
+        ">",
+        "> ## Python",
+        ">",
+        "> Use `sys.version`.",
+        "",
+        "Some prose in between.",
+        "",
+        "## Methods",
+        "",
+        "More prose.",
+        "",
+        "> ## Aside Delta",
+        ">",
+        "> Quoted aside body.",
+      ]),
+    ).toEqual(["h2:Intro", "h2:Methods", "h2:Aside Delta"]);
+  });
+
+  it("R13b: and it does not eat a heading in a LATER LIST ITEM's quote", () => {
+    // The same leak across a list boundary — rendered, quarto emits `h2:Heading Hotel` alone.
+    expect(
+      names([
+        "- Alpha",
+        "",
+        "  > ::: {.panel-tabset}",
+        "  >",
+        "  > ## Tab Golf",
+        "  >",
+        "  > Body golf.",
+        "",
+        "- Bravo",
+        "",
+        "  > ## Heading Hotel",
+      ]),
+    ).toEqual(["h2:Heading Hotel"]);
+  });
+
+  it("R13c: an EXPLICIT `> :::` closer inside the quote was always correct, and stays correct", () => {
+    // The control that localises the defect to the quote BOUNDARY rather than to the missing
+    // closer: with the closer written, the model agreed with quarto before this fix and after.
+    expect(
+      names([
+        "## Intro",
+        "",
+        "> ::: {.panel-tabset}",
+        ">",
+        "> ## R",
+        ">",
+        "> body r.",
+        ">",
+        "> :::",
+        "",
+        "## Methods",
+        "",
+        "> ## Aside Delta",
+      ]),
+    ).toEqual(["h2:Intro", "h2:Methods", "h2:Aside Delta"]);
+  });
+});
+
+describe("Session 258 R14 — a div carrying BOTH a callout class and `.panel-tabset`", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ **WHICHEVER CLASS IS WRITTEN FIRST WINS, AND THE FOUR RENDERS BELOW ARE THE ONLY REASON
+  // TO BELIEVE THAT.** Quarto registers an AST handler per class name; a div naming two of them
+  // is resolved in the order the classes appear. Probes `scratchpad/s258/fix/c1`–`c5`, all
+  // rendered through quarto 1.7.33. Found by this session's adversarial pass — the shipped rule
+  // read `.panel-tabset` wherever it appeared and deleted every heading in a real CALLOUT.
+
+  it("R14a: callout class FIRST — the div is a CALLOUT, and an explicit title frees both headings", () => {
+    // Rendered (`fix/c1`): `::: {.callout-tip .panel-tabset title="Pick a language"}` emits BOTH
+    // `h2:C1 Python` and `h2:C1 R` as real headings inside callout chrome. The tabset rule
+    // deleted both.
+    expect(
+      names([
+        '::: {.callout-tip .panel-tabset title="Pick a language"}',
+        "## C1 Python",
+        "",
+        "Use pandas.",
+        "",
+        "## C1 R",
+        "",
+        "Use dplyr.",
+        ":::",
+        "",
+        "## C1 After",
+      ]),
+    ).toEqual(["h2:C1 Python", "h2:C1 R", "h2:C1 After"]);
+  });
+
+  it("R14b: callout class FIRST, no title — the CALLOUT rule takes the first heading, and only it", () => {
+    // Rendered (`fix/c2`): `h2:C2 R` survives and `C2 Python` is the callout's title bar. So the
+    // right answer here is Session 257's rule, unassisted — which is exactly what falls out once
+    // the tabset rule declines.
+    expect(
+      names([
+        "::: {.callout-tip .panel-tabset}",
+        "## C2 Python",
+        "",
+        "Use pandas.",
+        "",
+        "## C2 R",
+        "",
+        "Use dplyr.",
+        ":::",
+        "",
+        "## C2 After",
+      ]),
+    ).toEqual(["h2:C2 R", "h2:C2 After"]);
+  });
+
+  it("R14c: `.panel-tabset` FIRST — the div really is a TABSET and both headings go", () => {
+    // Rendered (`fix/c3`): the identical document with the two classes swapped emits
+    // `h2:C3 After` alone. This row is what makes R14a a class-ORDER rule rather than
+    // "a callout class always wins".
+    expect(
+      names([
+        "::: {.panel-tabset .callout-note}",
+        "## C3 Python",
+        "",
+        "a.",
+        "",
+        "## C3 R",
+        "",
+        "b.",
+        ":::",
+        "",
+        "## C3 After",
+      ]),
+    ).toEqual(["h2:C3 After"]);
+  });
+
+  it("R14d: an UNKNOWN callout class does not win — it is not a callout at all", () => {
+    // Rendered (`fix/c5`): `.callout-bogus` names no callout, so the tabset behind it is the
+    // handler that fires and `C5 After` is all that survives. `fix/c4` is the bare `.callout`
+    // spelling of R14b and behaves as a callout.
+    expect(
+      names([
+        "::: {.callout-bogus .panel-tabset}",
+        "## C5 Python",
+        "",
+        "a.",
+        "",
+        "## C5 R",
+        "",
+        "b.",
+        ":::",
+        "",
+        "## C5 After",
+      ]),
+    ).toEqual(["h2:C5 After"]);
+  });
+});
+
+describe("Session 258 R15 — the tab level is learned ONLY from the div's FIRST CONTENT LINE", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ **THE FAIL-SAFE, AND THE REASON IT IS WORTH ITS COST.** The tab level is learned from the
+  // first heading THIS MODEL emits inside the div. Where the model's view of the div's blocks
+  // differs from quarto's — a phantom heading it emits, or a real `Header` it does not — the
+  // level is learned wrong, and a wrong level DELETES real headings at that level. So the rule
+  // now declines entirely unless the heading that would set the level is the div's first
+  // content: if anything at all precedes it, the model cannot vouch for its own reading and
+  // keeps every heading instead.
+  //
+  // ⚠ **MEASURED BEFORE IT WAS CHOSEN: it costs nothing on real documents.** Across the 51
+  // documents in Session 251's 3,383-document authored corpus that contain `panel-tabset` there
+  // are 68 tabset openers, and in **0 of the 68** is the first non-blank line anything other
+  // than a heading. The shapes it gives up are the exotic ones; the shapes it protects are
+  // deletions.
+
+  it("R15a: a RAW-HTML block before the first tab no longer poisons the level", () => {
+    // ⚠ Found by this session's adversarial pass. Quarto drops the raw block as pre-tab content
+    // and its tab level is 2, so `### Should Render` is a REAL heading — the only one it emits.
+    // The model emits a phantom `h3:Fake Alpha` from inside the raw div; reading THAT as the
+    // first heading set the level to 3 and deleted `### Should Render`.
+    expect(
+      names([
+        "::: {.panel-tabset}",
+        "<div>",
+        "### Fake Alpha",
+        "</div>",
+        "",
+        "## Real Tab One",
+        "",
+        "### Should Render",
+        "",
+        "## Real Tab Two",
+        ":::",
+      ]),
+    ).toContain("h3:Should Render");
+  });
+
+  it("R15b: a heading quarto HAS and this model does not emit no longer poisons the level", () => {
+    // `## {#sec-install}` is a real pandoc `Header` whose text is empty, so quarto's tab level
+    // is 2 and `### Windows` survives — rendered, it is the document's only heading. This model
+    // emits nothing for the attribute-only line, so `### Windows` looked like the first heading
+    // and was deleted.
+    expect(
+      names([
+        "::: {.panel-tabset}",
+        "",
+        "## {#sec-install}",
+        "",
+        "Install steps.",
+        "",
+        "### Windows",
+        "",
+        "Windows steps.",
+        "",
+        ":::",
+      ]),
+    ).toContain("h3:Windows");
+  });
+
+  it("R15c: a SEVEN-hash line — a pandoc level-7 header — no longer poisons the level", () => {
+    // ⚠ `####### Seven` is a real `Header` to pandoc at level 7, so quarto's tab level is 7 and
+    // NEITHER `## Alpha` nor `### Bravo` is a tab — rendered, quarto emits both. No `<hN>` scan
+    // can see the level-7 header (there is no `<h7>`), and this model's ATX pattern stops at
+    // six, so `## Alpha` looked like the first heading and was deleted.
+    expect(
+      names(["::: {.panel-tabset}", "", "####### Seven", "", "## Alpha", "", "### Bravo", "", ":::"]),
+    ).toEqual(["h2:Alpha", "h3:Bravo"]);
+  });
+
+  it("R15d: a `:::` opener the model believes but quarto does not still cannot delete", () => {
+    // A `::: {.panel-tabset}` written inside a raw-LaTeX environment is not a div at all —
+    // rendered, quarto emits both headings below it. The model pushes a div entry for it
+    // (pre-existing), and the tabset rule turned that stale entry into a two-heading deletion.
+    // The fail-safe catches it because `\end{verbatim}` is the entry's first content line.
+    expect(
+      names([
+        "\\begin{verbatim}",
+        "::: {.panel-tabset}",
+        "\\end{verbatim}",
+        "",
+        "## Quebec2 Real One",
+        "",
+        "## Quebec2 Real Two",
+      ]),
+    ).toEqual(["h2:Quebec2 Real One", "h2:Quebec2 Real Two"]);
+  });
+});
+
+describe("Session 258 R16 — a reader without `fenced_divs` has no tabset to suppress", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+  const doc = (from: string | null) => [
+    "---",
+    "title: RD",
+    ...(from === null ? [] : [`from: ${from}`]),
+    "---",
+    "",
+    "::: {.panel-tabset}",
+    "",
+    "## RD Alpha",
+    "",
+    "text a",
+    "",
+    "## RD Bravo",
+    "",
+    "text b",
+    "",
+    ":::",
+    "",
+    "## RD After",
+  ];
+
+  // ⚠ **A MEASURED THREE-SIX SPLIT ON PANDOC'S `fenced_divs` AXIS, one render per reader**
+  // (`scratchpad/s258/rdr`, quarto 1.7.33). Where the reader has no fenced divs the `:::` lines
+  // are ORDINARY PROSE, there is no div for the tabset filter to see, and every heading renders.
+  // The shipped rule suppressed them anyway — found by this session's adversarial pass, and the
+  // one finding of the eleven that survived the first round of fixes.
+
+  it("R16a: the three readers WITH fenced divs still consume their tabs", () => {
+    for (const from of [null, "markdown", "commonmark_x"]) {
+      expect(names(doc(from))).toEqual(["h2:RD After"]);
+    }
+  });
+
+  it("R16b: the six readers WITHOUT fenced divs keep every heading", () => {
+    for (const from of [
+      "commonmark",
+      "gfm",
+      "markdown_strict",
+      "markdown_mmd",
+      "markdown_phpextra",
+      "markdown_github",
+    ]) {
+      expect(names(doc(from))).toEqual(["h2:RD Alpha", "h2:RD Bravo", "h2:RD After"]);
+    }
+  });
+
+  it("R16c: the EXTENSION LIST outranks the base, in both directions", () => {
+    // ⚠ Measured, not assumed — quarto really does honour it here: `gfm+fenced_divs` consumes
+    // the tabs (`rdr/e_ext_gfm_plus`) and `markdown-fenced_divs` and
+    // `commonmark_x-fenced_divs` keep every heading (`e_ext_md_minus`, `e_ext_cmx_minus`).
+    expect(names(doc("gfm+fenced_divs"))).toEqual(["h2:RD After"]);
+    expect(names(doc("markdown+smart"))).toEqual(["h2:RD After"]);
+    expect(names(doc("markdown-fenced_divs"))).toEqual([
+      "h2:RD Alpha",
+      "h2:RD Bravo",
+      "h2:RD After",
+    ]);
+    expect(names(doc("commonmark_x-fenced_divs"))).toEqual([
+      "h2:RD Alpha",
+      "h2:RD Bravo",
+      "h2:RD After",
+    ]);
+    // A QUOTED value resolves the same way (`rdr/e_quoted_gfm`).
+    expect(names(doc('"gfm"'))).toEqual(["h2:RD Alpha", "h2:RD Bravo", "h2:RD After"]);
   });
 });
