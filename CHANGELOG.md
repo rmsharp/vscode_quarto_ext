@@ -50,7 +50,9 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
   including a new `outline.test.ts` row driving `vscode.executeDocumentSymbolProvider`.
 - **Commits (6).** `5da87bc5` claim · `80fce2da` the rule, 27 unit rows and the runtime row ·
   `e12cb34b` the four post-adversarial fixes · `d519f434` the records · `3c1f2dda` close-out ·
-  plus this commit, which names the list in both ledgers. ⚠ **A LEDGER CANNOT RECORD THE COMMIT
+  plus the both-ledgers commit and a final telemetry append (`.context-budget-history.jsonl`,
+  `dashboard_history.jsonl`), folded into the same commit as this line so BOTH frontiers stay at
+  `HEAD`. ⚠ **A LEDGER CANNOT RECORD THE COMMIT
   THAT FOLLOWS IT**, so whichever of `CHANGELOG.md` / `HANDOFFS.md` moves last is the only one
   with a zero frontier — touch BOTH in the final commit or the next Phase 0 reconcile chases a
   phantom gap (inherited from Session 257, and it held).
