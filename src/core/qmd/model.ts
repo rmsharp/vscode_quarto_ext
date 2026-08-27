@@ -4083,14 +4083,21 @@ export const CALLOUT_TYPES: ReadonlySet<string> = new Set([
  * `class="note callout … callout-note callout-titled"` with the heading in the title container
  * and no `<h2>` (`probes/m1_quote_then_class`; `m2`/`m3` are the bare and single-quoted
  * spellings, and `n1_quote_then_title` is the same shape for the `title=` KEY). Masking the
- * quotes away with a filler that is not a delimiter hides that class and reports a PHANTOM —
- * which is exactly what the first cut of this function did, and what a surviving mutant of it
- * exposed. Masking them with SPACES is worse in the other direction: a space is a delimiter, so
- * `{.note .callout-note"q"}` — which pandoc REFUSES, emitting a real `<h2>`
- * (`m4_class_then_quote`) — would become a valid class and DELETE that heading.
+ * quotes away hides that class and reports a PHANTOM on all four — which is exactly what the
+ * first cut of this function did, and what a surviving mutant of it exposed.
  *
  * ⚠ So the boundary is ASYMMETRIC, and both halves are measured: a quote may PRECEDE a class
- * (`m1`–`m3`, `n3`), and may NOT terminate one (`m4`).
+ * (`m1`–`m3`, `n3`), and may NOT terminate one — `{.note .callout-note"q"}` carries no class
+ * attribute at all, because pandoc refuses the whole block, and emits a real `<h2>`
+ * (`m4_class_then_quote`).
+ *
+ * ⚠ **THE FILLER ITSELF IS INERT, AND SAYING SO IS THE POINT.** Once the quotes are kept, the
+ * value's content is fenced by them whatever it is replaced with, so a space filler behaves
+ * identically — mutant M9 of `scratchpad/s259/mutate.py` is an EQUIVALENT mutant and survives
+ * on purpose, the only one of 14 that does. `\u0000` is chosen because it cannot be confused
+ * with anything a real attribute spec contains, not because the code depends on it. An earlier
+ * revision of this comment claimed a space would CREATE a spurious match; that was true only of
+ * the revision that also masked the quotes away, and the probe built to test it refuted it.
  *
  * ⚠ **AN UNTERMINATED QUOTE MASKS NOTHING, AND THAT IS MEASURED, NOT CONSERVATIVE.** Pandoc
  * reads `data-x="a .callout-note}` as the UNQUOTED value `"a` followed by a real `.callout-note`
