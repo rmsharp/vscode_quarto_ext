@@ -4074,6 +4074,25 @@ export const CALLOUT_TYPES: ReadonlySet<string> = new Set([
   "important",
 ]);
 /**
+ * `attrs` with the CONTENT AND QUOTES of every quoted attribute value replaced by `\u0000`
+ * fillers of the same length, so a class- or attribute-shaped token inside a VALUE cannot be
+ * read as a class or an attribute — and every index still lines up with the original string.
+ *
+ * ⚠ **THE FILLER IS DELIBERATELY NOT A SPACE.** A space would be a token DELIMITER, so masking
+ * `x=".callout-note"` with spaces would turn a quote-shielded class into a whitespace-delimited
+ * one and CREATE the very match the mask exists to remove. `\u0000` is neither `\s` nor `}` nor
+ * `#`, so it fails the boundary test on both sides, exactly as the quote it replaced did.
+ *
+ * ⚠ **AN UNTERMINATED QUOTE MASKS NOTHING, AND THAT IS MEASURED, NOT CONSERVATIVE.** Pandoc
+ * reads `data-x="a .callout-note}` as the UNQUOTED value `"a` followed by a real `.callout-note`
+ * class, and quarto renders that div as a callout with its heading lifted into the title bar
+ * (`probes/j2_val_unterminated`, read out of the raw HTML). Both patterns here require a closing
+ * quote, so that spec passes through unmasked and is read exactly as pandoc reads it.
+ */
+function maskQuotedValues(attrs: string): string {
+  return attrs.replace(/"[^"]*"|'[^']*'/g, (m) => "\u0000".repeat(m.length));
+}
+/**
  * Whether a fenced div's attribute spec names a callout whose FIRST-BLOCK heading Quarto will
  * lift into the title bar — see `divCalloutTitleSlot`'s callers.
  *
@@ -4113,6 +4132,12 @@ function divCalloutTitleSlot(attrs: string): boolean {
   if (!/^\{[^}]*\}$/.test(attrs)) {
     return false;
   }
+  // ⚠ **EVERY CLASS READ BELOW IS TAKEN FROM THE MASKED SPEC, NEVER FROM `attrs` (Session 259).**
+  // A quoted attribute VALUE may contain anything, including a token that is whitespace-delimited
+  // on both sides and spelled exactly like a class — and a boundary test cannot tell the two
+  // apart. Rendered: `::: {.note data-x="a .callout-note b"}` is a PLAIN div and emits a real
+  // `<h2>` (`probes/j1_val_space_both`), which Session 257's predicate deleted.
+  const spec = maskQuotedValues(attrs);
   // ⚠ **AND THE OTHER HALF OF THE CLASS-ORDER RULE (Session 258).** A div may name both a
   // callout and a `.panel-tabset`, and the class written FIRST is the handler that fires.
   // Where the tabset wins, this div has no title bar at all and its first heading is a TAB —
@@ -4120,23 +4145,23 @@ function divCalloutTitleSlot(attrs: string): boolean {
   // could not do if the callout rule had already claimed the first one. This is the narrowest
   // possible narrowing of Session 257's predicate: it can only fire on a div naming BOTH, so no
   // ordinary callout is reachable by it.
-  const tabsetFirst = /(?:^|[\s{])\.panel-tabset(?![\w-])/.exec(attrs);
+  const tabsetFirst = /(?:^|[\s{])\.panel-tabset(?![\w-])/.exec(spec);
   if (tabsetFirst !== null) {
-    const callout = calloutClassIndex(attrs);
+    const callout = calloutClassIndex(spec);
     if (callout < 0 || callout > tabsetFirst.index) {
       return false;
     }
   }
   // A bare `.callout` class, with the same whole-word guard the suffixed form uses so
   // `.callouts` and `.callout-bogus` are not mistaken for it.
-  if (/\.callout(?![\w-])/.test(attrs)) {
+  if (/(?:^|[\s{])\.callout(?=[\s}]|#[\w:.-])/.test(spec)) {
     return true;
   }
   // ⚠ The whole-word guard is what keeps `.callout-notes` and `.callout-note-2` out, and the
   // FIRST known type wins so a later unknown class cannot mask a valid one — the same two
   // rules `notebook-callout.ts`'s `calloutType` states, kept identical on purpose.
-  const classPattern = /\.callout-([a-z]+)(?![\w-])/g;
-  for (let m = classPattern.exec(attrs); m !== null; m = classPattern.exec(attrs)) {
+  const classPattern = /(?:^|[\s{])\.callout-([a-z]+)(?=[\s}]|#[\w:.-])/g;
+  for (let m = classPattern.exec(spec); m !== null; m = classPattern.exec(spec)) {
     if (CALLOUT_TYPES.has(m[1])) {
       return true;
     }

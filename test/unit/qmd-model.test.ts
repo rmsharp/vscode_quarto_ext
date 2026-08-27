@@ -17913,3 +17913,99 @@ describe("Session 258 R16 — a reader without `fenced_divs` has no tabset to su
     expect(names(doc('"gfm"'))).toEqual(["h2:RD Alpha", "h2:RD Bravo", "h2:RD After"]);
   });
 });
+
+describe("Session 259 — a `.callout` class is only a class where a class can START", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+
+  // ⚠ **EVERY ROW IN THIS BLOCK IS A HEADING QUARTO REALLY RENDERS AND SESSION 257's RULE
+  // DELETED — the forbidden direction.** `divCalloutTitleSlot` tested its two class patterns
+  // against the WHOLE attribute spec, so any `.callout…` substring anywhere in the spec — inside
+  // a quoted attribute VALUE, after an `=`, or glued to the tail of another class — read as a
+  // class and took the heading below it.
+  //
+  // Rendered through the real quarto CLI 1.7.33, `scratchpad/s259/probes/`, and the `<h2>` was
+  // read out of the RAW HTML rather than inferred: 35 probes, of which 23 diverged and 22 were
+  // deletions. The filed item called this "one token"; it is three, and this is the first.
+
+  it("R1: a class-looking substring inside an attribute VALUE is not a class", () => {
+    // Rendered: `a1_data_quoted_typed` / `a2_data_quoted_bare` / `a4_data_singlequoted` /
+    // `e2_tab_before_value` all emit a real `<h2>…Inside</h2>` inside a PLAIN `.note` div —
+    // `data-x=".callout-note"` is an attribute, and the div carries no callout chrome at all.
+    for (const opener of [
+      '::: {.note data-x=".callout-note"}',
+      '::: {.note data-x=".callout"}',
+      "::: {.note data-x='.callout-note'}",
+      '::: {.note\tdata-x=".callout-note"}',
+    ]) {
+      expect(names([opener, "", "## Inside", "", "body.", "", ":::"])).toEqual(["h2:Inside"]);
+    }
+  });
+
+  it("R2: a `.callout` class GLUED to more text is a different class, and `.` does not end one", () => {
+    // ⚠ **`.` IS AN IDENTIFIER CHARACTER TO PANDOC, so `{.callout-note.foo}` is ONE class
+    // literally named `callout-note.foo` — read out of the raw HTML, which carries
+    // `class="level2 callout-note.foo"` and a real `<h2>` (`g1_trail_dot`; `g4_trail_dot_bare`
+    // is the bare-`.callout` spelling, `class="level2 callout.foo"`).** The old whole-word guard
+    // `(?![\w-])` let `.` through, so both deleted a heading quarto renders.
+    //
+    // `=` and `(` do not merely end the class — they make pandoc REFUSE the whole attribute
+    // block, and the div's class becomes the literal text `{.callout-note=1}` (`g3_trail_eq`,
+    // `g6_trail_paren`, both read out of the raw HTML). An empty `#` does the same
+    // (`j6_trail_hash_only`).
+    for (const opener of [
+      "::: {.callout-note.foo}",
+      "::: {.callout.foo}",
+      "::: {.callout-note=1}",
+      "::: {.callout-note(x)}",
+      "::: {.callout-note#}",
+    ]) {
+      expect(names([opener, "", "## Inside", "", "body.", "", ":::"])).toEqual(["h2:Inside"]);
+    }
+  });
+
+  it("R3: a NON-EMPTY `#id` DOES end the class, and that div is a real callout", () => {
+    // ⚠ The control for R2, and the reason its terminator is not simply "whitespace or `}`".
+    // Rendered (`g2_trail_hash`): `::: {.callout-note#myid}` emits
+    // `<div id="myid" class="callout callout-style-default callout-note callout-titled">` with
+    // `G2 Inside` in the `callout-title-container` — the heading is the TITLE BAR and no `<h2>`
+    // is emitted. A guard that rejected `#` outright would report a phantom here.
+    expect(
+      names(["::: {.callout-note#myid}", "", "## Inside", "", "body.", "", ":::"]),
+    ).toEqual([]);
+    // And the ordinary spelling of the same thing, rendered as a callout too (`j5_class_space_id`).
+    expect(
+      names(["::: {.callout-note #myid}", "", "## Inside", "", "body.", "", ":::"]),
+    ).toEqual([]);
+  });
+
+  it("R4: a class token that is SPACE-DELIMITED on both sides is still not a class inside a VALUE", () => {
+    // ⚠ **THIS IS THE ROW THAT REFUTES THE FILED ITEM's "the fix is one token".** A leading
+    // `[\s{]` boundary does nothing here: inside `data-x="a .callout-note b"` the class-looking
+    // token really IS preceded by a space and followed by a space. Only knowing where the quoted
+    // VALUE is can reject it.
+    //
+    // Rendered: `j1_val_space_both`, `j3_val_space_bare`, `b1_data_space_inside`,
+    // `b2_emptytitle_space` — every one a plain `.note` div emitting a real `<h2>`.
+    for (const opener of [
+      '::: {.note data-x="a .callout-note b"}',
+      '::: {.note data-x="a .callout b"}',
+      '::: {.note data-x="a .callout-note"}',
+      '::: {.note title="" data-x="a .callout"}',
+    ]) {
+      expect(names([opener, "", "## Inside", "", "body.", "", ":::"])).toEqual(["h2:Inside"]);
+    }
+  });
+
+  it("R5: an UNTERMINATED quote is not a value at all, and that div IS a callout", () => {
+    // ⚠ The control for R4, and it is the row that decides HOW the value is masked. Rendered
+    // (`j2_val_unterminated`): `::: {.note data-x="a .callout-note}` emits
+    // `<div class="note callout … callout-note callout-titled" data-x="&quot;a">` — pandoc read
+    // `"a` as an UNQUOTED value and `.callout-note` as a real class, so the heading is the title
+    // bar and no `<h2>` survives. A mask that treated a lone `"` as opening a value to the end of
+    // the spec would report a phantom here.
+    expect(
+      names(['::: {.note data-x="a .callout-note}', "", "## Inside", "", "body.", "", ":::"]),
+    ).toEqual([]);
+  });
+});
