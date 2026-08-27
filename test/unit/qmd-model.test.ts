@@ -18046,4 +18046,48 @@ describe("Session 259 — a `.callout` class is only a class where a class can S
       names(['::: {.callout-note title="" collapse="true"}', "", "## Inside", "", ":::"]),
     ).toEqual([]);
   });
+
+  it("R8: a CLOSING QUOTE opens the next token — a class glued to one is a real class", () => {
+    // ⚠ **THIS ROW EXISTS BECAUSE A SURVIVING MUTANT SAID THE MASK's FILLER WAS ARBITRARY, AND
+    // THE PROBE BUILT TO SEPARATE THE TWO FILLERS REFUTED THE REASON GIVEN FOR THE CHOICE.**
+    // A quote really does end a value AND open whatever follows it. Rendered: `{.note
+    // x="q".callout-note}` emits `class="note callout … callout-note callout-titled"` with `M1
+    // Inside` in the title container and no `<h2>` (`m1_quote_then_class`); `m2_quote_then_bare`
+    // is the bare-`.callout` spelling (`callout-none`) and `m3_squote_then_class` the
+    // single-quoted one. So the mask must replace the value's CONTENT and keep its QUOTES, and
+    // a quote must count as a leading boundary.
+    for (const opener of [
+      '::: {.note x="q".callout-note}',
+      '::: {.note x="q".callout}',
+      "::: {.note x='q'.callout-note}",
+    ]) {
+      expect(names([opener, "", "## Inside", "", "body.", "", ":::"])).toEqual([]);
+    }
+  });
+
+  it("R9: a quote does NOT end a class — the boundary is asymmetric, and that is measured", () => {
+    // ⚠ The control for R8, and the reason the terminator is not simply widened to match the
+    // leading boundary. Rendered (`m4_class_then_quote`): `::: {.note .callout-note"q"}` carries
+    // NO class attribute at all — pandoc refuses the whole block — and emits a real `<h2>`.
+    expect(
+      names(['::: {.note .callout-note"q"}', "", "## Inside", "", "body.", "", ":::"]),
+    ).toEqual(["h2:Inside"]);
+  });
+
+  it("R10: the title KEY may be glued to a closing quote too, and both of its values still hold", () => {
+    // Rendered: `{.callout-note x="q"title="T"}` is a real callout whose title bar reads `T` and
+    // whose `## N1 Inside` survives as an `<h2>` inside the body (`n1_quote_then_title`) — this
+    // one is a DELETION both the shipped build and this session's first cut got wrong. Its empty
+    // twin `title=""` still falls back to the header (`n2_quote_then_empty`), and a class glued
+    // after a title's closing quote is a class (`n3_title_then_class`).
+    expect(
+      names(['::: {.callout-note x="q"title="T"}', "", "## Inside", "", "body.", "", ":::"]),
+    ).toEqual(["h2:Inside"]);
+    expect(
+      names(['::: {.callout-note x="q"title=""}', "", "## Inside", "", "body.", "", ":::"]),
+    ).toEqual([]);
+    expect(
+      names(['::: {.note title="T".callout-note}', "", "## Inside", "", "body.", "", ":::"]),
+    ).toEqual(["h2:Inside"]);
+  });
 });

@@ -4074,14 +4074,23 @@ export const CALLOUT_TYPES: ReadonlySet<string> = new Set([
   "important",
 ]);
 /**
- * `attrs` with the CONTENT AND QUOTES of every quoted attribute value replaced by `\u0000`
- * fillers of the same length, so a class- or attribute-shaped token inside a VALUE cannot be
- * read as a class or an attribute — and every index still lines up with the original string.
+ * `attrs` with the CONTENT of every quoted attribute value — but NOT its quotes — replaced by
+ * `\u0000` fillers of the same length, so a class- or attribute-shaped token inside a VALUE cannot
+ * be read as a class or an attribute, while every index still lines up with the original string.
  *
- * ⚠ **THE FILLER IS DELIBERATELY NOT A SPACE.** A space would be a token DELIMITER, so masking
- * `x=".callout-note"` with spaces would turn a quote-shielded class into a whitespace-delimited
- * one and CREATE the very match the mask exists to remove. `\u0000` is neither `\s` nor `}` nor
- * `#`, so it fails the boundary test on both sides, exactly as the quote it replaced did.
+ * ⚠ **THE QUOTES SURVIVE THE MASK BECAUSE A CLOSING QUOTE REALLY DOES OPEN THE NEXT TOKEN, AND
+ * THAT IS MEASURED.** `::: {.note x="q".callout-note}` is a REAL callout — rendered, it emits
+ * `class="note callout … callout-note callout-titled"` with the heading in the title container
+ * and no `<h2>` (`probes/m1_quote_then_class`; `m2`/`m3` are the bare and single-quoted
+ * spellings, and `n1_quote_then_title` is the same shape for the `title=` KEY). Masking the
+ * quotes away with a filler that is not a delimiter hides that class and reports a PHANTOM —
+ * which is exactly what the first cut of this function did, and what a surviving mutant of it
+ * exposed. Masking them with SPACES is worse in the other direction: a space is a delimiter, so
+ * `{.note .callout-note"q"}` — which pandoc REFUSES, emitting a real `<h2>`
+ * (`m4_class_then_quote`) — would become a valid class and DELETE that heading.
+ *
+ * ⚠ So the boundary is ASYMMETRIC, and both halves are measured: a quote may PRECEDE a class
+ * (`m1`–`m3`, `n3`), and may NOT terminate one (`m4`).
  *
  * ⚠ **AN UNTERMINATED QUOTE MASKS NOTHING, AND THAT IS MEASURED, NOT CONSERVATIVE.** Pandoc
  * reads `data-x="a .callout-note}` as the UNQUOTED value `"a` followed by a real `.callout-note`
@@ -4090,7 +4099,11 @@ export const CALLOUT_TYPES: ReadonlySet<string> = new Set([
  * quote, so that spec passes through unmasked and is read exactly as pandoc reads it.
  */
 function maskQuotedValues(attrs: string): string {
-  return attrs.replace(/"[^"]*"|'[^']*'/g, (m) => "\u0000".repeat(m.length));
+  return attrs.replace(
+    /"([^"]*)"|'([^']*)'/g,
+    (m, dq: string | undefined, sq: string | undefined) =>
+      m[0] + "\u0000".repeat((dq ?? sq ?? "").length) + m[0],
+  );
 }
 /**
  * Whether a fenced div's attribute spec names a callout whose FIRST-BLOCK heading Quarto will
@@ -4128,7 +4141,7 @@ function divCalloutTitleSlot(attrs: string): boolean {
   // The value ends at its own closing quote (or at the next space / `}` when unquoted), so a
   // FOLLOWING attribute cannot make an empty title look non-empty — rendered, `title=""
   // collapse="true"` still lifts the heading (`probes/p24`).
-  const titleKey = /(?:^|[\s{])title[ \t]*=[ \t]*/.exec(spec);
+  const titleKey = /(?:^|[\s{"'])title[ \t]*=[ \t]*/.exec(spec);
   if (titleKey !== null) {
     const value = /^(?:"([^"]*)"|'([^']*)'|([^\s}]*))/.exec(
       attrs.slice(titleKey.index + titleKey[0].length),
@@ -4165,13 +4178,13 @@ function divCalloutTitleSlot(attrs: string): boolean {
   }
   // A bare `.callout` class, with the same whole-word guard the suffixed form uses so
   // `.callouts` and `.callout-bogus` are not mistaken for it.
-  if (/(?:^|[\s{])\.callout(?=[\s}]|#[\w:.-])/.test(spec)) {
+  if (/(?:^|[\s{"'])\.callout(?=[\s}]|#[\w:.-])/.test(spec)) {
     return true;
   }
   // ⚠ The whole-word guard is what keeps `.callout-notes` and `.callout-note-2` out, and the
   // FIRST known type wins so a later unknown class cannot mask a valid one — the same two
   // rules `notebook-callout.ts`'s `calloutType` states, kept identical on purpose.
-  const classPattern = /(?:^|[\s{])\.callout-([a-z]+)(?=[\s}]|#[\w:.-])/g;
+  const classPattern = /(?:^|[\s{"'])\.callout-([a-z]+)(?=[\s}]|#[\w:.-])/g;
   for (let m = classPattern.exec(spec); m !== null; m = classPattern.exec(spec)) {
     if (CALLOUT_TYPES.has(m[1])) {
       return true;
