@@ -6602,7 +6602,7 @@ function computeRegions(text: string): Regions {
      *
      * ⚠ **A HEADING BEFORE THE FIRST TAB IS DROPPED BY QUARTO, AND THIS MODEL KEEPS IT.** The
      * filter's populate loop discards every block until the first tab exists (`elseif tab ~=
-     * nil`, `main.lua:21657`), so a nested div's heading standing above the first tab vanishes
+     * nil`, `main.lua:21658`), so a nested div's heading standing above the first tab vanishes
      * (`probes/p05_nesteddiv_first`, where `Quebec Nested` reaches no output at all). Such a
      * heading is necessarily nested — a TOP-LEVEL one would BE the first tab — so the residual
      * is a kept phantom, the safe direction. Disclosed, and pinned as a guard.
@@ -6638,7 +6638,8 @@ function computeRegions(text: string): Regions {
         // **0** have a first non-blank line that is not a heading. What it gives up is the
         // measured-but-exotic preamble shapes — a paragraph, a code block, a rule or a comment
         // standing above the first tab, which quarto discards along with the heading
-        // (`probes/p01`-`p04`, now kept as disclosed phantoms and pinned as `G22`).
+        // (`s258/probes/p01_leading_para` and `p02`-`p04` beside it, now kept as disclosed
+        // phantoms and pinned as `G22`).
         if (div.firstContentLine !== startLine) {
           return false;
         }

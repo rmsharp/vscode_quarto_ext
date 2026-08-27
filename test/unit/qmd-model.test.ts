@@ -16788,7 +16788,7 @@ describe("Session 258 — a `.panel-tabset` div's TAB-LEVEL headings are tab lab
   // FIRST `Header` among the div's DIRECT blocks, freezes its level, and makes a tab of every
   // direct-child `Header` at EXACTLY that level. Everything else in the div passes through as
   // tab content. `render_tabset` then removes each tab's own header and puts its inlines in the
-  // `<a role="tab">` nav link (`main.lua:21713`), so no `<hN>` survives for a tab label.
+  // `<a role="tab">` nav link (`main.lua:21707`), so no `<hN>` survives for a tab label.
 
   it("R1: every heading at the tabset's tab level is consumed as a tab label", () => {
     // ⚠ **THE DEFECT.** Rendered (`probes/t01_baseline`): `## Tango Before` /
@@ -17493,7 +17493,7 @@ describe("Session 258 guard — answers around the panel-tabset rule that must N
 
   it("G20: DISCLOSED RESIDUAL — a heading BEFORE the first tab is dropped by quarto and kept here", () => {
     // ⚠ Quarto's populate loop discards every block until the first tab exists
-    // (`main.lua:21657`, the `elseif tab ~= nil` arm), so the nested div's heading below
+    // (`main.lua:21658`, the `elseif tab ~= nil` arm), so the nested div's heading below
     // reaches no output at all — rendered, `probes/p05_nesteddiv_first` contains neither
     // `Quebec Nested` nor the `myclass` div. This model keeps it.
     //
