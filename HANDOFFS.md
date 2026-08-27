@@ -31,6 +31,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S259
+date: 2026-08-27
+status: pending
+active_task: `divCalloutTitleSlot` matches its class name inside an ATTRIBUTE VALUE (BACKLOG "Up Next" head item, filed by Session 258 against Session 257's SHIPPED code) -- `::: {.note data-x=".callout-note"}` / `## D3 Inside` is a PLAIN div whose <h2> quarto really renders, and this model deletes it. Deletion direction, rendered witness already on disk. Operator-picked at Phase 0 from the ranked AskUserQuestion. Fix is one token: prefix both patterns with `(?:^|[\s{])`. Do NOT widen -- the reader-gate half is a separate filed HIGH item. Strict TDD -- RED before GREEN.
+```
+
+```handoff
 session: S258
 date: 2026-08-26
 status: complete

@@ -8,32 +8,31 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 258 closed out.** `BACKLOG.md`'s "Active" section is empty, so Phase 0
-must present ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**Last shipped:** Session 258 — **the panel-tabset tab-label divergence**. Every heading at a
-`::: {.panel-tabset}` div's TAB LEVEL is a tab label, not a heading; `findHeadings` no longer
-reports them. **Measured over the 3,383-document authored corpus: 80 → 59 divergent documents,
-96.72% → 97.58% structural agreement, 21 fixed, 0 regressed.** At heading granularity 151 removed,
-0 added, **0 of the removals are headings quarto renders**, and 0 newly-introduced losses across
-all 2,438 scored documents.
-**Status:** DONE (SHIPPED). `compile` clean · `npm test` **2858** / 66 files · `test:integration`
-**544 passing, exit 0** (operator-authorised; it takes over the screen) · `check-package` OK 42 /
-5.60 MB · `check-backlog` OK **198** open.
-**⚠ MY OWN ADVERSARIAL PASS FOUND ELEVEN CATEGORY-A DEFECTS IN CODE THAT HAD ALREADY PASSED A
-90-DOCUMENT RENDERED GRID, 2,844 UNIT TESTS AND THE CORPUS SCORE.** All fixed and re-verified; see
-Learning #515 for the shape (a wide rule inherits every latent defect a narrow one was hiding).
-**⚠ TWO HIGH ITEMS ARE NOW FILED AGAINST SHIPPED CODE — Session 257's callout rule DELETES
-rendered headings** two ways, each rendered firsthand: it matches its class name inside an
-attribute VALUE (`data-x=".callout-note"`), and it fires under the six readers with no
-`fenced_divs`. Both are at the head of `BACKLOG.md` "Up Next", and the second one's flag is
-already written and tested (`fencedDivsDialect`). They are small, well-specified deliverables.
-**⚠ `context_budget.py` is RED on FOUR files and I made two of them worse.** Measured at close-out:
-`CHANGELOG.md`, `HANDOFFS.md` (a **SIXTH** consecutive session), `BACKLOG.md`,
-`PROJECT_LEARNINGS.md`. The first two are trimmer-supported: `python3 methodology_trim.py --file
-<f> --cut <date>`, clean calendar seam, RECORD BEFORE YOU TRIM (Learning #498), and a trim commit
-must contain NO other edit to the trimmed file (upstream BL-36).
-**⚠ FOUR synced files are behind canonical.** Sync at the START of a session, never mid-flight.
-**⚠ `scratchpad/` is untracked but NOT ignored** — a bare `git add -A` stages ~85,000 files.
+**Task:** **Session 259 IN PROGRESS** — **`divCalloutTitleSlot` matches its class name inside an
+ATTRIBUTE VALUE**, so `::: {.note data-x=".callout-note"}` / `## D3 Inside` is a PLAIN div whose
+`<h2>` quarto really renders, and this model deletes it. `BACKLOG.md` "Up Next" head item, filed by
+Session 258 against Session 257's SHIPPED code; operator-picked at Phase 0.
+**Why this one:** it is the **deletion direction** — the cardinal-sin direction — in shipped code,
+with a rendered witness already on disk, and the fix is ONE token: prefix both patterns with
+`(?:^|[\s{])`, exactly as S258's `divPanelTabset` and `calloutClassIndex` already do.
+**Status:** CLAIMED. Work beginning. Strict TDD (CLAUDE.md operator directive) — RED before GREEN.
+**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
+Until close-out this line is the crash breadcrumb for the next session's reconcile.
+**⚠ THE `title=` SPELLING MASKS THE DEFECT AND THAT IS WHY IT SURVIVED REVIEW.**
+`title=".callout-note"` is non-empty, so the title branch returns false first and the probe AGREES.
+Any OTHER attribute exposes it (`data-x=`, a bare `=`-less value). Probe a non-`title` attribute.
+**⚠ DO NOT WIDEN WHILE YOU ARE THERE.** The filed item says so explicitly. The reader-gate half
+(six of nine readers have no `fenced_divs`) is a SEPARATE filed HIGH item — that is next session's.
+**Phase 0 findings (S259).** Tree clean; `scratchpad/` untracked and NOT ignored — a bare
+`git add -A` stages ~85,000 files. Both ledger frontiers are `HEAD` (`efd5f478`); zero undocumented
+commits; no ghost sessions; no `pending` receipt. `gh issue list` genuinely empty, so `BACKLOG.md`
+governs — 198 open. Dashboard 76/100, risk high. `compile` clean, `npm test` 2858 / 66 files.
+**⚠ `context_budget.py` is RED on FOUR files** — measured this session, not quoted: `CHANGELOG.md`
+73,320 B, `HANDOFFS.md` 97,150 B (a **SEVENTH** consecutive session), `BACKLOG.md` 290,925 B,
+`PROJECT_LEARNINGS.md` 970,359 B, all against a 65,536 B ceiling. The first two are
+trimmer-supported; the last two are not (upstream BL-32: a backlog's reduction axis is STATUS).
+**⚠ FOUR synced files are behind canonical** — `FRAMEWORK_LEARNINGS.md` 3 commits,
+`methodology_dashboard.py` 5, `methodology_trim.py` 4, `context_budget.py` 2. Sync at the START.
 
 ---
 
