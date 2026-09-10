@@ -8,42 +8,104 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 260 IN PROGRESS** — **complete the close-out Session 259 abandoned.** S259
-claimed on 2026-08-27, shipped five commits, and stopped before Phase 3. Its ledger debt is already
-repaired (Phase 0 reconcile, `7739ddd2`); what remains is everything else a close-out owes.
-**Scope — four things, and they are ONE deliverable, not four:** (1) remove the SOLVED item from the
-head of `BACKLOG.md` "Up Next" — left open, it ranks a fixed defect as the top candidate at every
-future Phase 0; (2) **FILE the three residuals S259's commits say were filed and were not**
-(h1/h3/k1, the same two holes in S258's SHIPPED `divPanelTabset`); (3) write the
-`PROJECT_LEARNINGS.md` rows — ZERO exist from a session whose best move was refuting a guard's own
-stated reason by mutation; (4) run the **runtime smoke test (Phase 3E) that was never run**, which
-takes the operator's screen and needs explicit go-ahead first.
-**Status:** CLAIMED. Work beginning.
-**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
-Until close-out this line is the crash breadcrumb for the next session's reconcile.
-**⚠ A COMMIT MESSAGE SAYING "FILED" IS NOT A FILING.** Three S259 commits assert the h1/h3/k1
-residuals were filed; `grep BACKLOG.md` says no such item exists. Every deferral a session announces
-and routes to its own close-out dies with that close-out — and the announcement still reads as
-though it happened. Grep the destination, not the promise.
-**⚠ DO NOT FIX THE RESIDUALS WHILE FILING THEM.** The `divPanelTabset` holes are one function away
-from a fix that is already written, which is exactly what makes them tempting. They are option 2 on
-the Phase 0 list and the operator picked option 1. File, do not fix.
-**⚠ CERTIFYING S259's CODE IS PART OF THIS CLOSE-OUT, NOT A SEPARATE TASK.** Its fix shipped with no
-close-out review at all, and this project's own history says that is where the defects are: S258's
-adversarial pass found ELEVEN real defects in green, corpus-scored code. Anything found gets FILED.
-**Phase 0 findings (S260).** Tree clean but for two telemetry appends; `scratchpad/` untracked and
-NOT ignored — a bare `git add -A` stages ~85,000 files. Ledger frontiers were BEHIND (`CHANGELOG.md`
-by 5 commits, `HANDOFFS.md` by 4) and are reconciled. `gh issue list` genuinely empty, so
-`BACKLOG.md` governs — 198 open. Dashboard 72/100 (down from 76), risk high. `compile` clean,
-`npm test` **2868** / 66 files, `check-backlog` OK.
-**⚠ `context_budget.py` is RED on FOUR files** — measured this session, not quoted: `CHANGELOG.md`
-73,320 B before my reconcile grew it, `HANDOFFS.md` 97,790 B (an **EIGHTH** consecutive session),
-`BACKLOG.md` 290,925 B, `PROJECT_LEARNINGS.md` 970,359 B, against a 65,536 B ceiling.
-**⚠ SIX synced files are behind canonical, two more than S259 was told** — `FRAMEWORK_LEARNINGS.md`,
-`BOOTSTRAP.md`, `methodology_dashboard.py` (now printing its own v2.15.2 vs v2.17.0 stale banner),
-`methodology_trim.py`, `context_budget.py`. Sync at the START of a session, never mid-flight.
+**Task:** **NONE — Session 260 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S260 did:** finished the close-out Session 259 abandoned. Ledgers reconciled at Phase 0
+(`7739ddd2`); runtime gate run and GREEN, 544 passing; S259's fix certified by a seven-lens
+adversarial pass, all 66 findings re-rendered firsthand; five root-cause items filed; the solved
+item removed; learnings #520–#524. Commits: `7739ddd2` reconcile · `e2825dcc` claim · `08ceabd4`
+records · `8e6546a6` notes trim · the close-out commit. **Nothing in `src/` or `test/` changed.**
+**⚠ SESSION 259 SHIPPED A DELETION REGRESSION — FILED, NOT FIXED.** `maskQuotedValues` pairs quotes
+blindly: an escaped quote, or an apostrophe in an unquoted value (`data-author=O'Brien`), blanks a
+real `title=`, and a heading quarto renders disappears from the Outline.
+**Top three, ranked (DERIVED — the operator picks):** (1) the reader-gate HIGH item: add
+`fencedDivsDialect` to `calloutTitleTakes` (`model.ts:6633`), one read, MEDIUM reach; (2) the
+TABSET reads: port S259's mask AND both boundaries into `divPanelTabset`, `calloutClassIndex` and
+the `tabsetFirst` read, all three TOGETHER; (3) the `maskQuotedValues` regression.
+**⚠ (2) AND (3) TOUCH THE SAME TOKENIZER.** The attribute-tokenizer item says one pandoc-faithful
+tokenizer would subsume both. Decide whether that is a PLAN session before patching either.
+**⚠ A COMMIT MESSAGE SAYING "FILED" IS NOT A FILING.** Grep the destination (Learning #520).
+**⚠ `scratchpad/s260/check.py` is the one instrument** — quarto + current + BASELINE for any .qmd.
+Its baseline worktree was removed at close-out; it fails with the one-line rebuild command. For a
+NEW fix, point `S260_BASELINE` at a worktree of YOUR parent commit, not `efd5f478`.
+**⚠ `context_budget.py` is RED on FOUR files and S260 grew all four** — `CHANGELOG.md`,
+`HANDOFFS.md` (over its ceiling at EIGHT consecutive close-outs), `BACKLOG.md`,
+`PROJECT_LEARNINGS.md`. MEASURE them; do not quote this line.
+**⚠ SIX synced files are behind canonical.** Sync at the START of a session, never mid-flight.
+**⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---
+
+## Session 259 Handoff Evaluation (by Session 260)
+
+**Score: 3/10.** Session 259 wrote no handoff — it died before Phase 3 — so requirements 2 through
+6 are simply absent, and the rubric caps that at 4. It earns 3 rather than 1 because two things it
+DID leave did real handoff work, and loses one because a third actively misled.
+
+**What helped, specifically.**
+- **Its commit messages were close to a handoff on their own.** Each named its RED rows, its grid
+  numbers and its mechanism in plain words. I reconstructed the whole story from `git log` in
+  minutes, and every number in them that I re-measured held.
+- **Its 1B stub carried two gotchas that were right** — the `title=` spelling masks the defect,
+  and do not widen. The first is why every certification lens was told to probe NON-title
+  attributes — and the regression lives exactly there, in one written before `title=`.
+- **Its breadcrumbs worked exactly as designed.** An unfinished receipt and `CHANGELOG: pending`,
+  still in place thirteen days later, are what made the dead session visible at all.
+
+**What was missing.** Everything a close-out owes: the runtime gate, the learnings, the backlog
+removal, a self-assessment, and — the one that cost real risk — any review of its own finished
+code. Its fix shipped a deletion regression that an adversarial pass finds in minutes.
+
+**What was wrong.** ⚠ **Three commits say the `h1`/`h3`/`k1` residuals were "filed, not fixed".
+They were filed nowhere.** A successor trusting that line would never have filed them, and silence
+would have been safer than the claim. Also wrong, by decay rather than by error: its `check.py`
+imported its baseline from a temp directory that no longer existed.
+
+**ROI: medium.** The commit messages repaid their reading many times; the false "filed" claim was
+the most expensive sentence in the record.
+
+## Session 260 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **Phase 0 caught a dead session and repaired both ledgers BEFORE the report**, as a separate
+  commit, marking the reconstructed receipt `reconciled` rather than `complete`.
+- ⚠ **I grepped the destination instead of trusting the promise.** Three commits said "filed"; one
+  `grep` said otherwise. That single check is the difference between the residuals being filed
+  and being lost for good.
+- ⚠ **I treated the dead session's code as unreviewed and certified it — and the certification
+  found a regression in the cardinal direction** that Session 259 introduced: seven deletions the
+  baseline did not make, six of them one root cause, filed with their controls.
+- **I checked the refuters' load-bearing claims myself** rather than trusting 66 of 66 surviving:
+  the diff (`divPanelTabset` and `calloutClassIndex` byte-identical, one changed call at `:4181`),
+  quarto's dispatch loop in `main.lua`, and a firsthand re-render of every probe — all 66
+  reproduce, and the one mislabel ran in the forbidden direction.
+- **I found one defect by reading the code myself** before any lens reported it — the brace shape
+  test running on the raw spec rather than the mask two lines above it — and rendered it.
+- **I asked before taking the operator's screen, and ran the runtime gate only after the fan-out
+  finished**, so 66 quarto renders could not flake a timeout-sensitive Extension Host run.
+- **I filed by root cause, five items for 66 findings, and fixed nothing** — held 1-and-done with
+  the tabset fix one function away.
+
+**What went wrong.**
+- ⚠ **I GREW ALL FOUR OVER-BUDGET FILES AND REDUCED NONE.** `HANDOFFS.md` is over its ceiling for
+  an eighth consecutive session. Correct for 1-and-done; I am the eighth session to say so.
+- **My first reconcile draft of the receipt put the literal pending-status string inside prose** —
+  a false positive for the very grep that detects an unfinished receipt. Caught before commit.
+- **I used `xargs -a`, which BSD xargs does not have**, and lost one background run to it.
+- **I cited a probe directory I had never listed** — "classterm", where the lens wrote to
+  `boundary/` — in the records commit. A check over every cited path caught it before close-out,
+  and the fix rides the close-out commit. Failure mode #11, in the session that checked for it.
+- **My own new harness had the SAME temp-directory trap as Session 259's** until I made a missing
+  baseline fail with the command that rebuilds it. I wrote learning #524 about the trap while
+  sitting in it.
+
+**Against the bar.** Sessions 257 and 258 each shipped a rule and attacked it. This one shipped no
+code: it finished a dead session's close-out, closed the runtime gate that session never ran, and
+found that the session's fix had bought a phantom fix with a deletion — then filed that and five
+other root causes with rendered witnesses. What it did not do is fix any of them, or reduce a
+single over-budget file.
 
 ## Session 257 Handoff Evaluation (by Session 258)
 

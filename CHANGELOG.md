@@ -11,6 +11,61 @@ When completing work, remove the item from `BACKLOG.md` and add an entry here.
 Losslessness is proved by [`docs/archive/CHANGELOG-through-2026-08-24.md.verify.sh`](docs/archive/CHANGELOG-through-2026-08-24.md.verify.sh), which re-derives L1/L2/L3 from git; run it rather
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
+## 2026-09
+
+### 2026-09-10 · [ad hoc] Session 260 — finish the close-out Session 259 abandoned: runtime gate closed, the fix certified, a regression found, and five root-cause items filed
+
+- **Operator-picked at Phase 0** (option 1 of 4) after this session's reconcile found Session 259
+  dead before Phase 3. The ledger half was repaired at Phase 0 — see the backfill entry below,
+  written by this session in `7739ddd2`. This entry records everything else a close-out owed.
+- **Runtime gate — satisfied, not waived, operator-authorised first.** `npm run test:integration`
+  launched a real VS Code Extension Development Host against Session 259's shipped `findHeadings`:
+  **544 passing, exit 0**, including the Session 257 and 258 outline rows that drive
+  `vscode.executeDocumentSymbolProvider`. No code changed this session, so it ran against exactly
+  what Session 259 shipped.
+- **Session 259's fix is certified against its original witnesses, firsthand.** Session 258's
+  rendered witnesses `d3`/`d4` now AGREE with quarto, and a baseline worktree at `efd5f478` rebuilt
+  this session reproduces the deletions they were filed for.
+- ⚠ **A seven-lens adversarial certification pass found that Session 259 introduced a deletion
+  regression of its own.** 66 findings, every one rendered through quarto 1.7.33 and re-run by a
+  refuter, and then every one re-rendered by this session: all 66 reproduce, 65 with exactly the
+  claimed direction and origin, and the one mislabel is a finder's "phantom" that is really a
+  deletion. 39 deletions (7 introduced, 32 pre-existing) and 27 phantoms (16 introduced, 11
+  pre-existing). Seven are deletions the BASELINE did not make, and six share one root cause:
+  `maskQuotedValues` pairs quotes blindly, so an escaped quote or a literal apostrophe in an
+  unquoted value blanks a real `title=`, and the title lookup Session 259 moved onto the mask
+  finds nothing. The seventh is an opener pandoc refuses outright, which the same change
+  exposed. Session 259 bought a phantom fix with a deletion.
+- **Filed, not fixed, by root cause — five items for 66 findings**, at the head of `BACKLOG.md`
+  "Up Next" under the existing reader-gate item: the tabset reads that never got Session 259's
+  fixes (the three residuals its commits said were filed and were not, plus an asymmetry Session
+  259 created at `model.ts:4181` vs `:4245`); the `maskQuotedValues` regression; `.content-visible`
+  winning quarto's class dispatch (read firsthand at `main.lua:1147-1155`); the callout first-block
+  test ignoring containers; and the attribute spec never being tokenized as pandoc tokenizes it.
+- **Removed the item Session 259 solved** from the head of "Up Next", where every future Phase 0
+  would otherwise have ranked a fixed defect first.
+- **Five learnings, #520–#524**, none of which existed: a commit saying "filed" is not a filing;
+  a guard's stated reason no probe separates is an assertion (Session 259's own best move);
+  routing a read through a normaliser inherits the normaliser's errors; a dead session loses its
+  verification, not only its paperwork; a harness hard-coding a session temp path dies with it.
+- **Gates.** `npm run compile` clean; `npm test` 2868 passing / 66 files; `check-backlog` OK;
+  `check-package` OK, 42 files / 5.60 MB, roots unchanged.
+- **Commits (5).** `7739ddd2` the Phase 0 reconcile · `e2825dcc` claim · `08ceabd4` the records
+  (five backlog items and learnings #520–#524; its title says "six root causes" because the tabset
+  item carries two — the inherited holes and Session 259's own `:4181`/`:4245` asymmetry) ·
+  `8e6546a6` the SESSION_NOTES trim, deletion-only as CLAUDE.md requires · and the close-out
+  commit, which carries this line AND both ledgers, so both frontiers land at `HEAD` together.
+- **Non-commit actions.** Ran `npm run test:integration` on the operator's screen, authorised
+  first; ran a 73-agent certification workflow; removed this session's baseline worktree and
+  pruned Session 259's dead one (`git worktree prune`), whose directory no longer existed.
+- **Context budget.** All four over-ceiling files grew and none was reduced. `HANDOFFS.md` has now
+  been over its ceiling at eight consecutive close-outs.
+- **A correction to this session's own records commit.** `08ceabd4` cited the class-terminator
+  lens's probes under a directory named "classterm", which never existed — they are in
+  `scratchpad/s260/boundary/`. Caught by checking every cited path before close-out; fixed in the
+  close-out commit.
+- **Model:** Claude Opus 5.
+
 ## 2026-08
 
 ### 2026-08-27 · [ad hoc] Backfilled (reconcile-on-read): undocumented commits `9d0aecd4`..`f6c8ee3e` — Session 259 shipped the callout attribute-value fix and then ended without any close-out
