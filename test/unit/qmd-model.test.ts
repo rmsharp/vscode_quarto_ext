@@ -18129,4 +18129,70 @@ describe("Session 261 — a reader without `fenced_divs` has no callout to lift 
       expect(names(doc(from, atx)), from).toEqual(["h2:Before", "h2:Inside", "h2:After"]);
     }
   });
+
+  it("R2: the three readers WITH fenced divs still lift the title — the control", () => {
+    // Rendered: `rdr/a_atx__none`, `a_atx__markdown` and `a_atx__commonmark_x` emit no `<h2>` for
+    // the callout's first heading. Without this row, a gate that switched the rule off
+    // everywhere would pass R1. ⚠ `commonmark_x` is the row a `commonmarkDialect` gate gets
+    // wrong: that flag groups it with `commonmark` and `gfm`, and on THIS axis it sides with
+    // `markdown`.
+    for (const from of [null, "markdown", "commonmark_x"]) {
+      expect(names(doc(from, atx)), String(from)).toEqual(["h2:Before", "h2:After"]);
+    }
+  });
+
+  it("R3: the EXTENSION LIST outranks the base, in both directions", () => {
+    // Rendered: `gfm+fenced_divs` lifts the title (`rdr/a_atx__gfm_plus`), and so does the one
+    // reader spelling the authored corpus actually uses, `markdown+emoji`
+    // (`ext/a_atx__md_emoji`); `markdown-fenced_divs` and `commonmark_x-fenced_divs` keep the
+    // heading (`a_atx__md_minus`, `a_atx__cmx_minus`), and a QUOTED `"gfm"` resolves like the
+    // bare name (`a_atx__quoted_gfm`).
+    const lifted = ["h2:Before", "h2:After"];
+    const kept = ["h2:Before", "h2:Inside", "h2:After"];
+    expect(names(doc("gfm+fenced_divs", atx))).toEqual(lifted);
+    expect(names(doc("markdown+emoji", atx))).toEqual(lifted);
+    expect(names(doc("markdown-fenced_divs", atx))).toEqual(kept);
+    expect(names(doc("commonmark_x-fenced_divs", atx))).toEqual(kept);
+    expect(names(doc('"gfm"', atx))).toEqual(kept);
+  });
+
+  it("R4: BOTH call sites — a SETEXT first heading is gated the same way", () => {
+    // The rule is consulted from the setext path and from the ATX path separately, and R1
+    // reaches only the ATX one. Rendered: `rdr/b_setext__gfm` emits `<h2>…Inside</h2>` and
+    // `b_setext__markdown` lifts it into the title bar.
+    const setext = ["::: {.callout-note}", "", "Inside", "----------", "", "body.", "", ":::"];
+    expect(names(doc("gfm", setext))).toEqual(["h2:Before", "h2:Inside", "h2:After"]);
+    expect(names(doc("markdown", setext))).toEqual(["h2:Before", "h2:After"]);
+  });
+
+  it("R5: the BARE-WORD spelling and a heading glued to the opener, both ways", () => {
+    // Rendered: `rdr/c_bare__gfm` and `rdr/d_tight__gfm` keep their heading; their `markdown`
+    // twins lift it (`c_bare__markdown`, `d_tight__markdown`).
+    const bare = ["::: callout-warning", "", "## Inside", "", "body.", "", ":::"];
+    const glued = ["::: {.callout-note}", "## Inside", "", "body.", "", ":::"];
+    for (const shape of [bare, glued]) {
+      expect(names(doc("gfm", shape))).toEqual(["h2:Before", "h2:Inside", "h2:After"]);
+      expect(names(doc("markdown", shape))).toEqual(["h2:Before", "h2:After"]);
+    }
+  });
+
+  it("R6: DISCLOSED — a heading glued to `:::` under `markdown-fenced_divs` is a kept phantom", () => {
+    // ⚠ **PINNED AS IT IS, NOT AS IT SHOULD BE.** Quarto renders NO heading for either div: the
+    // `:::` line is prose under this reader, which keeps `blank_before_header`, so the glued line
+    // is paragraph text (`rdr/d_tight__md_minus`, `tight/plain_tight__md_minus`). This model
+    // reports it for a PLAIN div — PRE-EXISTING — and, since this session's gate, for a callout
+    // too, because it reads the `:::` line as a div opener rather than as the prose line the ATX
+    // paragraph bail needs above the heading; `tight/tabset_tight__md_minus` is the same phantom
+    // on a tabset. The PROSE control shows the bail itself is right. This is the `divColumns`
+    // push, the filed wider defect: when it is fixed, both div rows flip together.
+    const glued = (opener: string) =>
+      doc("markdown-fenced_divs", [opener, "## Inside", "", "body.", "", ":::"]);
+    const phantom = ["h2:Before", "h2:Inside", "h2:After"];
+    expect(names(glued("::: {.callout-note}"))).toEqual(phantom);
+    expect(names(glued("::: {.note}"))).toEqual(phantom);
+    expect(names(doc("markdown-fenced_divs", ["Plain prose line.", "## Inside"]))).toEqual([
+      "h2:Before",
+      "h2:After",
+    ]);
+  });
 });

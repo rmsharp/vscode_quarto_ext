@@ -3077,5 +3077,58 @@ describe("S225: a heading inside a BLOCK QUOTE reaches the outline", () => {
       `a near-miss class must keep its heading in the outline: ${plural.join(", ")}`,
     );
   });
+  // ⚠ **THE RUNTIME GATE FOR SESSION 261.** The callout rule now reads the reader's
+  // `fenced_divs`, proved headlessly over `src/core`; this row proves the Outline the USER sees
+  // keeps the heading, through `vscode.executeDocumentSymbolProvider` — the same command the
+  // Outline view and breadcrumbs call — against the built extension in a real Extension
+  // Development Host.
+  // ⚠ `it(`, NOT `test(` — mocha's BDD interface; `test` is undefined and the whole FILE fails
+  // to load. Session 211 lost a row to this and Session 257 hit it again.
+  it("a callout's first heading stays in the OUTLINE under a reader without fenced divs", async () => {
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+    const body = [
+      "## Before Reader",
+      "",
+      "::: {.callout-note}",
+      "",
+      "## Inside Reader",
+      "",
+      "body reader",
+      "",
+      ":::",
+      "",
+      "## After Reader",
+    ];
+
+    // PRESENT — the deliverable. Under `from: gfm` the `:::` lines are ordinary prose, there is
+    // no callout, and quarto renders this as a real `<h2>` (rendered,
+    // `scratchpad/s261/rdr/a_atx__gfm`). Before Session 261 the Outline hid it.
+    const gfm = await namesFor("---", "from: gfm", "---", "", ...body);
+    assert.ok(
+      gfm.includes("Inside Reader"),
+      `a callout's first heading must reach the outline under gfm: ${gfm.join(", ")}`,
+    );
+    assert.ok(
+      gfm.includes("Before Reader") && gfm.includes("After Reader"),
+      `control headings: ${gfm.join(", ")}`,
+    );
+
+    // ABSENT — the reader control. The identical document with NO `from:` is read as `markdown`,
+    // which HAS fenced divs, so the heading is the callout's title bar and must stay out of the
+    // Outline. Without this, the PRESENT assertion passes for a build whose callout rule has
+    // stopped working altogether (rendered, `rdr/a_atx__none`).
+    const md = await namesFor(...body);
+    assert.ok(
+      !md.includes("Inside Reader"),
+      `under the default reader the heading is the callout's title: ${md.join(", ")}`,
+    );
+    assert.ok(
+      md.includes("Before Reader") && md.includes("After Reader"),
+      `control headings: ${md.join(", ")}`,
+    );
+  });
 
 });
