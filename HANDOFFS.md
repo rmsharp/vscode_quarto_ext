@@ -31,6 +31,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S260
+date: 2026-09-09
+status: pending
+active_task: Complete the close-out Session 259 abandoned. S259 claimed on 2026-08-27, shipped five commits fixing the HIGH callout attribute-value defect, and stopped before Phase 3. Its LEDGER debt is already repaired by this session's Phase 0 reconcile (7739ddd2); the rest is not. Four parts, ONE deliverable: (1) remove the SOLVED item from the head of BACKLOG.md "Up Next", which otherwise ranks a fixed defect as the top candidate at every future Phase 0; (2) FILE the three residuals S259's commits SAY were filed and were not (h1/h3/k1 -- the same two holes in S258's SHIPPED divPanelTabset); (3) write the PROJECT_LEARNINGS.md rows, of which ZERO exist; (4) run the runtime smoke test (Phase 3E) that was never run, operator go-ahead first because it takes the screen. Certifying S259's shipped code adversarially is PART of this close-out -- anything found is FILED, not fixed.
+```
+
+```handoff
 session: S259
 date: 2026-08-27
 status: reconciled

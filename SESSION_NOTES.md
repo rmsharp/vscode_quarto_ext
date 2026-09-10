@@ -8,31 +8,40 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 259 IN PROGRESS** — **`divCalloutTitleSlot` matches its class name inside an
-ATTRIBUTE VALUE**, so `::: {.note data-x=".callout-note"}` / `## D3 Inside` is a PLAIN div whose
-`<h2>` quarto really renders, and this model deletes it. `BACKLOG.md` "Up Next" head item, filed by
-Session 258 against Session 257's SHIPPED code; operator-picked at Phase 0.
-**Why this one:** it is the **deletion direction** — the cardinal-sin direction — in shipped code,
-with a rendered witness already on disk, and the fix is ONE token: prefix both patterns with
-`(?:^|[\s{])`, exactly as S258's `divPanelTabset` and `calloutClassIndex` already do.
-**Status:** CLAIMED. Work beginning. Strict TDD (CLAUDE.md operator directive) — RED before GREEN.
+**Task:** **Session 260 IN PROGRESS** — **complete the close-out Session 259 abandoned.** S259
+claimed on 2026-08-27, shipped five commits, and stopped before Phase 3. Its ledger debt is already
+repaired (Phase 0 reconcile, `7739ddd2`); what remains is everything else a close-out owes.
+**Scope — four things, and they are ONE deliverable, not four:** (1) remove the SOLVED item from the
+head of `BACKLOG.md` "Up Next" — left open, it ranks a fixed defect as the top candidate at every
+future Phase 0; (2) **FILE the three residuals S259's commits say were filed and were not**
+(h1/h3/k1, the same two holes in S258's SHIPPED `divPanelTabset`); (3) write the
+`PROJECT_LEARNINGS.md` rows — ZERO exist from a session whose best move was refuting a guard's own
+stated reason by mutation; (4) run the **runtime smoke test (Phase 3E) that was never run**, which
+takes the operator's screen and needs explicit go-ahead first.
+**Status:** CLAIMED. Work beginning.
 **Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
 Until close-out this line is the crash breadcrumb for the next session's reconcile.
-**⚠ THE `title=` SPELLING MASKS THE DEFECT AND THAT IS WHY IT SURVIVED REVIEW.**
-`title=".callout-note"` is non-empty, so the title branch returns false first and the probe AGREES.
-Any OTHER attribute exposes it (`data-x=`, a bare `=`-less value). Probe a non-`title` attribute.
-**⚠ DO NOT WIDEN WHILE YOU ARE THERE.** The filed item says so explicitly. The reader-gate half
-(six of nine readers have no `fenced_divs`) is a SEPARATE filed HIGH item — that is next session's.
-**Phase 0 findings (S259).** Tree clean; `scratchpad/` untracked and NOT ignored — a bare
-`git add -A` stages ~85,000 files. Both ledger frontiers are `HEAD` (`efd5f478`); zero undocumented
-commits; no ghost sessions; no `pending` receipt. `gh issue list` genuinely empty, so `BACKLOG.md`
-governs — 198 open. Dashboard 76/100, risk high. `compile` clean, `npm test` 2858 / 66 files.
+**⚠ A COMMIT MESSAGE SAYING "FILED" IS NOT A FILING.** Three S259 commits assert the h1/h3/k1
+residuals were filed; `grep BACKLOG.md` says no such item exists. Every deferral a session announces
+and routes to its own close-out dies with that close-out — and the announcement still reads as
+though it happened. Grep the destination, not the promise.
+**⚠ DO NOT FIX THE RESIDUALS WHILE FILING THEM.** The `divPanelTabset` holes are one function away
+from a fix that is already written, which is exactly what makes them tempting. They are option 2 on
+the Phase 0 list and the operator picked option 1. File, do not fix.
+**⚠ CERTIFYING S259's CODE IS PART OF THIS CLOSE-OUT, NOT A SEPARATE TASK.** Its fix shipped with no
+close-out review at all, and this project's own history says that is where the defects are: S258's
+adversarial pass found ELEVEN real defects in green, corpus-scored code. Anything found gets FILED.
+**Phase 0 findings (S260).** Tree clean but for two telemetry appends; `scratchpad/` untracked and
+NOT ignored — a bare `git add -A` stages ~85,000 files. Ledger frontiers were BEHIND (`CHANGELOG.md`
+by 5 commits, `HANDOFFS.md` by 4) and are reconciled. `gh issue list` genuinely empty, so
+`BACKLOG.md` governs — 198 open. Dashboard 72/100 (down from 76), risk high. `compile` clean,
+`npm test` **2868** / 66 files, `check-backlog` OK.
 **⚠ `context_budget.py` is RED on FOUR files** — measured this session, not quoted: `CHANGELOG.md`
-73,320 B, `HANDOFFS.md` 97,150 B (a **SEVENTH** consecutive session), `BACKLOG.md` 290,925 B,
-`PROJECT_LEARNINGS.md` 970,359 B, all against a 65,536 B ceiling. The first two are
-trimmer-supported; the last two are not (upstream BL-32: a backlog's reduction axis is STATUS).
-**⚠ FOUR synced files are behind canonical** — `FRAMEWORK_LEARNINGS.md` 3 commits,
-`methodology_dashboard.py` 5, `methodology_trim.py` 4, `context_budget.py` 2. Sync at the START.
+73,320 B before my reconcile grew it, `HANDOFFS.md` 97,790 B (an **EIGHTH** consecutive session),
+`BACKLOG.md` 290,925 B, `PROJECT_LEARNINGS.md` 970,359 B, against a 65,536 B ceiling.
+**⚠ SIX synced files are behind canonical, two more than S259 was told** — `FRAMEWORK_LEARNINGS.md`,
+`BOOTSTRAP.md`, `methodology_dashboard.py` (now printing its own v2.15.2 vs v2.17.0 stale banner),
+`methodology_trim.py`, `context_budget.py`. Sync at the START of a session, never mid-flight.
 
 ---
 
