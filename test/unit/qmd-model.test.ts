@@ -18091,3 +18091,42 @@ describe("Session 259 — a `.callout` class is only a class where a class can S
     ).toEqual(["h2:Inside"]);
   });
 });
+
+describe("Session 261 — a reader without `fenced_divs` has no callout to lift a title into", () => {
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n")).map((h) => `h${h.level}:${h.text}`);
+  // The filed witness's shape (`scratchpad/s258/fix/d2_callout_reader_gfm`): a callout whose
+  // FIRST BLOCK is a heading, a blank line after the opener, and a control heading either side.
+  const doc = (from: string | null, callout: string[]) => [
+    "---",
+    "title: RC",
+    ...(from === null ? [] : [`from: ${from}`]),
+    "---",
+    "",
+    "## Before",
+    "",
+    ...callout,
+    "",
+    "## After",
+  ];
+  const atx = ["::: {.callout-note}", "", "## Inside", "", "body.", "", ":::"];
+
+  // ⚠ **THE SAME MEASURED THREE-SIX SPLIT AS SESSION 258 R16, NOW ON THE CALLOUT RULE**
+  // (`scratchpad/s261/rdr`, 65 documents through quarto 1.7.33). Where the reader has no fenced
+  // divs the `:::` lines are ORDINARY PROSE, there is no div for quarto's callout filter to see,
+  // and the heading renders as a real `<h2>` (`a_atx__gfm` and its five siblings). Session 258
+  // gated its own tabset rule on `fencedDivsDialect` and left this one alone, 1-and-done.
+
+  it("R1: the six readers WITHOUT fenced divs keep a callout's first-block heading", () => {
+    for (const from of [
+      "commonmark",
+      "gfm",
+      "markdown_strict",
+      "markdown_mmd",
+      "markdown_phpextra",
+      "markdown_github",
+    ]) {
+      expect(names(doc(from, atx)), from).toEqual(["h2:Before", "h2:Inside", "h2:After"]);
+    }
+  });
+});

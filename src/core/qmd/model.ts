@@ -6247,12 +6247,20 @@ function computeRegions(text: string): Regions {
   // `dialectOverride`, for the same reason the two above are: it answers its own question, and
   // it is read at ONE site (the heading column set) where the other three are not.
   const markdownFamilyDialect = fromValueLine !== null && fromIsMarkdownFamily(fromValueLine);
-  // ⚠ **WHETHER A `:::` LINE IS A DIV AT ALL, FOR THE TABSET RULE ONLY (Session 258).** Six of
-  // the nine measured readers have no `fenced_divs`, so their `:::` lines are ordinary prose and
-  // every heading between them renders — this model still pushes a `divColumns` entry there,
-  // which is PRE-EXISTING (`Session 257`'s callout rule loses a heading on the same documents,
-  // filed, not fixed here) but which the tabset rule would turn from a one-heading error into an
-  // every-heading-at-the-tab-level one.
+  // ⚠ **WHETHER A `:::` LINE IS A DIV AT ALL, READ BY BOTH HEADING RULES (Sessions 258, 261).**
+  // Six of the nine measured readers have no `fenced_divs`, so their `:::` lines are ordinary
+  // prose and every heading between them renders. This model still pushes a `divColumns` entry
+  // there — PRE-EXISTING, and the wider defect underneath both rules — so each rule that turns a
+  // heading into something else must refuse on its own: the tabset rule since Session 258, and
+  // the callout title rule since Session 261, which until then hid the first heading of every
+  // callout under those readers (`scratchpad/s261/rdr`: 36 rendered losses, all now agreeing).
+  // ⚠ **THE PUSH STILL SHOWS THROUGH IN ONE MEASURED PLACE, AND NO GATE CAN HIDE IT.** Under
+  // `markdown-fenced_divs` a heading glued to a `:::` line is paragraph text to quarto (that
+  // reader keeps `blank_before_header`), yet this model reports it — for a plain div and a tabset
+  // exactly as for a callout (`scratchpad/s261/tight`) — because it reads the `:::` line as a div
+  // opener rather than as the prose line the ATX paragraph bail needs above the heading. The same
+  // heading under an ORDINARY prose line is bailed (`tight/para_tight__md_minus`). Kept-phantom
+  // direction, pinned by Session 261 R6.
   // ⚠ **`null` MEANS "no key, or a key this scanner cannot resolve", AND MUST READ AS TRUE.**
   // Almost every document declares no `from:` at all, and that reader is `markdown`, which HAS
   // fenced divs; reading null as false would switch the whole rule off for the entire corpus.
@@ -6629,8 +6637,16 @@ function computeRegions(text: string): Regions {
         innermostDiv.firstContentLine = i;
       }
     }
-    /** Whether a heading STARTING at `startLine` is the innermost callout's title bar. */
+    /**
+     * Whether a heading STARTING at `startLine` is the innermost callout's title bar.
+     *
+     * ⚠ **ONLY WHERE THE READER HAS `fenced_divs` (Session 261).** Without them the `:::` line is
+     * prose, there is no callout, and quarto renders the heading — see `fencedDivsDialect`. The
+     * tabset rule below has read the same flag since Session 258; this one had not, and hid a
+     * heading quarto renders under six of the nine measured readers.
+     */
     const calloutTitleTakes = (startLine: number): boolean =>
+      fencedDivsDialect &&
       divColumns.length > 0 &&
       divColumns[divColumns.length - 1].calloutTitleSlot &&
       divColumns[divColumns.length - 1].firstContentLine === startLine;
