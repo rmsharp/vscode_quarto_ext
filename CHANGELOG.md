@@ -13,6 +13,42 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-08
 
+### 2026-08-27 · [ad hoc] Backfilled (reconcile-on-read): undocumented commits `9d0aecd4`..`f6c8ee3e` — Session 259 shipped the callout attribute-value fix and then ended without any close-out
+
+- ⚠ **This entry is a Phase 0 reconcile written on 2026-09-09, not a close-out.** Session 259
+  claimed the task, authored five commits, and left **no** `CHANGELOG.md` entry, **no** completed
+  `HANDOFFS.md` receipt (its 1B stub is still `status: pending`), no `SESSION_NOTES.md` close-out
+  pair, no `PROJECT_LEARNINGS.md` rows, and did not remove the completed item from `BACKLOG.md`.
+  The commits are summarised from their own messages and from the artifacts in
+  `scratchpad/s259/`; nothing here is a claim this session verified beyond the gates named below.
+- **What the commits did — `BACKLOG.md` "Up Next" head item, the HIGH heading-DELETING defect
+  filed by Session 258 against Session 257's shipped `divCalloutTitleSlot`.** The predicate tested
+  its two class patterns against the WHOLE attribute spec, so any `.callout…` substring anywhere in
+  that spec read as a class and deleted the heading below it.
+- **The filed item called the fix "one token"; the commit message reports it is three** — a leading
+  token boundary `(?:^|[\s{])`, a trailing terminator `(?=[\s}]|#[\w:.-])` (a `.` is an identifier
+  character to pandoc, so `{.callout-note.foo}` is ONE class literally named `callout-note.foo`),
+  and `maskQuotedValues()`, because a quoted value may hold a token that is whitespace-delimited on
+  both sides (`data-x="a .callout-note b"`) that no boundary test can distinguish from a class.
+- **A fourth commit reversed a guard's stated reason after mutation refuted it.** Mutant M8 swapped
+  the mask's filler for a space and flipped nothing; the probe built to separate the claim showed a
+  closing quote OPENS the next token rather than ending one (`::: {.note x="q".callout-note}` is a
+  real callout, rendered), so masking the quotes away had introduced a phantom two commits earlier.
+  The boundary is asymmetric: a quote may PRECEDE a class, it may not TERMINATE one.
+- **Evidence recorded in the commits.** A 43-probe grid rendered through quarto 1.7.33
+  (`scratchpad/s259/probes`), both builds run side by side from a worktree at the parent commit:
+  baseline **25 divergent (24 deletions + 1 phantom) → 3**. The 3 that remain are Session 258's
+  shipped `divPanelTabset` carrying the same two holes (h1/h3/k1) — **and, contrary to the commit
+  messages' "filed, not fixed", no `BACKLOG.md` item for them exists; the filing never happened.**
+  Strict TDD is claimed per commit with the RED rows named (R1–R10, R3/R5/R7/R9 as controls).
+- **Gates re-run at this reconcile, 2026-09-09, on the tree as committed:** `npm run compile`
+  clean, `npm test` **2868 passing / 66 files**, `node check-backlog.js` OK (198 open). No runtime
+  smoke test (Phase 3E) is recorded by Session 259 and none was run here.
+- **Commits (5).** `9d0aecd4` claim · `23231f40` the token boundary, the terminator and the value
+  mask (R1–R5) · `bd1382db` the `title=`-inside-a-value read (R6–R7) · `0a6b72a0` the closing-quote
+  asymmetry, found by mutation (R8–R10) · `f6c8ee3e` the comment correction, no behaviour change.
+- **Model:** Claude Opus 5 (Session 259); reconciled by Claude Opus 5 (Session 260).
+
 ### 2026-08-26 · [BACKLOG: EVERY heading inside a `::: {.panel-tabset}` is a TAB LABEL] The panel-tabset tab-label divergence — 21 authored documents fixed, 0 regressions
 
 - **Shipped the rule.** Every heading at a `.panel-tabset` div's TAB LEVEL is a tab label, not a
