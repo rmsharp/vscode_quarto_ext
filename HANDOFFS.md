@@ -31,6 +31,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S261
+date: 2026-09-10
+status: pending
+active_task: Make the CALLOUT title rule honour the reader's `fenced_divs` extension, exactly as the tabset rule already does. BACKLOG "Up Next" head item (HIGH, deletion direction, filed by Session 258 against Session 257's shipped code): under `from: gfm` a `:::` line is ordinary prose, so `::: {.callout-note}` / `## D2 Inside` renders a real <h2>, and calloutTitleTakes (model.ts:6633) -- which never reads fencedDivsDialect, while tabsetTabTakes (:6671) does -- hides it from the Outline. Operator-picked at Phase 0. Strict TDD, RED before GREEN. NOT in scope: the divColumns push under those readers, and the attribute-tokenizer items.
+```
+
+```handoff
 session: S260
 date: 2026-09-10
 status: complete

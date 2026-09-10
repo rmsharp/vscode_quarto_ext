@@ -8,30 +8,26 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 260 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S260 did:** finished the close-out Session 259 abandoned. Ledgers reconciled at Phase 0
-(`7739ddd2`); runtime gate run and GREEN, 544 passing; S259's fix certified by a seven-lens
-adversarial pass, all 66 findings re-rendered firsthand; five root-cause items filed; the solved
-item removed; learnings #520–#524. Commits: `7739ddd2` reconcile · `e2825dcc` claim · `08ceabd4`
-records · `8e6546a6` notes trim · the close-out commit. **Nothing in `src/` or `test/` changed.**
-**⚠ SESSION 259 SHIPPED A DELETION REGRESSION — FILED, NOT FIXED.** `maskQuotedValues` pairs quotes
-blindly: an escaped quote, or an apostrophe in an unquoted value (`data-author=O'Brien`), blanks a
-real `title=`, and a heading quarto renders disappears from the Outline.
-**Top three, ranked (DERIVED — the operator picks):** (1) the reader-gate HIGH item: add
-`fencedDivsDialect` to `calloutTitleTakes` (`model.ts:6633`), one read, MEDIUM reach; (2) the
-TABSET reads: port S259's mask AND both boundaries into `divPanelTabset`, `calloutClassIndex` and
-the `tabsetFirst` read, all three TOGETHER; (3) the `maskQuotedValues` regression.
-**⚠ (2) AND (3) TOUCH THE SAME TOKENIZER.** The attribute-tokenizer item says one pandoc-faithful
-tokenizer would subsume both. Decide whether that is a PLAN session before patching either.
-**⚠ A COMMIT MESSAGE SAYING "FILED" IS NOT A FILING.** Grep the destination (Learning #520).
-**⚠ `scratchpad/s260/check.py` is the one instrument** — quarto + current + BASELINE for any .qmd.
-Its baseline worktree was removed at close-out; it fails with the one-line rebuild command. For a
-NEW fix, point `S260_BASELINE` at a worktree of YOUR parent commit, not `efd5f478`.
-**⚠ `context_budget.py` is RED on FOUR files and S260 grew all four** — `CHANGELOG.md`,
-`HANDOFFS.md` (over its ceiling at EIGHT consecutive close-outs), `BACKLOG.md`,
-`PROJECT_LEARNINGS.md`. MEASURE them; do not quote this line.
-**⚠ SIX synced files are behind canonical.** Sync at the START of a session, never mid-flight.
+**Task:** **Session 261 IN PROGRESS** — **the CALLOUT title rule fires under readers that have no
+`fenced_divs`.** `calloutTitleTakes` (`model.ts:6633`) never reads `fencedDivsDialect`, while the
+tabset gate beside it does (`:6671`). Under `from: gfm` a `:::` line is PROSE, so
+`::: {.callout-note}` / `## D2 Inside` renders a real `<h2>` and this model hides it from the Outline
+(`scratchpad/s258/fix/d2_callout_reader_gfm.qmd`). `BACKLOG.md` "Up Next" head item, HIGH, deletion
+direction, filed by Session 258 against Session 257's shipped code; operator-picked at Phase 0.
+**Started:** 2026-09-10. **Scope:** the callout gate reads the same flag the tabset gate reads. ONE
+rule. Strict TDD (CLAUDE.md operator directive) — RED before GREEN, one test at a time.
+**NOT in scope:** the `divColumns` PUSH under those readers (the wider defect underneath both
+rules), the attribute-tokenizer items (Up Next #2, #3, #6), the direct-child item (Up Next #5).
+**Status:** CLAIMED. Work beginning.
+**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
+Until close-out this line is the crash breadcrumb for the next session's reconcile.
+**Phase 0 findings (S261).** Tree clean but for two telemetry appends. Both ledger frontiers are
+`HEAD` (`0ab79b5a`); zero undocumented commits; no unfinished receipt. `gh issue list` empty, so
+`BACKLOG.md` governs — 202 open. Dashboard 76/100. `compile` exit 0; `npm test` 2868 / 66 files.
+**⚠ `context_budget.py` is RED on FOUR files, measured this session:** `CHANGELOG.md` 81,232 B,
+`HANDOFFS.md` 113,359 B, `BACKLOG.md` 298,133 B, `PROJECT_LEARNINGS.md` 975,402 B; ceiling 65,536 B.
+**⚠ SEVEN synced files differ from canonical by `cmp`, not six** — the five `context_budget.py`
+flags plus `docs/methodology/HOW_TO_USE.md` and `docs/methodology/ITERATIVE_METHODOLOGY.md`.
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---
