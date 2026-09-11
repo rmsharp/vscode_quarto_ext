@@ -6257,8 +6257,8 @@ function computeRegions(text: string): Regions {
   // ⚠ **WHAT THIS GATE CANNOT HIDE: A CALLOUT NOW GETS ITS FIRST HEADING WRONG EXACTLY WHERE A
   // PLAIN DIV ALREADY DID.** The title rule used to swallow that heading under every reader, which
   // masked any pre-existing error about it; under a no-div reader it now reaches the rest of this
-  // model like any other heading. Session 261's adversarial pass re-rendered 839 probes
-  // (`scratchpad/s261/adv`, `verify/`): the gate removed no heading anywhere, and every new
+  // model like any other heading. Session 261's adversarial pass re-rendered 1,419 probes and
+  // twins (`scratchpad/s261/adv`, `verify/`): the gate removed no heading anywhere, and every new
   // wrong answer it exposed is a PHANTOM or a text difference whose plain-div twin is wrong the
   // same way in BOTH builds —
   //   - a heading GLUED to the `:::` line where the reader keeps `blank_before_header`
