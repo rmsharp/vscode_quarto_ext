@@ -6254,13 +6254,25 @@ function computeRegions(text: string): Regions {
   // heading into something else must refuse on its own: the tabset rule since Session 258, and
   // the callout title rule since Session 261, which until then hid the first heading of every
   // callout under those readers (`scratchpad/s261/rdr`: 36 rendered losses, all now agreeing).
-  // ⚠ **THE PUSH STILL SHOWS THROUGH IN ONE MEASURED PLACE, AND NO GATE CAN HIDE IT.** Under
-  // `markdown-fenced_divs` a heading glued to a `:::` line is paragraph text to quarto (that
-  // reader keeps `blank_before_header`), yet this model reports it — for a plain div and a tabset
-  // exactly as for a callout (`scratchpad/s261/tight`) — because it reads the `:::` line as a div
-  // opener rather than as the prose line the ATX paragraph bail needs above the heading. The same
-  // heading under an ORDINARY prose line is bailed (`tight/para_tight__md_minus`). Kept-phantom
-  // direction, pinned by Session 261 R6.
+  // ⚠ **WHAT THIS GATE CANNOT HIDE: A CALLOUT NOW GETS ITS FIRST HEADING WRONG EXACTLY WHERE A
+  // PLAIN DIV ALREADY DID.** The title rule used to swallow that heading under every reader, which
+  // masked any pre-existing error about it; under a no-div reader it now reaches the rest of this
+  // model like any other heading. Session 261's adversarial pass re-rendered 839 probes
+  // (`scratchpad/s261/adv`, `verify/`): the gate removed no heading anywhere, and every new
+  // wrong answer it exposed is a PHANTOM or a text difference whose plain-div twin is wrong the
+  // same way in BOTH builds —
+  //   - a heading GLUED to the `:::` line where the reader keeps `blank_before_header`
+  //     (`markdown-fenced_divs`, or `+blank_before_header` on any of the other five) or
+  //     `blank_before_blockquote` (a glued `> ## x`): this model reads the `:::` line as a div
+  //     opener, not as the prose line the paragraph bail needs above it, and the same heading
+  //     under an ORDINARY prose line IS bailed (`tight/para_tight__md_minus`). Pinned, R6;
+  //   - a heading inside a CommonMark HTML block of type 3, 4 or 5, or a raw `<div>` block;
+  //   - the source-vs-rendered TEXT gap every heading has (inline markup, emoji, entities).
+  // ⚠ **AND IT TRUSTS THE READER RESOLVER, IN BOTH DIRECTIONS.** Where `fromValueLine` misreads
+  // the reader — an alias or a re-declared anchor, a `from:` line inside a multi-line flow
+  // collection or quoted scalar, a `---` block quarto does not take as front matter — this rule
+  // now follows the misread, as the tabset rule already did: a phantom where the model reads
+  // `gfm` and quarto reads `markdown`, a kept loss where it is the other way round. Pinned, R7.
   // ⚠ **`null` MEANS "no key, or a key this scanner cannot resolve", AND MUST READ AS TRUE.**
   // Almost every document declares no `from:` at all, and that reader is `markdown`, which HAS
   // fenced divs; reading null as false would switch the whole rule off for the entire corpus.

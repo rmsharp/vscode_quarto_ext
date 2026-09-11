@@ -18194,5 +18194,45 @@ describe("Session 261 — a reader without `fenced_divs` has no callout to lift 
       "h2:Before",
       "h2:After",
     ]);
+    // The bail belongs to the READER, not to `markdown`: `+blank_before_header` carries it onto
+    // any base, and the push defeats it there too. Rendered under
+    // `markdown_strict+blank_before_header`: the callout (`adv/reader/p42_strict_bbh_glued`), its
+    // plain-div twin (`adv/refute-p42/r02_strict_bbh_plain_div_glued`) and the prose control
+    // (`adv/refute_k01/r3_prose_glued_atx__strict_bbh`) all render no heading.
+    const strict = "markdown_strict+blank_before_header";
+    const strictGlued = (opener: string) =>
+      doc(strict, [opener, "## Inside", "", "body.", "", ":::"]);
+    expect(names(strictGlued("::: {.callout-note}"))).toEqual(phantom);
+    expect(names(strictGlued("::: {.foo}"))).toEqual(phantom);
+    expect(names(doc(strict, ["Some ordinary prose line.", "## Inside", "", "body."]))).toEqual([
+      "h2:Before",
+      "h2:After",
+    ]);
+  });
+
+  it("R7: DISCLOSED — the gate follows the reader RESOLVER, misreads included", () => {
+    // ⚠ **PINNED AS IT IS, NOT AS IT SHOULD BE, IN BOTH DIRECTIONS.** YAML binds an alias to the
+    // MOST RECENT anchor of its name, so quarto reads `markdown` in the first document and `gfm`
+    // in the second; this model's resolver binds the FIRST and reads them the other way round
+    // (`adv/reader/p29_dup_anchor`, `adv/reader/f04_dup_anchor_rev`, both rendered). So the first
+    // is a kept phantom — exposed by this session's gate — and the second a kept loss that was
+    // already there. Both are the resolver's defect, not this rule's, and the tabset rule carries
+    // the same two; when the resolver binds the most recent anchor, both flip together.
+    const anchored = (first: string, second: string) => [
+      "---",
+      "title: RC",
+      `a1: &r ${first}`,
+      `a2: &r ${second}`,
+      "from: *r",
+      "---",
+      "",
+      "## Before",
+      "",
+      ...atx,
+      "",
+      "## After",
+    ];
+    expect(names(anchored("gfm", "markdown"))).toEqual(["h2:Before", "h2:Inside", "h2:After"]);
+    expect(names(anchored("markdown", "gfm"))).toEqual(["h2:Before", "h2:After"]);
   });
 });
