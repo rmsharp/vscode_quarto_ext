@@ -31,6 +31,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S262
+date: 2026-09-11
+status: pending
+active_task: PLAN one pandoc-faithful attribute TOKENIZER. A planning session: the deliverable is ONE plan document in docs/planning/, evidence-based (a grep inventory of every attribute-spec read), with per-phase DONE criteria, verification commands, the surface each is shown on, and a session boundary per phase. It decides the question S260 and S261 both left open: the two HIGH deletion-direction heads of "Up Next" ("the TABSET reads never got Session 259's three fixes"; "`maskQuotedValues` pairs quote characters blindly") change the same quote/boundary logic, and "The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it" says one tokenizer subsumes both. Operator-picked at Phase 0. NOT in scope: any change to src/ or test/ -- the plan is the deliverable (FM #18).
+```
+
+```handoff
 session: S261
 date: 2026-09-11
 status: complete

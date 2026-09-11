@@ -8,28 +8,27 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 261 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S261 did:** the callout reader gate — `calloutTitleTakes` now reads `fencedDivsDialect`
-(`ec1e1cfa`). 36 rendered losses fixed; a 157-agent adversarial pass plus a firsthand re-render of
-all 1,419 probes found no heading removed and no new wrong logic; everything it un-masked is pinned
-(R6, R7) and filed. Runtime gate GREEN, 545 passing. Commits: `468b310a` claim · `ec1e1cfa` fix ·
-`8b5884f5` guards · `0f5ddff7` corrected comment + pins · `c96e6a81` notes trim · `6e1b0601` records
-· the close-out one.
-**Top three, by title (DERIVED — the operator picks):** (1) "the TABSET reads never got Session
-259's three fixes" and (2) "`maskQuotedValues` pairs quote characters blindly" — now the head of
-"Up Next"; (3) "`divColumns` is pushed for `:::` lines that are not divs at all", widened by S261.
-**⚠ (1) AND (2) TOUCH THE SAME TOKENIZER.** The attribute-tokenizer item says one pandoc-faithful
-tokenizer subsumes both. Decide whether that is a PLAN session before patching either.
-**⚠ A CHANGE THAT STOPS SUPPRESSING SOMETHING UN-MASKS OLD ERRORS.** Build the plain twin of every
-"introduced" finding before believing it (Learning #525).
-**⚠ `scratchpad/s260/check.py` is still the one instrument.** Point `S260_BASELINE` at a worktree of
-YOUR parent commit; S261's (`468b310a`) was removed at close-out.
-**⚠ `context_budget.py` is RED on FOUR files and S261 grew all four** — `CHANGELOG.md`,
-`HANDOFFS.md` (over its ceiling at NINE consecutive close-outs), `BACKLOG.md`,
-`PROJECT_LEARNINGS.md`. MEASURE them; do not quote this line.
-**⚠ SEVEN synced files differ from canonical by `cmp`.** Sync at the START of a session, never
-mid-flight.
+**Task:** **Session 262 IN PROGRESS** — **PLAN one pandoc-faithful attribute TOKENIZER.** A planning
+session: the deliverable is ONE plan document in `docs/planning/`, evidence-based, with per-phase
+DONE criteria, verification commands, the SURFACE each is shown on, and a session boundary each.
+It decides the question S260 and S261 both left open. The two HIGH deletion-direction heads of "Up
+Next" — "the TABSET reads never got Session 259's three fixes" and "`maskQuotedValues` pairs quote
+characters blindly" — change the same quote/boundary logic, and "The attribute spec is matched with
+regexes and never TOKENIZED as pandoc tokenizes it" says one tokenizer subsumes both.
+Operator-picked at Phase 0. **Started:** 2026-09-11.
+**NOT in scope:** ANY change to `src/` or `test/` — the plan is the deliverable (FM #18). Not the
+`divColumns` push, not the reader resolver, not the ledger trims.
+**Status:** CLAIMED. Work beginning.
+**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
+Until close-out this line is the crash breadcrumb for the next session's reconcile.
+**Phase 0 findings (S262).** Tree clean but for `scratchpad/`. Both ledger frontiers are `HEAD`
+(`02819773`); zero undocumented commits; the S261 receipt is complete. `gh issue list` empty, so
+`BACKLOG.md` governs. Dashboard 76/100. `compile` exit 0; `npm test` 2875 / 66 files.
+`npm audit`: 9 advisories (5 high), all reached only through `@vscode/vsce` — nothing ships them.
+**⚠ `context_budget.py` is RED on FOUR files, measured this session:** `CHANGELOG.md` 85,012 B,
+`HANDOFFS.md` 121,192 B, `BACKLOG.md` 302,927 B, `PROJECT_LEARNINGS.md` 979,661 B; ceiling 65,536 B.
+**⚠ Five synced files differ from canonical per `context_budget.py`** (S261 counted seven by `cmp`;
+two sit under `docs/methodology/`, which the tool does not track). Not synced mid-flight.
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---
