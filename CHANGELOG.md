@@ -13,6 +13,49 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-11 · [BACKLOG: SHIPPED CODE DELETES A RENDERED HEADING: six of the nine readers have no `fenced_divs`, and the CALLOUT rule fires there anyway] The callout reader gate — 36 rendered losses fixed, no heading removed anywhere, and everything it un-masks filed
+
+- **Operator-picked at Phase 0** (option 1 of 4, the recommended one); claimed 2026-09-10 in
+  `468b310a`.
+- **The fix (`ec1e1cfa`), strict TDD.** `calloutTitleTakes` now reads `fencedDivsDialect`, the flag
+  the tabset rule has read since Session 258. RED first: R1 failed with `[Before, After]` where
+  quarto renders `[Before, Inside, After]`, under every one of the six readers with no fenced divs.
+  One condition of logic; the rest is tests, comments and records.
+- **Measured before and after through quarto 1.7.33, against a baseline worktree at the parent
+  commit:** 71 documents (`scratchpad/s261/rdr`, `tight`, `ext`, and the filed witness
+  `s258/fix/d2`) — 36 LOST → AGREE across the ATX, setext, bare-word and glued spellings and the
+  extension and quoted forms of the reader; 1 AGREE → PHANTOM, the disclosed push case. A two-build
+  census over the 3,383 authored documents changed 0 of 28,103 headings: only 6 declare any
+  `from:`, all of them readers WITH fenced divs, so the fix's reach in this corpus is zero.
+- **Guards (`8b5884f5`, widened in `0f5ddff7`):** R2–R7, each tied to a render. A six-mutant harness
+  (`scratchpad/s261/mutate.py`, a no-op control among them) kills every row, and every mutant is
+  killed by at least one row. Plus the runtime row in `test/integration/suite/outline.test.ts`.
+- ⚠ **A 157-agent adversarial certification — six lenses, 331 probes, 150 refuter verdicts, a
+  completeness critic — and then every probe and twin re-rendered by the main session (1,419).** It
+  reported 75 findings as introduced. All 75 reproduce, and none is new wrong logic: each is a shape
+  whose PLAIN-DIV twin is wrong the same way in both builds — the title rule used to swallow the
+  heading and so masked the error — or a front-matter resolver misread. The gate removed no heading
+  anywhere. The comment that said the push "shows through in ONE measured place" was wrong and is
+  corrected (`0f5ddff7`), with R6 widened to `+blank_before_header` and R7 pinning the duplicate-
+  anchor misread in both directions.
+- **Filed, not fixed.** The push-under-reader defect is carried into the existing "`divColumns` is
+  pushed for `:::` lines that are not divs at all" item, which the completed item named as the wider
+  defect. Three new items: the reader resolver's misreads (a dozen shapes, both directions); six
+  pre-existing heading losses found beside the callout rule; five pre-existing phantom and text
+  families. The completed item is removed from the head of "Up Next".
+- **Runtime gate — satisfied, operator-authorised before it took the screen, and run last.**
+  `npm run test:integration` launched a real VS Code Extension Development Host: **545 passing,
+  exit 0** — Session 260's 544 plus this session's outline row, which drives
+  `vscode.executeDocumentSymbolProvider` on a `from: gfm` callout and its default-reader twin. It ran
+  only after every render and the mutation harness had finished, behind guards that refused to
+  start it with a dirty `model.ts` or a live render; the one later edit to `model.ts` is a
+  comment's count.
+- **Records:** learnings #525–#530; the oldest `SESSION_NOTES.md` pair dropped in its own
+  deletion-only commit (`c96e6a81`).
+- **Commits:** `468b310a` claim · `ec1e1cfa` fix · `8b5884f5` guards · `0f5ddff7` corrected comment +
+  pins · `c96e6a81` notes trim · `6e1b0601` records (the filings, learnings #525–#530, one
+  comment's count) · the close-out commit carrying both ledgers.
+
 ### 2026-09-10 · [ad hoc] Session 260 — finish the close-out Session 259 abandoned: runtime gate closed, the fix certified, a regression found, and five root-cause items filed
 
 - **Operator-picked at Phase 0** (option 1 of 4) after this session's reconcile found Session 259

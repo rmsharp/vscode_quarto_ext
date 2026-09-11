@@ -8,29 +8,100 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 261 IN PROGRESS** — **the CALLOUT title rule fires under readers that have no
-`fenced_divs`.** `calloutTitleTakes` (`model.ts:6633`) never reads `fencedDivsDialect`, while the
-tabset gate beside it does (`:6671`). Under `from: gfm` a `:::` line is PROSE, so
-`::: {.callout-note}` / `## D2 Inside` renders a real `<h2>` and this model hides it from the Outline
-(`scratchpad/s258/fix/d2_callout_reader_gfm.qmd`). `BACKLOG.md` "Up Next" head item, HIGH, deletion
-direction, filed by Session 258 against Session 257's shipped code; operator-picked at Phase 0.
-**Started:** 2026-09-10. **Scope:** the callout gate reads the same flag the tabset gate reads. ONE
-rule. Strict TDD (CLAUDE.md operator directive) — RED before GREEN, one test at a time.
-**NOT in scope:** the `divColumns` PUSH under those readers (the wider defect underneath both
-rules), the attribute-tokenizer items (Up Next #2, #3, #6), the direct-child item (Up Next #5).
-**Status:** CLAIMED. Work beginning.
-**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
-Until close-out this line is the crash breadcrumb for the next session's reconcile.
-**Phase 0 findings (S261).** Tree clean but for two telemetry appends. Both ledger frontiers are
-`HEAD` (`0ab79b5a`); zero undocumented commits; no unfinished receipt. `gh issue list` empty, so
-`BACKLOG.md` governs — 202 open. Dashboard 76/100. `compile` exit 0; `npm test` 2868 / 66 files.
-**⚠ `context_budget.py` is RED on FOUR files, measured this session:** `CHANGELOG.md` 81,232 B,
-`HANDOFFS.md` 113,359 B, `BACKLOG.md` 298,133 B, `PROJECT_LEARNINGS.md` 975,402 B; ceiling 65,536 B.
-**⚠ SEVEN synced files differ from canonical by `cmp`, not six** — the five `context_budget.py`
-flags plus `docs/methodology/HOW_TO_USE.md` and `docs/methodology/ITERATIVE_METHODOLOGY.md`.
+**Task:** **NONE — Session 261 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S261 did:** the callout reader gate — `calloutTitleTakes` now reads `fencedDivsDialect`
+(`ec1e1cfa`). 36 rendered losses fixed; a 157-agent adversarial pass plus a firsthand re-render of
+all 1,419 probes found no heading removed and no new wrong logic; everything it un-masked is pinned
+(R6, R7) and filed. Runtime gate GREEN, 545 passing. Commits: `468b310a` claim · `ec1e1cfa` fix ·
+`8b5884f5` guards · `0f5ddff7` corrected comment + pins · `c96e6a81` notes trim · `6e1b0601` records
+· the close-out one.
+**Top three, by title (DERIVED — the operator picks):** (1) "the TABSET reads never got Session
+259's three fixes" and (2) "`maskQuotedValues` pairs quote characters blindly" — now the head of
+"Up Next"; (3) "`divColumns` is pushed for `:::` lines that are not divs at all", widened by S261.
+**⚠ (1) AND (2) TOUCH THE SAME TOKENIZER.** The attribute-tokenizer item says one pandoc-faithful
+tokenizer subsumes both. Decide whether that is a PLAN session before patching either.
+**⚠ A CHANGE THAT STOPS SUPPRESSING SOMETHING UN-MASKS OLD ERRORS.** Build the plain twin of every
+"introduced" finding before believing it (Learning #525).
+**⚠ `scratchpad/s260/check.py` is still the one instrument.** Point `S260_BASELINE` at a worktree of
+YOUR parent commit; S261's (`468b310a`) was removed at close-out.
+**⚠ `context_budget.py` is RED on FOUR files and S261 grew all four** — `CHANGELOG.md`,
+`HANDOFFS.md` (over its ceiling at NINE consecutive close-outs), `BACKLOG.md`,
+`PROJECT_LEARNINGS.md`. MEASURE them; do not quote this line.
+**⚠ SEVEN synced files differ from canonical by `cmp`.** Sync at the START of a session, never
+mid-flight.
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---
+
+## Session 260 Handoff Evaluation (by Session 261)
+
+**Score: 8/10.** Complete on all six Minimum Handoff Requirements, and its `whats_next` #1 was the
+task the operator picked, with the file, the line and the one-read size of the fix. It loses two
+points for two claims that did not survive measurement.
+
+**What helped, specifically.**
+- ⚠ **Gotcha 4 — "the baseline for a new fix is your OWN parent commit; set `S260_BASELINE`"** —
+  and `check.py` as "the one instrument". I built one worktree at my claim commit and wrote no
+  harness of my own; every render I ran went through it with a baseline column.
+- ⚠ **Gotcha 2 — "a refute stage that kills nothing is not evidence on its own"** — is why I
+  re-rendered all 1,419 adversarial probes and twins myself rather than trust 150 refuter verdicts. That
+  re-render is what showed the 75 "introduced" findings were un-masked, not new (Learning #525).
+- **Gotcha 3 — "score against the parent commit, never in absolute"** — the baseline column is the
+  only thing that separates the phantoms my gate exposed from any it created (there were none).
+- **`whats_next` #1 cited `model.ts:6633` and `:6666` correctly**, re-read firsthand; "one read"
+  was exactly the size of the fix.
+- **The budget warning said "MEASURE them; do not quote this line"**, and I measured them.
+
+**What was wrong.**
+- ⚠ **"One read; MEDIUM reach; deletion direction. MEASURED."** The reach was never measured: 6 of
+  3,383 authored documents declare any `from:`, all with fenced divs, and a two-build census
+  changed 0 of 28,103 headings. The label was the filed item's, carried under a MEASURED tag
+  (Learning #528).
+- **"Six synced files are behind canonical."** `cmp` finds seven; two are under
+  `docs/methodology/`, which `context_budget.py` does not track.
+
+**What was missing.** Nothing it could have known: that gating the callout rule would un-mask every
+plain-div defect under the same readers took a 157-agent fan-out to see.
+
+**ROI: high** — the pick, the instrument and three gotchas repaid the read many times over.
+
+## Session 261 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **I rendered the reader grid BEFORE writing a test, and it found the one place the fix would
+  be wrong** — a glued heading under `markdown-fenced_divs` — and a plain-div twin showed the same
+  wrong answer already existed, so I disclosed and pinned it instead of bending the gate around it.
+- **Strict TDD, shown:** R1 RED for the right reason (the model hid `Inside` under all six readers),
+  one condition GREEN, then guards each killed by a mutant, re-run after R7 was added.
+- ⚠ **I did not trust 150 refuter verdicts or 75 "introduced" claims.** I re-rendered all 1,419
+  probes and twins and classified direction from the three lists myself. That is what turned "75
+  regressions" into "no new wrong logic, no heading removed" — and it exposed my own comment.
+- **I measured reach before claiming value:** the census changed 0 of 28,103 headings, and I
+  recorded that the filed "MEDIUM" was never measured instead of repeating it.
+- **I asked before taking the screen and ran the runtime gate last**, behind guards that refused to
+  start it with a dirty `model.ts` or a live render: 545 passing.
+- **Everything the fan-out found is filed by root cause** — one widened item, three new — and every
+  cited probe path was checked to resolve before commit.
+
+**What went wrong.**
+- ⚠ **I committed a comment claim before the adversarial pass could test it.** "The push still shows
+  through in ONE measured place" shipped with the fix and was false; the fan-out found five more
+  readers and three more paths. It cost a correction commit (`0f5ddff7`).
+- ⚠ **I wrote a count from a render that was still running.** "839" went into a comment, a commit
+  message and three records; the final is 1,419. The `0f5ddff7` message cannot be corrected.
+- **I lost a render group to zsh word-splitting** (19 of 71 rows), the same class of shell trap
+  Session 260 hit with BSD xargs (Learning #529).
+- **The fan-out was expensive:** 157 agents, ~94 minutes, and its refuters wrote 1,088 variants I
+  then re-rendered. "Reproduce, then build ONE plain twin" would have cost a third as much.
+- **I grew all four over-budget files again and reduced none** — the ninth close-out to do so.
+
+**Against the bar.** Sessions 257 and 258 each shipped a rule and attacked it; Session 260 certified
+a dead session's. This shipped a one-condition fix for a HIGH deletion item, attacked it harder than
+any of them, and established by measurement that everything the attack found was un-masked rather
+than created. What it did not do is reduce a single over-budget file.
 
 ## Session 259 Handoff Evaluation (by Session 260)
 
