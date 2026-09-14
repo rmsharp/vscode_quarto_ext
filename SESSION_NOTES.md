@@ -8,30 +8,89 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 262 IN PROGRESS** — **PLAN one pandoc-faithful attribute TOKENIZER.** A planning
-session: the deliverable is ONE plan document in `docs/planning/`, evidence-based, with per-phase
-DONE criteria, verification commands, the SURFACE each is shown on, and a session boundary each.
-It decides the question S260 and S261 both left open. The two HIGH deletion-direction heads of "Up
-Next" — "the TABSET reads never got Session 259's three fixes" and "`maskQuotedValues` pairs quote
-characters blindly" — change the same quote/boundary logic, and "The attribute spec is matched with
-regexes and never TOKENIZED as pandoc tokenizes it" says one tokenizer subsumes both.
-Operator-picked at Phase 0. **Started:** 2026-09-11.
-**NOT in scope:** ANY change to `src/` or `test/` — the plan is the deliverable (FM #18). Not the
-`divColumns` push, not the reader resolver, not the ledger trims.
-**Status:** CLAIMED. Work beginning.
-**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
-Until close-out this line is the crash breadcrumb for the next session's reconcile.
-**Phase 0 findings (S262).** Tree clean but for `scratchpad/`. Both ledger frontiers are `HEAD`
-(`02819773`); zero undocumented commits; the S261 receipt is complete. `gh issue list` empty, so
-`BACKLOG.md` governs. Dashboard 76/100. `compile` exit 0; `npm test` 2875 / 66 files.
-`npm audit`: 9 advisories (5 high), all reached only through `@vscode/vsce` — nothing ships them.
-**⚠ `context_budget.py` is RED on FOUR files, measured this session:** `CHANGELOG.md` 85,012 B,
-`HANDOFFS.md` 121,192 B, `BACKLOG.md` 302,927 B, `PROJECT_LEARNINGS.md` 979,661 B; ceiling 65,536 B.
-**⚠ Five synced files differ from canonical per `context_budget.py`** (S261 counted seven by `cmp`;
-two sit under `docs/methodology/`, which the tool does not track). Not synced mid-flight.
+**Task:** **NONE — Session 262 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S262 did:** PLANNED the attribute tokenizer — `docs/planning/2026-09-14-attribute-tokenizer-plan.md`,
+four phases, PLAN ONLY; the census tool rides with it (`docs/planning/scripts/attribute-block/`, the
+operator's decision). Nothing under `src/` or `test/` changed. Commits: `7a2397e2` claim · `452ce271`
+plan · `61bcce86` records · `4b69957b` notes trim · the close-out one.
+**⚠ THE HEADLINE:** every div/heading item the plan closes measures **0 of 3,383** documents. The one
+real-reach defect is new: a ```` ```{{python}} ```` fence hides 41 headings in 23 documents — a
+Session 224 regression (`95241beb`).
+**Top pick (DERIVED — the operator picks):** the new head of "Up Next", the ```` ```{{lang}} ```` display
+fence item = the plan's P1. The plan needs the operator's approval first — its §12 lists the decisions.
+**⚠ P1 is specified to the row:** RED `dd2`, the minimal-GREEN order `dd2 → p5 → l04 → d0`, the guards,
+mutants M0–M10, and the census numbers (23/41/6 · 8/8/0 · 2/2/0, `threw=0`; digests in the census
+README). Re-derive; never paste the scratch prototype.
+**⚠ `context_budget.py` is RED on FOUR files and S262 grew `BACKLOG.md` and `PROJECT_LEARNINGS.md`
+again.** MEASURE them; do not quote this line.
+**⚠ Five synced files differ from canonical per `context_budget.py`.** Sync at the START of a session.
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---
+
+## Session 261 Handoff Evaluation (by Session 262)
+
+**Score: 8/10.** Complete on all six Minimum Handoff Requirements, and its `whats_next` #1 was the
+exact question the operator chose to answer. It loses two points for not applying its own newest
+learning to its own ranking.
+
+**What helped, specifically.**
+- ⚠ **`whats_next` #1 — "Decide whether that is a PLAN session before patching either"** — framed the
+  whole session. The operator picked it at Phase 0, and the three items it named by TITLE resolved at
+  once, where line numbers would have drifted.
+- **"MEASURE them; do not quote this line"** — I measured: all four red, as the receipt said.
+- **Every `key_files` anchor resolved firsthand** — `READER_HAS_FENCED_DIVS :2483`,
+  `fromHasFencedDivs :2492`, `calloutTitleTakes :6660`, `tabsetTabTakes :6694`.
+- **Gotcha 7 — the baseline worktree is gone; `check.py` takes its path.** Pointing `S260_BASELINE`
+  at the working tree gave a one-document check that worked first time.
+- **Gotcha 3 — `check.py`'s VERDICT mislabels a TEXT difference** — I read its three lists instead.
+
+**What was missing.**
+- ⚠ **The reach of its own #1.** Session 261 wrote Learning #528 — *"a reach label nobody measured is
+  a guess, even on a HIGH-severity item"* — and then ranked the two HIGH heads first, marked DERIVED,
+  with no reach, while its #3 carried a measured "0 of 3,383". Measured this session: both heads reach
+  **0** documents, and the only real reach in the family is a ```` ```{{lang}} ```` fence REGRESSION
+  (23 documents) no session had filed. Had #1 carried its reach, the Phase 0 ranking would have differed.
+
+**What was wrong.** Nothing material that I measured.
+
+**ROI: high.** The framing and anchors repaid the read many times over; the missing reach cost this
+session nothing — its research measured it — but it would have changed what the operator was shown.
+
+## Session 262 Self-Assessment
+
+**Score: 7/10.**
+
+**What went right.**
+- ⚠ **I measured reach before designing, and it changed what the plan is.** Every item the task was
+  about measures 0 of 3,383 documents; the one real-reach defect in the family surfaced from the same
+  census, and I bisected it to a Session 224 regression (`95241beb`) myself. The recommended stop is that
+  fix, which needs no tokenizer.
+- **I re-measured every load-bearing claim before it went into the plan** — 14 groups in its §11.2,
+  including real renders, the bisect and the census controls from the committed copy.
+- **I put the plan through two reviews and changed it on the evidence**, and dropped P3's blank-line
+  rule rather than patching it — two measured deletion hazards for zero-reach fixes.
+- **I asked the operator the one decision that changed this session's commit** (the census tool) and
+  put the rest in the plan's §12, where the operator can see and overrule them.
+- **Nothing under `src/` or `test/` changed**; compile clean, 2,875/2,875; `check-backlog` OK.
+
+**What went wrong.**
+- ⚠ **My first draft carried a blocker I could have found myself:** P3's second RED already passed at
+  HEAD, six of P1's nine "cycles" were pins, and P4's stub made its own first RED pass. I wrote REDs from
+  the synthesis without running them (Learning #537).
+- ⚠ **My revision then specified a command I had never run** — the grid recipe crashed as written; the
+  second review caught it, along with 14 smaller defects.
+- ⚠ **I repeated the `cd` trap after writing the learning about it** (Learning #535).
+- **The plan is long** — 1,632 lines, 139 KB; each phase block is self-contained, but it is heavy.
+- **I grew both over-budget ledgers and reduced nothing** (`BACKLOG.md` +10.4 KB, `PROJECT_LEARNINGS.md`
+  +6.9 KB) — the tenth consecutive close-out to grow them.
+- **The research was expensive:** four workflows, 40 agents, ~10.9M subagent tokens.
+
+**Against the bar.** Sessions 257–261 each shipped or certified a rule and attacked it. This one shipped
+no code: it planned one, measured that most of its value is zero, found the real-reach regression beside
+it, and put the plan through the same adversarial discipline — though it took two reviews to catch what
+running my own REDs would have caught first.
 
 ## Session 260 Handoff Evaluation (by Session 261)
 

@@ -13,6 +13,39 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-14 · [BACKLOG: The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it] The attribute-tokenizer plan — four phases, the real-reach regression beside them, and the census that proves them
+
+- **Operator-picked at Phase 0** (option 1 of 4, the recommended one): plan one tokenizer rather than
+  patch either HIGH item. Claimed 2026-09-11 in `7a2397e2`. **PLAN ONLY — no file under `src/` or
+  `test/` changed.**
+- **The plan (`452ce271`)** — `docs/planning/2026-09-14-attribute-tokenizer-plan.md`: one import-free
+  leaf, `src/core/qmd/attribute-block.ts`, built from measurement. P1 quarto's backtick fence-tag rewrite
+  (the recommended stop; no tokenizer; 23 documents, +41 headings, −6 phantoms, +8 cells, +2 labels);
+  P2 the leaf and accepted `:::` openers; P3 single-line refusals through the div stack (correcting, by
+  measurement, the claim note's "not the `divColumns` push"); P4 (optional) the fence info rule. Every
+  div/heading item it closes measures **0 of 3,383** documents; its ground truth is quarto's READER VIEW,
+  not raw pandoc.
+- **The census tool rides with the plan** (operator decision, mid-session, option 1 of 3): three files
+  under `docs/planning/scripts/attribute-block/` — a three-view two-build census that fails on any throw;
+  controls re-run from the committed copy (identity 0/0/0; pre-S257 108/+0/−289; P1 prototype 23/+41/−6,
+  cells 8, labels 2), and P1's expected changed set as path digests, no paths.
+- **Found, measured and filed: a Session 224 regression** — a ```` ```{{python}} ```` display fence is
+  refused as a fence and swallows headings in 23 real documents (`95241beb`'s parent reports both
+  headings of the witness, `95241beb` one). The new head of "Up Next"; the plan's P1.
+- **Records (`61bcce86`):** that item; one consolidated *"Deferred by the attribute-tokenizer plan"*
+  item; reach-0 annotations on the three items the plan schedules; five appends. `BACKLOG.md` 302,927 →
+  313,343 B (+10,416), `check-backlog` OK, 206 open. Learnings #531–#537 (`PROJECT_LEARNINGS.md`
+  +6,855 B).
+- **Notes trim (`4b69957b`):** the oldest SESSION_NOTES pair (S257 eval + S258 self-assessment), deletion
+  only.
+- **How it was made:** four workflows — research (15 agents), a design panel (8), a plan review (11: 46
+  findings + 4 critic gaps, 1 blocker) and a second review of the revision (6: 15 findings, 0 blockers)
+  — about 10.9M subagent tokens; every load-bearing claim re-measured by the main session (plan §11.2).
+  P3's blank-line rule was dropped after review (two measured deletion hazards, zero reach).
+- **Gates:** `npm run compile` clean; `npm test` 2,875 passing / 66 files. No runtime behaviour changed,
+  so no runtime gate (stated in the receipt, not skipped).
+- **Model:** Claude Opus 5.
+
 ### 2026-09-11 · [BACKLOG: SHIPPED CODE DELETES A RENDERED HEADING: six of the nine readers have no `fenced_divs`, and the CALLOUT rule fires there anyway] The callout reader gate — 36 rendered losses fixed, no heading removed anywhere, and everything it un-masks filed
 
 - **Operator-picked at Phase 0** (option 1 of 4, the recommended one); claimed 2026-09-10 in
