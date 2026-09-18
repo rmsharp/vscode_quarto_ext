@@ -3131,4 +3131,66 @@ describe("S225: a heading inside a BLOCK QUOTE reaches the outline", () => {
     );
   });
 
+  // ⚠ **THE RUNTIME GATE FOR SESSION 263.** The region scanner now reads a backtick fence's info
+  // string after quarto's readqmd TAG REWRITE, proved headlessly over `src/core`; this row proves
+  // the Outline the USER sees, through `vscode.executeDocumentSymbolProvider` against the built
+  // extension in a real Extension Development Host. `it(`, never `test(` (mocha BDD).
+  it("a ```{{python}} display block keeps its own closer, so the heading after it reaches the OUTLINE", async () => {
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    // PRESENT — the deliverable, the plan's `dd2` witness. Quarto renders both `<h2>`s
+    // (`scratchpad/s262/reach/probe_dd/dd2.qmd`). Before Session 263 the display block was
+    // refused, and its own closer opened a fence that swallowed `Hidden Display`.
+    const after = await namesFor(
+      "---",
+      "title: dd2 runtime",
+      "---",
+      "",
+      "``` {{python}}",
+      "#| echo: false",
+      "",
+      "x = 1",
+      "```",
+      "",
+      "## Hidden Display",
+      "",
+      "text",
+      "",
+      "```",
+      "plain",
+      "```",
+      "",
+      "## After Display",
+    );
+    assert.ok(
+      after.includes("Hidden Display") && after.includes("After Display"),
+      `the heading after a display block must reach the outline: ${after.join(", ")}`,
+    );
+
+    // ABSENT — the fence control. A heading INSIDE the display block is code, and quarto renders
+    // only `After Inside` (`scratchpad/s263/g/p1_top`). Without this, the PRESENT assertion passes
+    // for a build that has stopped opening the display block at all.
+    const inside = await namesFor(
+      "---",
+      "title: p1 runtime",
+      "---",
+      "",
+      "```{{python}}",
+      "x = 1",
+      "",
+      "## Inside Display",
+      "",
+      "```",
+      "",
+      "## After Inside",
+    );
+    assert.ok(
+      !inside.includes("Inside Display") && inside.includes("After Inside"),
+      `a heading inside a display block is code: ${inside.join(", ")}`,
+    );
+  });
+
 });

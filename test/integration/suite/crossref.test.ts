@@ -701,4 +701,48 @@ describe("Quarto: Cross-reference completion + definition", () => {
       `a label inside a quoted fence must stay hidden; got ${JSON.stringify(offered)}`,
     );
   });
+
+  it("S263: a tilde fence's id and a cell after a display block are both offered", async () => {
+    // Quarto rewrites a brace TAG only on a BACKTICK fence (readqmd.lua:37-40), so
+    // `~~~{#lst-tilde}` defines its id under both readers (`scratchpad/s263/g/i06`), and a
+    // `{{python}}` display block with a blank line inside is a code block whose closer is its own —
+    // so the real cell below it defines `fig-after` (`scratchpad/s263/cp/cpy`, rendered with
+    // jupyter). Before Session 263 neither label was offered.
+    const content = [
+      "~~~{#lst-tilde}",
+      "x = 1",
+      "~~~",
+      "",
+      "```{{python}}",
+      "#| echo: false",
+      "",
+      "1 + 1",
+      "```",
+      "",
+      "```{python}",
+      "#| label: fig-after",
+      "#| fig-cap: Cap",
+      "print(1)",
+      "```",
+      "",
+      "See @",
+    ].join("\n");
+    const doc = await vscode.workspace.openTextDocument({ language: "quarto", content });
+    await vscode.window.showTextDocument(doc);
+    const list = await vscode.commands.executeCommand<vscode.CompletionList>(
+      "vscode.executeCompletionItemProvider",
+      doc.uri,
+      new vscode.Position(16, 5),
+      "@",
+    );
+    const offered = (list?.items ?? []).map(labelText);
+    assert.ok(
+      offered.includes("@lst-tilde"),
+      `a tilde fence's id must be offered; got ${JSON.stringify(offered)}`,
+    );
+    assert.ok(
+      offered.includes("@fig-after"),
+      `a cell after a display block must be offered; got ${JSON.stringify(offered)}`,
+    );
+  });
 });
