@@ -26,6 +26,67 @@ today (the seed's 4-backtick example moved into the archive with the 2026-08-24 
 over-counts the shard, and it will over-count here again the moment an example returns. Before the
 trim it read **219** against a true **218**. Count the way the trimmer does.
 
+## Size, and when to archive
+
+handoffs-format: 2 — keep this marker, and bring it across with this section; `bin/status` reads it.
+
+This file gains a receipt every session and nothing removes one, so it grows without bound. The
+protocol never asks a session to read it whole: Phase 0 reconciles it against `git log` and checks
+the newest receipt, and a session reads that receipt at the top — past the harness's default-read
+refusal, with an offset and a limit. Archive it when the trimmer's trigger fires. The tool states the
+trigger, and this file names no size of its own.
+
+**Run this rather than estimating it:**
+
+```sh
+python3 methodology_trim.py --file HANDOFFS.md --check
+```
+
+`--check` evaluates the trigger and never writes. `--write` performs the trim, refuses unless it
+can prove the split lossless, and **neither commits nor stages** — it leaves this file modified and
+the new shard *untracked*, and leaves the commit to you (`git add HANDOFFS.md docs/archive/`).
+
+An archive is a **shard**: a new frozen file, same format, same newest-on-top order.
+
+- **Path: `docs/archive/HANDOFFS-through-<CUT-KEY>.md`.** Both halves are load-bearing — the
+  directory keeps the shard from shadowing this file, and the `HANDOFFS-` prefix is what the
+  trigger's own glob looks for. A shard named otherwise is silently invisible to it.
+- **This file keeps one short pointer** naming each shard, the span it covers and how many receipts
+  it holds — with the command that recomputes those counts, never a hand-maintained number.
+- **The shard back-links here and states only facts about itself.** It must not restate a
+  forward-looking rule: a shard is frozen, so a rule copied into one cannot be corrected when the
+  live rule moves.
+- **After a split, anything that enumerates receipts must span both** — `HANDOFFS.md
+  $(git ls-files 'docs/archive/HANDOFFS-*.md')` — or it silently counts a shrunken
+  population. Enumerate the shards with `git ls-files`, never as a bare glob: zsh aborts a
+  command whose glob matches nothing, so before the first split the bare form counts nothing
+  at all — the same reason the ledger's audit is written that way.
+
+The reasoning this file shares with `CHANGELOG.md` — how a ledger is read, why the tool is the only
+statement of its trigger, and what a split must conserve — is in the *Reading and archiving*
+subsection of [§The Action Ledger](docs/methodology/FRAMEWORK_APPARATUS.md#the-action-ledger).
+That subsection makes archiving optional for `CHANGELOG.md`; this file keeps its own rule, above —
+archive it when the trimmer's trigger fires. Everything needed to *act* is here.
+
+What is specific to *this* file, and gets receipts wrong if assumed:
+
+- **A record is a `handoff` block *plus the prose beneath it*, not the fence alone.** The self-score
+  and predecessor-score paragraphs sit outside the fence and belong to the receipt above them. A
+  fence-only cut severs every receipt from its own scoring.
+- **Archive oldest-first by position, never by sorting on `session:`.** Two independent `S<N>`
+  sequences can share one ledger — a fork and its upstream each running their own counter — and
+  their numbers collide. The record's identity is **session + date**.
+- **A trim leaves the newest-receipt check alone and moves what the older-receipt checks see.**
+  Phase 0 reconcile is frontier-based and a structural checker applies the full schema to the newest
+  receipt only, so neither is disturbed. Its other passes are not so confined — an answer-slot rule
+  reads every receipt below the newest, and a locator-form rule reads every receipt in the file. So
+  after a trim, **run the checker against each shard as well**, and recompute any "all N older
+  receipts" count from the files rather than carrying it forward.
+- **Never trim to zero receipts.** An empty receipt ledger is indistinguishable from a broken one.
+- **A shard freezes, with one exception this file needs:** a `commit:` answer slot may still be
+  reconciled inside an archived receipt, because that field was always going to be filled by a later
+  session. Nothing else in a shard is rewritten.
+
 **Archived 211 record(s), 2026-07-09 → 2026-08-24** into [`docs/archive/HANDOFFS-through-2026-08-24.md`](docs/archive/HANDOFFS-through-2026-08-24.md) — same format, same order, frozen.
 Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.sh`](docs/archive/HANDOFFS-through-2026-08-24.md.verify.sh), which re-derives L1/L2/L3 from git; run it rather
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.

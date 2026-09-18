@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] BL-57 P8 — `HANDOFFS.md` gains the current seed's `## Size, and when to archive` section above the trimmer's pointer block; every receipt untouched
+- **Change:** the seed's section (`starter-kit/HANDOFFS.md:89`–`148` at fork `0ab3881`, carrying `handoffs-format: 2`) is inserted as new lines 29–88, plus one blank line, directly above the pointer block — plan item (21) and `BOOTSTRAP.md:387`–`388`, the *add, don't replace* route. The count sentence (:20–22), this project's fence-aware warning (:23–27), the pointer block and every receipt stay byte-identical. The insertion point was re-derived at the claim: the plan read it at `58f7bcbd` and it still held.
+- **Commit/PR:** the commit that ships this entry; also records the plan's §9.8 check on the header commit `acb43e0b`
+- **Session:** S264 · **Verified:** `cmp` — new :1–28 = old :1–28, :29–88 = seed :89–148, :89 blank, :90–end = old :29–end; `grep -c '^```handoff'` 17 → 17. §9.8 on `acb43e0b` (`CHANGELOG.md`, bounds 1 8): `only the block changed`; control bounds 1 7: `lines removed outside the block: [(6, 3)]`.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] BL-57 P8 — `CHANGELOG.md`'s Keep-a-Changelog header (old lines 1–8) replaced by the current seed's thin header; the shard pointer and every entry untouched
 - **Change:** the header now points to [§The Action Ledger](docs/methodology/FRAMEWORK_APPARATUS.md#the-action-ledger) and carries `ledger-format: 2`. The block, re-derived by content at the claim, is old lines 1–8 — `# Changelog` through `## [Unreleased]`, the Keep-a-Changelog heading dropped as `airqino` dropped it: the ledger groups by month. The trimmer's archive-pointer block (old :10–12) and every entry are byte-identical.
 - **Commit/PR:** the commit that ships this entry
