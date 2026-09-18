@@ -49,7 +49,7 @@
       "path": "HANDOFFS.md",
       "class": "read-mandated",
       "max_bytes": 65536,
-      "_": "The durable receipt ledger; Phase 0 reconciles it and Phase 3D writes to it. 65,536 B is this project's ceiling, no longer the trimmer's: trim v1.5.0 (synced at Session 264) archives it only above 196,608 B, so this entry stays `over` until the operator decides whether to drop it as CHANGELOG.md was (the upstream plan's D7) or a trim is run by hand. 52,850 B after the Session 254 trim (was 1,801,150 -- 27x over, refusing to trim at all because of a stale bootstrap seed footer); 62,521 B when this config was written at Session 255. Measure, don't trust this sentence: `python3 methodology_trim.py --check --file HANDOFFS.md`."
+      "_": "The durable receipt ledger; Phase 0 reconciles it and Phase 3D writes to it. 65,536 B is this project's ceiling, no longer the trimmer's: trim v1.5.0 (synced at Session 264) archives it only above 196,608 B, so this entry stays `over` until a trim is run by hand. KEPT deliberately: the operator decided at methodology Session 191 (the upstream plan's D7) that the remedy is a trim in this project, not dropping the warning as CHANGELOG.md's was -- and that trim needs `--budget-bytes` or `--cut N --force`, since the trimmer's own trigger will not fire. 52,850 B after the Session 254 trim (was 1,801,150 -- 27x over, refusing to trim at all because of a stale bootstrap seed footer); 62,521 B when this config was written at Session 255. Measure, don't trust this sentence: `python3 methodology_trim.py --check --file HANDOFFS.md`."
     },
     {
       "path": "BACKLOG.md",

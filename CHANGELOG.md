@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] Session 264's handoff corrected — D7 is decided and nothing is owed upstream; both were written as open
+- **Change:** after S264 closed out, methodology Session 191 recorded P8 in the upstream plan (row `:1009`, block `:354`; `10f931a`, `0b7e672`), filed the `check-handoff` fence bug as BL-72 (S192 claimed its fix, `96de3ee`), and recorded the operator's D7 decision for this project: `HANDOFFS.md` STAYS in `.context-budget.json` at 65,536 B, and the remedy is a trim here, not dropping the warning. S264's handoff still called both open, in three places, now corrected: `SESSION_NOTES.md` ACTIVE TASK; the S264 receipt's `active_task`, `whats_next` #2(a) and #3, `key_files` (plan anchors re-read at methodology `b27236e`: `:956` → `:1009`, and the rest) and gotcha 3; and the `HANDOFFS.md` comment in `.context-budget.json`, which said the entry was over "until the operator decides". No threshold changed. Noted for the trim: the trimmer fires only above 196,608 B, so it needs `--budget-bytes` or `--cut N --force`.
+- **Commit/PR:** the commit that ships this entry
+- **Session:** S264 · **Verified:** every cited methodology anchor re-read at `b27236e` (`:354`, `:392`, `:960`, `:985`, `:1009`, `:1228`–`:1240`; the three commits exist); `grep -c ':956'` = 0 in `SESSION_NOTES.md` and `HANDOFFS.md`; `.context-budget.json` parses; `grep -c '^status: pending' HANDOFFS.md` = 0
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] Session 264 close-out amended — the receipt cites the gate run; self-score lowered to 7
 - **Change:** the S264 `HANDOFFS.md` receipt's `runtime_smoke` now cites the gate run and drops its "no gates, no citation owed" line, `whats_next` #5 tells the next session that every close-out runs the ratchet, and `self_score` goes 8 → 7. `SESSION_NOTES.md`'s ACTIVE TASK names the gates, and the self-assessment records the miss: this session closed out against the Orient-time runner rather than the one it had just synced, and the operator had to send the close-out back.
 - **Commit/PR:** the commit that ships this entry; the gates themselves are `d71e5870`

@@ -24,9 +24,11 @@ carries an *(in progress)* entry; a committed entry is never edited — a correc
 Rules: `docs/methodology/FRAMEWORK_APPARATUS.md:338`; this project's form: `CLAUDE.md:178`.
 **⚠ Tag a backlog item `[BL-<item title>]`** (no `]`); methodology work `[ad hoc]`. Grep `BACKLOG.md`
 for what a commit touches BEFORE tagging it `[ad hoc]` — S264 missed two items (Learning #543).
-**⚠ The trimmer no longer fires on either ledger** (v1.5.0: 196,608 B). `context_budget.py` still reads
-`HANDOFFS.md` `over` at its 65,536 B ceiling — the operator's D7 question, `whats_next` #2.
-**⚠ The methodology repo still owes P8's own record** (plan row `:956`, its ledger) — a session there.
+**⚠ D7 DECIDED (operator, methodology S191): `HANDOFFS.md` STAYS budgeted at 65,536 B**, so it reads
+`over`; the remedy is a trim here, its own task. The trimmer fires only above 196,608 B (v1.5.0), so
+that trim needs `--budget-bytes` or `--cut N --force`.
+**Nothing is owed upstream:** methodology S191 recorded P8 (plan `:1009`) and filed the check-handoff
+bug as BL-72; S192 is fixing it. Until then, find a pending receipt with grep, not `check-handoff`.
 **⚠ Jupyter is installed** — force `engine: markdown` in render probes that are not about cells.
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
