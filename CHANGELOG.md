@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] BL-57 P8 — two phrases in the `.context-budget.json` comments `4b727a9d` rewrote, made exact
+- **Change:** the top-level comment said "the 65,536 B read-mandated ceilings" matched the trimmer's budget; only the two ledgers' did — it now says so and notes `BACKLOG.md` uses the same number with no trimmer. The `HANDOFFS.md` comment said "62,521 B after the Session 254 trim"; that trim (`867e0fa2`) left 52,850 B, and 62,521 B is the size when the config was written at Session 255 (`d4c90592`). The error predates this session, but it sat inside a sentence `4b727a9d` rewrote. No number the tool reads changed.
+- **Commit/PR:** the commit that ships this entry
+- **Session:** S264 · **Verified:** `git show 867e0fa2:HANDOFFS.md | wc -c` = 52,850 and `git show d4c90592:HANDOFFS.md | wc -c` = 62,521; `python3 -m json.tool` parses the config
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [BL-Migrate `CHANGELOG.md`'s header/preamble to the current v3.1+ "Authoritative Action Ledger" seed format] Done by `acb43e0b` — the item leaves `BACKLOG.md` one commit late
 - **Change:** the Session 158 grooming item is removed from `BACKLOG.md` "Up Next". Its own acceptance test holds: `bin/status --source=local` reads `CHANGELOG.md` `present`, and every entry is byte-identical. **Correction:** `acb43e0b`'s entry was tagged `[ad hoc]` and left the item open, against the rule that a finished backlog item leaves `BACKLOG.md` in the same commit. Found by this session's adversarial verification, not by `check-backlog`, which sees completed records rather than finished open items.
 - **Commit/PR:** `acb43e0b` did the work; the commit that ships this entry removes the item
