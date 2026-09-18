@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S260 evaluation by S261 + S261 self-assessment)
+- **Change:** 69 lines removed, old :143–211; lines :1–142 byte-identical. The retention rule in `CLAUDE.md` holds the live file at three pairs once this session's own pair lands. The dropped pair stays one command away: `git show 6d66070a:SESSION_NOTES.md`.
+- **Commit/PR:** the commit that ships this entry — a trim commit, with no other edit to `SESSION_NOTES.md`
+- **Session:** S264 · **Verified:** `cmp` of kept lines 1–142 against the parent; `git diff -U0` is one hunk, `-143,69`
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] Session 264 records — learnings #543–#544
 - **Change:** `PROJECT_LEARNINGS.md` gains #543 (a methodology sync can finish open backlog items, and `[ad hoc]` hides it — grep `BACKLOG.md` before tagging) and #544 (deny a sync's new root files before the sync commit; give every commit its own entry so the trimmer can verify it).
 - **Commit/PR:** the commit that ships this entry
