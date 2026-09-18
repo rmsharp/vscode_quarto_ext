@@ -61,3 +61,7 @@ test/fixtures/project/.quarto/vdoc-mit/
 # Python bytecode caches from importing the root methodology tools (Session 256).
 __pycache__/
 *.pyc
+
+# quality_ratchet.py's `--run` output (methodology sync, Session 264) — gitignored by default, as
+# the seed `.quality-gates.json` says; commit it instead if every clone should score the last run.
+.quality-gates-results.json

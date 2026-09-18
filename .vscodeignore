@@ -50,9 +50,17 @@ HANDOFFS.md
 methodology_dashboard.py
 methodology_trim.py
 context_budget.py
+quality_ratchet.py
 .context-budget.json
 .context-budget-history.jsonl
-# Python bytecode caches. The three methodology tools at the repo root are Python, so ANY
+# quality_ratchet.py's gate manifest (a seed, project-owned once created) and the results file its
+# `--run` writes at the root, all three arriving with the Session 264 methodology sync (fork
+# 0ab3881): measured in a scratch clone, check-package failed on the tool and the manifest as soon
+# as the sync landed, and on the results file at the first `--run` — the 6th instance of the
+# new-root-file class. The results name is the manifest's `results_file`: rename it there, here too.
+.quality-gates.json
+.quality-gates-results.json
+# Python bytecode caches. The methodology tools at the repo root are Python, so ANY
 # session that imports one (rather than shelling out to it) drops a __pycache__/ at the root.
 # Session 256 did exactly that while establishing why methodology_trim.py refuses
 # SESSION_NOTES.md, and check-package caught it as a 43rd packaged file — the 5th instance of

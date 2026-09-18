@@ -13,6 +13,18 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] BL-57 P8, before the sync — the three root files the methodology sync adds are denied from the `.vsix`, so no commit on `master` fails `check-package`
+- **Change:** `.vscodeignore` denies `quality_ratchet.py`, `.quality-gates.json` and `.quality-gates-results.json`; `.gitignore` ignores the last, as the seed manifest says to by default. Landed BEFORE the sync on purpose: item (18) keeps the sync commit to exactly the files `bin/sync` writes.
+- **Commit/PR:** the commit that ships this entry
+- **Session:** S264 · **Verified:** measured in scratch clones at `48d1790c` — pre-sync `check-package: OK — 42 files`; after the sync `FAIL` on `.quality-gates.json` and `quality_ratchet.py` (and on the results file after `quality_ratchet.py --run`); with these lines `OK — 42 files`, before and after the sync. `npm test` 2912/2912 both sides. Re-run on the real tree after the sync commit.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
+### 2026-09-18 · [ad hoc] Session 264 claimed — BL-57 P8 of the upstream methodology plan (in progress)
+- **Change:** `SESSION_NOTES.md` ACTIVE TASK stub and a `status: pending` S264 receipt in `HANDOFFS.md`; the Phase 0 telemetry appends rode along.
+- **Commit/PR:** `48d1790c` — recorded here, one commit late: the claim followed this project's old one-entry-per-session practice, and the per-commit rule (the claim carries an *(in progress)* entry) arrives with this session's sync.
+- **Session:** S264 · **Verified:** n/a — docs-only
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [BACKLOG: a ```` ```{{lang}} ```` display fence — quarto's documented verbatim-cell idiom — is refused as a fence] P1 of the attribute-tokenizer plan — fences read after quarto's backtick tag rewrite; 41 headings restored in 23 real documents, and the one deletion P1 itself introduced, modelled away
 
 - **Operator-picked at Phase 0** (option 1 of 4, the recommended one). Claimed in `0a33f600`; the operator's
