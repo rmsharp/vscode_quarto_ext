@@ -1,5 +1,5 @@
 {
-  "_": "Project config for vscode-quarto-ext. Seeded from canonical at Session 255 and tuned the same session. Ceilings below are canonical's own numbers where an analogue exists (65,536 B for a read-mandated ledger is the SAME number methodology_trim.py budgets to, deliberately: the two tools are a pair). Re-derive with: python3 context_budget.py --calibrate",
+  "_": "Project config for vscode-quarto-ext. Seeded from canonical at Session 255 and tuned the same session. Ceilings below are canonical's own numbers where an analogue exists. The 65,536 B read-mandated ceilings were chosen at Session 255 to match methodology_trim.py's budget; since trim v1.5.0 (synced at Session 264) the trimmer archives a root ledger only above 196,608 B, so a ledger here can read `over` while `methodology_trim.py --check` says its trigger does not fire. CHANGELOG.md is deliberately unbudgeted (Session 264, the operator's decision: the ledger rules say no session reads it whole). Re-derive with: python3 context_budget.py --calibrate",
   "bytes_per_token": 2.93,
   "_bytes_per_token": "How many bytes of dense markdown cost one token. 2.93 was calibrated on one project by a natural experiment: a commit moved 156,574 B out of CLAUDE.md and the next session's opening context fell 53,520 tokens. Run --calibrate to derive your own; do not inherit this number if you can measure it.",
   "fixed_harness_tokens": 35700,
@@ -46,16 +46,10 @@
       "_": "Phase 0 step 2 ORDERS a read of this file. ⚠ MEASURED 3,946,063 B / 13,912 lines at Session 255 -- 33x this ceiling, and larger than BOTH ledgers were before the Session 254 trim. Sessions 254 and 255 each read ~160 lines of it and inferred the rest, which is failure mode #28 committed twice by the session that then wrote the finding down. The ceiling is canonical's, kept deliberately rather than raised to make this green -- raising it would record the problem as the standard. Reducing this file is a NAMED next deliverable, not housekeeping."
     },
     {
-      "path": "CHANGELOG.md",
-      "class": "read-mandated",
-      "max_bytes": 65536,
-      "_": "The authoritative ledger. Phase 0 step 6 reconciles against it and Phase 3F writes to it, so it is read every session. 65,536 B is methodology_trim.py's own budget for this file -- same number on purpose, so context_budget.py REPORTS what the trimmer would ACT on. 51,879 B after the Session 254 trim (was 831,830)."
-    },
-    {
       "path": "HANDOFFS.md",
       "class": "read-mandated",
       "max_bytes": 65536,
-      "_": "The durable receipt ledger; Phase 0 reconciles it and Phase 3D writes to it. Same 65,536 B as the trimmer. 62,521 B after the Session 254 trim (was 1,801,150 -- 27x over, refusing to trim at all because of a stale bootstrap seed footer). ⚠ Now at 95% of ceiling: the next trim is close. Run `python3 methodology_trim.py --check --file HANDOFFS.md`."
+      "_": "The durable receipt ledger; Phase 0 reconciles it and Phase 3D writes to it. 65,536 B is this project's ceiling, no longer the trimmer's: trim v1.5.0 (synced at Session 264) archives it only above 196,608 B, so this entry stays `over` until the operator decides whether to drop it as CHANGELOG.md was (the upstream plan's D7) or a trim is run by hand. 62,521 B after the Session 254 trim (was 1,801,150 -- 27x over, refusing to trim at all because of a stale bootstrap seed footer). Measure, don't trust this sentence: `python3 methodology_trim.py --check --file HANDOFFS.md`."
     },
     {
       "path": "BACKLOG.md",
@@ -111,6 +105,10 @@
     {
       "path": "context_budget.py",
       "canonical": "../methodology/starter-kit/context_budget.py"
+    },
+    {
+      "path": "quality_ratchet.py",
+      "canonical": "../methodology/starter-kit/quality_ratchet.py"
     }
   ]
 }

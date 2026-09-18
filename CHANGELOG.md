@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] BL-57 P8 — `CLAUDE.md` records this ledger's legacy tags and its `[BL-<item title>]` form; `CHANGELOG.md` leaves `.context-budget.json`
+- **Change:** a new `CLAUDE.md` Adaptations subsection, *`CHANGELOG.md` conventions (Session 264)*: backlog items are tagged `[BL-<item title>]` (no `]` in the title), methodology work `[ad hoc]`; the `[BACKLOG: <title>]` tags, the untagged June 2026 shard entries and the positional `[BL-<N>]` tags are legacy, left as written, with the command that lists what the audit skips; `## [Unreleased]` is gone. `.context-budget.json` drops its `CHANGELOG.md` entry (the operator's decision; the rules say no session reads the file whole), corrects two comments the sync made false (65,536 B is no longer the trimmer's budget — trim v1.5.0 archives above 196,608 B), and lists `quality_ratchet.py` among the synced files it checks for drift. `CLAUDE.md` :102 and :146, the lines the plan names, were read against the new rules and need no change.
+- **Commit/PR:** the commit that ships this entry
+- **Session:** S264 · **Verified:** `python3 -m json.tool` parses the config; `context_budget.py` no longer reports `CHANGELOG.md`, reads `CLAUDE.md` 17,989 B `ok` (ceiling 28,000) and `quality_ratchet.py` `synced ok`; the new command lists 11 skipped headings (5 `[BACKLOG: …]`, 6 untagged), identically in zsh and bash.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] BL-57 P8 — `HANDOFFS.md` gains the current seed's `## Size, and when to archive` section above the trimmer's pointer block; every receipt untouched
 - **Change:** the seed's section (`starter-kit/HANDOFFS.md:89`–`148` at fork `0ab3881`, carrying `handoffs-format: 2`) is inserted as new lines 29–88, plus one blank line, directly above the pointer block — plan item (21) and `BOOTSTRAP.md:387`–`388`, the *add, don't replace* route. The count sentence (:20–22), this project's fence-aware warning (:23–27), the pointer block and every receipt stay byte-identical. The insertion point was re-derived at the claim: the plan read it at `58f7bcbd` and it still held.
 - **Commit/PR:** the commit that ships this entry; also records the plan's §9.8 check on the header commit `acb43e0b`

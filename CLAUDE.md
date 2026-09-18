@@ -175,6 +175,26 @@ and `max_line_bytes` is the one that stays red after a trim: keep every ACTIVE T
 rule attached regrows — this file had already been drained twice under an instruction to "keep it
 clean", which is what `BACKLOG.md`'s own header records about itself.*
 
+### `CHANGELOG.md` conventions (Session 264)
+
+**The rules are [§The Action Ledger](docs/methodology/FRAMEWORK_APPARATUS.md#the-action-ledger).**
+This project adds:
+- **Tag a `BACKLOG.md` item `[BL-<item title>]`.** Its items carry no ids, so the title is the id;
+  leave out any `]`, which ends the tag early. Methodology-repo work (a sync, BL-57) is `[ad hoc]`,
+  naming that item in the summary.
+- **Legacy, left as written** (entries are never edited): `[BACKLOG: <title>]` tags, untagged
+  pre-vocabulary entries in the shard, and numeric `[BL-<N>]` tags — positional item numbers that no
+  longer resolve (`BACKLOG.md`'s header). Most entries before S264 cover a whole session, not one
+  commit. The Keep-a-Changelog `## [Unreleased]` heading is gone; entries group under `## YYYY-MM`.
+  The headings the audit skips:
+  `cat CHANGELOG.md $(git ls-files 'docs/archive/CHANGELOG-*.md') | grep '^### ' | grep -vE '^### [0-9]{4}-[0-9]{2}-[0-9]{2} · \[(issue #[0-9]+|BL-[^]]+|ad hoc)\]'`
+- **`CHANGELOG.md` is not in `.context-budget.json`.** No session reads it whole, so it has no read
+  budget. Its only size trigger is `python3 methodology_trim.py --file CHANGELOG.md --check`, and
+  archiving is optional.
+
+*Origin: Session 264 (2026-09-18), BL-57 P8. Operator decisions: the tag form, recording the legacy
+tags rather than retagging them, and dropping the budget entry.*
+
 ### Additional task-to-workstream mappings
 
 (none)
