@@ -31,6 +31,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S264
+date: 2026-09-18
+status: pending
+active_task: BL-57 P8 (upstream methodology plan) for this project -- bin/sync --source=local from fork main 0ab3881 (one run, one commit), migrate the CHANGELOG.md header and the HANDOFFS.md '## Size, and when to archive' section, record the legacy [BACKLOG: ...] tags in CLAUDE.md, drop CHANGELOG.md from .context-budget.json
+```
+
+```handoff
 session: S263
 date: 2026-09-18
 status: complete

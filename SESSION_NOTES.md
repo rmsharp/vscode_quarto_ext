@@ -8,21 +8,21 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 263 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S263 did:** IMPLEMENTED P1 of `docs/planning/2026-09-14-attribute-tokenizer-plan.md` — fences read
-after quarto's backtick tag rewrite: 41 headings, 8 cells, 2 labels restored in 23 real documents.
-Commits: `0a33f600` claim · `7e4ee16f` decisions · C1 `39d3a6aa` · C2 `d27114bc` · C3 `2a69d6c4` ·
-`a2699040` decision · C3b `51449f24` · C4 `7c84e94a` · `1c768656` records · `5fb65912` trim · close-out.
-**⚠ THE PLAN'S RECOMMENDED STOP IS REACHED.** P2–P4 are NOT approved (operator: P1 only), and every item
-they close measures 0 of 3,383 documents. They need the operator's §12 decisions 2, 3, 4, 7, 8 first.
-**⚠ The operator EXTENDED P1 mid-session:** readqmd's line-0 `{}` propagation is now modelled (C3b); the
-helper's third parameter is `emptyTagAllowed`. `refs.ts` is deliberately NOT given it — see the plan's
-P1 banner.
-**⚠ Runtime gate GREEN:** 547 passing. `npm test` 2912 / 66 files.
-**⚠ `context_budget.py` is RED on FOUR files**; this session grew `PROJECT_LEARNINGS.md` +4,225 B and
-`BACKLOG.md` +422 B. MEASURE them; do not quote this line.
-**⚠ Jupyter is now installed** — force `engine: markdown` in render probes that are not about cells.
+**Task:** **Session 264 IN PROGRESS** — **BL-57 P8 (upstream methodology plan) for this project:** sync
+from the local methodology checkout (fork `main` `0ab3881`), migrate the `CHANGELOG.md` header and the
+`HANDOFFS.md` seed section, record the legacy `[BACKLOG: …]` tags in `CLAUDE.md`. **Started:** 2026-09-18.
+**Plan:** `../methodology/docs/planning/changelog-rules-contradictions-plan.md` — P8 row `:956`, steps
+`:909`–`:931`, item (18) `:197`, item (21) `:242`; `starter-kit/BOOTSTRAP.md:385`–`:388`.
+**Operator decisions at Orient:** P8 as briefed; DROP `CHANGELOG.md` from `.context-budget.json`
+(Q2 A); new backlog entries tag `[BL-<item title>]`; `[BACKLOG: …]` becomes legacy.
+**NOT in scope:** the ledger trims, P9–P11, the tokenizer plan's P2–P4, any push.
+**Status:** CLAIMED. Work beginning.
+**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
+Until close-out this line is the crash breadcrumb for the next session's reconcile.
+**Phase 0 findings (S264).** Tree clean but for `scratchpad/` and the two telemetry appends. Both
+ledger frontiers are `HEAD` (`fa3696ed`); zero undocumented commits. Dashboard 76/100.
+**⚠ The brief said `58f7bcbd` is still HEAD; it is not** — S263 landed 11 commits after it. Every
+line the plan cites was re-derived at the claim and still holds (front matter untouched since).
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---
