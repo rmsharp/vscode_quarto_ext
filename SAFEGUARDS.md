@@ -46,11 +46,12 @@ If there are uncommitted changes from a previous session, **do not touch them**.
 | Rule | Why |
 |------|-----|
 | **Commit before any multi-file change** | Every disaster becomes a `git checkout` instead of a multi-hour recovery |
-| **Never touch more than 5 files without committing first** — the cap is *per-commit*, not per-session | Forces incremental, recoverable progress. A pre-declared vertical slice (`SESSION_RUNNER.md` §Vertical Slice Sessions) may touch more than 5 files across a session, but never more than 5 between checkpoint commits. |
+| **Never touch more than 5 files without committing first** — the cap is *per-commit*, not per-session | Forces incremental, recoverable progress. A pre-declared vertical slice (`SESSION_RUNNER.md` §Vertical Slice Sessions) may touch more than 5 files across a session, but never more than 5 between checkpoint commits. A committed-mode `bin/sync` run is one commit, whatever its file count ([`BOOTSTRAP.md`](BOOTSTRAP.md)). |
 | **Never refactor across module boundaries without plan mode** | Cross-module refactoring is Architect Mode work, period |
 | **Never delete a file without verifying it's committed** | `git log --oneline -- <file>` before `rm`. No shortcuts. |
 | **Never rename/move files as part of a "quick fix"** | Renames cascade. They are never quick. |
 | **"Refactoring" always requires plan mode approval** | Refactoring is not a "just do it" activity. Ever. |
+| **Never loosen a declared quality threshold to make a change pass** — loosening requires plan mode approval; tightening never does | A threshold that can be lowered under pressure is a suggestion. The ratchet is what makes "wouldn't make it through today" true a year later. Declared in `.quality-gates.json`, held by `quality_ratchet.py --precommit`; `--no-verify` is a recorded bypass, not an exemption. Removing the manifest is the loosest loosening and is refused the same way. Merge and rebase commits skip the hook (as they skip the ledger hook): a loosening resolved into a merge is caught by the dashboard's read of the manifest's history, not by the hook. |
 
 ### Scope Creep Red Flags
 
@@ -180,6 +181,10 @@ The `HANDOFFS.md` receipt and Phase 0 reconcile catch a skipped close-out report
 - **Fast path, not the guarantee** — same status as the ledger co-staging hook. It is agent-specific (each harness names the hook differently; some have none), human-dismissable, and defeated by a crash before the callback fires. The guarantee remains Phase 0 reconcile-on-read.
 - **Soft-remind, not hard-block** by default — surface the incomplete receipt and let the agent finish it, rather than refusing to stop (which risks a livelock).
 - The methodology ships no such hook — it is external harness configuration, in the same class as agent-level memory. See [`BOOTSTRAP.md`](BOOTSTRAP.md) Step 10.
+
+### Disclosure Hook (failure mode #16 — the agent never takes credit)
+
+The human is the author of every commit and owns it. When an AI agent drove the commit, the message must say so — a `Co-Authored-By: <agent name> <agent email>` trailer — so no reader of the history is misled about how the work was produced. That is **disclosure, never credit.** It is also an instruction a session must remember on every commit, so the canonical repo makes it a gate: [`.githooks/commit-msg`](https://github.com/KJ5HST/methodology/blob/main/.githooks/commit-msg) refuses an undisclosed commit **only when an agent harness is detectable in the environment** (`AI_AGENT`, `CLAUDECODE`, `CLAUDE_CODE_SESSION_ID`; `METHODOLOGY_REQUIRE_COAUTHOR=1` forces it, `=0` disables) — a human committing by hand is never asked to disclose an agent that was not there. Canonical-only, like the ledger hook: copy it if you want it; `--selftest` checks it; `--no-verify` bypasses once.
 
 ---
 

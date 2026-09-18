@@ -67,6 +67,7 @@ CUSTOMIZATION
   is exact where detection is a guess.
 """
 
+import hashlib
 import json
 import os
 import platform
@@ -84,7 +85,13 @@ from collections import defaultdict
 # Every other copy (portfolio root + per-project) is a synced copy of the canonical and must
 # carry the same value. A copy whose DASHBOARD_VERSION is older than the canonical is stale —
 # re-sync from the canonical. Bump on any change to the canonical script.
-DASHBOARD_VERSION = "2.15.2"
+# 2.18.0: the fork's resync with upstream/main (docs/planning/upstream-resync-2026-09-plan.md, D3)
+# merges upstream's two releases on its own numbering line into this one at 2.17.0 -- 2.11.0 (quality-
+# gate outcomes scored, advisory, and the gates panel) and 2.11.1 (the gate-history walk fixes). The
+# gates panel is changed output on a distributed tool: MINOR, the next above both lines. Upstream's
+# line continues from 2.11.1, so the two stay apart until a dashboard PR reconciles them. (2.17.0,
+# Phase C2's per-class read-cap risk row, is described in git: `git log -S'2.17.0'` on this file.)
+DASHBOARD_VERSION = "2.18.0"
 
 ROOT = Path(__file__).parent
 # `"methodology"` was here and is deliberately gone (plan D4(c)): the scanner was structurally
@@ -255,22 +262,92 @@ _BACKLOG_LOCATIONS = ("BACKLOG.md", "docs/BACKLOG.md", "docs/planning/BACKLOG.md
 # for. Separating them is ADDED POLICY: the ratified design says only that a 2,090-line .md must
 # be able to trip *a* large-file risk, and taking that literally would regress BL-5's test.
 #
-# UNIT: LINES, because the cap is in lines. Bytes are not a proxy — measured in this repo,
-# HANDOFFS.md runs ~265 B/line and CHANGELOG.md ~83 B/line, so any single byte threshold is wrong
-# for one of them by ~3x, and would flag the file that is NOT truncating while missing the one
-# that did.
-# VALUE: harness behaviour, not a repo property and not taste — a Read past it returns the first
-# 2,000 lines with no error and no missing-data marker. Same name, same value and same stated
-# reason as starter-kit/methodology_trim.py's READ_CAP_LINES, so the reporter and the remedy
-# cannot disagree about where the cliff is; a canonical test pins the two literals together.
+# UNIT: BYTES, converted from the TOKEN cap the harness actually enforces. Re-denominated at
+# Phase B (2026-08-26); it was LINES, and lines were not merely imprecise but STRICTLY DOMINATED.
+# Measured over 18 watched ledgers in 5 repos: the 2,000-line threshold fired on 3 and stayed
+# silent on 8 that a byte threshold at ANY point in the measured 2.2705-3.0300 B/token band
+# catches, and it caught NOTHING a byte threshold misses. The B/line spread over that same
+# population is 8.6x; the B/token spread is 1.33x. So this is not a re-tuning: one axis reports
+# the quantity the cap is denominated in and the other does not.
+# VALUE: harness behaviour, not a repo property and not taste — and DERIVED, never written as one
+# opaque number, because a number goes stale when the harness moves and the command does not.
+# What was measured, with the reproduction beside it:
+#   * the cap states itself: "exceeds maximum allowed tokens (25000)".
+#   * truncation is ANNOUNCED, never silent — a PARTIAL-view banner giving the delivered span,
+#     the file's true length, the token count and the cap, warning against answering from it.
+#   * it does NOT deliver a fixed number of lines. A 3,000-line file came back WHOLE; a 536-line
+#     one did not. Delivery is whatever prefix fits the TOKEN cap.
+#   * an explicit `limit` spanning an over-cap region neither truncates nor bypasses: it ERRORS
+#     with NO content, which is also what makes it a free, exact token meter.
+#   * PAST 256 KiB THERE IS NO PREFIX AT ALL. A default read is refused outright — "File content
+#     (256.1KB) exceeds maximum allowed size (256KB)" — so the familiar consolation that
+#     "truncation is ordered, and the top of the file still arrives" holds only BETWEEN the two
+#     boundaries. 5 of those 18 fleet ledgers are already past this one.
+# RE-MEASURE rather than restating those five sentences. The reproduction is
+# docs/planning/read-cap-premise-correction-plan.md Appendix A, and it is the ONLY instrument that
+# can falsify them: no test in this repository can, because nothing here invokes the agent's Read
+# tool. A green suite is evidence that nothing ELSE broke.
 # BASIS — the failure already happened here, and was found by accident rather than by any check:
 #   git show 3aee4e3^:CHANGELOG.md | wc -l    -> 2,090
 # Phase 0's reconcile then computed a frontier against a record it could not fully see.
-READ_CAP_LINES = 2000
+# Re-measured since: that file is 186,704 B — roughly 2.97x the token cap but UNDER the 256 KiB
+# refusal, so a default read of it came back as a truncated prefix with a banner, not as nothing.
+# (An earlier draft of this comment said it was past the refusal. It is not: 186,704 < 262,144.
+# A fixture-control assertion caught that, which is the only reason it is not shipped here.)
+# The incident dates when the problem was NOTICED, not when it began, and the 2,000-line number
+# derived from it recorded a symptom's size rather than a threshold.
+# Same names, same values and same stated reason as starter-kit/methodology_trim.py's, so the
+# reporter and the remedy cannot disagree about where the cliff is; a canonical test pins the
+# literals together. Note precisely what that buys: it keeps the two copies CONSISTENT, and it
+# kept them consistent throughout the period both were WRONG.
+READ_CAP_TOKENS = 25_000
+MIN_BYTES_PER_TOKEN = 2.27       # the measured FLOOR, not the mean — a guard that must not stay
+                                 # silent on a truncating file assumes the densest content it will
+                                 # meet. NOT context_budget.py's bytes_per_token, which estimates
+                                 # a different quantity (opening context vs CLAUDE.md size).
+READ_CAP_BYTES = int(READ_CAP_TOKENS * MIN_BYTES_PER_TOKEN)     # 56,750 B — computed, not written
+READ_REFUSE_BYTES = 256 * 1024                                  # the hard, zero-content boundary
 
-# The files a session is instructed to read IN FULL to establish state — SESSION_RUNNER.md
-# Phase 0 step 2 (SESSION_NOTES.md), step 3 (BACKLOG.md), step 6 (reconcile CHANGELOG.md and
-# HANDOFFS.md against git log) — restricted to the ones the ADOPTER owns.
+# PHASE C2 — the Class A pair, mirrored from methodology_trim.py and pinned to it by a canonical
+# test, exactly as the four constants above are. THE REASON THEY EXIST HERE rather than only in
+# the trimmer: this scanner re-implements the trimmer's trigger in collect_trim_metrics (it must,
+# because it reports on repos where the tool is not installed), so a threshold that moved in the
+# trimmer alone would leave this file emitting "the archive trigger fires" beside a `--check` that
+# says it does not — naming a command whose output contradicts the row.
+#
+# THESE ARE NOT A REPLACEMENT FOR READ_CAP_BYTES; the two answer different questions and BOTH are
+# reported. READ_CAP_BYTES answers "does one Read deliver this whole file?", which stays true of a
+# Class A ledger and is why its risk row survives rather than being deleted (plan §7 rejects
+# option D on exactly that ground). CLASS_A_FIRE_BYTES answers "is a trim worth doing?", and for a
+# newest-on-top ledger whose truncation drops the OLDEST records the honest denominator for that
+# is the hard refusal, not the cap.
+CLASS_A_FIRE_BYTES = 192 * 1024   # 196,608 — see methodology_trim.py's block for the derivation
+CLASS_A_STOP_BYTES = 96 * 1024    # 98,304  — reported, never applied here; this tool never trims
+
+# The files a session opens to establish state, restricted to the ones the ADOPTER owns.
+#
+# THE JUSTIFICATION THAT STOOD HERE WAS FALSE FOR TWO OF THE SIX NAMES, and it is corrected rather
+# than quietly dropped (Phase B / BL-52). It read "the files a session is instructed to read IN
+# FULL ... step 6 (reconcile CHANGELOG.md and HANDOFFS.md against git log)". Step 6 is
+# SESSION_RUNNER.md's reconcile, and its own stated mechanics are FRONTIER-BASED:
+# `git log -1 --format=%H -- CHANGELOG.md`, then the commits after it. That reads git HISTORY, not
+# the file. The HANDOFFS.md half is frontier-based the same way, and the one thing step 6 does
+# look for INSIDE the file — a still-`pending` receipt — is at the TOP by construction and
+# SAFEGUARDS.md prescribes a grep for it. Phase 3A reads ONE receipt, not the ledger.
+# Measured, not just re-read: across 85 session transcripts of this repo each root ledger was read
+# WHOLE exactly ONCE and read in PART 1,696 / 1,797 times. Roughly 1 in 85.
+# Two further corrections to what was claimed: the runner says "in full" about exactly ONE file,
+# SAFEGUARDS.md, which is deliberately NOT in this set (it is a TRACKED dest — see the test
+# below); and no protocol text names `docs/BACKLOG.md` or `docs/planning/BACKLOG.md` at all, so
+# those two are here by analogy to the root basename.
+# THE SET IS NEVERTHELESS UNCHANGED, and that is a decision rather than an oversight. The row
+# reports a real property — whether one read delivers the file — which stays true whoever reads
+# it and however rarely. What was wrong was the REASON given, and a reason nobody re-checks is how
+# this defect got here. Narrowing the population was deferred to a separate, fleet-visible call —
+# and Phase C1 has since MADE that call: it PARTITIONED the six names without removing any, and
+# the two `docs/**` locations were kept deliberately, on evidence, for the reason stated with the
+# classes below. So the sentence above is still true, and it is now true by decision twice over
+# rather than by deferral.
 #
 # Written as a literal, NOT derived from METHODOLOGY_ITEMS, because two of that checklist's file
 # entries — SESSION_RUNNER.md and SAFEGUARDS.md — are TRACKED dests in bin/_manifest.py: files we
@@ -284,9 +361,86 @@ READ_CAP_LINES = 2000
 # a file read whole to compute anything. Absent above all: a book chapter. Nobody is instructed to
 # read chap07.md in full, so truncating it produces no wrong answer — flagging it would re-create
 # the very false positive BL-5's ext filter, one signal over, exists to kill.
-READ_CAP_WATCHED = frozenset(
-    ("SESSION_NOTES.md", "CHANGELOG.md", "HANDOFFS.md") + _BACKLOG_LOCATIONS
-)
+#
+# --- Phase C1: THE POPULATION IS TWO CLASSES, AND THE DIFFERENCE IS NOT COSMETIC ---------------
+# The six names above were one set, and the paragraph before this one records what that cost: a
+# justification that was FALSE for two of them, standing because nobody re-derived it. The split
+# below is read off two INDEPENDENT, machine-checkable facts, never off judgment:
+#
+#   Class A   the trimmer has a config entry for it (its basename is a key of LEDGERS), AND the
+#             protocol consumes it through a FRONTIER (`git log -1 --format=%H -- <file>`) or one
+#             record at a time (Phase 3A), never as a whole file. Records are dated/fenced and
+#             newest-on-top, so delivery being an ORDERED PREFIX means truncation removes the
+#             OLDEST records -- the ones nothing was reading. Measured across 85 transcripts of
+#             this repo: each root ledger was read WHOLE exactly ONCE, in PART 1,696/1,797 times.
+#
+#   Class B   the trimmer answers NO_CONFIG by design, AND the instructed access path IS the file
+#             (SESSION_RUNNER.md steps 2 and 3), with NO REMEDY the reader can reach -- no
+#             distributed file says what to do about an oversized one, which is the gap that
+#             separates this class from A far more sharply than any threshold does.
+#             ⚠ ORDERING: no Class B file has an ordering that GUARANTEES the needed part is in
+#             the delivered prefix -- and the qualifier is the whole claim, so it is not dropped
+#             here. An earlier draft of this comment said flatly "there is no record ordering that
+#             puts the needed part at the top", which is FALSE of SESSION_NOTES.md: step 2 tells a
+#             session to "focus on the ACTIVE TASK section at the top", the seed puts that heading
+#             at line 9, and across 11 fleet repos it sits at byte offsets 132-23,013 -- inside
+#             READ_CAP_BYTES in all 10 that have it. The true statement is that nothing ENFORCES
+#             it, and the fleet shows both ways that fails: one file carries 23 KB of prose above
+#             its ACTIVE TASK, and ONE (mts-system, 269,652 B) has no such heading at all -- zero
+#             `## ` headings, its records opening at `### Session N`. Past READ_REFUSE_BYTES
+#             ordering buys nothing for either class anyway. Where the absolute
+#             form IS true is the backlogs: a backlog's bottom items are as live as its top ones,
+#             so a truncated read silently loses OPEN WORK and the reader is told THAT something
+#             was cut, never WHAT. (This correction is the paragraph above happening again --
+#             a class justification asserted for all its names while holding for only some. It was
+#             caught by review, not by a check, because no check here can reach prose.)
+#
+# WHY BOTH SETS ARE WRITTEN OUT AND THE UNION IS DERIVED, RATHER THAN THE REVERSE. Deriving the
+# CLASS from the trimmer would make widening LEDGERS silently reassign a file -- exactly what
+# read-cap-phase-c-plan.md section 10 dragon 6 says must FAIL rather than follow. So each class is
+# DECLARED and a canonical test PINS Class A against the trimmer's own LEDGERS table; adding a
+# name there without moving it here turns that test red, which is the point. Deriving the UNION
+# instead is what makes "the population did not change" provable rather than asserted -- Phase C1
+# moves no threshold (plan sections 8 and 9; section 7's A1 row, which reads otherwise, is the
+# summary that drifted, and the threshold move is Phase C2).
+#
+# DISPOSITION OF THE TWO `docs/**` BACKLOG LOCATIONS: KEEP, BY ANALOGY, AND THE ANALOGY IS SAID
+# OUT LOUD. Plan section 9 requires this be DECIDED rather than inherited. Neither is named as a
+# file to read anywhere in SESSION_RUNNER.md or SAFEGUARDS.md, and across the whole DISTRIBUTED
+# .md corpus (23 files at S176, taken off bin/_manifest.py's SOURCE column) both appear ZERO
+# times. `docs/planning/BACKLOG.md` appeared once, in fork Learning #26, which cites this repo's
+# own backlog as a WORKED EXAMPLE, not as a file anyone is told to open -- and that row left the
+# distributed corpus for docs/FORK_LEARNINGS.md at the S176 resync. So they are watched by analogy
+# to the root basename, and that is a weaker warrant than the other four have. They are kept
+# anyway, for the reason plan section 7 rejects option D on:
+# the row reports a REAL PROPERTY -- does one read deliver this file? -- which stays true however
+# rarely anyone reads it, and dropping a name is a fleet-visible narrowing that buys nothing.
+# Measured cost of keeping them: `docs/BACKLOG.md` matches NO file in the 5-repo fleet, so it
+# emits nothing; `docs/planning/BACKLOG.md` matches exactly one, THIS repo's, at 0.54x the cap.
+# A canonical test pins the "no protocol basis" half of that reasoning, so the day a protocol
+# edit gives one of them a basis, this comment is forced to be revisited instead of quietly
+# becoming false -- which is the failure the paragraph above records.
+READ_CAP_CLASS_A = frozenset(("CHANGELOG.md", "HANDOFFS.md"))
+READ_CAP_CLASS_B = frozenset(("SESSION_NOTES.md",) + _BACKLOG_LOCATIONS)
+
+# DERIVED, never re-listed. Phase C1's whole claim is that it repartitions this set without
+# changing it, and a third literal spelling of the six names would make that claim unprovable.
+READ_CAP_WATCHED = READ_CAP_CLASS_A | READ_CAP_CLASS_B
+
+
+def read_cap_class(rel_posix):
+    """"A", "B", or None for a name this scanner does not watch.
+
+    The one place that knows the partition. Callers ask the question rather than re-deriving it
+    from a membership test against the trimmer's grammar table -- which is what collect_trim_metrics
+    did before Phase C1, and which was correct only because the two happened to coincide. They
+    still coincide, and a canonical test asserts that they do; the difference is that the
+    coincidence is now checked rather than relied on."""
+    if rel_posix in READ_CAP_CLASS_A:
+        return "A"
+    if rel_posix in READ_CAP_CLASS_B:
+        return "B"
+    return None
 
 # --- S38: the trim-trigger row ------------------------------------------------------------------
 # D4(b) above reports a file that is ALREADY truncating. This reports the file that is heading
@@ -298,7 +452,7 @@ READ_CAP_WATCHED = frozenset(
 # dashboard "reads the number rather than re-deriving it" AND that S38 owes an agreement test --
 # "with the trimmer present, the dashboard's displayed headroom equals --check's". Those cannot
 # both hold. A number OBTAINED by parsing `--check` makes that test an identity, which cannot
-# fail; the repo has already paid for that mistake once (Learning #16 -- three losslessness
+# fail; the repo has already paid for that mistake once (fork Learning #16 -- three losslessness
 # guards inert at their call site behind a 13/13 mutation score). The owed test is only
 # meaningful if the two sides are computed independently, so this module computes the line
 # metric itself and the test compares it against a real `--check` run.
@@ -340,9 +494,14 @@ _TRIM_VERSION_RE = re.compile(r'''^TRIM_VERSION\s*=\s*["']([^"']+)["']''', re.MU
 _TRIM_BUDGET_RE = re.compile(
     r"^DEFAULT_BUDGET_BYTES\s*=\s*([0-9_]+(?:\s*\*\s*[0-9_]+)*)", re.MULTILINE)
 
-# design §5.2's published rate rule. Pinned to the trimmer's own literal by a canonical test,
-# the same arrangement READ_CAP_LINES already uses.
-TRIM_LINE_FIRE_BELOW = 15
+# TRIM_LINE_FIRE_BELOW IS GONE (Phase B). It was a SECOND distributed copy of design §5.2's
+# published rate rule -- "archive when headroom falls below 15 records" -- pinned to the trimmer's
+# literal by a canonical test. The rule itself was deleted from the trimmer, not re-tuned: it is
+# denominated in records of headroom TO the cap, and a one-read CHANGELOG.md holds 20.9 records
+# while a one-read HANDOFFS.md holds 4.3, so "cut until headroom is back above 30" is
+# unsatisfiable on both at every honest cap. Keeping a copy here would leave the reporter
+# advertising a threshold the remedy no longer has. The read metric is now a LEVEL and needs no
+# rate constant on either side.
 
 TRIM_ARCHIVE_DIR = "docs/archive"
 
@@ -581,6 +740,28 @@ _CONTEXT_BUDGET_JSON_SIGNATURES = (
     "calibrate_against",
 )
 
+# Arriving via upstream/main's PR #82 (the quality ratchet): a third installed executable, with its
+# own `VERSION` constant and upstream's four structural signatures. Its pattern is the same text as
+# the context-budget gate's, because both tools name their constant `VERSION` -- so, unlike the
+# scanner's and the trimmer's, those two constants do satisfy each other's check (see
+# is_framework_installed's docstring).
+_QUALITY_RATCHET_VERSION_RE = re.compile(r'''^VERSION\s*=\s*["']([^"']+)["']''', re.MULTILINE)
+_QUALITY_RATCHET_SIGNATURES = (
+    "quality_ratchet.py — declared quality thresholds",
+    "CONFIG_NAME",
+    "def precommit",
+    "def run_gates",
+)
+# Its seed config, like .context-budget.json above: no version constant, the same structural
+# unreachability, and a real signature set for the same reason. The seed's `_example` gate carries
+# these keys even while `gates` is empty, so a freshly seeded file matches.
+_QUALITY_GATES_JSON_SIGNATURES = (
+    "results_file",
+    "\"direction\"",
+    "\"threshold\"",
+    "quality_ratchet.py",
+)
+
 _FRAMEWORK_INSTALLED_CONTENT = {
     "methodology_dashboard.py": (_VERSION_RE, _FRAMEWORK_SIGNATURES),
     # The trimmer has no pre-constant releases in the wild — v1.0.0 is its first shipped version and
@@ -588,7 +769,9 @@ _FRAMEWORK_INSTALLED_CONTENT = {
     # empty-tuple paragraph above for why that is a refusal and not a hole.
     TRIM_TOOL_NAME:            (_TRIM_VERSION_RE, ()),
     "context_budget.py":       (_CONTEXT_BUDGET_VERSION_RE, _CONTEXT_BUDGET_SIGNATURES),
+    "quality_ratchet.py":      (_QUALITY_RATCHET_VERSION_RE, _QUALITY_RATCHET_SIGNATURES),
     ".context-budget.json":    (None, _CONTEXT_BUDGET_JSON_SIGNATURES),
+    ".quality-gates.json":     (None, _QUALITY_GATES_JSON_SIGNATURES),
 }
 
 # Derived, never hand-written — see the paragraph above. Order follows the dict, which follows
@@ -597,13 +780,13 @@ _FRAMEWORK_INSTALLED_CONTENT = {
 FRAMEWORK_INSTALLED_SOURCE = tuple(_FRAMEWORK_INSTALLED_CONTENT)
 
 # The markdown half of the same problem, and the mirror of the defect above. `bin/sync` also
-# installs 22 markdown files, which on its own satisfies detect_doc_only's corpus
+# installs 23 markdown files, which on its own satisfies detect_doc_only's corpus
 # disjunction (>= 3 doc files). Excluding only the scanner therefore FLIPPED the defect rather
 # than fixing it: a 148-LOC utility repo that correctly read `code` before sync read `doc-only`
 # after it, and lost a TRUE "No test infrastructure" risk. The old source cap had been masking
 # that; removing the cap's grip on synced repos exposes it.
 #
-# ALL 22 markdown dests are listed, TRACKED *and* SEED. Listing only the 18 TRACKED ones was
+# ALL 23 markdown dests are listed, TRACKED *and* SEED. Listing only the 19 TRACKED ones was
 # tried first, on the reasoning that a SEED is adopter-owned from creation (bin/_manifest.py) —
 # and MEASURED AGAINST A REAL `bin/sync` RUN it does not close the hole: the four seeds
 # (SESSION_NOTES/CHANGELOG/HANDOFFS/ROADMAP) plus the adopter's own README are 5 doc files, which
@@ -635,6 +818,7 @@ FRAMEWORK_INSTALLED_SOURCE = tuple(_FRAMEWORK_INSTALLED_CONTENT)
 # added to protect those four. Found by the pre-PR review; reproduced under both scanners.
 FRAMEWORK_DISTINCTIVE_DOCS = (
     "docs/methodology/ITERATIVE_METHODOLOGY.md",
+    "docs/methodology/FRAMEWORK_APPARATUS.md",
     "docs/methodology/HOW_TO_USE.md",
     "docs/methodology/workstreams/DESIGN_WORKSTREAM.md",
     "docs/methodology/workstreams/ARCHITECTURE_WORKSTREAM.md",
@@ -661,7 +845,7 @@ FRAMEWORK_AMBIGUOUS_DOCS = (
 )
 
 # The full markdown dest set, kept as the union so the canonical drift test against
-# bin/_manifest.py keeps checking all 22 names rather than silently narrowing to a subset.
+# bin/_manifest.py keeps checking all 23 names rather than silently narrowing to a subset.
 FRAMEWORK_INSTALLED_DOCS = FRAMEWORK_DISTINCTIVE_DOCS + FRAMEWORK_AMBIGUOUS_DOCS
 
 # How many of the seven ambiguous root names must co-occur to stand in for a docs/methodology/ path.
@@ -698,11 +882,12 @@ def is_framework_installed(rel_path, fpath):
 
     Content-verified, PER NAME: each installed executable proves itself with its own constant —
     the scanner with `DASHBOARD_VERSION` (or, for copies predating it, at least two structural
-    signatures of the scanner), the trimmer with `TRIM_VERSION`, the context-budget gate with its
-    own `VERSION`. The pairing lives in `_FRAMEWORK_INSTALLED_CONTENT`, which this reads rather
-    than re-stating, and which FRAMEWORK_INSTALLED_SOURCE is derived from — so no name can be
-    excluded without declaring how it identifies itself. No tool's constant satisfies another
-    entry's check. The **whole file** is
+    signatures of the scanner), the trimmer with `TRIM_VERSION`, the context-budget gate and the
+    quality ratchet each with its own `VERSION`. The pairing lives in `_FRAMEWORK_INSTALLED_CONTENT`,
+    which this reads rather than re-stating, and which FRAMEWORK_INSTALLED_SOURCE is derived from — so
+    no name can be excluded without declaring how it identifies itself. No tool's constant satisfies
+    another entry's check, except that the last two name theirs alike: each one's `VERSION` satisfies
+    the other's. The **whole file** is
     read,
     not a fixed prefix — an earlier version searched only the first 4096 bytes, and the real
     constant sits close enough to that boundary that ordinary growth of this module header would
@@ -953,6 +1138,16 @@ def _trim_record_count(text, basename):
     return n
 
 
+# ⚠ PHASE B REMOVED THIS FUNCTION'S ONLY PRODUCTION CONSUMER, and it is kept deliberately rather
+# than deleted or quietly left to rot. `trim_line_headroom` called it to find the baseline commit
+# a RATE needs; the read metric is a LEVEL and needs no baseline, so nothing in this module calls
+# it today. It is NOT dead by accident: it is the archive-event detector, it encodes a defect that
+# cost a session to find (a shard committed before the ledger existed is not an archive event,
+# because nothing shrank), and 18 assertions still pin that behaviour. Deleting it would discard
+# earned coverage; giving it a new consumer would be a feature this session did not scope. Whether
+# the S38 row should surface an archive baseline at all is part of Phase C's decision about that
+# row's shape — decide it there, and delete or re-wire this then. Recorded, not drifted into
+# (FM #17).
 def _newest_archive_sha(path, basename):
     """The commit that ADDED the most recent shard of this ledger, or None.
 
@@ -1008,42 +1203,14 @@ def _newest_archive_sha(path, basename):
     return shas[0]
 
 
-def trim_line_headroom(path, rel_posix, basename):
-    """(headroom_records, abstain_reason) for a ledger's line metric.
-
-    The rule published in CHANGELOG.md's own front matter: headroom to the 2,000-line read cap,
-    divided by lines-per-record measured since the last split. It needs no tool, which is why
-    this half still answers when the trimmer is absent.
-
-    It ABSTAINS OUT LOUD rather than printing a number it cannot support -- immediately after a
-    split both deltas are zero, and against a superseded baseline they go negative. Exactly one
-    of the two return slots is ever filled."""
-    fpath = path / rel_posix
-    try:
-        text = fpath.read_text(encoding="utf-8", errors="ignore")
-    except OSError:
-        return None, "%s could not be read" % rel_posix
-    live_lines = text.count("\n")
-
-    split = _newest_archive_sha(path, basename)
-    if split is None:
-        return None, "no prior archive of this ledger -- the rate has no baseline"
-
-    base_text = git_show(path, "%s:%s" % (split, rel_posix))
-    if base_text is None:
-        return None, "the baseline blob %s:%s is unreadable" % (split[:7], rel_posix)
-
-    live_records = _trim_record_count(text, basename)
-    base_records = _trim_record_count(base_text, basename)
-    if live_records is None or base_records is None:
-        return None, "%s has no declared record grammar" % basename
-
-    dl = live_lines - base_text.count("\n")
-    de = live_records - base_records
-    if de <= 0 or dl <= 0:
-        return None, ("fewer than one record written since the last split "
-                      "(%d records, %d lines)" % (de, dl))
-    return (READ_CAP_LINES - live_lines) * de // dl, None
+# `trim_line_headroom()` WAS HERE and was deleted with the rate rule it re-implemented (Phase B).
+# It recomputed the trimmer's line headroom independently -- deliberately, so this half still
+# answered when the trimmer was absent -- and it carried the whole abstention apparatus that a
+# RATE needs: no baseline archive, an unreadable baseline blob, fewer than one record since the
+# split. A LEVEL needs none of it. `size_bytes > READ_CAP_BYTES` is answerable from the file
+# alone, with no git history and no baseline, so the read half now answers for every watched
+# ledger in every repo -- including a freshly-bootstrapped one that has never archived, which is
+# exactly the state in which the old rate abstained and reported nothing.
 
 
 _KNOWN_FLAGS = {"--sync", "--dry-run", "--force", "--no-open", "--with-submodules", "--help", "-h"}
@@ -1479,7 +1646,14 @@ def collect_file_metrics(path):
             #     d=collect_all(Path('.').resolve());\
             #     print([f['path'] for f in d['files']['largest_files']])"
             if rel_posix in READ_CAP_WATCHED:
-                watched.append({"path": rel_posix, "lines": loc})
+                # `lines` is kept and still reported: it is what a human scans a ledger by, and
+                # dashboard_history.jsonl has carried the key since S38. It is no longer what the
+                # verdict is computed from.
+                try:
+                    watched_bytes = fpath.stat().st_size
+                except OSError:
+                    watched_bytes = None
+                watched.append({"path": rel_posix, "lines": loc, "bytes": watched_bytes})
 
     # A root BOOTSTRAP.md — or a CHANGELOG.md — is ours only in a repo that also carries proof the
     # framework was installed: a docs/methodology/ path (nothing lands there by accident), or the
@@ -1494,7 +1668,8 @@ def collect_file_metrics(path):
     metrics["directory_count"] = len(dirs_seen)
     all_files.sort(key=lambda f: f["loc"], reverse=True)
     metrics["largest_files"] = all_files[:10]
-    metrics["read_cap_watch"] = sorted(watched, key=lambda f: f["lines"], reverse=True)
+    metrics["read_cap_watch"] = sorted(
+        watched, key=lambda f: (f["bytes"] if f["bytes"] is not None else -1), reverse=True)
 
     # Convert defaultdicts
     metrics["by_extension"] = dict(metrics["by_extension"])
@@ -1981,7 +2156,9 @@ def evaluate_changelog_freshness(path, git):
 
 
 def collect_trim_metrics(path, files, role="adopter"):
-    """S38 -- the trim-trigger row: headroom per grow-and-must-be-read ledger, and the remedy.
+    """S38 -- the trim-trigger row: one verdict per grow-and-must-be-read ledger, and the
+    remedy. Since Phase B both halves are LEVELS in bytes -- the one-read cap and the context
+    budget -- where the first half used to be a records-per-line RATE with a baseline commit.
 
     The remedy BRANCHES on whether the trimmer is installed for the scanned project (§7.3):
     present names a command the adopter can actually run, built from the located path; absent
@@ -1994,14 +2171,15 @@ def collect_trim_metrics(path, files, role="adopter"):
     name: no distributed file documents ledger archiving, which is precisely what queue item S40
     is for (design §11 Phase 5 says so itself -- "Today zero distributed files say anything on
     the subject"). Verified over the WHOLE distributed set, not a convenient corner of it -- the
-    design's own check greps `starter-kit/*.md`, which matches 11 of the 24 manifest entries, and
-    a claim about "no distributed file" cannot be settled by a net that misses 11 of them
-    (`HOW_TO_USE.md`, `ITERATIVE_METHODOLOGY.md`, and nine `workstreams/*.md`):
+    design's own check greps `starter-kit/*.md`, which matches 11 of the 27 manifest entries, and
+    a claim about "no distributed file" cannot be settled by a net that misses 12 of them
+    (`HOW_TO_USE.md`, `ITERATIVE_METHODOLOGY.md`, `FRAMEWORK_APPARATUS.md`, and nine `workstreams/*.md`):
       python3 -c "import sys;sys.path.insert(0,'bin');import _manifest as m;\
         print('\n'.join(sorted(e[0] for e in m.DISTRIBUTION if e[0].endswith('.md'))))" \
         | xargs grep -l -i archiv
-    -> `starter-kit/FRAMEWORK_LEARNINGS.md` (Learning #15's prose about PROVING a split lossless,
-       not a procedure for performing one), `HOW_TO_USE.md` (a worked example project's
+    -> `starter-kit/FRAMEWORK_LEARNINGS.md` (fork Learning #15's prose about PROVING a split
+       lossless, not a procedure for performing one; that row has since left for
+       docs/FORK_LEARNINGS.md), `HOW_TO_USE.md` (a worked example project's
        `POST /projects/:id/archive` endpoint), and, since S39', `starter-kit/BOOTSTRAP.md` (the
        one-line inventory entry describing what the newly distributed tool DOES -- a tool
        description, not a policy: it states no size norm, no trigger, and no procedure). None of
@@ -2043,27 +2221,45 @@ def collect_trim_metrics(path, files, role="adopter"):
         except ValueError:
             result["tool_path"] = tool["path"].name
 
-    # The population is the intersection of what a session must read in full and what the
-    # trimmer has a config entry for. read_cap_watch already holds the line counts; taking the
-    # names from TRIM_GRAMMARS is what keeps the row from pointing at a file the tool refuses.
+    # The population is CLASS A -- the watched names the trimmer has a config entry for -- which
+    # is what keeps the row from pointing at a file the tool refuses.
+    #
+    # PHASE C1 CHANGED THE SPELLING, NOT THE SET, AND ON EVERY INPUT collect_all CAN PRODUCE IT
+    # CHANGES NOTHING AT ALL -- said plainly because an earlier draft of this comment overstated it.
+    # This filtered on `basename in TRIM_GRAMMARS`. collect_file_metrics only ever admits an exact
+    # member of READ_CAP_WATCHED into read_cap_watch, so through collect_all the two filters are
+    # EQUIVALENT, not merely equivalent-today: no path exists that the old filter accepts and the
+    # new one rejects. The change is therefore not a bug fix and is not claimed as one.
+    # WHAT IT DOES BUY, which is why it was made: this function takes `files` as a PARAMETER, so
+    # its contract is wider than collect_all's output. Asked by basename, it answers "does the
+    # trimmer know a grammar for a file with this name" -- which would hand a `docs/x/CHANGELOG.md`
+    # a `--check` remedy if a caller ever passed one. Asked by class, it answers "is this one of
+    # the watched files the trimmer can act on", which is the actual precondition for the remedy
+    # below, and it makes an unclassified name a NO rather than a guess from the filename. A
+    # canonical test drives that case directly, because collect_all cannot construct it.
     for w in files.get("read_cap_watch", []):
-        basename = w["path"].rsplit("/", 1)[-1]
-        if basename not in TRIM_GRAMMARS:
+        if read_cap_class(w["path"]) != "A":
             continue
         fpath = path / w["path"]
         try:
             size_bytes = fpath.stat().st_size
         except OSError:
             continue
-        headroom, abstains = trim_line_headroom(path, w["path"], basename)
-        line_fires = headroom is not None and headroom < TRIM_LINE_FIRE_BELOW
+        # PHASE C2. This re-implements methodology_trim.py's Trigger, so it must move with it.
+        # Every path that reaches here has already been filtered to class "A" by the guard above,
+        # and w["path"] is repo-root-relative, so the ROOT SCOPING the trimmer applies is already
+        # satisfied here by construction: read_cap_class() is a path lookup and answers None for a
+        # nested ledger, which the guard skips. Stated rather than assumed, because the trimmer
+        # reaches the same conclusion by a DIFFERENT route (an explicit relative_to check against
+        # spec.basename) — the two must not drift, and a canonical test drives the nested case.
+        read_fires = size_bytes > CLASS_A_FIRE_BYTES
+        refused = size_bytes > READ_REFUSE_BYTES
         budget = result["budget_bytes"]
         byte_fires = None if budget is None else size_bytes > budget
         entry = {
             "path": w["path"], "lines": w["lines"], "bytes": size_bytes,
-            "headroom": headroom, "abstains": abstains,
-            "line_fires": line_fires, "byte_fires": byte_fires,
-            "fires": bool(line_fires or byte_fires),
+            "read_fires": read_fires, "refused": refused, "byte_fires": byte_fires,
+            "fires": bool(read_fires or byte_fires),
         }
         result["ledgers"].append(entry)
 
@@ -2071,9 +2267,32 @@ def collect_trim_metrics(path, files, role="adopter"):
             continue
 
         reasons = []
-        if line_fires:
-            reasons.append("line headroom %d record(s), under the %d the rate rule fires at"
-                           % (headroom, TRIM_LINE_FIRE_BELOW))
+        if refused:
+            # Stated separately and FIRST, because it is a different failure, not a worse one:
+            # between the two boundaries a read returns a truncated prefix and says so, and past
+            # this one it returns nothing at all -- so the front matter a reader is relying on is
+            # not there either.
+            reasons.append("{:,} B, PAST THE {:,} B HARD REFUSAL -- a default read of this file "
+                           "returns NO CONTENT AT ALL, front matter included"
+                           .format(size_bytes, READ_REFUSE_BYTES))
+        elif read_fires:
+            # "archive threshold", and STILL not the substring "read cap": the D4(b) risk row is
+            # greppable on "read cap" and seven assertions plus the diagnostic trail in
+            # dashboard_history.jsonl depend on that staying exclusive to it. The same discipline
+            # keeps BL-5's "Large files detected" disjoint from both. Phase C2 changed the NUMBER
+            # this row keys on, not that rule.
+            #
+            # WHY THE WORDING CHANGED WITH THE NUMBER. It used to say "against a 56,750 B one-read
+            # budget -- a whole-file read comes back TRUNCATED". Both halves would now be wrong
+            # here: the threshold is no longer the one-read budget, and truncation is no longer
+            # what this row is about -- a Class A ledger is expected to sit past the cap and the
+            # D4(b) row says so separately. What this row means at 192 KiB is that the file is
+            # closing on the boundary where a read stops returning ANYTHING.
+            reasons.append("{:,} B against the {:,} B Class A archive threshold -- within {:,} B "
+                           "of the {:,} B hard refusal, past which a default read returns NO "
+                           "CONTENT AT ALL"
+                           .format(size_bytes, CLASS_A_FIRE_BYTES,
+                                   READ_REFUSE_BYTES - size_bytes, READ_REFUSE_BYTES))
         if byte_fires:
             reasons.append("{:,} B against a {:,} B budget".format(size_bytes, budget))
         why = "; ".join(reasons)
@@ -2095,43 +2314,23 @@ def collect_trim_metrics(path, files, role="adopter"):
         result["signals"].append(
             ("medium", "%s: %s -- the archive trigger fires; %s" % (w["path"], why, remedy)))
 
-    # The abstention, said ONCE per repo and ONLY where BOTH halves came up empty.
+    # THE ABSTENTION DISCLOSURE WAS HERE, AND PHASE B DELETED THE STATE IT DETECTED rather than
+    # the disclosure alone -- which is why this note replaces it instead of the code being quietly
+    # dropped. It fired once per repo where NEITHER half could measure a watched ledger: the line
+    # RATE had no baseline archive AND the byte budget was unreadable. Decision D4 forbids
+    # reporting a 0 from an unread source as a clean state, and a ledger about which this scanner
+    # said nothing at all was exactly that.
     #
-    # Decision D4 forbids reporting a 0 from an unread source as a clean state, and the state that
-    # actually meets that description is a watched ledger about which this scanner said NOTHING --
-    # the line rate had no baseline AND the byte budget was unreadable. Then the file is being
-    # watched in name only, and the silence is the finding.
+    # The read half is a LEVEL now. It answers from the file's own size, with no git history, no
+    # baseline commit and no trimmer installed, so it answers for every watched ledger in every
+    # repo -- including a freshly-bootstrapped one that has never archived, which was the
+    # commonest way into the old silent state. The conjunction can no longer be true.
     #
-    # An earlier draft fired whenever the BYTE half alone was unavailable and asserted "only the
-    # line metric answered". Two things were wrong with it. The sentence is false in the commonest
-    # adopter state -- a repo that has never archived has no rate baseline either, so NEITHER half
-    # answered -- and the line half's abstention reason, which trim_line_headroom takes care to
-    # produce, was written to `ledgers[].abstains` and read by nobody, so the half that guards
-    # silent truncation was itself abstaining silently. Both reasons are now in the text.
-    #
-    # It also fired across the whole adopter fleet over a budget adopters have never been told
-    # about: no distributed file names one (S40 writes the doctrine, S39' ships the tool). Naming
-    # an unobtainable tool as something they had failed to install was a pointer they could not
-    # follow -- the misdirection §7.3 exists to prevent, in the branch written to honour it.
-    #
-    # The CAUSE is stated, not guessed: a tool present with an unreadable budget constant is a
-    # different finding from a tool that is absent, and an earlier draft reported the second for
-    # both -- telling an operator looking straight at an installed trimmer that it was not there.
-    blind = [l for l in result["ledgers"]
-             if l["byte_fires"] is None and l["headroom"] is None]
-    if blind:
-        if result["tool_present"]:
-            cause = ("its %s could not be read from %s"
-                     % ("DEFAULT_BUDGET_BYTES", result["tool_path"]))
-        else:
-            cause = "no %s is installed here to supply one" % TRIM_TOOL_NAME
-        detail = "; ".join("%s (%s)" % (l["path"], l["abstains"]) for l in blind)
-        result["signals"].append((
-            "low",
-            "no ledger-size measurement was possible for %s: the rate metric abstained and the "
-            "byte budget is unknown -- %s. These files are watched but unmeasured."
-            % (detail, cause),
-        ))
+    # AND NARROWING IT TO THE BYTE HALF ALONE WOULD BE A REGRESSION, NOT A SALVAGE. That is what
+    # an early draft did: it fired whenever the budget was unavailable and told the whole adopter
+    # fleet its ledgers were "unmeasured" over a budget no distributed file has ever named. The
+    # conjunction was the fix for that. Restoring half of it would restore the bug -- so if a
+    # future change gives the read half a way to abstain, re-add the CONJUNCTION, not this.
 
     return result
 
@@ -2600,6 +2799,180 @@ def collect_render_metrics(path, files, ci, meth):
     return result
 
 
+# === QUALITY GATES (quality-ratchet plan, D6) ===
+#
+# Reads what the ratchet declares (.quality-gates.json) and, where present, what it last measured
+# (its results file). Git-only for history: a loosened threshold is derived from the manifest's
+# own commits — the scanner never executes a project command. ADVISORY, like every other signal
+# here: the gate is the pre-commit ratchet, where it belongs; this reports its outcomes.
+#
+# An absent manifest is silent. So is a present-but-EMPTY one: bin/sync seeds it empty by decision
+# (plan §8.4), so its bare presence proves sync ran, not that anything was declared — flagging it
+# would fire on every synced adopter for a change they did not make (the CHECKLIST_EXEMPT rule).
+GATES_MANIFEST = ".quality-gates.json"
+GATES_RESULTS_DEFAULT = ".quality-gates-results.json"
+GATES_HISTORY_MAX = 50          # manifest commits scanned for loosenings, newest first
+
+
+def _gate_map(cfg):
+    gates = cfg.get("gates") if isinstance(cfg, dict) else None
+    if not isinstance(gates, list):
+        return {}
+    return {g["name"]: g for g in gates if isinstance(g, dict) and isinstance(g.get("name"), str)}
+
+
+def _gate_loosenings(old_cfg, new_cfg):
+    """Loosenings in old -> new: a `min` lowered, a `max` raised, a direction flipped, a gate
+    removed. Mirrors quality_ratchet.compare() deliberately (the scanner cannot import an
+    adopter-root tool). A flip used to fall through both threshold branches and out of the
+    function — refused by the tool, reported as nothing here (PR #82 review, section 4)."""
+    out = []
+    old, new = _gate_map(old_cfg), _gate_map(new_cfg)
+    for name, og in old.items():
+        ng = new.get(name)
+        if ng is None:
+            out.append({"name": name, "from": _num(og.get("threshold")), "to": None, "kind": "removed"})
+            continue
+        if og.get("direction") != ng.get("direction"):
+            out.append({"name": name, "from": f"{og.get('direction')} {og.get('threshold')}",
+                        "to": f"{ng.get('direction')} {ng.get('threshold')}", "kind": "direction flipped"})
+            continue
+        try:
+            ot, nt = float(og.get("threshold")), float(ng.get("threshold"))
+        except (TypeError, ValueError):
+            continue
+        if og.get("direction") == "min" and nt < ot:
+            out.append({"name": name, "from": ot, "to": nt, "kind": "floor lowered"})
+        elif og.get("direction") == "max" and nt > ot:
+            out.append({"name": name, "from": ot, "to": nt, "kind": "ceiling raised"})
+    return out
+
+
+def _num(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return v
+
+
+def _gate_command_changes(old_cfg, new_cfg):
+    """A gate whose `command` or `extract` differs between two versions. Not a loosening — the
+    scanner cannot know whether the new command is easier — but the tool warns on it at commit
+    time and the bypass message promises the dashboard shows it, so it is an advisory here."""
+    out = []
+    old, new = _gate_map(old_cfg), _gate_map(new_cfg)
+    for name, og in old.items():
+        ng = new.get(name)
+        if ng is None:
+            continue
+        for field in ("command", "extract"):
+            if og.get(field) != ng.get(field):
+                out.append({"name": name, "field": field})
+    return out
+
+
+def _gate_manifest_history(path):
+    """[(sha, date, cfg)] newest first, capped, from the manifest's own git history. A version
+    the commit deleted, or one that does not parse, is recorded as an EMPTY gate list flagged
+    `_deleted` / `_unreadable` — never skipped. Skipping it dropped the deletion AND both pairs
+    around it from the comparison (PR #82 review, 2a): an empty gate set is exactly the input
+    that makes "every gate is missing" true, and that is the one case _gate_loosenings already
+    handles."""
+    log = git_cmd(path, "log", f"--max-count={GATES_HISTORY_MAX}", "--format=%h|%ad",
+                  "--date=short", "--", GATES_MANIFEST)
+    hist = []
+    for line in log.splitlines():
+        sha, _, date = line.partition("|")
+        if not _blob_exists(path, sha):
+            hist.append((sha, date, {"gates": [], "_deleted": True}))
+            continue
+        raw = git_cmd(path, "show", f"{sha}:{GATES_MANIFEST}")
+        try:
+            cfg = json.loads(raw)
+            if not isinstance(cfg, dict):
+                raise ValueError("not an object")
+            hist.append((sha, date, cfg))
+        except ValueError:
+            hist.append((sha, date, {"gates": [], "_unreadable": True}))
+    return hist
+
+
+def _blob_exists(path, sha):
+    """Whether the manifest exists at `sha` — by exit code, which git_cmd discards. `git show`
+    on a deleted path prints nothing to stdout, indistinguishable from an empty file."""
+    try:
+        r = subprocess.run(["git", "-C", str(path), "cat-file", "-e", f"{sha}:{GATES_MANIFEST}"],
+                           capture_output=True, timeout=5)
+        return r.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return False
+
+
+def collect_gate_metrics(path):
+    m = {"manifest_present": False, "manifest_deleted": False, "declared": 0,
+         "results_present": False, "results_stale": False, "summary": None, "failing": [],
+         "unmeasured": [], "loosened": [], "commands_changed": [], "ran_at": None,
+         "convention": "quality-gates.json v1"}
+    mp = path / GATES_MANIFEST
+    # The history walk runs whenever the manifest HAS a history — including when the worktree
+    # no longer has the file. Returning early on `not mp.is_file()` made the deleted-and-never-
+    # re-added state, the largest loosening available, report nothing (PR #82 review, 2a).
+    hist = _gate_manifest_history(path) if (mp.is_file() or _manifest_has_history(path)) else []
+    _fold_history(m, hist)
+    if not mp.is_file():
+        m["manifest_deleted"] = bool(hist)
+        return m
+    m["manifest_present"] = True
+    try:
+        cfg = json.loads(mp.read_text(encoding="utf-8-sig", errors="ignore"))
+    except (ValueError, OSError):
+        m["convention"] = "unreadable manifest"
+        return m
+    gates = _gate_map(cfg)
+    m["declared"] = len(gates)
+    if not gates:
+        return m
+
+    rp = path / (cfg.get("results_file") or GATES_RESULTS_DEFAULT) if isinstance(cfg, dict) else None
+    if rp is not None and rp.is_file():
+        try:
+            snap = json.loads(rp.read_text(encoding="utf-8", errors="ignore"))
+        except (ValueError, OSError):
+            snap = None
+        if isinstance(snap, dict) and isinstance(snap.get("gates"), list):
+            m["results_present"] = True
+            m["ran_at"] = snap.get("ran_at")
+            # Stale = the manifest changed since that run (the tool stamps a hash of `gates`).
+            digest = hashlib.sha256(json.dumps(cfg.get("gates", []), sort_keys=True).encode()
+                                    ).hexdigest()[:12]
+            m["results_stale"] = snap.get("manifest") != digest
+            results = [r for r in snap["gates"] if isinstance(r, dict)]
+            m["summary"] = {k: sum(1 for r in results if r.get("status") == k)
+                            for k in ("pass", "fail", "unmeasured")}
+            m["failing"] = [r.get("name") for r in results if r.get("status") == "fail"]
+            m["unmeasured"] = [r.get("name") for r in results if r.get("status") == "unmeasured"]
+    return m
+
+
+def _manifest_has_history(path):
+    return bool(git_cmd(path, "log", "--max-count=1", "--format=%h", "--", GATES_MANIFEST))
+
+
+def _fold_history(m, hist):
+    """Each version is compared to the nearest OLDER version that declared a gate — the same
+    base quality_ratchet.py uses — so 80 -> (deleted) -> 1 reads as 80 -> 1, not as 'added'."""
+    for i, (sha, date, newer) in enumerate(hist):
+        older = next((c for (_s, _d, c) in hist[i + 1:] if _gate_map(c)), None)
+        if older is None:
+            continue
+        for l in _gate_loosenings(older, newer):
+            l.update({"sha": sha, "date": date, "manifest_deleted": bool(newer.get("_deleted"))})
+            m["loosened"].append(l)
+        for c in _gate_command_changes(older, newer):
+            c.update({"sha": sha, "date": date})
+            m["commands_changed"].append(c)
+
+
 def _profile_tokens(path):
     """Read .methodology-profile into a set of lowercase declaration tokens.
 
@@ -2750,6 +3123,29 @@ def detect_doc_only(path, files, render):
     return {"is_doc_only": bool(corpus), "reason": reason}
 
 
+def gates_summary_html(g):
+    """One line: 'none declared' | 'N declared, never run' | 'P pass / F fail / U unmeasured
+    (stale)' · 'k loosened'. Advisory text only; the numbers are the ratchet's, not the scanner's."""
+    if not g or not g.get("manifest_present"):
+        if g and g.get("manifest_deleted"):
+            return f"manifest deleted &bull; {len(g.get('loosened', []))} loosened"
+        return "None"
+    n = g.get("declared", 0)
+    if not n:
+        return "manifest seeded, none declared"
+    if not g.get("results_present"):
+        text = f"{n} declared, never run"
+    else:
+        sm = g.get("summary") or {}
+        text = (f"{n} declared &bull; {sm.get('pass', 0)} pass / {sm.get('fail', 0)} fail / "
+                f"{sm.get('unmeasured', 0)} unmeasured")
+        if g.get("results_stale"):
+            text += " (stale)"
+    if g.get("loosened"):
+        text += f" &bull; {len(g['loosened'])} loosened"
+    return text
+
+
 def fmt_ratio(value, source_loc, doc_only=False):
     """Format a *-to-source ratio for display. A bare 0.000 misreads as 'no docs', so a repo with
     ~no source shows 'n/a' — qualified '(doc-only)' only when the repo was actually classified
@@ -2801,6 +3197,10 @@ def score_health(metrics):
             scores["testing"] = 0
         if metrics.get("coverage_configs"):
             scores["testing"] = min(20, scores["testing"] + 2)
+        # No points for a gate NAMED coverage (2.11.0 gave +2): `echo 100` earned it, from a
+        # results file that is gitignored by default. The plan's own condition — a faithfulness
+        # check beside any coverage floor — is not expressible from a name; until it is, gate
+        # outcomes are advisory risks only (PR #82 review, section 4).
 
     # 3. Documentation (0-20)
     doc = metrics["docs"]
@@ -2876,6 +3276,59 @@ def assess_risks(metrics):
 
     if not metrics["docs"]["has_readme"] or metrics["docs"]["readme_quality"] == "stub":
         risks.append({"severity": "medium", "description": "README is missing or insufficient"})
+
+    # Quality gates (D6) — advisory outcomes of the ratchet; a repo with no manifest, or the
+    # empty seed, says nothing here (see collect_gate_metrics).
+    g = metrics.get("gates", {})
+    if g.get("manifest_deleted") and not g.get("declared"):
+        last = g["loosened"][0] if g.get("loosened") else None
+        where = f" in {last['sha']} ({last['date']})" if last else ""
+        gone = len({l["name"] for l in g.get("loosened", []) if l.get("manifest_deleted")})
+        risks.append({"severity": "medium",
+                      "description": f"Quality-gate manifest deleted{where} — {gone} declared gate(s) "
+                                     f"gone with it; thresholds only tighten (SAFEGUARDS Blast Radius; "
+                                     f"FM #17)"})
+    if g.get("declared"):
+        n = g["declared"]
+        if not g.get("results_present"):
+            risks.append({"severity": "medium",
+                          "description": f"{n} declared quality gate(s), never run here "
+                                         f"(`quality_ratchet.py --run`)"})
+        else:
+            if g.get("results_stale"):
+                risks.append({"severity": "low",
+                              "description": "Quality-gate results predate the current manifest — "
+                                             "re-run before citing them"})
+            if g.get("failing"):
+                names = ", ".join(str(x) for x in g["failing"][:4])
+                risks.append({"severity": "high",
+                              "description": f"{len(g['failing'])} of {n} declared quality gate(s) "
+                                             f"measured outside their threshold: {names}"})
+            if g.get("unmeasured"):
+                risks.append({"severity": "low",
+                              "description": f"{len(g['unmeasured'])} declared quality gate(s) "
+                                             f"unmeasured (no command) — a threshold nothing "
+                                             f"measures is a suggestion"})
+        if g.get("loosened"):
+            last = g["loosened"][0]
+            if last["kind"] == "removed":
+                what = "removed (manifest deleted)" if last.get("manifest_deleted") else "removed"
+            elif last["kind"] == "direction flipped":
+                what = f"direction flipped {last['from']} → {last['to']}"
+            else:
+                what = f"{last['kind']} {last['from']:g} → {last['to']:g}"
+            more = f" (+{len(g['loosened']) - 1} earlier)" if len(g["loosened"]) > 1 else ""
+            risks.append({"severity": "medium",
+                          "description": f"Quality threshold `{last['name']}` {what} in "
+                                         f"{last['sha']} ({last['date']}){more} — thresholds only "
+                                         f"tighten (SAFEGUARDS Blast Radius; FM #17)"})
+        if g.get("commands_changed"):
+            c = g["commands_changed"][0]
+            more = f" (+{len(g['commands_changed']) - 1} more)" if len(g["commands_changed"]) > 1 else ""
+            risks.append({"severity": "low",
+                          "description": f"Quality gate `{c['name']}` `{c['field']}` changed in "
+                                         f"{c['sha']} ({c['date']}){more} — the ratchet holds "
+                                         f"thresholds, not commands; review what it now measures"})
 
     # Both thresholds are stated in percent, so the partial-adoption test reads the normalized
     # percentage. The "none at all" test deliberately stays on the RAW sum: it is scale-
@@ -3003,13 +3456,75 @@ def assess_risks(metrics):
     # pretending the rows are independent.
     if owes_ledger:
         for w in metrics["files"]["read_cap_watch"]:
-            if w["lines"] > READ_CAP_LINES:
+            wb = w.get("bytes")
+            if wb is None:
+                continue
+            if wb > READ_REFUSE_BYTES:
+                # A DIFFERENT failure from truncation, not a worse degree of it, and it gets its
+                # own row text for that reason. The consolation that makes truncation survivable
+                # -- delivery is ordered top-down, so the front matter and the newest records
+                # still arrive -- is FALSE here. Nothing arrives.
                 risks.append({
                     "severity": "high",
-                    "description": f"{w['path']} is {w['lines']:,} lines — past the "
-                                   f"{READ_CAP_LINES:,}-line agent read cap; a session reading it "
-                                   "gets a silently truncated file, with no error and no "
-                                   "missing-data marker"})
+                    "description": f"{w['path']} is {wb:,} B ({w['lines']:,} lines) — past the "
+                                   f"{READ_REFUSE_BYTES:,} B hard limit, which is a HARDER "
+                                   "boundary than the agent read cap and behaves differently: a "
+                                   "default read is REFUSED OUTRIGHT and returns NO CONTENT AT "
+                                   "ALL, front matter included. Ordered truncation does not save "
+                                   "you here — there is no delivered prefix to be ordered. Read "
+                                   "it with explicit offset/limit, or archive it"})
+            elif wb > READ_CAP_BYTES:
+                # PHASE C2 — THIS ROW IS NOW PER-CLASS, WHICH IS HOW THE DEDUP ENDS.
+                # S38's residual 1 asked whether this row and the trim row should be deduplicated.
+                # The answer plan §7 gives for option A1 is "make the rows DIFFERENT, not delete
+                # one", and this is where that lands. Both rows still fire on a Class B file,
+                # because for those two thresholds still coincide. On a Class A file they now
+                # separate: the trim row is silent until 192 KiB, and this row keeps reporting the
+                # one-read property — which is REAL and stays true — at a severity that says what
+                # the reader should DO about it, which is nothing.
+                #
+                # ⚠ THE SEVERITY DROP IS THE FLEET-VISIBLE PART OF THIS PHASE, and it is a
+                # judgment, not a derivation. §10 dragon 7: a guard can be correct and not worth
+                # acting on. A Class A ledger between the cap and the archive threshold is the
+                # adjudicated case (BL-52 third addendum) — ordered truncation drops the OLDEST
+                # records, Phase 0 works from `git log`, and Phase 3A reads one receipt. Calling
+                # that HIGH taught a reader to ignore the row, which is worse than not emitting it.
+                # It is not dropped to "info" either: the property is real and a session that
+                # genuinely needs the whole file still gets a partial answer.
+                cls = read_cap_class(w["path"])
+                if cls == "A":
+                    risks.append({
+                        "severity": "low",
+                        "description": f"{w['path']} is {wb:,} B ({w['lines']:,} lines) — past "
+                                       f"the {READ_CAP_BYTES:,} B one-read budget for the agent "
+                                       f"read cap, but this is a CLASS A ledger and that is "
+                                       "expected rather than a fault. Delivery is an ordered "
+                                       "prefix and the file is newest-on-top, so what a "
+                                       "whole-file read drops is the OLDEST records; the front "
+                                       "matter and the newest ones still arrive, which is what "
+                                       "the protocol reads (Phase 0 reconciles from `git log`, "
+                                       "Phase 3A reads ONE record). NO ACTION IS EXPECTED here: "
+                                       f"the archive threshold for this class is {CLASS_A_FIRE_BYTES:,} B, "
+                                       f"{CLASS_A_FIRE_BYTES - wb:,} B away. If you need the "
+                                       "whole file, read it with an explicit offset/limit"})
+                else:
+                    risks.append({
+                        "severity": "high",
+                        "description": f"{w['path']} is {wb:,} B ({w['lines']:,} lines) — past the "
+                                       f"{READ_CAP_BYTES:,} B one-read budget for the agent read cap, "
+                                       f"which is denominated in tokens ({READ_CAP_TOKENS:,}) and "
+                                       f"converted here at the densest content measured "
+                                       f"({MIN_BYTES_PER_TOKEN} B/token). A session reading it whole "
+                                       "gets a PARTIAL view — truncated to the prefix that fits the "
+                                       "token cap, and it SAYS SO in a banner naming the true "
+                                       "length, so the failure is loud rather than silent; an "
+                                       "explicit line range spanning the excess errors outright, "
+                                       "returning nothing. This is a CLASS B file: the trimmer "
+                                       "answers NO_CONFIG for it, and nothing guarantees the part "
+                                       "you need is in the delivered prefix — a backlog's bottom "
+                                       "items are as live as its top ones, so what truncates may "
+                                       "be open work, and you are told THAT something was cut, "
+                                       "never WHAT"})
 
     # S38: the trim-trigger rows, re-emitted VERBATIM from the collector -- the same arrangement
     # the Component C signals above use. The collector owns the gate, the population and the
@@ -3115,6 +3630,8 @@ def collect_all(path):
     # (which consumes doc_only + render). Order matters: render feeds detect_doc_only.
     metrics["render"] = collect_render_metrics(path, files, ci, meth)
     metrics["doc_only"] = detect_doc_only(path, files, metrics["render"])
+    # Quality gates (D6): declared thresholds, last measured outcomes, git-only loosening history.
+    metrics["gates"] = collect_gate_metrics(path)
 
     # S38: the trim-trigger row. Wired after the metrics dict is built (it reads the collected
     # read_cap_watch line counts) and before the scores block, which re-emits its signals.
@@ -3379,6 +3896,10 @@ def render_project_card(p):
     # Coverage configs
     cov_html = ", ".join(p["coverage_configs"]) if p["coverage_configs"] else "None"
 
+    # Quality gates (D6): declared · measured · loosened. Rendered for code repos beside the
+    # coverage config; a doc-only card keeps its render proxy section.
+    gates_html = gates_summary_html(p.get("gates", {}))
+
     # Dependencies
     dep_html = ""
     if p["dependencies"]["dependency_files"]:
@@ -3492,6 +4013,7 @@ def render_project_card(p):
                         {vendor_note}
                         <div class="kv">Test:Source Ratio: <b>{fmt_ratio(p["tests"]["test_to_source_ratio"], src_loc)}</b></div>
                         <div class="kv">Coverage Config: <b>{cov_html}</b></div>
+                        <div class="kv">Quality Gates: <b>{gates_html}</b></div>
                     </div>'''
         doc_ratio_kv = f'Doc:Source Ratio: <b>{fmt_ratio(doc["doc_to_source_ratio"], src_loc)}</b>'
 

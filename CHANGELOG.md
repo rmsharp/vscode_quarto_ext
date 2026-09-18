@@ -13,6 +13,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] BL-57 P8 — methodology synced from fork `main` `0ab3881`: one `bin/sync --source=local` run, one commit, 14 files
+- **Change:** 11 synced files updated (`SESSION_RUNNER.md`, `FRAMEWORK_LEARNINGS.md`, `SAFEGUARDS.md`, `BOOTSTRAP.md`, `methodology_dashboard.py` v2.18.0, `methodology_trim.py` v1.5.0, `context_budget.py` v1.2.0, `docs/methodology/ITERATIVE_METHODOLOGY.md`, `HOW_TO_USE.md`, `workstreams/DEVELOPMENT_WORKSTREAM.md`, `workstreams/AUDIT_WORKSTREAM.md`) and 3 created (`quality_ratchet.py`, the seed `.quality-gates.json` with `gates: []`, `docs/methodology/FRAMEWORK_APPARATUS.md`, the ledger rules' new home). From here on, one ledger entry per commit. Past `SAFEGUARDS.md`'s five-file cap by the operator's plan item (18): exactly the files the dry run listed, plus this entry.
+- **Commit/PR:** the commit that ships this entry
+- **Session:** S264 · **Verified:** dry run exit 0, 14 files, and the real run wrote the same 14; `bin/status --source=local` reads every tracked file `current` (only the `CHANGELOG.md` and `HANDOFFS.md` seeds `present (stale format)`, migrated next); `check-package: OK — 42 files`.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] BL-57 P8, before the sync — the three root files the methodology sync adds are denied from the `.vsix`, so no commit on `master` fails `check-package`
 - **Change:** `.vscodeignore` denies `quality_ratchet.py`, `.quality-gates.json` and `.quality-gates-results.json`; `.gitignore` ignores the last, as the seed manifest says to by default. Landed BEFORE the sync on purpose: item (18) keeps the sync commit to exactly the files `bin/sync` writes.
 - **Commit/PR:** the commit that ships this entry

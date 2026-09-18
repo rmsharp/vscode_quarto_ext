@@ -20,7 +20,7 @@ your-projects/                        <-- parent directory (portfolio level)
 │   ├── SAFEGUARDS.md                 ← Safety rails (synced from methodology)
 │   ├── SESSION_NOTES.md              ← Session continuity (copied from starter kit)
 │   ├── BACKLOG.md                    ← Open work items only (you create this)
-│   ├── CHANGELOG.md                  ← Completed work history (copied from starter kit)
+│   ├── CHANGELOG.md                  ← Action ledger (copied from starter kit)
 │   ├── HANDOFFS.md                   ← Durable close-out receipts (copied from starter kit)
 │   ├── ROADMAP.md                    ← Feature inventory & future plans (copied from starter kit)
 │   ├── methodology_dashboard.py      ← Health scanner (synced from methodology)
@@ -28,6 +28,7 @@ your-projects/                        <-- parent directory (portfolio level)
 │   │
 │   └── docs/methodology/             ← The framework (copied from parent dir)
 │       ├── ITERATIVE_METHODOLOGY.md
+│       ├── FRAMEWORK_APPARATUS.md
 │       ├── HOW_TO_USE.md
 │       ├── README.md
 │       └── workstreams/
@@ -69,9 +70,11 @@ If you have a local `methodology/` checkout (sibling to your projects), use the 
 ../methodology/bin/sync your-project/ --source=github
 ```
 
-`bin/sync` copies the full methodology corpus into the target: the operating files (`SESSION_RUNNER.md`, `FRAMEWORK_LEARNINGS.md`, `SAFEGUARDS.md`, `RECOMMENDED_SKILLS.md`, `CONTEXT_TEMPLATE.md`, `CLAUDE_TEMPLATE.md`, `BOOTSTRAP.md`, `methodology_dashboard.py`, `methodology_trim.py`) at the project root and the framework (`ITERATIVE_METHODOLOGY.md`, `HOW_TO_USE.md`, `workstreams/`) under `docs/methodology/`, creating subdirectories as needed. `SESSION_NOTES.md`, `CHANGELOG.md`, `HANDOFFS.md`, and `ROADMAP.md` are *seeded* at the root only when absent and are never overwritten afterward — once created they are yours to edit. The complete mapping is defined once in `bin/_manifest.py`. In `--mode=ignore` it also adds `.gitignore` entries for the tracked files (not the seeded ones, which you commit) and warns (non-destructively) if any tracked file is currently tracked by git.
+`bin/sync` copies the full methodology corpus into the target: the operating files (`SESSION_RUNNER.md`, `FRAMEWORK_LEARNINGS.md`, `SAFEGUARDS.md`, `RECOMMENDED_SKILLS.md`, `CONTEXT_TEMPLATE.md`, `CLAUDE_TEMPLATE.md`, `BOOTSTRAP.md`, `methodology_dashboard.py`, `methodology_trim.py`) at the project root and the framework (`ITERATIVE_METHODOLOGY.md`, `FRAMEWORK_APPARATUS.md`, `HOW_TO_USE.md`, `workstreams/`) under `docs/methodology/`, creating subdirectories as needed. `SESSION_NOTES.md`, `CHANGELOG.md`, `HANDOFFS.md`, and `ROADMAP.md` are *seeded* at the root only when absent and are never overwritten afterward — once created they are yours to edit. The complete mapping is defined once in `bin/_manifest.py`. In `--mode=ignore` it also adds `.gitignore` entries for the tracked files (not the seeded ones, which you commit) and warns (non-destructively) if any tracked file is currently tracked by git.
 
 **Drift safety:** `bin/sync` refuses to overwrite a file that has local modifications not matching canonical or any historical version. The recommended pattern is to move per-project customizations into your CLAUDE.md's "Project-Specific Methodology Adaptations" section (see Step 5), then run sync. If you really need to discard local edits, pass `--force`.
+
+**Committing a sync:** in committed mode, commit one `bin/sync` run as one commit — exactly the files it wrote, which `--dry-run` lists first, plus that commit's `CHANGELOG.md` entry, and nothing else. `SAFEGUARDS.md`'s five-file cap names this case: every file is a byte-for-byte copy of a canonical one, and one `git revert` undoes the whole run. Splitting a run is not safer, because the operating files it brings can cite tools that arrive in the same run. Your own edits afterwards, such as a seed migration or your `CLAUDE.md` wording, go in their own commits under the cap.
 
 Check status with `bin/status`:
 
@@ -82,7 +85,7 @@ Check status with `bin/status`:
 
 You'll see `current`, `N versions behind`, `locally modified`, or `missing` per file.
 
-**Updating an existing project from an earlier methodology version:** re-run `bin/sync`. Prefer `--source=local` from a *full* methodology checkout — an unmodified file that matches an older canonical version is recognized as upgradable and updated cleanly with no `--force`; a shallow clone or a downloaded tarball loses that git history, so the same files look "locally modified" and are held back. Run `bin/status` first: it shows which tracked files are `N versions behind`, and it flags any seed whose *format* predates the current methodology as `present (stale format)` (with a one-line migration note beneath the table) so the format lag is surfaced rather than silent. **Seed files do not update:** because `SESSION_NOTES.md`, `CHANGELOG.md`, `HANDOFFS.md`, and `ROADMAP.md` are seeded-once and never overwritten, a project moving up from an earlier methodology keeps its existing copies — including their *format*. So if you are adopting the authoritative action-ledger `CHANGELOG.md` (methodology v3.1+) over an older changelog, `bin/status` marks it `present (stale format)` and sync leaves your file untouched **by design**: reconcile its header and per-entry format against the current `starter-kit/CHANGELOG.md` seed by hand, or — if it holds no history worth keeping — delete it and re-run `bin/sync` to reseed the current shape.
+**Updating an existing project from an earlier methodology version:** re-run `bin/sync`. Prefer `--source=local` from a *full* methodology checkout — an unmodified file that matches an older canonical version is recognized as upgradable and updated cleanly with no `--force`; a shallow clone or a downloaded tarball loses that git history, so the same files look "locally modified" and are held back. Run `bin/status` first: it shows which tracked files are `N versions behind`, and it flags any seed whose *format* predates the current methodology as `present (stale format)` (with a one-line migration note beneath the table) so the format lag is surfaced rather than silent. **Seed files do not update:** because `SESSION_NOTES.md`, `CHANGELOG.md`, `HANDOFFS.md`, and `ROADMAP.md` are seeded-once and never overwritten, a project moving up from an earlier methodology keeps its existing copies — including their *format*. So when the seed's format moves on — the authoritative action-ledger `CHANGELOG.md` (methodology v3.1+) over an older changelog, the seed that points at `FRAMEWORK_APPARATUS.md` §The Action Ledger instead of carrying the rules itself (`ledger-format: 2`), or a `HANDOFFS.md` whose `## Size, and when to archive` section is missing or lacks the seed's `handoffs-format: 2` line — `bin/status` marks your copy `present (stale format)` and sync leaves it untouched **by design**. To migrate `CHANGELOG.md`, replace the rules text or old header above your first entry with the current `starter-kit/CHANGELOG.md` seed's header, keeping any archive-pointer block and month heading a trimmer wrote there; to migrate `HANDOFFS.md`, bring across that section, replacing any older copy of it, and keep the rest of its front matter, which may hold lines a trimmer wrote there. Either way, leave every entry and receipt as written; delete the file and re-run `bin/sync` to reseed only if it holds no history.
 
 ---
 
@@ -92,7 +95,7 @@ If you don't have (or don't want) the sync tool, copy files manually:
 
 ### Step 1: Copy the Framework Files
 
-Copy `docs/methodology/` content (`ITERATIVE_METHODOLOGY.md`, `HOW_TO_USE.md`, `workstreams/`) from the methodology repo into your project's `docs/methodology/` directory. These files are project-independent — you should not need to modify them.
+Copy `docs/methodology/` content (`ITERATIVE_METHODOLOGY.md`, `FRAMEWORK_APPARATUS.md`, `HOW_TO_USE.md`, `workstreams/`) from the methodology repo into your project's `docs/methodology/` directory. These files are project-independent — you should not need to modify them.
 
 ### Step 2: Copy the Starter Kit Files to Project Root
 
@@ -104,7 +107,7 @@ From the methodology `starter-kit/` directory:
 | `FRAMEWORK_LEARNINGS.md` | The framework's own learnings — reference the runner links to, read on demand |
 | `SAFEGUARDS.md` | Safety rails — commit discipline, blast radius limits, mode switching |
 | `SESSION_NOTES.md` | Session continuity — where handoff notes live between sessions |
-| `CHANGELOG.md` | Completed work history — add entries as work is finished |
+| `CHANGELOG.md` | Action ledger — one dated entry per action, newest on top |
 | `HANDOFFS.md` | Durable close-out receipts — one machine-checkable block per session |
 | `ROADMAP.md` | Feature inventory and future plans — what's built, what's next |
 | `methodology_dashboard.py` | Health scanner — scores project health and methodology compliance |
@@ -129,7 +132,7 @@ Create three files at your project root for tracking work:
 | File | Purpose | Source |
 |------|---------|--------|
 | `BACKLOG.md` | Open work items only (actionable tasks) | You create this — see example below |
-| `CHANGELOG.md` | Completed work history with dates | From `starter-kit/CHANGELOG.md` (template) |
+| `CHANGELOG.md` | Action ledger — every action, dated and source-tagged | From `starter-kit/CHANGELOG.md` (template) |
 | `ROADMAP.md` | Feature inventory and future plans | From `starter-kit/ROADMAP.md` (template) |
 
 **Why three files?** A single backlog file that accumulates completed items becomes unreadable. Keeping open work, completed work, and plans in separate files means:
@@ -137,13 +140,13 @@ Create three files at your project root for tracking work:
 - `CHANGELOG.md` captures what was done and when (reference only, not read at session start)
 - `ROADMAP.md` tracks what's built and what's planned (reference only)
 
-When you complete work: remove it from `BACKLOG.md`, add an entry to `CHANGELOG.md`.
+When you take an action, record it in `CHANGELOG.md`; when it completes a backlog item, remove that item from `BACKLOG.md` in the same commit.
 
 ### Migrating an existing BACKLOG.md
 
 If your project already has a `BACKLOG.md` that has accumulated completed items, split it:
 
-1. Create `CHANGELOG.md` — move all completed work entries (with dates and notes) out of BACKLOG.md into reverse-chronological sections
+1. Create `CHANGELOG.md` from the starter-kit seed, and move BACKLOG.md's completed items (with dates and notes) into it as entries, newest on top
 2. Create `ROADMAP.md` — move the feature inventory ("what's built") and future plans/proposals out of BACKLOG.md
 3. Trim `BACKLOG.md` — remove all completed items, struck-through entries, and historical sections. Only open/actionable work remains.
 4. Update your `CLAUDE.md` (or equivalent) references to mention all three files
@@ -311,7 +314,7 @@ The dashboard requires only Python 3 (stdlib, no pip dependencies) and works on 
 
 ---
 
-## Step 10: Set Up Git Hooks (Optional)
+## Step 10: Set Up Git Hooks (Recommended)
 
 The methodology works without hooks, but a `core.hooksPath` configuration can enforce commit discipline:
 
@@ -322,6 +325,22 @@ git config core.hooksPath .githooks
 **Pre-commit hooks (recommended).** A pre-commit hook that runs the project's formatter, linter, type-checker, and fast tests on staged changes catches the same defects CI catches, but at commit time instead of after the fact — shifting failures left and reducing the ratio of red CI runs to green ones. The dashboard scores CI/CD presence (workflow files exist on the remote side); pre-commit is the complementary local-side lever the dashboard does not measure. Pick a hook runner that fits your stack — `pre-commit` (Python, polyglot), Husky + lint-staged (Node), `lefthook` (Go), `cargo-husky` (Rust), Maven Spotless plugin or Gradle git-hooks plugins (JVM), or a hand-written shell script in `.githooks/pre-commit` for projects that want zero new dependencies. The methodology is intentionally tool-agnostic here; what matters is that *some* check runs before the commit, not which one. Pocock's `/setup-pre-commit` is one option for Node/Husky projects — see [`RECOMMENDED_SKILLS.md`](RECOMMENDED_SKILLS.md).
 
 **Ledger co-staging hook (recommended).** The one hook the methodology *does* ship is narrow and single-purpose: [`.githooks/pre-commit`](https://github.com/KJ5HST/methodology/blob/main/.githooks/pre-commit) refuses a commit that changes tracked content unless `CHANGELOG.md` is co-staged — the mechanical form of the Phase 3F close-out gate (failure mode #27, "unrecorded action"). Enable it with the `core.hooksPath` line above after copying it into your `.githooks/`; bypass a single commit with `git commit --no-verify` (Phase 0 reconcile-on-read backfills anything bypassed, so the ledger stays true on the next Orient); opt out permanently by deleting `CHANGELOG.md` and recording that in `CLAUDE.md`. It never blocks a repo that has no ledger yet, and it skips merges/rebases. Details in [`SAFEGUARDS.md`](SAFEGUARDS.md) → Commit Discipline → "Ledger Co-Staging Hook."
+
+**Quality ratchet (recommended).** The second hook the methodology ships is the same shape — narrow, single-purpose, bypassable on the record. `quality_ratchet.py` (synced to your root) holds the thresholds you declare in `.quality-gates.json` (seeded empty) and refuses a commit that *loosens* one: a floor lowered, a ceiling raised, a direction flipped, a gate removed — or the manifest itself removed or emptied, which is judged against the last version that declared a gate, so a bypassed removal and a lower re-declaration are two recorded loosenings, not a fresh start. Tightening and adding never need approval; loosening is a plan-mode decision committed with `--no-verify`, which the hook prints as a recorded bypass ([`SAFEGUARDS.md`](SAFEGUARDS.md) §Blast Radius Limits; [`ITERATIVE_METHODOLOGY.md`](docs/methodology/ITERATIVE_METHODOLOGY.md) §Mechanical Gates Bind Every Actor). **Start where you are:** run each measurement once, declare the gate at the value it reports, then let the ratchet hold it — a floor copied from someone else's project is false at install and teaches bypass on day one. `python3 quality_ratchet.py --run` measures every declared gate, writes `.quality-gates-results.json` (add it to `.gitignore` unless you want every clone to score the last run) and prints a summary line the close-out receipt cites (`HANDOFFS.md`, `runtime_smoke`). Install with `python3 quality_ratchet.py install-hook`; if you already run the ledger hook, chain the ratchet after it — one line before the ledger hook's final `exit`:
+
+```sh
+python3 "$(git rev-parse --show-toplevel)/quality_ratchet.py" --precommit || exit $?
+```
+
+The methodology ships the ratchet, not the ruler: which tool produces each number is yours to choose, and any command whose output carries a number (or whose exit code is the verdict) can be a gate. Two limits, stated plainly: a pre-commit hook binds only the clones that opt into it, and merge, rebase and cherry-pick commits skip it (as they skip the ledger hook) — the dashboard's read of the manifest's git history is what reports a loosening that arrived by bypass or by merge, and a CI job running `--run` plus `--precommit` against the base branch is what binds an actor who never sets a hook.
+
+| Stack | Coverage floor (`min`) | Complexity / lint ceiling (`max`) | Exit-code gate (`max 0`) |
+|-------|------------------------|-----------------------------------|--------------------------|
+| Python | `coverage report` → extract `TOTAL.*?(\d+)%` | `radon cc -a .` → average; `ruff check` findings | `pytest -q`, `mypy` |
+| Node | `c8` / `nyc report` → `All files.*?(\d+\.?\d*)` | `eslint` with `complexity` rule | `npm test`, `tsc --noEmit` |
+| Rust | `cargo llvm-cov --summary-only` | `cargo clippy -- -D warnings` (exit code) | `cargo test` |
+| JVM | JaCoCo `jacoco.csv` totals | PMD / Checkstyle violation counts | `mvn -q test`, `gradle test` |
+| Docs | link-check pass count | `check-links` broken links | `quarto render`, `pdffonts` (render-dep) |
 
 **Close-out completeness hook (optional, agent-specific).** The ledger hook guards the *action ledger*; the harder-to-see gap is a skipped *handoff report*. The durable fix ships in `SESSION_RUNNER.md` (the Phase 3D `HANDOFFS.md` receipt + Phase 0 reconcile). For an in-session catch — before the agent falls silent — an adopter may wire their agent harness's session-end / "stop" hook to grep `HANDOFFS.md` for a trailing `status: pending` (or run the canonical-only `bin/check-handoff`, copied in) and re-prompt to finish close-out. This is a *recommendation*, not a shipped hook: it is agent-specific harness config, soft-remind not hard-block. Details in [`SAFEGUARDS.md`](SAFEGUARDS.md) → Commit Discipline → "Close-Out Completeness Hook."
 
@@ -351,8 +370,8 @@ two, and the split is not cosmetic:
 
 | Class | Files | On update |
 |---|---|---|
-| **Tracked** (canonical owns them) | `SESSION_RUNNER.md`, `FRAMEWORK_LEARNINGS.md`, `SAFEGUARDS.md`, `RECOMMENDED_SKILLS.md`, `BOOTSTRAP.md`, the `*_TEMPLATE.md` files, `methodology_dashboard.py`, `methodology_trim.py`, `context_budget.py`, and everything under `docs/methodology/` | **overlay** — replace with the latest |
-| **Adopter-owned** | `CHANGELOG.md`, `HANDOFFS.md`, `SESSION_NOTES.md`, `ROADMAP.md`, `.context-budget.json` | **never overwrite** — these hold *your* history (or, for `.context-budget.json`, your project's own tuned budgets) |
+| **Tracked** (canonical owns them) | `SESSION_RUNNER.md`, `FRAMEWORK_LEARNINGS.md`, `SAFEGUARDS.md`, `RECOMMENDED_SKILLS.md`, `BOOTSTRAP.md`, the `*_TEMPLATE.md` files, `methodology_dashboard.py`, `methodology_trim.py`, `context_budget.py`, `quality_ratchet.py`, and everything under `docs/methodology/` | **overlay** — replace with the latest |
+| **Adopter-owned** | `CHANGELOG.md`, `HANDOFFS.md`, `SESSION_NOTES.md`, `ROADMAP.md`, `.context-budget.json`, `.quality-gates.json` | **never overwrite** — these hold *your* history (or, for `.context-budget.json` and `.quality-gates.json`, your project's own tuned budgets and declared gates) |
 
 Overlaying the second row replaces your action ledger and your close-out receipts with empty
 templates. `bin/sync` refuses to do it by construction; an agent working from prose has only this
@@ -363,9 +382,10 @@ overwritten, a project moving up from an earlier methodology keeps its ledgers *
 format* — gaining the new behaviour while silently missing the new structure. Diff your
 `CHANGELOG.md` and `HANDOFFS.md` front matter against the current seeds in `starter-kit/` and bring
 across whatever is missing above your first record. Nothing below your first record is touched: this
-is a front-matter merge, never a rewrite of history. As of the ledger-doctrine release that means
-the **`## Size, and when to archive`** section in both files — the size norm, the archive trigger and
-the shard convention.
+is a front-matter change, never a rewrite of history. For `CHANGELOG.md` since `ledger-format: 2`,
+replace the text above your first entry with the current seed's header: its pointer to
+`FRAMEWORK_APPARATUS.md` §The Action Ledger takes the place of the rules your copy carries. For
+`HANDOFFS.md`, bring across the **`## Size, and when to archive`** section.
 
 **3. Verify afterwards, don't assume.** From a full methodology checkout,
 `../methodology/bin/status your-project/` lists every file as `current`, `N versions behind`,
