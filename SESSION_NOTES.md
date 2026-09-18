@@ -12,8 +12,12 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 backtick fence-tag rewrite, so a ```` ```{{lang}} ```` display fence is read as a fence (the "Up
 Next" head; a Session 224 regression, `95241beb`; 23 documents, +41 headings). Strict TDD.
 Operator-picked at Phase 0. **Started:** 2026-09-18.
-**Plan:** `docs/planning/2026-09-14-attribute-tokenizer-plan.md` §4 P1. The operator decides its §12
-first; the approved scope is recorded here before any code.
+**Plan:** `docs/planning/2026-09-14-attribute-tokenizer-plan.md` §4 P1. **Operator decisions (§12),
+2026-09-18:** (1) **P1 ONLY is approved** as the gate (a) contract; P2–P4 and §12 items 2, 3, 4, 7, 8
+are decided when a later session picks them up. (5) **Runtime gate consented at Orient** — C4 stays in
+the layer set; a second explicit yes is still owed immediately before `npm run test:integration`.
+**§9.5 re-verification:** no drift in P1's seven files since `7a2397e2`; all six anchors resolve at the
+plan's lines; `quarto` 1.7.33; `scratchpad/s262` present.
 **NOT in scope:** P2–P4, the tokenizer leaf, the `divColumns` push, the ledger trims, the syncs.
 **Status:** CLAIMED. Work beginning.
 **Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
