@@ -14,7 +14,11 @@ ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
 `main` `0ab3881`, migrated both ledger seeds, recorded the legacy tags. Commits: `48d1790c` claim ·
 `e8c395b3` deny new root files · `b8a503e7` sync (14 files) · `acb43e0b` CHANGELOG header ·
 `69f0dd43` HANDOFFS section · `4b727a9d` CLAUDE.md + budget · `e2ad2dbb` backlog correction ·
-`6d66070a` budget comments · `3fa063aa` learnings · `a8e56e54` notes trim · close-out.
+`6d66070a` budget comments · `3fa063aa` learnings · `a8e56e54` notes trim · `57750bb2` close-out ·
+`d71e5870` first quality gates · close-out amendment.
+**⚠ THE PROJECT NOW HAS QUALITY GATES** (`.quality-gates.json`: `release-gate`, `ledger-lag`). Every
+close-out runs `python3 quality_ratchet.py --run` (~50 s; needs `dist/` built) and cites its summary
+line in the receipt; Phase 0 checks it. Thresholds only tighten. The pre-commit hook is not installed.
 **⚠ NEW LEDGER RULE, in force since the sync: ONE `CHANGELOG.md` ENTRY PER COMMIT.** The claim commit
 carries an *(in progress)* entry; a committed entry is never edited — a correction is a new entry.
 Rules: `docs/methodology/FRAMEWORK_APPARATUS.md:338`; this project's form: `CLAUDE.md:178`.
@@ -55,7 +59,7 @@ lines were short and correct.
 
 ## Session 264 Self-Assessment
 
-**Score: 8/10.**
+**Score: 7/10** (8 at the first close-out; lowered when the operator had to prompt the missed gate rule).
 
 **What went right.**
 - ⚠ **Phase 0 caught the brief's false premise** — `58f7bcbd` was not HEAD (11 commits later) — and I
@@ -77,13 +81,16 @@ lines were short and correct.
   one per commit; only the claim's *(in progress)* entry is new. Entries are never edited — noted here.
 - **I rewrote a budget comment around a pre-existing wrong figure** (62,521 B "after the S254 trim";
   it was 52,850 B) — second correction, `6d66070a`.
+- ⚠ **I closed out against the runner I read at Orient, not the one I had just synced.** The new Phase
+  3C says *a mechanical learning is a gate, not a row*; #544 was left a row until the operator said
+  "finish the close-out". Two gates, operator-chosen, each shown to fail — `d71e5870`.
 - **Cost:** two workflows, 8 agents, ~1.3M subagent tokens for a docs-and-config migration.
 - **Ledger growth:** `CHANGELOG.md` +10.9 KB (per-commit entries), `PROJECT_LEARNINGS.md` +1.6 KB;
   `BACKLOG.md` −2.2 KB.
 
-**Against the bar.** P7 in `wsfct` landed in six commits. This one took eleven, two of them
-corrections my own verification forced; the migration itself was right the first time, and verified
-with controls rather than asserted.
+**Against the bar.** P7 in `wsfct` landed in six commits. This one took thirteen: two corrections my
+own verification forced, and a close-out the operator had to send back. The migration itself was right
+the first time, and verified with controls rather than asserted.
 
 ## Session 262 Handoff Evaluation (by Session 263)
 

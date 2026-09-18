@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] Session 264 close-out amended — the receipt cites the gate run; self-score lowered to 7
+- **Change:** the S264 `HANDOFFS.md` receipt's `runtime_smoke` now cites the gate run and drops its "no gates, no citation owed" line, `whats_next` #5 tells the next session that every close-out runs the ratchet, and `self_score` goes 8 → 7. `SESSION_NOTES.md`'s ACTIVE TASK names the gates, and the self-assessment records the miss: this session closed out against the Orient-time runner rather than the one it had just synced, and the operator had to send the close-out back.
+- **Commit/PR:** the commit that ships this entry; the gates themselves are `d71e5870`
+- **Session:** S264 · **Verified:** `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at `d71e5870`; `grep -c '^status: pending' HANDOFFS.md` = 0
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] The project's first quality gates — `release-gate` and `ledger-lag` — declared from Learning #544 (operator's decision)
 - **Change:** `.quality-gates.json`, empty since the sync, now declares two gates at their measured values: `release-gate` (`npm run check-package` must exit 0; ~48 s) and `ledger-lag` (commits after the newest commit touching `CHANGELOG.md` must be 0 — Phase 0's reconcile set, and the set that makes the trimmer refuse with `P1_UNDOCUMENTED`). Learning #544's *When to apply* now points at them. Every close-out from here runs `python3 quality_ratchet.py --run` and cites its line in the receipt (`SESSION_RUNNER.md` Phase 3E); the ratchet means a gate is loosened only by plan-mode approval, in its own commit. The pre-commit hook (`install-hook`) is NOT installed. **Why:** the synced Phase 3C says *a mechanical learning is a gate, not a row*, and this session had closed out against the Orient-time runner, which lacked that rule. The operator chose both gates over `ledger-lag` alone, accepting ~48 s per close-out to catch a new root file at the close-out of the session that adds it. **Also on the record:** under the same synced rules, removing a gate takes approval, its own commit and a reason in the ledger. Dropping `CHANGELOG.md` from `.context-budget.json` had the first and third, but shared `4b727a9d` with the `CLAUDE.md` text that records it.
 - **Commit/PR:** the commit that ships this entry
