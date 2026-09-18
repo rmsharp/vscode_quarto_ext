@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { describe, expect, it } from "vitest";
 import { findAllCells, findCellAtPosition } from "../../src/core/cells";
+import { indexLabels } from "../../src/core/refs";
 
 describe("findAllCells", () => {
   it("returns no cells for plain prose", () => {
@@ -318,5 +319,38 @@ describe("Session 263 GUARD — a `{{lang}}` display block the tag rewrite must 
     expect(findAllCells(text)).toEqual([
       { startLine: 4, endLine: 7, lang: "r", code: "#| label: fig-cg\nplot(1)" },
     ]);
+  });
+});
+
+describe("Session 263 PIN — a `{{lang}}` display block with a blank line no longer hides the cell below it", () => {
+  it("the real cell after a verbatim block is a cell, and its label is defined (M0)", () => {
+    // Rendered, quarto 1.7.33 (`scratchpad/s263/cp/cpy`, jupyter): the `{{python}}` block is a
+    // `sourceCode markdown` `<pre>`, the `{python}` cell below it executes, and `id="fig-z"` is
+    // defined. Before quarto's tag rewrite was modelled the display block was refused, and with a
+    // blank line inside it its own closer opened a fence that ran to the cell's closer, hiding both
+    // the cell and its label (plan §4 P1; the census's +8 cells and +2 labels).
+    const doc = (display: string, lang: string) =>
+      [
+        display, // 0
+        "#| echo: false", // 1
+        "", // 2
+        "1 + 1", // 3
+        "```", // 4
+        "", // 5
+        `\`\`\`{${lang}}`, // 6
+        "#| label: fig-z", // 7
+        "#| fig-cap: Cap", // 8
+        "print(1)", // 9
+        "```", // 10
+        "", // 11
+        "# After", // 12
+      ].join("\n");
+    const python = doc("```{{python}}", "python");
+    expect(findAllCells(python).map((c) => `${c.lang}@${c.startLine}`)).toEqual(["python@6"]);
+    expect(indexLabels(python).map((l) => l.id)).toEqual(["fig-z"]);
+    // The knitr twin, rendered with the same structure (`scratchpad/s263/rg/cp`): `id="fig-z"`.
+    const r = doc("```{{r}}", "r");
+    expect(findAllCells(r).map((c) => `${c.lang}@${c.startLine}`)).toEqual(["r@6"]);
+    expect(indexLabels(r).map((l) => l.id)).toEqual(["fig-z"]);
   });
 });

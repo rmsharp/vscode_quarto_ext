@@ -16,6 +16,7 @@ import {
   frontMatterContentLines,
   hideCellsInOutline,
   inFrontMatter,
+  quartoFenceTagRewrite,
 } from "../../src/core/qmd/model";
 // Session 216 — the heading ATTRIBUTE block is the ONLY source of `Heading.id`, which this
 // module turns into the `sec-` cross-reference index. That consumer is part of this session's
@@ -9522,7 +9523,7 @@ describe("GUARD — fences that must go on opening a code region (Session 224)",
     expect(indexLabels(text).map((l) => l.id)).toContain("lst-g03");
   });
 
-  it("a STAGE-1 INTERCEPTED block still opens a region — no `.`, no `=` (`b14`)", () => {
+  it("a brace TAG block — no `.`, no `=` — still opens a region: quarto rewrites it to a word (`b14`)", () => {
     expect(hides("```{#lst-g04}", "04")).toBe(true);
   });
 
@@ -9819,11 +9820,12 @@ describe("Session 225 — constructs inside a block quote", () => {
     ).toEqual([]);
   });
 
-  it("C3: quarto's stage-1 intercept does not reach inside a quote, so the fence is refused (`g/g03` vs `g/g04`)", () => {
+  it("C3: quarto's backtick tag rewrite does not reach inside a quote, so the fence is refused (`g/g03` vs `g/g04`)", () => {
     // Rendered BOTH ways from the same bytes. Top level (`g04`): `<pre class="{#lst-g04 bad}">`
-    // — quarto's stage 1 makes the whole info string a literal class and the fence is a fence,
-    // so the ATX inside it is hidden. Inside a quote (`g03`): `<p>```{#lst-g03 bad}</p>` and
-    // `<h1 id="h-g03">H g03</h1>` — the intercept is line-anchored, the `> ` prefix defeats it,
+    // — quarto's readqmd rewrites the whole brace tag to a word (restored afterwards as a literal
+    // class) and the fence is a fence, so the ATX inside it is hidden. Inside a quote (`g03`):
+    // `<p>```{#lst-g03 bad}</p>` and `<h1 id="h-g03">H g03</h1>` — the rewrite is line-anchored
+    // (Session 263's `quartoFenceTagRewrite`), the `> ` prefix defeats it,
     // pandoc's `Attr` parser refuses the bare word, and the heading between the backticks is
     // live. The blank lines are what stop the two fence lines forming one inline code span.
     expect(
@@ -18352,5 +18354,232 @@ describe("Session 263 GUARD — fences quarto's backtick tag rewrite must NOT mo
         "# Tail",
       ]),
     ).toEqual(["After", "Tail"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Session 263 — quarto rewrites a brace TAG on a BACKTICK fence before pandoc reads it.
+//
+// `readqmd.lua:37-40` finds a leading `{+[^.=\r\n]+}+` after a line-start backtick run and
+// `:95-100` replaces it with a random word of the SAME LENGTH, so pandoc sees ```` ```xxxxxxxxxx ````
+// — one bare word, a valid info string. That is what makes quarto's documented verbatim idiom
+// ```` ```{{python}} ```` a code block. This model judged the raw bytes instead, refused the
+// fence (a Session 224 regression, `95241beb`), and with a blank line inside the block its own
+// closer then opened a NEW fence that swallowed the headings below it: 41 hidden headings in 23
+// real documents (plan `docs/planning/2026-09-14-attribute-tokenizer-plan.md` §1.4, §4 P1).
+// ---------------------------------------------------------------------------
+describe("Session 263 — quarto rewrites a brace tag on a BACKTICK fence before pandoc reads it (readqmd.lua:37-40)", () => {
+  const names = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("a ``` {{python}} verbatim block with a blank line inside keeps its own closer, so the heading after it is not swallowed", () => {
+    // Rendered, quarto 1.7.33: `<h2>Hidden One</h2>` and `<h2>After Plain</h2>`
+    // (`scratchpad/s262/reach/probe_dd/dd2.qmd`, re-rendered as `scratchpad/s263/g/dd2`).
+    expect(
+      names([
+        "---",
+        "title: dd2 probe",
+        "---",
+        "",
+        "``` {{python}}",
+        "#| echo: false",
+        "",
+        "x = 1",
+        "```",
+        "",
+        "## Hidden One",
+        "",
+        "text",
+        "",
+        "```",
+        "plain",
+        "```",
+        "",
+        "## After Plain",
+      ]),
+    ).toEqual(["Hidden One", "After Plain"]);
+  });
+
+  it("quarto's anchor allows INDENTATION before the backticks — a two-space-indented block is rewritten (`p5`)", () => {
+    // Rendered, quarto 1.7.33: only `<h1>After</h1>` (`scratchpad/s263/g/p5_indent2`). readqmd's
+    // pattern is `^[ \t\f\v]*```+`, so leading whitespace does not defeat the rewrite.
+    expect(
+      names(["---", "title: probe", "---", "", "  ```{{python}}", "x = 1", "", "# Hidden Five", "", "  ```", "", "# After"]),
+    ).toEqual(["After"]);
+  });
+
+  it("a TILDE fence faces pandoc's grammar alone — `~~~{a}` is refused and its heading is live (`fill-3` l04)", () => {
+    // Rendered, quarto 1.7.33: `<h1>Inside</h1>` and `<h1>After</h1>` (`scratchpad/s263/g/l04`).
+    // ⚠ Session 224's brace clause opened this fence: it modelled quarto's tag rewrite as a rule
+    // about any brace-led info string, where readqmd rewrites only on a BACKTICK run. `{a}` is not
+    // a valid `Attr`, so pandoc refuses the tilde fence and the heading between its lines is real.
+    expect(
+      names(["---", "format: html", "---", "", "~~~{a}", "", "# Inside", "", "~~~", "", "# After"]),
+    ).toEqual(["Inside", "After"]);
+  });
+
+  it("on the document's FIRST line an empty `{}` is a tag too, so ```{}x opens a region there (`d0`)", () => {
+    // Rendered, quarto 1.7.33: only `<h1>After A</h1>` (`scratchpad/s263/g/d0`). readqmd's
+    // first-line pattern is `{+[^.=\r\n]*}+` — `*`, not the `+` it uses after a newline — so `{}`
+    // is rewritten to `xx` and pandoc sees the one word `xxx`. Its guard twin `d2`, the same bytes
+    // after front matter, keeps the heading (Session 263 GUARD).
+    expect(names(["```{}x", "x = 1", "", "# Hidden A", "", "```", "", "# After A"])).toEqual([
+      "After A",
+    ]);
+  });
+
+  it("the rewrite is LINEAR in the info string — it runs on every edit", () => {
+    // ⚠ readqmd's own pattern `{+[^.=\r\n]+}+`, transcribed as a JS regex, backtracks
+    // quadratically on a run of `{` with no `}`: the `{+` and `[^.=\r\n]+` runs trade the braces
+    // between them at every split (plan §2.2: ~245 ms at 20,000 braces). `computeRegions` runs on
+    // every keystroke. The physical line carries the backtick run, so the anchor passes and the
+    // scan is actually reached.
+    const braces = "{".repeat(20000);
+    for (const documentStart of [false, true]) {
+      const t0 = performance.now();
+      expect(quartoFenceTagRewrite("```" + braces, braces, documentStart)).toBe(braces);
+      expect(performance.now() - t0, String(documentStart)).toBeLessThan(50);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Session 263 PINS — rows the tag rewrite turned without a cycle of their own.
+//
+// Declared, not counted as RED→GREEN: each passed on its first run after the GREENs above. A
+// pin earns its place only because a named mutant of `quartoFenceTagRewrite` makes it fail
+// (plan §4 P1 DONE 9) — the mutant is named on each row. Every expectation is a quarto 1.7.33
+// render (`scratchpad/s263/g/`; the grid rows are `fill-3`'s, re-rendered there).
+// ---------------------------------------------------------------------------
+describe("Session 263 PINS — fences the backtick tag rewrite opens (and one it now refuses)", () => {
+  const names = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+  const probe = (...body: string[]) => ["---", "title: probe", "---", "", ...body];
+  const grid = (opener: string) =>
+    names([
+      "---",
+      "format: html",
+      "---",
+      "",
+      opener,
+      "",
+      "# Inside",
+      "",
+      opener.startsWith("~") ? "~~~" : opener.startsWith("````") ? "````" : "```",
+      "",
+      "# After",
+    ]);
+
+  it("a top-level ```{{python}} block with a blank line hides its heading (`p1_top`; M0)", () => {
+    expect(
+      names(probe("```{{python}}", "x = 1", "", "# Hidden One", "", "```", "", "# After")),
+    ).toEqual(["After"]);
+  });
+
+  it("a list-CONTINUATION indent does not defeat the rewrite (`p4`; M9)", () => {
+    expect(
+      names(probe("- item", "", "  ```{{python}}", "  x = 1", "", "  # Hidden Four", "", "  ```", "", "# After")),
+    ).toEqual(["After"]);
+  });
+
+  it("FOUR backticks are still a backtick run (`p6`; M10)", () => {
+    expect(
+      names(probe("````{{python}}", "x = 1", "", "# Hidden Six", "", "````", "", "# After")),
+    ).toEqual(["After"]);
+  });
+
+  it("the grid rows the rewrite now opens — one tag, then nothing pandoc can refuse (M0)", () => {
+    // Newly right: q03-q06, q10, q13, q16 each rendered `<h1>After</h1>` alone where this model
+    // showed `Inside` too. The tag runs to the LAST `}` before any `.` or `=`, so `{a} {b}`,
+    // `{a}{b}`, `{a} {b} {c}` and `{a} x}` are each ONE tag and one word.
+    for (const opener of [
+      "```{a} {b}", // q03
+      "```{a}{b}", // q04
+      "```{a} {b} {c}", // q05
+      "```{a} x}", // q06
+      "```{{python}}", // q10
+      "```{a}}", // q13
+      "```{{foo}}", // q16
+      // Right before this session only through Session 224's deleted brace clause:
+      "```{ a }", // q11
+      "```{{a}", // q14
+    ]) {
+      expect(grid(opener), opener).toEqual(["After"]);
+    }
+  });
+
+  it("a four-backtick run with two groups is one tag (`fill-3` l02; M10)", () => {
+    expect(grid("````{a} {b}")).toEqual(["After"]);
+  });
+
+  it("a TILDE `{foo}` is refused — its heading is live (`fill-3` l06; M2, M3)", () => {
+    expect(grid("~~~{foo}")).toEqual(["Inside", "After"]);
+  });
+
+  it("the cascades — a `{{python}}` / `{{r}}` display block no longer swallows what follows it (`fill-3` c01, c02; M0)", () => {
+    // Rendered: `<h1>After</h1>` and `<h1>Tail</h1>`, the display block a `sourceCode markdown`
+    // `<pre>`. Before this session the display block's own closer opened a fence that ran to the
+    // next ``` and hid `After` (and, here, the `python` fence's own opener).
+    const cascade = (opener: string, option: string, code: string) =>
+      names([
+        "---",
+        "format: html",
+        "---",
+        "",
+        opener,
+        option,
+        "",
+        code,
+        "```",
+        "",
+        "# After",
+        "",
+        "```python",
+        "x = 1",
+        "```",
+        "",
+        "# Tail",
+      ]);
+    expect(cascade("```{{python}}", "#| echo: false", "1 + 1")).toEqual(["After", "Tail"]);
+    expect(cascade("```{{r}}", "#| label: fig-x", "plot(1)")).toEqual(["After", "Tail"]);
+  });
+
+  it("KNOWN RESIDUAL: a tilde fence with two brace groups keeps the location rule's deletion", () => {
+    // ⚠ PINNED AS IT IS, NOT AS IT SHOULD BE. Quarto renders `<h1>Inside</h1>` and `<h1>After</h1>`
+    // (`fill-3` l08, re-rendered `scratchpad/s263/g/l08`): `{a} {.b}` is not `[word] {attrs}`
+    // for pandoc — `{a}` is no word — so the tilde fence is refused. This model takes the LAST
+    // group as the block and the first as the word, and opens it. That is the info-string
+    // LOCATION rule, owned by the plan's P4 ("one fence info rule"), not by the tag rewrite: a
+    // tilde fence is never rewritten.
+    expect(grid("~~~{a} {.b}")).toEqual(["After"]);
+  });
+
+  it("KNOWN RESIDUAL: the cascades the tag rewrite does not reach (`fill-3` c03, c04)", () => {
+    const cascade = (opener: string) =>
+      names([
+        "---",
+        "format: html",
+        "---",
+        "",
+        opener,
+        "",
+        "# Inside",
+        "",
+        "```",
+        "",
+        "# After",
+        "",
+        "```python",
+        "x = 1",
+        "```",
+        "",
+        "# Tail",
+      ]);
+    // ⚠ PINNED AS IT IS. c03 — quarto renders `Inside` and `Tail`: `{.a} {.b}` is refused by
+    // pandoc (two blocks), and a `.` stops the tag before it starts. The location rule, P4.
+    expect(cascade("```{.a} {.b}")).toEqual(["After", "Tail"]);
+    // c04 — quarto renders `After` and `Tail`: `{data-author=O'Brien}` is a valid block. This
+    // model's `braceGroups` opens a quote at the apostrophe and never finds the `}`, so the
+    // fence is refused and its closer opens one below. P4's tokenizer, not the rewrite (an `=`
+    // stops the tag).
+    expect(cascade("```{data-author=O'Brien}")).toEqual(["Inside", "Tail"]);
   });
 });

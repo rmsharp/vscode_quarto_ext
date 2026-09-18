@@ -5770,6 +5770,73 @@ const SIMPLE_TABLE_HEADER_OUTRANKED: readonly RegExp[] = [
  */
 const RAW_ATTRIBUTE = /^=[^\s{}]+$/;
 /**
+ * A PLAIN fence's info string as pandoc receives it, after quarto's qmd reader has rewritten a
+ * leading brace TAG on a BACKTICK fence (Session 263). `info` is the suffix of `physicalLine`
+ * after its fence run (`FENCE_OPEN`'s group 3, gap included); it is returned unchanged when the
+ * rewrite does not apply.
+ *
+ * ⚠ **QUARTO REWRITES THE SOURCE BEFORE PANDOC READS IT, AND THIS IS WHY ```` ```{{python}} ````
+ * IS A CODE BLOCK.** `readqmd.lua:37-40` (quarto 1.7.33) finds a `{+[^.=\r\n]+}+` tag after a
+ * line-start backtick run and `:95-100` replaces it with a random word of the SAME LENGTH, so
+ * pandoc sees one bare word — a valid info string — and the tag comes back afterwards as the
+ * block's literal class (`<pre class="{#lst-b14}">`, `b/b14`). Judging the raw bytes instead
+ * refused quarto's documented verbatim idiom, and with a blank line inside the block its own
+ * closer opened a fence that swallowed what followed: 41 headings in 23 real documents, a
+ * regression from Session 224's refusal rule (`95241beb`; plan
+ * `docs/planning/2026-09-14-attribute-tokenizer-plan.md` §1.4). The rewrite is also what
+ * Session 224 had modelled as a brace "intercept" on every fence, tilde included — which
+ * opened ```` ~~~{a} ```` where pandoc refuses it (`fill-3` l04).
+ *
+ * ⚠ **THE PHYSICAL LINE, WITH QUARTO'S OWN ANCHOR.** The rewrite applies only when the RAW
+ * document line matches `^[ \t\f\v]*```` — before any block-quote strip, so a `> ` prefix
+ * defeats it (`p8`, and Session 225's `e/e01`), as does a list marker (`p2`); indentation and a
+ * run of four backticks do not (`p5`, `p4`, `p6`). A TILDE fence is never rewritten (`p7`).
+ *
+ * ⚠ **THE TAG'S LENGTH IS ITS OWN.** It runs from the first `{` after the gap to the LAST `}`
+ * before the first `.`, `=`, CR or LF — so `{a} {b}` and `{a} x}` are each one tag and `{a} {.b}`
+ * yields `{a}` — and it must be at least 3 characters. The gap is NOT counted: ```` ``` {}x ````
+ * after front matter is refused (`sp_gap`), and counting the space would open it. On the
+ * document's FIRST line readqmd uses `*` in place of `+`, so `{}` is a tag there and nowhere else
+ * (`d0` against `d2`); that is `documentStart`.
+ *
+ * ⚠ **ONE PASS, NOT THE PATTERN.** Transcribed as a JS regex, readqmd's pattern backtracks
+ * quadratically on a run of `{` with no `}` (241 ms at 20,000 braces, measured), and this runs
+ * on every edit. The scan below reads the same tag in linear time; Session 263 fuzzed it against
+ * both transcribed patterns over 10.7 million strings with no disagreement.
+ *
+ * Not modelled, each at zero measured reach (plan §8): readqmd then rewrites the SAME tag string
+ * after every later line-start backtick run in the document, so a tag first seen on line 0 can
+ * reach a later fence where the `+` pattern alone would not; a VT or FF between the backtick run
+ * and the tag; and the `*` pattern being anchored at every `find` start, not only the
+ * document's (`readqmd.lua:41-47`).
+ */
+export function quartoFenceTagRewrite(
+  physicalLine: string,
+  info: string,
+  documentStart: boolean,
+): string {
+  if (!/^[ \t\f\v]*`{3}/.test(physicalLine)) {
+    return info;
+  }
+  let open = 0;
+  while (open < info.length && " \t\f\v".includes(info[open])) {
+    open++;
+  }
+  if (info[open] !== "{") {
+    return info;
+  }
+  let stop = open;
+  while (stop < info.length && !".=\r\n".includes(info[stop])) {
+    stop++;
+  }
+  const close = info.lastIndexOf("}", stop - 1);
+  const length = close + 1 - open;
+  if (close < open || length < (documentStart ? 2 : 3)) {
+    return info;
+  }
+  return info.slice(0, open) + "x".repeat(length) + info.slice(close + 1);
+}
+/**
  * Whether a PLAIN fence opener's info string really opens a code block.
  *
  * ⚠ **WHEN THE INFO STRING DOES NOT PARSE, QUARTO DOES NOT FALL BACK TO A PLAIN CODE BLOCK —
@@ -5789,12 +5856,16 @@ const RAW_ATTRIBUTE = /^=[^\s{}]+$/;
  * rejected block collapses into ONE inline code span whose content is literal, so hiding it is
  * accidentally right (`cal/sv.qmd` s02, s06). A code span cannot cross a blank line, so with
  * one the backticks are literal text and everything below is live (s03, s07, s08, s09).
+ *
+ * ⚠ **THE CALLER PASSES THE INFO STRING QUARTO'S READER PRODUCED, NOT THE RAW BYTES** — see
+ * `quartoFenceTagRewrite`. By the time a brace tag on a backtick fence reaches this function it
+ * is already one bare word. Session 224 approximated that rewrite with a clause here that accepted
+ * any brace-led string holding no `.` or `=`, tilde fences included; Session 263 replaced it.
  */
 function fenceInfoOpensBlock(
   infoString: string,
   commonmarkDialect: boolean,
   pandocEscapes: boolean,
-  quartoIntercepts: boolean,
 ): boolean {
   if (commonmarkDialect) {
     return true;
@@ -5833,20 +5904,6 @@ function fenceInfoOpensBlock(
   // ```` ```{#lst-d06a}{#lst-d06b .cls} ```` is not (`d/d06`).
   if (info.slice(0, block.start).trim().split(/\s+/).filter(Boolean).length > 1) {
     return false;
-  }
-  // ⚠ **QUARTO'S OWN STAGE 1, WHICH IS NOT PANDOC'S AND IS WHY THIS IS NOT A PORT.** A
-  // BRACE-LED info string containing neither `.` nor `=` is intercepted whole and becomes a
-  // literal CLASS: ```` ```{#lst-b14} ```` renders `<pre class="{#lst-b14}">` and defines no id
-  // (`b/b14`, and Session 223's `fenceAttributeId`, which carries the same gate for the id).
-  // It is still a FENCE, so a predicate built on attribute validity alone deletes this region.
-  //
-  // ⚠ **AND IT IS LINE-ANCHORED, SO IT DOES NOT REACH INSIDE A BLOCK QUOTE (Session 225).**
-  // The same bytes rendered both ways: ```` ```{#lst-g04 bad} ```` at top level is
-  // `<pre class="{#lst-g04 bad}">` and hides its contents (`g/g04`), while the `> `-prefixed
-  // twin renders `<p>```{#lst-g03 bad}</p>` with a REAL `<h1>` between the backticks (`g/g03`).
-  // Inside a quote the info string faces pandoc's `Attr` parser alone.
-  if (quartoIntercepts && block.start === 0 && !/[.=]/.test(info)) {
-    return true;
   }
   // ⚠ **A RAW ATTRIBUTE BLOCK IS A FENCE AND IS NOT A VALID `Attr`** — ```` ```{=html} ````
   // and ```` ```{=latex} ```` are everyday shapes whose lone `=format` token the attribute
@@ -5928,9 +5985,10 @@ export interface CodeFenceOpener {
    * outside a quote (Session 225). `text` stays RAW so the column a consumer resolves from it
    * remains a real document column; a consumer that PARSES the info string slices from here.
    *
-   * ⚠ It is also the flag for quarto's line-anchored intercepts, which do NOT fire inside a
-   * quote: rendered, ```` > ```{#lst-e01} ```` defines a real `id="lst-e01"` (`e/e01`) where
-   * the top-level twin renders `<pre class="{#lst-s03}">` and defines nothing at all.
+   * ⚠ `text` is also the PHYSICAL line `quartoFenceTagRewrite` needs, and inside a quote its
+   * `>` is what defeats that line-anchored rewrite: rendered, ```` > ```{#lst-e01} ```` defines a
+   * real `id="lst-e01"` (`e/e01`) where the top-level twin's tag is rewritten, restored as the
+   * literal class `<pre class="{#lst-s03}">`, and defines nothing at all.
    */
   contentStart: number;
 }
@@ -7152,7 +7210,11 @@ function computeRegions(text: string): Regions {
       // attribute parser would refuse outright. `CELL_INFO` has already decided that above.
       const refused =
         info === null &&
-        !fenceInfoOpensBlock(fence[3], commonmarkDialect, pandocEscapes, !stripQuote);
+        !fenceInfoOpensBlock(
+          quartoFenceTagRewrite(raw, fence[3], i === 0),
+          commonmarkDialect,
+          pandocEscapes,
+        );
       // ⚠ **A REFUSED OPENER'S CLOSER MAY HAVE BEEN CONSUMED, AND FAILING TO RECORD THAT
       // BREAKS THE BLOCK BELOW.** With no blank line between them the two fence lines are read
       // as ONE INLINE CODE SPAN, so the closer is swallowed and cannot open anything; with a
