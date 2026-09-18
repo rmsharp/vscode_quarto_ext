@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] Session 264 records — learnings #543–#544
+- **Change:** `PROJECT_LEARNINGS.md` gains #543 (a methodology sync can finish open backlog items, and `[ad hoc]` hides it — grep `BACKLOG.md` before tagging) and #544 (deny a sync's new root files before the sync commit; give every commit its own entry so the trimmer can verify it).
+- **Commit/PR:** the commit that ships this entry
+- **Session:** S264 · **Verified:** n/a — docs-only
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] BL-57 P8 — two phrases in the `.context-budget.json` comments `4b727a9d` rewrote, made exact
 - **Change:** the top-level comment said "the 65,536 B read-mandated ceilings" matched the trimmer's budget; only the two ledgers' did — it now says so and notes `BACKLOG.md` uses the same number with no trimmer. The `HANDOFFS.md` comment said "62,521 B after the Session 254 trim"; that trim (`867e0fa2`) left 52,850 B, and 62,521 B is the size when the config was written at Session 255 (`d4c90592`). The error predates this session, but it sat inside a sentence `4b727a9d` rewrote. No number the tool reads changed.
 - **Commit/PR:** the commit that ships this entry
