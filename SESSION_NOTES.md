@@ -18,6 +18,10 @@ are decided when a later session picks them up. (5) **Runtime gate consented at 
 the layer set; a second explicit yes is still owed immediately before `npm run test:integration`.
 **§9.5 re-verification:** no drift in P1's seven files since `7a2397e2`; all six anchors resolve at the
 plan's lines; `quarto` 1.7.33; `scratchpad/s262` present.
+**Operator decision, mid-session (2026-09-18) — the contract is EXTENDED:** P1 also models readqmd's
+`{}` PROPAGATION (a line-0 `{}` tag is rewritten on every later fence), which the plan listed as "not
+modelled". The adversarial pass measured P1 strictly worse than its parent there (`c25` −5 headings,
+`e03`/`e04` a lost cell; zero corpus reach). Own checkpoint, C3b, strict TDD.
 **NOT in scope:** P2–P4, the tokenizer leaf, the `divColumns` push, the ledger trims, the syncs.
 **Status:** CLAIMED. Work beginning.
 **Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
