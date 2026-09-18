@@ -15,7 +15,9 @@ ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
 `e8c395b3` deny new root files · `b8a503e7` sync (14 files) · `acb43e0b` CHANGELOG header ·
 `69f0dd43` HANDOFFS section · `4b727a9d` CLAUDE.md + budget · `e2ad2dbb` backlog correction ·
 `6d66070a` budget comments · `3fa063aa` learnings · `a8e56e54` notes trim · `57750bb2` close-out ·
-`d71e5870` first quality gates · close-out amendment.
+`d71e5870` first quality gates · `8ec55f1a` amendment · `20e2708c` handoff correction.
+**PUSHED** to the public `origin` through `20e2708c` (216 commits, Sessions 230–264). Only the commit
+that records the push is local, so Phase 0 will read `ahead 1`.
 **⚠ THE PROJECT NOW HAS QUALITY GATES** (`.quality-gates.json`: `release-gate`, `ledger-lag`). Every
 close-out runs `python3 quality_ratchet.py --run` (~50 s; needs `dist/` built) and cites its summary
 line in the receipt; Phase 0 checks it. Thresholds only tighten. The pre-commit hook is not installed.

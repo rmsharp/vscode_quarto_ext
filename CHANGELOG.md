@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] Pushed `master` to `origin` (public), `ebaf7460..20e2708c` — 216 commits, Sessions 230–264
+- **Change:** GitHub `rmsharp/vscode_quarto_ext` `master` moves from `ebaf7460` (Session 229, the last push, 2026-08-19) to `20e2708c`, a fast-forward (0 behind after a fresh fetch). Operator-directed ("push it"), then confirmed with the full scope shown: 216 commits, not only this session's 14. Before pushing, the range was scanned for secrets, key files, `.vsix`, `scratchpad/` and `node_modules` content, and none was found (48 files changed).
+- **Commit/PR:** no commit, a non-commit action; this entry's own commit is the first after the push and is NOT pushed — the next push carries it
+- **Session:** S264 · **Verified:** `git push` exit 0 (`ebaf7460..20e2708c  master -> master`); `git ls-remote origin refs/heads/master` = `20e2708c3f06…` = local HEAD; `git rev-list --left-right --count master...origin/master` = `0 0`
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] Session 264's handoff corrected — D7 is decided and nothing is owed upstream; both were written as open
 - **Change:** after S264 closed out, methodology Session 191 recorded P8 in the upstream plan (row `:1009`, block `:354`; `10f931a`, `0b7e672`), filed the `check-handoff` fence bug as BL-72 (S192 claimed its fix, `96de3ee`), and recorded the operator's D7 decision for this project: `HANDOFFS.md` STAYS in `.context-budget.json` at 65,536 B, and the remedy is a trim here, not dropping the warning. S264's handoff still called both open, in three places, now corrected: `SESSION_NOTES.md` ACTIVE TASK; the S264 receipt's `active_task`, `whats_next` #2(a) and #3, `key_files` (plan anchors re-read at methodology `b27236e`: `:956` → `:1009`, and the rest) and gotcha 3; and the `HANDOFFS.md` comment in `.context-budget.json`, which said the entry was over "until the operator decides". No threshold changed. Noted for the trim: the trimmer fires only above 196,608 B, so it needs `--budget-bytes` or `--cut N --force`.
 - **Commit/PR:** the commit that ships this entry
