@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] Session 264 closed out — BL-57 P8 done for this project: methodology synced, both ledger seeds migrated, legacy tags recorded
+- **Change:** `SESSION_NOTES.md` carries the S263 handoff evaluation (8/10) and the S264 self-assessment (8/10); the S264 `HANDOFFS.md` receipt is `status: complete`. The operator-facing findings P8 surfaced are in the receipt's `whats_next` #2–#3: the D7 budget question for `HANDOFFS.md`, two synced-rule references to `HANDOFFS.md` sections this file does not carry, and the methodology repo's `bin/check-handoff` skipping the newest receipt behind the seed section's ```` ```sh ```` fence. **One correction to this session's claim entry, which is not edited:** it says per-commit entries "arrive with this sync", but the old Phase 3F already said one per commit; what the sync added is the claim's *(in progress)* entry.
+- **Commit/PR:** the close-out commit (ships this entry); session commits `48d1790c`, `e8c395b3`, `b8a503e7`, `acb43e0b`, `69f0dd43`, `4b727a9d`, `e2ad2dbb`, `6d66070a`, `3fa063aa`, `a8e56e54`
+- **Session:** S264 · **Verified:** on the final tree — `compile` exit 0, `npm test` 2912/2912 (66 files), `check-package` OK (42 files), `check-backlog` OK (204 open); `bin/status` all `current`, both ledgers `present`; trimmer L1–L3 OK on both ledgers; archive proofs OK. Runtime smoke n/a — docs and config only.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S260 evaluation by S261 + S261 self-assessment)
 - **Change:** 69 lines removed, old :143–211; lines :1–142 byte-identical. The retention rule in `CLAUDE.md` holds the live file at three pairs once this session's own pair lands. The dropped pair stays one command away: `git show 6d66070a:SESSION_NOTES.md`.
 - **Commit/PR:** the commit that ships this entry — a trim commit, with no other edit to `SESSION_NOTES.md`

@@ -8,24 +8,82 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 264 IN PROGRESS** — **BL-57 P8 (upstream methodology plan) for this project:** sync
-from the local methodology checkout (fork `main` `0ab3881`), migrate the `CHANGELOG.md` header and the
-`HANDOFFS.md` seed section, record the legacy `[BACKLOG: …]` tags in `CLAUDE.md`. **Started:** 2026-09-18.
-**Plan:** `../methodology/docs/planning/changelog-rules-contradictions-plan.md` — P8 row `:956`, steps
-`:909`–`:931`, item (18) `:197`, item (21) `:242`; `starter-kit/BOOTSTRAP.md:385`–`:388`.
-**Operator decisions at Orient:** P8 as briefed; DROP `CHANGELOG.md` from `.context-budget.json`
-(Q2 A); new backlog entries tag `[BL-<item title>]`; `[BACKLOG: …]` becomes legacy.
-**NOT in scope:** the ledger trims, P9–P11, the tokenizer plan's P2–P4, any push.
-**Status:** CLAIMED. Work beginning.
-**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
-Until close-out this line is the crash breadcrumb for the next session's reconcile.
-**Phase 0 findings (S264).** Tree clean but for `scratchpad/` and the two telemetry appends. Both
-ledger frontiers are `HEAD` (`fa3696ed`); zero undocumented commits. Dashboard 76/100.
-**⚠ The brief said `58f7bcbd` is still HEAD; it is not** — S263 landed 11 commits after it. Every
-line the plan cites was re-derived at the claim and still holds (front matter untouched since).
+**Task:** **NONE — Session 264 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S264 did:** BL-57 P8 of the upstream methodology plan, for this project — synced from fork
+`main` `0ab3881`, migrated both ledger seeds, recorded the legacy tags. Commits: `48d1790c` claim ·
+`e8c395b3` deny new root files · `b8a503e7` sync (14 files) · `acb43e0b` CHANGELOG header ·
+`69f0dd43` HANDOFFS section · `4b727a9d` CLAUDE.md + budget · `e2ad2dbb` backlog correction ·
+`6d66070a` budget comments · `3fa063aa` learnings · `a8e56e54` notes trim · close-out.
+**⚠ NEW LEDGER RULE, in force since the sync: ONE `CHANGELOG.md` ENTRY PER COMMIT.** The claim commit
+carries an *(in progress)* entry; a committed entry is never edited — a correction is a new entry.
+Rules: `docs/methodology/FRAMEWORK_APPARATUS.md:338`; this project's form: `CLAUDE.md:178`.
+**⚠ Tag a backlog item `[BL-<item title>]`** (no `]`); methodology work `[ad hoc]`. Grep `BACKLOG.md`
+for what a commit touches BEFORE tagging it `[ad hoc]` — S264 missed two items (Learning #543).
+**⚠ The trimmer no longer fires on either ledger** (v1.5.0: 196,608 B). `context_budget.py` still reads
+`HANDOFFS.md` `over` at its 65,536 B ceiling — the operator's D7 question, `whats_next` #2.
+**⚠ The methodology repo still owes P8's own record** (plan row `:956`, its ledger) — a session there.
+**⚠ Jupyter is installed** — force `engine: markdown` in render probes that are not about cells.
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---
+
+## Session 263 Handoff Evaluation (by Session 264)
+
+**Score: 8/10.** Accurate on everything this session could check, and the four lines of it that bore
+on an out-of-band task were right. It loses two points for one connection it had the facts to make.
+
+**What helped, specifically.**
+- ⚠ **`whats_next` #3 — "Sync the synced methodology files at the START of a session."** The
+  operator's brief made the sync the task; the receipt had already said to do it first.
+- **Gotcha 7's sizes matched to the byte** — `CHANGELOG.md` 90,244, `BACKLOG.md` 313,765,
+  `PROJECT_LEARNINGS.md` 990,741 — and "MEASURE, do not quote" is what I did.
+- **"`scratchpad/` is untracked — never `git add -A`."** Every commit was staged by exact path, which
+  is the only way the sync commit could be exactly the dry run's 14 files.
+
+**What was missing.**
+- ⚠ **That the sync would finish two open "Up Next" items.** `BACKLOG.md`'s stale-dashboard item said
+  *"do them together"* with the CHANGELOG-header item; #3 said "sync" without naming either. Both
+  stayed open through P8 until my verifier found them (`e2ad2dbb`).
+
+**What was wrong.**
+- **#2, "TRIM CHANGELOG.md and HANDOFFS.md — trimmer-supported, over ceiling"** — true of the tools it
+  had; the synced trimmer's trigger is 196,608 B and fires on neither. A premise the sync retired.
+
+**ROI: positive, modest.** Most of the receipt is P1 detail this session did not need; the relevant
+lines were short and correct.
+
+## Session 264 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **Phase 0 caught the brief's false premise** — `58f7bcbd` was not HEAD (11 commits later) — and I
+  re-derived every line the plan cites before editing; all still held.
+- **Both operator decisions were asked at Orient, before any edit** (budget drop, tag form).
+- ⚠ **Impact analysis before editing found what the plan did not:** the sync reds the release gate
+  (`check-package`, two new root files). Denied one commit earlier, so no commit on `master` is red
+  and the sync commit is exactly the dry run's 14 files plus its entry.
+- ⚠ **Every DONE item measured with a control that can fail:** §9.8 (1–7 control caught it),
+  `bin/status` flipping per commit, `cmp` at every boundary, trimmer L1–L3 on both ledgers.
+- **Adversarial verification, then every claim re-checked firsthand** before acting on it, including
+  the `check-handoff` skip. Build: `compile` 0, `npm test` 2912/2912, `check-package` OK 42 files.
+- **TDD:** exempt — no logic changed (docs and config only).
+
+**What went wrong.**
+- ⚠ **I tagged P8's commits `[ad hoc]` without grepping `BACKLOG.md`.** Two finished items stayed open,
+  against the same-commit rule, until the verifier found them — correction `e2ad2dbb` (Learning #543).
+- **The claim entry says per-commit entries "arrive with this sync".** The old Phase 3F already said
+  one per commit; only the claim's *(in progress)* entry is new. Entries are never edited — noted here.
+- **I rewrote a budget comment around a pre-existing wrong figure** (62,521 B "after the S254 trim";
+  it was 52,850 B) — second correction, `6d66070a`.
+- **Cost:** two workflows, 8 agents, ~1.3M subagent tokens for a docs-and-config migration.
+- **Ledger growth:** `CHANGELOG.md` +10.9 KB (per-commit entries), `PROJECT_LEARNINGS.md` +1.6 KB;
+  `BACKLOG.md` −2.2 KB.
+
+**Against the bar.** P7 in `wsfct` landed in six commits. This one took eleven, two of them
+corrections my own verification forced; the migration itself was right the first time, and verified
+with controls rather than asserted.
 
 ## Session 262 Handoff Evaluation (by Session 263)
 
