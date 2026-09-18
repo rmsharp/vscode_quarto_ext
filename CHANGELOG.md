@@ -1,17 +1,27 @@
-# Changelog
+# Changelog — Authoritative Action Ledger
 
-All notable changes to this project are documented here.
-Format loosely follows [Keep a Changelog](https://keepachangelog.com/).
+The cumulative, append-only record of **actions taken** in this repository — across backlog
+items, repository issues, and ad-hoc work. It is the authoritative answer to *"what was done
+here, ever?"* Every session records its actions here at close-out (`SESSION_RUNNER.md`
+Phase 3F); Phase 0 reconciles it against `git log` and backfills anything a crashed or
+out-of-band session missed. Taking an action — any commit, or any non-commit action — and
+not recording it is failure mode #27. Old entries may be archived, never deleted.
 
-When completing work, remove the item from `BACKLOG.md` and add an entry here.
-
-## [Unreleased]
+**The rules** — how to add an entry, source tags, reading and archiving — are in
+[§The Action Ledger](docs/methodology/FRAMEWORK_APPARATUS.md#the-action-ledger), which `bin/sync`
+keeps current. ledger-format: 2 — keep this marker; `bin/status` reads it.
 
 **Archived 230 record(s), 2026-06-30 → 2026-08-24** into [`docs/archive/CHANGELOG-through-2026-08-24.md`](docs/archive/CHANGELOG-through-2026-08-24.md) — same format, same order, frozen.
 Losslessness is proved by [`docs/archive/CHANGELOG-through-2026-08-24.md.verify.sh`](docs/archive/CHANGELOG-through-2026-08-24.md.verify.sh), which re-derives L1/L2/L3 from git; run it rather
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
+
+### 2026-09-18 · [ad hoc] BL-57 P8 — `CHANGELOG.md`'s Keep-a-Changelog header (old lines 1–8) replaced by the current seed's thin header; the shard pointer and every entry untouched
+- **Change:** the header now points to [§The Action Ledger](docs/methodology/FRAMEWORK_APPARATUS.md#the-action-ledger) and carries `ledger-format: 2`. The block, re-derived by content at the claim, is old lines 1–8 — `# Changelog` through `## [Unreleased]`, the Keep-a-Changelog heading dropped as `airqino` dropped it: the ledger groups by month. The trimmer's archive-pointer block (old :10–12) and every entry are byte-identical.
+- **Commit/PR:** the commit that ships this entry
+- **Session:** S264 · **Verified:** `cmp` — new :1–12 equal the seed's :1–12, new :13–end equal old :9–end apart from this entry; the plan's §9.8 check on this commit is recorded in the next entry. `grep -c '^### '` 25 → 26 and the audit 250 → 251 (zsh and bash alike): this entry in, and the block held no `### ` line.
+- **Model:** Claude Opus 5 (claude-opus-5)
 
 ### 2026-09-18 · [ad hoc] BL-57 P8 — methodology synced from fork `main` `0ab3881`: one `bin/sync --source=local` run, one commit, 14 files
 - **Change:** 11 synced files updated (`SESSION_RUNNER.md`, `FRAMEWORK_LEARNINGS.md`, `SAFEGUARDS.md`, `BOOTSTRAP.md`, `methodology_dashboard.py` v2.18.0, `methodology_trim.py` v1.5.0, `context_budget.py` v1.2.0, `docs/methodology/ITERATIVE_METHODOLOGY.md`, `HOW_TO_USE.md`, `workstreams/DEVELOPMENT_WORKSTREAM.md`, `workstreams/AUDIT_WORKSTREAM.md`) and 3 created (`quality_ratchet.py`, the seed `.quality-gates.json` with `gates: []`, `docs/methodology/FRAMEWORK_APPARATUS.md`, the ledger rules' new home). From here on, one ledger entry per commit. Past `SAFEGUARDS.md`'s five-file cap by the operator's plan item (18): exactly the files the dry run listed, plus this entry.
