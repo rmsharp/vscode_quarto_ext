@@ -13,6 +13,29 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [BACKLOG: a ```` ```{{lang}} ```` display fence — quarto's documented verbatim-cell idiom — is refused as a fence] P1 of the attribute-tokenizer plan — fences read after quarto's backtick tag rewrite; 41 headings restored in 23 real documents, and the one deletion P1 itself introduced, modelled away
+
+- **Operator-picked at Phase 0** (option 1 of 4, the recommended one). Claimed in `0a33f600`; the operator's
+  §12 decisions recorded in `7e4ee16f` — **P1 only approved**, the runtime gate consented at Orient.
+- **The fix, strict TDD, every RED shown for its stated reason** — C1 `39d3a6aa` (13 guards, green first);
+  C2 `d27114bc`: `quartoFenceTagRewrite` (readqmd.lua:37-40, :95-100) on the PHYSICAL line before
+  `fenceInfoOpensBlock`, Session 224's brace clause deleted — REDs `dd2`, `p5`, `l04`, `d0` and a linearity row
+  (241 ms → <50 ms; the scan fuzzed against both transcribed patterns, 10.7M strings, 0 disagreements); C3
+  `2a69d6c4`: refs' intercept deleted, `fenceAttributeId` scans the rewritten line — RED `lst-i06`.
+- **Every plan DONE number reproduced**: census 23 docs +41/−6 headings, 8 +8 cells, 2 +2 labels, `threw=0`,
+  exactly the README's 23 digests; the fence grid's 10 rows fixed, none broken; M0–M10 killed; oracle
+  131/124/4/3; all 12 headings restored on the 9 unrendered pages confirmed by render, none removed.
+- **Adversarial certification** (7 agents, 555 probes; every claim re-rendered and checked in code): 91 of 97
+  "introduced" findings un-masked pre-existing errors, filed by root cause; 1 quarto-internal split (k03);
+  **5 P1's own** — readqmd's line-0 `{}` PROPAGATION, which the plan left "not modelled": strictly worse than
+  P1's parent (`c25` −5 headings; `e03`/`e04` a lost cell). **Operator decision mid-session** (`a2699040`):
+  model it — C3b `51449f24`, RED `c01`, guards g1–g3, 18/18 docstart probes now match quarto, M11–M15 killed.
+- **Runtime gate** C4 `7c84e94a`: operator yes before launch; `test:integration` 547 passing (545 + 2).
+- **Records** `1c768656` (the un-masked item, deferred item (f), the plan's P1 DONE banner, learnings
+  #538–#542); notes trim `5fb65912`; this close-out removes the `{{lang}}` BACKLOG item.
+- **Found on the way:** the plan's census timing control shares one module load, reading P1 at 1.39× with no
+  real slowdown (two copies read 1.00×, Learning #538).
+
 ### 2026-09-14 · [BACKLOG: The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it] The attribute-tokenizer plan — four phases, the real-reach regression beside them, and the census that proves them
 
 - **Operator-picked at Phase 0** (option 1 of 4, the recommended one): plan one tokenizer rather than

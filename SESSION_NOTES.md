@@ -8,33 +8,75 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 263 IN PROGRESS** — **implement P1 of the attribute-tokenizer plan**: quarto's
-backtick fence-tag rewrite, so a ```` ```{{lang}} ```` display fence is read as a fence (the "Up
-Next" head; a Session 224 regression, `95241beb`; 23 documents, +41 headings). Strict TDD.
-Operator-picked at Phase 0. **Started:** 2026-09-18.
-**Plan:** `docs/planning/2026-09-14-attribute-tokenizer-plan.md` §4 P1. **Operator decisions (§12),
-2026-09-18:** (1) **P1 ONLY is approved** as the gate (a) contract; P2–P4 and §12 items 2, 3, 4, 7, 8
-are decided when a later session picks them up. (5) **Runtime gate consented at Orient** — C4 stays in
-the layer set; a second explicit yes is still owed immediately before `npm run test:integration`.
-**§9.5 re-verification:** no drift in P1's seven files since `7a2397e2`; all six anchors resolve at the
-plan's lines; `quarto` 1.7.33; `scratchpad/s262` present.
-**Operator decision, mid-session (2026-09-18) — the contract is EXTENDED:** P1 also models readqmd's
-`{}` PROPAGATION (a line-0 `{}` tag is rewritten on every later fence), which the plan listed as "not
-modelled". The adversarial pass measured P1 strictly worse than its parent there (`c25` −5 headings,
-`e03`/`e04` a lost cell; zero corpus reach). Own checkpoint, C3b, strict TDD.
-**NOT in scope:** P2–P4, the tokenizer leaf, the `divColumns` push, the ledger trims, the syncs.
-**Status:** CLAIMED. Work beginning.
-**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
-Until close-out this line is the crash breadcrumb for the next session's reconcile.
-**Phase 0 findings (S263).** Tree clean but for `scratchpad/` and the two telemetry appends. Both
-ledger frontiers are `HEAD` (`58f7bcbd`); zero undocumented commits. `gh issue list` empty.
-Dashboard 76/100. `compile` exit 0; `npm test` 2875 / 66 files.
-**⚠ `context_budget.py` RED on FOUR files, measured:** `CHANGELOG.md` 87,837 B, `HANDOFFS.md`
-129,409 B, `BACKLOG.md` 313,343 B, `PROJECT_LEARNINGS.md` 986,516 B; ceiling 65,536 B.
-**⚠ `context_budget.py` flags seven synced files as differing from canonical.** Not synced mid-flight.
+**Task:** **NONE — Session 263 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S263 did:** IMPLEMENTED P1 of `docs/planning/2026-09-14-attribute-tokenizer-plan.md` — fences read
+after quarto's backtick tag rewrite: 41 headings, 8 cells, 2 labels restored in 23 real documents.
+Commits: `0a33f600` claim · `7e4ee16f` decisions · C1 `39d3a6aa` · C2 `d27114bc` · C3 `2a69d6c4` ·
+`a2699040` decision · C3b `51449f24` · C4 `7c84e94a` · `1c768656` records · `5fb65912` trim · close-out.
+**⚠ THE PLAN'S RECOMMENDED STOP IS REACHED.** P2–P4 are NOT approved (operator: P1 only), and every item
+they close measures 0 of 3,383 documents. They need the operator's §12 decisions 2, 3, 4, 7, 8 first.
+**⚠ The operator EXTENDED P1 mid-session:** readqmd's line-0 `{}` propagation is now modelled (C3b); the
+helper's third parameter is `emptyTagAllowed`. `refs.ts` is deliberately NOT given it — see the plan's
+P1 banner.
+**⚠ Runtime gate GREEN:** 547 passing. `npm test` 2912 / 66 files.
+**⚠ `context_budget.py` is RED on FOUR files**; this session grew `PROJECT_LEARNINGS.md` +4,225 B and
+`BACKLOG.md` +422 B. MEASURE them; do not quote this line.
+**⚠ Jupyter is now installed** — force `engine: markdown` in render probes that are not about cells.
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---
+
+## Session 262 Handoff Evaluation (by Session 263)
+
+**Score: 8/10.** Complete on all six Minimum Handoff Requirements, and its P1 was "specified to the
+row" — which held for every RED, mutant and census number. It loses two points for two secondary claims
+that did not survive measurement.
+
+**What helped, specifically.**
+- ⚠ **`whats_next` #2 — the ordered minimal-GREEN sequence `dd2 → p5 → l04 → d0`.** Each step was red for
+  exactly its stated reason; I did not have to design a single cycle.
+- **The census numbers and the README's 23 digests** — my runs matched to the digit, so a green census
+  meant something.
+- **`whats_next` #1 and §12** made the operator's decisions one two-question prompt at Orient.
+- **Gotcha 4 (the `git archive` baseline) and §9.5's anchors** — all six resolved at the stated lines.
+- **Gotcha 5 (the literal regex is quadratic)** gave me a real RED for linearity: 241 ms.
+
+**What was wrong.**
+- ⚠ **§9.5 step 6's timing control.** Pointing both builds at ONE directory loads the model once, so P1
+  read 1.39× with no slowdown; two copies read 1.00× (Learning #538). Trusted, it would have failed P1.
+- ⚠ **"Not modelled … 0 corpus documents" for the `{}` propagation** was right on reach but never measured
+  on direction: P1 was strictly worse than its parent there (`c25`, Learning #539).
+
+**What was missing.** Nothing I needed that it could have known.
+
+**ROI: very high.** The plan did the design; this session executed it, then attacked it.
+
+## Session 263 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **Strict TDD, every RED shown for its stated reason** — `dd2`, `p5`, `l04`, `d0`, the linearity row,
+  `lst-i06`, then `c01`; guards green first; every pin killed by a named mutant (M0–M15, all killed).
+- ⚠ **I did not rubber-stamp the plan's instruments.** The timing rule tripped; I found the control, not
+  P1, was at fault. I fuzzed the linear scan against both readqmd patterns (10.7M strings) before trusting it.
+- ⚠ **I checked all 97 adversarial claims in code**, re-rendering 164 files, not trusting agent verdicts —
+  which separated 91 un-masked errors from the 5 that were P1's own.
+- **I asked before extending the contract**, with a measured prototype, and re-derived it under TDD.
+- **The runtime gate ran last**, after two explicit consents: 547 passing.
+
+**What went wrong.**
+- ⚠ **I shipped C2 with the propagation gap in it.** The plan disclosed it and I accepted "0 reach" without
+  measuring its direction — the same miss I scored the plan down for; the adversarial pass caught it.
+- ⚠ **I hit the `cd` trap twice more** (Learning #535), once in the first minutes of the session.
+- **A render failed on engine selection** (`q09`) before I forced `engine: markdown`, as the plan says to.
+- **I grew `PROJECT_LEARNINGS.md` again (+4.2 KB) and trimmed no ledger** — the trims stay a separate
+  deliverable; `BACKLOG.md` nets +422 B after removing the finished item.
+
+**Against the bar.** Sessions 257–261 shipped a rule and attacked it; 262 planned one. This one executed
+the plan to the digit, attacked it with 555 probes, found and fixed the one deletion the plan itself had
+accepted, and closed with the runtime gate green.
 
 ## Session 261 Handoff Evaluation (by Session 262)
 
