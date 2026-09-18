@@ -605,6 +605,18 @@ close-out commit (`CHANGELOG.md` with any `BACKLOG.md` removal in the same commi
 
 ### P1 — Quarto's backtick fence-tag rewrite, in the region scanner and the fence-id reader
 
+> **✅ DONE — Session 263 (2026-09-18).** C1 `39d3a6aa`, C2 `d27114bc`, C3 `2a69d6c4`, C3b `51449f24`, C4
+> `7c84e94a`. Every DONE item met as written: census 23/41/6 · 8/8/0 · 2/2/0 with the README's 23 digests, the
+> grid's 10 rows, M0–M10 killed, oracle 131/124/4/3, runtime gate 547 passing. **Three deviations a later
+> phase must know:** (1) **The operator extended the contract mid-session**: readqmd's line-0 `{}`
+> PROPAGATION (§8 "not modelled") is modelled in the region scanner, because modelling line 0 alone measured
+> strictly worse than P1's parent (`scratchpad/s263/adv/docstart/c25`; Learning #539). The helper's third
+> parameter is therefore `emptyTagAllowed` (line 0, or any line when line 0's tag is `{}`), not
+> `documentStart` — P4 moves it under that name. (2) **`refs.ts` is NOT passed the propagation** — no id can
+> observe it until the one-word check refuses a brace-bearing word; P4 must pass it then (`scratchpad/s263/prop/`).
+> (3) **§9.5 step 6's identity control under-measures**: with both builds in ONE directory the model loads
+> once, and P1 read 1.39× against it with no real slowdown. Use two copies of the parent (Learning #538).
+
 **Capability.** A plain fence's info string is judged after quarto's readqmd tag rewrite, through ONE
 exported helper, `quartoFenceTagRewrite(physicalLine, info, documentStart)`, shared by `model.ts` and
 `refs.ts` (§2.2). The stage-1 intercepts at `model.ts:5848` and `refs.ts:680` are deleted. **No
