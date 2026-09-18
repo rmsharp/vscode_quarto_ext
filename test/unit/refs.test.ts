@@ -1455,9 +1455,9 @@ describe("Session 223 GUARD — shapes that must NOT move when fence openers joi
     ]);
   });
 
-  it("H6: an info string quarto INTERCEPTS must never define", () => {
-    // ⚠ The stage-1 gate, and it is quarto's rather than pandoc's: a brace-LED info string
-    // holding neither `.` nor `=` renders `<pre class="{#lst-h06}">` — the braces become a
+  it("H6: an info string quarto's tag rewrite REPLACES must never define", () => {
+    // ⚠ quarto's readqmd tag rewrite, not pandoc's grammar: a brace-LED info string on a backtick
+    // fence holding neither `.` nor `=` renders `<pre class="{#lst-h06}">` — the braces become a
     // literal CLASS and no id exists (rendered, `scratchpad/s223/cal/sv.qmd` s03 and 22 more
     // rows across `t.qmd`/`u.qmd`). Bare pandoc defines `id="lst-h06"` from the same bytes,
     // so this row is exactly where porting pandoc's grammar would mint a phantom.
@@ -1629,11 +1629,11 @@ describe("Session 223 PINS — Source 4 behaviours that came free, declared rath
     expect(indexLabels("```{#lst-c04 bad .cls}\n# Heading\n```")).toEqual([]);
   });
 
-  it("P3b: ⚠ PIN — quarto's stage 1 does NOT reach inside a quote, so an id-only info string defines (`e/e01`)", () => {
+  it("P3b: ⚠ PIN — quarto's tag rewrite does NOT reach inside a quote, so an id-only info string defines (`e/e01`)", () => {
     // Session 225. Rendered: `> ```{#lst-e01} ` renders `<pre id="lst-e01">` inside the quote —
     // a REAL id — where the identical bytes at top level render `<pre class="{#lst-s03}">` and
-    // define nothing (Session 223's `sv.qmd` s03, pinned two tests down). Quarto's stage-1
-    // intercept is line-anchored and the `> ` prefix defeats it, leaving pandoc's `Attr` alone.
+    // define nothing (Session 223's `sv.qmd` s03, pinned two tests down). Quarto's tag rewrite
+    // is line-anchored and the `> ` prefix defeats it, leaving pandoc's `Attr` alone.
     // ⚠ Declared a PIN, not a cycle: it came with the offset that fixed P3 above.
     expect(indexLabels("> ```{#lst-e01}\n> x\n> ```")).toEqual([
       { id: "lst-e01", kind: "lst", line: 0, column: 7 },
@@ -1650,9 +1650,9 @@ describe("Session 223 PINS — Source 4 behaviours that came free, declared rath
     ]);
   });
 
-  it("P5: a NON-brace-led info string escapes quarto's stage-1 gate", () => {
+  it("P5: a NON-brace-led info string escapes quarto's tag rewrite", () => {
     // ```` ```python {#lst-d09} ```` and ```` ```.python {#lst-r07} ```` both define although
-    // their braces hold neither `.` nor `=` (`disc.qmd` d09, `r.qmd` r07): the gate applies
+    // their braces hold neither `.` nor `=` (`disc.qmd` d09, `r.qmd` r07): the rewrite applies
     // only when the info string BEGINS with `{`.
     expect(indexLabels("```python {#lst-wl}\nx\n```")).toEqual([
       { id: "lst-wl", kind: "lst", line: 0, column: 12 },
@@ -1662,10 +1662,10 @@ describe("Session 223 PINS — Source 4 behaviours that came free, declared rath
     ]);
   });
 
-  it("P6: ⚠ the stage-1 gate is LEXICAL — a `.` inside the IDENTIFIER releases it", () => {
+  it("P6: ⚠ the tag rewrite is LEXICAL — a `.` inside the IDENTIFIER releases it", () => {
     // `{#lst-t01.b}` defines `lst-t01.b` with no class at all (`t.qmd` t01), while
-    // `{#lst-t02:b}` — the same shape with a colon — is intercepted and defines nothing
-    // (t02). So the gate cannot be restated as "the block must carry a class or a key".
+    // `{#lst-t02:b}` — the same shape with a colon — is rewritten and defines nothing
+    // (t02). So the rule cannot be restated as "the block must carry a class or a key".
     expect(indexLabels("```{#lst-di.b}\nx\n```")).toEqual([
       { id: "lst-di.b", kind: "lst", line: 0, column: 5 },
     ]);
@@ -1735,6 +1735,18 @@ describe("Session 263 GUARD — fence ids quarto's backtick tag rewrite must NOT
     // tag's own length, so the id's column is the one the author typed.
     expect(indexLabels("```{{python}} {#lst-rw2 .py}\nx = 1\n```")).toEqual([
       { id: "lst-rw2", kind: "lst", line: 0, column: 16 },
+    ]);
+  });
+});
+
+describe("Session 263 — the fence-id reader reads the line quarto's tag rewrite leaves (readqmd.lua:37-40)", () => {
+  it("a TILDE fence is never rewritten, so an id-only `~~~{#lst-i06}` defines its id", () => {
+    // Rendered, quarto 1.7.33, under BOTH `markdown` and `commonmark_x`: `id="lst-i06"`
+    // (`scratchpad/s262/fill-3` i06, re-rendered `scratchpad/s263/g/i06`). readqmd rewrites a
+    // brace tag only after a BACKTICK run, so the tilde line reaches pandoc's `Attr` untouched.
+    // Session 223's brace gate tested neither the fence character nor the reader.
+    expect(indexLabels(["~~~{#lst-i06}", "x = 1", "~~~"].join("\n")).map((l) => l.id)).toEqual([
+      "lst-i06",
     ]);
   });
 });

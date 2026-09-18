@@ -29,6 +29,7 @@ import {
   findCodeFenceOpeners,
   findHeadings,
   maskInlineCode,
+  quartoFenceTagRewrite,
 } from "./qmd/model";
 
 /** The cross-reference kinds Quarto recognizes that this index supports. */
@@ -374,15 +375,18 @@ export function indexLabels(text: string): RefLabel[] {
 
   // Source 4 — attribute blocks on PLAIN fenced code block openers,
   // ```` ```{#lst-x .python} ````. The opener is a region boundary rather than a body line, so
-  // Source 3 never reaches it; see `fenceAttributeId` for the two-stage grammar, which is
-  // quarto's own and not `Attr`'s.
+  // Source 3 never reaches it; see `fenceAttributeId` for quarto's tag rewrite, which runs before
+  // `Attr` is ever asked.
   for (const fence of findCodeFenceOpeners(text)) {
     // ⚠ The opener text is RAW so its columns stay real; the PARSE starts past the block-quote
-    // marker and the column is shifted back by the same offset (Session 225).
+    // marker and the column is shifted back by the same offset (Session 225). The raw text is
+    // also the physical line quarto's tag rewrite is anchored on, and line 0 is where readqmd
+    // accepts an empty `{}` tag (Session 263).
     const found = fenceAttributeId(
       fence.text.slice(fence.contentStart),
       reader,
-      fence.contentStart === 0,
+      fence.text,
+      fence.line === 0,
     );
     if (found === undefined) {
       continue;
@@ -636,50 +640,54 @@ const FENCE_RUN = /^[ \t]*(?:`{3,}|~{3,})[ \t]*/;
 /**
  * The cross-reference id a PLAIN fenced code block's opener line defines, or `undefined`.
  *
- * ⚠ **THIS IS A FOURTH PRODUCTION AND IT HAS A STAGE PANDOC DOES NOT — DO NOT DERIVE IT FROM
- * `Attr`.** Measured over 51 rendered rows across six rounds in Session 223
+ * ⚠ **THIS IS A FOURTH PRODUCTION AND QUARTO REWRITES ITS INPUT BEFORE PANDOC SEES IT — DO NOT
+ * DERIVE IT FROM `Attr` ALONE.** Measured over 51 rendered rows across six rounds in Session 223
  * (`scratchpad/s223/cal/`, quarto 1.7.33, predictions frozen and hashed before each round):
  *
- *   **Stage 1 — quarto's own, and it is the whole reason a port would be wrong.** An info
- *   string that BEGINS with `{` and contains neither `.` nor `=` is intercepted: the entire
- *   info string, braces included, becomes a literal CLASS and **no id is defined at all**.
- *   ```` ```{#lst-s03} ```` renders `<pre class="{#lst-s03}">` (`sv.qmd` s03) — while bare
- *   pandoc defines `id="lst-s03"` from the same bytes, under `markdown` AND `commonmark_x`,
- *   and none of eight pandoc reader flavours reproduces quarto's split. Confirmed at AST level:
- *   `quarto render --to native` shows `CodeBlock ( "" , [ "{#lst-s03}" ] , [] )`.
+ *   **First — quarto's tag rewrite, and it is the whole reason a port would be wrong.** On a
+ *   BACKTICK fence, a leading brace tag running to the last `}` before any `.` or `=` becomes a
+ *   same-length word before pandoc reads the line, and comes back afterwards as a literal CLASS,
+ *   so **no id is defined at all**: ```` ```{#lst-s03} ```` renders `<pre class="{#lst-s03}">`
+ *   (`sv.qmd` s03) — while bare pandoc defines `id="lst-s03"` from the same bytes, under
+ *   `markdown` AND `commonmark_x`. Confirmed at AST level: `quarto render --to native` shows
+ *   `CodeBlock ( "" , [ "{#lst-s03}" ] , [] )`. The rewrite is `quartoFenceTagRewrite`, shared
+ *   with the region scanner (Session 263), and it is applied to the WHOLE line this function
+ *   scans — the group search, the word count and the id column below all read `scan` — because a
+ *   rewrite of the info string alone would leave `{#lst-h06}` visible to them and mint an id
+ *   quarto never defines (`refs.test.ts` H6).
  *
- *   ⚠ The gate is LEXICAL rather than a validity test — `{#lst-t01.b}` is released by a `.`
- *   that is part of the IDENTIFIER and defines `lst-t01.b` with no class at all (`t.qmd` t01),
- *   and 23 rows holding `: , _ - é $ ! * / + ; % | ( ) ~`, a space, a bare word or a second
- *   `#id` atom are all intercepted (`t.qmd`, `u.qmd` 10/10).
+ *   ⚠ The rule is LEXICAL rather than a validity test — `{#lst-t01.b}` holds no `}` before its
+ *   `.`, so it is no tag and defines `lst-t01.b` with no class at all (`t.qmd` t01), and 23 rows
+ *   holding `: , _ - é $ ! * / + ; % | ( ) ~`, a space, a bare word or a second `#id` atom are
+ *   all rewritten (`t.qmd`, `u.qmd` 10/10).
  *
- *   **Stage 2 — pandoc's `Attr`, which {@link attributeBlockId} already carries measured.** A
- *   released info string is parsed as `[word] {attrs}`; a FAILED parse means the fence is not a
+ *   **Then — pandoc's `Attr`, which {@link attributeBlockId} already carries measured.** What
+ *   the rewrite leaves is parsed as `[word] {attrs}`; a FAILED parse means the fence is not a
  *   fence at all (`{#lst-q05$x .python}` renders as an inline code span, `q.qmd` q05).
  *
- * ⚠ **THE GATE APPLIES ONLY TO A BRACE-LED INFO STRING.** ```` ```python {#lst-d09} ```` and
+ * ⚠ **ONLY A BRACE-LED INFO STRING IS REWRITTEN.** ```` ```python {#lst-d09} ```` and
  * ```` ```.python {#lst-r07} ```` both define although their braces hold neither `.` nor `=`
  * (`disc.qmd` d09, `r.qmd` r07) — the leading word is itself the non-identifier token.
  *
- * ⚠ **STAGE 1 IS QUARTO'S AND QUARTO'S IS LINE-ANCHORED, SO IT DOES NOT REACH INSIDE A BLOCK
- * QUOTE (Session 225).** ```` > ```{#lst-e01} ```` renders `<pre id="lst-e01">` — a REAL id —
- * where the identical bytes at top level render `<pre class="{#lst-s03}">` and define none
- * (`scratchpad/s225/e/e01` against Session 223's `sv.qmd` s03). `quartoIntercepts` is that
- * difference, and it is the caller's to know because only the region scanner sees the marker.
+ * ⚠ **AND ONLY ON A BACKTICK FENCE AT THE START OF THE PHYSICAL LINE.** A tilde fence is never
+ * rewritten — ```` ~~~{#lst-i06} ```` defines under both readers (`fill-3` i06, Session 263) —
+ * and a block-quote marker defeats the anchor: ```` > ```{#lst-e01} ```` renders
+ * `<pre id="lst-e01">`, a REAL id, where the identical bytes at top level define none
+ * (`scratchpad/s225/e/e01` against Session 223's `sv.qmd` s03). That is why the caller passes
+ * `physicalLine`: only the region scanner's raw opener text still carries the marker.
  */
 function fenceAttributeId(
   lineText: string,
   reader: AttributeBlockReader,
-  quartoIntercepts: boolean,
+  physicalLine: string,
+  documentStart: boolean,
 ): { id: string; column: number } | undefined {
   const run = FENCE_RUN.exec(lineText);
   if (run === null) {
     return undefined;
   }
-  const info = lineText.slice(run[0].length).trimEnd();
-  if (quartoIntercepts && info.startsWith("{") && !/[.=]/.test(info)) {
-    return undefined;
-  }
+  const scan =
+    run[0] + quartoFenceTagRewrite(physicalLine, lineText.slice(run[0].length), documentStart);
   // ⚠ **THE BLOCK MUST END THE INFO STRING, AND THAT IS A MEASURED REFUSAL RATHER THAN
   // TIDINESS.** ```` ```{#lst-d10 .python} extra ```` is not a fenced code block at all —
   // pandoc's info-string parse fails and the backticks are read as an INLINE CODE SPAN, so the
@@ -693,9 +701,9 @@ function fenceAttributeId(
   // separating space changes nothing (`adv3.qmd` y02). An earlier group is an info-string
   // WORD rather than part of the block, which is why the reader split that picks an atom
   // INSIDE a block never arises between blocks.
-  const groups = braceGroups(lineText);
+  const groups = braceGroups(scan);
   const group = groups[groups.length - 1];
-  if (group === undefined || group.end !== lineText.trimEnd().length - 1) {
+  if (group === undefined || group.end !== scan.trimEnd().length - 1) {
     return undefined;
   }
   // ⚠ **AND AT MOST ONE INFO-STRING WORD MAY PRECEDE IT.** Pandoc's info string is
@@ -704,9 +712,9 @@ function fenceAttributeId(
   // (`adv3.qmd` y03). One word is measured three ways and all three define: a language
   // (`python {#lst-d09}`), a class-looking word (`.python {#lst-r07}`) and an earlier brace
   // group (`{#lst-z07a}{#lst-z07b .python}`).
-  if (lineText.slice(run[0].length, group.start).trim().split(/\s+/).filter(Boolean).length > 1) {
+  if (scan.slice(run[0].length, group.start).trim().split(/\s+/).filter(Boolean).length > 1) {
     return undefined;
   }
   const id = attributeBlockId(group.content, reader);
-  return id === undefined ? undefined : { id, column: idColumnIn(lineText, group, id) };
+  return id === undefined ? undefined : { id, column: idColumnIn(scan, group, id) };
 }

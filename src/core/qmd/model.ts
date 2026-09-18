@@ -5784,7 +5784,7 @@ const RAW_ATTRIBUTE = /^=[^\s{}]+$/;
  * closer opened a fence that swallowed what followed: 41 headings in 23 real documents, a
  * regression from Session 224's refusal rule (`95241beb`; plan
  * `docs/planning/2026-09-14-attribute-tokenizer-plan.md` §1.4). The rewrite is also what
- * Session 224 had modelled as a brace "intercept" on every fence, tilde included — which
+ * Session 224 had modelled as a brace rule on every fence, tilde included — which
  * opened ```` ~~~{a} ```` where pandoc refuses it (`fill-3` l04).
  *
  * ⚠ **THE PHYSICAL LINE, WITH QUARTO'S OWN ANCHOR.** The rewrite applies only when the RAW
