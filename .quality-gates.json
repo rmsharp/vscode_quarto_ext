@@ -13,5 +13,23 @@
     "extract": "TOTAL\\s+\\d+\\s+\\d+\\s+(\\d+(?:\\.\\d+)?)%",
     "why": "measured 82.5% on 2026-01-01; a floor without a faithfulness check beside it measures effort, not quality — pair it with a mutation spot-check in review"
   },
-  "gates": []
+  "gates": [
+    {
+      "name": "ledger-lag",
+      "direction": "max",
+      "threshold": 0,
+      "unit": "commits",
+      "command": "git rev-list --count --no-merges \"$(git log -1 --format=%H -- CHANGELOG.md)..HEAD\"",
+      "extract": "^(\\d+)$",
+      "why": "Commits after the newest commit that touched CHANGELOG.md -- Phase 0's reconcile set, and the set that makes methodology_trim.py refuse with P1_UNDOCUMENTED. Measured 0 at Session 264 (operator's decision; PROJECT_LEARNINGS #544). It catches an unrecorded commit at the END of a session, not a mid-session commit followed by a recorded one: the one-entry-per-commit rule itself is the canonical pre-commit hook's to enforce, which is not installed."
+    },
+    {
+      "name": "release-gate",
+      "direction": "max",
+      "threshold": 0,
+      "unit": "exit code",
+      "command": "npm run check-package",
+      "why": "check-package (the deny-by-default .vsix allowlist) must exit 0. It already guards every release path; this gate moves the catch to the close-out of the session that adds an unexpected root file -- the class seen seven times, most recently the Session 264 sync, which reddened it while compile and npm test stayed green. Measured exit 0 at Session 264, ~48 s (operator's decision; PROJECT_LEARNINGS #544). Needs dist/ built (npm run compile) first."
+    }
+  ]
 }
