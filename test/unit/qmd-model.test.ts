@@ -18583,3 +18583,125 @@ describe("Session 263 PINS — fences the backtick tag rewrite opens (and one it
     expect(cascade("```{data-author=O'Brien}")).toEqual(["Inside", "Tail"]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Session 263 GUARD — where a `{}` tag does NOT propagate to later fences.
+//
+// readqmd collects every tag it finds and then rewrites that same string after EVERY later
+// line-start backtick run (`readqmd.lua:95-100`, a document-wide gsub). For a tag of three or more
+// characters that changes nothing — a later line's own read always contains it — so the only tag
+// that propagates is an EMPTY `{}`, and only the document's first line can yield one (its `*`
+// pattern). Written and run GREEN before the propagation was modelled (the operator's mid-session
+// extension of the plan's P1); each rendered, quarto 1.7.33, `scratchpad/s263/prop/`.
+// ---------------------------------------------------------------------------
+describe("Session 263 GUARD — where a `{}` tag does NOT propagate to later fences", () => {
+  const names = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+  const later = ["", "```{}x", "x = 1", "", "# Hidden B", "", "```", "", "# After B", "", "```", "plain", "```", "", "# Tail"];
+
+  it("a line-0 tag that is NOT `{}` seeds nothing — a later ```{}x is still refused (`g1`)", () => {
+    // Rendered: `After A`, `Hidden B`, `Tail`. The line-0 tag is `{a}`, and a later `{}x` does
+    // not start with it.
+    expect(names(["```{a}x", "x = 1", "", "# Hidden A", "", "```", "", "# After A", ...later])).toEqual([
+      "After A",
+      "Hidden B",
+      "Tail",
+    ]);
+  });
+
+  it("a `{}` AFTER line 0 seeds nothing — neither fence is rewritten (`g2`)", () => {
+    // Rendered: `Hidden A`, `After B`, `Tail`. After front matter the first `{}x` is on line 5,
+    // where readqmd's `+` pattern cannot find a two-character tag.
+    expect(
+      names(["---", "title: g2", "---", "", "```{}x", "x = 1", "", "# Hidden A", "", "```", "", "# After A", ...later]),
+    ).toEqual(["Hidden A", "After B", "Tail"]);
+  });
+
+  it("a longer line-0 tag that merely STARTS with `{}` seeds only itself (`g3`)", () => {
+    // Rendered: `After A`, `Hidden B`, `Tail`. The line-0 tag is `{}}`; a later `{}x` does not
+    // start with `{}}`, so the gsub leaves it alone.
+    expect(names(["```{}}x", "x = 1", "", "# Hidden A", "", "```", "", "# After A", ...later])).toEqual([
+      "After A",
+      "Hidden B",
+      "Tail",
+    ]);
+  });
+});
+
+describe("Session 263 — a line-0 `{}` tag is rewritten on EVERY later backtick fence (readqmd.lua:95-100)", () => {
+  const names = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+
+  it("a later ```{}x is a fence when line 0's tag is `{}`, so its closer opens nothing (`c01`)", () => {
+    // Rendered, quarto 1.7.33 (`scratchpad/s263/adv/docstart/c01_l0x_then_x`): `After A`, `After B`,
+    // `Tail`, and both `{}x` fences render `<pre>` with the SAME random class — readqmd's gsub
+    // rewrote the line-0 tag on the later fence too. Modelling only line 0 refused the later
+    // fence, and its closer then opened a region that hid `After B`.
+    const text = [
+      "```{}x",
+      "x = 1",
+      "",
+      "# Hidden A {#sec-hid-a}",
+      "",
+      "```",
+      "",
+      "# After A {#sec-aft-a}",
+      "",
+      "```{}x",
+      "x = 1",
+      "",
+      "# Hidden B {#sec-hid-b}",
+      "",
+      "```",
+      "",
+      "# After B {#sec-aft-b}",
+      "",
+      "```",
+      "plain",
+      "```",
+      "",
+      "# Tail {#sec-tail}",
+    ];
+    expect(names(text)).toEqual(["After A", "After B", "Tail"]);
+    expect(indexLabels(text.join("\n")).map((l) => l.id)).toEqual(["sec-aft-a", "sec-aft-b", "sec-tail"]);
+  });
+});
+
+describe("Session 263 PINS — the line-0 `{}` propagation", () => {
+  // Declared, not counted as RED→GREEN: each passed on its first run after the `c01` GREEN, and a
+  // named mutant of the propagation makes each fail. Rendered, quarto 1.7.33,
+  // `scratchpad/s263/adv/docstart/`.
+  const names = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+  const laterB = ["```{}x", "x = 1", "", "# Hidden B", "", "```", "", "# After B", "", "```", "plain", "```", "", "# Tail"];
+
+  it("the case that was STRICTLY WORSE than before — five headings behind the later fence (`c25`)", () => {
+    // Rendered: `S1`–`S5` and `Tail`. Modelling only line 0 refused the later `{}x`, and its closer
+    // opened a region running to the next bare fence: all five headings were hidden, where the
+    // pre-Session-263 build (wrong about both fences, in a way that cancelled) kept them.
+    const five = [1, 2, 3, 4, 5].flatMap((n) => [`# S${n}`, "", `text ${n}`, ""]);
+    expect(
+      names([
+        "```{}x", "x = 1", "", "# Hidden A", "", "```", "",
+        "```{}x", "y = 2", "", "# Hidden B", "", "```", "",
+        ...five,
+        "```", "plain", "```", "", "# Tail",
+      ]),
+    ).toEqual(["S1", "S2", "S3", "S4", "S5", "Tail"]);
+  });
+
+  it("a later FOUR-backtick ````{}x is rewritten too (`c17`)", () => {
+    // Rendered: `After A`, `After B`, `Tail` — no phantom `Hidden B`.
+    expect(
+      names([
+        "```{}x", "x = 1", "", "# Hidden A", "", "```", "", "# After A", "",
+        "````{}x", "y = 2", "", "# Hidden B", "", "````", "", "# After B", "",
+        "```", "plain", "```", "", "# Tail",
+      ]),
+    ).toEqual(["After A", "After B", "Tail"]);
+  });
+
+  it("line 0 seeds the tag even where it is NOT a fence — prose, or indented code (`c12`, `c11`)", () => {
+    // readqmd's find is lexical: `{}` on the first line is collected whatever pandoc later makes of
+    // that line. Rendered: `After B`, `Tail` for both.
+    expect(names(["```{}x is prose here", "", ...laterB])).toEqual(["After B", "Tail"]);
+    expect(names(["    ```{}x", "", ...laterB])).toEqual(["After B", "Tail"]);
+  });
+});

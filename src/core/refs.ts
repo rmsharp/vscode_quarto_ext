@@ -381,7 +381,11 @@ export function indexLabels(text: string): RefLabel[] {
     // ⚠ The opener text is RAW so its columns stay real; the PARSE starts past the block-quote
     // marker and the column is shifted back by the same offset (Session 225). The raw text is
     // also the physical line quarto's tag rewrite is anchored on, and line 0 is where readqmd
-    // accepts an empty `{}` tag (Session 263).
+    // accepts an empty `{}` tag (Session 263). ⚠ It is NOT passed the line-0 `{}` PROPAGATION the
+    // region scanner models (`firstLineTagIsEmpty`): no id can observe it today, because the
+    // one-word check below lets a brace-bearing word through — `{}.x {#lst-pb}` defines here with
+    // or without the rewrite, where quarto refuses the unseeded twin (`scratchpad/s263/prop/r1`,
+    // `r2`). Pass it when that word check learns pandoc's refusal (the plan's P4).
     const found = fenceAttributeId(
       fence.text.slice(fence.contentStart),
       reader,
@@ -680,14 +684,14 @@ function fenceAttributeId(
   lineText: string,
   reader: AttributeBlockReader,
   physicalLine: string,
-  documentStart: boolean,
+  emptyTagAllowed: boolean,
 ): { id: string; column: number } | undefined {
   const run = FENCE_RUN.exec(lineText);
   if (run === null) {
     return undefined;
   }
   const scan =
-    run[0] + quartoFenceTagRewrite(physicalLine, lineText.slice(run[0].length), documentStart);
+    run[0] + quartoFenceTagRewrite(physicalLine, lineText.slice(run[0].length), emptyTagAllowed);
   // ⚠ **THE BLOCK MUST END THE INFO STRING, AND THAT IS A MEASURED REFUSAL RATHER THAN
   // TIDINESS.** ```` ```{#lst-d10 .python} extra ```` is not a fenced code block at all —
   // pandoc's info-string parse fails and the backticks are read as an INLINE CODE SPAN, so the

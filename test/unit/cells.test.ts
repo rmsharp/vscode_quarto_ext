@@ -354,3 +354,36 @@ describe("Session 263 PIN — a `{{lang}}` display block with a blank line no lo
     expect(indexLabels(r).map((l) => l.id)).toEqual(["fig-z"]);
   });
 });
+
+describe("Session 263 PIN — a line-0 `{}` tag reaches a later fence, so a cell below it survives", () => {
+  it("the real cell after a propagated ```{}x fence is a cell (`e03`)", () => {
+    // Rendered with jupyter, quarto 1.7.33 (`scratchpad/s263/adv/docstart/e03_jupyter_l0_prop`): the
+    // `{python}` cell executes, and both `{}x` fences render `<pre>` with the same random class —
+    // readqmd rewrote the line-0 tag on the later fence too. Modelling only line 0 refused the
+    // later fence, and its closer opened a region that the cell's own closer shut, hiding the cell.
+    const text = [
+      "```{}x", // 0
+      "x = 1", // 1
+      "", // 2
+      "# Hidden A", // 3
+      "", // 4
+      "```", // 5
+      "", // 6
+      "# After A", // 7
+      "", // 8
+      "```{}x", // 9
+      "x = 1", // 10
+      "", // 11
+      "# Hidden B", // 12
+      "", // 13
+      "```", // 14
+      "", // 15
+      "# After B", // 16
+      "", // 17
+      "```{python}", // 18
+      "1 + 1", // 19
+      "```", // 20
+    ].join("\n");
+    expect(findAllCells(text).map((c) => `${c.lang}@${c.startLine}`)).toEqual(["python@18"]);
+  });
+});

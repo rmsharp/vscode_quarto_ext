@@ -5796,24 +5796,27 @@ const RAW_ATTRIBUTE = /^=[^\s{}]+$/;
  * before the first `.`, `=`, CR or LF — so `{a} {b}` and `{a} x}` are each one tag and `{a} {.b}`
  * yields `{a}` — and it must be at least 3 characters. The gap is NOT counted: ```` ``` {}x ````
  * after front matter is refused (`sp_gap`), and counting the space would open it. On the
- * document's FIRST line readqmd uses `*` in place of `+`, so `{}` is a tag there and nowhere else
- * (`d0` against `d2`); that is `documentStart`.
+ * document's FIRST line readqmd uses `*` in place of `+`, so `{}` is a tag there (`d0` against
+ * `d2`) — and, because readqmd then rewrites every tag it found after EVERY later line-start
+ * backtick run, a `{}` found on line 0 is rewritten on later fences too (`c01`, `c25`). That is
+ * `emptyTagAllowed`: line 0, or any line when line 0's tag is `{}` (`firstLineTagIsEmpty`). A tag
+ * of three or more characters needs no such pass, since a later line's own read always contains
+ * it — so `{}` is the only tag that propagates.
  *
  * ⚠ **ONE PASS, NOT THE PATTERN.** Transcribed as a JS regex, readqmd's pattern backtracks
  * quadratically on a run of `{` with no `}` (241 ms at 20,000 braces, measured), and this runs
  * on every edit. The scan below reads the same tag in linear time; Session 263 fuzzed it against
  * both transcribed patterns over 10.7 million strings with no disagreement.
  *
- * Not modelled, each at zero measured reach (plan §8): readqmd then rewrites the SAME tag string
- * after every later line-start backtick run in the document, so a tag first seen on line 0 can
- * reach a later fence where the `+` pattern alone would not; a VT or FF between the backtick run
- * and the tag; and the `*` pattern being anchored at every `find` start, not only the
- * document's (`readqmd.lua:41-47`).
+ * Not modelled, each at zero measured reach (plan §8): a VT or FF between the backtick run and
+ * the tag; and the `*` pattern being anchored at every `find` start, not only the document's
+ * (`readqmd.lua:41-47`) — unreachable, Session 263's docstart lens found, since after a match no
+ * `}` remains before the next stop character.
  */
 export function quartoFenceTagRewrite(
   physicalLine: string,
   info: string,
-  documentStart: boolean,
+  emptyTagAllowed: boolean,
 ): string {
   if (!/^[ \t\f\v]*`{3}/.test(physicalLine)) {
     return info;
@@ -5831,10 +5834,25 @@ export function quartoFenceTagRewrite(
   }
   const close = info.lastIndexOf("}", stop - 1);
   const length = close + 1 - open;
-  if (close < open || length < (documentStart ? 2 : 3)) {
+  if (close < open || length < (emptyTagAllowed ? 2 : 3)) {
     return info;
   }
   return info.slice(0, open) + "x".repeat(length) + info.slice(close + 1);
+}
+/**
+ * Whether the document's first line carries readqmd's EMPTY tag `{}` — the one tag that propagates
+ * to later fences (see `quartoFenceTagRewrite`). ⚠ It asks readqmd's LEXICAL question, not this
+ * model's: a first line that is prose or indented code seeds the tag all the same (`c12`, `c11`).
+ * The operator extended the plan's P1 to model this in Session 263, after its adversarial pass
+ * measured the line-0-only rewrite deleting five headings its parent build kept (`c25`).
+ */
+function firstLineTagIsEmpty(firstLine: string): boolean {
+  const run = /^[ \t\f\v]*`{3,}/.exec(firstLine);
+  if (run === null) {
+    return false;
+  }
+  const info = firstLine.slice(run[0].length);
+  return quartoFenceTagRewrite(firstLine, info, true) !== quartoFenceTagRewrite(firstLine, info, false);
 }
 /**
  * Whether a PLAIN fence opener's info string really opens a code block.
@@ -6154,6 +6172,7 @@ function scanRegions(text: string): Regions {
  */
 function computeRegions(text: string): Regions {
   const lines = text.split(/\r?\n/);
+  const emptyTagPropagates = firstLineTagIsEmpty(lines[0]);
   const closerIndex = buildCloserIndex(lines);
   const quoteEnds = blockQuoteEndIndex(lines);
   const quoteAlreadyOpen = blockQuoteAlreadyOpen(lines);
@@ -7211,7 +7230,7 @@ function computeRegions(text: string): Regions {
       const refused =
         info === null &&
         !fenceInfoOpensBlock(
-          quartoFenceTagRewrite(raw, fence[3], i === 0),
+          quartoFenceTagRewrite(raw, fence[3], i === 0 || emptyTagPropagates),
           commonmarkDialect,
           pandocEscapes,
         );
