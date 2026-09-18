@@ -17,6 +17,18 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [BL-Migrate `CHANGELOG.md`'s header/preamble to the current v3.1+ "Authoritative Action Ledger" seed format] Done by `acb43e0b` — the item leaves `BACKLOG.md` one commit late
+- **Change:** the Session 158 grooming item is removed from `BACKLOG.md` "Up Next". Its own acceptance test holds: `bin/status --source=local` reads `CHANGELOG.md` `present`, and every entry is byte-identical. **Correction:** `acb43e0b`'s entry was tagged `[ad hoc]` and left the item open, against the rule that a finished backlog item leaves `BACKLOG.md` in the same commit. Found by this session's adversarial verification, not by `check-backlog`, which sees completed records rather than finished open items.
+- **Commit/PR:** `acb43e0b` did the work; the commit that ships this entry removes the item
+- **Session:** S264 · **Verified:** `bin/status` `present`; `node check-backlog.js` OK, 206 → 204 open items (this item and the next)
+- **Model:** Claude Opus 5 (claude-opus-5)
+
+### 2026-09-18 · [BL-`methodology_dashboard.py` is two minor versions stale] Done by the sync `b8a503e7` — the item leaves `BACKLOG.md` one commit late
+- **Change:** the Session 174 item is removed from `BACKLOG.md` "Up Next". The dashboard is now v2.18.0, canonical at fork `0ab3881`, and `bin/status` reads it `current`. **Correction:** `b8a503e7`'s entry was tagged `[ad hoc]` and left the item open; the item itself asked to be done together with the header migration, and it was.
+- **Commit/PR:** `b8a503e7` did the work; the commit that ships this entry removes the item
+- **Session:** S264 · **Verified:** `python3 methodology_dashboard.py --help` banner v2.18.0; `bin/status` `current`
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] BL-57 P8 — `CLAUDE.md` records this ledger's legacy tags and its `[BL-<item title>]` form; `CHANGELOG.md` leaves `.context-budget.json`
 - **Change:** a new `CLAUDE.md` Adaptations subsection, *`CHANGELOG.md` conventions (Session 264)*: backlog items are tagged `[BL-<item title>]` (no `]` in the title), methodology work `[ad hoc]`; the `[BACKLOG: <title>]` tags, the untagged June 2026 shard entries and the positional `[BL-<N>]` tags are legacy, left as written, with the command that lists what the audit skips; `## [Unreleased]` is gone. `.context-budget.json` drops its `CHANGELOG.md` entry (the operator's decision; the rules say no session reads the file whole), corrects two comments the sync made false (65,536 B is no longer the trimmer's budget — trim v1.5.0 archives above 196,608 B), and lists `quality_ratchet.py` among the synced files it checks for drift. `CLAUDE.md` :102 and :146, the lines the plan names, were read against the new rules and need no change.
 - **Commit/PR:** the commit that ships this entry
