@@ -1715,3 +1715,26 @@ describe("Session 223 PINS — Source 4 behaviours that came free, declared rath
     ]);
   });
 });
+
+describe("Session 263 GUARD — fence ids quarto's backtick tag rewrite must NOT move", () => {
+  // Written and run GREEN before any production change (plan
+  // `docs/planning/2026-09-14-attribute-tokenizer-plan.md` §4 P1). Quarto replaces a leading
+  // `{…}` tag on a BACKTICK fence with a same-length word before pandoc reads the line
+  // (`readqmd.lua:37-40`, `:95-100`); the tag ends at the last `}` before the first `.` or `=`.
+  // Both rows are rendered (quarto 1.7.33, `scratchpad/s263/rg/r1`, `r2`).
+
+  it("a tag that runs to the end of the line swallows a trailing id block — nothing is defined", () => {
+    // Rendered: `<pre class="sourceCode markdown">` and no `id="lst-rw1"`. The whole run
+    // `{{python}}{#lst-rw1}` is ONE tag, because it holds no `.` or `=`.
+    expect(indexLabels("```{{python}}{#lst-rw1}\nx = 1\n```")).toEqual([]);
+  });
+
+  it("a `.` stops the tag, so the block after it defines — and its COLUMN does not move", () => {
+    // Rendered: `id="lst-rw2"` on `<pre class="sourceCode {{python}} py">`. The tag is
+    // `{{python}}` alone and the block `{#lst-rw2 .py}` is pandoc's. The replacement word is the
+    // tag's own length, so the id's column is the one the author typed.
+    expect(indexLabels("```{{python}} {#lst-rw2 .py}\nx = 1\n```")).toEqual([
+      { id: "lst-rw2", kind: "lst", line: 0, column: 16 },
+    ]);
+  });
+});

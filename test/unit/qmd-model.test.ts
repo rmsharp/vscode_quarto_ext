@@ -18236,3 +18236,121 @@ describe("Session 261 — a reader without `fenced_divs` has no callout to lift 
     expect(names(anchored("markdown", "gfm"))).toEqual(["h2:Before", "h2:After"]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Session 263 GUARD — fences quarto's backtick TAG REWRITE must NOT move.
+//
+// Written and run GREEN before any production change (plan
+// `docs/planning/2026-09-14-attribute-tokenizer-plan.md` §4 P1, DONE 1). Quarto's qmd reader
+// replaces a leading `{…}` tag on a BACKTICK fence at line start with a same-length word before
+// pandoc reads the line (`readqmd.lua:37-40`, `:95-100`), which is what makes the documented
+// verbatim idiom ```` ```{{python}} ```` a code block. The change widens the region set, so
+// every row below is a fence whose answer must NOT change: one the rewrite cannot reach (a list
+// marker, a `>` prefix, a tilde), one it reaches but that pandoc still refuses or accepts as
+// before, and the document-start split.
+//
+// Every expectation is quarto 1.7.33's render, re-rendered in Session 263
+// (`scratchpad/s263/g/`, `engine: markdown` forced where knitr/jupyter would claim the file).
+// ---------------------------------------------------------------------------
+describe("Session 263 GUARD — fences quarto's backtick tag rewrite must NOT move", () => {
+  const names = (lines: string[]) => findHeadings(lines.join("\n")).map((h) => h.text);
+  const probe = (...body: string[]) => ["---", "title: probe", "---", "", ...body];
+
+  it("a list MARKER before the backticks defeats the rewrite — the line is not a fence (`p2`, `p3`)", () => {
+    // Rendered: both keep the heading. `FENCE_OPEN` is `^[ \t]*`-anchored, so a marker line is
+    // never a fence here either; the rows guard a future widening of that anchor.
+    expect(
+      names(probe("- ```{{python}}", "  x = 1", "", "  # Hidden Two", "", "  ```", "", "# After")),
+    ).toEqual(["Hidden Two", "After"]);
+    expect(
+      names(probe("1. ```{{python}}", "   x = 1", "", "   # Hidden Three", "", "   ```", "", "# After")),
+    ).toEqual(["Hidden Three", "After"]);
+  });
+
+  it("a TILDE fence is never rewritten, so `~~~{{python}}` stays refused (`p7`)", () => {
+    expect(
+      names(probe("~~~{{python}}", "x = 1", "", "# Hidden Seven", "", "~~~", "", "# After")),
+    ).toEqual(["Hidden Seven", "After"]);
+  });
+
+  it("the PHYSICAL line decides — a `>` prefix defeats the rewrite inside a quote (`p8`)", () => {
+    expect(
+      names(probe("> ```{{python}}", "> x = 1", ">", "> # Hidden Eight", ">", "> ```", "", "# After")),
+    ).toEqual(["Hidden Eight", "After"]);
+  });
+
+  it("a tag followed by a bare WORD is still two words and still refused (`p9`)", () => {
+    expect(
+      names(probe("```{{r}} extra", "x = 1", "", "# Hidden Nine", "", "```", "", "# After")),
+    ).toEqual(["Hidden Nine", "After"]);
+  });
+
+  it("a tag followed by a valid BLOCK still opens a region (`p10`)", () => {
+    expect(
+      names(probe("```{{python}}{.a}", "x = 1", "", "# Hidden Ten", "", "```", "", "# After")),
+    ).toEqual(["After"]);
+  });
+
+  it("`{}` is a tag ONLY on the document's first line — after front matter it is refused (`d2`)", () => {
+    expect(names(probe("```{}x", "x = 1", "", "# Hidden A", "", "```", "", "# After A"))).toEqual([
+      "Hidden A",
+      "After A",
+    ]);
+  });
+
+  it("the GAP after the backticks is not part of the tag, space or tab (`sp_gap`, `tab_gap`)", () => {
+    // ⚠ Counting the gap toward the tag's length would make ` {}` a three-character tag and open
+    // a fence quarto refuses — a DELETION of the heading inside.
+    expect(names(probe("``` {}x", "x = 1", "", "# Hidden A", "", "```", "", "# After A"))).toEqual([
+      "Hidden A",
+      "After A",
+    ]);
+    expect(names(probe("```\t{}x", "x = 1", "", "# Hidden A", "", "```", "", "# After A"))).toEqual([
+      "Hidden A",
+      "After A",
+    ]);
+  });
+
+  it("a 4-space-indented `{{python}}` block inside a list item hides its heading (`Q4`)", () => {
+    // Rendered in Session 263 before this row was written (the plan's "render first, then pin").
+    expect(
+      names(
+        probe("- item", "", "    ```{{python}}", "    x = 1", "", "    # Hidden Q4", "", "    ```", "", "# After"),
+      ),
+    ).toEqual(["After"]);
+  });
+
+  it("the fence-grid rows right before and after the rewrite (`fill-3` q07, q08, q09, q12, q15)", () => {
+    const grid = (opener: string) =>
+      names(["---", "format: html", "---", "", opener, "", "# Inside", "", "```", "", "# After"]);
+    expect(grid("```{a} x")).toEqual(["Inside", "After"]); // q07 — tag, then a word
+    expect(grid("```{a} {#b}")).toEqual(["After"]); // q08 — the whole run is one tag
+    expect(grid("```{foo}")).toEqual(["After"]); // q09
+    expect(grid("```{}")).toEqual(["After"]); // q12 — not a tag, but an empty block is valid
+    expect(grid("```{a} {b")).toEqual(["Inside", "After"]); // q15 — an unclosed brace after the tag
+  });
+
+  it("the cascade control — a valid class block keeps its own closer (`fill-3` c05)", () => {
+    expect(
+      names([
+        "---",
+        "format: html",
+        "---",
+        "",
+        "```{.a}",
+        "",
+        "# Inside",
+        "",
+        "```",
+        "",
+        "# After",
+        "",
+        "```python",
+        "x = 1",
+        "```",
+        "",
+        "# Tail",
+      ]),
+    ).toEqual(["After", "Tail"]);
+  });
+});

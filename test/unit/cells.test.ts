@@ -296,3 +296,27 @@ describe("findAllCells — quarto's fence-token grammar (Session 172)", () => {
     expect(cellOf("{{python}}")).toEqual([]); // exit 0 — display form
   });
 });
+
+describe("Session 263 GUARD — a `{{lang}}` display block the tag rewrite must NOT move", () => {
+  it("a display block WITHOUT a blank line inside does not hide the real cell below it", () => {
+    // Rendered with knitr (quarto 1.7.33, `scratchpad/s263/rg/cg`): the `{{r}}` block is a
+    // `<pre class="sourceCode markdown">` and the `{r}` cell below it executes, defining
+    // `fig-cg`. With no blank line a refused opener and its closer form ONE inline code span, so
+    // this was already right before quarto's tag rewrite was modelled (plan §4 P1).
+    const text = [
+      "```{{r}}", // 0
+      "plot(1)", // 1
+      "```", // 2
+      "", // 3
+      "```{r}", // 4
+      "#| label: fig-cg", // 5
+      "plot(1)", // 6
+      "```", // 7
+      "", // 8
+      "# After", // 9
+    ].join("\n");
+    expect(findAllCells(text)).toEqual([
+      { startLine: 4, endLine: 7, lang: "r", code: "#| label: fig-cg\nplot(1)" },
+    ]);
+  });
+});
