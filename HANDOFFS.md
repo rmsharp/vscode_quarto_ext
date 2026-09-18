@@ -31,6 +31,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S263
+date: 2026-09-18
+status: pending
+active_task: IMPLEMENT P1 of docs/planning/2026-09-14-attribute-tokenizer-plan.md -- quarto's backtick fence-tag rewrite, so a ```{{lang}} display fence is read as a fence (the "Up Next" head; a Session 224 regression, 95241beb; 23 documents, +41 headings). Strict TDD. Operator-picked at Phase 0; the plan's §12 decisions are put to the operator before any code. NOT in scope: P2-P4, the tokenizer leaf, the divColumns push, the ledger trims, the syncs.
+```
+
+```handoff
 session: S262
 date: 2026-09-14
 status: complete

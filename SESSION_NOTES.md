@@ -8,23 +8,22 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 262 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S262 did:** PLANNED the attribute tokenizer — `docs/planning/2026-09-14-attribute-tokenizer-plan.md`,
-four phases, PLAN ONLY; the census tool rides with it (`docs/planning/scripts/attribute-block/`, the
-operator's decision). Nothing under `src/` or `test/` changed. Commits: `7a2397e2` claim · `452ce271`
-plan · `61bcce86` records · `4b69957b` notes trim · the close-out one.
-**⚠ THE HEADLINE:** every div/heading item the plan closes measures **0 of 3,383** documents. The one
-real-reach defect is new: a ```` ```{{python}} ```` fence hides 41 headings in 23 documents — a
-Session 224 regression (`95241beb`).
-**Top pick (DERIVED — the operator picks):** the new head of "Up Next", the ```` ```{{lang}} ```` display
-fence item = the plan's P1. The plan needs the operator's approval first — its §12 lists the decisions.
-**⚠ P1 is specified to the row:** RED `dd2`, the minimal-GREEN order `dd2 → p5 → l04 → d0`, the guards,
-mutants M0–M10, and the census numbers (23/41/6 · 8/8/0 · 2/2/0, `threw=0`; digests in the census
-README). Re-derive; never paste the scratch prototype.
-**⚠ `context_budget.py` is RED on FOUR files and S262 grew `BACKLOG.md` and `PROJECT_LEARNINGS.md`
-again.** MEASURE them; do not quote this line.
-**⚠ Five synced files differ from canonical per `context_budget.py`.** Sync at the START of a session.
+**Task:** **Session 263 IN PROGRESS** — **implement P1 of the attribute-tokenizer plan**: quarto's
+backtick fence-tag rewrite, so a ```` ```{{lang}} ```` display fence is read as a fence (the "Up
+Next" head; a Session 224 regression, `95241beb`; 23 documents, +41 headings). Strict TDD.
+Operator-picked at Phase 0. **Started:** 2026-09-18.
+**Plan:** `docs/planning/2026-09-14-attribute-tokenizer-plan.md` §4 P1. The operator decides its §12
+first; the approved scope is recorded here before any code.
+**NOT in scope:** P2–P4, the tokenizer leaf, the `divColumns` push, the ledger trims, the syncs.
+**Status:** CLAIMED. Work beginning.
+**Ledger:** `CHANGELOG: pending` — this session's actions are recorded in `CHANGELOG.md` at Phase 3F.
+Until close-out this line is the crash breadcrumb for the next session's reconcile.
+**Phase 0 findings (S263).** Tree clean but for `scratchpad/` and the two telemetry appends. Both
+ledger frontiers are `HEAD` (`58f7bcbd`); zero undocumented commits. `gh issue list` empty.
+Dashboard 76/100. `compile` exit 0; `npm test` 2875 / 66 files.
+**⚠ `context_budget.py` RED on FOUR files, measured:** `CHANGELOG.md` 87,837 B, `HANDOFFS.md`
+129,409 B, `BACKLOG.md` 313,343 B, `PROJECT_LEARNINGS.md` 986,516 B; ceiling 65,536 B.
+**⚠ `context_budget.py` flags seven synced files as differing from canonical.** Not synced mid-flight.
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---
