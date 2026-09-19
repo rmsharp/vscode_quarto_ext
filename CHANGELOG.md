@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S262 evaluation by S263 + S263 self-assessment)
+- **Change:** 51 lines deleted and nothing else, per the three-pair retention rule (`CLAUDE.md`, Session 256). The pair stays in git: `git show 132c7a9a:SESSION_NOTES.md`.
+- **Commit/PR:** this entry's own commit
+- **Session:** S266 · **Verified:** `git diff --stat` shows deletions only
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Session 266 learnings #549–#551 — unmasking vs causing, inherited gates, polarity is not a measurement
 - **Change:** three rows appended to `PROJECT_LEARNINGS.md`: #549 classify a new divergence as inherited only from a rendered twin; #550 a construct routed through an existing branch inherits that branch's blind spots; #551 render the case a "declining is safe" rule guards against before applying it.
 - **Commit/PR:** this entry's own commit
