@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S261 evaluation by S262 + S262 self-assessment)
+- **Change:** 63 lines deleted and nothing else, per the three-pair retention rule (`CLAUDE.md`, Session 256). The pair stays in git: `git show 2bf70504:SESSION_NOTES.md`.
+- **Commit/PR:** this entry's own commit
+- **Session:** S265 · **Verified:** `git diff --stat` shows deletions only
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Session 265 records — learnings #545–#548
 - **Change:** `PROJECT_LEARNINGS.md` gains four rows from the re-score: #545 a renamed input changes the engine quarto measures under; #546 construct presence is an upper bound, attribution the measure; #547 define "heading" by the parser the product mirrors, not the rendered tag; #548 give every headline number a script and grep every "synthetic" string against the corpus. None is a mechanical invariant, so none is a gate.
 - **Commit/PR:** this entry's own commit
