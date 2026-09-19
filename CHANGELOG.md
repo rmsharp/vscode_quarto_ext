@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] The runtime gate for (a), R1 — an outline row in a real Extension Development Host, run and green
+- **Change:** `test/integration/suite/outline.test.ts` — one row through `vscode.executeDocumentSymbolProvider`: PRESENT, a 64-`#` run and a text-bearing `########` run release three glued `##` headings and are no outline rows themselves; ABSENT, the same run pressed under prose releases nothing. Both documents rendered through quarto 1.7.33 first (`scratchpad/s266/probes/v/i1`, `i2`): quarto agrees with this build and not with HEAD's on PRESENT.
+- **Commit/PR:** this entry's own commit
+- **Session:** S266 · **Verified:** `npm run test:integration` exit 0, 548 passing (547 before the row, run first with the operator's consent; this run after a second explicit yes)
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Sub-item (a), R1 — a line of 7+ `#` is a pandoc header: it ends the paragraph, and the outline never shows it
 - **Change:** `src/core/qmd/model.ts` — `DEEP_ATX_HEADER` (and its tight twin) and `deepAtxHeaderLineIsBlock`, read by `closesParagraph` and `opensFreshBlock` under the ATX row's column rule and paragraph question, plus one `SIMPLE_TABLE_HEADER_OUTRANKED` row. The run stays a BODY line, so an underline below still claims it. A first build routed the run through the ATX branch; the adversarial pass refuted it (a quoted `> #######` / `> ---` lost its heading, R5) and it never reached a commit. `test/unit/qmd-model.test.ts` — R1–R8, G1–G9 and one RESIDUAL pin. `BACKLOG.md` — (a) removed from its item, the Active note now recommends (d), the headline numbers and the item's `model.ts` line citations updated, and one by-catch item filed ("What a line of 7+ `#` used to MASK …").
 - **Commit/PR:** this entry's own commit

@@ -3193,4 +3193,55 @@ describe("S225: a heading inside a BLOCK QUOTE reaches the outline", () => {
     );
   });
 
+
+  // ⚠ **THE RUNTIME GATE FOR SESSION 266.** A line of 7+ `#` is a pandoc header of level 7+ — it ends
+  // the paragraph, and no outline shows it — proved headlessly over `src/core`; this row proves the
+  // Outline the USER sees, through `vscode.executeDocumentSymbolProvider` against the built extension.
+  it("a line of 7+ `#` ends the paragraph, so the headings glued below it reach the OUTLINE", async () => {
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    // PRESENT — the corpus shape (R1) and the text-bearing run (R2). Quarto renders `After One`,
+    // `After Two` and `After Text` as `<h2>`s, and the runs as `<p class="heading">`; HEAD's build
+    // reported none of the three (these exact bytes: `scratchpad/s266/probes/v/i1_integration_present`).
+    const after = await namesFor(
+      "---",
+      "title: probe",
+      "engine: markdown",
+      "---",
+      "",
+      "#".repeat(64),
+      "## After One",
+      "## After Two",
+      "",
+      "######## eight words",
+      "## After Text",
+    );
+    assert.ok(
+      after.includes("After One") && after.includes("After Two") && after.includes("After Text"),
+      `the headings below a 7+ run must reach the outline: ${after.join(", ")}`,
+    );
+    assert.ok(
+      !after.some((n) => n.includes("eight words") || n.includes("#")),
+      `a 7+ run is no outline row: ${after.join(", ")}`,
+    );
+
+    // ABSENT — the paragraph control (G3). Pressed under prose the run is paragraph text, and quarto
+    // renders no heading at all (`v/i2_integration_absent`). Without this, the PRESENT assertion
+    // passes for a build that has stopped asking whether a paragraph is open.
+    const pressed = await namesFor(
+      "---",
+      "title: probe",
+      "engine: markdown",
+      "---",
+      "",
+      "prose line",
+      "#######",
+      "## Pressed After",
+    );
+    assert.ok(!pressed.includes("Pressed After"), `a pressed run continues the paragraph: ${pressed.join(", ")}`);
+  });
+
 });
