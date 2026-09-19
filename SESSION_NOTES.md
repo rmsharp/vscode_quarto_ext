@@ -8,33 +8,18 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 265 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S265 did:** an AUDIT — re-scored the 3,383 authored documents at HEAD
-(`docs/REAL-DOCUMENT-RESCORE.md`). Outline = quarto on 2,395 / 2,438 (98.24%, S251's instrument);
-2,418 (99.18%) with it corrected. 26 of the 43 divergences were the instrument; the 20 real ones come
-from eight root causes NO open item describes — filed as the "Up Next" head item *"The Outline's last
-real-document divergences — eight root causes …"* (a)–(h). Commits: `2c611290` claim · `ad7a52a4`
-report + backlog · `2bf70504` learnings #545–#548 · `d403fc37` notes trim · close-out.
-**Recommended next pick: that item's (a), R1** — a line of 7+ `#` is an empty pandoc Header, so it
-ends the paragraph; the model caps the closer at 6 (`model.ts:1992`; text-bearing sibling `:111`/`:129`).
-26 lost headings in one document. Repro: `scratchpad/s265/repro/c5_notebooks/a_hashrun.qmd`.
-**Operator decisions waiting:** R7 (record, don't build — report F5); raw HTML `<hN>` not headings
-(F3); close the fenced-div container item (F6); adopt `score_corrected.py` as the standing measure.
-**Re-score after any model change** (seconds; the corpus is local and personal):
-`S=scratchpad/s265`; `git archive HEAD src | tar -x -C $S/builds/<new>`; `CENSUS_SRC=$S/builds/<new>`
-`CENSUS_CORPUS=$S/snapshot.json CENSUS_OUT=$S/model_<new>.snap.tsv npx vitest run --config`
-`$S/vitest.s265.config.ts`; esbuild the build's `model.ts` to `$S/tools/model_<new>.cjs`;
-`node $S/tools/rawhtml_adjust.js $S/snapshot.json $S/rawadj_<new>.tsv $S/tools/model_<new>.cjs`;
-`python3 $S/score_corrected.py <new> $S/model_<new>.snap.tsv $S/rawadj_<new>.tsv` (HEAD: 2418 / 20).
-**⚠ The corpus is personal:** tracked files name a corpus document only by its ordinal in
-`scratchpad/s251/realfiles.txt`; grep any "synthetic" repro string against the corpus first (#548).
-**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run` (needs `dist/`; cite the summary line).
-One `CHANGELOG.md` entry per commit; the claim commit carries an *(in progress)* one.
-**⚠ `context_budget.py` exits 2** — HANDOFFS/BACKLOG/PROJECT_LEARNINGS over; MEASURE, do not quote.
-The `HANDOFFS.md` trim (D7) is still its own task; it needs `--budget-bytes` or `--cut N --force`.
-**⚠ A `cd` inside a Bash command moves the session's cwd** — use absolute paths (Learning #535; hit
-twice this session). **⚠ Jupyter is installed** — force `engine: markdown` in non-cell probes.
+**Task:** **Session 266 IN PROGRESS** — **IMPLEMENT the Up Next head item's (a), R1:** a line of
+7+ `#` is an empty pandoc Header, so it ends the paragraph; the model caps the bare-run closer at 6
+(`src/core/qmd/model.ts:1992`; text-bearing sibling `:111`/`:129`). Operator-picked at Phase 0
+(option 1 of 4, recommended). **Started:** 2026-09-19. **Workstream:** DEVELOPMENT_WORKSTREAM.md.
+**DONE =** ordinal 2494 agrees under `scratchpad/s265/score_corrected.py` (expect 2,419 / 2,438),
+0 newly divergent. Strict TDD. **NOT in scope:** (b)–(h), the four operator decisions, ledger trims.
+**Status:** CLAIMED. Work beginning.
+**Ledger:** `CHANGELOG: pending` — the claim commit carries an *(in progress)* entry; Phase 3F
+records the rest. Until close-out this line is the crash breadcrumb for the next reconcile.
+**Phase 0 findings (S266).** Zero undocumented commits; every receipt complete; the S265 gate
+citation matches `.quality-gates-results.json`. Dashboard 76/100 — 9 devDependency advisories
+(5 high, none shipped) and `BACKLOG.md` at 315,972 B, past the 262,144 B read limit.
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---

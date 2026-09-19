@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 266 claimed — sub-item (a), R1: a line of 7+ `#` ends the paragraph (in progress)
+- **Change:** `SESSION_NOTES.md` ACTIVE TASK stub and a `status: pending` S266 receipt in `HANDOFFS.md`; the Phase 0 dashboard telemetry append rides along. Operator-picked at Phase 0 (option 1 of 4, the recommended one).
+- **Commit/PR:** this entry's own commit (the claim)
+- **Session:** S266 · **Verified:** n/a — docs-only
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Session 265 closed out — audit: the real-document re-score
 - **Change:** the S265 `HANDOFFS.md` receipt set `status: complete` (self 7, predecessor 8); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; recommended next pick the Up Next head item's (a), R1, with the re-score recipe) plus the S264 handoff evaluation and the S265 self-assessment; one `context_budget.py` telemetry append. Commits this session: `2c611290` claim · `ad7a52a4` report + backlog · `2bf70504` learnings · `d403fc37` notes trim · this close-out.
 - **Commit/PR:** this entry's own commit
