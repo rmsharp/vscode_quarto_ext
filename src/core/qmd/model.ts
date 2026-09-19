@@ -97,7 +97,8 @@ export interface OutlineSymbol {
 /**
  * A single-line ATX heading: leading whitespace of EITHER KIND, then 1–6 `#`, then at
  * least one space/tab, then the text. Requiring the space after the hashes is what rejects
- * `#hashtag`; capping at 6 rejects `#######`.
+ * `#hashtag`; capping at 6 keeps `#######` out of the OUTLINE — but not out of the document's
+ * block structure, where it is still a pandoc header (see `DEEP_ATX_HEADER`, Session 266).
  *
  * ⚠ **The leading class is NOT a heading rule and this regex does not decide the indent —
  * `atxHeadingMatch` below does, against the enclosing block's content column.** Until
@@ -127,6 +128,77 @@ const ATX_HEADING = /^[ \t]*(#{1,6})[ \t]+(.+)$/;
  * match unchanged, and `(.+)` still refuses a bare hash run with no text (`cal/c4_bare_strict`).
  */
 const ATX_HEADING_TIGHT = /^[ \t]*(#{1,6})(?!#)[ \t]*(.+)$/;
+/**
+ * An ATX line of SEVEN or more `#`, bare or carrying text — a real pandoc `Header` that the
+ * outline does not show (Session 266).
+ *
+ * Pandoc's markdown reader caps no level: `atxHeader` counts `many1 (char '#')`, so `#######` is a
+ * `Header` at level 7 and a line of 64 is one at level 64. Its HTML writer has no `<h7>`, so quarto
+ * renders `<section class="level64"><p class="heading"></p>` — nothing the outline shows — but the
+ * line is still a BLOCK: it ends the paragraph above it, so a `##` glued below it is a real heading,
+ * and the line below it starts a fresh paragraph a setext underline may claim. Until this session
+ * the model read the line as paragraph text and `blank_before_header` then ate every heading glued
+ * beneath it: 26 in one authored document (the re-score's R1, `docs/REAL-DOCUMENT-RESCORE.md`), the
+ * only corpus document the change moves. Of 422 designed probes (`scratchpad/s266/probes/g`, `g2`),
+ * 117 went from disagreeing with quarto to agreeing and none the other way.
+ *
+ * ⚠ **IT IS A BLOCK LINE, NOT A HEADING LINE WITH ITS OUTLINE ROW SKIPPED — AND THE FIRST BUILD WAS
+ * THE LATTER.** Reading the run through `atxHeadingMatch` and the ATX branch, and never pushing it,
+ * looks like the faithful model of "a header of level 7". The adversarial pass refuted it: that
+ * branch's setext-swallow gate reads the RAW next line, so `> #######` / `> ---` — which quarto
+ * renders `h2:#######`, and HEAD got right — lost its heading (`R5`). Kept a BODY line, the run is
+ * claimed by the setext row exactly as HEAD's paragraph line was, and its two block effects are
+ * `deepAtxHeaderLineIsBlock`'s, read by `closesParagraph` and `opensFreshBlock`. Each gate is the
+ * ATX row's, and each was measured against a 7+ line:
+ *   - the COLUMN rule: indented 1-3 under the default reader the run is prose (`G2`), where
+ *     `CLOSES_PARAGRAPH`'s ` {0,3}` bare row keeps a phantom on the 6-`#` twin — the report's R1 ⚠;
+ *   - the paragraph question: pressed under prose, or lazily under a quote, it continues the
+ *     paragraph (`G3`); it interrupts one only under a RESOLVED reader without
+ *     `blank_before_header` (`R8`), never on an unresolved key, where the ATX row's fail-open would
+ *     mint a heading on a LATER line (`R6`);
+ *   - pandoc tries `setextHeader` first, so `#######` / `===` is `h1:#######` (`G4`).
+ * ⚠ **OFF UNDER THE COMMONMARK READERS**, which cap ATX at six: under `gfm` the run is paragraph text
+ * and joins a multi-line setext title (`G1`).
+ *
+ * ⚠ **WHAT IT COSTS, MEASURED: A 7+ RUN NOW BEHAVES LIKE ITS 6-`#` TWIN, WRONG PLACES INCLUDED.** As
+ * prose, the run re-opened a paragraph and so MASKED every misread of the block above it. The
+ * adversarial pass rendered 1,941 probes (`scratchpad/s266/adv/`): this build fixes 398 and newly
+ * diverges on 379 — every one a PHANTOM, and every one inherited: HEAD already reports the same
+ * phantom for the same line cut to six `#` (344), for a bare run replaced by `###### six words`
+ * (21), or for the document with the run deleted (14) (`scratchpad/s266/twins/`, `twins_atx/`).
+ * The misreads underneath are pre-existing: verbatim `<pre>` / `<script>` / `<style>` and raw-TeX
+ * bodies, footnote bodies, headerless simple tables, inline spans that cross the line end,
+ * constructs a reader disables, and a last-wins `from:` the resolver reads backwards.
+ */
+const DEEP_ATX_HEADER = /^[ \t]*(#{7,})(?:[ \t].*)?$/;
+/**
+ * `DEEP_ATX_HEADER` for a reader without `space_in_atx_header`, where `#######seven` is a header
+ * too — measured under `markdown_strict`, `markdown_mmd`, `markdown_phpextra` and
+ * `markdown-space_in_atx_header` (`scratchpad/s266/probes/g2`, `k01`/`k02`).
+ *
+ * ⚠ **`(?![.)])` is the `fancy_lists` guard, and it errs one way on purpose.** Pandoc refuses
+ * `#######.` as a header only where `fancy_lists` is on (the run would be a list marker), which is
+ * `markdown-space_in_atx_header` but NOT `markdown_strict`, `markdown_mmd` or `markdown_phpextra`.
+ * This model has no `fancy_lists` flag, so the guard always refuses: a header those three readers
+ * render stays paragraph text here — a kept loss, not an invented block — pinned as the Session 266
+ * RESIDUAL row.
+ */
+const DEEP_ATX_HEADER_TIGHT = /^[ \t]*(#{7,})(?![.)])/;
+/**
+ * Whether `line` is a 7+ `#` header at a column a header may start — the ATX row's own column rule
+ * (`atxHeadingMatch`), including its block-quote fail-safe for unknown columns.
+ */
+function deepAtxHeaderLineIsBlock(
+  line: string,
+  columns: readonly number[] | null,
+  tight: boolean,
+): boolean {
+  if (!(tight ? DEEP_ATX_HEADER_TIGHT : DEEP_ATX_HEADER).test(line)) {
+    return false;
+  }
+  const indent = indentColumn(line);
+  return columns === null ? indent <= 3 : columns.includes(indent);
+}
 /**
  * The columns a CommonMark-dialect document accepts an ATX heading at — §4.2's own 0-3
  * tolerance, which quarto's DEFAULT dialect does not have (see `atxHeadingMatch`). Used
@@ -1990,6 +2062,9 @@ const CLOSES_PARAGRAPH: readonly RegExp[] = [
   /^ {0,3}\[(?!\^[^\s^\]]+\]:)[^\]]*\]:/, //                 a link reference — NOT a `[^1]:` footnote
   HTML_BLOCK_OR_INLINE_OPEN, //                              a raw HTML block — see the note below
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
+  // ⚠ **A run of 7+ is NOT widened into the row above (Session 266)** — `closesParagraph` asks
+  // `deepAtxHeaderLineIsBlock` ahead of its bail, with the ATX row's column rule and paragraph
+  // question rather than this row's ` {0,3}` and suspension; see `DEEP_ATX_HEADER`.
   // ⚠ Neither the raw-TeX macro row NOR the indented-code row is here — each needs the
   // containing block's content column, which no RegExp in an array can see. `closesParagraph`
   // tests them via `rawTexMacroLineIsBlock` (Session 189) and `indentedCodeLine` (Session 193)
@@ -4937,11 +5012,17 @@ function closesParagraph(
   divFenceHere: boolean,
   tableShapedIsBlock: boolean,
   pipeTableOpens: boolean,
+  deepHeaderHere: boolean,
 ): boolean {
   if (lineBlockAbove && LINE_BLOCK_CONTINUATION.test(line)) {
     return true;
   }
   if (prevWasAtxHeading && SETEXT_UNDERLINE_RUN.test(line)) {
+    return true;
+  }
+  // A line of 7+ `#` (Session 266). The caller has already asked the paragraph question, which
+  // is the ATX row's rather than the one below — see `DEEP_ATX_HEADER`.
+  if (deepHeaderHere) {
     return true;
   }
   // ⚠ **A CLOSER THAT CLOSES NOTHING IS NOT A CLOSER — IT IS ORDINARY PARAGRAPH TEXT**
@@ -5318,8 +5399,13 @@ function opensFreshBlock(
   line: string,
   paragraphOpen: boolean,
   contentColumns: readonly number[] | null,
+  deepHeaderHere: boolean,
 ): boolean {
   if (HTML_BLOCK_OPEN.test(line) || RAW_TEX_BLOCK_MACRO.test(line)) {
+    return true;
+  }
+  // A line of 7+ `#` (Session 266), whose paragraph question the caller has already asked.
+  if (deepHeaderHere) {
     return true;
   }
   if (paragraphOpen) {
@@ -5684,6 +5770,7 @@ const COMMENT_FULL_LINE = /^[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
 const SIMPLE_TABLE_HEADER_OUTRANKED: readonly RegExp[] = [
   ATX_HEADING, //                  an ATX heading with text
   /^[ \t]*#{1,6}[ \t]*$/, //       and a bare `##`, which pandoc reads as an EMPTY one
+  DEEP_ATX_HEADER, //              and a line of 7+ `#`, bare or not — a header pandoc does not cap
   SETEXT_H1, //                    an `=` underline — and the `-` spelling below covers a
   SETEXT_H2, //                    front-matter terminator and a `---` thematic break with it
   FENCE_OPEN, //                   either fence delimiter (`FENCE_CLOSE` is a subset of this)
@@ -8228,10 +8315,18 @@ function computeRegions(text: string): Regions {
         bodyRunOpensNonParagraph =
           indented || COMMONMARK_RUN_OPENS_BLOCK.test(line) || prevOpenedHtmlBlock;
       }
+      // A line of 7+ `#` — a pandoc header the outline never shows (Session 266); see
+      // `DEEP_ATX_HEADER`. Off under a reader known to cap ATX at six. Against an open paragraph
+      // it is a header only where the reader drops `blank_before_header`, and only a RESOLVED
+      // reader can say so (R6).
+      const deepHeaderHere: boolean =
+        !commonmarkDialect &&
+        deepAtxHeaderLineIsBlock(line, rawTexColumns, tightAtxDialect && literalHtmlLines?.has(i) !== true) &&
+        (!paragraphOpen || (markdownFamilyDialect && !blankBeforeHeaderDialect));
       // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
       // whether these bytes open a block or merely continue a paragraph depends on it.
       pendingFreshBlock =
-        emptySiblingItem || opensFreshBlock(line, paragraphOpen, rawTexColumns);
+        emptySiblingItem || opensFreshBlock(line, paragraphOpen, rawTexColumns, deepHeaderHere);
       prevOpenedHtmlBlock = HTML_BLOCK_OPEN.test(line);
       // Does THIS line open a raw HTML block the reader will swallow? Only under a
       // CommonMark-family reader — pandoc's own reader parses markdown inside such a block
@@ -8512,6 +8607,7 @@ function computeRegions(text: string): Regions {
           divRole !== null && divAtColumn,
           tableShapedIsBlock,
           pipeTableOpens,
+          deepHeaderHere,
         );
       if (inSimpleTable) {
         // ⚠ **A TABLE CELL IS NOT PARAGRAPH CONTENT, AND THIS IS THE HALF OF SESSION 239 THAT

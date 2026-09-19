@@ -18705,3 +18705,191 @@ describe("Session 263 PINS — the line-0 `{}` propagation", () => {
     expect(names(["    ```{}x", "", ...laterB])).toEqual(["After B", "Tail"]);
   });
 });
+
+describe("Session 266 — a line of 7+ `#` is a pandoc Header of level 7+, so it ends the paragraph", () => {
+  // Pandoc's markdown reader caps no ATX level: `atxHeader` counts `many1 (char '#')`, so a line of
+  // seven or more is a `Header` at that level. Its HTML writer has no `<h7>`, so quarto renders it as
+  // `<p class="heading">` inside a `<section class="levelN">` — nothing the outline shows — but it is
+  // still a BLOCK, and the `##` below it is a real heading. Every expectation is a `quarto render
+  // --to html` (quarto 1.7.33 / pandoc 3.6.3) of these exact bytes, `scratchpad/s266/probes/`.
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n") + "\n").map((h) => `h${h.level}:${h.text}`);
+  const probe = (...body: string[]) => ["---", "title: probe", "engine: markdown", "---", "", ...body];
+
+  it("R1: a line of 64 `#` does not swallow the two headings below it (the corpus shape, `g/none__s02_chain__r64`)", () => {
+    expect(names(probe("#".repeat(64), "## After One", "## After Two"))).toEqual([
+      "h2:After One",
+      "h2:After Two",
+    ]);
+  });
+
+  it("R2: a 7+ line that CARRIES TEXT is a header too, and the outline shows neither it nor its text (`g/none__t01_blank__t8`)", () => {
+    expect(names(probe("######## eight words", "## After Text"))).toEqual(["h2:After Text"]);
+  });
+
+  it("R3: a 7+ line OUTRANKS a simple table, so the dashes below it are a rule and not a separator (`g/none__s15_table__r7`, `t09_table__t8`)", () => {
+    // Pandoc tries `header` before `table`. Rendered: an `<hr>`, no `<table>`, and both headings.
+    expect(names(probe("#######", " ---", "# Probe Table A", "", "## Tail Table"))).toEqual([
+      "h1:Probe Table A",
+      "h2:Tail Table",
+    ]);
+    expect(names(probe("######## eight words", " ---", "# Probe Text Table", "", "## Tail Text Table"))).toEqual([
+      "h1:Probe Text Table",
+      "h2:Tail Text Table",
+    ]);
+  });
+
+  it("R4: under a reader WITHOUT `space_in_atx_header`, `#######seven` is a header too (`g2/*__k01_tight_atx`, `k02_tight_fresh`)", () => {
+    const withFrom = (reader: string, ...body: string[]) =>
+      ["---", "title: probe", "engine: markdown", `from: ${reader}`, "---", "", ...body];
+    // `markdown-space_in_atx_header` keeps `blank_before_header`, so the ATX below is the witness.
+    expect(names(withFrom("markdown-space_in_atx_header", "#######seven tight", "## After Tight"))).toEqual([
+      "h2:After Tight",
+    ]);
+    // `markdown_strict` has no `blank_before_header`, so the witness is the fresh setext title.
+    expect(names(withFrom("markdown_strict", "#######seven tight", "Fresh Tight", "===", "", "## Tail K2"))).toEqual([
+      "h1:Fresh Tight",
+      "h2:Tail K2",
+    ]);
+  });
+
+  it("R5: an underline directly below still claims the run as its setext title INSIDE A QUOTE (`v/q1`, `q2`, `q4`)", () => {
+    // Found by this session's adversarial pass against a first build that read the run through the
+    // ATX branch: its swallow gate sees the raw next line, `> ---`, so the quoted underline never
+    // claimed the run and the heading was lost. HEAD had all three right, as does the bare 6-`#` twin.
+    expect(names(probe("> #######", "> ---"))).toEqual(["h2:#######"]);
+    expect(names(probe("> ####### Deep Seven Words", "> ==="))).toEqual(["h1:####### Deep Seven Words"]);
+    // The underline is LAZY here — at the item's column, unquoted — and pandoc's title keeps the `>`.
+    expect(names(probe("- item words", "", "  > #######", "  ---"))).toEqual(["h2:> #######"]);
+  });
+
+  it("R6: under a `from:` this scanner cannot resolve, a PRESSED run continues the paragraph, as its 6-`#` twin does (`v/u1`, `u2`)", () => {
+    // Rendered, one paragraph `prose line here ####### Fresh Pressed ===`. The ATX row's fail-open on
+    // an unresolved key is a heading on its OWN line; here it would mint one on a LATER line.
+    const anchored = (...body: string[]) =>
+      ["---", "title: probe", "engine: markdown", "from: &rd markdown", "---", "", ...body];
+    expect(names(anchored("prose line here", "#######", "Fresh Pressed", "==="))).toEqual([]);
+    expect(names(anchored("prose line here", "######", "Fresh Pressed", "==="))).toEqual([]);
+  });
+
+  it("R7: under a `from:` this scanner cannot resolve, an UNPRESSED run still starts a fresh paragraph (`v/u5`, `v/u6`)", () => {
+    // Rendered: `h1:Fresh Title` under `&rd markdown`. Under `&rd gfm` quarto renders an `h1` here
+    // too, only with the run in its text (`####### Deep Words Fresh Title`) — so arming the row on an
+    // unresolved key costs at most that TEXT difference, never a heading quarto does not render.
+    const anchored = (value: string, ...body: string[]) =>
+      ["---", "title: probe", "engine: markdown", `from: ${value}`, "---", "", ...body];
+    expect(names(anchored("&rd markdown", "####### Deep Words", "Fresh Title", "===", "", "## Tail U5"))).toEqual([
+      "h1:Fresh Title",
+      "h2:Tail U5",
+    ]);
+    // ⚠ Pinned as the residual that argument accepts: quarto's text is `####### Deep Words Fresh Title`.
+    expect(names(anchored("&rd gfm", "####### Deep Words", "Fresh Title", "===", "", "## Tail U6"))).toEqual([
+      "h1:Fresh Title",
+      "h2:Tail U6",
+    ]);
+  });
+
+  it("R8: under a RESOLVED reader without `blank_before_header`, a pressed run is a header and interrupts the paragraph (`g2/markdown_strict__k08`, `k09`)", () => {
+    // ⚠ Written AFTER its term, when the restructure made the term explicit — the grid rows above
+    // were its measurement and no unit test pinned it. The mutant that drops the term kills this row.
+    const strict = (...body: string[]) =>
+      ["---", "title: probe", "engine: markdown", "from: markdown_strict", "---", "", ...body];
+    expect(names(strict("prose line", "#######", "Fresh Pressed", "===", "", "## Tail K8"))).toEqual([
+      "h1:Fresh Pressed",
+      "h2:Tail K8",
+    ]);
+    expect(names(strict("prose line", "####### seven words", "Fresh Pressed Text", "===", "", "## Tail K9"))).toEqual([
+      "h1:Fresh Pressed Text",
+      "h2:Tail K9",
+    ]);
+  });
+});
+
+describe("Session 266 GUARD — where a line of 7+ `#` is NOT a block, and must stay prose", () => {
+  // Each row was green before the change and after it, and each is killed by a named mutant of it
+  // (`scratchpad/s266/tools/mutants.py`, all 14 killed). Rendered, quarto 1.7.33,
+  // `scratchpad/s266/probes/`.
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n") + "\n").map((h) => `h${h.level}:${h.text}`);
+  const probe = (...body: string[]) => ["---", "title: probe", "engine: markdown", "---", "", ...body];
+  const withFrom = (reader: string, ...body: string[]) =>
+    ["---", "title: probe", "engine: markdown", `from: ${reader}`, "---", "", ...body];
+
+  it("G1: a CommonMark reader caps ATX at six, so the run is paragraph text (`g/gfm__s10_fresh_eq__r7`)", () => {
+    // The multi-line setext title keeps the run in its text; a model that read a header here would
+    // report `Fresh Title` alone.
+    expect(names(withFrom("gfm", "#######", "Fresh Title", "===", "", "## Tail Fresh"))).toEqual([
+      "h1:####### Fresh Title",
+      "h2:Tail Fresh",
+    ]);
+  });
+
+  it("G2: indented 1-3 columns under the default reader, the run is prose (`g/none__s05_ind1__r7`, `s06_ind3__r7`)", () => {
+    // ⚠ The 6-`#` twin of these rows is a PRE-EXISTING phantom (the report's R1 ⚠), because
+    // `CLOSES_PARAGRAPH`'s bare row is ` {0,3}`. The 7+ header takes the ATX row's column rule instead.
+    expect(names(probe(" #######", "## After Ind One"))).toEqual([]);
+    expect(names(probe("   #######", "## After Ind Three"))).toEqual([]);
+  });
+
+  it("G3: pressed under prose, or lazily under a quote, the run continues the paragraph (`g/none__s03_pressed__r7`, `s20_lazy_quote__r7`, `g2/none__c12_lazy_quote_text`)", () => {
+    expect(names(probe("prose line", "#######", "## Pressed After"))).toEqual([]);
+    expect(names(probe("> quoted prose", "#######", "## After Lazy"))).toEqual([]);
+    expect(names(probe("> quoted prose", "####### seven words", "## After Lazy Text"))).toEqual([]);
+    expect(names(probe("> quoted para", "> #######", "> ## Pressed In Quote", "", "## Tail C5"))).toEqual([
+      "h2:Tail C5",
+    ]);
+  });
+
+  it("G4: an underline directly below still CLAIMS the run as its setext title (`g/none__s08_setext_eq__r7`, `t04_setext_dash__t7`)", () => {
+    // Pandoc tries `setextHeader` before `atxHeader`.
+    expect(names(probe("#######", "===", "", "## Tail Eq"))).toEqual(["h1:#######", "h2:Tail Eq"]);
+    expect(names(probe("####### seven words", "---", "", "## Tail Text Dash"))).toEqual([
+      "h2:####### seven words",
+      "h2:Tail Text Dash",
+    ]);
+  });
+
+  it("G5: under the default reader `#######seven` needs its space, so it is prose (`g/none__x01_tight7__x`)", () => {
+    expect(names(probe("#######seven tight", "## After Tight"))).toEqual([]);
+  });
+
+  it("G6: a `.` or `)` right after the run is a `fancy_lists` marker, not a header (`g/none__x03_dot7__x`, `g2/markdown-space_in_atx_header__k03_dot_fresh`)", () => {
+    expect(names(probe("#######. seven dot", "## After Dot"))).toEqual([]);
+    expect(
+      names(withFrom("markdown-space_in_atx_header", "#######. seven dot", "Fresh Dot", "===", "", "## Tail K3")),
+    ).toEqual(["h2:Tail K3"]);
+  });
+
+  it("RESIDUAL: a reader with NO `fancy_lists` reads `#######. x` as a header, and this model does not (`g2/markdown_strict__k03_dot_fresh`)", () => {
+    // ⚠ Pinned so the loss is asserted, not forgotten: quarto renders `h1:Fresh Dot` here, as it
+    // does under `markdown_mmd` and `markdown_phpextra`. This model has no `fancy_lists` flag, and
+    // G6 is the direction the tight row errs toward. Zero authored documents hold the shape.
+    expect(
+      names(withFrom("markdown_strict", "#######. seven dot", "Fresh Dot", "===", "", "## Tail K3")),
+    ).toEqual(["h2:Tail K3"]);
+  });
+
+  it("G7: at a list item's content column + 1 the run is prose; at column 4 it is code (`g2/none__c07_item_plus1`, `g/none__s07_ind4__r7`)", () => {
+    expect(names(probe("- item one", "", "   #######", "  ## After Plus One", "", "## Tail C7"))).toEqual([
+      "h2:Tail C7",
+    ]);
+    expect(names(probe("    #######", "## After Ind Four"))).toEqual(["h2:After Ind Four"]);
+  });
+
+  it("G8: a callout whose first block is a 7+ header lifts it as the title, which the outline never showed (`g2/none__c09_callout_first`)", () => {
+    expect(names(probe("::: {.callout-note}", "####### Deep Title", "", "Body text.", ":::", "", "## Tail C9"))).toEqual([
+      "h2:Tail C9",
+    ]);
+  });
+
+  it("G9: inside a CLOSED raw HTML block a reader without `markdown_in_html_blocks` renders verbatim, the tight run is not read (`v/h1`)", () => {
+    // Session 212's rule for the tight ATX row, applied to the tight 7+ row. ⚠ The SPACED twin
+    // `####### x` still mints `h1:Fresh Div Title` (`v/h2`), exactly as the 6-`#` ATX twin does on
+    // HEAD (`v/h3`) — the filed `markdown_in_html_blocks` gap, inherited rather than caused.
+    const strict = (...body: string[]) =>
+      ["---", "title: probe", "engine: markdown", "from: markdown_strict", "---", "", ...body];
+    expect(names(strict("<div>", "#######x", "Fresh Div Title", "===", "</div>", "", "## Tail H1"))).toEqual([
+      "h2:Tail H1",
+    ]);
+  });
+});

@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Sub-item (a), R1 — a line of 7+ `#` is a pandoc header: it ends the paragraph, and the outline never shows it
+- **Change:** `src/core/qmd/model.ts` — `DEEP_ATX_HEADER` (and its tight twin) and `deepAtxHeaderLineIsBlock`, read by `closesParagraph` and `opensFreshBlock` under the ATX row's column rule and paragraph question, plus one `SIMPLE_TABLE_HEADER_OUTRANKED` row. The run stays a BODY line, so an underline below still claims it. A first build routed the run through the ATX branch; the adversarial pass refuted it (a quoted `> #######` / `> ---` lost its heading, R5) and it never reached a commit. `test/unit/qmd-model.test.ts` — R1–R8, G1–G9 and one RESIDUAL pin. `BACKLOG.md` — (a) removed from its item, the Active note now recommends (d), the headline numbers and the item's `model.ts` line citations updated, and one by-catch item filed ("What a line of 7+ `#` used to MASK …").
+- **Commit/PR:** this entry's own commit
+- **Session:** S266 · **Verified:** strict TDD, every R row RED for its stated reason before GREEN (R8 written after its term, and says so); `npm test` 2930/2930; `check-types` exit 0; 14/14 mutants killed; corpus re-score 2,419 / 2,438 (was 2,418), ordinal 2494 +26 headings and 0 removed, no other document's headings, outline, cells, body lines or fence openers moved; 422 designed probes: 117 fixed, 0 broken; 1,941 adversarial probes: 398 fixed, 379 new phantoms, every one inherited from a rendered twin.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 266 claimed — sub-item (a), R1: a line of 7+ `#` ends the paragraph (in progress)
 - **Change:** `SESSION_NOTES.md` ACTIVE TASK stub and a `status: pending` S266 receipt in `HANDOFFS.md`; the Phase 0 dashboard telemetry append rides along. Operator-picked at Phase 0 (option 1 of 4, the recommended one).
 - **Commit/PR:** this entry's own commit (the claim)
