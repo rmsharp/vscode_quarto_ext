@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S265
+date: 2026-09-18
+status: pending
+active_task: AUDIT (operator-picked at Phase 0, option 1 of 4) -- re-score the 3,383 authored documents against quarto at HEAD e075a9ca, attribute every remaining divergence to a root cause, and re-rank BACKLOG.md by real-document reach. Predecessor audit: docs/REAL-DOCUMENT-TRIAGE.md (S251). No src/ change in scope.
+```
+
+```handoff
 session: S264
 date: 2026-09-18
 status: complete

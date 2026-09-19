@@ -8,16 +8,22 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 264 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S264 did:** BL-57 P8 of the upstream methodology plan, for this project — synced from fork
-`main` `0ab3881`, migrated both ledger seeds, recorded the legacy tags. Commits: `48d1790c` claim ·
-`e8c395b3` deny new root files · `b8a503e7` sync (14 files) · `acb43e0b` CHANGELOG header ·
-`69f0dd43` HANDOFFS section · `4b727a9d` CLAUDE.md + budget · `e2ad2dbb` backlog correction ·
-`6d66070a` budget comments · `3fa063aa` learnings · `a8e56e54` notes trim · `57750bb2` close-out ·
-`d71e5870` first quality gates · `8ec55f1a` amendment · `20e2708c` handoff correction.
-**PUSHED** to the public `origin` through `20e2708c` (216 commits, Sessions 230–264). Only the commit
-that records the push is local, so Phase 0 will read `ahead 1`.
+**Task:** **Session 265 IN PROGRESS** — **AUDIT: re-score the 3,383 authored documents against
+quarto at HEAD** (`e075a9ca`), attribute every remaining divergence, and re-rank `BACKLOG.md` by
+real-document reach. Operator-picked at Phase 0 (option 1 of 4). **Started:** 2026-09-18.
+**Workstream:** `docs/methodology/workstreams/AUDIT_WORKSTREAM.md`. Predecessor audit:
+`docs/REAL-DOCUMENT-TRIAGE.md` (Session 251: 2,314 of 2,438 scored agree, 124 divergent).
+**Why now:** the three largest real-reach fixes landed after S251 (callout title S257, tabset S258,
+`{{lang}}` fence S263), so "Up Next" no longer reflects real reach.
+**NOT in scope:** any `src/` change, acting on a finding, the tokenizer plan's P2–P4, ledger trims.
+**Status:** CLAIMED. Work beginning.
+**Ledger:** `CHANGELOG: pending` — the claim commit carries an *(in progress)* entry; Phase 3F
+records the rest. Until close-out this line is the crash breadcrumb for the next reconcile.
+**Phase 0 findings (S265).** Zero undocumented commits; every receipt complete; the S264 gate
+citation matches `.quality-gates-results.json`. Dashboard 76/100 — 9 devDependency advisories
+(5 high) and `BACKLOG.md` at 311,524 B, past the 262,144 B read limit.
+**⚠ Possibly completed record:** "A QUARTO FENCED DIV / CALLOUT is a container `contentColumns`
+never pushes" — `divColumns` (`model.ts:6529`) and the S257 callout slot look like both halves.
 **⚠ THE PROJECT NOW HAS QUALITY GATES** (`.quality-gates.json`: `release-gate`, `ledger-lag`). Every
 close-out runs `python3 quality_ratchet.py --run` (~50 s; needs `dist/` built) and cites its summary
 line in the receipt; Phase 0 checks it. Thresholds only tighten. The pre-commit hook is not installed.

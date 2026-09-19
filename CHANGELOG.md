@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-18 · [ad hoc] Session 265 claimed — audit: re-score the 3,383 authored documents at HEAD and re-rank the backlog by real reach (in progress)
+- **Change:** `SESSION_NOTES.md` ACTIVE TASK stub and a `status: pending` S265 receipt in `HANDOFFS.md`; the Phase 0 dashboard telemetry append rides along. Operator-picked at Phase 0 (option 1 of 4); no backlog item names this re-score (grepped), hence `[ad hoc]`.
+- **Commit/PR:** this entry's own commit (the claim)
+- **Session:** S265 · **Verified:** n/a — docs-only
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] Pushed `master` to `origin` (public), `ebaf7460..20e2708c` — 216 commits, Sessions 230–264
 - **Change:** GitHub `rmsharp/vscode_quarto_ext` `master` moves from `ebaf7460` (Session 229, the last push, 2026-08-19) to `20e2708c`, a fast-forward (0 behind after a fresh fetch). Operator-directed ("push it"), then confirmed with the full scope shown: 216 commits, not only this session's 14. Before pushing, the range was scanned for secrets, key files, `.vsix`, `scratchpad/` and `node_modules` content, and none was found (48 files changed).
 - **Commit/PR:** no commit, a non-commit action; this entry's own commit is the first after the push and is NOT pushed — the next push carries it
