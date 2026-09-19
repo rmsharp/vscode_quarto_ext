@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 266 closed out — (a), R1
+- **Change:** the S266 `HANDOFFS.md` receipt set `status: complete` (self 8, predecessor 9); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; recommended next pick the same item's (d), R4, with the re-score recipe) plus the S265 handoff evaluation and the S266 self-assessment; one `context_budget.py` telemetry append. Commits this session: `801aa776` claim · `8256fb4d` fix · `9b3d878e` runtime gate · `132c7a9a` learnings · `efd7e7d0` notes trim · this close-out.
+- **Commit/PR:** this entry's own commit
+- **Session:** S266 · **Verified:** `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at `efd7e7d0`; `npm run check-types` exit 0; `npm test` 2930/2930; `npm run test:integration` 548 passing; `check-backlog` OK (206 open items)
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S262 evaluation by S263 + S263 self-assessment)
 - **Change:** 51 lines deleted and nothing else, per the three-pair retention rule (`CLAUDE.md`, Session 256). The pair stays in git: `git show 132c7a9a:SESSION_NOTES.md`.
 - **Commit/PR:** this entry's own commit

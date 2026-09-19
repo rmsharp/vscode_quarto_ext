@@ -8,21 +8,94 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 266 IN PROGRESS** — **IMPLEMENT the Up Next head item's (a), R1:** a line of
-7+ `#` is an empty pandoc Header, so it ends the paragraph; the model caps the bare-run closer at 6
-(`src/core/qmd/model.ts:1992`; text-bearing sibling `:111`/`:129`). Operator-picked at Phase 0
-(option 1 of 4, recommended). **Started:** 2026-09-19. **Workstream:** DEVELOPMENT_WORKSTREAM.md.
-**DONE =** ordinal 2494 agrees under `scratchpad/s265/score_corrected.py` (expect 2,419 / 2,438),
-0 newly divergent. Strict TDD. **NOT in scope:** (b)–(h), the four operator decisions, ledger trims.
-**Status:** CLAIMED. Work beginning.
-**Ledger:** `CHANGELOG: pending` — the claim commit carries an *(in progress)* entry; Phase 3F
-records the rest. Until close-out this line is the crash breadcrumb for the next reconcile.
-**Phase 0 findings (S266).** Zero undocumented commits; every receipt complete; the S265 gate
-citation matches `.quality-gates-results.json`. Dashboard 76/100 — 9 devDependency advisories
-(5 high, none shipped) and `BACKLOG.md` at 315,972 B, past the 262,144 B read limit.
-**⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
+**Task:** **NONE — Session 266 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S266 did:** fixed the Up Next head item's (a), R1 — a line of 7+ `#` is a pandoc header, so it
+ends the paragraph and the outline never shows it. Corpus 2,418 → 2,419 / 2,438; only ordinal 2494
+moves (+26 headings, 0 removed). Commits: `801aa776` claim · `8256fb4d` fix · `9b3d878e` runtime
+gate (548 passing) · `132c7a9a` learnings #549–#551 · `efd7e7d0` notes trim · close-out.
+**Recommended next pick: that item's (d), R4** — a block-level HTML tag or TeX command in ATX text
+(`### 2. Overview <section>`, `## Intro \maketitle`) means the line is no heading. Repro:
+`scratchpad/s265/repro/synthetic/R4-block-in-atx.qmd` (the model reports all five; quarto three).
+Tag/macro tables `model.ts:1438`, `:1557`; the fix site is probably `parseHeadingLine` (`:9763`) or
+the ATX row (`:8245`) — an ESTIMATE, not measured. Then (b) R2 (needs the `START_CODE` oracle run).
+**Operator decisions still waiting** (report F3, F5, F6, Rec. 4): raw HTML `<hN>` not headings; R7
+recorded not built; close the fenced-div container item; adopt `score_corrected.py` as the measure.
+**Re-score after any model change** — S265's recipe, verbatim, reproduced 2,418 / 20 before use:
+`S=scratchpad/s265`; copy the build's `src/` to `$S/builds/<new>/src`; `CENSUS_SRC=$S/builds/<new>`
+`CENSUS_CORPUS=$S/snapshot.json CENSUS_OUT=$S/model_<new>.snap.tsv npx vitest run --config`
+`$S/vitest.s265.config.ts`; esbuild its `model.ts` to `$S/tools/model_<new>.cjs`; `rawhtml_adjust.js`;
+`python3 $S/score_corrected.py <new> …` (HEAD now: 2419 / 19). `scratchpad/s266/tools/views.js`
+diffs every public scan view between two builds over the corpus (edit its two `require`s).
+**⚠ A line that becomes a block UNMASKS misreads above it** (Learning #549): classify new divergence
+with rendered twins, `scratchpad/s266/tools/twins.py`; the `adv/` set is 1,941 probes to reuse.
+**⚠ The corpus is personal:** tracked files name a corpus document only by its ordinal (#548).
+**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run` (needs `dist/`; cite the summary line).
+One `CHANGELOG.md` entry per commit; the claim commit carries an *(in progress)* one.
+**⚠ `context_budget.py` exits 2** — HANDOFFS/BACKLOG/PROJECT_LEARNINGS over; MEASURE, do not quote.
+**⚠ `test:integration` takes over the screen** — ask first, and add any new row BEFORE the run.
+**⚠ `cd` in a Bash command moves the session cwd** (#535; hit once again). **⚠ Jupyter is
+installed** — force `engine: markdown` in probes. **⚠ Never `git add -A`** — `scratchpad/` is not ignored.
 
 ---
+
+## Session 265 Handoff Evaluation (by Session 266)
+
+**Score: 9/10.** The best-prepared start I could have had: every citation resolved, the recipe ran
+verbatim, and the DONE criterion was the exact number I finished on. It loses one point for a scope
+prediction it did not label as one.
+
+**What helped, specifically.**
+- ⚠ **The DONE criterion — "ordinal 2494 agrees under `score_corrected.py` (expect 2,419 / 2,438),
+  0 newly divergent".** I finished on 2,419, and it told me what to measure before I wrote a line.
+- **The re-score recipe.** It reproduced 2,418 / 20 before I trusted any delta, then scored my build
+  in seconds, three times.
+- ⚠ **"Keep a widened row at column 0: an indented run is prose to quarto."** That warning shaped the
+  final design: the new row takes the ATX row's column rule (guard G2).
+- **The repro, `model.ts:1992` / `:111` / `:129`, and the privacy, `cd`, Jupyter and `git add -A`
+  gotchas** — all accurate, all used.
+
+**What was missing / wrong.**
+- **"The fix is a widening of one closer row plus the text-bearing sibling"** (report
+  Recommendation 1) — an unlabeled estimate. It took the closer, the fresh-block row, the
+  simple-table outrank row, the tight readers, and a reader-resolved paragraph question.
+- **"Column 0"** was shorthand for the content column: a literal column-0 row would have kept 12
+  container rows of my grid lost (lists, quotes, divs).
+- Nothing it stated as a fact turned out false.
+
+**ROI: very high.** No time went on rediscovering the target; it all went on measuring it.
+
+## Session 266 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **Measured before coding:** 422 designed probes rendered through quarto first; the HEAD baseline
+  showed 87 + 37 lost rows and fixed the target before any RED.
+- **Strict TDD:** R1–R7 each RED for its stated reason before GREEN; G1–G9 guards; 14/14 mutants
+  killed, each guard by its own mutant.
+- ⚠ **The adversarial pass refuted my first design, and I redesigned rather than patched.** Routing the
+  run through the ATX branch lost `> #######` / `> ---` (a deletion HEAD had right). v2 keeps the run a
+  body line; the quote rows came back without a special case (R5).
+- ⚠ **I did not trust "379 new divergences" in either direction.** I rendered 779 twins and classified
+  every row mechanically: all 379 are phantoms HEAD already reports on a twin (Learning #549).
+- **Corpus:** only ordinal 2494 moved (+26/0), and no other public scan view moved in any of 3,383
+  documents. **Runtime:** a PRESENT/ABSENT outline row, 548 passing.
+
+**What went wrong.**
+- ⚠ **My first design came from reasoning** ("the faithful model of a level-7 header") with no probe of
+  a quoted UNDERLINE; my grid had quote rows but none of that shape (Learning #550).
+- **R8's term was written before its test** (made explicit by the restructure); disclosed in the test.
+- **v2 over-restricted unresolved readers on a polarity rule**; rendering the feared case fixed it in
+  v3 (Learning #551).
+- **I ran `test:integration` before writing its row**, so the operator had to consent twice.
+- **The `cd` trap once more**, after reading the warning at Orient. **Growth:** `BACKLOG.md` +1.8 KB
+  (one by-catch item), `PROJECT_LEARNINGS.md` +2.7 KB. **Cost:** one workflow, 6 agents, ~1.1M
+  subagent tokens, ~3,100 quarto renders.
+
+**Against the bar.** Session 263 executed a plan to the digit and attacked it; this one had no plan,
+built its own measurement, lost its first design to the attack, and closed with the one real-document
+loss it was sent for recovered and no heading deleted anywhere.
 
 ## Session 264 Handoff Evaluation (by Session 265)
 
