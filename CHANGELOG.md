@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Session 266 learnings #549–#551 — unmasking vs causing, inherited gates, polarity is not a measurement
+- **Change:** three rows appended to `PROJECT_LEARNINGS.md`: #549 classify a new divergence as inherited only from a rendered twin; #550 a construct routed through an existing branch inherits that branch's blind spots; #551 render the case a "declining is safe" rule guards against before applying it.
+- **Commit/PR:** this entry's own commit
+- **Session:** S266 · **Verified:** n/a — docs-only; row numbers checked contiguous (540–551)
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] The runtime gate for (a), R1 — an outline row in a real Extension Development Host, run and green
 - **Change:** `test/integration/suite/outline.test.ts` — one row through `vscode.executeDocumentSymbolProvider`: PRESENT, a 64-`#` run and a text-bearing `########` run release three glued `##` headings and are no outline rows themselves; ABSENT, the same run pressed under prose releases nothing. Both documents rendered through quarto 1.7.33 first (`scratchpad/s266/probes/v/i1`, `i2`): quarto agrees with this build and not with HEAD's on PRESENT.
 - **Commit/PR:** this entry's own commit
