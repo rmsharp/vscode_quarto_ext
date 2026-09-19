@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Audit: the real-document re-score — 98.24% agreement at HEAD (99.18% with the instrument corrected); the 20 divergences left come from eight root causes no open item describes
+- **Change:** `docs/REAL-DOCUMENT-RESCORE.md` (new): six builds (Session 251 → HEAD) scored over one frozen copy of the 3,383-document authored corpus; Session 251's published numbers reproduced exactly first (three controls). Every change since Session 251 was a pure gain (45 + 21 + 15 documents fixed, 0 newly divergent, 0 real headings deleted). All 43 divergent documents attributed (a 14-agent diagnose-then-refute workflow; 23 reproductions re-run firsthand): 26 are instrument artifacts — I1 quarto UI chrome, I2 raw HTML `<hN>`, I3 every `.Rmd` rendered as `.qmd` (which also hid 3 real divergences) — and the corrected instrument (`scratchpad/s265/score_corrected.py`) gives 2,418 / 2,438 with 20 divergent. `BACKLOG.md`: new "Up Next" head item *The Outline's last real-document divergences — eight root causes …* ((a)–(h), R1 a 7+ `#` line = 26 lost headings in one document); the Active note's candidates and ranking guidance rewritten to supersede Session 251's; the fenced-div container item annotated as probably complete (operator decision, report F6). Privacy: corpus documents named only by ordinal; every quoted reproduction uses invented text. The report was reviewed by three agents (numbers, privacy, citations) before commit and their confirmed findings corrected.
+- **Commit/PR:** this entry's own commit
+- **Session:** S265 · **Verified:** `node check-backlog.js` OK (205 open items); `npm test` 66 files / 2912 passed; no `src/` or `test/` change
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-18 · [ad hoc] Session 265 claimed — audit: re-score the 3,383 authored documents at HEAD and re-rank the backlog by real reach (in progress)
 - **Change:** `SESSION_NOTES.md` ACTIVE TASK stub and a `status: pending` S265 receipt in `HANDOFFS.md`; the Phase 0 dashboard telemetry append rides along. Operator-picked at Phase 0 (option 1 of 4); no backlog item names this re-score (grepped), hence `[ad hoc]`.
 - **Commit/PR:** this entry's own commit (the claim)
