@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Session 265 closed out — audit: the real-document re-score
+- **Change:** the S265 `HANDOFFS.md` receipt set `status: complete` (self 7, predecessor 8); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; recommended next pick the Up Next head item's (a), R1, with the re-score recipe) plus the S264 handoff evaluation and the S265 self-assessment; one `context_budget.py` telemetry append. Commits this session: `2c611290` claim · `ad7a52a4` report + backlog · `2bf70504` learnings · `d403fc37` notes trim · this close-out.
+- **Commit/PR:** this entry's own commit
+- **Session:** S265 · **Verified:** `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at `d403fc37`; `npm run compile` exit 0; `npm test` 2912/2912; `check-backlog` OK (205 open items)
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S261 evaluation by S262 + S262 self-assessment)
 - **Change:** 63 lines deleted and nothing else, per the three-pair retention rule (`CLAUDE.md`, Session 256). The pair stays in git: `git show 2bf70504:SESSION_NOTES.md`.
 - **Commit/PR:** this entry's own commit

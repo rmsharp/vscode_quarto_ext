@@ -8,39 +8,87 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 265 IN PROGRESS** — **AUDIT: re-score the 3,383 authored documents against
-quarto at HEAD** (`e075a9ca`), attribute every remaining divergence, and re-rank `BACKLOG.md` by
-real-document reach. Operator-picked at Phase 0 (option 1 of 4). **Started:** 2026-09-18.
-**Workstream:** `docs/methodology/workstreams/AUDIT_WORKSTREAM.md`. Predecessor audit:
-`docs/REAL-DOCUMENT-TRIAGE.md` (Session 251: 2,314 of 2,438 scored agree, 124 divergent).
-**Why now:** the three largest real-reach fixes landed after S251 (callout title S257, tabset S258,
-`{{lang}}` fence S263), so "Up Next" no longer reflects real reach.
-**NOT in scope:** any `src/` change, acting on a finding, the tokenizer plan's P2–P4, ledger trims.
-**Status:** CLAIMED. Work beginning.
-**Ledger:** `CHANGELOG: pending` — the claim commit carries an *(in progress)* entry; Phase 3F
-records the rest. Until close-out this line is the crash breadcrumb for the next reconcile.
-**Phase 0 findings (S265).** Zero undocumented commits; every receipt complete; the S264 gate
-citation matches `.quality-gates-results.json`. Dashboard 76/100 — 9 devDependency advisories
-(5 high) and `BACKLOG.md` at 311,524 B, past the 262,144 B read limit.
-**⚠ Possibly completed record:** "A QUARTO FENCED DIV / CALLOUT is a container `contentColumns`
-never pushes" — `divColumns` (`model.ts:6529`) and the S257 callout slot look like both halves.
-**⚠ THE PROJECT NOW HAS QUALITY GATES** (`.quality-gates.json`: `release-gate`, `ledger-lag`). Every
-close-out runs `python3 quality_ratchet.py --run` (~50 s; needs `dist/` built) and cites its summary
-line in the receipt; Phase 0 checks it. Thresholds only tighten. The pre-commit hook is not installed.
-**⚠ NEW LEDGER RULE, in force since the sync: ONE `CHANGELOG.md` ENTRY PER COMMIT.** The claim commit
-carries an *(in progress)* entry; a committed entry is never edited — a correction is a new entry.
-Rules: `docs/methodology/FRAMEWORK_APPARATUS.md:338`; this project's form: `CLAUDE.md:178`.
-**⚠ Tag a backlog item `[BL-<item title>]`** (no `]`); methodology work `[ad hoc]`. Grep `BACKLOG.md`
-for what a commit touches BEFORE tagging it `[ad hoc]` — S264 missed two items (Learning #543).
-**⚠ D7 DECIDED (operator, methodology S191): `HANDOFFS.md` STAYS budgeted at 65,536 B**, so it reads
-`over`; the remedy is a trim here, its own task. The trimmer fires only above 196,608 B (v1.5.0), so
-that trim needs `--budget-bytes` or `--cut N --force`.
-**Nothing is owed upstream:** methodology S191 recorded P8 (plan `:1009`) and filed the check-handoff
-bug as BL-72; S192 is fixing it. Until then, find a pending receipt with grep, not `check-handoff`.
-**⚠ Jupyter is installed** — force `engine: markdown` in render probes that are not about cells.
+**Task:** **NONE — Session 265 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S265 did:** an AUDIT — re-scored the 3,383 authored documents at HEAD
+(`docs/REAL-DOCUMENT-RESCORE.md`). Outline = quarto on 2,395 / 2,438 (98.24%, S251's instrument);
+2,418 (99.18%) with it corrected. 26 of the 43 divergences were the instrument; the 20 real ones come
+from eight root causes NO open item describes — filed as the "Up Next" head item *"The Outline's last
+real-document divergences — eight root causes …"* (a)–(h). Commits: `2c611290` claim · `ad7a52a4`
+report + backlog · `2bf70504` learnings #545–#548 · `d403fc37` notes trim · close-out.
+**Recommended next pick: that item's (a), R1** — a line of 7+ `#` is an empty pandoc Header, so it
+ends the paragraph; the model caps the closer at 6 (`model.ts:1992`; text-bearing sibling `:111`/`:129`).
+26 lost headings in one document. Repro: `scratchpad/s265/repro/c5_notebooks/a_hashrun.qmd`.
+**Operator decisions waiting:** R7 (record, don't build — report F5); raw HTML `<hN>` not headings
+(F3); close the fenced-div container item (F6); adopt `score_corrected.py` as the standing measure.
+**Re-score after any model change** (seconds; the corpus is local and personal):
+`S=scratchpad/s265`; `git archive HEAD src | tar -x -C $S/builds/<new>`; `CENSUS_SRC=$S/builds/<new>`
+`CENSUS_CORPUS=$S/snapshot.json CENSUS_OUT=$S/model_<new>.snap.tsv npx vitest run --config`
+`$S/vitest.s265.config.ts`; esbuild the build's `model.ts` to `$S/tools/model_<new>.cjs`;
+`node $S/tools/rawhtml_adjust.js $S/snapshot.json $S/rawadj_<new>.tsv $S/tools/model_<new>.cjs`;
+`python3 $S/score_corrected.py <new> $S/model_<new>.snap.tsv $S/rawadj_<new>.tsv` (HEAD: 2418 / 20).
+**⚠ The corpus is personal:** tracked files name a corpus document only by its ordinal in
+`scratchpad/s251/realfiles.txt`; grep any "synthetic" repro string against the corpus first (#548).
+**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run` (needs `dist/`; cite the summary line).
+One `CHANGELOG.md` entry per commit; the claim commit carries an *(in progress)* one.
+**⚠ `context_budget.py` exits 2** — HANDOFFS/BACKLOG/PROJECT_LEARNINGS over; MEASURE, do not quote.
+The `HANDOFFS.md` trim (D7) is still its own task; it needs `--budget-bytes` or `--cut N --force`.
+**⚠ A `cd` inside a Bash command moves the session's cwd** — use absolute paths (Learning #535; hit
+twice this session). **⚠ Jupyter is installed** — force `engine: markdown` in non-cell probes.
 **⚠ `scratchpad/` is untracked and NOT ignored** — never `git add -A` (~85,000 files).
 
 ---
+
+## Session 264 Handoff Evaluation (by Session 265)
+
+**Score: 8/10.** Every operational instruction held and was used; it loses two points for relaying a
+stale ranking without the reach measurement that would have exposed it.
+
+**What helped, specifically.**
+- ⚠ **"Phase 0 MUST present ranked candidates via `AskUserQuestion`"** — the step fired as written.
+- **The gate-citation rule** — the S264 receipt's `quality_ratchet:` line matched
+  `.quality-gates-results.json` exactly (results `bba236856bad`, manifest `8845021a4049`).
+- **"One entry per commit; the claim carries an *(in progress)* entry"** and **gotcha 2 (grep
+  `BACKLOG.md` before `[ad hoc]`)** — both followed; the grep found no re-score item.
+- **Gotcha 7 (never `git add -A`)** — every commit was staged by exact path.
+
+**What was missing.**
+- ⚠ **That the ranking it relayed was stale.** `whats_next` #1 named the TABSET item as the head of
+  "Up Next", and the Active note still ranked the `:::` div family first — fixed by S257/S258 before
+  S264 ran. Measured here: no open item explains any of the 20 divergent authored documents.
+
+**What was wrong.** Nothing I measured. Gotcha 5's sizes had moved (HANDOFFS 148,237 B), as it said.
+
+**ROI: positive.** Short, operational, and correct; the ranking gap cost nothing because the operator
+chose the re-score.
+
+## Session 265 Self-Assessment
+
+**Score: 7/10.**
+
+**What went right.**
+- ⚠ **I reproduced Session 251 exactly before trusting any delta** — its census, 2,314 / 124, and
+  81 / 34 / 9 — then froze the corpus (95 documents had changed) and checked the live corpus agrees.
+- ⚠ **Every attribution was adversarially re-checked, then re-run by me:** 43 / 43 attributed by a
+  diagnose-then-refute workflow; 23 reproductions re-run firsthand; I1 and I2 checked against all
+  2,441 cached renders; I3 measured on all 339 no-R-chunk `.Rmd` — which exposed 3 hidden divergences.
+- **Per-heading transitions for all five build steps:** 0 real headings deleted, 0 phantoms added.
+- **A three-lens review of the report before commit;** every confirmed finding corrected, and each
+  replaced reproduction re-run.
+- **TDD:** exempt — no `src/` or `test/` change. **Runtime:** n/a; gates green (below).
+
+**What went wrong.**
+- ⚠ **My first draft's prose outran its tables:** a cause count matching no table, a mixed-instrument
+  comparison row, an inverted `≥`, a headline no script reproduced, a misdescribed `divColumns`, an
+  over-claim on R2 — and a **privacy leak**: an engine name that was a path component of the document
+  cited beside it. All caught by the reviewers before commit (Learning #548).
+- **I launched the first workflow with a one-document placeholder** as `args`; stopped and relaunched.
+- **The `cd` trap twice** (Learning #535), after reading about it at Orient.
+- **Growth:** `BACKLOG.md` +4.4 KB (the new item), `PROJECT_LEARNINGS.md` +3.7 KB; the notes trim was
+  the only reduction. **Cost:** three workflows (one stopped), 17 agents, ~1.9M subagent tokens.
+
+**Against the bar.** Session 251 built the instrument and ranked by presence; this session reproduced
+it, found three defects in it, and ranked by attribution — the whole remaining list is new.
 
 ## Session 263 Handoff Evaluation (by Session 264)
 
