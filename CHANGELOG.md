@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 271 claimed — (b), R2: a knitr `---` pair swallows a heading (IN PROGRESS)
+- **Change:** Phase 1B. `SESSION_NOTES.md` ACTIVE TASK rewritten to the R2 task; a `status: pending` receipt opened in `HANDOFFS.md`; `dashboard_history.jsonl` carries Phase 0's own row. No `src/` file touched.
+- **Commit/PR:** this entry's own commit
+- **Session:** S271 · **Verified:** Orient reconciled clean and measured, not quoted — `CHANGELOG.md` frontier `641c2f3f` IS HEAD (0 undocumented commits); newest receipt S270 `status: complete`, and its `quality_ratchet` citation matches `.quality-gates-results.json` exactly (head `a55d90e1`, results `bba236856bad`, manifest `8845021a4049`, 2/2 pass). `npm run check-types` exit 0; vitest 2962/2962 in 66 files; `check-backlog` OK, 206 open items. `context_budget.py` exits 2 on the three known files; `npm audit` is 9 (5 high, 4 moderate), all devDependency.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] `.context-budget-history.jsonl` — the final-tree measurement of Session 270's growth
 - **Change:** one appended row from the close-out's `python3 context_budget.py` run (exit 2, unchanged: the same three files over ceiling). Against the S269 row it prices this session: `BACKLOG.md` +2,473 B, `HANDOFFS.md` +6,274 B, `PROJECT_LEARNINGS.md` +4,400 B, `SESSION_NOTES.md` +4,391 B, `CLAUDE.md` unchanged.
 - **Commit/PR:** this entry's own commit

@@ -8,44 +8,29 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 270 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S270 did:** took **(c), R3** and closed it as a **DECISION, not a fix** — on the operator's
-word, after building the black-box observation `CLAUDE.md` has required since S267 and nobody had a
-mechanism for. `npm run observe:posit` loads Posit's extension ALONE and asks VS Code for document
-symbols: control `## Control Heading` → `Constant:Control Heading`, `ours-loaded: false`, and all
-three R3 shapes → **(no symbols)**. quarto renders 8 headings there; Posit shows none; we show none;
-that stays. **No `src/` file was touched.**
-**Measured, not quoted:** `tools/realdoc-score/run.sh s270-final` = **2,421 / 2,438 (99.30%),
-divergent 17** — identical to the s270-baseline run, and `model.tsv` + `model.cjs` are BYTE-IDENTICAL
-between the two, so the no-behaviour-change claim is proved rather than asserted.
-Commits: `163a7082` claim · `39cabb37` the harness + the observation · `2e7e7aa5` the decision
-record + the audit correction · `a55d90e1` learnings #558–#561 · close-out · notes trim.
-**Recommended next pick: the head item's (b), R2** — a `---` pair around a knitr chunk that emits
-nothing becomes valid YAML after knitr runs, swallowing the heading between them. 2 documents
-(ordinals 2147, 2275), 8 phantoms, and the only phantom pair left. ⚠ It needs to know what knitr
-LEAVES BEHIND, not where a fence sits, and the ported region grammar feeds the validation
-partitioner, so a change there needs its own `npm run test:oracle` run. That cost is an ESTIMATE.
-**⚠ ASK WHICH ORACLE GOVERNS BEFORE BUILDING ANYTHING.** R3 was filed as a defect and was a
-decision; 3 documents and 8 headings left the fixable column without one line of `src/` changing.
-`CLAUDE.md` §Clean-room boundary is the rule, and `npm run observe:posit` is now the cheap way to
-settle it — for R2, ask it FIRST, not after the code exists.
-**⚠ The harness is built and two of the three RECORD decisions still rest on a BUNDLE GREP** —
-raw-HTML `<hN>` and R7's appendix re-level (S267). Adding probes for them is cheap now and is a
-session of its own. Nothing depends on it yet.
-**⚠ `docs/REAL-DOCUMENT-RESCORE.md` carries a dated CORRECTION at its R3 reproduction** (#559): an
-audit's counts can be right while its mechanism is wrong. The tell was that the audit's OWN minimal
-reproduction rendered no heading. If a repro does not reproduce, that IS the finding.
-**⚠ PIN THE VS CODE VERSION in any new `@vscode/test-electron` runner** (#558) — unpinned it floats
-to 1.138.0, whose binary is `Code` where the library spawns `Electron`: a bare `ENOENT`. Pin
-`1.129.0`, the baseline `test/integration/runTest.ts` already pins. And write the suite in mocha
-**bdd** (`describe`/`it`) — `suite`/`test` throws `ReferenceError: suite is not defined`.
+**Task:** **Session 271 IN PROGRESS — (b), R2 of the Up Next head item: a `---` pair around a knitr
+chunk that emits nothing becomes valid YAML after knitr runs**, swallowing the heading between them.
+The model reads the PRE-knitr fence, refuses the block (`FENCE_ANYWHERE_IN_BLOCK`) and reports the
+heading. **2 authored documents (ordinals 2147, 2275), 8 PHANTOM headings** — the last phantom pair.
+**Started:** 2026-09-20. Operator-picked at Phase 0 by `AskUserQuestion` from four ranked options
+(R2 recommended; the others were probes for the two RECORD decisions that still rest on a bundle
+grep, R5+R6, and a catch-all).
+**Status:** Session claimed. Work beginning — no code touched yet.
+**Ledger:** `CHANGELOG: pending` — the claim commit's entry says (in progress); Phase 3F records the
+rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+**⚠ ORACLE FIRST, CODE SECOND** — the S270 handoff's #2, and the reason R3 shipped nothing. Posit's
+Outline is the product oracle where it and `quarto render` disagree (`CLAUDE.md` §Clean-room
+boundary); `npm run observe:posit` settles it in one run. Ask it BEFORE building anything.
+**⚠ Its constraint:** the ported region grammar feeds the validation partitioner
+(`core/yaml-value-flags.ts`), so any change there needs its own `npm run test:oracle` run.
+**⚠ `R` IS installed here** (`/usr/local/bin/R`), so R2's real-execution half — which the re-score
+recorded as "measured by the diagnosing agent, not re-verified" — is measurable this session.
 **⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
-records, not the one you expect. One `CHANGELOG.md` entry per commit.
-**⚠ Write a number only after measuring it** (#552). **⚠ `context_budget.py` exits 2** (measured) —
-`HANDOFFS.md`, `BACKLOG.md`, `PROJECT_LEARNINGS.md` over ceiling; MEASURE, do not quote.
-**⚠ `npm audit` is 9 advisories (5 high, 4 moderate), all devDependency** — the filed item says 6.
-**⚠ `cd` in a Bash command moves the session cwd** (#535) — I tripped it despite reading the warning.
+records. One `CHANGELOG.md` entry per commit. `tools/realdoc-score/run.sh <label>` after any change
+reaching `findHeadings`, plus a document-by-document diff of the two model bundles.
+**⚠ Screen-taking runs need the operator's go-ahead BEFORE launch** — `observe:posit`,
+`test:integration`, `test:lsp`. Pin VS Code `1.129.0` and write mocha **bdd** (#558).
+**⚠ Write a number only after measuring it** (#552). **⚠ `cd` moves the session cwd** (#535).
 **⚠ Never `git add -A`** — `scratchpad/` is untracked, NOT ignored.
 
 ---

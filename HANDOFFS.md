@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S271
+date: 2026-09-20
+status: pending
+active_task: (b), R2 of the Up Next head item -- a `---` pair around a knitr chunk that emits nothing becomes valid YAML after knitr runs, swallowing the heading between them. The model reads the PRE-knitr fence, refuses the block (FENCE_ANYWHERE_IN_BLOCK) and reports the heading: 2 authored documents (ordinals 2147, 2275), 8 PHANTOM headings, the last phantom pair. Operator-picked at Phase 0 by AskUserQuestion from four ranked options. ORACLE FIRST: `npm run observe:posit` decides whether this is a defect or a Posit-matching decision, BEFORE any code exists (the S270 handoff's #2).
+```
+
+```handoff
 session: S270
 date: 2026-09-20
 status: complete
