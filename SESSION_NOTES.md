@@ -8,40 +8,130 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 270 IN PROGRESS — (c), R3 of the Up Next head item: grid-table cells hold
-blocks.** An ATX heading inside a well-formed grid-table cell renders, in any column; a row wider
-than its border fuses `Head` / `====` into a setext `h1` inside a cell. **3 authored documents, 8
-LOST headings** — the largest remaining divergence and in the DELETION direction.
-**Started:** 2026-09-19. Operator-picked at Phase 0 by `AskUserQuestion` from four ranked options
-(R3 recommended; the others were the attribute-tokenizer plan's P2, R2's knitr `---` pair, and the
-over-budget-file reduction).
-**Status:** Session claimed. Work beginning — no code touched yet.
-**Ledger:** `CHANGELOG: pending` — the claim commit's entry says (in progress); Phase 3F records
-the rest. Until close-out this line is the crash breadcrumb for the next session's reconcile.
-**Baseline to beat, MEASURED at Orient, not quoted:** `npm test` 2962/2962 (66 files);
-`npm run check-types` exit 0; `check-backlog` OK, 206 open items; `CHANGELOG.md` frontier = HEAD
-(0 undocumented commits); newest `HANDOFFS.md` receipt S269 `status: complete`.
-**Fix sites named by S269's handoff (an ESTIMATE, and S268's estimate of the same kind was WRONG in
-the deleting direction):** `model.ts:112`, `:905`, `:4531`–`:4586`. Verify before trusting.
-**⚠ DONE for any heading fix** = a `tools/realdoc-score/run.sh` line in the receipt AND a
-document-by-document diff of the two model bundles — the score alone cannot say what else moved.
-**⚠ The instrument trap (#554):** `tools/realdoc-score/extract_headings.py` CANNOT adjudicate a
-probe whose heading line opens a SWALLOWING element. Grep the raw HTML for `<h[1-6]` instead; a
-refused line shows as literal `### T …` text. Acting on its answer put a DELETION on `master` for
-one commit last session.
-**⚠ One-document sweeps are contaminated by their own earlier rows (#555)** — one name per document.
-**⚠ Decide decline-the-match vs drop-the-emission by RENDERING the two shapes that separate them
-(#557)** — forcing the ATX row's `m` to null instead of dropping the emission DELETES headings.
+**Task:** **NONE — Session 270 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S270 did:** took **(c), R3** and closed it as a **DECISION, not a fix** — on the operator's
+word, after building the black-box observation `CLAUDE.md` has required since S267 and nobody had a
+mechanism for. `npm run observe:posit` loads Posit's extension ALONE and asks VS Code for document
+symbols: control `## Control Heading` → `Constant:Control Heading`, `ours-loaded: false`, and all
+three R3 shapes → **(no symbols)**. quarto renders 8 headings there; Posit shows none; we show none;
+that stays. **No `src/` file was touched.**
+**Measured, not quoted:** `tools/realdoc-score/run.sh s270-final` = **2,421 / 2,438 (99.30%),
+divergent 17** — identical to the s270-baseline run, and `model.tsv` + `model.cjs` are BYTE-IDENTICAL
+between the two, so the no-behaviour-change claim is proved rather than asserted.
+Commits: `163a7082` claim · `39cabb37` the harness + the observation · `2e7e7aa5` the decision
+record + the audit correction · `a55d90e1` learnings #558–#561 · close-out · notes trim.
+**Recommended next pick: the head item's (b), R2** — a `---` pair around a knitr chunk that emits
+nothing becomes valid YAML after knitr runs, swallowing the heading between them. 2 documents
+(ordinals 2147, 2275), 8 phantoms, and the only phantom pair left. ⚠ It needs to know what knitr
+LEAVES BEHIND, not where a fence sits, and the ported region grammar feeds the validation
+partitioner, so a change there needs its own `npm run test:oracle` run. That cost is an ESTIMATE.
+**⚠ ASK WHICH ORACLE GOVERNS BEFORE BUILDING ANYTHING.** R3 was filed as a defect and was a
+decision; 3 documents and 8 headings left the fixable column without one line of `src/` changing.
+`CLAUDE.md` §Clean-room boundary is the rule, and `npm run observe:posit` is now the cheap way to
+settle it — for R2, ask it FIRST, not after the code exists.
+**⚠ The harness is built and two of the three RECORD decisions still rest on a BUNDLE GREP** —
+raw-HTML `<hN>` and R7's appendix re-level (S267). Adding probes for them is cheap now and is a
+session of its own. Nothing depends on it yet.
+**⚠ `docs/REAL-DOCUMENT-RESCORE.md` carries a dated CORRECTION at its R3 reproduction** (#559): an
+audit's counts can be right while its mechanism is wrong. The tell was that the audit's OWN minimal
+reproduction rendered no heading. If a repro does not reproduce, that IS the finding.
+**⚠ PIN THE VS CODE VERSION in any new `@vscode/test-electron` runner** (#558) — unpinned it floats
+to 1.138.0, whose binary is `Code` where the library spawns `Electron`: a bare `ENOENT`. Pin
+`1.129.0`, the baseline `test/integration/runTest.ts` already pins. And write the suite in mocha
+**bdd** (`describe`/`it`) — `suite`/`test` throws `ReferenceError: suite is not defined`.
 **⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
 records, not the one you expect. One `CHANGELOG.md` entry per commit.
 **⚠ Write a number only after measuring it** (#552). **⚠ `context_budget.py` exits 2** (measured) —
-`HANDOFFS.md` ~59,676 tok vs 25,000; `BACKLOG.md` 318,847 B and `PROJECT_LEARNINGS.md` 1,004,000 B
-vs 65,536. **⚠ `npm audit` is now 9 advisories (5 high, 4 moderate), all devDependency** — the filed
-item still records 6.
-**⚠ `cd` in a Bash command moves the session cwd** (#535). **⚠ Never `git add -A`** — `scratchpad/`
-is untracked, NOT ignored.
+`HANDOFFS.md`, `BACKLOG.md`, `PROJECT_LEARNINGS.md` over ceiling; MEASURE, do not quote.
+**⚠ `npm audit` is 9 advisories (5 high, 4 moderate), all devDependency** — the filed item says 6.
+**⚠ `cd` in a Bash command moves the session cwd** (#535) — I tripped it despite reading the warning.
+**⚠ Never `git add -A`** — `scratchpad/` is untracked, NOT ignored.
 
 ---
+
+## Session 269 Handoff Evaluation (by Session 270)
+
+**Score: 8/10.** The task was pickable in under twenty minutes, its DONE criterion was set before
+any measurement, and nothing it stated as a fact turned out false. Two points off for a framing it
+inherited without checking and a question it never raised.
+
+**What helped, specifically.**
+- ⚠ **`whats_next` #1 named (c), R3, with its cost, its fix sites AND the word ESTIMATE on both.**
+  That is the shape a recommendation should have: actionable, and honest about which parts are guesses.
+- ⚠ **"DONE for any heading fix includes a `run.sh` line in the receipt AND a document-by-document
+  diff of the two model bundles."** I measured the baseline before touching anything because of that
+  sentence, and the diff is what let this session prove "nothing changed" byte-identically instead of
+  asserting it.
+- ⚠ **The instrument trap (#554).** I grepped raw HTML for `<h[1-6]` on every probe whose heading
+  line could open a swallowing element, and so did the 42 agents, because the warning was explicit
+  about WHY the extractor is blind rather than just saying "be careful".
+- **#555 one-name-per-document, #552 measure-then-write, the gate-citation rule and `git add -A`** —
+  all used, all accurate. The gate citation caught me: the results file records `a55d90e1`, and I
+  read it rather than assuming.
+
+**What was missing / wrong.**
+- ⚠ **It recommended R3 as a FIX and never asked which oracle governs it.** `CLAUDE.md`'s clean-room
+  boundary — written three sessions earlier, by the session that made exactly this kind of call — says
+  a quarto/Posit disagreement is a decision, not a defect. R3 turned out to be one, and the answer was
+  "ship nothing". A single line ("check the oracle before building") would have reordered this whole
+  session. It is the same class of omission as recommending a fix site without checking it.
+- ⚠ **It repeated the audit's account of R3's mechanism, which is measurably wrong** ("a row wider
+  than its border fuses `Head` / `====`"). One character wider is the single width that does NOT fire.
+  Not originally its error, but a handoff that quotes an audit inherits the audit's defects.
+- **Nothing it stated as a fact turned out false**, and its fix-site estimate (`:4531`–`:4586`) does
+  land on the grid-table region — `GRID_TABLE_BORDER` is at `:4585`.
+
+**ROI: high.** Orientation to the first measured baseline was about fifteen minutes, and its DONE
+criterion is the reason this session has a proof rather than a claim.
+
+## Session 270 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **The audit's own reproduction failed to reproduce, and I treated that as the finding rather
+  than as my own typo.** Typing out F2's R3 repro gave no heading; six further mis-alignment
+  spellings gave none either. Chasing that produced the corrected mechanism (two or more characters,
+  not one; the last non-whitespace character, not the closing pipe) and a **second trigger the audit
+  never mentions** — a `+===+` divider truncated at a column boundary.
+- ⚠ **I built the observation the project had required for three sessions and never had.**
+  `CLAUDE.md` has said since S267 that "what does Posit do?" is settled black-box; two sessions
+  grepped the bundle anyway and both said afterwards it was wrong. `npm run observe:posit` answered
+  it in one run, and its two design constraints are the load-bearing part: the symbol command MERGES
+  providers, so ours must not load (`ours-loaded: false` is printed every run), and the control is
+  the only assertion, because "no symbols" and "no provider" are otherwise the same output.
+- ⚠ **I asked at both real decision points instead of deciding.** Which oracle governs R3 was not
+  mine to settle, and neither was taking the screen — the go-ahead came before the launch, not after.
+- **I verified the agents rather than believing them.** M1's surprising indent cliff, the corpus
+  counts, the two ordinals that exit 1 — all re-measured firsthand. The adversarial pass corrected
+  **9 of 37** verified claims, including one that would have put a wrong causal rule in the record.
+- **"Nothing changed" is proved, not asserted:** `model.tsv` and `model.cjs` are byte-identical
+  between the baseline and final runs across all 3,383 corpus documents.
+
+**What went wrong.**
+- ⚠ **I spent the operator's screen twice on one observation, and both failures were preventable.**
+  First I left `@vscode/test-electron` unpinned — while `CLAUDE.md`'s own script table says the
+  runners are pinned and the file I copied from carries a comment explaining why — so it downloaded
+  302 MB of 1.138.0 and died on `ENOENT`. Then I wrote the suite with mocha `suite`/`test` against a
+  runner configured `bdd`. Thirty seconds reading `test/integration/suite/outline.test.ts` would have
+  caught the second. Consent for a screen-taking action is not a licence to iterate on it.
+- ⚠ **I tripped the `cd` gotcha (#535) in the same session I read the warning.** Harmless here, and
+  exactly the failure mode the warning exists for.
+- **`.vscode-test/` grew by a 302 MB VS Code I do not need** — the filed item already says that
+  directory is 18 GB with no visible signal. I am leaving it, and saying so, rather than quietly
+  deleting a gitignored tree that other harnesses pin into.
+- **TDD:** exempt — no `src/` logic changed; the harness's verification is its control, which fails
+  loudly. **Runtime:** the harness ran in a real Extension Development Host and its control passed;
+  the extension's own runtime is untouched and its bundle is byte-identical. **Growth:**
+  `test/posit/` +~250 lines, `PROJECT_LEARNINGS.md` +4 rows, `BACKLOG.md` +~3 KB, `docs/` +1
+  correction block. **Cost:** one workflow, 42 agents, 0 errors, ~3.16M subagent tokens, 774 tool
+  calls, ~24 min wall, plus ~120 quarto renders of my own.
+
+**Against the bar.** Session 269 shipped a measured fix; this one shipped a measured *decision* and
+an instrument that makes the next such decision cheap. The part I would repeat: refusing to let the
+audit's sentence stand once its own repro contradicted it. The part I would not: burning two launches
+of the operator's screen on mistakes that reading two nearby files would have prevented.
 
 ## Session 268 Handoff Evaluation (by Session 269)
 

@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] Session 270 closed out — R3 is decided rather than open, and the project has a black-box instrument it lacked
+- **Change:** the S270 `HANDOFFS.md` receipt set `status: complete` (self 8, predecessor 8); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; the oracle-first rule, the pinning and mocha-ui traps, and the recommended next pick sit where every session reads them) plus the S269 evaluation and the S270 self-assessment.
+- **Commit/PR:** this entry's own commit
+- **Session:** S270 · **Verified:** `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at `a55d90e1` — the head `.quality-gates-results.json` itself records, read rather than assumed. `npm test` 2962/2962 in 66 files; `npm run check-types` exit 0; `npm run check-package` OK, 42 files, 5.61 MB; `check-backlog` OK, 206 open items. `tools/realdoc-score/run.sh s270-final` = **2,421 / 2,438 (99.30%), divergent 17**, identical to `s270-baseline`; `model.tsv` and `model.cjs` **byte-identical** between the two runs across all 3,383 corpus documents, so "no behaviour changed" is proved, not asserted. Runtime: `npm run observe:posit` 5 passing, exit 0, in a real Extension Development Host with the operator's go-ahead.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Session 270 learnings — #558–#561, the black-box harness and three traps it and the corpus sweep exposed
 - **Change:** `PROJECT_LEARNINGS.md` gains four rows. #558 how to learn what another extension shows without reading its source, and the two design constraints that make the harness readable (the symbol command MERGES providers; the control is the only assertion) plus the unpinned-version trap. #559 an audit's counts can be right while its mechanism is wrong, and the tell is that its own repro does not reproduce. #560 pandoc's ATX rule is column-exact everywhere, so a container fix needs no indent tolerance of its own. #561 a corpus document quarto refuses to render is invisible to the score and still open in somebody's editor.
 - **Commit/PR:** this entry's own commit
