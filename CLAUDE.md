@@ -124,6 +124,30 @@ automated form of that check.
 
 *Origin: operator directive, Session 5 (2026-06-27), after an implementation began impl-first; the operator asked that TDD be enshrined in the correct (non-synced) methodology file so it persists across sessions.*
 
+### Clean-room boundary — Posit's extension is AGPL-3.0: observe it, do not read it (operator directive, Session 267)
+
+**This project reimplements Posit's feature set independently under MIT (see §Purpose), and Posit's
+extension is licensed AGPL-3.0** — `"license": "agpl-3.0"` in its `package.json` and the AGPL v3 text in
+its `LICENSE.txt` (`quarto.quarto-1.135.0`, measured Session 267). Matching what it *does* is the goal
+and is fine; its SOURCE is not a reference this project builds from, and AGPL terms would follow any
+code taken from it into a `.vsix` that ships MIT.
+
+- **Settle "what does Posit do?" by BLACK-BOX observation** — enable their extension in a VS Code
+  window, open a document holding the shape, and read the Outline (or the behaviour) off the screen.
+  Record the document and what it showed; that observation is the evidence.
+- **Do not read their bundle to design a rule.** Two sessions have reached into `out/lsp.js` /
+  `out/main.js` for a behavioural fact — Session 265 for the raw-HTML definition, Session 267 to
+  confirm the Outline is built from markdown `heading_open` tokens and never from rendered HTML. Both
+  answers were right; both should have been observations. Treat a bundle grep as a last resort, keep it
+  to existence facts, and say in the record that is what it was.
+- **Where quarto's RENDER and Posit's OUTLINE disagree, that is a decision, not a defect.** The audits
+  score against `quarto render` because that is mechanical over thousands of documents; the product
+  mirrors Posit. Both decisions of that kind so far chose Posit — raw HTML `<hN>` are not headings, and
+  R7's appendix re-level is not mirrored — recorded in `BACKLOG.md`'s RECORD item and in `CHANGELOG.md`.
+
+*Origin: operator directive, Session 267 (2026-09-19), when the Session 266 close-out asked which of the
+two oracles governs and the licence was measured while answering.*
+
 ### Additional Phase 0 steps
 
 **Present open backlog candidates via `AskUserQuestion` immediately after the Phase 0 report, whenever `BACKLOG.md`'s "Active" section is empty.** Rank the still-open items across `BACKLOG.md`'s "Up Next" list and any relevant "Polish / deferred" items, then hand the top ones to `AskUserQuestion` (max 4 options; recommend the top-ranked one) rather than free-form prose. If more than 4 open candidates exist, surface the top-ranked ones plus a catch-all "something lower-priority" option, and only drill into the remainder with a follow-up question if the operator picks the catch-all. This satisfies Phase 0 step 8's "STOP. Wait for the user to give you a task" — presenting a structured choice and blocking on the answer *is* waiting, not working; it does not license skipping the stop, starting work unprompted, or picking unilaterally.
