@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Session 267 claimed — record two operator decisions and the clean-room practice (in progress)
+- **Change:** `SESSION_NOTES.md` ACTIVE TASK stub and a `status: pending` S267 receipt in `HANDOFFS.md`; the Phase 0 dashboard telemetry append rides along. Operator-directed after the S266 close-out report; no backlog item names these decisions (grepped), hence `[ad hoc]`.
+- **Commit/PR:** this entry's own commit (the claim)
+- **Session:** S267 · **Verified:** n/a — docs-only
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 266 closed out — (a), R1
 - **Change:** the S266 `HANDOFFS.md` receipt set `status: complete` (self 8, predecessor 9); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; recommended next pick the same item's (d), R4, with the re-score recipe) plus the S265 handoff evaluation and the S266 self-assessment; one `context_budget.py` telemetry append. Commits this session: `801aa776` claim · `8256fb4d` fix · `9b3d878e` runtime gate · `132c7a9a` learnings · `efd7e7d0` notes trim · this close-out.
 - **Commit/PR:** this entry's own commit

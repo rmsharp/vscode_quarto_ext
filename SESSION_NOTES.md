@@ -8,34 +8,18 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 266 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S266 did:** fixed the Up Next head item's (a), R1 — a line of 7+ `#` is a pandoc header, so it
-ends the paragraph and the outline never shows it. Corpus 2,418 → 2,419 / 2,438; only ordinal 2494
-moves (+26 headings, 0 removed). Commits: `801aa776` claim · `8256fb4d` fix · `9b3d878e` runtime
-gate (548 passing) · `132c7a9a` learnings #549–#551 · `efd7e7d0` notes trim · close-out.
-**Recommended next pick: that item's (d), R4** — a block-level HTML tag or TeX command in ATX text
-(`### 2. Overview <section>`, `## Intro \maketitle`) means the line is no heading. Repro:
-`scratchpad/s265/repro/synthetic/R4-block-in-atx.qmd` (the model reports all five; quarto three).
-Tag/macro tables `model.ts:1438`, `:1557`; the fix site is probably `parseHeadingLine` (`:9763`) or
-the ATX row (`:8245`) — an ESTIMATE, not measured. Then (b) R2 (needs the `START_CODE` oracle run).
-**Operator decisions still waiting** (report F3, F5, F6, Rec. 4): raw HTML `<hN>` not headings; R7
-recorded not built; close the fenced-div container item; adopt `score_corrected.py` as the measure.
-**Re-score after any model change** — S265's recipe, verbatim, reproduced 2,418 / 20 before use:
-`S=scratchpad/s265`; copy the build's `src/` to `$S/builds/<new>/src`; `CENSUS_SRC=$S/builds/<new>`
-`CENSUS_CORPUS=$S/snapshot.json CENSUS_OUT=$S/model_<new>.snap.tsv npx vitest run --config`
-`$S/vitest.s265.config.ts`; esbuild its `model.ts` to `$S/tools/model_<new>.cjs`; `rawhtml_adjust.js`;
-`python3 $S/score_corrected.py <new> …` (HEAD now: 2419 / 19). `scratchpad/s266/tools/views.js`
-diffs every public scan view between two builds over the corpus (edit its two `require`s).
-**⚠ A line that becomes a block UNMASKS misreads above it** (Learning #549): classify new divergence
-with rendered twins, `scratchpad/s266/tools/twins.py`; the `adv/` set is 1,941 probes to reuse.
-**⚠ The corpus is personal:** tracked files name a corpus document only by its ordinal (#548).
-**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run` (needs `dist/`; cite the summary line).
-One `CHANGELOG.md` entry per commit; the claim commit carries an *(in progress)* one.
-**⚠ `context_budget.py` exits 2** — HANDOFFS/BACKLOG/PROJECT_LEARNINGS over; MEASURE, do not quote.
-**⚠ `test:integration` takes over the screen** — ask first, and add any new row BEFORE the run.
-**⚠ `cd` in a Bash command moves the session cwd** (#535; hit once again). **⚠ Jupyter is
-installed** — force `engine: markdown` in probes. **⚠ Never `git add -A`** — `scratchpad/` is not ignored.
+**Task:** **Session 267 IN PROGRESS** — **RECORD two operator decisions and one practice** (no code):
+(1) raw HTML `<hN>` tags are NOT Outline headings (report F3); (2) R7, quarto's HTML appendix
+re-level — the Outline keeps the SOURCE level, which is what Posit's extension does (report F5);
+(3) practice: settle "what does Posit do?" by BLACK-BOX observation, not by reading their bundle —
+it is AGPL-3.0 and this project is MIT. **Started:** 2026-09-19. **Workstream:** none fits;
+`docs/methodology/ITERATIVE_METHODOLOGY.md`. **NOT in scope:** decisions 3 and 4 (close the
+fenced-div item; adopt `score_corrected.py`), and any `src/` change.
+**Status:** CLAIMED. Work beginning.
+**Ledger:** `CHANGELOG: pending` — the claim commit carries an *(in progress)* entry; Phase 3F
+records the rest. Until close-out this line is the crash breadcrumb for the next reconcile.
+**Phase 0 findings (S267).** 0 undocumented commits; all 18 receipts complete; S266's gate citation
+matches `.quality-gates-results.json`. Dashboard 76/100.
 
 ---
 

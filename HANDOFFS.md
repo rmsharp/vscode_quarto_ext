@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S267
+date: 2026-09-19
+status: pending
+active_task: RECORD (operator-directed, after the S266 close-out report) -- two decisions and one practice, no code: raw HTML <hN> are not Outline headings (F3); R7's appendix re-level is recorded, not built, because the Outline keeps the SOURCE level and that is what Posit's extension does (F5); and "what does Posit do?" is settled by BLACK-BOX observation rather than by reading their AGPL-3.0 bundle.
+```
+
+```handoff
 session: S266
 date: 2026-09-19
 status: complete
