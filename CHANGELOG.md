@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S267 evaluation by S268 + S268 self-assessment)
+- **Change:** 56 lines deleted and nothing else, per the three-pair retention rule (`CLAUDE.md`, Session 256). The pair stays in git: `git show 75d69b29:SESSION_NOTES.md`.
+- **Commit/PR:** this entry's own commit
+- **Session:** S271 · **Verified:** the count is `git diff --numstat` on the final tree, not an estimate (#552) — `0	56	SESSION_NOTES.md`, deletions only, so the trim carries no other edit to the file it trims (upstream BL-36). The file holds three pairs and 286 lines against the 400-line ceiling.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] Session 271 closed out — R2 decided rather than open, and the same observation found the defect pointing the other way
 - **Change:** the S271 `HANDOFFS.md` receipt set `status: complete` (self 8, predecessor 9); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; the blank-line precondition, the two measurement slips and the recommended next pick sit where every session reads them) plus the S270 evaluation and the S271 self-assessment.
 - **Commit/PR:** this entry's own commit
