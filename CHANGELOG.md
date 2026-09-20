@@ -17,8 +17,14 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] The Session 272 gate-run measurements recorded, and one corrected figure
+- **Change:** `.context-budget-history.jsonl` and `dashboard_history.jsonl` — the appended rows from this session's `python3 context_budget.py` and `python3 methodology_dashboard.py` runs. `CHANGELOG.md` — the trim entry's remaining-size figure corrected from a written-before-measured 24,117 B to the measured **24,082 B**.
+- **Commit/PR:** this entry's own commit
+- **Session:** S272 · **Verified:** `wc -c SESSION_NOTES.md` → 24082, and `context_budget.py` prints the same. Both history files are TRACKED and every tool run appends to them, so they are staged by exact path rather than swept up. This is the SECOND unmeasured number this session (the first was "every one a real slide title" about the 80 recovered headings, corrected in `model.ts` before it was committed) — recorded here rather than quietly fixed, because two in one session is the pattern worth carrying forward.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S268 evaluation + S269 self-assessment)
-- **Change:** `SESSION_NOTES.md` — the Session 268 handoff evaluation and the Session 269 self-assessment removed, so the live file holds the steady-state THREE pairs (`CLAUDE.md` §SESSION_NOTES.md retention). 4,440 B removed; 311 lines, 24,117 B remain.
+- **Change:** `SESSION_NOTES.md` — the Session 268 handoff evaluation and the Session 269 self-assessment removed, so the live file holds the steady-state THREE pairs (`CLAUDE.md` §SESSION_NOTES.md retention). 4,440 B removed; **311 lines, 24,082 B** remain (measured after the write, correcting a figure this entry first carried unmeasured — Learning #552).
 - **Commit/PR:** this entry's own commit
 - **Session:** S272 · **Verified:** a trim commit must contain no other edit to the file being trimmed (upstream BL-36), and this one does not — the retained portion was proved BYTE-IDENTICAL to `git show HEAD:SESSION_NOTES.md` up to the cut point before the file was written. The dropped pair is one command away: `git show f8297b28:SESSION_NOTES.md`. `python3 context_budget.py` → SESSION_NOTES.md ok (311 / 400 lines, 24,117 / 120,000 B, no line over 280 B).
 - **Model:** Claude Opus 5 (claude-opus-5)
