@@ -580,7 +580,8 @@
     "check-backlog": "node check-backlog.js",
     "vscode:prepublish": "npm run compile && npm run check-package",
     "test:lsp": "npm run compile && npm run compile-tests && node ./out/test/lsp/runTest.js",
-    "test:lsp:workspace": "QMD_LSP_DIAGMODE=workspace npm run test:lsp"
+    "test:lsp:workspace": "QMD_LSP_DIAGMODE=workspace npm run test:lsp",
+    "observe:posit": "npm run compile-tests && node ./out/test/posit/runTest.js"
   },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",

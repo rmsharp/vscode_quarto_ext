@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] A BLACK-BOX harness for Posit's Outline, and the R3 observation it was built to make
+- **Change:** `npm run observe:posit` (`test/posit/`) launches an Extension Development Host holding a throwaway extensions dir with ONLY `quarto.quarto` and a do-nothing host extension, so `vscode.executeDocumentSymbolProvider` returns Posit's symbols and no one else's. This is the method `CLAUDE.md` §Clean-room boundary requires in place of reading their AGPL-3.0 source, made repeatable: two prior sessions used a bundle grep and both recorded that it should have been an observation. One assertion only — the control — because "no symbols" and "no provider" are otherwise indistinguishable.
+- **Commit/PR:** this entry's own commit
+- **Session:** S270 · **Verified:** run with the operator's explicit go-ahead. Control `## Control Heading` -> `Constant:Control Heading`, so Posit provided symbols; `ours-loaded: false`, so nothing of this extension was in the host. All three R3 shapes -> **(no symbols)**: an ATX heading at column 0 of a well-formed grid cell, a multi-line cell fusing into a setext h1, and the over-wide-row spelling of ordinal 491. Artefact: `scratchpad/s270/posit-observation.txt`. `npm run check-package` OK, 42 files, 5.61 MB — the new test root does not reach the `.vsix`.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 270 claimed — sub-item (c), R3: grid-table cells hold blocks (in progress)
 - **Change:** Phase 1B claim — `SESSION_NOTES.md` ACTIVE TASK rewritten to the R3 task, and a `status: pending` receipt opened in `HANDOFFS.md`. `dashboard_history.jsonl` carries the row Phase 0's own `methodology_dashboard.py` run appended. Operator-picked at Phase 0 by `AskUserQuestion` from four ranked options (R3 recommended; the others were the attribute-tokenizer plan's P2, R2's knitr `---` pair, and reducing the three over-budget mandated-read files). No code touched yet.
 - **Commit/PR:** this entry's own commit
