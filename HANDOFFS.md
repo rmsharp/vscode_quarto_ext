@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S270
+date: 2026-09-19
+status: pending
+active_task: IN PROGRESS -- (c), R3 of the Up Next head item "The Outline's last real-document divergences": grid-table cells hold blocks. An ATX heading in a well-formed grid-table cell renders, in any column; a row wider than its border fuses `Head` / `====` into a setext h1 inside a cell. 3 authored documents, 8 LOST headings -- the largest remaining divergence and in the DELETION direction. Operator-picked at Phase 0 by AskUserQuestion from four ranked options (R3 recommended; the others were the attribute-tokenizer plan's P2, R2's knitr `---` pair, and the over-budget-file reduction).
+```
+
+```handoff
 session: S269
 date: 2026-09-19
 status: complete

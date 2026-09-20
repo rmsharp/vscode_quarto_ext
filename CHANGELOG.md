@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 270 claimed — sub-item (c), R3: grid-table cells hold blocks (in progress)
+- **Change:** Phase 1B claim — `SESSION_NOTES.md` ACTIVE TASK rewritten to the R3 task, and a `status: pending` receipt opened in `HANDOFFS.md`. `dashboard_history.jsonl` carries the row Phase 0's own `methodology_dashboard.py` run appended. Operator-picked at Phase 0 by `AskUserQuestion` from four ranked options (R3 recommended; the others were the attribute-tokenizer plan's P2, R2's knitr `---` pair, and reducing the three over-budget mandated-read files). No code touched yet.
+- **Commit/PR:** this entry's own commit
+- **Session:** S270 · **Verified:** Orient measured, not quoted — `CHANGELOG.md` frontier `c717413a` **is** HEAD, so 0 undocumented commits; `git rev-list --count --no-merges c717413a..HEAD` = 0; newest `HANDOFFS.md` receipt S269 `status: complete` and its `quality_ratchet` citation (`results bba236856bad · manifest 8845021a4049` at `014db19b`) matches `.quality-gates-results.json` exactly; `npm test` 2962/2962 in 66 files; `npm run check-types` exit 0; `check-backlog` OK, 206 open items; `context_budget.py` exit 2 on `HANDOFFS.md`/`BACKLOG.md`/`PROJECT_LEARNINGS.md`; `npm audit` 9 advisories (5 high, 4 moderate), all devDependency.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] `.context-budget-history.jsonl` — the final-tree measurement of Session 269's growth
 - **Change:** one appended row from the close-out's `python3 context_budget.py` run (exit 2, unchanged: the same three files over ceiling). Against the S268 row it prices this session: `HANDOFFS.md` +5,663 B, `PROJECT_LEARNINGS.md` +3,427 B, `SESSION_NOTES.md` +1,045 B, `BACKLOG.md` −110 B, `CLAUDE.md` unchanged.
 - **Commit/PR:** this entry's own commit

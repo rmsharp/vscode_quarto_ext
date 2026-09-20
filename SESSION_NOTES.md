@@ -8,31 +8,36 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 269 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S269 did:** closed **R4** — sub-item (d) of the Up Next head item. A block-level raw HTML tag,
-or a class-A raw-TeX command, anywhere in a heading's content means quarto renders NO heading; this
-model reported one. The gate is ONE site, `buildHeading`, so the ATX and setext paths share it.
-**Measured, not quoted:** `tools/realdoc-score/run.sh` went **2,419 → 2,421 of 2,438 (99.22% →
-99.30%)**, divergent 19 → 17; ordinals 1985 and 3004 left the list and nothing joined it. A
-document-by-document diff of the two model bundles says **exactly 2 of 3,383** outlines changed.
-Commits: `9e84bbf7` claim · `73552c3c` 19 guards · `cf9d5bad` TeX half (RED R4a) · `07d48e14` HTML
-half (RED R4b) · `bee53df7` applet/object removed + R4c–R4m + mutants · `d82e03b1` runtime gate ·
-`014db19b` records · close-out · notes trim.
-**Recommended next pick: the head item's (c), R3** — grid-table cells hold blocks; 3 documents and
-8 **LOST** headings, the largest remaining and in the deletion direction, at three fix sites
-(`model.ts:112`, `:905`, `:4531`–`:4586`) rather than R4's one. That cost is an ESTIMATE.
-**⚠ The instrument trap this session paid for (#554):** `tools/realdoc-score/extract_headings.py`
-CANNOT adjudicate a probe whose heading line opens a SWALLOWING element — it hides the heading's own
-`</h3>`. It reported no heading for `### T <applet>` where the render holds
-`<h3 class="anchored">T098 <applet>`, and acting on that put a DELETION on `master` for one commit.
-Grep the raw HTML for `<h[1-6]` instead; a refused line shows as literal `### T …` text.
-**⚠ DONE for any heading fix** now includes a `run.sh` line in the receipt AND the two-bundle
-document-by-document diff — the score alone cannot say what else moved.
+**Task:** **Session 270 IN PROGRESS — (c), R3 of the Up Next head item: grid-table cells hold
+blocks.** An ATX heading inside a well-formed grid-table cell renders, in any column; a row wider
+than its border fuses `Head` / `====` into a setext `h1` inside a cell. **3 authored documents, 8
+LOST headings** — the largest remaining divergence and in the DELETION direction.
+**Started:** 2026-09-19. Operator-picked at Phase 0 by `AskUserQuestion` from four ranked options
+(R3 recommended; the others were the attribute-tokenizer plan's P2, R2's knitr `---` pair, and the
+over-budget-file reduction).
+**Status:** Session claimed. Work beginning — no code touched yet.
+**Ledger:** `CHANGELOG: pending` — the claim commit's entry says (in progress); Phase 3F records
+the rest. Until close-out this line is the crash breadcrumb for the next session's reconcile.
+**Baseline to beat, MEASURED at Orient, not quoted:** `npm test` 2962/2962 (66 files);
+`npm run check-types` exit 0; `check-backlog` OK, 206 open items; `CHANGELOG.md` frontier = HEAD
+(0 undocumented commits); newest `HANDOFFS.md` receipt S269 `status: complete`.
+**Fix sites named by S269's handoff (an ESTIMATE, and S268's estimate of the same kind was WRONG in
+the deleting direction):** `model.ts:112`, `:905`, `:4531`–`:4586`. Verify before trusting.
+**⚠ DONE for any heading fix** = a `tools/realdoc-score/run.sh` line in the receipt AND a
+document-by-document diff of the two model bundles — the score alone cannot say what else moved.
+**⚠ The instrument trap (#554):** `tools/realdoc-score/extract_headings.py` CANNOT adjudicate a
+probe whose heading line opens a SWALLOWING element. Grep the raw HTML for `<h[1-6]` instead; a
+refused line shows as literal `### T …` text. Acting on its answer put a DELETION on `master` for
+one commit last session.
+**⚠ One-document sweeps are contaminated by their own earlier rows (#555)** — one name per document.
+**⚠ Decide decline-the-match vs drop-the-emission by RENDERING the two shapes that separate them
+(#557)** — forcing the ATX row's `m` to null instead of dropping the emission DELETES headings.
 **⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
 records, not the one you expect. One `CHANGELOG.md` entry per commit.
-**⚠ Write a number only after measuring it** (#552). **⚠ `context_budget.py` exits 2** —
-HANDOFFS/BACKLOG/PROJECT_LEARNINGS over ceiling; MEASURE, do not quote.
+**⚠ Write a number only after measuring it** (#552). **⚠ `context_budget.py` exits 2** (measured) —
+`HANDOFFS.md` ~59,676 tok vs 25,000; `BACKLOG.md` 318,847 B and `PROJECT_LEARNINGS.md` 1,004,000 B
+vs 65,536. **⚠ `npm audit` is now 9 advisories (5 high, 4 moderate), all devDependency** — the filed
+item still records 6.
 **⚠ `cd` in a Bash command moves the session cwd** (#535). **⚠ Never `git add -A`** — `scratchpad/`
 is untracked, NOT ignored.
 
