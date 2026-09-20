@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Session 267 closed out — the decision records and the clean-room boundary
+- **Change:** the S267 `HANDOFFS.md` receipt set `status: complete` (self 8, predecessor 8); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; the open item is a black-box confirmation of the Posit half of both decisions) plus the S266 handoff evaluation and the S267 self-assessment. Commits this session: `7ec75319` claim · `9216c338` records · this close-out · a notes trim to follow.
+- **Commit/PR:** this entry's own commit
+- **Session:** S267 · **Verified:** `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at `9216c338`; `npm test` 2930/2930; `check-backlog` OK (207 open items)
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Two operator decisions recorded — raw HTML `<hN>` are not Outline headings; R7's appendix re-level is not mirrored — plus the clean-room practice
 - **Change:** `BACKLOG.md` — a RECORD item holding both decisions, and the head item's `(g)` sub-item retired into it (six sub-items remain, behind 12 of the 19 divergent documents, 9 of them fixable). `CLAUDE.md` — §Clean-room boundary: Posit's extension is AGPL-3.0 (`"license": "agpl-3.0"`, AGPL v3 in its `LICENSE.txt`, `quarto.quarto-1.135.0`), so behaviour parity is the goal and its source is not a reference; settle "what does Posit do?" by black-box observation, and where `quarto render` and Posit's Outline disagree, that is a decision rather than a defect. ⚠ Both decisions' Posit half rests on a BUNDLE GREP, labelled as such in the record and awaiting a black-box confirmation nothing yet depends on.
 - **Commit/PR:** this entry's own commit

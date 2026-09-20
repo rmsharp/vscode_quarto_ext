@@ -8,20 +8,85 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 267 IN PROGRESS** — **RECORD two operator decisions and one practice** (no code):
-(1) raw HTML `<hN>` tags are NOT Outline headings (report F3); (2) R7, quarto's HTML appendix
-re-level — the Outline keeps the SOURCE level, which is what Posit's extension does (report F5);
-(3) practice: settle "what does Posit do?" by BLACK-BOX observation, not by reading their bundle —
-it is AGPL-3.0 and this project is MIT. **Started:** 2026-09-19. **Workstream:** none fits;
-`docs/methodology/ITERATIVE_METHODOLOGY.md`. **NOT in scope:** decisions 3 and 4 (close the
-fenced-div item; adopt `score_corrected.py`), and any `src/` change.
-**Status:** CLAIMED. Work beginning.
-**Ledger:** `CHANGELOG: pending` — the claim commit carries an *(in progress)* entry; Phase 3F
-records the rest. Until close-out this line is the crash breadcrumb for the next reconcile.
-**Phase 0 findings (S267).** 0 undocumented commits; all 18 receipts complete; S266's gate citation
-matches `.quality-gates-results.json`. Dashboard 76/100.
+**Task:** **NONE — Session 267 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S267 did:** recorded two operator decisions and one practice; NO code. (1) A raw HTML
+`<hN>` line is not an Outline heading. (2) R7 — quarto's HTML appendix re-level is not mirrored;
+the Outline keeps the SOURCE level, which is Posit's behaviour. Both live in `BACKLOG.md`'s new
+RECORD item (the head item's `(g)` retired into it) and in `CHANGELOG.md`. (3) `CLAUDE.md`
+§Clean-room boundary: Posit's extension is **AGPL-3.0**, so match behaviour, never build from its
+source; settle "what does Posit do?" by BLACK-BOX observation. Commits: `7ec75319` claim ·
+`9216c338` records · notes trim · close-out.
+**⚠ OPEN, and the one thing this session could not finish:** both decisions' Posit half rests on a
+BUNDLE GREP, labelled as such in the record. A black-box confirmation would settle it — open one of
+the 7 R7 documents (ordinals 837, 838, 840–843, 847) in VS Code with `quarto.quarto-1.135.0` enabled
+and read the Outline, or build an automated oracle (their extension in a throwaway extensions dir,
+`vscode.executeDocumentSymbolProvider` — the `test:lsp` harness is the precedent). Nothing depends
+on it today.
+**Recommended next pick: the Up Next head item's (d), R4** — unchanged from S266, with its repro
+`scratchpad/s265/repro/synthetic/R4-block-in-atx.qmd` (model reports five headings, quarto three).
+**Operator decisions still waiting:** close the fenced-div item (report F6 — its own example agrees
+in the model at HEAD, re-checked S266) and adopt `score_corrected.py` as the standing measure
+(report Rec. 4; it lives in untracked `scratchpad/s265`, so adopting it should also move the SCRIPT
+somewhere tracked — the corpus stays personal).
+**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run` (needs `dist/`; cite the summary
+line). One `CHANGELOG.md` entry per commit; the claim commit carries an *(in progress)* one.
+**⚠ `context_budget.py` exits 2** — HANDOFFS/BACKLOG/PROJECT_LEARNINGS over; MEASURE, do not quote.
+**⚠ `cd` in a Bash command moves the session cwd** (#535). **⚠ Jupyter is installed** — force
+`engine: markdown` in probes. **⚠ Never `git add -A`** — `scratchpad/` is untracked, NOT ignored.
 
 ---
+
+## Session 266 Handoff Evaluation (by Session 267)
+
+**Score: 8/10.** It made a two-commit session possible in minutes: the four open decisions were
+listed with their report sections, and the one I needed most — R7 — carried its cost argument. Two
+points off for a gap it could have closed and a fact nobody had.
+
+**What helped, specifically.**
+- **"Operator decisions still waiting (report F3, F5, F6, Rec. 4)"** — four pointers, each landing on
+  the right section of `docs/REAL-DOCUMENT-RESCORE.md` on the first read.
+- **F5's argument** (citation resolution, four metadata gates, a "section holds only its heading"
+  test, HTML-specific) was exactly what the decision needed, and survived re-reading.
+- **The gates, `cd`, Jupyter and `git add -A` warnings** — all still accurate.
+
+**What was missing.**
+- ⚠ **No home for a decision record.** The handoff said what was undecided, never where a settled
+  decision goes. This session had to choose (a `BACKLOG.md` RECORD item beside Session 257's, plus
+  `CHANGELOG.md`), and the next decision will face the same choice — now answered by the record.
+- **The licence was nobody's fact yet.** Posit's extension is AGPL-3.0; the audit had read its
+  bundle twice without noting it. Not a defect of the handoff, but it is what made this session's
+  practice necessary.
+
+**ROI: high**, and cheap: the report sections did the arguing.
+
+## Session 267 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **I measured the licence before writing the practice** — `"license": "agpl-3.0"` in the
+  extension's `package.json`, AGPL v3 in its `LICENSE.txt` — rather than assuming MIT because the
+  Quarto CLI is.
+- ⚠ **I labelled the weak evidence instead of asserting it.** Both decisions' Posit half is a bundle
+  grep, and the record says so, twice, with what a confirmation would look like.
+- **Scope held:** two files of content, one record, no code; decisions 3 and 4 left open as directed.
+- **I re-checked the one factual claim I could** — the fenced-div example still yields no heading in
+  the current build — rather than quoting Session 265.
+
+**What went wrong.**
+- ⚠ **I used a bundle grep in the session that adopted "don't".** Existence facts only
+  (`heading_open` present, `processDocumentAppendix` absent), and disclosed — but the honest order
+  was to observe first and grep only if that failed.
+- **The learning went to `CLAUDE.md`, not `PROJECT_LEARNINGS.md`** — deliberately, since a directive
+  and a row would duplicate; stated here because Phase 3C expects a row.
+- **Nothing was removed this session**, so the mandated-read files grew by the record and the
+  practice (`BACKLOG.md` +1.9 KB, `CLAUDE.md` +1.9 KB); the notes trim below is the only reduction.
+- **TDD:** exempt — no logic changed. **Runtime:** n/a — no runtime behaviour moved.
+
+**Against the bar.** Session 266 shipped a measured fix; this one only wrote things down, which is
+the right size for the task. The part I would repeat: refusing to let "Posit does X" into a record
+without saying how that was learned.
 
 ## Session 265 Handoff Evaluation (by Session 266)
 
