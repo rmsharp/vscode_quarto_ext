@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] Session 272 close-out — the handoff receipt, the predecessor evaluation and the self-assessment
+- **Change:** `HANDOFFS.md` S272 receipt completed (`status: pending` → `complete`, `self_score: 8`, `predecessor_score: 9`, all six requirements filled). `SESSION_NOTES.md` ACTIVE TASK rewritten to the closed state, plus the Session 271 handoff evaluation and the Session 272 self-assessment.
+- **Commit/PR:** this entry's own commit
+- **Session:** S272 · **Verified:** runtime gate run with the operator's go-ahead — `npm run test:integration` in a real Extension Development Host, **549 passing, exit 0**, including both the reversed Outline test and Session 211's reader-resolution test. `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at head `77c403df`, the head the results file itself records. `grep -c '^status: pending' HANDOFFS.md` → 0.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] Session 272 learnings — #568–#571 — and the records the fix closes and opens
 - **Change:** `PROJECT_LEARNINGS.md` +4 rows (a fail-safe that hides a defect makes its removal look like a regression; check which probe rows DISCRIMINATE before spending the screen; reverse pins in place with their reason rather than deleting the suite; the separation surface is a measurement and the skip reached four features). `BACKLOG.md` — the completed mid-document-metadata item removed, decision **(5)** added to the RECORD item (the title goes four → five), the two stale pointers to the closed item rewritten, and the EMPTY `---` / `---` pair the fix UNMASKS filed as a new item with its reach.
 - **Commit/PR:** this entry's own commit

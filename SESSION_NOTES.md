@@ -8,20 +8,130 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 272 IN PROGRESS** — close the NEW (Session 271) item *"THE MID-DOCUMENT
-METADATA RULE DELETES HEADINGS POSIT SHOWS, in 30 documents quarto cannot render, and it buys the
-scorable corpus NOTHING"*. Operator picked it at Phase 0 from the ranked `AskUserQuestion`.
-**Started:** 2026-09-20.
-**Status:** Session claimed. Work beginning.
-**Shape:** ⚠ **the oracle question comes BEFORE any code** — the S271 observation covers two
-spellings, not the feature. Probe the feature black-box with `npm run observe:posit` (operator
-go-ahead required BEFORE the launch), then fix under strict TDD if the oracle says the model is
-wrong, or close out on the decision with its measurement if it does not.
-**Ledger:** `CHANGELOG: pending` — the claim commit's `CHANGELOG.md` entry says (in progress);
-Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next
-session's reconcile.
-
+**Task:** **NONE — Session 272 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S272 did:** took the NEW (S271) mid-document-metadata item and **FIXED it** — the first
+`src/` change in three sessions, after two consecutive decisions. The Outline no longer models
+mid-document YAML metadata at all; it models the OPENING block and only the opening block, which is
+what Posit does.
+**Measured, not quoted:** `tools/realdoc-score/run.sh s272-final` = **2,421 / 2,438 (99.30%),
+divergent 17**, the IDENTICAL ordinal lists as the baseline run; the bundle diff is **30 documents,
+80 headings GAINED, 0 LOST**. All 30 are `.Rmd` and `quarto render` exits 1 on all 30, so zero
+scorable documents are touched — which is why the score cannot see a thing.
+**The oracle was asked FIRST, and widely:** `npm run observe:posit`, 15 probes, every one rendered
+through real quarto BEFORE the run and proved byte-identical to the bytes the harness writes. Posit
+shows the heading for ALL SEVEN suppressed spellings — including both block-quote ones, never
+observed before — and lists NO front-matter key (`m11_fm_only`), which is the control that turns
+"Posit ignores YAML" into "Posit models the opening block only".
+Commits: `bfd8d2f5` claim · `54a4a1c6` the 13 probes · `dc4c478d` the fix · `77c403df` records.
+**Recommended next pick: (e) R5 and (f) R6** — the last two FIXABLE scorable divergences, 1 document
+and 1 heading each, both knitr chunk-grammar. Or the two RECORD decisions still resting on a bundle
+grep (raw-HTML `<hN>`, R7's appendix re-level); the harness now has 13 probes' worth of shape to
+copy, so probing them is cheaper than it has ever been.
+**⚠ The fix UNMASKED a pre-existing defect and it is filed, not hidden** — an EMPTY `---` / `---`
+pair reads as a setext heading `h2:---`. Reach: 1 occurrence in 1 of 3,383 documents (ordinal 2256,
+quarto-exit-1). ⚠ **Do NOT fix it by putting the suppression back**; that masked it and cost 80
+headings. S241's C6 already refutes the obvious cheap fix with six rendered rows.
+**⚠ The separation the item warned about was already in the code** — the two arms fork at the
+enumeration and never rejoin, so every S211 reader-resolution test stayed green untouched. But the
+skip reached FOUR features, not one: `findHeadings`, `findBodyLines` **and `findMathRegions`** all
+move; cells and fence openers do not, which is why the oracle could not (and did not) move.
+**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
+records. One `CHANGELOG.md` entry per commit. **⚠ Write a number only after measuring it** (#552).
+**⚠ `cd` moves the session cwd** (#535) — tripped once. **⚠ Never `git add -A`.**
 ---
+
+## Session 271 Handoff Evaluation (by Session 272)
+
+**Score: 9/10.** Its recommendation was right, its two warnings about the fix were the two things
+worth warning about, and every number it stated held when I re-measured it. One point off because
+its single ESTIMATE was wrong in the direction that would have made the work look harder than it is.
+
+**What helped, specifically.**
+- ⚠ **`whats_next` #1 named the item, its direction and its size, and the ranking survived.** "80
+  headings across 30 documents, deletion direction, against the product oracle" — I re-derived all
+  three from a throwaway build before touching anything and got 30 / 80 / 0-lost exactly. A
+  recommendation whose numbers reproduce is worth more than one that argues well.
+- ⚠ **Gotcha (6), "a score that excludes failing documents cannot price a change that touches
+  them."** This is why I classified all 30 documents against the ground truth instead of reading the
+  score line — and the answer (all 30 exit 1, zero scorable) is the fact the whole decision rests on.
+- ⚠ **`whats_next` #2 corrected the inherited oracle-cost claim, and it was right.** It measured
+  that `midDocumentMetadataRegions` is module-local, so a heading-side fix reaches no diagnostic.
+  I verified it independently — the oracle's import closure touches `model.ts` only through
+  `findCellOptionLines`, which reads the `cells` view — and ran `test:oracle` green to confirm.
+- **Gotcha (8), screen-taking runs need the go-ahead BEFORE launch, pin 1.129.0, mocha `bdd`.** Two
+  screen runs this session, both with consent taken first, both green on the first attempt.
+- **#552, #535, `git add -A`, and the ordinal rule** — all used, all accurate.
+
+**What was missing / wrong.**
+- ⚠ **Its one ESTIMATE was wrong, and it was labelled as one, which is why this costs a single
+  point.** "A fix has to separate reader resolution from heading suppression." It does not: the two
+  arms already fork at the enumeration and never rejoin, so removing the span arm needed no
+  separation work at all and every Session 211 test stayed green with no edit. Believing it would
+  have bought engineering that was not needed.
+- ⚠ **And the blast radius it implied was too NARROW in the other direction.** The suppression's
+  `continue` sat in `computeRegions`' shared loop, so it skipped the line for every region view —
+  `findMathRegions` moves too, which no record mentions. The handoff sized the change by the name of
+  the flag rather than by what the `continue` skips.
+- **It could not have known the fix unmasks a pre-existing defect** (the empty `---` / `---` pair),
+  and nothing it wrote pointed at it. Not a fault; recorded so the next session does not read its
+  silence as evidence.
+
+**ROI: very high.** Orientation to a reproduced defect and a measured baseline took about thirty
+minutes, and its #1 was directly actionable with no re-derivation of the ranking.
+
+## Session 272 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **I asked the oracle FIRST and asked it about the FEATURE, not the two spellings I inherited.**
+  Fifteen probes, each rendered through real quarto before the run and then proved byte-identical to
+  the bytes the harness writes by reading them back out of the compiled `out/test/posit/runTest.js`.
+  Posit answered all seven suppressed spellings the same way, including both block-quote ones no
+  session had ever observed — so the decision rests on the rule, not on a sample of it.
+- ⚠ **The control I added is the one that turned an observation into a conclusion.**
+  `m11_fm_only` carries `author: Kilo Author` and Posit lists only the real heading. Without it the
+  finding is "Posit shows things inside `---` spans"; with it the finding is "Posit models the
+  opening block and only the opening block", which is a rule this model can implement exactly.
+- ⚠ **Two test rows went red in the DELETING direction and I did not narrow the change to make them
+  green.** The disproof took one probe: the same bytes on the PRE-change build under a reader that
+  never consumed already answered `h2:---`. The suppression was masking a pre-existing defect, and
+  narrowing would have put the mask back and cost the 80 headings (#568). Filed with its reach — 1
+  occurrence in 1 of 3,383 documents — rather than hidden.
+- **Strict TDD:** ONE failing test written first and shown failing for the right reason (the heading
+  absent, its control present) before any `src/` edit. The five inverse-polarity guards — the rows
+  asserting a heading is PRESENT — needed no edit at all, which is the mechanical proof the change
+  only ever added headings; the corpus says the same thing as a number: 80 gained, **0 lost**.
+- **25 unit expectations and 2 integration assertions were REVERSED IN PLACE with their reason,
+  not deleted** (#570). Every one is still a correct measurement of `quarto render`; only the
+  product's answer changed, and the suite now says so at the point of use.
+- **I measured the corpus claim rather than quoting it** — 30 documents, 80 headings, 0 lost, all 30
+  `.Rmd` and all 30 quarto-exit-1, classified against the ground truth rather than inferred from the
+  unchanged score.
+
+**What went wrong.**
+- ⚠ **I wrote "every one a real slide title" into the permanent record before counting.** One of the
+  80 is an `h2:---` row from the defect the change unmasks. I caught it myself, two steps later, and
+  corrected the docstring in place — but it is the second session running to publish an unmeasured
+  number into a code comment, and #552 exists precisely for this.
+- ⚠ **I tripped the `cd` gotcha (#535)**, in the session whose ACTIVE TASK warns about it. Harmless.
+- **My first pass at the reversals guessed at actual values instead of measuring them**, and the
+  parse of the vitest log silently returned nothing because I had filtered blank lines out of it. I
+  switched to reading the real actuals out of an unfiltered run, and later to evaluating the two
+  remaining expressions directly. No wrong value reached the file, but the first approach would have.
+- **TDD:** honoured for the one behaviour that drove the code; the 27 reversals are expectation
+  updates to existing pins, not new behaviour, and are labelled as reversals. **Runtime:**
+  `npm run test:integration` in a real Extension Development Host with the operator's go-ahead —
+  **549 passing, exit 0**, including the reversed Outline test and Session 211's reader-resolution
+  test. **Growth:** `src/` **−286 lines net**, `test/unit` +~200, `PROJECT_LEARNINGS.md` +4 rows,
+  `BACKLOG.md` net 0 items (one closed, one filed). **Cost:** one workflow, 11 agents, 0 errors,
+  ~1.04M subagent tokens, 271 tool calls, ~22 min wall, plus ~40 quarto renders of my own.
+
+**Against the bar.** Sessions 270 and 271 each built the instrument and used it to decide *not* to
+change anything. This session used the same instrument to decide the other way and then shipped the
+change — and the part worth repeating is that the two red rows which looked like my regression were
+measured on a build where the mask never applied before I touched the design.
 
 ## Session 270 Handoff Evaluation (by Session 271)
 
