@@ -19017,3 +19017,22 @@ describe("Session 269 GUARD — heading content that LOOKS like a block token an
     ]);
   });
 });
+
+describe("Session 269 — a block-level token anywhere in a heading's content means the line is no heading", () => {
+  // R4 of `docs/REAL-DOCUMENT-RESCORE.md`. Pandoc parses an ATX header's content as INLINES; where
+  // the inline parser refuses a token — a block-level raw HTML tag, or a raw-LaTeX block command —
+  // `many inline` stops short, the header's closing parser fails, and the whole `atxHeader` parse
+  // fails, so the line is emitted as raw text with no heading at all. The same holds for a setext
+  // title. Every expectation is a `quarto render --to html --no-execute` (quarto 1.7.33 /
+  // pandoc 3.6.3) of these exact bytes, `scratchpad/s269/probes/`, re-run firsthand.
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n") + "\n").map((h) => `h${h.level}:${h.text}`);
+  const probe = (...body: string[]) => ["---", "title: probe", "engine: markdown", "---", "", ...body];
+
+  it("R4a: `## \\maketitle` is no heading — the corpus shape, ordinal 1985 (`probes/real/real-shapes`)", () => {
+    expect(names(probe("## Kept Before", "", "## \\maketitle", "", "## Kept After"))).toEqual([
+      "h2:Kept Before",
+      "h2:Kept After",
+    ]);
+  });
+});

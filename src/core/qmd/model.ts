@@ -2541,6 +2541,44 @@ function fromHasFootnotes(line: string): boolean {
   return fromHasConstruct(line, "footnotes", READER_HAS_FOOTNOTES);
 }
 /**
+ * The reader bases measured to REFUSE a heading whose content holds a block-level raw-TeX command
+ * — R4's TeX half (Session 269). One document per base, all eight plus the no-key control
+ * (`scratchpad/s269/probes/readers/`): only `markdown` and the absent key refuse `## T \maketitle`.
+ * `markdown_mmd` and `markdown_phpextra` render it as a real heading (they carry no `raw_tex`),
+ * and so do `gfm`, `commonmark`, `commonmark_x`, `markdown_strict` and `markdown_github`.
+ */
+const READER_REFUSES_BLOCK_TEX_IN_HEADING: ReadonlySet<string> = new Set(["markdown"]);
+/**
+ * Whether the declared reader refuses a block-level token inside a heading's content (Session 269).
+ *
+ * ⚠ **THE POLARITY IS THE OPPOSITE OF `fromHasConstruct`'s, and that is the whole point.** That
+ * helper returns `true` for an unresolvable value because REMOVING a container column deletes a
+ * heading. Here `true` DECLINES a heading, so the fail-safe answer for anything not positively
+ * measured is `false`: an unreadable `from:` value, or a base outside the measured set, keeps the
+ * heading and costs at most a phantom.
+ *
+ * ⚠ **AND AN EXPLICIT `-extension` OUTRANKS THE BASE, because the gate is really the EXTENSION.**
+ * Measured: under `from: markdown-raw_tex`, `## T \maketitle` is a real heading while
+ * `### T <section>` on the same document still dies, and `from: markdown-raw_html` is the exact
+ * mirror (`scratchpad/s269/probes/verify/v40-minus-raw_tex`, `v40-minus-raw_html`). A gate keyed on
+ * the reader's NAME alone deletes both. A `+extension` on an UNMEASURED base does not switch the
+ * rule on — that direction was never rendered, and guessing it would delete.
+ */
+function fromRefusesBlockInHeading(
+  line: string | null,
+  extension: string,
+  bases: ReadonlySet<string>,
+): boolean {
+  if (line === null) {
+    return true;
+  }
+  const base = fromReaderBase(line);
+  if (base === null || !bases.has(base)) {
+    return false;
+  }
+  return fromExtensionState(line, extension) !== false;
+}
+/**
  * The bases that carry pandoc's `fenced_divs`, so a `:::` line opens a DIV rather than being
  * ordinary prose (Session 258). Measured one document per reader, each a `.panel-tabset` whose
  * two tab headings quarto consumes only where the div exists — `scratchpad/s258/rdr` `r_none`,
@@ -6460,6 +6498,18 @@ function computeRegions(text: string): Regions {
   // set at all.
   const pandocEscapes = fromEscapesAllSymbols(fromValueLine);
   const escapableSet = headingEscapable(commonmarkDialect, pandocEscapes);
+  // Whether the resolved reader refuses a heading whose content holds a block-level raw-TeX
+  // command — see `fromRefusesBlockInHeading` (Session 269, R4). A NINTH flag rather than a
+  // refinement of any of the eight around it, for the reason each of those gives: it answers its
+  // own question, about its own extension, and it is read at ONE site (`buildHeading`, shared by
+  // the ATX and setext paths). ⚠ Like `headerAttributesDialect` it takes `fromValueLine` ITSELF
+  // rather than a `!== null &&` guard — but for the OPPOSITE default: null means "no key", which
+  // is the `markdown` reader, which DOES refuse.
+  const blockTexRefusesHeading = fromRefusesBlockInHeading(
+    fromValueLine,
+    "raw_tex",
+    READER_REFUSES_BLOCK_TEX_IN_HEADING,
+  );
   // Whether the resolved reader has `space_in_atx_header` OFF, so `#Heading` with no separator
   // IS a heading — see `fromRequiresSpaceInAtxHeader` (Session 212). A SIXTH flag rather than a
   // refinement of any of the five above, for the reason each of those gives: it answers its own
@@ -8059,6 +8109,7 @@ function computeRegions(text: string): Regions {
         escapableSet,
         pandocEscapes,
         commonmarkDialect,
+        blockTexRefusesHeading,
       );
       // `prev` is `titleLines[0]` — the FIRST title line, which is where the heading's block
       // begins and therefore the line the callout's title slot was marked at. A MULTI-LINE
@@ -8267,6 +8318,7 @@ function computeRegions(text: string): Regions {
         headerAttributesDialect,
         escapableSet,
         pandocEscapes,
+        blockTexRefusesHeading,
       );
       if (heading && !calloutTitleTakes(i) && !tabsetTabTakes(i, heading.level)) {
         headings.push(heading);
@@ -9671,6 +9723,240 @@ function sectionEndOf(headings: Heading[], k: number, lastLine: number): number 
 }
 
 /**
+ * Class A as a HEADING refuses it — the same three tables, read under a DIFFERENT arity rule and
+ * with NO tail rule at all (Session 269, R4 of `docs/REAL-DOCUMENT-RESCORE.md`).
+ *
+ * ⚠ **THIS IS NOT `RAW_TEX_BLOCK_MACRO`, AND THE THREE DIFFERENCES ALL DELETE HEADINGS IF
+ * IGNORED.** That row answers "does this LINE open a block?", reached through pandoc's
+ * `rawTeXBlock` at the start of a line. This one answers "does the INLINE parser refuse this
+ * token?", reached through `rawLaTeXInline'`'s `notFollowedBy' rawLaTeXBlock` in the middle of a
+ * header's content, where the parser only has to MATCH at the backslash — it never has to
+ * consume the rest of the line. Measured, one document per shape, `scratchpad/s269/probes/c_tex`
+ * and `verify`:
+ *
+ *   - **NO TAIL RULE.** `\maketitle and more words`, `\maketitle.`, `\maketitle % a comment` and
+ *     `\maketitle \textbf{b}` ALL refuse the heading, where every one of those tails CANCELS
+ *     blockhood on a line. `MACRO_LINE_TAIL` must not be applied here.
+ *   - **THE BARE ARITY INVERTS.** `\par` is a block and `\par{x}` is not; in a heading BOTH
+ *     refuse, along with `\item{x}`, `\hrule{x}`, `\raggedright{x}` and `\par x`. The leftover
+ *     brace group opens a paragraph that swallows the heading below a LINE; inside a header there
+ *     is nothing below to swallow.
+ *   - **AN OPTIONAL `[…]` GROUP DOES NOT SATISFY ARG ARITY.** `MACRO_ARG_GROUP` admits either
+ *     bracket kind, and here only a BRACED group counts: `\section[a]`, `\title[a]` and
+ *     `\caption[a]` are real headings while `\section[a]{x}` is not.
+ *
+ * ⚠ **AND THE DEFAULT IS THE OPPOSITE ONE — ALLOW, NOT DENY.** `RAW_TEX_BLOCK_OR_MACRO_LINE` is a
+ * negative lookahead over class C precisely because an UNKNOWN macro is a block on a line. In a
+ * heading it is not: `\zzz`, `\foo{x}`, `\newcommand{\x}{y}`, `\setlength{\a}{1pt}`,
+ * `\tableofcontents`, `\appendix`, `\printbibliography` and 40 more all stay headings, and so do
+ * class B's five names in every decoration (`\vspace*{1cm}`, `\pagebreak[4]`, `\clearpage\newpage`).
+ * So this is an ALLOWLIST of the three class-A tables. Defaulting the other way here deletes a
+ * heading under every macro pandoc has never heard of — 18 documents and 73 heading lines of this
+ * project's own corpus, against the 1 line R4 is about.
+ *
+ * KNOWN RESIDUALS, disclosed rather than hidden, each a PHANTOM (the permitted direction) and each
+ * measured at zero reach over the 3,383-document corpus: the four two-braced-group names absent
+ * from all three tables (`\rule`, `\parbox`, `\epigraph`, `\newtheorem`), and a COMPLETE
+ * `\begin{E}…\end{E}` environment, whose verdict depends on text elsewhere in the document — an
+ * unbalanced `\end{other}` before the matching closer defeats the match, so no line-local rule can
+ * answer it (`scratchpad/s269/probes/d_context_refute/t03`).
+ */
+const HEADING_BLOCK_MACRO_ANY = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_ANY + ")$");
+const HEADING_BLOCK_MACRO_ARG = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_ARG + ")$");
+const HEADING_BLOCK_MACRO_BARE = new RegExp("^(?:" + PANDOC_BLOCK_MACROS_BARE + ")$");
+/**
+ * The index of `close` that balances the `open` at `i`, or -1 where the group never closes. A
+ * backslash escapes the next character, so `\{` is not a group delimiter.
+ */
+function headingGroupEnd(text: string, i: number, open: string, close: string): number {
+  let depth = 0;
+  for (let j = i; j < text.length; j++) {
+    const c = text[j];
+    if (c === "\\") {
+      j++;
+      continue;
+    }
+    if (c === open) {
+      depth++;
+    } else if (c === close) {
+      depth--;
+      if (depth === 0) {
+        return j;
+      }
+    }
+  }
+  return -1;
+}
+/**
+ * Just past a macro's own argument groups, starting at `i` (the first character after the name
+ * and its optional `*`). A run of `[…]` and `{…}` groups, each optionally preceded by spaces or
+ * tabs. Anything else ends the run, so `\maketitle and more words` consumes nothing and the prose
+ * is scanned as prose — while `\texttt{<section>}` consumes the whole group, which is why a block
+ * tag inside a class-C macro's argument never reaches the tag scan (measured, `verify/v04`).
+ */
+function headingMacroArgumentsEnd(text: string, i: number): number {
+  let j = i;
+  for (;;) {
+    let k = j;
+    while (k < text.length && (text[k] === " " || text[k] === "\t")) {
+      k++;
+    }
+    const open = text[k];
+    if (open !== "[" && open !== "{") {
+      return j;
+    }
+    const end = headingGroupEnd(text, k, open, open === "[" ? "]" : "}");
+    if (end === -1) {
+      return j;
+    }
+    j = end + 1;
+  }
+}
+/** Whether an ARG-class macro's arity is satisfied at `i` — a BRACED group, after any `[…]`. */
+function headingMacroHasBracedArgument(text: string, i: number): boolean {
+  let k = i;
+  for (;;) {
+    while (k < text.length && (text[k] === " " || text[k] === "\t")) {
+      k++;
+    }
+    if (text[k] !== "[") {
+      break;
+    }
+    const end = headingGroupEnd(text, k, "[", "]");
+    if (end === -1) {
+      return false;
+    }
+    k = end + 1;
+  }
+  return text[k] === "{" && headingGroupEnd(text, k, "{", "}") !== -1;
+}
+/** Just past an inline code span opening at `i`, or `i + 1` where its run never closes. */
+function headingCodeSpanEnd(text: string, i: number): number {
+  let run = 0;
+  while (i + run < text.length && text[i + run] === "`") {
+    run++;
+  }
+  let j = i + run;
+  while (j < text.length) {
+    if (text[j] !== "`") {
+      j++;
+      continue;
+    }
+    let k = j;
+    while (k < text.length && text[k] === "`") {
+      k++;
+    }
+    if (k - j === run) {
+      return k;
+    }
+    j = k;
+  }
+  return i + 1;
+}
+/** Just past a `$…$` or `$$…$$` math span at `i`, or `i + 1` where the delimiter never closes. */
+function headingMathEnd(text: string, i: number): number {
+  const delim = text.startsWith("$$", i) ? "$$" : "$";
+  const close = text.indexOf(delim, i + delim.length);
+  return close === -1 ? i + 1 : close + delim.length;
+}
+/**
+ * Just past a bracketed inline construct at `i` — a link or image label, a reference label, an
+ * inline footnote `^[…]`, a bracketed span — together with the `(…)`, `[…]` or `{…}` that
+ * follows it. Measured as ONE class: every bracketed spelling neutralises a block token inside it
+ * (`verify/v10`, `v18`, `v19`, `b_html_form/b33`-`b36`), so this is deliberately wider than
+ * "a resolved link". Over-skipping costs a phantom; under-skipping deletes a real heading.
+ */
+function headingBracketedEnd(text: string, i: number): number {
+  const end = headingGroupEnd(text, i, "[", "]");
+  if (end === -1) {
+    return i + 1;
+  }
+  const next = text[end + 1];
+  if (next === "(" || next === "[" || next === "{") {
+    const close = headingGroupEnd(text, end + 1, next, next === "(" ? ")" : next === "[" ? "]" : "}");
+    if (close !== -1) {
+      return close + 1;
+    }
+  }
+  return end + 1;
+}
+/**
+ * Whether the heading's RAW content holds a token pandoc's INLINE parser refuses, so the whole
+ * header parse fails and quarto renders no heading at all (Session 269, R4).
+ *
+ * ⚠ **A CONTAINMENT TEST OVER THE RAW LINE DELETES REAL HEADINGS, so this is a SCAN.** The
+ * constructs below each consume a block token that sits inside them, and quarto renders the
+ * heading: an inline code span, a backslash escape, an entity, math, a link's label, destination
+ * or title, any other bracketed inline content, an HTML comment, a CDATA section, a processing
+ * instruction, a quarto shortcode, a class-C macro's braced argument, and another tag's quoted
+ * attribute value. All 19 rows of `Session 269 GUARD` are that list, each one rendered.
+ *
+ * ⚠ **It runs on the text AFTER the attribute-block and closing-hash strips and BEFORE
+ * `decodeHeadingEscapes`**, and both halves of that are measured. After: a block tag inside the
+ * trailing `{…}` is read as an ATTRIBUTE and is harmless — `### T {#hx data-z="<section>"}` is a
+ * real `h3` (`d_context_refute/k04`). Before: the decode turns `\<section>` into `<section>`, and
+ * the model's own emitted text for that REAL heading is then byte-identical to a refused one, so a
+ * predicate run on the decoded text cannot tell them apart (`verify/v23`).
+ */
+function headingContentRefused(text: string, blockTex: boolean, escapable: RegExp): boolean {
+  if (!blockTex) {
+    return false;
+  }
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    if (c === "`") {
+      i = headingCodeSpanEnd(text, i);
+      continue;
+    }
+    if (c === "$") {
+      i = headingMathEnd(text, i);
+      continue;
+    }
+    if (c === "[") {
+      i = headingBracketedEnd(text, i);
+      continue;
+    }
+    if (c === "{" && text.startsWith("{{<", i)) {
+      const close = text.indexOf(">}}", i);
+      i = close === -1 ? i + 1 : close + 3;
+      continue;
+    }
+    if (c === "\\") {
+      const next = text[i + 1];
+      if (next !== undefined && escapable.test(next)) {
+        i += 2;
+        continue;
+      }
+      if (next !== undefined && /[a-zA-Z]/.test(next)) {
+        let end = i + 1;
+        while (end < text.length && /[a-zA-Z]/.test(text[end])) {
+          end++;
+        }
+        let name = text.slice(i + 1, end);
+        if (text[end] === "*") {
+          name += "*";
+          end++;
+        }
+        if (
+          blockTex &&
+          (HEADING_BLOCK_MACRO_ANY.test(name) ||
+            HEADING_BLOCK_MACRO_BARE.test(name) ||
+            (HEADING_BLOCK_MACRO_ARG.test(name) && headingMacroHasBracedArgument(text, end)))
+        ) {
+          return true;
+        }
+        i = headingMacroArgumentsEnd(text, end);
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+    i += 1;
+  }
+  return false;
+}
+/**
  * Build a `Heading` from a raw heading-text line, or `null` if nothing displayable remains.
  * Strips a trailing Pandoc attribute block (shared by ATX and setext) and then, when `closing`
  * is non-null, that reader's closing-hash run.
@@ -9703,6 +9989,7 @@ function buildHeading(
   escapable: RegExp,
   pandocEscapes: boolean,
   commonmarkDialect: boolean,
+  blockTexRefuses: boolean,
 ): Heading | null {
   const brace = honoursAttributes ? HEADING_ATTRIBUTE.exec(rawText) : null;
   // ⚠ **A brace group at the end of a heading is not an attribute block just because it is
@@ -9737,6 +10024,11 @@ function buildHeading(
   // `sec-` cross-reference target the document never defines (`scratchpad/s217/cal4/d_md_attr1`,
   // where quarto renders `Cal Par1 Attr {#sec-par1}` and defines NO id). Both strips therefore
   // read the RAW text, and the decode runs on what survives them.
+  // ⚠ **R4 — BEFORE the decode and AFTER both strips** (Session 269). See
+  // `headingContentRefused` for why each half of that placement is measured rather than chosen.
+  if (headingContentRefused(text, blockTexRefuses, escapable)) {
+    return null;
+  }
   text = decodeHeadingEscapes(text, escapable, pandocEscapes);
   text = text.trim();
   if (!text) {
@@ -9767,6 +10059,7 @@ function parseHeadingLine(
   honoursAttributes: boolean,
   escapable: RegExp,
   pandocEscapes: boolean,
+  blockTexRefuses: boolean,
 ): Heading | null {
   return buildHeading(
     m[1].length,
@@ -9777,6 +10070,7 @@ function parseHeadingLine(
     escapable,
     pandocEscapes,
     commonmarkDialect,
+    blockTexRefuses,
   );
 }
 
@@ -9796,6 +10090,7 @@ function parseSetextHeadingLine(
   escapable: RegExp,
   pandocEscapes: boolean,
   commonmarkDialect: boolean,
+  blockTexRefuses: boolean,
 ): Heading | null {
   return buildHeading(
     level,
@@ -9806,5 +10101,6 @@ function parseSetextHeadingLine(
     escapable,
     pandocEscapes,
     commonmarkDialect,
+    blockTexRefuses,
   );
 }
