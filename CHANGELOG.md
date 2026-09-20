@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] Post-close-out correction — the `.rmarkdown` collateral DOES reproduce, and my refutation of it was the under-tested probe
+- **Change:** `BACKLOG.md`'s `.Rmarkdown` item — the "does NOT reproduce" line replaced by the measured collateral form, with its condition and its control; the oracle-count item corrected from four README places to five (six with `load.ts`). `PROJECT_LEARNINGS.md` #567 rewritten so its second half is the mirror-image lesson. `SESSION_NOTES.md` ACTIVE TASK and self-assessment corrected to match.
+- **Commit/PR:** this entry's own commit
+- **Session:** S271 · **Verified:** measured after the workflow's last three verifiers landed. `quarto render s.qmd --to html` with an R chunk in `s.qmd`: **exit 0**, `s.html` written, **`s.rmarkdown` DELETED**; the same test with no chunk leaves it untouched, which is the probe that produced the wrong refutation. Control: a same-stem `s.md` **survives** and `other.rmarkdown` survives, so the collateral is specific to the `.rmarkdown` extension and the same stem. The count: `grep -n '66' test/oracle/README.md test/oracle/load.ts` → :7, :71, :89, :111, :127 and `load.ts:21`.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] `.context-budget-history.jsonl` — the final-tree measurement of Session 271's growth
 - **Change:** one appended row from the close-out's `python3 context_budget.py` run (exit 2, unchanged: the same three files over ceiling, and `SESSION_NOTES.md` back inside it at 21,291 B / 286 lines after the trim). Against the S270 row it prices this session: `BACKLOG.md` +10,262 B, `HANDOFFS.md` +8,212 B, `PROJECT_LEARNINGS.md` +5,522 B, `SESSION_NOTES.md` +2,671 B, `CLAUDE.md` unchanged.
 - **Commit/PR:** this entry's own commit

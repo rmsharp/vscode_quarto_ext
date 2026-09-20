@@ -36,8 +36,10 @@ so only a change to the PORT reaches the partitioner — `midDocumentMetadataReg
 heading swallows; insert one blank line and quarto renders it. Prose in the span kills the render at a
 DIFFERENT stage (quarto's own pre-knitr reader) than an echoing chunk does (pandoc/Lua).
 **⚠ `quarto render` on a `.rmarkdown` input EXITS 1, writes no HTML, and DELETES the input file** —
-verified firsthand twice; zero corpus exposure; copy before rendering one. The same-stem variant two
-agents reported (a `.qmd` render eating its `.rmarkdown` neighbour) does NOT reproduce.
+verified firsthand twice; zero corpus exposure; copy before rendering one. ⚠ **AND the collateral
+form is real:** `quarto render s.qmd` where `s.qmd` holds an R chunk exits 0, writes `s.html`, and
+DELETES a neighbouring `s.rmarkdown` — knitr claims `<stem>.rmarkdown` as its intermediate. I first
+recorded this as "does not reproduce" from a probe with no chunk in it (#567).
 **⚠ Two of the three older RECORD decisions still rest on a BUNDLE GREP** (raw-HTML `<hN>`, R7's
 appendix re-level). The harness now takes `ext`/`frontMatter`, so probing them is cheaper still.
 **⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE records.
@@ -106,9 +108,11 @@ session from building a 90-heading deletion.
   between the baseline and final runs across all 3,383 corpus documents.
 - ⚠ **I verified the fan-out rather than believing it, and that is what caught the errors.** 16
   agents; every refinement I adopted was re-rendered firsthand before being written down. Two claims
-  did not survive: the same-stem `.rmarkdown` deletion that **two independent agents agreed on** does
-  not reproduce, and a sibling's corpus scan said 310 documents where my own stated-definition scan
-  says 104. Adopted rate: 4 of 6.
+  did not survive as stated: a sibling's corpus scan said 310 documents where my own
+  stated-definition scan says 104, and the same-stem `.rmarkdown` deletion looked refuted. ⚠ **That
+  second one was MY error, not theirs** — my negative probe had no code chunk, so knitr never ran and
+  the hazard could not fire. It reproduces exactly as reported when the render invokes knitr, and I
+  had already published "does not reproduce" before finding out (#567).
 
 **What went wrong.**
 - ⚠ **I wrote an INFERRED mechanism into the permanent record and had to correct it.** Quarto's own
@@ -116,6 +120,10 @@ session from building a 90-heading deletion.
   both lines swallows the heading just the same — the div is a passenger, and the load-bearing clause
   is the blank line I never varied. A fan-out found it, not me. Filed as #566 with the rule that
   would have caught it: delete the part you called load-bearing and re-render.
+- ⚠ **I published a REFUTATION that was itself under-tested.** I recorded that two agents' same-stem
+  `.rmarkdown` claim "does not reproduce"; it reproduces whenever the render actually runs knitr, and
+  my probe had no chunk in it. A non-reproduction measures your probe, not the claim — folded into
+  #567, and it is the more useful half of that row.
 - ⚠ **I wrote a SECOND unmeasured number into the record: "`.rmarkdown` render exits 0."** It exits
   1; the 0 was the status of the `head` the command was piped into. Corrected in place with the slip
   disclosed, and filed as #567 — `$?` after a pipe is not a measurement. Two write-then-verify
