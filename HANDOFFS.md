@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S273
+date: 2026-09-20
+status: pending
+active_task: R5 -- a digit-named engine chunk's CLOSER opens a plain fence and swallows the heading below it (sub-item (e) of the "eight root causes" item). Operator-picked at Phase 0 from four ranked AskUserQuestion options; BACKLOG.md "Active" was empty. Measured baseline re-run firsthand at HEAD d15ef936 BEFORE anything was touched: tools/realdoc-score/run.sh s273-orient = scored 2438 agree 2421 (99.30%) divergent 17, lost [482, 491, 610, 1352, 2391, 2519, 2566, 2898]. R5 is ordinal 2391 and is still lost; a clean fix moves 2421 -> 2422.
+```
+
+```handoff
 session: S272
 date: 2026-09-20
 status: complete

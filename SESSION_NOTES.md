@@ -8,37 +8,56 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 272 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S272 did:** took the NEW (S271) mid-document-metadata item and **FIXED it** — the first
-`src/` change in three sessions, after two consecutive decisions. The Outline no longer models
-mid-document YAML metadata at all; it models the OPENING block and only the opening block, which is
-what Posit does.
-**Measured, not quoted:** `tools/realdoc-score/run.sh s272-final` = **2,421 / 2,438 (99.30%),
-divergent 17**, the IDENTICAL ordinal lists as the baseline run; the bundle diff is **30 documents,
-80 headings GAINED, 0 LOST**. All 30 are `.Rmd` and `quarto render` exits 1 on all 30, so zero
-scorable documents are touched — which is why the score cannot see a thing.
-**The oracle was asked FIRST, and widely:** `npm run observe:posit`, 15 probes, every one rendered
-through real quarto BEFORE the run and proved byte-identical to the bytes the harness writes. Posit
-shows the heading for ALL SEVEN suppressed spellings — including both block-quote ones, never
-observed before — and lists NO front-matter key (`m11_fm_only`), which is the control that turns
-"Posit ignores YAML" into "Posit models the opening block only".
-Commits: `bfd8d2f5` claim · `54a4a1c6` the 13 probes · `dc4c478d` the fix · `77c403df` records.
-**Recommended next pick: (e) R5 and (f) R6** — the last two FIXABLE scorable divergences, 1 document
-and 1 heading each, both knitr chunk-grammar. Or the two RECORD decisions still resting on a bundle
-grep (raw-HTML `<hN>`, R7's appendix re-level); the harness now has 13 probes' worth of shape to
-copy, so probing them is cheaper than it has ever been.
-**⚠ The fix UNMASKED a pre-existing defect and it is filed, not hidden** — an EMPTY `---` / `---`
-pair reads as a setext heading `h2:---`. Reach: 1 occurrence in 1 of 3,383 documents (ordinal 2256,
-quarto-exit-1). ⚠ **Do NOT fix it by putting the suppression back**; that masked it and cost 80
-headings. S241's C6 already refutes the obvious cheap fix with six rendered rows.
-**⚠ The separation the item warned about was already in the code** — the two arms fork at the
-enumeration and never rejoin, so every S211 reader-resolution test stayed green untouched. But the
-skip reached FOUR features, not one: `findHeadings`, `findBodyLines` **and `findMathRegions`** all
-move; cells and fence openers do not, which is why the oracle could not (and did not) move.
+**Task:** **R5 — a digit-named engine chunk's CLOSER opens a plain fence and swallows the heading
+below it.** Operator-picked at Phase 0 (Session 273) from four ranked `AskUserQuestion` options;
+`BACKLOG.md` "Active" was empty. Sub-item **(e)** of the "eight root causes" item.
+**Status:** Session claimed. Work beginning.
+**Started:** 2026-09-20
+**Ledger:** `CHANGELOG: pending` — the claim commit's entry says (in progress); Phase 3F records
+the rest. Until close-out this line is the crash breadcrumb for the next session's reconcile.
+
+**The measured baseline, re-run firsthand at HEAD `d15ef936` before anything was touched:**
+`tools/realdoc-score/run.sh s273-orient` → `scored 2438 agree 2421 (99.30%) divergent 17 phantom 2
+lost 8 level 7`; `lost [482, 491, 610, 1352, 2391, 2519, 2566, 2898]`; `phantom [2147, 2275]`;
+`level [837, 838, 840, 841, 842, 843, 847]`. **R5 is ordinal 2391** and is still lost. A clean R5
+fix moves 2421 → 2422 of 2438. `npm run compile` exit 0; `npm test` 66 files / 2963 passed.
+
+**⚠ EVERY STATED LINE NUMBER FOR R5 IS STALE — re-derived at Phase 0, do not trust the old ones.**
+`model.ts` is 10,003 lines. `BACKLOG.md`'s `:6024` now lands on `endLine: number;`; its `:7315` and
+`:7347` land inside a docstring. The rescore doc's `:5937` / `:7228`–`:7260` are stale too.
+Current anchors, each opened and confirmed: **`model.ts:5852`** `CELL_INFO` (the digit refusal, R5's
+root); `:5617`–`:5678` its docstring, which explicitly warns against widening it; `:7099` the
+scanner's use; `:7139`–`:7145` the `refused` computation; `:7152`–`:7157` the `consumedCloserLine`
+arm (set declared at `:6100`); `:7159` the `hasCloserBelow` gate; `:5731` `quartoFenceTagRewrite`;
+`:5798` `fenceInfoOpensBlock`; `:9300` `consumedCloserLine`; `:9326` `hasCloserBelow`; `:8489`
+`findHeadings`.
+
+**⚠ THE BACKLOG STATES R5'S TRIGGER WRONG.** It says "a digit-bearing engine with spaced options".
+Measured: the trigger is a digit in the engine name (so `CELL_INFO` refuses) **PLUS an `=` inside
+the braces**, which blocks quarto's `readqmd.lua` tag rewrite `{+[^.=\r\n]+}+` so
+`fenceInfoOpensBlock` refuses too. Bare `{cpp11}` IS rewritten, DOES open a plain fence, and is
+harmless — which is why only 1 of the 13 `{cpp11}` fences in ordinal 2391 costs a heading.
+**⚠ The rescore's minimal repro no longer reproduces as written** — without a later fence below,
+`findHeadings` returns `h4:After Chunk`. A trailing ```` ```{r} ```` block is needed to get `(none)`.
+
+**⚠ THE OPEN DESIGN QUESTION, to settle before writing the fix.** The new rule must be gated on
+knitr: Session 224's pins (`test/unit/qmd-model.test.ts` ~`:9628`) encode the MEASURED
+markdown-engine behaviour that a refused opener's closer DOES open, and the rescore's own controls
+say R5 agrees with quarto under `engine: markdown`. But `findHeadings` and `scanRegions` are
+engine-blind by design. `resolveDocumentEngine` returns "knitr" for this document FROM THE TEXT
+ALONE, so no signature change is needed — **but importing it creates a CYCLE**:
+`src/core/document-engine-resolve.ts:51` already imports `frontMatterContentLines` from
+`./qmd/model`. Either write a small in-model knitr detector or restructure that import.
+
+**⚠ Ask the oracle before assuming this is a defect.** `CLAUDE.md`'s clean-room boundary: where
+quarto's RENDER and Posit's OUTLINE disagree it is a DECISION, not a defect, and the product mirrors
+Posit. `npm run observe:posit` exists and takes probes. It TAKES THE SCREEN — go-ahead BEFORE launch.
+**⚠ R6 (ordinal 2519) is NOT in scope** — same ~60 lines, but `docs/REAL-DOCUMENT-RESCORE.md:356`
+records every render used `--no-execute`, so R6's ground truth was never measured. FM #26.
 **⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
 records. One `CHANGELOG.md` entry per commit. **⚠ Write a number only after measuring it** (#552).
-**⚠ `cd` moves the session cwd** (#535) — tripped once. **⚠ Never `git add -A`.**
+**⚠ `$?` after a pipe is not a measurement** (#567) — tripped once already this session, at Phase 0.
+**⚠ `cd` moves the session cwd** (#535). **⚠ Never `git add -A`** — `scratchpad/` is untracked.
 ---
 
 ## Session 271 Handoff Evaluation (by Session 272)

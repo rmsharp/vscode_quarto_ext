@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 273 claimed (in progress) — sub-item (e), R5
+- **Change:** Phase 1B claim only — `SESSION_NOTES.md` ACTIVE TASK rewritten to the R5 task, and a `status: pending` S273 receipt opened in `HANDOFFS.md`. `dashboard_history.jsonl` carries the row Phase 0's own `methodology_dashboard.py` run appended. No `src/` file touched.
+- **Commit/PR:** this entry's own commit
+- **Session:** S273 · **Verified:** Phase 0 reconcile found 0 undocumented commits (`CHANGELOG.md` frontier `d15ef936` WAS HEAD), the newest receipt (S272) `status: complete`, and its `quality_ratchet` citation matching `.quality-gates-results.json` exactly (results `bba236856bad`, manifest `8845021a4049`, head `77c403df`, 2/2 pass). Build measured green at claim time: `npm run compile` exit 0, `npm test` 66 files / 2963 passed. Baseline score re-run firsthand BEFORE any edit: `tools/realdoc-score/run.sh s273-orient` → `scored 2438 agree 2421 (99.30%) divergent 17 phantom 2 lost 8 level 7`, R5 = ordinal 2391 still in `lost`. ⚠ Recorded at claim time because it changes the task: **every stated line number for R5 is stale** (`model.ts` is 10,003 lines; `BACKLOG.md`'s `:6024` lands on `endLine: number;`), and **the backlog states R5's trigger wrong** — it is a digit in the engine name PLUS an `=` inside the braces, not "spaced options".
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] The Session 272 gate-run measurements recorded, and one corrected figure
 - **Change:** `.context-budget-history.jsonl` and `dashboard_history.jsonl` — the appended rows from this session's `python3 context_budget.py` and `python3 methodology_dashboard.py` runs. `CHANGELOG.md` — the trim entry's remaining-size figure corrected from a written-before-measured 24,117 B to the measured **24,082 B**.
 - **Commit/PR:** this entry's own commit
