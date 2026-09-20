@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] Session 271 closed out — R2 decided rather than open, and the same observation found the defect pointing the other way
+- **Change:** the S271 `HANDOFFS.md` receipt set `status: complete` (self 8, predecessor 9); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; the blank-line precondition, the two measurement slips and the recommended next pick sit where every session reads them) plus the S270 evaluation and the S271 self-assessment.
+- **Commit/PR:** this entry's own commit
+- **Session:** S271 · **Verified:** `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at `66c93321` — the head `.quality-gates-results.json` itself records, read rather than assumed. `npm run compile` exit 0; vitest 2962/2962 in 66 files; `npm run check-package` OK, 42 files, 5.61 MB; `check-backlog` OK. `tools/realdoc-score/run.sh s271-final` = **2,421 / 2,438 (99.30%), divergent 17**, and `model.tsv`, `model.cjs` and `rawadj.tsv` are all **byte-identical** to `s271-baseline` across all 3,383 corpus documents, so "no behaviour changed" is proved rather than asserted. Runtime: `npm run observe:posit` 11 passing, exit 0, in a real Extension Development Host with the operator's go-ahead taken before the launch.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] The fan-out's verification pass folded in — one of my own numbers corrected, one agent consensus refuted, two findings filed
 - **Change:** `BACKLOG.md` — the `.rmarkdown` hazard's exit code **corrected from 0 to 1** with the slip disclosed in place; the same-stem variant recorded as NOT reproducing; the mid-document-metadata item gains a corpus reach scan with its definition stated; a new LOW item files the oracle corpus's stale "66" prose against a real 131. `PROJECT_LEARNINGS.md` gains #567.
 - **Commit/PR:** this entry's own commit

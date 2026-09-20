@@ -8,32 +8,131 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 271 IN PROGRESS — (b), R2 of the Up Next head item: a `---` pair around a knitr
-chunk that emits nothing becomes valid YAML after knitr runs**, swallowing the heading between them.
-The model reads the PRE-knitr fence, refuses the block (`FENCE_ANYWHERE_IN_BLOCK`) and reports the
-heading. **2 authored documents (ordinals 2147, 2275), 8 PHANTOM headings** — the last phantom pair.
-**Started:** 2026-09-20. Operator-picked at Phase 0 by `AskUserQuestion` from four ranked options
-(R2 recommended; the others were probes for the two RECORD decisions that still rest on a bundle
-grep, R5+R6, and a catch-all).
-**Status:** Session claimed. Work beginning — no code touched yet.
-**Ledger:** `CHANGELOG: pending` — the claim commit's entry says (in progress); Phase 3F records the
-rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
-**⚠ ORACLE FIRST, CODE SECOND** — the S270 handoff's #2, and the reason R3 shipped nothing. Posit's
-Outline is the product oracle where it and `quarto render` disagree (`CLAUDE.md` §Clean-room
-boundary); `npm run observe:posit` settles it in one run. Ask it BEFORE building anything.
-**⚠ Its constraint:** the ported region grammar feeds the validation partitioner
-(`core/yaml-value-flags.ts`), so any change there needs its own `npm run test:oracle` run.
-**⚠ `R` IS installed here** (`/usr/local/bin/R`), so R2's real-execution half — which the re-score
-recorded as "measured by the diagnosing agent, not re-verified" — is measurable this session.
-**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
-records. One `CHANGELOG.md` entry per commit. `tools/realdoc-score/run.sh <label>` after any change
-reaching `findHeadings`, plus a document-by-document diff of the two model bundles.
-**⚠ Screen-taking runs need the operator's go-ahead BEFORE launch** — `observe:posit`,
-`test:integration`, `test:lsp`. Pin VS Code `1.129.0` and write mocha **bdd** (#558).
-**⚠ Write a number only after measuring it** (#552). **⚠ `cd` moves the session cwd** (#535).
-**⚠ Never `git add -A`** — `scratchpad/` is untracked, NOT ignored.
+**Task:** **NONE — Session 271 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S271 did:** took **(b), R2** and closed it as a **DECISION, not a fix** — the second in a row,
+and this time the price of the alternative was measured before the operator was asked.
+`npm run observe:posit` (6 new probes, an `.Rmd` control beside the `.qmd` one) says Posit shows
+`Swallowed Heading` where quarto renders none, and all five `## Slide N` of a slidify deck where
+quarto renders three. We already match Posit. **No `src/` file was touched.**
+**Measured, not quoted:** baseline and final `tools/realdoc-score/run.sh` = **2,421 / 2,438 (99.30%),
+divergent 17**, and `model.tsv`, `model.cjs` and `rawadj.tsv` are all BYTE-IDENTICAL between the two
+runs, so "nothing changed" is proved. The alternative was priced first: dropping
+`FENCE_ANYWHERE_IN_BLOCK` scores BETTER (2,422) while deleting **90 headings from 32 documents, 31 of
+which `quarto render` exits 1 on** (#562).
+Commits: `efe26640` claim · `d9d5ba1f` probes + observation · `66c93321` the decision + the new item ·
+`591a9e7f` mechanism measured not inferred + the `.rmarkdown` hazard · `5c48001c` learnings #562–#566 ·
+close-out · notes trim.
+**Recommended next pick: the NEW item this session filed** — *"THE MID-DOCUMENT METADATA RULE DELETES
+HEADINGS POSIT SHOWS …"*. Same instrument, opposite direction: on `---` / `## X` / `---` with no chunk,
+Posit shows the heading and **we delete it**. Turning the whole feature off recovers **80 headings
+across 30 documents and does not move the score by one point** — all 30 are quarto-exit-1. That is the
+deletion direction, against the product oracle, and it is the largest measured thing left.
+**⚠ Feature-off is the REACH MEASUREMENT, not the fix** — `midDocumentMetadataRegions` also resolves a
+mid-document `from: gfm` reader (S211). ⚠ And the inherited "needs its own oracle run" is broader than
+the code: `quarto-yaml-regions.ts` has exactly two importers (`model.ts:42`, `yaml-value-flags.ts:33`),
+so only a change to the PORT reaches the partitioner — `midDocumentMetadataRegions` is module-local.
+**⚠ R2's real precondition is the BLANK LINE, not the fence** (#566): `---` immediately above the
+heading swallows; insert one blank line and quarto renders it. Prose in the span kills the render at a
+DIFFERENT stage (quarto's own pre-knitr reader) than an echoing chunk does (pandoc/Lua).
+**⚠ `quarto render` on a `.rmarkdown` input EXITS 1, writes no HTML, and DELETES the input file** —
+verified firsthand twice; zero corpus exposure; copy before rendering one. The same-stem variant two
+agents reported (a `.qmd` render eating its `.rmarkdown` neighbour) does NOT reproduce.
+**⚠ Two of the three older RECORD decisions still rest on a BUNDLE GREP** (raw-HTML `<hN>`, R7's
+appendix re-level). The harness now takes `ext`/`frontMatter`, so probing them is cheaper still.
+**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE records.
+One `CHANGELOG.md` entry per commit. **⚠ Write a number only after measuring it** (#552).
+**⚠ `cd` moves the session cwd** (#535) — tripped again this session. **⚠ Never `git add -A`.**
 
 ---
+
+## Session 270 Handoff Evaluation (by Session 271)
+
+**Score: 9/10.** Its single most important sentence reordered this entire session, its gotchas were
+accurate enough that two screen-taking traps cost nothing, and nothing it stated as a fact turned out
+false. One point off for a recommendation ranked by a measure its own gotcha says is partial.
+
+**What helped, specifically.**
+- ⚠ **`whats_next` #2: "ASK WHICH ORACLE GOVERNS BEFORE BUILDING."** This is the whole session. R2
+  was the top-ranked fixable divergence; one screen run turned it into a decision with no `src/`
+  change. A handoff that puts the cheap disqualifying question ahead of the expensive work is worth
+  more than one that describes the work well.
+- ⚠ **Gotcha (5), Learning #561 — "a corpus document quarto REFUSES to render is invisible to the
+  score."** This is why I looked past the score line at all. The candidate fix *improves* the score;
+  the bundle diff says it deletes 90 headings, 83 of them in documents the score cannot see. Without
+  that sentence resident I would have shipped a +1 and called it a fix.
+- ⚠ **Gotchas (1) and (2) — pin the VS Code version, write mocha `bdd`.** S270 paid two launches of
+  the operator's screen for these; I paid none. The pin was already in the file I extended and I ran
+  `npm run compile-tests` before asking for the screen.
+- **Gotcha (3), `ours-loaded:`** — read it every run, `false` every run. **#552, #535, `git add -A`**
+  — all used, all accurate. Its ordinals (2147, 2275) and phantom count matched my baseline exactly.
+
+**What was missing / wrong.**
+- ⚠ **It ranked R2 "the largest remaining once (c) was decided" by headings the SCORE attributes,
+  while its own gotcha (5) says that measure is blind to exit-1 documents.** The deciding fact — that
+  a fix touches 32 documents, 31 of them unscorable — was one bundle diff away and was not flagged.
+  Same class as the criticism S270 itself levelled at S269: carrying a ranking forward without
+  re-checking the metric behind it.
+- **The inherited "a change needs its own `test:oracle` run" is broader than the code.** Measured this
+  session: `quarto-yaml-regions.ts` has exactly two importers, so only a change to the PORT reaches
+  the validation partitioner; `midDocumentMetadataRegions` is module-local to `model.ts`. Not its
+  error — it carried the phrasing from the `START_CODE` item — but a handoff that quotes a constraint
+  inherits the constraint's imprecision.
+- **Nothing it stated as a fact turned out false.**
+
+**ROI: very high.** Orientation to a measured baseline took about twenty minutes, and its #2 saved the
+session from building a 90-heading deletion.
+
+## Session 271 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **I priced the alternative before asking the operator to choose.** The score says the fix is an
+  improvement; the document-by-document bundle diff says it deletes 90 headings across 32 documents,
+  31 of which quarto exits 1 on. Both throwaway builds (`build-nofence`, `build-nomidyaml`) were
+  scored and diffed rather than argued about, which is what turned "should we fix R2?" into a
+  decision the operator could make from numbers.
+- ⚠ **The observation was designed to be readable before it was run.** Every probe file was rendered
+  through real quarto FIRST, so the record holds both oracles' answers for the same bytes; an `.Rmd`
+  control went in beside the `.qmd` one, so a `(no symbols)` row for an `.Rmd` probe could not be
+  confused with "Posit does not handle `.Rmd`" (#565). One launch, with the go-ahead taken before it,
+  and it answered more than it was asked.
+- ⚠ **The by-catch is worth more than the deliverable.** The same run showed the model DELETING a
+  heading Posit shows on the no-chunk spelling — 80 headings across 30 documents, and the score does
+  not move when the feature is turned off entirely. Filed with its measurement rather than fixed,
+  because it is a different capability (FM #26).
+- **"Nothing changed" is proved:** `model.tsv`, `model.cjs` and `rawadj.tsv` are byte-identical
+  between the baseline and final runs across all 3,383 corpus documents.
+- ⚠ **I verified the fan-out rather than believing it, and that is what caught the errors.** 16
+  agents; every refinement I adopted was re-rendered firsthand before being written down. Two claims
+  did not survive: the same-stem `.rmarkdown` deletion that **two independent agents agreed on** does
+  not reproduce, and a sibling's corpus scan said 310 documents where my own stated-definition scan
+  says 104. Adopted rate: 4 of 6.
+
+**What went wrong.**
+- ⚠ **I wrote an INFERRED mechanism into the permanent record and had to correct it.** Quarto's own
+  warning named `Duplicate key: ['::']`, so I wrote the `::: {.cell}` pair in as the cause. Deleting
+  both lines swallows the heading just the same — the div is a passenger, and the load-bearing clause
+  is the blank line I never varied. A fan-out found it, not me. Filed as #566 with the rule that
+  would have caught it: delete the part you called load-bearing and re-render.
+- ⚠ **I wrote a SECOND unmeasured number into the record: "`.rmarkdown` render exits 0."** It exits
+  1; the 0 was the status of the `head` the command was piped into. Corrected in place with the slip
+  disclosed, and filed as #567 — `$?` after a pipe is not a measurement. Two write-then-verify
+  failures in one session is the pattern worth carrying forward, not either instance.
+- ⚠ **I tripped the `cd` gotcha (#535) twice**, in the session whose ACTIVE TASK warns about it.
+  Harmless both times; the warning exists because it is not always harmless.
+- **I committed records while the fan-out's verification half was still running**, then had to
+  reopen them when it landed. Nothing rested on an unverified claim — but two of the four commits that
+  followed exist because I did not wait, and one of them corrects a number I had already published.
+- **TDD:** exempt — no `src/` logic changed; the harness change is declarative probe data and its
+  verification is its two controls, which fail loudly. **Runtime:** `npm run observe:posit` ran in a
+  real Extension Development Host with consent, 11 passing, exit 0. **Growth:** `test/posit/` +~60
+  lines, `BACKLOG.md` +1 item and 4 edits, `PROJECT_LEARNINGS.md` +5 rows, `docs/` +1 decision block.
+
+**Against the bar.** Session 270 built the instrument and made one decision with it; this session used
+it twice in one run — once to decide R2 and once to find the defect pointing the other way — and put a
+price on the road not taken instead of asserting that it was wrong.
 
 ## Session 269 Handoff Evaluation (by Session 270)
 
