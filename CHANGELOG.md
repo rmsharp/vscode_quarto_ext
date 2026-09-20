@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S263 evaluation by S264 + S264 self-assessment)
+- **Change:** 58 lines deleted and nothing else, per the three-pair retention rule (`CLAUDE.md`, Session 256). The pair stays in git: `git show 7c685b47:SESSION_NOTES.md`.
+- **Commit/PR:** this entry's own commit
+- **Session:** S267 · **Verified:** `git diff --stat` shows deletions only
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Session 267 closed out — the decision records and the clean-room boundary
 - **Change:** the S267 `HANDOFFS.md` receipt set `status: complete` (self 8, predecessor 8); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; the open item is a black-box confirmation of the Posit half of both decisions) plus the S266 handoff evaluation and the S267 self-assessment. Commits this session: `7ec75319` claim · `9216c338` records · this close-out · a notes trim to follow.
 - **Commit/PR:** this entry's own commit
