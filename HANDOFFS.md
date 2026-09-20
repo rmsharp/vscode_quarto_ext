@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S272
+date: 2026-09-20
+status: pending
+active_task: Close the NEW (Session 271) item "THE MID-DOCUMENT METADATA RULE DELETES HEADINGS POSIT SHOWS, in 30 documents quarto cannot render, and it buys the scorable corpus NOTHING". Operator picked it at Phase 0 from the ranked AskUserQuestion. FIRST MOVE IS THE ORACLE QUESTION, NOT CODE -- the existing observation covers two spellings, not the feature.
+```
+
+```handoff
 session: S271
 date: 2026-09-20
 status: complete

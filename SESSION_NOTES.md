@@ -8,43 +8,18 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 271 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S271 did:** took **(b), R2** and closed it as a **DECISION, not a fix** — the second in a row,
-and this time the price of the alternative was measured before the operator was asked.
-`npm run observe:posit` (6 new probes, an `.Rmd` control beside the `.qmd` one) says Posit shows
-`Swallowed Heading` where quarto renders none, and all five `## Slide N` of a slidify deck where
-quarto renders three. We already match Posit. **No `src/` file was touched.**
-**Measured, not quoted:** baseline and final `tools/realdoc-score/run.sh` = **2,421 / 2,438 (99.30%),
-divergent 17**, and `model.tsv`, `model.cjs` and `rawadj.tsv` are all BYTE-IDENTICAL between the two
-runs, so "nothing changed" is proved. The alternative was priced first: dropping
-`FENCE_ANYWHERE_IN_BLOCK` scores BETTER (2,422) while deleting **90 headings from 32 documents, 31 of
-which `quarto render` exits 1 on** (#562).
-Commits: `efe26640` claim · `d9d5ba1f` probes + observation · `66c93321` the decision + the new item ·
-`591a9e7f` mechanism measured not inferred + the `.rmarkdown` hazard · `5c48001c` learnings #562–#566 ·
-close-out · notes trim.
-**Recommended next pick: the NEW item this session filed** — *"THE MID-DOCUMENT METADATA RULE DELETES
-HEADINGS POSIT SHOWS …"*. Same instrument, opposite direction: on `---` / `## X` / `---` with no chunk,
-Posit shows the heading and **we delete it**. Turning the whole feature off recovers **80 headings
-across 30 documents and does not move the score by one point** — all 30 are quarto-exit-1. That is the
-deletion direction, against the product oracle, and it is the largest measured thing left.
-**⚠ Feature-off is the REACH MEASUREMENT, not the fix** — `midDocumentMetadataRegions` also resolves a
-mid-document `from: gfm` reader (S211). ⚠ And the inherited "needs its own oracle run" is broader than
-the code: `quarto-yaml-regions.ts` has exactly two importers (`model.ts:42`, `yaml-value-flags.ts:33`),
-so only a change to the PORT reaches the partitioner — `midDocumentMetadataRegions` is module-local.
-**⚠ R2's real precondition is the BLANK LINE, not the fence** (#566): `---` immediately above the
-heading swallows; insert one blank line and quarto renders it. Prose in the span kills the render at a
-DIFFERENT stage (quarto's own pre-knitr reader) than an echoing chunk does (pandoc/Lua).
-**⚠ `quarto render` on a `.rmarkdown` input EXITS 1, writes no HTML, and DELETES the input file** —
-verified firsthand twice; zero corpus exposure; copy before rendering one. ⚠ **AND the collateral
-form is real:** `quarto render s.qmd` where `s.qmd` holds an R chunk exits 0, writes `s.html`, and
-DELETES a neighbouring `s.rmarkdown` — knitr claims `<stem>.rmarkdown` as its intermediate. I first
-recorded this as "does not reproduce" from a probe with no chunk in it (#567).
-**⚠ Two of the three older RECORD decisions still rest on a BUNDLE GREP** (raw-HTML `<hN>`, R7's
-appendix re-level). The harness now takes `ext`/`frontMatter`, so probing them is cheaper still.
-**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE records.
-One `CHANGELOG.md` entry per commit. **⚠ Write a number only after measuring it** (#552).
-**⚠ `cd` moves the session cwd** (#535) — tripped again this session. **⚠ Never `git add -A`.**
+**Task:** **Session 272 IN PROGRESS** — close the NEW (Session 271) item *"THE MID-DOCUMENT
+METADATA RULE DELETES HEADINGS POSIT SHOWS, in 30 documents quarto cannot render, and it buys the
+scorable corpus NOTHING"*. Operator picked it at Phase 0 from the ranked `AskUserQuestion`.
+**Started:** 2026-09-20.
+**Status:** Session claimed. Work beginning.
+**Shape:** ⚠ **the oracle question comes BEFORE any code** — the S271 observation covers two
+spellings, not the feature. Probe the feature black-box with `npm run observe:posit` (operator
+go-ahead required BEFORE the launch), then fix under strict TDD if the oracle says the model is
+wrong, or close out on the decision with its measurement if it does not.
+**Ledger:** `CHANGELOG: pending` — the claim commit's `CHANGELOG.md` entry says (in progress);
+Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next
+session's reconcile.
 
 ---
 

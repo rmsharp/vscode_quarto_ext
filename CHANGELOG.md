@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [BL-⚠ NEW (Session 271) — THE MID-DOCUMENT METADATA RULE DELETES HEADINGS POSIT SHOWS, in 30 documents quarto cannot render, and it buys the scorable corpus NOTHING] Session 272 claimed (in progress)
+- **Change:** Phase 1B claim only — `SESSION_NOTES.md` ACTIVE TASK rewritten to the new task, `HANDOFFS.md` opened with a `status: pending` S272 receipt. No `src/` file touched.
+- **Commit/PR:** this entry's own commit
+- **Session:** S272 · **Verified:** Phase 0 reconcile found 0 undocumented commits (CHANGELOG frontier `91307feb` WAS HEAD), the newest receipt (S271) `status: complete`, and its `quality_ratchet` digests matching `.quality-gates-results.json` exactly (results `bba236856bad`, manifest `8845021a4049`, 2/2 pass). Build measured green at claim time: `npm run compile` exit 0, `npm test` 66 files / 2962 passed.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] The S271 receipt's hazard gotcha corrected to match the measurement
 - **Change:** `HANDOFFS.md` gotchas (4) and (5) — the receipt still told the next session that the same-stem `.rmarkdown` deletion does not reproduce. It does; the gotcha now carries the measured collateral form, its knitr condition and its two controls, and (5) is rewritten as the probe lesson.
 - **Commit/PR:** this entry's own commit
