@@ -8,32 +8,104 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 269 — R4: a block-level HTML tag or TeX command anywhere in ATX content means
-the line is NOT a heading** (`### 2. Overview <section>`, `## Intro \maketitle`); inline ones
-(`<span>`, `\emph{}`) keep it. `BACKLOG.md` Up Next head item, sub-item **(d)**; report section R4 of
-[`docs/REAL-DOCUMENT-RESCORE.md`](docs/REAL-DOCUMENT-RESCORE.md).
-**Deliverable:** ONE implementation (IN PROGRESS). **Started:** 2026-09-19 22:15 CDT.
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — the claim commit's `CHANGELOG.md` entry says (in progress);
-Phase 3F records the rest. Until close-out this line is the crash breadcrumb for the next reconcile.
-**Operator pick:** chosen at Phase 0 by `AskUserQuestion` from four ranked options (R4 recommended;
-the others were the attribute-tokenizer plan's P2, R3 grid-table cells, and a catch-all).
-**Measured target:** 2 authored documents, 3 PHANTOM headings — the model reports headings quarto
-does not render. Repro `scratchpad/s265/repro/synthetic/R4-block-in-atx.qmd` (model five, quarto three).
-**Fix site:** tables at `model.ts:1438`, `:1557`; probably `parseHeadingLine` (`:9763`) or the ATX row
-(`:8245`) — an ESTIMATE inherited from S268's handoff, not a measurement.
-**DONE:** strict TDD (RED shown before GREEN); `npm run compile` + `npm test` green; and a
-`tools/realdoc-score/run.sh` line in the receipt showing no corpus document moved into the losing
-column (HEAD is 2,419 / 2,438 = 99.22%).
-**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run` (needs `dist/`; cite the summary line,
-and cite the HEAD the results file records, not the one you expect — S268's receipt named `3a6e451d`
-where the file says `ed135ec7`). One `CHANGELOG.md` entry per commit.
+**Task:** **NONE — Session 269 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S269 did:** closed **R4** — sub-item (d) of the Up Next head item. A block-level raw HTML tag,
+or a class-A raw-TeX command, anywhere in a heading's content means quarto renders NO heading; this
+model reported one. The gate is ONE site, `buildHeading`, so the ATX and setext paths share it.
+**Measured, not quoted:** `tools/realdoc-score/run.sh` went **2,419 → 2,421 of 2,438 (99.22% →
+99.30%)**, divergent 19 → 17; ordinals 1985 and 3004 left the list and nothing joined it. A
+document-by-document diff of the two model bundles says **exactly 2 of 3,383** outlines changed.
+Commits: `9e84bbf7` claim · `73552c3c` 19 guards · `cf9d5bad` TeX half (RED R4a) · `07d48e14` HTML
+half (RED R4b) · `bee53df7` applet/object removed + R4c–R4m + mutants · `d82e03b1` runtime gate ·
+`014db19b` records · close-out · notes trim.
+**Recommended next pick: the head item's (c), R3** — grid-table cells hold blocks; 3 documents and
+8 **LOST** headings, the largest remaining and in the deletion direction, at three fix sites
+(`model.ts:112`, `:905`, `:4531`–`:4586`) rather than R4's one. That cost is an ESTIMATE.
+**⚠ The instrument trap this session paid for (#554):** `tools/realdoc-score/extract_headings.py`
+CANNOT adjudicate a probe whose heading line opens a SWALLOWING element — it hides the heading's own
+`</h3>`. It reported no heading for `### T <applet>` where the render holds
+`<h3 class="anchored">T098 <applet>`, and acting on that put a DELETION on `master` for one commit.
+Grep the raw HTML for `<h[1-6]` instead; a refused line shows as literal `### T …` text.
+**⚠ DONE for any heading fix** now includes a `run.sh` line in the receipt AND the two-bundle
+document-by-document diff — the score alone cannot say what else moved.
+**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
+records, not the one you expect. One `CHANGELOG.md` entry per commit.
 **⚠ Write a number only after measuring it** (#552). **⚠ `context_budget.py` exits 2** —
 HANDOFFS/BACKLOG/PROJECT_LEARNINGS over ceiling; MEASURE, do not quote.
 **⚠ `cd` in a Bash command moves the session cwd** (#535). **⚠ Never `git add -A`** — `scratchpad/`
-is untracked, NOT ignored (~85,000 files).
+is untracked, NOT ignored.
 
 ---
+
+## Session 268 Handoff Evaluation (by Session 269)
+
+**Score: 8/10.** The task was pickable in minutes and its DONE criterion was set before any code was
+written. Two points off: the one guess it made about WHERE the fix goes was wrong in the deleting
+direction, and its own gate citation named the wrong commit.
+
+**What helped, specifically.**
+- ⚠ **`whats_next` #1 carried the repro path, the two tables and the expected verdict** ("model five
+  headings, quarto three"). I re-rendered it at Orient and it was exact.
+- ⚠ **"DONE for any heading fix now includes a `run.sh` line in the receipt."** That is the sentence
+  that made this session measure a baseline *before* touching code, and measure it three times after.
+- **The measure itself.** Four commands became one, ~5 s warm, so "did that change help?" was
+  answerable at every checkpoint instead of once at the end.
+- **The ordinal rule (#548), "measure the number then write it" (#552), and `git add -A`** — all used,
+  all accurate.
+
+**What was missing / wrong.**
+- ⚠ **The fix-site guess was wrong, and trusting it would have deleted headings.** It named
+  `parseHeadingLine (:9763)` or the ATX row (`:8245`). The gate belongs in `buildHeading`, which both
+  heading paths share — and the ATX-row spelling of it (forcing `m` to null) is measurably WORSE than
+  nothing: two rendered documents lose a real heading that way (Learning #557). It was labelled an
+  ESTIMATE, which is the only reason this costs one point rather than three.
+- ⚠ **Its `quality_ratchet` citation said "run at `3a6e451d`" where `.quality-gates-results.json`
+  records `head: ed135ec7`.** Same class as the slip it had just filed as #552, in the one field the
+  protocol tells you to cite.
+- **Nothing it stated as a fact turned out false.**
+
+**ROI: high.** Orientation to the first measured baseline was under twenty minutes.
+
+## Session 269 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **Every design choice was decided by a render, not by reasoning.** The biggest one — drop the
+  EMISSION rather than decline the MATCH — was settled by two documents quarto renders and the
+  `m = null` spelling deletes (#557), and confirmed by quarto's own AST calling the refused line
+  `Plain`, not `Para`.
+- ⚠ **I refused to reuse the obvious table.** `RAW_TEX_BLOCK_OR_MACRO_LINE` denies by default; the
+  heading question allows by default. Measured cost of getting that backwards: 18 corpus documents
+  and 73 heading lines, against the 1 line R4 is about (#556).
+- **Strict TDD on both halves**, each RED shown failing for its stated reason (the phantom
+  `h2:\maketitle`, then the phantom `h3:1. <Section heading>`) before any `src/` change, with 19
+  guards green first.
+- **28 mutants, 27 killed** — including one that puts `applet`/`object` back. The survivor is
+  disclosed in the docstring rather than quietly repaired.
+- **The blast radius is a measurement, not an argument:** exactly **2 of 3,383** corpus outlines
+  change. A pre-existing phantom `SETEXT_H1` documents was recovered as by-catch, and its pin rewritten.
+- **The runtime gate ran with consent** and asserts both directions, so it cannot pass for a build
+  that has simply stopped showing headings that mention a tag.
+
+**What went wrong.**
+- ⚠ **I shipped a DELETION for one commit, on my own bad measurement.** `applet` and `object` went
+  into the refusing set because the project's standing extractor said they refused; it cannot see
+  past the element they open. A subagent contradicted me and it was right. I had used the instrument
+  without asking what it is blind to — and this rule is *about* the shapes it is blind to (#554).
+- ⚠ **I drew a conclusion from a contaminated single-document sweep** before re-running it one name
+  per document (#555). I caught that one myself, but only after acting on it.
+- **The CDATA branch is pinned by nothing.** Disclosed, not fixed.
+- **TDD:** honoured for the two behaviours that drove the code; R4c–R4m are labelled TEST-AFTER in
+  the file itself. **Runtime:** 549 passing. **Growth:** `src/` +~330 lines, tests +~240,
+  `PROJECT_LEARNINGS.md` +4 rows, `BACKLOG.md` net −1 item.
+- **Cost:** one workflow, 9 agents, ~1.05M subagent tokens, ~700 quarto renders.
+
+**Against the bar.** Session 268 made the measure cheap; this session spent that cheapness on
+measuring the thing it was about to ship — and the one place it did not, it shipped a deletion and
+had to be told.
+
 
 ## Session 267 Handoff Evaluation (by Session 268)
 

@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Session 269 closed out — R4 is closed and the Outline agrees with quarto on 2,421 of 2,438 authored documents
+- **Change:** the S269 `HANDOFFS.md` receipt set `status: complete` (self 8, predecessor 8); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; the instrument trap, the two-bundle diff habit and the recommended next pick sit where every session reads them) plus the S268 evaluation and the S269 self-assessment.
+- **Commit/PR:** this entry's own commit
+- **Session:** S269 · **Verified:** `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at `014db19b` — the head the results file itself records, checked rather than assumed after scoring the predecessor down for that exact slip. `npm test` 2962/2962; `npm run check-types` exit 0; `npm run check-package` OK 42 files 5.61 MB; `check-backlog` OK 206 open items; `npm run test:integration` 549 passing exit 0; `tools/realdoc-score/run.sh s269-final` = 2,421 / 2,438 (99.30%) divergent 17.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Session 269 records — backlog sub-item (d) closed, learnings #554–#557
 - **Change:** `BACKLOG.md` loses the `(d)` R4 bullet and its head item now reads FIVE sub-items behind 10 of the 17 divergent documents (7 fixable); the Active note and the ranking guidance carry the measured 2,421 / 2,438 (99.30%) and recommend `(c)`, R3, next. `PROJECT_LEARNINGS.md` gains four rows: #554 the ground-truth extractor is blind to exactly the shapes a heading-content rule is about, #555 a one-document sweep of block-opening constructs is contaminated by its own earlier rows, #556 the same name tables answer different questions under inverted defaults, #557 decide decline-the-match vs drop-the-emission by rendering the two shapes that separate them.
 - **Commit/PR:** this entry's own commit
