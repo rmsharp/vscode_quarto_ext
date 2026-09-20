@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Session 270 learnings — #558–#561, the black-box harness and three traps it and the corpus sweep exposed
+- **Change:** `PROJECT_LEARNINGS.md` gains four rows. #558 how to learn what another extension shows without reading its source, and the two design constraints that make the harness readable (the symbol command MERGES providers; the control is the only assertion) plus the unpinned-version trap. #559 an audit's counts can be right while its mechanism is wrong, and the tell is that its own repro does not reproduce. #560 pandoc's ATX rule is column-exact everywhere, so a container fix needs no indent tolerance of its own. #561 a corpus document quarto refuses to render is invisible to the score and still open in somebody's editor.
+- **Commit/PR:** this entry's own commit
+- **Session:** S270 · **Verified:** each row states something measured this session — #558 from the harness's own two runs (the 1.138.0 `ENOENT` and the 1.129.0 success), #559 from the 9-point overhang sweep against the audit's sentence, #560 from the in-cell and top-level indent probes side by side, #561 from `quarto_v2.tsv` showing ordinals 304 and 615 at exit 1.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] R3 is DECIDED, not fixed — grid-table cells hold blocks, and none of what they hold is an Outline heading
 - **Change:** operator decision after the black-box observation. `BACKLOG.md`'s head item goes from FIVE open sub-items to FOUR — (c) is now DECIDED, so 7 of the 17 divergent documents remain described by an open sub-item and 4 are fixable; the Active note recommends (b), R2, next instead of (c). The RECORD item grows from two decisions to three, and the new one is the first of the three to rest on an OBSERVATION rather than a bundle grep. `docs/REAL-DOCUMENT-RESCORE.md` gains a dated correction: its R3 mechanism is wrong and its counts are right.
 - **Commit/PR:** this entry's own commit
