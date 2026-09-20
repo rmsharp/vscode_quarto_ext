@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] The S271 receipt's hazard gotcha corrected to match the measurement
+- **Change:** `HANDOFFS.md` gotchas (4) and (5) — the receipt still told the next session that the same-stem `.rmarkdown` deletion does not reproduce. It does; the gotcha now carries the measured collateral form, its knitr condition and its two controls, and (5) is rewritten as the probe lesson.
+- **Commit/PR:** this entry's own commit
+- **Session:** S271 · **Verified:** the receipt is the file the next session's Phase 0 actually reads, so a wrong claim there outlives one in any other file. Same measurements as the entry below it: chunk present → exit 0, `s.html` written, `s.rmarkdown` DELETED; no chunk → survives; `s.md` → survives.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] Post-close-out correction — the `.rmarkdown` collateral DOES reproduce, and my refutation of it was the under-tested probe
 - **Change:** `BACKLOG.md`'s `.Rmarkdown` item — the "does NOT reproduce" line replaced by the measured collateral form, with its condition and its control; the oracle-count item corrected from four README places to five (six with `load.ts`). `PROJECT_LEARNINGS.md` #567 rewritten so its second half is the mirror-image lesson. `SESSION_NOTES.md` ACTIVE TASK and self-assessment corrected to match.
 - **Commit/PR:** this entry's own commit
