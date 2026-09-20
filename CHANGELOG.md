@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Session 268 closed out — the real-document measure is tracked and adopted
+- **Change:** the S268 `HANDOFFS.md` receipt set `status: complete` (self 8, predecessor 9); `SESSION_NOTES.md` ACTIVE TASK rewritten (NONE; the measure's command and HEAD number now sit where every session reads them) plus the S267 handoff evaluation and the S268 self-assessment. Commits this session: `a529ad38` claim · `f56d3cc4` scorer · `b444d843` census + raw-HTML · `e27236ef` driver + README · `f2bac897` fenced-div closed · `0a8c1395` adoption · `ed135ec7` ledger correction · `3a6e451d` learnings · this close-out · a notes trim to follow.
+- **Commit/PR:** this entry's own commit
+- **Session:** S268 · **Verified:** `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at `3a6e451d`; `npm test` 2930/2930; `check-types` exit 0; `check-package` OK 42 files; `check-backlog` OK 206 open items; `tools/realdoc-score/run.sh head` = 2,419 / 2,438
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Session 268 learnings #552–#553 — measure before you write the number; move an instrument only with byte-identical controls
 - **Change:** two rows appended to `PROJECT_LEARNINGS.md`: #552, two ledger entries in two sessions quoted a size that did not exist yet, so write the command and paste its output; #553, an instrument moves into tracked code only when every stage reproduces its old output byte for byte, with a second known input and a packaging control that can fail.
 - **Commit/PR:** this entry's own commit

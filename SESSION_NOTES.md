@@ -8,22 +8,88 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 268 IN PROGRESS** — **adopt the real-document score as a STANDING, TRACKED
-measure**, and close the fenced-div item. Operator-directed, scope chosen by `AskUserQuestion`:
-the whole pipeline plus one driver, into `tools/realdoc-score/` (a new top-level root — the
-packaging gate reds on it, so `.vscodeignore` gains it in the same commit). **The corpus stays
-personal:** only scripts move; the data path is supplied at run time. **Started:** 2026-09-19.
-**Workstream:** `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` (a move + parameterisation;
-the operator's directive is the plan-mode approval SAFEGUARDS requires for a move).
-**DONE =** the tracked driver reproduces **2,419 / 2,438** at HEAD and **2,418 / 2,438** on S265's
-`b5_head` build, from the tracked scripts only; `check-package` green; the fenced-div item gone.
-**NOT in scope:** any `src/` change, the black-box Posit confirmation, the `HANDOFFS.md` trim.
-**Status:** CLAIMED. Work beginning.
-**Ledger:** `CHANGELOG: pending` — the claim commit carries an *(in progress)* entry; Phase 3F
-records the rest. Until close-out this line is the crash breadcrumb for the next reconcile.
-**Phase 0 findings (S268).** 0 undocumented commits; every receipt complete; dashboard 76/100.
+**Task:** **NONE — Session 268 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S268 did:** made the real-document score a STANDING, TRACKED measure and closed the
+fenced-div item. `tools/realdoc-score/` now holds all four stages plus `run.sh`; the corpus stays
+personal and is passed in. **Run it after any change reaching `findHeadings`** (CLAUDE.md §The
+real-document measure):
+`export REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt` then
+`tools/realdoc-score/run.sh <label> [src-dir]` — ~5 s warm; HEAD is **2,419 / 2,438 (99.22%)**.
+Commits: `a529ad38` claim · `f56d3cc4` scorer · `b444d843` census + raw-HTML · `e27236ef` driver +
+README · `f2bac897` fenced-div closed · `0a8c1395` adoption · `ed135ec7` ledger correction ·
+`3a6e451d` learnings #552–#553 · notes trim · close-out.
+**Recommended next pick: the Up Next head item's (d), R4** — unchanged since S266; repro
+`scratchpad/s265/repro/synthetic/R4-block-in-atx.qmd` (model five headings, quarto three); tables
+`model.ts:1438`, `:1557`; fix site probably `parseHeadingLine` (`:9763`) or the ATX row (`:8245`),
+an ESTIMATE. **DONE for any heading fix now includes a `run.sh` line in the receipt.**
+**⚠ Still open, from S267:** both Outline decisions' Posit half rests on a BUNDLE GREP; a black-box
+confirmation would settle it (`CLAUDE.md` §Clean-room boundary). Nothing depends on it.
+**⚠ The ground-truth RENDER passes are still untracked** (`scratchpad/s251`, `s265`): a lost corpus
+cannot be rebuilt from `tools/realdoc-score/` alone. Stated in its README, not a defect to fix blind.
+**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run` (needs `dist/`; cite the summary
+line). One `CHANGELOG.md` entry per commit; the claim commit carries an *(in progress)* one.
+**⚠ Write a number only after measuring it** (#552 — two ledger slips in two sessions).
+**⚠ `context_budget.py` exits 2** — HANDOFFS/BACKLOG/PROJECT_LEARNINGS over; MEASURE, do not quote.
+**⚠ `cd` in a Bash command moves the session cwd** (#535). **⚠ Never `git add -A`** — `scratchpad/`
+is untracked, NOT ignored.
 
 ---
+
+## Session 267 Handoff Evaluation (by Session 268)
+
+**Score: 9/10.** Everything this session needed was in it, including the two things it flagged as
+unfinished, and its `whats_next` #3 is precisely the task the operator then gave. One point off for a
+number it wrote before measuring — which this session then repeated.
+
+**What helped, specifically.**
+- ⚠ **`whats_next` #3 named both remaining decisions AND their report sections** (F6, Rec. 4), so
+  Phase 1 was a scope question to the operator rather than an archaeology exercise.
+- ⚠ **"adopting it should also move the SCRIPT somewhere tracked — the corpus stays personal"** —
+  the design constraint that shaped every commit here, written down before anyone asked for it.
+- **The AGPL fact and the ordinal rule** (`CLAUDE.md` §Clean-room boundary, Learning #548) were
+  already resident, so scrubbing three corpus paths at the moment of tracking needed no re-derivation.
+- **The gate citation, `cd`, and `git add -A` warnings** — all still accurate.
+
+**What was missing / wrong.**
+- ⚠ **Its own ledger correction (`cb4cb611`, 58 → 60 lines) was filed as a one-off, not a habit.**
+  This session made the identical slip in the identical place (21,412 → 21,234 B) before filing it as
+  Learning #552. A handoff that had said "write the command, not the number" would have stopped it.
+- **Nothing it stated as a fact turned out false.**
+
+**ROI: high.** Orientation to the first commit was minutes, and its constraint saved a redesign.
+
+## Session 268 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **Every stage of the move was held to a byte-identical control** (#553): `cmp` for the census and
+  the raw-HTML column against Session 265's outputs, `diff` for the extractor's executable region and
+  the scan logic, and the scorer against TWO known scores — 2,419 at HEAD and 2,418 on `b5_head`,
+  with ordinal 2494 the single difference.
+- ⚠ **The packaging gate got a control that can fail:** `check-package` reds with `unexpected tools`
+  when the `.vscodeignore` line is removed, and the line shipped in the SAME commit as the new root,
+  so no commit on `master` is red.
+- **Privacy at the moment of tracking:** three corpus paths in the extractor's comments became
+  ordinals 1, 28 and 308/669 before the file was ever staged.
+- **I asked before moving files** — scope and location by `AskUserQuestion`, which `SAFEGUARDS.md`
+  requires for a move, and the answer ("whole pipeline + driver") is what made `run.sh` worth writing.
+- **The measure got cheaper, not just tracked:** four commands became one, ~5 s warm.
+
+**What went wrong.**
+- ⚠ **I wrote `CLAUDE.md` 21,412 B into the ledger before the file was final** — the same slip I had
+  scored the predecessor down for one session earlier. Corrected in place and disclosed (`ed135ec7`),
+  then filed as #552 so the next session inherits the rule rather than the anecdote.
+- **The ground-truth render passes are still untracked**, so "reproducible from tracked files" holds
+  only while the corpus survives. Disclosed in the README rather than fixed — it is a session of its own.
+- **`tools/**/*.ts` went into `tsconfig.unit.json`**, widening what a gate covers, in a commit whose
+  subject is a file move. Right change, slightly wrong commit.
+- **TDD:** exempt — no `src/` logic changed; the move's tests are the byte-identical controls above.
+  **Runtime:** n/a. **Growth:** `PROJECT_LEARNINGS.md` +2.6 KB, `CLAUDE.md` +1.3 KB, `BACKLOG.md` −1.5 KB.
+
+**Against the bar.** Session 267 wrote decisions down; this one turned one of them into something a
+future session can run in five seconds, and proved the move rather than asserting it.
 
 ## Session 266 Handoff Evaluation (by Session 267)
 
