@@ -27,10 +27,11 @@
 
 ***Remaining candidates — Outline (heading) work:** the item *"The Outline's last real-document
 divergences — eight root causes …"* in "Up Next", filed by the Session 265 re-score
-([`docs/REAL-DOCUMENT-RESCORE.md`](docs/REAL-DOCUMENT-RESCORE.md)): the causes behind the 19
+([`docs/REAL-DOCUMENT-RESCORE.md`](docs/REAL-DOCUMENT-RESCORE.md)): the causes behind the 17
 authored documents whose Outline still differs from quarto (20 at the re-score, before Session 266's
-R1). Recommended pick: its **(d)**, R4 — the report's next after R1, one fix site for both halves.
-Its (g) and the raw-HTML scope (report F3) are
+R1 and Session 269's R4). Recommended pick: its **(c)**, R3 — the largest remaining, 3 documents
+and 8 LOST headings, at the cost of three fix sites rather than one.
+Its (d), R4, is CLOSED (Session 269); its (g) and the raw-HTML scope (report F3) are
 DECIDED — see the RECORD item in "Up Next" (Session 267) — and the **fenced-div container** item
 (report F6) is CLOSED (Session 268). The score itself is now a standing, tracked measure:
 `tools/realdoc-score/run.sh <label>`, ~5 s warm (`CLAUDE.md` §The real-document measure).
@@ -41,9 +42,9 @@ and the safe **`_metadata.yml` coverage gap** (S152). Operator picks at Phase 0.
 ***⚠ Ranking guidance — Session 265 re-score, superseding Session 251's
 ([`docs/REAL-DOCUMENT-TRIAGE.md`](docs/REAL-DOCUMENT-TRIAGE.md)).** Rank heading items by the
 real-document divergence they are **measured to cause**, not by how many documents contain their
-construct. At HEAD the Outline agrees with quarto on **2,419 of 2,438** scorable authored documents
-(99.22%, instrument corrected; 2,418 at the re-score, before Session 266's R1), and **no other open
-item describes the trigger of any of the 19 that differ** (R2's model-side refusal is the `START_CODE` item's documented workaround, but not its
+construct. At HEAD the Outline agrees with quarto on **2,421 of 2,438** scorable authored documents
+(99.30%, instrument corrected; 2,418 at the re-score, before Session 266's R1 and Session 269's R4),
+and **no other open item describes the trigger of any of the 17 that differ** (R2's model-side refusal is the `START_CODE` item's documented workaround, but not its
 trigger) — the `:::` div family Session 251 put first was fixed by Sessions 257 and 258. The other heading items
 stay correctness work on constructs pandoc supports, measured at zero attributed reach; the 90
 "Enumeration-only" items were already zero. ⚠ 941 documents (28%) have no quarto ground truth, and
@@ -65,10 +66,9 @@ file twice. The correction belongs in `PROJECT_LEARNINGS.md`; see #283.)*
 
 ## Up Next
 
-- [ ] **The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item** (Session 265 re-score, [`docs/REAL-DOCUMENT-RESCORE.md`](docs/REAL-DOCUMENT-RESCORE.md) F2, where every minimal reproduction is written out with invented text; **MEASURED** — (a)–(g) each rendered, adversarially re-checked by a second agent and re-run firsthand; (h) found after that, by the corrected instrument, and reproduced firsthand only; "docs" = scorable authored documents at HEAD whose divergence the cause explains). Each sub-item is grabbable alone; ranked by headings affected. The title's counts are the re-score's: (a), R1, is closed (`CHANGELOG.md`, Session 266) and (g), R7, is DECIDED rather than open (Session 267 — see the RECORD item below), so six sub-items remain, (b)–(f) and (h), behind 12 of the 19 divergent documents; (h)'s 3 need running R, which leaves 9 fixable. Line numbers below are re-mapped to Session 266's `model.ts`.
+- [ ] **The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item** (Session 265 re-score, [`docs/REAL-DOCUMENT-RESCORE.md`](docs/REAL-DOCUMENT-RESCORE.md) F2, where every minimal reproduction is written out with invented text; **MEASURED** — (a)–(g) each rendered, adversarially re-checked by a second agent and re-run firsthand; (h) found after that, by the corrected instrument, and reproduced firsthand only; "docs" = scorable authored documents at HEAD whose divergence the cause explains). Each sub-item is grabbable alone; ranked by headings affected. The title's counts are the re-score's: (a), R1, is closed (`CHANGELOG.md`, Session 266), (d), R4, is closed (Session 269) and (g), R7, is DECIDED rather than open (Session 267 — see the RECORD item below), so FIVE sub-items remain, (b), (c), (e), (f) and (h), behind 10 of the 17 divergent documents; (h)'s 3 need running R, which leaves 7 fixable. Line numbers below are re-mapped to Session 266's `model.ts`.
   - **(b) R2 — a `---` pair around a knitr chunk that emits nothing becomes valid YAML after knitr runs**, swallowing the heading between them; the model reads the pre-knitr fence and refuses the block (`model.ts:3183`, `:3318`) — `FENCE_ANYWHERE_IN_BLOCK`, the workaround the `START_CODE` item ("The ported region grammar's `START_CODE` is anchored at column 0 …") records, whose constraint carries over: the port feeds the validation partitioner, so a change needs its own oracle run. 2 docs, 8 phantoms. Depends on the chunk's output.
   - **(c) R3 — grid-table cells hold blocks:** an ATX heading in a well-formed cell renders, in any column; a row wider than its border fuses `Head` / `====` into a setext `h1` inside a cell (`model.ts:112`, `:905`, `:4531`–`:4586`). 3 docs, 8 lost.
-  - **(d) R4 — a block-level HTML tag or TeX command anywhere in ATX content means the line is not a heading** (`### 2. Overview <section>`, `## Intro \maketitle`); inline ones (`<span>`, `\emph{}`) keep it. One fix site, tables at `model.ts:1438`, `:1557`. 2 docs, 3 phantoms.
   - **(e) R5 — knitr's chunk grammar is not quarto's:** a digit-bearing engine with spaced options (`{fortran95, eval = FALSE}`) is a chunk to knitr; the model refuses it and its closer opens a fence (`model.ts:6024`, `:7315`–`:7347`). 1 doc, 1 lost.
   - **(f) R6 — in a knitr document a stray bare fence pairs, in the model only, with a later chunk's closer that knitr already consumed** (`model.ts:7345`, `:9507`). 1 doc, 1 lost.
   - **(h) NOT MODELABLE, R8 — inline R prints a heading** (`` `r if (…) '## Printed By R {-}'` ``). 3 docs. Recorded; no fix without running R.

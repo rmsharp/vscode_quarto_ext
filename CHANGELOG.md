@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Session 269 records — backlog sub-item (d) closed, learnings #554–#557
+- **Change:** `BACKLOG.md` loses the `(d)` R4 bullet and its head item now reads FIVE sub-items behind 10 of the 17 divergent documents (7 fixable); the Active note and the ranking guidance carry the measured 2,421 / 2,438 (99.30%) and recommend `(c)`, R3, next. `PROJECT_LEARNINGS.md` gains four rows: #554 the ground-truth extractor is blind to exactly the shapes a heading-content rule is about, #555 a one-document sweep of block-opening constructs is contaminated by its own earlier rows, #556 the same name tables answer different questions under inverted defaults, #557 decide decline-the-match vs drop-the-emission by rendering the two shapes that separate them.
+- **Commit/PR:** this entry's own commit
+- **Session:** S269 · **Verified:** row numbers checked contiguous (550–557); `node check-backlog.js` OK, 206 open items; `npm test` 2962/2962. Every number in the backlog edits is from this session's own `tools/realdoc-score/run.sh` output, not quoted (#552).
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] R4 runtime gate — the Outline the user sees, in a real Extension Development Host
 - **Change:** `test/integration/suite/outline.test.ts` gains the Session 269 row: an ABSENT half over the two CORPUS shapes (`### 1. <Section heading>` and `## \maketitle`, ordinals 3004 and 1985) asserting both are out of the Outline while the headings either side survive, and a PRESENT half over four neutralisers (code span, `\<` escape, math, inline tag) so the ABSENT half cannot pass for a build that has simply stopped showing headings that mention a tag or a macro.
 - **Commit/PR:** this entry's own commit
