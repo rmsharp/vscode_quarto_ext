@@ -2664,75 +2664,6 @@ function fromRequiresSpaceInAtxHeader(line: string): boolean {
   return fromHasConstruct(line, "space_in_atx_header", READER_HAS_SPACE_IN_ATX_HEADER);
 }
 /**
- * The bases on which `yaml_metadata_block` is a REAL extension, so a mid-document YAML block can
- * be CONSUMED as metadata and render nothing at all (Session 213, `scratchpad/s213/cal`).
- *
- * ⚠ **This is NOT the `fromHasConstruct` shape, and the row that says so is `cal/a12_gfm_ymbon`.**
- * Every other per-reader predicate in this file reads the extension FIRST and lets it outrank the
- * base unconditionally, because that is how the constructs those predicates model behave. Here the
- * extension is **inert on a CommonMark base**: `gfm+yaml_metadata_block` (`cal/a12`),
- * `commonmark_x+yaml_metadata_block` (`cal2/c5_ext`) and `commonmark+yaml_metadata_block`
- * (`cal3/f_cm_ymbon`) all still RENDER the block as a setext heading, while the identical
- * `+yaml_metadata_block` turns consumption ON for `markdown_strict` (`cal2/c4_ext`),
- * `markdown_mmd` (`cal2/c6_ext`), `markdown_phpextra` (`cal3/f_php_ymbon`) and `markdown_github`
- * (`cal3/f_gh_ymbon`). Calling `fromHasConstruct` here would suppress three headings quarto
- * renders — the DELETING direction — so this set gates the extension rather than the reverse.
- */
-const READER_CAN_CONSUME_METADATA_BLOCK: ReadonlySet<string> = new Set([
-  "markdown",
-  "markdown_strict",
-  "markdown_mmd",
-  "markdown_phpextra",
-  "markdown_github",
-]);
-/**
- * Whether the resolved reader CONSUMES a mid-document YAML metadata block, so quarto renders
- * nothing for it (Session 213). `null` means the document declares no `from:` this scanner can
- * resolve, which includes the commonest case of all — no `from:` key at all.
- *
- * ⚠ **The fail-safe direction is `false`, and it is the opposite of every sibling predicate's.**
- * Those model heading-DELETING rules, where "report it anyway" is safe. This one is
- * heading-FABRICATING: returning `true` wrongly REMOVES a section a reader really sees, and its
- * `sec-` id with it. So an unresolvable value and an unmeasured base both return `false` — today's
- * answer, which costs a phantom, this project's permitted direction.
- *
- * ⚠ **`null` is the ONE input that returns `true`**, because it is measured rather than assumed:
- * `cal/a01_nofm` and `cal2/d9_nofm_note` carry no `from:` key and quarto consumes the block in
- * both, matching `from: markdown` exactly (`cal/a02_md`). `cal/b01_nofm_ctl` is the feature-free
- * control that renders under the same absent key.
- *
- * ⚠ **The value is the RESOLVED one, including a mid-document block's own `from:`** — the caller
- * passes `frontMatterFromValueLine`, which routes through `governingMetadataContent` (Session
- * 211). Measured in both directions: `cal2/d7_selects_gfm` has a block whose `from: gfm` selects a
- * reader that does NOT consume, so the block renders ITSELF; `cal2/d8_selects_md` has one whose
- * `from: markdown` does consume, so it disappears.
- *
- * ⚠ **`-yaml_metadata_block` returns `false` even though quarto still renders no heading there**,
- * and that is deliberate. With the extension off, plain `markdown` parses the block as a MULTILINE
- * TABLE — read firsthand out of `cal/a10_md_ymboff`'s HTML — so the right answer is reached by a
- * mechanism this rule does not model. `cal2/c3_ext` proves that mechanism switches off: with
- * `multiline_tables` and `simple_tables` also removed, the heading RENDERS. Suppressing on the
- * base name alone would be right at `a10` for the wrong reason and wrong at `c3`. Three rows carry
- * a phantom for this (`a10`, `cal2/c1_ext`, `cal3/f_md_onoff`); all three are disclosed.
- */
-function fromConsumesMetadataBlock(line: string | null): boolean {
-  if (line === null) {
-    return true;
-  }
-  const base = fromReaderBase(line);
-  if (base === null || !READER_CAN_CONSUME_METADATA_BLOCK.has(base)) {
-    return false;
-  }
-  // LAST occurrence wins, as `fromExtensionState` documents — re-measured for this extension in
-  // both orders: `markdown-yaml_metadata_block+yaml_metadata_block` consumes (`cal3/f_md_offon`)
-  // and `markdown+yaml_metadata_block-yaml_metadata_block` does not (`cal3/f_md_onoff`).
-  const state = fromExtensionState(line, "yaml_metadata_block");
-  // Only `markdown` carries the extension by DEFAULT; the other four bases in the set above need
-  // it written on (`cal/a06`–`a09` all render the block, `cal2/c4`/`c6` and `cal3/f_php`/`f_gh`
-  // all consume it once `+yaml_metadata_block` is added).
-  return state !== null ? state : base === "markdown";
-}
-/**
  * Whether recognising `line` as a TIGHT ATX heading would make this model's answer WORSE than
  * reporting nothing — in which case the tight form is declined and today's answer is reproduced
  * byte for byte (Session 212).
@@ -3275,6 +3206,27 @@ function insideHtmlComment(lines: readonly string[], line: number): boolean {
  * The CONTENT lines of every YAML metadata block BELOW the document's opening block, in
  * document order — the blocks quarto measurably merges into the document's metadata.
  *
+ * ⚠ **IT RESOLVES THE READER AND NOTHING ELSE. THE HEADINGS INSIDE THESE BLOCKS ARE REPORTED**
+ * (Session 272, operator decision). Session 213 also used this enumeration to SUPPRESS every
+ * line of a consumed block, because `quarto render` renders nothing for one — which was faithful
+ * and is still true of quarto. `CLAUDE.md` §Clean-room boundary says the product mirrors POSIT
+ * where the two disagree, and they disagree here: observed black-box
+ * (`npm run observe:posit`, `quarto.quarto-1.135.0`, `ours-loaded: false`, both controls green,
+ * `scratchpad/s272/posit-observation.txt`), Posit's Outline shows the heading for EVERY spelling
+ * the rule suppressed — the corpus shape, a real-keys span, BOTH block-quote spellings,
+ * consecutive spans and the tight spelling — while still modelling the document's OWN front
+ * matter (`m11_fm_only` lists no `author:` row). **Posit models the opening block and only the
+ * opening block**, which is what this function now does too. Measured cost of the rule before it
+ * went: 80 headings across 30 authored documents — 79 of them real slide titles in teaching decks,
+ * and ONE (ordinal 2256) an `h2:---` row from the pre-existing empty-pair defect this change
+ * UNMASKS rather than causes (measured on HEAD under `from: gfm`; see `BACKLOG.md`). `quarto
+ * render` exits 1 on all 30, so the real-document score never saw any of it (2421 / 2438 both
+ * before and after, identical ordinal lists), and NO corpus document loses a heading. The span
+ * arm, its block-quote walk and its
+ * per-reader `yaml_metadata_block` table are deleted rather than gated; `CHANGELOG.md` and
+ * `PROJECT_LEARNINGS.md` hold what they measured, and `git show 54a4a1c6^:src/core/qmd/model.ts`
+ * holds the code.
+ *
  * ⚠ **A mid-document block really does select the reader** (Session 211, 67 rendered documents
  * — `scratchpad/s211/CALIBRATION.md`). `cal/c01_mid_gfm` renders the pressed heading that only a
  * CommonMark-family reader keeps, and its matched control `c01_mid_none` — the same geometry
@@ -3314,212 +3266,34 @@ function insideHtmlComment(lines: readonly string[], line: number): boolean {
  * still admitting a document with no front matter at all (`cal3/r1_nofm_mid_gfm`).
  */
 function midDocumentMetadataBlocks(lines: readonly string[]): string[][] {
-  return midDocumentMetadataRegions(lines).map((block) => block.content);
-}
-/**
- * The same enumeration, with each block's SOURCE SPAN retained (Session 213).
- *
- * Split out rather than copied because the two consumers ask different questions of the SAME set
- * and a second walk would drift from this one: `midDocumentMetadataBlocks` above reads the
- * CONTENT to resolve the reader, and `consumedMetadataBlockLines` below reads the SPAN to
- * suppress the lines. Every filter documented on `midDocumentMetadataBlocks` applies to both and
- * is unchanged; behaviour for its existing consumers is identical.
- *
- * ⚠ A block whose body carries a `...` document-end marker returns NO span. Its content ends at
- * the marker while the region ends at the `---`, and what quarto renders for the lines BETWEEN
- * the two is unmeasured — so the span is withheld rather than guessed. `cal2/e8_dots_md` is the
- * nearest rendered row and it is an unterminated region, already excluded, with no phantom to
- * lose. Withholding is today's answer.
- */
-interface MetadataBlock {
-  readonly content: string[];
-  /** The opening `---`, 0-based. */
-  readonly startLine: number;
-  /** The closing `---`, 0-based and INCLUSIVE, or `null` where no span may be claimed. */
-  readonly endLine: number | null;
-}
-function midDocumentMetadataRegions(
-  lines: readonly string[],
-  atTopLevel = true,
-): MetadataBlock[] {
   const firstContent = lines.findIndex((line) => line.trim() !== "");
   if (firstContent < 0) {
     return [];
   }
-  const blocks: MetadataBlock[] = [];
+  const blocks: string[][] = [];
   for (const region of quartoYamlRegions(lines.join("\n"))) {
-    // ⚠ **THE FIRST-CONTENT FILTER IS ABOUT FRONT MATTER, AND A BLOCK QUOTE HAS NONE
-    // (Session 231).** At top level a block that OPENS the document is front matter, which
-    // quarto VALIDATES and this scanner resolves elsewhere — hence the skip. The content of a
-    // quote is re-parsed as ordinary blocks, so a triple on the quote's FIRST line is an
-    // ordinary mid-document block there and pandoc consumes it: rendered, `r1/a01` (`> ---` /
-    // `> note: alpha` / `> ---` as the whole quote) renders an EMPTY `<blockquote>`. Passing
-    // `false` lifts only that filter; every other exclusion documented above applies unchanged.
-    if (
-      (atTopLevel && region.startLine <= firstContent) ||
-      insideHtmlComment(lines, region.startLine)
-    ) {
+    // ⚠ **THE FIRST-CONTENT FILTER IS ABOUT FRONT MATTER.** A block that OPENS the document is
+    // front matter, which quarto VALIDATES and this scanner resolves elsewhere — hence the skip.
+    if (region.startLine <= firstContent || insideHtmlComment(lines, region.startLine)) {
       continue;
     }
     const body = lines.slice(
       region.startLine + 1,
       region.terminated ? region.endLine : lines.length,
     );
+    // ⚠ A block whose body carries a `...` document-end marker ends its CONTENT at the marker,
+    // where the region itself ends at the `---`. Only the content is read here, so the two never
+    // have to be reconciled — the SPAN half of this enumeration was Session 213's and is gone
+    // (Session 272; see `midDocumentMetadataBlocks`' own docstring above).
     const end = body.findIndex((line) => YAML_DOCUMENT_END.test(line));
     const content = end >= 0 ? body.slice(0, end) : region.terminated ? body : null;
     // A block holding a fence opener is one where the ported region grammar is measured NOT to
     // mirror quarto — see `FENCE_ANYWHERE_IN_BLOCK`. Resolving nothing from it is today's answer.
     if (content !== null && !content.some((line) => FENCE_ANYWHERE_IN_BLOCK.test(line))) {
-      blocks.push({
-        content,
-        startLine: region.startLine,
-        endLine: region.terminated && end < 0 ? region.endLine : null,
-      });
+      blocks.push(content);
     }
   }
   return blocks;
-}
-/**
- * The lines a CONSUMING reader swallows whole — every line of every mid-document metadata block
- * pandoc parses as `yaml_metadata_block`, opener through closer inclusive (Session 213).
- *
- * ⚠ **THE OPENER'S PRECONDITION IS THE WHOLE DIFFICULTY, AND IT IS WHY THIS IS NOT SIMPLY
- * `midDocumentMetadataBlocks`.** `BACKLOG.md`'s entry for this item says that function "already
- * enumerates exactly the blocks in question". It does not, and `scratchpad/s213/cal3/h3_above_md`
- * is the document that refutes it: under plain `markdown` — the consuming reader — a `---` sitting
- * directly beneath a `## heading` line with no blank between renders BOTH `h2:## Cal Above Atx`
- * AND `h2:note: alpha`. **No block is consumed there at all.**
- *
- * Two different rules run over the same bytes. Quarto reads YAML REGIONS for metadata
- * (`breakQuartoMd`, ported in `quarto-yaml-regions.ts`, which the enumeration above walks) and
- * then hands PANDOC the whole document. The consumption modelled here is pandoc's, and pandoc
- * requires the opening `---` to START A BLOCK; where it does not, pandoc claims it as a SETEXT
- * UNDERLINE for the line above instead — which is exactly why that heading comes back carrying
- * its literal hashes.
- *
- * `scratchpad/s213/cal4` varies only the line directly above the opener, under both readers:
- *
- *     line above the opener        consumed?   row
- *     a blank line                   YES       i_blank_md
- *     a whitespace-only line         YES       j_wsblank_md
- *     nothing (first content)        YES       i_top_md
- *     a closed code fence            YES       i_fenceclose_md      ⚠ DECLINED — see below
- *     a closed raw HTML block        YES       i_htmlclose_md       ⚠ DECLINED — see below
- *     a paragraph line               no        i_para_md
- *     an ATX heading                 no        i_atx_md
- *     a list item                    no        i_listitem_md
- *     a block-quote line             no        i_quoteline_md
- *     a thematic break `***`         no        i_hr_md
- *
- * **Every `no` row is a heading quarto renders and a suppression keyed on the region grammar
- * would DELETE.** So the test is the BLANK LINE, which is a deliberate UNDER-approximation of
- * pandoc's "starts a block": the two closed-construct rows are declined and carry their phantom,
- * because widening to them is a claim about container state this row does not need to make.
- *
- * ⚠ Also declined: an opener sitting directly on the CLOSER of a preceding consumed block
- * (`cal3/g_twounder_md`, where quarto consumes both and this suppresses only the first). One
- * rendered witness is not enough to widen a rule whose failure mode is deletion — the lesson
- * `h3_above_md` had just finished teaching.
- *
- * ⚠ The blank-above test is ALSO what protects this repository's own documents. 53 of the 115
- * tracked markdown-family files carry a blank-preceded `---` below their first content line — the
- * section separator this project writes everywhere — and NONE is a candidate span, because each
- * is followed by a blank line and quarto's region grammar exempts it as a thematic break
- * (`cal2/e7_hrgap_md`). Measured over the corpus before the rule was written, and re-proven by
- * the byte-identical repo control after it.
- */
-function consumedMetadataBlockLines(lines: readonly string[]): ReadonlySet<number> {
-  const consumed = new Set<number>();
-  for (const block of midDocumentMetadataRegions(lines)) {
-    if (block.endLine === null || !BLANK_LINE.test(lines[block.startLine - 1] ?? "")) {
-      continue;
-    }
-    for (let i = block.startLine; i <= block.endLine; i++) {
-      consumed.add(i);
-    }
-  }
-  // ⚠ **AND THE SAME WALK OVER EACH BLOCK QUOTE'S OWN CONTENT (Session 231).** Quarto strips a
-  // quote's markers and re-parses what is left, and `yaml_metadata_block` is a BLOCK-level
-  // construct — so the triple is consumed inside a quote exactly as it is outside one.
-  // Measured, `scratchpad/s231/r1`, 17 documents rendered through the real `quarto render`
-  // path: `a01` (the quote's first line), `a02` (a marked-blank line above the opener), `a05`
-  // (an ATX INSIDE the block) and `a11` (a `>>` nested quote) all render an EMPTY
-  // `<blockquote>`, and `a10` proves the lines really are skipped rather than merely
-  // heading-free — the `> # Below a10` under the closer is a REAL heading this model could not
-  // reach while the block's paragraph was still open.
-  //
-  // ⚠ **The BLANK-ABOVE precondition is the quote's own, not the document's, and Round 1
-  // measures both sides of it.** Where the opener does NOT start a block inside the quote,
-  // nothing is consumed and the `---` is a setext underline instead: `a03` (a quoted paragraph
-  // line above) renders `h2:quoted para`, `a04` (a quoted ATX above) renders `h2:# Quoted Head
-  // a04`, marker and all, and `a12` (a quoted list item above) renders `h2:item`. Reading the
-  // STRIPPED run makes both answers fall out of the test already written above — a `>` alone
-  // strips to `""` and is blank, and the run's first line has no line above it at all.
-  //
-  // ⚠ A quoted block whose body holds a FENCE is excluded by the enumeration, and that is not
-  // a nicety: `r1/a08` does not render AT ALL (exit 1, `YAML parse exception` out of quarto's
-  // own `readqmd.lua`), so there is no verdict to model.
-  for (const run of blockQuoteRuns(lines)) {
-    for (const block of midDocumentMetadataRegions(run.content, false)) {
-      if (block.endLine === null || !BLANK_LINE.test(run.content[block.startLine - 1] ?? "")) {
-        continue;
-      }
-      for (let i = block.startLine; i <= block.endLine; i++) {
-        consumed.add(run.source[i]);
-      }
-    }
-  }
-  return consumed;
-}
-/**
- * Every maximal run of consecutive BLOCK-QUOTE lines, as the content left when each line's
- * markers are stripped plus the SOURCE line index that content came from (Session 231).
- *
- * ⚠ The run is what a quote's own coordinate system is defined over, so it ends at the first
- * line carrying no marker at all — including a LAZY continuation line, which pandoc joins to
- * the quote's open paragraph but which cannot open a metadata block there. `r1/a14` is the
- * rendered row: `> ---` / `> note: alpha` / `---` with an UNMARKED closer is consumed by
- * quarto, and this walk declines it because the run ends before the closer. That is a
- * disclosed under-approximation in the phantom direction, pinned as R1 — a lazily-continued
- * closer is a claim about paragraph state this walk does not carry, and over-consuming
- * DELETES.
- */
-function blockQuoteRuns(
-  lines: readonly string[],
-): { source: number[]; content: string[] }[] {
-  const runs: { source: number[]; content: string[] }[] = [];
-  let current: { source: number[]; content: string[] } | null = null;
-  for (let i = 0; i < lines.length; i++) {
-    // ⚠ **THIS WALK HAS NO CONTAINER STACK, SO IT ASKS THE MARKER QUESTION AT THE LINE'S OWN
-    // COLUMN (Session 243)** — i.e. "does this line carry a marker run at ANY indent". Widening
-    // the strip to a container-relative window without widening this one leaves a quoted
-    // metadata block at container depth UNCONSUMED, and every heading inside it is then reported
-    // where quarto renders none: `-   item` / `` / `    > ---` / `    > # Inside Meta` /
-    // `    > note: alpha` / `    > ---` renders NOTHING and reported two headings
-    // (`scratchpad/s243/r2/M_meta0`, `M_meta3`, `r3/M_a`, `M_b`, `M_e`). ⚠ **7 of 22 rows in the
-    // adversarial round broke on the narrow spelling and 1 on this one.**
-    //
-    // ⚠ **AND THE PERMISSIVE READING'S OWN FAILURE DIRECTION — over-consuming, which DELETES —
-    // IS MEASURED, NOT ARGUED.** A `>`-marked YAML block sitting in genuine indented code, or in
-    // a fence, is not consumed by quarto, and consuming it would swallow the heading below.
-    // Rendered at 4, 5 and 8 columns with no container open at all, inside a fence at top level
-    // and inside one at container depth: every heading survives (`r4/A_code0`, `A_code1`,
-    // `A_code2`, `B_fence0`, `B_fence1`, `L_deep0`, `G_plain0`, `G_plain1`, pinned as G9/G10).
-    // The reason is structural rather than lucky — a heading inside indented code or a fence is
-    // not reported either way, so consuming those lines changes no answer.
-    const start = blockQuoteContentStart(lines[i], [indentColumn(lines[i])]);
-    if (start === null) {
-      current = null;
-      continue;
-    }
-    if (current === null) {
-      current = { source: [], content: [] };
-      runs.push(current);
-    }
-    current.source.push(i);
-    current.content.push(lines[i].slice(start));
-  }
-  return runs;
 }
 /**
  * The metadata block that GOVERNS this document's reader — the content the two `from:`
@@ -6545,19 +6319,6 @@ function computeRegions(text: string): Regions {
   // only where it can be read, because it is a whole-document pre-pass and every other reader
   // leaves the tight row switched off anyway.
   const literalHtmlLines = tightAtxDialect ? closedRawHtmlBlockLines(lines) : null;
-  // The lines of every mid-document YAML metadata block the resolved reader CONSUMES, which
-  // quarto renders NOTHING for — see `consumedMetadataBlockLines` (Session 213). A SEVENTH flag,
-  // and like the six above it answers its own question and is read at ONE site (the skip at the
-  // head of the loop).
-  //
-  // ⚠ Its polarity is the INVERSE of every flag above it. Those model heading-DELETING rules, so
-  // their fail-safe answer is the one that reports a heading anyway. This one is
-  // heading-FABRICATING: firing wrongly REMOVES a section a reader really sees, so
-  // `fromConsumesMetadataBlock` answers `false` for anything it has not measured, and the
-  // whole-document pre-pass runs only when that answer is `true`.
-  const consumedMetadataLines = fromConsumesMetadataBlock(fromValueLine)
-    ? consumedMetadataBlockLines(lines)
-    : null;
   // Whether a line spelling a footnote definition or a definition-list body really OPENS a
   // container here — see `fromHasDefinitionLists` / `fromHasFootnotes` for the measured
   // per-reader table, and `CONTENT_COLUMN_4_OPEN` for the two spellings it splits (Session 209).
@@ -7050,23 +6811,6 @@ function computeRegions(text: string): Regions {
       if (COMMENT_CLOSE.test(line)) {
         inComment = false;
       }
-      continue;
-    }
-    // A line inside a mid-document YAML metadata block the resolved reader CONSUMES — quarto
-    // renders nothing for it, so nothing here may reach any heading row (Session 213).
-    //
-    // ⚠ Placed BELOW the open-fence and open-comment branches on purpose: a fence or comment
-    // already open outranks this, which keeps the enumeration's own exclusions (a block bearing a
-    // fence, a block inside a comment) from having to be re-litigated here.
-    //
-    // ⚠ A `continue` rather than a heading-row gate, because a consumed block renders NOTHING —
-    // not the setext heading it would otherwise produce, and not an ATX line inside it either.
-    // `cal3/g_atxkey_md` is the row that settles it: `---` / `# Cal Inside Comment` /
-    // `note: alpha` / `---` reports BOTH an `h1` and an `h2` on the pre-session build, and quarto
-    // renders neither. Skipping the lines outright is also what pandoc does with them, and the
-    // block's own opener is preceded by a blank line by construction, so no container state
-    // carried past it can be disturbed.
-    if (consumedMetadataLines?.has(i) === true) {
       continue;
     }
     // ⚠ **WHETHER THIS LINE STARTS A NEW ITEM OF A LIST THAT WAS ALREADY OPEN ABOVE IT

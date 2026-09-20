@@ -2340,11 +2340,16 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
     );
   });
 
-  it("a mid-document YAML metadata block is consumed, so no section comes out of it", async () => {
-    // The user-visible surface of Session 213. A YAML metadata block below the document's first
-    // content line renders NOTHING under the readers that consume it, and this outline was
-    // putting a section there — one the reader never sees, carrying a `sec-` id into the
-    // cross-reference index with it.
+  it("a mid-document YAML metadata block DOES produce a section — the Outline mirrors Posit (Session 272)", async () => {
+    // ⚠ **THE USER-VISIBLE SURFACE OF SESSION 272, WHICH REVERSES SESSION 213 ON AN OPERATOR
+    // DECISION.** Session 213 modelled pandoc faithfully: a mid-document `---` span a consuming
+    // reader swallows renders NOTHING, so this outline put no section there. `quarto render`
+    // still agrees with that. `CLAUDE.md` §Clean-room boundary says the product mirrors POSIT
+    // where the two disagree, and Posit shows the heading for every spelling the rule suppressed
+    // — observed black-box, `npm run observe:posit`, `scratchpad/s272/posit-observation.txt`.
+    // Measured cost of the old rule: 80 headings across 30 authored documents quarto cannot
+    // render at all. The four PRESENT assertions below are Session 213's and are UNCHANGED; the
+    // two ABSENT ones are reversed and say so.
     //
     // ⚠ `openInMemory` scopes every document below, so no exact-set `assert.deepStrictEqual`
     // pin can be extended by them and `test/fixtures/setext-fresh-block.qmd` is untouched. The
@@ -2365,25 +2370,23 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
     const below = ["", "## Cal Heading Below"];
     const block = ["---", "note: alpha", "---"];
 
-    // ABSENT — the phantom section this item was filed for. `cal/a02_md`: quarto renders only
-    // the real heading, and its feature-free control `cal/b02_md_ctl` (the same setext geometry
-    // with no opening `---`) renders BOTH under the same reader — which is what proves the
-    // difference is metadata consumption and not the setext parse.
+    // ⚠ REVERSED BY SESSION 272 — PRESENT where Session 213 asserted ABSENT. `cal/a02_md`:
+    // quarto renders only the real heading; Posit's Outline shows `note: bravo` for these bytes
+    // (`m02_keys_only`), and this Outline now does too.
     const consumed = await namesFor(
       "---", "from: markdown", "---", "", "Cal body prose.", "", ...block, ...below,
     );
     assert.ok(
-      !consumed.includes("note: alpha"),
-      `a consumed metadata block has no section: ${consumed.join(", ")}`,
+      consumed.includes("note: alpha"),
+      `the Outline mirrors Posit and shows the block: ${consumed.join(", ")}`,
     );
 
-    // ABSENT — the DEFAULT reader, with no `from:` key anywhere in the document. `cal2/d9`:
-    // this is the commonest shape of all, and the reason this item is worth more than its
-    // contrived spellings suggest.
+    // ⚠ REVERSED BY SESSION 272 — the DEFAULT reader, with no `from:` key anywhere. `cal2/d9`:
+    // the commonest shape of all, and the one the 30 affected corpus documents are written in.
     const dflt = await namesFor("Cal body prose.", "", ...block, ...below);
     assert.ok(
-      !dflt.includes("note: alpha"),
-      `the default reader consumes too: ${dflt.join(", ")}`,
+      dflt.includes("note: alpha"),
+      `the default reader shows it too: ${dflt.join(", ")}`,
     );
 
     // PRESENT — ⚠ THE DISCRIMINATOR. `cal/a12_gfm_ymbon`: `+yaml_metadata_block` turns

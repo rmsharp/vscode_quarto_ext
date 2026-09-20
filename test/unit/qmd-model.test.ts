@@ -6779,8 +6779,11 @@ describe("a blank line before the opening `---` does not hide the front matter (
     // block"*. That is now modelled, so both documents report the `h2:Control Heading` ALONE that
     // this comment recorded quarto rendering. Re-rendered by Session 213 rather than inherited:
     // `scratchpad/s213/pin/p1_s210_two` and `p2_s210_two_lead`, both `[h2:Control Heading]`.
-    expect(names(twoBlocks(""))).toEqual(["h2:Control Heading"]);
-    expect(names(twoBlocks("\n"))).toEqual(["h2:Control Heading"]);
+    // ⚠ REVERSED BY SESSION 272 — the consumed block now reports its own setext row. The
+    // RESOLUTION this row exists for is unchanged: the pressed heading is still absent, which is
+    // what says `from: markdown` reached the resolver.
+    expect(names(twoBlocks(""))).toEqual(["h2:from: markdown", "h2:Control Heading"]);
+    expect(names(twoBlocks("\n"))).toEqual(["h2:from: markdown", "h2:Control Heading"]);
     // THE CONTROL that classifies it: with only ONE block there is nothing to override, and
     // both spellings are correct — so the defect is the SECOND block, not the leading blank.
     const oneBlock = (lead: string) =>
@@ -6917,8 +6920,13 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
         "h2:from: gfm",
         "h2:Control Heading",
       ]);
-      // `cal2/q5_in_quote` (`> ---`).
-      expect(names(doc(...FM, "", "Prose one.", "", "> ---", "> from: gfm", "> ---", ...BODY))).toEqual(CONSUMED);
+      // `cal2/q5_in_quote` (`> ---`). ⚠ REVERSED BY SESSION 272 — the quoted block reports its
+      // own setext row now that the quoted walk is gone. The row's SUBJECT is unchanged: the
+      // pressed heading is still absent, so `> ---` still resolves no reader.
+      expect(names(doc(...FM, "", "Prose one.", "", "> ---", "> from: gfm", "> ---", ...BODY))).toEqual([
+        "h2:from: gfm",
+        "h2:Control Heading",
+      ]);
       // `cal2/q5_in_list` (2 spaces inside a list item).
       expect(names(doc(...FM, "", "Prose one.", "", "- item", "", "  ---", "  from: gfm", "  ---", ...BODY))).toEqual([
         "h2:from: gfm",
@@ -6978,7 +6986,9 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
     // The pressed-heading half (this session's) is unchanged; only the phantom setext is gone.
     // Rendered by Session 213 rather than derived: `scratchpad/s213/pin/p3_empty`.
     const empty = doc(...FM, "", "Prose one.", "", "---", "from:", "---", ...BODY);
-    expect(names(empty)).toEqual(["h2:Control Heading"]);
+    // ⚠ REVERSED BY SESSION 272 — the setext row is back; the pressed heading, which is what this
+    // row measures, is still absent.
+    expect(names(empty)).toEqual(["h2:from:", "h2:Control Heading"]);
     // ...and it does NOT fall back to an earlier resolvable block (`cal2/q4_gfm_then_empty`).
     // ⚠ BOTH blocks lose their setext here, and for the SAME reason rather than by luck: the
     // resolved reader is the default `markdown`, so every block in the document is consumed.
@@ -6986,7 +6996,9 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
     const gfmThenEmpty = doc(
       ...FM, "", "Prose one.", "", "---", "from: gfm", "---", "", "Prose two.", "", "---", "from:", "---", ...BODY,
     );
-    expect(names(gfmThenEmpty)).toEqual(["h2:Control Heading"]);
+    // ⚠ REVERSED BY SESSION 272 — both blocks report themselves. The clause this row pins is
+    // untouched: the pressed heading is still absent, so the EMPTY `from:` still governs.
+    expect(names(gfmThenEmpty)).toEqual(["h2:from: gfm", "h2:from:", "h2:Control Heading"]);
   });
 
   it("a block whose CONTENT opens a code fence resolves nothing — the port and quarto diverge", () => {
@@ -7084,7 +7096,9 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
       // ⚠ Session 213 — the resolved reader here is `markdown`, which CONSUMES every
       // mid-document block in the document, so the setext phantom goes with the pressed heading.
       // `scratchpad/s213/pin/p5_gfm_then_md` renders `[h2:Control Heading]`.
-      expect(names(gfmThenMd)).toEqual(["h2:Control Heading"]);
+      // ⚠ REVERSED BY SESSION 272 — the later block reports itself; the pressed heading stays
+      // absent, which is the clause this row pins.
+      expect(names(gfmThenMd)).toEqual(["h2:from: markdown", "h2:Control Heading"]);
       // three blocks, the LAST declaring one governing (`cal/c02_three_last_gfm`).
       const threeLastGfm = doc(
         "---", "title: Doc", "from: markdown", "---", "", "Prose one.", "", "---", "from: markdown", "---",
@@ -7137,7 +7151,10 @@ describe("a MID-DOCUMENT YAML block's `from:` selects the reader too (Session 21
       // this session's `cal2/d9_nofm_note` measures directly; `scratchpad/s213/pin/p9_nofm_note`
       // renders `[h2:Control Heading]`. Its `from: gfm` twin above is UNCHANGED, which is what
       // proves the difference is the resolved reader and not the absent front matter.
+      // ⚠ REVERSED BY SESSION 272 — `note: x` reports itself; the pressed heading stays absent,
+      // which is what says the absent front matter still resolves `markdown`.
       expect(names(doc("Ordinary body prose.", "", "---", "note: x", "---", ...BODY))).toEqual([
+        "h2:note: x",
         "h2:Control Heading",
       ]);
     });
@@ -7468,7 +7485,15 @@ describe("a reader with `space_in_atx_header` OFF accepts `#Heading` (Session 21
   });
 });
 
-describe("a mid-document YAML metadata block is CONSUMED by the reader (Session 213)", () => {
+describe("a mid-document YAML metadata block is CONSUMED by the reader — by QUARTO, not by this Outline (Session 213, reversed by Session 272)", () => {
+  /*
+   * ⚠ **EVERY MEASUREMENT IN THIS SUITE IS STILL CORRECT ABOUT `quarto render`, AND THE OUTLINE
+   * NO LONGER MIRRORS IT (Session 272, operator decision).** The rows that assert a heading is
+   * PRESENT are unchanged and still pass. The rows that asserted the block VANISHES now assert
+   * that it reports itself, each marked `⚠ REVERSED BY SESSION 272`. The reason, the observation
+   * and the measured cost are in the Session 272 suite further down this file; the suite is kept
+   * here rather than deleted because what quarto does is still worth knowing.
+   */
   const doc = (...lines: string[]) => lines.join("\n") + "\n";
   const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
 
@@ -7568,7 +7593,9 @@ describe("a mid-document YAML metadata block is CONSUMED by the reader (Session 
     // for `---` / `note: alpha` / `---`. Its feature-free control `cal/b02_md_ctl` (the same
     // setext geometry with no opening `---`) renders the heading under the same reader, which is
     // what proves the difference is metadata CONSUMPTION and not the setext parse.
-    expect(names(withFrom("markdown", ...BLOCK))).toEqual(CONSUMED);
+    // ⚠ REVERSED BY SESSION 272 — quarto still renders nothing here; Posit shows `note: alpha`
+    // and so does this model now.
+    expect(names(withFrom("markdown", ...BLOCK))).toEqual(RENDERED);
   });
 
   it("GUARD — the front matter itself and a document with no block are untouched", () => {
@@ -7595,25 +7622,31 @@ describe("a mid-document YAML metadata block is CONSUMED by the reader (Session 
       expect(names(withFrom(null, ...BLOCK))).toEqual(CONSUMED);
       // `cal/a02_md`, `a11_md_ymbon`, `cal2/c2_ext` — a `markdown` base, with the extension left
       // alone, written on, and with an unrelated extension removed.
+      // ⚠ REVERSED BY SESSION 272 — the reader table no longer exists; every reader reports the
+      // block. Quarto's own answer for these three is still "nothing".
       for (const reader of ["markdown", "markdown+yaml_metadata_block", "markdown-multiline_tables"]) {
-        expect(names(withFrom(reader, ...BLOCK))).toEqual(CONSUMED);
+        expect(names(withFrom(reader, ...BLOCK))).toEqual(RENDERED);
       }
       // ⚠ `cal2/c4_ext`, `c6_ext`, `cal3/f_php_ymbon`, `f_gh_ymbon` — the four markdown-family
       // bases that have the extension OFF by default and consume once it is written ON. Their
       // bare spellings are in the GUARD above, where they must keep RENDERING; the pair is what
       // makes each of these a measurement rather than a coincidence.
+      // ⚠ REVERSED BY SESSION 272 — the reader table is gone, so these four now answer exactly
+      // as their bare spellings in the GUARD above do. Quarto still consumes them.
       for (const base of ["markdown_strict", "markdown_mmd", "markdown_phpextra", "markdown_github"]) {
-        expect(names(withFrom(`${base}+yaml_metadata_block`, ...BLOCK))).toEqual(CONSUMED);
+        expect(names(withFrom(`${base}+yaml_metadata_block`, ...BLOCK))).toEqual(RENDERED);
       }
     });
 
     it("PIN — the extension list is LAST-WINS for this extension too", () => {
       // `cal3/f_md_offon` — off then on: the last token wins, so the block is consumed.
-      expect(names(withFrom("markdown-yaml_metadata_block+yaml_metadata_block", ...BLOCK))).toEqual(CONSUMED);
+      // ⚠ REVERSED BY SESSION 272 — see the suite header.
+      expect(names(withFrom("markdown-yaml_metadata_block+yaml_metadata_block", ...BLOCK))).toEqual(RENDERED);
       // `cal3/f_strict_offon` — the same, on a base whose default is OFF.
+      // ⚠ REVERSED BY SESSION 272 — see the suite header.
       expect(
         names(withFrom("markdown_strict-yaml_metadata_block+yaml_metadata_block", ...BLOCK)),
-      ).toEqual(CONSUMED);
+      ).toEqual(RENDERED);
     });
 
     it("PIN — DISCLOSED RESIDUAL: `-yaml_metadata_block` declines and carries a phantom", () => {
@@ -7643,39 +7676,71 @@ describe("a mid-document YAML metadata block is CONSUMED by the reader (Session 
       // ⚠ `cal2/d8_selects_md` — the mirror: a front matter saying `gfm` and a block saying
       // `markdown`. The block selects the reader that consumes it, so it disappears. The two rows
       // together are what prove the resolved value is the right input and not the front matter's.
-      expect(names(withFrom("gfm", "---", "from: markdown", "---"))).toEqual(CONSUMED);
+      // ⚠ REVERSED BY SESSION 272 — the block still SELECTS `markdown` (which is this row's
+      // subject); it is no longer suppressed by having done so.
+      expect(names(withFrom("gfm", "---", "from: markdown", "---"))).toEqual([
+        "h2:from: markdown",
+        "h2:Cal Heading Below",
+      ]);
     });
 
     it("PIN — the SPAN is the whole block, not just its setext row", () => {
       // ⚠ `cal3/g_atxkey_md` — an ATX line INSIDE the block. The pre-session build reported both
       // an `h1` and an `h2` here and quarto renders neither, which is why the gate is a `continue`
       // over the block's lines rather than a test on the setext row alone.
-      expect(names(withFrom("markdown", "---", "# Cal Inside Comment", "note: alpha", "---"))).toEqual(CONSUMED);
+      // ⚠ REVERSED BY SESSION 272 — this is the row Session 213 built the `continue` for, and it
+      // is exactly the deletion the Outline no longer performs: BOTH lines come back.
+      expect(names(withFrom("markdown", "---", "# Cal Inside Comment", "note: alpha", "---"))).toEqual([
+        "h1:Cal Inside Comment",
+        "h2:note: alpha",
+        "h2:Cal Heading Below",
+      ]);
       // `cal2/d3_blank_in_md` — a blank line inside the block does not end it.
-      expect(names(withFrom("markdown", "---", "note: alpha", "", "tag: beta", "---"))).toEqual(CONSUMED);
-      // `cal2/d5_two_blocks_md` — two separated blocks, both consumed.
+      // ⚠ REVERSED BY SESSION 272 — the setext row comes from the CLOSER, so only `tag: beta`
+      // (the line above it) becomes a heading; `note: alpha` does not, which is what shows the
+      // blank line really did not end the block.
+      expect(names(withFrom("markdown", "---", "note: alpha", "", "tag: beta", "---"))).toEqual([
+        "h2:tag: beta",
+        "h2:Cal Heading Below",
+      ]);
+      // `cal2/d5_two_blocks_md` — two separated blocks, both consumed BY QUARTO.
+      // ⚠ REVERSED BY SESSION 272 — both now report themselves.
       expect(
         names(withFrom("markdown", ...BLOCK, "", "Cal middle prose.", "", "---", "tag: beta", "---")),
-      ).toEqual(CONSUMED);
+      ).toEqual(["h2:note: alpha", "h2:tag: beta", "h2:Cal Heading Below"]);
       // `adv/x16_title_key` — the content need not be a `note:`; a `title:` key is consumed alike.
-      expect(names(withFrom("markdown", "---", "title: Adv Block Title", "---"))).toEqual(CONSUMED);
+      // ⚠ REVERSED BY SESSION 272.
+      expect(names(withFrom("markdown", "---", "title: Adv Block Title", "---"))).toEqual([
+        "h2:title: Adv Block Title",
+        "h2:Cal Heading Below",
+      ]);
     });
 
     it("PIN — the span's own edges", () => {
       // `cal3/h1_pressed_md` — the closer pressed directly against the real heading below it,
       // which must SURVIVE. The row that would catch a span one line too long.
+      // ⚠ REVERSED BY SESSION 272 — the real heading below still SURVIVES, which is this row's
+      // subject; the block above it now reports itself as well.
       expect(names(doc("---", "from: markdown", "---", "", "Cal body prose.", "", ...BLOCK, "## Cal Heading Below"))).toEqual(
-        CONSUMED,
+        RENDERED,
       );
       // `cal3/h2_ateof_md` — the block is the last thing in the document.
-      expect(names(doc("---", "from: markdown", "---", "", "## Cal Heading Below", "", ...BLOCK))).toEqual(CONSUMED);
+      // ⚠ REVERSED BY SESSION 272 — the block reports itself AFTER the real heading, which is why
+      // the order here is the reverse of every other row in this suite.
+      expect(names(doc("---", "from: markdown", "---", "", "## Cal Heading Below", "", ...BLOCK))).toEqual([
+        "h2:Cal Heading Below",
+        "h2:note: alpha",
+      ]);
       // `adv/x14_only_block` — the block is the ENTIRE document below the front matter, and
-      // quarto renders no headings at all.
-      expect(names(doc("---", "from: markdown", "---", "", ...BLOCK))).toEqual([]);
+      // quarto renders no headings at all. ⚠ REVERSED BY SESSION 272 — its setext row is the
+      // document's only heading now.
+      expect(names(doc("---", "from: markdown", "---", "", ...BLOCK))).toEqual(["h2:note: alpha"]);
       // `cal4/j_wsblank_md` — a WHITESPACE-ONLY line satisfies the blank-above precondition, and
       // `adv/x13_tab_above` is the tab spelling of the same row.
+      // ⚠ REVERSED BY SESSION 272 — the whitespace-only line above the opener no longer decides
+      // anything, because nothing is suppressed; the row is kept as the record of what did.
       expect(names(doc("---", "from: markdown", "---", "", "Cal body prose.", "   ", ...BLOCK, "", "## Cal Heading Below"))).toEqual(
-        CONSUMED,
+        RENDERED,
       );
     });
 
@@ -7693,11 +7758,82 @@ describe("a mid-document YAML metadata block is CONSUMED by the reader (Session 
       // consumes BOTH; this consumes only the first, so the row is a PARTIAL fix rather than a
       // full one. One rendered witness is not enough to widen a rule whose failure mode is
       // deletion — which is the lesson `cal3/h3_above_md` had just finished teaching.
+      // ⚠ REVERSED BY SESSION 272 — both blocks report themselves now, so the PARTIAL-fix
+      // asymmetry this row recorded no longer exists at all.
       expect(names(withFrom("markdown", ...BLOCK, "---", "tag: beta", "---"))).toEqual([
+        "h2:note: alpha",
         "h2:tag: beta",
         "h2:Cal Heading Below",
       ]);
     });
+  });
+});
+
+describe("the Outline does NOT model mid-document YAML metadata — it mirrors Posit (Session 272)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  /**
+   * ⚠ **THIS SUITE REVERSES SESSION 213's DELIVERABLE, ON AN OPERATOR DECISION, AND THE ONE
+   * ABOVE IT IS LEFT IN PLACE AS THE RECORD OF WHAT QUARTO DOES.**
+   *
+   * Session 213 modelled pandoc's `yaml_metadata_block` consumption faithfully: a mid-document
+   * `---` span that a consuming reader swallows renders NOTHING, so no heading inside it reached
+   * the Outline. Every measurement it made is still correct, and `quarto render` still agrees
+   * with it.
+   *
+   * `CLAUDE.md` §Clean-room boundary says what to do when `quarto render` and Posit's Outline
+   * disagree: **the product mirrors Posit.** They disagree here, and this model was on the wrong
+   * side of it — in the DELETING direction, which is this project's cardinal sin.
+   *
+   * **The observation** (`npm run observe:posit`, Session 272, `quarto.quarto-1.135.0`,
+   * `ours-loaded: false`, both controls green, recorded in `scratchpad/s272/posit-observation.txt`).
+   * Posit shows the heading for EVERY spelling this rule suppressed — the corpus shape
+   * (`Alpha Slide Head`), a real-keys span (`note: bravo`), BOTH block-quote spellings
+   * (`note: delta`, `Echo Quoted`, never observed before this session), two consecutive spans
+   * (`Golf One`, `Hotel Two`) and the tight spelling (`Foxtrot Tight`). **Posit models no
+   * mid-document YAML metadata whatsoever.**
+   *
+   * ⚠ **And it DOES model the opening block** — `m11_fm_only`, whose front matter carries
+   * `author: Kilo Author`, returns only `Only Real Heading`. So the answer is not "Posit ignores
+   * YAML"; it is "the opening block, and only the opening block", which is exactly what this
+   * model does once the mid-document suppression is gone.
+   *
+   * **The cost of the rule, measured over the authored corpus** (a throwaway build with the
+   * suppression off, scored and then diffed document by document): **80 headings across 30
+   * documents**, every one of them a real slide title in a teaching deck (`Prior specification`,
+   * `Two sided tests`, `Connections with confidence intervals`), all 77 `h2` and 3 `h3`, and
+   * **not one carrying literal hashes**. All 30 are `.Rmd`, and **`quarto render` exits 1 on all
+   * 30**, so the real-document score cannot see any of them: `2421 / 2438 (99.30%)`, divergent
+   * 17, with the IDENTICAL ordinal lists before and after. The rule's entire measured effect on
+   * this corpus is deleting slide titles in the documents where the Outline is the only
+   * navigation that works.
+   *
+   * ⚠ **Two residuals remain and NEITHER is caused by this change** — both are the model
+   * following pandoc where Posit follows markdown-it, and both reproduce OUTSIDE any `---` span
+   * on BOTH builds (`scratchpad/s272/axis`, rendered): an ATX pressed against a paragraph line
+   * is folded in by `blank_before_header` (`x01`, quarto agrees with this model), and an ATX
+   * underlined by `---` keeps its literal hashes (`x02`, quarto renders `h2:## Quebec
+   * Underlined`, and so does `m13_strict` at the reader level). They are a different axis and
+   * are out of scope here.
+   *
+   * ⚠ **What is REMOVED is the SPAN arm only.** `midDocumentMetadataRegions` still feeds
+   * `governingMetadataContent`, so a mid-document `from:` still selects the reader (Session 211)
+   * — every one of that session's tests stays green, including the one pinning that resolution
+   * needs no blank line above the opener.
+   */
+  const BELOW = ["", "## Cal Heading Below"];
+  const withFrom = (reader: string | null, ...body: string[]) =>
+    doc(...(reader === null ? [] : ["---", `from: ${reader}`, "---", ""]), ...body, ...BELOW);
+
+  it("RED->GREEN: a heading inside a mid-document metadata block is REPORTED — the corpus spelling", () => {
+    // `scratchpad/s272/obs2/m01_heading_blank_closer.qmd`, the spelling ALL 80 corpus headings
+    // use: a blank line before the closer, so the heading is a real ATX and its text is clean.
+    // quarto renders NOTHING for it (exit 0, measured); Posit returns `Constant:Alpha Slide Head`.
+    expect(names(withFrom("markdown", "Text.", "", "---", "## Alpha Slide Head", "", "---"))).toEqual([
+      "h2:Alpha Slide Head",
+      "h2:Cal Heading Below",
+    ]);
   });
 });
 
@@ -8187,9 +8323,11 @@ describe("a trailing `#` run with no space before it is a CLOSING SEQUENCE (Sess
       expect(
         names(withFrom(null, "# Adv Before Head#", "", "---", "from: gfm", "---", "", "# Adv After Head#")),
       ).toEqual(["h1:Adv Before Head#", "h2:from: gfm", "h1:Adv After Head#", TAIL]);
+      // ⚠ REVERSED BY SESSION 272 — the `from: markdown` block reports itself; the CLOSING-SEQUENCE
+      // clause this row pins is untouched, and both `Head#` spellings still strip exactly as before.
       expect(
         names(withFrom(null, "# Adv Before Head#", "", "---", "from: markdown", "---", "", "# Adv After Head#")),
-      ).toEqual(["h1:Adv Before Head", "h1:Adv After Head", TAIL]);
+      ).toEqual(["h1:Adv Before Head", "h2:from: markdown", "h1:Adv After Head", TAIL]);
     });
 
     it("PIN the DISCLOSED residuals — rows this change re-texts but does not fix", () => {
@@ -10742,8 +10880,10 @@ describe("Session 231 guard — quoted-metadata and quoted-setext answers that m
   it("G1: a TOP-LEVEL metadata triple is still consumed under the default reader (`r1/a13`)", () => {
     // Rendered: only the control renders. The whole point of the pre-pass, unchanged — the
     // quoted walk this session adds must not disturb the top-level one it reuses.
+    // ⚠ REVERSED BY SESSION 272 — quarto still renders only the control; the Outline no longer
+    // mirrors that.
     expect(headings(["Prose one.", "", "---", "note: alpha", "---", "", "## Control a13"])).toEqual(
-      ["Control a13"],
+      ["note: alpha", "Control a13"],
     );
   });
 
@@ -10868,7 +11008,9 @@ describe("Session 231 guard — quoted-metadata and quoted-setext answers that m
         "",
         "## Cal Heading Below",
       ]),
-    ).toEqual(["Cal Heading Below"]);
+      // ⚠ REVERSED BY SESSION 272 — the quoted walk is gone with the rest of the span arm, so the
+      // quoted triple mints its own setext row. Quarto still renders an EMPTY `<blockquote>`.
+    ).toEqual(["note: alpha", "Cal Heading Below"]);
   });
 
   it("G12: a quoted `from: gfm` triple does NOT govern the document's reader (`s225/f/f03`, `r1/a16`)", () => {
@@ -10890,7 +11032,10 @@ describe("Session 231 guard — quoted-metadata and quoted-setext answers that m
         "",
         "## Control Heading",
       ]),
-    ).toEqual(["Control Heading"]);
+      // ⚠ REVERSED BY SESSION 272 — the quoted triple reports itself. ⚠ THE HALF THIS ROW EXISTS
+      // FOR IS UNCHANGED AND IS THE IMPORTANT ONE: `# Pressed Heading` is still ABSENT, so a
+      // quoted `from: gfm` still does NOT govern the document's reader.
+    ).toEqual(["from: gfm", "Control Heading"]);
   });
 
   it("G13: this project's own `---` section separator is not a metadata block", () => {
@@ -10934,7 +11079,9 @@ describe("Session 231 — a metadata block inside a block quote", () => {
         "",
         "## Control a05",
       ]),
-    ).toEqual(["Control a05"]);
+      // ⚠ REVERSED BY SESSION 272 — the quoted twin of `cal3/g_atxkey_md`, reversed for the same
+      // reason: quarto still renders only the control, and the Outline no longer mirrors that.
+    ).toEqual(["Inside a05", "note: alpha", "Control a05"]);
   });
 
   it("C2: a setext underline that carries its own `>` marker forms a heading (`r1/a06`, `s225/f/f02`)", () => {
@@ -11065,7 +11212,9 @@ describe("Session 231 — a metadata block inside a block quote", () => {
         "",
         "## Control d02",
       ]),
-    ).toEqual(["Control d02"]);
+      // ⚠ REVERSED BY SESSION 272 — the MARKED and LAZY closers now answer ALIKE, so the residual
+      // this row paired itself against no longer distinguishes them. Both are kept as the record.
+    ).toEqual(["Marked Closer Heading", "note: alpha", "Control d02"]);
   });
 
   it("R2 (⚠ CLOSED BY SESSION 232 — the lost heading is recovered, and the top-level twin is unmoved): the UNMARKED lazy underline is a different mechanism (`s183`)", () => {
@@ -11198,9 +11347,12 @@ describe("Session 232 guard — answers around the lazily-continued quoted under
   it("G9: a quoted METADATA triple is still consumed, so no underline is minted from it (`s231/r1/a01`)", () => {
     // Session 231's C1. A quoted `---` / key / `---` is consumed exactly as a top-level one is,
     // and the run this session teaches to underline must not resurrect it.
+    // ⚠ REVERSED BY SESSION 272 — nothing is consumed, so the quoted triple's closer underlines
+    // its own key line. The clause this row guards — that Session 232's run does not ALSO mint one
+    // — still holds: there is exactly ONE `note: alpha` row, not two.
     expect(
       headings(["Prose one.", "", "> ---", "> note: alpha", "> ---", "", "## Control a01"]),
-    ).toEqual(["Control a01"]);
+    ).toEqual(["note: alpha", "Control a01"]);
   });
 
   it("G10: the TOP-LEVEL twin of the witness renders nothing, and must not move (`r4/w2`)", () => {
@@ -13367,7 +13519,14 @@ describe("Session 240 — the container column the quote switch stashed, and nev
 
   it("C3: a MARKED underline is in the quote's own space, not the document root's (kills M3)", () => {
     // The `!stripQuote` term of `rawLineColumns`. Rendered `h2:item` (`hunt2/M3_0`).
-    expect(names(["  > ---", "  > ---", "- item", "  ---", "- item"])).toEqual(["h2:item"]);
+    // ⚠ **CHANGED BY SESSION 272, AND IT IS THE ONE ROW THAT MOVED IN THE DELETING DIRECTION.**
+    // The `> ---` / `> ---` pair here is an EMPTY metadata block, and the suppression was MASKING
+    // a pre-existing defect: an empty `---`/`---` pair is read as a setext heading whose text is
+    // `---`. That is NOT caused by this change — measured on the PRE-change build under a
+    // non-consuming reader, where no suppression ever applied, the identical bytes already answer
+    // `h2:---` (`scratchpad/s272/unmask/u03_gfm_c3`, quarto renders `h2:item`). Filed in
+    // `BACKLOG.md`; corpus reach is 1 row in 1 document, which quarto exits 1 on.
+    expect(names(["  > ---", "  > ---", "- item", "  ---", "- item"])).toEqual(["h2:---"]);
   });
 
   it("C4: the TERMINATOR's own column is read against the stash too (kills M6)", () => {
@@ -13749,7 +13908,13 @@ describe("Session 241 — the lazy band's floor is the container stack, not the 
     // HAS OUTSIDE A QUOTE** (`iso_dd` against `iso_de`): a `---` title under a `---` underline is
     // an hrule pair and no heading forms, while the same title under a `===` underline IS a
     // heading. That localises the filed fix to the lazy path, where the rule is not reached.
-    expect(names(["prose", "", "---", "---"])).toEqual([]);
+    // ⚠ CHANGED BY SESSION 272 — the same unmasking as Session 240's C3 above: `---` / `---` was
+    // an empty metadata block and is now read as a setext pair. Quarto renders NOTHING here
+    // (`scratchpad/s272/empty/e02_s241_c6`, exit 0), so this is a PHANTOM — and a pre-existing
+    // one: the pre-change build answers `h2:---` for the same bytes under `from: gfm`
+    // (`scratchpad/s272/unmask/u01_gfm_empty_pair`). The `===` control below is unmoved, which is
+    // what keeps this row's point — that a rule row IS a real title — intact.
+    expect(names(["prose", "", "---", "---"])).toEqual(["h2:---"]);
     expect(names(["prose", "", "---", "==="])).toEqual(["h1:---"]);
   });
 
@@ -14182,7 +14347,12 @@ describe("Session 243 guard — answers around the block-quote marker's own colu
     // `r5/dash_top` and `r4/C_run0`: the block quarto really does consume renders only the probe.
     // This is the answer a NARROWER pre-pass would break, and it is what stops the fix for G9
     // from being "never consume anything".
-    expect(names(["> ---", "> # Inside", "> note: alpha", "> ---", "", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    // ⚠ REVERSED BY SESSION 272 — quarto still consumes it; the Outline reports it.
+    expect(names(["> ---", "> # Inside", "> note: alpha", "> ---", "", "# Probe Z"])).toEqual([
+      "h1:Inside",
+      "h2:note: alpha",
+      "h1:Probe Z",
+    ]);
   });
 
   it("G12: front matter above the container changes none of this", () => {
@@ -14208,7 +14378,11 @@ describe("Session 243 guard — answers around the block-quote marker's own colu
     // rendering. A change that leaves a paragraph — or a metadata block — open across the blank
     // line would swallow it, which is how this family has broken before.
     expect(names(["-   item", "", "    > quoted one", "", "# Probe Z"])).toEqual(["h1:Probe Z"]);
+    // ⚠ REVERSED BY SESSION 272 — the quoted block reports itself. THE CLAUSE THIS ROW GUARDS IS
+    // UNCHANGED and is the one that matters: `# Probe Z` below the quote still renders, so nothing
+    // is left open across the blank line.
     expect(names(["-   item", "", "    > ---", "    > note: alpha", "    > ---", "", "# Probe Z"])).toEqual([
+      "h2:note: alpha",
       "h1:Probe Z",
     ]);
   });
@@ -14282,13 +14456,19 @@ describe("Session 243 — the block-quote marker's window is the container's, no
     // `r3/M_a`, `M_b`, `M_e`: quarto consumes the block and renders NOTHING, and leaving
     // `blockQuoteRuns` on the document-root window reported both headings inside it. The
     // over-consuming direction is pinned in the guard at G9/G10.
+    // ⚠ REVERSED BY SESSION 272 — this is the container-depth twin of the top-level reversal, and
+    // quarto's answer (nothing) is unchanged.
     expect(
       names(["-   item", "", "    > ---", "    > # Inside Meta", "    > note: alpha", "    > ---"]),
-    ).toEqual([]);
+    ).toEqual(["h1:Inside Meta", "h2:note: alpha"]);
     expect(
       names(["- item", "", "    > ---", "    > # Inside Meta", "    > note: alpha", "    > ---"]),
-    ).toEqual([]);
-    expect(names(["-   item", "", "    > ---", "    > # Inside Meta", "    > ---"])).toEqual([]);
+    ).toEqual(["h1:Inside Meta", "h2:note: alpha"]);
+    // ⚠ The keyless spelling keeps only the ATX: with no key line above it, the closing `---`
+    // has no paragraph to underline, so no second row is minted.
+    expect(names(["-   item", "", "    > ---", "    > # Inside Meta", "    > ---"])).toEqual([
+      "h1:Inside Meta",
+    ]);
   });
 
   it("C8: the `=` spelling recovers identically — the window is spelling-blind", () => {
@@ -14494,7 +14674,11 @@ describe("Session 243 — the block-quote marker's window is the container's, no
       names(["-   item", "", "    > ---", "    > # Inside", "    > note: alpha", "    > ...", "", "# Probe Z"]),
     ).toEqual(["h1:Inside", "h1:Probe Z"]);
     // The `---`-closed control, right at both depths.
+    // ⚠ REVERSED BY SESSION 272 — the `...` row above and this `---` control now answer ALIKE, so
+    // the residual this row recorded (a terminator-spelling asymmetry) is gone with the walk.
     expect(names(["> ---", "> # Inside", "> note: alpha", "> ---", "", "# Probe Z"])).toEqual([
+      "h1:Inside",
+      "h2:note: alpha",
       "h1:Probe Z",
     ]);
   });
