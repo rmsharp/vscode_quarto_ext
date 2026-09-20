@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S269
+date: 2026-09-19
+status: pending
+active_task: R4 -- a block-level HTML tag or TeX command anywhere in ATX content means the line is NOT a heading (`### 2. Overview <section>`, `## Intro \maketitle`); inline ones (`<span>`, `\emph{}`) keep it. BACKLOG.md Up Next head item, sub-item (d); docs/REAL-DOCUMENT-RESCORE.md section R4. Operator-picked at Phase 0 by AskUserQuestion from four ranked options. MEASURED reach: 2 authored documents, 3 phantom headings.
+```
+
+```handoff
 session: S268
 date: 2026-09-19
 status: complete

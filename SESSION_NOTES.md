@@ -8,31 +8,30 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 268 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S268 did:** made the real-document score a STANDING, TRACKED measure and closed the
-fenced-div item. `tools/realdoc-score/` now holds all four stages plus `run.sh`; the corpus stays
-personal and is passed in. **Run it after any change reaching `findHeadings`** (CLAUDE.md §The
-real-document measure):
-`export REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt` then
-`tools/realdoc-score/run.sh <label> [src-dir]` — ~5 s warm; HEAD is **2,419 / 2,438 (99.22%)**.
-Commits: `a529ad38` claim · `f56d3cc4` scorer · `b444d843` census + raw-HTML · `e27236ef` driver +
-README · `f2bac897` fenced-div closed · `0a8c1395` adoption · `ed135ec7` ledger correction ·
-`3a6e451d` learnings #552–#553 · notes trim · close-out.
-**Recommended next pick: the Up Next head item's (d), R4** — unchanged since S266; repro
-`scratchpad/s265/repro/synthetic/R4-block-in-atx.qmd` (model five headings, quarto three); tables
-`model.ts:1438`, `:1557`; fix site probably `parseHeadingLine` (`:9763`) or the ATX row (`:8245`),
-an ESTIMATE. **DONE for any heading fix now includes a `run.sh` line in the receipt.**
-**⚠ Still open, from S267:** both Outline decisions' Posit half rests on a BUNDLE GREP; a black-box
-confirmation would settle it (`CLAUDE.md` §Clean-room boundary). Nothing depends on it.
-**⚠ The ground-truth RENDER passes are still untracked** (`scratchpad/s251`, `s265`): a lost corpus
-cannot be rebuilt from `tools/realdoc-score/` alone. Stated in its README, not a defect to fix blind.
-**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run` (needs `dist/`; cite the summary
-line). One `CHANGELOG.md` entry per commit; the claim commit carries an *(in progress)* one.
-**⚠ Write a number only after measuring it** (#552 — two ledger slips in two sessions).
-**⚠ `context_budget.py` exits 2** — HANDOFFS/BACKLOG/PROJECT_LEARNINGS over; MEASURE, do not quote.
+**Task:** **Session 269 — R4: a block-level HTML tag or TeX command anywhere in ATX content means
+the line is NOT a heading** (`### 2. Overview <section>`, `## Intro \maketitle`); inline ones
+(`<span>`, `\emph{}`) keep it. `BACKLOG.md` Up Next head item, sub-item **(d)**; report section R4 of
+[`docs/REAL-DOCUMENT-RESCORE.md`](docs/REAL-DOCUMENT-RESCORE.md).
+**Deliverable:** ONE implementation (IN PROGRESS). **Started:** 2026-09-19 22:15 CDT.
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — the claim commit's `CHANGELOG.md` entry says (in progress);
+Phase 3F records the rest. Until close-out this line is the crash breadcrumb for the next reconcile.
+**Operator pick:** chosen at Phase 0 by `AskUserQuestion` from four ranked options (R4 recommended;
+the others were the attribute-tokenizer plan's P2, R3 grid-table cells, and a catch-all).
+**Measured target:** 2 authored documents, 3 PHANTOM headings — the model reports headings quarto
+does not render. Repro `scratchpad/s265/repro/synthetic/R4-block-in-atx.qmd` (model five, quarto three).
+**Fix site:** tables at `model.ts:1438`, `:1557`; probably `parseHeadingLine` (`:9763`) or the ATX row
+(`:8245`) — an ESTIMATE inherited from S268's handoff, not a measurement.
+**DONE:** strict TDD (RED shown before GREEN); `npm run compile` + `npm test` green; and a
+`tools/realdoc-score/run.sh` line in the receipt showing no corpus document moved into the losing
+column (HEAD is 2,419 / 2,438 = 99.22%).
+**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run` (needs `dist/`; cite the summary line,
+and cite the HEAD the results file records, not the one you expect — S268's receipt named `3a6e451d`
+where the file says `ed135ec7`). One `CHANGELOG.md` entry per commit.
+**⚠ Write a number only after measuring it** (#552). **⚠ `context_budget.py` exits 2** —
+HANDOFFS/BACKLOG/PROJECT_LEARNINGS over ceiling; MEASURE, do not quote.
 **⚠ `cd` in a Bash command moves the session cwd** (#535). **⚠ Never `git add -A`** — `scratchpad/`
-is untracked, NOT ignored.
+is untracked, NOT ignored (~85,000 files).
 
 ---
 

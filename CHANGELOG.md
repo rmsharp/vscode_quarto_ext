@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 269 claimed — sub-item (d), R4: a block-level HTML tag or TeX command in ATX content means the line is not a heading (in progress)
+- **Change:** Phase 1B claim — `SESSION_NOTES.md` ACTIVE TASK rewritten to the R4 task, and a `status: pending` receipt opened in `HANDOFFS.md`. The two tracked measurement logs `.context-budget-history.jsonl` and `dashboard_history.jsonl` carry the append Phase 0's own runs made. Operator-picked at Phase 0 by `AskUserQuestion` from four ranked options (R4 recommended; the others were the attribute-tokenizer plan's P2, R3 grid-table cells, and a catch-all). No code touched yet.
+- **Commit/PR:** this entry's own commit
+- **Session:** S269 · **Verified:** Phase 0 found 0 undocumented commits (`CHANGELOG.md` frontier `a33319fa` is HEAD) and every receipt complete; `npm run compile` exit 0 and `npm test` 2930/2930 on the tree this claim commits on top of. Target is a MEASURED 2 authored documents / 3 phantom headings (`docs/REAL-DOCUMENT-RESCORE.md` R4).
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S264 evaluation by S265 + S265 self-assessment)
 - **Change:** 51 lines deleted and nothing else, per the three-pair retention rule (`CLAUDE.md`, Session 256). The pair stays in git: `git show 0dafb94d:SESSION_NOTES.md`.
 - **Commit/PR:** this entry's own commit
