@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] R4 guards — 19 rows pinning the heading content a block-token gate must NOT refuse
+- **Change:** `test/unit/qmd-model.test.ts` gains `Session 269 GUARD`: 19 rows, all GREEN before any `src/` change, over the shapes measured to NEUTRALISE a block token — code spans, `\<` escapes, `\\`, entities, math, link label/destination/title, inline notes and bracketed spans, comments, CDATA, processing instructions, quarto shortcodes, a raw inline TeX command's braced argument, a tag inside another tag's quoted attribute value, inline and unknown tag names, non-tag angle brackets, class-B/C macros, unsatisfied ARG arity, the setext control, and the two downstream-state rows. A containment test over the raw line deletes every one of them.
+- **Commit/PR:** this entry's own commit
+- **Session:** S269 · **Verified:** `npx vitest run -t "Session 269 GUARD"` 19 passed; `npm run check-types` exit 0. Every row is a `quarto render --to html --no-execute` (quarto 1.7.33) of those exact bytes, re-run firsthand in `scratchpad/s269/probes/verify/` (40 shapes) after four measuring agents and two adversarial refuters proposed them.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 269 claimed — sub-item (d), R4: a block-level HTML tag or TeX command in ATX content means the line is not a heading (in progress)
 - **Change:** Phase 1B claim — `SESSION_NOTES.md` ACTIVE TASK rewritten to the R4 task, and a `status: pending` receipt opened in `HANDOFFS.md`. The two tracked measurement logs `.context-budget-history.jsonl` and `dashboard_history.jsonl` carry the append Phase 0's own runs made. Operator-picked at Phase 0 by `AskUserQuestion` from four ranked options (R4 recommended; the others were the attribute-tokenizer plan's P2, R3 grid-table cells, and a catch-all). No code touched yet.
 - **Commit/PR:** this entry's own commit

@@ -18893,3 +18893,127 @@ describe("Session 266 GUARD — where a line of 7+ `#` is NOT a block, and must 
     ]);
   });
 });
+
+describe("Session 269 GUARD — heading content that LOOKS like a block token and must stay a heading", () => {
+  // The R4 gate reads the heading's RAW content and declines the line where pandoc's inline parser
+  // would refuse a token. Every row below is a shape where the token is NEUTRALISED and quarto
+  // renders a real heading, so a containment test over the raw line would DELETE it — the cardinal
+  // sin. Each expectation is a `quarto render --to html --no-execute` (quarto 1.7.33 / pandoc 3.6.3)
+  // of these exact bytes, `scratchpad/s269/probes/verify/` and `b_html_form/`, re-run firsthand.
+  const names = (lines: string[]) =>
+    findHeadings(lines.join("\n") + "\n").map((h) => `h${h.level}:${h.text}`);
+  const probe = (...body: string[]) => ["---", "title: probe", "engine: markdown", "---", "", ...body];
+  const kept = (line: string) => names(probe(line, "", "## Tail"));
+
+  it("G1: a block tag inside an INLINE CODE SPAN is documentation, not a tag (`verify/v22-section-in-code`)", () => {
+    expect(kept("### T `<section>`")).toEqual(["h3:T `<section>`", "h2:Tail"]);
+    expect(kept("### T `\\maketitle`")).toEqual(["h3:T `\\maketitle`", "h2:Tail"]);
+  });
+
+  it("G2: a BACKSLASH-ESCAPED `<` is literal text, and the model already un-escapes it (`verify/v23-escaped-lt`)", () => {
+    expect(kept("### T \\<section>")).toEqual(["h3:T <section>", "h2:Tail"]);
+  });
+
+  it("G3: `\\\\` is an escaped BACKSLASH, so what follows is prose and not a macro (`verify/v24-double-backslash`)", () => {
+    expect(kept("### T \\\\maketitle")).toEqual(["h3:T \\maketitle", "h2:Tail"]);
+  });
+
+  it("G4: an HTML ENTITY spelling never reaches the tag scan (`b_html_form/b32-entity`)", () => {
+    expect(kept("### T &lt;section&gt;")).toEqual(["h3:T &lt;section&gt;", "h2:Tail"]);
+  });
+
+  it("G5: MATH protects absolutely (`verify/v20-macro-in-math`, `b_html_form/b38-math`)", () => {
+    expect(kept("### T $\\maketitle$")).toEqual(["h3:T $\\maketitle$", "h2:Tail"]);
+    expect(kept("### T $<section>$")).toEqual(["h3:T $<section>$", "h2:Tail"]);
+  });
+
+  it("G6: a link DESTINATION, LABEL and TITLE are all consumed whole (`verify/v11-link-title`, `v19-macro-in-brackets`, `b_html_form/b33-link-url`)", () => {
+    expect(kept("### T [a](http://x/<section>)")).toEqual(["h3:T [a](http://x/<section>)", "h2:Tail"]);
+    expect(kept("### T [\\maketitle](u)")).toEqual(["h3:T [\\maketitle](u)", "h2:Tail"]);
+    expect(kept('### T [a](http://x "<section>")')).toEqual(['h3:T [a](http://x "<section>")', "h2:Tail"]);
+  });
+
+  it("G7: ANY bracketed inline content neutralises — an inline note and a bracketed span (`verify/v10-inline-note`, `v18-bracket-span`)", () => {
+    expect(kept("### T ^[<section>]")).toEqual(["h3:T ^[<section>]", "h2:Tail"]);
+    // ⚠ The model strips `{.underline}` as a heading ATTRIBUTE block, so its text is the shorter
+    // one — pre-existing, and not what this row pins: the point is that the heading SURVIVES.
+    expect(kept("### T [<section>]{.underline}")).toEqual(["h3:T [<section>]", "h2:Tail"]);
+  });
+
+  it("G8: a COMMENT, a CDATA section and a PROCESSING INSTRUCTION each consume their interior (`verify/v03`, `v14`, `v15`)", () => {
+    expect(kept("### T <!-- <section> --> U")).toEqual(["h3:T <!-- <section> --> U", "h2:Tail"]);
+    expect(kept("### T <![CDATA[<section>]]> U")).toEqual(["h3:T <![CDATA[<section>]]> U", "h2:Tail"]);
+    expect(kept("### T <?xml <section> ?> U")).toEqual(["h3:T <?xml <section> ?> U", "h2:Tail"]);
+  });
+
+  it("G9: a quarto SHORTCODE is expanded before pandoc ever sees the tag (`verify/v17-shortcode`)", () => {
+    expect(kept("### T {{< kbd <section> >}} U")).toEqual(["h3:T {{< kbd <section> >}} U", "h2:Tail"]);
+  });
+
+  it("G10: a raw INLINE TeX command swallows its own braced argument, tag and all (`verify/v04-texttt-braces`)", () => {
+    expect(kept("### T \\texttt{<section>}")).toEqual(["h3:T \\texttt{<section>}", "h2:Tail"]);
+  });
+
+  it("G11: a tag inside ANOTHER tag's quoted attribute value is never a token of its own (`verify/v05-span-attr-div`)", () => {
+    expect(kept('### T <span title="<div>">ok</span>')).toEqual([
+      'h3:T <span title="<div>">ok</span>',
+      "h2:Tail",
+    ]);
+  });
+
+  it("G12: INLINE tag names keep the heading (`names1/` — the 14 either-tags and every non-block name)", () => {
+    for (const tag of ["<span>", "<br/>", '<img src="x">', "<audio>", "<video>", "<del>", "</span>"]) {
+      expect(kept(`### T ${tag}`)).toEqual([`h3:T ${tag}`, "h2:Tail"]);
+    }
+  });
+
+  it("G13: an UNKNOWN name is not a block tag, and the match is never a prefix (`verify/v34`, `v35`, `refute k07`)", () => {
+    for (const tag of ["<foo>", "</foo>", "<my-div>", "<x:section>", "<divider>", "<sections>", "<tablet>"]) {
+      expect(kept(`### T ${tag}`)).toEqual([`h3:T ${tag}`, "h2:Tail"]);
+    }
+  });
+
+  it("G14: angle brackets that are NOT a tag are ordinary text (`verify/v06`, `v32`, `v33`, `b_html_form/b20`-`b24`)", () => {
+    for (const text of ["<section", "< section>", "<3", "<>", "<!section>", "< /section>", '<div title="a>']) {
+      expect(kept(`### T ${text}`)).toEqual([`h3:T ${text}`, "h2:Tail"]);
+    }
+    expect(kept("### 5 < 6")).toEqual(["h3:5 < 6", "h2:Tail"]);
+  });
+
+  it("G15: class B (the five names AND every unknown macro) and class C never refuse a heading (`verify/v29`, `v30`, `c_tex/b1-five`, `b2-unknown`)", () => {
+    for (const macro of ["\\clearpage", "\\newpage", "\\vspace{1cm}", "\\zzz{x}", "\\emph{x}", "\\LaTeX", "\\textbf{b}"]) {
+      expect(kept(`### T ${macro}`)).toEqual([`h3:T ${macro}`, "h2:Tail"]);
+    }
+  });
+
+  it("G16: an ARG-class macro whose arity is UNSATISFIED renders as literal text (`verify/v26`, `v28`, `c_tex/w1-arity`)", () => {
+    for (const macro of ["\\section", "\\section*", "\\section[a]", "\\title[a]"]) {
+      expect(kept(`### T ${macro}`)).toEqual([`h3:T ${macro}`, "h2:Tail"]);
+    }
+  });
+
+  it("G17: a SETEXT title whose content holds only an INLINE tag is still a heading (`b_html_form/b62-setext-control`)", () => {
+    expect(names(probe("T <span>u</span>", "===", "", "## Tail"))).toEqual([
+      "h1:T <span>u</span>",
+      "h2:Tail",
+    ]);
+  });
+
+  it("G18: the heading BELOW a refused line is untouched, with or without a blank line (`d_context/a01`, `a12`)", () => {
+    expect(names(probe("### T <section>", "## Next Heading", "", "## Tail")).slice(-2)).toEqual([
+      "h2:Next Heading",
+      "h2:Tail",
+    ]);
+    expect(names(probe("## T \\maketitle", "", "## Next Heading", "", "## Tail")).slice(-2)).toEqual([
+      "h2:Next Heading",
+      "h2:Tail",
+    ]);
+  });
+
+  it("G19: a refused line leaves NO OPEN PARAGRAPH, so a setext title on the next line still forms (`state/s02`)", () => {
+    expect(names(probe("### T <section>", "Some Title", "===", "", "## Tail")).slice(-2)).toEqual([
+      "h1:Some Title",
+      "h2:Tail",
+    ]);
+  });
+});
