@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [BL-A QUARTO FENCED DIV / CALLOUT is a container `contentColumns` never pushes] Closed on the operator's word — both halves are answered and its own example agrees
+- **Change:** the item is removed from `BACKLOG.md`. Filed Session 193, it bundled two questions: whether a `:::` opener pushes a content column (it does not need to — Session 189 measured a plain fenced div's content column as 0) and the callout-title rule (shipped Session 257). Its own example, indented and unindented, yields no heading in the model and none in quarto (Session 265 F6; the model half re-checked at HEAD in Session 266), and it explains none of the 19 divergent authored documents. `check-backlog` could not see it, because its lead did not announce completion — which is why it needed the operator's word.
+- **Commit/PR:** this entry's own commit
+- **Session:** S268 · **Verified:** `check-backlog` OK — 206 open items, one fewer than before
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] The real-document measure, part 3 of 3 — one driver, a README, and the measure is reproducible from tracked files alone
 - **Change:** `tools/realdoc-score/run.sh` runs all four stages for a label and any directory holding `src/` (so a past build scores over byte-identical input), writing intermediates to `$REALDOC_DATA/runs/<label>/`; `README.md` states what is tracked, what is personal and never committed, the ordinal-only rule, how to compare two builds, how to read the number — and the known gap that the ground-truth RENDER passes are not here.
 - **Commit/PR:** this entry's own commit
