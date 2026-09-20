@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] The real-document measure, part 1 of 3 — the scorer moves into `tools/realdoc-score/`
+- **Change:** `tools/realdoc-score/score.py` (Session 265's `score_corrected.py`, with every `scratchpad/` path replaced by `REALDOC_DATA` / `REALDOC_ORDINALS` and a stated error for each missing input), `scorelib.py` (its library half; the hard-coded `divergent.json` CLI is gone, the uncorrected `score()` kept as the Session 251 baseline) and `extract_headings.py` (the corrected extractor; executable code byte-identical to `extract_headings_v2.py`, three personal document paths in its comments replaced by corpus ordinals 1, 28, 308/669 — Learning #548). `.vscodeignore` gains `tools/**`, in this same commit, so no commit on `master` is red.
+- **Commit/PR:** this entry's own commit
+- **Session:** S268 · **Verified:** the tracked scorer reproduces **2,419 / 2,438** at HEAD and **2,418 / 2,438** on Session 265's `b5_head` build, ordinal lists identical, and matches `score_corrected.py` on the same inputs; `diff` shows the extractor's code region differs only in the scrubbed comment; `check-package` OK — 42 files, and RED (`unexpected tools`) with the `.vscodeignore` line removed, then byte-restored
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Session 268 claimed — adopt the real-document score as a standing, tracked measure; close the fenced-div item (in progress)
 - **Change:** `SESSION_NOTES.md` ACTIVE TASK stub and a `status: pending` S268 receipt in `HANDOFFS.md`; the Phase 0 dashboard telemetry append rides along. Operator-directed after the S267 close-out report (report Rec. 4 and F6); scope and location chosen by `AskUserQuestion`.
 - **Commit/PR:** this entry's own commit (the claim)
