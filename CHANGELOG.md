@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] Session 272 learnings — #568–#571 — and the records the fix closes and opens
+- **Change:** `PROJECT_LEARNINGS.md` +4 rows (a fail-safe that hides a defect makes its removal look like a regression; check which probe rows DISCRIMINATE before spending the screen; reverse pins in place with their reason rather than deleting the suite; the separation surface is a measurement and the skip reached four features). `BACKLOG.md` — the completed mid-document-metadata item removed, decision **(5)** added to the RECORD item (the title goes four → five), the two stale pointers to the closed item rewritten, and the EMPTY `---` / `---` pair the fix UNMASKS filed as a new item with its reach.
+- **Commit/PR:** this entry's own commit
+- **Session:** S272 · **Verified:** the unmasked defect's reach was scanned over the frozen 3,383-document snapshot with its definition stated (a line exactly `---` at column 0 with a blank line above and another `---` on the next line): **1 occurrence in 1 document**, ordinal 2256, which `quarto render` exits 1 on — and it is the single non-slide-title row among the 80 the fix recovers. Its pre-existence is measured, not argued: the PRE-change build answers `h2:---` for the identical bytes under `from: gfm` where no suppression applied. `check-backlog` OK, 208 open items.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [BL-⚠ NEW (Session 271) — THE MID-DOCUMENT METADATA RULE DELETES HEADINGS POSIT SHOWS, in 30 documents quarto cannot render, and it buys the scorable corpus NOTHING] The Outline stops modelling mid-document YAML metadata — 80 headings back, 0 lost
 - **Change:** `src/core/qmd/model.ts` — the SPAN arm of the mid-document metadata enumeration is gone: `consumedMetadataBlockLines`, its block-quote walk `blockQuoteRuns`, `fromConsumesMetadataBlock`, `READER_CAN_CONSUME_METADATA_BLOCK`, the `MetadataBlock` interface and the `continue` at the head of the scan loop (−286 lines net). `midDocumentMetadataRegions` collapses back into `midDocumentMetadataBlocks`, which still resolves a mid-document `from:` exactly as Session 211 measured. 25 unit expectations and 2 integration assertions reversed, each marked `⚠ REVERSED BY SESSION 272` with its reason; the inverse-polarity guards (the heading-is-PRESENT rows) are untouched and stayed green throughout.
 - **Commit/PR:** this entry's own commit
