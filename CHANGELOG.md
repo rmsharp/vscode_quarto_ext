@@ -17,10 +17,16 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Ledger correction — the adoption entry's `CLAUDE.md` size (21,412 → 21,234 B)
+- **Change:** the adoption entry's `**Session:**` line quoted a size written before the file was final; `wc -c` says 21,234 B. Corrected in place with the correction disclosed on the line itself. ⚠ This is the SECOND such slip in two sessions (Session 267 wrote 58 lines where the trim deleted 60), which is why Session 268 files it as a learning rather than a one-off.
+- **Commit/PR:** this entry's own commit
+- **Session:** S268 · **Verified:** `wc -c CLAUDE.md` → 21234
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] The corrected real-document score is ADOPTED as the standing measure (report Recommendation 4)
 - **Change:** `CLAUDE.md` gains §The real-document measure — the command, when to run it (after any change reaching `findHeadings`, cited in the close-out receipt), and the two ⚠ facts that make it a habit rather than a gate: the corpus is personal, so neither CI nor `.quality-gates.json` can run it, and a corpus document is named only by its ordinal. `BACKLOG.md`'s Active note now reads F3/F5 as decided (Session 267), F6 as closed (Session 268), and points at the tracked measure.
 - **Commit/PR:** this entry's own commit
-- **Session:** S268 · **Verified:** the measure it adopts is the one this session made reproducible from tracked files (2,419 / 2,438 at HEAD, 2,418 on `b5_head`); `check-backlog` OK, 206 open items; `CLAUDE.md` 21,412 B of its 28,000 B ceiling
+- **Session:** S268 · **Verified:** the measure it adopts is the one this session made reproducible from tracked files (2,419 / 2,438 at HEAD, 2,418 on `b5_head`); `check-backlog` OK, 206 open items; `CLAUDE.md` 21,234 B of its 28,000 B ceiling (⚠ this line first said 21,412 — a size written before the file was final, the second such slip in two sessions; see the correction entry above)
 - **Model:** Claude Opus 5 (claude-opus-5)
 
 ### 2026-09-19 · [BL-A QUARTO FENCED DIV / CALLOUT is a container `contentColumns` never pushes] Closed on the operator's word — both halves are answered and its own example agrees
