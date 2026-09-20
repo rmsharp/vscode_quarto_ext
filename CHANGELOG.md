@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] Session 271 learnings — #562–#566, the four the R2 decision paid for and the one it got wrong
+- **Change:** `PROJECT_LEARNINGS.md` gains five rows. #562 a score that excludes failing documents cannot price a change that touches them — read the bundle diff before the score line. #563 when the other branch of a divergence is a render FAILURE, "match quarto" has no target. #564 ask the oracle before building, and render every probe through quarto first so both oracles answer for the same bytes. #565 a black-box probe needs a control for every dimension it varies, not one per run. #566 a mechanism that explains the observation is not a measured mechanism — delete the part you called load-bearing and re-render.
+- **Commit/PR:** this entry's own commit
+- **Session:** S271 · **Verified:** every row cites a measurement made this session. #566 records this session's own error: the `Duplicate key: ['::']` mechanism was written into the record from inference and refuted by rendering the variant that removes it.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] R2's mechanism corrected from inference to measurement — and the `.rmarkdown` render hazard recorded
 - **Change:** decision (4) and the `docs/REAL-DOCUMENT-RESCORE.md` block now state the MEASURED predicate instead of the inferred one: the gate is pandoc's structural `yaml_metadata_block` opener precondition, not "is the span valid YAML"; the heading line parses because it is a YAML COMMENT; the `::: {.cell}` pair is a passenger, not the cause; and three preconditions are spelled out, the first being **no blank line between the opening `---` and the heading**. The `.Rmarkdown` item gains the render hazard.
 - **Commit/PR:** this entry's own commit
