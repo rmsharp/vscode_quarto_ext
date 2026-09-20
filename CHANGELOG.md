@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] The fan-out's verification pass folded in — one of my own numbers corrected, one agent consensus refuted, two findings filed
+- **Change:** `BACKLOG.md` — the `.rmarkdown` hazard's exit code **corrected from 0 to 1** with the slip disclosed in place; the same-stem variant recorded as NOT reproducing; the mid-document-metadata item gains a corpus reach scan with its definition stated; a new LOW item files the oracle corpus's stale "66" prose against a real 131. `PROJECT_LEARNINGS.md` gains #567.
+- **Commit/PR:** this entry's own commit
+- **Session:** S271 · **Verified:** all four re-measured firsthand, not taken from the agents. `quarto render t.rmarkdown --to html` redirected to a file, twice: `exit=1 input=DELETED html=no` — the earlier "exit 0" was the status of a `head` in the pipeline (#567). `quarto render s.qmd` with `s.rmarkdown` beside it: exit 0, `s.html` written, **`s.rmarkdown` survived**, refuting a claim two independent agents agreed on. `grep -c '^  {' test/oracle/corpus.ts` → **131** against five "66" occurrences in `README.md` and `load.ts`. The shape scan over the frozen snapshot: **104 of 3,383 documents, 384 tight occurrences** (a sibling agent's looser definition gave 310, which is why the definition is written into the item).
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] Session 271 learnings — #562–#566, the four the R2 decision paid for and the one it got wrong
 - **Change:** `PROJECT_LEARNINGS.md` gains five rows. #562 a score that excludes failing documents cannot price a change that touches them — read the bundle diff before the score line. #563 when the other branch of a divergence is a render FAILURE, "match quarto" has no target. #564 ask the oracle before building, and render every probe through quarto first so both oracles answer for the same bytes. #565 a black-box probe needs a control for every dimension it varies, not one per run. #566 a mechanism that explains the observation is not a measured mechanism — delete the part you called load-bearing and re-render.
 - **Commit/PR:** this entry's own commit
