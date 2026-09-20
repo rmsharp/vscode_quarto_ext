@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Session 268 learnings #552–#553 — measure before you write the number; move an instrument only with byte-identical controls
+- **Change:** two rows appended to `PROJECT_LEARNINGS.md`: #552, two ledger entries in two sessions quoted a size that did not exist yet, so write the command and paste its output; #553, an instrument moves into tracked code only when every stage reproduces its old output byte for byte, with a second known input and a packaging control that can fail.
+- **Commit/PR:** this entry's own commit
+- **Session:** S268 · **Verified:** row numbers checked contiguous (550–553)
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Ledger correction — the adoption entry's `CLAUDE.md` size (21,412 → 21,234 B)
 - **Change:** the adoption entry's `**Session:**` line quoted a size written before the file was final; `wc -c` says 21,234 B. Corrected in place with the correction disclosed on the line itself. ⚠ This is the SECOND such slip in two sessions (Session 267 wrote 58 lines where the trim deleted 60), which is why Session 268 files it as a learning rather than a one-off.
 - **Commit/PR:** this entry's own commit
