@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] `.context-budget-history.jsonl` — the final-tree measurement of Session 271's growth
+- **Change:** one appended row from the close-out's `python3 context_budget.py` run (exit 2, unchanged: the same three files over ceiling, and `SESSION_NOTES.md` back inside it at 21,291 B / 286 lines after the trim). Against the S270 row it prices this session: `BACKLOG.md` +10,262 B, `HANDOFFS.md` +8,212 B, `PROJECT_LEARNINGS.md` +5,522 B, `SESSION_NOTES.md` +2,671 B, `CLAUDE.md` unchanged.
+- **Commit/PR:** this entry's own commit
+- **Session:** S271 · **Verified:** the deltas are subtractions between the two adjacent rows of the file itself, computed rather than typed (#552, and #567 for the same reason one line up). `BACKLOG.md` is the largest grower because this session filed two items and rewrote four blocks; it is the one to watch.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S267 evaluation by S268 + S268 self-assessment)
 - **Change:** 56 lines deleted and nothing else, per the three-pair retention rule (`CLAUDE.md`, Session 256). The pair stays in git: `git show 75d69b29:SESSION_NOTES.md`.
 - **Commit/PR:** this entry's own commit
