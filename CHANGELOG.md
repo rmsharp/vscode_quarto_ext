@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S268 evaluation + S269 self-assessment)
+- **Change:** `SESSION_NOTES.md` — the Session 268 handoff evaluation and the Session 269 self-assessment removed, so the live file holds the steady-state THREE pairs (`CLAUDE.md` §SESSION_NOTES.md retention). 4,440 B removed; 311 lines, 24,117 B remain.
+- **Commit/PR:** this entry's own commit
+- **Session:** S272 · **Verified:** a trim commit must contain no other edit to the file being trimmed (upstream BL-36), and this one does not — the retained portion was proved BYTE-IDENTICAL to `git show HEAD:SESSION_NOTES.md` up to the cut point before the file was written. The dropped pair is one command away: `git show f8297b28:SESSION_NOTES.md`. `python3 context_budget.py` → SESSION_NOTES.md ok (311 / 400 lines, 24,117 / 120,000 B, no line over 280 B).
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] Session 272 close-out — the handoff receipt, the predecessor evaluation and the self-assessment
 - **Change:** `HANDOFFS.md` S272 receipt completed (`status: pending` → `complete`, `self_score: 8`, `predecessor_score: 9`, all six requirements filled). `SESSION_NOTES.md` ACTIVE TASK rewritten to the closed state, plus the Session 271 handoff evaluation and the Session 272 self-assessment.
 - **Commit/PR:** this entry's own commit
