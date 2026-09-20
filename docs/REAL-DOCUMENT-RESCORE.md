@@ -132,7 +132,7 @@ instrument; the two rows marked *decision* and *not modelable* are ranked last o
 |---|---|---:|---:|---|---|
 | R1 | **A line of 7 or more `#` is an empty heading, so it ends the paragraph** — the model caps the bare-run closer at 6 | 1 | 26 | lost | `model.ts:1992`; `:111`, `:129` |
 | R2 | **A `---` pair around a knitr chunk that emits nothing becomes YAML after knitr runs** — the heading inside is swallowed | 2 | 8 | phantom | `model.ts:3108`, `:3243` |
-| R3 | **A grid table's cells hold blocks** — an ATX heading in a well-formed cell renders; so does a setext pair that an over-wide row fuses into one cell | 3 | 8 | lost | `model.ts:111`, `:833`, `:4456`–`:4511` |
+| R3 | **A grid table's cells hold blocks** — an ATX heading in a well-formed cell renders; so does a setext pair that an over-wide row fuses into one cell ⚠ *mechanism corrected, and DECIDED not open, Session 270 — see the R3 reproduction below* | 3 | 8 | lost | `model.ts:111`, `:833`, `:4456`–`:4511` |
 | R4 | **A block-level HTML tag or TeX command anywhere in ATX content means the line is not a heading** | 2 | 3 | phantom | `model.ts:111`; tables at `:1366`, `:1485` |
 | R5 | **knitr's chunk grammar is not quarto's** — a digit-bearing engine with spaced options is a chunk to knitr; the model refuses it and lets its closer open a fence | 1 | 1 | lost | `model.ts:5937`, `:7228`–`:7260` |
 | R6 | **In a knitr document, a stray ` ``` ` pairs with a later chunk's closer in the model** — knitr consumed that closer first | 1 | 1 | lost | `model.ts:7258`, `:9411` |
@@ -172,6 +172,27 @@ behind, not where a fence sits.
   renders too. The over-wide half: one body row one character wider than its border makes pandoc add
   a narrow column, the `+====+` separator stops being a head divider, and `Head A` / `====` fuse into a
   setext `h1` inside a cell. The author wrote no heading there.
+
+  > ⚠ **CORRECTION, Session 270 — the over-wide half's MECHANISM as stated above is wrong, and its
+  > counts are right.** Measured on quarto 1.7.33 against a faithful reproduction of ordinal 491's
+  > shape (invented text, `scratchpad/s270/probes/me/`): a body row **one** character wider than its
+  > border is the single overhang that does **not** fire — pandoc absorbs it into a 1%-wide trailing
+  > column and `+====+` keeps working as a head divider (`<thead>` present). **Two or more** fires;
+  > measured at 2, 3, 4, 5, 8, 12, 20, 32 and 49, and at both the second and the last body row.
+  > The measured variable is the row's **last non-whitespace character** landing two or more columns
+  > past the border's right edge — trailing whitespace is stripped before the column is measured and
+  > never fires, and a non-pipe character out there fires with the closing `|` still flush.
+  > ⚠ **A SECOND, INDEPENDENT TRIGGER the row above does not mention:** a `+===+` divider
+  > **truncated at a column boundary** — its trailing `+` sitting exactly on one of the top border's
+  > internal offsets — produces the same fusion with every row flush. Plus-offset alignment against
+  > the top border is the variable, not column count. ⚠ Also measured: the headless collapse
+  > (`thead` 1 → 0) and the phantom `h1` are **separable** — some shapes collapse the header and
+  > render no heading at all.
+  > The document and heading counts (3 docs, 8 lost) are unaffected and were re-derived from
+  > `quarto_v2.tsv`: ordinal 482 gives 3 ATX, 491 gives 3 fused `h1`, 610 gives 2.
+  > **R3 is now DECIDED rather than open** — see `BACKLOG.md`'s RECORD item, decision (3), and
+  > `CHANGELOG.md` under Session 270. The decision rests on a black-box observation of Posit's
+  > Outline (`npm run observe:posit`), not on this report.
 - **R4** — `engine: markdown`; `### 2. Overview <section>` and `## Intro \maketitle`. Quarto: neither
   is a heading (pandoc's inline parser refuses a block tag or command, and the line becomes literal
   text plus a raw block). Model: both. Inline ones stay headings in both: `### 3. Inline <span>ok</span>`
