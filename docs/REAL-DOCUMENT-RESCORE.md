@@ -131,7 +131,7 @@ instrument; the two rows marked *decision* and *not modelable* are ranked last o
 | # | root cause | docs | headings | direction | where |
 |---|---|---:|---:|---|---|
 | R1 | **A line of 7 or more `#` is an empty heading, so it ends the paragraph** — the model caps the bare-run closer at 6 | 1 | 26 | lost | `model.ts:1992`; `:111`, `:129` |
-| R2 | **A `---` pair around a knitr chunk that emits nothing becomes YAML after knitr runs** — the heading inside is swallowed | 2 | 8 | phantom | `model.ts:3108`, `:3243` |
+| R2 | **A `---` pair around a knitr chunk that emits nothing becomes YAML after knitr runs** — the heading inside is swallowed ⚠ *DECIDED not open, Session 271 — the Outline keeps the heading; see the R2 reproduction below* | 2 | 8 | phantom | `model.ts:3108`, `:3243` |
 | R3 | **A grid table's cells hold blocks** — an ATX heading in a well-formed cell renders; so does a setext pair that an over-wide row fuses into one cell ⚠ *mechanism corrected, and DECIDED not open, Session 270 — see the R3 reproduction below* | 3 | 8 | lost | `model.ts:111`, `:833`, `:4456`–`:4511` |
 | R4 | **A block-level HTML tag or TeX command anywhere in ATX content means the line is not a heading** | 2 | 3 | phantom | `model.ts:111`; tables at `:1366`, `:1485` |
 | R5 | **knitr's chunk grammar is not quarto's** — a digit-bearing engine with spaced options is a chunk to knitr; the model refuses it and lets its closer open a fence | 1 | 1 | lost | `model.ts:5937`, `:7228`–`:7260` |
@@ -167,6 +167,30 @@ behind, not where a fence sits.
   ⚠ Depends on the chunk emitting nothing: under real execution a chunk with visible output makes the
   block invalid YAML and quarto exits 1. The diagnosing agent measured both affected documents exiting
   1 when executed (one on a plot, one on an unrelated setup-chunk error); not re-verified.
+
+  > ⚠ **DECIDED, Session 271 — the Outline KEEPS this heading, and the row above stays as a record of
+  > the RENDER, not of a defect.** The unverified sentence above is now verified, and the mechanism is
+  > binary rather than conditional. Measured firsthand on quarto 1.7.33 (`scratchpad/s271/probes/`):
+  > a chunk that leaves NOTHING behind (`echo=FALSE`; `echo=FALSE, results='hide'`; `include=FALSE`)
+  > gives exit 0 and no heading — quarto's own warning names why, `YAML warning (line 7 column 1):
+  > Duplicate key: ['::']`, since the empty `::: {.cell}` and its `:::` both parse as a `::` key. A
+  > chunk whose SOURCE or OUTPUT survives (default `echo`; `eval=FALSE`, which still echoes; a plot
+  > under `results='hide'`, which `results` does not suppress) makes the span invalid YAML and
+  > `quarto render` **fails** — exit 1, `YAML parse exception`, `Error running Lua`. **There is no
+  > spelling where quarto renders that heading.** `.qmd` and `.Rmd` behave identically, and with no
+  > chunk at all the heading is swallowed too.
+  >
+  > **The oracle:** `npm run observe:posit` against `quarto.quarto-1.135.0` (`ours-loaded: false`,
+  > both controls green) returns `Constant:Swallowed Heading` for this shape in both `.Rmd` and
+  > `.qmd`, and all five `## Slide N` of a five-slide slidify deck where quarto renders three. Posit
+  > shows it, this model shows it, `CLAUDE.md` §Clean-room boundary says the product mirrors Posit.
+  >
+  > **The cost of the other choice, measured before deciding:** dropping `FENCE_ANYWHERE_IN_BLOCK`
+  > scores *better* (2,421 → 2,422 of 2,438) and removes **90 headings from 32 documents, 31 of which
+  > `quarto render` exits 1 on** — slidify decks where every slide boundary is a bare `---` and quarto
+  > dies reading a slide as YAML. The score sees 1 of the 32. ⚠ A by-catch of the same observation is
+  > filed separately and is NOT covered by this decision: on the no-chunk spelling the model DELETES a
+  > heading Posit shows, 80 headings across 30 documents — see `BACKLOG.md`.
 - **R3** — `engine: markdown`; `+-----------+------------------+` / `| ### Alpha | body one |` / … —
   quarto renders `h3 Alpha` inside the `<td>`; a pipe table does not. A heading in a non-first column
   renders too. The over-wide half: one body row one character wider than its border makes pandoc add
