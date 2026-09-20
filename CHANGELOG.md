@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Six R2 probes for the black-box harness, and the observation they were built to make
+- **Change:** `test/posit/` gains a per-probe `ext` and `frontMatter` (R2 is a KNITR shape the corpus spells in `.Rmd`, so forcing `engine: markdown` on every probe would have observed a different document), an `.Rmd` control beside the `.qmd` one, and six probes: R2 in `.Rmd` and in `.qmd`, the no-chunk variant, a real-keys mid-document block, and a five-slide slidify deck. The control assertion now covers both controls.
+- **Commit/PR:** this entry's own commit
+- **Session:** S271 · **Verified:** `npm run observe:posit` ran in a real Extension Development Host with the operator's go-ahead BEFORE launch — 11 passing, exit 0, `quarto.quarto 1.135.0 active=true`, `ours-loaded: false`, and both controls green (`Constant:Control Heading`, `Constant:Control Heading Rmd`), so a `(no symbols)` row means "no heading", not "no provider". Every probe file was rendered through real quarto 1.7.33 FIRST, so Posit's answer and quarto's are recorded for the same bytes. `npm run compile-tests` exit 0 before the launch — the S270 traps (unpinned VS Code, mocha `suite`/`test`) cost two launches then and none here.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 271 claimed — (b), R2: a knitr `---` pair swallows a heading (IN PROGRESS)
 - **Change:** Phase 1B. `SESSION_NOTES.md` ACTIVE TASK rewritten to the R2 task; a `status: pending` receipt opened in `HANDOFFS.md`; `dashboard_history.jsonl` carries Phase 0's own row. No `src/` file touched.
 - **Commit/PR:** this entry's own commit

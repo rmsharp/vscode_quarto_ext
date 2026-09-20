@@ -56,12 +56,62 @@ async function findPosit(): Promise<string | undefined> {
   return dir === undefined ? undefined : path.join(extRoot, dir);
 }
 
-/** The probes the observation opens, written fresh each run so the file IS the record. */
-const PROBES: ReadonlyArray<{ name: string; body: string; why: string }> = [
+/**
+ * The probes the observation opens, written fresh each run so the file IS the record.
+ *
+ * `ext` defaults to `qmd` and `frontMatter` to a markdown-engine stub. Session 271 added both:
+ * R2's shape is a KNITR one and the corpus spells it in `.Rmd`, so forcing `engine: markdown`
+ * on every probe would have observed a different document from the one in question. A probe that
+ * changes either MUST come with its own control — see `control_rmd`.
+ */
+const PROBES: ReadonlyArray<{
+  name: string;
+  body: string;
+  why: string;
+  ext?: string;
+  frontMatter?: string;
+}> = [
   {
     name: "control",
     why: "an ordinary ATX heading outside any table — if THIS shows nothing, Posit is not running",
     body: "## Control Heading\n\nProse.\n",
+  },
+  {
+    name: "control_rmd",
+    why: "the .Rmd control -- if THIS shows nothing, Posit provides no symbols for .Rmd at all and every .Rmd row below is 'no provider', not 'no heading'",
+    ext: "Rmd",
+    frontMatter: "---\ntitle: control_rmd\n---\n",
+    body: "## Control Heading Rmd\n\nProse.\n",
+  },
+  {
+    name: "r2_quiet_rmd",
+    why: "R2 as the corpus spells it -- a --- pair around a QUIET knitr chunk; quarto renders NO 'Swallowed Heading' (measured, exit 0)",
+    ext: "Rmd",
+    frontMatter: "---\ntitle: r2_quiet_rmd\n---\n",
+    body: "## Kept Before\n\nText.\n\n---\n## Swallowed Heading\n```{r, echo = FALSE, results = 'hide'}\nx <- 1\n```\n\n---\n## Kept After\n\nTail.\n",
+  },
+  {
+    name: "r2_quiet_qmd",
+    why: "R2 in a .qmd under the knitr engine -- same shape, same quarto answer (measured, exit 0, heading gone)",
+    frontMatter: "---\ntitle: r2_quiet_qmd\n---\n",
+    body: "## Kept Before\n\nText.\n\n---\n## Swallowed Heading\n```{r, echo = FALSE, results = 'hide'}\nx <- 1\n```\n\n---\n## Kept After\n\nTail.\n",
+  },
+  {
+    name: "r2_nochunk",
+    why: "R2 with NO chunk at all -- a plain mid-document YAML metadata block; quarto swallows the heading and THIS MODEL ALREADY DROPS IT",
+    body: "## Kept Before\n\nText.\n\n---\n## Swallowed Heading\n\n---\n## Kept After\n\nTail.\n",
+  },
+  {
+    name: "r2_midyaml_keys",
+    why: "the control for the rule itself -- a mid-document block holding a REAL key; does Posit model mid-document YAML at all?",
+    body: "## Kept Before\n\nText.\n\n---\nnote: alpha\n---\n## Kept After\n\nTail.\n",
+  },
+  {
+    name: "r2_deck_rmd",
+    why: "the slidify deck shape of the 32 affected corpus documents -- five bare --- slide separators, alternating quiet chunk and prose",
+    ext: "Rmd",
+    frontMatter: "---\ntitle: r2_deck_rmd\n---\n",
+    body: "## Slide One\n\nProse one.\n\n---\n## Slide Two\n```{r, echo = FALSE, results = 'hide'}\nx <- 1\n```\n\n---\n## Slide Three\n\nProse three.\n\n---\n## Slide Four\n```{r, echo = FALSE, results = 'hide'}\nx <- 1\n```\n\n---\n## Slide Five\n\nProse five.\n",
   },
   {
     name: "r3a_atx_in_cell",
@@ -148,7 +198,8 @@ async function main(): Promise<void> {
 
   const workspace = await fs.mkdtemp(path.join(os.tmpdir(), "qmd-posit-ws-"));
   for (const probe of PROBES) {
-    await fs.writeFile(path.join(workspace, `${probe.name}.qmd`), `---\ntitle: ${probe.name}\nengine: markdown\n---\n\n${probe.body}`);
+    const front = probe.frontMatter ?? `---\ntitle: ${probe.name}\nengine: markdown\n---\n`;
+    await fs.writeFile(path.join(workspace, `${probe.name}.${probe.ext ?? "qmd"}`), `${front}\n${probe.body}`);
   }
 
   // MUST be short — VS Code's IPC socket path has a ~103-character limit.
@@ -177,8 +228,8 @@ async function main(): Promise<void> {
       ],
       extensionTestsEnv: {
         QMD_POSIT_WORKSPACE: workspace,
-        QMD_POSIT_PROBES: JSON.stringify(PROBES.map((p) => ({ name: p.name, why: p.why }))),
-        QMD_POSIT_OUT: process.env.QMD_POSIT_OUT ?? path.join(process.cwd(), "scratchpad", "s270", "posit-observation.txt"),
+        QMD_POSIT_PROBES: JSON.stringify(PROBES.map((p) => ({ name: p.name, why: p.why, ext: p.ext ?? "qmd" }))),
+        QMD_POSIT_OUT: process.env.QMD_POSIT_OUT ?? path.join(process.cwd(), "scratchpad", "s271", "posit-observation.txt"),
       },
     });
   } catch (err) {

@@ -14,7 +14,7 @@ import * as vscode from "vscode";
  */
 
 const workspace = process.env.QMD_POSIT_WORKSPACE ?? "";
-const probes: { name: string; why: string }[] = JSON.parse(process.env.QMD_POSIT_PROBES ?? "[]");
+const probes: { name: string; why: string; ext?: string }[] = JSON.parse(process.env.QMD_POSIT_PROBES ?? "[]");
 const outPath = process.env.QMD_POSIT_OUT ?? "";
 
 /** Flatten a DocumentSymbol tree to `kind:name` rows, depth-first, as the Outline shows it. */
@@ -50,7 +50,7 @@ describe("Posit's Outline, observed black-box (Session 270)", () => {
 
   for (const probe of probes) {
     it(`Outline for ${probe.name}`, async () => {
-      const uri = vscode.Uri.file(path.join(workspace, `${probe.name}.qmd`));
+      const uri = vscode.Uri.file(path.join(workspace, `${probe.name}.${probe.ext ?? "qmd"}`));
       const doc = await vscode.workspace.openTextDocument(uri);
       await vscode.window.showTextDocument(doc, { preview: false });
       // Posit's provider may register a moment after activation; poll rather than race.
@@ -67,16 +67,16 @@ describe("Posit's Outline, observed black-box (Session 270)", () => {
         await new Promise((r) => setTimeout(r, 500));
       }
       const rows = flatten(symbols);
-      record.push(`## ${probe.name} — ${probe.why}`);
+      record.push(`## ${probe.name}.${probe.ext ?? "qmd"} — ${probe.why}`);
       record.push(rows.length === 0 ? "   (no symbols)" : rows.map((r) => `   ${r}`).join("\n"));
       record.push("");
 
-      if (probe.name === "control") {
+      if (probe.name === "control" || probe.name === "control_rmd") {
         // THE ONE ASSERTION. Without it "no symbols" cannot be told from "no provider",
         // and every other row printed by this run would be unreadable.
         assert.ok(
           rows.length > 0,
-          "CONTROL FAILED: Posit reported no symbol for an ordinary '## Control Heading'. " +
+          `CONTROL FAILED (${probe.name}): Posit reported no symbol for an ordinary '## Control Heading'. ` +
             "Posit is not providing document symbols in this host, so the other rows in this " +
             "run mean nothing — they are 'no provider', not 'no heading'.",
         );
