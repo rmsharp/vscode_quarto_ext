@@ -9905,24 +9905,32 @@ function headingBracketedEnd(text: string, i: number): number {
 }
 /**
  * The tag NAMES measured to refuse a heading, as an OPENER and as a CLOSER (Session 269, R4).
- * Both are the `PANDOC_BLOCK_CLOSE_TAGS` list — which is already `PANDOC_BLOCK_OPEN_TAGS` plus
- * `textarea` and `title` — with one delta each, and both deltas are MEASURED, one document per
- * name, 114 opener probes and 119 closer probes (`scratchpad/s269/probes/names1`, `names2`):
+ * The opener set is EXACTLY the `PANDOC_BLOCK_CLOSE_TAGS` list — which is already
+ * `PANDOC_BLOCK_OPEN_TAGS` plus `textarea` and `title`, both measured to refuse — and the closer
+ * set is that list minus `script`, alone in refusing nothing as `</script>`. Including it would
+ * decline a heading quarto renders, which is the deleting direction. Measured one document per
+ * name, 114 opener probes and 119 closer probes (`scratchpad/s269/probes/names1`, `names2`).
  *
- *   - as an OPENER, `applet` and `object` refuse too, and they are the ONLY two of the sixteen
- *     `PANDOC_EITHER_TAGS` that do — `<audio>`, `<video>`, `<svg>`, `<ins>`, `<del>`, `<embed>`,
- *     `<iframe>`, `<button>`, `<map>`, `<noscript>`, `<progress>`, `<source>`, `<track>` and
- *     `<area>` all keep the heading. The paragraph question splits those sixteen off as a class;
- *     this one splits them 2/14, so the sets cannot be shared.
- *   - as a CLOSER, `</script>` does NOT refuse, alone in the list. Including it would decline a
- *     heading quarto renders, which is the deleting direction.
+ * ⚠ **`PANDOC_EITHER_TAGS` DOES NOT PARTICIPATE — all sixteen keep the heading**, `applet` and
+ * `object` included, which is the trap this session fell into twice and is why the sets below say
+ * so explicitly. See the instrument warning.
  *
- * ⚠ **A SINGLE-DOCUMENT SWEEP OF THESE NAMES IS UNSOUND AND THIS PROJECT MEASURED IT WRONG ONCE.**
- * Reading 112 names as 112 headings of ONE document reports `applet` and `object` as KEEPING,
- * because an earlier row's own unclosed raw block (`<h1>`…`<h6>`, `<script>`, `<style>`) changes
- * the parse state for every row below it. One name per document is the only sound instrument here.
+ * ⚠ **NEITHER OF THIS PROJECT'S TWO OBVIOUS INSTRUMENTS CAN ADJUDICATE THESE NAMES, AND EACH FAILS
+ * IN ITS OWN DIRECTION.**
+ *   - A SINGLE-DOCUMENT SWEEP is contaminated: reading 112 names as 112 headings of one document
+ *     lets an earlier row's own unclosed raw block (`<h1>`…`<h6>`, `<script>`, `<style>`) change
+ *     the parse state for every row below it, and it reported `applet`/`object` as KEEPING for
+ *     the wrong reason. One name per document is necessary.
+ *   - `tools/realdoc-score/extract_headings.py` IS NOT SOUND HERE EITHER, and it is the standing
+ *     ground truth everywhere else in this project. It is an HTML parser, so an element that
+ *     swallows the rest of the document hides what follows it — and for `<applet>` and `<object>`
+ *     what follows is the heading's own `</h3>`. The render really does contain
+ *     `<h3 class="anchored">T098 <applet>…`, so the heading EXISTS and the extractor reports none.
+ *     Reading that as a refusal put two names in this set that would have DELETED a real heading.
+ *     For a probe whose heading line opens a swallowing element, read the raw HTML for an `<hN>`
+ *     element; the extractor answers a different question.
  */
-const HEADING_BLOCK_TAG_OPEN = new RegExp("^(?:" + PANDOC_BLOCK_CLOSE_TAGS + "|applet|object)$", "i");
+const HEADING_BLOCK_TAG_OPEN = new RegExp("^(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")$", "i");
 const HEADING_BLOCK_TAG_CLOSE = new RegExp("^(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")$", "i");
 /** What `headingAngleEnd` found at a `<`: where to resume, and the tag's name when it is one. */
 interface HeadingAngle {
@@ -9935,6 +9943,14 @@ interface HeadingAngle {
  * consume their INTERIOR and yield no name — a block tag inside one is not a token
  * (`verify/v03`, `v14`, `v15`) — while an UNTERMINATED one consumes nothing, so
  * `### T <!-- <section>` really is refused (`verify/v12`).
+ *
+ * ⚠ **KNOWN UNOBSERVABLE TERM, disclosed rather than hidden: the CDATA branch is pinned by
+ * nothing.** Every CDATA shape measured this session survives with the branch REMOVED, because
+ * the bracketed-inline skip in `headingContentRefused` already consumes `[CDATA[…]]` — including
+ * the doubled-bracket spelling built to defeat it. It is kept because it is the faithful model of
+ * the construct and the two skips are independent: a later narrowing of the bracket rule would
+ * expose it, and the failure direction there is a DELETED heading. A mutation that removes it
+ * survives the suite (`scratchpad/s269/tools/mutants.py`, M18) and that is recorded, not repaired.
  *
  * ⚠ **`<!DOCTYPE …>` IS NOT ONE OF THEM.** `### T <!DOCTYPE <section>> U` is refused
  * (`verify/v09`), so `<!` falls through to the not-a-tag path and the scan resumes one character

@@ -18949,6 +18949,11 @@ describe("Session 269 GUARD — heading content that LOOKS like a block token an
   it("G8: a COMMENT, a CDATA section and a PROCESSING INSTRUCTION each consume their interior (`verify/v03`, `v14`, `v15`)", () => {
     expect(kept("### T <!-- <section> --> U")).toEqual(["h3:T <!-- <section> --> U", "h2:Tail"]);
     expect(kept("### T <![CDATA[<section>]]> U")).toEqual(["h3:T <![CDATA[<section>]]> U", "h2:Tail"]);
+    // ⚠ A doubled `[` too, which quarto also renders — `<h3 …>T &lt;![CDATA[[]]&gt; U`
+    // (`probes/cdata/cd1`). Both rows pass with the CDATA branch REMOVED, because the
+    // bracketed-inline skip already covers them; see `headingAngleEnd` on why the branch is
+    // kept anyway and what is not pinned.
+    expect(kept("### T <![CDATA[[<section>]]> U")).toEqual(["h3:T <![CDATA[[<section>]]> U", "h2:Tail"]);
     expect(kept("### T <?xml <section> ?> U")).toEqual(["h3:T <?xml <section> ?> U", "h2:Tail"]);
   });
 
@@ -19048,5 +19053,105 @@ describe("Session 269 — a block-level token anywhere in a heading's content me
     expect(
       names(probe("## Kept Before", "", "### 1. <Section heading>", "", "## Kept After")),
     ).toEqual(["h2:Kept Before", "h2:Kept After"]);
+  });
+
+  // ── R4c-R4l are LABELLED TEST-AFTER. R4a and R4b are the session's two REDs and are what
+  // drove the code; the rows below pin the rest of the surface those two commits already cover,
+  // written afterwards and run once to confirm no gap. Every one is still a `quarto render`
+  // of those exact bytes, not an inference from the implementation.
+
+  it("R4c: a SETEXT title is refused by the same rule, under both underlines (`b_html_form/b60`, `b61`, `c_tex/s1`)", () => {
+    expect(names(probe("T <section>", "===", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("T <div>", "---", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("T \\maketitle", "===", "", "## Tail"))).toEqual(["h2:Tail"]);
+  });
+
+  it("R4d: a CLOSING block tag refuses too — except `</script>`, alone in the list (`names2/`)", () => {
+    expect(names(probe("### T </section>", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T </div class=\"a\">", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T </script>", "", "## Tail"))).toEqual(["h3:T </script>", "h2:Tail"]);
+  });
+
+  it("R4e: NONE of the sixteen either-tags refuses — `applet` and `object` included (`names1/`)", () => {
+    // ⚠ The extractor this project scores with reports NO heading for `<applet>` and `<object>`,
+    // because their element swallows the rest of the HTML including the heading's own `</h3>`.
+    // The render contains `<h3 class="anchored">T098 <applet>`, so the heading is real and this
+    // row is a DELETION guard, not a phantom one.
+    for (const tag of ["<applet>", "<object>", "<svg>", "<iframe>", "<audio>", "<video>", "<ins>"]) {
+      expect(names(probe(`### T ${tag}`, "", "## Tail"))).toEqual([`h3:T ${tag}`, "h2:Tail"]);
+    }
+  });
+
+  it("R4f: `<textarea>` and `<title>` refuse as openers, and `<script>`/`<style>` do (`names1/`, `verify/v01`, `v02`)", () => {
+    for (const tag of ["<textarea>", "<title>", "<script>", "<style>"]) {
+      expect(names(probe(`### T ${tag}`, "", "## Tail"))).toEqual(["h2:Tail"]);
+    }
+  });
+
+  it("R4g: the ARG arity needs a BRACED group and the BARE arity ignores one (`verify/v25`, `v27`, `c_tex/a4-bare`)", () => {
+    expect(names(probe("### T \\section{x}", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T \\section[a]{x}", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T \\section {x}", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T \\par{x}", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T \\item{x}", "", "## Tail"))).toEqual(["h2:Tail"]);
+  });
+
+  it("R4h: there is NO TAIL RULE, and the position in the content does not matter (`c_tex/p1-position`, `p2-tail`)", () => {
+    expect(names(probe("### T \\maketitle and more words", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### \\maketitle at the start", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### <section> at the start", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T <section> in the middle", "", "## Tail"))).toEqual(["h2:Tail"]);
+  });
+
+  it("R4i: every level is refused alike (`d_context/f01`-`f06`, `g01`-`g06`)", () => {
+    for (let level = 1; level <= 6; level++) {
+      expect(names(probe(`${"#".repeat(level)} T <section>`, "", "## Tail"))).toEqual(["h2:Tail"]);
+      expect(names(probe(`${"#".repeat(level)} T \\maketitle`, "", "## Tail"))).toEqual(["h2:Tail"]);
+    }
+  });
+
+  it("R4j: a trailing ATTRIBUTE BLOCK and a closing HASH RUN do not rescue the line (`b_html_form/b65`, `b66`)", () => {
+    expect(names(probe("### T <section> {#myid}", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T <section> ###", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("## T \\maketitle ##", "", "## Tail"))).toEqual(["h2:Tail"]);
+  });
+
+  it("R4k: the tag NAME ends at the first whitespace, `/` or `>` (`verify/v07`, `v08`, `d_context_refute/r29`-`r31`)", () => {
+    expect(names(probe("### T <section/foo>", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T <div title=a>b>", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe('### T <div"a">', "", "## Tail"))).toEqual(['h3:T <div"a">', "h2:Tail"]);
+    expect(names(probe("### T <section=x>", "", "## Tail"))).toEqual(["h3:T <section=x>", "h2:Tail"]);
+  });
+
+  it("R4l: the two halves have DIFFERENT reader sets, measured on the same nine documents (`probes/readers/`)", () => {
+    const reader = (from: string, body: string) =>
+      findHeadings(["---", "title: probe", "engine: markdown", `from: ${from}`, "---", "", body, "", "## Tail"].join("\n") + "\n")
+        .map((h) => `h${h.level}:${h.text}`);
+    // markdown refuses BOTH halves.
+    expect(reader("markdown", "### T <section>")).toEqual(["h2:Tail"]);
+    expect(reader("markdown", "## T \\maketitle")).toEqual(["h2:Tail"]);
+    // markdown_mmd / markdown_phpextra refuse the TAG and keep the MACRO — they carry no raw_tex.
+    for (const from of ["markdown_mmd", "markdown_phpextra"]) {
+      expect(reader(from, "### T <section>")).toEqual(["h2:Tail"]);
+      expect(reader(from, "## T \\maketitle")).toEqual(["h2:T \\maketitle", "h2:Tail"]);
+    }
+    // The five that refuse NEITHER.
+    for (const from of ["gfm", "commonmark", "commonmark_x", "markdown_strict", "markdown_github"]) {
+      expect(reader(from, "### T <section>")).toEqual(["h3:T <section>", "h2:Tail"]);
+      expect(reader(from, "## T \\maketitle")).toEqual(["h2:T \\maketitle", "h2:Tail"]);
+    }
+    // An EXTENSION outranks the base, independently per half (`verify/v40-minus-raw_html`, `v40-minus-raw_tex`).
+    expect(reader("markdown-raw_html", "### T <section>")).toEqual(["h3:T <section>", "h2:Tail"]);
+    expect(reader("markdown-raw_html", "## T \\maketitle")).toEqual(["h2:Tail"]);
+    expect(reader("markdown-raw_tex", "## T \\maketitle")).toEqual(["h2:T \\maketitle", "h2:Tail"]);
+    expect(reader("markdown-raw_tex", "### T <section>")).toEqual(["h2:Tail"]);
+    // An unreadable value is not a measured base, so the fail-safe answer KEEPS the heading.
+    expect(reader("not a reader name", "### T <section>")).toEqual(["h3:T <section>", "h2:Tail"]);
+  });
+
+  it("R4m: an UNTERMINATED comment masks nothing, and `<!DOCTYPE` is not a masker at all (`verify/v09`, `v12`, `v13`)", () => {
+    expect(names(probe("### T <!-- <section>", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T <!-- c --> <section>", "", "## Tail"))).toEqual(["h2:Tail"]);
+    expect(names(probe("### T <!DOCTYPE <section>> U", "", "## Tail"))).toEqual(["h2:Tail"]);
   });
 });
