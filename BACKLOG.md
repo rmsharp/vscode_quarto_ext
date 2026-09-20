@@ -30,8 +30,10 @@ divergences — eight root causes …"* in "Up Next", filed by the Session 265 r
 ([`docs/REAL-DOCUMENT-RESCORE.md`](docs/REAL-DOCUMENT-RESCORE.md)): the causes behind the 19
 authored documents whose Outline still differs from quarto (20 at the re-score, before Session 266's
 R1). Recommended pick: its **(d)**, R4 — the report's next after R1, one fix site for both halves.
-Its (g) and the raw-HTML scope
-(report F3) are operator decisions, and so is closing the **fenced-div container** item (report F6).
+Its (g) and the raw-HTML scope (report F3) are
+DECIDED — see the RECORD item in "Up Next" (Session 267) — and the **fenced-div container** item
+(report F6) is CLOSED (Session 268). The score itself is now a standing, tracked measure:
+`tools/realdoc-score/run.sh <label>`, ~5 s warm (`CLAUDE.md` §The real-document measure).
 **Other work** (not measured by the re-score): the format-name family's **Combos 2 & 4**, the **cell
 comment-char blindness** (S160's §9 review, a LIVE two-directional defect across 13+ cell languages),
 and the safe **`_metadata.yml` coverage gap** (S152). Operator picks at Phase 0.*

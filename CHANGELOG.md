@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] The corrected real-document score is ADOPTED as the standing measure (report Recommendation 4)
+- **Change:** `CLAUDE.md` gains §The real-document measure — the command, when to run it (after any change reaching `findHeadings`, cited in the close-out receipt), and the two ⚠ facts that make it a habit rather than a gate: the corpus is personal, so neither CI nor `.quality-gates.json` can run it, and a corpus document is named only by its ordinal. `BACKLOG.md`'s Active note now reads F3/F5 as decided (Session 267), F6 as closed (Session 268), and points at the tracked measure.
+- **Commit/PR:** this entry's own commit
+- **Session:** S268 · **Verified:** the measure it adopts is the one this session made reproducible from tracked files (2,419 / 2,438 at HEAD, 2,418 on `b5_head`); `check-backlog` OK, 206 open items; `CLAUDE.md` 21,412 B of its 28,000 B ceiling
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [BL-A QUARTO FENCED DIV / CALLOUT is a container `contentColumns` never pushes] Closed on the operator's word — both halves are answered and its own example agrees
 - **Change:** the item is removed from `BACKLOG.md`. Filed Session 193, it bundled two questions: whether a `:::` opener pushes a content column (it does not need to — Session 189 measured a plain fenced div's content column as 0) and the callout-title rule (shipped Session 257). Its own example, indented and unindented, yields no heading in the model and none in quarto (Session 265 F6; the model half re-checked at HEAD in Session 266), and it explains none of the 19 divergent authored documents. `check-backlog` could not see it, because its lead did not announce completion — which is why it needed the operator's word.
 - **Commit/PR:** this entry's own commit

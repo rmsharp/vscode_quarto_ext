@@ -104,6 +104,27 @@ automated form of that check.
   an OPEN, operator-pending decision (the lone `+` gate suspension, 2 recovered against 32 new
   phantoms) buried inside a tombstone, recorded in no other tracked file.
 
+### The real-document measure — run it after any heading-model change (Session 268)
+
+**`tools/realdoc-score/run.sh <label>` is this project's standing answer to "did that change help?"**
+It scores this extension's Outline against `quarto render` over an authored corpus — real documents,
+not probes — and takes about five seconds warm:
+
+```bash
+export REALDOC_DATA=scratchpad/s265 REALDOC_ORDINALS=scratchpad/s251/realfiles.txt
+tools/realdoc-score/run.sh head      # head: scored 2438 agree 2419 (99.22%) divergent 19 …
+```
+
+- **Run it after any change reaching `findHeadings`** and cite the line in the close-out receipt. A
+  change that moves a corpus document into the losing column is a defect, whatever the unit tests say.
+  Any directory holding `src/` scores, so a past build is `run.sh <sha> /tmp/build-<sha>`.
+- ⚠ **It is machine-specific and can never be a gate.** The corpus is personal and is never
+  committed: `.quality-gates.json` and CI cannot run this, which is exactly why the habit has to be
+  written down here instead.
+- ⚠ **Name a corpus document only by its ORDINAL** in any tracked file (Learning #548).
+- The scripts are tracked and the corpus is not; `tools/realdoc-score/README.md` says which files it
+  needs, what the number excludes, and which divergences are decided rather than open.
+
 ---
 
 ## Project-Specific Methodology Adaptations
