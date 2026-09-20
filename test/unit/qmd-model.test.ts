@@ -4128,9 +4128,15 @@ describe("a SETEXT UNDERLINE's own indent is a COLUMN too, so a TAB can reach on
     // now reachable through the tab spelling too. A raw HTML block and a raw TeX line each
     // open a fresh block, so the line below them is a setext title; we then report the block's
     // LITERAL TEXT as the heading, where quarto renders the block and no heading at all.
+    // ⚠ **THE RAW-HTML HALF OF FAMILY A IS CLOSED — by Session 269's R4 gate, not by this
+    // session.** The setext title here IS the literal `<div>`, and a block tag anywhere in a
+    // heading's content refuses the line, so the phantom is gone in BOTH spellings. Re-rendered
+    // on these exact bytes while closing it (`scratchpad/s269/probes/famA/famA-div`): quarto
+    // emits no heading, which is now what this model emits. The TeX half below is UNCHANGED and
+    // still a phantom — `\clearpage` is class B, which R4 measured NOT to refuse a heading.
     expect(
       names(doc("Intro.", "", "-   line one", "", "    <div>", "\t===")),
-    ).toEqual(["h1:<div>"]); // quarto: NO heading — pre-existing, the twin errs identically
+    ).toEqual([]); // quarto: NO heading — and we now agree (Session 269)
     expect(
       names(doc("Intro.", "", "-   line one", "", "    \\clearpage", "\t===")),
     ).toEqual(["h1:\\clearpage"]); // quarto: NO heading — pre-existing, same twin verdict
@@ -19034,5 +19040,13 @@ describe("Session 269 — a block-level token anywhere in a heading's content me
       "h2:Kept Before",
       "h2:Kept After",
     ]);
+  });
+
+  it("R4b: `### 1. <Section heading>` is no heading — the corpus shape, ordinal 3004 (`probes/real/real-shapes`)", () => {
+    // Capitalised, and carrying what looks like an attribute: the tag name is canonicalised to
+    // `section` before the block-set test, and `heading` is attribute soup.
+    expect(
+      names(probe("## Kept Before", "", "### 1. <Section heading>", "", "## Kept After")),
+    ).toEqual(["h2:Kept Before", "h2:Kept After"]);
   });
 });

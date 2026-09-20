@@ -2549,6 +2549,22 @@ function fromHasFootnotes(line: string): boolean {
  */
 const READER_REFUSES_BLOCK_TEX_IN_HEADING: ReadonlySet<string> = new Set(["markdown"]);
 /**
+ * The reader bases measured to REFUSE a heading whose content holds a block-level raw HTML tag —
+ * R4's HTML half (Session 269). THREE bases, not one, and the split is not `commonmarkDialect`'s:
+ * `markdown`, `markdown_mmd` and `markdown_phpextra` (and the absent key) all refuse
+ * `### T <section>`, while `gfm`, `commonmark`, `commonmark_x`, `markdown_strict` and
+ * `markdown_github` render it. One document per base plus the no-key control,
+ * `scratchpad/s269/probes/readers/`.
+ *
+ * ⚠ **IT IS A DIFFERENT SET FROM THE TeX HALF'S, ON THE SAME NINE DOCUMENTS.** `markdown_mmd` and
+ * `markdown_phpextra` refuse the TAG and keep the MACRO. One flag for both halves is wrong twice.
+ */
+const READER_REFUSES_BLOCK_HTML_IN_HEADING: ReadonlySet<string> = new Set([
+  "markdown",
+  "markdown_mmd",
+  "markdown_phpextra",
+]);
+/**
  * Whether the declared reader refuses a block-level token inside a heading's content (Session 269).
  *
  * ⚠ **THE POLARITY IS THE OPPOSITE OF `fromHasConstruct`'s, and that is the whole point.** That
@@ -6510,6 +6526,11 @@ function computeRegions(text: string): Regions {
     "raw_tex",
     READER_REFUSES_BLOCK_TEX_IN_HEADING,
   );
+  const blockHtmlRefusesHeading = fromRefusesBlockInHeading(
+    fromValueLine,
+    "raw_html",
+    READER_REFUSES_BLOCK_HTML_IN_HEADING,
+  );
   // Whether the resolved reader has `space_in_atx_header` OFF, so `#Heading` with no separator
   // IS a heading — see `fromRequiresSpaceInAtxHeader` (Session 212). A SIXTH flag rather than a
   // refinement of any of the five above, for the reason each of those gives: it answers its own
@@ -8109,6 +8130,7 @@ function computeRegions(text: string): Regions {
         escapableSet,
         pandocEscapes,
         commonmarkDialect,
+        blockHtmlRefusesHeading,
         blockTexRefusesHeading,
       );
       // `prev` is `titleLines[0]` — the FIRST title line, which is where the heading's block
@@ -8318,6 +8340,7 @@ function computeRegions(text: string): Regions {
         headerAttributesDialect,
         escapableSet,
         pandocEscapes,
+        blockHtmlRefusesHeading,
         blockTexRefusesHeading,
       );
       if (heading && !calloutTitleTakes(i) && !tabsetTabTakes(i, heading.level)) {
@@ -9881,6 +9904,96 @@ function headingBracketedEnd(text: string, i: number): number {
   return end + 1;
 }
 /**
+ * The tag NAMES measured to refuse a heading, as an OPENER and as a CLOSER (Session 269, R4).
+ * Both are the `PANDOC_BLOCK_CLOSE_TAGS` list — which is already `PANDOC_BLOCK_OPEN_TAGS` plus
+ * `textarea` and `title` — with one delta each, and both deltas are MEASURED, one document per
+ * name, 114 opener probes and 119 closer probes (`scratchpad/s269/probes/names1`, `names2`):
+ *
+ *   - as an OPENER, `applet` and `object` refuse too, and they are the ONLY two of the sixteen
+ *     `PANDOC_EITHER_TAGS` that do — `<audio>`, `<video>`, `<svg>`, `<ins>`, `<del>`, `<embed>`,
+ *     `<iframe>`, `<button>`, `<map>`, `<noscript>`, `<progress>`, `<source>`, `<track>` and
+ *     `<area>` all keep the heading. The paragraph question splits those sixteen off as a class;
+ *     this one splits them 2/14, so the sets cannot be shared.
+ *   - as a CLOSER, `</script>` does NOT refuse, alone in the list. Including it would decline a
+ *     heading quarto renders, which is the deleting direction.
+ *
+ * ⚠ **A SINGLE-DOCUMENT SWEEP OF THESE NAMES IS UNSOUND AND THIS PROJECT MEASURED IT WRONG ONCE.**
+ * Reading 112 names as 112 headings of ONE document reports `applet` and `object` as KEEPING,
+ * because an earlier row's own unclosed raw block (`<h1>`…`<h6>`, `<script>`, `<style>`) changes
+ * the parse state for every row below it. One name per document is the only sound instrument here.
+ */
+const HEADING_BLOCK_TAG_OPEN = new RegExp("^(?:" + PANDOC_BLOCK_CLOSE_TAGS + "|applet|object)$", "i");
+const HEADING_BLOCK_TAG_CLOSE = new RegExp("^(?:" + PANDOC_BLOCK_CLOSE_TAGS + ")$", "i");
+/** What `headingAngleEnd` found at a `<`: where to resume, and the tag's name when it is one. */
+interface HeadingAngle {
+  readonly next: number;
+  readonly name: string | null;
+  readonly closing: boolean;
+}
+/**
+ * Reads the angle-bracket construct at `i`. Comments, CDATA sections and processing instructions
+ * consume their INTERIOR and yield no name — a block tag inside one is not a token
+ * (`verify/v03`, `v14`, `v15`) — while an UNTERMINATED one consumes nothing, so
+ * `### T <!-- <section>` really is refused (`verify/v12`).
+ *
+ * ⚠ **`<!DOCTYPE …>` IS NOT ONE OF THEM.** `### T <!DOCTYPE <section>> U` is refused
+ * (`verify/v09`), so `<!` falls through to the not-a-tag path and the scan resumes one character
+ * in, where it meets the real `<section>`.
+ *
+ * ⚠ **THE NAME ENDS AT THE FIRST WHITESPACE, `/` OR `>` AND EVERY OTHER CHARACTER IS PART OF IT.**
+ * That is an HTML5 tokenizer rule, not a guess: `<section/foo>` IS a section tag and is refused,
+ * while `<div"a">`, `<section=x>`, `<x:section>` and `<my-div>` are unknown NAMES and keep the
+ * heading (`verify/v08`, `v34`, `v35`, `d_context_refute/r29`-`r31`).
+ *
+ * ⚠ **ATTRIBUTES ARE SCANNED QUOTE-AWARE, AND WITHOUT A `>` OUTSIDE QUOTES THERE IS NO TAG.**
+ * `<div title="a>` keeps the heading and `<div title=a>b>` does not (`verify/v06`, `v07`); the
+ * same scan is what stops a block tag inside another tag's quoted value from being a token of its
+ * own — `<span title="<div>">ok</span>` is a real heading (`verify/v05`).
+ */
+function headingAngleEnd(text: string, i: number): HeadingAngle {
+  const none = (next: number): HeadingAngle => ({ next, name: null, closing: false });
+  const skipTo = (marker: string, from: number): HeadingAngle => {
+    const close = text.indexOf(marker, from);
+    return none(close === -1 ? i + 1 : close + marker.length);
+  };
+  if (text.startsWith("<!--", i)) {
+    return skipTo("-->", i + 4);
+  }
+  if (text.startsWith("<![CDATA[", i)) {
+    return skipTo("]]>", i + 9);
+  }
+  if (text.startsWith("<?", i)) {
+    return skipTo("?>", i + 2);
+  }
+  let j = i + 1;
+  const closing = text[j] === "/";
+  if (closing) {
+    j++;
+  }
+  if (j >= text.length || !/[a-zA-Z]/.test(text[j])) {
+    return none(i + 1);
+  }
+  const nameStart = j;
+  while (j < text.length && text[j] !== " " && text[j] !== "\t" && text[j] !== "/" && text[j] !== ">") {
+    j++;
+  }
+  const name = text.slice(nameStart, j);
+  let quote: string | null = null;
+  for (; j < text.length; j++) {
+    const c = text[j];
+    if (quote !== null) {
+      if (c === quote) {
+        quote = null;
+      }
+    } else if (c === '"' || c === "'") {
+      quote = c;
+    } else if (c === ">") {
+      return { next: j + 1, name, closing };
+    }
+  }
+  return none(i + 1);
+}
+/**
  * Whether the heading's RAW content holds a token pandoc's INLINE parser refuses, so the whole
  * header parse fails and quarto renders no heading at all (Session 269, R4).
  *
@@ -9898,8 +10011,13 @@ function headingBracketedEnd(text: string, i: number): number {
  * the model's own emitted text for that REAL heading is then byte-identical to a refused one, so a
  * predicate run on the decoded text cannot tell them apart (`verify/v23`).
  */
-function headingContentRefused(text: string, blockTex: boolean, escapable: RegExp): boolean {
-  if (!blockTex) {
+function headingContentRefused(
+  text: string,
+  blockHtml: boolean,
+  blockTex: boolean,
+  escapable: RegExp,
+): boolean {
+  if (!blockHtml && !blockTex) {
     return false;
   }
   let i = 0;
@@ -9920,6 +10038,20 @@ function headingContentRefused(text: string, blockTex: boolean, escapable: RegEx
     if (c === "{" && text.startsWith("{{<", i)) {
       const close = text.indexOf(">}}", i);
       i = close === -1 ? i + 1 : close + 3;
+      continue;
+    }
+    if (c === "<") {
+      const angle = headingAngleEnd(text, i);
+      if (
+        blockHtml &&
+        angle.name !== null &&
+        (angle.closing
+          ? angle.name.toLowerCase() !== "script" && HEADING_BLOCK_TAG_CLOSE.test(angle.name)
+          : HEADING_BLOCK_TAG_OPEN.test(angle.name))
+      ) {
+        return true;
+      }
+      i = angle.next;
       continue;
     }
     if (c === "\\") {
@@ -9989,6 +10121,7 @@ function buildHeading(
   escapable: RegExp,
   pandocEscapes: boolean,
   commonmarkDialect: boolean,
+  blockHtmlRefuses: boolean,
   blockTexRefuses: boolean,
 ): Heading | null {
   const brace = honoursAttributes ? HEADING_ATTRIBUTE.exec(rawText) : null;
@@ -10026,7 +10159,7 @@ function buildHeading(
   // read the RAW text, and the decode runs on what survives them.
   // ⚠ **R4 — BEFORE the decode and AFTER both strips** (Session 269). See
   // `headingContentRefused` for why each half of that placement is measured rather than chosen.
-  if (headingContentRefused(text, blockTexRefuses, escapable)) {
+  if (headingContentRefused(text, blockHtmlRefuses, blockTexRefuses, escapable)) {
     return null;
   }
   text = decodeHeadingEscapes(text, escapable, pandocEscapes);
@@ -10059,6 +10192,7 @@ function parseHeadingLine(
   honoursAttributes: boolean,
   escapable: RegExp,
   pandocEscapes: boolean,
+  blockHtmlRefuses: boolean,
   blockTexRefuses: boolean,
 ): Heading | null {
   return buildHeading(
@@ -10070,6 +10204,7 @@ function parseHeadingLine(
     escapable,
     pandocEscapes,
     commonmarkDialect,
+    blockHtmlRefuses,
     blockTexRefuses,
   );
 }
@@ -10090,6 +10225,7 @@ function parseSetextHeadingLine(
   escapable: RegExp,
   pandocEscapes: boolean,
   commonmarkDialect: boolean,
+  blockHtmlRefuses: boolean,
   blockTexRefuses: boolean,
 ): Heading | null {
   return buildHeading(
@@ -10101,6 +10237,7 @@ function parseSetextHeadingLine(
     escapable,
     pandocEscapes,
     commonmarkDialect,
+    blockHtmlRefuses,
     blockTexRefuses,
   );
 }
