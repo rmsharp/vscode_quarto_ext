@@ -172,8 +172,16 @@ behind, not where a fence sits.
   > the RENDER, not of a defect.** The unverified sentence above is now verified, and the mechanism is
   > binary rather than conditional. Measured firsthand on quarto 1.7.33 (`scratchpad/s271/probes/`):
   > a chunk that leaves NOTHING behind (`echo=FALSE`; `echo=FALSE, results='hide'`; `include=FALSE`)
-  > gives exit 0 and no heading — quarto's own warning names why, `YAML warning (line 7 column 1):
-  > Duplicate key: ['::']`, since the empty `::: {.cell}` and its `:::` both parse as a `::` key. A
+  > gives exit 0 and no heading. ⚠ The leftover is OBSERVED, not inferred: rendered with
+  > `keep-md: true`, the intermediate `.html.md` holds `---` / `## Swallowed Heading` / blank /
+  > `::: {.cell}` / blank / `:::` / blank / blank / `---` (`scratchpad/s271/keepmd/`). YAML reads
+  > `::: {.cell}` as the key `::` with a flow-mapping value and `:::` as `::` again — hence quarto's
+  > own `YAML warning (line 7 column 1): Duplicate key: ['::']`. ⚠ But the cell div is a **passenger**:
+  > deleting both lines by hand swallows the heading just the same. What makes the span parse is that
+  > the heading line is a YAML COMMENT. ⚠ And the shape needs **no blank line between the opening
+  > `---` and the heading** — insert one and the heading RENDERS, which is why this bites slidify
+  > decks specifically; a PROSE line in the span kills the render instead, at quarto's own pre-knitr
+  > metadata reader (`Error reading metadata from …`), a different stage from the Lua failure. A
   > chunk whose SOURCE or OUTPUT survives (default `echo`; `eval=FALSE`, which still echoes; a plot
   > under `results='hide'`, which `results` does not suppress) makes the span invalid YAML and
   > `quarto render` **fails** — exit 1, `YAML parse exception`, `Error running Lua`. **There is no

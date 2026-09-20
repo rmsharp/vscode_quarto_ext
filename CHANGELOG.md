@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] R2's mechanism corrected from inference to measurement — and the `.rmarkdown` render hazard recorded
+- **Change:** decision (4) and the `docs/REAL-DOCUMENT-RESCORE.md` block now state the MEASURED predicate instead of the inferred one: the gate is pandoc's structural `yaml_metadata_block` opener precondition, not "is the span valid YAML"; the heading line parses because it is a YAML COMMENT; the `::: {.cell}` pair is a passenger, not the cause; and three preconditions are spelled out, the first being **no blank line between the opening `---` and the heading**. The `.Rmarkdown` item gains the render hazard.
+- **Commit/PR:** this entry's own commit
+- **Session:** S271 · **Verified:** four probes rendered firsthand on quarto 1.7.33 after a 16-agent fan-out proposed the refinements — `v01_blank_after_opener` exit 0 WITH `Swallowed Heading` (one blank line and the shape stops firing); `v02_prose_in_span` exit 1 at quarto's own pre-knitr reader (`Error reading metadata from …`, a different stage from the Lua failure); `v03_no_celldiv` and `v04_with_celldiv` both exit 0 and both heading-free, so the cell div is incidental. The `.rmarkdown` hazard re-run in isolation: `quarto render probe.rmarkdown` **exits 0**, writes no HTML, and **deletes the input file**. Corpus exposure measured at zero — 2,051 `.rmd` + 1,332 `.qmd`, no `.rmarkdown`.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] R2 is DECIDED, not fixed — and the observation's by-catch is filed as a new deletion-direction item
 - **Change:** `BACKLOG.md` — sub-item (b), R2, rewritten as DECIDED (three sub-items remain, (e), (f), (h)); the RECORD item goes from three decided questions to four, with (4) carrying the observation, the corrected binary mechanism and the measured cost; the Active pointer refreshed. A NEW item filed: the mid-document metadata rule deletes headings Posit shows. `docs/REAL-DOCUMENT-RESCORE.md` — the R2 row flagged decided, and a dated DECIDED block added to its reproduction. **No `src/` file touched.**
 - **Commit/PR:** this entry's own commit
