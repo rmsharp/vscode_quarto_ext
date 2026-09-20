@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] The real-document measure, part 3 of 3 — one driver, a README, and the measure is reproducible from tracked files alone
+- **Change:** `tools/realdoc-score/run.sh` runs all four stages for a label and any directory holding `src/` (so a past build scores over byte-identical input), writing intermediates to `$REALDOC_DATA/runs/<label>/`; `README.md` states what is tracked, what is personal and never committed, the ordinal-only rule, how to compare two builds, how to read the number — and the known gap that the ground-truth RENDER passes are not here.
+- **Commit/PR:** this entry's own commit
+- **Session:** S268 · **Verified:** from the tracked scripts only, `run.sh head` reproduces **2,419 / 2,438** (99.22%) in ~4.3 s warm, and `run.sh b5_head scratchpad/s265/builds/b5_head` reproduces **2,418 / 2,438** with ordinal 2494 the single difference — the two numbers this session's DONE named; `check-package` OK, 42 files
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] The real-document measure, part 2 of 3 — the census and raw-HTML stages move into `tools/realdoc-score/`
 - **Change:** `tools/realdoc-score/census.test.ts` (stage 1, a build's `findHeadings` over the frozen corpus; `CENSUS_*` renamed to `REALDOC_SRC` / `REALDOC_CORPUS` / `REALDOC_OUT`, each missing one now naming itself), `vitest.census.config.ts` (its own config — the unit `vitest.config.ts` must never pick up a stage needing a personal corpus and 30 minutes) and `rawhtml_adjust.js` (stage 2; the model bundle is now a REQUIRED argument, where the old default pointed at a file beside the script in `scratchpad/`). `tsconfig.unit.json` includes `tools/**/*.ts`, so `check-types` covers the one tracked `.ts` here that nothing else would.
 - **Commit/PR:** this entry's own commit
