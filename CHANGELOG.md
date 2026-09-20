@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [BL-⚠ NEW (Session 271) — THE MID-DOCUMENT METADATA RULE DELETES HEADINGS POSIT SHOWS, in 30 documents quarto cannot render, and it buys the scorable corpus NOTHING] Thirteen probes that ask the oracle question about the FEATURE, not two spellings
+- **Change:** `test/posit/runTest.ts` — the R2/R3 probe set (both questions DECIDED, Sessions 270 and 271) replaced by a mid-document-metadata family: the corpus spelling, the tight spelling, a real-keys span, a keys-plus-heading span, both block-quote spellings, two consecutive spans, a `...`-terminated span, the `from: gfm` reader-resolution row, the no-blank-above precondition control, a front-matter-only control, R2's deck for contrast, and a `from: markdown_strict` row. `QMD_POSIT_OUT` now defaults to `scratchpad/s272/`. Both controls kept unchanged. No `src/` file touched.
+- **Commit/PR:** this entry's own commit
+- **Session:** S272 · **Verified:** every one of the 15 probe files was rendered through real `quarto render --to html` FIRST (all exit 0), and the bytes the harness writes were then proved BYTE-IDENTICAL to the rendered files by re-reading the compiled `out/test/posit/runTest.js` — so both oracles answer for the same bytes. `npm run compile-tests` exit 0.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [BL-⚠ NEW (Session 271) — THE MID-DOCUMENT METADATA RULE DELETES HEADINGS POSIT SHOWS, in 30 documents quarto cannot render, and it buys the scorable corpus NOTHING] Session 272 claimed (in progress)
 - **Change:** Phase 1B claim only — `SESSION_NOTES.md` ACTIVE TASK rewritten to the new task, `HANDOFFS.md` opened with a `status: pending` S272 receipt. No `src/` file touched.
 - **Commit/PR:** this entry's own commit

@@ -73,7 +73,7 @@ const PROBES: ReadonlyArray<{
 }> = [
   {
     name: "control",
-    why: "an ordinary ATX heading outside any table — if THIS shows nothing, Posit is not running",
+    why: "an ordinary ATX heading outside any construct — if THIS shows nothing, Posit is not running",
     body: "## Control Heading\n\nProse.\n",
   },
   {
@@ -84,71 +84,73 @@ const PROBES: ReadonlyArray<{
     body: "## Control Heading Rmd\n\nProse.\n",
   },
   {
-    name: "r2_quiet_rmd",
-    why: "R2 as the corpus spells it -- a --- pair around a QUIET knitr chunk; quarto renders NO 'Swallowed Heading' (measured, exit 0)",
+    name: "m01_heading_blank_closer",
+    why: "THE CORPUS SHAPE — a mid-document --- span holding an ATX heading with a BLANK line before the closer; all 80 headings this model deletes across 30 corpus documents are this spelling (quarto: exit 0, heading ABSENT)",
+    body: "## Kept Before\n\nText.\n\n---\n## Alpha Slide Head\n\n---\n\n## Kept After\n",
+  },
+  {
+    name: "m02_keys_only",
+    why: "a mid-document span holding a REAL YAML key and no heading — does Posit model mid-document YAML metadata at all? (quarto: exit 0, nothing rendered for the span)",
+    body: "## Kept Before\n\nText.\n\n---\nnote: bravo\n---\n\n## Kept After\n",
+  },
+  {
+    name: "m03_keys_and_heading",
+    why: "a real key AND an ATX pressed against it inside one span — this model reports neither on BOTH builds, so it is the row that says whether the change is complete (quarto: exit 0, nothing)",
+    body: "## Kept Before\n\nText.\n\n---\nnote: charlie\n## Charlie Inside\n---\n\n## Kept After\n",
+  },
+  {
+    name: "m04_quoted_keys",
+    why: "the BLOCK-QUOTE walk (Session 231) — a metadata triple carried inside a quote; never observed before (quarto: exit 0, empty blockquote, nothing rendered)",
+    body: "## Kept Before\n\nText.\n\n> ---\n> note: delta\n> ---\n\n## Kept After\n",
+  },
+  {
+    name: "m05_quoted_heading",
+    why: "the quoted walk carrying an ATX heading — the deleting half of the same rule; never observed before (quarto: exit 0, nothing)",
+    body: "## Kept Before\n\nText.\n\n> ---\n> ## Echo Quoted\n> ---\n\n## Kept After\n",
+  },
+  {
+    name: "m06_tight_closer",
+    why: "the TIGHT spelling — no blank before the closer, so pandoc reads a SETEXT underline and the text keeps its literal hashes; ZERO corpus documents spell it this way, and it is the row that tells us whether Posit shows '## Foxtrot Tight' or 'Foxtrot Tight' (quarto: exit 0, nothing)",
+    body: "## Kept Before\n\nText.\n\n---\n## Foxtrot Tight\n---\n\n## Kept After\n",
+  },
+  {
+    name: "m07_consecutive",
+    why: "TWO spans in one document, the shape a slide deck actually has (quarto: exit 0, neither heading rendered)",
+    body: "## Kept Before\n\nText.\n\n---\n## Golf One\n\n---\n\nMiddle prose.\n\n---\n## Hotel Two\n\n---\n\n## Kept After\n",
+  },
+  {
+    name: "m08_from_gfm",
+    why: "the READER-RESOLUTION capability that shares this code (Session 211) — a span whose own `from:` selects a non-consuming reader, so quarto RENDERS the span itself as h2:'from: gfm' and BOTH builds of this model already agree",
+    body: "## Kept Before\n\nText.\n\n---\nfrom: gfm\n---\n\n## Kept After\n",
+  },
+  {
+    name: "m09_dots",
+    why: "a span terminated by YAML's `...` document-end marker — this model withholds the span on BOTH builds (quarto: exit 0, nothing)",
+    body: "## Kept Before\n\nText.\n\n---\nnote: india\n...\n\n## Kept After\n",
+  },
+  {
+    name: "m10_noblank_above",
+    why: "the OPENER PRECONDITION control — a paragraph line directly above the opener means pandoc consumes NOTHING and reads two setext headings instead; quarto renders BOTH ('Juliet paragraph line.' and 'note: juliet') and both builds of this model already agree",
+    body: "## Kept Before\n\nJuliet paragraph line.\n---\nnote: juliet\n---\n\n## Kept After\n",
+  },
+  {
+    name: "m11_fm_only",
+    why: "THE FRONT-MATTER CONTROL — does Posit list the document's OWN front-matter keys as Outline rows? If it does not, Posit models the opening block and only the opening block, which is exactly what this change would make this model do",
+    frontMatter: "---\ntitle: m11_fm_only\nauthor: Kilo Author\nengine: markdown\n---\n",
+    body: "## Only Real Heading\n\nText.\n",
+  },
+  {
+    name: "m12_deck_rmd",
+    why: "R2's deck for contrast — a quiet knitr chunk inside the span, which this model ALREADY shows on both builds because a span holding a fence is excluded; quarto renders 'Lima Slide One' and 'November Slide Three' and swallows 'Mike Slide Two'",
     ext: "Rmd",
-    frontMatter: "---\ntitle: r2_quiet_rmd\n---\n",
-    body: "## Kept Before\n\nText.\n\n---\n## Swallowed Heading\n```{r, echo = FALSE, results = 'hide'}\nx <- 1\n```\n\n---\n## Kept After\n\nTail.\n",
+    frontMatter: "---\ntitle: m12_deck_rmd\n---\n",
+    body: "## Lima Slide One\n\nProse one.\n\n---\n## Mike Slide Two\n```{r, echo = FALSE, results = 'hide'}\nx <- 1\n```\n\n---\n## November Slide Three\n\nProse three.\n",
   },
   {
-    name: "r2_quiet_qmd",
-    why: "R2 in a .qmd under the knitr engine -- same shape, same quarto answer (measured, exit 0, heading gone)",
-    frontMatter: "---\ntitle: r2_quiet_qmd\n---\n",
-    body: "## Kept Before\n\nText.\n\n---\n## Swallowed Heading\n```{r, echo = FALSE, results = 'hide'}\nx <- 1\n```\n\n---\n## Kept After\n\nTail.\n",
-  },
-  {
-    name: "r2_nochunk",
-    why: "R2 with NO chunk at all -- a plain mid-document YAML metadata block; quarto swallows the heading and THIS MODEL ALREADY DROPS IT",
-    body: "## Kept Before\n\nText.\n\n---\n## Swallowed Heading\n\n---\n## Kept After\n\nTail.\n",
-  },
-  {
-    name: "r2_midyaml_keys",
-    why: "the control for the rule itself -- a mid-document block holding a REAL key; does Posit model mid-document YAML at all?",
-    body: "## Kept Before\n\nText.\n\n---\nnote: alpha\n---\n## Kept After\n\nTail.\n",
-  },
-  {
-    name: "r2_deck_rmd",
-    why: "the slidify deck shape of the 32 affected corpus documents -- five bare --- slide separators, alternating quiet chunk and prose",
-    ext: "Rmd",
-    frontMatter: "---\ntitle: r2_deck_rmd\n---\n",
-    body: "## Slide One\n\nProse one.\n\n---\n## Slide Two\n```{r, echo = FALSE, results = 'hide'}\nx <- 1\n```\n\n---\n## Slide Three\n\nProse three.\n\n---\n## Slide Four\n```{r, echo = FALSE, results = 'hide'}\nx <- 1\n```\n\n---\n## Slide Five\n\nProse five.\n",
-  },
-  {
-    name: "r3a_atx_in_cell",
-    why: "R3 half A — an ATX heading at column 0 of a well-formed grid-table cell (quarto renders h3)",
-    body:
-      "Intro.\n\n" +
-      "+-----------------+------------------+\n" +
-      "| ### Alpha       | body one         |\n" +
-      "+-----------------+------------------+\n" +
-      "| plain           | ### Beta         |\n" +
-      "+-----------------+------------------+\n\n" +
-      "After.\n",
-  },
-  {
-    name: "r3b_setext_in_cell",
-    why: "R3 half B — a multi-line cell whose two lines fuse into a setext h1 (quarto renders h1)",
-    body:
-      "Intro.\n\n" +
-      "+-----------------+------------------+\n" +
-      "| Cell A          | Cell B           |\n" +
-      "| ======          | ======           |\n" +
-      "+-----------------+------------------+\n\n" +
-      "After.\n",
-  },
-  {
-    name: "r3b_overwide",
-    why: "R3 half B as the corpus spells it — an over-wide body row makes +====+ stop dividing (quarto renders h1 x3)",
-    body:
-      "Intro.\n\n" +
-      "+-----------------------+----------------------------------------+------------------------------+\n" +
-      "| Feature               | R Markdown                             | Quarto                       |\n" +
-      "+=======================+========================================+==============================+\n" +
-      "| item 1                | left 1                                 | right 1                      |\n" +
-      "+-----------------------+----------------------------------------+------------------------------+\n" +
-      "| item 2                | left 2                                 | right 2                                               |\n" +
-      "+-----------------------+----------------------------------------+------------------------------+\n\n" +
-      "After.\n",
+    name: "m13_strict",
+    why: "the READER axis — under `from: markdown_strict` quarto does NOT consume the span and renders h2:'## Oscar Strict' with its literal hashes; both builds of this model already agree, so this row pins the reader gate rather than the change",
+    frontMatter: "---\ntitle: m13_strict\nfrom: markdown_strict\n---\n",
+    body: "## Kept Before\n\nText.\n\n---\n## Oscar Strict\n---\n\n## Kept After\n",
   },
 ];
 
@@ -229,7 +231,7 @@ async function main(): Promise<void> {
       extensionTestsEnv: {
         QMD_POSIT_WORKSPACE: workspace,
         QMD_POSIT_PROBES: JSON.stringify(PROBES.map((p) => ({ name: p.name, why: p.why, ext: p.ext ?? "qmd" }))),
-        QMD_POSIT_OUT: process.env.QMD_POSIT_OUT ?? path.join(process.cwd(), "scratchpad", "s271", "posit-observation.txt"),
+        QMD_POSIT_OUT: process.env.QMD_POSIT_OUT ?? path.join(process.cwd(), "scratchpad", "s272", "posit-observation.txt"),
       },
     });
   } catch (err) {
