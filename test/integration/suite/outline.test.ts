@@ -3244,4 +3244,70 @@ describe("S225: a heading inside a BLOCK QUOTE reaches the outline", () => {
     assert.ok(!pressed.includes("Pressed After"), `a pressed run continues the paragraph: ${pressed.join(", ")}`);
   });
 
+  // ⚠ **THE RUNTIME GATE FOR SESSION 269.** A block-level raw HTML tag or class-A raw-TeX command
+  // anywhere in a heading's content means quarto renders no heading at all (R4). Proved headlessly
+  // over `src/core`; this row proves the Outline the USER sees, through
+  // `vscode.executeDocumentSymbolProvider` against the built extension in a real Extension
+  // Development Host. `it(`, never `test(` (mocha BDD).
+  it("a block tag or block macro in a heading's content keeps that heading OUT of the outline", async () => {
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    // ABSENT — the deliverable, on the two CORPUS shapes (ordinals 1985 and 3004). Quarto renders
+    // neither (`scratchpad/s269/probes/real/real-shapes`), and before this session both reached the
+    // Outline as phantoms.
+    const refused = await namesFor(
+      "---",
+      "title: r4 runtime",
+      "engine: markdown",
+      "---",
+      "",
+      "## Kept Before",
+      "",
+      "### 1. <Section heading>",
+      "",
+      "Body one.",
+      "",
+      "## \\maketitle",
+      "",
+      "Body two.",
+      "",
+      "## Kept After",
+    );
+    assert.ok(
+      refused.includes("Kept Before") && refused.includes("Kept After"),
+      `the headings either side must survive: ${refused.join(", ")}`,
+    );
+    assert.ok(
+      !refused.some((n) => n.includes("Section heading") || n.includes("maketitle")),
+      `a refused heading must not reach the outline: ${refused.join(", ")}`,
+    );
+
+    // PRESENT — the neutraliser control. Without this, the ABSENT assertion passes for a build that
+    // has stopped showing headings whose text merely mentions a tag or a macro. Quarto renders all
+    // three (`scratchpad/s269/probes/verify/v22`, `v23`, `v20`).
+    const kept = await namesFor(
+      "---",
+      "title: r4 controls",
+      "engine: markdown",
+      "---",
+      "",
+      "### In Code `<section>`",
+      "",
+      "### Escaped \\<section>",
+      "",
+      "### In Math $\\maketitle$",
+      "",
+      "### Inline <span>ok</span>",
+    );
+    for (const want of ["In Code", "Escaped", "In Math", "Inline"]) {
+      assert.ok(
+        kept.some((n) => n.startsWith(want)),
+        `a neutralised token must keep its heading (${want}): ${kept.join(", ")}`,
+      );
+    }
+  });
+
 });

@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] R4 runtime gate — the Outline the user sees, in a real Extension Development Host
+- **Change:** `test/integration/suite/outline.test.ts` gains the Session 269 row: an ABSENT half over the two CORPUS shapes (`### 1. <Section heading>` and `## \maketitle`, ordinals 3004 and 1985) asserting both are out of the Outline while the headings either side survive, and a PRESENT half over four neutralisers (code span, `\<` escape, math, inline tag) so the ABSENT half cannot pass for a build that has simply stopped showing headings that mention a tag or a macro.
+- **Commit/PR:** this entry's own commit
+- **Session:** S269 · **Verified:** `npm run test:integration` — **549 passing, exit 0** (measured; the Session 266 record says 548 before this row). Operator consent taken before launch, as the screen-taking gate requires. The row is in what ran: `grep -c` finds it in the emitted `out/test/integration/suite/outline.test.js`.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] R4 — `applet`/`object` removed from the refusing set, the rest of the surface pinned, 28 mutants run
 - **Change:** `applet` and `object` are OUT of `HEADING_BLOCK_TAG_OPEN`. This session had put them in on its own measurement and that measurement was wrong: `tools/realdoc-score/extract_headings.py` reports no heading for `### T <applet>` because the `<applet>` element swallows the rest of the HTML including the heading's own `</h3>`, while the render really contains `<h3 class="anchored">T098 <applet>`. Reading the raw HTML instead re-classifies all 233 name probes: the opener set is EXACTLY `PANDOC_BLOCK_CLOSE_TAGS` and no `PANDOC_EITHER_TAGS` name participates. Also: 11 rows (R4c–R4m, labelled TEST-AFTER) pinning the setext spelling, closing tags, `textarea`/`title`, the two arity rules, the absent tail rule, all six levels, trailer stripping, the tag-name boundary, the two DIFFERENT reader sets and their extension override; and the recovered `SETEXT_H1` raw-HTML residual.
 - **Commit/PR:** this entry's own commit
