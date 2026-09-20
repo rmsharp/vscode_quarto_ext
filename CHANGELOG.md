@@ -17,8 +17,14 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Ledger correction — the notes-trim entry's line count (58 → 60)
+- **Change:** the immediately preceding entry's `**Change:**` line said 58 lines deleted; `380d23fe` deletes 60. The number was written before the deletion ran. Corrected in place with the correction disclosed on the line itself, rather than left wrong in the authoritative ledger.
+- **Commit/PR:** this entry's own commit
+- **Session:** S267 · **Verified:** `git show --stat 380d23fe` — `SESSION_NOTES.md | 60 ------`
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] `SESSION_NOTES.md` — the oldest close-out pair dropped (S263 evaluation by S264 + S264 self-assessment)
-- **Change:** 58 lines deleted and nothing else, per the three-pair retention rule (`CLAUDE.md`, Session 256). The pair stays in git: `git show 7c685b47:SESSION_NOTES.md`.
+- **Change:** 60 lines deleted and nothing else, per the three-pair retention rule (`CLAUDE.md`, Session 256). The pair stays in git: `git show 7c685b47:SESSION_NOTES.md`. ⚠ **Corrected in place by `380d23fe`'s successor:** this line first said 58, a count written before the deletion ran; `git diff --stat` on `380d23fe` says 60.
 - **Commit/PR:** this entry's own commit
 - **Session:** S267 · **Verified:** `git diff --stat` shows deletions only
 - **Model:** Claude Opus 5 (claude-opus-5)
