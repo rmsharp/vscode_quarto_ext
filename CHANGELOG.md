@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] Session 268 claimed — adopt the real-document score as a standing, tracked measure; close the fenced-div item (in progress)
+- **Change:** `SESSION_NOTES.md` ACTIVE TASK stub and a `status: pending` S268 receipt in `HANDOFFS.md`; the Phase 0 dashboard telemetry append rides along. Operator-directed after the S267 close-out report (report Rec. 4 and F6); scope and location chosen by `AskUserQuestion`.
+- **Commit/PR:** this entry's own commit (the claim)
+- **Session:** S268 · **Verified:** n/a — docs-only
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] Ledger correction — the notes-trim entry's line count (58 → 60)
 - **Change:** the immediately preceding entry's `**Change:**` line said 58 lines deleted; `380d23fe` deletes 60. The number was written before the deletion ran. Corrected in place with the correction disclosed on the line itself, rather than left wrong in the authoritative ledger.
 - **Commit/PR:** this entry's own commit

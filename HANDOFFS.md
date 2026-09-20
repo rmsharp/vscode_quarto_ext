@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S268
+date: 2026-09-19
+status: pending
+active_task: ADOPT the real-document score as a standing, tracked measure (operator-directed; scope chosen by AskUserQuestion: whole pipeline + one driver, into tools/realdoc-score/), and close the fenced-div backlog item. Only scripts move -- the corpus stays personal and is supplied at run time. DONE = the tracked driver reproduces 2,419/2,438 at HEAD and 2,418/2,438 on S265's b5_head build, check-package green, the fenced-div item gone.
+```
+
+```handoff
 session: S267
 date: 2026-09-19
 status: complete

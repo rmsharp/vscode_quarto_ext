@@ -8,32 +8,20 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 267 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S267 did:** recorded two operator decisions and one practice; NO code. (1) A raw HTML
-`<hN>` line is not an Outline heading. (2) R7 — quarto's HTML appendix re-level is not mirrored;
-the Outline keeps the SOURCE level, which is Posit's behaviour. Both live in `BACKLOG.md`'s new
-RECORD item (the head item's `(g)` retired into it) and in `CHANGELOG.md`. (3) `CLAUDE.md`
-§Clean-room boundary: Posit's extension is **AGPL-3.0**, so match behaviour, never build from its
-source; settle "what does Posit do?" by BLACK-BOX observation. Commits: `7ec75319` claim ·
-`9216c338` records · notes trim · close-out.
-**⚠ OPEN, and the one thing this session could not finish:** both decisions' Posit half rests on a
-BUNDLE GREP, labelled as such in the record. A black-box confirmation would settle it — open one of
-the 7 R7 documents (ordinals 837, 838, 840–843, 847) in VS Code with `quarto.quarto-1.135.0` enabled
-and read the Outline, or build an automated oracle (their extension in a throwaway extensions dir,
-`vscode.executeDocumentSymbolProvider` — the `test:lsp` harness is the precedent). Nothing depends
-on it today.
-**Recommended next pick: the Up Next head item's (d), R4** — unchanged from S266, with its repro
-`scratchpad/s265/repro/synthetic/R4-block-in-atx.qmd` (model reports five headings, quarto three).
-**Operator decisions still waiting:** close the fenced-div item (report F6 — its own example agrees
-in the model at HEAD, re-checked S266) and adopt `score_corrected.py` as the standing measure
-(report Rec. 4; it lives in untracked `scratchpad/s265`, so adopting it should also move the SCRIPT
-somewhere tracked — the corpus stays personal).
-**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run` (needs `dist/`; cite the summary
-line). One `CHANGELOG.md` entry per commit; the claim commit carries an *(in progress)* one.
-**⚠ `context_budget.py` exits 2** — HANDOFFS/BACKLOG/PROJECT_LEARNINGS over; MEASURE, do not quote.
-**⚠ `cd` in a Bash command moves the session cwd** (#535). **⚠ Jupyter is installed** — force
-`engine: markdown` in probes. **⚠ Never `git add -A`** — `scratchpad/` is untracked, NOT ignored.
+**Task:** **Session 268 IN PROGRESS** — **adopt the real-document score as a STANDING, TRACKED
+measure**, and close the fenced-div item. Operator-directed, scope chosen by `AskUserQuestion`:
+the whole pipeline plus one driver, into `tools/realdoc-score/` (a new top-level root — the
+packaging gate reds on it, so `.vscodeignore` gains it in the same commit). **The corpus stays
+personal:** only scripts move; the data path is supplied at run time. **Started:** 2026-09-19.
+**Workstream:** `docs/methodology/workstreams/DEVELOPMENT_WORKSTREAM.md` (a move + parameterisation;
+the operator's directive is the plan-mode approval SAFEGUARDS requires for a move).
+**DONE =** the tracked driver reproduces **2,419 / 2,438** at HEAD and **2,418 / 2,438** on S265's
+`b5_head` build, from the tracked scripts only; `check-package` green; the fenced-div item gone.
+**NOT in scope:** any `src/` change, the black-box Posit confirmation, the `HANDOFFS.md` trim.
+**Status:** CLAIMED. Work beginning.
+**Ledger:** `CHANGELOG: pending` — the claim commit carries an *(in progress)* entry; Phase 3F
+records the rest. Until close-out this line is the crash breadcrumb for the next reconcile.
+**Phase 0 findings (S268).** 0 undocumented commits; every receipt complete; dashboard 76/100.
 
 ---
 
