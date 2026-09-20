@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-19 · [ad hoc] The real-document measure, part 2 of 3 — the census and raw-HTML stages move into `tools/realdoc-score/`
+- **Change:** `tools/realdoc-score/census.test.ts` (stage 1, a build's `findHeadings` over the frozen corpus; `CENSUS_*` renamed to `REALDOC_SRC` / `REALDOC_CORPUS` / `REALDOC_OUT`, each missing one now naming itself), `vitest.census.config.ts` (its own config — the unit `vitest.config.ts` must never pick up a stage needing a personal corpus and 30 minutes) and `rawhtml_adjust.js` (stage 2; the model bundle is now a REQUIRED argument, where the old default pointed at a file beside the script in `scratchpad/`). `tsconfig.unit.json` includes `tools/**/*.ts`, so `check-types` covers the one tracked `.ts` here that nothing else would.
+- **Commit/PR:** this entry's own commit
+- **Session:** S268 · **Verified:** stage 1's output is byte-identical (`cmp`) to Session 265's HEAD census over the same corpus (3,383 documents, 0 threw, 28,162 headings) and stage 2's to its `rawadj_s266.tsv` (14 documents, 98 raw tags); the scan logic of stage 2 is byte-identical by `diff`; `npm run check-types` exit 0
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-19 · [ad hoc] The real-document measure, part 1 of 3 — the scorer moves into `tools/realdoc-score/`
 - **Change:** `tools/realdoc-score/score.py` (Session 265's `score_corrected.py`, with every `scratchpad/` path replaced by `REALDOC_DATA` / `REALDOC_ORDINALS` and a stated error for each missing input), `scorelib.py` (its library half; the hard-coded `divergent.json` CLI is gone, the uncorrected `score()` kept as the Session 251 baseline) and `extract_headings.py` (the corrected extractor; executable code byte-identical to `extract_headings_v2.py`, three personal document paths in its comments replaced by corpus ordinals 1, 28, 308/669 — Learning #548). `.vscodeignore` gains `tools/**`, in this same commit, so no commit on `master` is red.
 - **Commit/PR:** this entry's own commit
