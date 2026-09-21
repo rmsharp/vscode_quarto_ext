@@ -84,73 +84,45 @@ const PROBES: ReadonlyArray<{
     body: "## Control Heading Rmd\n\nProse.\n",
   },
   {
-    name: "m01_heading_blank_closer",
-    why: "THE CORPUS SHAPE — a mid-document --- span holding an ATX heading with a BLANK line before the closer; all 80 headings this model deletes across 30 corpus documents are this spelling (quarto: exit 0, heading ABSENT)",
-    body: "## Kept Before\n\nText.\n\n---\n## Alpha Slide Head\n\n---\n\n## Kept After\n",
-  },
-  {
-    name: "m02_keys_only",
-    why: "a mid-document span holding a REAL YAML key and no heading — does Posit model mid-document YAML metadata at all? (quarto: exit 0, nothing rendered for the span)",
-    body: "## Kept Before\n\nText.\n\n---\nnote: bravo\n---\n\n## Kept After\n",
-  },
-  {
-    name: "m03_keys_and_heading",
-    why: "a real key AND an ATX pressed against it inside one span — this model reports neither on BOTH builds, so it is the row that says whether the change is complete (quarto: exit 0, nothing)",
-    body: "## Kept Before\n\nText.\n\n---\nnote: charlie\n## Charlie Inside\n---\n\n## Kept After\n",
-  },
-  {
-    name: "m04_quoted_keys",
-    why: "the BLOCK-QUOTE walk (Session 231) — a metadata triple carried inside a quote; never observed before (quarto: exit 0, empty blockquote, nothing rendered)",
-    body: "## Kept Before\n\nText.\n\n> ---\n> note: delta\n> ---\n\n## Kept After\n",
-  },
-  {
-    name: "m05_quoted_heading",
-    why: "the quoted walk carrying an ATX heading — the deleting half of the same rule; never observed before (quarto: exit 0, nothing)",
-    body: "## Kept Before\n\nText.\n\n> ---\n> ## Echo Quoted\n> ---\n\n## Kept After\n",
-  },
-  {
-    name: "m06_tight_closer",
-    why: "the TIGHT spelling — no blank before the closer, so pandoc reads a SETEXT underline and the text keeps its literal hashes; ZERO corpus documents spell it this way, and it is the row that tells us whether Posit shows '## Foxtrot Tight' or 'Foxtrot Tight' (quarto: exit 0, nothing)",
-    body: "## Kept Before\n\nText.\n\n---\n## Foxtrot Tight\n---\n\n## Kept After\n",
-  },
-  {
-    name: "m07_consecutive",
-    why: "TWO spans in one document, the shape a slide deck actually has (quarto: exit 0, neither heading rendered)",
-    body: "## Kept Before\n\nText.\n\n---\n## Golf One\n\n---\n\nMiddle prose.\n\n---\n## Hotel Two\n\n---\n\n## Kept After\n",
-  },
-  {
-    name: "m08_from_gfm",
-    why: "the READER-RESOLUTION capability that shares this code (Session 211) — a span whose own `from:` selects a non-consuming reader, so quarto RENDERS the span itself as h2:'from: gfm' and BOTH builds of this model already agree",
-    body: "## Kept Before\n\nText.\n\n---\nfrom: gfm\n---\n\n## Kept After\n",
-  },
-  {
-    name: "m09_dots",
-    why: "a span terminated by YAML's `...` document-end marker — this model withholds the span on BOTH builds (quarto: exit 0, nothing)",
-    body: "## Kept Before\n\nText.\n\n---\nnote: india\n...\n\n## Kept After\n",
-  },
-  {
-    name: "m10_noblank_above",
-    why: "the OPENER PRECONDITION control — a paragraph line directly above the opener means pandoc consumes NOTHING and reads two setext headings instead; quarto renders BOTH ('Juliet paragraph line.' and 'note: juliet') and both builds of this model already agree",
-    body: "## Kept Before\n\nJuliet paragraph line.\n---\nnote: juliet\n---\n\n## Kept After\n",
-  },
-  {
-    name: "m11_fm_only",
-    why: "THE FRONT-MATTER CONTROL — does Posit list the document's OWN front-matter keys as Outline rows? If it does not, Posit models the opening block and only the opening block, which is exactly what this change would make this model do",
-    frontMatter: "---\ntitle: m11_fm_only\nauthor: Kilo Author\nengine: markdown\n---\n",
-    body: "## Only Real Heading\n\nText.\n",
-  },
-  {
-    name: "m12_deck_rmd",
-    why: "R2's deck for contrast — a quiet knitr chunk inside the span, which this model ALREADY shows on both builds because a span holding a fence is excluded; quarto renders 'Lima Slide One' and 'November Slide Three' and swallows 'Mike Slide Two'",
+    name: "r01_r5_rmd",
+    why: "THE SHAPE, and the row that DECIDES. Corpus ordinal 2391's spelling: a {cpp11, eval = FALSE} chunk with a blank line in its body, then a heading, then a bare fence pair. quarto RENDERS the heading (.Rmd, real knitr execution, exit 0, <h4> count 1) because knitr consumes the chunk before pandoc sees it. HEAD deleted it; Session 273 shows it. If Posit shows NO heading here, this is a DECISION and the fix should be reverted",
     ext: "Rmd",
-    frontMatter: "---\ntitle: m12_deck_rmd\n---\n",
-    body: "## Lima Slide One\n\nProse one.\n\n---\n## Mike Slide Two\n```{r, echo = FALSE, results = 'hide'}\nx <- 1\n```\n\n---\n## November Slide Three\n\nProse three.\n",
+    frontMatter: "---\ntitle: r01_r5_rmd\n---\n",
+    body: "## Kept Before\n\n```{r}\nx <- 1\n```\n\n```{cpp11, eval = FALSE}\nint alpha;\n\nint bravo;\n```\n\n#### Alpha After Chunk\n\nProse.\n\n```\nplain\n```\n",
   },
   {
-    name: "m13_strict",
-    why: "the READER axis — under `from: markdown_strict` quarto does NOT consume the span and renders h2:'## Oscar Strict' with its literal hashes; both builds of this model already agree, so this row pins the reader gate rather than the change",
-    frontMatter: "---\ntitle: m13_strict\nfrom: markdown_strict\n---\n",
-    body: "## Kept Before\n\nText.\n\n---\n## Oscar Strict\n---\n\n## Kept After\n",
+    name: "r02_r5_qmd_markdown",
+    why: "THE ENGINE AXIS, and the second row that DECIDES. The IDENTICAL body as a .qmd under `engine: markdown`, where knitr never runs: quarto renders NO heading (exit 0, <h4> count 0) and this model reports none, on both builds. If Posit shows a heading HERE, Posit is engine-blind and simply pairs the fence -- which means the Session 273 guard test pins this model AGAINST Posit, and that has to be recorded as a decision rather than left implicit",
+    frontMatter: "---\ntitle: r02_r5_qmd_markdown\nengine: markdown\n---\n",
+    body: "## Kept Before\n\n```{cpp11, eval = FALSE}\nint alpha;\n\nint bravo;\n```\n\n#### Bravo After Chunk\n\nProse.\n\n```\nplain\n```\n",
+  },
+  {
+    name: "r03_digit_led_rmd",
+    why: "THE LEADING-LETTER NARROWING, the third row that DECIDES. knitr CLAIMS a digit-led engine name, but its rewrite target is a pandoc CLASS and pandoc refuses a class that does not start with a letter -- so quarto renders NO heading (.Rmd, exit 0, <h4> count 0) and HEAD was already right. Session 273 deliberately did NOT widen here. If Posit shows the heading, Posit follows knitr alone and this model follows quarto",
+    ext: "Rmd",
+    frontMatter: "---\ntitle: r03_digit_led_rmd\n---\n",
+    body: "## Kept Before\n\n```{r}\nx <- 1\n```\n\n```{2x, eval = FALSE}\nint alpha;\n\nint bravo;\n```\n\n#### Charlie After Chunk\n\nProse.\n\n```\nplain\n```\n",
+  },
+  {
+    name: "r04_bare_cpp11_rmd",
+    why: "CORROBORATING, not deciding (Learning #569). The bare {cpp11} spelling, which quarto's readqmd tag rewrite turns into a valid info string: quarto renders the heading (exit 0, <h4> count 1) and this model already agreed on BOTH builds. It is here to show that a `no heading` answer on r01 would be about the OPTION TAIL and not about the engine name",
+    ext: "Rmd",
+    frontMatter: "---\ntitle: r04_bare_cpp11_rmd\n---\n",
+    body: "## Kept Before\n\n```{r}\nx <- 1\n```\n\n```{cpp11}\nint alpha;\n\nint bravo;\n```\n\n#### Delta After Chunk\n\nProse.\n\n```\nplain\n```\n",
+  },
+  {
+    name: "r05_hyphen_rmd",
+    why: "CORROBORATING. A hyphen is outside knitr's [a-zA-Z0-9_] class, so knitr leaves the chunk for pandoc and pandoc refuses it: quarto renders NO heading (.Rmd, exit 0, <h4> count 0) and this model reports none on both builds. It bounds the fix from the other side -- Session 273 must NOT have widened this far",
+    ext: "Rmd",
+    frontMatter: "---\ntitle: r05_hyphen_rmd\n---\n",
+    body: "## Kept Before\n\n```{r}\nx <- 1\n```\n\n```{r-foo, eval = FALSE}\nint alpha;\n\nint bravo;\n```\n\n#### Echo After Chunk\n\nProse.\n\n```\nplain\n```\n",
+  },
+  {
+    name: "r06_tilde_rmd",
+    why: "BY-CATCH for the item Session 273 FILES rather than fixes. knitr's chunk.begin is backtick-anchored and `keep-md` leaves a ~~~ chunk verbatim, yet quarto still RENDERS the heading (.Rmd, exit 0, <h4> count 1) while this model reports none -- a pandoc-layer divergence with a different cause and zero corpus reach. One free row that tells the session which picks it up whether it is a defect or a decision",
+    ext: "Rmd",
+    frontMatter: "---\ntitle: r06_tilde_rmd\n---\n",
+    body: "## Kept Before\n\n```{r}\nx <- 1\n```\n\n~~~{zzz9, eval = FALSE}\nint alpha;\n\nint bravo;\n~~~\n\n#### Foxtrot After Chunk\n\nProse.\n\n~~~\nplain\n~~~\n",
   },
 ];
 
@@ -231,7 +203,7 @@ async function main(): Promise<void> {
       extensionTestsEnv: {
         QMD_POSIT_WORKSPACE: workspace,
         QMD_POSIT_PROBES: JSON.stringify(PROBES.map((p) => ({ name: p.name, why: p.why, ext: p.ext ?? "qmd" }))),
-        QMD_POSIT_OUT: process.env.QMD_POSIT_OUT ?? path.join(process.cwd(), "scratchpad", "s272", "posit-observation.txt"),
+        QMD_POSIT_OUT: process.env.QMD_POSIT_OUT ?? path.join(process.cwd(), "scratchpad", "s273", "posit-observation.txt"),
       },
     });
   } catch (err) {

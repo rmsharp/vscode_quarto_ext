@@ -19381,12 +19381,20 @@ describe("R5 — knitr's chunk grammar is wider than quarto's cell grammar (Sess
     ]);
   });
 
-  // ⚠ NOT an anti-phantom pin -- it is HEAD's behaviour, UNCHANGED, and it is provisional.
+  // ⚠ NOT an anti-phantom pin. It is HEAD's behaviour, UNCHANGED by Session 273 -- and it is a
+  // MEASURED quarto/Posit DISAGREEMENT that no session has ever decided explicitly.
+  //
   // `quarto render` on these bytes as a `.qmd` with `engine: markdown` emits NO <h4> (exit 0,
-  // measured), so the model agrees with the RENDER oracle. It has NOT been checked against
-  // Posit's Outline, and `CLAUDE.md`'s clean-room boundary says a quarto/Posit disagreement is
-  // a DECISION, not a defect. `npm run observe:posit` is the one step that would settle it;
-  // see the RECORD bullet in `BACKLOG.md`. Only the knitr arm moved this session.
+  // measured), and this model reports none -- so we follow the RENDER oracle. But Posit's
+  // Outline SHOWS the heading: observed, not inferred, by `npm run observe:posit` (Session 273,
+  // probe `r02_r5_qmd_markdown`, quarto.quarto 1.135.0, `ours-loaded: false`, both controls
+  // green) -- Posit pairs the fence engine-blind and reports `(code cell)` for it.
+  //
+  // `CLAUDE.md`'s clean-room boundary says that where quarto's RENDER and Posit's OUTLINE
+  // disagree it is a DECISION, not a defect, and that the product mirrors Posit. This row
+  // therefore pins the model AGAINST Posit, which is a decision still owed to the operator --
+  // filed as a RECORD bullet in `BACKLOG.md`. It is PRE-EXISTING and out of scope here: Session
+  // 273 moved the knitr arm only, where quarto and Posit AGREE with each other and with the fix.
   it("the SAME bytes under the markdown engine, or with no engine known, are UNCHANGED from HEAD", () => {
     expect(findHeadings(r5("zzz9, eval = FALSE"), "markdown")).toEqual([]);
     expect(findHeadings(r5("zzz9, eval = FALSE"))).toEqual([]);
@@ -19396,8 +19404,10 @@ describe("R5 — knitr's chunk grammar is wider than quarto's cell grammar (Sess
   // digit-led or `_`-led engine name, but its rewrite target is a pandoc CLASS and pandoc
   // refuses one that does not start with a letter -- so the runaway happens anyway, one stage
   // later, and HEAD is already RIGHT. Widening `KNITR_CHUNK_INFO` to knitr's `[a-zA-Z0-9_]+`
-  // turns each of these into a PHANTOM. Measured, `quarto render` on `.Rmd`, real knitr
-  // execution, exit 0 each: <h4> count 0 for both rows below and 1 for every row above.
+  // turns each of these into a PHANTOM against `quarto render`. Measured on `.Rmd` with real
+  // knitr execution, exit 0 each: <h4> count 0 for both rows below and 1 for every row above.
+  // ⚠ Posit SHOWS the heading here (observed, probe `r03_digit_led_rmd`) -- the same undecided
+  // quarto/Posit question as the markdown-engine row above, and filed with it, not here.
   it("a digit-led or underscore-led engine name stays lost -- pandoc refuses the rewritten class", () => {
     expect(findHeadings(r5("2x, eval = FALSE"), "knitr")).toEqual([]);
     expect(findHeadings(r5("_zzz, eval = FALSE"), "knitr")).toEqual([]);
@@ -19413,18 +19423,21 @@ describe("R5 — knitr's chunk grammar is wider than quarto's cell grammar (Sess
 
   // A HYPHEN or a DOT is outside knitr's class, so knitr leaves the chunk for pandoc, which
   // refuses it -- and quarto loses the heading too. Measured, `.Rmd`, exit 0: <h4> count 0.
-  // These are NOT part of R5 and must keep diverging from nothing.
+  // These are NOT part of R5. ⚠ Posit shows the heading here too (probe `r05_hyphen_rmd`);
+  // same filed question as above.
   it("a hyphen or a dot in the engine name is not knitr's either, and quarto loses the heading too", () => {
     expect(findHeadings(r5("r-foo, eval = FALSE"), "knitr")).toEqual([]);
     expect(findHeadings(r5("r.foo, eval = FALSE"), "knitr")).toEqual([]);
   });
 
-  // ⚠ BACKTICK ONLY, and this row is a KNOWN DIVERGENCE left deliberately in place. knitr's
+  // ⚠ BACKTICK ONLY, and this row is a KNOWN DEFECT left deliberately in place. knitr's
   // `chunk.begin` is anchored at a backtick run and `keep-md` leaves a `~~~` chunk verbatim,
-  // so the gate must not fire here -- widening it to tilde would also break Session 263's
-  // tilde rows. But `quarto render` on `.Rmd` DOES emit the <h4> (measured, exit 0, count 1):
-  // a real pandoc-layer divergence with a different cause and zero corpus reach, filed in
-  // `BACKLOG.md` rather than fixed here.
+  // so THIS gate must not fire here -- widening it to tilde would also break Session 263's
+  // tilde rows, and knitr is not the cause. But BOTH oracles show the heading: `quarto render`
+  // on `.Rmd` emits the <h4> (measured, exit 0, count 1) and Posit's Outline lists it
+  // (observed, probe `r06_tilde_rmd`). So this is a plain DEFECT, not a decision -- a
+  // pandoc-layer one with a different cause and zero measured corpus reach. Filed in
+  // `BACKLOG.md` with its observation; it is a different capability, not this session's.
   it("a TILDE fence of the same shape is untouched -- knitr does not claim it (divergence filed)", () => {
     expect(findHeadings(r5("zzz9, eval = FALSE", "~~~"), "knitr")).toEqual([]);
   });
