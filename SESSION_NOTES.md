@@ -8,46 +8,141 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-### What Session 274 Did
-**Deliverable:** Close open RECORD bullet (6) as a recorded DECISION — keep following
-`quarto render`; do NOT mirror Posit's engine-blind fence pairing. (IN PROGRESS)
-**Started:** 2026-09-20
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` — the claim commit's `CHANGELOG.md` entry says (in progress);
-Phase 3F records the rest. Until close-out this line is the crash breadcrumb for the next
-session's reconcile.
+**Task:** **NONE — Session 274 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S274 did:** closed **RECORD bullet (6)** as a DECISION — the Outline **follows
+`quarto render`**; we do NOT mirror Posit's engine-blind fence pairing. It is the **one decision of
+the six that does not mirror Posit**, and the reason is evidence, not taste.
+**The deciding evidence is UPSTREAM, PUBLIC, and was not in the repo.**
+[`quarto-dev/quarto#829`](https://github.com/quarto-dev/quarto/issues/829) — OPEN, filed by
+**vezwork, the Quarto VS Code extension maintainer**: *"the outline should match the TOC that ends
+up in the rendered document"*; `cscheid` (quarto-cli) agrees the CLI should own outline generation.
+So Posit's behaviour is an acknowledged **open defect upstream**, not a design choice.
+Commits: `e979bd4f` claim · `ab4f8855` the decision.
 
-**⚠ THE NEW EVIDENCE THAT MAKES (6) DECIDABLE — it is UPSTREAM, and it is not a bundle grep.**
-`quarto-dev/quarto#829` ("Outline includes headers in divs", OPEN, filed 2025-09-26 by
-**vezwork — the Quarto VS Code extension maintainer**): *"it does seem that the outline should
-match the TOC that ends up in the rendered document."* `cscheid` (quarto-cli) replies that
-quarto-cli should own outline generation for clients; vezwork answers "yes please."
-**So Posit's own maintainers hold that the Outline should follow the RENDER.** That makes the
-Posit behaviour in (6) an acknowledged open defect on their side, not a design choice — and this
-model already follows quarto there. Read firsthand, `gh issue view 829 --repo quarto-dev/quarto`.
+**⚠ NOTHING IS FILED ANYWHERE, and that is MEASURED, not assumed.** `gh issue list --state all` on
+`rmsharp/vscode_quarto_ext` → **zero** issues, with issues ENABLED: this project has never used
+them, `BACKLOG.md` is the tracker (#580). Upstream: 29 searches on `quarto-cli`, 38 on `quarto`,
+label sweeps, Discussions, the web — seven candidates, **all seven refuted**.
+**⚠ FILING UPSTREAM IS STILL OPEN AND UNASKED-FOR.** This project has never filed upstream; that
+precedent is the operator's to set. A clean duplicate-search does NOT authorize creating one.
 
-**⚠ NOTHING IS FILED UPSTREAM for our shape, and nothing is filed HERE.** `gh issue list --state
-all` on `rmsharp/vscode_quarto_ext` returns ZERO issues (issues ARE enabled; this project has
-never used them — `BACKLOG.md` is the tracker). Upstream: 29 searches on `quarto-cli`, 38 on
-`quarto`, label sweeps of `code-blocks` and `ast`, Discussions, and the web. Seven candidates,
-**all seven refuted** by an adversarial pass. Adjacent and worth citing: `quarto-cli#14182`
-(maintainer-filed, OPEN — attribute order should not decide cell-ness).
+**⚠ AN AGENT CONTRADICTED THE S273 RECORD AND WAS WRONG — RE-RUN THE RECORD'S OWN BYTES (#577).**
+It claimed the digit-led probe does not swallow and that the blank line is the lever. Probes
+extracted from the compiled `out/test/posit/runTest.js` (not retyped), quarto 1.7.33: r02 `<h4>`=0,
+r03=0, r05=0, r01=1, r06=1 — **S273's figures exactly**. 2×2 on r03: the lever is the **TRAILING
+BARE FENCE**, not the blank line. Raw HTML puts the heading inside `<pre><code>` and emits
+`{.2x .cell-code}`. The agent's probe had no trailing fence — **the exact error S273 filed as #573**.
 
-**⚠ AN AGENT CONTRADICTED THE S273 RECORD AND WAS WRONG. I MEASURED IT.** It claimed the
-digit-led probe does not swallow, and that the lever is the blank line. Re-rendered the EXACT
-harness bytes (extracted from `out/test/posit/runTest.js`, not retyped), quarto 1.7.33:
-r02 h4=0, r03 h4=0, r05 h4=0, r01 h4=1, r06 h4=1 — **the S273 record reproduces exactly.**
-2x2 on r03: the lever is the TRAILING BARE FENCE, not the blank line (with it h4=0 both ways;
-without it h4=1 both ways). Raw HTML shows `#### Charlie After Chunk` INSIDE `<pre><code>`, and
-`{.2x .cell-code}` proves knitr claimed it and pandoc refused the class. The agent's probe had no
-trailing fence — **the exact error S273 filed as Learning #573**, committed by an agent that had it.
+**⚠ `CLAUDE.md` §Clean-room boundary CHANGED** — "the product mirrors Posit" now carries a
+**rebuttal clause** (a public upstream maintainer statement, read black-box) and its stale
+two-decision count is corrected to six. Read it before assuming "mirror Posit" is unconditional.
+
+**Recommended next pick: (f) R6** — the LAST fixable divergence the score can see (ordinal 2519,
+1 document, 1 heading). ⚠ Its ground truth was NEVER measured under real chunk execution
+(`docs/REAL-DOCUMENT-RESCORE.md`, the `--no-execute` note) and R IS installed — measure first.
+⚠ It may NOT share R5's mechanism: S273 measured that 2519 holds no fence of the R5 shape.
+Or the tilde item — a plain DEFECT both oracles agree on, zero measured corpus reach.
 
 **⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
 records. One `CHANGELOG.md` entry per commit. **⚠ Write a number only after measuring it** (#552).
 **⚠ `$?` after a pipe is not a measurement** (#567). **⚠ `cd` moves the session cwd** (#535).
-**⚠ Never `git add -A`** — `scratchpad/` is untracked. **⚠ Never `grep -r` from the repo root** —
-`scratchpad/` is ~85,000 files; use `git grep`.
+**⚠ Never `git add -A`** AND **never `grep -r` from the repo root** — `scratchpad/` is untracked,
+~85,000 files; use `git grep`. Tripped once this session at Phase 0.
 ---
+
+## Session 273 Handoff Evaluation (by Session 274)
+
+**Score: 9/10.** Its `whats_next` #1 put a DECISION first and labelled it the operator's to make,
+which is exactly what let this session close it in one move. Every number it stated as measured held
+when I re-measured it — including under adversarial pressure from an agent that said otherwise. One
+point off because it framed the decision as having no cheap path to resolution, and there was one.
+
+**What helped, specifically.**
+- ⚠ **It named the three probes and their measured `<h4>` counts, so its claim was FALSIFIABLE.**
+  When a search agent contradicted the record, I did not have to re-derive anything — I re-ran
+  `r02`/`r03`/`r05` and got 0/0/0 exactly. A handoff whose numbers are re-runnable is worth more
+  than one that argues well, and this one survived a deliberate attempt to break it.
+- ⚠ **Gotcha (2), #573 — "grep for the thing under test, not its consequence".** This is the single
+  highest-value line it wrote. A Session 274 agent committed that precise error — a probe with no
+  trailing bare fence — and having #573 resident is why I suspected the probe within one experiment
+  instead of believing a plausible refutation of a measured record.
+- ⚠ **It stated the COST of the road not taken and labelled it UNMEASURED.** "Mirroring Posit would
+  be a widening in the phantom-vs-quarto direction and its reach is UNMEASURED." That sentence went
+  into the decision record verbatim in substance, as the honest price of the alternative.
+- **Gotcha (4), "the backlog's own trigger can be wrong and its line numbers rot."** Acting on it, I
+  found `docs/REAL-DOCUMENT-RESCORE.md` still carrying R5's falsified trigger and corrected it.
+- **#552, #535, `git add -A`, the ordinal rule, the one-entry-per-commit ledger rule** — all used,
+  all accurate. Its gate citation (manifest `8845021a4049`, head `089aa978`, 2/2) matched the
+  results file exactly, and its build figures (66 files / 2971, 209 open items) reproduced.
+
+**What was missing / wrong.**
+- ⚠ **It presented (6) as an operator coin-flip plus an expensive measurement, and never suggested
+  looking UPSTREAM.** The answer was free and public: an open issue filed by the maintainer of the
+  very product it was treating as the oracle, stating that the Outline should follow the render.
+  That is the same class of gap S273 itself criticised in S272 — carrying an expensive framing
+  forward without asking the cheap disqualifying question first. This is the one point off.
+- ⚠ **Its gotcha (2) is written as SELF-discipline, but the failure mode it describes is how a
+  SUB-AGENT gets a shape wrong.** Framed as "what I did", it reads as a confession; framed as "the
+  discriminator for did-the-fence-open is `<pre>`, and a uniform answer across a discriminating
+  matrix means the probe is broken", it is a spec for validating anyone's probe. Minor, but the
+  broader framing is what actually caught the agent.
+- **Nothing it stated as a fact turned out false**, including under a direct challenge.
+
+**ROI: very high.** Orientation to a decidable question took about twenty minutes, and its #1 was
+actionable with no re-derivation of the ranking.
+
+## Session 274 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **I neither accepted nor dismissed the agent that contradicted the record — I adjudicated it
+  with the record's own bytes** (#577). The probes were extracted from the compiled
+  `out/test/posit/runTest.js` rather than retyped, which is what makes it a replication instead of
+  a new experiment. Then a 2×2 isolated the actual lever (the trailing bare fence, not the blank
+  line), so the record now says something S273's did not: *what controls the swallow*.
+- ⚠ **I read the raw HTML instead of grepping for the consequence** — `#### Charlie After Chunk`
+  sits inside `<pre><code>`, and the output carries `{.2x .cell-code}`, which shows knitr claimed
+  the chunk and pandoc refused the class. That is #573 applied, not merely cited.
+- ⚠ **The search's BY-CATCH decided the question.** I launched it to answer "has this been filed?"
+  and it returned something better than a duplicate — the upstream maintainers' stated position
+  (#578). Recognising that the by-catch outranked the deliverable is the move worth repeating.
+- ⚠ **I caught that `CLAUDE.md`'s own norm contradicted the decision, and that its count was
+  stale** — it claimed two such decisions where six exist. A decision recorded against a norm nobody
+  updated is a decision the next session reverses on sight.
+- **I verified every cited cross-reference before committing**, re-confirming both upstream issues
+  still OPEN rather than trusting the agents, and replaced by hand the one verify agent lost to an
+  API error (`quarto#488` — unrelated). **7 of 7 candidates refuted**, none quietly dropped.
+- **I did NOT file upstream and did not treat a clean duplicate-search as authorization to** (#580).
+
+**What went wrong.**
+- ⚠ **I ran `grep -rn` from the repo root at Phase 0** and traversed the ~85,000-file untracked
+  `scratchpad/`, producing a 64 MB truncated result. I had read the `git add -A` warning and
+  generalised it to STAGING but not to SEARCHING. `git grep` is the tool and I used it thereafter.
+  The gotcha is now written for both operations.
+- ⚠ **My first workflow script failed to parse** — a literal triple-backtick inside a JS template
+  literal. One wasted round-trip; the authoring reference warns about exactly this.
+- ⚠ **My `AskUserQuestion` bundled two choices into one option.** The selected option named both the
+  deliverable *and* the direction of the decision. The operator picked it and I stated that reading
+  back before acting, so nothing was assumed silently — but a low-reversibility record deserved
+  "which item?" and "which way?" as separate questions.
+- **TDD:** exempt and stated — no `src/` logic changed; `CLAUDE.md`'s gate exempts declarative/doc
+  edits with no logic while still requiring normal verification, which ran. **Runtime:** no Extension
+  Development Host launch, and that is correct rather than skipped — no runtime surface changed, and
+  such runs take the operator's screen. The mechanical half ran: `quality_ratchet` **2/2 pass** at
+  head `ab4f8855` (the head the results file records), `npm test` **66 files / 2971 passed** and
+  `tools/realdoc-score/run.sh s274-close` **2438 / agree 2422 / divergent 16** with byte-identical
+  ordinal lists — both unchanged, which for a records-only change is the proof, not a gap (#579).
+  **Growth:** `BACKLOG.md` +14/−6, `CLAUDE.md` +14/−3, `docs/` +18, `test/` +33/−11, no `src/`,
+  `PROJECT_LEARNINGS.md` +4 rows (#577–#580). **Cost:** one workflow, 15 agents, 1 agent error,
+  ~975k subagent tokens, 206 tool calls, plus ~10 quarto renders of my own.
+
+**Against the bar.** Sessions 270 and 271 built the instrument and decided with it; 272 shipped a
+change; 273 shipped a fix and surfaced this question. This session decided a question the previous
+four could not — and the part worth repeating is that what made it decidable was not in the
+repository at all, and was found by a search launched to answer a different question.
+
 
 ## Session 272 Handoff Evaluation (by Session 273)
 
