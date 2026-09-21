@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] Session 275 close-out — the handoff receipt, the predecessor evaluation and the self-assessment
+- **Change:** `SESSION_NOTES.md` — ACTIVE TASK rewritten to "NONE — Session 275 closed out", the Session 274 handoff evaluation (**9/10**) and the Session 275 self-assessment (**7/10**) prepended. `HANDOFFS.md` — the S275 receipt completed (`status: complete`).
+- **Commit/PR:** this entry's own commit
+- **Session:** S275 · **Verified:** `python3 quality_ratchet.py --run` → **2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049**, at head `2f63dfa0` — the head the results file records, read rather than assumed. `SESSION_NOTES.md` 390 lines after the write, under the 400-line ceiling, no line over 280 B. The receipt's twelve fields present, and its gate citation uses the `quality_ratchet:` form (a `quarto_ratchet` typo caught and fixed before the commit).
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] The item is COMPLETE and removed — all eight root causes closed, decided or not modelable — and three items filed from what R6 left behind
 - **Change:** `BACKLOG.md` — the item removed, since with R6 CLOSED every sub-item is CLOSED (R1, R4, R5, R6), DECIDED (R2, R3, R7 — the RECORD item) or recorded NOT MODELABLE (R8, which stays documented in `docs/REAL-DOCUMENT-RESCORE.md`); its one open bullet, the F7 zero-reach by-catch, carried VERBATIM into an item of its own; two items filed — *"R6 residuals — what the positively-established silence rule leaves at HEAD's answer"* (seven measured classes, including that only the engine-aware Outline sees the change) and *"A bare fence inside a list item, and a backtick fence whose info string holds a backtick, are fences to this model and not to pandoc"* (PRE-EXISTING, deletion direction, found by the adversarial pass); the Active note and the ranking guidance rewritten to say the score now has NO fixable divergence left to rank. `docs/REAL-DOCUMENT-RESCORE.md` — a dated CLOSED note on the R6 reproduction and a correction to the "not measured under real execution" caveat. `PROJECT_LEARNINGS.md` — rows #581–#585.
 - **Commit/PR:** this entry's own commit

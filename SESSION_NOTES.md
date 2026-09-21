@@ -8,24 +8,107 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-### What Session 275 Did
-**Deliverable:** sub-item **(f) R6** of *"The Outline's last real-document divergences"* in
-`BACKLOG.md` — in a knitr document a stray bare fence pairs, in the model only, with a later
-chunk's closer that knitr already consumed (ordinal 2519, 1 document, 1 heading). (IN PROGRESS)
-**Started:** 2026-09-20
-**Status:** Session claimed. Work beginning. **MEASURE FIRST:** R6's ground truth was never taken
-under real chunk execution (every re-score render used `--no-execute`) and R is installed. Fix
-test-first only if the gap is the model's; otherwise record the measurement and close the item.
-**Ledger:** `CHANGELOG: pending` — the claim commit's `CHANGELOG.md` entry says (in progress);
-Phase 3F records the rest. Until close-out this line is the crash breadcrumb for the next
-session's reconcile.
+**Task:** **NONE — Session 275 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S275 did:** CLOSED **R6** — in a knitr document a stray bare ``` above a chunk that emits NO
+fence stays unclosed, because knitr swaps the chunk for its output before pandoc runs; the model
+paired the stray fence with that chunk's closer and deleted the heading between.
+**Score 2422 → 2423 of 2438. Over all 3,383 documents: 2 changed (2519 +1, 2900 +5), 0 lost.**
+⚠ **The score now has NO fixable divergence left.** Its 15 divergent ordinals are set-identical to
+R2 ∪ R3 ∪ R7 (decided) ∪ R8 (not modelable), so the eight-root-cause item is COMPLETE and removed.
+Commits: `242e4f1f` claim · `b1f054ac` first cut · `d5997bf4` narrowed rule · `5de058d9` real-host
+row · `2f63dfa0` records.
 
-**Found at Phase 0 and repaired in the claim commit:** S274's claim had inserted its receipt INSIDE
-the `HANDOFFS.md` header sentence (it matched the first `` ```handoff `` in the file, which is prose).
-The sentence is restored byte-identical to its pre-S274 form and the S274 block moved, unedited,
-to the top of the receipts, below this session's pending one.
-**⚠ Never `git add -A`** and **never `grep -r` from the repo root** — `scratchpad/` is untracked.
+**⚠ THE FIRST CUT (`b1f054ac`) DELETED HEADINGS, AND ONLY AN ADVERSARIAL PASS FOUND IT.** It moved 2
+corpus documents, both gaining, and passed TDD + 3 mutants. A 31-agent refutation workflow then
+found TEN measured shapes where it deleted a heading quarto renders — `{dot|mermaid, echo=FALSE}`,
+`echo=FALSE` inside an R call, five `#|` spellings, a no-break space — all at ZERO corpus reach
+(#581). `d5997bf4` trusts only measured shapes; everything else keeps HEAD's pairing (#582).
+
+**⚠ Ground truth was measured under REAL execution first.** 2519 as it sits on disk does not render
+with execution (a data file is missing, exit 1); a what-if copy renders exit 0 with the heading.
+
+**Filed this session:** *"R6 residuals …"* (seven classes left at HEAD's answer, incl. that ONLY
+the engine-aware Outline sees the change — Run Cell, diagnostics and `refs.ts` pass no engine),
+*"A bare fence inside a list item, and a backtick fence whose info string holds a backtick …"*
+(PRE-EXISTING, deletion direction), and the F7 by-catch carried out of the removed item.
+
+**⚠ Gates:** `python3 quality_ratchet.py --run` at close-out; cite the head the RESULTS FILE records.
+**⚠ No ledger hook is installed** (`git config core.hooksPath` is empty) — read `git show --stat
+HEAD` after every commit; an f-string ate one `CHANGELOG.md` entry this session (#584).
+**⚠ Never `git add -A`**, **never `grep -r` from the repo root** (`scratchpad/` is untracked,
+~85,000 files), **`$?` after a pipe is not a measurement** (#567), **`cd` moves the cwd** (#535).
 ---
+
+## Session 274 Handoff Evaluation (by Session 275)
+
+**Score: 9/10.** Its `whats_next` #2 was the exact instruction this session needed, and every fact it
+stated held when I re-measured it. One point off for a defect in its own durable record that its
+close-out did not catch.
+
+**What helped, specifically.**
+- ⚠ **"Measure its ground truth FIRST — R IS installed."** That line is why the first thing I did was a
+  real-execution render, and the answer was not the one anyone expected: the document does not
+  render with execution at all (a data file is missing). Without the warning I would have designed
+  against the `--no-execute` answer alone and never known the two conventions could disagree.
+- ⚠ **"It may NOT share R5's mechanism."** Correct, and it saved a wrong start. R5 is about which
+  chunks knitr CLAIMS; R6 is about which closers knitr CONSUMES — a different stage of the pipeline.
+- **"The LAST fixable divergence the score can see."** Measured true: after R6 the 15 divergent
+  ordinals are exactly the decided and unmodelable ones.
+- **Gotchas (1), (2), (7), (8), (10)** — all used, all accurate. (2) generalised well: I extracted the
+  refuters' probe bytes from their own files rather than retyping them, and caught a trailing-newline
+  difference that way.
+
+**What was missing / wrong.**
+- ⚠ **Its own claim commit inserted the S274 receipt INSIDE the `HANDOFFS.md` header sentence**
+  (it matched the first `` ```handoff `` in the file, which is prose), and the close-out never noticed.
+  Phase 0 found it and the claim commit repaired it. This is the one point off.
+- **It did not say that no ledger hook is installed in this clone.** Not a fault of the handoff as
+  such, but it would have prevented this session's one unrecorded commit.
+- **Nothing it stated as fact turned out false.**
+
+**ROI: very high.** Orientation to a measured first step took about twenty minutes.
+
+## Session 275 Self-Assessment
+
+**Score: 7/10.**
+
+**What went right.**
+- ⚠ **I measured the ground truth under real execution before designing**, found the document cannot
+  run as it sits, and took a what-if render rather than stopping there. The divergence is real under
+  both conventions, which is what licensed a fix at all.
+- ⚠ **I aimed a 31-agent adversarial pass at my OWN committed fix** — and it found ten real deletions.
+  Every one was re-rendered firsthand before I acted, and the rule was narrowed until all ten failed
+  to reproduce, with the corpus result unchanged (#581, #582).
+- **Strict TDD throughout:** 10 behaviour rows, each shown RED for the right reason before its code;
+  every expectation a measured render of the test's exact bytes, in both execution modes.
+- **Mutation-tested my own guards:** 12 of 12 mutants of the final rule are killed. The first pass
+  found one guard vacuous and one rule unpinned; both were fixed rather than explained away (#585).
+- **Phase 3E discharged properly:** a real-host row asserting the new behaviour, then ONE
+  `test:integration` run with the go-ahead taken before launch — 551 passing, exit 0.
+
+**What went wrong.**
+- ⚠ **I committed a rule that deletes headings.** `b1f054ac` passed TDD, three mutants and the corpus,
+  and I treated that as enough to commit. The research critic had already warned that silence must
+  be positively established; I wrote that sentence into the docstring and did not make the code
+  honour it. The adversarial pass should have run BEFORE the first fix commit, not after (#581).
+- ⚠ **One commit landed without its ledger entry.** A Python f-string choked on `{dot|mermaid…}`;
+  no hook is installed, so nothing refused it. I caught it from `git show --stat` and amended before
+  anything was pushed (#584).
+- **My first test comments overclaimed** ("every row exit 0, both modes agreeing" — false for two
+  rows) and one guard was vacuous. The refuters caught both; corrected in `d5997bf4`.
+- **I timed a cached function and got 0.0 ms on three builds** before I saw why (#583). I also wrote
+  two logs to `/tmp` instead of the session scratchpad once — deleted, but a slip.
+- **Runtime:** `test:integration` 551 passing, exit 0, VS Code 1.129.0. One unhandled rejection was
+  logged in the debounced-diagnostics suite — unrelated code, every test green, NOT verified
+  pre-existing (needs a second screen run). **Growth:** `src/` +219/−3, `test/unit` +312,
+  `test/integration` +44, `PROJECT_LEARNINGS.md` +5 rows (#581–#585), `BACKLOG.md` net +2 items.
+  **Cost:** two workflows, 36 agents, 0 errors, ~3.34M subagent tokens, 757 subagent tool uses, plus
+  ~125 quarto renders of my own.
+
+**Against the bar.** Sessions 272–274 each shipped one measured change or decision. This one shipped
+a measured fix that closes the last fixable divergence the score can see — but its first cut was
+worse than the defect it fixed in shapes nobody has written yet, and it took an adversary to show it.
 
 ## Session 273 Handoff Evaluation (by Session 274)
 
