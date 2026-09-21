@@ -234,6 +234,24 @@ behind, not where a fence sits.
   Model: none. Controls (diagnosing agent, re-checked by its verifier): a letters-only engine with the
   same options, and the same engine with `,eval=FALSE` unspaced, agree; the same bytes under
   `engine: markdown` give none in both.
+
+  > ⚠ **CLOSED, Session 273 — and this row's stated TRIGGER is falsified.** It is not "a digit-bearing
+  > engine with spaced options": `{glue_sql, connection = con}` has no digit and fires,
+  > `{cpp11,eval=FALSE}` has a digit and does not. The real gate is knitr's chunk grammar INTERSECTED
+  > WITH pandoc's class grammar, `[A-Za-z][A-Za-z0-9_]*` — knitr consumes the chunk before pandoc sees
+  > it, but knitr's rewrite target is a pandoc CLASS and pandoc refuses one not beginning with a letter.
+  > The counts in this row are right. See `CHANGELOG.md`, Session 273.
+  >
+  > ⚠ **DECIDED, Session 274 — the `engine: markdown` arm named in the controls above is a
+  > quarto/Posit DISAGREEMENT, and the Outline FOLLOWS `quarto render`.** For those bytes quarto emits
+  > no heading and this model emits none — but **Posit's Outline shows the heading** (observed,
+  > `npm run observe:posit`, probe `r02_r5_qmd_markdown`), because Posit pairs the fence engine-blind.
+  > The decision is to keep following the render, and it is the ONE decision of the six that does not
+  > mirror Posit: Posit's own maintainers hold that the Outline should match the rendered TOC
+  > ([`quarto-dev/quarto#829`](https://github.com/quarto-dev/quarto/issues/829), open), so the
+  > behaviour is an acknowledged upstream defect rather than a design choice. See `BACKLOG.md`'s
+  > RECORD item, decision (6), for the evidence, the unmeasured cost of the alternative, and the
+  > Session 274 re-measurement that confirmed the probe figures.
 - **R6** — knitr document: `prose` · blank · a bare ` ``` ` · blank · `## After Stray Fence` · blank ·
   ` ```{r demo, echo=FALSE} ` · `y <- 2` · ` ``` `. Quarto: `h2 After Stray Fence` (the stray fence is
   left unclosed and renders as `<p>```</p>`). Model: none. Controls: `echo = TRUE` (the chunk's own

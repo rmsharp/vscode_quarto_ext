@@ -19382,7 +19382,8 @@ describe("R5 — knitr's chunk grammar is wider than quarto's cell grammar (Sess
   });
 
   // ⚠ NOT an anti-phantom pin. It is HEAD's behaviour, UNCHANGED by Session 273 -- and it is a
-  // MEASURED quarto/Posit DISAGREEMENT that no session has ever decided explicitly.
+  // MEASURED quarto/Posit DISAGREEMENT, now DECIDED: `BACKLOG.md` RECORD decision (6),
+  // Session 274. We follow `quarto render`. This row is the pin for that decision.
   //
   // `quarto render` on these bytes as a `.qmd` with `engine: markdown` emits NO <h4> (exit 0,
   // measured), and this model reports none -- so we follow the RENDER oracle. But Posit's
@@ -19390,11 +19391,18 @@ describe("R5 — knitr's chunk grammar is wider than quarto's cell grammar (Sess
   // probe `r02_r5_qmd_markdown`, quarto.quarto 1.135.0, `ours-loaded: false`, both controls
   // green) -- Posit pairs the fence engine-blind and reports `(code cell)` for it.
   //
-  // `CLAUDE.md`'s clean-room boundary says that where quarto's RENDER and Posit's OUTLINE
-  // disagree it is a DECISION, not a defect, and that the product mirrors Posit. This row
-  // therefore pins the model AGAINST Posit, which is a decision still owed to the operator --
-  // filed as a RECORD bullet in `BACKLOG.md`. It is PRE-EXISTING and out of scope here: Session
-  // 273 moved the knitr arm only, where quarto and Posit AGREE with each other and with the fix.
+  // ⚠ WHY THIS ONE DOES NOT MIRROR POSIT, WHEN DECISIONS (2)-(5) ALL DID. Posit's own
+  // maintainers have disowned the behaviour upstream. `quarto-dev/quarto#829` (OPEN, filed
+  // 2025-09-26 by vezwork, the Quarto VS Code extension maintainer): "it does seem that the
+  // outline should match the TOC that ends up in the rendered document" -- and cscheid, on
+  // quarto-cli, answers that quarto-cli should own outline generation for clients. So the
+  // engine-blind pairing is an acknowledged open DEFECT on their side, not a design choice, and
+  // mirroring it would copy a bug its own authors intend to remove. Read firsthand at Session
+  // 274 Phase 0, `gh issue view 829 --repo quarto-dev/quarto`.
+  //
+  // ⚠ And it is PRE-EXISTING: Session 273 moved the knitr arm only, where quarto and Posit
+  // AGREE with each other and with the fix. Mirroring Posit would also be a WIDENING in the
+  // phantom-vs-render direction whose corpus reach was never measured.
   it("the SAME bytes under the markdown engine, or with no engine known, are UNCHANGED from HEAD", () => {
     expect(findHeadings(r5("zzz9, eval = FALSE"), "markdown")).toEqual([]);
     expect(findHeadings(r5("zzz9, eval = FALSE"))).toEqual([]);
@@ -19406,8 +19414,9 @@ describe("R5 — knitr's chunk grammar is wider than quarto's cell grammar (Sess
   // later, and HEAD is already RIGHT. Widening `KNITR_CHUNK_INFO` to knitr's `[a-zA-Z0-9_]+`
   // turns each of these into a PHANTOM against `quarto render`. Measured on `.Rmd` with real
   // knitr execution, exit 0 each: <h4> count 0 for both rows below and 1 for every row above.
-  // ⚠ Posit SHOWS the heading here (observed, probe `r03_digit_led_rmd`) -- the same undecided
-  // quarto/Posit question as the markdown-engine row above, and filed with it, not here.
+  // ⚠ Posit SHOWS the heading here (observed, probe `r03_digit_led_rmd`) -- the same
+  // quarto/Posit question as the markdown-engine row above, DECIDED with it as RECORD decision
+  // (6) (Session 274): we follow `quarto render`. The reasoning is on that row, not repeated here.
   it("a digit-led or underscore-led engine name stays lost -- pandoc refuses the rewritten class", () => {
     expect(findHeadings(r5("2x, eval = FALSE"), "knitr")).toEqual([]);
     expect(findHeadings(r5("_zzz, eval = FALSE"), "knitr")).toEqual([]);
@@ -19424,7 +19433,7 @@ describe("R5 — knitr's chunk grammar is wider than quarto's cell grammar (Sess
   // A HYPHEN or a DOT is outside knitr's class, so knitr leaves the chunk for pandoc, which
   // refuses it -- and quarto loses the heading too. Measured, `.Rmd`, exit 0: <h4> count 0.
   // These are NOT part of R5. ⚠ Posit shows the heading here too (probe `r05_hyphen_rmd`);
-  // same filed question as above.
+  // same question as above, and DECIDED with it as RECORD decision (6) (Session 274).
   it("a hyphen or a dot in the engine name is not knitr's either, and quarto loses the heading too", () => {
     expect(findHeadings(r5("r-foo, eval = FALSE"), "knitr")).toEqual([]);
     expect(findHeadings(r5("r.foo, eval = FALSE"), "knitr")).toEqual([]);

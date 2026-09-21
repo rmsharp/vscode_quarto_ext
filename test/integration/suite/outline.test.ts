@@ -2265,8 +2265,10 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
     // knitr claims `{2x, …}` too, but its rewrite target is a pandoc CLASS and pandoc refuses
     // one that does not begin with a letter, so the runaway happens anyway one stage later:
     // `quarto render` gives <h4> count 0. Widening here would invent a section quarto does not
-    // render. (Posit DOES show this heading -- the undecided quarto/Posit question recorded as
-    // open RECORD bullet (6) in `BACKLOG.md`; this row follows `quarto render`, as HEAD did.)
+    // render. (Posit DOES show this heading -- the quarto/Posit question now settled as RECORD
+    // decision (6) in `BACKLOG.md`, Session 274: we follow `quarto render`, because Posit's own
+    // maintainers hold that the Outline should match the rendered TOC -- `quarto-dev/quarto#829`,
+    // open. This row follows `quarto render`, as HEAD did.)
     const refused = await namesFor("2x, eval = FALSE");
     assert.ok(
       !refused.includes("Alpha After Chunk"),
