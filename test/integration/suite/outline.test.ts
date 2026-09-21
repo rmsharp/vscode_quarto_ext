@@ -2276,6 +2276,50 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
     );
   });
 
+  it("R6: a stray fence skips a SILENT knitr chunk's closer, so the heading below it reaches the outline (Session 275)", async () => {
+    // The adapter-level proof for R6, beside R5's: the engine reaches the model through the same
+    // `outline.ts` path, resolved from the TEXT -- measured headlessly before this run,
+    // `resolveDocumentEngine` answers "knitr" for these bytes under "Untitled-1", "/tmp/Untitled-1",
+    // "doc.qmd" and "doc.Rmd" alike. `openInMemory` scopes the documents; no fixture is touched.
+    //
+    // Both halves MEASURED this session on these exact bytes saved as `.Rmd` (quarto 1.7.33,
+    // knitr 1.51), `quarto render --to html` exit 0 with real execution AND with `--no-execute`.
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (options: string) =>
+      flatten(
+        await symbolsForDoc(
+          await openInMemory(
+            [
+              "---", "title: Doc", "---", "",
+              "prose", "", "```", "",
+              "## Heading Under Test", "",
+              "```{r demo, " + options + "}", "plot(pressure)", "```", "",
+              "## Heading After Chunk", "", "tail prose", "",
+            ].join("\n"),
+          ),
+        ),
+      );
+
+    // PRESENT -- the item this session closed. knitr replaces the echo=FALSE chunk with its
+    // output and emits no backtick line, so the stray fence stays unclosed (`<p>```</p>`) and
+    // quarto renders the heading. Before this session the outline DELETED it.
+    const silent = await namesFor("echo=FALSE");
+    assert.ok(
+      silent.includes("Heading Under Test"),
+      `a silent chunk's closer never reaches pandoc, so the heading above it survives: ${silent.join(", ")}`,
+    );
+
+    // ABSENT -- the bounding half. An ECHOED chunk re-emits its source as ```{.r .cell-code} plus a
+    // bare closer, and that closer DOES close the stray fence: quarto renders a <pre> and no
+    // "Heading Under Test". Reading this chunk as silent would invent a section quarto hides.
+    const echoed = await namesFor("echo=TRUE");
+    assert.ok(
+      !echoed.includes("Heading Under Test") && echoed.includes("Heading After Chunk"),
+      `an echoed chunk re-closes the stray fence, so no section above it: ${echoed.join(", ")}`,
+    );
+  });
+
   it("a mid-document YAML block's `from:` reaches the outline (Session 211)", async () => {
     // ⚠ THIS TEST DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd`.
     // Sessions 196 and 197 each lost a full screen-taking Extension Development Host run by
