@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S269 evaluation + S270 self-assessment)
+- **Change:** `SESSION_NOTES.md` — the Session 269 handoff evaluation and the Session 270 self-assessment removed, so the live file holds the steady-state THREE pairs (`CLAUDE.md` §SESSION_NOTES.md retention). **6,297 B removed; 335 lines, 26,015 B remain** (measured after the write, not before — Learning #552).
+- **Commit/PR:** this entry's own commit
+- **Session:** S273 · **Verified:** a trim commit must contain no other edit to the file being trimmed (upstream BL-36), and this one does not — the retained portion was proved a **BYTE-IDENTICAL PREFIX** of `git show HEAD:SESSION_NOTES.md` before the file was written, which is the positional proof, not an assertion. The dropped pair is one command away: `git show 9d712e24:SESSION_NOTES.md`. `python3 context_budget.py` → SESSION_NOTES.md **ok** (335 / 400 lines, 26,015 / 120,000 B, no line over 280 B) — back under the line ceiling the close-out commit briefly exceeded at 417.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] Session 273 close-out — the handoff receipt, the predecessor evaluation and the self-assessment
 - **Change:** `HANDOFFS.md` S273 receipt completed (`status: pending` → `complete`, `self_score: 8`, `predecessor_score: 9`, all six requirements filled). `SESSION_NOTES.md` ACTIVE TASK rewritten to the closed state, plus the Session 272 handoff evaluation and the Session 273 self-assessment. `.context-budget-history.jsonl` and `dashboard_history.jsonl` carry the rows this session's own tool runs appended.
 - **Commit/PR:** this entry's own commit
