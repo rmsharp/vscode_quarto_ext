@@ -39,7 +39,20 @@
 // exactly this purpose because it imports FROM here; that constraint does not apply to this
 // module, and the import graph was re-checked before relying on it.) The `vscode`-free
 // guardrail of architecture plan §3.3 is unaffected — the imported module is `core/` too.
+import type { DocumentEngine } from "../document-engine";
 import { quartoYamlRegions } from "./quarto-yaml-regions";
+
+/**
+ * What the caller knows about the document's execution engine, or `undefined` when it does not
+ * know (Session 273). Only `"knitr"` changes anything — see `KNITR_CHUNK_INFO` — so every other
+ * value, `"ambiguous"` and `undefined` included, reproduces this model's pre-S273 behaviour
+ * exactly. That is deliberate: the engine can depend on the FILENAME (`resolveDocumentEngine`
+ * short-circuits on an `.Rmd` extension before reading a byte), which this module never sees, so
+ * the answer is passed IN by the adapter that holds the document rather than resolved here.
+ * Resolving it here would close an import cycle — `document-engine-resolve.ts` already imports
+ * `frontMatterContentLines` from this module.
+ */
+type EngineHint = DocumentEngine | "ambiguous" | undefined;
 
 /** An ATX (`#`..`######`) markdown heading outside any code fence / front matter. */
 export interface Heading {
@@ -5851,6 +5864,59 @@ function fenceInfoOpensBlock(
 }
 const CELL_INFO = /^\{([A-Za-z][=A-Za-z]*)( *[ ,].*)?\}$/;
 /**
+ * The engine's OWN chunk grammar, for the one engine that runs BEFORE pandoc (Session 273).
+ *
+ * ⚠ This is NOT a cell recognizer and must never become one. `CELL_INFO` above is quarto's
+ * `startCodeCellRegEx`, transcribed, and its docstring forbids widening it — a fence matching
+ * the pattern here stays `isCell: false`, gets no `cell.lang`, no cell-option validation, no
+ * run-cell target and no squiggle. All this decides is whether the fence PAIRS.
+ *
+ * In a knitr document quarto runs `knitr::knit()` before pandoc, so a chunk knitr claims never
+ * reaches the bytes `CELL_INFO` is judging. knitr rewrites it to `::: {.cell}` + a
+ * ```` ```{.LANG .cell-code} ```` fence — observed in `quarto render -M keep-md:true`'s
+ * intermediate, not inferred — and the rewrite is GENERIC, not a registered-engine list:
+ * `cpp11` is absent from `knitr::knit_engines$get()` and is rewritten anyway, as is an
+ * invented `zzz9`.
+ *
+ * ## The pattern is knitr's grammar INTERSECTED with pandoc's class grammar
+ *
+ * knitr's half, read out of R rather than inferred —
+ * `knitr::all_patterns[["md"]]$chunk.begin` (knitr 1.51):
+ *
+ * ```r
+ * "^[\t >]*```+\\s*\\{([a-zA-Z0-9_]+( *[ ,].*)?)\\}\\s*$"
+ * ```
+ *
+ * The option tail is quarto's own; the LANGUAGE CLASS is the difference — `[a-zA-Z0-9_]+`
+ * (digits and `_` in, anywhere INCLUDING first) where quarto's cell recognizer is `[=A-Za-z]+`.
+ *
+ * ⚠ **But knitr's grammar alone OVER-FIRES, and the leading `[A-Za-z]` here is why.** knitr's
+ * rewrite target is a pandoc CLASS, and pandoc refuses a class that does not begin with a
+ * letter — so for a digit-led or `_`-led engine name pandoc rejects the rewritten Attr and the
+ * runaway happens anyway, one stage later. Measured, `quarto pandoc -f markdown -t html` on
+ * ```` ```{.L .cell-code} ```` with a blank line in the body (`<pre>` present = the fence
+ * opened):
+ *
+ * | class | pandoc | class | pandoc |
+ * |---|---|---|---|
+ * | `.2x` | REFUSED | `.x2` | opens |
+ * | `._x` | REFUSED | `.x_` | opens |
+ * | `.99` | REFUSED | `.zzz9` | opens |
+ * | `.9zzz` | REFUSED | `.cpp11` `.glue_sql` `.fortran95` | opens |
+ *
+ * Confirmed end to end with an executing `quarto render` on a `.Rmd` (exit 0 each): the R5
+ * shape gives one `<h4>` for `{zzz9, …}`, `{cpp11, …}` and `{glue_sql, …}`, and **zero** for
+ * `{2x, …}` and `{_zzz, …}`. Widening the class back to knitr's own `[a-zA-Z0-9_]+` therefore
+ * manufactures a phantom heading on every digit-led or `_`-led spelling, which this model
+ * already gets right. **Do not "simplify" this to match knitr's pattern.**
+ *
+ * ⚠ BACKTICK ONLY. knitr's `chunk.begin` is anchored at a backtick run, and `keep-md` shows a
+ * ```` ~~~{zzz9, …} ```` chunk left VERBATIM in the intermediate — knitr does not claim it.
+ * (A tilde fence of that shape IS a live divergence, with a different, pandoc-layer cause and
+ * zero measured corpus reach; it is filed in `BACKLOG.md`, not handled here.)
+ */
+const KNITR_CHUNK_INFO = /^\{[A-Za-z][A-Za-z0-9_]*( *[ ,][\s\S]*)?\}$/;
+/**
  * An inline code span — a run of N backticks closed by the next run of exactly
  * N (CommonMark §6.3). Its content is rendered literally, so any markup shown
  * inside it (a `{#fig-…}` label, a `$x$` math delimiter) is documentation, not a
@@ -6047,7 +6113,7 @@ interface Regions {
  * `text` (no external state, time, or randomness), so equal text ⇒ equal regions;
  * the key comparison is a value comparison (JS `===` on strings).
  */
-let regionsCache: { text: string; regions: Regions } | null = null;
+let regionsCache: { text: string; engine: EngineHint; regions: Regions } | null = null;
 
 /**
  * The parsed regions of `text`, served from the single-entry cache on a repeat
@@ -6061,12 +6127,12 @@ let regionsCache: { text: string; regions: Regions } | null = null;
  * that array are still the shared region objects, so a caller must not mutate an
  * element's fields (`cell.code`, `heading.text`, …) — no consumer does.
  */
-function scanRegions(text: string): Regions {
-  if (regionsCache !== null && regionsCache.text === text) {
+function scanRegions(text: string, engine: EngineHint = undefined): Regions {
+  if (regionsCache !== null && regionsCache.text === text && regionsCache.engine === engine) {
     return regionsCache.regions;
   }
-  const regions = computeRegions(text);
-  regionsCache = { text, regions };
+  const regions = computeRegions(text, engine);
+  regionsCache = { text, engine, regions };
   return regions;
 }
 
@@ -6085,7 +6151,7 @@ function scanRegions(text: string): Regions {
  * display form, ```` ```{.python} ```` Pandoc class blocks, and any `{lang}`
  * fence nested inside an outer (longer or tilde) fence.
  */
-function computeRegions(text: string): Regions {
+function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   const lines = text.split(/\r?\n/);
   const emptyTagPropagates = firstLineTagIsEmpty(lines[0]);
   const closerIndex = buildCloserIndex(lines);
@@ -7129,8 +7195,22 @@ function computeRegions(text: string): Regions {
       // leftover mismatched fence opened a PLAIN region instead and swallowed them anyway.
       // ⚠ A CELL is never asked — quarto's engine owns `{r, echo=FALSE}`, whose bytes the
       // attribute parser would refuse outright. `CELL_INFO` has already decided that above.
+      // ⚠ **KNITR RUNS BEFORE PANDOC, SO A CHUNK IT CLAIMS IS NEVER JUDGED HERE (Session 273).**
+      // See `KNITR_CHUNK_INFO`. The fence still opens an ordinary PLAIN region — `isCell` stays
+      // false — which is exactly what knitr's ```{.LANG .cell-code} rewrite produces. The three
+      // narrowings are each measured: backtick-only because knitr's `chunk.begin` is, and
+      // `keep-md` leaves a `~~~` chunk verbatim; `!stripQuote` mirrors the Session 225 cell
+      // withhold above, because whether knitr claims a block-quoted chunk is UNMEASURED and has
+      // zero corpus reach, so declining is the safe direction; and a non-knitr engine is left
+      // exactly as HEAD had it — measured, the identical bytes as a `.qmd` render no heading.
+      const knitrClaims =
+        engine === "knitr" &&
+        char === "`" &&
+        !stripQuote &&
+        KNITR_CHUNK_INFO.test(fence[3].trim());
       const refused =
         info === null &&
+        !knitrClaims &&
         !fenceInfoOpensBlock(
           quartoFenceTagRewrite(raw, fence[3], i === 0 || emptyTagPropagates),
           commonmarkDialect,
@@ -8486,8 +8566,8 @@ function computeRegions(text: string): Regions {
  * so a caller may reorder/add/remove entries without affecting a later call; the
  * `Heading` elements themselves are shared and immutable (do not mutate a field).
  */
-export function findHeadings(text: string): Heading[] {
-  return scanRegions(text).headings.slice();
+export function findHeadings(text: string, engine: EngineHint = undefined): Heading[] {
+  return scanRegions(text, engine).headings.slice();
 }
 
 /**

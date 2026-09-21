@@ -19339,3 +19339,110 @@ describe("Session 269 — a block-level token anywhere in a heading's content me
     expect(names(probe("### T <!DOCTYPE <section>> U", "", "## Tail"))).toEqual(["h2:Tail"]);
   });
 });
+
+describe("R5 — knitr's chunk grammar is wider than quarto's cell grammar (Session 273)", () => {
+  // In a KNITR document quarto runs `knitr::knit()` BEFORE pandoc, and knitr's chunk pattern
+  // (knitr 1.51, `all_patterns[["md"]]$chunk.begin`) accepts `[a-zA-Z0-9_]+` as the engine name
+  // where quarto's cell recognizer `CELL_INFO` accepts `[=A-Za-z]+`. knitr rewrites every chunk
+  // it claims to `::: {.cell}` + ```{.LANG .cell-code} -- observed in the `keep-md` intermediate,
+  // not inferred -- so pandoc pairs the fence and the heading below it survives.
+  //
+  // MEASURED, `quarto render` with real knitr execution (quarto 1.7.33, knitr 1.51, R 4.6.1),
+  // these exact bytes saved as `.Rmd`: exit 0, one <h4>. This model reports none.
+  const r5 = (tag: string, fence = "```"): string =>
+    [
+      "---",
+      "title: r5",
+      "---",
+      "",
+      "```{r}",
+      "x <- 1",
+      "```",
+      "",
+      fence + "{" + tag + "}",
+      "int a;",
+      "",
+      "int b;",
+      fence,
+      "",
+      "#### After Chunk",
+      "",
+      "prose",
+      "",
+      fence,
+      "plain",
+      fence,
+      "",
+    ].join("\n");
+
+  it("a knitr document's digit-bearing engine chunk opens a region, so the heading below survives", () => {
+    expect(findHeadings(r5("zzz9, eval = FALSE"), "knitr").map((h) => h.text)).toEqual([
+      "After Chunk",
+    ]);
+  });
+
+  // ⚠ NOT an anti-phantom pin -- it is HEAD's behaviour, UNCHANGED, and it is provisional.
+  // `quarto render` on these bytes as a `.qmd` with `engine: markdown` emits NO <h4> (exit 0,
+  // measured), so the model agrees with the RENDER oracle. It has NOT been checked against
+  // Posit's Outline, and `CLAUDE.md`'s clean-room boundary says a quarto/Posit disagreement is
+  // a DECISION, not a defect. `npm run observe:posit` is the one step that would settle it;
+  // see the RECORD bullet in `BACKLOG.md`. Only the knitr arm moved this session.
+  it("the SAME bytes under the markdown engine, or with no engine known, are UNCHANGED from HEAD", () => {
+    expect(findHeadings(r5("zzz9, eval = FALSE"), "markdown")).toEqual([]);
+    expect(findHeadings(r5("zzz9, eval = FALSE"))).toEqual([]);
+  });
+
+  // ⚠ THE LEADING-LETTER NARROWING, AND WHY IT IS NOT knitr's OWN GRAMMAR. knitr claims a
+  // digit-led or `_`-led engine name, but its rewrite target is a pandoc CLASS and pandoc
+  // refuses one that does not start with a letter -- so the runaway happens anyway, one stage
+  // later, and HEAD is already RIGHT. Widening `KNITR_CHUNK_INFO` to knitr's `[a-zA-Z0-9_]+`
+  // turns each of these into a PHANTOM. Measured, `quarto render` on `.Rmd`, real knitr
+  // execution, exit 0 each: <h4> count 0 for both rows below and 1 for every row above.
+  it("a digit-led or underscore-led engine name stays lost -- pandoc refuses the rewritten class", () => {
+    expect(findHeadings(r5("2x, eval = FALSE"), "knitr")).toEqual([]);
+    expect(findHeadings(r5("_zzz, eval = FALSE"), "knitr")).toEqual([]);
+  });
+
+  // knitr's class is `[a-zA-Z0-9_]+`, so an UNDERSCORE with no digit is claimed too -- the
+  // shape corpus ordinal 2383 holds. Measured: `quarto render` on `.Rmd` gives one <h4>.
+  it("an underscore-bearing engine name is claimed by knitr just as a digit-bearing one is", () => {
+    expect(findHeadings(r5("glue_sql, eval = FALSE"), "knitr").map((h) => h.text)).toEqual([
+      "After Chunk",
+    ]);
+  });
+
+  // A HYPHEN or a DOT is outside knitr's class, so knitr leaves the chunk for pandoc, which
+  // refuses it -- and quarto loses the heading too. Measured, `.Rmd`, exit 0: <h4> count 0.
+  // These are NOT part of R5 and must keep diverging from nothing.
+  it("a hyphen or a dot in the engine name is not knitr's either, and quarto loses the heading too", () => {
+    expect(findHeadings(r5("r-foo, eval = FALSE"), "knitr")).toEqual([]);
+    expect(findHeadings(r5("r.foo, eval = FALSE"), "knitr")).toEqual([]);
+  });
+
+  // ⚠ BACKTICK ONLY, and this row is a KNOWN DIVERGENCE left deliberately in place. knitr's
+  // `chunk.begin` is anchored at a backtick run and `keep-md` leaves a `~~~` chunk verbatim,
+  // so the gate must not fire here -- widening it to tilde would also break Session 263's
+  // tilde rows. But `quarto render` on `.Rmd` DOES emit the <h4> (measured, exit 0, count 1):
+  // a real pandoc-layer divergence with a different cause and zero corpus reach, filed in
+  // `BACKLOG.md` rather than fixed here.
+  it("a TILDE fence of the same shape is untouched -- knitr does not claim it (divergence filed)", () => {
+    expect(findHeadings(r5("zzz9, eval = FALSE", "~~~"), "knitr")).toEqual([]);
+  });
+
+  // The gate decides PAIRING ONLY. It must never manufacture a cell -- that is `CELL_INFO`'s
+  // job and its docstring forbids widening it. If this row ever returns `["r", "zzz9"]` the
+  // change has leaked into cell-option validation, run-cell and the squiggle surface.
+  it("the claimed chunk is NOT a cell -- no new cell.lang, no new validation surface", () => {
+    expect(findAllCells(r5("zzz9, eval = FALSE")).map((c) => c.lang)).toEqual(["r"]);
+  });
+
+  // The two STRUCTURAL preconditions, each measured to be load-bearing: without the blank line
+  // in the chunk body `consumedCloserLine` swallows the closer into an inline code span, and
+  // without a bare fence below `hasCloserBelow` declines -- so HEAD keeps the heading either
+  // way and the defect needs both. They pin that the fix did not make the gate do their work.
+  it("neither structural precondition is needed once knitr claims the chunk", () => {
+    const noBlank = r5("zzz9, eval = FALSE").replace("int a;\n\nint b;", "int a;\nint b;");
+    expect(findHeadings(noBlank, "knitr").map((h) => h.text)).toEqual(["After Chunk"]);
+    expect(findHeadings(noBlank).map((h) => h.text)).toEqual(["After Chunk"]);
+  });
+});
