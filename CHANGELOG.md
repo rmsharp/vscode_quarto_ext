@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-21 · [BL-A bare fence inside a list item, and a backtick fence whose info string holds a backtick, are fences to this model and not to pandoc] Session 276 claimed (in progress) — reach and ground truth measured first, then strict TDD
+- **Change:** `SESSION_NOTES.md` ACTIVE TASK rewritten as the Session 276 claim stub; `HANDOFFS.md` opens a `status: pending` S276 receipt, inserted at the first line that IS a `` ```handoff `` fence (asserted to precede the S275 block), not at the prose mention in the header.
+- **Commit/PR:** this entry's own commit
+- **Session:** S276 · **Verified:** Phase 0 reconciled clean — `CHANGELOG.md` frontier `5cc2717a` WAS HEAD (0 undocumented commits); newest receipt S275 `status: complete`; `.quality-gates-results.json` records results `bba236856bad`, manifest `8845021a4049`, 2/2 pass (re-run at head `5cc2717a`, same results hash S275 cited). Build measured green before anything: `npm run compile` exit 0, `npm test` 66 files / 2991 passed, `check-backlog` OK 211 open items.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] The post-trim budget measurement row backing the entry above
 - **Change:** `.context-budget-history.jsonl` — the one row `python3 context_budget.py` appended when it was run against the committed trim. It is the evidence for the figure the trim entry above cites (`SESSION_NOTES.md` 22,645 B), which the trim commit itself could not contain.
 - **Commit/PR:** this entry's own commit

@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S276
+date: 2026-09-21
+status: pending
+active_task: the list-item / backtick-info fence defect -- BACKLOG "A bare fence inside a list item, and a backtick fence whose info string holds a backtick, are fences to this model and not to pandoc" (deletion direction, PRE-EXISTING, reach not yet measured). Operator picked it at Phase 0.
+```
+
+```handoff
 session: S275
 date: 2026-09-20
 status: complete

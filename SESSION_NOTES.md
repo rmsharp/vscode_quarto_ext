@@ -8,30 +8,16 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 275 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S275 did:** CLOSED **R6** — in a knitr document a stray bare ``` above a chunk that emits NO
-fence stays unclosed, because knitr swaps the chunk for its output before pandoc runs; the model
-paired the stray fence with that chunk's closer and deleted the heading between.
-**Score 2422 → 2423 of 2438. Over all 3,383 documents: 2 changed (2519 +1, 2900 +5), 0 lost.**
-⚠ **The score now has NO fixable divergence left.** Its 15 divergent ordinals are set-identical to
-R2 ∪ R3 ∪ R7 (decided) ∪ R8 (not modelable), so the eight-root-cause item is COMPLETE and removed.
-Commits: `242e4f1f` claim · `b1f054ac` first cut · `d5997bf4` narrowed rule · `5de058d9` real-host
-row · `2f63dfa0` records.
-
-**⚠ THE FIRST CUT (`b1f054ac`) DELETED HEADINGS, AND ONLY AN ADVERSARIAL PASS FOUND IT.** It moved 2
-corpus documents, both gaining, and passed TDD + 3 mutants. A 31-agent refutation workflow then
-found TEN measured shapes where it deleted a heading quarto renders — `{dot|mermaid, echo=FALSE}`,
-`echo=FALSE` inside an R call, five `#|` spellings, a no-break space — all at ZERO corpus reach
-(#581). `d5997bf4` trusts only measured shapes; everything else keeps HEAD's pairing (#582).
-
-**⚠ Ground truth was measured under REAL execution first.** 2519 as it sits on disk does not render
-with execution (a data file is missing, exit 1); a what-if copy renders exit 0 with the heading.
-
-**Filed this session:** *"R6 residuals …"* (seven classes left at HEAD's answer, incl. that ONLY
-the engine-aware Outline sees the change — Run Cell, diagnostics and `refs.ts` pass no engine),
-*"A bare fence inside a list item, and a backtick fence whose info string holds a backtick …"*
-(PRE-EXISTING, deletion direction), and the F7 by-catch carried out of the removed item.
+### What Session 276 Did
+**Deliverable:** the list-item / backtick-info fence defect (IN PROGRESS) — BACKLOG *"A bare fence
+inside a list item, and a backtick fence whose info string holds a backtick, are fences to this
+model and not to pandoc"*. Deletion direction, PRE-EXISTING, corpus reach NOT yet measured.
+**Plan:** measure reach over the corpus + ground truth with `quarto render` FIRST; then strict TDD;
+adversarial deletion hunt BEFORE the fix commit (#581); realdoc score after (CLAUDE.md).
+**Started:** 2026-09-21
+**Status:** Session claimed. Work beginning. Operator picked it at Phase 0 (recommended option).
+**Ledger:** `CHANGELOG: pending` — the claim commit's `CHANGELOG.md` entry says (in progress);
+Phase 3F records the rest. Until close-out, this line is the crash breadcrumb.
 
 **⚠ Gates:** `python3 quality_ratchet.py --run` at close-out; cite the head the RESULTS FILE records.
 **⚠ No ledger hook is installed** (`git config core.hooksPath` is empty) — read `git show --stat
