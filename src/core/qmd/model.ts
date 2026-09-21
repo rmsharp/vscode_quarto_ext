@@ -6113,7 +6113,17 @@ interface Regions {
  * `text` (no external state, time, or randomness), so equal text ⇒ equal regions;
  * the key comparison is a value comparison (JS `===` on strings).
  */
-let regionsCache: { text: string; engine: EngineHint; regions: Regions } | null = null;
+type RegionsCacheEntry = { text: string; engine: EngineHint; regions: Regions };
+/**
+ * ⚠ TWO entries, not one, since Session 273 made the regions depend on `text` AND `engine`.
+ * One document is routinely asked for under both keys in the same edit cycle: the Outline
+ * adapter knows the engine and passes it, while `findAllCells` / `inFrontMatter` /
+ * `findCellAtPosition` and the completion path are engine-blind and pass nothing. With a
+ * single slot those two callers evict each other on every call — measured on the candidate
+ * before this change, 10 extra full rescans over 5 alternating passes. Two slots, LRU by
+ * construction (a hit promotes, a miss shifts the older out), makes the steady state zero.
+ */
+let regionsCache: [RegionsCacheEntry?, RegionsCacheEntry?] = [];
 
 /**
  * The parsed regions of `text`, served from the single-entry cache on a repeat
@@ -6128,11 +6138,16 @@ let regionsCache: { text: string; engine: EngineHint; regions: Regions } | null 
  * element's fields (`cell.code`, `heading.text`, …) — no consumer does.
  */
 function scanRegions(text: string, engine: EngineHint = undefined): Regions {
-  if (regionsCache !== null && regionsCache.text === text && regionsCache.engine === engine) {
-    return regionsCache.regions;
+  const hitAt = regionsCache.findIndex(
+    (e) => e !== undefined && e.text === text && e.engine === engine,
+  );
+  if (hitAt >= 0) {
+    const hit = regionsCache[hitAt] as RegionsCacheEntry;
+    if (hitAt !== 0) regionsCache = [hit, regionsCache[0]];
+    return hit.regions;
   }
   const regions = computeRegions(text, engine);
-  regionsCache = { text, engine, regions };
+  regionsCache = [{ text, engine, regions }, regionsCache[0]];
   return regions;
 }
 
@@ -9493,9 +9508,9 @@ export function findCellAtPosition(text: string, line: number): Cell | null {
  * precede the first heading). A heading's range spans its whole section — up to
  * the line before the next heading of equal-or-higher level, or end of document.
  */
-export function buildOutline(text: string): OutlineSymbol[] {
+export function buildOutline(text: string, engine: EngineHint = undefined): OutlineSymbol[] {
   const lastLine = Math.max(0, text.split(/\r?\n/).length - 1);
-  const { headings, cells } = scanRegions(text);
+  const { headings, cells } = scanRegions(text, engine);
   const sectionEnds = headings.map((_, k) => sectionEndOf(headings, k, lastLine));
 
   // One ordered stream of heading and cell events (they never share a line).

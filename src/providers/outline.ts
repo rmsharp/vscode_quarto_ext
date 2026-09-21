@@ -42,6 +42,7 @@
  */
 
 import * as vscode from "vscode";
+import { resolveDocumentEngine } from "../core/document-engine-resolve";
 import { cellLanguageId } from "../core/embedded/lang-map";
 import { buildCellVirtualContent } from "../core/embedded/virtual-doc";
 import { disposeVdocs, ensureVdoc } from "../features/embedded-vdoc";
@@ -100,7 +101,11 @@ class QmdDocumentSymbolProvider implements vscode.DocumentSymbolProvider {
       .getConfiguration("quarto")
       .get<boolean>(SHOW_CELLS_SETTING, true);
     const text = document.getText();
-    const tree = buildOutline(text);
+    // ⚠ The engine is resolved HERE, not in the model (Session 273). `model.ts` is engine-blind
+    // by design and cannot resolve it anyway: the answer can turn on the FILE NAME (an `.Rmd`
+    // is knitr before a byte is read), and importing the resolver there would close a cycle.
+    // Only `"knitr"` changes anything; every other answer reproduces the pre-S273 Outline.
+    const tree = buildOutline(text, resolveDocumentEngine(document.fileName, text));
     const visible = showCells ? tree : hideCellsInOutline(tree);
     return Promise.all(
       visible.map((symbol) => toDocumentSymbol(symbol, document, text)),

@@ -25,6 +25,10 @@ describe("realdoc-score census", () => {
   it("runs findHeadings over every corpus document", async () => {
     const src = need("REALDOC_SRC");
     const mod = await import(resolve(src, "src/core/qmd/model.ts"));
+    // The census must ask the SAME question the product asks (Session 273): the Outline adapter
+    // resolves the engine from the document and passes it, so a census that did not would score
+    // a code path the user never reaches. Resolved from the SAME build as the model under test.
+    const eng = await import(resolve(src, "src/core/document-engine-resolve.ts"));
     const docs: [string, string][] = JSON.parse(readFileSync(need("REALDOC_CORPUS"), "utf8"));
     const rows: string[] = [];
     let threw = 0;
@@ -32,7 +36,7 @@ describe("realdoc-score census", () => {
     for (const [p, text] of docs) {
       let hs: { level: number; text: string }[];
       try {
-        hs = mod.findHeadings(text);
+        hs = mod.findHeadings(text, eng.resolveDocumentEngine(p, text));
       } catch (e) {
         threw++;
         rows.push([p, "THREW", String(e).slice(0, 120)].join("\t"));

@@ -11,6 +11,7 @@
  */
 
 import * as vscode from "vscode";
+import { resolveDocumentEngine } from "../core/document-engine-resolve";
 import { buildOutline } from "../core/qmd/model";
 import {
   flattenOutline,
@@ -45,7 +46,11 @@ class QmdWorkspaceSymbolProvider implements vscode.WorkspaceSymbolProvider {
       // Reuses VS Code's own document cache: an already-open (possibly
       // dirty/unsaved) document is returned as-is, not re-read from disk.
       const document = await vscode.workspace.openTextDocument(uri);
-      for (const symbol of flattenOutline(buildOutline(document.getText()))) {
+      const docText = document.getText();
+      // The engine is resolved from the document the adapter already holds — see `outline.ts`.
+      for (const symbol of flattenOutline(
+        buildOutline(docText, resolveDocumentEngine(document.fileName, docText)),
+      )) {
         if (!matchesWorkspaceQuery(symbol.name, query)) continue;
         results.push(
           new vscode.SymbolInformation(
