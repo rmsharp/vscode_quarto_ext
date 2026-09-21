@@ -2215,6 +2215,65 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
     );
   });
 
+  it("R5: a knitr chunk knitr claims PAIRS, so the heading below it reaches the outline (Session 273)", async () => {
+    // ⚠ THE RUNTIME PROOF THAT THE ENGINE ACTUALLY REACHES THE MODEL IN THE REAL HOST.
+    // The unit suite proves `findHeadings(text, "knitr")` is right; it cannot prove that
+    // `outline.ts` resolves the engine and passes it. Only this can, and without it the
+    // session would be verifying "no regression" rather than "the change is active" --
+    // SESSION_RUNNER failure mode #24. The engine is resolved from the TEXT here (the `{r}`
+    // chunk drives the language scan), so an untitled in-memory document reaches it: measured
+    // headlessly before this run, `resolveDocumentEngine` answers "knitr" for the bytes below
+    // under "Untitled-1", "/tmp/Untitled-1" and "doc.qmd" alike.
+    //
+    // ⚠ Uses `openInMemory`, which scopes these documents so no exact-set
+    // exact-set pin can be extended by them, and touches no fixture. Counted BEFORE this test
+    // was written, not after it failed, and re-counted after: **24** exact-set assertions and
+    // **1** fixture use on CODE lines, both unchanged by it. ⚠ Count code lines, not raw grep
+    // hits -- this comment names those identifiers and so inflates a bare grep by 3.
+    //
+    // Both premises were measured with a real executing `quarto render` this session
+    // (quarto 1.7.33, knitr 1.51, R 4.6.1) on these bytes saved as `.Rmd`, exit 0 each, and
+    // the PRESENT half was additionally OBSERVED in Posit's own Outline
+    // (`npm run observe:posit`, probe `r01_r5_rmd`).
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (tag: string) =>
+      flatten(
+        await symbolsForDoc(
+          await openInMemory(
+            [
+              "---", "title: Doc", "---", "",
+              "```{r}", "x <- 1", "```", "",
+              "```{" + tag + "}", "int alpha;", "", "int bravo;", "```", "",
+              "#### Alpha After Chunk", "", "Prose.", "", "```", "plain", "```", "",
+            ].join("\n"),
+          ),
+        ),
+      );
+
+    // PRESENT -- the section this item was filed for. knitr claims `{cpp11, eval = FALSE}` and
+    // rewrites it to ```{.cpp11 .cell-code} before pandoc sees it, so the fence pairs and the
+    // heading survives: `quarto render` gives <h4> count 1, and Posit lists it. Before this
+    // session the outline DELETED it -- the closer opened a runaway plain fence.
+    const claimed = await namesFor("cpp11, eval = FALSE");
+    assert.ok(
+      claimed.includes("Alpha After Chunk"),
+      `a knitr-claimed chunk must pair so the heading below reaches the outline: ${claimed.join(", ")}`,
+    );
+
+    // ABSENT -- the bounding half, and the reason the gate is not simply knitr's own grammar.
+    // knitr claims `{2x, …}` too, but its rewrite target is a pandoc CLASS and pandoc refuses
+    // one that does not begin with a letter, so the runaway happens anyway one stage later:
+    // `quarto render` gives <h4> count 0. Widening here would invent a section quarto does not
+    // render. (Posit DOES show this heading -- the undecided quarto/Posit question recorded as
+    // open RECORD bullet (6) in `BACKLOG.md`; this row follows `quarto render`, as HEAD did.)
+    const refused = await namesFor("2x, eval = FALSE");
+    assert.ok(
+      !refused.includes("Alpha After Chunk"),
+      `a digit-led engine name is refused by pandoc's class grammar, so no section: ${refused.join(", ")}`,
+    );
+  });
+
   it("a mid-document YAML block's `from:` reaches the outline (Session 211)", async () => {
     // ⚠ THIS TEST DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd`.
     // Sessions 196 and 197 each lost a full screen-taking Extension Development Host run by
