@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [BL-RECORD — five DECIDED questions about what the Outline shows, plus ONE now measured and still OPEN, so a future session does not re-derive them] Session 274 claimed — RECORD bullet (6) becomes a decision, on upstream evidence found at Phase 0
+- **Change:** `SESSION_NOTES.md` ACTIVE TASK rewritten as the Session 274 claim stub; `HANDOFFS.md` opens a `status: pending` receipt. Work in progress — Phase 3F records the outcome.
+- **Commit/PR:** this entry's own commit
+- **Session:** S274 · **Verified:** Phase 0 reconciled clean — `CHANGELOG.md` frontier `dcac6b2a` WAS HEAD (0 undocumented commits), newest receipt S273 `status: complete`, and its `quality_ratchet` citation checked against `.quality-gates-results.json` (manifest `8845021a4049`, head `089aa978`, 2/2 pass — matching). Build measured green before anything: `npm run compile` exit 0; `npm test` **66 files / 2971 passed**; `check-backlog` OK, **209 open items** — all three identical to the S273 receipt. ⚠ **The answer to "is this filed anywhere?" is NO, measured:** `gh issue list --state all` on `rmsharp/vscode_quarto_ext` → **zero issues** (issues ARE enabled; this project has never used them). Upstream: 29 searches on `quarto-dev/quarto-cli`, 38 on `quarto-dev/quarto` plus the archived `quarto-vscode`, complete label sweeps of `code-blocks` and `ast`, Discussions and the open web — **seven candidates, all seven refuted** by an adversarial pass; the one agent that died on an API error was replaced by hand (`quarto-dev/quarto#488` — no symbols for `.Rmd` at all, unrelated). ⚠ **And the S273 record was re-measured rather than quoted, because a search agent contradicted it:** the EXACT harness bytes, extracted from the compiled `out/test/posit/runTest.js` rather than retyped, rendered through quarto 1.7.33 give r02 `<h4>`=0, r03=0, r05=0, r01=1, r06=1 — the S273 figures exactly, digit-led probe included.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S269 evaluation + S270 self-assessment)
 - **Change:** `SESSION_NOTES.md` — the Session 269 handoff evaluation and the Session 270 self-assessment removed, so the live file holds the steady-state THREE pairs (`CLAUDE.md` §SESSION_NOTES.md retention). **6,297 B removed; 335 lines, 26,015 B remain** (measured after the write, not before — Learning #552).
 - **Commit/PR:** this entry's own commit

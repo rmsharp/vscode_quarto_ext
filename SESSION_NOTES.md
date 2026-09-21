@@ -8,49 +8,45 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 273 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S273 did:** took **(e) R5** and FIXED it. The model now knows the document ENGINE. In a
-knitr document a fence matching knitr's chunk grammar ∩ pandoc's class grammar PAIRS, because
-knitr consumes the chunk before pandoc ever sees the bytes `CELL_INFO` is judging.
-**Measured, not quoted:** `tools/realdoc-score/run.sh s273-close` = **2,422 / 2,438 (99.34%),
-divergent 16**, up from 2,421 / 17. Document-by-document over all 3,383: **1 changed, 1 heading
-GAINED, 0 LOST.** The control — the engine-aware census run against the PRE-FIX `src/` — scores the
-exact baseline, so the +1 is the model and not the harness.
-**Confirmed against BOTH oracles:** `quarto render` renders the heading AND Posit's Outline shows
-it, while HEAD deleted it. R5 was a defect against both, not a quarto/Posit decision.
-Commits: `0c6bd30e` claim · `1adec921` the core fix + 8 unit tests · `63fb1832` the wiring ·
-`0c34bfc3` the observation + records · `089aa978` the adapter-level runtime proof.
+### What Session 274 Did
+**Deliverable:** Close open RECORD bullet (6) as a recorded DECISION — keep following
+`quarto render`; do NOT mirror Posit's engine-blind fence pairing. (IN PROGRESS)
+**Started:** 2026-09-20
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` — the claim commit's `CHANGELOG.md` entry says (in progress);
+Phase 3F records the rest. Until close-out this line is the crash breadcrumb for the next
+session's reconcile.
 
-**⚠ THE NEXT SESSION'S BIGGEST ITEM IS A DECISION THE OPERATOR OWES, NOT A DEFECT.** The
-observation found the first MEASURED quarto/Posit disagreement nobody has ruled on: where a fence's
-info string is refused by both quarto's cell recognizer and pandoc's attribute parser, `quarto
-render` swallows the heading and **Posit's Outline shows it**. This model follows quarto, so the
-product does NOT mirror Posit here — the opposite of decisions (1)–(5). Filed as **open RECORD
-bullet (6)** with its three probes; pinned by three now-honestly-commented rows in the R5 suite.
-**⚠ PRE-EXISTING** — S273 moved the knitr arm only, where the two oracles agree.
+**⚠ THE NEW EVIDENCE THAT MAKES (6) DECIDABLE — it is UPSTREAM, and it is not a bundle grep.**
+`quarto-dev/quarto#829` ("Outline includes headers in divs", OPEN, filed 2025-09-26 by
+**vezwork — the Quarto VS Code extension maintainer**): *"it does seem that the outline should
+match the TOC that ends up in the rendered document."* `cscheid` (quarto-cli) replies that
+quarto-cli should own outline generation for clients; vezwork answers "yes please."
+**So Posit's own maintainers hold that the Outline should follow the RENDER.** That makes the
+Posit behaviour in (6) an acknowledged open defect on their side, not a design choice — and this
+model already follows quarto there. Read firsthand, `gh issue view 829 --repo quarto-dev/quarto`.
 
-**⚠ Two things the inherited records stated WRONG, both corrected in code and in `BACKLOG.md`.**
-(1) R5's trigger is NOT "a digit-bearing engine with spaced options": `{glue_sql, connection = con}`
-has no digit and fires, `{cpp11,eval=FALSE}` has a digit and does not. (2) EVERY stated line number
-was stale — `model.ts` is 10,003 lines and `:6024` lands on `endLine: number;`.
-**⚠ The obvious predicate is WRONG and the docstring says why.** knitr's own class is
-`[a-zA-Z0-9_]+`, but its rewrite target is a pandoc CLASS and pandoc refuses one that does not begin
-with a letter — so a digit-led name runs away anyway, one stage later, and HEAD was already right.
-Shipping knitr's grammar verbatim manufactures **5 phantoms**. The predicate is
-`[A-Za-z][A-Za-z0-9_]*`. **Do NOT "simplify" it back** (#572).
+**⚠ NOTHING IS FILED UPSTREAM for our shape, and nothing is filed HERE.** `gh issue list --state
+all` on `rmsharp/vscode_quarto_ext` returns ZERO issues (issues ARE enabled; this project has
+never used them — `BACKLOG.md` is the tracker). Upstream: 29 searches on `quarto-cli`, 38 on
+`quarto`, label sweeps of `code-blocks` and `ast`, Discussions, and the web. Seven candidates,
+**all seven refuted** by an adversarial pass. Adjacent and worth citing: `quarto-cli#14182`
+(maintainer-filed, OPEN — attribute order should not decide cell-ness).
 
-**Recommended next pick: (f) R6** — now the LAST fixable divergence the score can see (ordinal 2519,
-1 document, 1 heading). ⚠ Its ground truth was NEVER measured under real chunk execution
-(`docs/REAL-DOCUMENT-RESCORE.md:356` — every re-score render used `--no-execute`), and R is
-installed, so measure it first. ⚠ It may NOT share R5's mechanism: S273 measured that ordinal 2519
-holds no fence of the R5 shape at all. Or the NEW tilde item, where both oracles show a heading this
-model hides — a plain DEFECT, filed with its observation.
+**⚠ AN AGENT CONTRADICTED THE S273 RECORD AND WAS WRONG. I MEASURED IT.** It claimed the
+digit-led probe does not swallow, and that the lever is the blank line. Re-rendered the EXACT
+harness bytes (extracted from `out/test/posit/runTest.js`, not retyped), quarto 1.7.33:
+r02 h4=0, r03 h4=0, r05 h4=0, r01 h4=1, r06 h4=1 — **the S273 record reproduces exactly.**
+2x2 on r03: the lever is the TRAILING BARE FENCE, not the blank line (with it h4=0 both ways;
+without it h4=1 both ways). Raw HTML shows `#### Charlie After Chunk` INSIDE `<pre><code>`, and
+`{.2x .cell-code}` proves knitr claimed it and pandoc refused the class. The agent's probe had no
+trailing fence — **the exact error S273 filed as Learning #573**, committed by an agent that had it.
 
 **⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
 records. One `CHANGELOG.md` entry per commit. **⚠ Write a number only after measuring it** (#552).
-**⚠ `$?` after a pipe is not a measurement** (#567) — tripped once at Phase 0.
-**⚠ `cd` moves the session cwd** (#535). **⚠ Never `git add -A`** — `scratchpad/` is untracked.
+**⚠ `$?` after a pipe is not a measurement** (#567). **⚠ `cd` moves the session cwd** (#535).
+**⚠ Never `git add -A`** — `scratchpad/` is untracked. **⚠ Never `grep -r` from the repo root** —
+`scratchpad/` is ~85,000 files; use `git grep`.
 ---
 
 ## Session 272 Handoff Evaluation (by Session 273)
