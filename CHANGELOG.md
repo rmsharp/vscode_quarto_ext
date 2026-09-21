@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] The post-trim budget measurement row backing the entry above
+- **Change:** `.context-budget-history.jsonl` — the one row `python3 context_budget.py` appended when it was run against the committed trim. It is the evidence for the figure the trim entry above cites (`SESSION_NOTES.md` 22,645 B), which the trim commit itself could not contain.
+- **Commit/PR:** this entry's own commit
+- **Session:** S275 · **Verified:** the appended row reads `"SESSION_NOTES.md": 22645`, matching the trim entry exactly; `context_budget.py` → `SESSION_NOTES.md` **ok** (22,645 / 120,000 B). A row the same checker had appended earlier against an intermediate, never-committed version of the file (22,646 B) was discarded uncommitted rather than recorded.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S271 evaluation + S272 self-assessment)
 - **Change:** `SESSION_NOTES.md` — the Session 271 handoff evaluation and the Session 272 self-assessment removed, so the live file holds the steady-state THREE pairs (`CLAUDE.md` §SESSION_NOTES.md retention). **7,172 B removed; 298 lines, 22,645 B remain** (measured after the write).
 - **Commit/PR:** this entry's own commit
