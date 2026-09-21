@@ -5919,9 +5919,16 @@ const KNITR_CHUNK_INFO = /^\{[A-Za-z][A-Za-z0-9_]*( *[ ,][\s\S]*)?\}$/;
 /**
  * knitr's own chunk delimiters, `knitr::all_patterns[["md"]]` (knitr 1.51) — the pre-pass below
  * reads the document as knitr does, which is BLIND to pandoc fences (Session 275).
+ *
+ * ⚠ Two deliberate departures from the transcription, neither changing what matches in knitr's
+ * terms. `\s` is spelled `[ \t\r\f\v]` because knitr's is ASCII and JavaScript's also takes
+ * U+00A0, U+FEFF and U+202F — measured, a header line ending in a no-break space is no chunk to
+ * knitr. And knitr's ` *[ ,].*` is spelled `[ ,].*`, which matches the same strings (any tail
+ * starting with a space or a comma) without the backtracking that made a long run of spaces
+ * quadratic here.
  */
-const KNITR_CHUNK_BEGIN = /^([\t >]*)(`{3,})\s*(\{[a-zA-Z0-9_]+(?: *[ ,].*)?\})\s*$/;
-const KNITR_CHUNK_END = /^([\t >]*)(`{3,})\s*$/;
+const KNITR_CHUNK_BEGIN = /^([\t >]*)(`{3,})[ \t\r\f\v]*(\{[a-zA-Z0-9_]+(?:[ ,].*)?\})[ \t\r\f\v]*$/;
+const KNITR_CHUNK_END = /^([\t >]*)(`{3,})[ \t\r\f\v]*$/;
 /**
  * The closing lines of the knitr chunks that emit NO fence at all, each mapped to its chunk's
  * opening line (Session 275, R6) — empty unless every chunk in the document is well formed.
@@ -5931,17 +5938,26 @@ const KNITR_CHUNK_END = /^([\t >]*)(`{3,})\s*$/;
  * its closer never reaches pandoc: a stray bare ``` ABOVE the chunk, which knitr leaves verbatim,
  * finds nothing to pair with and pandoc renders it as `<p>```</p>` with the heading below intact.
  * Measured, `quarto render` exit 0 with real execution and `--no-execute`; the `keep-md`
- * intermediate holds `::: {.cell}` / an image / `:::` and no backtick line below the stray fence.
+ * intermediate holds `::: {.cell}` / an image / `:::` (an empty cell with `--no-execute`) and no
+ * backtick line below the stray fence.
  *
  * ⚠ **SILENCE MUST BE POSITIVELY ESTABLISHED, because a WRONG "silent" deletes headings.** A
  * stray fence that skips a chunk pairs with the next closer below instead — so a chunk read as
- * silent that really echoes moves the stray fence's closer DOWN and swallows every heading in
- * between. Anything this cannot read with certainty keeps HEAD's pairing: the whole document
- * does, when knitr's own pairing is irregular — a nested opener, a closer whose prefix or run
- * length differs from its opener's, an unclosed chunk. Measured there, the answer turns on more
- * than this pre-pass models: a closer of the wrong length ABORTS the render with real execution,
- * an unclosed opener is deleted by quarto before knitr runs, and knitr pairs a chunk that starts
- * on line 1 more loosely than any other.
+ * silent that really emits a fence moves the stray fence's closer DOWN and swallows every heading
+ * in between. The first cut of this rule did exactly that on ten measured shapes, found by an
+ * adversarial pass (Session 275): see `knitrChunkIsSilent` for what is trusted now.
+ *
+ * Anything this cannot read with certainty keeps HEAD's pairing, and the WHOLE document does when
+ * knitr's pairing is irregular — a nested opener, a closer whose prefix or run length differs
+ * from its opener's, an unclosed chunk. That is a deliberate fallback, not a match with quarto:
+ * the real answer there turns on more than this pre-pass models. knitr looks PAST a closer of the
+ * wrong length for one that matches, but pairs a chunk that starts on line 1 more loosely than any
+ * other; quarto deletes an unclosed opener before knitr runs, and a stray fence above it can
+ * switch that repair off (measured both ways). (A wrong-length line inside a chunk can also abort a real render — that is R
+ * failing to parse the line as code, not knitr's pairing.)
+ *
+ * ⚠ **Performance:** the closer search jumps to each chunk's end and every early exit returns, so
+ * the pass is linear in the document.
  */
 function knitrSilentChunkClosers(lines: readonly string[]): Map<number, number> {
   const silent = new Map<number, number>();
@@ -5985,45 +6001,100 @@ function knitrSilentChunkClosers(lines: readonly string[]): Map<number, number> 
  * overrides the chunk header (measured: header `echo=FALSE` + `#| echo: true` echoes).
  */
 function knitrChunkIsSilent(header: string, body: readonly string[]): boolean {
-  // A quoted R string is a VALUE — `fig.cap="a, echo=FALSE"` sets no echo — so it is blanked
-  // before any option is read.
-  const options = header.slice(1, -1).replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
-  return (["echo", "include"] as const).some((name) => knitrOptionResolvesFalse(name, options, body));
+  // ⚠ ONLY knitr's R engine. quarto re-emits a `dot`, `mermaid` or `ojs` chunk as its own fenced
+  // block whatever `echo` says, and an `engine=` option moves an `{r}` chunk onto such an engine —
+  // measured, each renders the heading below it that a "silent" reading deletes.
+  const engine = /^\{([a-zA-Z0-9_]+)/.exec(header);
+  if (engine === null || (engine[1] !== "r" && engine[1] !== "R")) {
+    return false;
+  }
+  const options = knitrHeaderOptions(header.slice(engine[0].length, -1));
+  const pipe = knitrPipeOptions(body);
+  if (options === null || pipe === null || options.has("engine") || pipe.has("engine")) {
+    return false;
+  }
+  return (["echo", "include"] as const).some((name) => knitrOptionResolvesFalse(name, options, pipe));
 }
-const KNITR_PIPE_OPTION_LINE = /^#\| (.*)$/;
-const KNITR_PIPE_OPTION = {
-  echo: /^\s*echo\s*:\s*(.*?)\s*(?:#.*)?$/,
-  include: /^\s*include\s*:\s*(.*?)\s*(?:#.*)?$/,
-};
-const KNITR_HEADER_OPTION = {
-  echo: /(?:^|[\s,])echo\s*=\s*([^,]*)/g,
-  include: /(?:^|[\s,])include\s*=\s*([^,]*)/g,
-};
+/**
+ * The chunk header's options as a FLAT `name = value` list — the LAST assignment of a name wins —
+ * or `null` when the header is anything this cannot read with certainty.
+ *
+ * knitr parses the header as R arguments, so `fig.cap=c("a", echo=FALSE)` passes `echo` to `c()`
+ * and sets no chunk option (measured, the chunk echoes). Rather than parse R, a header holding a
+ * bracket, a backslash, a backtick or a stray quote is not read at all; quoted strings are
+ * blanked first, since `fig.cap="a, echo=FALSE"` is a value too.
+ */
+function knitrHeaderOptions(tail: string): Map<string, string> | null {
+  const flat = tail.replace(/"[^"\\]*"|'[^'\\]*'/g, '""');
+  if (/["'\\()[\]{}`]/.test(flat.replace(/""/g, ""))) {
+    return null;
+  }
+  const options = new Map<string, string>();
+  const segments = flat.split(",");
+  for (let k = 0; k < segments.length; k++) {
+    const segment = segments[k].trim();
+    const assignment = /^([A-Za-z.][A-Za-z0-9._]*)\s*=\s*(\S(?:.*\S)?)$/.exec(segment);
+    if (assignment !== null) {
+      options.set(assignment[1], assignment[2]);
+    } else if (!(k === 0 && /^[^\s=]*$/.test(segment))) {
+      return null;
+    }
+  }
+  return options;
+}
+/**
+ * The chunk's LEADING `#|` options, or `null` when any line of that run is not in the plain
+ * `#| key: value` shape. knitr reads a `#|` block as YAML only in that shape and as something
+ * else otherwise — measured, each of these ECHOES: `#| echo:false` (knitr takes it as a label),
+ * `#|  echo: false`, R syntax `#| echo=TRUE`, an `echo: false` nested in a block scalar, and
+ * `#| echo: false#hide` (one YAML string). A repeated key makes quarto exit 1.
+ */
+function knitrPipeOptions(body: readonly string[]): Map<string, string> | null {
+  const options = new Map<string, string>();
+  for (const line of body) {
+    if (!line.startsWith("#|")) {
+      break;
+    }
+    const m = /^#\| ([A-Za-z][A-Za-z0-9_.-]*): (.*)$/.exec(line);
+    if (m === null || options.has(m[1])) {
+      return null;
+    }
+    // YAML's own comment rule: a `#` opens a comment only after whitespace, so `false # hide`
+    // is `false` while `false#hide` is one string (both measured). ⚠ Found and trimmed by hand:
+    // a regex anchored at `$` after a run of spaces backtracks quadratically on a long run.
+    const comment = m[2].search(/[ \t]#/);
+    let value = comment < 0 ? m[2] : m[2].slice(0, comment);
+    let end = value.length;
+    while (end > 0 && (value[end - 1] === " " || value[end - 1] === "\t")) {
+      end--;
+    }
+    value = value.slice(0, end);
+    const plain = /^[^\s\-?:,[\]{}#&*!|>'"%@`][^#]*$/.test(value) && !value.includes(": ");
+    const quoted = /^"[^"\\]*"$|^'[^']*'$/.test(value);
+    if (!plain && !quoted) {
+      return null;
+    }
+    options.set(m[1], value);
+  }
+  return options;
+}
 /**
  * `true` only when the option is KNOWN to resolve to false — anything unread is not silence. A
- * leading `#| ` line wins (a YAML false, a trailing comment allowed); otherwise the header's LAST
- * assignment does (R's `FALSE` or `F`). An expression such as `!TRUE` is unread, so it echoes.
+ * leading `#|` option wins (the YAML falses measured: `false`, `FALSE`, `no`); otherwise the
+ * header's value does (R's `FALSE` or `F`). An expression such as `!TRUE` is unread, so the chunk
+ * counts as echoing.
  */
 function knitrOptionResolvesFalse(
   name: "echo" | "include",
-  options: string,
-  body: readonly string[],
+  header: ReadonlyMap<string, string>,
+  pipe: ReadonlyMap<string, string>,
 ): boolean {
-  for (const line of body) {
-    const m = KNITR_PIPE_OPTION_LINE.exec(line);
-    if (m === null) {
-      break;
-    }
-    const option = KNITR_PIPE_OPTION[name].exec(m[1]);
-    if (option !== null) {
-      return /^(?:false|False|FALSE|no|No|NO)$/.test(option[1]);
-    }
+  const piped = pipe.get(name);
+  if (piped !== undefined) {
+    return piped === "false" || piped === "FALSE" || piped === "no";
   }
-  let last: string | undefined;
-  for (const m of options.matchAll(KNITR_HEADER_OPTION[name])) {
-    last = m[1].trim();
-  }
-  return last === "FALSE" || last === "F";
+  const value = header.get(name);
+  return value === "FALSE" || value === "F";
 }
 /**
  * An inline code span — a run of N backticks closed by the next run of exactly
@@ -6286,6 +6357,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   const knitrSilentOpeners = new Set(knitrSilent.values());
   const closerIndexPastKnitr =
     knitrSilent.size > 0 ? buildCloserIndex(lines, knitrSilent) : closerIndex;
+  // The openers that were allowed to run past a silent closer — only these skip one in-region.
+  const knitrPastOpeners = new Set<number>();
   const quoteEnds = blockQuoteEndIndex(lines);
   const quoteAlreadyOpen = blockQuoteAlreadyOpen(lines);
   const headings: Heading[] = [];
@@ -6986,7 +7059,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     if (open !== null) {
       // ⚠ A silent knitr chunk's closer closes only that chunk — pandoc never sees it, so a
       // region opened ABOVE the chunk runs on past it (Session 275; `knitrSilentChunkClosers`).
-      const knitrConsumed = knitrSilent.has(i) && knitrSilent.get(i) !== open.startLine;
+      const knitrConsumed = knitrSilent.has(i) && knitrPastOpeners.has(open.startLine);
       if (!knitrConsumed && isCloser(line, open)) {
         if (open.isCell) {
           cells.push(makeCell(open, i, lines, true));
@@ -7369,15 +7442,28 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           consumedFenceClosers.add(consumed);
         }
       }
+      // ⚠ Withholding a closer makes a fence run FURTHER, so only the fence R6 is about may run
+      // past one: a top-level, unquoted opener that pandoc also opens. A bare fence inside a list
+      // item and a backtick fence with a backtick in its info string are fences to this model
+      // and not to pandoc (a PRE-EXISTING divergence); letting them past carried that runaway on
+      // into the headings below the silent chunk (measured, Session 275).
+      const pastKnitr =
+        !knitrSilentOpeners.has(i) &&
+        contentColumns.length === 0 &&
+        !stripQuote &&
+        !(char === "`" && fence[3].includes("`"));
       if (
         !refused &&
         hasCloserBelow(
-          knitrSilentOpeners.has(i) ? closerIndex : closerIndexPastKnitr,
+          pastKnitr ? closerIndexPastKnitr : closerIndex,
           i + 1,
           candidate,
           stripQuote ? quoteEnds[i] : undefined,
         )
       ) {
+        if (pastKnitr) {
+          knitrPastOpeners.add(i);
+        }
         open = candidate;
         consecutiveBody = 0;
         paragraphOpen = false;

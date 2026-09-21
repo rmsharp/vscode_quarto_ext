@@ -19479,7 +19479,8 @@ describe("R6 — knitr consumes a chunk's closer before pandoc sees it, so a str
   // MEASURED, these exact bytes saved as `.Rmd` (quarto 1.7.33, knitr 1.51): `quarto render --to
   // html` exit 0 with real execution AND with `--no-execute` -- both <h2> present, the stray fence
   // rendered as `<p>```</p>`. The `keep-md` intermediate shows the chunk replaced by `::: {.cell}`
-  // / `::: {.cell-output-display}` / an image, with no backtick line anywhere below the stray fence.
+  // / `::: {.cell-output-display}` / an image with real execution (an empty `::: {.cell}` / `:::`
+  // with `--no-execute`), and no backtick line anywhere below the stray fence in either.
   const r6 = (options: string, body = "plot(pressure)"): string =>
     [
       "prose",
@@ -19561,11 +19562,144 @@ describe("R6 — knitr consumes a chunk's closer before pandoc sees it, so a str
   });
 });
 
+describe("R6 — a chunk is silent only when that is POSITIVELY established (Session 275, adversarial pass)", () => {
+  // ⚠ A chunk read as silent when it is not DELETES headings: the stray fence skips that chunk's
+  // closer and pairs with the next one below. This shape makes the misread visible -- a later
+  // plain block gives the stray fence a closer further down, so a wrong "silent" swallows
+  // "Heading After Chunk" too. MEASURED, every row here as `.Rmd` (quarto 1.7.33, knitr 1.51),
+  // `quarto render --to html` exit 0 with real execution AND `--no-execute`, the two agreeing: a
+  // truly silent chunk renders only "Heading Tail"; a chunk that emits a fence renders
+  // "Heading After Chunk" and "Heading Tail". Each row below was found by the adversarial pass
+  // against the first cut of this rule (commit b1f054ac), which deleted "Heading After Chunk".
+  const r6x = (header: string, body = "plot(pressure)"): string =>
+    [
+      "prose",
+      "",
+      "```",
+      "",
+      "## Heading Under Test",
+      "",
+      "```{" + header + "}",
+      body,
+      "```",
+      "",
+      "## Heading After Chunk",
+      "",
+      "```text",
+      "plain block",
+      "```",
+      "",
+      "## Heading Tail",
+      "",
+      "tail prose",
+      "",
+    ].join("\n");
+  const knitr = (text: string) => findHeadings(text, "knitr").map((h) => h.text);
+  const emits = ["Heading After Chunk", "Heading Tail"];
+
+  // quarto re-emits a `dot`/`mermaid` chunk as its own fenced block whatever `echo` says, and an
+  // `engine=` option moves an `{r}` chunk onto such an engine. Only knitr's R engine is trusted.
+  it("echo=FALSE does not silence an engine that re-emits its own fence", () => {
+    expect(knitr(r6x("dot, echo=FALSE", "digraph { a -> b }"))).toEqual(emits);
+    expect(knitr(r6x("mermaid, echo=FALSE", "graph TD; A-->B"))).toEqual(emits);
+    expect(knitr(r6x('r demo, engine="dot", echo=FALSE', "digraph { a -> b }"))).toEqual(emits);
+  });
+
+  // knitr parses the header as R arguments, so an `echo=FALSE` INSIDE a call is an argument to
+  // that call and sets no chunk option. A header this cannot read flat is not read at all.
+  // ⚠ The `paste(...)` row is the one that needs the bracket test: split on commas, every piece of
+  // it LOOKS like an assignment, so a comma-only reading takes `echo=FALSE` as the chunk's own
+  // (a mutant without the bracket test survived every other row). An R raw string is refused
+  // too. Both measured, exit 0 in both modes, ECHOED.
+  it("an echo=FALSE nested inside an R call in the header does not silence the chunk", () => {
+    expect(knitr(r6x('r demo, fig.cap=c("a", echo=FALSE, "b")'))).toEqual(emits);
+    expect(knitr(r6x('r demo, out.extra=paste("a", echo=FALSE, sep="")'))).toEqual(emits);
+    expect(knitr(r6x('r demo, fig.cap=r"(a", echo=FALSE, "b)"'))).toEqual(emits);
+  });
+
+  // knitr reads a `#|` block as YAML only in its plain shape, and otherwise as something else
+  // entirely -- so each of these ECHOES: no space after the colon (knitr takes the line as a
+  // label), two spaces after `#|`, R syntax overriding the header's echo=FALSE, an `echo: false`
+  // nested in a block scalar, and `false#hide`, which YAML reads as one string.
+  it("a `#|` line that is not in the plain `#| key: value` shape does not silence the chunk", () => {
+    expect(knitr(r6x("r demo", "#| echo:false\nplot(pressure)"))).toEqual(emits);
+    expect(knitr(r6x("r demo", "#|  echo: false\nplot(pressure)"))).toEqual(emits);
+    expect(knitr(r6x("r demo, echo=FALSE", "#| echo=TRUE\nplot(pressure)"))).toEqual(emits);
+    expect(knitr(r6x("r demo", "#| fig-cap: |\n#|   echo: false\nplot(pressure)"))).toEqual(emits);
+    expect(knitr(r6x("r demo", "#| echo: false#hide\nplot(pressure)"))).toEqual(emits);
+  });
+
+  // knitr's `\s` is ASCII; JavaScript's also matches U+00A0. A header line ending in a
+  // NO-BREAK SPACE is no chunk to knitr, so its closer reaches pandoc like any other.
+  it("a chunk header ending in a no-break space is not claimed by knitr, so its closer is kept", () => {
+    const text = r6x("r demo, echo=FALSE").replace("```{r demo, echo=FALSE}", "```{r demo, echo=FALSE}\u00a0");
+    expect(knitr(text)).toEqual(emits);
+  });
+
+  // ⚠ Withholding a closer lets a fence run FURTHER, so it must reach only the fence R6 is about:
+  // a top-level, unquoted opener that pandoc also opens. Both of these are fences to this model
+  // and NOT to pandoc -- a bare fence inside a list item closes nothing outside its item, and a
+  // backtick in a backtick fence's info string is no fence at all -- so quarto renders A, B and
+  // C (measured, exit 0 in both modes, `<p>```</p>` in the raw HTML). HEAD already loses A, a
+  // PRE-EXISTING defect this rule does not touch; what it must not do is carry that runaway past
+  // the silent chunk into B, which the first cut of this rule did.
+  it("a fence pandoc does not open is not carried past a silent chunk's closer", () => {
+    const tail = ["", "## A", "", "```{r quiet, echo=FALSE}", "x <- 1", "```", "", "## B", "", "```text", "plain block", "```", "", "## C", "", "tail", ""];
+    const listItem = ["prose", "", "- item", "  ```", ...tail].join("\n");
+    const backtickInfo = ["prose", "", "```a`b", ...tail].join("\n");
+    expect(knitr(listItem)).toEqual(["B", "C"]);
+    expect(knitr(backtickInfo)).toEqual(["B", "C"]);
+  });
+
+  // GUARDS, added after GREEN and passing on arrival, in the same deletion-visible shape and each
+  // measured the same way. The first row is silent through the SECOND line of a `#|` run -- the
+  // usual Quarto style, which a reader of only the first line misses. The rest are the header
+  // spellings knitr reads as a flat option list.
+  it("GUARD: the silencing spellings a positive reading must keep", () => {
+    const silent = ["Heading Tail"];
+    expect(knitr(r6x("r demo", "#| fig-height: 4\n#| echo: false\nplot(pressure)"))).toEqual(silent);
+    expect(knitr(r6x("r demo", "#| echo: no\nplot(pressure)"))).toEqual(silent);
+    expect(knitr(r6x("r demo, echo=TRUE", "#| include: false\nplot(pressure)"))).toEqual(silent);
+    expect(knitr(r6x("r echo=FALSE"))).toEqual(silent);
+    expect(knitr(r6x("r demo, echo = FALSE"))).toEqual(silent);
+    expect(knitr(r6x("r demo, include=F"))).toEqual(silent);
+    expect(knitr(r6x("r demo, echo=TRUE, echo=FALSE"))).toEqual(silent);
+  });
+
+  // ⚠ Each of these ECHOES, and reading it as silent deletes "Heading After Chunk": a value that
+  // is not literally FALSE or F (`!FALSE`, `1`), and a name that only ENDS in `echo`.
+  it("GUARD: a header value or name that is not exactly echo=FALSE does not silence", () => {
+    expect(knitr(r6x("r demo, echo=!FALSE"))).toEqual(emits);
+    expect(knitr(r6x("r demo, echo=1"))).toEqual(emits);
+    expect(knitr(r6x("r demo, code_echo=FALSE"))).toEqual(emits);
+  });
+
+  // ⚠ IRREGULAR knitr pairing keeps HEAD's answer for the WHOLE document -- a deliberate
+  // fallback, NOT a match with quarto, and these rows pin it as such. Each document discriminates:
+  // without the bail the answer changes. A later chunk UNCLOSED at end of file: quarto deletes
+  // its opener before knitr runs and renders H1 and H2 (measured, exit 0 in both modes), where
+  // HEAD, and so this, loses H1. A later chunk whose closer is LONGER than its opener: knitr
+  // treats it as unclosed and quarto renders only H3 (measured, exit 0 in both modes), where HEAD
+  // keeps a phantom H2. Both are PRE-EXISTING residuals; following knitr exactly here needs
+  // quarto's own opener repair, which a stray fence above can switch off (measured).
+  it("GUARD: an unclosed or mismatched later chunk keeps HEAD's pairing for the whole document", () => {
+    const head = ["prose", "", "```", "", "## H1", "", "```{r a, echo=FALSE}", "plot(pressure)", "```", "", "## H2", "", "```{r b}", "x <- 1"];
+    const unclosed = [...head, ""].join("\n");
+    const mismatched = [...head, "````", "", "## H3", "", "tail", ""].join("\n");
+    const blind = (text: string) => findHeadings(text).map((h) => h.text);
+    expect(knitr(unclosed)).toEqual(blind(unclosed));
+    expect(knitr(unclosed)).toEqual(["H2"]);
+    expect(knitr(mismatched)).toEqual(blind(mismatched));
+    expect(knitr(mismatched)).toEqual(["H2", "H3"]);
+  });
+});
+
 describe("R6 GUARD — what a knitr chunk's options may and may not silence (Session 275)", () => {
   // GUARDS, added after GREEN and passing on arrival -- each pins a shape the R6 rule bounds.
-  // Every expectation is a MEASURED `quarto render` of these exact bytes as `.Rmd` (quarto
-  // 1.7.33, knitr 1.51), exit 0 with real execution AND with `--no-execute`, the two agreeing:
-  // a `plot()` body prints no text, so no output fence can re-close the stray fence.
+  // Unless a row says otherwise, its expectation is a MEASURED `quarto render` of these exact
+  // bytes as `.Rmd` (quarto 1.7.33, knitr 1.51), exit 0 with real execution AND with
+  // `--no-execute`, the two agreeing: a `plot()` body prints no text, so no output fence can
+  // re-close the stray fence. The rows that are NOT a quarto match say so where they stand.
   const r6 = (options: string, body = "plot(pressure)"): string =>
     [
       "prose",
@@ -19619,20 +19753,18 @@ describe("R6 GUARD — what a knitr chunk's options may and may not silence (Ses
     expect(knitr(text)).toEqual(both);
   });
 
-  // ⚠ IRREGULAR knitr pairing keeps HEAD's answer for the WHOLE document, because knitr and
-  // quarto part company there. A nested opener: measured exit 0, only "Heading After Chunk" in
-  // both modes, as HEAD answers. A closer of a different run length inside the chunk: `quarto
-  // render` EXITS 1 with real execution (no ground truth), and with `--no-execute` shows both
-  // headings -- a residual this rule deliberately does not chase.
-  it("a nested opener or a mismatched closer keeps HEAD's pairing for the whole document", () => {
+  // ⚠ A NESTED opener makes the whole document keep HEAD's pairing (a deliberate fallback). Here
+  // it also matches quarto: measured exit 0, only "Heading After Chunk" in both modes. The
+  // unclosed and mismatched-closer fallbacks are pinned with documents that discriminate, in the
+  // "POSITIVELY established" block above.
+  it("a nested opener keeps HEAD's pairing for the whole document", () => {
     const nested = r6("echo=FALSE", "x <- 1\n```{r second}\ny <- 2");
-    const mismatch = r6("echo=FALSE", "x <- 1\n````\ny <- 2");
     expect(knitr(nested)).toEqual(after);
-    expect(knitr(mismatch)).toEqual(findHeadings(mismatch).map((h) => h.text));
   });
 
-  // The rule is knitr's, so it must not leak. The same bytes as a `.qmd` with `engine: markdown`
-  // render exit 0 with only "Heading After Chunk" and a <pre> -- measured.
+  // The rule is knitr's, so it must not leak. These bytes behind an `engine: markdown` front
+  // matter, as `.qmd`, render exit 0 with only "Heading After Chunk" and a <pre> -- measured. (The
+  // bare bytes cannot be rendered under the markdown engine: quarto sends them to knitr.)
   it("the markdown engine, and no engine known, are unchanged from HEAD", () => {
     expect(findHeadings(r6("echo=FALSE"), "markdown").map((h) => h.text)).toEqual(after);
     expect(findHeadings(r6("echo=FALSE")).map((h) => h.text)).toEqual(after);
@@ -19640,7 +19772,8 @@ describe("R6 GUARD — what a knitr chunk's options may and may not silence (Ses
 
   // The Outline now reaches the chunk the stray fence used to swallow, as a cell under the
   // recovered heading -- quarto runs that chunk. ⚠ Only the engine-aware Outline sees it: Run
-  // Cell and diagnostics call the model with no engine and still pair the stray fence (filed).
+  // Cell and diagnostics call the model with no engine and still pair the stray fence (recorded
+  // in `BACKLOG.md`, Session 275).
   it("the Outline lists the silent chunk as a cell under the recovered heading", () => {
     const outline = buildOutline(r6("echo=FALSE"), "knitr");
     expect(outline.map((s) => s.name)).toEqual(both);
