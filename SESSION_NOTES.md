@@ -8,47 +8,23 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 274 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S274 did:** closed **RECORD bullet (6)** as a DECISION — the Outline **follows
-`quarto render`**; we do NOT mirror Posit's engine-blind fence pairing. It is the **one decision of
-the six that does not mirror Posit**, and the reason is evidence, not taste.
-**The deciding evidence is UPSTREAM, PUBLIC, and was not in the repo.**
-[`quarto-dev/quarto#829`](https://github.com/quarto-dev/quarto/issues/829) — OPEN, filed by
-**vezwork, the Quarto VS Code extension maintainer**: *"the outline should match the TOC that ends
-up in the rendered document"*; `cscheid` (quarto-cli) agrees the CLI should own outline generation.
-So Posit's behaviour is an acknowledged **open defect upstream**, not a design choice.
-Commits: `e979bd4f` claim · `ab4f8855` the decision.
+### What Session 275 Did
+**Deliverable:** sub-item **(f) R6** of *"The Outline's last real-document divergences"* in
+`BACKLOG.md` — in a knitr document a stray bare fence pairs, in the model only, with a later
+chunk's closer that knitr already consumed (ordinal 2519, 1 document, 1 heading). (IN PROGRESS)
+**Started:** 2026-09-20
+**Status:** Session claimed. Work beginning. **MEASURE FIRST:** R6's ground truth was never taken
+under real chunk execution (every re-score render used `--no-execute`) and R is installed. Fix
+test-first only if the gap is the model's; otherwise record the measurement and close the item.
+**Ledger:** `CHANGELOG: pending` — the claim commit's `CHANGELOG.md` entry says (in progress);
+Phase 3F records the rest. Until close-out this line is the crash breadcrumb for the next
+session's reconcile.
 
-**⚠ NOTHING IS FILED ANYWHERE, and that is MEASURED, not assumed.** `gh issue list --state all` on
-`rmsharp/vscode_quarto_ext` → **zero** issues, with issues ENABLED: this project has never used
-them, `BACKLOG.md` is the tracker (#580). Upstream: 29 searches on `quarto-cli`, 38 on `quarto`,
-label sweeps, Discussions, the web — seven candidates, **all seven refuted**.
-**⚠ FILING UPSTREAM IS STILL OPEN AND UNASKED-FOR.** This project has never filed upstream; that
-precedent is the operator's to set. A clean duplicate-search does NOT authorize creating one.
-
-**⚠ AN AGENT CONTRADICTED THE S273 RECORD AND WAS WRONG — RE-RUN THE RECORD'S OWN BYTES (#577).**
-It claimed the digit-led probe does not swallow and that the blank line is the lever. Probes
-extracted from the compiled `out/test/posit/runTest.js` (not retyped), quarto 1.7.33: r02 `<h4>`=0,
-r03=0, r05=0, r01=1, r06=1 — **S273's figures exactly**. 2×2 on r03: the lever is the **TRAILING
-BARE FENCE**, not the blank line. Raw HTML puts the heading inside `<pre><code>` and emits
-`{.2x .cell-code}`. The agent's probe had no trailing fence — **the exact error S273 filed as #573**.
-
-**⚠ `CLAUDE.md` §Clean-room boundary CHANGED** — "the product mirrors Posit" now carries a
-**rebuttal clause** (a public upstream maintainer statement, read black-box) and its stale
-two-decision count is corrected to six. Read it before assuming "mirror Posit" is unconditional.
-
-**Recommended next pick: (f) R6** — the LAST fixable divergence the score can see (ordinal 2519,
-1 document, 1 heading). ⚠ Its ground truth was NEVER measured under real chunk execution
-(`docs/REAL-DOCUMENT-RESCORE.md`, the `--no-execute` note) and R IS installed — measure first.
-⚠ It may NOT share R5's mechanism: S273 measured that 2519 holds no fence of the R5 shape.
-Or the tilde item — a plain DEFECT both oracles agree on, zero measured corpus reach.
-
-**⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
-records. One `CHANGELOG.md` entry per commit. **⚠ Write a number only after measuring it** (#552).
-**⚠ `$?` after a pipe is not a measurement** (#567). **⚠ `cd` moves the session cwd** (#535).
-**⚠ Never `git add -A`** AND **never `grep -r` from the repo root** — `scratchpad/` is untracked,
-~85,000 files; use `git grep`. Tripped once this session at Phase 0.
+**Found at Phase 0 and repaired in the claim commit:** S274's claim had inserted its receipt INSIDE
+the `HANDOFFS.md` header sentence (it matched the first `` ```handoff `` in the file, which is prose).
+The sentence is restored byte-identical to its pre-S274 form and the S274 block moved, unedited,
+to the top of the receipts, below this session's pending one.
+**⚠ Never `git add -A`** and **never `grep -r` from the repo root** — `scratchpad/` is untracked.
 ---
 
 ## Session 273 Handoff Evaluation (by Session 274)

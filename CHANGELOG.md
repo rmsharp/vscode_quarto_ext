@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] Session 275 claimed (in progress) — sub-item (f), R6, measured under real chunk execution first
+- **Change:** `SESSION_NOTES.md` ACTIVE TASK rewritten as the Session 275 claim stub; `HANDOFFS.md` opens a `status: pending` receipt. ⚠ **And one repair:** Session 274's claim had inserted its receipt INSIDE the `HANDOFFS.md` header sentence — it matched the first `` ```handoff `` in the file, which is prose — so the sentence *"The record grammar is FENCE-AWARE, so `grep -c …` is not a valid recount"* was split around the block. Restored, and the S274 block moved UNEDITED to the top of the receipts. Work in progress — Phase 3F records the outcome.
+- **Commit/PR:** this entry's own commit
+- **Session:** S275 · **Verified:** Phase 0 reconciled clean — `CHANGELOG.md` frontier `de23dfb5` WAS HEAD (0 undocumented commits); newest receipt S274 `status: complete`, and its `quality_ratchet` citation checked against `.quality-gates-results.json` (results `bba236856bad`, manifest `8845021a4049`, head `ab4f8855`, 2/2 pass — matching). Build measured green before anything: `npm run compile` exit 0; `npm test` **66 files / 2971 passed**; `check-backlog` OK, **209 open items** — all identical to the S274 receipt. The repair is proved, not asserted: the restored header is byte-identical to `git show e979bd4f^:HANDOFFS.md` up to the first receipt, and the S274 block is the exact bytes it held at `de23dfb5` (a script asserted both before writing).
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] The post-trim budget measurement row backing the entry above
 - **Change:** `.context-budget-history.jsonl` — the one row `python3 context_budget.py` appended when it was run to verify the trim. It is the evidence for the numbers the trim entry above cites (`SESSION_NOTES.md` 25,762 B), which the trim commit itself could not contain: the row is written by the run that measures the committed file, so it necessarily lands after it.
 - **Commit/PR:** this entry's own commit
