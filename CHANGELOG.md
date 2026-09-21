@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S270 evaluation + S271 self-assessment)
+- **Change:** `SESSION_NOTES.md` — the Session 270 handoff evaluation and the Session 271 self-assessment removed, so the live file holds the steady-state THREE pairs (`CLAUDE.md` §SESSION_NOTES.md retention). **7,235 B removed; 331 lines, 25,762 B remain** (measured after the write, not before — Learning #552).
+- **Commit/PR:** this entry's own commit
+- **Session:** S274 · **Verified:** a trim commit must contain no other edit to the file being trimmed (upstream BL-36), and this one does not — the retained portion was proved a **BYTE-IDENTICAL PREFIX** of `git show HEAD:SESSION_NOTES.md` **before** the file was written, by an assertion that would have refused the write otherwise. That is the positional proof, not an assertion. The dropped pair is one command away: `git show d952f7ee:SESSION_NOTES.md`. `python3 context_budget.py` → `SESSION_NOTES.md` **ok** (331 / 400 lines, 25,762 / 120,000 B, longest line 205 B of 280) — back under the line ceiling the close-out commit briefly exceeded at 426.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [ad hoc] Session 274 close-out — the handoff receipt, the predecessor evaluation and the self-assessment
 - **Change:** `HANDOFFS.md` S274 receipt completed (`status: pending` → `complete`, `self_score: 8`, `predecessor_score: 9`, all six requirements filled). `SESSION_NOTES.md` ACTIVE TASK rewritten to the closed state, plus the Session 273 handoff evaluation and the Session 274 self-assessment. `PROJECT_LEARNINGS.md` +4 rows (#577 re-run the record's own bytes when an agent contradicts it; #578 a public upstream maintainer statement rebuts a "mirror the other product" default; #579 #576's tell is conditional — an unchanged count is correct for a records-only change; #580 a zero from an issue tracker may mean the tracker is unused). `.context-budget-history.jsonl` carries the rows this session's own tool runs appended.
 - **Commit/PR:** this entry's own commit
