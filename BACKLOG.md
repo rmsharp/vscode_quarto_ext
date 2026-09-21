@@ -25,30 +25,20 @@
 
 *(empty — pick the next item from "Up Next" below.*
 
-***Remaining candidates — Outline (heading) work:** ⚠ Session 273 CLOSED sub-item **(e)**, R5
-(score 2421 → **2422** of 2438; 1 document changed, 1 heading gained, 0 lost), and its observation
-produced two records: **RECORD bullet (6)** — the first MEASURED quarto/Posit disagreement,
-**DECIDED by Session 274** (we follow `quarto render`; Posit's own maintainers hold the Outline
-should match the render, `quarto-dev/quarto#829`) — and a NEW tilde item where BOTH oracles
-show a heading this model hides. ⚠ **`(f)` R6 is now the LAST fixable divergence the score can
-see** (1 document, 1 heading, ordinal 2519); ⚠ its ground truth was never measured under real
-chunk execution (`docs/REAL-DOCUMENT-RESCORE.md:356` — every re-score render used `--no-execute`),
-so measure it before designing. ⚠ Session 272 CLOSED the mid-document-metadata
-item (80 headings recovered, 0 lost) and filed the EMPTY `---` / `---` pair it unmasked in its
-place — 1 occurrence in 1 of 3,383 documents. The item *"The Outline's last real-document
-divergences — eight root causes …"* in "Up Next", filed by the Session 265 re-score
-([`docs/REAL-DOCUMENT-RESCORE.md`](docs/REAL-DOCUMENT-RESCORE.md)): the causes behind the 17
-authored documents whose Outline still differs from quarto (20 at the re-score, before Session 266's
-R1 and Session 269's R4). ⚠ Its **(b)**, R2, is DECIDED (Session 271) and its **(e)**,
-R5, is CLOSED (Session 273), so the remaining sub-items are **(f)** R6 — 1 document, 1 heading,
-knitr chunk-grammar — plus **(h)**, R8, which needs running R. ⚠ Session 271's recommended pick, the
-mid-document-metadata item, is CLOSED by Session 272 and is now decision (5) of the RECORD item.
-Its (d), R4, is CLOSED (Session 269); its **(c), R3, is DECIDED** (Session 270, on a black-box
-observation of Posit's Outline — 3 documents and 8 headings leave the fixable column without the
-score moving); its **(b), R2, is DECIDED** (Session 271, on the same instrument — 2 documents and 8
-phantoms, after measuring that matching quarto instead would delete 90 headings from 32 documents); its (g) and the raw-HTML scope (report F3) are DECIDED — see the RECORD item in
-"Up Next" (Sessions 267 and 270) — and the **fenced-div container** item (report F6) is CLOSED
-(Session 268). The score itself is now a standing, tracked measure:
+***Remaining candidates — Outline (heading) work:** ⚠ **Session 275 CLOSED R6, the last FIXABLE
+divergence the real-document score can see** (score 2422 → **2423** of 2438; over all 3,383
+documents 2 changed — ordinal 2519 +1, 2900 +5 — and 0 headings lost), and with it the whole item
+*"The Outline's last real-document divergences — eight root causes …"* (Session 265 re-score,
+[`docs/REAL-DOCUMENT-RESCORE.md`](docs/REAL-DOCUMENT-RESCORE.md)). All eight root causes are now
+CLOSED (R1, R4, R5, R6), DECIDED (R2, R3, R7 — the RECORD item in "Up Next") or recorded NOT
+MODELABLE (R8, a heading printed by inline R). ⚠ **So each of the 15 documents that still differ is
+decided or unmodelable, and the score can no longer rank the next Outline item** — rank by
+measured witnesses and direction, deletion first. What R6 deliberately left at HEAD's answer is
+filed as *"R6 residuals …"*, and its adversarial pass filed a PRE-EXISTING fence defect (*"A bare
+fence inside a list item, and a backtick fence whose info string holds a backtick …"*). Other open
+Outline items with measured witnesses: the TILDE knitr-header item (both oracles agree against us,
+0 corpus reach), the EMPTY `---` / `---` pair (1 of 3,383), and the attribute-tokenizer plan's P2
+(needs the operator's §12 decisions first). The score is a standing, tracked measure:
 `tools/realdoc-score/run.sh <label>`, ~5 s warm (`CLAUDE.md` §The real-document measure).
 **Other work** (not measured by the re-score): the format-name family's **Combos 2 & 4**, the **cell
 comment-char blindness** (S160's §9 review, a LIVE two-directional defect across 13+ cell languages),
@@ -57,10 +47,12 @@ and the safe **`_metadata.yml` coverage gap** (S152). Operator picks at Phase 0.
 ***⚠ Ranking guidance — Session 265 re-score, superseding Session 251's
 ([`docs/REAL-DOCUMENT-TRIAGE.md`](docs/REAL-DOCUMENT-TRIAGE.md)).** Rank heading items by the
 real-document divergence they are **measured to cause**, not by how many documents contain their
-construct. At HEAD the Outline agrees with quarto on **2,422 of 2,438** scorable authored documents
-(99.34%, measured Session 273; 2,418 at the re-score, before Session 266's R1, Session 269's R4 and
-Session 273's R5), and **no other open item describes the trigger of any of the 16 that differ** (R2's model-side refusal is the `START_CODE` item's documented workaround, but not its
-trigger) — the `:::` div family Session 251 put first was fixed by Sessions 257 and 258. The other heading items
+construct. At HEAD the Outline agrees with quarto on **2,423 of 2,438** scorable authored documents
+(99.38%, measured Session 275; 2,418 at the re-score, before Session 266's R1, Session 269's R4,
+Session 273's R5 and Session 275's R6), and **every one of the 15 that differ is DECIDED (R2, R3,
+R7) or NOT MODELABLE (R8)** — no open item is left for the score to rank (R2's model-side refusal
+is the `START_CODE` item's documented workaround, but not its trigger) — the `:::` div family
+Session 251 put first was fixed by Sessions 257 and 258. The other heading items
 stay correctness work on constructs pandoc supports, measured at zero attributed reach; the 90
 "Enumeration-only" items were already zero. ⚠ 941 documents (28%) have no quarto ground truth, and
 nothing measures the Outline there.*
@@ -81,13 +73,18 @@ file twice. The correction belongs in `PROJECT_LEARNINGS.md`; see #283.)*
 
 ## Up Next
 
-- [ ] **The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item** (Session 265 re-score, [`docs/REAL-DOCUMENT-RESCORE.md`](docs/REAL-DOCUMENT-RESCORE.md) F2, where every minimal reproduction is written out with invented text; **MEASURED** — (a)–(g) each rendered, adversarially re-checked by a second agent and re-run firsthand; (h) found after that, by the corrected instrument, and reproduced firsthand only; "docs" = scorable authored documents at HEAD whose divergence the cause explains). Each sub-item is grabbable alone; ranked by headings affected. The title's counts are the re-score's: (a), R1, is closed (`CHANGELOG.md`, Session 266), (d), R4, is closed (Session 269) and (g), R7, is DECIDED rather than open (Session 267 — see the RECORD item below), (c), R3, is DECIDED rather than open (Session 270 — same RECORD item) and (b), R2, is DECIDED rather than open (Session 271 — same RECORD item), so THREE sub-items remain, (e), (f) and (h), behind 5 of the 17 divergent documents; (h)'s 3 need running R, which leaves 2 fixable. Line numbers below are re-mapped to Session 266's `model.ts`.
-  - **(b) R2 — a `---` pair around a quiet knitr chunk becomes valid YAML — DECIDED, not open (Session 271).** Posit's Outline shows the heading, this model shows the heading, and `quarto render` swallows it; the decision is to keep showing it. The mechanism is confirmed and the COST of matching quarto was measured before the decision: 90 headings across 32 documents, 31 of them documents quarto refuses to render. See decision (4) of the RECORD item below. 2 docs, 8 phantoms, all now decided rather than open.
-  - **(c) R3 — grid-table cells hold blocks — DECIDED, not open (Session 270).** The mechanism is confirmed and WIDER than this line said, and the decision is to mirror Posit and show none of it. See decision (3) of the RECORD item below for the measurement and the observation. 3 docs, 8 lost, all now decided rather than open.
-  - **(e) R5 — knitr's chunk grammar is not quarto's — ✅ CLOSED (Session 273).** The model now knows the document engine: in a knitr document a fence matching knitr's chunk grammar ∩ pandoc's class grammar (`KNITR_CHUNK_INFO`) PAIRS, because knitr consumes the chunk before pandoc sees it. Score 2421 → **2422** of 2438; document-by-document over all 3,383, **1 changed, 1 heading gained, 0 lost**. ⚠ **Its title's trigger was wrong and is corrected in the code:** not "a digit-bearing engine with spaced options" — `{glue_sql, connection = con}` has no digit and fires, `{cpp11,eval=FALSE}` has a digit and does not. ⚠ **Its stated fix sites were all stale**; the real ones are `model.ts` `CELL_INFO`/`KNITR_CHUNK_INFO` and the `refused` computation. Confirmed against BOTH oracles: `quarto render` renders the heading and Posit's Outline shows it (`npm run observe:posit`, probe `r01_r5_rmd`).
-  - **(f) R6 — in a knitr document a stray bare fence pairs, in the model only, with a later chunk's closer that knitr already consumed** (`model.ts:7345`, `:9507`). 1 doc, 1 lost.
-  - **(h) NOT MODELABLE, R8 — inline R prints a heading** (`` `r if (…) '## Printed By R {-}'` ``). 3 docs. Recorded; no fix without running R.
-  - Zero-reach by-catch (report F7): a cell tag no engine consumes is passed to pandoc verbatim, so `{r, echo=FALSE}` under `engine: markdown` renders its body as live markdown (`model.ts:7315`); under `engine: markdown`, an unspaced `{fortran95,eval=FALSE}` with a later fence below is a model phantom — probably a member of the attribute-tokenizer plan's deferred shapes or of "What P1's faithful tag rewrite UN-MASKED"; not checked.
+- [ ] **R6 residuals — what the positively-established silence rule leaves at HEAD's answer** (Session 275; the rule is `knitrSilentChunkClosers` / `knitrChunkIsSilent` in `src/core/qmd/model.ts`, pinned by the three R6 describe blocks at the end of `test/unit/qmd-model.test.ts`; every shape below is at **0 measured corpus reach** — the whole rule moves exactly 2 of 3,383 documents). In a knitr document a stray bare ``` above a chunk that emits no fence stays unclosed, so quarto renders the heading between; the model now reproduces that ONLY where silence is positively established, because a WRONG "silent" DELETES headings (the first cut did, on ten measured shapes — `CHANGELOG.md`, Session 275). Each shape below keeps HEAD's answer — the stray fence pairs with the chunk's closer and the heading between is lost where quarto shows it:
+  - **(a) non-R engines.** `{python, echo=FALSE}` and `{bash, echo=FALSE}` are silent to quarto (measured firsthand / agent-measured), but only knitr's R engine is trusted, because `dot`, `mermaid` and `ojs` re-emit their own fence whatever `echo` says and `verbatim`/`embed` force echo (all measured). A per-engine whitelist needs each engine measured.
+  - **(b) document-level echo defaults.** YAML `execute: echo: false`, `knitr: opts_chunk: echo: false` and a top-level `echo: false` silence a chunk with no echo of its own, a header `echo=TRUE` overriding (agent-measured, render-matrix c13/c14/c26/c27/c31/c32 — NOT re-run firsthand). ⚠ A setup chunk's `knitr::opts_chunk$set(echo = FALSE)` is NOT applied under `--no-execute` (the scoring convention) but IS with real execution — the two modes disagree (c12/c24/c25).
+  - **(c) chunks with no code** — an empty body, a blank body, or only `#|` lines — emit no fence even when echoed (agent-measured, 413 such chunks in 121 knitr documents, none with a stray fence above).
+  - **(d) what the reader does not evaluate:** an expression value (`echo=!TRUE`, measured silent), `#|` falses outside the measured `false`/`FALSE`/`no`, a `#|` run not in the plain `#| key: value` shape, and any header holding a bracket, backslash, backtick or stray quote.
+  - **(e) irregular knitr pairing** — a nested opener, a mismatched closer, an unclosed chunk — keeps HEAD's answer for the WHOLE document. Measured, and pinned: an unclosed later chunk renders H1 and H2 where HEAD and this rule lose H1; a longer later closer renders only H3 where both keep a phantom H2. Agent-measured, 16 of the 31 such corpus documents pair cleanly in knitr after quarto's opener repair, with 0 scored headings moving.
+  - **(f) execution-only** (the model follows `--no-execute`): an `echo=FALSE` chunk that PRINTS emits a bare-fenced output block when it runs, so quarto swallows the heading only then (measured firsthand); a `child=` chunk inserts the child's output only when it runs.
+  - **(g) ⚠ only the engine-AWARE Outline sees the change.** `buildOutline(text, "knitr")` now lists the silent chunk as a cell under the recovered heading, but Run Cell (`features/execution.ts`), cell background, the embedded virtual documents, diagnostics and cross-reference labels (`refs.ts`) call the model with NO engine and still pair the stray fence — so in a document like ordinal 2519 they miss the chunk below it. The Outline's own in-cell symbol lookup is engine-blind too and returns no children for that cell (graceful, not an error). Passing the engine to those surfaces is a wiring change with its own blast radius.
+
+- [ ] **A bare fence inside a list item, and a backtick fence whose info string holds a backtick, are fences to this model and not to pandoc** (found by Session 275's adversarial pass; **MEASURED** — rendered, exit 0 in both modes, re-run firsthand; **PRE-EXISTING** — identical on the pre-R6 build; **deletion direction**; corpus reach NOT measured). `prose` / blank / `- item` / `  ```` ` / blank / `## A` / … : quarto renders `<p>```</p>` INSIDE the `<li>` and every heading below it, because a fence inside a list item closes nothing outside its item; this model opens a region at the list-item fence, closes it at a column-0 closer outside the item, and deletes `## A`. A top-level ```` ```a`b ```` line does the same — pandoc reads a backtick in a backtick fence's info string as no fence at all (CommonMark §4.5), and this model opens one. Pinned in the R6 suite ("a fence pandoc does not open is not carried past a silent chunk's closer"), which asserts HEAD's `[B, C]` against quarto's `[A, B, C]` so that the R6 rule cannot carry the runaway further.
+
+- [ ] **A cell tag no engine consumes is passed to pandoc verbatim — a zero-reach by-catch of the Session 265 re-score (report F7)** (carried out of *"The Outline's last real-document divergences"* when Session 275 closed that item's last fixable sub-item; **NOT CHECKED** since it was recorded). a cell tag no engine consumes is passed to pandoc verbatim, so `{r, echo=FALSE}` under `engine: markdown` renders its body as live markdown (`model.ts:7315`); under `engine: markdown`, an unspaced `{fortran95,eval=FALSE}` with a later fence below is a model phantom — probably a member of the attribute-tokenizer plan's deferred shapes or of "What P1's faithful tag rewrite UN-MASKED"; not checked.
 
 - [ ] **The oracle corpus is 131 documents and its prose says 66** (found by Session 271's R2 fan-out and **verified firsthand**; **documentation only**, no behaviour; LOW). `grep -c '^  {' test/oracle/corpus.ts` → **131**, and the run itself prints `131 documents`, while `test/oracle/README.md` says 66 in **five** places (:7 "a corpus of 66 documents", :71 "for all 66 rows", :89 "these 66 documents", :111 "zero for all 66 documents", :127 "The 66 documents") and `test/oracle/load.ts:21` says "all 66 rows" — six in total. ⚠ **`corpus.ts:20` already carries the rule that fixes this** — it records that its own count had been stale at "64" since the corpus reached 66, and concludes "`CORPUS.length` is the number; prose is not." The remaining prose never got the treatment its own module prescribes. The fix is to delete the numbers rather than update them (`context_budget.py`'s own advice: replace a hand-maintained count with the command that produces it).
 

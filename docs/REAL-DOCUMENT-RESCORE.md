@@ -256,6 +256,19 @@ behind, not where a fence sits.
   ` ```{r demo, echo=FALSE} ` · `y <- 2` · ` ``` `. Quarto: `h2 After Stray Fence` (the stray fence is
   left unclosed and renders as `<p>```</p>`). Model: none. Controls: `echo = TRUE` (the chunk's own
   output re-closes the stray fence) and `engine: markdown` give none in both.
+
+  > ✅ **CLOSED, Session 275 — and measured under REAL execution first.** Ordinal 2519 as it sits on
+  > disk does not render with execution at all (exit 1, a data file it reads is missing); a what-if
+  > copy with the data supplied renders exit 0 and shows the heading, as `--no-execute` does, so the
+  > divergence was real under both conventions. The mechanism is exactly this row's: knitr replaces a
+  > chunk it claims with its output, and a chunk that emits NO fence leaves the stray fence unclosed.
+  > ⚠ But what a chunk emits is wider than `echo`: `dot`/`mermaid`/`ojs` re-emit their own fence
+  > whatever `echo` says, and a non-echoed chunk that PRINTS emits a bare-fenced block when it runs.
+  > The fix therefore reads a chunk as silent only when that is positively established, and an
+  > adversarial pass found ten shapes on which a looser first cut deleted headings. Score 2422 →
+  > **2423** of 2438; over all 3,383 documents 2 change (2519 +1, 2900 +5), 0 headings lost. With it,
+  > every root cause in this report is closed, decided or not modelable. See `CHANGELOG.md`,
+  > Session 275, and `BACKLOG.md`'s *"R6 residuals"* for what the rule leaves at HEAD's answer.
 - **R7** — `engine: markdown`, one inline `references:` entry, `# Method` / `See @doe2001.` /
   `# Sources` as the last line. Quarto: `h1 Method`, **`h2` Sources**. Model: `h1 Sources`. It fires on
   any trailing section, whatever its text, and is HTML-only (quarto's `processDocumentAppendix`).
@@ -372,4 +385,4 @@ its lead does not announce completion.
 the user ever sees, and nothing here measures it. Text-only differences (249 documents, dominated by
 smart quotes and stripped emphasis, as in Session 251) were counted, not classified. Every render used
 `--no-execute`; R2 and R6 depend on what a chunk emits and were not measured under real execution
-beyond the controls above. It is one machine's corpus, and R7's seven documents are one template.
+beyond the controls above. (R6 was, by Session 275 — see its dated note above.) It is one machine's corpus, and R7's seven documents are one template.
