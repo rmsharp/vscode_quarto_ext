@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-20 · [ad hoc] Session 273 close-out — the handoff receipt, the predecessor evaluation and the self-assessment
+- **Change:** `HANDOFFS.md` S273 receipt completed (`status: pending` → `complete`, `self_score: 8`, `predecessor_score: 9`, all six requirements filled). `SESSION_NOTES.md` ACTIVE TASK rewritten to the closed state, plus the Session 272 handoff evaluation and the Session 273 self-assessment. `.context-budget-history.jsonl` and `dashboard_history.jsonl` carry the rows this session's own tool runs appended.
+- **Commit/PR:** this entry's own commit
+- **Session:** S273 · **Verified:** runtime gate run with the operator's go-ahead — `npm run test:integration` in a real Extension Development Host, **550 passing, exit 0**, including the new adapter-level R5 row. `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at head `089aa978`, the head the results file itself records. `grep -c '^status: pending' HANDOFFS.md` → 0. ⚠ `SESSION_NOTES.md` is **417 lines** at this commit, over its 400-line ceiling; the retention trim (`CLAUDE.md` §SESSION_NOTES.md retention) follows in its OWN commit, because a trim commit must contain no other edit to the file being trimmed (upstream BL-36).
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-20 · [BL-The Outline's last real-document divergences — eight root causes behind the 20 authored documents that still differ from quarto, no trigger of them described by an open item] The adapter-level proof that the engine reaches the model in the real host
 - **Change:** `test/integration/suite/outline.test.ts` — one Session 273 test asserting BOTH halves through `vscode.executeDocumentSymbolProvider`: the knitr-claimed chunk's heading reaches the user-visible Outline, and the digit-led twin does not. `PROJECT_LEARNINGS.md` +1 row (#576).
 - **Commit/PR:** this entry's own commit

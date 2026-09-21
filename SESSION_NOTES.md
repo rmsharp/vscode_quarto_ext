@@ -8,57 +8,144 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **R5 — a digit-named engine chunk's CLOSER opens a plain fence and swallows the heading
-below it.** Operator-picked at Phase 0 (Session 273) from four ranked `AskUserQuestion` options;
-`BACKLOG.md` "Active" was empty. Sub-item **(e)** of the "eight root causes" item.
-**Status:** Session claimed. Work beginning.
-**Started:** 2026-09-20
-**Ledger:** `CHANGELOG: pending` — the claim commit's entry says (in progress); Phase 3F records
-the rest. Until close-out this line is the crash breadcrumb for the next session's reconcile.
+**Task:** **NONE — Session 273 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S273 did:** took **(e) R5** and FIXED it. The model now knows the document ENGINE. In a
+knitr document a fence matching knitr's chunk grammar ∩ pandoc's class grammar PAIRS, because
+knitr consumes the chunk before pandoc ever sees the bytes `CELL_INFO` is judging.
+**Measured, not quoted:** `tools/realdoc-score/run.sh s273-close` = **2,422 / 2,438 (99.34%),
+divergent 16**, up from 2,421 / 17. Document-by-document over all 3,383: **1 changed, 1 heading
+GAINED, 0 LOST.** The control — the engine-aware census run against the PRE-FIX `src/` — scores the
+exact baseline, so the +1 is the model and not the harness.
+**Confirmed against BOTH oracles:** `quarto render` renders the heading AND Posit's Outline shows
+it, while HEAD deleted it. R5 was a defect against both, not a quarto/Posit decision.
+Commits: `0c6bd30e` claim · `1adec921` the core fix + 8 unit tests · `63fb1832` the wiring ·
+`0c34bfc3` the observation + records · `089aa978` the adapter-level runtime proof.
 
-**The measured baseline, re-run firsthand at HEAD `d15ef936` before anything was touched:**
-`tools/realdoc-score/run.sh s273-orient` → `scored 2438 agree 2421 (99.30%) divergent 17 phantom 2
-lost 8 level 7`; `lost [482, 491, 610, 1352, 2391, 2519, 2566, 2898]`; `phantom [2147, 2275]`;
-`level [837, 838, 840, 841, 842, 843, 847]`. **R5 is ordinal 2391** and is still lost. A clean R5
-fix moves 2421 → 2422 of 2438. `npm run compile` exit 0; `npm test` 66 files / 2963 passed.
+**⚠ THE NEXT SESSION'S BIGGEST ITEM IS A DECISION THE OPERATOR OWES, NOT A DEFECT.** The
+observation found the first MEASURED quarto/Posit disagreement nobody has ruled on: where a fence's
+info string is refused by both quarto's cell recognizer and pandoc's attribute parser, `quarto
+render` swallows the heading and **Posit's Outline shows it**. This model follows quarto, so the
+product does NOT mirror Posit here — the opposite of decisions (1)–(5). Filed as **open RECORD
+bullet (6)** with its three probes; pinned by three now-honestly-commented rows in the R5 suite.
+**⚠ PRE-EXISTING** — S273 moved the knitr arm only, where the two oracles agree.
 
-**⚠ EVERY STATED LINE NUMBER FOR R5 IS STALE — re-derived at Phase 0, do not trust the old ones.**
-`model.ts` is 10,003 lines. `BACKLOG.md`'s `:6024` now lands on `endLine: number;`; its `:7315` and
-`:7347` land inside a docstring. The rescore doc's `:5937` / `:7228`–`:7260` are stale too.
-Current anchors, each opened and confirmed: **`model.ts:5852`** `CELL_INFO` (the digit refusal, R5's
-root); `:5617`–`:5678` its docstring, which explicitly warns against widening it; `:7099` the
-scanner's use; `:7139`–`:7145` the `refused` computation; `:7152`–`:7157` the `consumedCloserLine`
-arm (set declared at `:6100`); `:7159` the `hasCloserBelow` gate; `:5731` `quartoFenceTagRewrite`;
-`:5798` `fenceInfoOpensBlock`; `:9300` `consumedCloserLine`; `:9326` `hasCloserBelow`; `:8489`
-`findHeadings`.
+**⚠ Two things the inherited records stated WRONG, both corrected in code and in `BACKLOG.md`.**
+(1) R5's trigger is NOT "a digit-bearing engine with spaced options": `{glue_sql, connection = con}`
+has no digit and fires, `{cpp11,eval=FALSE}` has a digit and does not. (2) EVERY stated line number
+was stale — `model.ts` is 10,003 lines and `:6024` lands on `endLine: number;`.
+**⚠ The obvious predicate is WRONG and the docstring says why.** knitr's own class is
+`[a-zA-Z0-9_]+`, but its rewrite target is a pandoc CLASS and pandoc refuses one that does not begin
+with a letter — so a digit-led name runs away anyway, one stage later, and HEAD was already right.
+Shipping knitr's grammar verbatim manufactures **5 phantoms**. The predicate is
+`[A-Za-z][A-Za-z0-9_]*`. **Do NOT "simplify" it back** (#572).
 
-**⚠ THE BACKLOG STATES R5'S TRIGGER WRONG.** It says "a digit-bearing engine with spaced options".
-Measured: the trigger is a digit in the engine name (so `CELL_INFO` refuses) **PLUS an `=` inside
-the braces**, which blocks quarto's `readqmd.lua` tag rewrite `{+[^.=\r\n]+}+` so
-`fenceInfoOpensBlock` refuses too. Bare `{cpp11}` IS rewritten, DOES open a plain fence, and is
-harmless — which is why only 1 of the 13 `{cpp11}` fences in ordinal 2391 costs a heading.
-**⚠ The rescore's minimal repro no longer reproduces as written** — without a later fence below,
-`findHeadings` returns `h4:After Chunk`. A trailing ```` ```{r} ```` block is needed to get `(none)`.
+**Recommended next pick: (f) R6** — now the LAST fixable divergence the score can see (ordinal 2519,
+1 document, 1 heading). ⚠ Its ground truth was NEVER measured under real chunk execution
+(`docs/REAL-DOCUMENT-RESCORE.md:356` — every re-score render used `--no-execute`), and R is
+installed, so measure it first. ⚠ It may NOT share R5's mechanism: S273 measured that ordinal 2519
+holds no fence of the R5 shape at all. Or the NEW tilde item, where both oracles show a heading this
+model hides — a plain DEFECT, filed with its observation.
 
-**⚠ THE OPEN DESIGN QUESTION, to settle before writing the fix.** The new rule must be gated on
-knitr: Session 224's pins (`test/unit/qmd-model.test.ts` ~`:9628`) encode the MEASURED
-markdown-engine behaviour that a refused opener's closer DOES open, and the rescore's own controls
-say R5 agrees with quarto under `engine: markdown`. But `findHeadings` and `scanRegions` are
-engine-blind by design. `resolveDocumentEngine` returns "knitr" for this document FROM THE TEXT
-ALONE, so no signature change is needed — **but importing it creates a CYCLE**:
-`src/core/document-engine-resolve.ts:51` already imports `frontMatterContentLines` from
-`./qmd/model`. Either write a small in-model knitr detector or restructure that import.
-
-**⚠ Ask the oracle before assuming this is a defect.** `CLAUDE.md`'s clean-room boundary: where
-quarto's RENDER and Posit's OUTLINE disagree it is a DECISION, not a defect, and the product mirrors
-Posit. `npm run observe:posit` exists and takes probes. It TAKES THE SCREEN — go-ahead BEFORE launch.
-**⚠ R6 (ordinal 2519) is NOT in scope** — same ~60 lines, but `docs/REAL-DOCUMENT-RESCORE.md:356`
-records every render used `--no-execute`, so R6's ground truth was never measured. FM #26.
 **⚠ Gates:** close-out runs `python3 quality_ratchet.py --run`; cite the head the RESULTS FILE
 records. One `CHANGELOG.md` entry per commit. **⚠ Write a number only after measuring it** (#552).
-**⚠ `$?` after a pipe is not a measurement** (#567) — tripped once already this session, at Phase 0.
+**⚠ `$?` after a pipe is not a measurement** (#567) — tripped once at Phase 0.
 **⚠ `cd` moves the session cwd** (#535). **⚠ Never `git add -A`** — `scratchpad/` is untracked.
 ---
+
+## Session 272 Handoff Evaluation (by Session 273)
+
+**Score: 9/10.** Its recommendation was right and it was RIGHT ABOUT ITS OWN UNRELIABILITY — the one
+sentence that shaped this session most was its warning that its own line numbers were stale. Every
+number it stated as measured held when I re-measured it. One point off because the item it
+recommended carried a factual error it passed on without flagging.
+
+**What helped, specifically.**
+- ⚠ **`whats_next` #1 labelled its own fix sites an ESTIMATE and told me to re-derive them.** They
+  were all stale — `:6024` now lands on `endLine: number;`, `:7315`/`:7347` inside a docstring. A
+  handoff that says "this part of me has probably rotted" is worth more than one that is quietly
+  wrong, and it cost me nothing because it said so.
+- ⚠ **Gotcha (3), #569 — check which probe rows DISCRIMINATE before spending the screen.** I labelled
+  each of the six R5 probes DECIDING or CORROBORATING in its own `why:` before the launch. Three
+  decided; the corroborating ones are what let me say a "no heading" answer would have been about
+  the option tail rather than the engine name.
+- ⚠ **Gotcha (7), screen runs need the go-ahead BEFORE launch, VS Code 1.129.0 pinned.** Consent was
+  taken before all three launches, the pin was already in the file, and nothing cost a wasted run.
+- **#552, #535, `git add -A`, the ordinal rule, and the one-entry-per-commit ledger rule** — all
+  used, all accurate. #567 caught me in the act at Phase 0 and I re-measured.
+
+**What was missing / wrong.**
+- ⚠ **It repeated the backlog's trigger for R5 without checking it, and the trigger is wrong.**
+  "Both knitr chunk-grammar … `{fortran95, eval = FALSE}`" carries the item's "digit-bearing engine
+  with spaced options" framing. Measured: `{glue_sql, connection = con}` has no digit and fires;
+  `{cpp11,eval=FALSE}` has a digit and does not. Same class of defect its own S271 evaluation
+  criticised — a handoff that quotes an item inherits the item's errors.
+- ⚠ **It ranked R5 and R6 together as one pick, "1 document and 1 heading each".** They are not
+  comparable work: R6's ground truth was never measured under real execution, and R5's fix needed
+  engine plumbing R6 does not obviously share. Taking them as one unit would have been FM #26.
+- **It could not have known the fix needs the model to learn the document engine at all** — nothing
+  in the record pointed there, and the root cause is a missing PIPELINE STAGE, not a wrong regex.
+  Not a fault; recorded so the next session does not read its silence as evidence.
+
+## Session 273 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **I fixed the root cause, not the symptom, and the docstring proves I looked.** The naive fix is
+  to widen `CELL_INFO` to accept digits; its docstring forbids that with measured render rows, and a
+  refuter measured the price of ignoring it (5 unit tests red, 6 oracle rows moved, 4 corpus
+  documents gaining cells — the cardinal-sin direction — for the identical +1). The real cause is
+  that `computeRegions` modelled quarto's pipeline as `readqmd → pandoc` and a knitr document has a
+  stage before both. `quarto pandoc -f markdown -t html` reproduces the model's answer exactly on the
+  repro, which is the proof the pandoc layer was never at fault.
+- ⚠ **The adversarial pass found two defects in a design that had already been built and
+  corpus-measured by its author, and I re-measured both before acting** (#574). One was fatal to the
+  regex — knitr's own grammar over-fires because pandoc refuses a class that does not start with a
+  letter. ⚠ **My first attempt to reproduce that refutation FAILED and said "all 7 accepted"**; my
+  probe lacked the trailing fence so the heading survived either way, and I was grepping for the
+  consequence instead of the thing under test (#573). Reading one raw HTML output settled it.
+- ⚠ **I caught my own Phase 3E gap instead of banking the green.** The first `test:integration` was
+  549 passing, exit 0 — the baseline count — on a change that is mostly wiring. That proves no
+  regression and cannot prove the engine reaches the model, and the unit suite cannot either since it
+  passes the engine in directly. One adapter-level test took it to 550 and turned it into a real
+  gate (#576). An unchanged test count on a wiring change is the tell, not the reassurance.
+- ⚠ **The observation's BY-CATCH is worth more than its confirmation** (#575). Six probes, one
+  launch, four answers: R5 confirmed against both oracles, the first measured quarto/Posit
+  disagreement filed as an open decision, and the tilde divergence promoted to a plain defect.
+- **Strict TDD:** ONE failing test first, shown failing for the right reason (`expected [] to
+  deeply equal [ 'After Chunk' ]`) before any `src/` edit. Every guard expectation was measured
+  against real `quarto render` with real knitr execution BEFORE it was written.
+- **"Nothing else moved" is proved, not asserted:** 1 of 3,383 documents changed, 0 headings lost,
+  `test:oracle` byte-identical to its standing S180-onward figure, and the pre-fix control run.
+
+**What went wrong.**
+- ⚠ **I spent a SECOND `test:integration` launch on a gap I should have seen before the first.**
+  The deliverable was a wiring change from the moment the design landed; that the suite could not
+  observe it was knowable without running anything. The operator granted the screen twice and the
+  second was avoidable by thirty seconds of thought — S270's exact lesson, which I had read.
+- ⚠ **My first pandoc probe was wrong and I nearly published its answer** (#573). It contradicted a
+  refuter's measurement and I would have been entitled to believe myself.
+- ⚠ **My own test comment inflated the count it cited.** I wrote "47 `assert.deepStrictEqual`" into
+  a comment that itself contains that identifier, so the grep it tells the next session to run
+  returns a different number. Corrected in place to the code-line count, with the trap named.
+- **I wrote a self-referential fence bug into the first guard test** — the helper ignored its second
+  argument, so the tilde row silently ran the backtick shape. The test failed and caught it, which
+  is the system working, but it was my error.
+- **TDD:** honoured for the behaviour that drove the code. The 7 guards and the integration test are
+  measured pins on shapes the change bounds, added after GREEN and labelled as such.
+  **Runtime:** `npm run test:integration` in a real Extension Development Host with the operator's
+  go-ahead — **550 passing, exit 0**, including the new adapter-level R5 row. `npm run
+  observe:posit` likewise — **9 passing, exit 0**, `ours-loaded: false`, both controls green.
+  **Growth:** `src/` +~90 lines (mostly the measured docstring), `test/unit` +~135, `test/posit/`
+  net −40, `test/integration` +60, `PROJECT_LEARNINGS.md` +5 rows, `BACKLOG.md` net +1 item.
+  **Cost:** two workflows, 17 agents, 0 errors, ~2.03M subagent tokens, ~700 tool calls, plus ~60
+  quarto renders of my own.
+
+**Against the bar.** Sessions 270 and 271 shipped measured decisions; 272 shipped a measured fix.
+This one shipped a fix whose verdict was itself measured against both oracles rather than assumed —
+and the part worth repeating is that the two things that most improved it, the regex narrowing and
+the Phase 3E gap, were both caught by attacking my own work after it already looked finished.
 
 ## Session 271 Handoff Evaluation (by Session 272)
 
