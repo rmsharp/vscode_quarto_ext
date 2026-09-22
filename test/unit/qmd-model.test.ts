@@ -19439,16 +19439,27 @@ describe("R5 — knitr's chunk grammar is wider than quarto's cell grammar (Sess
     expect(findHeadings(r5("r.foo, eval = FALSE"), "knitr")).toEqual([]);
   });
 
-  // ⚠ BACKTICK ONLY, and this row is a KNOWN DEFECT left deliberately in place. knitr's
-  // `chunk.begin` is anchored at a backtick run and `keep-md` leaves a `~~~` chunk verbatim,
-  // so THIS gate must not fire here -- widening it to tilde would also break Session 263's
-  // tilde rows, and knitr is not the cause. But BOTH oracles show the heading: `quarto render`
-  // on `.Rmd` emits the <h4> (measured, exit 0, count 1) and Posit's Outline lists it
-  // (observed, probe `r06_tilde_rmd`). So this is a plain DEFECT, not a decision -- a
-  // pandoc-layer one with a different cause and zero measured corpus reach. Filed in
-  // `BACKLOG.md` with its observation; it is a different capability, not this session's.
-  it("a TILDE fence of the same shape is untouched -- knitr does not claim it (divergence filed)", () => {
-    expect(findHeadings(r5("zzz9, eval = FALSE", "~~~"), "knitr")).toEqual([]);
+  // ⚠ BACKTICK ONLY, and this gate still must not fire here: knitr's `chunk.begin` is anchored
+  // at a backtick run and `keep-md` leaves a `~~~` chunk verbatim, so knitr is not the cause and
+  // widening the gate to tilde would break Session 263's tilde rows. Session 273 filed the
+  // resulting deletion as a defect and predicted its cause was "in the pandoc layer".
+  //
+  // ⚠ **THAT PREDICTION HELD, AND SESSION 277 CLOSED IT WITHOUT TOUCHING THIS GATE.** The
+  // heading was lost because the chunk's own `~~~` closer, sitting under the open paragraph
+  // `int b;`, was read as an OPENER and ran to the fence below the prose. A tilde opener does not
+  // interrupt an open paragraph in pandoc (`paragraphInterruptRefuses`), so it no longer opens
+  // one here. Re-measured firsthand on THESE bytes as `.Rmd` with real knitr execution
+  // (`scratchpad/s277/r5tilde/t01_tilde.Rmd`, exit 0): `quarto render` emits the <h4>, HEAD
+  // reported NOTHING, and this build reports it -- both oracles now agree with the model, since
+  // Posit's Outline also lists it (observed, Session 273, probe `r06_tilde_rmd`).
+  it("a TILDE fence of the same shape now KEEPS the heading -- Session 277 fixed the pandoc-layer cause", () => {
+    expect(findHeadings(r5("zzz9, eval = FALSE", "~~~"), "knitr").map((h) => h.text)).toEqual([
+      "After Chunk",
+    ]); // quarto: h4:After Chunk -- measured, .Rmd, real knitr, exit 0
+    // CONTROL -- the backtick twin, which knitr DOES claim, is unmoved (same probe dir, `t02`).
+    expect(findHeadings(r5("zzz9, eval = FALSE"), "knitr").map((h) => h.text)).toEqual([
+      "After Chunk",
+    ]);
   });
 
   // The gate decides PAIRING ONLY. It must never manufacture a cell -- that is `CELL_INFO`'s
@@ -19778,5 +19789,249 @@ describe("R6 GUARD — what a knitr chunk's options may and may not silence (Ses
     const outline = buildOutline(r6("echo=FALSE"), "knitr");
     expect(outline.map((s) => s.name)).toEqual(both);
     expect(outline[0].children.map((c) => c.kind)).toEqual(["cell"]);
+  });
+});
+
+describe("a fence interrupts an open PARAGRAPH only as a COLUMN-0 BACKTICK run (Session 277)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: a backtick opener INDENTED 1-3 below a paragraph line is not a fence, so the heading below it survives", () => {
+    // ⚠ THE DEFECT, and it is a heading DELETION -- the cardinal sin. Rendered firsthand through
+    // the real `quarto render` 1.7.33 on these exact bytes (`scratchpad/s277/probes/pi01`-`pi03`,
+    // `posit/s01_para_bt_indent1`): quarto emits BOTH headings, and HEAD reports only the second.
+    //
+    // Pandoc's markdown reader gives a fence NO paragraph-interrupt power at indent 1-3: the line
+    // is ordinary paragraph text, so the blank line below it really does end the paragraph and
+    // `## Alpha Indent One` is a heading. `fenceColumns` is already `[0]` here, but `fenceMatchAt`
+    // turns a column LIST into a TOLERANCE (`columnIsCodeDepth`, base 0 => columns 0-3 pass), so
+    // the opener was accepted and its region swallowed the heading.
+    expect(
+      names(doc("prose line", " ```", "", "## Alpha Indent One", "", "```text", "plain block",
+                "```", "", "## Bravo Tail", "", "tail")),
+    ).toEqual(["h2:Alpha Indent One", "h2:Bravo Tail"]); // quarto: both — measured, exit 0
+  });
+
+  it("RED->GREEN: a TILDE opener at column 0 below a paragraph line is not a fence either", () => {
+    // ⚠ THE SECOND HALF, and it is the half no corpus document can justify: the frozen 3,383-
+    // document corpus contains NO `~~~` run at any indent (measured, `scratchpad/s277/reach`),
+    // so this row is the only thing pinning it. Rendered firsthand on these exact bytes
+    // (`scratchpad/s277/posit/s02_para_tilde_c0`, and `probes/pi04`): quarto emits BOTH headings.
+    //
+    // Pandoc's paragraph-interrupt power belongs to the BACKTICK fence alone — Session 200's
+    // comment said so from one probe, and Session 277 measured it across ten rows (`truth/b1`
+    // `para_ti_i0`, `b2` at run 4, with an info string, at four closer placements, `b6` in a
+    // multi-line paragraph, `b5` in a knitr document). The blank-line control opens normally.
+    expect(
+      names(doc("prose line", "~~~", "", "## Charlie Tilde", "", "~~~text", "plain block",
+                "~~~", "", "## Delta Tail", "", "tail")),
+    ).toEqual(["h2:Charlie Tilde", "h2:Delta Tail"]); // quarto: both — measured, exit 0
+  });
+
+  it("RED->GREEN: a commonmark-family reader INVERTS the rule, so `from: gfm` keeps HEAD's swallow", () => {
+    // ⚠ REFUSING HERE FABRICATES A HEADING, which is why the guard is part of the rule and not a
+    // polish item. CommonMark §4.5 gives the fence its interrupt power at indent 0-3 and for
+    // EITHER fence character, so under `gfm`, `commonmark` and `commonmark_x` quarto really does
+    // open the region and swallow the heading. Rendered firsthand on these exact bytes
+    // (`scratchpad/s277/posit/s04_gfm_bt_indent1`, and `freed/r01`-`r05`, `r09`, `r12`): quarto
+    // emits ONLY the tail heading, and the unguarded build reported both on all seven probes.
+    //
+    // The gate is `commonmarkDialect` — `FRONTMATTER_COMMONMARK_FROM`, the set this model already
+    // uses for the ATX closing run and the attribute grammar, reused rather than re-derived
+    // (Learning #14). `markdown_strict`, `markdown_mmd` and `markdown-blank_before_header` do NOT
+    // need it: they never interrupt at all, measured (`freed/r06`-`r08`), and stay as HEAD had
+    // them. ⚠ A `from:` in a PROJECT file is invisible to this scanner by design, so such a
+    // document keeps the default-dialect reading — the non-deleting direction.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "prose line", " ```", "", "## Golf Gfm Indent One",
+                "", "```text", "plain block", "```", "", "## Hotel Tail", "", "tail")),
+    ).toEqual(["h2:Hotel Tail"]); // quarto: the tail only — measured, exit 0
+  });
+
+  it("RED->GREEN: an open CONTAINER suspends the rule, because a fence below a list item's column ENDS the item", () => {
+    // ⚠ THE BOUNDARY THAT KEEPS THIS RULE SHIPPABLE, and it is measured on both sides.
+    // Inside a list item a fence indented BELOW the item's content column does NOT stay in the
+    // paragraph: it terminates the item and opens a REAL code region, for a backtick and for a
+    // tilde alike. Rendered firsthand on these exact bytes (`scratchpad/s277/freed/h02`, and the
+    // family `h05`-`h10`, `g20` — the `<pre><code>` read off the rendered HTML): quarto emits
+    // ONLY the tail heading, and a build that refuses here reports the swallowed one as well.
+    //
+    // ⚠ The obvious container-relative rule — refuse at or beyond the innermost content column —
+    // is MEASURED WORSE, not merely unproven: over 3,452 rendered probes the container-wide
+    // variants scored 110 and 142 regressions against this rule's 10
+    // (`scratchpad/s277/gate/all3.json`). What it needs first is a TIGHT-vs-LOOSE item
+    // discriminator, because the same shape in a loose item, a footnote body, a definition body
+    // or a table caption IS absorbed as paragraph text (`freed/h14`, `p03`, `p04`, `p08`, `g25`,
+    // `p09`). That is filed, with its witnesses, in `BACKLOG.md`.
+    expect(
+      names(doc("- item text", " ```", "", "## Inside", "", "body", "", "```", "", "## After",
+                "", "tail")),
+    ).toEqual(["h2:After"]); // quarto: the tail only — measured, exit 0
+  });
+});
+
+describe("GUARD — rows the paragraph-interrupt refusal may not touch (Session 277)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("a COLUMN-0 BACKTICK fence still interrupts, and that is the row a blanket bail would delete", () => {
+    // Session 200 measured this and declined to guess the rest (`scratchpad/s200/par`,
+    // `par_top_i00`; `twin/twin_i00`). Re-measured Session 277 on these exact bytes
+    // (`scratchpad/s277/posit/s03_para_bt_c0_ctrl`, quarto exit 0): quarto emits ONLY the tail
+    // heading — the region really does open and swallow the one above it.
+    expect(
+      names(doc("prose line", "```", "", "## Echo Column Zero", "", "```", "", "## Foxtrot Tail",
+                "", "tail")),
+    ).toEqual(["h2:Foxtrot Tail"]); // quarto: the tail only — measured, exit 0
+    // Session 200's own control, unchanged by this session: a setext title below the closer.
+    expect(
+      names(doc("Intro paragraph.", "```", "code", "```", "Para Direct Title", "===")),
+    ).toEqual(["h1:Para Direct Title"]); // quarto agrees exactly
+  });
+
+  it("a BLANK line above restores the ordinary 0-3 width, for both fence characters", () => {
+    // THE CONTROL THAT MAKES THIS A PARAGRAPH RULE AND NOT AN INDENT RULE. The identical openers
+    // the rows above refuse are ordinary fences here, because no paragraph is open
+    // (`scratchpad/s277/truth/b1/blank_bt_i1`, `blank_ti_i0`, both rendered): quarto swallows.
+    expect(
+      names(doc("prose line", "", " ```", "", "## Swallowed", "", "```", "", "## Tail")),
+    ).toEqual(["h2:Tail"]); // quarto: the tail only — measured, exit 0
+    expect(
+      names(doc("prose line", "", "~~~", "", "## Swallowed", "", "~~~", "", "## Tail")),
+    ).toEqual(["h2:Tail"]); // quarto: the tail only — measured, exit 0
+  });
+
+  it("inside a BLOCK QUOTE the column is the quote's own, so a quoted tilde opener is refused", () => {
+    // ⚠ A quote is NOT a `contentColumns` container here — the marker is stripped before the
+    // fence test, so "column 0" means column 0 INSIDE the quote, and the rule fires there.
+    // Measured (`scratchpad/s277/freed/h13_quote_tilde_c0`, `h12_quote_fence_c0`): quarto renders
+    // the inner heading under a quoted `~~~` and swallows it under a quoted column-0 backtick.
+    expect(
+      names(doc("> prose line", "> ~~~", ">", "> ## Inside", ">", "> ~~~", "", "## After")),
+    ).toEqual(["h2:Inside", "h2:After"]); // quarto: both — measured, exit 0
+    expect(
+      names(doc("> prose line", "> ```", ">", "> ## Inside", ">", "> ```", "", "## After")),
+    ).toEqual(["h2:After"]); // quarto: the tail only — measured, exit 0
+  });
+
+  it("the CELL path is untouched: an indented cell opener still opens, divergence and all", () => {
+    // ⚠ Only the PLAIN fence match is refused, so the line still falls through to
+    // `indentedCellFenceAt` — quarto's own cell partitioner, which is paragraph-blind (S178).
+    // This row asserts a KNOWN DIVERGENCE unchanged, not a correct answer: measured
+    // (`scratchpad/s277/readers/Cj/j07_jup_cell_c1`, quarto exit 0) quarto renders BOTH headings
+    // and this model reports only the tail, at HEAD and after this change alike. Filed in
+    // `BACKLOG.md` with its sibling `c12_jup_cell_i4_free`, which needs no open paragraph at all.
+    const cell = doc("prose", " ```{python}", "", "## A", "", "x = 1", "```", "", "## B", "", "tail");
+    expect(findHeadings(cell, "jupyter").map((h) => `h${h.level}:${h.text}`)).toEqual(["h2:B"]);
+  });
+
+  it("RED->GREEN: a LAZY line below a block quote is not covered -- there the fence really does open", () => {
+    // ⚠ FOUND BY THE ADVERSARIAL PASS BEFORE THIS SHIPPED, and it is a DELETION -- the direction
+    // that matters. An UNMARKED line under a quoted paragraph is a lazy continuation, and pandoc
+    // does NOT treat it the way it treats the paragraph's own lines: rendered firsthand
+    // (`scratchpad/s277/q3b/t05_quote_lazy_indent1`, exit 0) quarto emits `h1:Tail`, so the
+    // indent-1 opener DID open a code block there, and a build that refuses it loses the heading.
+    //
+    // ⚠ The MARKED twin is the opposite answer and is why this guard is about the marker, not
+    // about quotes: with every line carrying `>` (`q3b/t02_quote_marked_all`) quarto emits NO
+    // `h1:Tail` -- the fence does not interrupt -- and HEAD PHANTOMS it, which this rule fixes.
+    // The mechanism was read off the rendered HTML, not inferred (`scratchpad/s277/q3/`): the
+    // lazy lines are collected INTO the blockquote, where the fence opens a `<pre><code>` and the
+    // heading below it is a real `<h1>` inside the quote.
+    //
+    // `stripQuote` is false on a lazy line (it requires a marker to strip), so without this
+    // guard the line looks top-level. `quoteOpen` is the existing fail-safe that remembers a
+    // quote may still be open -- reused rather than re-derived (Learning #14).
+    expect(
+      names(doc("> a quoted line of prose", " ```", "code body", " ```", "# Tail", "",
+                "Trailing prose.", "", "## Anchor")),
+    ).toEqual(["h1:Tail", "h2:Anchor"]); // quarto: both — measured, exit 0
+  });
+
+  it("RED->GREEN: a KNITR-claimed chunk interrupts at ANY indent, because knitr extracts it before pandoc", () => {
+    // ⚠ ALSO FOUND BY THE ADVERSARIAL PASS. knitr's `chunk.begin` is a TEXTUAL scan that runs
+    // before pandoc ever sees the file, so an indented chunk header is claimed whatever the
+    // paragraph above it is doing, and quarto swallows the heading inside it. Rendered firsthand
+    // as `.Rmd` with real knitr execution (`scratchpad/s277/adv-cells/k03_r2_i2.Rmd`,
+    // `k04_myengine_i2.Rmd`, `n12_python3_i2_rmd.Rmd`, all exit 0): quarto emits ONLY
+    // `h1:After Cell`, and refusing here reports the swallowed one as a phantom.
+    //
+    // ⚠ These info strings are knitr's class and NOT quarto's cell grammar (`CELL_INFO`), so
+    // they do not take the `indentedCellFenceAt` path that already protects ```` ```{r} ````.
+    // The predicate is `KNITR_CHUNK_INFO` — the Session 273 gate, reused, not re-derived.
+    const chunk = doc("Paragraph line above the opener.", "  ```{r2}", "", "# Inside Cell", "",
+                      "x <- 1", "  ```", "", "# After Cell");
+    expect(findHeadings(chunk, "knitr").map((h) => `h${h.level}:${h.text}`)).toEqual([
+      "h1:After Cell",
+    ]); // quarto: the tail only — measured, .Rmd, real knitr, exit 0
+    // CONTROL — the same bytes under the MARKDOWN engine, where knitr never runs: there the
+    // indented opener is ordinary paragraph text and the heading survives (`adv-cells` twin).
+    expect(findHeadings(chunk, "markdown").map((h) => `h${h.level}:${h.text}`)).toEqual([
+      "h1:Inside Cell",
+      "h1:After Cell",
+    ]);
+  });
+
+  it("RED->GREEN: a refused opener still CONSUMES the closer it pairs with as an inline code span", () => {
+    // ⚠ THE THIRD FINDING OF THE ADVERSARIAL PASS, and a DELETION again. With no blank line
+    // between them the two backtick runs are ONE INLINE CODE SPAN inside the paragraph, so
+    // NEITHER is a fence: rendered firsthand (`scratchpad/s277/adv-cells/j01_adj_i1_then_i0.qmd`,
+    // exit 0) quarto emits BOTH headings. Refusing only the indented opener left the column-0
+    // run below it live, and it then opened a region that swallowed `h1:After Pair`.
+    //
+    // Session 224 already built exactly this bookkeeping for the info-string refusal
+    // (`consumedCloserLine` / `consumedFenceClosers`, and its blank-line asymmetry: with a blank
+    // line the span cannot form and the closer really does become an opener). This rule joins
+    // that same `refused` path rather than adding a second one — which is also why the
+    // paragraph refusal is spelled as one more disjunct of `refused` and not as a null match.
+    expect(
+      names(doc("Paragraph line above.", " ```", "```", "", "# After Pair", "", "```", "",
+                "# After Trailing")),
+    ).toEqual(["h1:After Pair", "h1:After Trailing"]); // quarto: both — measured, exit 0
+  });
+
+  it("RED->GREEN: on a LAZY line the exemption is BACKTICK-ONLY -- a lazy tilde opener is still refused", () => {
+    // ⚠ THE LAZY-LINE EXEMPTION ABOVE WAS TOO WIDE, and the adversarial pass caught the cost on
+    // a row of Session 276's own corpus (`scratchpad/s276/adv2/verify-backtick-n1/mine/
+    // V03_tilde_typo_quote_lazy.qmd`): refusing a tilde at top level freed the lazy tilde below a
+    // quote to become an OPENER, and it swallowed a heading quarto renders. A refusal frees lines
+    // (#586), and the freed line has to be read correctly too.
+    //
+    // So the lazy case was MEASURED rather than assumed, on an 8-probe matrix (two fence
+    // characters x four indents, `scratchpad/s277/lazyq/`, every row rendered, exit 0): a lazy
+    // BACKTICK opener OPENS at every indent 0-3 -- quarto emits `h1:Tail` -- and a lazy TILDE
+    // opener NEVER opens, at any indent. The exemption therefore covers backticks only.
+    // ⚠ This row also RETIRES A PRE-EXISTING PHANTOM: HEAD reported `h1:Tail` here.
+    expect(
+      names(doc("> a quoted line of prose", "~~~", "code body", "~~~", "# Tail", "",
+                "Trailing prose.", "", "## Anchor")),
+    ).toEqual(["h2:Anchor"]); // quarto: the anchor only — measured, exit 0
+    // CONTROL -- the lazy BACKTICK twin, which quarto DOES open, is left alone (`lazyq/l_bt_i0`).
+    expect(
+      names(doc("> a quoted line of prose", "```", "code body", "```", "# Tail", "",
+                "Trailing prose.", "", "## Anchor")),
+    ).toEqual(["h1:Tail", "h2:Anchor"]); // quarto: both — measured, exit 0
+  });
+
+  it("RED->GREEN: an UNRESOLVABLE `from:` fails closed -- a YAML-anchored reader suspends the rule", () => {
+    // ⚠ THE READER GUARD HAD A HOLE, found by the adversarial pass: `from: *r` with the reader
+    // hidden behind a YAML ANCHOR is honoured by quarto and invisible to
+    // `FRONTMATTER_COMMONMARK_FROM`, so `commonmarkDialect` stayed false and the rule fired where
+    // CommonMark's interrupt really applies. Rendered firsthand (`scratchpad/s277/adv-reader/
+    // b02_alias_nested_c1.qmd` and twelve siblings -- `e02` double-quoted, `e07` commonmark_x,
+    // `e09` commonmark, `e10` with extensions, `e12` a block anchor, `e13` a sequence anchor):
+    // quarto emits ONLY `h2:B`, and the rule reported `h2:A` as well.
+    //
+    // So the gate is now POSITIVE rather than negative -- it fires for the DEFAULT reader and for
+    // the pandoc markdown family (`markdownFamilyDialect`, the existing flag), and abstains for
+    // every `from:` this model cannot resolve. That is the same fail-closed direction the Session
+    // 202 setext gate took for the same reason, and the non-deleting one here. ⚠ It is NOT a fix
+    // for the alias itself: resolving anchors is a `FRONTMATTER_COMMONMARK_FROM` question shared
+    // with the ATX and attribute rules, filed in `BACKLOG.md`, not widened here.
+    expect(
+      names(doc("---", "myreader: &r gfm", "format:", "  html:", "    from: *r", "---", "",
+                "prose", " ```", "", "## A", "", "```text", "plain block", "```", "", "## B", "",
+                "tail")),
+    ).toEqual(["h2:B"]); // quarto: the tail only — measured, exit 0
   });
 });

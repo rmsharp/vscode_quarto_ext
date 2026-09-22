@@ -2320,6 +2320,51 @@ describe("Quarto: in-cell code symbol forwarding (CHANGELOG: outline granularity
     );
   });
 
+  it("a fence that does not interrupt a paragraph leaves the heading below it in the outline (Session 277)", async () => {
+    // The adapter-level proof for the paragraph-interrupt rule: the same `outline.ts` path the
+    // product uses, on the bytes this session rendered. `openInMemory` scopes the documents, so
+    // no exact-set `assert.deepStrictEqual` pin over a fixture can be tripped by them (the
+    // Sessions 196/197 lesson, and the grep named on the Session 211 row below).
+    //
+    // Every premise was rendered this session through real `quarto render --to html`, exit 0
+    // (quarto 1.7.33): `scratchpad/s277/posit/s01_para_bt_indent1.qmd` emits BOTH headings and
+    // `s03_para_bt_c0_ctrl.qmd` emits only the tail. Posit's Outline hides the first
+    // (`npm run observe:posit`, quarto.quarto 1.138.0, both controls green) -- the oracles
+    // disagree, and the operator's decision at Session 277 is that we follow `quarto render`,
+    // recorded in `BACKLOG.md` as RECORD decision (7).
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (opener: string) =>
+      flatten(
+        await symbolsForDoc(
+          await openInMemory(
+            [
+              "prose line", opener, "",
+              "## Alpha Indent One", "",
+              "```text", "plain block", "```", "",
+              "## Bravo Tail", "", "tail",
+            ].join("\n"),
+          ),
+        ),
+      );
+
+    // PRESENT -- the defect this session fixed. An opener indented ONE SPACE has no
+    // paragraph-interrupt power in pandoc, so the heading below it is real and HEAD deleted it.
+    const indented = await namesFor(" ```");
+    assert.ok(
+      indented.includes("Alpha Indent One"),
+      `an indent-1 opener does not interrupt a paragraph, so the heading below it stays: ${indented.join(", ")}`,
+    );
+
+    // ABSENT -- the bounding half, and the row a blanket bail would have broken: at COLUMN 0 a
+    // backtick fence really does interrupt, and quarto swallows the heading inside it.
+    const columnZero = await namesFor("```");
+    assert.ok(
+      !columnZero.includes("Alpha Indent One"),
+      `a column-0 backtick fence DOES interrupt, so the heading inside it is not a section: ${columnZero.join(", ")}`,
+    );
+  });
+
   it("a mid-document YAML block's `from:` reaches the outline (Session 211)", async () => {
     // ⚠ THIS TEST DELIBERATELY DOES NOT TOUCH `test/fixtures/setext-fresh-block.qmd`.
     // Sessions 196 and 197 each lost a full screen-taking Extension Development Host run by

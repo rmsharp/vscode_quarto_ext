@@ -124,6 +124,30 @@ const PROBES: ReadonlyArray<{
     frontMatter: "---\ntitle: r06_tilde_rmd\n---\n",
     body: "## Kept Before\n\n```{r}\nx <- 1\n```\n\n~~~{zzz9, eval = FALSE}\nint alpha;\n\nint bravo;\n~~~\n\n#### Foxtrot After Chunk\n\nProse.\n\n~~~\nplain\n~~~\n",
   },
+  {
+    name: "s01_para_bt_indent1",
+    why: "SESSION 277, AND THE ROW THAT DECIDES. A backtick fence INDENTED ONE SPACE under a paragraph line: pandoc gives it no paragraph-interrupt power, so `quarto render` emits BOTH headings (measured on these exact bytes, exit 0) while HEAD reported only the tail. Posit's Outline is built from markdown-it, which is CommonMark, where an indent-1-3 fence DOES interrupt -- so if Posit shows only `Bravo Tail` here, the Session 277 fix DEPARTS from Posit and that has to be recorded as a decision (the second such, after RECORD decision (6)), on the strength of quarto-dev/quarto#829",
+    frontMatter: "---\ntitle: s01_para_bt_indent1\nengine: markdown\n---\n",
+    body: "prose line\n ```\n\n## Alpha Indent One\n\n```text\nplain block\n```\n\n## Bravo Tail\n\ntail\n",
+  },
+  {
+    name: "s02_para_tilde_c0",
+    why: "SESSION 277, THE SECOND DECIDING ROW: the same question for a TILDE fence at COLUMN 0, which pandoc also refuses to let interrupt a paragraph (`quarto render` emits both headings, measured, exit 0) and which CommonMark opens. It is separated from s01 because the corpus contains NO ~~~ run at any indent, so this half of the rule rests on probes alone",
+    frontMatter: "---\ntitle: s02_para_tilde_c0\nengine: markdown\n---\n",
+    body: "prose line\n~~~\n\n## Charlie Tilde\n\n~~~text\nplain block\n~~~\n\n## Delta Tail\n\ntail\n",
+  },
+  {
+    name: "s03_para_bt_c0_ctrl",
+    why: "CORROBORATING, not deciding (Learning #569). A backtick fence at COLUMN 0 under a paragraph line, which pandoc DOES let interrupt: `quarto render` emits only the tail heading (measured, exit 0) and both builds agree. If Posit ALSO shows only the tail here, its answers on s01/s02 are about the indent and the fence character rather than about fences in general",
+    frontMatter: "---\ntitle: s03_para_bt_c0_ctrl\nengine: markdown\n---\n",
+    body: "prose line\n```\n\n## Echo Column Zero\n\n```\n\n## Foxtrot Tail\n\ntail\n",
+  },
+  {
+    name: "s04_gfm_bt_indent1",
+    why: "CORROBORATING, and the READER axis. The s01 bytes under `from: gfm`, where CommonMark's rule applies and quarto really does swallow the heading (measured, exit 0, tail only) -- which is why the fix suspends itself for commonmark-family readers. If Posit answers s01 and s04 the SAME way, Posit is reader-blind, and that is worth knowing before anyone proposes mirroring it",
+    frontMatter: "---\ntitle: s04_gfm_bt_indent1\nengine: markdown\nformat:\n  html:\n    from: gfm\n---\n",
+    body: "prose line\n ```\n\n## Golf Gfm Indent One\n\n```text\nplain block\n```\n\n## Hotel Tail\n\ntail\n",
+  },
 ];
 
 async function main(): Promise<void> {

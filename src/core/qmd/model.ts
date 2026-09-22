@@ -5556,6 +5556,121 @@ function fenceMatchAt(
   const m = re.exec(line);
   return m !== null && !columnIsCodeDepth(indentColumn(line), columns) ? m : null;
 }
+/**
+ * True when an OPEN PARAGRAPH above this opener means pandoc reads it as ordinary paragraph
+ * text rather than a fence — the paragraph-INTERRUPT rule, measured Session 277.
+ *
+ * ⚠ **Only a COLUMN-0 BACKTICK run interrupts an open paragraph, and Session 200 left this
+ * filed rather than guessed.** Its comment at the call site said the interrupt rule "turns on
+ * the fence CHAR" and was "a SEPARATE rule this session did not measure"; both halves are now
+ * measured over a 134-probe matrix (`scratchpad/s277/truth/b1`–`b7`, quarto 1.7.33, one
+ * skeleton: a paragraph line, the opener under test, a body line, a blank, `## A`, a blank, a
+ * separately closed block, `## B`). Quarto emits BOTH headings — the opener did NOT interrupt —
+ * for every indent 1, 2 and 3 (`para_bt_i1`–`i3`), for a `~~~` opener at every indent including
+ * 0 (`para_ti_i0`–`i3`), with and without an info string, at run length 3 and 4, at every closer
+ * placement, and in a knitr document (`b5/knitrdoc_para_*`). The identical openers all open
+ * normally when the line above is BLANK (`b1/blank_*`) — that control is what makes this a
+ * paragraph rule and not an indent rule. The "and it must have a closer" half needs no code
+ * here: `hasCloserBelow` already enforces it, after a paragraph and after a blank line alike
+ * (`b1/para_bt_i0_r3_none_clNONE` renders both headings).
+ *
+ * ⚠ **`fenceMatchAt` cannot express this, which is why the test is here and not in the column
+ * set.** A column LIST is a TOLERANCE — `columnIsCodeDepth(col, [0])` reduces to `col >= 4`, so
+ * `[0]` admits columns 0-3 — and the set never sees the fence CHARACTER at all.
+ *
+ * ⚠ **A REFUSAL FREES LINES, so this refusal joins the EXISTING `refused` path rather than
+ * nulling the match (Learning #586, and Session 224's bookkeeping reused rather than
+ * re-derived).** Two consequences fall out of that placement and neither is optional: a refused
+ * opener records the closer it swallows as an INLINE CODE SPAN (`consumedCloserLine`), without
+ * which the run below it becomes a live opener and deletes a heading
+ * (`scratchpad/s277/adv-cells/j01_adj_i1_then_i0.qmd`, rendered — quarto emits both); and a CELL
+ * (`info !== null`) or a knitr-claimed chunk is never asked, because the disjunction is already
+ * gated on both. Quarto's cell extraction is paragraph-blind, and a knitr chunk header is
+ * claimed TEXTUALLY before pandoc runs, so it interrupts at ANY indent (measured on `.Rmd` with
+ * real knitr: `adv-cells/k03_r2_i2.Rmd`, `k04_myengine_i2.Rmd`, `n12_python3_i2_rmd.Rmd`, all
+ * exit 0, all swallowing the heading inside the chunk).
+ *
+ * ⚠ **FOUR SUSPENSIONS, each measured, each the reason this rule is narrow.** They are not
+ * timidity: over 4,573 rendered probes with quarto ground truth — Session 276's corpus plus this
+ * session's, including five adversarial lenses aimed at this rule — the container-wide variants
+ * scored 110 and 142 rows where HEAD is right and they are not, against this rule's 57, every
+ * one of which is a pre-existing misread losing its cover (`scratchpad/s277/gate/crossall2.py`,
+ * `all3.json`, `final3.json`).
+ *
+ *   1. **`contentColumns` — any open CONTAINER suspends it.** Inside a list item, footnote body,
+ *      definition body or div the interrupt column is the CONTAINER's content column and the
+ *      test is an EQUALITY with no 0-3 slack (`readers/C2/c17_bul2_rel0` interrupts at absolute
+ *      2, `c18_bul2_rel1` does not at absolute 3 — both inside HEAD's 0-3 window). Modelling
+ *      that needs the list-item END semantics first: a fence BELOW a TIGHT item's content column
+ *      ENDS the item and opens a real region, for either fence char (`freed/h02`, `h05`–`h10`,
+ *      `g20`, read off the rendered `<pre><code>`), while the same shape in a LOOSE item, a
+ *      footnote body, a definition body or a table caption is absorbed as text (`freed/h14`,
+ *      `p03`, `p04`, `p08`, `g25`, `p09`). No discriminator was isolated; the divergence is
+ *      filed (`BACKLOG.md`).
+ *   2. **`readerIsMeasured` — the reader must be one this rule was measured against, and the
+ *      gate is POSITIVE so it FAILS CLOSED.** `gfm` / `commonmark` / `commonmark_x` invert the
+ *      rule (an indent-1-3 backtick fence and a column-0 tilde fence really do interrupt there),
+ *      and refusing FABRICATES a heading — measured on 7 probes (`freed/r01`–`r05`, `r09`,
+ *      `r12`). ⚠ A NEGATIVE `!commonmarkDialect` gate was not enough: a reader behind a YAML
+ *      ANCHOR (`myreader: &r gfm` / `from: *r`) is honoured by quarto and deliberately left
+ *      unresolved by `mappingFromValueLine` when nested, so the flag stayed false and the rule
+ *      fired — 13 measured phantoms (`adv-reader/b02_alias_nested_*`, `e02`, `e07`, `e09`–`e13`).
+ *      The caller therefore passes `!dialectOverride || markdownFamilyDialect`: fire for the
+ *      DEFAULT reader and for the pandoc markdown family, abstain for every declaration this
+ *      model cannot resolve — the same fail-closed direction, and the same two existing flags,
+ *      as the Session 202 setext gate. `markdown_strict`, `markdown_mmd` and
+ *      `markdown-blank_before_header` need no suspension (`freed/r06`–`r08`).
+ *      ⚠ **One reader is beyond ANY gate here and is an ACCEPTED, RECORDED residual:** a `from:`
+ *      declared in a project `_quarto.yml` or a directory `_metadata.yml` is honoured by quarto
+ *      and invisible to a scanner that sees one document's bytes, so a commonmark-family project
+ *      reader makes this rule fire where it should not — 9 measured rows, rendered in scratch
+ *      projects (`adv-reader/p01_quartoyml_gfm/doc_c1.qmd` and siblings: quarto emits `h2:B`
+ *      alone, this build adds `h2:A`). PHANTOM, never deletion, which is the same direction
+ *      `FRONTMATTER_COMMONMARK_FROM`'s own docstring already accepts for the same blind spot.
+ *   3. **A LAZY line below a block quote, and BACKTICK-ONLY.** An unmarked line under a quoted
+ *      paragraph is a lazy continuation, where pandoc answers differently from the paragraph's
+ *      own lines — measured on an 8-probe matrix (`scratchpad/s277/lazyq/`, two fence characters
+ *      x four indents, every row rendered exit 0): a lazy BACKTICK opener OPENS at every indent
+ *      0-3 and a lazy TILDE opener never opens. ⚠ The exemption was WIDER for one build and the
+ *      adversarial pass caught the cost on a row of Session 276's own corpus
+ *      (`s276/adv2/verify-backtick-n1/mine/V03_tilde_typo_quote_lazy.qmd`): exempting the lazy
+ *      tilde freed it to open and DELETE a heading quarto renders. `stripQuote` is false on a
+ *      lazy line — it requires a marker to strip — so `quoteOpen` is what remembers the quote.
+ *      A MARKED line inside the quote is not lazy and the rule applies to it normally
+ *      (`freed/h13_quote_tilde_c0` recovers a heading; `h12_quote_fence_c0` keeps HEAD's swallow).
+ *   4. **The column-0 BACKTICK case itself**, which is the one shape that really does interrupt
+ *      (`scratchpad/s200/par/par_top_i00`, re-measured as `posit/s03_para_bt_c0_ctrl`).
+ *
+ * ⚠ **What this rule COSTS, measured rather than hoped.** Over those 4,573 probes it makes 371
+ * rows right that HEAD gets wrong — 255 of them heading DELETIONS — and 57 rows wrong that HEAD
+ * gets right. Every one of the 57 is a PRE-EXISTING misread losing its accidental cover, in four
+ * families, each with an isolation control rendered with no fence anywhere that HEAD already
+ * fails: a heading inside a raw-TeX environment (39 rows, `freed/g01`, `g02`, `iso2/i03`), inside
+ * a raw-HTML block or an UNCLOSED HTML comment (10 rows, `freed/h20`, `q3c/c02_iso_no_fence` —
+ * ⚠ the unclosed-comment three are in the DELETION direction), inside a format-gated
+ * `.content-visible` / `.content-hidden` div (4 rows, `iso2/i01`, `i02` — already filed by
+ * Session 257), and a mid-document YAML block read as a setext heading (`freed/g03_iso_midyaml`).
+ * All four are filed in `BACKLOG.md`. The authored corpus is NEUTRAL either way: `findHeadings`
+ * and `findAllCells` output is byte-identical over all 3,383 documents (21,340 cells), so the
+ * real-document score cannot move and does not (2,423 / 2,438 before and after).
+ */
+function paragraphInterruptRefuses(
+  match: RegExpExecArray,
+  line: string,
+  paragraphOpen: boolean,
+  contentColumns: readonly number[],
+  readerIsMeasured: boolean,
+  quoteOpen: boolean,
+  stripQuote: boolean,
+): boolean {
+  return (
+    paragraphOpen &&
+    readerIsMeasured &&
+    contentColumns.length === 0 &&
+    !(quoteOpen && !stripQuote && match[2] === "`") &&
+    (match[2] !== "`" || indentColumn(line) !== 0)
+  );
+}
 /** The `---` line that opens a YAML front-matter block — only valid at line 0. */
 const FRONTMATTER_OPEN = /^---[ \t]*$/;
 /** A YAML front-matter terminator: `---` or `...` (YAML's document-end marker). */
@@ -7339,18 +7454,27 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // When CommonMark's 0–3-space rule declines, quarto's unbounded CELL opener gets a
     // second look — but ONLY when the info string really is a cell, so a plain fence
     // keeps the CommonMark cap (Session 178).
-    // ⚠ AN OPEN PARAGRAPH ABOVE THE OPENER KEEPS THE PRE-SESSION-200 WIDTH, and the narrowness
-    // of that is the point: a plain fence does NOT in general interrupt an open paragraph, and
-    // what quarto does there is a SEPARATE rule this session did not measure. Rendered:
-    // `-   item one` / `    paragraph line` / `    ```` ``` ```` is ONE paragraph whose backtick
-    // pair is an INLINE code span, and treating it as a fence fabricates the heading below it.
+    // ⚠ AN OPEN PARAGRAPH ABOVE THE OPENER KEEPS THE PRE-SESSION-200 WIDTH — and Session 277
+    // then NARROWED that width to what pandoc actually does, in `paragraphInterruptRefuses`
+    // below. Session 200 measured that a plain fence does not in general interrupt an open
+    // paragraph (`-   item one` / `    paragraph line` / `    ```` ``` ```` is ONE paragraph
+    // whose backtick pair is an INLINE code span) and left the rest filed rather than guessed;
+    // Session 277 rendered the 134-probe matrix that settles it. Only a COLUMN-0 BACKTICK run
+    // interrupts: an opener at indent 1-3, or a `~~~` opener at any indent, is paragraph text,
+    // and HEAD opened both and DELETED the heading below.
     //
-    // ⚠ The obvious `paragraphOpen` bail on the whole branch is MEASURABLY WRONG — at column 0
-    // the fence really does interrupt (`scratchpad/s200/par`, `par_top_i00`), and bailing there
-    // DELETES a heading both builds get right. The interrupt rule also turns on the fence CHAR
-    // (a `~~~` opener at column 0 does not interrupt where a backtick one does), which is
-    // conclusive that it is a different question from this row's indent. So the boundary drawn
-    // here is "this session's change does not apply", not a new rule invented to fit the diff.
+    // ⚠ The obvious `paragraphOpen` bail on the WHOLE branch is still MEASURABLY WRONG, for two
+    // reasons that have not moved: at column 0 a backtick fence really does interrupt
+    // (`scratchpad/s200/par`, `par_top_i00`), and quarto's CELL partitioner is paragraph-blind,
+    // so bailing here would also change 27 indented-cell openers in 15 corpus documents
+    // (`scratchpad/s277/reach`, instrumented). The refusal is therefore spelled as one more
+    // disjunct of `refused` below — a path already gated on `info === null && !knitrClaims`, so a
+    // cell and a knitr-claimed chunk are never asked, and a refused opener's consumed closer is
+    // recorded by machinery that already exists rather than by a second copy of it.
+    //
+    // ⚠ `fenceColumns` is UNCHANGED, deliberately: in the paragraph-open case it is already
+    // `[0]`, and `candidate.columns` — which `isCloser`, `hasCloserBelow` and
+    // `consumedCloserLine` all read — must keep the value every accepted fence had at HEAD.
     //
     // ⚠ `[0]` rather than a `null` SUSPENSION, deliberately (Learning #301). The regexes above
     // widened to `[ \t]*` in the same commit, so a sentinel meaning "return the bare match"
@@ -7415,14 +7539,27 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         char === "`" &&
         !stripQuote &&
         KNITR_CHUNK_INFO.test(fence[3].trim());
-      const refused =
+      const paragraphRefused =
         info === null &&
         !knitrClaims &&
-        !fenceInfoOpensBlock(
-          quartoFenceTagRewrite(raw, fence[3], i === 0 || emptyTagPropagates),
-          commonmarkDialect,
-          pandocEscapes,
+        paragraphInterruptRefuses(
+          fence,
+          line,
+          paragraphOpen,
+          contentColumns,
+          !dialectOverride || markdownFamilyDialect,
+          quoteOpen,
+          stripQuote,
         );
+      const refused =
+        paragraphRefused ||
+        (info === null &&
+          !knitrClaims &&
+          !fenceInfoOpensBlock(
+            quartoFenceTagRewrite(raw, fence[3], i === 0 || emptyTagPropagates),
+            commonmarkDialect,
+            pandocEscapes,
+          ));
       // ⚠ **A REFUSED OPENER'S CLOSER MAY HAVE BEEN CONSUMED, AND FAILING TO RECORD THAT
       // BREAKS THE BLOCK BELOW.** With no blank line between them the two fence lines are read
       // as ONE INLINE CODE SPAN, so the closer is swallowed and cannot open anything; with a
