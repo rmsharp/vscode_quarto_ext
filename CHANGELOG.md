@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [ad hoc] The post-trim budget measurement row backing the entry above
+- **Change:** `.context-budget-history.jsonl` -- the one row `python3 context_budget.py` appended when run against the committed trim, the evidence for the figure the trim entry cites (`SESSION_NOTES.md` 18,860 B).
+- **Commit/PR:** this entry's own commit
+- **Session:** S276 · **Verified:** the appended row reads `"SESSION_NOTES.md": 18860`; `context_budget.py` -> `SESSION_NOTES.md` **ok** (18,860 / 120,000 B), `CLAUDE.md` ok. Still OVER, pre-existing and owed: `HANDOFFS.md` 233,697 B, `BACKLOG.md` 346,581 B, `PROJECT_LEARNINGS.md` 1,041,086 B (the D7 trims named in the handoff).
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S272 evaluation + S273 self-assessment)
 - **Change:** `SESSION_NOTES.md` -- the Session 272 handoff evaluation (by Session 273) and the Session 273 self-assessment removed, so the live file holds the steady-state THREE pairs (`CLAUDE.md` §SESSION_NOTES.md retention). **7,467 B removed; 259 lines / 18,860 B remain.** Both records stay one command away: `git show 4c6fb997:SESSION_NOTES.md`, the close-out commit just before this one.
 - **Commit/PR:** this entry's own commit
