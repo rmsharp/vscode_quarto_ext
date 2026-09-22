@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S274 evaluation + S275 self-assessment)
+- **Change:** `SESSION_NOTES.md` -- the oldest pair removed so the live file holds three, the steady state the retention rule sets. 70 lines deleted and nothing else in the file touched (upstream BL-36). ⚠ **This supersedes a sentence in the close-out entry above**, which said the NEXT session owed this trim: the rule puts it at Phase 3D, on the session that writes its own pair, and that is this one.
+- **Commit/PR:** this entry's own commit
+- **Session:** S278 · **Verified:** `grep -c '^## Session '` -> **6**, i.e. exactly three pairs (S277 evaluation by S278 / S278 self-assessment, S276 by S277 / S277, S275 by S276 / S276); `git diff --stat` for the commit reads `1 file changed, 70 deletions(-)` -- deletions only. The dropped pair stays one command away: `git show 774f67c8:SESSION_NOTES.md`.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [ad hoc] Session 278 close-out -- the handoff receipt, the predecessor evaluation and the self-assessment
 - **Change:** `HANDOFFS.md` -- the S278 receipt completed from `status: pending` to `status: complete` with all six requirements, `predecessor_score: 7` and `self_score: 8`. `SESSION_NOTES.md` -- ACTIVE TASK rewritten for the next session, plus the close-out pair (S277 evaluation + S278 self-assessment). ⚠ The S277 evaluation states in its first line that it was written by the same model that wrote the handoff it scores, so it is a self-check rather than an independent score.
 - **Commit/PR:** this entry's own commit
