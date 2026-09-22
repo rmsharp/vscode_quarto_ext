@@ -8,27 +8,29 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 278 IN PROGRESS** — the x86-pandoc environment item is FIXED on this machine, and
-every record that depended on it must be corrected. Not a code change: `src/` and `test/` stay at
-S277's HEAD.
-**What happened:** the operator installed Homebrew's arm64 pandoc 3.11 and removed the shadowing
-2023 Intel `.pkg` install (`/usr/local/bin/pandoc`, `-lua`, `-server`, its man pages, and the
-`net.johnmacfarlane.pandoc` receipt). `pandoc` now resolves to `/opt/homebrew/bin/pandoc` (arm64).
-**MEASURED after the removal, at the DEFAULT PATH with no workaround:** `test/fixtures/sample.qmd`
-renders exit 0; both `scratchpad/s277/r5tilde/*.Rmd` probes render exit 0 and AGREE with the shipped
-build (cache deleted first); and `npm run test:integration` is **552 passing, 0 failing, exit 0** —
-the first fully green run since the machine changed.
-**Status:** claimed. Records to correct: the `BACKLOG.md` x86-pandoc item (now closed), the S277
-annotation that cites it, `PROJECT_LEARNINGS.md` (append a row; #591/#599 are history, never edited),
-and the S277 receipt's stale "547/5 is the expected reading".
+**Task:** **NONE — Session 278 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S278 did:** recorded the ROOT-CAUSE fix of the x86-pandoc environment item — no code change,
+`src/` and `test/` byte-identical to S277's close-out. The operator installed Homebrew's arm64 pandoc
+3.11 and removed the shadowing 2023 Intel `.pkg` install. MEASURED after removal, at the DEFAULT PATH
+with no workaround and no cache: `pandoc` resolves to `/opt/homebrew/bin/pandoc` (arm64, 3.11); the
+knitr fixture renders exit 0; both `r5tilde` `.Rmd` probes render exit 0 and AGREE with the shipped
+build; **`npm run test:integration` is 552 passing, 0 failing, exit 0** against S277's 547/5 on the
+identical tree. The item is DELETED (216 open); learning #600 records it.
+Commits: `1c2a1ab7` claim · `45ddaf63` records.
 
-**⚠ The retired workaround was:** prefixing renders with a PATH that strips `/usr/local/bin` plus
-`RSTUDIO_PANDOC=/Applications/quarto/bin/tools/aarch64`. It is no longer needed anywhere.
-**⚠ #1 FOR THE NEXT SESSION, and it is now UNBLOCKED:** S276's open question — whether the corpus
-ground truth's knitr exit-1 rows (e.g. ordinals 970, 977, 978, 1275, 2114) are ENVIRONMENT failures
-rather than document failures. If they are, the scored population (2,438 of 3,383) is understated and
-the standing measure's knitr rows cannot be trusted until re-rendered. Five renders settle the first
-part.
+**⚠ S277's receipt and learnings #591/#599 still describe the workaround and "547/5 expected".** They
+are append-only history and were true when written — **this ACTIVE TASK and the S278 receipt are the
+live guidance.** The workaround (a PATH strip plus `RSTUDIO_PANDOC`) is retired; do not reapply it.
+**⚠ A FAILING INTEGRATION TEST IS NOW A REAL SIGNAL AGAIN.** 552/0 is the expected reading.
+
+**⚠ #1 FOR THE NEXT SESSION, now UNBLOCKED and more urgent than before:** S276's open question —
+whether the corpus ground truth's knitr exit-1 rows (ordinals 970, 977, 978, 1275, 2114 among them)
+are ENVIRONMENT failures rather than document failures. If they are, the scored population (2,438 of
+3,383) is understated and the standing measure's knitr rows cannot be trusted until re-rendered.
+Five renders settle the first part; the ground truth lives in `scratchpad/s265/quarto_v2.tsv`.
+⚠ Its age is the open question: it was built at Sessions 251/265, and whether that predates the
+machine change is UNMEASURED — establish that before re-rendering anything.
 
 **⚠ Gates:** `python3 quality_ratchet.py --run` at close-out; cite the head the RESULTS FILE records.
 **⚠ No ledger hook is installed** (`git config core.hooksPath` is empty) — read `git show --stat
@@ -36,6 +38,70 @@ HEAD` after every commit; never build ledger text in an f-string (#584).
 **⚠ Never `git add -A`**, **never `grep -r` from the repo root** (`scratchpad/` is untracked,
 ~85,000 files), **`$?` after a pipe is not a measurement** (#567), **`cd` moves the cwd** (#535).
 ---
+
+## Session 277 Handoff Evaluation (by Session 278)
+
+**Score: 7/10.** ⚠ **Written by the same model that wrote the handoff, so treat it as a self-check
+rather than an independent score** — the protocol asks for it and I would rather flag the conflict
+than skip the step.
+
+**What helped.** Its gotcha (5) named the 5 integration failures as the x86 pandoc AND said they were
+proved by hand in both directions, so when the operator fixed pandoc I knew exactly which count to
+re-measure and what the old reading meant. Its `runtime_smoke` recorded the fixture, the error string
+and the workaround, which is what made the root-cause diagnosis a five-minute job (`which -a`, `file`,
+`pkgutil --pkgs`) instead of a hunt.
+
+**What was wrong, and it cost this session's whole existence.** ⚠ **Its gotcha (5) wrote a MACHINE
+STATE into a durable receipt as if it were a standing fact** — *"547 passing / 5 failing is the
+expected reading"*. One `brew install` later that sentence is a trap: it tells the next session to read
+five real failures as environmental. A receipt should record what was measured and WHEN, and point at
+the item for the current state, rather than publishing an expected test count. ⚠ **And it repeated
+#591's compound workaround without testing its levers** — PATH order alone was always sufficient, which
+one render would have shown.
+
+**ROI: high, but the defect it carried is the reason this session exists.**
+
+## Session 278 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **I diagnosed to the FILE, not the directory, and that is what kept the fix safe.** `which -a`,
+  `file` and `pkgutil --pkgs` showed one unrunnable x86 binary from a 2023 `.pkg`. The tidy-looking
+  fix — demoting `/usr/local/bin`, which `~/.zprofile` re-prepends after `brew shellenv` — would have
+  silently switched `python3`, `npm`, `pip3` and `npx` too, because 9 names overlap with Homebrew.
+  I checked the overlap BEFORE recommending anything.
+- ⚠ **I tested the workaround's two levers separately and refuted half of the filed reasoning**: PATH
+  order alone renders exit 0 with the broken binary still present, so only the `RSTUDIO_PANDOC`-alone
+  claim had ever been refuted (#600).
+- **I did not run the destructive command.** It needed `sudo`, so the operator ran it, with the exact
+  file list named rather than a glob.
+- **Every claim re-measured after the change, at the default PATH, cache deleted** — resolution,
+  version, architecture, the fixture, both `.Rmd` probes, and one screen-taking integration run with
+  the go-ahead taken before the launch.
+- ⚠ **I did not rewrite history to make the record tidy.** #591, #599 and S277's receipt stay as
+  written; the correction lives in the ACTIVE TASK, the S278 receipt and row #600, each naming the
+  superseded claim. Editing an append-only record to hide a stale fact is how a ledger stops being
+  evidence.
+
+**What went wrong.**
+- ⚠ **The stale guidance was mine, written an hour earlier.** The real failure is upstream of this
+  session: I published a test count as an expectation in a durable receipt. #600 records the rule I
+  should have followed.
+- **I nearly treated this as a continuation of S277 rather than a new session.** It is a second
+  deliverable and needed its own claim, stub and receipt; had I shaved that, the fix would have landed
+  off the books (failure mode #17, and #27 for the ledger).
+- **I have not measured the consequence I flagged as #1** — whether the corpus ground truth's knitr
+  exit-1 rows are environment failures. It is correctly out of scope for a records session, but it
+  means the standing measure now rests on ground truth of unestablished age.
+- **TDD:** exempt and stated — no logic changed; `git diff` against S277's close-out is empty for
+  `src/` and `test/`. Verification was the render matrix plus the real-host suite.
+- **Growth:** `BACKLOG.md` −1 item (216 open), `PROJECT_LEARNINGS.md` +1 row (#600), no `src/`, no
+  `test/`, no new docs. **Cost:** no workflows, no subagents; ~10 renders and one integration run.
+
+**Against the bar.** S277 shipped a measured code change. This one shipped a measured ENVIRONMENT
+change and, more importantly, corrected a trap its predecessor had put in the highest-authority file
+the next session reads — which is the cheaper of the two kinds of work and the easier to skip.
 
 ## Session 276 Handoff Evaluation (by Session 277)
 

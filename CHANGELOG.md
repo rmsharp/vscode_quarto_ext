@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [ad hoc] Session 278 close-out -- the handoff receipt, the predecessor evaluation and the self-assessment
+- **Change:** `HANDOFFS.md` -- the S278 receipt completed from `status: pending` to `status: complete` with all six requirements, `predecessor_score: 7` and `self_score: 8`. `SESSION_NOTES.md` -- ACTIVE TASK rewritten for the next session, plus the close-out pair (S277 evaluation + S278 self-assessment). ⚠ The S277 evaluation states in its first line that it was written by the same model that wrote the handoff it scores, so it is a self-check rather than an independent score.
+- **Commit/PR:** this entry's own commit
+- **Session:** S278 · **Verified:** `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at head `45ddaf63` -- the head the RESULTS FILE records, read rather than assumed. `npm run compile` exit 0, `npx vitest run` 66 files / 3004 passed, `check-backlog` OK 216 open items. `SESSION_NOTES.md` 325 lines with no line over 280 B; it now holds FOUR close-out pairs, so the next session owes the retention trim (`CLAUDE.md` §SESSION_NOTES retention) in a commit of its own.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [BL-`/usr/local/bin/pandoc` on this machine is an x86_64 binary, and every knitr render through the default PATH exits 1] FIXED at the root -- the item removed, the retired workaround recorded, and the ground-truth question it blocked handed on
 - **Change:** `BACKLOG.md` -- the x86-pandoc item DELETED (fixed, not deferred); 216 open items. `PROJECT_LEARNINGS.md` -- row #600, which records what the compound workaround hid and why the obvious PATH fix would have been wrong. ⚠ `PROJECT_LEARNINGS.md` #591/#599, the S277 receipt's `runtime_smoke` and gotcha (5), and the S276/S277 close-out pairs are append-only history and are deliberately NOT edited: they were true when written, and the live guidance lives in `SESSION_NOTES.md`'s ACTIVE TASK and in the S278 receipt, which name the superseded claim explicitly.
 - **Commit/PR:** this entry's own commit
