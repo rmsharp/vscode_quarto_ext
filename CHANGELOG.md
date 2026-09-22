@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [ad hoc] The post-trim budget measurement row backing the entry above
+- **Change:** `.context-budget-history.jsonl` -- the rows `python3 context_budget.py` appended when run against the committed trim, the evidence for the figure the trim entry cites.
+- **Commit/PR:** this entry's own commit
+- **Session:** S277 · **Verified:** `context_budget.py` -> `SESSION_NOTES.md` **ok** (18,414 B / 120,000 B, 258 lines / 400), `CLAUDE.md` ok. Still OVER, pre-existing and owed: `HANDOFFS.md`, `BACKLOG.md` 355,402 B, `PROJECT_LEARNINGS.md` -- the D7 trims named in the handoff.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S273 evaluation + S274 self-assessment)
 - **Change:** `SESSION_NOTES.md` -- the oldest pair removed so the live file holds three, the steady state the retention rule in `CLAUDE.md` sets. 92 lines deleted and nothing else in the file touched, because a positional proof breaks otherwise (upstream BL-36).
 - **Commit/PR:** this entry's own commit
