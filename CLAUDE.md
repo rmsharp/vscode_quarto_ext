@@ -164,13 +164,14 @@ code taken from it into a `.vsix` that ships MIT.
 - **Where quarto's RENDER and Posit's OUTLINE disagree, that is a decision, not a defect.** The audits
   score against `quarto render` because that is mechanical over thousands of documents; the product
   **defaults to mirroring Posit**, because Posit is the *product* oracle — what a user expects an
-  Outline to do. **Six such decisions are now recorded** in `BACKLOG.md`'s RECORD item and in
-  `CHANGELOG.md`; four mirror Posit, and ⚠ **one deliberately does not.**
-- ⚠ **The default is rebuttable, and decision (6) is the one case that rebutted it (Session 274).**
+  Outline to do. **Seven such decisions are now recorded** in `BACKLOG.md`'s RECORD item and in
+  `CHANGELOG.md`; five mirror Posit, and ⚠ **two deliberately do not.**
+- ⚠ **The default is rebuttable, and decisions (6) and (7) are the cases that rebutted it (Sessions
+  274 and 277).**
   Mirroring Posit rests on Posit's behaviour being *intended*. Where Posit's own maintainers have
   **publicly disowned** the behaviour upstream, it is an acknowledged defect rather than a design
-  choice, and mirroring it would copy a bug its authors intend to remove. That is why decision (6)
-  follows `quarto render`: [`quarto-dev/quarto#829`](https://github.com/quarto-dev/quarto/issues/829)
+  choice, and mirroring it would copy a bug its authors intend to remove. That is why decisions (6)
+  and (7) follow `quarto render`: [`quarto-dev/quarto#829`](https://github.com/quarto-dev/quarto/issues/829)
   (open) has the Quarto VS Code extension maintainer stating *"the outline should match the TOC that
   ends up in the rendered document"*, with a quarto-cli maintainer agreeing the CLI should own outline
   generation. **The bar is a public upstream statement by a maintainer, read black-box** (issue titles
@@ -178,7 +179,9 @@ code taken from it into a `.vsix` that ships MIT.
 
 *Origin: operator directive, Session 267 (2026-09-19), when the Session 266 close-out asked which of the
 two oracles governs and the licence was measured while answering. The rebuttal clause is the operator's
-decision (6) at Session 274 (2026-09-20), the first of the six to depart from the default.*
+decision (6) at Session 274 (2026-09-20), the first of the seven to depart from the default; the operator
+applied it a second time as decision (7) at Session 277 (2026-09-22), where quarto renders a heading that
+Posit's markdown-it (CommonMark) Outline hides.*
 
 ### Additional Phase 0 steps
 
