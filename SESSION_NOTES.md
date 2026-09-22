@@ -17,7 +17,7 @@ with no workaround and no cache: `pandoc` resolves to `/opt/homebrew/bin/pandoc`
 knitr fixture renders exit 0; both `r5tilde` `.Rmd` probes render exit 0 and AGREE with the shipped
 build; **`npm run test:integration` is 552 passing, 0 failing, exit 0** against S277's 547/5 on the
 identical tree. The item is DELETED (216 open); learning #600 records it.
-Commits: `1c2a1ab7` claim · `45ddaf63` records.
+Commits: `5e2f1823` claim · `45ddaf63` records · `774f67c8` close-out.
 
 **⚠ S277's receipt and learnings #591/#599 still describe the workaround and "547/5 expected".** They
 are append-only history and were true when written — **this ACTIVE TASK and the S278 receipt are the

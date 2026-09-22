@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [ad hoc] Correction: the claim-commit sha cited in SESSION_NOTES.md's ACTIVE TASK was wrong
+- **Change:** `SESSION_NOTES.md` -- the ACTIVE TASK's commit list corrected from `1c2a1ab7` to the real claim commit `5e2f1823`, and the close-out commit `774f67c8` added. The records sha `45ddaf63` was already right.
+- **Commit/PR:** this entry's own commit
+- **Session:** S278 · **Verified:** ⚠ **The wrong sha was written BEFORE the commit existed** -- an unverified identifier in the one file Phase 0 orders every session to read, which is the same class of defect as publishing a test count as an expectation (#600, and this session's own criticism of its predecessor). Both shas are now read back from `git log --oneline --grep`: `5e2f1823 docs(session): claim Session 278`, `45ddaf63 docs(records): the x86-pandoc item is fixed at the root`, `774f67c8 docs(session): close out Session 278`. The lesson: write commit references AFTER the commit, or leave the slot empty.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [ad hoc] The post-trim budget measurement row backing the entry above
 - **Change:** `.context-budget-history.jsonl` -- the row `python3 context_budget.py` appended when run against the committed trim.
 - **Commit/PR:** this entry's own commit
