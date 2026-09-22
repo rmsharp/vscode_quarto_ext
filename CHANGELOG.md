@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [ad hoc] The post-trim budget measurement row backing the entry above
+- **Change:** `.context-budget-history.jsonl` -- the row `python3 context_budget.py` appended when run against the committed trim.
+- **Commit/PR:** this entry's own commit
+- **Session:** S278 · **Verified:** the appended row reads `"SESSION_NOTES.md": 18064`; the file is 255 lines, both inside the 120,000 B / 400-line ceilings, with no line over 280 B. Still OVER, pre-existing and owed: `HANDOFFS.md`, `BACKLOG.md`, `PROJECT_LEARNINGS.md`.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S274 evaluation + S275 self-assessment)
 - **Change:** `SESSION_NOTES.md` -- the oldest pair removed so the live file holds three, the steady state the retention rule sets. 70 lines deleted and nothing else in the file touched (upstream BL-36). ⚠ **This supersedes a sentence in the close-out entry above**, which said the NEXT session owed this trim: the rule puts it at Phase 3D, on the session that writes its own pair, and that is this one.
 - **Commit/PR:** this entry's own commit
