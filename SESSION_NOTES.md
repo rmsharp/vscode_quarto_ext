@@ -8,20 +8,19 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 276 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S276 did:** took the list-item / backtick-info fence item and **SHIPPED NO `src/` CHANGE.**
-Corpus reach MEASURED ZERO: every build left all 3,383 outputs byte-identical; score 2423/2438.
-Two rules were built TDD and attacked BEFORE any commit (#581) by 5-lens adversarial passes:
-the broad one broke **626** HEAD-correct rows over 1,844 rendered probes; a narrowed one (0 of
-those) broke **622** over 3,105. Refusing a fence HEAD paired frees lines this model misreads.
-Commits: `7fa2c918` claim · `6b41be1a` records (findings doc, backlog note + 2 items, #586-#591).
+**Task:** **Session 277 IN PROGRESS** — the fence PARAGRAPH-INTERRUPT prerequisite, item (a) of
+`BACKLOG.md` *"Pre-existing fence-grammar defects measured by Session 276's research"*, picked by
+the operator from a ranked `AskUserQuestion` at Phase 0.
+**The defect:** under pandoc markdown only a COLUMN-0 BACKTICK fence WITH a closer interrupts an
+open paragraph; this model's `fenceColumns = [0]` also opens an indent-1-3 or a `~~~` one and
+DELETES the heading below (witnesses `containers-readers/pi01`-`pi04`, `backtick-info/m/m83`).
+**Status:** claimed. Corpus reach is NOT measured yet — measure it FIRST, before any rule.
 
 **⚠ READ `docs/planning/2026-09-22-fence-bound-adversarial-findings.md` BEFORE ANY FENCE WORK.** It
-holds the derived rule, both candidates and the four prerequisites a retry needs first.
-**⚠ The best next fence item is the PREREQUISITE (a) it names:** only a column-0 BACKTICK fence with a
-closer interrupts a pandoc paragraph; this model opens indent 1-3 and tilde ones and DELETES (HEAD).
-**⚠ Gate for any retry:** `python3 scratchpad/s276/harness/crossall.py <build.cjs>` scores all 3,105
+holds S276's derived rule, both refuted candidates and the four prerequisites a retry needs first.
+**⚠ ATTACK A SCRATCH BUNDLE BEFORE THE TDD PORT** (#592), and remember a REFUSAL FREES LINES
+(#586): any rule that stops a fence HEAD pairs exposes the lines below to older misreads.
+**⚠ Gate for any rule:** `python3 scratchpad/s276/harness/crossall.py <build.cjs>` scores all 3,105
 cached renders against HEAD in seconds; it must print 0 REGRESSIONS (#587). Bundle with `bundle.sh`.
 **⚠ knitr renders exit 1 through the default PATH** (x86 `/usr/local/bin/pandoc`, #591, filed).
 

@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S277
+date: 2026-09-22
+status: pending
+active_task: The fence PARAGRAPH-INTERRUPT prerequisite -- item (a) of BACKLOG.md "Pre-existing fence-grammar defects measured by Session 276's research". Under pandoc markdown only a column-0 BACKTICK fence WITH a closer interrupts an open paragraph; this model's fenceColumns = [0] also opens an indent-1-3 or a ~~~ one and DELETES the heading below (witnesses containers-readers/pi01-pi04, backtick-info/m/m83). Picked by the operator from a ranked AskUserQuestion at Phase 0. Corpus reach NOT yet measured -- measure it first.
+```
+
+```handoff
 session: S276
 date: 2026-09-22
 status: complete

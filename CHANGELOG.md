@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [BL-Pre-existing fence-grammar defects measured by Session 276's research] Session 277 claimed (in progress) -- the paragraph-interrupt prerequisite, item (a)
+- **Change:** `SESSION_NOTES.md` ACTIVE TASK rewritten to claim the session; `HANDOFFS.md` opens the S277 receipt at `status: pending`. No `src/` or `test/` file touched by this commit.
+- **Commit/PR:** this entry's own commit
+- **Session:** S277 · **Verified:** Phase 0 reconciled clean -- CHANGELOG frontier `f50527da` WAS HEAD (0 undocumented commits); newest receipt S276 `status: complete`; `.quality-gates-results.json` 2/2 pass (results `bba236856bad`, manifest `8845021a4049`, head `6b41be1a`) matching that receipt's citation. Build measured green BEFORE anything: `npm run compile` exit 0, `npx vitest run` 66 files / 2991 passed. `gh issue list` empty (this project uses none). Dashboard 76/100, risk HIGH (BACKLOG.md 346,581 B past the 262,144 B hard read refusal; HANDOFFS.md 233,697 B; npm audit 9).
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [ad hoc] The post-trim budget measurement row backing the entry above
 - **Change:** `.context-budget-history.jsonl` -- the one row `python3 context_budget.py` appended when run against the committed trim, the evidence for the figure the trim entry cites (`SESSION_NOTES.md` 18,860 B).
 - **Commit/PR:** this entry's own commit
