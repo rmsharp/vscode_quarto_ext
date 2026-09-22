@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [BL-`/usr/local/bin/pandoc` on this machine is an x86_64 binary, and every knitr render through the default PATH exits 1] FIXED at the root -- the item removed, the retired workaround recorded, and the ground-truth question it blocked handed on
+- **Change:** `BACKLOG.md` -- the x86-pandoc item DELETED (fixed, not deferred); 216 open items. `PROJECT_LEARNINGS.md` -- row #600, which records what the compound workaround hid and why the obvious PATH fix would have been wrong. ⚠ `PROJECT_LEARNINGS.md` #591/#599, the S277 receipt's `runtime_smoke` and gotcha (5), and the S276/S277 close-out pairs are append-only history and are deliberately NOT edited: they were true when written, and the live guidance lives in `SESSION_NOTES.md`'s ACTIVE TASK and in the S278 receipt, which name the superseded claim explicitly.
+- **Commit/PR:** this entry's own commit
+- **Session:** S278 · **Verified:** after the removal, at the DEFAULT PATH, no workaround, no cache: `which -a pandoc` -> `/opt/homebrew/bin/pandoc` alone (arm64, 3.11); `test/fixtures/sample.qmd` exit 0; both `r5tilde` `.Rmd` probes exit 0 and AGREE with the shipped build; `npm run test:integration` **552 passing, 0 failing, exit 0** (go-ahead taken BEFORE the launch), against S277's 547/5 on the identical tree. `git grep` confirms the only remaining live mention of the workaround is the line that retires it. `node check-backlog.js` OK, 216 open items. No `src/` or `test/` file touched by this session at all -- `git diff` against S277's close-out is empty for both trees.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [BL-`/usr/local/bin/pandoc` on this machine is an x86_64 binary, and every knitr render through the default PATH exits 1] Session 278 claimed (in progress) -- the environment item is FIXED; the records that depend on it are being corrected
 - **Change:** `SESSION_NOTES.md` ACTIVE TASK rewritten to claim the session; `HANDOFFS.md` opens the S278 receipt at `status: pending`. No `src/` or `test/` file touched.
 - **Commit/PR:** this entry's own commit
