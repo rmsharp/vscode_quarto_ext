@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [ad hoc] Session 277 close-out -- the handoff receipt, the predecessor evaluation and the self-assessment
+- **Change:** `HANDOFFS.md` -- the S277 receipt completed from `status: pending` to `status: complete` with all six requirements, `predecessor_score: 9` and `self_score: 8`. `SESSION_NOTES.md` -- ACTIVE TASK rewritten for the next session, plus the close-out pair (S276 evaluation + S277 self-assessment).
+- **Commit/PR:** this entry's own commit
+- **Session:** S277 · **Verified:** `quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049` at head `1effdbef` -- the head the RESULTS FILE records, read rather than assumed. `python3 context_budget.py`: `SESSION_NOTES.md` **ok** (25,649 B / 120,000 B, 350 lines / 400, no line over 280 B); `CLAUDE.md` ok. Still OVER, pre-existing and owed: `HANDOFFS.md`, `BACKLOG.md` 354,892 B, `PROJECT_LEARNINGS.md`. No `status: pending` receipt remains (the one grep hit is that string quoted inside an older receipt's gotchas, which is the fence-aware counting caveat this file documents).
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [BL-Pre-existing fence-grammar defects measured by Session 276's research] The records for the paragraph-interrupt fix: decision (7), the item it closed, and five new items from its measurements
 - **Change:** `BACKLOG.md` — the COMPLETED tilde/knitr-header item (Session 273) removed, item (a) of the Session 276 research item marked CLOSED at top level, RECORD item retitled SIX -> SEVEN DECIDED with bullet (7) and its two deciding plus two corroborating probes, the candidates note updated, the x86-pandoc item annotated with the 5 integration failures it causes, and FIVE new items filed with their witnesses (the container-relative form of the rule; the reader branches and two disclosed residuals; the UNBOUNDED raw-block unmask family and its new DELETION shape; `indentedCellFenceAt`'s over-reach with no container open; a fence below an open LINE BLOCK). `CLAUDE.md` — the decision count and the rebuttal clause updated for (7). `PROJECT_LEARNINGS.md` — rows #593-#599.
 - **Commit/PR:** this entry's own commit

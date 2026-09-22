@@ -8,21 +8,26 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 277 IN PROGRESS** — the fence PARAGRAPH-INTERRUPT prerequisite, item (a) of
-`BACKLOG.md` *"Pre-existing fence-grammar defects measured by Session 276's research"*, picked by
-the operator from a ranked `AskUserQuestion` at Phase 0.
-**The defect:** under pandoc markdown only a COLUMN-0 BACKTICK fence WITH a closer interrupts an
-open paragraph; this model's `fenceColumns = [0]` also opens an indent-1-3 or a `~~~` one and
-DELETES the heading below (witnesses `containers-readers/pi01`-`pi04`, `backtick-info/m/m83`).
-**Status:** claimed. Corpus reach is NOT measured yet — measure it FIRST, before any rule.
+**Task:** **NONE — Session 277 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S277 did:** SHIPPED the fence PARAGRAPH-INTERRUPT rule at TOP LEVEL — only a column-0
+BACKTICK fence interrupts an open paragraph; an opener at indent 1-3 or a `~~~` one is paragraph
+text. Over **4,573 rendered probes**: 371 rows corrected (**255 deletions**) against 57 made worse,
+every one a PRE-EXISTING misread losing its cover, each with an isolation control HEAD already
+fails. Corpus NEUTRAL, proved byte-identical over all 3,383 documents (cells too).
+**By-catch:** closes the S273 TILDE/knitr-header item (its own note predicted a pandoc-layer cause).
+**RECORD decision (7)** — the 2nd departure from Posit, operator's call, observed not inferred.
+Commits: `a148be2b` claim · `2863dbde` fix · `1effdbef` records.
 
-**⚠ READ `docs/planning/2026-09-22-fence-bound-adversarial-findings.md` BEFORE ANY FENCE WORK.** It
-holds S276's derived rule, both refuted candidates and the four prerequisites a retry needs first.
-**⚠ ATTACK A SCRATCH BUNDLE BEFORE THE TDD PORT** (#592), and remember a REFUSAL FREES LINES
-(#586): any rule that stops a fence HEAD pairs exposes the lines below to older misreads.
-**⚠ Gate for any rule:** `python3 scratchpad/s276/harness/crossall.py <build.cjs>` scores all 3,105
-cached renders against HEAD in seconds; it must print 0 REGRESSIONS (#587). Bundle with `bundle.sh`.
-**⚠ knitr renders exit 1 through the default PATH** (x86 `/usr/local/bin/pandoc`, #591, filed).
+**⚠ The four narrowings all came from the adversary, and two were DELETIONS** — read
+`PROJECT_LEARNINGS.md` #593-#599 before the next fence item. A REFUSAL FREES LINES (#586) and the
+freed line needs the SAME rule applied to it (#594); put a new refusal where the old one lives (#595).
+**⚠ The gate for any heading change is now `scratchpad/s277/gate/crossall2.py`** — multi-root, scores
+every cached render under s276+s277 (4,638 unique) against HEAD and N candidates in seconds.
+**⚠ Measure a candidate on the WHOLE probe population, never on the lens that designed it** (#593):
+the per-lens tally inverted the ranking of three variants.
+**⚠ 5 integration tests FAIL on this machine and it is ENVIRONMENTAL** (x86 pandoc, #591/#599):
+547 passing / 5 failing is the expected reading; proved by hand in both directions. Not a regression.
 
 **⚠ Gates:** `python3 quality_ratchet.py --run` at close-out; cite the head the RESULTS FILE records.
 **⚠ No ledger hook is installed** (`git config core.hooksPath` is empty) — read `git show --stat
@@ -30,6 +35,93 @@ HEAD` after every commit; never build ledger text in an f-string (#584).
 **⚠ Never `git add -A`**, **never `grep -r` from the repo root** (`scratchpad/` is untracked,
 ~85,000 files), **`$?` after a pipe is not a measurement** (#567), **`cd` moves the cwd** (#535).
 ---
+
+## Session 276 Handoff Evaluation (by Session 277)
+
+**Score: 9/10.** Its three gotchas set this session's method before I wrote a line of code, and every
+fact it stated held when I re-measured it. One point off for understating the size of the item it
+recommended.
+
+**What helped, specifically.**
+- ⚠ **`whats_next` #1 named the item, its witnesses AND the first move**: *"probes rendered, corpus
+  reach NOT measured: measure it first"*. I measured it first — zero, and the same zero the previous
+  session found — which is what let the trade be argued on probes with the corpus as a safety proof
+  rather than as evidence.
+- ⚠ **Gotcha (1), #586 "A REFUSAL FREES LINES".** The single highest-value line it wrote. It predicted
+  the entire 57-row cost of this change *and* the two cascades that made my first build delete
+  headings. I built an adversarial lens around it from the start instead of discovering it late.
+- ⚠ **Gotcha (2), #592 "ATTACK THE SCRATCH BUNDLE BEFORE THE TDD PORT".** Obeyed exactly: three
+  variants built as scratch bundles and scored over 3,452 probes BEFORE any `src/` edit. That is why
+  the top-level choice was measurable and why the port needed one attempt, not three.
+- **`key_files` — the harness.** `probe.py`, `bundle.sh` and `crossall.py` were reused unmodified
+  (the last generalised to multi-root). A session that had to build that instrument could not have
+  reached 4,573 rendered probes.
+- **Gotchas (4), (6), (7)** — all accurate and all needed: the knitr PATH workaround twice, `cd`
+  twice (it warned me and I still did it), and `$?`-after-a-pipe once, caught because of the warning.
+
+**What was missing / wrong.**
+- ⚠ **It framed prerequisite (a) as one rule; it is four** (fence character, indent, reader, container)
+  plus two cascade obligations (the freed line, the consumed closer). Not wrong — understated, and the
+  understatement is what made "one narrow rule" look cheaper than it was.
+- **It did not know (a) had a BY-CATCH**: closing it closes the S273 tilde item, whose own note had
+  predicted the pandoc-layer cause. No handoff could have known, but it means the item was worth more
+  than its entry claimed.
+- **Its gate was single-root.** `crossall.py` walks `scratchpad/s276` only, so a session that renders
+  new probes silently scores on a stale population. A one-line generalisation, but it had to be found.
+- **Nothing it stated as fact turned out false.** Its #3 (re-measure the knitr exit-1 ground-truth
+  rows) is untouched and stays open — not this session's item.
+
+**ROI: very high.** Orientation to a measured first step took about twenty-five minutes.
+
+## Session 277 Self-Assessment
+
+**Score: 8/10.**
+
+**What went right.**
+- ⚠ **The adversary ran BEFORE the commit and I obeyed all of it.** 65 agents, 5 hunting lenses, 60
+  skeptic verifications. Four of its findings became narrowings — the lazy block-quote line, the
+  knitr-claimed chunk, the consumed closer, the aliased reader — and **two of those were DELETIONS**
+  my own probes had not found. 45 of its 96 claimed regressions are retired by the shipped build; the
+  42 that remain are the two lenses that said SHIP.
+- ⚠ **I measured on the whole population, not on the lens that designed the probes (#593).** The
+  freed-line lens ranked top-level-only WORST on its own 126 probes; over 3,452 it was best by an
+  order of magnitude (10 bad rows against 142 and 110). Building the multi-root cross-scorer first is
+  the reason that was visible at all.
+- ⚠ **Every family I disclosed, I controlled myself.** Raw-TeX, raw-HTML, unclosed comment,
+  format-gated div, mid-YAML: isolation control rendered, HEAD fails identically. And the converse —
+  the reader-alias rows were shown NOT pre-existing (`iso2/i04` agrees at HEAD), which is why they got
+  fixed instead of disclosed.
+- ⚠ **Both oracles settled properly.** `observe:posit` with the operator's go-ahead taken BEFORE the
+  launch, every probe pre-rendered and proved byte-identical to the harness's bytes, two deciding rows
+  and two controls — and the operator, not I, chose `quarto render` (decision (7)).
+- **Runtime discharged, and its failures proved environmental by hand in both directions** (#599):
+  547 passing, my new row passing at 44 ms, 5 failing — all five the x86 pandoc, shown by rendering
+  the fixture at the default PATH and again with the workaround.
+- **Corpus neutrality PROVED, not asserted:** `model.tsv`/`rawadj.tsv` byte-identical over 3,383
+  documents, `findAllCells` byte-identical (21,340 cells), score 2423/2438 with identical ordinals.
+
+**What went wrong.**
+- ⚠ **Cycle 1 implemented four clauses at once, so cycle 2 would have gone GREEN with no RED.** I
+  repaired the process by reverting the character clause to show RED first, and every later clause got
+  its own honest RED — but the first cycle was not one behaviour, and that is the TDD gate's whole point.
+- ⚠ **I patched `src/` to test a hypothesis and the experiment refuted it** (a tilde refusal consuming
+  its closer). That is #592 at small scale: it should have been a scratch bundle. One patch/revert cycle.
+- **My first guard row asserted hand-written bytes instead of the measured probe's**, failed, and had
+  to be rewritten against the probe's exact bytes and engine — #573's lesson, self-inflicted.
+- **I launched the adversary against a bundle that then moved.** Its skeptics verified the
+  pre-narrowing build, so all 96 claims needed re-mapping against the final one. Cheap only because
+  the cross-scorer already covered their probes; the right order was to narrow, then attack.
+- **`cd` moved the cwd twice** (#535, which the handoff warned me about), and `$?` after a pipe
+  printed a wrong exit code once (#567).
+- **Growth:** `src/` +169/−7, `test/unit` +275, `test/integration` +45, `test/posit` +24,
+  `BACKLOG.md` net +5 items (one completed item removed), `PROJECT_LEARNINGS.md` +7 rows (#593-#599),
+  no new tracked docs. **Cost:** two workflows, 70 agents, 0 errors, ~6.03M subagent tokens, ~1,351
+  subagent tool uses, plus ~200 quarto renders of my own.
+
+**Against the bar.** Sessions 273-275 each shipped a measured change; 276 shipped a measured decision
+not to. This one shipped a measured change *with* the largest verified probe population the project
+has used, and priced it honestly: 255 deletions corrected, 57 pre-existing misreads made visible, and
+every one of the 57 controlled rather than argued away.
 
 ## Session 275 Handoff Evaluation (by Session 276)
 
