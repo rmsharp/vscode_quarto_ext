@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [ad hoc] The oldest close-out pair dropped from SESSION_NOTES.md (S273 evaluation + S274 self-assessment)
+- **Change:** `SESSION_NOTES.md` -- the oldest pair removed so the live file holds three, the steady state the retention rule in `CLAUDE.md` sets. 92 lines deleted and nothing else in the file touched, because a positional proof breaks otherwise (upstream BL-36).
+- **Commit/PR:** this entry's own commit
+- **Session:** S277 · **Verified:** the file's `## ` headings are now exactly ACTIVE TASK + three pairs (S276 evaluation by S277 / S277 self-assessment, S275 by S276 / S276, S274 by S275 / S275); 258 lines, and `git diff --stat` for the commit reads `1 file changed, 92 deletions(-)` -- deletions only. The dropped pair stays one command away: `git show 1effdbef:SESSION_NOTES.md`.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [ad hoc] Session 277 close-out -- the handoff receipt, the predecessor evaluation and the self-assessment
 - **Change:** `HANDOFFS.md` -- the S277 receipt completed from `status: pending` to `status: complete` with all six requirements, `predecessor_score: 9` and `self_score: 8`. `SESSION_NOTES.md` -- ACTIVE TASK rewritten for the next session, plus the close-out pair (S276 evaluation + S277 self-assessment).
 - **Commit/PR:** this entry's own commit
