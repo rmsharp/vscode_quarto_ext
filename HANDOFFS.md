@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S278
+date: 2026-09-22
+status: pending
+active_task: The x86-pandoc environment item, FIXED on this machine and being recorded. The operator installed Homebrew's arm64 pandoc 3.11 and removed the shadowing 2023 Intel .pkg install; measured after the removal at the DEFAULT PATH with no workaround: the knitr fixture renders exit 0, both r5tilde .Rmd probes render exit 0 and AGREE, and npm run test:integration is 552 passing / 0 failing / exit 0. Deliverable: close the BACKLOG item and correct every record that depended on it (including S277's "547/5 is the expected reading"). No src/ or test/ change.
+```
+
+```handoff
 session: S277
 date: 2026-09-22
 status: complete

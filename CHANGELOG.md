@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [BL-`/usr/local/bin/pandoc` on this machine is an x86_64 binary, and every knitr render through the default PATH exits 1] Session 278 claimed (in progress) -- the environment item is FIXED; the records that depend on it are being corrected
+- **Change:** `SESSION_NOTES.md` ACTIVE TASK rewritten to claim the session; `HANDOFFS.md` opens the S278 receipt at `status: pending`. No `src/` or `test/` file touched.
+- **Commit/PR:** this entry's own commit
+- **Session:** S278 · **Verified:** the operator removed the shadowing 2023 Intel install (`pkgutil --forget net.johnmacfarlane.pandoc`, the three binaries and three man pages) after installing Homebrew's arm64 pandoc 3.11. Measured firsthand AFTER the removal, all at the DEFAULT PATH with no workaround and no cache: `which -a pandoc` -> `/opt/homebrew/bin/pandoc` alone, `file` says `Mach-O 64-bit executable arm64`, `pandoc --version` 3.11; `test/fixtures/sample.qmd` renders exit 0 and produces `sample.html`; `scratchpad/s277/r5tilde/t01_tilde.Rmd` and `t02_backtick_ctrl.Rmd` render exit 0 and AGREE with the shipped build; `npm run test:integration` **552 passing, 0 failing, exit 0** with the operator's go-ahead taken BEFORE the launch.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [ad hoc] The post-trim budget measurement row backing the entry above
 - **Change:** `.context-budget-history.jsonl` -- the rows `python3 context_budget.py` appended when run against the committed trim, the evidence for the figure the trim entry cites.
 - **Commit/PR:** this entry's own commit

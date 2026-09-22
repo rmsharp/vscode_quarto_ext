@@ -8,26 +8,27 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE — Session 277 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S277 did:** SHIPPED the fence PARAGRAPH-INTERRUPT rule at TOP LEVEL — only a column-0
-BACKTICK fence interrupts an open paragraph; an opener at indent 1-3 or a `~~~` one is paragraph
-text. Over **4,573 rendered probes**: 371 rows corrected (**255 deletions**) against 57 made worse,
-every one a PRE-EXISTING misread losing its cover, each with an isolation control HEAD already
-fails. Corpus NEUTRAL, proved byte-identical over all 3,383 documents (cells too).
-**By-catch:** closes the S273 TILDE/knitr-header item (its own note predicted a pandoc-layer cause).
-**RECORD decision (7)** — the 2nd departure from Posit, operator's call, observed not inferred.
-Commits: `a148be2b` claim · `2863dbde` fix · `1effdbef` records.
+**Task:** **Session 278 IN PROGRESS** — the x86-pandoc environment item is FIXED on this machine, and
+every record that depended on it must be corrected. Not a code change: `src/` and `test/` stay at
+S277's HEAD.
+**What happened:** the operator installed Homebrew's arm64 pandoc 3.11 and removed the shadowing
+2023 Intel `.pkg` install (`/usr/local/bin/pandoc`, `-lua`, `-server`, its man pages, and the
+`net.johnmacfarlane.pandoc` receipt). `pandoc` now resolves to `/opt/homebrew/bin/pandoc` (arm64).
+**MEASURED after the removal, at the DEFAULT PATH with no workaround:** `test/fixtures/sample.qmd`
+renders exit 0; both `scratchpad/s277/r5tilde/*.Rmd` probes render exit 0 and AGREE with the shipped
+build (cache deleted first); and `npm run test:integration` is **552 passing, 0 failing, exit 0** —
+the first fully green run since the machine changed.
+**Status:** claimed. Records to correct: the `BACKLOG.md` x86-pandoc item (now closed), the S277
+annotation that cites it, `PROJECT_LEARNINGS.md` (append a row; #591/#599 are history, never edited),
+and the S277 receipt's stale "547/5 is the expected reading".
 
-**⚠ The four narrowings all came from the adversary, and two were DELETIONS** — read
-`PROJECT_LEARNINGS.md` #593-#599 before the next fence item. A REFUSAL FREES LINES (#586) and the
-freed line needs the SAME rule applied to it (#594); put a new refusal where the old one lives (#595).
-**⚠ The gate for any heading change is now `scratchpad/s277/gate/crossall2.py`** — multi-root, scores
-every cached render under s276+s277 (4,638 unique) against HEAD and N candidates in seconds.
-**⚠ Measure a candidate on the WHOLE probe population, never on the lens that designed it** (#593):
-the per-lens tally inverted the ranking of three variants.
-**⚠ 5 integration tests FAIL on this machine and it is ENVIRONMENTAL** (x86 pandoc, #591/#599):
-547 passing / 5 failing is the expected reading; proved by hand in both directions. Not a regression.
+**⚠ The retired workaround was:** prefixing renders with a PATH that strips `/usr/local/bin` plus
+`RSTUDIO_PANDOC=/Applications/quarto/bin/tools/aarch64`. It is no longer needed anywhere.
+**⚠ #1 FOR THE NEXT SESSION, and it is now UNBLOCKED:** S276's open question — whether the corpus
+ground truth's knitr exit-1 rows (e.g. ordinals 970, 977, 978, 1275, 2114) are ENVIRONMENT failures
+rather than document failures. If they are, the scored population (2,438 of 3,383) is understated and
+the standing measure's knitr rows cannot be trusted until re-rendered. Five renders settle the first
+part.
 
 **⚠ Gates:** `python3 quality_ratchet.py --run` at close-out; cite the head the RESULTS FILE records.
 **⚠ No ledger hook is installed** (`git config core.hooksPath` is empty) — read `git show --stat
