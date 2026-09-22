@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-22 · [ad hoc] Session 276 close-out -- the handoff receipt, the predecessor evaluation, the self-assessment and learning #592
+- **Change:** `SESSION_NOTES.md` -- ACTIVE TASK rewritten to "NONE -- Session 276 closed out", the Session 275 handoff evaluation (**9/10**) and the Session 276 self-assessment (**7/10**) prepended. `HANDOFFS.md` -- the S276 receipt completed (`status: complete`). `PROJECT_LEARNINGS.md` -- #592 (attack the cheap prototype before the TDD port).
+- **Commit/PR:** this entry's own commit
+- **Session:** S276 · **Verified:** `python3 quality_ratchet.py --run` -> **2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049**, at head `6b41be1a` -- the head the results file records. `src/` and `test/` byte-identical to HEAD (`git diff --stat HEAD -- src test` empty); `npm run compile` exit 0, `npm test` 66 files / 2991 passed, `check-backlog` OK 213. No Extension Development Host run was owed: no runtime surface changed.
+- **Model:** Claude Opus 5 (claude-opus-5)
+
 ### 2026-09-22 · [BL-A bare fence inside a list item, and a backtick fence whose info string holds a backtick, are fences to this model and not to pandoc] Measured, attempted twice under two adversarial passes, and NOT shipped -- the item stays open with its findings recorded
 - **Change:** NO `src/` or `test/` change. New `docs/planning/2026-09-22-fence-bound-adversarial-findings.md` (the derived rule, both candidates, both adversarial rounds, the prerequisites a retry needs). `BACKLOG.md`: the item keeps its place with a dated note pointing at the findings; its Active-section mention updated; two items filed -- *Pre-existing fence-grammar defects measured by Session 276's research* (a)-(i), and the x86_64 `/usr/local/bin/pandoc` that fails every knitr render through the default PATH (with a note that the corpus ground truth's knitr exit-1 rows may be environment failures). `PROJECT_LEARNINGS.md` #586-#591. `dashboard_history.jsonl`: the Phase 0 dashboard row.
 - **Commit/PR:** this entry's own commit

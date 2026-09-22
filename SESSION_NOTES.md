@@ -8,23 +8,93 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-### What Session 276 Did
-**Deliverable:** the list-item / backtick-info fence defect (IN PROGRESS) — BACKLOG *"A bare fence
-inside a list item, and a backtick fence whose info string holds a backtick, are fences to this
-model and not to pandoc"*. Deletion direction, PRE-EXISTING, corpus reach NOT yet measured.
-**Plan:** measure reach over the corpus + ground truth with `quarto render` FIRST; then strict TDD;
-adversarial deletion hunt BEFORE the fix commit (#581); realdoc score after (CLAUDE.md).
-**Started:** 2026-09-21
-**Status:** Session claimed. Work beginning. Operator picked it at Phase 0 (recommended option).
-**Ledger:** `CHANGELOG: pending` — the claim commit's `CHANGELOG.md` entry says (in progress);
-Phase 3F records the rest. Until close-out, this line is the crash breadcrumb.
+**Task:** **NONE — Session 276 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
+**What S276 did:** took the list-item / backtick-info fence item and **SHIPPED NO `src/` CHANGE.**
+Corpus reach MEASURED ZERO: every build left all 3,383 outputs byte-identical; score 2423/2438.
+Two rules were built TDD and attacked BEFORE any commit (#581) by 5-lens adversarial passes:
+the broad one broke **626** HEAD-correct rows over 1,844 rendered probes; a narrowed one (0 of
+those) broke **622** over 3,105. Refusing a fence HEAD paired frees lines this model misreads.
+Commits: `7fa2c918` claim · `6b41be1a` records (findings doc, backlog note + 2 items, #586-#591).
+
+**⚠ READ `docs/planning/2026-09-22-fence-bound-adversarial-findings.md` BEFORE ANY FENCE WORK.** It
+holds the derived rule, both candidates and the four prerequisites a retry needs first.
+**⚠ The best next fence item is the PREREQUISITE (a) it names:** only a column-0 BACKTICK fence with a
+closer interrupts a pandoc paragraph; this model opens indent 1-3 and tilde ones and DELETES (HEAD).
+**⚠ Gate for any retry:** `python3 scratchpad/s276/harness/crossall.py <build.cjs>` scores all 3,105
+cached renders against HEAD in seconds; it must print 0 REGRESSIONS (#587). Bundle with `bundle.sh`.
+**⚠ knitr renders exit 1 through the default PATH** (x86 `/usr/local/bin/pandoc`, #591, filed).
 
 **⚠ Gates:** `python3 quality_ratchet.py --run` at close-out; cite the head the RESULTS FILE records.
 **⚠ No ledger hook is installed** (`git config core.hooksPath` is empty) — read `git show --stat
-HEAD` after every commit; an f-string ate one `CHANGELOG.md` entry this session (#584).
+HEAD` after every commit; never build ledger text in an f-string (#584).
 **⚠ Never `git add -A`**, **never `grep -r` from the repo root** (`scratchpad/` is untracked,
 ~85,000 files), **`$?` after a pipe is not a measurement** (#567), **`cd` moves the cwd** (#535).
 ---
+
+## Session 275 Handoff Evaluation (by Session 276)
+
+**Score: 9/10.** Its gotcha (1) is the reason this session shipped nothing wrong: *"run the
+adversarial deletion hunt BEFORE the fix commit"* — I did, twice, and both passes found hundreds
+of deletions that TDD, mutants and the corpus had all passed. One point off for framing the item
+more narrowly than it is.
+
+**What helped, specifically.**
+- ⚠ **Gotcha (1), #581.** Without it the broad rule — 504 of 606 designed probes right, zero
+  regressions on its own corpus, zero corpus movement — would have been committed. It broke 626.
+- ⚠ **`whats_next` #1: "corpus reach NOT measured — measure it first".** Measured first: zero. That
+  single fact reframed everything after it and is in every record this session wrote.
+- **Gotcha (3), no ledger hook / no f-strings (#584).** Followed; every commit's `--stat` was read.
+- **`key_files` and the R6 describe blocks** — accurate; the S275 row pinning HEAD's `[B, C]` was the
+  first thing my change moved, and restoring it was exact.
+
+**What was missing / wrong.**
+- ⚠ **The item described a knitr witness, and the defect is general** — plain `.qmd`, markdown
+  engine, bullets, ordered, tilde, footnote and definition bodies. Not wrong, but it undersold the
+  item's size (it is a root cause, not one shape).
+- **Nothing it stated as fact turned out false.** Its note that knitr renders exit 0 was true for
+  S275; the machine changed since (#591), which no handoff could have known.
+
+**ROI: very high.** Orientation to a measured first step took about thirty minutes.
+
+## Session 276 Self-Assessment
+
+**Score: 7/10.**
+
+**What went right.**
+- ⚠ **The adversarial pass ran BEFORE the commit, twice, and I obeyed what it said.** Round 1: 203
+  skeptic-verified regressions; round 2 on the narrowed rule: 169. Shipping nothing was the correct
+  outcome under the stop rule of the option the operator chose, and I did not argue with it.
+- ⚠ **I measured reach first (zero) and every decision cites it** — including that zero reach hides
+  regressions as well as gains (#589).
+- ⚠ **The cross-scorer turned 3,105 cached renders into a seconds-long gate** (#587): it caught the
+  quadratic guard (9 → 298 ms, fixed by memoizing), separated missing unit rows from unobservable
+  mutants, and is left for the next attempt.
+- **Strict TDD throughout both builds**, RED shown before GREEN, every test document byte-checked
+  against the probe quarto rendered (provenance, #577). Build back at HEAD: compile exit 0,
+  2991 tests.
+
+**What went wrong.**
+- ⚠ **I ported N1 into `src/` through six full TDD cycles BEFORE attacking it.** Round 2 could have
+  run against the scratch bundle I already had; the port was then discarded. Hours of TDD spent on a
+  rule the adversary had not yet seen (#592).
+- ⚠ **Round 1's own families already showed the mechanism** (freed lines misread) that doomed N1; I
+  narrowed the symptoms rather than stopping to ask whether the approach could converge (#588).
+- **`cd` into `scratchpad/s276` moved the cwd twice** (#535, which I had read), and a
+  `vitest --root /` check scanned the whole filesystem until I killed it.
+- **The first adversarial script failed to parse** on a backtick in a template literal — S274's
+  exact failure (#590).
+- **Two claims in my own findings doc were written from memory** (an uncounted test figure, and my
+  option text quoted as the operator's words); both caught and fixed before the commit.
+- **Runtime:** no runtime surface changed (`src/` is at HEAD), so no Extension Development Host run
+  was owed; the prepared real-host row was reverted with the rest. **Growth:** `src/` 0, `test/` 0,
+  `docs/planning/` +116, `BACKLOG.md` net +2 items, `PROJECT_LEARNINGS.md` +7 rows (#586-#592).
+  **Cost:** four workflow launches (one failed to parse), 26 agents, 0 errors, ~5.7M subagent
+  tokens, ~4,000 rendered probes across all passes.
+
+**Against the bar.** Sessions 273-275 each shipped a measured change. This one shipped a measured
+DECISION not to, backed by two adversarial passes and a regression gate the next attempt can reuse —
+worth less than a fix, and the port-before-attack cost it a point beyond S275's.
 
 ## Session 274 Handoff Evaluation (by Session 275)
 
