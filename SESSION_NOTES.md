@@ -8,10 +8,10 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 285 closed out (R6 residual (c) FIXED: a knitr chunk with no code is silent, `src/core/qmd/model.ts`).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: R6 residuals (a),(b),(d)-(g), unclosed-`<!--` deletion shape, bare-fence-in-list-item.
-**⚠ Gotchas:** (1) `child=` is silent in quarto but kept at HEAD's answer. (2) never `git add -A`. (3) HANDOFFS.md line 23 lost its tail.
+**Task:** Session 286 -- R6 residual (a): non-R engines (`{python, echo=FALSE}` etc.) silent to quarto (IN PROGRESS, claimed 2026-10-01).
+**Status:** Session claimed. Orient done; operator chose shape (a) from `BACKLOG.md` "R6 residuals". Work beginning.
+**Ledger:** `CHANGELOG: pending` -- close-out records the rest.
+**Note:** HANDOFFS.md line 23 lost its `` ``` `` tail in an earlier trim (S284's receipt opener is fused into prose); not fixed here.
 ## Session 284 Handoff Evaluation (by Session 285)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named the R6 residuals and

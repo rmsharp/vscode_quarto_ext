@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Claimed Session 286 (in progress): shape (a), non-R engines
+
+Operator-chosen scope. Outcome recorded at close-out.
+
 ### 2026-10-01 · [ad hoc] Dropped the oldest close-out pair from SESSION_NOTES.md (S281 evaluation + S282 self-assessment)
 
 S256 retention rule: the live file holds three pairs. The dropped pair is one `git show` away. No other edit in the commit.
