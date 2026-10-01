@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [ad hoc] Backfilled (reconcile-on-read): undocumented commits 2372f469..f73dc05e -- post-S279 housekeeping
+- **Change:** no code. Two commits landed after S279's close-out ledger entry: `5263e507` dropped the oldest close-out pair from `SESSION_NOTES.md` (the CLAUDE.md retention rule) and `f73dc05e` appended the post-trim measurement rows to `.context-budget-history.jsonl` and `dashboard_history.jsonl`. Provenance: `git log` and `git show --stat`, read at Session 280 Phase 0.
+- **Commit/PR:** this entry's own commit
+- **Session:** S280 (Phase 0 reconcile)
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [ad hoc] Measured: the corpus ground truth's exit-1 rows are document failures, not pandoc failures
 - **Change:** no code. Re-rendered all 942 non-zero-exit rows of `quarto_v2.tsv` at the fixed arm64 pandoc: 938 exit 1 stay 1, 3 exit -2 stay -2, ordinal 1646 (139) now 0. Recorded as learning #601, `SESSION_NOTES.md` and the S279 `HANDOFFS.md` receipt, now `status: complete`.
 - **Commit/PR:** this entry's own commit
