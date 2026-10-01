@@ -8,15 +8,12 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 281 closed out (P2 of the attribute-tokenizer plan SHIPPED).** `BACKLOG.md` "Active" is
-empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**What S281 did:** new leaf `src/core/qmd/attribute-block.ts` + pandoc truth fixture (`a55735ae`); `:::` openers read
-through it in `model.ts` (`db7cf046`); runtime row, 553 passing (`7e2adbd9`). Corpus census 0/0/0; score 2,423/2,438.
-**#1 NEXT:** operator picks. Natural: **P3** of the same plan (single-line REFUSED openers become paragraph text); see the
-tokenizer item in BACKLOG.md for the residuals. P3 is a separate session and needs its own §9.5 drift check.
-**⚠ Gotchas:** (1) P2 shows NO gain on refused openers: the leaf says `refused` but `divSpecReading` answers null and the
-legacy reader still hides the heading. (2) pandoc refuses every INDENTED `:::`. (3) `python3 quality_ratchet.py --run` at
-close-out; never `git add -A`; `cd` moves the cwd (#535). (4) `dashboard_history.jsonl` is appended by every dashboard run.
+**Task:** **Session 282 -- P3 of `docs/planning/2026-09-14-attribute-tokenizer-plan.md` (IN PROGRESS):** a `:::` opener pandoc
+refuses on its own line is paragraph text, not a div. Strict TDD; single layer + runtime row (C1 guards, C2 model, C3 outline row).
+**Started:** 2026-10-01. **Status:** session claimed; Orient re-verification (§9.5) running.
+**Operator decisions:** proceed past §9.5 step 1 drift rule (re-measuring); `test:integration` may be planned (re-ask before launch).
+**Ledger:** `CHANGELOG: pending` -- the claim entry says (in progress); Phase 3F records the rest.
+**⚠ Gotchas:** never `git add -A`; `dashboard_history.jsonl` / `.context-budget-history.jsonl` are appended by every run.
 ## Session 280 Handoff Evaluation (by Session 281)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK was short and

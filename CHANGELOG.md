@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-01 · [BL-The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it, so an opener pandoc REFUSES is still read as a callout — plus seven grammar gaps beside it] Claimed Session 282 for P3 (in progress)
+- **Change:** session claim only -- P3 of the attribute-tokenizer plan (single-line refused `:::` openers become paragraph text). Operator approved proceeding past plan §9.5 step 1's drift rule and planning a `test:integration` run.
+- **Commit/PR:** this entry's own commit
+- **Session:** S282
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [ad hoc] Dropped the oldest close-out pair from SESSION_NOTES.md (S277 evaluation + S278 self-assessment)
 - **Change:** `SESSION_NOTES.md` retention rule (CLAUDE.md, three pairs steady state). The dropped pair is recoverable with `git show df56d4ff:SESSION_NOTES.md`.
 - **Commit/PR:** this entry's own commit
