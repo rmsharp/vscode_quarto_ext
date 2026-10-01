@@ -2469,6 +2469,18 @@ function fromExtensionState(line: string, extension: string): boolean | null {
   return state;
 }
 /**
+ * Whether a resolved `from:` reads `| line` as a LINE BLOCK (Session 280). `line_blocks` is on
+ * for plain `markdown` alone — `markdown_strict`, `markdown_mmd`, `markdown_github` and
+ * `markdown_phpextra` read the same bytes as a paragraph (measured, `scratchpad/s280/adv/realistic`,
+ * where the first build, gated on the whole markdown FAMILY, deleted nothing but invented a
+ * heading under all four). An explicit `+line_blocks` / `-line_blocks` wins over the base, last
+ * occurrence first, like every other extension row here.
+ */
+function fromHasLineBlocks(line: string): boolean {
+  const state = fromExtensionState(line, "line_blocks");
+  return state !== null ? state : fromReaderBase(line) === "markdown";
+}
+/**
  * The eight reader BASES whose container constructs this project has measured, and which of
  * them carry each construct (Session 209, `scratchpad/s209/cal` and `cal2`, quarto 1.7.33).
  *
@@ -5671,6 +5683,74 @@ function paragraphInterruptRefuses(
     (match[2] !== "`" || indentColumn(line) !== 0)
   );
 }
+/**
+ * Whether a fence-shaped `line` is a LINE BLOCK's continuation and so cannot open anything
+ * (Session 280). A line block's continuation attaches at ANY indent (`LINE_BLOCK_CONTINUATION`),
+ * so ` ```` ` or ` ~~~ ` directly below a `| row` is more row text. Rendered through quarto
+ * 1.7.33: `<div class="line-block">a line block row ```</div>`, and the blank line below ends
+ * the block, so the heading under it is REAL (`scratchpad/s277/freed/p10_lineblock_bt_c1`,
+ * `g15_lineblock_two_rows`; the 54- and 24-document matrices `scratchpad/s280` `p/`, `p2/`).
+ *
+ * ⚠ **THIS EXISTS BESIDE `paragraphInterruptRefuses` BECAUSE A LINE-BLOCK ROW IS BLOCK-LEVEL.**
+ * It leaves `paragraphOpen` FALSE, so Session 277's paragraph gate never ran for it and HEAD
+ * opened the fence and DELETED the heading below it (15 of 54 matrix rows; 12 of them plain
+ * fences at indent 1-3, tight, for either fence character, one row or two). The refusal is
+ * spelled as one more disjunct of `paragraphRefused`, so a cell and a knitr-claimed chunk are
+ * never asked and a refused opener's closer is consumed by the machinery that already exists.
+ *
+ * Each clause is rendered and each is killed by a test when dropped (a mutation pass, recorded
+ * in `SESSION_NOTES.md`):
+ *   1. `lineBlockAbove` — a blank line, or a table's body row, ends or never starts the block.
+ *   2. a LEADING-WHITESPACE line — a column-0 fence is no continuation and still opens.
+ *   3. **the line block's own container, by QUOTE DEPTH.** A MARKED line must sit at the SAME
+ *      depth as the block (`lineBlockQuoteDepth === quoteDepth`): a fence one `>` out from, or in
+ *      from, its line block belongs to a different container and opens. An UNMARKED line
+ *      abstains while a quote may still be open (`quoteOpen`, Session 277's fail-safe), because a
+ *      lazy line is the QUOTE's text and quarto answers both ways on shapes this model cannot
+ *      tell apart (`p2/q_lazy` renders both headings, `adv/quotes/b26` only the tail).
+ *   4. a reader WITH line blocks, by `fromHasLineBlocks` — plain `markdown` and `+line_blocks`
+ *      only. ⚠ `markdownFamilyDialect` was the first gate and was too wide: `markdown_strict`,
+ *      `_mmd`, `_github` and `_phpextra` have no line blocks, and `gfm` / `commonmark_x` read the
+ *      row as a paragraph that a CommonMark fence really does interrupt.
+ *   5. no open CONTAINER (`contentColumns.length === 0`): a list item below the row puts the
+ *      fence at the item's own column, where it opens (`adv2/containers2/B_t3`).
+ * The refusal also withholds `consumedCloserLine` (see `lineBlockRefused`): no inline code span
+ * reaches the next fence across a line block's end.
+ *
+ * ⚠ **THE FIRST BUILD HAD ONLY CLAUSES 1, 2 AND A BOOLEAN QUOTE CHECK, AND TWO ADVERSARIAL
+ * ROUNDS (46 agents, ~1,900 rendered probes) CONFIRMED 29 REGRESSION DOCUMENTS IN IT.** One of them was found
+ * only because the first instrument was wrong: it read heading ANCHOR ids, which a heading inside a
+ * block quote does not carry.
+ *
+ * ⚠ **ACCEPTED, RECORDED RESIDUAL — A READER CHOSEN OUTSIDE THE DOCUMENT IS INVISIBLE.** A `from:`
+ * in a project `_quarto.yml`, a directory `_metadata.yml` or a `metadata-files:` file is honoured
+ * by quarto and unseen by a scanner that reads one document's bytes, so under `gfm` /
+ * `commonmark*` set that way the rule fires where it should not (10 measured directories, 5 of 6
+ * probe shapes each, `adv2/extensions/ext{p,m,f}_*`). PHANTOM, never deletion — the same blind
+ * spot and the same direction `paragraphInterruptRefuses` already accepts.
+ *
+ * ⚠ **NOT COVERED, ON PURPOSE** (each keeps HEAD's answer and is filed in `BACKLOG.md`): an
+ * indented CELL opener (`info !== null`; the standing divergence Session 277 pinned), a line
+ * block INSIDE a list item (container-relative continuation), `markdown-line_blocks`, and a lazy
+ * fence under a quoted line block.
+ */
+function lineBlockContinuationRefuses(
+  line: string,
+  lineBlockAbove: boolean,
+  lineBlockQuoteDepth: number,
+  quoteDepth: number,
+  quoteOpen: boolean,
+  readerIsMeasured: boolean,
+  noContainerOpen: boolean,
+): boolean {
+  return (
+    lineBlockAbove &&
+    noContainerOpen &&
+    (quoteDepth === 0 ? !quoteOpen : lineBlockQuoteDepth === quoteDepth) &&
+    readerIsMeasured &&
+    LINE_BLOCK_CONTINUATION.test(line)
+  );
+}
 /** The `---` line that opens a YAML front-matter block — only valid at line 0. */
 const FRONTMATTER_OPEN = /^---[ \t]*$/;
 /** A YAML front-matter terminator: `---` or `...` (YAML's document-end marker). */
@@ -6546,6 +6626,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // renders it (`lz2`). The marker is the whole difference, and `LINE_BLOCK_CONTINUATION` — a
   // bare leading-whitespace test — cannot see it.
   let lineBlockQuoted: boolean = false;
+  // The QUOTE DEPTH of that line block (Session 280) — `lineBlockQuoted` is only quoted-or-not, and
+  // a fence one `>` out from (or in from) its line block belongs to a DIFFERENT container.
+  let lineBlockQuoteDepth: number = 0;
   // Whether a pipe TABLE's delimiter row has been seen in the current block, which disarms
   // the line-block rule for the table's remaining body rows — see `TABLE_RULE_ROW`.
   // ⚠ Unlike `lineBlockOpen` this one is STICKY across the table's body rows, so it cannot be
@@ -6624,6 +6707,11 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // `dialectOverride`, for the same reason the two above are: it answers its own question, and
   // it is read at ONE site (the heading column set) where the other three are not.
   const markdownFamilyDialect = fromValueLine !== null && fromIsMarkdownFamily(fromValueLine);
+  // Whether the line block rule may fire at all: no `from:` key (the default reader has
+  // `line_blocks`), or a resolved one that has it — see `fromHasLineBlocks`. Unresolved keeps
+  // HEAD's answer, the fail-closed direction.
+  const lineBlocksDialect =
+    !dialectOverride || (fromValueLine !== null && fromHasLineBlocks(fromValueLine));
   // ⚠ **WHETHER A `:::` LINE IS A DIV AT ALL, READ BY BOTH HEADING RULES (Sessions 258, 261).**
   // Six of the nine measured readers have no `fenced_divs`, so their `:::` lines are ordinary
   // prose and every heading between them renders. This model still pushes a `divColumns` entry
@@ -7006,6 +7094,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       inQuote = false;
     }
     const line: string = stripQuote ? quoteContentLine(raw, quoteContentStart as number) : raw;
+    // How many `>` markers this line carries (0 when unmarked) — read by `lineBlockContinuationRefuses`.
+    const quoteDepth: number = stripQuote
+      ? raw.slice(0, quoteContentStart as number).split(">").length - 1
+      : 0;
     // ⚠ **A CALLOUT'S FIRST-BLOCK HEADING IS ITS TITLE BAR, NOT A HEADING (Session 257).**
     // Quarto's callout filter lifts it out of the body entirely: no `<hN>`, no `<section>`,
     // and no `sec-` anchor — an `@sec-` reference to one renders as the unresolved
@@ -7551,8 +7643,27 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           quoteOpen,
           stripQuote,
         );
+      // ⚠ **A LINE-BLOCK REFUSAL IS ITS OWN FLAG BECAUSE ITS CLOSER IS NOT CONSUMED (Session 280).**
+      // The Session 224 rule below is true of a refused opener inside a PARAGRAPH: the two fence
+      // lines read as one inline code span. A line block's continuation ends at the first line
+      // that does not start with whitespace — an ATX line, a longer or column-0 fence, prose —
+      // so no span reaches the next fence, which is an ordinary opener. Consuming it anyway read
+      // the heading below the run as paragraph text and lost it (`containers5/d03`, `d10`).
+      const lineBlockRefused =
+        info === null &&
+        !knitrClaims &&
+        lineBlockContinuationRefuses(
+          line,
+          lineBlockAbove,
+          lineBlockQuoteDepth,
+          quoteDepth,
+          quoteOpen,
+          lineBlocksDialect,
+          contentColumns.length === 0,
+        );
       const refused =
         paragraphRefused ||
+        lineBlockRefused ||
         (info === null &&
           !knitrClaims &&
           !fenceInfoOpensBlock(
@@ -7573,7 +7684,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // not render (`scratchpad/s224/f/`, the Session 183 rows): with no blank line the refused
       // lines continue the PARAGRAPH, so the ATX below them is declined by `blank_before_header`
       // exactly as quarto declines it.
-      if (refused) {
+      if (refused && !lineBlockRefused) {
         const consumed = consumedCloserLine(lines, i + 1, candidate);
         if (consumed >= 0) {
           consumedFenceClosers.add(consumed);
@@ -8909,6 +9020,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           (!wasParagraphOpen && LINE_BLOCK_LINE.test(line)));
       if (lineBlockOpen) {
         lineBlockQuoted = stripQuote;
+        lineBlockQuoteDepth = quoteDepth;
       }
     }
   }

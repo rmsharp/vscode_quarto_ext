@@ -20035,3 +20035,209 @@ describe("GUARD — rows the paragraph-interrupt refusal may not touch (Session 
     ).toEqual(["h2:B"]); // quarto: the tail only — measured, exit 0
   });
 });
+
+describe("a fence directly below an open LINE BLOCK is continuation text, not an opener (Session 280)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+
+  it("RED->GREEN: a backtick opener INDENTED 1 directly below a line-block row is not a fence, so the heading below it survives", () => {
+    // ⚠ THE DEFECT, and it is a heading DELETION. Rendered firsthand through the real `quarto
+    // render` 1.7.33 on these exact bytes (`scratchpad/s277/freed/p10_lineblock_bt_c1`, re-rendered
+    // Session 280 as `r1_bt_is_tight`): quarto emits BOTH headings, and HEAD reports only the
+    // second. A line-block row's continuation attaches at ANY indent (`LINE_BLOCK_CONTINUATION`),
+    // so the fence line is more row text -- the rendered `<div class="line-block">a line block
+    // row ```</div>` -- and the blank line below it ends the block, leaving `## Inside` a heading.
+    //
+    // The model's `lineBlockOpen` leaves `paragraphOpen` FALSE (a line-block row is block-level),
+    // so Session 277's `paragraphInterruptRefuses` never ran for it and the opener was accepted.
+    expect(
+      names(doc("| a line block row", " ```", "", "## Inside", "", "body text", "", "```", "",
+                "## After", "", "tail")),
+    ).toEqual(["h2:Inside", "h2:After"]); // quarto: both — measured, exit 0
+  });
+
+  it("RED->GREEN: a line block INSIDE a quote takes a MARKED continuation too, so a quoted indent-1 fence below it is text", () => {
+    // ⚠ CORRECTED BY ITS OWN RE-MEASUREMENT. The first draft of this row asserted the opposite
+    // ("quarto: the tail only") from a comparator that read heading ANCHOR IDs, and a heading
+    // inside a block quote is rendered without one -- so the swallowed-looking heading was merely
+    // invisible to the instrument. Re-read as heading TEXT off the rendered HTML (`scratchpad/s280`
+    // `p2/q_marked.html`, quarto 1.7.33 exit 0): `<blockquote><div class="line-block">row
+    // ```</div><h2>Inside</h2>...` -- both headings, the fence line is row text exactly as at top
+    // level. A guard that withdrew the refusal for every MARKED line (`!stripQuote`) passed the
+    // first draft and fails this one.
+    expect(
+      names(doc("> | row", ">  ```", ">", "> ## Inside", ">", "> body", ">", "> ```", "",
+                "## After", "", "tail")),
+    ).toEqual(["h2:Inside", "h2:After"]); // quarto: both — measured, exit 0
+  });
+
+  it("RED->GREEN: a commonmark-family reader has no line blocks, so `from: gfm` keeps HEAD's swallow", () => {
+    // ⚠ THE SECOND PHANTOM THE UNGUARDED BUILD MADE. `line_blocks` is a pandoc-markdown
+    // extension: `from: gfm` and `commonmark_x` read `| row` as an ordinary paragraph, and a
+    // CommonMark fence interrupts a paragraph at indent 0-3, so the opener is real and swallows
+    // the heading. Rendered firsthand on these exact bytes (`scratchpad/s280` `p2/rd_gfm`,
+    // `rd_commonmark_x`, quarto 1.7.33 exit 0): quarto emits ONLY the tail heading.
+    //
+    // The gate is the one `paragraphInterruptRefuses` already takes -- `!dialectOverride ||
+    // markdownFamilyDialect` -- reused, not re-derived (Learning #14). A `from:` this model
+    // cannot resolve keeps the pandoc-markdown reading, the same fail-closed direction.
+    expect(
+      names(doc("---", "from: gfm", "---", "", "| a line block row", " ```", "", "## Inside", "",
+                "body text", "", "```", "", "## After", "", "tail")),
+    ).toEqual(["h2:After"]); // quarto: the tail only — measured, exit 0
+  });
+});
+
+describe("REGRESSIONS found by Session 280's adversarial pass over the refusal above", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  // ⚠ Each row was HEAD-correct and made WRONG by the first build of `lineBlockContinuationRefuses`;
+  // a 6-lens, 31-agent adversary found 25 such documents and every one was re-rendered firsthand
+  // (`scratchpad/s280/m/p4`, quarto 1.7.33 exit 0, HEAD agrees with quarto, the first build did not).
+
+  it("RED->GREEN: a fence at a DIFFERENT quote depth than the line block is not its continuation", () => {
+    // `scratchpad/s280/adv/quotes/a13_nested_outer_lb`: the line block lives two quotes deep and
+    // the fence one deep, so it belongs to the OUTER quote, where it is an ordinary opener. The
+    // first build compared only "quoted or not", never the depth.
+    expect(
+      names(doc("> > | row", ">  ```", "> > ## Inside", ">  ```", "", "## After")),
+    ).toEqual(["h2:After"]); // quarto: the tail only — measured, exit 0
+    // and the mirror (`a14_lb_outer_fence_inner`): block one deep, fence two deep
+    expect(
+      names(doc("> | row", "> >  ```", "> > ## Inside", "> >  ```", "", "## After")),
+    ).toEqual(["h2:After"]); // quarto: the tail only — measured, exit 0
+  });
+  it("RED->GREEN: an UNMARKED line below a quoted line block is LAZY text of the quote, and a fence there opens", () => {
+    // `scratchpad/s280/adv/quotes/b26_lazy_fence_heading_marked_close` and `b06_lazy_pipe_unmarked_
+    // fence_after_marked_row`. Both render ONLY the tail: the unmarked indented fence is collected
+    // into the quote's paragraph and opens there. In `b06` the unmarked `| row3` is itself a lazy
+    // line, so it must not re-arm the line block as an UNQUOTED one -- the first build refused the
+    // fence under it. The remembered quote (`quoteOpen`, Session 277's fail-safe) is what says a
+    // quote may still be open, so an unmarked line abstains while one is.
+    expect(
+      names(doc("> | row", "  ```", ">", "> ## Inside", "  ```", "", "## After")),
+    ).toEqual(["h2:After"]); // quarto: the tail only — measured, exit 0
+    expect(
+      names(doc("> | row", "> | row2", "| row3", "  ```", "## Inside", "  ```", "", "## After")),
+    ).toEqual(["h2:After"]); // quarto: the tail only — measured, exit 0
+  });
+  it("RED->GREEN: a reader with NO line_blocks extension (strict, mmd, github, phpextra) keeps HEAD's answer", () => {
+    // `scratchpad/s280/adv/realistic/f_from_markdown_strict` and its three siblings: quarto emits
+    // `t,after` and the first build added `inside`. The gate was `markdownFamilyDialect`, which is
+    // true of EVERY pandoc-markdown base, but `line_blocks` belongs to plain `markdown` alone --
+    // `markdown_strict`, `markdown_mmd`, `markdown_github` and `markdown_phpextra` read `| line` as
+    // a paragraph. The extension list is honoured (`markdown+line_blocks`, `markdown-line_blocks`),
+    // last occurrence wins, through the same `fromExtensionState` the other extension rows use.
+    for (const reader of ["markdown_strict", "markdown_mmd", "markdown_github", "markdown_phpextra"]) {
+      expect(
+        names(doc("---", `from: ${reader}`, "---", "", "# T", "", "| line", " ```", "## Inside",
+                  " ```", "", "## After")),
+      ).toEqual(["h1:T", "h2:After"]); // quarto: t,after — measured, exit 0
+    }
+  });
+  it("RED->GREEN: a refused line-block fence does NOT swallow a later fence into an inline code span", () => {
+    // `scratchpad/s280/adv/containers5/d03`, `d10`, `d11` and `containers6/e11`: the refused fence's
+    // continuation ends at the ATX line below it, so no inline span can reach the next fence, which
+    // is an ordinary opener. The first build ran `consumedCloserLine` on the refused opener anyway
+    // (the Session 224 rule, true for a PARAGRAPH), withheld that fence, and the heading below the
+    // run was then read as paragraph text and lost -- quarto renders it. HEAD kept `after` by
+    // accident, because it opened the FIRST fence and lost `inside` instead.
+    expect(
+      names(doc("# Top", "", "| row", " ```", "## Inside", " ```", "code", " ```", "## After")),
+    ).toEqual(["h1:Top", "h2:Inside", "h2:After"]); // quarto: all three — measured, exit 0 (d03)
+    expect(
+      names(doc("# Top", "", "| row", " ```", "## Inside", " ```", "| r", " ```", "## After")),
+    ).toEqual(["h1:Top", "h2:Inside", "h2:After"]); // quarto: all three — measured, exit 0 (d10)
+    expect(
+      names(doc("# Top", "", "| row", " ```", "## Inside", "```", " ```", "## Hidden", "```", "## After")),
+    ).toEqual(["h1:Top", "h2:Inside", "h2:Hidden"]); // quarto: these three — measured, exit 0 (e11)
+  });
+  it("RED->GREEN: an open LIST ITEM suspends the rule, because its fence is at the item's own column", () => {
+    // `scratchpad/s280/adv2/containers2/B_t3`, `B_t5`, `R_ord_3` (round-2 adversary, each re-rendered
+    // by a skeptic, exit 0): a list item directly below a line-block row opens a container, and a
+    // fence at ITS content column is a real opener -- quarto swallows the heading inside it. The
+    // refusal reported that heading. Session 277's rule suspends on `contentColumns` for the same
+    // reason (a container-relative continuation needs its own discriminator, filed in BACKLOG.md).
+    expect(
+      names(doc("| row", " 1. item", "    ```", "    # Hin", "    ```", "", "# Hout", "", "text")),
+    ).toEqual(["h1:Hout"]); // quarto: the outer heading only — measured, exit 0 (B_t3)
+    expect(
+      names(doc("| row", "  - item", "    ```", "    # Hin", "    ```", "", "# Hout", "", "text")),
+    ).toEqual(["h1:Hout"]); // quarto: the outer heading only — measured, exit 0 (B_t5)
+    expect(
+      names(doc("| row", " 1. item", "    ~~~", "    # Hin", "    ~~~", "", "# Hout", "", "text")),
+    ).toEqual(["h1:Hout"]); // quarto: the outer heading only — measured, exit 0 (R_ord_3)
+  });
+});
+
+describe("GUARD — rows the line-block continuation refusal may not touch, and the siblings it covers (Session 280)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  // Every row below was rendered firsthand through quarto 1.7.33 (exit 0) on these exact bytes --
+  // `scratchpad/s280` `p/` (54 documents) and `p2/` (24), re-read as heading TEXT off the rendered
+  // HTML. ⚠ These are PINS written AFTER the rule, so most were GREEN on arrival: each one's job is
+  // to fail if a clause of the rule is dropped, and the mutation pass that proves it is recorded
+  // in `SESSION_NOTES.md`.
+  const tail = (open: string, close: string) => ["", "## Inside", "", "body", "", close, "", "## After", "", "tail"].reduce<string[]>((a, l) => (a.push(l), a), [open]);
+
+  it("covers the TILDE fence and every indent 1-3, with one row or a continued one", () => {
+    expect(names(doc("| row", ...tail(" ~~~", "~~~")))).toEqual(["h2:Inside", "h2:After"]);
+    expect(names(doc("| row", ...tail("   ```", "```")))).toEqual(["h2:Inside", "h2:After"]);
+    expect(names(doc("| row", "  more", ...tail(" ~~~", "~~~")))).toEqual(["h2:Inside", "h2:After"]);
+    expect(names(doc("| row one", "| row two", ...tail("  ~~~~", "~~~~")))).toEqual(["h2:Inside", "h2:After"]);
+  });
+
+  it("covers a fence WITH an info string, because the continuation owns the whole line", () => {
+    expect(names(doc("| row", ...tail(" ```text", "```")))).toEqual(["h2:Inside", "h2:After"]);
+    expect(names(doc("| row", ...tail(" ``` a`b", "```")))).toEqual(["h2:Inside", "h2:After"]);
+  });
+
+  it("a BLANK line between the row and the fence restores the ordinary opener", () => {
+    expect(names(doc("| row", "", ...tail(" ```", "```")))).toEqual(["h2:After"]);
+    expect(names(doc("| row one", "", "| row two", ...tail(" ```", "```")))).toEqual(["h2:Inside", "h2:After"]);
+  });
+
+  it("a COLUMN-0 fence ends the line block (no leading space, so no continuation) and still opens", () => {
+    expect(names(doc("| row", ...tail("```", "```")))).toEqual(["h2:After"]);
+    expect(names(doc("| row", ...tail("~~~", "~~~")))).toEqual(["h2:After"]);
+  });
+
+  it("a quote that OPENS below an unquoted line block is a fresh container, so its fence opens", () => {
+    expect(names(doc("| row", ">  ```", ">", "> ## Inside", ">", "> ```", "", "## After")))
+      .toEqual(["h2:After"]);
+  });
+
+  it("an UNMARKED line below a quoted line block keeps HEAD's answer -- a KNOWN DIVERGENCE, abstained on purpose", () => {
+    // ⚠ NOT A CORRECT ANSWER. `> | row` / ` ```` (`scratchpad/s280` `p2/q_lazy`) renders BOTH headings
+    // -- the lazy fence is continuation text -- while `b26` (`> | row` / `  ```` / `>` / `> ## Inside`)
+    // renders only the tail, and nothing this model carries separates the two. The first build
+    // refused both and was right on one and wrong on the other; abstaining is the non-regressing
+    // direction, so this row asserts the swallow HEAD already had. Filed in `BACKLOG.md`.
+    expect(names(doc("> | row", " ```", ...tail("", "```").slice(1)))).toEqual(["h2:After"]);
+  });
+
+  it("a pipe TABLE's body row is not a line block, so a fence below it still opens", () => {
+    expect(names(doc("| a | b |", "|---|---|", "| 1 | 2 |", ...tail(" ```", "```")))).toEqual(["h2:After"]);
+  });
+
+  it("a reader WITHOUT line blocks keeps HEAD's answer, whatever quarto renders there", () => {
+    // `commonmark_x` is a measured AGREEMENT (quarto: the tail only). `markdown-line_blocks` is a
+    // KNOWN DIVERGENCE pinned, not a correct answer: quarto renders both headings (`p2/rd_markdown_
+    // line_blocks`) and the rule abstains, because this model arms its line block there anyway and
+    // the Session 277 paragraph rule never sees a paragraph. Filed in `BACKLOG.md`.
+    expect(names(doc("---", "from: markdown-line_blocks", "---", "", "| row", ...tail(" ```", "```"))))
+      .toEqual(["h2:After"]);
+    expect(names(doc("---", "from: markdown+line_blocks", "---", "", "| row", ...tail(" ```", "```"))))
+      .toEqual(["h2:Inside", "h2:After"]); // quarto: both — extension honoured
+    expect(names(doc("---", "from: commonmark_x", "---", "", "| row", ...tail(" ```", "```"))))
+      .toEqual(["h2:After"]); // quarto: the tail only — measured, exit 0
+  });
+
+  it("the CELL path is untouched: an indented cell opener below a line block still opens, divergence and all", () => {
+    // KNOWN DIVERGENCE pinned, not a correct answer (`scratchpad/s280` `p/x_cell`): quarto renders
+    // BOTH headings and this model reports only the tail, at HEAD and after this change alike --
+    // the same standing divergence as Session 277's cell guard above, filed in `BACKLOG.md`.
+    expect(findHeadings(doc("| row", ...tail(" ```{python}", "```")), "jupyter").map((h) => `h${h.level}:${h.text}`))
+      .toEqual(["h2:After"]);
+  });
+});

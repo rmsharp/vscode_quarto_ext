@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [BL-A fence directly below an open LINE BLOCK deletes a rendered heading] A fence directly below a line-block row is continuation text, not an opener
+- **Change:** `lineBlockContinuationRefuses` and `fromHasLineBlocks` in `src/core/qmd/model.ts`, called from the fence-opener path beside `paragraphInterruptRefuses`. 17 new unit rows (`test/unit/qmd-model.test.ts`, three describe blocks); matrix `scratchpad/s280` went from 15 of 54 divergent at HEAD to 1. The BACKLOG item is removed and its five measured residual shapes filed as one item; learning #602.
+- **Commit/PR:** this entry's own commit
+- **Session:** S280 · **Verified:** 17 rows RED before GREEN (two corrected after re-measurement), every clause killed by a mutation, `npm run compile` and `npm test` (3,021) green, corpus neutral (2,423/2,438, `model.tsv` and `rawadj.tsv` byte-identical to HEAD); two adversarial rounds, 46 agents, ~1,900 rendered probes, 29 regression documents confirmed and fixed or recorded; none remain except the accepted project-config-reader phantom. Integration suite NOT run (core-only change, no screen-taking run authorised).
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [BL-A fence directly below an open LINE BLOCK deletes a rendered heading] S280 claimed (in progress)
 - **Change:** `SESSION_NOTES.md` claim stub and a `status: pending` `HANDOFFS.md` receipt. Phase 3F records the outcome.
 - **Commit/PR:** this entry's own commit
