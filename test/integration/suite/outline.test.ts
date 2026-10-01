@@ -3518,4 +3518,48 @@ describe("S225: a heading inside a BLOCK QUOTE reaches the outline", () => {
     assert.ok(valueOnly.includes("Inside One"), `a class inside a quoted value is not a class: ${valueOnly.join(", ")}`);
   });
 
+  // ⚠ **THE RUNTIME GATE FOR SESSION 282 (P3 of the attribute-tokenizer plan).** A `:::` opener that pandoc
+  // REFUSES on its own line is paragraph text: it opens no div, so its `:::` closer pairs as pandoc pairs it and
+  // the headings below it are real headings. Proved headlessly over `src/core`; this row proves the Outline the
+  // USER sees, through `vscode.executeDocumentSymbolProvider` in a real Extension Development Host. Witnesses:
+  // fill-1 `r3` (the bare-key state an author types through) and `r5`/`d10` (a refused opener inside a tabset),
+  // each re-rendered with quarto 1.7.33 (scratchpad/s282/render). `it(`, never `test(` (mocha BDD).
+  it("a ::: opener pandoc refuses is paragraph text: its headings, and a tabset's closer pairing, survive in the OUTLINE", async () => {
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    // PRESENT — `title` with no value is a bare key, pandoc refuses the block, and `## H` below it is a
+    // real heading. HEAD read a callout and lifted it into a title bar.
+    const bareKey = await namesFor("::: {.callout-note title}", "", "## H", "", ":::");
+    assert.ok(bareKey.includes("H"), `a refused opener must not swallow the heading below it: ${bareKey.join(", ")}`);
+
+    // PRESENT — the refused inner opener's `:::` must not pop the tabset, so `After Inner` (below the
+    // tabset's real closer) is a heading. HEAD paired the closers wrong and lost it.
+    const tabset = await namesFor(
+      "::: {.panel-tabset}",
+      "",
+      "## Tab A",
+      "",
+      "x",
+      "",
+      "::: {.note title}",
+      "inner",
+      ":::",
+      "",
+      "## After Inner",
+      "",
+      ":::",
+    );
+    assert.ok(tabset.includes("After Inner"), `the refused inner opener must not re-pair the tabset: ${tabset.join(", ")}`);
+
+    // ABSENT — the controls: an ACCEPTED opener keeps its rule. A callout still lifts its first heading
+    // into the title bar, and a tabset's tab labels are still not headings.
+    const accepted = await namesFor("::: {.callout-note}", "", "## Lifted", "", "body", "", ":::", "", "## After");
+    assert.ok(!accepted.includes("Lifted"), `an accepted callout still lifts its first heading: ${accepted.join(", ")}`);
+    const tabs = await namesFor("::: {.panel-tabset}", "", "## Tab A", "", "x", "", "## Tab B", "", "y", "", ":::", "", "## After");
+    assert.ok(!tabs.includes("Tab A") && !tabs.includes("Tab B"), `an accepted tabset's tabs are not headings: ${tabs.join(", ")}`);
+  });
+
 });
