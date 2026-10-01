@@ -4112,10 +4112,14 @@ function legacyDivCalloutTitleSlot(attrs: string): boolean {
   const spec = maskQuotedValues(attrs);
   // ⚠ **AN EXPLICIT TITLE TAKES THE SLOT — BUT AN *EMPTY* ONE SUPPLIES NO TITLE, AND QUARTO
   // FALLS BACK TO THE HEADER.** Rendered: `title=""` and `title=''` both still lift the heading
-  // (`probes/p21`, `p22`), while `title="   "` — whitespace, not empty — supplies a
-  // blank-looking title and the heading below it survives as a real `<h2>`. So the test is on
-  // the quoted value being EMPTY, never on it looking blank, and never on the attribute merely
-  // being present. Found by an adversarial verifier against the first cut of this predicate,
+  // (`probes/p21`, `p22`). ⚠ **`title="   "` IS NOT A BLANK-LOOKING TITLE UNDER `markdown` — IT IS NO
+  // DIV AT ALL (Session 282).** Pandoc reads a quote followed by whitespace as a bare `"`, refuses the
+  // whole block, and renders the line as paragraph text (`<p>::: {.callout-note title=" "}</p>`,
+  // `scratchpad/s282/ws3`), so the heading below it is a real `<h2>` — which is why the answer is the
+  // same either way, and why `divOpenerRefused` now says so rather than this fallback. Under
+  // `commonmark_x` it IS a callout whose heading is lifted into the title bar, and this reader's answer
+  // there is a phantom (filed). So the test is on the quoted value being EMPTY, never on it looking
+  // blank, and never on the attribute merely being present. Found by an adversarial verifier against the first cut of this predicate,
   // which read the presence alone and kept a phantom on every `title=""` callout.
   // The value ends at its own closing quote (or at the next space / `}` when unquoted), so a
   // FOLLOWING attribute cannot make an empty title look non-empty — rendered, `title=""
@@ -4237,8 +4241,16 @@ interface DivSpecReading {
   /** The raw value of the FIRST `title` key (case-sensitive), or undefined. */
   readonly firstTitleRaw: string | undefined;
 }
+/**
+ * Whether quarto may rewrite this opener's tail BEFORE pandoc reads it — a `{{<` shortcode in a double-quoted
+ * value, or the `key= value` fix-up (deliberately BROADER than quarto's own precondition, so `title="a = b"`
+ * also qualifies). Both readings of a tail — `divSpecReading` and `divOpenerRefused` — decline when it holds.
+ */
+function divTailMayBePrepassed(tail: string): boolean {
+  return tail.includes("{{<") || /[ \t]=|=[ \t]/.test(tail);
+}
 function divSpecReading(tail: string, reader: AttributeBlockReader): DivSpecReading | null {
-  if (reader.commonmarkDialect || tail.includes("{{<") || /[ \t]=|=[ \t]/.test(tail)) {
+  if (reader.commonmarkDialect || divTailMayBePrepassed(tail)) {
     return null;
   }
   const verdict = divOpenerVerdict(tail, reader);
@@ -4285,6 +4297,34 @@ function divPanelTabset(attrs: string, tail: string, reader: AttributeBlockReade
   const tabset = reading.classes.indexOf("panel-tabset");
   const callout = calloutClassPosition(reading.classes);
   return tabset >= 0 && (callout < 0 || callout > tabset);
+}
+/**
+ * Whether pandoc REFUSES this opener on its own line, so the line is paragraph text — no div, no callout, no
+ * tab — and every heading below it is a real heading (Session 282, P3 of
+ * `docs/planning/2026-09-14-attribute-tokenizer-plan.md`). The bare-key state an author types through,
+ * `::: {.callout-note title}`, is the shape: pandoc makes it a paragraph and renders the `## H` below it.
+ *
+ * FALSE unless ALL of: the reader has fenced divs AND is a measured one (`measuredRefusalReader`); it is not
+ * CommonMark-family; the tail holds no `{{<` and does not match `[ \t]=|=[ \t]` (quarto's pre-pass may rewrite
+ * the line before pandoc reads it); and the leaf's verdict is `refused`. ⚠ **NEVER `open-at-eol`**, whatever the
+ * next line holds: pandoc lets an attribute block continue across one newline, so one line cannot decide it, and
+ * a wrong refusal DELETES a heading.
+ */
+function divOpenerRefused(
+  tail: string,
+  reader: AttributeBlockReader,
+  fencedDivsDialect: boolean,
+  measuredRefusalReader: boolean,
+): boolean {
+  if (
+    !fencedDivsDialect ||
+    !measuredRefusalReader ||
+    reader.commonmarkDialect ||
+    divTailMayBePrepassed(tail)
+  ) {
+    return false;
+  }
+  return divOpenerVerdict(tail, reader).kind === "refused";
 }
 /**
  * Where the FIRST class naming a real Quarto callout begins inside `attrs`, or `-1` for none.
@@ -6855,6 +6895,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // Almost every document declares no `from:` at all, and that reader is `markdown`, which HAS
   // fenced divs; reading null as false would switch the whole rule off for the entire corpus.
   const fencedDivsDialect = fromValueLine === null || fromHasFencedDivs(fromValueLine);
+  // Whether the reader is one whose REFUSAL structure was measured (Session 282, P3): no `from:` at all (the
+  // default reader), or base `markdown` with any extensions — never the `markdown_*` variants, which lack
+  // `blank_before_header` and were not measured, and never a CommonMark-family reader.
+  const measuredRefusalReader = fromValueLine === null || FRONTMATTER_MARKDOWN_BASE_FROM.test(fromValueLine);
   // Whether the resolved reader honours a trailing heading ATTRIBUTE block — see
   // `fromHonoursHeaderAttributes` (Session 216). A SEVENTH flag rather than a refinement of any
   // of the six around it, for the reason each of those gives: it answers its own question, about
@@ -9011,17 +9055,21 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           : texEnv[1] === "begin"
             ? (rawTexEnvEnds.get(texEnv[2]) ?? -1) >= i
             : texEndPops > 0;
+      // ⚠ **A REFUSED OPENER IS PARAGRAPH TEXT (Session 282, P3):** it opens no div, so it pushes no entry.
+      const divRefused: boolean =
+        divRole === "open" &&
+        divOpenerRefused(divFence!.tail, { commonmarkDialect, pandocEscapes }, fencedDivsDialect, measuredRefusalReader);
       const unmatchedConstruct: boolean =
         divRole === "close"
           ? !divAtColumn || divColumns.length === 0
           : divRole === "open"
-            ? !divAtColumn || divOpenerInterrupts
+            ? !divAtColumn || divOpenerInterrupts || divRefused
             : texEnv !== null
               ? !texEnvMatched
               : yamlTerminates && !metadataBlockOpen;
       if (divRole === "close" && divAtColumn && divColumns.length > 0) {
         divColumns.pop();
-      } else if (divRole === "open" && divAtColumn && !divOpenerInterrupts) {
+      } else if (divRole === "open" && divAtColumn && !divOpenerInterrupts && !divRefused) {
         divColumns.push({
           column: divFence!.column,
           containerDepth: contentColumns.length,

@@ -16645,9 +16645,11 @@ describe("Session 257 — a callout's FIRST BLOCK heading is its TITLE, not a he
     for (const attr of ['title=""', "title=''"]) {
       expect(names([`::: {.callout-note ${attr}}`, "", "## Inside Uniform", "", ":::"])).toEqual([]);
     }
-    // ⚠ **AND WHITESPACE IS NOT EMPTY.** `title="   "` supplies a title — a blank-looking one —
-    // and the heading below it survives as a real `<h2>` (`probes/p22`, first div). So the test
-    // is on the QUOTED VALUE being empty, not on it being blank.
+    // ⚠ **AND WHITESPACE IS NOT EMPTY — BUT IT IS NOT A BLANK TITLE EITHER (corrected, Session 282).**
+    // Under `markdown` pandoc reads `title="   "` as a quote followed by whitespace, REFUSES the block, and
+    // renders the line as paragraph text (`<p>::: {.callout-note title=" "}</p>`, `scratchpad/s282/ws3`),
+    // so the heading below it survives as a real `<h2>` (`probes/p22`, first div). The expectation is
+    // unchanged; only its reason was wrong. The test is on the QUOTED VALUE being empty.
     expect(names(['::: {.callout-note title="   "}', "", "## Inside Victor", "", ":::"])).toEqual([
       "h2:Inside Victor",
     ]);
@@ -18225,7 +18227,8 @@ describe("Session 259 — a `.callout` class is only a class where a class can S
     // The controls for R6 — Session 257's own rendered rows, restated here because R6 moves the
     // code that decides them. `title="Explicit Fox"` frees the heading (`s257/probes/p6`);
     // `title=""` supplies no title so quarto falls back to the header (`p21`); `title="   "` is
-    // whitespace, NOT empty, and the heading below it survives (`p23`).
+    // not a div at all under `markdown` (pandoc refuses the block, Session 282), and the heading below it
+    // survives (`p23`).
     expect(
       names(['::: {.callout-note title="Explicit Fox"}', "", "## Inside", "", ":::"]),
     ).toEqual(["h2:Inside"]);
@@ -20381,5 +20384,56 @@ describe("Session 282 — a ::: opener pandoc refuses on its own line is paragra
   ];
   it.each(RESIDUALS)("residual — %s (HEAD's answer; quarto's differs)", (_id, lines, head) => {
     expect(names(lines.join("\n"))).toEqual(head);
+  });
+
+  // ── RED → GREEN, one row at a time ──
+  // The bare-key state an author types through: `title` with no value is not an attribute, pandoc refuses the
+  // whole block, and the line is paragraph text — so the heading below it is a real heading (fill-1 r3, rendered).
+  it("a bare key refuses the block, so the blank-separated heading below renders (fill-1 r3)", () => {
+    expect(names(["::: {.callout-note title}", "", "## H", "", ":::"].join("\n"))).toEqual(["h2:H"]);
+  });
+
+  // The rest of the refusal's reach. Each row was RENDERED (quarto 1.7.33) and measured RED at HEAD — the 4th
+  // element is HEAD's wrong answer — before the encoding existed; they went GREEN together with the open-arm half
+  // (the six guards above were its RED), so they are counted as PINS of one encoding, not as separate REDs.
+  const REFUSED_NOW_RENDERS: [string, string[], string[], string[]][] = [
+    ["r5_tabset_refused_inner", ["::: {.panel-tabset}", "", "## Tab A", "", "x", "", "::: {.note title}", "inner", ":::", "", "## After Inner", "", ":::"], ["h2:After Inner"], []],
+    ["L2_marker_blank", ["- ::: {.callout-note title}", "", "  ## H", "", "  :::"], ["h2:H"], []],
+    ["L4_marker_blank_closer_col0", ["- ::: {.callout-note title}", "", "  ## H", "", ":::", "", "# After"], ["h2:H", "h1:After"], ["h1:After"]],
+    ["L5_marker_lazy_closer_col0_glued", ["- ::: {.callout-note title}", "  body", ":::", "# After"], [], ["h1:After"]],
+    ["Q2_quote_blank", ["> ::: {.callout-note title}", ">", "> ## H", ">", "> :::"], ["h2:H"], []],
+    ["Q4_quote_ends_then_heading", ["> ::: {.callout-note title}", ">", "> ## H", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["Q7_quote_tabset_refused_inner", ["> ::: {.panel-tabset}", ">", "> ## Tab A", ">", "> x", ">", "> ::: {.note title}", "> inner", "> :::", ">", "> ## After Inner", ">", "> :::"], ["h2:After Inner"], []],
+    ["I1_in_callout_glued", ["::: {.callout-note}", "", "Intro.", "", "::: {.note title}", "## H", ":::", "", "## After", "", ":::"], ["h2:After"], ["h2:H", "h2:After"]],
+    ["I4_first_in_callout_glued", ["::: {.callout-note}", "::: {.note title}", "## H", ":::", "", "## After", "", ":::"], ["h2:After"], ["h2:H", "h2:After"]],
+    ["I5_in_callout_stray_closer_glued_tail", ["::: {.callout-note}", "", "Intro.", "", "::: {.note title}", "", "inner", "", ":::", "", "Middle.", "", ":::", "## Tail"], [], ["h2:Tail"]],
+    ["C2_itemcol_blank", ["- item", "", "  ::: {.callout-note title}", "", "  ## H", "", "  :::", "", "# After"], ["h2:H", "h1:After"], ["h1:After"]],
+    ["C3_itemcol_blank_closer_col0", ["- item", "", "  ::: {.callout-note title}", "", "  ## H", "", ":::", "", "# After"], ["h2:H", "h1:After"], ["h1:After"]],
+    ["C4_ordered_itemcol_glued", ["1. item", "", "   ::: {.note title}", "   ## H", "   :::"], [], ["h2:H"]],
+    ["C5_itemcol_tabset_refused_inner", ["- item", "", "  ::: {.panel-tabset}", "", "  ## Tab A", "", "  x", "", "  ::: {.note title}", "  inner", "  :::", "", "  ## After Inner", "", "  :::"], ["h2:After Inner"], []],
+    ["P2_closer_under_para_glued_heading", ["::: {.callout-note title}", "", "body", ":::", "## After"], [], ["h2:After"]],
+    ["P3_tabset_refused_inner_closer_under_para", ["::: {.panel-tabset}", "", "## Tab A", "", "::: {.note title}", "", "body", ":::", "", "## After Inner", "", ":::"], ["h2:After Inner"], []],
+    ["G_bare_key__blank", ["::: {.callout-note title}", "", "## H", "", ":::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["G_bare_string__blank", ["::: {.callout-note \"q\"}", "", "## H", "", ":::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["G_q_leading_space__blank", ["::: {.callout-note data-x=\" zz\"}", "", "## H", "", ":::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["G_trailing_text__glued", ["::: {.callout-note title=\"x\"} trailing", "## H", ":::", "", "## After"], ["h2:After"], ["h2:H", "h2:After"]],
+    ["G_two_groups__glued", ["::: {.callout-note} {.x}", "## H", ":::", "", "## After"], ["h2:After"], ["h2:H", "h2:After"]],
+    ["G_bare_two_words__glued", ["::: callout-note title", "## H", ":::", "", "## After"], ["h2:After"], ["h2:H", "h2:After"]],
+    ["X1_tabset_dataxzz_md", ["::: {.panel-tabset}", "", "## Tab A", "", "x", "", "::: {.note data-x=\" zz\"}", "inner", ":::", "", "## After Inner", "", ":::"], ["h2:After Inner"], []],
+    ["X2_callout_dataxzz_blank_md", ["::: {.callout-note data-x=\" zz\"}", "", "## H", "", ":::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["r2_mdbbh", ["---", "from: markdown-blank_before_header", "---", "", "::: {.callout-note title}", "## H", ":::"], ["h2:H"], []],
+    ["r3_mdbbh", ["---", "from: markdown-blank_before_header", "---", "", "::: {.callout-note title}", "", "## H", "", ":::"], ["h2:H"], []],
+    ["tab_quote_0", ["> ::: {.callout-note k=a\\\tb}", ">", "> ## H", ">", "> :::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["tab_list_0", ["- ::: {.callout-note k=a\\\tb}", "", "  ## H", "", "  :::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["tab_top_1", ["::: {.callout-note k=pa\\\tb}", "", "## H", "", ":::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["tab_quote_1", ["> ::: {.callout-note k=pa\\\tb}", ">", "> ## H", ">", "> :::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["tab_list_1", ["- ::: {.callout-note k=pa\\\tb}", "", "  ## H", "", "  :::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["tab_top_2", ["::: {.callout-note k=ppa\\\tb}", "", "## H", "", ":::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["tab_top_3", ["::: {.callout-note k=pppa\\\tb}", "", "## H", "", ":::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["tab_quote_3", ["> ::: {.callout-note k=pppa\\\tb}", ">", "> ## H", ">", "> :::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+    ["tab_list_3", ["- ::: {.callout-note k=pppa\\\tb}", "", "  ## H", "", "  :::", "", "## After"], ["h2:H", "h2:After"], ["h2:After"]],
+  ];
+  it.each(REFUSED_NOW_RENDERS)("%s: the refused opener is paragraph text, as in quarto render", (_id, lines, expected) => {
+    expect(names(lines.join("\n"))).toEqual(expected);
   });
 });
