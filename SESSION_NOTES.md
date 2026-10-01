@@ -69,25 +69,3 @@ exits 0; I read the four tabset hits and found indented code, not the family. Th
 workflow and I did the scan inline; the scans are cheap, but nothing independent re-checked my regexes. (3) The comment scan
 is a naive open/close count, so the 12 `<!--` documents are not a clean measure. (4) I never rendered a document for this.
 **TDD:** not applicable; no logic changed. **Cost:** no subagents; one `npm test` (3,186 passing); no screen-taking run.
-
-## Session 281 Handoff Evaluation (by Session 282)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named P3 as the natural
-next step and the plan's drift rule as the first thing to re-check, which is exactly what I needed.
-**Helped:** gotcha (1) (a refused opener gains nothing in P2) and gotcha (2) (every indented `:::` is refused) both held.
-**Missing:** it did not say the census tooling and fill-1 probe truth were still on disk; I found them by looking.
-**Wrong:** none found. **Not verified:** its "553 passing" figure was reproduced only as 3,109 unit tests at Orient.
-**ROI: high** (about fifteen minutes to a claimed task).
-
-## Session 282 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I re-rendered 146 rows with quarto before editing and found no drift from the plan's recorded truth. The two
-halves of the encoding went in one at a time, and the push-only half's six broken guards were the RED for the second half. All
-ten plan mutants are killed. I did not accept the workflow's "0 regressions": the raw files held 38, and plain-text controls
-showed both families pre-existing and phantom-only.
-**Went wrong.** (1) The 35 later rows went green on arrival, so they are pins of one encoding, disclosed in the test comment.
-(2) My shell cwd drifted into `scratchpad` several times (#535). (3) The agents' prose misreported their own result files.
-(4) The cmx `title="   "` phantom and the two exposed families are filed, not fixed.
-**TDD:** RED shown for `r3` and for the six guards before the open arm; the rest are pins. **Cost:** one workflow, 12 agents,
-0 errors, ~0.83M subagent tokens; one screen-taking integration run, approved just before launch.

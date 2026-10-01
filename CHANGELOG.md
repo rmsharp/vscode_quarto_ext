@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-01 · [ad hoc] Dropped the oldest close-out pair from SESSION_NOTES.md (S281 evaluation + S282 self-assessment)
+
+S256 retention rule: the live file holds three pairs. The dropped pair is one `git show` away. No other edit in the commit.
+
 ### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Shipped shape (c): a knitr chunk with no code is silent, so a stray fence above it stays unclosed
 
 Session 285, TDD (RED for the empty-chunk row and for the four external-code rows against a naive rule, then GREEN; 9 pins and controls after). `knitrChunkHasNoCode` in `knitrChunkIsSilent` (`src/core/qmd/model.ts`). Rendered with quarto 1.7.33, both modes, probes in `scratchpad/s285/`. `file=`/`code=`/`ref.label=` excluded (they echo); `child=` kept at HEAD's answer (disclosed). Mutant killed (4 tests). Real-document score unchanged 2,423/2,438. 3,208 tests passing, types clean. Shape (c) marked CLOSED in the BACKLOG item. Claimed in `a6c77146`.
