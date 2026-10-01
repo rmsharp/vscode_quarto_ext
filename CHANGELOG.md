@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [ad hoc] Backfilled (reconcile-on-read): undocumented commit ba6eb69e -- S280 close-out measurement rows
+- **Change:** `ba6eb69e` appended the S280 close-out rows to `.context-budget-history.jsonl` and `dashboard_history.jsonl` (data only, no logic). It had no ledger entry; recorded by the Session 281 Phase 0 reconcile. `HANDOFFS.md` needs no new receipt: both commits since its frontier (`e6e64dc7`) are S280 follow-ups already named in the S280 receipt's ledger.
+- **Commit/PR:** this entry's own commit
+- **Session:** S281 (Phase 0 reconcile)
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [ad hoc] Dropped the oldest close-out pair from SESSION_NOTES.md (S276 evaluation + S277 self-assessment)
 - **Change:** `SESSION_NOTES.md` retention rule (CLAUDE.md, three pairs steady state). The dropped pair is recoverable with `git show ba238160:SESSION_NOTES.md`.
 - **Commit/PR:** this entry's own commit
