@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [ad hoc] Measured: the corpus ground truth's exit-1 rows are document failures, not pandoc failures
+- **Change:** no code. Re-rendered all 942 non-zero-exit rows of `quarto_v2.tsv` at the fixed arm64 pandoc: 938 exit 1 stay 1, 3 exit -2 stay -2, ordinal 1646 (139) now 0. Recorded as learning #601, `SESSION_NOTES.md` and the S279 `HANDOFFS.md` receipt, now `status: complete`.
+- **Commit/PR:** this entry's own commit
+- **Session:** S279 · **Verified:** the five named witness ordinals re-rendered by hand, each exit 1 with R "Execution halted"; 26 of a 79-row cause sample unclassified.
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [ad hoc] S279 claimed -- re-measure the knitr exit-1 ground-truth rows (in progress)
 - **Change:** `SESSION_NOTES.md` claim stub and a `status: pending` `HANDOFFS.md` receipt. Phase 3F records the outcome.
 - **Commit/PR:** this entry's own commit

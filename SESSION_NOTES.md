@@ -8,42 +8,40 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-### What Session 279 Did
-**Deliverable:** Re-measure the corpus ground truth's knitr exit-1 rows (ordinals 970, 977, 978, 1275, 2114 among them) at the fixed pandoc (IN PROGRESS)
-**Started:** 2026-09-30
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's entry says (in progress); Phase 3F records the rest.
-
-*(Prior ACTIVE TASK, S278's, follows and is the live guidance until close-out.)*
-**Task:** **NONE — Session 278 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+**Task:** **NONE -- Session 279 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
 ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S278 did:** recorded the ROOT-CAUSE fix of the x86-pandoc environment item — no code change,
-`src/` and `test/` byte-identical to S277's close-out. The operator installed Homebrew's arm64 pandoc
-3.11 and removed the shadowing 2023 Intel `.pkg` install. MEASURED after removal, at the DEFAULT PATH
-with no workaround and no cache: `pandoc` resolves to `/opt/homebrew/bin/pandoc` (arm64, 3.11); the
-knitr fixture renders exit 0; both `r5tilde` `.Rmd` probes render exit 0 and AGREE with the shipped
-build; **`npm run test:integration` is 552 passing, 0 failing, exit 0** against S277's 547/5 on the
-identical tree. The item is DELETED (216 open); learning #600 records it.
-Commits: `5e2f1823` claim · `45ddaf63` records · `774f67c8` close-out.
+**What S279 did:** MEASURED the S278 #1 question. All 942 non-zero-exit corpus rows re-rendered with
+S265's own driver (`render_keep.py`, `--no-execute`) at the fixed arm64 pandoc: 938 exit 1 -> exit 1,
+3 exit -2 -> -2, 1 exit 139 -> 0. **The knitr exit-1 rows are DOCUMENT failures, not environment
+failures; the scored population (2,438 of 3,383) is NOT understated by pandoc.** No code change.
+**One stale row:** ordinal 1646 (was 139, a crash) now renders exit 0 with 1 heading; ground truth NOT updated.
+**⚠ 552 passing / 0 failing is still the expected integration reading** (not re-run this session).
+**#1 NEXT:** operator picks; see BACKLOG.md "Up Next". Ground truth: `scratchpad/s279/rerender.tsv`.
+**⚠ Gates:** `python3 quality_ratchet.py --run` at close-out. **⚠ Never `git add -A`**, never
+`grep -r` from the repo root (`scratchpad/` untracked), `cd` moves the cwd (#535).
+## Session 278 Handoff Evaluation (by Session 279)
 
-**⚠ S277's receipt and learnings #591/#599 still describe the workaround and "547/5 expected".** They
-are append-only history and were true when written — **this ACTIVE TASK and the S278 receipt are the
-live guidance.** The workaround (a PATH strip plus `RSTUDIO_PANDOC`) is retired; do not reapply it.
-**⚠ A FAILING INTEGRATION TEST IS NOW A REAL SIGNAL AGAIN.** 552/0 is the expected reading.
+**Score: 9/10.** Self-check by the same model family, not an independent score. Its #1 named the
+question, the five witness ordinals, the ground-truth path and its open caveat ("its age is the open
+question"), so the measurement started at once. It also corrected its own stale "547/5" guidance.
+**Wrong or missing:** it did not say the ground-truth driver uses `--no-execute`, which decides whether
+"knitr failure" can mean an R failure; I read `render_keep.py` to learn that. It also did not say that
+S265 rendered from snapshot text in a bare temp dir, which is why sibling files are missing.
+**ROI: high.** Orientation to a measured first step took about ten minutes.
 
-**⚠ #1 FOR THE NEXT SESSION, now UNBLOCKED and more urgent than before:** S276's open question —
-whether the corpus ground truth's knitr exit-1 rows (ordinals 970, 977, 978, 1275, 2114 among them)
-are ENVIRONMENT failures rather than document failures. If they are, the scored population (2,438 of
-3,383) is understated and the standing measure's knitr rows cannot be trusted until re-rendered.
-Five renders settle the first part; the ground truth lives in `scratchpad/s265/quarto_v2.tsv`.
-⚠ Its age is the open question: it was built at Sessions 251/265, and whether that predates the
-machine change is UNMEASURED — establish that before re-rendering anything.
+## Session 279 Self-Assessment
 
-**⚠ Gates:** `python3 quality_ratchet.py --run` at close-out; cite the head the RESULTS FILE records.
-**⚠ No ledger hook is installed** (`git config core.hooksPath` is empty) — read `git show --stat
-HEAD` after every commit; never build ledger text in an f-string (#584).
-**⚠ Never `git add -A`**, **never `grep -r` from the repo root** (`scratchpad/` is untracked,
-~85,000 files), **`$?` after a pipe is not a measurement** (#567), **`cd` moves the cwd** (#535).
+**Score: 8/10.**
+**Went right.** I measured the whole population (942 rows) with the original driver, not just the five
+named rows, so old and new exit codes compare one-to-one. I confirmed the five named rows by hand.
+I diagnosed a spread sample of 79 rows for cause. I touched no `src/` and no corpus file, and rendered
+only into scratch directories.
+**Went wrong.** (1) The first ground-truth question was framed as "environment or document"; the answer
+is "document" but my 79-row cause sample left 26 rows with no recognisable error line, so the cause of
+those is UNCLASSIFIED. (2) I armed a throwaway placeholder monitor by mistake. (3) A `cd` into
+`scratchpad/` moved the cwd (#535) twice.
+**TDD:** exempt and stated -- no logic changed. **Cost:** no workflows, no subagents; ~1,020 renders.
+
 ---
 
 ## Session 277 Handoff Evaluation (by Session 278)

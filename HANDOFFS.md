@@ -94,8 +94,16 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 ```handoff
 session: S279
 date: 2026-09-30
-status: pending
-active_task: Re-measure the corpus ground truth's knitr exit-1 rows at the fixed arm64 pandoc (S278 handoff #1).
+status: complete
+self_score: 8
+predecessor_score: 9
+active_task: NONE -- S279 closed out. BACKLOG.md "Active" is empty, so Phase 0 MUST present ranked candidates via AskUserQuestion.
+what_was_done: (1) Orient clean; operator chose the knitr ground-truth re-measure. (2) Re-rendered all 942 non-zero-exit rows with scratchpad/s265/render_keep.py at the fixed pandoc: 938 exit 1 -> 1, 3 exit -2 -> -2, 1 exit 139 -> 0 (ordinal 1646). Named witnesses 970, 977, 978, 1275, 2114 all still exit 1 with R "Execution halted". Conclusion: document failures, not environment. (3) Recorded in learning #601, CHANGELOG, this receipt. No src/ or test/ change.
+whats_next: #1 operator picks from BACKLOG.md "Up Next" (HIGH tabset-deletion item and maskQuotedValues item are the deletion-direction candidates). Optional small follow-up: ordinal 1646 now renders (1 heading), so its ground-truth row is stale and the scored population would be 2,439 if re-extracted; ground truth was NOT updated. 26 of a 79-row sample of failing rows had no recognisable error line.
+key_files: scratchpad/s279/rerender.tsv (new exit codes), scratchpad/s279/fails.json (inputs), scratchpad/s265/render_keep.py (driver, uses --no-execute), scratchpad/s265/quarto_v2.tsv (ground truth, unchanged), PROJECT_LEARNINGS.md #601.
+gotchas: (1) The driver renders SNAPSHOT TEXT in a bare temp dir, so documents needing siblings fail by construction; a failure here is not a failure in place. (2) scratchpad/ is untracked, never git add -A. (3) cd into scratchpad moves the cwd.
+runtime_smoke: Not applicable -- no runtime behaviour changed; src/ and test/ untouched. Integration suite not re-run this session.
+changelog_ref: CHANGELOG.md 2026-09-30 -- S279 claim entry and the ground-truth measurement entry.
 ```
 
 ```handoff
