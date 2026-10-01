@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [ad hoc] Dropped the oldest close-out pair from SESSION_NOTES.md (S276 evaluation + S277 self-assessment)
+- **Change:** `SESSION_NOTES.md` retention rule (CLAUDE.md, three pairs steady state). The dropped pair is recoverable with `git show ba238160:SESSION_NOTES.md`.
+- **Commit/PR:** this entry's own commit
+- **Session:** S280
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [ad hoc] S280 closed out -- receipt complete, notes written
 - **Change:** `SESSION_NOTES.md` (S279 handoff evaluation, S280 self-assessment, ACTIVE TASK) and the S280 `HANDOFFS.md` receipt, `status: complete`. The fix itself is the entry below.
 - **Commit/PR:** this entry's own commit
