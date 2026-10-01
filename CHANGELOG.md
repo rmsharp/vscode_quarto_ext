@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-01 · [BL-The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it, so an opener pandoc REFUSES is still read as a callout — plus seven grammar gaps beside it] Closed out Session 282 -- P3 shipped
+- **Change:** close-out record: `HANDOFFS.md` receipt complete, `SESSION_NOTES.md` pair written, learning #604, `BACKLOG.md` tokenizer item updated (P3 shipped; what it deliberately leaves). The plan's P1-P3 are done; P4 stays optional.
+- **Commit/PR:** this entry's own commit
+- **Session:** S282
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-10-01 · [BL-The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it, so an opener pandoc REFUSES is still read as a callout — plus seven grammar gaps beside it] P3 C3 -- runtime gate: refused openers keep their headings in the real host
 - **Change:** `test/integration/suite/outline.test.ts` gains one row (bare-key callout, refused inner opener in a tabset, plus the two accepted-opener controls). Run with the operator's explicit go-ahead right before launch: `npm run test:integration`, 554 passing, 0 failing.
 - **Commit/PR:** this entry's own commit

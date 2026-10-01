@@ -8,12 +8,35 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 282 -- P3 of `docs/planning/2026-09-14-attribute-tokenizer-plan.md` (IN PROGRESS):** a `:::` opener pandoc
-refuses on its own line is paragraph text, not a div. Strict TDD; single layer + runtime row (C1 guards, C2 model, C3 outline row).
-**Started:** 2026-10-01. **Status:** session claimed; Orient re-verification (§9.5) running.
-**Operator decisions:** proceed past §9.5 step 1 drift rule (re-measuring); `test:integration` may be planned (re-ask before launch).
-**Ledger:** `CHANGELOG: pending` -- the claim entry says (in progress); Phase 3F records the rest.
-**⚠ Gotchas:** never `git add -A`; `dashboard_history.jsonl` / `.context-budget-history.jsonl` are appended by every run.
+**Task:** **NONE -- Session 282 closed out (P3 of the attribute-tokenizer plan SHIPPED).** `BACKLOG.md` "Active" is
+empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**What S282 did:** C1 guards `db2fc97b`; C2 encoding `dafa3d70` (`divOpenerRefused`, one `divRefused` flag); residual pins
+`d4942508`; runtime row `74c06a26`. 3,186 unit + 554 integration passing; census 0/0/0; score 2,423/2,438 unchanged.
+**#1 NEXT:** operator picks. The plan is done (P4 is optional). New filings: two phantom families P3 exposes; the cmx `title="   "` phantom.
+**⚠ Gotchas:** (1) Agent summaries said 0 regressions; raw files had 38 (learning #604). (2) `measure_new.cjs` is a bundle: rebuild after
+any `src/` edit. (3) never `git add -A`; `cd` moves the cwd (#535). (4) dashboard/budget jsonl are appended by every run.
+## Session 281 Handoff Evaluation (by Session 282)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named P3 as the natural
+next step and the plan's drift rule as the first thing to re-check, which is exactly what I needed.
+**Helped:** gotcha (1) (a refused opener gains nothing in P2) and gotcha (2) (every indented `:::` is refused) both held.
+**Missing:** it did not say the census tooling and fill-1 probe truth were still on disk; I found them by looking.
+**Wrong:** none found. **Not verified:** its "553 passing" figure was reproduced only as 3,109 unit tests at Orient.
+**ROI: high** (about fifteen minutes to a claimed task).
+
+## Session 282 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I re-rendered 146 rows with quarto before editing and found no drift from the plan's recorded truth. The two
+halves of the encoding went in one at a time, and the push-only half's six broken guards were the RED for the second half. All
+ten plan mutants are killed. I did not accept the workflow's "0 regressions": the raw files held 38, and plain-text controls
+showed both families pre-existing and phantom-only.
+**Went wrong.** (1) The 35 later rows went green on arrival, so they are pins of one encoding, disclosed in the test comment.
+(2) My shell cwd drifted into `scratchpad` several times (#535). (3) The agents' prose misreported their own result files.
+(4) The cmx `title="   "` phantom and the two exposed families are filed, not fixed.
+**TDD:** RED shown for `r3` and for the six guards before the open arm; the rest are pins. **Cost:** one workflow, 12 agents,
+0 errors, ~0.83M subagent tokens; one screen-taking integration run, approved just before launch.
+
 ## Session 280 Handoff Evaluation (by Session 281)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK was short and
