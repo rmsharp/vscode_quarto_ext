@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [ad hoc] S279 claimed -- re-measure the knitr exit-1 ground-truth rows (in progress)
+- **Change:** `SESSION_NOTES.md` claim stub and a `status: pending` `HANDOFFS.md` receipt. Phase 3F records the outcome.
+- **Commit/PR:** this entry's own commit
+- **Session:** S279
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-22 · [ad hoc] Correction: the claim-commit sha cited in SESSION_NOTES.md's ACTIVE TASK was wrong
 - **Change:** `SESSION_NOTES.md` -- the ACTIVE TASK's commit list corrected from `1c2a1ab7` to the real claim commit `5e2f1823`, and the close-out commit `774f67c8` added. The records sha `45ddaf63` was already right.
 - **Commit/PR:** this entry's own commit

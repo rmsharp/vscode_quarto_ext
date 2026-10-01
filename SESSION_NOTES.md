@@ -8,6 +8,13 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
+### What Session 279 Did
+**Deliverable:** Re-measure the corpus ground truth's knitr exit-1 rows (ordinals 970, 977, 978, 1275, 2114 among them) at the fixed pandoc (IN PROGRESS)
+**Started:** 2026-09-30
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's entry says (in progress); Phase 3F records the rest.
+
+*(Prior ACTIVE TASK, S278's, follows and is the live guidance until close-out.)*
 **Task:** **NONE — Session 278 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
 ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
 **What S278 did:** recorded the ROOT-CAUSE fix of the x86-pandoc environment item — no code change,

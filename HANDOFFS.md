@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S279
+date: 2026-09-30
+status: pending
+active_task: Re-measure the corpus ground truth's knitr exit-1 rows at the fixed arm64 pandoc (S278 handoff #1).
+```
+
+```handoff
 session: S278
 date: 2026-09-22
 status: complete
