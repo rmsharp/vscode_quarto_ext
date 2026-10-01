@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-01 · [BL-The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it, so an opener pandoc REFUSES is still read as a callout — plus seven grammar gaps beside it] P3 adversarial pass: 6,477 documents, 38 phantom-direction regressions filed and pinned
+- **Change:** one workflow (12 agents, 0 errors, ~0.83M subagent tokens): six lenses (containers, readers, tokenizer boundary, closer pairing, interplay, multi-line/TAB) and six re-scores of the plan's closer-pairing items. Raw result files, re-aggregated firsthand: 999 FIXED, 38 REGRESSION (the agents' own summaries said 0), 0 of them losing a real heading. All 38 reduce to two pre-existing phantom families (refused opener as a tabset's first content; inside a raw TeX or raw HTML block) that HEAD hid by accident -- each identical with plain text in the same spot (`scratchpad/s282/ctl`). Pinned as 3 RESIDUAL rows; filed in `BACKLOG.md` with the `commonmark_x` `title="   "` phantom. Closer-pairing re-score: 2 of 6 items moved toward quarto (5 to 7 and 6 to 7 of their witnesses), 4 did not move, none away.
+- **Commit/PR:** this entry's own commit
+- **Session:** S282
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-10-01 · [BL-The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it, so an opener pandoc REFUSES is still read as a callout — plus seven grammar gaps beside it] P3 C2 -- a single-line REFUSED `:::` opener is paragraph text
 - **Change:** `src/core/qmd/model.ts`: `divOpenerRefused` (fenced-div reader, a measured reader -- no `from:` or base `markdown` -- not CommonMark, no `{{<` or `key= value` pre-pass shape, and the leaf's verdict `refused`, never `open-at-eol`) feeds ONE `divRefused` flag that forces `unmatchedConstruct` and suppresses the `divColumns` push; `divTailMayBePrepassed` is the shared pre-pass test. 36 of the 146 rendered rows move to quarto's answer, 0 regress, 32 stay wrong on purpose (CommonMark, unmeasured readers, multi-line and open-at-eol openers). Three comments that called `title="   "` a blank-looking title are corrected (pandoc refuses the block under markdown). Census: corpus 0/0/0 threw=0; positive control changes exactly patchC's 23 non-`_cmx` documents, each to patchC's headings, none of the 10 `_cmx`. Real-document score 2,423 of 2,438, unchanged. All 10 plan mutants are killed.
 - **Commit/PR:** this entry's own commit

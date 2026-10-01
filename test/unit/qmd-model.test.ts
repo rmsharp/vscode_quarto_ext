@@ -20381,8 +20381,11 @@ describe("Session 282 — a ::: opener pandoc refuses on its own line is paragra
     ["markdown_github+fenced_divs: r2 glued heading (unmeasured reader, not gated in)", ["---", "from: markdown_github+fenced_divs", "---", "", "::: {.callout-note title}", "## H", ":::"], [], ["h2:H"]],
     ["markdown_github+fenced_divs: r3 blank-separated heading (unmeasured reader, not gated in)", ["---", "from: markdown_github+fenced_divs", "---", "", "::: {.callout-note title}", "", "## H", "", ":::"], [], ["h2:H"]],
     ["markdown_github+fenced_divs: d10 refused inner opener in a tabset (unmeasured reader, not gated in)", ["---", "from: markdown_github+fenced_divs", "---", "", "::: {.panel-tabset}", "", "## Tab A", "", "x", "", "::: {.note title}", "inner", ":::", "", "## After Inner", "", ":::"], [], ["h2:After Inner"]],
+    ["P3 EXPOSES: a refused opener as the first content of a tabset is a PREAMBLE paragraph, and the heading after it is kept (old answer was right by accident; quarto: the heading is a tab)", ["# Top", "", "::: {.panel-tabset}", "", "::: {.callout-note title}", "", "## Under", "", "text", "", ":::", "", "# End"], ["h1:Top", "h2:Under", "h1:End"], ["h1:Top", "h1:End"]],
+    ["P3 EXPOSES: a refused opener inside a raw TeX environment keeps the heading below it (old answer was right by accident; quarto: raw, no heading)", ["# Top", "", "\\begin{verbatim}", "::: {.callout-note title}", "", "## Under", "\\end{verbatim}", "", "## After", "# End"], ["h1:Top", "h2:Under", "h2:After", "h1:End"], ["h1:Top", "h2:After", "h1:End"]],
+    ["P3 EXPOSES: a refused opener inside a raw <pre> block keeps the heading below it (old answer was right by accident; quarto: raw, no heading)", ["# Top", "", "<pre>", "::: {.callout-note title}", "", "## Under", "</pre>", "", "## After", "# End"], ["h1:Top", "h2:Under", "h2:After", "h1:End"], ["h1:Top", "h2:After", "h1:End"]],
   ];
-  it.each(RESIDUALS)("residual — %s (HEAD's answer; quarto's differs)", (_id, lines, head) => {
+  it.each(RESIDUALS)("residual — %s (the build's answer; quarto's differs)", (_id, lines, head) => {
     expect(names(lines.join("\n"))).toEqual(head);
   });
 
