@@ -8,10 +8,29 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** Session 285 -- R6 residual (c): knitr chunks with no code (IN PROGRESS, claimed 2026-10-01).
-**Status:** Session claimed. Orient done; operator chose shape (c) from `BACKLOG.md` "R6 residuals". Work beginning.
-**Ledger:** `CHANGELOG: pending` -- close-out records the rest.
-**Note:** HANDOFFS.md line 23 lost its `` ``` `` tail in an earlier trim (S284's receipt opener is fused into prose); not fixed here.
+**Task:** **NONE -- Session 285 closed out (R6 residual (c) FIXED: a knitr chunk with no code is silent, `src/core/qmd/model.ts`).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**#1 NEXT:** operator picks. Open: R6 residuals (a),(b),(d)-(g), unclosed-`<!--` deletion shape, bare-fence-in-list-item.
+**⚠ Gotchas:** (1) `child=` is silent in quarto but kept at HEAD's answer. (2) never `git add -A`. (3) HANDOFFS.md line 23 lost its tail.
+## Session 284 Handoff Evaluation (by Session 285)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named the R6 residuals and
+the engine-bypass gotcha; the BACKLOG item split into lettered shapes, so scoping was one question.
+**Helped:** the item's shape list and the tracked score tool; the baseline reproduced at 2,423/2,438.
+**Missing:** it did not say the HANDOFFS.md header line (23) had already lost its tail. **Wrong:** none found.
+**ROI: high** (about ten minutes to a claimed task).
+
+## Session 285 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I rendered 17 probes in both modes before writing a test. RED was shown for the empty-chunk row and for the
+four external-code rows against a naive rule, and a mutant of the no-code test was killed by 4 rows. I rendered the
+exclusions and found `child=` was silent, so I disclosed it instead of pinning a false reason. Score unchanged 2,423/2,438.
+**Went wrong.** (1) The exclusion list was a guess until rendered. (2) Nine rows are pins that went green with the first
+row, disclosed in the test. (3) Ultracode was on and I ran no workflow or adversarial pass; the change is one predicate over
+rendered shapes, but that was my call. (4) No `test:integration` run (needs the screen; no host behaviour changed).
+**TDD:** RED shown before GREEN. **Cost:** no subagents; 3,208 tests passing; types clean.
+
 ## Session 283 Handoff Evaluation (by Session 284)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named the cmx phantom as
