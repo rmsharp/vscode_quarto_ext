@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [BL-⚠ HIGH — SHIPPED CODE DELETES RENDERED HEADINGS: the TABSET reads never got Session 259's three fixes] P2 layer 1 -- the attribute-block leaf, its pandoc truth fixture and generator
+- **Change:** new import-free `src/core/qmd/attribute-block.ts` (`parseAttributeBlock`, `divOpenerVerdict`), `test/unit/attribute-block.test.ts` (32 rows), `test/unit/attribute-block-truth.json` (804 rows per dialect, live `quarto pandoc` 3.6.3) and `docs/planning/scripts/attribute-block/truth.mjs` (`--check` exits 0). Nothing imports the leaf yet, so behaviour is unchanged. Mutation pass: 11 of 14 killed, the 3 survivors are equivalent.
+- **Commit/PR:** this entry's own commit
+- **Session:** S281
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [BL-⚠ HIGH — SHIPPED CODE DELETES RENDERED HEADINGS: the TABSET reads never got Session 259's three fixes] Session 281 claimed -- P2 of the attribute-tokenizer plan (in progress)
 - **Change:** Phase 1B claim -- `SESSION_NOTES.md` ACTIVE TASK rewritten and a `status: pending` receipt opened in `HANDOFFS.md`. P2 also closes the `maskQuotedValues` regression item; Phase 3F records the outcome.
 - **Commit/PR:** this entry's own commit
