@@ -72,27 +72,3 @@ showed both families pre-existing and phantom-only.
 (4) The cmx `title="   "` phantom and the two exposed families are filed, not fixed.
 **TDD:** RED shown for `r3` and for the six guards before the open arm; the rest are pins. **Cost:** one workflow, 12 agents,
 0 errors, ~0.83M subagent tokens; one screen-taking integration run, approved just before launch.
-
-## Session 280 Handoff Evaluation (by Session 281)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK was short and
-true, and the candidate list for Phase 0 came straight from it plus `BACKLOG.md`.
-**Helped:** gotcha (4) (`dashboard_history.jsonl` is left uncommitted) and the untracked-`scratchpad/` warning, both
-true. **Missing:** the commit after its close-out (`ba6eb69e`, budget rows) again had no ledger entry, the second
-session running; Phase 0 reconcile backfilled it (`d8b7c764`). **Not verified:** its "15 of 54 wrong at HEAD" figure;
-I did not reopen `scratchpad/s280`. **ROI: high** (about ten minutes to a claimed task).
-
-## Session 281 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I asked the operator about the plan's drift rule instead of waiving it, with evidence (anchors resolve,
-zero hits on the five symbols). The leaf is checked against 804 live-pandoc rows per dialect and, separately, 24,000
-fuzzed specs (0 kind/fallback disagreements). Two adversary workflows (~2,000 model documents against `quarto render`)
-found 0 regressions. I re-rendered every layer-2 witness myself (via an agent) and it caught a wrong plan expectation.
-**Went wrong.** (1) The leaf parser was written in ONE pass after its first nine RED rows, so the refusal, quote-fallback
-and escape rows passed on arrival; I proved them load-bearing by mutation (11 of 14 killed, 3 equivalent) rather than by
-RED. (2) Layer 2 was likewise one implementation for 33 RED rows, not one row at a time. (3) My first TAB-column row
-assumed a refusal gain P2 does not have; a mutation run exposed it and I replaced it. (4) §9.5 step 6's identity control
-and its timing were not run; the census ran parent-vs-tree only (0/0/0, 3,382 of 3,383 read, 0 threw).
-**TDD:** RED shown for the first leaf group and for all 33 layer-2 rows before GREEN; the rest are pins, disclosed above.
-**Cost:** two workflows, 5 agents, 0 errors, ~0.5M subagent tokens; one screen-taking integration run, approved just before.
