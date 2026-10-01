@@ -8,13 +8,12 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 282 closed out (P3 of the attribute-tokenizer plan SHIPPED).** `BACKLOG.md` "Active" is
-empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**What S282 did:** C1 guards `db2fc97b`; C2 encoding `dafa3d70` (`divOpenerRefused`, one `divRefused` flag); residual pins
-`d4942508`; runtime row `74c06a26`. 3,186 unit + 554 integration passing; census 0/0/0; score 2,423/2,438 unchanged.
-**#1 NEXT:** operator picks. The plan is done (P4 is optional). New filings: two phantom families P3 exposes; the cmx `title="   "` phantom.
-**⚠ Gotchas:** (1) Agent summaries said 0 regressions; raw files had 38 (learning #604). (2) `measure_new.cjs` is a bundle: rebuild after
-any `src/` edit. (3) never `git add -A`; `cd` moves the cwd (#535). (4) dashboard/budget jsonl are appended by every run.
+**Task:** **Session 283 -- measure-then-decide on the two phantom families P3 exposed (IN PROGRESS):** (a) tabset preamble,
+(b) raw TeX/HTML blocks. Deliverable: one decision record in BACKLOG/CHANGELOG; no `src/` change unless clearly cheap + TDD.
+**Started:** 2026-10-01. **Status:** session claimed; measurement not begun.
+**Operator decisions:** item picked from the Phase 0 list; scope narrowed to "measure first, then decide".
+**Ledger:** `CHANGELOG: pending` -- the claim entry says (in progress); Phase 3F records the rest.
+**⚠ Gotchas:** never `git add -A`; `dashboard_history.jsonl` / `.context-budget-history.jsonl` are appended by every run.
 ## Session 281 Handoff Evaluation (by Session 282)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named P3 as the natural
