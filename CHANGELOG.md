@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [BL-⚠ HIGH — SHIPPED CODE DELETES RENDERED HEADINGS: the TABSET reads never got Session 259's three fixes] Session 281 claimed -- P2 of the attribute-tokenizer plan (in progress)
+- **Change:** Phase 1B claim -- `SESSION_NOTES.md` ACTIVE TASK rewritten and a `status: pending` receipt opened in `HANDOFFS.md`. P2 also closes the `maskQuotedValues` regression item; Phase 3F records the outcome.
+- **Commit/PR:** this entry's own commit
+- **Session:** S281
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [ad hoc] Backfilled (reconcile-on-read): undocumented commit ba6eb69e -- S280 close-out measurement rows
 - **Change:** `ba6eb69e` appended the S280 close-out rows to `.context-budget-history.jsonl` and `dashboard_history.jsonl` (data only, no logic). It had no ledger entry; recorded by the Session 281 Phase 0 reconcile. `HANDOFFS.md` needs no new receipt: both commits since its frontier (`e6e64dc7`) are S280 follow-ups already named in the S280 receipt's ledger.
 - **Commit/PR:** this entry's own commit

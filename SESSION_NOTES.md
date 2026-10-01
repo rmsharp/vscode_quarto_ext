@@ -8,17 +8,12 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 280 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
-ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S280 did:** fixed the line-block fence deletion (`ba238160`): `lineBlockContinuationRefuses` +
-`fromHasLineBlocks` in `src/core/qmd/model.ts`. Matrix 15 of 54 wrong at HEAD -> 1; corpus neutral
-(2,423/2,438, outputs byte-identical). Two adversarial rounds (46 agents) confirmed 29 regressions in the
-FIRST build; all fixed or recorded. 17 unit rows; every clause mutation-killed. No integration run.
-**#1 NEXT:** operator picks; see BACKLOG.md "Up Next". Residuals: the item "Five shapes ... leaves at HEAD".
-**⚠ Gotchas:** (1) compare heading TEXT, never anchor ids (quote headings have none): `scratchpad/s280/m/score3.js`.
-(2) `scratchpad/s280/m/runlens.sh <dir>` renders + scores HEAD vs NEW; its bundles are static copies.
-(3) `python3 quality_ratchet.py --run` at close-out. Never `git add -A`; `cd` moves the cwd (#535).
-(4) `dashboard_history.jsonl` is appended by every dashboard run and left uncommitted by this session.
+**Task:** **Session 281 (IN PROGRESS) -- P2 of `docs/planning/2026-09-14-attribute-tokenizer-plan.md`**: the one
+attribute tokenizer; accepted and one-word `:::` openers read through it (markdown family). Closes the tabset
+deletion item and the `maskQuotedValues` regression. Operator picked the tabset item at Phase 0.
+**Started:** 2026-09-30. **Status:** claimed; plan-contract drift check next (P1 shipped 2026-09-18; S262-S280 touched model.ts).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's entry says (in progress); Phase 3F records the rest.
+**Gotchas inherited:** `scratchpad/` is untracked, never `git add -A`; `cd` moves the cwd (#535); `dashboard_history.jsonl` is appended by every dashboard run.
 ## Session 279 Handoff Evaluation (by Session 280)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK was

@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S281
+date: 2026-09-30
+status: pending
+active_task: P2 of the attribute-tokenizer plan -- one tokenizer, accepted and one-word ::: openers (markdown family); closes the tabset deletion item and maskQuotedValues regression
+```
+
+```handoff
 session: S280
 date: 2026-09-30
 status: complete
