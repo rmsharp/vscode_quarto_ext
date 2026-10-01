@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [BL-A fence directly below an open LINE BLOCK deletes a rendered heading] S280 claimed (in progress)
+- **Change:** `SESSION_NOTES.md` claim stub and a `status: pending` `HANDOFFS.md` receipt. Phase 3F records the outcome.
+- **Commit/PR:** this entry's own commit
+- **Session:** S280
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [ad hoc] Backfilled (reconcile-on-read): undocumented commits 2372f469..f73dc05e -- post-S279 housekeeping
 - **Change:** no code. Two commits landed after S279's close-out ledger entry: `5263e507` dropped the oldest close-out pair from `SESSION_NOTES.md` (the CLAUDE.md retention rule) and `f73dc05e` appended the post-trim measurement rows to `.context-budget-history.jsonl` and `dashboard_history.jsonl`. Provenance: `git log` and `git show --stat`, read at Session 280 Phase 0.
 - **Commit/PR:** this entry's own commit

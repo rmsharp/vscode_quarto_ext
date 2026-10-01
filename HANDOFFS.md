@@ -92,6 +92,13 @@ Losslessness is proved by [`docs/archive/HANDOFFS-through-2026-08-24.md.verify.s
 than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ```handoff
+session: S280
+date: 2026-09-30
+status: pending
+active_task: Fix the Outline deleting a rendered heading when a fence sits directly below an open line block (BACKLOG item, S277 freed-line lens).
+```
+
+```handoff
 session: S279
 date: 2026-09-30
 status: complete

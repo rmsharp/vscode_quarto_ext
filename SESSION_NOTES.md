@@ -8,6 +8,13 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
+### What Session 280 Did
+**Deliverable:** Fix the Outline deleting a rendered heading when a fence sits directly below an open LINE BLOCK -- BACKLOG "A fence directly below an open LINE BLOCK ..." (IN PROGRESS)
+**Started:** 2026-09-30
+**Status:** Session claimed. Work beginning. Strict TDD (RED before GREEN).
+**Ledger:** `CHANGELOG: pending` -- the claim commit's entry says (in progress); Phase 3F records the rest.
+
+*(Prior ACTIVE TASK, S279's, follows and is the live guidance until close-out.)*
 **Task:** **NONE -- Session 279 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
 ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
 **What S279 did:** MEASURED the S278 #1 question. All 942 non-zero-exit corpus rows re-rendered with
