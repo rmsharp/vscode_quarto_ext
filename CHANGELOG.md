@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [ad hoc] Dropped the oldest close-out pair from SESSION_NOTES.md (S277 evaluation + S278 self-assessment)
+- **Change:** `SESSION_NOTES.md` retention rule (CLAUDE.md, three pairs steady state). The dropped pair is recoverable with `git show df56d4ff:SESSION_NOTES.md`.
+- **Commit/PR:** this entry's own commit
+- **Session:** S281
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [BL-⚠ HIGH — SHIPPED CODE DELETES RENDERED HEADINGS: the TABSET reads never got Session 259's three fixes] S281 closed out -- two backlog items removed, one annotated, receipt complete
 - **Change:** `BACKLOG.md` loses the tabset-reads item and the `maskQuotedValues` regression item (both closed by P2; outcome in the entries below) and annotates the attribute-tokenizer item with P2's four measured residuals; `PROJECT_LEARNINGS.md` row #603; `SESSION_NOTES.md` (S280 handoff evaluation, S281 self-assessment, ACTIVE TASK) and the S281 `HANDOFFS.md` receipt, `status: complete`.
 - **Commit/PR:** this entry's own commit
