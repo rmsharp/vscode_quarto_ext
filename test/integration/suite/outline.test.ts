@@ -3463,4 +3463,59 @@ describe("S225: a heading inside a BLOCK QUOTE reaches the outline", () => {
     }
   });
 
+  // ⚠ **THE RUNTIME GATE FOR SESSION 281 (P2 of the attribute-tokenizer plan).** A `:::` opener is
+  // classified from pandoc's own tokens, so an apostrophe inside an UNQUOTED value no longer pairs with
+  // the quote of `title='Note'` and swallows it. Proved headlessly over `src/core`; this row proves the
+  // Outline the USER sees, through `vscode.executeDocumentSymbolProvider` in a real Extension
+  // Development Host. Witnesses: div-readers `m03` and `t01` (scratchpad/s262, re-rendered by Session
+  // 281 as scratchpad/s281/render). `it(`, never `test(` (mocha BDD).
+  it("a ::: opener with an apostrophe in an unquoted value keeps its title and its headings in the OUTLINE", async () => {
+    const flatten = (nodes: vscode.DocumentSymbol[]): string[] =>
+      nodes.flatMap((n) => [n.name, ...flatten(n.children)]);
+    const namesFor = async (...lines: string[]) =>
+      flatten(await symbolsForDoc(await openInMemory(lines.join("\n"))));
+
+    // PRESENT — quarto renders `Inside One` as a real heading because `title='Note'` takes the slot.
+    // HEAD paired the apostrophe in O'Brien with the opening quote and lost it.
+    const callout = await namesFor(
+      "## Before",
+      "",
+      "::: {.callout-note data-author=O'Brien title='Note'}",
+      "",
+      "## Inside One",
+      "",
+      "body one",
+      "",
+      "## Inside Two",
+      "",
+      "body two",
+      "",
+      ":::",
+      "",
+      "## After",
+    );
+    for (const want of ["Before", "Inside One", "Inside Two", "After"]) {
+      assert.ok(callout.includes(want), `${want} must reach the outline: ${callout.join(", ")}`);
+    }
+
+    // ABSENT — the control: a plain callout still lifts its first heading into the title bar, and a
+    // `.panel-tabset` written inside a quoted VALUE is not a tabset (every heading stays).
+    const plain = await namesFor("## Before", "", "::: {.callout-note}", "", "## Lifted", "", "body", "", ":::", "", "## After");
+    assert.ok(!plain.includes("Lifted"), `a callout's first heading is its title: ${plain.join(", ")}`);
+    const valueOnly = await namesFor(
+      "## Before",
+      "",
+      '::: {.note title="How .panel-tabset works"}',
+      "",
+      "## Inside One",
+      "",
+      "body one",
+      "",
+      ":::",
+      "",
+      "## After",
+    );
+    assert.ok(valueOnly.includes("Inside One"), `a class inside a quoted value is not a class: ${valueOnly.join(", ")}`);
+  });
+
 });

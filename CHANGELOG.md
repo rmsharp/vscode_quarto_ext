@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [BL-⚠ HIGH — SHIPPED CODE DELETES RENDERED HEADINGS: the TABSET reads never got Session 259's three fixes] P2 runtime gate -- the Outline row, run and green (553 passing)
+- **Change:** `test/integration/suite/outline.test.ts` gains one row (the `m03` apostrophe shape plus a plain-callout and a `.panel-tabset`-in-a-value control). `npm run test:integration` ran with the operator's go-ahead right before launch: 553 passing, 0 failing. Adversarial passes found 0 regressions: 24,000 leaf comparisons against live pandoc, 753 + 1,231 model documents against `quarto render`.
+- **Commit/PR:** this entry's own commit
+- **Session:** S281
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [BL-⚠ HIGH — SHIPPED CODE DELETES RENDERED HEADINGS: the TABSET reads never got Session 259's three fixes] P2 layer 2 -- a `:::` opener is classified from pandoc's own tokens (markdown family)
 - **Change:** `src/core/qmd/model.ts` — `divFenceRole` returns the UNTRIMMED, TAB-expanded `tail` (with `baseColumn`), new `divSpecReading` reads it through the leaf, `divCalloutTitleSlot` / `divPanelTabset` take `(attrs, tail, reader)` and fall back to `legacyDivCalloutTitleSlot` / `legacyDivPanelTabset` for every shape the tokenizer is not faithful for. 56 new rows in `test/unit/qmd-model.test.ts` (33 RED at HEAD, each re-rendered through quarto 1.7.33; 21 guards; 2 TAB-column rows). Census over the corpus: 0 / 0 / 0, `threw=0`; real-document score 2,423 of 2,438, unchanged. Closes the tabset-reads item and the `maskQuotedValues` regression item for markdown-family documents.
 - **Commit/PR:** this entry's own commit
