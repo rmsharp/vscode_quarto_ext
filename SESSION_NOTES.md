@@ -8,10 +8,10 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 284 closed out (cmx blank-title callout phantom FIXED, `src/core/qmd/model.ts`).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: R6 residuals, unclosed-`<!--` deletion shape (reach 0, price first), bare-fence-in-list-item.
-**⚠ Gotchas:** (1) commonmark readers skip the tokenizer (`divSpecReading` null): fixes go in `legacy*`. (2) never `git add -A`.
+**Task:** Session 285 -- R6 residual (c): knitr chunks with no code (IN PROGRESS, claimed 2026-10-01).
+**Status:** Session claimed. Orient done; operator chose shape (c) from `BACKLOG.md` "R6 residuals". Work beginning.
+**Ledger:** `CHANGELOG: pending` -- close-out records the rest.
+**Note:** HANDOFFS.md line 23 lost its `` ``` `` tail in an earlier trim (S284's receipt opener is fused into prose); not fixed here.
 ## Session 283 Handoff Evaluation (by Session 284)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named the cmx phantom as

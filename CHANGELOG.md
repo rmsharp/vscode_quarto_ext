@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Claimed Session 285 (in progress): shape (c), chunks with no code
+
+Operator-chosen scope. Outcome recorded at close-out.
+
 ### 2026-10-01 · [ad hoc] Backfilled (reconcile-on-read): undocumented commit e7e8a156 -- SESSION_NOTES.md trim
 
 Phase 0 of Session 285 found one commit past the ledger frontier (`1f166d35`): `e7e8a156` dropped the oldest close-out pair (S280 evaluation + S281 self-assessment) from `SESSION_NOTES.md` per the S256 retention rule. Source: `git log`. No behaviour change.
