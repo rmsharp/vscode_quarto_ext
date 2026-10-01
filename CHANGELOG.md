@@ -17,9 +17,9 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
-### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Claimed Session 286 (in progress): shape (a), non-R engines
+### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Session 286: shape (a), non-R engines, shipped
 
-Operator-chosen scope. Outcome recorded at close-out.
+`KNITR_SILENT_ENGINES` in `src/core/qmd/model.ts` extends the silence rule from R to python, bash, sh, zsh, perl, ruby, awk, rcpp, css, js and node, from 130 rendered probes in both modes; an empty chunk stays silent only for r/python (found by the adversarial pass, re-rendered firsthand). Unestablished engines keep HEAD's answer (listed in `BACKLOG.md`). TDD, RED shown; 3,246 tests passing; score unchanged 2,423/2,438. Commits: claim `86e2ddcc`, then the close-out commit.
 
 ### 2026-10-01 · [ad hoc] Dropped the oldest close-out pair from SESSION_NOTES.md (S281 evaluation + S282 self-assessment)
 

@@ -20524,3 +20524,80 @@ describe("R6 residual (c) — a knitr chunk with NO CODE emits no fence, echoed 
     expect(findHeadings(text, "knitr").map((h) => h.text)).toEqual(["Heading After Chunk"]);
   });
 });
+
+describe("R6 residual (a) — a silenced chunk of a NON-R engine emits no fence either (Session 286)", () => {
+  // MEASURED, `.qmd` with `engine: knitr` (quarto 1.7.33), `scratchpad/s286/` (88 probes) and `r2/` (42):
+  // with a stray bare ``` above, a `{python, echo=FALSE}` chunk leaves "Heading Under Test" rendered,
+  // under real execution AND `--no-execute`, the two agreeing -- the chunk emits no fence, so the
+  // stray one never pairs with its closer. Until Session 286 only knitr's R engine was trusted.
+  const stray = (chunk: string[]): string =>
+    ["prose", "", "```", "", "## Heading Under Test", "", ...chunk, "", "## Heading After Chunk", "", "tail prose", ""].join(
+      "\n",
+    );
+  const both = ["Heading Under Test", "Heading After Chunk"];
+
+  it("a stray bare fence above a `{python, echo=FALSE}` chunk does not pair with its closer", () => {
+    expect(findHeadings(stray(["```{python, echo=FALSE}", "x = 1", "```"]), "knitr").map((h) => h.text)).toEqual(both);
+  });
+
+  // GUARDS, rendered (`scratchpad/s286/`, both modes): an engine that re-emits its own fence whatever
+  // `echo` says -- `dot`, `mermaid`, `ojs` -- keeps swallowing the heading; and an engine that cannot
+  // render here (`go`, `stan` exit 1; `sql`, `julia`, ... need a toolchain this machine lacks in the
+  // execute mode) or whose empty chunk is loud when executed (`c`) is NOT positively established.
+  it.each(["dot", "mermaid", "ojs", "c", "sql", "julia", "fortran", "go", "stan"])(
+    "not silent: an `{%s, echo=FALSE}` chunk keeps HEAD's pairing",
+    (engine) => {
+      expect(findHeadings(stray([`\`\`\`{${engine}, echo=FALSE}`, "x", "```"]), "knitr").map((h) => h.text)).toEqual([
+        "Heading After Chunk",
+      ]);
+    },
+  );
+
+  // The other engines measured silent under `echo=FALSE` in BOTH modes, with the bare control loud
+  // (`scratchpad/s286/r2`, `*_true`); `asis`, `cat` and `block` are silent under EVERY option and are
+  // left out on purpose (see BACKLOG: R6 residual (a)).
+  it.each(["bash", "sh", "zsh", "perl", "ruby", "awk", "rcpp", "css", "js", "node"])(
+    "silent: an `{%s, echo=FALSE}` chunk emits no fence",
+    (engine) => {
+      expect(findHeadings(stray([`\`\`\`{${engine}, echo=FALSE}`, "x", "```"]), "knitr").map((h) => h.text)).toEqual(both);
+    },
+  );
+
+  // PINS: the option grammar is the R one, shared, so these went green with the engine rows (disclosed).
+  // Each shape was rendered per engine in both modes (`scratchpad/s286/`, `r2/`).
+  it.each([
+    ["include=FALSE", ["```{python, include=FALSE}", "x = 1", "```"]],
+    ["`#| echo: false`", ["```{python}", "#| echo: false", "x = 1", "```"]],
+    ["an empty body", ["```{python}", "```"]],
+    ["an empty body with echo=FALSE", ["```{bash, echo=FALSE}", "```"]],
+  ])("silent: a python/bash chunk with %s", (_n, chunk) => {
+    expect(findHeadings(stray(chunk), "knitr").map((h) => h.text)).toEqual(both);
+  });
+
+  // CONTROLS, rendered (`*_true`, `*_over`): a chunk that is not silenced echoes its code, and a
+  // leading `#| echo: true` overrides a header `echo=FALSE`.
+  it.each([
+    ["a bare chunk", ["```{python}", "x = 1", "```"]],
+    ["`#| echo: true` over a header echo=FALSE", ["```{python, echo=FALSE}", "#| echo: true", "x = 1", "```"]],
+    ["a bash bare chunk", ["```{bash}", "x=1", "```"]],
+  ])("not silent: %s", (_n, chunk) => {
+    expect(findHeadings(stray(chunk), "knitr").map((h) => h.text)).toEqual(["Heading After Chunk"]);
+  });
+
+  // Found by this session's adversarial pass and re-rendered firsthand: with NO silencing option an
+  // empty chunk is silent only for `r` and `python`; bash, sh, zsh, perl, ruby, awk, rcpp, css, js and
+  // node still emit a fence (Between swallowed in BOTH modes).
+  it.each(["bash", "sh", "zsh", "perl", "ruby", "awk", "rcpp", "css", "js", "node"])(
+    "not silent: an EMPTY `{%s}` chunk with no silencing option",
+    (engine) => {
+      expect(findHeadings(stray([`\`\`\`{${engine}}`, "```"]), "knitr").map((h) => h.text)).toEqual(["Heading After Chunk"]);
+    },
+  );
+
+  // `engine=` moves a chunk onto another engine (the R rule, Session 275), so it is refused here too.
+  it("not silent: a `{python}` chunk whose `engine=` option names another engine", () => {
+    expect(findHeadings(stray(['```{python, echo=FALSE, engine="dot"}', "x", "```"]), "knitr").map((h) => h.text)).toEqual([
+      "Heading After Chunk",
+    ]);
+  });
+});

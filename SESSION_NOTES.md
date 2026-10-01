@@ -8,10 +8,29 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** Session 286 -- R6 residual (a): non-R engines (`{python, echo=FALSE}` etc.) silent to quarto (IN PROGRESS, claimed 2026-10-01).
-**Status:** Session claimed. Orient done; operator chose shape (a) from `BACKLOG.md` "R6 residuals". Work beginning.
-**Ledger:** `CHANGELOG: pending` -- close-out records the rest.
-**Note:** HANDOFFS.md line 23 lost its `` ``` `` tail in an earlier trim (S284's receipt opener is fused into prose); not fixed here.
+**Task:** **NONE -- Session 286 closed out (R6 residual (a) FIXED: silence extended to 11 measured non-R engines, `src/core/qmd/model.ts`).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**#1 NEXT:** operator picks. Open: R6 residuals (b),(d)-(g), asis/cat/block shape, unclosed-`<!--`, bare-fence-in-list-item.
+**⚠ Gotchas:** (1) absent from `KNITR_SILENT_ENGINES` = not established. (2) never `git add -A`. (3) HANDOFFS.md line 23 lost its tail.
+## Session 285 Handoff Evaluation (by Session 286)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK listed shape (a) as open and
+said each engine must be rendered first, which set the plan.
+**Helped:** the BACKLOG shape list and the tracked score tool; the 2,423/2,438 baseline reproduced.
+**Missing:** it did not say the no-code rule was R-only in evidence. **Wrong:** none found.
+**ROI: high** (about ten minutes to a claimed task).
+
+## Session 286 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** 130 probes rendered in both modes before a test; RED shown for the python row, the ten engine rows and the
+ten empty-chunk rows; a mutant of the `engine=` guard was killed. I ran the adversarial workflow this time and verified its
+one real finding firsthand before fixing it. Score unchanged 2,423/2,438; 3,246 tests, types clean.
+**Went wrong.** (1) I extended the no-code branch to every whitelisted engine from echo=FALSE evidence, a defect the
+adversarial pass caught. (2) Printed-output counterexamples are residual (f), disclosed, not fixed. (3) No `test:integration`
+run (needs the screen; no host behaviour changed).
+**TDD:** RED shown before GREEN. **Cost:** 3 workflow agents (~174k tokens); no screen-taking run.
+
 ## Session 284 Handoff Evaluation (by Session 285)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named the R6 residuals and
@@ -49,23 +68,3 @@ my first edit exposed the dead path. Score re-run: 2,423/2,438, no document move
 ultracode was on; the change is one regex term over a rendered boundary, so I judged it proportionate, but that was my call.
 (3) No `test:integration` run (needs the screen; no host behaviour changed).
 **TDD:** RED shown before GREEN. **Cost:** no subagents; no screen-taking run.
-
-## Session 282 Handoff Evaluation (by Session 283)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK said plainly that the
-plan was done and Phase 0 must present candidates, and the new filings it named were exactly the item I was handed.
-**Helped:** the BACKLOG item's `scratchpad/s282` pointers and the tracked score tool; the baseline reproduced (2,423/2,438).
-**Missing:** it did not say both families were already identical with plain text AND carry a decided residual, so the item
-needed a scoping question before it was a deliverable. **Wrong:** none found. **Not verified:** its "38 of 6,477" count.
-**ROI: high** (about ten minutes to a scoped task).
-
-## Session 283 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I asked for scope before claiming rather than starting a fix on an item that bundles a decided residual with
-an unbounded family. The count is firsthand: shape scans over 3,383 documents, then heading COUNT agreement where quarto
-exits 0; I read the four tabset hits and found indented code, not the family. The base score re-ran at 2,423/2,438.
-**Went wrong.** (1) Three of my comparison scripts failed on the wrong table (`rawadj.tsv`). (2) Ultracode asked for a
-workflow and I did the scan inline; the scans are cheap, but nothing independent re-checked my regexes. (3) The comment scan
-is a naive open/close count, so the 12 `<!--` documents are not a clean measure. (4) I never rendered a document for this.
-**TDD:** not applicable; no logic changed. **Cost:** no subagents; one `npm test` (3,186 passing); no screen-taking run.

@@ -6349,16 +6349,29 @@ function knitrSilentChunkClosers(lines: readonly string[]): Map<number, number> 
   return silent;
 }
 /**
+ * The chunk engines whose `echo=FALSE` / `include=FALSE` chunk is MEASURED to emit no fence (R6
+ * residual (a), Session 286): rendered with `engine: knitr` in BOTH modes, the bare control chunk
+ * loud and the silenced one not (`scratchpad/s286/`, `r2/`). ⚠ Absence here means NOT ESTABLISHED,
+ * never "loud" — the engines that fail to render here (`go`, `stan`, and every one needing a
+ * toolchain this machine lacks when executing: `sql`, `julia`, `fortran`, `haskell`, `octave`,
+ * `sas`, `scala`, `tikz`) and `c` (loud when executed even if empty) keep HEAD's pairing. `asis`,
+ * `cat` and `block` are silent under every option, so `echo` decides nothing for them: left out.
+ */
+const KNITR_SILENT_ENGINES: ReadonlySet<string> = new Set([
+  "r", "R", "python", "bash", "sh", "zsh", "perl", "ruby", "awk", "rcpp", "css", "js", "node",
+]);
+/**
  * Whether a chunk's options switch off everything it could emit as a fence — `echo` or
  * `include` resolved to false. Each option resolves ONCE, and a LEADING `#| ` option line
  * overrides the chunk header (measured: header `echo=FALSE` + `#| echo: true` echoes).
  */
 function knitrChunkIsSilent(header: string, body: readonly string[]): boolean {
-  // ⚠ ONLY knitr's R engine. quarto re-emits a `dot`, `mermaid` or `ojs` chunk as its own fenced
-  // block whatever `echo` says, and an `engine=` option moves an `{r}` chunk onto such an engine —
-  // measured, each renders the heading below it that a "silent" reading deletes.
+  // ⚠ ONLY the engines measured silent (`KNITR_SILENT_ENGINES`). quarto re-emits a `dot`, `mermaid`
+  // or `ojs` chunk as its own fenced block whatever `echo` says, and an `engine=` option moves an
+  // `{r}` chunk onto such an engine — measured, each renders the heading below it that a "silent"
+  // reading deletes.
   const engine = /^\{([a-zA-Z0-9_]+)/.exec(header);
-  if (engine === null || (engine[1] !== "r" && engine[1] !== "R")) {
+  if (engine === null || !KNITR_SILENT_ENGINES.has(engine[1])) {
     return false;
   }
   const options = knitrHeaderOptions(header.slice(engine[0].length, -1));
@@ -6370,7 +6383,10 @@ function knitrChunkIsSilent(header: string, body: readonly string[]): boolean {
   // and `ref.label=` make the chunk echo that code (measured, the heading below is swallowed), and
   // `child=` inserts a document whose own fences are unknowable here.
   const external = ["child", "file", "code", "ref.label"].some((name) => options.has(name) || pipe.has(name));
-  if (!external && knitrChunkHasNoCode(body)) {
+  // ⚠ "No code, so nothing to echo" is measured only for `r` and `python`: an empty `{bash}` (and sh,
+  // zsh, perl, ruby, awk, rcpp, css, js, node) chunk still emits a fence in both modes (Session 286).
+  const emptyIsSilent = engine[1] === "r" || engine[1] === "R" || engine[1] === "python";
+  if (emptyIsSilent && !external && knitrChunkHasNoCode(body)) {
     return true;
   }
   return (["echo", "include"] as const).some((name) => knitrOptionResolvesFalse(name, options, pipe));
