@@ -40,6 +40,7 @@
 // module, and the import graph was re-checked before relying on it.) The `vscode`-free
 // guardrail of architecture plan §3.3 is unaffected — the imported module is `core/` too.
 import type { DocumentEngine } from "../document-engine";
+import { divOpenerVerdict } from "./attribute-block";
 import { quartoYamlRegions } from "./quarto-yaml-regions";
 
 /**
@@ -2184,6 +2185,13 @@ const FRONTMATTER_FLOW_OPEN = /^[ \t]*\{/;
  * ⚠ A `from:` in a PROJECT file (`_quarto.yml`) is invisible here, exactly as it is to
  * `frontMatterSelectsReader`: this scanner sees one document's bytes. Such a document keeps the
  * default-dialect rule, which is the non-deleting direction.
+ *
+ * ⚠ **THAT SENTENCE IS NOT A GLOBAL INVARIANT, AND SESSION 281 IS THE FIRST CONSUMER TO BREAK IT.**
+ * The `:::` div path (`divSpecReading`) classifies an opener on markdown's grammar whenever this
+ * document's own front matter names no CommonMark reader, so a project `_quarto.yml` that sets
+ * `from: commonmark_x` is read as markdown there and can hide a heading quarto renders (measured with
+ * two scratch projects, plan §2.5; 0 of 3,383 corpus documents sit under such a file). The plan's
+ * §12 decision 4 records the choice.
  */
 const FRONTMATTER_COMMONMARK_FROM =
   /^from[ \t]*:[ \t]*["']?(?:commonmark(?:_x)?|gfm)(?![a-zA-Z0-9_])/;
@@ -3960,11 +3968,12 @@ const COLON_RUN_START = /^([^:]*):{3,}/;
  * `- ::: mydiv` spelling reports the column the colons really sit at (2) rather than the
  * line's own indent (0).
  */
-function divFenceRole(line: string): {
+function divFenceRole(line: string, baseColumn = 0): {
   role: "open" | "close";
   viaListMarker: boolean;
   column: number;
   attrs: string;
+  tail: string;
 } | null {
   const own = DIV_FENCE.exec(line);
   const m = own ?? DIV_FENCE.exec(line.replace(LIST_MARKER_PREFIX, ""));
@@ -3979,7 +3988,37 @@ function divFenceRole(line: string): {
     // The opener's attribute spec — a `{…}` block or a bare word — kept so the caller can ask
     // whether the div is a CALLOUT. `""` for a closer, which carries none by definition.
     attrs: m[1].trim(),
+    // Session 281 — the text after the colon run, UNTRIMMED (NBSP and trailing blanks decide pandoc's
+    // WORD and its refusals, and `.trim()` strips both), with its TABs expanded from the PHYSICAL
+    // column: pandoc expands them before parsing, so a TAB after `\` changes the verdict by column.
+    tail: before === null ? "" : divTail(line, before[0].length, baseColumn),
   };
+}
+/**
+ * `line` after offset `from`, CRs removed and each TAB expanded to the next 4-column stop of the
+ * PHYSICAL line (Session 281). `baseColumn` is the physical column of `line[0]` — nonzero only
+ * inside a block quote, whose `quoteContentLine` re-expresses just the LEADING run.
+ */
+function divTail(line: string, from: number, baseColumn: number): string {
+  let col = baseColumn;
+  for (let k = 0; k < from; k++) {
+    col += line[k] === "\t" ? 4 - (col % 4) : 1;
+  }
+  let out = "";
+  for (const ch of line.slice(from)) {
+    if (ch === "\r") {
+      continue;
+    }
+    if (ch === "\t") {
+      const n = 4 - (col % 4);
+      out += " ".repeat(n);
+      col += n;
+    } else {
+      out += ch;
+      col += 1;
+    }
+  }
+  return out;
 }
 /**
  * The Quarto callout types whose div gets a TITLE BAR, as a closed set. `.callout` with no
@@ -4041,6 +4080,11 @@ function maskQuotedValues(attrs: string): string {
   );
 }
 /**
+ * ⚠ LEGACY (Session 281): the regex reader `divCalloutTitleSlot` falls back to whenever
+ * `divSpecReading` returns null — a CommonMark-family reader, `{{<`, quarto's `key= value` fix-up, a
+ * refused or open-at-eol opener, an undecoded `class=` value, a U+FEFF title. Its null routes and the
+ * filings that hold them are the plan's §2.5 and `BACKLOG.md`'s deferred-shapes item.
+ *
  * Whether a fenced div's attribute spec names a callout whose FIRST-BLOCK heading Quarto will
  * lift into the title bar — see `divCalloutTitleSlot`'s callers.
  *
@@ -4055,7 +4099,7 @@ function maskQuotedValues(attrs: string): string {
  * title bar AND `<h2 id="inside-fox">Inside Fox</h2>` inside the callout body (`p6`). Reading
  * the class alone would delete a heading quarto really emits — the forbidden direction.
  */
-function divCalloutTitleSlot(attrs: string): boolean {
+function legacyDivCalloutTitleSlot(attrs: string): boolean {
   if (attrs === "") {
     return false;
   }
@@ -4128,6 +4172,9 @@ function divCalloutTitleSlot(attrs: string): boolean {
   return false;
 }
 /**
+ * ⚠ LEGACY (Session 281): `divPanelTabset`'s fallback for every shape `divSpecReading` declines —
+ * see `legacyDivCalloutTitleSlot` for the routes.
+ *
  * Whether a fenced div's attribute spec names a `.panel-tabset`, whose TAB-LEVEL headings
  * Quarto turns into tab labels rather than headings — see `tabsetTabTakes`'s callers.
  *
@@ -4148,7 +4195,7 @@ function divCalloutTitleSlot(attrs: string): boolean {
  * `group=` or a `title=`) and the BARE WORD (`::: panel-tabset`), Pandoc's `::: foo` ≡
  * `::: {.foo}` shorthand — measured, `probes/s01`–`s08` and `s13`.
  */
-function divPanelTabset(attrs: string): boolean {
+function legacyDivPanelTabset(attrs: string): boolean {
   if (attrs === "") {
     return false;
   }
@@ -4172,6 +4219,72 @@ function divPanelTabset(attrs: string): boolean {
   // found by this session's adversarial pass, not by any test written for the rule.
   const callout = calloutClassIndex(attrs);
   return callout < 0 || callout > tabset.index;
+}
+/**
+ * What a `:::` opener says, read from pandoc's own tokens (Session 281, P2 of
+ * `docs/planning/2026-09-14-attribute-tokenizer-plan.md`) — or `null` when HEAD's regex readers must
+ * answer, which is every shape the tokenizer is not yet faithful for. ⚠ A null reading never refuses:
+ * over-refusal deletes headings.
+ *
+ * Null when: the reader is CommonMark-family (unmeasured); the tail holds `{{<` (quarto refuses a
+ * shortcode in a double-quoted value); the tail matches `[ \t]=|=[ \t]` (quarto's `key= value` fix-up,
+ * deliberately BROADER than its own precondition); the verdict is not an accepted block or a word; a
+ * `class=` value holds `\` or `&` (undecoded, so its words may not be quarto's classes); or the first
+ * title starts with U+FEFF (quarto strips one BOM before its emptiness test).
+ */
+interface DivSpecReading {
+  readonly classes: readonly string[];
+  /** The raw value of the FIRST `title` key (case-sensitive), or undefined. */
+  readonly firstTitleRaw: string | undefined;
+}
+function divSpecReading(tail: string, reader: AttributeBlockReader): DivSpecReading | null {
+  if (reader.commonmarkDialect || tail.includes("{{<") || /[ \t]=|=[ \t]/.test(tail)) {
+    return null;
+  }
+  const verdict = divOpenerVerdict(tail, reader);
+  if (verdict.kind === "word") {
+    return { classes: [verdict.word], firstTitleRaw: undefined };
+  }
+  if (verdict.kind !== "attr") {
+    return null;
+  }
+  if (/class=[^}]*[\\&]/.test(tail)) {
+    return null;
+  }
+  const title = verdict.attr.kvs.find((kv) => kv.key === "title");
+  if (title !== undefined && title.raw.startsWith("\uFEFF")) {
+    return null;
+  }
+  return { classes: verdict.attr.classes, firstTitleRaw: title?.raw };
+}
+/** The index of the first class that names a real callout, or -1 (exact tokens, case-sensitive). */
+function calloutClassPosition(classes: readonly string[]): number {
+  return classes.findIndex(
+    (c) => c === "callout" || (c.startsWith("callout-") && CALLOUT_TYPES.has(c.slice(8))),
+  );
+}
+function divCalloutTitleSlot(attrs: string, tail: string, reader: AttributeBlockReader): boolean {
+  const reading = divSpecReading(tail, reader);
+  if (reading === null) {
+    return legacyDivCalloutTitleSlot(attrs);
+  }
+  // An explicit NON-EMPTY title takes the slot, so the heading survives as a real heading; the raw
+  // emptiness equals the decoded emptiness for every measured shape except the U+FEFF routed above.
+  if (reading.firstTitleRaw !== undefined && reading.firstTitleRaw !== "") {
+    return false;
+  }
+  const callout = calloutClassPosition(reading.classes);
+  const tabset = reading.classes.indexOf("panel-tabset");
+  return callout >= 0 && (tabset < 0 || callout < tabset);
+}
+function divPanelTabset(attrs: string, tail: string, reader: AttributeBlockReader): boolean {
+  const reading = divSpecReading(tail, reader);
+  if (reading === null) {
+    return legacyDivPanelTabset(attrs);
+  }
+  const tabset = reading.classes.indexOf("panel-tabset");
+  const callout = calloutClassPosition(reading.classes);
+  return tabset >= 0 && (callout < 0 || callout > tabset);
 }
 /**
  * Where the FIRST class naming a real Quarto callout begins inside `attrs`, or `-1` for none.
@@ -8771,7 +8884,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // it as an unmatched closer instead would open a paragraph and delete that heading. The
       // filter is `columnIsCodeDepth`, reused rather than re-derived, so "where does code
       // start" cannot drift between this row and `indentedCodeLine` (Learning #14).
-      const divFenceRaw = divFenceRole(line);
+      const divFenceRaw = divFenceRole(
+        line,
+        stripQuote ? columnAtOffset(raw, quoteContentStart as number) : 0,
+      );
       const divFence =
         divFenceRaw !== null && columnIsCodeDepth(divFenceRaw.column, rawTexColumns)
           ? null
@@ -8910,9 +9026,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           column: divFence!.column,
           containerDepth: contentColumns.length,
           inQuote,
-          calloutTitleSlot: divCalloutTitleSlot(divFence!.attrs),
+          calloutTitleSlot: divCalloutTitleSlot(divFence!.attrs, divFence!.tail, { commonmarkDialect, pandocEscapes }),
           firstContentLine: null,
-          isTabset: divPanelTabset(divFence!.attrs),
+          isTabset: divPanelTabset(divFence!.attrs, divFence!.tail, { commonmarkDialect, pandocEscapes }),
           tabLevel: null,
         });
       }

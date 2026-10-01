@@ -20241,3 +20241,82 @@ describe("GUARD — rows the line-block continuation refusal may not touch, and 
       .toEqual(["h2:After"]);
   });
 });
+
+// ═══ Session 281 — P2 layer 2: a `:::` opener is classified from pandoc's own tokens (markdown family) ═══
+// Every row below was RE-RENDERED through quarto 1.7.33 by this session (witness: scratchpad/s281/render/<id>/doc.html,
+// regenerate with the table in scratchpad/s281/layer2-rows.json). RED rows disagree with HEAD (c1dbc206); GUARD rows already agree.
+describe("Session 281 — a ::: opener is classified from pandoc's own tokens (markdown family)", () => {
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  const ROWS: [string, string[], string[]][] = [
+    // ── RED rows ──
+    ["m03 (obrien+grp20-LOST)", ["## Before", "", "::: {.callout-note data-author=O'Brien title='Note'}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["t01 (grp20-LOST)", ["## Before", "", "::: {.note title=\"How .panel-tabset works\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["t02 (grp20-LOST)", ["## Before", "", "::: {.panel-tabset.foo}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["t05 (grp20-LOST)", ["## Before", "", "::: {.note data-x=\"a .panel-tabset b\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["m01 (grp20-LOST)", ["## Before", "", "::: {.callout-note data-tip=\"5\\\" screen\" title=\"T\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["m02 (grp20-LOST)", ["## Before", "", "::: {.callout-note data-x='it\\'s' title='T'}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["m04 (grp20-LOST)", ["## Before", "", "::: {.callout-note a=don't title='T'}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["m05 (grp20-LOST)", ["## Before", "", "::: {.callout-note w=5\" title=\"T\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["m09 (grp20-LOST)", ["## Before", "", "::: {.note data-x=\"a\\\" .callout-note b\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["m11 (grp20-LOST)", ["## Before", "", "::: {.callout-note data-x=a\"b title=\"T\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["r08 (grp20-LOST)", ["## Before", "", "::: {.callout-note -title=zz}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["r12 (grp20-LOST)", ["## Before", "", "::: {.callout-note\u00a0.plain}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["t03 (grp20-PHANTOM)", ["## Before", "", "::: {.note data-x=\"a\".panel-tabset}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:After"]],
+    ["t04 (grp20-PHANTOM)", ["## Before", "", "::: {data-x=\"a .callout-note b\" .panel-tabset}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:After"]],
+    ["t08 (grp20-PHANTOM)", ["## Before", "", "::: {class=\"panel-tabset\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:After"]],
+    ["t09 (grp20-PHANTOM)", ["## Before", "", "::: {class=\"callout-note\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside Two", "h2:After"]],
+    ["m10 (grp20-PHANTOM)", ["## Before", "", "::: {.callout-note data-x=\"a\\\" title=zz\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside Two", "h2:After"]],
+    ["r07 (grp20-PHANTOM)", ["## Before", "", "::: {-.callout-note}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside Two", "h2:After"]],
+    ["r16 (grp20-PHANTOM)", ["## Before", "", "::: {.callout-note#\u00e9t\u00e9}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside Two", "h2:After"]],
+    ["r18 (grp20-PHANTOM)", ["## Before", "", "::: {.callout-note data-x=\"a}b\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside Two", "h2:After"]],
+    ["s04 (shape)", ["## Before", "", "::: callout-note :::", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside Two", "h2:After"]],
+    ["s32 (shape)", ["## Before", "", ":::\u00a0{.callout-note}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside One", "h2:Inside Two", "h2:After"]],
+    ["s03 (shape)", ["## Before", "", "::: {.callout-note} :::", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside Two", "h2:After"]],
+    ["s36 (shape)", ["## Before", "", "::: {.callout-note}:::", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside Two", "h2:After"]],
+    ["md_class_nbsp (class-nbsp)", ["## Before", "", "::: {class=\"callout-note\u00a0x\"}", "", "## Inside One", "", "body one", "", "## Inside Two", "", "body two", "", ":::", "", "## After"], ["h2:Before", "h2:Inside Two", "h2:After"]],
+    ["md_class_nbsp_one (class-nbsp)", ["## Before", "", "::: {class=\"callout-note\u00a0x\"}", "", "## Inside", "", "body", "", ":::", "", "## After"], ["h2:Before", "h2:After"]],
+    ["fill2_md_bare_nbsp (fill2-md_bare_nbsp)", ["::: {.callout-note title=\u00a0}", "", "## Inside", "", ":::", "", "## After"], ["h2:Inside", "h2:After"]],
+    ["fill2_md_bare_emsp (fill2-bare-space)", ["::: {.callout-note title=\u2003}", "", "## Inside", "", ":::", "", "## After"], ["h2:Inside", "h2:After"]],
+    ["fill2_md_bare_idsp (fill2-bare-space)", ["::: {.callout-note title=\u3000}", "", "## Inside", "", ":::", "", "## After"], ["h2:Inside", "h2:After"]],
+    ["fill2_x2_md_bare_u1680 (fill2-bare-space)", ["::: {.callout-note title=\u1680}", "", "## Inside", "", ":::", "", "## After"], ["h2:Inside", "h2:After"]],
+    ["fill2_x2_md_bare_u2009 (fill2-bare-space)", ["::: {.callout-note title=\u2009}", "", "## Inside", "", ":::", "", "## After"], ["h2:Inside", "h2:After"]],
+    ["fill2_x2_md_bare_u202f (fill2-bare-space)", ["::: {.callout-note title=\u202f}", "", "## Inside", "", ":::", "", "## After"], ["h2:Inside", "h2:After"]],
+    ["fill2_x2_md_bare_u205f (fill2-bare-space)", ["::: {.callout-note title=\u205f}", "", "## Inside", "", ":::", "", "## After"], ["h2:Inside", "h2:After"]],
+    // ── GUARD rows ──
+    ["fill2_x2_md_bare_ufeff (guard-ufeff)", ["::: {.callout-note title=\ufeff}", "", "## Inside", "", ":::", "", "## After"], ["h2:After"]],
+    ["g_title_sp_class (guard)", ["::: {.callout-note title= .x}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Inside", "h2:After"]],
+    ["g_shortcode_meta (guard)", ["---", "t: Fox", "---", "", "::: {.callout-note data-x=\"{{< meta t >}}\"}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Inside", "h2:After"]],
+    ["g_cmx_class_two (guard)", ["---", "from: commonmark_x", "---", "", "::: {class=\"callout-note x\"}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Inside", "h2:After"]],
+    ["g_first_title_wins (guard)", ["## Before", "", "::: {.callout-note title=\"\" title=\"x\"}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:After"]],
+    ["g_title_empty (guard)", ["## Before", "", "::: {.callout-note title=\"\"}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:After"]],
+    ["g_R4_title_ws3 (guard)", ["::: {.callout-note title=\"   \"}", "", "## Inside Victor", "", ":::"], ["h2:Inside Victor"]],
+    ["g_R7_title_ws3 (guard)", ["::: {.callout-note title=\"   \"}", "", "## Inside", "", ":::"], ["h2:Inside"]],
+    ["g_title_ws3_sentinels (guard)", ["## Before", "", "::: {.callout-note title=\"   \"}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_column-margin (record12)", ["## Before", "", "::: {.column-margin}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_aside (record12)", ["## Before", "", "::: {.aside}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_hidden (record12)", ["## Before", "", "::: {.hidden}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_cell (record12)", ["## Before", "", "::: {.cell}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_card (record12)", ["## Before", "", "::: {.card}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_panel-sidebar (record12)", ["## Before", "", "::: {.panel-sidebar}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_panel-input (record12)", ["## Before", "", "::: {.panel-input}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_column-body (record12)", ["## Before", "", "::: {.column-body}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_columns (record12)", ["## Before", "", "::: {.columns}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_unnumbered (record12)", ["## Before", "", "::: {.unnumbered}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_xref_fig (record12)", ["## Before", "", "::: {#fig-demo}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+    ["rec_tabset (record12)", ["## Before", "", "::: {.tabset}", "", "## Inside", "", "Body.", "", ":::", "", "## After"], ["h2:Before", "h2:Inside", "h2:After"]],
+  ];
+  it.each(ROWS)("%s: the Outline matches quarto render", (_id, lines, expected) => {
+    expect(names(lines.join("\n"))).toEqual(expected);
+  });
+
+  // pandoc expands a TAB over the PHYSICAL line before it parses, so a TAB after `\` changes the verdict
+  // by its COLUMN (pandoc-markdown B26): one space is an escaped space (the block parses, and
+  // `class="callout-note"` makes a callout), three leave a bare `b` (a paragraph: both headings stay).
+  // Witness: scratchpad/s281/tabs/e_kkk and e_k, rendered.
+  it("a TAB that expands to ONE space after a backslash is an escaped space: the block parses (RED at HEAD)", () => {
+    expect(names('::: {kkk=a\\\tb class="callout-note"}\n\n## Inside\n\nBody.\n\n:::\n\n## After\n')).toEqual(["h2:After"]);
+  });
+  it("a TAB that expands to THREE spaces leaves a bare word: the opener is not a div (guard; P3 owns refusing it)", () => {
+    expect(names('::: {k=a\\\tb class="callout-note"}\n\n## Inside\n\nBody.\n\n:::\n\n## After\n')).toEqual(["h2:Inside", "h2:After"]);
+  });
+});
