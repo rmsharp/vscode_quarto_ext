@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-01 · [ad hoc] Backfilled (reconcile-on-read): undocumented commit e7e8a156 -- SESSION_NOTES.md trim
+
+Phase 0 of Session 285 found one commit past the ledger frontier (`1f166d35`): `e7e8a156` dropped the oldest close-out pair (S280 evaluation + S281 self-assessment) from `SESSION_NOTES.md` per the S256 retention rule. Source: `git log`. No behaviour change.
+
 ### 2026-10-01 · [BL-Under `commonmark_x`, `::: {.callout-note title="   "}` is a callout whose title is the heading below it, and this model keeps that heading] Shipped: a whitespace-only (ASCII space/tab) double-quoted callout title is empty under commonmark_x
 
 Session 284, TDD (4 RED rows, then GREEN; 3 guards). Fix in `legacyDivCalloutTitleSlot` (`src/core/qmd/model.ts`), scoped to the commonmark dialect. Rendered with quarto 1.7.33. Real-document score unchanged 2,423/2,438. 3,193 tests passing. Item removed from `BACKLOG.md`; learning #606.
