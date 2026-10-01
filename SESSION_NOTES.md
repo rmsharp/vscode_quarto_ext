@@ -8,11 +8,10 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 283 closed out (measure-then-decide on P3's two phantom families; NO `src/` change).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**What S283 did:** priced both families over 3,383 documents: reach 0 (tabset preamble, raw TeX/HTML blocks); score 2,423/2,438 unchanged.
-**#1 NEXT:** operator picks. Open: cmx `title="   "` phantom, R6 residuals, unclosed-`<!--` deletion shape (reach 0 too).
-**⚠ Gotchas:** (1) `rawadj.tsv` is only 14 rows; use `model.tsv` per document. (2) never `git add -A`; `cd` moves the cwd (#535).
+**Task:** **Session 284 IN PROGRESS -- cmx `title="   "` phantom (BACKLOG "Up Next").**
+**Deliverable:** under `commonmark_x`, a whitespace-only callout `title` consumes the heading below it; make the model match quarto.
+**Status:** session claimed; nothing built yet. **Ledger:** `CHANGELOG: pending`.
+**Method:** strict TDD, rendered with quarto 1.7.33 first.
 ## Session 282 Handoff Evaluation (by Session 283)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK said plainly that the
