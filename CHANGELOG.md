@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [ad hoc] S280 closed out -- receipt complete, notes written
+- **Change:** `SESSION_NOTES.md` (S279 handoff evaluation, S280 self-assessment, ACTIVE TASK) and the S280 `HANDOFFS.md` receipt, `status: complete`. The fix itself is the entry below.
+- **Commit/PR:** this entry's own commit
+- **Session:** S280
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [BL-A fence directly below an open LINE BLOCK deletes a rendered heading] A fence directly below a line-block row is continuation text, not an opener
 - **Change:** `lineBlockContinuationRefuses` and `fromHasLineBlocks` in `src/core/qmd/model.ts`, called from the fence-opener path beside `paragraphInterruptRefuses`. 17 new unit rows (`test/unit/qmd-model.test.ts`, three describe blocks); matrix `scratchpad/s280` went from 15 of 54 divergent at HEAD to 1. The BACKLOG item is removed and its five measured residual shapes filed as one item; learning #602.
 - **Commit/PR:** this entry's own commit

@@ -94,8 +94,16 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 ```handoff
 session: S280
 date: 2026-09-30
-status: pending
-active_task: Fix the Outline deleting a rendered heading when a fence sits directly below an open line block (BACKLOG item, S277 freed-line lens).
+status: complete
+self_score: 7
+predecessor_score: 8
+active_task: NONE -- S280 closed out. BACKLOG.md "Active" is empty, so Phase 0 MUST present ranked candidates via AskUserQuestion.
+what_was_done: (1) Orient: backfilled 2 undocumented commits (a5242893); operator picked the line-block fence item; claim 2937d5bb. (2) Measured 54 probes with quarto 1.7.33 first (15 wrong at HEAD). (3) TDD fix ba238160: lineBlockContinuationRefuses + fromHasLineBlocks in model.ts, 17 unit rows, every clause mutation-killed. (4) Two adversarial workflows (46 agents, ~1,900 probes): 29 regression documents in the first build, all fixed except the accepted project-config-reader phantom. (5) Corpus neutral: 2,423/2,438, model.tsv and rawadj.tsv byte-identical. (6) BACKLOG item removed, residuals filed, learning #602.
+whats_next: #1 operator picks from BACKLOG.md "Up Next". Natural follow-ups, each needs a scratch-bundle measurement first: the new item "Five shapes lineBlockContinuationRefuses deliberately leaves at HEAD's answer" (list-item container-relative continuation is the deletion-direction one). Not started.
+key_files: src/core/qmd/model.ts (lineBlockContinuationRefuses, fromHasLineBlocks, the lineBlockRefused flag beside paragraphRefused in the fence-opener path), test/unit/qmd-model.test.ts (last three describe blocks), scratchpad/s280/m/score3.js and runlens.sh (HEAD-vs-NEW scorer), BACKLOG.md "Five shapes ...", PROJECT_LEARNINGS.md #602.
+gotchas: (1) Compare heading TEXT not anchor ids -- headings inside a block quote have no anchor. (2) A refusal must not reuse consumedCloserLine: its inline-code-span premise is false after a line block. (3) scratchpad/ is untracked, never git add -A; cd moves the cwd. (4) dashboard_history.jsonl was left modified by the dashboard run.
+runtime_smoke: Not run -- core-only change in a pure vscode-free module; npm run compile and npm test (3,021) green; test:integration takes over the screen and was not authorised. quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049
+changelog_ref: CHANGELOG.md 2026-09-30 -- the line-block fence entry and the S280 close-out entry.
 ```
 
 ```handoff

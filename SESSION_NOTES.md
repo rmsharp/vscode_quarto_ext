@@ -8,24 +8,42 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-### What Session 280 Did
-**Deliverable:** Fix the Outline deleting a rendered heading when a fence sits directly below an open LINE BLOCK -- BACKLOG "A fence directly below an open LINE BLOCK ..." (IN PROGRESS)
-**Started:** 2026-09-30
-**Status:** Session claimed. Work beginning. Strict TDD (RED before GREEN).
-**Ledger:** `CHANGELOG: pending` -- the claim commit's entry says (in progress); Phase 3F records the rest.
-
-*(Prior ACTIVE TASK, S279's, follows and is the live guidance until close-out.)*
-**Task:** **NONE -- Session 279 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
+**Task:** **NONE -- Session 280 closed out.** `BACKLOG.md` "Active" is empty, so Phase 0 MUST present
 ranked candidates via `AskUserQuestion` (CLAUDE.md, Additional Phase 0 steps).
-**What S279 did:** MEASURED the S278 #1 question. All 942 non-zero-exit corpus rows re-rendered with
-S265's own driver (`render_keep.py`, `--no-execute`) at the fixed arm64 pandoc: 938 exit 1 -> exit 1,
-3 exit -2 -> -2, 1 exit 139 -> 0. **The knitr exit-1 rows are DOCUMENT failures, not environment
-failures; the scored population (2,438 of 3,383) is NOT understated by pandoc.** No code change.
-**One stale row:** ordinal 1646 (was 139, a crash) now renders exit 0 with 1 heading; ground truth NOT updated.
-**⚠ 552 passing / 0 failing is still the expected integration reading** (not re-run this session).
-**#1 NEXT:** operator picks; see BACKLOG.md "Up Next". Ground truth: `scratchpad/s279/rerender.tsv`.
-**⚠ Gates:** `python3 quality_ratchet.py --run` at close-out. **⚠ Never `git add -A`**, never
-`grep -r` from the repo root (`scratchpad/` untracked), `cd` moves the cwd (#535).
+**What S280 did:** fixed the line-block fence deletion (`ba238160`): `lineBlockContinuationRefuses` +
+`fromHasLineBlocks` in `src/core/qmd/model.ts`. Matrix 15 of 54 wrong at HEAD -> 1; corpus neutral
+(2,423/2,438, outputs byte-identical). Two adversarial rounds (46 agents) confirmed 29 regressions in the
+FIRST build; all fixed or recorded. 17 unit rows; every clause mutation-killed. No integration run.
+**#1 NEXT:** operator picks; see BACKLOG.md "Up Next". Residuals: the item "Five shapes ... leaves at HEAD".
+**⚠ Gotchas:** (1) compare heading TEXT, never anchor ids (quote headings have none): `scratchpad/s280/m/score3.js`.
+(2) `scratchpad/s280/m/runlens.sh <dir>` renders + scores HEAD vs NEW; its bundles are static copies.
+(3) `python3 quality_ratchet.py --run` at close-out. Never `git add -A`; `cd` moves the cwd (#535).
+(4) `dashboard_history.jsonl` is appended by every dashboard run and left uncommitted by this session.
+## Session 279 Handoff Evaluation (by Session 280)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK was
+accurate and short, and the Phase 0 candidate list could be built from it plus `BACKLOG.md` in minutes.
+**Helped:** the gotchas (untracked `scratchpad/`, `cd` moves the cwd) were both true and both bit me once.
+**Missing:** two commits after its close-out (the notes trim and the budget row) had no ledger entry, so
+Phase 0 reconcile had to backfill them (`a5242893`); a trim is an action and needs its own entry.
+**Not verified:** its note that the tabset-deletion and `maskQuotedValues` items are the deletion-direction
+candidates; I did not open them. **ROI: high** (orientation to a claimed task took about fifteen minutes).
+
+## Session 280 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** I measured quarto before touching `src/` (54 probes) and wrote each rule clause RED first.
+Two adversarial rounds with skeptic verification found 29 regressions in my first build; I reproduced the
+first batch myself before trusting it, then rescored ALL prior probe directories with each new bundle. A
+mutation pass shows every clause is load-bearing. The corpus check is byte-identical, not just a score.
+**Went wrong.** (1) My comparator read heading anchor ids, which a quoted heading lacks, so I wrote a test
+and a guard for the opposite of the truth; the adversary's text-based read exposed it. (2) The first
+build's gate was the markdown FAMILY, not the `line_blocks` feature. (3) I reused the Session 224
+closer-consumption premise where it is false. (4) The first pins were written after the rule and went GREEN
+on arrival. (5) I did not run the integration suite (core-only change; no screen-taking run was authorised).
+**TDD:** RED shown before GREEN for every behaviour test (two re-done after re-measurement); pins disclosed.
+**Cost:** two workflows, 46 agents, 0 errors, ~2.6M subagent tokens, ~1,900 quarto renders.
+
 ## Session 278 Handoff Evaluation (by Session 279)
 
 **Score: 9/10.** Self-check by the same model family, not an independent score. Its #1 named the
