@@ -20463,3 +20463,64 @@ describe("Session 284 — under commonmark_x a whitespace-only double-quoted cal
     expect(names(callout(attr))).toEqual(["h2:Inside", "h2:After"]);
   });
 });
+
+describe("R6 residual (c) — a knitr chunk with NO CODE emits no fence, echoed or not (Session 285)", () => {
+  // knitr emits a ```{.r .cell-code} fence only when there is code to echo, so an empty chunk
+  // vanishes like an `echo=FALSE` one and a stray bare ``` above it stays unclosed. MEASURED, `.qmd`
+  // (quarto 1.7.33), exit 0 with real execution AND `--no-execute`, the two agreeing: with a stray
+  // fence above, an empty / blank / tab-only / `#|`-only body renders "Heading Under Test"; a body
+  // with one `x <- 1` or one `# hi` comment line swallows it. Probes `scratchpad/s285/`.
+  const stray = (chunk: string[]): string =>
+    ["prose", "", "```", "", "## Heading Under Test", "", ...chunk, "", "## Heading After Chunk", "", "tail prose", ""].join(
+      "\n",
+    );
+  const both = ["Heading Under Test", "Heading After Chunk"];
+
+  it("a stray bare fence above an EMPTY `{r}` chunk does not pair with that chunk's closer", () => {
+    expect(findHeadings(stray(["```{r}", "```"]), "knitr").map((h) => h.text)).toEqual(both);
+  });
+
+  // Code that arrives from OUTSIDE the body makes an empty-bodied chunk emit a fence, so a stray
+  // fence above it pairs with that fence. MEASURED, `.qmd`, exit 0 with real execution, `scratchpad/
+  // s285/` e2-e4: `file=`, `code=` and `ref.label=` render ONLY "Heading After Chunk". ⚠ `child=` of
+  // a plain document is SILENT in quarto (e1, e5: both render) but a child may hold fences, so it
+  // keeps HEAD's answer: a DISCLOSED residual, pinned, not a match with quarto.
+  it.each([
+    ["child", '```{r, child="other.Rmd"}'],
+    ["file", '```{r, file="other.R"}'],
+    ["code", "```{r, code=x}"],
+    ["ref.label", "```{r, ref.label='other'}"],
+  ])("an empty chunk whose header sets `%s` is not silent", (_n, header) => {
+    expect(findHeadings(stray([header, "```"]), "knitr").map((h) => h.text)).toEqual(["Heading After Chunk"]);
+  });
+
+  // PINS of one encoding (they went green with the first row, disclosed): every body shape below
+  // was rendered in both modes (c2-c4, c7, d2, d3).
+  it.each([
+    ["a blank line", ["```{r}", "", "```"]],
+    ["spaces only", ["```{r}", "   ", "```"]],
+    ["a tab only, echo=TRUE", ["```{r, echo=TRUE}", "\t", "```"]],
+    ["a `#|` label only", ["```{r}", "#| label: x", "```"]],
+    ["a `#|` label then a blank", ["```{r}", "#| label: x", "", "```"]],
+    ["`#| echo: true` and no code", ["```{r}", "#| echo: true", "```"]],
+  ])("silent: %s", (_n, chunk) => {
+    expect(findHeadings(stray(chunk), "knitr").map((h) => h.text)).toEqual(both);
+  });
+
+  // CONTROLS, rendered (c5, c6, d5): ONE line of code, even a comment, makes the chunk echo, so the
+  // stray fence pairs with its closer and swallows the heading.
+  it.each([
+    ["an assignment", ["```{r}", "x <- 1", "```"]],
+    ["a comment line", ["```{r}", "# hi", "```"]],
+    ["a `#|` line then code", ["```{r}", "#| echo: true", "y <- 1", "```"]],
+  ])("not silent: %s", (_n, chunk) => {
+    expect(findHeadings(stray(chunk), "knitr").map((h) => h.text)).toEqual(["Heading After Chunk"]);
+  });
+
+  // The empty chunk's closer is skipped, so the stray fence pairs with a LATER echoed chunk's
+  // closer (d1, both modes: only "Heading After" renders) -- the Session 275 pairing, new shape.
+  it("a stray fence skips an empty chunk's closer and pairs with a later echoed chunk's", () => {
+    const text = stray(["```{r}", "```", "", "## Heading Mid", "", "```{r}", "y <- 2", "```"]);
+    expect(findHeadings(text, "knitr").map((h) => h.text)).toEqual(["Heading After Chunk"]);
+  });
+});

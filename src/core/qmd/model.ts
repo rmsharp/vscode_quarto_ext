@@ -6366,7 +6366,22 @@ function knitrChunkIsSilent(header: string, body: readonly string[]): boolean {
   if (options === null || pipe === null || options.has("engine") || pipe.has("engine")) {
     return false;
   }
+  // ⚠ An empty body is silent only when no option brings code in from OUTSIDE it: `file=`, `code=`
+  // and `ref.label=` make the chunk echo that code (measured, the heading below is swallowed), and
+  // `child=` inserts a document whose own fences are unknowable here.
+  const external = ["child", "file", "code", "ref.label"].some((name) => options.has(name) || pipe.has(name));
+  if (!external && knitrChunkHasNoCode(body)) {
+    return true;
+  }
   return (["echo", "include"] as const).some((name) => knitrOptionResolvesFalse(name, options, pipe));
+}
+/** Whether a chunk's body holds nothing past its leading `#|` option lines but blank lines. */
+function knitrChunkHasNoCode(body: readonly string[]): boolean {
+  let k = 0;
+  while (k < body.length && body[k].startsWith("#|")) {
+    k++;
+  }
+  return body.slice(k).every((line) => line.trim() === "");
 }
 /**
  * The chunk header's options as a FLAT `name = value` list — the LAST assignment of a name wins —
