@@ -86,27 +86,4 @@ on arrival. (5) I did not run the integration suite (core-only change; no screen
 **TDD:** RED shown before GREEN for every behaviour test (two re-done after re-measurement); pins disclosed.
 **Cost:** two workflows, 46 agents, 0 errors, ~2.6M subagent tokens, ~1,900 quarto renders.
 
-## Session 278 Handoff Evaluation (by Session 279)
-
-**Score: 9/10.** Self-check by the same model family, not an independent score. Its #1 named the
-question, the five witness ordinals, the ground-truth path and its open caveat ("its age is the open
-question"), so the measurement started at once. It also corrected its own stale "547/5" guidance.
-**Wrong or missing:** it did not say the ground-truth driver uses `--no-execute`, which decides whether
-"knitr failure" can mean an R failure; I read `render_keep.py` to learn that. It also did not say that
-S265 rendered from snapshot text in a bare temp dir, which is why sibling files are missing.
-**ROI: high.** Orientation to a measured first step took about ten minutes.
-
-## Session 279 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I measured the whole population (942 rows) with the original driver, not just the five
-named rows, so old and new exit codes compare one-to-one. I confirmed the five named rows by hand.
-I diagnosed a spread sample of 79 rows for cause. I touched no `src/` and no corpus file, and rendered
-only into scratch directories.
-**Went wrong.** (1) The first ground-truth question was framed as "environment or document"; the answer
-is "document" but my 79-row cause sample left 26 rows with no recognisable error line, so the cause of
-those is UNCLASSIFIED. (2) I armed a throwaway placeholder monitor by mistake. (3) A `cd` into
-`scratchpad/` moved the cwd (#535) twice.
-**TDD:** exempt and stated -- no logic changed. **Cost:** no workflows, no subagents; ~1,020 renders.
-
 ---

@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-01 · [ad hoc] Dropped the oldest close-out pair from SESSION_NOTES.md (S278 evaluation + S279 self-assessment)
+- **Change:** `SESSION_NOTES.md` retention rule (CLAUDE.md, three pairs steady state). The dropped pair is recoverable with `git show HEAD~1:SESSION_NOTES.md` (the close-out commit).
+- **Commit/PR:** this entry's own commit
+- **Session:** S282
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-10-01 · [BL-The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it, so an opener pandoc REFUSES is still read as a callout — plus seven grammar gaps beside it] Closed out Session 282 -- P3 shipped
 - **Change:** close-out record: `HANDOFFS.md` receipt complete, `SESSION_NOTES.md` pair written, learning #604, `BACKLOG.md` tokenizer item updated (P3 shipped; what it deliberately leaves). The plan's P1-P3 are done; P4 stays optional.
 - **Commit/PR:** this entry's own commit
