@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-09-30 · [BL-⚠ HIGH — SHIPPED CODE DELETES RENDERED HEADINGS: the TABSET reads never got Session 259's three fixes] S281 closed out -- two backlog items removed, one annotated, receipt complete
+- **Change:** `BACKLOG.md` loses the tabset-reads item and the `maskQuotedValues` regression item (both closed by P2; outcome in the entries below) and annotates the attribute-tokenizer item with P2's four measured residuals; `PROJECT_LEARNINGS.md` row #603; `SESSION_NOTES.md` (S280 handoff evaluation, S281 self-assessment, ACTIVE TASK) and the S281 `HANDOFFS.md` receipt, `status: complete`.
+- **Commit/PR:** this entry's own commit
+- **Session:** S281
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-09-30 · [BL-⚠ HIGH — SHIPPED CODE DELETES RENDERED HEADINGS: the TABSET reads never got Session 259's three fixes] P2 runtime gate -- the Outline row, run and green (553 passing)
 - **Change:** `test/integration/suite/outline.test.ts` gains one row (the `m03` apostrophe shape plus a plain-callout and a `.panel-tabset`-in-a-value control). `npm run test:integration` ran with the operator's go-ahead right before launch: 553 passing, 0 failing. Adversarial passes found 0 regressions: 24,000 leaf comparisons against live pandoc, 753 + 1,231 model documents against `quarto render`.
 - **Commit/PR:** this entry's own commit

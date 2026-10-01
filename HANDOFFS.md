@@ -94,8 +94,16 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 ```handoff
 session: S281
 date: 2026-09-30
-status: pending
-active_task: P2 of the attribute-tokenizer plan -- one tokenizer, accepted and one-word ::: openers (markdown family); closes the tabset deletion item and maskQuotedValues regression
+status: complete
+self_score: 7
+predecessor_score: 8
+active_task: NONE -- S281 closed out. P2 of the attribute-tokenizer plan SHIPPED. BACKLOG.md "Active" is empty, so Phase 0 MUST present ranked candidates via AskUserQuestion.
+what_was_done: (1) Orient: backfilled ba6eb69e (d8b7c764); operator picked the tabset item; claim c1dbc206; operator chose to proceed past the plan's drift rule. (2) Layer 1 a55735ae: import-free src/core/qmd/attribute-block.ts, 32 unit rows, 804-row-per-dialect live-pandoc fixture, truth.mjs --check. (3) Layer 2 db7cf046: model.ts divSpecReading + dispatchers over legacy readers; 56 rows (33 RED at HEAD, each re-rendered). (4) Runtime row 7e2adbd9, test:integration 553 passing. (5) Two adversary workflows, 0 regressions. Census 0/0/0; real-document score 2,423/2,438.
+whats_next: #1 operator picks from BACKLOG.md "Up Next". Natural follow-up: P3 of docs/planning/2026-09-14-attribute-tokenizer-plan.md (single-line refused openers become paragraph text), a separate session that must redo the plan's 9.5 drift check. Residuals are listed in the tokenizer item in BACKLOG.md.
+key_files: src/core/qmd/attribute-block.ts (divOpenerVerdict, parseAttributeBlock), src/core/qmd/model.ts (divSpecReading, divCalloutTitleSlot, divPanelTabset, divTail, legacyDiv*), test/unit/attribute-block.test.ts, test/unit/attribute-block-truth.json, docs/planning/scripts/attribute-block/truth.mjs, test/unit/qmd-model.test.ts (last describe), test/integration/suite/outline.test.ts (last row)
+gotchas: (1) A refused opener gains nothing in P2: the legacy reader still hides the heading, so a test needs a class the legacy reader cannot see. (2) pandoc 3.6.3 refuses every indented ::: opener. (3) class="callout-note<NBSP>x" leaves the second inner heading in quarto; the plan's expectation holds only with one inner heading. (4) scratchpad/ is untracked; never git add -A.
+runtime_smoke: test:integration run with the operator's go-ahead right before launch: 553 passing, 0 failing, including the new row. quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad · manifest 8845021a4049
+changelog_ref: CHANGELOG.md 2026-09-30 -- the P2 layer 1, layer 2 and runtime-gate entries, and this close-out entry.
 ```
 
 ```handoff
