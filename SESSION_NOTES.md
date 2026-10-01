@@ -8,12 +8,31 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 283 -- measure-then-decide on the two phantom families P3 exposed (IN PROGRESS):** (a) tabset preamble,
-(b) raw TeX/HTML blocks. Deliverable: one decision record in BACKLOG/CHANGELOG; no `src/` change unless clearly cheap + TDD.
-**Started:** 2026-10-01. **Status:** session claimed; measurement not begun.
-**Operator decisions:** item picked from the Phase 0 list; scope narrowed to "measure first, then decide".
-**Ledger:** `CHANGELOG: pending` -- the claim entry says (in progress); Phase 3F records the rest.
-**⚠ Gotchas:** never `git add -A`; `dashboard_history.jsonl` / `.context-budget-history.jsonl` are appended by every run.
+**Task:** **NONE -- Session 283 closed out (measure-then-decide on P3's two phantom families; NO `src/` change).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**What S283 did:** priced both families over 3,383 documents: reach 0 (tabset preamble, raw TeX/HTML blocks); score 2,423/2,438 unchanged.
+**#1 NEXT:** operator picks. Open: cmx `title="   "` phantom, R6 residuals, unclosed-`<!--` deletion shape (reach 0 too).
+**⚠ Gotchas:** (1) `rawadj.tsv` is only 14 rows; use `model.tsv` per document. (2) never `git add -A`; `cd` moves the cwd (#535).
+## Session 282 Handoff Evaluation (by Session 283)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK said plainly that the
+plan was done and Phase 0 must present candidates, and the new filings it named were exactly the item I was handed.
+**Helped:** the BACKLOG item's `scratchpad/s282` pointers and the tracked score tool; the baseline reproduced (2,423/2,438).
+**Missing:** it did not say both families were already identical with plain text AND carry a decided residual, so the item
+needed a scoping question before it was a deliverable. **Wrong:** none found. **Not verified:** its "38 of 6,477" count.
+**ROI: high** (about ten minutes to a scoped task).
+
+## Session 283 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** I asked for scope before claiming rather than starting a fix on an item that bundles a decided residual with
+an unbounded family. The count is firsthand: shape scans over 3,383 documents, then heading COUNT agreement where quarto
+exits 0; I read the four tabset hits and found indented code, not the family. The base score re-ran at 2,423/2,438.
+**Went wrong.** (1) Three of my comparison scripts failed on the wrong table (`rawadj.tsv`). (2) Ultracode asked for a
+workflow and I did the scan inline; the scans are cheap, but nothing independent re-checked my regexes. (3) The comment scan
+is a naive open/close count, so the 12 `<!--` documents are not a clean measure. (4) I never rendered a document for this.
+**TDD:** not applicable; no logic changed. **Cost:** no subagents; one `npm test` (3,186 passing); no screen-taking run.
+
 ## Session 281 Handoff Evaluation (by Session 282)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named P3 as the natural
@@ -59,30 +78,3 @@ assumed a refusal gain P2 does not have; a mutation run exposed it and I replace
 and its timing were not run; the census ran parent-vs-tree only (0/0/0, 3,382 of 3,383 read, 0 threw).
 **TDD:** RED shown for the first leaf group and for all 33 layer-2 rows before GREEN; the rest are pins, disclosed above.
 **Cost:** two workflows, 5 agents, 0 errors, ~0.5M subagent tokens; one screen-taking integration run, approved just before.
-
-## Session 279 Handoff Evaluation (by Session 280)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK was
-accurate and short, and the Phase 0 candidate list could be built from it plus `BACKLOG.md` in minutes.
-**Helped:** the gotchas (untracked `scratchpad/`, `cd` moves the cwd) were both true and both bit me once.
-**Missing:** two commits after its close-out (the notes trim and the budget row) had no ledger entry, so
-Phase 0 reconcile had to backfill them (`a5242893`); a trim is an action and needs its own entry.
-**Not verified:** its note that the tabset-deletion and `maskQuotedValues` items are the deletion-direction
-candidates; I did not open them. **ROI: high** (orientation to a claimed task took about fifteen minutes).
-
-## Session 280 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I measured quarto before touching `src/` (54 probes) and wrote each rule clause RED first.
-Two adversarial rounds with skeptic verification found 29 regressions in my first build; I reproduced the
-first batch myself before trusting it, then rescored ALL prior probe directories with each new bundle. A
-mutation pass shows every clause is load-bearing. The corpus check is byte-identical, not just a score.
-**Went wrong.** (1) My comparator read heading anchor ids, which a quoted heading lacks, so I wrote a test
-and a guard for the opposite of the truth; the adversary's text-based read exposed it. (2) The first
-build's gate was the markdown FAMILY, not the `line_blocks` feature. (3) I reused the Session 224
-closer-consumption premise where it is false. (4) The first pins were written after the rule and went GREEN
-on arrival. (5) I did not run the integration suite (core-only change; no screen-taking run was authorised).
-**TDD:** RED shown before GREEN for every behaviour test (two re-done after re-measurement); pins disclosed.
-**Cost:** two workflows, 46 agents, 0 errors, ~2.6M subagent tokens, ~1,900 quarto renders.
-
----

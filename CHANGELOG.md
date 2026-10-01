@@ -17,9 +17,9 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
-### 2026-10-01 · [BL-P3 exposes two PRE-EXISTING phantom families that a refused opener used to hide by accident] Claimed Session 283 (in progress)
-- **Change:** operator chose the item at Phase 0 and then scoped it to "measure first, then decide": price both families, write one decision record, no `src/` change unless a fix is clearly cheap and TDD-able. Phase 3F records the outcome.
-- **Commit/PR:** this entry's own commit
+### 2026-10-01 · [BL-P3 exposes two PRE-EXISTING phantom families that a refused opener used to hide by accident] Measured corpus reach of both families: zero; decided no src/ change
+- **Change:** claimed S283 (`8f685bc0`), scanned all 3,383 authored documents for tabset openers with a non-heading first line, raw TeX environments, `<script>`/`<pre>` and unclosed `<!--` holding a `#` line, and compared model vs quarto heading counts. Reach is 0 for both; the realdoc score is unchanged (2,423 of 2,438). The item stays in `BACKLOG.md`, deferred, with the measurement appended; learning #605 added.
+- **Commit/PR:** the close-out commit following `8f685bc0`
 - **Session:** S283
 - **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
 
