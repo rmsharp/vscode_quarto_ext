@@ -17,9 +17,9 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
-### 2026-10-01 · [BL-Under `commonmark_x`, `::: {.callout-note title="   "}` is a callout whose title is the heading below it, and this model keeps that heading] Session 284 claimed (in progress)
+### 2026-10-01 · [BL-Under `commonmark_x`, `::: {.callout-note title="   "}` is a callout whose title is the heading below it, and this model keeps that heading] Shipped: a whitespace-only (ASCII space/tab) double-quoted callout title is empty under commonmark_x
 
-CHANGELOG: pending -- Phase 3F records the outcome.
+Session 284, TDD (4 RED rows, then GREEN; 3 guards). Fix in `legacyDivCalloutTitleSlot` (`src/core/qmd/model.ts`), scoped to the commonmark dialect. Rendered with quarto 1.7.33. Real-document score unchanged 2,423/2,438. 3,193 tests passing. Item removed from `BACKLOG.md`; learning #606.
 
 ### 2026-10-01 · [BL-P3 exposes two PRE-EXISTING phantom families that a refused opener used to hide by accident] Measured corpus reach of both families: zero; decided no src/ change
 - **Change:** claimed S283 (`8f685bc0`), scanned all 3,383 authored documents for tabset openers with a non-heading first line, raw TeX environments, `<script>`/`<pre>` and unclosed `<!--` holding a `#` line, and compared model vs quarto heading counts. Reach is 0 for both; the realdoc score is unchanged (2,423 of 2,438). The item stays in `BACKLOG.md`, deferred, with the measurement appended; learning #605 added.

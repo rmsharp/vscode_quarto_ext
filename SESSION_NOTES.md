@@ -8,10 +8,29 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 284 IN PROGRESS -- cmx `title="   "` phantom (BACKLOG "Up Next").**
-**Deliverable:** under `commonmark_x`, a whitespace-only callout `title` consumes the heading below it; make the model match quarto.
-**Status:** session claimed; nothing built yet. **Ledger:** `CHANGELOG: pending`.
-**Method:** strict TDD, rendered with quarto 1.7.33 first.
+**Task:** **NONE -- Session 284 closed out (cmx blank-title callout phantom FIXED, `src/core/qmd/model.ts`).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**#1 NEXT:** operator picks. Open: R6 residuals, unclosed-`<!--` deletion shape (reach 0, price first), bare-fence-in-list-item.
+**⚠ Gotchas:** (1) commonmark readers skip the tokenizer (`divSpecReading` null): fixes go in `legacy*`. (2) never `git add -A`.
+## Session 283 Handoff Evaluation (by Session 284)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named the cmx phantom as
+open and the BACKLOG item carried a rendered witness path, which reproduced at once.
+**Helped:** the item's `scratchpad/s282/ws3/b.qmd` probe and its "treated as empty" hypothesis (confirmed, with a boundary).
+**Missing:** it did not say commonmark readers bypass the tokenizer, so my first edit landed on a dead path. **Wrong:** none.
+**ROI: high** (about five minutes to a claimed task).
+
+## Session 284 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I rendered eight probes before writing a test, which gave the boundary (ASCII space/tab empty; U+00A0 and
+U+2003 real; single quotes refused). RED was shown for four rows and the three guards were green first. The RED staying red after
+my first edit exposed the dead path. Score re-run: 2,423/2,438, no document moved. 3,193 tests passing, types clean.
+**Went wrong.** (1) First edit on the wrong branch, reverted. (2) No adversarial pass or workflow this session although
+ultracode was on; the change is one regex term over a rendered boundary, so I judged it proportionate, but that was my call.
+(3) No `test:integration` run (needs the screen; no host behaviour changed).
+**TDD:** RED shown before GREEN. **Cost:** no subagents; no screen-taking run.
+
 ## Session 282 Handoff Evaluation (by Session 283)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK said plainly that the

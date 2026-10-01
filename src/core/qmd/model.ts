@@ -4099,7 +4099,7 @@ function maskQuotedValues(attrs: string): string {
  * title bar AND `<h2 id="inside-fox">Inside Fox</h2>` inside the callout body (`p6`). Reading
  * the class alone would delete a heading quarto really emits — the forbidden direction.
  */
-function legacyDivCalloutTitleSlot(attrs: string): boolean {
+function legacyDivCalloutTitleSlot(attrs: string, commonmarkDialect: boolean): boolean {
   if (attrs === "") {
     return false;
   }
@@ -4117,8 +4117,8 @@ function legacyDivCalloutTitleSlot(attrs: string): boolean {
   // whole block, and renders the line as paragraph text (`<p>::: {.callout-note title=" "}</p>`,
   // `scratchpad/s282/ws3`), so the heading below it is a real `<h2>` — which is why the answer is the
   // same either way, and why `divOpenerRefused` now says so rather than this fallback. Under
-  // `commonmark_x` it IS a callout whose heading is lifted into the title bar, and this reader's answer
-  // there is a phantom (filed). So the test is on the quoted value being EMPTY, never on it looking
+  // `commonmark_x` it IS a callout whose heading is lifted into the title bar, and since Session 284 this
+  // reader says so (the value test below). So the test is on the quoted value being EMPTY, never on it looking
   // blank, and never on the attribute merely being present. Found by an adversarial verifier against the first cut of this predicate,
   // which read the presence alone and kept a phantom on every `title=""` callout.
   // The value ends at its own closing quote (or at the next space / `}` when unquoted), so a
@@ -4129,7 +4129,12 @@ function legacyDivCalloutTitleSlot(attrs: string): boolean {
     const value = /^(?:"([^"]*)"|'([^']*)'|([^\s}]*))/.exec(
       attrs.slice(titleKey.index + titleKey[0].length),
     );
-    if (value !== null && (value[1] ?? value[2] ?? value[3] ?? "") !== "") {
+    const raw = value === null ? "" : (value[1] ?? value[2] ?? value[3] ?? "");
+    // ⚠ Under `commonmark_x` a value of only ASCII spaces/tabs supplies no title either, so the heading is
+    // lifted exactly as for `title=""` (rendered, Session 284, `scratchpad/s284/p`); U+00A0 and U+2003 are a
+    // real title. Scoped to that dialect: under `markdown` the same opener is refused upstream, and a refusal
+    // this build cannot see must never delete a heading.
+    if (value !== null && raw !== "" && !(commonmarkDialect && /^[ \t]*$/.test(raw))) {
       return false;
     }
   }
@@ -4278,7 +4283,7 @@ function calloutClassPosition(classes: readonly string[]): number {
 function divCalloutTitleSlot(attrs: string, tail: string, reader: AttributeBlockReader): boolean {
   const reading = divSpecReading(tail, reader);
   if (reading === null) {
-    return legacyDivCalloutTitleSlot(attrs);
+    return legacyDivCalloutTitleSlot(attrs, reader.commonmarkDialect);
   }
   // An explicit NON-EMPTY title takes the slot, so the heading survives as a real heading; the raw
   // emptiness equals the decoded emptiness for every measured shape except the U+FEFF routed above.

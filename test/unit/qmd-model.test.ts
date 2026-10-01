@@ -20440,3 +20440,26 @@ describe("Session 282 — a ::: opener pandoc refuses on its own line is paragra
     expect(names(lines.join("\n"))).toEqual(expected);
   });
 });
+
+describe("Session 284 — under commonmark_x a whitespace-only double-quoted callout title is an EMPTY title", () => {
+  const names = (lines: string[]) =>
+    findHeadings(["---", "from: commonmark_x", "---", "", ...lines].join("\n")).map((h) => `h${h.level}:${h.text}`);
+  const callout = (attr: string) => [`::: {.callout-note ${attr}}`, "", "## Inside", "", "Body.", "", ":::", "", "## After"];
+  // Rendered with quarto 1.7.33 (`scratchpad/s284/p`): a value of ASCII spaces/tabs supplies no title, so the
+  // heading is lifted into the title bar and only `After` is listed. Any other character is a real title.
+  it.each([
+    ["spaces", 'title="   "'],
+    ["one space", 'title=" "'],
+    ["a tab", 'title="\t"'],
+    ["space-tab-space", 'title=" \t "'],
+  ])("%s: the heading below is the title bar, not an outline row", (_id, attr) => {
+    expect(names(callout(attr))).toEqual(["h2:After"]);
+  });
+  it.each([
+    ["no-break space", 'title=" "'],
+    ["em space", 'title=" "'],
+    ["text with spaces", 'title=" x "'],
+  ])("%s is a real title: the heading survives", (_id, attr) => {
+    expect(names(callout(attr))).toEqual(["h2:Inside", "h2:After"]);
+  });
+});
