@@ -17,6 +17,12 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-01 · [BL-The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it, so an opener pandoc REFUSES is still read as a callout — plus seven grammar gaps beside it] P3 C1 -- 38 guard and residual rows, all green at HEAD
+- **Change:** `test/unit/qmd-model.test.ts` gains describe "Session 282": 21 GUARD rows (accepted openers, the `=` route, open-at-eol openers, TAB columns, a gated-in reader, the 8 rows the null encoding breaks) and 17 RESIDUAL rows asserting HEAD's answer with quarto's recorded. Every expected value was re-rendered with quarto 1.7.33 (146 rows, `scratchpad/s282`); none differed from the plan's recorded truth.
+- **Commit/PR:** this entry's own commit
+- **Session:** S282
+- **Model:** Claude Sonnet 5.5 (claude-sonnet-5-5)
+
 ### 2026-10-01 · [BL-The attribute spec is matched with regexes and never TOKENIZED as pandoc tokenizes it, so an opener pandoc REFUSES is still read as a callout — plus seven grammar gaps beside it] Claimed Session 282 for P3 (in progress)
 - **Change:** session claim only -- P3 of the attribute-tokenizer plan (single-line refused `:::` openers become paragraph text). Operator approved proceeding past plan §9.5 step 1's drift rule and planning a `test:integration` run.
 - **Commit/PR:** this entry's own commit

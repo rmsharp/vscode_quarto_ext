@@ -20320,3 +20320,66 @@ describe("Session 281 — a ::: opener is classified from pandoc's own tokens (m
     expect(names('::: {k=a\\\tb class="callout-note"}\n\n## Inside\n\nBody.\n\n:::\n\n## After\n')).toEqual(["h2:Inside", "h2:After"]);
   });
 });
+
+// ═══ Session 282 — P3: a `:::` opener pandoc refuses on its own line is paragraph text, not a div ═══
+// P3 of docs/planning/2026-09-14-attribute-tokenizer-plan.md. Every expected value below was RENDERED with
+// quarto 1.7.33 (`quarto render --to html`, the <hN> headings of <main>) by scratchpad/s282/render_rows.py,
+// and the guard rows were measured GREEN at HEAD before any src/ edit (commit C1).
+
+describe("Session 282 — a ::: opener pandoc refuses on its own line is paragraph text", () => {
+  const names = (text: string) => findHeadings(text).map((h) => `h${h.level}:${h.text}`);
+  // GUARDS: green before the edit and after it. Each is a shape P3's encoding must NOT move — an accepted
+  // opener, a reader the gate keeps at HEAD, an opener still open at end of line, or a refused opener whose
+  // HEAD answer already equals quarto's.
+  const GUARDS: [string, string[], string[]][] = [
+    ["r1_para_above_glued (refused opener, glued: P3 must keep this answer)", ["Some text", "::: {.callout-note title}", "## H", ":::"], []],
+    ["r2_glued_no_para (refused opener, glued: P3 must keep this answer)", ["::: {.callout-note title}", "## H", ":::"], []],
+    ["Q1_quote_glued (refused opener, glued: P3 must keep this answer)", ["> ::: {.callout-note title}", "> ## H", "> :::"], []],
+    ["Q5_quote_para_above_glued (refused opener, glued: P3 must keep this answer)", ["> Some text", "> ::: {.callout-note title}", "> ## H", "> :::"], []],
+    ["Q6_quote_lazy_glued_heading (refused opener, glued: P3 must keep this answer)", ["> ::: {.callout-note title}", "## H"], []],
+    ["I8_callout_refused_in_callout_glued (refused opener, glued: P3 must keep this answer)", ["::: {.callout-note}", "", "Intro.", "", "::: {.callout-note title}", "## H", ":::"], []],
+    ["C1_itemcol_glued (refused opener, glued: P3 must keep this answer)", ["- item", "", "  ::: {.callout-note title}", "  ## H", "  :::"], []],
+    ["G_bare_key__glued (refused opener, glued: P3 must keep this answer)", ["::: {.callout-note title}", "## H", ":::", "", "## After"], ["h2:After"]],
+    ["F1_stray_closer_glued_tail (false-refusal control: {.note} is accepted)", ["::: {.callout-note}", "", "Intro.", "", "::: {.note}", "", "body", "", ":::", "", ":::", "## Tail"], ["h2:Tail"]],
+    ["F4_glued (false-refusal control: {.note} is accepted)", ["::: {.note}", "## H", ":::"], ["h2:H"]],
+    ["G_kv_space_after__glued (the `=` route: quarto repairs it into a callout titled x)", ["::: {.callout-note title= \"x\"}", "## H", ":::", "", "## After"], ["h2:H", "h2:After"]],
+    ["eqB (the `=` route, blank-separated)", ["::: {.callout-note title= \"x\"}", "", "body", "", ":::", "## After"], ["h2:After"]],
+    ["X2_callout_dataxzz_blank_cmx (commonmark_x accepts a title that starts with a space)", ["---", "from: commonmark_x", "---", "", "::: {.callout-note data-x=\" zz\"}", "", "## H", "", ":::", "", "## After"], ["h2:After"]],
+    ["r1 under from: markdown-blank_before_header (a reader the gate admits keeps HEAD here)", ["---", "from: markdown-blank_before_header", "---", "", "Some text", "::: {.callout-note title}", "## H", ":::"], ["h2:H"]],
+    ["TAB after a backslash expands to ONE space at the top level: accepted, a callout", ["::: {.callout-note k=a\\\tb}", "", "## H", "", ":::", "", "## After"], ["h2:After"]],
+    ["TAB expands to ONE space inside a block quote: accepted", ["> ::: {.callout-note k=ppa\\\tb}", ">", "> ## H", ">", "> :::", "", "## After"], ["h2:After"]],
+    ["TAB expands to ONE space inside a list item: accepted", ["- ::: {.callout-note k=ppa\\\tb}", "", "  ## H", "", "  :::", "", "## After"], ["h2:After"]],
+    ["open at end of line (one-word fallback in a tabset): HEAD keeps both tabs as tabs", ["::: {.panel-tabset}", "", "## Tab A", "", "::: {.a", "", "x", ":::", "", "## Tab B", "", ":::"], []],
+    ["open at end of line (backslash-newline carries a value across the blank line): a callout titled \"x y\"", ["::: {.callout-note title=\"x\\", "", "y\"}", "", "body", "", ":::", "## After"], ["h2:After"]],
+    ["open at end of line (quote fallback, title)", ["::: {.note title=\" ", "}", "", "body", "", ":::", "## After"], ["h2:After"]],
+    ["open at end of line (quote fallback, data-x)", ["::: {.note data-x=\" ", "}", "", "body", "", ":::", "## After"], ["h2:After"]],
+  ];
+  it.each(GUARDS)("guard — %s", (_id, lines, expected) => {
+    expect(names(lines.join("\n"))).toEqual(expected);
+  });
+
+  // KNOWN RESIDUALS: HEAD's answer is asserted (so a change to it is noticed), quarto's is the 4th element.
+  // Each keeps HEAD's reading on purpose — see the plan's §2.5 / §8; invert one only after measuring its reader.
+  const RESIDUALS: [string, string[], string[], string[]][] = [
+    ["nested open-at-eol opener in a tabset", ["::: {.panel-tabset}", "", "## Tab A", "", "x", "", "::: {.note title=\"x", "", "inner", ":::", "", "## After Inner", "", ":::"], [], ["h2:After Inner"]],
+    ["open-at-eol opener, heading glued below", ["::: {.callout-note title=\"x", "", "## H", "", ":::", "## After"], ["h2:H", "h2:After"], ["h2:H"]],
+    ["W1: a quote-fallback opener that pandoc makes a plain .note div", ["::: {.note title=\" ", "}", "## H", ":::", "", "## After"], ["h2:After"], ["h2:H", "h2:After"]],
+    ["b16: fix-up-blocked refused shape (data-x= y, 3 trailing spaces)", ["::: {.callout-note data-x= y}   ", "", "## Inside", "", ":::", "", "## After"], ["h2:After"], ["h2:Inside", "h2:After"]],
+    ["b28: fix-up-blocked refused shape (data-x= y title)", ["::: {.callout-note data-x= y title}", "", "## Inside", "", ":::", "", "## After"], ["h2:After"], ["h2:Inside", "h2:After"]],
+    ["markdown_strict+fenced_divs: r2 glued heading (unmeasured reader, not gated in)", ["---", "from: markdown_strict+fenced_divs", "---", "", "::: {.callout-note title}", "## H", ":::"], [], ["h2:H"]],
+    ["markdown_strict+fenced_divs: r3 blank-separated heading (unmeasured reader, not gated in)", ["---", "from: markdown_strict+fenced_divs", "---", "", "::: {.callout-note title}", "", "## H", "", ":::"], [], ["h2:H"]],
+    ["markdown_strict+fenced_divs: d10 refused inner opener in a tabset (unmeasured reader, not gated in)", ["---", "from: markdown_strict+fenced_divs", "---", "", "::: {.panel-tabset}", "", "## Tab A", "", "x", "", "::: {.note title}", "inner", ":::", "", "## After Inner", "", ":::"], [], ["h2:After Inner"]],
+    ["markdown_phpextra+fenced_divs: r2 glued heading (unmeasured reader, not gated in)", ["---", "from: markdown_phpextra+fenced_divs", "---", "", "::: {.callout-note title}", "## H", ":::"], [], ["h2:H"]],
+    ["markdown_phpextra+fenced_divs: r3 blank-separated heading (unmeasured reader, not gated in)", ["---", "from: markdown_phpextra+fenced_divs", "---", "", "::: {.callout-note title}", "", "## H", "", ":::"], [], ["h2:H"]],
+    ["markdown_phpextra+fenced_divs: d10 refused inner opener in a tabset (unmeasured reader, not gated in)", ["---", "from: markdown_phpextra+fenced_divs", "---", "", "::: {.panel-tabset}", "", "## Tab A", "", "x", "", "::: {.note title}", "inner", ":::", "", "## After Inner", "", ":::"], [], ["h2:After Inner"]],
+    ["markdown_mmd+fenced_divs: r2 glued heading (unmeasured reader, not gated in)", ["---", "from: markdown_mmd+fenced_divs", "---", "", "::: {.callout-note title}", "## H", ":::"], [], ["h2:H"]],
+    ["markdown_mmd+fenced_divs: r3 blank-separated heading (unmeasured reader, not gated in)", ["---", "from: markdown_mmd+fenced_divs", "---", "", "::: {.callout-note title}", "", "## H", "", ":::"], [], ["h2:H"]],
+    ["markdown_mmd+fenced_divs: d10 refused inner opener in a tabset (unmeasured reader, not gated in)", ["---", "from: markdown_mmd+fenced_divs", "---", "", "::: {.panel-tabset}", "", "## Tab A", "", "x", "", "::: {.note title}", "inner", ":::", "", "## After Inner", "", ":::"], [], ["h2:After Inner"]],
+    ["markdown_github+fenced_divs: r2 glued heading (unmeasured reader, not gated in)", ["---", "from: markdown_github+fenced_divs", "---", "", "::: {.callout-note title}", "## H", ":::"], [], ["h2:H"]],
+    ["markdown_github+fenced_divs: r3 blank-separated heading (unmeasured reader, not gated in)", ["---", "from: markdown_github+fenced_divs", "---", "", "::: {.callout-note title}", "", "## H", "", ":::"], [], ["h2:H"]],
+    ["markdown_github+fenced_divs: d10 refused inner opener in a tabset (unmeasured reader, not gated in)", ["---", "from: markdown_github+fenced_divs", "---", "", "::: {.panel-tabset}", "", "## Tab A", "", "x", "", "::: {.note title}", "inner", ":::", "", "## After Inner", "", ":::"], [], ["h2:After Inner"]],
+  ];
+  it.each(RESIDUALS)("residual — %s (HEAD's answer; quarto's differs)", (_id, lines, head) => {
+    expect(names(lines.join("\n"))).toEqual(head);
+  });
+});
