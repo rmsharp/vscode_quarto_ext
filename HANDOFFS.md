@@ -32,7 +32,7 @@ what_was_done: (1) Orient clean, operator picked R6 residuals; scoped shape (d);
 whats_next: #1 operator picks from BACKLOG.md "Up Next". Open R6 residuals (e) irregular pairing, (f) execution-only (now also names echo-silenced chunks that print), (g) engine-blind surfaces; (d)'s disclosed hazards (bare F, opts_hooks, redefined &); (b)'s project-config hazard.
 key_files: src/core/qmd/model.ts (knitrHeaderOptions, splitRHeaderArguments, evaluateRLogical, KNITR_PIPE_FALSE, knitrPipeOptions, knitrOptionResolvesFalse), test/unit/qmd-model.test.ts (describe "R6 residual (d)", end of file), scratchpad/s288/ (gen*.py, run1.sh, runlist.sh, score via scratchpad/probe.test.ts, adv/ lens artifacts).
 gotchas: (1) macOS sed -i needs a suffix; mutate with Python and assert the pattern exists. (2) Never edit src/ while a workflow scores against it. (3) A bare F is still trusted as FALSE (pre-existing; measured loud if a setup chunk reassigns it). (4) Parallel Bash calls that cd race; use absolute paths.
-runtime_smoke: test:integration NOT run (needs the screen; no host behaviour changed). quality_ratchet: 1/2 pass · 1 fail (ledger-lag 2, cleared by the close-out commit's CHANGELOG entry) · 0 unmeasured · results 7dc1c158d5a1 · manifest 8845021a4049
+runtime_smoke: test:integration NOT run (needs the screen; no host behaviour changed). quality_ratchet: 2/2 pass · 0 fail · 0 unmeasured · results bba236856bad (re-run after the close-out commit; ledger-lag was 2 before it) · manifest 8845021a4049
 changelog_ref: CHANGELOG.md 2026-10-01 -- the claim entry replaced by the Session 288 outcome entry.
 ```
 
