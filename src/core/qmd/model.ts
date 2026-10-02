@@ -6570,6 +6570,9 @@ function knitrChunkHasNoCode(body: readonly string[]): boolean {
  * blanked first, since `fig.cap="a, echo=FALSE"` is a value too.
  */
 function knitrHeaderOptions(tail: string): Map<string, string> | null {
+  if (knitrHeaderHasRawString(tail)) {
+    return null;
+  }
   const flat = tail.replace(/"[^"\\]*"|'[^'\\]*'/g, '""');
   if (/["'\\()[\]{}`]/.test(flat.replace(/""/g, ""))) {
     return null;
@@ -6586,6 +6589,33 @@ function knitrHeaderOptions(tail: string): Map<string, string> | null {
     }
   }
   return options;
+}
+/**
+ * Whether the header opens an R raw string (`r"(…)"`, `R'[…]'`, `r"-(…)-"`) OUTSIDE a quoted string.
+ * A raw string may hold the very quote that closes an ordinary one, so blanking quoted strings pairs
+ * the wrong quotes and reads an `echo=FALSE` that R sees INSIDE the string (Session 288). Measured, the
+ * chunk `{r, a=r"(", echo=FALSE, b=")"}` is LOUD in quarto, in both modes, and was read here as silent —
+ * which deleted the heading below a stray fence. A `r` that ends a quoted string (`fig.cap="color"`) is
+ * no prefix, so the scan tracks string state.
+ */
+function knitrHeaderHasRawString(tail: string): boolean {
+  let quote = "";
+  for (let i = 0; i < tail.length; i++) {
+    const ch = tail[i];
+    if (quote !== "") {
+      if (ch === "\\") {
+        i++;
+      } else if (ch === quote) {
+        quote = "";
+      }
+    } else if (ch === '"' || ch === "'") {
+      if (i > 0 && (tail[i - 1] === "r" || tail[i - 1] === "R")) {
+        return true;
+      }
+      quote = ch;
+    }
+  }
+  return false;
 }
 /**
  * The chunk's LEADING `#|` options, or `null` when any line of that run is not in the plain
@@ -6624,8 +6654,18 @@ function knitrPipeOptions(body: readonly string[]): Map<string, string> | null {
   return options;
 }
 /**
+ * The spellings R's yaml reads as logical false in a `#|` line — exactly these twelve, measured for
+ * `echo` and `include` in both modes (Session 288, `scratchpad/s288/b*`, `g*`). A mixed-case spelling
+ * (`fALSE`, `nO`) is a STRING and leaves the chunk loud, and so do `F`, `f` and a quoted `echo`. Silent
+ * but NOT read here: `echo: 0`, `echo: [false]`, and a quoted `include: 'false'` — an unread value is
+ * never silence.
+ */
+const KNITR_PIPE_FALSE: ReadonlySet<string> = new Set([
+  "false", "False", "FALSE", "no", "No", "NO", "n", "N", "off", "Off", "OFF",
+]);
+/**
  * `true` only when the option is KNOWN to resolve to false — anything unread is not silence. A
- * leading `#|` option wins (the YAML falses measured: `false`, `FALSE`, `no`); otherwise the
+ * leading `#|` option wins (the YAML falses measured: `KNITR_PIPE_FALSE`); otherwise the
  * header's value does (R's `FALSE` or `F`). An expression such as `!TRUE` is unread, so the chunk
  * counts as echoing.
  */
@@ -6637,7 +6677,7 @@ function knitrOptionResolvesFalse(
 ): boolean {
   const piped = pipe.get(name);
   if (piped !== undefined) {
-    return piped === "false" || piped === "FALSE" || piped === "no";
+    return KNITR_PIPE_FALSE.has(piped);
   }
   const value = header.get(name);
   if (value !== undefined) {

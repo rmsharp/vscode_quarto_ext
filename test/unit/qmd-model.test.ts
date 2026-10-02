@@ -20754,3 +20754,57 @@ describe("R6 residual (b) — a DOCUMENT-level echo/include default silences a c
     expect(findHeadings(text, "knitr").map((h) => h.text)).not.toContain("Heading Under Test");
   });
 });
+
+describe("R6 residual (d) — what the knitr reader does not evaluate (Session 288)", () => {
+  // MEASURED, `.qmd` with `engine: knitr` (quarto 1.7.33), `scratchpad/s288/` (310 probes over three rounds, BOTH
+  // modes -- they agreed on every probe that renders): with a stray bare ``` above a chunk, "Heading Under Test"
+  // renders when the chunk is silent and is swallowed when the chunk is loud.
+  const stray = (chunk: string[]): string =>
+    ["prose", "", "```", "", "## Heading Under Test", "", ...chunk, "", "## Heading After Chunk", "", "tail prose", ""].join(
+      "\n",
+    );
+  const both = ["Heading Under Test", "Heading After Chunk"];
+  const loud = ["Heading After Chunk"];
+  // The headings of a document whose one chunk is `{r, <options>}` over a single `x <- 1`.
+  const headed = (options: string): string[] =>
+    findHeadings(stray([`\`\`\`{r, ${options}}`, "x <- 1", "```"]), "knitr").map((h) => h.text);
+
+  // FOUND BY THE ROUND-3 HAZARD PROBES, and DELETING at HEAD: an R raw string `r"(...)"` may hold a quote, so
+  // the reader's string-blanking pairs the wrong quotes and reads an `echo=FALSE` that R sees INSIDE the string.
+  // Rendered, each chunk below is LOUD (the heading is swallowed); HEAD read it as silent and kept the heading
+  // that quarto shows. `scratchpad/s288/j00`-`j02`.
+  it.each([
+    ["r\"(...)\"", 'a=r"(", echo=FALSE, b=")"'],
+    ["R'(...)'", "a=R'(', echo=FALSE, b=')'"],
+    ["r\"-(...)-\"", 'a=r"-(", echo=FALSE, b=")-"'],
+  ])("not silent: an `echo=FALSE` inside a raw string %s is no option", (_n, options) => {
+    expect(headed(options)).toEqual(loud);
+  });
+
+  // PIN (green before and after, disclosed): an `r` that merely ENDS a quoted string is no raw-string prefix.
+  it.each([
+    ['fig.cap="color", echo=FALSE'],
+    ["fig.cap='Bar', echo=FALSE"],
+  ])("silent: a string that ends in r (%s) is no raw string", (options) => {
+    expect(headed(options)).toEqual(both);
+  });
+
+  // YAML FALSE SPELLINGS in a `#|` line. R's yaml reads exactly these twelve as logical false (measured, echo AND
+  // include, both modes: `scratchpad/s288/b*`, `g*`); until Session 288 only `false`, `FALSE` and `no` counted.
+  const piped = (line: string): string[] =>
+    findHeadings(stray(["```{r}", line, "x <- 1", "```"]), "knitr").map((h) => h.text);
+  it.each(["false", "False", "FALSE", "no", "No", "NO", "n", "N", "off", "Off", "OFF"])(
+    "silent: `#| echo:` and `#| include:` set to %s",
+    (spelling) => {
+      expect(piped(`#| echo: ${spelling}`)).toEqual(both);
+      expect(piped(`#| include: ${spelling}`)).toEqual(both);
+    },
+  );
+  // CONTROLS, rendered: truthy spellings, spellings YAML does NOT read as false (mixed case is a STRING), and `F`.
+  it.each(["y", "yes", "on", "On", "true", "True", "fALSE", "nO", "oFF", "FaLsE", "None", "null", "nil", "F", "f", "NOPE"])(
+    "not silent: `#| echo: %s`",
+    (spelling) => {
+      expect(piped(`#| echo: ${spelling}`)).toEqual(loud);
+    },
+  );
+});
