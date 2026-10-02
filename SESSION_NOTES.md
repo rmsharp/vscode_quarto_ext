@@ -8,9 +8,9 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 287 closed out (R6 residual (b) FIXED: doc-level echo/include false defaults, `knitrDocumentDefaults` in `src/core/qmd/model.ts`).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: R6 residuals (d),(e),(f),(g) and (b)'s project-config residual, asis/cat/block, unclosed-`<!--`, fence-in-list-item.
+**Task:** Session 288 -- R6 residual (d): values the knitr reader does not evaluate (expression `echo=`, odd `#|` falses, unusual header characters) (IN PROGRESS, claimed 2026-10-01).
+**Status:** Session claimed. Orient done; operator chose "R6 residuals (d)-(g)"; I scoped ONE shape, (d). Work beginning.
+**Ledger:** `CHANGELOG: pending` -- close-out records the rest.
 **⚠ Gotchas:** (1) never `git add -A`. (2) parallel Bash calls that `cd` race: use absolute paths. (3) HANDOFFS.md line 23 lost its tail.
 ## Session 286 Handoff Evaluation (by Session 287)
 
