@@ -7039,6 +7039,12 @@ function scanRegions(text: string, engine: EngineHint = undefined): Regions {
 function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   const lines = text.split(/\r?\n/);
   const emptyTagPropagates = firstLineTagIsEmpty(lines[0]);
+  let lastCommentCloserLine = -1;
+  for (let k = lines.length - 1; k >= 0 && lastCommentCloserLine < 0; k--) {
+    if (COMMENT_CLOSE.test(lines[k])) {
+      lastCommentCloserLine = k;
+    }
+  }
   const closerIndex = buildCloserIndex(lines);
   // In a knitr document, the closers knitr consumes before pandoc sees them — see
   // `knitrSilentChunkClosers`. Only the silent chunk's OWN opener may still close on one.
@@ -8030,7 +8036,12 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       quoteOpen = stripQuote;
       continue;
     }
-    if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line)) {
+    // ⚠ A `<!--` with NO `-->` on any line below is not a comment at all under pandoc's markdown readers (Session 289):
+    // a comment is a raw block there only when it is closed, so this line is paragraph text and falls through as a
+    // body line. CommonMark's HTML block (type 2) has no such rule and runs to the end of the document, so the three
+    // CommonMark-family readers keep swallowing (`commonmarkDialect`; a `from:` set in a project file is invisible
+    // here, which can only phantom).
+    if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line) && (commonmarkDialect || lastCommentCloserLine > i)) {
       inComment = true;
       consecutiveBody = 0;
       paragraphOpen = false;

@@ -20923,3 +20923,82 @@ describe("R6 residual (d) — what the knitr reader does not evaluate (Session 2
     expect(piped(`#| echo: ${value}`)).toEqual(loud);
   });
 });
+
+// Session 289 — an UNCLOSED `<!--` is paragraph text, not a comment that runs to the end of the document.
+// Rendered (quarto 1.7.33, `--no-execute` and executed, `scratchpad/s289/p` and `b`, 55 probes; the modes agreed on all):
+// pandoc's comment is a raw block only when a `-->` follows, so a `<!--` with none anywhere below is an ordinary line of
+// a paragraph, and the headings below it are real, except one pressed directly against it, which `blank_before_header`
+// folds into that paragraph. Before this session the scan ran to EOF and the Outline went EMPTY (a deletion).
+describe("Session 289 — an unclosed HTML comment opener is paragraph text", () => {
+  const texts = (doc: string): string[] => findHeadings(doc).map((h) => h.text);
+  it("keeps the heading after a blank line and folds the one pressed against the opener", () => {
+    expect(texts("intro\n\n<!--\n## Alpha\n\n## Bravo\n")).toEqual(["Bravo"]);
+  });
+
+  // UNCLOSED: no `-->` on any line below. Expected lists are quarto's own, read off the rendered HTML (both modes agree).
+  it.each([
+    ["an opener with a heading pressed against it", "intro\n\n<!--\n## Alpha\n\n## Bravo\n", ["Bravo"]],
+    ["an opener carrying trailing text", "intro\n\n<!-- note without end\n\n## Alpha\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["an opener on the first line", "<!--\n\n## Alpha\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["an opener indented one", "intro\n\n <!--\n\n## Alpha\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["an opener indented three", "intro\n\n   <!--\n\n## Alpha\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["an opener pressed against the paragraph above", "intro\n<!--\n## Alpha\n\n## Bravo\n", ["Bravo"]],
+    ["a closed comment above an unclosed one", "intro\n\n<!-- a -->\n\n## Alpha\n\n<!--\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["a multi-line closed comment above an unclosed one", "intro\n\n<!--\nx\n-->\n\n## Alpha\n\n<!--\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["an opener inside a list item", "- item\n\n  <!--\n\n## Alpha\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["an opener inside a block quote", "> q\n>\n> <!--\n\n## Alpha\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["an opener inside a fenced div", "::: {.x}\n<!--\n\n## Alpha\n:::\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["a `--!>` spelling, which closes nothing", "intro\n\n<!--\n\n## Alpha\n\n--!>\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["a `-->` ABOVE the opener, which closes nothing", "x -->\n\n<!--\n\n## Alpha\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["an opener above a cell", "intro\n\n<!--\n\n```{python}\n1\n```\n\n## Alpha\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["two unclosed openers", "intro\n\n<!--\n\n## Alpha\n\n<!--\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["two headings pressed against the opener", "intro\n\n<!--\n## Alpha\n## Bravo\n\n## Charlie\n", ["Charlie"]],
+    ["a fence pressed against the opener", "intro\n\n<!--\n```\n## Alpha\n```\n\n## Bravo\n", ["Bravo"]],
+    ["a fence spanning a blank line pressed against the opener", "intro\n\n<!--\n```\n## Alpha\n\n## Bravo\n```\n\n## Charlie\n", ["Charlie"]],
+    ["an opener in a quote with a heading pressed to it", "> <!--\n> ## Alpha\n>\n> ## Bravo\n\n## Charlie\n", ["Bravo", "Charlie"]],
+    ["a whitespace-only line below the opener", "intro\n\n<!--\n## Alpha\n  \n## Bravo\n", ["Bravo"]],
+    ["two openers each with a heading pressed to it", "intro\n\n<!--\n## Alpha\n\n<!--\n## Bravo\n\n## Charlie\n", ["Charlie"]],
+    ["an opener below front matter", "---\ntitle: t\n---\n\n<!--\n## Alpha\n\n## Bravo\n", ["Bravo"]],
+    ["a tilde fence pressed against the opener", "intro\n\n<!--\n~~~\n## Alpha\n~~~\n\n## Bravo\n", ["Bravo"]],
+    ["a setext pair pressed against the opener", "intro\n\n<!--\ntitle\n---\n\n## Alpha\n", ["Alpha"]],
+    ["a raw div pressed against the opener", "intro\n\n<!--\n<div>\n## Alpha\n\n## Bravo\n", ["Alpha", "Bravo"]],
+    ["CRLF line endings", "intro\r\n\r\n<!--\r\n## Alpha\r\n\r\n## Bravo\r\n", ["Bravo"]],
+  ] as [string, string, string[]][])("unclosed, so paragraph text: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
+  });
+  // CONTROLS: a `-->` exists below, wherever it hides (pandoc scans the raw text), so the comment is real and swallows
+  // everything to it. These held before this session and must keep holding: the rule is "no closer below", not "unsure".
+  it.each([
+    ["the closer sits inside a fence", "intro\n\n<!--\n\n## Alpha\n\n```\n-->\n```\n\n## Bravo\n", ["Bravo"]],
+    ["the closer sits in inline code", "intro\n\n<!--\n\n## Alpha\n\n`-->` x\n\n## Bravo\n", ["Bravo"]],
+    ["the closer is far below", "intro\n\n<!--\n\n## Alpha\n\n## Bravo\n\n-->\n\n## Charlie\n", ["Charlie"]],
+    ["the closer ends an html tag line", "intro\n\n<!--\n\n## Alpha\n\n<span>-->\n\n## Bravo\n", ["Bravo"]],
+    ["the closer sits in an indented code block", "intro\n\n<!--\n\n## Alpha\n\n    code -->\n\n## Bravo\n", ["Bravo"]],
+    ["the closer sits in a tilde fence", "intro\n\n<!--\n\n## Alpha\n\n~~~\n-->\n~~~\n\n## Bravo\n", ["Bravo"]],
+    ["the closer sits in an html attribute", "intro\n\n<!--\n\n## Alpha\n\n<a title='-->'>x</a>\n\n## Bravo\n", ["Bravo"]],
+    ["the closer sits in display math", "intro\n\n<!--\n\n## Alpha\n\n$$\na -->\n$$\n\n## Bravo\n", ["Bravo"]],
+    ["the closer sits in a cell", "intro\n\n<!--\n\n## Alpha\n\n```{python}\n# -->\n```\n\n## Bravo\n", ["Bravo"]],
+    ["the only closer is the end of a later comment", "intro\n\n<!--\n\n## Alpha\n\n<!-- b -->\n\n## Bravo\n", ["Bravo"]],
+    ["the closer opens a line above a pressed heading", "intro\n\n<!--\n## Alpha\n\n-->\n## Bravo\n", ["Bravo"]],
+  ] as [string, string, string[]][])("closed, so still a comment: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
+  });
+  it("an opener with nothing below it opens nothing, and an empty document stays empty", () => {
+    expect(texts("<!--")).toEqual([]);
+    expect(texts("intro\n\n<!--\n## Alpha")).toEqual([]);
+  });
+  // CommonMark's HTML block (type 2) has no blank-line end: an unclosed `<!--` swallows to the end of the document, so
+  // under the three CommonMark-family readers the old answer was RIGHT and stays (rendered, `scratchpad/s289/r`: zero
+  // heading tags, the text present once inside the raw comment). Every markdown-family reader agrees with the rule above.
+  it.each(["gfm", "commonmark", "commonmark_x"])("under `from: %s` the opener still swallows to the end", (reader) => {
+    const doc = `---\nfrom: ${reader}\n---\n\nintro\n\n<!--\n\n## Alpha\n\n## Bravo\n`;
+    expect(texts(doc)).toEqual([]);
+  });
+  it.each(["markdown", "markdown_strict", "markdown_mmd", "markdown_phpextra", "markdown-raw_html", "markdown+hard_line_breaks"])(
+    "under `from: %s` the opener is paragraph text",
+    (reader) => {
+      const doc = `---\nfrom: ${reader}\n---\n\nintro\n\n<!--\n\n## Alpha\n\n## Bravo\n`;
+      expect(texts(doc)).toEqual(["Alpha", "Bravo"]);
+    },
+  );
+});
