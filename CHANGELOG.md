@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Claimed Session 287 (in progress): shape (b), document-level echo defaults
+
+Operator-chosen item; scoped to one shape. Outcome recorded at close-out.
+
 ### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Session 286: shape (a), non-R engines, shipped
 
 `KNITR_SILENT_ENGINES` in `src/core/qmd/model.ts` extends the silence rule from R to python, bash, sh, zsh, perl, ruby, awk, rcpp, css, js and node, from 130 rendered probes in both modes; an empty chunk stays silent only for r/python (found by the adversarial pass, re-rendered firsthand). Unestablished engines keep HEAD's answer (listed in `BACKLOG.md`). TDD, RED shown; 3,246 tests passing; score unchanged 2,423/2,438. Commits: claim `86e2ddcc`, fix and close-out `79fa2e40`.

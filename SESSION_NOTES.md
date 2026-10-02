@@ -8,10 +8,10 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 286 closed out (R6 residual (a) FIXED: silence extended to 11 measured non-R engines, `src/core/qmd/model.ts`).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: R6 residuals (b),(d)-(g), asis/cat/block shape, unclosed-`<!--`, bare-fence-in-list-item.
-**⚠ Gotchas:** (1) absent from `KNITR_SILENT_ENGINES` = not established. (2) never `git add -A`. (3) HANDOFFS.md line 23 lost its tail.
+**Task:** Session 287 -- R6 residual (b): document-level echo defaults (`execute: echo: false`, `knitr: opts_chunk`, top-level `echo`) silence a chunk to quarto (IN PROGRESS, claimed 2026-10-01).
+**Status:** Session claimed. Orient done; operator chose "R6 residuals (b),(d)-(g)"; I scoped ONE shape, (b). Work beginning.
+**Ledger:** `CHANGELOG: pending` -- close-out records the rest.
+**Note:** HANDOFFS.md line 23 lost its `` ``` `` tail in an earlier trim; not fixed here.
 ## Session 285 Handoff Evaluation (by Session 286)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK listed shape (a) as open and
