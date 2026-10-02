@@ -6565,41 +6565,55 @@ function knitrChunkHasNoCode(body: readonly string[]): boolean {
  * or `null` when the header is anything this cannot read with certainty.
  *
  * knitr parses the header as R arguments, so `fig.cap=c("a", echo=FALSE)` passes `echo` to `c()`
- * and sets no chunk option (measured, the chunk echoes). Rather than parse R, a header holding a
- * bracket, a backslash, a backtick or a stray quote is not read at all; quoted strings are
- * blanked first, since `fig.cap="a, echo=FALSE"` is a value too.
+ * and sets no chunk option (measured, the chunk echoes), and `fig.width=c(1,2)` is ONE value however
+ * many commas it holds. `splitRHeaderArguments` splits at the commas outside every bracket and string
+ * (Session 288); what it cannot split with certainty — a backtick, a raw string, a comment, an
+ * unbalanced bracket — declines the whole header.
  */
 function knitrHeaderOptions(tail: string): Map<string, string> | null {
-  if (knitrHeaderHasRawString(tail)) {
-    return null;
-  }
-  const flat = tail.replace(/"[^"\\]*"|'[^'\\]*'/g, '""');
-  if (/["'\\()[\]{}`]/.test(flat.replace(/""/g, ""))) {
+  const segments = splitRHeaderArguments(tail);
+  if (segments === null) {
     return null;
   }
   const options = new Map<string, string>();
-  const segments = flat.split(",");
   for (let k = 0; k < segments.length; k++) {
     const segment = segments[k].trim();
     const assignment = /^([A-Za-z.][A-Za-z0-9._]*)\s*=\s*(\S(?:.*\S)?)$/.exec(segment);
-    if (assignment !== null) {
+    if (assignment !== null && !assignment[2].startsWith("=")) {
       options.set(assignment[1], assignment[2]);
-    } else if (!(k === 0 && /^[^\s=]*$/.test(segment))) {
+      continue;
+    }
+    // An UNNAMED argument is no option. Measured silent beside an `echo=FALSE`: a label, a number, a
+    // string, an empty slot and a call (`lab`, `1`, `"x"`, `,,`, `c(1,2)`); the first slot is the label.
+    const blank = segment.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+    const unnamed =
+      k === 0
+        ? /^[^\s=()[\]{}]*$/.test(blank)
+        : /^(?:[\w.-]*|""|[A-Za-z.][\w.]*\(.*\))$/s.test(blank);
+    if (!unnamed) {
       return null;
     }
   }
   return options;
 }
 /**
- * Whether the header opens an R raw string (`r"(…)"`, `R'[…]'`, `r"-(…)-"`) OUTSIDE a quoted string.
- * A raw string may hold the very quote that closes an ordinary one, so blanking quoted strings pairs
- * the wrong quotes and reads an `echo=FALSE` that R sees INSIDE the string (Session 288). Measured, the
- * chunk `{r, a=r"(", echo=FALSE, b=")"}` is LOUD in quarto, in both modes, and was read here as silent —
- * which deleted the heading below a stray fence. A `r` that ends a quoted string (`fig.cap="color"`) is
- * no prefix, so the scan tracks string state.
+ * The header's arguments, split at the commas that sit outside every bracket and string — or `null`
+ * when the header holds anything the split cannot be trusted over (Session 288).
+ *
+ * A quoted string may hold a comma or a bracket, and a backslash inside one escapes the next
+ * character. Declined, each because it hides or invents an argument boundary: a backtick name, a
+ * backslash OUTSIDE a string, a `#` comment, a `;`, an unbalanced or mismatched bracket, a stray quote, a
+ * `%op%` whose body holds a separator or a quote, and an R RAW string (`r"(…)"`, `R'[…]'`,
+ * `r"-(…)-"`). ⚠ The raw string is the one that DELETED: it may hold the very quote that closes an
+ * ordinary string, so the pairing reads an `echo=FALSE` R sees inside the string — measured,
+ * `{r, a=r"(", echo=FALSE, b=")"}` is LOUD in quarto in both modes and HEAD read it as silent. An `r` that
+ * ENDS a string (`fig.cap="color"`) is no prefix, which is why the scan tracks string state.
  */
-function knitrHeaderHasRawString(tail: string): boolean {
+function splitRHeaderArguments(tail: string): string[] | null {
+  const segments: string[] = [];
+  const closers: string[] = [];
   let quote = "";
+  let start = 0;
   for (let i = 0; i < tail.length; i++) {
     const ch = tail[i];
     if (quote !== "") {
@@ -6610,12 +6624,33 @@ function knitrHeaderHasRawString(tail: string): boolean {
       }
     } else if (ch === '"' || ch === "'") {
       if (i > 0 && (tail[i - 1] === "r" || tail[i - 1] === "R")) {
-        return true;
+        return null;
       }
       quote = ch;
+    } else if (ch === "(" || ch === "[" || ch === "{") {
+      closers.push(ch === "(" ? ")" : ch === "[" ? "]" : "}");
+    } else if (ch === ")" || ch === "]" || ch === "}") {
+      if (closers.pop() !== ch) {
+        return null;
+      }
+    } else if (ch === "," && closers.length === 0) {
+      segments.push(tail.slice(start, i));
+      start = i + 1;
+    } else if (ch === "`" || ch === "\\" || ch === "#" || ch === ";") {
+      return null;
+    } else if (ch === "%") {
+      const end = tail.indexOf("%", i + 1);
+      if (end < 0 || /[,"'`()[\]{}\\#;]/.test(tail.slice(i + 1, end))) {
+        return null;
+      }
+      i = end;
     }
   }
-  return false;
+  if (quote !== "" || closers.length > 0) {
+    return null;
+  }
+  segments.push(tail.slice(start));
+  return segments;
 }
 /**
  * The chunk's LEADING `#|` options, or `null` when any line of that run is not in the plain
@@ -6681,9 +6716,73 @@ function knitrOptionResolvesFalse(
   }
   const value = header.get(name);
   if (value !== undefined) {
-    return value === "FALSE" || value === "F";
+    return value === "FALSE" || value === "F" || evaluateRLogical(value) === false;
   }
   return documentDefault;
+}
+/** Deepest nesting of `(` and `!` the logical reader follows; a deeper value is unread, never a stack overflow. */
+const R_LOGICAL_MAX_DEPTH = 32;
+/**
+ * The value of an R logical expression built ONLY from `TRUE`, `FALSE`, `!`, `&`, `&&`, `|`, `||` and
+ * parentheses, or `null` for anything else (Session 288, R6 residual (d)). knitr evaluates a header value
+ * as R, so `echo=!TRUE` is false; rendered in both modes, every such expression agrees with R's own
+ * precedence — `!` binds tightest, then `&`/`&&`, then `|`/`||` (`TRUE||TRUE&&FALSE` is TRUE).
+ *
+ * ⚠ `null` is "not read", and an unread value is never silence. `T`/`F`, `NA`, a number, a call or a
+ * comparison are all unread: `T` can be reassigned by the document, and `NA` makes `FALSE&NA` FALSE but
+ * `TRUE&NA` NA — silent only in R's three-valued logic, which this does not model.
+ */
+function evaluateRLogical(source: string): boolean | null {
+  const tokens = source.match(/\s+|TRUE(?![\w.])|FALSE(?![\w.])|&&?|\|\|?|[!()]|[\s\S]/g);
+  if (tokens === null) {
+    return null;
+  }
+  const items = tokens.filter((t) => t.trim() !== "");
+  let at = 0;
+  let broken = false;
+  const peek = (): string | undefined => items[at];
+  const or = (depth: number): boolean => {
+    let left = and(depth);
+    while (peek() === "|" || peek() === "||") {
+      at++;
+      const right = and(depth);
+      left = left || right;
+    }
+    return left;
+  };
+  const and = (depth: number): boolean => {
+    let left = not(depth);
+    while (peek() === "&" || peek() === "&&") {
+      at++;
+      const right = not(depth);
+      left = left && right;
+    }
+    return left;
+  };
+  const not = (depth: number): boolean => {
+    if (depth > R_LOGICAL_MAX_DEPTH) {
+      broken = true;
+      return false;
+    }
+    const token = items[at++];
+    if (token === "!") {
+      return !not(depth + 1);
+    }
+    if (token === "(") {
+      const inner = or(depth + 1);
+      if (items[at++] !== ")") {
+        broken = true;
+      }
+      return inner;
+    }
+    if (token === "TRUE" || token === "FALSE") {
+      return token === "TRUE";
+    }
+    broken = true;
+    return false;
+  };
+  const value = or(0);
+  return broken || at !== items.length ? null : value;
 }
 /**
  * An inline code span — a run of N backticks closed by the next run of exactly

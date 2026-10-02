@@ -20807,4 +20807,98 @@ describe("R6 residual (d) — what the knitr reader does not evaluate (Session 2
       expect(piped(`#| echo: ${spelling}`)).toEqual(loud);
     },
   );
+
+  // BOOLEAN EXPRESSIONS in a header. knitr evaluates `echo=!TRUE` as R, and a logical built from `TRUE`, `FALSE`,
+  // `!`, `&`, `&&`, `|`, `||` is the one family this reads (R precedence: `!`, then `&`/`&&`, then `|`/`||`). Every row
+  // was rendered in both modes (`scratchpad/s288/a*`, `e*`, `j*`); the two agreed on each.
+  it.each([
+    "!TRUE", "!!!TRUE", " ! TRUE", "!  TRUE", "FALSE & FALSE", "FALSE&TRUE", "TRUE&FALSE", "TRUE&&FALSE", "FALSE|FALSE",
+    "!TRUE&TRUE", "!TRUE ||FALSE", "!TRUE&&!TRUE", "TRUE&!TRUE", "!FALSE&FALSE", "FALSE||TRUE&FALSE",
+  ])("silent: `echo=` and `include=` set to %s (FALSE)", (expression) => {
+    expect(headed(`echo=${expression}`)).toEqual(both);
+    expect(headed(`include=${expression}`)).toEqual(both);
+  });
+  // CONTROLS, rendered, and the precedence rows: a left-to-right reading of `TRUE||TRUE&&FALSE` is FALSE, R's is
+  // TRUE, and a wrong "silent" DELETES a heading.
+  it.each([
+    "!FALSE", "TRUE&TRUE", "TRUE||FALSE", "!TRUE|TRUE", "!!TRUE", "FALSE&&TRUE||TRUE", "TRUE||TRUE&&FALSE", "TRUE|TRUE&FALSE",
+    "TRUE|FALSE&FALSE", "FALSE&TRUE|TRUE", "TRUE&&TRUE||FALSE", "!FALSE|FALSE&FALSE", "!TRUE&FALSE|TRUE", "FALSE|!FALSE",
+  ])("not silent: `echo=%s` evaluates to TRUE", (expression) => {
+    expect(headed(`echo=${expression}`)).toEqual(loud);
+  });
+  // DISCLOSED MISSES (silent in quarto, not read here, so HEAD's answer stays): `NA` operands, `T`/`F`, a value that
+  // is not a literal at all, and a lowercase `true` that short-circuits away (`FALSE&&true` renders).
+  it.each(["FALSE&NA", "NA&FALSE", "!T", "FALSE&&true", "1==2", "0", "-1", "is.na(1)"])(
+    "unread, so not silent (quarto IS silent): `echo=%s`",
+    (expression) => {
+      expect(headed(`echo=${expression}`)).toEqual(loud);
+    },
+  );
+
+  // HEADER GRAMMAR. knitr parses the header as R arguments, so a bracket, a quote and an escape are ordinary R: a
+  // bracketed value is ONE value however many commas it holds, and an option inside a call (`c(echo=TRUE)`) is
+  // an argument of that call, not a chunk option. Until Session 288 any header holding a bracket, a backslash or a
+  // stray quote was not read at all. Rendered in both modes: `scratchpad/s288/d*`, `i*`, `j*`.
+  it.each([
+    ['a quoted paren', 'echo=FALSE, fig.cap=paste(")", "x")'],
+    ['an open quoted paren', 'echo=FALSE, fig.cap=paste("(")'],
+    ['a quoted comma in a call', 'echo=FALSE, a=c("a,b")'],
+    ['a call with two commas BEFORE echo', "fig.width=c(1,2), echo=FALSE"],
+    ['a call with two commas after echo', "echo=FALSE, fig.width=c(1,2)"],
+    ['a nested call', "echo=FALSE, dev.args=list(pointsize=10)"],
+    ['a subset', 'echo=FALSE, a=c(1,"b")[2]'],
+    ['a list of lists', "echo=FALSE, a=list(b=list(c=1))"],
+    ['a function', "echo=FALSE, a=function(x) x"],
+    ['an if expression', "echo=FALSE, a=if (TRUE) 1 else 2"],
+    ['a brace', "echo=FALSE, a={1}"],
+    ['an escaped backslash', 'echo=FALSE, a="\\\\"'],
+    ['an escaped quote', "echo=FALSE, a='\\''"],
+    ['an escaped quote then a paren', 'echo=FALSE, a=paste("a\\")", "b")'],
+    ['quoted parens as arguments', "echo=FALSE, a=c('(', ')')"],
+    ['an `echo` assignment inside parens', "echo=FALSE, a=(echo=TRUE)"],
+    ['an `echo` argument of a call', "echo=FALSE, a=c(echo=TRUE)"],
+    ['spaces around every comma and equals', "echo = FALSE , a = c( 1 , 2 )"],
+    ['a trailing comma', "echo=FALSE,"],
+    ['an empty segment', "echo=FALSE,,a=1"],
+    ['an unnamed label after echo', "echo=FALSE, lab"],
+    ['unnamed labels around a named option', "lab, c(1,2), echo=FALSE"],
+    ['an unnamed number', "echo=FALSE, 1"],
+    ['an unnamed call', "echo=FALSE, c(1,2)"],
+    ['an unnamed string', 'echo=FALSE, "x"'],
+    ['a `%in%` operator', "echo=FALSE, a=1%in%2"],
+    ['a paren on an expression value', "echo=(FALSE)"],
+    ['a negated paren', "echo=!(TRUE)"],
+    ['a parenthesised negation', "echo=(!TRUE)"],
+    ['nested parens', "echo=((FALSE))"],
+    ['a double negation of parens', "echo=!(!(FALSE))"],
+    ['a paren on the left of &', "echo=(FALSE)&TRUE"],
+    ['two parens', "echo=(TRUE)&(FALSE)"],
+    ['a paren on the right of &', "echo=FALSE&(TRUE|TRUE)"],
+    ['a paren on the right of |', "echo=FALSE|(FALSE&TRUE)"],
+    ['a negated or in parens', "echo=!(TRUE|FALSE)&TRUE"],
+    ['a paren that forces |', "echo=(TRUE|TRUE)&FALSE"],
+    ['two negated parens', "echo=!(TRUE)|!(TRUE)"],
+    ['an and with a negated paren', "echo=TRUE&(!TRUE)"],
+    ['an include in parens', "include=(FALSE)"],
+    ['an include negated paren', "include=!(TRUE)"],
+  ])("silent: %s (`%s`)", (_n, options) => {
+    expect(headed(options)).toEqual(both);
+  });
+  // CONTROLS, rendered: the option is inside a call, or the parenthesised value is TRUE.
+  it.each([
+    "!(TRUE&FALSE)", "!(FALSE|FALSE)", "TRUE|(TRUE&FALSE)", "!(!TRUE)",
+  ].map((e) => [`echo=${e}`]).concat([
+    ["a=list(echo=FALSE), echo=TRUE"], ["echo=TRUE, a=c(echo=FALSE)"], ["a=c(echo=FALSE)"], ["fig.cap=paste('a', echo=FALSE)"],
+    ["fig.cap=paste('a, echo=FALSE'), echo=TRUE"], ["echo=c(FALSE, TRUE)"], ["echo=list(FALSE)"], ["fig.cap=c(a, echo=FALSE)"],
+  ]))("not silent: `%s`", (options) => {
+    expect(headed(options)).toEqual(loud);
+  });
+  // UNREAD, so not silent: a header this still cannot read keeps HEAD's pairing. `x` is quarto's own render for the
+  // first two (an unbalanced bracket makes R fail to parse; the rest are silent but declined).
+  it.each([
+    "echo=FALSE, a=c(1,2", "echo=FALSE, a=c(1,2))", 'echo=FALSE, a="x\\"', "echo=FALSE, fig.cap=`x`", "echo=FALSE # echo=TRUE",
+    "echo=FALSE; a=1", "echo=FALSE, a=%,%", "echo=FALSE, a=1 %,% 2", "echo=FALSE, a=\\x",
+  ])("not silent: an unreadable header (`%s`)", (options) => {
+    expect(headed(options)).toEqual(loud);
+  });
 });
