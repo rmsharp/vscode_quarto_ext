@@ -17,6 +17,10 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
+### 2026-10-02 · [BL-The raw-block swallow family is UNBOUNDED in construct space, and it now includes a DELETION shape] Session 289 (in progress): unclosed `<!--` empties the Outline
+
+Claimed; operator picked it at Phase 0. Phase 3F replaces this line with the outcome. `CHANGELOG: pending`.
+
 ### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Session 288: shape (d), values the knitr reader does not evaluate, shipped
 
 `src/core/qmd/model.ts`: `splitRHeaderArguments` splits the chunk header as R arguments (balanced brackets, escaped strings, unnamed slots, `%op%`), `evaluateRLogical` reads `TRUE`/`FALSE` with `! & && | || ( )` at R's precedence, `KNITR_PIPE_FALSE` covers all twelve YAML false spellings, and `#| echo: !expr <logical>` is read. Also fixes a PRE-EXISTING deleting defect: an R raw string `r"(...)"` hid an `echo=FALSE` from R but not from the old reader (3 rendered rows). From 310 probes in both modes (modes agreed on all that render) and a 4-lens adversarial pass (4,990 probes; 242,547 expressions differential-tested against R, 0 mismatches). TDD: RED shown for each of five slices; seven mutants killed. 3,471 tests pass, types clean; score unchanged 2,423/2,438. The pass reproduced three pre-existing or contrived deleting hazards (bare `F` reassigned, `opts_hooks`/redefined `&`, output-printing echo-silenced chunks); disclosed in `BACKLOG.md`, not fixed. Commits: claim `ca8ddd4a`, `aa8078e9`, `5982b8b1`, close-out.

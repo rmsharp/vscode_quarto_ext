@@ -8,10 +8,16 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 288 closed out (R6 residual (d) shipped: R-argument header splitter, `evaluateRLogical`, all YAML false spellings, `!expr`; plus a raw-string deleting fix).**
+**Task:** **Session 289 (IN PROGRESS, claimed 2026-10-02): an UNCLOSED `<!--` empties the Outline (raw-block family, BACKLOG "Up Next"), deletion direction.** Operator picked it at Phase 0.
 `BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
 **#1 NEXT:** operator picks. Open: R6 residuals (e),(f),(g), (b)'s project-config residual, (d)'s disclosed hazards (bare `F`, opts_hooks), asis/cat/block, unclosed-`<!--`, fence-in-list-item.
 **⚠ Gotchas:** (1) never `git add -A`. (2) parallel Bash calls that `cd` race: use absolute paths. (3) macOS `sed -i` needs a suffix arg; mutate with Python. (4) HANDOFFS.md line 23 lost its tail.
+### What Session 289 Did
+**Deliverable:** fix the unclosed `<!--` Outline deletion (IN PROGRESS)
+**Started:** 2026-10-02
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest.
+
 ## Session 287 Handoff Evaluation (by Session 288)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK listed (d)-(g) as open and the
