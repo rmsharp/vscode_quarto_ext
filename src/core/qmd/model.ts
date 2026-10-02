@@ -6681,7 +6681,9 @@ function knitrPipeOptions(body: readonly string[]): Map<string, string> | null {
     value = value.slice(0, end);
     const plain = /^[^\s\-?:,[\]{}#&*!|>'"%@`][^#]*$/.test(value) && !value.includes(": ");
     const quoted = /^"[^"\\]*"$|^'[^']*'$/.test(value);
-    if (!plain && !quoted) {
+    // `!expr <R>` is a YAML-tagged R expression; a `!` INSIDE it is a YAML error (measured), so none is read.
+    const tagged = /^!expr [^#!]+$/.test(value);
+    if (!plain && !quoted && !tagged) {
       return null;
     }
     options.set(m[1], value);
@@ -6700,9 +6702,9 @@ const KNITR_PIPE_FALSE: ReadonlySet<string> = new Set([
 ]);
 /**
  * `true` only when the option is KNOWN to resolve to false — anything unread is not silence. A
- * leading `#|` option wins (the YAML falses measured: `KNITR_PIPE_FALSE`); otherwise the
- * header's value does (R's `FALSE` or `F`). An expression such as `!TRUE` is unread, so the chunk
- * counts as echoing.
+ * leading `#|` option wins (a YAML false spelling, `KNITR_PIPE_FALSE`, or a `!expr` logical);
+ * otherwise the header's value does (R's `FALSE`, `F`, or a logical `evaluateRLogical` reads). A
+ * value outside those — `NA`, a call, a comparison — is unread, so the chunk counts as echoing.
  */
 function knitrOptionResolvesFalse(
   name: "echo" | "include",
@@ -6712,7 +6714,7 @@ function knitrOptionResolvesFalse(
 ): boolean {
   const piped = pipe.get(name);
   if (piped !== undefined) {
-    return KNITR_PIPE_FALSE.has(piped);
+    return KNITR_PIPE_FALSE.has(piped) || (piped.startsWith("!expr ") && evaluateRLogical(piped.slice(6)) === false);
   }
   const value = header.get(name);
   if (value !== undefined) {

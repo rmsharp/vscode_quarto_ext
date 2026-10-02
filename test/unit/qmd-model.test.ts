@@ -20893,12 +20893,33 @@ describe("R6 residual (d) — what the knitr reader does not evaluate (Session 2
   ]))("not silent: `%s`", (options) => {
     expect(headed(options)).toEqual(loud);
   });
-  // UNREAD, so not silent: a header this still cannot read keeps HEAD's pairing. `x` is quarto's own render for the
-  // first two (an unbalanced bracket makes R fail to parse; the rest are silent but declined).
+  // UNREAD, so not silent: a header this cannot read keeps HEAD's pairing. The two unbalanced brackets do not render
+  // at all (R cannot parse them); a backtick name is silent in quarto and declined here, and a `#` comment, a `;`
+  // and a `%,%` operator are declined because each hides or invents an argument boundary.
   it.each([
     "echo=FALSE, a=c(1,2", "echo=FALSE, a=c(1,2))", 'echo=FALSE, a="x\\"', "echo=FALSE, fig.cap=`x`", "echo=FALSE # echo=TRUE",
     "echo=FALSE; a=1", "echo=FALSE, a=%,%", "echo=FALSE, a=1 %,% 2", "echo=FALSE, a=\\x",
   ])("not silent: an unreadable header (`%s`)", (options) => {
     expect(headed(options)).toEqual(loud);
+  });
+
+  // `#| echo: !expr <R>` — a YAML-tagged R expression. Rendered, both modes (`scratchpad/s288/f*`, `k*`): a logical of
+  // the same family evaluates, and a `!` INSIDE the expression is a YAML error (`!expr !TRUE` exits 1), so none is read.
+  it.each([
+    "!expr FALSE", "!expr TRUE&FALSE", "!expr (FALSE)", "!expr FALSE || FALSE", "!expr  FALSE", "!expr FALSE # c",
+    "!expr FALSE&TRUE", "!expr TRUE&&FALSE", "!expr (FALSE|FALSE)", "!expr  (TRUE)&(FALSE)",
+  ])("silent: `#| echo:` and `#| include:` set to `%s`", (value) => {
+    expect(piped(`#| echo: ${value}`)).toEqual(both);
+    expect(piped(`#| include: ${value}`)).toEqual(both);
+  });
+  it.each([
+    "!expr TRUE", "!expr FALSE|TRUE", "!expr FALSE&&TRUE||TRUE", "!expr TRUE||TRUE&&FALSE", "!expr NA", "!EXPR FALSE",
+    "!expr(FALSE)", "!expr FALSE, TRUE", "!expr T",
+  ])("not silent: `#| echo: %s`", (value) => {
+    expect(piped(`#| echo: ${value}`)).toEqual(loud);
+  });
+  // DISCLOSED MISSES (silent in quarto, not read here): `F`, a call, and a parenthesised negation.
+  it.each(["!expr F", "!expr c(FALSE)", "!expr (!TRUE)"])("unread, so not silent (quarto IS silent): `#| echo: %s`", (value) => {
+    expect(piped(`#| echo: ${value}`)).toEqual(loud);
   });
 });

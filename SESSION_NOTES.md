@@ -8,10 +8,32 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** Session 288 -- R6 residual (d): values the knitr reader does not evaluate (expression `echo=`, odd `#|` falses, unusual header characters) (IN PROGRESS, claimed 2026-10-01).
-**Status:** Session claimed. Orient done; operator chose "R6 residuals (d)-(g)"; I scoped ONE shape, (d). Work beginning.
-**Ledger:** `CHANGELOG: pending` -- close-out records the rest.
-**⚠ Gotchas:** (1) never `git add -A`. (2) parallel Bash calls that `cd` race: use absolute paths. (3) HANDOFFS.md line 23 lost its tail.
+**Task:** **NONE -- Session 288 closed out (R6 residual (d) shipped: R-argument header splitter, `evaluateRLogical`, all YAML false spellings, `!expr`; plus a raw-string deleting fix).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**#1 NEXT:** operator picks. Open: R6 residuals (e),(f),(g), (b)'s project-config residual, (d)'s disclosed hazards (bare `F`, opts_hooks), asis/cat/block, unclosed-`<!--`, fence-in-list-item.
+**⚠ Gotchas:** (1) never `git add -A`. (2) parallel Bash calls that `cd` race: use absolute paths. (3) macOS `sed -i` needs a suffix arg; mutate with Python. (4) HANDOFFS.md line 23 lost its tail.
+## Session 287 Handoff Evaluation (by Session 288)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK listed (d)-(g) as open and the
+BACKLOG item carried lettered shapes and probe paths, so scoping took one question; the 2,423/2,438 baseline reproduced.
+**Helped:** the shape list, the tracked score tool, and the harness (`run1.sh`, generator) that I reused for 310 probes.
+**Missing:** it did not say that the header reader pre-dated a raw-string hazard. **Wrong:** none found.
+**ROI: high** (about ten minutes to a claimed task).
+
+## Session 288 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** Three probe rounds in both modes before any test; round 3 found a pre-existing deleting defect (raw strings),
+fixed first. Five TDD slices with RED shown each time; seven mutants killed; the evaluator was differential-tested against R
+(242,547 expressions, 0 mismatches). A 4-lens workflow (4,990 probes) found no defect in the new rules; I re-rendered the three
+consequential reports firsthand. Score unchanged 2,423/2,438; 3,471 tests, types clean.
+**Went wrong.** (1) My first mutation script used `sed -i` on macOS and silently applied nothing; I caught it from identical
+results and redid it in Python. (2) I wrote one comment claiming `0` was loud when I had measured it silent; fixed before commit.
+(3) The pass reproduced residuals I did not fix (bare `F`, `opts_hooks`, redefined `&`, printing chunks): disclosed in BACKLOG
+(d), not fixed, by scope. (4) No `test:integration` run (needs the screen; no host behaviour changed). (5) `quality_ratchet`
+reads `ledger-lag` 2 until this close-out commit lands; budget over-ceilings on three files predate me.
+**TDD:** RED shown before GREEN. **Cost:** 4 workflow agents (~419k tokens); no screen-taking run.
+
 ## Session 286 Handoff Evaluation (by Session 287)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named (b),(d)-(g) as open and
@@ -51,22 +73,3 @@ one real finding firsthand before fixing it. Score unchanged 2,423/2,438; 3,246 
 adversarial pass caught. (2) Printed-output counterexamples are residual (f), disclosed, not fixed. (3) No `test:integration`
 run (needs the screen; no host behaviour changed).
 **TDD:** RED shown before GREEN. **Cost:** 3 workflow agents (~174k tokens); no screen-taking run.
-
-## Session 284 Handoff Evaluation (by Session 285)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named the R6 residuals and
-the engine-bypass gotcha; the BACKLOG item split into lettered shapes, so scoping was one question.
-**Helped:** the item's shape list and the tracked score tool; the baseline reproduced at 2,423/2,438.
-**Missing:** it did not say the HANDOFFS.md header line (23) had already lost its tail. **Wrong:** none found.
-**ROI: high** (about ten minutes to a claimed task).
-
-## Session 285 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I rendered 17 probes in both modes before writing a test. RED was shown for the empty-chunk row and for the
-four external-code rows against a naive rule, and a mutant of the no-code test was killed by 4 rows. I rendered the
-exclusions and found `child=` was silent, so I disclosed it instead of pinning a false reason. Score unchanged 2,423/2,438.
-**Went wrong.** (1) The exclusion list was a guess until rendered. (2) Nine rows are pins that went green with the first
-row, disclosed in the test. (3) Ultracode was on and I ran no workflow or adversarial pass; the change is one predicate over
-rendered shapes, but that was my call. (4) No `test:integration` run (needs the screen; no host behaviour changed).
-**TDD:** RED shown before GREEN. **Cost:** no subagents; 3,208 tests passing; types clean.
