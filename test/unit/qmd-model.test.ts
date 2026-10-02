@@ -20601,3 +20601,156 @@ describe("R6 residual (a) — a silenced chunk of a NON-R engine emits no fence 
     ]);
   });
 });
+
+describe("R6 residual (b) — a DOCUMENT-level echo/include default silences a chunk too (Session 287)", () => {
+  // MEASURED, `.qmd` with `engine: knitr` (quarto 1.7.33), `scratchpad/s287/` (118 probes, both modes):
+  // with a stray bare ``` above, a chunk that the DOCUMENT silences emits no fence, so the stray one never
+  // pairs with its closer and "Heading Under Test" renders. Until Session 287 only a chunk's OWN option counted.
+  const stray = (frontMatter: string[], chunk: string[]): string =>
+    [
+      "---",
+      "title: t",
+      "engine: knitr",
+      ...frontMatter,
+      "---",
+      "",
+      "prose",
+      "",
+      "```",
+      "",
+      "## Heading Under Test",
+      "",
+      ...chunk,
+      "",
+      "## Heading After Chunk",
+      "",
+      "tail prose",
+      "",
+    ].join("\n");
+  const both = ["Heading Under Test", "Heading After Chunk"];
+  const loud = ["Heading After Chunk"];
+  const r = ["```{r}", "x <- 1", "```"];
+
+  it("`execute: echo: false` silences a bare `{r}` chunk, so a stray fence above it stays unclosed", () => {
+    expect(findHeadings(stray(["execute:", "  echo: false"], r), "knitr").map((h) => h.text)).toEqual(both);
+  });
+
+  // The placements, rendered in both modes for `{r}` (`scratchpad/s287/y*`): every one silences the chunk.
+  it.each([
+    ["top-level `echo: false`", ["echo: false"]],
+    ["`knitr: opts_chunk: echo: false`", ["knitr:", "  opts_chunk:", "    echo: false"]],
+    ["`execute: include: false`", ["execute:", "  include: false"]],
+    ["top-level `include: false`", ["include: false"]],
+    ["`knitr: opts_chunk: include: false`", ["knitr:", "  opts_chunk:", "    include: false"]],
+    ["a FLOW `execute: {echo: false}`", ["execute: {echo: false}"]],
+    ["a flow `knitr: opts_chunk: {echo: false}`", ["knitr:", "  opts_chunk: {echo: false}"]],
+    ["`execute:` siblings around the key", ["execute:", "  daemon: false", "  echo: false", "  warning: false"]],
+    ["a 4-space indent", ["execute:", "    echo: false"]],
+    ["a trailing comment", ["execute:", "  echo: false # hide"]],
+  ])("silent: %s", (_n, fm) => {
+    expect(findHeadings(stray(fm, r), "knitr").map((h) => h.text)).toEqual(both);
+  });
+
+  // ENGINES, rendered per engine x placement x mode (`scratchpad/s287/e/`, 144 probes). A DOCUMENT-level
+  // `echo: false` silences only these engines in BOTH modes; for bash, sh, zsh, perl and ruby it is silent
+  // under `--no-execute` and LOUD when the chunk executes, so the two modes disagree and silence is not
+  // established. (A chunk's OWN `echo=FALSE` is silent for all twelve -- Session 286.)
+  const chunkOf = (engine: string): string[] => [`\`\`\`{${engine}}`, "x", "```"];
+  it.each(["r", "R", "python", "awk", "css", "js", "node", "rcpp"])("silent: a doc-level `echo: false` over a `{%s}` chunk", (engine) => {
+    expect(findHeadings(stray(["execute:", "  echo: false"], chunkOf(engine)), "knitr").map((h) => h.text)).toEqual(both);
+  });
+  it.each(["bash", "sh", "zsh", "perl", "ruby"])(
+    "not silent: a doc-level `echo: false` over a `{%s}` chunk (silent unexecuted, loud executed)",
+    (engine) => {
+      expect(findHeadings(stray(["execute:", "  echo: false"], chunkOf(engine)), "knitr").map((h) => h.text)).toEqual(loud);
+    },
+  );
+  // `include: false` has no such split: all twelve engines are silent in both modes, under all three placements.
+  it.each(["r", "R", "python", "bash", "sh", "zsh", "perl", "ruby", "awk", "rcpp", "css", "js", "node"])(
+    "silent: a doc-level `include: false` over a `{%s}` chunk",
+    (engine) => {
+      expect(findHeadings(stray(["execute:", "  include: false"], chunkOf(engine)), "knitr").map((h) => h.text)).toEqual(both);
+    },
+  );
+
+  // OVERRIDES, rendered (`y16`, `y17`, `y34`, `f01`, `f02`, `f02b`, `f20`): a chunk's own option beats the
+  // document's, per option -- so the document default decides only an option the chunk leaves unset.
+  // (Pins: these went green with the resolver, which already read the chunk's options first. Disclosed.)
+  it.each([
+    ["a header `echo=TRUE` over a doc `echo: false`", ["execute:", "  echo: false"], ["```{r, echo=TRUE}", "x <- 1", "```"], loud],
+    ["`#| echo: true` over a doc `echo: false`", ["execute:", "  echo: false"], ["```{r}", "#| echo: true", "x <- 1", "```"], loud],
+    ["a header `include=TRUE` over a doc `include: false`", ["execute:", "  include: false"], ["```{r, include=TRUE}", "x <- 1", "```"], loud],
+    ["a python header `echo=TRUE` over a doc `echo: false`", ["execute:", "  echo: false"], ["```{python, echo=TRUE}", "x = 1", "```"], loud],
+    ["a header `include=TRUE` leaves a doc `echo: false` in force", ["execute:", "  echo: false"], ["```{r, include=TRUE}", "x <- 1", "```"], both],
+    ["a header `echo=TRUE` leaves a doc `include: false` in force", ["execute:", "  include: false"], ["```{r, echo=TRUE}", "x <- 1", "```"], both],
+    ["`#| echo: true` leaves a doc `include: false` in force", ["execute:", "  include: false"], ["```{r}", "#| echo: true", "x <- 1", "```"], both],
+    ["`#| echo: false` agrees with a doc `echo: false`", ["execute:", "  echo: false"], ["```{r}", "#| echo: false", "x <- 1", "```"], both],
+    ["a doc `echo: false` with `include: true`", ["execute:", "  echo: false", "  include: true"], r, both],
+  ])("%s", (_n, fm, chunk, expected) => {
+    expect(findHeadings(stray(fm, chunk), "knitr").map((h) => h.text)).toEqual(expected);
+  });
+
+  // GUARDS, rendered: each document below renders the heading (the chunk is LOUD), so reading any of them
+  // as silent would delete headings. `y10`-`y11`, `y19`-`y21`, `y27`-`y28`, `y33`, `y40`, `y42`-`y43`, `f17`, `f23`.
+  it.each([
+    ["`echo: true`", ["execute:", "  echo: true"]],
+    ["`echo: fenced`", ["execute:", "  echo: fenced"]],
+    ["knitr's `echo: F`, which YAML reads as a string", ["knitr:", "  opts_chunk:", "    echo: F"]],
+    ["`echo: !expr FALSE`", ["execute:", "  echo: !expr FALSE"]],
+    ["`execute: echo: false` against `knitr: opts_chunk: echo: true`", ["execute:", "  echo: false", "knitr:", "  opts_chunk:", "    echo: true"]],
+    ["`execute: echo: false` against `format: html: echo: true`", ["execute:", "  echo: false", "format:", "  html:", "    echo: true"]],
+    ["`execute: echo: false` against `format: html: execute: echo: true`", ["execute:", "  echo: false", "format:", "  html:", "    execute:", "      echo: true"]],
+    ["`execute: echo: false` against a `format:` `knitr: opts_chunk: echo: true`", ["execute:", "  echo: false", "format:", "  html:", "    knitr:", "      opts_chunk:", "        echo: true"]],
+    ["a top-level `echo: false` against `execute: echo: true`", ["echo: false", "execute:", "  echo: true"]],
+    ["`execute: echo: false` against a later top-level `echo: true`", ["execute:", "  echo: false", "echo: true"]],
+    ["an `echo: false` under `params:`", ["params:", "  echo: false"]],
+    ["an `echo: false` line inside a block scalar", ["description: |", "  echo: false"]],
+    ["an `echo: false` nested one level too deep under `execute:`", ["execute:", "  daemon:", "    echo: false"]],
+  ])("not silent: %s", (_n, fm) => {
+    expect(findHeadings(stray(fm, r), "knitr").map((h) => h.text)).toEqual(loud);
+  });
+
+  // DECLINED, not measured loud: each of these RENDERS silent (`y05`, `y06`, `f08`) but is a shape this
+  // reader does not read, so it keeps HEAD's pairing -- the direction that cannot delete a heading.
+  it.each([
+    ["a `format: html: echo: false` (applies only when html is the format rendered)", ["format:", "  html:", "    echo: false"]],
+    ["a `format: html: execute: echo: false`", ["format:", "  html:", "    execute:", "      echo: false"]],
+    ["a quoted key `\"echo\": false`", ['"echo": false']],
+    ["an alias `echo: *off`", ["off: &off false", "echo: *off"]],
+  ])("declined (HEAD's pairing kept): %s", (_n, fm) => {
+    expect(findHeadings(stray(fm, r), "knitr").map((h) => h.text)).toEqual(loud);
+  });
+
+  // The defaults come from the LEADING front matter only: a `---` block further down is measured inert
+  // (`f23`), and a document with no front matter has none.
+  it("not silent: an `execute: echo: false` in a metadata block BELOW the first heading is not a default", () => {
+    const text = ["---", "title: t", "engine: knitr", "---", "", "```", "", "## Heading Under Test", "", "---", "execute:", "  echo: false", "---", "", ...r, "", "## Heading After Chunk", ""].join("\n");
+    expect(findHeadings(text, "knitr").map((h) => h.text)).toEqual(loud);
+  });
+  it("not silent: a document with no front matter has no default", () => {
+    const text = ["prose", "", "```", "", "## Heading Under Test", "", ...r, "", "## Heading After Chunk", ""].join("\n");
+    expect(findHeadings(text, "knitr").map((h) => h.text)).toEqual(loud);
+  });
+
+  // FOUND BY THE ADVERSARIAL PASS (4 lenses, 1,264 rendered probes) and re-rendered firsthand: each document
+  // below is LOUD in quarto (the heading renders) in both modes, yet the first cut read it as silent.
+  // `scratchpad/s287/adv/yaml/q/`, `adv/precedence/pr/d01`.
+  it.each([
+    ["a quoted `#` in a flow mapping hides the `echo: true` after it", ["echo: false", 'execute: {note: "a #", echo: true}']],
+    ["a quoted `#` in a flow `opts_chunk` hides its `echo: true`", ["echo: false", "knitr:", '  opts_chunk: {note: "a #", echo: true}']],
+    ["a YAML explicit key `? echo` / `: true`", ["echo: false", "execute:", "  ? echo", "  : true"]],
+    ["a multi-line flow mapping whose continuation sits at column 0", ["meta: {", "echo: false", "}"]],
+    ["a multi-line flow sequence whose continuation sits at column 0", ["meta: [", "echo: false", "]"]],
+  ])("not silent: %s", (_n, fm) => {
+    expect(findHeadings(stray(fm, r), "knitr").map((h) => h.text)).toEqual(loud);
+  });
+  // A setup chunk's `knitr::opts_chunk$set(...)` changes the default when the chunk RUNS and not under
+  // `--no-execute`, so the two modes disagree (`d01`-`d04`, `x10`, `x11`); HEAD matched the executed render.
+  it.each([
+    ["echo=TRUE above the stray fence", "knitr::opts_chunk$set(echo=TRUE)"],
+    ["include=TRUE", "knitr::opts_chunk$set(include = TRUE)"],
+  ])("not silent: a document that calls opts_chunk$set (%s) has no trusted default", (_n, call) => {
+    const text = stray(["execute:", "  echo: false"], r).replace("## Heading After Chunk", ["```{r}", call, "```", "", "## Heading After Chunk"].join("\n"));
+    expect(findHeadings(text, "knitr").map((h) => h.text)).not.toContain("Heading Under Test");
+  });
+});

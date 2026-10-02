@@ -6314,6 +6314,7 @@ const KNITR_CHUNK_END = /^([\t >]*)(`{3,})[ \t\r\f\v]*$/;
  */
 function knitrSilentChunkClosers(lines: readonly string[]): Map<number, number> {
   const silent = new Map<number, number>();
+  const defaults = knitrDocumentDefaults(lines);
   for (let i = 0; i < lines.length; i++) {
     const begin = KNITR_CHUNK_BEGIN.exec(lines[i]);
     if (begin === null) {
@@ -6340,13 +6341,157 @@ function knitrSilentChunkClosers(lines: readonly string[]): Map<number, number> 
     if (
       begin[1] === "" &&
       KNITR_CHUNK_INFO.test(begin[3]) &&
-      knitrChunkIsSilent(begin[3], lines.slice(i + 1, end))
+      knitrChunkIsSilent(begin[3], lines.slice(i + 1, end), defaults)
     ) {
       silent.set(end, i);
     }
     i = end;
   }
   return silent;
+}
+/** Which chunk options the DOCUMENT positively sets to false, for a chunk that sets neither itself. */
+interface KnitrDocDefaults {
+  readonly echo: boolean;
+  readonly include: boolean;
+}
+const NO_KNITR_DOC_DEFAULTS: KnitrDocDefaults = { echo: false, include: false };
+/**
+ * An `echo` / `include` KEY wherever one sits on a front-matter line — at the start, or after
+ * whitespace, a `{` or a `,` — quoted or not. It is a COUNT of everything that could set the option,
+ * not a reading of it: see `knitrDocumentDefaults`.
+ */
+const KNITR_OPTION_KEY = /(?:^|[\s{,])["']?(echo|include)["']?[ \t]*:/g;
+/** The YAML false spellings measured to silence a chunk (`FALSE`/`False`/`false`); `F`, `no`, `"false"` are not. */
+const KNITR_YAML_FALSE = /^(?:false|FALSE|False)$/;
+/**
+ * The `echo` / `include` defaults the leading front matter sets to false (R6 residual (b),
+ * Session 287) — each `true` only when the option is POSITIVELY established false.
+ *
+ * Measured over 118 rendered probes in both modes (`scratchpad/s287/`): `execute:`, `knitr:
+ * opts_chunk:` and a top-level key all set the default, in block or flow style, and a chunk's own
+ * option (header or `#|`) overrides it; `echo: fenced`, `true`, `F`, `!expr FALSE` and any
+ * conflicting `true` elsewhere leave the chunk loud.
+ *
+ * ⚠ **The method is ACCOUNTING, and that is what keeps a wrong "silent" out.** A wrong "silent"
+ * moves the stray fence's closer DOWN and swallows every heading in between, so this does not walk
+ * a YAML tree it cannot fully read. It COUNTS every `echo:` / `include:` key anywhere in the front
+ * matter, READS only the ones at the three measured paths with a plain false, and trusts an option
+ * only when every key it counted was read. A `format:`-nested key (measured loud when it says
+ * `true`), a `params:` key, a key inside a block scalar, an alias, a quoted key, a duplicate with
+ * another value — each is an unread key, so the option declines and HEAD's pairing stays.
+ *
+ * ⚠ Only the LEADING block counts (a `---` block mid-document is measured inert), and the model
+ * sees only this document. A project `_quarto.yml` / `_metadata.yml` is invisible: measured, it
+ * never beats a document's own value EXCEPT that a project `knitr: opts_chunk` setting the same
+ * option beats a document's `execute:` or top-level one (`scratchpad/s287/f/p_p6`, `p8`, `p11`,
+ * `p12`). That residual is disclosed in `BACKLOG.md`.
+ */
+function knitrDocumentDefaults(lines: readonly string[]): KnitrDocDefaults {
+  if (frontMatterOpenIndex(lines) !== 0) {
+    return NO_KNITR_DOC_DEFAULTS;
+  }
+  const content = frontMatterContent(lines);
+  const top = content === null ? null : topLevelIndent(content);
+  if (content === null || top === null) {
+    return NO_KNITR_DOC_DEFAULTS;
+  }
+  // ⚠ A setup chunk's `knitr::opts_chunk$set(...)` resets the default when the chunk RUNS and not under
+  // `--no-execute`, so the two modes disagree (measured, adversarial pass): no default is trusted.
+  if (lines.slice(content.length + 2).some((line) => line.includes("opts_chunk"))) {
+    return NO_KNITR_DOC_DEFAULTS;
+  }
+  const counted = { echo: 0, include: 0 };
+  const read = { echo: 0, include: 0 };
+  for (const line of content) {
+    if (FRONTMATTER_NOT_CONTENT.test(line)) {
+      continue;
+    }
+    // ⚠ Comments are NOT stripped before counting: a quoted `#` inside a flow mapping (`{note: "a #",
+    // echo: true}`) is no comment, and cutting the line there hid the key (measured). A comment that
+    // mentions `echo: true` merely declines the option, which is the safe direction.
+    // ⚠ Shapes this cannot read at all decline the WHOLE reader: a YAML explicit key (`? echo` then
+    // `: true`, where key and colon sit on different lines) and a flow collection that spans lines (its
+    // continuation can sit at the top indent and pass for a top-level key).
+    const depth = (line.match(/[{[]/g)?.length ?? 0) - (line.match(/[}\]]/g)?.length ?? 0);
+    if (/^[ \t]*\?(?:[ \t]|$)/.test(line) || depth !== 0) {
+      return NO_KNITR_DOC_DEFAULTS;
+    }
+    for (const m of line.matchAll(KNITR_OPTION_KEY)) {
+      counted[m[1] as "echo" | "include"]++;
+    }
+  }
+  // One mapping's OWN `echo` / `include` entries — block lines at `indent`, or the entries of a flow mapping.
+  const readMapping = (block: readonly string[], indent: number): void => {
+    for (let i = 0; i < block.length; i++) {
+      if (leadingWhitespace(block[i]) !== indent || FRONTMATTER_NOT_CONTENT.test(block[i])) {
+        continue;
+      }
+      const m = /^(echo|include):[ \t]*(.*)$/.exec(block[i].slice(indent));
+      if (m !== null && KNITR_YAML_FALSE.test(m[2].replace(/[ \t]+#.*$/, "").trim())) {
+        read[m[1] as "echo" | "include"]++;
+      }
+    }
+  };
+  const readFlow = (block: readonly string[], i: number, offset: number): void => {
+    const region = flowRegion(block, i, offset);
+    for (const entry of region === null ? [] : (flowEntries(region) ?? [])) {
+      if ((entry.key === "echo" || entry.key === "include") && KNITR_YAML_FALSE.test(entry.value)) {
+        read[entry.key]++;
+      }
+    }
+  };
+  // The sub-mapping under `block[i]`'s key, when that key's value is empty (a block mapping follows) …
+  const subMapping = (block: readonly string[], i: number, indent: number): { sub: string[]; indent: number } | null => {
+    const sub = subBlock(block, i + 1, indent);
+    const subIndent = topLevelIndent(sub);
+    return subIndent === null ? null : { sub, indent: subIndent };
+  };
+  // … or a flow mapping on the key's own line.
+  const mappingAt = (block: readonly string[], i: number, indent: number, key: string): "block" | "flow" | null => {
+    const rest = block[i].slice(indent);
+    if (!rest.startsWith(`${key}:`)) {
+      return null;
+    }
+    const value = rest.slice(key.length + 1).replace(/[ \t]+#.*$/, "").trim();
+    return value === "" ? "block" : value.startsWith("{") ? "flow" : null;
+  };
+  readMapping(content, top);
+  for (let i = 0; i < content.length; i++) {
+    if (leadingWhitespace(content[i]) !== top || FRONTMATTER_NOT_CONTENT.test(content[i])) {
+      continue;
+    }
+    const execute = mappingAt(content, i, top, "execute");
+    if (execute === "flow") {
+      readFlow(content, i, top + "execute:".length);
+    } else if (execute === "block") {
+      const inner = subMapping(content, i, top);
+      if (inner !== null) {
+        readMapping(inner.sub, inner.indent);
+      }
+    }
+    if (mappingAt(content, i, top, "knitr") !== "block") {
+      continue;
+    }
+    const knitr = subMapping(content, i, top);
+    for (let j = 0; knitr !== null && j < knitr.sub.length; j++) {
+      if (leadingWhitespace(knitr.sub[j]) !== knitr.indent || FRONTMATTER_NOT_CONTENT.test(knitr.sub[j])) {
+        continue;
+      }
+      const opts = mappingAt(knitr.sub, j, knitr.indent, "opts_chunk");
+      if (opts === "flow") {
+        readFlow(knitr.sub, j, knitr.indent + "opts_chunk:".length);
+      } else if (opts === "block") {
+        const chunk = subMapping(knitr.sub, j, knitr.indent);
+        if (chunk !== null) {
+          readMapping(chunk.sub, chunk.indent);
+        }
+      }
+    }
+  }
+  return {
+    echo: read.echo > 0 && read.echo === counted.echo,
+    include: read.include > 0 && read.include === counted.include,
+  };
 }
 /**
  * The chunk engines whose `echo=FALSE` / `include=FALSE` chunk is MEASURED to emit no fence (R6
@@ -6361,11 +6506,20 @@ const KNITR_SILENT_ENGINES: ReadonlySet<string> = new Set([
   "r", "R", "python", "bash", "sh", "zsh", "perl", "ruby", "awk", "rcpp", "css", "js", "node",
 ]);
 /**
+ * The engines for which a DOCUMENT-level `echo: false` is MEASURED silent in BOTH modes (R6 residual
+ * (b), Session 287; `scratchpad/s287/e/`, every placement x engine x mode). `bash`, `sh`, `zsh`,
+ * `perl` and `ruby` are left out: rendered, they are silent under `--no-execute` and LOUD when the
+ * chunk executes, so the Outline cannot be right in both.
+ */
+const KNITR_DOC_ECHO_ENGINES: ReadonlySet<string> = new Set([
+  "r", "R", "python", "awk", "css", "js", "node", "rcpp",
+]);
+/**
  * Whether a chunk's options switch off everything it could emit as a fence — `echo` or
  * `include` resolved to false. Each option resolves ONCE, and a LEADING `#| ` option line
  * overrides the chunk header (measured: header `echo=FALSE` + `#| echo: true` echoes).
  */
-function knitrChunkIsSilent(header: string, body: readonly string[]): boolean {
+function knitrChunkIsSilent(header: string, body: readonly string[], defaults: KnitrDocDefaults): boolean {
   // ⚠ ONLY the engines measured silent (`KNITR_SILENT_ENGINES`). quarto re-emits a `dot`, `mermaid`
   // or `ojs` chunk as its own fenced block whatever `echo` says, and an `engine=` option moves an
   // `{r}` chunk onto such an engine — measured, each renders the heading below it that a "silent"
@@ -6389,7 +6543,14 @@ function knitrChunkIsSilent(header: string, body: readonly string[]): boolean {
   if (emptyIsSilent && !external && knitrChunkHasNoCode(body)) {
     return true;
   }
-  return (["echo", "include"] as const).some((name) => knitrOptionResolvesFalse(name, options, pipe));
+  // ⚠ A DOCUMENT-level `echo: false` is silent in BOTH modes for `KNITR_DOC_ECHO_ENGINES` only; for the
+  // shell-like engines it is silent under `--no-execute` and loud when the chunk runs (Session 287). A
+  // document-level `include: false` has no such split, so it covers every engine this rule trusts.
+  const documentEcho = defaults.echo && KNITR_DOC_ECHO_ENGINES.has(engine[1]);
+  return (
+    knitrOptionResolvesFalse("echo", options, pipe, documentEcho) ||
+    knitrOptionResolvesFalse("include", options, pipe, defaults.include)
+  );
 }
 /** Whether a chunk's body holds nothing past its leading `#|` option lines but blank lines. */
 function knitrChunkHasNoCode(body: readonly string[]): boolean {
@@ -6472,13 +6633,17 @@ function knitrOptionResolvesFalse(
   name: "echo" | "include",
   header: ReadonlyMap<string, string>,
   pipe: ReadonlyMap<string, string>,
+  documentDefault: boolean,
 ): boolean {
   const piped = pipe.get(name);
   if (piped !== undefined) {
     return piped === "false" || piped === "FALSE" || piped === "no";
   }
   const value = header.get(name);
-  return value === "FALSE" || value === "F";
+  if (value !== undefined) {
+    return value === "FALSE" || value === "F";
+  }
+  return documentDefault;
 }
 /**
  * An inline code span — a run of N backticks closed by the next run of exactly

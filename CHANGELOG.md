@@ -17,9 +17,9 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
-### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Claimed Session 287 (in progress): shape (b), document-level echo defaults
+### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Session 287: shape (b), document-level echo/include defaults, shipped
 
-Operator-chosen item; scoped to one shape. Outcome recorded at close-out.
+`knitrDocumentDefaults` in `src/core/qmd/model.ts` reads `execute:` / `knitr: opts_chunk:` / top-level `echo`/`include: false` from the leading front matter by ACCOUNTING (counts every such key, trusts an option only when each was read); doc `echo` is trusted for r/R/python/awk/css/js/node/rcpp only (shell-like engines are loud when executed), doc `include` for all twelve. TDD: RED shown for the placement, engine-split and 7 adversarial rows; three mutants killed (6, 1, 4 rows). A 4-lens adversarial workflow (1,264 probes) found 3 real defects, all fixed: a quoted `#` hiding a key, `? echo` explicit keys / column-0 flow continuation, and `opts_chunk$set` runtime defaults. Score unchanged 2,423/2,438; 3,318 tests. Residuals filed in BACKLOG (b).
 
 ### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Session 286: shape (a), non-R engines, shipped
 
