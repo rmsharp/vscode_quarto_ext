@@ -17,9 +17,9 @@ than trusting this sentence. Written by `methodology_trim.py` v1.1.1.
 
 ## 2026-09
 
-### 2026-10-02 · [BL-The raw-block swallow family is UNBOUNDED in construct space, and it now includes a DELETION shape] Session 289 (in progress): unclosed `<!--` empties the Outline
+### 2026-10-02 · [BL-The raw-block swallow family is UNBOUNDED in construct space, and it now includes a DELETION shape] Session 289: unclosed `<!--` no longer empties the Outline
 
-Claimed; operator picked it at Phase 0. Phase 3F replaces this line with the outcome. `CHANGELOG: pending`.
+`findHeadings` (`src/core/qmd/model.ts`, `f4939251`): a `<!--` with no `-->` on any line below is paragraph text under pandoc's markdown readers (rendered, 55 probes, both modes), so it falls through as a body line; `gfm`/`commonmark`/`commonmark_x` keep swallowing to EOF (CommonMark HTML block). TDD, RED shown; 48 pinned rows; three mutants killed. Score unchanged 2,423/2,438; 0 of 3,383 corpus documents move. A 4-lens workflow (655 probes) found no deletion; accepted phantoms: mid-document/project `from: gfm`, tabset titles (pre-existing). BACKLOG item trimmed.
 
 ### 2026-10-01 · [BL-R6 residuals — what the positively-established silence rule leaves at HEAD's answer] Session 288: shape (d), values the knitr reader does not evaluate, shipped
 

@@ -8,15 +8,27 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 289 (IN PROGRESS, claimed 2026-10-02): an UNCLOSED `<!--` empties the Outline (raw-block family, BACKLOG "Up Next"), deletion direction.** Operator picked it at Phase 0.
+**Task:** **NONE -- Session 289 closed out (unclosed `<!--` no longer empties the Outline; fix `f4939251`).**
 `BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
 **#1 NEXT:** operator picks. Open: R6 residuals (e),(f),(g), (b)'s project-config residual, (d)'s disclosed hazards (bare `F`, opts_hooks), asis/cat/block, unclosed-`<!--`, fence-in-list-item.
 **⚠ Gotchas:** (1) never `git add -A`. (2) parallel Bash calls that `cd` race: use absolute paths. (3) macOS `sed -i` needs a suffix arg; mutate with Python. (4) HANDOFFS.md line 23 lost its tail.
-### What Session 289 Did
-**Deliverable:** fix the unclosed `<!--` Outline deletion (IN PROGRESS)
-**Started:** 2026-10-02
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest.
+## Session 288 Handoff Evaluation (by Session 289)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK said `BACKLOG.md` "Active" was
+empty and listed the open items, so Phase 0 took one question; the 2,423/2,438 baseline reproduced.
+**Helped:** the ranked open list and the tracked score tool. **Missing:** nothing needed. **Wrong:** its BACKLOG item and the
+`insideHtmlComment` docstring said an unclosed `<!--` runs "to the next blank line"; measured, it is paragraph text. **ROI: high.**
+
+## Session 289 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** 55 probes in both modes before any test showed the real rule (paragraph text, not a comment), not the one the
+backlog assumed. RED shown for the core row and for the three CommonMark-family rows; three mutants killed. I measured the
+reader axis myself before fanning out, which caught that `gfm`/`commonmark` swallow to EOF and gated the rule. A 4-lens workflow
+(655 probes) found no deletion; I re-ran the tabset claim firsthand. Score unchanged 2,423/2,438; 3,519 tests; corpus diff 0 of 3,383.
+**Went wrong.** (1) My first cut ignored the reader and would have regressed `gfm`; found by my own probe, not a test. (2) The
+`insideHtmlComment` docstring still repeats the wrong "next blank line" claim; not edited, by scope. (3) No `test:integration` run.
+**TDD:** RED shown before GREEN. **Cost:** 4 workflow agents (~294k tokens); no screen-taking run.
 
 ## Session 287 Handoff Evaluation (by Session 288)
 
@@ -60,22 +72,3 @@ caught it, I did not. (2) A stray `e/` directory landed at the repo root from ra
 `execute:`/top-level placements are trusted despite an invisible project `knitr: opts_chunk` hazard: my judgement call, disclosed
 in BACKLOG (b). (4) No `test:integration` run (needs the screen; no host behaviour changed).
 **TDD:** RED shown before GREEN; guard rows are disclosed pins. **Cost:** 4 workflow agents (~287k tokens); no screen-taking run.
-
-## Session 285 Handoff Evaluation (by Session 286)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK listed shape (a) as open and
-said each engine must be rendered first, which set the plan.
-**Helped:** the BACKLOG shape list and the tracked score tool; the 2,423/2,438 baseline reproduced.
-**Missing:** it did not say the no-code rule was R-only in evidence. **Wrong:** none found.
-**ROI: high** (about ten minutes to a claimed task).
-
-## Session 286 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** 130 probes rendered in both modes before a test; RED shown for the python row, the ten engine rows and the
-ten empty-chunk rows; a mutant of the `engine=` guard was killed. I ran the adversarial workflow this time and verified its
-one real finding firsthand before fixing it. Score unchanged 2,423/2,438; 3,246 tests, types clean.
-**Went wrong.** (1) I extended the no-code branch to every whitelisted engine from echo=FALSE evidence, a defect the
-adversarial pass caught. (2) Printed-output counterexamples are residual (f), disclosed, not fixed. (3) No `test:integration`
-run (needs the screen; no host behaviour changed).
-**TDD:** RED shown before GREEN. **Cost:** 3 workflow agents (~174k tokens); no screen-taking run.
