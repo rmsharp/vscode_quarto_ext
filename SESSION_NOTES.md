@@ -8,15 +8,31 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 290 (IN PROGRESS, claimed 2026-10-05): `.content-visible` written BEFORE `.callout-*`/`.panel-tabset` makes quarto keep the heading; the Outline hides it (deletion).**
+**Task:** **NONE -- Session 290 closed out (a conditional class written before a callout/tabset class takes the div dispatch; fix `5ca18838`).**
 `BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: R6 residuals (e),(f),(g), (b)'s project-config residual, (d)'s disclosed hazards (bare `F`, opts_hooks), asis/cat/block, unclosed-`<!--`, fence-in-list-item.
-**⚠ Gotchas:** (1) never `git add -A`. (2) parallel Bash calls that `cd` race: use absolute paths. (3) macOS `sed -i` needs a suffix arg; mutate with Python. (4) HANDOFFS.md line 23 lost its tail.
-### What Session 290 Did
-**Deliverable:** fix the class-ORDER Outline deletion (IN PROGRESS)
-**Started:** 2026-10-05
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest.
+**#1 NEXT:** operator picks. Open: callout heading in a quote/list, R6 residuals (e)-(g), the empty `---` pair, S290's regex-route residuals; the removal-phantom position awaits the operator.
+**⚠ Gotchas:** (1) never `git add -A`; `scratchpad/s290/corpus` holds COPIES of personal corpus documents. (2) `cmp2.cjs` hides deletes-MORE; use `xbuild.cjs`. (3) parallel Bash `cd` races: use absolute paths.
+## Session 289 Handoff Evaluation (by Session 290)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt's `whats_next` named my item first and
+the BACKLOG item carried the S260 probe paths, so the claim took one question; the ratchet citation matched a fresh run.
+**Helped:** the ranked list, the tracked score tool, and `render3.sh`/`cmp3.cjs`, which I copied into `scratchpad/s290`.
+**Missing:** nothing needed. **Wrong:** its ACTIVE TASK still listed unclosed-`<!--` as open after it had closed that item; its
+gotcha (4), "HANDOFFS.md line 23 lost its tail", I could not reproduce. **ROI: high** (about ten minutes to a claimed task).
+
+## Session 290 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I rendered the S260 probes myself before fanning out, so the first workflow started from a verified defect. Its six
+lenses (1,923 probes) found that only nine class names ever dispatch and that the corpus has zero reach. TDD: RED shown per slice
+(31 of 71 tests RED at HEAD); 12 mutants killed after I closed the one that survived. The adversarial pass (3,679 probes) was
+refuted claim by claim, and I re-classified 4,366 cached renders against three builds to prove the final fix monotone.
+**Went wrong.** (1) My compare tool labelled by class, so a shape where my first cut deleted one MORE heading than HEAD read
+"still-DELETES"; only a refuter caught it, and I fixed it (3 RED rows). (2) I wrote one vacuous assertion (a literal against
+itself) and caught it on re-reading. (3) The fix leaves removal unmodelled: 63 of 4,366 probes went right to phantom; disclosed,
+and the position awaits the operator. (4) The corpus lens left COPIES of personal corpus documents under `scratchpad/s290/corpus`
+(untracked, not ignored). (5) No `test:integration` run (needs the screen; core-only change).
+**TDD:** RED shown before GREEN. **Cost:** 14 agents (~2.3M tokens), about two hours of renders; no screen-taking run.
 
 ## Session 288 Handoff Evaluation (by Session 289)
 
@@ -57,24 +73,3 @@ results and redid it in Python. (2) I wrote one comment claiming `0` was loud wh
 (d), not fixed, by scope. (4) No `test:integration` run (needs the screen; no host behaviour changed). (5) `quality_ratchet`
 reads `ledger-lag` 2 until this close-out commit lands; budget over-ceilings on three files predate me.
 **TDD:** RED shown before GREEN. **Cost:** 4 workflow agents (~419k tokens); no screen-taking run.
-
-## Session 286 Handoff Evaluation (by Session 287)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named (b),(d)-(g) as open and
-the BACKLOG item carried c-numbered probe ids, so I could re-render them; the 2,423/2,438 baseline reproduced.
-**Helped:** the item's shape list, the tracked score tool, and the "absent = not established" gotcha, which set the rule.
-**Missing:** it said (b)'s measurements were agent-made and not re-run, but not that they hide an engine split. **Wrong:** none found.
-**ROI: high** (about ten minutes to a claimed task).
-
-## Session 287 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** 118 probes rendered in both modes before a test, which found the engine split (doc `echo: false` is loud when
-executed for bash/sh/zsh/perl/ruby) and the project-config hazard. RED shown for the placements, the engine gate and seven
-adversarial rows; three mutants killed. The 4-lens workflow (1,264 probes) found three real defects; I re-rendered each firsthand
-before fixing. Score unchanged 2,423/2,438; 3,318 tests, types clean.
-**Went wrong.** (1) The first reader stripped comments before counting keys, which a quoted `#` defeated; an adversarial pass
-caught it, I did not. (2) A stray `e/` directory landed at the repo root from racing parallel `cd` calls; removed. (3) The
-`execute:`/top-level placements are trusted despite an invisible project `knitr: opts_chunk` hazard: my judgement call, disclosed
-in BACKLOG (b). (4) No `test:integration` run (needs the screen; no host behaviour changed).
-**TDD:** RED shown before GREEN; guard rows are disclosed pins. **Cost:** 4 workflow agents (~287k tokens); no screen-taking run.
