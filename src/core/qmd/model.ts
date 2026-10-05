@@ -7474,9 +7474,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // heading in the quote that HOLDS the div from one in a quote NESTED inside it.
     quoteDepth: number;
   }[] = [];
-  // The `>` marker count of every line scanned so far, by line number: a setext heading is judged at its
-  // UNDERLINE, which may be a lazy unmarked line, while its title line is the one that sits in the quote.
-  const lineQuoteDepth: number[] = [];
   // Whether a mid-document YAML metadata block is open at this line — the same block state,
   // for the `...` terminator. See `YAML_BLOCK_OPENER`.
   let metadataBlockOpen = false;
@@ -7648,9 +7645,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     const quoteDepth: number = stripQuote
       ? raw.slice(0, quoteContentStart as number).split(">").length - 1
       : 0;
-    // ⚠ **-1 IS A LAZY LINE: no `>` on it, inside a quote that is still open.** Pandoc parses it inside the quote above,
-    // at a depth this scan does not track, so a depth comparison cannot decide and `inQuote` alone stands.
-    lineQuoteDepth[i] = stripQuote ? quoteDepth : inQuote ? -1 : 0;
     // ⚠ **A CALLOUT'S FIRST-BLOCK HEADING IS ITS TITLE BAR, NOT A HEADING (Session 257).**
     // Quarto's callout filter lifts it out of the body entirely: no `<hN>`, no `<section>`,
     // and no `sec-` anchor — an `@sec-` reference to one renders as the unresolved
@@ -7669,9 +7663,12 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // emits a real `h2:Inside Kilo` (`probes/p11`, and `p12`/`p13` for the other two). Marking
     // any lower would miss exactly those lines, because the scanner `continue`s past them, and
     // the model would DELETE three headings quarto renders.
-    if (!BLANK_LINE.test(line) && divColumns.length > 0) {
+    if (divColumns.length > 0) {
       const innermostDiv = divColumns[divColumns.length - 1];
-      if (innermostDiv.firstContentLine === null) {
+      // ⚠ **A BARE `>` DEEPER THAN THE OPENER IS AN EMPTY BLOCK QUOTE, WHICH IS A BLOCK (Session 291).** Its
+      // content is blank, but it is the div's first block, so a heading after it is not and renders
+      // (`scratchpad/s291/n2/e1`..`e5`). At the opener's OWN depth the same line is a plain blank.
+      if (innermostDiv.firstContentLine === null && (!BLANK_LINE.test(line) || quoteDepth > innermostDiv.quoteDepth)) {
         innermostDiv.firstContentLine = i;
       }
     }
@@ -7683,20 +7680,32 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
      * tabset rule below has read the same flag since Session 258; this one had not, and hid a
      * heading quarto renders under six of the nine measured readers.
      */
-    const calloutTitleTakes = (startLine: number): boolean => {
+    const calloutTitleTakes = (startLine: number, inListItem = false): boolean => {
       const div = divColumns.length > 0 ? divColumns[divColumns.length - 1] : null;
       return (
         fencedDivsDialect &&
+        !inListItem &&
         div !== null &&
         div.calloutTitleSlot &&
         div.firstContentLine === startLine &&
-        // ⚠ **A DIRECT CHILD OF THE DIV, NOT A HEADING INSIDE A CONTAINER THAT OPENS IT (Session 291).**
-        // Quarto lifts the div's first block only if that block IS a `Header`; a block quote is a
-        // container, so `> ## Inside` as the first block lifts nothing and renders a real `<h2>`.
-        // The tabset rule below already makes this comparison.
-        div.inQuote === inQuote &&
-        (lineQuoteDepth[startLine] === -1 || div.quoteDepth === (lineQuoteDepth[startLine] ?? 0)) &&
-        contentColumns.length === div.containerDepth
+        // ⚠ **A HEADING IN A QUOTE NESTED INSIDE THE DIV IS NOT ITS FIRST BLOCK (Session 291).** Quarto lifts
+        // the div's first block only if that block IS a `Header`; a block quote is a container, so
+        // `::: {.callout-note}` / `> ## Inside` lifts nothing and renders a real `<h2>`.
+        // ⚠ **THE TEST IS "STRICTLY MORE `>` MARKERS THAN THE OPENER", ON THE LINE THE HEADING IS RECOGNISED AT**
+        // (its ATX line, or its setext UNDERLINE). Both halves are measured, not tidy:
+        //  - FEWER markers, or none, is a lazy continuation of the deeper quote, so it is still inside the div
+        //    and IS lifted — `> > ::: {.callout-note}` / `> ## T` (111 probes, rendered). EQUALITY, which the
+        //    first cut used, listed all of them as phantoms.
+        //  - a setext title is judged at its underline because pandoc tries a setext header BEFORE a quote:
+        //    `> T` over `-----` is one header whose text is the literal `> T`, directly in the div, lifted.
+        // ⚠ **NOT `inQuote` AND NOT `containerDepth`, WHICH THE TABSET RULE USES.** The first cut compared both;
+        // the model's own container columns disagree with pandoc about a title line (`1. T` / `=====` and
+        // `[^n]: T` / `-----` are plain headers to pandoc, and the model pushes a list column for them), and
+        // `inQuote` is true for a quoted title over an unmarked underline. Each term could only turn a
+        // lifted title into a phantom (111 probes right at HEAD, rendered). A heading in a LIST ITEM is decided
+        // by `inListItem` instead — the setext call site's own "a list marker was stripped" — because an ATX
+        // heading on a list-marker line is never emitted at all (the S261 marker-line item, filed).
+        quoteDepth <= div.quoteDepth
       );
     };
     /**
@@ -8918,6 +8927,16 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     if (setextLevel !== null) {
       const titleLines = bodyLines.slice(-titleLineCount);
       const prev = titleLines[0];
+      // ⚠ **A STRIPPED LIST MARKER IS THIS MODEL'S READING OF "THE HEADING IS INSIDE A LIST ITEM" (Session 291).**
+      // Pandoc tries a bullet list BEFORE a header, so `- T` over an underline is a list whose item holds the heading
+      // and a callout whose first block is that list lifts nothing; an ordered / footnote / definition LOOKALIKE over a
+      // column-0 underline is a plain header, the marker kept in its text, and is lifted. `setextTitleText` already
+      // draws exactly that line (Sessions 201, 247), so the callout rule reads its answer rather than the container
+      // columns, which a lookalike pushes anyway.
+      const titleAsWritten = quotedTitleText(prev);
+      const titleListMarkerStripped =
+        setextTitleText(titleAsWritten, [0, ...contentColumns], inQuote && !stripQuote ? null : indentColumn(line)) !==
+        titleAsWritten;
       // A bullet marker on the title line is STRIPPED, not a reason to decline the heading
       // (Session 201) — see `setextTitleText`. `buildHeading` already drops a title with nothing
       // displayable left, so a marker-only line still produces no heading.
@@ -8952,7 +8971,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           // underline lines begin at source column 0 (`scratchpad/s247/r2/g_quote_u0`,
           // `g_quote_u4`).
           setextTitleText(
-            quotedTitleText(prev),
+            titleAsWritten,
             [0, ...contentColumns],
             inQuote && !stripQuote ? null : indentColumn(line),
           ),
@@ -9002,7 +9021,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // `prev` is `titleLines[0]` — the FIRST title line, which is where the heading's block
       // begins and therefore the line the callout's title slot was marked at. A MULTI-LINE
       // setext title is joined into one heading and still starts there.
-      if (heading && !calloutTitleTakes(prev.line) && !tabsetTabTakes(prev.line, heading.level)) {
+      if (heading && !calloutTitleTakes(prev.line, titleListMarkerStripped) && !tabsetTabTakes(prev.line, heading.level)) {
         headings.push(heading);
       }
       bodyLines.push({ line: i, text: raw, contentStart: stripQuote ? (quoteContentStart as number) : 0 });

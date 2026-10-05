@@ -21183,4 +21183,111 @@ describe("Session 291 — a callout's title is its first block only when that bl
       "A02 After",
     ]);
   });
+  // FEWER `>` markers than the opener is not a different container: pandoc continues the deeper quote lazily, so the
+  // line is still a direct child of the div and the callout lifts it. Only MORE markers is a nested quote. Rendered:
+  // `scratchpad/s291/quote/lz03_depth2_opener_depth1_heading` and 110 more probes that were right at HEAD.
+  it.each([
+    ["a depth-1 title under a depth-2 opener", "## L03 Before\n\n> > ::: {.callout-note}\n> ## L03 Title\n> > :::\n\n## L03 After\n"],
+    ["a depth-2 title under a depth-3 opener", "## L32 Before\n\n> > > ::: {.callout-note}\n> > ## L32 Title\n> > > :::\n\n## L32 After\n"],
+    ["a depth-1 title under a depth-3 opener", "## P56 Before\n\n> > > ::: {.callout-note}\n> ## P56 Inside\n> > > :::\n\n## P56 After\n"],
+  ])("a title with fewer `>` markers than the opener is still lifted: %s", (_label, doc) => {
+    expect(texts(doc)).toEqual([doc.split("\n")[0].slice(3), doc.split("\n").filter((l) => l.startsWith("## ")).pop()!.slice(3)]);
+  });
+  // A SETEXT heading is judged at its UNDERLINE, not at its title line. Pandoc tries a setext header before a block
+  // quote, so `> T` over an unmarked or shallower underline is one header whose text is the literal `> T`, directly in
+  // the div, and the callout lifts it (`scratchpad/s291/quote_ref/w1_gt_setext_blank_dash`, `opener/r2/S_q1_nested_lazy_underline_b`).
+  // Reading the title line's `>` count called these a nested quote and listed a heading quarto lifts.
+  it.each([
+    ["a quoted title over an unmarked underline", "## W1 Before\n\n::: {.callout-note}\n\n> W1 Zinc\n-----\n:::\n\n## W1 After\n"],
+    ["a depth-2 title over a depth-1 underline, in a depth-1 callout", "## S1 Before\n\n> ::: {.callout-note}\n>\n> > S1 T1\n> ---\n> :::\n\n## S1 After\n"],
+  ])("a setext title is judged at its underline: %s", (_label, doc) => {
+    expect(texts(doc)).toEqual([doc.split("\n")[0].slice(3), doc.split("\n").filter((l) => l.startsWith("## ")).pop()!.slice(3)]);
+  });
+  // The model's container bookkeeping can disagree with pandoc about a title line, so the rule must not ask it. A
+  // line that merely LOOKS like a list marker (`1. T`, a footnote `[^n]: T`) over a setext underline is a plain
+  // `Header` to pandoc, directly in the div, and the callout lifts it; the model pushes a list column for it. A term
+  // comparing that column's depth with the div's called the lifted title a heading
+  // (`scratchpad/s291/lists_ref/g_ord1_e0`, `g_fn_d4`, and 25 more shapes right at HEAD).
+  it.each([
+    ["an ordered-marker lookalike over a column-0 underline", "## O1 Before\n\n::: {.callout-caution}\n\n1. O1 Core\n=====\n\n:::\n\n## O1 After\n"],
+    ["a footnote-marker lookalike over an indented underline", "## F4 Before\n\n::: {.callout-caution}\n\n[^n]: F4 Core\n    -----\n\n:::\n\n## F4 After\n"],
+  ])("a title the model reads inside a list column is still lifted: %s", (_label, doc) => {
+    expect(texts(doc)).toEqual([doc.split("\n")[0].slice(3), doc.split("\n").filter((l) => l.startsWith("## ")).pop()!.slice(3)]);
+  });
+  // The LIST half of the filed item. A setext title that starts on a BULLET marker line (or an ordered one whose
+  // underline sits at the item's content column) is a heading INSIDE the list item: pandoc tries a bullet list before
+  // a header, so the callout's first block is a list and nothing is lifted. The model already decides this when it
+  // computes the title text (a bullet marker is stripped, an ordered lookalike over a column-0 underline is kept), so
+  // "a list marker was stripped" is the model's own reading of a list-item heading. The twins in a plain div were right
+  // at HEAD; only the callout rule deleted them (`scratchpad/s291/lists/l083`, `l084`, `l087`, `l089`).
+  it.each([
+    ["a bullet title over an `=` underline at the content column", "## L83 Before\n\n::: {.callout-note}\n\n- L83 In\n  ======\n\n:::\n\n## L83 After\n", "L83 In"],
+    ["a bullet title over a `-` underline at the content column", "## L84 Before\n\n::: {.callout-note}\n\n- L84 In\n  ------\n\n:::\n\n## L84 After\n", "L84 In"],
+    ["a bullet title over a column-0 underline (the lazy spelling)", "## C08 Before\n\n::: {.callout-note}\n\n- C08 In\n---\n\n:::\n\n## C08 After\n", "C08 In"],
+    ["an ordered title over an underline at the content column", "## L87 Before\n\n::: {.callout-note}\n\n1. L87 In\n   =====\n\n:::\n\n## L87 After\n", "L87 In"],
+    ["an ordered `1)` title over an underline at the content column", "## L89 Before\n\n::: {.callout-note}\n\n1) L89 In\n   =====\n\n:::\n\n## L89 After\n", "L89 In"],
+  ])("a setext heading inside a list item that opens a callout is a real heading: %s", (_label, doc, inner) => {
+    const lines = doc.split("\n").filter((l) => l.startsWith("## "));
+    expect(texts(doc)).toEqual([lines[0].slice(3), inner, lines[1].slice(3)]);
+  });
+  // An EMPTY block quote is still a block quote, and so still the callout's first block: a bare `>` line (marker, no
+  // content) is not a blank line to the div. The heading after it is then not the first block and renders
+  // (`scratchpad/s291/n2/e1`..`e5`, `g2`). A bare marker at the opener's OWN depth is a plain blank and changes nothing
+  // (`n2/g1`, a guard measured right before this change).
+  it.each([
+    ["a bare `>` then a blank line", "## E1 Before\n\n::: {.callout-note}\n>\n\n## E1 Inside\n\n:::\n\n## E1 After\n", "E1 Inside"],
+    ["a bare `>` then the heading on the next line", "## E2 Before\n\n::: {.callout-tip}\n>\n## E2 Zinc\n:::\n\n## E2 After\n", "E2 Zinc"],
+    ["a bare `> ` with a trailing space", "## E3 Before\n\n::: {.callout-note}\n> \n\n## E3 Inside\n\n:::\n\n## E3 After\n", "E3 Inside"],
+    ["two bare markers", "## E4 Before\n\n::: {.callout-note}\n>\n>\n\n## E4 Inside\n\n:::\n\n## E4 After\n", "E4 Inside"],
+    ["a blank line, then a bare marker", "## E5 Before\n\n::: {.callout-note}\n\n>\n\n## E5 Inside\n\n:::\n\n## E5 After\n", "E5 Inside"],
+    ["a deeper empty quote inside a quoted callout", "## G2 Before\n\n> ::: {.callout-note}\n> >\n> ## G2 Out\n> :::\n\n## G2 After\n", "G2 Out"],
+  ])("an empty block quote is the callout's first block, so the heading after it is real: %s", (_label, doc, inner) => {
+    const lines = doc.split("\n").filter((l) => l.startsWith("## "));
+    expect(texts(doc)).toEqual([lines[0].slice(3), inner, lines[lines.length - 1].slice(3)]);
+  });
+  it("GUARD: a bare marker at the opener's own depth is a blank line, and the title after it is still lifted", () => {
+    expect(texts("## G1 Before\n\n> ::: {.callout-note}\n>\n> ## G1 Title\n>\n> :::\n\n## G1 After\n")).toEqual([
+      "G1 Before",
+      "G1 After",
+    ]);
+  });
+  // RESIDUALS, pinned so a future change flips them on purpose. Every row is a rendered document (`scratchpad/s291/`),
+  // `quarto` is what `quarto render` emitted, and each is filed in `BACKLOG.md`.
+  //  - DELETING, reader-dependent: under `from: commonmark_x` an unmarked line after a quoted opener is NOT a lazy line of
+  //    the quote, so it is outside the div and renders; under the default reader it is lifted (the `a02` row above).
+  //  - DELETING, div lifetime: a marked blank line with FEWER `>` markers than the opener's quote ends the quote and the div
+  //    with it, so a heading after it renders; this model keeps the div open.
+  it.each([
+    [
+      "commonmark_x: an unmarked heading under a quoted opener is outside the div",
+      "---\nfrom: commonmark_x\n---\n\n## CX Before\n\n> ::: {.callout-note}\n## CX Title\n:::\n\n## CX After\n",
+      ["CX Before", "CX Title", "CX After"],
+    ],
+    [
+      "a bare `>` of fewer markers ends the deeper quote and its div",
+      "## E1 Before\n\n> > ::: {.callout-note}\n>\n> ## E1 Out\n>\n> > :::\n\n## E1 After\n",
+      ["E1 Before", "E1 Out", "E1 After"],
+    ],
+  ] as [string, string, string[]][])("RESIDUAL (deleting), kept on purpose: %s", (_label, doc, quarto) => {
+    const got = texts(doc);
+    expect(got).toEqual([quarto[0], quarto[quarto.length - 1]]);
+    expect(quarto.every((heading) => got.includes(heading))).toBe(false);
+  });
+  //  - PHANTOM, un-masked: the old rule hid these by suppressing every first-line heading. The plain-div twin is wrong at
+  //    HEAD too, so the defect is not the callout rule's: `Dr.` is read as a list marker (the filed initial-as-marker
+  //    items), and a callout inside a REMOVED conditional block is one more block the model has no target format to drop.
+  it.each([
+    [
+      "`Dr.` read as a list marker over an indented `---`",
+      "---\ntitle: \"Callout\"\n---\n\n::: {.callout-note}\n\nDr. Watson noted the discrepancy.\n    ---\n\nRest of note.\n:::\n\nAfter.\n",
+      ["Watson noted the discrepancy."],
+    ],
+    [
+      "a quote-first callout inside a conditional block REMOVED under html",
+      "## X Before\n\n::: {.content-visible when-format=\"pdf\"}\n::: {.callout-note}\n> ## X Inside\n:::\n:::\n\n## X After\n",
+      ["X Before", "X Inside", "X After"],
+    ],
+  ] as [string, string, string[]][])("RESIDUAL (phantom), un-masked and kept: %s", (_label, doc, got) => {
+    expect(texts(doc)).toEqual(got);
+  });
 });
