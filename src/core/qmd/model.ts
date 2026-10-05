@@ -7470,7 +7470,13 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     firstContentLine: number | null;
     isTabset: boolean;
     tabLevel: number | null;
+    // ⚠ **HOW MANY `>` MARKERS THE OPENER LINE CARRIED (Session 291)** — `inQuote` alone cannot tell a
+    // heading in the quote that HOLDS the div from one in a quote NESTED inside it.
+    quoteDepth: number;
   }[] = [];
+  // The `>` marker count of every line scanned so far, by line number: a setext heading is judged at its
+  // UNDERLINE, which may be a lazy unmarked line, while its title line is the one that sits in the quote.
+  const lineQuoteDepth: number[] = [];
   // Whether a mid-document YAML metadata block is open at this line — the same block state,
   // for the `...` terminator. See `YAML_BLOCK_OPENER`.
   let metadataBlockOpen = false;
@@ -7642,6 +7648,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     const quoteDepth: number = stripQuote
       ? raw.slice(0, quoteContentStart as number).split(">").length - 1
       : 0;
+    // ⚠ **-1 IS A LAZY LINE: no `>` on it, inside a quote that is still open.** Pandoc parses it inside the quote above,
+    // at a depth this scan does not track, so a depth comparison cannot decide and `inQuote` alone stands.
+    lineQuoteDepth[i] = stripQuote ? quoteDepth : inQuote ? -1 : 0;
     // ⚠ **A CALLOUT'S FIRST-BLOCK HEADING IS ITS TITLE BAR, NOT A HEADING (Session 257).**
     // Quarto's callout filter lifts it out of the body entirely: no `<hN>`, no `<section>`,
     // and no `sec-` anchor — an `@sec-` reference to one renders as the unresolved
@@ -7674,11 +7683,22 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
      * tabset rule below has read the same flag since Session 258; this one had not, and hid a
      * heading quarto renders under six of the nine measured readers.
      */
-    const calloutTitleTakes = (startLine: number): boolean =>
-      fencedDivsDialect &&
-      divColumns.length > 0 &&
-      divColumns[divColumns.length - 1].calloutTitleSlot &&
-      divColumns[divColumns.length - 1].firstContentLine === startLine;
+    const calloutTitleTakes = (startLine: number): boolean => {
+      const div = divColumns.length > 0 ? divColumns[divColumns.length - 1] : null;
+      return (
+        fencedDivsDialect &&
+        div !== null &&
+        div.calloutTitleSlot &&
+        div.firstContentLine === startLine &&
+        // ⚠ **A DIRECT CHILD OF THE DIV, NOT A HEADING INSIDE A CONTAINER THAT OPENS IT (Session 291).**
+        // Quarto lifts the div's first block only if that block IS a `Header`; a block quote is a
+        // container, so `> ## Inside` as the first block lifts nothing and renders a real `<h2>`.
+        // The tabset rule below already makes this comparison.
+        div.inQuote === inQuote &&
+        (lineQuoteDepth[startLine] === -1 || div.quoteDepth === (lineQuoteDepth[startLine] ?? 0)) &&
+        contentColumns.length === div.containerDepth
+      );
+    };
     /**
      * Whether a heading of `level` is a TAB LABEL of the innermost `.panel-tabset` — and, when
      * it is the first one this div has seen, RECORDS the tab level on the way past.
@@ -9470,6 +9490,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           firstContentLine: null,
           isTabset: divPanelTabset(divFence!.attrs, divFence!.tail, { commonmarkDialect, pandocEscapes }),
           tabLevel: null,
+          quoteDepth,
         });
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS

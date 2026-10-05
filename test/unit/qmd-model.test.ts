@@ -21151,3 +21151,36 @@ describe("Session 290 — a conditional class written before a callout/tabset cl
     expect(texts(doc)).toEqual(["Before", "Inside Two", "After"]);
   });
 });
+
+describe("Session 291 — a callout's title is its first block only when that block IS the heading, not a container holding it", () => {
+  const texts = (doc: string): string[] => findHeadings(doc).map((h) => h.text);
+  // Quarto lifts a callout's first block into the title bar only if that block is a `Header`. A block quote is a
+  // container: its heading is the quote's child, so nothing is lifted and quarto renders a real `<h2>`. The plain-div
+  // twin of this document was already right at HEAD (`scratchpad/s291/t/c06`), so the callout rule is the cause.
+  it("a heading inside a block quote that opens a callout is a real heading", () => {
+    expect(texts("## G02 Before\n\n::: {.callout-note}\n\n> ## G02 Inside\n\n:::\n\n## G02 After\n")).toEqual([
+      "G02 Before",
+      "G02 Inside",
+      "G02 After",
+    ]);
+  });
+  // A quote NESTED inside a quote that holds the callout is still a container between the div and the heading. The
+  // div entry knew only "inside a quote", so the first cut still lost this one (`scratchpad/s291/n1/a01`, rendered).
+  it("a heading inside a block quote nested in a quote that holds the callout is a real heading", () => {
+    expect(texts("## A01 Before\n\n> ::: {.callout-note}\n>\n> > ## A01 Inside\n>\n> :::\n\n## A01 After\n")).toEqual([
+      "A01 Before",
+      "A01 Inside",
+      "A01 After",
+    ]);
+  });
+  // The depth comparison must not turn a LEGITIMATE title into a heading. A line with no `>` directly under a quoted
+  // opener is a lazy line of the same quote, so pandoc parses it inside the div and the callout lifts it
+  // (`scratchpad/s291/n1/a02`, rendered: quarto lists only Before and After). Its own `>` count is 0, which is not
+  // the opener's 1, so a bare equality reported the lifted title as a phantom heading.
+  it("a lazy unmarked heading under a quoted callout opener is still the callout's title", () => {
+    expect(texts("## A02 Before\n\n> ::: {.callout-note}\n## A02 Inside\n\n:::\n\n## A02 After\n")).toEqual([
+      "A02 Before",
+      "A02 After",
+    ]);
+  });
+});
