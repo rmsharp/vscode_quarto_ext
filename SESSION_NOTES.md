@@ -8,10 +8,16 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 290 closed out (a conditional class written before a callout/tabset class takes the div dispatch; fix `5ca18838`).**
+**Task:** **Session 291 (IN PROGRESS, claimed 2026-10-05): a heading inside a block quote or list item that opens a callout is suppressed by the Outline (deletion).**
 `BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: callout heading in a quote/list, R6 residuals (e)-(g), the empty `---` pair, S290's regex-route residuals; the removal-phantom position awaits the operator.
+**#1 NEXT:** finish the claimed item. Still open after it: R6 residuals (e)-(g), the empty `---` pair, S290's regex-route residuals; the removal-phantom position awaits the operator.
 **⚠ Gotchas:** (1) never `git add -A`; `scratchpad/s290/corpus` holds COPIES of personal corpus documents. (2) `cmp2.cjs` hides deletes-MORE; use `xbuild.cjs`. (3) parallel Bash `cd` races: use absolute paths.
+### What Session 291 Did
+**Deliverable:** fix the callout-title deletion for a heading nested in a block quote or list item (IN PROGRESS)
+**Started:** 2026-10-05
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest.
+
 ## Session 289 Handoff Evaluation (by Session 290)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt's `whats_next` named my item first and
