@@ -21002,3 +21002,152 @@ describe("Session 289 — an unclosed HTML comment opener is paragraph text", ()
     },
   );
 });
+
+// ═══ Session 290 — a div goes to the FIRST class that has a registered handler, and that is not always the callout ═══
+// Quarto registers a div handler for the callout family, `.panel-tabset`, and `.content-visible` / `.content-hidden`, and
+// dispatches a div to whichever of those classes is written FIRST. Rendered (quarto 1.7.33, `--to html`, `--no-execute`
+// and executed, 687 + 381 + 271 + 261 probes in `scratchpad/s290/{registry,spell,nest,cond}`, and the 45 rows in
+// `scratchpad/s290/t` this file's expected lists were read from; the modes agreed on every probe): a conditional written
+// first means the callout / tabset NEVER fires, so every heading inside is a real heading (or, where the condition removes
+// the block, none is). Before this session the model compared callout-vs-tabset only, and deleted the callout's first
+// heading and every tab-level heading of a conditional-first div.
+describe("Session 290 — a conditional class written before a callout/tabset class takes the dispatch", () => {
+  const frame = (opener: string, body = "## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n"): string =>
+    `## Before\n\n${opener}\n\n${body}\n:::\n\n## After\n`;
+  const texts = (doc: string): string[] => findHeadings(doc).map((h) => h.text);
+  it("a callout written after `.content-visible` is not a callout: its first heading is a real heading", () => {
+    expect(texts(frame('::: {.content-visible when-format="html" .callout-note}'))).toEqual([
+      "Before",
+      "Inside One",
+      "Inside Two",
+      "After",
+    ]);
+  });
+  it("a tabset written after `.content-visible` is not a tabset: no tab is consumed, every heading is real", () => {
+    expect(texts(frame('::: {.content-visible when-format="html" .panel-tabset}'))).toEqual([
+      "Before",
+      "Inside One",
+      "Inside Two",
+      "After",
+    ]);
+  });
+  // The structured reader declines a CommonMark-family document, so these rows reach the regex fallback
+  // (`legacyDivCalloutTitleSlot` / `legacyDivPanelTabset`), which has to make the same decision.
+  it("under commonmark_x (the regex fallback) a callout written after `.content-visible` is not a callout", () => {
+    expect(texts(`---\nfrom: commonmark_x\n---\n\n${frame('::: {.content-visible when-format="html" .callout-note}')}`)).toEqual([
+      "Before",
+      "Inside One",
+      "Inside Two",
+      "After",
+    ]);
+  });
+  it("under commonmark_x (the regex fallback) a tabset written after `.content-visible` is not a tabset", () => {
+    expect(texts(`---\nfrom: commonmark_x\n---\n\n${frame('::: {.content-visible when-format="html" .panel-tabset}')}`)).toEqual([
+      "Before",
+      "Inside One",
+      "Inside Two",
+      "After",
+    ]);
+  });
+
+  // THE FIX ROWS. Every document is the exact bytes rendered through quarto (`scratchpad/s290/t`, `--to html`), every
+  // expected list is what quarto emitted, and every one of these LOST a heading at HEAD (RED before the src edit).
+  it.each([
+    ["`.content-visible when-format=\"html\"` before a callout", "## Before\n\n::: {.content-visible when-format=\"html\" .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["a bare `.content-visible` before a callout", "## Before\n\n::: {.content-visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["`.content-hidden when-format=\"pdf\"` (kept under html) before a callout", "## Before\n\n::: {.content-hidden when-format=\"pdf\" .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["`.content-visible when-format=\"html\"` before a tabset", "## Before\n\n::: {.content-visible when-format=\"html\" .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["`.content-hidden when-format=\"pdf\"` (kept under html) before a tabset", "## Before\n\n::: {.content-hidden when-format=\"pdf\" .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["a bare `.content-visible` before a tabset", "## Before\n\n::: {.content-visible .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["before `.callout-tip`", "## Before\n\n::: {.content-visible .callout-tip}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["before the bare `.callout` class", "## Before\n\n::: {.content-visible .callout}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["an unregistered class, then the conditional, then the callout", "## Before\n\n::: {.foo .content-visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["an `#id`, then the conditional, then the callout", "## Before\n\n::: {#blk .content-visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["`class=\"content-visible callout-note\"`, expanded in place", "## Before\n\n::: {class=\"content-visible callout-note\"}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["`class=\"content-visible panel-tabset\"`, expanded in place", "## Before\n\n::: {class=\"content-visible panel-tabset\"}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["both conditionals, then the callout", "## Before\n\n::: {.content-hidden .content-visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["under an explicit `from: markdown`", "---\nfrom: markdown\n---\n\n## Before\n\n::: {.content-visible when-format=\"html\" .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["an opener quarto's `key= value` fix-up routes to the regex reader", "## Before\n\n::: {.content-visible .callout-note data-x= y}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["a conditional-first div nested INSIDE a callout", "## Before\n\n::: {.callout-note}\n\n## Inside One\n\nalpha.\n\n::: {.content-visible .callout-note}\n## Nested One\n\nx.\n\n## Nested Two\n\ny.\n:::\n\n:::\n\n## After\n", ["Before", "Nested One", "Nested Two", "After"]],
+    ["legacy reader: conditional, tabset, then callout", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {.content-visible .panel-tabset .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["legacy reader: an unregistered class, the conditional, then the callout", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {.foo .content-visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["regex-routed opener (`key= value`): conditional first, before a callout", "## Before\n\n::: {.content-visible .callout-note data-x= y}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["legacy reader: `.content-hidden when-format=\"pdf\"` (kept under html) before a callout", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {.content-hidden when-format=\"pdf\" .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["legacy reader: a quoted value holding ` .panel-tabset ` is not a tabset class, so the conditional-first callout stays a non-callout (HEAD lost one heading, the first cut of this change lost two)", "---\ntitle: \"Probe\"\nformat:\n  html:\n    from: commonmark_x\n---\n\n## Before\n\n::: {data-x=\"a .panel-tabset b\" .content-visible when-format=\"html\" .callout-note}\n## Head\n\nbody\n\n## Second\n:::\n\n## After\n", ["Before", "Head", "Second", "After"]],
+    ["legacy reader: a plain div whose quoted value holds ` .panel-tabset ` is not a tabset", "---\ntitle: \"Probe\"\nfrom: commonmark_x\n---\n\n## Before\n\n::: {data-x=\"a .panel-tabset b\"}\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["regex-routed opener (`y= z`): a quoted `title` value holding ` .panel-tabset ` is not a tabset", "---\ntitle: \"T37\"\nformat: html\n---\n\n## Before\n\n::: {.foo title=\"a .panel-tabset b\" y= z}\n## In One\n\na\n\n## In Two\n\nb\n:::\n\n## After\n", ["Before", "In One", "In Two", "After"]],
+  ] as [string, string, string[]][])("a conditional first, so the Outline matches quarto: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
+  });
+  // GUARDS — measured GREEN at HEAD before any src edit. The rule is "the first class that NAMES a handler", so a class
+  // that merely LOOKS like one (wrong case, a suffix, a prefix, inside a quoted value, fused to its neighbour by a dot)
+  // must not take the dispatch, and a callout / tabset written first must still win over a later conditional.
+  it.each([
+    ["an explicit callout `title=` (the heading is real either way)", "## Before\n\n::: {.content-visible when-format=\"html\" .callout-note title=\"T\"}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["callout, conditional, then tabset: the callout is first", "## Before\n\n::: {.callout-note .content-visible .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["tabset, conditional, then callout: the tabset is first", "## Before\n\n::: {.panel-tabset .content-visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["callout first, then `.content-visible when-format=\"html\"`", "## Before\n\n::: {.callout-note .content-visible when-format=\"html\"}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["tabset first, then `.content-visible when-format=\"html\"`", "## Before\n\n::: {.panel-tabset .content-visible when-format=\"html\"}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["callout first, then a conditional that would REMOVE it: still a callout", "## Before\n\n::: {.callout-note .content-visible when-format=\"pdf\"}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["`.Content-Visible` is case-sensitive: no handler", "## Before\n\n::: {.Content-Visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["`.content-visible-x` names no handler", "## Before\n\n::: {.content-visible-x .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["`.xcontent-visible` names no handler", "## Before\n\n::: {.xcontent-visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["`.content-visibles` names no handler", "## Before\n\n::: {.content-visibles .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["`.content_visible` names no handler", "## Before\n\n::: {.content_visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["`.content-visible` inside a quoted VALUE is not a class", "## Before\n\n::: {data-x=\".content-visible\" .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["`.content-visible` inside a quoted `title=` VALUE before a tabset", "## Before\n\n::: {title=\".content-visible\" .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["`.content-visible.callout-note` is ONE class and neither", "## Before\n\n::: {.content-visible.callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["a quoted value holding `.content-visible` after the callout", "## Before\n\n::: {.callout-note data-x=\"a .content-visible b\"}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["a plain callout", "## Before\n\n::: {.callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["a plain tabset", "## Before\n\n::: {.panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["an unregistered class before a callout does not preempt it", "## Before\n\n::: {.foo .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["an outer kept conditional wrapping a plain callout", "## Before\n\n::: {.content-visible when-format=\"html\"}\n\n::: {.callout-note}\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n:::\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["an outer kept conditional wrapping a plain tabset", "## Before\n\n::: {.content-visible when-format=\"html\"}\n\n::: {.panel-tabset}\n## Tab One\n\nalpha.\n\n## Tab Two\n\nbravo.\n:::\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["under `from: markdown_strict` (no fenced divs, so no div at all)", "---\nfrom: markdown_strict\n---\n\n## Before\n\n::: {.content-visible when-format=\"html\" .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["under `from: gfm` (no fenced divs, so no div at all)", "---\nfrom: gfm\n---\n\n## Before\n\n::: {.content-visible when-format=\"html\" .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["an opener quarto refuses (a shortcode in a quoted value)", "---\nt: Fox\n---\n\n## Before\n\n::: {.content-visible .callout-note data-x=\"{{< meta t >}}\"}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside One", "Inside Two", "After"]],
+    ["legacy reader: `.content-visible` inside a quoted value before a callout", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {data-x=\"a .content-visible b\" .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["legacy reader: `.content-visible` inside a quoted value before a tabset", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {data-x=\"a .content-visible b\" .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["regex-routed opener: a quoted value holding ` = .content-visible` before a callout", "## Before\n\n::: {data-x=\"a = .content-visible b\" .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["regex-routed opener: a quoted value holding ` = .content-visible` before a tabset", "## Before\n\n::: {data-x=\"a = .content-visible b\" .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["legacy reader: tabset, callout, then conditional: the tabset is first", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {.panel-tabset .callout-note .content-visible}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["legacy reader: callout, tabset, then conditional: the callout is first", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {.callout-note .panel-tabset .content-visible}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["legacy reader: callout, conditional, then tabset: the callout is first", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {.callout-note .content-visible .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["legacy reader: `.Content-Visible` is case-sensitive", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {.Content-Visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["legacy reader: `.content-visible-x` names no handler", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {.content-visible-x .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["legacy reader: a tabset, then a quoted value holding `.content-visible`", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {.panel-tabset data-x=\"a .content-visible b\"}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["regex-routed opener: callout first, then a conditional that would remove it", "## Before\n\n::: {.callout-note .content-visible when-format=\"pdf\" data-x= y}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["legacy reader: `.content-visible` FUSED to an unquoted value is not a class (callout)", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {data-x=a.content-visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["legacy reader: `.content-visible` fused to an unquoted value is not a class (tabset)", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {data-x=a.content-visible .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["regex-routed opener: `.content-visible` fused to an unquoted value (callout)", "## Before\n\n::: {data-x=a.content-visible .callout-note k= v}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+    ["regex-routed opener: `.content-visible` fused to an unquoted value (tabset)", "## Before\n\n::: {data-x=a.content-visible .panel-tabset k= v}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["legacy reader: `.content-visible` fused to an `#id` is not a class", "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {#a.content-visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "Inside Two", "After"]],
+  ] as [string, string, string[]][])("GUARD, unchanged: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
+  });
+  // RESIDUALS — the phantom direction, DISCLOSED and not fixed (filed with the format-gated-div item in `BACKLOG.md`).
+  // Where the condition REMOVES the block, quarto renders none of its headings; this model has no target format and
+  // cannot say whether the block survives, so it keeps every heading (the safe direction: nothing is ever lost).
+  // ⚠ The two tabset rows were RIGHT at HEAD, and only by accident: suppressing every tab heading coincides with a
+  // removal that drops them all. They are phantoms now, like every other conditional block the model already lists.
+  it.each([
+    ["`.content-visible when-format=\"pdf\"` before a callout (REMOVED under html)", "## Before\n\n::: {.content-visible when-format=\"pdf\" .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["a bare `.content-hidden` before a callout (REMOVED in every format)", "## Before\n\n::: {.content-hidden .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["`.content-visible when-format=\"pdf\"` before a tabset (REMOVED under html)", "## Before\n\n::: {.content-visible when-format=\"pdf\" .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+    ["a bare `.content-hidden` before a tabset (REMOVED in every format)", "## Before\n\n::: {.content-hidden .panel-tabset}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n", ["Before", "After"]],
+  ] as [string, string, string[]][])("RESIDUAL (phantom), kept on purpose: %s", (_label, doc, quarto) => {
+    const got = texts(doc);
+    expect(got).toEqual(["Before", "Inside One", "Inside Two", "After"]);
+    expect(quarto.every((heading) => got.includes(heading))).toBe(true);
+  });
+  // KNOWN DELETING RESIDUAL, pinned so a future change flips it on purpose. Under `from: commonmark_x` quarto reads the
+  // FUSED `.x.content-visible` as TWO classes (under the markdown reader it is ONE class named `x.content-visible`, which
+  // the structured reader already gets right), so the conditional is first and every heading is real; the regex reader
+  // needs a whitespace or `{` before the dot, so it still reads the callout. commonmark_x only, and no authored document
+  // fuses a class: filed in `BACKLOG.md`.
+  it("RESIDUAL (deleting, commonmark_x only): a conditional FUSED to an earlier class by a dot still loses the first heading", () => {
+    const doc = "---\nfrom: commonmark_x\n---\n\n## Before\n\n::: {.x.content-visible .callout-note}\n\n## Inside One\n\nalpha.\n\n## Inside Two\n\nbravo.\n\n:::\n\n## After\n";
+    // quarto renders ["Before", "Inside One", "Inside Two", "After"]; this model lists one fewer.
+    expect(texts(doc)).toEqual(["Before", "Inside Two", "After"]);
+  });
+});

@@ -4157,10 +4157,14 @@ function legacyDivCalloutTitleSlot(attrs: string, commonmarkDialect: boolean): b
   // could not do if the callout rule had already claimed the first one. This is the narrowest
   // possible narrowing of Session 257's predicate: it can only fire on a div naming BOTH, so no
   // ordinary callout is reachable by it.
+  // ⚠ **AND A CONDITIONAL CLASS TAKES THE DISPATCH TOO (Session 290).** `.content-visible` / `.content-hidden` is the
+  // third registered handler, so written before the callout it means no callout fires at all.
   const tabsetFirst = /(?:^|[\s{])\.panel-tabset(?![\w-])/.exec(spec);
-  if (tabsetFirst !== null) {
+  const conditionalFirst = conditionalClassIndex(spec);
+  const preempting = [tabsetFirst?.index ?? -1, conditionalFirst].filter((at) => at >= 0);
+  if (preempting.length > 0) {
     const callout = calloutClassIndex(spec);
-    if (callout < 0 || callout > tabsetFirst.index) {
+    if (callout < 0 || callout > Math.min(...preempting)) {
       return false;
     }
   }
@@ -4215,7 +4219,11 @@ function legacyDivPanelTabset(attrs: string): boolean {
   if (!/^\{[^}]*\}$/.test(attrs)) {
     return false;
   }
-  const tabset = /(?:^|[\s{])\.panel-tabset(?![\w-])/.exec(attrs);
+  // ⚠ **EVERY CLASS IS READ FROM THE QUOTE-MASKED SPEC (Session 290).** The boundary in front only keeps `title=".panel-tabset"`
+  // out; a whitespace-delimited token INSIDE a quoted value (`data-x="a .panel-tabset b"`) passes it, and a plain div read as
+  // a tabset loses every tab-level heading quarto renders. The callout reader has masked since Session 259 (`j1`); this one had not.
+  const spec = maskQuotedValues(attrs);
+  const tabset = /(?:^|[\s{])\.panel-tabset(?![\w-])/.exec(spec);
   if (tabset === null) {
     return false;
   }
@@ -4226,7 +4234,12 @@ function legacyDivPanelTabset(attrs: string): boolean {
   // .callout-note}` is a TABSET and emits neither (`fix/c3`). The first cut of this predicate
   // read `.panel-tabset` wherever it stood and DELETED two headings out of a real callout —
   // found by this session's adversarial pass, not by any test written for the rule.
-  const callout = calloutClassIndex(attrs);
+  const callout = calloutClassIndex(spec);
+  // ⚠ **A CONDITIONAL WRITTEN FIRST TAKES THE DISPATCH, AND THEN THERE IS NO TABSET (Session 290).**
+  const conditional = conditionalClassIndex(spec);
+  if (conditional >= 0 && conditional < tabset.index) {
+    return false;
+  }
   return callout < 0 || callout > tabset.index;
 }
 /**
@@ -4274,11 +4287,31 @@ function divSpecReading(tail: string, reader: AttributeBlockReader): DivSpecRead
   }
   return { classes: verdict.attr.classes, firstTitleRaw: title?.raw };
 }
-/** The index of the first class that names a real callout, or -1 (exact tokens, case-sensitive). */
-function calloutClassPosition(classes: readonly string[]): number {
-  return classes.findIndex(
-    (c) => c === "callout" || (c.startsWith("callout-") && CALLOUT_TYPES.has(c.slice(8))),
-  );
+/**
+ * The div handlers quarto registers, which is every class that can decide a div's dispatch (Session 290). The
+ * callout family and `.panel-tabset` consume a heading; `.content-visible` / `.content-hidden` (one family) consume
+ * none, but they WIN a dispatch they come first in, and then the callout / tabset never fires.
+ */
+type DivHandler = "callout" | "tabset" | "conditional";
+/** Which handler an exact, case-sensitive class token names, or null (`.callout-bogus`, `.Content-Visible` name none). */
+function divHandlerOf(cls: string): DivHandler | null {
+  if (cls === "callout" || (cls.startsWith("callout-") && CALLOUT_TYPES.has(cls.slice(8)))) {
+    return "callout";
+  }
+  if (cls === "panel-tabset") {
+    return "tabset";
+  }
+  return cls === "content-visible" || cls === "content-hidden" ? "conditional" : null;
+}
+/** The handler quarto dispatches the div to: the FIRST class, in source order, that names one. */
+function firstDivHandler(classes: readonly string[]): DivHandler | null {
+  for (const cls of classes) {
+    const handler = divHandlerOf(cls);
+    if (handler !== null) {
+      return handler;
+    }
+  }
+  return null;
 }
 function divCalloutTitleSlot(attrs: string, tail: string, reader: AttributeBlockReader): boolean {
   const reading = divSpecReading(tail, reader);
@@ -4290,18 +4323,14 @@ function divCalloutTitleSlot(attrs: string, tail: string, reader: AttributeBlock
   if (reading.firstTitleRaw !== undefined && reading.firstTitleRaw !== "") {
     return false;
   }
-  const callout = calloutClassPosition(reading.classes);
-  const tabset = reading.classes.indexOf("panel-tabset");
-  return callout >= 0 && (tabset < 0 || callout < tabset);
+  return firstDivHandler(reading.classes) === "callout";
 }
 function divPanelTabset(attrs: string, tail: string, reader: AttributeBlockReader): boolean {
   const reading = divSpecReading(tail, reader);
   if (reading === null) {
     return legacyDivPanelTabset(attrs);
   }
-  const tabset = reading.classes.indexOf("panel-tabset");
-  const callout = calloutClassPosition(reading.classes);
-  return tabset >= 0 && (callout < 0 || callout > tabset);
+  return firstDivHandler(reading.classes) === "tabset";
 }
 /**
  * Whether pandoc REFUSES this opener on its own line, so the line is paragraph text — no div, no callout, no
@@ -4330,6 +4359,16 @@ function divOpenerRefused(
     return false;
   }
   return divOpenerVerdict(tail, reader).kind === "refused";
+}
+/**
+ * Where the first `.content-visible` / `.content-hidden` class begins inside `spec`, or `-1` for none — the regex
+ * reader's counterpart of `divHandlerOf`'s "conditional". ⚠ **PASS A QUOTE-MASKED SPEC**: a class-shaped token inside
+ * an attribute VALUE (`data-x="a .content-visible b"`) is whitespace-delimited on both sides and a boundary test cannot
+ * tell it from a class. The match is case-sensitive and whole-token (`.Content-Visible`, `.content-visible-x`, and
+ * `.content-visibles` name no handler — measured, `scratchpad/s290/spell`).
+ */
+function conditionalClassIndex(spec: string): number {
+  return /(?:^|[\s{])\.content-(?:visible|hidden)(?![\w-])/.exec(spec)?.index ?? -1;
 }
 /**
  * Where the FIRST class naming a real Quarto callout begins inside `attrs`, or `-1` for none.
