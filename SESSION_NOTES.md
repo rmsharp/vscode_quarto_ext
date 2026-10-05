@@ -8,10 +8,16 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 289 closed out (unclosed `<!--` no longer empties the Outline; fix `f4939251`).**
+**Task:** **Session 290 (IN PROGRESS, claimed 2026-10-05): `.content-visible` written BEFORE `.callout-*`/`.panel-tabset` makes quarto keep the heading; the Outline hides it (deletion).**
 `BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
 **#1 NEXT:** operator picks. Open: R6 residuals (e),(f),(g), (b)'s project-config residual, (d)'s disclosed hazards (bare `F`, opts_hooks), asis/cat/block, unclosed-`<!--`, fence-in-list-item.
 **⚠ Gotchas:** (1) never `git add -A`. (2) parallel Bash calls that `cd` race: use absolute paths. (3) macOS `sed -i` needs a suffix arg; mutate with Python. (4) HANDOFFS.md line 23 lost its tail.
+### What Session 290 Did
+**Deliverable:** fix the class-ORDER Outline deletion (IN PROGRESS)
+**Started:** 2026-10-05
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest.
+
 ## Session 288 Handoff Evaluation (by Session 289)
 
 **Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK said `BACKLOG.md` "Active" was
