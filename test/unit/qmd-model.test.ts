@@ -17730,13 +17730,7 @@ describe("Session 258 guard — answers around the panel-tabset rule that must N
     ]);
   });
 
-  it("G21: inside a QUOTE, a stale container column no longer keeps later tabs (CLOSED by Session 292)", () => {
-    // ⚠ **CLOSED BY SESSION 292 AS A BY-CATCH, with the render as the witness.** The second half of the compound below — the
-    // shallower heading after a MARKED blank not popping the column — was the raw-blank read in the container pop
-    // (`prevLineMarkedBlank`), repaired for a div hosted in a quoted list item. The tab now arrives at the depth the tabset
-    // entry expects and is consumed: quarto emits `h2:Marten Before` and `h2:Marten After` only, and so does this model.
-    // The text below is the diagnosis as Session 258 wrote it.
-    //
+  it("G21: DISCLOSED RESIDUAL — inside a QUOTE, a stale container column keeps later tabs", () => {
     // ⚠ **A COMPOUND OF TWO PRE-EXISTING DEFECTS, NEITHER OF THEM THIS RULE'S.** `> a.` is read
     // by this model as an ordered-list marker with empty content (the already-filed
     // letter/roman marker over-acceptance), and inside a quote the shallower heading below it
@@ -17765,7 +17759,7 @@ describe("Session 258 guard — answers around the panel-tabset rule that must N
         "",
         "## Marten After",
       ]),
-    ).toEqual(["h2:Marten Before", "h2:Marten After"]);
+    ).toEqual(["h2:Marten Before", "h2:Marten TabB", "h2:Marten After"]);
   });
 });
 
@@ -21602,20 +21596,14 @@ describe("Session 292 — a fenced div ends with the container that holds it", (
     expect(texts(doc)).toEqual(expected);
   });
   // RESIDUALS, pinned so a future change flips them on purpose. Every row is a document rendered through quarto 1.7.33
-  // (`scratchpad/s292/resid`), `quarto` is its heading list, all four DELETE, all are PRE-EXISTING (HEAD answers identically), and
+  // (`scratchpad/s292/resid`), `quarto` is its heading list, all three DELETE, all are PRE-EXISTING (HEAD answers identically), and
   // each is filed in `BACKLOG.md`.
-  //  - back-to-back callouts after a quoted heading: the lazy-opener depth carry survives the unmarked closer, so the second
-  //    opener sits at depth 1 and its quoted heading reads as a direct child. The plain-div twin is RIGHT, so this one is the callout rule's.
+  //  - (back-to-back callouts after a quoted heading were closed in the same session, as slice 8 below.)
   //  - a quote HOSTED IN A LIST ITEM under a pandoc markdown variant: the ATX heading at the item's content column ends the quote, but
   //    rule 2's indent bound is an ABSOLUTE column, and the heading is at relative column 0.
   //  - markdown_strict, a depth-2 quote, a 2-space-indented unmarked heading: quarto renders it (two-level lazy continuation).
   //  - (the default-reader nested-quote-then-tab-heading shape was closed in the same session, as slice 6b below.)
   it.each([
-    [
-      "back-to-back callouts after a quoted heading",
-      "## B Before\n\n::: {.callout-note}\n> ## B Q1\n:::\n::: {.callout-tip}\n> ## B Q2\n:::\n\n## B After\n",
-      ["B Before", "B Q1", "B Q2", "B After"],
-    ],
     [
       "a quote in a list item, markdown_strict, the heading at the item's content column",
       "---\nfrom: markdown_strict+fenced_divs\n---\n\n# B Before\n\n- ::: {.plain}\n  >\n  ::: {.callout-note}\n  ## B T\n  body\n  :::\n  :::\n\n# B After\n",
@@ -21658,5 +21646,39 @@ describe("Session 292 — a fenced div ends with the container that holds it", (
     ["an unmarked tab heading in the tabset's own quote", "", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T After"]],
   ] as [string, string, string, string[]][])("GUARD: %s", (_label, fm, body, expected) => {
     expect(texts(fm === "" ? body : withFrom(fm, body))).toEqual(expected);
+  });
+  // SLICE 7 — A DIV THAT ENDS EARLY STOPS CLAIMING HEADINGS BUT STAYS ON THE STACK FOR ITS CLOSER. The adversarial lenses found that
+  // popping an entry the moment its container ends moved every LATER closer onto a different div: a closer written for the ended
+  // inner div now popped the OUTER one, or arrived unmatched and became paragraph text that swallowed the next opener. Each document
+  // below is rendered quarto truth (`scratchpad/s292/adv/pairing`, `adv/lists`), is answered RIGHT by HEAD, and was answered wrong by
+  // the first six slices. The stack must evolve exactly as it did at HEAD; only the suppression decision may change.
+  it.each([
+    ["gfm: an inner quote-hosted callout ends at an ATX heading, then two closers and a quoted callout", "---\nfrom: gfm+fenced_divs\n---\n\n## Za0119 Before\n\n::: {.plain}\n\n> > ::: {.callout-note}\n> > ## Za0119 InnerTitle\n> > inner body\n> ## Za0119 End\n:::\n:::\n> ::: {.callout-tip}\n> ## Za0119 Second\n> body two\n> :::\n\n## Za0119 Last\n\n", ["Za0119 Before", "Za0119 End", "Za0119 Last"]],
+    ["markdown_mmd: an inner quoted tabset ends at a marked blank; its closer must not pop the OUTER tabset", "---\nfrom: markdown_mmd+fenced_divs\n---\n\n## Zb2567 Before\n\n::: {.panel-tabset}\n## Zb2567 TabA\n\ntext a\n\n> > ::: {.panel-tabset}\n> > ## Zb2567 InTabA\n> > \n> > tab a text\n> > \n>\n> mid text\n  :::\n\n## Zb2567 AfterInner\n\n> ::: {.callout-note}\n> ## Zb2567 Second\n> body two\n> :::\n\n## Zb2567 Last\n", ["Zb2567 Before"]],
+    ["gfm: a quoted callout around an inner one that ends at a marked blank, then two closers and a quoted callout", "---\nfrom: gfm+fenced_divs\n---\n\n## Za0163 Before\n\n> ::: {.callout-warning}\n> ## Za0163 OuterTitle\n>\n> > ::: {.callout-note}\n> > ## Za0163 InnerTitle\n> > inner body\n>\n> ## Za0163 End\n:::\n:::\n> ::: {.callout-tip}\n> ## Za0163 Second\n> body two\n> :::\n\n## Za0163 Last\n\n", ["Za0163 Before", "Za0163 End", "Za0163 Last"]],
+    ["gfm: a depth-3 inner callout in a tabset ends at a marked blank, then a closer and a quoted callout", "---\nfrom: gfm+fenced_divs\n---\n\n## Za0106 Before\n\n::: {.panel-tabset}\n## Za0106 TabA\n\ntext a\n\n> > > ::: {.callout-note}\n> > > ## Za0106 InnerTitle\n> > > inner body\n>>\n> > ## Za0106 End\n> > :::\n\n## Za0106 AfterInner\n\n> ::: {.callout-note}\n> ## Za0106 Second\n> body two\n> :::\n\n## Za0106 Last\n", ["Za0106 Before", "Za0106 End"]],
+    ["a tab after the list marker inside a compact `>>` run: the model measures the item column differently from pandoc", "## A0103 Before\n\n>>*\t::: {.callout-note}\n>>    text\n>>\n>>    text2\n## A0103 Head\n>>    hbody\n:::\n## A0103 After\n", ["A0103 Before", "A0103 After"]],
+  ] as [string, string, string[]][])("an early-ended div still pairs with its closer: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
+  });
+  // SLICE 8. AN UNMARKED CLOSER ENDS THE LAZY QUOTE, so the quote depth carried through unmarked lines must not outlive it. A
+  // `:::` that closes a div interrupts a lazy continuation (a closer interrupts a paragraph where a div is open), so the next
+  // opener is NOT a lazy line of the quote above it. The carry survived the closer and gave the next MARKED opener the depth of the
+  // quote it was no longer in, so rule 2 then ended it and its title was listed: 27 of the pairing lens's phantoms, each answered
+  // right by HEAD (`scratchpad/s292/adv/pairing`, rendered). It also closes the back-to-back callouts residual of Session 292's
+  // first six slices: the second opener sat at depth 1 and its quoted heading read as a direct child.
+  it("back-to-back callouts after a quoted heading: the second one's quoted heading is a heading too", () => {
+    expect(texts("## B Before\n\n::: {.callout-note}\n> ## B Q1\n:::\n::: {.callout-tip}\n> ## B Q2\n:::\n\n## B After\n")).toEqual([
+      "B Before",
+      "B Q1",
+      "B Q2",
+      "B After",
+    ]);
+  });
+  it.each([
+    ["markdown-blank_before_header: a list-hosted outer div around a quote-hosted inner one, two closers, then a quoted callout", "---\nfrom: markdown-blank_before_header\n---\n\n## Za0216 Before\n\n- ::: {.plain}\n\n  > > ::: {.plain}\n  > > ## Za0216 InPlain\n  ## Za0216 End\n  > > :::\n:::\n> ::: {.callout-tip}\n> ## Za0216 Second\n> body two\n> :::\n\n## Za0216 Last\n\n", ["Za0216 Before", "Za0216 InPlain", "Za0216 End", "Za0216 Last"]],
+    ["markdown-blank_before_header: a list-hosted callout around a quoted tabset, a closer, then a quoted callout", "---\nfrom: markdown-blank_before_header\n---\n\n## Za0374 Before\n\n- ::: {.callout-warning}\n  ## Za0374 OuterTitle\n\n  > > ::: {.panel-tabset}\n  > > ## Za0374 InTabA\n  > > \n  > > tab a text\n  > > \n  > > :::\n:::\n> ::: {.callout-tip}\n> ## Za0374 Second\n> body two\n> :::\n\n## Za0374 Last\n\n", ["Za0374 Before", "Za0374 Last"]],
+  ] as [string, string, string[]][])("a closer ends the lazy quote, so the next opener is not inside it: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
   });
 });

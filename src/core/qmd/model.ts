@@ -7483,17 +7483,46 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // ⚠ **HOW MANY `>` MARKERS THE OPENER LINE CARRIED (Session 291)** — `inQuote` alone cannot tell a
     // heading in the quote that HOLDS the div from one in a quote NESTED inside it.
     quoteDepth: number;
+    // ⚠ **ENDED EARLY, BUT STILL ON THE STACK (Session 292)** — see `endedDiv`. The entry stops claiming headings and keeps its
+    // place, so every closer, container pop and paragraph decision below sees the stack exactly as HEAD did.
+    ended: boolean;
+    // The content column of the list item that actually hosts this div (0 when none), read from the OPENER's own column so a
+    // stale column deeper than the fence cannot be mistaken for its host; and whether that geometry can be trusted (no tab on
+    // the opener line, and a quote marker run that consumed its optional space).
+    hostColumn: number;
+    geometryReliable: boolean;
   }[] = [];
   /**
-   * ⚠ **A DIV OPENED INSIDE A BLOCK QUOTE LIVES IN THAT QUOTE'S CONTENT AND NOWHERE ELSE (Session 292).** When the quote
-   * ends, the div ends with it — pandoc closes it implicitly, so nothing below is inside it and a heading there is a
-   * plain heading. This drops every entry whose opener sat DEEPER in `>` nesting than `depth`. It touches the div stack
-   * only: the quote's own container columns and `inQuote` are not ours to move here (see the unmarked-blank branch for
-   * the one place that does both).
+   * ⚠ **A DIV THAT ENDS EARLY STOPS CLAIMING HEADINGS, BUT STAYS ON THE STACK FOR ITS CLOSER (Session 292).** A div opened inside a
+   * block quote or a list item lives in that container's content, so the container ending ends the div — pandoc closes it
+   * implicitly, and nothing below is inside it. But the document still holds the CLOSER the author wrote for it, and popping
+   * the entry at the moment it ends moved every later closer onto a different div (it popped the OUTER one, or arrived
+   * unmatched and became paragraph text that swallowed the next opener): the adversarial lenses found 60 such phantoms and two
+   * deletions in the first six slices. So an ended entry is only FLAGGED. The stack, the closer match and every other reader
+   * of `divColumns` evolve exactly as they did at HEAD; only the rules that decide whether a heading is a callout title or a tab
+   * ask `liveDiv`, which skips the flagged.
    */
+  const endedDiv = (entry: (typeof divColumns)[number]): void => {
+    entry.ended = true;
+  };
+  const liveDiv = (): (typeof divColumns)[number] | null => {
+    for (let k = divColumns.length - 1; k >= 0; k--) {
+      if (!divColumns[k].ended) {
+        return divColumns[k];
+      }
+    }
+    return null;
+  };
+  /** Ends every live entry whose opener sat DEEPER in `>` nesting than `depth`, innermost first, stopping at the first that did not. */
   const endQuoteDivsDeeperThan = (depth: number): void => {
-    while (divColumns.length > 0 && divColumns[divColumns.length - 1].quoteDepth > depth) {
-      divColumns.pop();
+    for (let k = divColumns.length - 1; k >= 0; k--) {
+      if (divColumns[k].ended) {
+        continue;
+      }
+      if (divColumns[k].quoteDepth <= depth) {
+        break;
+      }
+      endedDiv(divColumns[k]);
     }
   };
   // Whether a mid-document YAML metadata block is open at this line — the same block state,
@@ -7698,8 +7727,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // emits a real `h2:Inside Kilo` (`probes/p11`, and `p12`/`p13` for the other two). Marking
     // any lower would miss exactly those lines, because the scanner `continue`s past them, and
     // the model would DELETE three headings quarto renders.
-    if (divColumns.length > 0) {
-      const innermostDiv = divColumns[divColumns.length - 1];
+    const innermostDiv = liveDiv();
+    if (innermostDiv !== null) {
       // ⚠ **A BARE `>` DEEPER THAN THE OPENER IS AN EMPTY BLOCK QUOTE, WHICH IS A BLOCK (Session 291).** Its
       // content is blank, but it is the div's first block, so a heading after it is not and renders
       // (`scratchpad/s291/n2/e1`..`e5`). At the opener's OWN depth the same line is a plain blank.
@@ -7719,7 +7748,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
      * heading quarto renders under six of the nine measured readers.
      */
     const calloutTitleTakes = (startLine: number, inListItem = false, headingQuoteDepth: number = quoteDepth): boolean => {
-      const div = divColumns.length > 0 ? divColumns[divColumns.length - 1] : null;
+      const div = liveDiv();
       return (
         fencedDivsDialect &&
         !inListItem &&
@@ -7776,7 +7805,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
      * is a kept phantom, the safe direction. Disclosed, and pinned as a guard.
      */
     const tabsetTabTakes = (startLine: number, level: number, headingQuoteDepth: number = quoteDepth): boolean => {
-      const div = divColumns.length > 0 ? divColumns[divColumns.length - 1] : null;
+      const div = liveDiv();
       if (
         div === null ||
         !div.isTabset ||
@@ -8039,7 +8068,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       const deeperColumnsAreAllLists = contentColumns.every(
         (c, idx) => c <= indentWidth || columnKinds[idx] === "list",
       );
-      if (prevLineBlank || prevLineMarkedBlank ||
+      if (prevLineBlank ||
         (deeperColumnsAreAllLists && popsEnclosingContainer(line, commonmarkDialect))) {
         while (contentColumns.length > 0 && contentColumns[contentColumns.length - 1] > indentWidth) {
           contentColumns.pop();
@@ -8059,6 +8088,25 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           divColumns[divColumns.length - 1].containerDepth > contentColumns.length
         ) {
           divColumns.pop();
+        }
+      }
+      // ⚠ **A MARKED BLANK LINE ENDS THE LIST ITEM THAT HOSTS A DIV, FOR THE DIV ONLY (Session 292).** `prevLineBlank` reads the RAW line,
+      // where a bare `>` is text, so inside a quote a dedented line below one never closed the item and the div kept claiming
+      // headings: `> - ::: {.callout-note}` / `>` / `> ## T` renders `T` (`scratchpad/s292/s4rows`, rendered). The column pop above is
+      // deliberately NOT widened: the first cut did that and re-shaped list-column state for the whole model, which deleted a
+      // heading outside any div (`adv/lists/A0103`). Only the entry is ended, and only where its geometry can be trusted — a
+      // TAB expands before pandoc strips a quote marker, and a marker run with no space after it (`>>*`, `> >1.`) leaves the
+      // item column one off from the continuation lines, so there HEAD's answer stands.
+      if (prevLineMarkedBlank && !raw.includes("\t")) {
+        for (let k = divColumns.length - 1; k >= 0; k--) {
+          if (divColumns[k].ended) {
+            continue;
+          }
+          if (divColumns[k].inQuote === inQuote && divColumns[k].geometryReliable && indentWidth < divColumns[k].hostColumn) {
+            endedDiv(divColumns[k]);
+          } else {
+            break;
+          }
         }
       }
       // ⚠ AN OPENER AT CODE DEPTH OPENS NOTHING (Session 196), because it is not an opener at
@@ -9082,7 +9130,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // open): an underline AT that column is relative column 0 and lifts (`scratchpad/s291/n4/a`, `d`).
       const hostColumn = outerColumns !== null && outerColumns.columns.length > 0 ? outerColumns.columns[outerColumns.columns.length - 1] : 0;
       const underlineIndentedLazy =
-        !stripQuote && indentColumn(line) > hostColumn && (divColumns[divColumns.length - 1]?.quoteDepth ?? 0) === 0;
+        !stripQuote && indentColumn(line) > hostColumn && (liveDiv()?.quoteDepth ?? 0) === 0;
       const titleQuoteDepth = underlineIndentedLazy ? blockQuoteMarkerOffsets(prev.text, rawMarkerColumns).length : quoteDepth;
       if (
         heading &&
@@ -9313,12 +9361,15 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // 185,508 documents differ); it is kept so the two pops cannot disagree about which quote a div belongs to.
         if (commonmarkDialect) {
           const columnsStillOpen = contentColumns.filter((c) => c <= indentColumn(line)).length;
-          while (
-            divColumns.length > 0 &&
-            divColumns[divColumns.length - 1].inQuote === inQuote &&
-            divColumns[divColumns.length - 1].containerDepth > columnsStillOpen
-          ) {
-            divColumns.pop();
+          for (let k = divColumns.length - 1; k >= 0; k--) {
+            if (divColumns[k].ended) {
+              continue;
+            }
+            if (divColumns[k].inQuote === inQuote && divColumns[k].containerDepth > columnsStillOpen) {
+              endedDiv(divColumns[k]);
+            } else {
+              break;
+            }
           }
         }
       }
@@ -9600,6 +9651,13 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
               : yamlTerminates && !metadataBlockOpen;
       if (divRole === "close" && divAtColumn && divColumns.length > 0) {
         divColumns.pop();
+        // ⚠ **AN UNMARKED CLOSER ENDS THE LAZY QUOTE (Session 292).** A `:::` that closes a div interrupts a lazy continuation, so the
+        // depth `quoteDepthAbove` carries through unmarked lines must not survive it: the next opener is not a lazy line of the
+        // quote above. Left alone, `::: {.callout-note}` / `> ## Q1` / `:::` / `::: {.callout-tip}` / `> ## Q2` gave the second
+        // opener depth 1, and its quoted heading was read as a direct child (`scratchpad/s291/falsifier/R_back2back_q`, rendered).
+        if (!stripQuote) {
+          lastMarkedQuoteDepth = 0;
+        }
       } else if (divRole === "open" && divAtColumn && !divOpenerInterrupts && !divRefused) {
         divColumns.push({
           column: divFence!.column,
@@ -9608,6 +9666,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           calloutTitleSlot: divCalloutTitleSlot(divFence!.attrs, divFence!.tail, { commonmarkDialect, pandocEscapes }),
           firstContentLine: null,
           firstBlockLine: null,
+          ended: false,
+          hostColumn: contentColumns.filter((c) => c <= divFence!.column).reduce((a, c) => Math.max(a, c), 0),
+          geometryReliable:
+            !raw.includes("\t") && (!stripQuote || /[ \t]$/.test(raw.slice(0, quoteContentStart as number))),
           isTabset: divPanelTabset(divFence!.attrs, divFence!.tail, { commonmarkDialect, pandocEscapes }),
           tabLevel: null,
           // ⚠ **A LAZY OPENER SITS AT THE DEPTH OF THE QUOTE IT CONTINUES (Session 291)** — an unmarked `:::` under a
