@@ -6869,6 +6869,12 @@ interface OpenCellFence extends OpenFence {
    * (`scratchpad/s200/cls`, 72 documents, opener column x closer column).
    */
   readonly columns: readonly number[];
+  /**
+   * The opener line's own leading whitespace, set ONLY for a cell that must close on a
+   * BYTE-IDENTICAL indent (Session 293, see `closesOnOwnIndent`); `null` keeps the unbounded
+   * any-indent closer every other cell has always had.
+   */
+  readonly indent: string | null;
 }
 
 /**
@@ -8259,7 +8265,16 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // covers tabs correctly for free, since one tab already reaches column 4.
     const fenceColumns = paragraphOpen ? [0] : [0, ...contentColumns];
     const plainFence = fenceMatchAt(FENCE_OPEN, line, fenceColumns);
-    const fence = plainFence ?? indentedCellFenceAt(line);
+    // ⚠ **UNDER `engine: markdown` THERE IS NO CELL PARTITION, SO THE UNBOUNDED SECOND LOOK IS SKIPPED
+    // (Session 293).** `indentedCellFenceAt` is quarto's EXECUTABLE-cell grammar. With no executable
+    // engine pandoc reads the whole file, where a line indented 4+ below a blank line is indented CODE and
+    // an opener at 1-3 is an ordinary fence (which `plainFence` above already handles). Rendered over
+    // 128 documents, both modes exit 0 (`scratchpad/s293/mm`): HEAD deleted the heading inside on all 32
+    // indent-4+, blank-above rows. Every other engine hint keeps the look, so no other surface moves.
+    const fence = plainFence ?? (engine === "markdown" ? null : indentedCellFenceAt(line));
+    // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
+    // and the use below; `null` for every other line, so no other path moves.
+    let droppedKernelOpener: "fresh" | "tight" | null = null;
     if (fence && !consumedFenceClosers.has(i)) {
       const char = fence[2];
       // ⚠ **QUARTO'S CELL EXTRACTION IS LINE-ANCHORED TOO, SO A CELL SHAPE INSIDE A QUOTE IS
@@ -8278,6 +8293,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         lang: info ? info[1] : "",
         startLine: i,
         columns: fenceColumns,
+        indent: closesOnOwnIndent(engine, info) ? indentRun(line) : null,
       };
       // A FENCE OPENS ONLY IF IT IS CLOSED BELOW — both kinds, for two different measured
       // reasons that happen to agree (Session 179; Session 178 applied this test to
@@ -8404,13 +8420,28 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         quoteOpen = stripQuote;
         continue;
       }
+      // ⚠ A kernel cell with no closer at its OWN indent is dropped by quarto — the opener line leaves the
+      // document. Whether the line below then starts a fresh block turns on whether a closer-SHAPED line
+      // (same char and run, any indent) lies below, which is measured, not guessed: with one the cell
+      // is emitted as its own markdown chunk (`scratchpad/s293/t2`, `tr/c`, `tr/i`, `tr/j`, `tr/l`); with
+      // none the lines are glued to what is above (`tr/a`, `tr/d`-`tr/g`, `tr/m`, `tr/n`).
+      if (candidate.indent !== null) {
+        droppedKernelOpener = hasCloserBelow(closerIndex, i + 1, { ...candidate, indent: null }) ? "fresh" : "tight";
+      }
       // Otherwise the line is ordinary body — the pre-S178 behaviour, unchanged.
+    }
+
+    // The dropped opener of a cell nothing closes leaves the document, so it changes no paragraph state.
+    if (droppedKernelOpener === "tight") {
+      bodyLines.push({ line: i, text: raw, contentStart: 0 });
+      continue;
     }
 
     // A blank line breaks paragraph continuity — a setext underline cannot
     // follow one (it becomes a thematic break instead, confirmed against the
     // real Quarto CLI). Still recorded as body, matching existing behavior.
-    if (BLANK_LINE.test(line)) {
+    // ⚠ A "fresh" dropped opener is treated as the blank line it stands in for (Session 293).
+    if (BLANK_LINE.test(line) || droppedKernelOpener === "fresh") {
       bodyLines.push({ line: i, text: raw, contentStart: stripQuote ? (quoteContentStart as number) : 0 });
       // ⚠ **A MARKED LINE WHOSE STRIPPED CONTENT IS EMPTY IS BLANK INSIDE THE QUOTE AND A SETEXT
       // TITLE OUTSIDE IT, AND BOTH READINGS ARE REAL (Session 244).** `>` / `---` renders `h2:>`
@@ -10412,6 +10443,38 @@ function indentedCellFenceAt(line: string): RegExpExecArray | null {
   return m !== null && CELL_INFO.test(m[3].trim()) ? m : null;
 }
 
+/** The run of whitespace a line starts with — `\s*`, the same class both cell regexes use. */
+function indentRun(line: string): string {
+  return /^\s*/.exec(line)![0];
+}
+
+/**
+ * Whether a cell opened here may be closed only by a line with a BYTE-IDENTICAL indent
+ * (Session 293).
+ *
+ * ⚠ **TWO QUARTO PARTITIONERS READ THE SAME CELL, AND ONLY THE RENDER ONE IS EXACT.** Quarto's
+ * YAML-option VALIDATION pairs an indented opener with a closer at any indent (Session 178:
+ * a 4-space opener with a 2-space, a column-0 or an 8-space closer all fail a bad `#|` value,
+ * re-measured Session 293), which is why `CELL_FENCE_CLOSE` is unbounded and stays so. Its jupyter
+ * RENDER path pairs a kernel cell only with a closer whose indentation is IDENTICAL to the
+ * opener's: rendered over all 64 opener x closer pairs of `{space x 1,2,3,4,6,8, tab}` with a
+ * paragraph and with a blank line above (128 documents, both modes, exit 0), the cell closes on
+ * the diagonal and on nothing else (`scratchpad/s293/mj`). Any other closer leaves the cell
+ * unclosed, quarto DROPS the opener line, and the rest is ordinary markdown — so the heading
+ * between is a real heading and the stray closer may open a plain fence of its own.
+ *
+ * ⚠ **ONLY THE JUPYTER ENGINE'S KERNEL LANGUAGE, AND ONLY WHERE MEASURED.** The same grid for
+ * `{r}` under knitr aborts the render on all 112 mismatched pairs (exit 1, no oracle), `{ojs}`
+ * and `{mermaid}` pair at any indent (their language handlers use the validation partition), and
+ * `{bash}`, `{sh}`, `{js}`, `{julia}` and `{sql}` are plain pandoc fences that never reach a
+ * kernel (`scratchpad/s293/lg`). `python` is the one language whose rule is established; an
+ * unrecognised engine, `"ambiguous"` and `undefined` keep the any-indent answer, which is the
+ * validation view every non-Outline surface reads (they pass no engine, so they cannot drift).
+ */
+function closesOnOwnIndent(engine: EngineHint, info: RegExpExecArray | null): boolean {
+  return engine === "jupyter" && info !== null && info[1] === "python";
+}
+
 /**
  * True if `line` closes the given open fence (same char, and the right run LENGTH).
  *
@@ -10431,6 +10494,10 @@ function isCloser(line: string, open: OpenCellFence): boolean {
     ? CELL_FENCE_CLOSE.exec(line)
     : fenceMatchAt(FENCE_CLOSE, line, open.columns);
   if (m === null || m[2] !== open.char) {
+    return false;
+  }
+  // ⚠ A kernel cell closes on its OWN indent only (Session 293, `closesOnOwnIndent`).
+  if (open.indent !== null && indentRun(line) !== open.indent) {
     return false;
   }
   return open.isCell ? m[1].length === open.len : m[1].length >= open.len;
@@ -10477,6 +10544,10 @@ function buildCloserIndex(
     const len = m[1].length;
     // A cell closes on an EXACT run length, so it lands in exactly one bucket.
     push(`c|${char}|${len}`, i);
+    // ...and a KERNEL cell also on an exact INDENT (Session 293), so it lands in a second one, keyed by the
+    // closer's own leading whitespace. Two buckets rather than a filter because the lookahead must stay a
+    // binary search (see this function's docstring).
+    push(`ci|${char}|${len}|${indentRun(lines[i])}`, i);
     // A plain fence closes on any run at least as long, so this line is a candidate closer
     // for every shorter opener too. Fence runs are ≥3 and openers longer than this line's
     // run can never be closed by it, so the loop is bounded by the run's own length.
@@ -10656,7 +10727,11 @@ function hasCloserBelow(
   until = Number.MAX_SAFE_INTEGER,
 ): boolean {
   if (open.isCell) {
-    return bucketReaches(index.get(`c|${open.char}|${open.len}`), from, until);
+    const key =
+      open.indent === null
+        ? `c|${open.char}|${open.len}`
+        : `ci|${open.char}|${open.len}|${open.indent}`;
+    return bucketReaches(index.get(key), from, until);
   }
   // A plain closer is accepted at every column that is not code depth for the OPENER's frozen
   // stack — the same predicate `fenceMatchAt` applies to the line itself, asked here of bare

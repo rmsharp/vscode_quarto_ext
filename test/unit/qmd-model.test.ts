@@ -19917,15 +19917,20 @@ describe("GUARD — rows the paragraph-interrupt refusal may not touch (Session 
     ).toEqual(["h2:After"]); // quarto: the tail only — measured, exit 0
   });
 
-  it("the CELL path is untouched: an indented cell opener still opens, divergence and all", () => {
+  it("the CELL path is paragraph-blind, and (Session 293) closes only on its own indent: the divergence this row pinned is CLOSED", () => {
     // ⚠ Only the PLAIN fence match is refused, so the line still falls through to
     // `indentedCellFenceAt` — quarto's own cell partitioner, which is paragraph-blind (S178).
-    // This row asserts a KNOWN DIVERGENCE unchanged, not a correct answer: measured
+    // This row PINNED A KNOWN DIVERGENCE through Session 292: measured
     // (`scratchpad/s277/readers/Cj/j07_jup_cell_c1`, quarto exit 0) quarto renders BOTH headings
-    // and this model reports only the tail, at HEAD and after this change alike. Filed in
-    // `BACKLOG.md` with its sibling `c12_jup_cell_i4_free`, which needs no open paragraph at all.
+    // while this model reported only the tail. Session 293 found the cause — the opener is at
+    // indent 1 and its closer at column 0, and a jupyter kernel cell closes only on a BYTE-IDENTICAL
+    // indent (`closesOnOwnIndent`), so quarto never closes it — and the row now asserts quarto's
+    // answer. Re-rendered firsthand by Session 293 (`scratchpad/s293/ft/s277_cell_i1`, both modes).
     const cell = doc("prose", " ```{python}", "", "## A", "", "x = 1", "```", "", "## B", "", "tail");
-    expect(findHeadings(cell, "jupyter").map((h) => `h${h.level}:${h.text}`)).toEqual(["h2:B"]);
+    expect(findHeadings(cell, "jupyter").map((h) => `h${h.level}:${h.text}`)).toEqual(["h2:A", "h2:B"]);
+    // CONTROL — the matching closer swallows the heading again, as quarto does (`mj/m_1_1_p`).
+    const closed = doc("prose", " ```{python}", "", "## A", "", "x = 1", " ```", "", "## B", "", "tail");
+    expect(findHeadings(closed, "jupyter").map((h) => `h${h.level}:${h.text}`)).toEqual(["h2:B"]);
   });
 
   it("RED->GREEN: a LAZY line below a block quote is not covered -- there the fence really does open", () => {
@@ -20236,12 +20241,14 @@ describe("GUARD — rows the line-block continuation refusal may not touch, and 
       .toEqual(["h2:After"]); // quarto: the tail only — measured, exit 0
   });
 
-  it("the CELL path is untouched: an indented cell opener below a line block still opens, divergence and all", () => {
-    // KNOWN DIVERGENCE pinned, not a correct answer (`scratchpad/s280` `p/x_cell`): quarto renders
-    // BOTH headings and this model reports only the tail, at HEAD and after this change alike --
-    // the same standing divergence as Session 277's cell guard above, filed in `BACKLOG.md`.
+  it("the CELL path is untouched by the line-block rule, and (Session 293) a cell whose closer is at another indent is no cell: the pinned divergence is CLOSED", () => {
+    // This row PINNED A KNOWN DIVERGENCE through Session 292 (`scratchpad/s280` `p/x_cell`): quarto
+    // renders BOTH headings while this model reported only the tail -- the same divergence as Session
+    // 277's cell guard above. Session 293 closed it at its root: the opener is at indent 1 and its
+    // closer at column 0, which a jupyter kernel cell never pairs (`closesOnOwnIndent`). Re-rendered
+    // firsthand (`scratchpad/s293/ft/s280_lineblock_cell`, both modes): quarto lists Inside and After.
     expect(findHeadings(doc("| row", ...tail(" ```{python}", "```")), "jupyter").map((h) => `h${h.level}:${h.text}`))
-      .toEqual(["h2:After"]);
+      .toEqual(["h2:Inside", "h2:After"]);
   });
 });
 
@@ -21712,5 +21719,52 @@ describe("Session 292 — a fenced div ends with the container that holds it", (
     const got = texts(doc);
     expect(got.length).toBeGreaterThan(2);
     expect(["Za0378 Before", "Za0378 AfterOuter"].every((heading) => got.includes(heading))).toBe(true);
+  });
+});
+
+// ── Session 293 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// `indentedCellFenceAt` over-reaches: an indented `{python}` opener was paired with ANY later closer, so the heading between them
+// was swallowed where quarto lists it. Rendered (quarto 1.7.33, both modes exit 0, `scratchpad/s293/mj`, 128 documents): the
+// RENDER partitioner pairs a jupyter kernel cell only with a closer whose indentation is BYTE-IDENTICAL to the opener's. Any other
+// closer leaves the cell unclosed, quarto drops the opener line, and the rest is ordinary markdown.
+describe("Session 293 — a jupyter kernel cell closes only on its own indent", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const texts = (text: string, engine?: "jupyter" | "markdown" | "knitr" | "julia" | "ambiguous") =>
+    findHeadings(text, engine).map((h) => h.text);
+
+  it("RED->GREEN: a 4-space opener whose closer is at column 0 is never closed, so the heading inside is real", () => {
+    // The backlog's `c12_jup_cell_i4_free` shape. Rendered: quarto lists A and B.
+    const text = doc("```{python}", "1 + 1", "```", "", "prose", "", "    ```{python}", "", "## A", "", "x = 1", "```", "", "## B", "", "tail");
+    expect(texts(text, "jupyter")).toEqual(["A", "B"]);
+  });
+
+  // SLICE 2. A DECLINED KERNEL OPENER VANISHES. Quarto drops the opener line of a cell it never closes, so it is NOT paragraph text.
+  // Left as ordinary body, a column-0 or indent-1-3 opener (or any opener under a paragraph) made the next ATX line fail
+  // `blank_before_header` and swallowed it. Two measured cases, every document rendered with quarto 1.7.33 (`scratchpad/s293/t2`,
+  // `scratchpad/s293/tr`, ne mode, exit 0):
+  //  - a closer-SHAPED line below (same char, same run, any indent, but not the opener's): the line below the vanished opener STARTS
+  //    A FRESH BLOCK even with prose directly above, so the heading is listed (rows 1-3, 6).
+  //  - no such line: the opener vanishes with NO separation, so prose directly above glues to the next line and the heading is NOT a
+  //    heading (row 4: `prose ## In x = 1` is one paragraph), while a blank line above leaves it a heading (row 5).
+  it.each([
+    ["column-0 opener, indent-1 closer, blank above", ["prose", "", "```{python}", "## In", "x = 1", " ```", "", "## After"], ["In", "After"]],
+    ["indent-1 opener, column-0 closer, PARAGRAPH directly above", ["prose", " ```{python}", "## In", "x = 1", "```", "", "## After"], ["In", "After"]],
+    ["indent-4 opener, column-0 closer, PARAGRAPH directly above", ["prose", "    ```{python}", "## In", "x = 1", "```", "", "## After"], ["In", "After"]],
+    ["GUARD: no closer at all, PARAGRAPH directly above: the heading is paragraph text", ["prose", "```{python}", "## In", "x = 1", "", "## After"], ["After"]],
+    ["no closer at all, BLANK above: the heading is real", ["prose", "", "```{python}", "## In", "x = 1", "", "## After"], ["In", "After"]],
+    ["a stray indent-1 closer far below, paragraph above: the headings between are real", ["prose", "```{python}", "## In", "x = 1", "", "## Mid", "", "text", "", " ```", "", "## After"], ["In", "Mid", "After"]],
+    ["GUARD: a TILDE line is no closer of a backtick cell, so no fresh block", ["prose", "```{python}", "## In", "x = 1", "~~~", "", "## After"], ["After"]],
+    ["GUARD: a 4-backtick line is no closer of a 3-backtick cell", ["prose", "```{python}", "## In", "x = 1", "````", "", "## After"], ["After"]],
+  ] as [string, string[], string[]][])("a kernel opener that never closes is dropped: %s", (_label, lines, expected) => {
+    expect(texts(doc("```{python}", "1 + 1", "```", "", ...lines), "jupyter")).toEqual(expected);
+  });
+
+  // SLICE 3. UNDER `engine: markdown` AN INDENTED `{python}` LINE IS NO CELL AT ALL. There is no cell partition there: pandoc reads the
+  // whole file, where an indent-4+ line below a blank line is INDENTED CODE and an opener at indent 1-3 is an ordinary fence. The
+  // unbounded second look (`indentedCellFenceAt`) is quarto's EXECUTABLE-cell grammar and has no business under this engine. Rendered
+  // over opener indent x closer indent x (blank | paragraph above), 128 documents, both modes exit 0 (`scratchpad/s293/mm`).
+  it("RED->GREEN: under engine markdown an indent-4 `{python}` line below a blank line is indented code, not a cell", () => {
+    const text = doc("---", "engine: markdown", "---", "", "```{python}", "1 + 1", "```", "", "prose", "", "    ```{python}", "## In", "x = 1", "    ```", "", "## After");
+    expect(texts(text, "markdown")).toEqual(["In", "After"]); // quarto: In, After (`mm/m_4_4_b`)
   });
 });
