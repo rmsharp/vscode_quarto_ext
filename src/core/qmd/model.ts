@@ -5711,8 +5711,13 @@ const FENCE_CLOSE = /^[ \t]*(([`~])\2{2,})[ \t]*$/;
  *
  * Without this an indented cell would never close and would swallow the rest of the
  * document — which is how this session's FIRST pin went green for the wrong reason.
+ *
+ * ⚠ THE TRAILING CLASS IS `\s*`, NOT `[ \t]*` (Session 293), as quarto's own `\s*$` is: a closer
+ * followed by a no-break space, a form feed or an em space still closes the cell (rendered,
+ * `scratchpad/s293/adv/L5t`). The narrower class was HEAD's, and it was masked: the closer it
+ * could not see left the opener as paragraph text, which swallowed the heading by accident.
  */
-const CELL_FENCE_CLOSE = /^\s*(([`~])\2{2,})[ \t]*$/;
+const CELL_FENCE_CLOSE = /^\s*(([`~])\2{2,})\s*$/;
 /**
  * A PLAIN fence match on `line` — opener or closer — or null if these bytes are not a fence
  * HERE (Session 200). `columns` is `[0, ...contentColumns]`, the same array the ATX heading,
@@ -7113,6 +7118,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   let inFrontmatter = false;
   let inComment = false;
   let open: OpenCellFence | null = null;
+  // ⚠ Set when a jupyter kernel opener is DROPPED (Session 293, `closesOnOwnIndent`): quarto's cell partition never
+  // leaves "inside a cell" after it, so every later line is plain markdown and no later line is a kernel cell.
+  let kernelPartitionDead = false;
   // Count of consecutive fresh, non-blank body lines immediately above the
   // current line, reset to 0 on any region boundary (front matter, comment,
   // fence, blank line) or heading (ATX or setext), and — since Session 181 — on a
@@ -8265,13 +8273,22 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // covers tabs correctly for free, since one tab already reaches column 4.
     const fenceColumns = paragraphOpen ? [0] : [0, ...contentColumns];
     const plainFence = fenceMatchAt(FENCE_OPEN, line, fenceColumns);
-    // ⚠ **UNDER `engine: markdown` THERE IS NO CELL PARTITION, SO THE UNBOUNDED SECOND LOOK IS SKIPPED
-    // (Session 293).** `indentedCellFenceAt` is quarto's EXECUTABLE-cell grammar. With no executable
-    // engine pandoc reads the whole file, where a line indented 4+ below a blank line is indented CODE and
-    // an opener at 1-3 is an ordinary fence (which `plainFence` above already handles). Rendered over
-    // 128 documents, both modes exit 0 (`scratchpad/s293/mm`): HEAD deleted the heading inside on all 32
+    // ⚠ **THE UNBOUNDED SECOND LOOK IS QUARTO'S EXECUTABLE-CELL GRAMMAR, AND IT IS SKIPPED WHERE THAT
+    // GRAMMAR DOES NOT APPLY (Session 293, `indentedCellFenceFor`).** Under `engine: markdown` pandoc reads
+    // the whole file, where a line indented 4+ below a blank line is indented CODE and an opener at 1-3 is
+    // an ordinary fence (which `plainFence` above already handles) — except for the three languages a
+    // handler still extracts (`HANDLER_CELL_LANGUAGES`); after a dropped kernel opener quarto's partition is
+    // dead for the rest of the file, so a later python cell is indented code too. Rendered over 128
+    // documents, both modes exit 0 (`scratchpad/s293/mm`): HEAD deleted the heading inside on all 32
     // indent-4+, blank-above rows. Every other engine hint keeps the look, so no other surface moves.
-    const fence = plainFence ?? (engine === "markdown" ? null : indentedCellFenceAt(line));
+    const fence =
+      plainFence ??
+      indentedCellFenceFor(
+        engine,
+        kernelPartitionDead,
+        line,
+        !paragraphOpen && contentColumns.length === 0 && !stripQuote,
+      );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
     let droppedKernelOpener: "fresh" | "tight" | null = null;
@@ -8293,7 +8310,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         lang: info ? info[1] : "",
         startLine: i,
         columns: fenceColumns,
-        indent: closesOnOwnIndent(engine, info) ? indentRun(line) : null,
+        indent: !kernelPartitionDead && closesOnOwnIndent(engine, info) ? indentRun(line) : null,
       };
       // A FENCE OPENS ONLY IF IT IS CLOSED BELOW — both kinds, for two different measured
       // reasons that happen to agree (Session 179; Session 178 applied this test to
@@ -8427,13 +8444,15 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // none the lines are glued to what is above (`tr/a`, `tr/d`-`tr/g`, `tr/m`, `tr/n`).
       if (candidate.indent !== null) {
         droppedKernelOpener = hasCloserBelow(closerIndex, i + 1, { ...candidate, indent: null }) ? "fresh" : "tight";
+        kernelPartitionDead = true;
       }
       // Otherwise the line is ordinary body — the pre-S178 behaviour, unchanged.
     }
 
-    // The dropped opener of a cell nothing closes leaves the document, so it changes no paragraph state.
+    // The dropped opener of a cell nothing closes leaves the document, so it changes no paragraph state and is
+    // NOT a body line either: a setext underline below reads the body lines for its title, and the vanished
+    // opener must not be one (`adv/L2/L2_127`, `L2_156`).
     if (droppedKernelOpener === "tight") {
-      bodyLines.push({ line: i, text: raw, contentStart: 0 });
       continue;
     }
 
@@ -10441,6 +10460,50 @@ export function maskInlineCode(line: string): string {
 function indentedCellFenceAt(line: string): RegExpExecArray | null {
   const m = INDENTED_CELL_FENCE_OPEN.exec(line);
   return m !== null && CELL_INFO.test(m[3].trim()) ? m : null;
+}
+
+/**
+ * The cell languages quarto's LANGUAGE HANDLERS extract at any indent even where no executable engine
+ * runs (Session 293): `ojs` and `mermaid` swallow the heading inside an indent-4 cell under
+ * `engine: markdown`, and `dot` makes the render fail (it is claimed too). Every other language
+ * measured (python, r, bash, sh, js, julia, sql, css, html, c, cpp, ruby, perl, tikz, asy, stan, go) is
+ * indented code there (`scratchpad/s293/lm`, 40 documents, ne mode). A language outside both lists is
+ * unmeasured and takes the unbounded look, which is the answer this model always gave.
+ */
+const HANDLER_CELL_LANGUAGES: ReadonlySet<string> = new Set(["ojs", "mermaid", "dot"]);
+
+/**
+ * `line` as an INDENTED cell opener under the engine the document runs, or `null` where quarto's
+ * executable-cell grammar does not apply (Session 293). The unbounded second look is that grammar's;
+ * where it does not apply the line is ordinary markdown (indented code to pandoc).
+ */
+function indentedCellFenceFor(
+  engine: EngineHint,
+  kernelPartitionDead: boolean,
+  line: string,
+  free: boolean,
+): RegExpExecArray | null {
+  const m = indentedCellFenceAt(line);
+  // ⚠ Only the FREE case is narrowed: no paragraph open, no container open, not quoted (the `BACKLOG.md`
+  // item's own title). Elsewhere pairing the cell is right by ACCIDENT — pandoc's inline code span runs
+  // from the opener's backticks to the closer's across the heading between, and a footnote or example
+  // list keeps no content column here — so those keep the answer this model always gave. The paragraph
+  // and container terms are each pinned by a rendered row; the QUOTE term is not: no probe of 1,075
+  // separates it (a quoted cell is never a cell, so the line is refused either way), and it stays as a
+  // fail-safe that keeps HEAD's answer in a context nothing measured.
+  if (m === null || !free) {
+    return m;
+  }
+  const lang = CELL_INFO.exec(m[3].trim())![1];
+  // No executable engine: only a language HANDLER still reads a cell there (see `HANDLER_CELL_LANGUAGES`).
+  if (engine === "markdown" && !HANDLER_CELL_LANGUAGES.has(lang)) {
+    return null;
+  }
+  // After a dropped kernel opener the partition is dead for the rest of the file (see the flag).
+  if (kernelPartitionDead && lang === "python") {
+    return null;
+  }
+  return m;
 }
 
 /** The run of whitespace a line starts with — `\s*`, the same class both cell regexes use. */

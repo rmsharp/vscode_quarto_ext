@@ -21818,4 +21818,91 @@ describe("Session 293 — a jupyter kernel cell closes only on its own indent", 
   ] as [string, string[], string[]][])("a closer at another indent does not end a kernel cell: %s", (_label, lines, expected) => {
     expect(texts(doc(...TOP, ...lines), "jupyter")).toEqual(expected);
   });
+
+  // ADVERSARIAL ROUND 1 (six authoring lenses, 415 documents, rendered by the caller; `scratchpad/s293/adv/L1`-`L6`). Every row below is a
+  // document quarto 1.7.33 rendered (ne mode, exit 0); the answer is quarto's, never an agent's claim.
+  const FM = ["---", 'title: "L2 probe"', "engine: jupyter", "execute:", "  eval: false", "---", ""];
+  // SLICE 4. A VANISHED OPENER IS NOT A TITLE LINE. A dropped opener written between a setext title and its underline leaves the two
+  // adjacent in what quarto reads, so the underline claims the REAL title (`L2_127`, `L2_156`). The vanished line had been pushed to the
+  // body lines, where the setext rule read it as the title and listed the opener's own text as a heading.
+  it.each([
+    ["= underline", ["Setext Probe", "    ```{python}", "============", "", "## EndSeq"], ["Setext Probe", "EndSeq"]],
+    ["- underline", ["Dash Title", "    ```{python}", "-----------", "", "## EndSeq"], ["Dash Title", "EndSeq"]],
+  ] as [string, string[], string[]][])("a dropped opener between a setext title and its underline is invisible: %s", (_label, lines, expected) => {
+    expect(texts(doc(...FM, ...lines), "jupyter")).toEqual(expected);
+  });
+
+  // SLICE 5. A KERNEL OPENER QUARTO NEVER CLOSES KILLS THE PARTITION FOR THE REST OF THE FILE. Its state never leaves "inside a cell", so
+  // every later line is plain markdown: a later well-formed indent-4 cell is indented CODE (its heading is real) and a later column-0
+  // `{python}` fence is an ordinary pandoc fence (`adv/L2/L2_083`, `L2_150`, `L2_152`-`L2_155`). Pairing the later cell by its own exact
+  // indent swallowed headings quarto lists. The cell BEFORE the dropped opener is unaffected (row 5).
+  it.each([
+    ["a dropped indent-2 opener, then a well-formed indent-4 cell", ["Lead para.", "", "  ```{python}", "a = 1", "", "## InA", "", "    ```{python}", "b = 2", "", "## InB", "    ```", "", "## EndSeq"], ["InA", "InB", "EndSeq"]],
+    ["a dropped column-0 opener, then a well-formed indent-4 cell", ["Lead para.", "", "```{python}", "x = 1", "", "## InOuter", "", "    ```{python}", "y = 2", "", "## InInner", "    ```", "", "## AfterBoth"], ["InOuter", "InInner", "AfterBoth"]],
+    ["a dropped indent-4 opener, then a well-formed TAB cell", ["Lead para.", "", "    ```{python}", "a = 1", "", "## InA", "", "\t```{python}", "b = 2", "", "## InB", "\t```", "", "## EndSeq"], ["InA", "InB", "EndSeq"]],
+    ["two dropped openers and one stray column-0 closer: that closer pairs with the second opener as a plain fence", ["Lead para.", "", "  ```{python}", "a = 1", "", "## InA", "", "  ```{python}", "b = 2", "", "## InB", "```", "", "## EndSeq"], ["InA", "EndSeq"]],
+    ["a good indent-4 cell BEFORE the dropped opener still swallows, a later one does not", ["Lead para.", "", "    ```{python}", "a = 1", "", "## InA", "    ```", "", "## BetweenOne", "", "  ```{python}", "b = 2", "", "## InB", "", "    ```{python}", "c = 3", "", "## InC", "    ```", "", "## EndSeq"], ["BetweenOne", "InB", "InC", "EndSeq"]],
+    ["after a dropped opener a later column-0 `{python}` fence is a plain fence that still swallows", ["Lead para.", "", "   ```{python}", "a = 1", "", "## InA", "", "    ```{python}", "b = 2", "", "## InB", "    ```", "", "## BetweenGood", "", "```{python}", "c = 3", "", "## InC", "```", "", "## EndSeq"], ["InA", "InB", "BetweenGood", "EndSeq"]],
+  ] as [string, string[], string[]][])("a dropped kernel opener ends the cell partition for the rest of the file: %s", (_label, lines, expected) => {
+    expect(texts(doc(...FM, ...lines), "jupyter")).toEqual(expected);
+  });
+  // ...but only for KERNEL cells: a language handler extracts `{ojs}` and `{mermaid}` from its own partition, so a later one still
+  // swallows its heading at any indent after the python partition died (`scratchpad/s293/gap`, ne mode exit 0).
+  it.each([
+    ["ojs", "ojs", "InO"],
+    ["mermaid", "mermaid", "InM"],
+  ] as const)("a dropped python opener does not end a LATER %s cell", (_label, lang, inside) => {
+    const lines = ["Lead para.", "", "  ```{python}", "a = 1", "", "## InA", "", `    \`\`\`{${lang}}`, `## ${inside}`, "```", "", "## After"];
+    expect(texts(doc(...FM, "```{python}", "1 + 1", "```", "", ...lines), "jupyter")).toEqual(["InA", "After"]);
+  });
+
+  // SLICE 6. SLICE 3 WAS TOO WIDE: THREE LANGUAGES ARE CLAIMED BY A HANDLER EVEN UNDER `engine: markdown`. The resolver answers
+  // "markdown" for a document whose only cells are `{ojs}`, `{mermaid}` or `{dot}`, and quarto's language handlers still extract those at
+  // ANY indent, so the unbounded second look must stay for them. The adversarial round found 20 HEAD-correct documents slice 3 broke, 8 of
+  // them deletions (`adv/L2/L2_170`-`L2_177`, `adv/L3/L3_011`-`L3_059`). Measured over 20 languages x {indent-4 opener with a column-0
+  // closer, with an indent-4 closer} under `engine: markdown` (`scratchpad/s293/lm`, ne mode): `ojs` and `mermaid` swallow the heading,
+  // `dot` makes the render FAIL (claimed, no heading oracle), and python, r, bash, sh, js, julia, sql, css, html, c, cpp, ruby, perl, tikz,
+  // asy, stan and go are indented code whose heading is listed.
+  it.each([
+    ["an indent-4 ojs chain closed at column 0 (resolver: markdown)", ["---", "title: L3", "---", "", "## Before", "", "    ```{ojs}", "    x = 1", "```", "", "## Mid", "", "    ```{ojs}", "    y = 2", "```", "", "## After"], ["Before", "Mid", "After"]],
+    ["an indent-4 ojs cell with a heading inside, engine: markdown", ["---", "title: L3", "engine: markdown", "---", "", "## Before", "", "    ```{ojs}", "## InsideOjs", "    x = 1", "    ```", "", "## After"], ["Before", "After"]],
+    ["an indent-4 mermaid cell with a heading inside, engine: markdown", ["---", "title: L3", "engine: markdown", "---", "", "## Before", "", "    ```{mermaid}", "## InsideMermaid", "    x = 1", "```", "", "## After"], ["Before", "After"]],
+    ["ojs in a list, opener at the item's code depth, closer at indent 2", ["---", "title: L3", "---", "", "## Before", "", "- item", "", "      ```{ojs}", "      x = 1", "  ```", "", "## Mid", "", "- item two", "", "      ```{ojs}", "      y = 2", "  ```", "", "## After"], ["Before", "Mid", "After"]],
+    ["RESIDUAL-kept: `dot` is claimed (the render fails here, so there is no heading oracle) and stays a cell", ["---", "engine: markdown", "---", "", "prose", "", "    ```{dot}", "## In", "x = 1", "```", "", "## After"], ["After"]],
+  ] as [string, string[], string[]][])("a handler language keeps its unbounded cell look under engine markdown: %s", (_label, lines, expected) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(expected);
+  });
+
+  // SLICE 7. THE SKIP IS FOR THE FREE CASE ONLY: NO PARAGRAPH OPEN, NO CONTAINER OPEN, NOT QUOTED. The adversarial round found HEAD-right
+  // documents the skip turned into phantoms, each a shape where pairing the cell is right BY ACCIDENT: with a paragraph open, pandoc's
+  // inline code span runs from the opener's backticks to the closer's, across the heading between (it even beats `blank_before_header`
+  // being off, `adv/L4/L4_066`); in a footnote or an example list the model keeps no content column, so the container-relative fence is
+  // seen only through the unbounded look (`adv/L6/L6_046`, `L6_050`). The item's own title names the free case: "with NO container open
+  // and NO paragraph open". Everything else keeps HEAD's answer.
+  it.each([
+    ["a paragraph directly above under markdown-blank_before_header: the inline code span swallows the heading", ["---", "title: T", "from: markdown-blank_before_header", "engine: markdown", "---", "", "Para above", "    ```{r}", "## In", "    ```", "## Mid", "text", "", "## After", "", "end"], ["Mid", "After"]],
+    ["a footnote body hosts the fence", ["---", "title: t", "engine: markdown", "---", "", "# Top", "", "Text[^1].", "", "[^1]: note", "", "        ```{python}", "## In", "        ```", "", "## After"], ["Top", "After"]],
+  ] as [string, string[], string[]][])("the markdown-engine skip is for the free case only: %s", (_label, lines, expected) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(expected);
+  });
+  // SLICE 8. A CELL CLOSER MAY CARRY ANY TRAILING WHITESPACE: quarto's closer ends in `\s*`, so NBSP, form feed and an em space close the
+  // cell exactly as a space or tab does (`adv/L5/L5_020`-`L5_023`, rendered with a `title:` injected so title promotion cannot hide the
+  // heading, `adv/L5t`). `CELL_FENCE_CLOSE` ended in `[ \t]*`, so HEAD never saw these closers; it was right only because the unopened
+  // opener left paragraph text that swallowed the heading, and a dropped opener (slice 2) then listed it.
+  it.each([
+    ["trailing NBSP then a space", "```  ", ""],
+    ["trailing form feed", "```\f", ""],
+    ["trailing em space", "``` ", ""],
+    ["trailing NBSP then a space, indent-2 cell", "  ```  ", "  "],
+  ] as [string, string, string][])("a kernel cell closes on a closer with %s", (_label, closer, indent) => {
+    const text = doc("---", "title: T5", "---", "", "## Before", "", `${indent}\`\`\`{python}`, "## In", closer, "", "## After");
+    expect(texts(text, "jupyter")).toEqual(["Before", "After"]);
+  });
+  it("RESIDUAL (phantom), kept on purpose: an example-list `(@)` item keeps no content column here, so its fence reads as free", () => {
+    // `adv/L6/L6_046`: quarto lists Top and After (the fence is container-relative, so the heading inside is swallowed), HEAD paired the
+    // cell by accident and was right, and this build lists In. The model's list-start predicate has never known `(@)` (the filed marker
+    // grammar gap), so no content column exists to call the line hosted. Pinned so a future change flips it on purpose. Zero corpus reach.
+    const text = doc("---", "title: t", "engine: markdown", "---", "", "# Top", "", "(@) item", "", "    ```{python}", "## In", "    ```", "", "## After");
+    expect(texts(text, "markdown")).toEqual(["Top", "In", "After"]);
+  });
 });
