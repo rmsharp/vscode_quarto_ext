@@ -16,6 +16,13 @@
  * The caller keeps its old behaviour for `null`. A project `_quarto.yml` that sets `jupyter:` is invisible to a scanner of one
  * document, like every other project-level key.
  *
+ * ⚠ **"PYTHON" IS A CLAIM THAT THE FRONT MATTER WAS UNDERSTOOD, NOT A DEFAULT FOR WHAT WAS NOT.** Seven adversarial documents
+ * (`scratchpad/s294/adv2/K1`) named a kernel in a form this reader does not read (an escaped key, an indented root, JSON, a
+ * multi-line flow document, a complex `? key`, a `jupyter:` line hidden inside a multi-line quoted scalar, a mid-document metadata
+ * block) and "no key found" had answered python: the skip then removed the kernel's own cell. So `python` is returned only for
+ * front matter `seesThrough` (plain column-0 keys, no scalar or flow collection left open, one `jupyter` key at most) whose body
+ * never writes a `jupyter:` key of its own; anything else is `null`.
+ *
  * Pure: the front matter's CONTENT lines in, a lower-cased language or `null` out. No import from `model.ts`, which imports this.
  */
 
@@ -117,7 +124,69 @@ function flowKernelspecLanguage(kernelspec: string): string | null {
   return language === undefined ? null : languageOf(scalarOf(language));
 }
 
-export function jupyterKernelLanguage(frontMatter: readonly string[] | null): string | null {
+/** `key:` at the start of a line (plain or simply quoted, no escapes), with the rest of the line captured. */
+const KEY_LINE = /^[ \t]*(?:-[ \t]+)*(?:"[^"\\]*"|'[^']*'|[A-Za-z0-9_][A-Za-z0-9_. -]*?)[ \t]*:(?:[ \t]+(.*)|)$/;
+
+/** Whether the value written on `line` opens a quoted scalar or a flow collection that the same line does not close. */
+function leavesOpen(line: string): boolean {
+  const value = (KEY_LINE.exec(line)?.[1] ?? line.replace(/^[ \t]*(?:-[ \t]+)*/, "")).trim();
+  let depth = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < value.length; i++) {
+    const c = value[i];
+    if (quote !== null) {
+      if (c === "\\" && quote === '"') {
+        i++;
+      } else if (c === quote) {
+        quote = null;
+      }
+    } else if ((c === '"' || c === "'") && (i === 0 || /[\s{[,:]/.test(value[i - 1]))) {
+      quote = c;
+    } else if (c === "{" || c === "[") {
+      depth++;
+    } else if (c === "}" || c === "]") {
+      depth--;
+    } else if (c === "#" && (i === 0 || /\s/.test(value[i - 1]))) {
+      break;
+    }
+  }
+  return quote !== null || depth > 0;
+}
+
+/**
+ * Whether this reader can SEE THROUGH `frontMatter`: its first content line is an unindented `key:` line, every unindented line is
+ * one (plain or simply quoted, no escape), no scalar or flow collection is left open across lines, and `jupyter` is written at most
+ * once. Only then does "no `jupyter:` key" mean "no kernel is named".
+ */
+function seesThrough(frontMatter: readonly string[]): boolean {
+  let jupyterKeys = 0;
+  let first = true;
+  for (const line of frontMatter) {
+    const indent = indentOf(line);
+    if (indent < 0) {
+      continue;
+    }
+    if (indent === 0 || first) {
+      if (indent !== 0 || !KEY_LINE.test(line)) {
+        return false;
+      }
+      if (JUPYTER_KEY.test(line)) {
+        jupyterKeys++;
+      }
+    }
+    first = false;
+    if (leavesOpen(line)) {
+      return false;
+    }
+  }
+  return jupyterKeys <= 1;
+}
+
+export function jupyterKernelLanguage(frontMatter: readonly string[] | null, body: readonly string[] = []): string | null {
+  // A `jupyter:` key written again in the body is a mid-document metadata block, which quarto merges into the metadata.
+  if (body.some((line) => JUPYTER_KEY.test(line)) || (frontMatter !== null && !seesThrough(frontMatter))) {
+    return null;
+  }
   const at = frontMatter === null ? -1 : frontMatter.findIndex((line) => JUPYTER_KEY.test(line));
   if (frontMatter === null || at < 0) {
     return "python";

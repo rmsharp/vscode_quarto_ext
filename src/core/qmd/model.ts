@@ -3184,6 +3184,16 @@ function frontMatterContent(lines: readonly string[]): string[] | null {
   }
   return content;
 }
+
+/**
+ * The language of the jupyter kernel the document runs (Session 294, `jupyterKernelLanguage`): read from the front matter, with every line AFTER it
+ * handed over as the body so that a `jupyter:` key written again there (a mid-document metadata block, which quarto merges) makes it unknown.
+ */
+function documentKernelLanguage(lines: readonly string[]): string | null {
+  const open = frontMatterOpenIndex(lines);
+  const content = frontMatterContent(lines);
+  return jupyterKernelLanguage(content, content === null || open === null ? lines : lines.slice(open + content.length + 2));
+}
 /** YAML's document-end marker alone on a line — a terminator the `---` delimiter grammar omits. */
 const YAML_DOCUMENT_END = /^\.\.\.[ \t]*$/;
 /**
@@ -7129,7 +7139,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // ⚠ The language of the jupyter KERNEL this document runs (Session 294, `jupyterKernelLanguage`): `python` unless the front matter
   // writes another, `null` when it names a kernel whose language only an installed kernelspec could say (the old behaviour is kept
   // then). Read once, and only where it can matter: every rule that used to name `python` reads it instead.
-  const kernelLanguage = engine === "jupyter" ? jupyterKernelLanguage(frontMatterContent(lines)) : null;
+  const kernelLanguage = engine === "jupyter" ? documentKernelLanguage(lines) : null;
   // Count of consecutive fresh, non-blank body lines immediately above the
   // current line, reset to 0 on any region boundary (front matter, comment,
   // fence, blank line) or heading (ATX or setext), and — since Session 181 — on a

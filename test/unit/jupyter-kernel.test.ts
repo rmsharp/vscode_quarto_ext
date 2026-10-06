@@ -90,4 +90,38 @@ describe("jupyterKernelLanguage (Session 294) — the language the document's ju
   ] as [string, string, string | null][])("flow reading is robust: %s", (_label, frontMatter, expected) => {
     expect(jupyterKernelLanguage(lines(frontMatter))).toBe(expected);
   });
+  // SLICE 4. "PYTHON BY DEFAULT" IS A CLAIM THAT THE FRONT MATTER WAS UNDERSTOOD. Round 2's spelling lens found seven documents (`scratchpad/s294/adv2/K1`,
+  // ne mode, exit 0) whose front matter plainly names a kernel in a form this reader does not read, so "no `jupyter:` key, therefore python" was
+  // wrong and the rule skipped the kernel's own cell (the old pairing was right). Six of them name julia (quarto swallowed the `{julia}` cell), one is
+  // a DECOY: a `jupyter:` line sits inside a multi-line quoted scalar, so the kernel really is python. In every case the honest answer is "not sure":
+  // `null`, which keeps the old behaviour. The reader answers python only for a front matter it can see through: plain column-0 keys, no unclosed
+  // quote, no duplicate `jupyter` key, and no `jupyter:` key written again in the body (a mid-document metadata block merges into the metadata).
+  it.each([
+    ["an escaped key spelling `\\u0075` (`K1_022`: julia)", '"j\\u0075pyter":\n  kernelspec:\n    name: julia-1.9\n    language: julia'],
+    ["the whole front matter indented (`K1_058`: julia)", '  title: "x"\n  jupyter:\n    kernelspec:\n      name: julia-1.9\n      language: julia'],
+    ["the whole front matter as one JSON line (`K1_059`: julia)", '{"title": "x", "jupyter": {"kernelspec": {"name": "julia-1.9", "language": "julia"}}}'],
+    ["the whole front matter as a multi-line flow mapping (`K1_060`: julia)", '{\n  title: "x",\n  jupyter: {kernelspec: {name: julia-1.9, language: julia}}\n}'],
+    ["a complex `? key` (`K1_061`: julia)", 'title: "x"\n? jupyter\n: {kernelspec: {name: julia-1.9, language: julia}}'],
+    ["a `jupyter:` line INSIDE a multi-line quoted scalar, a decoy (`K1_062`: python)", 'title: "x"\ndescription: "a long text\njupyter: {kernelspec: {name: julia-1.9, language: julia}}\n ends here"'],
+    ["a single-quoted scalar left open across lines", "title: 'x\njupyter: python3\n y'"],
+    ["two top-level `jupyter` keys, which a YAML loader refuses", "jupyter: python3\njupyter:\n  kernelspec:\n    name: x\n    language: julia"],
+    ["a sequence at the root", "- title\n- jupyter: python3"],
+  ] as [string, string][])("a front matter this reader cannot see through is unknown: %s", (_label, frontMatter) => {
+    expect(jupyterKernelLanguage(lines(frontMatter))).toBeNull();
+  });
+  it("a `jupyter:` key written again in the body is unknown, whatever the front matter says (`K1_065`: julia; a mid-document metadata block merges in)", () => {
+    expect(jupyterKernelLanguage(lines("title: x\njupyter: python3"), lines("text\n\n---\njupyter:\n  kernelspec: {name: j, language: julia}\n---"))).toBeNull();
+    expect(jupyterKernelLanguage(null, lines("---\njupyter: python3\n---"))).toBeNull();
+  });
+  // ...and the guard must not be a hair trigger: ordinary front matter keeps answering python (an apostrophe in a plain scalar, a quoted value that
+  // closes, a comment, a blank line, a `jupyter` word elsewhere, a body that never writes the key).
+  it.each([
+    ["an apostrophe inside a plain scalar", "title: Don't panic\ndescription: It's here"],
+    ["a quoted value that closes on its line, with a colon inside", 'title: "A: B"\nsubtitle: \'C: D\''],
+    ["comments and blank lines between plain keys", "# a comment\ntitle: x\n\nauthor: y   # trailing"],
+    ["the word jupyter inside another value", "title: Using jupyter notebooks\nengine: jupyter"],
+    ["a nested mapping and a block scalar", "format:\n  html:\n    toc: true\nabstract: |\n  jupyter: not a key\n  text"],
+  ] as [string, string][])("a front matter it can see through still defaults to python: %s", (_label, frontMatter) => {
+    expect(jupyterKernelLanguage(lines(frontMatter), lines("body text\n\n```{python}\nx = 1\n```"))).toBe("python");
+  });
 });

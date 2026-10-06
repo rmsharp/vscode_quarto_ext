@@ -22223,4 +22223,20 @@ describe("Session 294 — a non-kernel language at indent 4 is indented code und
     expect(texts(R4(language, name, ...dropped, `    \`\`\`{${cell}}`, "b = 2", "", "## InB", "    ```", "", "## EndSeq"), "jupyter")).toEqual(["InA", "InB", "EndSeq"]);
     expect(texts(R4(language, name, ...dropped, `\`\`\`{${cell}}`, "c = 3", "", "## InC", "```", "", "## EndSeq"), "jupyter")).toEqual(["InA", "EndSeq"]);
   });
+  // SLICE 5. FRONT MATTER THE KERNEL READER CANNOT SEE THROUGH (`jupyterKernelLanguage` answers `null`): the old pairing stays, which was right for
+  // the seven documents the spelling lens wrote (`scratchpad/s294/rows5`, ne mode, exit 0; the documents are compact copies of `adv2/K1` shapes). The
+  // two CONTROLS beside them are ordinary front matter that must still be read as python, so the plain `{bash}` fence lists its heading.
+  it.each<[string, string, string[]]>([
+    ["a complex `? jupyter` key (julia kernel: the `{julia}` cell swallows)", "---\ntitle: \"R5\"\n? jupyter\n: {kernelspec: {name: julia-1.9, language: julia, display_name: Julia}}\n---\n\n```{python}\n1 + 1\n```\n\n## Before\n\n    ```{julia}\n## InsideKernel\n    ```\n\n## After\n", ["Before", "After"]], // r5_complex_key
+    ["CONTROL: apostrophes in plain scalars do not hide a python default, so the plain `{bash}` fence lists its heading", "---\ntitle: \"Don't panic\"\ndescription: It's here\n---\n\n```{python}\n1 + 1\n```\n\n## Before\n\n    ```{bash}\n## InsideKernel\n    ```\n\n## After\n", ["Before", "InsideKernel", "After"]], // r5_ctl_apostrophe
+    ["CONTROL: comments, a blank line and a trailing comment do not either", "---\n# a comment\ntitle: \"R5\"\n\nauthor: me   # trailing\n---\n\n```{python}\n1 + 1\n```\n\n## Before\n\n    ```{bash}\n## InsideKernel\n    ```\n\n## After\n", ["Before", "InsideKernel", "After"]], // r5_ctl_comments
+    ["a `jupyter:` line inside a multi-line quoted scalar is a decoy (the kernel is python: the `{python}` cell swallows)", "---\ntitle: \"R5\"\ndescription: \"a long text\njupyter: {kernelspec: {name: julia-1.9, language: julia, display_name: Julia}}\n ends here\"\n---\n\n```{python}\n1 + 1\n```\n\n## Before\n\n    ```{python}\n## InsideKernel\n    ```\n\n## After\n", ["Before", "After"]], // r5_decoy
+    ["an escaped key spelling `\"j\\\\u0075pyter\"` (julia kernel)", "---\ntitle: \"R5\"\n\"j\\u0075pyter\":\n  kernelspec:\n    name: julia-1.9\n    language: julia\n    display_name: Julia\n---\n\n```{python}\n1 + 1\n```\n\n## Before\n\n    ```{julia}\n## InsideKernel\n    ```\n\n## After\n", ["Before", "After"]], // r5_escaped_key
+    ["a multi-line flow mapping as the whole front matter (julia kernel)", "---\n{\n  title: \"R5\",\n  jupyter: {kernelspec: {name: julia-1.9, language: julia, display_name: Julia}}\n}\n---\n\n```{python}\n1 + 1\n```\n\n## Before\n\n    ```{julia}\n## InsideKernel\n    ```\n\n## After\n", ["Before", "After"]], // r5_flow_multiline
+    ["an indented root mapping (julia kernel)", "---\n  title: \"R5\"\n  jupyter:\n    kernelspec:\n      name: julia-1.9\n      language: julia\n      display_name: Julia\n---\n\n```{python}\n1 + 1\n```\n\n## Before\n\n    ```{julia}\n## InsideKernel\n    ```\n\n## After\n", ["Before", "After"]], // r5_indented_root
+    ["a one-line JSON front matter (julia kernel)", "---\n{\"title\": \"R5\", \"jupyter\": {\"kernelspec\": {\"name\": \"julia-1.9\", \"language\": \"julia\", \"display_name\": \"Julia\"}}}\n---\n\n```{python}\n1 + 1\n```\n\n## Before\n\n    ```{julia}\n## InsideKernel\n    ```\n\n## After\n", ["Before", "After"]], // r5_json_line
+    ["a mid-document metadata block writes the julia kernel over `jupyter: python3`", "---\ntitle: \"R5\"\njupyter: python3\n---\n\n```{python}\n1 + 1\n```\n\n## Before\n\n---\njupyter:\n  kernelspec: {name: julia-1.9, language: julia, display_name: Julia}\n---\n\n    ```{julia}\n## InsideKernel\n    ```\n\n## After\n", ["Before", "After"]], // r5_mid_block
+  ])("front matter: %s", (_label, text, expected) => {
+    expect(texts(text, "jupyter")).toEqual(expected);
+  });
 });
