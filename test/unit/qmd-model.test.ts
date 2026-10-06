@@ -21767,4 +21767,55 @@ describe("Session 293 — a jupyter kernel cell closes only on its own indent", 
     const text = doc("---", "engine: markdown", "---", "", "```{python}", "1 + 1", "```", "", "prose", "", "    ```{python}", "## In", "x = 1", "    ```", "", "## After");
     expect(texts(text, "markdown")).toEqual(["In", "After"]); // quarto: In, After (`mm/m_4_4_b`)
   });
+
+  // MUTATION-GAP ROWS. Mutation testing of slices 1-3 left six mutants alive; each row below kills one. Every expected answer is a
+  // rendered one (quarto 1.7.33, ne mode exit 0, `scratchpad/s293/sq`, `lg`), not a derivation from the rule.
+  const TOP = ["```{python}", "1 + 1", "```", ""];
+  it.each([
+    // The exact-indent closer is a JUPYTER-hint rule. Every other hint keeps the unbounded any-indent pairing, which is the validation
+    // view (S178) and what the surfaces that pass no engine read. knitr aborts the render on this shape, so it has no oracle at all.
+    ["no hint", undefined],
+    ["knitr (no oracle: quarto aborts)", "knitr"],
+    ["julia (unmeasured)", "julia"],
+    ["ambiguous", "ambiguous"],
+  ] as const)("the any-indent pairing is kept for hint %s", (_label, hint) => {
+    const text = doc(...TOP, "prose", "", "    ```{python}", "", "## A", "", "x = 1", "```", "", "## B", "", "tail");
+    expect(texts(text, hint)).toEqual(["B"]);
+  });
+  it.each([
+    // `{ojs}` and `{mermaid}` are claimed by language handlers that pair at ANY indent (`lg/l_ojs_mis40`, `l_mermaid_mis40`).
+    ["ojs", "ojs"],
+    ["mermaid", "mermaid"],
+  ] as const)("a %s cell still pairs with a closer at another indent, as quarto's handler does", (_label, lang) => {
+    expect(texts(doc(...TOP, "prose", "", `    \`\`\`{${lang}}`, "## In", "x = 1", "```", "", "## After"), "jupyter")).toEqual(["After"]);
+  });
+  it("RESIDUAL, kept on purpose: a non-kernel `{bash}` line at indent 4 is no cell to quarto, and this model still swallows the heading", () => {
+    // `lg/l_bash_mis40`: quarto lists In and After (bash is no jupyter kernel here, so pandoc reads indented CODE). Pinned so a future
+    // change flips it on purpose; `sh`, `js`, `julia` and `sql` behave identically. Zero corpus reach.
+    expect(texts(doc(...TOP, "prose", "", "    ```{bash}", "## In", "x = 1", "```", "", "## After"), "jupyter")).toEqual(["After"]);
+  });
+  it.each([
+    // The comparison is of the indent STRING, not its length: a tab and one space are both one character (`sq/w_tab_s1`, `w_tab_tab`).
+    ["tab opener, one-space closer: not closed", "\t", " ", ["In", "After"]],
+    ["tab opener, tab closer: closed", "\t", "\t", ["After"]],
+    // ...and the whitespace class is `\s`, as both cell regexes have it: NBSP and form feed are different strings (`sq/w_nb_ff`).
+    ["NBSP opener, form-feed closer: not closed", " ", "\f", ["In", "After"]],
+  ] as [string, string, string, string[]][])("an indent is compared as a string: %s", (_label, open, close, expected) => {
+    expect(texts(doc(...TOP, "prose", "", `${open}\`\`\`{python}`, "## In", "x = 1", `${close}\`\`\``, "", "## After"), "jupyter")).toEqual(expected);
+  });
+  it.each([
+    // The first closer at ANOTHER indent must not end the cell: a LATER exact closer pairs with the opener and everything between,
+    // the stray closer included, is cell text (`sq/q2`, `sq/q7`). Ending it early listed the heading between.
+    ["indent-4 opener, column-0 stray closer, later indent-4 closer", ["prose", "", "    ```{python}", "## In", "x = 1", "```", "", "## Mid", "", "y = 2", "    ```", "", "## After"], ["After"]],
+    ["column-0 opener, two-space stray closer, later column-0 closer", ["prose", "", "```{python}", "## In", "x = 1", "  ```", "", "## Mid", "", "```", "", "## After"], ["After"]],
+    // With NO later exact closer the stray one becomes an ordinary fence opener and pairs with the NEXT closer-shaped line, which here
+    // belongs to a later cell: quarto swallows `Mid` as plain-fence content and lists In and After (`sq/q1`).
+    ["a dropped opener, a stray closer, then a later cell: the stray closer opens a plain fence", ["prose", "", "    ```{python}", "## In", "x = 1", "```", "", "## Mid", "", "```{python}", "y = 2", "```", "", "## After"], ["In", "After"]],
+    // A stray closer of the SAME LENGTH but another character (a tab where the opener has a space, and the reverse) is still no closer
+    // (`scratchpad/s293/t4`, both render the tail only).
+    ["tab opener, one-space stray closer, later tab closer", ["prose", "", "\t```{python}", "## In", "x = 1", " ```", "", "## Mid", "", "y = 2", "\t```", "", "## After"], ["After"]],
+    ["one-space opener, tab stray closer, later one-space closer", ["prose", "", " ```{python}", "## In", "x = 1", "\t```", "", "## Mid", "", "y = 2", " ```", "", "## After"], ["After"]],
+  ] as [string, string[], string[]][])("a closer at another indent does not end a kernel cell: %s", (_label, lines, expected) => {
+    expect(texts(doc(...TOP, ...lines), "jupyter")).toEqual(expected);
+  });
 });
