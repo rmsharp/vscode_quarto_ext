@@ -22026,4 +22026,40 @@ describe("Session 294 — a non-kernel language at indent 4 is indented code und
     const shape = (nodes: ReturnType<typeof buildOutline>): string[] => nodes.map((n) => `${n.kind}:${n.name}`);
     expect(shape(buildOutline(text, "jupyter"))).toEqual(["cell:```{python}", "heading:In", "heading:After"]);
   });
+  // MUTATION-GAP ROWS (GREEN ON ARRIVAL; each kills a mutant of the rule). Every document is a rendered one (quarto 1.7.33, ne mode, exit 0,
+  // `scratchpad/s294/rows2`: front matter `title: "R2"`, a column-0 python cell, then the lines below).
+  const R2 = (...lines: string[]) => doc("---", 'title: "R2"', "---", "", "```{python}", "1 + 1", "```", "", ...lines);
+  // Outside the free case pairing the cell is right BY ACCIDENT, exactly as under engine markdown (Session 293): pandoc keeps a raw block
+  // or a paragraph open where this model's `paragraphOpen` is already false, and a footnote or `(@)` list keeps no content column here.
+  // Skipping there would list a heading quarto swallows (the mutant that tests the skip BEFORE the free test went red on all six).
+  it.each([
+    ["an HTML comment line directly above", ["Paragraph line one.", "<!-- a comment -->", "    ```{bash}", "## In", "    ```", "", "## After"], ["After"]],
+    ["a raw `\\newpage` line directly above", ["\\newpage", "    ```{bash}", "## In", "    ```", "", "Closing text.", "", "## After"], ["After"]],
+    ["inside an HTML table and a <pre>", ["<table>", "<tr><td>", "    ```{bash}", "## InTable", "    ```", "</td></tr>", "</table>", "", "<pre>", "verbatim", "    ```{bash}", "## InPre", "    ```", "</pre>", "", "## After"], ["After"]],
+    ["a footnote body hosts the fence", ["Text[^1].", "", "[^1]: note", "", "        ```{bash}", "## In", "        ```", "", "## After"], ["After"]],
+    ["an `(@)` example item above", ["(@) Example one.", "", "    ```{bash}", "## In", "    ```", "", "Closing text.", "", "## After"], ["After"]],
+    ["an `(@good)` labelled example item above, an indent-5 fence", ["(@good) Example good.", "", "     ```{bash}", "## In", "     ```", "", "Closing text.", "", "## After"], ["After"]],
+    ["a block quote hosts the opener (a quoted line is never a cell)", ["> quoted", ">", ">     ```{bash}", "> ## In", ">     ```", "", "## After"], ["In", "After"]],
+  ] as [string, string[], string[]][])("the jupyter plain-language skip is for the free case only: %s", (_label, lines, expected) => {
+    expect(texts(R2(...lines), "jupyter")).toEqual(expected);
+  });
+  // The kernel is the EXACT name `python`: a spelling that merely starts with it is a plain fence (quarto lists the heading inside, all five
+  // rows). The mutant that matched `python` by prefix deleted it.
+  it.each([
+    ["pythonx", "    ```", "    "],
+    ["pythonx", "```", "    "],
+    ["python=x", "    ```", "    "],
+    ["python=x", "```", "    "],
+    ["pythons", "```", "    "],
+    ["PYTHON", "```", "    "],
+  ] as [string, string, string][])("`{%s}` is no kernel cell: an indent-4 opener with closer %j lists the heading inside", (lang, closer, open) => {
+    expect(texts(R2("prose", "", `${open}\`\`\`{${lang}}`, "## In", "x = 1", closer, "", "## After"), "jupyter")).toEqual(["In", "After"]);
+  });
+  // RESIDUAL, kept on purpose: the skip is the FREE case, and a plain-language opener deeper than a list item's code depth is indented code
+  // there too (`r2_07_bullet_item_code`: quarto lists In and After) while this model, which keeps HEAD's answer inside any container, swallows
+  // it. It is the container-depth family the backlog item files as its residual 2 (there for engine markdown); the mutant that dropped the
+  // free test fixed this row and broke the six above, so no free-case-only rule can reach it. Pinned so a future change flips it on purpose.
+  it("RESIDUAL, kept on purpose: an indent-6 `{bash}` opener in a list item is indented code to quarto and this model still swallows the heading", () => {
+    expect(texts(R2("- item", "", "      ```{bash}", "## In", "      ```", "", "## After"), "jupyter")).toEqual(["After"]);
+  });
 });

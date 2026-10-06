@@ -10474,8 +10474,13 @@ function indentedCellFenceAt(line: string): RegExpExecArray | null {
  * runs (Session 293): `ojs` and `mermaid` swallow the heading inside an indent-4 cell under
  * `engine: markdown`, and `dot` makes the render fail (it is claimed too). Every other language
  * measured (python, r, bash, sh, js, julia, sql, css, html, c, cpp, ruby, perl, tikz, asy, stan, go) is
- * indented code there (`scratchpad/s293/lm`, 40 documents, ne mode). A language outside both lists is
- * unmeasured and takes the unbounded look, which is the answer this model always gave.
+ * indented code there (`scratchpad/s293/lm`, 40 documents, ne mode). So under `engine: markdown` EVERY
+ * language outside this set is skipped, measured or not (the phantom direction, never a deletion).
+ *
+ * Session 294 measured the same set under JUPYTER (`scratchpad/s294/g1`, 51 languages): `ojs` and `mermaid`
+ * swallow the heading, `dot` fails the render, `d3` is no cell to this model (`CELL_INFO` has no digit), and
+ * every other language but the kernel `python` is indented code. Extension handlers (`shinylive-*`, `drawio`,
+ * ...) are claimed only where their extension is installed, which a scanner of one document cannot see.
  */
 const HANDLER_CELL_LANGUAGES: ReadonlySet<string> = new Set(["ojs", "mermaid", "dot"]);
 
@@ -10483,6 +10488,10 @@ const HANDLER_CELL_LANGUAGES: ReadonlySet<string> = new Set(["ojs", "mermaid", "
  * `line` as an INDENTED cell opener under the engine the document runs, or `null` where quarto's
  * executable-cell grammar does not apply (Session 293). The unbounded second look is that grammar's;
  * where it does not apply the line is ordinary markdown (indented code to pandoc).
+ *
+ * Two engine hints narrow it, both in the FREE case only: `markdown` (no executable engine, so only a
+ * handler language is a cell) and, since Session 294, `jupyter` (only the kernel `python` and a handler
+ * language are cells). Every other hint, `undefined` included, keeps the unbounded look.
  */
 function indentedCellFenceFor(
   engine: EngineHint,
@@ -10565,7 +10574,8 @@ function indentRun(line: string): string {
  * `{r}` under knitr aborts the render on all 112 mismatched pairs (exit 1, no oracle), `{ojs}`
  * and `{mermaid}` pair at any indent (their language handlers use the validation partition), and
  * `{bash}`, `{sh}`, `{js}`, `{julia}` and `{sql}` are plain pandoc fences that never reach a
- * kernel (`scratchpad/s293/lg`). `python` is the one language whose rule is established; an
+ * kernel (`scratchpad/s293/lg`; Session 294 stops the second look from pairing them at all, in the
+ * free case, see `indentedCellFenceFor`). `python` is the one language whose rule is established; an
  * unrecognised engine, `"ambiguous"` and `undefined` keep the any-indent answer, which is the
  * validation view every non-Outline surface reads (they pass no engine, so they cannot drift).
  */
