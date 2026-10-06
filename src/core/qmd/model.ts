@@ -9293,6 +9293,22 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // (`readers_ref/r0351_sp_F_Q_U2`, rendered). Placed before the title rule below so the div it asks about is gone.
       if (atxInterruptsDialect && indentColumn(line) <= (commonmarkDialect ? 3 : 0)) {
         endQuoteDivsDeeperThan(quoteDepth);
+        // ⚠ **AND, IN THE COMMONMARK FAMILY ONLY, IT ENDS THE LIST ITEM THAT HOSTS A DIV (Session 292).** A line below the item's
+        // content column continues the item only as paragraph text, and a div fence leaves no paragraph open, so the item and
+        // its div end with no blank line needed (`scratchpad/s292/s4rows`, the `cx` / `n` / `H0` cell, all five containers).
+        // The pandoc markdown readers absorb the line lazily whatever it is (`readers_ref/r0362_sp_F_S_U0`), so this is
+        // `commonmarkDialect` and not `atxInterruptsDialect`. It touches the div stack alone: `contentColumns` is left as it
+        // was, which is HEAD's answer for every other reader of it.
+        if (commonmarkDialect) {
+          const columnsStillOpen = contentColumns.filter((c) => c <= indentColumn(line)).length;
+          while (
+            divColumns.length > 0 &&
+            divColumns[divColumns.length - 1].inQuote === inQuote &&
+            divColumns[divColumns.length - 1].containerDepth > columnsStillOpen
+          ) {
+            divColumns.pop();
+          }
+        }
       }
       if (heading && !calloutTitleTakes(i) && !tabsetTabTakes(i, heading.level)) {
         headings.push(heading);

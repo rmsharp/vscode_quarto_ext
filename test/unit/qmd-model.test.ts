@@ -21530,4 +21530,38 @@ describe("Session 292 — a fenced div ends with the container that holds it", (
   ])("GUARD: a heading at the quoted item's content column is inside the div and is lifted: %s", (_label, doc) => {
     expect(texts(doc)).toEqual(["S Before", "S After"]);
   });
+  // SLICE 5. IN THE COMMONMARK FAMILY A DEDENTED ATX LINE ENDS THE LIST ITEM THAT HOSTS A DIV, WITH NO BLANK NEEDED. A line
+  // below the item's content column continues the item only as a PARAGRAPH continuation, and a div fence leaves no paragraph
+  // open and an ATX line is no paragraph text — so the item ends, its div with it, and the heading is a plain heading.
+  // Rendered (`scratchpad/s292/s4rows`, the `cx` / `n` / `H0` cell in all five containers: bullet, ordered, quoted bullet,
+  // depth-2 quoted bullet, quoted ordered). The pandoc markdown readers keep the line lazily (the guards below), so the rule
+  // reads `commonmarkDialect`, not the wider `atxInterruptsDialect` that decides the QUOTE case.
+  it.each([
+    ["a bullet item", "## S Before\n\n- ::: {.callout-note}\n## S Inside\n  :::\n\n## S After\n"],
+    ["an ordered item", "## S Before\n\n1. ::: {.callout-note}\n## S Inside\n   :::\n\n## S After\n"],
+    ["a quoted bullet item", "## S Before\n\n> - ::: {.callout-note}\n> ## S Inside\n>   :::\n\n## S After\n"],
+    ["a bullet item in a depth-2 quote", "## S Before\n\n> > - ::: {.callout-note}\n> > ## S Inside\n> >   :::\n\n## S After\n"],
+    ["a quoted ordered item", "## S Before\n\n> 1. ::: {.callout-note}\n> ## S Inside\n>    :::\n\n## S After\n"],
+  ])("under commonmark_x a dedented heading ends the list item that hosts a div: %s", (_label, body) => {
+    expect(texts(withFrom("from: commonmark_x", body))).toEqual(["S Before", "S Inside", "S After"]);
+  });
+  it.each([
+    ["commonmark+fenced_divs", "from: commonmark+fenced_divs"],
+    ["gfm+fenced_divs", "from: gfm+fenced_divs"],
+  ])("the other CommonMark readers end the item the same way: %s", (_label, fm) => {
+    expect(texts(withFrom(fm, "## S Before\n\n1. ::: {.callout-note}\n  ### S Inside\n   :::\n\n## S After\n"))).toEqual(["S Before", "S Inside", "S After"]);
+  });
+  // GUARDS, rendered: the default reader and markdown_strict continue the item across the dedented line (it is lazy text
+  // there), so the callout still lifts the heading (`s4rows/S4noneLnH0`, `S4stfdLnH0`, `readers_ref/r0362_sp_F_S_U0`); and a
+  // heading AT the item's content column is inside the item under every reader (`S4cxLnHi`).
+  it.each([
+    ["the default reader", ""],
+    ["markdown_strict+fenced_divs", "from: markdown_strict+fenced_divs"],
+  ])("GUARD: a pandoc markdown reader keeps the dedented heading inside the list item, so it is lifted: %s", (_label, fm) => {
+    const body = "## S Before\n\n- ::: {.callout-note}\n## S Inside\n  :::\n\n## S After\n";
+    expect(texts(fm === "" ? body : withFrom(fm, body))).toEqual(["S Before", "S After"]);
+  });
+  it("GUARD: under commonmark_x a heading at the item's content column is inside the item and is lifted", () => {
+    expect(texts(withFrom("from: commonmark_x", "## S Before\n\n- ::: {.callout-note}\n  ## S Inside\n  :::\n\n## S After\n"))).toEqual(["S Before", "S After"]);
+  });
 });
