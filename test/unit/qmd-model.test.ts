@@ -21885,6 +21885,30 @@ describe("Session 293 — a jupyter kernel cell closes only on its own indent", 
   ] as [string, string[], string[]][])("the markdown-engine skip is for the free case only: %s", (_label, lines, expected) => {
     expect(texts(doc(...lines), "markdown")).toEqual(expected);
   });
+  // SLICE 9. "FREE" MEANS THE PREVIOUS LINE IS BLANK, NOT MERELY "NO PARAGRAPH IS OPEN". Round 2 (three fresh lenses, 193 documents,
+  // `scratchpad/s293/adv/R1`-`R3`) found nine more HEAD-correct documents the skip turned into phantoms, all with a RAW construct directly
+  // above the fence: an HTML comment, a `\newpage` macro line, the interior of an HTML `<table>` or `<pre>`. The model's `paragraphOpen` is
+  // false there, but pandoc's paragraph or raw block is still open, so the fence is no free indented code. A blank line above is the one
+  // state the model and pandoc agree on.
+  it.each([
+    ["an HTML comment line directly above", ["Paragraph line one.", "<!-- a comment -->", "    ```{python}", "## In", "    ```", "", "## After"], ["After"]],
+    ["a raw `\\newpage` line directly above", ["", "\\newpage", "    ```{python}", "## In", "    ```", "", "Closing text.", "", "## After"], ["After"]],
+    ["inside an HTML table and a <pre>", ["", "<table>", "<tr><td>", "    ```{python}", "## InTable", "    ```", "</td></tr>", "</table>", "", "<pre>", "verbatim", "    ```{python}", "## InPre", "    ```", "</pre>", "", "## After"], ["After"]],
+  ] as [string, string[], string[]][])("the markdown-engine skip needs a blank line above: %s", (_label, lines, expected) => {
+    expect(texts(doc("---", 'title: "R3"', "engine: markdown", "---", "", ...lines), "markdown")).toEqual(expected);
+  });
+  // ...but a blank line is not the only block boundary: an ATX heading, a setext underline, a div fence line or a bare closing fence ends a
+  // block just as well, and the fence below it is free indented code (`adv/L6/L6_043`, `R3/R3_020`, `R3_027`, `R3_036`, all rendered).
+  // Requiring a blank line gave back eight deletion fixes the round had found, so the rule is: no paragraph open AND a block boundary above.
+  it.each([
+    ["an ATX heading directly above", ["", "# Top", "    ```{python}", "## In", "    ```", "", "## After"], ["Top", "In", "After"]],
+    ["an ATX heading, then a setext underline, directly above two fences", ["", "## Above", "    ```{python}", "## InAtx", "    ```", "", "Setext Above", "------------", "    ```{python}", "## InSetext", "    ```", "", "## After"], ["Above", "InAtx", "Setext Above", "InSetext", "After"]],
+    ["a div fence line directly above", ["", "::: {.callout-note}", "    ```{python}", "## InDiv", "    ```", ":::", "", "## After"], ["InDiv", "After"]],
+    ["a bare closing fence directly above", ["", "```{=html}", "<b>raw</b>", "```", "    ```{python}", "## InRaw", "    ```", "", "## After"], ["InRaw", "After"]],
+  ] as [string, string[], string[]][])("the markdown-engine skip takes any block boundary above: %s", (_label, lines, expected) => {
+    expect(texts(doc("---", 'title: "R3"', "engine: markdown", "---", ...lines), "markdown")).toEqual(expected);
+  });
+
   // SLICE 8. A CELL CLOSER MAY CARRY ANY TRAILING WHITESPACE: quarto's closer ends in `\s*`, so NBSP, form feed and an em space close the
   // cell exactly as a space or tab does (`adv/L5/L5_020`-`L5_023`, rendered with a `title:` injected so title promotion cannot hide the
   // heading, `adv/L5t`). `CELL_FENCE_CLOSE` ended in `[ \t]*`, so HEAD never saw these closers; it was right only because the unopened
@@ -21898,11 +21922,24 @@ describe("Session 293 — a jupyter kernel cell closes only on its own indent", 
     const text = doc("---", "title: T5", "---", "", "## Before", "", `${indent}\`\`\`{python}`, "## In", closer, "", "## After");
     expect(texts(text, "jupyter")).toEqual(["Before", "After"]);
   });
-  it("RESIDUAL (phantom), kept on purpose: an example-list `(@)` item keeps no content column here, so its fence reads as free", () => {
-    // `adv/L6/L6_046`: quarto lists Top and After (the fence is container-relative, so the heading inside is swallowed), HEAD paired the
-    // cell by accident and was right, and this build lists In. The model's list-start predicate has never known `(@)` (the filed marker
-    // grammar gap), so no content column exists to call the line hosted. Pinned so a future change flips it on purpose. Zero corpus reach.
-    const text = doc("---", "title: t", "engine: markdown", "---", "", "# Top", "", "(@) item", "", "    ```{python}", "## In", "    ```", "", "## After");
-    expect(texts(text, "markdown")).toEqual(["Top", "In", "After"]);
+  // SLICE 10. AN EXAMPLE-LIST MARKER ABOVE MAKES NOTHING BELOW FREE. This model has never known the `(@)` marker as a list (the filed
+  // marker-grammar gap), so an indent-4 fence under such an item has no content column to call it hosted, and the skip read it as free
+  // indented code where the fence is container-relative and swallows the heading (five round-1/round-2 witnesses, `adv/L6/L6_046`,
+  // `adv/R1/R1_076`, `adv/R3/R3_021`-`R3_023`, all rendered). Teaching the list grammar is a different change; the fail-safe is that a
+  // marker anywhere above keeps HEAD's answer, which is quarto's here.
+  it.each([
+    ["`(@)` item, blank line, an indent-4 fence", ["", "(@) Example one.", "", "    ```{python}", "## In", "    ```", "", "Closing text.", "", "## After"], ["After"]],
+    ["`(@good)` label, an indent-5 fence", ["", "(@good) Example good.", "", "     ```{python}", "## In", "     ```", "", "Closing text.", "", "## After"], ["After"]],
+    ["a `# Top` above the example item", ["", "# Top", "", "(@) item", "", "    ```{python}", "## In", "    ```", "", "## After"], ["Top", "After"]],
+  ] as [string, string[], string[]][])("an example-list marker above keeps the old pairing: %s", (_label, lines, expected) => {
+    expect(texts(doc("---", "title: t", "engine: markdown", "---", ...lines), "markdown")).toEqual(expected);
+  });
+  it("an example-list marker BELOW the fence leaves it free (rendered, `scratchpad/s293/rows5`)", () => {
+    const text = doc("---", 'title: "R5"', "engine: markdown", "---", "", "    ```{python}", "## In", "    ```", "", "(@) item", "", "## After");
+    expect(texts(text, "markdown")).toEqual(["In", "After"]);
+  });
+  it("a fence on the very first line of the document is free (no oracle: quarto would promote the heading to the page title)", () => {
+    // Pinned by behaviour, not by a render: with no front matter there is nowhere for a `title:`, so quarto hides the first heading.
+    expect(texts(doc("    ```{python}", "## In", "    ```", "", "## After"), "markdown")).toEqual(["In", "After"]);
   });
 });

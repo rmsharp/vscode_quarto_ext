@@ -7095,6 +7095,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       lastCommentCloserLine = k;
     }
   }
+  // The first pandoc example-list marker (`(@)`, `(@label)`), which this model has never known as a list: an indented
+  // fence below one has no content column to call it hosted, so nothing below counts as FREE (Session 293,
+  // `indentedCellFenceFor`).
+  const firstExampleMarker = lines.findIndex((l) => /^[ \t]*\(@[\w-]*\)(?:[ \t]|$)/.test(l));
   const closerIndex = buildCloserIndex(lines);
   // In a knitr document, the closers knitr consumes before pandoc sees them — see
   // `knitrSilentChunkClosers`. Only the silent chunk's OWN opener may still close on one.
@@ -8287,7 +8291,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         engine,
         kernelPartitionDead,
         line,
-        !paragraphOpen && contentColumns.length === 0 && !stripQuote,
+        contentColumns.length === 0 &&
+          !stripQuote &&
+          (firstExampleMarker < 0 || firstExampleMarker >= i) &&
+          (i === 0 || endsBlock(lines[i - 1])),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -10484,13 +10491,16 @@ function indentedCellFenceFor(
   free: boolean,
 ): RegExpExecArray | null {
   const m = indentedCellFenceAt(line);
-  // ⚠ Only the FREE case is narrowed: no paragraph open, no container open, not quoted (the `BACKLOG.md`
-  // item's own title). Elsewhere pairing the cell is right by ACCIDENT — pandoc's inline code span runs
-  // from the opener's backticks to the closer's across the heading between, and a footnote or example
-  // list keeps no content column here — so those keep the answer this model always gave. The paragraph
-  // and container terms are each pinned by a rendered row; the QUOTE term is not: no probe of 1,075
-  // separates it (a quoted cell is never a cell, so the line is refused either way), and it stays as a
-  // fail-safe that keeps HEAD's answer in a context nothing measured.
+  // ⚠ Only the FREE case is narrowed: the line above ENDS A BLOCK (`endsBlock`, which also means no
+  // paragraph is open — measured redundant over 1,272 probes and the corpus), no container is open, and
+  // the line is not quoted (the `BACKLOG.md` item's own title said "no container, no paragraph"). Elsewhere pairing the cell is right by ACCIDENT — pandoc's inline code
+  // span runs from the opener's backticks to the closer's across the heading between, a raw construct
+  // (an HTML comment, a `\newpage` macro, the inside of a `<table>` or `<pre>`) keeps pandoc's paragraph
+  // or raw block open where this model's `paragraphOpen` is already false, and a footnote or example
+  // list keeps no content column here (an example marker anywhere above withdraws the free case,
+  // `firstExampleMarker`) — so those keep the answer this model always gave (Session 293, round 2). The paragraph, block-boundary and container terms are each pinned by a rendered row; the
+  // QUOTE term is not: no probe of 1,075 separates it (a quoted cell is never a cell, so the line is
+  // refused either way), and it stays as a fail-safe that keeps HEAD's answer where nothing measured.
   if (m === null || !free) {
     return m;
   }
@@ -10504,6 +10514,24 @@ function indentedCellFenceFor(
     return null;
   }
   return m;
+}
+
+/**
+ * Whether `line` is a line after which pandoc is certainly BETWEEN blocks (Session 293): a blank line, an
+ * ATX heading, a setext underline or thematic break, a div fence line, or a bare fence line. The skip of
+ * the unbounded cell look needs one of these directly above, because a RAW construct there (an HTML
+ * comment, a `\newpage` macro, the inside of a `<table>` or a `<pre>`) leaves pandoc's paragraph or raw
+ * block open where this model's `paragraphOpen` is already false — a state nothing here can see, which
+ * is the filed raw-block family. Rendered, round 2 (`scratchpad/s293/adv/R3`, `scratchpad/s293/rows4`).
+ */
+function endsBlock(line: string): boolean {
+  return (
+    BLANK_LINE.test(line) ||
+    /^ {0,3}#{1,6}(?:[ \t]|$)/.test(line) ||
+    /^ {0,3}(?:=+|-+)[ \t]*$/.test(line) ||
+    /^ {0,3}:{3,}/.test(line) ||
+    /^ {0,3}(?:`{3,}|~{3,})[ \t]*$/.test(line)
+  );
 }
 
 /** The run of whitespace a line starts with — `\s*`, the same class both cell regexes use. */
