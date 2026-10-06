@@ -8,10 +8,15 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 291 closed out (a heading in a quote or list item that opens a callout is no longer suppressed; `2ed0b821`..`94eace04`).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: S291's two residual items (div lifetime / reader-lazy / tabset holes; AST first block), R6 residuals (e)-(g), the empty `---` pair.
+**Task:** **Session 292 (IN PROGRESS, claimed 2026-10-05): the three callout-title shapes the direct-child rule still gets wrong (div lifetime, reader-dependent lazy continuation, the tabset rule's own holes; all DELETE).**
+**#1 NEXT:** finish the claimed item. Still open after it: the AST first-block item, R6 residuals (e)-(g), the empty `---` pair.
 **⚠ Gotchas:** (1) never `git add -A`; `scratchpad/s290/corpus` holds COPIES of personal corpus documents. (2) reuse `scratchpad/s291/{twin,cmp,monotone,diffscan}.cjs`. (3) agents can leave stray files at the repo root: check `git status`.
+
+### What Session 292 Did
+**Deliverable:** fix the callout-title deletions left by the direct-child rule: div lifetime, reader-dependent lazy continuation, the tabset rule's own holes (IN PROGRESS)
+**Started:** 2026-10-05
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest.
 
 ## Session 290 Handoff Evaluation (by Session 291)
 
