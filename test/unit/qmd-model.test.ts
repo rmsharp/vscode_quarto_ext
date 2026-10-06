@@ -21985,4 +21985,45 @@ describe("Session 294 — a non-kernel language at indent 4 is indented code und
       }
     },
   );
+  // SLICE 3 (guard rows, GREEN ON ARRIVAL — slice 1's free-case boundary already carries over, which is the point). The skip applies only
+  // where S293's markdown skip does: a block boundary directly above. Rendered over indent {4, 8, tab} x closer {same, column 0} x above
+  // {blank, paragraph, ATX heading} for five languages (`scratchpad/s294/g2`, 126 documents, ne mode, exit 0): quarto's answer depends on
+  // the line above and on nothing else. A paragraph directly above is no free case — pandoc's inline code span runs from the opener's
+  // backticks to the closer's and swallows the heading, so pairing the cell was right by accident and stays.
+  it.each([
+    ["a blank line above", ["prose", ""], ["In", "After"]],
+    ["a paragraph directly above (inline code span swallows the heading)", ["prose"], ["After"]],
+    ["an ATX heading directly above", ["## Above"], ["Above", "In", "After"]],
+  ] as [string, string[], string[]][])("an indent-4+ `{bash}` opener under jupyter with %s", (_label, above, expected) => {
+    for (const open of ["    ", "        ", "\t"]) {
+      for (const close of [open, ""]) {
+        const text = doc("---", 'title: "T"', "---", "", "```{python}", "1 + 1", "```", "", ...above, `${open}\`\`\`{bash}`, "## In", "x = 1", `${close}\`\`\``, "", "## After", "", "tail");
+        expect(texts(text, "jupyter")).toEqual(expected);
+      }
+    }
+  });
+  // The rule is a JUPYTER-hint rule. Every other hint keeps the unbounded pairing (the validation view, and what each surface that
+  // passes no engine reads), so the row Session 293 pinned for `python` holds for a language the jupyter hint now skips.
+  it.each([
+    ["no hint", undefined],
+    ["knitr (no oracle for an indented chunk: quarto aborts)", "knitr"],
+    ["julia (unmeasured)", "julia"],
+    ["ambiguous", "ambiguous"],
+  ] as const)("the any-indent cell look for `{bash}` is kept for hint %s", (_label, hint) => {
+    const text = doc("```{python}", "1 + 1", "```", "", "prose", "", "    ```{bash}", "## In", "x = 1", "```", "", "## After", "", "tail");
+    expect(texts(text, hint)).toEqual(["After"]);
+  });
+  // The kernel language itself is untouched: `python` still pairs only at its own indent, `ojs` and `mermaid` at any (Session 293).
+  it("`python` stays a kernel cell: an exact closer swallows the heading inside", () => {
+    const text = doc("---", 'title: "T"', "---", "", "```{python}", "1 + 1", "```", "", "prose", "", "    ```{python}", "## In", "x = 1", "    ```", "", "## After", "", "tail");
+    expect(texts(text, "jupyter")).toEqual(["After"]); // `g1_python_exact`: quarto lists After only
+  });
+  // THE OUTLINE TREE THE PROVIDERS BUILD, not only the heading list: the bogus cell entry for the indented `{bash}` opener is gone and
+  // the heading it hid is listed (HEAD gave [python cell, bash cell, After]). `findAllCells` with no hint still reports the cell: that is
+  // the validation view every non-Outline surface reads, which Session 293 kept on purpose.
+  it("the Outline lists the heading and no cell for an indented `{bash}` opener under jupyter", () => {
+    const text = doc("```{python}", "1 + 1", "```", "", "prose", "", "    ```{bash}", "## In", "x = 1", "    ```", "", "## After", "", "tail");
+    const shape = (nodes: ReturnType<typeof buildOutline>): string[] => nodes.map((n) => `${n.kind}:${n.name}`);
+    expect(shape(buildOutline(text, "jupyter"))).toEqual(["cell:```{python}", "heading:In", "heading:After"]);
+  });
 });
