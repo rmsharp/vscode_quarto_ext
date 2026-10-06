@@ -98,27 +98,3 @@ commit messages (amended), unmeasured counts in two code comments (corrected), a
 (4) A geometry guard added on a hypothesis. (5) Scope: nine rules against the item's three; each addition was measured, but it
 is more than was listed. (6) No `test:integration` run (needs the screen; core-only change).
 **TDD:** RED shown before GREEN. **Cost:** 9 lens agents (tokens not measured), ~5,600 adversarial renders, one load incident.
-
-## Session 290 Handoff Evaluation (by Session 291)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named the item and the BACKLOG
-item carried the S260 probe paths, so I had a verified defect (g02) within ten minutes; the ratchet citation matched a fresh run.
-**Helped:** the ranked list, `render2.sh` and `xbuild.cjs` (I reused its omitted-multiset test), the corpus-copies warning.
-**Missing:** nothing needed. **Wrong:** the BACKLOG item's causal claim: it blamed the callout rule for a list-item deletion that is
-the marker-line ATX gap (a plain-div twin is wrong too), and its fix hypothesis (the tabset rule's `inQuote`/`containerDepth`
-terms) regressed 111 probes; it did label that a hypothesis, not a measurement. **ROI: high.**
-
-## Session 291 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I rendered the S260 probes beside plain-div twins and split the item before any fan-out (the list half was a
-different defect). Workflow 1 (10 agents, ~8,000 probes) and workflow 2 (4 adversaries, ~14,000) were re-classified mechanically,
-not read. TDD: RED shown for each of 14 slices; every term killed by a mutant. The change is monotone, proved oracle-free over
-196,156 documents (0 headings dropped); corpus 0 of 3,383 moved; score unchanged 2,423/2,438; 3,634 tests, types clean.
-**Went wrong.** (1) My first cut copied the tabset rule's `inQuote`+`containerDepth` terms and committed it; the mutation run had
-shown both unpinned, and 111 HEAD-right probes became phantoms until a measuring lens found them. (2) I moved a shared
-`firstContentLine` for the empty-quote rule without grepping its other reader, which broke tabsets; only an adversary found it.
-(3) Shell slips: a zsh glob aborted a chain and ran the system `w`; an agent left a stray `quote` file at the repo root (removed).
-(4) 158 + 17 right-to-phantom probes remain, all pre-existing defects un-masked; disclosed. (5) No `test:integration` run (needs
-the screen; core-only change). (6) `quality_ratchet` reads `ledger-lag` 4 until this close-out commit lands.
-**TDD:** RED shown before GREEN. **Cost:** 14 agents (~3.6M tokens), about five hours of renders; no screen-taking run.
