@@ -8,10 +8,15 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 292 closed out (a div that ends early stops claiming Outline headings: flagged, not popped; `26735481`..`96fc8114`).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: the rewritten div-lifetime item (strict list-hosted quote, non-ATX lazy lines, outer tabset, stale column).
-**⚠ Gotchas:** (1) never `git add -A`. (2) CAP renders: the S292 workflow drove load to ~500 (Learning #622). (3) `scratchpad/s292/*.cjs` re-score cached renders.
+**Task:** **Session 293 (IN PROGRESS): `indentedCellFenceAt` over-reaches with NO container open and NO paragraph open.**
+Operator picked it at Phase 0 from the ranked list. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Measure corpus reach FIRST.
+**Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders before any workflow (Learning #622). (3) `scratchpad/s292/*.cjs` re-score cached renders.
+
+### What Session 293 Did
+**Deliverable:** fix `indentedCellFenceAt` swallowing the heading below an indent-4 cell opener that has a blank line above it and no container open (IN PROGRESS)
+**Started:** 2026-10-06
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 291 Handoff Evaluation (by Session 292)
 
