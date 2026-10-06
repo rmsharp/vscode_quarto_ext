@@ -8,15 +8,34 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 291 (IN PROGRESS, claimed 2026-10-05): a heading inside a block quote or list item that opens a callout is suppressed by the Outline (deletion).**
+**Task:** **NONE -- Session 291 closed out (a heading in a quote or list item that opens a callout is no longer suppressed; `2ed0b821`..`94eace04`).**
 `BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** finish the claimed item. Still open after it: R6 residuals (e)-(g), the empty `---` pair, S290's regex-route residuals; the removal-phantom position awaits the operator.
-**⚠ Gotchas:** (1) never `git add -A`; `scratchpad/s290/corpus` holds COPIES of personal corpus documents. (2) `cmp2.cjs` hides deletes-MORE; use `xbuild.cjs`. (3) parallel Bash `cd` races: use absolute paths.
-### What Session 291 Did
-**Deliverable:** fix the callout-title deletion for a heading nested in a block quote or list item (IN PROGRESS)
-**Started:** 2026-10-05
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest.
+**#1 NEXT:** operator picks. Open: S291's two residual items (div lifetime / reader-lazy / tabset holes; AST first block), R6 residuals (e)-(g), the empty `---` pair.
+**⚠ Gotchas:** (1) never `git add -A`; `scratchpad/s290/corpus` holds COPIES of personal corpus documents. (2) reuse `scratchpad/s291/{twin,cmp,monotone,diffscan}.cjs`. (3) agents can leave stray files at the repo root: check `git status`.
+
+## Session 290 Handoff Evaluation (by Session 291)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK named the item and the BACKLOG
+item carried the S260 probe paths, so I had a verified defect (g02) within ten minutes; the ratchet citation matched a fresh run.
+**Helped:** the ranked list, `render2.sh` and `xbuild.cjs` (I reused its omitted-multiset test), the corpus-copies warning.
+**Missing:** nothing needed. **Wrong:** the BACKLOG item's causal claim: it blamed the callout rule for a list-item deletion that is
+the marker-line ATX gap (a plain-div twin is wrong too), and its fix hypothesis (the tabset rule's `inQuote`/`containerDepth`
+terms) regressed 111 probes; it did label that a hypothesis, not a measurement. **ROI: high.**
+
+## Session 291 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I rendered the S260 probes beside plain-div twins and split the item before any fan-out (the list half was a
+different defect). Workflow 1 (10 agents, ~8,000 probes) and workflow 2 (4 adversaries, ~14,000) were re-classified mechanically,
+not read. TDD: RED shown for each of 14 slices; every term killed by a mutant. The change is monotone, proved oracle-free over
+196,156 documents (0 headings dropped); corpus 0 of 3,383 moved; score unchanged 2,423/2,438; 3,634 tests, types clean.
+**Went wrong.** (1) My first cut copied the tabset rule's `inQuote`+`containerDepth` terms and committed it; the mutation run had
+shown both unpinned, and 111 HEAD-right probes became phantoms until a measuring lens found them. (2) I moved a shared
+`firstContentLine` for the empty-quote rule without grepping its other reader, which broke tabsets; only an adversary found it.
+(3) Shell slips: a zsh glob aborted a chain and ran the system `w`; an agent left a stray `quote` file at the repo root (removed).
+(4) 158 + 17 right-to-phantom probes remain, all pre-existing defects un-masked; disclosed. (5) No `test:integration` run (needs
+the screen; core-only change). (6) `quality_ratchet` reads `ledger-lag` 4 until this close-out commit lands.
+**TDD:** RED shown before GREEN. **Cost:** 14 agents (~3.6M tokens), about five hours of renders; no screen-taking run.
 
 ## Session 289 Handoff Evaluation (by Session 290)
 
@@ -57,25 +76,3 @@ reader axis myself before fanning out, which caught that `gfm`/`commonmark` swal
 **Went wrong.** (1) My first cut ignored the reader and would have regressed `gfm`; found by my own probe, not a test. (2) The
 `insideHtmlComment` docstring still repeats the wrong "next blank line" claim; not edited, by scope. (3) No `test:integration` run.
 **TDD:** RED shown before GREEN. **Cost:** 4 workflow agents (~294k tokens); no screen-taking run.
-
-## Session 287 Handoff Evaluation (by Session 288)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK listed (d)-(g) as open and the
-BACKLOG item carried lettered shapes and probe paths, so scoping took one question; the 2,423/2,438 baseline reproduced.
-**Helped:** the shape list, the tracked score tool, and the harness (`run1.sh`, generator) that I reused for 310 probes.
-**Missing:** it did not say that the header reader pre-dated a raw-string hazard. **Wrong:** none found.
-**ROI: high** (about ten minutes to a claimed task).
-
-## Session 288 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** Three probe rounds in both modes before any test; round 3 found a pre-existing deleting defect (raw strings),
-fixed first. Five TDD slices with RED shown each time; seven mutants killed; the evaluator was differential-tested against R
-(242,547 expressions, 0 mismatches). A 4-lens workflow (4,990 probes) found no defect in the new rules; I re-rendered the three
-consequential reports firsthand. Score unchanged 2,423/2,438; 3,471 tests, types clean.
-**Went wrong.** (1) My first mutation script used `sed -i` on macOS and silently applied nothing; I caught it from identical
-results and redid it in Python. (2) I wrote one comment claiming `0` was loud when I had measured it silent; fixed before commit.
-(3) The pass reproduced residuals I did not fix (bare `F`, `opts_hooks`, redefined `&`, printing chunks): disclosed in BACKLOG
-(d), not fixed, by scope. (4) No `test:integration` run (needs the screen; no host behaviour changed). (5) `quality_ratchet`
-reads `ledger-lag` 2 until this close-out commit lands; budget over-ceilings on three files predate me.
-**TDD:** RED shown before GREEN. **Cost:** 4 workflow agents (~419k tokens); no screen-taking run.
