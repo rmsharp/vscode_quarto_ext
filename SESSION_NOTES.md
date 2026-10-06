@@ -8,15 +8,37 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 293 (IN PROGRESS): `indentedCellFenceAt` over-reaches with NO container open and NO paragraph open.**
-Operator picked it at Phase 0 from the ranked list. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Measure corpus reach FIRST.
-**Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders before any workflow (Learning #622). (3) `scratchpad/s292/*.cjs` re-score cached renders.
+**Task:** **NONE -- Session 293 closed out (a jupyter python cell closes only at its own indent; an unclosed one is dropped; engine markdown has no indented-cell look outside handlers).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**#1 NEXT:** operator picks. New open item: "Kernel-cell closing and the unbounded second look" (9 residuals; non-kernel languages at indent 4+ under jupyter is the biggest).
+**⚠ Gotchas:** (1) never `git add -A`. (2) render load is Spotlight's: prune `*_files`, authors never render (Learning #627). (3) use `corpusdiff_eng.cjs` (Learning #628).
 
-### What Session 293 Did
-**Deliverable:** fix `indentedCellFenceAt` swallowing the heading below an indent-4 cell opener that has a blank line above it and no container open (IN PROGRESS)
-**Started:** 2026-10-06
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 292 Handoff Evaluation (by Session 293)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed
+the open items; the ratchet citation (2/2, `bba236856bad`, `8845021a4049`) matched the stored results at Phase 0.
+**Helped:** gotcha 2 (cap and announce renders; memory `feedback_cap_render_load`) shaped both workflows: I announced them and the agents never
+rendered. Gotcha 1 (exact paths, never `git add -A`) and gotcha 8 (the ratchet walks the whole scratchpad) saved two mistakes.
+**Missing:** that each render's `*_files` library folder drives a Spotlight indexing storm (load 209 from three quarto renders), and that an
+authoring agent may leave thousands of working files: its gotcha 7 held only for the directory. **Wrong:** one receipt gave two scratchpad
+sizes (about 560,000 and about 1.2 million files), and "~7 of its 600 s" reads as seconds where its own CHANGELOG says minutes. **ROI: high.**
+
+## Session 293 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I measured before coding: three 128-document grids (jupyter, knitr, markdown), a 20-language grid, sequences, and
+validation against render, which showed the backlog's cause ("the second look over-reaches") was wrong: the closer's indent is the rule, and
+quarto has two partitioners. TDD: RED shown for each of ten slices. Two adversarial rounds (415 + 193 probes) used quarto as the only oracle and a
+central render pool (2 to 3 wide). Final: 1,031 probes scored, 593 fixed, 2 phantom regressions (both older families), 0 deletion
+regressions; corpus 0 of 3,383 changed; score unchanged 2,423/2,438; mutation: every term killed bar one documented unobservable.
+**Went wrong.** (1) I committed slice 3 (the markdown skip) after measuring ONE language and one context: round 1 found 20 HEAD-correct
+probes it broke (8 deletions) and round 2 nine more; the same pattern as Session 292 (my own matrices share my assumptions, only the
+adversaries find the flaw). (2) The whitespace lens had no `title:` and quarto promoted a heading out of view; I caught it only because the tally
+read absurd. (3) The rule grew to ten slices for an item that listed one shape (each addition measured, but it is more than listed). (4) I
+wrote three small logs to /tmp once (removed). (5) Load reached 209 while rendering: Spotlight, not quarto; I paused and pruned. (6) No
+`test:integration` run (needs the screen; core-only change). (7) Two phantom regressions and nine residuals ship, all filed.
+**TDD:** RED shown before GREEN for each slice; the mutation-gap rows and four guard rows passed on arrival (disclosed).
+**Cost:** 9 agents (about 1.6M subagent tokens), about 1,800 quarto renders at 3 wide or fewer; no screen-taking run.
 
 ## Session 291 Handoff Evaluation (by Session 292)
 
