@@ -21702,4 +21702,15 @@ describe("Session 292 — a fenced div ends with the container that holds it", (
   it("under commonmark_x an unmarked opener after a marked closer is top level, so the quoted heading is real", () => {
     expect(texts("---\nfrom: commonmark_x\n---\n\n## B\n\n> ::: {.plain}\n> text\n> :::\n::: {.callout-note}\n> ## T\n:::\n\n## A\n")).toEqual(["B", "T", "A"]);
   });
+  // RESIDUAL (phantom), pinned so a future change flips it on purpose. 30 of the adversarial set's 36 genuine phantoms are this one
+  // family: an OUTER tabset holds a quote-hosted inner div, and an unmarked ATX line under a reader where ATX interrupts ends that
+  // quote. The heading then belongs to the outer tabset and is a tab label, but the model's own `inQuote` flag stays true until a
+  // blank line, so the outer tab rule's `div.inQuote !== inQuote` test declines and the label is listed. HEAD answered these right by
+  // accident (the inner tabset consumed the label). Rendered, `scratchpad/s292/adv/pairing/a0378_*`; quarto lists ["Za0378 Before", "Za0378 AfterOuter"].
+  it("RESIDUAL (phantom), kept on purpose: a tab label of an outer tabset after an inner quoted div ended at an unmarked heading", () => {
+    const doc = "---\nfrom: commonmark_x\n---\n\n## Za0378 Before\n\n::: {.panel-tabset}\n## Za0378 TabA\n\ntext a\n\n> > ::: {.panel-tabset}\n> > ## Za0378 InTabA\n> > \n> > tab a text\n> > \n## Za0378 End\ntext after end\n\n## Za0378 AfterInner\n:::\n\n## Za0378 AfterOuter\n";
+    const got = texts(doc);
+    expect(got.length).toBeGreaterThan(2);
+    expect(["Za0378 Before", "Za0378 AfterOuter"].every((heading) => got.includes(heading))).toBe(true);
+  });
 });
