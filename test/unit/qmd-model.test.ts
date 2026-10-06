@@ -22144,4 +22144,83 @@ describe("Session 294 — a non-kernel language at indent 4 is indented code und
   ])("a front matter %j: an indent-4 `{%s}` opener lists %j", (frontMatter, lang, expected) => {
     expect(texts(KERNEL(frontMatter, lang), "jupyter")).toEqual(expected);
   });
+  // RAW-BLOCK RESIDUALS, kept on purpose (PHANTOM direction; HEAD was right BY ACCIDENT). The free case is "a block boundary directly above",
+  // and a BLANK LINE INSIDE a raw construct is not one: pandoc's raw HTML block (`<pre>`, `<script>`, `<style>`, `<textarea>`), a raw TeX
+  // environment and a quarto-REMOVED div (`.content-hidden`, `.content-visible when-format="pdf"`) all run across it, and a pandoc
+  // multiline table ends at its own border. Quarto swallows the heading in all nine (`scratchpad/s294/rows3`, ne mode, exit 0: Before,
+  // After); the old any-indent pairing swallowed it by accident and this model lists it, exactly as it lists a heading in the same
+  // construct with NO fence at all (the filed raw-block family: the model keeps no state for any of them). Both sides are pinned so a
+  // future raw-block rule flips them on purpose. The two controls beside them are real fixes: a plain `<div>` and a `:::` div hold
+  // markdown, so the indented fence is indented code and the heading is listed (`r3_10`, `r3_11`).
+  const R3 = (...lines: string[]) => doc("---", 'title: "R3"', "---", "", "```{python}", "1 + 1", "```", "", "## Before", "", ...lines);
+  const AROUND = (open: string, close: string): string[] => [open, "", "    ```{bash}", "## In", "    ```", close, "", "## After"];
+  it.each([
+    ["a <pre> block", "<pre>", "</pre>"],
+    ["a <script> block", "<script>", "</script>"],
+    ["a <style> block", "<style>", "</style>"],
+    ["a <textarea> block", "<textarea>", "</textarea>"],
+    ["a TeX verbatim environment", "\\begin{verbatim}", "\\end{verbatim}"],
+    ["a TeX center environment", "\\begin{center}", "\\end{center}"],
+    ["a content-hidden div", '::: {.content-hidden when-format="html"}', ":::"],
+    ["a content-visible div for pdf only", '::: {.content-visible when-format="pdf"}', ":::"],
+  ] as [string, string, string][])("RESIDUAL (phantom), kept on purpose: an indent-4 `{bash}` opener after a blank line inside %s", (_label, open, close) => {
+    expect(texts(R3(...AROUND(open, close)), "jupyter")).toEqual(["Before", "In", "After"]); // quarto: Before, After
+  });
+  it("RESIDUAL (phantom), kept on purpose: inside a pandoc multiline table the stray fence and the table border read as a setext title", () => {
+    const table = [
+      "-------------------------------------------------------------",
+      " Centered   Default           Right Left",
+      "  Header    Aligned         Aligned Aligned",
+      "----------- ------- --------------- -------------------------",
+      "   First    row                12.0 Example of a row that",
+      "                                    spans multiple lines.",
+      "",
+      "    ```{bash}",
+      "## In",
+      "    ```",
+      "-------------------------------------------------------------",
+      "",
+      "## After",
+    ];
+    expect(texts(R3(...table), "jupyter")).toEqual(["Before", "In", "```", "After"]); // quarto: Before, After
+  });
+  it.each([
+    ["a plain <div> holds markdown (`r3_10_div_control`)", "<div>", "</div>"],
+    ["a fenced `:::` div holds markdown (`r3_11_fenced_div_control`)", "::: {.note}", ":::"],
+  ] as [string, string, string][])("the indented fence is indented code in %s", (_label, open, close) => {
+    expect(texts(R3(...AROUND(open, close)), "jupyter")).toEqual(["Before", "In", "After"]);
+  });
+  // NO ORACLE: A KERNEL THE DOCUMENT NAMES BUT DOES NOT DESCRIBE KEEPS THE OLD BEHAVIOUR. `jupyter: julia-1.9`, `jupyter: ir`, `jupyter: true` and
+  // a kernelspec with no `language` have a language only an installed kernelspec could name, and quarto FAILS the render where it is missing (exit 1,
+  // `scratchpad/s294/k1`), so these rows are a CHOICE, not a measurement: nothing is skipped (every language pairs at any indent, as before
+  // Session 294) and the Session 293 python rules stay exactly as they were. A wrong guess either way would delete or invent a heading, so the
+  // fail-safe is the answer the model always gave.
+  it.each([
+    ["jupyter: julia-1.9"],
+    ["jupyter: ir"],
+    ["jupyter: true"],
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia"],
+  ])("a kernel named but not described (%j) keeps the old pairing", (frontMatter) => {
+    const open = (lang: string, closer: string) =>
+      doc("---", 'title: "K"', ...frontMatter.split("\n"), "---", "", "prose", "", `    \`\`\`{${lang}}`, "## In", "x = 1", closer, "", "## After", "", "tail");
+    expect(texts(open("bash", "    ```"), "jupyter")).toEqual(["After"]); // nothing is skipped: bash pairs, as it did
+    expect(texts(open("bash", "```"), "jupyter")).toEqual(["After"]); // ...at any indent
+    expect(texts(open("julia", "    ```"), "jupyter")).toEqual(["After"]);
+    expect(texts(open("python", "    ```"), "jupyter")).toEqual(["After"]); // Session 293: python pairs at its own indent
+    expect(texts(open("python", "```"), "jupyter")).toEqual(["In", "After"]); // ...and a mismatched closer drops the opener
+  });
+  // THE SESSION 293 KERNEL RULES FOLLOW THE KERNEL, NOT `python` (rendered, `scratchpad/s294/rows4`, ne mode, exit 0; HEAD deleted a heading in
+  // all eight). A kernel cell of ANY language closes only at a byte-identical indent, a cell with no such closer is dropped, and after a dropped
+  // kernel opener the partition is dead: a later well-formed indented kernel cell is indented code and a column-0 one is an ordinary fence.
+  const R4 = (language: string, name: string, ...lines: string[]) =>
+    doc("---", 'title: "R4"', "jupyter:", "  kernelspec:", `    name: ${name}`, "    display_name: K", `    language: ${language}`, "---", "", ...lines);
+  it.each([["julia", "julia-1.10", "julia"], ["R", "ir", "r"]])("a %s-kernel document: the cell closes only on its own indent", (language, name, cell) => {
+    expect(texts(R4(language, name, "prose", "", `    \`\`\`{${cell}}`, "## In", "x = 1", "```", "", "## After", "", "tail"), "jupyter")).toEqual(["In", "After"]);
+    expect(texts(R4(language, name, "prose", "", `    \`\`\`{${cell}}`, "## In", "x = 1", "        ```", "", "## After", "", "tail"), "jupyter")).toEqual(["In", "After"]);
+  });
+  it.each([["julia", "julia-1.10", "julia"], ["R", "ir", "r"]])("a %s-kernel document: a dropped opener kills the partition", (language, name, cell) => {
+    const dropped = ["Lead para.", "", `  \`\`\`{${cell}}`, "a = 1", "", "## InA", ""];
+    expect(texts(R4(language, name, ...dropped, `    \`\`\`{${cell}}`, "b = 2", "", "## InB", "    ```", "", "## EndSeq"), "jupyter")).toEqual(["InA", "InB", "EndSeq"]);
+    expect(texts(R4(language, name, ...dropped, `\`\`\`{${cell}}`, "c = 3", "", "## InC", "```", "", "## EndSeq"), "jupyter")).toEqual(["InA", "EndSeq"]);
+  });
 });

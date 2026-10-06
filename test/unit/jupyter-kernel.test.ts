@@ -83,6 +83,8 @@ describe("jupyterKernelLanguage (Session 294) — the language the document's ju
     ["an escaped quote followed by a comma inside one quoted display name", 'jupyter: {kernelspec: {display_name: "x \\", y", name: j, language: julia}}', "julia"],
     ["a quoted display name that holds a closing brace", 'jupyter: {kernelspec: {display_name: "}", name: j, language: julia}}', "julia"],
     ["a single-quoted display name with a doubled quote", "jupyter: {kernelspec: {display_name: 'It''s, J', name: j, language: julia}}", "julia"],
+    ["a `language` nested deeper inside the kernelspec is not the kernelspec's own", "jupyter:\n  kernelspec:\n    name: x\n    metadata:\n      language: julia", null],
+    ["a flow value after an unquoted key with spaces", "jupyter: {kernelspec: {display_name: Julia 1.10, name: j, language: julia}}", "julia"],
     ["text after the closing brace that is not a comment makes the value unknown", "jupyter: {kernelspec: {name: j, language: julia}} trailing", null],
     ["an unterminated flow mapping is unknown", "jupyter: {kernelspec: {name: j, language: julia}", null],
   ] as [string, string, string | null][])("flow reading is robust: %s", (_label, frontMatter, expected) => {
