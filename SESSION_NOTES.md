@@ -8,15 +8,40 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 294 (IN PROGRESS): non-kernel languages at indent 4+ under jupyter (residual 1 of "Kernel-cell closing and the unbounded second look").**
-Operator picked it at Phase 0 from the ranked list. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Measure corpus reach FIRST; render before widening any rule (Learning #623).
-**⚠ Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders before any workflow; authors never render (Learning #627). (3) use `corpusdiff_eng.cjs` (Learning #628).
+**Task:** **NONE -- Session 294 closed out (under jupyter a cell is the document's kernel language or a handler; every other indented opener in the free case is indented code).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**#1 NEXT:** operator picks. Open: "Kernel-cell closing ..." (nine residuals; the free case's block-boundary list is the largest) and the raw-block family (census, one trigger).
+**⚠ Gotchas:** (1) never `git add -A`. (2) other projects hold the load at 37-55; `render.sh` waits below 25. (3) `score.cjs` REFUSES a stale bundle: rebuild after any src edit or mutation run.
 
-### What Session 294 Did
-**Deliverable:** make the Outline list the heading below an indent-4+ `{bash}`/`{sh}`/`{js}`/`{julia}`/`{sql}` opener under jupyter, where quarto treats it as indented code (IN PROGRESS)
-**Started:** 2026-10-06
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 293 Handoff Evaluation (by Session 294)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the
+open items; all ten line numbers in its key_files were exact at HEAD (grep-checked); the ratchet citation matched the stored results at Phase 0.
+**Helped:** the `lg` probes with cached renders (I used five byte for byte as test inputs), `adv_score.cjs` and `corpusdiff_eng.cjs` (forked), the
+pinned `{bash}` RESIDUAL row (my first RED to flip), and gotchas 1, 2, 3, 5 and 7 (the ratchet walks the scratchpad: minutes, 127 is a timeout).
+**Missing:** how to build a `findHeadings` bundle (esbuild one-liner; `h/head.cjs` is the PRE-S293 commit, `head.sha` says so), and that the
+`lg` `{r}` rows forced the jupyter hint on documents quarto resolves to knitr, so they read "right" by accident. **Wrong:** gotcha 4, "the
+exact-indent rule is python ONLY": true as a measurement, but it hid that `python` was a constant standing in for the document's kernel, which
+was the defect my first cut inherited. It did label the non-python kernel UNMEASURED. **ROI: high.**
+
+## Session 294 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I measured before coding: a 51-language grid showed the rule is a negative list, a context grid showed S293's free case carries
+over, and a kernel grid (100 documents) fixed the reader's accept set before I wrote it. Mutation testing found two unpinned terms, and scoring
+candidate rows through the MUTANT bundle chose the rows that kill them. Two adversarial rounds (ten lenses, about 640 documents) found two
+defects of MY design, both fixed test-first: the kernel constant (5 regressions) and "python by default" on front matter the reader could not
+read (7). The 58 raw-construct phantoms were pinned and filed, not gated. Final: 917 documents scored, 462 fixed; S293's 1,124 probes give 0
+regressions; corpus 0 of 3,383 changed; score unchanged 2,423/2,438; 4,024 tests; 27 mutants killed, 1 equivalent term removed.
+**Went wrong.** (1) A stale `h/new.cjs` (built after slice 1, never rebuilt) made me chase an R-specific deletion that was already fixed;
+`score.cjs` now refuses a stale bundle. (2) My first rule inherited S293's `python` constant and a second rule defaulted to python on unreadable
+input: the same pattern as S292/S293, my matrices share my assumptions and only the adversaries find the flaw. (3) Three unmeasured numbers in
+prose: a commit message (105 documents, was 100: amended), "162 + 300" in a learning, a witness range that included a right row; all caught
+before close. (4) Mutation SKIPs read as a pass until I counted them. (5) Scope grew from a five-language skip to a front-matter reader (a new
+module), each step forced by a measured regression of my own rule, but more than the item listed. (6) One `npm test` run failed once, uncaptured
+(five green reruns). (7) No `test:integration` run (needs the screen; core-only change).
+**TDD:** RED shown before GREEN for each slice (5, 42, 12, 8, 1, 10, 32 and 1 failing rows); guard rows passed on arrival and are disclosed in the ledger.
+**Cost:** 10 authoring agents (about 2.07M subagent tokens), about 1,270 renders at 3 wide or fewer; no screen-taking run.
 
 ## Session 292 Handoff Evaluation (by Session 293)
 
