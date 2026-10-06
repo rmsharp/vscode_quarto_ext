@@ -10541,8 +10541,9 @@ function indentedCellFenceFor(
   // fails). The near-misses `ipython` and the capitalised `Python` are plain fences too, so the test is the exact name, not a prefix or a
   // fold. The kernel is `python` only where the document does not write another (`jupyterKernelLanguage`: a `kernelspec.language` of
   // julia makes `{julia}` the cell and `{python}` the plain fence, 70 documents, `k1`-`k3`). `null` is a kernel only an installed
-  // kernelspec could name: nothing is known, so nothing is skipped and the old pairing stays.
-  if (engine === "jupyter" && kernel !== null && lang !== kernel && !HANDLER_CELL_LANGUAGES.has(lang)) {
+  // kernelspec could name: nothing is known, so nothing is skipped and the old pairing stays. There is no engine test: `kernel` is `null`
+  // under every engine but jupyter (`computeRegions`), and a mutant that added one back was equivalent (Session 294).
+  if (kernel !== null && lang !== kernel && !HANDLER_CELL_LANGUAGES.has(lang)) {
     return null;
   }
   // After a dropped kernel opener the partition is dead for the rest of the file (see the flag).
