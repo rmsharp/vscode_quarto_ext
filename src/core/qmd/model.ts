@@ -7468,6 +7468,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     inQuote: boolean;
     calloutTitleSlot: boolean;
     firstContentLine: number | null;
+    // ⚠ **THE CALLOUT'S FIRST BLOCK, WHICH IS NOT THE FIRST CONTENT LINE (Session 291)** — an empty block quote (a bare
+    // `>` deeper than the opener) is a block with no content line. The tabset rule keeps reading `firstContentLine`.
+    firstBlockLine: number | null;
     isTabset: boolean;
     tabLevel: number | null;
     // ⚠ **HOW MANY `>` MARKERS THE OPENER LINE CARRIED (Session 291)** — `inQuote` alone cannot tell a
@@ -7518,6 +7521,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     commonmark: boolean[];
   } | null = null;
   let inQuote = false;
+  // The `>` marker count of the most recent MARKED line, carried through unmarked lines of an open quote and reset to 0
+  // by the blank line that closes it (Session 291) — read as `quoteDepthAbove`, the depth a lazy opener continues.
+  let lastMarkedQuoteDepth = 0;
   // ⚠ **AND THE PRE-SESSION FLAG IS CLEARED ONLY BY A LINE THE STRIP DID NOT REACH.** Every
   // region-boundary path below writes `quoteOpen = stripQuote` rather than `false` (Session
   // 225), because a MARKED blank line does not end a quote (`d/d01`) — and the old literal
@@ -7645,6 +7651,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     const quoteDepth: number = stripQuote
       ? raw.slice(0, quoteContentStart as number).split(">").length - 1
       : 0;
+    const quoteDepthAbove: number = lastMarkedQuoteDepth;
+    lastMarkedQuoteDepth = stripQuote ? quoteDepth : inQuote ? lastMarkedQuoteDepth : 0;
     // ⚠ **A CALLOUT'S FIRST-BLOCK HEADING IS ITS TITLE BAR, NOT A HEADING (Session 257).**
     // Quarto's callout filter lifts it out of the body entirely: no `<hN>`, no `<section>`,
     // and no `sec-` anchor — an `@sec-` reference to one renders as the unresolved
@@ -7668,8 +7676,11 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // ⚠ **A BARE `>` DEEPER THAN THE OPENER IS AN EMPTY BLOCK QUOTE, WHICH IS A BLOCK (Session 291).** Its
       // content is blank, but it is the div's first block, so a heading after it is not and renders
       // (`scratchpad/s291/n2/e1`..`e5`). At the opener's OWN depth the same line is a plain blank.
-      if (innermostDiv.firstContentLine === null && (!BLANK_LINE.test(line) || quoteDepth > innermostDiv.quoteDepth)) {
+      if (innermostDiv.firstContentLine === null && !BLANK_LINE.test(line)) {
         innermostDiv.firstContentLine = i;
+      }
+      if (innermostDiv.firstBlockLine === null && (!BLANK_LINE.test(line) || quoteDepth > innermostDiv.quoteDepth)) {
+        innermostDiv.firstBlockLine = i;
       }
     }
     /**
@@ -7680,14 +7691,14 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
      * tabset rule below has read the same flag since Session 258; this one had not, and hid a
      * heading quarto renders under six of the nine measured readers.
      */
-    const calloutTitleTakes = (startLine: number, inListItem = false): boolean => {
+    const calloutTitleTakes = (startLine: number, inListItem = false, headingQuoteDepth: number = quoteDepth): boolean => {
       const div = divColumns.length > 0 ? divColumns[divColumns.length - 1] : null;
       return (
         fencedDivsDialect &&
         !inListItem &&
         div !== null &&
         div.calloutTitleSlot &&
-        div.firstContentLine === startLine &&
+        div.firstBlockLine === startLine &&
         // ⚠ **A HEADING IN A QUOTE NESTED INSIDE THE DIV IS NOT ITS FIRST BLOCK (Session 291).** Quarto lifts
         // the div's first block only if that block IS a `Header`; a block quote is a container, so
         // `::: {.callout-note}` / `> ## Inside` lifts nothing and renders a real `<h2>`.
@@ -7705,7 +7716,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // lifted title into a phantom (111 probes right at HEAD, rendered). A heading in a LIST ITEM is decided
         // by `inListItem` instead — the setext call site's own "a list marker was stripped" — because an ATX
         // heading on a list-marker line is never emitted at all (the S261 marker-line item, filed).
-        quoteDepth <= div.quoteDepth
+        headingQuoteDepth <= div.quoteDepth
       );
     };
     /**
@@ -9021,7 +9032,21 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // `prev` is `titleLines[0]` — the FIRST title line, which is where the heading's block
       // begins and therefore the line the callout's title slot was marked at. A MULTI-LINE
       // setext title is joined into one heading and still starts there.
-      if (heading && !calloutTitleTakes(prev.line, titleListMarkerStripped) && !tabsetTabTakes(prev.line, heading.level)) {
+      // ⚠ **AN INDENTED UNMARKED UNDERLINE CANNOT FORM THE LITERAL HEADER `> T` (Session 291)** — only a column-0 one can, so
+      // `> T` over `  ===` is a heading INSIDE the quote and the title line's own depth decides, not the underline's 0.
+      // ⚠ **MEASURED FOR AN UNQUOTED CALLOUT ONLY** — inside a quote quarto still lifts a deeper title over an indented
+      // underline (`scratchpad/s291/adv_markers/r7a`: `d1_t2_*_u2` lifted, `d0_*_u1`..`u4` emitted), so there HEAD's answer stands.
+      // ⚠ **"INDENTED" IS MEASURED FROM THE HOST CONTAINER'S CONTENT COLUMN** (the stashed outer list column while a quote is
+      // open): an underline AT that column is relative column 0 and lifts (`scratchpad/s291/n4/a`, `d`).
+      const hostColumn = outerColumns !== null && outerColumns.columns.length > 0 ? outerColumns.columns[outerColumns.columns.length - 1] : 0;
+      const underlineIndentedLazy =
+        !stripQuote && inQuote && indentColumn(line) > hostColumn && (divColumns[divColumns.length - 1]?.quoteDepth ?? 0) === 0;
+      const titleQuoteDepth = underlineIndentedLazy ? blockQuoteMarkerOffsets(prev.text, rawMarkerColumns).length : quoteDepth;
+      if (
+        heading &&
+        !calloutTitleTakes(prev.line, titleListMarkerStripped, titleQuoteDepth) &&
+        !tabsetTabTakes(prev.line, heading.level)
+      ) {
         headings.push(heading);
       }
       bodyLines.push({ line: i, text: raw, contentStart: stripQuote ? (quoteContentStart as number) : 0 });
@@ -9507,9 +9532,12 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           inQuote,
           calloutTitleSlot: divCalloutTitleSlot(divFence!.attrs, divFence!.tail, { commonmarkDialect, pandocEscapes }),
           firstContentLine: null,
+          firstBlockLine: null,
           isTabset: divPanelTabset(divFence!.attrs, divFence!.tail, { commonmarkDialect, pandocEscapes }),
           tabLevel: null,
-          quoteDepth,
+          // ⚠ **A LAZY OPENER SITS AT THE DEPTH OF THE QUOTE IT CONTINUES (Session 291)** — an unmarked `:::` under a
+          // quoted line that leaves no paragraph open, or `> :::` under `> >`, is inside the deeper quote.
+          quoteDepth: Math.max(quoteDepth, inQuote ? quoteDepthAbove : 0),
         });
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS

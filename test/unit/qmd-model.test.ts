@@ -21290,4 +21290,69 @@ describe("Session 291 — a callout's title is its first block only when that bl
   ] as [string, string, string[]][])("RESIDUAL (phantom), un-masked and kept: %s", (_label, doc, got) => {
     expect(texts(doc)).toEqual(got);
   });
+  // The empty-quote rule is the CALLOUT's first-BLOCK rule, not the tabset's. Quarto finds a tabset's tab level with
+  // `find_if` over the div's blocks, so an empty quote above the first tab changes nothing there and every tab heading
+  // is still a tab label (`scratchpad/s291/adv_quotes/g9_o0_bareblank`, `g9_o1_bareblank`, rendered). The first cut
+  // moved the shared "first content line" and so stopped the tab level being learned, listing the tabs as headings.
+  it.each([
+    ["an empty quote above the first tab", "## B Before\n\n::: {.panel-tabset}\n>\n\n## T TabOne\n\none body\n\n## T TabTwo\n\ntwo body\n:::\n\n## A After\n"],
+    ["an empty deeper quote above the first tab, in a quoted tabset", "## B Before\n\n> ::: {.panel-tabset}\n> >\n>\n> ## T TabOne\n> one body\n>\n> ## T TabTwo\n> two body\n> :::\n\n## A After\n"],
+  ])("a tabset's tab level is not learned from the callout first-block rule: %s", (_label, doc) => {
+    expect(texts(doc)).toEqual(["B Before", "A After"]);
+  });
+  // A callout OPENER can be lazy too. An unmarked `:::` line directly under a quoted line that leaves no paragraph open
+  // is inside that quote, at the quote's depth, so a `> ## T` title is a direct child and IS lifted
+  // (`scratchpad/s291/adv_quotes/g11a_l12`, `g12_bare1_o0_h1_atx`, `g12_atx2_o0_h2_atx`, rendered). The opener's own `>`
+  // count (0) is not its depth; the depth is the quote it continues.
+  it.each([
+    ["an unmarked opener under a bare `>`, depth-1 title", "## B Before\n\n>\n::: {.callout-note}\n> ## T Inside\nbody\n:::\n\n## A After\n", ["B Before", "A After"]],
+    ["an unmarked opener after a quoted paragraph and a bare `>`", "## B Before\n\n> para\n>\n::: {.callout-note}\n> ## T Inside\n:::\n\n## A After\n", ["B Before", "A After"]],
+    ["an unmarked opener under a depth-2 quoted heading, depth-2 title", "## B Before\n\n> > ## X\n::: {.callout-note}\n> > ## T Inside\nbody\n:::\n\n## A After\n", ["B Before", "X", "A After"]],
+  ] as [string, string, string[]][])("a lazy opener sits at the depth of the quote it continues: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
+  });
+  // A setext title in a quote over an UNMARKED underline is the literal header `> T` ONLY when the underline is at
+  // column 0. Indented even one space it cannot be that header, so the quote reading wins and the heading is inside the
+  // quote: quarto emits it, and the callout's first block is that quote (`scratchpad/s291/adv_markers/r7a/Qr7ax003`,
+  // `Qr7ax005`, `Qr7ax023`, rendered; `Qr7ax001` is the column-0 control, right at HEAD). The underline's own marker
+  // count is 0 either way, so the title line's depth has to decide.
+  it.each([
+    ["`=` underline indented 2", "## Q3 Before\n\n::: {.callout-note}\n\n> Q3 In\n  ===\n\nbody Q3\n:::\n\n## Q3 After\n"],
+    ["`=` underline indented 4", "## Q5 Before\n\n::: {.callout-note}\n\n> Q5 In\n    ===\n\nbody Q5\n:::\n\n## Q5 After\n"],
+    ["`-` underline indented 2", "## Q23 Before\n\n::: {.callout-note}\n\n> Q23 In\n  ---\n\nbody Q23\n:::\n\n## Q23 After\n"],
+  ])("a quoted setext title over an indented unmarked underline is a heading inside the quote: %s", (_label, doc) => {
+    const lines = doc.split("\n").filter((l) => l.startsWith("## ") || l.startsWith("> "));
+    expect(texts(doc)).toEqual([lines[0].slice(3), lines[1].slice(2), lines[2].slice(3)]);
+  });
+  it("GUARD: the same quoted title over a column-0 underline is the literal header `> T`, directly in the div, and is lifted", () => {
+    expect(texts("## Q1 Before\n\n::: {.callout-note}\n\n> Q1 In\n===\n\nbody Q1\n:::\n\n## Q1 After\n")).toEqual(["Q1 Before", "Q1 After"]);
+  });
+  // The indented-underline rule above was measured for an UNQUOTED callout only. When the callout is itself inside a
+  // quote, quarto still lifts the title even though it sits one quote deeper than the opener and the underline is
+  // indented (`scratchpad/s291/n3/h1`, `h2`; the 16-cell grid `adv_markers/r7a` has `d1_t2_*_u2` lifted and `d0_*_u1..u4`
+  // emitted), so the title line's own depth must not decide there.
+  it.each([
+    ["`=` underline indented 2", "## H1 Before\n\n> ::: {.callout-note}\n>\n> > H1 In\n  ===\n>\n> body\n> :::\n\n## H1 After\n"],
+    ["`-` underline indented 2", "## H2 Before\n\n> ::: {.callout-note}\n>\n> > H2 In\n  ---\n>\n> body\n> :::\n\n## H2 After\n"],
+  ])("GUARD: a quoted callout still lifts a deeper title over an indented unmarked underline: %s", (_label, doc) => {
+    const lines = doc.split("\n").filter((l) => l.startsWith("## "));
+    expect(texts(doc)).toEqual([lines[0].slice(3), lines[1].slice(3)]);
+  });
+  // "Indented" is measured from the HOST container's content column, not from column 0: a callout inside a list item
+  // whose underline sits AT the item's content column has relative indent 0, which is the column-0 case and lifts; one
+  // column further in emits (`scratchpad/s291/n4/a`..`e`, rendered).
+  it.each([
+    ["a list-item host, underline at the item's content column", "## A Before\n\n- ::: {.callout-note}\n\n  > A In\n  ===\n\n  body\n  :::\n\n## A After\n"],
+    ["a continuation-line host, underline at the item's content column", "## D Before\n\n- item\n\n  ::: {.callout-note}\n\n  > D In\n  ===\n\n  body\n  :::\n\n## D After\n"],
+  ])("GUARD: an underline at the host's content column is relative column 0 and the title is still lifted: %s", (_label, doc) => {
+    const lines = doc.split("\n").filter((l) => l.startsWith("## "));
+    expect(texts(doc)).toEqual([lines[0].slice(3), lines[1].slice(3)]);
+  });
+  it.each([
+    ["a list-item host, underline one column inside the content column", "## C Before\n\n- ::: {.callout-note}\n\n  > C In\n   ===\n\n  body\n  :::\n\n## C After\n", "C In"],
+    ["a continuation-line host, underline two columns inside", "## E Before\n\n- item\n\n  ::: {.callout-note}\n\n  > E In\n    ===\n\n  body\n  :::\n\n## E After\n", "E In"],
+  ])("a quoted title over an underline indented past the host's content column is a heading in the quote: %s", (_label, doc, inner) => {
+    const lines = doc.split("\n").filter((l) => l.startsWith("## "));
+    expect(texts(doc)).toEqual([lines[0].slice(3), inner, lines[1].slice(3)]);
+  });
 });
