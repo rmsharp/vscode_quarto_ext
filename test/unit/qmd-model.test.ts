@@ -22239,4 +22239,28 @@ describe("Session 294 — a non-kernel language at indent 4 is indented code und
   ])("front matter: %s", (_label, text, expected) => {
     expect(texts(text, "jupyter")).toEqual(expected);
   });
+  // RAW-HTML CONTAINER RESIDUAL, kept on purpose (PHANTOM direction; HEAD was right BY ACCIDENT). Round 2's realistic lens (`scratchpad/s294/adv2/P1`,
+  // 12 of 65 documents) and a 48-document grid (`scratchpad/s294/h1`, ne mode, exit 0) isolate the trigger: an INDENT-4 text line directly under the
+  // start tag of an HTML block element (`<section>`, `<blockquote>`, `<details>`, `<table>`, `<p>`, `<center>`, `<figure>`) makes quarto swallow the
+  // heading under a sample written inside it, whatever the sample's closer; nothing under the tag, or the same text NOT indented, lists the heading,
+  // and `<div>` never swallows. The model keeps no HTML-container state (it lists a heading inside the same element with no fence at all), so this is
+  // the filed raw-block family. Pinned both ways so a future container rule flips these on purpose.
+  const HTML = (tag: string, under: string[], closer: string): string[] => [
+    "---", 'title: "H1"', "---", "", "```{python}", "1 + 1", "```", "", "## Before", "", `<${tag}>`, ...under, "", "    ```{bash}", "## In", closer, "", `</${tag}>`, "", "## After",
+  ];
+  it.each([["section"], ["blockquote"], ["details"], ["table"], ["p"], ["center"], ["figure"]])(
+    "RESIDUAL (phantom), kept on purpose: an indented text line under <%s> makes quarto swallow the heading of a sample inside it",
+    (tag) => {
+      expect(texts(doc(...HTML(tag, ["    Indented text."], "    ```")), "jupyter")).toEqual(["Before", "In", "After"]); // quarto: Before, After
+      expect(texts(doc(...HTML(tag, ["    Indented text."], "```")), "jupyter")).toEqual(["Before", "In", "After"]); // quarto: Before, After
+    },
+  );
+  it.each([
+    ["section", [], "nothing under the tag"],
+    ["section", ["Text line."], "the same text NOT indented"],
+    ["div", ["    Indented text."], "a <div>, which never swallows"],
+    ["blockquote", ["Text line."], "unindented text under <blockquote>"],
+  ] as [string, string[], string][])("the indented sample lists its heading under <%s> with %s", (tag, under) => {
+    expect(texts(doc(...HTML(tag, under, "    ```")), "jupyter")).toEqual(["Before", "In", "After"]);
+  });
 });
