@@ -7675,8 +7675,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // ⚠ **A MARKED BLANK LINE WITH FEWER `>` THAN A DIV'S OPENER ENDS THAT DIV (Session 292).** A blank line cannot be a
     // lazy continuation, so it closes every quote deeper than its own marker count — `> > ::: {.callout-note}` / `>` /
     // `> ## Out` renders `Out` (`scratchpad/s291/falsifier/E1_q2_blank_outer_h`, rendered). At the opener's own depth or
-    // deeper the same line is a plain blank and ends nothing.
-    if (stripQuote && BLANK_LINE.test(line)) {
+    // deeper the same line is a plain blank and ends nothing. (An UNMARKED blank needs no guard here: the branch above has already
+    // ended every quote-hosted div on it, so this call finds nothing left to end — mutant S1b, 0 of 185,508 documents differ.)
+    if (BLANK_LINE.test(line)) {
       endQuoteDivsDeeperThan(quoteDepth);
     }
     // ⚠ **A CALLOUT'S FIRST-BLOCK HEADING IS ITS TITLE BAR, NOT A HEADING (Session 257).**
@@ -7851,8 +7852,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // bare `>` is text, so inside a quote a list item was never closed by the dedented line after one and the div it held
     // stayed open — `> - ::: {.callout-note}` / `>` / `> ## T` renders `T` (`scratchpad/s292/s4rows`, rendered). It is blank
     // once the marker run is stripped. Read ONLY by the pop below: the closer match further down keeps the raw test.
-    const prevLineMarkedBlank =
-      !prevLineBlank && inQuote && /^[ \t]*>/.test(lines[i - 1]) && BLANK_LINE.test(lines[i - 1].replace(/^[ \t>]*/, ""));
+    // ⚠ `inQuote` is UNOBSERVABLE today and kept on purpose (mutant S4c, 0 of 185,508 documents differ): a `>` that is paragraph text
+    // rather than a quote marker is not a blank line, and the guard says so where no heading yet depends on it.
+    const prevLineMarkedBlank = inQuote && /^[ \t]*>[ \t>]*$/.test(lines[i - 1]);
     const paragraphOpenAboveHeader = paragraphOpenAtPrevLineStart;
     paragraphOpenAtPrevLineStart = paragraphOpen;
     const listItemAboveHeader = listItemOpensAtPrevLine;
@@ -9085,7 +9087,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       if (
         heading &&
         !calloutTitleTakes(prev.line, titleListMarkerStripped, titleQuoteDepth) &&
-        !tabsetTabTakes(prev.line, heading.level, titleQuoteDepth)
+        !tabsetTabTakes(prev.line, heading.level)
       ) {
         headings.push(heading);
       }
@@ -9307,6 +9309,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // The pandoc markdown readers absorb the line lazily whatever it is (`readers_ref/r0362_sp_F_S_U0`), so this is
         // `commonmarkDialect` and not `atxInterruptsDialect`. It touches the div stack alone: `contentColumns` is left as it
         // was, which is HEAD's answer for every other reader of it.
+        // ⚠ The `inQuote` test inside the loop mirrors the container pop's own (above) and is UNOBSERVABLE today (mutant S5b, 0 of
+        // 185,508 documents differ); it is kept so the two pops cannot disagree about which quote a div belongs to.
         if (commonmarkDialect) {
           const columnsStillOpen = contentColumns.filter((c) => c <= indentColumn(line)).length;
           while (
