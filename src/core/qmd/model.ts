@@ -7839,6 +7839,12 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // record a line the pop never sees. The first line of a document has nothing above it and
     // no container can be open there, so `true` is the reading that costs nothing.
     const prevLineBlank = i === 0 || BLANK_LINE.test(lines[i - 1]);
+    // ⚠ **A MARKED BLANK LINE IS A BLANK LINE TO THE CONTAINER POP (Session 292).** `prevLineBlank` reads the RAW line, where a
+    // bare `>` is text, so inside a quote a list item was never closed by the dedented line after one and the div it held
+    // stayed open — `> - ::: {.callout-note}` / `>` / `> ## T` renders `T` (`scratchpad/s292/s4rows`, rendered). It is blank
+    // once the marker run is stripped. Read ONLY by the pop below: the closer match further down keeps the raw test.
+    const prevLineMarkedBlank =
+      !prevLineBlank && inQuote && /^[ \t]*>/.test(lines[i - 1]) && BLANK_LINE.test(lines[i - 1].replace(/^[ \t>]*/, ""));
     const paragraphOpenAboveHeader = paragraphOpenAtPrevLineStart;
     paragraphOpenAtPrevLineStart = paragraphOpen;
     const listItemAboveHeader = listItemOpensAtPrevLine;
@@ -8023,7 +8029,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       const deeperColumnsAreAllLists = contentColumns.every(
         (c, idx) => c <= indentWidth || columnKinds[idx] === "list",
       );
-      if (prevLineBlank ||
+      if (prevLineBlank || prevLineMarkedBlank ||
         (deeperColumnsAreAllLists && popsEnclosingContainer(line, commonmarkDialect))) {
         while (contentColumns.length > 0 && contentColumns[contentColumns.length - 1] > indentWidth) {
           contentColumns.pop();

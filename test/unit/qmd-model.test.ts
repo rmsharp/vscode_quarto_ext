@@ -17730,7 +17730,13 @@ describe("Session 258 guard — answers around the panel-tabset rule that must N
     ]);
   });
 
-  it("G21: DISCLOSED RESIDUAL — inside a QUOTE, a stale container column keeps later tabs", () => {
+  it("G21: inside a QUOTE, a stale container column no longer keeps later tabs (CLOSED by Session 292)", () => {
+    // ⚠ **CLOSED BY SESSION 292 AS A BY-CATCH, with the render as the witness.** The second half of the compound below — the
+    // shallower heading after a MARKED blank not popping the column — was the raw-blank read in the container pop
+    // (`prevLineMarkedBlank`), repaired for a div hosted in a quoted list item. The tab now arrives at the depth the tabset
+    // entry expects and is consumed: quarto emits `h2:Marten Before` and `h2:Marten After` only, and so does this model.
+    // The text below is the diagnosis as Session 258 wrote it.
+    //
     // ⚠ **A COMPOUND OF TWO PRE-EXISTING DEFECTS, NEITHER OF THEM THIS RULE'S.** `> a.` is read
     // by this model as an ordered-list marker with empty content (the already-filed
     // letter/roman marker over-acceptance), and inside a quote the shallower heading below it
@@ -17759,7 +17765,7 @@ describe("Session 258 guard — answers around the panel-tabset rule that must N
         "",
         "## Marten After",
       ]),
-    ).toEqual(["h2:Marten Before", "h2:Marten TabB", "h2:Marten After"]);
+    ).toEqual(["h2:Marten Before", "h2:Marten After"]);
   });
 });
 
@@ -21497,5 +21503,31 @@ describe("Session 292 — a fenced div ends with the container that holds it", (
       "T Title",
       "T After",
     ]);
+  });
+  // SLICE 4. A LIST ITEM THAT HOSTS A DIV ENDS AT A DEDENTED LINE AFTER A BLANK, AND A MARKED BLANK IS A BLANK. The container
+  // pop asks whether the line above is blank by reading the RAW line, where `>` is text, so inside a quote the item never
+  // closed and the div it held stayed open. Rendered, `> - ::: {.callout-note}` / `>` / `> ## T` is a list item with an
+  // implicitly closed div, then a heading in the quote (`scratchpad/s292/s4rows`, 78 documents; the cell is `m/H0` in all
+  // three quoted containers and all three readers; `scratchpad/s291/readers_ref/r7098_md_GR_QL_qonly_bP` and 60 more).
+  it("a marked blank then a heading dedented out of a quoted list item ends the item's div", () => {
+    expect(texts("## S Before\n\n> - ::: {.callout-note}\n>\n> ## S Inside\n>   :::\n\n## S After\n")).toEqual(["S Before", "S Inside", "S After"]);
+  });
+  // The same repair across the geometry rendered in `scratchpad/s292/s4rows`: an ordered item, a depth-2 quote, and the
+  // two other readers that keep the quote's own lazy line.
+  it.each([
+    ["an ordered item in a quote", "", "## S Before\n\n> 1. ::: {.callout-note}\n>\n> ## S Inside\n>    :::\n\n## S After\n"],
+    ["a bullet item in a depth-2 quote", "", "## S Before\n\n> > - ::: {.callout-note}\n> >\n> > ## S Inside\n> >   :::\n\n## S After\n"],
+    ["commonmark_x", "from: commonmark_x", "## S Before\n\n> - ::: {.callout-note}\n>\n> ## S Inside\n>   :::\n\n## S After\n"],
+    ["markdown_strict+fenced_divs", "from: markdown_strict+fenced_divs", "## S Before\n\n> - ::: {.callout-note}\n>\n> ## S Inside\n>   :::\n\n## S After\n"],
+  ])("a marked blank then a dedented heading ends a quoted list item's div: %s", (_label, fm, body) => {
+    expect(texts(fm === "" ? body : withFrom(fm, body))).toEqual(["S Before", "S Inside", "S After"]);
+  });
+  // GUARD, rendered (`s4rows/S4noneQmHi`): a heading indented to the item's CONTENT column is still inside the item, so the
+  // div is alive and the callout lifts it. The raw-blank form of the same document is the control that was right at HEAD.
+  it.each([
+    ["after a marked blank", "## S Before\n\n> - ::: {.callout-note}\n>\n>   ## S Inside\n>   :::\n\n## S After\n"],
+    ["with no blank at all", "## S Before\n\n> - ::: {.callout-note}\n>   ## S Inside\n>   :::\n\n## S After\n"],
+  ])("GUARD: a heading at the quoted item's content column is inside the div and is lifted: %s", (_label, doc) => {
+    expect(texts(doc)).toEqual(["S Before", "S After"]);
   });
 });
