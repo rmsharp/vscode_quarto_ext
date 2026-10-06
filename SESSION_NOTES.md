@@ -92,25 +92,3 @@ shown both unpinned, and 111 HEAD-right probes became phantoms until a measuring
 (4) 158 + 17 right-to-phantom probes remain, all pre-existing defects un-masked; disclosed. (5) No `test:integration` run (needs
 the screen; core-only change). (6) `quality_ratchet` reads `ledger-lag` 4 until this close-out commit lands.
 **TDD:** RED shown before GREEN. **Cost:** 14 agents (~3.6M tokens), about five hours of renders; no screen-taking run.
-
-## Session 289 Handoff Evaluation (by Session 290)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt's `whats_next` named my item first and
-the BACKLOG item carried the S260 probe paths, so the claim took one question; the ratchet citation matched a fresh run.
-**Helped:** the ranked list, the tracked score tool, and `render3.sh`/`cmp3.cjs`, which I copied into `scratchpad/s290`.
-**Missing:** nothing needed. **Wrong:** its ACTIVE TASK still listed unclosed-`<!--` as open after it had closed that item; its
-gotcha (4), "HANDOFFS.md line 23 lost its tail", I could not reproduce. **ROI: high** (about ten minutes to a claimed task).
-
-## Session 290 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I rendered the S260 probes myself before fanning out, so the first workflow started from a verified defect. Its six
-lenses (1,923 probes) found that only nine class names ever dispatch and that the corpus has zero reach. TDD: RED shown per slice
-(31 of 71 tests RED at HEAD); 12 mutants killed after I closed the one that survived. The adversarial pass (3,679 probes) was
-refuted claim by claim, and I re-classified 4,366 cached renders against three builds to prove the final fix monotone.
-**Went wrong.** (1) My compare tool labelled by class, so a shape where my first cut deleted one MORE heading than HEAD read
-"still-DELETES"; only a refuter caught it, and I fixed it (3 RED rows). (2) I wrote one vacuous assertion (a literal against
-itself) and caught it on re-reading. (3) The fix leaves removal unmodelled: 63 of 4,366 probes went right to phantom; disclosed,
-and the position awaits the operator. (4) The corpus lens left COPIES of personal corpus documents under `scratchpad/s290/corpus`
-(untracked, not ignored). (5) No `test:integration` run (needs the screen; core-only change).
-**TDD:** RED shown before GREEN. **Cost:** 14 agents (~2.3M tokens), about two hours of renders; no screen-taking run.
