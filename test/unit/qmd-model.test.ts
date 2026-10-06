@@ -21253,20 +21253,8 @@ describe("Session 291 — a callout's title is its first block only when that bl
   });
   // RESIDUALS, pinned so a future change flips them on purpose. Every row is a rendered document (`scratchpad/s291/`),
   // `quarto` is what `quarto render` emitted, and each is filed in `BACKLOG.md`.
-  //  - DELETING, reader-dependent: under `from: commonmark_x` an unmarked line after a quoted opener is NOT a lazy line of
-  //    the quote, so it is outside the div and renders; under the default reader it is lifted (the `a02` row above).
-  //  - (div lifetime across a marked blank of fewer markers was closed by Session 292; see its suite at the end of this file.)
-  it.each([
-    [
-      "commonmark_x: an unmarked heading under a quoted opener is outside the div",
-      "---\nfrom: commonmark_x\n---\n\n## CX Before\n\n> ::: {.callout-note}\n## CX Title\n:::\n\n## CX After\n",
-      ["CX Before", "CX Title", "CX After"],
-    ],
-  ] as [string, string, string[]][])("RESIDUAL (deleting), kept on purpose: %s", (_label, doc, quarto) => {
-    const got = texts(doc);
-    expect(got).toEqual([quarto[0], quarto[quarto.length - 1]]);
-    expect(quarto.every((heading) => got.includes(heading))).toBe(false);
-  });
+  //  - (the two DELETING residuals this block pinned — a marked blank of fewer markers, and an unmarked heading under a quoted
+  //    opener in a reader where ATX interrupts — were closed by Session 292; see its suite at the end of this file.)
   //  - PHANTOM, un-masked: the old rule hid these by suppressing every first-line heading. The plain-div twin is wrong at
   //    HEAD too, so the defect is not the callout rule's: `Dr.` is read as a list marker (the filed initial-as-marker
   //    items), and a callout inside a REMOVED conditional block is one more block the model has no target format to drop.
@@ -21404,5 +21392,110 @@ describe("Session 292 — a fenced div ends with the container that holds it", (
     ["a deeper bare `> >` under a depth-1 opener is an empty quote, not an ending", "## G Before\n\n> ::: {.callout-note}\n> >\n> > ## G Quoted\n> :::\n\n## G After\n", ["G Before", "G Quoted", "G After"]],
   ] as [string, string, string[]][])("GUARD: a blank at or below the opener's depth does not end the div: %s", (_label, doc, expected) => {
     expect(texts(doc)).toEqual(expected);
+  });
+  // SLICE 2. LAZY CONTINUATION IS A PROPERTY OF THE READER. Under the default reader an unmarked line below a quoted opener
+  // is a lazy line of the same quote (it keeps `blank_before_header`, so a `#` line does not interrupt), and the callout
+  // lifts it. Under a reader where an ATX line DOES interrupt a paragraph it is no continuation at all: the quote ends
+  // there, the div with it, and the heading is a plain heading. Measured over every reader that resolves
+  // (`scratchpad/s291/readers_ref`, `quote_ref/c14_*`, and the 65-document matrix `scratchpad/s292/s2rows`, all rendered): the
+  // split is exactly `blank_before_header`.
+  it("under commonmark_x an unmarked heading below a quoted callout opener is outside the div", () => {
+    expect(
+      texts("---\nfrom: commonmark_x\n---\n\n## CX Before\n\n> ::: {.callout-note}\n## CX Title\n:::\n\n## CX After\n"),
+    ).toEqual(["CX Before", "CX Title", "CX After"]);
+  });
+  const withFrom = (fm: string, body: string): string => "---\n" + fm + "\n---\n\n" + body;
+  const unmarkedAtx = "## R Before\n\n> ::: {.callout-note}\n## R Inside\n:::\n\n## R After\n";
+  // Every reader where an ATX line interrupts a paragraph, rendered through quarto 1.7.33 on a fresh matrix of 13 readers
+  // by 5 shapes (`scratchpad/s292/s2rows`, 65 documents): the heading is a plain heading in all eight.
+  it.each([
+    ["commonmark+fenced_divs", "from: commonmark+fenced_divs"],
+    ["gfm+fenced_divs", "from: gfm+fenced_divs"],
+    ["markdown_strict+fenced_divs", "from: markdown_strict+fenced_divs"],
+    ["markdown_mmd+fenced_divs", "from: markdown_mmd+fenced_divs"],
+    ["markdown_github+fenced_divs", "from: markdown_github+fenced_divs"],
+    ["markdown_phpextra+fenced_divs", "from: markdown_phpextra+fenced_divs"],
+    ["markdown-blank_before_header", "from: markdown-blank_before_header"],
+    ["a format-scoped `from: commonmark_x`", "format:\n  html:\n    from: commonmark_x"],
+  ])("an unmarked heading below a quoted callout opener is outside the div where ATX interrupts: %s", (_label, fm) => {
+    expect(texts(withFrom(fm, unmarkedAtx))).toEqual(["R Before", "R Inside", "R After"]);
+  });
+  // The rule is about the LINE'S marker count against the opener's, not about the line being unmarked: a heading with one
+  // `>` under a depth-2 opener, or an unmarked one after a bare `>`, is outside the div the same way.
+  it.each([
+    ["commonmark_x, a depth-1 heading under a depth-2 opener", "from: commonmark_x", "## R Before\n\n> > ::: {.callout-note}\n> ## R Inside\n> > :::\n\n## R After\n"],
+    ["markdown_strict, a depth-1 heading under a depth-2 opener", "from: markdown_strict+fenced_divs", "## R Before\n\n> > ::: {.callout-note}\n> ## R Inside\n> > :::\n\n## R After\n"],
+    ["commonmark_x, an unmarked heading after a bare `>`", "from: commonmark_x", "## R Before\n\n> ::: {.callout-note}\n>\n## R Inside\n> :::\n\n## R After\n"],
+    ["markdown_phpextra, an unmarked heading after a bare `>`", "from: markdown_phpextra+fenced_divs", "## R Before\n\n> ::: {.callout-note}\n>\n## R Inside\n> :::\n\n## R After\n"],
+  ])("the heading's own marker count decides, not whether it is unmarked: %s", (_label, fm, body) => {
+    expect(texts(withFrom(fm, body))).toEqual(["R Before", "R Inside", "R After"]);
+  });
+  // A line indented under a reader that gives ATX no column tolerance is not an ATX line at all — it is paragraph text, a
+  // lazy continuation — so nothing ends and the callout still lifts it (rendered, `s2rows/s2_stfd_D`, `s2_mmfd_D`,
+  // `s2_ghfd_D`, `s2_phfd_D`, `s2_nobbh_D`). The CommonMark family gives ATX a 0-3 column window, so there the same two
+  // spaces ARE a heading and the quote ends (`s2_cx_D`, `s2_cmfd_D`, `s2_gfmfd_D`).
+  const indentedAtx = "## R Before\n\n> ::: {.callout-note}\n  ### R Inside\n> :::\n\n## R After\n";
+  it.each([
+    ["markdown_strict+fenced_divs", "from: markdown_strict+fenced_divs"],
+    ["markdown_mmd+fenced_divs", "from: markdown_mmd+fenced_divs"],
+    ["markdown-blank_before_header", "from: markdown-blank_before_header"],
+  ])("GUARD: an INDENTED heading under a pandoc-markdown reader is no interruption, and is still lifted: %s", (_label, fm) => {
+    expect(texts(withFrom(fm, indentedAtx))).toEqual(["R Before", "R After"]);
+  });
+  it.each([
+    ["commonmark_x", "from: commonmark_x"],
+    ["commonmark+fenced_divs", "from: commonmark+fenced_divs"],
+    ["gfm+fenced_divs", "from: gfm+fenced_divs"],
+  ])("an indented heading under a CommonMark reader IS an ATX line, so it ends the quote: %s", (_label, fm) => {
+    expect(texts(withFrom(fm, indentedAtx))).toEqual(["R Before", "R Inside", "R After"]);
+  });
+  // The readers that KEEP `blank_before_header` continue the quote lazily whatever the line is, so the callout lifts it
+  // (rendered, `s2rows/s2_none_A`, `s2_md_A`, `s2_mdfd_A`, `s2_nobbq_A`; the first is the S291 `a02` guard).
+  it.each([
+    ["no `from:` key", ""],
+    ["from: markdown", "from: markdown"],
+    ["from: markdown+fenced_divs", "from: markdown+fenced_divs"],
+    ["from: markdown-blank_before_blockquote", "from: markdown-blank_before_blockquote"],
+  ])("GUARD: a reader that keeps blank_before_header still lifts the lazy heading: %s", (_label, fm) => {
+    expect(texts(fm === "" ? unmarkedAtx : withFrom(fm, unmarkedAtx))).toEqual(["R Before", "R After"]);
+  });
+  // SLICE 3. A LAZY OPENER IS A READER PROPERTY TOO. Where lazy continuation is TEXTUAL (the default reader and every
+  // pandoc markdown variant), an unmarked `:::` line under a bare `>` is a lazy line of that quote, so the div it opens sits
+  // at the quote's depth. In the CommonMark family a lazy line needs an open paragraph, and a bare `>` leaves none: the
+  // opener is top level, its own heading is its direct child, and the callout lifts it. Carrying the quote's depth into the
+  // opener there made a title the model then listed once Slice 2 stopped hiding it (rendered, `scratchpad/s291/adv_skipregions/
+  // r7rd/cmx-B`, `cmfd-B`, `rd_gfm_fenced_divs/fromgfmfenceddivs-na-c0`, `-ne-l1` and 8 more: all right at HEAD).
+  it.each([
+    [
+      "commonmark_x, a plain div, a bare `>`, an unmarked callout",
+      "from: commonmark_x",
+      "# T Before\n\n::: {.plain}\n>\n::: {.callout-note}\n## T Title\nbody\n:::\n:::\n\n# T After\n",
+    ],
+    [
+      "gfm+fenced_divs, a callout, a bare `>`, an unmarked callout",
+      "from: gfm+fenced_divs",
+      "# T Before\n\n::: {.callout-note}\n>\n::: {.callout-warning}\n## T Title\nbody\n:::\n:::\n\n# T After\n",
+    ],
+    [
+      "commonmark+fenced_divs, the same inside a list item",
+      "from: commonmark+fenced_divs",
+      "# T Before\n\n- ::: {.plain}\n  >\n  ::: {.callout-note}\n  ## T Title\n  body\n  :::\n  :::\n\n# T After\n",
+    ],
+  ])("GUARD: in the CommonMark family an unmarked opener after a bare `>` is top level, so its title is still lifted: %s", (_label, fm, body) => {
+    expect(texts(withFrom(fm, body))).toEqual(["T Before", "T After"]);
+  });
+  // ...and where the carry DOES apply it must keep applying: under the pandoc markdown variants the unmarked opener is inside
+  // the quote, so the unmarked heading below it ends that quote and renders (`r7rd/mp-B`, `mm-A`, `ms-B`, `mg-A`, rendered).
+  it.each([
+    ["markdown_phpextra+fenced_divs", "from: markdown_phpextra+fenced_divs"],
+    ["markdown_mmd+fenced_divs", "from: markdown_mmd+fenced_divs"],
+    ["markdown_strict+fenced_divs", "from: markdown_strict+fenced_divs"],
+    ["markdown_github+fenced_divs", "from: markdown_github+fenced_divs"],
+  ])("a pandoc markdown variant keeps the textual lazy opener, so the heading under it renders: %s", (_label, fm) => {
+    expect(texts(withFrom(fm, "# T Before\n\n::: {.plain}\n>\n::: {.callout-note}\n## T Title\nbody\n:::\n:::\n\n# T After\n"))).toEqual([
+      "T Before",
+      "T Title",
+      "T After",
+    ]);
   });
 });

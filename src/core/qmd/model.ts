@@ -7242,6 +7242,13 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // ATX paragraph bail alone: `dialectOverride`'s other consumer (the heading COLUMN set) asks
   // a different question and must not move with this one.
   let blankBeforeHeaderDialect = fromValueLine !== null && fromKeepsBlankBeforeHeader(fromValueLine);
+  // ⚠ **WHETHER AN ATX LINE INTERRUPTS A PARAGRAPH, SO IT IS NEVER A LAZY CONTINUATION (Session 292)** — a RESOLVED reader
+  // that does not keep `blank_before_header`: the CommonMark family, `markdown_strict`/`_mmd`/`_github`/`_phpextra`, and
+  // `markdown-blank_before_header`. `null` (no key, or one this scanner cannot resolve) is the default `markdown` reader,
+  // which keeps it, so the answer there stays HEAD's. The split is rendered, not inferred from names
+  // (`scratchpad/s291/readers_ref`, `quote_ref/c14_*`): every reader on this side ends a quote at an unmarked `## T`, every
+  // reader on the other side continues it. Read ONLY by the div-lifetime rule — it moves no heading column.
+  const atxInterruptsDialect = fromValueLine !== null && !blankBeforeHeaderDialect;
   // Whether the resolved reader is of the pandoc MARKDOWN family, which gives an ATX heading no
   // column tolerance — see `fromIsMarkdownFamily`. A FOURTH flag rather than a refinement of
   // `dialectOverride`, for the same reason the two above are: it answers its own question, and
@@ -9272,6 +9279,15 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         blockHtmlRefusesHeading,
         blockTexRefusesHeading,
       );
+      // ⚠ **UNDER A READER WHERE AN ATX LINE INTERRUPTS, A HEADING WITH FEWER `>` MARKERS THAN A DIV'S OPENER IS OUTSIDE IT
+      // (Session 292).** It is no lazy line of the deeper quote, so the quote ends there and the div with it: the heading
+      // is a plain heading, not the callout's title (`scratchpad/s291/readers_ref/r8010_cx_W_LAZY` and about 250 more
+      // probes, rendered). Only a line that IS an ATX heading to the reader counts — column 0 for the pandoc markdown family, 0-3
+      // for the CommonMark one — because an indented `  ### T` under `markdown_strict` is paragraph text and ends nothing
+      // (`readers_ref/r0351_sp_F_Q_U2`, rendered). Placed before the title rule below so the div it asks about is gone.
+      if (atxInterruptsDialect && indentColumn(line) <= (commonmarkDialect ? 3 : 0)) {
+        endQuoteDivsDeeperThan(quoteDepth);
+      }
       if (heading && !calloutTitleTakes(i) && !tabsetTabTakes(i, heading.level)) {
         headings.push(heading);
       }
@@ -9556,7 +9572,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           tabLevel: null,
           // ⚠ **A LAZY OPENER SITS AT THE DEPTH OF THE QUOTE IT CONTINUES (Session 291)** — an unmarked `:::` under a
           // quoted line that leaves no paragraph open, or `> :::` under `> >`, is inside the deeper quote.
-          quoteDepth: Math.max(quoteDepth, quoteDepthAbove),
+          // ⚠ **ONLY WHERE LAZY CONTINUATION IS TEXTUAL (Session 292).** In the CommonMark family a lazy line needs an open
+          // paragraph, and a div fence interrupts one, so the opener sits at its OWN marker count — carrying the quote's depth
+          // there listed a title quarto lifts (`scratchpad/s291/adv_skipregions/r7rd/cmx-B`, rendered).
+          quoteDepth: commonmarkDialect ? quoteDepth : Math.max(quoteDepth, quoteDepthAbove),
         });
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS
