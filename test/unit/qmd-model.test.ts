@@ -21601,4 +21601,62 @@ describe("Session 292 — a fenced div ends with the container that holds it", (
   ] as [string, string, string[]][])("GUARD: %s", (_label, doc, expected) => {
     expect(texts(doc)).toEqual(expected);
   });
+  // RESIDUALS, pinned so a future change flips them on purpose. Every row is a document rendered through quarto 1.7.33
+  // (`scratchpad/s292/resid`), `quarto` is its heading list, all four DELETE, all are PRE-EXISTING (HEAD answers identically), and
+  // each is filed in `BACKLOG.md`.
+  //  - back-to-back callouts after a quoted heading: the lazy-opener depth carry survives the unmarked closer, so the second
+  //    opener sits at depth 1 and its quoted heading reads as a direct child. The plain-div twin is RIGHT, so this one is the callout rule's.
+  //  - a quote HOSTED IN A LIST ITEM under a pandoc markdown variant: the ATX heading at the item's content column ends the quote, but
+  //    rule 2's indent bound is an ABSOLUTE column, and the heading is at relative column 0.
+  //  - markdown_strict, a depth-2 quote, a 2-space-indented unmarked heading: quarto renders it (two-level lazy continuation).
+  //  - (the default-reader nested-quote-then-tab-heading shape was closed in the same session, as slice 6b below.)
+  it.each([
+    [
+      "back-to-back callouts after a quoted heading",
+      "## B Before\n\n::: {.callout-note}\n> ## B Q1\n:::\n::: {.callout-tip}\n> ## B Q2\n:::\n\n## B After\n",
+      ["B Before", "B Q1", "B Q2", "B After"],
+    ],
+    [
+      "a quote in a list item, markdown_strict, the heading at the item's content column",
+      "---\nfrom: markdown_strict+fenced_divs\n---\n\n# B Before\n\n- ::: {.plain}\n  >\n  ::: {.callout-note}\n  ## B T\n  body\n  :::\n  :::\n\n# B After\n",
+      ["B Before", "B T", "B After"],
+    ],
+    [
+      "markdown_strict, a depth-2 opener, an unmarked heading indented two spaces",
+      "---\nfrom: markdown_strict+fenced_divs\n---\n\n## Z Before\n\n> > ::: {.callout-note}\n  ### Z Inside\n> > :::\n\n## Z After\n",
+      ["Z Before", "Z Inside", "Z After"],
+    ],
+  ] as [string, string, string[]][])("RESIDUAL (deleting), kept on purpose: %s", (_label, doc, quarto) => {
+    const got = texts(doc);
+    expect(quarto.every((heading) => got.includes(heading))).toBe(false);
+    expect(got.length).toBeLessThan(quarto.length);
+  });
+  // SLICE 6b. A SHALLOWER HEADING DIRECTLY BELOW A DEEPER QUOTE LINE CONTINUES THAT QUOTE, where lazy continuation is textual (the
+  // default reader). Its effective depth is the quote it continues, not its own marker count, so it is NOT a direct child of a
+  // tabset one level up and renders. The fuzz lens found this as two documents HEAD answered right BY ACCIDENT (a stale container
+  // column kept the tab rule from matching) and slice 4 removed the accident; the minimal forms were already deleting at HEAD
+  // (`scratchpad/s292/reg1`, `reg2`, rendered). Where an ATX line interrupts (commonmark, strict ...) the heading ends the nested quote
+  // and IS a tab; a blank line between ends it for every reader.
+  it.each([
+    ["an empty nested quote `> >`", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n>\n> >\n> ## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T Two", "T After"]],
+    ["a nested-quote heading", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n>\n> > ## T Quoted\n> ## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T Quoted", "T Two", "T After"]],
+    ["a depth-3 nested-quote heading", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n>\n> > > ## T Q\n> ## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T Q", "T Two", "T After"]],
+    ["a paragraph in the tab, then an empty nested quote", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n>\n> alpha.\n>\n> > >\n> ## T Two\n>\n> bravo.\n> :::\n\n## T After\n", ["T Before", "T Two", "T After"]],
+  ] as [string, string, string[]][])("a heading directly below a deeper quote line is lazily inside it, so it is not a tab: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
+  });
+  // GUARDS, rendered: a blank between ends the nested quote for every reader (`reg2/d_*`); where an ATX line interrupts it ends the
+  // nested quote at the heading (`reg2/e_cx_t5`, `f_cx_emptyq`, `g_strict_emptyq`); a nested PARAGRAPH makes the next `##` text, not a
+  // heading (`h_*`); a lazy tab heading in the tabset's OWN deeper quote is still a tab (`a_own_quote_lazy`, `b_unmarked_lazy`).
+  it.each([
+    ["a blank `>` between the nested quote and the tab heading", "", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n>\n> > ## T Q\n>\n> ## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T Q", "T After"]],
+    ["commonmark_x, a nested-quote heading then a tab heading", "from: commonmark_x", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n>\n> > ## T Q\n> ## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T Q", "T After"]],
+    ["commonmark_x, an empty nested quote then a tab heading", "from: commonmark_x", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n>\n> >\n> ## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T After"]],
+    ["markdown_strict, an empty nested quote then a tab heading", "from: markdown_strict+fenced_divs", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n>\n> >\n> ## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T After"]],
+    ["a nested PARAGRAPH, then `## T Two` is text", "", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n>\n> > nested para\n> ## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T After"]],
+    ["a lazy tab heading in the tabset's own depth-2 quote", "", "## T Before\n\n> > ::: {.panel-tabset}\n> > ## T One\n> > one\n> ## T Two\n> > two\n> > :::\n\n## T After\n", ["T Before", "T After"]],
+    ["an unmarked tab heading in the tabset's own quote", "", "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T After"]],
+  ] as [string, string, string, string[]][])("GUARD: %s", (_label, fm, body, expected) => {
+    expect(texts(fm === "" ? body : withFrom(fm, body))).toEqual(expected);
+  });
 });

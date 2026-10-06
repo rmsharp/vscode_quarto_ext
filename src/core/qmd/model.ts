@@ -9322,7 +9322,13 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           }
         }
       }
-      if (heading && !calloutTitleTakes(i) && !tabsetTabTakes(i, heading.level)) {
+      // ⚠ **WHERE LAZY CONTINUATION IS TEXTUAL, A SHALLOWER HEADING DIRECTLY BELOW A DEEPER QUOTE LINE CONTINUES THAT QUOTE (Session
+      // 292).** `> > ## Q` / `> ## T` (or an empty `> >` above it) is one nested quote, so the second heading's effective depth is the
+      // quote above, not its own marker count, and it is not a direct child of a tabset one level up — it renders. Where an ATX line
+      // interrupts (`atxInterruptsDialect`) it ends the nested quote and its own count is the depth. A blank line between resets
+      // `quoteDepthAbove` for every reader (`scratchpad/s292/reg1`, `reg2`, rendered). Read by the TAB rule only.
+      const lazyHeadingDepth = atxInterruptsDialect ? quoteDepth : Math.max(quoteDepth, quoteDepthAbove);
+      if (heading && !calloutTitleTakes(i) && !tabsetTabTakes(i, heading.level, lazyHeadingDepth)) {
         headings.push(heading);
       }
       consecutiveBody = 0;
