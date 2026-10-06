@@ -41,6 +41,7 @@
 // guardrail of architecture plan §3.3 is unaffected — the imported module is `core/` too.
 import type { DocumentEngine } from "../document-engine";
 import { divOpenerVerdict } from "./attribute-block";
+import { jupyterKernelLanguage } from "./jupyter-kernel";
 import { quartoYamlRegions } from "./quarto-yaml-regions";
 
 /**
@@ -7125,6 +7126,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // ⚠ Set when a jupyter kernel opener is DROPPED (Session 293, `closesOnOwnIndent`): quarto's cell partition never
   // leaves "inside a cell" after it, so every later line is plain markdown and no later line is a kernel cell.
   let kernelPartitionDead = false;
+  // ⚠ The language of the jupyter KERNEL this document runs (Session 294, `jupyterKernelLanguage`): `python` unless the front matter
+  // writes another, `null` when it names a kernel whose language only an installed kernelspec could say (the old behaviour is kept
+  // then). Read once, and only where it can matter: every rule that used to name `python` reads it instead.
+  const kernelLanguage = engine === "jupyter" ? jupyterKernelLanguage(frontMatterContent(lines)) : null;
   // Count of consecutive fresh, non-blank body lines immediately above the
   // current line, reset to 0 on any region boundary (front matter, comment,
   // fence, blank line) or heading (ATX or setext), and — since Session 181 — on a
@@ -8289,6 +8294,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       plainFence ??
       indentedCellFenceFor(
         engine,
+        kernelLanguage,
         kernelPartitionDead,
         line,
         contentColumns.length === 0 &&
@@ -8317,7 +8323,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         lang: info ? info[1] : "",
         startLine: i,
         columns: fenceColumns,
-        indent: !kernelPartitionDead && closesOnOwnIndent(engine, info) ? indentRun(line) : null,
+        indent: !kernelPartitionDead && closesOnOwnIndent(engine, kernelLanguage, info) ? indentRun(line) : null,
       };
       // A FENCE OPENS ONLY IF IT IS CLOSED BELOW — both kinds, for two different measured
       // reasons that happen to agree (Session 179; Session 178 applied this test to
@@ -10495,6 +10501,7 @@ const HANDLER_CELL_LANGUAGES: ReadonlySet<string> = new Set(["ojs", "mermaid", "
  */
 function indentedCellFenceFor(
   engine: EngineHint,
+  kernel: string | null,
   kernelPartitionDead: boolean,
   line: string,
   free: boolean,
@@ -10518,15 +10525,18 @@ function indentedCellFenceFor(
   if (engine === "markdown" && !HANDLER_CELL_LANGUAGES.has(lang)) {
     return null;
   }
-  // ⚠ **UNDER JUPYTER A CELL IS EXACTLY `python` OR A HANDLER LANGUAGE (Session 294).** Rendered over 51 languages x {exact closer,
-  // column-0 closer}, an indent-4 opener below a blank line (`scratchpad/s294/g1`, ne mode, exit 0): quarto lists the heading inside for
-  // every language but `python` (the kernel), `ojs` and `mermaid` (handlers, which swallow it) and `dot` (claimed; the render fails). The
-  // near-misses `ipython` and the capitalised `Python` are plain fences too, so the test is the exact name, not a prefix or a fold.
-  if (engine === "jupyter" && lang !== "python" && !HANDLER_CELL_LANGUAGES.has(lang)) {
+  // ⚠ **UNDER JUPYTER A CELL IS EXACTLY THE KERNEL LANGUAGE OR A HANDLER LANGUAGE (Session 294).** Rendered over 51 languages x {exact
+  // closer, column-0 closer}, an indent-4 opener below a blank line (`scratchpad/s294/g1`, ne mode, exit 0): quarto lists the heading
+  // inside for every language but `python` (the kernel), `ojs` and `mermaid` (handlers, which swallow it) and `dot` (claimed; the render
+  // fails). The near-misses `ipython` and the capitalised `Python` are plain fences too, so the test is the exact name, not a prefix or a
+  // fold. The kernel is `python` only where the document does not write another (`jupyterKernelLanguage`: a `kernelspec.language` of
+  // julia makes `{julia}` the cell and `{python}` the plain fence, 70 documents, `k1`-`k3`). `null` is a kernel only an installed
+  // kernelspec could name: nothing is known, so nothing is skipped and the old pairing stays.
+  if (engine === "jupyter" && kernel !== null && lang !== kernel && !HANDLER_CELL_LANGUAGES.has(lang)) {
     return null;
   }
   // After a dropped kernel opener the partition is dead for the rest of the file (see the flag).
-  if (kernelPartitionDead && lang === "python") {
+  if (kernelPartitionDead && lang === (kernel ?? "python")) {
     return null;
   }
   return m;
@@ -10579,8 +10589,10 @@ function indentRun(line: string): string {
  * unrecognised engine, `"ambiguous"` and `undefined` keep the any-indent answer, which is the
  * validation view every non-Outline surface reads (they pass no engine, so they cannot drift).
  */
-function closesOnOwnIndent(engine: EngineHint, info: RegExpExecArray | null): boolean {
-  return engine === "jupyter" && info !== null && info[1] === "python";
+function closesOnOwnIndent(engine: EngineHint, kernel: string | null, info: RegExpExecArray | null): boolean {
+  // The kernel language (Session 294, `jupyterKernelLanguage`); `python` where the document names a kernel whose language it does not
+  // write, which is what Session 293 assumed for every document.
+  return engine === "jupyter" && info !== null && info[1] === (kernel ?? "python");
 }
 
 /**

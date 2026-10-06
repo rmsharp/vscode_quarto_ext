@@ -22062,4 +22062,86 @@ describe("Session 294 — a non-kernel language at indent 4 is indented code und
   it("RESIDUAL, kept on purpose: an indent-6 `{bash}` opener in a list item is indented code to quarto and this model still swallows the heading", () => {
     expect(texts(R2("- item", "", "      ```{bash}", "## In", "      ```", "", "## After"), "jupyter")).toEqual(["After"]);
   });
+  // SLICE 4. THE KERNEL IS THE DOCUMENT'S, NOT ALWAYS PYTHON. The adversarial round found five documents the rule above turned from right
+  // to phantom: a `jupyter:` mapping whose `kernelspec.language` is julia, R, bash, javascript or sql makes THAT language the cell that
+  // swallows its heading (and `{python}` the plain fence). Quarto picks the kernel from the document (`jupyterKernelLanguage`), so the
+  // kernel language replaces the constant `python` in every rule that named it. Every row below is a document quarto 1.7.33 rendered,
+  // ne mode, exit 0 (`scratchpad/s294/k1`, `k2`, `k3`, 70 documents; they differ only by `title:`): a kernel cell swallows the heading
+  // inside (`After`), every other language lists it (`In`, `After`).
+  const KERNEL = (frontMatter: string, lang: string) =>
+    doc("---", 'title: "K"', ...frontMatter.split("\n"), "---", "", "prose", "", `    \`\`\`{${lang}}`, "## In", "x = 1", "    ```", "", "## After", "", "tail");
+  it.each<[string, string, string[]]>([
+    ["engine: jupyter", "bash", ["In","After"]], // k1/engine_only_bash
+    ["engine: jupyter", "julia", ["In","After"]], // k1/engine_only_julia
+    ["engine: jupyter", "python", ["After"]], // k1/engine_only_python
+    ["engine: jupyter", "r", ["In","After"]], // k1/engine_only_r
+    ["engine: jupyter\nexecute:\n  echo: false", "bash", ["In","After"]], // k1/engine_plus_execute_bash
+    ["engine: jupyter\nexecute:\n  echo: false", "julia", ["In","After"]], // k1/engine_plus_execute_julia
+    ["engine: jupyter\nexecute:\n  echo: false", "python", ["After"]], // k1/engine_plus_execute_python
+    ["engine: jupyter\nexecute:\n  echo: false", "r", ["In","After"]], // k1/engine_plus_execute_r
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: Julia", "bash", ["In","After"]], // k1/map_Julia_cap_bash
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: Julia", "julia", ["After"]], // k1/map_Julia_cap_julia
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: Julia", "python", ["In","After"]], // k1/map_Julia_cap_python
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: Julia", "r", ["In","After"]], // k1/map_Julia_cap_r
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: python", "bash", ["In","After"]], // k1/map_conflict_name_julia_lang_python_bash
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: python", "julia", ["In","After"]], // k1/map_conflict_name_julia_lang_python_julia
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: python", "python", ["After"]], // k1/map_conflict_name_julia_lang_python_python
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: python", "r", ["In","After"]], // k1/map_conflict_name_julia_lang_python_r
+    ["jupyter:\n  kernelspec:\n    name: python3\n    display_name: Python 3\n    language: julia", "bash", ["In","After"]], // k1/map_conflict_name_python3_lang_julia_bash
+    ["jupyter:\n  kernelspec:\n    name: python3\n    display_name: Python 3\n    language: julia", "julia", ["After"]], // k1/map_conflict_name_python3_lang_julia_julia
+    ["jupyter:\n  kernelspec:\n    name: python3\n    display_name: Python 3\n    language: julia", "python", ["In","After"]], // k1/map_conflict_name_python3_lang_julia_python
+    ["jupyter:\n  kernelspec:\n    name: python3\n    display_name: Python 3\n    language: julia", "r", ["In","After"]], // k1/map_conflict_name_python3_lang_julia_r
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: julia", "bash", ["In","After"]], // k1/map_julia_bash
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: julia", "julia", ["After"]], // k1/map_julia_julia
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: julia", "python", ["In","After"]], // k1/map_julia_python
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: julia", "r", ["In","After"]], // k1/map_julia_r
+    ["jupyter:\n  kernelspec:\n    name: python3\n    display_name: Python 3\n    language: python", "bash", ["In","After"]], // k1/map_python_bash
+    ["jupyter:\n  kernelspec:\n    name: python3\n    display_name: Python 3\n    language: python", "julia", ["In","After"]], // k1/map_python_julia
+    ["jupyter:\n  kernelspec:\n    name: python3\n    display_name: Python 3\n    language: python", "python", ["After"]], // k1/map_python_python
+    ["jupyter:\n  kernelspec:\n    name: python3\n    display_name: Python 3\n    language: python", "r", ["In","After"]], // k1/map_python_r
+    ["jupyter: python3", "bash", ["In","After"]], // k1/scalar_python3_bash
+    ["jupyter: python3", "julia", ["In","After"]], // k1/scalar_python3_julia
+    ["jupyter: python3", "python", ["After"]], // k1/scalar_python3_python
+    ["jupyter: python3", "r", ["In","After"]], // k1/scalar_python3_r
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: &lang julia", "julia", ["After"]], // k2/anchor_value_julia
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: &lang julia", "python", ["In","After"]], // k2/anchor_value_python
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: julia   # the kernel", "julia", ["After"]], // k2/block_comment_julia
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: julia   # the kernel", "python", ["In","After"]], // k2/block_comment_python
+    ["jupyter:\n    kernelspec:\n        name: julia-1.10\n        display_name: Julia\n        language: julia", "julia", ["After"]], // k2/block_indent4_julia
+    ["jupyter:\n    kernelspec:\n        name: julia-1.10\n        display_name: Julia\n        language: julia", "python", ["In","After"]], // k2/block_indent4_python
+    ["jupyter:\n  kernelspec:\n    language: julia\n    name: julia-1.10\n    display_name: Julia", "julia", ["After"]], // k2/block_lang_first_julia
+    ["jupyter:\n  kernelspec:\n    language: julia\n    name: julia-1.10\n    display_name: Julia", "python", ["In","After"]], // k2/block_lang_first_python
+    ["jupyter:\n  kernelspec:\n    name: language\n    display_name: Julia\n    language: julia", "julia", ["After"]], // k2/block_language_python_in_dict_key_name_julia
+    ["jupyter:\n  kernelspec:\n    name: language\n    display_name: Julia\n    language: julia", "python", ["In","After"]], // k2/block_language_python_in_dict_key_name_python
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: \"julia\"", "julia", ["After"]], // k2/block_quoted_dq_julia
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: \"julia\"", "python", ["In","After"]], // k2/block_quoted_dq_python
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    \"language\": julia", "julia", ["After"]], // k2/block_quoted_key_julia
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    \"language\": julia", "python", ["In","After"]], // k2/block_quoted_key_python
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: 'julia'", "julia", ["After"]], // k2/block_quoted_sq_julia
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: 'julia'", "python", ["In","After"]], // k2/block_quoted_sq_python
+    ["jupyter:\n\n  kernelspec:\n\n    name: julia-1.10\n    display_name: Julia\n    language: julia", "julia", ["After"]], // k2/block_tab_free_blank_lines_julia
+    ["jupyter:\n\n  kernelspec:\n\n    name: julia-1.10\n    display_name: Julia\n    language: julia", "python", ["In","After"]], // k2/block_tab_free_blank_lines_python
+    ["jupyter:\n  kernelspec: {name: julia-1.10, display_name: Julia, language: julia}", "julia", ["After"]], // k2/flow_inner_julia
+    ["jupyter:\n  kernelspec: {name: julia-1.10, display_name: Julia, language: julia}", "python", ["In","After"]], // k2/flow_inner_python
+    ["jupyter: {kernelspec: {name: julia-1.10, display_name: Julia, language: julia}}", "julia", ["After"]], // k2/flow_outer_julia
+    ["jupyter: {kernelspec: {name: julia-1.10, display_name: Julia, language: julia}}", "python", ["In","After"]], // k2/flow_outer_python
+    ["jupyter: {kernelspec: {name: \"julia-1.10\", display_name: \"Julia\", language: \"julia\"}}", "julia", ["After"]], // k2/flow_outer_quoted_julia
+    ["jupyter: {kernelspec: {name: \"julia-1.10\", display_name: \"Julia\", language: \"julia\"}}", "python", ["In","After"]], // k2/flow_outer_quoted_python
+    ["format:\n  html:\n    jupyter: julia-1.9", "julia", ["In","After"]], // k2/format_jupyter_key_ignored_julia
+    ["format:\n  html:\n    jupyter: julia-1.9", "python", ["After"]], // k2/format_jupyter_key_ignored_python
+    ["jupyter:\n  language: julia\n  kernelspec:\n    name: python3\n    display_name: Python 3\n    language: python", "julia", ["In","After"]], // k2/language_not_under_kernelspec_julia
+    ["jupyter:\n  language: julia\n  kernelspec:\n    name: python3\n    display_name: Python 3\n    language: python", "python", ["After"]], // k2/language_not_under_kernelspec_python
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: julia\nformat:\n  html:\n    language: python", "julia", ["After"]], // k2/two_jupyter_like_keys_julia
+    ["jupyter:\n  kernelspec:\n    name: julia-1.10\n    display_name: Julia\n    language: julia\nformat:\n  html:\n    language: python", "python", ["In","After"]], // k2/two_jupyter_like_keys_python
+    ["jupyter: python3   # the kernel", "julia", ["In","After"]], // k3/comment_julia
+    ["jupyter: python3   # the kernel", "python", ["After"]], // k3/comment_python
+    ["jupyter: \"python3\"", "julia", ["In","After"]], // k3/dq_julia
+    ["jupyter: \"python3\"", "python", ["After"]], // k3/dq_python
+    ["engine: jupyter\njupyter: python3", "julia", ["In","After"]], // k3/engine_jupyter_and_key_julia
+    ["engine: jupyter\njupyter: python3", "python", ["After"]], // k3/engine_jupyter_and_key_python
+    ["jupyter: 'python3'", "julia", ["In","After"]], // k3/sq_julia
+    ["jupyter: 'python3'", "python", ["After"]], // k3/sq_python
+  ])("a front matter %j: an indent-4 `{%s}` opener lists %j", (frontMatter, lang, expected) => {
+    expect(texts(KERNEL(frontMatter, lang), "jupyter")).toEqual(expected);
+  });
 });
