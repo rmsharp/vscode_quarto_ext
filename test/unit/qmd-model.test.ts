@@ -21355,4 +21355,21 @@ describe("Session 291 — a callout's title is its first block only when that bl
     const lines = doc.split("\n").filter((l) => l.startsWith("## "));
     expect(texts(doc)).toEqual([lines[0].slice(3), inner, lines[1].slice(3)]);
   });
+  // The lazy opener's depth is CARRIED through unmarked lines (`scratchpad/s291/n5/a`, `b`, rendered): a second unmarked
+  // opener under a first one is still inside the same depth-2 quote, so a depth-2 title is lifted and a depth-3 one is real.
+  it.each([
+    ["a depth-2 title under two lazy openers is lifted", "## A Before\n\n> > ## X\n::: {.plain}\n::: {.callout-note}\n> > ## A Title\nbody\n:::\n:::\n\n## A After\n", ["A Before", "X", "A After"]],
+    ["a depth-3 title under two lazy openers is a heading", "## B Before\n\n> > ## X\n::: {.plain}\n::: {.callout-note}\n> > > ## B Inner\nbody\n:::\n:::\n\n## B After\n", ["B Before", "X", "B Inner", "B After"]],
+  ] as [string, string, string[]][])("a lazy opener's depth carries through unmarked lines: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
+  });
+  // ...and it does NOT outlive the quote. A quote that closed on a blank line lends nothing to a later unquoted callout.
+  it("a quote that closed earlier does not lend its depth to a later unquoted callout", () => {
+    expect(texts("## S Before\n\n> ## S Quoted\n\n::: {.callout-note}\n\n> ## S Inside\n\n:::\n\n## S After\n")).toEqual([
+      "S Before",
+      "S Quoted",
+      "S Inside",
+      "S After",
+    ]);
+  });
 });

@@ -9040,7 +9040,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // open): an underline AT that column is relative column 0 and lifts (`scratchpad/s291/n4/a`, `d`).
       const hostColumn = outerColumns !== null && outerColumns.columns.length > 0 ? outerColumns.columns[outerColumns.columns.length - 1] : 0;
       const underlineIndentedLazy =
-        !stripQuote && inQuote && indentColumn(line) > hostColumn && (divColumns[divColumns.length - 1]?.quoteDepth ?? 0) === 0;
+        !stripQuote && indentColumn(line) > hostColumn && (divColumns[divColumns.length - 1]?.quoteDepth ?? 0) === 0;
       const titleQuoteDepth = underlineIndentedLazy ? blockQuoteMarkerOffsets(prev.text, rawMarkerColumns).length : quoteDepth;
       if (
         heading &&
@@ -9537,7 +9537,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           tabLevel: null,
           // ⚠ **A LAZY OPENER SITS AT THE DEPTH OF THE QUOTE IT CONTINUES (Session 291)** — an unmarked `:::` under a
           // quoted line that leaves no paragraph open, or `> :::` under `> >`, is inside the deeper quote.
-          quoteDepth: Math.max(quoteDepth, inQuote ? quoteDepthAbove : 0),
+          quoteDepth: Math.max(quoteDepth, quoteDepthAbove),
         });
       }
       // ⚠ **ARMING THIS FLAG CHANGES NO ANSWER BY ITSELF, WHICH IS WHY IT IS SAFE ON A LINE AS
