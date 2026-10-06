@@ -7774,13 +7774,21 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
      * heading is necessarily nested — a TOP-LEVEL one would BE the first tab — so the residual
      * is a kept phantom, the safe direction. Disclosed, and pinned as a guard.
      */
-    const tabsetTabTakes = (startLine: number, level: number): boolean => {
+    const tabsetTabTakes = (startLine: number, level: number, headingQuoteDepth: number = quoteDepth): boolean => {
       const div = divColumns.length > 0 ? divColumns[divColumns.length - 1] : null;
       if (
         div === null ||
         !div.isTabset ||
         !fencedDivsDialect ||
         div.inQuote !== inQuote ||
+        // ⚠ **A HEADING IN A QUOTE NESTED INSIDE THE TABSET IS NOT A DIRECT CHILD, SO IT IS NOT A TAB (Session 292)** — strictly MORE
+        // `>` markers than the opener, the callout rule's own comparison (`scratchpad/s292/s6rows`, rendered). `inQuote` cannot say
+        // it: it is true for the quote that HOLDS the tabset as well.
+        // ⚠ **ONLY ONCE THE LEVEL IS LEARNED.** A nested-quote heading standing BEFORE the first direct heading is a preamble
+        // quarto drops while it learns the level from the first direct one, and HEAD answers that shape right only by reading the
+        // nested heading as the first tab; declining it here would list the real tabs below it (`quote/tb12_*`, 7 probes in the
+        // first cut). The level is learned below, from the div's first content line, so `null` means "nothing learned yet".
+        (div.tabLevel !== null && headingQuoteDepth > div.quoteDepth) ||
         contentColumns.length !== div.containerDepth
       ) {
         return false;
@@ -9077,7 +9085,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       if (
         heading &&
         !calloutTitleTakes(prev.line, titleListMarkerStripped, titleQuoteDepth) &&
-        !tabsetTabTakes(prev.line, heading.level)
+        !tabsetTabTakes(prev.line, heading.level, titleQuoteDepth)
       ) {
         headings.push(heading);
       }

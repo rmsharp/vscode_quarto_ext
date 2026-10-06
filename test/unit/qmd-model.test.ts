@@ -21564,4 +21564,41 @@ describe("Session 292 — a fenced div ends with the container that holds it", (
   it("GUARD: under commonmark_x a heading at the item's content column is inside the item and is lifted", () => {
     expect(texts(withFrom("from: commonmark_x", "## S Before\n\n- ::: {.callout-note}\n  ## S Inside\n  :::\n\n## S After\n"))).toEqual(["S Before", "S After"]);
   });
+  // SLICE 6. A TAB LABEL IS A DIRECT CHILD OF THE TABSET, so a heading in a block quote NESTED inside a quoted tabset is not
+  // one: quarto's filter walks the div's own blocks, and a quote is a container (rendered, `scratchpad/s292/s6rows`, 18
+  // documents; `scratchpad/s291/adv_quotes/g15_o1q2_mid`). The tab rule compared `inQuote` only, which cannot tell a heading
+  // in the quote that HOLDS the tabset from one in a quote inside it, so it consumed `Quoted` as a tab. The same `>`-count
+  // comparison the callout rule uses (strictly MORE markers than the opener) is added, and only AFTER the tab level has been
+  // learned from a direct child (the guard below says why).
+  const nestedQuotedTab =
+    "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n>\n> > ## T Quoted\n>\n> ## T Two\n> two\n> :::\n\n## T After\n";
+  it("a heading in a quote nested inside a quoted tabset is a real heading, not a tab", () => {
+    expect(texts(nestedQuotedTab)).toEqual(["T Before", "T Quoted", "T After"]);
+  });
+  it.each([
+    ["commonmark_x", "from: commonmark_x", nestedQuotedTab],
+    ["markdown_strict+fenced_divs", "from: markdown_strict+fenced_divs", nestedQuotedTab],
+    [
+      "a depth-2 tabset with a depth-3 quote inside",
+      "",
+      "## T Before\n\n> > ::: {.panel-tabset}\n> > ## T One\n> > one\n> >\n> > > ## T Quoted\n> >\n> > ## T Two\n> > two\n> > :::\n\n## T After\n",
+    ],
+    [
+      "a SETEXT heading in the nested quote",
+      "",
+      "## T Before\n\n> ::: {.panel-tabset}\n> ## T One\n> one\n>\n> > T Quoted\n> > ----\n>\n> ## T Two\n> two\n> :::\n\n## T After\n",
+    ],
+  ])("the same, across readers and depths: %s", (_label, fm, body) => {
+    expect(texts(fm === "" ? body : withFrom(fm, body))).toEqual(["T Before", "T Quoted", "T After"]);
+  });
+  // GUARDS, rendered. When the nested-quote heading comes BEFORE any direct-child heading, quarto drops that block as a
+  // preamble and learns the level from the first direct heading (`s6rows/S6noneT1`, `quote/tb12_tabset_in_quote_nested_first_content`):
+  // HEAD gets this right only by treating the nested heading as the first tab, and a term applied before the level is learned
+  // would list the real tabs (7 probes regressed in the first cut). An UNQUOTED tabset with a quote inside is the other control.
+  it.each([
+    ["a nested-quote heading FIRST is a dropped preamble", "## T Before\n\n> ::: {.panel-tabset}\n> > ## T Quoted\n>\n> ## T One\n> one\n>\n> ## T Two\n> two\n> :::\n\n## T After\n", ["T Before", "T After"]],
+    ["an unquoted tabset: a quoted heading is real, the tabs are consumed", "## T Before\n\n::: {.panel-tabset}\n## T One\none\n\n> ## T Quoted\n\n## T Two\ntwo\n:::\n\n## T After\n", ["T Before", "T Quoted", "T After"]],
+  ] as [string, string, string[]][])("GUARD: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
+  });
 });
