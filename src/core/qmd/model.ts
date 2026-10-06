@@ -7487,10 +7487,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // place, so every closer, container pop and paragraph decision below sees the stack exactly as HEAD did.
     ended: boolean;
     // The content column of the list item that actually hosts this div (0 when none), read from the OPENER's own column so a
-    // stale column deeper than the fence cannot be mistaken for its host; and whether that geometry can be trusted (no tab on
-    // the opener line, and a quote marker run that consumed its optional space).
+    // stale column deeper than the fence cannot be mistaken for its host.
     hostColumn: number;
-    geometryReliable: boolean;
   }[] = [];
   /**
    * ⚠ **A DIV THAT ENDS EARLY STOPS CLAIMING HEADINGS, BUT STAYS ON THE STACK FOR ITS CLOSER (Session 292).** A div opened inside a
@@ -7501,6 +7499,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
    * deletions in the first six slices. So an ended entry is only FLAGGED. The stack, the closer match and every other reader
    * of `divColumns` evolve exactly as they did at HEAD; only the rules that decide whether a heading is a callout title or a tab
    * ask `liveDiv`, which skips the flagged.
+   * ⚠ Three terms here are UNOBSERVABLE today and kept on purpose, each with its mutant (0 of 559,661 documents differ, and no test
+   * moves): the first-block marking and the setext-underline rule read `liveDiv` where the raw top gives the same answer (S7b, S7c),
+   * and `endQuoteDivsDeeperThan` steps over an already-ended entry instead of stopping at it (S7d). `liveDiv` is the honest answer to
+   * "which div can claim this line", so the readers keep asking it.
    */
   const endedDiv = (entry: (typeof divColumns)[number]): void => {
     entry.ended = true;
@@ -8093,16 +8095,18 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // ⚠ **A MARKED BLANK LINE ENDS THE LIST ITEM THAT HOSTS A DIV, FOR THE DIV ONLY (Session 292).** `prevLineBlank` reads the RAW line,
       // where a bare `>` is text, so inside a quote a dedented line below one never closed the item and the div kept claiming
       // headings: `> - ::: {.callout-note}` / `>` / `> ## T` renders `T` (`scratchpad/s292/s4rows`, rendered). The column pop above is
-      // deliberately NOT widened: the first cut did that and re-shaped list-column state for the whole model, which deleted a
-      // heading outside any div (`adv/lists/A0103`). Only the entry is ended, and only where its geometry can be trusted — a
-      // TAB expands before pandoc strips a quote marker, and a marker run with no space after it (`>>*`, `> >1.`) leaves the
-      // item column one off from the continuation lines, so there HEAD's answer stands.
-      if (prevLineMarkedBlank && !raw.includes("\t")) {
+      // deliberately NOT widened: the first cut did that, re-shaped list-column state for the whole model, and deleted headings on the
+      // default reader (`adv/lists/A0103`; 49 genuine deletions in the 5,566-probe adversarial set). Only the ENTRY is flagged, which
+      // changes nothing but the suppression decision. The first cut also refused where the opener carried a TAB or a compact marker
+      // run; that guard existed for the column pop, blocked correct answers once it was gone (slice 9), and is not here.
+      // ⚠ The `inQuote` test below mirrors the container pop's own and is UNOBSERVABLE today (mutant S4e), kept so the two cannot disagree
+      // about which quote a div belongs to.
+      if (prevLineMarkedBlank) {
         for (let k = divColumns.length - 1; k >= 0; k--) {
           if (divColumns[k].ended) {
             continue;
           }
-          if (divColumns[k].inQuote === inQuote && divColumns[k].geometryReliable && indentWidth < divColumns[k].hostColumn) {
+          if (divColumns[k].inQuote === inQuote && indentWidth < divColumns[k].hostColumn) {
             endedDiv(divColumns[k]);
           } else {
             break;
@@ -9668,8 +9672,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           firstBlockLine: null,
           ended: false,
           hostColumn: contentColumns.filter((c) => c <= divFence!.column).reduce((a, c) => Math.max(a, c), 0),
-          geometryReliable:
-            !raw.includes("\t") && (!stripQuote || /[ \t]$/.test(raw.slice(0, quoteContentStart as number))),
           isTabset: divPanelTabset(divFence!.attrs, divFence!.tail, { commonmarkDialect, pandocEscapes }),
           tabLevel: null,
           // ⚠ **A LAZY OPENER SITS AT THE DEPTH OF THE QUOTE IT CONTINUES (Session 291)** — an unmarked `:::` under a

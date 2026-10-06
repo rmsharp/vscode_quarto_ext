@@ -21681,4 +21681,25 @@ describe("Session 292 — a fenced div ends with the container that holds it", (
   ] as [string, string, string[]][])("a closer ends the lazy quote, so the next opener is not inside it: %s", (_label, doc, expected) => {
     expect(texts(doc)).toEqual(expected);
   });
+  // SLICE 9. NO GEOMETRY GUARD ON THE LIST-ITEM END. The first cut of rule 4 refused to end a div hosted in a list item whose opener
+  // carried a TAB or a compact marker run (`>-`, `>>*`), because the global column pop it then used deleted a heading in such a
+  // document. Once rule 4 only FLAGS the div (slice 7) the hazard is gone and the guard only blocks correct answers: on a 60-document
+  // sample of the 832 documents the guard changed, rendered through quarto, the unguarded build was right on 30 and the guarded
+  // one on none. Each document below is that sample's truth (`scratchpad/s292/grd`).
+  it.each([
+    ["a compact `>-` marker run: the list item still ends at a dedented line after a marked blank", "## dt70200020 Before\n\n>- ::: {.callout-note}\n>\n### dt70200020 H0\n  ### dt70200020 H1\n\n## dt70200020 After\n", ["dt70200020 Before", "dt70200020 H0", "dt70200020 H1", "dt70200020 After"]],
+    ["a tab after the quote marker: the list item still ends at a dedented line after a marked blank", "## dt20102000 Before\n\n>\t- ::: {.callout-note}\n>\n  ### dt20102000 H0\n### dt20102000 H1\n\n## dt20102000 After\n", ["dt20102000 Before", "dt20102000 H0", "dt20102000 H1", "dt20102000 After"]],
+    ["a compact `>-` run with a setext title below the marked blank", "## p213928 Before\n\n>- ::: {.callout-warning}\n>  \n p213928 Inside\n -----\n\n## p213928 After\n", ["p213928 Before", "p213928 Inside", "p213928 After"]],
+  ] as [string, string, string[]][])("the list item that hosts a div ends at a dedented line after a marked blank: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
+  });
+  // ...and a marked closer does NOT end the lazy quote: after `> :::` an unmarked opener is still a lazy line of that quote, so the
+  // quoted heading below it is the callout's direct child and is lifted (`scratchpad/s292/s8b/a_default`, rendered). Under
+  // commonmark_x the opener is top level and the same heading is a real one (`b_cx`).
+  it("GUARD: an unmarked opener after a MARKED closer is still inside the quote (default reader)", () => {
+    expect(texts("## B\n\n> ::: {.plain}\n> text\n> :::\n::: {.callout-note}\n> ## T\n:::\n\n## A\n")).toEqual(["B", "A"]);
+  });
+  it("under commonmark_x an unmarked opener after a marked closer is top level, so the quoted heading is real", () => {
+    expect(texts("---\nfrom: commonmark_x\n---\n\n## B\n\n> ::: {.plain}\n> text\n> :::\n::: {.callout-note}\n> ## T\n:::\n\n## A\n")).toEqual(["B", "T", "A"]);
+  });
 });
