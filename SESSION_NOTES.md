@@ -8,15 +8,39 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 292 (IN PROGRESS, claimed 2026-10-05): the three callout-title shapes the direct-child rule still gets wrong (div lifetime, reader-dependent lazy continuation, the tabset rule's own holes; all DELETE).**
-**#1 NEXT:** finish the claimed item. Still open after it: the AST first-block item, R6 residuals (e)-(g), the empty `---` pair.
-**⚠ Gotchas:** (1) never `git add -A`; `scratchpad/s290/corpus` holds COPIES of personal corpus documents. (2) reuse `scratchpad/s291/{twin,cmp,monotone,diffscan}.cjs`. (3) agents can leave stray files at the repo root: check `git status`.
+**Task:** **NONE -- Session 292 closed out (a div that ends early stops claiming Outline headings: flagged, not popped; `26735481`..`96fc8114`).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**#1 NEXT:** operator picks. Open: the rewritten div-lifetime item (strict list-hosted quote, non-ATX lazy lines, outer tabset, stale column).
+**⚠ Gotchas:** (1) never `git add -A`. (2) CAP renders: the S292 workflow drove load to ~500 (Learning #622). (3) `scratchpad/s292/*.cjs` re-score cached renders.
 
-### What Session 292 Did
-**Deliverable:** fix the callout-title deletions left by the direct-child rule: div lifetime, reader-dependent lazy continuation, the tabset rule's own holes (IN PROGRESS)
-**Started:** 2026-10-05
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest.
+## Session 291 Handoff Evaluation (by Session 292)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK said `BACKLOG.md` "Active" was
+empty and listed the open items; all seven line numbers in its receipt were exact in its own commit; the ratchet citation matched.
+**Helped:** the ranked list, `monotone.cjs` (I reused it), `cmp.cjs`/`twin.cjs`/`show.cjs`, the corpus-copies and stray-file warnings,
+and the probe paths: seven named probes reproduced at once. **Missing:** the root of the list-in-quote family (`prevLineBlank`
+reads the RAW line, so a bare `>` is not blank to the container pop), and that about a third of the `readers_ref` witnesses are
+refused-opener shapes that belong to another item. **Wrong:** its hypothesis that the reader needed for the lazy rule is the
+`fencedDivsDialect` one: the measured predicates are `blankBeforeHeaderDialect` (ATX line) and `commonmarkDialect` (opener).
+It labelled that a hypothesis, not a measurement. **ROI: high.**
+
+## Session 292 Self-Assessment
+
+**Score: 7/10.**
+**Went right.** I partitioned the over-suppression mechanically (45,940 cached renders, rule-off builds, plain-div twins) before
+designing, and wrote each slice's rule from a fresh rendered matrix (65, 78, 18, 60 documents). TDD: RED shown at the previous
+checkpoint's source for every slice. Mutation testing found four unpinned terms and a guard that blocked correct answers (30 of 40
+sampled). The adversarial lenses found real flaws in MY designs, and I rebuilt around them: popping early moved later closers
+(now FLAGGED, stack identical to HEAD); a global column pop deleted default-reader headings (now div-only). Final: 0 deletion
+regressions in 5,566 probes, real-document score unchanged 2,423/2,438, corpus 0/3,383, 3,723 tests.
+**Went wrong.** (1) I launched a nine-lens workflow that rendered thousands of documents without announcing or capping it: load
+reached ~500, the operator asked, I stopped it early. `markers` yielded 13 probes with truth, `refute` none, and the verifier stage
+never ran, so I triaged regressions myself with twins. (2) My own matrices, built from the same understanding as the rules, did
+not catch the pop/global-pop flaws; only the default-reader control lens did. (3) Three small slips: guessed test counts in two
+commit messages (amended), unmeasured counts in two code comments (corrected), a wrong CHANGELOG sentence about the G21 pin.
+(4) A geometry guard added on a hypothesis. (5) Scope: nine rules against the item's three; each addition was measured, but it
+is more than was listed. (6) No `test:integration` run (needs the screen; core-only change).
+**TDD:** RED shown before GREEN. **Cost:** 9 lens agents (tokens not measured), ~5,600 adversarial renders, one load incident.
 
 ## Session 290 Handoff Evaluation (by Session 291)
 
@@ -63,21 +87,3 @@ itself) and caught it on re-reading. (3) The fix leaves removal unmodelled: 63 o
 and the position awaits the operator. (4) The corpus lens left COPIES of personal corpus documents under `scratchpad/s290/corpus`
 (untracked, not ignored). (5) No `test:integration` run (needs the screen; core-only change).
 **TDD:** RED shown before GREEN. **Cost:** 14 agents (~2.3M tokens), about two hours of renders; no screen-taking run.
-
-## Session 288 Handoff Evaluation (by Session 289)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK said `BACKLOG.md` "Active" was
-empty and listed the open items, so Phase 0 took one question; the 2,423/2,438 baseline reproduced.
-**Helped:** the ranked open list and the tracked score tool. **Missing:** nothing needed. **Wrong:** its BACKLOG item and the
-`insideHtmlComment` docstring said an unclosed `<!--` runs "to the next blank line"; measured, it is paragraph text. **ROI: high.**
-
-## Session 289 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** 55 probes in both modes before any test showed the real rule (paragraph text, not a comment), not the one the
-backlog assumed. RED shown for the core row and for the three CommonMark-family rows; three mutants killed. I measured the
-reader axis myself before fanning out, which caught that `gfm`/`commonmark` swallow to EOF and gated the rule. A 4-lens workflow
-(655 probes) found no deletion; I re-ran the tabset claim firsthand. Score unchanged 2,423/2,438; 3,519 tests; corpus diff 0 of 3,383.
-**Went wrong.** (1) My first cut ignored the reader and would have regressed `gfm`; found by my own probe, not a test. (2) The
-`insideHtmlComment` docstring still repeats the wrong "next blank line" claim; not edited, by scope. (3) No `test:integration` run.
-**TDD:** RED shown before GREEN. **Cost:** 4 workflow agents (~294k tokens); no screen-taking run.
