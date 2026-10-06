@@ -21255,18 +21255,12 @@ describe("Session 291 — a callout's title is its first block only when that bl
   // `quarto` is what `quarto render` emitted, and each is filed in `BACKLOG.md`.
   //  - DELETING, reader-dependent: under `from: commonmark_x` an unmarked line after a quoted opener is NOT a lazy line of
   //    the quote, so it is outside the div and renders; under the default reader it is lifted (the `a02` row above).
-  //  - DELETING, div lifetime: a marked blank line with FEWER `>` markers than the opener's quote ends the quote and the div
-  //    with it, so a heading after it renders; this model keeps the div open.
+  //  - (div lifetime across a marked blank of fewer markers was closed by Session 292; see its suite at the end of this file.)
   it.each([
     [
       "commonmark_x: an unmarked heading under a quoted opener is outside the div",
       "---\nfrom: commonmark_x\n---\n\n## CX Before\n\n> ::: {.callout-note}\n## CX Title\n:::\n\n## CX After\n",
       ["CX Before", "CX Title", "CX After"],
-    ],
-    [
-      "a bare `>` of fewer markers ends the deeper quote and its div",
-      "## E1 Before\n\n> > ::: {.callout-note}\n>\n> ## E1 Out\n>\n> > :::\n\n## E1 After\n",
-      ["E1 Before", "E1 Out", "E1 After"],
     ],
   ] as [string, string, string[]][])("RESIDUAL (deleting), kept on purpose: %s", (_label, doc, quarto) => {
     const got = texts(doc);
@@ -21371,5 +21365,44 @@ describe("Session 291 — a callout's title is its first block only when that bl
       "S Inside",
       "S After",
     ]);
+  });
+});
+
+describe("Session 292 — a fenced div ends with the container that holds it", () => {
+  const texts = (doc: string): string[] => findHeadings(doc).map((h) => h.text);
+  // SLICE 1. A div opened inside a block quote lives in that quote's CONTENT and nowhere else, so the quote ending ends
+  // the div. A marked blank line (`>`, no text) with FEWER markers than the opener's quote cannot be lazily continued,
+  // so it closes the deeper quote: the heading after it is a plain heading of the outer quote. Rendered, quarto 1.7.33,
+  // `scratchpad/s291/falsifier/E1_q2_blank_outer_h`, `quote_ref/c13_d2_d1bare_d1h` and 230 more probes: this model kept
+  // the div open and lifted the heading as the callout's title.
+  it("a bare `>` of fewer markers than the opener ends the deeper quote, and its div with it", () => {
+    expect(texts("## E1 Before\n\n> > ::: {.callout-note}\n>\n> ## E1 Out\n>\n> > :::\n\n## E1 After\n")).toEqual([
+      "E1 Before",
+      "E1 Out",
+      "E1 After",
+    ]);
+  });
+  // The same rule across the geometry quarto was measured on (`scratchpad/s291/quote_ref/c13_*`, each rendered): the
+  // marked blank may be one or two markers shallower than the opener; the heading may sit at the new, deeper depth (it
+  // then opens a FRESH quote), at the blank's depth, or unmarked; and the closer may be missing or come after.
+  it.each([
+    ["depth 3, blank at depth 2, heading at depth 3 (a fresh quote)", "## T Before\n\n> > > ::: {.callout-warning}\n> >\n> > > ## T Zinc\n> > > :::\n\n## T After\n"],
+    ["depth 3, blank at depth 2, heading at depth 2", "## T Before\n\n> > > ::: {.callout-warning}\n> >\n> > ## T Zinc\n\n## T After\n"],
+    ["depth 2, blank at depth 1, heading at depth 2 (a fresh quote)", "## T Before\n\n> > ::: {.callout-tip}\n>\n> > ## T Zinc\n> > :::\n\n## T After\n"],
+    ["depth 2, blank at depth 1, a quoted heading and no closer", "## T Before\n\n> > ::: {.callout-tip}\n>\n> ## T Zinc\n\n## T After\n"],
+    ["depth 3, blank at depth 1", "## T Before\n\n> > > ::: {.callout-warning}\n>\n> ## T Zinc\n\n## T After\n"],
+    ["depth 2, blank at depth 1, an UNMARKED heading", "## T Before\n\n> > ::: {.callout-tip}\n>\n## T Zinc\n\n## T After\n"],
+    ["depth 2, blank at depth 1, an unmarked heading and a closer after it", "## T Before\n\n> > ::: {.callout-tip}\n>\n## T Zinc\n> > :::\n\n## T After\n"],
+  ])("the blank of fewer markers ends the div whatever follows it: %s", (_label, doc) => {
+    expect(texts(doc)).toEqual(["T Before", "T Zinc", "T After"]);
+  });
+  // GUARDS, rendered. A blank at the opener's OWN depth (or deeper) is a plain blank: the div lives on and the title
+  // after it is still lifted (`scratchpad/s291/n2/g1`), and an empty quote deeper than the opener is a block that keeps
+  // the heading after it from being the first one (S291).
+  it.each([
+    ["a bare `>` at the opener's depth", "## G Before\n\n> > ::: {.callout-note}\n> >\n> > ## G Title\n> > :::\n\n## G After\n", ["G Before", "G After"]],
+    ["a deeper bare `> >` under a depth-1 opener is an empty quote, not an ending", "## G Before\n\n> ::: {.callout-note}\n> >\n> > ## G Quoted\n> :::\n\n## G After\n", ["G Before", "G Quoted", "G After"]],
+  ] as [string, string, string[]][])("GUARD: a blank at or below the opener's depth does not end the div: %s", (_label, doc, expected) => {
+    expect(texts(doc)).toEqual(expected);
   });
 });

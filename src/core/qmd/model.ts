@@ -7477,6 +7477,18 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // heading in the quote that HOLDS the div from one in a quote NESTED inside it.
     quoteDepth: number;
   }[] = [];
+  /**
+   * ⚠ **A DIV OPENED INSIDE A BLOCK QUOTE LIVES IN THAT QUOTE'S CONTENT AND NOWHERE ELSE (Session 292).** When the quote
+   * ends, the div ends with it — pandoc closes it implicitly, so nothing below is inside it and a heading there is a
+   * plain heading. This drops every entry whose opener sat DEEPER in `>` nesting than `depth`. It touches the div stack
+   * only: the quote's own container columns and `inQuote` are not ours to move here (see the unmarked-blank branch for
+   * the one place that does both).
+   */
+  const endQuoteDivsDeeperThan = (depth: number): void => {
+    while (divColumns.length > 0 && divColumns[divColumns.length - 1].quoteDepth > depth) {
+      divColumns.pop();
+    }
+  };
   // Whether a mid-document YAML metadata block is open at this line — the same block state,
   // for the `...` terminator. See `YAML_BLOCK_OPENER`.
   let metadataBlockOpen = false;
@@ -7653,6 +7665,13 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       : 0;
     const quoteDepthAbove: number = lastMarkedQuoteDepth;
     lastMarkedQuoteDepth = stripQuote ? quoteDepth : inQuote ? lastMarkedQuoteDepth : 0;
+    // ⚠ **A MARKED BLANK LINE WITH FEWER `>` THAN A DIV'S OPENER ENDS THAT DIV (Session 292).** A blank line cannot be a
+    // lazy continuation, so it closes every quote deeper than its own marker count — `> > ::: {.callout-note}` / `>` /
+    // `> ## Out` renders `Out` (`scratchpad/s291/falsifier/E1_q2_blank_outer_h`, rendered). At the opener's own depth or
+    // deeper the same line is a plain blank and ends nothing.
+    if (stripQuote && BLANK_LINE.test(line)) {
+      endQuoteDivsDeeperThan(quoteDepth);
+    }
     // ⚠ **A CALLOUT'S FIRST-BLOCK HEADING IS ITS TITLE BAR, NOT A HEADING (Session 257).**
     // Quarto's callout filter lifts it out of the body entirely: no `<hN>`, no `<section>`,
     // and no `sec-` anchor — an `@sec-` reference to one renders as the unresolved
