@@ -21789,10 +21789,11 @@ describe("Session 293 — a jupyter kernel cell closes only on its own indent", 
   ] as const)("a %s cell still pairs with a closer at another indent, as quarto's handler does", (_label, lang) => {
     expect(texts(doc(...TOP, "prose", "", `    \`\`\`{${lang}}`, "## In", "x = 1", "```", "", "## After"), "jupyter")).toEqual(["After"]);
   });
-  it("RESIDUAL, kept on purpose: a non-kernel `{bash}` line at indent 4 is no cell to quarto, and this model still swallows the heading", () => {
-    // `lg/l_bash_mis40`: quarto lists In and After (bash is no jupyter kernel here, so pandoc reads indented CODE). Pinned so a future
-    // change flips it on purpose; `sh`, `js`, `julia` and `sql` behave identically. Zero corpus reach.
-    expect(texts(doc(...TOP, "prose", "", "    ```{bash}", "## In", "x = 1", "```", "", "## After"), "jupyter")).toEqual(["After"]);
+  it("a non-kernel `{bash}` line at indent 4 is no cell to quarto: the divergence this row pinned is CLOSED (Session 294)", () => {
+    // `lg/l_bash_mis40`: quarto lists In and After (bash is no jupyter kernel here, so pandoc reads indented CODE). This row pinned the
+    // model's wrong answer, `["After"]`, so a future change would flip it on purpose; Session 294 did, after re-rendering THIS document
+    // firsthand (`scratchpad/s294/rows/pin_bash_mis40`, ne mode, exit 0: In, After). See the Session 294 suite below.
+    expect(texts(doc(...TOP, "prose", "", "    ```{bash}", "## In", "x = 1", "```", "", "## After"), "jupyter")).toEqual(["In", "After"]);
   });
   it.each([
     // The comparison is of the indent STRING, not its length: a tab and one space are both one character (`sq/w_tab_s1`, `w_tab_tab`).
@@ -21942,4 +21943,46 @@ describe("Session 293 — a jupyter kernel cell closes only on its own indent", 
     // Pinned by behaviour, not by a render: with no front matter there is nowhere for a `title:`, so quarto hides the first heading.
     expect(texts(doc("    ```{python}", "## In", "    ```", "", "## After"), "markdown")).toEqual(["In", "After"]);
   });
+});
+
+// ── Session 294 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Kernel-cell closing, residual 1: under jupyter the unbounded second look (`indentedCellFenceAt`) is quarto's EXECUTABLE-cell grammar, and
+// only python (the kernel) and the three handler languages are cells there. Every other `{lang}` opener at indent 4+ is a plain pandoc
+// fence, so it is INDENTED CODE and the heading below it is a real heading.
+describe("Session 294 — a non-kernel language at indent 4 is indented code under jupyter", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const texts = (text: string, engine?: "jupyter" | "markdown" | "knitr" | "julia" | "ambiguous") =>
+    findHeadings(text, engine).map((h) => h.text);
+
+  // SLICE 1. The five languages the backlog item named, each with an exact-indent closer and with a column-0 closer. Every document is a
+  // byte copy of a Session 293 probe (`scratchpad/s293/lg/l_<lang>_{exact44,mis40}.qmd`) rendered with quarto 1.7.33 in ne mode, exit 0:
+  // quarto lists In and After for all ten, where this model swallowed In.
+  it.each(["bash", "sh", "js", "julia", "sql"] as const)(
+    "RED->GREEN: an indent-4 `{%s}` line below a blank line is indented code, with an exact closer or a column-0 one",
+    (lang) => {
+      for (const closer of ["    ```", "```"]) {
+        const text = doc("```{python}", "1 + 1", "```", "", "prose", "", `    \`\`\`{${lang}}`, "## In", "x = 1", closer, "", "## After", "", "tail");
+        expect(texts(text, "jupyter")).toEqual(["In", "After"]);
+      }
+    },
+  );
+
+  // SLICE 2. THE FIVE WERE A SAMPLE; THE RULE IS A NEGATIVE LIST. Rendered over 51 languages x {exact closer, column-0 closer} with an
+  // indent-4 opener under a document quarto resolves to jupyter (`scratchpad/s294/g1`, 102 documents, ne mode, exit 0): quarto lists In
+  // and After for EVERY language but `python` (the kernel), `ojs` and `mermaid` (handlers, which swallow it) and `dot` (claimed, the render
+  // fails). The near-misses `ipython` and the capitalised `Python` are plain too, so the test is the exact name `python`, not a prefix.
+  const MEASURED_PLAIN = [
+    "asis", "asy", "block", "c", "cat", "cpp", "css", "drawio", "fortran", "go", "haskell", "html", "ipython", "java", "javascript",
+    "json", "kotlin", "latex", "lua", "matlab", "md", "observable", "octave", "perl", "php", "ruby", "rust", "sas", "scala", "scss",
+    "stan", "stata", "swift", "tex", "text", "tikz", "ts", "txt", "typescript", "yaml", "zsh", "Python",
+  ] as const;
+  it.each(MEASURED_PLAIN)(
+    "RED->GREEN: an indent-4 `{%s}` line is indented code under jupyter, as every language but python and the handlers is",
+    (lang) => {
+      for (const closer of ["    ```", "```"]) {
+        const text = doc("---", 'title: "T"', "---", "", "```{python}", "1 + 1", "```", "", "prose", "", `    \`\`\`{${lang}}`, "## In", "x = 1", closer, "", "## After", "", "tail");
+        expect(texts(text, "jupyter")).toEqual(["In", "After"]);
+      }
+    },
+  );
 });

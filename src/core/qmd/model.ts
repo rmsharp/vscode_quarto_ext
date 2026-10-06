@@ -10509,6 +10509,13 @@ function indentedCellFenceFor(
   if (engine === "markdown" && !HANDLER_CELL_LANGUAGES.has(lang)) {
     return null;
   }
+  // ⚠ **UNDER JUPYTER A CELL IS EXACTLY `python` OR A HANDLER LANGUAGE (Session 294).** Rendered over 51 languages x {exact closer,
+  // column-0 closer}, an indent-4 opener below a blank line (`scratchpad/s294/g1`, ne mode, exit 0): quarto lists the heading inside for
+  // every language but `python` (the kernel), `ojs` and `mermaid` (handlers, which swallow it) and `dot` (claimed; the render fails). The
+  // near-misses `ipython` and the capitalised `Python` are plain fences too, so the test is the exact name, not a prefix or a fold.
+  if (engine === "jupyter" && lang !== "python" && !HANDLER_CELL_LANGUAGES.has(lang)) {
+    return null;
+  }
   // After a dropped kernel opener the partition is dead for the rest of the file (see the flag).
   if (kernelPartitionDead && lang === "python") {
     return null;
