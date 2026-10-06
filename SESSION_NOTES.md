@@ -8,10 +8,15 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 293 closed out (a jupyter python cell closes only at its own indent; an unclosed one is dropped; engine markdown has no indented-cell look outside handlers).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. New open item: "Kernel-cell closing and the unbounded second look" (9 residuals; non-kernel languages at indent 4+ under jupyter is the biggest).
-**⚠ Gotchas:** (1) never `git add -A`. (2) render load is Spotlight's: prune `*_files`, authors never render (Learning #627). (3) use `corpusdiff_eng.cjs` (Learning #628).
+**Task:** **Session 294 (IN PROGRESS): non-kernel languages at indent 4+ under jupyter (residual 1 of "Kernel-cell closing and the unbounded second look").**
+Operator picked it at Phase 0 from the ranked list. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Measure corpus reach FIRST; render before widening any rule (Learning #623).
+**⚠ Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders before any workflow; authors never render (Learning #627). (3) use `corpusdiff_eng.cjs` (Learning #628).
+
+### What Session 294 Did
+**Deliverable:** make the Outline list the heading below an indent-4+ `{bash}`/`{sh}`/`{js}`/`{julia}`/`{sql}` opener under jupyter, where quarto treats it as indented code (IN PROGRESS)
+**Started:** 2026-10-06
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 292 Handoff Evaluation (by Session 293)
 
