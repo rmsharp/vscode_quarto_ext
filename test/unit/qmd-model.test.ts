@@ -22760,9 +22760,10 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
     eng === "markdown"
       ? ["---", 'title: "T"', "engine: markdown", `from: ${from}`, "---", ""]
       : ["---", 'title: "T"', `from: ${from}`, "---", "", "```{python}", "1 + 1", "```", ""];
-  const probe = (eng: Eng, from: string, above: string[], open = "    "): string =>
-    doc(...front(eng, from), "## Before", "", ...above, `${open}\`\`\`{bash}`, "## In", "x = 1", `${open}\`\`\``, "", "## After", "", "tail");
+  const probe = (eng: Eng, from: string, above: string[], open = "    ", lang = "bash"): string =>
+    doc(...front(eng, from), "## Before", "", ...above, `${open}\`\`\`{${lang}}`, "## In", "x = 1", `${open}\`\`\``, "", "## After", "", "tail");
   const LISTED = ["Before", "In", "After"]; // the opener is indented code or a lazy line: quarto lists the heading inside it
+  const SWALLOWED = ["Before", "After"]; //   the opener is a cell or a real fence, or a raw HTML block runs over it: quarto swallows the heading
   const CM_READERS = ["gfm", "commonmark", "commonmark_x"];
 
   // SLICE 1. UNDER A PARAGRAPH. An ATX line INTERRUPTS a paragraph in the CommonMark family (it does not under pandoc's markdown, where `blank_before_header`
@@ -22795,4 +22796,96 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
       }
     },
   );
+  // GUARDS (pass on arrival, disclosed): every other context of the `g1` grid (24 contexts x 2 engines x 3 readers x indents 4 and 8, 288 documents). The first
+  // cut of slice 1 changed only the free case, and these show what it meant for the rest: the contexts the free case already claimed keep listing the heading,
+  // and a context that is paragraph-like to CommonMark (a 7-hash line, a raw TeX environment, a footnote or definition-list line, a quote line) now does too.
+  const ABOVE: [string, string[], string[]?][] = [
+    ["a blank line", ["Prose before", ""]],
+    ["an ATX heading", ["### Sub"], ["Before", "Sub", "In", "After"]], // the context line is itself a heading
+    ["a setext heading", ["Setext title", "============="], ["Before", "Setext title", "In", "After"]],
+    ["a thematic break", ["", "***"]],
+    ["a closed fence", ["```text", "code", "```"]],
+    ["an indented code line", ["", "    some code"]],
+    ["a link reference definition", ["[qd]: https://quarto.org/docs"]],
+    ["a pipe table", ["| a | b |", "|---|---|", "| 1 | 2 |"]],
+    ["a closed HTML comment", ["<!-- c -->"]],
+    ["a quote line (lazy)", ["> quoted line"]],
+    ["a seven-hash line", ["", "####### Seven"]],
+    ["a raw TeX environment", ["\\begin{equation}", "x", "\\end{equation}"]],
+    ["a footnote definition", ["[^1]: note text"]],
+    ["a definition list", ["Term", ": definition"]],
+  ];
+  it.each(ABOVE)("GUARD: under every CommonMark reader an indent-4 and indent-8 `{bash}` opener below %s is indented code", (_label, above, expected = LISTED) => {
+    for (const from of CM_READERS) {
+      for (const eng of ["jupyter", "markdown"] as const) {
+        for (const open of ["    ", "        "]) {
+          expect(texts(probe(eng, from, above, open), eng), `${from} ${eng} indent ${open.length}`).toEqual(expected);
+        }
+      }
+    }
+  });
+  // The CommonMark family reads a raw HTML block to the next blank line (types 6 and 7) or to its end marker (types 1-5), so the indented opener and the
+  // `## In` below are INSIDE it: quarto swallows the heading, and so does HEAD, which these rows keep (`html_*` in `g1`, nn= in all 24 columns).
+  // An UNCLOSED `<pre>` or comment runs to the end of the document, so `## After` is swallowed with it.
+  it.each<[string, string[], string[]]>([
+    ["a closing div", ['<div class="note">', "Some text here", "</div>"], SWALLOWED],
+    ["an unclosed pre with a blank line in it", ["<pre>", "", "text", ""], ["Before"]],
+    ["an unclosed comment with a blank line in it", ["<!--", "", "note", ""], ["Before"]],
+    ["a custom tag alone on its line (type 7)", ["", "<span>", "inline text"], SWALLOWED],
+  ])("GUARD: under every CommonMark reader an indent-4 `{bash}` opener inside raw HTML (%s) keeps swallowing the heading", (_label, above, expected) => {
+    for (const from of CM_READERS) {
+      for (const eng of ["jupyter", "markdown"] as const) {
+        expect(texts(probe(eng, from, above), eng), `${from} ${eng}`).toEqual(expected);
+      }
+    }
+  });
+  // WHAT IS STILL A CELL OR A FENCE under the same readers (`g2`, 336 documents): a handler language swallows at every indent; an opener indented 1-3 is a REAL
+  // fence to CommonMark (the pairing HEAD made is right); under jupyter the kernel `python` is a cell and every other language is not.
+  it("GUARD: a `{mermaid}` opener is a handler cell at every indent and still swallows the heading", () => {
+    for (const from of CM_READERS) {
+      for (const eng of ["jupyter", "markdown"] as const) {
+        for (const open of [" ", "   ", "    ", "        ", "\t"]) {
+          for (const above of [["Prose before", ""], ["Para above"]]) {
+            expect(texts(probe(eng, from, above, open, "mermaid"), eng), `${from} ${eng} ${JSON.stringify(open)}`).toEqual(SWALLOWED);
+          }
+        }
+      }
+    }
+  });
+  it("GUARD: an opener indented one to three spaces is a real fence to CommonMark and swallows the heading", () => {
+    for (const from of CM_READERS) {
+      for (const eng of ["jupyter", "markdown"] as const) {
+        for (const open of [" ", "  ", "   "]) {
+          for (const above of [["Prose before", ""], ["Para above"]]) {
+            expect(texts(probe(eng, from, above, open), eng), `${from} ${eng} indent ${open.length}`).toEqual(SWALLOWED);
+          }
+        }
+      }
+    }
+  });
+  it("GUARD: under jupyter the kernel `{python}` is a cell at indent 4 and still swallows; under engine markdown it is indented code", () => {
+    for (const from of CM_READERS) {
+      for (const above of [["Prose before", ""], ["Para above"]]) {
+        expect(texts(probe("jupyter", from, above, "    ", "python"), "jupyter"), `${from} jupyter`).toEqual(SWALLOWED);
+        expect(texts(probe("markdown", from, above, "    ", "python"), "markdown"), `${from} markdown`).toEqual(LISTED);
+      }
+    }
+  });
+  // Only the two engine hints the Outline passes (`markdown`, `jupyter`) narrow the unbounded look; every other hint keeps it, so no other surface moves.
+  it.each(["knitr", "julia", "ambiguous", undefined] as const)("GUARD: engine hint %s keeps the unbounded look under a CommonMark reader (HEAD's answer)", (engine) => {
+    expect(texts(probe("markdown", "gfm", ["Para above"]), engine)).toEqual(SWALLOWED);
+  });
+  // RESIDUAL, kept on purpose (DELETION direction; measured, `g3_*_r0..r3_*`, 88 documents under `gfm` and `commonmark_x`): an opener indented ZERO to THREE
+  // past a container's content column is a real CommonMark fence INSIDE the item, and the column-0 `## In` ends the item and with it the fence, so quarto
+  // lists the heading; this model pairs the fence with its closer. It is the filed "bare fence inside a list item" family (the container-bound fence), not this
+  // item: pinned so a future rule flips these on purpose.
+  it.each<[string, string[], number]>([
+    ["a bullet item, blank line above, rel 2", ["- item one", ""], 4],
+    ["a bullet item, blank line above, rel 3", ["- item one", ""], 5],
+    ["an ordered item, blank line above, rel 2", ["1. item one", ""], 5],
+  ])("RESIDUAL, kept on purpose: an opener that is a real fence inside %s is still swallowed (quarto lists the heading)", (_label, above, indent) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "gfm", above, " ".repeat(indent)), eng), eng).toEqual(SWALLOWED); // quarto: Before, In, After
+    }
+  });
 });
