@@ -22412,6 +22412,53 @@ describe("Session 295 — the free case's block-boundary list", () => {
       }
     }
   });
+  // SLICE 4b. TABLES AND LINE BLOCKS. Rendered (`scratchpad/s295/{bb,bt,bh}`, `scratchpad/s295/disc/tbl`): after a table or line block that began FRESH the
+  // indent-4 opener is indented code. A table cannot interrupt a paragraph, so under a prose line every one of these is paragraph text and nothing
+  // changes. What ends the block differs by kind: a line starting `| ` or a bare `|` (a line block, a pipe-table row, a grid-table row), a
+  // line-block continuation line, a pipe table by its delimiter row (with or without outer pipes), a grid table by its closing border, and a
+  // simple table by its closing dash rule.
+  it.each<[string, string[]]>([
+    ["a line-block line", ["| line one"]],
+    ["a bare bar", ["|"]],
+    ["a lone pipe row (a line block to pandoc)", ["| a | b |"]],
+    ["two line-block lines", ["| line one", "| line two"]],
+    ["a line block with a continuation line", ["| line one", "  continued"]],
+    ["a pipe table", ["| a | b |", "|---|---|", "| 1 | 2 |"]],
+    ["a pipe table with no body row", ["| a | b |", "|---|---|"]],
+    ["a pipe table with alignment colons", ["| a | b |", "|:--|--:|", "| 1 | 2 |"]],
+    ["a pipe table with no outer pipes", ["a | b", "--|--", "1 | 2"]],
+    ["a pipe table with no outer pipes and no body", ["a | b", "--|--"]],
+    ["a grid table", ["+---+---+", "| a | b |", "+===+===+", "| 1 | 2 |", "+---+---+"]],
+    ["a grid table missing its closing border", ["+---+---+", "| a | b |", "+===+===+", "| 1 | 2 |"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s is indented code", (_label, x) => {
+    FRESH_ONLY(x);
+  });
+  // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/bb` `simple_closing_dashes`): a SIMPLE table closed by its dash rule
+  // ends its block, so quarto lists the heading inside the opener below it after a blank line or a heading; this model keeps no simple-table
+  // state for these shapes (its `simpleTableOpensHere` never arms for them, checked at every line with a trace), so the closing rule is just a
+  // line and the opener below stays paired. Under a prose line quarto swallows too. Pinned so a future simple-table rule flips it on purpose.
+  it("RESIDUAL, kept on purpose: an opener below a simple table closed by dashes is still swallowed (quarto lists the heading)", () => {
+    const x = ["  a   b", "  --- ---", "  1   2", "  --- ---"];
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(SWALLOWED); // quarto: Before, In, After
+      expect(texts(probe(eng, "paragraph", x), eng), `${eng}: directly under a paragraph`).toEqual(SWALLOWED); // quarto: Before, After
+    }
+  });
+  it.each<[string, string[]]>([
+    ["a delimiter row alone", ["|---|---|"]],
+    ["a grid border alone", ["+---+---+"]],
+    ["a pipe row indented one space", [" | a | b |"]],
+    ["a line block indented one space", [" | line one"]],
+    ["a grid border indented one space", [" +---+---+"]],
+    ["a simple table that never closes", ["  a   b", "  --- ---", "  1   2"]],
+    ["a plus bullet item", ["+ item"]],
+  ])("GUARD: below %s the opener stays swallowed in every context", (_label, x) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      for (const ctx of ["blank", "heading", "paragraph"] as const) {
+        expect(texts(probe(eng, ctx, x), eng), `${eng}: ${ctx}`).toEqual(SWALLOWED);
+      }
+    }
+  });
   // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/bb` `linkref_title_next` and `linkref_title_multi`): when the title is
   // carried onto a line of its own, quarto still lists the heading inside the opener below it (after a blank line or a heading), and this model
   // swallows it. The model believes the title line opens a PARAGRAPH, so the opener below it is paragraph text and its `## In` is not a

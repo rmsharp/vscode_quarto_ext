@@ -8273,7 +8273,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // A whole-line single-line comment renders to nothing — skip it entirely.
     if (COMMENT_FULL_LINE.test(line)) {
       // `paragraphOpen` is still the line ABOVE's here: a comment that begins a block at column 0 ends it (Session 295).
-      if (!paragraphOpen && !commonmarkDialect && COMMENT_FULL_LINE_COL0.test(line)) {
+      if (!paragraphOpen && !commonmarkDialect && !stripQuote && COMMENT_FULL_LINE_COL0.test(line)) {
         freshBlockEndLine = i;
       }
       consecutiveBody = 0;
@@ -8291,7 +8291,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // here, which can only phantom).
     if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line) && (commonmarkDialect || lastCommentCloserLine > i)) {
       inComment = true;
-      commentFresh = !paragraphOpen && !commonmarkDialect && COMMENT_OPEN_COL0.test(line);
+      commentFresh = !paragraphOpen && !commonmarkDialect && !stripQuote && COMMENT_OPEN_COL0.test(line);
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
@@ -9557,7 +9557,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         !commonmarkDialect &&
         deepAtxHeaderLineIsBlock(line, rawTexColumns, tightAtxDialect && literalHtmlLines?.has(i) !== true) &&
         (!paragraphOpen || (markdownFamilyDialect && !blankBeforeHeaderDialect));
-      if (deepHeaderHere) {
+      if (deepHeaderHere && !stripQuote) {
         freshBlockEndLine = i; // a header is one line and ends itself (Session 295; the Outline never shows it)
       }
       // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
@@ -9909,6 +9909,21 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       if (lineBlockOpen) {
         lineBlockQuoted = stripQuote;
         lineBlockQuoteDepth = quoteDepth;
+      }
+      // ⚠ **A TABLE OR LINE BLOCK THAT BEGAN FRESH ENDS ITS BLOCK AT EVERY ONE OF ITS LINES (Session 295)**, so the indent-4 opener directly below
+      // the last of them is indented code. Each arm reads the state the scanner already keeps for its own kind: a line that starts `| ` (or is a
+      // bare bar) and no paragraph open before it; a line-block continuation; a pipe-table row while its fresh delimiter's flag is armed; a grid
+      // table's closing border. A table cannot interrupt a paragraph, so none of the four is true under a prose line, and `|---|---|` or
+      // `+---+---+` ALONE is true of none (rendered, `scratchpad/s295/bb` `pipe_delim_only`, `grid_border_only`). Not from a quoted line: the
+      // opener below is then an unmarked lazy line.
+      if (
+        !stripQuote &&
+        ((!wasParagraphOpen && LINE_BLOCK_START.test(line)) ||
+          lineBlockOpen ||
+          (tableRowsOpen && line.includes("|")) ||
+          (!wasParagraphOpen && tableShapedIsBlock && GRID_TABLE_BORDER.test(line)))
+      ) {
+        freshBlockEndLine = i;
       }
     }
   }
