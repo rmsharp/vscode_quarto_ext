@@ -23206,4 +23206,33 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
     ["034 jup gfm footnote indented bash pair", "gfm", "jupyter", ["Ref[^1] here","","[^1]: note","","        ```{bash}","    ## In","        ```","","## After","","tail"], ["Before","After"], ["Before","In","After"]], // adv2/defs/defs_034_jup_gfm_footnote_indented_bash_pair.qmd
     ["013 quote list lazy same gfm", "gfm", "markdown", ["> - item","      ```{bash}","      ## In","      x = 1","      ```","","## After","","tail"], ["Before","After"], ["Before","In","After"]], // adv/cont/cont_013_quote_list_lazy_same_gfm.qmd
   ]);
+  // MUTATION ROUND 1 FOUND FIVE TERMS THAT HURT (a mutant right where the real build is wrong, 0 killers each): `!stripQuote` on the free case (9 documents), `!stripQuote` on the item bound (17),
+  // `contentColumns.length === 0` on the raw-block start (4), `!stripQuote` on it (5) and `liveDiv()` on the degenerate comment (1). Each was a conservative gate of mine that the measurement then
+  // showed too strict; every row is a rendered document and the claim is quarto's answer. (An UNCLOSED raw block inside a list item or a quote ends with the container, which this model cannot
+  // see, so there the start requires a closing marker below: the guard rows after the table.)
+  round2([
+    ["qbullet bash r6 none col0 t cm jup", "commonmark", "jupyter", ["> - item one",">         ```{bash}","In text","x = 1","```","","## After","","tail"], ["Before"]], // prod/p0537_qbullet_bash_r6_none_col0_t_cm_jup.qmd
+    ["quote bash r6 col0 col0 b gfm md", "gfm", "markdown", ["> quoted line","",">       ```{bash}","## In","x = 1","```","","## After","","tail"], ["Before","In"]], // prod/p0935_quote_bash_r6_col0_col0_b_gfm_md.qmd
+    ["qbullet python r3 none col0 t cm md", "commonmark", "markdown", ["> - item one",">      ```{python}","In text","x = 1","```","","## After","","tail"], ["Before"]], // prod/p0959_qbullet_python_r3_none_col0_t_cm_md.qmd
+    ["qbullet bash r0 col0 same t gfm md", "gfm", "markdown", ["> - item one",">   ```{bash}","## In","x = 1",">   ```","","## After","","tail"], ["Before","In","After"]], // prod/p0303_qbullet_bash_r0_col0_same_t_gfm_md.qmd
+    ["qbullet text r1 twoHeads col0 t cm md", "commonmark", "markdown", ["> - item one",">    ```text","## In","x = 1","## In2","```","","## After","","tail"], ["Before","In","In2"]], // prod/p0563_qbullet_text_r1_twoHeads_col0_t_cm_md.qmd
+    ["qbullet tick4 r0 col0 same t gfm md", "gfm", "markdown", ["> - item one",">   ````","## In","x = 1",">   ````","","## After","","tail"], ["Before","In","After"]], // prod/p0625_qbullet_tick4_r0_col0_same_t_gfm_md.qmd
+    ["qbullet bare r0 col0 same t cmx md", "commonmark_x", "markdown", ["> - item one",">   ```","## In","x = 1",">   ```","","## After","","tail"], ["Before","In","After"]], // prod/p0722_qbullet_bare_r0_col0_same_t_cmx_md.qmd
+    ["045 decl block inside list item", "gfm", "markdown", ["- item","","  <!X","  ## In","  >","## After"], ["Before","After"]], // adv2/headings/headings_045_decl_block_inside_list_item.qmd
+    ["028 cdata ordered item blank", "commonmark", "markdown", ["1. item","","   <![CDATA[","   ## In","","   ## In2","   ]]>","","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_028_cdata_ordered_item_blank.qmd
+    ["032 pi directly under item", "gfm", "markdown", ["- item","<?php","## In","","## After","","tail"], ["Before"]], // adv2/rawhtml2/rawhtml2_032_pi_directly_under_item.qmd
+    ["056 quote pi block", "gfm", "markdown", ["> <?x","> ## In","> ?>","","## After","","tail"], ["Before","After"]], // adv2/mutate/mutate_056_quote_pi_block.qmd
+    ["036 quote php block", "gfm", "markdown", ["> <?php","> ## In","> ?>","","## After","","tail"], ["Before","After"]], // adv2/quotefence/quotefence_036_quote_php_block.qmd
+    ["037 quote decl multiline", "commonmark_x", "markdown", ["> <!ELEMENT br","> ## In","> EMPTY>","","## After","","tail"], ["Before","After"]], // adv2/quotefence/quotefence_037_quote_decl_multiline.qmd
+    ["029 decl in quote", "gfm", "markdown", ["> <!DOCTYPE","> ## In","","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_029_decl_in_quote.qmd
+    ["030 pi in quote closed", "commonmark", "markdown", ["> <?php","> ## In","> ?>","> ## Out","","## After","","tail"], ["Before","Out","After"]], // adv2/rawhtml2/rawhtml2_030_pi_in_quote_closed.qmd
+    ["052 cmx div degenerate comment swallows", "commonmark_x", "markdown", ["::: {.callout-note}","","<!-->","## In","-->","","## After","",":::","","## Last","","tail"], ["Before","After","Last"]], // adv2/defs/defs_052_cmx_div_degenerate_comment_swallows.qmd
+  ]);
+  residual("an unclosed raw block inside a list item or a quote ends with the container (quarto swallows only the block)", [
+    ["pi in a list item", "gfm", "markdown", ["- item", "  <?php", "  ## In", "", "## After", "", "tail"], ["Before", "After"], ["Before", "In", "After"]],
+    ["cdata in a list item after a blank line", "gfm", "markdown", ["- item", "", "  <![CDATA[", "  ## In", "", "## After", "", "tail"], ["Before", "After"], ["Before", "In", "After"]],
+    ["declaration in an ordered item (commonmark_x)", "commonmark_x", "markdown", ["1. item", "   <!ELEMENT x", "   ## In", "", "## After", "", "tail"], ["Before", "After"], ["Before", "In", "After"]],
+    ["cdata in a quote", "gfm", "markdown", ["> <![CDATA[", "> ## In", "", "## After", "", "tail"], ["Before", "After"], ["Before", "In", "After"]],
+    ["pi in a quote", "gfm", "markdown", ["> <?php", "> ## In", "", "## After", "", "tail"], ["Before", "After"], ["Before", "In", "After"]],
+  ]);
 });

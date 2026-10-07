@@ -5191,7 +5191,7 @@ function closesParagraph(
  * containing block's column — both differ from the answers a terminal or an editor would give.
  */
 /**
- * Whether `line` is a block start that CommonMark cannot take as a LAZY continuation, shallower than the items it closes (Session 296): an ATX heading, a fence or an HTML comment, at 0-3
+ * Whether `line` is a block start that CommonMark cannot take as a LAZY continuation, shallower than the items it closes (Session 296): an ATX heading, a fence or an HTML block of type 2-5 (a comment, `<?`, `<!X`, CDATA), at 0-3
  * columns past the innermost item that SURVIVES it. NOT a thematic break: `---` under item text is the setext machinery's, and moving it broke three measured rows. Pandoc's markdown absorbs these lazily and so waits for a blank line to close an item, which is why this model's pop did;
  * a CommonMark reader ends the items at once (round 2 `itemfence_025`-`033`, `headings_038`-`040`). Only asked under a CommonMark reader.
  */
@@ -5206,7 +5206,7 @@ function cmBlockStartEndsItems(line: string, columns: readonly number[], indentW
     return false;
   }
   const rest = line.replace(/^[ \t]+/, "");
-  return /^#{1,6}(?:[ \t]|$)/.test(rest) || /^(?:`{3,}|~{3,})/.test(rest) || /^<!--/.test(rest);
+  return /^#{1,6}(?:[ \t]|$)/.test(rest) || /^(?:`{3,}|~{3,})/.test(rest) || /^<(?:!--|\?|![A-Za-z])/.test(rest);
 }
 /**
  * The content column of the innermost open container that holds a line indented to `column` (Session 296): the largest entry of `columns` not past it, or
@@ -6053,6 +6053,14 @@ const PLAIN_FENCE_INFO = /^(?:[A-Za-z0-9_+.#-]*|\{[.#][^`{}]*\})$/;
  * rules cannot see (the scanner keeps no HTML-block state at top level). OVER-APPROXIMATES on purpose (an inline tag starting a line also answers true): the cost of a
  * wrong yes is the old phantom, the cost of a wrong no is every heading below deleted.
  */
+function endMarkerBelow(lines: readonly string[], x: number, end: RegExp): boolean {
+  for (let k = x + 1, n = 0; k < lines.length && n < 2000; k++, n++) {
+    if (end.test(lines[k])) {
+      return true;
+    }
+  }
+  return false;
+}
 function htmlBlockMayBeOpenAbove(lines: readonly string[], x: number): boolean {
   for (let k = x - 1, n = 0; k >= 0 && n < 200; k--, n++) {
     if (BLANK_LINE.test(lines[k])) {
@@ -8391,7 +8399,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       !stripQuote &&
       /^ {0,3}<!--/.test(line) &&
       rawContentDepth === 0 &&
-      liveDiv() === null &&
       !htmlBlockMayBeOpenAbove(lines, i)
         ? COMMENT_CLOSE_AFTER_OPEN
         : COMMENT_CLOSE
@@ -8413,10 +8420,12 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // holding `]]>`; the end marker is searched on the START line too, after the marker, and a block starts at indent 0-3 and may interrupt a paragraph. Every
     // heading inside is swallowed and an unclosed block runs to the end of the document (rendered, `scratchpad/s296/own3`, 102 documents, identical under
     // `gfm`, `commonmark` and `commonmark_x`). Top level only: inside a list item or a quote the block opens later, and those keep the old answer.
-    if (commonmarkDialect && contentColumns.length === 0 && !stripQuote && rawContentDepth === 0 && liveDiv() === null && !htmlBlockMayBeOpenAbove(lines, i)) {
+    if (commonmarkDialect && rawContentDepth === 0 && liveDiv() === null && !htmlBlockMayBeOpenAbove(lines, i)) {
       const rawBlock = CM_RAW_HTML_BLOCK_START.exec(line);
-      if (rawBlock !== null) {
-        const end = rawBlock[1] !== undefined ? CM_RAW_END_PI : rawBlock[2] !== undefined ? CM_RAW_END_CDATA : CM_RAW_END_DECL;
+      const end = rawBlock === null ? null : rawBlock[1] !== undefined ? CM_RAW_END_PI : rawBlock[2] !== undefined ? CM_RAW_END_CDATA : CM_RAW_END_DECL;
+      // Inside a list item or a quote an UNCLOSED block ends with the container, which this model cannot see (rendered, `scratchpad/s296/own6`): there the start requires its end marker on
+      // a later line, so the worst case is the old phantom and never every heading below.
+      if (rawBlock !== null && end !== null && (!(contentColumns.length > 0 || stripQuote) || end.test(line.slice(rawBlock[0].length)) || endMarkerBelow(lines, i, end))) {
         // A block that ends on its own line still ENDS the paragraph above it (it interrupts one): the line below starts a fresh block (`---` under it is a break, not an underline).
         if (!end.test(line.slice(rawBlock[0].length))) {
           inComment = true;
@@ -8493,7 +8502,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         line,
         // LAZY (Session 295): the block-boundary list grew past a few regexes, and only an indented cell opener ever asks.
         () =>
-          !stripQuote &&
           // ⚠ **THE COMMONMARK FAMILY IS FREE WHEREVER THE OPENER SITS (Session 296)**: an ATX line interrupts a paragraph there, so an indent-4 opener that
           // is not a CommonMark fence is code or a lazy line and the `## In` under it is a heading (rendered, `scratchpad/s296/{g1,g2,g3}`, 864 documents:
           // uniform across both engine hints, the three readers and indents 4 and 8; inside a list item deeper than its code depth too). It has NO example
@@ -8502,7 +8510,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           // is a real fence, which `fenceColumns` now sees and `boundColumn` ends with its item.
           // The pandoc-only terms below (`contentColumns`, the block-boundary list, `freeCaseTableReader`, the HTML rule) are never asked under these readers.
           (commonmarkDialect ||
-            ((firstExampleMarker < 0 || firstExampleMarker >= i) &&
+            (!stripQuote &&
+              (firstExampleMarker < 0 || firstExampleMarker >= i) &&
               contentColumns.length === 0 &&
               (i === 0 ||
                 endsBlock(lines[i - 1]) ||
@@ -8551,7 +8560,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // (the quote's own end bounds those), nor for a document the CommonMark readers do not read.
         boundColumn:
           commonmarkDialect &&
-          !stripQuote &&
           cmColumns.length > 0 &&
           (info === null ||
             (engine === "markdown" && !HANDLER_CELL_LANGUAGES.has(info[1])) ||
