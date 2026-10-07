@@ -8217,7 +8217,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // the line is paragraph text and keeps the over-accepting column (the safe direction, above), and inside any container or quote
         // nothing is claimed.
         const opened =
-          !paragraphOpen && contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line)
+          startsAtBoundary(lines, i) && contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line)
             ? null
             : listItemContentColumn(line, commonmarkDialect);
         if (opened !== null) {
@@ -8281,10 +8281,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
 
     // A whole-line single-line comment renders to nothing — skip it entirely.
     if (COMMENT_FULL_LINE.test(line)) {
-      // `paragraphOpen` is still the line ABOVE's here: a comment that begins a block at column 0 ends it (Session 295).
-      if (!paragraphOpen && !commonmarkDialect && !stripQuote && COMMENT_FULL_LINE_COL0.test(line)) {
-        freshBlockEndLine = i;
-      }
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
@@ -8300,7 +8296,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // here, which can only phantom).
     if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line) && (commonmarkDialect || lastCommentCloserLine > i)) {
       inComment = true;
-      commentFresh = !paragraphOpen && !commonmarkDialect && !stripQuote && COMMENT_OPEN_COL0.test(line);
+      commentFresh = !commonmarkDialect && !stripQuote && COMMENT_OPEN_COL0.test(line) && startsAtBoundary(lines, i);
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
@@ -8366,13 +8362,16 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           (firstExampleMarker < 0 || firstExampleMarker >= i) &&
           (i === 0 ||
             endsBlock(lines[i - 1]) ||
-            endsFreshBlock(lines[i - 1], !paragraphOpenAboveHeader && lastFenceLine !== i - 1) ||
+            endsFreshBlock(lines, i - 1, lastFenceLine === i - 1) ||
             freshBlockEndLine === i - 1 ||
             kernelCellCloserLine === i - 1 ||
-            // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`)
+            // the pandoc-only constructs below were measured under pandoc's markdown reader and are not claimed for the CommonMark family
             (!commonmarkDialect &&
-              rawContentDepth === 0 &&
-              endsHtmlBlock(lines[i - 1], !paragraphOpenAboveHeader && lastFenceLine !== i - 1))),
+              lastFenceLine !== i - 1 &&
+              (COMMENT_FULL_LINE_COL0.test(lines[i - 1]) && startsAtBoundary(lines, i - 1) ||
+                tableOrLineBlockEndsAt(lines, i - 1) ||
+                // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`)
+                (rawContentDepth === 0 && endsHtmlBlock(lines[i - 1], startsAtBoundary(lines, i - 1)))))),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -9585,7 +9584,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           }
         }
       }
-      if (deepHeaderHere && !stripQuote) {
+      if (deepHeaderHere && !stripQuote && startsAtBoundary(lines, i)) {
         freshBlockEndLine = i; // a header is one line and ends itself (Session 295; the Outline never shows it)
       }
       // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
@@ -9937,21 +9936,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       if (lineBlockOpen) {
         lineBlockQuoted = stripQuote;
         lineBlockQuoteDepth = quoteDepth;
-      }
-      // ⚠ **A TABLE OR LINE BLOCK THAT BEGAN FRESH ENDS ITS BLOCK AT EVERY ONE OF ITS LINES (Session 295)**, so the indent-4 opener directly below
-      // the last of them is indented code. Each arm reads the state the scanner already keeps for its own kind: a line that starts `| ` (or is a
-      // bare bar) and no paragraph open before it; a line-block continuation; a pipe-table row while its fresh delimiter's flag is armed; a grid
-      // table's closing border. A table cannot interrupt a paragraph, so none of the four is true under a prose line, and `|---|---|` or
-      // `+---+---+` ALONE is true of none (rendered, `scratchpad/s295/bb` `pipe_delim_only`, `grid_border_only`). Not from a quoted line: the
-      // opener below is then an unmarked lazy line.
-      if (
-        !stripQuote &&
-        ((!wasParagraphOpen && LINE_BLOCK_START.test(line)) ||
-          lineBlockOpen ||
-          (tableRowsOpen && line.includes("|")) ||
-          (!wasParagraphOpen && tableShapedIsBlock && GRID_TABLE_BORDER.test(line)))
-      ) {
-        freshBlockEndLine = i;
       }
     }
   }
@@ -10664,20 +10648,102 @@ function endsBlock(line: string): boolean {
 }
 
 /**
- * Whether `line` is a one-line block that ENDS ITSELF and began a FRESH block (Session 295): pandoc is between blocks after it only
- * where no paragraph was open before it. Rendered (`scratchpad/s295/{bb,bt,bh}`): a thematic break below a blank line or an ATX
- * heading leaves the next indent-4 line indented CODE, and the same break directly under a prose line is paragraph text (a lazy
- * continuation, `THEMATIC_BREAK`'s own docstring), so the opener is text and its heading is swallowed. `beganFresh` is the scanner's
- * state as the line began (no paragraph open before it, and the line is not one the scanner consumed inside a fence or cell region),
- * the one fact the line's own bytes cannot supply.
+ * Whether the line at `k` BEGINS AT A BLOCK BOUNDARY (Session 295): the document starts there, or the line above it is blank, a heading, a setext
+ * underline, a div fence or a bare fence (`endsBlock`). This is the freshness every rule below asks, and it is TEXTUAL on purpose: the scanner's own
+ * `paragraphOpen` is false after a raw TeX environment, an HTML comment and a thematic break although pandoc is still inside the raw block or the
+ * paragraph, which is how the first cut regressed seven documents HEAD had right (`scratchpad/s295/adv`; the adversarial round).
  */
-function endsFreshBlock(line: string, beganFresh: boolean): boolean {
-  // The columns are `[0]` because the caller's free case has no container open. An indented code line is one more line of its block, so
-  // the opener below it is code too (`scratchpad/s295/disc/code`: quarto lists the heading inside, HEAD swallowed it); directly under a
-  // prose line the same bytes are a lazy continuation, which `beganFresh` already refuses. A cell closer the scanner paired is not an
-  // ordinary code line: seven rendered documents where HEAD was right regressed when it was read as one (`bt_chain_*`, `code_041`).
-  return beganFresh && (THEMATIC_BREAK.test(line) || LINK_REFERENCE_DEFINITION.test(line) || indentedCodeLine(line, [0]));
+function startsAtBoundary(lines: readonly string[], k: number): boolean {
+  return k <= 0 || endsBlock(lines[k - 1]);
 }
+/** The first line of the contiguous, non-blank run ending at `x` in which every line satisfies `same` (capped, so a pathological file cannot make each opener scan it all). */
+function runStart(lines: readonly string[], x: number, same: (line: string) => boolean): number {
+  let k = x;
+  while (k > 0 && x - k < 1000 && !BLANK_LINE.test(lines[k - 1]) && same(lines[k - 1])) {
+    k--;
+  }
+  return k;
+}
+/**
+ * Whether the line at `x` is a one-line block, or the last line of a run of one kind, that ENDS ITSELF and BEGAN at a block boundary (Session 295),
+ * so an indented line directly below it is not a continuation (a thematic break, a link-reference definition, an indented code line).
+ *
+ * Rendered (`scratchpad/s295/{bb,bt,bh}`): after a blank line or a heading pandoc is between blocks after each of these, and directly under a prose
+ * line they are paragraph text (a lazy continuation). A thematic break does NOT extend a run (`***` / `___` / `- - -` swallowed the opener, measured:
+ * the third is read differently under another break); link definitions and code lines do, so a run of either must itself begin at a boundary.
+ * `afterFence` is true when the line was consumed inside a fence or cell region: a cell closer the scanner paired is not an ordinary code line, seven
+ * rendered documents regressed when it was read as one.
+ */
+function endsFreshBlock(lines: readonly string[], x: number, afterFence: boolean): boolean {
+  if (afterFence) {
+    return false;
+  }
+  const line = lines[x];
+  if (THEMATIC_BREAK.test(line)) {
+    return startsAtBoundary(lines, x);
+  }
+  if (LINK_REFERENCE_DEFINITION.test(line)) {
+    return startsAtBoundary(lines, runStart(lines, x, (l) => LINK_REFERENCE_DEFINITION.test(l)));
+  }
+  // The columns are `[0]` because the caller's free case has no container open.
+  if (indentedCodeLine(line, [0])) {
+    return startsAtBoundary(lines, runStart(lines, x, (l) => indentedCodeLine(l, [0])));
+  }
+  return false;
+}
+/**
+ * Whether the line at `x` ends a table or a line block that began at a block boundary (Session 295), by reading the RUN of lines around it as text
+ * rather than the scanner's table flags (which were armed by a header that a line block above had already claimed: `tbl_056`). Pandoc-only: a CommonMark
+ * table row is not cut off by an indented line, and no reader but pandoc's has line blocks. A row ending in a backslash is continued by the next line.
+ *
+ *   - a LINE BLOCK: the run of `| ` lines and their indented continuations starts with a `| ` line at a boundary (`lineblock`, `lineblock_two`, `_cont`);
+ *   - a PIPE table: the run of pipe-bearing lines starts with a header row, a delimiter row directly under it, and a boundary above the header
+ *     (`pipe_*`); a delimiter row with no header, and a header that is itself a line-block continuation, are not tables;
+ *   - a GRID table: the run of lines starting `|` or `+` begins with a plain dash border at a boundary and holds two or more borders (a lone border,
+ *     a `+====+` top and an indented border are text; `tbl_029`'s spanning border still closes it).
+ */
+function tableOrLineBlockEndsAt(lines: readonly string[], x: number): boolean {
+  const line = lines[x];
+  if (/\\[ \t]*$/.test(line)) {
+    return false;
+  }
+  const lineBlockish = (l: string): boolean => LINE_BLOCK_START.test(l) || /^[ \t]+\S/.test(l);
+  if (lineBlockish(line)) {
+    const k = runStart(lines, x, lineBlockish);
+    if (LINE_BLOCK_START.test(lines[k]) && startsAtBoundary(lines, k)) {
+      return true;
+    }
+  }
+  if (line.includes("|")) {
+    const k = runStart(lines, x, (l) => l.includes("|"));
+    if (
+      x > k &&
+      PIPE_DELIMITER_ROW.test(lines[k + 1]) &&
+      lines[k + 1].includes("|") &&
+      !PIPE_DELIMITER_ROW.test(lines[k]) &&
+      startsAtBoundary(lines, k)
+    ) {
+      return true;
+    }
+  }
+  if (/^[|+]/.test(line)) {
+    const k = runStart(lines, x, (l) => /^[|+]/.test(l));
+    if (GRID_PLAIN_BORDER.test(lines[k]) && startsAtBoundary(lines, k)) {
+      let borders = 0;
+      for (let j = k; j <= x; j++) {
+        if (GRID_TABLE_BORDER.test(lines[j])) {
+          borders++;
+        }
+      }
+      return borders >= 2;
+    }
+  }
+  return false;
+}
+/** A pipe-table delimiter row: cells of dashes with optional alignment colons, optionally between outer pipes (the caller also requires a `|`). */
+const PIPE_DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+/** The top border of a grid table: dashes only between the plus signs (a `+====+` first border is no table). */
+const GRID_PLAIN_BORDER = /^\+(?:-+\+)+[ \t]*$/;
 
 /**
  * Whether `line` COMPLETES a raw HTML block element, so pandoc is between blocks after it (Session 295). Rendered over 129 tag names x six

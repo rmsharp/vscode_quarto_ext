@@ -22549,9 +22549,28 @@ describe("Session 295 — the free case's block-boundary list", () => {
       expect(texts(probe(eng, "paragraph", x), eng), `${eng}: under a paragraph`).toEqual(SWALLOWED);
     }
   });
+  // GUARDS FROM THE ADVERSARIAL ROUND (`scratchpad/s295/adv`, 542 blind documents: 149 fixed, 7 regressions, every one a document HEAD had RIGHT). The
+  // first cut trusted the scanner's own `paragraphOpen` for "the construct began a fresh block", and that flag is false after a raw TeX environment, a
+  // comment and a thematic break although pandoc is still inside the raw block or the paragraph. The sound signal is TEXTUAL: the line above the
+  // construct must be a known boundary (a blank line, a heading, a fence line), or the construct must extend a run of its own kind that began at one.
+  // All seven are swallowed by quarto after a blank line AND under a heading; HEAD agreed; the first cut listed the heading.
+  it.each<[string, string[]]>([
+    ["a thematic break directly under a raw TeX environment", ["", "\\begin{equation}", "x = 1", "\\end{equation}", "***"]],
+    ["a comment line directly under a raw TeX environment", ["", "\\begin{align}", "a &= b", "\\end{align}", "<!-- c -->"]],
+    ["a third thematic break stacked on two others", ["", "Text", "", "***", "___", "- - -"]],
+    ["a pipe-table row ending in a backslash", ["", "| a | b |", "|---|---|", "| 1 | 2 \\"]],
+    ["a grid table opened and closed by double borders", ["", "+======+======+", "| a    | b    |", "+======+======+", "| 1    | 2    |", "+======+======+"]],
+    ["a pipe table whose header is a line-block continuation", ["", "| line one", "| line two", "| a | b |", "|---|---|", "| 1 | 2 |"]],
+    ["three comment lines stacked under a paragraph", ["", "Some context.", "<!-- one -->", "<!-- two -->", "<!-- three -->"]],
+  ])("GUARD (adversarial round): below %s the opener stays swallowed", (_label, x) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "heading", x), eng), eng).toEqual(SWALLOWED);
+    }
+  });
   // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/disc/tbl` `tbl_029_grid_spans`): a grid table whose rows carry a span
-  // (`+-------+-------+       +`, a border with spaces in it) is not recognised: the partner-border search stops at the first border-shaped line
-  // that is neither a plain border nor a `|` row, so the closing border has no partner and is text.
+  // (`+-------+-------+       +`, a border with spaces in it). The free-case test DOES read it as a table now (the run of lines starting `|` or `+`
+  // holds a plain top border and three borders), but the scanner's own paragraph state stays open across the span border, which it does not know as
+  // a table line, so the skipped opener is paragraph continuation to it and the `## In` below is not a heading. Fixing it is a table-recogniser change.
   it("RESIDUAL, kept on purpose: an opener below a grid table with a spanning row is still swallowed (quarto lists the heading)", () => {
     const x = ["+-------+-------+-------+", "| A     | B     | C     |", "+=======+=======+=======+", "| spans two     | c1    |", "+-------+-------+       +", "| a2    | b2    |       |", "+-------+-------+-------+"];
     expect(texts(probe("markdown", "heading", x), "markdown")).toEqual(SWALLOWED); // quarto: Before, In, After
