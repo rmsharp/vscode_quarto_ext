@@ -2943,115 +2943,257 @@ function frontMatterFromValueLine(lines: readonly string[]): string | null {
  *
  * ⚠ **THE RESOLVER ABOVE IS PERMISSIVE ON PURPOSE AND THAT IS WRONG FOR THESE RULES.** It reads a dozen YAML spellings of a `from:` because a miss costs a phantom,
  * and a rule that fails toward a phantom can afford that. Session 296's run-to-the-end rules (an unclosed plain fence, an unclosed raw HTML block of type 3-5, a
- * degenerate comment) fail toward a DELETION: a `from:` the resolver misreads (a line YAML reads inside a multi-line flow collection, a re-declared anchor, a block
- * inside a fence) makes them delete everything below a trigger quarto lists (`scratchpad/s296/adv2/controls` 031-044, rendered). So they ask for a PROOF: one
- * column-0 `from:` key line, reached outside any flow collection, whose text is exactly what the resolver returned.
+ * degenerate comment) fail toward a DELETION: a `from:` the resolver misreads makes them delete everything below a trigger quarto lists (`scratchpad/s296/adv2/controls`
+ * 031-044, rendered). So they ask for a PROOF, and the proof is a WHITELIST: it accepts only a front matter whose every line it fully understands (`proofLine`) and
+ * declines everything else, because a blacklist of YAML spellings has no end (a blind round smuggled a per-format override through an alias, an escaped key, a complex
+ * key, a flow mapping and a body block, each one a spelling nobody had listed; an apostrophe in a block scalar even flipped the parity of a lexer that tried to follow
+ * quotes across lines). The proof holds when ALL of these do:
+ *   - the front matter opens after nothing but ASCII blank lines, with a non-blank first line (quarto reads none below a blank one), and quarto's own region scanner sees
+ *     exactly that one region, closed by a `---` (not a `...`);
+ *   - no later region (a metadata block in the body) mentions `from` or an escape, in any spelling (the resolver cannot see every one that quarto honours);
+ *   - every line is blank, a comment, block-scalar text, or inside a multi-line quote or flow collection that the grammar opened at a value start, or it fits `proofLine`:
+ *     plain keys and list items; no anchor, alias, tag, complex or quoted key, continuation line of a plain scalar or tab indent;
+ *   - the governing `from` is a plain scalar at column 0, or under `format:` / `html:` when html is the ONLY format (a per-format `from:` outranks a top-level one,
+ *     Session 207), and no other `from` key exists anywhere; its text is byte-identical to what the resolver returned.
+ * Declining costs the old phantom, never a heading.
  */
 function frontMatterProvesReader(lines: readonly string[], fromValueLine: string | null): boolean {
-  if (fromValueLine === null) {
+  const open = frontMatterOpenIndex(lines);
+  if (fromValueLine === null || open === null || !lines.slice(0, open).every((line) => FRONTMATTER_BLANK.test(line))) {
     return false;
   }
   const content = frontMatterContent(lines);
-  if (content === null) {
+  if (content === null || content.length === 0 || FRONTMATTER_BLANK.test(content[0])) {
     return false;
   }
-  let lex: YamlLexState = { flow: 0, quote: null };
-  const declarations: string[] = [];
+  const regions = quartoYamlRegions(lines.join("\n"));
+  if (regions.length === 0 || regions[0].startLine !== open || !regions[0].terminated || regions[0].endLine !== open + content.length + 1) {
+    return false;
+  }
+  for (const region of regions.slice(1)) {
+    if (lines.slice(region.startLine + 1, region.terminated ? region.endLine : lines.length).some((line) => PROOF_FROM_OR_ESCAPE.test(line))) {
+      return false;
+    }
+  }
+  const topFroms: string[] = [];
+  const formatFroms: string[] = [];
+  const formatChildren: string[] = [];
+  const path: { column: number; key: string }[] = [];
+  let formatHasItems = false;
+  let pending: ProofPending | null = null;
   for (const line of content) {
-    if (lex.flow === 0 && lex.quote === null && leadingWhitespace(line) === 0) {
-      const key = TOP_LEVEL_FROM_KEY.exec(line);
-      if (key !== null) {
-        declarations.push(`from:${line.slice(key[0].length)}`);
+    if (pending !== null) {
+      if (pending.kind === "block") {
+        if (FRONTMATTER_BLANK.test(line) || leadingSpaces(line) > pending.column) {
+          continue;
+        }
+        pending = null;
+      } else {
+        const state = proofContinue(line, pending);
+        if (state === false) {
+          return false;
+        }
+        pending = state === "consumed" ? null : state;
+        continue;
       }
     }
-    lex = advanceYamlLex(line, lex);
+    if (FRONTMATTER_NOT_CONTENT.test(line)) {
+      continue;
+    }
+    const parsed = proofLine(line);
+    if (parsed === null) {
+      return false;
+    }
+    pending = parsed.pending;
+    if (parsed.key === null) {
+      formatHasItems ||= path.length > 0 && path[0].key === "format";
+      continue;
+    }
+    if (parsed.dash) {
+      formatHasItems ||= path.length > 0 && path[0].key === "format";
+      if (parsed.key === "from") {
+        return false;
+      }
+      continue;
+    }
+    while (path.length > 0 && path[path.length - 1].column >= parsed.column) {
+      path.pop();
+    }
+    const parents = path.map((entry) => entry.key).join("/");
+    if (parents === "format") {
+      formatChildren.push(parsed.key);
+    }
+    if (parsed.key === "from") {
+      const declaration = `from:${line.slice(parsed.column + "from:".length)}`;
+      if (parsed.value.trim() === "" || parsed.pending !== null || /^[[{]/.test(parsed.value.trim())) {
+        return false;
+      }
+      if (parents === "" && parsed.column === 0) {
+        topFroms.push(declaration);
+      } else if (parents === "format/html" && path[0].column === 0) {
+        formatFroms.push(declaration);
+      } else {
+        return false;
+      }
+    }
+    path.push({ column: parsed.column, key: parsed.key });
   }
-  return declarations.length === 1 && declarations[0] === fromValueLine;
+  if (pending !== null || topFroms.length > 1 || formatFroms.length > 1 || topFroms.length + formatFroms.length === 0) {
+    return false;
+  }
+  if (formatFroms.length === 1 && (formatHasItems || formatChildren.length !== 1 || formatChildren[0] !== "html")) {
+    return false;
+  }
+  return (formatFroms[0] ?? topFroms[0]) === fromValueLine;
 }
-/** Where a front-matter line begins, lexically: how many flow collections are open and which quote (if any) is. */
-interface YamlLexState {
-  flow: number;
-  quote: string | null;
+/** A line that is blank or only whitespace. */
+const FRONTMATTER_BLANK = /^[ \t]*$/;
+/** Any spelling of the key `from` that is not the plain letters needs the letters or an escape; a body block that carries neither cannot override the reader. */
+const PROOF_FROM_OR_ESCAPE = /from|\\/;
+/** The number of leading spaces of a line. */
+function leadingSpaces(line: string): number {
+  return line.length - line.trimStart().length;
 }
-/** The index of the quote that closes the one opened before `from` on `line`, or `-1` when it runs on to the next line. */
-function yamlQuoteEnd(line: string, from: number, quote: string): number {
-  for (let i = from; i < line.length; i++) {
-    if (line[i] === "\\" && quote === '"') {
+/** What a value left open at the end of its line: a block scalar (text below, by indent), a quote that wraps, or a flow collection that wraps. */
+type ProofPending =
+  | { kind: "block"; column: number }
+  | { kind: "quote"; quote: string }
+  | { kind: "flow"; depth: number; valueStart: boolean };
+/**
+ * One front-matter line read by the proof's grammar, or `null` when the line is anything it does not fully understand: a plain key (`[A-Za-z0-9_.-]`, never quoted,
+ * escaped or complex), optionally behind `- ` list-item prefixes, with a value `proofValue` reads, or a list item holding such a value. A tab in the indent, a quoted or
+ * complex key and a continuation line of a plain scalar are all `null`: each is a place where a `from:` can hide, or where a lexer can lose its place.
+ */
+function proofLine(line: string): { column: number; key: string | null; value: string; dash: boolean; pending: ProofPending | null } | null {
+  let column = leadingSpaces(line);
+  if (line[column] === "\t") {
+    return null;
+  }
+  let rest = line.slice(column);
+  let dash = false;
+  for (let item = /^-(?:[ ]+|$)/.exec(rest); item !== null; item = /^-(?:[ ]+|$)/.exec(rest)) {
+    dash = true;
+    column += item[0].length;
+    rest = rest.slice(item[0].length);
+  }
+  if (dash && rest === "") {
+    return { column, key: null, value: "", dash, pending: null };
+  }
+  const keyLine = /^([A-Za-z0-9_][A-Za-z0-9_.-]*):(?:[ \t]+(.*))?$/.exec(rest);
+  if (keyLine === null && !dash) {
+    return null;
+  }
+  const value = keyLine === null ? rest : (keyLine[2] ?? "");
+  const read = proofValue(value, keyLine === null ? column - 1 : column);
+  return read === null ? null : { column, key: keyLine === null ? null : keyLine[1], value, dash, pending: read.pending };
+}
+/** The index just past the quote that closes the one open before `from` on `value`, or `-1` when it runs on to the next line. */
+function proofQuoteEnd(value: string, from: number, quote: string): number {
+  for (let i = from; i < value.length; i++) {
+    if (value[i] === "\\" && quote === '"') {
       i++;
-    } else if (line[i] === quote) {
-      if (quote === "'" && line[i + 1] === "'") {
+    } else if (value[i] === quote) {
+      if (quote === "'" && value[i + 1] === "'") {
         i++;
       } else {
-        return i;
+        return i + 1;
       }
     }
   }
   return -1;
 }
+/** Whether what follows a closed value is nothing, or a comment. */
+const PROOF_VALUE_TAIL = /^[ \t]*(?:#.*)?$/;
 /**
- * The lexical state after `line`, given the state before it.
- *
- * ⚠ A quote or a bracket only OPENS something where a value can BEGIN (`valueStart`): after a key's colon, a `-`, a `,` or an opening bracket, or at the start of a
- * line. Anywhere else it is a character of a plain scalar (`What's new`, `say "hi" to {everyone}`), and a `#` starts a comment only after whitespace. Reading a
- * plain scalar's apostrophe as an opening quote swallowed the `from:` below it and proved nothing.
+ * The value of a key or list item, read as the grammar allows, with what it leaves open: `{ pending: null }` when it ends on its own line, else a block scalar's header, a
+ * quote that wraps, or a flow collection that wraps. `null` is anything else: an anchor, alias or tag; a flow collection that mentions `from`, an alias or an escape; a quote
+ * inside one anywhere but at a value start.
  */
-function advanceYamlLex(line: string, state: YamlLexState): YamlLexState {
-  let { flow, quote } = state;
-  let i = 0;
-  let valueStart = true;
-  if (quote !== null) {
-    const end = yamlQuoteEnd(line, 0, quote);
-    if (end < 0) {
-      return state;
-    }
-    quote = null;
-    i = end + 1;
-    valueStart = false;
+function proofValue(value: string, column: number): { pending: ProofPending | null } | null {
+  const text = value.trim();
+  if (text === "" || text.startsWith("#")) {
+    return { pending: null };
   }
-  for (; i < line.length; i++) {
-    const c = line[i];
-    const next = line[i + 1];
+  const first = text[0];
+  if (first === "|" || first === ">") {
+    return /^[|>][+-]?[0-9]?[+-]?[ \t]*(?:#.*)?$/.test(text) ? { pending: { kind: "block", column } } : null;
+  }
+  if (first === '"' || first === "'") {
+    const end = proofQuoteEnd(text, 1, first);
+    if (end < 0) {
+      return { pending: { kind: "quote", quote: first } };
+    }
+    return PROOF_VALUE_TAIL.test(text.slice(end)) ? { pending: null } : null;
+  }
+  if (first === "[" || first === "{") {
+    const state = proofFlow(text, 0, true);
+    return state === null ? null : { pending: state === "closed" ? null : { kind: "flow", depth: state.depth, valueStart: state.valueStart } };
+  }
+  if (/^[&*!%@`,\]}]/.test(text) || /^[-?:](?:[ \t]|$)/.test(text)) {
+    return null;
+  }
+  return { pending: null };
+}
+/**
+ * Scans one line of a flow collection from `depth` and `valueStart` (a value may begin here). `"closed"` when the collection ends on this line with nothing but a comment
+ * after it, the new `depth` and `valueStart` when it runs on, `null` for anything the grammar declines: a quote anywhere but at a value start, one that runs past its own line,
+ * an anchor, alias, tag, escape or the word `from`.
+ */
+function proofFlow(text: string, depth: number, valueStart: boolean): { depth: number; valueStart: boolean } | "closed" | null {
+  if (PROOF_FROM_OR_ESCAPE.test(text) || /[&*!]/.test(text.replace(/"[^"]*"|'[^']*'/g, ""))) {
+    return null;
+  }
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
     if (c === " " || c === "\t") {
       continue;
     }
-    if (c === "#" && (i === 0 || line[i - 1] === " " || line[i - 1] === "\t")) {
+    if (c === "#" && (i === 0 || text[i - 1] === " " || text[i - 1] === "\t")) {
       break;
     }
-    if (valueStart && (c === '"' || c === "'")) {
-      const end = yamlQuoteEnd(line, i + 1, c);
+    if (c === '"' || c === "'") {
+      const end = valueStart ? proofQuoteEnd(text, i + 1, c) : -1;
       if (end < 0) {
-        return { flow, quote: c };
+        return null;
       }
-      i = end;
+      i = end - 1;
       valueStart = false;
     } else if (c === "[" || c === "{") {
-      if (valueStart) {
-        flow++;
-      } else {
-        valueStart = false;
-      }
+      depth++;
+      valueStart = true;
     } else if (c === "]" || c === "}") {
-      if (flow > 0) {
-        flow--;
+      depth--;
+      if (depth < 0) {
+        return null;
       }
       valueStart = false;
-    } else if (c === ",") {
-      valueStart = flow > 0;
-    } else if (c === ":") {
-      valueStart = flow > 0 || next === undefined || next === " " || next === "\t";
-    } else if ((c === "-" || c === "?") && valueStart && (next === undefined || next === " " || next === "\t")) {
-      // a sequence or complex-key indicator: a value may still begin after it
-    } else if ((c === "&" || c === "!" || c === "*") && valueStart) {
-      while (i + 1 < line.length && !/[\s,[\]{}]/.test(line[i + 1])) {
-        i++;
+      if (depth === 0) {
+        return PROOF_VALUE_TAIL.test(text.slice(i + 1)) ? "closed" : null;
       }
-      valueStart = c !== "*";
+    } else if (c === "," || c === ":") {
+      valueStart = true;
     } else {
       valueStart = false;
     }
   }
-  return { flow, quote };
+  return { depth, valueStart };
 }
+/**
+ * The next line of a wrapped value: `"consumed"` when it ends the value, the new pending state when the value runs on, `false` to decline. The lines of a wrapped quote are text up to
+ * its closing quote; a wrapped flow collection is scanned until its brackets balance. (A block scalar's text is skipped by indent in the caller.)
+ */
+function proofContinue(line: string, pending: Exclude<ProofPending, { kind: "block" }>): ProofPending | "consumed" | false {
+  if (pending.kind === "quote") {
+    const end = proofQuoteEnd(line, 0, pending.quote);
+    if (end < 0) {
+      return pending;
+    }
+    return PROOF_VALUE_TAIL.test(line.slice(end)) ? "consumed" : false;
+  }
+  const state = proofFlow(line, pending.depth, pending.valueStart);
+  return state === null ? false : state === "closed" ? "consumed" : { kind: "flow", depth: state.depth, valueStart: state.valueStart };
+}
+
 /**
  * The VALUE half of the question above, asked of one block's CONTENT rather than of a document.
  *

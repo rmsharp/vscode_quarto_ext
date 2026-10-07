@@ -23332,4 +23332,101 @@ describe("Session 297 — the reader the two run-to-the-end rules trust is PROVE
     const lines = ["---", 'title: "T"', "engine: markdown", "---", "", "- item", "", "  ```yaml", "---", "from: gfm", "---", "  ```", ...fenceBody];
     expect(texts(doc(...lines), "markdown")).toEqual(["from: gfm", "Before", "Inside", "After"]);
   });
+  // SLICE 6. A BLANK LINE (OR WHITESPACE-ONLY LINE) RIGHT BELOW THE OPENING `---` MEANS QUARTO READS NO FRONT MATTER AT ALL (the filed item, measured at line 0 by Session
+  // 210; the blind personas wrote it six times in ordinary documents). The resolver still reads the block, so the run-to-the-end rules fired on a `from:` quarto never saw and
+  // deleted every heading below the trigger. Quarto lists everything.
+  it.each<[string, string[], string[]]>([
+    ["blank after opener gfm", ["---", "", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/docshape/docshape_019_blank_after_opener_gfm.qmd
+    ["spaces after opener gfm", ["---", "   ", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/docshape/docshape_021_spaces_after_opener_gfm.qmd
+    ["tab after opener gfm", ["---", "\t", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "<!X", "", "## Inside", "", ">", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/docshape/docshape_022_tab_after_opener_gfm.qmd
+    ["crlf blank after opener gfm", ["---\r", "\r", "title: \"T\"\r", "engine: markdown\r", "from: gfm\r", "---\r", "\r", "## Before\r", "\r", "<?php\r", "\r", "## Inside\r", "\r", "## After\r", "\r", "tail\r"], ["Before","Inside","After"]], // adv/docshape/docshape_023_crlf_blank_after_opener_gfm.qmd
+    ["notes space line after opener commonmark comment", ["---", "   ", "title: \"Rota Notes\"", "author: Shift Leads", "from: commonmark", "date: 2023-12-18", "---", "", "## This week", "", "Early shift covers the dock.", "", "## Swaps", "", "<!--> ask Marta about the swap on Thursday", "", "Swaps go through the shared sheet.", "", "## Holidays", "", "Book through the portal.", "", "## Contacts", "", "Shift leads, internal line."], ["This week","Swaps","Holidays","Contacts"]], // adv/realmess/realmess_025_notes_space_line_after_opener_commonmark_comment.qmd
+  ])("RED->GREEN: a front matter whose first line is blank proves no reader (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 7. BLOCK-SCALAR CONTENT IS NOT YAML. A literal block's text (`'tis the season`) is prose, but the lexer read its apostrophe as an opening quote, so the parity of
+  // every quote below flipped: the real multi-line quoted scalar that holds the `from:` looked closed and the line looked like a top-level key. Quarto reads the default
+  // reader and lists everything.
+  it.each<[string, string[], string[]]>([
+    ["pf bs apos compact", ["---", "title: \"T\"", "engine: markdown", "abstract: |", "  'tis the season", "items:", "- 'one", "from: gfm", "two'", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/flowq/flowq_014_pf_bs_apos_compact.qmd
+    ["pf bs apos block", ["---", "title: \"T\"", "engine: markdown", "abstract: |", "  'tis the season", "note: 'one", "from: gfm", "two'", "---", "", "## Before", "", "<!DOCTYPE html", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/flowq/flowq_015_pf_bs_apos_block.qmd
+    ["pf bs dq lead", ["---", "title: \"T\"", "engine: markdown", "abstract: |", "  \"Unbalanced quote", "note: \"one", "from: gfm", "two\"", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/flowq/flowq_016_pf_bs_dq_lead.qmd
+    ["pf bs folded apos", ["---", "title: \"T\"", "engine: markdown", "abstract: >-", "  'Twas brillig", "note: 'one", "from: commonmark_x", "two'", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/flowq/flowq_017_pf_bs_folded_apos.qmd
+    ["pf bs key dq", ["---", "title: \"T\"", "engine: markdown", "abstract: |", "  Note: \"unclosed", "note: \"one", "from: gfm", "two\"", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/flowq/flowq_018_pf_bs_key_dq.qmd
+  ])("RED->GREEN: block-scalar text never changes how the lines below it are read (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 8. A CONTINUATION LINE OF A PLAIN SCALAR IS TEXT. `note: one` / `  'tis fine` is ONE plain scalar, so the apostrophe opens nothing; the lexer opened a quote there
+  // and flipped the parity of the real quoted scalar below, which holds the `from:`.
+  it.each<[string, string[], string[]]>([
+    ["pf plain cont apos", ["---", "title: \"T\"", "engine: markdown", "note: one", "  'tis fine", "other: 'x", "from: gfm", "y'", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/flowq/flowq_019_pf_plain_cont_apos.qmd
+    ["pf plain cont dq", ["---", "title: \"T\"", "engine: markdown", "note: one", "  \"tis fine", "other: \"x", "from: gfm", "y\"", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/flowq/flowq_020_pf_plain_cont_dq.qmd
+    ["pf bs apos undercount", ["---", "title: \"T\"", "engine: markdown", "abstract: |", "  'tis the season", "tags: [a, b's,", "from: gfm", "]", "---", "", "## Before", "", "<!DOCTYPE html", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/flowq/flowq_021_pf_bs_apos_undercount.qmd
+    ["pf then real markdown trapped", ["---", "title: \"T\"", "engine: markdown", "abstract: |", "  'tis the season", "note: 'one", "from: gfm", "two'", "note2: one", "  [x", "from: markdown", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/flowq/flowq_022_pf_then_real_markdown_trapped.qmd
+  ])("RED->GREEN: a plain scalar's continuation line proves nothing about the lines below (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 9. A PER-FORMAT `from:` OUTRANKS THE TOP-LEVEL ONE (Session 207, measured in both file orders), AND IT CAN BE SPELLED WHERE THE RESOLVER DOES NOT LOOK: through an
+  // alias, an escaped or complex key, an alias used as a key, a flow mapping whose value is on the next line. Quarto reads `markdown` and lists everything; the top-level
+  // `from: gfm` the resolver does read is overridden.
+  it.each<[string, string[], string[]]>([
+    ["nested html alias", ["---", "title: \"T\"", "engine: markdown", "h: &h {from: markdown}", "from: gfm", "format:", "  html: *h", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/anchor/anchor_039_nested_html_alias.qmd
+    ["nested escaped key", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "format:", "  html:", "    \"fro\\u006d\": markdown", "---", "", "## Before", "", "<!X", "", "## Inside", "", ">", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/anchor/anchor_044_nested_escaped_key.qmd
+    ["nested complex key", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "format:", "  html:", "    ? from", "    : markdown", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/anchor/anchor_045_nested_complex_key.qmd
+    ["nested alias value", ["---", "title: \"T\"", "engine: markdown", "r: &r markdown", "from: gfm", "format:", "  html:", "    from: *r", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/anchor/anchor_048_nested_alias_value.qmd
+    ["alias format md topg", ["---", "title: \"T\"", "engine: markdown", "ff: &f", "  html:", "    from: markdown", "format: *f", "from: gfm", "---", "", "## Before", "", "Para above", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/perfmt/perfmt_032_alias_format_md_topg.qmd
+    ["fmt flow nextline md topg", ["---", "title: \"T\"", "engine: markdown", "format:", "  {html: {from: markdown}}", "from: gfm", "---", "", "## Before", "", "Para above", "", "<!X", "", "## Inside", "", ">", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/perfmt/perfmt_034_fmt_flow_nextline_md_topg.qmd
+    ["alias key from html", ["---", "title: \"T\"", "engine: markdown", "a: &x from", "from: gfm", "format:", "  html:", "    *x : markdown", "---", "", "## Before", "", "Para above", "", "<![CDATA[", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/perfmt/perfmt_049_alias_key_from_html.qmd
+  ])("RED->GREEN: a per-format from the resolver cannot read still overrides the top-level one (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 10. A METADATA BLOCK IN THE BODY CAN OVERRIDE THE FRONT MATTER'S `from:` AND THE RESOLVER MAY NOT SEE IT (its text holds a fence marker inside a block scalar, or
+  // the key is an escaped spelling). Quarto reads the later block and lists everything.
+  it.each<[string, string[], string[]]>([
+    ["mid block tilde line in scalar", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "---", "from: markdown", "note: |", "  ~~~", "---", "", "<!X", "", "## Inside", "", ">", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/docshape/docshape_037_mid_block_tilde_line_in_scalar.qmd
+    ["mid block backtick line in scalar", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "---", "from: markdown", "note: |", "  ```", "---", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv/docshape/docshape_038_mid_block_backtick_line_in_scalar.qmd
+  ])("RED->GREEN: a body metadata block the resolver cannot read still overrides the front matter (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // RESIDUAL, kept on purpose (adv/anchor/anchor_051): the same body block spelled with an ESCAPED key. The deletion is gone (the proof refuses any body block that mentions an escape), what is
+  // left is the PHANTOM the pre-Session-296 build already had: the model does not read an escaped-key block as metadata, so its text is a setext heading where quarto lists none.
+  it("RESIDUAL: a body block with an escaped `from` key proves no reader but is still read as a setext heading (anchor_051)", () => {
+    const lines = ["---", 'title: "T"', "engine: markdown", "from: gfm", "---", "", "## Before", "", "---", '"fro\\u006d": markdown', "---", ...fenceBody.slice(2)];
+    expect(texts(doc(...lines), "markdown")).toEqual(["Before", '"fro\\u006d": markdown', "Inside", "After"]);
+  });
+  // SLICE 11 (retention). LEADING BLANK LINES BEFORE THE OPENING `---` DO NOT STOP QUARTO READING THE FRONT MATTER (pandoc's rule, measured by Session 210 for any run of
+  // blanks, spaces and tabs; `scratchpad/s297/gf` p25, p30). A proof that required line 0 lost three realistic documents. Only ASCII blank lines count: JavaScript's `trim()`
+  // also strips a non-breaking space, a form feed and a line separator, which pandoc does not treat as blank.
+  it.each<[string, string[], string[]]>([
+    ["gf p25 leading blank fence", ["", "---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf/gf_p25_leading_blank_fence.qmd
+    ["gf p30 two blank lead decl", ["", "", "---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf/gf_p30_two_blank_lead_decl.qmd
+  ])("RED->GREEN: a front matter after ASCII blank lines still proves a plain top-level from: (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 12 (retention). A QUOTED SCALAR THAT WRAPS OVER SEVERAL LINES CLOSES AT ITS OWN QUOTE (`description: "...` / `  ..."`), and every line between is text. Opened at a
+  // value start (after `key:` or `- `) it is unambiguous, so the proof follows it; the five realistic READMEs the persona round wrote with a wrapped description all lost
+  // their fix without this. (`gf` p11, p12.)
+  it.each<[string, string[], string[]]>([
+    ["gf p11 dq multiline before fence", ["---", "title: \"T\"", "engine: markdown", "subtitle: \"line one", "  line two\"", "from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf/gf_p11_dq_multiline_before_fence.qmd
+    ["gf p12 sq multiline before pi", ["---", "title: \"T\"", "engine: markdown", "subtitle: 'it''s a", "  two-liner'", "from: gfm", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf/gf_p12_sq_multiline_before_pi.qmd
+  ])("RED->GREEN: a wrapped quoted scalar before the from: does not stop the proof (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 13 (retention). A FLOW COLLECTION THAT WRAPS OVER SEVERAL LINES CLOSES WHEN ITS BRACKETS BALANCE. Inside it a quote opens only at a value start and anything else
+  // with a quote character declines, so the scan cannot lose its place; the text never holds `from`, an alias, a tag or an escape. (`gf` p17; the persona round wrapped `tags:
+  // [php, web, ...` over three lines.)
+  it.each<[string, string[], string[]]>([
+    ["gf p17 flowseq multiline balanced cdata", ["---", "title: \"T\"", "engine: markdown", "tags: [a,", "  b,", "  c]", "from: gfm", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before","After"]], // gf/gf_p17_flowseq_multiline_balanced_cdata.qmd
+  ])("RED->GREEN: a wrapped flow list before the from: does not stop the proof (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 14 (retention). THE PER-FORMAT BLOCK `format:` / `html:` / `from:` IS PROVEN WHEN html IS THE ONLY FORMAT and every key on the way is a plain block key: a per-
+  // format `from:` outranks a top-level one (Session 207, both file orders), so with html the only format it is the reader. Several formats decline (which one is rendered
+  // decides the reader, and the Outline cannot know). (`gf` n10, n13; the persona round wrote the shape five times.)
+  it.each<[string, string[], string[]]>([
+    ["gf n10 perfmt block fence", ["---", "title: \"T\"", "engine: markdown", "format:", "  html:", "    from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf/gf_n10_perfmt_block_fence.qmd
+    ["gf n13 top md html gfm fence", ["---", "title: \"T\"", "engine: markdown", "from: markdown", "format:", "  html:", "    from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf/gf_n13_top_md_html_gfm_fence.qmd
+  ])("RED->GREEN: a per-format from under the only format html proves the reader (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
 });
