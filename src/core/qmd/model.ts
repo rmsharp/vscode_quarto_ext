@@ -8310,7 +8310,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         contentColumns.length === 0 &&
           !stripQuote &&
           (firstExampleMarker < 0 || firstExampleMarker >= i) &&
-          (i === 0 || endsBlock(lines[i - 1])),
+          (i === 0 || endsBlock(lines[i - 1]) || endsFreshBlock(lines[i - 1], paragraphOpenAboveHeader)),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -10569,6 +10569,17 @@ function endsBlock(line: string): boolean {
     /^ {0,3}:{3,}/.test(line) ||
     /^ {0,3}(?:`{3,}|~{3,})[ \t]*$/.test(line)
   );
+}
+
+/**
+ * Whether `line` is a one-line block that ENDS ITSELF and began a FRESH block (Session 295): pandoc is between blocks after it only
+ * where no paragraph was open before it. Rendered (`scratchpad/s295/{bb,bt,bh}`): a thematic break below a blank line or an ATX
+ * heading leaves the next indent-4 line indented CODE, and the same break directly under a prose line is paragraph text (a lazy
+ * continuation, `THEMATIC_BREAK`'s own docstring), so the opener is text and its heading is swallowed. `paragraphOpenBefore` is the
+ * scanner's state as the line began (`paragraphOpenAboveHeader`), the one fact the line's own bytes cannot supply.
+ */
+function endsFreshBlock(line: string, paragraphOpenBefore: boolean): boolean {
+  return !paragraphOpenBefore && THEMATIC_BREAK.test(line);
 }
 
 /** The run of whitespace a line starts with — `\s*`, the same class both cell regexes use. */

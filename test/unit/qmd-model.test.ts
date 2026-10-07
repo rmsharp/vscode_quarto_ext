@@ -22264,3 +22264,60 @@ describe("Session 294 — a non-kernel language at indent 4 is indented code und
     expect(texts(doc(...HTML(tag, under, "    ```")), "jupyter")).toEqual(["Before", "In", "After"]);
   });
 });
+
+describe("Session 295 — the free case's block-boundary list", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const texts = (text: string, engine?: "jupyter" | "markdown" | "knitr" | "julia" | "ambiguous") =>
+    findHeadings(text, engine).map((h) => h.text);
+  type Eng = "jupyter" | "markdown";
+  type Ctx = "blank" | "paragraph" | "heading";
+  // Every document below is a probe written EXACTLY as `scratchpad/s295/gen_bb.cjs` writes it and rendered with quarto 1.7.33 in ne mode (exit 0):
+  // front matter with a `title:` (Learning #626), `engine: markdown` or a column-0 python cell that makes quarto resolve jupyter, `## Before`, the
+  // construct, an indented `{bash}` opener DIRECTLY below it (no blank line), `## In` inside, the closer at the same indent, then `## After`.
+  // The construct sits under a blank line + prose line (`bb`), directly under a prose line (`bt`) or directly under the `## Before` heading (`bh`).
+  const FRONT: Record<Eng, string[]> = {
+    jupyter: ["---", 'title: "T"', "---", "", "```{python}", "1 + 1", "```", ""],
+    markdown: ["---", 'title: "T"', "engine: markdown", "---", ""],
+  };
+  const probe = (eng: Eng, ctx: Ctx, x: string[], open = "    "): string =>
+    doc(
+      ...FRONT[eng],
+      "## Before",
+      ...(ctx === "blank" ? ["", "Prose before.", ""] : ctx === "paragraph" ? ["", "Para above."] : []),
+      ...x,
+      `${open}\`\`\`{bash}`,
+      "## In",
+      "x = 1",
+      `${open}\`\`\``,
+      "",
+      "## After",
+      "",
+      "tail",
+    );
+  const LISTED = ["Before", "In", "After"]; // the opener is indented CODE: quarto lists the heading inside it
+  const SWALLOWED = ["Before", "After"]; //   the opener is paragraph text or a raw continuation: quarto swallows it
+  // A construct that BEGINS A FRESH BLOCK and ends it on its own line (a thematic break, a link definition, ...) ends the block only where
+  // no paragraph was open before it: under a prose line it is a lazy continuation of that paragraph, the opener is paragraph text and the
+  // heading is swallowed (the `bt` column, where HEAD already agreed and must keep agreeing).
+  const FRESH_ONLY = (x: string[]) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(LISTED);
+      expect(texts(probe(eng, "heading", x), eng), `${eng}: directly under an ATX heading`).toEqual(LISTED);
+      expect(texts(probe(eng, "paragraph", x), eng), `${eng}: directly under a paragraph`).toEqual(SWALLOWED);
+    }
+  };
+
+  // SLICE 1. THEMATIC BREAKS. Rendered (`scratchpad/s295/{bb,bt,bh}`): after a blank line or a heading pandoc is between blocks after every
+  // spelling of a break and the indent-4 opener is indented code (quarto lists `In`), where this model swallowed it; under a prose line the
+  // break is paragraph text (`THEMATIC_BREAK` is held out of `CLOSES_PARAGRAPH` for exactly that reason) and nothing changes.
+  it.each<[string, string[]]>([
+    ["three stars", ["***"]],
+    ["five stars", ["*****"]],
+    ["three underscores", ["___"]],
+    ["ten underscores", ["__________"]],
+    ["three stars indented three spaces", ["   ***"]],
+    ["three stars with trailing spaces", ["***   "]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below a thematic break (%s) is indented code", (_label, x) => {
+    FRESH_ONLY(x);
+  });
+});
