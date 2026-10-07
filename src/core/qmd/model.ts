@@ -2966,6 +2966,11 @@ function frontMatterProvesReader(lines: readonly string[], fromValueLine: string
   if (lines.some((line) => line.includes("\r"))) {
     return false;
   }
+  // Text and metadata the model cannot read: quarto splices an included file as text before pandoc reads it, and a `metadata-files` entry loads keys (`from:`) from a YAML file
+  // (rendered, round 3), so a document that names either proves nothing.
+  if (lines.some((line) => PROOF_EXTERNAL.test(line))) {
+    return false;
+  }
   const content = frontMatterContent(lines);
   if (content === null || content.length === 0 || FRONTMATTER_BLANK.test(content[0]) || content.some((line) => PROOF_FENCE_OR_COMMENT.test(line))) {
     return false;
@@ -3072,6 +3077,8 @@ function frontMatterProvesReader(lines: readonly string[], fromValueLine: string
 const FRONTMATTER_BLANK = /^[ \t]*$/;
 /** Any spelling of the key `from` that is not the plain letters needs the letters or an escape; a body block that carries neither cannot override the reader. */
 const PROOF_FROM_OR_ESCAPE = /from|\\/;
+/** An include shortcode or a metadata-file(s) key: another file's text or metadata, which this model never reads. */
+const PROOF_EXTERNAL = /\{\{<\s*include\b|metadata-files?\b/;
 /** A line that is only `---`, anywhere in a text. */
 const PROOF_DELIMITER_LINE = /^---\s*$/m;
 /** What a body metadata block needs to override the reader: the letters, an escape, or an HTML comment splitting them (`fr<!-- -->om`, which quarto reads as `from`, rendered). */

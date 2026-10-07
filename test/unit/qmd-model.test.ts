@@ -23589,4 +23589,21 @@ describe("Session 297 — the reader the two run-to-the-end rules trust is PROVE
   ])("RESIDUAL: a later block that replaces the format mapping no longer deletes, but its text is a phantom heading (%s)", (_label, lines, model) => {
     expect(texts(doc(...lines), "markdown")).toEqual(model);
   });
+  // SLICE 27. TEXT AND METADATA THE MODEL CANNOT SEE: AN `{{< include >}}` SHORTCODE AND A `metadata-files` KEY (round 3's critic raised both as untested leads; with their
+  // helper files rendered, `adv3/bodyblocks` 014-035, quarto lists everything). Quarto splices an included file as text BEFORE pandoc reads it, so an included `---` / `from:
+  // markdown` / `---` block (or one that closes a quote opened in the front matter) overrides the reader, and a `metadata-files` entry loads `from:` from a YAML file. The
+  // model reads neither, so a document that holds an include shortcode or a `metadata-file(s)` key proves nothing.
+  it.each<[string, string[], string[]]>([
+    ["include block alone", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "{{< include bodyblocks_inc_01_block_md.md >}}", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_014_include_block_alone.qmd
+    ["include block before headings", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "{{< include bodyblocks_inc_01_block_md.md >}}", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_016_include_block_before_headings.qmd
+    ["include quoted path", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "{{< include \"bodyblocks_inc_01_block_md.md\" >}}", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_021_include_quoted_path.qmd
+    ["include indented in list", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "- item", "", "  {{< include bodyblocks_inc_01_block_md.md >}}", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_024_include_indented_in_list.qmd
+    ["include whole document", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "{{< include bodyblocks_inc_08_whole_doc.md >}}", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_026_include_whole_document.qmd
+    ["fm include in quoted scalar", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "note: \"start", "{{< include bodyblocks_inc_13_quote_breaker.md >}}", "end\"", "---", "", "## Before", "", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_031_fm_include_in_quoted_scalar.qmd
+    ["fm include in flow seq", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "list: [a,", "{{< include bodyblocks_inc_14_seq_breaker.md >}}", "]", "---", "", "## Before", "", "", "<![CDATA[", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_032_fm_include_in_flow_seq.qmd
+    ["meta files in front matter", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "metadata-files:", "  - bodyblocks_meta_01.yml", "---", "", "## Before", "", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_034_meta_files_in_front_matter.qmd
+    ["meta files fmt in front matter", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "metadata-files:", "  - bodyblocks_meta_02.yml", "---", "", "## Before", "", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_035_meta_files_fmt_in_front_matter.qmd
+  ])("RED->GREEN: a document that includes text or metadata files the model cannot see proves no reader (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
 });
