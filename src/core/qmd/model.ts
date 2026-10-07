@@ -2977,8 +2977,12 @@ function frontMatterProvesReader(lines: readonly string[], fromValueLine: string
   // A metadata block in the body can override the front matter, and the region scanner's fence tracker hides some that pandoc reads (under pandoc's markdown an UNCLOSED fence
   // is no fence). So the check is textual: with any `---` line in the body, no body line may mention `from` or an escape, and the lines between the front matter's closer and
   // the first `---` count too (a closer this split took for the end might not be quarto's).
+  // An HTML comment glued to or splitting the dashes (`<!-- c -->---`, `-<!-- c -->--`) is still a delimiter to quarto (rendered, round 3), so the delimiter is looked for in the body
+  // and in the body with its comments removed.
   const body = lines.slice(open + content.length + 2);
-  if (body.some((line) => /^---\s*$/.test(line)) && body.some((line) => PROOF_BODY_BLOCK.test(line))) {
+  const bodyText = body.join("\n");
+  const bodyDelimiter = PROOF_DELIMITER_LINE.test(bodyText) || PROOF_DELIMITER_LINE.test(bodyText.replace(/<!--[\s\S]*?(?:-->|$)/g, ""));
+  if (bodyDelimiter && body.some((line) => PROOF_BODY_BLOCK.test(line))) {
     return false;
   }
   const topFroms: string[] = [];
@@ -3058,7 +3062,8 @@ function frontMatterProvesReader(lines: readonly string[], fromValueLine: string
   if ((pending !== null && pending.kind !== "block") || topFroms.length > 1 || formatFroms.length > 1 || topFroms.length + formatFroms.length === 0) {
     return false;
   }
-  if (formatFroms.length === 1 && (formatHasItems || formatChildren.length !== 1 || formatChildren[0] !== "html")) {
+  // A per-format declaration is a MAPPING, and quarto merges blocks by replacing a key's whole value: a later `format: html` (a stacked or body block that never says `from`) replaces it.
+  if (formatFroms.length === 1 && (formatHasItems || formatChildren.length !== 1 || formatChildren[0] !== "html" || bodyDelimiter)) {
     return false;
   }
   return (formatFroms[0] ?? topFroms[0]) === fromValueLine;
@@ -3067,10 +3072,16 @@ function frontMatterProvesReader(lines: readonly string[], fromValueLine: string
 const FRONTMATTER_BLANK = /^[ \t]*$/;
 /** Any spelling of the key `from` that is not the plain letters needs the letters or an escape; a body block that carries neither cannot override the reader. */
 const PROOF_FROM_OR_ESCAPE = /from|\\/;
+/** A line that is only `---`, anywhere in a text. */
+const PROOF_DELIMITER_LINE = /^---\s*$/m;
 /** What a body metadata block needs to override the reader: the letters, an escape, or an HTML comment splitting them (`fr<!-- -->om`, which quarto reads as `from`, rendered). */
 const PROOF_BODY_BLOCK = /from|\\|<!--/;
-/** A fence marker or an HTML comment opener inside the front matter: quarto's fence and comment handling and this model's first-`---` rule can then disagree about where it ends. */
-const PROOF_FENCE_OR_COMMENT = /<!--|```|~~~/;
+/**
+ * A fence marker, an HTML comment opener or a line that STARTS with `---` inside the front matter: quarto's fence and comment handling and this model's first-`---` rule can then
+ * disagree about where it ends or whether it counts at all. The dashes case is measured (19 probes, round 3): two or more blank lines followed by `----` or `---x` inside a wrapped
+ * scalar make quarto read the DEFAULT reader, where one blank line, `-----`, `***` and an indented `----` do not.
+ */
+const PROOF_FENCE_OR_COMMENT = /<!--|```|~~~|^---/;
 /** The number of leading ASCII spaces of a line (JavaScript's `trimStart` also eats a non-breaking space, which YAML reads as a character). */
 function leadingSpaces(line: string): number {
   return /^ */.exec(line)![0].length;

@@ -23547,4 +23547,46 @@ describe("Session 297 — the reader the two run-to-the-end rules trust is PROVE
     expect(texts(doc(...lines), "markdown")).toEqual(model);
   });
   // SLICE 22b (folded into the residual table above): the body check also refuses `<!--`, because a body block can spell its key `fr<!-- -->om` and quarto reads it as `from` (`adv2/regions` 041).
+  // SLICE 24. AN HTML COMMENT GLUED TO OR SPLITTING THE `---` DELIMITER IS STILL A DELIMITER TO QUARTO (round 3, `adv3/bodyblocks` 001-013, rendered: quarto lists
+  // everything): `<!-- c -->---` / `from: markdown` / `<!-- c -->---`, `-<!-- c -->--`, a comment spanning lines inside the dashes. The body check only ran when a body line
+  // matched `/^---\s*$/`, so none of these tripped it; the delimiter is now looked for in the body AND in the body with its HTML comments removed.
+  it.each<[string, string[], string[]]>([
+    ["glue comment prefix both", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "<!-- c -->---", "from: markdown", "<!-- c -->---", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_001_glue_comment_prefix_both.qmd
+    ["glue multiline comment both", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "<!--", "c", "-->---", "from: markdown", "<!--", "c", "-->---", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_004_glue_multiline_comment_both.qmd
+    ["glue fmt html payload", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "<!-- c -->---", "format:", "  html:", "    from: markdown", "<!-- c -->---", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_005_glue_fmt_html_payload.qmd
+    ["glue block inside unclosed fence", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "<!-- c -->---", "from: markdown", "<!-- c -->---", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_010_glue_block_inside_unclosed_fence.qmd
+    ["glue dashes split by comment", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "-<!-- c -->--", "from: markdown", "-<!-- c -->--", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_013_glue_dashes_split_by_comment.qmd
+  ])("RED->GREEN: a delimiter an HTML comment disguises still makes the body check run (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 25. TWO BLANK LINES FOLLOWED BY A LINE THAT STARTS WITH `---` INSIDE THE FRONT MATTER MAKE QUARTO READ THE DEFAULT READER (round 3, `adv3/docshape2` p2_*, and the
+  // boundary measured by 19 probes `pr6`/`pr7`: two or three blank lines then `----` or `---x` does it; one blank line, `-----`, `***`, `====`, text or an indented `----` do
+  // not). The line can only sit inside a wrapped quote, flow collection or list item, where the grammar skips it. Any front matter line that starts with `---` declines.
+  it.each<[string, string[], string[]]>([
+    ["p2 dq multiline dashes4", ["---", "title: \"T\"", "engine: markdown", "note: \"a", "", "", "----", "b\"", "from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/docshape2/docshape2_001_p2_dq_multiline_dashes4.qmd
+    ["p2 ls only blank lines", ["---", "title: \"T\"", "engine: markdown", "note: \"a", " ", " ", "----", "b\"", "from: gfm", "---", "", "## Before", "", "<!DOCTYPE html", "", "## Inside", "", ">", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/docshape2/docshape2_002_p2_ls_only_blank_lines.qmd
+    ["p2 sq multiline dash3x", ["---", "title: \"T\"", "engine: markdown", "note: 'a", "", "", "---x", "b'", "from: gfm", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/docshape2/docshape2_003_p2_sq_multiline_dash3x.qmd
+    ["p2 flow seq dashes4 entry", ["---", "title: \"T\"", "engine: markdown", "tags: [a,", "", "", "----,", "b]", "from: gfm", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/docshape2/docshape2_004_p2_flow_seq_dashes4_entry.qmd
+    ["p2 format html nested", ["---", "title: \"T\"", "engine: markdown", "format:", "  html:", "    from: gfm", "    note: \"a", "", "", "----", "    b\"", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/docshape2/docshape2_009_p2_format_html_nested.qmd
+    ["p2 flow map dashes key", ["---", "title: \"T\"", "engine: markdown", "params: {a: 1,", "", "", "----: 2}", "from: gfm", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/docshape2/docshape2_011_p2_flow_map_dashes_key.qmd
+    ["p2 leading blank lines doc", ["", "", "---", "title: \"T\"", "engine: markdown", "note: \"a", "", "", "----", "b\"", "from: gfm", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/docshape2/docshape2_015_p2_leading_blank_lines_doc.qmd
+  ])("RED->GREEN: a front matter line that starts with --- after blank lines proves no reader (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 26. A LATER BLOCK THAT REPLACES `format:` OVERRIDES A PER-FORMAT `from:` WITHOUT SAYING `from` (round 3, `adv3/docshape2` 028-030, rendered: quarto lists
+  // everything). Quarto merges metadata blocks, and a later `format: html` (or a `format:` mapping with no `from:`, or a stacked second block) REPLACES the whole `format`
+  // mapping, taking the front matter's `format: html: from: gfm` with it. When the proof rests on a per-format declaration, any `---` delimiter in the body declines.
+  it.each<[string, string[], string[]]>([
+  ])("RED->GREEN: a later block can replace the per-format mapping that the proof rests on (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // RESIDUAL, kept on purpose (`adv3/docshape2` 028-030, rendered: quarto lists Before, Inside and After): the DELETION is gone (the proof refuses, because the body holds a delimiter that can replace
+  // the per-format mapping), but the replacing block's text is still read as a setext heading, as the pre-Session-296 build did.
+  it.each<[string, string[], string[]]>([
+    ["fm body block replaces format", ["---", "title: \"T\"", "engine: markdown", "format:", "  html:", "    from: gfm", "---", "", "## Before", "", "---", "format: html", "---", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before", "format: html", "Inside", "After"]],
+    ["fm body block replaces format mapping", ["---", "title: \"T\"", "engine: markdown", "format:", "  html:", "    from: gfm", "---", "", "## Before", "", "---", "format:", "  html:", "    toc: true", "---", "", "<![CDATA[", "", "## Inside", "", "## After", "", "tail"], ["Before", "format: html: toc: true", "Inside", "After"]],
+    ["fm stacked block format html5", ["---", "title: \"T\"", "engine: markdown", "format:", "  html:", "    from: gfm", "---", "---", "format: html5", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["format: html5", "Before", "Inside", "After"]]
+  ])("RESIDUAL: a later block that replaces the format mapping no longer deletes, but its text is a phantom heading (%s)", (_label, lines, model) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(model);
+  });
 });
