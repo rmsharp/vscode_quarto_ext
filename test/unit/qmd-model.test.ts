@@ -23269,4 +23269,20 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
   residual("a degenerate comment inside a list item ends with the item (the model keeps the old answer, never a deletion)", [
 
   ]);
+  // The FIRST row of each generated table (a script that stripped a row's indent dropped it from the batch it belonged to; found when a mutant survived a row that was supposed to kill it).
+  round2([
+    ["qbullet bash r4 atfence col0 t cm md", "commonmark", "markdown", ["> - item one",">       ```{bash}",">       ## In","x = 1","```","","## After","","tail"], ["Before"]], // prod/p0119_qbullet_bash_r4_atfence_col0_t_cm_md.qmd
+    ["quote bullet r0 lazy md gfm", "gfm", "markdown", ["> - item one",">   ```{bash}","## In","x = 1",">   ```","","## After","","tail"], ["Before","In","After"]], // g3/g3_quote_bullet_r0_lazy_md_gfm.qmd
+    ["044 pi block directly under list item", "gfm", "markdown", ["- item","<?php","## In","?>","## After"], ["Before","After"]], // adv2/headings/headings_044_pi_block_directly_under_list_item.qmd
+    ["033 jup comment straddle cell", "gfm", "jupyter", ["<!--","```{python}","## In","-->","```","","## After","","tail"], ["Before"]], // adv2/cells/cells_033_jup_comment_straddle_cell.qmd
+    ["012 lazyunderline in quote list", "gfm", "markdown", ["> - item","    ```{bash}","In","---","    ```","","## After","","tail"], ["Before","After"]], // adv2/quotefence/quotefence_012_lazyunderline_in_quote_list.qmd
+    ["div then blank fence", "gfm", "markdown", ["<div>x</div>","","```text","## In","","## After","","tail"], ["Before"]], // own7/w1_div_then_blank_fence.qmd
+  ]);
+  residual("the first row of each residual table", [
+    ["013 ord2 closer after col0 body", "gfm", "markdown", ["Para above","2. item","   ```{bash}","x = 1","   ```","## After","","tail"], ["Before","After"], ["Before"]], // adv2/itemfence/itemfence_013_ord2_closer_after_col0_body.qmd
+    ["009 lazyunderline eq gfm", "gfm", "markdown", ["> para","    ```{bash}","In","===","    ```","","## After","","tail"], ["Before","After"], ["Before","> para ```{bash} In","After"]], // adv2/quotefence/quotefence_009_lazyunderline_eq_gfm.qmd
+    ["012 setext lazy in div cmx", "commonmark_x", "jupyter", ["::: {.callout-note}","para in div","    ```{bash}","In","===","x = 1","    ```",":::","","## After","","tail"], ["Before","After"], ["Before","::: {.callout-note} para in div ```{bash} In","After"]], // adv/divs/divs_012_setext_lazy_in_div_cmx.qmd
+    ["001 nest2 text heading outer", "gfm", "markdown", ["- - item","    ```text","    code","  ## In","    more","    ```","## After","","tail"], ["Before","In","After"], ["Before","After"]], // adv2/itemfence/itemfence_001_nest2_text_heading_outer.qmd
+    ["item degenerate", "gfm", "markdown", ["- item","  <!-->","  ## In","","## After","","tail"], ["Before","After"], ["Before","In","After"]], // own7/w5_item_degenerate.qmd
+  ]);
 });
