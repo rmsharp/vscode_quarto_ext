@@ -5190,6 +5190,19 @@ function closesParagraph(
  * ⚠ The stop is 4, not 8, and it is measured from the START OF THE LINE rather than from the
  * containing block's column — both differ from the answers a terminal or an editor would give.
  */
+/**
+ * The content column of the innermost open container that holds a line indented to `column` (Session 296): the largest entry of `columns` not past it, or
+ * `0` (and so `null`) when the line is at top level.
+ */
+function itemContentColumn(columns: readonly number[], column: number): number | null {
+  let best = 0;
+  for (const c of columns) {
+    if (c <= column && c > best) {
+      best = c;
+    }
+  }
+  return best > 0 ? best : null;
+}
 function indentColumn(line: string): number {
   let col = 0;
   for (const ch of line) {
@@ -6916,6 +6929,12 @@ interface OpenCellFence extends OpenFence {
    * any-indent closer every other cell has always had.
    */
   readonly indent: string | null;
+  /**
+   * The content column of the list item this fence sits in, set ONLY under a CommonMark reader for a fence quarto leaves to pandoc (Session 296): CommonMark
+   * ends a fence where its container ends, at the first non-blank line indented LESS than this column. `null` = unbounded (top level, a quote, a cell
+   * quarto extracts, any other reader).
+   */
+  readonly boundColumn: number | null;
 }
 
 /**
@@ -7158,6 +7177,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   let inFrontmatter = false;
   let inComment = false;
   let open: OpenCellFence | null = null;
+  // The line at which a CommonMark fence was ended by its list item ending (Session 296): that line closes the containers deeper than itself even where the line
+  // above is not blank, which is the one case where the container stack would otherwise outlive the item.
+  let boundEndedLine = -1;
   // The last line the scanner found to END ITS OWN BLOCK having begun it fresh (Session 295), for the constructs whose end the line's own bytes cannot
   // tell: the closer of a comment region that opened fresh, and a line of seven or more hashes. `-2` = none. Read by the free case.
   let freshBlockEndLine = -2;
@@ -7999,6 +8021,12 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       continue;
     }
 
+    // The item a CommonMark fence sits in ends at the first non-blank line indented less than its content column, and takes the fence with it (Session 296):
+    // the line is then an ordinary line, judged below as such.
+    if (open !== null && open.boundColumn !== null && !BLANK_LINE.test(line) && indentColumn(line) < open.boundColumn) {
+      open = null;
+      boundEndedLine = i;
+    }
     // Inside a code fence, only the matching closer matters — a `#`, `-->`, or
     // nested fence here is literal. Emit the cell when the fence closes.
     if (open !== null) {
@@ -8157,7 +8185,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       const deeperColumnsAreAllLists = contentColumns.every(
         (c, idx) => c <= indentWidth || columnKinds[idx] === "list",
       );
-      if (prevLineBlank ||
+      if (prevLineBlank || boundEndedLine === i ||
         (deeperColumnsAreAllLists && popsEnclosingContainer(line, commonmarkDialect))) {
         while (contentColumns.length > 0 && contentColumns[contentColumns.length - 1] > indentWidth) {
           contentColumns.pop();
@@ -8383,7 +8411,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // headings in Session 199. `[0]` is a bounded value that reproduces CommonMark's ` {0,3}`
     // cap exactly through the shared predicate: base 0, so columns 0-3 pass and 4 is code. It
     // covers tabs correctly for free, since one tab already reaches column 4.
-    const fenceColumns = paragraphOpen ? [0] : [0, ...contentColumns];
+    // ⚠ **A COMMONMARK FENCE INTERRUPTS A PARAGRAPH AT EVERY CONTAINER COLUMN (Session 296)**, where the `[0]` below is pandoc's markdown rule: an opener at a list
+    // item's content column, directly under the item's text, is a real fence there and swallows the heading indented to the same column (rendered,
+    // `scratchpad/s296/own4`, 84 documents, identical under the three readers and both engines).
+    const fenceColumns = paragraphOpen && !commonmarkDialect ? [0] : [0, ...contentColumns];
     const plainFence = fenceMatchAt(FENCE_OPEN, line, fenceColumns);
     // ⚠ **THE UNBOUNDED SECOND LOOK IS QUARTO'S EXECUTABLE-CELL GRAMMAR, AND IT IS SKIPPED WHERE THAT
     // GRAMMAR DOES NOT APPLY (Session 293, `indentedCellFenceFor`).** Under `engine: markdown` pandoc reads
@@ -8453,6 +8484,18 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         startLine: i,
         columns: fenceColumns,
         indent: !kernelPartitionDead && closesOnOwnIndent(engine, kernelLanguage, info) ? indentRun(line) : null,
+        // ⚠ **A COMMONMARK FENCE ENDS WHERE ITS LIST ITEM ENDS (Session 296)**: the first non-blank line indented less than the item's content column closes it
+        // (rendered, `scratchpad/s296/{g1,g3,own4}`). Not for a cell quarto extracts before pandoc (a handler language, the jupyter kernel), nor for a quote
+        // (the quote's own end bounds those), nor for a document the CommonMark readers do not read.
+        boundColumn:
+          commonmarkDialect &&
+          !stripQuote &&
+          contentColumns.length > 0 &&
+          (info === null ||
+            (engine === "markdown" && !HANDLER_CELL_LANGUAGES.has(info[1])) ||
+            (kernelLanguage !== null && info[1] !== kernelLanguage && !HANDLER_CELL_LANGUAGES.has(info[1])))
+            ? itemContentColumn(contentColumns, indentColumn(line))
+            : null,
       };
       // A FENCE OPENS ONLY IF IT IS CLOSED BELOW — both kinds, for two different measured
       // reasons that happen to agree (Session 179; Session 178 applied this test to
@@ -8563,7 +8606,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // ⚠ **UNDER A COMMONMARK READER AN UNCLOSED PLAIN FENCE RUNS TO THE END OF THE DOCUMENT (Session 296)**, where pandoc's markdown needs a closer below
         // (Session 179). Rendered, `scratchpad/s296/own2/uf_*` (30 documents): quarto lists nothing below one under `gfm`, `commonmark` and `commonmark_x`,
         // `## After` included. Top level only (a container ends it earlier), unquoted, and never a cell shape: quarto's partitioner drops an unclosed cell opener.
-        ((commonmarkDialect && !candidate.isCell && contentColumns.length === 0 && !stripQuote) ||
+        ((commonmarkDialect && !candidate.isCell && !stripQuote) ||
           hasCloserBelow(
             pastKnitr ? closerIndexPastKnitr : closerIndex,
             i + 1,

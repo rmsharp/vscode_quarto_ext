@@ -22875,17 +22875,26 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
   it.each(["knitr", "julia", "ambiguous", undefined] as const)("GUARD: engine hint %s keeps the unbounded look under a CommonMark reader (HEAD's answer)", (engine) => {
     expect(texts(probe("markdown", "gfm", ["Para above"]), engine)).toEqual(SWALLOWED);
   });
-  // RESIDUAL, kept on purpose (DELETION direction; measured, `g3_*_r0..r3_*`, 88 documents under `gfm` and `commonmark_x`): an opener indented ZERO to THREE
-  // past a container's content column is a real CommonMark fence INSIDE the item, and the column-0 `## In` ends the item and with it the fence, so quarto
-  // lists the heading; this model pairs the fence with its closer. It is the filed "bare fence inside a list item" family (the container-bound fence), not this
-  // item: pinned so a future rule flips these on purpose.
-  it.each<[string, string[], number]>([
-    ["a bullet item, blank line above, rel 2", ["- item one", ""], 4],
-    ["a bullet item, blank line above, rel 3", ["- item one", ""], 5],
-    ["an ordered item, blank line above, rel 2", ["1. item one", ""], 5],
-  ])("RESIDUAL, kept on purpose: an opener that is a real fence inside %s is still swallowed (quarto lists the heading)", (_label, above, indent) => {
-    for (const eng of ["jupyter", "markdown"] as const) {
-      expect(texts(probe(eng, "gfm", above, " ".repeat(indent)), eng), eng).toEqual(SWALLOWED); // quarto: Before, In, After
+  // SLICE 7. A FENCE INSIDE A LIST ITEM ENDS WHERE THE ITEM ENDS. An opener indented zero to three past a list item's content column is a real CommonMark
+  // fence INSIDE the item, and the first non-blank line indented LESS than the content column ends the item and with it the fence, so a column-0 `## In` is a
+  // heading. Rendered, `scratchpad/s296/g1` and `g3` (`*_r0..r3_*`: 240 documents, uniform across `gfm` and `commonmark_x` and both engines; the first cut of
+  // slice 2 pinned these as a RESIDUAL, and slice 6 turned them from HEAD's deletions into more of them until this rule). A closer-shaped line at indent 0-3
+  // that follows the heading is then a NEW fence and, unclosed, runs to the end of the document (slice 4): `r0` loses `## After` as well.
+  const itemFence = (eng: Eng, from: string, first: string[], blank: boolean, indent: number): string =>
+    doc(...front(eng, from), "## Before", "", ...first, ...(blank ? [""] : []), `${" ".repeat(indent)}\`\`\`{bash}`, "## In", "x = 1", `${" ".repeat(indent)}\`\`\``, "", "## After", "", "tail");
+  it.each<[string, string[], boolean, number, string[]]>([
+    ["a bullet item, blank line above, rel 2", ["- item one"], true, 4, LISTED],
+    ["a bullet item, blank line above, rel 3", ["- item one"], true, 5, LISTED],
+    ["a bullet item, lazy, rel 2", ["- item one"], false, 4, LISTED],
+    ["an ordered item, blank line above, rel 2", ["1. item one"], true, 5, LISTED],
+    ["an ordered item, lazy, rel 1", ["1. item one"], false, 4, LISTED],
+    ["a bullet item, opener at the content column (the stray closer opens a fence)", ["- item one"], false, 2, ["Before", "In"]],
+    ["an ordered item, opener at the content column (the stray closer opens a fence)", ["1. item one"], false, 3, ["Before", "In"]],
+  ])("RED->GREEN: under a CommonMark reader a real fence inside %s ends with the item", (_label, first, blank, indent, expected) => {
+    for (const from of ["gfm", "commonmark_x"]) {
+      for (const eng of ["jupyter", "markdown"] as const) {
+        expect(texts(itemFence(eng, from, first, blank, indent), eng), `${from} ${eng}`).toEqual(expected);
+      }
     }
   });
   // SLICE 3. EXAMPLE LISTS DO NOT EXIST TO COMMONMARK. `(@)` and `(@label)` open an example list in pandoc's markdown only, and the free case withdrew itself
@@ -22957,6 +22966,26 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
     for (const from of CM_READERS) {
       for (const eng of ["jupyter", "markdown"] as const) {
         expect(texts(raw(eng, from, lines), eng), `${from} ${eng}`).toEqual(LISTED);
+      }
+    }
+  });
+  // SLICE 6. A FENCE INTERRUPTS A PARAGRAPH INSIDE A LIST ITEM UNDER COMMONMARK. An opener at the item's content column, directly under the item's text, is a real
+  // fence: the heading indented to the same column is code inside it and quarto swallows it. The model's fence window collapses to column 0 whenever a paragraph
+  // is open (pandoc's markdown rule, Session 277), so the opener went to the cell look and slice 2 FREED it: a phantom on documents HEAD had right (round 1,
+  // `cont_001`..`010`, `019`, `045`). Rendered, `scratchpad/s296/own4` (84 documents, identical under all three readers and both engines).
+  it.each<[string, string[]]>([
+    ["a wide-gap bullet", ["-   item", "    ```{bash}", "    ## In", "    x = 1", "    ```"]],
+    ["an ordered item", ["1.  item", "    ```{bash}", "    ## In", "    x = 1", "    ```"]],
+    ["a two-digit ordered item", ["10. item", "    ```{bash}", "    ## In", "    x = 1", "    ```"]],
+    ["a bullet with a gap of four", ["-    item", "     ```{bash}", "     ## In", "     x = 1", "     ```"]],
+    ["a nested bullet", ["- a", "  - b", "    ```{bash}", "    ## In", "    x = 1", "    ```"]],
+    ["a third-level bullet", ["- a", "  - b", "    - c", "      ```{bash}", "      ## In", "      x = 1", "      ```"]],
+    ["a task item", ["-   [x] item", "    ```{bash}", "    ## In", "    x = 1", "    ```"]],
+    ["a tab-indented opener", ["-   item", "\t```{bash}", "\t## In", "\tx = 1", "\t```"]],
+  ])("RED->GREEN: under a CommonMark reader an opener at the content column of %s is a real fence and swallows the heading inside it", (_label, lines) => {
+    for (const from of CM_READERS) {
+      for (const eng of ["jupyter", "markdown"] as const) {
+        expect(texts(raw(eng, from, lines), eng), `${from} ${eng}`).toEqual(SWALLOWED);
       }
     }
   });
