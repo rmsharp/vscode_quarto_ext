@@ -23196,4 +23196,14 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
   ])("RESIDUAL, kept on purpose: a misread from: key (%s)", (_label, lines, _quarto, model) => {
     expect(texts(doc(...lines), "markdown")).toEqual(model);
   });
+  // The rest of the round-1 and round-2 phantom shapes (callout and tabset divs that interrupt a paragraph under commonmark_x, a raw-attribute fence closed by a LATER cell's closer, a footnote body, a quote-list
+  // lazy line): each the same older gap as the rows pinned above, as its own rendered document.
+  residual("further older gaps", [
+    ["024 tabset opener before tabs cmx", "commonmark_x", "markdown", ["para one","    ```{bash}","::: {.panel-tabset}","## In","tab text","","## Tab B","tab text",":::","    ```","","## After","","tail"], ["Before","After"], ["Before","In","Tab B","After"]], // adv/divs/divs_024_tabset_opener_before_tabs_cmx.qmd
+    ["025 content hidden html lazy cmx", "commonmark_x", "markdown", ["::: {.content-hidden when-format=\"html\"}","para hidden","    ```{bash}","## In","x = 1","    ```",":::","","## After","","tail"], ["Before","After"], ["Before","In","After"]], // adv/divs/divs_025_content_hidden_html_lazy_cmx.qmd
+    ["026 content visible meta unset cmx", "commonmark_x", "jupyter", ["::: {.content-visible when-meta=\"nope\"}","para meta","    ```{bash}","## In","x = 1","    ```",":::","","## After","","tail"], ["Before","After"], ["Before","In","After"]], // adv/divs/divs_026_content_visible_meta_unset_cmx.qmd
+    ["005 unclosed raw attr fence", "commonmark_x", "markdown", ["```{=html}","<b>x</b>","    ```{bash}","## In","x = 1","    ```","tail"], ["Before"], ["Before","In"]], // adv/fence/fence_005_unclosed_raw_attr_fence.qmd
+    ["034 jup gfm footnote indented bash pair", "gfm", "jupyter", ["Ref[^1] here","","[^1]: note","","        ```{bash}","    ## In","        ```","","## After","","tail"], ["Before","After"], ["Before","In","After"]], // adv2/defs/defs_034_jup_gfm_footnote_indented_bash_pair.qmd
+    ["013 quote list lazy same gfm", "gfm", "markdown", ["> - item","      ```{bash}","      ## In","      x = 1","      ```","","## After","","tail"], ["Before","After"], ["Before","In","After"]], // adv/cont/cont_013_quote_list_lazy_same_gfm.qmd
+  ]);
 });
