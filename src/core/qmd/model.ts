@@ -7357,10 +7357,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // (`scratchpad/s295/rdr`): no `from:`, `markdown` (with any extensions), `gfm`, `commonmark` and `commonmark_x` all end the block at these constructs, while
   // `markdown_strict` has none of the three, so they are paragraph text there and the first cut's `Y` was a regression. `markdown_mmd`, `_phpextra` and
   // `_github` were not measured and are left out; an extension that switches one of the three OFF wins, as everywhere in this family of flags.
-  // ⚠ **`markdown_strict` ENDS A RAW HTML BLOCK ONLY AFTER A BLANK LINE (Session 295, `scratchpad/s295/rdr`):** all six measured element shapes end the block
-  // there when the element begins at a boundary and none does directly under a prose line, so the HTML rule runs for it with the boundary REQUIRED. The
-  // CommonMark family reads raw HTML blocks another way (`commonmarkHtmlBlock`) and keeps HEAD's answer, which quarto agrees with in all six rows.
-  const strictHtmlReader = fromValueLine !== null && fromReaderBase(fromValueLine) === "markdown_strict";
   const freeCaseTableReader =
     fromValueLine === null ||
     (FREE_CASE_TABLE_READER_BASES.has(fromReaderBase(fromValueLine) ?? "") &&
@@ -8378,14 +8374,13 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
             (freeCaseTableReader && tableOrLineBlockEndsAt(lines, i - 1)) ||
             // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`); pandoc's markdown only:
             // `markdown_strict` ends one only after a blank line and the CommonMark family reads raw HTML blocks differently
-            ((measuredRefusalReader || strictHtmlReader) &&
-              rawContentDepth === 0 &&
+            (rawContentDepth === 0 &&
               endsHtmlBlock(
                 lines[i - 1],
                 startsAtBoundary(lines, i - 1),
-                // `markdown_strict`: the raw block is the whole run of non-blank lines; it must BEGIN with a tag, at a boundary (a prose line that
-                // starts the run makes the tag lazy paragraph text there)
-                !measuredRefusalReader && !htmlRunBeginsAtBoundary(lines, i - 1),
+                // OUTSIDE pandoc's markdown (`markdown_strict`, `markdown_github`, `markdown_mmd`, `markdown_phpextra`, the CommonMark family) the raw block is the
+                // whole run of non-blank lines and must BEGIN with a tag: a prose line that starts the run makes the tag lazy paragraph text there
+                !measuredRefusalReader && !htmlRunBeginsWithTag(lines, i - 1),
               ))),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
@@ -10773,10 +10768,12 @@ const PIPE_DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)
 /** The top border of a grid table: dashes only between the plus signs (a `+====+` first border is no table). */
 const GRID_PLAIN_BORDER = /^\+(?:-+\+)+[ \t]*$/;
 
-/** Whether the contiguous run of non-blank lines ending at `x` BEGINS with a tag line, at a block boundary (the strict reader's raw HTML block, Session 295). */
-function htmlRunBeginsAtBoundary(lines: readonly string[], x: number): boolean {
-  const k = runStart(lines, x, (l) => !BLANK_LINE.test(l));
-  return startsAtBoundary(lines, k) && /^[ \t]*</.test(lines[k]);
+/**
+ * Whether the contiguous run of non-blank lines ending at `x` BEGINS with a tag line (Session 295). A run start is a boundary by construction (the line
+ * above it is blank), so no boundary test is spelled: mutation round 3 showed it unobservable over 4,665 documents.
+ */
+function htmlRunBeginsWithTag(lines: readonly string[], x: number): boolean {
+  return /^[ \t]*</.test(lines[runStart(lines, x, (l) => !BLANK_LINE.test(l))]);
 }
 /** The reader bases the free case's table and line-block rules were measured under (Session 295, `scratchpad/s295/rdr`). */
 const FREE_CASE_TABLE_READER_BASES: ReadonlySet<string> = new Set(["markdown", "gfm", "commonmark", "commonmark_x"]);
@@ -10790,11 +10787,11 @@ const FREE_CASE_TABLE_READER_BASES: ReadonlySet<string> = new Set(["markdown", "
  * ⚠ **THE BLOCK CLASS INTERRUPTS A PARAGRAPH AND THE EITHER CLASS DOES NOT**, which is the split `HTML_BLOCK_OPEN` and `HTML_BLOCK_OR_INLINE_OPEN`
  * already draw: an either-class element ends the block only where it began fresh (`beganFresh`), and is inline text under a prose line.
  * ⚠ The caller refuses this inside an open RAW-CONTENT element (`rawContentDepth`) and under a CommonMark-family reader, where a raw block runs to
- * the next blank line and quarto agrees with HEAD. `strictAgainstParagraph` is `markdown_strict`'s own refusal: the rule holds there only for a block whose run began at a boundary.
+ * the next blank line and quarto agrees with HEAD. `againstParagraph` is the refusal outside pandoc's markdown: the rule holds there only for a block whose run begins with a tag.
  */
-function endsHtmlBlock(line: string, beganFresh: boolean, strictAgainstParagraph: boolean): boolean {
-  if (strictAgainstParagraph) {
-    return false; // `markdown_strict`: a raw HTML block ends only after a blank line, so one that began against a paragraph does not end anything
+function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: boolean): boolean {
+  if (againstParagraph) {
+    return false; // outside pandoc's markdown a raw HTML block ends only after a blank line, so one that began against a paragraph does not end anything
   }
   // The line must START with a WELL-FORMED tag: the quote-aware reader the heading rules already use says no tag where a quote never closes
   // (`<div class="x>`) and for `< /div>`, while `>` inside a CLOSED quote (`<div class="a>b">`) is still one tag (rendered, round 2 `tags_052`).

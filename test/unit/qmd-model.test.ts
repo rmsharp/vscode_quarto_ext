@@ -22673,6 +22673,16 @@ describe("Session 295 — the free case's block-boundary list", () => {
     expect(texts(probe("markdown", "blank", x, "    ", [], "markdown_strict"), "markdown"), "after a blank line").toEqual(LISTED);
     expect(texts(probe("markdown", "paragraph", x, "    ", [], "markdown_strict"), "markdown"), "directly under a paragraph").toEqual(SWALLOWED);
   });
+  // `markdown_mmd` and `markdown_phpextra` read raw HTML blocks as pandoc's markdown does, and `markdown_github` as `markdown_strict` does (an element ends the
+  // block after a blank line and not directly under a paragraph); the three were measured, not inferred from the names (`scratchpad/s295/rdr`).
+  it.each(["markdown_mmd", "markdown_phpextra", "markdown_github"])("READER: under from: %s a raw HTML element ends the block after a blank line", (from) => {
+    for (const [label, x] of HTML_SHAPES) {
+      expect(texts(probe("markdown", "blank", x, "    ", [], from), "markdown"), `${from}: ${label}`).toEqual(LISTED);
+    }
+  });
+  it.each(HTML_SHAPES)("READER: under from: markdown_github %s is paragraph text directly under a paragraph", (_label, x) => {
+    expect(texts(probe("markdown", "paragraph", x, "    ", [], "markdown_github"), "markdown")).toEqual(SWALLOWED);
+  });
   // Pandoc's markdown with extensions switched on or off by name: a table and a line block still end the block, unless THAT extension is off.
   it.each([["markdown"], ["markdown-fenced_divs"], ["markdown-blank_before_header"]])("READER: under from: %s a pipe table, a line block and a grid table end the block", (from) => {
     for (const x of [["| a | b |", "|---|---|", "| 1 | 2 |"], ["| line one", "| line two"], ["+---+---+", "| a | b |", "+---+---+"]]) {
