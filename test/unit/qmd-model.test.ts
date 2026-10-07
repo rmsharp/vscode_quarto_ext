@@ -23026,4 +23026,73 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
       expect(texts(raw("markdown", from, lines), "markdown"), from).toEqual(expected);
     }
   });
+  // ROUND 2 (`scratchpad/s296/adv2`, ten blind lenses aimed at the new rules): every row below is a round-2 document, written EXACTLY as the builder writes it, with
+  // QUARTO's rendered headings as the claim (the comment names the file). Round 2 found that slices 4 and 5 are dangerous where the model's picture of a fence or a
+  // raw block is wrong, because they run to the END of the document: one wrong trigger deletes every heading below it, with no indented opener anywhere. Each
+  // family below is one gate on those rules.
+  type Row = [string, string, Eng, string[], string[]];
+  const round2 = (rows: Row[]) =>
+    it.each(rows)("ROUND 2: %s", (_label, from, eng, lines, expected) => {
+      expect(texts(exact(eng, from, lines), eng)).toEqual(expected);
+    });
+  // GATE 1. THE INFO STRING. A backtick fence whose info string holds a backtick is no fence to CommonMark (`` ```code``` is inline ``), and a braced info (`{=html}`,
+  // `{.python}`, `{bash}`) is a raw attribute or a cell shape that quarto handles before pandoc: none of these may run to the end of the document.
+  round2([
+    ["012 inline triple code line then atx", "gfm", "markdown", ["```code``` is inline","## In","","## After"], ["Before","In","After"]], // adv2/headings/headings_012_inline_triple_code_line_then_atx.qmd
+    ["013 backtick info code span then atx", "gfm", "markdown", ["```text `x`","## In","## After"], ["Before","In","After"]], // adv2/headings/headings_013_backtick_info_code_span_then_atx.qmd
+    ["001 span oneline col0", "gfm", "markdown", ["```code```","","## After","tail"], ["Before","After"]], // adv2/fenceunc/fenceunc_001_span_oneline_col0.qmd
+    ["005 span jupyter py", "gfm", "jupyter", ["```py``` is a span","","## After","tail"], ["Before","After"]], // adv2/fenceunc/fenceunc_005_span_jupyter_py.qmd
+    ["028 info lone backtick", "gfm", "markdown", ["``` `","## In","","## After","","tail"], ["Before","In","After"]], // adv2/mutate/mutate_028_info_lone_backtick.qmd
+    ["031 info backtick lazy para", "gfm", "markdown", ["para","``` a`b","## In","","## After","","tail"], ["Before","In","After"]], // adv2/mutate/mutate_031_info_backtick_lazy_para.qmd
+    ["042 lazy quote info backtick fence", "gfm", "markdown", ["> para","``` a`b","## In","","## After","","tail"], ["Before","In","After"]], // adv2/quotefence/quotefence_042_lazy_quote_info_backtick_fence.qmd
+    ["010 md rawattr unclosed", "gfm", "markdown", ["Para above","","```{=html}","## In","<b>x</b>","","## After","","tail"], ["Before","In","After"]], // adv2/cells/cells_010_md_rawattr_unclosed.qmd
+    ["050 info raw html unclosed", "gfm", "markdown", ["```{=html}","<b>x</b>","","## After","tail"], ["Before","After"]], // adv2/fenceunc/fenceunc_050_info_raw_html_unclosed.qmd
+  ]);
+  // GATE 2. A FENCED DIV ENDS THE FENCE INSIDE IT. Under `commonmark_x` the closing `:::` ends a div and with it an unclosed fence opened inside; this model keeps no
+  // fence-in-div bound, so the run-to-the-end rule stays off while a div is open (the cost is the old phantom, never a deletion).
+  round2([
+    ["001 div tilde unclosed", "commonmark_x", "markdown", ["::: {.callout-note}","~~~","code",":::","","## After","","tail"], ["Before","After"]], // adv2/mutate/mutate_001_div_tilde_unclosed.qmd
+    ["003 div four colons", "commonmark_x", "markdown", [":::: {.callout-note}","~~~","code","::::","","## After","","tail"], ["Before","After"]], // adv2/mutate/mutate_003_div_four_colons.qmd
+    ["007 div two siblings", "commonmark_x", "markdown", ["::: {.x}","```text","a",":::","","## Mid","","::: {.y}","~~~","b",":::","","## After","","tail"], ["Before","Mid","After"]], // adv2/mutate/mutate_007_div_two_siblings.qmd
+    ["008 div unclosed fence div closer cmx", "commonmark_x", "markdown", ["::: {.callout-note}","","```text","code",":::","","## After","","tail"], ["Before","After"]], // adv2/defs/defs_008_div_unclosed_fence_div_closer_cmx.qmd
+    ["008 div unclosed fence cmx", "commonmark_x", "markdown", ["::: {.callout-note}","```text","code",":::","","## After","tail"], ["Before","After"]], // adv2/fenceunc/fenceunc_008_div_unclosed_fence_cmx.qmd
+    ["011 div nested five colons", "commonmark_x", "markdown", ["::::: {.outer}","::: {.inner}","~~~text","code",":::","## Mid",":::::","","## After","tail"], ["Before","Mid","After"]], // adv2/fenceunc/fenceunc_011_div_nested_five_colons.qmd
+  ]);
+  // GATE 3. INSIDE AN HTML BLOCK A FENCE LINE AND A `<?` LINE ARE TEXT. A block that starts with a tag (`<div>`, `<pre>`, `<span>`, a closing tag, a custom element) runs to the
+  // next blank line, or to its end tag for `<pre>`/`<script>`/`<style>`/`<textarea>`; a fence or a processing instruction inside it is not a fence or a block. The model keeps
+  // no HTML-block state at top level, so both run-to-the-end rules stay off while a line that may start such a block sits in the run directly above (or a raw-content element is open).
+  round2([
+["033 html div then fence tight", "gfm", "markdown", ["<div>","```text","## In","","## After","tail"], ["Before","After"]], // adv2/fenceunc/fenceunc_033_html_div_then_fence_tight.qmd
+    ["034 html closing tag then fence", "gfm", "markdown", ["</div>","```text","## In","","## After","tail"], ["Before","After"]], // adv2/fenceunc/fenceunc_034_html_closing_tag_then_fence.qmd
+    ["040 html details tilde fence", "commonmark", "markdown", ["<details>","~~~text","x","","## After","tail"], ["Before","After"]], // adv2/fenceunc/fenceunc_040_html_details_tilde_fence.qmd
+    ["044 html script fence inside", "gfm", "markdown", ["<script>","```text","</script>","","## After","tail"], ["Before","After"]], // adv2/fenceunc/fenceunc_044_html_script_fence_inside.qmd
+    ["020 div fence unclosed", "gfm", "markdown", ["<div>","```text","## In","","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_020_div_fence_unclosed.qmd
+    ["021 pre fence unclosed", "gfm", "markdown", ["<pre>","```text","</pre>","","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_021_pre_fence_unclosed.qmd
+    ["023 span fence type7", "gfm", "markdown", ["<span>","```","## In","","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_023_span_fence_type7.qmd
+    ["020 div then fence then atx", "gfm", "markdown", ["<div>","```text","x","","## After"], ["Before","After"]], // adv2/headings/headings_020_div_then_fence_then_atx.qmd
+    ["025 closing tag then fence", "gfm", "markdown", ["</div>","```text","## In","","## After"], ["Before","After"]], // adv2/headings/headings_025_closing_tag_then_fence.qmd
+    ["014 div html unclosed fence", "gfm", "markdown", ["<div>","```text","## In","x = 1","</div>","","## After","","tail"], ["Before","After"]], // adv2/mutate/mutate_014_div_html_unclosed_fence.qmd
+    ["018 custom element fence", "gfm", "markdown", ["<my-el>","```text","## In","","## After","","tail"], ["Before","After"]], // adv2/mutate/mutate_018_custom_element_fence.qmd
+    ["001 script pi inside", "gfm", "markdown", ["<script>","<?php","</script>","","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_001_script_pi_inside.qmd
+    ["005 div pi to blank", "gfm", "markdown", ["<div>","<?php","## In","","## Mid","","tail"], ["Before","Mid"]], // adv2/rawhtml2/rawhtml2_005_div_pi_to_blank.qmd
+    ["028 div pi then blank then atx", "gfm", "markdown", ["<div>","<?php","","## After","?>"], ["Before","After"]], // adv2/headings/headings_028_div_pi_then_blank_then_atx.qmd
+    ["029 pre pi closed then atx", "gfm", "markdown", ["<pre>","<?php","</pre>","","## After","?>"], ["Before","After"]], // adv2/headings/headings_029_pre_pi_closed_then_atx.qmd
+    ["031 div cdata then blank then atx", "gfm", "markdown", ["<div>","<![CDATA[","","## After","]]>"], ["Before","After"]], // adv2/headings/headings_031_div_cdata_then_blank_then_atx.qmd
+    ["021 div then pi", "gfm", "markdown", ["<div>","<?x","## In","</div>","","## After","","tail"], ["Before","After"]], // adv2/mutate/mutate_021_div_then_pi.qmd
+  ]);
+  // GATE 4. A ONE-LINE BLOCK ENDS THE PARAGRAPH ABOVE IT. `<?php echo 1; ?>` directly under a prose line is an HTML block that interrupts the paragraph and ends on its own line, so the
+  // `---` below it is a thematic break, not the underline of the prose line: the first cut skipped the line without resetting the paragraph state and the prose became a setext heading.
+  round2([
+    ["033 prose pi line then dashes", "gfm", "markdown", ["Prose before","<?php echo 1; ?>","---","","## After"], ["Before","After"]], // adv2/headings/headings_033_prose_pi_line_then_dashes.qmd
+    ["037 prose pi indent3 then equals", "gfm", "markdown", ["Prose before","  <?php ?>","===","","## After"], ["Before","After"]], // adv2/headings/headings_037_prose_pi_indent3_then_equals.qmd
+    ["011 setext pi closed", "gfm", "markdown", ["Para above","<?php echo 1; ?>","---","","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_011_setext_pi_closed.qmd
+    ["012 setext decl equals", "commonmark", "markdown", ["Para above","<!DOCTYPE html>","===","","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_012_setext_decl_equals.qmd
+    ["019 setext pi trailing text", "commonmark", "markdown", ["Para above","<?php echo 1; ?> trailing","---","","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_019_setext_pi_trailing_text.qmd
+  ]);
+  // GATE 5. THE DEGENERATE COMMENT IS A TOP-LEVEL RULE. `<!-->` and `<!--->` open a comment that runs on, but inside a quote it ends with the quote (an unmarked heading ends it): the container
+  // does not end the model's comment region, so the rule stays at top level.
+  round2([
+    ["001 degen quote unmarked heading", "gfm", "markdown", ["> <!-->","## In","-->","","## After","","tail"], ["Before","In","After"]], // adv2/quotefence/quotefence_001_degen_quote_unmarked_heading.qmd
+    ["002 degen3 quote blank ends", "commonmark", "markdown", ["> <!--->","","## In","-->","","## After","","tail"], ["Before","In","After"]], // adv2/quotefence/quotefence_002_degen3_quote_blank_ends.qmd
+  ]);
 });

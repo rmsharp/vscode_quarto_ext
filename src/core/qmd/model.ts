@@ -6023,6 +6023,29 @@ const CM_RAW_END_PI = /\?>/;
 const CM_RAW_END_CDATA = /\]\]>/;
 const CM_RAW_END_DECL = />/;
 /**
+ * An info string simple enough to be sure the fence is a plain one to a CommonMark reader (Session 296): a word, or nothing. A backtick in a backtick fence's info
+ * string makes it no fence at all (`` ```code``` `` is inline), and a braced info (`{=html}`, `{.python}`, `{bash}`) is a raw attribute or a cell shape that
+ * quarto handles before pandoc. The run-to-the-end rule asks this, because a wrong "fence" there deletes every heading below it (round 2, `adv2`).
+ */
+const PLAIN_FENCE_INFO = /^[A-Za-z0-9_+.#-]*$/;
+/**
+ * Whether a CommonMark raw HTML block may be open at line `x` because a line that can START one sits in the run of non-blank lines directly above it (Session 296): `<` and
+ * a letter, `/`, `!` or `?` at indent 0-3. A block of that kind runs to the next blank line, so a fence line or a `<?` line inside it is text, which the two run-to-the-end
+ * rules cannot see (the scanner keeps no HTML-block state at top level). OVER-APPROXIMATES on purpose (an inline tag starting a line also answers true): the cost of a
+ * wrong yes is the old phantom, the cost of a wrong no is every heading below deleted.
+ */
+function htmlBlockMayBeOpenAbove(lines: readonly string[], x: number): boolean {
+  for (let k = x - 1, n = 0; k >= 0 && n < 200; k--, n++) {
+    if (BLANK_LINE.test(lines[k])) {
+      return false;
+    }
+    if (/^ {0,3}<[A-Za-z/!?]/.test(lines[k])) {
+      return true;
+    }
+  }
+  return false;
+}
+/**
  * The constructs pandoc's block parser tries BEFORE `table`, so a line of one of them above a
  * dash run is NOT a simple table's header row (Session 239).
  *
@@ -8342,7 +8365,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // `<!--` and closes nothing, so those two open a comment that runs on (rendered, `scratchpad/s296/own3/cmt_degen*`).
     if (
       COMMENT_OPEN.test(line) &&
-      !(commonmarkDialect ? COMMENT_CLOSE_AFTER_OPEN : COMMENT_CLOSE).test(line) &&
+      !(commonmarkDialect && contentColumns.length === 0 && !stripQuote ? COMMENT_CLOSE_AFTER_OPEN : COMMENT_CLOSE).test(line) &&
       (commonmarkDialect || lastCommentCloserLine > i)
     ) {
       inComment = true;
@@ -8360,21 +8383,22 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // holding `]]>`; the end marker is searched on the START line too, after the marker, and a block starts at indent 0-3 and may interrupt a paragraph. Every
     // heading inside is swallowed and an unclosed block runs to the end of the document (rendered, `scratchpad/s296/own3`, 102 documents, identical under
     // `gfm`, `commonmark` and `commonmark_x`). Top level only: inside a list item or a quote the block opens later, and those keep the old answer.
-    if (commonmarkDialect && contentColumns.length === 0 && !stripQuote) {
+    if (commonmarkDialect && contentColumns.length === 0 && !stripQuote && rawContentDepth === 0 && !htmlBlockMayBeOpenAbove(lines, i)) {
       const rawBlock = CM_RAW_HTML_BLOCK_START.exec(line);
       if (rawBlock !== null) {
         const end = rawBlock[1] !== undefined ? CM_RAW_END_PI : rawBlock[2] !== undefined ? CM_RAW_END_CDATA : CM_RAW_END_DECL;
+        // A block that ends on its own line still ENDS the paragraph above it (it interrupts one): the line below starts a fresh block (`---` under it is a break, not an underline).
         if (!end.test(line.slice(rawBlock[0].length))) {
           inComment = true;
           commentClose = end;
           commentFresh = false;
-          consecutiveBody = 0;
-          paragraphOpen = false;
-          inPipeTable = false;
-          tableRowsOpen = false;
-          simpleTableRowsOpen = false;
-          quoteOpen = stripQuote;
         }
+        consecutiveBody = 0;
+        paragraphOpen = false;
+        inPipeTable = false;
+        tableRowsOpen = false;
+        simpleTableRowsOpen = false;
+        quoteOpen = stripQuote;
         continue;
       }
     }
@@ -8611,7 +8635,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // (Session 179). Rendered, `scratchpad/s296/own2/uf_*` (30 documents): quarto lists nothing below one under `gfm`, `commonmark` and `commonmark_x`,
         // `## After` included. In a list item it ends with the item (`boundColumn`), a quoted fence is bounded by the quote's own end (`quoteEnds`), and a cell shape is
         // never asked: quarto's partitioner drops an unclosed cell opener.
-        ((commonmarkDialect && !candidate.isCell && !stripQuote) ||
+        ((commonmarkDialect && !candidate.isCell && !stripQuote && PLAIN_FENCE_INFO.test(fence[3].trim()) && liveDiv() === null && rawContentDepth === 0 && !htmlBlockMayBeOpenAbove(lines, i)) ||
           hasCloserBelow(
             pastKnitr ? closerIndexPastKnitr : closerIndex,
             i + 1,
