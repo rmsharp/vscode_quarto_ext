@@ -8414,7 +8414,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // ⚠ **A COMMONMARK FENCE INTERRUPTS A PARAGRAPH AT EVERY CONTAINER COLUMN (Session 296)**, where the `[0]` below is pandoc's markdown rule: an opener at a list
     // item's content column, directly under the item's text, is a real fence there and swallows the heading indented to the same column (rendered,
     // `scratchpad/s296/own4`, 84 documents, identical under the three readers and both engines).
-    const fenceColumns = paragraphOpen && !commonmarkDialect ? [0] : [0, ...contentColumns];
+    // ⚠ Inside or after a QUOTE the `[0]` stays (Session 296, the product grid `scratchpad/s296/prod`): this model's quote extent counts an unmarked `## In` as a lazy
+    // line where the CommonMark readers end the quote at it, so a widened window made a quoted opener swallow the heading below the quote's real end.
+    const fenceColumns = paragraphOpen && (!commonmarkDialect || stripQuote || quoteOpen) ? [0] : [0, ...contentColumns];
     const plainFence = fenceMatchAt(FENCE_OPEN, line, fenceColumns);
     // ⚠ **THE UNBOUNDED SECOND LOOK IS QUARTO'S EXECUTABLE-CELL GRAMMAR, AND IT IS SKIPPED WHERE THAT
     // GRAMMAR DOES NOT APPLY (Session 293, `indentedCellFenceFor`).** Under `engine: markdown` pandoc reads
@@ -8437,8 +8439,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           // ⚠ **THE COMMONMARK FAMILY IS FREE WHEREVER THE OPENER SITS (Session 296)**: an ATX line interrupts a paragraph there, so an indent-4 opener that
           // is not a CommonMark fence is code or a lazy line and the `## In` under it is a heading (rendered, `scratchpad/s296/{g1,g2,g3}`, 864 documents:
           // uniform across both engine hints, the three readers and indents 4 and 8; inside a list item deeper than its code depth too). It has NO example
-          // lists, so a `(@)` marker above withdraws nothing there (`scratchpad/s296/own`); a raw HTML block that runs over the opener is held by the scanner's
-          // own state, and the container-bound real fence at rel 0-3 is the filed container-fence item, not this one.
+          // lists, so a `(@)` marker above withdraws nothing there (`scratchpad/s296/own`). What this does NOT free: a raw HTML block that runs over the opener
+          // is held by the scanner's own state at top level only (inside a list item it is not: filed), and an opener indented 0-3 past an item's content column
+          // is a real fence, which `fenceColumns` now sees and `boundColumn` ends with its item.
+          // The pandoc-only terms below (`contentColumns`, the block-boundary list, `freeCaseTableReader`, the HTML rule) are never asked under these readers.
           (commonmarkDialect ||
             ((firstExampleMarker < 0 || firstExampleMarker >= i) &&
               contentColumns.length === 0 &&
@@ -8452,7 +8456,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
                 // tables and line blocks: measured under pandoc's markdown and the CommonMark family, and NOT `markdown_strict` (see `freeCaseTableReader`)
                 (freeCaseTableReader && tableOrLineBlockEndsAt(lines, i - 1)) ||
                 // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`); pandoc's markdown only:
-                // `markdown_strict` ends one only after a blank line and the CommonMark family reads raw HTML blocks differently
+                // `markdown_strict` ends one only after a blank line (the CommonMark family never reaches this: it is free wherever the opener sits)
                 (rawContentDepth === 0 &&
                   endsHtmlBlock(
                     lines[i - 1],
@@ -8605,7 +8609,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         !refused &&
         // ⚠ **UNDER A COMMONMARK READER AN UNCLOSED PLAIN FENCE RUNS TO THE END OF THE DOCUMENT (Session 296)**, where pandoc's markdown needs a closer below
         // (Session 179). Rendered, `scratchpad/s296/own2/uf_*` (30 documents): quarto lists nothing below one under `gfm`, `commonmark` and `commonmark_x`,
-        // `## After` included. Top level only (a container ends it earlier), unquoted, and never a cell shape: quarto's partitioner drops an unclosed cell opener.
+        // `## After` included. In a list item it ends with the item (`boundColumn`), a quoted fence is bounded by the quote's own end (`quoteEnds`), and a cell shape is
+        // never asked: quarto's partitioner drops an unclosed cell opener.
         ((commonmarkDialect && !candidate.isCell && !stripQuote) ||
           hasCloserBelow(
             pastKnitr ? closerIndexPastKnitr : closerIndex,
@@ -10881,8 +10886,8 @@ const FREE_CASE_TABLE_READER_BASES: ReadonlySet<string> = new Set(["markdown", "
  *
  * ⚠ **THE BLOCK CLASS INTERRUPTS A PARAGRAPH AND THE EITHER CLASS DOES NOT**, which is the split `HTML_BLOCK_OPEN` and `HTML_BLOCK_OR_INLINE_OPEN`
  * already draw: an either-class element ends the block only where it began fresh (`beganFresh`), and is inline text under a prose line.
- * ⚠ The caller refuses this inside an open RAW-CONTENT element (`rawContentDepth`) and under a CommonMark-family reader, where a raw block runs to
- * the next blank line and quarto agrees with HEAD. `againstParagraph` is the refusal outside pandoc's markdown: the rule holds there only for a block whose run begins with a tag.
+ * ⚠ The caller refuses this inside an open RAW-CONTENT element (`rawContentDepth`). It is never asked under a CommonMark-family reader (Session 296: the free case
+ * holds there wherever the opener sits). `againstParagraph` is the refusal outside pandoc's markdown: the rule holds there only for a block whose run begins with a tag.
  */
 function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: boolean): boolean {
   if (againstParagraph) {

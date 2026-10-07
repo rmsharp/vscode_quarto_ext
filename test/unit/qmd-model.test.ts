@@ -23013,4 +23013,17 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
   ])("RESIDUAL, kept on purpose: %s (quarto lists nothing after Before)", (_label, lines) => {
     expect(texts(exact("markdown", "gfm", lines), "markdown")).toEqual(["Before", "In"]); // quarto: Before
   });
+  // SLICE 8. A QUOTE'S OWN END IS NOT THIS MODEL'S QUOTE EXTENT. The product grid (`scratchpad/s296/prod`, 1,200 seeded documents) found seven documents where slice 6
+  // turned a right answer into a DELETION: a list inside a block quote, the opener on a quote-marked line, then an UNMARKED `## In` (an ATX line ends the quote
+  // under the CommonMark readers, where this model's quote extent treats it as a lazy line) and a marked closer below it. The widened fence window made the
+  // opener a fence whose closer lies "within the quote", so it swallowed `## In`. Inside or after a quote the window stays `[0]`, as at HEAD.
+  it.each<[string, string[], string[]]>([
+    ["a backtick fence", ["> - item one", ">      ```text", "## In", "x = 1", ">      ```"], LISTED],
+    ["a python cell shape", ["> - item one", ">     ```{python}", "## In", "x = 1", ">     ```"], LISTED],
+    ["a tilde fence and two headings", ["> - item one", ">      ~~~", "## In", "x = 1", "## In2", ">      ~~~"], ["Before", "In", "In2", "After"]],
+  ])("RED->GREEN: under a CommonMark reader %s opened on a quote-marked line inside a quoted list item does not swallow the unmarked heading below", (_label, lines, expected) => {
+    for (const from of ["gfm", "commonmark", "commonmark_x"]) {
+      expect(texts(raw("markdown", from, lines), "markdown"), from).toEqual(expected);
+    }
+  });
 });
