@@ -8386,7 +8386,16 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // `<!--` and closes nothing, so those two open a comment that runs on (rendered, `scratchpad/s296/own3/cmt_degen*`).
     if (
       COMMENT_OPEN.test(line) &&
-      !(commonmarkDialect && contentColumns.length === 0 && !stripQuote ? COMMENT_CLOSE_AFTER_OPEN : COMMENT_CLOSE).test(line) &&
+      !(commonmarkDialect &&
+      contentColumns.length === 0 &&
+      !stripQuote &&
+      /^ {0,3}<!--/.test(line) &&
+      rawContentDepth === 0 &&
+      liveDiv() === null &&
+      !htmlBlockMayBeOpenAbove(lines, i)
+        ? COMMENT_CLOSE_AFTER_OPEN
+        : COMMENT_CLOSE
+      ).test(line) &&
       (commonmarkDialect || lastCommentCloserLine > i)
     ) {
       inComment = true;

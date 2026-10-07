@@ -23144,4 +23144,56 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
     ["039 stale ordered list indent6 code then atx", "gfm", "markdown", ["1. item","## Mid","      ```text","   ## After"], ["Before","Mid","After"]], // adv2/headings/headings_039_stale_ordered_list_indent6_code_then_atx.qmd
     ["040 stale list atx then tab code then atx", "gfm", "markdown", ["- item","## Mid","\t```text","  ## After"], ["Before","Mid","After"]], // adv2/headings/headings_040_stale_list_atx_then_tab_code_then_atx.qmd
   ]);
+  // GATE 5b. THE DEGENERATE COMMENT NEEDS INDENT 0-3 AND NO HTML BLOCK OPEN ABOVE. At indent 4 it is code (or a lazy line), and inside a `<div>` run it is text: the first cut applied the "closes nothing"
+  // rule to every line the comment pattern matched, which takes any indent. (Round 2 `quotefence_003`, `004`, `008`, `headings_032`.)
+  round2([
+["003 degen indent4 code after blank", "commonmark_x-smart", "markdown", ["para","","    <!-->","## In","-->","","## After","","tail"], ["Before","In","After"]], // adv2/quotefence/quotefence_003_degen_indent4_code_after_blank.qmd
+    ["004 degen lazy quote indent4 jupyter", "gfm", "jupyter", ["> para","    <!-->","## In","-->","","## After","","tail"], ["Before","In","After"]], // adv2/quotefence/quotefence_004_degen_lazy_quote_indent4_jupyter.qmd
+    ["008 degen after closed qfence indent4", "commonmark", "markdown", ["> ```text","> x","> ```","    <!-->","## In","-->","","## After","","tail"], ["Before","In","After"]], // adv2/quotefence/quotefence_008_degen_after_closed_qfence_indent4.qmd
+    ["032 div degenerate comment then blank atx", "gfm", "markdown", ["<div>","<!-->","","## After","-->"], ["Before","After"]], // adv2/headings/headings_032_div_degenerate_comment_then_blank_atx.qmd
+  ]);
+  // RESIDUALS OF ROUND 2, kept on purpose (each row is a rendered document: the fifth cell is QUARTO's answer, the sixth is this model's, pinned so a future rule flips it on purpose). Each is an OLDER gap
+  // that HEAD's cell pairing happened to hide, and each is filed in `BACKLOG.md`.
+  type Residual = [string, string, Eng, string[], string[], string[]];
+  const residual = (title: string, rows: Residual[]) =>
+    it.each(rows)(`RESIDUAL, kept on purpose: ${title}: %s`, (_label, from, eng, lines, _quarto, model) => {
+      expect(texts(exact(eng, from, lines), eng)).toEqual(model);
+    });
+  // A marker line that opens TWO items (`- - item`, `1. 1.`, `- 1.`, `-   - item`, `10. - item`): this model's stack holds ONE column for it (the filed multi-marker item), so the fence bound reads
+  // the outer column and a heading at the outer item's column stays inside the fence. (`itemfence_001`-`006`; DELETION.)
+  residual("a multi-marker line opens one column", [
+    ["002 ol ol text", "commonmark+smart", "markdown", ["1. 1. item","      ```text","   ## In","      x = 1","      ```","## After","","tail"], ["Before","In","After"], ["Before","After"]], // adv2/itemfence/itemfence_002_ol_ol_text.qmd
+    ["003 bullet ol text", "commonmark", "markdown", ["- 1. item","     ```text","  ## In","     ```","## After","","tail"], ["Before","In","After"], ["Before","After"]], // adv2/itemfence/itemfence_003_bullet_ol_text.qmd
+    ["004 gap3 nested", "gfm", "markdown", ["-   - item","      ```text","    ## In","      ```","## After","","tail"], ["Before","In","After"], ["Before","After"]], // adv2/itemfence/itemfence_004_gap3_nested.qmd
+    ["005 nest2 unclosed mid", "commonmark", "markdown", ["- - item","    ```text","    ## Swallowed","  ## Mid","## After","","tail"], ["Before","Mid","After"], ["Before","After"]], // adv2/itemfence/itemfence_005_nest2_unclosed_mid.qmd
+    ["006 ol10 bullet python", "commonmark", "markdown", ["10. - item","      ```python","    ## In","      x = 1","      ```","## After","","tail"], ["Before","In","After"], ["Before","After"]], // adv2/itemfence/itemfence_006_ol10_bullet_python.qmd
+  ]);
+  // A marker that cannot interrupt a paragraph (`2. item`, `2) item`, an empty `*`, `+` or `-`) is paragraph text to CommonMark, but this model opens a container for it (the filed marker-grammar item),
+  // and the fence window and bound then read a column that is not there. (`itemfence_013`-`017`, `023`.)
+  residual("a marker that cannot interrupt a paragraph still opens a column", [
+    ["014 paren3 hash0", "commonmark", "markdown", ["Para above","2) item","   ```{bash}","## In","x = 1","   ```","","## After","","tail"], ["Before","After"], ["Before","In"]], // adv2/itemfence/itemfence_014_paren3_hash0.qmd
+    ["015 star empty bash", "gfm", "markdown", ["Para above","*","  ```{bash}","## In","x = 1","  ```","","## After","","tail"], ["Before","After"], ["Before","In"]], // adv2/itemfence/itemfence_015_star_empty_bash.qmd
+    ["016 plus empty text", "commonmark_x", "markdown", ["Para above","+","  ```text","## In","  ```","","## After","","tail"], ["Before","After"], ["Before","In"]], // adv2/itemfence/itemfence_016_plus_empty_text.qmd
+    ["017 dash setext fence", "gfm", "markdown", ["Para above","-","  ```{bash}","## In","x = 1","  ```","## After","","tail"], ["Before","Para above","After"], ["Before","Para above","In"]], // adv2/itemfence/itemfence_017_dash_setext_fence.qmd
+    ["023 jup ord2 bash", "gfm", "jupyter", ["Para above","2. item","   ```{bash}","## In","x = 1","   ```","## After","","tail"], ["Before","After"], ["Before","In"]], // adv2/itemfence/itemfence_023_jup_ord2_bash.qmd
+  ]);
+  // A multi-line setext underline whose title runs through an unmarked lazy quote line and an opener that is no longer a cell: quarto reads `In` as lazy quote text and the underline as plain text, this
+  // model joins the lot into one heading (the filed lazy-quote setext item; PHANTOM). (`quotefence_009`-`015`.)
+  residual("a setext underline below a lazy quote line", [
+    ["010 lazyunderline dash commonmark", "'commonmark'", "markdown", ["> para","    ```{bash}","In","---","    ```","","## After","","tail"], ["Before","After"], ["Before","> para ```{bash} In","After"]], // adv2/quotefence/quotefence_010_lazyunderline_dash_commonmark.qmd
+    ["013 lazyunderline double dash", "gfm", "markdown", ["> para","    ```{bash}","In","--","    ```","","## After","","tail"], ["Before","After"], ["Before","> para ```{bash} In","After"]], // adv2/quotefence/quotefence_013_lazyunderline_double_dash.qmd
+    ["015 lazyunderline jupyter", "gfm", "jupyter", ["> para","    ```{bash}","In","---","    ```","","## After","","tail"], ["Before","After"], ["Before","> para ```{bash} In","After"]], // adv2/quotefence/quotefence_015_lazyunderline_jupyter.qmd
+  ]);
+  // A `from:` the resolver misreads (the accepted R7 residual: inside a multi-line flow collection, a re-declared anchor, a mid-document block in a fence) turns the CommonMark rules on for a document quarto reads
+  // as pandoc's markdown, and the run-to-the-end rules then DELETE the headings below. (`controls_031`-`044`.)
+  it.each<[string, string[], string[], string[]]>([
+["031 flowseq hidden from uf", ["---","title: \"T\"","engine: markdown","custom: [a,","from: gfm]","---","","## Before","","Para above","","```text","","## Inside","","## After","","tail"], ["Before","Inside","After"], ["Before"]], // adv2/controls/controls_031_flowseq_hidden_from_uf.qmd
+    ["033 params flowmap hidden from cdata", ["---","title: \"T\"","engine: markdown","params: {a: 1,","from: gfm}","---","","## Before","","<![CDATA[","","## Inside","","]]>","","## After","","tail"], ["Before","Inside","After"], ["Before","After"]], // adv2/controls/controls_033_params_flowmap_hidden_from_cdata.qmd
+    ["034 flow anchor hidden from degenerate", ["---","title: \"T\"","engine: markdown","custom: &a [x,","from: gfm]","---","","## Before","","<!-->","","## Inside","","-->","","## After","","tail"], ["Before","Inside","After"], ["Before","After"]], // adv2/controls/controls_034_flow_anchor_hidden_from_degenerate.qmd
+    ["035 json style params hidden unquoted", ["---","{title: \"T\", engine: markdown,","params: {a: 1,","from: gfm}}","---","","## Before","","Para above","","```text","","## Inside","","## After","","tail"], ["Before","Inside","After"], ["Before"]], // adv2/controls/controls_035_json_style_params_hidden_unquoted.qmd
+    ["037 anchor redeclared markdown wins", ["---","title: \"T\"","engine: markdown","a: &r gfm","b: &r markdown","from: *r","---","","## Before","","Para above","","```text","","## Inside","","## After","","tail"], ["Before","Inside","After"], ["Before"]], // adv2/controls/controls_037_anchor_redeclared_markdown_wins.qmd
+    ["044 mid block in list fence", ["---","title: \"T\"","engine: markdown","---","","- item","","  ```yaml","---","from: gfm","---","  ```","","## Before","","Para above","","```text","","## Inside","","## After","","tail"], ["Before","Inside","After"], ["from: gfm"]], // adv2/controls/controls_044_mid_block_in_list_fence.qmd
+  ])("RESIDUAL, kept on purpose: a misread from: key (%s)", (_label, lines, _quarto, model) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(model);
+  });
 });
