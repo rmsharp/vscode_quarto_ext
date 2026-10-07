@@ -23606,4 +23606,39 @@ describe("Session 297 — the reader the two run-to-the-end rules trust is PROVE
   ])("RED->GREEN: a document that includes text or metadata files the model cannot see proves no reader (%s)", (_label, lines, quarto) => {
     expect(texts(doc(...lines), "markdown")).toEqual(quarto);
   });
+  // MUTATION KILLERS (observable terms; each row passes on arrival, disclosed). 52 of 93 single-term mutants of the proof survived the unit suite; the ones below are the ones
+  // a RENDERED document tells apart from the real build (the real build matches quarto, the mutant does not), so each document is a row: the Unicode-whitespace and dash-
+  // column terms, the dash-item block column, the plain-key character set, a tab after the colon, the block-scalar end test, a trailing space after a delimiter, a backslash
+  // escape in a wrapped quote, a comment after a quoted key, an indentation indicator, a comment inside a wrapped flow. quarto's answer is the claim.
+  it.each<[string, string[], string[]]>([
+    ["unicode ideographic key flow", ["---", "title: \"T\"", "engine: markdown", "abstract: |", "  text", "　q: [a,", "from: gfm]", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/wrapped/wrapped_032_unicode_ideographic_key_flow.qmd
+    ["unicode nbsp key after block dq", ["---", "title: \"T\"", "engine: markdown", "abstract: |", "  text", " q: \"open", "from: gfm\"", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/wrapped/wrapped_030_unicode_nbsp_key_after_block_dq.qmd
+    ["item nested dash block", ["---", "title: \"T\"", "engine: markdown", "items:", "- - |", "    nested bare text", "from: gfm", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // adv2/block/block_018_item_nested_dash_block.qmd
+    ["item bare one space", ["---", "title: \"T\"", "engine: markdown", "items:", "- |", " one-space item", "from: gfm", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before","After"]], // adv2/block/block_017_item_bare_one_space.qmd
+    ["gf p21 list before decl", ["---", "title: \"T\"", "engine: markdown", "author:", "  - A", "  - B", "from: gfm", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf/gf_p21_list_before_decl.qmd
+    ["ek keep md", ["---", "title: \"T\"", "engine: markdown", "keep-md: true", "from: gfm", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","After"]], // adv3/docshape2/docshape2_050_ek_keep_md.qmd
+    ["pandocargs flow attached f", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "pandoc-args: [-fmarkdown]", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // adv3/semantics/semantics_015_pandocargs_flow_attached_f.qmd
+    ["gf p24 tab after colon decl", ["---", "title: \"T\"", "engine: markdown", "from:\tgfm", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf/gf_p24_tab_after_colon_decl.qmd
+    ["lit strip indent2", ["---", "title: \"T\"", "engine: markdown", "abstract: |-2", "  text at two", "from: gfm", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // adv2/block/block_004_lit_strip_indent2.qmd
+    ["empty then sibling", ["---", "title: \"T\"", "engine: markdown", "abstract: |", "from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // adv2/block/block_022_empty_then_sibling.qmd
+    ["glue trailing spaces", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "<!-- c -->---   ", "from: markdown", "<!-- c -->---   ", "", "<!-- never closed", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv3/bodyblocks/bodyblocks_007_glue_trailing_spaces.qmd
+    ["wrap dq escaped quote at eol", ["---", "title: \"T\"", "engine: markdown", "desc: \"say \\\"hi\\\"", "  more\"", "from: gfm", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // adv2/wrapped/wrapped_036_wrap_dq_escaped_quote_at_eol.qmd
+    ["fmt key comments", ["---", "title: \"T\"", "engine: markdown", "format:  # outputs", "  html:  # the page", "    from: gfm  # CommonMark", "---", "", "## Before", "", "<!X", "", "## Inside", "", ">", "", "## After", "", "tail"], ["Before","After"]], // adv2/paths/paths_039_fmt_key_comments.qmd
+    ["after indent indicator", ["---", "title: \"T\"", "engine: markdown", "abstract: |2", "    from: markdown", "from: gfm", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","After"]], // adv/flowq/flowq_045_after_indent_indicator.qmd
+    ["wrap flow comment bracket then close comment", ["---", "title: \"T\"", "engine: markdown", "custom: [a, # ]", "  b] # }", "from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // adv2/wrapped/wrapped_045_wrap_flow_comment_bracket_then_close_comment.qmd
+  ])("mutation killer (passes on arrival): the proof matches quarto here (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // MUTATION WITNESSES, CRAFTED AND RENDERED (`scratchpad/s297/pr8`). Three guards no earlier document reached: the body check must see a `---` that is the FIRST line of the
+  // body when a `...` closes the block (the mutant that drops the first body line accepts and deletes: quarto lists everything), an escaped `from` key inside a per-format
+  // FLOW mapping (the mutant without the backslash test accepts and deletes: quarto lists everything), and a block scalar with a blank line inside (a retention term: quarto
+  // reads the CommonMark reader).
+  it.each<[string, string[], string[]]>([
+    ["pr8 a stacked first line dots", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "---", "from: markdown", "...", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // pr8/pr8_a_stacked_first_line_dots.qmd
+    ["pr8 b flow escaped key perfmt", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "format: {html: {\"fro\\u006d\": markdown}}", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // pr8/pr8_b_flow_escaped_key_perfmt.qmd
+    ["pr8 c block internal blank", ["---", "title: \"T\"", "engine: markdown", "abstract: |", "  first", "", "  second", "from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // pr8/pr8_c_block_internal_blank.qmd
+    ["pr9 a first line escaped dots", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "---", "\"fro\\u006d\": markdown", "...", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // pr9/pr9_a_first_line_escaped_dots.qmd
+  ])("mutation witness (passes on arrival): the proof matches quarto here (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
 });
