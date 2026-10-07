@@ -22338,4 +22338,40 @@ describe("Session 295 — the free case's block-boundary list", () => {
       expect(texts(probe(eng, "blank", [...x, ""]), eng), `${eng}: a blank line between the break and the opener`).toEqual(LISTED);
     }
   });
+  // SLICE 2. AN INDENTED CODE LINE directly above the opener: the opener is one more line of the same code block, so its heading is real.
+  // Rendered (`scratchpad/s295/bb` `indcode_*`, `scratchpad/s295/disc/code` `code_001`, `003`, `004`, `006`, `007`, `013`, `016`). Directly under a
+  // prose line the first indented line is a lazy continuation of the paragraph and nothing changes, EXCEPT that a blank line inside the run
+  // ends the paragraph, so a code line after it is code whatever was above the run (`indcode_two` under a paragraph lists `In`).
+  it.each<[string, string[], string]>([
+    ["one line, four spaces", ["    print(1)"], "four spaces under a paragraph is a lazy continuation"],
+    ["one line, a tab", ["\tprint(1)"], "a tab under a paragraph is a lazy continuation"],
+    ["three tab lines", ["\ta = 1", "\tb = 2", "\tc = 3"], "a tab run under a paragraph is a lazy continuation"],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below indented code lines (%s) is more of the code block", (_label, x) => {
+    FRESH_ONLY(x);
+    // the opener indented DEEPER than the code is still inside the same code block (`code_016`)
+    expect(texts(probe("markdown", "blank", x, "        "), "markdown")).toEqual(LISTED);
+  });
+  it.each<[string, string[]]>([
+    ["a blank line inside the run", ["    a = 1", "", "    b = 2"]],
+    ["a whitespace-only line inside the run", ["    a = 1", "    ", "    b = 2"]],
+    ["a tab run with a blank line inside", ["\tfirst = 1", "", "\tsecond = 2"]],
+  ])("RED->GREEN: after indented code with %s the opener lists its heading in every context", (_label, x) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      for (const ctx of ["blank", "heading", "paragraph"] as const) {
+        expect(texts(probe(eng, ctx, x), eng), `${eng}: ${ctx}`).toEqual(LISTED);
+      }
+    }
+  });
+  // GUARD (found by the sweep, not by a designed row: the first cut of slice 2 turned seven rendered documents from right to phantom). An
+  // indented `{bash}` directly under a prose line is PARAGRAPH TEXT to quarto, but this model pairs it with the next `    ` + backticks line as
+  // a cell; that closer is not an ordinary indented code line, so the opener below it is not free, and the heading inside the second
+  // one stays swallowed exactly as quarto swallows it (`scratchpad/s295/bt/bt_chain_closer_opener_*`, `disc/code/code_041`, `044`, `047`, `053`).
+  it.each<[string, string[]]>([
+    ["a bash cell chain under a paragraph", ["    ```{bash}", "x", "    ```"]],
+    ["a paired indent-4 cell and closer under a paragraph", ["    ```{bash}", "    echo hi", "    ```"]],
+  ])("GUARD: %s: the closer is no code line, so the second opener stays paired", (_label, x) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "paragraph", x), eng), eng).toEqual(SWALLOWED);
+    }
+  });
 });

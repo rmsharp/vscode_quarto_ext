@@ -7133,6 +7133,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   let inFrontmatter = false;
   let inComment = false;
   let open: OpenCellFence | null = null;
+  // The last line the scanner consumed INSIDE a fence or cell region, its closer included (Session 295). A line the scanner paired as a
+  // cell is not an ordinary body line to quarto when the cell was never a cell (an indented `{bash}` under a paragraph is paragraph text),
+  // so `endsFreshBlock` must not read that closer as an indented code line: `-2` = none.
+  let lastFenceLine = -2;
   // ⚠ Set when a jupyter kernel opener is DROPPED (Session 293, `closesOnOwnIndent`): quarto's cell partition never
   // leaves "inside a cell" after it, so every later line is plain markdown and no later line is a kernel cell.
   let kernelPartitionDead = false;
@@ -7954,6 +7958,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // Inside a code fence, only the matching closer matters — a `#`, `-->`, or
     // nested fence here is literal. Emit the cell when the fence closes.
     if (open !== null) {
+      lastFenceLine = i;
       // ⚠ A silent knitr chunk's closer closes only that chunk — pandoc never sees it, so a
       // region opened ABOVE the chunk runs on past it (Session 275; `knitrSilentChunkClosers`).
       const knitrConsumed = knitrSilent.has(i) && knitrPastOpeners.has(open.startLine);
@@ -8319,7 +8324,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         contentColumns.length === 0 &&
           !stripQuote &&
           (firstExampleMarker < 0 || firstExampleMarker >= i) &&
-          (i === 0 || endsBlock(lines[i - 1]) || endsFreshBlock(lines[i - 1], paragraphOpenAboveHeader)),
+          (i === 0 ||
+            endsBlock(lines[i - 1]) ||
+            endsFreshBlock(lines[i - 1], !paragraphOpenAboveHeader && lastFenceLine !== i - 1)),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -10584,11 +10591,16 @@ function endsBlock(line: string): boolean {
  * Whether `line` is a one-line block that ENDS ITSELF and began a FRESH block (Session 295): pandoc is between blocks after it only
  * where no paragraph was open before it. Rendered (`scratchpad/s295/{bb,bt,bh}`): a thematic break below a blank line or an ATX
  * heading leaves the next indent-4 line indented CODE, and the same break directly under a prose line is paragraph text (a lazy
- * continuation, `THEMATIC_BREAK`'s own docstring), so the opener is text and its heading is swallowed. `paragraphOpenBefore` is the
- * scanner's state as the line began (`paragraphOpenAboveHeader`), the one fact the line's own bytes cannot supply.
+ * continuation, `THEMATIC_BREAK`'s own docstring), so the opener is text and its heading is swallowed. `beganFresh` is the scanner's
+ * state as the line began (no paragraph open before it, and the line is not one the scanner consumed inside a fence or cell region),
+ * the one fact the line's own bytes cannot supply.
  */
-function endsFreshBlock(line: string, paragraphOpenBefore: boolean): boolean {
-  return !paragraphOpenBefore && THEMATIC_BREAK.test(line);
+function endsFreshBlock(line: string, beganFresh: boolean): boolean {
+  // The columns are `[0]` because the caller's free case has no container open. An indented code line is one more line of its block, so
+  // the opener below it is code too (`scratchpad/s295/disc/code`: quarto lists the heading inside, HEAD swallowed it); directly under a
+  // prose line the same bytes are a lazy continuation, which `beganFresh` already refuses. A cell closer the scanner paired is not an
+  // ordinary code line: seven rendered documents where HEAD was right regressed when it was read as one (`bt_chain_*`, `code_041`).
+  return beganFresh && (THEMATIC_BREAK.test(line) || indentedCodeLine(line, [0]));
 }
 
 /** The run of whitespace a line starts with — `\s*`, the same class both cell regexes use. */
