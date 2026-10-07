@@ -7158,6 +7158,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // The line that closed a REAL KERNEL CELL (a jupyter cell in the document's kernel language that closed at its own indent, `OpenCellFence.indent`).
   // Quarto cuts such a cell out of the markdown it hands pandoc, so the line below it starts fresh whatever was above the cell (Session 295).
   let kernelCellCloserLine = -2;
+  // How many raw-content elements (`HTML_RAW_CONTENT_TAG`) are open above, counted over ordinary body lines only (fences and comments are skipped by the
+  // scanner before they reach the count), floored at zero.
+  let rawContentDepth = 0;
   // Whether the HTML comment region now open began FRESH at column 0 — no paragraph open before its first line (a comment under a prose line is part
   // of that paragraph) — and under a reader whose comment rule was measured (pandoc markdown; the CommonMark family is not).
   let commentFresh = false;
@@ -8356,14 +8359,20 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         kernelLanguage,
         kernelPartitionDead,
         line,
-        contentColumns.length === 0 &&
+        // LAZY (Session 295): the block-boundary list grew past a few regexes, and only an indented cell opener ever asks.
+        () =>
+          contentColumns.length === 0 &&
           !stripQuote &&
           (firstExampleMarker < 0 || firstExampleMarker >= i) &&
           (i === 0 ||
             endsBlock(lines[i - 1]) ||
             endsFreshBlock(lines[i - 1], !paragraphOpenAboveHeader && lastFenceLine !== i - 1) ||
             freshBlockEndLine === i - 1 ||
-            kernelCellCloserLine === i - 1),
+            kernelCellCloserLine === i - 1 ||
+            // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`)
+            (!commonmarkDialect &&
+              rawContentDepth === 0 &&
+              endsHtmlBlock(lines[i - 1], !paragraphOpenAboveHeader && lastFenceLine !== i - 1))),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -9564,6 +9573,18 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         !commonmarkDialect &&
         deepAtxHeaderLineIsBlock(line, rawTexColumns, tightAtxDialect && literalHtmlLines?.has(i) !== true) &&
         (!paragraphOpen || (markdownFamilyDialect && !blankBeforeHeaderDialect));
+      if (line.includes("<")) {
+        for (const tag of line.matchAll(HTML_RAW_CONTENT_TAG)) {
+          if (tag[3] === "/") {
+            continue; // self-closing: opens nothing
+          }
+          if (tag[1] === "/") {
+            rawContentDepth = Math.max(0, rawContentDepth - 1);
+          } else if (/^ {0,3}$/.test(line.slice(0, tag.index))) {
+            rawContentDepth += 1;
+          }
+        }
+      }
       if (deepHeaderHere && !stripQuote) {
         freshBlockEndLine = i; // a header is one line and ends itself (Session 295; the Outline never shows it)
       }
@@ -10585,7 +10606,7 @@ function indentedCellFenceFor(
   kernel: string | null,
   kernelPartitionDead: boolean,
   line: string,
-  free: boolean,
+  free: () => boolean,
 ): RegExpExecArray | null {
   const m = indentedCellFenceAt(line);
   // ⚠ Only the FREE case is narrowed: the line above ENDS A BLOCK (`endsBlock`, which also means no
@@ -10598,7 +10619,7 @@ function indentedCellFenceFor(
   // `firstExampleMarker`) — so those keep the answer this model always gave (Session 293, round 2). The paragraph, block-boundary and container terms are each pinned by a rendered row; the
   // QUOTE term is not: no probe of 1,075 separates it (a quoted cell is never a cell, so the line is
   // refused either way), and it stays as a fail-safe that keeps HEAD's answer where nothing measured.
-  if (m === null || !free) {
+  if (m === null || !free()) {
     return m;
   }
   const lang = CELL_INFO.exec(m[3].trim())![1];
@@ -10657,6 +10678,48 @@ function endsFreshBlock(line: string, beganFresh: boolean): boolean {
   // ordinary code line: seven rendered documents where HEAD was right regressed when it was read as one (`bt_chain_*`, `code_041`).
   return beganFresh && (THEMATIC_BREAK.test(line) || LINK_REFERENCE_DEFINITION.test(line) || indentedCodeLine(line, [0]));
 }
+
+/**
+ * Whether `line` COMPLETES a raw HTML block element, so pandoc is between blocks after it (Session 295). Rendered over 129 tag names x six
+ * shapes (`scratchpad/s295/tg`, 774 documents): a closing tag, an empty element, a one-line element and a multi-line element end the block for
+ * EXACTLY the names in `PANDOC_BLOCK_CLOSE_TAGS` and `PANDOC_EITHER_TAGS` — every probed name in the first, all sixteen of the second, and no
+ * other (inline tags, void tags and unknown names leave the indented line below as paragraph text). A lone OPENING tag does it for `<div>` alone:
+ * pandoc reads an unclosed div as markdown content, while an unclosed `<details>`, `<table>` or `<pre>` is not a block at all.
+ *
+ * ⚠ **THE BLOCK CLASS INTERRUPTS A PARAGRAPH AND THE EITHER CLASS DOES NOT**, which is the split `HTML_BLOCK_OPEN` and `HTML_BLOCK_OR_INLINE_OPEN`
+ * already draw: an either-class element ends the block only where it began fresh (`beganFresh`), and is inline text under a prose line.
+ * ⚠ The caller refuses this inside an open RAW-CONTENT element (`rawContentDepth`) and under a CommonMark-family reader, where a raw block runs to
+ * the next blank line and nothing here was measured.
+ */
+function endsHtmlBlock(line: string, beganFresh: boolean): boolean {
+  if (HTML_DIV_OPEN_ALONE.test(line)) {
+    return true;
+  }
+  const m = HTML_ELEMENT_COMPLETES.exec(line);
+  if (m === null) {
+    return false;
+  }
+  return beganFresh || ![m[1], m[2], m[3]].some((name) => name !== undefined && HTML_EITHER_NAME.test(name));
+}
+/**
+ * The tag names pandoc's markdown reader is block-level for, as a CLOSER (Session 295): `PANDOC_BLOCK_CLOSE_TAGS` plus `PANDOC_EITHER_TAGS`. The line
+ * is either a closing tag alone (`</div>`) or starts with such a tag, opening or closing, and ENDS with such a closing tag (`<li>item</li>`,
+ * `</td></tr>`, `<summary>More</summary>`). Anything after the last closer keeps the line a paragraph.
+ */
+const HTML_ELEMENT_COMPLETES = new RegExp(
+  "^ {0,3}(?:</(" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")[ \\t]*>" +
+    "|</?(" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")(?=[ \\t/>]|$)[^\\n]*</(" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")[ \\t]*>)[ \\t]*$",
+  "i",
+);
+const HTML_DIV_OPEN_ALONE = /^ {0,3}<div(?:[ \t][^>]*)?>[ \t]*$/i;
+const HTML_EITHER_NAME = new RegExp("^(?:" + PANDOC_EITHER_TAGS + ")$", "i");
+/**
+ * An element whose CONTENT IS NOT MARKDOWN (Session 295): inside an open `<pre>`, `<script>`, `<style>` or `<textarea>` even a complete
+ * `<div>x</div>` is raw text, so the opener below it is swallowed with the rest (`scratchpad/s295/ob`, `ob_below_pre_in_div` and three siblings),
+ * where inside a `table`, `ul`, `details` or `section` — whose content is markdown — the same line ends the block. An OPEN tag counts only at the
+ * start of a line (a block position); a closer counts anywhere.
+ */
+const HTML_RAW_CONTENT_TAG = /<(\/?)(pre|script|style|textarea)\b[^>]*?(\/?)>/gi;
 
 /** The run of whitespace a line starts with — `\s*`, the same class both cell regexes use. */
 function indentRun(line: string): string {

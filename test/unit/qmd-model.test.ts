@@ -22279,7 +22279,7 @@ describe("Session 295 — the free case's block-boundary list", () => {
     jupyter: ["---", 'title: "T"', "---", "", "```{python}", "1 + 1", "```", ""],
     markdown: ["---", 'title: "T"', "engine: markdown", "---", ""],
   };
-  const probe = (eng: Eng, ctx: Ctx, x: string[], open = "    "): string =>
+  const probe = (eng: Eng, ctx: Ctx, x: string[], open = "    ", tail: string[] = []): string =>
     doc(
       ...FRONT[eng],
       "## Before",
@@ -22289,6 +22289,7 @@ describe("Session 295 — the free case's block-boundary list", () => {
       "## In",
       "x = 1",
       `${open}\`\`\``,
+      ...tail,
       "",
       "## After",
       "",
@@ -22473,6 +22474,79 @@ describe("Session 295 — the free case's block-boundary list", () => {
     const x = ["    ```{python}", "x = 1", "    ```"];
     for (const ctx of ["blank", "paragraph"] as const) {
       expect(texts(probe("markdown", ctx, x), "markdown"), `markdown: ${ctx}`).toEqual(SWALLOWED);
+    }
+  });
+  // SLICE 6. A RAW HTML BLOCK ELEMENT THAT COMPLETES ON THE LINE ABOVE. Rendered over 129 tag names x six shapes (`scratchpad/s295/tg`, 774 documents): the
+  // SAME 77 names make a closing tag, an empty element, a one-line element and a three-line element end the block — exactly this file's own
+  // `PANDOC_BLOCK_CLOSE_TAGS` (every probed name) plus all sixteen `PANDOC_EITHER_TAGS` — and every other name (inline tags, void tags, unknown
+  // names) does not. A lone OPENING tag does it for `<div>` only (pandoc reads an unclosed div as markdown content); `<details>`, `<table>`, `<pre>`,
+  // `<tr><td>` and the like stay raw and swallow the opener. The block-class names interrupt a paragraph, so those rows list the heading in every
+  // context; the either-class names are block only where no paragraph is open (a separate row, below).
+  it.each<[string, string[]]>([
+    ["a closing div", ['<div class="note">', "Some text here", "</div>"]],
+    ["a closing div alone", ["</div>"]],
+    ["a one-line div", ["<div>text</div>"]],
+    ["an open div alone", ["<div>"]],
+    ["a closing details", ["<details>", "Some body text", "</details>"]],
+    ["a details summary line", ["<details>", "<summary>More</summary>"]],
+    ["a closing section", ["<section>", "some text", "</section>"]],
+    ["a closing blockquote", ["<blockquote>", "quoted text", "</blockquote>"]],
+    ["a closing table", ["<table>", "<tr><td>x</td></tr>", "</table>"]],
+    ["a complete table row in an unclosed table", ["<table>", "<tr><td>x</td></tr>"]],
+    ["a list item line in an unclosed list", ["<ul>", "<li>item</li>"]],
+    ["a closing list", ["<ul>", "<li>item</li>", "</ul>"]],
+    ["a nested closing div", ["<div>", "<div>", "inner text", "</div>"]],
+    ["a closing paragraph", ["<p>", "Text", "</p>"]],
+    ["a closing pre", ["<pre>", "text", "</pre>"]],
+    ["a complete style block", ["<style>", "p { color: red; }", "</style>"]],
+    ["a complete script block", ["<script>", "var x = 1;", "</script>"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s is indented code in every context", (_label, x) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      for (const ctx of ["blank", "heading", "paragraph"] as const) {
+        expect(texts(probe(eng, ctx, x), eng), `${eng}: ${ctx}`).toEqual(LISTED);
+      }
+    }
+  });
+  it.each<[string, string[]]>([
+    ["an open details alone", ["<details>"]],
+    ["an open table alone", ["<table>"]],
+    ["an open pre alone", ["<pre>"]],
+    ["an open table row with no close", ["<table>", "<tr><td>"]],
+    ["an open div and a text line", ["<div>", "some text"]],
+    ["an inline span closer", ["<span>", "some text", "</span>"]],
+    ["an inline font closer", ["<font>", "x", "</font>"]],
+    ["a void tag", ["<br>"]],
+    ["a line of prose with an inline tag", ["Text <b>bold</b> here."]],
+  ])("GUARD: below %s the opener stays swallowed in every context", (_label, x) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      for (const ctx of ["blank", "heading", "paragraph"] as const) {
+        expect(texts(probe(eng, ctx, x), eng), `${eng}: ${ctx}`).toEqual(SWALLOWED);
+      }
+    }
+  });
+  // A complete block element inside a RAW-CONTENT element (`pre`, `script`, `style`, `textarea`) is swallowed with the opener: the content is not
+  // markdown, so a `<div>x</div>` there ends nothing (`scratchpad/s295/ob`, `ob_below_pre_in_div` and its three siblings). Inside a `table`, `ul`,
+  // `details` or any other block element whose content IS markdown, the same inner line ends the block even though the outer element closes below.
+  it.each(["pre", "script", "style", "textarea"])("GUARD: a complete <div> inside an open <%s> keeps the opener swallowed", (outer) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "blank", [`<${outer}>`, "<div>x</div>"], "    ", [`</${outer}>`]), eng), eng).toEqual(SWALLOWED);
+    }
+  });
+  it.each(["table", "ul", "details", "section", "blockquote", "dl", "center"])("a complete inner element inside <%s> that closes below still ends the block", (outer) => {
+    const inner = outer === "table" ? ["<tr><td>x</td></tr>"] : outer === "ul" ? ["<li>item</li>"] : outer === "details" ? ["<summary>More</summary>"] : outer === "dl" ? ["<dd>def</dd>"] : ["<p>text</p>"];
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "blank", [`<${outer}>`, ...inner], "    ", [`</${outer}>`]), eng), eng).toEqual(LISTED);
+    }
+  });
+  // The either-class names (`button`, `iframe`, `ins`, ...) are block only where no paragraph is open, so a complete one-line element ends the
+  // block after a blank line or a heading and is paragraph text directly under a prose line (rendered, `scratchpad/s295/tg`, and the contexts as
+  // everywhere else in this suite).
+  it.each([["button"], ["iframe"], ["ins"], ["del"], ["object"], ["video"]])("a one-line <%s> element ends the block only where it began fresh", (name) => {
+    const x = [`<${name}>x</${name}>`];
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(LISTED);
+      expect(texts(probe(eng, "heading", x), eng), `${eng}: under a heading`).toEqual(LISTED);
+      expect(texts(probe(eng, "paragraph", x), eng), `${eng}: under a paragraph`).toEqual(SWALLOWED);
     }
   });
   // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/disc/tbl` `tbl_029_grid_spans`): a grid table whose rows carry a span
