@@ -32,14 +32,15 @@ over, and a kernel grid (100 documents) fixed the reader's accept set before I w
 candidate rows through the MUTANT bundle chose the rows that kill them. Two adversarial rounds (ten lenses, about 640 documents) found two
 defects of MY design, both fixed test-first: the kernel constant (5 regressions) and "python by default" on front matter the reader could not
 read (7). The 58 raw-construct phantoms were pinned and filed, not gated. Final: 917 documents scored, 462 fixed; S293's 1,124 probes give 0
-regressions; corpus 0 of 3,383 changed; score unchanged 2,423/2,438; 4,024 tests; 27 mutants killed, 1 equivalent term removed.
+regressions; corpus 0 of 3,383 changed; score unchanged 2,423/2,438; 4,028 tests; 27 mutants killed, 1 equivalent term removed.
 **Went wrong.** (1) A stale `h/new.cjs` (built after slice 1, never rebuilt) made me chase an R-specific deletion that was already fixed;
 `score.cjs` now refuses a stale bundle. (2) My first rule inherited S293's `python` constant and a second rule defaulted to python on unreadable
 input: the same pattern as S292/S293, my matrices share my assumptions and only the adversaries find the flaw. (3) Three unmeasured numbers in
 prose: a commit message (105 documents, was 100: amended), "162 + 300" in a learning, a witness range that included a right row; all caught
 before close. (4) Mutation SKIPs read as a pass until I counted them. (5) Scope grew from a five-language skip to a front-matter reader (a new
 module), each step forced by a measured regression of my own rule, but more than the item listed. (6) One `npm test` run failed once, uncaptured
-(five green reruns). (7) No `test:integration` run (needs the screen; core-only change).
+(five green reruns). (7) No `test:integration` run (needs the screen; core-only change). (8) A reviewer's pass AFTER close-out found two
+quadratic regexes in my new module (550 ms for one 30,000-space line): I should have written the hostile-line row with the regex; fixed test-first (Learning #636).
 **TDD:** RED shown before GREEN for each slice (5, 42, 12, 8, 1, 10, 32 and 1 failing rows); guard rows passed on arrival and are disclosed in the ledger.
 **Cost:** 10 authoring agents (about 2.07M subagent tokens), about 1,270 renders at 3 wide or fewer; no screen-taking run.
 
