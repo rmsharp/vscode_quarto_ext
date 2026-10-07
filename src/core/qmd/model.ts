@@ -6023,11 +6023,12 @@ const CM_RAW_END_PI = /\?>/;
 const CM_RAW_END_CDATA = /\]\]>/;
 const CM_RAW_END_DECL = />/;
 /**
- * An info string simple enough to be sure the fence is a plain one to a CommonMark reader (Session 296): a word, or nothing. A backtick in a backtick fence's info
+ * An info string simple enough to be sure the fence is a plain one to a CommonMark reader (Session 296): a word, nothing, or a class / id attribute block (`{.python}`: quarto's cell grammar
+ * needs a letter or `=` first, so pandoc reads it as an ordinary fence with attributes). A backtick in a backtick fence's info
  * string makes it no fence at all (`` ```code``` `` is inline), and a braced info (`{=html}`, `{.python}`, `{bash}`) is a raw attribute or a cell shape that
  * quarto handles before pandoc. The run-to-the-end rule asks this, because a wrong "fence" there deletes every heading below it (round 2, `adv2`).
  */
-const PLAIN_FENCE_INFO = /^[A-Za-z0-9_+.#-]*$/;
+const PLAIN_FENCE_INFO = /^(?:[A-Za-z0-9_+.#-]*|\{[.#][^`{}]*\})$/;
 /**
  * Whether a CommonMark raw HTML block may be open at line `x` because a line that can START one sits in the run of non-blank lines directly above it (Session 296): `<` and
  * a letter, `/`, `!` or `?` at indent 0-3. A block of that kind runs to the next blank line, so a fence line or a `<?` line inside it is text, which the two run-to-the-end
@@ -7415,6 +7416,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // (`scratchpad/s295/rdr`): no `from:`, `markdown` (with any extensions), `gfm`, `commonmark` and `commonmark_x` all end the block at these constructs, while
   // `markdown_strict` has none of the three, so they are paragraph text there and the first cut's `Y` was a regression. `markdown_mmd`, `_phpextra` and
   // `_github` were not measured and are left out; an extension that switches one of the three OFF wins, as everywhere in this family of flags.
+  const fancyListsReader =
+    fromValueLine !== null && fromReaderBase(fromValueLine) === "commonmark_x" && fromExtensionState(fromValueLine, "fancy_lists") !== false;
   const freeCaseTableReader =
     fromValueLine === null ||
     (FREE_CASE_TABLE_READER_BASES.has(fromReaderBase(fromValueLine) ?? "") &&
@@ -8440,7 +8443,11 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // `scratchpad/s296/own4`, 84 documents, identical under the three readers and both engines).
     // ⚠ Inside or after a QUOTE the `[0]` stays (Session 296, the product grid `scratchpad/s296/prod`): this model's quote extent counts an unmarked `## In` as a lazy
     // line where the CommonMark readers end the quote at it, so a widened window made a quoted opener swallow the heading below the quote's real end.
-    const fenceColumns = paragraphOpen && (!commonmarkDialect || stripQuote || quoteOpen) ? [0] : [0, ...contentColumns];
+    // ⚠ Only a column opened by a marker CommonMark HAS counts under a CommonMark reader (Session 296): `a.`, `A)`, `i.`, `#.` and `J. Smith` are paragraphs there, though this
+    // model keeps a pandoc fancy-list column for them (`columnIsCommonmark` says which).
+    // `commonmark_x` has pandoc's fancy lists (unless `-fancy_lists`), so every column is real there.
+    const cmColumns = commonmarkDialect && !fancyListsReader ? contentColumns.filter((_, k) => columnIsCommonmark[k]) : contentColumns;
+    const fenceColumns = paragraphOpen && (!commonmarkDialect || stripQuote || quoteOpen) ? [0] : [0, ...cmColumns];
     const plainFence = fenceMatchAt(FENCE_OPEN, line, fenceColumns);
     // ⚠ **THE UNBOUNDED SECOND LOOK IS QUARTO'S EXECUTABLE-CELL GRAMMAR, AND IT IS SKIPPED WHERE THAT
     // GRAMMAR DOES NOT APPLY (Session 293, `indentedCellFenceFor`).** Under `engine: markdown` pandoc reads
@@ -8518,11 +8525,11 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         boundColumn:
           commonmarkDialect &&
           !stripQuote &&
-          contentColumns.length > 0 &&
+          cmColumns.length > 0 &&
           (info === null ||
             (engine === "markdown" && !HANDLER_CELL_LANGUAGES.has(info[1])) ||
             (kernelLanguage !== null && info[1] !== kernelLanguage && !HANDLER_CELL_LANGUAGES.has(info[1])))
-            ? itemContentColumn(contentColumns, indentColumn(line))
+            ? itemContentColumn(cmColumns, indentColumn(line))
             : null,
       };
       // A FENCE OPENS ONLY IF IT IS CLOSED BELOW — both kinds, for two different measured

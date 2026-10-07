@@ -23095,4 +23095,32 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
     ["001 degen quote unmarked heading", "gfm", "markdown", ["> <!-->","## In","-->","","## After","","tail"], ["Before","In","After"]], // adv2/quotefence/quotefence_001_degen_quote_unmarked_heading.qmd
     ["002 degen3 quote blank ends", "commonmark", "markdown", ["> <!--->","","## In","-->","","## After","","tail"], ["Before","In","After"]], // adv2/quotefence/quotefence_002_degen3_quote_blank_ends.qmd
   ]);
+  // GATE 6. A MARKER THE COMMONMARK READERS LACK OPENS NO CONTAINER. `a.`, `A)`, `i.`, `#.` and `J. Smith` are plain paragraphs under `gfm`, `commonmark` and `commonmark_x-fancy_lists`, but this model keeps a
+  // list column for them (pandoc's fancy lists, accepted on purpose), and the fence window and the item bound were then read from a column that is not there. Only a column opened by a marker
+  // CommonMark has (`columnIsCommonmark`) counts for the CommonMark rules. (Round 2 `defs` 005, 006, 017-022, 037, 038, 053, 058, 059.)
+  round2([
+["005 gfm alpha para fence col4 head col3", "gfm", "markdown", ["a. item","    ```text","   ## In","    ```","","## After","","tail"], ["Before","In","After"]], // adv2/defs/defs_005_gfm_alpha_para_fence_col4_head_col3.qmd
+    ["006 gfm hashdot para fence col4 head col3", "gfm", "markdown", ["#. item","    ```text","   ## In","    ```","","## After","","tail"], ["Before","In","After"]], // adv2/defs/defs_006_gfm_hashdot_para_fence_col4_head_col3.qmd
+    ["017 gfm fakelist a fence col3 interior col0", "gfm", "markdown", ["a. item","","   ```text","code","## In","   ```","","## After","","tail"], ["Before","After"]], // adv2/defs/defs_017_gfm_fakelist_a_fence_col3_interior_col0.qmd
+    ["018 commonmark fakelist Aparen tilde interior col0", "commonmark", "markdown", ["A) item","","   ~~~text","code","## In","   ~~~","","## After","","tail"], ["Before","After"]], // adv2/defs/defs_018_commonmark_fakelist_Aparen_tilde_interior_col0.qmd
+    ["019 gfm fakelist roman cellshape interior col0", "gfm", "markdown", ["i. item","","   ```{bash}","x = 1","## In","   ```","","## After","","tail"], ["Before","After"]], // adv2/defs/defs_019_gfm_fakelist_roman_cellshape_interior_col0.qmd
+    ["020 gfm initial name fence interior col1", "gfm", "markdown", ["J. Smith wrote this","","   ```text"," x"," ## In","   ```","","## After","","tail"], ["Before","After"]], // adv2/defs/defs_020_gfm_initial_name_fence_interior_col1.qmd
+    ["022 gfm hashdot fence col3 interior col0", "gfm", "markdown", ["#. item","","   ```text","code","## In","   ```","","## After","","tail"], ["Before","After"]], // adv2/defs/defs_022_gfm_hashdot_fence_col3_interior_col0.qmd
+    ["037 gfm fakelist a fence col3 closer col0", "gfm", "markdown", ["a. item","","   ```text","code","```","","## After","","tail"], ["Before","After"]], // adv2/defs/defs_037_gfm_fakelist_a_fence_col3_closer_col0.qmd
+    ["038 jup gfm fakelist Bparen bash interior col0", "gfm", "jupyter", ["B) item","","   ```{bash}","x","## In","   ```","","## After","","tail"], ["Before","After"]], // adv2/defs/defs_038_jup_gfm_fakelist_Bparen_bash_interior_col0.qmd
+    ["053 cmx minus fancy lists fakelist closer col0", "commonmark_x-fancy_lists", "markdown", ["a. item","","   ```text","code","```","","## After","","tail"], ["Before","After"]], // adv2/defs/defs_053_cmx_minus_fancy_lists_fakelist_closer_col0.qmd
+  ]);
+  // GATE 6b. TWO CORRECTIONS TO THE GATES ABOVE, both found by the round-1 documents they regressed. A fence whose info is a CLASS or ID attribute block (`{.python}`) is a plain fence to
+  // pandoc (quarto's cell grammar needs a letter or `=` first), so it runs to the end like any other; and `commonmark_x` HAS pandoc's fancy lists (`a)`, `i.` are real items there), so the
+  // marker filter of gate 6 is off for it unless `-fancy_lists` says otherwise.
+  round2([
+["004 unclosed class fence", "commonmark_x", "markdown", ["```{.python}","code","    ```{bash}","## In","x = 1","    ```","tail"], ["Before"]], // adv/fence/fence_004_unclosed_class_fence.qmd
+    ["011 list alpha fancy commonmark x", "commonmark_x", "markdown", ["a) Alpha","    ```{bash}","   ## In","    ```","","## After","tail"], ["Before","After"]], // adv/prose/prose_011_list_alpha_fancy_commonmark_x.qmd
+    ["056 roman list rel1 fence", "commonmark_x", "markdown", ["i. item","   para","    ```{bash}","   ## In","    ```","","## After","tail"], ["Before","After"]], // adv/prose/prose_056_roman_list_rel1_fence.qmd
+  ]);
+  // RESIDUAL, kept on purpose (DELETION direction; round 2 `defs_058`): `A. item` (a capital and ONE space) is no list item to pandoc's fancy lists either (an initial like `J. Smith`), but this model opens
+  // a container for it (the filed `A. x` item), and under `commonmark_x` the marker filter of gate 6 is off, so the item bound ends the fence at the column-0 line and the stray closer swallows the rest.
+  it("RESIDUAL, kept on purpose: under commonmark_x a capital-dot-one-space item lets the bound end a fence early (quarto lists After)", () => {
+    expect(texts(exact("markdown", "commonmark_x", ["A. item", "", "   ```text", "code", "```", "", "## After", "", "tail"]), "markdown")).toEqual(["Before"]); // quarto: Before, After
+  });
 });
