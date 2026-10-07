@@ -23123,4 +23123,25 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
   it("RESIDUAL, kept on purpose: under commonmark_x a capital-dot-one-space item lets the bound end a fence early (quarto lists After)", () => {
     expect(texts(exact("markdown", "commonmark_x", ["A. item", "", "   ```text", "code", "```", "", "## After", "", "tail"]), "markdown")).toEqual(["Before"]); // quarto: Before, After
   });
+  // GATE 7. A FENCED DIV ENDS A RAW BLOCK OPENED INSIDE IT, so the `<?`/`<!`/`<![CDATA[` start stays off while a div is live (the same bound gate 2 gives the fence): `:::` closes the div and the heading
+  // below it is a real heading (round 2 `defs_027`).
+  round2([
+["027 cmx div html3 swallows div closer", "commonmark_x", "markdown", ["::: {.callout-note}","","<?php",":::","","## In","","?>","","## After","","tail"], ["Before","In","After"]], // adv2/defs/defs_027_cmx_div_html3_swallows_div_closer.qmd
+  ]);
+  // GATE 8. A BLOCK START THAT CANNOT BE LAZY CLOSES THE ITEMS DEEPER THAN IT. Under a CommonMark reader an ATX heading, a fence, a thematic break or an HTML comment at an indent shallower than
+  // an item's content column ends that item even where the line above is not blank (pandoc's markdown absorbs it lazily, which is why this model's pop waits for a blank line). The inner column
+  // stayed on the stack, and the fence window and the item bound read it. (Round 2 `itemfence_025`-`033`, `headings_038`-`040`.)
+  round2([
+["025 stale fence then deep fence", "gfm", "markdown", ["- a","  - b","  ```text","  one","  ```","    ```text","  ## In","    ```","## After","","tail"], ["Before","After"]], // adv2/itemfence/itemfence_025_stale_fence_then_deep_fence.qmd
+    ["026 stale heading then fence", "gfm", "markdown", ["- a","  - b","  ## Mid","    ```text","  ## In","    ```","## After","","tail"], ["Before","Mid","After"]], // adv2/itemfence/itemfence_026_stale_heading_then_fence.qmd
+    ["027 stale comment then fence", "gfm", "markdown", ["- a","  - b","  <!-- c -->","    ```text","  ## In","    ```","## After","","tail"], ["Before","After"]], // adv2/itemfence/itemfence_027_stale_comment_then_fence.qmd
+    ["028 stale ordered", "gfm", "markdown", ["1. a","   1. b","   ```text","   one","   ```","      ```text","   ## In","      ```","## After","","tail"], ["Before","After"]], // adv2/itemfence/itemfence_028_stale_ordered.qmd
+    ["029 stale three levels", "gfm", "markdown", ["- a","  - b","    - c","  ```text","  one","  ```","    ```text","  ## In","    ```","## After","","tail"], ["Before","After"]], // adv2/itemfence/itemfence_029_stale_three_levels.qmd
+    ["030 stale blank bash", "gfm", "markdown", ["- a","  - b","  ```text","  one","  ```","","    ```{bash}","  ## In","    ```","## After","","tail"], ["Before","After"]], // adv2/itemfence/itemfence_030_stale_blank_bash.qmd
+    ["032 stale jup text", "gfm", "jupyter", ["- a","  - b","  ```text","  one","  ```","    ```text","  ## In","    ```","## After","","tail"], ["Before","After"]], // adv2/itemfence/itemfence_032_stale_jup_text.qmd
+    ["033 stale tilde cell", "commonmark_x", "markdown", ["- a","  - b","  ~~~text","  one","  ~~~","    ```{bash}","  ## In","    ```","## After","","tail"], ["Before","After"]], // adv2/itemfence/itemfence_033_stale_tilde_cell.qmd
+    ["038 stale list atx then indent5 code then atx", "gfm", "markdown", ["- item","## Mid","     ```text","  ## After"], ["Before","Mid","After"]], // adv2/headings/headings_038_stale_list_atx_then_indent5_code_then_atx.qmd
+    ["039 stale ordered list indent6 code then atx", "gfm", "markdown", ["1. item","## Mid","      ```text","   ## After"], ["Before","Mid","After"]], // adv2/headings/headings_039_stale_ordered_list_indent6_code_then_atx.qmd
+    ["040 stale list atx then tab code then atx", "gfm", "markdown", ["- item","## Mid","\t```text","  ## After"], ["Before","Mid","After"]], // adv2/headings/headings_040_stale_list_atx_then_tab_code_then_atx.qmd
+  ]);
 });

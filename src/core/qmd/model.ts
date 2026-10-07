@@ -5191,6 +5191,24 @@ function closesParagraph(
  * containing block's column — both differ from the answers a terminal or an editor would give.
  */
 /**
+ * Whether `line` is a block start that CommonMark cannot take as a LAZY continuation, shallower than the items it closes (Session 296): an ATX heading, a fence or an HTML comment, at 0-3
+ * columns past the innermost item that SURVIVES it. NOT a thematic break: `---` under item text is the setext machinery's, and moving it broke three measured rows. Pandoc's markdown absorbs these lazily and so waits for a blank line to close an item, which is why this model's pop did;
+ * a CommonMark reader ends the items at once (round 2 `itemfence_025`-`033`, `headings_038`-`040`). Only asked under a CommonMark reader.
+ */
+function cmBlockStartEndsItems(line: string, columns: readonly number[], indentWidth: number): boolean {
+  let surviving = 0;
+  for (const c of columns) {
+    if (c <= indentWidth && c > surviving) {
+      surviving = c;
+    }
+  }
+  if (indentWidth - surviving > 3 || !columns.some((c) => c > indentWidth)) {
+    return false;
+  }
+  const rest = line.replace(/^[ \t]+/, "");
+  return /^#{1,6}(?:[ \t]|$)/.test(rest) || /^(?:`{3,}|~{3,})/.test(rest) || /^<!--/.test(rest);
+}
+/**
  * The content column of the innermost open container that holds a line indented to `column` (Session 296): the largest entry of `columns` not past it, or
  * `0` (and so `null`) when the line is at top level.
  */
@@ -8211,7 +8229,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       const deeperColumnsAreAllLists = contentColumns.every(
         (c, idx) => c <= indentWidth || columnKinds[idx] === "list",
       );
-      if (prevLineBlank || boundEndedLine === i ||
+      if (prevLineBlank || boundEndedLine === i || (commonmarkDialect && cmBlockStartEndsItems(line, contentColumns, indentWidth)) ||
         (deeperColumnsAreAllLists && popsEnclosingContainer(line, commonmarkDialect))) {
         while (contentColumns.length > 0 && contentColumns[contentColumns.length - 1] > indentWidth) {
           contentColumns.pop();
@@ -8386,7 +8404,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // holding `]]>`; the end marker is searched on the START line too, after the marker, and a block starts at indent 0-3 and may interrupt a paragraph. Every
     // heading inside is swallowed and an unclosed block runs to the end of the document (rendered, `scratchpad/s296/own3`, 102 documents, identical under
     // `gfm`, `commonmark` and `commonmark_x`). Top level only: inside a list item or a quote the block opens later, and those keep the old answer.
-    if (commonmarkDialect && contentColumns.length === 0 && !stripQuote && rawContentDepth === 0 && !htmlBlockMayBeOpenAbove(lines, i)) {
+    if (commonmarkDialect && contentColumns.length === 0 && !stripQuote && rawContentDepth === 0 && liveDiv() === null && !htmlBlockMayBeOpenAbove(lines, i)) {
       const rawBlock = CM_RAW_HTML_BLOCK_START.exec(line);
       if (rawBlock !== null) {
         const end = rawBlock[1] !== undefined ? CM_RAW_END_PI : rawBlock[2] !== undefined ? CM_RAW_END_CDATA : CM_RAW_END_DECL;
