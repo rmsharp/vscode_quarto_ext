@@ -6049,7 +6049,8 @@ const CM_RAW_END_DECL = />/;
 const PLAIN_FENCE_INFO = /^(?:[A-Za-z0-9_+.#-]*|\{[.#][^`{}]*\})$/;
 /**
  * Whether a CommonMark raw HTML block may be open at line `x` because a line that can START one sits in the run of non-blank lines directly above it (Session 296): `<` and
- * a letter, `/`, `!` or `?` at indent 0-3. A block of that kind runs to the next blank line, so a fence line or a `<?` line inside it is text, which the two run-to-the-end
+ * a letter or `/` at indent 0-3 (a `<?`, `<!X` or `<!--` line is a block this model already holds as a region, types 2-5, and says nothing about a type 1, 6 or 7 block). A block of that kind
+ * runs to the next blank line, so a fence line or a `<?` line inside it is text, which the two run-to-the-end
  * rules cannot see (the scanner keeps no HTML-block state at top level). OVER-APPROXIMATES on purpose (an inline tag starting a line also answers true): the cost of a
  * wrong yes is the old phantom, the cost of a wrong no is every heading below deleted.
  */
@@ -6066,7 +6067,7 @@ function htmlBlockMayBeOpenAbove(lines: readonly string[], x: number): boolean {
     if (BLANK_LINE.test(lines[k])) {
       return false;
     }
-    if (/^ {0,3}<[A-Za-z/!?]/.test(lines[k])) {
+    if (/^ {0,3}<[A-Za-z/]/.test(lines[k])) {
       return true;
     }
   }
@@ -8419,7 +8420,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // ⚠ **COMMONMARK HTML BLOCKS OF TYPES 3, 4 AND 5 (Session 296)**: `<?` runs to a line holding `?>`, `<!` + a letter to one holding `>`, `<![CDATA[` to one
     // holding `]]>`; the end marker is searched on the START line too, after the marker, and a block starts at indent 0-3 and may interrupt a paragraph. Every
     // heading inside is swallowed and an unclosed block runs to the end of the document (rendered, `scratchpad/s296/own3`, 102 documents, identical under
-    // `gfm`, `commonmark` and `commonmark_x`). Top level only: inside a list item or a quote the block opens later, and those keep the old answer.
+    // `gfm`, `commonmark` and `commonmark_x`). At top level an unclosed block runs to the end of the document; inside a list item or a quote it ends with the container, which this model cannot
+    // see, so there the start needs its end marker below (`endMarkerBelow`).
     if (commonmarkDialect && rawContentDepth === 0 && liveDiv() === null && !htmlBlockMayBeOpenAbove(lines, i)) {
       const rawBlock = CM_RAW_HTML_BLOCK_START.exec(line);
       const end = rawBlock === null ? null : rawBlock[1] !== undefined ? CM_RAW_END_PI : rawBlock[2] !== undefined ? CM_RAW_END_CDATA : CM_RAW_END_DECL;

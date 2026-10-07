@@ -23235,4 +23235,38 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
     ["cdata in a quote", "gfm", "markdown", ["> <![CDATA[", "> ## In", "", "## After", "", "tail"], ["Before", "After"], ["Before", "In", "After"]],
     ["pi in a quote", "gfm", "markdown", ["> <?php", "> ## In", "", "## After", "", "tail"], ["Before", "After"], ["Before", "In", "After"]],
   ]);
+  // GATE 3b. THE HTML-RUN TEST DOES NOT COUNT THE BLOCKS THIS MODEL ALREADY HOLDS. A `<?`, `<!X` or `<!--` line is a block the scanner keeps as a region (types 2-5), so it says nothing about a
+  // type 1, 6 or 7 block being open above a fence or a start; counting it made the run-to-the-end rules decline after a CLOSED block (mutation round 2: the `?`/`!` terms HURT, 4 documents).
+  round2([
+    ["043 pi mermaid closer inside", "gfm", "markdown", ["<?x","```{mermaid}","?>","```","## Mid","","## After","","tail"], ["Before"]], // adv2/mutate/mutate_043_pi_mermaid_closer_inside.qmd
+    ["044 comment mermaid closer inside", "gfm", "markdown", ["<!--","```{mermaid}","-->","```","## Mid","","## After","","tail"], ["Before"]], // adv2/mutate/mutate_044_comment_mermaid_closer_inside.qmd
+    ["053 three blocks in a row", "gfm", "markdown", ["<?php ?>","<?php","## In","?>","<![CDATA[","## In2","]]>","<!DOCTYPE","## In3",">","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_053_three_blocks_in_a_row.qmd
+  ]);
+  // MUTATION ROUND 2 KILLERS (each row is a rendered document that kills a surviving mutant; the claim is quarto's): the item bound does not apply to a handler cell or a non-kernel cell quarto extracts
+  // itself (`{mermaid}` in a list item, 51 + 11 documents); a blank or whitespace-only line does not end a fenced item; a quote's lazy setext; a `<?>` and an overlapping `<!-->`.
+  round2([
+    ["task mermaid r0 col0 same b cm md", "commonmark", "markdown", ["- [ ] task item","","  ```{mermaid}","## In","x = 1","  ```","","## After","","tail"], ["Before","After"]], // prod/p0030_task_mermaid_r0_col0_same_b_cm_md.qmd
+    ["ordered mermaid r6 atfence col0 t cm md", "commonmark", "markdown", ["1. item one","         ```{mermaid}","         ## In","x = 1","```","","## After","","tail"], ["Before","After"]], // prod/p0094_ordered_mermaid_r6_atfence_col0_t_cm_md.qmd
+    ["nested mermaid r3 none col0 t cmx md", "commonmark_x", "markdown", ["- outer","  - inner","       ```{mermaid}","In text","x = 1","```","","## After","","tail"], ["Before","After"]], // prod/p0097_nested_mermaid_r3_none_col0_t_cmx_md.qmd
+    ["bullet mermaid r0 twoHeads same t cm jup", "commonmark", "jupyter", ["- item one","  ```{mermaid}","## In","x = 1","## In2","  ```","","## After","","tail"], ["Before","After"]], // prod/p0025_bullet_mermaid_r0_twoHeads_same_t_cm_jup.qmd
+    ["ordered mermaid r4 atfence col0 t cm jup", "commonmark", "jupyter", ["1. item one","       ```{mermaid}","       ## In","x = 1","```","","## After","","tail"], ["Before","After"]], // prod/p0131_ordered_mermaid_r4_atfence_col0_t_cm_jup.qmd
+    ["deflist mermaid r6 col0 col0 t cmx jup", "commonmark_x", "jupyter", ["Term",": definition","          ```{mermaid}","## In","x = 1","```","","## After","","tail"], ["Before","After"]], // prod/p0150_deflist_mermaid_r6_col0_col0_t_cmx_jup.qmd
+    ["055 whitespace lines", "gfm", "markdown", ["- item","  ```text"," ","\t","  ## In","  ```","## After","","tail"], ["Before","After"]], // adv2/itemfence/itemfence_055_whitespace_lines.qmd
+    ["047 pi degenerate gt", "gfm", "markdown", ["<?>","","## Mid","","<?php ?>","","## After","","tail"], ["Before","After"]], // adv2/rawhtml2/rawhtml2_047_pi_degenerate_gt.qmd
+  ]);
+  // WITNESSES for terms no corpus document reached (`scratchpad/s296/own7`, rendered): a blank line ends the HTML-run look, an indent-4 tag is code and no HTML block, an open `<pre>` keeps both
+  // run-to-the-end rules off even across a blank line, a one-line `<?php echo 1; ?>` in a quote or a list item still ends the paragraph above it, a comment after a processing instruction ends at its
+  // own `-->`, and a degenerate comment needs a top-level, tag-free context.
+  round2([
+    ["indent4 html then fence", "gfm", "markdown", ["para","","    <div>","```text","## In","","## After","","tail"], ["Before"]], // own7/w2_indent4_html_then_fence.qmd
+    ["pre blank fence", "gfm", "markdown", ["<pre>","","```text","## In","</pre>","","## After","","tail"], ["Before","After"]], // own7/w3a_pre_blank_fence.qmd
+    ["pre blank pi", "gfm", "markdown", ["<pre>","","<?php","## In","</pre>","","## After","","tail"], ["Before","After"]], // own7/w3b_pre_blank_pi.qmd
+    ["quote oneline pi dash", "gfm", "markdown", ["> Para above","> <?php echo 1; ?>","> ---","","## After","","tail"], ["Before","After"]], // own7/w4_quote_oneline_pi_dash.qmd
+    ["pre blank degenerate", "gfm", "markdown", ["<pre>","","<!-->","## In","</pre>","","## After","","tail"], ["Before","After"]], // own7/w6_pre_blank_degenerate.qmd
+    ["pi then comment", "gfm", "markdown", ["<?php","x","?>","","<!--","## In","-->","","## After","","tail"], ["Before","After"]], // own7/w7_pi_then_comment.qmd
+    ["item oneline pi dash", "gfm", "markdown", ["- Para above","  <?php echo 1; ?>","  ---","","## After","","tail"], ["Before","After"]], // own7/w8_item_oneline_pi_dash.qmd
+  ]);
+  residual("a degenerate comment inside a list item ends with the item (the model keeps the old answer, never a deletion)", [
+
+  ]);
 });
