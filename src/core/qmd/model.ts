@@ -8648,8 +8648,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // ⚠ A `<!--` with NO `-->` on any line below is not a comment at all under pandoc's markdown readers (Session 289):
     // a comment is a raw block there only when it is closed, so this line is paragraph text and falls through as a
     // body line. CommonMark's HTML block (type 2) has no such rule and runs to the end of the document, so the three
-    // CommonMark-family readers keep swallowing (`commonmarkDialect`; a `from:` set in a project file is invisible
-    // here, which can only phantom).
+    // CommonMark-family readers keep swallowing (`commonmarkProven`, Session 297: a `from:` set in a project file is invisible
+    // here, which can only phantom, and one the resolver misreads must not be believed: the swallow DELETES every heading below).
     // ⚠ **UNDER A COMMONMARK READER THE END CONDITION IS SEARCHED AFTER THE START MARKER (Session 296)**: in `<!-->` and `<!--->` the `-->` overlaps the
     // `<!--` and closes nothing, so those two open a comment that runs on (rendered, `scratchpad/s296/own3/cmt_degen*`).
     if (
@@ -8663,7 +8663,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         ? COMMENT_CLOSE_AFTER_OPEN
         : COMMENT_CLOSE
       ).test(line) &&
-      (commonmarkDialect || lastCommentCloserLine > i)
+      (commonmarkProven || lastCommentCloserLine > i)
     ) {
       inComment = true;
       commentClose = COMMENT_CLOSE;

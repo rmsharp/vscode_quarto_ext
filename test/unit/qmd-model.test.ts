@@ -23429,4 +23429,29 @@ describe("Session 297 — the reader the two run-to-the-end rules trust is PROVE
   ])("RED->GREEN: a per-format from under the only format html proves the reader (%s)", (_label, lines, quarto) => {
     expect(texts(doc(...lines), "markdown")).toEqual(quarto);
   });
+  // SLICE 15. THE OLDER RUN-TO-THE-END RULE HAS THE SAME HOLE (Session 289, found by this session's grid with a sixth trigger, an UNCLOSED `<!--`): under a CommonMark reader
+  // it swallows to the end of the document, and it keyed on the resolver's reading of `from:` too. The identical 11 spellings delete under the pre-Session-296 build, the
+  // parent and the first cut (`scratchpad/s297/gf2`, rendered); the rule now asks for the proof. Quarto reads the default reader and lists everything. The last three rows are
+  // the guard: a proven reader still swallows.
+  it.each<[string, string[], string[]]>([
+    ["gf n01 flowseq hides comment", ["---", "title: \"T\"", "engine: markdown", "custom: [a,", "from: gfm]", "---", "", "## Before", "", "<!-- never closed", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // gf2/gf_n01_flowseq_hides_comment.qmd
+    ["gf n03 anchored flow hides comment", ["---", "title: \"T\"", "engine: markdown", "custom: &a [x,", "from: gfm]", "---", "", "## Before", "", "<!-- never closed", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // gf2/gf_n03_anchored_flow_hides_comment.qmd
+    ["gf n36 dq multiline hides comment", ["---", "title: \"T\"", "engine: markdown", "desc: \"first", "from: gfm\"", "---", "", "## Before", "", "<!-- never closed", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // gf2/gf_n36_dq_multiline_hides_comment.qmd
+    ["gf n06 alias redeclared comment", ["---", "title: \"T\"", "engine: markdown", "a: &r gfm", "b: &r markdown", "from: *r", "---", "", "## Before", "", "<!-- never closed", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // gf2/gf_n06_alias_redeclared_comment.qmd
+  ])("RED->GREEN: an unclosed comment runs to the end only under a PROVEN CommonMark reader (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // RESIDUAL, kept on purpose (gf2 m07, the control-044 shape with an unclosed comment): the deletion is gone; the PHANTOM `from: gfm` (a body block under a list item's fence, read as a setext heading) is the
+  // same pinned residual as above.
+  it("RESIDUAL: an unclosed comment below a body block under a list item's fence no longer deletes, but the block's text is still a phantom heading", () => {
+    const lines = ["---", 'title: "T"', "engine: markdown", "---", "", "- item", "", "  ```yaml", "---", "from: gfm", "---", "  ```", "", "## Before", "", "<!-- never closed", "", "## Inside", "", "## After", "", "tail"];
+    expect(texts(doc(...lines), "markdown")).toEqual(["from: gfm", "Before", "Inside", "After"]);
+  });
+  it.each<[string, string[], string[]]>([
+    ["gf p01 gfm comment", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "<!-- never closed", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf2/gf_p01_gfm_comment.qmd
+    ["gf p11 dq multiline before comment", ["---", "title: \"T\"", "engine: markdown", "subtitle: \"line one", "  line two\"", "from: gfm", "---", "", "## Before", "", "<!-- never closed", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf2/gf_p11_dq_multiline_before_comment.qmd
+    ["gf n10 perfmt block comment", ["---", "title: \"T\"", "engine: markdown", "format:", "  html:", "    from: gfm", "---", "", "## Before", "", "<!-- never closed", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // gf2/gf_n10_perfmt_block_comment.qmd
+  ])("guard (passes on arrival): a proven reader still swallows below an unclosed comment (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
 });
