@@ -7155,6 +7155,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // The last line the scanner found to END ITS OWN BLOCK having begun it fresh (Session 295), for the constructs whose end the line's own bytes cannot
   // tell: the closer of a comment region that opened fresh, and a line of seven or more hashes. `-2` = none. Read by the free case.
   let freshBlockEndLine = -2;
+  // The line that closed a REAL KERNEL CELL (a jupyter cell in the document's kernel language that closed at its own indent, `OpenCellFence.indent`).
+  // Quarto cuts such a cell out of the markdown it hands pandoc, so the line below it starts fresh whatever was above the cell (Session 295).
+  let kernelCellCloserLine = -2;
   // Whether the HTML comment region now open began FRESH at column 0 — no paragraph open before its first line (a comment under a prose line is part
   // of that paragraph) — and under a reader whose comment rule was measured (pandoc markdown; the CommonMark family is not).
   let commentFresh = false;
@@ -7985,6 +7988,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       const knitrConsumed = knitrSilent.has(i) && knitrPastOpeners.has(open.startLine);
       if (!knitrConsumed && isCloser(line, open)) {
         if (open.isCell) {
+          if (open.indent !== null) {
+            kernelCellCloserLine = i;
+          }
           cells.push(makeCell(open, i, lines, true));
         } else {
           // ⚠ Recorded HERE, at the closer, rather than at the opener — symmetric with the
@@ -8356,7 +8362,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           (i === 0 ||
             endsBlock(lines[i - 1]) ||
             endsFreshBlock(lines[i - 1], !paragraphOpenAboveHeader && lastFenceLine !== i - 1) ||
-            freshBlockEndLine === i - 1),
+            freshBlockEndLine === i - 1 ||
+            kernelCellCloserLine === i - 1),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.

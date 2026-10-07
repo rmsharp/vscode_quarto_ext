@@ -22459,6 +22459,29 @@ describe("Session 295 — the free case's block-boundary list", () => {
       }
     }
   });
+  // SLICE 5. THE CLOSER OF A REAL KERNEL CELL. Under jupyter an indented `{python}` cell that closes at its own indent is a cell to quarto, which
+  // removes it from the markdown it hands pandoc: the line below is a fresh start, so an indent-4 `{bash}` opener there is indented code — and
+  // that holds under a prose line too, because the cell is cut out first. Rendered (`scratchpad/s295/{bb,bt,bh}` `chain_py_closer`, and
+  // `disc/code` `code_039`). Under engine markdown the same lines are not a cell, nothing is cut out and nothing changes.
+  it("RED->GREEN: an indent-4 `{bash}` opener directly below the closer of an indented python kernel cell is indented code under jupyter", () => {
+    const x = ["    ```{python}", "x = 1", "    ```"];
+    for (const ctx of ["blank", "heading", "paragraph"] as const) {
+      expect(texts(probe("jupyter", ctx, x), "jupyter"), `jupyter: ${ctx}`).toEqual(LISTED);
+    }
+  });
+  it("GUARD: the same three lines under engine markdown are no cell, so the second opener stays paired", () => {
+    const x = ["    ```{python}", "x = 1", "    ```"];
+    for (const ctx of ["blank", "paragraph"] as const) {
+      expect(texts(probe("markdown", ctx, x), "markdown"), `markdown: ${ctx}`).toEqual(SWALLOWED);
+    }
+  });
+  // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/disc/tbl` `tbl_029_grid_spans`): a grid table whose rows carry a span
+  // (`+-------+-------+       +`, a border with spaces in it) is not recognised: the partner-border search stops at the first border-shaped line
+  // that is neither a plain border nor a `|` row, so the closing border has no partner and is text.
+  it("RESIDUAL, kept on purpose: an opener below a grid table with a spanning row is still swallowed (quarto lists the heading)", () => {
+    const x = ["+-------+-------+-------+", "| A     | B     | C     |", "+=======+=======+=======+", "| spans two     | c1    |", "+-------+-------+       +", "| a2    | b2    |       |", "+-------+-------+-------+"];
+    expect(texts(probe("markdown", "heading", x), "markdown")).toEqual(SWALLOWED); // quarto: Before, In, After
+  });
   // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/bb` `linkref_title_next` and `linkref_title_multi`): when the title is
   // carried onto a line of its own, quarto still lists the heading inside the opener below it (after a blank line or a heading), and this model
   // swallows it. The model believes the title line opens a PARAGRAPH, so the opener below it is paragraph text and its `## In` is not a
