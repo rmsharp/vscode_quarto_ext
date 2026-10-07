@@ -22279,9 +22279,9 @@ describe("Session 295 — the free case's block-boundary list", () => {
     jupyter: ["---", 'title: "T"', "---", "", "```{python}", "1 + 1", "```", ""],
     markdown: ["---", 'title: "T"', "engine: markdown", "---", ""],
   };
-  const probe = (eng: Eng, ctx: Ctx, x: string[], open = "    ", tail: string[] = []): string =>
+  const probe = (eng: Eng, ctx: Ctx, x: string[], open = "    ", tail: string[] = [], from: string | null = null): string =>
     doc(
-      ...FRONT[eng],
+      ...(from === null ? FRONT[eng] : ["---", 'title: "T"', "engine: markdown", `from: ${from}`, "---", ""]),
       "## Before",
       ...(ctx === "blank" ? ["", "Prose before.", ""] : ctx === "paragraph" ? ["", "Para above."] : []),
       ...x,
@@ -22582,6 +22582,84 @@ describe("Session 295 — the free case's block-boundary list", () => {
   ])("GUARD (round 2): %s", (_label, x, expected) => {
     for (const eng of ["jupyter", "markdown"] as const) {
       expect(texts(probe(eng, "heading", x), eng), eng).toEqual(expected);
+    }
+  });
+  // MUTATION TRIAGE (65 single-term mutants of this session's code: 26 died in the unit suite, 39 survived). Each row below is a rendered document where a
+  // survivor goes wrong (`scratchpad/s295/{h6,mu,rdr}`, claims checked against quarto 1.7.33 by `check_rows.cjs`), or a reader the grid showed the
+  // first cut got wrong. The probes are as everywhere in this suite: the construct directly above an indent-4 `{bash}` opener, no blank line between.
+  const SETEXT = ["Before", "Title", "In", "After"]; // a setext title is itself a heading
+  const T_EQ = ["\\begin{equation}", "x = 1", "\\end{equation}"];
+  const KILLERS: [string, string[], Ctx, string[]][] = [
+    // A BOUNDARY is a heading underline, a div fence or a fence line, each of which the strict `isBoundaryLine` keeps.
+    ["a thematic break under a setext heading", ["Title", "=====", "***"], "blank", SETEXT],
+    ["a link definition under a dash-underlined setext heading", ["Title", "-----", "[a]: /url"], "blank", SETEXT],
+    ["an indented code line under a setext heading", ["Title", "=====", "    code"], "blank", SETEXT],
+    ["a comment under a div's closing fence", ["::: {.note}", "some text", ":::", "<!-- c -->"], "blank", LISTED],
+    ["a thematic break under a four-colon div fence", [":::: {.a}", "x", "::::", "***"], "blank", LISTED],
+    ["a thematic break under a backtick fence's closer", ["```", "code", "```", "***"], "blank", LISTED],
+    ["a pipe table under a tilde fence's closer", ["~~~", "x", "~~~", "| a | b |", "|---|---|", "| 1 | 2 |"], "blank", LISTED],
+    ["a link definition under a backtick fence's closer", ["```", "x", "```", "[a]: /url"], "blank", LISTED],
+    // A raw TeX environment above keeps pandoc inside the raw block, whatever the scanner's own paragraph state says.
+    ["a link definition directly under a raw TeX environment", [...T_EQ, "[a]: https://a.example"], "blank", SWALLOWED],
+    ["an indented code line directly under a raw TeX environment", [...T_EQ, "    some code"], "blank", SWALLOWED],
+    ["a pipe table directly under a raw TeX environment", [...T_EQ, "| a | b |", "|---|---|", "| 1 | 2 |"], "blank", SWALLOWED],
+    ["a grid table directly under a raw TeX environment", [...T_EQ, "+---+---+", "| a | b |", "+---+---+"], "blank", SWALLOWED],
+    ["a seven-hash line directly under a raw TeX environment", [...T_EQ, "####### Seven"], "blank", SWALLOWED],
+    ["an either-class tag directly under a raw TeX environment", [...T_EQ, "<button>x</button>"], "blank", SWALLOWED],
+    // A quoted line is not a block of its own: the unmarked opener below is a lazy continuation.
+    ["a quoted seven-hash line", ["", "> ####### quoted hashes"], "heading", SWALLOWED],
+    ["a comment region inside a block quote", ["> <!--", "> note", "> -->"], "blank", SWALLOWED],
+    // A comment region must start at column 0 and end its last line.
+    ["a comment region indented two spaces", ["  <!--", "note", "  -->"], "blank", SWALLOWED],
+    ["a comment region opened one space in", [" <!-- a", "b -->"], "blank", SWALLOWED],
+    ["a comment terminator with text after it", ["<!-- a", "b --> trailing"], "blank", SWALLOWED],
+    ["a comment terminator followed by a second whole comment", ["<!-- a", "b --> <!-- c -->"], "blank", LISTED],
+    // A lone opening `<div>`: any case; trailing text keeps it a paragraph.
+    ["an upper-case lone <DIV>", ["", "Lead-in text.", "", "<DIV>"], "heading", LISTED],
+    ["a lone <div> followed by a comment", ["", "<div> <!-- c -->"], "heading", SWALLOWED],
+    // A closing tag of a raw-content element needs no opener above it, and must not push the open-element count below zero.
+    ...(["pre", "script", "style", "textarea"] as const).flatMap((t): [string, string[], Ctx, string[]][] => [
+      [`a lone </${t}> after a blank line`, [`</${t}>`], "blank", LISTED],
+      [`a lone </${t}> under a heading`, [`</${t}>`], "heading", LISTED],
+    ]),
+    // Raw-content elements count only where they OPEN a block: not mid-line, not self-closing, and not once closed.
+    ["a complete div after a <pre> that opens mid-line", ["Some text <pre> more", "", "<div>x</div>"], "blank", LISTED],
+    ["a complete div after a self-closing <pre/>", ["<pre/>", "", "<div>x</div>"], "blank", LISTED],
+    ["a complete div after a closed <pre>", ["<pre>", "x", "</pre>", "", "<div>x</div>"], "blank", LISTED],
+    // A pipe table whose header row is itself delimiter-shaped is still a table; a delimiter row with a body row and no header is not.
+    ["a pipe table whose header is a delimiter-shaped row", ["|---|---|", "|---|---|"], "blank", LISTED],
+    ["a delimiter row followed by a body row and no header", ["|---|---|", "| 1 | 2 |"], "blank", SWALLOWED],
+    // HTML block tags are recognised at ANY indent (`HTML_BLOCK_OPEN`, Session 183: `^[ \t]*<`).
+    ["a one-line div indented two spaces", ["  <div>x</div>"], "blank", LISTED],
+    ["a one-line div indented five spaces", ["     <div>x</div>"], "blank", LISTED],
+    ["a closing div indented four spaces under a paragraph", ["    </div>"], "paragraph", LISTED],
+    ["a one-line div indented five spaces under a paragraph", ["     <div>x</div>"], "paragraph", LISTED],
+  ];
+  it.each(KILLERS)("MUTATION KILLER: %s", (_label, x, ctx, expected) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, ctx, x), eng), `${eng}: ${ctx}`).toEqual(expected);
+    }
+  });
+  // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/mu`): a line of prose that ENDS in an opening `<div>` also ends the block
+  // for quarto (`Some text <div>` then an indented opener lists the heading, with and without attributes); this model reads only a line that STARTS with
+  // the tag, so it swallows the heading. Two probes are too few to model "a block tag opens mid-line".
+  it.each([["Some text <div>"], ['Some text <div class="x">']])("RESIDUAL, kept on purpose: an opener below the prose line %j is still swallowed (quarto lists the heading)", (line) => {
+    expect(texts(probe("markdown", "heading", [line]), "markdown")).toEqual(SWALLOWED);
+  });
+  // THE READER GRID (`scratchpad/s295/rdr`, 16 constructs x 7 readers x 2 contexts, engine markdown). `markdown_strict` has no pipe tables, line blocks or grid
+  // tables, so those are paragraph text there and the indented opener stays swallowed: the first cut listed it, a REGRESSION against HEAD that no
+  // blind document had reached. The CommonMark-family readers (`gfm`, `commonmark`, `commonmark_x`) end the block at a comment, a table, a line block and a
+  // grid table exactly as pandoc's markdown does, so the free case claims them there too.
+  it.each<[string, string[]]>([
+    ["a pipe table", ["| a | b |", "|---|---|", "| 1 | 2 |"]],
+    ["a line block", ["| line one", "| line two"]],
+    ["a grid table", ["+---+---+", "| a | b |", "+---+---+"]],
+  ])("READER: under from: markdown_strict, %s is paragraph text and the opener stays swallowed", (_label, x) => {
+    expect(texts(probe("markdown", "blank", x, "    ", [], "markdown_strict"), "markdown")).toEqual(SWALLOWED);
+  });
+  it.each(["gfm", "commonmark", "commonmark_x"])("READER: under from: %s a comment, a pipe table, a line block and a grid table end the block", (from) => {
+    for (const x of [["<!-- c -->"], ["<!--", "note", "-->"], ["| a | b |", "|---|---|", "| 1 | 2 |"], ["| line one", "| line two"], ["+---+---+", "| a | b |", "+---+---+"]]) {
+      expect(texts(probe("markdown", "blank", x, "    ", [], from), "markdown"), `${from}: ${x[0]}`).toEqual(LISTED);
     }
   });
   // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/disc/tbl` `tbl_029_grid_spans`): a grid table whose rows carry a span

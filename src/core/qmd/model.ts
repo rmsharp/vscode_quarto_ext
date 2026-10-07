@@ -7148,10 +7148,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   let inFrontmatter = false;
   let inComment = false;
   let open: OpenCellFence | null = null;
-  // The last line the scanner consumed INSIDE a fence or cell region, its closer included (Session 295). A line the scanner paired as a
-  // cell is not an ordinary body line to quarto when the cell was never a cell (an indented `{bash}` under a paragraph is paragraph text),
-  // so `endsFreshBlock` must not read that closer as an indented code line: `-2` = none.
-  let lastFenceLine = -2;
   // The last line the scanner found to END ITS OWN BLOCK having begun it fresh (Session 295), for the constructs whose end the line's own bytes cannot
   // tell: the closer of a comment region that opened fresh, and a line of seven or more hashes. `-2` = none. Read by the free case.
   let freshBlockEndLine = -2;
@@ -7162,7 +7158,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // scanner before they reach the count), floored at zero.
   let rawContentDepth = 0;
   // Whether the HTML comment region now open began FRESH at column 0 — no paragraph open before its first line (a comment under a prose line is part
-  // of that paragraph) — and under a reader whose comment rule was measured (pandoc markdown; the CommonMark family is not).
+  // of that paragraph). The same under every reader measured (`scratchpad/s295/rdr`), the CommonMark family included.
   let commentFresh = false;
   // ⚠ Set when a jupyter kernel opener is DROPPED (Session 293, `closesOnOwnIndent`): quarto's cell partition never
   // leaves "inside a cell" after it, so every later line is plain markdown and no later line is a kernel cell.
@@ -7357,6 +7353,14 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // default reader), or base `markdown` with any extensions — never the `markdown_*` variants, which lack
   // `blank_before_header` and were not measured, and never a CommonMark-family reader.
   const measuredRefusalReader = fromValueLine === null || FRONTMATTER_MARKDOWN_BASE_FROM.test(fromValueLine);
+  // ⚠ **WHETHER THE FREE CASE MAY CLAIM A PIPE TABLE, A LINE BLOCK OR A GRID TABLE (Session 295).** Rendered over 16 constructs x 7 readers
+  // (`scratchpad/s295/rdr`): no `from:`, `markdown` (with any extensions), `gfm`, `commonmark` and `commonmark_x` all end the block at these constructs, while
+  // `markdown_strict` has none of the three, so they are paragraph text there and the first cut's `Y` was a regression. `markdown_mmd`, `_phpextra` and
+  // `_github` were not measured and are left out; an extension that switches one of the three OFF wins, as everywhere in this family of flags.
+  const freeCaseTableReader =
+    fromValueLine === null ||
+    (FREE_CASE_TABLE_READER_BASES.has(fromReaderBase(fromValueLine) ?? "") &&
+      !["pipe_tables", "line_blocks", "grid_tables"].some((extension) => fromExtensionState(fromValueLine, extension) === false));
   // Whether the resolved reader honours a trailing heading ATTRIBUTE block — see
   // `fromHonoursHeaderAttributes` (Session 216). A SEVENTH flag rather than a refinement of any
   // of the six around it, for the reason each of those gives: it answers its own question, about
@@ -7985,7 +7989,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // Inside a code fence, only the matching closer matters — a `#`, `-->`, or
     // nested fence here is literal. Emit the cell when the fence closes.
     if (open !== null) {
-      lastFenceLine = i;
       // ⚠ A silent knitr chunk's closer closes only that chunk — pandoc never sees it, so a
       // region opened ABOVE the chunk runs on past it (Session 275; `knitrSilentChunkClosers`).
       const knitrConsumed = knitrSilent.has(i) && knitrPastOpeners.has(open.startLine);
@@ -8296,7 +8299,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // here, which can only phantom).
     if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line) && (commonmarkDialect || lastCommentCloserLine > i)) {
       inComment = true;
-      commentFresh = !commonmarkDialect && !stripQuote && COMMENT_OPEN_COL0.test(line) && startsAtBoundary(lines, i);
+      commentFresh = !stripQuote && COMMENT_OPEN_COL0.test(line) && startsAtBoundary(lines, i);
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
@@ -8362,16 +8365,16 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           (firstExampleMarker < 0 || firstExampleMarker >= i) &&
           (i === 0 ||
             endsBlock(lines[i - 1]) ||
-            endsFreshBlock(lines, i - 1, lastFenceLine === i - 1) ||
+            endsFreshBlock(lines, i - 1) ||
             freshBlockEndLine === i - 1 ||
             kernelCellCloserLine === i - 1 ||
-            // the pandoc-only constructs below were measured under pandoc's markdown reader and are not claimed for the CommonMark family
-            (!commonmarkDialect &&
-              lastFenceLine !== i - 1 &&
-              (COMMENT_FULL_LINE_COL0.test(lines[i - 1]) && startsAtBoundary(lines, i - 1) ||
-                tableOrLineBlockEndsAt(lines, i - 1) ||
-                // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`)
-                (rawContentDepth === 0 && endsHtmlBlock(lines[i - 1], startsAtBoundary(lines, i - 1)))))),
+            // a whole-line comment at column 0: the same under every reader measured (`scratchpad/s295/rdr`)
+            (COMMENT_FULL_LINE_COL0.test(lines[i - 1]) && startsAtBoundary(lines, i - 1)) ||
+            // tables and line blocks: measured under pandoc's markdown and the CommonMark family, and NOT `markdown_strict` (see `freeCaseTableReader`)
+            (freeCaseTableReader && tableOrLineBlockEndsAt(lines, i - 1)) ||
+            // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`); pandoc's markdown only:
+            // `markdown_strict` ends one only after a blank line and the CommonMark family reads raw HTML blocks differently
+            (measuredRefusalReader && rawContentDepth === 0 && endsHtmlBlock(lines[i - 1], startsAtBoundary(lines, i - 1)))),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -10674,7 +10677,7 @@ function isBoundaryLine(line: string): boolean {
 /** The first line of the contiguous, non-blank run ending at `x` in which every line satisfies `same` (capped, so a pathological file cannot make each opener scan it all). */
 function runStart(lines: readonly string[], x: number, same: (line: string) => boolean): number {
   let k = x;
-  while (k > 0 && x - k < 1000 && !BLANK_LINE.test(lines[k - 1]) && same(lines[k - 1])) {
+  while (k > 0 && x - k < 1000 && same(lines[k - 1])) {
     k--;
   }
   return k;
@@ -10686,13 +10689,12 @@ function runStart(lines: readonly string[], x: number, same: (line: string) => b
  * Rendered (`scratchpad/s295/{bb,bt,bh}`): after a blank line or a heading pandoc is between blocks after each of these, and directly under a prose
  * line they are paragraph text (a lazy continuation). A thematic break does NOT extend a run (`***` / `___` / `- - -` swallowed the opener, measured:
  * the third is read differently under another break); link definitions and code lines do, so a run of either must itself begin at a boundary.
- * `afterFence` is true when the line was consumed inside a fence or cell region: a cell closer the scanner paired is not an ordinary code line, seven
- * rendered documents regressed when it was read as one.
+ *
+ * ⚠ A cell closer the scanner paired (an indented `{bash}` under a paragraph is paragraph text to quarto) is not an ordinary code line, and the first cut
+ * read it as one: seven documents regressed. The boundary requirement above is what refuses it now — its run starts under the paragraph — so the
+ * `lastFenceLine` guard that first fixed it was dropped: it was redundant, and it cost one document (`cell_026`, a mermaid cell and its tab opener).
  */
-function endsFreshBlock(lines: readonly string[], x: number, afterFence: boolean): boolean {
-  if (afterFence) {
-    return false;
-  }
+function endsFreshBlock(lines: readonly string[], x: number): boolean {
   const line = lines[x];
   if (THEMATIC_BREAK.test(line)) {
     return startsAtBoundary(lines, x);
@@ -10713,7 +10715,8 @@ function endsFreshBlock(lines: readonly string[], x: number, afterFence: boolean
  *
  *   - a LINE BLOCK: the run of `| ` lines and their indented continuations starts with a `| ` line at a boundary (`lineblock`, `lineblock_two`, `_cont`);
  *   - a PIPE table: the run of pipe-bearing lines starts with a header row, a delimiter row directly under it, and a boundary above the header
- *     (`pipe_*`); a delimiter row with no header, and a header that is itself a line-block continuation, are not tables;
+ *     (`pipe_*`); a delimiter row with no header, and a header that is itself a line-block continuation, are not tables (a header that is itself
+ *     delimiter-shaped IS one: quarto lists the heading, rendered `mu_delim_twice`);
  *   - a GRID table: the run of lines starting `|` or `+` begins with a plain dash border at a boundary and holds two or more borders (a lone border,
  *     a `+====+` top and an indented border are text; `tbl_029`'s spanning border still closes it).
  */
@@ -10734,8 +10737,6 @@ function tableOrLineBlockEndsAt(lines: readonly string[], x: number): boolean {
     if (
       x > k &&
       PIPE_DELIMITER_ROW.test(lines[k + 1]) &&
-      lines[k + 1].includes("|") &&
-      !PIPE_DELIMITER_ROW.test(lines[k]) &&
       startsAtBoundary(lines, k)
     ) {
       return true;
@@ -10760,6 +10761,8 @@ const PIPE_DELIMITER_ROW = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)
 /** The top border of a grid table: dashes only between the plus signs (a `+====+` first border is no table). */
 const GRID_PLAIN_BORDER = /^\+(?:-+\+)+[ \t]*$/;
 
+/** The reader bases the free case's table and line-block rules were measured under (Session 295, `scratchpad/s295/rdr`). */
+const FREE_CASE_TABLE_READER_BASES: ReadonlySet<string> = new Set(["markdown", "gfm", "commonmark", "commonmark_x"]);
 /**
  * Whether `line` COMPLETES a raw HTML block element, so pandoc is between blocks after it (Session 295). Rendered over 129 tag names x six
  * shapes (`scratchpad/s295/tg`, 774 documents): a closing tag, an empty element, a one-line element and a multi-line element end the block for
@@ -10775,15 +10778,17 @@ const GRID_PLAIN_BORDER = /^\+(?:-+\+)+[ \t]*$/;
 function endsHtmlBlock(line: string, beganFresh: boolean): boolean {
   // The line must START with a WELL-FORMED tag: the quote-aware reader the heading rules already use says no tag where a quote never closes
   // (`<div class="x>`) and for `< /div>`, while `>` inside a CLOSED quote (`<div class="a>b">`) is still one tag (rendered, round 2 `tags_052`).
+  // At ANY indent: pandoc's HTML block tests skip leading whitespace (`HTML_BLOCK_OPEN`, Session 183), and an indented `</div>` or `<div>x</div>` ends the
+  // block under a paragraph too (rendered, `mu_indented_close_div_para`, `mu_indent5_div_one_para`).
   const lt = line.indexOf("<");
-  if (lt < 0 || lt > 3 || line.slice(0, lt).trim() !== "") {
+  if (lt < 0 || line.slice(0, lt).trim() !== "") {
     return false;
   }
   const first = headingAngleEnd(line, lt);
   if (first.name === null) {
     return false;
   }
-  if (!first.closing && first.name.toLowerCase() === "div" && line.slice(first.next).trim() === "") {
+  if (first.name.toLowerCase() === "div" && line.slice(first.next).trim() === "") {
     return true; // a lone opening `<div ...>`: pandoc reads an unclosed div as markdown content
   }
   const m = HTML_ELEMENT_COMPLETES.exec(line);
@@ -10798,7 +10803,7 @@ function endsHtmlBlock(line: string, beganFresh: boolean): boolean {
  * `</td></tr>`, `<summary>More</summary>`). Anything after the last closer keeps the line a paragraph.
  */
 const HTML_ELEMENT_COMPLETES = new RegExp(
-  "^ {0,3}(?:</(" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")[ \\t]*>" +
+  "^[ \\t]*(?:</(" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")[ \\t]*>" +
     "|</?(" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")(?=[ \\t/>]|$)[^\\n]*</(" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")[ \\t]*>)[ \\t]*$",
   "i",
 );
