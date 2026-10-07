@@ -23276,13 +23276,14 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
   ]);
 });
 
-describe("Session 297 — the reader the two run-to-the-end rules trust is PROVEN by a plain top-level `from:`, not merely resolved", () => {
+describe("Session 297 — the four run-to-the-end rules trust a PROVEN reader (a whitelist of the front matter), not the resolver's word", () => {
   const doc = (...lines: string[]) => lines.join("\n") + "\n";
   const texts = (text: string, engine?: "jupyter" | "markdown" | "knitr" | "julia" | "ambiguous") =>
     findHeadings(text, engine).map((h) => h.text);
-  // Every document below is a probe rendered with quarto 1.7.33 in ne mode (exit 0): front matter with a `title:` and `engine: markdown`, then `## Before`, a
-  // trigger that a CommonMark-family reader runs to the end of the document (an unclosed plain fence, an unclosed `<![CDATA[`, a degenerate `<!-->`), `## Inside`
-  // inside it and `## After` below. quarto's answer is the claim; each row names the Session 296 control (`scratchpad/s296/adv2/controls`) it is.
+  // The four rules that run to the end of the document under a CommonMark-family reader (an unclosed plain fence, an unclosed raw HTML block of type 3-5, a degenerate `<!-->`, an unclosed `<!--`) fire only
+  // where `frontMatterProvesReader` holds. Every row is a document rendered with quarto 1.7.33 in ne mode (exit 0), its claim quarto's answer: a probe with a `title:` and usually `engine: markdown`, then
+  // `## Before`, a trigger, `## Inside` inside it and `## After` below. Rows read RED->GREEN for a hazard or a retention loss that rendering found (three blind rounds, 20 authoring agents, about 2,650
+  // rendered documents), RESIDUAL for a phantom the fix leaves in place, and "passes on arrival" for the mutation killers and witnesses.
   const ALL = ["Before", "Inside", "After"];
   const fenceBody = ["", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"];
   // SLICE 1. A `from:` WRITTEN INSIDE A MULTI-LINE FLOW COLLECTION. The resolver finds a column-0 `from: gfm` line that YAML reads as part of a flow sequence or
