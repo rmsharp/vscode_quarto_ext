@@ -8,15 +8,38 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 296 (IN PROGRESS): the COMMONMARK-FAMILY READERS (gfm, commonmark, commonmark_x) -- residual 3(f) of "Kernel-cell closing and the unbounded second look".**
-Operator picked it at Phase 0. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Grid construct x reader BEFORE any rule (Learnings #623, #640).
-**⚠ Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders; authors never render, the caller renders 3 wide, load gate 25, `_files` pruned. (3) `score.cjs` REFUSES a stale bundle.
+**Task:** **NONE -- Session 296 closed out (under a CommonMark-family reader an indented non-handler opener is never a cell; unclosed fences and type 3-5 HTML blocks run to the end, gated).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**#1 NEXT:** operator picks. Open: the new CommonMark item (container stack, quote extent, `from:` proof), then "Kernel-cell closing ..." residual 2 and (3)(a).
+**⚠ Gotchas:** (1) never `git add -A`. (2) `scratchpad/` is 70 GB: dashboard ~4 min, `npm run package` ~15-20 min. (3) mutation edits `src/`: run it alone.
 
-### What Session 296 Did
-**Deliverable:** a reader-aware rule: under a CommonMark-family reader an indented non-handler opener is never a cell, so the heading inside it is listed as quarto lists it (IN PROGRESS)
-**Started:** 2026-10-07
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 295 Handoff Evaluation (by Session 296)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the open
+items; `freeCaseTableReader` 7360, `startsAtBoundary` 10666, `isBoundaryLine` 10675, `runStart` 10685, `endsFreshBlock` 10704, `LINK_REFERENCE_DEFINITION`
+5306 and the suite start 22268 were exact at HEAD (`htmlRunBeginsWithTag` was 10776, not 10775); the ratchet citation (2/2, `bba236856bad`) matched the stored results.
+**Helped:** the 320-document reader grid, its renders and `truth.json` (they confirmed the 33 deletions in two minutes), `score.cjs`'s stale-bundle refusal (it
+fired once after a comment edit), `render.sh`'s load gate, Learning #640 (grid across readers first) and gotchas 1, 7 and 9. **Missing:** that the reader grid held
+TOP-LEVEL contexts only (every container shape, where most of the work was, had to be measured fresh), any warning that dropping the cell pairing unmasks older
+gaps the pairing hid by accident (S282 and S294 had said so; the item's own `estimate: one session` priced the one-line rule, not what it unmasked: 18 commits),
+and that `truth.json` is keyed by relative path, so another session's keys collide with and outlive its files. **Wrong:** only that estimate. **ROI: high.**
+
+## Session 296 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I measured before coding: a 288-document context grid and a 336-document language x indent grid (uniform across engine, reader and indent), then a
+240-document container grid; each slice RED before GREEN. Three blind rounds were scored against the PARENT build (609, 549 and 155 documents), a seeded 1,200-document
+product grid found seven deletions no author wrote, and two mutation passes (74 mutants) found five gates of mine that were too strict (+35 fixes), ten killers that
+lacked unit rows and a script bug that had dropped the first row of 12 generated tables. Final: 3,979 rendered probes, 1,215 fixed, 43 regressed (all pinned);
+155 realistic documents: 2 fixed, 0 regressed; 27,853 (document x pandoc reader) pairs unchanged; corpus 0 of 3,383 changed; score unchanged 2,423/2,438; tests 4,225 to 4,463.
+**Went wrong.** (1) The first cut (slices 1-2) fixed 234 and regressed 94 of 609: every regression an older gap the pairing had hidden, because my grids put each
+heading at column 0 and only one reader axis moved. (2) The run-to-the-end rules (slices 4 and 5) were my own over-reach: round 2 showed one wrong trigger deletes everything
+below it with NO opener in the document (154 regressions) and needed eight gates. (3) Two narrowing prototypes I expected to help scored worse (95 and 69 against 71 regressions).
+(4) About a dozen deletion-direction shapes ship pinned (multi-marker lines, markers that cannot interrupt a paragraph, a capital initial, six misread `from:` controls).
+(5) Scope: one item became 18 commits, each forced by a measured regression of my own change. (6) A learning row first named a wrong cause (caught before commit). (7) No
+`test:integration` run (needs the screen; core-only change). (8) `mutate296.py` wrote its bundles into the S295 directory until I moved them.
+**TDD:** RED shown before GREEN for slices 1-8 and every gate family; the guard rows, the pinned RESIDUAL rows and the mutation killers and witnesses pass on arrival (disclosed).
+**Cost:** 26 authoring agents (about 4.7M subagent tokens, none rendered) in three workflows, about 3,660 renders by the caller at 3 wide, no screen-taking run; load peaks of 64 were other apps.
 
 ## Session 294 Handoff Evaluation (by Session 295)
 
