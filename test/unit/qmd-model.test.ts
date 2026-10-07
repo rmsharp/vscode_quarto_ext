@@ -23454,4 +23454,97 @@ describe("Session 297 — the reader the two run-to-the-end rules trust is PROVE
   ])("guard (passes on arrival): a proven reader still swallows below an unclosed comment (%s)", (_label, lines, quarto) => {
     expect(texts(doc(...lines), "markdown")).toEqual(quarto);
   });
+  // SLICE 16. A `#` GLUED TO A FLOW INDICATOR IS A COMMENT TO QUARTO'S YAML READER (round 2, `adv2/grammar` 001-010, rendered: quarto lists everything). `custom: [#a` /
+  // `from: gfm]` leaves the flow open, so the `from:` is inside it; the grammar only saw a comment after whitespace, closed the flow on the first line and read the `from:` as
+  // a key. Also a mismatched bracket pair (`[#a}`) closes nothing: the scan counted depth, not kinds.
+  it.each<[string, string[], string[]]>([
+    ["glue open bracket", ["---", "title: \"T\"", "engine: markdown", "custom: [#]", "from: gfm]", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_001_glue_open_bracket.qmd
+    ["glue flowmap open", ["---", "title: \"T\"", "engine: markdown", "params: {#}", "from: gfm}", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_003_glue_flowmap_open.qmd
+    ["glue from trailing comma", ["---", "title: \"T\"", "engine: markdown", "custom: [#]", "from: gfm,", "x: y]", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_008_glue_from_trailing_comma.qmd
+    ["glue mismatched brackets", ["---", "title: \"T\"", "engine: markdown", "custom: [#a}", "from: gfm]", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_010_glue_mismatched_brackets.qmd
+  ])("RED->GREEN: a # glued to a flow indicator opens a comment, and bracket kinds must match (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 17. A COLON GLUED TO A QUOTE IS NOT A VALUE INDICATOR IN A FLOW (round 2, `adv2/grammar` 011-018): in `[a:"b, "c]` YAML reads `a:"b` as a plain scalar and the
+  // second quote OPENS a scalar that swallows the `from:`; the grammar paired the two quotes because it set `valueStart` after any colon. A colon directly before a quote or a
+  // bracket declines.
+  it.each<[string, string[], string[]]>([
+    ["colon dq dash close", ["---", "title: \"T\"", "engine: markdown", "custom: [a:\"b, \"c]", "from: gfm", "- d\"]", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_011_colon_dq_dash_close.qmd
+    ["colon sq dash close", ["---", "title: \"T\"", "engine: markdown", "custom: [a:'b, 'c]", "from: gfm", "- d']", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_012_colon_sq_dash_close.qmd
+    ["colon dq flowmap", ["---", "title: \"T\"", "engine: markdown", "params: {a:\"b, \"c: d}", "from: gfm", "- d\"}", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_015_colon_dq_flowmap.qmd
+  ])("RED->GREEN: a colon glued to a quote or bracket inside a flow proves nothing (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 18. A PLAIN SCALAR CANNOT CONTAIN `: `, SO A LIST ITEM WHOSE TEXT DOES IS A MAPPING WITH AN ODD KEY (round 2, `adv2/grammar` 019-030, `adv2/wrapped`): `- a b:
+  // "multi` is a key `a b` whose value opens a quote, but the plain-key regex failed (a space, a colon, a slash, non-ASCII, a space before the colon) and the item fell
+  // through to "one plain scalar", so the opener was invisible and the `from:` below looked like a key.
+  it.each<[string, string[], string[]]>([
+    ["dash colon in key dq", ["---", "title: \"T\"", "engine: markdown", "list:", "  - a:b: \"multi", "from: gfm", "note: y\"", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_019_dash_colon_in_key_dq.qmd
+    ["dash space in key dq", ["---", "title: \"T\"", "engine: markdown", "list:", "  - a b: \"multi", "from: gfm", "note: y\"", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_020_dash_space_in_key_dq.qmd
+    ["dash key flowseq", ["---", "title: \"T\"", "engine: markdown", "list:", "  - a b: [x,", "from: gfm,", "y: z]", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_023_dash_key_flowseq.qmd
+    ["dash unicode key", ["---", "title: \"T\"", "engine: markdown", "list:", "  - ключ: \"multi", "from: gfm", "note: y\"", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_026_dash_unicode_key.qmd
+    ["dash col0 oddkey", ["---", "title: \"T\"", "engine: markdown", "list:", "- a b: \"multi", "from: gfm", "note: y\"", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_030_dash_col0_oddkey.qmd
+  ])("RED->GREEN: a list item with a colon-space is a mapping the grammar does not read (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 19. A PER-FORMAT OVERRIDE THE RESOLVER AND THE GRAMMAR BOTH MISS (round 2, `adv2/grammar` 031-033): a legal low-indent continuation line lowered the resolver's
+  // computed html indent so it never read `html: from: markdown`, while the grammar's phantom quote hid that line from the proof. Once the grammar reads the lines as YAML
+  // does, the override is a second governing `from:` and the byte-equality refuses.
+  it.each<[string, string[], string[]]>([
+    ["perfmt override dashcont flowlow", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "format:", "  html:", "      keywords: [a,", "    b]", "      toc-title: text", "        - \"multi", "      from: markdown", "      css: y\"", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_031_perfmt_override_dashcont_flowlow.qmd
+    ["perfmt override nbsp flowlow", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "format:", "  html:", "      keywords: [a,", "    b]", "      toc-title:  \"multi", "      from: markdown", "      css: y\"", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_032_perfmt_override_nbsp_flowlow.qmd
+    ["perfmt override quotelow dashcont", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "format:", "  html:", "      toc-title: \"q1", "    q2\"", "      lang: text", "        - \"multi", "      from: markdown", "      css: y\"", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/grammar/grammar_033_perfmt_override_quotelow_dashcont.qmd
+  ])("RED->GREEN: a per-format override a low-indent continuation hides is still seen by the proof (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 20. A LONE CARRIAGE RETURN IS A YAML LINE BREAK THE MODEL'S `\r?\n` SPLIT DOES NOT SEE (round 2, `adv2/block` 036-047, rendered): a `\r` inside a block scalar's
+  // text hides a whole `format:` / `html:` / `from: markdown` override on what the model reads as ONE line of text, while YAML reads it as keys. Any line that still holds a
+  // `\r` after the split declines.
+  it.each<[string, string[], string[]]>([
+    ["cr hidden perfmt literal", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "abstract: |", "  text\rformat:\r  html:\r    from: markdown", "z: 1", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/block/block_036_cr_hidden_perfmt_literal.qmd
+    ["cr hidden perfmt indent2", ["---", "title: \"T\"", "engine: markdown", "abstract: |2", "  text\rformat:\r  html:\r    from: markdown", "from: gfm", "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/block/block_039_cr_hidden_perfmt_indent2.qmd
+    ["cr hijack header toplevel", ["---", "title: \"T\"", "engine: markdown", "format:", "  html:", "    abstract: |", "      text\rfoo: |", "    from: gfm", "    toc: true", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/block/block_043_cr_hijack_header_toplevel.qmd
+    ["cr list item block", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "items:", "  - text: |", "      abc\rformat:\r  html:\r    from: markdown", "z: 1", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/block/block_047_cr_list_item_block.qmd
+  ])("RED->GREEN: a lone carriage return hides lines from the model that YAML reads (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 21. A FENCE MARKER OR `<!--` INSIDE THE FRONT MATTER MAKES THE LINE SPLIT AND QUARTO DISAGREE ABOUT WHERE IT ENDS (round 2, `adv2/regions` 021, 024, 025, rendered):
+  // a stray column-0 `---` below an indented fence inside a block scalar, a YAML comment `# <!--` closed by `-->` in the body. Quarto reads the whole block (or none of it)
+  // where the model's first-`---` rule stops early, so a front matter that holds a fence marker or an HTML comment opener proves nothing.
+  it.each<[string, string[], string[]]>([
+    ["fm stray dash in indented fence then format from", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "code: |", "  ```text", "# end", "---", "  ```", "format:", "  html:", "    from: markdown", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/regions/regions_021_fm_stray_dash_in_indented_fence_then_format_from.qmd
+    ["fm yaml comment opens comment body closes", ["---", "title: \"T\"", "engine: markdown", "# <!--", "from: gfm", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/regions/regions_024_fm_yaml_comment_opens_comment_body_closes.qmd
+    ["fm comment span swallows from", ["---", "title: \"T\"", "engine: markdown", "note: \"<!--\"", "from: gfm", "other: \"-->\"", "---", "", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"], ["Before","Inside","After"]], // adv2/regions/regions_025_fm_comment_span_swallows_from.qmd
+  ])("RED->GREEN: a fence marker or an HTML comment opener inside the front matter proves no reader (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 22. A METADATA BLOCK IN THE BODY IS INVISIBLE TO THE REGION SCANNER'S FENCE TRACKER WHILE PANDOC READS IT (round 2, `adv2/regions` 001-018, rendered): under
+  // pandoc's markdown an UNCLOSED fence is not a fence, so a `---` / `from: markdown` / `---` block below it, or below a `<!--` that closes later, is metadata that outranks
+  // the front matter. The port hides it, so the check cannot depend on the port: if the body holds any `---` line, no body line may mention `from` or an escape.
+  it.each<[string, string[], string[]]>([
+    ["shift comment dash then block", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "<!--", "---", "-->", "---", "from: markdown", "---", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ["Before","from: markdown","Inside","After"]], // adv2/regions/regions_017_shift_comment_dash_then_block.qmd
+  ])("RED->GREEN: a body block the region scanner's fence tracker hides still overrides the front matter (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 23 (retention, a bug of this session's own). A FRONT MATTER THAT ENDS IN A BLOCK SCALAR IS ORDINARY (`abstract: |` as the last key) and the proof declined it: a
+  // block header was still pending at the end of the lines. Only a quote or a flow collection left open at the end declines. (`adv2/block` 024, 025, rendered: quarto reads
+  // the CommonMark reader.)
+  it.each<[string, string[], string[]]>([
+    ["block at eof text", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "abstract: |", "  last text", "---", "", "## Before", "", "<!DOCTYPE html", "", "## Inside", "", "## After", "", "tail"], ["Before"]], // adv2/block/block_024_block_at_eof_text.qmd
+    ["block at eof header", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "abstract: >-", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","After"]], // adv2/block/block_025_block_at_eof_header.qmd
+  ])("RED->GREEN: a front matter that ends in a block scalar still proves a plain top-level from: (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // RESIDUAL, kept on purpose (`adv2/regions` 001, 005, 018, rendered): the DELETION is gone for these three (the proof now refuses, so nothing runs to the end of the document), but the body block
+  // is still read as a setext heading `from: markdown` (the pre-Session-296 build did the same: 001 and 005) and, under a list item's fence, the fence marker itself is listed (018, a Session 296
+  // fence rule this session did not gate). Quarto lists Before, Inside and After in all three.
+  it.each<[string, string[], string[]]>([
+    ["001 an unclosed fence above a body block", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "Para above", "", "```text", "", "---", "from: markdown", "---", "", "## Inside", "", "## After", "", "tail"], ["Before", "from: markdown", "Inside", "After"]],
+    ["005 a three-backtick fence closed by four", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "```text", "code line", "````", "", "---", "from: markdown", "---", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before", "from: markdown", "Inside", "After"]],
+    ["018 a list item's fence above a body block", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "- item", "", "  ```yaml", "---", "  ```", "---", "from: markdown", "---", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before", "```", "from: markdown", "Inside", "After"]],
+    ["041 a body key split by an HTML comment", ["---", "title: \"T\"", "engine: markdown", "from: gfm", "---", "", "## Before", "", "---", "fr<!-- -->om: markdown", "---", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before","fr<!-- -->om: markdown","Inside","After"]],
+  ])("RESIDUAL: a body block below a hidden fence no longer deletes, but its text is a phantom heading (%s)", (_label, lines, model) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(model);
+  });
+  // SLICE 22b (folded into the residual table above): the body check also refuses `<!--`, because a body block can spell its key `fr<!-- -->om` and quarto reads it as `from` (`adv2/regions` 041).
 });
