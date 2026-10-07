@@ -5999,6 +5999,16 @@ const COMMENT_FULL_LINE_COL0 = /^<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
 /** A comment region's first line at column 0, and its closer ending the line: anything after the terminator keeps the paragraph going. */
 const COMMENT_OPEN_COL0 = /^<!--/;
 const COMMENT_CLOSE_AT_END = /-->[ \t]*$/;
+/** `-->` searched AFTER a leading `<!--`, so the overlapping `-->` of `<!-->` and `<!--->` does not count (CommonMark type 2, Session 296). */
+const COMMENT_CLOSE_AFTER_OPEN = /^[ \t]*<!--[\s\S]*?-->/;
+/**
+ * The start of a CommonMark HTML block of type 3 (`<?`, group 1), 5 (`<![CDATA[`, group 2) or 4 (`<!` + an ASCII letter), at indent 0-3 (Session 296). The
+ * end markers are searched in the rest of the line after the match, as cmark does.
+ */
+const CM_RAW_HTML_BLOCK_START = /^ {0,3}(?:(<\?)|(<!\[CDATA\[)|<![A-Za-z])/;
+const CM_RAW_END_PI = /\?>/;
+const CM_RAW_END_CDATA = /\]\]>/;
+const CM_RAW_END_DECL = />/;
 /**
  * The constructs pandoc's block parser tries BEFORE `table`, so a line of one of them above a
  * dash run is NOT a simple table's header row (Session 239).
@@ -7160,6 +7170,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // Whether the HTML comment region now open began FRESH at column 0 — no paragraph open before its first line (a comment under a prose line is part
   // of that paragraph). The same under every reader measured (`scratchpad/s295/rdr`), the CommonMark family included.
   let commentFresh = false;
+  // The line pattern that ENDS the open comment-like region (Session 296): `-->` for a comment, and under a CommonMark reader `?>`, `>` or `]]>` for an
+  // HTML block of type 3, 4 or 5, which the same region swallows.
+  let commentClose: RegExp = COMMENT_CLOSE;
   // ⚠ Set when a jupyter kernel opener is DROPPED (Session 293, `closesOnOwnIndent`): quarto's cell partition never
   // leaves "inside a cell" after it, so every later line is plain markdown and no later line is a kernel cell.
   let kernelPartitionDead = false;
@@ -8016,7 +8029,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
 
     // Inside a block HTML comment: skip until it terminates.
     if (inComment) {
-      if (COMMENT_CLOSE.test(line)) {
+      if (commentClose.test(line)) {
         inComment = false;
         if (commentFresh && COMMENT_CLOSE_AT_END.test(line)) {
           freshBlockEndLine = i;
@@ -8297,8 +8310,15 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // body line. CommonMark's HTML block (type 2) has no such rule and runs to the end of the document, so the three
     // CommonMark-family readers keep swallowing (`commonmarkDialect`; a `from:` set in a project file is invisible
     // here, which can only phantom).
-    if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line) && (commonmarkDialect || lastCommentCloserLine > i)) {
+    // ⚠ **UNDER A COMMONMARK READER THE END CONDITION IS SEARCHED AFTER THE START MARKER (Session 296)**: in `<!-->` and `<!--->` the `-->` overlaps the
+    // `<!--` and closes nothing, so those two open a comment that runs on (rendered, `scratchpad/s296/own3/cmt_degen*`).
+    if (
+      COMMENT_OPEN.test(line) &&
+      !(commonmarkDialect ? COMMENT_CLOSE_AFTER_OPEN : COMMENT_CLOSE).test(line) &&
+      (commonmarkDialect || lastCommentCloserLine > i)
+    ) {
       inComment = true;
+      commentClose = COMMENT_CLOSE;
       commentFresh = !stripQuote && COMMENT_OPEN_COL0.test(line) && startsAtBoundary(lines, i);
       consecutiveBody = 0;
       paragraphOpen = false;
@@ -8307,6 +8327,28 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       simpleTableRowsOpen = false;
       quoteOpen = stripQuote;
       continue;
+    }
+    // ⚠ **COMMONMARK HTML BLOCKS OF TYPES 3, 4 AND 5 (Session 296)**: `<?` runs to a line holding `?>`, `<!` + a letter to one holding `>`, `<![CDATA[` to one
+    // holding `]]>`; the end marker is searched on the START line too, after the marker, and a block starts at indent 0-3 and may interrupt a paragraph. Every
+    // heading inside is swallowed and an unclosed block runs to the end of the document (rendered, `scratchpad/s296/own3`, 102 documents, identical under
+    // `gfm`, `commonmark` and `commonmark_x`). Top level only: inside a list item or a quote the block opens later, and those keep the old answer.
+    if (commonmarkDialect && contentColumns.length === 0 && !stripQuote) {
+      const rawBlock = CM_RAW_HTML_BLOCK_START.exec(line);
+      if (rawBlock !== null) {
+        const end = rawBlock[1] !== undefined ? CM_RAW_END_PI : rawBlock[2] !== undefined ? CM_RAW_END_CDATA : CM_RAW_END_DECL;
+        if (!end.test(line.slice(rawBlock[0].length))) {
+          inComment = true;
+          commentClose = end;
+          commentFresh = false;
+          consecutiveBody = 0;
+          paragraphOpen = false;
+          inPipeTable = false;
+          tableRowsOpen = false;
+          simpleTableRowsOpen = false;
+          quoteOpen = stripQuote;
+        }
+        continue;
+      }
     }
 
     // A fence opener (captures cell metadata so the closer can emit the cell).

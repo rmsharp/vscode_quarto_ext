@@ -22921,4 +22921,43 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
       expect(texts(doc(...front("markdown", from), "## Before", "", "```text", "code", "```", "", "## In", "", "## After", "", "tail"), "markdown"), from).toEqual(LISTED);
     }
   });
+  // SLICE 5. COMMONMARK HTML BLOCKS OF TYPES 3, 4 AND 5, AND THE DEGENERATE COMMENTS. `<?` runs to a line holding `?>`, `<!` + a letter to a line holding `>`,
+  // `<![CDATA[` to `]]>` (all three also end on their own start line), and `<!-->` / `<!--->` open a comment that the overlapping `-->` does not close; every
+  // heading between start and end is swallowed, an unclosed block runs to the end of the document, and a block may start at indent 0-3 and interrupt a paragraph.
+  // Rendered, `scratchpad/s296/own3` (102 documents: three readers x two engines, identical in all six). HEAD listed the headings inside (a phantom that
+  // predates the indented-opener rule and that rule UNMASKED: the old cell pairing hid it, round 1 `html_001`..`007`, `eng_001`..`005`, `fence_019`..`023`).
+  const raw = (eng: Eng, from: string, lines: string[]): string => doc(...front(eng, from), "## Before", "", ...lines, "", "## After", "", "tail");
+  it.each<[string, string[], string[]]>([
+    ["a multi-line processing instruction", ["<?php", "echo 1;", "## In", "?>"], SWALLOWED],
+    ["a processing instruction with a blank line inside", ["<?php", "", "## In", "", "?>"], SWALLOWED],
+    ["an unclosed processing instruction", ["<?php", "echo 1;", "## In"], ["Before"]],
+    ["a processing instruction indented three spaces", ["   <?php", "## In", "?>"], SWALLOWED],
+    ["a processing instruction directly under a paragraph", ["Para above", "<?php", "## In", "?>"], SWALLOWED],
+    ["a multi-line declaration", ["<!ELEMENT note", "## In", ">"], SWALLOWED],
+    ["an unclosed declaration", ["<!DOCTYPE html", "## In"], ["Before"]],
+    ["a multi-line CDATA section", ["<![CDATA[", "## In", "]]>"], SWALLOWED],
+    ["an unclosed CDATA section", ["<![CDATA[", "## In"], ["Before"]],
+    ["a degenerate comment <!-->", ["<!-->", "## In", "-->"], SWALLOWED],
+    ["a degenerate comment <!--->", ["<!--->", "## In", "-->"], SWALLOWED],
+    ["an unclosed degenerate comment", ["<!-->", "## In"], ["Before"]],
+  ])("RED->GREEN: under a CommonMark reader %s swallows the heading inside it", (_label, lines, expected) => {
+    for (const from of CM_READERS) {
+      for (const eng of ["jupyter", "markdown"] as const) {
+        expect(texts(raw(eng, from, lines), eng), `${from} ${eng}`).toEqual(expected);
+      }
+    }
+  });
+  it.each<[string, string[]]>([
+    ["a one-line processing instruction", ["<?php echo 1; ?>", "## In"]],
+    ["a one-line declaration", ["<!DOCTYPE html>", "## In"]],
+    ["a one-line CDATA section", ["<![CDATA[x]]>", "## In"]],
+    ["a processing instruction indented four spaces (code)", ["    <?php", "## In", "?>"]],
+    ["a processing instruction on a list item line", ["- <?php", "## In", "?>"]],
+  ])("GUARD: under a CommonMark reader %s ends at once or is no block, so the heading is listed", (_label, lines) => {
+    for (const from of CM_READERS) {
+      for (const eng of ["jupyter", "markdown"] as const) {
+        expect(texts(raw(eng, from, lines), eng), `${from} ${eng}`).toEqual(LISTED);
+      }
+    }
+  });
 });
