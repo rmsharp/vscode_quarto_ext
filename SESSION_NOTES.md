@@ -8,15 +8,47 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 297 (IN PROGRESS): the `from:` RESOLVER'S PROOF OF THE READER -- item (6) of "CommonMark-family readers: what the Session 296 rules still miss".**
-Operator picked it at Phase 0. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Six rendered controls delete today; the fix is a plain top-level scalar test (Learning #652).
-**⚠ Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders: authors never render, the caller renders 3 wide, load gate 25. (3) `score.cjs` REFUSES a stale bundle.
+**Task:** **NONE -- Session 297 closed out (the four run-to-the-end rules of the CommonMark readers fire only where the front matter PROVES the reader: a whitelist, three blind rounds).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**#1 NEXT:** operator picks. Open: the new "proof of the reader declines more than it must" item (measured lost fixes), the CommonMark item (container stack, quote extent), then "Kernel-cell closing ..." residual 2 and (3)(a).
+**⚠ Gotchas:** (1) never `git add -A`. (2) `scratchpad/` is 70+ GB: dashboard ~4 min, `npm run package` ~15-20 min. (3) mutation edits `src/`: run it alone, and edit no test file or BACKLOG.md beside it.
 
-### What Session 297 Did
-**Deliverable:** make the two run-to-the-end rules (unclosed plain fence, raw HTML type 3-5) fire only where the reader is PROVEN a CommonMark-family reader by a plain top-level `from:` scalar (IN PROGRESS)
-**Started:** 2026-10-07
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 296 Handoff Evaluation (by Session 297)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the open items; the
+`key_files` line numbers I checked were exact at HEAD (`cmColumns` and `fenceColumns` 8487-8488, the raw block start 8426, the unclosed-fence rule 8681,
+`fancyListsReader` 7446); the ratchet citation (2/2, `bba236856bad`) matched the stored results; its figures reproduced exactly (`tally.sh` over 3,979 probes:
+1,215 fixed, 43 regressed).
+**Helped:** the item's row (6) (six controls named with their corpus path), the cached renders under `scratchpad/s296` (I scored the controls in two minutes),
+`render.sh`, `score.cjs`'s stale-bundle refusal, `hn.cjs`, `mutate296.py` and `mutdiff.cjs` (forked), Learnings #646, #652 and #654, gotchas 1, 2 and 7.
+**Missing:** that the item's one-line fix ("a plain top-level scalar test") was a seed and not a design, since the six controls were a sample of an open-ended
+space (the real cost was three blind rounds, 27 slices and a differential fuzz); that the item named only Session 296's rules when Session 289's
+unclosed-comment swallow had the identical hole; and that `render.sh` copies no helper files, so include probes cannot render (found only when a lens came back
+24 of 50 refused). **Wrong:** the item's estimate priced the rule, not the proof; and "six rendered controls delete" was seven (control 046 also lost more
+headings). **ROI: high.**
+
+## Session 297 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I measured before coding (a 100-spelling x 5-trigger grid, the controls' cached renders, a 1,058-document misread product grid) and showed RED
+before GREEN for each slice (126 rows in the Session 297 suite, 6 retired). Three blind rounds (20 agents, about 4.4M subagent tokens, none rendered; about
+2,650 renders by the caller at 3 wide) found in RENDERED documents every way past three successive designs (36, then 33 and 12 documents); the third design is a
+whitelist, and a differential fuzz (about 5 million documents, js-yaml as the oracle) reports 0 hazards while finding 4,830 in the parent build and 963 in the
+first whitelist. A critic's ten gaps were measured: an include shortcode, `metadata-files` and a later block that replaces `format:` were real, `pandoc-args`, a project-level reader and a later `format: null`
+block were refuted, and five rule-side leads stay unrendered. The product grid showed the Session 296 rules the proof does not gate cost phantoms and no deletions, so I left them. Mutation: 93 mutants, 11 observable survivors got rows from their
+shortest rendered killers and 3 unreached guards got crafted witnesses. Final: 0 of 887 blind documents where the pre-Session-296 build was right and this one
+deletes (the parent: 205); grid deletion cells 55 to 0 and 11 to 0; Session 296's corpora 8 lost fixes and 5 deletions removed; realistic retention 88 of 103;
+corpus 0 of 3,383 changed; score unchanged 2,423/2,438; tests 4,463 to 4,583.
+**Went wrong.** (1) My first proof (a bracket counter) and then a quote lexer were unsound in ways the rounds had to find; I reached the whitelist only after
+round 1 showed a lexer loses its place in the unsound direction. (2) I took "two rules" as the scope: the same hole lived in a third and a fourth, found only
+because the grid used every trigger kind (the fourth I extended in this session, disclosed). (3) `render.sh` could not render documents with helper files, so a
+lens scored 26 of 50 and the include and `metadata-files` hazards stayed hidden for a round. (4) Rows that claimed quarto's exact answer failed where the old
+phantom remained: 10 rows became RESIDUAL. (5) Scope: one item became 27 slices, each forced by a measured hazard of my own design. (6) No `test:integration`
+run (needs the screen; core-only change). (7) Two background jobs launched with both `&` and run-in-background died silently, a stale sweep had to be killed
+after a late fix, and a test file was edited while authors read it (harmless).
+**TDD:** RED shown before GREEN for slices 1-3, 6-27 (each class's rows failed first); slices 4-5 (an alias, a body block) passed on arrival because slice 1's
+byte-equality already covered them; the retention rows, the guards, the residual rows and the mutation killers and witnesses pass on arrival (disclosed).
+**Cost:** 20 authoring agents (about 4.4M subagent tokens), about 2,650 renders at 3 wide, 93 mutants, about 5 million fuzz documents, no screen-taking run.
 
 ## Session 295 Handoff Evaluation (by Session 296)
 
@@ -77,34 +109,3 @@ test failed once under load (~40-60) during a mutation run and not in three reru
 **TDD:** RED shown before GREEN for each slice and fix; the GUARD and MUTATION KILLER rows pass on arrival by construction (they pin behaviour HEAD
 already had right), disclosed.
 **Cost:** 21 authoring agents (about 1.63M subagent tokens), 4,707 renders at 3 wide or fewer; no screen-taking run.
-
-## Session 293 Handoff Evaluation (by Session 294)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the
-open items; all ten line numbers in its key_files were exact at HEAD (grep-checked); the ratchet citation matched the stored results at Phase 0.
-**Helped:** the `lg` probes with cached renders (I used five byte for byte as test inputs), `adv_score.cjs` and `corpusdiff_eng.cjs` (forked), the
-pinned `{bash}` RESIDUAL row (my first RED to flip), and gotchas 1, 2, 3, 5 and 7 (the ratchet walks the scratchpad: minutes, 127 is a timeout).
-**Missing:** how to build a `findHeadings` bundle (esbuild one-liner; `h/head.cjs` is the PRE-S293 commit, `head.sha` says so), and that the
-`lg` `{r}` rows forced the jupyter hint on documents quarto resolves to knitr, so they read "right" by accident. **Wrong:** gotcha 4, "the
-exact-indent rule is python ONLY": true as a measurement, but it hid that `python` was a constant standing in for the document's kernel, which
-was the defect my first cut inherited. It did label the non-python kernel UNMEASURED. **ROI: high.**
-
-## Session 294 Self-Assessment
-
-**Score: 8/10.**
-**Went right.** I measured before coding: a 51-language grid showed the rule is a negative list, a context grid showed S293's free case carries
-over, and a kernel grid (100 documents) fixed the reader's accept set before I wrote it. Mutation testing found two unpinned terms, and scoring
-candidate rows through the MUTANT bundle chose the rows that kill them. Two adversarial rounds (ten lenses, about 640 documents) found two
-defects of MY design, both fixed test-first: the kernel constant (5 regressions) and "python by default" on front matter the reader could not
-read (7). The 58 raw-construct phantoms were pinned and filed, not gated. Final: 917 documents scored, 462 fixed; S293's 1,124 probes give 0
-regressions; corpus 0 of 3,383 changed; score unchanged 2,423/2,438; 4,028 tests; 27 mutants killed, 1 equivalent term removed.
-**Went wrong.** (1) A stale `h/new.cjs` (built after slice 1, never rebuilt) made me chase an R-specific deletion that was already fixed;
-`score.cjs` now refuses a stale bundle. (2) My first rule inherited S293's `python` constant and a second rule defaulted to python on unreadable
-input: the same pattern as S292/S293, my matrices share my assumptions and only the adversaries find the flaw. (3) Three unmeasured numbers in
-prose: a commit message (105 documents, was 100: amended), "162 + 300" in a learning, a witness range that included a right row; all caught
-before close. (4) Mutation SKIPs read as a pass until I counted them. (5) Scope grew from a five-language skip to a front-matter reader (a new
-module), each step forced by a measured regression of my own rule, but more than the item listed. (6) One `npm test` run failed once, uncaptured
-(five green reruns). (7) No `test:integration` run (needs the screen; core-only change). (8) A reviewer's pass AFTER close-out found two
-quadratic regexes in my new module (550 ms for one 30,000-space line): I should have written the hostile-line row with the regex; fixed test-first (Learning #636).
-**TDD:** RED shown before GREEN for each slice (5, 42, 12, 8, 1, 10, 32 and 1 failing rows); guard rows passed on arrival and are disclosed in the ledger.
-**Cost:** 10 authoring agents (about 2.07M subagent tokens), about 1,270 renders at 3 wide or fewer; no screen-taking run.
