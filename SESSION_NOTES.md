@@ -102,32 +102,3 @@ wrote three small logs to /tmp once (removed). (5) Load reached 209 while render
 `test:integration` run (needs the screen; core-only change). (7) Two phantom regressions and nine residuals ship, all filed.
 **TDD:** RED shown before GREEN for each slice; the mutation-gap rows and four guard rows passed on arrival (disclosed).
 **Cost:** 9 agents (about 1.6M subagent tokens), about 1,800 quarto renders at 3 wide or fewer; no screen-taking run.
-
-## Session 291 Handoff Evaluation (by Session 292)
-
-**Score: 8/10.** Self-check by the same model family, not an independent score. Its ACTIVE TASK said `BACKLOG.md` "Active" was
-empty and listed the open items; all seven line numbers in its receipt were exact in its own commit; the ratchet citation matched.
-**Helped:** the ranked list, `monotone.cjs` (I reused it), `cmp.cjs`/`twin.cjs`/`show.cjs`, the corpus-copies and stray-file warnings,
-and the probe paths: seven named probes reproduced at once. **Missing:** the root of the list-in-quote family (`prevLineBlank`
-reads the RAW line, so a bare `>` is not blank to the container pop), and that about a third of the `readers_ref` witnesses are
-refused-opener shapes that belong to another item. **Wrong:** its hypothesis that the reader needed for the lazy rule is the
-`fencedDivsDialect` one: the measured predicates are `blankBeforeHeaderDialect` (ATX line) and `commonmarkDialect` (opener).
-It labelled that a hypothesis, not a measurement. **ROI: high.**
-
-## Session 292 Self-Assessment
-
-**Score: 7/10.**
-**Went right.** I partitioned the over-suppression mechanically (45,940 cached renders, rule-off builds, plain-div twins) before
-designing, and wrote each slice's rule from a fresh rendered matrix (65, 78, 18, 60 documents). TDD: RED shown at the previous
-checkpoint's source for every slice. Mutation testing found four unpinned terms and a guard that blocked correct answers (30 of 40
-sampled). The adversarial lenses found real flaws in MY designs, and I rebuilt around them: popping early moved later closers
-(now FLAGGED, stack identical to HEAD); a global column pop deleted default-reader headings (now div-only). Final: 0 deletion
-regressions in 5,566 probes, real-document score unchanged 2,423/2,438, corpus 0/3,383, 3,723 tests.
-**Went wrong.** (1) I launched a nine-lens workflow that rendered thousands of documents without announcing or capping it: load
-reached ~500, the operator asked, I stopped it early. `markers` yielded 13 probes with truth, `refute` none, and the verifier stage
-never ran, so I triaged regressions myself with twins. (2) My own matrices, built from the same understanding as the rules, did
-not catch the pop/global-pop flaws; only the default-reader control lens did. (3) Three small slips: guessed test counts in two
-commit messages (amended), unmeasured counts in two code comments (corrected), a wrong CHANGELOG sentence about the G21 pin.
-(4) A geometry guard added on a hypothesis. (5) Scope: nine rules against the item's three; each addition was measured, but it
-is more than was listed. (6) No `test:integration` run (needs the screen; core-only change).
-**TDD:** RED shown before GREEN. **Cost:** 9 lens agents (tokens not measured), ~5,600 adversarial renders, one load incident.
