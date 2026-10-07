@@ -22662,6 +22662,39 @@ describe("Session 295 — the free case's block-boundary list", () => {
       expect(texts(probe("markdown", "blank", x, "    ", [], from), "markdown"), `${from}: ${x[0]}`).toEqual(LISTED);
     }
   });
+  // MUTATION ROUND 2 (63 mutants of the final source: 52 died, 11 survived; every row here is a rendered document, claims checked by `check_rows.cjs`).
+  // `markdown_strict` ends a raw HTML block only after a BLANK line (it has no `markdown_in_html_blocks` interplay with a paragraph), so the HTML rule
+  // holds there when the element began at a boundary and not under a prose line; the CommonMark family reads raw HTML blocks another way and keeps HEAD.
+  const HTML_SHAPES: [string, string[]][] = [
+    ["a closing div", ['<div class="note">', "Some text here", "</div>"]], ["a one-line div", ["<div>text</div>"]], ["a closing details", ["<details>", "Some body text", "</details>"]],
+    ["a lone opening div", ["<div>"]], ["a details summary line", ["<details>", "<summary>More</summary>"]], ["a one-line paragraph element", ["<p>text</p>"]],
+  ];
+  it.each(HTML_SHAPES)("READER: under from: markdown_strict %s ends the block after a blank line and not under a paragraph", (_label, x) => {
+    expect(texts(probe("markdown", "blank", x, "    ", [], "markdown_strict"), "markdown"), "after a blank line").toEqual(LISTED);
+    expect(texts(probe("markdown", "paragraph", x, "    ", [], "markdown_strict"), "markdown"), "directly under a paragraph").toEqual(SWALLOWED);
+  });
+  // Pandoc's markdown with extensions switched on or off by name: a table and a line block still end the block, unless THAT extension is off.
+  it.each([["markdown"], ["markdown-fenced_divs"], ["markdown-blank_before_header"]])("READER: under from: %s a pipe table, a line block and a grid table end the block", (from) => {
+    for (const x of [["| a | b |", "|---|---|", "| 1 | 2 |"], ["| line one", "| line two"], ["+---+---+", "| a | b |", "+---+---+"]]) {
+      expect(texts(probe("markdown", "blank", x, "    ", [], from), "markdown"), `${from}: ${x[0]}`).toEqual(LISTED);
+    }
+  });
+  it.each<[string, string[]]>([
+    ["markdown-pipe_tables", ["| a | b |", "|---|---|", "| 1 | 2 |"]],
+    ["markdown-line_blocks", ["| line one", "| line two"]],
+    ["markdown-grid_tables", ["+---+---+", "| a | b |", "+---+---+"]],
+  ])("READER: under from: %s the construct is not one, so the opener stays swallowed", (from, x) => {
+    expect(texts(probe("markdown", "blank", x, "    ", [], from), "markdown")).toEqual(SWALLOWED);
+  });
+  // A QUOTED closing tag is a lazy line of the quote: the unmarked opener below stays paragraph text.
+  it.each<[string, string[]]>([
+    ["a quoted closing div", ["", "> </div>"]],
+    ["a quoted closing div under a quoted line", ["", "> quoted text", "> </div>"]],
+  ])("MUTATION KILLER: %s", (_label, x) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "heading", x), eng), eng).toEqual(SWALLOWED);
+    }
+  });
   // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/disc/tbl` `tbl_029_grid_spans`): a grid table whose rows carry a span
   // (`+-------+-------+       +`, a border with spaces in it). The free-case test DOES read it as a table now (the run of lines starting `|` or `+`
   // holds a plain top border and three borders), but the scanner's own paragraph state stays open across the span border, which it does not know as
