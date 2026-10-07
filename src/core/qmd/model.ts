@@ -8518,12 +8518,16 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         !(char === "`" && fence[3].includes("`"));
       if (
         !refused &&
-        hasCloserBelow(
-          pastKnitr ? closerIndexPastKnitr : closerIndex,
-          i + 1,
-          candidate,
-          stripQuote ? quoteEnds[i] : undefined,
-        )
+        // ⚠ **UNDER A COMMONMARK READER AN UNCLOSED PLAIN FENCE RUNS TO THE END OF THE DOCUMENT (Session 296)**, where pandoc's markdown needs a closer below
+        // (Session 179). Rendered, `scratchpad/s296/own2/uf_*` (30 documents): quarto lists nothing below one under `gfm`, `commonmark` and `commonmark_x`,
+        // `## After` included. Top level only (a container ends it earlier), unquoted, and never a cell shape: quarto's partitioner drops an unclosed cell opener.
+        ((commonmarkDialect && !candidate.isCell && contentColumns.length === 0 && !stripQuote) ||
+          hasCloserBelow(
+            pastKnitr ? closerIndexPastKnitr : closerIndex,
+            i + 1,
+            candidate,
+            stripQuote ? quoteEnds[i] : undefined,
+          ))
       ) {
         if (pastKnitr) {
           knitrPastOpeners.add(i);

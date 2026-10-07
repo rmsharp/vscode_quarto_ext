@@ -22899,4 +22899,26 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
       expect(texts(probe("markdown", from, above), "markdown"), from).toEqual(LISTED);
     }
   });
+  // SLICE 4. AN UNCLOSED FENCE RUNS TO THE END OF THE DOCUMENT UNDER A COMMONMARK READER. The model opens a plain fence only when a closer lies below it
+  // (pandoc's markdown rule, Session 179); the CommonMark readers keep an unclosed fence open to the end, and quarto swallows everything below it, `## After`
+  // included (`scratchpad/s296/own2/uf_*`, 30 documents: three readers x two engines x tick / tilde / indent 3 / four-tick-with-a-three-tick-closer). HEAD listed the
+  // headings below (a phantom the indented-opener rule UNMASKED: with an opener in the fence the old pairing swallowed them by accident, round 1 `fence_001`..`016`).
+  const unclosed = (eng: Eng, from: string, fence: string[]): string => doc(...front(eng, from), "## Before", "", ...fence, "## In", "x = 1", "", "## After", "", "tail");
+  it.each<[string, string[]]>([
+    ["a backtick fence", ["```text", "code"]],
+    ["a tilde fence", ["~~~", "code"]],
+    ["a fence indented three spaces", ["   ```text", "code"]],
+    ["a four-tick fence whose three-tick line is no closer", ["````text", "code", "```"]],
+  ])("RED->GREEN: under a CommonMark reader %s that is never closed swallows every heading below it", (_label, fence) => {
+    for (const from of CM_READERS) {
+      for (const eng of ["jupyter", "markdown"] as const) {
+        expect(texts(unclosed(eng, from, fence), eng), `${from} ${eng}`).toEqual(["Before"]);
+      }
+    }
+  });
+  it("GUARD: a fence that IS closed ends where its closer is, under a CommonMark reader", () => {
+    for (const from of CM_READERS) {
+      expect(texts(doc(...front("markdown", from), "## Before", "", "```text", "code", "```", "", "## In", "", "## After", "", "tail"), "markdown"), from).toEqual(LISTED);
+    }
+  });
 });
