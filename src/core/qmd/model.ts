@@ -2939,6 +2939,120 @@ function frontMatterFromValueLine(lines: readonly string[]): string | null {
   return content === null ? null : contentFromValueLine(content);
 }
 /**
+ * Whether the document's front matter PROVES the reader `fromValueLine` names, for a rule whose wrong answer DELETES every heading below it (Session 297).
+ *
+ * ⚠ **THE RESOLVER ABOVE IS PERMISSIVE ON PURPOSE AND THAT IS WRONG FOR THESE RULES.** It reads a dozen YAML spellings of a `from:` because a miss costs a phantom,
+ * and a rule that fails toward a phantom can afford that. Session 296's run-to-the-end rules (an unclosed plain fence, an unclosed raw HTML block of type 3-5, a
+ * degenerate comment) fail toward a DELETION: a `from:` the resolver misreads (a line YAML reads inside a multi-line flow collection, a re-declared anchor, a block
+ * inside a fence) makes them delete everything below a trigger quarto lists (`scratchpad/s296/adv2/controls` 031-044, rendered). So they ask for a PROOF: one
+ * column-0 `from:` key line, reached outside any flow collection, whose text is exactly what the resolver returned.
+ */
+function frontMatterProvesReader(lines: readonly string[], fromValueLine: string | null): boolean {
+  if (fromValueLine === null) {
+    return false;
+  }
+  const content = frontMatterContent(lines);
+  if (content === null) {
+    return false;
+  }
+  let lex: YamlLexState = { flow: 0, quote: null };
+  const declarations: string[] = [];
+  for (const line of content) {
+    if (lex.flow === 0 && lex.quote === null && leadingWhitespace(line) === 0) {
+      const key = TOP_LEVEL_FROM_KEY.exec(line);
+      if (key !== null) {
+        declarations.push(`from:${line.slice(key[0].length)}`);
+      }
+    }
+    lex = advanceYamlLex(line, lex);
+  }
+  return declarations.length === 1 && declarations[0] === fromValueLine;
+}
+/** Where a front-matter line begins, lexically: how many flow collections are open and which quote (if any) is. */
+interface YamlLexState {
+  flow: number;
+  quote: string | null;
+}
+/** The index of the quote that closes the one opened before `from` on `line`, or `-1` when it runs on to the next line. */
+function yamlQuoteEnd(line: string, from: number, quote: string): number {
+  for (let i = from; i < line.length; i++) {
+    if (line[i] === "\\" && quote === '"') {
+      i++;
+    } else if (line[i] === quote) {
+      if (quote === "'" && line[i + 1] === "'") {
+        i++;
+      } else {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+/**
+ * The lexical state after `line`, given the state before it.
+ *
+ * ⚠ A quote or a bracket only OPENS something where a value can BEGIN (`valueStart`): after a key's colon, a `-`, a `,` or an opening bracket, or at the start of a
+ * line. Anywhere else it is a character of a plain scalar (`What's new`, `say "hi" to {everyone}`), and a `#` starts a comment only after whitespace. Reading a
+ * plain scalar's apostrophe as an opening quote swallowed the `from:` below it and proved nothing.
+ */
+function advanceYamlLex(line: string, state: YamlLexState): YamlLexState {
+  let { flow, quote } = state;
+  let i = 0;
+  let valueStart = true;
+  if (quote !== null) {
+    const end = yamlQuoteEnd(line, 0, quote);
+    if (end < 0) {
+      return state;
+    }
+    quote = null;
+    i = end + 1;
+    valueStart = false;
+  }
+  for (; i < line.length; i++) {
+    const c = line[i];
+    const next = line[i + 1];
+    if (c === " " || c === "\t") {
+      continue;
+    }
+    if (c === "#" && (i === 0 || line[i - 1] === " " || line[i - 1] === "\t")) {
+      break;
+    }
+    if (valueStart && (c === '"' || c === "'")) {
+      const end = yamlQuoteEnd(line, i + 1, c);
+      if (end < 0) {
+        return { flow, quote: c };
+      }
+      i = end;
+      valueStart = false;
+    } else if (c === "[" || c === "{") {
+      if (valueStart) {
+        flow++;
+      } else {
+        valueStart = false;
+      }
+    } else if (c === "]" || c === "}") {
+      if (flow > 0) {
+        flow--;
+      }
+      valueStart = false;
+    } else if (c === ",") {
+      valueStart = flow > 0;
+    } else if (c === ":") {
+      valueStart = flow > 0 || next === undefined || next === " " || next === "\t";
+    } else if ((c === "-" || c === "?") && valueStart && (next === undefined || next === " " || next === "\t")) {
+      // a sequence or complex-key indicator: a value may still begin after it
+    } else if ((c === "&" || c === "!" || c === "*") && valueStart) {
+      while (i + 1 < line.length && !/[\s,[\]{}]/.test(line[i + 1])) {
+        i++;
+      }
+      valueStart = c !== "*";
+    } else {
+      valueStart = false;
+    }
+  }
+  return { flow, quote };
+}
+/**
  * The VALUE half of the question above, asked of one block's CONTENT rather than of a document.
  *
  * Split out in Session 211 as the exact counterpart of `contentSelectsReader`, so the governing
@@ -7383,6 +7497,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // hands over is byte-identical to the source line, so neither allowlist can move.
   const fromValueLine = frontMatterFromValueLine(lines);
   let commonmarkDialect = fromValueLine !== null && FRONTMATTER_COMMONMARK_FROM.test(fromValueLine);
+  // ⚠ **THE READER, PROVEN (Session 297)** — read by the three rules whose wrong answer DELETES every heading below a trigger (the degenerate comment, a raw HTML block of
+  // type 3-5, an unclosed plain fence), all of which run to the end of the document. See `frontMatterProvesReader`.
+  const commonmarkProven = commonmarkDialect && frontMatterProvesReader(lines, fromValueLine);
   // Whether the front-matter `from:` names a reader that KEEPS `blank_before_header` — see
   // `fromKeepsBlankBeforeHeader`. A THIRD flag beside the two above, read by the
   // ATX paragraph bail alone: `dialectOverride`'s other consumer (the heading COLUMN set) asks
@@ -8395,7 +8512,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // `<!--` and closes nothing, so those two open a comment that runs on (rendered, `scratchpad/s296/own3/cmt_degen*`).
     if (
       COMMENT_OPEN.test(line) &&
-      !(commonmarkDialect &&
+      !(commonmarkProven &&
       contentColumns.length === 0 &&
       !stripQuote &&
       /^ {0,3}<!--/.test(line) &&
@@ -8422,7 +8539,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // heading inside is swallowed and an unclosed block runs to the end of the document (rendered, `scratchpad/s296/own3`, 102 documents, identical under
     // `gfm`, `commonmark` and `commonmark_x`). At top level an unclosed block runs to the end of the document; inside a list item or a quote it ends with the container, which this model cannot
     // see, so there the start needs its end marker below (`endMarkerBelow`).
-    if (commonmarkDialect && rawContentDepth === 0 && liveDiv() === null && !htmlBlockMayBeOpenAbove(lines, i)) {
+    if (commonmarkProven && rawContentDepth === 0 && liveDiv() === null && !htmlBlockMayBeOpenAbove(lines, i)) {
       const rawBlock = CM_RAW_HTML_BLOCK_START.exec(line);
       const end = rawBlock === null ? null : rawBlock[1] !== undefined ? CM_RAW_END_PI : rawBlock[2] !== undefined ? CM_RAW_END_CDATA : CM_RAW_END_DECL;
       // Inside a list item or a quote an UNCLOSED block ends with the container, which this model cannot see (rendered, `scratchpad/s296/own6`): there the start requires its end marker on
@@ -8678,7 +8795,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // (Session 179). Rendered, `scratchpad/s296/own2/uf_*` (30 documents): quarto lists nothing below one under `gfm`, `commonmark` and `commonmark_x`,
         // `## After` included. In a list item it ends with the item (`boundColumn`), a quoted fence is bounded by the quote's own end (`quoteEnds`), and a cell shape is
         // never asked: quarto's partitioner drops an unclosed cell opener.
-        ((commonmarkDialect && !stripQuote && PLAIN_FENCE_INFO.test(fence[3].trim()) && liveDiv() === null && rawContentDepth === 0 && !htmlBlockMayBeOpenAbove(lines, i)) ||
+        ((commonmarkProven && !stripQuote && PLAIN_FENCE_INFO.test(fence[3].trim()) && liveDiv() === null && rawContentDepth === 0 && !htmlBlockMayBeOpenAbove(lines, i)) ||
           hasCloserBelow(
             pastKnitr ? closerIndexPastKnitr : closerIndex,
             i + 1,

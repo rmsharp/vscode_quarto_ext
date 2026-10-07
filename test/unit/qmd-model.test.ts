@@ -23184,18 +23184,7 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
     ["013 lazyunderline double dash", "gfm", "markdown", ["> para","    ```{bash}","In","--","    ```","","## After","","tail"], ["Before","After"], ["Before","> para ```{bash} In","After"]], // adv2/quotefence/quotefence_013_lazyunderline_double_dash.qmd
     ["015 lazyunderline jupyter", "gfm", "jupyter", ["> para","    ```{bash}","In","---","    ```","","## After","","tail"], ["Before","After"], ["Before","> para ```{bash} In","After"]], // adv2/quotefence/quotefence_015_lazyunderline_jupyter.qmd
   ]);
-  // A `from:` the resolver misreads (the accepted R7 residual: inside a multi-line flow collection, a re-declared anchor, a mid-document block in a fence) turns the CommonMark rules on for a document quarto reads
-  // as pandoc's markdown, and the run-to-the-end rules then DELETE the headings below. (`controls_031`-`044`.)
-  it.each<[string, string[], string[], string[]]>([
-["031 flowseq hidden from uf", ["---","title: \"T\"","engine: markdown","custom: [a,","from: gfm]","---","","## Before","","Para above","","```text","","## Inside","","## After","","tail"], ["Before","Inside","After"], ["Before"]], // adv2/controls/controls_031_flowseq_hidden_from_uf.qmd
-    ["033 params flowmap hidden from cdata", ["---","title: \"T\"","engine: markdown","params: {a: 1,","from: gfm}","---","","## Before","","<![CDATA[","","## Inside","","]]>","","## After","","tail"], ["Before","Inside","After"], ["Before","After"]], // adv2/controls/controls_033_params_flowmap_hidden_from_cdata.qmd
-    ["034 flow anchor hidden from degenerate", ["---","title: \"T\"","engine: markdown","custom: &a [x,","from: gfm]","---","","## Before","","<!-->","","## Inside","","-->","","## After","","tail"], ["Before","Inside","After"], ["Before","After"]], // adv2/controls/controls_034_flow_anchor_hidden_from_degenerate.qmd
-    ["035 json style params hidden unquoted", ["---","{title: \"T\", engine: markdown,","params: {a: 1,","from: gfm}}","---","","## Before","","Para above","","```text","","## Inside","","## After","","tail"], ["Before","Inside","After"], ["Before"]], // adv2/controls/controls_035_json_style_params_hidden_unquoted.qmd
-    ["037 anchor redeclared markdown wins", ["---","title: \"T\"","engine: markdown","a: &r gfm","b: &r markdown","from: *r","---","","## Before","","Para above","","```text","","## Inside","","## After","","tail"], ["Before","Inside","After"], ["Before"]], // adv2/controls/controls_037_anchor_redeclared_markdown_wins.qmd
-    ["044 mid block in list fence", ["---","title: \"T\"","engine: markdown","---","","- item","","  ```yaml","---","from: gfm","---","  ```","","## Before","","Para above","","```text","","## Inside","","## After","","tail"], ["Before","Inside","After"], ["from: gfm"]], // adv2/controls/controls_044_mid_block_in_list_fence.qmd
-  ])("RESIDUAL, kept on purpose: a misread from: key (%s)", (_label, lines, _quarto, model) => {
-    expect(texts(doc(...lines), "markdown")).toEqual(model);
-  });
+  // (Six rows that pinned a `from:` the resolver misreads stood here; Session 297 gates the run-to-the-end rules on a PROOF of the reader and moved them to its own suite.)
   // The rest of the round-1 and round-2 phantom shapes (callout and tabset divs that interrupt a paragraph under commonmark_x, a raw-attribute fence closed by a LATER cell's closer, a footnote body, a quote-list
   // lazy line): each the same older gap as the rows pinned above, as its own rendered document.
   residual("further older gaps", [
@@ -23285,4 +23274,62 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
     ["001 nest2 text heading outer", "gfm", "markdown", ["- - item","    ```text","    code","  ## In","    more","    ```","## After","","tail"], ["Before","In","After"], ["Before","After"]], // adv2/itemfence/itemfence_001_nest2_text_heading_outer.qmd
     ["item degenerate", "gfm", "markdown", ["- item","  <!-->","  ## In","","## After","","tail"], ["Before","After"], ["Before","In","After"]], // own7/w5_item_degenerate.qmd
   ]);
+});
+
+describe("Session 297 — the reader the two run-to-the-end rules trust is PROVEN by a plain top-level `from:`, not merely resolved", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const texts = (text: string, engine?: "jupyter" | "markdown" | "knitr" | "julia" | "ambiguous") =>
+    findHeadings(text, engine).map((h) => h.text);
+  // Every document below is a probe rendered with quarto 1.7.33 in ne mode (exit 0): front matter with a `title:` and `engine: markdown`, then `## Before`, a
+  // trigger that a CommonMark-family reader runs to the end of the document (an unclosed plain fence, an unclosed `<![CDATA[`, a degenerate `<!-->`), `## Inside`
+  // inside it and `## After` below. quarto's answer is the claim; each row names the Session 296 control (`scratchpad/s296/adv2/controls`) it is.
+  const ALL = ["Before", "Inside", "After"];
+  const fenceBody = ["", "## Before", "", "Para above", "", "```text", "", "## Inside", "", "## After", "", "tail"];
+  // SLICE 1. A `from:` WRITTEN INSIDE A MULTI-LINE FLOW COLLECTION. The resolver finds a column-0 `from: gfm` line that YAML reads as part of a flow sequence or
+  // mapping opened on an earlier line, so quarto reads the DEFAULT reader and lists everything; Session 296's run-to-the-end rules (an unclosed fence, an unclosed
+  // raw HTML block) believed the CommonMark reader and deleted every heading below the trigger. A rule whose wrong answer is a deletion needs a proof of the reader.
+  it.each<[string, string[], string[]]>([
+    ["031 flow sequence hides the from (unclosed fence)", ["---", 'title: "T"', "engine: markdown", "custom: [a,", "from: gfm]", "---", ...fenceBody], ALL],
+    ["033 flow mapping hides the from (unclosed CDATA)", ["---", 'title: "T"', "engine: markdown", "params: {a: 1,", "from: gfm}", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ALL],
+    ["034 anchored flow sequence (degenerate comment)", ["---", 'title: "T"', "engine: markdown", "custom: &a [x,", "from: gfm]", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ALL],
+    ["035 JSON-style front matter (unclosed fence)", ["---", '{title: "T", engine: markdown,', "params: {a: 1,", "from: gfm}}", "---", ...fenceBody], ALL],
+  ])("RED->GREEN: a from: inside a multi-line flow collection proves no reader (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 2. A `from:` WRITTEN ON A CONTINUATION LINE OF A MULTI-LINE QUOTED SCALAR. YAML folds the lines of a double- or single-quoted scalar into one string, so a
+  // line that looks like `from: gfm` inside it is text and quarto reads the default reader (rendered, `scratchpad/s297/gf` n36, n37: both builds of Session 296
+  // deleted every heading below the trigger, all five triggers).
+  it.each<[string, string[], string[]]>([
+    ["n36 double-quoted scalar runs onto a from-looking line (unclosed fence)", ["---", 'title: "T"', "engine: markdown", 'desc: "first', 'from: gfm"', "---", ...fenceBody], ALL],
+    ["n37 single-quoted scalar runs onto a from-looking line (unclosed PI)", ["---", 'title: "T"', "engine: markdown", "desc: 'first", "from: gfm'", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ALL],
+    ["n36 again, with an unclosed declaration", ["---", 'title: "T"', "engine: markdown", 'desc: "first', 'from: gfm"', "---", "", "## Before", "", "<!X", "", "## Inside", "", "## After", "", "tail"], ALL],
+  ])("RED->GREEN: a from: on a continuation line of a multi-line quoted scalar proves no reader (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICE 3. THE PROOF MUST NOT BE SO STRICT THAT AN ORDINARY FRONT MATTER FAILS IT. A bracket inside a quoted string, an apostrophe or a brace inside a PLAIN scalar and
+  // a comment that mentions brackets are not flow collections or quotes; a plain top-level `from: gfm` below them is a real key and quarto reads the CommonMark reader
+  // (rendered: `gf` p18-p20 and the three `pr3` probes), so the rule must keep swallowing. Session 296 did; the first cut of this session's proof counted every bracket
+  // and every quote character and lost all six.
+  it.each<[string, string[], string[]]>([
+    ["p18 a bracket inside a quoted scalar (degenerate comment)", ["---", 'title: "T"', "engine: markdown", 'description: "an [unbalanced bracket"', "from: gfm", "---", "", "## Before", "", "<!-->", "", "## Inside", "", "-->", "", "## After", "", "tail"], ["Before", "After"]],
+    ["p19 apostrophes and a brace inside a plain scalar (unclosed fence)", ["---", 'title: "T"', "engine: markdown", "description: it's Bob's {thing", "from: gfm", "---", ...fenceBody], ["Before"]],
+    ["p20 a comment holding brackets, a brace and a quote (CDATA)", ["---", 'title: "T"', "engine: markdown", '# a comment with [ and { and "', "from: gfm", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before", "After"]],
+    ["a plain scalar with ONE apostrophe (unclosed PI)", ["---", 'title: "T"', "engine: markdown", "title2: What's new", "from: commonmark_x", "---", "", "## Before", "", "<?php", "", "## Inside", "", "## After", "", "tail"], ["Before"]],
+    ["a URL fragment and quotes and brackets in the middle of a plain scalar (unclosed fence)", ["---", 'title: "T"', "engine: markdown", "url: http://example.com/a#frag", 'note: say "hi" to {everyone} [now]', "from: gfm", "---", ...fenceBody], ["Before"]],
+    ["quoted items inside a balanced flow sequence and mapping (CDATA)", ["---", 'title: "T"', "engine: markdown", 'items: [a, "b, c", d]', 'params: {x: 1, y: "two"}', "from: gfm", "---", "", "## Before", "", "<![CDATA[", "", "## Inside", "", "]]>", "", "## After", "", "tail"], ["Before", "After"]],
+  ])("RED->GREEN: an ordinary front matter still proves a plain top-level from: (%s)", (_label, lines, quarto) => {
+    expect(texts(doc(...lines), "markdown")).toEqual(quarto);
+  });
+  // SLICES 4-5 (passed on arrival: slice 1's byte-equality with the resolver's own line already covers them; disclosed). An ALIAS is not a plain scalar, so `from: *r` never proves the
+  // reader, and a metadata block in the BODY is not the front matter: a `from:` the resolver takes from one governs nothing the proof can see.
+  it("an alias value never proves the reader (control 037: the anchor re-declared as markdown wins, quarto lists everything)", () => {
+    expect(texts(doc("---", 'title: "T"', "engine: markdown", "a: &r gfm", "b: &r markdown", "from: *r", "---", ...fenceBody), "markdown")).toEqual(ALL);
+  });
+  // RESIDUAL, kept on purpose (control 044): a `---` / `from: gfm` / `---` block under a fence inside a list item. Quarto does NOT read it as metadata (the default reader), the resolver does, and
+  // the proof now refuses it, so the deletion is gone; what is left is a PHANTOM (`from: gfm`, the lines read as a setext heading) that the pre-Session-296 build did not report, because the
+  // Session 296 item-bound rule ends the fence with the item under the resolved reader. Gating that rule too is a wider change than this session's.
+  it("RESIDUAL: a body metadata block inside a list item's fence proves no reader but still phantoms its own text (control 044)", () => {
+    const lines = ["---", 'title: "T"', "engine: markdown", "---", "", "- item", "", "  ```yaml", "---", "from: gfm", "---", "  ```", ...fenceBody];
+    expect(texts(doc(...lines), "markdown")).toEqual(["from: gfm", "Before", "Inside", "After"]);
+  });
 });
