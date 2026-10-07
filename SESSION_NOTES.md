@@ -8,10 +8,15 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 294 closed out (under jupyter a cell is the document's kernel language or a handler; every other indented opener in the free case is indented code).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: "Kernel-cell closing ..." (nine residuals; the free case's block-boundary list is the largest) and the raw-block family (census, one trigger).
-**⚠ Gotchas:** (1) never `git add -A`. (2) other projects hold the load at 37-55; `render.sh` waits below 25. (3) `score.cjs` REFUSES a stale bundle: rebuild after any src edit or mutation run.
+**Task:** **Session 295 (IN PROGRESS): the free case's BLOCK-BOUNDARY LIST (residual 3 of "Kernel-cell closing and the unbounded second look").**
+Operator picked it at Phase 0 from the ranked list. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Render each construct BEFORE widening `endsBlock` (Learning #623).
+**⚠ Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders; authors never render, the caller renders at 3 wide or fewer (Learnings #622, #627, #634). (3) `score.cjs` REFUSES a stale bundle: rebuild after any src edit.
+
+### What Session 295 Did
+**Deliverable:** make the free case's `endsBlock` list complete, construct by construct, so an indent-4 `{python}` opener under a `***`, table row, closing tag, etc. is read as pandoc reads it (IN PROGRESS)
+**Started:** 2026-10-06
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 293 Handoff Evaluation (by Session 294)
 
