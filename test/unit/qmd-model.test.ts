@@ -22888,4 +22888,15 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
       expect(texts(probe(eng, "gfm", above, " ".repeat(indent)), eng), eng).toEqual(SWALLOWED); // quarto: Before, In, After
     }
   });
+  // SLICE 3. EXAMPLE LISTS DO NOT EXIST TO COMMONMARK. `(@)` and `(@label)` open an example list in pandoc's markdown only, and the free case withdrew itself
+  // wherever one sat ABOVE the opener (`firstExampleMarker`). Under `gfm` and `commonmark_x` the marker is plain text, quarto lists the heading (rendered,
+  // `scratchpad/s296/own/ex_*`, 6 documents), and the withdrawal kept HEAD's deletion: a term the first cut carried over without measuring it.
+  it.each<[string, string[]]>([
+    ["an unlabelled marker above", ["(@) example one", "", "Para above"]],
+    ["a labelled marker above", ["(@good) example", "Para above"]],
+  ])("RED->GREEN: under a CommonMark reader %s is plain text, so the opener below is indented code", (_label, above) => {
+    for (const from of ["gfm", "commonmark_x"]) {
+      expect(texts(probe("markdown", from, above), "markdown"), from).toEqual(LISTED);
+    }
+  });
 });

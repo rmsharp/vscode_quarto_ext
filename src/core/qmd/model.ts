@@ -8361,9 +8361,14 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // LAZY (Session 295): the block-boundary list grew past a few regexes, and only an indented cell opener ever asks.
         () =>
           !stripQuote &&
-          (firstExampleMarker < 0 || firstExampleMarker >= i) &&
+          // ⚠ **THE COMMONMARK FAMILY IS FREE WHEREVER THE OPENER SITS (Session 296)**: an ATX line interrupts a paragraph there, so an indent-4 opener that
+          // is not a CommonMark fence is code or a lazy line and the `## In` under it is a heading (rendered, `scratchpad/s296/{g1,g2,g3}`, 864 documents:
+          // uniform across both engine hints, the three readers and indents 4 and 8; inside a list item deeper than its code depth too). It has NO example
+          // lists, so a `(@)` marker above withdraws nothing there (`scratchpad/s296/own`); a raw HTML block that runs over the opener is held by the scanner's
+          // own state, and the container-bound real fence at rel 0-3 is the filed container-fence item, not this one.
           (commonmarkDialect ||
-            (contentColumns.length === 0 &&
+            ((firstExampleMarker < 0 || firstExampleMarker >= i) &&
+              contentColumns.length === 0 &&
               (i === 0 ||
                 endsBlock(lines[i - 1]) ||
                 endsFreshBlock(lines, i - 1) ||
