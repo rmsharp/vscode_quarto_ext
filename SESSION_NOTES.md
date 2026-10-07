@@ -8,10 +8,15 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 295 closed out (an indent-4 non-kernel opener below a thematic break, definition, code line, comment, table, line block, closing HTML tag or closed kernel cell is indented code).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Largest open row: the CommonMark-family readers (33 of 96 reader-grid documents still deleted), then residual 2 of "Kernel-cell closing ..." (containers deeper than code depth), then the raw-block family.
-**⚠ Gotchas:** (1) never `git add -A`. (2) `scratchpad/` is 65 GB: the dashboard takes minutes. (3) `score.cjs` REFUSES a stale bundle; one unit test is flaky under load.
+**Task:** **Session 296 (IN PROGRESS): the COMMONMARK-FAMILY READERS (gfm, commonmark, commonmark_x) -- residual 3(f) of "Kernel-cell closing and the unbounded second look".**
+Operator picked it at Phase 0. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Grid construct x reader BEFORE any rule (Learnings #623, #640).
+**⚠ Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders; authors never render, the caller renders 3 wide, load gate 25, `_files` pruned. (3) `score.cjs` REFUSES a stale bundle.
+
+### What Session 296 Did
+**Deliverable:** a reader-aware rule: under a CommonMark-family reader an indented non-handler opener is never a cell, so the heading inside it is listed as quarto lists it (IN PROGRESS)
+**Started:** 2026-10-07
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 294 Handoff Evaluation (by Session 295)
 
