@@ -8,10 +8,15 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **NONE -- Session 296 closed out (under a CommonMark-family reader an indented non-handler opener is never a cell; unclosed fences and type 3-5 HTML blocks run to the end, gated).**
-`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
-**#1 NEXT:** operator picks. Open: the new CommonMark item (container stack, quote extent, `from:` proof), then "Kernel-cell closing ..." residual 2 and (3)(a).
-**⚠ Gotchas:** (1) never `git add -A`. (2) `scratchpad/` is 70 GB: dashboard ~4 min, `npm run package` ~15-20 min. (3) mutation edits `src/`: run it alone.
+**Task:** **Session 297 (IN PROGRESS): the `from:` RESOLVER'S PROOF OF THE READER -- item (6) of "CommonMark-family readers: what the Session 296 rules still miss".**
+Operator picked it at Phase 0. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Six rendered controls delete today; the fix is a plain top-level scalar test (Learning #652).
+**⚠ Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders: authors never render, the caller renders 3 wide, load gate 25. (3) `score.cjs` REFUSES a stale bundle.
+
+### What Session 297 Did
+**Deliverable:** make the two run-to-the-end rules (unclosed plain fence, raw HTML type 3-5) fire only where the reader is PROVEN a CommonMark-family reader by a plain top-level `from:` scalar (IN PROGRESS)
+**Started:** 2026-10-07
+**Status:** Session claimed. Work beginning.
+**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
 
 ## Session 295 Handoff Evaluation (by Session 296)
 
