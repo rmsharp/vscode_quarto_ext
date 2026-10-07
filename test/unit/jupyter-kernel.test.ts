@@ -124,4 +124,18 @@ describe("jupyterKernelLanguage (Session 294) — the language the document's ju
   ] as [string, string][])("a front matter it can see through still defaults to python: %s", (_label, frontMatter) => {
     expect(jupyterKernelLanguage(lines(frontMatter), lines("body text\n\n```{python}\nx = 1\n```"))).toBe("python");
   });
+  // SLICE 6. A HOSTILE LINE MUST NOT STALL THE OUTLINE. This reader runs on the editor's debounced scan, and its first line regex overlapped two
+  // character classes: a 30,000-space front-matter line cost about 550 ms (quadratic), measured through `findHeadings`. The budget is generous
+  // (150 ms against a linear cost of a few) so a loaded machine does not flake the row, and each shape reaches a different line pattern.
+  const SPACES = " ".repeat(30000);
+  it.each([
+    ["a key line with no colon", ["a" + SPACES + "b"]],
+    ["a `jupyter:` value followed by spaces and a letter", ["jupyter: x" + SPACES + "y"]],
+    ["a `language:` value followed by spaces and a letter", ["jupyter:", "  kernelspec:", "    name: x", "    language: julia" + SPACES + "y"]],
+    ["an ordinary one-line description of 30,000 characters", ["title: x", "description: " + "word ".repeat(6000)]],
+  ] as [string, string[]][])("a very long line does not stall the reader: %s", (_label, frontMatter) => {
+    const start = performance.now();
+    jupyterKernelLanguage(frontMatter);
+    expect(performance.now() - start).toBeLessThan(150);
+  });
 });

@@ -44,7 +44,10 @@ function scalarOf(rest: string): string | null {
   if (quoted !== null) {
     return quoted[2];
   }
-  value = value.replace(/[ \t]+#.*$/, "").replace(/^&\S+[ \t]+/, "");
+  // The comment is cut at the first `#` that follows whitespace. (Not `value.replace(/[ \t]+#.*$/, "")`: unanchored, that backtracks
+  // quadratically over a long run of spaces, 30,000 of them costing about 550 ms.)
+  const hash = value.search(/[ \t]#/);
+  value = (hash < 0 ? value : value.slice(0, hash)).trimEnd().replace(/^&\S+[ \t]+/, "");
   return value === "" || /^[*{["'|>!&]/.test(value) ? null : value;
 }
 
@@ -124,8 +127,13 @@ function flowKernelspecLanguage(kernelspec: string): string | null {
   return language === undefined ? null : languageOf(scalarOf(language));
 }
 
-/** `key:` at the start of a line (plain or simply quoted, no escapes), with the rest of the line captured. */
-const KEY_LINE = /^[ \t]*(?:-[ \t]+)*(?:"[^"\\]*"|'[^']*'|[A-Za-z0-9_][A-Za-z0-9_. -]*?)[ \t]*:(?:[ \t]+(.*)|)$/;
+/**
+ * `key:` at the start of a line (plain or simply quoted, no escapes), with the rest of the line captured.
+ *
+ * ⚠ A plain key ENDS on a non-space character: `[A-Za-z0-9_. -]*[A-Za-z0-9_.-]`, not `[...]*?` followed by `[ \t]*`. The overlapping classes
+ * backtracked quadratically on a long run of spaces (30,000 spaces cost about 550 ms through `findHeadings`, Session 294).
+ */
+const KEY_LINE = /^[ \t]*(?:-[ \t]+)*(?:"[^"\\]*"|'[^']*'|[A-Za-z0-9_](?:[A-Za-z0-9_. -]*[A-Za-z0-9_.-])?)[ \t]*:(?:[ \t]+(.*)|)$/;
 
 /** Whether the value written on `line` opens a quoted scalar or a flow collection that the same line does not close. */
 function leavesOpen(line: string): boolean {
