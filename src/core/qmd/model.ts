@@ -5202,7 +5202,7 @@ function cmBlockStartEndsItems(line: string, columns: readonly number[], indentW
       surviving = c;
     }
   }
-  if (indentWidth - surviving > 3 || !columns.some((c) => c > indentWidth)) {
+  if (indentWidth - surviving > 3) {
     return false;
   }
   const rest = line.replace(/^[ \t]+/, "");
@@ -8560,7 +8560,6 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // (the quote's own end bounds those), nor for a document the CommonMark readers do not read.
         boundColumn:
           commonmarkDialect &&
-          cmColumns.length > 0 &&
           (info === null ||
             (engine === "markdown" && !HANDLER_CELL_LANGUAGES.has(info[1])) ||
             (kernelLanguage !== null && info[1] !== kernelLanguage && !HANDLER_CELL_LANGUAGES.has(info[1])))
@@ -8677,7 +8676,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // (Session 179). Rendered, `scratchpad/s296/own2/uf_*` (30 documents): quarto lists nothing below one under `gfm`, `commonmark` and `commonmark_x`,
         // `## After` included. In a list item it ends with the item (`boundColumn`), a quoted fence is bounded by the quote's own end (`quoteEnds`), and a cell shape is
         // never asked: quarto's partitioner drops an unclosed cell opener.
-        ((commonmarkDialect && !candidate.isCell && !stripQuote && PLAIN_FENCE_INFO.test(fence[3].trim()) && liveDiv() === null && rawContentDepth === 0 && !htmlBlockMayBeOpenAbove(lines, i)) ||
+        ((commonmarkDialect && !stripQuote && PLAIN_FENCE_INFO.test(fence[3].trim()) && liveDiv() === null && rawContentDepth === 0 && !htmlBlockMayBeOpenAbove(lines, i)) ||
           hasCloserBelow(
             pastKnitr ? closerIndexPastKnitr : closerIndex,
             i + 1,
