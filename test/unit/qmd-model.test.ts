@@ -22320,4 +22320,22 @@ describe("Session 295 — the free case's block-boundary list", () => {
   ])("RED->GREEN: an indent-4 `{bash}` opener below a thematic break (%s) is indented code", (_label, x) => {
     FRESH_ONLY(x);
   });
+  // SLICE 1b. THE BULLET SPELLINGS OF A BREAK. `- - -` and `* * *` are one thematic break to pandoc, and this model opened a LIST CONTAINER for
+  // them (`LIST_ITEM_OPEN` takes the first `-` as a marker), so even a BLANK line below left the opener "inside an item" and the old pairing
+  // swallowed it: HEAD was wrong on all six rows below with a blank line between (`bb_*_j_blank`), not only when tight. `BULLET_THEMATIC_BREAK`
+  // names the shape; the column is not pushed for it where it begins a fresh block at top level.
+  it.each<[string, string[]]>([
+    ["spaced stars", ["* * *"]],
+    ["spaced dashes", ["- - -"]],
+    ["wide-spaced dashes", ["-  -  -"]],
+    ["four spaced stars", ["*  *  *  *"]],
+    ["spaced stars indented one space", [" * * *"]],
+    ["tab-spaced dashes", ["-\t-\t-"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below a bullet-spelled thematic break (%s) is indented code", (_label, x) => {
+    FRESH_ONLY(x);
+    // with a BLANK line between the break and the opener, the case the container used to hold open
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "blank", [...x, ""]), eng), `${eng}: a blank line between the break and the opener`).toEqual(LISTED);
+    }
+  });
 });

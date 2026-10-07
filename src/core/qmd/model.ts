@@ -8172,7 +8172,16 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
       // really does move the tolerance out to the surviving column.
       columnsAboveThisLine = contentColumns.length;
       if (!indentedCodeLine(line, contentColumns)) {
-        const opened = listItemContentColumn(line, commonmarkDialect);
+        // ⚠ **A BULLET-SPELLED THEMATIC BREAK OPENS NO LIST WHERE IT BEGINS A FRESH BLOCK AT TOP LEVEL (Session 295).** `- - -` and
+        // `* * *` are one break to pandoc, and `LIST_ITEM_OPEN` took the first character for a marker, so a column was pushed that pandoc
+        // never opens and an indent-4 `{bash}` opener below it, even after a BLANK line, was read as "inside an item" and paired (rendered,
+        // `scratchpad/s295/bb`: quarto lists the heading, HEAD swallowed it on six spellings). Narrow on purpose: under an open paragraph
+        // the line is paragraph text and keeps the over-accepting column (the safe direction, above), and inside any container or quote
+        // nothing is claimed.
+        const opened =
+          !paragraphOpen && contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line)
+            ? null
+            : listItemContentColumn(line, commonmarkDialect);
         if (opened !== null) {
           contentColumns.push(opened);
           columnKinds.push("list");
