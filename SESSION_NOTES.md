@@ -8,15 +8,42 @@ Losslessness is proved by [`SESSION_NOTES-through-S253.md.verify.sh`](docs/archi
 ---
 
 ## ACTIVE TASK
-**Task:** **Session 295 (IN PROGRESS): the free case's BLOCK-BOUNDARY LIST (residual 3 of "Kernel-cell closing and the unbounded second look").**
-Operator picked it at Phase 0 from the ranked list. Workstream: `DEVELOPMENT_WORKSTREAM.md`, strict TDD. Render each construct BEFORE widening `endsBlock` (Learning #623).
-**⚠ Gotchas:** (1) never `git add -A`. (2) CAP and ANNOUNCE renders; authors never render, the caller renders at 3 wide or fewer (Learnings #622, #627, #634). (3) `score.cjs` REFUSES a stale bundle: rebuild after any src edit.
+**Task:** **NONE -- Session 295 closed out (an indent-4 non-kernel opener below a thematic break, definition, code line, comment, table, line block, closing HTML tag or closed kernel cell is indented code).**
+`BACKLOG.md` "Active" is empty, so Phase 0 MUST present ranked candidates via `AskUserQuestion`.
+**#1 NEXT:** operator picks. Largest open row: the CommonMark-family readers (33 of 96 reader-grid documents still deleted), then residual 2 of "Kernel-cell closing ..." (containers deeper than code depth), then the raw-block family.
+**⚠ Gotchas:** (1) never `git add -A`. (2) `scratchpad/` is 65 GB: the dashboard takes minutes. (3) `score.cjs` REFUSES a stale bundle; one unit test is flaky under load.
 
-### What Session 295 Did
-**Deliverable:** make the free case's `endsBlock` list complete, construct by construct, so an indent-4 `{python}` opener under a `***`, table row, closing tag, etc. is read as pandoc reads it (IN PROGRESS)
-**Started:** 2026-10-06
-**Status:** Session claimed. Work beginning.
-**Ledger:** `CHANGELOG: pending` -- the claim commit's `CHANGELOG.md` entry says (in progress); Phase 3F records the rest. Until close-out, this line is the crash breadcrumb for the next session's reconcile.
+## Session 294 Handoff Evaluation (by Session 295)
+
+**Score: 8/10.** Self-check by the same model family, not an independent score. Its receipt said `BACKLOG.md` "Active" was empty and listed the open
+items; all four key_files line numbers I checked (`endsBlock` 10564, `indentedCellFenceFor` 10512, `closesOnOwnIndent` 10603, `HANDLER_CELL_LANGUAGES`
+10501) were exact at HEAD; the ratchet citation (2/2, `bba236856bad`, `8845021a4049`) matched the stored results at Phase 0.
+**Helped:** `render.sh`, `score.cjs`, `build.sh` and `h/engine.cjs` (copied forward, only the paths changed), the backlog item's witness list (I read 35
+of them to design the grid), and gotcha 3 (the stale-bundle refusal: I rebuilt before every score). **Missing:** that the scanner's `paragraphOpen` is NOT
+a usable "began fresh" signal after raw TeX, a comment or a break (Learning #625 says so for the raw-construct trap; my first cut paid seven regressions),
+and that the free case had only ever been measured under the default reader (a `markdown_strict` regression followed). **Wrong:** item (3) said pandoc is
+between blocks after "a table caption" and "an adjacent chain": a tight `: Caption` is paragraph text in every context, and a chain of bash cells ends
+nothing (only a closed KERNEL cell does); gotcha 2's load of 37-55 was gone at my start (load 5). **ROI: high.**
+
+## Session 295 Self-Assessment
+
+**Score: 8/10.**
+**Went right.** I measured before every rule: an 87-construct grid x three contexts, 129 tag names x six shapes (774 documents), an outer-element grid, a
+225-pair stacking matrix and a 16 x 10 reader grid (320 documents); every unit row's claim was re-derived from quarto (`gen_rows.cjs` + `check_rows.cjs`:
+392 claims, it caught 3 wrong claims and 6 wrong expected lists). Two blind rounds (542 + 532 documents) found 9 documents my rules broke; the reader grid
+found the `markdown_strict` regression no author wrote; three mutation rounds (final 67 mutants, 60 killed, 7 proved unobservable) removed three harmful or
+dead terms. Final: 4,689 probe documents, 1,588 fixed, 0 regressions; Session 293/294's 2,160 probes 0; corpus 0 of 3,383; score unchanged 2,423/2,438;
+4,225 tests (was 4,028).
+**Went wrong.** (1) My first cut used `paragraphOpen` as the freshness signal although Learning #625 warns that raw constructs make it false: seven
+regressions only the blind authors found. (2) The reader dimension was missing from my first design; a `markdown_strict` regression lived for several
+commits. (3) My first HTML measurement used `Text.` as filler, a list marker: a confound that cost two render passes. (4) Three figures written from
+memory ("about 90 of 140", "about 6,400", "eleven killers"): two caught and corrected, one remains in commit `8cc5001d` (the true figure was 6,320).
+(5) Scope: the item named one list; six slices, a refactor and reader gating shipped, each forced by a measured defect, but more than listed. (6) One unit
+test failed once under load (~40-60) during a mutation run and not in three reruns: a flaky test exists, uncaptured. (7) No `test:integration` run
+(needs the screen; core-only change). (8) The dashboard run took over two minutes because `scratchpad/` is 65 GB.
+**TDD:** RED shown before GREEN for each slice and fix; the GUARD and MUTATION KILLER rows pass on arrival by construction (they pin behaviour HEAD
+already had right), disclosed.
+**Cost:** 21 authoring agents (about 1.63M subagent tokens), 4,707 renders at 3 wide or fewer; no screen-taking run.
 
 ## Session 293 Handoff Evaluation (by Session 294)
 
