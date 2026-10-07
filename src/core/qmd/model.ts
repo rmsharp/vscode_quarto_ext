@@ -10654,7 +10654,22 @@ function endsBlock(line: string): boolean {
  * paragraph, which is how the first cut regressed seven documents HEAD had right (`scratchpad/s295/adv`; the adversarial round).
  */
 function startsAtBoundary(lines: readonly string[], k: number): boolean {
-  return k <= 0 || endsBlock(lines[k - 1]);
+  return k <= 0 || isBoundaryLine(lines[k - 1]);
+}
+/**
+ * A line after which pandoc is certainly between blocks, STRICTER than `endsBlock` where that one over-accepts (Session 295, adversarial round 2): an
+ * ATX heading and a `===` / `---` run count only at COLUMN 0 (indented one to three spaces they are paragraph text to pandoc — `SETEXT_UNDERLINE_RUN`
+ * and the ATX row's own docstrings measured both), where `endsBlock` (Session 293) takes ` {0,3}` for both. Blank lines, a div fence and a bare
+ * fence line are as in `endsBlock`.
+ */
+function isBoundaryLine(line: string): boolean {
+  return (
+    BLANK_LINE.test(line) ||
+    /^#{1,6}(?:[ \t]|$)/.test(line) ||
+    /^(?:=+|-+)[ \t]*$/.test(line) ||
+    /^ {0,3}:{3,}/.test(line) ||
+    /^ {0,3}(?:`{3,}|~{3,})[ \t]*$/.test(line)
+  );
 }
 /** The first line of the contiguous, non-blank run ending at `x` in which every line satisfies `same` (capped, so a pathological file cannot make each opener scan it all). */
 function runStart(lines: readonly string[], x: number, same: (line: string) => boolean): number {
@@ -10758,8 +10773,18 @@ const GRID_PLAIN_BORDER = /^\+(?:-+\+)+[ \t]*$/;
  * the next blank line and nothing here was measured.
  */
 function endsHtmlBlock(line: string, beganFresh: boolean): boolean {
-  if (HTML_DIV_OPEN_ALONE.test(line)) {
-    return true;
+  // The line must START with a WELL-FORMED tag: the quote-aware reader the heading rules already use says no tag where a quote never closes
+  // (`<div class="x>`) and for `< /div>`, while `>` inside a CLOSED quote (`<div class="a>b">`) is still one tag (rendered, round 2 `tags_052`).
+  const lt = line.indexOf("<");
+  if (lt < 0 || lt > 3 || line.slice(0, lt).trim() !== "") {
+    return false;
+  }
+  const first = headingAngleEnd(line, lt);
+  if (first.name === null) {
+    return false;
+  }
+  if (!first.closing && first.name.toLowerCase() === "div" && line.slice(first.next).trim() === "") {
+    return true; // a lone opening `<div ...>`: pandoc reads an unclosed div as markdown content
   }
   const m = HTML_ELEMENT_COMPLETES.exec(line);
   if (m === null) {
@@ -10777,7 +10802,6 @@ const HTML_ELEMENT_COMPLETES = new RegExp(
     "|</?(" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")(?=[ \\t/>]|$)[^\\n]*</(" + PANDOC_BLOCK_CLOSE_TAGS + "|" + PANDOC_EITHER_TAGS + ")[ \\t]*>)[ \\t]*$",
   "i",
 );
-const HTML_DIV_OPEN_ALONE = /^ {0,3}<div(?:[ \t][^>]*)?>[ \t]*$/i;
 const HTML_EITHER_NAME = new RegExp("^(?:" + PANDOC_EITHER_TAGS + ")$", "i");
 /**
  * An element whose CONTENT IS NOT MARKDOWN (Session 295): inside an open `<pre>`, `<script>`, `<style>` or `<textarea>` even a complete

@@ -22567,6 +22567,23 @@ describe("Session 295 — the free case's block-boundary list", () => {
       expect(texts(probe(eng, "heading", x), eng), eng).toEqual(SWALLOWED);
     }
   });
+  // GUARDS FROM ROUND 2 OF THE ADVERSARIAL AUTHORS (`scratchpad/s295/adv2`, 532 more blind documents: 172 fixed, 2 regressions, both documents HEAD had RIGHT).
+  // (1) A BOUNDARY IS NOT `endsBlock`: that test (Session 293) accepts an ATX heading and a `===` run indented one to three spaces, which pandoc does not (an
+  //     indented ATX line is paragraph text, an indented `===` underlines nothing), and a comment under such a line is not fresh. `startsAtBoundary` is stricter.
+  // (2) A TAG WITH AN UNCLOSED QUOTE IS NO TAG: `<div class="x>` is paragraph text, so it is no lone opening div. A `>` inside a CLOSED quote is fine.
+  it.each<[string, string[], string[]]>([
+    ["a comment under an ATX heading indented three spaces", ["", "   ### Indented heading", "<!-- c -->"], SWALLOWED],
+    ["a comment under an indented `===` run", ["", "  ===", "<!-- c -->"], SWALLOWED],
+    ["a thematic break under an indented `===` run", ["", "Title", "  ===", "***"], SWALLOWED],
+    ["a div tag whose double quote never closes", ["", "Prose.", "", '<div class="x>'], SWALLOWED],
+    ["a div tag whose single quote never closes", ["", "Prose.", "", "<div class='x>"], SWALLOWED],
+    ["a div tag with one closed quote holding `>` and one that never closes", ["", "Prose.", "", `<div class="a>b" id='z>`], SWALLOWED],
+    ["CONTROL: a div tag with `>` inside a closed quote is a lone opening div", ["", "Prose.", "", '<div class="a>b">'], LISTED],
+  ])("GUARD (round 2): %s", (_label, x, expected) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "heading", x), eng), eng).toEqual(expected);
+    }
+  });
   // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/disc/tbl` `tbl_029_grid_spans`): a grid table whose rows carry a span
   // (`+-------+-------+       +`, a border with spaces in it). The free-case test DOES read it as a table now (the run of lines starting `|` or `+`
   // holds a plain top border and three borders), but the scanner's own paragraph state stays open across the span border, which it does not know as
