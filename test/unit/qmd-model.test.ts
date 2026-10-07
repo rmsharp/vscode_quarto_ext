@@ -22989,4 +22989,28 @@ describe("Session 296 — the CommonMark-family readers (gfm, commonmark, common
       }
     }
   });
+  // RESIDUALS, kept on purpose (PHANTOM direction; measured, `scratchpad/s296/adv`, 609 blind documents in ten lenses; these 15 are the only documents where HEAD was
+  // right and this rule is not). Every one is an OLDER gap that HEAD's cell pairing hid by accident (the pairing swallowed the heading the model should have
+  // swallowed for another reason), and each is the filed item named beside it. Pinned so a future rule flips them on purpose.
+  const exact = (eng: Eng, from: string, lines: string[]): string => doc(...front(eng, from), "## Before", "", ...lines);
+  it.each<[string, string, string[], string[]]>([
+    // an unmarked line below a quote line is lazy paragraph text however far it is indented, and this model lists a heading there (`cont_012`..`014`)
+    ["a lazy quote line indented 6 holds the heading as text", "gfm", ["> item", "      ```{bash}", "      ## In", "      x = 1", "      ```"], LISTED],
+    ["a lazy quote line indented 4 holds the heading as text", "commonmark_x", ["> item", "    ```{bash}", "        ## In", "    x = 1", "    ```"], LISTED],
+    // a `:::` div fence interrupts a paragraph under commonmark_x and its first heading is the callout TITLE, which quarto removes (`divs_001`)
+    ["a callout div opens under a paragraph and its title heading is no heading", "commonmark_x", ["para one", "    ```{bash}", "::: {.callout-note}", "## In", "body", ":::", "    ```"], LISTED],
+    // raw HTML inside a list item (`html_040`, `041`, `059`): the model keeps no HTML block state inside a container
+    ["an HTML block inside a list item runs over the opener", "gfm", ["1.  item", "", "    <div>", "        ```{bash}", "    ## In", "    x = 1", "        ```"], LISTED],
+    ["a list item that starts with <pre> runs over the opener", "commonmark", ["- <pre>", "      ```{bash}", "  ## In", "  x = 1", "      ```", "  </pre>"], LISTED],
+    ["a lazy <span> line is an HTML block that runs over the opener", "gfm", ["- item", "<span>", "    ```{bash}", "## In", "x = 1", "    ```"], LISTED],
+  ])("RESIDUAL, kept on purpose: %s (quarto swallows the heading)", (_label, from, lines, expected) => {
+    expect(texts(raw("markdown", from, lines), "markdown")).toEqual(expected); // quarto: Before, After
+  });
+  it.each<[string, string[]]>([
+    // a fence on a list marker line (`fence_009`) and a quoted fence the quote's end closes (`fence_016`): the model opens neither, and the unclosed fence below swallows the rest
+    ["a fence on a list marker line", ["- ```text", "  code", "      ```{bash}", "  ## In", "      ```", "tail"]],
+    ["a quoted fence closed by an unmarked fence line", ["> ```text", "> code", "```", "para", "    ```{bash}", "## In", "x = 1", "    ```", "tail"]],
+  ])("RESIDUAL, kept on purpose: %s (quarto lists nothing after Before)", (_label, lines) => {
+    expect(texts(exact("markdown", "gfm", lines), "markdown")).toEqual(["Before", "In"]); // quarto: Before
+  });
 });
