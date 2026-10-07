@@ -5298,6 +5298,13 @@ function indentedCodeLine(line: string, columns: readonly number[] | null): bool
   return columnIsCodeDepth(indentColumn(line), columns);
 }
 /**
+ * The START of a link-reference definition — `[label]:` at indent 0-3, and NOT a footnote definition `[^1]:` (whose label opens with a
+ * caret). Named once (Session 295) so `OPENS_FRESH_BLOCK` and `endsFreshBlock` cannot spell it two ways (Learning #14).
+ * Rendered, nothing after the colon matters to the free case: a destination, a title, junk, an unclosed title or no destination at all
+ * all leave the indented line below a FRESH definition as indented code.
+ */
+const LINK_REFERENCE_DEFINITION = /^ {0,3}\[[^\^\]][^\]]*\]:/;
+/**
  * Lines that begin a FRESH BLOCK, so the line *below* them starts a new paragraph
  * and may therefore be claimed by a setext underline (Session 181).
  *
@@ -5330,7 +5337,7 @@ function indentedCodeLine(line: string, columns: readonly number[] | null): bool
  */
 const OPENS_FRESH_BLOCK: readonly RegExp[] = [
   /^ {0,3}((\*[ \t]*){3,}|(-[ \t]*){3,}|(_[ \t]*){3,})$/, //  a thematic break
-  /^ {0,3}\[[^\^\]][^\]]*\]:/, //                            a link-reference definition — NOT `[^1]:`
+  LINK_REFERENCE_DEFINITION, //                              a link-reference definition — NOT `[^1]:`
   /^ {0,3}\|/, //                                            a pipe-table ROW; a bare `a | b` is prose
   /^ {0,3}#{1,6}[ \t]*$/, //                                 a bare `##` — an EMPTY heading to pandoc
   // ⚠ Neither the raw-TeX macro row nor the indented-code row is here either — same reason,
@@ -10600,7 +10607,7 @@ function endsFreshBlock(line: string, beganFresh: boolean): boolean {
   // the opener below it is code too (`scratchpad/s295/disc/code`: quarto lists the heading inside, HEAD swallowed it); directly under a
   // prose line the same bytes are a lazy continuation, which `beganFresh` already refuses. A cell closer the scanner paired is not an
   // ordinary code line: seven rendered documents where HEAD was right regressed when it was read as one (`bt_chain_*`, `code_041`).
-  return beganFresh && (THEMATIC_BREAK.test(line) || indentedCodeLine(line, [0]));
+  return beganFresh && (THEMATIC_BREAK.test(line) || LINK_REFERENCE_DEFINITION.test(line) || indentedCodeLine(line, [0]));
 }
 
 /** The run of whitespace a line starts with — `\s*`, the same class both cell regexes use. */

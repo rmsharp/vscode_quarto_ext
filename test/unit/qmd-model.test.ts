@@ -22362,6 +22362,48 @@ describe("Session 295 — the free case's block-boundary list", () => {
       }
     }
   });
+  // SLICE 3. LINK REFERENCE DEFINITIONS. Rendered (`scratchpad/s295/{bb,bt,bh}` `linkref_*`, 15 spellings, and `disc/ref`): after a FRESH line that
+  // starts `[label]:` quarto lists the heading inside the indented opener, whatever follows the colon (a destination, a title in any of three
+  // quote kinds, junk, an unclosed title, nothing at all), at an indent of 0 to 3, and also after a title carried onto the next line or two. Under
+  // a prose line it is paragraph text, as always. A footnote definition `[^1]:` is not one (it keeps HEAD's answer, pinned below).
+  it.each<[string, string[]]>([
+    ["a bare destination", ["[qd]: https://quarto.org/docs"]],
+    ["an angle-bracket destination", ["[qd]: <https://quarto.org/docs>"]],
+    ["an empty angle destination", ["[qd]: <>"]],
+    ["a fragment destination", ["[sec]: #in"]],
+    ["a double-quoted title", ['[qd]: https://quarto.org/docs "Title"']],
+    ["a single-quoted title", ["[qd]: /url 'Single Title'"]],
+    ["a parenthesised title", ["[qd]: /url (Paren Title)"]],
+    ["a caret inside the label", ["[a^b]: /url"]],
+    ["an indent of two spaces", ["  [qd]: /url"]],
+    ["junk after the destination", ["[qd]: https://quarto.org/docs junk text"]],
+    ["no destination at all", ["[qd]:"]],
+    ["an unclosed title", ['[qd]: /url "unclosed']],
+    ["two definitions in a row", ["[a]: https://a.example", "[b]: https://b.example"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below a link reference definition (%s) is indented code", (_label, x) => {
+    FRESH_ONLY(x);
+  });
+  // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/bb` `linkref_title_next` and `linkref_title_multi`): when the title is
+  // carried onto a line of its own, quarto still lists the heading inside the opener below it (after a blank line or a heading), and this model
+  // swallows it. The model believes the title line opens a PARAGRAPH, so the opener below it is paragraph text and its `## In` is not a
+  // heading to it; making a title line open none would change the paragraph state of every ATX heading under a definition, which is a
+  // different change. Pinned so a future rule flips these on purpose; under a prose line quarto swallows too and the answer is right.
+  it.each<[string, string[]]>([
+    ["the title on the next line", ["[qd]: /url", '"Title on next line"']],
+    ["a title across two lines", ['[qd]: /url "line one', 'line two"']],
+  ])("RESIDUAL, kept on purpose: an opener below a link reference definition with %s is still swallowed (quarto lists the heading)", (_label, x) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, "blank", x), eng), `${eng}: after a blank line`).toEqual(SWALLOWED); // quarto: Before, In, After
+      expect(texts(probe(eng, "paragraph", x), eng), `${eng}: directly under a paragraph`).toEqual(SWALLOWED); // quarto: Before, After
+    }
+  });
+  it("a footnote definition is not a link reference definition: HEAD's answer is kept", () => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      for (const ctx of ["blank", "heading", "paragraph"] as const) {
+        expect(texts(probe(eng, ctx, ["[^1]: A note here"]), eng), `${eng}: ${ctx}`).toEqual(SWALLOWED); // `footnote_def`: nn= in every context
+      }
+    }
+  });
   // GUARD (found by the sweep, not by a designed row: the first cut of slice 2 turned seven rendered documents from right to phantom). An
   // indented `{bash}` directly under a prose line is PARAGRAPH TEXT to quarto, but this model pairs it with the next `    ` + backticks line as
   // a cell; that closer is not an ordinary indented code line, so the opener below it is not free, and the heading inside the second
