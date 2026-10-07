@@ -22383,6 +22383,35 @@ describe("Session 295 — the free case's block-boundary list", () => {
   ])("RED->GREEN: an indent-4 `{bash}` opener below a link reference definition (%s) is indented code", (_label, x) => {
     FRESH_ONLY(x);
   });
+  // SLICE 4a. A WHOLE-LINE HTML COMMENT and a LINE OF SEVEN OR MORE HASHES. Rendered (`scratchpad/s295/{bb,bt,bh}`): a comment that starts at column 0
+  // and ends on its own line (one line, two, or three) leaves the indented line below it as indented code when the comment began fresh, and under a
+  // prose line the comment is part of the paragraph (the Session 294 pin: a comment directly under a paragraph keeps the opener swallowed). A line of
+  // seven hashes at column 0 is a header to pandoc that the Outline never shows, so it ends its block the same way; at indent one it is text.
+  it.each<[string, string[]]>([
+    ["a one-line comment", ["<!-- note -->"]],
+    ["an empty comment", ["<!---->"]],
+    ["a comment across two lines", ["<!-- a", "b -->"]],
+    ["a comment across three lines", ["<!--", "note", "-->"]],
+    ["seven hashes and a word", ["####### Seven"]],
+    ["seven hashes alone", ["#######"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s is indented code", (_label, x) => {
+    FRESH_ONLY(x);
+  });
+  // GUARD rows (HEAD's answer, rendered, swallowed in every context): a comment with anything beside it on its line, an indented comment, the
+  // terminator alone, and an indented seven-hash line are paragraph text or raw continuation, so the opener stays paired.
+  it.each<[string, string[]]>([
+    ["a comment with text after it", ["<!-- c --> trailing"]],
+    ["a comment after text", ["lead <!-- c -->"]],
+    ["a comment indented one space", [" <!-- c -->"]],
+    ["a comment terminator alone", ["-->"]],
+    ["seven hashes indented one space", [" ####### Seven"]],
+  ])("GUARD: below %s the opener stays swallowed in every context", (_label, x) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      for (const ctx of ["blank", "heading", "paragraph"] as const) {
+        expect(texts(probe(eng, ctx, x), eng), `${eng}: ${ctx}`).toEqual(SWALLOWED);
+      }
+    }
+  });
   // RESIDUAL, kept on purpose (DELETION direction; measured, `scratchpad/s295/bb` `linkref_title_next` and `linkref_title_multi`): when the title is
   // carried onto a line of its own, quarto still lists the heading inside the opener below it (after a blank line or a heading), and this model
   // swallows it. The model believes the title line opens a PARAGRAPH, so the opener below it is paragraph text and its `## In` is not a

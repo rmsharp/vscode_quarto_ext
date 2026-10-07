@@ -5992,6 +5992,14 @@ const COMMENT_CLOSE = /-->/;
  */
 const COMMENT_FULL_LINE = /^[ \t]*<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
 /**
+ * The same whole-line comment at COLUMN 0 exactly (Session 295). Indented one space it is text to pandoc: rendered, an indent-4 opener below
+ * ` <!-- c -->` stays paragraph continuation, where the same comment at column 0 leaves the opener indented code.
+ */
+const COMMENT_FULL_LINE_COL0 = /^<!--(?:(?!-->)[\s\S])*-->[ \t]*$/;
+/** A comment region's first line at column 0, and its closer ending the line: anything after the terminator keeps the paragraph going. */
+const COMMENT_OPEN_COL0 = /^<!--/;
+const COMMENT_CLOSE_AT_END = /-->[ \t]*$/;
+/**
  * The constructs pandoc's block parser tries BEFORE `table`, so a line of one of them above a
  * dash run is NOT a simple table's header row (Session 239).
  *
@@ -7144,6 +7152,12 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // cell is not an ordinary body line to quarto when the cell was never a cell (an indented `{bash}` under a paragraph is paragraph text),
   // so `endsFreshBlock` must not read that closer as an indented code line: `-2` = none.
   let lastFenceLine = -2;
+  // The last line the scanner found to END ITS OWN BLOCK having begun it fresh (Session 295), for the constructs whose end the line's own bytes cannot
+  // tell: the closer of a comment region that opened fresh, and a line of seven or more hashes. `-2` = none. Read by the free case.
+  let freshBlockEndLine = -2;
+  // Whether the HTML comment region now open began FRESH at column 0 — no paragraph open before its first line (a comment under a prose line is part
+  // of that paragraph) — and under a reader whose comment rule was measured (pandoc markdown; the CommonMark family is not).
+  let commentFresh = false;
   // ⚠ Set when a jupyter kernel opener is DROPPED (Session 293, `closesOnOwnIndent`): quarto's cell partition never
   // leaves "inside a cell" after it, so every later line is plain markdown and no later line is a kernel cell.
   let kernelPartitionDead = false;
@@ -7992,6 +8006,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     if (inComment) {
       if (COMMENT_CLOSE.test(line)) {
         inComment = false;
+        if (commentFresh && COMMENT_CLOSE_AT_END.test(line)) {
+          freshBlockEndLine = i;
+        }
       }
       continue;
     }
@@ -8255,6 +8272,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
 
     // A whole-line single-line comment renders to nothing — skip it entirely.
     if (COMMENT_FULL_LINE.test(line)) {
+      // `paragraphOpen` is still the line ABOVE's here: a comment that begins a block at column 0 ends it (Session 295).
+      if (!paragraphOpen && !commonmarkDialect && COMMENT_FULL_LINE_COL0.test(line)) {
+        freshBlockEndLine = i;
+      }
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
@@ -8270,6 +8291,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // here, which can only phantom).
     if (COMMENT_OPEN.test(line) && !COMMENT_CLOSE.test(line) && (commonmarkDialect || lastCommentCloserLine > i)) {
       inComment = true;
+      commentFresh = !paragraphOpen && !commonmarkDialect && COMMENT_OPEN_COL0.test(line);
       consecutiveBody = 0;
       paragraphOpen = false;
       inPipeTable = false;
@@ -8333,7 +8355,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
           (firstExampleMarker < 0 || firstExampleMarker >= i) &&
           (i === 0 ||
             endsBlock(lines[i - 1]) ||
-            endsFreshBlock(lines[i - 1], !paragraphOpenAboveHeader && lastFenceLine !== i - 1)),
+            endsFreshBlock(lines[i - 1], !paragraphOpenAboveHeader && lastFenceLine !== i - 1) ||
+            freshBlockEndLine === i - 1),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -9534,6 +9557,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         !commonmarkDialect &&
         deepAtxHeaderLineIsBlock(line, rawTexColumns, tightAtxDialect && literalHtmlLines?.has(i) !== true) &&
         (!paragraphOpen || (markdownFamilyDialect && !blankBeforeHeaderDialect));
+      if (deepHeaderHere) {
+        freshBlockEndLine = i; // a header is one line and ends itself (Session 295; the Outline never shows it)
+      }
       // Read `paragraphOpen` for the line ABOVE before overwriting it for this one —
       // whether these bytes open a block or merely continue a paragraph depends on it.
       pendingFreshBlock =
