@@ -22747,3 +22747,52 @@ describe("Session 295 — the free case's block-boundary list", () => {
     }
   });
 });
+
+describe("Session 296 — the CommonMark-family readers (gfm, commonmark, commonmark_x)", () => {
+  const doc = (...lines: string[]) => lines.join("\n") + "\n";
+  const texts = (text: string, engine?: "jupyter" | "markdown" | "knitr" | "julia" | "ambiguous") =>
+    findHeadings(text, engine).map((h) => h.text);
+  type Eng = "jupyter" | "markdown";
+  // Every document below is a probe written EXACTLY as `scratchpad/s296/gen_cm.cjs` writes it and rendered with quarto 1.7.33 in ne mode (exit 0):
+  // front matter with a `title:` and a `from:`, `engine: markdown` or a column-0 python cell that makes quarto resolve jupyter, `## Before`, the context
+  // above, an indented `{bash}` opener, `## In` inside, the closer at the same indent, then `## After`.
+  const front = (eng: Eng, from: string): string[] =>
+    eng === "markdown"
+      ? ["---", 'title: "T"', "engine: markdown", `from: ${from}`, "---", ""]
+      : ["---", 'title: "T"', `from: ${from}`, "---", "", "```{python}", "1 + 1", "```", ""];
+  const probe = (eng: Eng, from: string, above: string[], open = "    "): string =>
+    doc(...front(eng, from), "## Before", "", ...above, `${open}\`\`\`{bash}`, "## In", "x = 1", `${open}\`\`\``, "", "## After", "", "tail");
+  const LISTED = ["Before", "In", "After"]; // the opener is indented code or a lazy line: quarto lists the heading inside it
+  const CM_READERS = ["gfm", "commonmark", "commonmark_x"];
+
+  // SLICE 1. UNDER A PARAGRAPH. An ATX line INTERRUPTS a paragraph in the CommonMark family (it does not under pandoc's markdown, where `blank_before_header`
+  // keeps it paragraph text), so the indent-4 opener below a prose line is a lazy line and the `## In` under it is a heading. Rendered, `g1_para_*`: quarto
+  // lists it under all three readers, both engines, at indent 4 and 8; HEAD paired the opener with its closer (the cell grammar) and deleted it.
+  it.each(CM_READERS)("RED->GREEN: under from: %s an indent-4 `{bash}` opener directly under a paragraph is a lazy line (the heading inside is listed)", (from) => {
+    for (const eng of ["jupyter", "markdown"] as const) {
+      expect(texts(probe(eng, from, ["Para above"]), eng), eng).toEqual(LISTED);
+    }
+  });
+  // SLICE 2. DEEPER THAN A CONTAINER'S CODE DEPTH. Inside a list item the CommonMark family reads an opener indented FOUR or more past the item's content
+  // column as indented code (or a lazy line), never a fence, and the column-0 `## In` below ends the item. Rendered, `g3_*_r4_*` and `_r5_*` (every kind,
+  // blank line or none, both engines, `gfm` and `commonmark_x`): quarto lists the heading, HEAD paired the opener and deleted it. The marker kinds are
+  // `- ` (content column 2), `-   ` (4), `1. ` (3) and a nested `- outer` / `  - inner` (4); `rel` is the indent measured from that column.
+  const KINDS: Record<string, { first: string[]; col: number }> = {
+    bullet: { first: ["- item one"], col: 2 },
+    wide: { first: ["-   item one"], col: 4 },
+    ordered: { first: ["1. item one"], col: 3 },
+    nested: { first: ["- outer", "  - inner"], col: 4 },
+  };
+  const containerProbe = (eng: Eng, from: string, kind: string, rel: number, blank: boolean): string =>
+    probe(eng, from, [...KINDS[kind].first, ...(blank ? [""] : [])], " ".repeat(KINDS[kind].col + rel));
+  it.each(Object.keys(KINDS).flatMap((kind) => [4, 5].flatMap((rel) => [false, true].map((blank) => [kind, rel, blank] as const))))(
+    "RED->GREEN: under from: gfm/commonmark_x a `{bash}` opener %s items deep: rel %i past the item's content column (blank line above: %s) is indented code",
+    (kind, rel, blank) => {
+      for (const from of ["gfm", "commonmark_x"]) {
+        for (const eng of ["jupyter", "markdown"] as const) {
+          expect(texts(containerProbe(eng, from, kind, rel, blank), eng), `${from} ${eng}`).toEqual(LISTED);
+        }
+      }
+    },
+  );
+});

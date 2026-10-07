@@ -8360,28 +8360,29 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         line,
         // LAZY (Session 295): the block-boundary list grew past a few regexes, and only an indented cell opener ever asks.
         () =>
-          contentColumns.length === 0 &&
           !stripQuote &&
           (firstExampleMarker < 0 || firstExampleMarker >= i) &&
-          (i === 0 ||
-            endsBlock(lines[i - 1]) ||
-            endsFreshBlock(lines, i - 1) ||
-            freshBlockEndLine === i - 1 ||
-            kernelCellCloserLine === i - 1 ||
-            // a whole-line comment at column 0: the same under every reader measured (`scratchpad/s295/rdr`)
-            (COMMENT_FULL_LINE_COL0.test(lines[i - 1]) && startsAtBoundary(lines, i - 1)) ||
-            // tables and line blocks: measured under pandoc's markdown and the CommonMark family, and NOT `markdown_strict` (see `freeCaseTableReader`)
-            (freeCaseTableReader && tableOrLineBlockEndsAt(lines, i - 1)) ||
-            // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`); pandoc's markdown only:
-            // `markdown_strict` ends one only after a blank line and the CommonMark family reads raw HTML blocks differently
-            (rawContentDepth === 0 &&
-              endsHtmlBlock(
-                lines[i - 1],
-                startsAtBoundary(lines, i - 1),
-                // OUTSIDE pandoc's markdown (`markdown_strict`, `markdown_github`, `markdown_mmd`, `markdown_phpextra`, the CommonMark family) the raw block is the
-                // whole run of non-blank lines and must BEGIN with a tag: a prose line that starts the run makes the tag lazy paragraph text there
-                !measuredRefusalReader && !htmlRunBeginsWithTag(lines, i - 1),
-              ))),
+          (commonmarkDialect ||
+            (contentColumns.length === 0 &&
+              (i === 0 ||
+                endsBlock(lines[i - 1]) ||
+                endsFreshBlock(lines, i - 1) ||
+                freshBlockEndLine === i - 1 ||
+                kernelCellCloserLine === i - 1 ||
+                // a whole-line comment at column 0: the same under every reader measured (`scratchpad/s295/rdr`)
+                (COMMENT_FULL_LINE_COL0.test(lines[i - 1]) && startsAtBoundary(lines, i - 1)) ||
+                // tables and line blocks: measured under pandoc's markdown and the CommonMark family, and NOT `markdown_strict` (see `freeCaseTableReader`)
+                (freeCaseTableReader && tableOrLineBlockEndsAt(lines, i - 1)) ||
+                // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`); pandoc's markdown only:
+                // `markdown_strict` ends one only after a blank line and the CommonMark family reads raw HTML blocks differently
+                (rawContentDepth === 0 &&
+                  endsHtmlBlock(
+                    lines[i - 1],
+                    startsAtBoundary(lines, i - 1),
+                    // OUTSIDE pandoc's markdown (`markdown_strict`, `markdown_github`, `markdown_mmd`, `markdown_phpextra`, the CommonMark family) the raw block is the
+                    // whole run of non-blank lines and must BEGIN with a tag: a prose line that starts the run makes the tag lazy paragraph text there
+                    !measuredRefusalReader && !htmlRunBeginsWithTag(lines, i - 1),
+                  ))))),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
