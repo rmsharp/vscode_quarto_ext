@@ -57,6 +57,30 @@ describe("Session 298 — stacked block enders in the free case", () => {
   const LISTED = ["Before", "In", "After"]; // the opener is indented CODE: quarto lists the heading inside it
   const SWALLOWED = ["Before", "After"]; //   the opener is paragraph text or a raw continuation: quarto swallows it
 
+  // SLICE 31. THE BASE READER'S DEFAULTS ARE NOT IN THE `from:` STRING. `simple_tables`, `native_divs` and `markdown_in_html_blocks` are on in pandoc's own `markdown` unless a `-` removes them and OFF in `markdown_strict`, `_github`,
+  // `_mmd` and `_phpextra` unless a `+` adds them. The first reader gates read "not turned off", so `markdown_strict+simple_tables` had no simple tables (`***` / `- - -` was two breaks and the opener
+  // was listed where quarto swallows it) and `markdown_strict-markdown_in_html_blocks` took `<div>x</div>` for a native div whose text swallows the opener (quarto lists it: with `native_divs` off the element is raw HTML). A lone `<div>` ends
+  // a block where it is a native div, or a raw block (`native_divs` off AND markdown not parsed inside HTML blocks); under pandoc's markdown with only `-native_divs` it is inline text. The same effective
+  // default makes a one-line `<button>x</button>` a paragraph under a strict reader (no `markdown_in_html_blocks`), which is what ends the comment-then-button phantoms. Rendered with quarto 1.7.33 in ne mode, exit 0
+  // (`scratchpad/s298/review3b/readers/r3b_001`-`009`, and 36 probes over six strict-family readers, `scratchpad/s298/rdr3`); found by the round-3b readers hunter.
+  it.each<[string, "blank" | "heading", string[], string, string[]]>([
+    ["markdown_strict+simple_tables: a break and a dash-column line", "blank", ["***", "- - -"], "markdown_strict+simple_tables", SWALLOWED],
+    ["markdown_github+simple_tables: a definition and a dash-column line", "blank", ["[a]: /u", "- - -"], "markdown_github+simple_tables", SWALLOWED],
+    ["markdown_phpextra+simple_tables: a code line and a dash-column line", "heading", ["    c", "- - -"], "markdown_phpextra+simple_tables", SWALLOWED],
+    ["markdown_strict-markdown_in_html_blocks: a one-line div", "blank", ["<div>x</div>"], "markdown_strict-markdown_in_html_blocks", LISTED],
+    ["markdown-native_divs-markdown_in_html_blocks: a one-line div", "blank", ["<div>x</div>"], "markdown-native_divs-markdown_in_html_blocks", LISTED],
+    ["markdown-native_divs-markdown_in_html_blocks: a lone opening div", "blank", ["<div>"], "markdown-native_divs-markdown_in_html_blocks", LISTED],
+    ["markdown_strict-native_divs: a lone opening div", "blank", ["<div>"], "markdown_strict-native_divs", LISTED],
+    ["markdown_strict: a comment and a one-line button", "blank", ["<!-- c -->", "<button>x</button>"], "markdown_strict", SWALLOWED],
+    ["markdown_github: a comment and a one-line button", "blank", ["<!-- c -->", "<button>x</button>"], "markdown_github", SWALLOWED],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s", (_label, ctx, x, from, expected) => {
+    claim(probe("markdown", ctx, x, "    ", from), "markdown", expected, from);
+  });
+  // `markdown-native_divs` alone keeps its lone `<div>` as inline text (the opener is swallowed; rendered, the Session 298 reader grid), and the effective defaults leave pandoc's own markdown and a bare `from:` alone.
+  it("GUARD: an indent-4 `{bash}` opener below a lone opening div under markdown-native_divs stays swallowed", () => {
+    claim(probe("markdown", "blank", ["<div>"], "    ", "markdown-native_divs"), "markdown", SWALLOWED, "markdown-native_divs");
+  });
+
   // SLICE 30. A BULLET-SPELLED BREAK UNDER THE SECOND LINE OF A PARAGRAPH IS PARAGRAPH TEXT AND OPENS NO LIST. `- - -` and `* * *` open no list column where they begin a block (Session 295); under an open paragraph they kept
   // the column, which was harmless while a bare `:::` under prose counted as a boundary (slice 26 made it text, and `- - -` under it began no block). The column then outlived the closed fence below it and the opener
   // was read as inside the list item: quarto lists `In`, this build deleted it. Under the FIRST line of a paragraph the line is a simple table's dash line (a header row above it) and keeps its old reading.
