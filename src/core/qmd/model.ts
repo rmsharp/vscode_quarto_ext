@@ -11248,10 +11248,35 @@ class BlockBoundaries {
     }
     return last[x];
   }
-  private compute(k: number): boolean {
+  /**
+   * Whether the line above `k` is a block-ending line that REALLY ends a block (Session 298, round-3b, rendered `review3b/codes/r3b_010`-`020`, `023`, `review3b/tables/r3b_012`-`014`): a heading, an
+   * underline or a fenced-div opener ends a block only where it BEGINS one. Under a prose line `# H` is paragraph text (`blank_before_header`), a `=====` under two text lines is text (a setext heading takes ONE
+   * text line) and so is `::: {.x}`, so what is stacked under them is lazy text. Outside pandoc's own markdown the old, textual answer stays (a heading interrupts a paragraph in `markdown_strict` and in the
+   * CommonMark family).
+   */
+  private boundaryAbove(k: number): boolean {
     const above = this.lines[k - 1];
+    if (!isBoundaryLine(above)) {
+      return false;
+    }
     // A bare `:::` closes a fenced div only where one is open; with none open it is paragraph text (rendered `review3/html/r3_013`).
-    if ((isBoundaryLine(above) && !(/^ {0,3}:{3,}[ \t]*$/.test(above) && !this.fdivOpenBefore[k - 1])) || this.ends.has(k - 1)) {
+    if (/^ {0,3}:{3,}[ \t]*$/.test(above)) {
+      return this.fdivOpenBefore[k - 1];
+    }
+    if (!this.readers.pandocMarkdown || BLANK_LINE.test(above)) {
+      return true;
+    }
+    if (/^#{1,6}(?:[ \t]|$)/.test(above) || /^ {0,3}:{3,}/.test(above)) {
+      return this.startsAt(k - 1);
+    }
+    if (SETEXT_UNDERLINE_RUN.test(above)) {
+      // a dash run that begins a block is a thematic break; any other run is the underline of the single text line above it, which must begin a block itself
+      return (above[0] === "-" && this.startsAt(k - 1)) || (k >= 2 && !BLANK_LINE.test(this.lines[k - 2]) && !this.startsAt(k - 1) && this.startsAt(k - 2));
+    }
+    return true;
+  }
+  private compute(k: number): boolean {
+    if (this.boundaryAbove(k) || this.ends.has(k - 1)) {
       return true;
     }
     // Inside a closed `<pre>`, `<script>`, `<style>` or `<textarea>` everything is raw text, so no self-ending construct ends a block there (rendered, `review1/r1_001`).
@@ -11380,9 +11405,9 @@ function isBoundaryLine(line: string): boolean {
     /^ {0,3}(?:`{3,}|~{3,})[ \t]*$/.test(line)
   );
 }
-/** A run of dashes separated by blanks, at least two runs (`- - -`, `-  -  -`): the column line of a simple table, and a bullet-spelled thematic break to pandoc's `hrule`. */
 /** A line that can belong to a line block: a bar line or an indented (continuation) line. */
 const LINEBLOCKISH = (l: string): boolean => LINE_BLOCK_START.test(l) || /^[ \t]+\S/.test(l);
+/** A run of dashes separated by blanks, at least two runs (`- - -`, `-  -  -`): the column line of a simple table, and a bullet-spelled thematic break to pandoc's `hrule`. */
 const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$/;
 /** A line made only of dashes and blanks: a simple table's rule, a setext underline or a thematic break. */
 const DASH_ONLY_LINE = /^ {0,3}-+(?:[ \t]+-+)*[ \t]*$/;

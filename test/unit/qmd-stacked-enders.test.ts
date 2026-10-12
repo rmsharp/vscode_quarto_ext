@@ -57,6 +57,37 @@ describe("Session 298 — stacked block enders in the free case", () => {
   const LISTED = ["Before", "In", "After"]; // the opener is indented CODE: quarto lists the heading inside it
   const SWALLOWED = ["Before", "After"]; //   the opener is paragraph text or a raw continuation: quarto swallows it
 
+  // SLICE 28. A LINE THAT LOOKS LIKE A BLOCK ENDER ENDS ONE ONLY WHERE IT BEGINS A BLOCK. Slice 1 took an ATX heading, a setext underline and a fenced-div opener above a line as proof that pandoc is between
+  // blocks, which is true only where the heading, the underline or the opener is a real one. Directly under a prose line `# H` is paragraph text (`blank_before_header`), a `=====` under two text lines
+  // is text (a setext heading takes ONE line), `::: {.x}` is text, and an underline under a comment line that sits inside a paragraph is text, so two comments (or a comment and a definition)
+  // stacked under them are lazy text and the opener below is swallowed. The parent build refused every stack and was right; the first stacking took each of these lines for a boundary and listed `In`.
+  // Found by the round-3b differential hunters, rendered with quarto 1.7.33 in ne mode, exit 0, all swallowed (`scratchpad/s298/review3b/codes/r3b_010`-`020`, `023`, `review3b/tables/r3b_012`-`014`).
+  it.each<[string, "blank" | "heading", string[]]>([
+    ["an ATX line under a prose line, two comments", "blank", ["Para above.", "# H", "<!-- a -->", "<!-- b -->"]],
+    ["an empty ATX line under a prose line, a definition and a comment", "blank", ["Para above.", "# ", " [a]: /u", "<!-- c -->"]],
+    ["an equals run under two prose lines, two comments", "blank", ["Para above.", "Text", "=====", "<!-- a -->", "<!-- b -->"]],
+    ["a fenced-div opener under a prose line, two comments", "blank", ["Para above.", "::: {.x}", "<!-- a -->", "<!-- b -->"]],
+    ["an equals run under two text lines directly under a heading, two comments", "heading", ["Text", "Text", "===", "<!-- a -->", "<!-- b -->"]],
+    ["a dash run under two text lines directly under a heading, a comment and a definition", "heading", ["Text", "Text", "---", "<!-- c -->", "[a]: /u"]],
+    ["an equals run under an indented ATX line and a text line, two comments", "heading", ["   # H", "Text", "===", "<!-- a -->", "<!-- b -->"]],
+    ["a comment line with text, a fenced-div opener, two comments", "blank", ["<!-- c --> text", "::: {.x}", "<!-- a -->", "<!-- b -->"]],
+    ["a comment line with text, an ATX line, two comments", "blank", ["<!-- c --> text", "# H", "<!-- a -->", "<!-- b -->"]],
+    ["a dash run under an indented ATX line and a text line, a comment and a definition", "blank", ["   # H", "Text", "---", "<!-- c -->", "[a]: <http://a.example>"]],
+    ["a dash run under a comment line inside a paragraph, a break and a code line", "blank", ["x", "<!-- c -->", "-----", "***", "    code"]],
+    ["a dash run under a comment line inside a paragraph, a dash column and a break", "heading", ["x", "<!-- c -->", "-----", "- - -", "***"]],
+    ["a dash run under a comment line under a pipe delimiter, an indented dash column and a line block", "heading", ["--|--", "<!-- c -->", "-----", " - - -", "| 1 | 2 |"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s is swallowed", (_label, ctx, x) => {
+    claim(probe("markdown", ctx, x), "markdown", SWALLOWED, `markdown, ${ctx} context`);
+  });
+  // The real headings and underlines still end a block: the same stacks with a blank line above them (quarto lists `In`; each is one of the 450 documents the grid of slice 1 renders).
+  it.each<[string, "blank" | "heading", string[]]>([
+    ["an ATX line after a blank line, two comments", "blank", ["", "# H", "<!-- a -->", "<!-- b -->"]],
+    ["a text line and its setext underline after a blank line, two comments", "blank", ["Title", "=====", "<!-- a -->", "<!-- b -->"]],
+    ["a fenced div after a blank line, two comments", "blank", ["::: {.x}", "<!-- a -->", "<!-- b -->"]],
+  ])("GUARD: an indent-4 `{bash}` opener below %s is indented code", (_label, ctx, x) => {
+    claim(probe("markdown", ctx, x), "markdown", x[0] === "" ? ["Before", "H", "In", "After"] : x[0] === "Title" ? ["Before", "Title", "In", "After"] : LISTED, `markdown, ${ctx} context`);
+  });
+
   // SLICE 1. A FRESH ONE-LINE BLOCK STACKED UNDER ANOTHER FRESH ONE-LINE BLOCK. After a thematic break pandoc is between blocks, so the next line begins a block: a link-reference
   // definition, a thematic break of another spelling or an indented code line then ends itself and the opener below it is indented code. Rendered (`scratchpad/s295/stk`,
   // `st_<A>_then_<B>_m`: both engines, 450 documents). Under a prose line (the `paragraph` context) the first break is paragraph text and nothing changes.
