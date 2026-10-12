@@ -11181,8 +11181,9 @@ class BlockBoundaries {
       this.ends.has(k - 1) ||
       endsFreshBlock(this, k - 1) ||
       endsFreshComment(this, k - 1) ||
-      // a table or a line block that ends on the line above (the reader gate is `freeCaseTableReader`: `markdown_strict` has none of the three)
-      (this.tables && tableOrLineBlockEndsAt(this, k - 1)) ||
+      // a table or a line block that ends on the line above (the reader gate is `freeCaseTableReader`: `markdown_strict` has none of the three) — unless a BAR LINE is what sits
+      // here: a line starting `| ` or holding a pipe is the next line of that block (a row, a line-block line), not a block that begins fresh (Session 298, rendered `wb_lb_cont__pipe`)
+      (this.tables && !LINE_BLOCK_START.test(this.lines[k]) && !this.lines[k].includes("|") && tableOrLineBlockEndsAt(this, k - 1)) ||
       endsFreshHtml(this, k - 1)
     );
   }
@@ -11229,6 +11230,14 @@ function isTableHeaderCandidate(lines: readonly string[], y: number): boolean {
   const line = lines[y];
   if (THEMATIC_BREAK.test(line) || LINK_REFERENCE_DEFINITION.test(line)) {
     return true;
+  }
+  // A ONE-LINE line block (`| one`), whose own parser comes after `table`; two lines are read whole. A bar line under a pipe-bearing line is a ROW of a pipe table, which is consumed whole.
+  if (LINE_BLOCK_START.test(line)) {
+    return y === 0 || (!lines[y - 1].includes("|") && runStart(lines, y, (l) => LINE_BLOCK_START.test(l) || /^[ \t]+\S/.test(l)) === y);
+  }
+  // A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` is the raw block `<div>` and then the text `x</div>`, which is the header row. A tag-only line (`</div>`) is consumed whole.
+  if (/^[ \t]*<\/?[A-Za-z]/.test(line)) {
+    return line.replace(/<[^>]*>/g, "").trim() !== "";
   }
   if (!indentedCodeLine(line, [0])) {
     return false;

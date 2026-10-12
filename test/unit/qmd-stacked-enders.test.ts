@@ -147,6 +147,37 @@ describe("Session 298 — stacked block enders in the free case", () => {
     },
   );
 
+  // SLICE 11. MORE ONE-LINE BLOCKS THAT `table` IS TRIED ON FIRST. The header-row rule of slice 2 holds for every one-line block pandoc parses AFTER `table`: a one-line line block (`| one`;
+  // a two-line one is read whole, so its `- - -` is a break) and a raw HTML line that leaves text behind its tag (`<div>x</div>` is the raw block `<div>` and then the text `x</div>`, which is the
+  // header row; `</div>` alone is consumed whole, so its `- - -` is a break). Rendered (`wb_{lb1,btn,details,div_1,p_1}__hr_sdash`: swallowed; `wb_{div_c,div_o,lb2}__hr_sdash`: listed).
+  it.each<[string, string[]]>([
+    ["a one-line line block", ["| one", "- - -"]],
+    ["a one-line div", ["<div>x</div>", "- - -"]],
+    ["a one-line button", ["<button>x</button>", "- - -"]],
+    ["a one-line paragraph element", ["<p>x</p>", "- - -"]],
+    ["a details element with its summary", ["<details>", "<summary>s</summary>", "- - -"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below `- - -` under %s is swallowed (a simple table's dash line)", (_label, x) => {
+    expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(SWALLOWED);
+  });
+  it.each<[string, string[]]>([
+    ["a closing div", ["</div>", "- - -"]],
+    ["a lone opening div", ["<div>", "- - -"]],
+    ["a two-line line block", ["| one", "| two", "- - -"]],
+  ])("GUARD: an indent-4 `{bash}` opener below `- - -` under %s is still indented code (the block is consumed whole first)", (_label, x) => {
+    expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(LISTED);
+  });
+
+  // SLICE 12. A `|` LINE DIRECTLY UNDER A TABLE OR A LINE BLOCK CONTINUES IT. Line blocks, pipe tables and pipe rows all start with a bar, so a bar line under one is the same block's next line, not
+  // a block that begins fresh: stacking through the table above made `| a | b |` under a line block, and the last row of a pipe table under its delimiter row, begin at a boundary, which then
+  // let an indented comment under them end a line block that pandoc never starts. Rendered (`wb_lb_cont__pipe`, `wb_lb_cont__pipe_hdr`, `wb_pipe__cmt_ind`, engine markdown): swallowed.
+  it.each<[string, string[]]>([
+    ["a pipe table under a line block with a continuation line", ["| one", "  cont", "| a | b |", "|---|---|", "| 1 | 2 |"]],
+    ["a pipe table without a body under a line block with a continuation line", ["| one", "  cont", "| a | b |", "|---|---|"]],
+    ["an indented comment under a pipe table", ["| a | b |", "|---|---|", "| 1 | 2 |", " <!-- c -->"]],
+  ])("RED->GREEN: an indent-4 `{bash}` opener below %s is swallowed", (_label, x) => {
+    expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(SWALLOWED);
+  });
+
   // SLICE 9. A GRID TABLE UNDER A LINE BLOCK. The run of lines starting `|` or `+` that makes a grid table was searched back over every such line, so the `| one` line of a line block above the
   // top border was taken for the start of the run and the table was thought to begin at a non-boundary. A grid table begins at its first border line, as a line block begins at its first bar
   // line (slice 5). Rendered (`scratchpad/s298/wide_blank`, `wb_lb1__grid`, `wb_lb2__grid`, engine markdown): listed.
