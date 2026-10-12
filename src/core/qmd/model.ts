@@ -8073,6 +8073,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     // How many raw-content elements are open ABOVE this line, kept per line so the stacked-block question can ask it of any line above (Session 298).
     boundaries.rawDepthBefore[i] = rawContentDepth;
     boundaries.divDepthBefore[i] = nativeDivDepth;
+    boundaries.fdivOpenBefore[i] = liveDiv() !== null;
     // ⚠ **THE BLOCK-QUOTE STRIP (Session 225).** Quarto strips a quote's markers and re-parses
     // what is left, so everything below this point classifies the quote's CONTENT rather than
     // the marker line. See `BLOCK_QUOTE_PREFIX` for the marker grammar and for why the strip
@@ -8854,7 +8855,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
               // break, a link definition or indented code that began fresh, a whole-line comment, a table or a line block (not under `markdown_strict`), a raw HTML element that completes,
               // the closer of a real kernel cell or a fresh comment region or a seven-hash line (the scanner's own report), the closing rule of a simple table.
               // The opener is itself the INDENTED line a line block absorbs as its continuation, so the free case asks the line block above unguarded (`nextContinues` off): the heading after it is a heading.
-              (i === 0 || endsBlock(lines[i - 1]) || boundaries.startsAt(i) || (freeCaseTableReader && tableOrLineBlockEndsAt(boundaries, i - 1))))),
+              (i === 0 || endsBlock(lines[i - 1]) || boundaries.startsAt(i) || endsFreshHtml(boundaries, i - 1) || (freeCaseTableReader && tableOrLineBlockEndsAt(boundaries, i - 1))))),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -10071,15 +10072,12 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         deepAtxHeaderLineIsBlock(line, rawTexColumns, tightAtxDialect && literalHtmlLines?.has(i) !== true) &&
         (!paragraphOpen || (markdownFamilyDialect && !blankBeforeHeaderDialect));
       if (line.includes("<")) {
-        for (const tag of line.includes(">") ? line.matchAll(HTML_DIV_TAG) : []) {
-          if (tag[2] === "/") {
-            continue; // self-closing: opens nothing
-          }
-          if (tag[1] === "/") {
-            nativeDivDepth = Math.max(0, nativeDivDepth - 1);
-          } else if (/^ {0,3}$/.test(line.slice(0, tag.index))) {
-            nativeDivDepth += 1;
-          }
+        // A native div is opened by a line that STARTS with `<div` (an opening tag split over lines, a self-closing `<div/>` and a `<div>x</div>` whose text swallows its own closer all open one) and closed by
+        // a line that STARTS with `</div>` at indent 0-3 (an indented `    </div>` is code inside it): rendered `review3/html/r3_018`-`r3_022`.
+        if (/^ {0,3}<div\b/i.test(line)) {
+          nativeDivDepth += 1;
+        } else if (/^ {0,3}<\/div\s*>/i.test(line)) {
+          nativeDivDepth = Math.max(0, nativeDivDepth - 1);
         }
         for (const tag of line.matchAll(HTML_RAW_CONTENT_TAG)) {
           if (tag[3] === "/") {
@@ -11195,6 +11193,10 @@ interface BoundaryReaders {
 class BlockBoundaries {
   /** Lines the SCANNER found to end their own block, having begun it fresh: a real kernel cell's closer, a fresh comment region's closer, a seven-hash line. */
   readonly ends = new Set<number>();
+  /** The lines strictly inside a CLOSED `<pre>`, `<script>`, `<style>` or `<textarea>` element: raw text, where no self-ending construct ends a block (an unclosed one swallows nothing: rendered `review3/html/r3_016`). */
+  readonly rawLines: ReadonlySet<number>;
+  /** `fdivOpenBefore[i]`: whether a fenced div is open above line `i`, as the scanner tracked it (a bare `:::` closes one; with none open it is text). */
+  readonly fdivOpenBefore: boolean[] = [];
   /** `rawDepthBefore[i]`: how many raw-content elements (`<pre>`, `<script>`, `<style>`, `<textarea>`) are open above line `i`, as the scanner counted them. */
   readonly rawDepthBefore: number[] = [];
   /** `divDepthBefore[i]`: how many native `<div>` openers are still open above line `i`, as the scanner counted them. */
@@ -11204,7 +11206,9 @@ class BlockBoundaries {
   constructor(
     readonly lines: readonly string[],
     readonly readers: BoundaryReaders,
-  ) {}
+  ) {
+    this.rawLines = closedRawContentLines(lines);
+  }
   /** Whether the line at `k` BEGINS AT A BLOCK BOUNDARY: pandoc is between blocks before it. `k` is at most the line the scanner is on. */
   startsAt(k: number): boolean {
     while (this.known.length <= k) {
@@ -11242,11 +11246,13 @@ class BlockBoundaries {
     return last[x];
   }
   private compute(k: number): boolean {
-    if (isBoundaryLine(this.lines[k - 1]) || this.ends.has(k - 1)) {
+    const above = this.lines[k - 1];
+    // A bare `:::` closes a fenced div only where one is open; with none open it is paragraph text (rendered `review3/html/r3_013`).
+    if ((isBoundaryLine(above) && !(/^ {0,3}:{3,}[ \t]*$/.test(above) && !this.fdivOpenBefore[k - 1])) || this.ends.has(k - 1)) {
       return true;
     }
-    // Inside an open `<pre>`, `<script>`, `<style>` or `<textarea>` everything is raw text, so no self-ending construct ends a block there (rendered, `review1/r1_001`).
-    if (this.rawDepthBefore[k] > 0) {
+    // Inside a closed `<pre>`, `<script>`, `<style>` or `<textarea>` everything is raw text, so no self-ending construct ends a block there (rendered, `review1/r1_001`).
+    if (this.rawLines.has(k - 1)) {
       return false;
     }
     return (
@@ -11256,27 +11262,48 @@ class BlockBoundaries {
       // a table or a line block that ends on the line above (the reader gate is `freeCaseTableReader`: `markdown_strict` has none of the three) — unless a BAR LINE is what sits
       // here: a line starting `| ` or holding a pipe is the next line of that block (a row, a line-block line), not a block that begins fresh (Session 298, rendered `wb_lb_cont__pipe`)
       (this.readers.tables && !LINE_BLOCK_START.test(this.lines[k]) && !this.lines[k].includes("|") && tableOrLineBlockEndsAt(this, k - 1, LINEBLOCKISH(this.lines[k]))) ||
-      endsFreshHtml(this, k - 1)
+      // a raw HTML line makes the NEXT line fresh only where it begins a block itself, at column 0 (the line directly above the opener keeps the lenient rule: a block-class tag interrupts a paragraph)
+      (this.readers.pandocMarkdown && endsFreshHtml(this, k - 1, true))
     );
   }
+}
+/** The lines strictly between a `<pre>`, `<script>`, `<style>` or `<textarea>` opener at the start of a line and its closer (an unclosed opener contributes none). */
+function closedRawContentLines(lines: readonly string[]): ReadonlySet<number> {
+  const inside = new Set<number>();
+  for (let i = 0; i < lines.length; i++) {
+    const open = /^ {0,3}<(pre|script|style|textarea)(?=[ \t/>]|$)/i.exec(lines[i]);
+    if (open === null || /<\/(?:pre|script|style|textarea)\s*>/i.test(lines[i])) {
+      continue;
+    }
+    const closer = new RegExp("</" + open[1] + "\\s*>", "i");
+    for (let j = i + 1; j < lines.length && j - i <= 5000; j++) {
+      if (closer.test(lines[j])) {
+        for (let k = i + 1; k < j; k++) {
+          inside.add(k);
+        }
+        i = j;
+        break;
+      }
+    }
+  }
+  return inside;
 }
 /**
  * Whether the line at `x` COMPLETES a raw HTML block element outside any open raw-content element, so pandoc is between blocks after it (Session 295; stackable, Session 298). OUTSIDE pandoc's
  * markdown (`markdown_strict`, `markdown_github`, `markdown_mmd`, `markdown_phpextra`) the raw block is the whole run of non-blank lines and must BEGIN with a tag: a prose line that starts
  * the run makes the tag lazy paragraph text there. The CommonMark family never asks (an HTML block there runs to the next blank line).
  */
-function endsFreshHtml(b: BlockBoundaries, x: number): boolean {
+function endsFreshHtml(b: BlockBoundaries, x: number, stacked = false): boolean {
   return (
+    (!stacked || (!/^[ \t]/.test(b.lines[x]) && (startsAtBoundary(b, x) || summaryUnderDetails(b, x)))) &&
     b.lines[x].includes("<") &&
     b.readers.html &&
     b.rawDepthBefore[x + 1] === 0 &&
-    // pandoc's block quote absorbs every non-blank line below its marked lines, so a tag under one begins nothing (rendered `review2/r2_023`); a `>` line under a paragraph is text, not a quote (`wide_para`)
-    !(x > 0 && insideQuote(b, x)) &&
     // a tag under a simple table's rule is a ROW of that table, which swallows the lines to the blank line (rendered `review2/r2_022`)
     !inSimpleTableRows(b, x) &&
     // an element with TEXT between its tags is a raw block only where markdown is parsed inside HTML blocks (rendered, `-markdown_in_html_blocks`)
     (b.readers.htmlContent || !htmlLineHasText(b.lines[x]) || !contentGatedElement(b.lines[x])) &&
-    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !startsAtBoundary(b, x) && !htmlRunBeginsWithTag(b, x), b.readers.rawHtml, b.readers.nativeDivs, (b.divDepthBefore[x] ?? 0) > 0)
+    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !htmlRunBeginsWithTag(b, x), b.readers.rawHtml, b.readers.nativeDivs, (b.divDepthBefore[x] ?? 0) > 0)
   );
 }
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
@@ -11317,19 +11344,9 @@ function dashFooterBelow(lines: readonly string[], x: number): boolean {
   }
   return false;
 }
-/** Whether a block quote that BEGINS A BLOCK sits in the non-blank run above line `x`: it absorbs every line of the run below it. */
-function insideQuote(b: BlockBoundaries, x: number): boolean {
-  const isQuote = (l: string): boolean => /^ {0,3}>/.test(l);
-  const last = b.lastIndexOf("quote", isQuote, x - 1);
-  if (last < 0) {
-    return false;
-  }
-  for (let j = b.runStartOf("nonblank", (l) => !BLANK_LINE.test(l), x); j <= last; j++) {
-    if (isQuote(b.lines[j]) && startsAtBoundary(b, j)) {
-      return true;
-    }
-  }
-  return false;
+/** A `<summary>` line directly under a lone `<details>` opener that begins a block: pandoc reads both as raw blocks of their own (rendered `wide_blank` `details`, and the rows of slice 8). */
+function summaryUnderDetails(b: BlockBoundaries, x: number): boolean {
+  return x > 0 && /^<summary\b/i.test(b.lines[x]) && /^<details\b[^>]*>[ \t]*$/i.test(b.lines[x - 1]) && startsAtBoundary(b, x - 1);
 }
 /** The elements `-markdown_in_html_blocks` stops ending a block when they hold text: `<div>` and the either-class names (measured `<div>x</div>`, `<button>x</button>`; `<p>x</p>` still ends one, rendered `review2/r2_010`). */
 function contentGatedElement(line: string): boolean {
@@ -11586,7 +11603,7 @@ function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: bool
   }
   const m = HTML_ELEMENT_COMPLETES.exec(line);
   // An EMPTY native div opened and closed on one line (`<div></div>`) is a closed Div whatever `raw_html` says; `<div>x</div>` is not (the text swallows the closer without raw HTML; rendered `review1/r1_002`).
-  if (!rawHtml && nativeDivs && /^[ \t]*<div\b[^>]*>[ \t]*<\/div>[ \t]*$/i.test(line)) {
+  if (!rawHtml && nativeDivs && /^[ \t]*<div\b(?:[^>"']|"[^"]*"|'[^']*')*>[ \t]*<\/div>[ \t]*$/i.test(line)) {
     return true;
   }
   // Without raw HTML a closing tag is text, EXCEPT the `</div>` that closes an open native div (a container, not raw HTML).
@@ -11613,8 +11630,6 @@ const HTML_EITHER_NAME = new RegExp("^(?:" + PANDOC_EITHER_TAGS + ")$", "i");
  * start of a line (a block position); a closer counts anywhere.
  */
 const HTML_RAW_CONTENT_TAG = /<(\/?)(pre|script|style|textarea)\b[^>]*?(\/?)>/gi;
-/** A `<div>` or `</div>` tag, for the native-div depth the scanner keeps (Session 298). */
-const HTML_DIV_TAG = /<(\/?)div\b[^>]*?(\/?)>/gi;
 
 /** The run of whitespace a line starts with — `\s*`, the same class both cell regexes use. */
 function indentRun(line: string): string {

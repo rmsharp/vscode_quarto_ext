@@ -294,6 +294,38 @@ describe("Session 298 — stacked block enders in the free case", () => {
   it("RED->GREEN: a `>` inside a quoted attribute does not make an empty element look like it holds text (`<div title=\"a>b\"></div>` is no header row)", () => {
     claim(probe("markdown", "blank", ['<div title="a>b"></div>', "- - -"]), "markdown", LISTED, "markdown");
   });
+  // SLICE 26. THE HTML HUNTER OF ROUND 3 (`scratchpad/s298/review3/html`: a differential fuzz of 232,032 generated documents against the parent and pandoc kept 40; 34 were regressions, each rendered).
+  // Stacking THROUGH a raw HTML line is the leakiest rule of the change: a block-class tag needs no freshness to end a block directly above the opener (it interrupts a paragraph), but a line made fresh BY
+  // such a tag inherits none of that, and pandoc's HTML contexts (an open `<li>`, an indented tag, a list item, a quote, a run that runs to the blank line under a reader outside pandoc's markdown)
+  // each change what follows. So (1) an HTML line makes the NEXT line fresh only at column 0, where it begins a block itself (the one exception: `<summary>` under a lone `<details>`), and only under
+  // pandoc's own markdown. (2) The raw-content gate asks for a CLOSED element (an unclosed `<pre>` swallows nothing: `r3_016`). (3) A bare `:::` with no fenced div open is text, not a fence (`r3_013`). (4) Native
+  // divs under `-raw_html` are counted by the lines that start or end them (an indented `    </div>` is code, a split or self-closing opener opens, a `<div>x</div>` leaves its div open: `r3_018`-`r3_024`).
+  it("RED->GREEN: an unclosed <pre> swallows nothing, so the opener below `<pre>` / blank / `***` is indented code", () => {
+    claim(probe("markdown", "blank", ["<pre>", "", "***"]), "markdown", LISTED, "markdown");
+  });
+  it("RED->GREEN: a bare `:::` with no fenced div open is text, so the comments stacked under it end nothing", () => {
+    claim(probe("markdown", "blank", [":::", "<!--- c --->", "<!-- <div> -->"]), "markdown", SWALLOWED, "markdown");
+  });
+  it.each<[string, string[]]>([
+    ["an indented closer between the opener and the closer", ["<div>", "    </div>", "</div>"]],
+    ["an opening tag split over two lines", ["<div", 'class="a">', "</div>"]],
+    ["a self-closing div tag", ["<div/>", "</div>"]],
+    ["a one-line div whose text swallows its own closer", ["<div>x</div>", "</div>"]],
+    ["an empty div with a greater-than sign inside a quoted attribute", ['<div title="a>b"></div>']],
+  ])("RED->GREEN: under `-raw_html` the opener below %s is indented code (a native div closes)", (_label, x) => {
+    claim(probe("markdown", "blank", x, "    ", "markdown-raw_html"), "markdown", LISTED, "markdown-raw_html");
+  });
+  it.each<[string, string, string[]]>([
+    ["a thematic break and a lone div tag with an attribute", "markdown_strict-raw_html", ["***", '<div class="a">']],
+    ["a one-line either-class element and a thematic break", "markdown_strict", ["<button>x</button>", "***"]],
+    ["a one-line either-class element and a comment", "markdown_phpextra", ["<ins>x</ins>", "<!-- c -->"]],
+    ["a bare fence line and a closing div", "markdown_strict", [":::", "</div>"]],
+    ["a div with a markdown attribute and a code line", "markdown_phpextra", ['<div markdown="1">', "    b"]],
+    ["a closed fence and a closing list", "markdown_strict", ["```", "```", "</ul>"]],
+  ])("RED->GREEN: the opener below %s under %s is swallowed (a raw HTML block runs to the blank line there)", (_label, reader, x) => {
+    claim(probe("markdown", "blank", x, "    ", reader), "markdown", SWALLOWED, reader);
+  });
+
   // SLICE 25. THREE MORE FINDINGS OF THE SECOND REVIEW (rendered, `review2/r2_022`, `r2_026`, `r2_027`). (1) A closing tag is a ROW of the simple table above it, not a block ender: `Text` / `--- ---` /
   // `</div>` / `***` is one table whose rows swallow everything to the blank line, so the `***` under the tag is no fresh break (a block-class tag needs no freshness to end a block, which is only true under a
   // paragraph). (2) A LIST-LIKE CLOSING RULE is filed, not fixed (the residual below). (3) THE LIST COLUMN that a header-row `- - -` used to open
@@ -352,7 +384,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
   // SLICE 21. THREE FINDINGS OF THE INDEPENDENT CODE REVIEW (`scratchpad/s298/review1`, each rendered). (1) NOTHING ENDS A BLOCK INSIDE AN OPEN RAW-CONTENT ELEMENT: everything in a `<pre>` (or a
   // `<script>`, `<style>`, `<textarea>`) is raw text, so a stack of enders inside it ends nothing and the opener is swallowed; only the HTML rule asked the scanner's raw-content depth (the parent was right
   // here by accident: stacking was refused). (2) A `<div></div>` OPENED AND CLOSED ON ONE LINE is an empty native div under `-raw_html` too (`<div>x</div>` is not: the text swallows the closer). (3) A
-  // CLOSING TAG UNDER A READER OUTSIDE PANDOC'S MARKDOWN begins its own block when the line above ended one, so the run-must-begin-with-a-tag refusal does not apply to a tag that begins at a boundary.
+  // CLOSING TAG UNDER A READER OUTSIDE PANDOC'S MARKDOWN: not fixed, see below.
   it("RED->GREEN: a stack of enders inside an open <pre> ends nothing, so the opener is swallowed", () => {
     claim(
       doc("---", 'title: "T"', "engine: markdown", "---", "", "## Before", "", "Prose before.", "", "<pre>", "", "***", "[a]: http://x", "    ```{bash}", "## In", "x = 1", "    ```", "</pre>", "", "## After", "", "tail"),
@@ -361,17 +393,8 @@ describe("Session 298 — stacked block enders in the free case", () => {
   it("RED->GREEN: the opener below `<div></div>` under `-raw_html` is indented code (an empty native div closes at once)", () => {
     claim(probe("markdown", "blank", ["<div></div>"], "    ", "markdown-raw_html"), "markdown", LISTED, "markdown-raw_html");
   });
-  it.each(
-    ["markdown_strict", "markdown_github", "markdown_mmd", "markdown_phpextra"].flatMap((r) =>
-      [
-        ["a thematic break", ["***"]],
-        ["a link definition", ["[a]: /u"]],
-        ["an indented code line", ["    c"]],
-      ].map(([l, x]): [string, string, string[]] => [`${l as string} under ${r}`, r, x as string[]]),
-    ),
-  )("RED->GREEN: the opener below a closing div under %s is indented code (the tag begins its own block)", (_label, reader, x) => {
-    claim(probe("markdown", "blank", [...x, "</div>"], "    ", reader), "markdown", LISTED, reader);
-  });
+  // (Finding 3 of the first review, a closing tag under a reader outside pandoc's markdown, is NOT fixed: the HTML run there runs to the blank line, and the round-3 hunter's documents `r3_025`, `r3_035` showed the
+  // "begins at a boundary" refinement wrong for them. The parent's rule stays; rendered rows `rd_hr_divc__markdown_{strict,github,mmd,phpextra}` list `In` and remain a filed residual.)
 
   // SLICE 20. A SIMPLE TABLE NEEDS A ROW, AND ITS CLOSING RULE ENDS IT. (1) A dash-column line whose next line is another dash-only line has no row between them: `- - -` / `-----` is a setext
   // heading whose text is `- - -`, not a table, and the opener below is indented code (rendered, `dev/stack3/dst3_032_five_thematic_spellings`: `Before`, `- - -`, `In`, `After`). (2) The rule
