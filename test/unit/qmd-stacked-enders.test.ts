@@ -23,9 +23,9 @@ describe("Session 298 — stacked block enders in the free case", () => {
   };
   // The stack sits after a blank line + prose (`blank`), directly under the `## Before` heading (`heading`) or directly under a prose line (`paragraph`).
   type Ctx = "blank" | "heading" | "paragraph";
-  const probe = (eng: Eng, ctx: Ctx, x: string[], open = "    "): string =>
+  const probe = (eng: Eng, ctx: Ctx, x: string[], open = "    ", from: string | null = null): string =>
     doc(
-      ...FRONT[eng],
+      ...(from === null ? FRONT[eng] : ["---", 'title: "T"', "engine: markdown", `from: ${from}`, "---", ""]),
       "## Before",
       ...(ctx === "blank" ? ["", "Prose before.", ""] : ctx === "paragraph" ? ["", "Para above."] : []),
       ...x,
@@ -182,6 +182,29 @@ describe("Session 298 — stacked block enders in the free case", () => {
     ["a two-line line block", ["| one", "| two", "- - -"]],
   ])("GUARD: an indent-4 `{bash}` opener below `- - -` under %s is still indented code (the block is consumed whole first)", (_label, x) => {
     claim(probe("markdown", "blank", x), "markdown", LISTED, "markdown");
+  });
+
+  // SLICE 14. THE SIMPLE-TABLE RULE BELONGS TO PANDOC'S OWN MARKDOWN. `***` / `- - -` is a table (and the opener is swallowed) only where the reader HAS simple tables; `markdown_strict`,
+  // `markdown_mmd`, `markdown_phpextra`, `markdown_github` and `markdown-simple_tables` read two thematic breaks, so the opener below them is indented code. Rendered (`scratchpad/s298/rdr298`,
+  // `rd_{hr,ref,code}_hrb__<reader>`, 78 documents): listed under those five readers, swallowed under `markdown` and under `markdown` with `-pipe_tables`, `-line_blocks`, `-grid_tables` or `-raw_html`.
+  const SIMPLE_TABLE_STACKS: [string, string[]][] = [
+    ["a thematic break", ["***", "- - -"]],
+    ["a link definition", ["[a]: /u", "- - -"]],
+    ["an indented code line", ["    c", "- - -"]],
+  ];
+  it.each(
+    SIMPLE_TABLE_STACKS.flatMap(([l, x]) =>
+      ["markdown_strict", "markdown_mmd", "markdown_phpextra", "markdown_github", "markdown-simple_tables"].map((r): [string, string, string[]] => [`${l} under the reader ${r}`, r, x]),
+    ),
+  )("RED->GREEN: `- - -` under %s is a break, so the opener is indented code", (_label, reader, x) => {
+    claim(probe("markdown", "blank", x, "    ", reader), "markdown", LISTED, reader);
+  });
+  it.each(
+    SIMPLE_TABLE_STACKS.flatMap(([l, x]) =>
+      ["markdown-pipe_tables", "markdown-line_blocks", "markdown-grid_tables", "markdown-raw_html"].map((r): [string, string, string[]] => [`${l} under the reader ${r}`, r, x]),
+    ),
+  )("GUARD: `- - -` under %s is still a simple table's dash line", (_label, reader, x) => {
+    claim(probe("markdown", "blank", x, "    ", reader), "markdown", SWALLOWED, reader);
   });
 
   // SLICE 13. A DASH RUN THAT UNDERLINES THE TEXT ABOVE IS NO BLOCK START, SO IT IS NO TABLE HEADER. `-----` directly under a text line is that line's setext underline, and the `- - -` below it

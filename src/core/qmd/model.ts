@@ -7762,7 +7762,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // pandoc, so the line below it starts fresh whatever was above the cell, Session 295), the closer of a comment region that opened fresh, and a line of seven or more hashes.
   // The raw HTML rule is pandoc's alone (a CommonMark HTML block runs to the next blank line, so no closing tag ends one there), and a reader outside pandoc's own markdown asks it of a run that
   // begins with a tag (`endsHtmlBlock`'s `againstParagraph`).
-  const boundaries = new BlockBoundaries(lines, freeCaseTableReader, !commonmarkDialect, measuredRefusalReader);
+  // Whether the reader has SIMPLE tables (rendered, `scratchpad/s298/rdr298`): pandoc's own markdown with `simple_tables` left on. `markdown_strict`, `_mmd`, `_phpextra` and `_github` have none,
+  // so `***` / `- - -` is two thematic breaks there.
+  const simpleTablesReader = measuredRefusalReader && (fromValueLine === null || fromExtensionState(fromValueLine, "simple_tables") !== false);
+  const boundaries = new BlockBoundaries(lines, freeCaseTableReader, !commonmarkDialect, measuredRefusalReader, simpleTablesReader);
   // Whether the resolved reader honours a trailing heading ATTRIBUTE block — see
   // `fromHonoursHeaderAttributes` (Session 216). A SEVENTH flag rather than a refinement of any
   // of the six around it, for the reason each of those gives: it answers its own question, about
@@ -11160,13 +11163,14 @@ class BlockBoundaries {
   private readonly known: boolean[] = [true];
   /**
    * `tables` is the reader gate for tables and line blocks (`freeCaseTableReader`), `html` says whether a raw HTML element that completes on its line ends the block (pandoc's rule, not
-   * CommonMark's), and `pandocMarkdown` whether the reader is pandoc's own markdown (outside it only a run that BEGINS with a tag counts).
+   * CommonMark's), `pandocMarkdown` whether the reader is pandoc's own markdown (outside it only a run that BEGINS with a tag counts) and `simpleTables` whether it has simple tables.
    */
   constructor(
     readonly lines: readonly string[],
     readonly tables: boolean,
     readonly html: boolean,
     readonly pandocMarkdown: boolean,
+    readonly simpleTables: boolean,
   ) {}
   /** Whether the line at `k` BEGINS AT A BLOCK BOUNDARY: pandoc is between blocks before it. `k` is at most the line the scanner is on. */
   startsAt(k: number): boolean {
@@ -11278,7 +11282,7 @@ function endsFreshBlock(b: BlockBoundaries, x: number): boolean {
   if (THEMATIC_BREAK.test(line)) {
     // ⚠ A DASH-COLUMN LINE DIRECTLY UNDER A ONE-LINE BLOCK IS A SIMPLE TABLE'S DASH LINE, NOT A BREAK (Session 298): pandoc tries `table` before `hrule`, a link definition and an
     // indented code block, so such a line above it is the header row and the table swallows everything below it up to a blank line (rendered, `scratchpad/s295/stk`).
-    if (DASH_COLUMN_LINE.test(line) && x > 0 && isTableHeaderCandidate(lines, x - 1)) {
+    if (b.simpleTables && DASH_COLUMN_LINE.test(line) && x > 0 && isTableHeaderCandidate(lines, x - 1)) {
       return false;
     }
     return startsAtBoundary(b, x);
