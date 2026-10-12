@@ -57,6 +57,41 @@ describe("Session 298 — stacked block enders in the free case", () => {
   const LISTED = ["Before", "In", "After"]; // the opener is indented CODE: quarto lists the heading inside it
   const SWALLOWED = ["Before", "After"]; //   the opener is paragraph text or a raw continuation: quarto swallows it
 
+  // SLICE 35. MUTATION KILLERS AND ONE FIX. 191 single-term mutants of slices 28-34: 124 died to the suite, 67 survived. `mutdiff` scored the survivors against 7,188 rendered documents (`scratchpad/s298`): 24 are OBSERVABLE (a
+  // rendered document tells the mutant from the real build, so each got a row below from its shortest killers), 6 more got a witness from a generator re-run against each mutant with the oracle as judge
+  // (rendered, `scratchpad/s298/mw5`), and 37 are UNOBSERVABLE (size caps, perf prechecks, guards that a caller already gives, terms another term subsumes) and stay as fail-safes. These rows pass on arrival, as
+  // mutation killers do; ONE did not: P07, the rule that took an indented HTML line for a table's header row, was `net harmful` (its removal fixed `review3/contexts/r3_031` and broke nothing): an indented tag that is a LINE
+  // BLOCK's continuation line begins no block, so it is no header row, and the dash column under it is a break (`| two` / `  </div>` / `- - -`: quarto lists `In`).
+  it("RED->GREEN: `| two` / `  </div>` / `- - -` directly under the heading: the indented closing tag is a line block's continuation, and the opener below the break is indented code", () => {
+    claim(probe("markdown", "heading", ["| two", "  </div>", "- - -"]), "markdown", LISTED, "markdown, heading context");
+  });
+  it.each<[string, "blank" | "heading" | "paragraph", string[], string | null, string[]]>([
+    ["H02: an indented one-line button and a comment", "blank", [" <button>x</button>", "<!-- c -->"], null, SWALLOWED],
+    ["H02: an indented closing script tag and a break", "blank", ["  </script>", "***"], null, SWALLOWED],
+    ["H02: an indented lone div under -raw_html and a break", "blank", ["  <div>", "***"], "markdown-raw_html", SWALLOWED],
+    ["H08: an open simple table and a one-line div as its row", "blank", ["  a   b", "  --- ---", "  1   2", "<div>x</div>"], null, SWALLOWED],
+    ["H08: an open simple table and a closing div as its row", "blank", ["  a   b", "  --- ---", "  1   2", "</div>"], null, SWALLOWED],
+    ["H08: a headed simple table and a closing div as its row", "blank", ["h1  h2", "--- ---", "a   b", "</div>"], null, SWALLOWED],
+    ["T07: a line block, a dash column and a tab code line", "blank", ["| line one", "| line two", "- - -", "\ttab code line"], null, LISTED],
+    ["D01/D03/R02: a closed simple table and a comment", "blank", ["  a   b", "  --- ---", "  1   2", "  --- ---", "<!-- c -->"], null, LISTED],
+    ["D01/D03/R02: a closed simple table and a multi-line comment", "blank", ["  a   b", "  --- ---", "  1   2", "  --- ---", "<!--", "note", "-->"], null, LISTED],
+    ["A09: a line block's first line and its equals underline", "blank", ["| one", "==="], null, ["Before", "| one", "In", "After"]],
+    ["W13/A01: an ATX line under prose without blank_before_header", "blank", ["### Delta Four"], "markdown-blank_before_header", ["Before", "Delta Four", "In", "After"]],
+    ["A12: a closed pre element and a dash run", "blank", ["<pre>", "x", "</pre>", "---"], null, LISTED],
+    ["A12: a closing div under a prose line and a dash run", "paragraph", ["</div>", "---"], null, LISTED],
+    ["S08: a closed fence and an empty ATX line", "blank", ["```", "x", "```", "##"], null, LISTED],
+    ["S08: a multi-line comment and an empty ATX line", "blank", ["<!--", "note", "-->", "##"], null, LISTED],
+    ["S08: a closed pre element and an empty ATX line", "blank", ["<pre>", "x", "</pre>", "##"], null, LISTED],
+    ["S08: a multi-line comment and an ATX line under the heading", "heading", ["<!--", "note", "-->", "## Mid"], null, ["Before", "Mid", "In", "After"]],
+    ["T02/T03: a top rule under the heading's text is its setext underline, then a blank-ended table and an indented dash run", "heading", ["----------", "Hdr  Hd2", "---  ---", "a    b", "", "----------", " ---"], null, ["## Before", "After"]],
+    ["Q06: a lone grid border and a comment", "blank", ["+---+---+", "<!-- c -->"], null, SWALLOWED],
+    ["C11: a pipe table without a body, a dash column and a setext heading", "blank", ["| a | b |", "|---|---|", "- - -", "Title", "====="], null, ["Before", "Title", "In", "After"]],
+    ["K03c: a spaced star break, an empty comment and a dash run under a prose line", "paragraph", ["* * * ", "<!---->", "---"], null, SWALLOWED],
+    ["S09: a star run and a dash run under a prose line, a multi-line comment", "paragraph", ["*****", "---", "<!--", "note", "-->"], null, SWALLOWED],
+  ])("MUTATION KILLER: an indent-4 `{bash}` opener below %s", (_label, ctx, x, from, expected) => {
+    claim(probe("markdown", ctx, x, "    ", from), "markdown", expected, `${from ?? "no from"}, ${ctx} context`);
+  });
+
   // SLICE 33. THE ROUND-4 SWEEP OF THE ROUND-3b FIXES (the same generator re-run over 38,976 documents: 109 candidates, 83 of them one wrong underline rule, 22 distinct documents after it, every one rendered with quarto 1.7.33
   // in ne mode, exit 0, `scratchpad/s298/r4a`). Five causes, each the parent's accident exposed by an earlier slice:
   // (a) A `Table:` OR `:` LINE IS A CAPTION, NOT A HEADER ROW: the dash lines below it are paragraph text and nothing closes (`r4a_001`, `005`, `007`, `018`).

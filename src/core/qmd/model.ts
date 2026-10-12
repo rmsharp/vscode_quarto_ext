@@ -11656,7 +11656,8 @@ function isTableHeaderCandidate(b: BlockBoundaries, y: number): boolean {
   // A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` is the raw block `<div>` and then the text `x</div>`, which is the header row. A tag-only line (`</div>`) is consumed whole.
   // An INDENTED HTML line is no raw block start at all (pandoc's `htmlBlock` wants the `<` in the first column), so a bare `   </div>` is a header row too (rendered `review2/r2_005`).
   if (/^[ \t]*<\/?[A-Za-z]/.test(line)) {
-    return htmlLineHasText(line) || /^[ \t]/.test(line);
+    // (an indented tag that is a line block's continuation line begins no block, so it is no header row: rendered `review3/contexts/r3_031`)
+    return htmlLineHasText(line) || (/^[ \t]/.test(line) && startsAtBoundary(b, y));
   }
   if (!indentedCodeLine(line, [0])) {
     return false;
