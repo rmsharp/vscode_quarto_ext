@@ -291,6 +291,9 @@ describe("Session 298 — stacked block enders in the free case", () => {
   it("RED->GREEN: a `> q` directly under a prose line is paragraph text, so the `</div>` below it still ends the block (only a quote that begins a block absorbs)", () => {
     claim(probe("markdown", "paragraph", ["> q", "</div>"]), "markdown", LISTED, "markdown, paragraph context");
   });
+  it("RED->GREEN: a `>` inside a quoted attribute does not make an empty element look like it holds text (`<div title=\"a>b\"></div>` is no header row)", () => {
+    claim(probe("markdown", "blank", ['<div title="a>b"></div>', "- - -"]), "markdown", LISTED, "markdown");
+  });
   it("GUARD: the opener below a line block and its continuation line is still indented code (the continuation is absorbed, the next heading is a heading)", () => {
     claim(probe("markdown", "blank", ["| one", "    code"]), "markdown", LISTED, "markdown");
   });

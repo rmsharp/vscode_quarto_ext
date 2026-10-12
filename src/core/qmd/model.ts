@@ -11302,7 +11302,8 @@ function contentGatedElement(line: string): boolean {
 }
 /** A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` (a tag-only line such as `</div>` has none). */
 function htmlLineHasText(line: string): boolean {
-  return /^[ \t]*<\/?[A-Za-z]/.test(line) && line.replace(/<[^>]*>/g, "").trim() !== "";
+  // (a `>` inside a quoted attribute does not end the tag: rendered `review2/r2_012`)
+  return /^[ \t]*<\/?[A-Za-z]/.test(line) && line.replace(/<(?:[^>"']|"[^"]*"|'[^']*')*>/g, "").trim() !== "";
 }
 /**
  * A line after which pandoc is certainly between blocks, STRICTER than `endsBlock` where that one over-accepts (Session 295, adversarial round 2): an
