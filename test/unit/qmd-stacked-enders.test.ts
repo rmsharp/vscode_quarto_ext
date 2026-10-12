@@ -265,6 +265,36 @@ describe("Session 298 — stacked block enders in the free case", () => {
     claim(probe("markdown", "blank", x, "    ", null, after), "markdown", SWALLOWED, "markdown");
   });
 
+  // SLICE 23. SIX FINDINGS OF THE SECOND INDEPENDENT REVIEW (`scratchpad/s298/review2`, a reader armed with pandoc and the code; each document rendered with quarto). (1) A ONE-LINE LINE BLOCK IS A TABLE
+  // HEADER CANDIDATE WHEREVER IT BEGINS A BLOCK, under a code line, a comment or a link definition as well as under a blank line (`r2_002`, `r2_018`, `r2_019`: the comment and the definition hold a pipe,
+  // which the first cut took for a pipe-table row). (2) AN INDENTED HTML LINE IS NO RAW BLOCK START (pandoc's `htmlBlock` needs the `<` in the first column), so even a bare `   </div>` is a header
+  // row for a `- - -` (`r2_005`). (3) THE TEXT-BETWEEN-TAGS GATE OF `-markdown_in_html_blocks` WAS MEASURED FOR `<div>` AND `<button>` ONLY: `<p>x</p>` still ends the block (`r2_010`). (4) A BLOCK QUOTE
+  // ABSORBS EVERY NON-BLANK LINE BELOW ITS MARKED LINES under pandoc's markdown, so a `</div>` under `> q` begins nothing and the `***` below it follows suit (`r2_023`). (5) A DASH RUN UNDER A DASH RUN IS AN
+  // UNDERLINE of it, which is text (`r2_001`: `-----` / `-----` is a setext heading, so the `- - -` below is a break and the opener is code). (6) A LINE BLOCK ABSORBS AN INDENTED LINE AS ITS CONTINUATION, so
+  // a bar line after `| one` / `    code` is the same block's next line and the pipe table it looks like is not one (`r2_004`).
+  it.each<[string, string[]]>([
+    ["a one-line line block under an indented code line", ["    code", "| one", "- - -"]],
+    ["a one-line line block under a comment holding a pipe", ["<!-- a | b -->", "| one", "- - -"]],
+    ["a one-line line block under a link definition holding a pipe", ["[a]: /u|v", "| one", "- - -"]],
+    ["an indented closing div", ["   </div>", "- - -"]],
+    ["a closing div under a quote line, then a thematic break", ["> q", "</div>", "***"]],
+    ["a pipe table under a line block and its continuation line", ["| one", "    code", "| a | b |", "|---|---|", "| 1 | 2 |"]],
+  ])("RED->GREEN: the opener below %s is swallowed", (_label, x) => {
+    claim(probe("markdown", "blank", x), "markdown", SWALLOWED, "markdown");
+  });
+  it("RED->GREEN: the opener below `<p>x</p>` under `-markdown_in_html_blocks` is indented code (only div and either-class elements are gated)", () => {
+    claim(probe("markdown", "blank", ["<p>x</p>"], "    ", "markdown-markdown_in_html_blocks"), "markdown", LISTED, "markdown-markdown_in_html_blocks");
+  });
+  it("RED->GREEN: the opener below `-----` / `-----` / `- - -` is indented code (the second dash run underlines the first)", () => {
+    expect(texts(probe("markdown", "blank", ["-----", "-----", "- - -"]), "markdown")).toContain("In");
+  });
+  it("RED->GREEN: a `> q` directly under a prose line is paragraph text, so the `</div>` below it still ends the block (only a quote that begins a block absorbs)", () => {
+    claim(probe("markdown", "paragraph", ["> q", "</div>"]), "markdown", LISTED, "markdown, paragraph context");
+  });
+  it("GUARD: the opener below a line block and its continuation line is still indented code (the continuation is absorbed, the next heading is a heading)", () => {
+    claim(probe("markdown", "blank", ["| one", "    code"]), "markdown", LISTED, "markdown");
+  });
+
   // SLICE 22. THE BOUNDARIES ARE LINEAR IN THE DOCUMENT. A late question (`startsAt` for a multi-line comment, an opener, a thematic break far down a long file) fills the memo for every line above it, and each
   // line asked its run start by scanning back up to 1,000 lines: 40,000 indented lines then a comment cost 16 times the scan itself (101 ms to 1,653 ms), 40,000 link definitions 10 times, found by the independent
   // review and re-measured here. The run starts are now memoised per predicate. The bound is a RATIO to the same document without the late question, so a loaded machine does not make it flaky.

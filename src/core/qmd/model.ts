@@ -8853,7 +8853,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
               // The line above ENDS A BLOCK (`endsBlock`), or pandoc is between blocks before this line by the stacked-block answer (`BlockBoundaries`): a boundary line, a thematic
               // break, a link definition or indented code that began fresh, a whole-line comment, a table or a line block (not under `markdown_strict`), a raw HTML element that completes,
               // the closer of a real kernel cell or a fresh comment region or a seven-hash line (the scanner's own report), the closing rule of a simple table.
-              (i === 0 || endsBlock(lines[i - 1]) || boundaries.startsAt(i)))),
+              // The opener is itself the INDENTED line a line block absorbs as its continuation, so the free case asks the line block above unguarded (`nextContinues` off): the heading after it is a heading.
+              (i === 0 || endsBlock(lines[i - 1]) || boundaries.startsAt(i) || (freeCaseTableReader && tableOrLineBlockEndsAt(boundaries, i - 1))))),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -11254,7 +11255,7 @@ class BlockBoundaries {
       endsFreshComment(this, k - 1) ||
       // a table or a line block that ends on the line above (the reader gate is `freeCaseTableReader`: `markdown_strict` has none of the three) — unless a BAR LINE is what sits
       // here: a line starting `| ` or holding a pipe is the next line of that block (a row, a line-block line), not a block that begins fresh (Session 298, rendered `wb_lb_cont__pipe`)
-      (this.readers.tables && !LINE_BLOCK_START.test(this.lines[k]) && !this.lines[k].includes("|") && tableOrLineBlockEndsAt(this, k - 1)) ||
+      (this.readers.tables && !LINE_BLOCK_START.test(this.lines[k]) && !this.lines[k].includes("|") && tableOrLineBlockEndsAt(this, k - 1, LINEBLOCKISH(this.lines[k]))) ||
       endsFreshHtml(this, k - 1)
     );
   }
@@ -11269,14 +11270,35 @@ function endsFreshHtml(b: BlockBoundaries, x: number): boolean {
     b.lines[x].includes("<") &&
     b.readers.html &&
     b.rawDepthBefore[x + 1] === 0 &&
+    // pandoc's block quote absorbs every non-blank line below its marked lines, so a tag under one begins nothing (rendered `review2/r2_023`); a `>` line under a paragraph is text, not a quote (`wide_para`)
+    !(x > 0 && insideQuote(b, x)) &&
     // an element with TEXT between its tags is a raw block only where markdown is parsed inside HTML blocks (rendered, `-markdown_in_html_blocks`)
-    (b.readers.htmlContent || !htmlLineHasText(b.lines[x])) &&
+    (b.readers.htmlContent || !htmlLineHasText(b.lines[x]) || !contentGatedElement(b.lines[x])) &&
     endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !startsAtBoundary(b, x) && !htmlRunBeginsWithTag(b, x), b.readers.rawHtml, b.readers.nativeDivs, (b.divDepthBefore[x] ?? 0) > 0)
   );
 }
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
 function endsFreshComment(b: BlockBoundaries, x: number): boolean {
   return b.readers.rawHtml && COMMENT_FULL_LINE_COL0.test(b.lines[x]) && startsAtBoundary(b, x);
+}
+/** Whether a block quote that BEGINS A BLOCK sits in the non-blank run above line `x`: it absorbs every line of the run below it. */
+function insideQuote(b: BlockBoundaries, x: number): boolean {
+  const isQuote = (l: string): boolean => /^ {0,3}>/.test(l);
+  const last = b.lastIndexOf("quote", isQuote, x - 1);
+  if (last < 0) {
+    return false;
+  }
+  for (let j = b.runStartOf("nonblank", (l) => !BLANK_LINE.test(l), x); j <= last; j++) {
+    if (isQuote(b.lines[j]) && startsAtBoundary(b, j)) {
+      return true;
+    }
+  }
+  return false;
+}
+/** The elements `-markdown_in_html_blocks` stops ending a block when they hold text: `<div>` and the either-class names (measured `<div>x</div>`, `<button>x</button>`; `<p>x</p>` still ends one, rendered `review2/r2_010`). */
+function contentGatedElement(line: string): boolean {
+  const name = /^[ \t]*<\/?([A-Za-z][A-Za-z0-9]*)/.exec(line)?.[1]?.toLowerCase();
+  return name === "div" || (name !== undefined && HTML_EITHER_NAME.test(name));
 }
 /** A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` (a tag-only line such as `</div>` has none). */
 function htmlLineHasText(line: string): boolean {
@@ -11360,19 +11382,23 @@ function isTableHeaderCandidate(b: BlockBoundaries, y: number): boolean {
   const line = lines[y];
   // A run of dashes directly under a line of text is that line's setext UNDERLINE, which starts no block of its own; it is a break (and a header-row candidate) only under a blank line or a boundary.
   // ⚠ An ATX heading line counts as TEXT here: pandoc tries `setextHeader` before `atxHeader`, so `## Before` / `---` is a setext heading whose text is `## Before` (rendered, `wh_hr_dash3__hr_sdash`).
-  if (/^ {0,3}-+[ \t]*$/.test(line) && y > 0 && (/^#{1,6}(?:[ \t]|$)/.test(lines[y - 1]) || !isBoundaryLine(lines[y - 1]))) {
+  // Another single dash or equals run directly above one that begins a block is TEXT to it as well (`-----` / `-----`, rendered `review2/r2_001`).
+  const textAbove = (): boolean => /^#{1,6}(?:[ \t]|$)/.test(lines[y - 1]) || !isBoundaryLine(lines[y - 1]) || (/^ {0,3}(?:-+|=+)[ \t]*$/.test(lines[y - 1]) && (y === 1 || BLANK_LINE.test(lines[y - 2])));
+  if (/^ {0,3}-+[ \t]*$/.test(line) && y > 0 && textAbove()) {
     return false;
   }
   if (THEMATIC_BREAK.test(line) || LINK_REFERENCE_DEFINITION.test(line)) {
     return true;
   }
-  // A ONE-LINE line block (`| one`), whose own parser comes after `table`; two lines are read whole. A bar line under a pipe-bearing line is a ROW of a pipe table, which is consumed whole.
+  // A ONE-LINE line block (`| one`), whose own parser comes after `table`, wherever it BEGINS A BLOCK (under a code line, a comment or a link definition too; rendered `review2/r2_002`, `r2_018`, `r2_019`); two
+  // lines are read whole. A bar line under a pipe table's row is not a block start, so the boundaries answer refuses it.
   if (LINE_BLOCK_START.test(line)) {
-    return y === 0 || (!lines[y - 1].includes("|") && b.runStartOf("lineblockish", LINEBLOCKISH, y) === y);
+    return startsAtBoundary(b, y);
   }
   // A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` is the raw block `<div>` and then the text `x</div>`, which is the header row. A tag-only line (`</div>`) is consumed whole.
+  // An INDENTED HTML line is no raw block start at all (pandoc's `htmlBlock` wants the `<` in the first column), so a bare `   </div>` is a header row too (rendered `review2/r2_005`).
   if (/^[ \t]*<\/?[A-Za-z]/.test(line)) {
-    return htmlLineHasText(line);
+    return htmlLineHasText(line) || /^[ \t]/.test(line);
   }
   if (!indentedCodeLine(line, [0])) {
     return false;
@@ -11427,13 +11453,15 @@ function endsFreshBlock(b: BlockBoundaries, x: number): boolean {
  *   - a GRID table: the run of lines starting `|` or `+` begins with a plain dash border at a boundary and holds two or more borders (a lone border,
  *     a `+====+` top and an indented border are text; `tbl_029`'s spanning border still closes it).
  */
-function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number): boolean {
+function tableOrLineBlockEndsAt(b: BlockBoundaries, x: number, nextContinues = false): boolean {
   const lines = b.lines;
   const line = lines[x];
   if (/\\[ \t]*$/.test(line)) {
     return false;
   }
-  if (LINEBLOCKISH(line)) {
+  // A line block ABSORBS an indented line below it as a continuation line, so what follows it is the same block's, not a fresh one (`nextContinues`: asked by the stacked question; the free case's own
+  // opener is the absorbed line and the heading after it is a heading).
+  if (!nextContinues && LINEBLOCKISH(line)) {
     let k = b.runStartOf("lineblockish", LINEBLOCKISH, x);
     // The block BEGINS at its first `| ` line: an indented line above it (a code line, text) is no part of it (Session 298, rendered `st_code_then_lb`).
     if (b.lastIndexOf("bar", (l) => LINE_BLOCK_START.test(l), x) >= k) {
