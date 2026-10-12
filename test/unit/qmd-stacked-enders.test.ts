@@ -23,7 +23,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
   };
   // The stack sits after a blank line + prose (`blank`), directly under the `## Before` heading (`heading`) or directly under a prose line (`paragraph`).
   type Ctx = "blank" | "heading" | "paragraph";
-  const probe = (eng: Eng, ctx: Ctx, x: string[], open = "    ", from: string | null = null): string =>
+  const probe = (eng: Eng, ctx: Ctx, x: string[], open = "    ", from: string | null = null, after: string[] = []): string =>
     doc(
       ...(from === null ? FRONT[eng] : ["---", 'title: "T"', "engine: markdown", `from: ${from}`, "---", ""]),
       "## Before",
@@ -32,6 +32,7 @@ describe("Session 298 — stacked block enders in the free case", () => {
       `${open}\`\`\`{bash}`,
       "## In",
       "x = 1",
+      ...after,
       `${open}\`\`\``,
       "",
       "## After",
@@ -243,6 +244,36 @@ describe("Session 298 — stacked block enders in the free case", () => {
   });
   it.each(["markdown-native_divs", "markdown-raw_html-native_divs"])("RED->GREEN: the opener below a lone `<div>` under `%s` is swallowed (a raw tag that runs on)", (reader) => {
     claim(probe("markdown", "blank", ["<div>"], "    ", reader), "markdown", SWALLOWED, reader);
+  });
+
+  // SLICE 19. A DASH-COLUMN LINE THAT OPENS A HEADERLESS TABLE, AND THE LIST COLUMN IT USED TO OPEN. A `- - -` whose next line is not blank and which has another dash-only line anywhere below it is
+  // the top rule of a HEADERLESS simple table, whose rows run to that second rule: the opener directly under it is a row (swallowed). With a blank line next, or no rule below, it is a break (slices 1-2).
+  // The first cut of slices 1-2 made the dash line "begin at a boundary" and so stopped the bullet-spelled-break narrowing from opening the list column that had swallowed these rows by accident
+  // (the parent was right for the wrong reason): found by the round-2 adversarial lens, `dev2/adv/advr_013_sevenhash_then_dashcolumn_footer` and `advr_019_deep_poison_linkdef_dash_rows` (both
+  // swallowed by quarto). Under a header candidate the same `- - -` is a header-row table (slice 2) and gets the same treatment.
+  it("RED->GREEN: an indent-4 `{bash}` opener below `#######` / `- - -` with a second `- - -` below it is swallowed (a headerless table)", () => {
+    claim(probe("markdown", "blank", ["#######", "- - -"], "    ", null, ["- - -"]), "markdown", SWALLOWED, "markdown");
+  });
+  it("RED->GREEN: the rows of a table opened by `- - -` under a link definition are swallowed, a raw HTML line among them included", () => {
+    claim(probe("markdown", "blank", ["[a]: /u", "- - -", "    code", "<div>x</div>"]), "markdown", SWALLOWED, "markdown");
+  });
+  it.each<[string, string[], string[]]>([
+    ["a lone dash-column line", ["- - -"], ["- - -"]],
+    ["a dash-column line with a plain rule below", ["- - -"], ["-----"]],
+    ["a dash-column line after a comment", ["<!-- c -->", "- - -"], ["- - -"]],
+  ])("RED->GREEN: the opener below %s with a second rule below it is swallowed (a headerless table)", (_label, x, after) => {
+    claim(probe("markdown", "blank", x, "    ", null, after), "markdown", SWALLOWED, "markdown");
+  });
+
+  // SLICE 20. A SIMPLE TABLE NEEDS A ROW, AND ITS CLOSING RULE ENDS IT. (1) A dash-column line whose next line is another dash-only line has no row between them: `- - -` / `-----` is a setext
+  // heading whose text is `- - -`, not a table, and the opener below is indented code (rendered, `dev/stack3/dst3_032_five_thematic_spellings`: `Before`, `- - -`, `In`, `After`). (2) The rule
+  // that closes a headerless table ends it, so the opener below the closing rule is indented code, whatever kind of rule it is (rendered, `dev/tables/dtbl_018_simple_headerless_dash_frame`).
+  // Both were right under the first cut by luck; the headerless rule (slice 19) lost them, and neither counted as a regression because the parent was wrong on both.
+  it("RED->GREEN: an indent-4 `{bash}` opener below `- - -` / `-----` (a setext heading, no row between) is indented code", () => {
+    claim(probe("markdown", "blank", ["***", "___", "* * *", "- - -", "-----"]), "markdown", ["Before", "- - -", "In", "After"], "markdown");
+  });
+  it("RED->GREEN: an indent-4 `{bash}` opener below the closing rule of a headerless simple table is indented code", () => {
+    claim(probe("jupyter", "blank", ["-------     ------ ----------", "     12     12        12", "     13     13        13", "-------     ------ ----------"]), "jupyter", LISTED, "jupyter");
   });
 
   // SLICE 18. AN ATX LINE IS TEXT TO A DASH RUN BELOW IT. Pandoc tries `setextHeader` before `atxHeader`, so `## Before` / `---` is a setext heading whose text is `## Before` (the model already reports

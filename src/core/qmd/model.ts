@@ -8649,7 +8649,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
         // the line is paragraph text and keeps the over-accepting column (the safe direction, above), and inside any container or quote
         // nothing is claimed.
         const opened =
-          contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && startsAtBoundary(boundaries, i)
+          contentColumns.length === 0 && !stripQuote && BULLET_THEMATIC_BREAK.test(line) && !dashLineHasHeaderAbove(boundaries, i) && startsAtBoundary(boundaries, i)
             ? null
             : listItemContentColumn(line, commonmarkDialect);
         if (opened !== null) {
@@ -8850,17 +8850,10 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
             (!stripQuote &&
               (firstExampleMarker < 0 || firstExampleMarker >= i) &&
               contentColumns.length === 0 &&
-              (i === 0 ||
-                endsBlock(lines[i - 1]) ||
-                endsFreshBlock(boundaries, i - 1) ||
-                boundaries.ends.has(i - 1) ||
-                // a whole-line comment at column 0: the same under every reader measured (`scratchpad/s295/rdr`)
-                endsFreshComment(boundaries, i - 1) ||
-                // tables and line blocks: measured under pandoc's markdown and the CommonMark family, and NOT `markdown_strict` (see `freeCaseTableReader`)
-                (freeCaseTableReader && tableOrLineBlockEndsAt(boundaries, i - 1)) ||
-                // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`); pandoc's markdown only:
-                // `markdown_strict` ends one only after a blank line (the CommonMark family never reaches this: it is free wherever the opener sits)
-                endsFreshHtml(boundaries, i - 1)))),
+              // The line above ENDS A BLOCK (`endsBlock`), or pandoc is between blocks before this line by the stacked-block answer (`BlockBoundaries`): a boundary line, a thematic
+              // break, a link definition or indented code that began fresh, a whole-line comment, a table or a line block (not under `markdown_strict`), a raw HTML element that completes,
+              // the closer of a real kernel cell or a fresh comment region or a seven-hash line (the scanner's own report), the closing rule of a simple table.
+              (i === 0 || endsBlock(lines[i - 1]) || boundaries.startsAt(i)))),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -11222,6 +11215,7 @@ class BlockBoundaries {
       isBoundaryLine(this.lines[k - 1]) ||
       this.ends.has(k - 1) ||
       endsFreshBlock(this, k - 1) ||
+      closesSimpleTable(this, k - 1) ||
       endsFreshComment(this, k - 1) ||
       // a table or a line block that ends on the line above (the reader gate is `freeCaseTableReader`: `markdown_strict` has none of the three) — unless a BAR LINE is what sits
       // here: a line starting `| ` or holding a pipe is the next line of that block (a row, a line-block line), not a block that begins fresh (Session 298, rendered `wb_lb_cont__pipe`)
@@ -11269,6 +11263,55 @@ function isBoundaryLine(line: string): boolean {
 }
 /** A run of dashes separated by blanks, at least two runs (`- - -`, `-  -  -`): the column line of a simple table, and a bullet-spelled thematic break to pandoc's `hrule`. */
 const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$/;
+/** A line made only of dashes and blanks: a simple table's rule, a setext underline or a thematic break. */
+const DASH_ONLY_LINE = /^ {0,3}-+(?:[ \t]+-+)*[ \t]*$/;
+/** A table needs a ROW: the line after the dash line at `x` is neither blank nor another rule (`- - -` over `-----` is a setext heading, rendered `dev/stack3/dst3_032`). */
+function hasRowBelow(lines: readonly string[], x: number): boolean {
+  return x + 1 < lines.length && !BLANK_LINE.test(lines[x + 1]) && !DASH_ONLY_LINE.test(lines[x + 1]);
+}
+/**
+ * Whether the dash-only line at `x` is the CLOSING rule of a simple table opened by a dash-column line above it (Session 298): the nearest dash-only line above is a table's rule with a row below
+ * it. A table ends at its closing rule, so the line below begins a fresh block whatever kind of rule it is (rendered `dev/tables/dtbl_018_simple_headerless_dash_frame`).
+ */
+function closesSimpleTable(b: BlockBoundaries, x: number): boolean {
+  const lines = b.lines;
+  if (!b.readers.simpleTables || !DASH_ONLY_LINE.test(lines[x])) {
+    return false;
+  }
+  for (let u = x - 1; u >= 0 && x - u <= 1000; u--) {
+    if (DASH_ONLY_LINE.test(lines[u])) {
+      return u + 2 <= x && DASH_COLUMN_LINE.test(lines[u]) && hasRowBelow(lines, u);
+    }
+  }
+  return false;
+}
+/** Whether the dash-column line at `x` is the rule under a HEADER ROW: a one-line block `table` is tried on first sits directly above it (Session 298, rendered `stk`, `wide_blank`). */
+function dashLineHasHeaderAbove(b: BlockBoundaries, x: number): boolean {
+  return b.readers.simpleTables && DASH_COLUMN_LINE.test(b.lines[x]) && x > 0 && isTableHeaderCandidate(b.lines, x - 1) && hasRowBelow(b.lines, x);
+}
+/**
+ * Whether the dash-column line at `x` is a SIMPLE TABLE's rule and not a thematic break (Session 298): the dash line under a header row (a one-line block `table` is tried on first), or the TOP
+ * rule of a HEADERLESS table: its next line is not blank and another dash-only line lies below it, which closes the table. The rows in between are the table's, the indent-4 opener among them.
+ * With a blank line next, or no rule below, it is a break. Rendered (`dev2/adv/advr_013`, `advr_019`) and surveyed with pandoc (`scratchpad/s298/hl`); the footer search is capped at 1,000 lines.
+ */
+function dashLineStartsTable(b: BlockBoundaries, x: number): boolean {
+  const lines = b.lines;
+  if (dashLineHasHeaderAbove(b, x)) {
+    return true;
+  }
+  if (!b.readers.simpleTables || !DASH_COLUMN_LINE.test(lines[x])) {
+    return false;
+  }
+  if (!hasRowBelow(lines, x)) {
+    return false;
+  }
+  for (let j = x + 2; j < lines.length && j - x <= 1000; j++) {
+    if (DASH_ONLY_LINE.test(lines[j])) {
+      return true;
+    }
+  }
+  return false;
+}
 /**
  * Whether the line at `y` is a ONE-LINE block that pandoc's `table` parser is tried on BEFORE the block's own parser (Session 298): a thematic break, a link definition, and the FIRST line of an
  * indented code block. `table` is tried only where a block STARTS, so a code block of two or more lines (a blank line between its lines included) is read whole and the line below it is a fresh
@@ -11327,7 +11370,7 @@ function endsFreshBlock(b: BlockBoundaries, x: number): boolean {
   if (THEMATIC_BREAK.test(line)) {
     // ⚠ A DASH-COLUMN LINE DIRECTLY UNDER A ONE-LINE BLOCK IS A SIMPLE TABLE'S DASH LINE, NOT A BREAK (Session 298): pandoc tries `table` before `hrule`, a link definition and an
     // indented code block, so such a line above it is the header row and the table swallows everything below it up to a blank line (rendered, `scratchpad/s295/stk`).
-    if (b.readers.simpleTables && DASH_COLUMN_LINE.test(line) && x > 0 && isTableHeaderCandidate(lines, x - 1)) {
+    if (dashLineStartsTable(b, x)) {
       return false;
     }
     return startsAtBoundary(b, x);
