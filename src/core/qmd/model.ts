@@ -7771,8 +7771,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   const htmlContentReader = fromValueLine === null || fromExtensionState(fromValueLine, "markdown_in_html_blocks") !== false;
   const boundaries = new BlockBoundaries(lines, {
     tables: freeCaseTableReader,
-    html: !commonmarkDialect && rawHtmlReader,
-    comments: rawHtmlReader,
+    html: !commonmarkDialect,
+    rawHtml: rawHtmlReader,
+    nativeDivs: fromValueLine === null || fromExtensionState(fromValueLine, "native_divs") !== false,
     htmlContent: htmlContentReader,
     pandocMarkdown: measuredRefusalReader,
     simpleTables: simpleTablesReader,
@@ -11172,8 +11173,10 @@ interface BoundaryReaders {
   readonly tables: boolean;
   /** A raw HTML element that completes on its line ends the block: pandoc's rule and not CommonMark's (an HTML block there runs to the next blank line), and only with raw HTML on. */
   readonly html: boolean;
-  /** A whole-line comment ends the block: raw HTML must be on (`-raw_html` makes it paragraph text). */
-  readonly comments: boolean;
+  /** Raw HTML is on: a whole-line comment and a raw element end a block (`-raw_html` makes them paragraph text). */
+  readonly rawHtml: boolean;
+  /** `native_divs` is on: a lone opening `<div>` is a native div, which ends the block even with `-raw_html`, and a raw tag that runs on without it. */
+  readonly nativeDivs: boolean;
   /** An element with text between its tags ends the block: `markdown_in_html_blocks` must not be off. */
   readonly htmlContent: boolean;
   /** The reader is pandoc's own markdown (outside it only a run that BEGINS with a tag counts for HTML). */
@@ -11222,12 +11225,12 @@ function endsFreshHtml(b: BlockBoundaries, x: number): boolean {
     b.rawDepthBefore[x + 1] === 0 &&
     // an element with TEXT between its tags is a raw block only where markdown is parsed inside HTML blocks (rendered, `-markdown_in_html_blocks`)
     (b.readers.htmlContent || !htmlLineHasText(b.lines[x])) &&
-    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !htmlRunBeginsWithTag(b.lines, x))
+    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.readers.pandocMarkdown && !htmlRunBeginsWithTag(b.lines, x), b.readers.rawHtml, b.readers.nativeDivs)
   );
 }
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
 function endsFreshComment(b: BlockBoundaries, x: number): boolean {
-  return b.readers.comments && COMMENT_FULL_LINE_COL0.test(b.lines[x]) && startsAtBoundary(b, x);
+  return b.readers.rawHtml && COMMENT_FULL_LINE_COL0.test(b.lines[x]) && startsAtBoundary(b, x);
 }
 /** A raw HTML line that leaves TEXT behind its tag: `<div>x</div>` (a tag-only line such as `</div>` has none). */
 function htmlLineHasText(line: string): boolean {
@@ -11404,7 +11407,7 @@ const FREE_CASE_TABLE_READER_BASES: ReadonlySet<string> = new Set(["markdown", "
  * ⚠ The caller refuses this inside an open RAW-CONTENT element (`rawContentDepth`). It is never asked under a CommonMark-family reader (Session 296: the free case
  * holds there wherever the opener sits). `againstParagraph` is the refusal outside pandoc's markdown: the rule holds there only for a block whose run begins with a tag.
  */
-function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: boolean): boolean {
+function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: boolean, rawHtml = true, nativeDivs = true): boolean {
   if (againstParagraph) {
     return false; // outside pandoc's markdown a raw HTML block ends only after a blank line, so one that began against a paragraph does not end anything
   }
@@ -11420,11 +11423,11 @@ function endsHtmlBlock(line: string, beganFresh: boolean, againstParagraph: bool
   if (first.name === null) {
     return false;
   }
-  if (first.name.toLowerCase() === "div" && line.slice(first.next).trim() === "") {
-    return true; // a lone opening `<div ...>`: pandoc reads an unclosed div as markdown content
+  if (first.name.toLowerCase() === "div" && line.slice(first.next).trim() === "" && line[lt + 1] !== "/") {
+    return nativeDivs; // a lone opening `<div ...>`: pandoc reads an unclosed div as markdown content (a NATIVE div: it needs `native_divs`, and not raw HTML; rendered, `rdr2_298`)
   }
   const m = HTML_ELEMENT_COMPLETES.exec(line);
-  if (m === null) {
+  if (m === null || !rawHtml) {
     return false;
   }
   return beganFresh || ![m[1], m[2], m[3]].some((name) => name !== undefined && HTML_EITHER_NAME.test(name));
