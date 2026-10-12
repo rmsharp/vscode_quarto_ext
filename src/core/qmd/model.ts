@@ -8074,6 +8074,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
     boundaries.rawDepthBefore[i] = rawContentDepth;
     boundaries.divDepthBefore[i] = nativeDivDepth;
     boundaries.fdivOpenBefore[i] = liveDiv() !== null;
+    boundaries.containerBefore[i] = contentColumns.length > 0;
     // ⚠ **THE BLOCK-QUOTE STRIP (Session 225).** Quarto strips a quote's markers and re-parses
     // what is left, so everything below this point classifies the quote's CONTENT rather than
     // the marker line. See `BLOCK_QUOTE_PREFIX` for the marker grammar and for why the strip
@@ -11197,6 +11198,8 @@ class BlockBoundaries {
   readonly rawLines: ReadonlySet<number>;
   /** `fdivOpenBefore[i]`: whether a fenced div is open above line `i`, as the scanner tracked it (a bare `:::` closes one; with none open it is text). */
   readonly fdivOpenBefore: boolean[] = [];
+  /** `containerBefore[i]`: whether a list item, a definition or a block quote is open after the lines above `i` (so what stacks there is not a top-level block: rendered `review3/contexts/r3_008`, `r3_009`). */
+  readonly containerBefore: boolean[] = [];
   /** `rawDepthBefore[i]`: how many raw-content elements (`<pre>`, `<script>`, `<style>`, `<textarea>`) are open above line `i`, as the scanner counted them. */
   readonly rawDepthBefore: number[] = [];
   /** `divDepthBefore[i]`: how many native `<div>` openers are still open above line `i`, as the scanner counted them. */
@@ -11253,6 +11256,10 @@ class BlockBoundaries {
     }
     // Inside a closed `<pre>`, `<script>`, `<style>` or `<textarea>` everything is raw text, so no self-ending construct ends a block there (rendered, `review1/r1_001`).
     if (this.rawLines.has(k - 1)) {
+      return false;
+    }
+    // Inside an open list item, definition or quote what stacks is not a top-level block, so it makes the next line fresh for nobody (the free case asks `contentColumns` for the opener itself).
+    if (this.containerBefore[k]) {
       return false;
     }
     return (
@@ -11379,6 +11386,14 @@ const LINEBLOCKISH = (l: string): boolean => LINE_BLOCK_START.test(l) || /^[ \t]
 const DASH_COLUMN_LINE = /^ {0,3}-+(?:[ \t]+-+)+[ \t]*$/;
 /** A line made only of dashes and blanks: a simple table's rule, a setext underline or a thematic break. */
 const DASH_ONLY_LINE = /^ {0,3}-+(?:[ \t]+-+)*[ \t]*$/;
+/**
+ * Whether the simple table whose dash-column rule is at `u` BEGINS A BLOCK (Session 298, rendered `review3/contexts/r3_001`-`r3_004`): its header line above the rule, a plain text line that is not a heading or
+ * a fence line, begins one; or, with no header, the rule itself does. Under a paragraph line, a quote line, a raw TeX environment or a line block the same four lines are no table, so their rules close nothing.
+ */
+function simpleTableBeginsBlock(b: BlockBoundaries, u: number): boolean {
+  const above = u > 0 ? b.lines[u - 1] : "";
+  return (u > 0 && !BLANK_LINE.test(above) && !isBoundaryLine(above) && startsAtBoundary(b, u - 1)) || startsAtBoundary(b, u);
+}
 /** A table needs a ROW: the line after the dash line at `x` is neither blank nor another rule (`- - -` over `-----` is a setext heading, rendered `dev/stack3/dst3_032`). */
 function hasRowBelow(lines: readonly string[], x: number): boolean {
   return x + 1 < lines.length && !BLANK_LINE.test(lines[x + 1]) && !DASH_ONLY_LINE.test(lines[x + 1]);
@@ -11394,7 +11409,7 @@ function closesSimpleTable(b: BlockBoundaries, x: number): boolean {
   }
   for (let u = x - 1; u >= 0 && x - u <= 1000; u--) {
     if (DASH_ONLY_LINE.test(lines[u])) {
-      return u + 2 <= x && DASH_COLUMN_LINE.test(lines[u]) && hasRowBelow(lines, u);
+      return u + 2 <= x && DASH_COLUMN_LINE.test(lines[u]) && hasRowBelow(lines, u) && simpleTableBeginsBlock(b, u);
     }
   }
   return false;

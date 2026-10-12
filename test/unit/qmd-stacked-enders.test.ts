@@ -294,6 +294,35 @@ describe("Session 298 — stacked block enders in the free case", () => {
   it("RED->GREEN: a `>` inside a quoted attribute does not make an empty element look like it holds text (`<div title=\"a>b\"></div>` is no header row)", () => {
     claim(probe("markdown", "blank", ['<div title="a>b"></div>', "- - -"]), "markdown", LISTED, "markdown");
   });
+  // SLICE 27. THE CONTEXTS HUNTER OF ROUND 3 (`scratchpad/s298/review3/contexts`: 124,714 generated documents, 31 kept, 8 regressions, each rendered): the stack sits UNDER something. A simple table under a
+  // paragraph line, a quote line, a raw TeX environment or a line block is not a table at all (its header does not begin a block), so its closing rule closes nothing; and a code line or a tag inside an open
+  // list item or definition is not a top-level block, so what follows it is not fresh. All swallowed by quarto (`r3_001`-`r3_004`, `r3_008`, `r3_009`).
+  it.each<[string, string[]]>([
+    ["a simple-table lookalike under a paragraph line", ["Para above.", "  a   b", "  --- ---", "  1   2", "  --- ---", "<!-- c -->"]],
+    ["a simple-table lookalike under a quote line", ["> q", "  a   b", "  --- ---", "  1   2", "  --- ---", "<!--", "-->"]],
+    ["a simple-table lookalike under a raw TeX environment", ["\\begin{equation}", "\\end{equation}", "  --- ---", "  1   2", "  --- ---"]],
+    ["a simple-table lookalike under a line block", ["| one", "  a   b", "  --- ---", "  1   2", "  --- ---", "| a | b |", "|---|---|"]],
+    ["a code line inside a list item, then a bullet-spelled break", ["- a", "", "      code", "* * *"]],
+  ])("RED->GREEN: directly under the heading, the opener below %s is swallowed", (_label, x) => {
+    claim(probe("markdown", "heading", x), "markdown", SWALLOWED, "markdown, heading context");
+  });
+
+  // RESIDUAL, kept on purpose (PHANTOM; rendered `review3/contexts/r3_009`, quarto swallows the opener): `: def` / blank / `</div>` / `- - -`. The definition's column is popped by the unindented tag, so the
+  // textual answer sees a fresh top-level stack where pandoc keeps the tag and the rule inside the definition. The parent was right by accident (stacking refused). Filed with the container-pop rows.
+  it("RESIDUAL, kept on purpose: the opener below a closing tag and a dash-column line that follow a definition is listed here (quarto swallows it)", () => {
+    expect(texts(probe("markdown", "heading", [": def", "", "</div>", "- - -"]), "markdown")).toEqual(["Before", "In", "After"]); // quarto: Before, After
+  });
+
+  // RESIDUAL, kept on purpose (PHANTOM; rendered `review3/contexts/r3_018`, `r3_019`, quarto swallows the opener): an UNCLOSED backtick fence line directly under the heading, then a tag or a rule, then more.
+  // Pandoc reads the lone ``` as the start of an inline code span that runs to the next ``` (the opener's own closer line) and swallows the whole stack; `isBoundaryLine` counts a bare fence line as a
+  // boundary whether or not a fence is open. The parent was right by accident (stacking refused). Filed with the orphan-fence rows.
+  it.each<[string, string[]]>([
+    ["a closing tag and a thematic break", ["```", "</div>", "***"]],
+    ["a simple table's rule and a comment", ["```", "  --- ---", "<!-- c -->"]],
+  ])("RESIDUAL, kept on purpose: under an unclosed fence line, %s are taken for enders here (quarto swallows the opener)", (_label, x) => {
+    expect(texts(probe("markdown", "heading", x), "markdown")).toEqual(["Before", "In", "After"]); // quarto: Before, After
+  });
+
   // SLICE 26. THE HTML HUNTER OF ROUND 3 (`scratchpad/s298/review3/html`: a differential fuzz of 232,032 generated documents against the parent and pandoc kept 40; 34 were regressions, each rendered).
   // Stacking THROUGH a raw HTML line is the leakiest rule of the change: a block-class tag needs no freshness to end a block directly above the opener (it interrupts a paragraph), but a line made fresh BY
   // such a tag inherits none of that, and pandoc's HTML contexts (an open `<li>`, an indented tag, a list item, a quote, a run that runs to the blank line under a reader outside pandoc's markdown)
