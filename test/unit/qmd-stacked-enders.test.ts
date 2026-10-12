@@ -122,6 +122,31 @@ describe("Session 298 — stacked block enders in the free case", () => {
     }
   });
 
+  // SLICE 8. A RAW HTML BLOCK ELEMENT UNDER WHICH ANOTHER BLOCK IS STACKED. A raw block element that completes on its line (a closing tag, a one-line element, a lone `<div>`, a
+  // `<details>` and its summary, an either-class `<button>` that began fresh) leaves pandoc between blocks (Session 295), so the next line begins a fresh block. Rendered
+  // (`scratchpad/s298/wide_blank`, `wb_{div_c,div_1,div_o,details,btn}__<B>`, engine markdown): listed.
+  const HTML_FIRST: [string, string[]][] = [
+    ["a closing div", ["</div>"]],
+    ["a one-line div", ["<div>x</div>"]],
+    ["a lone opening div", ["<div>"]],
+    ["a details element with its summary", ["<details>", "<summary>s</summary>"]],
+    ["a one-line button", ["<button>x</button>"]],
+  ];
+  const HTML_BELOW: [string, string[]][] = [
+    ["a thematic break", ["***"]],
+    ["a link definition", ["[a]: /url"]],
+    ["an indented code line", ["    code"]],
+    ["a comment", ["<!-- c -->"]],
+    ["a pipe table", ["| a | b |", "|---|---|", "| 1 | 2 |"]],
+    ["a seven-hash line", ["####### Seven"]],
+  ];
+  it.each(HTML_FIRST.flatMap(([h, hx]) => HTML_BELOW.map(([b, bx]): [string, string[]] => [`${b} stacked under ${h}`, [...hx, ...bx]])))(
+    "RED->GREEN: an indent-4 `{bash}` opener below %s is indented code",
+    (_label, x) => {
+      expect(texts(probe("markdown", "blank", x), "markdown")).toEqual(LISTED);
+    },
+  );
+
   // SLICE 6. THE STACK IS EVALUATED WITHOUT RECURSING THROUGH ITS DEPTH. "Is pandoc between blocks above this line" asks the same question of the line above it, so a stack of N enders was
   // N frames deep: a document with 15,000 thematic breaks and link definitions stacked directly (a generated reference list, an auto-built separator ladder) overflowed the JavaScript stack
   // inside `findHeadings`. The answer is computed once per line, bottom-up, and memoised per document and reader.

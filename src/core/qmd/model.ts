@@ -7760,7 +7760,9 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
   // Where pandoc is between blocks, asked of any line above the current one and answered once (Session 298). The scanner reports into it the lines whose end only IT can tell: a REAL
   // KERNEL CELL's closer (a jupyter cell in the document's kernel language that closed at its own indent, `OpenCellFence.indent`: quarto cuts such a cell out of the markdown it hands
   // pandoc, so the line below it starts fresh whatever was above the cell, Session 295), the closer of a comment region that opened fresh, and a line of seven or more hashes.
-  const boundaries = new BlockBoundaries(lines, freeCaseTableReader);
+  // The raw HTML rule is pandoc's alone (a CommonMark HTML block runs to the next blank line, so no closing tag ends one there), and a reader outside pandoc's own markdown asks it of a run that
+  // begins with a tag (`endsHtmlBlock`'s `againstParagraph`).
+  const boundaries = new BlockBoundaries(lines, freeCaseTableReader, !commonmarkDialect, measuredRefusalReader);
   // Whether the resolved reader honours a trailing heading ATTRIBUTE block — see
   // `fromHonoursHeaderAttributes` (Session 216). A SEVENTH flag rather than a refinement of any
   // of the six around it, for the reason each of those gives: it answers its own question, about
@@ -8050,6 +8052,8 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
 
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
+    // How many raw-content elements are open ABOVE this line, kept per line so the stacked-block question can ask it of any line above (Session 298).
+    boundaries.rawDepthBefore[i] = rawContentDepth;
     // ⚠ **THE BLOCK-QUOTE STRIP (Session 225).** Quarto strips a quote's markers and re-parses
     // what is left, so everything below this point classifies the quote's CONTENT rather than
     // the marker line. See `BLOCK_QUOTE_PREFIX` for the marker grammar and for why the strip
@@ -8837,14 +8841,7 @@ function computeRegions(text: string, engine: EngineHint = undefined): Regions {
                 (freeCaseTableReader && tableOrLineBlockEndsAt(boundaries, i - 1)) ||
                 // a raw HTML block element completes on the line above, outside any open raw-content element (see `endsHtmlBlock`); pandoc's markdown only:
                 // `markdown_strict` ends one only after a blank line (the CommonMark family never reaches this: it is free wherever the opener sits)
-                (rawContentDepth === 0 &&
-                  endsHtmlBlock(
-                    lines[i - 1],
-                    startsAtBoundary(boundaries, i - 1),
-                    // OUTSIDE pandoc's markdown (`markdown_strict`, `markdown_github`, `markdown_mmd`, `markdown_phpextra`, the CommonMark family) the raw block is the
-                    // whole run of non-blank lines and must BEGIN with a tag: a prose line that starts the run makes the tag lazy paragraph text there
-                    !measuredRefusalReader && !htmlRunBeginsWithTag(lines, i - 1),
-                  ))))),
+                endsFreshHtml(boundaries, i - 1)))),
       );
     // ⚠ **A KERNEL OPENER QUARTO NEVER CLOSES IS DROPPED, NOT TEXT (Session 293).** See `closesOnOwnIndent`
     // and the use below; `null` for every other line, so no other path moves.
@@ -11158,10 +11155,18 @@ function startsAtBoundary(b: BlockBoundaries, k: number): boolean {
 class BlockBoundaries {
   /** Lines the SCANNER found to end their own block, having begun it fresh: a real kernel cell's closer, a fresh comment region's closer, a seven-hash line. */
   readonly ends = new Set<number>();
+  /** `rawDepthBefore[i]`: how many raw-content elements (`<pre>`, `<script>`, `<style>`, `<textarea>`) are open above line `i`, as the scanner counted them. */
+  readonly rawDepthBefore: number[] = [];
   private readonly known: boolean[] = [true];
+  /**
+   * `tables` is the reader gate for tables and line blocks (`freeCaseTableReader`), `html` says whether a raw HTML element that completes on its line ends the block (pandoc's rule, not
+   * CommonMark's), and `pandocMarkdown` whether the reader is pandoc's own markdown (outside it only a run that BEGINS with a tag counts).
+   */
   constructor(
     readonly lines: readonly string[],
     readonly tables: boolean,
+    readonly html: boolean,
+    readonly pandocMarkdown: boolean,
   ) {}
   /** Whether the line at `k` BEGINS AT A BLOCK BOUNDARY: pandoc is between blocks before it. `k` is at most the line the scanner is on. */
   startsAt(k: number): boolean {
@@ -11177,9 +11182,22 @@ class BlockBoundaries {
       endsFreshBlock(this, k - 1) ||
       endsFreshComment(this, k - 1) ||
       // a table or a line block that ends on the line above (the reader gate is `freeCaseTableReader`: `markdown_strict` has none of the three)
-      (this.tables && tableOrLineBlockEndsAt(this, k - 1))
+      (this.tables && tableOrLineBlockEndsAt(this, k - 1)) ||
+      endsFreshHtml(this, k - 1)
     );
   }
+}
+/**
+ * Whether the line at `x` COMPLETES a raw HTML block element outside any open raw-content element, so pandoc is between blocks after it (Session 295; stackable, Session 298). OUTSIDE pandoc's
+ * markdown (`markdown_strict`, `markdown_github`, `markdown_mmd`, `markdown_phpextra`) the raw block is the whole run of non-blank lines and must BEGIN with a tag: a prose line that starts
+ * the run makes the tag lazy paragraph text there. The CommonMark family never asks (an HTML block there runs to the next blank line).
+ */
+function endsFreshHtml(b: BlockBoundaries, x: number): boolean {
+  return (
+    b.html &&
+    b.rawDepthBefore[x + 1] === 0 &&
+    endsHtmlBlock(b.lines[x], startsAtBoundary(b, x), !b.pandocMarkdown && !htmlRunBeginsWithTag(b.lines, x))
+  );
 }
 /** Whether the line at `x` is a whole-line HTML comment at column 0 that began at a block boundary, so pandoc is between blocks after it (Session 295; stackable, Session 298). */
 function endsFreshComment(b: BlockBoundaries, x: number): boolean {
